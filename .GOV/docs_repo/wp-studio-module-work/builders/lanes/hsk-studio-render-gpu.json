@@ -1,144 +1,1113 @@
 {
-  "crate": "hsk-studio-render-gpu",
-  "lane": "MT-35546",
-  "status": "READY_FOR_VALIDATION",
-  "phase": "R3 remediation pushed (b7d90dc): leaf-root class Fitted, typed pipeline failure (never a skip), loss detected by the wgpu callback (no manual latch), checked residency arithmetic; slice 2 (0551b8d) and slice 1 contract otherwise unchanged",
-  "commits": [
-    {
-      "sha": "a813cf3",
-      "subject": "headless wgpu 27.0.1 GpuBackend (RenderBackend port), device generation/loss, byte-accounted residency, WGSL solid/tile composite"
-    },
-    {
-      "sha": "989d91d",
-      "subject": "five focused tests, consumer example, rustfmt"
-    },
-    {
-      "sha": "7e7579f",
-      "subject": "Auto backend = one platform-preferred backend per instance; real device-loss + reacquire proof; test backend selector"
-    },
-    {
-      "sha": "0551b8d",
-      "subject": "slice 2: all Exact separable blend modes (WGSL generated from pigment facts), coverage masks u8/u16, isolated and pass-through groups, clip-to-base runs; parity vs blend_math"
-    },
-    {
-      "sha": "b7d90dc",
-      "subject": "R3 test-integrity remediation: leaf root normal: fitted; GpuError::Pipeline + Failed state + strict GPU-proof gate; destroy-only loss injection detected by the wgpu lost callback; checked residency arithmetic; one regression test per finding"
-    }
-  ],
-  "capabilities_done": [
-    "slice 1: GpuContext/GpuBackend (Ready|Lost|Unavailable), headless acquire, generation counter, device-loss latch, explicit reacquire, byte-accounted Residency (LRU+pins+budget), chunked read-back to TileSink, admit() first, report(), DESCRIPTOR, render-gpu-consumer",
-    "blend modes: WGSL switch + functions GENERATED from pigment MODES facts (gpu_blend_qualifies = layer-applicable, Exact, separable family or Normal); kernel.rs holds only the per-mode formula bodies; a qualifying mode without a body is unsupported and the drift check in tests fails. 12 modes: normal darken multiply colour_burn lighten screen colour_dodge overlay soft_light hard_light difference exclusion",
-    "layer coverage masks coverage_u8 / coverage_u16le (+ inverted), host-side conversion identical to render-cpu, opacity * fill_opacity; density != 1 and mask on pass-through refused",
-    "isolated groups (one chunk buffer per nesting level, composited with the layer mode/opacity/mask) and pass-through groups (onto the running backdrop); non-isolated blended groups and pass-through opacity/fill < 1 refused at admission/prepare",
-    "clip-to-base (MaskFormat::BaseAlpha): supports_clip_to_base() = true; run [base, clipped...] evaluated as isolated unit G per pigment doc (G = base content with base mask; clipped layers composite with source alpha * base alpha, G alpha held; G composited with BASE mode/opacity/fill); operator class Approximate; isolated-group members supported; pass-through base refused",
-    "shader fix: no-backdrop texels take the source colour directly (not (a_s*cs)/a_s) because GPU division can be 1 ulp low, which flipped colour_burn at exact 0/1"
-  ],
-  "tests": {
-    "argv": "cargo test -p hsk-studio-render-gpu --tests --no-fail-fast -- --nocapture (HSK_STUDIO_TEST_GPU_BACKEND=auto|vulkan|none)",
-    "exit": 0,
-    "sha": "b7d90dc",
-    "passed": 10,
-    "failed": 0
+ "crate": "hsk-studio-render-gpu",
+ "lane": "MT-35546",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slice 5 (a6ac630): Blend-If agreement check against pigment evaluate_stack (adjustment layer + plain layer agree, clip-base ranges refused as blend_if_clip_base because pigment does not define them), layer effects waves 1+2 (drop shadow, colour overlay, stroke, inner shadow, outer glow, inner glow) as WGSL matte passes with frame margins, reported operator classes never above pigment's. Earlier: R5 no-adapter fix (479e1c7) + slice 4 plan-extension envelope on the GPU (c5bd9be: mask density/invert/feather, Blend-If, adjustment layers) + V4-01/04/07 compliance; docs-only follow-up b58305f; slice 3 (159cf9c, 167dc28) and R3 remediation (b7d90dc) unchanged. Effects (pigment e007703) stay typed Unsupported",
+ "commits": [
+  {
+   "sha": "cdd0644",
+   "subject": "render-gpu (SMB-FX-OPS-ADOPT): declare EffectsNested supported and AlphaPremultiplied Unsupported; defence-in-depth refusals and the leaf-root class follow pigment's admission"
   },
-  "blockers": [],
-  "lock_wait_s": 0,
-  "bg_pids": [],
-  "next": "slice 3 candidates (not started): non-separable modes hue/saturation/colour/luminosity (Exact in pigment) and the Approximate separable modes, each with a FORMULAS body + parity case; vector coverage; content-addressed tile cache (ResidentKey::Tile); Metal/other-vendor qualification",
-  "updated_at": "2026-10-11T03:18:28Z",
-  "notes": {
-    "check_clippy": "check --tests --examples and clippy --tests --examples: no warnings in this crate (only pre-existing observe too_many_arguments)",
-    "runs": {
-      "adapter_auto_dx12": "10 passed, 0 failed (NVIDIA GeForce RTX 3090 discrete, dx12); every GPU test executed, no NOT_PROVEN",
-      "adapter_vulkan": "10 passed, 0 failed (HSK_STUDIO_TEST_GPU_BACKEND=vulkan, same adapter); every GPU test executed, no NOT_PROVEN",
-      "no_adapter": "10 passed, 0 failed (HSK_STUDIO_TEST_GPU_BACKEND=none); 5 GPU proofs print NOT_PROVEN (parity x2, device-loss detection, pipeline-failure typing, leaf-root live receipt): no GPU claim; hardware-independent halves (admission, latch unit, residency) ran",
-      "require_gpu_negative": "HSK_STUDIO_TEST_GPU_BACKEND=none HSK_STUDIO_TEST_REQUIRE_GPU=1, gpu_blend_parity filter: FAILED as intended (gate refuses NOT_PROVEN)",
-      "consumer": "render-gpu-consumer --probe dx12 discrete gen 1 exit 0; --selftest PASS exit 0",
-      "tree": "runs on the shared edit tree at 2026-10-11T03:15Z; crate and dependency closure (pigment 276e2a3, accord, observe, prism) byte-identical to b7d90dc; validator round should use an export of b7d90dc"
-    },
-    "tolerance": "stated 1e-6 per composited layer (hand oracles 2e-6)",
-    "observed_max_error": {
-      "every_supported_mode_2_layers": "2.4e-7 (<= 2 ulp) on dx12 and vulkan",
-      "masks_3_layers": "1.8e-7",
-      "groups_3_levels_9_layers": "2.4e-7 dx12, 1.8e-7 vulkan",
-      "clip_8_layers_incl_isolated_group": "1.8e-7",
-      "hand_derived_clip_pixel": "0 (expected (0.526,0.454,0.43,1.0) inside the base, backdrop untouched beyond it)"
-    },
-    "oracles": "independent: hand-derived values and a per-pixel CPU reference built only from pigment::blend_math::composite_over (not render-cpu); the reference also reproduces the hand-derived clip pixel",
-    "exactness": "blend operators Fitted; tile/solid/groups/coverage masks Exact as operators; a leaf root (solid/tile root, no layer) runs one Normal kernel pass so the receipt records normal: fitted and an Exact floor refuses it; fill_opacity and clip_to_base Approximate",
-    "sizing": "receipt peak_working_bytes exact: groups plan with 3 levels + staging + upload + mask + params on 16x16 chunks = 21568; GpuStats.levels counts destination levels",
-    "backend_qualified_proof": {
-      "adapter": "NVIDIA GeForce RTX 3090 (discrete)",
-      "backends_proven": [
-        "dx12",
-        "vulkan"
-      ],
-      "not_proven": [
-        "metal",
-        "integrated or software adapters",
-        "other vendors"
-      ]
-    },
-    "decision_for_lead": "Colour burn/dodge are discontinuous at exact 0/1; a GPU result one ulp off near a white/black partially transparent backdrop can still flip those texels versus the CPU reference. Only the no-backdrop case is made exact. Opaque and full-alpha-backdrop content is unaffected. Recorded so a validator does not use knife-edge inputs as a parity oracle.",
-    "decision_for_lead_2": "Slice-2 parity tests live in the same tests/gpu_plan.rs (6 tests, was 5); the second GPU test shares the first one's backend to avoid another multi-second device acquire.",
-    "dep_request": "wgpu =27.0.1 [std,wgsl,vulkan,dx12,metal] appended to builders/dep-requests.jsonl in slice 1 (steward registry_sync pending)",
-    "verdicts": [
-      {
-        "round": "STUDIO-R3",
-        "lane": "SMB-RENDER-GPU",
-        "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
-        "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
-        "decision": "failed",
-        "verdict": "FAIL_V1",
-        "failures": [
-          {
-            "failure_class": "fake-test-shader-failure-reads-as-no-device",
-            "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:441; src/kernel.rs:213-216; tests/gpu_plan.rs:900-918,1325-1355"
-          },
-          {
-            "failure_class": "fake-test-device-loss-manual-latch",
-            "file_line": "crates/hsk-studio-render-gpu/src/device.rs:276-281; tests/gpu_plan.rs:735"
-          }
-        ],
-        "remediation": "Typed shader/pipeline error that fails tests (no NoDevice mapping); drop manual loss latch, wait for real callback",
-        "round_ref": "validation/round-R3.json",
-        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
-        "idempotency_key": "STUDIO-R3:SMB-RENDER-GPU:404ff3ae8cd7:FAIL_V1",
-        "recorded_at": "2026-10-11T03:11:21Z",
-        "by": "wp_validator STUDIO-R3"
-      }
-    ],
-    "r3_remediation": {
-      "review": ".GOV/docs_repo/wp-studio-module-work/validation/R3-review.json lane SMB-RENDER-GPU (reviewed 57ce0fa/404ff3a)",
-      "sha": "b7d90dc",
-      "f1_leaf_root_exact": {
-        "finding": "leaf root reported Exact while executed through the blend kernel",
-        "fix": "plan_sink.rs leaf_root_class after admit: a non-group root adds Blend(Normal) at min(intrinsic, backend) = Fitted to the ledger and refuses an Exact floor as Unsupported{normal, fitted} before source lookup or device work",
-        "test": "leaf_root_reports_the_blend_kernel_class (solid and tile roots refused at Exact; Fitted admitted; live receipt lowest Fitted with normal: fitted, texels within 1e-6)",
-        "red": "pre-fix: Exact floor admitted -> Err(Unavailable(\"no_adapter\")) instead of Unsupported{normal, Fitted}"
-      },
-      "f2_pipeline_failure_skip": {
-        "finding": "shader/pipeline failure mapped to Unavailable(NoDevice); parity tests skipped green",
-        "fix": "GpuError::Pipeline(shader_validation|shader_validation_timeout) from Kernel::new; GpuBackend State::Failed + failure(); new() maps only Unavailable to Unavailable; port code Unavailable(\"shader_validation\") (pigment BackendError has no internal-defect variant); tests use gpu_gate: skip ONLY on NoAdapter, HSK_STUDIO_TEST_REQUIRE_GPU=1 fails even that; consumer probe/selftest exit 1 on pipeline failure",
-        "test": "pipeline_failure_is_typed_and_fails_the_gpu_gate (hidden GpuBackend::with_shader_source with invalid WGSL on the real adapter: failure() = Pipeline(shader_validation), unavailable_reason None, gate Err, execute_detailed Err(Pipeline), port Unavailable(\"shader_validation\"), reacquire stays typed)",
-        "red": "pre-fix mapping: unavailable Some(NoDevice), failure None -> test FAILED (finding reproduced on dx12)"
-      },
-      "f3_device_loss_fake": {
-        "finding": "simulate_device_loss set the latch itself; test green without callback wiring",
-        "fix": "simulate_device_loss = wgpu Device::destroy only; GpuContext::poll_lost (non-blocking poll delivers the wgpu lost callback); backend lock_refreshed polls before every execute and state query and moves a latched device to Lost",
-        "test": "device_destroy_is_detected_by_the_lost_callback (execute on live device, destroy, very next execute unlatched -> DeviceLost{1}; reacquire gen 2 executes); latch-only part renamed injected_loss_latch_and_unavailable_are_explicit (unit test, no hardware)",
-        "counterfactual": "set_device_lost_callback wiring removed -> test FAILED (Unavailable(\"readback_map_failed\") vs DeviceLost{1}); wiring restored",
-        "proven": "destroy-initiated loss detected via the wgpu callback on dx12 (27-85 ms) and vulkan (37-47 ms), RTX 3090",
-        "not_proven": "driver-initiated loss (TDR, adapter removal, HAL DeviceError::Lost): NOT_PROVEN, no safe trigger"
-      },
-      "f4_residency_overflow": {
-        "finding": "Residency::reserve used + bytes unchecked",
-        "fix": "eviction loop uses checked_add(bytes) <= budget; final charge checked_add or BudgetExceeded",
-        "test": "residency_accounting_never_overflows (budget u64::MAX, 2^63 pinned refusal, unpinned 2^63 evicts LRU, fill to u64::MAX, +1 typed BudgetExceeded, state intact)",
-        "red": "pre-fix: panicked attempt to add with overflow at residency.rs:129"
-      },
-      "slice2_claims_at_head": "verified at b7d90dc (contains 0551b8d): FORMULAS has 11 bodies + Normal = 12 modes, list generated from pigment MODES (gpu_blend_qualifies; drift test supported == qualifies for every MODES entry); coverage_u8/u16le masks; isolated + pass-through groups; supports_clip_to_base() true with eval_clip_run; runtime MODES tested 12 on dx12 and vulkan, worst 2.4e-7. Claims do NOT hold at 57ce0fa (review finding 5): ledger candidate must point at 0551b8d or later, not 57ce0fa",
-      "not_addressed": "PLAUSIBLE items not in this remediation brief: WGSL formula ownership (cap_duplicate), sink.accept under the backend mutex (reentrancy), block_on_bounded timeout reach; prepare() clip_base_pass_through refusal now also refused earlier by pigment validate (276e2a3), left as defence in depth",
-      "lesson": "scratchpad script names collide across agents (another lane edit_*.py ran against lib.rs and aborted on its first assert, no write); use lane-prefixed names"
-    }
+  {
+   "sha": "ba3e47d",
+   "subject": "render-gpu: defence-in-depth refusals use pigment's keys, never literals (SMB-REFUSAL-KEYS, PLR-006)"
+  },
+  {
+   "sha": "2aeeeba",
+   "subject": "render-gpu: align Blend-If clip-role refusals to pigment's keys and roles (SMB-BLENDIF-CLIP-ADOPT)"
+  },
+  {
+   "sha": "a813cf3",
+   "subject": "headless wgpu 27.0.1 GpuBackend (RenderBackend port), device generation/loss, byte-accounted residency, WGSL solid/tile composite"
+  },
+  {
+   "sha": "989d91d",
+   "subject": "five focused tests, consumer example, rustfmt"
+  },
+  {
+   "sha": "7e7579f",
+   "subject": "Auto backend = one platform-preferred backend per instance; real device-loss + reacquire proof; test backend selector"
+  },
+  {
+   "sha": "0551b8d",
+   "subject": "slice 2: all Exact separable blend modes (WGSL generated from pigment facts), coverage masks u8/u16, isolated and pass-through groups, clip-to-base runs; parity vs blend_math"
+  },
+  {
+   "sha": "b7d90dc",
+   "subject": "R3 test-integrity remediation: leaf root normal: fitted; GpuError::Pipeline + Failed state + strict GPU-proof gate; destroy-only loss injection detected by the wgpu lost callback; checked residency arithmetic; one regression test per finding"
+  },
+  {
+   "sha": "159cf9c",
+   "subject": "slice 3: non-separable (hue, saturation, colour, luminosity) and Approximate separable (linear_burn, linear_dodge_add, vivid_light, linear_light, pin_light, hard_mix, subtract, divide) blend modes generated from pigment MODES facts; pigment class travels into the receipt; hand + 343x343 lattice + random + group/mask/clip parity vs blend_math"
+  },
+  {
+   "sha": "167dc28",
+   "subject": "slice 3b: whole-pixel darker_colour and lighter_colour (Approximate in pigment, channel-sum compare, tie keeps backdrop); only dissolve stays refused among layer modes; lattice ties bit-exact vs blend_math"
+  },
+  {
+   "sha": "479e1c7",
+   "subject": "R5 (no-adapter-early-return-green, V4-03): GPU proofs follow the checked-in tests/gpu-proof.toml; require_gpu = true makes no adapter a FAIL with a NOT_PROVEN: message, false prints the NOT_PROVEN line the round counts"
+  },
+  {
+   "sha": "c5bd9be",
+   "subject": "slice 4: plan-extension envelope on the GPU (execute_extended, extension_exactness): mask density/invert/feather, Blend-If, adjustment layers (levels, curves LUT, hue_saturation, exposure, invert, threshold, posterize); V4-01 arithmetic deny, V4-04 test-faults feature, V4-07 doc claims"
+  },
+  {
+   "sha": "b58305f",
+   "subject": "consumer example docs: V4-07 wording (comment-only)"
+  },
+  {
+   "sha": "459c5d9",
+   "subject": "R6 review A (V4-04): compile-time proof that a default build has no public fault-injection hook (4 compile_fail,E0599 doctests; gate of the hooks itself is c5bd9be)"
+  },
+  {
+   "sha": "a6ac630",
+   "subject": "Render-gpu: layer effects (pigment effect_math waves 1 and 2) as WGSL matte passes; Blend-If agreement check against pigment; reported classes never above pigment's"
   }
+ ],
+ "capabilities_done": [
+  "slice 1: GpuContext/GpuBackend (Ready|Lost|Unavailable), headless acquire, generation counter, device-loss latch, explicit reacquire, byte-accounted Residency (LRU+pins+budget), chunked read-back to TileSink, admit() first, report(), DESCRIPTOR, render-gpu-consumer",
+  "blend modes: WGSL switch + functions GENERATED from pigment MODES facts (gpu_blend_qualifies = layer-applicable, Exact, separable family or Normal); kernel.rs holds only the per-mode formula bodies; a qualifying mode without a body is unsupported and the drift check in tests fails. 12 modes: normal darken multiply colour_burn lighten screen colour_dodge overlay soft_light hard_light difference exclusion",
+  "layer coverage masks coverage_u8 / coverage_u16le (+ inverted), host-side conversion identical to render-cpu, opacity * fill_opacity; density != 1 and mask on pass-through refused",
+  "isolated groups (one chunk buffer per nesting level, composited with the layer mode/opacity/mask) and pass-through groups (onto the running backdrop); non-isolated blended groups and pass-through opacity/fill < 1 refused at admission/prepare",
+  "clip-to-base (MaskFormat::BaseAlpha): supports_clip_to_base() = true; run [base, clipped...] evaluated as isolated unit G per pigment doc (G = base content with base mask; clipped layers composite with source alpha * base alpha, G alpha held; G composited with BASE mode/opacity/fill); operator class Approximate; isolated-group members supported; pass-through base refused",
+  "shader fix: no-backdrop texels take the source colour directly (not (a_s*cs)/a_s) because GPU division can be 1 ulp low, which flipped colour_burn at exact 0/1",
+  "slice 3 blend modes: gpu_blend_qualifies now = layer-applicable, pigment class != Unsupported, Normal or family Separable|NonSeparable|WholePixel; FORMULAS (per-channel bodies) gained linear_burn linear_dodge_add vivid_light linear_light pin_light hard_mix subtract divide; new FORMULAS_RGB (whole-colour bodies) holds hue saturation colour luminosity (WGSL helpers hsk_lum/hsk_clip_color/hsk_set_lum/hsk_sat/hsk_set_sat in kernel.wgsl, operation order of blend_math; set_sat uses a stable-rank formulation = pigment's stable sort, no dynamic indexing) and darker_colour lighter_colour (channel sums left to right, tie keeps backdrop)",
+  "class discipline: pigment's class travels (Approximate modes stay Approximate in ledger and receipt, the backend only lowers; a Fitted or Exact floor refuses them as Unsupported{mode, approximate}); Exact non-separable modes are Fitted on the GPU like the slice-2 modes",
+  "refusal discipline: REFUSED_MODES (pass_through, dissolve, behind, clear, average, negation, reflect, glow, erase) pinned in tests independently of the predicate; every other pigment mode must be generated AND executed on the device (tested == MODES.len() - REFUSED_MODES.len() = 26); never replaced by Normal",
+  "R5: tests/gpu-proof.toml (schema-checked, include_str!, no path): require_gpu = true (committed) fails every GPU proof without an adapter with 'NOT_PROVEN: no adapter; ...'; false = opt-out that prints the line the round counts (exit 73); env var only strengthens; regression test no_adapter_is_not_a_green_gpu_proof_when_the_gpu_is_required",
+  "slice 4 envelope: GpuBackend::execute_extended / execute_extended_detailed / extension_exactness (all implemented operators Fitted, pigment intrinsic class kept in the ledger); admit_extended first; empty envelope without mask density < 1 = the v1 plan byte for byte (pixels, digest, ledger, peak bytes compared)",
+  "mask density (shader step over host-converted/inverted/feathered coverage), mask feather (host separable Gaussian over pigment feather_kernel, windowed to the layer region, replicate clamp, scratch charged to max_working_bytes, cost bound 2^31 tap operations), Blend-If (<= 4 entries in plan order, identity dropped; weight multiplies the opacity), adjustment layers on the running backdrop incl. clip-run unit and pass-through parent: levels, curves (4096-entry table per channel from PreparedCurve), hue_saturation master + colorize, exposure, invert, threshold, posterize",
+  "new module ext.rs (host side, deny(arithmetic_side_effects)), kernel_pixel.wgsl template instantiated as composite and composite_ext, entry point adjust; v1 pipeline layout (bindings 0-3) and v1 bytes unchanged; envelope buffers (288 B params + curve table 64 KiB / 16 B) only when a layer uses Blend-If or an adjustment",
+  "V4-04: with_shader_source, with_injected_loss and both simulate_device_loss compiled only with the non-default test-faults feature; the 3 tests using them are gated; default-features guard test fault_hooks_exist_only_under_the_test_faults_feature",
+  "slice 5 agreement: ext_blend_if_agrees_with_pigment_evaluate_stack compares GPU output with pigment evaluate_stack for Blend-If on an adjustment layer (StackNode::Adjustment at opacity*fill*blend_if_weight(entries, f(Cb), Cb); invert, levels, hue_saturation x 2 range sets, translucent random backdrop, max error 6.3e-7 dx12 / 1.0e-6 vulkan) and on a plain layer (StackNode::Leaf at opacity*fill*weight, 1.8e-7); Blend-If on the BASE of a clipping run is refused Unsupported{blend_if_clip_base} in prepare (before any upload) because pigment does not define it",
+  "slice 5 class discipline: extension_exactness = ExtOperator::intrinsic().lowest_of(Fitted) for every supported operator (adjustment layer, adjustment kinds, Blend-If, mask density, mask feather, six effect kinds); receipts unchanged",
+  "slice 5 effects: new src/fx.rs + src/fx.wgsl (second compute module, entry point fx, bind group = 1 uniform block of 12080 bytes incl. up to 3004 blur taps + 4 storage buffers = the downlevel limit). Host: pigment shadow_split / shadow_offset / feather_kernel / effect_support_px are called, passes compiled per effect (INIT source plane, DILATE disc, BLUR_H/BLUR_V, SHIFT, FINISH combine) with per-effect buffers (T0/T1/T2 planes, matte into the mask buffer); WGSL transcribes pigment effect_math private helpers dilate/blur_ext/shift_ext/stroke_half and the combine steps of reference_matte; reads beyond the pass region = the constant a sample beyond pigment's reference plane reads (0 for shadow/glow/stroke-outside, 1 for inner effects)",
+  "slice 5 execution: a plan with effects renders every chunk as a FRAME (chunk grown by frame_margin = largest sum of effect margins along nested layers); eval_effect_layer: layer content (mask applied to its alpha, Normal over transparent) into the level below, behind-content effects (matte -> mask buffer -> solid colour composite with effect mode and effect opacity * layer opacity), content composite with opacity*fill, over-content effects, list order; staging read-back crops the central rows; levels/src/mask are frame-sized, three f32 planes + parameter block reserved in residency; MaskView/FeatherPlane reads beyond the plane replicate the nearest texel (render-cpu clamped read)",
+  "slice 5 budgets before dispatch (V4-02): blur kernels charged to max_working_bytes as a running aggregate while compiling (BudgetExceeded), frame buffers out of the chunk budget (BudgetExceeded, 30000 px shadow distance tested), per-pass cost bound 2^31 window*pixels with chunk shrink (Unsupported{effect_cost}, 1000 px grown glow tested), effects together with Blend-If refused effects_with_blend_if (as render-cpu)",
+  "SMB-FX-OPS-ADOPT (cdd0644): extension_exactness declares ExtOperator::EffectsNested supported (Approximate, pigment's class) and ExtOperator::AlphaPremultiplied Unsupported; fx_stack_mask_group_and_nesting_parity is admitted and green again; local refusals use ExtOperator::AlphaPremultiplied.key(), PASS_THROUGH_MASK_OPERATOR and ExtOperator::EffectsWithBlendIf.key(); leaf_root_class only records normal: fitted (the floor check is shared admission's RenderPlan::has_leaf_root)"
+ ],
+ "tests": {
+  "argv": "cargo test -p hsk-studio-render-gpu --tests -- --nocapture (default features: 20 tests) and the same with --features test-faults (23 tests); HSK_STUDIO_TEST_GPU_BACKEND=auto (dx12) and vulkan; cargo test -p hsk-studio-render-gpu --doc (4 compile_fail doctests)",
+  "exit": 0,
+  "sha": "a6ac630",
+  "passed": 23,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 772,
+ "bg_pids": [],
+ "next": "SMB-FX-OPS-ADOPT READY_FOR_VALIDATION on cdd0644 (new lane id; the claim of the top-level lane is unchanged, V4-14 lists this commit; nothing is claimed on SMB-RENDER-GPU, which stays BLOCKED/D20): independent validator round on cdd0644 for this crate's adoption of pigment's effects_ops and admission_parity rules (notes.fx_ops_adopt). Earlier next, unchanged: SMB-REFUSAL-KEYS READY_FOR_VALIDATION on ba3e47d (new lane id; the claim of the top-level lane stays a6ac630, V4-14 lists this commit; nothing is claimed on SMB-RENDER-GPU, which stays BLOCKED/D20): independent validator round on ba3e47d for this crate's refusal keys (notes.refusal_keys, notes.v4_06_sites). Earlier next, unchanged: SMB-BLENDIF-CLIP-ADOPT READY_FOR_VALIDATION on 2aeeeba (new lane id; nothing is claimed on SMB-RENDER-GPU, which stays BLOCKED/D20; the test-faults gating of 459c5d9 and tests/gpu-proof.toml are untouched): Independent validator round on a6ac630. Open for the lead: (1) pigment does not define Blend-If on the base of a clipping run while render-cpu implements it (decide: pigment defines it and both backends follow, or render-cpu refuses too); (2) pigment has no function combining an adjustment layer with its Blend-If weight (evaluate_stack takes the folded opacity); (3) Photoshop parity of effects stays NOT_PROVEN (D5 12-17). Other candidates: effect passes restricted to the layer window, binary64-grade blur accumulation, dissolve, brightness_contrast legacy body, compute-shader feather, tile cache, Metal qualification",
+ "updated_at": "2026-10-11T11:50:57Z",
+ "notes": {
+  "refusal_keys": {
+   "lane": "SMB-REFUSAL-KEYS",
+   "status": "READY_FOR_VALIDATION",
+   "sha": "ba3e47d",
+   "scope": "Plausible register PLR-006, lead decision FIX_LANE 2026-10-11T10:18:58Z: rules pigment's admission already refuses and that this crate re-checks as defence in depth use pigment's exported key constants and operator enums (or the code of pigment's own PlanError where pigment has no operator key), never a literal. Behaviour otherwise unchanged. New lane id per V4-15; nothing is claimed on SMB-RENDER-GPU (BLOCKED, fix budget) and no verdict, fixed key or earlier note was changed.",
+   "files": [
+    "src/plan_sink.rs (prepare, verify_tile; imports; group_node read before the run walk; refusal_keys module declaration)",
+    "src/fx.rs (from_effect incl. new EffectError::Unsupported arm; compile_effect unknown kind)",
+    "src/ext.rs (compile_adjustment unknown kind)",
+    "src/plan_sink/refusal_keys.rs (new, cfg(test))"
+   ],
+   "changes": [
+    {
+     "rule": "samples outside [0, 1]",
+     "before": "literal sample_range_outside_unit",
+     "after": "SAMPLE_RANGE_OPERATOR"
+    },
+    {
+     "rule": "coverage mask with density below 1 on the v1 path",
+     "before": "literal mask_density",
+     "after": "MASK_DENSITY_OPERATOR"
+    },
+    {
+     "rule": "pass-through layer below full fill",
+     "before": "reported under the opacity key (group_pass_through_opacity), one check for opacity or fill; pigment admit reports group_pass_through_fill_opacity",
+     "after": "two checks in admission order: opacity -> Operator::PassThroughOpacity.key(), fill -> PASS_THROUGH_FILL_OPERATOR"
+    },
+    {
+     "rule": "non-isolated blended group; blend mode without a body; mask format without a reader",
+     "before": "literals group_non_isolated_blended, blend_mode, mask_format",
+     "after": "Operator::NonIsolatedBlendedGroup.key(), Operator::Blend(mode).key(), Operator::Mask(format).key()"
+    },
+    {
+     "rule": "gradient glow, glow range, glow jitter, Precise technique (EffectError::Unsupported)",
+     "before": "fell into the wildcard and was reported as effect_parameter",
+     "after": "EffectFeature::key, the key admit_extended reports"
+    },
+    {
+     "rule": "effect kind / adjustment kind without a GPU encoding (unknown future variants)",
+     "before": "literals effect_kind, adjustment_kind",
+     "after": "ExtOperator::Effect(kind).key(), AdjustmentKind::key (as the supported check already did for known kinds)"
+    },
+    {
+     "rule": "clipping run whose base is a pass-through group",
+     "before": "literal clip_base_pass_through (Unsupported)",
+     "after": "BackendError::InvalidPlan(PlanError::ClipBasePassThrough { node }) exactly as pigment's validation returns it"
+    }
+   ],
+   "keys_changed_on_defence_only_paths": [
+    "only on paths that shared admission refuses before any device use: clip_base_pass_through -> InvalidPlan(plan_clip_base_pass_through); pass-through fill below 1: group_pass_through_opacity -> group_pass_through_fill_opacity (the one real drift, fixed); blend_mode -> the mode's key; mask_format -> the format's key; effect_kind / adjustment_kind -> the kind's key (unknown future variants only, unreachable today); effect_parameter -> the feature key for EffectError::Unsupported. Strings already equal to pigment's (sample_range_outside_unit, mask_density, group_pass_through_opacity, group_non_isolated_blended) are byte-identical. Blend-If clip roles and knockout/adjustment kind keys already came from pigment (unchanged)."
+   ],
+   "tests_added": [
+    "plan_sink::refusal_keys::defence_in_depth_refusal_keys_are_pigments (src/plan_sink/refusal_keys.rs)"
+   ],
+   "tests_changed": {},
+   "test_detail": "same seven rules as render-cpu through the GPU prepare (GpuBackend with BackendChoice::None, so no adapter is needed and nothing is NOT_PROVEN) plus the four EffectFeature cases against admit_extended; the pass-through fill case would fail on the old code (opacity key)",
+   "tests": {
+    "argv": [
+     "cargo",
+     "nextest",
+     "run",
+     "-p",
+     "hsk-studio-render-cpu",
+     "-p",
+     "hsk-studio-render-gpu",
+     "-p",
+     "hsk-studio-composite",
+     "--no-fail-fast"
+    ],
+    "exit": 0,
+    "sha": "ba3e47d",
+    "passed": 22,
+    "failed": 0,
+    "note": "one invocation over the three crates of this lane at ba3e47d (78 passed: render-cpu 31, render-gpu 22, composite 25); the render-gpu parity tests ran on the host adapter (backend auto), tests/gpu-proof.toml require_gpu = true unchanged, 0 NOT_PROVEN"
+   },
+   "check_clippy": "cargo clippy -p hsk-studio-render-cpu -p hsk-studio-render-gpu -p hsk-studio-composite --tests --examples --no-deps clean (0 warnings) and cargo clippy -p hsk-studio-render-gpu --tests --features test-faults --no-deps clean at ba3e47d; cargo fmt --check clean for render-cpu and render-gpu",
+   "pigment_gaps": [
+    "pigment exports no Operator/ExtOperator key or constant for 'the base of a clipping run is a pass-through group': its only name is PlanError::ClipBasePassThrough (validate, InvalidPlan, code plan_clip_base_pass_through). That name is used (not edited into pigment). Blocker only for the alternative reading: if the lead wants an Unsupported operator key for it (like PASS_THROUGH_FILL_OPERATOR), pigment must export a constant first."
+   ],
+   "not_changed": [
+    "backend-owned keys pigment's admission does not report: plan_shape, effects_with_blend_if, effect_cost, effect_size, effect_plan, mask_feather_radius, mask_feather_cost, blend_if_channel, blend_if_entries, curves_lut, alpha_premultiplied, sample_format, mask_on_pass_through",
+    "effect_limit / effect_parameter stay backend category keys: pigment admission reports those rules as InvalidPlan(PlanError::EffectLimit | EffectParameter { node }) (a different variant that needs a node, codes plan_effect_limit / plan_effect_parameter), so there is no pigment Unsupported key to equal. Candidate lead decision (register PLAUSIBLE): align them to the PlanError code with node 0 as composite already does for PlanError::EffectClipRun.",
+    "tests/gpu_plan.rs and tests/gpu-proof.toml untouched; the test-faults gating of 459c5d9 is untouched"
+   ],
+   "v4": {
+    "V4-01": "deny(clippy::arithmetic_side_effects) kept on every touched module; the only new conversions are u32::try_from(node index) with the typed overflow error",
+    "V4-03": "the new tests need no hardware and read no machine-local path; nothing prints NOT_PROVEN",
+    "V4-06": "class: refusal key written as a string literal where pigment names the rule; regex in notes.v4_06_regex over non-test src; 41 sites listed in notes.v4_06_sites (verdict counts {'NOT_APPLICABLE': 24, 'FIXED': 11, 'PIGMENT_ALREADY': 6}); UNCLASSIFIED 0; fixed sites show as their pigment-derived expression because the regex also matches the constructor call",
+    "V4-07": "no DESCRIPTOR text names a changed key",
+    "V4-09": "commit message through git commit -F",
+    "V4-11": "no file restored; no scratch tree"
+   }
+  },
+  "v4_06_regex": "\\bunsupported\\(|\\bUnsupported\\s*\\{|FxError::Unsupported\\(|\\bErr\\(\"[a-z_]+\"\\)|\\bok_or\\(\"[a-z_]+\"\\)|Unavailable\\(\"[a-z_]+\"\\)|\\bPlanError::[A-Za-z]+ \\{",
+  "v4_06_sites": [
+   {
+    "file_line": "src/ext.rs:57",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'blend_if_channel' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/ext.rs:65",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'blend_if_entries' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/ext.rs:70",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'blend_if_entries' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/ext.rs:115",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'curves_lut' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/ext.rs:130",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'curves_lut' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/fx.rs:108",
+    "verdict": "FIXED: EffectFeature::key (EffectError::Unsupported arm added; was effect_parameter)"
+   },
+   {
+    "file_line": "src/fx.rs:109",
+    "verdict": "NOT_APPLICABLE: coarse backend category 'effect_parameter' for EffectError values; pigment admission reports the same rules as InvalidPlan(PlanError::Effect*{node}) (a different variant that needs a node), so no equality claim; lead decision candidate"
+   },
+   {
+    "file_line": "src/fx.rs:128",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'effect_size' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/fx.rs:130",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'effect_size' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/fx.rs:223",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'effect_size' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/fx.rs:352",
+    "verdict": "FIXED: ExtOperator::Effect(kind).key() (was effect_kind)"
+   },
+   {
+    "file_line": "src/fx.rs:378",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'effect_plan' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/plan_sink.rs:202",
+    "verdict": "PIGMENT_ALREADY: operator is Operator::key() / the unsupported() helper argument"
+   },
+   {
+    "file_line": "src/plan_sink.rs:239",
+    "verdict": "PIGMENT_ALREADY: key from blend_if_clip_refusal (ExtOperator::key) or the FxError payload"
+   },
+   {
+    "file_line": "src/plan_sink.rs:316",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'alpha_premultiplied' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/plan_sink.rs:352",
+    "verdict": "FIXED: SAMPLE_RANGE_OPERATOR"
+   },
+   {
+    "file_line": "src/plan_sink.rs:360",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'mask_feather_radius' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/plan_sink.rs:365",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'mask_feather_cost' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/plan_sink.rs:382",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'alpha_premultiplied' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/plan_sink.rs:385",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'sample_format' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/plan_sink.rs:443",
+    "verdict": "FIXED: SAMPLE_RANGE_OPERATOR"
+   },
+   {
+    "file_line": "src/plan_sink.rs:468",
+    "verdict": "FIXED: Operator::PassThroughOpacity.key()"
+   },
+   {
+    "file_line": "src/plan_sink.rs:471",
+    "verdict": "FIXED: PASS_THROUGH_FILL_OPERATOR"
+   },
+   {
+    "file_line": "src/plan_sink.rs:475",
+    "verdict": "FIXED: Operator::NonIsolatedBlendedGroup.key()"
+   },
+   {
+    "file_line": "src/plan_sink.rs:478",
+    "verdict": "FIXED: Operator::Blend(mode).key()"
+   },
+   {
+    "file_line": "src/plan_sink.rs:490",
+    "verdict": "PIGMENT_ALREADY: Knockout::key"
+   },
+   {
+    "file_line": "src/plan_sink.rs:524",
+    "verdict": "FIXED: MASK_DENSITY_OPERATOR"
+   },
+   {
+    "file_line": "src/plan_sink.rs:527",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'mask_on_pass_through' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/plan_sink.rs:534",
+    "verdict": "FIXED: Operator::Mask(format).key()"
+   },
+   {
+    "file_line": "src/plan_sink.rs:595",
+    "verdict": "PIGMENT_ALREADY: AdjustmentKind::key"
+   },
+   {
+    "file_line": "src/plan_sink.rs:606",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'effects_with_blend_if' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/plan_sink.rs:618",
+    "verdict": "PIGMENT_ALREADY: key from blend_if_clip_refusal (ExtOperator::key) or the FxError payload"
+   },
+   {
+    "file_line": "src/plan_sink.rs:682",
+    "verdict": "FIXED: PlanError::ClipBasePassThrough (was clip_base_pass_through)"
+   },
+   {
+    "file_line": "src/plan_sink.rs:1047",
+    "verdict": "PIGMENT_ALREADY: operator is Operator::key() / the unsupported() helper argument"
+   },
+   {
+    "file_line": "src/plan_sink.rs:1402",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'plan_shape' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/plan_sink.rs:1527",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'plan_shape' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/plan_sink.rs:1579",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'plan_shape' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/plan_sink.rs:1670",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'plan_shape' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/plan_sink.rs:1781",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'plan_shape' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/plan_sink.rs:1971",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'effect_cost' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/report.rs:12",
+    "verdict": "NOT_APPLICABLE: report mapping of an error to Outcome, no key"
+   }
+  ],
+  "blendif_clip_adopt": {
+   "lane": "SMB-BLENDIF-CLIP-ADOPT",
+   "status": "READY_FOR_VALIDATION",
+   "sha": "2aeeeba",
+   "scope": "Pigment 0d28c03 (lane SMB-PIGMENT-BLENDIF-CLIP, diagnostics topic blend-if-clip-roles) refuses a non-identity Blend-If on a clip base (blend_if_clip_base) and on a clipped layer (blend_if_clipped_layer) for every backend; this lane adopts that in the consumers. New lane id per V4-15; nothing is claimed on SMB-RENDER-GPU (BLOCKED, fix budget) and no verdict, fixed key or earlier note was changed.",
+   "files": [
+    "src/plan_sink.rs (blend_if_clip_refusal(group, index) from Group::clip_role + ExtOperator::key replaces the local is_clip_base computation; prepare refuses a clip base as blend_if_clip_base and a clipped layer as blend_if_clipped_layer; unit test; extension_exactness doc)",
+    "src/lib.rs (DESCRIPTOR extensions.operators/refused, clip_to_base)",
+    "tests/gpu_plan.rs (ext_blend_if_parity, fx_admission_and_refusals_run_without_adapter, ext_refusals_and_capabilities_run_without_adapter)"
+   ],
+   "behaviour": "shared admission (admit_extended) already refuses both roles with pigment's keys before prepare; the prepare check is defence in depth under the same keys, now derived from pigment's roles and keys instead of a local spelling. extension_exactness answers Unsupported for BlendIfClipBase and BlendIfClippedLayer (wildcard arm; asserted without an adapter)",
+   "tests_changed": {
+    "ext_blend_if_parity": "(b) the Blue destination range moves from root layer 2 (a clipped layer) to a new unclipped root layer 4 (the same solid source, Overlay 0.8), so the group/clip parity case still weighs a layer; the clip base and the clipped layer of the run carry no range; new part (c): the same range on root layer 1 (clip base) and 2 (clipped) is Err(Unsupported{blend_if_clip_base | blend_if_clipped_layer, Unsupported}) on a real adapter run, sink.accepted == 0, resident_bytes == 0",
+    "fx_admission_and_refusals_run_without_adapter": "on_clipped now expects Unsupported{blend_if_clipped_layer} from admission before any adapter use (was Unavailable(no_adapter)); added: identity ranges on both roles and the same range on an unclipped layer reach only the missing adapter (Unavailable(no_adapter))",
+    "ext_refusals_and_capabilities_run_without_adapter": "added: both operators report Unsupported here and intrinsically, keys equal the literals"
+   },
+   "tests_added": [
+    "plan_sink::tests::clip_role_blend_if_refusal_uses_pigments_roles_and_keys (unit test: base, two clipped layers, plain layers, out-of-range index)"
+   ],
+   "tests": {
+    "argv": [
+     "cargo nextest run -p hsk-studio-render-gpu --tests (default features: 21 passed)",
+     "cargo nextest run -p hsk-studio-render-gpu --tests --features test-faults (24 passed)",
+     "cargo test --doc -p hsk-studio-render-gpu (4 compile_fail passed)"
+    ],
+    "exit": 0,
+    "sha": "2aeeeba",
+    "passed": 24,
+    "failed": 0
+   },
+   "gpu_run": "backend selector auto (adapter name not printed for passing tests by the runner); tests/gpu-proof.toml require_gpu = true unchanged, so a missing adapter would have failed every GPU proof; 0 failed, no NOT_PROVEN failure. ext_blend_if_parity passed on the adapter with the clip-role refusals asserted",
+   "check_clippy": "cargo clippy -p hsk-studio-render-gpu --tests --examples --no-deps clean on default features and --features test-faults; cargo fmt -p hsk-studio-render-gpu --check clean; deny(clippy::arithmetic_side_effects) kept",
+   "v4": {
+    "V4-01": "plan_sink.rs keeps its deny; the new helper has no arithmetic",
+    "V4-03": "tests/gpu-proof.toml untouched; Photoshop behaviour NOT_PROVEN (D5 cases 18-23)",
+    "V4-04": "no new fault hook; the test-faults gating is untouched (fault_hooks_exist_only_under_the_test_faults_feature passes in the default run)",
+    "V4-06": "class: Blend-If handled on a clip role (regex is_clip_base|blend_if_clip_base|blend_if_clipped_layer|clip_to_base\\(\\) in src/plan_sink.rs and tests/gpu_plan.rs): the local is_clip_base site is replaced by pigment's clip_role (fixed 1); the test sites that put Blend-If on a clipped layer (ext_blend_if_parity (b)) fixed 1, fx_admission on_clipped fixed 1",
+    "V4-07": "DESCRIPTOR and doc claims cite the tests; valid JSON checked with json.loads",
+    "V4-09": "commit message through git commit -F"
+   },
+   "red_proof": "not run on a scratch tree: the refusal is pigment's; the unit test pins the role to key mapping and the old parity case (Blend-If on root layer 2) would now fail with blend_if_clipped_layer, which is why it moved",
+   "plausible_not_addressed": [
+    "the clip-run passes (plan_sink.rs eval_clip_run and the shader parameter block) still carry the Blend-If plumbing for a clipped layer and for the run composite: unreachable after the refusals, left to keep this slice small; removing it needs a WGSL pass-parameter change and a GPU parity rerun"
+   ],
+   "date": "2026-10-11T10:11:27Z"
+  },
+  "check_clippy": "check --tests --examples and clippy --tests --examples: no warnings in this crate (only pre-existing observe too_many_arguments)",
+  "runs": {
+   "adapter_auto_dx12": "10 passed, 0 failed (NVIDIA GeForce RTX 3090 discrete, dx12); every GPU test executed, no NOT_PROVEN",
+   "adapter_vulkan": "10 passed, 0 failed (HSK_STUDIO_TEST_GPU_BACKEND=vulkan, same adapter); every GPU test executed, no NOT_PROVEN",
+   "no_adapter": "10 passed, 0 failed (HSK_STUDIO_TEST_GPU_BACKEND=none); 5 GPU proofs print NOT_PROVEN (parity x2, device-loss detection, pipeline-failure typing, leaf-root live receipt): no GPU claim; hardware-independent halves (admission, latch unit, residency) ran",
+   "require_gpu_negative": "HSK_STUDIO_TEST_GPU_BACKEND=none HSK_STUDIO_TEST_REQUIRE_GPU=1, gpu_blend_parity filter: FAILED as intended (gate refuses NOT_PROVEN)",
+   "consumer": "render-gpu-consumer --probe dx12 discrete gen 1 exit 0; --selftest PASS exit 0",
+   "tree": "runs on the shared edit tree at 2026-10-11T03:15Z; crate and dependency closure (pigment 276e2a3, accord, observe, prism) byte-identical to b7d90dc; validator round should use an export of b7d90dc"
+  },
+  "tolerance": "stated 1e-6 per composited layer (hand oracles 2e-6)",
+  "observed_max_error": {
+   "every_supported_mode_2_layers": "2.4e-7 (<= 2 ulp) on dx12 and vulkan",
+   "masks_3_layers": "1.8e-7",
+   "groups_3_levels_9_layers": "2.4e-7 dx12, 1.8e-7 vulkan",
+   "clip_8_layers_incl_isolated_group": "1.8e-7",
+   "hand_derived_clip_pixel": "0 (expected (0.526,0.454,0.43,1.0) inside the base, backdrop untouched beyond it)"
+  },
+  "oracles": "independent: hand-derived values and a per-pixel CPU reference built only from pigment::blend_math::composite_over (not render-cpu); the reference also reproduces the hand-derived clip pixel",
+  "exactness": "blend operators Fitted; tile/solid/groups/coverage masks Exact as operators; a leaf root (solid/tile root, no layer) runs one Normal kernel pass so the receipt records normal: fitted and an Exact floor refuses it; fill_opacity and clip_to_base Approximate",
+  "sizing": "receipt peak_working_bytes exact: groups plan with 3 levels + staging + upload + mask + params on 16x16 chunks = 21568; GpuStats.levels counts destination levels",
+  "backend_qualified_proof": {
+   "adapter": "NVIDIA GeForce RTX 3090 (discrete)",
+   "backends_proven": [
+    "dx12",
+    "vulkan"
+   ],
+   "not_proven": [
+    "metal",
+    "integrated or software adapters",
+    "other vendors"
+   ]
+  },
+  "decision_for_lead": "Colour burn/dodge are discontinuous at exact 0/1; a GPU result one ulp off near a white/black partially transparent backdrop can still flip those texels versus the CPU reference. Only the no-backdrop case is made exact. Opaque and full-alpha-backdrop content is unaffected. Recorded so a validator does not use knife-edge inputs as a parity oracle.",
+  "decision_for_lead_2": "Slice-2 parity tests live in the same tests/gpu_plan.rs (6 tests, was 5); the second GPU test shares the first one's backend to avoid another multi-second device acquire.",
+  "dep_request": "wgpu =27.0.1 [std,wgsl,vulkan,dx12,metal] appended to builders/dep-requests.jsonl in slice 1 (steward registry_sync pending)",
+  "verdicts": [
+   {
+    "round": "STUDIO-R3",
+    "lane": "SMB-RENDER-GPU",
+    "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
+    "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
+    "decision": "failed",
+    "verdict": "FAIL_V1",
+    "failures": [
+     {
+      "failure_class": "fake-test-shader-failure-reads-as-no-device",
+      "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:441; src/kernel.rs:213-216; tests/gpu_plan.rs:900-918,1325-1355"
+     },
+     {
+      "failure_class": "fake-test-device-loss-manual-latch",
+      "file_line": "crates/hsk-studio-render-gpu/src/device.rs:276-281; tests/gpu_plan.rs:735"
+     }
+    ],
+    "remediation": "Typed shader/pipeline error that fails tests (no NoDevice mapping); drop manual loss latch, wait for real callback",
+    "round_ref": "validation/round-R3.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
+    "idempotency_key": "STUDIO-R3:SMB-RENDER-GPU:404ff3ae8cd7:FAIL_V1",
+    "recorded_at": "2026-10-11T03:11:21Z",
+    "by": "wp_validator STUDIO-R3"
+   },
+   {
+    "round": "STUDIO-R5",
+    "lane": "SMB-RENDER-GPU",
+    "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
+    "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
+    "decision": "failed",
+    "verdict": "FAIL_V2",
+    "failures": [
+     {
+      "failure_kind": "product",
+      "failure_class": "no-adapter-early-return-green",
+      "file_line": "crates/hsk-studio-render-gpu/tests/gpu_plan.rs:336-358 (gpu_gate NoAdapter -> Ok(None))"
+     }
+    ],
+    "remediation": "Fail GPU proof tests on no adapter by default (NOT_PROVEN text); opt-out only via committed round config",
+    "status_after": "READY_FOR_VALIDATION (newer submission 167dc28)",
+    "review": "validation/R5-review-a.json",
+    "round_ref": "validation/round-R5.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
+    "idempotency_key": "STUDIO-R5:SMB-RENDER-GPU:1d404f8c4b72:FAIL_V2",
+    "recorded_at": "2026-10-11T05:38:23Z",
+    "by": "wp_validator STUDIO-R5"
+   },
+   {
+    "round": "STUDIO-R6",
+    "lane": "SMB-RENDER-GPU",
+    "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a",
+    "tree": "834aa5599ffabf691558a25f777ce42f73d78103",
+    "decision": "failed",
+    "verdict": "FAIL_V3",
+    "failures": [
+     {
+      "failure_kind": "product",
+      "failure_class": "test-fault-hooks-in-product-api",
+      "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:447-452,477-488,565-572; src/device.rs:298; Cargo.toml:7-8"
+     }
+    ],
+    "remediation": "Gate fault constructors and simulate_device_loss behind a non-default test-faults feature; tests enable it",
+    "status_after": "FAIL_V3; fix_budget_exhausted blocker (CX-EXEC-015(1)): escalate, no new claim until Operator decision; post-freeze commits 459c5d9 not admitted",
+    "review": "validation/R6-review-a.json",
+    "round_ref": "validation/round-R6.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6",
+    "idempotency_key": "STUDIO-R6:SMB-RENDER-GPU:bd8533f9b29c:FAIL_V3",
+    "recorded_at": "2026-10-11T06:47:09Z",
+    "by": "wp_validator STUDIO-R6"
+   },
+   {
+    "round": "STUDIO-R7",
+    "lane": "SMB-RENDER-GPU-ADJ",
+    "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
+    "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V1",
+    "review": "validation/R7-review-a.json",
+    "round_ref": "validation/round-R7.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
+    "idempotency_key": "STUDIO-R7:SMB-RENDER-GPU-ADJ:dff7ef51d282:PASS_V1",
+    "recorded_at": "2026-10-11T11:04:31Z",
+    "by": "wp_validator STUDIO-R7"
+   },
+   {
+    "round": "STUDIO-R7",
+    "lane": "SMB-BLENDIF-CLIP-ADOPT",
+    "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
+    "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V1",
+    "review": "validation/R7-review-a.json",
+    "round_ref": "validation/round-R7.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
+    "idempotency_key": "STUDIO-R7:SMB-BLENDIF-CLIP-ADOPT:dff7ef51d282:PASS_V1",
+    "recorded_at": "2026-10-11T11:04:31Z",
+    "by": "wp_validator STUDIO-R7"
+   },
+   {
+    "round": "STUDIO-R8",
+    "lane": "SMB-REFUSAL-KEYS",
+    "candidate": "f6e5a490e2ad0e142938a8bba1f78cadb96f5e84",
+    "tree": "bf944e29dd336acd38969f0dc25353adb529d61d",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V1",
+    "review": "validation/R8-review-a.json",
+    "round_ref": "validation/round-R8.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R8",
+    "idempotency_key": "STUDIO-R8:SMB-REFUSAL-KEYS:f6e5a490e2ad:PASS_V1",
+    "recorded_at": "2026-10-11T12:42:21Z",
+    "by": "wp_validator STUDIO-R8"
+   },
+   {
+    "round": "STUDIO-R8",
+    "lane": "SMB-FX-OPS-ADOPT",
+    "candidate": "f6e5a490e2ad0e142938a8bba1f78cadb96f5e84",
+    "tree": "bf944e29dd336acd38969f0dc25353adb529d61d",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V1",
+    "review": "validation/R8-review-a.json",
+    "round_ref": "validation/round-R8.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R8",
+    "idempotency_key": "STUDIO-R8:SMB-FX-OPS-ADOPT:f6e5a490e2ad:PASS_V1",
+    "recorded_at": "2026-10-11T12:42:21Z",
+    "by": "wp_validator STUDIO-R8"
+   },
+   {
+    "round": "STUDIO-R8",
+    "lane": "SMB-BLENDIF-CLIP-ADOPT",
+    "candidate": "f6e5a490e2ad0e142938a8bba1f78cadb96f5e84",
+    "tree": "bf944e29dd336acd38969f0dc25353adb529d61d",
+    "decision": "passed",
+    "verdict": "PASS_V2",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V2",
+    "review": "NOT_REVIEWED (R8-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+    "round_ref": "validation/round-R8.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R8",
+    "idempotency_key": "STUDIO-R8:SMB-BLENDIF-CLIP-ADOPT:f6e5a490e2ad:PASS_V2",
+    "recorded_at": "2026-10-11T12:42:21Z",
+    "by": "wp_validator STUDIO-R8"
+   },
+   {
+    "round": "STUDIO-R8",
+    "lane": "SMB-RENDER-GPU-ADJ",
+    "candidate": "f6e5a490e2ad0e142938a8bba1f78cadb96f5e84",
+    "tree": "bf944e29dd336acd38969f0dc25353adb529d61d",
+    "decision": "passed",
+    "verdict": "PASS_V2",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V2",
+    "review": "NOT_REVIEWED (R8-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+    "round_ref": "validation/round-R8.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R8",
+    "idempotency_key": "STUDIO-R8:SMB-RENDER-GPU-ADJ:f6e5a490e2ad:PASS_V2",
+    "recorded_at": "2026-10-11T12:42:21Z",
+    "by": "wp_validator STUDIO-R8"
+   },
+   {
+    "round": "STUDIO-R9",
+    "lane": "SMB-BLENDIF-CLIP-ADOPT",
+    "candidate": "4d80e50d40432799c08f0f8b8f0047c9a00d056a",
+    "tree": "18b50331f3b2b92c1985cd8b83e00560d88096bf",
+    "decision": "passed",
+    "verdict": "PASS_V3",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V3",
+    "review": "NOT_REVIEWED as a lane (R9-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+    "round_ref": "validation/round-R9.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R9",
+    "idempotency_key": "STUDIO-R9:SMB-BLENDIF-CLIP-ADOPT:4d80e50d4043:PASS_V3",
+    "recorded_at": "2026-10-11T14:23:56Z",
+    "by": "wp_validator STUDIO-R9"
+   },
+   {
+    "round": "STUDIO-R9",
+    "lane": "SMB-REFUSAL-KEYS",
+    "candidate": "4d80e50d40432799c08f0f8b8f0047c9a00d056a",
+    "tree": "18b50331f3b2b92c1985cd8b83e00560d88096bf",
+    "decision": "passed",
+    "verdict": "PASS_V2",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V2",
+    "review": "NOT_REVIEWED as a lane (R9-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+    "round_ref": "validation/round-R9.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R9",
+    "idempotency_key": "STUDIO-R9:SMB-REFUSAL-KEYS:4d80e50d4043:PASS_V2",
+    "recorded_at": "2026-10-11T14:23:56Z",
+    "by": "wp_validator STUDIO-R9"
+   },
+   {
+    "round": "STUDIO-R9",
+    "lane": "SMB-FX-OPS-ADOPT",
+    "candidate": "4d80e50d40432799c08f0f8b8f0047c9a00d056a",
+    "tree": "18b50331f3b2b92c1985cd8b83e00560d88096bf",
+    "decision": "passed",
+    "verdict": "PASS_V2",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V2",
+    "review": "NOT_REVIEWED as a lane (R9-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+    "round_ref": "validation/round-R9.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R9",
+    "idempotency_key": "STUDIO-R9:SMB-FX-OPS-ADOPT:4d80e50d4043:PASS_V2",
+    "recorded_at": "2026-10-11T14:23:56Z",
+    "by": "wp_validator STUDIO-R9"
+   },
+   {
+    "round": "STUDIO-R9",
+    "lane": "SMB-RENDER-GPU-ADJ",
+    "candidate": "4d80e50d40432799c08f0f8b8f0047c9a00d056a",
+    "tree": "18b50331f3b2b92c1985cd8b83e00560d88096bf",
+    "decision": "passed",
+    "verdict": "PASS_V3",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V3",
+    "review": "NOT_REVIEWED as a lane (R9-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+    "round_ref": "validation/round-R9.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R9",
+    "idempotency_key": "STUDIO-R9:SMB-RENDER-GPU-ADJ:4d80e50d4043:PASS_V3",
+    "recorded_at": "2026-10-11T14:23:56Z",
+    "by": "wp_validator STUDIO-R9"
+   },
+   {
+    "round": "STUDIO-R10",
+    "lane": "SMB-FX-OPS-ADOPT",
+    "candidate": "62d8983b86417340399ed7c785c6b297debabbfd",
+    "tree": "a64a74da642ad52e759e97ccdd6a00be069d47bc",
+    "decision": "passed",
+    "verdict": "PASS_V3",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V3",
+    "review": "NOT_REVIEWED as a lane (R10-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+    "round_ref": "validation/round-R10.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R10",
+    "idempotency_key": "STUDIO-R10:SMB-FX-OPS-ADOPT:62d8983b8641:PASS_V3",
+    "recorded_at": "2026-10-11T15:37:40Z",
+    "by": "wp_validator STUDIO-R10"
+   },
+   {
+    "round": "STUDIO-R11",
+    "lane": "SMB-FX-OPS-ADOPT",
+    "candidate": "6956d3f1180cbc9b3bcc59a98eacdb2beb114085",
+    "tree": "a56d447fa80c74d8ebe17c55baf5754a06f5833e",
+    "decision": "passed",
+    "verdict": "PASS_V4",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V4",
+    "review": "NOT_REVIEWED as a lane (R11-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+    "round_ref": "validation/round-R11.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R11",
+    "idempotency_key": "STUDIO-R11:SMB-FX-OPS-ADOPT:6956d3f1180c:PASS_V4",
+    "recorded_at": "2026-10-11T17:31:37Z",
+    "by": "wp_validator STUDIO-R11"
+   }
+  ],
+  "r3_remediation": {
+   "review": ".GOV/docs_repo/wp-studio-module-work/validation/R3-review.json lane SMB-RENDER-GPU (reviewed 57ce0fa/404ff3a)",
+   "sha": "b7d90dc",
+   "f1_leaf_root_exact": {
+    "finding": "leaf root reported Exact while executed through the blend kernel",
+    "fix": "plan_sink.rs leaf_root_class after admit: a non-group root adds Blend(Normal) at min(intrinsic, backend) = Fitted to the ledger and refuses an Exact floor as Unsupported{normal, fitted} before source lookup or device work",
+    "test": "leaf_root_reports_the_blend_kernel_class (solid and tile roots refused at Exact; Fitted admitted; live receipt lowest Fitted with normal: fitted, texels within 1e-6)",
+    "red": "pre-fix: Exact floor admitted -> Err(Unavailable(\"no_adapter\")) instead of Unsupported{normal, Fitted}"
+   },
+   "f2_pipeline_failure_skip": {
+    "finding": "shader/pipeline failure mapped to Unavailable(NoDevice); parity tests skipped green",
+    "fix": "GpuError::Pipeline(shader_validation|shader_validation_timeout) from Kernel::new; GpuBackend State::Failed + failure(); new() maps only Unavailable to Unavailable; port code Unavailable(\"shader_validation\") (pigment BackendError has no internal-defect variant); tests use gpu_gate: skip ONLY on NoAdapter, HSK_STUDIO_TEST_REQUIRE_GPU=1 fails even that; consumer probe/selftest exit 1 on pipeline failure",
+    "test": "pipeline_failure_is_typed_and_fails_the_gpu_gate (hidden GpuBackend::with_shader_source with invalid WGSL on the real adapter: failure() = Pipeline(shader_validation), unavailable_reason None, gate Err, execute_detailed Err(Pipeline), port Unavailable(\"shader_validation\"), reacquire stays typed)",
+    "red": "pre-fix mapping: unavailable Some(NoDevice), failure None -> test FAILED (finding reproduced on dx12)"
+   },
+   "f3_device_loss_fake": {
+    "finding": "simulate_device_loss set the latch itself; test green without callback wiring",
+    "fix": "simulate_device_loss = wgpu Device::destroy only; GpuContext::poll_lost (non-blocking poll delivers the wgpu lost callback); backend lock_refreshed polls before every execute and state query and moves a latched device to Lost",
+    "test": "device_destroy_is_detected_by_the_lost_callback (execute on live device, destroy, very next execute unlatched -> DeviceLost{1}; reacquire gen 2 executes); latch-only part renamed injected_loss_latch_and_unavailable_are_explicit (unit test, no hardware)",
+    "counterfactual": "set_device_lost_callback wiring removed -> test FAILED (Unavailable(\"readback_map_failed\") vs DeviceLost{1}); wiring restored",
+    "proven": "destroy-initiated loss detected via the wgpu callback on dx12 (27-85 ms) and vulkan (37-47 ms), RTX 3090",
+    "not_proven": "driver-initiated loss (TDR, adapter removal, HAL DeviceError::Lost): NOT_PROVEN, no safe trigger"
+   },
+   "f4_residency_overflow": {
+    "finding": "Residency::reserve used + bytes unchecked",
+    "fix": "eviction loop uses checked_add(bytes) <= budget; final charge checked_add or BudgetExceeded",
+    "test": "residency_accounting_never_overflows (budget u64::MAX, 2^63 pinned refusal, unpinned 2^63 evicts LRU, fill to u64::MAX, +1 typed BudgetExceeded, state intact)",
+    "red": "pre-fix: panicked attempt to add with overflow at residency.rs:129"
+   },
+   "slice2_claims_at_head": "verified at b7d90dc (contains 0551b8d): FORMULAS has 11 bodies + Normal = 12 modes, list generated from pigment MODES (gpu_blend_qualifies; drift test supported == qualifies for every MODES entry); coverage_u8/u16le masks; isolated + pass-through groups; supports_clip_to_base() true with eval_clip_run; runtime MODES tested 12 on dx12 and vulkan, worst 2.4e-7. Claims do NOT hold at 57ce0fa (review finding 5): ledger candidate must point at 0551b8d or later, not 57ce0fa",
+   "not_addressed": "PLAUSIBLE items not in this remediation brief: WGSL formula ownership (cap_duplicate), sink.accept under the backend mutex (reentrancy), block_on_bounded timeout reach; prepare() clip_base_pass_through refusal now also refused earlier by pigment validate (276e2a3), left as defence in depth",
+   "lesson": "scratchpad script names collide across agents (another lane edit_*.py ran against lib.rs and aborted on its first assert, no write); use lane-prefixed names"
+  },
+  "slice3": {
+   "sha": "167dc28 (159cf9c + 167dc28; crate dependency closure at test time: pigment/prism as in the shared tree, render-gpu byte-identical to 167dc28)",
+   "added_modes": {
+    "non_separable_exact_in_pigment": [
+     "hue",
+     "saturation",
+     "colour",
+     "luminosity"
+    ],
+    "separable_approximate_in_pigment": [
+     "linear_burn",
+     "linear_dodge_add",
+     "vivid_light",
+     "linear_light",
+     "pin_light",
+     "hard_mix",
+     "subtract",
+     "divide"
+    ],
+    "whole_pixel_approximate_in_pigment": [
+     "darker_colour",
+     "lighter_colour"
+    ],
+    "still_refused": "dissolve (stochastic; plan carries no seed, pigment site_unit is a u64 hash) among layer modes; pass_through is a group mode, behind/clear tool-only, average..erase unspecified"
+   },
+   "tests": {
+    "total": 12,
+    "new_or_changed": [
+     "slice3_hand_oracles_and_lattice_parity (NEW): 18 hand-derived pixels (also checked against pigment blend_rgb on the CPU before any GPU call) + exhaustive 343x343 lattice (7^3 colours, channel values 0/0.1/0.25/0.5/0.75/0.9/1: ties, clip edges, exact sums of 1) for all 14 slice-3 modes vs pigment composite_over",
+     "slice3_modes_in_groups_masks_clip_parity (NEW): isolated group, u8 mask, fill opacity, clip run with Hue/Saturation/Luminosity/VividLight/Divide/PinLight; receipt carries Approximate and Fitted per operator",
+     "gpu_modes_masks_groups_clip_parity (CHANGED): sweeps every non-refused pigment mode (26) with the per-mode class (pigment class lowered to Fitted), ledger must carry it",
+     "admission_refusals_run_without_adapter (CHANGED, hardware-independent): pinned REFUSED_MODES vs gpu_blend_supported, backend exactness per mode, Approximate/Fitted/Exact floor behaviour of linear_burn hard_mix hue luminosity divide darker_colour"
+    ]
+   },
+   "runs": {
+    "auto_dx12": "12 passed, 0 failed; every GPU test executed on dx12 NVIDIA GeForce RTX 3090 discrete, no NOT_PROVEN",
+    "vulkan": "12 passed, 0 failed (HSK_STUDIO_TEST_GPU_BACKEND=vulkan, same adapter); every GPU test executed",
+    "no_adapter": "12 passed, 0 failed (HSK_STUDIO_TEST_GPU_BACKEND=none); GPU proofs print NOT_PROVEN (incl. slice-3 parity x2); the hand table vs pigment, admission and residency ran",
+    "logs": "Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/tmp/rendergpu-full-{auto,vulkan,none}.log, rendergpu-counterfactual.log"
+   },
+   "observed_max_error": {
+    "hand_18_pixels": "4.2e-7 (dx12), same on vulkan",
+    "random_tiles_every_mode_2_layers_26_modes": "3.6e-7 dx12, 3.9e-7 vulkan",
+    "lattice_approximate_separable_and_whole_pixel": "3.0e-8 (vivid_light), all others 0 incl. hard_mix thresholds and darker/lighter ties (decisions bit-identical to pigment)",
+    "lattice_non_separable": "1.07e-6 dx12 (saturation at source col 5 / backdrop row 341), 1.61e-6 vulkan; tolerance asserted 2e-6",
+    "groups_masks_clip_with_slice3_modes": "3.6e-7"
+   },
+   "tolerance_decision_for_lead": "Non-separable family is ill-conditioned next to its clip boundaries (colour over white: Lum = 1 +- 1 ulp, clip scale (1-l)/(x-l) divides by a near-zero). An independent f32/f64 emulation of pigment's own algorithm differs from exact f64 by up to 1.6e-6 at the worst lattice pixels (same value as the vulkan lattice maximum), so a GPU-vs-pigment difference of 1.1e-6 to 1.6e-6 there is input conditioning, not a formula difference. The 1e-6 per-layer budget of slice 1-2 therefore does not hold for hue/saturation/colour/luminosity on knife-edge inputs; the asserted bound for them is 2e-6 per composite. Random tiles and hand pixels stay at 5e-7 or less.",
+   "knife_edges": "Discontinuous cases: non-separable set_sat at exactly equal channels (gray) and whole-pixel / hard_mix thresholds are decided by exact comparisons. They are bit-identical to the CPU when the backdrop enters bit-exact (first layer, tile backdrops: lattice proves this). On a GPU-derived backdrop that is within 1 ulp of gray / a threshold the GPU may take the other branch than the CPU (same caveat as colour_burn/dodge in slice 2); validators must not use such inputs as a parity oracle.",
+   "counterfactual": "kernel.rs mutated locally (NOT committed, reverted, crate diff empty afterwards): hue body used hsk_lum(cs) instead of hsk_lum(cb), pin_light used max instead of min below 0.5 -> gpu_modes_masks_groups_clip_parity FAILED (pin_light error 7.8e-1) and slice3_hand_oracles_and_lattice_parity FAILED (Hue hand error 1.36e-1), exit 101. Tests are not vacuous.",
+   "clippy": "cargo clippy -p hsk-studio-render-gpu --tests --examples --no-deps: clean. Without --no-deps clippy stops in hsk-studio-prism (another lane): approx_constant deny errors at crates/hsk-studio-prism/src/icc_eval.rs:31-32 (LOG2E, SQRT2 literals) plus 8 warnings; not touched. check --tests --examples clean.",
+   "retry_guard_route": "no gameplan block hit; no step added; no flag/filter changes to dodge a guard (each distinct command ran once per HEAD or succeeded)",
+   "pigment_dependency": "pigment blend_math.rs last committed at 4c3ac91; the architect's uncommitted additive edits seen in the shared tree (BlendError::Adjustment, StackNode::Adjustment) do not touch MODES, Family, Exactness, blend_rgb or composite_over, and render-gpu matches neither enum; WGSL bodies are transcriptions checked by parity, not a second definition of the math; if pigment adds a Layer-applicable Separable/NonSeparable/WholePixel mode without a FORMULAS body the drift test (supported == qualifies) and the pinned REFUSED_MODES test fail until a body with a parity case exists"
+  },
+  "r5_no_adapter_sweep_v4_06": {
+   "class": "no-adapter-early-return-green",
+   "regex": "gpu_gate\\(|Ok\\(None\\)|Reason::NoAdapter|NOT_PROVEN",
+   "sites": {
+    "tests/gpu_plan.rs gpu_gate call sites (11, all through the committed policy; fixed)": [
+     "leaf_root_reports_the_blend_kernel_class",
+     "device_destroy_is_detected_by_the_lost_callback",
+     "pipeline_failure_is_typed_and_fails_the_gpu_gate (2 calls)",
+     "gpu_blend_parity_vs_pigment_blend_math",
+     "gpu_modes_masks_groups_clip_parity",
+     "slice3_hand_oracles_and_lattice_parity",
+     "slice3_modes_in_groups_masks_clip_parity",
+     "ext_mask_density_invert_feather_parity",
+     "ext_blend_if_parity",
+     "ext_adjustment_layer_parity"
+    ],
+    "tests/gpu_plan.rs regression probe (1 call, the regression test itself)": "fixed/not-applicable",
+    "examples/render-gpu-consumer.rs": "prints NOT_PROVEN and exits 3 (non-zero), fixed/not-applicable",
+    "src/*.rs Reason::NoAdapter": "the production typed outcome, not-applicable"
+   },
+   "counterfactual": "none backend + committed require_gpu = true: 6 pass, 7 GPU proofs FAIL with 'NOT_PROVEN: no adapter; ... requires a GPU'; local false: 13 pass with NOT_PROVEN lines (logs in the lane scratch folder and Handshake_Artifacts studio-team-dev/tmp/rendergpu-r5-*.log)"
+  },
+  "slice4": {
+   "pigment_inputs": "PlanExtensions d576ec5/2587930/c2bbb9b/2f705f1, adjust_math/coverage_math bd480f9, effects e007703 (refused)",
+   "runs": {
+    "dx12_default_features": "15 passed, 0 failed (RTX 3090 discrete)",
+    "dx12_test_faults": "18 passed, 0 failed",
+    "vulkan_test_faults": "18 passed, 0 failed (HSK_STUDIO_TEST_GPU_BACKEND=vulkan, same adapter)",
+    "no_adapter": "r5 runs only (before slice 4); the hardware-independent slice-4 test ext_refusals_and_capabilities_run_without_adapter ran on the none backend inside every GPU-host run"
+   },
+   "observed_max_error_vs_pigment_scalar_functions": {
+    "mask_density_invert_17x17_grid": "6e-8 (tolerance 2e-6)",
+    "mask_feather_r2_r10_density_invert": "1.8e-7 (tolerance 5e-6)",
+    "blend_if_flat_and_group_clip": "3.0e-7 flat, 2.4e-7 group/clip (tolerance 5e-6 per layer)",
+    "adjustment_17cubed_lattice": "invert 0, invert multiply 3e-8, levels 1.2e-7, posterize 0, threshold 0 (exact decisions), exposure 0 / 1.2e-7, curves 6e-8, hue_saturation master 6e-7, colorize 6e-8 (declared 2e-6..5e-6)",
+    "adjustment_translucent_backdrop_mask_blend_if": "3.7e-7, alpha untouched (asserted equal to the backdrop alpha)",
+    "adjustment_clipped": "1.2e-7"
+   },
+   "counterfactual": "WGSL mutated locally and reverted (crate clean afterwards): density formula, range_weight up-ramp, posterize constant -> ext_mask_density..., ext_blend_if_parity (0.35), ext_adjustment_layer_parity (posterize 0.33) FAILED; feather skipped alone -> feather parity 0.9 FAILED",
+   "reference": "Reference in tests/gpu_plan.rs evaluates the envelope from pigment composite_adjustment / blend_if_weight / mask_coverage / feather_kernel only (naive double-sum blur for feather); render-cpu not used",
+   "semantics_chosen_unverified": [
+    "Blend-If on an adjustment layer: source colour = f(backdrop) (the layer's content), destination = backdrop; k = opacity * fill * mask * weight",
+    "Blend-If on a clip base is applied at the final composite of the run unit G (not while initialising G); on a clipped layer at its composite onto G",
+    "a clipped adjustment acts on G with its mask ignored (like every clipped layer) and k without the base alpha; alpha of G unchanged",
+    "feather blurs the stored coverage before inversion and density (blur commutes with inversion for a normalised kernel)",
+    "hue_saturation is evaluated in binary32 on the GPU (pigment: binary64): 6e-7 worst on the lattice"
+   ],
+   "refused_typed": "knockout, brightness_contrast (modern by pigment, legacy no GPU body), effects (extension_exactness(Effect) Unsupported + defence in depth in prepare), feather without mask (pigment), feather scratch over max_working_bytes (BudgetExceeded), feather cost over 2^31 taps (Unsupported mask_feather_cost)"
+  },
+  "v4_audit": {
+   "V4-01": "deny(clippy::arithmetic_side_effects) on plan_sink, kernel, ext (new), device, error, residency; all former sites converted to checked/saturating; clippy --lib/--tests --examples --no-deps clean on default features and --features test-faults",
+   "V4-02": "aggregate_over_budget-style test for the feather scratch + cost bound (ext_refusals_and_capabilities_run_without_adapter); dims_u32_max-style test NOT added: feather regions are bounded by the verified mask plane (SourceMismatch otherwise), every size is checked_* and Overflow is typed",
+   "V4-03": "tests/gpu-proof.toml, see r5_no_adapter_sweep_v4_06",
+   "V4-04": "test-faults feature; NEEDS STEWARD: .config/round-features.toml entry hsk-studio-render-gpu = [[\"test-faults\"]] so the round runs the 3 fault tests (injected loss latch, device destroy detection, pipeline failure typing); until declared the default round omits them (15 of 18 tests)",
+   "V4-05": "not-applicable (no new duplicate of ZIP/deflate/CRC, worker supervision or timecode)",
+   "V4-06": "no-adapter class swept, see r5_no_adapter_sweep_v4_06",
+   "V4-07": "DESCRIPTOR rewritten (valid JSON, checked with json.loads): every never/always claim cites its test or is weakened; doc comments in device, error, kernel, ext, plan_sink, residency, lib and the consumer example reworded; plain code comments (// ... never ...) in plan_sink.rs, kernel.wgsl and kernel_pixel.wgsl explain code and are not API claims",
+   "V4-08": "not-applicable (no hostile text format)",
+   "V4-09": "commits via git commit -F",
+   "V4-12": "lane helper files moved to <scratchpad>/hsk-studio-render-gpu/; no other agent's script was run"
+  },
+  "decisions_for_lead_slice4": [
+   "tests/gpu-proof.toml ships require_gpu = true: a host without a GPU fails the GPU proofs until a reviewed edit sets false (then the round exits 73 with NOT_PROVEN lines)",
+   "round-features.toml needs the test-faults unit for this crate (V4-04); the steward owns it",
+   "Blend-If and clipped-adjustment semantics above are UNVERIFIED against render-cpu/composite (render-cpu had no envelope yet): agree one reading before the validator compares backends"
+  ],
+  "remediation_R6": {
+   "finding": "R6 review A CONFIRMED v4-04-public-fault-hooks: plan_sink.rs:447-452 with_shader_source, :477-488 with_injected_loss, :565-572 simulate_device_loss, device.rs:298 simulate_device_loss public in the default build; Cargo.toml:7-8 no test-faults feature",
+   "class": "fault-injection hook compiled into a default build",
+   "regex": "pub fn (with_shader_source|with_injected_loss|simulate_device_loss)|doc\\(hidden\\)",
+   "fix_commit": "c5bd9be (landed before the finding arrived, inside the slice-4 commit); proof commit 459c5d9 (separate, -F)",
+   "sites": {
+    "src/plan_sink.rs with_shader_source": "fixed: #[cfg(feature = \"test-faults\")], doc(hidden) removed",
+    "src/plan_sink.rs with_injected_loss": "fixed: same",
+    "src/plan_sink.rs GpuBackend::simulate_device_loss": "fixed: same",
+    "src/device.rs GpuContext::simulate_device_loss": "fixed: same",
+    "Cargo.toml": "fixed: test-faults = [] (not in default = [])",
+    "tests/gpu_plan.rs (3 tests using the hooks)": "fixed: #[cfg(feature = \"test-faults\")], imports gated; they run only in a test-faults unit",
+    "private plumbing (acquire_into shader override, State::Lost construction, Kernel::new source)": "not-applicable: not reachable from the public API without a gated constructor"
+   },
+   "count": "4 public hooks + 3 gated tests, matches the regex sweep (4 lines under 'pub fn ...' all preceded by the cfg attribute)",
+   "proof": [
+    "tests/gpu_plan.rs fault_hooks_exist_only_under_the_test_faults_feature (default features): scans plan_sink.rs and device.rs, requires 4 hooks each directly after #[cfg(feature = \"test-faults\")], and 'default = []' / 'test-faults = []' in Cargo.toml",
+    "src/lib.rs 4 compile_fail,E0599 doctests (cargo test --doc, default features): one per hook; compiled out with --features test-faults",
+    "counterfactual: the gate removed from with_injected_loss -> the doctest (line 30) FAILED, 3 passed; restored, tree clean (log r6-doc-mutated.log in the lane scratch folder)"
+   ],
+   "tests_after": "default features: 15 integration tests + 4 doctests pass; --features test-faults: 18 pass (dx12 and vulkan), 0 doctests",
+   "steward_request": "appended to builders/dep-requests.jsonl: hsk-studio-render-gpu = [[\"test-faults\"]] (round-features); until declared the default round omits the 3 fault tests"
+  },
+  "slice5_adj_agreement_and_effects": {
+   "lanes": {
+    "SMB-RENDER-GPU-ADJ": {
+     "status": "READY_FOR_VALIDATION",
+     "sha": "a6ac630",
+     "scope": "Blend-If agreement check (adjustment layer, clip base) against pigment evaluate_stack / adjust_math / coverage_math"
+    },
+    "SMB-RENDER-GPU-EFFECTS": {
+     "status": "READY_FOR_VALIDATION",
+     "sha": "a6ac630",
+     "scope": "layer effects waves 1 and 2 on the GPU, parity vs pigment render_layer_reference"
+    },
+    "note": "The top-level status/lane/verdicts of this file are unchanged: nothing is claimed on lane SMB-RENDER-GPU (BLOCKED, fix_budget_exhausted, D20) by this slice; the test-faults gating of 459c5d9 is untouched (only extended: no new fault hook, no new test using one)."
+   },
+   "agreement": {
+    "method": "read pigment first: evaluate_stack has StackNode::Leaf/Group/Adjustment only (no Blend-If input, no clip node); Adjustment takes the already folded opacity; blend_if_weight(entries, source_rgb, backdrop_rgb) multiplies the source alpha; BaseAlpha prose lists mode, opacity and fill of the BASE for the run composite",
+    "adjustment_layer_blend_if": {
+     "verdict": "AGREES (defined by composition of pigment text: LayerExtension doc \"Content = f(backdrop)\" + coverage_math \"weight of the layer colour\", k = opacity*fill*mask*blend_if)",
+     "test": "ext_blend_if_agrees_with_pigment_evaluate_stack case A: reference = evaluate_stack [Leaf(backdrop), Adjustment{op, mode, opacity: opacity*fill*blend_if_weight(entries, op.prepare().apply(Cb), Cb)}]",
+     "observed_max_error": "6.3e-7 dx12, 1.0e-6 vulkan (tolerance 5e-6); partial weights present at > 20 texels (not vacuous)",
+     "gap": "pigment exposes no function that combines an adjustment with its Blend-If weight; the source-colour reading lives in the caller (here the test, in render-cpu its own code). Suggest an adjust_math helper so no backend or test restates it",
+     "render_cpu": "same reading (lane notes adj1 decisions_for_lead): agrees"
+    },
+    "plain_layer_blend_if": {
+     "verdict": "AGREES (evaluate_stack Leaf at opacity*fill*blend_if_weight(entries, source, Cb))",
+     "observed_max_error": "1.8e-7"
+    },
+    "clip_base_blend_if": {
+     "verdict": "NOT DEFINED by pigment -> GPU refuses Unsupported{blend_if_clip_base} (typed, in prepare, before any upload), no semantics invented",
+     "reason": "MaskFormat::BaseAlpha prose: G starts as the base content with the base mask but not its opacity, fill or mode; G is composited with the BASE layer mode, opacity and fill. Blend-If is not listed in either place, two placements are possible (weigh G against the parent backdrop at the final composite, or weigh the base content while G is formed) and evaluate_stack cannot express a clip run. The previous slice-4 reading (final composite of the run unit) is one of them and is now removed",
+     "test": "fx_admission_and_refusals_run_without_adapter (hardware-independent) refuses it; red proof D with the refusal removed fails that test",
+     "render_cpu": "IMPLEMENTS the base ranges at the run composite (lane SMB-RENDER-CPU-ADJ-1): GPU and CPU now differ on this case. Lead decision needed: pigment defines it (then both follow and the GPU re-enables it) or render-cpu refuses it too"
+    },
+    "clipped_layer_blend_if": {
+     "verdict": "KEPT (judgement call, flagged): the clipped layer composites onto G, pigment names both roles (G is the backdrop, the layer colour is the source) and no alternative placement exists; parity only against the test-local Reference of ext_blend_if_parity, not against evaluate_stack (no clip node). The lead may extend the refusal to clipped layers by changing is_clip_base in prepare"
+    }
+   },
+   "effects": {
+    "kinds": "drop_shadow, colour_overlay, stroke (outside/inside/centre), inner_shadow, outer_glow, inner_glow (edge/centre); glow gradient/range/jitter/Precise remain pigment typed refusals (tested)",
+    "class": "Approximate everywhere (extension_exactness = pigment intrinsic lowest_of Fitted); ledger carries the effect keys as approximate (asserted per case); Photoshop parity NOT_PROVEN (D5 12-17, V4-03)",
+    "parity_vs_render_layer_reference": {
+     "wave1_worst": "1.8e-7 (dx12 and vulkan)",
+     "wave2_worst": "1.2e-7",
+     "stack_six_kinds_mask_group_nested_worst": "2.4e-7",
+     "tolerance": "1e-5 on alpha and premultiplied colour (planes of 48x44 holding layer + margin; chunk side 16 so the planes are 3x3 frames)",
+     "non_vacuity": "each case asserts it changes the bare layer (68..1119 texels) and the size-0 stroke and opacity-0 cases change nothing"
+    },
+    "differences_to_pigment_reference": "blur taps accumulate in binary32 (reference binary64), hypot as sqrt(x*x+y*y), GPU fma; observed effect on the result <= 2.4e-7 (1-2 ulp)",
+    "limits": "no 64 px reference-plane limit and no 24 px margin limit (render-cpu has them): margin is bounded by the chunk budget (BudgetExceeded) and a pass by 2^31 window*pixels (effect_cost); passes cover the whole layer region + margin per chunk frame (pigment windowed matte API NOT used, GPU-side passes); frame overdraw ((chunk+2*margin)/chunk)^2 for all layers of a plan with effects",
+    "nesting": "effects inside the content group of a layer with effects are supported on the GPU (margins add along the chain; tested with an outer glow inside a shadow+stroke layer); render-cpu refuses them (effects_nested)",
+    "mask": "a layer mask multiplies the content alpha the mattes derive from (as render-cpu); reads beyond the mask plane replicate the nearest texel (only reachable with effects, frames reach past the target)"
+   },
+   "tests_run": {
+    "dx12_default": "20 passed, 0 failed (before the formatting-only commit step; log test-default-2.log)",
+    "dx12_test_faults": "23 passed, 0 failed",
+    "vulkan_test_faults": "23 passed, 0 failed on the pushed a6ac630 tree (RTX 3090 discrete)",
+    "doctests": "4 compile_fail passed",
+    "clippy": "cargo clippy -p hsk-studio-render-gpu --tests --examples --no-deps: clean on default features and --features test-faults",
+    "fmt": "cargo fmt -p hsk-studio-render-gpu --check clean",
+    "new_or_changed_tests": [
+     "ext_blend_if_agrees_with_pigment_evaluate_stack (NEW, GPU)",
+     "fx_wave1_parity_vs_pigment_render_layer_reference (NEW, GPU)",
+     "fx_wave2_parity_vs_pigment_render_layer_reference (NEW, GPU)",
+     "fx_stack_mask_group_and_nesting_parity (NEW, GPU; also frame-budget, 30000 px distance and effect_cost refusals)",
+     "fx_admission_and_refusals_run_without_adapter (NEW, hardware-independent: classes, Fitted floor, unsupported effect mode, pigment glow refusal, effects+Blend-If, kernel aggregate budget, blend_if_clip_base, clipped-layer Blend-If admitted)",
+     "ext_blend_if_parity (CHANGED: the clip-base entry removed), ext_refusals_and_capabilities_run_without_adapter (CHANGED: class table = intrinsic lowest_of Fitted, effect capability, effect on an adjustment is pigment EffectOnAdjustment)"
+    ]
+   },
+   "red_proofs": {
+    "where": "scratch copy of the workspace (accord, observe, folio, prism, pigment, render-gpu) at Handshake_Artifacts/WP-KERNEL-STUDIO/smb-render-gpu-fx-redproof/ws with STUDIO_OWNER=smb-render-gpu-fx-redproof (own target, red-proof tree rule of studio-env.sh); mutations switched by SMBFX_MUTATE; the shared tree was never mutated (V4-11). The scratch location is on D: under the artifact root instead of the C: scratchpad because the disk rule forbids building from C: and the gameplan pointer is found upward from the cwd",
+    "A_dilate_ramp_without_half_pixel": "fx_wave1_parity FAILED, max_err 5.1e-2 (tolerance 1e-5)",
+    "B_no_frame_margin": "fx_wave2_parity FAILED, max_err 6.5e-2",
+    "C_swapped_behind_over_placement": "fx_stack_mask_group_and_nesting_parity FAILED, max_err 4.3e-1",
+    "D_clip_base_refusal_removed": "fx_admission_and_refusals_run_without_adapter FAILED (blend_if_clip_base expectation)",
+    "E_effect_class_reported_Fitted": "ext_refusals_and_capabilities_run_without_adapter FAILED (left Fitted, right Approximate)",
+    "logs": "scratchpad smb-render-gpu-fx/red-*.log"
+   },
+   "v4_audit": {
+    "V4-01": "deny(clippy::arithmetic_side_effects) on the new fx.rs and kept on plan_sink.rs/ext.rs/kernel.rs; every new site is checked/saturating (clippy clean)",
+    "V4-02": "aggregate_over_budget-style: blur kernel aggregate vs max_working_bytes (fx_admission...), frame budget (fx_stack...); size bounds: 30000 px distance (u32/i64 grow_rect, typed BudgetExceeded)",
+    "V4-03": "GPU proofs follow tests/gpu-proof.toml (require_gpu = true unchanged); Photoshop parity of effects is NOT_PROVEN and said so in DESCRIPTOR",
+    "V4-04": "no new fault hook; the 459c5d9 gating is untouched",
+    "V4-06": "class = reported operator class above pigment's: regex ^.*Exactness::Fitted in extension_exactness; sites: 1 (the function), fixed; backend exactness() for v1 operators is a different capability (blend modes) and pigment lowers it, not-applicable",
+    "V4-07": "DESCRIPTOR rewritten for the new behaviour (valid JSON checked with json.loads); every never/always claim cites its test or is weakened",
+    "V4-09": "git commit -F",
+    "V4-11/12": "red proofs on a scratch copy; helper scripts only under the scratchpad smb-render-gpu-fx folder with smbfx_ prefixes; no other lane's script run"
+   },
+   "retry_guard_route": "no gameplan block on a gated command; one hook error on a cd target given through a shell variable (resolved the WP-KERNEL-012 gameplan, command not run) fixed by a literal cd; no gameplan step added; no flags/filters changed to dodge a guard (the red runs use distinct filters on a distinct tree)",
+   "infrastructure_for_lead": [
+    "studio-env.sh: sourcing prints \"export: dbl_exe: not a function\" at line 72 and returns 1 although the cargo wrapper works (tools/disk-build-lock.sh does not define dbl_exe); builders ignore the exit status",
+    "disk build lock queue: a clippy run waited 772 s behind other lanes (queued 07:04:57Z, acquired 07:17:49Z)"
+   ],
+   "decisions_for_lead": [
+    "clip-base Blend-If: see agreement.clip_base_blend_if (GPU refuses, render-cpu implements)",
+    "clipped-layer Blend-If kept on the GPU as a judgement call (see agreement.clipped_layer_blend_if)",
+    "extension_exactness now reports pigment's class for every supported operator (tightened beyond the effects the brief named, for CX-CAP-001 consistency with render-cpu 7274827); receipts unchanged",
+    "effects nested in the content of a layer with effects and effect margins above 24 px are supported on the GPU; render-cpu refuses both (effects_nested, effect_margin), so the capabilities of the two backends differ"
+   ]
+  },
+  "fx_ops_adopt": {
+   "lane": "SMB-FX-OPS-ADOPT",
+   "status": "READY_FOR_VALIDATION",
+   "sha": "cdd0644",
+   "pigment": [
+    "d3ce607",
+    "fe5fde0",
+    "b2f5f81"
+   ],
+   "scope": "Consumer adoption of pigment SMB-PIGMENT-FX-OPS (d3ce607, fe5fde0) and SMB-PIGMENT-ADMIT-PARITY (b2f5f81); per-consumer changes as in diagnostics/adjustments-advanced-blending.md topics effects-ops and admission-parity. New lane id per V4-15; nothing is claimed on SMB-RENDER-GPU (BLOCKED/D20) and no verdict, fixed key or earlier note was changed.",
+   "files": [
+    "src/plan_sink.rs (extension_exactness, leaf_root_class, three defence-in-depth keys, imports)",
+    "src/lib.rs (DESCRIPTOR text only)",
+    "src/plan_sink/refusal_keys.rs (cfg(test): two cases in defence_in_depth_refusal_keys_are_pigments, two new tests)"
+   ],
+   "changes": [
+    {
+     "rule": "layer with effects whose content holds a layer with effects",
+     "before": "wildcard arm: EffectsNested Unsupported, so admission refused the plan fx_stack_mask_group_and_nesting_parity renders",
+     "after": "ExtOperator::EffectsNested in the supported arm (reported class Approximate = pigment's, never better)"
+    },
+    {
+     "rule": "premultiplied alpha",
+     "before": "wildcard Unsupported, local literal alpha_premultiplied (2 sites)",
+     "after": "explicit AlphaPremultiplied => false; local key ExtOperator::AlphaPremultiplied.key()"
+    },
+    {
+     "rule": "mask on a pass-through layer",
+     "before": "literal mask_on_pass_through",
+     "after": "PASS_THROUGH_MASK_OPERATOR (shared admission refuses first)"
+    },
+    {
+     "rule": "effects together with Blend-If",
+     "before": "literal effects_with_blend_if",
+     "after": "ExtOperator::EffectsWithBlendIf.key() (shared admission refuses first)"
+    },
+    {
+     "rule": "leaf root Normal class",
+     "before": "leaf_root_class checked the request floor after admit and recorded normal",
+     "after": "records normal only; pigment's admit_plan_rules checks the floor; the ledger and receipts are unchanged (test leaf_root_reports_the_blend_kernel_class)"
+    }
+   ],
+   "tests": {
+    "default_features": {
+     "argv": [
+      "cargo",
+      "nextest",
+      "run",
+      "-p",
+      "hsk-studio-render-gpu",
+      "--no-fail-fast"
+     ],
+     "exit": 0,
+     "passed": 24,
+     "failed": 0
+    },
+    "test_faults": {
+     "argv": [
+      "cargo",
+      "nextest",
+      "run",
+      "-p",
+      "hsk-studio-render-gpu",
+      "--features",
+      "test-faults",
+      "--no-fail-fast"
+     ],
+     "exit": 0,
+     "passed": 27,
+     "failed": 0,
+     "includes": "fx_stack_mask_group_and_nesting_parity PASS (adapter present on this host)"
+    },
+    "doctests": {
+     "argv": [
+      "cargo",
+      "test",
+      "--doc",
+      "-p",
+      "hsk-studio-render-gpu"
+     ],
+     "exit": 0,
+     "passed": 4,
+     "failed": 0
+    },
+    "clippy_fmt": "cargo clippy -p hsk-studio-render-gpu --tests --features test-faults: no warning in this crate; cargo fmt --check clean",
+    "added": [
+     "plan_sink::refusal_keys::defence_in_depth_refusal_keys_are_pigments: cases 'coverage mask on a pass-through layer' and 'premultiplied alpha at the target' (admission error equals prepare error, built from pigment constants)",
+     "plan_sink::refusal_keys::fx_ops_declarations_and_nested_ledger_equal_pigments: EffectsNested Approximate, AlphaPremultiplied and EffectsWithBlendIf Unsupported; the admitted nested-effects ledger contains every operator of PlanExtensions::validate at the class pigment's intrinsic lowered by the declaration; flat effects are not nested",
+     "plan_sink::refusal_keys::effects_with_blend_if_refusal_is_pigments_in_admission_and_prepare"
+    ],
+    "no_adapter": "all three new tests run host-side (BackendChoice::None), no NOT_PROVEN"
+   },
+   "v4_06_regex": "\"(alpha_premultiplied|mask_on_pass_through|effects_with_blend_if|effects_nested)\" over src/ (string literals standing for a rule pigment now decides at shared admission)",
+   "v4_06_sites": [
+    {
+     "file_line": "src/plan_sink.rs:318",
+     "verdict": "FIXED: ExtOperator::AlphaPremultiplied.key()"
+    },
+    {
+     "file_line": "src/plan_sink.rs:384",
+     "verdict": "FIXED: ExtOperator::AlphaPremultiplied.key()"
+    },
+    {
+     "file_line": "src/plan_sink.rs:531",
+     "verdict": "FIXED: PASS_THROUGH_MASK_OPERATOR"
+    },
+    {
+     "file_line": "src/plan_sink.rs:611",
+     "verdict": "FIXED: ExtOperator::EffectsWithBlendIf.key()"
+    },
+    {
+     "file_line": "src/plan_sink.rs:1039",
+     "verdict": "FIXED: leaf_root_class records only"
+    }
+   ],
+   "unverified": "Photoshop parity of nested effects and of effects with Blend-If stays NOT_PROVEN (D5 cases 24-27); nesting is a composition of per-layer effect stacks as in pigment's render_layer_reference."
+  }
+ }
 }

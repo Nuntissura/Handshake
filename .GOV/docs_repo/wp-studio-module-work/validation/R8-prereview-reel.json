@@ -1,0 +1,195 @@
+{
+  "kind": "pre-review",
+  "rule": "V4-13",
+  "round": "STUDIO-R8 (pre-review)",
+  "head": "589f5442beb4f85029be2376b3bf787667188955",
+  "branch": "origin/codex/handshake-studio-assets",
+  "base_for_diff": "dff7ef51d282509846803ac406a9fe12957355df (R7 candidate, last FAIL of both lanes)",
+  "reviewer": "independent read-only pre-reviewer (Opus), committed blobs only (git archive of 589f544 into scratch), no cargo, no sub-agents",
+  "severity_rule": "CONFIRMED = file:line read at 589f544 by this reviewer; PLAUSIBLE = reasoning, external fact or behaviour not proven at 589f544",
+  "method": "git fetch; git diff dff7ef5..589f544 for both crates (8438b1d, 7886369, 589f544 touch them; 2fa2202 is interop-psd only); line-numbered reads of registry.rs, video.rs, cache/isobmff/matroska decode paths, av1/mod.rs, host.rs, worker.rs, test_fault.rs, lib.rs, Cargo.toml, tests; V4-06 regex recount; rust-src read for Windows program resolution; kernel round/review/register/lane/START_LOG files",
+  "status": "COMPLETE",
+  "started_at": "2026-10-11T11:22:20Z",
+  "updated_at": "2026-10-11T11:34:14Z",
+  "completed_at": "2026-10-11T11:34:14Z",
+  "summary": {"SMB-REEL-NATIVE-AV1-WORKER": {"recommendation": "SAFE_TO_JUDGE", "CONFIRMED": 0, "PLAUSIBLE": 2}, "SMB-REEL-AV1-ROUTE": {"recommendation": "FIX_FIRST", "CONFIRMED": 1, "PLAUSIBLE": 2, "blocking": "PLR-032 (FIX_LANE, unfixed at HEAD) or a lead WAIVE/DEFER decision"}},
+  "lanes": [
+    {
+      "lane": "SMB-REEL-NATIVE-AV1-WORKER",
+      "crate": "hsk-studio-reel-native",
+      "ready_commit": "7886369",
+      "failed_verdicts_so_far": 2,
+      "prior_fail_fixed": [
+        {
+          "round": "R5",
+          "failure_class": "host-declared-dims-overflow",
+          "status": "FIXED (f080dd6), unchanged at HEAD except rustfmt of one line",
+          "evidence": "host.rs:1132-1166 declared_frame_cap and :1171-1182 decoder_budget use checked_mul/checked_add, overflow -> LimitExceeded av1-declared-dimensions",
+          "test": "tests/av1_worker.rs:583 hostile_declared_dims_u32_max_are_refused_before_any_spawn",
+          "red_if_reverted": "yes: the test calls ExternalVideoDecoder::open directly with u32::MAX x u32::MAX (not through a container, so reel's 1<<20 Matroska bound does not mask the host arithmetic); unchecked u64 math overflows -> debug panic"
+        },
+        {
+          "round": "R5",
+          "failure_class": "wire-frame-dims-overflow",
+          "status": "FIXED (f080dd6), unchanged at HEAD",
+          "evidence": "wire.rs:533-535 checked_mul chain in decode_frame",
+          "test": "src/wire.rs:704 frame_dims_u32_max_is_malformed",
+          "red_if_reverted": "yes (debug overflow panic on u32::MAX dims at 10-bit)"
+        },
+        {
+          "round": "R5",
+          "failure_class": "test-fault-hooks-in-product-api",
+          "status": "FIXED (f080dd6); the new StallHello variant is inside the same gate",
+          "evidence": "lib.rs:28-29,40-41 (module and re-export need av1+test-faults); host.rs:43-44,111-113,510-511,585-590; worker.rs:22-23,38-92 (Faults incl. stall_hello cfg test-faults), :130-133 (call site cfg test-faults)",
+          "test": "tests/worker_fault_env.rs (worker built without test-faults ignores the env variable); host-side gating is compile-time (no compile-fail test; accepted in R7)",
+          "red_if_reverted": "worker side yes; host-side field gating not test-proven (accepted R7)"
+        },
+        {
+          "round": "R5",
+          "failure_class": "worker-feature-links-in-process-decoder",
+          "status": "FIXED (f080dd6), unchanged",
+          "evidence": "Cargo.toml:9-10 av1 = accord + reel WITHOUT reel/av1; av1-worker adds hsk-studio-reel/av1 for the worker binary",
+          "test": "none in crate (R7 accepted via feature closure / round-features [av1-worker],[av1-worker,test-faults])",
+          "red_if_reverted": "not test-proven (accepted R7)"
+        },
+        {
+          "round": "R5",
+          "failure_class": "worker-supervisor-cap-duplicate",
+          "status": "NOT LANE-FIXABLE: START_LOG D18 (Operator); R7 validator: stays D18. 7886369 edits the existing copy only (Command::new only at host.rs:579), no new copy (V4-05)",
+          "test": "n/a",
+          "red_if_reverted": "n/a"
+        },
+        {
+          "round": "R7",
+          "failure_class": "worker-lookup-parent-dir (PLR-034)",
+          "status": "FIXED (7886369)",
+          "evidence": "host.rs:464-467 discover_beside = exe.parent().join(name) filtered by is_file, nothing else; :469-471 discover_program delegates; :918-923 used only when Av1WorkerOptions::program is None",
+          "test": "host.rs:1239 unit worker_is_found_only_beside_the_running_executable (decoy in parent ignored, directory named like the worker refused, beside-exe found, empty path -> None) + tests/av1_worker.rs:557 default_discovery_does_not_look_in_the_parent_of_the_executable_directory (real cargo layout; prints NOT_PROVEN and returns if the layout differs, V4-03 compliant)",
+          "red_if_reverted": "yes: restoring the parent candidate fails the unit at the decoy assert and the integration test (default discovery would find target/<profile>/reel-native-av1-worker); lane red proof recorded both (host.rs:1253, av1_worker.rs:570)"
+        },
+        {
+          "round": "R7",
+          "failure_class": "hello-wait-ignores-cancel (PLR-035)",
+          "status": "FIXED (7886369)",
+          "evidence": "host.rs:568-622 Pool::spawn(cancel) waits for HELLO through Session::wait (host.rs:373-389: recv_timeout(WAIT_SLICE=5 ms), then cancel check, then wall = deadline_after(spawn_timeout)); Canceled -> fail(Failure::Canceled) kills+reaps, bumps killed_canceled, returns Reel(Canceled); TimedOut/Failed -> terminate + SpawnFailed; checkout(cancel) and open_session pass the caller's token (host.rs:637-648, :1050-1053)",
+          "test": "tests/av1_worker.rs:481 canceled_call_does_not_wait_for_a_stalled_hello (StallHello worker, 30 s spawn_timeout, cancel at 300 ms -> Reel(Canceled) in < 5 s, empty sink, stats (spawned 1, killed_canceled 1, spawn_failed 0, crashed 0, alive 0); without cancel a 400 ms spawn_timeout -> Worker(SpawnFailed))",
+          "red_if_reverted": "yes: with recv_timeout(spawn_timeout) the first half returns Worker(SpawnFailed) after ~30 s != Reel(Canceled) (lane red proof av1_worker.rs:510)"
+        }
+      ],
+      "r7_fix_checks": {
+        "worker_lookup_only_beside_executable": "CONFIRMED for default discovery (the only search in the crate; host.rs:921). The explicit Av1WorkerOptions::program override is used as given: see new finding 1 for a bare file name",
+        "hello_and_other_waits_cancellable_and_bounded": "CONFIRMED: the calling thread waits only in Session::wait (HELLO host.rs:615, every request host.rs:717), cancel-polled every 5 ms with a wall deadline; Session::terminate is bounded by patience (0 or EXIT_PATIENCE 500 ms) then kill+reap (host.rs:393-405); blocking pipe reads and the bounded sync_channel send run on the per-worker I/O thread and end when the child is killed or the receiver is dropped (host.rs:415-449). Bound note: see new finding 2",
+        "stall_hello_only_under_test_faults": "CONFIRMED: variant in test_fault.rs (module compiled only with av1+test-faults, lib.rs:28-29); worker sleep in Faults::stall_hello (worker.rs:63-68, impl cfg test-faults :48) and its only call site worker.rs:132-133 is cfg test-faults",
+        "no_handle_or_process_leak_on_cancel": "CONFIRMED by reading: the Session owns the Child; Drop terminates and reaps (host.rs:408-412); the Permit decrements live only after the Session is dropped (host.rs:348-365), which the test pins as alive 0; the I/O thread is detached and exits on pipe close or receiver drop"
+      },
+      "v4_06_spot_check": {
+        "regex_recount": "45 code-line hits at 589f544 with the lane regex = lane count 45 (listed 45)",
+        "sites_checked": [
+          "host.rs:373/375 OK (single cancel-polled wait)",
+          "host.rs:397/399/404 NOT_APPLICABLE agreed (terminate bounded by patience then kill)",
+          "host.rs:421/432 NOT_APPLICABLE agreed (I/O thread reads, end on kill)",
+          "host.rs:464/466 FIXED agreed (exe directory only)",
+          "host.rs:469/470 FIXED agreed (delegates to discover_beside)",
+          "host.rs:579 NOT_APPLICABLE agreed (runs the configured or discovered path; but see finding 1 for bare names)",
+          "host.rs:615 FIXED agreed (HELLO via Session::wait)",
+          "host.rs:717 OK agreed (request waits via Session::wait)",
+          "host.rs:921/922 OK agreed",
+          "test_fault.rs:43 NOT_APPLICABLE agreed (module gated av1+test-faults)",
+          "worker.rs:66/79 NOT_APPLICABLE agreed (cfg test-faults, worker side)"
+        ],
+        "verdict": "per-site verdicts accurate for the 13 sites checked; no unlisted hit"
+      },
+      "new_findings": [
+        {
+          "severity": "PLAUSIBLE",
+          "kind": "explicit_bare_worker_program_resolved_by_search",
+          "file_line": "crates/hsk-studio-reel-native/src/host.rs:918-923 (configured program checked with is_file against the current directory), :579 (Command::new(&self.program))",
+          "evidence": "An embedder that passes a bare file name (Av1WorkerOptions::program = \"reel-native-av1-worker.exe\") passes the is_file check against the CURRENT directory, but on Windows std resolves a bare file name by search: child PATH (none after env_clear), the application directory, System32, the Windows directory, then the parent PATH (read in rust-src of the local stable 1.91.1, library/std/src/sys/process/windows.rs resolve_exe/search_paths; the workspace pins 1.97.1 whose rust-src is not installed, UNVERIFIED for that exact version). The file checked and the file executed can differ, and a same-named binary on PATH can run as the decoder worker (HELLO checks only self-reported strings). Default discovery is fixed; this is the caller-supplied override only, and the same shape exists in the motion-js and score-plugin copies (D18). Not a regression of 7886369.",
+          "remediation": "Optional, cheap: at construction make the configured program absolute (std::path::absolute, or join a bare name to the executable directory) and is_file that path; refuse a bare name otherwise; one unit test. Fold into D18 if preferred"
+        },
+        {
+          "severity": "PLAUSIBLE",
+          "kind": "hello_wait_bounded_by_spawn_timeout_not_segment_deadline",
+          "file_line": "crates/hsk-studio-reel-native/src/host.rs:1045 (segment_wall set before checkout), :615 (HELLO wall = deadline_after(spawn_timeout) only)",
+          "evidence": "The HELLO wait is cancellable and bounded, but by spawn_timeout alone; a caller with segment_deadline < spawn_timeout can exceed its segment deadline by up to spawn_timeout while a worker starts. Defaults (10 s vs 300 s) never hit it. Pre-existing semantics (the old recv_timeout used the same bound).",
+          "remediation": "Optional: wall = deadline_after(spawn_timeout).min(segment_wall) by passing the segment wall into checkout/spawn"
+        }
+      ],
+      "wip_after_ready": "NONE: last commit touching crates/hsk-studio-reel-native is 7886369 (the READY commit); later commits 2fa2202 (interop-psd) and 589f544 (hsk-studio-reel DESCRIPTOR string only, a dependency of this crate, no behaviour change) do not touch the crate (V4-14 satisfied)",
+      "recommendation": "SAFE_TO_JUDGE",
+      "recommendation_note": "Both R7 CONFIRMED items are fixed with tests that go red on revert (red proofs recorded in the lane); all R5 classes remain fixed; no new CONFIRMED defect in 7886369. Remaining items are PLAUSIBLE, pre-existing and optional. Round must run [av1-worker] and [av1-worker,test-faults] (.config/round-features.toml:16)."
+    },
+    {
+      "lane": "SMB-REEL-AV1-ROUTE",
+      "crate": "hsk-studio-reel",
+      "ready_commit": "589f544 (claim: 8438b1d + 589f544)",
+      "failed_verdicts_so_far": 2,
+      "prior_fail_fixed": [
+        {
+          "round": "R5",
+          "failure_class": "external-picture-plane-size-overflow",
+          "status": "FIXED (233f406), unchanged since dff7ef5",
+          "evidence": "video.rs:278-290 planes_match_format: u64 checked_mul chain, None = mismatch -> DecoderFault::Protocol at :302-306",
+          "test": "tests/review_r5_regressions.rs:112 r5_route_lying_decoder_dimensions_cannot_overflow_the_plane_check (u32::MAX x u32::MAX at 10 and 8 bit, u32::MAX x 3 at 12 bit, 65536^2)",
+          "red_if_reverted": "yes in the debug test profile (u32::MAX^2 x 2 overflows u64 -> panic; lane red proof at 1d404f8 video.rs:269:35)"
+        },
+        {
+          "round": "R7",
+          "failure_class": "proxy-inherits-original-trust-in-process-av1 (PLR-033)",
+          "status": "FIXED (8438b1d; DESCRIPTOR 589f544)",
+          "evidence": "registry.rs:28-52 ProxySource.trust (new = Untrusted, with_trust per proxy); :238-259 the proxy is decoded with its own proxy_route {trust: proxy_trust, external: shared}; the caller's trust builds the original's route only (:219-222, :272-273), also after an unusable proxy falls back",
+          "test": "tests/video_route.rs:466 trusted_original_never_lends_its_trust_to_a_proxy (mp4 + mkv; Trusted/Untrusted original + default proxy -> external only; nothing registered -> CodecUnavailable, empty sink; explicit Trusted proxy honoured alone; explicit Untrusted proxy -> external; stale proxy -> original under its own trust)",
+          "red_if_reverted": "yes, but ONLY with --features av1: without the feature choose() has no in-process branch, so a revert is invisible in the default unit. .config/round-features.toml:15 runs hsk-studio-reel [av1], so the round exercises the red half (lane red proof video_route.rs:494-496 under av1)"
+        }
+      ],
+      "r7_fix_checks": {
+        "proxy_trust_never_inherited_all_entry_points": "CONFIRMED: Registry::decode_segment (original Untrusted, proxy own trust, registry.rs:184-202); Registry::decode_segment_routed (trust applies to the original only); MediaProvider::decode_segment_routed is the caller's route for that one reader (isobmff.rs:1639-1661, matroska.rs:1666-1688; trait default ignores it, model.rs:393-403); cached paths IsobmffProvider/MatroskaProvider::decode_packets and decode_cached (IndexCache, cache.rs:228-255) use VideoRoute::default() = Untrusted with no external decoder (isobmff.rs:1694-1702, matroska.rs:1490-1498) -> CodecUnavailable, never in-process; relink/sampled identity (identity.rs) decodes nothing; MXF essence is opaque; reel-native decode_av1 uses VideoRoute::untrusted().with_external (host.rs:999). git grep at 589f544: no other workspace crate uses ProxySource, decode_segment_routed, SourceTrust::Trusted or Av1Decoder",
+        "untrusted_av1_never_reaches_in_process_rav1d": "CONFIRMED for every routing path: the only in-process entry is video.rs:420-421 behind choose() (video.rs:217-226: Trusted && Av1 && cfg av1). Note (not a finding): hsk_studio_reel::av1::Av1Decoder (av1/mod.rs:128-188, feature av1) is public and has no trust gate; it is documented TRUSTED INPUT ONLY and kept public because the worker hosts it (av1/mod.rs:17-22); pre-existing, judged with SMB-REEL-ENG-3 (PASS_V2)"
+      },
+      "v4_06_spot_check": {
+        "regex_recount": "The lane regex as written (^\\s*[^/\\s].*\\b(...)\\b) gives 51 hits under grep -P because [^/\\s] consumes the first character, so lines that START with the keyword are not matched; the intended reading (word match on non-comment code lines) gives 57 = listed 57. The 6 extra listed lines (isobmff.rs:1737, matroska.rs:1547, registry.rs:200, registry.rs:220, video.rs:222, video.rs:387) are such lines. Listing is complete; regex text is inexact (process nit)",
+        "sites_checked": [
+          "registry.rs:33 FIXED agreed (own trust field)",
+          "registry.rs:43 FIXED agreed (new = Untrusted)",
+          "registry.rs:48-49 FIXED agreed (with_trust per proxy)",
+          "registry.rs:219-220 OK agreed (original's route only)",
+          "registry.rs:242/248-252 FIXED agreed (separate proxy route, proxy trust)",
+          "registry.rs:273 OK agreed (original under original trust, incl. fallback)",
+          "registry.rs:193/200 OK, with a doc nit (finding 3)",
+          "video.rs:217-222 OK agreed (choose is the only trust read)",
+          "isobmff.rs:1701 and matroska.rs:1497 OK agreed (cached decode = Untrusted, no external)",
+          "isobmff.rs:1636 and matroska.rs:1663 OK agreed (decode_segment = default route)",
+          "model.rs:393/400 NOT_APPLICABLE agreed"
+        ],
+        "verdict": "per-site verdicts accurate for the sites checked"
+      },
+      "new_findings": [
+        {
+          "severity": "CONFIRMED",
+          "kind": "carried_fix_lane_item_unfixed (PLR-032)",
+          "file_line": "crates/hsk-studio-reel/src/video.rs:265-272 (Forward holds no declared track size), :293-324 (accept: :302 planes_match_format compares the picture only with its own format; :316-319 copies every plane into `packed`; only then :320 compares with max_chunk_bytes); the declared VideoTrack width/height exist (video.rs:433-434, passed to the external decoder) but never reach Forward",
+          "evidence": "Register PLR-032 (lane SMB-REEL-AV1-ROUTE, disposition FIX_LANE 'refuse as DecoderFault::Protocol before packing', carried since R5) is unfixed at HEAD, and the lane deferred it explicitly (lane next: 'NOT in this pass: PLR-032'). Effect: a registered ExternalVideoDecoder (any embedder decoder; the reel-native worker is bounded by its declared-size reply cap, host.rs:1046, a generic decoder is not) can return a picture larger than the container-declared size: up to max_chunk_bytes it is delivered with dimensions the probe never reported, and above it the whole picture is copied into a second buffer before LimitExceeded (transient 2x; V4-02 'check bounds before allocating'). R7-review-b kept PLR-032 PLAUSIBLE, but raised the other three carried FIX_LANE items of these two lanes (PLR-033, PLR-034, PLR-035) to CONFIRMED FAILs; this lane has one verdict left before CX-EXEC-015(1) fix_budget_exhausted.",
+          "remediation": "Carry the declared (width, height) into Forward; when declared (non-zero), a picture whose format.width/height exceed them is DecoderFault::Protocol (use <=, not ==, so frame-size changes within the sequence maximum stay legal); compute the packed size as a checked sum of plane lengths and refuse > max_chunk_bytes before any extend_from_slice. Tests: a lying fake decoder returning (a) a picture larger than the declared track -> Protocol with an empty sink, (b) an oversize picture -> LimitExceeded before packing. ALTERNATIVE: the lead records a WAIVE/DEFER lead_decision for PLR-032 in workflow/plausible-register.json before the lane is offered; then the lane is SAFE_TO_JUDGE."
+        },
+        {
+          "severity": "PLAUSIBLE",
+          "kind": "proxy_without_decoder_fails_request_no_fallback",
+          "file_line": "crates/hsk-studio-reel/src/registry.rs:236-265 (a layout-usable proxy is decoded and its error returned), video.rs:403-405 (choose() None -> CodecUnavailable before any packet is read); pinned by tests/video_route.rs block 'Same, nothing registered'",
+          "evidence": "Behaviour change from 8438b1d: with prefer=Proxy, a Trusted original, a default (Untrusted) proxy and no external decoder, the whole request is CodecUnavailable although the original alone would decode (in-process, feature av1); before, the proxy was decoded in-process (the defect). Not a safety problem. An unusable proxy (stale grant, probe error) falls back to the original (ProxyUnusableUsedOriginal), an undecodable-under-its-trust proxy does not; the code docs (registry.rs:204-207) do not state this, only the lane notes do. Spec text on proxy fallback NOT_INSPECTED.",
+          "remediation": "Either decide before decoding (choose() for the proxy track is None) and fall back to the original with ProxyNote::ProxyUnusableUsedOriginal (safe: the refusal happens before any packet reaches the sink), or state the no-fallback rule in decode_segment_routed's doc"
+        },
+        {
+          "severity": "PLAUSIBLE",
+          "kind": "doc_claim_incomplete_after_fix",
+          "file_line": "crates/hsk-studio-reel/src/registry.rs:180-182 (decode_segment doc)",
+          "evidence": "'The source is SourceTrust::Untrusted: compressed video goes to the registered external decoder or is CodecUnavailable'. Since 8438b1d a ProxySource built with with_trust(SourceTrust::Trusted) keeps its own trust in decode_segment too (registry.rs:193-201 -> :242-251), so its AV1 reaches in-process rav1d with feature av1. Behaviour follows the stated policy (the caller vouched for that proxy); the doc sentence is now incomplete.",
+          "remediation": "Reword: 'The ORIGINAL is SourceTrust::Untrusted; a proxy keeps its own ProxySource::trust'"
+        }
+      ],
+      "wip_after_ready": "NONE: READY commit 589f544 is HEAD; the crate commits after dff7ef5 are exactly the claimed 8438b1d + 589f544 (V4-14 satisfied)",
+      "cross_lane_note": "The crate changed after the R7 candidate, so SMB-REEL (PASS_V4) and SMB-REEL-ENG-3 (PASS_V2) may be re-included under CX-VAL-009; PLR-029 (FIX_LANE on SMB-REEL, pub mod fixtures) is still unfixed at src/lib.rs:24, same carried-FIX_LANE risk for SMB-REEL.",
+      "recommendation": "FIX_FIRST",
+      "recommendation_note": "The R7 FAIL (PLR-033) and the R5 FAIL are fixed with tests that go red on revert (the PLR-033 red half needs the [av1] round unit, which is configured). Hold the lane only for PLR-032: a lead-assigned FIX_LANE item on this lane, CONFIRMED unfixed at 589f544, with a small local fix; on the last available verdict, a reviewer applying the R7 precedent for carried FIX_LANE items would FAIL it. Becomes SAFE_TO_JUDGE when PLR-032 is fixed (with its two regressions) or the lead records a WAIVE/DEFER decision for it. Findings 2-3 are optional."
+    }
+  ]
+}

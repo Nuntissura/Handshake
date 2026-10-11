@@ -1,0 +1,197 @@
+{
+ "crate": "hsk-studio-score-device",
+ "lane": "hsk-studio-score-device",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "R6 remediation of review B pushed at 436242f (all 4 findings: 2 CONFIRMED + 2 PLAUSIBLE addressed); native-device oracle still NOT_PROVEN",
+ "commits": [
+  {
+   "sha": "1d8f1dd5ca26de9119c8f4578e8af157cdd71e35",
+   "subject": "score-device: grant-checked provider port, preallocated SPSC ring (no unsafe), realtime callback bodies, typed loss/overrun/underrun counters, bounded admission, clocked software device with CloseReport, observe report, consumer example, 5 focused tests"
+  },
+  {
+   "sha": "d992b40",
+   "subject": "score-device: optional cpal-backend feature (default OFF): CpalProvider output on an owner thread, f32-only exact-format open, device-loss from cpal error kinds, native test ignored unless STUDIO_NATIVE_AUDIO=1 (NOT_PROVEN panics), --cpal example; shared authorize helper"
+  },
+  {
+   "sha": "436242fa147c57b92d24846ef1bf4a32916f088e",
+   "subject": "score-device R6 remediation: backpressure is not loss (refused_offers, Producer::drop_block), byte-bounded admission (Limits.max_bytes_in_flight), cancel-aware cpal open wait (open_wait.rs), DESCRIPTOR"
+  }
+ ],
+ "capabilities_done": [
+  "1 provider port + negotiation: DeviceProvider (enumerate/open_output/open_input, all take Option<&DeviceGrant> + &CancellationToken), StreamConfig::validate(Limits) -> RingGeometry (rate via score::ticks_per_sample, block frames, ring blocks >= 2, checked ring bytes <= max_ring_bytes), DeviceGrant (explicit, direction + optional device pin; None => Unauthorized), typed DeviceError with outcome() mapping, refusal order cancel > grant > device > config > layout > admission, all before any permit/ring/thread exists",
+  "2 wait-free SPSC ring without unsafe: Vec<AtomicU32> of f32 bits, head/tail cursors in [0, 2*capacity) with Acquire/Release, preallocated at open; Producer::try_push_block (Full keeps block, counts one overrun + one discontinuity; WrongLength; DeviceLost) and push_frames (capture, partial push); Consumer::pop_into; Counters (submitted/consumed frames, underruns, underrun_frames, overruns, dropped_frames, discontinuities, callbacks, device_lost) plus independent local tallies on each end",
+  "3 realtime callback bodies shared by every backend: render_callback (copy, zero-fill remainder = safe underrun output, count) and capture_callback (push what fits, one overrun + one discontinuity + dropped_frames for the rest); proven allocation-free by a per-thread counting global allocator (10_000 iterations x 2 callbacks, plus a deliberate-allocation self-check that the instrument is not blind) and a source scan (no Mutex/RwLock/push/format!/println!/vec!/sleep/.lock( in callback.rs, ring.rs, counters.rs)",
+  "4 ClockedSoftwareDevice + SoftwareProvider (software-clock-out / software-clock-in): one OS thread on a fixed Instant schedule (n*block_frames/rate, catch-up never drift), inject_device_loss (counted once, producer gets DeviceLost), stop + acknowledgement (wait_stopped/stop_acknowledged), close() -> CloseReport{permits_released, thread_joined, device_lost, callbacks, frames_submitted, frames_consumed, residual_frames, underruns, underrun_frames, overruns, dropped_frames, discontinuities, loopback_samples}; reconciles() = submitted == consumed + residual; bounded Admission/Permit (open streams + ring bytes) released only after the thread is joined; Drop joins; loopback recorder preallocated at open is the independent oracle (received samples == submitted ramp in order, zero samples == 2 x underrun_frames)",
+  "report(): Observe terminal frame per outcome (Ok clean -> Success, device lost / dropped capture frames / non-reconciling -> Failure(Loss), not quiescent -> Failure(Unavailable), Err mapped per DeviceError::outcome incl. Canceled); DESCRIPTOR JSON; example score-device-consumer (--descriptor, --software --blocks N --block-frames F --inject-loss, --cpal)",
+  "5 cpal-backend (feature, default OFF, dep cpal =0.18.2 default-features=false features=[] optional in this crate manifest only): CpalProvider output on one owner thread spawned by this crate (cpal Stream Send-ness not relied on); open only after grant; exact rate + channel count + f32 or typed Unavailable (no resampling/conversion/downmix); data callback = render_callback, error callback only flips atomics (DeviceNotAvailable/StreamInvalidated/HostUnavailable => device_lost counted once); owner thread pauses+drops the stream before acknowledging stop and releases the permit on exit; default_output_format(); open_input => Unavailable (output only this slice); tests/native_cpal.rs is #[ignore] and panics NOT_PROVEN unless STUDIO_NATIVE_AUDIO=1 and a usable f32 default device exist; only digital silence is ever pushed"
+ ],
+ "tests": {
+  "argv": "cargo test -p hsk-studio-score-device --tests --no-fail-fast (also --features cpal-backend: same 10 pass + native_cpal 1 ignored)",
+  "exit": 0,
+  "sha": "436242fa147c57b92d24846ef1bf4a32916f088e",
+  "passed": 10,
+  "failed": 0
+ },
+ "blockers": [
+  {
+   "error": "STEWARD ACTION (round coverage, R6 CONFIRMED round_coverage_gap): .config/round-features.toml has no hsk-studio-score-device entry, so cpal_backend.rs is never built or clippy-checked by a round. Request appended to builders/dep-requests.jsonl (kind round-features): hsk-studio-score-device = [[\"cpal-backend\"]]. The native test stays #[ignore] and panics NOT_PROVEN without STUDIO_NATIVE_AUDIO=1. (The earlier registry-pin/probe approval blocker is no longer listed: R6 review B found the registry pin in place; probe approval itself was not re-run here: UNVERIFIED.)",
+   "file_line": "builders/dep-requests.jsonl (last round-features line for hsk-studio-score-device)",
+   "attempts": 0
+  }
+ ],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "validator round on the pushed SHA: default-feature tests (10) + steward-added cpal-backend build unit; later slices: native input via cpal, measured device latency report, non-f32 formats via preallocated scratch, independent loopback capture for the MT-35559 oracle",
+ "updated_at": "2026-10-11T07:20:09Z",
+ "notes": {
+  "verdicts": [
+   {
+    "round": "STUDIO-R6",
+    "lane": "SMB-SCORE-DEVICE",
+    "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a",
+    "tree": "834aa5599ffabf691558a25f777ce42f73d78103",
+    "decision": "failed",
+    "verdict": "FAIL_V1",
+    "failures": [
+     {
+      "failure_kind": "product",
+      "failure_class": "full-refusal-counted-as-overrun",
+      "file_line": "crates/hsk-studio-score-device/src/ring.rs:128-141 (:136); src/counters.rs:59-60,97-101; tests/foundation_contract.rs:100-104,131-136"
+     }
+    ],
+    "remediation": "Full counts nothing (lead 06:29:17Z); overrun/discontinuity only on real drops; update test 1 to that rule",
+    "status_after": "FAIL_V1",
+    "review": "validation/R6-review-b.json",
+    "round_ref": "validation/round-R6.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6",
+    "idempotency_key": "STUDIO-R6:SMB-SCORE-DEVICE:bd8533f9b29c:FAIL_V1",
+    "recorded_at": "2026-10-11T06:47:09Z",
+    "by": "wp_validator STUDIO-R6",
+    "not_proven": [
+     {
+      "capability": "cap 5 CpalProvider (feature cpal-backend)",
+      "reason": "not built, linted or tested by the round; not part of acceptance tests 1-5 (brief: native stays NOT_PROVEN)"
+     }
+    ]
+   },
+   {
+    "round": "STUDIO-R7",
+    "lane": "SMB-SCORE-DEVICE",
+    "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
+    "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
+    "decision": "passed",
+    "verdict": "PASS_V2",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V2",
+    "review": "validation/R7-review-b.json",
+    "round_ref": "validation/round-R7.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
+    "idempotency_key": "STUDIO-R7:SMB-SCORE-DEVICE:dff7ef51d282:PASS_V2",
+    "recorded_at": "2026-10-11T11:04:31Z",
+    "by": "wp_validator STUDIO-R7"
+   },
+   {
+    "round": "STUDIO-R8",
+    "lane": "SMB-SCORE-DEVICE",
+    "candidate": "f6e5a490e2ad0e142938a8bba1f78cadb96f5e84",
+    "tree": "bf944e29dd336acd38969f0dc25353adb529d61d",
+    "decision": "passed",
+    "verdict": "PASS_V3",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V3",
+    "review": "NOT_REVIEWED (closure-only reopen (crate unchanged dff7ef5..f6e5a49))",
+    "round_ref": "validation/round-R8.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R8",
+    "idempotency_key": "STUDIO-R8:SMB-SCORE-DEVICE:f6e5a490e2ad:PASS_V3",
+    "recorded_at": "2026-10-11T12:42:21Z",
+    "by": "wp_validator STUDIO-R8"
+   }
+  ],
+  "mt": "MT-35559",
+  "proof_class": "Capabilities 1-4 prove ring/callback/counter/lifecycle semantics with simulated (software clocked) hardware only. NATIVE DEVICE ORACLE IS NOT_PROVEN (MT-35559: simulated rings are insufficient; the external loopback capture of the exact submitted blocks has not been done).",
+  "native_smoke_evidence": {
+   "when": "2026-10-11T05:16Z",
+   "command": "STUDIO_NATIVE_AUDIO=1 cargo test -p hsk-studio-score-device --features cpal-backend --test native_cpal -- --ignored --nocapture (builder ran it once; digital silence only, no audible output, no window)",
+   "result": "ok: default output device 48000 Hz, 2 channels, f32; 16 callbacks; submitted=8192 consumed=8192 residual=0 underruns=1 (64 silent frames) device_lost=false thread_joined=true permits_released=true; also via example `--cpal --blocks 8`: 4096/4096 frames, clean=true",
+   "what_it_does_not_prove": "no independent observation of the samples that reached the hardware (no loopback device assumed or checked), no real device loss, no overrun on a native input stream",
+   "superseded_note_R6": "the overruns=30 reading above came from retried Full offers; since R6 those count as refused_offers and overruns stay 0 on a gap-free stream (smoke not re-run: no native run was needed for a counter change)"
+  },
+  "check_clippy": "cargo check + cargo clippy -p hsk-studio-score-device --tests --examples: PASS for default features and for --features cpal-backend, no findings in score-device (2 pre-existing too_many_arguments warnings in hsk-studio-observe)",
+  "tests_detail": {
+   "foundation_contract": "4 passed (ring_fill_and_overflow_discontinuity incl. capture overrun, empty_ring_underrun_is_safe_silence, software_device_lifecycle_and_loss incl. clean output, loss mid-transfer and undrained input overrun, grant_and_config_rejections incl. admission + report frames)",
+   "callback_alloc": "1 passed (callback_is_allocation_free_and_lock_free)",
+   "native_cpal": "1 test, #[ignore]d by default (0 run in the focused command); ran once with STUDIO_NATIVE_AUDIO=1: passed (see native_smoke_evidence)",
+   "flakiness": "built test binaries run 25x each (50 runs) after the first pushed commit: 0 failures; wall-clock jitter is never asserted"
+  },
+  "api_deviations_from_brief": [
+   "render_callback / capture_callback take no separate &Counters: the ring ends embed the shared Arc<Counters> so a mismatched counter set is impossible; counters are reachable via Consumer::counters/Producer::counters",
+   "Provider methods take grant: Option<&DeviceGrant> (brief: &DeviceGrant) because the brief requires 'missing grant => Unauthorized'; enumerate also needs a grant (no ambient device access)",
+   "Added beyond brief: PushError::DeviceLost, Counters underrun_frames + dropped_frames, CloseReport residual_frames/device_lost/callbacks/loopback_samples/reconciles()/is_clean(), Limits.max_open_streams admission, DeviceError::AdmissionDenied, ring_blocks >= 2",
+   "cpal stream runs on an owner thread this crate spawns instead of being held by the handle (Stream Send-ness differs per platform); readiness handshake over a bounded channel with 15 s open wait",
+   "R6 (lead decision, supersedes brief test 1): Full refusal on the output ring is backpressure, counted only as refused_offers; overruns/discontinuities/dropped_frames mean data really lost (capture callback could not place frames, or the explicit Producer::drop_block policy). A backpressured stream with retries ends overruns 0, discontinuities 0, Outcome Success (test backpressured_stream_with_retries_is_lossless)."
+  ],
+  "limitations": [
+   "Sample format is interleaved f32 only; no resampling, conversion, MIDI, record-to-file (brief non-goals). Native open of a device whose shared-mode format differs from the request is refused (Unavailable), never converted.",
+   "cpal backend is output only; open_input returns Unavailable. Native device loss and native underrun/overrun accounting beyond the one smoke run are untested (no way to inject loss on a real device).",
+   "If a native build_output_stream never returns, CpalBackend::drop joins the owner thread and can block (cpal's 5 s build timeout bounds the normal case).",
+   "Software input device ramp is exact only for the first 2^24 samples (f32).",
+   "Windows timer granularity makes the software cadence coarse; the schedule catches up rather than drifts; jitter is not asserted."
+  ],
+  "dep_requests": "builders/dep-requests.jsonl: hsk-studio-score-device cpal 0.18.2 (appended once, pure_rust false, resolved lock delta of 53 new packages listed; resolver also bumped wasm-bindgen family 0.2.128->0.2.129 and js-sys/web-sys 0.3.105->0.3.106 in the working Cargo.lock). Builder did NOT stage Cargo.lock (working-tree edit by cargo only).",
+  "gameplan_route": "no gameplan hook block occurred; no retry-guard route needed (every cargo test rerun followed a HEAD change)",
+  "remediation_R6": {
+   "source": "validation/R6-review-b.json lane SMB-SCORE-DEVICE (candidate bd8533f)",
+   "commit": "436242fa147c57b92d24846ef1bf4a32916f088e",
+   "findings": [
+    {
+     "kind": "counter_semantics (CONFIRMED)",
+     "fix": "ring.rs try_push_block Full -> add_refused_offer only (new Counters.refused_offers, CounterSnapshot/CloseReport field); overrun+discontinuity+dropped_frames only on real loss: push_frames (capture) and new explicit Producer::drop_block; CloseReport::is_clean also needs dropped_frames == 0",
+     "tests": "ring_fill_and_overflow_discontinuity (amended: Full -> overruns 0, discontinuities 0, refused 1/2; drop_block -> 1,1,8 dropped); backpressured_stream_with_retries_is_lossless (ring level 18 refusals, order kept, loss 0; stream level: overruns 0, discontinuities 0, dropped 0, refused_offers equals the test's own tally, is_clean, Outcome::Success); software_device_lifecycle_and_loss (capture drops => not clean, refused 0)"
+    },
+    {
+     "kind": "round_coverage_gap (CONFIRMED)",
+     "fix": "round-features request line appended to builders/dep-requests.jsonl (steward owns .config/round-features.toml, not edited); cpal-backend also compiles + clippy clean + 10 tests pass locally with --features cpal-backend",
+     "tests": "none possible in default round; native test remains ignored/NOT_PROVEN"
+    },
+    {
+     "kind": "cancellation (PLAUSIBLE)",
+     "fix": "src/open_wait.rs wait_ready polls the cancel token every POLL (20 ms) while the cpal owner thread opens the stream; cancel -> backend dropped (stop + join) -> Canceled; unit tested without a device",
+     "tests": "open_wait::tests::{ready_result_is_returned, cancel_is_observed_within_slices_not_the_open_limit, limit_and_gone_sender_are_unavailable}; end-to-end native cancel NOT_PROVEN; the join after a cancel is bounded only by cpal's own 5 s BUILD_TIMEOUT if build_output_stream never returns"
+    },
+    {
+     "kind": "doc_drift (PLAUSIBLE)",
+     "fix": "real bound instead of rewording: Limits.max_bytes_in_flight (default 16 MiB = 4 x 4 MiB) checked in Admission::acquire together with max_open_streams under one lock (exact under concurrency, nothing taken on refusal)",
+     "tests": "admission_bounds_streams_and_bytes"
+    }
+   ],
+   "v4_06_class_sites": {
+    "class": "a refused offer counted as loss (add_overrun call sites)",
+    "regex": "add_overrun\\(|add_refused_offer\\(",
+    "sites": [
+     "src/ring.rs try_push_block Full -> add_refused_offer: fixed",
+     "src/ring.rs Producer::drop_block -> add_overrun: not-applicable (explicit drop is real loss)",
+     "src/ring.rs push_frames (capture) -> add_overrun: not-applicable (frames really not placed)",
+     "src/counters.rs add_overrun definition: not-applicable"
+    ],
+    "count": "3 call sites + 1 definition; 1 fixed, 3 not-applicable"
+   },
+   "v4_07": "absolute claims (never/always) added or touched in docs now cite tests or were weakened (counters.rs, provider.rs, ring.rs); DESCRIPTOR cites tests for loss semantics, admission and cancel",
+   "route_notes": {
+    "retry_guard": "no hook block, no failed focused run; one stale-rlib event: a test build linked an older score-device rlib (no refused_offers/drop_block) until every src file was touched (V4-11); infrastructure cause, no flags changed, no gameplan step added",
+    "line_endings": "a first edit pass wrote CRLF through Windows Python text mode; normalized back to LF before the commit (git ls-files --eol shows i/lf w/lf for the crate)"
+   },
+   "red_proof": {
+    "method": "V4-11/12: a scratch workspace (accord, observe, score + the lane crates copied from the committed tree) under Handshake_Artifacts/WP-KERNEL-STUDIO/smb-score-r6-redproof/ws with its own target (STUDIO_OWNER=smb-score-r6-redproof); the fixes reverted there by a helper script kept under the session scratchpad smb-score-r6/; the shared edit tree was not touched. Scratch tree left in place (artifact root, not removed).",
+    "at": "2026-10-11T07:20:09Z",
+    "reverted": [
+     "ring.rs: Full counted via add_overrun(0) again",
+     "provider.rs: Admission::acquire ignores max_bytes_in_flight",
+     "open_wait.rs: single recv_timeout(limit) (bounded to 15 s in the scratch copy; an unbounded limit hangs forever, which stopped the first red run: that run was ended with TaskStop on my own background task and released the disk lock)"
+    ],
+    "red_result": "exactly 4 tests failed: open_wait::tests::cancel_is_observed_within_slices_not_the_open_limit, ring_fill_and_overflow_discontinuity, backpressured_stream_with_retries_is_lossless, admission_bounds_streams_and_bytes; the other 7 passed (empty_ring_underrun_is_safe_silence, grant_and_config_rejections, software_device_lifecycle_and_loss, callback_is_allocation_free_and_lock_free, 2 other open_wait tests)"
+   }
+  }
+ }
+}

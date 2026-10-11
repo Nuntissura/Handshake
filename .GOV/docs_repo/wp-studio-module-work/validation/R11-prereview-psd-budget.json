@@ -1,0 +1,175 @@
+{
+ "kind": "pre-review",
+ "rule": "V4-13 (two-FAIL lane: FAIL_V1 STUDIO-R9 @4d80e50, FAIL_V2 STUDIO-R10 @62d8983; a FAIL in R11 exhausts the fix budget) + V4-14",
+ "round": "STUDIO-R11 (pre-review, narrow scope: lane SMB-INTEROP-PSD-BUDGET, crate hsk-studio-interop-psd)",
+ "head": "85532add3c103b55c77c68157a99cdf33e180de4",
+ "head_note": "origin/codex/handshake-studio-assets == 85532ad after `git fetch` (`git log 85532ad..origin/codex/handshake-studio-assets` is empty; `git for-each-ref --contains 85532ad` lists only the local and the origin branch of that name). 85532ad was committed 2026-10-11T15:40:37Z; the kernel READY commit is 81e561dc (15:44:06Z), ledger lane READY 15:43:54Z, lane file updated_at 15:43:05Z. Paths below are relative to handshake-studio-assets/ at 85532ad unless marked @62d8983 / @f6e5a49 / kernel.",
+ "base_for_diff": "62d8983 (R10 candidate, FAIL_V2) for the remediation delta and f6e5a49 (lane base) for the full lane diff. `git diff --stat 62d8983 85532ad` over the WHOLE repo is exactly 4 files, all in this crate: src/effects.rs, src/lib.rs, src/proposal.rs, tests/effects_budget.rs (+374/-66); f6e5a49..85532ad over the crate is the same 4 files (+1347/-18). composite and pigment lowering/validate files cited by the lane were re-read at 85532ad (composite lower_render_plan.rs changed 60 lines since f6e5a49, all in record_envelope/doc; the cited counting lines are unaffected; pigment render_plan.rs changed only reachability of admission rules).",
+ "commits_checked": {
+  "touching_the_crate_f6e5a49_to_head": [
+   "a5eff01 (PLR-053 first fix, judged FAIL_V1 in R9)",
+   "5f5bbb2 (R9 remediation: counting follows the render plan, PsdError::EffectLimit removed)",
+   "ce22fa5 (test-only: a refused stack consumes no SEFX id)",
+   "85532ad (R10 remediation: two independent tally sides, Fit::CountedOnly)"
+  ],
+  "after_head_on_origin": [],
+  "all_four_listed_in_ledger_lane_commits": true
+ },
+ "reviewer": "independent read-only PRE-REVIEWER (V4-13), fresh context, wrote none of this code; committed blobs only (git show / git archive of 85532ad into the session scratchpad); no cargo, no sub-agents; the lane's self-reported counts (effects_budget 9/9, crate 50/50, clippy) were NOT re-run.",
+ "severity_rule": "CONFIRMED = file:line read at head 85532ad by this reviewer and the behaviour follows from the code read; PLAUSIBLE = reasoning, a design question not decided by a lead decision, or behaviour not proven at head",
+ "method": "kernel reads (validation/round-R9.json and round-R10.json PSD-BUDGET lanes, R9-review-a.json and R10-review-a.json PSD sections, START_LOG lead decisions 14:15:23Z, 14:41:47Z, clarification 15:29:19Z, decision 15:43:55Z, lane file builders/lanes/hsk-studio-interop-psd-budget.json notes.remediation_R9/remediation_R10/verdicts, ledger lane entry, workflow/plausible-register.json PLR-053, builders/DISPATCH_TEMPLATES.md topic v4-rules); full line-numbered reads at 85532ad of src/effects.rs (1-573), src/proposal.rs (90-160, 440-1030, 1560-1821), src/lib.rs DESCRIPTOR (parsed as JSON: valid, 15 keys, effect_limits printed and compared clause by clause), tests/effects_budget.rs (1-1073), plus composite lower_extensions.rs (555-600), lower_render_plan.rs (425-570, 600-760), lower_plan.rs (148-158), pigment render_plan/extensions.rs (270-345), pigment effect_math.rs constants, folio raster.rs (745-1075) and values.rs (30-70) for what record validation charges, document.rs tree() and read_layer_info (max_layers); `git grep` for every effects/Budget/inspect_bytes/validate_raster_records/lfx2 reference in the crate src; V4-06 regex recomputed with `grep -rnP` over a `git archive 85532ad` extraction of src (comment lines excluded); builder red/green logs in the shared scratchpad were read as data only (red1.log: 3 of 9 fail at 62d8983 with the expected assertion messages; green1.log 9/9) and not executed.",
+ "status": "complete",
+ "started_at": "2026-10-11T15:45:12Z",
+ "completed_at": "2026-10-11T16:02:06Z",
+ "updated_at": "2026-10-11T16:02:06Z",
+ "lanes": [
+  {
+   "lane": "SMB-INTEROP-PSD-BUDGET",
+   "crate": "hsk-studio-interop-psd",
+   "verdicts_so_far": "FAIL_V1 (STUDIO-R9 @4d80e50: document-wide-effect-cap-fails-whole-import), FAIL_V2 (STUDIO-R10 @62d8983: uncounted-cap-closes-tally-for-rendered-stacks); a third FAIL exhausts the fix budget",
+   "prior_fail_fixed": {
+    "overall": true,
+    "R9_class_document_wide_effect_cap_fails_whole_import": {
+     "fixed": true,
+     "evidence": "crates/hsk-studio-interop-psd/src/error.rs no longer has EffectLimit / psd_effect_limit (`git grep EffectLimit 85532ad -- crate` hits only the test comment tests/effects_budget.rs:621). The only effect arm of the importer is Builder::collect_records, src/proposal.rs:557-582: it can only `note` (Ok arm :564-574, budget refusal :575-578, other refusal :579) and the function ends `Ok(())` :590; effects::effect_stack is called from nowhere else (git grep). map_stack (src/effects.rs:504-573) returns Err(Reason) only, never a PsdError. The one later failure point, validate_raster_records (src/proposal.rs:1795-1797), is given nodes = max(caller nodes, records + kept) (:1791-1792) and Folio charges effects nothing but nodes (folio raster.rs:756-757 `check(len <= MAX_EFFECTS)` + `cx.nodes(len)`, :1019 `cx.nodes(r.layers.len())`; values.rs:39-47 Ctx::new copies only nodes and payload_bytes; no other cx.nodes site in raster.rs/values.rs), and the 1024 ceiling is pre-empted at effects.rs:552-554. needed = layers.len() + tally.kept() is exact: records are only ever pushed (proposal.rs:588, no retain/remove/truncate; git grep of `.records`), a record holds exactly the shape that was charged (proposal.rs:565 charges StackShape::of of the MAPPED effects, i.e. after the retain at effects.rs:568), and the tests assert need ok / need-1 BudgetExceeded (effects_budget.rs:475-488, called in every new test). checked_add cannot overflow (records <= max_layers, kept <= 8192).",
+     "sites_enumerated": [
+      "src/effects.rs:139-141 empty stack -> Whole",
+      "src/effects.rs:142-144 per-layer counted cap (> MAX_EFFECTS_PER_LAYER -> effects_over_budget, closes neither side)",
+      "src/effects.rs:145-150 stack without counted instances: uncounted bound only",
+      "src/effects.rs:151-156 stack with counted instances: counted bounds decide keep/refuse, uncounted bound decides Whole vs CountedOnly",
+      "src/effects.rs:160-166 charge (CountedOnly closes the uncounted side)",
+      "src/effects.rs:169-175 refused (each document code closes only its own side)",
+      "src/effects.rs:552-554 Folio per-stack ceiling (mapped instances, category-blind, see finding PSD-R11-1)",
+      "src/effects.rs:564-571 admit, retain of switched-off instances, SEFX id minted after admit",
+      "src/proposal.rs:561-581 collect_records effect arm; :880-888 hidden_groups counter; :1791-1797 node sizing and the one validate_raster_records call"
+     ]
+    },
+    "R10_class_uncounted_cap_closes_tally_for_rendered_stacks": {
+     "fixed": true,
+     "evidence": "crates/hsk-studio-interop-psd/src/effects.rs:129-134 EffectTally now has counted_closed and uncounted_closed (was one shared `closed: Option<Reason>`). admit: a stack with shape.counted == 0 is judged by the uncounted bound alone (:147-150, the counted side is not read); a stack with counted instances is judged by the counted bounds alone (:153-155) and the uncounted bound only chooses Whole vs CountedOnly (:156, `shape.uncounted == 0 || uncounted_fits`); refused() closes counted_closed only for effects_over_document_budget and uncounted_closed only for effects_unrendered_over_document_budget (:169-175). admit returns effects_unrendered_over_document_budget only inside the counted == 0 branch (:149) and effects_over_document_budget only inside the counted > 0 branch (:154), so neither code can reach a stack of the other category. The R10 reproduction (4097+ hidden instances, then a visible live stack) is test instances_no_plan_counts_are_bounded_too_... (effects_budget.rs:819-877: visible live(1) after the crossing is Kept(1), :842) and the lead's 15:43:55Z rule (visible stack keeps live instances, drops switched-off ones with Transformed effects_unrendered_dropped_over_document_budget) is effects.rs:156/:565-569 + proposal.rs:567-571.",
+     "reverse_direction_also_fixed": "counted cap full: a later hidden / master-off / all-off / hidden-group stack is kept (not lost under effects_over_document_budget as at 62d8983): src/effects.rs:147-150; test the_counted_bound_never_costs_a_stack_without_counted_instances_its_record effects_budget.rs:1022-1070 (:1048, :1049, :1051, :1052)."
+    }
+   },
+   "answer_a_both_fail_classes_and_cross_category_cuts": {
+    "result": "GONE at every site read; one pre-existing category-blind site remains and is disclosed in the DESCRIPTOR (finding PSD-R11-1).",
+    "per_cap_table": [
+     {
+      "cap": "per layer, counted > 64",
+      "site": "crates/hsk-studio-interop-psd/src/effects.rs:142-144",
+      "cuts": "stack with counted > 64 (whole stack incl. its switched-off part)",
+      "closes": "nothing",
+      "cross_category": "no"
+     },
+     {
+      "cap": "counted document total > 4096",
+      "site": "crates/hsk-studio-interop-psd/src/effects.rs:153-155",
+      "cuts": "stacks with counted > 0 only (whole stack)",
+      "closes": "counted side only (refused() :170-171)",
+      "cross_category": "no; never reached by a counted == 0 stack (:147-150 returns first)"
+     },
+     {
+      "cap": "uncounted document total > 4096",
+      "site": "crates/hsk-studio-interop-psd/src/effects.rs:145-150, :156",
+      "cuts": "counted == 0 stacks (refused, :149) or only the switched-off part of a counted > 0 stack (CountedOnly, :156)",
+      "closes": "uncounted side only (:163-165, :172-173)",
+      "cross_category": "no; a stack with counted instances is never refused for it"
+     },
+     {
+      "cap": "Folio ceiling, mapped instances > 1024",
+      "site": "crates/hsk-studio-interop-psd/src/effects.rs:552-554",
+      "cuts": "any stack, counted or not (mapped instances of both categories)",
+      "closes": "nothing (refused() ignores effects_over_budget)",
+      "cross_category": "YES, pre-existing at f6e5a49 and disclosed (DESCRIPTOR clause 3), see PSD-R11-1"
+     },
+     {
+      "cap": "node need for record validation",
+      "site": "crates/hsk-studio-interop-psd/src/proposal.rs:1791-1792",
+      "cuts": "nothing (sized from the input)",
+      "closes": "nothing",
+      "cross_category": "no"
+     }
+    ],
+    "no_whole_import_failure": "no effect count reaches a PsdError at any site (see prior_fail_fixed.R9)."
+   },
+   "answer_b_counting_rule_vs_render_plan": {
+    "result": "MATCHES for the instance-level rule and the limits; DEVIATES in the over-count direction at two layer-level points that the lane discloses only in kernel notes (finding PSD-R11-2).",
+    "verified_at_85532ad": [
+     "composite convert_effects crates/hsk-studio-composite/src/lower_extensions.rs:569-593: live = stack.enabled ? enabled instances : [] (:573-577); empty live -> Ok, no effects (:578-580); live.len() > MAX_EFFECTS_PER_LAYER -> REFUSE_EFFECT_LIMIT (:584-586). Importer: StackShape::of src/effects.rs:94-98 (`live = if enabled {count enabled} else {0}`), per-layer comparator `>` at :142: identical.",
+     "pigment PlanExtensions::validate crates/hsk-studio-pigment/src/render_plan/extensions.rs:326-339: only layer entries with a non-empty effects list add (:326, :336 saturating_add of e.effects.len(), the converted live ops one to one); `e.effects.len() > MAX_EFFECTS_PER_LAYER || total_effects > MAX_EFFECTS_PER_PLAN` -> EffectLimit (:337-338). Importer comparators `> 64` (effects.rs:142) and `> 4096` (:153): identical; limits imported, not copied: effects.rs:29 re-exports pigment effect_math.rs:51 (64) and :53 (4_096), const assert :76, test pin effects_budget.rs:501-505.",
+     "composite lower_inner crates/hsk-studio-composite/src/lower_render_plan.rs:526-560 (root pushed unconditionally :526; a child is pushed only `if step.visible()` :558) and :735-753 (`!child_visible` -> Slot::Empty :737-739, LayerFeatures::of only for a present child :746-753): a hidden layer, or a layer inside a hidden group, is in no plan except as its own root. Step::visible is StudioLayer.visible (composite lower_plan.rs:152-156, :325, :332); the importer writes StudioLayer.visible = PsdLayer::visible() (proposal.rs:873, :943, :966, :980) and classifies with the same predicate plus hidden_groups == 0 (proposal.rs:561, :880-888), group's own stack classified before its children (:877 before :881-885).",
+     "invariant 'no plan of an imported document exceeds 4096': a plan rooted at a layer with no hidden ancestor reaches only counted-classified layers (<= 4096 kept counted); a plan rooted at a hidden layer/group or under one reaches only uncounted-classified layers (<= 4096 kept uncounted); the two never mix (a hidden group's children are all uncounted because hidden_groups > 0). Holds by this reading; reasoned, not test-proven in-crate (lane not_fixed, no composite dependency). composite also refuses an over-limit root at lowering (lower_render_plan.rs:430-434, record_envelope)."
+    ],
+    "deviations_over_count_only": [
+     "layer with no pixels: composite emits no node for a raster source with no tiles (lower_render_plan.rs:682-683 `[] => {}`, so node_of has no entry -> Slot::Empty :743 -> present false -> features None :746-753), the importer counts its live instances (proposal.rs:561)",
+     "clipped layer whose base is hidden or empty: dropped from the reachable set (lower_render_plan.rs:544-553) but counted by the importer",
+     "also over-counted but moot (the plan is refused typed anyway): live effects on a pass-through group (pigment extensions.rs:330-331 EffectPassThrough) and on a clip base / clipped layer (:333-334 EffectClipRun)"
+    ]
+   },
+   "answer_c_semantics": {
+    "panel_order_prefix": "import order = document.rs:187-210 tree(): last PSD record first, so top-most first; a group node precedes its children in walk (proposal.rs:854 -> group() :877 collect_records before :885 walk). Counted side: the crossing stack and every later stack with counted > 0 are refused (:153); uncounted side: the crossing stack and every later counted == 0 stack are refused, a trimmed mixed stack also closes it (:163-165). A per-layer refusal and the Folio-ceiling refusal close neither side (refused() :169-175), pinned for both sides by effects_budget.rs:746-774 (kept stacks after a per-layer refusal on both counted and hidden layers) and :622-684 (later per-layer code keeps its own code).",
+    "mixed_stacks": "tests B and C of effects_budget.rs:889-1015: CountedOnly keeps enabled instances in stack order (ordinals [1,3,4], :974-978), a stack with counted instances and no switched-off instance is Whole with no entry once the side is closed (:967-969 mixed(2,0)), exactly-full and prefix cases (4090 + 10 > 4096, a later hidden stack that would fit is lost, :983-1010). Counted-bound refusal of a mixed stack drops it whole including its switched-off part (effects_budget.rs:1033, :1050); that is the counted category and matches the lead rule 'visible stacks are governed by the counted caps alone'.",
+    "nested_hidden_groups": "proposal.rs:880-888 uses a saturating counter (correct by reading: H0 > G1(visible) > L gives L uncounted, hidden G1 inside hidden H0 restores to 1 not 0). NOT pinned by any test: Node::Group.children is Vec<Fx> (effects_budget.rs:263-266), so no fixture can nest a group (finding PSD-R11-3).",
+    "clipping_layers": "counted when visible (over-count when the base is hidden/empty or the plan refuses the clip run), no test pins it; the lane discloses it (kernel not_fixed) but the shipped docs do not (PSD-R11-2).",
+    "layers_with_no_pixels": "every fixture layer has an empty rectangle (effects_budget.rs:189-200); the plan emits no node for them, so the tests exercise the importer's rule, never a real plan (the over-count above).",
+    "group_own_effect_stacks": "folder() (effects_budget.rs:280-291) has only an lsct block, so no test gives a group record its own lfx2 (proposal.rs:877 path untested; by reading it classifies on layer.visible() && hidden_groups == 0 at that moment, which is correct)."
+   },
+   "answer_d_memory_bound_and_docs": {
+    "bound": "TRUE by reading: kept counted <= 4096 (admit refuses any total > MAX_EFFECTS_PER_PLAN, effects.rs:153) and kept uncounted <= 4096 (a stack is kept Whole only if `uncounted_fits` or it has no uncounted part, :145-146, :149, :156; a trimmed stack is charged its counted part only, proposal.rs:565 after the retain at effects.rs:568); records <= doc layers <= Limits::max_layers (document.rs:346-350, enforced at READ time with the limits given to read_psd); need = records + kept <= max_layers + 8192 (16384 default). Pinned exactly at both bounds full: effects_budget.rs:864-870.",
+    "inspect_bytes": "the wire document carries no effects; inspect_bytes(&bytes, cfg.budget, ...) at proposal.rs:1771 is unchanged and bounded by the caller's nodes (documented proposal.rs:121-123); an effect count cannot reach it. Its document-node refusal stays Proposal(\"folio_rejected\") (disclosed lane not_fixed[0], not an effect count).",
+    "record_validation": "proposal.rs:1791-1797 as above; the caller's input_bytes/edges/depth are passed unchanged but Ctx::new reads only nodes and payload_bytes (folio values.rs:39-47), and effects charge nodes only (raster.rs:757).",
+    "docs_vs_code_V4_07": "DESCRIPTOR lib.rs:82 parsed as JSON (valid) and read clause by clause against effects.rs: counted rule, 64/4096 ownership, effects_over_budget, effects_over_document_budget (counted > 0 stacks only), uncounted bound 4096, effects_unrendered_over_document_budget (counted == 0 stacks only), the Transformed dropped code, 'each bound cuts only its own category', 'never fails the import', node formula, tests_effects_budget: each matches the code. ProposalConfig.budget docs (proposal.rs:121-139), collect_records docs (:501-515), the validation-site comment (:1780-1790), EffectTally docs (effects.rs:110-127) and the header (:35-53) agree with each other and with the code; no stale 'closes the tally' / 'non-empty stack' wording left (grep). Every 'never' claim carries test names or tests_effects_budget. Only two precision gaps: the over-count disclosure (PSD-R11-2) and that 'records <= limits.max_layers' is the READ-time limit: to_proposal never compares doc.layers().len() with cfg.limits.max_layers (git grep: max_layers only in document.rs:349 and comments), so a host that reads with larger Limits than it passes to ProposalConfig is not held to ProposalConfig.limits.max_layers + 8192 (still bounded by the document's own layer count; documentation precision only, observation O3)."
+   },
+   "answer_e_typed_losses_and_lfx2_bytes": {
+    "result": "no silent drop found. Every refusal is a LossKind::Unsupported entry at layer[i]/tagged/lfx2(layer_id=<SLYR>) (proposal.rs:575-578) with one of effects_over_budget / effects_over_document_budget / effects_unrendered_over_document_budget (effects.rs:80-82 is_budget_reason lists exactly these three); the trimmed switched-off instances are one LossKind::Transformed entry effects_unrendered_dropped_over_document_budget on the same path (proposal.rs:567-571, emitted exactly when fit == CountedOnly, never for a Whole stack: effects.rs:156 `shape.uncounted == 0 || uncounted_fits`). tests/effects_budget.rs:383-418 fate() requires exactly one entry per lost or trimmed stack and none for a kept one. No cap on loss entries exists (loss.rs has no limit). A refused stack consumes no SEFX id (stack_id() runs after admit, effects.rs:564-571; asserted minted == kept stacks at :636-639, :940, :980, :1011, :1061).",
+    "lfx2_bytes": "export.rs and the writer never touch lfx2/lmfx (git grep lfx2 and lmfx in src hits only effects.rs (the mapping, :500), adjust.rs and descriptor.rs docs, lib.rs DESCRIPTOR, loss.rs:110 and proposal.rs); the trim drops instances from the Folio RECORD only. write_psd(read(x)) == x is asserted for refused stacks at effects_budget.rs:574, :655-659, :942-946, :1062-1066; not repeated for the CountedOnly-only scenarios B and C (lane discloses this, not_fixed[2]); there is no code path in the crate that could differ between scenario A and B/C for the document bytes.",
+    "rendered_output_unchanged_by_trim": "composite convert_effects ignores switched-off instances and keeps enabled ones in list order (lower_extensions.rs:573-577, :589-591); retain(|e| e.enabled) keeps the same instances in the same order, so the plan's live ops are identical."
+   },
+   "answer_f_tests_and_v4_06": {
+    "tests_read": "all 9 tests of tests/effects_budget.rs read in full. By reading at 62d8983 logic (single `closed: Option<Reason>`, cross-category refusal): instances_no_plan_counts_are_bounded_too_... (:819-877: visible live(1) Kept expected, :842; both-bounds-full visible stack expects effects_over_document_budget, :861), the_unrendered_bound_never_costs_a_stack_with_counted_instances_... (:888-1015: L65 Kept(5)) and the_counted_bound_never_costs_a_stack_without_counted_instances_... (:1022-1070: hidden stack after the counted close Kept(64)) would FAIL; the other 6 pass at both revisions (their behaviour is unchanged). This agrees with the builder's red1.log (3 of 9 red at 62d8983 with those messages). Mutations I walked that the tests catch: `<=`/`<` and `>`/`>=` at both boundaries (4096 inclusive kept, 4097 refused; 64 kept, 65 refused), dropping the prefix close on either side, dropping `!self.uncounted_closed` from uncounted_fits in either branch (C: mixed(2,3) at 4090 must be CountedOnly(2), hidden live(1) at 4091 must be Lost), letting a per-layer refusal close a side (:746-774), letting an uncounted refusal close the counted side (A: live(5) and live(64) after the crossing stay Kept), letting a counted refusal close the uncounted side (:1033-1052), a spurious Transformed entry for a stack without switched-off instances (B: mixed(2,0) Whole), removing the retain (CountedOnly asserts all instances enabled, :399-402), losing ordinal order (:974-978), mint before admit (minted == kept stacks), node need not exact (assert_record_need_is_exact). Mutations that SURVIVE: boolean instead of counter for hidden_groups (no nested group fixture), group-level lfx2 classification, clip/no-pixel over-count semantics, visible stack with <= 64 live and > 1024 mapped (PSD-R11-1/-3).",
+    "v4_06_recount": "79 = 79. The R10 regex (builder file v4_06_regex.txt, read as data) over `git archive 85532ad` src with comment lines excluded gives 79 hits (descriptor.rs 8, effects.rs 45, lib.rs 3, proposal.rs 23); the file:line set is IDENTICAL to the 79 sites listed in lane notes.remediation_R10.v4_06.sites (listed-not-actual: none; actual-not-listed: none); verdict mix 37 FIXED, 26 UNCHANGED, 14 NOT_APPLICABLE, 2 NOT_APPLICABLE by scope. Coverage note: the regex does not match the dropping line itself (effects.rs:568 retain) nor effects.rs:552's cross-category reading; the lane covers the first through its neighbour site :565 and marks :552 UNCHANGED without a cross-category analysis (PSD-R11-1).",
+    "v4_01_v4_02_v4_03": "deny(clippy::arithmetic_side_effects) kept at effects.rs:22 and proposal.rs:35; new arithmetic is checked_add (effects.rs:146, :153, proposal.rs:1791) and saturating_add/sub; aggregate-over-budget style tests present (effects_budget.rs:622-684, :819-877); the test file builds in-memory fixtures and reads no path or environment (grep)."
+   },
+   "new_findings": [
+    {
+     "id": "PSD-R11-1",
+     "severity": "PLAUSIBLE",
+     "kind": "cross_category_cut_by_the_folio_ceiling (pre-existing, disclosed, not one of the two FAIL classes; behaviour read at head, whether it is a defect is a design question the lead decisions do not cover)",
+     "file_line": "crates/hsk-studio-interop-psd/src/effects.rs:552-554 (`if effects.len() >= MAX_EFFECTS { return Err(EFFECTS_OVER_BUDGET); }`, before the shape is known); crates/hsk-studio-interop-psd/src/lib.rs:82 clause 8 'each_bound_cuts_only_its_own_category' vs clause 3; kernel lane notes.remediation_R10.v4_06.sites[src/effects.rs:552] 'UNCHANGED: Folio's per-stack ceiling (1024 mapped) refuses early'; crates/hsk-studio-interop-psd/tests/effects_budget.rs:779-808",
+     "evidence": "The ceiling counts MAPPED instances of both categories. A visible stack with counted instances (say 1 live, within 64) plus 1024 switched-off instances has 1025 mapped and is refused whole with effects_over_budget: a rendered stack is lost because of the count of its switched-off instances, which is the R10 FAIL shape (a bound on unrendered instances costing rendered effects) at the per-stack level, and the lane's own V4-06 class text names 'a cap (per layer or per document, counted or uncounted) whose crossing refuses or drops a stack of the OTHER category'. It is not a regression (f6e5a49 refused > 1024 mapped too) and the DESCRIPTOR clause 3 ('over_folios_per_stack_ceiling_is_not_mapped') and effects.rs:55-56 state it, but clause 8 and the effects.rs:48-49 header ('passing one never costs a stack the other category') read as covering every bound. a_stack_past_folios_ceiling_... pins only all-switched-off 1025 (:786) and hidden live 1025 (:787), never a visible stack with counted > 0 and mapped > 1024. Reachability: needs > 1024 instances in one lfx2 (descriptor reader caps lists at 512 per container, 8192 items in total); frequency UNVERIFIED.",
+     "remediation": "cheapest: weaken the wording ('each document bound cuts only its own category; the Folio per-stack ceiling counts mapped instances of both categories') in lib.rs:82, effects.rs:48-49 and proposal.rs:130-132 and add one pinning test (visible mixed(1, MAX_EFFECTS) -> Lost(effects_over_budget)); or make map_stack keep the live instances when counted > 0 and mapped > MAX_EFFECTS (retain enabled, Transformed effects_unrendered_dropped_over_document_budget), which also needs the V4-06 site :552 re-judged"
+    },
+    {
+     "id": "PSD-R11-2",
+     "severity": "PLAUSIBLE",
+     "kind": "counting_rule_over_counts_disclosed_only_in_lane_notes (the lead asked for 'matches the render plan exactly')",
+     "file_line": "crates/hsk-studio-interop-psd/src/proposal.rs:561 (visible = layer.visible() && hidden_groups == 0; no tile / base check); crates/hsk-studio-interop-psd/src/effects.rs:35-47 (rule text) and crates/hsk-studio-interop-psd/src/lib.rs:82 clause 1 ('...as composite_convert_effects_and_pigment_plan_extensions_validate_count_them'); composite lower_render_plan.rs:682-683, :743, :746-753 (no node for a source without tiles) and :544-553 (clipped layer on a hidden/empty base dropped); kernel lane notes.remediation_R9.not_fixed[1] and counting_rule.deliberate_over_counts_safe_direction",
+     "evidence": "Two layer classes are counted by the importer but never counted by a plan: layers with no pixels and clipped layers whose base is hidden or empty. Because a counted stack past 4096 is lost whole (effects.rs:153-155), such layers can make the importer refuse a later layer that a plan would render (visible live stack lost with effects_over_document_budget while the plan's own count is <= 4096). It needs > 4096 apparent counted instances, so it is unreachable for ordinary documents, but it is the same 'unrendered content decides the fate of rendered content' pattern as R9/R10, and it is disclosed only in the kernel lane file: the shipped rule text (effects.rs:35-47, proposal.rs:501-504, DESCRIPTOR clause 1) says the count is the plan's. Every test fixture is a no-pixel layer (effects_budget.rs:189-200), so the tests assert the importer's rule, not the plan's. R10-review-a accepted the over-count direction as disclosed; the lead decisions do not mention it.",
+     "remediation": "disclose in effects.rs:35-47, proposal.rs:501-504 and DESCRIPTOR clause 1 ('counted = the plan's rule, over-counting layers with no tiles and clipped layers on a hidden or empty base'); optionally classify a layer with zero tiles as uncounted in leaf() (tiles are known at proposal.rs:972 before collect_records :988), leaving the clip-base lookahead as the documented over-count"
+    },
+    {
+     "id": "PSD-R11-3",
+     "severity": "PLAUSIBLE",
+     "kind": "test_gap (mutation survives)",
+     "file_line": "crates/hsk-studio-interop-psd/tests/effects_budget.rs:263-266 (Node::Group.children: Vec<Fx>, no nested group), :280-291 (folder() has no lfx2), :704-707, :916-923, :1036-1039 (only single-level hidden groups); crates/hsk-studio-interop-psd/src/proposal.rs:877, :880-888",
+     "evidence": "The hidden_groups counter (proposal.rs:880-888) is the only thing that makes a visible layer inside a hidden group uncounted. Reading shows it is correct for nesting (saturating_add / saturating_sub), but the fixture helper cannot build a nested group, so replacing the counter by a boolean (set on entry, cleared on exit) passes all 9 tests while mis-classifying the remaining children of an outer hidden group after an inner group closes. No test gives a group record its own stack either, so the group-level classification at proposal.rs:877 (before the increment) is unpinned.",
+     "remediation": "make Node::Group recursive in the test helper and add one case: hidden outer group > visible inner group > live layer, followed by a visible sibling after the outer group (outer children uncounted, sibling counted); add a group with its own lfx2 (hidden group with live instances -> uncounted, visible group -> counted)"
+    }
+   ],
+   "observations_not_findings": [
+    "O1: collect_records now returns Result<()> but has no Err path (proposal.rs:524-591); the `?` at :648, :877, :988 are dead and the comment at :879-880 ('an error ends the whole import, so the count needs no restoring') is accurate for the real Err sources in walk (cancel check :847, mask_for, tiles_for).",
+    "O2: kernel lane file notes.remediation_R9.design[0] and design[4] still describe the single shared `closed` tally; remediation_R10.rule and findings_resolution supersede them (lane note only, no code). The R9 'superseded_in_part_by' pointer exists.",
+    "O3: ProposalConfig.budget docs (proposal.rs:125-129) name `limits.max_layers` of the ProposalConfig; the layer-count bound is enforced when the document is READ (document.rs:346-350), not by to_proposal.",
+    "O4: DESCRIPTOR clause 7 says a stack with counted instances 'past it is mapped with its counted instances only'; a stack without switched-off instances is mapped Whole with no loss entry (effects.rs:156). Not wrong (nothing is dropped), could say 'and its switched-off instances are dropped with a Transformed loss'.",
+    "O5: a host that mints no SEFX id (the IdMint default) still gets budget codes for over-limit stacks before effect_stack_id_unavailable (admit runs first, effects.rs:564-571), and a refusal there closes a side although the stack would never have been kept; this only changes which loss code is reported, never memory or the import result.",
+    "O6: cargo was not run (instruction); the lane's 50/50, clippy and doctest results are the builder's, corroborated here only by reading the tests against the code and by the builder's red/green logs."
+   ],
+   "answer_g_wip_after_ready": {
+    "result": "NONE",
+    "evidence": "`git log 85532ad..origin/codex/handshake-studio-assets` is empty (origin tip == 85532ad); `git log --all --since=2026-10-11T15:00:00 -- crate` lists only 85532ad, ce22fa5, 5f5bbb2, all in the claim; `git status --short` for the crate path in the shared tree is empty; 85532ad (15:40:37Z) precedes the kernel READY commit 81e561dc (15:44:06Z) and the ledger READY (15:43:54Z); the kernel lane file has no uncommitted diff (git diff empty for it). V4-14 satisfied."
+   },
+   "wip_after_ready": "NONE",
+   "recommendation": "SAFE_TO_JUDGE",
+   "recommendation_note": "Both FAIL classes are gone at every site read, the reverse direction (counted cap vs hidden stacks) is fixed too, the counting rule equals the plan's for the instance rule and the limits (deviating only in the over-count direction at two disclosed layer classes), every cap ends in a typed loss, need = records + kept <= max_layers + 8192 is exact and true, DESCRIPTOR/docs agree with the code, the three new/updated tests are red on the 62d8983 logic, and V4-06 recounts to 79 = 79. No CONFIRMED defect. Three PLAUSIBLE items remain; none is a lead-decision violation. If the lead wants to protect the last fix-budget slot, the cheapest pre-empts are wording only: PSD-R11-1 (qualify 'each bound cuts only its own category' for the Folio ceiling + one pinning test) and PSD-R11-2 (state the two over-counts in effects.rs/proposal.rs/DESCRIPTOR); PSD-R11-3 is a one-case test addition. Not re-run: cargo (instruction)."
+  }
+ ]
+}

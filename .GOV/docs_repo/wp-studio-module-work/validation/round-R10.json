@@ -1,0 +1,583 @@
+{
+ "round": "STUDIO-R10",
+ "round_opened": true,
+ "rule_refs": [
+  "CX-VAL-001",
+  "CX-VAL-002",
+  "CX-VAL-003",
+  "CX-VAL-004",
+  "CX-VAL-005",
+  "CX-VAL-006",
+  "CX-VAL-007",
+  "CX-VAL-008",
+  "CX-VAL-009",
+  "CX-VAL-010",
+  "CX-STATUS-001",
+  "CX-STATUS-002",
+  "CX-STATUS-003",
+  "CX-EXEC-015",
+  "CX-VERIFY-002",
+  "V4-03 NOT_PROVEN",
+  "V4-13",
+  "V4-14",
+  "V4-18",
+  "V4-19"
+ ],
+ "candidate": "62d8983b86417340399ed7c785c6b297debabbfd",
+ "tree": "a64a74da642ad52e759e97ccdd6a00be069d47bc",
+ "candidate_note": "named by lead (ledger round_R10, opened 15:09:45Z); steward-5 sync: already in sync at 62d8983 (no derivation input changed); origin/codex/handshake-studio-assets == 62d8983 at fetch 15:11Z and re-fetch before verdicts (no later push)",
+ "round_identity_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/ROUND_IDENTITY.json",
+ "export": {
+  "file_count": 866,
+  "manifest_sha256": "27ac8144446ab17750c6d68a68875f2fc991a1f8c38db97fbd9ec0b70e46034a",
+  "git_blob_equal": true,
+  "refresh": "kernel tools/export-refresh.sh in place 2026-10-11T15:12:46Z: 3 added, 39 changed, 824 unchanged, 0 deleted, blob_mismatch 0 (from 4d80e50); manifest equals steward canary C15 export"
+ },
+ "started_at": "2026-10-11T15:14:40Z",
+ "completed_at": "2026-10-11T15:37:40Z",
+ "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R10",
+ "running_record": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/RUNNING-R10.jsonl (opened, running, process_identity pid 263284 @15:15:16Z, completed, verdicts_accepted, verdicts_recorded)",
+ "gameplan": ".GOV/task_packets/WP-KERNEL-STUDIO/gameplans/STUDIO-MODULE-ROUND.yaml before_round PASS 12/12 @edit HEAD 62d8983 (GP-003: lock audit 15:13:44Z held none, queue 0, no cargo.exe, only an idle sccache server pid 354380 not started by this session; GP-005 LongPathsEnabled=1; GP-013 cites canary C15-62d8983 exit 73 = NOT_PROVEN only, 59 units green; GP-004/GP-012 machine checks passed)",
+ "canary": {
+  "reused": true,
+  "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/steward-export/results/C15-62d8983",
+  "round_json_sha256": "7ed535fefa4424621a3d71f497862f351474b17601dd5007b2fe50348812761a",
+  "sha": "62d8983b86417340399ed7c785c6b297debabbfd",
+  "export_manifest_sha256": "27ac8144446ab17750c6d68a68875f2fc991a1f8c38db97fbd9ec0b70e46034a",
+  "summary": "steward canary via the same entrypoint on the same SHA and identical export manifest: exit 73 (only NOT_PROVEN interop-fig D17), complete, 59 units build 0/run 0, absent [], timed_out [], step 0 clean",
+  "reuse_basis": "CX-VERIFY-002 + lead dispatch (GP-013); canary exit is 73 not 0, accepted because its only non-zero cause is NOT_PROVEN accounting"
+ },
+ "union": {
+  "selection": [
+   "hsk-studio-interop-psd",
+   "hsk-studio-reel",
+   "hsk-studio-reel-native",
+   "hsk-studio-web"
+  ],
+  "selection_rule": "crates changed 4d80e50..62d8983 (interop-psd, reel, web; press excluded FIX_FIRST) + crates whose workspace-dep closure changed (reel-native via reel); no other workspace member depends on interop-psd, reel, web or press (git grep of crates/*/Cargo.toml at 62d8983); web ran (selected before the R10 web pre-review finished) but yields no verdict; root inputs (Cargo.toml, Cargo.lock, .config/, tools/, rust-toolchain.toml) unchanged",
+  "argv": "bash tools/run-round.sh --results <studio-round>/results/R10 --target-dir <studio-round>/target <4 crates> (cwd export; no caller env)",
+  "target_dir": "Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/target (warm from R9; workspace sources re-touched by the entrypoint)",
+  "started_at": "2026-10-11T15:15:18Z",
+  "ended_at": "2026-10-11T15:16:47Z",
+  "build_exit": 0,
+  "run_exit": 0,
+  "exit": 0,
+  "summary": "default 173/173 pass (interop-psd 48, reel 59, web 66), 0 skipped; 3 feature units build 0/run 0 (reel+av1 65, reel-native+av1-worker 5, +test-faults 14); 7 doctest units exit 0 (4 doctests: reel 2, reel+av1 2); 11 units; absent [] timed_out []; 0 NOT_PROVEN -> exit 0",
+  "units": 11,
+  "not_proven_count": 0,
+  "hashes": {
+   "round.json": "31dbd244e47cf5d3b1f15d1fc59e77624e1c72a1519acf6ec776b3fba33c5ee4",
+   "tests.json": "b2cd698bfd1c7048345ba10b7eeb060e138e3b1ce687068ec4d63514b6976493",
+   "junit.xml": "289c9f9d107224dfa6789367ab7ebd25e5e263423c2477bf25d785628674e4bf",
+   "run.stderr.txt": "8151ee6f16f97a6d152bed4c072e267cb98d1c865a0a8504a4bc5609087fd3d1",
+   "build.stderr.txt": "e95e2bc106a0e99afcfb0d102eab2b6020f74c149f79811feb7daf4850c62a97",
+   "units.tsv": "bd0c9096b0997e8ad66bdc9f5d757190c8dceb627649cbb6f87a4161bdc5702f",
+   "oracle-corpus.manifest.txt": "3a2e5f5b9b7640551b843bd6dfb78638f72acacdd63339b4b3358f9d7d3ed6ef",
+   "step0.policy.json": "7c2736a55500b6ed30b2678be0326ed6ce59e79d94ead92ee61415ea510383ed",
+   "features/hsk-studio-reel+av1/junit.xml": "b9ffd41b287560a1d2cafac36483213270c45bd41d938af46cc33690d881f142",
+   "features/hsk-studio-reel-native+av1-worker/junit.xml": "d3e63ca8d5ce4e77cb39c1f1c83b446737cd0584e9f27cc2d7f808e593cab3d4",
+   "features/hsk-studio-reel-native+av1-worker+test-faults/junit.xml": "52ec5737a803443848f522ec8509f3b3abf61d6b03ae46c4f2f35c60edb2b718"
+  },
+  "per_crate_default": {
+   "interop-psd": 48,
+   "reel": 59,
+   "reel-native": "0 (feature units only)",
+   "web": "66 (no verdict: web lanes deferred / not judged)"
+  },
+  "test_set_check": "no test of R9 is missing at R10 in any selected crate except interop-psd effects_budget::effects_over_the_plan_limit_are_a_typed_input_error_not_a_mapping_defect, which pinned the R9-FAILed whole-import Err (PsdError::EffectLimit, removed by the remediation) and is superseded by effects_over_the_document_cap_become_typed_losses_from_the_crossing_stack_on; 23 tests new (interop-psd 5, reel 4 x 2 units, web 10)",
+  "step0": "cargo metadata --locked --offline ok; registry-sync check clean; policy: machine-path violations 0 (11 files with pinned hits, pins_dropped {}), duplicate new_sites none (D16 4, D18 3, TIMECODE allowed files)",
+  "oracle_corpus": {
+   "root": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus",
+   "file_count": 24,
+   "manifest_sha256": "3a2e5f5b9b7640551b843bd6dfb78638f72acacdd63339b4b3358f9d7d3ed6ef",
+   "note": "24 files (R9: 23): the steward canary C15 placed another content-addressed clap-gain library (fixture not reproducible, steward note); no selected crate uses that fixture"
+  },
+  "fixtures": [],
+  "disk_lock": "schema @2 class round: holds 1, yields 0 (slice 300 s), waited 0 s, broke_stale none, 15:15:23Z..15:16:47Z",
+  "env": {
+   "set_by_entrypoint": [
+    "CARGO_TARGET_DIR",
+    "TMP",
+    "TEMP",
+    "TMPDIR",
+    "CARGO_PROFILE_DEV_DEBUG",
+    "CARGO_PROFILE_TEST_DEBUG",
+    "CARGO_TERM_COLOR"
+   ],
+   "env_added_by_caller": "none (CX-VAL-007; caller env had no CARGO_/RUST/HSK_/SCCACHE_/STUDIO_/NEXT/GAMEPLAN variables; the harness shell TEMP/TMP are overwritten by the entrypoint)",
+   "rustc_wrapper": "",
+   "tools": {
+    "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+    "cargo": "cargo 1.97.1 (c980f4866 2026-06-30)",
+    "nextest": "cargo-nextest 0.9.148 (cd1d6d546 2026-10-07)"
+   }
+  }
+ },
+ "junit_success_output_checks": [
+  "reel+av1: tests/av1_decode.rs (incl. oversize_picture_on_the_trusted_rav1d_path_is_refused) and the 4 new ENG-1 tests ran in-process (feature av1)",
+  "reel-native av1_worker 10/10 under av1-worker+test-faults (PLR-055 / FRAME-on-OPEN tests included)"
+ ],
+ "not_proven": [],
+ "not_proven_note": "render-gpu was not selected (crate + closure unchanged), so the two known render-gpu no-adapter regression-probe NOT_PROVEN lines did not occur; no judged lane depends on a NOT_PROVEN line",
+ "adversarial_review": {
+  "refs": {
+   "validation/R10-review-a.json": "sha256 18d5ddb3",
+   "validation/R10-prereview-reel-route.json": "sha256 4a867c1a",
+   "validation/R10-prereview-web.json": "sha256 c34fa88e"
+  },
+  "coverage": "A (single reviewer, COMPLETE 15:28:08Z): INTEROP-PSD-BUDGET PASS_WITH_NOTES conditional (1 CONFIRMED design item: unrendered-cap cut drops rendered stacks; lead clarified 15:29:19Z hidden/disabled only), REEL-ENG-1 FIX_FIRST (CONFIRMED-1 repeated-media Export Ok-incomplete, CONFIRMED-2 timecode ignores track refusal), CX-VAL-009 sweep interop-psd/reel/reel-native NO_BREAK_FOUND; pre-reviews: reel-route SAFE_TO_JUDGE (two-FAIL AV1-ROUTE), web FIX_FIRST (R10-F1 CONFIRMED CSS number arm hides url(); advisory covers WEB-PARITY/DIFFTEST)",
+  "fold_rule": "every CONFIRMED finding re-read by the validator at the cited file:line in the export; a CONFIRMED product defect in a judged lane's claimed scope drives a FAIL on the lane that owns it by blame and claim (one owner per defect); CONFIRMED process/doc-only items are notes; PLAUSIBLE items are notes",
+  "not_reviewed": [
+   "closure-only and crate-reopen CX-VAL-009 lanes are covered by sweep A, not as lanes"
+  ],
+  "validator_disagreements": [],
+  "validator_reads": [
+   "SMB-INTEROP-PSD-BUDGET CONFIRMED re-read at 62d8983: effects.rs:113-114 closed tally refuses any later non-empty stack before the counted check :116-117; :119-120 a stack's own uncounted part can cross; :132-136 refused() closes on either document code; tests/effects_budget.rs:782-792 asserts visible Fx::live(1) Lost(OVER_UNRENDERED)",
+   "SMB-REEL-ENG-1 CONFIRMED-1 re-read at 62d8983: isobmff.rs:2011-2015 slots by media sample index, :2033-2067 one chunk per sample index, :2083 units = delivered, :2099 complete: true; build_presentation :1426-1481 pushes a sample once per covering edit (two edits at media_time 0 present it twice)",
+   "SMB-REEL-ENG-1 CONFIRMED-2 re-read at 62d8983: isobmff/timecode.rs:66-82 no unsupported() check; refused tmcd track has presented cleared -> Ok(None) at :80-82"
+  ],
+  "lead_decisions_applied": [
+   "2026-10-11T15:29:19Z START_LOG + lead message: the 14:41:47Z PSD decision covers hidden/disabled/master-off instances only; crossing the uncounted cap must not drop later visible stacks",
+   "2026-10-11T14:34:04Z ledger lead_scope_note SMB-REEL-ENG-1: PLR-057 claim limited to the export START pre-check; PLR-062 open (not re-raised)",
+   "2026-10-11T15:25:17Z START_LOG + ledger round_R10.excluded: SMB-WEB deferred_fix_first, SMB-WEB-PARITY and SMB-WEB-DIFFTEST withdrawn with the crate"
+  ]
+ },
+ "proof_reuse": {
+  "lanes": [
+   "SMB-TYPE (PASS_V5 @404ff3a)",
+   "SMB-LAYOUT (PASS_V5 @f6e5a49)",
+   "SMB-DEVELOP (PASS_V6 @4d80e50)",
+   "SMB-COMPONENTS (PASS_V5 @f6e5a49)",
+   "SMB-PULSE (PASS_V5 @f6e5a49)",
+   "SMB-SCORE (PASS_V4 @f6e5a49)",
+   "SMB-MOTION (PASS_V1 @404ff3a)",
+   "SMB-COMPOSITE (PASS_V6 @4d80e50)",
+   "SMB-RENDER-CPU (PASS_V6 @4d80e50)",
+   "SMB-PACKAGE (PASS_V5 @f6e5a49)",
+   "SMB-INTEROP-VECTOR (PASS_V5 @f6e5a49)",
+   "SMB-INTEROP-FIG (PASS_V2 @dff7ef5)",
+   "SMB-INTEROP-LAYOUT (PASS_V4 @f6e5a49)",
+   "SMB-CONTROLS (PASS_V3 @bd8533f)",
+   "SMB-SESSION (PASS_V5 @f6e5a49)",
+   "SMB-HARNESS (PASS_V3 @f6e5a49)",
+   "SMB-KERNEL-BINDINGS (PASS_V3 @f6e5a49)",
+   "SMB-SCORE-DEVICE (PASS_V3 @f6e5a49)",
+   "SMB-SCORE-PLUGIN (PASS_V4 @4d80e50)",
+   "SMB-INTEROP-LRCAT (PASS_V2 @bd8533f)",
+   "SMB-MOTION-JS (PASS_V3 @dff7ef5)",
+   "SMB-PRISM-ENG-1 (PASS_V4 @dff7ef5)",
+   "SMB-TYPE-ENG-1 (PASS_V1 @1d404f8)",
+   "SMB-PULSE-ENG-1 (PASS_V3 @f6e5a49)",
+   "SMB-PRISM-ENG-2 (PASS_V4 @dff7ef5)",
+   "SMB-PRISM-ENG-3 (PASS_V3 @dff7ef5)",
+   "SMB-PRISM-ENG-4 (PASS_V4 @dff7ef5)",
+   "SMB-PRISM-ENG-5 (PASS_V3 @dff7ef5)",
+   "SMB-TYPE-DOCTEST (PASS_V1 @1d404f8)",
+   "SMB-FOLIO-ENG-1 (PASS_V5 @f6e5a49)",
+   "SMB-PIGMENT-ENG-1 (PASS_V6 @4d80e50)",
+   "SMB-TYPE-ENV (PASS_V1 @404ff3a)",
+   "SMB-ACCORD-ENG-1 (PASS_V1 @404ff3a)",
+   "SMB-TYPE-FONTS (PASS_V1 @404ff3a)",
+   "SMB-TYPE-FIXTURES (PASS_V1 @404ff3a)",
+   "SMB-FOLIO-ENG-2 (PASS_V5 @f6e5a49)",
+   "SMB-NIB-ENG-1 (PASS_V2 @1d404f8)",
+   "SMB-FOLIO-ENG-3 (PASS_V5 @f6e5a49)",
+   "SMB-ACCORD-ENG-2 (PASS_V1 @404ff3a)",
+   "SMB-RENDER-CPU-CLIP (PASS_V6 @4d80e50)",
+   "SMB-MOTION-JS-WORKER (PASS_V2 @dff7ef5)",
+   "SMB-COMPOSITE-CLIP-ALIGN (PASS_V6 @4d80e50)",
+   "SMB-LAYOUT-FOLIO-MIGRATE (PASS_V4 @f6e5a49)",
+   "SMB-FOLIO-ENG-4 (PASS_V4 @f6e5a49)",
+   "SMB-DEVELOP-WIDE (PASS_V3 @4d80e50)",
+   "SMB-PACKAGE-STREAM-SAVE (PASS_V4 @f6e5a49)",
+   "SMB-PRISM-ENG-6 (PASS_V2 @dff7ef5)",
+   "SMB-COMPONENTS-FOLIO-MIGRATE (PASS_V4 @f6e5a49)",
+   "SMB-INTEROP-VECTOR-FOLIO-MIGRATE (PASS_V4 @f6e5a49)",
+   "SMB-PIGMENT-ENG-2 (PASS_V4 @4d80e50)",
+   "SMB-MOTION-JS-SANDBOX-2 (PASS_V1 @dff7ef5)",
+   "SMB-PRISM-ENG-7 (PASS_V1 @dff7ef5)",
+   "SMB-COMPOSITE-ADJ (PASS_V3 @4d80e50)",
+   "SMB-RENDER-CPU-ADJ (PASS_V3 @4d80e50)",
+   "SMB-RENDER-GPU-ADJ (PASS_V3 @4d80e50)",
+   "SMB-EFFECTS-WAVE-1 (PASS_V3 @4d80e50)",
+   "SMB-EFFECTS-WAVE-2 (PASS_V3 @4d80e50)",
+   "SMB-FOLIO-ENG-6 (PASS_V2 @f6e5a49)",
+   "SMB-FOLIO-ENG-7 (PASS_V2 @f6e5a49)",
+   "SMB-CHRONICLE-TABLE (PASS_V2 @f6e5a49)",
+   "SMB-PIGMENT-WINDOW (PASS_V3 @4d80e50)",
+   "SMB-RENDER-CPU-WINDOW (PASS_V3 @4d80e50)",
+   "SMB-INTEROP-VECTOR-RECORDS (PASS_V2 @f6e5a49)",
+   "SMB-RENDER-CPU-FX2 (PASS_V3 @4d80e50)",
+   "SMB-PRISM-ENG-8 (PASS_V1 @dff7ef5)",
+   "SMB-DEVELOP-JOBS (PASS_V3 @4d80e50)",
+   "SMB-PIGMENT-BLENDIF-CLIP (PASS_V3 @4d80e50)",
+   "SMB-BLENDIF-CLIP-ADOPT (PASS_V3 @4d80e50)",
+   "SMB-REFUSAL-KEYS (PASS_V2 @4d80e50)",
+   "SMB-SCORE-GUARDS (PASS_V1 @f6e5a49)",
+   "SMB-COMPONENTS-FOOTPRINT (PASS_V1 @f6e5a49)",
+   "SMB-FOLIO-UNIQUENESS (PASS_V1 @f6e5a49)",
+   "SMB-PIGMENT-FX-OPS (PASS_V2 @4d80e50)",
+   "SMB-PIGMENT-ADMIT-PARITY (PASS_V2 @4d80e50)",
+   "SMB-SCORE-PLUGIN-RATE (PASS_V1 @4d80e50)",
+   "SMB-PARITY-FOLLOWUP (PASS_V1 @4d80e50)"
+  ],
+  "basis": "CX-VAL-002: crate + workspace-dep closure (all dep kinds, manifests at 62d8983) unchanged 4d80e50..62d8983 (git diff 4d80e50 62d8983 touches only crates/hsk-studio-{interop-psd,press,reel,web}; only reel-native depends on any of them); root inputs Cargo.toml, Cargo.lock, .config/, tools/, rust-toolchain.toml unchanged (git diff --name-only empty); reused verdicts name both commits (proof @<sha> listed, candidate 62d8983); no new verdict; supplementary: canary C15 on 62d8983 ran one test per package green"
+ },
+ "excluded": [
+  {
+   "lane": "SMB-RENDER-GPU",
+   "reason": "not_judged: CX-EXEC-015(1) fix_budget_exhausted, Operator decision D20 pending (crate not selected: unchanged)"
+  },
+  {
+   "lane": "SMB-ROUND-ENTRYPOINT",
+   "reason": "not_judged: CX-EXEC-015(1) fix_budget_exhausted, Operator decision D20 pending (entrypoint used for this round as infrastructure)"
+  },
+  {
+   "lane": "SMB-INTEROP-MEDIA, SMB-INTEROP-MEDIA-PULSE",
+   "reason": "not_judged: BLOCKED on Operator D9"
+  },
+  {
+   "lane": "SMB-PRESS, SMB-PRESS-DIFFERENCES",
+   "reason": "not_judged: R10 pre-review FIX_FIRST (R10-prereview-press.json; lead decision 15:00:20Z canonical rewrite); press commits 60b3f63..cc3eaae in 62d8983 not built in this round"
+  },
+  {
+   "lane": "SMB-WEB-PARITY",
+   "reason": "not_judged: crate-level FIX_FIRST (R10-prereview-web.json R10-F1 CONFIRMED); lead withdraws the web lanes with the crate (ledger round_R10.excluded, 15:25:17Z)"
+  },
+  {
+   "lane": "SMB-WEB-DIFFTEST",
+   "reason": "not_judged: crate-level FIX_FIRST (R10-prereview-web.json); judged together with SMB-WEB-PARITY (V4-14); withdrawn with the crate"
+  },
+  {
+   "lane": "queued/no-claim lanes (SMB-PIGMENT-PLANLIMITS, SMB-RENDER-GPU-PROBE, SMB-PRESS-GEOMETRY, SMB-REEL-NATIVE, SMB-REEL-ENG-2, SMB-REEL-NATIVE-ENG-1, SMB-FMT-SWEEP)",
+   "reason": "not_judged: no READY claim in 62d8983 (REEL-ENG-2/REEL-NATIVE-ENG-1 BLOCKED on Operator D22-D26)"
+  }
+ ],
+ "deferred_fix_first": [
+  {
+   "lane": "SMB-WEB",
+   "crate": "hsk-studio-web",
+   "last_verdict": "STUDIO-R7 PASS_V3 @dff7ef5",
+   "failed_verdicts": 2,
+   "limit": 3,
+   "reason": "V4-13 two-FAIL lane reopened by CX-VAL-009 (web changed 4d80e50..62d8983); validation/R10-prereview-web.json recommendation FIX_FIRST: R10-F1 CONFIRMED cssurl.rs:258-265 number arm swallows '1.' + ident without checking '(' so a later url() hides behind a comment (R5/R6 class); R10-P1 PLAUSIBLE bare-string image-set()/src() not scanned",
+   "handling": "no verdict, no FAIL, no fix-budget charge; PASS_V3 @dff7ef5 does not bind 62d8983 (CX-VAL-009); ledger status/blockers left to the lead (V4-19, already set 15:25:17Z); web tests 66/66 green in this run are not a verdict input"
+  }
+ ],
+ "deferred_note": "SMB-WEB deferred_fix_first (web lanes withdrawn); SMB-REEL-AV1-ROUTE judged on R10-prereview-reel-route SAFE_TO_JUDGE at cc3eaae (reel unchanged to 62d8983, V4-18); SMB-REEL-NATIVE-AV1-WORKER rides V4-18 on R9-prereview-reel SAFE_TO_JUDGE at a024461 (crate unchanged a024461..62d8983); two-FAIL SMB-DEVELOP/COMPONENTS/CONTROLS/MOTION-JS/PRISM-ENG-5 not reopened (crate + closure unchanged)",
+ "scope_rule": "READY_FOR_VALIDATION lanes of ledger round_R10.ready (ledger snapshot sha256 70eff6bf @15:14:40Z; lead updates 15:25:17Z/15:29:19Z read before writing) whose claimed content is in 62d8983, plus PASS lanes returned to READY by CX-VAL-009",
+ "included_count": 13,
+ "verdict_counts": {
+  "FAIL_V1": 1,
+  "FAIL_V2": 1,
+  "PASS_V2": 1,
+  "PASS_V3": 1,
+  "PASS_V4": 3,
+  "PASS_V5": 4,
+  "PASS_V7": 2
+ },
+ "verdict_numbering": "Vn = 1 + highest prior PASS_V/FAIL_V number of the lane (BLOCKED, NOT_PROVEN and inconclusive do not count)",
+ "not_proven_rule": "V4-03: a test printing NOT_PROVEN is never PASS; a lane whose acceptance depends on it is not PASS. R10: no NOT_PROVEN line occurred",
+ "counters": [
+  {
+   "lane": "SMB-INTEROP-PSD-BUDGET",
+   "counter": "fix budget (failed verdicts 2, limit 3); same failure_class consecutive 1 (new class)",
+   "outcome": "none at limit; resubmission must name this remediation (CX-VAL-008); now a two-FAIL lane -> V4-13 pre-review before its next round"
+  },
+  {
+   "lane": "SMB-REEL-ENG-1",
+   "counter": "fix budget (failed verdicts 1, limit 3)",
+   "outcome": "none at limit; resubmission must name this remediation (CX-VAL-008)"
+  },
+  {
+   "lane": "SMB-REEL-AV1-ROUTE, SMB-REEL-NATIVE-AV1-WORKER",
+   "counter": "fix budget (failed verdicts 2, limit 3)",
+   "outcome": "PASS; no counter acts"
+  },
+  {
+   "lane": "SMB-WEB",
+   "counter": "fix budget (failed verdicts 2, limit 3)",
+   "outcome": "deferred_fix_first, no verdict, no charge"
+  }
+ ],
+ "fix_budget_events": "none (no lane reached CX-EXEC-015(1); no NEEDS_NEW_APPROACH: both R10 failure_classes are new for their lanes)",
+ "lanes": [
+  {
+   "lane": "SMB-INTEROP-PSD-BUDGET",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "failed",
+   "verdict": "FAIL_V2",
+   "status_change": "FAIL_V2",
+   "tests": "interop-psd 48/48 (effects_budget 7: 5 new incl. effects_over_the_document_cap_become_typed_losses_from_the_crossing_stack_on)",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "uncounted-cap-closes-tally-for-rendered-stacks",
+     "file_line": "crates/hsk-studio-interop-psd/src/effects.rs:113-114,119-120,132-136; src/proposal.rs:559-561; tests/effects_budget.rs:782-792",
+     "evidence": "after hidden/disabled/master-off instances pass 4096 the tally closes and later VISIBLE live stacks are lost (effects_unrendered_over_document_budget); a visible stack is also refused when its own off instances cross the uncounted total; test asserts a visible Fx::live(1) Lost with counted 0; lead 15:29:19Z: uncounted cap covers hidden/disabled/master-off instances only",
+     "source": "R10-review-a CONFIRMED (finding 1), re-read by validator at 62d8983 (admit closed-check before counted total :113-114, uncounted check :119-120, refused() closes on either document code :132-136); lead clarification START_LOG 2026-10-11T15:29:19Z",
+     "artifact_ref": "export 62d8983 crates/hsk-studio-interop-psd/src/effects.rs:106-136; tests/effects_budget.rs:782-792; results/R10 tests.json effects_budget"
+    }
+   ],
+   "remediation": "uncounted cap must not drop visible live stacks; close per category; test >4096 hidden then visible live Kept",
+   "counters": {
+    "failed_verdicts": 2,
+    "limit": 3,
+    "same_class_consecutive": 1,
+    "outcome": "none at limit (new failure_class, distinct from document-wide-effect-cap-fails-whole-import); next claim names this remediation (CX-VAL-008); two-FAIL lane -> V4-13 pre-review before its next round; a third FAIL exhausts the fix budget"
+   },
+   "note": "CX-VAL-008 resubmission 5f5bbb2+ce22fa5 names the R9 remediation; the R9 class is gone at every site (PsdError::EffectLimit removed; no effect count fails the import; counting = composite convert_effects/lower_inner + pigment validate, over-count only; typed losses past every cap; node bound max_layers+8192 documented). New CONFIRMED product failure: rendered stacks lost under the unrendered cap, contrary to the lead decision as clarified 15:29:19Z. Also: DESCRIPTOR lib.rs:82 effect_limits narrower than behaviour (V4-07); PLAUSIBLE: behaviour_changes[1] omits the uncounted-crossing regression vs f6e5a49 (none vs 4d80e50). Judged as submitted (in-round finding; R9 precedent 14:15:23Z)",
+   "review": "validation/R10-review-a.json (lane recommendation PASS_WITH_NOTES conditional on the lead reading; lead clarified hidden/disabled only)",
+   "included_by": "READY (CX-VAL-008 resubmission after STUDIO-R9 FAIL_V1; ledger remediation_claim 5f5bbb2+ce22fa5)",
+   "idempotency_key": "STUDIO-R10:SMB-INTEROP-PSD-BUDGET:62d8983b8641:FAIL_V2",
+   "recorded_at": "2026-10-11T15:37:40Z"
+  },
+  {
+   "lane": "SMB-REEL-ENG-1",
+   "crate": "hsk-studio-reel",
+   "decision": "failed",
+   "verdict": "FAIL_V1",
+   "status_change": "FAIL_V1",
+   "tests": "reel default 59/59, reel+av1 65/65; doctests 2+2",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "export-ok-with-fewer-units-repeated-media",
+     "file_line": "crates/hsk-studio-reel/src/isobmff.rs:2011-2015,2083,2085-2089,2099 (build_presentation :1426-1481 presents a sample once per covering edit)",
+     "evidence": "edit list presenting the same media twice: slots keyed by media sample index keep one entry per sample, delivered counts distinct samples, receipt Ok Exact complete:true with actual.units < requested under Purpose::Export Packets; contradicts DESCRIPTOR export.rule 'Export is exact or it fails' and the lane V4-06 class (site isobmff.rs:2099 marked n/a)",
+     "source": "R10-review-a CONFIRMED-1, re-read by validator at 62d8983 (isobmff.rs:1995-2103, :1420-1484)",
+     "artifact_ref": "export 62d8983 crates/hsk-studio-reel/src/isobmff.rs:2011-2015,2099; src/lib.rs:87 DESCRIPTOR export.rule"
+    },
+    {
+     "failure_kind": "product",
+     "failure_class": "per-track-refusal-bypassed-by-timecode-read",
+     "file_line": "crates/hsk-studio-reel/src/isobmff/timecode.rs:66-82; isobmff.rs:1646-1655 (doc 'every use of it is Unsupported')",
+     "evidence": "read_timecode_start consults no unsupported(): a refused tmcd track (presented cleared) returns Ok(None) like a file without timecode; the refused named track's timecode is still returned; the per-track typed contract of 0474906 and its doc/DESCRIPTOR claim are broader than the code (V4-07)",
+     "source": "R10-review-a CONFIRMED-2, re-read by validator at 62d8983 (timecode.rs:60-82)",
+     "artifact_ref": "export 62d8983 crates/hsk-studio-reel/src/isobmff/timecode.rs:66-82"
+    }
+   ],
+   "remediation": "one chunk per presented entry or refuse repeated media; complete = delivered==count; timecode honours track refusal",
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "same_class_consecutive": 1,
+    "outcome": "none at limit; next claim names this remediation (CX-VAL-008)"
+   },
+   "note": "Claim 6d232da+2ddff00+bd5bd60+0474906 (first verdict). Verified fixed: R9 pre-review mxf non-permutation (mxf/provider.rs:187-211), per-track elst-zero-duration, retryable nearest for a trimmed first sample, Export START pre-check before session open (lead scope note 14:34:04Z; PLR-062 count overrun + in-process Export test stays open, not re-raised); new tests green (mxf_temporal_offsets_..., zero_duration_edit_costs_only_its_track, nearest_of_a_trimmed_first_sample_..., export_not_exact_is_refused_before_a_decoder_session_opens in default and av1). CONFIRMED-1 code predates the claim (blame 75a4d89/3c82784, present @f6e5a49) but breaks this lane's headline Export claim and its own V4-06 site verdict -> charged here by claim; the remediation also covers the Preview complete flag (STU-ARC-021). PLAUSIBLE carried: default_track() returns a refused first video track (lane residual R8)",
+   "review": "validation/R10-review-a.json (lane recommendation FIX_FIRST)",
+   "included_by": "READY (ledger round_R10.ready; claim commits all in 62d8983, nothing pushed to the crate after 0474906)",
+   "idempotency_key": "STUDIO-R10:SMB-REEL-ENG-1:62d8983b8641:FAIL_V1",
+   "recorded_at": "2026-10-11T15:37:40Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V7",
+   "status_change": "PASS_V7",
+   "tests": "interop-psd 48/48 (effects_budget 7: 5 new incl. effects_over_the_document_cap_become_typed_losses_from_the_crossing_stack_on)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "crate changed by 5f5bbb2/ce22fa5 (SMB-INTEROP-PSD-BUDGET; its defect charged there by blame and claim); effect-budget path only, no R9 claim broken (sweep)",
+   "review": "NOT_REVIEWED as a lane (R10-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate interop-psd changed 4d80e50..62d8983 by 5f5bbb2/ce22fa5)",
+   "idempotency_key": "STUDIO-R10:SMB-INTEROP-PSD:62d8983b8641:PASS_V7",
+   "recorded_at": "2026-10-11T15:37:40Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-WIDE",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "tests": "interop-psd 48/48 (effects_budget 7: 5 new incl. effects_over_the_document_cap_become_typed_losses_from_the_crossing_stack_on)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "crate changed by 5f5bbb2/ce22fa5 (SMB-INTEROP-PSD-BUDGET; its defect charged there by blame and claim); effect-budget path only, no R9 claim broken (sweep)",
+   "review": "NOT_REVIEWED as a lane (R10-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate interop-psd changed 4d80e50..62d8983 by 5f5bbb2/ce22fa5)",
+   "idempotency_key": "STUDIO-R10:SMB-INTEROP-PSD-WIDE:62d8983b8641:PASS_V5",
+   "recorded_at": "2026-10-11T15:37:40Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-RECEIPT",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "tests": "interop-psd 48/48 (effects_budget 7: 5 new incl. effects_over_the_document_cap_become_typed_losses_from_the_crossing_stack_on)",
+   "failures": [],
+   "remediation": null,
+   "note": "crate changed by 5f5bbb2/ce22fa5 (SMB-INTEROP-PSD-BUDGET; its defect charged there by blame and claim); effect-budget path only, no R9 claim broken (sweep)",
+   "review": "NOT_REVIEWED as a lane (R10-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate interop-psd changed 4d80e50..62d8983 by 5f5bbb2/ce22fa5)",
+   "idempotency_key": "STUDIO-R10:SMB-INTEROP-PSD-RECEIPT:62d8983b8641:PASS_V4",
+   "recorded_at": "2026-10-11T15:37:40Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-CLIP-ROLES",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "tests": "interop-psd 48/48 (effects_budget 7: 5 new incl. effects_over_the_document_cap_become_typed_losses_from_the_crossing_stack_on)",
+   "failures": [],
+   "remediation": null,
+   "note": "crate changed by 5f5bbb2/ce22fa5 (SMB-INTEROP-PSD-BUDGET; its defect charged there by blame and claim); effect-budget path only, no R9 claim broken (sweep)",
+   "review": "NOT_REVIEWED as a lane (R10-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate interop-psd changed 4d80e50..62d8983 by 5f5bbb2/ce22fa5)",
+   "idempotency_key": "STUDIO-R10:SMB-INTEROP-PSD-CLIP-ROLES:62d8983b8641:PASS_V4",
+   "recorded_at": "2026-10-11T15:37:40Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-ADJ",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "tests": "interop-psd 48/48 (effects_budget 7: 5 new incl. effects_over_the_document_cap_become_typed_losses_from_the_crossing_stack_on)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "crate changed by 5f5bbb2/ce22fa5 (SMB-INTEROP-PSD-BUDGET; its defect charged there by blame and claim); effect-budget path only, no R9 claim broken (sweep); documents that imported at 4d80e50 keep every stack (sweep)",
+   "review": "NOT_REVIEWED as a lane (R10-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate interop-psd changed 4d80e50..62d8983 by 5f5bbb2/ce22fa5)",
+   "idempotency_key": "STUDIO-R10:SMB-INTEROP-PSD-ADJ:62d8983b8641:PASS_V4",
+   "recorded_at": "2026-10-11T15:37:40Z"
+  },
+  {
+   "lane": "SMB-FX-OPS-ADOPT",
+   "crate": "composite + render-cpu + render-gpu + interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "tests": "interop-psd 48/48 (effects_budget 7: 5 new incl. effects_over_the_document_cap_become_typed_losses_from_the_crossing_stack_on); composite/render-cpu/render-gpu parts: R9 results/R9 reused (CX-VAL-002: crate + closure unchanged 4d80e50..62d8983)",
+   "failures": [],
+   "remediation": null,
+   "note": "interop-psd part re-proved at 62d8983 (clip-role/effects notes untouched by 5f5bbb2, sweep); composite, render-cpu, render-gpu and pigment unchanged 4d80e50..62d8983 (git diff empty), their R9 proof reused naming both commits (proof @4d80e50, candidate 62d8983)",
+   "review": "NOT_REVIEWED as a lane (R10-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+   "included_by": "CX-VAL-009 (interop-psd part changed 4d80e50..62d8983)",
+   "idempotency_key": "STUDIO-R10:SMB-FX-OPS-ADOPT:62d8983b8641:PASS_V3",
+   "recorded_at": "2026-10-11T15:37:40Z"
+  },
+  {
+   "lane": "SMB-REEL",
+   "crate": "hsk-studio-reel",
+   "decision": "passed",
+   "verdict": "PASS_V7",
+   "status_change": "PASS_V7",
+   "tests": "reel default 59/59, reel+av1 65/65; doctests 2+2",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "crate changed by 0474906 (SMB-REEL-ENG-1, FAIL_V1 this round): per-track elst refusal is more permissive than R9 file-wide; mxf non-permutation Corrupt for Preview too (hostile input refused cleanly); no R9 claim broken (sweep). Recorded: the repeated-media packet path also reports complete:true for a Preview shortfall (pre-existing @f6e5a49, blame 75a4d89/3c82784; touches the STU-ARC-021 receipt contract) - one defect, charged to SMB-REEL-ENG-1 whose remediation sets complete = delivered == count; this lane re-enters by CX-VAL-009 when that fix lands",
+   "review": "NOT_REVIEWED as a lane (R10-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate reel changed 4d80e50..62d8983 by 0474906)",
+   "idempotency_key": "STUDIO-R10:SMB-REEL:62d8983b8641:PASS_V7",
+   "recorded_at": "2026-10-11T15:37:40Z"
+  },
+  {
+   "lane": "SMB-REEL-ENG-3",
+   "crate": "hsk-studio-reel",
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "tests": "reel default 59/59, reel+av1 65/65; doctests 2+2",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "only video.rs change is the Export-only pre-check before av1::open_session; Preview and tests/av1_decode.rs unchanged; reel+av1 unit green",
+   "review": "NOT_REVIEWED as a lane (R10-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate reel changed 4d80e50..62d8983 by 0474906)",
+   "idempotency_key": "STUDIO-R10:SMB-REEL-ENG-3:62d8983b8641:PASS_V5",
+   "recorded_at": "2026-10-11T15:37:40Z"
+  },
+  {
+   "lane": "SMB-REEL-AV1-ROUTE",
+   "crate": "hsk-studio-reel",
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "tests": "reel default 59/59, reel+av1 65/65; doctests 2+2",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 2,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "two-FAIL lane: R10-prereview-reel-route SAFE_TO_JUDGE at cc3eaae (NO REGRESSION: registry.rs/choose()/Forward untouched, PLR-032/033 pinning tests unedited); reel crate identical cc3eaae..62d8983 (V4-18); reel+av1 unit ran tests/av1_decode.rs incl. oversize_picture_on_the_trusted_rav1d_path_is_refused",
+   "review": "validation/R10-prereview-reel-route.json + validation/R10-review-a.json (sweep)",
+   "included_by": "CX-VAL-009 reopen; V4-13 R10-prereview-reel-route SAFE_TO_JUDGE at cc3eaae (reel unchanged cc3eaae..62d8983)",
+   "idempotency_key": "STUDIO-R10:SMB-REEL-AV1-ROUTE:62d8983b8641:PASS_V5",
+   "recorded_at": "2026-10-11T15:37:40Z"
+  },
+  {
+   "lane": "SMB-REEL-NATIVE-AV1-WORKER",
+   "crate": "hsk-studio-reel-native",
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "tests": "reel-native +av1-worker 5/5, +av1-worker+test-faults 14/14 (av1_worker 10)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 2,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "closure-only reopen (reel 0474906); reel-native byte-identical a024461..62d8983; decode_av1 forwards the caller's purpose, the Export pre-check can only prevent a worker checkout; worker lookup/HELLO/declared-size/protocol paths untouched (sweep)",
+   "review": "NOT_REVIEWED as a lane (R10-review-a cx_val_009_sweep: AV1-WORKER and NATIVE-FAULTS claims stand)",
+   "included_by": "CX-VAL-009 (workspace-dep closure reel changed 4d80e50..62d8983); two-FAIL lane rides V4-18 on R9-prereview-reel SAFE_TO_JUDGE at a024461 (crate unchanged a024461..62d8983)",
+   "idempotency_key": "STUDIO-R10:SMB-REEL-NATIVE-AV1-WORKER:62d8983b8641:PASS_V5",
+   "recorded_at": "2026-10-11T15:37:40Z"
+  },
+  {
+   "lane": "SMB-REEL-NATIVE-FAULTS",
+   "crate": "hsk-studio-reel-native",
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "tests": "reel-native +av1-worker 5/5, +av1-worker+test-faults 14/14 (av1_worker 10)",
+   "failures": [],
+   "remediation": null,
+   "note": "closure-only reopen (reel 0474906); protocol-fault counting (PLR-055, FRAME-on-OPEN) untouched; av1_worker suite green under av1-worker+test-faults",
+   "review": "NOT_REVIEWED as a lane (R10-review-a cx_val_009_sweep: AV1-WORKER and NATIVE-FAULTS claims stand)",
+   "included_by": "CX-VAL-009 (workspace-dep closure reel changed 4d80e50..62d8983)",
+   "idempotency_key": "STUDIO-R10:SMB-REEL-NATIVE-FAULTS:62d8983b8641:PASS_V2",
+   "recorded_at": "2026-10-11T15:37:40Z"
+  }
+ ],
+ "infrastructure": [
+  "No infrastructure failure: step 0 clean, all 11 units built and ran, no fixture selected, disk lock @2 without stale breaks (held 15:15:23Z..15:16:47Z)",
+  "Gameplan hook resolved the kernel's WP-KERNEL-012 gameplan (confirm_binding target missing) for two read-only commands whose text contained gate words while cwd was the kernel; reran from studio-round with neutral wording (no bypass of a Studio gate)",
+  "Gameplan confirm notes > 120 chars refused by the tool on first try; shortened (no step added: preparation unchanged)",
+  "An idle sccache server (pid 354380, started 15:04:47Z by steward C15) was present and not started by this session (left running)",
+  "Known Operator item unchanged: repo-local wt-studio-assets/handshake-studio-assets/target (3.8 GB, newest 10:21:51Z) reported by the lock audit, not written by this round",
+  "Round outputs not cleaned (studio-round/target kept warm at the same stable path; deletion is the lead call)"
+ ],
+ "by": "wp_validator STUDIO-R10 (Opus, fresh context, not implementer)"
+}

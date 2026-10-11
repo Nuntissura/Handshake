@@ -1,0 +1,1202 @@
+{
+ "round": "STUDIO-R5",
+ "round_opened": true,
+ "rule_refs": [
+  "CX-VAL-001",
+  "CX-VAL-002",
+  "CX-VAL-004",
+  "CX-VAL-005",
+  "CX-VAL-006",
+  "CX-VAL-007",
+  "CX-VAL-008",
+  "CX-VAL-009",
+  "CX-VAL-010",
+  "CX-STATUS-001",
+  "CX-STATUS-002",
+  "CX-STATUS-003",
+  "CX-EXEC-015",
+  "CX-VERIFY-002"
+ ],
+ "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
+ "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
+ "candidate_note": "steward sync 1d404f8 named by lead; origin moved past it during the round (6a60ef6, e09a491, 1d8f1dd, ccc9c9a, a3808f8, 4cfbf0f, ...): later pushes go to the next round",
+ "round_identity_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/ROUND_IDENTITY.json",
+ "export": {
+  "file_count": 675,
+  "manifest_sha256": "279ff354600c10aef04435798711358d9a39c66aa1e1aeeafdf7dcf64b16fd32",
+  "git_blob_equal": true,
+  "refresh": "export-refresh.sh in place 2026-10-11T05:06:59Z: 17 added, 30 changed, 628 unchanged, 0 deleted, blob_mismatch 0 (from 2abb984); manifest equals steward canary export"
+ },
+ "started_at": "2026-10-11T05:11:43Z",
+ "completed_at": "2026-10-11T05:38:23Z",
+ "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
+ "running_record": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/RUNNING-R5.jsonl (opened, running, process_identity pid 217628 @05:12:01Z, completed)",
+ "gameplan": ".GOV/task_packets/WP-KERNEL-STUDIO/gameplans/STUDIO-MODULE-ROUND.yaml before_round PASS 11/11 @edit HEAD 4cfbf0f (confirms re-bound 3x as builder pushes moved HEAD; GP-013 cites steward canary C5-1d404f8)",
+ "canary": {
+  "reused": true,
+  "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/steward-export/results/C5-1d404f8",
+  "round_json_sha256": "7c0b4c6fe22207b597c1031823a9b9d680388239995293b1bd38f1ba60da465d",
+  "sha": "1d404f8c4b72a849da064c4709e025bd05369b78",
+  "export_manifest_sha256": "279ff354600c10aef04435798711358d9a39c66aa1e1aeeafdf7dcf64b16fd32",
+  "summary": "steward canary via the same entrypoint on the same SHA and identical export manifest: exit 0, complete, 44 units, absent [], timed_out []",
+  "reuse_basis": "CX-VERIFY-002 + lead dispatch; a validator canary in studio-round would rebuild the whole workspace twice (entrypoint re-touches mtimes)"
+ },
+ "union": {
+  "selection": [
+   "hsk-studio-components",
+   "hsk-studio-composite",
+   "hsk-studio-controls",
+   "hsk-studio-develop",
+   "hsk-studio-folio",
+   "hsk-studio-harness",
+   "hsk-studio-interop-layout",
+   "hsk-studio-interop-lrcat",
+   "hsk-studio-interop-media",
+   "hsk-studio-interop-psd",
+   "hsk-studio-interop-vector",
+   "hsk-studio-kernel-bindings",
+   "hsk-studio-layout",
+   "hsk-studio-motion-js",
+   "hsk-studio-nib",
+   "hsk-studio-package",
+   "hsk-studio-pigment",
+   "hsk-studio-press",
+   "hsk-studio-prism",
+   "hsk-studio-pulse",
+   "hsk-studio-reel",
+   "hsk-studio-reel-native",
+   "hsk-studio-render-cpu",
+   "hsk-studio-render-gpu",
+   "hsk-studio-score",
+   "hsk-studio-session",
+   "hsk-studio-type",
+   "hsk-studio-web"
+  ],
+  "argv": "bash tools/run-round.sh --results <studio-round>/results/R5 --target-dir <studio-round>/target <28 crates> (cwd export; no caller env)",
+  "target_dir": "Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/target (cold; build 1m 13s)",
+  "started_at": "2026-10-11T05:12:08Z",
+  "ended_at": "2026-10-11T05:19:19Z",
+  "build_exit": 0,
+  "run_exit": 0,
+  "exit": 0,
+  "summary": "default 463/463 pass, 1 skipped (develop real_dng ignored); hsk-studio-reel+av1 28/28 pass; hsk-studio-motion-js+quickjs 14/14 pass; hsk-studio-type+harfrust 42/42 pass; hsk-studio-reel-native+av1 5/5 pass; 36 doctest units exit 0 (0 doctests); absent [] timed_out []",
+  "units": 37,
+  "hashes": {
+   "round.json": "d7a24e664cc5fad56cfa5e693542ce59b6fabc50f7715072f226161776f48cb9",
+   "tests.json": "f8152a733f1df0972454a369b28d880b4002f612179792cec3870b9b853c6078",
+   "junit.xml": "cad9cb95771c3d374c215fe1e8e7d0879505729812d6b8b28e5011ee2b3f388f",
+   "run.stderr.txt": "a82984b3f12f3e74034e8cca87e73fee7bbf5ef57b2bc232b85ae499230d6b09",
+   "build.stderr.txt": "199ae83324f6b4623f6e68bb0c3f651b8f279edb9a0146032af8d64736f165d7",
+   "units.tsv": "47fd7f3ac93e532c7af0800c90b04b81e577e3623f0e287935d4e814b6f5cf09",
+   "features/hsk-studio-motion-js+quickjs/junit.xml": "ab7d0a2979540331abb22c53ff122f8f0b1458f62dbf5bc223fee6d1fe2daade",
+   "features/hsk-studio-reel+av1/junit.xml": "b371430551cda8dd6cbcddbd75c5b54e5fcc2d9629888bcd7250bc6a8020f1b5",
+   "features/hsk-studio-reel-native+av1/junit.xml": "b27d57e7d48ee382114ffed9967be46bc63d4ae815300af391fff02efb472abf",
+   "features/hsk-studio-type+harfrust/junit.xml": "cbac54b25497b8551003a9e94abf11c932aaa8a6efd882f5340f0f1536192389"
+  },
+  "per_crate": {
+   "components": 13,
+   "composite": 13,
+   "controls": 12,
+   "develop": 16,
+   "folio": 32,
+   "harness": 4,
+   "interop-layout": 9,
+   "interop-lrcat": 5,
+   "interop-media": 6,
+   "interop-psd": 18,
+   "interop-vector": 11,
+   "kernel-bindings": 5,
+   "layout": 6,
+   "motion-js": 4,
+   "nib": 10,
+   "package": 18,
+   "pigment": 14,
+   "press": 9,
+   "prism": 115,
+   "pulse": 13,
+   "reel": 25,
+   "render-cpu": 11,
+   "render-gpu": 10,
+   "score": 20,
+   "session": 14,
+   "type": 41,
+   "web": 9
+  },
+  "step0": "cargo metadata --locked --offline ok; registry-sync check clean (approved_added [], unrequested [], manifest_changed false, probe_changed false)",
+  "env": {
+   "set_by_entrypoint": [
+    "CARGO_TARGET_DIR",
+    "TMP",
+    "TEMP",
+    "TMPDIR",
+    "CARGO_PROFILE_DEV_DEBUG",
+    "CARGO_PROFILE_TEST_DEBUG",
+    "CARGO_TERM_COLOR"
+   ],
+   "env_unset": "",
+   "rustc_wrapper": "",
+   "tools": {
+    "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+    "cargo": "cargo 1.97.1 (c980f4866 2026-06-30)",
+    "nextest": "cargo-nextest 0.9.148 (cd1d6d546 2026-10-07)"
+   }
+  }
+ },
+ "junit_success_output_checks": [
+  "render-gpu: GPU_BACKEND dx12:discrete:NVIDIA GeForce RTX 3090 in parity tests; no NOT_PROVEN line (GPU proofs ran)",
+  "prism oracle_t1_lcms2 + wide_profiles: 0 SKIP lines (installed profiles present on this host)"
+ ],
+ "flake_findings": [
+  {
+   "lane": "SMB-MOTION-JS-WORKER",
+   "test": "hsk-studio-motion-js::quickjs_worker worker_crash_is_typed_contained_and_respawn_is_bounded",
+   "failure_kind": "flaky",
+   "r4": "results/R4 @2abb984: FAIL 10.708 s, quickjs_worker.rs:241 left Budget right Unsupported (deadline hit before WER released the aborted worker)",
+   "r5": "results/R5 @1d404f8: pass 7.707 s",
+   "crate_diff_2abb984_1d404f8": "none (crates/hsk-studio-motion-js unchanged)",
+   "cause": "10 s deadline vs Windows error-reporting hold of an aborted process (~5 s, longer under host load)"
+  }
+ ],
+ "adversarial_review": {
+  "refs": {
+   "validation/R5-review-a.json": "sha256 29b1e7d4",
+   "validation/R5-review-b.json": "sha256 d4cdcca0",
+   "validation/R5-review-c.json": "sha256 5a4979dd",
+   "validation/R4-review.json": "sha256 11e27a71"
+  },
+  "coverage": "A: render-gpu, render-cpu, composite, pigment-eng-1, controls, nib-eng-1, score, interop-psd(+wide), develop(+wide), prism-eng-5; B: reel, reel-eng-3, reel-av1-route, reel-native-av1-worker, interop-media, motion-js(+worker), press, web, kernel-bindings, harness; C: interop-lrcat, interop-layout, layout-folio-migrate, folio-eng-4, components(+folio-migrate), interop-vector(+folio-migrate), session, package-stream-save; R4-review reused: type-eng-1, type-doctest, prism-eng-3",
+  "fold_rule": "every CONFIRMED stub/fake/defect finding re-read by the validator at the cited file:line in the export before it drives a FAIL; PLAUSIBLE items are notes",
+  "not_reviewed": [
+   "SMB-ROUND-ENTRYPOINT (fd24723/1d404f8; validator read run-round.sh)",
+   "CX-VAL-009 re-included PASS lanes (their changed inputs reviewed under the lanes that changed them)"
+  ],
+  "validator_disagreements": [
+   "SMB-RENDER-GPU FAIL (reviewer PASS_WITH_NOTES): brief test 1 requires FAIL with NOT_PROVEN on no adapter; R5 GPU proof itself genuine",
+   "SMB-PIGMENT-ENG-1 FAIL (reviewer PASS_WITH_NOTES): render-plan IR contract says refusal rules have one owner (admit)",
+   "SMB-INTEROP-PSD-WIDE FAIL (reviewer PASS_WITH_NOTES): false identity claim drops BPC for gray TRC with Y(0)>0; loss kind PreservedOpaque"
+  ]
+ },
+ "proof_reuse": {
+  "lanes": [
+   "SMB-TYPE (PASS_V5)",
+   "SMB-TYPE-ENV",
+   "SMB-TYPE-FONTS",
+   "SMB-TYPE-FIXTURES",
+   "SMB-ACCORD-ENG-1",
+   "SMB-ACCORD-ENG-2",
+   "SMB-MOTION"
+  ],
+  "basis": "CX-VAL-002: crate + workspace-dep closure unchanged 404ff3a..1d404f8; Cargo.lock diff adds 16 packages (rav1d closure) and relabels zerocopy only, none in these closures; no new verdict (type also green in this union)"
+ },
+ "excluded": [
+  {
+   "lane": "SMB-PULSE-ENG-1",
+   "crate": "hsk-studio-pulse",
+   "reason": "candidate 6a60ef6 not an ancestor of 1d404f8 (next round)"
+  },
+  {
+   "lane": "SMB-INTEROP-FIG, SMB-SCORE-DEVICE",
+   "crate": "-",
+   "reason": "READY after freeze with candidates 4cfbf0f / d992b40 not in 1d404f8 (next round)"
+  },
+  {
+   "lane": "SMB-INTEROP-MEDIA-PULSE, SMB-PRISM-ENG-6",
+   "crate": "-",
+   "reason": "BLOCKED / null, not READY"
+  },
+  {
+   "lane": "lanes with status null",
+   "crate": "-",
+   "reason": "no submission"
+  }
+ ],
+ "scope_rule": "READY_FOR_VALIDATION lanes (ledger snapshot sha256 4ea99112 @05:07Z) whose candidate and commits are ancestors of 1d404f8, plus PASS lanes returned to READY by CX-VAL-009",
+ "included_count": 48,
+ "verdict_counts": {
+  "FAIL_V2": 7,
+  "BLOCKED": 2,
+  "PASS_V2": 20,
+  "FAIL_V1": 14,
+  "PASS_V1": 5
+ },
+ "verdict_numbering": "Vn = 1 + highest prior PASS_V/FAIL_V number of the lane (BLOCKED and inconclusive do not count)",
+ "lanes": [
+  {
+   "lane": "SMB-DEVELOP",
+   "crate": "hsk-studio-develop",
+   "decision": "failed",
+   "verdict": "FAIL_V2",
+   "status_change": "FAIL_V2",
+   "tests": "16/16 pass, real_dng ignored",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "ljpeg-tiny-file-forces-frame-allocation",
+     "file_line": "crates/hsk-studio-develop/src/dng.rs:438-449 (bound :17)",
+     "evidence": "block size check skipped for compression 7; vec![0u16; w*h] up to 2^28 px (512 MiB) allocated before ljpeg decode of a few-byte stream",
+     "source": "R5-review CONFIRMED, re-verified by validator at 1d404f8",
+     "artifact_ref": "export 1d404f8c crates/hsk-studio-develop/src/dng.rs:438-449 (bound :17)"
+    }
+   ],
+   "remediation": "For LJPEG require width*height <= 8 * sum(block byte counts) before allocating; add tiny-LJPEG test",
+   "note": "R3 FAIL_V1 items verified fixed (dng.rs:744-752 checked_sub; one corpus default path); R3 PLAUSIBLE now CONFIRMED in code",
+   "review": "validation/R5-review-a.json",
+   "idempotency_key": "STUDIO-R5:SMB-DEVELOP:1d404f8c4b72:FAIL_V2",
+   "recorded_at": "2026-10-11T05:38:23Z"
+  },
+  {
+   "lane": "SMB-DEVELOP-WIDE",
+   "crate": "hsk-studio-develop",
+   "decision": "blocked",
+   "verdict": "BLOCKED",
+   "status_change": "BLOCKED (blocked_on SMB-PRISM-ENG-6 (admission-ledger hook) / Operator D13 (STU-CON-044))",
+   "tests": "16/16 pass (develop_profile wide route)",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "wide-transform-not-admitted-per-stu-con-044",
+     "file_line": "crates/hsk-studio-develop/src/convert.rs:1-11; src/lib.rs:230",
+     "evidence": "STU-CON-044 needs admitted Prism transform in <=64 px chunks with accounted lifetime; WideEngine 262144 px requests, not charged to caller ledger",
+     "source": "R5-review CONFIRMED, re-verified by validator at 1d404f8",
+     "artifact_ref": "export 1d404f8c crates/hsk-studio-develop/src/convert.rs:1-11; src/lib.rs:230"
+    }
+   ],
+   "remediation": "Blocked on Operator D13 (STU-CON-044 enrichment) or SMB-PRISM-ENG-6 Prism admission-ledger hook",
+   "note": "verdict blocked (CX-STATUS-002 dependency): spec delta disclosed by lane; fix needs Operator D13 or SMB-PRISM-ENG-6",
+   "review": "validation/R5-review-a.json",
+   "idempotency_key": "STUDIO-R5:SMB-DEVELOP-WIDE:1d404f8c4b72:BLOCKED",
+   "recorded_at": "2026-10-11T05:38:23Z",
+   "blocked_on": "SMB-PRISM-ENG-6 (admission-ledger hook) / Operator D13 (STU-CON-044)"
+  },
+  {
+   "lane": "SMB-COMPONENTS",
+   "crate": "hsk-studio-components",
+   "decision": "failed",
+   "verdict": "FAIL_V2",
+   "status_change": "FAIL_V2",
+   "tests": "13/13 pass",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "swap-switch-skip-variable-binding-type-check",
+     "file_line": "crates/hsk-studio-components/src/instance_resolution.rs:473 (vars None), :433-436, :538",
+     "evidence": "check_shape passes vars=None: override clashing with a variable-bound field passes swap/switch Ok, then resolve_instance refuses TypeMismatch",
+     "source": "R5-review CONFIRMED, re-verified by validator at 1d404f8",
+     "artifact_ref": "export 1d404f8c crates/hsk-studio-components/src/instance_resolution.rs:473 (vars None), :433-436, :538"
+    }
+   ],
+   "remediation": "check_shape: pass Some(design.variables()) and type-check bound property variables; add binding-clash swap test",
+   "note": "R3 classes verified fixed in review C (resolve path, dead actions, dup ids at Folio validate); new class in swap/switch path",
+   "review": "validation/R5-review-c.json",
+   "idempotency_key": "STUDIO-R5:SMB-COMPONENTS:1d404f8c4b72:FAIL_V2",
+   "recorded_at": "2026-10-11T05:38:23Z"
+  },
+  {
+   "lane": "SMB-SCORE",
+   "crate": "hsk-studio-score",
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2; ledger status stays READY_FOR_VALIDATION: newer submission 70ce263 (not in 1d404f8) queued for next round",
+   "tests": "20/20 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "R3 bounce-uses-input-layout fixed (346b947, bounce_output_layout tests); R5-review-a PASS, 3 PLAUSIBLE carried notes",
+   "review": "validation/R5-review-a.json",
+   "idempotency_key": "STUDIO-R5:SMB-SCORE:1d404f8c4b72:PASS_V2",
+   "recorded_at": "2026-10-11T05:38:23Z"
+  },
+  {
+   "lane": "SMB-REEL",
+   "crate": "hsk-studio-reel",
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "tests": "25/25 default, 28/28 av1 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "R3 lace-sum + pts-delta overflows fixed (dcc1b37, review_r3_regressions 2/2); PLAUSIBLE: pub mod fixtures in product API",
+   "review": "validation/R5-review-b.json",
+   "idempotency_key": "STUDIO-R5:SMB-REEL:1d404f8c4b72:PASS_V2",
+   "recorded_at": "2026-10-11T05:38:23Z"
+  },
+  {
+   "lane": "SMB-COMPOSITE",
+   "crate": "hsk-studio-composite",
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "tests": "13/13 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "R3 clip-under-hidden-base over-refusal fixed (99a03e6); PLAUSIBLE: pass-through fill rated Approximate, literal operator keys",
+   "review": "validation/R5-review-a.json",
+   "idempotency_key": "STUDIO-R5:SMB-COMPOSITE:1d404f8c4b72:PASS_V2",
+   "recorded_at": "2026-10-11T05:38:23Z"
+  },
+  {
+   "lane": "SMB-RENDER-CPU",
+   "crate": "hsk-studio-render-cpu",
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "tests": "11/11 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "R3 fill_opacity + panic-hang fixed (9468d33); PLAUSIBLE: per-pixel winding uncharged (coverage.rs:98)",
+   "review": "validation/R5-review-a.json",
+   "idempotency_key": "STUDIO-R5:SMB-RENDER-CPU:1d404f8c4b72:PASS_V2",
+   "recorded_at": "2026-10-11T05:38:23Z"
+  },
+  {
+   "lane": "SMB-RENDER-GPU",
+   "crate": "hsk-studio-render-gpu",
+   "decision": "failed",
+   "verdict": "FAIL_V2",
+   "status_change": "FAIL_V2; ledger status stays READY_FOR_VALIDATION: newer submission 167dc28 (not in 1d404f8) queued for next round",
+   "tests": "10/10 pass on dx12 RTX 3090 (no NOT_PROVEN line in junit)",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "no-adapter-early-return-green",
+     "file_line": "crates/hsk-studio-render-gpu/tests/gpu_plan.rs:336-358 (gpu_gate NoAdapter -> Ok(None))",
+     "evidence": "no adapter: GPU proofs print NOT_PROVEN and return green unless HSK_STUDIO_TEST_REQUIRE_GPU=1 (entrypoint unsets HSK_*); brief test 1 says FAIL",
+     "source": "R5-review CONFIRMED, re-verified by validator at 1d404f8",
+     "artifact_ref": "export 1d404f8c crates/hsk-studio-render-gpu/tests/gpu_plan.rs:336-358 (gpu_gate NoAdapter -> Ok(None))"
+    }
+   ],
+   "remediation": "Fail GPU proof tests on no adapter by default (NOT_PROVEN text); opt-out only via committed round config",
+   "note": "R3 2/2 fake-test classes verified fixed (b7d90dc); R5 GPU proof itself genuine: parity max_err 1.79e-7, device-loss callback 1.10 s",
+   "review": "validation/R5-review-a.json",
+   "idempotency_key": "STUDIO-R5:SMB-RENDER-GPU:1d404f8c4b72:FAIL_V2",
+   "recorded_at": "2026-10-11T05:38:23Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "tests": "18/18 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "R3 tile-length panic + stale merged oracle fixed (213b30a); PLAUSIBLE: apply_edits partial mutation on Err, empty cell black",
+   "review": "validation/R5-review-a.json",
+   "idempotency_key": "STUDIO-R5:SMB-INTEROP-PSD:1d404f8c4b72:PASS_V2",
+   "recorded_at": "2026-10-11T05:38:23Z"
+  },
+  {
+   "lane": "SMB-INTEROP-LAYOUT",
+   "crate": "hsk-studio-interop-layout",
+   "decision": "failed",
+   "verdict": "FAIL_V1",
+   "status_change": "FAIL_V1; ledger status stays READY_FOR_VALIDATION: newer submission f40d6a2 (not in 1d404f8) queued for next round",
+   "tests": "9/9 pass",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "idml-properties-xml-cloned-per-content",
+     "file_line": "crates/hsk-studio-interop-layout/src/idml_decode.rs:756-779,812-815,723-737",
+     "evidence": "run proto with opaque Properties XML deep-cloned per <Content>/<Br>; memory ~ #Content x |Properties| before Folio budget -> OOM, not BudgetExceeded",
+     "source": "R5-review CONFIRMED, re-verified by validator at 1d404f8",
+     "artifact_ref": "export 1d404f8c crates/hsk-studio-interop-layout/src/idml_decode.rs:756-779,812-815,723-737"
+    }
+   ],
+   "remediation": "Store Properties once per range (Rc/index) or charge every cloned byte to a decode budget; add amplification test",
+   "note": "PLAUSIBLE: second in-house ZIP/CRC-32 next to package (lead D16)",
+   "review": "validation/R5-review-c.json",
+   "idempotency_key": "STUDIO-R5:SMB-INTEROP-LAYOUT:1d404f8c4b72:FAIL_V1",
+   "recorded_at": "2026-10-11T05:38:23Z"
+  },
+  {
+   "lane": "SMB-INTEROP-MEDIA",
+   "crate": "hsk-studio-interop-media",
+   "decision": "blocked",
+   "verdict": "BLOCKED",
+   "status_change": "BLOCKED (blocked_on SMB-INTEROP-MEDIA-PULSE (Operator D9))",
+   "tests": "6/6 pass",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "cap-duplicate-timecode-pending-d9",
+     "file_line": "crates/hsk-studio-interop-media/src/time.rs:127-237",
+     "evidence": "timecode label + drop-frame arithmetic duplicates pulse src/time.rs:136-245 (CX-CAP-001); delegation needs the D9 edge",
+     "source": "R5-review CONFIRMED, re-verified by validator at 1d404f8",
+     "artifact_ref": "export 1d404f8c crates/hsk-studio-interop-media/src/time.rs:127-237"
+    }
+   ],
+   "remediation": "Blocked on SMB-INTEROP-MEDIA-PULSE (Operator D9); then delegate timecode labels to pulse, delete time.rs:127-237",
+   "note": "R3 non-D9 sub-items verified fixed (accord Timescale for ticks->frames, no local gcd); PLAUSIBLE: 3-digit timecode fields import",
+   "review": "validation/R5-review-b.json",
+   "idempotency_key": "STUDIO-R5:SMB-INTEROP-MEDIA:1d404f8c4b72:BLOCKED",
+   "recorded_at": "2026-10-11T05:38:23Z",
+   "blocked_on": "SMB-INTEROP-MEDIA-PULSE (Operator D9)"
+  },
+  {
+   "lane": "SMB-CONTROLS",
+   "crate": "hsk-studio-controls",
+   "decision": "failed",
+   "verdict": "FAIL_V2",
+   "status_change": "FAIL_V2",
+   "tests": "12/12 pass",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "integer-step-silent-noop-at-saturation",
+     "file_line": "crates/hsk-studio-controls/src/descriptor.rs:688-691 (doc :665-671)",
+     "evidence": "integer step = saturating_add; at i64::MAX/MIN with no hard bound validate_value accepts the same value: Ok(unchanged) silent no-op",
+     "source": "R5-review CONFIRMED, re-verified by validator at 1d404f8",
+     "artifact_ref": "export 1d404f8c crates/hsk-studio-controls/src/descriptor.rs:688-691 (doc :665-671)"
+    }
+   ],
+   "remediation": "Return StepNoEffect when saturating_add leaves the integer unchanged; add i64::MAX/MIN step test",
+   "note": "R3 number-path precision-9 fix verified (605796f, step_effect 3/3); PLAUSIBLE: failed End leaves gesture open",
+   "review": "validation/R5-review-a.json",
+   "idempotency_key": "STUDIO-R5:SMB-CONTROLS:1d404f8c4b72:FAIL_V2",
+   "recorded_at": "2026-10-11T05:38:23Z"
+  },
+  {
+   "lane": "SMB-SESSION",
+   "crate": "hsk-studio-session",
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "tests": "14/14 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "R3 successor-not-derived fixed (derives_from session.rs:454-466, test :891); PLAUSIBLE: chronicle table copies, receipts never evicted",
+   "review": "validation/R5-review-c.json",
+   "idempotency_key": "STUDIO-R5:SMB-SESSION:1d404f8c4b72:PASS_V2",
+   "recorded_at": "2026-10-11T05:38:23Z"
+  },
+  {
+   "lane": "SMB-HARNESS",
+   "crate": "hsk-studio-harness",
+   "decision": "failed",
+   "verdict": "FAIL_V1",
+   "status_change": "FAIL_V1",
+   "tests": "4/4 pass",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "verify-with-no-expectations-passes",
+     "file_line": "crates/hsk-studio-harness/src/cli.rs:192-198; src/harness.rs:618-630; src/manual.rs:23",
+     "evidence": "verify PACKAGE with no --expect-*: revision_ok via is_none_or, empty checks -> verdict pass exit 0 while checking nothing",
+     "source": "R5-review CONFIRMED, re-verified by validator at 1d404f8",
+     "artifact_ref": "export 1d404f8c crates/hsk-studio-harness/src/cli.rs:192-198; src/harness.rs:618-630; src/manual.rs:23"
+    }
+   ],
+   "remediation": "Refuse verify with zero expectations (usage exit 2) or report nothing_checked, never pass",
+   "note": "PLAUSIBLE: --save may overwrite the input package or write outside an allowed root",
+   "review": "validation/R5-review-b.json",
+   "idempotency_key": "STUDIO-R5:SMB-HARNESS:1d404f8c4b72:FAIL_V1",
+   "recorded_at": "2026-10-11T05:38:23Z"
+  },
+  {
+   "lane": "SMB-KERNEL-BINDINGS",
+   "crate": "hsk-studio-kernel-bindings",
+   "decision": "failed",
+   "verdict": "FAIL_V1",
+   "status_change": "FAIL_V1",
+   "tests": "5/5 pass",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "job-release-without-owner-check",
+     "file_line": "crates/hsk-studio-kernel-bindings/src/host.rs:235-238, :287-308",
+     "evidence": "tickets sequential and ownerless; JobRelease removes any ticket for any actor; job_admit has no grant check -> capacity accounting defeated",
+     "source": "R5-review CONFIRMED, re-verified by validator at 1d404f8",
+     "artifact_ref": "export 1d404f8c crates/hsk-studio-kernel-bindings/src/host.rs:235-238, :287-308"
+    },
+    {
+     "failure_kind": "product",
+     "failure_class": "wire-decode-accepts-non-canonical",
+     "file_line": "crates/hsk-studio-kernel-bindings/src/wire.rs:1-4 vs :537-565",
+     "evidence": "contract: decode refuses all the encoder cannot produce; serde_json accepts interior whitespace, any field order, \\u escapes",
+     "source": "R5-review CONFIRMED, re-verified by validator at 1d404f8",
+     "artifact_ref": "export 1d404f8c crates/hsk-studio-kernel-bindings/src/wire.rs:1-4 vs :537-565"
+    }
+   ],
+   "remediation": "Bind tickets to account+principal+resource, refuse foreign release; require re-encode byte equality on decode; tests",
+   "note": "PLAUSIBLE: client-chosen lease_epoch u64::MAX fences all writers",
+   "review": "validation/R5-review-b.json",
+   "idempotency_key": "STUDIO-R5:SMB-KERNEL-BINDINGS:1d404f8c4b72:FAIL_V1",
+   "recorded_at": "2026-10-11T05:38:23Z"
+  },
+  {
+   "lane": "SMB-PRESS",
+   "crate": "hsk-studio-press",
+   "decision": "failed",
+   "verdict": "FAIL_V1",
+   "status_change": "FAIL_V1; ledger status stays READY_FOR_VALIDATION: newer submission e75bd5a (not in 1d404f8) queued for next round",
+   "tests": "9/9 pass",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "is-proven-ignores-undecodable-streams",
+     "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:314-316 (vs :11, :226-237, :276)",
+     "evidence": "is_proven = region_cleared && hits empty; never checks streams_not_decodable, so a string in a corrupt/DCT stream scanned raw reads proven",
+     "source": "R5-review CONFIRMED, re-verified by validator at 1d404f8",
+     "artifact_ref": "export 1d404f8c crates/hsk-studio-press/src/sanitized_save.rs:314-316 (vs :11, :226-237, :276)"
+    }
+   ],
+   "remediation": "Require proof.fully_decoded() in is_proven (or typed NotProven); add undecodable-stream leak test",
+   "note": "PLAUSIBLE: same-selector residual check, uncancellable raw scan, LZW doc drift",
+   "review": "validation/R5-review-b.json",
+   "idempotency_key": "STUDIO-R5:SMB-PRESS:1d404f8c4b72:FAIL_V1",
+   "recorded_at": "2026-10-11T05:38:23Z"
+  },
+  {
+   "lane": "SMB-WEB",
+   "crate": "hsk-studio-web",
+   "decision": "failed",
+   "verdict": "FAIL_V1",
+   "status_change": "FAIL_V1",
+   "tests": "9/9 pass",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "css-escape-bypasses-url-classification",
+     "file_line": "crates/hsk-studio-web/src/css.rs:63-85; src/assets.rs:99-131",
+     "evidence": "CSS escapes not decoded: u\\72l(...) not collected; url(ht\\74p://x) classified relative ('\\' -> '/') and sent to AssetPort, not Denied",
+     "source": "R5-review CONFIRMED, re-verified by validator at 1d404f8",
+     "artifact_ref": "export 1d404f8c crates/hsk-studio-web/src/css.rs:63-85; src/assets.rs:99-131"
+    },
+    {
+     "failure_kind": "product",
+     "failure_class": "base-href-and-url-attributes-unscanned",
+     "file_line": "crates/hsk-studio-web/src/assets.rs:79-96; src/lib.rs:32",
+     "evidence": "URL_ATTRIBUTES omits <base href>, svg image href, iframe srcdoc, formaction, background; not listed in DESCRIPTOR not_scanned",
+     "source": "R5-review CONFIRMED, re-verified by validator at 1d404f8",
+     "artifact_ref": "export 1d404f8c crates/hsk-studio-web/src/assets.rs:79-96; src/lib.rs:32"
+    }
+   ],
+   "remediation": "Decode CSS escapes before matching/classifying; handle <base href>; add missing URL attrs or list as not_scanned",
+   "note": "PLAUSIBLE: relative refs reach AssetPort without .. normalisation",
+   "review": "validation/R5-review-b.json",
+   "idempotency_key": "STUDIO-R5:SMB-WEB:1d404f8c4b72:FAIL_V1",
+   "recorded_at": "2026-10-11T05:38:23Z"
+  },
+  {
+   "lane": "SMB-INTEROP-LRCAT",
+   "crate": "hsk-studio-interop-lrcat",
+   "decision": "failed",
+   "verdict": "FAIL_V1",
+   "status_change": "FAIL_V1",
+   "tests": "5/5 pass",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "no-aggregate-retained-text-budget",
+     "file_line": "crates/hsk-studio-interop-lrcat/src/catalog_bytes.rs:489-521 (seen :504); src/extract.rs:504-518",
+     "evidence": "overflow visited set per payload() call (chains shareable across cells); only develop text has a retention budget -> OOM, not typed Limit",
+     "source": "R5-review CONFIRMED, re-verified by validator at 1d404f8",
+     "artifact_ref": "export 1d404f8c crates/hsk-studio-interop-lrcat/src/catalog_bytes.rs:489-521 (seen :504); src/extract.rs:504-518"
+    },
+    {
+     "failure_kind": "product",
+     "failure_class": "reconcile-check-tautological",
+     "file_line": "crates/hsk-studio-interop-lrcat/src/extract.rs:254-261,183-187; tests/catalog_decode.rs:167,482",
+     "evidence": "count() sets lost = seen - mapped, so reconciles() holds by construction; both test asserts check nothing",
+     "source": "R5-review CONFIRMED, re-verified by validator at 1d404f8",
+     "artifact_ref": "export 1d404f8c crates/hsk-studio-interop-lrcat/src/extract.rs:254-261,183-187; tests/catalog_decode.rs:167,482"
+    }
+   ],
+   "remediation": "Extraction-wide overflow visited set + aggregate retained-text budget; derive lost from per-row loss events; tests",
+   "note": "PLAUSIBLE: committed sqlite3 fixture generator script in the product crate (CX-503R wording)",
+   "review": "validation/R5-review-c.json",
+   "idempotency_key": "STUDIO-R5:SMB-INTEROP-LRCAT:1d404f8c4b72:FAIL_V1",
+   "recorded_at": "2026-10-11T05:38:23Z"
+  },
+  {
+   "lane": "SMB-MOTION-JS",
+   "crate": "hsk-studio-motion-js",
+   "decision": "failed",
+   "verdict": "FAIL_V2",
+   "status_change": "FAIL_V2; counter NEEDS_NEW_APPROACH (CX-EXEC-015(2), CX-VAL-008: 2nd FAIL on quickjs-forged-internalerror-poisons-provider, no diagnosis)",
+   "tests": "4/4 default, 14/14 quickjs pass",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "quickjs-forged-internalerror-poisons-provider",
+     "file_line": "crates/hsk-studio-motion-js/src/quickjs.rs:167-171,680-682; src/provider.rs:184-186,231",
+     "evidence": "RangeError/InternalError still flagged Stack/Memory by user-writable message text: throw new RangeError('Maximum call stack...') = Budget denial",
+     "source": "R5-review CONFIRMED, re-verified by validator at 1d404f8",
+     "artifact_ref": "export 1d404f8c crates/hsk-studio-motion-js/src/quickjs.rs:167-171,680-682; src/provider.rs:184-186,231"
+    }
+   ],
+   "remediation": "Classify Stack/Memory budget from engine signals only; message-matched user throws -> Thrown; forged-message tests",
+   "note": "R3 interrupt-disarmed fixed, poison part fixed (a53c52d); same failure_class as R3 FAIL_V1, no diagnosis record -> counter",
+   "review": "validation/R5-review-b.json",
+   "idempotency_key": "STUDIO-R5:SMB-MOTION-JS:1d404f8c4b72:FAIL_V2",
+   "recorded_at": "2026-10-11T05:38:23Z"
+  },
+  {
+   "lane": "SMB-TYPE-ENG-1",
+   "crate": "hsk-studio-type",
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "tests": "harfrust_spike_parity_and_coverage pass (type+harfrust 42/42)",
+   "failures": [],
+   "remediation": null,
+   "note": "R3 inconclusive cause closed by feature matrix; R4-review PASS; PLAUSIBLE harfrust shape not interruptible; Operator D7 open",
+   "review": "validation/R4-review.json",
+   "idempotency_key": "STUDIO-R5:SMB-TYPE-ENG-1:1d404f8c4b72:PASS_V1",
+   "recorded_at": "2026-10-11T05:38:23Z"
+  },
+  {
+   "lane": "SMB-REEL-ENG-3",
+   "crate": "hsk-studio-reel",
+   "decision": "failed",
+   "verdict": "FAIL_V1",
+   "status_change": "FAIL_V1",
+   "tests": "av1_decode 3/3 pass (reel+av1 28/28)",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "av1-default-pixel-limit-refuses-1080p",
+     "file_line": "crates/hsk-studio-reel/src/av1/mod.rs:148-151; src/model.rs:98; src/av1/ffi.rs:72",
+     "evidence": "pixel_limit = 8 MiB/6 = 1,398,101 px < 1920x1080; rav1d obu.rs:2333 refuses -> LimitExceeded: trusted 8-bit 4:2:0 1080p refused at defaults",
+     "source": "R5-review CONFIRMED, re-verified by validator at 1d404f8",
+     "artifact_ref": "export 1d404f8c crates/hsk-studio-reel/src/av1/mod.rs:148-151; src/model.rs:98; src/av1/ffi.rs:72"
+    }
+   ],
+   "remediation": "Derive the pixel limit from av1C chroma/bit depth (not 4:4:4 16-bit worst case); add 1080p-sized limit test",
+   "note": "PLAUSIBLE: in-process send/finish ignore cancel; no BSD-2 attribution artifact for rav1d",
+   "review": "validation/R5-review-b.json",
+   "idempotency_key": "STUDIO-R5:SMB-REEL-ENG-3:1d404f8c4b72:FAIL_V1",
+   "recorded_at": "2026-10-11T05:38:23Z"
+  },
+  {
+   "lane": "SMB-PRISM-ENG-5",
+   "crate": "hsk-studio-prism",
+   "decision": "failed",
+   "verdict": "FAIL_V1",
+   "status_change": "FAIL_V1",
+   "tests": "oracle_t0 41/41, oracle_t1 42/42 pass (0 SKIP lines on this host)",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "t1-oracle-reads-machine-local-c-profiles-skip-green",
+     "file_line": "crates/hsk-studio-prism/tests/oracle/t1_lcms2.json default_locations; tests/oracle_t1_lcms2.rs:194-208,354-358",
+     "evidence": "9/12 T1 profiles read from hard-coded C:/Program Files (x86)/Adobe and C:/Windows paths; absent -> SKIP and green (17/20 pairs)",
+     "source": "R5-review CONFIRMED, re-verified by validator at 1d404f8",
+     "artifact_ref": "export 1d404f8c crates/hsk-studio-prism/tests/oracle/t1_lcms2.json default_locations; tests/oracle_t1_lcms2.rs:194-208,354-358"
+    }
+   ],
+   "remediation": "Resolve profiles from a documented relocatable external root (not C:); missing profile = counted NOT_PROVEN, gated",
+   "note": "R5 host had all profiles (genuine run); PLAUSIBLE: T1 metric measured through the engine's own dst->PCS leg",
+   "review": "validation/R5-review-a.json",
+   "idempotency_key": "STUDIO-R5:SMB-PRISM-ENG-5:1d404f8c4b72:FAIL_V1",
+   "recorded_at": "2026-10-11T05:38:23Z"
+  },
+  {
+   "lane": "SMB-TYPE-DOCTEST",
+   "crate": "hsk-studio-type",
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "tests": "doctest units type + type+harfrust exit 0 (0 runnable doctests)",
+   "failures": [],
+   "remediation": null,
+   "note": "R3 inconclusive cause closed: entrypoint doctest step runs; 0 runnable fences; R4-review PASS",
+   "review": "validation/R4-review.json",
+   "idempotency_key": "STUDIO-R5:SMB-TYPE-DOCTEST:1d404f8c4b72:PASS_V1",
+   "recorded_at": "2026-10-11T05:38:23Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-ENG-1",
+   "crate": "hsk-studio-pigment",
+   "decision": "failed",
+   "verdict": "FAIL_V2",
+   "status_change": "FAIL_V2",
+   "tests": "14/14 pass",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "pass-through-fill-opacity-admitted",
+     "file_line": "crates/hsk-studio-pigment/src/render_plan.rs:362-379",
+     "evidence": "validate maps PassThrough+fill<1 to FillOpacity (Approximate); admit passes, render-cpu/gpu refuse later with different codes; refusal has 2+ owners",
+     "source": "R5-review CONFIRMED, re-verified by validator at 1d404f8",
+     "artifact_ref": "export 1d404f8c crates/hsk-studio-pigment/src/render_plan.rs:362-379"
+    }
+   ],
+   "remediation": "validate: PassThrough && fill_opacity<1 -> PassThroughOpacity (or new op) so admit refuses uniformly; add test",
+   "note": "R3 residual (clip base) fixed (276e2a3); reviewer rec PASS_WITH_NOTES, validator FAIL: IR contract says refusal rules have one owner",
+   "review": "validation/R5-review-a.json",
+   "idempotency_key": "STUDIO-R5:SMB-PIGMENT-ENG-1:1d404f8c4b72:FAIL_V2",
+   "recorded_at": "2026-10-11T05:38:23Z"
+  },
+  {
+   "lane": "SMB-ROUND-ENTRYPOINT",
+   "crate": "workspace",
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "tests": "step0 clean; 41 units exit 0 (default, 4 feature, 36 doctest); absent [] timed_out []",
+   "failures": [],
+   "remediation": null,
+   "note": "R4 CONFIRMED doctest per-test timeout fixed (fd24723 watchdog, read); R4 PLAUSIBLE feature_absent now exit 74; watchdog not exercised (0 doctests)",
+   "review": "NOT_REVIEWED",
+   "idempotency_key": "STUDIO-R5:SMB-ROUND-ENTRYPOINT:1d404f8c4b72:PASS_V2",
+   "recorded_at": "2026-10-11T05:38:23Z",
+   "review_note": "fd24723/1d404f8 not in R5 reviewer scope; validator read run-round.sh at 1d404f8"
+  },
+  {
+   "lane": "SMB-NIB-ENG-1",
+   "crate": "hsk-studio-nib",
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "tests": "10/10 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "R3 2/2 fixed (07abf54: exponent form within budget, is_closed shares check_structure); PLAUSIBLE: exhaustive equivalence now tautological",
+   "review": "validation/R5-review-a.json",
+   "idempotency_key": "STUDIO-R5:SMB-NIB-ENG-1:1d404f8c4b72:PASS_V2",
+   "recorded_at": "2026-10-11T05:38:23Z"
+  },
+  {
+   "lane": "SMB-MOTION-JS-WORKER",
+   "crate": "hsk-studio-motion-js",
+   "decision": "failed",
+   "verdict": "FAIL_V1",
+   "status_change": "FAIL_V1",
+   "tests": "quickjs_worker 3/3 pass (14/14 quickjs)",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "test-fault-hooks-in-product-api",
+     "file_line": "crates/hsk-studio-motion-js/src/quickjs_worker.rs:85-86; src/quickjs.rs:220-259,817-829; src/lib.rs:27-30",
+     "evidence": "pub doc(hidden) WorkerConfig.test_fault, re-exported WorkerTestFault (AsyncAbort, DeafInterrupt), env read and unsafe_in_process ship in quickjs builds",
+     "source": "R5-review CONFIRMED, re-verified by validator at 1d404f8",
+     "artifact_ref": "export 1d404f8c crates/hsk-studio-motion-js/src/quickjs_worker.rs:85-86; src/quickjs.rs:220-259,817-829; src/lib.rs:27-30"
+    },
+    {
+     "failure_kind": "product",
+     "failure_class": "scope-rss-cpu-ast-validator-undelivered",
+     "file_line": "crates/hsk-studio-motion-js/src/quickjs.rs:17-22; ledger SMB-MOTION-JS-WORKER scope",
+     "evidence": "scope lists RSS/CPU limits and AST profile validator (EXPR-PROVIDER-13): both NOT_PROVEN / not started while lane READY",
+     "source": "R5-review CONFIRMED, re-verified by validator at 1d404f8",
+     "artifact_ref": "export 1d404f8c crates/hsk-studio-motion-js/src/quickjs.rs:17-22; ledger SMB-MOTION-JS-WORKER scope"
+    },
+    {
+     "failure_kind": "flaky",
+     "failure_class": "worker-crash-test-wer-timing",
+     "file_line": "crates/hsk-studio-motion-js/tests/quickjs_worker.rs:241,262-276",
+     "evidence": "10 s deadline vs Windows error-reporting hold: R4 2abb984 10.708 s Budget != Unsupported FAIL; R5 1d404f8 7.707 s pass; crate unchanged",
+     "source": "validator: results/R4 vs results/R5 features/hsk-studio-motion-js+quickjs",
+     "artifact_ref": "export 1d404f8c crates/hsk-studio-motion-js/tests/quickjs_worker.rs:241,262-276"
+    }
+   ],
+   "remediation": "Gate test faults + unsafe_in_process behind non-default test-faults feature; split or deliver RSS/CPU + AST scope",
+   "note": "flake: assertion depends on WER exit delay under host load; use exit-at-once crash class or derive deadline",
+   "review": "validation/R5-review-b.json",
+   "idempotency_key": "STUDIO-R5:SMB-MOTION-JS-WORKER:1d404f8c4b72:FAIL_V1",
+   "recorded_at": "2026-10-11T05:38:23Z"
+  },
+  {
+   "lane": "SMB-LAYOUT-FOLIO-MIGRATE",
+   "crate": "hsk-studio-layout",
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "tests": "6/6 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "crate-local page model removed, folio_input re-walks threads; PLAUSIBLE: first-baseline offset semantics vs IDML import",
+   "review": "validation/R5-review-c.json",
+   "idempotency_key": "STUDIO-R5:SMB-LAYOUT-FOLIO-MIGRATE:1d404f8c4b72:PASS_V1",
+   "recorded_at": "2026-10-11T05:38:23Z"
+  },
+  {
+   "lane": "SMB-FOLIO-ENG-4",
+   "crate": "hsk-studio-folio",
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "tests": "32/32 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "additive design records; ids unique across components/sets; PLAUSIBLE: VARIANT value not checked against set group values",
+   "review": "validation/R5-review-c.json",
+   "idempotency_key": "STUDIO-R5:SMB-FOLIO-ENG-4:1d404f8c4b72:PASS_V1",
+   "recorded_at": "2026-10-11T05:38:23Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-WIDE",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "failed",
+   "verdict": "FAIL_V1",
+   "status_change": "FAIL_V1",
+   "tests": "18/18 pass",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "gray-bpc-skipped-on-false-identity-claim",
+     "file_line": "crates/hsk-studio-interop-psd/src/proposal.rs:956-961, :1150-1156",
+     "evidence": "BPC dropped for every gray kTRC source as 'identity'; parametric TRC types 2-4 can have Y(0)>0; loss filed PreservedOpaque 'skipped'",
+     "source": "R5-review CONFIRMED, re-verified by validator at 1d404f8",
+     "artifact_ref": "export 1d404f8c crates/hsk-studio-interop-psd/src/proposal.rs:956-961, :1150-1156"
+    }
+   ],
+   "remediation": "Skip BPC only when TRC(0)==0; else refuse or record a Transformed bpc_unavailable loss until Prism gray-BPC fix",
+   "note": "real cause Prism gray kTRC black detection (SMB-PRISM-ENG-6 scope); reviewer PASS_WITH_NOTES; PLAUSIBLE Lab 16-bit test echoes impl",
+   "review": "validation/R5-review-a.json",
+   "idempotency_key": "STUDIO-R5:SMB-INTEROP-PSD-WIDE:1d404f8c4b72:FAIL_V1",
+   "recorded_at": "2026-10-11T05:38:23Z"
+  },
+  {
+   "lane": "SMB-PACKAGE-STREAM-SAVE",
+   "crate": "hsk-studio-package",
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "tests": "18/18 pass (streaming_save 4/4)",
+   "failures": [],
+   "remediation": null,
+   "note": "peak-heap claim measured (Raw codec only); byte-identical to buffered; PLAUSIBLE: StreamingFs seam not exercised in tests",
+   "review": "validation/R5-review-c.json",
+   "idempotency_key": "STUDIO-R5:SMB-PACKAGE-STREAM-SAVE:1d404f8c4b72:PASS_V1",
+   "recorded_at": "2026-10-11T05:38:23Z"
+  },
+  {
+   "lane": "SMB-COMPONENTS-FOLIO-MIGRATE",
+   "crate": "hsk-studio-components",
+   "decision": "failed",
+   "verdict": "FAIL_V1",
+   "status_change": "FAIL_V1",
+   "tests": "13/13 pass",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "design-new-accepts-duplicate-component-ids",
+     "file_line": "crates/hsk-studio-components/src/design.rs:16-19,101-104,183-193; src/instance_resolution.rs:351-356",
+     "evidence": "Design::new never refuses; members() returns every record with a shared id, select_member may resolve the second definition silently",
+     "source": "R5-review CONFIRMED, re-verified by validator at 1d404f8",
+     "artifact_ref": "export 1d404f8c crates/hsk-studio-components/src/design.rs:16-19,101-104,183-193; src/instance_resolution.rs:351-356"
+    }
+   ],
+   "remediation": "Refuse repeated component/set/layer ids in Design::new (Result) or require a validated Design typestate",
+   "note": "Folio validate_design_records refuses dup ids (records.rs:616-627) but evaluators accept unvalidated Design",
+   "review": "validation/R5-review-c.json",
+   "idempotency_key": "STUDIO-R5:SMB-COMPONENTS-FOLIO-MIGRATE:1d404f8c4b72:FAIL_V1",
+   "recorded_at": "2026-10-11T05:38:23Z"
+  },
+  {
+   "lane": "SMB-INTEROP-VECTOR-FOLIO-MIGRATE",
+   "crate": "hsk-studio-interop-vector",
+   "decision": "failed",
+   "verdict": "FAIL_V1",
+   "status_change": "FAIL_V1; ledger status stays READY_FOR_VALIDATION: newer submission 3561b12 (not in 1d404f8) queued for next round",
+   "tests": "11/11 pass",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "export-ignores-assigned-colour-profile-silently",
+     "file_line": "crates/hsk-studio-interop-vector/src/svg_export.rs:33-44,445-452",
+     "evidence": "hex() writes r/g/b as sRGB ignoring colour_profile_id; validate_paint_style ResolutionIssues discarded: colour change with no LossEntry",
+     "source": "R5-review CONFIRMED, re-verified by validator at 1d404f8",
+     "artifact_ref": "export 1d404f8c crates/hsk-studio-interop-vector/src/svg_export.rs:33-44,445-452"
+    }
+   ],
+   "remediation": "Typed loss (or prism conversion) when colour_profile_id is Assigned; surface ResolutionIssues; add test",
+   "note": "",
+   "review": "validation/R5-review-c.json",
+   "idempotency_key": "STUDIO-R5:SMB-INTEROP-VECTOR-FOLIO-MIGRATE:1d404f8c4b72:FAIL_V1",
+   "recorded_at": "2026-10-11T05:38:23Z"
+  },
+  {
+   "lane": "SMB-REEL-NATIVE-AV1-WORKER",
+   "crate": "hsk-studio-reel-native",
+   "decision": "failed",
+   "verdict": "FAIL_V1",
+   "status_change": "FAIL_V1",
+   "tests": "reel-native+av1 5/5 pass",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "host-declared-dims-overflow",
+     "file_line": "crates/hsk-studio-reel-native/src/host.rs:1056-1080 (open_session :948-950); reel src/matroska.rs:391-392",
+     "evidence": "w*h+2*cw*ch, 3*w*h, w*h*6 unchecked u64 on mkv PixelWidth/Height up to u32::MAX: host panics in dev/test before any worker spawns",
+     "source": "R5-review CONFIRMED, re-verified by validator at 1d404f8",
+     "artifact_ref": "export 1d404f8c crates/hsk-studio-reel-native/src/host.rs:1056-1080 (open_session :948-950); reel src/matroska.rs:391-392"
+    },
+    {
+     "failure_kind": "product",
+     "failure_class": "wire-frame-dims-overflow",
+     "file_line": "crates/hsk-studio-reel-native/src/wire.rs:514 (contract :8-9)",
+     "evidence": "decode_frame w*h*bytes_per_sample unchecked: lying worker FRAME u32::MAX dims at 10-bit panics host; doc says never panics",
+     "source": "R5-review CONFIRMED, re-verified by validator at 1d404f8",
+     "artifact_ref": "export 1d404f8c crates/hsk-studio-reel-native/src/wire.rs:514 (contract :8-9)"
+    },
+    {
+     "failure_kind": "product",
+     "failure_class": "test-fault-hooks-in-product-api",
+     "file_line": "crates/hsk-studio-reel-native/src/host.rs:87-88,500-502; src/worker.rs:34-78; src/lib.rs:40",
+     "evidence": "pub doc(hidden) Av1WorkerOptions.test_fault + re-exported WorkerTestFault (hang, exit 86, oversize/garbage) ship in product lib and worker",
+     "source": "R5-review CONFIRMED, re-verified by validator at 1d404f8",
+     "artifact_ref": "export 1d404f8c crates/hsk-studio-reel-native/src/host.rs:87-88,500-502; src/worker.rs:34-78; src/lib.rs:40"
+    },
+    {
+     "failure_kind": "product",
+     "failure_class": "worker-feature-links-in-process-decoder",
+     "file_line": "crates/hsk-studio-reel-native/Cargo.toml:9,13; src/lib.rs:21-24",
+     "evidence": "feature av1 enables reel av1, so a worker host also links in-process rav1d (conflicts with AV1-ROUTE scope)",
+     "source": "R5-review CONFIRMED, re-verified by validator at 1d404f8",
+     "artifact_ref": "export 1d404f8c crates/hsk-studio-reel-native/Cargo.toml:9,13; src/lib.rs:21-24"
+    },
+    {
+     "failure_kind": "product",
+     "failure_class": "worker-supervisor-cap-duplicate",
+     "file_line": "crates/hsk-studio-reel-native/src/host.rs:300-414 vs crates/hsk-studio-motion-js/src/quickjs_worker.rs:153-254",
+     "evidence": "wait/terminate/io_loop/quiet/discover_program/admit_spawn copied near line-for-line from motion-js (CX-CAP-001)",
+     "source": "R5-review CONFIRMED, re-verified by validator at 1d404f8",
+     "artifact_ref": "export 1d404f8c crates/hsk-studio-reel-native/src/host.rs:300-414 vs crates/hsk-studio-motion-js/src/quickjs_worker.rs:153-254"
+    }
+   ],
+   "remediation": "checked_mul/add in caps + wire (overflow typed); test-faults feature; split worker package; one supervisor owner",
+   "note": "supervisor owner needs lead placement decision (no reel-native->motion-js edge); PLAUSIBLE: parent-dir program discovery",
+   "review": "validation/R5-review-b.json",
+   "idempotency_key": "STUDIO-R5:SMB-REEL-NATIVE-AV1-WORKER:1d404f8c4b72:FAIL_V1",
+   "recorded_at": "2026-10-11T05:38:23Z"
+  },
+  {
+   "lane": "SMB-REEL-AV1-ROUTE",
+   "crate": "hsk-studio-reel",
+   "decision": "failed",
+   "verdict": "FAIL_V1",
+   "status_change": "FAIL_V1",
+   "tests": "video_route 3/3 pass",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "external-picture-plane-size-overflow",
+     "file_line": "crates/hsk-studio-reel/src/video.rs:262-271 (:269)",
+     "evidence": "planes_match_format u64 w*h*bytes_per_sample unchecked on EXTERNAL decoder output: u32::MAX dims at 10-bit overflow -> host panic in dev/test",
+     "source": "R5-review CONFIRMED, re-verified by validator at 1d404f8",
+     "artifact_ref": "export 1d404f8c crates/hsk-studio-reel/src/video.rs:262-271 (:269)"
+    }
+   ],
+   "remediation": "checked_mul in planes_match_format; overflow -> DecoderFault::Protocol; add lying-decoder u32::MAX test",
+   "note": "PLAUSIBLE: picture size never compared to track size; one SourceTrust for original and proxy",
+   "review": "validation/R5-review-b.json",
+   "idempotency_key": "STUDIO-R5:SMB-REEL-AV1-ROUTE:1d404f8c4b72:FAIL_V1",
+   "recorded_at": "2026-10-11T05:38:23Z"
+  },
+  {
+   "lane": "SMB-LAYOUT",
+   "crate": "hsk-studio-layout",
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "tests": "6/6 pass (5 oracle tests kept)",
+   "failures": [],
+   "remediation": null,
+   "note": "CX-VAL-009 re-include: crate changed 259ea44..1d404f8 (folio migration, reviewed under SMB-LAYOUT-FOLIO-MIGRATE)",
+   "review": "NOT_REVIEWED",
+   "idempotency_key": "STUDIO-R5:SMB-LAYOUT:1d404f8c4b72:PASS_V2",
+   "recorded_at": "2026-10-11T05:38:23Z",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: relevant inputs changed 404ff3a..1d404f8)"
+  },
+  {
+   "lane": "SMB-PULSE",
+   "crate": "hsk-studio-pulse",
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "tests": "13/13 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "CX-VAL-009 re-include: crate unchanged, workspace-dep closure (folio) changed; SMB-PULSE-ENG-1 6a60ef6 not in this round",
+   "review": "NOT_REVIEWED",
+   "idempotency_key": "STUDIO-R5:SMB-PULSE:1d404f8c4b72:PASS_V2",
+   "recorded_at": "2026-10-11T05:38:23Z",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: relevant inputs changed 404ff3a..1d404f8)"
+  },
+  {
+   "lane": "SMB-PACKAGE",
+   "crate": "hsk-studio-package",
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "tests": "18/18 pass (foundation 14/14)",
+   "failures": [],
+   "remediation": null,
+   "note": "CX-VAL-009 re-include: crate changed (stream save, reviewed under SMB-PACKAGE-STREAM-SAVE)",
+   "review": "NOT_REVIEWED",
+   "idempotency_key": "STUDIO-R5:SMB-PACKAGE:1d404f8c4b72:PASS_V2",
+   "recorded_at": "2026-10-11T05:38:23Z",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: relevant inputs changed 404ff3a..1d404f8)"
+  },
+  {
+   "lane": "SMB-INTEROP-VECTOR",
+   "crate": "hsk-studio-interop-vector",
+   "decision": "failed",
+   "verdict": "FAIL_V2",
+   "status_change": "FAIL_V2; ledger status stays READY_FOR_VALIDATION: newer submission 3561b12 (not in 1d404f8) queued for next round",
+   "tests": "11/11 pass",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "doctype-scan-comment-bypass-allows-dtd",
+     "file_line": "crates/hsk-studio-interop-vector/src/svg_adapter.rs:380-395,450-467",
+     "evidence": "scan_doctype uses first '<!DOCTYPE' anywhere (comments not skipped): commented copy -> ExternalIdOnly -> allow_dtd=true -> internal entities parsed",
+     "source": "R5-review CONFIRMED, re-verified by validator at 1d404f8",
+     "artifact_ref": "export 1d404f8c crates/hsk-studio-interop-vector/src/svg_adapter.rs:380-395,450-467"
+    }
+   ],
+   "remediation": "Never set allow_dtd=true, or locate DOCTYPE only in the prolog after skipping comments/PIs; add bypass test",
+   "note": "CX-VAL-009 re-include; R3 PASS_V1 tree lacked slice 2 (f0cdb55 not ancestor of 404ff3a); defect from f058a1b (slice 1)",
+   "review": "validation/R5-review-c.json",
+   "idempotency_key": "STUDIO-R5:SMB-INTEROP-VECTOR:1d404f8c4b72:FAIL_V2",
+   "recorded_at": "2026-10-11T05:38:23Z",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: relevant inputs changed 404ff3a..1d404f8)"
+  },
+  {
+   "lane": "SMB-PRISM-ENG-1",
+   "crate": "hsk-studio-prism",
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "tests": "wide_bpc 3/3 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "CX-VAL-009 re-include: prism crate changed (ENG-5 oracle tests; reviewed under SMB-PRISM-ENG-5)",
+   "review": "NOT_REVIEWED",
+   "idempotency_key": "STUDIO-R5:SMB-PRISM-ENG-1:1d404f8c4b72:PASS_V2",
+   "recorded_at": "2026-10-11T05:38:23Z",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: relevant inputs changed 404ff3a..1d404f8)"
+  },
+  {
+   "lane": "SMB-PRISM-ENG-2",
+   "crate": "hsk-studio-prism",
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "tests": "wide_absolute 2/2 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "CX-VAL-009 re-include: prism crate changed",
+   "review": "NOT_REVIEWED",
+   "idempotency_key": "STUDIO-R5:SMB-PRISM-ENG-2:1d404f8c4b72:PASS_V2",
+   "recorded_at": "2026-10-11T05:38:23Z",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: relevant inputs changed 404ff3a..1d404f8)"
+  },
+  {
+   "lane": "SMB-PRISM-ENG-3",
+   "crate": "hsk-studio-prism",
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "tests": "wide_inputs 2/2, wide_profiles 3/3 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "CX-VAL-009 re-include; residual (R3/R4 PLAUSIBLE): wide_profiles.rs:154 optional read of C: Adobe profiles",
+   "review": "validation/R4-review.json",
+   "idempotency_key": "STUDIO-R5:SMB-PRISM-ENG-3:1d404f8c4b72:PASS_V2",
+   "recorded_at": "2026-10-11T05:38:23Z",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: relevant inputs changed 404ff3a..1d404f8)"
+  },
+  {
+   "lane": "SMB-PRISM-ENG-4",
+   "crate": "hsk-studio-prism",
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "tests": "wide_determinism 2/2 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "CX-VAL-009 re-include: prism crate changed",
+   "review": "NOT_REVIEWED",
+   "idempotency_key": "STUDIO-R5:SMB-PRISM-ENG-4:1d404f8c4b72:PASS_V2",
+   "recorded_at": "2026-10-11T05:38:23Z",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: relevant inputs changed 404ff3a..1d404f8)"
+  },
+  {
+   "lane": "SMB-FOLIO-ENG-1",
+   "crate": "hsk-studio-folio",
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "tests": "timeline_contract pass (folio 32/32)",
+   "failures": [],
+   "remediation": null,
+   "note": "CX-VAL-009 re-include: folio changed (ENG-4 design records, additive, reviewed under SMB-FOLIO-ENG-4)",
+   "review": "NOT_REVIEWED",
+   "idempotency_key": "STUDIO-R5:SMB-FOLIO-ENG-1:1d404f8c4b72:PASS_V2",
+   "recorded_at": "2026-10-11T05:38:23Z",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: relevant inputs changed 404ff3a..1d404f8)"
+  },
+  {
+   "lane": "SMB-FOLIO-ENG-2",
+   "crate": "hsk-studio-folio",
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "tests": "appearance_contract pass (folio 32/32)",
+   "failures": [],
+   "remediation": null,
+   "note": "CX-VAL-009 re-include: folio changed",
+   "review": "NOT_REVIEWED",
+   "idempotency_key": "STUDIO-R5:SMB-FOLIO-ENG-2:1d404f8c4b72:PASS_V2",
+   "recorded_at": "2026-10-11T05:38:23Z",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: relevant inputs changed 404ff3a..1d404f8)"
+  },
+  {
+   "lane": "SMB-FOLIO-ENG-3",
+   "crate": "hsk-studio-folio",
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "tests": "layout_contract pass (folio 32/32)",
+   "failures": [],
+   "remediation": null,
+   "note": "CX-VAL-009 re-include: folio changed",
+   "review": "NOT_REVIEWED",
+   "idempotency_key": "STUDIO-R5:SMB-FOLIO-ENG-3:1d404f8c4b72:PASS_V2",
+   "recorded_at": "2026-10-11T05:38:23Z",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: relevant inputs changed 404ff3a..1d404f8)"
+  },
+  {
+   "lane": "SMB-RENDER-CPU-CLIP",
+   "crate": "hsk-studio-render-cpu",
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "tests": "clip_to_base tests pass (render-cpu 11/11)",
+   "failures": [],
+   "remediation": null,
+   "note": "CX-VAL-009 re-include: crate changed (R3 fixes, reviewed under SMB-RENDER-CPU)",
+   "review": "NOT_REVIEWED",
+   "idempotency_key": "STUDIO-R5:SMB-RENDER-CPU-CLIP:1d404f8c4b72:PASS_V2",
+   "recorded_at": "2026-10-11T05:38:23Z",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: relevant inputs changed 404ff3a..1d404f8)"
+  },
+  {
+   "lane": "SMB-COMPOSITE-CLIP-ALIGN",
+   "crate": "hsk-studio-composite",
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "tests": "pass-through clip base test pass (composite 13/13)",
+   "failures": [],
+   "remediation": null,
+   "note": "CX-VAL-009 re-include: crate changed (R3 fix, reviewed under SMB-COMPOSITE)",
+   "review": "NOT_REVIEWED",
+   "idempotency_key": "STUDIO-R5:SMB-COMPOSITE-CLIP-ALIGN:1d404f8c4b72:PASS_V2",
+   "recorded_at": "2026-10-11T05:38:23Z",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: relevant inputs changed 404ff3a..1d404f8)"
+  }
+ ],
+ "infrastructure": [
+  "Dispatch named CARGO_INCREMENTAL=0; not applied: CX-VAL-007 forbids caller-added env vars (round.json env_set lists only entrypoint-set vars); no verdict impact",
+  "Target studio-round/target per dispatch (validator-owned, cold); builders build in studio-team-dev/target, so two builds may share D: (CX-984-002 one-build-per-disk only checked at start, GP-003)",
+  "Gameplan confirm notes containing a gated word were blocked by the hook once; confirms re-bound 3x as builder pushes moved edit HEAD (ccc9c9a -> a3808f8 -> 4cfbf0f)",
+  "Entrypoint unsets HSK_*, so strict switches HSK_STUDIO_TEST_REQUIRE_GPU and HSK_PRISM_ORACLE_PROFILE_DIRS never apply in a round; validator read junit success output instead",
+  "Ledger process: SMB-INTEROP-VECTOR R3 PASS_V1 recorded with candidate f0cdb55, not an ancestor of 404ff3a (slice 2 was never validated before R5)",
+  "Newer submissions after freeze (not in 1d404f8): SMB-SCORE 70ce263, SMB-RENDER-GPU 167dc28, SMB-INTEROP-VECTOR 3561b12, SMB-INTEROP-LAYOUT f40d6a2, SMB-PRESS e75bd5a, SMB-INTEROP-VECTOR-FOLIO-MIGRATE 3561b12; R5 verdicts bind 1d404f8; ledger status left READY_FOR_VALIDATION",
+  "Round outputs not cleaned (studio-round/target kept for the next round at the same stable path; deletion is the lead's call)"
+ ],
+ "by": "wp_validator STUDIO-R5 (Opus, fresh context, not implementer)"
+}

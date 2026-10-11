@@ -1,159 +1,1295 @@
 {
-  "crate": "hsk-studio-composite",
-  "lane": "SMB-COMPOSITE-CLIP-ALIGN",
-  "status": "READY_FOR_VALIDATION",
-  "phase": "slice 3 + clip align: clipping lowered to pigment clip-to-base route; pass-through group as clip base is a typed Unavailable (5814f8d)",
-  "commits": [
+ "crate": "hsk-studio-composite",
+ "lane": "SMB-COMPOSITE-ADJ-1",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "remediation_R8 (R8 FAIL_V2 plan-level-effect-limit-lowered-ok-then-refused-at-admission) on 07f6abd; compiled, clippy clean, composite 28/28 on the pushed tree",
+ "commits": [
+  {
+   "sha": "07f6abd",
+   "subject": "composite (SMB-COMPOSITE-ADJ, remediation of R8 FAIL_V2): record_envelope returns pigment's whole-envelope validate error as CompositeError::Plan instead of discarding it"
+  },
+  {
+   "sha": "7011298",
+   "subject": "composite (SMB-FX-OPS-ADOPT): ledgers record effects_with_blend_if and effects_nested like pigment's validate; a mask on a pass-through group is refused like the fill rule"
+  },
+  {
+   "sha": "b7064fc",
+   "subject": "composite: the pass-through clip-base refusal key is pigment's PlanError code, not a literal (SMB-REFUSAL-KEYS, PLR-006)"
+  },
+  {
+   "sha": "1f99350",
+   "subject": "composite: report Blend-If clip-role operators like pigment and refuse Blend Clipped Layers as Group off (SMB-BLENDIF-CLIP-ADOPT)"
+  },
+  {
+   "sha": "b2cf5c6",
+   "subject": "Composite: real folio graph adjustment layer (Folio ENG-6) lowers at its input_ordinal, test evaluates the lowered stack against pigment evaluate_stack; adjustment_not_in_composition_graph narrowed to an adjustment layer without a graph operation; DESCRIPTOR proof map updated"
+  },
+  {
+   "sha": "0f917cc",
+   "subject": "Composite wave 2 test fixture fix: the glow kind blocks carry their required fields (inner glow source and choke, outer glow spread), so the refusal cases deserialise"
+  },
+  {
+   "sha": "8ff8c7a",
+   "subject": "Composite DESCRIPTOR and docs: effects wave 2 (inner shadow, outer glow, inner glow) lowered, glow refusal keys, proof map cites the wave 2 test (V4-07)"
+  },
+  {
+   "sha": "dc8e91a",
+   "subject": "Composite effects wave 2 lowering: folio inner shadow, outer glow and inner glow -> pigment InnerShadowOp/OuterGlowOp/InnerGlowOp (spread/choke percent/100 with a lowering note, jitter 0 on solid-colour glows with note glow_jitter_ignored_solid_colour, gradient/range/Precise refused under pigment's feature keys); tests derive pixels from pigment render_layer_reference"
+  },
+  {
+   "sha": "555ea97",
+   "subject": "Composite effects wave 1 lowering: folio StudioEffectStack -> pigment EffectOps (drop shadow, colour overlay, solid stroke) in LayerExtension.effects; typed refusals; evaluation mirrors them; tests against pigment render_layer_reference; DESCRIPTOR v3"
+  },
+  {
+   "sha": "23f600b",
+   "subject": "Composite adjustments slice 1 tests: five hand-derived cases (adjustment placeholder + envelope entry, mask density/invert/feather, Blend-If order and units, knockout and effect-stack refusal, evaluation ledger keys and classes equal pigment)"
+  },
+  {
+   "sha": "cdc2c0f",
+   "subject": "Composite adjustments slice 1: lower_to_render_plan_extended builds pigment PlanExtensions from folio StudioRasterRecords; evaluate_extended records ExtOperator keys and classes from pigment; v1 operator literals derived from pigment Operator"
+  },
+  {
+   "sha": "99a03e6",
+   "subject": "Composite R3: a hidden or empty clip base drops its clipped run in evaluation too (an Unavailable clipped layer no longer blocks the parent) and lowering stops checking that run's status for an empty base; regression test with hand-derived statuses, extents and layer counts"
+  },
+  {
+   "sha": "5814f8d",
+   "subject": "Composite: pass-through group as clip base lowers to typed Unavailable clip_base_pass_through (Unsupported in the evaluation ledger, consistent with render-cpu; hidden or empty base drops the run); Photoshop semantics UNVERIFIED"
+  },
+  {
+   "sha": "26f835e",
+   "subject": "slice 3 (composite): lower Folio clipped layers to the clip-to-base route"
+  },
+  {
+   "sha": "4e533d5",
+   "subject": "slice 3 (pigment, additive): clip-to-base route in the render-plan IR"
+  },
+  {
+   "sha": "118f8f8",
+   "subject": "slice 2: delete local blend copy, use pigment blend_math/render_plan, lower_to_render_plan with validate(), Folio appearance (mode, opacity, fill, mask), root wrap"
+  },
+  {
+   "sha": "a6f2c7e",
+   "subject": "slice 1: reference text"
+  },
+  {
+   "sha": "e362ba6",
+   "subject": "slice 1: prism Transfer mapping, blend-law sweep (both moved to pigment)"
+  },
+  {
+   "sha": "d5ed91a",
+   "subject": "slice 1: lower_plan, evaluate_static, observe report, consumer example, tests"
+  },
+  {
+   "sha": "4eb5cec",
+   "subject": "slice 1: local blend maths (since deleted), plan lowering, static eval"
+  }
+ ],
+ "capabilities_done": [
+  "plan: lower() -> LoweredPlan; Step carries StepAppearance (StudioBlendMode from Folio u16, opacity/fill fractions from percent, clipped, enabled mask); Kahn order, fanout once, cycle/stale/budget/cancel; layer/node projections",
+  "eval: evaluate -> EvalReport (tile-grid bounding extents, hidden excluded, clipped inputs add no extent beyond their base, vector/text/unresolved/unassigned-profile Unavailable, typed mode-applicability refusals); RenderReceipt{revision, blend_profile_bound, blend_space, ExactnessLedger incl. clip_to_base Approximate}",
+  "render plan: lower_to_render_plan(plan, report, snapshot, root, OutputTarget, &dyn TileInfoSource) -> RenderLowering{validated pigment RenderPlan, SourceKey->TileRef, mask planes, ledger}; appearance on each Layer; non-neutral root wrapped; hidden/empty dropped",
+  "clipping: Folio `clipped` lowers to MaskInput::clip_to_base() on the clipped layer; base = nearest unclipped input below in the group (consecutive clipped layers share it); hidden or empty base drops its clipped layers; Unavailable (typed, never ignored) for: no base (bottom layer or clipped root), clipped layer with its own mask (one mask slot), clipped layer that is a pass-through group",
+  "clip align (new, SMB-COMPOSITE-CLIP-ALIGN): a visible non-empty pass-through group (default group mode) serving as a clip base is Unavailable `clip_base_pass_through` at both evaluate (parent step status + ledger operator clip_base_pass_through Unsupported, receipt lowest Unsupported) and lower_to_render_plan (authoritative, exactly when a clipped layer would be emitted on that base), consistent with render-cpu's typed refusal; a hidden or empty pass-through base drops its clipped layers (no refusal); an isolated (non-pass-through) group base lowers normally",
+  "blend maths: none local; re-exports pigment (CX-CAP-001, test greps src); observe: outcome_of/eval_outcome/report; DESCRIPTOR v2 (mapping + unsupported list updated); example composite-consumer",
+  "R3 (SMB-COMPOSITE + SMB-COMPOSITE-CLIP-ALIGN CONFIRMED): evaluate() skips a clipped input whose clip base is hidden or empty (status, extent and pass-through check) so the parent is no longer input_unavailable because of a run lowering drops; lower_to_render_plan phase 1 uses the same rule (empty = Ready with no extent) so a clipped child of an empty base is not reachable either; an Unavailable (visible) base and a visible non-empty base keep the typed refusals",
+  "extended lowering (SMB-COMPOSITE-ADJ-1): lower_to_render_plan_extended(plan, report, snap, &StudioRasterRecords, root, target, info) -> ExtendedLowering{plan, extensions: PlanExtensions, sources, mask_sources, exactness, notes: Vec<LoweringNote>}; evaluate_extended(plan, snap, &records, cancel); the v1 lower_to_render_plan / evaluate are unchanged (empty envelope path)",
+  "adjustment layers: a Layer over a transparent Solid placeholder (isolated group: the group content extent; pass-through group: the target extent; empty isolated group: dropped, it changes nothing) + LayerExtension.adjustment; levels (absent channel = IDENTITY), curves (/255, corner flag dropped = a lowering note, Approximate), hue_saturation (master or colorization values; zero-shift bands are the identity, a shifted band is hue_saturation_bands), brightness_contrast (use_legacy carried; modern refused by pigment admission, ledger Unsupported), exposure (linearize_gamma 1.0 linear_light / 2.2 encoded, a note; use_legacy refused), invert, threshold (/255; non-default colours refused threshold_colours), posterize",
+  "mask parameters: density/100 and inverted on the MaskInput, feather px in LayerExtension.mask_feather_px (enabled coverage mask only); Blend-If level/255 [black_start, black_end, white_start, white_end], source then destination, gray/red/green/blue, identity entries dropped; knockout Enabled (and Inherited resolved through containment) -> Knockout::Shallow, refused by pigment admit_extended as knockout_shallow, ledger Unsupported, eval_outcome Failure(Unsupported)",
+  "effects wave 1 (drop shadow, colour overlay, solid stroke) and wave 2 (inner shadow, outer glow, inner glow, colour source) -> LayerExtension.effects in list order (percent/100; spread and choke read as percent of the size with a note; Global Light resolved into the angle); refusals (typed, evaluation and lowering agree): other kinds layer_effects_not_rendered, effect_stack_scale, effect_contour, effect_noise, effect_stroke_fill, effect_stroke_overprint, effect_global_light_unresolved, effect_colour_missing/_profile/_linear_light, effect_parameter, effect_limit, effect_on_adjustment_layer/_pass_through/_clipped_layer/_clip_base, pigment feature keys glow_gradient/glow_range/glow_technique_precise",
+  "R6 remediation (remediation_R6): evaluation ledger agrees with pigment admission for a pass-through group with fill < 1: key PASS_THROUGH_FILL_OPERATOR, class Unsupported, step Unavailable, StepAppearance::exactness Unsupported; all v1 operator keys and classes in evaluation come from pigment Operator::key/intrinsic (test evaluation_ledger_keys_and_classes_are_pigments)",
+  "DESCRIPTOR v3 (extended lowering, proof map to tests, unsupported list shrunk only for what is lowered)",
+  "SMB-FX-OPS-ADOPT (7011298): blend_if_operator(role, has_effects) reports EffectsWithBlendIf for an unclipped layer with effects and a non-identity Blend-If; the evaluation ledger records EffectsNested (clip_roles returns the emitted inputs per group; lowering reads the nesting from pigment's validate of the whole envelope); a mask on a pass-through, unclipped layer is Unavailable under PASS_THROUGH_MASK_OPERATOR with ledger and StepAppearance::exactness Unsupported, like the fill rule",
+  "R8 remediation (notes.remediation_R8, CX-VAL-008): record_envelope returns every whole-envelope pigment validate error (plan-wide EffectLimit over MAX_EFFECTS_PER_PLAN, repeated (group, layer)) as CompositeError::Plan(PlanError) instead of discarding it (is_ok_and); carried knockout and refused adjustments cannot hide it; test plan_wide_effect_limit_is_refused_at_lowering_like_pigment_admission (65 x 64 effects refused, 64 x 64 lowers and admits)"
+ ],
+ "tests": {
+  "argv": [
+   "cargo",
+   "nextest",
+   "run",
+   "-p",
+   "hsk-studio-pigment",
+   "-p",
+   "hsk-studio-render-cpu",
+   "-p",
+   "hsk-studio-composite",
+   "-p",
+   "hsk-studio-render-gpu",
+   "-p",
+   "hsk-studio-interop-psd",
+   "-p",
+   "hsk-studio-develop",
+   "--no-fail-fast"
+  ],
+  "exit": 0,
+  "sha": "471b679",
+  "passed": 217,
+  "failed": 0,
+  "per_crate_passed": {
+   "hsk-studio-pigment": 60,
+   "hsk-studio-render-cpu": 33,
+   "hsk-studio-composite": 28,
+   "hsk-studio-render-gpu": 24,
+   "hsk-studio-interop-psd": 44,
+   "hsk-studio-develop": 28
+  },
+  "note": "one invocation at pushed tree 471b679 (contains a873234, 8ca30dd, 07f6abd; 217 passed, 1 skipped by nextest, none of the tests added here); the render-gpu, interop-psd and develop crates depend on pigment and are run only to show the pigment change breaks none of them; no NOT_PROVEN line printed. Doctests: cargo test --doc -p hsk-studio-pigment -p hsk-studio-render-cpu -p hsk-studio-composite exit 0 (0 doctests in each). Round feature sets (.config/round-features.toml): none declared for these three crates."
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "Resubmission of SMB-COMPOSITE-ADJ after STUDIO-R8 FAIL_V2 (failure_class plan-level-effect-limit-lowered-ok-then-refused-at-admission), naming the validator's remediation: 'record_envelope maps whole-envelope pigment validate errors (EffectLimit) to a typed refusal; add 65x64-effects test' (CX-VAL-008), done on 07f6abd; notes.remediation_R8 has the red proof, the V4-06 sweep and the decisions. Nothing else is claimed by this commit; SMB-RENDER-GPU is untouched (BLOCKED/D20). Earlier next, unchanged: SMB-FX-OPS-ADOPT READY_FOR_VALIDATION on 7011298 (new lane id; the claim of the top-level lane is unchanged, V4-14 lists this commit; nothing is claimed on SMB-RENDER-GPU, which stays BLOCKED/D20): independent validator round on 7011298 for this crate's adoption of pigment's effects_ops and admission_parity rules (notes.fx_ops_adopt). Earlier next, unchanged: SMB-REFUSAL-KEYS READY_FOR_VALIDATION on b7064fc (new lane id; the claim of the top-level lane stays b2cf5c6, V4-14 lists this commit; nothing is claimed on SMB-RENDER-GPU, which stays BLOCKED/D20): independent validator round on b7064fc for this crate's refusal keys (notes.refusal_keys, notes.v4_06_sites). Earlier next, unchanged: SMB-BLENDIF-CLIP-ADOPT READY_FOR_VALIDATION on 1f99350 (separate lane id; the claim of the top-level lane stays b2cf5c6, V4-14 lists this commit): Independent validator round on b2cf5c6. Not done, by design: effect kinds beyond wave 1/2 (bevel, satin, gradient/pattern overlay), gradient/Precise/ranged glows (typed refusals); Photoshop parity NOT_PROVEN (D5 cases 1-17).",
+ "updated_at": "2026-10-11T13:08:24Z",
+ "notes": {
+  "refusal_keys": {
+   "lane": "SMB-REFUSAL-KEYS",
+   "status": "READY_FOR_VALIDATION",
+   "sha": "b7064fc",
+   "scope": "Plausible register PLR-006, lead decision FIX_LANE 2026-10-11T10:18:58Z: rules pigment's admission already refuses and that this crate re-checks as defence in depth use pigment's exported key constants and operator enums (or the code of pigment's own PlanError where pigment has no operator key), never a literal. Behaviour otherwise unchanged. New lane id per V4-15; nothing is claimed on SMB-RENDER-GPU (BLOCKED, fix budget) and no verdict, fixed key or earlier note was changed.",
+   "files": [
+    "src/lower_extensions.rs (REFUSE_CLIP_BASE_PASS_THROUGH = PlanError::ClipBasePassThrough { node: 0 }.code())",
+    "src/evaluate_static.rs (ledger key and evaluation reason use the constant; doc)",
+    "src/lower_render_plan.rs (lowering reason uses the constant; doc)",
+    "src/lib.rs (DESCRIPTOR render_plan_mapping text and proof map entry refusal_keys)",
+    "tests/render_plan_lowering.rs (pass_through_base_fixture helper; the existing pass-through clip-base test compares with the pigment code; new test)"
+   ],
+   "changes": [
     {
-      "sha": "99a03e6",
-      "subject": "Composite R3: a hidden or empty clip base drops its clipped run in evaluation too (an Unavailable clipped layer no longer blocks the parent) and lowering stops checking that run's status for an empty base; regression test with hand-derived statuses, extents and layer counts"
-    },
-    {
-      "sha": "5814f8d",
-      "subject": "Composite: pass-through group as clip base lowers to typed Unavailable clip_base_pass_through (Unsupported in the evaluation ledger, consistent with render-cpu; hidden or empty base drops the run); Photoshop semantics UNVERIFIED"
-    },
-    {
-      "sha": "26f835e",
-      "subject": "slice 3 (composite): lower Folio clipped layers to the clip-to-base route"
-    },
-    {
-      "sha": "4e533d5",
-      "subject": "slice 3 (pigment, additive): clip-to-base route in the render-plan IR"
-    },
-    {
-      "sha": "118f8f8",
-      "subject": "slice 2: delete local blend copy, use pigment blend_math/render_plan, lower_to_render_plan with validate(), Folio appearance (mode, opacity, fill, mask), root wrap"
-    },
-    {
-      "sha": "a6f2c7e",
-      "subject": "slice 1: reference text"
-    },
-    {
-      "sha": "e362ba6",
-      "subject": "slice 1: prism Transfer mapping, blend-law sweep (both moved to pigment)"
-    },
-    {
-      "sha": "d5ed91a",
-      "subject": "slice 1: lower_plan, evaluate_static, observe report, consumer example, tests"
-    },
-    {
-      "sha": "4eb5cec",
-      "subject": "slice 1: local blend maths (since deleted), plan lowering, static eval"
+     "rule": "clipping run whose base is a rendered pass-through group",
+     "before": "literal clip_base_pass_through (evaluate_static.rs ledger.record and reason, lower_render_plan.rs reason)",
+     "after": "REFUSE_CLIP_BASE_PASS_THROUGH = PlanError::ClipBasePassThrough code plan_clip_base_pass_through, the way PlanError::AdjustmentClipBase and EffectClipRun are already used for the other clip-base entries"
     }
-  ],
-  "capabilities_done": [
-    "plan: lower() -> LoweredPlan; Step carries StepAppearance (StudioBlendMode from Folio u16, opacity/fill fractions from percent, clipped, enabled mask); Kahn order, fanout once, cycle/stale/budget/cancel; layer/node projections",
-    "eval: evaluate -> EvalReport (tile-grid bounding extents, hidden excluded, clipped inputs add no extent beyond their base, vector/text/unresolved/unassigned-profile Unavailable, typed mode-applicability refusals); RenderReceipt{revision, blend_profile_bound, blend_space, ExactnessLedger incl. clip_to_base Approximate}",
-    "render plan: lower_to_render_plan(plan, report, snapshot, root, OutputTarget, &dyn TileInfoSource) -> RenderLowering{validated pigment RenderPlan, SourceKey->TileRef, mask planes, ledger}; appearance on each Layer; non-neutral root wrapped; hidden/empty dropped",
-    "clipping: Folio `clipped` lowers to MaskInput::clip_to_base() on the clipped layer; base = nearest unclipped input below in the group (consecutive clipped layers share it); hidden or empty base drops its clipped layers; Unavailable (typed, never ignored) for: no base (bottom layer or clipped root), clipped layer with its own mask (one mask slot), clipped layer that is a pass-through group",
-    "clip align (new, SMB-COMPOSITE-CLIP-ALIGN): a visible non-empty pass-through group (default group mode) serving as a clip base is Unavailable `clip_base_pass_through` at both evaluate (parent step status + ledger operator clip_base_pass_through Unsupported, receipt lowest Unsupported) and lower_to_render_plan (authoritative, exactly when a clipped layer would be emitted on that base), consistent with render-cpu's typed refusal; a hidden or empty pass-through base drops its clipped layers (no refusal); an isolated (non-pass-through) group base lowers normally",
-    "blend maths: none local; re-exports pigment (CX-CAP-001, test greps src); observe: outcome_of/eval_outcome/report; DESCRIPTOR v2 (mapping + unsupported list updated); example composite-consumer",
-    "R3 (SMB-COMPOSITE + SMB-COMPOSITE-CLIP-ALIGN CONFIRMED): evaluate() skips a clipped input whose clip base is hidden or empty (status, extent and pass-through check) so the parent is no longer input_unavailable because of a run lowering drops; lower_to_render_plan phase 1 uses the same rule (empty = Ready with no extent) so a clipped child of an empty base is not reachable either; an Unavailable (visible) base and a visible non-empty base keep the typed refusals"
-  ],
-  "tests": {
+   ],
+   "keys_changed_on_defence_only_paths": [
+    "evaluation-ledger operator key and the Unavailable reason text for a pass-through clip base: clip_base_pass_through -> plan_clip_base_pass_through (class Unsupported, step Unavailable and the lowering refusal are unchanged). Public observable: RenderReceipt exactness operator key and StepStatus::Unavailable / CompositeError::Unavailable text; no other crate matches the old string (grep over the workspace at 2026-10-11T11:01:46Z: only a pigment test fn name and plan_-prefixed text remain)."
+   ],
+   "tests_added": [
+    "refusal_keys_are_pigments (tests/render_plan_lowering.rs)"
+   ],
+   "tests_changed": {
+    "pass_through_group_as_clip_base_is_unavailable_and_unsupported_in_the_ledger": "asserts the pigment code (PlanError::ClipBasePassThrough { node: 0 }.code()) instead of the literal; fixture moved to pass_through_base_fixture, shared with the new test"
+   },
+   "test_detail": "refusal_keys_are_pigments: (1) pigment validate on a hand-built plan [solid, non-isolated group, isolated root with a pass-through layer over the group and a clipped layer] is Err(PlanError::ClipBasePassThrough { node: 2 }) and composite's evaluation ledger for the equivalent document holds an Unsupported operator with exactly that code; (2) pigment admit on a pass-through layer with fill 0.25 is Unsupported{PASS_THROUGH_FILL_OPERATOR} and composite's ledger for the equivalent document holds that operator as Unsupported. Other composite ledger keys are pigment-derived and were already pinned by evaluation_ledger_keys_and_classes_are_pigments, the adjustment/effects clip-base assertions and blend_if_on_clip_roles_is_reported_and_refused_like_pigment.",
+   "tests": {
     "argv": [
-      "cargo",
-      "test",
-      "-p",
-      "hsk-studio-composite",
-      "--tests",
-      "--no-fail-fast"
+     "cargo",
+     "nextest",
+     "run",
+     "-p",
+     "hsk-studio-render-cpu",
+     "-p",
+     "hsk-studio-render-gpu",
+     "-p",
+     "hsk-studio-composite",
+     "--no-fail-fast"
     ],
     "exit": 0,
-    "sha": "99a03e6",
-    "passed": 13,
-    "failed": 0
+    "sha": "ba3e47d",
+    "passed": 25,
+    "failed": 0,
+    "note": "one invocation over the three crates of this lane at ba3e47d (78 passed: render-cpu 31, render-gpu 22, composite 25); the render-gpu parity tests ran on the host adapter (backend auto), tests/gpu-proof.toml require_gpu = true unchanged, 0 NOT_PROVEN"
+   },
+   "check_clippy": "cargo clippy -p hsk-studio-render-cpu -p hsk-studio-render-gpu -p hsk-studio-composite --tests --examples --no-deps clean (0 warnings) and cargo clippy -p hsk-studio-render-gpu --tests --features test-faults --no-deps clean at ba3e47d; cargo fmt --check clean for render-cpu and render-gpu; composite is not rustfmt-clean at HEAD (124 pre-existing diffs) so fmt was not applied to it",
+   "pigment_gaps": [
+    "pigment exports no Operator/ExtOperator key or constant for 'the base of a clipping run is a pass-through group': its only name is PlanError::ClipBasePassThrough (validate, InvalidPlan, code plan_clip_base_pass_through). That name is used (not edited into pigment). Blocker only for the alternative reading: if the lead wants an Unsupported operator key for it (like PASS_THROUGH_FILL_OPERATOR), pigment must export a constant first."
+   ],
+   "not_changed": [
+    "composite-owned reason and refusal codes (REFUSE_* constants, clip_without_base, clip_base_adjustment, clipped_pass_through_unsupported, mask_empty, ...): pigment's admission does not report them under these strings; the ledger key of the rules that have a pigment name (adjustment clip base, effects on a clip base, pass-through fill, Blend-If clip roles) was already pigment's",
+    "REFUSE_EFFECT_PARAMETER / REFUSE_EFFECT_LIMIT: effect_limit / effect_parameter stay backend category keys: pigment admission reports those rules as InvalidPlan(PlanError::EffectLimit | EffectParameter { node }) (a different variant that needs a node, codes plan_effect_limit / plan_effect_parameter), so there is no pigment Unsupported key to equal. Candidate lead decision (register PLAUSIBLE): align them to the PlanError code with node 0 as composite already does for PlanError::EffectClipRun.",
+    "lower_render_plan.rs mask_format parse of the tile format strings coverage_u8 / coverage_u16le (an input parse, not a refusal key)"
+   ],
+   "v4": {
+    "V4-01": "no arithmetic added",
+    "V4-03": "the new tests need no hardware and read no machine-local path; nothing prints NOT_PROVEN",
+    "V4-06": "class: refusal key written as a string literal where pigment names the rule; regex in notes.v4_06_regex over non-test src; 64 sites listed in notes.v4_06_sites (verdict counts {'NOT_APPLICABLE': 48, 'PIGMENT_ALREADY': 14, 'FIXED': 2}); UNCLASSIFIED 0; fixed sites show as their pigment-derived expression because the regex also matches the constructor call",
+    "V4-07": "composite DESCRIPTOR cites test refusal_keys_are_pigments for the new key and the proof map lists it; render-cpu / render-gpu DESCRIPTORs name no changed key",
+    "V4-09": "commit message through git commit -F",
+    "V4-11": "no file restored; no scratch tree"
+   }
   },
-  "blockers": [],
-  "lock_wait_s": 0,
-  "bg_pids": [],
-  "next": "Independent validator round on 99a03e6. Not addressed here (outside the R3 remediation assignment): R3 PLAUSIBLE items for composite (pigment Operator keys derived from literals, non-neutral pass-through root). Open from before: Photoshop semantics for a pass-through group as clip base and for the clipping-group rule are UNVERIFIED (oracle pending).",
-  "updated_at": "2026-10-11T03:18:00Z",
-  "notes": {
-    "clip_align_lane": {
-      "lane": "SMB-COMPOSITE-CLIP-ALIGN",
-      "files": [
-        "src/evaluate_static.rs",
-        "src/lower_render_plan.rs",
-        "src/lib.rs (DESCRIPTOR)",
-        "tests/render_plan_lowering.rs"
-      ],
-      "reason_code": "clip_base_pass_through",
-      "rationale": "render-cpu 9819e52 refuses a pass-through group as clip base (no isolated content to take the base alpha from, pigment defines G from isolated base content and blends with the base's mode); composite no longer emits a plan the backends will refuse. Photoshop semantics UNVERIFIED pending the oracle.",
-      "test_added": "pass_through_group_as_clip_base_is_unavailable_and_unsupported_in_the_ledger (lowering Err Unavailable, ledger Unsupported, parent step Unavailable, hidden base drops run, isolated Normal group base still lowers)",
-      "test_counts": "render_plan_lowering 7/7 (6 existing + 1), static_plan 5/5, unit 0; clippy --tests --examples clean for composite",
-      "tree": "shared edit tree; crate-scoped pathspec commit 5814f8d pushed"
-    },
-    "tests_detail": "composite: static_plan 5/5, render_plan_lowering 7/7. Earlier slice: pigment render_plan 3/3, blend_math 6/6 unchanged; cargo check --tests --examples of pigment + render-cpu + render-gpu + interop-psd + develop clean.",
-    "pigment_change_note": {
-      "commit": "4e533d5",
-      "files": [
-        "crates/hsk-studio-pigment/src/render_plan.rs",
-        "crates/hsk-studio-pigment/tests/render_plan.rs"
-      ],
-      "design": "Clip-to-base is encoded WITHOUT changing any existing public struct or exhaustive enum, so render-cpu/render-gpu/interop-psd/develop and their literals still compile: MaskFormat (already non_exhaustive) gains BaseAlpha; MaskInput::clip_to_base() is the one canonical encoding (key 0, empty placement, zero hash, density 1, not inverted); PlanError gains ClipWithoutBase/ClipFields/ClipPassThrough; Operator::Mask(BaseAlpha) key 'clip_to_base', intrinsic Approximate; RenderBackend gains default method supports_clip_to_base() = false and admit() refuses any plan using the route as Unsupported{operator:'clip_to_base'} before consulting backend.exactness(), so a backend that has not opted in can never render a clipped layer unclipped. The base is implicit (nearest earlier unclipped layer, Photoshop rule), so an explicit clip_base index would be redundant; validate enforces a base exists, canonical fields, and no pass-through reference.",
-      "semantics_recorded_in_doc": "run [base, c1..cn] = isolated unit G: G starts as base content with the base's own mask; each ci composited onto G with its own mode/opacity/fill, source alpha multiplied by base alpha, G alpha held at base alpha; G composited onto the parent backdrop with the BASE's mode/opacity/fill. Approximate: Photoshop's exact rule UNVERIFIED (oracle pending).",
-      "backend_status": "render-cpu implements the route (9819e52, supports_clip_to_base = true, pass-through base refused); render-gpu does not yet (admit refuses, typed)",
-      "follow_up": "when render-cpu/render-gpu structs are next touched, the route could be promoted to a first-class Layer field; not done now to keep dependents compiling"
-    },
-    "spec_clarifications": [
-      "Root-reachability narrowing (accepted by the coordinator): lower_to_render_plan requires availability only of steps reachable from the requested root through visible inputs, plus unresolved issues on those layers' ids and an unbound blending profile; an unrelated vector/text output does not block a group render",
-      "Folio clipped semantics assumed from Photoshop: consecutive clipped layers clip to the nearest unclipped layer below; a hidden base hides its clipped layers; a clipped layer cannot be the bottom layer of a group. UNVERIFIED against Photoshop (oracle pending)",
-      "Mask density/inverted are not stored by Folio (lowered as 1.0/false); mask `linked` is authoring-only; multi-tile mask = one caller-stitched plane (TileInfoSource::mask_sha256)",
-      "input_ordinal 0 = first composited (bottom-most): SPEC GAP, UNVERIFIED against Photoshop (matches pigment Group.layers bottom-first)"
+  "v4_06_regex": "\\.record\\(|\\bconst REFUSE_[A-Z_]+: &str|\\breturn Some\\(\"|\\bUnavailable\\(\\s*\"|UnsupportedDescriptor\\(\\s*\"|\"\\{[^\"]*\\}[:/][a-z_/]*[a-z_]+\"|format!\\(\"[^\"{]*\\{[^\"]*\\}:[a-z_]+\"|\\bPlanError::[A-Za-z]+ \\{",
+  "v4_06_sites": [
+   {
+    "file_line": "src/evaluate_static.rs:133",
+    "verdict": "NOT_APPLICABLE: composite descriptor error text, not a pigment rule"
+   },
+   {
+    "file_line": "src/evaluate_static.rs:147",
+    "verdict": "NOT_APPLICABLE: composite descriptor error text, not a pigment rule"
+   },
+   {
+    "file_line": "src/evaluate_static.rs:196",
+    "verdict": "PIGMENT_ALREADY: Operator/ExtOperator key and class"
+   },
+   {
+    "file_line": "src/evaluate_static.rs:200",
+    "verdict": "PIGMENT_ALREADY: Operator/ExtOperator key and class"
+   },
+   {
+    "file_line": "src/evaluate_static.rs:210",
+    "verdict": "NOT_APPLICABLE: composite evaluation concept 'source' (pigment calls it tile)"
+   },
+   {
+    "file_line": "src/evaluate_static.rs:214",
+    "verdict": "PIGMENT_ALREADY: StudioBlendMode facts key"
+   },
+   {
+    "file_line": "src/evaluate_static.rs:219",
+    "verdict": "PIGMENT_ALREADY: PASS_THROUGH_FILL_OPERATOR (closed earlier, efda89a)"
+   },
+   {
+    "file_line": "src/evaluate_static.rs:246",
+    "verdict": "NOT_APPLICABLE: composite Unavailable reason text (diagnostic; the ledger key of the same rule, where there is one, is pigment's)"
+   },
+   {
+    "file_line": "src/evaluate_static.rs:249",
+    "verdict": "NOT_APPLICABLE: composite Unavailable reason text (diagnostic; the ledger key of the same rule, where there is one, is pigment's)"
+   },
+   {
+    "file_line": "src/evaluate_static.rs:258",
+    "verdict": "NOT_APPLICABLE: composite Unavailable reason text (diagnostic; the ledger key of the same rule, where there is one, is pigment's)"
+   },
+   {
+    "file_line": "src/evaluate_static.rs:396",
+    "verdict": "NOT_APPLICABLE: composite descriptor error text, not a pigment rule"
+   },
+   {
+    "file_line": "src/evaluate_static.rs:449",
+    "verdict": "NOT_APPLICABLE: lowering-note keys (composite NOTE_* codes), not refusals"
+   },
+   {
+    "file_line": "src/evaluate_static.rs:453",
+    "verdict": "PIGMENT_ALREADY: AdjustmentKind::key"
+   },
+   {
+    "file_line": "src/evaluate_static.rs:467",
+    "verdict": "NOT_APPLICABLE: lowering-note keys (composite NOTE_* codes), not refusals"
+   },
+   {
+    "file_line": "src/evaluate_static.rs:494",
+    "verdict": "NOT_APPLICABLE: composite Unavailable reason text (diagnostic; the ledger key of the same rule, where there is one, is pigment's)"
+   },
+   {
+    "file_line": "src/evaluate_static.rs:498",
+    "verdict": "NOT_APPLICABLE: composite Unavailable reason text (diagnostic; the ledger key of the same rule, where there is one, is pigment's)"
+   },
+   {
+    "file_line": "src/evaluate_static.rs:500",
+    "verdict": "NOT_APPLICABLE: composite Unavailable reason text (diagnostic; the ledger key of the same rule, where there is one, is pigment's)"
+   },
+   {
+    "file_line": "src/evaluate_static.rs:568",
+    "verdict": "FIXED: REFUSE_CLIP_BASE_PASS_THROUGH = PlanError::ClipBasePassThrough code (was clip_base_pass_through)"
+   },
+   {
+    "file_line": "src/evaluate_static.rs:575",
+    "verdict": "PIGMENT_ALREADY: next line passes PlanError::AdjustmentClipBase / EffectClipRun code"
+   },
+   {
+    "file_line": "src/evaluate_static.rs:576",
+    "verdict": "PIGMENT_ALREADY: PlanError::AdjustmentClipBase code"
+   },
+   {
+    "file_line": "src/evaluate_static.rs:585",
+    "verdict": "PIGMENT_ALREADY: next line passes PlanError::AdjustmentClipBase / EffectClipRun code"
+   },
+   {
+    "file_line": "src/evaluate_static.rs:586",
+    "verdict": "PIGMENT_ALREADY: PlanError::EffectClipRun code"
+   },
+   {
+    "file_line": "src/evaluate_static.rs:595",
+    "verdict": "NOT_APPLICABLE: composite-owned ledger key for a file setting (Blend Clipped Layers as Group off) pigment does not define"
+   },
+   {
+    "file_line": "src/lower_extensions.rs:41",
+    "verdict": "NOT_APPLICABLE: composite-owned refusal code (a rule pigment does not name under this string)"
+   },
+   {
+    "file_line": "src/lower_extensions.rs:43",
+    "verdict": "NOT_APPLICABLE: composite-owned refusal code (a rule pigment does not name under this string)"
+   },
+   {
+    "file_line": "src/lower_extensions.rs:45",
+    "verdict": "NOT_APPLICABLE: composite-owned refusal code (a rule pigment does not name under this string)"
+   },
+   {
+    "file_line": "src/lower_extensions.rs:47",
+    "verdict": "NOT_APPLICABLE: composite-owned refusal code (a rule pigment does not name under this string)"
+   },
+   {
+    "file_line": "src/lower_extensions.rs:50",
+    "verdict": "NOT_APPLICABLE: composite-owned refusal code (a rule pigment does not name under this string)"
+   },
+   {
+    "file_line": "src/lower_extensions.rs:52",
+    "verdict": "NOT_APPLICABLE: composite-owned refusal code (a rule pigment does not name under this string)"
+   },
+   {
+    "file_line": "src/lower_extensions.rs:54",
+    "verdict": "NOT_APPLICABLE: composite-owned refusal code (a rule pigment does not name under this string)"
+   },
+   {
+    "file_line": "src/lower_extensions.rs:56",
+    "verdict": "NOT_APPLICABLE: composite-owned refusal code (a rule pigment does not name under this string)"
+   },
+   {
+    "file_line": "src/lower_extensions.rs:58",
+    "verdict": "NOT_APPLICABLE: composite-owned refusal code (a rule pigment does not name under this string)"
+   },
+   {
+    "file_line": "src/lower_extensions.rs:60",
+    "verdict": "NOT_APPLICABLE: composite-owned refusal code (a rule pigment does not name under this string)"
+   },
+   {
+    "file_line": "src/lower_extensions.rs:62",
+    "verdict": "NOT_APPLICABLE: composite-owned refusal code (a rule pigment does not name under this string)"
+   },
+   {
+    "file_line": "src/lower_extensions.rs:64",
+    "verdict": "NOT_APPLICABLE: composite-owned refusal code (a rule pigment does not name under this string)"
+   },
+   {
+    "file_line": "src/lower_extensions.rs:66",
+    "verdict": "NOT_APPLICABLE: composite-owned refusal code (a rule pigment does not name under this string)"
+   },
+   {
+    "file_line": "src/lower_extensions.rs:69",
+    "verdict": "NOT_APPLICABLE: composite-owned refusal code (a rule pigment does not name under this string)"
+   },
+   {
+    "file_line": "src/lower_extensions.rs:71",
+    "verdict": "NOT_APPLICABLE: composite-owned refusal code (a rule pigment does not name under this string)"
+   },
+   {
+    "file_line": "src/lower_extensions.rs:73",
+    "verdict": "NOT_APPLICABLE: composite-owned refusal code (a rule pigment does not name under this string)"
+   },
+   {
+    "file_line": "src/lower_extensions.rs:75",
+    "verdict": "NOT_APPLICABLE: composite-owned refusal code (a rule pigment does not name under this string)"
+   },
+   {
+    "file_line": "src/lower_extensions.rs:78",
+    "verdict": "NOT_APPLICABLE: composite-owned refusal code (a rule pigment does not name under this string)"
+   },
+   {
+    "file_line": "src/lower_extensions.rs:79",
+    "verdict": "NOT_APPLICABLE: composite-owned refusal code (a rule pigment does not name under this string)"
+   },
+   {
+    "file_line": "src/lower_extensions.rs:80",
+    "verdict": "NOT_APPLICABLE: composite-owned refusal code (a rule pigment does not name under this string)"
+   },
+   {
+    "file_line": "src/lower_extensions.rs:81",
+    "verdict": "NOT_APPLICABLE: composite-owned refusal code (a rule pigment does not name under this string)"
+   },
+   {
+    "file_line": "src/lower_extensions.rs:83",
+    "verdict": "NOT_APPLICABLE: composite-owned refusal code (a rule pigment does not name under this string)"
+   },
+   {
+    "file_line": "src/lower_extensions.rs:90",
+    "verdict": "NOT_APPLICABLE: composite-owned ledger key for a file setting (Blend Clipped Layers as Group off) pigment does not define"
+   },
+   {
+    "file_line": "src/lower_extensions.rs:96",
+    "verdict": "FIXED: PlanError::ClipBasePassThrough (was clip_base_pass_through)"
+   },
+   {
+    "file_line": "src/lower_render_plan.rs:161",
+    "verdict": "NOT_APPLICABLE: composite Unavailable reason text (diagnostic; the ledger key of the same rule, where there is one, is pigment's)"
+   },
+   {
+    "file_line": "src/lower_render_plan.rs:189",
+    "verdict": "NOT_APPLICABLE: composite Unavailable reason text (diagnostic; the ledger key of the same rule, where there is one, is pigment's)"
+   },
+   {
+    "file_line": "src/lower_render_plan.rs:222",
+    "verdict": "NOT_APPLICABLE: composite descriptor error text, not a pigment rule"
+   },
+   {
+    "file_line": "src/lower_render_plan.rs:294",
+    "verdict": "PIGMENT_ALREADY: Operator/ExtOperator key and class"
+   },
+   {
+    "file_line": "src/lower_render_plan.rs:319",
+    "verdict": "PIGMENT_ALREADY: match on pigment's PlanError::AdjustmentUnsupported, key = kind.key() on the next line"
+   },
+   {
+    "file_line": "src/lower_render_plan.rs:322",
+    "verdict": "PIGMENT_ALREADY: AdjustmentKind::key"
+   },
+   {
+    "file_line": "src/lower_render_plan.rs:334",
+    "verdict": "PIGMENT_ALREADY: Operator/ExtOperator key and class"
+   },
+   {
+    "file_line": "src/lower_render_plan.rs:459",
+    "verdict": "NOT_APPLICABLE: composite Unavailable reason text (diagnostic; the ledger key of the same rule, where there is one, is pigment's)"
+   },
+   {
+    "file_line": "src/lower_render_plan.rs:471",
+    "verdict": "NOT_APPLICABLE: composite Unavailable reason text (diagnostic; the ledger key of the same rule, where there is one, is pigment's)"
+   },
+   {
+    "file_line": "src/lower_render_plan.rs:501",
+    "verdict": "NOT_APPLICABLE: composite Unavailable reason text (diagnostic; the ledger key of the same rule, where there is one, is pigment's)"
+   },
+   {
+    "file_line": "src/lower_render_plan.rs:553",
+    "verdict": "NOT_APPLICABLE: composite Unavailable reason text (diagnostic; the ledger key of the same rule, where there is one, is pigment's)"
+   },
+   {
+    "file_line": "src/lower_render_plan.rs:610",
+    "verdict": "NOT_APPLICABLE: composite Unavailable reason text (diagnostic; the ledger key of the same rule, where there is one, is pigment's)"
+   },
+   {
+    "file_line": "src/lower_render_plan.rs:619",
+    "verdict": "NOT_APPLICABLE: composite Unavailable reason text (diagnostic; the ledger key of the same rule, where there is one, is pigment's)"
+   },
+   {
+    "file_line": "src/lower_render_plan.rs:720",
+    "verdict": "NOT_APPLICABLE: composite Unavailable reason text (diagnostic; the ledger key of the same rule, where there is one, is pigment's)"
+   },
+   {
+    "file_line": "src/lower_render_plan.rs:744",
+    "verdict": "NOT_APPLICABLE: composite Unavailable reason text (diagnostic; the ledger key of the same rule, where there is one, is pigment's)"
+   },
+   {
+    "file_line": "src/lower_render_plan.rs:879",
+    "verdict": "PIGMENT_ALREADY: ExtOperator key and class"
+   },
+   {
+    "file_line": "src/lower_render_plan.rs:885",
+    "verdict": "NOT_APPLICABLE: lowering-note keys (composite NOTE_* codes), not refusals"
+   }
+  ],
+  "blendif_clip_adopt": {
+   "lane": "SMB-BLENDIF-CLIP-ADOPT",
+   "status": "READY_FOR_VALIDATION",
+   "sha": "1f99350",
+   "scope": "Pigment 0d28c03 (lane SMB-PIGMENT-BLENDIF-CLIP, diagnostics topic blend-if-clip-roles) refuses a non-identity Blend-If on a clip base (blend_if_clip_base) and on a clipped layer (blend_if_clipped_layer) for every backend; this lane adopts that in the consumers. New lane id per V4-15; nothing is claimed on SMB-RENDER-GPU (BLOCKED, fix budget) and no verdict, fixed key or earlier note was changed.",
+   "files": [
+    "src/evaluate_static.rs (clip_roles + RoleSet; Blend-If recorded after the steps are evaluated, per role; Blend Clipped Layers as Group off refused on a clip base)",
+    "src/lower_extensions.rs (blend_if_operator(role), REFUSE_CLIP_GROUP_BLEND_OFF, LayerFeatures.clipped_group_blend_off; operators() no longer lists Blend-If)",
+    "src/lower_render_plan.rs (base_group_blend_off refusal in lowering, docs)",
+    "src/lib.rs (DESCRIPTOR: extended_lowering, unsupported, proof)",
+    "tests/render_plan_lowering.rs (+2 tests)"
+   ],
+   "blend_if_clip_roles": {
+    "evaluation": "ledger records ExtOperator::BlendIf / BlendIfClipBase / BlendIfClippedLayer by the role the layer has in the group that composites it, with pigment's key() and intrinsic() (Unsupported for the two clip operators, so eval_outcome is Failure(Unsupported) like knockout); the old code recorded BlendIf for every role",
+    "role_rule": "mirrors the lowering: Clipped = an emitted clipped layer; Base = unclipped layer with an emitted clipped layer above it in the same group; a clipped layer under a hidden or empty base and a hidden or empty clipped layer are not emitted and have no role; a step no group composites is Unclipped; a step shared by two groups can record two operators",
+    "lowering": "no change needed: record_envelope takes the operators from pigment validate on the lowered plan, so lowering already reported both; the ranges are carried in LayerExtension.blend_if and pigment admit_extended refuses them (test asserts the refusal with a backend that claims every operator Exact)"
+   },
+   "clbl_off": {
+    "code": "blend_clipped_layers_as_group_off_not_modelled (REFUSE_CLIP_GROUP_BLEND_OFF, the code interop-psd reports for clbl = 0)",
+    "condition": "Folio StudioAdvancedBlending.blend_clipped_effects == false on the base of a clipping run that renders at least one clipped layer",
+    "behaviour": "evaluation: ledger Unsupported + parent Unavailable; lowering: Unavailable naming the clipped layer; both from the extended path only (the v1 path does not read raster records, like Blend-If and knockout)",
+    "not_refused": "toggle on; no clipping; only the clipped layer has it off (the toggle belongs to the base); clipped layer hidden; base hidden (run dropped). Reason: the setting changes no pixel there",
+    "supersedes": "the earlier note adjustments_slice.decisions_and_readings that said the clipped-effects toggle only matters with effects and is not refused: a clip base with the toggle off changes the composite itself (Adobe Help text read only through search snippets, UNVERIFIED; PSD spec: clbl = blend clipped elements)"
+   },
+   "tests_added": [
+    "blend_if_on_clip_roles_is_reported_and_refused_like_pigment",
+    "blend_clipped_layers_as_group_off_is_refused_on_a_clip_base"
+   ],
+   "tests": {
+    "argv": [
+     "cargo",
+     "nextest",
+     "run",
+     "-p",
+     "hsk-studio-composite",
+     "--tests"
     ],
-    "assumptions_for_validator_and_spec_queue": [
-      "exactness 'exact' = published W3C formula, not Adobe parity (pigment facts); Photoshop group/fill/soft-light/clipping mappings UNVERIFIED",
-      "Root rendered regardless of its visibility flag; root blend mode irrelevant over a transparent backdrop (W3C ab=0) but its opacity/fill/mask apply via a synthetic wrapper",
-      "Extents are bounding upper bounds; opacity and masks do not shrink them"
+    "exit": 0,
+    "sha": "1f99350",
+    "passed": 24,
+    "failed": 0
+   },
+   "check_clippy": "cargo clippy -p hsk-studio-composite --tests --examples --no-deps: clean; cargo fmt --check not applied (119 pre-existing diffs in this crate, untouched files and lines kept)",
+   "v4": {
+    "V4-03": "Photoshop behaviour of Blend-If on a clip base or clipped layer and of Blend Clipped Layers as Group OFF is NOT_PROVEN (D5 cases 18-23); the tests prove the refusal contract only",
+    "V4-06": "not a remediation lane, no sweep claimed; the one role-dependent ledger site (Blend-If) now takes pigment's operator through blend_if_operator(role)",
+    "V4-07": "DESCRIPTOR claims cite the two new tests; valid JSON checked with json.loads",
+    "V4-09": "commit message through git commit -F"
+   },
+   "red_proof": "by construction, not run on a scratch tree: the pre-change evaluation recorded blend_if for the base and the clipped layer, so the has_operator(BlendIf) == (op == want) assertions of the first test fail on it, and the clbl test fails without the refusal (status Ready); no shared file was mutated (V4-11)",
+   "decisions_for_lead": [
+    "Blend-If on a clip role is carried and reported Unsupported (knockout precedent), not refused in lowering: pigment admit_extended is the single refusal point with the operator key, lowering stays a faithful conversion",
+    "clbl = 0 is refused only on a base that renders a clipped layer; a blanket refusal of every layer with the toggle off would reject documents where the setting changes nothing"
+   ],
+   "plausible_not_addressed": [
+    "the v1 lower_to_render_plan/evaluate path does not see raster records, so a document with clbl = 0 or clip-role Blend-If rendered without records is not told (same as every record-borne feature)",
+    "clip_roles repeats the base/emitted rules of lower_render_plan.rs phase 2 instead of sharing one function; a change to the drop rules must change both (the new tests compare evaluation and lowering ledgers)"
+   ],
+   "date": "2026-10-11T10:11:27Z"
+  },
+  "clip_align_lane": {
+   "lane": "SMB-COMPOSITE-CLIP-ALIGN",
+   "files": [
+    "src/evaluate_static.rs",
+    "src/lower_render_plan.rs",
+    "src/lib.rs (DESCRIPTOR)",
+    "tests/render_plan_lowering.rs"
+   ],
+   "reason_code": "clip_base_pass_through",
+   "rationale": "render-cpu 9819e52 refuses a pass-through group as clip base (no isolated content to take the base alpha from, pigment defines G from isolated base content and blends with the base's mode); composite no longer emits a plan the backends will refuse. Photoshop semantics UNVERIFIED pending the oracle.",
+   "test_added": "pass_through_group_as_clip_base_is_unavailable_and_unsupported_in_the_ledger (lowering Err Unavailable, ledger Unsupported, parent step Unavailable, hidden base drops run, isolated Normal group base still lowers)",
+   "test_counts": "render_plan_lowering 7/7 (6 existing + 1), static_plan 5/5, unit 0; clippy --tests --examples clean for composite",
+   "tree": "shared edit tree; crate-scoped pathspec commit 5814f8d pushed"
+  },
+  "tests_detail": "composite: static_plan 5/5, render_plan_lowering 7/7. Earlier slice: pigment render_plan 3/3, blend_math 6/6 unchanged; cargo check --tests --examples of pigment + render-cpu + render-gpu + interop-psd + develop clean.",
+  "pigment_change_note": {
+   "commit": "4e533d5",
+   "files": [
+    "crates/hsk-studio-pigment/src/render_plan.rs",
+    "crates/hsk-studio-pigment/tests/render_plan.rs"
+   ],
+   "design": "Clip-to-base is encoded WITHOUT changing any existing public struct or exhaustive enum, so render-cpu/render-gpu/interop-psd/develop and their literals still compile: MaskFormat (already non_exhaustive) gains BaseAlpha; MaskInput::clip_to_base() is the one canonical encoding (key 0, empty placement, zero hash, density 1, not inverted); PlanError gains ClipWithoutBase/ClipFields/ClipPassThrough; Operator::Mask(BaseAlpha) key 'clip_to_base', intrinsic Approximate; RenderBackend gains default method supports_clip_to_base() = false and admit() refuses any plan using the route as Unsupported{operator:'clip_to_base'} before consulting backend.exactness(), so a backend that has not opted in can never render a clipped layer unclipped. The base is implicit (nearest earlier unclipped layer, Photoshop rule), so an explicit clip_base index would be redundant; validate enforces a base exists, canonical fields, and no pass-through reference.",
+   "semantics_recorded_in_doc": "run [base, c1..cn] = isolated unit G: G starts as base content with the base's own mask; each ci composited onto G with its own mode/opacity/fill, source alpha multiplied by base alpha, G alpha held at base alpha; G composited onto the parent backdrop with the BASE's mode/opacity/fill. Approximate: Photoshop's exact rule UNVERIFIED (oracle pending).",
+   "backend_status": "render-cpu implements the route (9819e52, supports_clip_to_base = true, pass-through base refused); render-gpu does not yet (admit refuses, typed)",
+   "follow_up": "when render-cpu/render-gpu structs are next touched, the route could be promoted to a first-class Layer field; not done now to keep dependents compiling"
+  },
+  "spec_clarifications": [
+   "Root-reachability narrowing (accepted by the coordinator): lower_to_render_plan requires availability only of steps reachable from the requested root through visible inputs, plus unresolved issues on those layers' ids and an unbound blending profile; an unrelated vector/text output does not block a group render",
+   "Folio clipped semantics assumed from Photoshop: consecutive clipped layers clip to the nearest unclipped layer below; a hidden base hides its clipped layers; a clipped layer cannot be the bottom layer of a group. UNVERIFIED against Photoshop (oracle pending)",
+   "Mask density/inverted are not stored by Folio (lowered as 1.0/false); mask `linked` is authoring-only; multi-tile mask = one caller-stitched plane (TileInfoSource::mask_sha256)",
+   "input_ordinal 0 = first composited (bottom-most): SPEC GAP, UNVERIFIED against Photoshop (matches pigment Group.layers bottom-first)"
+  ],
+  "assumptions_for_validator_and_spec_queue": [
+   "exactness 'exact' = published W3C formula, not Adobe parity (pigment facts); Photoshop group/fill/soft-light/clipping mappings UNVERIFIED",
+   "Root rendered regardless of its visibility flag; root blend mode irrelevant over a transparent backdrop (W3C ab=0) but its opacity/fill/mask apply via a synthetic wrapper",
+   "Extents are bounding upper bounds; opacity and masks do not shrink them"
+  ],
+  "dep_requests": [
+   "serde_json 1.0.151 dev-dependency (std) logged earlier"
+  ],
+  "verdicts": [
+   {
+    "round": "STUDIO-R3",
+    "lane": "SMB-COMPOSITE",
+    "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
+    "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
+    "decision": "failed",
+    "verdict": "FAIL_V1",
+    "failures": [
+     {
+      "failure_class": "clip-under-hidden-base-over-refusal",
+      "file_line": "crates/hsk-studio-composite/src/evaluate_static.rs:334-340 vs src/lower_render_plan.rs:257,276"
+     }
     ],
-    "dep_requests": [
-      "serde_json 1.0.151 dev-dependency (std) logged earlier"
+    "remediation": "In evaluate skip status/extent of clipped inputs whose base is hidden or empty (mirror lowering base rule); add test",
+    "round_ref": "validation/round-R3.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
+    "idempotency_key": "STUDIO-R3:SMB-COMPOSITE:404ff3ae8cd7:FAIL_V1",
+    "recorded_at": "2026-10-11T03:11:21Z",
+    "by": "wp_validator STUDIO-R3"
+   },
+   {
+    "round": "STUDIO-R3",
+    "lane": "SMB-COMPOSITE-CLIP-ALIGN",
+    "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
+    "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "round_ref": "validation/round-R3.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
+    "idempotency_key": "STUDIO-R3:SMB-COMPOSITE-CLIP-ALIGN:404ff3ae8cd7:PASS_V1",
+    "recorded_at": "2026-10-11T03:11:21Z",
+    "by": "wp_validator STUDIO-R3"
+   },
+   {
+    "round": "STUDIO-R5",
+    "lane": "SMB-COMPOSITE",
+    "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
+    "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
+    "decision": "passed",
+    "verdict": "PASS_V2",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V2",
+    "review": "validation/R5-review-a.json",
+    "round_ref": "validation/round-R5.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
+    "idempotency_key": "STUDIO-R5:SMB-COMPOSITE:1d404f8c4b72:PASS_V2",
+    "recorded_at": "2026-10-11T05:38:23Z",
+    "by": "wp_validator STUDIO-R5"
+   },
+   {
+    "round": "STUDIO-R5",
+    "lane": "SMB-COMPOSITE-CLIP-ALIGN",
+    "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
+    "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
+    "decision": "passed",
+    "verdict": "PASS_V2",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V2",
+    "review": "NOT_REVIEWED",
+    "round_ref": "validation/round-R5.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
+    "idempotency_key": "STUDIO-R5:SMB-COMPOSITE-CLIP-ALIGN:1d404f8c4b72:PASS_V2",
+    "recorded_at": "2026-10-11T05:38:23Z",
+    "by": "wp_validator STUDIO-R5"
+   },
+   {
+    "round": "STUDIO-R6",
+    "lane": "SMB-COMPOSITE",
+    "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a",
+    "tree": "834aa5599ffabf691558a25f777ce42f73d78103",
+    "decision": "passed",
+    "verdict": "PASS_V3",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V3",
+    "review": "NOT_REVIEWED",
+    "round_ref": "validation/round-R6.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6",
+    "idempotency_key": "STUDIO-R6:SMB-COMPOSITE:bd8533f9b29c:PASS_V3",
+    "recorded_at": "2026-10-11T06:47:09Z",
+    "by": "wp_validator STUDIO-R6"
+   },
+   {
+    "round": "STUDIO-R6",
+    "lane": "SMB-COMPOSITE-CLIP-ALIGN",
+    "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a",
+    "tree": "834aa5599ffabf691558a25f777ce42f73d78103",
+    "decision": "passed",
+    "verdict": "PASS_V3",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V3",
+    "review": "NOT_REVIEWED",
+    "round_ref": "validation/round-R6.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6",
+    "idempotency_key": "STUDIO-R6:SMB-COMPOSITE-CLIP-ALIGN:bd8533f9b29c:PASS_V3",
+    "recorded_at": "2026-10-11T06:47:09Z",
+    "by": "wp_validator STUDIO-R6"
+   },
+   {
+    "round": "STUDIO-R7",
+    "lane": "SMB-COMPOSITE-ADJ",
+    "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
+    "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V1",
+    "review": "validation/R7-review-a.json",
+    "round_ref": "validation/round-R7.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
+    "idempotency_key": "STUDIO-R7:SMB-COMPOSITE-ADJ:dff7ef51d282:PASS_V1",
+    "recorded_at": "2026-10-11T11:04:31Z",
+    "by": "wp_validator STUDIO-R7"
+   },
+   {
+    "round": "STUDIO-R7",
+    "lane": "SMB-COMPOSITE",
+    "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
+    "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
+    "decision": "passed",
+    "verdict": "PASS_V4",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V4",
+    "review": "NOT_REVIEWED",
+    "round_ref": "validation/round-R7.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
+    "idempotency_key": "STUDIO-R7:SMB-COMPOSITE:dff7ef51d282:PASS_V4",
+    "recorded_at": "2026-10-11T11:04:31Z",
+    "by": "wp_validator STUDIO-R7"
+   },
+   {
+    "round": "STUDIO-R7",
+    "lane": "SMB-COMPOSITE-CLIP-ALIGN",
+    "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
+    "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
+    "decision": "passed",
+    "verdict": "PASS_V4",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V4",
+    "review": "NOT_REVIEWED",
+    "round_ref": "validation/round-R7.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
+    "idempotency_key": "STUDIO-R7:SMB-COMPOSITE-CLIP-ALIGN:dff7ef51d282:PASS_V4",
+    "recorded_at": "2026-10-11T11:04:31Z",
+    "by": "wp_validator STUDIO-R7"
+   },
+   {
+    "round": "STUDIO-R7",
+    "lane": "SMB-BLENDIF-CLIP-ADOPT",
+    "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
+    "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V1",
+    "review": "validation/R7-review-a.json",
+    "round_ref": "validation/round-R7.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
+    "idempotency_key": "STUDIO-R7:SMB-BLENDIF-CLIP-ADOPT:dff7ef51d282:PASS_V1",
+    "recorded_at": "2026-10-11T11:04:31Z",
+    "by": "wp_validator STUDIO-R7"
+   },
+   {
+    "round": "STUDIO-R8",
+    "lane": "SMB-REFUSAL-KEYS",
+    "candidate": "f6e5a490e2ad0e142938a8bba1f78cadb96f5e84",
+    "tree": "bf944e29dd336acd38969f0dc25353adb529d61d",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V1",
+    "review": "validation/R8-review-a.json",
+    "round_ref": "validation/round-R8.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R8",
+    "idempotency_key": "STUDIO-R8:SMB-REFUSAL-KEYS:f6e5a490e2ad:PASS_V1",
+    "recorded_at": "2026-10-11T12:42:21Z",
+    "by": "wp_validator STUDIO-R8"
+   },
+   {
+    "round": "STUDIO-R8",
+    "lane": "SMB-FX-OPS-ADOPT",
+    "candidate": "f6e5a490e2ad0e142938a8bba1f78cadb96f5e84",
+    "tree": "bf944e29dd336acd38969f0dc25353adb529d61d",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V1",
+    "review": "validation/R8-review-a.json",
+    "round_ref": "validation/round-R8.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R8",
+    "idempotency_key": "STUDIO-R8:SMB-FX-OPS-ADOPT:f6e5a490e2ad:PASS_V1",
+    "recorded_at": "2026-10-11T12:42:21Z",
+    "by": "wp_validator STUDIO-R8"
+   },
+   {
+    "round": "STUDIO-R8",
+    "lane": "SMB-COMPOSITE",
+    "candidate": "f6e5a490e2ad0e142938a8bba1f78cadb96f5e84",
+    "tree": "bf944e29dd336acd38969f0dc25353adb529d61d",
+    "decision": "passed",
+    "verdict": "PASS_V5",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V5",
+    "review": "NOT_REVIEWED (R8-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+    "round_ref": "validation/round-R8.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R8",
+    "idempotency_key": "STUDIO-R8:SMB-COMPOSITE:f6e5a490e2ad:PASS_V5",
+    "recorded_at": "2026-10-11T12:42:21Z",
+    "by": "wp_validator STUDIO-R8"
+   },
+   {
+    "round": "STUDIO-R8",
+    "lane": "SMB-COMPOSITE-CLIP-ALIGN",
+    "candidate": "f6e5a490e2ad0e142938a8bba1f78cadb96f5e84",
+    "tree": "bf944e29dd336acd38969f0dc25353adb529d61d",
+    "decision": "passed",
+    "verdict": "PASS_V5",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V5",
+    "review": "NOT_REVIEWED (R8-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+    "round_ref": "validation/round-R8.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R8",
+    "idempotency_key": "STUDIO-R8:SMB-COMPOSITE-CLIP-ALIGN:f6e5a490e2ad:PASS_V5",
+    "recorded_at": "2026-10-11T12:42:21Z",
+    "by": "wp_validator STUDIO-R8"
+   },
+   {
+    "round": "STUDIO-R8",
+    "lane": "SMB-COMPOSITE-ADJ",
+    "candidate": "f6e5a490e2ad0e142938a8bba1f78cadb96f5e84",
+    "tree": "bf944e29dd336acd38969f0dc25353adb529d61d",
+    "decision": "failed",
+    "verdict": "FAIL_V2",
+    "failures": [
+     {
+      "failure_kind": "product",
+      "failure_class": "plan-level-effect-limit-lowered-ok-then-refused-at-admission",
+      "file_line": "crates/hsk-studio-composite/src/lower_render_plan.rs:297-349; src/lower_extensions.rs:584; pigment src/render_plan/extensions.rs:336-338"
+     }
     ],
-    "verdicts": [
-      {
-        "round": "STUDIO-R3",
-        "lane": "SMB-COMPOSITE",
-        "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
-        "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
-        "decision": "failed",
-        "verdict": "FAIL_V1",
-        "failures": [
-          {
-            "failure_class": "clip-under-hidden-base-over-refusal",
-            "file_line": "crates/hsk-studio-composite/src/evaluate_static.rs:334-340 vs src/lower_render_plan.rs:257,276"
-          }
-        ],
-        "remediation": "In evaluate skip status/extent of clipped inputs whose base is hidden or empty (mirror lowering base rule); add test",
-        "round_ref": "validation/round-R3.json",
-        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
-        "idempotency_key": "STUDIO-R3:SMB-COMPOSITE:404ff3ae8cd7:FAIL_V1",
-        "recorded_at": "2026-10-11T03:11:21Z",
-        "by": "wp_validator STUDIO-R3"
-      },
-      {
-        "round": "STUDIO-R3",
-        "lane": "SMB-COMPOSITE-CLIP-ALIGN",
-        "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
-        "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
-        "decision": "passed",
-        "verdict": "PASS_V1",
-        "failures": [],
-        "remediation": null,
-        "round_ref": "validation/round-R3.json",
-        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
-        "idempotency_key": "STUDIO-R3:SMB-COMPOSITE-CLIP-ALIGN:404ff3ae8cd7:PASS_V1",
-        "recorded_at": "2026-10-11T03:11:21Z",
-        "by": "wp_validator STUDIO-R3"
-      }
+    "remediation": "record_envelope maps whole-envelope pigment validate errors (EffectLimit) to a typed refusal; add 65x64-effects test",
+    "status_after": "FAIL_V2",
+    "review": "validation/R8-review-a.json",
+    "round_ref": "validation/round-R8.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R8",
+    "idempotency_key": "STUDIO-R8:SMB-COMPOSITE-ADJ:f6e5a490e2ad:FAIL_V2",
+    "recorded_at": "2026-10-11T12:42:21Z",
+    "by": "wp_validator STUDIO-R8"
+   },
+   {
+    "round": "STUDIO-R8",
+    "lane": "SMB-BLENDIF-CLIP-ADOPT",
+    "candidate": "f6e5a490e2ad0e142938a8bba1f78cadb96f5e84",
+    "tree": "bf944e29dd336acd38969f0dc25353adb529d61d",
+    "decision": "passed",
+    "verdict": "PASS_V2",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V2",
+    "review": "NOT_REVIEWED (R8-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+    "round_ref": "validation/round-R8.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R8",
+    "idempotency_key": "STUDIO-R8:SMB-BLENDIF-CLIP-ADOPT:f6e5a490e2ad:PASS_V2",
+    "recorded_at": "2026-10-11T12:42:21Z",
+    "by": "wp_validator STUDIO-R8"
+   },
+   {
+    "round": "STUDIO-R9",
+    "lane": "SMB-COMPOSITE-ADJ",
+    "candidate": "4d80e50d40432799c08f0f8b8f0047c9a00d056a",
+    "tree": "18b50331f3b2b92c1985cd8b83e00560d88096bf",
+    "decision": "passed",
+    "verdict": "PASS_V3",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V3",
+    "review": "validation/R9-review-a.json",
+    "round_ref": "validation/round-R9.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R9",
+    "idempotency_key": "STUDIO-R9:SMB-COMPOSITE-ADJ:4d80e50d4043:PASS_V3",
+    "recorded_at": "2026-10-11T14:23:56Z",
+    "by": "wp_validator STUDIO-R9"
+   },
+   {
+    "round": "STUDIO-R9",
+    "lane": "SMB-COMPOSITE",
+    "candidate": "4d80e50d40432799c08f0f8b8f0047c9a00d056a",
+    "tree": "18b50331f3b2b92c1985cd8b83e00560d88096bf",
+    "decision": "passed",
+    "verdict": "PASS_V6",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V6",
+    "review": "NOT_REVIEWED as a lane (R9-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+    "round_ref": "validation/round-R9.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R9",
+    "idempotency_key": "STUDIO-R9:SMB-COMPOSITE:4d80e50d4043:PASS_V6",
+    "recorded_at": "2026-10-11T14:23:56Z",
+    "by": "wp_validator STUDIO-R9"
+   },
+   {
+    "round": "STUDIO-R9",
+    "lane": "SMB-COMPOSITE-CLIP-ALIGN",
+    "candidate": "4d80e50d40432799c08f0f8b8f0047c9a00d056a",
+    "tree": "18b50331f3b2b92c1985cd8b83e00560d88096bf",
+    "decision": "passed",
+    "verdict": "PASS_V6",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V6",
+    "review": "NOT_REVIEWED as a lane (R9-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+    "round_ref": "validation/round-R9.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R9",
+    "idempotency_key": "STUDIO-R9:SMB-COMPOSITE-CLIP-ALIGN:4d80e50d4043:PASS_V6",
+    "recorded_at": "2026-10-11T14:23:56Z",
+    "by": "wp_validator STUDIO-R9"
+   },
+   {
+    "round": "STUDIO-R9",
+    "lane": "SMB-BLENDIF-CLIP-ADOPT",
+    "candidate": "4d80e50d40432799c08f0f8b8f0047c9a00d056a",
+    "tree": "18b50331f3b2b92c1985cd8b83e00560d88096bf",
+    "decision": "passed",
+    "verdict": "PASS_V3",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V3",
+    "review": "NOT_REVIEWED as a lane (R9-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+    "round_ref": "validation/round-R9.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R9",
+    "idempotency_key": "STUDIO-R9:SMB-BLENDIF-CLIP-ADOPT:4d80e50d4043:PASS_V3",
+    "recorded_at": "2026-10-11T14:23:56Z",
+    "by": "wp_validator STUDIO-R9"
+   },
+   {
+    "round": "STUDIO-R9",
+    "lane": "SMB-REFUSAL-KEYS",
+    "candidate": "4d80e50d40432799c08f0f8b8f0047c9a00d056a",
+    "tree": "18b50331f3b2b92c1985cd8b83e00560d88096bf",
+    "decision": "passed",
+    "verdict": "PASS_V2",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V2",
+    "review": "NOT_REVIEWED as a lane (R9-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+    "round_ref": "validation/round-R9.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R9",
+    "idempotency_key": "STUDIO-R9:SMB-REFUSAL-KEYS:4d80e50d4043:PASS_V2",
+    "recorded_at": "2026-10-11T14:23:56Z",
+    "by": "wp_validator STUDIO-R9"
+   },
+   {
+    "round": "STUDIO-R9",
+    "lane": "SMB-FX-OPS-ADOPT",
+    "candidate": "4d80e50d40432799c08f0f8b8f0047c9a00d056a",
+    "tree": "18b50331f3b2b92c1985cd8b83e00560d88096bf",
+    "decision": "passed",
+    "verdict": "PASS_V2",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V2",
+    "review": "NOT_REVIEWED as a lane (R9-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+    "round_ref": "validation/round-R9.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R9",
+    "idempotency_key": "STUDIO-R9:SMB-FX-OPS-ADOPT:4d80e50d4043:PASS_V2",
+    "recorded_at": "2026-10-11T14:23:56Z",
+    "by": "wp_validator STUDIO-R9"
+   },
+   {
+    "round": "STUDIO-R10",
+    "lane": "SMB-FX-OPS-ADOPT",
+    "candidate": "62d8983b86417340399ed7c785c6b297debabbfd",
+    "tree": "a64a74da642ad52e759e97ccdd6a00be069d47bc",
+    "decision": "passed",
+    "verdict": "PASS_V3",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V3",
+    "review": "NOT_REVIEWED as a lane (R10-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+    "round_ref": "validation/round-R10.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R10",
+    "idempotency_key": "STUDIO-R10:SMB-FX-OPS-ADOPT:62d8983b8641:PASS_V3",
+    "recorded_at": "2026-10-11T15:37:40Z",
+    "by": "wp_validator STUDIO-R10"
+   },
+   {
+    "round": "STUDIO-R11",
+    "lane": "SMB-FX-OPS-ADOPT",
+    "candidate": "6956d3f1180cbc9b3bcc59a98eacdb2beb114085",
+    "tree": "a56d447fa80c74d8ebe17c55baf5754a06f5833e",
+    "decision": "passed",
+    "verdict": "PASS_V4",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V4",
+    "review": "NOT_REVIEWED as a lane (R11-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+    "round_ref": "validation/round-R11.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R11",
+    "idempotency_key": "STUDIO-R11:SMB-FX-OPS-ADOPT:6956d3f1180c:PASS_V4",
+    "recorded_at": "2026-10-11T17:31:37Z",
+    "by": "wp_validator STUDIO-R11"
+   }
+  ],
+  "r3_remediation": {
+   "finding": "R3 SMB-COMPOSITE (evaluate_static.rs:311-324) and SMB-COMPOSITE-CLIP-ALIGN (5814f8d did not fix it): a visible clipped child under a hidden or empty base that is itself Unavailable (e.g. clipped_with_mask_unsupported) still set blocked=input_unavailable on the parent, while lowering drops that run; the same document with an available clipped child lowered to an empty root.",
+   "fix": "src/evaluate_static.rs: StepEval::is_ready_and_empty (Ready with no extent; an Unavailable step is not empty); evaluate() tracks base_dropped = base hidden || ready-and-empty and `continue`s a clipped input under a dropped base before the status match (pass-through check unchanged for live bases). src/lower_render_plan.rs phase 1: base_live = base visible && !ready-and-empty, so the dropped run is not made reachable and its status is not checked; module doc updated.",
+   "test": "tests/render_plan_lowering.rs hidden_or_empty_clip_base_drops_its_clipped_run_even_when_that_run_is_unavailable: hidden base + clipped layer with own mask -> clipped step Unavailable(clipped_with_mask_unsupported) but root Ready/extent None and lowering gives an empty root; same for a visible empty raster base; control: visible non-empty base still blocks (root input_unavailable naming layer 3; lowering Unavailable clipped_with_mask_unsupported); [hidden base 2, clipped 3 dropped, base 6, clipped 7]: clipped 7 with own mask blocks naming layer 7 not 3, without the mask root Ready with extent (0,0)+16x16, lowering keeps [base 6, clipped 7] and 2 sources.",
+   "red_before_fix": "verified: against the pre-fix evaluate_static.rs/lower_render_plan.rs the new test fails (root status Unavailable input_unavailable:SLYR-...0003/source/out); fix restored byte-identical afterwards.",
+   "tests_run": "composite --tests --no-fail-fast 13/13 (static_plan 5, render_plan_lowering 8); clippy --tests --examples clean; no crate depends on composite",
+   "date": "2026-10-11T03:18:00Z"
+  },
+  "remediation_R6": {
+   "finding": "R6 review A: evaluate_static.rs rated a pass-through group with fill < 1 as Approximate (fill_opacity) while pigment admission (d576ec5) refuses it for every backend.",
+   "fix": "cdc2c0f: record_appearance records PASS_THROUGH_FILL_OPERATOR with class Unsupported; appearance_block makes the step Unavailable(PASS_THROUGH_FILL_OPERATOR) so lowering refuses too; StepAppearance::exactness is Unsupported for it; FillOpacity / PassThroughOpacity / clip_to_base come from Operator::key/intrinsic.",
+   "test": "tests/render_plan_lowering.rs evaluation_ledger_keys_and_classes_are_pigments (pass-through group with fill 25 percent: ledger key PASS_THROUGH_FILL_OPERATOR Unsupported, step Unavailable, plan.lowest_exactness Unsupported; FillOpacity and PassThroughOpacity keys/classes equal pigment's).",
+   "v4_06": {
+    "class": "composite hand-codes pigment operator keys or classes as literals (drift against pigment admission)",
+    "regex": "ledger\\.record\\(\\s*\"|Exactness::(Exact|Fitted|Approximate|Unsupported)\\b",
+    "sites_matched": 14,
+    "fixed": [
+     "src/lower_render_plan.rs:318 kind.key() + Unsupported (class marks pigment's own prepare() refusal of modern brightness/contrast)",
+     "src/lower_plan.rs:107 pass-through fill Unsupported (was Approximate)",
+     "src/evaluate_static.rs:216 PASS_THROUGH_FILL_OPERATOR Unsupported (was fill_opacity Approximate)",
+     "src/evaluate_static.rs:358 modern brightness/contrast Unsupported from AdjustmentOp::prepare()",
+     "src/evaluate_static.rs:474 PlanError::AdjustmentClipBase code as key",
+     "src/evaluate_static.rs:484 PlanError::EffectClipRun code as key"
     ],
-    "r3_remediation": {
-      "finding": "R3 SMB-COMPOSITE (evaluate_static.rs:311-324) and SMB-COMPOSITE-CLIP-ALIGN (5814f8d did not fix it): a visible clipped child under a hidden or empty base that is itself Unavailable (e.g. clipped_with_mask_unsupported) still set blocked=input_unavailable on the parent, while lowering drops that run; the same document with an available clipped child lowered to an empty root.",
-      "fix": "src/evaluate_static.rs: StepEval::is_ready_and_empty (Ready with no extent; an Unavailable step is not empty); evaluate() tracks base_dropped = base hidden || ready-and-empty and `continue`s a clipped input under a dropped base before the status match (pass-through check unchanged for live bases). src/lower_render_plan.rs phase 1: base_live = base visible && !ready-and-empty, so the dropped run is not made reachable and its status is not checked; module doc updated.",
-      "test": "tests/render_plan_lowering.rs hidden_or_empty_clip_base_drops_its_clipped_run_even_when_that_run_is_unavailable: hidden base + clipped layer with own mask -> clipped step Unavailable(clipped_with_mask_unsupported) but root Ready/extent None and lowering gives an empty root; same for a visible empty raster base; control: visible non-empty base still blocks (root input_unavailable naming layer 3; lowering Unavailable clipped_with_mask_unsupported); [hidden base 2, clipped 3 dropped, base 6, clipped 7]: clipped 7 with own mask blocks naming layer 7 not 3, without the mask root Ready with extent (0,0)+16x16, lowering keeps [base 6, clipped 7] and 2 sources.",
-      "red_before_fix": "verified: against the pre-fix evaluate_static.rs/lower_render_plan.rs the new test fails (root status Unavailable input_unavailable:SLYR-...0003/source/out); fix restored byte-identical afterwards.",
-      "tests_run": "composite --tests --no-fail-fast 13/13 (static_plan 5, render_plan_lowering 8); clippy --tests --examples clean; no crate depends on composite",
-      "date": "2026-10-11T03:18:00Z"
+    "also_replaced_before_the_regex_run": "the old record_appearance literals fill_opacity / group_pass_through_opacity / clip_to_base (evaluate_static.rs) and the Approximate literals in StepAppearance::exactness (lower_plan.rs) now use Operator::FillOpacity / PassThroughOpacity / Mask(BaseAlpha) key() and intrinsic()",
+    "not_applicable": [
+     "src/lib.rs:125 comparison, not a record",
+     "src/lower_plan.rs:178 fold identity",
+     "src/evaluate_static.rs:207 'source' Exact: composite-owned evaluation key (pigment calls it tile)",
+     "src/evaluate_static.rs:465 clip_base_pass_through Unsupported: composite-owned refusal key asserted by an existing test, no pigment operator exists",
+     "src/lower_extensions.rs:155,245,392,412 Approximate: composite's own lowering notes (curve corner, exposure exponent, spread/choke percent, glow jitter)"
+    ],
+    "count_check": "6 fixed + 8 not applicable = 14 matched"
+   },
+   "route": "tests: route (a) twice (product/test-fixture failure fixed by a commit, 23f600b and 555ea97, then rerun); the 08:3x failure of dc8e91a is infrastructure and no gameplan step was added (no machine check can see a stale artifact; the lead may want an mtime or rmeta-symbol freshness check of target artifacts)."
+  },
+  "adjustments_slice": {
+   "brief": "builders/briefs/lane-composite-adjustments.md",
+   "files": [
+    "src/lower_extensions.rs (new: record -> envelope conversion, refusal codes, LoweringNote)",
+    "src/lower_render_plan.rs (lower_to_render_plan_extended; v1 body shared, unchanged behaviour)",
+    "src/evaluate_static.rs (evaluate_extended; ledger from pigment)",
+    "src/lower_plan.rs (StepAppearance::exactness from pigment)",
+    "src/lib.rs (exports, eval_outcome, DESCRIPTOR v3)",
+    "tests/render_plan_lowering.rs (+7 tests), tests/static_plan.rs (descriptor version 3)"
+   ],
+   "tests_added": [
+    "adjustment_layer_lowers_to_transparent_placeholder_and_envelope_entry (acceptance 1; also pass-through area, v1 refusal, real-snapshot refusal, clip base adjustment, brightness/contrast modern vs legacy, hue bands, threshold colours)",
+    "mask_parameters_lower_to_density_invert_and_feather (acceptance 2)",
+    "blend_if_ranges_lower_in_pigment_order_and_units (acceptance 3)",
+    "knockout_and_effect_stack_are_refused (acceptance 4: knockout_shallow via admit_extended, Inherited, unsupported effect kind)",
+    "evaluation_ledger_keys_and_classes_are_pigments (acceptance 5)",
+    "effect_stack_lowers_to_pigment_ops_that_render_as_derived (wave 1, hand-derived pixels from pigment render_layer_reference)",
+    "effect_refusals_are_typed_and_nothing_is_dropped_or_approximated_silently",
+    "inner_shadow_and_glows_lower_to_pigment_ops_that_render_as_derived (wave 2; dc8e91a, not yet run: infra blocker)"
+   ],
+   "decisions_and_readings": [
+    "Return shape is a struct (ExtendedLowering), a superset of the brief's tuple: the MaskTable and the ledger are needed by the caller.",
+    "Hue/Saturation bands: all-zero bands are the identity (PSD writes six defaults) and are ignored; a band with any non-zero shift is refused hue_saturation_bands (the brief's 'any band' read as 'any band that does something').",
+    "Exposure use_legacy has no pigment counterpart: refused exposure_use_legacy. Channel enablement (channel_blend) other than all on: refused channel_blend_unsupported. Interior/clipped-effects and transparency-shapes toggles only matter with effects/knockout and are not carried (they are not refused).",
+    "Knockout Inherited resolves through the containment parent chain (Photoshop rule UNVERIFIED, D5 11); root layers with Blend-If, knockout or effects are wrapped so the wrapper layer carries the entry.",
+    "Effect colours: another profile than the document blending profile is refused (no conversion in composite); in a linear_light plan only channel values 0 and 1 are accepted (the profile transfer is not decoded here). Stack scale other than 100 is refused. visible_in_editor and anti_alias are not render inputs here (anti_alias only acts on a contour, and only a linear contour is accepted).",
+    "Spread and choke percent/100 (lead decision, spec unit conflict D19); glow jitter on a solid colour is passed as 0 and reported glow_jitter_ignored_solid_colour (lead decision, D5 16)."
+   ],
+   "not_proven": "NOT_PROVEN: Photoshop parity of every adjustment, Blend-If, mask density/feather, knockout and effect rendering (pigment classes are Approximate/Unsupported readings; D5 cases 1-17). Folio's drop shadow spread unit (pixels in STU-RAS-157, percent by observation and Photoshop UI) is a spec gap.",
+   "scratch": "helper scripts and message files live under <scratchpad>/lane-composite-adjustments/ with the composite-adj- prefix (V4-12)."
+  },
+  "stale_pigment_artifacts_from_export_canary": {
+   "cause": "The steward canary built older exports into the builders' shared target, so pigment rlib/rmeta variants without effects wave 2 looked fresher than the shared tree's sources (lead, 2026-10-11). Pigment owner touches the sources; the canary moves to its own target.",
+   "route": "retry-guard route: infrastructure cause recorded here; no gameplan step, no flag changes; the identical cargo test is rerun after the pigment sources are touched.",
+   "log": [
+    {
+     "at": "2026-10-11T06:45:00Z",
+     "event": "lead instruction: wait about 5 min for the pigment owner to touch the sources, then rerun the same composite command"
     }
+   ]
+  },
+  "resolved_blockers": [
+   {
+    "id": "stale_pigment_artifacts_from_export_canary",
+    "resolved_at": "2026-10-11T06:54:32Z",
+    "summary": "Pigment rlib/rmeta variants without effects wave 2 (built from older exports by the steward canary into the shared target) made cargo test of dc8e91a and 8ff8c7a fail to compile three times (infra, E0432/E0599 on pigment wave-2 symbols). The pigment owner touched the sources, the canary moved to its own target; the identical command then compiled and ran. One test fixture bug surfaced (0f917cc: inner/outer glow kind blocks missing required fields), fixed by a commit (route a). No gameplan step was added."
+   },
+   {
+    "id": "folio_adjustment_graph_gap",
+    "resolved_at": "2026-10-11T06:54:32Z",
+    "summary": "Folio ENG-6 (0241877, option A) makes an adjustment layer a graph Source with a stack position from input_ordinal and refuses a layer clipped to it (Code::AdjustmentClipBase, matching pigment). Composite needed no change; adjustment_not_in_composition_graph now only covers an adjustment layer contained in a rendered group WITHOUT a graph operation. Test adjustment_layer_in_a_real_folio_graph_lowers_at_its_input_ordinal lowers a real snapshot and checks the lowered stack against pigment evaluate_stack: adjustment between = (0.5, 0.25, 0.0), on top = (0.5, 0.75, 1.0)."
+   }
+  ],
+  "fx_ops_adopt": {
+   "lane": "SMB-FX-OPS-ADOPT",
+   "status": "READY_FOR_VALIDATION",
+   "sha": "7011298",
+   "pigment": [
+    "d3ce607",
+    "fe5fde0",
+    "b2f5f81"
+   ],
+   "scope": "Consumer adoption of pigment SMB-PIGMENT-FX-OPS (d3ce607, fe5fde0) and SMB-PIGMENT-ADMIT-PARITY (b2f5f81); per-consumer changes as in diagnostics/adjustments-advanced-blending.md topics effects-ops and admission-parity. New lane id per V4-15; nothing is claimed on SMB-RENDER-GPU (BLOCKED/D20) and no verdict, fixed key or earlier note was changed.",
+   "files": [
+    "src/lower_extensions.rs (blend_if_operator)",
+    "src/evaluate_static.rs (record_appearance, appearance_block, clip_roles, end-of-evaluation ledger block)",
+    "src/lower_plan.rs (StepAppearance::exactness)",
+    "src/lower_render_plan.rs (record_envelope: nested effects)",
+    "src/lib.rs (DESCRIPTOR: render_plan_mapping text, proof map entries effects_ops and pass_through_mask, unsupported list)",
+    "tests/render_plan_lowering.rs"
+   ],
+   "decisions": [
+    "effects with a non-identity Blend-If are CARRIED to pigment (not refused at lowering), exactly like the clip-role Blend-If: admission refuses them for every backend, both ledgers say Unsupported; the importer-side typed loss is in interop-psd",
+    "a mask on a pass-through, unclipped step makes the step Unavailable (pigment-keyed), same standing as fill below 1; the mask check comes right after the fill check and excludes clipped steps (their mask slot is the clip route, refused as clipped_with_mask_unsupported / clipped_pass_through_unsupported)",
+    "nested-effects accounting in evaluation uses the emitted inputs per group (visible, not empty, clipped only with a surviving base), the lowering's own emission rule"
+   ],
+   "tests": {
+    "argv": [
+     "cargo",
+     "nextest",
+     "run",
+     "-p",
+     "hsk-studio-composite",
+     "--no-fail-fast"
+    ],
+    "exit": 0,
+    "passed": 27,
+    "failed": 0,
+    "clippy": "cargo clippy -p hsk-studio-composite --tests: no warning (the crate was not rustfmt-clean before this lane; fmt is not a gate here)",
+    "added": [
+     "effects_with_blend_if_and_nested_effects_are_reported_like_pigment: validate (pigment) vs evaluation and lowering ledgers for effects+Blend-If (EffectsWithBlendIf instead of BlendIf), different layers, identity ranges, nested effects (root + layer 3), and counterfactuals inner only / outer only / hidden inner; admission by an all-Exact double (refuses effects_with_blend_if, admits nesting) and by a double declaring EffectsNested Unsupported (refuses effects_nested)",
+     "mask_on_a_pass_through_group_is_refused_like_the_fill_rule: step Unavailable, ledger and plan exactness Unsupported, lowering Unavailable; counterfactuals isolated group, no mask, disabled mask",
+     "refusal_keys_are_pigments (extended): pigment's admit on a hand-built pass-through layer with a mask returns PASS_THROUGH_MASK_OPERATOR, which the composite ledger contains"
+    ]
+   },
+   "v4_06_regex": "\"(alpha_premultiplied|mask_on_pass_through|effects_with_blend_if|effects_nested)\" over src/ (string literals standing for a rule pigment now decides at shared admission)",
+   "v4_06_sites": [
+    {
+     "file_line": "src/evaluate_static.rs (record_appearance, appearance_block)",
+     "verdict": "FIXED: PASS_THROUGH_MASK_OPERATOR, no literal"
+    },
+    {
+     "file_line": "src/lower_extensions.rs (blend_if_operator)",
+     "verdict": "FIXED: ExtOperator::EffectsWithBlendIf"
+    }
+   ],
+   "unverified": "Photoshop behaviour of a mask on a Pass Through group and of effects with Blend-If is not defined by any public source (D5 cases 24-29); composite refuses/reports and never guesses."
+  },
+  "remediation_R8": {
+   "lane": "SMB-COMPOSITE-ADJ",
+   "status": "READY_FOR_VALIDATION",
+   "sha": "07f6abd",
+   "resubmission_of": "STUDIO-R8 FAIL_V2 (validation/round-R8.json lane SMB-COMPOSITE-ADJ, failure_class plan-level-effect-limit-lowered-ok-then-refused-at-admission)",
+   "names_remediation": "record_envelope maps whole-envelope pigment validate errors (EffectLimit) to a typed refusal; add 65x64-effects test (CX-VAL-008)",
+   "finding": "lower_render_plan.rs record_envelope checked the envelope entry by entry (each layer within MAX_EFFECTS_PER_LAYER) and validated the whole envelope only to look for EffectsNested, dropping the error with is_ok_and, so 65 layers x 64 effects lowered Ok and pigment's admit_extended then refused every backend as InvalidPlan(PlanError::EffectLimit) (extensions.rs:336-338, total_effects > MAX_EFFECTS_PER_PLAN).",
+   "fix": "src/lower_render_plan.rs record_envelope: the whole-envelope validate result is matched; Ok(ops) records EffectsNested as before, Err(other) returns CompositeError::Plan(other) (pigment's own PlanError: EffectLimit, ExtensionDuplicate, ...). The probe is built so the carried features cannot end it early or hide a defect of a later entry: knockout cleared (as before) and the adjustment of an entry whose per-entry probe returned AdjustmentUnsupported dropped for the probe (LayerFeatures::refusal already refuses effects on an adjustment layer, so such an entry holds no effects). Docs of record_envelope and lower_to_render_plan_extended, DESCRIPTOR (extended_lowering text, proof map entry plan_wide_effect_limit, unsupported list) updated (V4-07: the claim cites the test).",
+   "files": [
+    "src/lower_render_plan.rs (record_envelope, two doc comments)",
+    "src/lib.rs (DESCRIPTOR text only; JSON checked with json.loads)",
+    "tests/render_plan_lowering.rs (+1 test, 3 helpers)"
+   ],
+   "error_form": "CompositeError::Plan(PlanError::EffectLimit { node }) (code plan_effect_limit): the crate's existing typed form for envelope defects (the per-entry probes already return it) and the very value admit_extended returns inside BackendError::InvalidPlan; the per-layer limit keeps its Unavailable(effect_limit) form because it names the layer.",
+   "decisions": [
+    "the plan-wide limit is decided by lower_to_render_plan_extended only: it counts the effects of the layers the plan renders from the requested root, and evaluate_extended reports every step of the document without a root, so a document-wide count there would over-refuse; the DESCRIPTOR says so",
+    "a refused adjustment (modern brightness/contrast) stays carried as an Unsupported entry when the plan is within the limit (test control), and no longer masks a plan-wide defect behind it",
+    "EffectsNested is now also recorded when a refused adjustment elsewhere in the envelope used to end the whole-envelope probe early (ledger more complete; admission refuses such a plan at the adjustment first, in entry order)"
+   ],
+   "tests_added": [
+    "plan_wide_effect_limit_is_refused_at_lowering_like_pigment_admission"
+   ],
+   "test_detail": "limits are pigment's MAX_EFFECTS_PER_LAYER / MAX_EFFECTS_PER_PLAN (no literal). (1) 64 layers x 64 effects (= 4096) lowers, extensions.validate Ok, admit_extended Ok. (2) 65 x 64: Err(CompositeError::Plan(PlanError::EffectLimit)), code plan_effect_limit. (3) 64 x 64 + one layer with one effect (smallest overshoot): the lowering error equals the error admit_extended gives the same plan with an envelope entry added by hand (InvalidPlan(EffectLimit { node })). (4) hidden layer: 65 layers of which one is hidden lowers (4096 counted). (5) enabled knockout on the first effect layer and a modern brightness/contrast adjustment at the bottom of the stack, each with 65 x 64: still Plan(EffectLimit); the adjustment at 64 x 64 lowers with ledger lowest Unsupported and admission refuses brightness_contrast (still carried).",
+   "tests": {
+    "argv": [
+     "cargo",
+     "nextest",
+     "run",
+     "-p",
+     "hsk-studio-pigment",
+     "-p",
+     "hsk-studio-render-cpu",
+     "-p",
+     "hsk-studio-composite",
+     "-p",
+     "hsk-studio-render-gpu",
+     "-p",
+     "hsk-studio-interop-psd",
+     "-p",
+     "hsk-studio-develop",
+     "--no-fail-fast"
+    ],
+    "exit": 0,
+    "sha": "471b679",
+    "passed": 217,
+    "failed": 0,
+    "per_crate_passed": {
+     "hsk-studio-pigment": 60,
+     "hsk-studio-render-cpu": 33,
+     "hsk-studio-composite": 28,
+     "hsk-studio-render-gpu": 24,
+     "hsk-studio-interop-psd": 44,
+     "hsk-studio-develop": 28
+    },
+    "note": "one invocation at pushed tree 471b679 (contains a873234, 8ca30dd, 07f6abd; 217 passed, 1 skipped by nextest, none of the tests added here); the render-gpu, interop-psd and develop crates depend on pigment and are run only to show the pigment change breaks none of them; no NOT_PROVEN line printed. Doctests: cargo test --doc -p hsk-studio-pigment -p hsk-studio-render-cpu -p hsk-studio-composite exit 0 (0 doctests in each). Round feature sets (.config/round-features.toml): none declared for these three crates."
+   },
+   "check_clippy": "cargo clippy -p hsk-studio-pigment -p hsk-studio-render-cpu -p hsk-studio-composite --tests --examples --no-deps: exit 0, no warning, at 471b679; cargo fmt --check: render-cpu clean; pigment and composite are not rustfmt-clean at HEAD (pre-existing diffs in lines this work did not touch: pigment render_plan.rs 175/278/297/493/504/611/832/968, tests/admit_parity.rs 230/278/309/354/396/417; composite files use the compact test style) and every hunk added here is rustfmt-conformant for pigment and render-cpu; composite fmt is not a gate (notes.blendif_clip_adopt)",
+   "red_proof": {
+    "tree": "scratch copy outside the shared tree: Handshake_Artifacts/WP-KERNEL-STUDIO/rem-composite-adj-redproof/src/handshake-studio-assets, git archive of origin/codex/handshake-studio-assets 6d232da, STUDIO_OWNER=rem-composite-adj-redproof (own target dir), only tests/render_plan_lowering.rs copied in, no src change",
+    "argv": [
+     "cargo",
+     "nextest",
+     "run",
+     "-p",
+     "hsk-studio-composite",
+     "--no-fail-fast"
+    ],
+    "result": "28 tests run: 27 passed, 1 failed; FAIL plan_wide_effect_limit_is_refused_at_lowering_like_pigment_admission, panicked at tests/render_plan_lowering.rs:2436 'expected Plan(EffectLimit), got Ok(ExtendedLowering { ... })' (the 65 x 64 case); nextest printed 'error: test run failed' (exit status 100 by nextest convention; the shell pipe hid the number)",
+    "green": "same test passes at the fix (composite 28/28 on the shared tree before commit and at 471b679)",
+    "v4_11": "the scratch tree was extracted once with fresh mtimes for the copied files and has its own target; no file of the shared tree was reverted or restored"
+   },
+   "v4_06_class": "a pigment validate/admit/prepare result is discarded or narrowed to a boolean in composite, so lowering returns Ok (or evaluation Ready) for something pigment's admission refuses (is_ok_and, .ok(), let _ =, unwrap_or*, is_ok/is_err, if let Ok, matches! on a validate/admit/prepare call)",
+   "v4_06_regex": "is_ok_and|\\.ok\\(\\)|let _ =|unwrap_or|\\bis_ok\\(\\)|\\bis_err\\(\\)|if let Ok\\(|matches!\\([^;]*(validate|admit|prepare)\\(",
+   "v4_06_scope": "crates/hsk-studio-composite/src/*.rs and examples/*.rs at 07f6abd (the DESCRIPTOR line of src/lib.rs excluded: JSON text)",
+   "v4_06_counts": {
+    "before_fix": 10,
+    "removed_by_fix": 1,
+    "removed_site": "src/lower_render_plan.rs:347 .is_ok_and(|ops| ops.contains(&ExtOperator::EffectsNested)) (FIXED, no longer matches)",
+    "at_candidate": 9,
+    "listed": 9,
+    "verdicts": {
+     "NOT_APPLICABLE": 9,
+     "FIXED": 0,
+     "UNCLASSIFIED": 0
+    }
+   },
+   "v4_06_sites": [
+    {
+     "file_line": "src/evaluate_static.rs:114",
+     "verdict": "NOT_APPLICABLE: checked_sub/u32::try_from(..).ok() on an extent, no pigment result (None is handled as no extent)"
+    },
+    {
+     "file_line": "src/evaluate_static.rs:115",
+     "verdict": "NOT_APPLICABLE: same as :114"
+    },
+    {
+     "file_line": "src/evaluate_static.rs:474",
+     "verdict": "NOT_APPLICABLE to this class: matches!(c.op.prepare(), Err(Unsupported)) records the Unsupported ledger entry; the other prepare errors (invalid parameter) are not recorded by evaluation, but lowering refuses them as Plan(AdjustmentParameter) in the per-entry probe (lower_render_plan.rs:322-333), so nothing is lowered Ok and refused at admission; the evaluation-vs-lowering difference is listed in plausible_not_addressed"
+    },
+    {
+     "file_line": "src/lib.rs:124",
+     "verdict": "NOT_APPLICABLE: report.require_ready().is_ok() is composite's own readiness, not a pigment result"
+    },
+    {
+     "file_line": "src/lower_extensions.rs:661",
+     "verdict": "NOT_APPLICABLE: Option::unwrap_or_default on the blending record, no pigment result"
+    },
+    {
+     "file_line": "src/lower_extensions.rs:678",
+     "verdict": "NOT_APPLICABLE: Result<Vec<EffectOp>, &str>::as_deref().unwrap_or_default() on composite's own conversion (the refusal code of the stack is read separately by LayerFeatures::refusal)"
+    },
+    {
+     "file_line": "src/lower_plan.rs:265",
+     "verdict": "NOT_APPLICABLE: map lookup unwrap_or_default on composite's own edge table"
+    },
+    {
+     "file_line": "src/lower_plan.rs:350",
+     "verdict": "NOT_APPLICABLE: unwrap_or_default on composite's own table"
+    },
+    {
+     "file_line": "examples/composite-consumer.rs:96",
+     "verdict": "NOT_APPLICABLE: display fallback text in the example, no pigment result"
+    }
+   ],
+   "v4_06_semantic_sweep": {
+    "what": "every direct call of a pigment validate/admit/prepare in composite src (the regex above only sees the discarding shapes)",
+    "count": 5,
+    "sites": [
+     {
+      "file_line": "src/evaluate_static.rs:474",
+      "verdict": "AdjustmentOp::prepare: see above (NOT_APPLICABLE to the admission class, listed in plausible_not_addressed)"
+     },
+     {
+      "file_line": "src/lower_extensions.rs:555",
+      "verdict": "EffectOp::validate: every EffectError is mapped to a refusal code (the last arm maps the rest to effect_parameter), none dropped"
+     },
+     {
+      "file_line": "src/lower_render_plan.rs:322",
+      "verdict": "per-entry PlanExtensions::validate probe: Ok folds the operators, AdjustmentUnsupported is carried as an Unsupported entry, every other error is returned as CompositeError::Plan (unchanged)"
+     },
+     {
+      "file_line": "src/lower_render_plan.rs:362",
+      "verdict": "FIXED: whole-envelope PlanExtensions::validate: was .is_ok_and(|ops| ops.contains(&EffectsNested)) which dropped every error; now Ok(ops) records EffectsNested and Err(other) is returned as CompositeError::Plan"
+     },
+     {
+      "file_line": "src/lower_render_plan.rs:922",
+      "verdict": "RenderPlan::validate: map_err(CompositeError::Plan), nothing dropped (unchanged)"
+     }
+    ]
+   },
+   "plausible_not_addressed": [
+    "evaluate_static.rs:474 ignores a prepare() error other than Unsupported (an adjustment with an out-of-range parameter): evaluation says Ready, lowering refuses it typed as Plan(AdjustmentParameter); an evaluation-vs-lowering difference, not an admitted-then-refused case, no test covers it",
+    "evaluate_extended does not report the plan-wide effect count (root dependent); a host that reads only the evaluation ledger sees it when lowering refuses",
+    "a premultiplied target or tile (caller-supplied alpha) is lowered Ok and is not listed in the lowering ledger; admission asks the backend for ExtOperator::AlphaPremultiplied (render-cpu and render-gpu declare it Unsupported); composite's documented stance is that it lowers Straight plans only (notes.fx_ops_adopt)"
+   ],
+   "v4": {
+    "V4-03": "no hardware, no machine-local path, nothing prints NOT_PROVEN",
+    "V4-07": "DESCRIPTOR claim cites test plan_wide_effect_limit_is_refused_at_lowering_like_pigment_admission and the proof map lists it",
+    "V4-09": "commit message through git commit -F",
+    "V4-12": "helper scripts and message files under <scratchpad>/SMB-COMPOSITE-ADJ-R8/ with the composite-adj- prefix",
+    "route": "tests: no retry-guard block hit; the first nextest of the new test is the red run on the scratch tree, the fix run passed first time"
+   },
+   "date": "2026-10-11T13:08:24Z"
   }
+ }
 }

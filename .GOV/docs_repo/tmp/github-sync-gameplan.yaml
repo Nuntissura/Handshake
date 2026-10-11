@@ -1,0 +1,24 @@
+schema_version: handshake.gameplan.v1
+template_version: 1
+kind: gameplan
+instance_policy:
+  omit_empty_optional_fields: true
+  policy_lives_in_rule_refs_not_instance_fields: true
+  schema_ref: repo-governance/schemas/gameplan.schema.yaml
+rule_refs: []
+writing: 'no prose; terse fragments; determinism > grammar; verb object [op value]'
+precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; correct the step'
+scope: session
+assignment: GITHUB-SYNC
+parent: null
+generation: 8
+expensive_actions:
+- {command_pattern: '\bgit\s+merge(?![-\w])(?!\s+--(?:abort|quit))|\bgh\s+pr\s+merge\b', at: before_merge}
+steps:
+- {id: GP-001, role: any, at: before_merge, do: verify tree clean, check: {type: git, clean: true}, source: 'preset:merge', state: retired}
+- {id: GP-002, role: any, at: before_merge, do: verify HEAD == remote(branch); fetch first, check: {type: git, head_equals_remote: true}, source: 'preset:merge', state: retired}
+- {id: GP-003, role: any, at: before_merge, do: confirm test results|verdicts from current HEAD; stale == 0, check: {type: confirm}, source: 'preset:merge', state: retired}
+- {id: GP-004, role: any, at: before_merge, do: verify tracked kernel files clean, check: {type: git, clean: true, include_untracked: false}, source: sync preparation creates one untracked gameplan, state: active}
+- {id: GP-005, role: any, at: before_merge, do: verify kernel fast-forward ancestry, check: {type: cmd, argv: [git, merge-base, --is-ancestor, HEAD, origin/gov_kernel], expect_exit: 0}, source: 'blocked merge: HEAD equals remote is invalid before pulling', state: active}
+- {id: GP-006, role: any, at: before_merge, do: confirm authority diffs inspected; product changes == 0, check: {type: confirm}, source: product verdict checks do not govern incoming authority-only fast-forward, state: active}
+- {id: GP-007, role: any, at: before_merge, do: require retire calls name one ID each, check: {type: confirm}, source: retire rejected multiple ID arguments, state: active}

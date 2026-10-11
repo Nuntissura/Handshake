@@ -1,0 +1,289 @@
+{
+ "round": "STUDIO-R6",
+ "group": "C",
+ "reviewed_commit": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a",
+ "reviewer": "independent adversarial reviewer (Opus), group C, read-only, committed blobs at bd8533f only (git archive export of the five crates + accord), no sub-agents, no cargo",
+ "status": "COMPLETE",
+ "updated_at": "2026-10-11T06:22:26Z",
+ "scope_note": "Group C = SMB-INTEROP-LRCAT, SMB-INTEROP-LAYOUT, SMB-INTEROP-VECTOR + SMB-INTEROP-VECTOR-FOLIO-MIGRATE, SMB-INTEROP-FIG, SMB-PULSE-ENG-1 (per dispatch). Every lane candidate is an ancestor of bd8533f, and each crate tree at bd8533f equals its lane candidate (empty git diff).",
+ "severity_rule": "CONFIRMED = file:line read at bd8533f by this reviewer; PLAUSIBLE = reasoning, process or cross-crate inference not proven by a run",
+ "recommendation_rule": "FAIL when the lane has at least one CONFIRMED finding; PLAUSIBLE findings alone leave PASS with notes (validator decides)",
+ "v4_timing_note": "v4-rules adopted 2026-10-11T05:40Z. Commit times (UTC): pulse 6a60ef6 05:01, fig e09a491/a3808f8/4cfbf0f 05:06-05:11, vector 3561b12 05:33, layout f40d6a2 05:35, lrcat 16de2ca/eaac5fe/d48c746 05:45-05:50. Only lrcat postdates V4. Missing V4-01 deny / V4-06 site lists on earlier lanes are filed as PLAUSIBLE process items; real arithmetic or bound defects are filed on their own merit.",
+ "summary": {
+  "SMB-INTEROP-LRCAT": {
+   "recommendation": "PASS",
+   "CONFIRMED": 0,
+   "PLAUSIBLE": 1
+  },
+  "SMB-INTEROP-LAYOUT": {
+   "recommendation": "PASS",
+   "CONFIRMED": 0,
+   "PLAUSIBLE": 2
+  },
+  "SMB-INTEROP-VECTOR": {
+   "recommendation": "PASS",
+   "CONFIRMED": 0,
+   "PLAUSIBLE": 2
+  },
+  "SMB-INTEROP-VECTOR-FOLIO-MIGRATE": {
+   "recommendation": "PASS",
+   "CONFIRMED": 0,
+   "PLAUSIBLE": 1
+  },
+  "SMB-INTEROP-FIG": {
+   "recommendation": "FAIL",
+   "CONFIRMED": 2,
+   "PLAUSIBLE": 5
+  },
+  "SMB-PULSE-ENG-1": {
+   "recommendation": "PASS",
+   "CONFIRMED": 0,
+   "PLAUSIBLE": 0
+  }
+ },
+ "lanes": [
+  {
+   "lane": "SMB-INTEROP-LRCAT",
+   "crate": "hsk-studio-interop-lrcat",
+   "candidate_commits": [
+    "16de2ca",
+    "eaac5fe",
+    "d48c746"
+   ],
+   "crate_identity": "crate tree at bd8533f == d48c746 (git diff d48c746 bd8533f -- crate is empty)",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "v4_01_scope",
+     "file_line": "crates/hsk-studio-interop-lrcat/src/wal_snapshot.rs:1-202 (no #![deny(clippy::arithmetic_side_effects)]; plain +,-,* at :66,:69,:161-162,:171,:184-185,:191,:194,:198,:200)",
+     "evidence": "wal_snapshot decodes untrusted WAL bytes and is the only decoder module of the crate without the V4-01 deny. Every expression read is bounded (len <= max_wal_bytes <= 1 GiB, index < frame_count, committed <= valid), so no overflow or panic was found. The lane discloses the gap and the module was not touched in R5, so whether V4-01 requires it depends on how the rule's scope is read.",
+     "remediation": "Put wal_snapshot.rs under the V4-01 deny with checked/saturating forms, or record it out of scope",
+     "commit": "e478186"
+    }
+   ],
+   "verified_fixes": [
+    "R5 CONFIRMED unbounded_allocation (no-aggregate-retained-text-budget): FIXED. (a) The overflow claim set is now extraction-wide: Db.overflow_claimed (catalog_bytes.rs:267-270, created once in Db::open :329, one Db per extract_catalog extract.rs:951). payload() inserts each overflow page before reading it and refuses reuse as Cycle overflow_cycle (same chain) or overflow_shared (another chain) (catalog_bytes.rs:570-576). So the total payload bytes over all rows are bounded by the file's pages. Every walked table is visited once per extraction, and count_only/unmapped walks never call payload, so a legitimate file is not falsely refused. (b) An aggregate budget exists: Db::charge against Limits.max_retained_text_bytes (catalog_bytes.rs:415-426; source.rs:91-95,113; ceiling HARD_MAX_RETAINED_TEXT_BYTES 2 GiB enforced by validate :123). It is charged before each retention: schema entries (catalog_bytes.rs:631-640), text() (extract.rs:441-451), clone_text() per photo copy (:347-355,587,591,594), put() (:340), composed file name (:549), photo/collection/member/keyword/assignment/develop pushes (:620,731,749,774,790,688-692), and the lowercase name copy (:970). (c) The payload reservation is min(declared, page_count*per_page+local) after the max_overflow_pages check (:554-562). Tests: shared_overflow_chain_across_rows_is_refused (tests/catalog_decode.rs:709-731: 1 row decodes, 6 rows sharing a chain -> Cycle overflow_shared); retained_text_budget_counts_every_copy (:829-879: 16 rows x 440-byte path fail a 9000-byte budget while 16 rows x 1-byte path pass, so the clones are what is charged; a 300-byte budget refuses on schema names; u64::MAX budget -> Configuration).",
+    "R5 CONFIRMED test_integrity (reconcile-check-tautological): FIXED. count() now takes lost from walker-visit loss events and mapped from the length of the kept collection; no subtraction remains (extract.rs:321-328; grep for saturating_sub(mapped) is empty). rows() increments lost and writes one LossNote per Dropped row (:426-429). put() keeps the first row and drops a repeated rowid as duplicate_rowid (:332-343). reconciles() (:215-237) also requires mapped == the entries in the proposal vector, plus the Adobe_images count. Test reconciliation_is_cross_checked_not_constructed (tests/catalog_decode.rs:784-827) checks lost against the whole-row loss notes for both fixtures. It also shows reconciles() going false after photos.pop(), assignments.clear(), lost+1 and a removed Adobe_images count, and asserts a duplicate rowid gives (seen, mapped, lost) == (2, 1, 1).",
+    "R5 PLAUSIBLE forbidden (sqlite3 generator in product crate): FIXED. tests/fixtures/generate_fixtures.py is deleted at bd8533f (ls tests/fixtures: PROVENANCE.json + 6 fixture files only). PROVENANCE.json records generator_location (artifact root) and generator_sha256 3be3fd4d...038d72. sha256sum of Handshake_Artifacts/WP-KERNEL-STUDIO/interop-lrcat/fixtures-gen/generate_fixtures.py gives the same digest.",
+    "V4-01: #![deny(clippy::arithmetic_side_effects)] at line 1 of catalog_bytes.rs, extract.rs, source.rs and error.rs (the modules touched in R5). Divisions are by non-zero literals; cursor steps go through saturating adv(). Clippy was not run (cargo not allowed for this review).",
+    "V4-02: sizes_at_numeric_maximum_are_typed_refusals (tests/catalog_decode.rs:886-922) refuses page size 0/0xffff, page count u32::MAX, root u32::MAX/i64::MIN, ncells/pointer 0xffff, child u32::MAX, payload u64::MAX, overflow pointer u32::MAX, a 1 GiB declared payload with the widest caps (overflow_chain_short with no up-front reservation), header size > payload and serial u64::MAX, each as a typed error. The aggregate test is retained_text_budget_counts_every_copy.",
+    "V4-06 spot-check: class A regex recount at bd8533f gives catalog_bytes 46, extract 22, wal_snapshot 5, error/source/lib 0 = 73, equal to the lane list. Grep line numbers equal the listed sites (e.g. extract :260,263,266-268,322-323,341,352,550,621,693,699,732,750,775,791,831,903,915,919,971). Sampled sites are correct as classified: catalog_bytes :503/:507/:514 are error clones, :530 per-cell local copy, :546 local clone, :570 claim set; extract :352 is charged at :351, :971 at :970. Class B regex recount: extract 28, other files 0, equal to the list.",
+    "V4-07: DESCRIPTOR (lib.rs:66) cites a test for the overflow_shared, retained-budget, accounting and size-maximum claims and for 'opens no path and writes nothing'; lib.rs has no never/always/guarantees/proves."
+   ],
+   "checked": "Read in full at bd8533f: catalog_bytes.rs, extract.rs, source.rs, wal_snapshot.rs, lib.rs, error.rs (head), and the new tests (catalog_decode.rs :160-200, :640-922). Diff 1d404f8..bd8533f on the crate: 8 files +813/-494. Hostile-input bounds from R5 still hold (walk_table depth cap, per-walk visited set, cell pointer and overflow pointer checks, decode_record header and column checks). New retention points have no uncharged path: image_ids/known HashSets are transient and proportional to charged vectors, and LossLog is capped at 4096 keys with names of 64 chars or fewer. Two tables sharing a root page now fail with overflow_shared instead of decoding twice (fail closed on a hostile file). The retained-text budget is an accounting bound, and real heap may be a small multiple of it (Vec growth); the lane discloses this, and the bound is still typed, so it is not filed. No #[ignore], NOT_PROVEN line or machine-local path in the tests. real_catalog_* uses hand-built/synthetic fixtures as the brief's test 1 defines; the Lightroom-written oracle is still D12 (validator-time, disclosed). No fault hooks and no new dependency. Break-it mutations for the new claim set were not run (lane note); RED evidence is the new tests failing on the unmodified crate (lane claim, not re-run).",
+   "counts": {
+    "CONFIRMED": 0,
+    "PLAUSIBLE": 1
+   },
+   "recommendation": "PASS"
+  },
+  {
+   "lane": "SMB-INTEROP-LAYOUT",
+   "crate": "hsk-studio-interop-layout",
+   "candidate_commits": [
+    "f40d6a2"
+   ],
+   "crate_identity": "crate tree at bd8533f == f40d6a2 (git diff f40d6a2 bd8533f -- crate is empty)",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "v4_06_v4_01_process",
+     "file_line": "kernel builders/lanes/hsk-studio-interop-layout.json notes.remediation_R5 (no class/regex/site list); crates/hsk-studio-interop-layout/src/container.rs:1, src/idml_decode.rs:1 (no arithmetic_side_effects deny; e.g. container.rs:255 `e.local + 30 + n + m`)",
+     "evidence": "f40d6a2 (2026-10-11T05:35:16Z) predates the v4-rules adoption (05:40Z), so the lane has no V4-06 failure-class regex or site list, and the touched decoder modules carry no V4-01 deny. The unchecked sums read are u32/u16-derived usize values on a 64-bit target and cannot overflow there. No defect was found, so the gap is process only. The same applies to vector, fig and pulse (all committed before 05:40Z).",
+     "remediation": "Lead: decide whether V4-06/V4-01 apply to pre-05:40Z remediations; if yes, the lane adds the class sweep and deny",
+     "commit": "f40d6a2"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "cap_duplicate_known",
+     "file_line": "crates/hsk-studio-interop-layout/src/container.rs:1-360 (own bounded ZIP reader + CRC-32 table)",
+     "evidence": "Known D16 duplicate (START_LOG D16, 05:13:39Z: Operator-owned module-map decision pending). Noted, not a new finding. f40d6a2 adds no new copy.",
+     "remediation": "Lead/Operator: resolve D16 (one bounded ZIP/CRC owner) and then delete this copy",
+     "commit": "d575678"
+    }
+   ],
+   "verified_fixes": [
+    "R5 CONFIRMED unbounded_allocation (idml-properties-xml-cloned-per-content): FIXED. ParaModel.{style,attrs,props} and RunModel.{char_style,attrs,props,language} are Arc-shared (model.rs:250-277). The paragraph template and run prototype are built once per range (idml_decode.rs:762-767, 796-805), so each Content (:811), bare Br (:850-853) and new paragraph (:754) clones pointers only. Each source range's Properties is copied once by opaque() (:765, :799), and those nodes do not overlap. The logical export size is charged per paragraph and run, including shared data per use, against Limits.max_model_bytes (model.rs:33-38, default 256 MiB :51) before each push (idml_decode.rs:741-758, 828-833, 847-848). The counter is shared across stories (:278-282). Over the budget the result is BudgetExceeded(model_bytes). Tests (decode_amplification.rs, own binary with a test-only per-thread counting allocator): range_properties_are_shared_not_cloned_per_content (:169-191) needs growth per paragraph < PAD/8 for two 64 KiB Properties blocks; logical_model_bytes_are_charged_and_bound_the_export (:197-247) accepts 150 paragraphs, exports story >= 2*PAD*150 and <= the 24 MiB limit, and refuses 220 as budget_exceeded.",
+    "R5 PLAUSIBLE (local header only name-checked): FIXED. container.rs:236-254 refuses local encryption bits (1|0x40|0x2000), local method != central, and local CRC/compressed/uncompressed != central unless flag bit 3 is set with all three local fields zero. Tests in zip_traversal_duplicate_inflate_xml_entity (layout_edit_roundtrip.rs:677-715) cover method, CRC, both sizes, encryption flag, deferred form accepted (equal to unpatched open) and deferred flag with mismatch refused."
+   ],
+   "checked": "Diff 1d404f8..bd8533f on the crate: 7 files +405/-41. Read: the container.rs local-header block, idml_decode.rs :700-1002 (StoryBuilder, read_story, thread_chains), the model.rs diff, folio_export.rs Arc adaptations, proposal.rs story_json (:138-188: per-run styles.reference does a transient name.to_owned() for the entry key and retains only the STYS id; char_style length is already charged per run, so not filed), and both new tests. No other clone-per-child of shared data in idml_decode: opaque() call sites :246,402,430,481,914 copy disjoint nodes once. The export_idml/export_model path has no Limits argument (lane note): hand-built models are not charged, and decoded ones are bounded by max_model_bytes. No fault hooks, no new dependency, no NOT_PROVEN or ignore changes. InDesign parity is still NOT_PROVEN (disclosed).",
+   "counts": {
+    "CONFIRMED": 0,
+    "PLAUSIBLE": 2
+   },
+   "recommendation": "PASS"
+  },
+  {
+   "lane": "SMB-INTEROP-VECTOR",
+   "crate": "hsk-studio-interop-vector",
+   "candidate_commits": [
+    "3561b12"
+   ],
+   "crate_identity": "crate tree at bd8533f == 3561b12 (git diff 3561b12 bd8533f -- crate is empty)",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "v4_08_v4_06_process",
+     "file_line": "crates/hsk-studio-interop-vector/tests/vector_edit_roundtrip.rs:409-449; src/svg_adapter.rs:394-428 (no #![deny(clippy::arithmetic_side_effects)]); kernel builders/lanes/hsk-studio-interop-vector.json notes.remediation_R5 (no class/regex/site list)",
+     "evidence": "3561b12 (05:33:56Z) predates v4-rules (05:40Z). The new prolog tokenizer has decoy tests for comment, PI, multiple decoys with whitespace, CDATA, and a decoy before the legacy DOCTYPE. There is no case variant (`<!doctype`) and no escape or character-reference case (V4-08 asks for escape, comment/decoy and case/whitespace). The touched decoder module has no V4-01 deny, and the lane lists no V4-06 sites. The arithmetic in scan_prolog (at += 1, at + 2/4/9, end + 2/3, i + 1, from + p) is bounded by the text length and cannot overflow. allow_dtd=false makes any missed DOCTYPE a DtdDetected refusal, so no defect was found.",
+     "remediation": "Add a `<!doctype`/whitespace-variant case and a char-ref case to the decoy test; deny + site list if V4 applies",
+     "commit": "3561b12"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "cap_duplicate_known",
+     "file_line": "crates/hsk-studio-interop-vector/src/gzip.rs:15-39 (own CRC-32 table + crc32)",
+     "evidence": "Known D16 scope (START_LOG D16 names the duplicated CRC-32 table in interop-vector gzip.rs vs interop-layout). R5 PLAUSIBLE, routed to the lead and unchanged in 3561b12. Noted, not a new finding.",
+     "remediation": "Lead/Operator: resolve D16, then delete this copy",
+     "commit": "f0cdb55"
+    }
+   ],
+   "verified_fixes": [
+    "R5 CONFIRMED security (doctype-scan-comment-bypass-allows-dtd): FIXED. ParsingOptions.allow_dtd is the constant false (svg_adapter.rs:505-509), and roxmltree DtdDetected maps to EntityDenied (:514), so a DOCTYPE the parser sees is refused and no entity can expand. scan_prolog (:394-428) walks the prolog only: whitespace, PIs up to the first `?>`, comments up to the first `-->`, then at most one DOCTYPE. It stops at the first other byte (NoDoctype), so a DOCTYPE mention in a comment, PI, CDATA or the body is inert. The DOCTYPE scan is quote-aware: `[` outside quotes gives InternalSubset (:418), and an unterminated DOCTYPE also gives InternalSubset (:423). A legacy external-id DOCTYPE is blanked to the same byte length before parsing and reported doctype_external_id_ignored (:489-502). Test doctype_decoy_cannot_enable_entity_expansion (tests/vector_edit_roundtrip.rs:409-449) covers 3 decoy prologs + internal subset whose entity is markup -> EntityDenied, benign comment/CDATA mentions -> imports with no DTD loss, decoy before the legacy DOCTYPE -> imports with the loss, and an undeclared entity after blanking -> MalformedXml.",
+    "R5 PLAUSIBLE (ledger PASS_V1 candidate not in verdict tree): FIXED at kernel level. ledger.json lanes[SMB-INTEROP-VECTOR] is READY_FOR_VALIDATION with candidate 3561b12, records 'STUDIO-R5 FAIL_V2 @1d404f8', and carries an explicit ledger_correction (2026-10-11T05:31:12Z) that slice 2 had no verdict.",
+    "DESCRIPTOR (lib.rs:62) safety text now states 'DTD processing is never enabled' and the prolog-only classification. Tests back it: doctype_decoy_cannot_enable_entity_expansion plus external_entity_link_denial_budget_cancel."
+   ],
+   "checked": "Diff 1d404f8..bd8533f on the crate: 4 files +222/-34. Read: svg_adapter.rs :368-516 (Prolog, find_from, scan_prolog, import_svg through parse), the new test, and the lib.rs DESCRIPTOR diff. allow_dtd: true no longer occurs anywhere in src (grep). The SVGZ path inflates first, then strips the BOM and runs scan_prolog on the inflated text (:471-487), so a gzip wrapper cannot skip the scan. The XMLDecl cannot contain `?>` inside a value (EncName/VersionNum grammar), so first-`?>` termination is spec-correct. find_from is linear and the prolog loop only advances. No fault hooks or new dependency. The R5 note (dash token count > 256 reported as _invalid not _too_long) was not re-reviewed.",
+   "counts": {
+    "CONFIRMED": 0,
+    "PLAUSIBLE": 2
+   },
+   "recommendation": "PASS"
+  },
+  {
+   "lane": "SMB-INTEROP-VECTOR-FOLIO-MIGRATE",
+   "crate": "hsk-studio-interop-vector",
+   "candidate_commits": [
+    "3561b12"
+   ],
+   "crate_identity": "crate tree at bd8533f == 3561b12",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "silent_loss",
+     "file_line": "crates/hsk-studio-interop-vector/src/svg_export.rs:48-50 (is_assigned checks only the colour's own binding), :756-760 (export_proposal_with_loss reads proposal.snapshot.document() but never document.working_space_rgb); cf. folio lib.rs:136 (StudioDocument.working_space_rgb: ProfileBinding), model.rs:183 (pub snapshot)",
+     "evidence": "This is the same failure class as the R5 finding, reached through inheritance. Per the crate's own DESCRIPTOR, an Unassigned StudioColor means the document working space. If a host passes a proposal whose snapshot has working_space_rgb = Assigned(non-sRGB), every Unassigned paint is written as plain sRGB hex. is_assigned is false for such paints, so no colour_profile_not_converted loss is reported. The importer always emits Unassigned working spaces (svg_adapter.rs:664-667), so only host-edited proposals are affected. Folio does not state the Unassigned -> working-space semantics in code (inference), so this stays PLAUSIBLE.",
+     "remediation": "In export_proposal, treat Unassigned colours as Assigned when doc.working_space_rgb is Assigned; add a test",
+     "commit": "3561b12"
+    }
+   ],
+   "verified_fixes": [
+    "R5 CONFIRMED silent_loss (export-ignores-assigned-colour-profile-silently): FIXED for a colour's own Assigned binding. Defs::paint reports LossKind::Unsupported colour_profile_not_converted for a solid with an Assigned profile (svg_export.rs:190-193). For a gradient, it reports when any stop is Assigned, before the shared-definition cache, so the loss repeats per use (:194-200, cache :220-227). Writer::style_of turns each ResolutionIssue from validate_paint_style into colour_profile_unresolved|hash_mismatch|unauthorized|unsupported, once per style (:474-494). Channels are unchanged (no conversion is claimed). Test assigned_colour_profile_export_is_a_typed_loss (tests/vector_edit_roundtrip.rs:453-508) checks: unassigned export has no colour_profile loss; assigned solid fill+stroke gives 2 not_converted + 1 unresolved, all Unsupported, with fill #336699 unchanged; the flat export gives the same; a shared gradient used twice is written once with 2 not_converted.",
+    "DESCRIPTOR loss text (lib.rs:62) now names colour_profile_not_converted and colour_profile_unresolved."
+   ],
+   "checked": "Read svg_export.rs :30-60, :180-308 (Defs::paint, write_gradient), :353-496 (Writer::attrs, element, style_of) and :745-800 (export_proposal_with_loss). The only colour write sites are Defs::paint (solid hex :192) and write_gradient stop hex (:298), and both are covered by note_profile at paint time. ProfileBinding has two variants (folio lib.rs:96-99), so is_assigned is exhaustive for a colour's own binding. The flat export_svg has no document and cannot see the working space; only export_proposal can (see finding).",
+   "counts": {
+    "CONFIRMED": 0,
+    "PLAUSIBLE": 1
+   },
+   "recommendation": "PASS"
+  },
+  {
+   "lane": "SMB-INTEROP-FIG",
+   "crate": "hsk-studio-interop-fig",
+   "candidate_commits": [
+    "e09a491",
+    "a3808f8",
+    "4cfbf0f"
+   ],
+   "crate_identity": "crate tree at bd8533f == 4cfbf0f (git diff 4cfbf0f bd8533f -- crate is empty); new crate, first review (11 files +2531)",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "silent_green",
+     "file_line": "crates/hsk-studio-interop-fig/tests/fig_import.rs:615-665 (no-fixture branch returns at :633-635)",
+     "evidence": "actual_fig_instance_variable_prototype_edit_reopen asserts only that decode_semantic returns EditableDecoderBlocked. Its real-file branch returns silently when tests/fixtures is absent (read_dir Err -> return) and loops over zero files when no .fig is present. It never prints a NOT_PROVEN line and is not #[ignore]. The round therefore counts this MT case, named for an actual-file edit/reopen proof, as PASS. V4-03 (counted as NOT_PROVEN, never PASS) and the brief's own test-3 wording ('NOT_PROVEN, not PASS-by-skip') say otherwise. Note: the commit (05:11Z) predates the v4-rules adoption (05:40Z), but the round applies V4-03 to what it counts.",
+     "remediation": "Print `NOT_PROVEN: no Figma-authored fixture (D17)` in the no-fixture branch (or #[ignore] the real-file part)",
+     "commit": "e09a491"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "overclaim",
+     "file_line": "crates/hsk-studio-interop-fig/src/container.rs:12 (doc: 'local headers cross-checked against the central directory'), src/descriptor.rs:3 (DESCRIPTOR: 'local header must match the central directory'); code container.rs:397-406 checks only the local signature and name",
+     "evidence": "read_zip reads the local header but compares only SIG_LOCAL and the file name. Local flags (encryption bits, data descriptor), method, CRC, compressed size and uncompressed size are never compared with the central directory, and the data is read with the central method and size. The module doc, the DESCRIPTOR (the model/operator manual) and the lane note ('local-vs-central header check') all claim a check that does not exist, and no test covers a local/central mismatch (the fixture zip() writes identical values). This is the R5 interop-layout failure class, fixed there in f40d6a2 (container.rs:236-254) but not swept into this D16 sibling reader. It leaves a differential-parsing gap against readers that trust local headers.",
+     "remediation": "Port the f40d6a2 local method/flags/CRC/size cross-check (deferred form) + mismatch tests, or remove the claim",
+     "commit": "e09a491"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "silent_partial",
+     "file_line": "crates/hsk-studio-interop-fig/src/kiwi.rs:513-526 (inflate_raw), :530-548 (zstd_decode), :486-488 (trailing check only on the decompressed message)",
+     "evidence": "The kiwi.rs module doc says a census is produced 'only when the entire message decodes (never partial)'. The trailing-byte check covers only the decompressed message. Compressed bytes after the end of the raw-deflate stream (miniz decompress_to_vec_with_limit does not report unconsumed input) or after the first zstd frame (ruzstd StreamingDecoder reads one frame) are ignored without a loss entry. A chunk carrying a second frame would yield a census of the first frame reported as complete. miniz/ruzstd consumption behaviour was not run here (UNVERIFIED), hence PLAUSIBLE.",
+     "remediation": "Refuse (soft loss) when the compressed chunk has bytes after the stream/frame end; add a two-frame test",
+     "commit": "a3808f8"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bug",
+     "file_line": "crates/hsk-studio-interop-fig/src/kiwi.rs:208 (duplicate field ids allowed for STRUCT), :415-423, :453-461 (guid fields matched by value)",
+     "evidence": "decode_schema skips the duplicate-value check for structs. census then finds sessionID/localID by comparing each guid struct field's value with the key values. If several guid fields share a value, the wrong field is read as a varuint (a string or array field then misparses the rest), or session is overwritten and local stays None. That gives a wrong census or a soft failure from a crafted schema rather than a typed schema error. The impact is limited to a non-authoritative census.",
+     "remediation": "Match guid fields by identity (std::ptr::eq) or refuse duplicate struct field values in the schema",
+     "commit": "a3808f8"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "test_harness",
+     "file_line": "crates/hsk-studio-interop-fig/tests/fig_import.rs (0 occurrences of bounded_case)",
+     "evidence": "The brief (identity topic) sets a 60 s MT deadline and the bounded_case convention, which the vector, lrcat and pulse tests all use. The five fig tests are plain #[test] with no deadline wrapper, so a hostile-input hang (e.g. a regression in the zero-width loop bound) would hang the round instead of failing typed within 60 s.",
+     "remediation": "Wrap each fig test body in bounded_case(name, 60 s) like the sibling crates",
+     "commit": "e09a491"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "v4_01_v4_02_process",
+     "file_line": "crates/hsk-studio-interop-fig/src/container.rs:1, src/kiwi.rs:1 (no #![deny(clippy::arithmetic_side_effects)]; e.g. container.rs:407 `e.local + 30 + n + m`, kiwi.rs:87,135,148 `self.at += ...`, :286 `values += 1`, :483 histogram `+= 1`)",
+     "evidence": "The new decoder modules (05:06-05:11Z, before the v4 adoption) carry no V4-01 deny. There is no V4-02 dims_u32_max-style test (no chunk length, entry size, varuint count or local offset at u32::MAX); the overflow case uses the file length. Every sum read is bounded (u32/u16 values in 64-bit usize, at <= data.len(), values <= max_values, histogram <= node_count <= max_nodes), so no defect was found.",
+     "remediation": "Add the deny with checked forms and a u32::MAX sizes test if V4 applies to pre-05:40Z slices",
+     "commit": "e09a491"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "cap_duplicate_known",
+     "file_line": "crates/hsk-studio-interop-fig/src/container.rs:202-227 (own CRC-32 table), :286-433 (own bounded ZIP reader)",
+     "evidence": "Known D16 duplicate (START_LOG D16 names the interop-fig bounded ZIP reader over miniz_oxide). Noted, not a new finding. The CONFIRMED overclaim above is a defect inside this copy, separate from the duplication.",
+     "remediation": "Lead/Operator: resolve D16 (single bounded ZIP owner), then delete this copy",
+     "commit": "e09a491"
+    }
+   ],
+   "verified_fixes": [
+    "No prior verdict (new lane). Brief requirements verified at bd8533f:",
+    "Hostile sizes / ZIP: EOCD search bounded to the last 22+65535 bytes (container.rs:264-279; len >= 22 checked :291). Multi-disk and ZIP64 sentinels are refused (:295-305, :338-343), cd_off+cd_size must equal eocd exactly (:307), entry count <= max_entries (:310), central walk bounded by eocd (:347-350, :389). safe_name refuses empty, >512, absolute, backslash, colon, control and ./.. segments (:243-253). Exact and case-folded duplicates are refused (:360). Methods are STORE/DEFLATE only (:363), per-entry uncomp <= max_entry_bytes (:367) and the aggregate declared inflated size <= max_inflated_bytes (:370-373), checked before any inflate. A stored size mismatch is refused (:374), and the ratio is checked for DEFLATE > 1 MiB (:377). Inflate is limited to the declared size, then length == uncomp and CRC-32 are verified (:413-425). Entry data must end <= cd_off (:408-411), and overlapping spans are refused (:428-431). The input is capped by max_bytes (:507, import.rs:182).",
+    "Zip bombs: test unsupported_version_duplicate_key_bomb_cancel (tests/fig_import.rs:385-613) shows a 4 MiB zero entry under 64 KiB on the wire -> budget_exceeded. It also covers dup / case-fold dup / traversal / max_entries / chunk length past EOF / truncated chunk header / CRC flip / missing canvas, each with a distinct code.",
+    "Kiwi reader bounds (kiwi.rs): definitions <= max_definitions (:157-160), fields <= max_fields (:172-175), names <= 1 KiB, NUL-terminated, UTF-8 (:139-150). Type index range is checked (:195-203), with message field id 0 and duplicate ids refused (:205-210). varuint is at most 5 bytes (:96-109). The walker depth is capped (:320) and every value ticks a max_values budget that also bounds zero-width element loops, with cancel every 4096 (:285-294). Byte arrays are skipped by length (:356-358). nodeChanges count is bounded by max_nodes (:445-448), and decompressed trailing bytes are refused (:486). Schema and message inflate are capped (max_schema_bytes, max_message_bytes; HasMoreOutput -> BudgetExceeded :519-525; zstd out.len()+n > cap checked before extend :543). Soft failures become typed loss with no census, while bound hits and cancel are hard errors (:505-511, :586, :637). Tests: max_message_bytes/max_schema_bytes/max_nodes/max_values/max_definitions each -> typed BudgetExceeded; unknown field id and a truncated message -> soft loss with no census; type_out_of_range -> soft loss.",
+    "Version gate default-deny: VersionPolicy derives Default with an empty supported list. OBSERVED_VERSIONS is empty (version_map.rs:11, :13-16) and admits() never admits Unknown (:35-37). import_fig checks the version before any decode and returns OpaqueOnly with the container preserved (import.rs:191-197). Test: VersionPolicy::default() on a synthetic file -> OpaqueOnly (tests/fig_import.rs:411-422), and version 99 -> UnsupportedVersion with all 5 parts byte-preserved (:393-409).",
+    "Honest NOT_PROVEN parity in product surfaces: EditableStatus has the single variant NotProven (semantic_decode.rs:8-11). decode_semantic always returns Err(EditableDecoderBlocked) with an Infallible Ok type (:20-24). FigImport.editable and every FigReceipt are set to NotProven (import.rs:214, :287-290). The DESCRIPTOR status.editable is NOT_PROVEN (test :754-756), and the lane note and descriptor say every fixture is SYNTHETIC. (The test-count side is the CONFIRMED silent_green finding.)",
+    "Identity: source_sha256 is bound before open, and a stale expected_sha256 -> StaleSource (import.rs:185-190). Census ids are file values formatted s:l and never reminted (test root ids '0:0', '4294967295:70000', :367-374). The sanitized policy excludes thumbnail/meta/images (import.rs:230-243). There are no fault hooks, no file-system or network access in src (the only fs use is the test fixture dir under CARGO_MANIFEST_DIR, which is not a machine-local path), and no new duplicated capability beyond the known D16 reader."
+   ],
+   "checked": "Read in full at bd8533f: container.rs, kiwi.rs, import.rs, version_map.rs, semantic_decode.rs, lib.rs, Cargo.toml, error.rs codes, and tests fig_import.rs :150-680. Workspace: fig is a member with allowed edges accord/folio/components/type/observe (root Cargo.toml:152-153) and a registry entry for miniz_oxide/ruzstd/serde_json/sha2 (:258-259). Not filed: decode_schema duplicate-name/id checks are O(n^2) but bounded by the 4 MiB schema cap (about 0.4 G comparisons worst case, no cancel inside). Limits has no validate()/hard ceilings, so a caller raising max_depth could make the recursive skip_value overflow the stack (caller configuration, not hostile input). ruzstd's default window allocation for a hostile frame header was not checked (UNVERIFIED). Observe mapping UnsupportedVersion -> Failure(Unsupported) departs from the brief's Unavailable and is recorded as a lane decision for the lead. Ledger commits list for SMB-INTEROP-FIG names only 4cfbf0f while the lane file lists e09a491/a3808f8/4cfbf0f (bookkeeping only).",
+   "counts": {
+    "CONFIRMED": 2,
+    "PLAUSIBLE": 5
+   },
+   "recommendation": "FAIL"
+  },
+  {
+   "lane": "SMB-PULSE-ENG-1",
+   "crate": "hsk-studio-pulse",
+   "candidate_commits": [
+    "6a60ef6"
+   ],
+   "crate_identity": "crate tree at bd8533f == 6a60ef6; diff 1d404f8..bd8533f on pulse is exactly 6a60ef6 (lib.rs +3, src/reference_time.rs +184, tests/reference_time.rs +333); accord unchanged since 1d404f8",
+   "findings": [],
+   "verified_fixes": [
+    "No prior verdict (new lane). 100 ns <-> ticks rule: the constants are derived, not typed in. TICKS_PER_REFERENCE_UNIT_NUM/DEN = TICKS_PER_SECOND/gcd and 10_000_000/gcd = 127008/5 (reference_time.rs:35-47), asserted equal to 254016000000/10^7 by cross-multiplication (tests/reference_time.rs receipt_invariants_and_require_exact).",
+    "accord Rounding reuse: the public signatures take hsk_studio_accord::Rounding (reference_time.rs:30, :135-174). The arithmetic is accord Timescale::signed_ticks_from_units / signed_units_from_ticks (accord timescale.rs:143-166), which use i128 checked_mul, div_euclid/rem_euclid and checked_add, and NearestHalfUp as `rem >= div - rem` (ties toward +inf, :63-67). pulse adds no rounding enum or division of its own for this rule.",
+    "Overflow/underflow typed: accord TickOverflow -> PulseError::Overflow (pulse error.rs:107-115). An out-of-i64 forward result is Overflow, and Ticks above i64::MAX is Overflow (reference_time.rs:182). A negative result as sequence Ticks is Underflow (:100-104). Residual math is i128 (|input| <= 2^63, mul <= 127008, so no overflow) with i64::try_from -> Overflow (:124-131). Test range_edges_are_typed_overflow_never_panic covers i64::MAX/MIN and N_MAX+1/-N_MAX-1 in all three modes -> Overflow, backward at i64::MIN/MAX Ok, exact edge values and residuals, and -5 -> Underflow as sequence ticks.",
+    "Round-trip proof is real: round_trip_is_identity_under_nearest compares each forward/backward value against independent closed forms (floor((2*127008*n+5)/10), floor((10t+127008)/254016)) rather than code output. It checks every n in +-300000, about 200k strided samples across +-N_MAX, and 1000 values at each edge, plus residual |num| <= 2. It also asserts Floor/Floor is not an identity (1 -> 25401 -> 0). The math holds: the forward error is at most 2/5 tick = 2/127008 unit < 1/2.",
+    "Hand values re-derived by this reviewer: 1 unit = 25401.6 (Floor 25401 r 3/5, Ceil/Near 25402 r -2/5); 2 -> 50803.2; 3 -> 76204.8; -1 -> Floor -25402 r 2/5; 333667 -> 8475675667.2; 416667 -> 10584008467.2; 63504 ticks = 2.5 units (Floor 2, Ceil/Near 3, residual -+63504/127008); 63503 -> 2 r 63499. All match the test tables (tests/reference_time.rs:44-65, :112-126).",
+    "Additive: lib.rs gains only `mod reference_time; pub use reference_time::*;` and a DESCRIPTOR reference_time entry. No existing pulse API, error variant or test changed."
+   ],
+   "checked": "Read in full: src/reference_time.rs, tests/reference_time.rs, accord src/timescale.rs, the pulse error.rs From<ValidationError> mapping, and the 6a60ef6 diff of lib.rs. Not filed: pulse now exports two Rounding types in its namespace (pulse::Rounding with Exact from rational.rs, and accord::Rounding in the reference_time signatures). A glob `use hsk_studio_pulse::*` caller passing pulse::Rounding gets a compile error, not a wrong result, and the lane discloses it. No untrusted-byte decoding, so V4-01/V4-02 do not apply. All five tests use bounded_case (30 s). No NOT_PROVEN, ignore, fault hook or machine-local path. Consumer adoption waits on D9 (no interop-media edge), as disclosed.",
+   "counts": {
+    "CONFIRMED": 0,
+    "PLAUSIBLE": 0
+   },
+   "recommendation": "PASS"
+  }
+ ],
+ "pending_lanes": []
+}

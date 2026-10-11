@@ -1,0 +1,1484 @@
+{
+ "file_id": "WP-STUDIO-MODULE-WORK-PLAUSIBLE-REGISTER",
+ "file_kind": "reviewer_plausible_decision_register",
+ "schema": "hsk.studio_plausible_register@1",
+ "updated_at": "2026-10-11T12:44:14Z",
+ "author": "workflow-2 (tick 4)",
+ "authority_note": "Context for the lead, not a verdict. Packet/MT JSON, ledger.json and independent validator verdicts stay authoritative. Each entry was re-read at the product SHA named in verified_at (git show/grep of origin/codex/handshake-studio-assets in wt-studio-assets); no cargo was run.",
+ "scope": "Every PLAUSIBLE finding in validation/R5-review-{a,b,c}.json, R6-review-{a,b,c}.json, R7-prereview-{a,b}.json (122 raw entries, deduplicated across rounds and lanes). No R7 review files exist: R7 was stopped at 2026-10-11T08:06:27Z before any reviewer or the validator wrote output (no validation/R7-review-*.json, no studio-round/results/R7).",
+ "verified_against": {
+  "repo": "wt-studio-assets, branch codex/handshake-studio-assets",
+  "head_at_compile": "1f99350",
+  "head_time": "2026-10-11T10:08:45Z",
+  "note": "HEAD moved during compilation (efda89a -> 9b66924 -> 961c301 -> 1f99350); verified_at names the SHA each entry was read at. Crates changed after an entry's verified_at SHA were re-checked at 1f99350 (render-cpu, render-gpu, composite, prism, motion-js)."
+ },
+ "status_values": {
+  "OPEN": "defect or gap still present at verified_at",
+  "PARTIAL": "part fixed, named residual still present",
+  "NOT_VERIFIED": "code path replaced; needs a reviewer re-read"
+ },
+ "disposition_values": {
+  "FIX_LANE": "route to the named owner as a remediation item (new lane id if the lane has open FAILs and the item is new scope, V4-15)",
+  "LEAD_DECISION": "lead records accept/waive/choose with a reason in this file; reviewers then skip the item",
+  "OPERATOR_DECISION": "needs an Operator decision already listed in START_LOG (D-number) or a spec enrichment (CX-105)",
+  "REVIEW": "next reviewer confirms or refutes at the round candidate"
+ },
+ "summary": {
+  "open_entries": 52,
+  "by_disposition": {
+   "FIX_LANE": 34,
+   "LEAD_DECISION": 13,
+   "OPERATOR_DECISION": 4,
+   "REVIEW": 1
+  },
+  "carried_3_or_more_rounds": [
+   "PLR-003",
+   "PLR-005",
+   "PLR-006",
+   "PLR-014",
+   "PLR-015",
+   "PLR-017",
+   "PLR-023",
+   "PLR-034",
+   "PLR-039",
+   "PLR-047"
+  ],
+  "closed_since_review": 34,
+  "cheapest_batch": "11 one-line or doc-only fixes (PLR-007, 009, 013, 021, 024, 025, 027, 028, 041, 048, 050) fit in one Sonnet pass per crate owner; 13 LEAD_DECISION entries need about one line each in lead_decisions below"
+ },
+ "lead_decisions": [
+  {
+   "id": "PLR-003",
+   "decision": "WAIVE",
+   "reason": "WGSL cannot call Rust; transcription is the only form; pigment stays single owner; per-mode GPU parity tests vs pigment's single-pixel oracle are the guard (lead 06:40:58Z tolerance decision stands)",
+   "decided_at": "2026-10-11T10:18:58Z"
+  },
+  {
+   "id": "PLR-005",
+   "decision": "WAIVE_WITH_STUB",
+   "reason": "no host needs tighter plan limits yet; stub lane SMB-PIGMENT-PLANLIMITS records the capability request",
+   "decided_at": "2026-10-11T10:18:58Z"
+  },
+  {
+   "id": "PLR-006",
+   "decision": "FIX_LANE",
+   "reason": "defence-in-depth refusals in backends must use pigment's exported keys/constants, never literals; lane SMB-REFUSAL-KEYS (composite/render-cpu/render-gpu)",
+   "decided_at": "2026-10-11T10:18:58Z"
+  },
+  {
+   "id": "PLR-010",
+   "decision": "ACCEPT",
+   "reason": "documented behaviour; cite the pinning test in the controls doc (fold into next controls touch)",
+   "decided_at": "2026-10-11T10:18:58Z"
+  },
+  {
+   "id": "PLR-015",
+   "decision": "FIX_LANE",
+   "reason": "score: non-divisor sample-rate refusal + non-finite output refusal now (lane SMB-SCORE-GUARDS); limiter/EQ reset-on-discard deferred",
+   "decided_at": "2026-10-11T10:18:58Z"
+  },
+  {
+   "id": "PLR-026",
+   "decision": "WAIVE",
+   "reason": "round exit 73 (NOT_PROVEN accounting) already catches a corpus-walk revert",
+   "decided_at": "2026-10-11T10:18:58Z"
+  },
+  {
+   "id": "PLR-030",
+   "decision": "WAIVE",
+   "reason": "in-process AV1 route is TRUSTED-INPUT-ONLY; untrusted input routes to the cancellable worker",
+   "decided_at": "2026-10-11T10:18:58Z"
+  },
+  {
+   "id": "PLR-037",
+   "decision": "WAIVE",
+   "reason": "forged SyntaxError maps to Parse: no budget class selectable, no poisoning",
+   "decided_at": "2026-10-11T10:18:58Z"
+  },
+  {
+   "id": "PLR-039",
+   "decision": "FOLD_INTO_PRESS_REMEDIATION",
+   "reason": "independent raw-byte/decoded backstop being built by rem-press-soundness supersedes the same-selector residual pass",
+   "decided_at": "2026-10-11T10:18:58Z"
+  },
+  {
+   "id": "PLR-040",
+   "decision": "FIX_FAIL_CLOSED",
+   "reason": "a stream classed raster must pass codec-signature validation (JPEG SOI/markers, JPX signature box, JBIG2 header; CCITT has no magic -> only with consistent image dims) else it is NOT raster -> undecodable -> NotProven; routed to rem-press-soundness",
+   "decided_at": "2026-10-11T10:18:58Z"
+  },
+  {
+   "id": "PLR-042",
+   "decision": "ACCEPT",
+   "reason": "containment is the AssetPort's duty (documented on AssetPort); web refuses encoded/backslash forms",
+   "decided_at": "2026-10-11T10:18:58Z"
+  },
+  {
+   "id": "PLR-044",
+   "decision": "OPERATOR",
+   "reason": "Folio reference edge for minimum_first_baseline_offset: spec silent -> D19 item (CX-105)",
+   "decided_at": "2026-10-11T10:18:58Z"
+  },
+  {
+   "id": "PLR-046",
+   "decision": "FIX_LANE",
+   "reason": "components: widen the write footprint to (instance_id, '') for whole-instance replacement proposals; lane SMB-COMPONENTS-FOOTPRINT",
+   "decided_at": "2026-10-11T10:18:58Z"
+  },
+  {
+   "id": "PLR-049",
+   "decision": "FIX_LANE",
+   "reason": "folio exposes its id-uniqueness/namespace pass; components calls it and deletes its rebuild (CX-CAP-001); lane SMB-FOLIO-UNIQUENESS (folio then components)",
+   "decided_at": "2026-10-11T10:18:58Z"
+  },
+  {
+   "at": "2026-10-11T11:58:11Z",
+   "items": [
+    "PLR-039"
+   ],
+   "decision": "re-opened: supersession does not hold (R8 pre-review press F4); fail closed for Type3/vertical text in a region; geometry later in SMB-PRESS-GEOMETRY",
+   "ref": "validation/R8-prereview-press.json"
+  },
+  {
+   "at": "2026-10-11T19:14:14Z",
+   "items": [
+    "PLR-005"
+   ],
+   "decision": "IMPLEMENT (supersedes WAIVE_WITH_STUB): caller PlanLimits may only tighten; bundled with PLR-058 in SMB-PIGMENT-PLANLIMITS"
+  }
+ ],
+ "open": [
+  {
+   "id": "PLR-001",
+   "lane": "SMB-RENDER-GPU",
+   "file_line": "crates/hsk-studio-render-gpu/src/error.rs:67",
+   "finding": "GpuError::Pipeline maps to BackendError::Unavailable, the same variant as 'no GPU'; only the code string differs (doc :43-46)",
+   "first_seen": "R5",
+   "seen_in": [
+    "R5-review-a",
+    "R6-review-a"
+   ],
+   "rounds_carried": 2,
+   "status": "OPEN",
+   "verified_at": "1f99350",
+   "disposition": "FIX_LANE",
+   "disposition_note": "pigment owner adds a defect/internal BackendError variant (render_plan.rs:655-679 has none); render-gpu maps Pipeline to it. Lane is BLOCKED (D20): route with the D20 decision."
+  },
+  {
+   "id": "PLR-002",
+   "lane": "SMB-RENDER-GPU",
+   "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:952 (guard taken) -> :2258 sink.accept inside run()",
+   "finding": "backend mutex held while the TileSink runs; a sink that calls back into the same GpuBackend deadlocks (std Mutex not reentrant); no doc states the rule",
+   "first_seen": "R3",
+   "seen_in": [
+    "R3-review",
+    "R5-review-a"
+   ],
+   "rounds_carried": 2,
+   "status": "OPEN",
+   "verified_at": "1f99350",
+   "disposition": "FIX_LANE",
+   "disposition_note": "cheapest: document 'TileSink must not call back into its backend' on pigment's TileSink port; alternative: deliver chunks after dropping the guard"
+  },
+  {
+   "id": "PLR-003",
+   "lane": "SMB-RENDER-GPU",
+   "file_line": "crates/hsk-studio-render-gpu/src/kernel.rs:37 (FORMULAS), :97 (FORMULAS_RGB), src/kernel.wgsl helpers",
+   "finding": "WGSL blend formula bodies are hand copies of pigment blend_math (CX-CAP-001)",
+   "first_seen": "R3",
+   "seen_in": [
+    "R3-review",
+    "R5-review-a",
+    "R6-review-a"
+   ],
+   "rounds_carried": 3,
+   "status": "OPEN",
+   "verified_at": "1f99350",
+   "disposition": "LEAD_DECISION",
+   "disposition_note": "recommend waiver with reason: lead decision 2026-10-11T06:40:58Z keeps require_gpu = true on the RTX 3090 validation host, so a formula drift fails GPU parity there; record pigment-owned WGSL snippets as CX-CAP debt for the post-D20 MT"
+  },
+  {
+   "id": "PLR-004",
+   "lane": "SMB-RENDER-CPU",
+   "file_line": "crates/hsk-studio-render-cpu/src/coverage.rs (unchanged since f105552); src/plan_sink.rs:1599 rx.recv()",
+   "finding": "per-pixel winding cost not charged at prepare; cancel/deadline only between chunks; delivery thread blocks in recv() without timeout",
+   "first_seen": "R3",
+   "seen_in": [
+    "R3-review",
+    "R5-review-a"
+   ],
+   "rounds_carried": 2,
+   "status": "OPEN",
+   "verified_at": "1f99350",
+   "disposition": "FIX_LANE",
+   "disposition_note": "recv_timeout plus per-row cancel/deadline poll; lane notes list the same class for feather, effects and windows (notes.adj1/effects1/window.plausible_not_addressed)"
+  },
+  {
+   "id": "PLR-005",
+   "lane": "SMB-PIGMENT-ENG-1",
+   "file_line": "crates/hsk-studio-pigment/src/render_plan.rs:832",
+   "finding": "admit validates with PlanLimits::default(); callers cannot tighten plan limits",
+   "first_seen": "R2",
+   "seen_in": [
+    "R2-review",
+    "R3-review",
+    "R5-review-a",
+    "R6-review-a"
+   ],
+   "rounds_carried": 4,
+   "status": "OPEN",
+   "verified_at": "1f99350",
+   "disposition": "LEAD_DECISION",
+   "disposition_note": "fix claimed 5ed1ead/71be1aa (SMB-PIGMENT-PLANLIMITS); reviewer confirms next round"
+  },
+  {
+   "id": "PLR-006",
+   "lane": "SMB-PIGMENT-ENG-1 (sites in render-cpu, render-gpu, composite)",
+   "file_line": "render-cpu src/plan_sink.rs:526,542,582; render-gpu src/plan_sink.rs:515,665; composite src/evaluate_static.rs:565",
+   "finding": "rules pigment admit already refuses (clip_base_pass_through, pass-through fill, mask_density) are re-decided in backends/composite with string literals",
+   "first_seen": "R3",
+   "seen_in": [
+    "R5-review-a",
+    "R6-review-a"
+   ],
+   "rounds_carried": 3,
+   "status": "OPEN",
+   "verified_at": "1f99350",
+   "disposition": "LEAD_DECISION",
+   "disposition_note": "accept as defence-in-depth only if the literals become pigment's constants (PASS_THROUGH_FILL_OPERATOR render_plan.rs:519, MASK_DENSITY_OPERATOR :790, clip-base key); otherwise remove the copies"
+  },
+  {
+   "id": "PLR-007",
+   "lane": "SMB-PIGMENT-ENG-2",
+   "file_line": "crates/hsk-studio-pigment/src/adjust_math.rs:88 (cites psd-tools apply_threshold), :618 (lum >= level)",
+   "finding": "threshold implementation differs from the cited psd-tools rounding/offset by about half a code value",
+   "first_seen": "R6",
+   "seen_in": [
+    "R6-review-a"
+   ],
+   "rounds_carried": 1,
+   "status": "OPEN",
+   "verified_at": "1f99350",
+   "disposition": "FIX_LANE",
+   "disposition_note": "one-line reword to a Studio rule; Photoshop parity stays on D5 case 7"
+  },
+  {
+   "id": "PLR-008",
+   "lane": "SMB-PIGMENT-ENG-2",
+   "file_line": "folio src/raster.rs:662,713 (gamma > 0) vs pigment src/adjust_math.rs:178,423 ([0.1,9.99], [0.01,9.99])",
+   "finding": "adjustment hard bounds have two owners with different values; a Folio-valid record fails pigment admission",
+   "first_seen": "R6",
+   "seen_in": [
+    "R6-review-a"
+   ],
+   "rounds_carried": 1,
+   "status": "OPEN",
+   "verified_at": "1f99350",
+   "disposition": "FIX_LANE",
+   "disposition_note": "folio owns the bound constants and pigment validates with them (pigment -> folio edge exists; folio cannot depend on pigment)"
+  },
+  {
+   "id": "PLR-009",
+   "lane": "SMB-PIGMENT-ENG-2",
+   "file_line": "crates/hsk-studio-pigment/src/render_plan.rs:521-523 vs :257",
+   "finding": "doc says pass-through opacity is undefined 'like fill' while Operator::PassThroughOpacity is intrinsically Approximate",
+   "first_seen": "R6",
+   "seen_in": [
+    "R6-review-a"
+   ],
+   "rounds_carried": 1,
+   "status": "OPEN",
+   "verified_at": "1f99350",
+   "disposition": "FIX_LANE",
+   "disposition_note": "doc edit (drop 'like opacity') or make the class Unsupported"
+  },
+  {
+   "id": "PLR-010",
+   "lane": "SMB-CONTROLS",
+   "file_line": "crates/hsk-studio-controls/src/report.rs outcome_of: Some(GesturePhase::End) | None => Success",
+   "finding": "a stray End with no open gesture reports terminal Success; a stray Abort reports Canceled",
+   "first_seen": "R6",
+   "seen_in": [
+    "R6-review-a",
+    "R7-prereview-a"
+   ],
+   "rounds_carried": 2,
+   "status": "OPEN",
+   "verified_at": "9b66924",
+   "disposition": "LEAD_DECISION",
+   "disposition_note": "behaviour is documented; lane is SAFE_TO_JUDGE; accept with a cited test or change to None (non-terminal)"
+  },
+  {
+   "id": "PLR-011",
+   "lane": "SMB-NIB-ENG-1",
+   "file_line": "crates/hsk-studio-nib/tests/owned_path.rs:474-503",
+   "finding": "the 97,656-sequence loop compares is_closed() with validate(), which share check_structure: tautological oracle",
+   "first_seen": "R5",
+   "seen_in": [
+    "R5-review-a"
+   ],
+   "rounds_carried": 1,
+   "status": "OPEN",
+   "verified_at": "9b66924",
+   "disposition": "FIX_LANE",
+   "disposition_note": "nib unchanged since 07abf54; one nib slice for PLR-011..013"
+  },
+  {
+   "id": "PLR-012",
+   "lane": "SMB-NIB-ENG-1",
+   "file_line": "crates/hsk-studio-nib/src/owned_path.rs:306,329",
+   "finding": "to_canonical_json/content_sha256 are infallible on unvalidated paths (NaN writes a non-JSON token)",
+   "first_seen": "R3",
+   "seen_in": [
+    "R3-review",
+    "R5-review-a"
+   ],
+   "rounds_carried": 2,
+   "status": "OPEN",
+   "verified_at": "9b66924",
+   "disposition": "FIX_LANE",
+   "disposition_note": "return Result or validate inside; a waiver is possible because render-cpu validates first"
+  },
+  {
+   "id": "PLR-013",
+   "lane": "SMB-NIB-ENG-1",
+   "file_line": "crates/hsk-studio-nib/src/owned_path.rs:333",
+   "finding": "from_canonical_json documented as 'Strict inverse' but accepts non-canonical numbers",
+   "first_seen": "R3",
+   "seen_in": [
+    "R3-review",
+    "R5-review-a"
+   ],
+   "rounds_carried": 2,
+   "status": "OPEN",
+   "verified_at": "9b66924",
+   "disposition": "FIX_LANE",
+   "disposition_note": "doc reword"
+  },
+  {
+   "id": "PLR-014",
+   "lane": "SMB-SCORE",
+   "file_line": "crates/hsk-studio-score/src/bounce.rs:211; src/src_bounce.rs graph_identity",
+   "finding": "chain/graph identity hashed from proc.identity() after the bounce ran; RampedGain identity carries its current value, so different ramps share identity",
+   "first_seen": "R3",
+   "seen_in": [
+    "R3-review",
+    "R5-review-a",
+    "R6-review-b"
+   ],
+   "rounds_carried": 3,
+   "status": "OPEN",
+   "verified_at": "9b66924",
+   "disposition": "FIX_LANE",
+   "disposition_note": "capture identity after proc.reset(), before the first block (bounce.rs:193)"
+  },
+  {
+   "id": "PLR-015",
+   "lane": "SMB-SCORE",
+   "file_line": "crates/hsk-studio-score/src/block.rs validate (no ticks_per_sample); src/dsp.rs:83; src/dsp.rs:549; src/eq.rs:251",
+   "finding": "non-divisor sample rates admitted; f32::MAX gain publishes inf; limiter/EQ reset on discard instead of restoring a commit snapshot",
+   "first_seen": "R2",
+   "seen_in": [
+    "R2-review",
+    "R3-review",
+    "R5-review-a",
+    "R6-review-b"
+   ],
+   "rounds_carried": 4,
+   "status": "OPEN",
+   "verified_at": "9b66924",
+   "disposition": "FIX_LANE",
+   "disposition_note": "split: divisor check + non-finite output refusal are small fixes; discard-snapshot semantics needs a lead decision"
+  },
+  {
+   "id": "PLR-016",
+   "lane": "SMB-INTEROP-PSD-WIDE",
+   "file_line": "crates/hsk-studio-interop-psd/src/proposal.rs:1482 (lab_channels_assumed_icc_encoding)",
+   "finding": "16-bit Lab neutral assumed ICC 0x8080; the test builds inputs with the same formula",
+   "first_seen": "R5",
+   "seen_in": [
+    "R5-review-a"
+   ],
+   "rounds_carried": 1,
+   "status": "OPEN",
+   "verified_at": "9b66924",
+   "disposition": "OPERATOR_DECISION",
+   "disposition_note": "D5: a Photoshop-authored 16-bit Lab fixture decides it; assumption is disclosed"
+  },
+  {
+   "id": "PLR-017",
+   "lane": "SMB-DEVELOP",
+   "file_line": "crates/hsk-studio-develop/src/ljpeg.rs:141-158 (restart); tiff.rs:1, ljpeg.rs:1 (no V4-01 deny)",
+   "finding": "LJPEG restart refuses T.81 0xFF fill before RSTn and never checks the RST index sequence; both untrusted decoders lack the overflow lint",
+   "first_seen": "R3",
+   "seen_in": [
+    "R3-review",
+    "R5-review-a",
+    "R6-review-a",
+    "R7-prereview-a"
+   ],
+   "rounds_carried": 4,
+   "status": "OPEN",
+   "verified_at": "9b66924",
+   "disposition": "FIX_LANE",
+   "disposition_note": "new lane id (V4-15), hand-encoded KATs for fill bytes and out-of-order RST; ljpeg.rs unchanged since 01bfeb3"
+  },
+  {
+   "id": "PLR-018",
+   "lane": "SMB-DEVELOP-JOBS",
+   "file_line": "crates/hsk-studio-develop/src/pipeline.rs:761-762 (band_window)",
+   "finding": "returns pixel_limit for a later tile of the window before earlier tiles run, against the 'lowest failing tile decides' claim (reachable via custom BandLimits)",
+   "first_seen": "R7",
+   "seen_in": [
+    "R7-prereview-a"
+   ],
+   "rounds_carried": 1,
+   "status": "OPEN",
+   "verified_at": "9b66924",
+   "disposition": "FIX_LANE",
+   "disposition_note": "60b0e47 did not touch it; break when end > start; test with BandLimits{1,1}"
+  },
+  {
+   "id": "PLR-019",
+   "lane": "SMB-DEVELOP",
+   "file_line": "crates/hsk-studio-develop/tests/real_dng.rs:91-95",
+   "finding": "corpus dir from env STUDIO_DNG_CORPUS or CARGO_MANIFEST_DIR-relative path, which .config/oracle-corpus.toml forbids (prism ENG-5 R6 FAIL class); test is #[ignore]d",
+   "first_seen": "R7",
+   "seen_in": [
+    "R7-prereview-a"
+   ],
+   "rounds_carried": 1,
+   "status": "OPEN",
+   "verified_at": "9b66924",
+   "disposition": "FIX_LANE",
+   "disposition_note": "resolve through the oracle-corpus.toml walk; do it together with the D10 corpus download"
+  },
+  {
+   "id": "PLR-020",
+   "lane": "SMB-DEVELOP-JOBS",
+   "file_line": "crates/hsk-studio-develop/src/pipeline.rs (converter per window of tiles)",
+   "finding": "R6: converter side effects past a failing tile depend on the thread count",
+   "first_seen": "R6",
+   "seen_in": [
+    "R6-review-a"
+   ],
+   "rounds_carried": 1,
+   "status": "NOT_VERIFIED",
+   "verified_at": "9b66924",
+   "disposition": "REVIEW",
+   "disposition_note": "78fd379 replaced the path with one Prism job per window (DESCRIPTOR execution.converter); the next reviewer confirms or refutes under SMB-DEVELOP-JOBS"
+  },
+  {
+   "id": "PLR-021",
+   "lane": "SMB-DEVELOP-WIDE",
+   "file_line": "crates/hsk-studio-develop/src/lib.rs:239 (DESCRIPTOR profile_transform)",
+   "finding": "develop does not disclose that the admitted Prism route exists only on x86_64-windows-msvc",
+   "first_seen": "R6",
+   "seen_in": [
+    "R6-review-a"
+   ],
+   "rounds_carried": 1,
+   "status": "OPEN",
+   "verified_at": "9b66924",
+   "disposition": "FIX_LANE",
+   "disposition_note": "one DESCRIPTOR clause"
+  },
+  {
+   "id": "PLR-022",
+   "lane": "SMB-DEVELOP-WIDE (also prism, interop-psd)",
+   "file_line": "develop src/convert.rs:268 merge_clip; prism src/wide_job.rs:199 merge_clip (private); interop-psd src/convert.rs:171 ClipSummary::absorb",
+   "finding": "ClipReport accumulation hand-rolled in three places; prism owns ClipReport but exposes no merge",
+   "first_seen": "R5",
+   "seen_in": [
+    "R5-review-a"
+   ],
+   "rounds_carried": 1,
+   "status": "OPEN",
+   "verified_at": "9b66924",
+   "disposition": "FIX_LANE",
+   "disposition_note": "grew from 2 to 3 copies since R5; prism makes merge public (CX-CAP-001), consumers switch"
+  },
+  {
+   "id": "PLR-023",
+   "lane": "SMB-PRISM-ENG-5",
+   "file_line": "crates/hsk-studio-prism/tests/oracle_t1_lcms2.rs:366",
+   "finding": "the asserted T1 metric uses the engine's own destination leg; de_vs_lcms_lab and ref_consistency are only printed",
+   "first_seen": "R5",
+   "seen_in": [
+    "R5-review-a",
+    "R6-review-a",
+    "R7-prereview-a"
+   ],
+   "rounds_carried": 3,
+   "status": "OPEN",
+   "verified_at": "1f99350",
+   "disposition": "FIX_LANE",
+   "disposition_note": "assert de_vs_lcms_lab against a stated threshold as part of the ENG-5 FIX_FIRST pass"
+  },
+  {
+   "id": "PLR-024",
+   "lane": "SMB-PRISM-ENG-5",
+   "file_line": "crates/hsk-studio-prism/tests/oracle/t1_lcms2.json:8",
+   "finding": "search_env_var HSK_PRISM_ORACLE_PROFILE_DIRS advertises an env path removed in 65a08c9",
+   "first_seen": "R7",
+   "seen_in": [
+    "R7-prereview-a"
+   ],
+   "rounds_carried": 1,
+   "status": "OPEN",
+   "verified_at": "1f99350",
+   "disposition": "FIX_LANE",
+   "disposition_note": "fixture + generator line"
+  },
+  {
+   "id": "PLR-025",
+   "lane": "SMB-PRISM-ENG-5",
+   "file_line": "crates/hsk-studio-prism/tests/wide_profiles.rs:163",
+   "finding": "corpus_read(file, None): installed CMYK/HLG profiles read without the sha256 pin oracle-corpus.toml requires",
+   "first_seen": "R7",
+   "seen_in": [
+    "R7-prereview-a"
+   ],
+   "rounds_carried": 1,
+   "status": "OPEN",
+   "verified_at": "1f99350",
+   "disposition": "FIX_LANE",
+   "disposition_note": "pass the sha256 recorded in t1_lcms2.json"
+  },
+  {
+   "id": "PLR-026",
+   "lane": "SMB-PRISM-ENG-5",
+   "file_line": "crates/hsk-studio-prism/tests/wide_support/mod.rs:382-415",
+   "finding": "export-layout corpus walk has no in-crate regression test (a revert shows only as round NOT_PROVEN)",
+   "first_seen": "R7",
+   "seen_in": [
+    "R7-prereview-a"
+   ],
+   "rounds_carried": 1,
+   "status": "OPEN",
+   "verified_at": "9b66924",
+   "disposition": "LEAD_DECISION",
+   "disposition_note": "reviewer marked it optional; round exit 73 already catches a revert; recommend waive"
+  },
+  {
+   "id": "PLR-027",
+   "lane": "SMB-PRISM-ENG-6",
+   "file_line": "crates/hsk-studio-prism/src/lib.rs:1-20",
+   "finding": "lib.rs (legacy parse_profile on untrusted ICC bytes, touched after the V4 adoption) carries no V4-01 deny",
+   "first_seen": "R7",
+   "seen_in": [
+    "R7-prereview-a"
+   ],
+   "rounds_carried": 1,
+   "status": "OPEN",
+   "verified_at": "1f99350",
+   "disposition": "FIX_LANE",
+   "disposition_note": "one attribute line; lane reports 0 lint sites"
+  },
+  {
+   "id": "PLR-028",
+   "lane": "SMB-PRISM-ENG-6",
+   "file_line": "kernel builders/lanes/hsk-studio-prism-eng6.json capabilities_done (fusion '100% bit-identical') vs crates/hsk-studio-prism/tests/wide_fusion.rs:81-82",
+   "finding": "lane record claims 100% bit identity; the test asserts max diff <= 2e-6 and >= 99% identical",
+   "first_seen": "R7",
+   "seen_in": [
+    "R7-prereview-a"
+   ],
+   "rounds_carried": 1,
+   "status": "OPEN",
+   "verified_at": "lane file read 2026-10-11T10:10Z",
+   "disposition": "FIX_LANE",
+   "disposition_note": "lane-file edit by the prism builder"
+  },
+  {
+   "id": "PLR-029",
+   "lane": "SMB-REEL",
+   "file_line": "crates/hsk-studio-reel/src/lib.rs:23",
+   "finding": "pub mod fixtures ships synthetic container builders (incl. hostile lace-header forging) in the product API",
+   "first_seen": "R5",
+   "seen_in": [
+    "R5-review-b"
+   ],
+   "rounds_carried": 1,
+   "status": "OPEN",
+   "verified_at": "9b66924",
+   "disposition": "FIX_LANE",
+   "disposition_note": "non-default 'fixtures' feature (V4-04 class); lane known_gaps[1] lists it"
+  },
+  {
+   "id": "PLR-030",
+   "lane": "SMB-REEL-ENG-3",
+   "file_line": "crates/hsk-studio-reel/src/av1/mod.rs:223,232 (_cancel)",
+   "finding": "in-process AV1 send/finish ignore the cancel token; one large frame cannot be interrupted",
+   "first_seen": "R5",
+   "seen_in": [
+    "R5-review-b"
+   ],
+   "rounds_carried": 1,
+   "status": "OPEN",
+   "verified_at": "9b66924",
+   "disposition": "LEAD_DECISION",
+   "disposition_note": "the in-process route is TRUSTED-INPUT-ONLY (decision 03:30:19Z); accept per-frame cancel granularity with a doc line, or fix"
+  },
+  {
+   "id": "PLR-031",
+   "lane": "SMB-REEL-ENG-3",
+   "file_line": "crates/hsk-studio-reel/Cargo.toml:14 (rav1d =1.1.0, BSD-2-Clause)",
+   "finding": "no third-party notice committed for a redistributed BSD-2 closure (no NOTICE/THIRD-PARTY file in the workspace tree)",
+   "first_seen": "R5",
+   "seen_in": [
+    "R5-review-b"
+   ],
+   "rounds_carried": 1,
+   "status": "OPEN",
+   "verified_at": "9b66924",
+   "disposition": "OPERATOR_DECISION",
+   "disposition_note": "D14 packaging; notices are required before any packaged build"
+  },
+  {
+   "id": "PLR-032",
+   "lane": "SMB-REEL-AV1-ROUTE",
+   "file_line": "crates/hsk-studio-reel/src/video.rs:~260-300 (format check only)",
+   "finding": "decoded picture is checked against its own format, never against the container-declared VideoTrack size; oversize pictures are packed before max_chunk_bytes",
+   "first_seen": "R5",
+   "seen_in": [
+    "R5-review-b"
+   ],
+   "rounds_carried": 1,
+   "status": "OPEN",
+   "verified_at": "9b66924",
+   "disposition": "FIX_LANE",
+   "disposition_note": "refuse as DecoderFault::Protocol before packing"
+  },
+  {
+   "id": "PLR-033",
+   "lane": "SMB-REEL-AV1-ROUTE",
+   "file_line": "crates/hsk-studio-reel/src/registry.rs:~184-215",
+   "finding": "one SourceTrust builds the route for both the original and the ProxySource, so a trusted original sends proxy bytes to in-process rav1d",
+   "first_seen": "R5",
+   "seen_in": [
+    "R5-review-b"
+   ],
+   "rounds_carried": 1,
+   "status": "OPEN",
+   "verified_at": "9b66924",
+   "disposition": "FIX_LANE",
+   "disposition_note": "proxy decodes untrusted unless it carries its own trust"
+  },
+  {
+   "id": "PLR-034",
+   "lane": "SMB-REEL-NATIVE-AV1-WORKER",
+   "file_line": "crates/hsk-studio-reel-native/src/host.rs:458-464",
+   "finding": "worker discovery also searches the parent of the executable directory; HELLO checks only self-reported strings",
+   "first_seen": "R5",
+   "seen_in": [
+    "R5-review-b",
+    "R6-review-b (score-plugin)",
+    "R7-prereview-b (motion-js)"
+   ],
+   "rounds_carried": 3,
+   "status": "OPEN",
+   "verified_at": "9b66924",
+   "disposition": "FIX_LANE",
+   "disposition_note": "same class fixed in score-plugin 7d5641c and motion-js 961c301; copy the exe-dir-only lookup now rather than waiting for D18"
+  },
+  {
+   "id": "PLR-035",
+   "lane": "SMB-REEL-NATIVE-AV1-WORKER",
+   "file_line": "crates/hsk-studio-reel-native/src/host.rs:609",
+   "finding": "HELLO wait is recv_timeout(spawn_timeout) with no cancel poll",
+   "first_seen": "R5",
+   "seen_in": [
+    "R5-review-b",
+    "R7-prereview-b (motion-js)"
+   ],
+   "rounds_carried": 2,
+   "status": "OPEN",
+   "verified_at": "9b66924",
+   "disposition": "FIX_LANE",
+   "disposition_note": "WAIT_SLICE loop with cancel, as motion-js 961c301"
+  },
+  {
+   "id": "PLR-036",
+   "lane": "SMB-MOTION-JS-WORKER",
+   "file_line": "crates/hsk-studio-motion-js/src/quickjs_worker.rs:524,544 (drain only after a request)",
+   "finding": "a late PROCESS_MEMORY_LIMIT notice for request N is charged to request N+1 on a pooled worker (depends on kernel posting order, UNVERIFIED)",
+   "first_seen": "R7",
+   "seen_in": [
+    "R7-prereview-b"
+   ],
+   "rounds_carried": 1,
+   "status": "OPEN",
+   "verified_at": "1f99350",
+   "disposition": "FIX_LANE",
+   "disposition_note": "drain and discard before arming each request; 961c301/1d972f1 did not change it"
+  },
+  {
+   "id": "PLR-037",
+   "lane": "SMB-MOTION-JS",
+   "file_line": "crates/hsk-studio-motion-js/src/quickjs.rs:152 (kindOf by prototype chain)",
+   "finding": "a script can forge the Parse class by throwing Object.create(SyntaxError.prototype); not a budget class",
+   "first_seen": "R7",
+   "seen_in": [
+    "R7-prereview-b"
+   ],
+   "rounds_carried": 1,
+   "status": "OPEN",
+   "verified_at": "1f99350",
+   "disposition": "LEAD_DECISION",
+   "disposition_note": "reviewer marked optional; recommend waive (no budget class selectable, no poison)"
+  },
+  {
+   "id": "PLR-038",
+   "lane": "SMB-INTEROP-MEDIA",
+   "file_line": "crates/hsk-studio-interop-media/src/time.rs:187 (1-3 digit fields), :226 (export hours > 99 refused)",
+   "finding": "EDL import accepts timecodes that export refuses; CMX3600 fields are 2 digits",
+   "first_seen": "R3",
+   "seen_in": [
+    "R3-review",
+    "R5-review-b"
+   ],
+   "rounds_carried": 2,
+   "status": "OPEN",
+   "verified_at": "9b66924",
+   "disposition": "FIX_LANE",
+   "disposition_note": "independent of D9; lands when the D9-blocked lane resumes"
+  },
+  {
+   "id": "PLR-039",
+   "lane": "SMB-PRESS",
+   "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:682",
+   "finding": "residual pass re-runs the same redact_region selector on the saved bytes, so a selector miss repeats undetected (NaN half fixed in c520095)",
+   "first_seen": "R5",
+   "seen_in": [
+    "R5-review-b",
+    "R6-review-b",
+    "R7-prereview-b"
+   ],
+   "rounds_carried": 3,
+   "status": "PARTIAL",
+   "verified_at": "9b66924",
+   "disposition": "LEAD_DECISION",
+   "disposition_note": "record it as a same-selector consistency check (not independent proof) in DESCRIPTOR; independent per-region text extraction becomes a new lane"
+  },
+  {
+   "id": "PLR-040",
+   "lane": "SMB-PRESS",
+   "file_line": "crates/hsk-studio-press/src/raster.rs:107 (hidden_zlib: zlib at offset 0 only)",
+   "finding": "behind a raster codec name, raw deflate, junk-prefixed zlib, LZW or ASCII85 payloads holding a needle stay 'pixels'",
+   "first_seen": "R6",
+   "seen_in": [
+    "R6-review-b",
+    "R7-prereview-b"
+   ],
+   "rounds_carried": 2,
+   "status": "PARTIAL",
+   "verified_at": "9b66924",
+   "disposition": "LEAD_DECISION",
+   "disposition_note": "recommend fail-closed: raster streams are NotProven when needles_searched > 0 (V4-03 shape); rem-press-soundness can carry it"
+  },
+  {
+   "id": "PLR-041",
+   "lane": "SMB-WEB",
+   "file_line": "crates/hsk-studio-web/src/lib.rs:35 (DESCRIPTOR not_scanned); src/assets.rs attr_kind",
+   "finding": "inline <script> bodies (run-time fetches) are neither scanned nor listed; attributionsrc and MathML mglyph src unhandled (support UNVERIFIED)",
+   "first_seen": "R7",
+   "seen_in": [
+    "R7-prereview-b"
+   ],
+   "rounds_carried": 1,
+   "status": "OPEN",
+   "verified_at": "9b66924",
+   "disposition": "FIX_LANE",
+   "disposition_note": "DESCRIPTOR line plus an online check; this is the R5 FAIL #2 shape (under-stated scope)"
+  },
+  {
+   "id": "PLR-042",
+   "lane": "SMB-WEB",
+   "file_line": "crates/hsk-studio-web/src/assets.rs (relative refs to AssetPort; AmbiguousPath :353)",
+   "finding": "plain '..' segments reach the embedder's AssetPort; encoded and backslash forms are refused",
+   "first_seen": "R5",
+   "seen_in": [
+    "R5-review-b"
+   ],
+   "rounds_carried": 1,
+   "status": "PARTIAL",
+   "verified_at": "9b66924",
+   "disposition": "LEAD_DECISION",
+   "disposition_note": "ratify 'containment is the port's duty' (documented on AssetPort) or refuse root-escaping refs"
+  },
+  {
+   "id": "PLR-043",
+   "lane": "SMB-INTEROP-LAYOUT / SMB-INTEROP-FIG / SMB-INTEROP-VECTOR",
+   "file_line": "interop-layout src/container.rs (ZIP + CRC-32); interop-fig src/container.rs:202-433; interop-vector src/gzip.rs:15-39",
+   "finding": "three bounded ZIP readers and two CRC-32 tables beside package's container (CX-CAP-001)",
+   "first_seen": "R5",
+   "seen_in": [
+    "R5-review-c",
+    "R6-review-c"
+   ],
+   "rounds_carried": 2,
+   "status": "OPEN",
+   "verified_at": "9b66924",
+   "disposition": "OPERATOR_DECISION",
+   "disposition_note": "D16; step 0 V4-05 fingerprints keep it from growing"
+  },
+  {
+   "id": "PLR-044",
+   "lane": "SMB-LAYOUT-FOLIO-MIGRATE",
+   "file_line": "crates/hsk-studio-layout/src/folio_input.rs:199; cf. interop-layout src/proposal.rs:386",
+   "finding": "layout reads minimum_first_baseline_offset from the frame top; the IDML importer stores InDesign's inset-relative value in the same Folio field",
+   "first_seen": "R5",
+   "seen_in": [
+    "R5-review-c"
+   ],
+   "rounds_carried": 1,
+   "status": "OPEN",
+   "verified_at": "9b66924",
+   "disposition": "LEAD_DECISION",
+   "disposition_note": "pick the Folio reference edge (Operator via CX-105 if the spec is silent), then one owner fixes layout or interop-layout"
+  },
+  {
+   "id": "PLR-045",
+   "lane": "SMB-FOLIO-ENG-4",
+   "file_line": "crates/hsk-studio-folio/src/records.rs:422-475 (check_instances)",
+   "finding": "instance VARIANT values are not checked against set.variant_group_properties; components later refuses them as UnknownVariantValue",
+   "first_seen": "R5",
+   "seen_in": [
+    "R5-review-c"
+   ],
+   "rounds_carried": 1,
+   "status": "OPEN",
+   "verified_at": "9b66924",
+   "disposition": "FIX_LANE",
+   "disposition_note": "folio owner; member-side check at :366-384 already exists"
+  },
+  {
+   "id": "PLR-046",
+   "lane": "SMB-COMPONENTS",
+   "file_line": "crates/hsk-studio-components/src/instance_resolution.rs:803-806 (OverrideProposal.instance)",
+   "finding": "proposal carries the whole successor instance while its write footprint is field-level; replacing the record loses a concurrent field edit",
+   "first_seen": "R6",
+   "seen_in": [
+    "R6-review-a",
+    "R7-prereview-a"
+   ],
+   "rounds_carried": 2,
+   "status": "OPEN",
+   "verified_at": "9b66924",
+   "disposition": "LEAD_DECISION",
+   "disposition_note": "choose delta payload or a widened footprint (instance_id, ''); STU-ARC-011"
+  },
+  {
+   "id": "PLR-047",
+   "lane": "SMB-COMPONENTS",
+   "file_line": "crates/hsk-studio-components/src/instance_resolution.rs:748-763 (swap_component)",
+   "finding": "swap refuses instance properties the new main does not define instead of dropping them with a report",
+   "first_seen": "R3",
+   "seen_in": [
+    "R3-review",
+    "R6-review-a",
+    "R7-prereview-a"
+   ],
+   "rounds_carried": 3,
+   "status": "OPEN",
+   "verified_at": "9b66924",
+   "disposition": "OPERATOR_DECISION",
+   "disposition_note": "STU-DS-119 states re-match semantics for overrides only; if the lead finds no spec text for properties, this is a CX-105 spec question"
+  },
+  {
+   "id": "PLR-048",
+   "lane": "SMB-COMPONENTS",
+   "file_line": "crates/hsk-studio-components/src/lib.rs:198 (DESCRIPTOR never-claims); src/design.rs:256",
+   "finding": "never-claims cite no test; design.rs:256 'never a pick' was added after the V4 adoption (ed9b130) without its proof citation (design_refuses_repeated_ids exists)",
+   "first_seen": "R6",
+   "seen_in": [
+    "R6-review-a",
+    "R7-prereview-a"
+   ],
+   "rounds_carried": 2,
+   "status": "OPEN",
+   "verified_at": "9b66924",
+   "disposition": "FIX_LANE",
+   "disposition_note": "cite tests or weaken; V4-07"
+  },
+  {
+   "id": "PLR-049",
+   "lane": "SMB-COMPONENTS-FOLIO-MIGRATE",
+   "file_line": "crates/hsk-studio-components/src/design.rs:87-163 (Design::new)",
+   "finding": "id uniqueness and namespace rules are rebuilt in components instead of calling Folio's validator",
+   "first_seen": "R6",
+   "seen_in": [
+    "R6-review-a",
+    "R7-prereview-a"
+   ],
+   "rounds_carried": 2,
+   "status": "OPEN",
+   "verified_at": "9b66924",
+   "disposition": "LEAD_DECISION",
+   "disposition_note": "no drift yet; waive or have folio expose its uniqueness pass"
+  },
+  {
+   "id": "PLR-050",
+   "lane": "SMB-INTEROP-VECTOR",
+   "file_line": "crates/hsk-studio-interop-vector/tests/vector_edit_roundtrip.rs:409-449",
+   "finding": "DOCTYPE decoy tests have no lowercase '<!doctype' and no character-reference case (V4-08 asks for escape, decoy, case/whitespace)",
+   "first_seen": "R6",
+   "seen_in": [
+    "R6-review-c"
+   ],
+   "rounds_carried": 1,
+   "status": "OPEN",
+   "verified_at": "9b66924",
+   "disposition": "FIX_LANE",
+   "disposition_note": "two test cases; the V4-01 half is fixed (svg_adapter.rs carries the deny)"
+  },
+  {
+   "id": "PLR-051",
+   "lane": "SMB-PACKAGE-STREAM-SAVE",
+   "file_line": "crates/hsk-studio-package/src/save.rs:458-524; tests (0 uses of StreamingFs)",
+   "finding": "failure safety tested only through StdFs; mid-stream cancel, read-back mismatch, corrupt temp and failed replace are untested",
+   "first_seen": "R5",
+   "seen_in": [
+    "R5-review-c"
+   ],
+   "rounds_carried": 1,
+   "status": "OPEN",
+   "verified_at": "9b66924",
+   "disposition": "FIX_LANE",
+   "disposition_note": "three StreamingFs-injected tests"
+  },
+  {
+   "id": "PLR-052",
+   "lane": "SMB-INTEROP-FIG",
+   "file_line": "crates/hsk-studio-interop-fig/tests/fig_import.rs (0 uses of bounded_case)",
+   "finding": "fig tests have no 60 s bounded_case wrapper; a hostile-input hang would hang the round",
+   "first_seen": "R6",
+   "seen_in": [
+    "R6-review-c"
+   ],
+   "rounds_carried": 1,
+   "status": "OPEN",
+   "verified_at": "9b66924",
+   "disposition": "FIX_LANE",
+   "disposition_note": "lane notes remediation_r6 list it as open"
+  },
+  {
+   "id": "PLR-053",
+   "lane": "SMB-INTEROP-PSD-ADJ",
+   "file_line": "crates/hsk-studio-interop-psd/src/proposal.rs:1716 (comment) + folio default node budget",
+   "finding": "a valid PSD with ~4096 effect instances (e.g. 6 layers x 700) exhausts folio's default node budget; the whole import fails as raster_records_rejected (documented as a mapping defect) instead of per-layer typed losses or an input-sized budget",
+   "first_seen": "R8",
+   "seen_in": [
+    "R8-review-b"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "f6e5a49",
+   "disposition": "FIX_LANE",
+   "disposition_note": "routed 2026-10-11T12:44:14Z to SMB-INTEROP-PSD-BUDGET"
+  },
+  {
+   "id": "PLR-054",
+   "lane": "SMB-SCORE-PLUGIN",
+   "file_line": "crates/hsk-studio-score-plugin/src/types.rs:117, backend.rs:209, clap_backend.rs:184",
+   "finding": "three copies of the old 0/MAX sample-rate check; a 44101 Hz plugin config is accepted and then fails at the first block (score's SMB-SCORE-GUARDS rate rule not adopted)",
+   "first_seen": "R8",
+   "seen_in": [
+    "R8-review-b (cross-lane)"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "f6e5a49",
+   "disposition": "FIX_LANE",
+   "disposition_note": "fix claimed e9fb519 (SMB-SCORE-PLUGIN-RATE READY); reviewer confirms in R9"
+  },
+  {
+   "id": "PLR-055",
+   "lane": "SMB-REEL-NATIVE-AV1-WORKER",
+   "file_line": "crates/hsk-studio-reel-native/src/host.rs (reply handling) + reel video.rs:331-354",
+   "finding": "a worker picture larger than the declared size but under the reply cap surfaces as Av1Error::Reel, not a worker Protocol fault, and is not counted in protocol_faults",
+   "first_seen": "R8",
+   "seen_in": [
+    "R8-review-b"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "f6e5a49",
+   "disposition": "FIX_LANE",
+   "disposition_note": "fix claimed 471b679 (+ FRAME-to-OPEN extension pending); reviewer confirms in R9"
+  },
+  {
+   "id": "PLR-056",
+   "lane": "SMB-REEL-ENG-3",
+   "file_line": "crates/hsk-studio-reel tests (in-process av1 path)",
+   "finding": "no in-process test for the new oversize-picture refusal on the trusted rav1d path (cheap: patch the 16x16 fixture's sample entry)",
+   "first_seen": "R8",
+   "seen_in": [
+    "R8-review-b"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "f6e5a49",
+   "disposition": "FIX_LANE",
+   "disposition_note": "fix claimed bd5bd60 (SMB-REEL-ENG-1); reviewer confirms in R9"
+  },
+  {
+   "id": "PLR-057",
+   "lane": "SMB-REEL-ENG-1",
+   "file_line": "crates/hsk-studio-reel decode_video_track_with (export NotExact guard)",
+   "finding": "for compressed video the export NotExact guard fires after the external decoder session is opened (sink untouched, but a worker may be spawned); a pre-check before opening the session is cheap",
+   "first_seen": "builder self-report bd5bd60",
+   "seen_in": [
+    "lane notes.residuals R1"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "bd5bd60",
+   "disposition": "FIX_LANE",
+   "disposition_note": "fix claimed 0474906 (SMB-REEL-ENG-1); reviewer confirms in R10"
+  },
+  {
+   "id": "PLR-058",
+   "lane": "SMB-PARITY-FOLLOWUP",
+   "file_line": "crates/hsk-studio-pigment/src/render_plan.rs:408 (RenderPlan::validate operator collection)",
+   "finding": "validate collects operators (capability check) from unreachable nodes too, while admission predicates and both backends consider reachable nodes only; structural well-formedness must stay all-nodes, capability collection should be reachable-only",
+   "first_seen": "builder report 1c80811",
+   "seen_in": [
+    "parity lane decisions_for_lead item 2"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "1c80811",
+   "disposition": "FIX_LANE",
+   "disposition_note": "fix claimed 5ed1ead/71be1aa (SMB-PIGMENT-PLANLIMITS); reviewer confirms next round"
+  },
+  {
+   "id": "PLR-059",
+   "lane": "SMB-REEL-NATIVE-FAULTS",
+   "file_line": "crates/hsk-studio-reel-native/src/host.rs (FRAME tag matching)",
+   "finding": "a FRAME whose tag matches no sent packet is silently dropped and not counted as a protocol fault",
+   "first_seen": "R9-prereview-reel",
+   "seen_in": [
+    "R9-prereview-reel"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "a024461",
+   "disposition": "FIX_LANE",
+   "disposition_note": "next reel-native lane (after R9)"
+  },
+  {
+   "id": "PLR-060",
+   "lane": "SMB-REEL-NATIVE-FAULTS",
+   "file_line": "crates/hsk-studio-reel-native/src/host.rs (HELLO handling)",
+   "finding": "a malformed or oversize HELLO frame is counted as spawn_failed instead of a protocol fault",
+   "first_seen": "R9-prereview-reel",
+   "seen_in": [
+    "R9-prereview-reel"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "a024461",
+   "disposition": "FIX_LANE",
+   "disposition_note": "next reel-native lane (after R9)"
+  },
+  {
+   "id": "PLR-061",
+   "lane": "SMB-REEL-NATIVE-FAULTS",
+   "file_line": "crates/hsk-studio-reel-native/src/wire.rs:5-7",
+   "finding": "protocol header comment still allows FRAME replies to OPEN (V4-07 doc drift)",
+   "first_seen": "R9-prereview-reel",
+   "seen_in": [
+    "R9-prereview-reel"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "a024461",
+   "disposition": "FIX_LANE",
+   "disposition_note": "next reel-native lane (after R9)"
+  },
+  {
+   "id": "PLR-062",
+   "lane": "SMB-REEL-ENG-1",
+   "file_line": "crates/hsk-studio-reel/src/isobmff.rs:1980-1992 (+ video_route test comment)",
+   "finding": "export pre-check covers the start only: an in-range start with a count past the end still opens a decoder session before Incomplete; lane note/test comment say more; no test drives Export through the in-process rav1d arm",
+   "first_seen": "R10-prereview-reel-route",
+   "seen_in": [
+    "R10-prereview-reel-route"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "cc3eaae",
+   "disposition": "FIX_LANE",
+   "disposition_note": "fix claimed e424f46/7cdf18e (SMB-REEL-ENG-1); reviewer confirms in R11"
+  },
+  {
+   "id": "PLR-063",
+   "lane": "SMB-INTEROP-PSD-BUDGET",
+   "file_line": "crates/hsk-studio-interop-psd/src/effects.rs:552-554",
+   "finding": "Folio 1024 mapped-instance ceiling counts both categories: a visible stack with 1 live + 1024 off instances is lost; 'each bound cuts only its own category' wording reads wider",
+   "first_seen": "R11-prereview-psd-budget",
+   "seen_in": [
+    "R11-prereview-psd-budget"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "85532ad",
+   "disposition": "FIX_LANE",
+   "disposition_note": "after R11 (crate frozen for the pre-review)"
+  },
+  {
+   "id": "PLR-064",
+   "lane": "SMB-INTEROP-PSD-BUDGET",
+   "file_line": "crates/hsk-studio-interop-psd DESCRIPTOR / docs",
+   "finding": "the two deliberate over-counts (no-pixel layers, clipped layers on hidden/empty base) are disclosed only in kernel lane notes, not in shipped docs/DESCRIPTOR; all fixtures are no-pixel layers",
+   "first_seen": "R11-prereview-psd-budget",
+   "seen_in": [
+    "R11-prereview-psd-budget"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "85532ad",
+   "disposition": "FIX_LANE",
+   "disposition_note": "after R11"
+  },
+  {
+   "id": "PLR-065",
+   "lane": "SMB-INTEROP-PSD-BUDGET",
+   "file_line": "crates/hsk-studio-interop-psd/tests/effects_budget.rs (helper)",
+   "finding": "nested hidden groups untested (helper cannot nest groups; a boolean in place of the hidden_groups counter would pass)",
+   "first_seen": "R11-prereview-psd-budget",
+   "seen_in": [
+    "R11-prereview-psd-budget"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "85532ad",
+   "disposition": "FIX_LANE",
+   "disposition_note": "after R11"
+  },
+  {
+   "id": "PLR-066",
+   "lane": "SMB-REEL-ENG-1",
+   "file_line": "crates/hsk-studio-reel/src/wav.rs:374",
+   "finding": "wav delivered count computed from the request, not the loop (tautological completeness check); none of the four delivery_complete call sites (wav, y4m, PCM, mxf) pinned by a test; V4-06 regex lacks a 'delivered =' token",
+   "first_seen": "R11-review-a",
+   "seen_in": [
+    "R11-review-a"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "6956d3f",
+   "disposition": "FIX_LANE",
+   "disposition_note": "next reel lane"
+  },
+  {
+   "id": "PLR-067",
+   "lane": "SMB-REEL-ENG-1",
+   "file_line": "crates/hsk-studio-reel/src/isobmff.rs:2084-2097, 2151-2155",
+   "finding": "Partial packet receipt over a repeating edit list reports actual.end_pts as the presented range end while delivered chunks cover less; test does not assert it",
+   "first_seen": "R11-review-a",
+   "seen_in": [
+    "R11-review-a"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "6956d3f",
+   "disposition": "FIX_LANE",
+   "disposition_note": "next reel lane"
+  },
+  {
+   "id": "PLR-068",
+   "lane": "SMB-REEL-ENG-1",
+   "file_line": "crates/hsk-studio-reel y4m range check + DESCRIPTOR",
+   "finding": "DESCRIPTOR says a past-end range is MEDIA_OUT_OF_RANGE before the first payload read; y4m has no such check and fails Truncated after frames reached the sink (V4-07)",
+   "first_seen": "R11-review-a",
+   "seen_in": [
+    "R11-review-a"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "6956d3f",
+   "disposition": "FIX_LANE",
+   "disposition_note": "next reel lane"
+  },
+  {
+   "id": "PLR-069",
+   "lane": "SMB-PIGMENT-PLANLIMITS",
+   "file_line": "crates/hsk-studio-pigment PlanExtensions::validate; render-cpu ExtPrep::build vs render-gpu per-layer lookup",
+   "finding": "envelope operators are still collected from entries on unreachable groups; render-cpu prepares every envelope entry while render-gpu looks entries up per executed layer (backend disagreement)",
+   "first_seen": "builder report 71be1aa",
+   "seen_in": [
+    "lane notes follow-ups"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "71be1aa",
+   "disposition": "FIX_LANE",
+   "disposition_note": "lead: same reachable-only rule for envelope entries in pigment and render-cpu (render-gpu already per executed layer); render-gpu untouched (D20)"
+  },
+  {
+   "id": "PLR-070",
+   "lane": "SMB-PIGMENT-PLANLIMITS",
+   "file_line": "render-cpu plan_sink.rs:1395,1427; render-gpu plan_sink.rs:964,965",
+   "finding": "backends still call admit/admit_extended with default limits; adoption of admit_with_limits for caller-supplied PlanLimits pending; envelope effect budgets are constants outside PlanLimits",
+   "first_seen": "builder report 71be1aa",
+   "seen_in": [
+    "lane notes follow-ups"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "71be1aa",
+   "disposition": "FIX_LANE",
+   "disposition_note": "render-cpu adoption in the PLR-069 lane; render-gpu after D20"
+  }
+ ],
+ "process_items": [
+  {
+   "id": "PLR-P01",
+   "lane": "SMB-PRESS",
+   "ref": "R7-prereview-b P3",
+   "finding": "V4-06 site list: 8 semantic sites listed vs 25 regex hits at head",
+   "status": "OPEN (lane file unchanged since 06:54:44Z)",
+   "disposition": "FIX_LANE (rem-press-soundness lists every hit as file:line)"
+  },
+  {
+   "id": "PLR-P02",
+   "lane": "SMB-MOTION-JS-WORKER",
+   "ref": "R7-prereview-b P3",
+   "finding": "V4-06 site lists taken at ffe5592 (4 listed vs 8 hits)",
+   "status": "LIKELY FIXED: 1d972f1 'V4-06 sweep', lane file updated 10:05:46Z; count not re-run here",
+   "disposition": "REVIEW"
+  },
+  {
+   "id": "PLR-P03",
+   "lane": "SMB-DEVELOP / SMB-PRISM-ENG-6",
+   "ref": "R7-prereview-a FIX_FIRST notes",
+   "finding": "site list 26 vs 24 (develop); stale site list (prism-eng-6)",
+   "status": "fixes pushed (60b0e47; 3312f72, efda89a, 9b66924); counts not re-run here",
+   "disposition": "REVIEW (mechanical count, see tick-4 proposal 3)"
+  },
+  {
+   "at": "2026-10-11T12:33:34Z",
+   "source": "R8-review-b",
+   "item": "SMB-SCORE-GUARDS and SMB-FOLIO-UNIQUENESS lane notes do not use the V4-20 notes.v4_06_sites format; SCORE-GUARDS self-reported a V4-11 breach (red proof in the shared tree)",
+   "action": "next agent on those crates converts the list; V4-11 reminder in its dispatch"
+  }
+ ],
+ "closed_since_review": [
+  {
+   "ref": "R5-review-a SMB-RENDER-GPU #1",
+   "finding": "public fault-injection constructors",
+   "closed_by": "459c5d9: #[cfg(feature = \"test-faults\")] at plan_sink.rs:742,772 + compile_fail doctests in lib.rs",
+   "verified_at": "efda89a"
+  },
+  {
+   "ref": "R6-review-a SMB-RENDER-GPU #1 (V4-07)",
+   "finding": "DESCRIPTOR never-claims without tests",
+   "closed_by": "DESCRIPTOR reworded; remaining claim cites residency_accounting_never_overflows",
+   "verified_at": "efda89a"
+  },
+  {
+   "ref": "R5-review-a SMB-COMPOSITE #0 / R6-review-a SMB-PIGMENT-ENG-1 #0",
+   "finding": "composite rated pass-through fill < 1 Approximate",
+   "closed_by": "evaluate_static.rs:213-216 records PASS_THROUGH_FILL_OPERATOR Unsupported; classes read from pigment (residual literal tracked in PLR-006)",
+   "verified_at": "efda89a"
+  },
+  {
+   "ref": "R5-review-a SMB-COMPOSITE #1",
+   "finding": "non-neutral pass-through root kept the wrapper",
+   "closed_by": "lower_render_plan.rs root_neutral handling + DESCRIPTOR 'wrapped in one isolated layer'",
+   "verified_at": "efda89a"
+  },
+  {
+   "ref": "R5-review-a SMB-PIGMENT-ENG-1 #1",
+   "finding": "Solid rgb outside [0,1] admitted",
+   "closed_by": "2f705f1 SAMPLE_RANGE_OPERATOR (render_plan.rs:794)",
+   "verified_at": "efda89a"
+  },
+  {
+   "ref": "R5-review-a SMB-CONTROLS #1",
+   "finding": "End with Err leaves the gesture open",
+   "closed_by": "documented protocol + test no_change_is_reported_by_route_and_a_refused_end_keeps_the_gesture (fec865b); builder decision, not re-raised in R6/R7",
+   "verified_at": "lane notes"
+  },
+  {
+   "ref": "R5-review-a SMB-SCORE #1",
+   "finding": "tick conversion copy of accord Timescale",
+   "closed_by": "layout.rs:71-83 delegates to Timescale",
+   "verified_at": "9b66924"
+  },
+  {
+   "ref": "R5-review-a SMB-INTEROP-PSD #0, #1",
+   "finding": "apply_edits partial mutation; tile-less cells, non-finite samples, alpha clamp",
+   "closed_by": "export.rs:127 clone; :402 non_finite_sample; :414 alpha_range_clamped; proposal.rs non_finite_samples_zeroed",
+   "verified_at": "9b66924"
+  },
+  {
+   "ref": "R5-review-b SMB-MOTION-JS-WORKER #2, #3, #4 / R7-prereview-b P2",
+   "finding": "parent-dir worker lookup, uncancellable HELLO wait, response_cap",
+   "closed_by": "961c301",
+   "verified_at": "1f99350"
+  },
+  {
+   "ref": "R6-review-b SMB-SCORE-PLUGIN #2",
+   "finding": "parent-dir worker lookup",
+   "closed_by": "7d5641c (supervisor.rs:71-77 exe dir only)",
+   "verified_at": "9b66924"
+  },
+  {
+   "ref": "R6-review-b SMB-SCORE-PLUGIN #3",
+   "finding": "512 MiB whole-file hash buffer",
+   "closed_by": "10016b5 streaming SHA-256",
+   "verified_at": "9b66924"
+  },
+  {
+   "ref": "R6-review-b SMB-SCORE-PLUGIN #4",
+   "finding": "host adopted worker-reported state versions",
+   "closed_by": "host.rs:782,822,857 host-owned counter",
+   "verified_at": "9b66924"
+  },
+  {
+   "ref": "R6-review-b SMB-SCORE-DEVICE #2, #3",
+   "finding": "open wait not cancel-polled; admission doc drift",
+   "closed_by": "436242f wait_ready polls cancel; admission keeps both bounds",
+   "verified_at": "9b66924"
+  },
+  {
+   "ref": "R5-review-b SMB-PRESS #2 / R6-review-b #5",
+   "finding": "scan without cancel",
+   "closed_by": "c520095 sanitized_save.rs:274-286",
+   "verified_at": "9b66924"
+  },
+  {
+   "ref": "R5-review-b SMB-PRESS #3 / R6-review-b #6",
+   "finding": "filters.rs header and ASCII85 truncation",
+   "closed_by": "filters.rs:1-3 lists LZW; :416 u32::try_from refusal",
+   "verified_at": "9b66924"
+  },
+  {
+   "ref": "R6-review-b SMB-PRESS #3",
+   "finding": "image XObject with raster filter hides zlib payload",
+   "closed_by": "c520095 hidden_zlib (residual tracked in PLR-040)",
+   "verified_at": "9b66924"
+  },
+  {
+   "ref": "R6-review-b SMB-WEB #2",
+   "finding": "SMIL set/animate href targets unscanned",
+   "closed_by": "assets.rs:496-515 animated_kind",
+   "verified_at": "9b66924"
+  },
+  {
+   "ref": "R5-review-b SMB-KERNEL-BINDINGS #2",
+   "finding": "client-chosen lease epoch fences everyone",
+   "closed_by": "be2ee84 host.rs:405-411 host-issued epoch",
+   "verified_at": "9b66924"
+  },
+  {
+   "ref": "R5-review-b SMB-HARNESS #1",
+   "finding": "--save may overwrite the input package",
+   "closed_by": "c41b067 cli.rs:7,75-76,193 (--overwrite required)",
+   "verified_at": "9b66924"
+  },
+  {
+   "ref": "R5-review-c SMB-INTEROP-LRCAT #2",
+   "finding": "Python sqlite3 generator in the product crate",
+   "closed_by": "moved out; tests/fixtures/PROVENANCE.json",
+   "verified_at": "9b66924"
+  },
+  {
+   "ref": "R5-review-c SMB-INTEROP-LAYOUT #1 (local-header half)",
+   "finding": "local headers compared by name only",
+   "closed_by": "lane remediation_R5 (method/CRC/size cross-check); ZIP duplicate stays in PLR-043",
+   "verified_at": "lane notes"
+  },
+  {
+   "ref": "R5-review-c SMB-INTEROP-VECTOR #1",
+   "finding": "PASS_V1 verdict tree lacked slice 2",
+   "closed_by": "R6 PASS_V3 @bd8533f; git merge-base --is-ancestor f0cdb55 bd8533f = true",
+   "verified_at": "git"
+  },
+  {
+   "ref": "R5-review-c SMB-SESSION #0, #1, #2",
+   "finding": "chronicle table copy; receipts never evicted / no resync; DESCRIPTOR streaming overclaim",
+   "closed_by": "chronicle-exported table (b77518c; seed_revisions/mask_property gone); acknowledge_receipt/discard_diverged/resync_diverged; DESCRIPTOR qualified to raw assets",
+   "verified_at": "1f99350"
+  },
+  {
+   "ref": "R5-review-c SMB-COMPONENTS #1",
+   "finding": "write keys not instance-scoped",
+   "closed_by": "footprint (instance_id, override/<node>/<field>) instance_resolution.rs:805",
+   "verified_at": "9b66924"
+  },
+  {
+   "ref": "R6-review-a SMB-PRISM-ENG-6 #2, #3, #4",
+   "finding": "lease sizes unmeasured; gamma <= 0 destinations; DIV-ABS attribution unasserted",
+   "closed_by": "e26f623",
+   "verified_at": "R7-prereview-a + lane notes"
+  },
+  {
+   "ref": "R7-prereview-a SMB-PRISM-ENG-6 #4",
+   "finding": "wall-clock cancel test could go falsely red",
+   "closed_by": "efda89a (a_canceled_token_stops_a_band_before_its_first_chunk; Instant only in the #[ignore] bench)",
+   "verified_at": "9b66924"
+  },
+  {
+   "ref": "R7-prereview-a SMB-PRISM-ENG-6 #6",
+   "finding": "non-monotonic destination curv tables accepted",
+   "closed_by": "1f6a3d0 (SMB-PRISM-ENG-8)",
+   "verified_at": "1f99350"
+  },
+  {
+   "ref": "R7-prereview-a SMB-DEVELOP #4",
+   "finding": "DESCRIPTOR 'never clipped' without test",
+   "closed_by": "60b0e47 (claim now cites profile_transform_admitted)",
+   "verified_at": "9b66924"
+  },
+  {
+   "ref": "R6-review-c SMB-INTEROP-FIG #2, #3",
+   "finding": "trailing compressed bytes; duplicate struct field ids",
+   "closed_by": "deea33c",
+   "verified_at": "lane notes"
+  },
+  {
+   "ref": "R6-review-c SMB-INTEROP-FIG #5 (V4-01 half)",
+   "finding": "decoders without the overflow lint",
+   "closed_by": "container.rs and kiwi.rs carry the deny",
+   "verified_at": "9b66924"
+  },
+  {
+   "ref": "R6-review-c SMB-INTEROP-VECTOR-FOLIO-MIGRATE #0",
+   "finding": "Unassigned paints exported as sRGB under an assigned working space",
+   "closed_by": "svg_export.rs:1027 working_assigned",
+   "verified_at": "9b66924"
+  },
+  {
+   "ref": "R6-review-c SMB-INTEROP-LRCAT #0, SMB-INTEROP-LAYOUT #0, SMB-INTEROP-FIG #5 (V4-02 half)",
+   "finding": "pre-adoption modules without V4-01/V4-02/V4-06",
+   "closed_by": "lead decision 2026-10-11T07:30:00Z: untouched pre-adoption code yields process notes, not FAIL",
+   "verified_at": "START_LOG"
+  },
+  {
+   "ref": "R7-prereview-a SMB-DEVELOP #6 (V4-15)",
+   "finding": "feature slice 78fd379 on the failing lane",
+   "closed_by": "lane SMB-DEVELOP-JOBS split (tick-log 07:59:09Z)",
+   "verified_at": "ledger"
+  },
+  {
+   "ref": "R7-prereview-b SMB-WEB P2 (V4-14), SMB-PRESS P4 (V4-15)",
+   "finding": "difftest landing under SMB-WEB; press slice 6 on a failing lane",
+   "closed_by": "SMB-WEB-DIFFTEST queued as its own lane; press slice 6 judged as part of the claim (process note, no action)",
+   "verified_at": "ledger"
+  },
+  {
+   "id": "PLR-020",
+   "closed_at": "2026-10-11T10:56:49Z",
+   "reason": "R7 review A: converter side effects no longer depend on thread count at dff7ef5"
+  }
+ ],
+ "out_of_scope_seen": [
+  "R3-only PLAUSIBLE items not repeated in R5-R7 (e.g. interop-media folio_map sanitize not injective, reel Y4M Truncated vs WAV OutOfRange) were not compiled; lane notes list them",
+  "builder self-reported plausible_not_addressed notes (render-cpu window/effects, interop-psd adj2) are not reviewer findings; PLR-004 covers the render-cpu class"
+ ]
+}

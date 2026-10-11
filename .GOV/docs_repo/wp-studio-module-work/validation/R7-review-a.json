@@ -1,0 +1,577 @@
+{
+ "round": "STUDIO-R7",
+ "group": "A (render, colour, develop)",
+ "reviewed_commit": "dff7ef51d282509846803ac406a9fe12957355df",
+ "reviewer": "independent adversarial reviewer A (Opus), read-only, committed blobs at dff7ef5 only (git archive dff7ef5 into session scratchpad; git diff <base>..dff7ef5), no sub-agents, no cargo",
+ "status": "COMPLETE",
+ "started_at": "2026-10-11T10:27:56Z",
+ "updated_at": "2026-10-11T10:55:41Z",
+ "severity_rule": "CONFIRMED only with file:line at dff7ef5 (or kernel file/key for process facts); else PLAUSIBLE. Paths relative to handshake-studio-assets/ at dff7ef5.",
+ "lanes": [
+  {
+   "lane": "SMB-PRISM-ENG-5",
+   "crate": "hsk-studio-prism",
+   "recheck": {
+    "result": "SAFE_TO_JUDGE",
+    "rule": "V4-13/V4-18",
+    "basis": "Pre-review A (0e48167) FIX_FIRST was paperwork only (new_findings[0]: lane record + V4-06 class/regex/site list for the R6 fix 65a08c9; claim listing later prism commits). Closed: kernel builders/lanes/hsk-studio-prism-eng5.json notes.remediation_R6 (class, regex, 6 sites at 8a9ef31, count_hits 6 = count_listed 6) and notes.claim (judged_head 8a9ef31; later_prism_commits_in_the_judged_tree lists 65a08c9, 8634765, d7027c3, e26f623, efda89a, 3312f72, 9b66924, 1f6a3d0, 8a9ef31). Recount at dff7ef5 of the lane alternation over crates/hsk-studio-prism: 6 lines (tests/oracle/corpus.json:5, tests/oracle/t1_lcms2.json:8, tests/wide_determinism.rs:53, tests/wide_support/mod.rs:382,384,418) = 6 listed. git diff 8a9ef31..dff7ef5 -- crates is empty (dff7ef5 is the steward lock/pin sync). Prism commits after 0e48167 (efda89a, 3312f72, 9b66924, 1f6a3d0, 8a9ef31) touch only src/icc_eval.rs, src/wide*.rs, src/wide_job/tests.rs, tests/wide_chunks.rs, tests/wide_doc_claims.rs, tests/wide_eng8_monotonic.rs: none touches tests/oracle*, tests/oracle_support or tests/wide_support, as the claim says.",
+    "open_items_not_reraised": "pre-review new_findings[1..4] are register items PLR-024 (search_env_var stale key, FIX_LANE), PLR-025 (wide_profiles.rs:163 unpinned read, FIX_LANE), PLR-023 (T1 dE metric printed not asserted, FIX_LANE), PLR-026 (WAIVE)"
+   },
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "unverified_cross_lane_effect",
+     "file_line": "crates/hsk-studio-prism/src/icc_eval.rs (1f6a3d0 require_invertible table arm, table_inverse flat ends) vs tests/oracle_t1_lcms2.rs KNOWN_FINDINGS (PRISM-TABLE-TRC-INVERSE-001)",
+     "evidence": "ENG-8 changed how destination curv tables are inverted (flat ends per ICC F.1) and refuses non-monotonic destination tables. ENG-5's known-findings mechanism fails a test when a documented finding starts passing, and an installed destination table that is non-monotonic would now be refused at plan time. The lane records 155/155 with HSK_PRISM_REQUIRE_CORPUS=1 at 8a9ef31 (builder evidence, not a round result); not executed here. The round run at dff7ef5 with the corpus is the proof.",
+     "remediation": "None if the R7 round shows oracle_t1_lcms2 42/42 with 0 NOT_PROVEN; else remove the KNOWN_FINDINGS entry ENG-8 fixed"
+    }
+   ],
+   "verified_fixes": [
+    {
+     "prior": "R6 FAIL_V2 oracle-corpus-root-unresolved-from-exports",
+     "fix_commit": "65a08c9",
+     "evidence": "tests/wide_support/mod.rs:382-415 workspace_root() + corpus_root() walk from .config/oracle-corpus.toml (no CARGO_MANIFEST_DIR-relative corpus root, no env search path; :418 HSK_PRISM_REQUIRE_CORPUS is a flag). Unchanged since pre-review A verified it."
+    }
+   ],
+   "recommendation": "SAFE_TO_JUDGE",
+   "recommendation_note": "Paperwork FIX_FIRST closed and recount matches; code fix verified in pre-review and untouched since. Acceptance still depends on the round running T1 installed cases with the corpus (V4-03: any NOT_PROVEN means not PASS).",
+   "reviewed_at": "2026-10-11T10:31:30Z"
+  },
+  {
+   "lane": "SMB-DEVELOP",
+   "crate": "hsk-studio-develop",
+   "recheck": {
+    "result": "SAFE_TO_JUDGE",
+    "rule": "V4-13/V4-18",
+    "basis": "Pre-review A FIX_FIRST items: [0] stale STU-CON-044 doc/DESCRIPTOR and [1] V4-06 relist (also [4] never-clipped clause). 60b0e47 (docs/comments/DESCRIPTOR string only; git show 60b0e47 has no code-line change) replaces convert.rs:20-21 and DESCRIPTOR pending[0]: src/convert.rs:15-58 now states Prism's <=64-px chunking inside each band, that a develop band is a whole tile, and which develop tests do and do not prove it; src/lib.rs:239 DESCRIPTOR adds profile_transform.chunking, the never-clipped clause now cites tests/develop_profile.rs profile_transform_admitted. Every test name cited in 60b0e47 exists at dff7ef5 (prism tests/wide_chunks.rs chunk_accounting_is_bounded_deterministic_and_allocation_free, a_canceled_token_stops_a_band_before_its_first_chunk, admitted_transform_and_job_report_their_chunks, bench_literal_64_pixel_admitted_calls_against_internal_chunks; prism src/wide_job/tests.rs a_band_canceled_at_a_chunk_edge_leaves_exactly_the_chunks_before_it, an_in_place_band_canceled_mid_band_is_partly_overwritten; prism tests/wide_job.rs admitted_job_charges_everything_before_the_bands_for_every_thread_count; develop tests/develop_profile.rs and tests/develop_parallel.rs names). V4-06 recount at dff7ef5 (regex vec!\\[|with_capacity|\\.reserve\\(|\\.resize\\(|\\.to_vec\\( over src/*.rs): 24 lines = curves 17,55,62; dng 481,578,789; ljpeg 37,65,334; par 79,108,123; pipeline 362,448,533,825,848,849,850,1035,1148; tiff 99,179,211 — identical to the 24 sites listed in kernel builders/lanes/hsk-studio-develop.json notes[17].r7_fix_first.v4_06. git diff 60b0e47..dff7ef5 -- crates/hsk-studio-develop is empty. Lane split (notes[16].lanes): SMB-DEVELOP = 5ef2dd9, 8962bbc, 60b0e47; f132843/78fd379 moved to SMB-DEVELOP-JOBS (V4-15).",
+    "open_items_not_reraised": "PLR-017 (ljpeg RSTn, no V4-01 deny on tiff.rs/ljpeg.rs, FIX_LANE), PLR-019 (real_dng corpus_dir env/CARGO_MANIFEST_DIR root, FIX_LANE), PLR-018 (band_window error order, FIX_LANE on SMB-DEVELOP-JOBS)"
+   },
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "process_v4_20",
+     "file_line": "kernel builders/lanes/hsk-studio-develop.json notes[17].r7_fix_first.v4_06.sites (object keyed by site; notes is a list)",
+     "evidence": "V4-20 (10:18:58Z) requires the single key notes.v4_06_sites = [{file_line, verdict}] for the steward's mechanical checker; the develop list is an object under notes[17].r7_fix_first.v4_06 (recorded 09:56:43Z, before V4-20), with grouped keys ('curves.rs:55,62', 'pipeline.rs:848,849,850'), so a mechanical count would see 17 keys, not 24.",
+     "remediation": "Re-emit as notes.v4_06_sites with one {file_line, verdict} per line"
+    }
+   ],
+   "verified_fixes": [
+    {
+     "prior": "R7 pre-review A SMB-DEVELOP new_findings[0] stale_doc_vs_dependency (CONFIRMED)",
+     "fix_commit": "60b0e47",
+     "evidence": "src/convert.rs:15-58 and src/lib.rs:239 DESCRIPTOR profile_transform.chunking/pending[0] at dff7ef5 match prism behaviour (ADMITTED_CHUNK_PIXELS per band, per-chunk cancel) and say what develop does not prove."
+    },
+    {
+     "prior": "R7 pre-review A SMB-DEVELOP new_findings[1] process_v4_06_count (CONFIRMED)",
+     "fix_commit": "60b0e47 (lane record)",
+     "evidence": "24 regex hits at dff7ef5 = 24 listed sites with matching line numbers"
+    }
+   ],
+   "recommendation": "SAFE_TO_JUDGE",
+   "recommendation_note": "Both FIX_FIRST items closed; crate unchanged since 60b0e47. Only a V4-20 key-format process note.",
+   "reviewed_at": "2026-10-11T10:31:30Z"
+  },
+  {
+   "lane": "SMB-CONTROLS",
+   "crate": "hsk-studio-controls",
+   "recheck": {
+    "result": "SAFE_TO_JUDGE",
+    "rule": "V4-18 (pre-review result stands while the crate is unchanged)",
+    "basis": "Pre-review A SAFE_TO_JUDGE at 0e48167. git diff --stat 0e48167..dff7ef5 lists no file under crates/hsk-studio-controls, hsk-studio-accord or hsk-studio-observe (its path deps); egui pin unchanged (only .config/round-features.toml changed in .config).",
+    "open_items_not_reraised": "PLR-010 (stray End reports Success) is ACCEPT in the register"
+   },
+   "findings": [],
+   "verified_fixes": [],
+   "recommendation": "SAFE_TO_JUDGE",
+   "reviewed_at": "2026-10-11T10:31:30Z"
+  },
+  {
+   "lane": "SMB-COMPONENTS",
+   "crate": "hsk-studio-components",
+   "recheck": {
+    "result": "SAFE_TO_JUDGE",
+    "rule": "V4-18",
+    "basis": "Pre-review A SAFE_TO_JUDGE at 0e48167. git diff --stat 0e48167..dff7ef5 lists no file under crates/hsk-studio-components, hsk-studio-folio, hsk-studio-accord or hsk-studio-observe.",
+    "open_items_not_reraised": "PLR-046 (FIX_LANE SMB-COMPONENTS-FOOTPRINT), PLR-047 (OPERATOR_DECISION), PLR-048 (FIX_LANE, V4-07 citations)"
+   },
+   "findings": [],
+   "verified_fixes": [],
+   "recommendation": "SAFE_TO_JUDGE",
+   "reviewed_at": "2026-10-11T10:31:30Z"
+  },
+  {
+   "lane": "SMB-COMPONENTS-FOLIO-MIGRATE",
+   "crate": "hsk-studio-components",
+   "recheck": {
+    "result": "SAFE_TO_JUDGE",
+    "rule": "V4-18",
+    "basis": "Same tree as SMB-COMPONENTS; unchanged since the 0e48167 SAFE_TO_JUDGE.",
+    "open_items_not_reraised": "PLR-049 (FIX_LANE SMB-FOLIO-UNIQUENESS)"
+   },
+   "findings": [],
+   "verified_fixes": [],
+   "recommendation": "SAFE_TO_JUDGE",
+   "reviewed_at": "2026-10-11T10:31:30Z"
+  },
+  {
+   "lane": "SMB-PRISM-ENG-6",
+   "crate": "hsk-studio-prism",
+   "diff_reviewed": "0e48167..dff7ef5 -- crates/hsk-studio-prism: efda89a (deterministic cancel), 3312f72 (job-band chunk record), 9b66924 (cancel/recovery/privacy doc scope), 8a9ef31 (V4-07 citations); crate at dff7ef5 == 8a9ef31",
+   "checked": "Pre-review A FIX_FIRST items re-verified at dff7ef5. (0) src/wide.rs:1209 WIDE_DESCRIPTOR recovery now scopes cancel: request/finish return no result; a band keeps whole chunks converted before the edge; in-place = converted prefix + untouched rest; band stays claimed; channel checks write nothing; nonfinite_output keeps the failing chunk. Matches src/wide_job.rs:347-470 (check_pixels over the whole band before the first chunk, canceled_at_chunk before each chunk and once after the last, seal_chunk after writing). src/wide_job/tests.rs proves each clause with NaN-filled outputs and exact prefix bit comparison against an uninterrupted run (edges 0/1/5/20, 21 = after last, in-place 0/3/20/21, input refusal in the last chunk writes nothing, request edges 0/7/21 return Err with no pixels); tests/wide_doc_claims.rs:27-44 pins the text and asserts the old phrases are absent. (1) class sweep recorded: kernel builders/lanes/hsk-studio-prism-eng6.json notes.remediation_R7_prereview.v4_06_doc_claim_class (55 = 55 at 8a9ef31). (2) src/wide_job.rs:209-216 type Stage = [u8; CHUNK_STAGE_BYTES], band_account() = size_of::<Stage>(); src/wide.rs:76-85 request account keeps 64 x ch x 4 and transform allocates exactly that (wide.rs:1066 Vec::with_capacity(chunks.scratch_bytes)); WideChunkAccount::merge (wide.rs:100-104) leaves scratch_bytes untouched so the job receipt stays 1024; src/wide_job/tests.rs:206-220 and tests/wide_chunks.rs staging test assert both. (3) FAIL-1 list: lane regex over src at dff7ef5 = 205 lines; set comparison with the 205 file:line entries in notes.remediation_R6.v4_06_sites.regions: 0 unlisted, 0 stale. (4) tests/wide_chunks.rs has no sleep/timing assertion left (only the #[ignore] bench :354 times); chunk_trip (src/wide.rs:1211-1235) is #[cfg(test)], thread-local, called only from canceled_at_chunk (wide.rs:849-853) under #[cfg(test)] (V4-04). Test-name citations in prism src checked mechanically: every cited test function exists at dff7ef5. R6 FAILs (mAB input count, not_in_scope scope) re-verified unchanged since pre-review.",
+   "findings": [],
+   "verified_fixes": [
+    {
+     "prior": "R7-prereview-a ENG-6 new_findings[0] doc_contradiction (CONFIRMED)",
+     "fix_commit": "9b66924",
+     "evidence": "src/wide.rs:1209 recovery clause + src/wide_job.rs:376-381, :424-427 docs; src/wide_job/tests.rs a_band_canceled_at_a_chunk_edge_leaves_exactly_the_chunks_before_it, an_in_place_band_canceled_mid_band_is_partly_overwritten, a_request_canceled_mid_request_returns_no_pixels; tests/wide_doc_claims.rs:27"
+    },
+    {
+     "prior": "R7-prereview-a ENG-6 new_findings[1] process_v4_06 (CONFIRMED)",
+     "fix_commit": "lane record (8a9ef31)",
+     "evidence": "notes.remediation_R7_prereview.v4_06_doc_claim_class: class, regex, 55 hits = 55 listed with per-site verdicts"
+    },
+    {
+     "prior": "R7-prereview-a ENG-6 new_findings[2] accounting_doc_mismatch (CONFIRMED)",
+     "fix_commit": "3312f72",
+     "evidence": "src/wide_job.rs:209-216 (record derived from the stage type); src/wide_job/tests.rs:206-220"
+    },
+    {
+     "prior": "R7-prereview-a ENG-6 new_findings[3] v4_06_count (CONFIRMED)",
+     "fix_commit": "lane record",
+     "evidence": "205 regex lines at dff7ef5 = 205 listed, exact set match"
+    },
+    {
+     "prior": "R7-prereview-a ENG-6 new_findings[4] flaky_test_false_red (PLAUSIBLE)",
+     "fix_commit": "efda89a",
+     "evidence": "tests/wide_chunks.rs:222-240 pre-canceled token only; mid-band cases are deterministic chunk_trip unit tests"
+    }
+   ],
+   "open_items_not_reraised": "PLR-027 (lib.rs deny attribute, FIX_LANE), PLR-028 (fusion note, FIX_LANE; capabilities note reworded per lane)",
+   "recommendation": "PASS",
+   "recommendation_note": "All FIX_FIRST items closed with code/tests that assert the claims; no stub, no silent green, no fault hook in default builds. Final verdict depends on the round run (V4-03).",
+   "reviewed_at": "2026-10-11T10:37:22Z"
+  },
+  {
+   "lane": "SMB-PRISM-ENG-7",
+   "crate": "hsk-studio-prism",
+   "diff_reviewed": "65a08c9 + 8634765 (lane commits); the same files as they stand at dff7ef5 after d7027c3, efda89a, 3312f72, 9b66924, 8a9ef31",
+   "checked": "src/wide_job.rs at dff7ef5: prepare_job resolves the plan once (prepare_parts: cancel, actor, revision, layout, plan_parts) and allocates only the band table; WideJob borrows the engine mutably until finish; Send + Sync asserted at compile time (tests/wide_job.rs:22-23); band claim via AtomicBool swap, result in OnceLock (one write), BandIndex/BandLength refused before the claim; finish merges in band order and reports the lowest failed or unconverted band, then cancellation. tests/wide_job.rs:141-217 compares bits and per-band digests to serial requests for 5 plan kinds, 1/2/8/16 threads, in place and uniform layout; :262-317 asserts ledger live/calls from inside every band call, identical traces per thread count, release on drop; :334-406 the typed band contract. The admitted work lease uses size_of::<Slot>() (WideJob::slot_bytes). Fast path (scope part 2) skipped and disclosed (notes.fast_path_decision) as optional.",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "process_v4_14",
+     "file_line": "kernel builders/lanes/hsk-studio-prism-eng7.json (commits [65a08c9, 8634765], updated_at 2026-10-11T06:19:46Z, no claim of later commits); git log 8634765..dff7ef5 -- crates/hsk-studio-prism/src/wide_job.rs tests/wide_job.rs: d7027c3, efda89a, 3312f72, 9b66924, 8a9ef31",
+     "evidence": "Five later commits from SMB-PRISM-ENG-6 rewrote this lane's own module (64-pixel chunk loops, cancel at chunk edges, stage record, docs) after its READY commit, and ENG-8 (1f6a3d0) changed the plan builder the job uses. The ENG-7 lane file lists none of them (unlike the ENG-5 and ENG-6 lane files, which carry notes.claim). V4-14: the lane is judged only if the later commits are listed in its claim. The code at dff7ef5 is consistent and its tests hold, so this is paperwork, but the lane's recorded proof (suite_8634765: 123 passed) is for a tree the round does not judge.",
+     "remediation": "Add notes.claim to the ENG-7 lane file listing d7027c3, e26f623, efda89a, 3312f72, 9b66924, 1f6a3d0, 8a9ef31 with the files they touch, or let the lead record that ENG-7 is judged at dff7ef5"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "process_v4_06_v4_20",
+     "file_line": "kernel builders/lanes/hsk-studio-prism-eng7.json notes (no v4_06_sites key)",
+     "evidence": "ENG-7 is a feature lane (no recorded FAIL), so V4-06 class lists are not strictly required; but V4-20's mechanical checker will find no notes.v4_06_sites key for a lane that added a new untrusted-count path (WideBands::Sizes from a caller slice -> band table). The layout bounds are present (MAX_WIDE_JOB_BANDS, MAX_WIDE_PIXELS, empty refused; tests/wide_job.rs:334-354).",
+     "remediation": "Optional: empty notes.v4_06_sites with a one-line reason, so the checker does not flag the lane"
+    }
+   ],
+   "verified_fixes": [],
+   "recommendation": "FIX_FIRST",
+   "recommendation_note": "Code and tests look sound (bit identity per band digest, ledger trace independence, typed band contract). FIX_FIRST is V4-14 paperwork only: later commits that rewrote src/wide_job.rs are not in this lane's claim.",
+   "reviewed_at": "2026-10-11T10:37:22Z"
+  },
+  {
+   "lane": "SMB-PRISM-ENG-8",
+   "crate": "hsk-studio-prism",
+   "diff_reviewed": "1f6a3d0 (+ 8a9ef31 docs) over 9b66924",
+   "checked": "src/icc_eval.rs:271-285 require_invertible (doc :249-270) table arm: rises/falls over windows(2), invertible iff exactly one direction (constant has neither, non-monotonic both); u16-normalised entries compare exactly. src/icc_eval.rs:991-1008 from_pcs applies it to the Gray curve and all three matrix TRCs before FromPcs is built (to_pcs, the source side, does not: forward use stays defined per clause 10.6). table_inverse (:385-430): decreasing tables are negated into ascending order with x positions unchanged; flat start returns x2, flat end x1 (F.1 a), y beyond a flat end returns that end (F.1 b), middle plateau via 'largest index with at(i) <= v' returns x2; I traced the increasing, decreasing and plateau cases of the unit test (:1132-1175) by hand and they follow the code. Unit test require_invertible_accepts_monotonic_tables_and_refuses_the_rest covers one count against the direction and a 3-entry dip with equal ends. V4-06 fixed-string list: 53 hits in src at dff7ef5 = 53 listed (exact file:line set). V4-14: only 8a9ef31 after 1f6a3d0, listed. No fault hook, no env read.",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "doc_scope",
+     "file_line": "crates/hsk-studio-prism/src/icc_eval.rs:376-384, :395-414 vs src/wide.rs:1209 WIDE_DESCRIPTOR model ('destination matrix/Gray curves inverted exactly and extended sign-preserving outside 0..1') and clip ('output left unclamped')",
+     "evidence": "F.1 b) (a y outside the range takes the inverse of the closest y in the range) is applied only at a FLAT end; at a sloped end the table still extrapolates (documented extension). So an out-of-gamut linear value through a table destination whose last run is flat is pulled to x1 (inside 0..1), while the same value through a sloped table leaves 0..1. The descriptor's clip key still says matrix/TRC output is left unclamped; the model key does state the flat-end rule, so the two keys disagree for flat-ended tables. The clip COUNT is taken on the linear values and is unaffected.",
+     "remediation": "Qualify the clip key: 'unclamped except at a flat end of a destination table (F.1 b)'; or apply one out-of-range rule to both end kinds"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "compatibility_risk",
+     "file_line": "crates/hsk-studio-prism/src/icc_eval.rs:271-279",
+     "evidence": "One u16 count against the direction refuses a destination profile (no tolerance, per F.1 text). The lane states (notes.rule_and_citation.why_not_tolerance) that whether real-world profiles carry noisy measured tables is UNVERIFIED; a refusal is typed (non_invertible_curve) and the profile still works as a source, so the failure mode is loud, not silent.",
+     "remediation": "Add D5/T3 corpus check of measured Gray/RGB destination tables, or record the strict reading as a lead decision"
+    }
+   ],
+   "verified_fixes": [],
+   "recommendation": "PASS",
+   "recommendation_note": "Refusal is spec-cited, guarded at the single destination entry point, typed on all routes (tests/wide_eng8_monotonic.rs), with exact unit oracles for the F.1 plateau rules. Findings are documentation scope and compatibility notes.",
+   "reviewed_at": "2026-10-11T10:37:22Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-ENG-2",
+   "crate": "hsk-studio-pigment + hsk-studio-folio",
+   "diff_reviewed": "bd8533f..dff7ef5 -- crates/hsk-studio-pigment (ENG-2 code adjust_math.rs, coverage_math.rs unchanged; render_plan.rs and render_plan/extensions.rs changed by e007703 (effects envelope) and 0d28c03 (clip roles); blend_math.rs doc only) and crates/hsk-studio-folio/src/raster.rs (0241877, Folio ENG-6 adjustment clip-base rule)",
+   "checked": "Re-check under CX-VAL-009 (inputs changed after the R6 PASS_V1). render_plan.rs diff is additive: ClipRole + Group::clip_role (:149-172; enum at :152), six PlanError::Effect* variants with codes (:308-360), DESCRIPTOR keys; admit_core unchanged (the R5/V4-06 refusals pass-through fill, mask density, Solid range still in place). extensions.rs: validate gains the effects branch (:263-293) and the clip-role mapping of non-identity Blend-If (:317-321); admit_extended maps EffectUnsupported to the feature key and asks the backend's v1 class for each effect blend mode (:415-426, ExactnessLedger::record keeps the lowest class, blend_math.rs:670-676). ENG-2 tests unchanged (git diff bd8533f..dff7ef5 -- tests touches only new files). Folio raster.rs adds validate_adjustment_clip_bases (nearest earlier unclipped input, same base rule as pigment ClipRole). No change to the adjustment maths, so the R6 hand-oracle verification stands.",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "process_v4_14",
+     "file_line": "kernel builders/lanes/hsk-studio-pigment-eng-2.json (commits end at 2f705f1; notes.blend_if_clip says 0d28c03 'not claimed'); git log 2f705f1..dff7ef5 -- crates/hsk-studio-pigment/src/render_plan.rs src/render_plan/extensions.rs: e007703, 0d28c03",
+     "evidence": "ENG-2's own admission functions (PlanExtensions::validate, admit_extended) were changed after its READY commit by e007703 (effects branch, effect-mode admission) and 0d28c03 (clip-role operators). Neither is listed as part of the ENG-2 claim (0d28c03 is mentioned but explicitly not claimed); e007703 is recorded only in the effects lane file. Same V4-14 class the pre-review raised for ENG-5. Code reading finds no regression of ENG-2 behaviour.",
+     "remediation": "List e007703, d982b5c, a797b67, 379a56f, f3e75bf, 0d28c03 in an ENG-2 claim (files touched, owning lane), or the lead records that ENG-2 is re-judged at dff7ef5 with those lanes"
+    }
+   ],
+   "open_items_not_reraised": "PLR-007 (threshold rounding), PLR-008 (two owners of adjustment hard bounds), PLR-009 (pass-through opacity doc) are FIX_LANE; PLR-005 WAIVE_WITH_STUB; PLR-006 FIX_LANE (SMB-REFUSAL-KEYS)",
+   "verified_fixes": [],
+   "recommendation": "FIX_FIRST",
+   "recommendation_note": "Paperwork only (V4-14 claim list); the additive changes keep ENG-2's admission rules and maths intact by reading.",
+   "reviewed_at": "2026-10-11T10:48:55Z"
+  },
+  {
+   "lane": "SMB-EFFECTS-WAVE-1",
+   "crate": "hsk-studio-pigment",
+   "diff_reviewed": "e007703 (effect_math wave 1, LayerExtension.effects, ExtOperator::Effect) as it stands at dff7ef5",
+   "checked": "src/effect_math.rs: deny(arithmetic_side_effects) (:28); validate (:595-650) refuses non-finite/out-of-range colour, opacity, angle, spread, distance (<=30000) and size (<=1000) with typed errors; reference planes <=64 per side and neighbourhood work <= REFERENCE_WORK_BUDGET checked before loops; shadow_offset rounds half away from zero (:691-708); effect_support_px uses checked adds (:711-745). Brief deviation (spread as hard grow + blur instead of min(1, m/(1-spread))) is disclosed and accepted provisionally by the lead (START_LOG D19 note). Hand oracles in tests/effects.rs recomputed: normalised sigma-1 taps over 7 samples 0.39905/0.242035/0.054006/0.004433 (sum 2.50595), disc coverage clamp(2.5 - d): (2,1) 0.918861, (2,2) 0.378680, stroke diagonal 1.5 - 0.70711 = 0.792893, overlay 50% red over blue (0.5,0,0.5): all correct and not engine echoes. Admission: Effect(kind) intrinsic Approximate; effect blend modes admitted through the backend's v1 Blend class (extensions.rs:415-426). Backends: render-cpu extension_exactness returns intrinsic (plan_sink.rs:1678-1696), render-gpu intrinsic.lowest_of(Fitted) (plan_sink.rs:1095-1118): never above pigment.",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "inconsistent_admission (V4-06 class of SMB-PIGMENT-ENG-2 / R5 pass-through-fill FAIL)",
+     "file_line": "crates/hsk-studio-pigment/src/render_plan/extensions.rs:263-293 and :294-322 (validate: effects and non-identity Blend-If on the same layer both pass, reported as Effect(kind) + BlendIf); src/effect_math.rs:1080 render_layer_reference (no Blend-If input); crates/hsk-studio-render-cpu/src/plan_sink.rs:562-563 and crates/hsk-studio-render-gpu/src/plan_sink.rs:591-596 (both refuse unsupported(\"effects_with_blend_if\") in prepare); crates/hsk-studio-composite/src/lower_extensions.rs:704-722 (operators() records Effect and Blend-If, no refusal)",
+     "evidence": "Pigment, the single owner of effects and Blend-If, defines no composition for a layer that has both (render_layer_reference takes no Blend-If; the render-gpu source comment at plan_sink.rs:591-593 says 'pigment does not define the combination'). PlanExtensions::validate and admit_extended still admit it at Approximate for any backend that supports both operators, and composite's evaluation ledger reports it renderable. Every backend then refuses it after shared admission with a backend-local literal key that is not a pigment ExtOperator. This is the exact failure class ENG-2 recorded for V4-06 ('a plan feature admitted by pigment's shared validate/admit at a class that every backend then refuses at execute') and the class 0d28c03 fixed for Blend-If on clip roles. The refusal is typed and happens before the first sink call, so no wrong pixels are produced; the defect is the shared admission and composite ledger saying Approximate for a plan no backend renders. Disclosed by the render-cpu builder as an open lead decision (kernel builders/lanes/hsk-studio-render-cpu.json effects1.decisions_for_lead); no lead decision recorded.",
+     "remediation": "Pigment: report non-identity Blend-If on a layer with effects as an intrinsically Unsupported ExtOperator (e.g. blend_if_with_effects) like 0d28c03; backends use pigment's key; composite ledger follows"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "single_owner_within_crate",
+     "file_line": "crates/hsk-studio-pigment/src/render_plan/extensions.rs:270 (is_clip(layer) || next layer is_clip) vs src/render_plan.rs:162-172 Group::clip_role",
+     "evidence": "The effect clip-run refusal restates the clip-role rule instead of calling Group::clip_role, which 0d28c03 introduced as 'the single definition'. Today the two agree (Clipped, or Base = next layer clipped).",
+     "remediation": "Use g.clip_role(e.layer) != Some(ClipRole::Unclipped) for EffectClipRun"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "process_v4_14",
+     "file_line": "kernel builders/lanes/hsk-studio-pigment-effects.json (updated_at 07:24:53Z; commits through f3e75bf); 0d28c03 later edits src/render_plan/extensions.rs (validate, ExtOperator, LayerExtension doc)",
+     "evidence": "0d28c03 touches the file that holds this lane's envelope validation and is not listed in the effects lane file; its changes do not touch effect code paths (separate clip-role branch).",
+     "remediation": "Add 0d28c03 to the effects lane file's later-commits list"
+    }
+   ],
+   "verified_fixes": [],
+   "recommendation": "FAIL",
+   "recommendation_note": "Maths, bounds and tests are sound, but the envelope admits effects + Blend-If that pigment does not define and that every backend refuses after admission: the recorded V4-06 failure class, repeated in code added after the V4 adoption. Fix is small and mirrors 0d28c03.",
+   "reviewed_at": "2026-10-11T10:48:55Z"
+  },
+  {
+   "lane": "SMB-EFFECTS-WAVE-2",
+   "crate": "hsk-studio-pigment",
+   "diff_reviewed": "d982b5c (inner shadow, outer glow, inner glow, typed glow refusals) at dff7ef5",
+   "checked": "src/effect_math.rs glow_ok (:652-680): domain errors first (range in (0,1], jitter in [0,1]), then typed refusals glow_gradient / glow_technique_precise / glow_range / glow_jitter (never a flat-colour fallback); inner shadow and inner glow use the inverted matte with neutral 1 beyond the plane and are clipped to the layer alpha; placement: outer glow behind, inner shadow/glow over content (:555-562). tests/effects_wave2.rs hand values: inner glow edge at row 3 x=0 0.300475 = 0.242036+0.054006+0.004433, x=1 0.058439, x=2 0.004433 (taps beyond the plane), centre = 1 - edge; margins inner shadow 3+2+3=8, outer glow 6, inner glow 2+3=5 (support = offset + ceil(grown) + ceil(3 sigma), sigma = blur/2): recomputed, correct. Refusal keys reach admission as the feature key (extensions.rs admit_extended EffectUnsupported arm). Lead decision 06:29:43Z (spread/choke percent/100, colour-source jitter 0) is the composite side and is consistent with these refusals.",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "process_v4_14",
+     "file_line": "kernel builders/lanes/hsk-studio-pigment-effects.json (shared lane file; see SMB-EFFECTS-WAVE-1)",
+     "evidence": "Same unlisted later commit 0d28c03; no effect code touched.",
+     "remediation": "As for SMB-EFFECTS-WAVE-1"
+    }
+   ],
+   "related": "The effects + Blend-If admission finding of SMB-EFFECTS-WAVE-1 applies to the wave-2 kinds too (same validate branch).",
+   "verified_fixes": [],
+   "recommendation": "PASS_WITH_NOTES",
+   "recommendation_note": "Wave-2 maths and typed refusals verified by hand; it inherits the wave-1 envelope finding, which should be fixed once in pigment.",
+   "reviewed_at": "2026-10-11T10:48:55Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-WINDOW",
+   "crate": "hsk-studio-pigment",
+   "diff_reviewed": "a797b67 (code), 379a56f (test fix), f3e75bf (comment-only) at dff7ef5",
+   "checked": "src/effect_math/window.rs: deny(arithmetic_side_effects) (:30); every geometry step uses checked helpers (:255-320); window_matte validates geometry, prepares, checks the predicted cost against WindowLimits BEFORE any read or allocation (:1022-1040); Meter charges each buffer against the running aggregate with try_reserve_exact and releases on refusal (:325-380; unit test meter_tests::running_aggregate_is_charged_per_allocation :1043-1086 asserts a refused take charges nothing and reserve(u64::MAX) is Overflow, not a wrap); AlphaSource samples outside [0,1] are refused (:719-724). Cost model (:519-604) charges the alpha window, dilation buffers, blur passes and post buffers per kind. tests/effect_window.rs compares to the reference with f32::to_bits for every kind and split, padded domains, 4e9-px layers at far coordinates (translation invariance), source reads inside the support margin (recorded rectangles), peak == prediction and limit-1 refused for bytes and work, and a 1000-px blur for a 1-px window in bounded memory. No fault hooks, no env reads.",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "doc_overclaim_small",
+     "file_line": "crates/hsk-studio-pigment/src/effect_math/window.rs:23-27 (module doc: 'every allocation is additionally charged against the running aggregate') vs :415 (ChainPlan::new allocates feather_kernel) and src/coverage_math.rs:85-96 (f64 taps Vec + f32 kernel)",
+     "evidence": "The blur kernel (up to 3001 f32 taps plus a temporary f64 Vec for a 1000-px size, about 36 KB) is allocated in prepare() and is in neither the Meter nor the predicted peak; window_cost's doc (:637) does say 'allocates nothing but the blur kernel', so the module-level 'every allocation' sentence is the only overclaim. Bounded by MAX_EFFECT_SIZE_PX, so not a hostile-size hole.",
+     "remediation": "Scope the module doc ('every plane buffer') or add the kernel bytes to the cost and the Meter"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "process_v4_14",
+     "file_line": "kernel builders/lanes/hsk-studio-pigment-effects.json",
+     "evidence": "0d28c03 not listed (does not touch window.rs).",
+     "remediation": "As for SMB-EFFECTS-WAVE-1"
+    }
+   ],
+   "verified_fixes": [],
+   "recommendation": "PASS",
+   "recommendation_note": "Bit-identity, edge policy, budget-before-allocation and translation invariance are asserted with to_bits and limit-1 refusals; only a small doc-scope note.",
+   "reviewed_at": "2026-10-11T10:48:55Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-BLENDIF-CLIP",
+   "crate": "hsk-studio-pigment",
+   "diff_reviewed": "0d28c03 at dff7ef5 (no later pigment commit)",
+   "checked": "src/render_plan.rs:149-172 ClipRole/Group::clip_role (Clipped = carries clip_to_base; Base = unclipped with a clipped layer directly above; same base rule as folio validate_adjustment_clip_bases). src/render_plan/extensions.rs:310-321: non-identity Blend-If reported as BlendIfClipBase / BlendIfClippedLayer instead of BlendIf; intrinsic Unsupported (:176), so admit_extended refuses it for every backend whatever extension_exactness claims; identity ranges are no operator. tests/blend_if_clip.rs asserts the classification for base, clipped, clipped adjustment and unclipped layers, refusal with the pigment key for an all-Exact backend, an all-Approximate backend and a bare backend, identity ranges admitted, keys/classes/DESCRIPTOR text. Decision basis (diagnostics/adjustments-advanced-blending.md topic blend-if-clip-roles: no public definition; psd-tools/Krita/GIMP ignore ranges) supports refusing rather than inventing a rule; D5 cases 18-23 recorded. Exactness: Unsupported, not above anything.",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "lane_record",
+     "file_line": "kernel ledger.json lanes[SMB-PIGMENT-BLENDIF-CLIP] (no lane_file key); notes live in builders/lanes/hsk-studio-pigment-eng-2.json notes.blend_if_clip",
+     "evidence": "The lane has no lane file of its own; its record sits inside another lane's file that declares it 'not claimed'. Mechanical checkers (V4-20) keyed on lane files will not find it.",
+     "remediation": "Give the lane its own lane file or a lanes map entry, as render-cpu/render-gpu did"
+    }
+   ],
+   "verified_fixes": [],
+   "recommendation": "PASS",
+   "recommendation_note": "Single-owner refusal with the shared key, uniform for every backend, tested non-tautologically. The same treatment is what SMB-EFFECTS-WAVE-1's effects + Blend-If case needs.",
+   "reviewed_at": "2026-10-11T10:48:55Z"
+  },
+  {
+   "lane": "SMB-BLENDIF-CLIP-ADOPT",
+   "crate": "hsk-studio-composite + hsk-studio-render-cpu + hsk-studio-render-gpu",
+   "diff_reviewed": "b10475d (render-cpu), 2aeeeba (render-gpu), 1f99350 (composite) at dff7ef5",
+   "checked": "render-cpu: b10475d removes the base Blend-If from the clip-run composite and the clipped-layer weight from composite_clipped (src/plan_sink.rs clip_run / composite_clipped); unclipped composite() and adjust() keep it; extension_exactness wildcard answers Unsupported for both new operators (src/plan_sink.rs:1678-1696); tests/cpu_extended.rs:402 blend_if_on_clip_roles_is_refused_before_any_sink_call pins roles via Group::clip_role, both keys refused with 0 sink calls, identity ranges equal to the plain plan, unclipped hand values. render-gpu: src/plan_sink.rs:207-216 blend_if_clip_refusal derives the role from Group::clip_role and the key from ExtOperator::key (no local spelling), unit test :2292; tests/gpu_plan.rs ext_blend_if_parity moves the range to an unclipped layer and asserts typed refusal with sink.accepted 0 and no residency. composite: evaluation ledger records blend_if_operator(role) with pigment key/intrinsic (src/lower_extensions.rs:595-601, src/evaluate_static.rs:645-651), lowering takes operators from pigment validate; Blend Clipped Layers as Group off on a clip base that renders a clipped layer is refused with the same code interop-psd reports (lower_extensions.rs:90, interop-psd src/proposal.rs:703); tests/render_plan_lowering.rs:1874 and :1952. V4-14: each later commit is listed in its crate's lane file (blendif_clip_adopt notes).",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "single_owner_mirror",
+     "file_line": "crates/hsk-studio-composite/src/evaluate_static.rs:294-340 (clip_roles)",
+     "evidence": "Composite's evaluation computes clip roles itself (mirroring the lowering's dropping of hidden/empty bases and clipped layers) instead of reading Group::clip_role from the lowered plan, so the evaluation ledger and the lowered plan's admission can in principle assign different roles (e.g. if 'empty' is decided differently in evaluation and lowering). Tests cover hidden base and hidden clipped layer; no divergence found by reading.",
+     "remediation": "Derive the evaluation roles from the lowered plan (pigment Group::clip_role) or assert equality in a test over the same fixtures"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "dead_code_disclosed",
+     "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:1598-1604 (clip-run passes still carry layer.blend_if for Pass::Clip)",
+     "evidence": "The clipped-layer Blend-If plumbing in the GPU clip-run passes is unreachable (prepare refuses, admission refuses) but still compiled and passed to WGSL; disclosed as open in the ledger note. No behaviour impact.",
+     "remediation": "Drop the clipped-pass Blend-If argument with the next WGSL change and parity rerun"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "key_duplicate",
+     "file_line": "crates/hsk-studio-composite/src/lower_extensions.rs:90 vs crates/hsk-studio-interop-psd/src/proposal.rs:703",
+     "evidence": "'blend_clipped_layers_as_group_off_not_modelled' is spelled as a literal in two crates; same family as register item PLR-006 (FIX_LANE SMB-REFUSAL-KEYS), so not re-raised as new.",
+     "remediation": "Fold into SMB-REFUSAL-KEYS (one exported constant)"
+    }
+   ],
+   "verified_fixes": [],
+   "recommendation": "PASS",
+   "recommendation_note": "All three consumers now follow pigment's roles and keys; the unreachable CPU paths are gone and the GPU check is defence in depth under pigment's keys. Notes only.",
+   "reviewed_at": "2026-10-11T10:53:57Z"
+  },
+  {
+   "lane": "SMB-COMPOSITE-ADJ",
+   "crate": "hsk-studio-composite",
+   "diff_reviewed": "cdc2c0f, 23f600b, 555ea97, dc8e91a, 0f917cc, 8ff8c7a, b2cf5c6 (later 1f99350 is SMB-BLENDIF-CLIP-ADOPT, listed in the composite lane file)",
+   "checked": "src/lower_extensions.rs converts folio StudioRasterRecords into pigment PlanExtensions: levels/curves/etc. through pigment AdjustmentOp, mask density percent/100, Blend-If level/255, effect spread/choke percent/100 with an Approximate lowering note and colour-glow jitter 0 with note glow_jitter_ignored_solid_colour (:96-102, :397-423; lead decision 06:29:43Z), gradient/Precise/range glows passed to pigment, which refuses them under its feature keys. Evaluation ledger keys/classes come from pigment (ExtOperator::key/intrinsic); R6 cross-lane item fixed: a pass-through step with fill < 1 is recorded as PASS_THROUGH_FILL_OPERATOR Unsupported (src/evaluate_static.rs:215-216, :240). b2cf5c6 lowers a real folio adjustment layer at its input_ordinal and compares with pigment evaluate_stack. No arithmetic_side_effects deny in composite modules (they lower validated Folio records, not bytes; not flagged).",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "inconsistent_admission (consumer side of the SMB-EFFECTS-WAVE-1 finding)",
+     "file_line": "crates/hsk-studio-composite/src/lower_extensions.rs:704-722 (operators(): effects listed, no refusal for effects + Blend-If on one layer) and src/evaluate_static.rs:645-651 (Blend-If recorded per role)",
+     "evidence": "A layer with both a rendered effect stack and non-identity Blend-If is lowered and evaluated as Effect(kind) + BlendIf at Approximate (Ready), while both backends refuse it after admission (render-cpu src/plan_sink.rs:562-563, render-gpu src/plan_sink.rs:594-595, key effects_with_blend_if). Composite's ledger therefore promises a render no backend produces. Root cause and fix belong to pigment (see SMB-EFFECTS-WAVE-1); composite follows automatically for lowering (record_envelope uses pigment validate) but its evaluation ledger needs the same operator.",
+     "remediation": "After pigment defines the refusal operator, record it in evaluate_static for layers with both features (test with one fixture)"
+    }
+   ],
+   "open_items_not_reraised": "PLR-006 (composite effect refusal keys such as effect_on_clipped_layer are composite literals, FIX_LANE SMB-REFUSAL-KEYS)",
+   "verified_fixes": [
+    {
+     "prior": "R6-review-a SMB-PIGMENT-ENG-1 PLAUSIBLE cross_lane_inconsistency (composite rated pass-through fill Approximate)",
+     "fix_commit": "composite remediation_R6 (in cdc2c0f..b2cf5c6 range)",
+     "evidence": "src/evaluate_static.rs:215-216 records PASS_THROUGH_FILL_OPERATOR Unsupported"
+    }
+   ],
+   "recommendation": "PASS_WITH_NOTES",
+   "recommendation_note": "Lowering is single-owner (pigment ops, keys, classes) and the lead's unit decisions are applied with notes. The CONFIRMED item is the consumer half of the pigment effects + Blend-If gap; fix it together with pigment.",
+   "reviewed_at": "2026-10-11T10:53:57Z"
+  },
+  {
+   "lane": "SMB-RENDER-CPU-ADJ",
+   "crate": "hsk-studio-render-cpu",
+   "diff_reviewed": "5674e9c, 7274827 (ledger claim) and the code they correct: 49afca1 (ADJ-1 execute_extended), c4bdaef + 9b2f3af (EFFECTS-1), all after the R6 candidate",
+   "checked": "src/plan_sink.rs:1678-1696 extension_exactness returns ExtOperator::intrinsic() for every supported operator (adjustment layer, adjustment kinds, Blend-If, mask density/feather, six effect kinds) and Unsupported otherwise: never above pigment (CX-CAP-001); admit_extended uses intrinsic.lowest_of(backend) anyway. src/plan_sink/extended.rs: adjustments through pigment composite_adjustment, Blend-If through coverage_math::blend_if_weight (:162), feather through coverage_math::feather_kernel, resident tables and feather scratch charged before the first sink call (prep.charge, :198-208). Parity: adjustment kinds bit-identical to pigment evaluate_stack per lane notes adj1.parity; hand values (mask density 0.62500191, Blend-If ramps, feather taps) consistent with pigment's formulas. V4-01 deny present on plan_sink.rs, extended.rs, effects.rs, px.rs.",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "ledger_claim_scope",
+     "file_line": "kernel ledger.json lanes[SMB-RENDER-CPU-ADJ].commits = [5674e9c, 7274827] vs kernel builders/lanes/hsk-studio-render-cpu.json notes.adj1 (49afca1) and notes.effects1 (c4bdaef, 9b2f3af)",
+     "evidence": "The ledger claim names only the two exactness commits, but the behaviour they correct (49afca1 execute_extended, c4bdaef wave-1 effects) is in the judged tree, after the R6 candidate, and not claimed by any other ledger lane (SMB-RENDER-CPU-EFFECTS-1 has no ledger entry). The validator should know which lane's verdict covers 49afca1/c4bdaef.",
+     "remediation": "Add 49afca1, c4bdaef, 9b2f3af to the SMB-RENDER-CPU-ADJ ledger commits (or give EFFECTS-1 its own ledger row)"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "inherits_root_finding",
+     "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:562-563",
+     "evidence": "effects_with_blend_if is a backend-local refusal after shared admission (root: SMB-EFFECTS-WAVE-1 CONFIRMED). The builder disclosed it as an open lead decision (lane notes effects1.decisions_for_lead).",
+     "remediation": "Switch to pigment's operator key once pigment refuses the combination"
+    }
+   ],
+   "verified_fixes": [
+    {
+     "prior": "coordinator check: extension_exactness reported Exact for Approximate pigment operators",
+     "fix_commit": "7274827",
+     "evidence": "src/plan_sink.rs:1678-1696 returns operator.intrinsic(); tests assert backend class == intrinsic for every operator (lane notes exactness_class_correction)"
+    }
+   ],
+   "recommendation": "PASS_WITH_NOTES",
+   "recommendation_note": "Exactness never above pigment, maths single-owner, charges before the sink. Claim scope in the ledger should name 49afca1/c4bdaef.",
+   "reviewed_at": "2026-10-11T10:53:57Z"
+  },
+  {
+   "lane": "SMB-RENDER-CPU-WINDOW",
+   "crate": "hsk-studio-render-cpu",
+   "diff_reviewed": "be1836b (code + tests), 0f58c1c (test lint)",
+   "checked": "src/plan_sink/effects.rs:100-230: one window per chunk, frame = window grown by the stack margin and clipped to the layer bounds, content rendered into the per-worker frame, WindowGeometry::uncut(bounds, margin, window) with site origin (0,0), composition by pigment render_layer_window (no local matte or composition maths); predicted peak (layer_window_cost of the largest window), frame and window arrays charged before the first sink call; MAX_EFFECT_WINDOW_WORK 1e9 (src/plan_sink/extended.rs:53) refused typed as effect_work_limit; the 24 px effect_margin refusal is gone. Tests (lane notes window): f32 to_bits parity with render_layer_reference across chunkings 48/17/7/5/11 and 1-4 workers, 200/1000 px blurs equal to the uncut windowed oracle built from AlphaPlaneRef (independent of the backend frame code), limit-1 refused with 0 sink calls.",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "backend_capability_disagreement",
+     "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:565-566 and src/plan_sink/effects.rs:125-128 (effects_nested) vs crates/hsk-studio-render-gpu/tests/gpu_plan.rs:4502-4577 (nested inner effects rendered and compared)",
+     "evidence": "A layer with effects whose content contains another layer with effects is rendered by render-gpu and refused by render-cpu with the local key effects_nested after shared admission (render-cpu's extension_exactness reports every effect kind Approximate unconditionally). Both builders disclose it (render-cpu notes effects1.decisions_for_lead; render-gpu notes 'the capabilities of the two backends differ'). Typed, before any sink call, so no wrong pixels; but a caller choosing a backend from extension_exactness cannot see the difference.",
+     "remediation": "Implement nesting with a frame per nesting level, or have pigment expose nesting as an ExtOperator the CPU can report Unsupported"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "silent_clamp",
+     "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/effects.rs:226-228 (alpha.min(1.0))",
+     "evidence": "The composed window alpha from pigment is clamped to 1 ('can round 1 ulp above 1'). It is a one-ulp guard on output, not an input clamp, and the parity tests pass bit for bit, so pigment's reference evidently produces the same value on the tested planes; the DESCRIPTOR says inputs are never clamped, which this does not contradict. Noted because a pigment change that produced alpha > 1 by more than an ulp would be hidden here.",
+     "remediation": "debug_assert!(alpha <= 1.0 + f32::EPSILON) before the clamp"
+    }
+   ],
+   "verified_fixes": [],
+   "recommendation": "PASS_WITH_NOTES",
+   "recommendation_note": "Windowed path is pigment-owned and proven bit-identical across chunkings and workers with budget-before-sink; CPU/GPU capability difference on nested effects is disclosed.",
+   "reviewed_at": "2026-10-11T10:53:57Z"
+  },
+  {
+   "lane": "SMB-RENDER-CPU-FX2",
+   "crate": "hsk-studio-render-cpu",
+   "diff_reviewed": "8d46aa8 (later render-cpu commit b10475d is SMB-BLENDIF-CLIP-ADOPT, listed in the render-cpu lane file)",
+   "checked": "8d46aa8 only widens extension_exactness to the three wave-2 kinds (src/plan_sink.rs:1685-1692, intrinsic class) and updates docs; no kind-specific code (the windowed path is generic over EffectOp). tests/cpu_effects_fx2.rs (lane notes fx2): six-effect stack f32 to_bits equal to render_layer_reference across chunks 48/17/7/5 and 1-3 workers with >300 pixels changed (not vacuous); 304-px margin equal to the uncut windowed oracle; glow_gradient / glow_technique_precise / glow_range / glow_jitter refused at pigment admission with 0 sink calls; Exact floor refuses the wave-2 kinds; charge = fixed parts + layer_window_cost peak, limit-1 refused. Exactness = pigment intrinsic (Approximate).",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "inherits_root_findings",
+     "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:562-566",
+     "evidence": "Wave-2 kinds inherit effects_with_blend_if (SMB-EFFECTS-WAVE-1 CONFIRMED root) and effects_nested (SMB-RENDER-CPU-WINDOW PLAUSIBLE) refusals after admission.",
+     "remediation": "None in this lane; follows the pigment fix"
+    }
+   ],
+   "verified_fixes": [],
+   "recommendation": "PASS",
+   "recommendation_note": "Capability switch backed by bit-identity tests against pigment and typed refusals under pigment's keys.",
+   "reviewed_at": "2026-10-11T10:55:16Z"
+  },
+  {
+   "lane": "SMB-RENDER-GPU-ADJ",
+   "crate": "hsk-studio-render-gpu",
+   "diff_reviewed": "c5bd9be (slice 4 envelope), a6ac630 (slice 5: Blend-If agreement, effects waves 1+2); later 2aeeeba is SMB-BLENDIF-CLIP-ADOPT (listed in the render-gpu lane file)",
+   "checked": "V4-04: every fault hook is behind the non-default test-faults feature (Cargo.toml features default = [], test-faults = []; src/device.rs:301, src/plan_sink.rs:751, :781, :868 #[cfg(feature = \"test-faults\")]); no new hook in c5bd9be/a6ac630. V4-03: tests/gpu-proof.toml require_gpu = true (lead decision 06:40:58Z); gpu_gate fails with NOT_PROVEN text without an adapter. V4-01 deny on plan_sink.rs, ext.rs, fx.rs. Exactness: extension_exactness = intrinsic.lowest_of(Fitted) (src/plan_sink.rs:1095-1118), never above pigment. Effects host side calls pigment shadow_split / shadow_offset / feather_kernel / effect_support_px and only the per-pixel loops are WGSL transcriptions (src/fx.rs:1-12; transcription accepted by lead decision PLR-003 WAIVE); kernels charged as a running aggregate and passes bounded by FX_PASS_MAX_OPS with typed effect_cost / BudgetExceeded refusals (src/plan_sink.rs:1940-1960). Blend-If agreement test ext_blend_if_agrees_with_pigment_evaluate_stack (tests/gpu_plan.rs:3681) uses pigment evaluate_stack as reference with a non-vacuous partial-weight count; clip roles refused per pigment (see ADOPT).",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "inherits_root_finding",
+     "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:591-596",
+     "evidence": "effects_with_blend_if is a backend-local refusal after shared admission; the source comment states pigment does not define the combination (root: SMB-EFFECTS-WAVE-1 CONFIRMED).",
+     "remediation": "Use pigment's operator once defined"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "backend_capability_disagreement",
+     "file_line": "crates/hsk-studio-render-gpu/tests/gpu_plan.rs:4502-4577 vs crates/hsk-studio-render-cpu/src/plan_sink.rs:565-566",
+     "evidence": "GPU renders nested effects that render-cpu refuses (effects_nested); see SMB-RENDER-CPU-WINDOW. GPU-side evidence of correctness for nesting is parity against a test-composed reference of pigment calls, adapter-dependent (NOT_PROVEN without a GPU).",
+     "remediation": "Lead decides whether nesting is a shared capability (then CPU implements) or GPU refuses too"
+    }
+   ],
+   "open_items_not_reraised": "PLR-001 (Pipeline error maps to Unavailable), PLR-002, PLR-003 (WAIVE), PLR-006 (literal keys)",
+   "verified_fixes": [],
+   "recommendation": "PASS_WITH_NOTES",
+   "recommendation_note": "No fault hook in default builds, classes never above pigment, budgets before dispatch, agreement tests against pigment's oracle. GPU proofs need the adapter on the validation host (require_gpu = true).",
+   "reviewed_at": "2026-10-11T10:55:16Z"
+  },
+  {
+   "lane": "SMB-DEVELOP-JOBS",
+   "crate": "hsk-studio-develop",
+   "diff_reviewed": "f132843 (tile-parallel; was inside the R6 PASS_V3 candidate) and 78fd379 (Prism admitted job in tile workers); docs later edited by 60b0e47 (SMB-DEVELOP, listed in the same lane file notes.lanes)",
+   "checked": "src/pipeline.rs:1021-1060: per window, band_window builds the band list, convert.prepare charges and allocates everything before any pixel, run_indexed runs stage A -> converter bands in place -> stage C on the workers, finish once on the calling thread; an error or cancellation drops the job unfinished. stage_a (:817-837) clears and refills the worker scratch to exactly the tile's pixel count, so working.chunks_mut(band_pixels) yields the same band sizes band_window declared. src/par.rs:69-120 run_indexed: indices above the first failure are skipped and the lowest failing index decides. src/convert.rs:280-317 PrismJob: convert_band has no side effect besides the in-place pixels; clip merge, call count and the Observe delivery happen only in finish. tests: develop_profile job_conversion_equals_the_serial_wide_transform_for_every_thread_count (1..32 threads vs serial admitted transform), job_contract_violations_keep_their_prism_codes, a_frame_beyond_one_job_is_converted_by_several_jobs; develop_parallel converter_bands_run_once_each_on_the_tile_workers. Register PLR-020 (REVIEW, 'converter side effects past a failing tile depend on the thread count'): REFUTED at dff7ef5 for PrismConverter: windows run sequentially, side effects only in finish of completed windows, the failing window's job is dropped; plan-cache counters change at prepare, before any tile.",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "v4_01_scope",
+     "file_line": "crates/hsk-studio-develop/src/pipeline.rs:1-3 (module doc 'checked arithmetic', no deny attribute), e.g. :824-826, :847-853 unchecked index arithmetic; src/convert.rs (no deny)",
+     "evidence": "pipeline.rs and convert.rs were touched after the 05:40Z adoption (f132843, 78fd379, 60b0e47) and carry no #![deny(clippy::arithmetic_side_effects)]; the lane notes argue V4-01 does not apply because no untrusted-byte decoding was added. pipeline.rs reads caller-granted CFA sample bytes, and its index arithmetic is plain (bounded today by Limits.spec_v1: side <= 256, tiles <= 16). Not reachable as an overflow, but the module doc's 'checked arithmetic' is wider than the code.",
+     "remediation": "Add the module deny (the lane can count sites) or scope the doc to the per-pixel products"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "observation_on_error_runs",
+     "file_line": "crates/hsk-studio-develop/src/pipeline.rs:1037-1054",
+     "evidence": "When a frame needs several jobs (windows), earlier windows finish and deliver their Prism observation and clip totals before a later window fails, so an erroring develop run can leave Prism observations for work whose tiles are never delivered. Deterministic (independent of thread count) and consistent with convert.rs docs ('drops its job'), but the develop receipt is not returned on error, so the sink sees observations for an aborted run.",
+     "remediation": "Document it in DESCRIPTOR execution.converter, or finish all windows only after every window's tiles succeeded"
+    }
+   ],
+   "open_items_not_reraised": "PLR-018 (band_window error order with custom BandLimits, FIX_LANE); PLR-022 (merge_clip three copies, FIX_LANE)",
+   "verified_fixes": [
+    {
+     "prior": "R6-review-a PLAUSIBLE / register PLR-020 converter side effects depend on thread count on a failing run",
+     "fix_commit": "78fd379",
+     "evidence": "src/convert.rs:280-317 (side effects only in finish), src/pipeline.rs:1037-1054 (job dropped on error); refuted at dff7ef5"
+    }
+   ],
+   "recommendation": "PASS_WITH_NOTES",
+   "recommendation_note": "Feature is sound: bit identity across thread counts against the serial admitted transform, ledger charged before tiles, typed Prism codes. PLR-020 can be closed.",
+   "reviewed_at": "2026-10-11T10:55:16Z"
+  },
+  {
+   "lane": "SMB-DEVELOP-WIDE",
+   "crate": "hsk-studio-develop",
+   "diff_reviewed": "85fe452 (AdmittedWideEngine route), as it stands at dff7ef5 after 78fd379 (job API) and 60b0e47 (STU-CON-044 docs); dependency prism d7027c3/3312f72 chunking",
+   "checked": "R6 BLOCKED basis (stu-con-044-chunk-size-not-64px at convert.rs:13-14 / DESCRIPTOR pending[0]) is replaced by lead decision 2026-10-11T07:19:59Z (provisional reading: admitted transforms and job bands run in <=64-pixel chunks with per-chunk cancellation and chunk receipts, lifetime accounted by the lease charged at prepare). At dff7ef5: every develop band goes through prism convert_band_in_place, which runs 64-pixel chunks with a cancel read per chunk edge (prism src/wide_job.rs:428-470) and records them (band_account); develop's docs say exactly that and what develop does not prove (src/convert.rs:15-58, src/lib.rs:239 profile_transform.chunking, pending[0] marked provisional). Accounting: src/convert.rs:350-378 prepare goes through AdmittedWideEngine::prepare_job (work, receipt, plan, build leases charged before the job exists; prism tests/wide_job.rs admitted_job_charges_everything_before_the_bands_for_every_thread_count); develop tests/develop_profile.rs short_admission_budget_is_refused_before_any_work (exact peak succeeds, peak-1 denied before any tile). Revision passed equal on both sides by design (convert.rs:165 doc).",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "provisional_basis",
+     "file_line": "kernel START_LOG.md lead decision 2026-10-11T07:19:59Z (PROVISIONAL); crates/hsk-studio-develop/src/lib.rs:239 DESCRIPTOR pending[0]",
+     "evidence": "The unblock rests on a provisional lead reading of STU-CON-044; the Operator may require one admitted call per 64 pixels (priced by prism's ignored bench at about 1.9 s per 24 MP per thread). A PASS here should carry that condition.",
+     "remediation": "Record the verdict as conditional on the 07:19:59Z reading until the Operator confirms or enriches the spec (D13)"
+    }
+   ],
+   "open_items_not_reraised": "PLR-021 (x86_64-windows-msvc-only admitted route not stated in develop DESCRIPTOR, FIX_LANE: still absent at dff7ef5, grep finds no 'msvc' in src/lib.rs or src/convert.rs), PLR-022",
+   "verified_fixes": [
+    {
+     "prior": "STUDIO-R6 BLOCKED stu-con-044-chunk-size-not-64px",
+     "fix_commit": "prism d7027c3 + develop 60b0e47 (docs) under lead decision 07:19:59Z",
+     "evidence": "develop bands run inside prism's 64-pixel chunks with per-chunk cancel and chunk records; develop docs/DESCRIPTOR state the provisional reading"
+    }
+   ],
+   "recommendation": "PASS_WITH_NOTES",
+   "recommendation_note": "Re-judgeable on the lead's provisional STU-CON-044 reading; accounting proven before any tile. Verdict should name the provisional basis.",
+   "reviewed_at": "2026-10-11T10:55:16Z"
+  }
+ ],
+ "pending_lanes": [],
+ "completed_at": "2026-10-11T10:55:41Z",
+ "summary": {
+  "SMB-PRISM-ENG-5": "recheck SAFE_TO_JUDGE; SAFE_TO_JUDGE (CONFIRMED 0, PLAUSIBLE 1)",
+  "SMB-DEVELOP": "recheck SAFE_TO_JUDGE; SAFE_TO_JUDGE (CONFIRMED 0, PLAUSIBLE 1)",
+  "SMB-CONTROLS": "recheck SAFE_TO_JUDGE; SAFE_TO_JUDGE (CONFIRMED 0, PLAUSIBLE 0)",
+  "SMB-COMPONENTS": "recheck SAFE_TO_JUDGE; SAFE_TO_JUDGE (CONFIRMED 0, PLAUSIBLE 0)",
+  "SMB-COMPONENTS-FOLIO-MIGRATE": "recheck SAFE_TO_JUDGE; SAFE_TO_JUDGE (CONFIRMED 0, PLAUSIBLE 0)",
+  "SMB-PRISM-ENG-6": "PASS (CONFIRMED 0, PLAUSIBLE 0)",
+  "SMB-PRISM-ENG-7": "FIX_FIRST (CONFIRMED 1, PLAUSIBLE 1)",
+  "SMB-PRISM-ENG-8": "PASS (CONFIRMED 0, PLAUSIBLE 2)",
+  "SMB-PIGMENT-ENG-2": "FIX_FIRST (CONFIRMED 1, PLAUSIBLE 0)",
+  "SMB-EFFECTS-WAVE-1": "FAIL (CONFIRMED 1, PLAUSIBLE 2)",
+  "SMB-EFFECTS-WAVE-2": "PASS_WITH_NOTES (CONFIRMED 0, PLAUSIBLE 1)",
+  "SMB-PIGMENT-WINDOW": "PASS (CONFIRMED 0, PLAUSIBLE 2)",
+  "SMB-PIGMENT-BLENDIF-CLIP": "PASS (CONFIRMED 0, PLAUSIBLE 1)",
+  "SMB-BLENDIF-CLIP-ADOPT": "PASS (CONFIRMED 0, PLAUSIBLE 3)",
+  "SMB-COMPOSITE-ADJ": "PASS_WITH_NOTES (CONFIRMED 1, PLAUSIBLE 0)",
+  "SMB-RENDER-CPU-ADJ": "PASS_WITH_NOTES (CONFIRMED 0, PLAUSIBLE 2)",
+  "SMB-RENDER-CPU-WINDOW": "PASS_WITH_NOTES (CONFIRMED 0, PLAUSIBLE 2)",
+  "SMB-RENDER-CPU-FX2": "PASS (CONFIRMED 0, PLAUSIBLE 1)",
+  "SMB-RENDER-GPU-ADJ": "PASS_WITH_NOTES (CONFIRMED 0, PLAUSIBLE 2)",
+  "SMB-DEVELOP-JOBS": "PASS_WITH_NOTES (CONFIRMED 0, PLAUSIBLE 2)",
+  "SMB-DEVELOP-WIDE": "PASS_WITH_NOTES (CONFIRMED 0, PLAUSIBLE 1)"
+ },
+ "top_findings": [
+  "SMB-EFFECTS-WAVE-1 CONFIRMED inconsistent admission: pigment validate/admit_extended admit effects + non-identity Blend-If on one layer (render_plan/extensions.rs:263-322) though pigment defines no composition for it; render-cpu (plan_sink.rs:562-563) and render-gpu (plan_sink.rs:591-596) refuse after admission with the local key effects_with_blend_if; composite ledger reports it renderable (lower_extensions.rs:704-722). Same class as the R5 pass-through-fill FAIL and ENG-2's V4-06 class; fix like 0d28c03 (pigment-owned Unsupported operator).",
+  "SMB-PRISM-ENG-7 CONFIRMED V4-14: five later SMB-PRISM-ENG-6 commits rewrote src/wide_job.rs after ENG-7's READY and are not in ENG-7's claim (lane file commits [65a08c9, 8634765], updated 06:19:46Z); code sound, paperwork FIX_FIRST. Same V4-14 gap for SMB-PIGMENT-ENG-2 (validate/admit_extended changed by e007703, 0d28c03).",
+  "Backend capability disagreement: render-gpu renders effects nested in an effect layer's content (tests/gpu_plan.rs:4502-4577) while render-cpu refuses effects_nested after shared admission (plan_sink.rs:565-566); disclosed by both builders, no lead decision."
+ ]
+}

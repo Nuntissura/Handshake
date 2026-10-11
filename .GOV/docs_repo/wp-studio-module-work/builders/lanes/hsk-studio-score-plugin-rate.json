@@ -1,0 +1,125 @@
+{
+ "crate": "hsk-studio-score-plugin",
+ "lane": "SMB-SCORE-PLUGIN-RATE",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "PLR-054 closed at e9fb519: one sample-rate rule (validate_sample_rate -> score ticks_per_sample) for the host ProcessConfig::validate and both worker backends; a 44101 Hz config is refused with invalid_config at activation, before any worker is spawned; 4 new tests red on a scratch copy of eefe44d and green here",
+ "commits": [
+  {
+   "sha": "e9fb51985c9daea3b3bbb024892ec4c1de45f0c7",
+   "subject": "score-plugin (SMB-SCORE-PLUGIN-RATE, PLR-054): one sample-rate rule for the host check and both worker backends"
+  }
+ ],
+ "capabilities_done": [
+  "PLR-054 confirmed at origin eefe44d by reading the code: src/types.rs:117-118 (ProcessConfig::validate), src/backend.rs:209-210 (Reference::configure) and src/clap_backend.rs:184-185 (ClapBackend::configure) each checked only sample_rate_hz == 0 || > MAX_SAMPLE_RATE_HZ, so 44101 Hz passed activation: the red runs below show activate_isolated returning an Active IsolatedInstance (a worker spawned) for 44101 Hz on eefe44d; the later refusal at the first block is by reading score's InputBlock::validate (crates/hsk-studio-score/src/block.rs:60, ticks_per_sample(spec.sample_rate_hz)? -> InvalidRate), which no run of this lane executed",
+  "One rate rule: types.rs validate_sample_rate(rate_hz) -> Result<(), PluginError> = hsk_studio_score::ticks_per_sample (score's public single rate gate from SMB-SCORE-GUARDS 9546819: 1..=768000 Hz and an exact divisor of 254_016_000_000 = 2^12*3^4*5^6*7^2) mapped to InvalidConfig. score-plugin may depend on score (WORKSPACE_RULES: score-device, score-plugin: score; already a dependency), so no local copy of the divisor rule exists",
+  "Three call sites, no copy left: ProcessConfig::validate (host, runs in activate_isolated before the permit and the spawn), Reference::configure and ClapBackend::configure (worker, answer E_CONFIG which the host maps to invalid_config); the three MAX_SAMPLE_RATE_HZ imports and compare lines are gone; ProcessConfig.sample_rate_hz field doc and DESCRIPTOR limits.sample_rate state the rule and cite the tests (V4-07)",
+  "Admitted: 1, 8000, 11025, 16000, 22050, 24000, 32000, 44100, 48000, 88200, 96000, 176400, 192000, 352800, 384000, 500000, 705600, 768000 Hz. Refused (invalid_config): 0, 44101, 47999, 22051, 96001, 11000, 768001, 1000000, 1536000 (an exact divisor above the bound), u32::MAX",
+  "Tests (4 new): rate_gate_tests::{host_validate_follows_the_score_rule, reference_configure_follows_the_score_rule, clap_configure_follows_the_score_rule (feature clap)} each run one hand-factored table of 28 rates through one entry point and first assert the table equals ticks_per_sample (so the three entry points agree because each equals the same score-derived table); foundation_contract::sample_rate_is_refused_at_activation_before_any_spawn: 0, 44101, 47999, 22051, 96001, 11000, 768001, 1536000, u32::MAX refused by activate_isolated and by the trait activate with stats spawned == 0, workers_live == 0, in_flight_bytes == 0; 8000, 44100, 48000, 500000, 705600, 768000 activate and retire (reaped); one 256-frame block at 44100 Hz runs end to end bit-exact (gain 0.5)"
+ ],
+ "tests": {
+  "argv": "cd wt-studio-assets/handshake-studio-assets && source builders/studio-env.sh && cargo nextest run -p hsk-studio-score-plugin --no-fail-fast [ | --features test-faults | --features clap,test-faults ] (the round feature sets of .config/round-features.toml) and cargo test --doc -p hsk-studio-score-plugin",
+  "exit": 0,
+  "sha": "e9fb51985c9daea3b3bbb024892ec4c1de45f0c7",
+  "passed": 32,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "Validator: judge SMB-SCORE-PLUGIN-RATE at e9fb519 (default / test-faults / clap+test-faults nextest sets plus clippy --tests). Nothing else was pushed to crates/hsk-studio-score-plugin after it. Not done (not in this lane): nothing from PLR-054; carried score-plugin items are unchanged.",
+ "updated_at": "2026-10-11T12:46:50Z",
+ "notes": {
+  "red_proof": {
+   "method": "V4-11/12: scratch tree Handshake_Artifacts/WP-KERNEL-STUDIO/smb-score-plugin-rate-redproof/src = git archive of origin eefe44d93368652de686dc3dbad17e2fd72eaa61 (IDENTITY.json beside it) with ONLY the new test files overlaid (src/rate_gate_tests.rs, the mod line in src/lib.rs, tests/foundation_contract.rs); STUDIO_OWNER=smb-score-plugin-rate-redproof (own target and tmp on D:), nothing reverted in the shared tree; the scratch tree differs from the shared tree only in the four fix files (backend.rs, clap_backend.rs, lib.rs doc + DESCRIPTOR, types.rs). All runs were background runs (no gameplan hook block)",
+   "red_features_default": "3 of 3 FAILED: host_validate_follows_the_score_rule (44101 Hz: left Ok(()), right Err(InvalidConfig)); reference_configure_follows_the_score_rule (44101 Hz: left Ok(()), right Err((5, 0)) = E_CONFIG); sample_rate_is_refused_at_activation_before_any_spawn (unwrap_err() on an Ok value: IsolatedInstance { id: 1, pid: Some(..), state: Active } for the 44101 Hz config)",
+   "red_features_clap_test_faults": "4 of 4 FAILED: the three above plus clap_configure_follows_the_score_rule (44101 Hz: left Err((7, 0)) = E_UNAVAILABLE, i.e. the rate passed the gate and the backend went on to staging, right Err((5, 0)) = E_CONFIG)",
+   "green": "e9fb519 in the shared tree: default 25/25, --features test-faults 28/28, --features clap,test-faults 32/32 (no NOT_PROVEN line: the CLAP fixture tests ran), doctests 0 tests ok; clippy --tests --examples --bins clean for all three feature sets (only the 2 pre-existing too_many_arguments warnings in hsk-studio-observe), cargo fmt --check clean for the crate",
+   "logs": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-score-plugin-rate-redproof/logs/{red-default-3,red-clap,green-default,green-faults,green-clap,green-doc,clippy-default,clippy-faults,clippy-clap}.log (red-default.log and red-default-2.log are earlier red runs of a test set restructured before the final red); the scratch tree is left in place"
+  },
+  "v4_06_sites": {
+   "class": "sample-rate validation sites",
+   "regex": "MAX_SAMPLE_RATE_HZ|sample_rate_hz *(==|!=|<=?|>=?)|ticks_per_sample\\(|InvalidRate",
+   "scope": "crates/hsk-studio-score-plugin src/*.rs examples/*.rs tests/*.rs tests/common (tests/fixtures is a separate standalone workspace and has no match)",
+   "origin_eefe44d_matches": 11,
+   "sites": [
+    {
+     "file_line": "src/types.rs:4 (import MAX_SAMPLE_RATE_HZ)",
+     "verdict": "FIXED",
+     "note": "import now ticks_per_sample"
+    },
+    {
+     "file_line": "src/types.rs:117-118 ProcessConfig::validate",
+     "verdict": "FIXED",
+     "note": "calls validate_sample_rate; host entry point, red/green: host_validate_follows_the_score_rule and sample_rate_is_refused_at_activation_before_any_spawn"
+    },
+    {
+     "file_line": "src/backend.rs:16 (import MAX_SAMPLE_RATE_HZ)",
+     "verdict": "FIXED",
+     "note": "import removed"
+    },
+    {
+     "file_line": "src/backend.rs:209-210 Reference::configure",
+     "verdict": "FIXED",
+     "note": "calls validate_sample_rate; red/green: reference_configure_follows_the_score_rule"
+    },
+    {
+     "file_line": "src/clap_backend.rs:41 (import MAX_SAMPLE_RATE_HZ)",
+     "verdict": "FIXED",
+     "note": "import removed"
+    },
+    {
+     "file_line": "src/clap_backend.rs:184-185 ClapBackend::configure",
+     "verdict": "FIXED",
+     "note": "calls validate_sample_rate; red/green: clap_configure_follows_the_score_rule"
+    },
+    {
+     "file_line": "src/host.rs:768 spec.sample_rate_hz != self.sample_rate_hz",
+     "verdict": "NOT_APPLICABLE",
+     "note": "equality of a block's rate with the instance's already validated configured rate; input.validate() (score gate) runs on the line before"
+    },
+    {
+     "file_line": "src/host.rs:770 ScoreError::InvalidRate",
+     "verdict": "NOT_APPLICABLE",
+     "note": "error value of the equality above, not a rate rule"
+    }
+   ],
+   "count": "11 origin matches = 3 imports + 3 validation sites x 2 compare lines + 2 host.rs lines; 3 validation sites, 3 FIXED; after the fix the regex matches in product code only at types.rs:101 (doc), types.rs:111 (the one ticks_per_sample call) and host.rs:768/770 (not applicable); rate_gate_tests.rs matches are the score oracle",
+   "other_rate_mentions_not_validation": [
+    "src/wire.rs:310,383,446,461,753 ConfigureSpec.sample_rate_hz: struct field, encode, decode (no comparison; the decoder carries the number, the worker backend configure validates it right away: worker.rs:175 is the only consumer) and a test constant",
+    "src/host.rs:449,489,585,747-748 and src/processor.rs:68-69: pass-through of the validated config value and accessors",
+    "src/clap_backend.rs:216 f64::from(cfg.sample_rate_hz): consumes the validated rate for activation",
+    "examples/score-plugin-consumer.rs:103,128 and tests/*: 48_000 constants (admitted)"
+   ]
+  },
+  "route_notes": {
+   "retry_guard": "No gameplan hook block and no failed foreground gated run. The failed red runs were intentional red proofs in the scratch tree and ran as background commands (not recorded by the retry guard). The red filter changed once because the test set was restructured (a table-oracle-only test could not be red, so it was folded into the per-entry tests); no flag or filter was changed to dodge the guard. No gameplan step added.",
+   "shared_tree": "The shared tree held other lanes' uncommitted work (Cargo.lock, press files, stat-only 'M' on hsk-studio-score sources with no content diff); none of it was staged or touched. The commit is a pathspec commit of crates/hsk-studio-score-plugin only (6 files: backend.rs, clap_backend.rs, lib.rs, types.rs, tests/foundation_contract.rs, new src/rate_gate_tests.rs); HEAD moved from eefe44d to f4b47cd (web lane) before the commit, with no change to accord/observe/score/score-plugin/root Cargo.toml in between (git diff --stat empty), so the red/green evidence holds at the pushed parent",
+   "scope": "No dependency, Cargo.toml, round-features or score change was needed or made"
+  },
+  "v4_rules_applied": {
+   "V4-01": "backend.rs and clap_backend.rs keep deny(clippy::arithmetic_side_effects); the change adds no arithmetic",
+   "V4-03": "no test reads a machine-local path; the reference-backend test writes one small file under the process temp dir (D: via studio-env) and removes it",
+   "V4-07": "the validate_sample_rate doc, the ProcessConfig.sample_rate_hz doc and DESCRIPTOR limits.sample_rate cite their tests and use no never/always/guarantee wording",
+   "V4-09": "commit made with git commit -F <file> and a pathspec; no amend"
+  },
+  "verdicts": [
+   {
+    "round": "STUDIO-R9",
+    "lane": "SMB-SCORE-PLUGIN-RATE",
+    "candidate": "4d80e50d40432799c08f0f8b8f0047c9a00d056a",
+    "tree": "18b50331f3b2b92c1985cd8b83e00560d88096bf",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V1",
+    "review": "validation/R9-review-b.json",
+    "round_ref": "validation/round-R9.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R9",
+    "idempotency_key": "STUDIO-R9:SMB-SCORE-PLUGIN-RATE:4d80e50d4043:PASS_V1",
+    "recorded_at": "2026-10-11T14:23:56Z",
+    "by": "wp_validator STUDIO-R9"
+   }
+  ]
+ }
+}

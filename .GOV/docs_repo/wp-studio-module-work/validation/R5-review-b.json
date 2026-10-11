@@ -1,0 +1,487 @@
+{
+ "round": "STUDIO-R5",
+ "group": "B",
+ "reviewed_commit": "1d404f8c4b72a849da064c4709e025bd05369b78",
+ "reviewer": "independent adversarial reviewer (Opus), group B, read-only, committed blobs at 1d404f8 only, no sub-agents, no cargo",
+ "status": "COMPLETE",
+ "started_at": "2026-10-11T05:02:56Z",
+ "completed_at": "2026-10-11T05:27:09Z",
+ "summary": {
+  "lanes_reviewed": 11,
+  "confirmed_total": 17,
+  "plausible_total": 17,
+  "per_lane": {
+   "SMB-REEL": {
+    "CONFIRMED": 0,
+    "PLAUSIBLE": 1
+   },
+   "SMB-REEL-ENG-3": {
+    "CONFIRMED": 1,
+    "PLAUSIBLE": 2
+   },
+   "SMB-REEL-AV1-ROUTE": {
+    "CONFIRMED": 1,
+    "PLAUSIBLE": 2
+   },
+   "SMB-REEL-NATIVE-AV1-WORKER": {
+    "CONFIRMED": 5,
+    "PLAUSIBLE": 2
+   },
+   "SMB-INTEROP-MEDIA": {
+    "CONFIRMED": 1,
+    "PLAUSIBLE": 1
+   },
+   "SMB-MOTION-JS": {
+    "CONFIRMED": 1,
+    "PLAUSIBLE": 0
+   },
+   "SMB-MOTION-JS-WORKER": {
+    "CONFIRMED": 2,
+    "PLAUSIBLE": 3
+   },
+   "SMB-PRESS": {
+    "CONFIRMED": 1,
+    "PLAUSIBLE": 3
+   },
+   "SMB-WEB": {
+    "CONFIRMED": 2,
+    "PLAUSIBLE": 1
+   },
+   "SMB-KERNEL-BINDINGS": {
+    "CONFIRMED": 2,
+    "PLAUSIBLE": 1
+   },
+   "SMB-HARNESS": {
+    "CONFIRMED": 1,
+    "PLAUSIBLE": 1
+   }
+  },
+  "method": "git archive of 1d404f8 into a scratch dir and line-numbered reads; fix commits verified with git show; rav1d, rquickjs-sys and license facts read from the local cargo registry cache; no cargo run, no sub-agents",
+  "r4_pending_resolved": "SMB-MOTION-JS-WORKER test_fault PLAUSIBLE is now CONFIRMED (test_hook_in_product); the same pattern is CONFIRMED in reel-native"
+ },
+ "lanes": [
+  {
+   "lane": "SMB-REEL",
+   "crate": "hsk-studio-reel",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "api_surface",
+     "file_line": "crates/hsk-studio-reel/src/lib.rs:23; src/fixtures/mod.rs, src/fixtures/mkv.rs",
+     "evidence": "`pub mod fixtures` still ships synthetic container builders in the product API. That includes MkvBlock.raw_lace_header, which the R3 tests use to forge hostile lace headers. The lane's own known_gaps lists this as an unresolved reviewer PLAUSIBLE item.",
+     "remediation": "Gate fixtures behind a non-default `fixtures` feature or a dev-only helper crate",
+     "commit": "fa365cd"
+    }
+   ],
+   "verified_fixes": [
+    "R3 ebml-lace-size-sum-overflow FIXED (dcc1b37): matroska.rs:886-892 sums lace sizes with try_fold+checked_add and returns Corrupt lace-sizes-exceed-block. tests/review_r3_regressions.rs r3_1 uses 31 8-byte vints. Recomputed sum = 18987176028994010609 > u64::MAX, so the pre-fix .sum() panics in a dev build; the test asserts the exact typed error.",
+    "R3 matroska-pts-delta-overflow FIXED (dcc1b37): matroska.rs:1049 and :1053 now use checked_sub in finish_durations. r3_2 (pts i16::MIN then cluster i64::MAX) asserts no panic: Ok, or any MEDIA_* error.",
+    "Surrounding arithmetic re-read at 1d404f8: block base checked_add (:808-811), payload_len = size - header_len bounded by tlen+3 <= buf.len() <= size (:794-812), laced pts checked_add (:912-914), cue scan last >= start (:1245-1256). No new unchecked file-derived arithmetic found in matroska.rs."
+   ],
+   "confirmed_count": 0,
+   "plausible_count": 1
+  },
+  {
+   "lane": "SMB-REEL-ENG-3",
+   "crate": "hsk-studio-reel",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "functional_gap",
+     "file_line": "crates/hsk-studio-reel/src/av1/mod.rs:148-151; src/av1/ffi.rs:111; src/model.rs:98",
+     "evidence": "The pixel limit is max_chunk_bytes/6, a worst case of 4:4:4 at 16 bit. With Limits::default (8 MiB) that is 1,398,101 px, below 1920x1080 = 2,073,600. rav1d 1.1.0 obu.rs:2333-2342 returns ERANGE, which map_error (ffi.rs:72) turns into LimitExceeded av1-frame-resources. So a trusted 8-bit 4:2:0 1080p stream (3.1 MB packed) is refused at default limits.",
+     "remediation": "Derive the pixel limit from the av1C chroma/bit depth, not worst case; add a 1080p-sized limit test",
+     "commit": "a2b1947"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "cancellation",
+     "file_line": "crates/hsk-studio-reel/src/av1/mod.rs:213-231",
+     "evidence": "InProcessSession::send and finish ignore the cancel token (`_cancel`). Cancel is only polled between packets in Pump::accept (video.rs:331), so one large trusted frame decode cannot be interrupted.",
+     "remediation": "Check cancel inside the send retry loop and before pull; document the per-frame cancel granularity",
+     "commit": "bfef27f"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "license_attribution",
+     "file_line": "crates/hsk-studio-reel/Cargo.toml:14 (rav1d =1.1.0 BSD-2-Clause)",
+     "evidence": "The local registry cache shows rav1d 1.1.0 is BSD-2-Clause and to_method 1.1.0 is CC0-1.0; START_LOG 03:30:19Z extended the license policy to CC0. No third-party notice or attribution artifact is committed for redistributing a BSD-2 binary. Packaging is D14, still pending.",
+     "remediation": "Add a third-party notices file for the av1 closure before any packaged build ships it",
+     "commit": "a2b1947"
+    }
+   ],
+   "verified_fixes": [
+    "Trusted-input gating holds: video.rs:211-220 choose() returns InProcess only for SourceTrust::Trusted. Registry::decode_segment is pinned to Untrusted (registry.rs:153-171) and MediaProvider::decode_segment uses VideoRoute::default() (matroska.rs:1335-1342). No product src or example constructs Trusted; only tests do (reel-native host.rs:913 uses untrusted()).",
+    "Fixture provenance verified: sha256 of av1-16x16-3f.mp4 b246005d... and .mkv 5af7cca0... match provenance.json, and tests/av1_decode.rs ORACLE[0..3] equals provenance oracle.frame_sha256 (libdav1d). The expected outputs are not echoed from the implementation. generate.sh is offline only and never run by tests.",
+    "Licenses (local registry cache Cargo.toml): rav1d BSD-2-Clause, to_method CC0-1.0 (policy extension START_LOG 2026-10-11T03:30:19Z), nasm-rs MIT OR Apache-2.0 (asm feature off), libc MIT OR Apache-2.0. rav1d-safe (AGPL) is rejected in lane notes.",
+    "unsafe is confined: lib.rs:15-16 forbid(unsafe_code) without av1 and deny with it; only av1/ffi.rs:7 allows it. ffi copy_picture checks stride >= row_bytes (:250), checked plane totals (:226-240) and the max_frame_bytes cap.",
+    "R3 Matroska overflow fixes carried by this lane (dcc1b37) verified under SMB-REEL."
+   ],
+   "confirmed_count": 1,
+   "plausible_count": 2
+  },
+  {
+   "lane": "SMB-REEL-AV1-ROUTE",
+   "crate": "hsk-studio-reel",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "overflow",
+     "file_line": "crates/hsk-studio-reel/src/video.rs:262-271 (multiply at :269)",
+     "evidence": "planes_match_format computes `u64::from(w) * u64::from(h) * bytes_per_sample` unchecked on a picture from an EXTERNAL (untrusted-output) decoder. width = height = u32::MAX with bit_depth 10 gives w*h = 18446744065119617025, and *2 overflows u64. That panics in dev/test inside the host, the process the route exists to protect, before DecoderFault::Protocol is returned.",
+     "remediation": "Use checked_mul in planes_match_format; on overflow return DecoderFault::Protocol; add a lying-decoder test",
+     "commit": "bfef27f"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "missing_enforcement",
+     "file_line": "crates/hsk-studio-reel/src/video.rs:73-76, 283-305",
+     "evidence": "VideoStreamSpec says the decoder 'should refuse pictures above' the declared size, but the route never compares picture.format width/height with VideoTrack.width/height. An external decoder's oversize picture is packed into `packed` (a second copy) before the max_chunk_bytes check at :301.",
+     "remediation": "Refuse pictures larger than the container-declared size (DecoderFault::Protocol) before packing",
+     "commit": "bfef27f"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "trust_scope",
+     "file_line": "crates/hsk-studio-reel/src/registry.rs:186-189, 213-215",
+     "evidence": "One SourceTrust value builds the route for both the original and the ProxySource. A caller that marks the original Trusted also sends the proxy's bytes, a different source with its own grant, to the in-process rav1d decoder.",
+     "remediation": "Decode proxies on an untrusted route unless the proxy carries its own explicit trust",
+     "commit": "bfef27f"
+    }
+   ],
+   "verified_fixes": [
+    "Policy as briefed: untrusted goes to the external decoder if it supports the codec, else CodecUnavailable naming av01/V_AV1; trusted runs in-process with av1, else external (video.rs:211-220, 360-362). DecoderFault{Crashed,Deadline,Protocol} maps to MEDIA_DECODER_FAULT with outcome Unavailable; media errors pass through (video.rs:102-111).",
+    "Feature split real: av1_config (Av1Config, parse_av1c, av1_descriptor) is always compiled and re-exported (lib.rs:20,35). The route compiles without rav1d (Chosen::InProcess is cfg(feature=av1)). forbid(unsafe_code) holds in the default build.",
+    "tests/video_route.rs is not tautological. The fake decoder output is a pure function of the tag, and its exact packet sequence is checked against the demux ground truth (packets_of). Trust x registration matrix, fault from open/packet/finish, media pass-through and ShortPlane -> Protocol are each asserted. Runs in both feature sets (round-features.toml has reel=[[av1]])."
+   ],
+   "confirmed_count": 1,
+   "plausible_count": 2
+  },
+  {
+   "lane": "SMB-REEL-NATIVE-AV1-WORKER",
+   "crate": "hsk-studio-reel-native",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "overflow",
+     "file_line": "crates/hsk-studio-reel-native/src/host.rs:1056-1070 (declared_frame_cap), :1080 (decoder_budget); reel src/matroska.rs:391-392",
+     "evidence": "Matroska PixelWidth/PixelHeight are accepted up to u32::MAX (matroska.rs:391-392). open_session (host.rs:948-950) then computes w*h + 2*cw*ch (4:2:0: 1.84e19 + 2^63), 3*w*h, and w*h*6 with unchecked u64 arithmetic. A hostile mkv (valid V_AV1 av1C, PixelWidth = PixelHeight = 0xFFFFFFFF) panics the HOST in dev/test before any worker is spawned. That defeats the isolation this lane provides. In release it wraps into wrong caps.",
+     "remediation": "checked_mul/checked_add in declared_frame_cap and decoder_budget (overflow -> LimitExceeded); add hostile-dims test",
+     "commit": "e95163a"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "overflow",
+     "file_line": "crates/hsk-studio-reel-native/src/wire.rs:514 (doc claim at :8-9)",
+     "evidence": "decode_frame computes `u64::from(w) * u64::from(h) * bytes_per_sample` before reading the plane. A lying or compromised worker FRAME with width = height = u32::MAX and bit_depth 10 or 12 is only a few dozen bytes, so it passes the reply cap and then overflows. That panics the host in dev/test, contradicting the module contract 'a malformed frame never panics'.",
+     "remediation": "Use checked_mul (overflow -> WireError::Malformed); add a wire unit test with u32::MAX dims at bit depth 10",
+     "commit": "e95163a"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "test_hook_in_product",
+     "file_line": "crates/hsk-studio-reel-native/src/host.rs:87-88,500-502; src/worker.rs:34-78,143-166; src/lib.rs:40",
+     "evidence": "Test fault injection ships in the product library and worker binary. The pub #[doc(hidden)] field Av1WorkerOptions.test_fault and the re-exported WorkerTestFault can make the worker hang 30 s, exit 86 on open or packet, or emit oversize or garbage frames. The worker reads them from env HSK_REEL_NATIVE_AV1_WORKER_TEST_FAULT. Risk is bounded: env_clear (host.rs:499) means only Av1WorkerOptions can set the variable.",
+     "remediation": "Gate WorkerTestFault, the options field and the worker env read behind a non-default `test-faults` feature",
+     "commit": "e95163a"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "scope_gap",
+     "file_line": "crates/hsk-studio-reel-native/Cargo.toml:9,13; src/lib.rs:21-24",
+     "evidence": "Feature av1 enables hsk-studio-reel with features=[av1], so any host that enables the worker also links the in-process rav1d decoder. lib.rs:21-24 states this. That conflicts with SMB-REEL-AV1-ROUTE scope: 'enabling worker routing must not require linking the in-process decoder'. Any Trusted call in such a host then runs rav1d in-process. The lane 'next' defers this as an optional package split.",
+     "remediation": "Move the worker bin into its own package; host uses reel default and gets decoder id/version over HELLO",
+     "commit": "e95163a"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "cap_duplicate",
+     "file_line": "crates/hsk-studio-reel-native/src/host.rs:300-414,466-481 vs crates/hsk-studio-motion-js/src/quickjs_worker.rs:153-254,324-339",
+     "evidence": "reel-native re-implements motion-js's worker supervisor almost line for line. The copied pieces are Session::wait (5 ms cancel/deadline polling), terminate(patience) kill-and-reap, io_loop HELLO-then-jobs, quiet() CREATE_NO_WINDOW, discover_program (exe dir and parent), and admit_spawn sliding-window respawn. The ledger scope says 'same pattern as motion-js worker'. CX-CAP-001 allows one active owner per capability, and both copies already share the same defects (parent-dir discovery, uncancellable HELLO wait).",
+     "remediation": "Extract worker supervision into one owner (a shared crate or accord module); both crates consume it",
+     "commit": "e95163a"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "security",
+     "file_line": "crates/hsk-studio-reel-native/src/host.rs:403-414, 834-839",
+     "evidence": "With no explicit program, discover_program also accepts reel-native-av1-worker[.exe] from the PARENT directory of the running executable. A writable parent directory lets another binary be launched as the decoder. HELLO checks only self-reported id and version strings.",
+     "remediation": "Search only the executable directory, or require an explicit program path outside tests",
+     "commit": "e95163a"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "cancellation",
+     "file_line": "crates/hsk-studio-reel-native/src/host.rs:527",
+     "evidence": "spawn waits for HELLO with recv_timeout(spawn_timeout = 10 s default) and does not poll the cancel token. A cancel during a slow worker start is honoured only after the handshake or the timeout.",
+     "remediation": "Wait for HELLO in WAIT_SLICE steps that check cancel (as Session::wait does)",
+     "commit": "e95163a"
+    }
+   ],
+   "verified_fixes": [
+    "Quiet spawn: CREATE_NO_WINDOW 0x08000000 via CommandExt::creation_flags (host.rs:66-68, 394-398), env_clear, stderr null, piped stdin and stdout (:494-503).",
+    "Deadline and cancel kill: exchange waits in 5 ms slices against min(batch_deadline, segment_wall) and the cancel token (:316-332, 626-646). Timeout and cancel call terminate(ZERO): kill, then wait to reap (:336-348).",
+    "Crash to typed fault: end of stream maps to DecoderCrashed{exit_code} after up to 500 ms patience to read the real exit code (:601-606). The worker panic hook exits 70 (worker.rs:214). The fault maps to ReelError::DecoderFault{Crashed,Deadline,Protocol} (host.rs:201-215).",
+    "No orphan processes: every Child is owned by a Session whose Drop kills and reaps it (:351-355). Permit counts live processes until reaped (:292-298). The worker exits when its stdin closes, even mid-decode, through a reader thread (worker.rs:216-233). The hostile test asserts alive == 1 after 7 crashes.",
+    "Bounded IPC: frame length is checked against the cap before allocation (wire.rs:68-87). Requests are capped at 32 MiB; reply cap = declared-dimension cap + 512; at most 64 FRAMEs per batch (host.rs:650); sync_channel(1) backpressure (:507). Every FRAME plane length must equal the declared format (wire.rs:512-519). Error text crosses as an index into a fixed static table (wire.rs:33-54).",
+    "Bounded respawn: max_spawns per spawn_window with a sliding log (host.rs:466-481), and the max_workers permit is checked before spawn (:483-488). Job Object / RSS cap is disclosed NOT_PROVEN in DESCRIPTOR.",
+    "Tests are substantive: worker output is bit-exact with the libdav1d oracle and with reel in-process receipts; 6 recorded aborting mutations end as decoder_crashed with the host alive; deadline, cancel, oversize, garbage and respawn bound are each checked against counters. round-features.toml declares reel-native=[[av1]], so they run in the round."
+   ],
+   "confirmed_count": 5,
+   "plausible_count": 2
+  },
+  {
+   "lane": "SMB-INTEROP-MEDIA",
+   "crate": "hsk-studio-interop-media",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "cap_duplicate",
+     "file_line": "crates/hsk-studio-interop-media/src/time.rs:127-237 (nominal, base, timecode_to_frames, frames_to_timecode); disclosure :10-14",
+     "evidence": "The timecode label and drop-frame arithmetic (per_ten_minutes = nominal/30*17_982, the dropped-number rule, label formatting) still duplicates pulse src/time.rs:136-245. CX-CAP-001 breach as in R3. The fix needs the interop-media -> pulse edge, still absent from the allowed list (Cargo.toml:158-159). Operator D9 is still open, so the R3 BLOCKED status stands.",
+     "remediation": "Blocked on Operator D9; once the edge is approved delegate timecode labels to pulse and delete time.rs:127-237",
+     "commit": "4a6bb19"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "parser_leniency",
+     "file_line": "crates/hsk-studio-interop-media/src/time.rs:173,185-187 vs :226-228",
+     "evidence": "timecode_to_frames accepts 1-3 digit fields, so '100:00:00:00' and '01:002:03:04' import. frames_to_timecode refuses hours > 99 (TimecodeOverflow), so an EDL imported with hours 100-999 cannot be re-exported. CMX3600 labels are fixed 2-digit HH:MM:SS:FF.",
+     "remediation": "Require exactly two digits per timecode field, or make the import and export hour bounds symmetric",
+     "commit": "8be9cee"
+    }
+   ],
+   "verified_fixes": [
+    "R3 sub-items that do not need D9 are fixed (4a6bb19): ticks_to_frames_exact is Timescale::rational(fps).units_from_ticks(Floor) with a remainder meaning NotFrameAligned (time.rs:245-253), and reduce() is Timescale::rational(...).units_per_second() (:23-25); no local gcd remains.",
+    "Regression tests are meaningful: every table rate with hand-written ticks-per-frame, k up to u64::MAX/tpf, and +-1 tick refused NotFrameAligned (foundation_contract.rs:662-721; source guard test :722). Export of an off-frame source_in is refused. A source guard test pins the no-local-math and no-pulse-edge state.",
+    "EDL import bounds re-read: max_bytes 8 MiB, per-line and event caps (edl.rs:284-297, 356), and empty or reversed ranges plus BeforeOrigin rejected before any subtraction (:406-424). Speed cross-check uses u128 (:237-239). No unwrap or panic on input found in edl.rs, native.rs or folio_map.rs."
+   ],
+   "confirmed_count": 1,
+   "plausible_count": 1
+  },
+  {
+   "lane": "SMB-MOTION-JS",
+   "crate": "hsk-studio-motion-js",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "r3_remediation_incomplete",
+     "file_line": "crates/hsk-studio-motion-js/src/quickjs.rs:167-171 (BOOTSTRAP describe flags), :680-682 (classify); src/provider.rs:184-186,231",
+     "evidence": "Budget(Stack) and Budget(Memory) are still chosen by user-writable message text. `throw new RangeError('Maximum call stack size exceeded')` gives kind 3 + FLAG_STACK_OVERFLOW = Budget(Stack); `throw new InternalError('out of memory')` gives Budget(Memory). The engine's own errors are byte-identical (quickjs-ng quickjs.c:8559,8567), so describe() cannot tell them apart; provider.deny() then counts a fake quota denial. R3 explicitly listed 'forged RangeError -> Budget'. quickjs_contract.rs:338-357 tests only 'x'/'boom' messages.",
+     "remediation": "Classify Stack/Memory budget only from engine signals; treat message-matched user throws as Thrown; add forged-message tests",
+     "commit": "a53c52d"
+    }
+   ],
+   "verified_fixes": [
+    "R3 quickjs-interrupt-disarmed-during-extract-classify FIXED: session() arms the interrupt before evaluate and disarms after it (quickjs.rs:579-581). extract and describe both run inside evaluate()/classify() (:592-605, 665), so user code never runs unmetered. extract uses gopd plus a null-prototype descriptor (:128-146). quickjs_user_getters_cannot_run_unmetered covers looping name/message/stack getters, Object.prototype.get, and hostRead toString with a 20 s bound and no poison.",
+    "R3 quickjs-forged-internalerror-poisons-provider FIXED for the poison part: EngineFailure::Internal (sticky poison, provider.rs:236) now only comes from a non-exception rquickjs error that is not Allocation (quickjs.rs:655-659). Error kind comes from captured intrinsic prototype identity (:104-107, 153-162), not .name. quickjs_user_error_names_cannot_poison_provider covers renamed and genuine InternalError.",
+    "R3 'run quickjs tests in entrypoint' FIXED: .config/round-features.toml declares hsk-studio-motion-js = [[\"quickjs\"]], so quickjs_contract.rs and quickjs_worker.rs run in the feature unit."
+   ],
+   "confirmed_count": 1,
+   "plausible_count": 0
+  },
+  {
+   "lane": "SMB-MOTION-JS-WORKER",
+   "crate": "hsk-studio-motion-js",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "test_hook_in_product",
+     "file_line": "crates/hsk-studio-motion-js/src/quickjs_worker.rs:85-86,298,353-355,614; src/quickjs.rs:220-259,413-441,455,813-829; src/lib.rs:27-30",
+     "evidence": "R4 PLAUSIBLE confirmed at 1d404f8. These ship in the default quickjs build: pub #[doc(hidden)] WorkerConfig.test_fault, re-exported pub WorkerTestFault, and the worker env read HSK_MOTION_JS_WORKER_TEST_FAULT. AsyncAbort runs the unmitigated context that aborts the process; DeafInterrupt drops the interrupt handler. The pub QuickJsOptions::unsafe_in_process is a self-described TEST-ONLY hatch. Mitigation: env_clear (:352), so only WorkerConfig can set the fault.",
+     "remediation": "Gate WorkerTestFault, test_fault, the env read and unsafe_in_process behind a non-default `test-faults` feature",
+     "commit": "a53c52d"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "missing_capability",
+     "file_line": "crates/hsk-studio-motion-js/src/quickjs.rs:17-22; src/quickjs_worker.rs:25-28; ledger SMB-MOTION-JS-WORKER scope",
+     "evidence": "The lane scope lists RSS/CPU limits and the AST profile validator (EXPR-PROVIDER-13). The code marks both NOT_PROVEN: no Job Object or OS memory/CPU cap, and 'NOT semantic AST fuel'. The lane 'next' says the AST profile validator is 'still not started'. The lane is READY_FOR_VALIDATION with those scope items undelivered.",
+     "remediation": "Split the undelivered scope (AST validator, OS RSS/CPU cap) into its own stub, or deliver it before PASS",
+     "commit": "a53c52d"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "security",
+     "file_line": "crates/hsk-studio-motion-js/src/quickjs_worker.rs:243-254, 284-289",
+     "evidence": "With no explicit program, the worker is also taken from the PARENT directory of the running executable. HELLO only checks a self-reported ENGINE_VERSION string (quickjs_wire.rs:326-331), so a planted binary there runs as the sandbox.",
+     "remediation": "Search only the executable directory, or require an explicit worker path outside tests",
+     "commit": "a53c52d"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "cancellation",
+     "file_line": "crates/hsk-studio-motion-js/src/quickjs_worker.rs:377",
+     "evidence": "The HELLO wait is recv_timeout(spawn_timeout = 10 s) with no cancel poll, so a cancel during worker start waits out the handshake.",
+     "remediation": "Wait for HELLO in WAIT_SLICE steps that check the cancel token",
+     "commit": "a53c52d"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bound_mismatch",
+     "file_line": "crates/hsk-studio-motion-js/src/quickjs_wire.rs:545-554",
+     "evidence": "response_cap assumes a host-read path is no longer than the source (+4096). A script that builds a longer path at runtime ('a'.repeat(9000)) gets an oversize Pending::Read reply. The host then kills the worker and reports Output instead of a typed read refusal.",
+     "remediation": "Cap host-read path length in the realm (typed refusal) and size response_cap from that cap",
+     "commit": "a53c52d"
+    }
+   ],
+   "verified_fixes": [
+    "Quiet spawn: CREATE_NO_WINDOW (quickjs_worker.rs:67-69, 234-238), env_clear, stderr null, piped stdio (:347-356).",
+    "Deadline and cancel kill: wall = remaining + kill_grace on the real monotonic clock (:473); Session::wait polls cancel and deadline every 5 ms (:166-184); exchange terminates and reaps on every failure (:408-452). Worker-side watchdog exit(3) at deadline + 2 s (:596-599) bounds a worker whose host is gone.",
+    "Crash to typed Faulted(Crashed) with exit code after 500 ms patience (:442-450). Session Drop kills and reaps (:205-209), so idle-overflow and failed handshakes leave no process. Bounded respawn via sliding log (:324-339).",
+    "Wire: frame cap checked before allocation; count() bounds element counts by the bytes still present (quickjs_wire.rs:177-186); reply arrays limited to max_nodes (:487-489); HELLO checks the protocol version and ENGINE_VERSION."
+   ],
+   "confirmed_count": 2,
+   "plausible_count": 3
+  },
+  {
+   "lane": "SMB-PRESS",
+   "crate": "hsk-studio-press",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "proof_gap",
+     "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:314-316 (is_proven), :322-328 (region_cleared), :226-237 and :276 (undecodable streams)",
+     "evidence": "Streams with refused filters (DCT, JPX, CCITT, JBIG2, Crypt), indirect filters or a decode_error are only scanned raw and listed in streams_not_decodable. Yet is_proven() is region_cleared && hits.is_empty() and never checks proof.fully_decoded(). A removed string held in such a stream, for example a corrupt FlateDecode XMP, makes is_proven() true. This contradicts the module claim 'the proof never claims more than it scanned' (:11) and the DESCRIPTOR 'is_proven' wording. pdf_delivery.rs asserts is_proven without fully_decoded.",
+     "remediation": "Require proof.fully_decoded() in is_proven (or a typed NotProven state); add an undecodable-stream test",
+     "commit": "1df11b2"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "proof_independence",
+     "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:354-364; src/redaction.rs:78-90",
+     "evidence": "residual_in_region re-runs the same redact_region selector on the saved bytes, so a selector miss repeats and is not detected. One example: bbox() drops NaN from a CTM product overflow via f64::min/max, so touches() is false and the text counts as outside the region. The payload proof cannot catch a missed instance either: an unremoved Tj in the region is never a needle, and a kept Tj match is classed as a collision, not a leak.",
+     "remediation": "Treat non-finite glyph boxes as unredacted marks; add an independent residual check (e.g. text extraction per region)",
+     "commit": "1df11b2"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "cancellation",
+     "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:121-137, 191",
+     "evidence": "The raw scan(output, vars) runs before the per-object loop with no cancel check. find() is a naive windows().position per variant, so with up to 64 MiB output and 2 variants per removed string it costs O(bytes x variants) and cannot be cancelled until it finishes.",
+     "remediation": "Check cancel inside scan per variant/chunk, or use a multi-pattern matcher (Aho-Corasick) with cancel polling",
+     "commit": "1df11b2"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "doc_drift",
+     "file_line": "crates/hsk-studio-press/src/filters.rs:1-3; src/filters.rs:362",
+     "evidence": "The module doc still says LZW is a typed UnsupportedFilter refusal, but LZWDecode is implemented (:87-94) and listed in DESCRIPTOR. ascii85 also accepts a final partial group whose value exceeds u32 and silently truncates it (`v as u32`, :361-363); full groups are refused (:341-343).",
+     "remediation": "Fix the filters.rs header; refuse an overflowing final ASCII85 group as Malformed",
+     "commit": "d1bb2ff"
+    }
+   ],
+   "verified_fixes": [
+    "No prior verdict. Reader bounds re-read: depth-limited object parser (syntax.rs:194-196). as_f64/as_int accept only finite values (syntax.rs:72,79). The endstream recovery scan has its own scan_budget (reader.rs:57-60, 104-113).",
+    "Filters are bounded. Flate uses decompress_to_vec_zlib_with_limit(cap). LZW uses fixed 4096-entry tables, kwkwk only when code == next < 4096, and an output cap checked before resize (filters.rs:192-291). Predictor rows*row_bytes is checked against the cap before allocation (:143-149). ASCIIHex, ASCII85 and RunLength check the cap per step. A per-operation decoded budget (max_decoded_total) is enforced (:104-107).",
+    "redact_and_save restores doc.objects on any error (sanitized_save.rs:342-397). The proof re-opens the OUTPUT bytes, and the short-needle exclusion is reported (short_needles), not hidden."
+   ],
+   "confirmed_count": 1,
+   "plausible_count": 3
+  },
+  {
+   "lane": "SMB-WEB",
+   "crate": "hsk-studio-web",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "security",
+     "file_line": "crates/hsk-studio-web/src/css.rs:63-85; src/assets.rs:99-131",
+     "evidence": "css_references matches only the literal bytes `url(` and never decodes CSS escapes. Two bypasses follow. (1) `u\\72l(https://evil.example/a.png)`, an escaped url( token that CSS engines honour, is not collected at all. (2) `url(ht\\74p://evil.example/a.png)` is collected, but classify() maps `\\` to `/`, so the first delimiter precedes the colon. The reference is treated as relative and handed to the AssetPort instead of being typed Denied(ExternalScheme). A CSS engine decodes both to http://evil.example. That breaks the module contract 'External ... URLs are typed Denied without the port being consulted'.",
+     "remediation": "Decode CSS escapes (ident and url) before matching and classifying; add escaped-scheme and escaped-url( tests",
+     "commit": "7cd898d"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "missing_capability",
+     "file_line": "crates/hsk-studio-web/src/assets.rs:79-96, 148-151; src/lib.rs:32 (DESCRIPTOR assets.not_scanned)",
+     "evidence": "URL_ATTRIBUTES omits <base href>, which re-targets every relative reference: with `<base href=\"https://evil/\">` a relative img that the port Granted is fetched externally. It also omits svg <image href|xlink:href>, <iframe srcdoc> (inline HTML), <frame src>, form/button/input formaction and background attributes. None of them is listed in DESCRIPTOR not_scanned (only srcset, image-set(), meta refresh), so the report under-states its scope.",
+     "remediation": "Collect <base href> (deny or mark all relative refs unresolved), add the missing URL attributes, list the rest in not_scanned",
+     "commit": "7cd898d"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "security",
+     "file_line": "crates/hsk-studio-web/src/assets.rs:134-145",
+     "evidence": "Relative references reach AssetPort::resolve verbatim, with no normalisation or typed refusal of `..` traversal or percent-encoded separators (%2e%2e%2f). Each embedder's port must implement that itself, so a naive port mapping references to project paths can escape the project root.",
+     "remediation": "Normalise relative refs and refuse ones escaping the document root as Denied(NotGranted) before the port",
+     "commit": "7cd898d"
+    }
+   ],
+   "verified_fixes": [
+    "No prior verdict. Classification re-read: leading/trailing C0 and space trimmed, tab/CR/LF removed and the rest lower-cased before scheme detection, so `java\\nscript:` and `JAVASCRIPT:` are denied. file:, protocol-relative and drive-letter (`c:`) references are denied; control characters are refused before the port. Attribute values are entity-decoded first (`&#106;avascript:`).",
+    "The crate does no I/O: no fetch, file or network calls in src (DESCRIPTOR never list). Asset collection is bounded by max_nodes with cancel every 1024 nodes (assets.rs:153-169).",
+    "Parser panics are invariant expects only (dom.rs:292,297,322-323,556,602: root stays on the stack, elements have names). descendants uses an explicit stack."
+   ],
+   "confirmed_count": 2,
+   "plausible_count": 1
+  },
+  {
+   "lane": "SMB-KERNEL-BINDINGS",
+   "crate": "hsk-studio-kernel-bindings",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "authorization",
+     "file_line": "crates/hsk-studio-kernel-bindings/src/host.rs:235-238 (JobRelease), :287-308 (job_admit)",
+     "evidence": "job_admit stores tickets as (jobs, bytes) with no owner, and tickets are sequential (next_ticket += 1). JobRelease removes any ticket for any actor with no principal, account or grant check. One actor can release another actor's admitted job and free its slots and bytes, defeating the job_capacity/job_byte_budget accounting. job_admit also performs no grant check.",
+     "remediation": "Bind tickets to account+principal+resource at admit; refuse release by another owner; add a cross-actor release test",
+     "commit": "95dee5e"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "contract_overclaim",
+     "file_line": "crates/hsk-studio-kernel-bindings/src/wire.rs:1-4 vs :537-565",
+     "evidence": "The module contract says decoding 'refuses everything the encoder cannot produce' (canonical field order, no whitespace). decode() only refuses a non-'{' first byte and trailing whitespace. serde_json still accepts interior whitespace, any field order and \\u escapes in strings, none of which the encoder emits. wire_strictness_and_descriptor (tests :444-520) tests only leading and trailing bytes.",
+     "remediation": "Re-encode the decoded value and require byte equality with the input (refuse non-canonical), or correct the contract text",
+     "commit": "2c78bfa"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "fencing",
+     "file_line": "crates/hsk-studio-kernel-bindings/src/host.rs:365-367, 395-397",
+     "evidence": "The lease fence refuses only lease_epoch < current.epoch and then stores the client-supplied epoch. Nothing issues or verifies leases, so any granted editor can commit with lease_epoch = u64::MAX and permanently fence every other writer to StaleEpoch.",
+     "remediation": "Accept only the host-issued current epoch (==), or issue epochs from a host lease call and verify them",
+     "commit": "95dee5e"
+    }
+   ],
+   "verified_fixes": [
+    "No prior verdict. Commit order re-read (host.rs:310-411): grant and token rechecked on every commit, replays included. Idempotency is bound to account+principal+resource+binding, and a conflict discloses nothing. Then epoch fence, expected-revision compare, successor == expected+1, receipt cap, and an atomic state+receipt+idempotency write under one lock.",
+    "Adapter (adapter.rs:41-80, 243-310): replies must echo the correlation id. No, undecodable or mismatched reply maps to denied grant, refused job, or commit Unknown (never Rejected). Rejected('wire_invalid') only when nothing was sent.",
+    "Wire: deny_unknown_fields on every struct, version read first and alone, hex lowercase only and size-checked before decode, and encoder validates first. The 12 distinct codes are asserted by mutation tests."
+   ],
+   "confirmed_count": 2,
+   "plausible_count": 1
+  },
+  {
+   "lane": "SMB-HARNESS",
+   "crate": "hsk-studio-harness",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "vacuous_verdict",
+     "file_line": "crates/hsk-studio-harness/src/cli.rs:192-198; src/harness.rs:618-630; src/manual.rs:23",
+     "evidence": "`verify PACKAGE` with no --expect-revision and no --expect-name/--expect-visible gives revision_ok = true via is_none_or and an empty checks list, so all = true and the verdict is 'pass' with exit 0. Any package that opens 'verifies' while checking nothing. The manual marks every expectation optional, and agents read this verdict as proof.",
+     "remediation": "Refuse verify with zero expectations (usage exit 2), or report verdict 'nothing_checked' that is not pass",
+     "commit": "c47e256"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "unguarded_write",
+     "file_line": "crates/hsk-studio-harness/src/cli.rs:70, 226-227",
+     "evidence": "--save takes any path, including the input PACKAGE itself or a path outside the working tree, and the session save_to writes it after edits. The CLI has no guard against overwriting the source package or writing outside an allowed root. Agents drive this CLI headlessly.",
+     "remediation": "Refuse --save equal to the input path unless --overwrite is given; document the allowed output roots",
+     "commit": "c47e256"
+    }
+   ],
+   "verified_fixes": [
+    "No prior verdict. Selection is explicit: nothing is selected by default, and unknown or duplicate providers are refused before any step. References default to Unresolved; trust_all is an explicit flag recorded in every report (harness.rs:39-49, 165; finish :651-664).",
+    "The CLI is a pure function (args in, exit code and stdout out). The example is a thin forwarder with no process spawn, window or network. Exit codes are 0 pass, 1 fail, 2 usage. Edits stop at the first refused operation before any save (cli.rs:214-236).",
+    "Expectation checks compare live session values, and a missing layer is ok=false (harness.rs:637-647). finish() is ok only when every operation succeeded."
+   ],
+   "confirmed_count": 1,
+   "plausible_count": 1
+  }
+ ],
+ "pending_lanes": []
+}

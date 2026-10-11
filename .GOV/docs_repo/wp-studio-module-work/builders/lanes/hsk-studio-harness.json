@@ -1,44 +1,174 @@
 {
-  "crate": "hsk-studio-harness",
-  "lane": "SMB-HARNESS-1",
-  "status": "READY_FOR_VALIDATION",
-  "phase": "slice 1 pushed (headless only): explicit selection, open/summary/edit/panel/save/reopen/verify over the real session, controls panel, one Observe frame per operation, JSON + generated manual; 4 focused tests green",
-  "commits": [
-    {"sha": "c47e256", "subject": "Harness slice 1 (headless only): explicit provider selection, open/summary/edit/panel/save/reopen/verify over the real session, controls panel bound to a layer, one Observe frame per operation, JSON reports and a manual generated from the descriptors; studio-harness example"}
-  ],
-  "capabilities_done": [
-    "Harness::new(Selection{providers, references}): nothing selected by default; unknown or duplicate provider refused before any step (UnknownProvider / DuplicateProvider); only selected providers are registered in the session (chronicle.patch is the one available provider); references default to unresolved (honest), trust_all is an explicit development stand-in recorded in every report",
-    "Run: open_path/open_bytes, summary (document, layers with appearance values, artboards, page spreads, sequences, stories, unresolved references, providers), rename / set_visible through the selected chronicle provider (patch JSON built from the session's own revision vector, revision-checked, optional --expect-revision), panel (agent JSON of the controls descriptors bound to a layer plus the commit route of every control), panel_set (descriptor parse -> ValueStore -> session submit; refused commit is undone in the store), save_to (atomic, via session), checkpoint (verified in-memory package), reopen (second independent session) and verify (revision, byte-identical encoded document, every committed edit present), verify_live with caller expectations",
-    "one Observe terminal frame per operation: session operations use the session's report, harness-owned operations (summary, panel, panel_set refusals, verify) emit their own frame (redacted: no names or values); report states one_frame_per_operation and per-op frame counts; a failure before the document is identified is `unaddressed` (0 frames), exactly as the session reports it",
-    "cli::run(args) -> (exit, stdout): help (text and --json), descriptors (owner/version parsed from the real DESCRIPTOR consts of accord, folio, session, controls, observe), providers, open, panel, edit, verify; exit 0 pass, 1 failed/refused with JSON, 2 usage; deterministic byte-identical output; the manual is generated from the command table, the live provider list and the controls manual topics",
-    "examples/studio-harness.rs: thin forwarder (no [[bin]], no window, no process spawn, no network); DESCRIPTOR const; tests/fixtures/demo.handshake made by `session-consumer --demo` (regenerate the same way)"
-  ],
-  "tests": {
-    "argv": "cargo test -p hsk-studio-harness --tests --no-fail-fast",
-    "exit": 0,
-    "sha": "c47e256",
-    "passed": 4,
-    "failed": 0
+ "crate": "hsk-studio-harness",
+ "lane": "SMB-HARNESS-1 + R5 remediation",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "R5 remediation pushed (c41b067): verify never passes vacuously, an empty run is nothing_checked, edit --save guards the input; 7 focused tests green at pushed HEAD c41b067",
+ "commits": [
+  {
+   "sha": "c47e256",
+   "subject": "Harness slice 1 (headless only): explicit provider selection, open/summary/edit/panel/save/reopen/verify over the real session, controls panel bound to a layer, one Observe frame per operation, JSON reports and a manual generated from the descriptors; studio-harness example"
   },
-  "blockers": [],
-  "lock_wait_s": 0,
-  "bg_pids": [],
-  "next": "steward: lock sync + registry pin/probe approval for hsk-studio-harness (one dep-request line appended: serde_json 1.0.151 std; every other dependency is an allowed path edge: accord, folio, session, controls, observe). Validator round. Next slice candidates: gesture/control-driven edits once chronicle gains appearance properties, Run over a ProviderRegistry with more providers (when a second provider exists), multi-edit atomic batch, idempotency keys + commit/grant ports behind flags, desktop window consumer if the lead widens the probe",
-  "updated_at": "2026-10-11T02:51:29Z",
-  "notes": {
-    "desktop_window": "DECISION PENDING (lead): a desktop window consumer needs eframe/winit, which tools/workspace-probe.rs forbids for every crate (egui only for controls). Slice 1 is headless only and states `desktop_window_consumer` in not_proven in every report and in DESCRIPTOR.",
-    "edge_gap": "The harness may depend only on accord, folio, session, controls, observe. It needs no direct chronicle/package edge: patch JSON is built from the session's revision vector (serde_json::to_value of the revision entry address) and re-open/verify go through a second Session. If a future slice needs chronicle types or package readers directly the allowed edges must be widened by the lead (not requested now).",
-    "appearance_values": "folio has LayerAppearance (opacity, fill opacity, blend mode, clipped, isolation, mask) but chronicle only has name/visible properties, so the panel projects appearance controls read-only (route none, reason no_chronicle_property) and an edit is refused with no_commit_route. Needs a chronicle appearance property (chronicle lane) before these controls can commit.",
-    "controls_use": "panel is built only from hsk-studio-controls descriptors (text, toggle, number slider with % unit, integer, choice, one collapsible section); the dead-control audit runs (7/7 consumed) and is part of the panel JSON; no egui types appear in the harness API.",
-    "fixture": "tests/fixtures/demo.handshake (5099 bytes, revision 9) generated by `cargo run -p hsk-studio-session --example session-consumer -- --demo DIR` under the artifact root; the fixture carries one unresolved tile reference (default references mode reports it).",
-    "files_and_paths": "The harness never picks a path: every path is a command-line argument. The only test that writes files uses TMP (asserts it is not on C:, removes its directory on drop) and the example run used the artifact root.",
-    "gate_event": "A cargo test run was blocked once by gameplan step GP-018 (develop_digest placeholder digests, uncommitted in the develop lane); not bypassed: waited for the develop commit c90f967 and re-ran.",
-    "known_gaps": [
-      "no RenderPort / visual capture (render engines are not dependencies; capability stays NOT_PROVEN)",
-      "no idempotency keys, grant/commit/job ports: the session runs standalone (its own commit authority)",
-      "edit sequence stops at the first failing edit; no multi-edit atomic batch",
-      "artboard and page-spread renames are supported by chronicle but not exposed by the harness commands (layers only)",
-      "stories and sequences are summarized (ids, names, counts) but not editable"
-    ]
+  {
+   "sha": "c41b067",
+   "subject": "Harness R5 remediation: verify never passes vacuously, empty run is nothing_checked, --save guards the input"
   }
+ ],
+ "capabilities_done": [
+  "Harness::new(Selection{providers, references}): nothing selected by default; unknown or duplicate provider refused before any step; references default to unresolved; trust_all is an explicit development stand-in recorded in every report",
+  "Run: open_path/open_bytes, summary, rename / set_visible through the selected chronicle provider, panel, panel_set, save_to (atomic, via session), checkpoint, reopen, verify_reopened, verify_live; R5: verify_live refuses a verify with nothing to check (nothing_to_check, own Observe frame), finish reports nothing_checked (ok false) for a run with no operation",
+  "one Observe terminal frame per operation on an addressed document; JSON + generated manual",
+  "cli::run(args) -> (exit, stdout): help, descriptors, providers, open, panel, edit, verify; exit 0 pass, 1 failed/refused with JSON, 2 usage; R5: verify with no --expect-revision/--expect-name/--expect-visible is a usage error (exit 2) before the package is opened; edit --save OUT naming the input PACKAGE (same file after resolving paths) is a usage error unless --overwrite is given; manual, flags and DESCRIPTOR updated",
+  "examples/studio-harness.rs: thin forwarder; DESCRIPTOR with proven_by (claim -> test)"
+ ],
+ "tests": {
+  "argv": "cargo test -p hsk-studio-harness --tests",
+  "exit": 0,
+  "sha": "c41b067",
+  "passed": 7,
+  "failed": 0,
+  "names": [
+   "open_edit_save_reopen_verify_end_to_end",
+   "json_output_is_stable_and_manual_comes_from_the_descriptors",
+   "refusals_are_typed_and_nothing_is_committed",
+   "files_are_saved_atomically_and_failed_edits_keep_the_last_good_file",
+   "verify_checks_something_and_save_never_clobbers_the_input",
+   "an_empty_run_is_nothing_checked_not_a_pass",
+   "quiet_sources_use_no_process_network_or_environment_api"
+  ],
+  "clippy": "cargo clippy -p hsk-studio-kernel-bindings -p hsk-studio-harness --tests --examples at c41b067: clean (only the two pre-existing observe too_many_arguments warnings)"
+ },
+ "blockers": [],
+ "lock_wait_s": 120,
+ "bg_pids": [],
+ "next": "Validator round (R5 group B re-check of SMB-HARNESS). steward: lock sync + registry pin/probe approval for hsk-studio-harness stands (serde_json 1.0.151 std). Next slice candidates unchanged: gesture/control-driven edits once chronicle gains appearance properties, a second provider, multi-edit atomic batch, desktop window consumer if the lead widens the probe.",
+ "updated_at": "2026-10-11T07:44:08Z",
+ "notes": {
+  "desktop_window": "DECISION PENDING (lead): a desktop window consumer needs eframe/winit, which tools/workspace-probe.rs forbids for every crate. Slice 1 is headless only and states `desktop_window_consumer` in not_proven in every report and in DESCRIPTOR.",
+  "edge_gap": "The harness may depend only on accord, folio, session, controls, observe. No direct chronicle/package edge is needed.",
+  "appearance_values": "chronicle has only name/visible properties; appearance controls are read-only projections (route none, reason no_chronicle_property).",
+  "controls_use": "panel is built only from hsk-studio-controls descriptors; the dead-control audit runs (7/7 consumed).",
+  "fixture": "tests/fixtures/demo.handshake (5099 bytes, revision 9) generated by session-consumer --demo.",
+  "files_and_paths": "The harness never picks a path: every path is a command-line argument. Tests that write files use TMP under a per-test directory (asserts it is not on C:, removed on drop); the scratch name now carries a per-test label so parallel tests never share it.",
+  "known_gaps": [
+   "no RenderPort / visual capture (render engines are not dependencies; capability stays NOT_PROVEN)",
+   "no idempotency keys, grant/commit/job ports: the session runs standalone",
+   "edit sequence stops at the first failing edit; no multi-edit atomic batch",
+   "artboard and page-spread renames supported by chronicle but not exposed by the harness commands",
+   "stories and sequences are summarized but not editable",
+   "--save has no root restriction by design: the caller owns the destination (documented in the manual); only replacing the input needs --overwrite",
+   "hard links to the input are not detected by the --save guard (symlinks and path spellings are, via canonicalize)"
+  ],
+  "remediation_R5": {
+   "review": "validation/R5-review-b.json (candidate 1d404f8), lane SMB-HARNESS",
+   "route": "product failures fixed by commit c41b067; no gameplan step added; cargo test ran green first time on each tree (retry guard never fired); disk-wide build lock waits of 2-3 min are normal",
+   "findings": [
+    {
+     "id": "SMB-HARNESS-c47e256",
+     "severity": "CONFIRMED",
+     "kind": "vacuous_verdict",
+     "status": "fixed",
+     "fix": "cli.rs execute refuses verify with no expectation (usage, exit 2) before opening; harness.rs verify_live returns nothing_to_check when there is no revision, no caller expectation and no earlier committed edit; finish reports nothing_checked (ok false) for zero operations; manual.rs verify usage/summary, verdict table and output text updated",
+     "tests": [
+      "verify_checks_something_and_save_never_clobbers_the_input",
+      "an_empty_run_is_nothing_checked_not_a_pass"
+     ]
+    },
+    {
+     "id": "SMB-HARNESS-save-guard",
+     "severity": "PLAUSIBLE",
+     "kind": "unguarded_write",
+     "status": "fixed (real; allowed-roots part documented, not enforced)",
+     "fix": "cli.rs --overwrite flag; edit --save naming the input (same_file via canonicalize, literal fallback) is a usage error without it; the existing atomic-save test passes --overwrite because it deliberately targets its own input; manual documents that the caller owns the destination",
+     "tests": [
+      "verify_checks_something_and_save_never_clobbers_the_input",
+      "files_are_saved_atomically_and_failed_edits_keep_the_last_good_file"
+     ]
+    }
+   ],
+   "v4_06_site_lists": [
+    {
+     "class": "verdict true without evaluating any check (vacuous all/none_or)",
+     "regex": "is_none_or|\\.all\\(|\\.any\\(|unwrap_or\\(true\\)|map_or\\(true|is_empty\\(\\)",
+     "scope": "crates/hsk-studio-harness/{src,examples}",
+     "matches": 10,
+     "fixed": 6,
+     "not_applicable": 4,
+     "fixed_sites": [
+      "harness.rs:635,638,640 verify_live (nothing_to_check guard before the is_none_or/all)",
+      "harness.rs:666,667 finish (ran && all)",
+      "cli.rs:187 verify expectation guard"
+     ],
+     "not_applicable_sites": "harness.rs:155 provider_selected lookup (not a verdict); :613 verify_reopened (revision_match and bytes_equal are real checks); :669 one_frame_per_operation diagnostic flag (not the verdict; zero-op reports now carry nothing_checked); cli.rs:227 edit already requires at least one edit"
+    },
+    {
+     "class": "write to a caller-supplied path without a guard",
+     "regex": "save_to|fs::|File::|OpenOptions|std::io::Write|\\.write\\(",
+     "scope": "crates/hsk-studio-harness/{src,examples}",
+     "matches": 5,
+     "fixed": 1,
+     "not_applicable": 4,
+     "fixed_sites": [
+      "cli.rs:253 run.save_to(path) (guard in execute before open: same-file check unless --overwrite)"
+     ],
+     "not_applicable_sites": "lib.rs:20 DESCRIPTOR text; harness.rs:549,555 library pass-through (library callers name their own destination; the guard sits at the CLI where an agent drives it headlessly); cli.rs:179 canonicalize (read-only)"
+    },
+    {
+     "class": "unchecked arithmetic in modules touched (V4-01)",
+     "regex": "\\+= 1|\\+ 1|as u64",
+     "scope": "src/cli.rs src/harness.rs src/manual.rs",
+     "matches": 4,
+     "fixed": 4,
+     "not_applicable": 0,
+     "sites": "cli.rs take closure and arg loop counters (saturating_add); harness.rs op_no (try_from + saturating_add) and the op record number (reuses op_no). #![deny(clippy::arithmetic_side_effects)] on cli, harness, manual; clippy clean"
+    }
+   ],
+   "v4_notes": {
+    "V4-01": "done for cli, harness, manual (this crate decodes no bytes itself: package and wire decoding live in session/package)",
+    "V4-02": "n/a: the harness has no decoder of its own; its inputs are bounded by the session budgets",
+    "V4-03": "verify can no longer pass vacuously (library and CLI); no ignored or silently skipped test; tests read no machine-local paths (the C: assertion in Scratch only enforces the operator's disk rule on TMP)",
+    "V4-04": "n/a: the crate has no fault-injection hook",
+    "V4-05": "no duplicate added",
+    "V4-07": "module docs, manual and DESCRIPTOR claims cite their tests (DESCRIPTOR proven_by) or were weakened; the quiet claim is now backed by the source-scan test quiet_sources_use_no_process_network_or_environment_api",
+    "V4-08": "n/a: no hostile text format is parsed here",
+    "V4-09": "commit via git commit -F; V4-11: no source reverted or restored; V4-12: helper files kept under scratchpad/r5-kb-harness/",
+    "red_proof": "NOT run on the 1d404f8 code: break-it edits were not permitted in this session. The new tests assert the outcomes the finding describes (verify with no expectation exits 2 and never reports pass; an empty run is nothing_checked; --save onto the input is refused and the bytes are unchanged); the pre-fix code returned exit 0 / pass for the first by construction (revision.is_none_or + empty checks)."
+   }
+  },
+  "verdicts": [
+   {
+    "round": "STUDIO-R7",
+    "lane": "SMB-HARNESS",
+    "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
+    "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
+    "decision": "passed",
+    "verdict": "PASS_V2",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V2",
+    "review": "validation/R7-review-b.json",
+    "round_ref": "validation/round-R7.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
+    "idempotency_key": "STUDIO-R7:SMB-HARNESS:dff7ef51d282:PASS_V2",
+    "recorded_at": "2026-10-11T11:04:31Z",
+    "by": "wp_validator STUDIO-R7"
+   },
+   {
+    "round": "STUDIO-R8",
+    "lane": "SMB-HARNESS",
+    "candidate": "f6e5a490e2ad0e142938a8bba1f78cadb96f5e84",
+    "tree": "bf944e29dd336acd38969f0dc25353adb529d61d",
+    "decision": "passed",
+    "verdict": "PASS_V3",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V3",
+    "review": "NOT_REVIEWED (closure-only reopen (crate unchanged dff7ef5..f6e5a49))",
+    "round_ref": "validation/round-R8.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R8",
+    "idempotency_key": "STUDIO-R8:SMB-HARNESS:f6e5a490e2ad:PASS_V3",
+    "recorded_at": "2026-10-11T12:42:21Z",
+    "by": "wp_validator STUDIO-R8"
+   }
+  ]
+ }
 }

@@ -1,0 +1,352 @@
+{
+ "kind": "pre-review",
+ "group": "B",
+ "rule_refs": [
+  "V4-13",
+  "V4-14",
+  "CX-EXEC-015(1)"
+ ],
+ "head": "0e481670efdd588b9d25d3c0166128de9985fe02",
+ "head_note": "Review started at origin head b555905fb4d69713fe96619179302e42f66a22f3 (fetched 07:29Z); a re-fetch at 07:59Z gave 0e48167. Between the two heads only 08ad0ad touches the three crates (web charref.rs, doc + unit test). Press and motion-js file:line evidence holds at both heads; web evidence is cited at 0e48167.",
+ "branch": "origin/codex/handshake-studio-assets",
+ "reviewer": "independent read-only pre-reviewer (Opus), committed blobs at head only (git archive into own scratch dir), no cargo, no sub-agents",
+ "method": "git fetch; git archive of head (press, motion-js, web) and of the last FAIL candidates (bd8533f press/web, 1d404f8 motion-js) into <scratchpad>/r7-prereview-b; git diff <candidate>..head per crate; line-numbered reads; miniz_oxide 0.9.1 read from the local cargo registry",
+ "status": "COMPLETE",
+ "started_at": "2026-10-11T07:33:00Z",
+ "completed_at": "2026-10-11T08:01:40Z",
+ "summary": {
+  "SMB-PRESS": {
+   "recommendation": "FIX_FIRST",
+   "CONFIRMED": 7,
+   "PLAUSIBLE": 4
+  },
+  "SMB-MOTION-JS": {
+   "recommendation": "FIX_FIRST",
+   "CONFIRMED": 1,
+   "PLAUSIBLE": 1
+  },
+  "SMB-MOTION-JS-WORKER": {
+   "recommendation": "SAFE_TO_JUDGE",
+   "CONFIRMED": 0,
+   "PLAUSIBLE": 3,
+   "note": "judge on the same head as the SMB-MOTION-JS N1 fix"
+  },
+  "SMB-WEB": {
+   "recommendation": "SAFE_TO_JUDGE",
+   "CONFIRMED": 0,
+   "PLAUSIBLE": 2
+  }
+ },
+ "lanes": [
+  {
+   "lane": "SMB-PRESS",
+   "crate": "hsk-studio-press",
+   "last_fail": "STUDIO-R6 FAIL_V2 at bd8533f (3rd FAIL = CX-EXEC-015(1) fix_budget_exhausted)",
+   "commits_reviewed": "5a91fd7 70c2ace 272909b dd1df63 023c817 c520095 007f8bc a1c9747 (git diff bd8533f..head -- crates/hsk-studio-press)",
+   "ready_commit": "a1c9747 (lane file status READY_FOR_VALIDATION, tests green on a1c9747)",
+   "reviewed_at": "2026-10-11T07:39:50Z",
+   "prior_fail_fixed": [
+    {
+     "finding": "R6 collision-exemption-on-non-content-streams (sanitized_save.rs looks_like_content gated the kept-text collision rule)",
+     "verdict": "FIXED_WITH_RESIDUAL",
+     "evidence": "The collision rule now needs kept_text_streams membership (sanitized_save.rs:416, :484, :508, :531-533; show_text.rs:217-264). tests/pdf_delivery.rs:2266-2297 class 1 puts a Flate Tj needle in 3 stray shapes (no Subtype, undrawn Form, Pattern) and asserts a DecodedStream hit at object 20. It would fail on a revert to the bd8533f gate (sanitized_save.rs:371 at bd8533f). Residual of the same class: a form that is listed in page resources but never drawn still counts as kept (new finding N7)."
+    },
+    {
+     "finding": "R6 is-proven-ignores-opaque-text-streams",
+     "verdict": "FIXED_WITH_RESIDUAL",
+     "evidence": "dd1df63: opaque_text_blocks (sanitized_save.rs:147-149) feeds structural_reasons (:159-171), so is_clean, region_cleared and is_proven all see it. tests/pdf_delivery.rs:1879-1927 asserts not_proven_reasons == [OpaqueText] and has a proven control and a no-search control. It would fail on a revert. Residual: detection fails open on several routes (N3 regression, N4 q/Q, N5 parse failure, N6 legacy forms)."
+    },
+    {
+     "finding": "R6 wip-engine-untested-doc-cites-absent-test",
+     "verdict": "FIXED",
+     "evidence": "raster_class_is_listed_and_region_images_are_removed exists (tests/pdf_delivery.rs:1463). The module doc sanitized_save.rs:12-16 cites only tests that exist at head (:1170, :1463)."
+    },
+    {
+     "finding": "R5 is-proven-ignores-undecodable-streams (regression check)",
+     "verdict": "FIXED",
+     "evidence": "fully_decoded is part of structural_reasons (sanitized_save.rs:164-166); undecodable_stream_never_reads_as_proven (tests/pdf_delivery.rs:1170) still asserts it."
+    },
+    {
+     "finding": "R6 PLAUSIBLEs: hidden zlib behind raster filters, NaN glyph boxes, uncancellable scans, filters.rs doc/ASCII85",
+     "verdict": "FIXED_WITH_RESIDUAL",
+     "evidence": "hidden_zlib covers image XObjects (sanitized_save.rs:469-475; raster.rs:103-120; test class 2 at pdf_delivery.rs:2299-2314) but NOT inline images (N2). NaN: redaction.rs:98-116 gives an unbounded box and touches()=true (test class 3). Cancel: scan/count_marker poll per 1 MiB window (sanitized_save.rs:275-323; test class 4). filters.rs:1-3 lists LZW and :430-441 refuses an overflowing final ASCII85 group (unit test :549)."
+    }
+   ],
+   "new_findings": [
+    {
+     "id": "N1",
+     "severity": "CONFIRMED",
+     "kind": "proof_gap",
+     "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:480-482, 554-557 (covered = whole object span); src/reader.rs:199-218 (span = dict start .. after endstream); src/filters.rs:139 (Flate), :370-371 (ASCIIHex '>'), :407 (ASCII85 '~'), :452 (RunLength 128), :294 (LZW 257); src/syntax.rs:185-188 (comments skipped); src/writer.rs:159-160 (verbatim copy)",
+     "evidence": "When a stream decodes, every raw hit inside its object span is discarded. Only the object-model strings and the decoder output are scanned. Every decoder stops at its end-of-data mark and ignores later bytes. miniz_oxide 0.9.1 decompress_to_vec_inner returns Ok on TINFLStatus::Done without checking that the input is consumed (inflate/mod.rs:225-228). Comments in the stream dictionary are not objects. Example: an object '<< /Filter /ASCIIHexDecode /Length 15 >> stream 41>SECRET-ALPHA endstream' is copied verbatim by save_full. It could also be zlib(x)+'SECRET-ALPHA', or '<< /Length n % SECRET-ALPHA >>'. The proof decodes 'A', drops the raw hit as covered, and is_proven() is true while the removed string sits in the saved file as plain bytes. This contradicts the module doc :3-4 ('every raw byte') and the DESCRIPTOR proof.scope ('comments').",
+     "remediation": "Cover only the encoded bytes the decoder consumed; scan dict text and post-EOD bytes raw (or refuse trailing data typed)"
+    },
+    {
+     "id": "N2",
+     "severity": "CONFIRMED",
+     "kind": "proof_gap",
+     "file_line": "crates/hsk-studio-press/src/raster.rs:61, 80-82 (Searchable = never decoded); src/sanitized_save.rs:487-494 (Searchable is a no-op, Raster is listed without decode_prefix/hidden_zlib); src/content.rs:56-93 (inline data stays encoded in the op span)",
+     "evidence": "The proof never decodes inline-image data. An image XObject with /FlateDecode is decoded and scanned. 'BI /W 4 /H 3 /CS /G /BPC 8 /F /Fl ID <zlib of SECRET-ALPHA> EI' is classed Searchable and scanned only in encoded form, so it gives no hit and does not block. The same holds for /F /AHx (hex of the needle) and /F [/Fl /DCT] around a zlib payload (the R6 class-2 fix covers XObjects only). The needle survives in decoded image data and is_proven() is true. The DESCRIPTOR proof.scope claims 'inline-image data' is scanned.",
+     "remediation": "Decode inline-image data through its implemented filters (+hidden_zlib on a raster tail) and scan it; decode failure blocks"
+    },
+    {
+     "id": "N3",
+     "severity": "CONFIRMED",
+     "kind": "regression_in_remediation",
+     "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:484 (ops only for kept_streams||is_ap; bd8533f :371 parsed every content-looking stream), :486-513 (inline classification, show_text_ops, opaque and mapped-text checks live inside `if let Some(list) = &ops`)",
+     "evidence": "c520095 fixed the collision exemption by not parsing stray streams at all. That also turned off the opaque-text rule, the ToUnicode mapped-text check and the inline-image Blocking check for every stream that is neither kept nor an appearance. Example: a catalog-reachable stray /Subtype /Form with its own /Resources draws Type0 text without /ToUnicode. At 023c817 it is listed and blocks (OpaqueText); at head it is not listed, so the result reads proven. The same stream drawing the needle as Type0 codes WITH a /ToUnicode map is invisible to the byte scan and the mapped text is never read, so it reads proven, although the DESCRIPTOR says ToUnicode text is read and stray streams are payload. An inline image with /F /Crypt in a stray stream no longer blocks.",
+     "remediation": "Parse every content-looking stream for text/opaque/inline checks; use kept_text_streams only for the collision exemption"
+    },
+    {
+     "id": "N4",
+     "severity": "CONFIRMED",
+     "kind": "decoding_disagreement",
+     "file_line": "crates/hsk-studio-press/src/show_text.rs:106-114 (current font set only by Tf, no q/Q stack, no gs /Font) vs src/redaction.rs:499-507, :516-519 (redaction restores the font on Q)",
+     "evidence": "The text state, font included, is part of the graphics state that q/Q save and restore (ISO 32000-1 8.4.1, 9.3.1). Example appearance stream: 'BT /F1 12 Tf q /F2 9 Tf Q <0001...> Tj ET'. F1 is Type0 with a /ToUnicode that spells the needle and F2 is simple. A viewer draws with F1, so the needle is visible. The proof and the appearance scan (text_fields.rs:824) read the codes as F2 Latin-1: no mapped text and no opaque flag, so the result reads proven. With F1 lacking a /ToUnicode, the same trick hides opaque text from the OpaqueText rule. ExtGState /Font set through gs is ignored the same way.",
+     "remediation": "Track the font in a q/Q stack (and gs /Font) in show_text_ops, as redaction.rs does; test both routes"
+    },
+    {
+     "id": "N5",
+     "severity": "CONFIRMED",
+     "kind": "proof_gap",
+     "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:484 (parse_content(..).ok() -> None); src/show_text.rs:157-160 (parse error -> mapped empty, opaque false); src/content.rs:53 (any stray ')', '}', '>' or ']' is Malformed)",
+     "evidence": "A kept or appearance stream that the strict tokenizer refuses gets no text reading: the opaque, mapped and inline checks are all skipped. Example: an annotation /AP 'BT /F1 12 Tf <codes> Tj ET }' (Type0 + ToUnicode spelling the needle). Tolerant viewers draw the text before the bad token. Press does not parse it, the byte scan sees only glyph codes, and the result reads proven without a TextFieldPolicy. With one, the appearance is judged on raw Latin-1 and kept as clean.",
+     "remediation": "A kept/AP stream that fails to parse must block (typed, e.g. listed as opaque), never skip the text checks"
+    },
+    {
+     "id": "N6",
+     "severity": "CONFIRMED",
+     "kind": "proof_gap",
+     "file_line": "crates/hsk-studio-press/src/show_text.rs:175-185 (content_resources maps only forms with their own /Resources), :104 (fonts None -> every Tf is unresolved -> Simple); src/sanitized_save.rs:496",
+     "evidence": "A kept form XObject without its own /Resources uses the inherited page resources, as redaction does (lane slice 2: own or inherited /Resources). In the proof it has no resources, so its Type0 Identity-H text without /ToUnicode reads as Simple. It is never listed in opaque_text_streams and the result reads proven while that text was never checked: the R6 FAIL #2 class by another route. A Tf naming a font missing from the resources is also read as Simple, not opaque.",
+     "remediation": "Resolve inherited resources for forms as redaction does; an unresolvable font in a text op counts as opaque"
+    },
+    {
+     "id": "N7",
+     "severity": "CONFIRMED",
+     "kind": "same_class_as_R6_FAIL_1",
+     "file_line": "crates/hsk-studio-press/src/show_text.rs:210-216 (doc: 'a form listed in a page's resources but never drawn still counts as kept text'), :245-262; src/sanitized_save.rs:484, :531-533",
+     "evidence": "The collision exemption is still keyed on dictionary reachability, not on drawing. Example: page /Resources /XObject /Fm9 is never invoked by Do and holds 'BT (SECRET-ALPHA) Tj ET'. Its needle becomes a kept_text_collision, not a hit, and is_proven() is true while the removed string survives in a stream no viewer draws. This is the R6 FAIL #1 shape (an exemption by the shape or reachability of a stream instead of its role), and a 3rd FAIL of this class exhausts the fix budget.",
+     "remediation": "Exempt only forms reached by a Do from kept content (walk Do operands); listed-but-undrawn forms are payload"
+    },
+    {
+     "id": "P1",
+     "severity": "PLAUSIBLE",
+     "kind": "proof_gap",
+     "file_line": "crates/hsk-studio-press/src/raster.rs:103-120 (hidden_zlib = zlib header at offset 0 only)",
+     "evidence": "Behind a raster codec name, the payload is caught only when the codec input is exactly a zlib stream. A raw deflate stream, one junk byte followed by zlib, LZW or ASCII85 bytes holding the needle stay 'pixels': listed and not blocking. The lead approved the raster class. Whether this residual is accepted is a lead decision; it is not a code fact.",
+     "remediation": "Lead decision: accept and document, or list raster streams as NotProven when needles_searched > 0"
+    },
+    {
+     "id": "P2",
+     "severity": "PLAUSIBLE",
+     "kind": "proof_independence",
+     "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:678-687",
+     "evidence": "Carried R5/R6 PLAUSIBLE, disclosed open in the lane: the residual pass re-runs the same redact_region selector on the saved bytes, so a selector miss repeats undetected. This is the 3rd round it is carried (lead decision register, tick 3).",
+     "remediation": "Record a lead decision (register) or add an independent per-region text extraction check"
+    },
+    {
+     "id": "P3",
+     "severity": "PLAUSIBLE",
+     "kind": "process_V4-06",
+     "file_line": "builders/lanes/hsk-studio-press.json notes.remediation_R6.class_sites",
+     "evidence": "class_regex 'looks_like_content|kept_text|collisions.entry|show_spans|f64::min|f64::max|fn touches' matches 25 lines in src/ at head (lib.rs:76; raster.rs:12; redaction.rs:95-97, 111; sanitized_save.rs:25, 133, 341, 355-356, 402, 416, 468, 484, 508, 514, 520, 532, 560; show_text.rs:207, 214, 217; text_fields.rs:8). The lane lists 8 semantic sites without file:line. V4-06 says a count mismatch blocks READY. 5 sites were spot-checked and their statuses are accurate (sanitized_save.rs:484, :508, :532, :514-518; redaction.rs:98-116). The regex does not reach the N3 regression, because the gate also disabled reading.",
+     "remediation": "List every regex match as file:line with fixed/not-applicable (count 25) and add the N1-N7 class regexes"
+    },
+    {
+     "id": "P4",
+     "severity": "PLAUSIBLE",
+     "kind": "process_V4-15",
+     "file_line": "a1c9747 (slice 6) on lane MT-35557 with open FAIL_V2",
+     "evidence": "The slice-6 feature (name trees, SubmitForm /Fields, embedded content) is stacked onto the failing lane. V4-15 was adopted at 07:30Z, after a1c9747 (06:54Z), so this is a process note, not a FAIL. The validator must judge a1c9747 as part of the claim; the lane lists it.",
+     "remediation": "None for this round; new press features go on a new lane id"
+    }
+   ],
+   "v4_06_spot_checks": [
+    "sanitized_save.rs:484 ops gate = kept_text_streams || is_ap (claim 'parsed only for kept_text_streams or annotation appearance streams': accurate)",
+    "sanitized_save.rs:508 mapped-text collision only inside ops and only when !is_ap (accurate)",
+    "sanitized_save.rs:531-533 show-operand collision needs show && !is_ap (accurate)",
+    "sanitized_save.rs:514-518 show_spans empty when ops is None (accurate)",
+    "redaction.rs:98-116 bbox non-finite -> unbounded, touches NaN -> true (accurate)",
+    "show_text.rs content_resources 'not applicable (grants no exemption)': accurate for the exemption class, but its missing inherited resources are N6"
+   ],
+   "wip_after_ready": false,
+   "wip_note": "a1c9747 is the last commit touching crates/hsk-studio-press at head; the lane lists every commit after bd8533f.",
+   "recommendation": "FIX_FIRST",
+   "recommendation_note": "The listed R6 items are fixed, but the proof still reads proven with the removed string in the saved file: N1 (plain bytes after a stream's end-of-data mark or in a stream-dictionary comment), N2 (inline-image data never decoded) and N7 (undrawn listed form = R6 FAIL #1 class). N3-N6 are fail-open routes around the OpaqueText rule (R6 FAIL #2 class), one of them introduced by c520095. Any of these would be a 3rd FAIL in a failed class."
+  },
+  {
+   "lane": "SMB-MOTION-JS",
+   "crate": "hsk-studio-motion-js",
+   "last_fail": "STUDIO-R5 FAIL_V2 at 1d404f8 (R3 FAIL_V1 + R5 FAIL_V2 on class quickjs-forged-internalerror-poisons-provider; NEEDS_NEW_APPROACH; next FAIL = CX-EXEC-015(1))",
+   "commits_reviewed": "ffe5592 (R5 fix) 307c13c 0cc4251 34a1713 288b018 (git diff 1d404f8..head -- crates/hsk-studio-motion-js; 18 files, +2174/-140)",
+   "ready_commit": "288b018 (lane file head 288b018907743a16b10bf67ae99e7aa7d2d9f33e, status READY_FOR_VALIDATION; ffe5592 + SANDBOX-2 commits listed as part of the claim)",
+   "reviewed_at": "2026-10-11T07:49:13Z",
+   "prior_fail_fixed": [
+    {
+     "finding": "R5 quickjs-forged-internalerror-poisons-provider (Budget(Stack/Memory) chosen by user-writable message text)",
+     "verdict": "FIXED",
+     "evidence": "BOOTSTRAP describe returns [kind, stack] only (quickjs.rs:162-172). classify takes Budget only from the interrupt-handler Tripped state and rquickjs Error::Allocation (quickjs.rs:661-700). No FLAG_ or indexOf(message) remains in src/. tests/quickjs_contract.rs:349-372 throws forged stack/memory/marker messages, including Object.create and setPrototypeOf shapes, and asserts Unsupported, zero Stack/Memory denials and no poison. It runs without the profile validator (provider_with :64-69, .without_validator()), so `new` is not refused upstream and the test still pins the classifier: it would fail on a revert."
+    },
+    {
+     "finding": "R3 items (interrupt armed through extract/describe; poison only from non-exception engine errors)",
+     "verdict": "FIXED (regression check)",
+     "evidence": "shared.armed is set around evaluate, extract and describe (quickjs.rs:596-598). quickjs_user_error_names_cannot_poison_provider (quickjs_contract.rs:375-397) still passes renamed, InternalError and genuine heap-limit cases without poison. The poison class itself is reopened by another route (N1)."
+    }
+   ],
+   "new_findings": [
+    {
+     "id": "N1",
+     "severity": "CONFIRMED",
+     "kind": "same_class_as_R3_R5 (script input poisons the provider)",
+     "file_line": "crates/hsk-studio-motion-js/src/quickjs.rs:609 (ctx.eval_with_options(input.source, ..)), :674-678 (non-exception error -> EngineFailure::Internal); src/provider.rs:281 (Internal -> poison, sticky); src/quickjs_wire.rs:282, :317 (worker Internal crosses the wire as 7 -> Internal); src/profile.rs:686-711 (raw U+0000 accepted inside string literals), :481-512 (and inside comments); rquickjs-core 0.14.0 src/context/ctx.rs:144 (CString::new(src)? -> Error::InvalidString)",
+     "evidence": "A source holding a U+0000 character, e.g. 'var s = \"a<NUL>b\"; 1' or '1 // <NUL>', passes the default profile validator: InvalidCharacter only catches NUL outside strings and comments. rquickjs then fails CString::new before the engine runs and returns Error::InvalidString, which is not an Exception and not Allocation. classify maps it to EngineFailure::Internal. In worker mode it travels the wire as code 7 and decodes back to Internal. map_failure then poisons the provider permanently: every later evaluation is Unsupported until it is retired. One hostile expression string in a document disables the provider. This is the consequence R3 and R5 failed on (user input -> Internal -> poison) by a route no test covers, and a 3rd FAIL of this lane exhausts the fix budget.",
+     "remediation": "Refuse U+0000 in source before the engine (validator + provider, typed Parse with span); map pre-eval wrapper errors to non-poison"
+    },
+    {
+     "id": "P1",
+     "severity": "PLAUSIBLE",
+     "kind": "classification_forgeable_non_budget",
+     "file_line": "crates/hsk-studio-motion-js/src/quickjs.rs:151-159 (kindOf by prototype chain), :692-698",
+     "evidence": "A script can throw Object.create(SyntaxError.prototype) and get ExprErrorCode::Parse with a span taken from a forged stack. This is not a budget class and does not poison, so R5's rule (no script text selects a BUDGET class) holds. Noted only because the DESCRIPTOR maps 'parse' as an engine syntax error.",
+     "remediation": "Optional: map Parse only when the error came from compilation (no user code ran), else Thrown Other"
+    }
+   ],
+   "v4_06_spot_checks": [
+    "quickjs.rs:676 Error::Allocation -> Budget(Memory): engine/wrapper signal, kept (accurate; lane cites :671 at ffe5592)",
+    "quickjs_wire.rs:223-232 BUDGETS table: not-applicable, encoding only (accurate)",
+    "scripted.rs:114 scripted double: not-applicable (accurate)",
+    "quickjs_worker.rs:576 request frame over MAX_REQUEST_FRAME -> Budget(Memory): host-side size check (accurate; lane cites :490)",
+    "quickjs_worker.rs:530 and :538 (kernel memory notice -> Budget(Memory)): NOT in the lane's site list. Added by 0cc4251 after the ffe5592 sweep; they are kernel-derived, not message-derived, so they are fixed/not-applicable, but the list is stale (8 regex matches at head vs 4 listed)"
+   ],
+   "wip_after_ready": false,
+   "wip_note": "288b018 is the last commit touching crates/hsk-studio-motion-js at head and is the lane's recorded head.",
+   "recommendation": "FIX_FIRST",
+   "recommendation_note": "The R5 message-text class is fixed and pinned by a validator-free test. N1 is a cheap but certain provider poison from script input, the outcome this lane failed on twice. Fix it with a test (NUL in a string literal and in a comment, in-process and worker, provider not poisoned) before the round."
+  },
+  {
+   "lane": "SMB-MOTION-JS-WORKER",
+   "crate": "hsk-studio-motion-js",
+   "last_fail": "STUDIO-R5 FAIL_V1 at 1d404f8 (test hooks in product API, undelivered RSS/CPU + AST scope, crash-test WER flake)",
+   "commits_reviewed": "ffe5592 (test-faults gating) and the SANDBOX-2 split-scope delivery 307c13c 0cc4251 34a1713 288b018",
+   "ready_commit": "288b018",
+   "reviewed_at": "2026-10-11T07:49:13Z",
+   "prior_fail_fixed": [
+    {
+     "finding": "R5 test-fault-hooks-in-product-api",
+     "verdict": "FIXED",
+     "evidence": "Every regex site (test_fault|TEST_FAULT|WorkerTestFault|unsafe_in_process|env::var|fault_env|from_env|injected_fault) in src/ and examples/ at head sits under cfg(feature = \"test-faults\") or inside a gated item: lib.rs:50-51; quickjs.rs:221-222, 236-250 (from_env inside the gated impl), 369, 376, 455, 748, 836-846, 873; quickjs_worker.rs:50, 107, 120, 307, 351, 422, 670-683, 710; quickjs_wire.rs:562, 605; examples/motion-js-consumer.rs:83. Cargo.toml:10 test-faults is non-default. tests/worker_fault_env.rs:2 runs only without test-faults: it starts the product worker binary with the variable set and asserts a REPORT instead of the injected exit 86. It would fail on a revert."
+    },
+    {
+     "finding": "R5 scope-rss-cpu-ast-validator-undelivered",
+     "verdict": "FIXED (scope split by lead 05:31:12Z into SMB-MOTION-JS-SANDBOX-2, which then delivered)",
+     "evidence": "A lexical profile validator runs before the engine (profile.rs; provider.rs evaluate). Windows Job Object caps (job_object.rs, os_caps.rs) give a process memory cap and a per-request CPU allowance. tests/os_caps.rs gives red-on-mutation evidence per the lane notes. The DESCRIPTOR NOT_PROVEN list keeps the AST/semantic fuel and non-Windows caps."
+    },
+    {
+     "finding": "R5 worker-crash-test-wer-timing (flaky)",
+     "verdict": "FIXED",
+     "evidence": "The worker calls harden_worker_process first (quickjs_worker.rs:733; job_object.rs:54-60: SetErrorMode + _set_abort_behavior(0, 0x1|0x2)). The test asserts engine_crashed with exit code 3 within 5 s on a pooled worker, so no spawn is inside the timed window (tests/quickjs_worker.rs:277-286). The NOT_PROVEN branch of 34a1713 was removed. Load-sensitivity is low because the 5 s window covers compile plus abort only."
+    }
+   ],
+   "unsafe_review": {
+    "file": "crates/hsk-studio-motion-js/src/job_object.rs",
+    "verdict": "no defect found",
+    "evidence": "Signatures match windows-sys 0.61.2: GetQueuedCompletionStatus out-pointers u32/usize/*mut *mut OVERLAPPED; CreateIoCompletionPort and CreateJobObjectW return null on failure and both are checked (:94-109); the struct pointers passed with size_of::<T>() are initialised locals (:111-123, :133-153, :159-170). The overlapped value is never dereferenced (for job messages it carries a process id). The RAII guard closes the port and the job exactly once (:222-232). On an attach failure the caller kills and reaps the child (quickjs_worker.rs:431-439). Job and port handles are created non-inheritable (null security attributes). lib.rs:44-45 is deny on windows+quickjs and forbid elsewhere; grep finds no other unsafe in src/. Spawn-to-assign window: the worker runs no user code before its first EVAL, which is sent after attach and HELLO (quickjs_worker.rs:428-468)."
+   },
+   "new_findings": [
+    {
+     "id": "P1",
+     "severity": "PLAUSIBLE",
+     "kind": "budget_misattribution",
+     "file_line": "crates/hsk-studio-motion-js/src/quickjs_worker.rs:505-508 (drain only after the reply), :564-571 (arm_cpu, no drain before the request); src/job_object.rs:199-219",
+     "evidence": "The completion port is drained only after a request. If the kernel posts a PROCESS_MEMORY_LIMIT notice for request N after N's drain (MS Learn: message delivery is not guaranteed), the pooled worker serves request N+1. N+1's drain then sees memory=true, discards its good reply, and reports Budget(Memory) for a script that never hit the cap. The DESCRIPTOR covers missed notices ('never creates a budget denial') but not late ones. Not reproduced; it depends on kernel posting order (UNVERIFIED).",
+     "remediation": "Drain and discard before arming each request; a late notice on an idle worker retires it without charging a script"
+    },
+    {
+     "id": "P2",
+     "severity": "PLAUSIBLE",
+     "kind": "carried_R5_plausible",
+     "file_line": "crates/hsk-studio-motion-js/src/quickjs_worker.rs:284-295 (discover_program also takes the parent dir), :461 (HELLO wait recv_timeout(spawn_timeout) with no cancel poll); src/quickjs_wire.rs:549-556 (response_cap assumes host-read path <= source + 4096)",
+     "evidence": "The three R5 PLAUSIBLEs are unchanged at head. score-plugin closed the parent-directory lookup in 7d5641c and the lead put the lookup in the D18 register. This is the 2nd round they are carried.",
+     "remediation": "Lead register entry (D18/D14) or fix: exe-dir-only lookup, cancel-polled HELLO wait, cap host-read path length"
+    },
+    {
+     "id": "P3",
+     "severity": "PLAUSIBLE",
+     "kind": "process_V4-06",
+     "file_line": "builders/lanes/hsk-studio-motion-js.json notes.remediation_R5.v4_06_sites",
+     "evidence": "The site lists were taken at ffe5592. SANDBOX-2 changed quickjs.rs and quickjs_worker.rs afterwards. The class_message_classification regex matches 8 lines at head (descriptor.rs:2, quickjs.rs:676, quickjs_wire.rs:225-226, quickjs_worker.rs:530, 538, 576, scripted.rs:114) against 4 listed with old line numbers. The test-hook list also cites ffe5592 lines. Every current site checked is correctly gated or not-applicable, so this is a count/citation mismatch only.",
+     "remediation": "Refresh both V4-06 site lists at 288b018 (file:line, fixed/not-applicable)"
+    }
+   ],
+   "wip_after_ready": false,
+   "wip_note": "No commit after 288b018 touches the crate. SANDBOX-2 is a separate lane id whose commits the lane file lists as part of the claim (V4-14 satisfied).",
+   "recommendation": "SAFE_TO_JUDGE",
+   "recommendation_note": "All three R5 WORKER items are fixed and pinned. No CONFIRMED defect in the worker, Job Object or unsafe code. Judge it on the same head that carries the SMB-MOTION-JS N1 fix: N1 runs through the worker path (quickjs_wire.rs:282/317), so the fix commit will touch this crate."
+  },
+  {
+   "lane": "SMB-WEB",
+   "crate": "hsk-studio-web",
+   "last_fail": "STUDIO-R6 FAIL_V2 at bd8533f (R5 FAIL_V1 + R6 FAIL_V2; next FAIL = CX-EXEC-015(1))",
+   "commits_reviewed": "5518980 8682e6f (R5, already judged at R6) + ca0d27e (R6-B remediation, Opus) + 08ad0ad (V4-07 test for the decoded-size bound); git diff bd8533f..0e48167 -- crates/hsk-studio-web (9 files, +3152/-349, entity_table.rs is generated data)",
+   "remediation_builder_commits_present": true,
+   "ready_commit": "08ad0ad (lane file READY_FOR_VALIDATION, updated 2026-10-11T07:39:08Z, tests 25/25 on 08ad0ad; kernel commit ab8cf4cf)",
+   "reviewed_at": "2026-10-11T08:00:35Z",
+   "prior_fail_fixed": [
+    {
+     "finding": "R6 legacy-charref-without-semicolon-not-decoded",
+     "verdict": "FIXED",
+     "evidence": "charref.rs carries the complete 2231-entry table with the 106 legacy names (entity_table.rs). The longest match (charref.rs:78-89) finds run+';' or else the longest legacy prefix. The attribute rule (charref.rs:140-156, :145) keeps a match literal only when it has no ';' and is followed by '=' or an alphanumeric, as in WHATWG 13.2.5.73. Numeric refs follow 13.2.5.80 (0, surrogates and >U+10FFFF become U+FFFD; C1 goes through windows-1252). The attribute values the asset gate classifies use this decoder (assets.rs:387). tests/source_dom_patch.rs:890 uses the R6 payload (&quot, &QUOT, &quot+newline, img src ...&quot) and :913 covers the '=' and alphanumeric exceptions, longest match and url(&quot//...&quot). Both are among the 9 tests the lane red-proved on a bd8533f export, so they would fail on a revert."
+    },
+    {
+     "finding": "R6 integration-point-style-overdecoded",
+     "verdict": "FIXED",
+     "evidence": "Each element carries a Namespace. The dispatcher (dom.rs:709-731) applies HTML rules at the root, in HTML elements, at HTML integration points (dom.rs:445-454: svg foreignObject/desc/title; annotation-xml whose encoding, decoded as an attribute, is text/html or application/xhtml+xml), at MathML text integration points except mglyph/malignmark, and for svg under annotation-xml. Foreign start tags take the parent's namespace, and breakout tags (with font+color/face/size) are refused. RAWTEXT/RCDATA apply only to HTML elements (dom.rs:760-763). The asset gate decodes only foreign style text and reads an HTML style body raw (assets.rs:454-471). tests/source_dom_patch.rs:955 (the R6 payload plus desc, TITLE, foreignobject+section, a nested svg and a plain-svg decoy) and :982 (MathML IPs, encoding=text&sol;html, mglyph, math-in-svg) are red on bd8533f per the lane red proof."
+    },
+    {
+     "finding": "R6 PLAUSIBLE SMIL set/animate href values",
+     "verdict": "FIXED",
+     "evidence": "animated_kind (assets.rs:497) maps attributeName href/xlink:href/src and url() presentation targets, so to/from/by/values are scanned (values split on ';'). Test tests/source_dom_patch.rs:1079."
+    },
+    {
+     "finding": "same-class sites from diagnostics/web-tokenizer.md (comment --!>, script escaped/double-escaped, CDATA vs bogus comment, noscript, select, frameset)",
+     "verdict": "FIXED",
+     "evidence": "Hand-checked against WHATWG 13.2.5 state by state. comment_end (dom.rs:298-320) matches the comment start, end, end-bang and less-than-bang states (--!-> does not close; <!-- <!--> closes at the same '>'). find_script_close (dom.rs:336-437) matches script data, the escaped and double-escaped states including the terminator rule. CDATA is a section only under a non-HTML current node (dom.rs:603-614). The noscript RAWTEXT end is compared with the markup end (dom.rs:781, :879-883). SELECT_DIVERGENT and frameset are refused. Tests :1017, :1039, :1066."
+    }
+   ],
+   "new_findings": [
+    {
+     "id": "P1",
+     "severity": "PLAUSIBLE",
+     "kind": "scope_statement",
+     "file_line": "crates/hsk-studio-web/src/lib.rs:35 (DESCRIPTOR assets.not_scanned); src/assets.rs:126-146 (attr_kind)",
+     "evidence": "Not covered by scanned or not_scanned: (a) inline <script> bodies, which fetch at run time through import()/fetch(); not_scanned says 'references inside external stylesheets, scripts and fetched documents', which reads as external scripts only. (b) attributionsrc on img/script/a (Chromium Attribution Reporting) and MathML mglyph src: current engine support is UNVERIFIED in this review (not checked online). This is the R5 FAIL #2 shape (under-stated scope), so it is cheap to close before a validator raises it.",
+     "remediation": "Add 'inline script bodies (run-time fetches)' to not_scanned; verify attributionsrc/mglyph support, scan or list them"
+    },
+    {
+     "id": "P2",
+     "severity": "PLAUSIBLE",
+     "kind": "process_V4-14",
+     "file_line": "kernel commit ab8cf4cf message ('web difftest queued')",
+     "evidence": "The lead queued an html5ever differential test for web. If it is pushed into crates/hsk-studio-web under SMB-WEB after 08ad0ad and before the round, V4-14 makes the lane unjudgeable unless the lane file claims it.",
+     "remediation": "Land the difftest on a new lane id, or claim it in the SMB-WEB lane file before the round"
+    }
+   ],
+   "v4_06_spot_checks": [
+    "class_regex count at 0e48167 (src/, entity_table.rs excluded) = 57 = lane site_count 57",
+    "assets.rs:454 HTML style RawText branch: accurate",
+    "assets.rs:462 / :471 CDATA concat and foreign text decode (Context::Text): accurate",
+    "dom.rs:603 CDATA namespace rule: accurate",
+    "dom.rs:725 breakout refusal, dom.rs:738 select refusal: accurate",
+    "dom.rs:781 noscript RAWTEXT reading: accurate",
+    "dom.rs:862 void end tag only outside foreign match: accurate",
+    "dom.rs:956 attr_value Context::Attribute: accurate",
+    "source_dom_patch.rs:197 closes_raw via find_raw_text_close: accurate"
+   ],
+   "wip_after_ready": false,
+   "wip_note": "08ad0ad is the last commit touching crates/hsk-studio-web at 0e48167 and the lane's READY commit. ca0d27e and 08ad0ad are both listed in the lane claim. At the first fetch (b555905, 07:29Z) only ca0d27e was pushed and the lane file still read 8682e6f; the builder finished and committed the lane record at 07:39-07:40Z.",
+   "recommendation": "SAFE_TO_JUDGE",
+   "recommendation_note": "Both R6 FAIL classes and the SMIL PLAUSIBLE are fixed at the reading layer and pinned by tests red-proved on bd8533f. No CONFIRMED defect found in charref, dom dispatch/tokenizer states or asset classification. P1 is a cheap DESCRIPTOR precision fix the builder may make first, without blocking the round."
+  }
+ ]
+}

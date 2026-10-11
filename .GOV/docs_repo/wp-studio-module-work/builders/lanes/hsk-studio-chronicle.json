@@ -1,0 +1,102 @@
+{
+ "crate": "hsk-studio-chronicle",
+ "lane": "SMB-CHRONICLE-TABLE",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "CX-CAP-001 slice: addressability table exported (single owner); session consumer migrated in the same slice",
+ "commits": [
+  {
+   "sha": "549e46d",
+   "subject": "Chronicle: export the property/node-kind addressability table (PROPERTIES, addressable, seed_revisions, mask_property)"
+  }
+ ],
+ "capabilities_done": [
+  "PROPERTIES: every property, in seed order; addressable(kind, property): exhaustive node kind x property table (no wildcard; a new variant on either side fails to compile) read by prepare's address check (same refusals: Code::WrongType); seed_revisions(document): revision-0 vector over every addressable pair in document order, unsupported layers skipped; mask_property(document, address): neutral value for one addressed property (lineage comparison), false when not addressable or no such node; DESCRIPTOR api lists the exports",
+  "V4 on the touched module: crate-level deny(clippy::arithmetic_side_effects) (3 flagged depth increments made saturating); unqualified never-claims weakened or cited (3 -> 0)"
+ ],
+ "tests": {
+  "argv": [
+   "cargo",
+   "test",
+   "-p",
+   "hsk-studio-chronicle",
+   "-p",
+   "hsk-studio-session",
+   "--tests"
+  ],
+  "exit": 0,
+  "sha": "b77518c",
+  "passed": 39,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "Validator round on b77518c (chronicle 549e46d + session b77518c). No further chronicle slice queued.",
+ "updated_at": "2026-10-11T06:50:45Z",
+ "notes": {
+  "tests_detail": "chronicle foundation_contract 20 passed (19 existing + exported_table_is_the_table_prepare_enforces), session session_contract 19 passed; run on the tree committed as 549e46d + b77518c. clippy -p hsk-studio-chronicle -p hsk-studio-session --tests clean (only the two pre-existing hsk-studio-observe too_many_arguments warnings); rustfmt clean; cargo check -p hsk-studio-kernel-bindings -p hsk-studio-harness --tests and check --examples for both crates exit 0",
+  "new_test": "exported_table_is_the_table_prepare_enforces: document with layer, unsupported layer, artboard, page spread; for each of the 8 (node, property) pairs the table, the seed and prepare's acceptance agree (4 of 8 accepted); artboard visible refused wrong_type; seed order and revision 0 pinned; prepare accepts the whole seeded vector (2 writes, 2 revision updates); mask_property neutralises all seeded addresses on two differing documents (equal afterwards) and refuses artboard/page-spread visible and missing nodes without touching the document; PROPERTIES vs enum guarded by an exhaustive match",
+  "api_compat": "additive only: four new public items; no signature, field or variant changed; the glob-importing example and the dependents (session, kernel-bindings, harness) compile",
+  "edge_check": "session -> chronicle already allowed in root Cargo.toml metadata (hsk-studio-session allowed list) and already a dependency of session; no root file, manifest, Cargo.lock or STUDIO_MODULES change",
+  "red_proof": {
+   "where": "scratch workspace (accord, observe, folio, package, chronicle, session) at Handshake_Artifacts/WP-KERNEL-STUDIO/smb-chronicle-table-redproof, own target dir; mutation applied to a fresh copy of chronicle src/lib.rs for each run; baseline in the same workspace 20 + 19 passed; deliberate-failure runs launched in the background (no exit code recorded by the hook), the shared tree was never mutated",
+   "M1": "addressable(Artboard|PageSpread, Visible) = true -> chronicle exported_table_is_the_table_prepare_enforces fails (table says true, prepare refuses value_conflict) and session session_consumes_the_chronicle_addressability_table + open_edit_undo_save_reopen_round_trip fail (seed 6 entries, expected 5)",
+   "M2": "seed_revisions without the unsupported-layer filter -> chronicle table test fails (seed contains the unsupported layer's pair) and session_consumes_the_chronicle_addressability_table fails (seeded where chronicle refuses)",
+   "M3": "mask_property returns true without masking -> chronicle table test fails (masked documents differ) and 17 of 19 session tests fail (honest provider successors become proposal_not_derived, including session_consumes_the_chronicle_addressability_table)"
+  },
+  "v4_06_sites": {
+   "V4-01 class: arithmetic side effects": {
+    "search": "cargo clippy -p hsk-studio-chronicle --lib -- -W clippy::arithmetic_side_effects, filtered to chronicle files",
+    "found": 3,
+    "fixed": 3,
+    "sites": "snapshot_budget depth += 1; Seed visit_seq depth + 1; Seed visit_map depth + 1; 0 hits remain under the crate-level deny"
+   },
+   "V4-07 class: unqualified never/always/guarantees/proves": {
+    "search": "\\b(never|always|guarantee[sd]?|proves?)\\b (case-insensitive) in crates/hsk-studio-chronicle/src/lib.rs",
+    "found": 3,
+    "fixed": 3,
+    "sites": "Inverse::invocation doc (now cites actual_apply_inverse_and_typed_wire_roundtrip), decoder comment (weakened to 'not authority'), DESCRIPTOR diagnostics (now cites actual_detail_changed_nochange_inverse_conflict_and_privacy); 0 hits remain"
+   },
+   "V4-02 decoders": "not changed: decode_patch/decode_revisions are untouched apart from the saturating depth increments; existing bounded_counts_values_decode_and_folio_cancel_preserve_inputs covers the budgets"
+  },
+  "retry_guard_route": "no hook block on a product failure; one hook block on the first red-proof launch because the command did not start with cd (hook resolved another WP's gameplan): re-issued with the leading cd form, no flags changed; deliberate red-proof failures ran in the background",
+  "hygiene_v4_12": "helper scripts only under scratchpad/smb-chronicle-table (mutate.py, update_lanes.py, commit messages, appended test sources); no file outside crates/hsk-studio-chronicle, crates/hsk-studio-session and these two lane files edited; red-proof workspace left in place under Handshake_Artifacts (no deletion)",
+  "line_endings": "foundation_contract.rs was CRLF in the working copy (index and attr: LF); normalised to LF so the file is not mixed; git diff against the index is the 178 added lines only",
+  "verdicts": [
+   {
+    "round": "STUDIO-R7",
+    "lane": "SMB-CHRONICLE-TABLE",
+    "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
+    "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V1",
+    "review": "validation/R7-review-b.json",
+    "round_ref": "validation/round-R7.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
+    "idempotency_key": "STUDIO-R7:SMB-CHRONICLE-TABLE:dff7ef51d282:PASS_V1",
+    "recorded_at": "2026-10-11T11:04:31Z",
+    "by": "wp_validator STUDIO-R7"
+   },
+   {
+    "round": "STUDIO-R8",
+    "lane": "SMB-CHRONICLE-TABLE",
+    "candidate": "f6e5a490e2ad0e142938a8bba1f78cadb96f5e84",
+    "tree": "bf944e29dd336acd38969f0dc25353adb529d61d",
+    "decision": "passed",
+    "verdict": "PASS_V2",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V2",
+    "review": "NOT_REVIEWED (closure-only reopen (crate unchanged dff7ef5..f6e5a49))",
+    "round_ref": "validation/round-R8.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R8",
+    "idempotency_key": "STUDIO-R8:SMB-CHRONICLE-TABLE:f6e5a490e2ad:PASS_V2",
+    "recorded_at": "2026-10-11T12:42:21Z",
+    "by": "wp_validator STUDIO-R8"
+   }
+  ]
+ }
+}

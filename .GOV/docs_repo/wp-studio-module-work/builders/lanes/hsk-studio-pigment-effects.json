@@ -1,0 +1,875 @@
+{
+ "crate": "hsk-studio-pigment",
+ "lane": "SMB-PIGMENT-EFFECTS-1 + SMB-EFFECTS-WAVE-2 + SMB-PIGMENT-WINDOW + SMB-PIGMENT-FX-OPS + SMB-PIGMENT-ADMIT-PARITY",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "SMB-PIGMENT-ADMIT-PARITY pushed on b2f5f81: check + clippy clean (pigment), 59 pigment tests green (6 new in tests/admit_parity.rs + 1 in-crate tripwire), composite, render-cpu, render-gpu and interop-psd check --tests exit 0; render-cpu + composite 56 tests green; render-gpu 21 of 22 green, the one failure is the expected fx_stack_mask_group_and_nesting_parity (render-gpu must declare EffectsNested); earlier waves unchanged",
+ "commits": [
+  {
+   "sha": "e007703",
+   "subject": "Pigment effects wave 1: effect_math single owner (drop shadow, colour overlay, solid stroke) and LayerExtension.effects envelope"
+  },
+  {
+   "sha": "d982b5c",
+   "subject": "Pigment effects wave 2: inner shadow, outer glow, inner glow in effect_math (colour source only, typed refusals)"
+  },
+  {
+   "sha": "a797b67",
+   "subject": "Pigment windowed effect mattes: effect_math::window evaluates the matte and the layer composition of an effect stack for an output window of an arbitrarily large layer"
+  },
+  {
+   "sha": "379a56f",
+   "subject": "Pigment windowed effect mattes: test fix (a zero-size stroke reads no alpha), no source change"
+  },
+  {
+   "sha": "f3e75bf",
+   "subject": "Pigment windowed effect mattes: V4-07 wording, doc claims cite their tests (comment-only, no code change)"
+  },
+  {
+   "sha": "d3ce607",
+   "subject": "Pigment (SMB-PIGMENT-FX-OPS): effects + Blend-If and nested effects are decided at shared admission, not refused by backends after it"
+  },
+  {
+   "sha": "fe5fde0",
+   "subject": "Pigment (SMB-PIGMENT-FX-OPS): add tests/effects_ops.rs, the 5 tests for effects_with_blend_if and effects_nested"
+  },
+  {
+   "sha": "b2f5f81",
+   "subject": "Pigment (SMB-PIGMENT-ADMIT-PARITY): mask on a pass-through layer, premultiplied alpha and the leaf-root Normal class are decided at shared admission, not refused by the backends after it"
+  }
+ ],
+ "capabilities_done": [
+  "pigment::effect_math single owner: EffectOp {DropShadow, ColourOverlay, Stroke} (non_exhaustive, builders), EffectKind facts (all Approximate), EffectOrder placement by kind, StrokePosition, shadow_split, shadow_offset, effect_support_px, EffectPlane (<= 64 x 64, validated), reference_matte, render_layer_reference (behind effects, content at opacity*fill, over effects; effects fade with layer opacity not fill), render_reference(plane, op)",
+  "render_plan envelope: LayerExtension.effects (absent from the digest when empty), ExtOperator::Effect(EffectKind), PlanExtensions::effect_modes, validate refuses effects on adjustment / pass-through / clipping-run layers and above size, distance, per-layer (64) and per-plan (4096) limits, admit_extended also asks the backend for each effect blend mode (v1 Operator::Blend class); five additive PlanError variants (EffectOnAdjustment, EffectPassThrough, EffectClipRun, EffectParameter, EffectLimit)",
+  "bounded work: MAX_EFFECT_SIZE_PX 1000, MAX_EFFECT_DISTANCE_PX 30000, reference plane side 64, REFERENCE_WORK_BUDGET 1e8 visits checked with checked arithmetic before any loop; module denies clippy::arithmetic_side_effects (V4-01)",
+  "wave 2 (SMB-EFFECTS-WAVE-2): InnerShadowOp (choke, offset, clipped to the layer alpha), OuterGlowOp (behind content), InnerGlowOp (source edge|centre, over content, clipped to alpha); one shared matte chain with the drop shadow (grow by spread/choke*size as a hard disc, Gaussian of the rest, whole-pixel offset, inverted matte reads 1 beyond the plane); EffectKind +3, effect_support_px, reference_matte / render_layer_reference extended; typed refusals EffectError::Unsupported(EffectFeature: glow_gradient, glow_range, glow_jitter, glow_technique_precise) -> PlanError::EffectUnsupported -> BackendError::Unsupported{operator: feature key} at admission",
+  "SMB-PIGMENT-WINDOW: pigment::effect_math::window (additive child module, single owner of tile-sized effect evaluation): window_matte(src: &AlphaSource, &WindowGeometry, &EffectOp, WindowLimits) -> WindowMatte, render_layer_window(...) -> LayerWindow, window_cost / layer_window_cost (exact prediction), stack_support_px; bit-identical to reference_matte / render_layer_reference for all six wave 1 + wave 2 kinds",
+  "SMB-PIGMENT-FX-OPS: ExtOperator::EffectsWithBlendIf (key effects_with_blend_if, intrinsic Unsupported, reported by PlanExtensions::validate instead of blend_if for a layer with effects and non-identity Blend-If; admit_extended refuses it for every backend before any sink call) and ExtOperator::EffectsNested (key effects_nested, intrinsic Approximate, reported when an effect layer's content holds a layer with effects, directly or through nested groups; backends declare it through extension_exactness, admission refuses an Unsupported declaration); additive, non_exhaustive variants",
+  "SMB-PIGMENT-ADMIT-PARITY: admit_plan_rules (last in admit and admit_extended, earlier refusals keep their keys): mask_on_pass_through intrinsic refusal (PASS_THROUGH_MASK_OPERATOR, RenderPlan::has_pass_through_mask); ExtOperator::AlphaPremultiplied declarable (key alpha_premultiplied, intrinsic Approximate = ALPHA_BOUNDARY_EXACTNESS, RenderPlan::uses_premultiplied_alpha); leaf-root Blend(Normal) class checked at admission (RenderPlan::has_leaf_root, ledger unchanged); in-crate exhaustive-match tripwire for SampleFormat and AlphaConvention; sweep table in diagnostics/adjustments-advanced-blending.md topic admission-parity"
+ ],
+ "tests": {
+  "argv": [
+   "cargo",
+   "nextest",
+   "run",
+   "-p",
+   "hsk-studio-pigment",
+   "--no-fail-fast"
+  ],
+  "exit": 0,
+  "sha": "b2f5f81",
+  "passed": 59,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "independent validator round; consumers follow notes.admit_parity.consumers (composite mirrors the pass-through mask refusal; render-cpu/render-gpu build their defence-in-depth keys from pigment and name AlphaPremultiplied; render-gpu must declare EffectsNested, see notes.fx_ops.consumers; interop-psd typed loss for a masked pass-through group)",
+ "updated_at": "2026-10-11T11:26:34Z",
+ "notes": {
+  "brief_deviation_spread": "Brief formula matte' = min(1, matte / (1 - spread)) is NOT implemented: applied to the matte before the blur it is the identity for a binary layer alpha (so spread would do nothing), and applied after the blur it is a different model. Implemented instead the structure of Krita libs/image/layerstyles/kis_ls_drop_shadow_filter.cpp (read as a behaviour reference only, GPL, no code copied): spread_px = spread * size is grown as a hard disc dilation (Krita: Gaussian of spread_size then hard edge), blur_px = size - spread_px by Gaussian, then offset, then knockout. Spread 1 = hard matte grown by the full size; spread has no effect at size 0 (matches the Adobe community thread 'spread not working ... only shadows with hard edges'). Lead may reverse; only effect_math::reference_matte (DropShadow arm) and shadow_split change. Hand tests: tests/effects.rs drop_shadow_offset_blur_taps_and_spread.",
+  "brief_acceptance_note_stroke": "Acceptance 4 says the 8-neighbour ring is coverage 1 at distance 1. Under the Euclidean model the 12 edge-adjacent ring pixels are exactly 1 and the 4 corner pixels are 1.5 - sqrt(.5) = 0.79289 (round corners), 0 at distance >= 2; inside gives the 8-pixel inner ring exactly. Photoshop's outside-stroke corner shape is UNVERIFIED (D5 13).",
+  "formula_sources": [
+   "Krita libs/image/layerstyles/kis_ls_drop_shadow_filter.cpp (spread_size = (spread*size+50)/100, blur_size = size - spread_size, pipeline spread -> blur -> contour -> noise -> offset -> knockout via erase of the pre-blur selection)",
+   "Krita libs/image/layerstyles/kis_ls_utils.cpp (applyFinalSelection: blend mode composite op + opacity percent; findEdge; adjustRange)",
+   "Krita libs/image/kis_gaussian_kernel.cpp (sigmaFromRadius = 0.3 * radius + 0.3; kernel half-width 3 * ceil(sigma)); Studio keeps coverage_math::feather_sigma = size / 2 per the brief",
+   "Adobe Community thread 'Spread not working in drop shadow, only shadows with hard edges' (search snippet; helpx.adobe.com is 403)",
+   "STU-RAS-040/156/157/158/115 for parameters, list order and fill vs opacity",
+   "Craft case study: effects.rs:730 fitted to a corpus (no formula to copy)"
+  ],
+  "d5_additions": {
+   "12": "Drop shadow on a hard square and a circle, size 2/10/40, spread 0/50/100, angle 120/-60/0/90/180, distance 5, fractional distance 2.5 at angle 30: (a) sign convention of angle (Studio: dx = -d cos a, dy = d sin a, y down), (b) spread model (Krita split grow-then-blur vs amplitude stretch vs other), (c) size to Gaussian profile (Studio sigma = size/2, Krita 0.3r+0.3), (d) whole-pixel rounding vs resampled fractional offset, (e) layer_knocks_out with fill < 100 and a semi-transparent layer (shape alpha vs alpha*fill)",
+   "13": "Solid stroke outside/inside/centre, size 1/2/5/50, on a square, a circle and a semi-transparent-edge layer: corner shape (round vs mitre), anti-aliasing ramp width, alpha threshold 0.5 vs coverage-aware distance, stroke above or below the colour overlay, stroke opacity/blend over content",
+   "14": "Effect stack interplay: fill 0/50 with overlay and shadow (do effects keep full strength), layer opacity 50 (do effects fade), layer mask (Layer Mask Hides Effects on/off: which alpha is the matte), Blend Interior/Clipped Effects toggles, effect blend modes against the group backdrop (Multiply shadow), order of multiple instances (two strokes, overlay then stroke) and whether Photoshop's fixed kind order overrides stored list order"
+  },
+  "spec_questions": [
+   "STU-RAS-157 drop_shadow lists spread with unit pixels (observed 0..100) while Photoshop's spread is a percent of size; pigment takes spread as a fraction in [0,1] (composite lowers percent / 100); spec should state the unit",
+   "Kind order versus list order: pigment fixes placement by kind (shadow behind; overlay and stroke over) and renders list order within each placement; interop-psd builds lists in Photoshop order; STU-RAS-156 says render order follows list order but does not say whether a shadow listed after an overlay may sit above the content",
+   "STU-RAS-157 declares no hard maximum for size, distance and instance count: pigment bounds are engineering limits (size 1000 px vs 213 observed, distance 30000 px = observed maximum, 64 per layer and 4096 per envelope vs 10 per kind minimum) and refuse with typed errors",
+   "No document-level Global Light field exists (already recorded): pigment takes absolute angles, the builder resolves use_global_light",
+   "Which alpha is the matte when the layer has a mask is UNVERIFIED: Studio rule = content alpha after the mask, before fill"
+  ],
+  "composite_lowering_must_refuse": "folio StudioEffect fields wave 1 does not render: contour other than linear, noise > 0, anti_alias differences (UNVERIFIED), stroke fill_type gradient/pattern and overprint, effect stack scale != 100 (apply or refuse), effects on clipped layers, bevel/inner/outer glow/satin/gradient/pattern overlay (not in EffectKind), disabled instances and stack.enabled false (skip, do not render)",
+  "dependents": "cargo check -p hsk-studio-composite -p hsk-studio-render-cpu -p hsk-studio-interop-psd --tests exit 0 at e007703 (working tree). render-gpu check fails in the working tree with E0063 missing fields in render-gpu's own Exec / PLayer / Prepared / LayerParams initializers and a MaskView::coverage arity error: uncommitted edits of the render-gpu lane (src/ext.rs untracked, kernel.rs, plan_sink.rs modified), not caused by this change (additive: ExtOperator and LayerExtension are non_exhaustive, PlanError variants unmatched outside pigment). Re-prove render-gpu once that lane commits.",
+  "clippy": "cargo clippy -p hsk-studio-pigment --tests: no pigment warnings or errors; the same run reports pre-existing warnings in hsk-studio-observe (too_many_arguments) and hsk-studio-prism (dead code note_rejected) from other lanes",
+  "v4": "V4-01: effect_math denies clippy::arithmetic_side_effects, all integer size math checked; V4-02: tests/effects.rs effect_limits_validation_and_budget covers u32::MAX plane dims, per-layer and per-plan counts (aggregate over budget) and the reference work budget; V4-03: Photoshop parity NOT_PROVEN, D5 cases 12-14; V4-07: claim words in new docs cite tests; V4-09: commit via -F file; V4-06: failure class 'shared admission admits what every backend refuses' swept for the new operator: ExtOperator::Effect defaults to Unsupported in RenderBackend::extension_exactness (tests/effects.rs effect_without_backend_support_is_refused_before_the_sink); effect blend modes are checked through the backend's v1 Operator::Blend class in admit_extended",
+  "retry_guard": "no retry-guard blocks hit; the only failed cargo runs were clippy/compile errors (lint on unary minus in effect_math, missing test import) fixed by editing the source before the first test run; no gated command failed, so no guard route was needed",
+  "files": "crates/hsk-studio-pigment/src/effect_math.rs (new), src/lib.rs (mod), src/render_plan.rs (PlanError variants, DESCRIPTOR effects/pending), src/render_plan/extensions.rs (effects field, ExtOperator::Effect, validate, effect_modes, admit_extended), tests/effects.rs (new)",
+  "wave2": {
+   "lane_id": "SMB-EFFECTS-WAVE-2",
+   "commit": "d982b5c",
+   "semantics": {
+    "inner_shadow": "matte = 1 - alpha (beyond the plane = 1), choke_px = choke*size hard disc growth, blur = size - choke_px, offset like the drop shadow, then multiplied by alpha; placement over content",
+    "outer_glow": "drop-shadow chain with zero offset and no knockout (spread*size growth, blur the rest); placement behind content",
+    "inner_glow": "edge: inner-shadow chain with zero offset times alpha; centre: (1 - chain) times alpha (Krita inverts again after the blur for a centre source); placement over content",
+    "refused_typed": "glow gradient fill, glow range other than 100 %, glow jitter above 0, Precise technique; domain errors (range outside (0,1], jitter outside [0,1], choke/spread outside [0,1]) win over refusals"
+   },
+   "ir_fields": "OuterGlowOp / InnerGlowOp carry fill, technique, range, jitter faithfully from folio so composite maps 1:1 and pigment is the single place that refuses; composite passes jitter 0 for a colour glow only if the lead accepts the Tuts+ statement that jitter acts on gradients only (otherwise a colour glow with jitter > 0 is refused as glow_jitter)",
+   "sources": [
+    "Krita libs/image/layerstyles/kis_ls_drop_shadow_filter.cpp: one pipeline for DropShadow, InnerShadow, OuterGlow, InnerGlow (alpha selection, invert when invertsSelection(), precise findEdge, spread = (spread*size+50)/100 then blur = size - spread, adjustRange when range != 100, centre source inverts again, contour, noise, offset, knockout, final composition); the choke uses the same spread slot (behaviour reference only, GPL, no code copied)",
+    "Tuts+ Inner Glow article (design.tutsplus.com understanding-the-inner-glow-setting-in-photoshop): Edge radiates inward from the outline, Centre from the middle; choke 100 % = hard-edged inner stroke; range works like choke (lower = harder); jitter only has an effect with a gradient",
+    "ImageMagick forum report on a Photoshop layer-styles port (magick.imagemagick.org viewtopic p=94164, search snippet; host unreachable from this machine): Precise outer glow shows a canonical distance transform, Softer is not a plain blur",
+    "Adobe layer-style overview (helpx.adobe.com, 403 for fetch; search snippet only): choke trims the matte of inner shadow and inner glow before the blur"
+   ],
+   "d5_additions": {
+    "15": "Inner shadow on a hard square and a circle (alpha 100 % layer), size 2/10/40, choke 0/50/100, angle 120/-60/0/90/180, distance 0/5: (a) which edges are shadowed for a given angle (Studio: the inverted matte moves by dx = -d cos a, dy = d sin a, so angle 180 shadows the left inner edge), (b) choke model (Studio: choke*size grown hard, rest blurred; choke 100 = hard inner stroke of width size), (c) clip by soft alpha vs a threshold on a feathered-edge layer, (d) distance larger than the shape, (e) with fill 0",
+    "16": "Outer glow, size 2/10/40, spread 0/50/100, Softer vs Precise, range 100/50/25, jitter 0/50 with a colour fill, default blend Screen: (a) Softer profile vs the Gaussian (sigma = size/2) and the spread split, (b) Precise = distance transform profile, (c) what range does with a linear contour (Krita: alpha / range after the blur), (d) whether jitter changes a colour glow, (e) glow behind a semi-transparent layer at fill 0",
+    "17": "Inner glow, source Edge and Centre, size 2/10/40, choke 0/50/100, Softer/Precise, range, jitter: (a) edge profile vs the inner-shadow chain at distance 0, (b) centre profile vs 1 - edge matte (Krita) vs a distance ramp from the middle, (c) behaviour when the shape is thinner than twice the size, (d) range and technique as in 16, (e) clipping to a feathered alpha"
+   },
+   "spec_questions": [
+    "STU-RAS-157 lists the inner_shadow choke and the outer_glow spread in pixels (observed inner_shadow choke 0..100 px, outer glow spread 0..45 px) while Adobe documents them as percentages; pigment takes choke and spread as fractions of size in [0,1] (composite lowers percent / 100), same question as the drop shadow spread",
+    "STU-RAS-157 does not say which glow parameter defaults apply (range, technique, source): the IR has no defaults beyond the neutral constructors; composite must pass the stored values",
+    "Which of range and jitter Photoshop ignores for a colour glow is UNVERIFIED (Tuts+: jitter only acts on gradients; range is like choke): refused until the D5 session"
+   ],
+   "composite_lowering_must_refuse": "in addition to wave 1: glow contour other than linear, glow noise > 0, anti_alias differences, and any gradient reference on a glow (GlowFill::Gradient exists so the refusal is a pigment error, not a composite one); the glow colour comes from StudioEffect.colour",
+   "dependents": "cargo check -p hsk-studio-composite -p hsk-studio-render-cpu -p hsk-studio-render-gpu -p hsk-studio-interop-psd --tests exit 0 at d982b5c (render-gpu compiled this time; its earlier WIP errors are gone)",
+   "additivity": "no existing PlanExtensions item changed: LayerExtension.effects, ExtOperator::Effect and PlanExtensions::effect_modes were added in wave 1; wave 2 adds EffectKind members, EffectOp variants and the PlanError::EffectUnsupported variant only; effect_math::EffectError became non_exhaustive (new in wave 1, no external user)",
+   "v4": "V4-12: helper scripts and the commit message live under the lane scratchpad folder SMB-EFFECTS-WAVE-2/ with lane-specific names; V4-07: the one claim word in new docs (never) was reworded and cites tests/effects_wave2.rs; V4-01/02: effect_math keeps deny(arithmetic_side_effects), glow sizes bounded by MAX_EFFECT_SIZE_PX and the reference work budget (tests/effects_wave2.rs glow_refusals_envelope_admission_and_budget); V4-03: parity NOT_PROVEN, D5 15-17"
+  },
+  "dependents_wave1_note": "wave 1 note about render-gpu is superseded by notes.wave2.dependents",
+  "windowed_matte": {
+   "lane_id": "SMB-PIGMENT-WINDOW",
+   "commits": [
+    "a797b67 (src/effect_math/window.rs new, src/effect_math.rs: one `pub mod window;` line, tests/effect_window.rs new)",
+    "379a56f (test-only fix)",
+    "f3e75bf (comment-only: V4-07 wording)"
+   ],
+   "api": {
+    "module": "hsk_studio_pigment::effect_math::window",
+    "matte": "window_matte<S: AlphaSource + ?Sized>(src: &S, geometry: &WindowGeometry, op: &EffectOp, limits: WindowLimits) -> Result<WindowMatte, WindowError>",
+    "compose": "render_layer_window<S>(src, geometry, content_rgb: &[[f32;3]], backdrop: &WindowPlane, layer: LayerParams, effects: &[EffectOp], limits) -> Result<LayerWindow, WindowError>",
+    "cost": "window_cost(op, window: Rect) -> WindowCost{peak_bytes, work}; layer_window_cost(effects, window); stack_support_px(effects) -> Result<u32, EffectError>",
+    "accessor": "trait AlphaSource { fn read_alpha(&self, rect: Rect, out: &mut [f32]) -> Result<(), WindowError> } (blanket impl for Fn(Rect, &mut [f32]) -> Result<(), WindowError>; AlphaPlaneRef borrowed plane); pigment calls it with single-row rects clipped to layer and domain",
+    "geometry": "WindowGeometry{layer, domain, window, site_origin} (non_exhaustive; new / plane / uncut / with_site_origin); uses the existing pigment::Rect",
+    "additivity": "no existing item changed: new child module of effect_math, EffectError / EffectOp / render_plan untouched; composite, render-cpu, render-gpu, interop-psd check exit 0"
+   },
+   "edge_policy": {
+    "alpha": "0 beyond WindowGeometry::layer; the accessor is never asked for samples outside layer, domain or window grown by effect_support_px (tests/effect_window.rs source_reads_stay_inside_the_support_margin, which also scrambles everything beyond the margin and compares bits)",
+    "domain": "extent of the reference plane: every intermediate (grown matte, horizontal blur, vertical blur) reads the neutral value (0, or 1 for the inverted matte of inner shadow / inner glow) beyond it, exactly as reference_matte reads beyond its plane. domain == layer == plane reproduces the reference including its plane-edge truncation; domain >= layer grown by effect_support_px gives the uncut result, independent of the domain",
+    "window": "must lie inside the domain (WindowError::OutsideDomain otherwise)"
+   },
+   "identity_proof": {
+    "arithmetic": "same operations in the same order as the reference: f32 hard-disc dilation max(v * cov) with the reference ramp expression, separable Gaussian with f64 tap sums in tap order rounded to f32 after each pass (horizontal on the rows the vertical pass needs, then vertical), whole-pixel shift by moving the source rectangle, knockout / alpha clip in the reference expression; composition pass per effect in the reference order (behind effects in list order, content at opacity * fill, over effects), dissolve noise at coordinates relative to site_origin (default: domain top-left = the reference plane origin)",
+    "tests": [
+     "windowed_matte_is_bit_identical_to_the_reference_for_every_kind_and_split: 14 ops covering all six kinds (drop shadow with spread / blur / offset / knockout, hard grown, fractional offset; overlay; stroke outside / inside / centre / zero; inner shadow; outer glow; inner glow edge and centre) x splits 7x5, 16x16, 41x33, 1x9 on a 41 x 33 plane at coordinates (-17, 1000); f32 to_bits equality on every pixel",
+     "padded_domain_equals_the_reference_and_ignores_extra_domain: 20 x 15 layer (opaque first row, 0.75 first column) inside a 60 x 55 reference plane, 9x7 tiles straddling the layer edge, domain = padded plane and domain = plane + 13 px: both bit-equal to reference_matte on the padded plane",
+     "composed_window_is_bit_identical_to_render_layer_reference: 6-effect stack (Multiply shadow with knockout, Screen outer glow, Dissolve overlay, stroke, Multiply inner shadow, Screen centre inner glow), translucent backdrop, layer opacity 0.8 fill 0.6, splits 8x6, 45x38, 3x38: rgb and alpha to_bits equal, receipt == prediction",
+     "huge_layers_and_far_coordinates_are_bounded_and_translation_invariant: layers 4e9 x 4e9 at (-2e9, 3e9), 1e6 x 1e6 at (9e9, -9e9) and 128 / 96 px layers give bit-equal windows at the near and far edge; peak <= 2 MiB",
+     "a_one_thousand_pixel_blur_is_evaluated_for_a_one_pixel_window_in_bounded_memory: size 1000 (kernel half-width 1500 = the former 24 px limit x 62) against hand-derived taps (product of two kernel taps), peak <= 64 MiB"
+    ]
+   },
+   "memory_bound": {
+    "model": "bytes = 4 * floats of the live buffers, exact (receipt.peak_bytes == window_cost.peak_bytes, asserted for 14 ops x 3 windows; layer_window_cost asserted for the composed stack). For a window ww x wh, blur half-width kb, dilation radius kd: dilate stage (a0 + a1) * 4 + (kd + 1) * 4 with a0 = (ww + 2kb + 2kd)(wh + 2kb + 2kd), a1 = (ww + 2kb)(wh + 2kb); blur stage (a1 + ww * (wh + 2kb)) * 4, then (ww * (wh + 2kb) + ww * wh) * 4 + 8 * ww; post step 8 * ww * wh. Strokes: (a0 + ww * wh) * 4 + (kd + 1) * 4 per half (+ 4 * ww * wh for the centre). Composition adds 20 bytes per window pixel (result plane 16 + content alpha 4) to the largest single matte",
+    "examples": "64 x 64 window, drop shadow size 24 spread 0.5: about 99 KiB; one-pixel window, blur size 1000 (kb 1500): about 36 MB measured <= 64 MiB cap in the test",
+    "admission": "WindowLimits{max_bytes, max_work}; the prediction is checked before the accessor is called or anything is allocated, every allocation is also charged against the running aggregate (unit test running_aggregate_is_charged_per_allocation), work = inner-loop visits (dilation (2kd + 1)^2 per output sample is an upper bound)"
+   },
+   "v4": {
+    "V4-01": "effect_math/window.rs inherits deny(clippy::arithmetic_side_effects); all integer and coordinate arithmetic is checked (typed WindowError::Overflow)",
+    "V4-02": "hostile_sizes_samples_and_stacks_are_typed_refusals (u32::MAX windows, 65537 side, 65536 x 65536 refused by the byte budget before allocation, coordinate overflow, 64-effect aggregate over the work budget refused before any read, 65 effects, bad samples, refusing accessor) and the unit test running_aggregate_is_charged_per_allocation",
+    "V4-03": "Photoshop parity stays NOT_PROVEN (D5 12-17); this lane proves identity with the reference only",
+    "V4-07": "the claim words in the module doc cite tests (source_reads_stay_inside_the_support_margin, windowed_matte_is_bit_identical_to_the_reference_for_every_kind_and_split, padded_domain_equals_the_reference_and_ignores_extra_domain, budgets_are_charged_before_allocation_and_match_the_receipt)",
+    "V4-09": "commit messages through -F files under the lane scratch folder smb-pigment-window/",
+    "V4-11": "no file restored with preserved timestamps",
+    "V4-12": "helper files only under the lane scratch folder smb-pigment-window/"
+   },
+   "retry_guard": "two test runs failed on product / test faults (a prediction 24 bytes above the measurement when the shifted window is outside the domain; a far-edge window with an all-zero shadow; a zero-size stroke reads no alpha); each was fixed by a code or test change plus a commit (a797b67, 379a56f) before the identical rerun: route (a); no gameplan step added",
+   "design_decisions": [
+    "domain is an explicit geometry field because the reference truncates every intermediate at its plane edge; without it identity on planes whose alpha touches the edge would be impossible, with it uncut and truncated semantics are one parameter",
+    "dilation keeps the reference per-offset formula (splat loop over offsets with cov > 0) so the result is bit-identical; cost grows with (2 * ceil(grown_px) + 1)^2 per output sample, so very large spread values are refused by max_work instead of approximated",
+    "WindowError is a new non_exhaustive type; EffectError is not extended"
+   ],
+   "not_addressed": [
+    "no cancellation or deadline hook inside a window (cost is bounded by max_work only)",
+    "dilation is O(window area * offsets); a distance-transform fast path would have to be bit-identical to the reference ramp, which it is not for non-binary alpha, so it was not attempted",
+    "the accessor is called per row; a band-wise accessor is an additive follow-up if a consumer needs it",
+    "render-cpu still refuses margins above 24 px until it adopts this API (consumer change, not in this crate)"
+   ],
+   "dependents": "cargo check -p hsk-studio-composite -p hsk-studio-render-cpu -p hsk-studio-render-gpu -p hsk-studio-interop-psd --tests exit 0 at 379a56f",
+   "clippy": "cargo clippy -p hsk-studio-pigment --tests: no pigment warnings; the same run reports the two pre-existing hsk-studio-observe too_many_arguments warnings from another lane",
+   "coordinator_request": "touch of effect_math.rs, render_plan.rs, lib.rs, render_plan/extensions.rs for the stale-rlib fix: the touch command was denied by the permission classifier and was not worked around; effect_math.rs was edited (mod wiring) and the cargo builds of this lane rebuilt pigment from the current sources (compiling hsk-studio-pigment lines in the check, clippy and test runs)"
+  },
+  "verdicts": [
+   {
+    "round": "STUDIO-R7",
+    "lane": "SMB-EFFECTS-WAVE-1",
+    "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
+    "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
+    "decision": "failed",
+    "verdict": "FAIL_V1",
+    "failures": [
+     {
+      "failure_kind": "product",
+      "failure_class": "effects-with-blend-if-admitted-then-refused-by-every-backend",
+      "file_line": "crates/hsk-studio-pigment/src/render_plan/extensions.rs:263-293,294-322; render-cpu src/plan_sink.rs:562-563; render-gpu src/plan_sink.rs:591-596"
+     }
+    ],
+    "remediation": "Pigment owns the refusal: intrinsically Unsupported ExtOperator for effects + Blend-If (as 0d28c03); backends use its key",
+    "status_after": "FAIL_V1",
+    "review": "validation/R7-review-a.json",
+    "round_ref": "validation/round-R7.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
+    "idempotency_key": "STUDIO-R7:SMB-EFFECTS-WAVE-1:dff7ef51d282:FAIL_V1",
+    "recorded_at": "2026-10-11T11:04:31Z",
+    "by": "wp_validator STUDIO-R7"
+   },
+   {
+    "round": "STUDIO-R7",
+    "lane": "SMB-EFFECTS-WAVE-2",
+    "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
+    "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V1",
+    "review": "validation/R7-review-a.json",
+    "round_ref": "validation/round-R7.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
+    "idempotency_key": "STUDIO-R7:SMB-EFFECTS-WAVE-2:dff7ef51d282:PASS_V1",
+    "recorded_at": "2026-10-11T11:04:31Z",
+    "by": "wp_validator STUDIO-R7"
+   },
+   {
+    "round": "STUDIO-R7",
+    "lane": "SMB-PIGMENT-WINDOW",
+    "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
+    "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V1",
+    "review": "validation/R7-review-a.json",
+    "round_ref": "validation/round-R7.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
+    "idempotency_key": "STUDIO-R7:SMB-PIGMENT-WINDOW:dff7ef51d282:PASS_V1",
+    "recorded_at": "2026-10-11T11:04:31Z",
+    "by": "wp_validator STUDIO-R7"
+   },
+   {
+    "round": "STUDIO-R8",
+    "lane": "SMB-EFFECTS-WAVE-1",
+    "candidate": "f6e5a490e2ad0e142938a8bba1f78cadb96f5e84",
+    "tree": "bf944e29dd336acd38969f0dc25353adb529d61d",
+    "decision": "passed",
+    "verdict": "PASS_V2",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V2",
+    "review": "validation/R8-review-a.json",
+    "round_ref": "validation/round-R8.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R8",
+    "idempotency_key": "STUDIO-R8:SMB-EFFECTS-WAVE-1:f6e5a490e2ad:PASS_V2",
+    "recorded_at": "2026-10-11T12:42:21Z",
+    "by": "wp_validator STUDIO-R8"
+   },
+   {
+    "round": "STUDIO-R8",
+    "lane": "SMB-PIGMENT-FX-OPS",
+    "candidate": "f6e5a490e2ad0e142938a8bba1f78cadb96f5e84",
+    "tree": "bf944e29dd336acd38969f0dc25353adb529d61d",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V1",
+    "review": "validation/R8-review-a.json",
+    "round_ref": "validation/round-R8.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R8",
+    "idempotency_key": "STUDIO-R8:SMB-PIGMENT-FX-OPS:f6e5a490e2ad:PASS_V1",
+    "recorded_at": "2026-10-11T12:42:21Z",
+    "by": "wp_validator STUDIO-R8"
+   },
+   {
+    "round": "STUDIO-R8",
+    "lane": "SMB-PIGMENT-ADMIT-PARITY",
+    "candidate": "f6e5a490e2ad0e142938a8bba1f78cadb96f5e84",
+    "tree": "bf944e29dd336acd38969f0dc25353adb529d61d",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V1",
+    "review": "validation/R8-review-a.json",
+    "round_ref": "validation/round-R8.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R8",
+    "idempotency_key": "STUDIO-R8:SMB-PIGMENT-ADMIT-PARITY:f6e5a490e2ad:PASS_V1",
+    "recorded_at": "2026-10-11T12:42:21Z",
+    "by": "wp_validator STUDIO-R8"
+   },
+   {
+    "round": "STUDIO-R8",
+    "lane": "SMB-EFFECTS-WAVE-2",
+    "candidate": "f6e5a490e2ad0e142938a8bba1f78cadb96f5e84",
+    "tree": "bf944e29dd336acd38969f0dc25353adb529d61d",
+    "decision": "passed",
+    "verdict": "PASS_V2",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V2",
+    "review": "NOT_REVIEWED (R8-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+    "round_ref": "validation/round-R8.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R8",
+    "idempotency_key": "STUDIO-R8:SMB-EFFECTS-WAVE-2:f6e5a490e2ad:PASS_V2",
+    "recorded_at": "2026-10-11T12:42:21Z",
+    "by": "wp_validator STUDIO-R8"
+   },
+   {
+    "round": "STUDIO-R8",
+    "lane": "SMB-PIGMENT-WINDOW",
+    "candidate": "f6e5a490e2ad0e142938a8bba1f78cadb96f5e84",
+    "tree": "bf944e29dd336acd38969f0dc25353adb529d61d",
+    "decision": "passed",
+    "verdict": "PASS_V2",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V2",
+    "review": "NOT_REVIEWED (R8-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+    "round_ref": "validation/round-R8.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R8",
+    "idempotency_key": "STUDIO-R8:SMB-PIGMENT-WINDOW:f6e5a490e2ad:PASS_V2",
+    "recorded_at": "2026-10-11T12:42:21Z",
+    "by": "wp_validator STUDIO-R8"
+   },
+   {
+    "round": "STUDIO-R9",
+    "lane": "SMB-EFFECTS-WAVE-1",
+    "candidate": "4d80e50d40432799c08f0f8b8f0047c9a00d056a",
+    "tree": "18b50331f3b2b92c1985cd8b83e00560d88096bf",
+    "decision": "passed",
+    "verdict": "PASS_V3",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V3",
+    "review": "NOT_REVIEWED as a lane (R9-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+    "round_ref": "validation/round-R9.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R9",
+    "idempotency_key": "STUDIO-R9:SMB-EFFECTS-WAVE-1:4d80e50d4043:PASS_V3",
+    "recorded_at": "2026-10-11T14:23:56Z",
+    "by": "wp_validator STUDIO-R9"
+   },
+   {
+    "round": "STUDIO-R9",
+    "lane": "SMB-EFFECTS-WAVE-2",
+    "candidate": "4d80e50d40432799c08f0f8b8f0047c9a00d056a",
+    "tree": "18b50331f3b2b92c1985cd8b83e00560d88096bf",
+    "decision": "passed",
+    "verdict": "PASS_V3",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V3",
+    "review": "NOT_REVIEWED as a lane (R9-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+    "round_ref": "validation/round-R9.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R9",
+    "idempotency_key": "STUDIO-R9:SMB-EFFECTS-WAVE-2:4d80e50d4043:PASS_V3",
+    "recorded_at": "2026-10-11T14:23:56Z",
+    "by": "wp_validator STUDIO-R9"
+   },
+   {
+    "round": "STUDIO-R9",
+    "lane": "SMB-PIGMENT-WINDOW",
+    "candidate": "4d80e50d40432799c08f0f8b8f0047c9a00d056a",
+    "tree": "18b50331f3b2b92c1985cd8b83e00560d88096bf",
+    "decision": "passed",
+    "verdict": "PASS_V3",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V3",
+    "review": "NOT_REVIEWED as a lane (R9-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+    "round_ref": "validation/round-R9.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R9",
+    "idempotency_key": "STUDIO-R9:SMB-PIGMENT-WINDOW:4d80e50d4043:PASS_V3",
+    "recorded_at": "2026-10-11T14:23:56Z",
+    "by": "wp_validator STUDIO-R9"
+   },
+   {
+    "round": "STUDIO-R9",
+    "lane": "SMB-PIGMENT-FX-OPS",
+    "candidate": "4d80e50d40432799c08f0f8b8f0047c9a00d056a",
+    "tree": "18b50331f3b2b92c1985cd8b83e00560d88096bf",
+    "decision": "passed",
+    "verdict": "PASS_V2",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V2",
+    "review": "NOT_REVIEWED as a lane (R9-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+    "round_ref": "validation/round-R9.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R9",
+    "idempotency_key": "STUDIO-R9:SMB-PIGMENT-FX-OPS:4d80e50d4043:PASS_V2",
+    "recorded_at": "2026-10-11T14:23:56Z",
+    "by": "wp_validator STUDIO-R9"
+   },
+   {
+    "round": "STUDIO-R9",
+    "lane": "SMB-PIGMENT-ADMIT-PARITY",
+    "candidate": "4d80e50d40432799c08f0f8b8f0047c9a00d056a",
+    "tree": "18b50331f3b2b92c1985cd8b83e00560d88096bf",
+    "decision": "passed",
+    "verdict": "PASS_V2",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V2",
+    "review": "NOT_REVIEWED as a lane (R9-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+    "round_ref": "validation/round-R9.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R9",
+    "idempotency_key": "STUDIO-R9:SMB-PIGMENT-ADMIT-PARITY:4d80e50d4043:PASS_V2",
+    "recorded_at": "2026-10-11T14:23:56Z",
+    "by": "wp_validator STUDIO-R9"
+   }
+  ],
+  "fx_ops": {
+   "lane": "SMB-PIGMENT-FX-OPS",
+   "finding_class": "feature combination admitted by pigment shared admission, refused after admission by a backend-local unsupported(literal key) (R5 admitted-then-refused)",
+   "research": "no public definition of Blend-If composed with layer effects or of a group effect over children that have effects: spec v02.215 STU-RAS-041/159 and STU-FX-025 read locally (no combining sentence); Adobe Help HTTP 403 (UNVERIFIED); web search found only tutorials; so refuse (option b). Topic effects-ops in diagnostics/adjustments-advanced-blending.md, D5 cases 24-27.",
+   "keys": {
+    "effects_with_blend_if": "ExtOperator::EffectsWithBlendIf, intrinsic Unsupported, instead of blend_if",
+    "effects_nested": "ExtOperator::EffectsNested, intrinsic Approximate (EFFECT_EXACTNESS), declared per backend"
+   },
+   "consumers": {
+    "render-gpu": "MUST add ExtOperator::EffectsNested => true to the supported arm of extension_exactness (plan_sink.rs ~1115-1131; its wildcard `_ => false` otherwise reports nesting Unsupported and fx_stack_mask_group_and_nesting_parity in tests/gpu_plan.rs ~4502-4577 is refused at admission); effects_with_blend_if local check (plan_sink.rs ~606, test gpu_plan.rs ~4794) becomes defence in depth: use ExtOperator::EffectsWithBlendIf.key()",
+    "render-cpu": "no admission change (wildcard already declares EffectsNested Unsupported; EffectsWithBlendIf is intrinsic); name ExtOperator::EffectsNested => Exactness::Unsupported explicitly in extension_exactness (plan_sink.rs ~1698-1720); local effects_with_blend_if (~581) and effects_nested (~584, plan_sink/effects.rs ~128) checks stay as defence in depth under ExtOperator::*.key(); tests cpu_effects.rs ~534/~551 keep their keys, reached through admission; descriptor text",
+    "composite": "lower_extensions.rs blend_if_operator(role) (~601) must give EffectsWithBlendIf instead of BlendIf for an unclipped layer with effects (or refuse in lowering) and the evaluation ledger must record EffectsNested for an effect layer whose content group holds a layer with effects; equal to PlanExtensions::validate on the lowered plan; descriptor unsupported list",
+    "interop-psd": "typed loss entry for a layer with effects and non-identity blend ranges, like proposal.rs ~649-695 for the clip roles (owner picks the code; suggest effects_with_blend_if)"
+   },
+   "same_class_open": [
+    "mask_on_pass_through: RenderPlan::validate/admit_core admit a coverage mask on a pass-through layer (no check in render_plan.rs validate or admit_core), render-cpu plan_sink.rs ~604 and render-gpu plan_sink.rs ~527 refuse it locally after admission; both refusal_keys.rs files list it as backend-owned. NOT fixed here (not in the finding; the v1 Operator/PlanError are matched by dependents): lead decision",
+    "alpha_premultiplied and sample_format: render-cpu ~395/~448/~451 and render-gpu ~316/~382/~385 refuse a target format/alpha convention after admission; whether pigment admission should own them: UNVERIFIED, lead decision"
+   ],
+   "v4_06_sites": [
+    {
+     "file_line": "render_plan/extensions.rs validate: effects x adjustment (EffectOnAdjustment)",
+     "verdict": "not-applicable (refused by validate)"
+    },
+    {
+     "file_line": "render_plan/extensions.rs validate: effects x pass-through (EffectPassThrough)",
+     "verdict": "not-applicable (refused by validate)"
+    },
+    {
+     "file_line": "render_plan/extensions.rs validate: effects x clip run (EffectClipRun)",
+     "verdict": "not-applicable (refused by validate)"
+    },
+    {
+     "file_line": "render_plan/extensions.rs validate: effects x Blend-If",
+     "verdict": "fixed (EffectsWithBlendIf)"
+    },
+    {
+     "file_line": "render_plan/extensions.rs validate: effects x effects in content",
+     "verdict": "fixed (EffectsNested)"
+    },
+    {
+     "file_line": "render_plan/extensions.rs validate: effects x knockout",
+     "verdict": "not-applicable (knockout refused by validate)"
+    },
+    {
+     "file_line": "render_plan/extensions.rs validate: effects x mask feather/density/invert",
+     "verdict": "not-applicable (both backends implement it, no local refusal found)"
+    },
+    {
+     "file_line": "render_plan/extensions.rs validate: Blend-If x adjustment",
+     "verdict": "not-applicable (defined: weight on f(backdrop), both backends)"
+    },
+    {
+     "file_line": "render_plan/extensions.rs validate: Blend-If x pass-through / clip roles",
+     "verdict": "not-applicable (refused by validate / 0d28c03)"
+    },
+    {
+     "file_line": "render_plan.rs validate: mask x pass-through layer",
+     "verdict": "open (see same_class_open)"
+    }
+   ],
+   "v4_06_sites_note": "the lead named two findings, not a regex; the sweep is the layer-feature combinations validate meets in pigment plus the backend-local unsupported(\"literal\") sites (grep `unsupported\\(\"`) cross-checked against pigment admission",
+   "retry_guard": "none hit; cargo check/clippy/nextest each ran once per source state; a first nextest attempt was blocked by the gameplan hook because the command began with a variable assignment before the cd (hook resolved the kernel's WP-KERNEL-012 gameplan); rerun in the documented form `cd <workspace> && source studio-env.sh && cargo ...` (infrastructure: command shape, not a flag change)",
+   "commit_note": "d3ce607 carried src only: the new tests/effects_ops.rs was untracked so the pathspec commit skipped it; fe5fde0 adds it (new commit, no amend)"
+  },
+  "v4_06_sites": [
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/coverage.rs:25",
+    "verdict": "c: depends on source data, an opaque payload, a resource or a device; admission cannot know it (vector payload V)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/coverage.rs:38",
+    "verdict": "c: depends on source data, an opaque payload, a resource or a device; admission cannot know it (vector payload V)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:150",
+    "verdict": "c: depends on source data, an opaque payload, a resource or a device; admission cannot know it (data domain / tile samples / Vector fill; the Solid half is covered)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:153",
+    "verdict": "covered: shared admission decides it; the backend check is defence in depth"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:154",
+    "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:340",
+    "verdict": "c: depends on source data, an opaque payload, a resource or a device; admission cannot know it (data domain / tile samples / Vector fill; the Solid half is covered)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:395",
+    "verdict": "fixed (a): ExtOperator::AlphaPremultiplied declared by the backend, refused by shared admission"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:436",
+    "verdict": "c: depends on source data, an opaque payload, a resource or a device; admission cannot know it (data domain / tile samples / Vector fill; the Solid half is covered)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:448",
+    "verdict": "fixed (a): ExtOperator::AlphaPremultiplied declared by the backend, refused by shared admission"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:451",
+    "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds) (sample_format: SampleFormat has one variant; in-crate exhaustive-match tripwire)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:551",
+    "verdict": "covered: shared admission decides it; the backend check is defence in depth"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:560",
+    "verdict": "covered: shared admission decides it; the backend check is defence in depth"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:564",
+    "verdict": "covered: shared admission decides it; the backend check is defence in depth"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:567",
+    "verdict": "covered: shared admission decides it; the backend check is defence in depth"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:579",
+    "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:581",
+    "verdict": "covered: shared admission decides it; the backend check is defence in depth"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:584",
+    "verdict": "covered: shared admission decides it; the backend check is defence in depth"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:601",
+    "verdict": "covered: shared admission decides it; the backend check is defence in depth"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:604",
+    "verdict": "fixed (b): intrinsic PASS_THROUGH_MASK_OPERATOR refusal in admit_plan_rules"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:614",
+    "verdict": "covered: shared admission decides it; the backend check is defence in depth"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:728",
+    "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:734",
+    "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:831",
+    "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:888",
+    "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:992",
+    "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:1200",
+    "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/effects.rs:113",
+    "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds) (plan_shape / effect_scratch)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/effects.rs:128",
+    "verdict": "covered: shared admission decides it; the backend check is defence in depth"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/effects.rs:165",
+    "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds) (plan_shape / effect_scratch)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/effects.rs:168",
+    "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds) (plan_shape / effect_scratch)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/effects.rs:273",
+    "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds) (plan_shape / effect_scratch)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/extended.rs:103",
+    "verdict": "c: depends on source data, an opaque payload, a resource or a device; admission cannot know it (data domain of intermediate values / reference plane budget)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/extended.rs:104",
+    "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/extended.rs:105",
+    "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/extended.rs:110",
+    "verdict": "c: depends on source data, an opaque payload, a resource or a device; admission cannot know it (data domain of intermediate values / reference plane budget)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/extended.rs:111",
+    "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/extended.rs:124",
+    "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/extended.rs:126",
+    "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/extended.rs:127",
+    "verdict": "c: depends on source data, an opaque payload, a resource or a device; admission cannot know it (data domain of intermediate values / reference plane budget)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/extended.rs:130",
+    "verdict": "covered: shared admission decides it; the backend check is defence in depth"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/extended.rs:133",
+    "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/extended.rs:150",
+    "verdict": "c: depends on source data, an opaque payload, a resource or a device; admission cannot know it (effect_work_limit, MAX_EFFECT_WINDOW_WORK x chunk size)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/extended.rs:155",
+    "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/extended.rs:157",
+    "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/extended.rs:159",
+    "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/extended.rs:160",
+    "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/extended.rs:161",
+    "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/extended.rs:256",
+    "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/extended.rs:380",
+    "verdict": "c: depends on source data, an opaque payload, a resource or a device; admission cannot know it (effect_work_limit, MAX_EFFECT_WINDOW_WORK x chunk size)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/extended.rs:501",
+    "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/extended.rs:524",
+    "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/extended.rs:570",
+    "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:239",
+    "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:316",
+    "verdict": "fixed (a): ExtOperator::AlphaPremultiplied declared by the backend, refused by shared admission"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:352",
+    "verdict": "c: depends on source data, an opaque payload, a resource or a device; admission cannot know it (tile samples)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:360",
+    "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:365",
+    "verdict": "c: depends on source data, an opaque payload, a resource or a device; admission cannot know it (mask_feather_cost, host blur cost)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:382",
+    "verdict": "fixed (a): ExtOperator::AlphaPremultiplied declared by the backend, refused by shared admission"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:385",
+    "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds) (sample_format: SampleFormat has one variant; in-crate exhaustive-match tripwire)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:443",
+    "verdict": "covered: shared admission decides it; the backend check is defence in depth"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:468",
+    "verdict": "covered: shared admission decides it; the backend check is defence in depth"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:471",
+    "verdict": "covered: shared admission decides it; the backend check is defence in depth"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:475",
+    "verdict": "covered: shared admission decides it; the backend check is defence in depth"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:478",
+    "verdict": "covered: shared admission decides it; the backend check is defence in depth"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:490",
+    "verdict": "covered: shared admission decides it; the backend check is defence in depth"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:524",
+    "verdict": "covered: shared admission decides it; the backend check is defence in depth"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:527",
+    "verdict": "fixed (b): intrinsic PASS_THROUGH_MASK_OPERATOR refusal in admit_plan_rules"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:534",
+    "verdict": "covered: shared admission decides it; the backend check is defence in depth"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:587",
+    "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:595",
+    "verdict": "covered: shared admission decides it; the backend check is defence in depth"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:596",
+    "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:606",
+    "verdict": "covered: shared admission decides it; the backend check is defence in depth"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:618",
+    "verdict": "covered: shared admission decides it; the backend check is defence in depth"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:1047",
+    "verdict": "fixed (a): leaf-root Blend(Normal) class is checked by shared admission (RenderPlan::has_leaf_root); leaf_root_class stays to record the ledger"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:1402",
+    "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:1527",
+    "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:1579",
+    "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:1670",
+    "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:1781",
+    "verdict": "u: unreachable after admission (internal invariant or a value validation already bounds)"
+   },
+   {
+    "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:1971",
+    "verdict": "c: depends on source data, an opaque payload, a resource or a device; admission cannot know it (effect_cost, FX_PASS_MAX_OPS)"
+   }
+  ],
+  "v4_06_count": {
+   "lane": "SMB-PIGMENT-ADMIT-PARITY",
+   "regex": "unsupported\\(|map_err\\(unsupported\\) over crates/hsk-studio-render-{cpu,gpu}/src (excluding refusal_keys.rs, fn unsupported, comments, DESCRIPTOR) plus the direct BackendError::Unsupported in render-gpu plan_sink.rs leaf_root_class",
+   "expected": 80,
+   "listed": 80,
+   "by_class": {
+    "c": 13,
+    "covered": 22,
+    "u": 38,
+    "fixed": 7
+   }
+  },
+  "admit_parity": {
+   "lane_id": "SMB-PIGMENT-ADMIT-PARITY",
+   "commit": "b2f5f81416a88735067cc135557eeefe8a80dc7d",
+   "finding_class": "plan-level feature admitted by pigment shared admission, then refused by both backends under a local key (R5 pass-through fill, R7 effects + Blend-If)",
+   "decision_doc": "diagnostics/adjustments-advanced-blending.md topic admission-parity",
+   "counts": {
+    "sites": 80,
+    "a_fixed": 5,
+    "b_fixed": 2,
+    "covered": 22,
+    "c": 13,
+    "u": 38,
+    "rules": {
+     "a": [
+      "alpha_premultiplied (tile + target)",
+      "leaf_root normal class"
+     ],
+     "b": [
+      "mask_on_pass_through"
+     ],
+     "u_forward_guard": [
+      "sample_format"
+     ]
+    }
+   },
+   "new_keys": {
+    "mask_on_pass_through": "PASS_THROUGH_MASK_OPERATOR, intrinsic Unsupported for every backend (RenderPlan::has_pass_through_mask)",
+    "alpha_premultiplied": "ExtOperator::AlphaPremultiplied, intrinsic Approximate, backend declares via extension_exactness (RenderPlan::uses_premultiplied_alpha)",
+    "normal (leaf root)": "existing Operator::Blend(Normal) key, now asked at admission for a leaf root (RenderPlan::has_leaf_root), check only"
+   },
+   "additivity": "v1 Operator, PlanError, BackendError, MaskInput untouched; one new variant of the non_exhaustive ExtOperator; PlanExtensions::validate output unchanged (composite compares its ledger with it)",
+   "same_class_open_resolved": {
+    "mask_on_pass_through": "fixed (b)",
+    "alpha_premultiplied": "fixed (a)",
+    "sample_format": "unreachable today (single non_exhaustive variant); in-crate exhaustive-match tripwire"
+   },
+   "consumers": {
+    "composite": "mirror the pass-through fill rule for a mask: evaluate_static.rs appearance_block (~241) return Some(PASS_THROUGH_MASK_OPERATOR) when mode == PassThrough && mask (step Unavailable), record_appearance (~212-224) record PASS_THROUGH_MASK_OPERATOR as Unsupported, lower_plan.rs Appearance::exactness (~97-110) lower to Unsupported; test next to render_plan_lowering.rs ~1257/~2078. No premultiplied change (Straight plans only)",
+    "render-cpu": "no behaviour change (wildcard already declares AlphaPremultiplied Unsupported); name ExtOperator::AlphaPremultiplied => Unsupported in extension_exactness (plan_sink.rs ~1699-1716); build the defence-in-depth keys at plan_sink.rs 395, 448, 604 from pigment (ExtOperator::AlphaPremultiplied.key(), PASS_THROUGH_MASK_OPERATOR) and extend refusal_keys.rs; descriptor says refused by pigment admission",
+    "render-gpu": "same key change at plan_sink.rs 316, 382, 527; name AlphaPremultiplied in extension_exactness (~1113-1136); leaf_root_class (1032-1054) stays only to record normal: fitted (test leaf_root_reports_the_blend_kernel_class); EffectsNested declaration still open (fx_stack_mask_group_and_nesting_parity fails until then)",
+    "interop-psd": "typed loss entry for a PSD group with the Pass Through blend key and a layer mask (proposal.rs ~649-695 pattern); suggest code mask_on_pass_through; mask and group stay preserved"
+   },
+   "dependents": "cargo check -p hsk-studio-composite -p hsk-studio-render-cpu -p hsk-studio-render-gpu -p hsk-studio-interop-psd --tests exit 0 at b2f5f81; nextest render-cpu + composite 56 passed; render-gpu 22 run, 21 passed, 1 expected failure (fx_stack_mask_group_and_nesting_parity, refused at admission as effects_nested until render-gpu declares EffectsNested)",
+   "clippy": "cargo clippy -p hsk-studio-pigment --tests: no pigment warnings (two pre-existing hsk-studio-observe too_many_arguments warnings from another lane)",
+   "research": "Photoshop mask on a Pass Through group: Adobe Help 403 (UNVERIFIED); W3C Compositing 1: mask always creates an isolated group (SVG); STU-CMP-022 read locally (convert at the boundary); web search found only tutorials and the Mari docs analogy; D5 cases 28-29 added",
+   "v4": {
+    "V4-01": "no integer decoding added",
+    "V4-03": "no test is silent green; Photoshop parity for the pass-through mask stays NOT_PROVEN (D5 28)",
+    "V4-06": "regex site list in notes.v4_06_sites, count by class in notes.v4_06_count (80 sites, all with a verdict)",
+    "V4-07": "no claim word without a cited test; descriptor admission_parity cites its tests",
+    "V4-09": "commit message through a -F file",
+    "V4-12": "helper script and commit message under the lane scratch folder smb-pigment-admit-parity/",
+    "V4-11": "no file restored with preserved timestamps"
+   },
+   "retry_guard": "none hit; nextest ran once per source state (render-gpu's expected failure is recorded by the hook and is not rerun by this lane)",
+   "red_proof": "not run on a scratch copy: the new tests assert refusals that the previous admit did not give (admit returned Ok for a masked pass-through layer, a premultiplied tile and a leaf root on an Exact floor with a Fitted Normal)"
+  }
+ }
+}

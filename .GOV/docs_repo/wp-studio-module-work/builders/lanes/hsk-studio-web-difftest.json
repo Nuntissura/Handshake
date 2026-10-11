@@ -1,0 +1,315 @@
+{
+  "crate": "hsk-studio-web",
+  "lane": "SMB-WEB-DIFFTEST",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "R11 pre-review remediation (judged with SMB-WEB-PARITY) on pushed 5cd8c9e: css-urls covers SVG animation values and data: payloads (separately written reference reader); generator and corpus extended",
+  "commits": [
+    {
+      "sha": "eefe44d",
+      "subject": "web (SMB-WEB-DIFFTEST, wip): html5ever differential target compares the crate's HTML reading with a browser-grade parser (dev-dependency html5ever 0.40.1, tests/html5ever_differential)"
+    },
+    {
+      "sha": "8119ceb",
+      "subject": "web (SMB-WEB-DIFFTEST, wip): mutation fuzz skips documents whose pre/listing/textarea content starts with a newline"
+    },
+    {
+      "sha": "960edc0",
+      "subject": "web (SMB-WEB-DIFFTEST, wip): failure report lists the three shortest inputs per difference signature"
+    },
+    {
+      "sha": "0f64ee9",
+      "subject": "web (SMB-WEB-DIFFTEST, wip): tree-construction restructuring group (p closed by block tags, nested a, tables, forms, select, lists)"
+    },
+    {
+      "sha": "f4b47cd",
+      "subject": "web (SMB-WEB-DIFFTEST, wip): report lists every disagreeing input of a small group; header names the fifth recorded red test"
+    },
+    {
+      "sha": "77ed037",
+      "subject": "web (SMB-WEB-PARITY, rem-web-r9 R9 pre-review, wip, lane status null): consumers read the text a browser builds (difftest: model/harness/generator/corpus/main changes)"
+    },
+    {
+      "sha": "8298898",
+      "subject": "web (SMB-WEB-DIFFTEST, rem-web-r9, wip, lane status null): oracle correction O1 keeps noscript raw text under scripting"
+    },
+    {
+      "sha": "5e0598b",
+      "subject": "web (SMB-WEB-DIFFTEST + SMB-WEB-PARITY, rem-web-r10, wip, lane status null): gate-level CSS differential (css-urls) with a separately written reference reading; CSS generator theme; DESCRIPTOR css_urls"
+    },
+    {
+      "sha": "fc0763e",
+      "subject": "web (SMB-WEB-DIFFTEST, rem-web-r10, wip, lane status null): css-urls never-granted check counts per value; CSS output bound test"
+    },
+    {
+      "sha": "b0a1887",
+      "subject": "web (SMB-WEB-PARITY + SMB-WEB-DIFFTEST, rem-web-r10, wip, lane status null): scan Gecko's bad-url reading too (url(x \\) ends at that ) in Firefox)"
+    },
+    {
+      "sha": "7e21550",
+      "subject": "web (SMB-WEB-PARITY + SMB-WEB-DIFFTEST, rem-web-r11, wip, lane status null): difftest css-urls covers SVG animation values and data: payloads; @namespace, import mark and filter() unit tests; DESCRIPTOR carrier inventory and data: policy"
+    },
+    {
+      "sha": "70e6477",
+      "subject": "web (SMB-WEB-PARITY + SMB-WEB-DIFFTEST, rem-web-r11, wip, lane status null): V4-02 bound on data: MIME parts (4096 bytes, longer = unknown type)"
+    },
+    {
+      "sha": "5cd8c9e",
+      "subject": "web (SMB-WEB-PARITY + SMB-WEB-DIFFTEST, rem-web-r11): carrier inventory keeps SVG image src from the R7 scan"
+    },
+    {
+      "sha": "4462f7c",
+      "subject": "web (SMB-WEB-PARITY, no difftest file changed, rem-web-r12, wip, lane status null): load context decides first; self-references from style sheet/script carriers denied; URL-parser trimming; link rel/as; engine-only carriers"
+    },
+    {
+      "sha": "12c632d",
+      "subject": "web (SMB-WEB-PARITY, no difftest file changed, rem-web-r12, wip, lane status null): DESCRIPTOR load_contexts, data policy and inventory (61 rows); docs cite the R12 tests"
+    },
+    {
+      "sha": "d465b88",
+      "subject": "web (SMB-WEB-PARITY, no difftest file changed, rem-web-r12, wip, lane status null): a valueless URL attribute is the empty string (denied from style sheet/script/track/manifest carriers)"
+    },
+    {
+      "sha": "e409030",
+      "subject": "web (SMB-WEB-PARITY, no difftest file changed, rem-web-r12, wip, lane status null): the three R12 pre-review payloads as named gate tests"
+    }
+  ],
+  "capabilities_done": [
+    "dev-dependency html5ever =0.40.1 (default-features=false, features=[]; MIT OR Apache-2.0; version, licence and API read on docs.rs and in the local registry source); [dependencies] of the crate unchanged (cargo tree -e normal lists accord, observe, sha2 only); dep-requests.jsonl line appended 2026-10-11T12:10:21Z after SYNC DONE",
+    "tests/html5ever_differential (7 files, one test target of 20 tests): own ~200-line TreeSink for html5ever (shape of the arena example shipped in html5ever 0.40.1; markup5ever_rcdom not used because its newest release 0.39.0+unofficial depends on html5ever ^0.39), pinned by oracle_sink_self_check; comparator pinned by comparator_self_check (every mutation of a reference event list is reported with its category)",
+    "both parsers reduced to one event list: element namespace + ASCII-lowercased name, effective attributes (first duplicate wins, decoded values), decoded text, raw-text/RCDATA/script/noscript bodies, comments, CDATA and bogus comments; fragment parsing with a div context, plus 12 whole documents with explicit html/head/body; both scripting-flag readings of html5ever (noscript raw text vs markup)",
+    "hand-written adversarial corpora (all with the WHATWG section in the source): namespaces and integration points (91 inputs), script/RAWTEXT/RCDATA boundaries incl. escape and double-escape, close-tag spellings per element, EOF (338), comments/markup declarations/CDATA/bogus (71), character references (206 spellings x up to 26 contexts = 5350 comparisons), tag and attribute syntax (67), duplicate attributes (38), NUL and newlines (59), image start tag (9), pre/listing/textarea leading newline (14), tree-construction restructuring (60), documents (12)",
+    "deterministic generator (SplitMix64, no new crates): themes Mixed, Namespaces, RawText, CharRefs, DupAttrs, Noise (NUL/CR), Fuzz (1-3 random delimiter edits); typed refusals counted, floors on comparable inputs per test (NOT_PROVEN panic below the floor), failures minimised by delta debugging and printed with the input; HSK_DIFFTEST_SCALE=<n> multiplies the generated corpora for soak runs",
+    "duplicate attributes: besides first-wins on the event list, the number of attributes html5ever dropped must equal the crate's LossKind::DuplicateAttribute entries",
+    "rem-web-r10: css_reference.rs (second CSS Syntax 3 reading: preprocess, index cursor, component-value tree, URL policy walk, spec/engines/Gecko readings); harness css-urls check per CSS carrier on every input; Theme::Css; corpus css_urls; tests css_url_payloads_read_like_the_reference, generated_css_urls",
+    "rem-web-r11: css-urls carriers include SVG animation from/to/by/values of CSS targets (values split) and data: payload URLs read by a separately written reference data: reader; generator animation carrier and data: fragments; corpus css_urls 60 (floor pinned)"
+  ],
+  "tests": {
+    "argv": "cargo nextest run -p hsk-studio-web --no-fail-fast --offline (studio-env.sh, shared tree at e409030); cargo test --doc -p hsk-studio-web --offline; cargo clippy -p hsk-studio-web --tests --examples --offline; cargo fmt -p hsk-studio-web --check; cargo run -p hsk-studio-web --example web-consumer --offline -- --descriptor (valid JSON); soak HSK_DIFFTEST_SCALE=10 -E 'test(generated) | test(css_url)' and HSK_DIFFTEST_SCALE=50 -E 'test(css)'",
+    "exit": 0,
+    "sha": "e409030",
+    "passed": 125,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": 386,
+  "bg_pids": [],
+  "next": "R12 validation with the claim through e409030: no difftest file changed since 5cd8c9e; soak re-run at e409030 (0 disagreements); see hsk-studio-web-parity.json notes.remediation_R12pre",
+  "updated_at": "2026-10-11T19:15:55Z",
+  "notes": {
+    "scope_kept": "test code + the crate's Cargo.toml dev-dependency only; src/, examples/, tests/source_dom_patch.rs, other crates, root Cargo.toml/Cargo.lock, ledger/team/other lane files untouched; no product defect fixed in this lane",
+    "dep_request": "builders/dep-requests.jsonl line appended 2026-10-11T12:10:21Z (after SYNC DONE f6e5a49): kind dev, html5ever 0.40.1, features [], pure_rust true, license MIT OR Apache-2.0. New lock packages from a local offline resolve (13): html5ever 0.40.1, markup5ever 0.40.0, web_atoms 0.3.0, tendril 0.5.1, string_cache 0.11.0, string_cache_codegen 0.11.2 (MIT OR Apache-2.0); phf 0.14.0, phf_codegen 0.14.0, phf_generator 0.14.0, phf_shared 0.14.0, precomputed-hash 0.1.1, new_debug_unreachable 1.0.6 (MIT); fastrand 2.5.0 (Apache-2.0 OR MIT). The shared Cargo.lock was not touched (no cargo ran in the shared tree).",
+    "scratch_trees": {
+      "dev_and_verification": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-web-difftest/src/handshake-studio-assets (git archive of f6e5a49 + this lane's files; own target and TMP under smb-web-difftest). Reason: a dev-dependency in the shared Cargo.toml changes the workspace resolution of every builder's cargo call, and the steward sync was running; the lead's instruction to build in the working tree was refined to a scratch export with its own owner dir (V4-11/V4-12 style), files copied into the shared tree only after SYNC DONE and committed with a pathspec",
+      "red_proof": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-web-difftest-red/src/handshake-studio-assets (same tree + nine source mutations in the crate; never merged anywhere)"
+    },
+    "disagreements": [
+      {
+        "id": "D1",
+        "class": "image start tag",
+        "test": "image_start_tag_is_read_as_img",
+        "inputs": 8,
+        "input": "<image src=//e.invalid/x></image>",
+        "expected": "HTML-namespace element img (void), the later </image> is ignored. https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-inbody : start tag image -> change the tag name to img and reprocess",
+        "actual": "HTML element named image with an end tag; an unclosed <image src=x> is refused (unclosed_element) where a browser has a void img",
+        "gate_impact": "none found: image is in the asset gate's scanned element list, so the URL is still collected"
+      },
+      {
+        "id": "D2",
+        "class": "NUL in a tag name",
+        "test": "null_bytes_and_newline_normalisation",
+        "inputs": 2,
+        "input": "<d\u0000iv></d\u0000iv>",
+        "expected": "element name d�iv. https://html.spec.whatwg.org/multipage/parsing.html#tag-name-state : U+0000 -> append U+FFFD to the tag name",
+        "actual": "tag_name() / ViewRow.tag keep the NUL byte"
+      },
+      {
+        "id": "D3",
+        "class": "NUL in an attribute name",
+        "test": "null_bytes_and_newline_normalisation",
+        "inputs": 6,
+        "input": "<div \u0000></div>",
+        "expected": "attribute named �. https://html.spec.whatwg.org/multipage/parsing.html#attribute-name-state : U+0000 -> append U+FFFD",
+        "actual": "attribute name keeps the NUL byte"
+      },
+      {
+        "id": "D4",
+        "class": "NUL in an attribute value (unquoted, double and single quoted)",
+        "test": "null_bytes_and_newline_normalisation, generated_null_and_cr_noise",
+        "inputs": 12,
+        "input": "<a f=\u0000></a>",
+        "expected": "value �. https://html.spec.whatwg.org/multipage/parsing.html#attribute-value-(unquoted)-state and the (double-quoted) / (single-quoted) states : U+0000 -> append U+FFFD",
+        "actual": "WebDoc::attr_value and ViewRow.attrs return the NUL byte",
+        "gate_impact": "none found: java\u0000script: is not a script URL for a browser either (U+FFFD), and the crate classifies it as a non-script scheme"
+      },
+      {
+        "id": "D5",
+        "class": "CR / CRLF in an attribute value",
+        "test": "null_bytes_and_newline_normalisation, generated_null_and_cr_noise",
+        "inputs": 8,
+        "input": "<a f=\"\r\"></a> (and a\r\nb)",
+        "expected": "\n (a\nb); a reference &#13; stays CR. https://html.spec.whatwg.org/multipage/parsing.html#preprocessing-the-input-stream : newlines are normalised before tokenization (CR, CRLF -> LF)",
+        "actual": "the decoded value keeps \r and \r\n"
+      },
+      {
+        "id": "D6",
+        "class": "NUL in a text node",
+        "test": "null_bytes_and_newline_normalisation, generated_null_and_cr_noise",
+        "inputs": 20,
+        "input": "<div>\u0000b</div> and <svg><text>\u0000</text></svg>",
+        "expected": "HTML content: the NUL token is ignored (text b; a NUL-only run makes no text node). https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-inbody . Foreign content (svg/math, also when the text sits in a non-integration element): U+FFFD. https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-inforeign",
+        "actual": "Text rows keep the NUL byte (also inside noscript read without scripting)"
+      },
+      {
+        "id": "D7",
+        "class": "CR / CRLF in a text node",
+        "test": "null_bytes_and_newline_normalisation, generated_null_and_cr_noise",
+        "inputs": 8,
+        "input": "<div>\r</div>",
+        "expected": "text \n. https://html.spec.whatwg.org/multipage/parsing.html#preprocessing-the-input-stream",
+        "actual": "decoded text keeps \r and \r\n"
+      },
+      {
+        "id": "D8",
+        "class": "newline right after the start tag of pre, listing, textarea",
+        "test": "leading_newline_after_pre_listing_textarea",
+        "inputs": 11,
+        "input": "<textarea>\nc</textarea>, <pre>\nc</pre>, <listing>\nc</listing>, <pre>\rc</pre>, <textarea>&#10;a</textarea>",
+        "expected": "first LF token ignored (text c; also when it comes from CR or from a character reference). https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-inbody : pre/listing and textarea start tags",
+        "actual": "text / raw body keeps the leading newline (the crate projects source text)"
+      },
+      {
+        "id": "D9",
+        "class": "tree construction accepted instead of refused (non-goal in the brief, listed because 35 of 57 comparable inputs differ)",
+        "test": "tree_construction_restructuring_is_refused_or_read_like_a_browser",
+        "inputs": 35,
+        "input": "<p><div>x</div></p> | <a href=x><a href=y>t</a></a> | <table><svg><style>&lt;</style></svg></table> | <table><tr><td>x</td></tr></table> | <body><b>x</b></body> | <td>x</td> | <form><form></form></form> | <li><li></li></li>",
+        "expected": "p, div, then an empty p (a p is closed by a block start tag); second a closes the first; svg foster-parented before the table (namespace position changes); implied tbody; body/html/head/td/tr/caption start tags ignored in body content. https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-inbody (p, a, form, button, li, h1-h6 rules; adoption agency) and https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-intable (foster parenting)",
+        "actual": "one plain nested tree (p>div, a>a, table>svg, table>tr>td, body>b, bare td) with no refusal; the crate refuses only the optional-end-tag cases it can detect as unmatched end tags",
+        "agreeing_for_the_record": "ul/li, dl/dt/dd, select/option, details/summary, fieldset, div>p, p/p, h1/h2 siblings, optgroup, menu, textarea pairs: 22 of the 57 agree"
+      }
+    ],
+    "coverage": {
+      "comparable_inputs_in_committed_run": "about 19000 in the 20-test target (hand-written about 5950 incl. 5350 character-reference comparisons; generated about 13100: mixed 2619, namespaces 2050, raw text 2172, character references 2222, duplicate attributes 1343, fuzz 1802, noise 893)",
+      "refusals_counted_not_failed": "typed refusals are 10-20 % of generated inputs and 55 % of the mutation fuzz (foreign_breakout, misnested/stray/invalid end tag, unclosed_element, unterminated_raw_text/comment/value/markup/tag, scripting_dependent, implied_end_tag, frameset_document); every test has a floor on comparable inputs and fails with NOT_PROVEN below it",
+      "soak_not_committed": "HSK_DIFFTEST_SCALE=10 over mixed/namespaces/raw text/char refs/dup attrs (120000 generated documents, all pass) and HSK_DIFFTEST_SCALE=25 over mutation fuzz (100000 documents, 43503 comparable, all pass after the pre/listing/textarea leading-newline filter; the first soak found only that known class)",
+      "passing_groups": "namespaces/integration points/annotation-xml encodings/nested namespaces, script data escape and double-escape, RAWTEXT/RCDATA close-tag spellings and EOF, noscript both readings, comments (--!>, abrupt, bogus), CDATA in HTML vs foreign content, 5350 character-reference contexts (legacy names without semicolon, attribute follow-up rule, numeric C1/surrogate/out-of-range), tag and attribute syntax, duplicate attributes incl. loss-report count, whole documents: all 0 disagreements"
+    },
+    "red_proof": {
+      "what": "nine source mutations applied together to a scratch copy of the crate (never committed): legacy named references without semicolon never decode (R6 finding 1 shape), SVG foreignObject/desc/title not integration points (R6 finding 2 shape), annotation-xml encoding case-sensitive without application/xhtml+xml, mtext not a text integration point, comment end bang removed, script escape states removed, CDATA a section in HTML content, foreign breakout nested instead of refused, duplicate attribute loss entries dropped",
+      "result": "17 of the 19 tests then in the target fail (only oracle_sink_self_check and comparator_self_check pass; the restructuring group was added afterwards); signatures: NAMESPACE on svg desc/title/foreignObject style, ATTRIBUTE/value for <div a=&quot ></div>, RAW-TEXT for <title>&not</title> and <textarea>&quot</textarea>, COMMENT for <!----!>-->, RAW-TEXT for <script><!--<script></script>, COMMENT for <![CDATA[>]]>, STRUCTURE for <svg><b></b></svg>, ATTRIBUTE/duplicate-attribute-loss-count for <br a a>",
+      "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-web-difftest-red/tmp/red1.log"
+    },
+    "model_cannot_express": [
+      "attribute namespaces and prefixes of foreign attributes (xlink:href, xml:lang, xmlns:xlink): compared by lexical lowercase name only",
+      "SVG tag-name and attribute-name case adjustment (foreignObject, viewBox, definitionURL): compared ASCII-lowercased on both sides",
+      "raw-text, RCDATA, comment, CDATA and bogus-comment nodes expose source slices by design: compared after newline normalisation (NUL -> U+FFFD for the raw states); RCDATA bodies are then decoded with the public decode_entities; comment data is derived from the node span (<!--, -->, --!>, <!-->, <!--->)",
+      "the markup reading of noscript under scripting: the crate parses the content as markup, a scripting browser reads raw text; compared as the source slice with scripting=true and as a tree with scripting=false",
+      "html5ever-only tree-construction state (quirks mode, form owner, template contents are compared as children): not exposed",
+      "whole-document mode only for inputs that spell html/head/body explicitly (the crate does not infer them)"
+    ],
+    "harness_decisions": [
+      "html5ever fragment parsing with a div context avoids implied html/head/body; the generator avoids tags whose tree construction restructures well-nested markup (p, tables, forms, nested a, headings, select, li, nobr) so generated runs measure how bytes are read; that area is the hand-written group behind D9",
+      "known-defect classes are kept out of unrelated tests (a leading . in generated pre/listing/textarea bodies and in the character-reference textarea context, image only in its own group) so each red test names one defect family and the other 15 stay green",
+      "no allow-list: a disagreement is never silenced; the four narrow classes D1-D8 and D9 have their own tests"
+    ],
+    "gameplan_route": "RETRY GUARD hit twice (identical nextest reruns on the same product HEAD after runs that were red by design: blocked against the failed runs of 12:30:45Z and 12:34:52Z); route (a) both times: the pathspec commit 8119ceb changed HEAD, then the rerun passed. The red-proof copy ran once (all mutations together) so it needed no second identical run; later reruns followed commits (960edc0, 0f64ee9, f4b47cd). No gameplan step added.",
+    "fmt_note": "cargo fmt -p hsk-studio-web --check reports diffs in untouched src/*.rs and examples/web-consumer.rs (the crate was not rustfmt-clean at baseline, like the other crates, see components/composite lanes); the seven new test files are rustfmt --edition 2024 clean (rustfmt --check tests/html5ever_differential/main.rs follows all modules). src was not reformatted: out of this lane's scope",
+    "clippy_note": "cargo clippy -p hsk-studio-web --tests --examples --offline: no warning from hsk-studio-web; two too_many_arguments warnings in hsk-studio-observe (lib.rs:919, :1019) pre-exist and belong to that crate",
+    "gaps_for_the_lead": [
+      "Cargo.lock/registry: the committed dev-dependency is not in the committed lock until the steward sync; any round or check using --locked on HEAD >= eefe44d fails step 0 (exit 75) until then",
+      "five of twenty tests are red by design; if the lead wants a green target before the fixes, the options are normalisations in model.rs (documented, per defect) rather than an allow-list",
+      "scratch trees and targets under Handshake_Artifacts/WP-KERNEL-STUDIO/smb-web-difftest and smb-web-difftest-red are kept as evidence (not deleted: target removal is gated)"
+    ],
+    "remediation_R9pre": {
+      "by": "rem-web-r9 (SMB-WEB-PARITY remediation; the lead asked the difftest lane to be set READY with its commits when the parity lane is READY)",
+      "blockers_resolved": "the 9 recorded disagreement classes D1-D9 (former blockers) are fixed or refused typed by SMB-WEB-PARITY (1c67557..4d80e50) and stay green at 8298898",
+      "changes": "model.rs compares the crate's own values (view text) for RCDATA, RAWTEXT/script bodies, comments and CDATA (comparator no longer preprocesses what the crate reads); harness.rs gate-level check 'style-sheet-text': per style element (any namespace) html5ever's child text content == WebDoc::stylesheet_text (scripting off, events equal); generator: Noise foreign CDATA with CR/CR LF/U+0000/escaped CR (+ following LF), Mixed/Noise pre/listing with </> before LF; corpus: 9 CDATA/style inputs in nulls_and_newlines, 6 in leading_newlines, 4 rows in tree_construction_restructuring (pinned), 8 comment variants",
+      "oracle_correction_O1": "html5ever 0.40.1 takes the pre/listing/textarea ignore-LF flag on parse-error tokens (tree_builder/mod.rs:481, ignore_lf.take() before the ParseError arm), so '<pre></>\\nx' keeps the LF (before O1: 37 generated Mixed, 18 generated Noise and 3 corpus inputs disagreed, all this one signature). Spec: </> emits no token. harness::oracle_input removes, for the reference only, each </> the crate reads as such after a '>' or at input start (data state, nothing pending), except inside an HTML noscript for the scripting reading (RAWTEXT there). Same root cause as the parity lane's residual '&#10x'. Needs lead acknowledgement (it is an oracle correction, not a crate normalisation)",
+      "class_coverage_proof": "mutant run (parity lane notes.remediation_R9pre.red_proof): reverting the F1 join is caught by null_bytes_and_newline_normalisation (5 inputs) and by generated_null_and_cr_noise (gen:Noise:50351) through style-sheet-text; reverting F3 by leading_newlines, generated_mixed and generated_null_and_cr_noise",
+      "narrow_N2": "model.rs Skeleton trims whitespace-only text nodes only (P1); doc#17 '<html>  x</html>' is refused by the crate; with the refusal removed the comparator reports TEXT/other (mutant M7)",
+      "resolved_blockers": [
+        {
+          "error": "D1 image start tag: crate keeps an HTML element named image, a browser creates img (test image_start_tag_is_read_as_img)",
+          "file_line": "tests/html5ever_differential/corpus.rs:127 (group image_start_tag); product: src/dom.rs start_tag",
+          "attempts": 0
+        },
+        {
+          "error": "D2-D4 NUL in tag names, attribute names and attribute values is kept, a browser replaces it with U+FFFD (test null_bytes_and_newline_normalisation, generated_null_and_cr_noise)",
+          "file_line": "tests/html5ever_differential/corpus.rs:885 (group nulls_and_newlines); product: src/dom.rs start_tag, WebDoc::attr_value, src/charref.rs decode",
+          "attempts": 0
+        },
+        {
+          "error": "D5 CR and CRLF in attribute values are not normalised to LF (same tests)",
+          "file_line": "tests/html5ever_differential/corpus.rs:885; product: WebDoc::attr_value, charref::decode",
+          "attempts": 0
+        },
+        {
+          "error": "D6 NUL in text nodes is kept, a browser drops it in HTML content and replaces it with U+FFFD in foreign content (same tests)",
+          "file_line": "tests/html5ever_differential/corpus.rs:885; product: WebDoc::view / text_content text decoding",
+          "attempts": 0
+        },
+        {
+          "error": "D7 CR and CRLF in text nodes are not normalised to LF (same tests)",
+          "file_line": "tests/html5ever_differential/corpus.rs:885; product: WebDoc::view / text_content",
+          "attempts": 0
+        },
+        {
+          "error": "D8 newline right after the pre, listing and textarea start tags is kept, a browser drops it (test leading_newline_after_pre_listing_textarea)",
+          "file_line": "tests/html5ever_differential/corpus.rs:954 (group leading_newlines); product: WebDoc::view / text_content, Raw body of textarea",
+          "attempts": 0
+        },
+        {
+          "error": "D9 tree construction: the crate accepts well-nested markup that a browser restructures instead of refusing it typed (35 of 57 comparable inputs: p closed by block start tags, nested a/form/button/nobr/li/h1, table content and foster parenting, body/html/head/td/tr/caption start tags in body content) (test tree_construction_restructuring_is_refused_or_read_like_a_browser)",
+          "file_line": "tests/html5ever_differential/corpus.rs:738 (group tree_construction_restructuring); product: src/dom.rs start_tag / end_tag (UnsupportedKind::ImpliedEndTag covers only detected unmatched end tags)",
+          "attempts": 0
+        }
+      ]
+    },
+    "remediation_R10pre": {
+      "by": "rem-web-r10 (SMB-WEB-PARITY remediation; the dispatch asked to update this lane when the difftest changes)",
+      "commits": [
+        "5e0598b",
+        "fc0763e",
+        "b0a1887"
+      ],
+      "changes": "tests/html5ever_differential: css_reference.rs = a second CSS Syntax 3 reading written separately (preprocess-then-index, component-value tree, tree walk), all three readings; harness check css-urls per CSS carrier (crate collect_assets vs reference over html5ever's text; bad/computed never granted, per-value count); Theme::Css generator (hostile fragments in style attributes, HTML/SVG style bodies, SVG presentation attributes); corpus group css_urls (42); tests css_url_payloads_read_like_the_reference, generated_css_urls; the css-urls check also runs on every existing group",
+      "licence": "cssparser 0.38.0 (crates.io API and repo Cargo.toml, 2026-10-11): MPL-2.0 for every release 0.33-0.38; tools/license_gate.py OK set (MIT, Apache-2.0, 0BSD, BSD-2/3, Zlib, Unlicense, Unicode, ISC, BSL-1.0, MIT-0, CC0-1.0) refuses it -> not added as a dev-dependency, no dep-request line",
+      "red_proof": "at 62d8983 with these files: css_url_payloads_read_like_the_reference 23/42 disagreeing, generated_css_urls 875/3000, generated_mixed 1 (<svg fill=&notin;url(/>) -> FAIL; 21 other tests pass (parity lane notes.remediation_R10pre.red_proof)",
+      "soak": "scale 10 all generated at b0a1887c655747fa6823ba42b6a02b6402a134d6: 153385 comparable, 0 disagreements; scale 50 css: css_urls 42/0, generated_css 150000/0",
+      "comparator_fix": "fc0763e: the bad/computed never-granted check compares per-value counts (a bad string and a URL string with the same text were a false positive at scale 10, gen:Css:96271)"
+    },
+    "remediation_R11pre": {
+      "builder": "rem-web-r11",
+      "see": "hsk-studio-web-parity.json notes.remediation_R11pre (one remediation for both lanes)",
+      "commits": [
+        "7e21550",
+        "70e6477",
+        "5cd8c9e"
+      ],
+      "difftest": "css-urls check: from/to/by/values of animations of CSS targets as carriers (values split), data: payload URLs read by a separately written reference reader (css_reference.rs data_payload_css: char-vector, own MIME/base64/encoding code), @namespace skip and @import mark in the reference walk; generator Theme::Css: animation carrier (CSS and non-CSS targets incl. marker, MARKER, ' stroke ', style, width, href) and 12 data: fragments + filter(/-webkit-filter(/-moz-linear-gradient(/blur(/@namespace; corpus css_urls 42 -> 60 cases, floor pinned to 60",
+      "red_proof": {
+        "css_url_payloads_read_like_the_reference": "RED: 15 of 60 inputs disagree (css-urls), e.g. <style>@namespace url(t</style>, <style>@import\"data:,url(;</style>",
+        "generated_css_urls": "RED: 999 of 3000 generated documents disagree (css-urls), e.g. <div style=filter(f(></div>"
+      },
+      "soak": {
+        "scale_10_final": "HSK_DIFFTEST_SCALE=10 cargo nextest run -p hsk-studio-web --test html5ever_differential -E 'test(generated) | test(css_url)' at 5cd8c9e: 9 passed; 153385 comparable generated documents + 60 css_urls inputs, 0 disagreements (char_refs 21460, css 30000, dup_attrs 12587, fuzz 16364, mixed 24868, namespaces 19643, noise 8249, raw_text 20214); log scratchpad SMB-WEB-R11/soak-10-5cd8c9e.log",
+        "scale_10_at_70e6477": "same 153385 documents, 0 disagreements (soak-10-70e6477.log)",
+        "scale_50_css": "HSK_DIFFTEST_SCALE=50 ... -E 'test(css)' at 70e6477 (5cd8c9e changes no CSS carrier): css_urls 60 compared / 0, generated_css 150000 compared / 0 disagreeing (soak-50-css-70e6477.log)",
+        "found_during_development": "the first generated run (scale 1) found gen:Css:70041 (a bad string spelling data: was read): fixed in 7e21550 before any soak"
+      },
+      "found": "a bad-url token or bad string spelling data: was classified Inline before the bad flag (gen:Css:70041): now Denied(not_granted) and never read",
+      "residual": "the difftest reference shares the gate's policy lists by construction (second reading of the algorithms, same policy); its independent evidence remains the CC0 corpus and the R10 scratch cssparser run"
+    },
+    "remediation_R12pre": {
+      "builder": "rem-web-r12",
+      "difftest_files_changed": [],
+      "reason_listed": "V4-14: commits 4462f7c 12c632d d465b88 e409030 touched the crate the differential judges (src/assets.rs, carriers.rs, datauri.rs and the gate tests); the difftest files are byte-identical to 5cd8c9e",
+      "soak": {
+        "scale_10": "HSK_DIFFTEST_SCALE=10 cargo nextest run -p hsk-studio-web --test html5ever_differential -E 'test(generated) | test(css_url)' at e409030: 9 passed; 153445 comparable documents, 0 disagreements (css_urls 60, generated_css 30000, char_refs 21460, dup_attrs 12587, fuzz 16364, mixed 24868, namespaces 19643, noise 8249, raw_text 20214); log scratchpad SMB-WEB-R12/soak-10-e409030.log (also 153445 at 12c632d, soak-10-12c632d.log)",
+        "scale_50_css": "HSK_DIFFTEST_SCALE=50 ... -E 'test(css)' at e409030 was queued behind a steward round on the disk build lock for more than 4 minutes and was stopped by its builder before it started; not part of the claim (scale 10 is the required soak; scale 50 css was 150000 + 60 documents, 0 disagreements at 70e6477 in R11)",
+        "difftest_changed": "no: tests/html5ever_differential/* is unchanged since 5cd8c9e; its css-urls check covers CSS carriers (the reference's data: policy 'text/css or (import && inert)' equals the Resource and Stylesheet contexts); the load-context policy (script, track, manifest, self-reference) is proven by the standards-derived unit table and the gate tests, as the R12 pre-review advised"
+      },
+      "proof_surface_note": "load-context holes (script, track, manifest, self-reference) are invisible to the css-urls differential by construction (it compares CSS carriers); their proof is datauri::tests::load_context_decides_before_the_type and the r12_* gate tests (red on 5cd8c9e, mutant run in notes.remediation_R12pre of the parity lane)"
+    }
+  }
+}

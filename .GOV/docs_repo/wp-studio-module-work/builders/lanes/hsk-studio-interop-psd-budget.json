@@ -1,0 +1,973 @@
+{
+ "crate": "hsk-studio-interop-psd",
+ "lane": "SMB-INTEROP-PSD-BUDGET",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "R10 remediation pushed (85532ad): the 4096 bound on instances no plan counts (hidden, master-off, switched-off) never costs a stack its counted effects; red 3 of 9 effects_budget tests on a scratch copy of 62d8983, green at the fix (effects_budget 9/9, crate 50/50, doctests 0, clippy clean for this crate)",
+ "commits": [
+  {
+   "sha": "a5eff01",
+   "subject": "interop-psd (SMB-INTEROP-PSD-BUDGET, PLR-053): an effects-heavy valid PSD no longer fails the whole import as raster_records_rejected"
+  },
+  {
+   "sha": "5f5bbb2",
+   "subject": "interop-psd (SMB-INTEROP-PSD-BUDGET, R9 remediation, PLR-053): effect counts follow the render plan and never fail the import"
+  },
+  {
+   "sha": "ce22fa5",
+   "subject": "interop-psd (SMB-INTEROP-PSD-BUDGET, R9 remediation): test pins that a refused effect stack consumes no SEFX id"
+  },
+  {
+   "sha": "85532ad",
+   "subject": "interop-psd (SMB-INTEROP-PSD-BUDGET, R10 remediation): the bound on instances no plan counts never costs a stack its counted effects"
+  }
+ ],
+ "capabilities_done": [
+  "effect limits are pigment's, imported from hsk_studio_pigment::effect_math (MAX_EFFECTS_PER_LAYER 64, MAX_EFFECTS_PER_PLAN 4096), not copied; a const assert keeps pigment's per-layer limit inside Folio's MAX_EFFECTS (1024) [a5eff01]",
+  "counting rule = the render plan's (R9): counted instances are the enabled instances of an enabled stack on a layer that is visible with all its groups (composite convert_effects lower_extensions.rs:569-593, lower_inner lower_render_plan.rs:525-563/738-753, pigment PlanExtensions::validate extensions.rs:326-339); the rest of the kept instances are 'uncounted'",
+  "per layer: more than 64 counted instances, or more than Folio's 1024 mapped instances, is not mapped: typed loss effects_over_budget (Unsupported) path layer[<psd index>]/tagged/lfx2(layer_id=<SLYR>); the layer, its other records and the rest of the document import; the lfx2 block stays byte-exact (write_psd(read) == input asserted)",
+  "per document, counted: the stack that takes the counted total past 4096 and every later stack with counted instances (import = panel order, top-most first, a group before its children) is not mapped: typed loss effects_over_document_budget naming the layer; the import continues; a stack without counted instances is not affected [R10 wording]",
+  "per document, uncounted: kept instances no plan counts (hidden layer or group, switched-off stack, switched-off instance) are bounded by this crate's own 4096, so kept instances <= 8192: the stack WITHOUT counted instances that takes them past 4096 and every later such stack are not mapped: typed loss effects_unrendered_over_document_budget; a stack WITH counted instances is never refused for this bound: past it the stack is mapped with its counted instances in stack order and without its switched-off ones, typed Transformed loss effects_unrendered_dropped_over_document_budget (path names the layer id); each bound cuts only its own category, each side is a prefix of the panel order [R10]",
+  "no effect count fails the import under any code: PsdError::EffectLimit and psd_effect_limit (a5eff01 only) are removed; a refused stack consumes no SEFX id",
+  "record validation: validate_raster_records gets Budget { nodes: max(caller nodes, records + kept instances), ..caller }, at most max_layers + 8192; documented on ProposalConfig.budget and in DESCRIPTOR effect_limits with the tests that prove it (exact at the boundary) [R10: unchanged and still true]",
+  "tests/effects_budget.rs: 9 tests (5 new in R9, 2 new in R10, 1 R9 test updated in R10), all synthetic in-memory fixtures"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-interop-psd --no-fail-fast",
+  "exit": 0,
+  "sha": "85532ad",
+  "passed": 50,
+  "failed": 0,
+  "files": [
+   "tests/effects_budget.rs (9: 7 from R9, one of them updated in R10, plus 2 new in R10)",
+   "all other crate tests unchanged and green (41)"
+  ],
+  "clippy": "cargo clippy -p hsk-studio-interop-psd --tests: no warnings in this crate (the two too_many_arguments warnings are in hsk-studio-observe, pre-existing)",
+  "doctests": "cargo test --doc -p hsk-studio-interop-psd: 0 tests, ok",
+  "round_feature_sets": "none: .config/round-features.toml has no entry for hsk-studio-interop-psd (default features only)",
+  "fmt": "tests/effects_budget.rs is rustfmt-formatted (checked with the workspace rustfmt on a scratch copy with `mod common;` commented out: no diff). The pre-existing src files of this crate are not formatted with the default rustfmt config; the src edits follow the surrounding style and nothing untouched was reformatted"
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "Independent validator R10: crates/hsk-studio-interop-psd at 85532ad (R9 claim 5f5bbb2 + ce22fa5, R10 remediation 85532ad; only this crate). notes.remediation_R10 lists the behaviour changes and what stays open.",
+ "updated_at": "2026-10-11T15:43:05Z",
+ "notes": {
+  "plr": "PLR-053 (R8 review B, lane SMB-INTEROP-PSD-ADJ, PLAUSIBLE at f6e5a49); routed 2026-10-11T12:44:14Z. Confirmed by a red test before any source change",
+  "remediation_R9": {
+   "routed": "R9 review A (validation/R9-review-a.json, lane SMB-INTEROP-PSD-BUDGET, FIX_FIRST at 4d80e50): 1 CONFIRMED (a5eff01 applied the per-plan limit to every mapped instance and failed the WHOLE import with psd_effect_limit), 2 PLAUSIBLE (caller-bound override undocumented; per-layer mapped-vs-live). Lead decision: a whole-import failure for an effect count is not accepted (contradicts PLR-053)",
+   "commits": "5f5bbb2 (source + tests) and ce22fa5 (test-only: SEFX id assertion), both on top of cc3eaae, only crates/hsk-studio-interop-psd, pathspec commits with -F, pushed; HEAD == origin before the first commit",
+   "findings_resolution": [
+    {
+     "finding": "CONFIRMED proposal.rs:530-534 whole-import Err(PsdError::EffectLimit) over mapped, hidden and disabled instances",
+     "resolution": "FIXED: no effect count fails the import; counting = the render plan's; a stack that does not fit is a typed loss naming the layer; PsdError::EffectLimit and psd_effect_limit removed; tests effects_over_the_document_cap_become_typed_losses_from_the_crossing_stack_on and hidden_layers_and_disabled_effects_do_not_count_toward_the_document_cap"
+    },
+    {
+     "finding": "PLAUSIBLE nodes = max(caller, records + instances) overrides a smaller caller nodes, public contract undocumented",
+     "resolution": "FIXED: documented on ProposalConfig.budget (proposal.rs:121-134) and in DESCRIPTOR effect_limits, with the exact bound and the tests (V4-07); the optional ImportProposal helper was not added (not_fixed[2])"
+    },
+    {
+     "finding": "PLAUSIBLE (carried) a stack of more than 64 mapped instances of which 64 or fewer are live loses every effect",
+     "resolution": "FIXED: the per-layer limit counts live instances of visible layers (composite convert_effects); test the_per_layer_limit_counts_live_instances_of_visible_layers"
+    }
+   ],
+   "counting_rule": {
+    "rule": "A stack contributes `live` COUNTED instances when its layer is visible and every enclosing group is visible, else 0: live = (stack master switch on ? number of enabled instances : 0). Counted instances are limited per layer by MAX_EFFECTS_PER_LAYER (64, pigment effect_math.rs:51) and per document by MAX_EFFECTS_PER_PLAN (4096, effect_math.rs:53). Every other kept instance (hidden layer or group, switched-off stack, switched-off instance) is UNCOUNTED: no plan counts it, but it stays in the record and Folio charges it one node, so it is bounded by this crate's MAX_UNCOUNTED_EFFECTS_PER_DOCUMENT = 4096 (effects.rs:64).",
+    "evidence": [
+     "composite convert_effects crates/hsk-studio-composite/src/lower_extensions.rs:569-593: live = stack.enabled ? stack.effects.filter(e.enabled) : [] (:573-577); empty live -> no effects and no refusal (:578-580); live.len() > MAX_EFFECTS_PER_LAYER -> REFUSE_EFFECT_LIMIT (:584-586); doc :567-568 'a disabled stack and disabled instances render nothing'",
+     "pigment PlanExtensions::validate crates/hsk-studio-pigment/src/render_plan/extensions.rs:326-339: only layer entries with a non-empty effects list add to total_effects (:336); e.effects.len() > MAX_EFFECTS_PER_LAYER || total_effects > MAX_EFFECTS_PER_PLAN -> PlanError::EffectLimit (:337-339); the entry's effects are composite's live ops, so disabled instances are not in the count",
+     "composite lower_inner crates/hsk-studio-composite/src/lower_render_plan.rs:525-563: a step is reached only through VISIBLE inputs (:558 `if step.visible() { stack.push(child) }`); :738-739 an invisible child is Slot::Empty; :746-753 LayerFeatures::of is built only for a present child -> a hidden layer, or a layer inside a hidden group, has no effect entry in any plan (except as the plan's own root, :499-503: one layer, <= 64)",
+     "lower_render_plan.rs:430-435 and record_envelope :337-368: the per-plan limit belongs to the lowered plan from a requested root and is decided at lowering (PlanError::EffectLimit); it is deliberately not a document-wide rule"
+    ],
+    "invariant_reasoned_not_test_proven_here": "With counted_total <= 4096 and uncounted_total <= 4096 no plan of an imported document can exceed 4096 effects: a plan rooted at a layer with no hidden ancestor (and the document outputs) reaches only counted-classified layers; a plan rooted at a hidden layer or under a hidden group reaches only uncounted-classified layers; a plan never mixes the two. This crate has no composite dependency, so it is not asserted by a test here.",
+    "deliberate_over_counts_safe_direction": [
+     "a layer with no pixels is not lowered (lower_render_plan.rs:743 node_of.get -> Slot::Empty) but its effects are counted here",
+     "a clipped layer whose base is hidden or empty is not part of the render (lower_render_plan.rs:544-553) but is counted here"
+    ]
+   },
+   "design": [
+    "effects.rs: StackShape::of(enabled, effects, visible) -> {counted, uncounted}; EffectTally {counted, uncounted, closed}: admit (empty stack ok; counted > 64 -> effects_over_budget; closed -> the closing code; counted total > 4096 -> effects_over_document_budget; uncounted total > 4096 -> effects_unrendered_over_document_budget), charge (kept stacks only), refused (a document-total refusal closes the tally), kept()",
+    "map_stack: a stack with more than Folio's 1024 mapped instances is refused early (effects_over_budget; the loop stays bounded and Folio never rejects the records), then tally.admit before the SEFX id is minted (a refused stack consumes no id)",
+    "proposal.rs: Builder.effect_tally and hidden_groups (incremented around the children walk of a hidden group, group() in proposal.rs); visible = layer.visible() && hidden_groups == 0",
+    "import order = panel order (document.rs tree(): last PSD record first), top-most first, a group before its children; NOT file order. 'In document order' of the lead decision is implemented as this order",
+    "prefix cut: the first stack that does not fit over a DOCUMENT total closes the tally; every later non-empty stack is refused with the closing code (a later stack that is itself over the per-layer limit keeps effects_over_budget). What is kept does not depend on how later stacks are sized",
+    "PsdError::EffectLimit and psd_effect_limit removed (the variant existed only in a5eff01; PsdError has no consumer outside this crate, R9 review)"
+   ],
+   "behaviour_changes": [
+    "vs f6e5a49, per layer: f6e5a49 kept any stack up to Folio's 1024 mapped instances (loss code effects_limit above that). Now a layer with more than 64 COUNTED instances (enabled instances of an enabled stack on a visible layer in visible groups) loses its stack (effects_over_budget): a visible layer with 65..1024 enabled instances that imported with its stack at f6e5a49 no longer does (composite refuses such a layer at lowering anyway, effect_limit). Stacks with <= 64 live instances, hidden layers and switched-off stacks keep stacks up to 1024 mapped instances as at f6e5a49. Above 1024 mapped the loss code is effects_over_budget (was effects_limit)",
+    "vs f6e5a49, per document: f6e5a49 had no document cap (any number of layers x up to 1024 instances, imported under a caller Budget::nodes >= records + instances; under the default nodes 4096 such a file failed as Proposal(raster_records_rejected)). Now counted instances past 4096 (from the crossing stack on) and kept uncounted instances past 4096 are typed losses. A document with more than 4096 counted instances that imported fully at f6e5a49 under a large caller nodes loses the stacks from the crossing stack on [R10: the uncounted-crossing case (more than 4096 hidden or switched-off instances) is in remediation_R10.behaviour_changes[0]]",
+    "vs f6e5a49, caller Budget::nodes: f6e5a49 gave validate_raster_records cfg.budget (a small caller nodes refused an effects-heavy file as raster_records_rejected). Since a5eff01 (unchanged here) it gets max(caller nodes, records + kept instances): a host that relied on a small nodes to refuse effect-heavy files no longer gets a refusal; the bound is the importer's (documented, ProposalConfig.budget)",
+    "vs a5eff01 (first judged in R9): the whole-import error PsdError::EffectLimit (psd_effect_limit) is gone; hidden and disabled instances no longer count toward the document cap; the node-need bound is max_layers + 8192 (was max_layers + 4096)",
+    "which stacks survive a document cap depends on import (panel) order: the top-most layers keep theirs"
+   ],
+   "memory_bound": {
+    "bound": "record layers <= Limits::max_layers (document.rs:349; psd_layer_limit); kept effect instances <= MAX_EFFECTS_PER_PLAN (counted) + MAX_UNCOUNTED_EFFECTS_PER_DOCUMENT (uncounted) = 8192; validate_raster_records node need = records + kept instances <= max_layers + 8192 (16384 with the default limits). Memory of a refused stack is transient: one stack (<= 1024 mapped instances, the descriptor's own 8192-item cap) dropped before the next layer",
+    "relation_to_caller_budget": "nodes = max(caller nodes, records + kept instances) applies to ONE call, validate_raster_records (proposal.rs:1773-1777); the caller's budget applies unchanged to inspect_bytes of the document (proposal.rs:1755), and its input_bytes, payload_bytes, edges and depth to both. The caller's nodes never bounded record memory: records and stacks are built before they are validated (collect_records), so it only turned a built proposal into an import failure",
+    "documented_at": "ProposalConfig.budget (proposal.rs:121-134), the validation-site comment (proposal.rs:1764-1772), DESCRIPTOR effect_limits (lib.rs:82)",
+    "tests": "effects_at_pigments_plan_limit_import_fully_with_the_record_budget_sized_from_the_input (need 4160, exact at the boundary, above the caller's 4096) and instances_no_plan_counts_are_bounded_too_so_the_kept_total_and_the_record_validation_stay_bounded (need 128 + 8192 = 8320, exact at the boundary: ok at need, BudgetExceeded at need - 1)"
+   },
+   "tests": [
+    "effects_heavy_layers_lose_their_stack_with_a_typed_loss_and_the_document_imports (kept from a5eff01; fixture layers now have no pixels)",
+    "effects_at_pigments_plan_limit_import_fully_with_the_record_budget_sized_from_the_input (kept from a5eff01: 64 x 64 imports fully)",
+    "NEW effects_over_the_document_cap_become_typed_losses_from_the_crossing_stack_on: 4097 counted over 65 layers -> imports, the 65th stack effects_over_document_budget, first 64 intact, byte-exact round trip, 64 SEFX ids minted; prefix cut (4092 kept, crossing 10 lost, the 2 that would fit lost, a 70 keeps effects_over_budget, the last 1 lost)",
+    "NEW hidden_layers_and_disabled_effects_do_not_count_toward_the_document_cap: counted total exactly 4096; a hidden layer, a master-off stack, an all-disabled stack and a layer in a hidden group are kept; one more live instance is lost; the same child in a VISIBLE group is lost",
+    "NEW the_per_layer_limit_counts_live_instances_of_visible_layers: 100 mapped / 24 live kept; 65 live lost; hidden and master-off with 100 live kept; exactly 64 live of 100 kept; 65 live lost",
+    "NEW a_stack_past_folios_ceiling_is_a_typed_loss_not_a_rejected_import: 1024 disabled kept, 1025 disabled lost, 1025 hidden lost; kept records validate",
+    "NEW instances_no_plan_counts_are_bounded_too_so_the_kept_total_and_the_record_validation_stay_bounded: 4096 hidden kept then a hidden and a visible stack lost (effects_unrendered_over_document_budget); both bounds full = 8192 kept, node need 128 + 8192 exact at the boundary"
+   ],
+   "red_proof": {
+    "tree": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-psd-budget-red/src/handshake-studio-assets: the scratch tree of the previous remediation, refreshed IN PLACE to git archive 4d80e50 (67 differing files copied with current mtimes, V4-11; every file compared with cmp afterwards; the four interop-psd src files byte-equal to the 4d80e50 blobs by md5), own STUDIO_OWNER=smb-psd-budget-red (own target and tmp), .gameplan-active pointer next to src/. Only difference to 4d80e50: tests/effects_budget.rs, md5 1fc7446c6484f3cf34e6d38fead163a6 = the committed file at ce22fa5",
+    "argv": "cargo nextest run -p hsk-studio-interop-psd --test effects_budget --no-fail-fast",
+    "result": "5 of 5 NEW tests FAIL, the 2 retained a5eff01 tests PASS (red3.log): per_layer test Lost(effects_over_budget) where Kept(100); folio_ceiling test Lost where Kept(1024); document_cap test 'import continues' panics with Err(EffectLimit) at 4097 counted; hidden_and_disabled test Err(EffectLimit); unrendered_bound test Err(EffectLimit). Two earlier red runs used earlier byte-versions of the same tests (same 5 failures; the test file was then rustfmt-formatted and, last, given the SEFX id assertion)",
+    "green": "same argv at ce22fa5 in the shared tree (working tree == commit for this crate): 7 passed; crate nextest run -p hsk-studio-interop-psd --no-fail-fast: 48 passed (nextest-crate3.log)",
+    "logs": "<scratchpad>/SMB-INTEROP-PSD-BUDGET-R9/red1.log, red2.log, red3.log (red), green1.log, green2.log, nextest-crate1.log..nextest-crate3.log (green)"
+   },
+   "v4_01": "effects.rs and proposal.rs keep deny(clippy::arithmetic_side_effects); the new arithmetic is checked_add (admit, need) with typed refusal/Overflow and saturating_add/saturating_sub (charge, kept, StackShape::of, hidden_groups); clippy clean for this crate",
+   "v4_02": "aggregate_over_budget-style tests: effects_over_the_document_cap_become_typed_losses_from_the_crossing_stack_on (counted aggregate, running total checked before the stack is kept) and instances_no_plan_counts_are_bounded_too_so_the_kept_total_and_the_record_validation_stay_bounded (uncounted aggregate). dims_u32_max-style: not applicable, no new decoder and no size-driven allocation (descriptor reader and its u32::MAX count tests unchanged and green: hostile_descriptor_and_adjustment_sizes_are_typed_refusals)",
+   "v4_03": "tests build their fixtures in memory and read no machine-local path",
+   "v4_06": {
+    "class": "an effect or node count charged against a pigment or Folio limit or budget where exhaustion fails the whole import under any code, or the count differs from the render plan's counting, or the dropped item has no typed loss",
+    "regex": "Budget|\\.budget\\b|raster_records_rejected|folio_rejected|inspect_bytes|validate_raster_records|MAX_EFFECTS|MAX_ITEMS_PER_CONTAINER|MAX_TOTAL_ITEMS|EffectLimit|effects_over_budget|EffectTally|StackShape|hidden_groups|effect_tally|MAX_UNCOUNTED|EFFECTS_OVER|EFFECTS_UNRENDERED|effects_over_document|effects_unrendered|is_budget_reason over crates/hsk-studio-interop-psd/src/**/*.rs, lines starting with // excluded (cd crates/hsk-studio-interop-psd && grep -rnP '<regex>' src --include=*.rs | grep -vP '^\\S+:\\d+:\\s*//'), measured at ce22fa5 (source equal to 5f5bbb2)",
+    "count": 56,
+    "old_regex_comparison": "the a5eff01 regex (Budget|.budget|raster_records_rejected|folio_rejected|inspect_bytes|validate_raster_records|MAX_EFFECTS|MAX_ITEMS_PER_CONTAINER|MAX_TOTAL_ITEMS|EffectLimit|effects_over_budget) gave 26 at 4d80e50 (recomputed with git grep) and gives 25 now; the union regex adds the identifiers of this remediation",
+    "sites": [
+     {
+      "file_line": "src/descriptor.rs:19",
+      "verdict": "NOT_APPLICABLE: constant, descriptor items per container (512); an over-count is a typed descriptor refusal that leaves the stack unmapped with a typed loss, tested by hostile_descriptor_and_adjustment_sizes_are_typed_refusals"
+     },
+     {
+      "file_line": "src/descriptor.rs:21",
+      "verdict": "NOT_APPLICABLE: constant, total descriptor items (8192), same test"
+     },
+     {
+      "file_line": "src/descriptor.rs:178",
+      "verdict": "NOT_APPLICABLE: object item count over the container cap -> typed refusal, same test"
+     },
+     {
+      "file_line": "src/descriptor.rs:200",
+      "verdict": "NOT_APPLICABLE: list item count over the container cap -> typed refusal, same test"
+     },
+     {
+      "file_line": "src/descriptor.rs:244",
+      "verdict": "NOT_APPLICABLE: aggregate item counter start, same test"
+     },
+     {
+      "file_line": "src/effects.rs:25",
+      "verdict": "NOT_APPLICABLE: import of Folio's MAX_EFFECTS (used at :65 and :511)"
+     },
+     {
+      "file_line": "src/effects.rs:29",
+      "verdict": "UNCHANGED: pigment's per-layer and per-plan limits re-exported from their owner (a5eff01), not copied"
+     },
+     {
+      "file_line": "src/effects.rs:53",
+      "verdict": "FIXED: effects_over_budget now means counted instances over pigment's per-layer limit, or mapped instances over Folio's per-stack ceiling (documented above the constant)"
+     },
+     {
+      "file_line": "src/effects.rs:56",
+      "verdict": "FIXED: new typed loss code for the counted document total (replaces the whole-import error)"
+     },
+     {
+      "file_line": "src/effects.rs:59",
+      "verdict": "FIXED: new typed loss code for the kept instances no plan counts"
+     },
+     {
+      "file_line": "src/effects.rs:64",
+      "verdict": "FIXED: crate-owned bound for the kept instances no plan counts (V4-02 aggregate; keeps node need <= max_layers + 8192)"
+     },
+     {
+      "file_line": "src/effects.rs:65",
+      "verdict": "UNCHANGED: compile-time guard that pigment's per-layer limit is inside Folio's"
+     },
+     {
+      "file_line": "src/effects.rs:69",
+      "verdict": "FIXED: is_budget_reason, the three codes are typed losses naming the layer"
+     },
+     {
+      "file_line": "src/effects.rs:70",
+      "verdict": "FIXED: same function"
+     },
+     {
+      "file_line": "src/effects.rs:76",
+      "verdict": "FIXED: StackShape, counted/uncounted split by the render plan's rule"
+     },
+     {
+      "file_line": "src/effects.rs:81",
+      "verdict": "FIXED: StackShape::of (enabled stack, enabled instances, visible layer and groups)"
+     },
+     {
+      "file_line": "src/effects.rs:98",
+      "verdict": "FIXED: EffectTally, the running totals of one import"
+     },
+     {
+      "file_line": "src/effects.rs:104",
+      "verdict": "FIXED: impl EffectTally"
+     },
+     {
+      "file_line": "src/effects.rs:106",
+      "verdict": "FIXED: admit, no side effect; only a kept stack is charged"
+     },
+     {
+      "file_line": "src/effects.rs:110",
+      "verdict": "FIXED: per-layer limit on COUNTED instances (a5eff01: on every mapped instance)"
+     },
+     {
+      "file_line": "src/effects.rs:111",
+      "verdict": "FIXED: typed loss effects_over_budget"
+     },
+     {
+      "file_line": "src/effects.rs:116",
+      "verdict": "FIXED: counted aggregate by checked_add; over the plan limit is a typed loss (a5eff01: PsdError::EffectLimit for the whole import)"
+     },
+     {
+      "file_line": "src/effects.rs:117",
+      "verdict": "FIXED: typed loss effects_over_document_budget"
+     },
+     {
+      "file_line": "src/effects.rs:119",
+      "verdict": "FIXED: uncounted aggregate by checked_add"
+     },
+     {
+      "file_line": "src/effects.rs:120",
+      "verdict": "FIXED: typed loss effects_unrendered_over_document_budget"
+     },
+     {
+      "file_line": "src/effects.rs:126",
+      "verdict": "FIXED: charge, saturating, only for kept stacks"
+     },
+     {
+      "file_line": "src/effects.rs:133",
+      "verdict": "FIXED: refused() closes the tally on a document-total refusal (prefix cut)"
+     },
+     {
+      "file_line": "src/effects.rs:455",
+      "verdict": "FIXED: tally parameter of effect_stack"
+     },
+     {
+      "file_line": "src/effects.rs:466",
+      "verdict": "FIXED: tally parameter of map_stack"
+     },
+     {
+      "file_line": "src/effects.rs:511",
+      "verdict": "FIXED: Folio's per-stack ceiling (1024 mapped) refuses the stack early with a typed loss, so Folio never rejects the records (raster_records_rejected); test a_stack_past_folios_ceiling_is_a_typed_loss_not_a_rejected_import"
+     },
+     {
+      "file_line": "src/effects.rs:512",
+      "verdict": "FIXED: typed loss effects_over_budget"
+     },
+     {
+      "file_line": "src/effects.rs:523",
+      "verdict": "FIXED: admit before the SEFX id is minted (a refused stack consumes no id; asserted by minted == kept stacks in the cap test)"
+     },
+     {
+      "file_line": "src/lib.rs:80",
+      "verdict": "FIXED: DESCRIPTOR capability strings for the per-layer and per-document typed losses"
+     },
+     {
+      "file_line": "src/lib.rs:81",
+      "verdict": "NOT_APPLICABLE: DESCRIPTOR raster_records sentence unchanged and still true (an unreadable or out-of-range record keeps the layer a typed unsupported layer)"
+     },
+     {
+      "file_line": "src/lib.rs:82",
+      "verdict": "FIXED: DESCRIPTOR effect_limits (counting rule, limits, the three codes, node sizing and its bound, tests_effects_budget)"
+     },
+     {
+      "file_line": "src/proposal.rs:39",
+      "verdict": "NOT_APPLICABLE: import"
+     },
+     {
+      "file_line": "src/proposal.rs:40",
+      "verdict": "NOT_APPLICABLE: import"
+     },
+     {
+      "file_line": "src/proposal.rs:135",
+      "verdict": "FIXED: ProposalConfig.budget documented at :121-134 (nodes bounds the document only; record validation gets max(nodes, records + kept instances) <= max_layers + 2 * MAX_EFFECTS_PER_PLAN; tests cited)"
+     },
+     {
+      "file_line": "src/proposal.rs:150",
+      "verdict": "NOT_APPLICABLE: ProposalConfig::new signature unchanged"
+     },
+     {
+      "file_line": "src/proposal.rs:473",
+      "verdict": "FIXED: Builder.effect_tally"
+     },
+     {
+      "file_line": "src/proposal.rs:475",
+      "verdict": "FIXED: Builder.hidden_groups"
+     },
+     {
+      "file_line": "src/proposal.rs:550",
+      "verdict": "FIXED: visible = layer.visible() && no hidden group around it (the plan's rule)"
+     },
+     {
+      "file_line": "src/proposal.rs:552",
+      "verdict": "FIXED: effect_stack gets the visibility and the running tally"
+     },
+     {
+      "file_line": "src/proposal.rs:554",
+      "verdict": "FIXED: charge only a kept stack (was a checked_add that failed the import)"
+     },
+     {
+      "file_line": "src/proposal.rs:559",
+      "verdict": "FIXED: all three budget codes are typed losses naming the layer"
+     },
+     {
+      "file_line": "src/proposal.rs:560",
+      "verdict": "FIXED: a document-total refusal closes the tally"
+     },
+     {
+      "file_line": "src/proposal.rs:867",
+      "verdict": "FIXED: entering a hidden group (saturating_add)"
+     },
+     {
+      "file_line": "src/proposal.rs:871",
+      "verdict": "FIXED: leaving a hidden group (saturating_sub)"
+     },
+     {
+      "file_line": "src/proposal.rs:1605",
+      "verdict": "FIXED: tally initialised empty"
+     },
+     {
+      "file_line": "src/proposal.rs:1606",
+      "verdict": "FIXED: no hidden group at the root"
+     },
+     {
+      "file_line": "src/proposal.rs:1755",
+      "verdict": "NOT_APPLICABLE by scope, see not_fixed[0]: inspect_bytes of the document with the caller's budget; effects add no document nodes"
+     },
+     {
+      "file_line": "src/proposal.rs:1759",
+      "verdict": "NOT_APPLICABLE by scope, see not_fixed[0]: folio_rejected for a rejection of the document itself (a different finding than PLR-053)"
+     },
+     {
+      "file_line": "src/proposal.rs:1773",
+      "verdict": "FIXED: node need = record layers + kept effect instances (counted + uncounted), checked_add -> Overflow"
+     },
+     {
+      "file_line": "src/proposal.rs:1774",
+      "verdict": "FIXED: records_budget = max(caller nodes, need), other fields unchanged; documented (ProposalConfig.budget) and bounded (max_layers + 8192)"
+     },
+     {
+      "file_line": "src/proposal.rs:1777",
+      "verdict": "UNCHANGED: the one validate_raster_records call, given the sized budget"
+     },
+     {
+      "file_line": "src/proposal.rs:1778",
+      "verdict": "NOT_APPLICABLE: after the sizing a Folio rejection cannot come from effect counts; every remaining rejection here is a mapping defect, as the comment above says"
+     }
+    ]
+   },
+   "v4_07": "claims with never/always: ProposalConfig.budget ('typed losses, never an error') cites effects_at_pigments_plan_limit..., effects_over_the_document_cap... and instances_no_plan_counts_are_bounded_too...; collect_records doc ('never fails on an effect count') cites the cap and unrendered-bound tests; the validation-site comment ('The input cannot exhaust it') cites effects_at_pigments_plan_limit... and instances_no_plan_counts_are_bounded_too...; DESCRIPTOR effect_limits ('an_effect_count_never_fails_the_import') cites tests_effects_budget; effect_stack doc ('a refused stack consumes no id') is asserted by minted == kept stacks in effects_over_the_document_cap...; the 'no plan can exceed 4096' invariant is reasoned and labelled as not test-proven (counting_rule.invariant_reasoned_not_test_proven_here)",
+   "retry_guard": "no gated run was blocked by the retry guard and none failed on a product cause in the shared tree; all gated runs were launched in the foreground or background in the dispatch form (leading cd, then source studio-env.sh). One Bash call that began with a grep before the leading cd was blocked by the gameplan hook (it resolved the WP-KERNEL-012 gameplan, confirm_binding target missing, infrastructure/launch-form cause); relaunched as the dispatch form; no gameplan step added",
+   "process": "shared worktree HEAD cc3eaae == origin before the first commit; pathspec commits with -F (message files under <scratchpad>/SMB-INTEROP-PSD-BUDGET-R9/), no amend/rebase, no add of untracked files; the test file was formatted with rustfmt (workspace toolchain 1.97.1) on a scratch copy with `mod common;` commented out so tests/common is untouched; src edits follow the surrounding style, nothing untouched was reformatted; scratch files only under <scratchpad>/SMB-INTEROP-PSD-BUDGET-R9/ and the scratch tree smb-psd-budget-red",
+   "not_fixed": [
+    "inspect_bytes on the document with the caller's nodes still reports an input-caused budget refusal as Proposal(\"folio_rejected\") (proposal.rs:1755-1759): the same code family, but for DOCUMENT nodes (layers, operations, edges) which the caller's budget owns; not an effect count, not in this lead decision. Cheap follow-up if wanted: map Code::BudgetExceeded there to a typed input error",
+    "two deliberate over-counts (safe direction: a stack past 4096 counted may be lost that a plan would not have counted): layers with no pixels and clipped layers with a hidden or empty base are counted although composite does not lower them (counting_rule.deliberate_over_counts_safe_direction)",
+    "a host that validates ImportProposal::raster_records again with its own default Budget (nodes 4096) gets BudgetExceeded for a document with about 4000 or more instances (records + instances is the need). Documented on ProposalConfig.budget; the optional helper (ImportProposal::record_validation_budget) from the R9 review was not added; no other crate calls validate_raster_records (grep over crates/ at 4d80e50 in a5eff01's notes)",
+    "the uncounted bound (4096) is this crate's own number (effects.rs:64, one constant); the lead may set another value, the documentation and the 8192 node-need statements follow it",
+    "the claim that no plan of an imported document can exceed 4096 effects is reasoned, not test-proven in this crate (no composite dependency)"
+   ],
+   "superseded_in_part_by": "notes.remediation_R10: the tally closure (design 'prefix cut': one shared close for both document totals, later non-empty stacks refused with the closing code) is replaced by two independent sides; counting_rule, per-layer limit, memory bound and red-proof history stand"
+  },
+  "history_a5eff01": {
+   "approach_chosen": "Both options combined, with pigment's limits as the single owner. (1) Per layer degrade with a typed loss (the lead's option b) for a stack over pigment's 64: that is the only place a document can lose something, and it is the limit the render plan would refuse anyway (PlanError::EffectLimit), so a bigger stack could not be rendered. (2) The record-validation node budget is sized from the input (option a) inside a documented hard cap, because at pigment's own limit (4096 instances) Folio needs 4096 + one node per record layer and the caller's default is 4096: a document exactly at pigment's limit would otherwise be refused. (3) Whole-import failure only past the per-plan limit, as a typed input error (PsdError::EffectLimit), never as Proposal(..), which stays the mapping-defect family. The caller budget is not raised for anything else: inspect_bytes (document nodes) still uses cfg.budget unchanged",
+   "why_not_only_sizing": "Sizing alone (no per-layer cap) would admit up to 1024 instances per layer and 8192 layers, i.e. far more than pigment accepts; the render plan would then refuse the document later. The lead's rule was to admit no more than pigment accepts",
+   "why_not_only_degrade": "Degrading to fit the caller's nodes would make a document that is exactly at pigment's limit lose stacks for a 64-node accounting reason (records + instances = 4160 > 4096), and would tie what imports to the caller's unrelated node setting",
+   "caller_budget_semantics": "records_budget = Budget { nodes: max(cfg.budget.nodes, records + effect instances), ..cfg.budget }. The caller's input_bytes, payload_bytes, edges and depth apply unchanged. A host that wants a hard node ceiling for effects now sets it through pigment's limits (fixed) rather than Budget::nodes; this is a behaviour change for a host that passed a small nodes value and relied on the record validation to refuse effect-heavy files (before: Proposal(raster_records_rejected))",
+   "red_proof": {
+    "tree": "scratch copy of origin f4b47cd (crates/hsk-studio-interop-psd, hsk-studio-folio and hsk-studio-pigment are byte-identical at the pushed base 6d232da: git log f4b47cd..origin -- those three crates is empty) at Handshake_Artifacts/WP-KERNEL-STUDIO/smb-psd-budget-red/src/handshake-studio-assets, git archive extraction, own STUDIO_OWNER=smb-psd-budget-red (own target and tmp), a .gameplan-active pointer next to src/ naming the Studio gameplan. Only difference to origin: tests/effects_budget.rs (byte-identical to the committed file at a5eff01, md5 81760758bbd3b83f8f9c6374b9c9c18b, checked with git show | md5sum)",
+    "argv": "cargo nextest run -p hsk-studio-interop-psd --test effects_budget --no-fail-fast",
+    "result": "3 of 3 FAIL with the committed file (red-run-committed-file.log; two earlier red runs used the unformatted test, the first with an earlier version of the third test, same 3 failures): test 'effects_heavy_layers...' panics at the import with Proposal(\"raster_records_rejected\") (6 x 700 + 3 more layers), 'effects_at_pigments_plan_limit...' panics at the import with the same error (64 x 64 exactly at pigment's limit), 'effects_over_the_plan_limit...' gets psd_proposal (raster_records_rejected) where psd_effect_limit is expected. Logs: <scratchpad>/SMB-INTEROP-PSD-BUDGET/red-run.log, red-run-final.log, red-run-committed-file.log",
+    "green": "same argv at a5eff01 in the shared tree: 3 passed (0.5 s, 3.1 s, 7.2 s alone; 1.4 s, 4.1 s, 8.5 s in the full run); log green-effects-budget.log and nextest-final.log",
+    "note_on_the_reviewer_numbers": "the reviewer's 6 layers x 700 effects needs the 700 instances spread over several multi lists: one descriptor list holds at most 512 items (descriptor.rs MAX_ITEMS_PER_CONTAINER) and a descriptor at most 8192 items in total, so the fixture uses three lists and the smallest mappable effect (only Md is required)"
+   },
+   "v4_01": "effects.rs, proposal.rs keep deny(clippy::arithmetic_side_effects); the new arithmetic is checked_add (aggregate, records + instances) with typed PsdError::EffectLimit / Overflow; no other arithmetic added",
+   "v4_02": "aggregate_over_budget-style test: effects_over_the_plan_limit_are_a_typed_input_error_not_a_mapping_defect (the running total is checked before the stack is kept; 4097 and 4160 refused, 4096 accepted in the at-limit test). dims_u32_max-style: not applicable, no new decoder or size-driven allocation (the descriptor reader and its u32::MAX count tests are unchanged and green: hostile_descriptor_and_adjustment_sizes_are_typed_refusals)",
+   "v4_03": "tests build their fixtures in memory and read no machine-local path",
+   "v4_06_class": "input-sized count charged against a Folio or pigment budget/limit whose exhaustion either fails the whole import under a mapping-defect code or has no typed loss for what it drops",
+   "v4_06_regex": "Budget|\\.budget\\b|raster_records_rejected|folio_rejected|inspect_bytes|validate_raster_records|MAX_EFFECTS|MAX_ITEMS_PER_CONTAINER|MAX_TOTAL_ITEMS|EffectLimit|effects_over_budget over crates/hsk-studio-interop-psd/src/**/*.rs, lines starting with // excluded (grep -rnP ... src --include=*.rs | grep -vP '^\\S+:\\d+:\\s*//'), measured at a5eff01",
+   "v4_06_count": 26,
+   "v4_06_sites": [
+    {
+     "file_line": "src/descriptor.rs:19",
+     "verdict": "NOT_APPLICABLE: constant, descriptor items per container (512); an over-count is a typed descriptor refusal, tested by hostile_descriptor_and_adjustment_sizes_are_typed_refusals"
+    },
+    {
+     "file_line": "src/descriptor.rs:21",
+     "verdict": "NOT_APPLICABLE: constant, total descriptor items (8192), same test"
+    },
+    {
+     "file_line": "src/descriptor.rs:178",
+     "verdict": "NOT_APPLICABLE: object item count over the container cap -> typed refusal, same test"
+    },
+    {
+     "file_line": "src/descriptor.rs:200",
+     "verdict": "NOT_APPLICABLE: list item count over the container cap -> typed refusal, same test"
+    },
+    {
+     "file_line": "src/descriptor.rs:244",
+     "verdict": "NOT_APPLICABLE: aggregate item counter start, same test"
+    },
+    {
+     "file_line": "src/effects.rs:25",
+     "verdict": "NOT_APPLICABLE: import of Folio's MAX_EFFECTS (now only used by the const assert)"
+    },
+    {
+     "file_line": "src/effects.rs:29",
+     "verdict": "FIXED: pigment's MAX_EFFECTS_PER_LAYER / MAX_EFFECTS_PER_PLAN are re-exported from their owner instead of Folio's 1024 being the only bound"
+    },
+    {
+     "file_line": "src/effects.rs:37",
+     "verdict": "FIXED: typed loss code effects_over_budget for the per-layer degrade"
+    },
+    {
+     "file_line": "src/effects.rs:38",
+     "verdict": "FIXED: compile-time guard that pigment's per-layer limit stays inside Folio's"
+    },
+    {
+     "file_line": "src/effects.rs:394",
+     "verdict": "FIXED: per-layer cap now pigment's 64 (was Folio's 1024 with code effects_limit); the 65th mapped instance refuses the stack with effects_over_budget"
+    },
+    {
+     "file_line": "src/error.rs:27",
+     "verdict": "FIXED: PsdError::EffectLimit variant (typed input error)"
+    },
+    {
+     "file_line": "src/error.rs:64",
+     "verdict": "FIXED: stable code psd_effect_limit"
+    },
+    {
+     "file_line": "src/lib.rs:80",
+     "verdict": "FIXED: DESCRIPTOR capability strings for the two new behaviours"
+    },
+    {
+     "file_line": "src/lib.rs:81",
+     "verdict": "NOT_APPLICABLE: DESCRIPTOR raster_records sentence, unchanged (its 'unreadable or out-of-range record keeps the layer a typed unsupported layer' is now true for the budget cause too, tested by effects_heavy_layers_lose_their_stack_with_a_typed_loss_and_the_document_imports)"
+    },
+    {
+     "file_line": "src/lib.rs:82",
+     "verdict": "FIXED: DESCRIPTOR effect_limits key, cites tests_effects_budget"
+    },
+    {
+     "file_line": "src/proposal.rs:39",
+     "verdict": "NOT_APPLICABLE: import"
+    },
+    {
+     "file_line": "src/proposal.rs:40",
+     "verdict": "NOT_APPLICABLE: import"
+    },
+    {
+     "file_line": "src/proposal.rs:121",
+     "verdict": "NOT_APPLICABLE: ProposalConfig.budget field (caller-owned Folio budget, unchanged)"
+    },
+    {
+     "file_line": "src/proposal.rs:136",
+     "verdict": "NOT_APPLICABLE: ProposalConfig::new signature, unchanged"
+    },
+    {
+     "file_line": "src/proposal.rs:533",
+     "verdict": "FIXED: per-plan aggregate filter against pigment's MAX_EFFECTS_PER_PLAN"
+    },
+    {
+     "file_line": "src/proposal.rs:534",
+     "verdict": "FIXED: over the per-plan limit -> PsdError::EffectLimit (typed input error)"
+    },
+    {
+     "file_line": "src/proposal.rs:1724",
+     "verdict": "NOT_APPLICABLE by scope, see not_fixed[0]: inspect_bytes on the document with the caller's budget; layer count is bounded earlier by Limits::max_layers (psd_layer_limit); effects add no document nodes"
+    },
+    {
+     "file_line": "src/proposal.rs:1728",
+     "verdict": "NOT_APPLICABLE by scope, see not_fixed[0]: folio_rejected for a rejection of the document itself (a different finding than PLR-053)"
+    },
+    {
+     "file_line": "src/proposal.rs:1740",
+     "verdict": "FIXED: record-validation node budget sized from records + instances"
+    },
+    {
+     "file_line": "src/proposal.rs:1743",
+     "verdict": "FIXED: validate_raster_records now receives the sized budget"
+    },
+    {
+     "file_line": "src/proposal.rs:1744",
+     "verdict": "NOT_APPLICABLE: after the sizing a BudgetExceeded cannot come from the input; every remaining rejection here is a mapping defect, as the comment says (the parsers pre-check the Folio ranges)"
+    }
+   ],
+   "v4_07": "new claims: error.rs EffectLimit doc cites effects_over_the_plan_limit_are_a_typed_input_error_not_a_mapping_defect; proposal.rs collect_records doc and the validation-site comment cite the same test and effects_at_pigments_plan_limit_import_fully_with_the_record_budget_sized_from_the_input; DESCRIPTOR effect_limits cites tests_effects_budget. No 'never/always/guarantees/proves' left without a test",
+   "retry_guard": "no gated run was blocked and none failed on a product cause in the shared tree. Red runs were launched with run_in_background (no exit code recorded by the guard) on the scratch tree; the first red run used an earlier version of the third test (a scratch-only change), the second the final test file. A first launch attempt began with variable assignments before the leading cd, so the hook resolved the wrong gameplan (WP-KERNEL-012, confirm_binding target missing) and blocked it; relaunched with cd first (the exact dispatch form). No gameplan step added",
+   "lock_wait_note": "lock_wait_s 0 = only the first-wait lines were seen (0-1 s, queue head another lane's build); total wait time was not measured",
+   "process": "shared worktree: pathspec commit with -F (message file under <scratchpad>/SMB-INTEROP-PSD-BUDGET/), git add of the one new test file by explicit path, no amend/rebase, HEAD == origin before the commit (6d232da); scratch files only under <scratchpad>/SMB-INTEROP-PSD-BUDGET/ and the scratch tree smb-psd-budget-red; error.rs was converted from CRLF to LF in the working copy (the index blob is LF, git showed a CRLF warning)",
+   "not_fixed": [
+    "inspect_bytes on the document with the caller's nodes still reports an input-caused budget refusal as Proposal(\"folio_rejected\") (proposal.rs:1724-1728), the same code family as PLR-053 but for document nodes (layers, operations, edges) which the caller's budget owns. R8 review B names it as a design choice. Cheap follow-up if wanted: map Code::BudgetExceeded there to a typed input error",
+    "pigment counts live (enabled) effects per layer, the importer counts every mapped instance because Folio charges them all; a layer with more than 64 mapped instances of which some are disabled loses its whole stack here although pigment would accept the live ones. How often Photoshop-authored files reach 64 instances in one layer is UNVERIFIED (D5)",
+    "a host that validates ImportProposal::raster_records again with its own default Budget (nodes 4096) gets BudgetExceeded for a document with about 4000 or more instances (records + instances is the need); no other crate calls validate_raster_records today (grep over crates/), and ImportProposal exposes no helper for the needed node count"
+   ],
+   "verdicts": [
+    {
+     "round": "STUDIO-R9",
+     "lane": "SMB-INTEROP-PSD-BUDGET",
+     "candidate": "4d80e50d40432799c08f0f8b8f0047c9a00d056a",
+     "tree": "18b50331f3b2b92c1985cd8b83e00560d88096bf",
+     "decision": "failed",
+     "verdict": "FAIL_V1",
+     "failures": [
+      {
+       "failure_kind": "product",
+       "failure_class": "document-wide-effect-cap-fails-whole-import",
+       "file_line": "crates/hsk-studio-interop-psd/src/proposal.rs:530-534; src/effects.rs:223,:357"
+      }
+     ],
+     "remediation": "count effects like pigment plan; beyond cap per-stack typed loss, no whole-import Err; test >4096 imports",
+     "status_after": "FAIL_V1",
+     "review": "validation/R9-review-a.json",
+     "round_ref": "validation/round-R9.json",
+     "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R9",
+     "idempotency_key": "STUDIO-R9:SMB-INTEROP-PSD-BUDGET:4d80e50d4043:FAIL_V1",
+     "recorded_at": "2026-10-11T14:23:56Z",
+     "by": "wp_validator STUDIO-R9"
+    }
+   ],
+   "capabilities_done": [
+    "effect limits are pigment's, imported from hsk_studio_pigment::effect_math (MAX_EFFECTS_PER_LAYER 64, MAX_EFFECTS_PER_PLAN 4096), not copied; a const assert keeps pigment's per-layer limit inside Folio's MAX_EFFECTS (1024)",
+    "per layer: an lfx2/lmfx stack that maps more than 64 instances is not mapped; typed loss effects_over_budget (Unsupported), path layer[<psd index>]/tagged/lfx2(layer_id=<SLYR>); the layer, its other records and the rest of the document import; the block stays byte-exact (asserted: write_psd(read) == input). Replaces the old effects_limit code (Folio's 1024, now unreachable)",
+    "per document: more than 4096 mapped instances across layers is the new typed input error PsdError::EffectLimit (psd_effect_limit), same family as psd_layer_limit; Builder::collect_records is fallible and keeps a running aggregate (checked_add)",
+    "Folio record validation: validate_raster_records charges one node per record layer and one per effect instance (raster.rs:757, :1019), so that one validation gets Budget { nodes: max(caller nodes, records + instances), ..caller }; bounded by max_layers + 4096; asserted exact at the boundary in the at-limit test (needed ok, needed - 1 is BudgetExceeded)",
+    "DESCRIPTOR: capabilities effects_over_layer_limit_unsupported_loss_entry_effects_over_budget and effects_over_plan_limit_typed_input_error_psd_effect_limit; new key effect_limits (cites tests_effects_budget); comment at the validation site reworded (a rejection there is a mapping defect; the node budget cannot be exhausted by input)",
+    "tests/effects_budget.rs (3): effects_heavy_layers_lose_their_stack_with_a_typed_loss_and_the_document_imports (6 layers x 700 + one layer at 64 + one at 65 + one at 1: 7 typed losses naming the layer, 64- and 1-instance stacks kept, 9 layers in the document, byte-exact round trip, kept records validate under the default budget); effects_at_pigments_plan_limit_import_fully_with_the_record_budget_sized_from_the_input (64 layers x 64 = 4096 imports fully, 4160 nodes needed); effects_over_the_plan_limit_are_a_typed_input_error_not_a_mapping_defect (65 x 64 and 64 x 64 + 1 give psd_effect_limit, not Proposal)"
+   ],
+   "tests": {
+    "argv": "cargo nextest run -p hsk-studio-interop-psd --tests --no-fail-fast",
+    "exit": 0,
+    "sha": "a5eff01",
+    "passed": 44,
+    "failed": 0,
+    "files": [
+     "tests/effects_budget.rs (3 new)",
+     "all existing crate tests unchanged and green (41)"
+    ],
+    "clippy": "cargo clippy -p hsk-studio-interop-psd --tests: no warnings in this crate (the two too_many_arguments warnings are in hsk-studio-observe, pre-existing)",
+    "doctests": "cargo test --doc -p hsk-studio-interop-psd: 0 tests, ok",
+    "round_feature_sets": "none: .config/round-features.toml has no entry for hsk-studio-interop-psd (default features only)",
+    "fmt": "the new test file is rustfmt-formatted (edition 2024). cargo fmt --check reports diffs in every pre-existing file of this crate (no rustfmt.toml; the crate is not formatted with defaults), so the src edits follow the surrounding style and nothing was reformatted"
+   },
+   "phase": "PLR-053 fixed and pushed (a5eff01): red on a scratch copy of origin f4b47cd (3/3 fail), green at a5eff01 (effects_budget 3/3, crate 44/44, doctests 0, clippy clean for this crate)",
+   "superseded_by": "notes.remediation_R9 (R9 FIX_FIRST: the document-wide whole-import failure psd_effect_limit and the mapped-instance counting of a5eff01 are replaced; the per-layer typed loss, the sized record-validation budget and the red proof on f4b47cd stand as history)"
+  },
+  "verdicts": [
+   {
+    "round": "STUDIO-R10",
+    "lane": "SMB-INTEROP-PSD-BUDGET",
+    "candidate": "62d8983b86417340399ed7c785c6b297debabbfd",
+    "tree": "a64a74da642ad52e759e97ccdd6a00be069d47bc",
+    "decision": "failed",
+    "verdict": "FAIL_V2",
+    "failures": [
+     {
+      "failure_kind": "product",
+      "failure_class": "uncounted-cap-closes-tally-for-rendered-stacks",
+      "file_line": "crates/hsk-studio-interop-psd/src/effects.rs:113-114,119-120,132-136; src/proposal.rs:559-561; tests/effects_budget.rs:782-792"
+     }
+    ],
+    "remediation": "uncounted cap must not drop visible live stacks; close per category; test >4096 hidden then visible live Kept",
+    "status_after": "FAIL_V2",
+    "review": "validation/R10-review-a.json (lane recommendation PASS_WITH_NOTES conditional on the lead reading; lead clarified hidden/disabled only)",
+    "round_ref": "validation/round-R10.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R10",
+    "idempotency_key": "STUDIO-R10:SMB-INTEROP-PSD-BUDGET:62d8983b8641:FAIL_V2",
+    "recorded_at": "2026-10-11T15:37:40Z",
+    "by": "wp_validator STUDIO-R10"
+   },
+   {
+    "round": "STUDIO-R11",
+    "lane": "SMB-INTEROP-PSD-BUDGET",
+    "candidate": "6956d3f1180cbc9b3bcc59a98eacdb2beb114085",
+    "tree": "a56d447fa80c74d8ebe17c55baf5754a06f5833e",
+    "decision": "passed",
+    "verdict": "PASS_V3",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V3",
+    "review": "validation/R11-prereview-psd-budget.json (SAFE_TO_JUDGE) + validation/R11-review-a.json (lane recommendation PASS_WITH_NOTES)",
+    "round_ref": "validation/round-R11.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R11",
+    "idempotency_key": "STUDIO-R11:SMB-INTEROP-PSD-BUDGET:6956d3f1180c:PASS_V3",
+    "recorded_at": "2026-10-11T17:31:37Z",
+    "by": "wp_validator STUDIO-R11"
+   }
+  ],
+  "remediation_R10": {
+   "routed": "R10 review A (validation/R10-review-a.json, lane SMB-INTEROP-PSD-BUDGET, PASS_WITH_NOTES at 62d8983): 1 CONFIRMED (effects.rs:113-114 closed tally checked before the counted total, :119-120 a stack's own switched-off instances can cross the uncounted total, :132-136 an unrendered-cap refusal closes the tally for every later stack: visible rendered stacks lost with effects_unrendered_over_document_budget; test effects_budget.rs:782-792 asserted it; DESCRIPTOR lib.rs:82 narrower than the behaviour), 1 PLAUSIBLE (regression_disclosure_partial vs f6e5a49). Lead clarification 2026-10-11T15:29:19Z (START_LOG): the 14:41:47Z decision covers hidden/disabled/master-off instances only; crossing the uncounted cap must not drop later visible (counted) stacks; visible stacks are governed by the counted caps (64 per layer, 4096 per document) alone",
+   "commit": "85532ad, on top of 62d8983, only crates/hsk-studio-interop-psd, pathspec commit with -F, pushed; HEAD == origin before the commit",
+   "findings_resolution": [
+    {
+     "finding": "CONFIRMED rendered_stacks_lost_under_the_unrendered_cap (effects.rs:113-114, :119-120, :132-136; effects_budget.rs:782-792; DESCRIPTOR lib.rs:82)",
+     "resolution": "FIXED: EffectTally has two independent sides. A stack with counted instances is judged by the counted bounds alone (64 per layer, 4096 per document); the uncounted bound never refuses it. A stack without counted instances is judged by the uncounted bound alone. Test updated: the visible stack after the crossing is Kept(1); new test the_unrendered_bound_never_costs_a_stack_with_counted_instances_its_rendered_effects. DESCRIPTOR effect_limits, ProposalConfig.budget, collect_records, the EffectTally docs and the effects.rs header say the same (V4-07)"
+    },
+    {
+     "finding": "PLAUSIBLE regression_disclosure_partial (behaviour_changes[1] names the f6e5a49 regression for COUNTED instances only)",
+     "resolution": "FIXED (lane note only): remediation_R10.behaviour_changes[0] states the uncounted-crossing case against f6e5a49 and against the R9 candidate"
+    }
+   ],
+   "rule": "counted side (stacks with counted instances): per layer more than 64 counted -> effects_over_budget; the stack that takes the counted total past 4096 and every later stack with counted instances -> effects_over_document_budget (whole stack). uncounted side: the stack WITHOUT counted instances that takes the uncounted total past 4096, and every later such stack -> effects_unrendered_over_document_budget. A stack WITH counted instances whose own switched-off instances do not fit the uncounted bound (or after the uncounted side closed) is mapped with its counted (enabled) instances only, in their stack order, typed Transformed loss effects_unrendered_dropped_over_document_budget at layer[i]/tagged/lfx2(layer_id=<SLYR>), and that closes the uncounted side. Each side is a prefix of the panel order. A stack with counted instances and no switched-off instance is never reported as trimmed",
+   "design_decision_for_lead": "The lead clarification does not say what happens to the SWITCHED-OFF instances of a visible stack that has live instances once the uncounted bound is passed. Keeping them would break the memory bound (a visible stack with 1 live and 1023 switched-off instances, 4096 such stacks: about 4.2 M instances); refusing the stack would drop its rendered effects (the R10 finding). Chosen: keep the live instances, drop the switched-off ones, typed Transformed loss. Contained in effects.rs EffectTally::admit (Fit::CountedOnly) and map_stack (one retain)",
+   "behaviour_changes": [
+    "uncounted-crossing case (R10 PLAUSIBLE): a document with more than 4096 hidden, master-off or switched-off instances: from the crossing stack on, stacks WITHOUT counted instances are typed losses (as in R9); stacks WITH counted instances are kept (R9 candidate 62d8983: lost with effects_unrendered_over_document_budget); a visible stack that also has switched-off instances is kept with its live instances only (Transformed entry effects_unrendered_dropped_over_document_budget); vs f6e5a49 (no document cap, imported fully under a caller Budget::nodes >= records + instances) such a document loses the switched-off instances / uncounted stacks past the bound only; vs the R9 candidate 4d80e50 no regression (any document that imported there has counted <= 4096 and uncounted <= 4096, so every stack is kept whole)",
+    "counted-crossing case, the other direction: after the counted total is crossed, stacks without counted instances (hidden layer or group, master-off stack, all instances switched off) are no longer refused with the counted code; they are judged by the uncounted bound (62d8983: lost with effects_over_document_budget). A later stack with counted instances is still lost whole",
+    "new loss code effects_unrendered_dropped_over_document_budget (kind Transformed, the stack is mapped); the other three codes keep their meaning and their kind (Unsupported, the stack is not mapped)",
+    "effects_unrendered_over_document_budget is no longer given to a stack with counted instances; with both bounds full, a later visible stack is lost with effects_over_document_budget (was effects_unrendered_over_document_budget)"
+   ],
+   "memory_bound": {
+    "bound": "unchanged: record layers <= Limits::max_layers; kept counted <= MAX_EFFECTS_PER_PLAN (4096, charged only when it fits); kept uncounted <= MAX_UNCOUNTED_EFFECTS_PER_DOCUMENT (4096, charged only when it fits; a trimmed stack is charged its counted instances only); node need = records + kept <= max_layers + 8192 (16384 default)",
+    "documented_at": "ProposalConfig.budget (proposal.rs:121-139), the validation-site comment (proposal.rs:1780-1791), DESCRIPTOR effect_limits (lib.rs:82), EffectTally docs",
+    "tests": "assert_record_need_is_exact in every new test (need ok, need - 1 is BudgetExceeded); both bounds full = 8192 kept, node need 128 + 8192 exact (instances_no_plan_counts_are_bounded_too_...)"
+   },
+   "tests": [
+    "UPDATED instances_no_plan_counts_are_bounded_too_so_the_kept_total_and_the_record_validation_stay_bounded: 4096 hidden kept, a hidden stack lost (effects_unrendered_over_document_budget), the VISIBLE stack after it is Kept(1) (was Lost); with both bounds full the visible stack after is Lost(effects_over_document_budget) (was effects_unrendered_over_document_budget)",
+    "NEW the_unrendered_bound_never_costs_a_stack_with_counted_instances_its_rendered_effects: A uncounted bound crossed early by a hidden stack: visible stack Kept(5), later hidden/disabled/master-off/hidden-group stacks Lost(effects_unrendered_over_document_budget), visible group child and a 64-stack Kept, SEFX ids minted == kept stacks, byte-exact round trip; B bound exactly full: mixed(3 live, 5 off) CountedOnly(3), an interleaved stack keeps ordinals [1, 3, 4], a stack with no switched-off instance Kept whole (no entry), mixed(4,1) CountedOnly(4), a hidden stack Lost; C prefix: 4090 kept, a mixed stack whose 10 switched-off instances would pass the bound keeps its live one and closes the side, a hidden stack that would still fit is Lost",
+    "NEW the_counted_bound_never_costs_a_stack_without_counted_instances_its_record: counted total full; a later live stack and a mixed stack are Lost(effects_over_document_budget); hidden, all-switched-off, master-off and hidden-group stacks are Kept; SEFX ids == kept stacks, byte-exact round trip, node need exact"
+   ],
+   "red_proof": {
+    "tree": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-psd-budget-red/src/handshake-studio-assets: the scratch tree of the R9 remediation, refreshed IN PLACE to git archive 62d8983 (41 differing files copied with current mtimes by sync_tree_r10.py, 0 removed, 841 archive files; V4-11), own STUDIO_OWNER=smb-psd-budget-red (own target and tmp), .gameplan-active pointer next to src/. The four interop-psd src files equal the 62d8983 blobs (md5 compared), tests/common/mod.rs equal; only difference to 62d8983: tests/effects_budget.rs, md5 ab5d1c3ae108c7660e22c21a5f867cd4 = the committed file",
+    "argv": "cargo nextest run -p hsk-studio-interop-psd --test effects_budget --no-fail-fast",
+    "result": "3 of 9 FAIL, 6 pass (red1.log): instances_no_plan_counts_are_bounded_too_... (layer L65 Lost(effects_unrendered_over_document_budget), expected Kept(1)); the_unrendered_bound_never_costs_a_stack_with_counted_instances_its_rendered_effects (L65 Lost(effects_unrendered_over_document_budget), expected Kept(5)); the_counted_bound_never_costs_a_stack_without_counted_instances_its_record (L65 Lost(effects_over_document_budget), expected Kept(64)). The tests of B and C of the first new test are not reached at 62d8983 (the test stops at A); they fail there too by construction (the dropped code and the CountedOnly outcome do not exist)",
+    "green": "same argv at 85532ad in the shared tree (working tree == commit for this crate): 9 passed (green1.log); crate nextest run -p hsk-studio-interop-psd --no-fail-fast: 50 passed (nextest-crate1.log)",
+    "logs": "<scratchpad>/SMB-INTEROP-PSD-BUDGET-R10/red1.log (red), green1.log, nextest-crate1.log, doctest1.log, clippy1.log (green)",
+    "own_bug_caught_in_review_before_the_first_run": "the first draft of admit() reported Fit::CountedOnly for a stack with counted instances and NO switched-off instance once the uncounted side was closed (a spurious Transformed entry); found while checking the test expectations and fixed (shape.uncounted == 0 -> Whole) before the first run; the test case mixed(2, 0) in the bound-full scenario pins it"
+   },
+   "v4_01": "effects.rs and proposal.rs keep deny(clippy::arithmetic_side_effects); the new arithmetic is none beyond checked_add (uncounted_fits, counted total: typed refusal or Overflow on overflow); charge keeps saturating_add; clippy clean for this crate",
+   "v4_02": "aggregate tests: effects_over_the_document_cap_... (counted aggregate), instances_no_plan_counts_are_bounded_too_... (uncounted aggregate at the boundary, need exact), the two new R10 tests (prefix at 4090 + 10 > 4096; counted full). dims_u32_max-style: not applicable, no new decoder and no size-driven allocation",
+   "v4_03": "tests build their fixtures in memory and read no machine-local path",
+   "v4_06": {
+    "class": "a cap (per layer or per document, counted or uncounted) whose crossing refuses or drops a stack of the OTHER category (cross-category closure), or an effect count whose exhaustion fails the whole import under any code, or the dropped item has no typed loss",
+    "regex": "R9 regex (see remediation_R9.v4_06.regex) | \\bFit\\b|CountedOnly|counted_closed|admit\\(|charge\\(|refused\\( over crates/hsk-studio-interop-psd/src/**/*.rs, lines starting with // excluded (cd crates/hsk-studio-interop-psd && grep -rnP '<regex>' src --include=*.rs | grep -vP '^\\S+:\\d+:\\s*//'); the full regex is in <scratchpad>/SMB-INTEROP-PSD-BUDGET-R10/v4_06_regex.txt; counted_closed also matches uncounted_closed",
+    "count": 79,
+    "baseline_check": "the R9 regex recomputed at 62d8983 (git archive extraction) gives 56 = the R9 list; the R10 regex gives 60 at 62d8983 and the figure below at the fix commit",
+    "sites": [
+     {
+      "file_line": "src/descriptor.rs:19",
+      "verdict": "NOT_APPLICABLE: descriptor item cap or counter, unchanged; an over-count is a typed descriptor refusal that leaves the stack unmapped with a typed loss (hostile_descriptor_and_adjustment_sizes_are_typed_refusals)"
+     },
+     {
+      "file_line": "src/descriptor.rs:21",
+      "verdict": "NOT_APPLICABLE: descriptor item cap or counter, unchanged; an over-count is a typed descriptor refusal that leaves the stack unmapped with a typed loss (hostile_descriptor_and_adjustment_sizes_are_typed_refusals)"
+     },
+     {
+      "file_line": "src/descriptor.rs:127",
+      "verdict": "NOT_APPLICABLE: descriptor item cap or counter, unchanged; an over-count is a typed descriptor refusal that leaves the stack unmapped with a typed loss (hostile_descriptor_and_adjustment_sizes_are_typed_refusals)"
+     },
+     {
+      "file_line": "src/descriptor.rs:178",
+      "verdict": "NOT_APPLICABLE: descriptor item cap or counter, unchanged; an over-count is a typed descriptor refusal that leaves the stack unmapped with a typed loss (hostile_descriptor_and_adjustment_sizes_are_typed_refusals)"
+     },
+     {
+      "file_line": "src/descriptor.rs:183",
+      "verdict": "NOT_APPLICABLE: descriptor item cap or counter, unchanged; an over-count is a typed descriptor refusal that leaves the stack unmapped with a typed loss (hostile_descriptor_and_adjustment_sizes_are_typed_refusals)"
+     },
+     {
+      "file_line": "src/descriptor.rs:200",
+      "verdict": "NOT_APPLICABLE: descriptor item cap or counter, unchanged; an over-count is a typed descriptor refusal that leaves the stack unmapped with a typed loss (hostile_descriptor_and_adjustment_sizes_are_typed_refusals)"
+     },
+     {
+      "file_line": "src/descriptor.rs:205",
+      "verdict": "NOT_APPLICABLE: descriptor item cap or counter, unchanged; an over-count is a typed descriptor refusal that leaves the stack unmapped with a typed loss (hostile_descriptor_and_adjustment_sizes_are_typed_refusals)"
+     },
+     {
+      "file_line": "src/descriptor.rs:244",
+      "verdict": "NOT_APPLICABLE: descriptor item cap or counter, unchanged; an over-count is a typed descriptor refusal that leaves the stack unmapped with a typed loss (hostile_descriptor_and_adjustment_sizes_are_typed_refusals)"
+     },
+     {
+      "file_line": "src/effects.rs:25",
+      "verdict": "NOT_APPLICABLE: import of Folio's MAX_EFFECTS"
+     },
+     {
+      "file_line": "src/effects.rs:29",
+      "verdict": "UNCHANGED: pigment's per-layer and per-plan limits re-exported from their owner"
+     },
+     {
+      "file_line": "src/effects.rs:57",
+      "verdict": "UNCHANGED: effects_over_budget (counted instances over 64, or mapped instances over Folio's 1024)"
+     },
+     {
+      "file_line": "src/effects.rs:60",
+      "verdict": "FIXED: effects_over_document_budget now refuses a stack only for the COUNTED total and only when it has counted instances (was: also any later hidden or disabled stack after the close)"
+     },
+     {
+      "file_line": "src/effects.rs:65",
+      "verdict": "FIXED: effects_unrendered_over_document_budget now refuses only a stack WITHOUT counted instances (was: also every later visible stack with live instances: the R10 finding)"
+     },
+     {
+      "file_line": "src/effects.rs:69",
+      "verdict": "FIXED: new code effects_unrendered_dropped_over_document_budget, kind Transformed: the stack IS mapped, its switched-off instances are not"
+     },
+     {
+      "file_line": "src/effects.rs:70",
+      "verdict": "FIXED: same constant (value line)"
+     },
+     {
+      "file_line": "src/effects.rs:75",
+      "verdict": "UNCHANGED: crate bound 4096 on the kept uncounted instances (memory bound max_layers + 8192 unchanged)"
+     },
+     {
+      "file_line": "src/effects.rs:76",
+      "verdict": "UNCHANGED: compile-time guard that pigment's per-layer limit is inside Folio's"
+     },
+     {
+      "file_line": "src/effects.rs:80",
+      "verdict": "UNCHANGED: is_budget_reason lists the three codes a stack can be refused with; the dropped code is a note on a mapped stack, not a refusal"
+     },
+     {
+      "file_line": "src/effects.rs:81",
+      "verdict": "UNCHANGED: same function"
+     },
+     {
+      "file_line": "src/effects.rs:87",
+      "verdict": "UNCHANGED: StackShape, counted/uncounted split by the render plan's rule"
+     },
+     {
+      "file_line": "src/effects.rs:92",
+      "verdict": "UNCHANGED: StackShape::of"
+     },
+     {
+      "file_line": "src/effects.rs:103",
+      "verdict": "FIXED: new Fit (Whole | CountedOnly), what admit lets a stack keep"
+     },
+     {
+      "file_line": "src/effects.rs:107",
+      "verdict": "FIXED: CountedOnly = a stack with counted instances whose switched-off ones do not fit the uncounted bound"
+     },
+     {
+      "file_line": "src/effects.rs:129",
+      "verdict": "FIXED: EffectTally keeps two independent sides, each a prefix of the import order"
+     },
+     {
+      "file_line": "src/effects.rs:132",
+      "verdict": "FIXED: counted_closed (replaces the single shared close)"
+     },
+     {
+      "file_line": "src/effects.rs:133",
+      "verdict": "FIXED: uncounted_closed (replaces the single shared close)"
+     },
+     {
+      "file_line": "src/effects.rs:136",
+      "verdict": "FIXED: impl EffectTally"
+     },
+     {
+      "file_line": "src/effects.rs:138",
+      "verdict": "FIXED: admit returns the Fit; the uncounted bound refuses only stacks without counted instances"
+     },
+     {
+      "file_line": "src/effects.rs:140",
+      "verdict": "UNCHANGED: an empty stack always fits"
+     },
+     {
+      "file_line": "src/effects.rs:142",
+      "verdict": "UNCHANGED: per-layer limit on counted instances, closes neither side"
+     },
+     {
+      "file_line": "src/effects.rs:143",
+      "verdict": "UNCHANGED: typed loss effects_over_budget"
+     },
+     {
+      "file_line": "src/effects.rs:145",
+      "verdict": "FIXED: uncounted_fits: consulted to refuse a stack without counted instances or to drop the switched-off part of one with counted instances, never to refuse the latter"
+     },
+     {
+      "file_line": "src/effects.rs:146",
+      "verdict": "FIXED: same expression (checked_add, typed refusal on overflow)"
+     },
+     {
+      "file_line": "src/effects.rs:149",
+      "verdict": "FIXED: a stack without counted instances is judged by the uncounted bound alone (the counted side is not consulted)"
+     },
+     {
+      "file_line": "src/effects.rs:153",
+      "verdict": "FIXED: a stack with counted instances is judged by the counted bounds alone"
+     },
+     {
+      "file_line": "src/effects.rs:154",
+      "verdict": "FIXED: typed loss effects_over_document_budget (whole stack, nothing charged to either side)"
+     },
+     {
+      "file_line": "src/effects.rs:156",
+      "verdict": "FIXED: Whole when nothing is switched off or it fits, CountedOnly otherwise (a stack with no switched-off instance is never reported as trimmed)"
+     },
+     {
+      "file_line": "src/effects.rs:160",
+      "verdict": "FIXED: charge takes the Fit"
+     },
+     {
+      "file_line": "src/effects.rs:163",
+      "verdict": "FIXED: a trimmed stack closes the uncounted side (prefix of the import order)"
+     },
+     {
+      "file_line": "src/effects.rs:164",
+      "verdict": "FIXED: same statement"
+     },
+     {
+      "file_line": "src/effects.rs:169",
+      "verdict": "FIXED: refused closes only the side of the refusing code"
+     },
+     {
+      "file_line": "src/effects.rs:170",
+      "verdict": "FIXED: counted side"
+     },
+     {
+      "file_line": "src/effects.rs:171",
+      "verdict": "FIXED: counted side"
+     },
+     {
+      "file_line": "src/effects.rs:172",
+      "verdict": "FIXED: uncounted side"
+     },
+     {
+      "file_line": "src/effects.rs:173",
+      "verdict": "FIXED: uncounted side"
+     },
+     {
+      "file_line": "src/effects.rs:496",
+      "verdict": "FIXED: tally parameter of effect_stack (unchanged type, Fit in the result)"
+     },
+     {
+      "file_line": "src/effects.rs:499",
+      "verdict": "FIXED: result carries the Fit"
+     },
+     {
+      "file_line": "src/effects.rs:507",
+      "verdict": "FIXED: tally parameter of map_stack"
+     },
+     {
+      "file_line": "src/effects.rs:510",
+      "verdict": "FIXED: result carries the Fit"
+     },
+     {
+      "file_line": "src/effects.rs:552",
+      "verdict": "UNCHANGED: Folio's per-stack ceiling (1024 mapped) refuses early"
+     },
+     {
+      "file_line": "src/effects.rs:553",
+      "verdict": "UNCHANGED: typed loss effects_over_budget"
+     },
+     {
+      "file_line": "src/effects.rs:564",
+      "verdict": "FIXED: admit result is the Fit, the stack id is minted after it (a refused stack consumes no id)"
+     },
+     {
+      "file_line": "src/effects.rs:565",
+      "verdict": "FIXED: CountedOnly keeps the enabled instances in stack order, drops the switched-off ones (test the_unrendered_bound_never_costs_a_stack_with_counted_instances_its_rendered_effects asserts the kept ordinals)"
+     },
+     {
+      "file_line": "src/lib.rs:80",
+      "verdict": "UNCHANGED: capability strings for the per-layer and per-document typed losses, still true"
+     },
+     {
+      "file_line": "src/lib.rs:81",
+      "verdict": "NOT_APPLICABLE: DESCRIPTOR raster_records sentence unchanged and still true"
+     },
+     {
+      "file_line": "src/lib.rs:82",
+      "verdict": "FIXED: DESCRIPTOR effect_limits states each bound's own category, the prefix cut per side and the dropped code with its kind; tests_effects_budget cited"
+     },
+     {
+      "file_line": "src/proposal.rs:39",
+      "verdict": "NOT_APPLICABLE: import"
+     },
+     {
+      "file_line": "src/proposal.rs:40",
+      "verdict": "NOT_APPLICABLE: import"
+     },
+     {
+      "file_line": "src/proposal.rs:140",
+      "verdict": "FIXED: ProposalConfig.budget documented (docs list hidden, master-off and switched-off instances as the uncounted bound's; each bound cuts only its own category; five tests cited)"
+     },
+     {
+      "file_line": "src/proposal.rs:155",
+      "verdict": "NOT_APPLICABLE: ProposalConfig::new signature unchanged"
+     },
+     {
+      "file_line": "src/proposal.rs:478",
+      "verdict": "UNCHANGED: Builder.effect_tally"
+     },
+     {
+      "file_line": "src/proposal.rs:480",
+      "verdict": "UNCHANGED: Builder.hidden_groups"
+     },
+     {
+      "file_line": "src/proposal.rs:561",
+      "verdict": "UNCHANGED: visible = layer.visible() && no hidden group around it (the plan's rule)"
+     },
+     {
+      "file_line": "src/proposal.rs:563",
+      "verdict": "UNCHANGED: effect_stack gets the visibility and the running tally"
+     },
+     {
+      "file_line": "src/proposal.rs:565",
+      "verdict": "FIXED: charge the kept shape with its Fit (a trimmed stack is charged its counted instances only)"
+     },
+     {
+      "file_line": "src/proposal.rs:567",
+      "verdict": "FIXED: a CountedOnly stack reports a typed Transformed loss"
+     },
+     {
+      "file_line": "src/proposal.rs:569",
+      "verdict": "FIXED: the new code, path naming the layer id"
+     },
+     {
+      "file_line": "src/proposal.rs:575",
+      "verdict": "UNCHANGED: a refusal for a budget code stays a typed Unsupported loss naming the layer"
+     },
+     {
+      "file_line": "src/proposal.rs:576",
+      "verdict": "FIXED: refused() closes only the refusing code's side"
+     },
+     {
+      "file_line": "src/proposal.rs:883",
+      "verdict": "UNCHANGED: entering a hidden group (saturating_add)"
+     },
+     {
+      "file_line": "src/proposal.rs:887",
+      "verdict": "UNCHANGED: leaving a hidden group (saturating_sub)"
+     },
+     {
+      "file_line": "src/proposal.rs:1621",
+      "verdict": "UNCHANGED: tally initialised empty (both sides open)"
+     },
+     {
+      "file_line": "src/proposal.rs:1622",
+      "verdict": "UNCHANGED: no hidden group at the root"
+     },
+     {
+      "file_line": "src/proposal.rs:1771",
+      "verdict": "NOT_APPLICABLE by scope (R9 not_fixed[0]): inspect_bytes of the document with the caller's budget; effects add no document nodes"
+     },
+     {
+      "file_line": "src/proposal.rs:1775",
+      "verdict": "NOT_APPLICABLE by scope (R9 not_fixed[0]): folio_rejected for a rejection of the document itself"
+     },
+     {
+      "file_line": "src/proposal.rs:1791",
+      "verdict": "UNCHANGED: node need = record layers + kept instances (counted + uncounted, uncounted of a trimmed stack not included because not kept), checked_add -> Overflow"
+     },
+     {
+      "file_line": "src/proposal.rs:1792",
+      "verdict": "UNCHANGED: records_budget = max(caller nodes, need), documented; bound max_layers + 8192 still true (kept counted <= 4096, kept uncounted <= 4096)"
+     },
+     {
+      "file_line": "src/proposal.rs:1795",
+      "verdict": "UNCHANGED: the one validate_raster_records call, given the sized budget"
+     },
+     {
+      "file_line": "src/proposal.rs:1796",
+      "verdict": "NOT_APPLICABLE: after the sizing a Folio rejection cannot come from effect counts; every remaining rejection is a mapping defect"
+     }
+    ]
+   },
+   "v4_07": "claims with never/always: ProposalConfig.budget ('typed losses, never an error'; 'the bound on the instances no plan counts never costs a stack its counted instances') cites the five effects_budget tests; collect_records doc ('never fails on an effect count'; 'a stack that has counted instances is never refused for the uncounted bound') cites the cap, unrendered-bound and R10 tests; EffectTally doc ('always' for kept counted <= 4096 and kept uncounted <= 4096; 'never refused for this bound') cites the four tests; the validation-site comment ('The input cannot exhaust it') cites three tests; DESCRIPTOR effect_limits ('never refused for that bound', 'each bound cuts only its own category', 'an_effect_count_never_fails_the_import') cites tests_effects_budget (the test file); the 'no plan can exceed 4096' invariant stays reasoned and labelled not test-proven (remediation_R9.counting_rule.invariant_reasoned_not_test_proven_here). The invariant still holds by the same reading: counted <= 4096 per document; an uncounted-classified layer's live instances are in the uncounted total, which is still <= 4096",
+   "retry_guard": "no gated run was blocked by the retry guard and none failed on a product cause in the shared tree; all gated runs were launched in the dispatch form (leading cd, then source studio-env.sh; the red run exports STUDIO_OWNER=smb-psd-budget-red after the cd). One inline-heredoc python call failed to parse (shell quoting, no cargo involved) and was redone with the Edit tool",
+   "process": "shared worktree HEAD 62d8983 == origin before the commit (fetched); pathspec commit with -F (message file under <scratchpad>/SMB-INTEROP-PSD-BUDGET-R10/), no amend/rebase, no add of untracked files; files touched: src/effects.rs, src/lib.rs, src/proposal.rs, tests/effects_budget.rs; other builders' uncommitted changes in other crates of the shared tree were not touched or committed; scratch files only under <scratchpad>/SMB-INTEROP-PSD-BUDGET-R10/ (arc-62d8983, fmt, logs, sync_tree_r10.py, lane_update_r10.py, v4_06_regex.txt, commit-msg.txt) and the scratch tree smb-psd-budget-red",
+   "not_fixed": [
+    "remediation_R9.not_fixed[0..4] stand unchanged (inspect_bytes folio_rejected for document nodes; two deliberate over-counts in the safe direction; a host that validates raster_records again with its own default Budget; the uncounted bound 4096 is this crate's own number, effects.rs MAX_UNCOUNTED_EFFECTS_PER_DOCUMENT; the 'no plan exceeds 4096' invariant is reasoned, not test-proven here)",
+    "frequency UNVERIFIED (R10 review, D5): whether Photoshop-authored files store switched-off effect instances in lfx2/lmfx often enough to reach the uncounted bound; with R10 the consequence of reaching it is limited to stacks without counted instances and the switched-off part of mixed stacks",
+    "a trimmed stack drops its switched-off instances from the RECORD only; the lfx2 block stays byte-exact in the document (write_psd(read) == input is asserted in scenario A of the first new test and in the second new test; scenarios B and C do not repeat it)"
+   ]
+  }
+ }
+}

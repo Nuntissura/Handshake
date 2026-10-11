@@ -1,0 +1,82 @@
+{
+  "kind": "pre-review",
+  "rule": "V4-13 (two-FAIL lane; a FAIL on SMB-REEL-AV1-ROUTE in R10 exhausts its fix budget) + V4-14/V4-18",
+  "round": "STUDIO-R10 (pre-review, narrow scope: lane SMB-REEL-AV1-ROUTE, crate hsk-studio-reel)",
+  "head": "cc3eaae813ebb5d828916ca6fad3274a37d7d57a",
+  "head_note": "origin/codex/handshake-studio-assets at the first fetch (about 14:26Z) and again at the second fetch (before 14:32Z), unchanged. cc3eaae is a hsk-studio-press commit; the only commit after a024461 that touches hsk-studio-reel is 0474906.",
+  "base_for_diff": "a024461a397745a29ee53af2ef34651012071a98 (the head of validation/R9-prereview-reel.json, SAFE_TO_JUDGE). The R9 candidate 4d80e50 (PASS_V4 for this lane) is crate-identical to a024461: git diff a024461 4d80e50 over hsk-studio-reel, hsk-studio-reel-native, Cargo.toml, Cargo.lock, .config is empty, so a024461..cc3eaae is the whole delta since the last verdict.",
+  "commits_checked": {
+    "touching_hsk-studio-reel": [
+      "0474906 reel (SMB-REEL-ENG-1, rem-reel-eng-1 R9, wip, lane status null) - 9 files: src/error.rs, src/isobmff.rs, src/lib.rs (DESCRIPTOR line only), src/model.rs, src/mxf/provider.rs, src/video.rs, tests/engine_video.rs, tests/mxf_index.rs, tests/video_route.rs; +603/-37"
+    ],
+    "in_range_not_touching_the_crate": [
+      "cc3eaae, 637d280, 5d1991a, 5eda648, 047afea, 60b3f63 (hsk-studio-press)",
+      "4d80e50, e849d4c (hsk-studio-web)"
+    ],
+    "range": "git log a024461..origin/codex/handshake-studio-assets: 9 commits, 1 touches the crate. Also empty over a024461..cc3eaae: crates/hsk-studio-reel-native, crates/hsk-studio-accord, crates/hsk-studio-observe, Cargo.toml, Cargo.lock, .config, rust-toolchain.toml, tools"
+  },
+  "reviewer": "independent read-only pre-reviewer (V4-13), fresh context, wrote none of this code; committed blobs only (git show / git archive of origin/codex/handshake-studio-assets and a024461 into scratchpad); no cargo, no sub-agents; the dirty shared tree was ignored. Lane self-reported test counts (60 default / 65 av1) were NOT re-run.",
+  "severity_rule": "CONFIRMED = file:line read at head cc3eaae by this reviewer and the behaviour follows from the code read; PLAUSIBLE = reasoning, external fact or behaviour not proven at head",
+  "method": "kernel reads (R9-prereview-reel lane SMB-REEL-AV1-ROUTE section, round-R9 lanes SMB-REEL-AV1-ROUTE/SMB-REEL-ENG-1, lane files hsk-studio-reel-eng-1.json notes.remediation_R9pre + hsk-studio-reel.json notes.plr_032_029/remediation_R7/v4_06_*, plausible-register PLR-032/033/057, DISPATCH_TEMPLATES topic v4-rules); git diff a024461..head for the crate (src full hunks, tests numstat plus the full video_route.rs hunk and the removed lines of engine_video.rs); blob-hash equality (git rev-parse rev:path) of registry.rs, matroska.rs, cache.rs, av1/mod.rs, av1/ffi.rs, av1_config.rs, report.rs, identity.rs, time.rs, Cargo.toml and tests av1_decode.rs, v4_alloc_budget.rs, v4_hardening.rs, foundation_contract.rs, review_r2_regressions.rs, tests/common/mod.rs between a024461 and head; DESCRIPTOR JSON parsed at both revisions and compared key by key; line-numbered reads at head of video.rs (choose, Forward, decode_video_track_with), registry.rs (decode_segment, decode_segment_routed, proxy_usable), isobmff.rs (select_track, probe, build_index loop, decode_segment_routed, decode_packets, deliver, require_exact_track_start, deliver_packets), matroska.rs call site, mxf/provider.rs (decode_packets, reordered pre-pass), model.rs (Purpose, decode_segment_routed default, require_exact_start); git grep of reel-native for Purpose/NotExact; both V4-06 regexes of the lane re-run against git-archive trees of a024461 and head.",
+  "status": "COMPLETE",
+  "started_at": "2026-10-11T14:25:40Z",
+  "updated_at": "2026-10-11T14:33:25Z",
+  "completed_at": "2026-10-11T14:33:25Z",
+  "lanes": [
+    {
+      "lane": "SMB-REEL-AV1-ROUTE",
+      "crate": "hsk-studio-reel",
+      "verdicts_so_far": "FAIL_V1 (R5), FAIL_V2 (R7), PASS_V3 (R8 at f6e5a49), PASS_V4 (R9 at 4d80e50, on R9-prereview-reel SAFE_TO_JUDGE at a024461); a FAIL in R10 exhausts the fix budget",
+      "regression_check": {
+        "result": "NO REGRESSION",
+        "answer_a_routing_and_pinning_tests": "No commit after a024461 changes trust routing, its inputs, or the tests that pin PLR-032/PLR-033. registry.rs, matroska.rs, cache.rs, av1/mod.rs, av1/ffi.rs, av1_config.rs, report.rs, identity.rs, time.rs and Cargo.toml are blob-identical at a024461 and cc3eaae. The video.rs diff is exactly two hunks: the import at :378 and the Export pre-check at :448-454. choose(), VideoRoute, SourceTrust, Forward, planes_match_format, within_declared_size and packed_len are untouched. The reel-native crate is not in the range diff.",
+        "PLR-033_untrusted_av1_never_in_process": "INTACT. registry.rs unchanged: decode_segment passes SourceTrust::Untrusted (registry.rs:205); decode_segment_routed builds the original's route from `trust` (:236-239) and the proxy's route from proxy_trust (:265-268); Export + prefer Proxy is StrictOriginalRequired before any proxy work (:242-244). video.rs choose() :221-230 unchanged: the only in-process branch is cfg(av1) + route.trust == Trusted + Av1 (:222-225), and Chosen::InProcess is constructed nowhere else. Cached routes still use VideoRoute::default() (isobmff.rs:1791 decode_segment, :1856 decode_packets; matroska.rs:1497, :1663); reel-native host.rs:1021 still builds VideoRoute::untrusted().with_external(&tracked) (file untouched). DESCRIPTOR video_routing and features parsed at a024461 and head: JSON-equal.",
+        "proxies_keep_own_trust": "INTACT: ProxySource::new = Untrusted and with_trust (registry.rs:38-51) unchanged; the explicit-proxy tests are untouched (see tests_pinning below).",
+        "PLR-032_oversize_picture_refusal": "INTACT. Forward (video.rs:272-281), planes_match_format (:287-299), within_declared_size (:307-310), packed_len (:314-319) and Forward::accept (:321-368: planes/declared-size refusal as DecoderFault::Protocol :331-335, packed_len against max_chunk_bytes :346-350 before the copy :351-354) are unchanged. Declared inputs unchanged: Forward.declared = (video.width, video.height) (video.rs:486); isobmff.rs:1884-1885 width/height from the track (the sample-entry parsing, parse_stsd and the visual children, is not in the range diff); matroska.rs:1538-1539 PixelWidth/PixelHeight (file blob-identical). The Export Incomplete branch (video.rs:518-529) runs after session.finish and reads no trust or size.",
+        "tests_pinning": "PLR-033: tests/video_route.rs:508 trusted_original_never_lends_its_trust_to_a_proxy. PLR-032: tests/video_route.rs:717 decoded_picture_size_is_checked_against_the_container_declared_size, tests/v4_alloc_budget.rs:400 oversize_decoded_picture_is_refused_before_it_is_copied, tests/av1_decode.rs:273 oversize_picture_on_the_trusted_rav1d_path_is_refused. av1_decode.rs, v4_alloc_budget.rs, v4_hardening.rs, foundation_contract.rs, review_r2_regressions.rs and tests/common/mod.rs are blob-identical. video_route.rs changed by +75/-0, one new test appended after line 882 (no helper, Fake, request() or existing assertion edited). The edits to existing tests in 0474906 are in tests/engine_video.rs only (export_is_exact_or_error_for_every_provider: Case gained preview_start, the trimmed-case nearest 0 -> 501 units, retry at nearest; fragmented_zero_duration_edit: refusal asserts changed to per-track) and concern export exactness and elst, not routing or size.",
+        "R5_plane_overflow": "INTACT (planes_match_format video.rs:287-299 unchanged).",
+        "v4_06_recheck": "Both lane regexes re-run (python re over git-archive trees of a024461 and head, src/**/*.rs, code lines only). PLR-032-class regex (notes.v4_06_regex): 86 hits at a024461, 86 at head, same contents; the only text change is the DESCRIPTOR line in lib.rs that was already a hit; no new code-line hit (the new video.rs lines contain none of the keywords). PLR-033-class regex (remediation_R7.v4_06.regex, as written in prose): 51 at a024461, 51 at head, no new code-line hit. The lane's recorded R7 count is 57 at 589f544; my reading of that prose regex may not be byte-equal to the lane's grep, so only the base-vs-head equality is claimed. Line references in the lane's site list are stale by mechanical shifts only (isobmff.rs grew); no new class site."
+      },
+      "answer_b_new_export_precheck": {
+        "result": "CANNOT change routing, CANNOT reach in-process rav1d for an untrusted source, does NOT skip the worker for Preview",
+        "evidence": [
+          "video.rs:433-435: `chosen` is computed by choose(route, video.codec) BEFORE the new block and consumed unchanged by `match chosen` at :455-479 (InProcess arm :456-463, External arm :464-478). The new block (:452-454) is `if req.purpose == Purpose::Export { require_exact_track_start(video.track, req)?; }`; its helper takes only (track, req) (isobmff.rs:1941-1944), receives no route or trust, and its Ok value is discarded, so the only effect it can have is an early Err. Chosen::InProcess has no other constructor.",
+          "Error order before it is unchanged: CodecUnavailable when choose is None (:433), video.unsupported (:436), content.refusal (:439), parse_av1c (:443). An untrusted AV1 source with no usable external decoder is therefore still CodecUnavailable (PLR-033 policy), never NotExact.",
+          "Preview: the guard is `req.purpose == Purpose::Export` (Purpose has only Preview and Export, model.rs:130-134), so a Preview opens its session exactly as before; the new test asserts it (tests/video_route.rs:955 `(opens(), chunks) == (1, 1)` for a Preview of an unaligned start).",
+          "Export at a whole-frame start still opens its session (video_route.rs:958-962, opens == 2 after the preview). deliver_packets repeats the same check (isobmff.rs:1978) through the same helper, so the pre-check and the later check cannot disagree.",
+          "External worker route: reel-native decode_av1 clones req with its purpose into IsobmffProvider/MatroskaProvider::decode_segment_routed under VideoRoute::untrusted().with_external(&tracked) (host.rs:1021-1030); a refused export now never calls tracked.open, so no worker is checked out. reel-native src and tests contain no Purpose::Export or NotExact (git grep), so no test there depends on the old order; tests/av1_worker.rs:94 builds Preview."
+        ]
+      },
+      "answer_c_new_error_paths": {
+        "result": "No effect on AV1 routing or trust",
+        "mxf_corrupt_mxf_temporal_offset": "mxf/provider.rs:200-205 is inside the packet pre-pass of decode_packets. A Decoded request returns CodecUnavailable at :81-85, before the pre-pass is reached, and MxfProvider does not override decode_segment_routed (default impl ignores the route, model.rs:400-409). It is not reachable for a decoded video request and cannot touch AV1.",
+        "isobmff_per_track_elst_zero_duration": "build_index (isobmff.rs:1644-1658) turns Unsupported elst-zero-duration of finish_track into track.unsupported = Some(..) with edits and presented cleared. Every isobmff delivery path reaches a track through select_track (isobmff.rs:1705-1716, called at :1871 for decode_segment_routed, decode_packets and the cached path) and probe (:1756) and seek (:420) also refuse, so a refused track returns Unsupported BEFORE choose(), Forward or any session open; a refused AV1 video track can neither reach rav1d nor the worker. Only build_index sets the field (:1655), so Matroska tracks (TrackIndex::new / track_from_tables set None, :325, :1276) are unaffected.",
+        "behaviour_shift_not_a_trust_issue": "registry.rs proxy_usable (:296-313) uses provider.probe. Before 0474906 a zero-duration edit on ANY track made the proxy's index fail, so a proxy was dropped (ProxyUnusableUsedOriginal) and the original was decoded under the caller's `trust`. Now probe fails only when the DEFAULT track is the refused one, so a proxy whose non-default track is refused stays usable and then decodes under its OWN proxy_trust (registry.rs:265-268). This can only move decoding from the original's route to the proxy's own route, never raises a trust, and PLR-033 holds in both orders. Reading only; no test pins the shift (not searched beyond the files listed in method)."
+      },
+      "new_findings": [],
+      "observations_not_findings": [
+        {
+          "severity": "LOW / PLAUSIBLE (advisory, lane SMB-REEL-ENG-1 / PLR-057 test scope, not SMB-REEL-AV1-ROUTE)",
+          "kind": "precheck_order_not_pinned_for_the_in_process_route",
+          "file_line": "tests/video_route.rs:896-964 (only Fake ExternalVideoDecoder, Registry::standard() = Untrusted); tests/av1_decode.rs has no Purpose::Export; crates/hsk-studio-reel/src/video.rs:452-455",
+          "evidence": "By reading, the pre-check precedes `match chosen`, so it also precedes crate::av1::open_session for a Trusted source under feature av1. No test drives Export through that arm, so a mutation that moved the pre-check into the External arm only would stay green. Trust routing is not involved.",
+          "remediation": "Optional: one --features av1 test, Trusted route, Export at an unaligned start -> NotExact with an empty sink."
+        },
+        {
+          "severity": "LOW / CONFIRMED by reading (advisory, lane SMB-REEL-ENG-1 / PLR-057 claim wording, not SMB-REEL-AV1-ROUTE)",
+          "kind": "precheck_covers_the_start_only_count_overrun_still_opens_a_session",
+          "file_line": "crates/hsk-studio-reel/src/video.rs:452-454 (start only, via TrackIndex::seek) vs :455-479 (session open) vs :501 deliver_packets; crates/hsk-studio-reel/src/isobmff.rs:1980-1992 (count range check -> OutOfRange, after the session is open); lane hsk-studio-reel-eng-1.json capabilities_done R9-4 ('a refused or out-of-range export opens no session (no worker spawn)'); tests/video_route.rs:891-892 comment ('and the request's own range check runs before ExternalVideoDecoder::open')",
+          "evidence": "An export (or preview) whose START is in range and whole but whose COUNT runs past the last presented sample passes the pre-check, opens the decoder session (a worker is spawned), and is then refused OutOfRange in deliver_packets. The new test pins only the start-out-of-range case (video_route.rs:939, start = pts[2] * 100, count 1). The DESCRIPTOR sentence is accurate (it names only the not-whole start); the lane note and the test comment are broader than the code.",
+          "remediation": "Weaken the lane note and test comment to 'a start that is not whole or is out of range', or also check the count range in the pre-check. No effect on AV1 trust routing."
+        }
+      ],
+      "answer_d_wip_after_ready": {
+        "result": "NONE unclaimed",
+        "evidence": "Crate commits after this lane's READY claim bf3c196 (git log bf3c196..cc3eaae -- crates/hsk-studio-reel): 6d232da, 2ddff00, bd5bd60, 0474906. All four are listed in the claim of lane SMB-REEL-ENG-1 (hsk-studio-reel-eng-1.json: status READY_FOR_VALIDATION, phase 'claim = 6d232da + 2ddff00 + bd5bd60 + 0474906', commits[]); kernel commit 9d1bfbd1 (2026-10-11T16:18:24+0200) records it 4 minutes after the 0474906 push (16:14:35+0200). Nothing was pushed to the crate after 0474906 (head cc3eaae is a press commit). V4-14 is satisfied by the cross-lane claim, as in R9. The AV1-ROUTE lane's own record does not list 0474906; the claim is carried by ENG-1."
+      },
+      "wip_after_ready": "NONE: only claimed commits (see answer_d_wip_after_ready)",
+      "recommendation": "SAFE_TO_JUDGE",
+      "recommendation_note": "0474906 adds an Export-only early return after route selection, a per-track Unsupported state that is checked before routing, and an mxf packet-path Corrupt; none reads or alters trust, the proxy route, the external-decoder route, the cached routes, or the declared-size/packing checks, and none of the PLR-032/033 pinning tests is edited. The round must run hsk-studio-reel default and [av1] (.config/round-features.toml:15) so the in-process leg and tests/av1_decode.rs:273 execute. Lane self-reported results (60 default / 65 av1, clippy and fmt clean) were not re-run by this reviewer."
+    }
+  ]
+}

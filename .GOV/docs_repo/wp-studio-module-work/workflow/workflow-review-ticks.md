@@ -1,7 +1,7 @@
 ---
 file_id: WP-STUDIO-MODULE-WORK-WORKFLOW-REVIEW-TICKS
 file_kind: workflow_tick_reviews
-updated_at: 2026-10-11T02:14:00Z
+updated_at: 2026-10-11T10:15:31Z
 ---
 
 <topic id="tick-1" status="active" updated_at="2026-10-11T02:14:00Z" summary="Interval 01:20Z-02:10Z; lock-fix challenge">
@@ -34,5 +34,324 @@ updated_at: 2026-10-11T02:14:00Z
    - stamps only from `date -u`;
    - fixed keys: crate, mt, status, commits, tests{argv,exit,sha}, blockers, lock_wait_s, bg_pids, next, updated_at;
    - everything else goes under `notes`.
+
+</topic>
+
+<topic id="tick-2" status="active" updated_at="2026-10-11T05:45:00Z" summary="R5 failure classes verified; workflow v4 amendments A1-A10">
+
+## Tick 2 — 2026-10-11T05:45Z (R5 at sync 1d404f8; lead classes checked against `validation/R5-review-{a,b,c}.json` and the HEAD source)
+
+**Verification of the lead's classes:**
+- C1 hostile arithmetic/allocation: 6 findings in 5 lanes, not 6 lanes. They are reel `video.rs:269`, reel-native `host.rs:1056` and `wire.rs:514` (matroska.rs only admits the dimensions), develop `dng.rs:449`, lrcat aggregate bytes, and interop-layout clone amplification.
+- C2 silent green: all 5 confirmed (render-gpu, prism C: paths, press `is_proven`, harness `verify`, lrcat `reconciles`). It is also latent elsewhere: `NOT_PROVEN` appears 33 times in 10 test files at HEAD, in interop-fig, score-device, score-plugin, prism and render-gpu.
+- C3 CAP duplicates: in R5 the confirmed ones are the reel-native supervisor and the interop-media timecode, which repeats R3. The interop-fig ZIP reader is D16 text, not an R5 CONFIRMED finding. Confirmed CAP duplicates across reviews: R2 6, R3 2, R5 2, so 10 in total and present in every round.
+- C4 test hooks: 2 confirmed. `test_fault|TestFault` appears in 7 `src/` files at HEAD.
+- C5 hook: confirmed live. This tick's shell heredoc append was blocked by the hook, which resolved WP-KERNEL-012's gameplan from the kernel cwd. I re-did the append with the Edit tool.
+- C6 same-class re-FAIL: 4 lanes, not 2. They are controls (integer step), motion-js (classify), components (`check_shape` with vars=None) and interop-media (timecode, "as in R3").
+- New C7: guarantees claimed in doc comments are false. Examples: dng "a tiny file cannot force a large allocation", reel-native `wire.rs:8-9`, kernel-bindings "refuses everything", components "never return Ok", psd-wide "BPC is the identity", and R2 package "nothing is ever inflated". That is 6 or more findings.
+- New C8: hostile text handled with substring scans. Web misses CSS escapes and `<base href>`; vector finds `<!DOCTYPE` inside a comment.
+- Ops: the rate limit killed R4 after 72 min unfinished (R3 took 34 min; R5 reviews took 29 min).
+
+**v4 amendments.** E0 means round entrypoint step 0, which is checked-in, read-only, about 1 s, owned by the steward, and compliant with CX-VAL-007. Steward adds `--step0` so builders can self-check before READY with the same script. Config extends the existing `.config/round-features.toml`; no new files.
+
+1. **Overflow lint on decoders (C1).**
+   - Rule: every module that decodes file, wire or worker bytes starts with `#![deny(clippy::arithmetic_side_effects)]`, and all size math uses `checked_*`.
+   - Lives in: brief checklist (list the hostile modules), builder template.
+   - Enforcement: the builder's existing clippy run fails; E0 runs `git grep -L` for the attribute over the listed modules and expects nothing; the round adds a clippy unit.
+2. **Bound before allocate (C1).**
+   - Rule: check the per-item bound and the running aggregate against a declared `Limits` before allocating. Each decoder has 2 fixed tests, `dims_u32_max` and `aggregate_over_budget`, both expecting a typed refusal.
+   - Lives in: brief tests section, builder template.
+   - Enforcement: E0 reads the per-test runner's list and requires both names in every crate marked `hostile`.
+3. **No silent green (C2).**
+   - Rule: a test that depends on the environment uses `#[ignore = "requires X"]` or fails; it never returns Ok early. Tests contain no machine-local paths. Verdict functions such as `is_proven`, `reconciles` and `verify` return not-proven when zero checks ran or any input could not be examined, and each has a negative test.
+   - Lives in: builder template, entrypoint.
+   - Enforcement: the entrypoint reports a passing test whose stored output contains `NOT_PROVEN` as NOT_PROVEN, not pass (this aligns with steward-2's current work). E0 greps `tests/` for `C:/|Program Files|System32|/Users/`.
+4. **Fault hooks out of product (C4).**
+   - Rule: fault injection exists only behind `#[cfg(test)]` or the non-default feature `test-faults`; it is never `pub` and never read from the environment in a default build.
+   - Lives in: WORKSPACE_RULES, builder template.
+   - Enforcement: E0 greps `crates/*/src` for fault-hook identifiers without a `cfg(feature = "test-faults")` within the 2 lines above. The probe refuses `test-faults` in any `default` feature list.
+5. **Capability ratchet (C3).**
+   - Rule: each cross-cutting capability has one owner, or is FROZEN(Dn) with no new copy allowed (ZIP read D16, worker supervision D18, timecode belongs to pulse).
+   - Lives in: WORKSPACE_RULES capability table, brief checklist ("capabilities needed from outside the crate -> owner").
+   - Enforcement: E0 fingerprint grep for `0xEDB88320`, `0x04034b50`, `CREATE_NO_WINDOW` and `17_?982`. Any hit outside the allow-listed files in the config is refused and names the lane. The allow-list may only shrink.
+6. **Fix the class, not the instance (C6).**
+   - Rule: a remediation dispatch names the `failure_class` and gives a sibling regex taken from the reviewer. Before READY the builder lists every hit under `notes.siblings` as fixed (with a test) or not applicable (with a reason).
+   - Lives in: lead remediation dispatch, builder template.
+   - Enforcement: the validator re-runs `git grep -c <regex>` and compares the count with the `notes.siblings` entries. A mismatch means the lane is not admitted (CX-VAL-008). A second FAIL still escalates to Opus.
+7. **Guarantees cite a proof (C7).**
+   - Rule: an absolute doc claim (never, always, cannot, refuses, every, guarantee) carries `proof: <test::name>` in the same doc block; otherwise the doc states the actual limit.
+   - Lives in: builder template.
+   - Enforcement: the builder greps its own crate's `src` doc comments for those words where `proof:` is missing. The hit list goes into the reviewer prompt, which makes review targeted and cheap.
+8. **Tokenize hostile text (C8).**
+   - Rule: CSS, XML, SVG and HTML input goes through a tokenizer that handles comments, escapes, CDATA and processing instructions, never `find`/`contains` on raw text. Each such parser has at least 3 tests named `adversarial_*` (escaped token, token inside a comment, decoy).
+   - Lives in: brief checklist.
+   - Enforcement: E0 lists `find("<!`, `find("url(` and `contains("<!DOCTYPE` hits plus the count of `adversarial_*` tests for crates marked `hostile_text`.
+9. **Text payloads go through files (C5).**
+   - Rule: commit messages, JSON and notes are written with the Write/Edit tool and passed by file (`git commit -F <file> -- <paths>`). Gated commands are still typed literally and never wrapped. Shell commands run with a Studio-scoped leading `cd`, never from the kernel cwd.
+   - Lives in: builder template, lead procedure.
+   - Enforcement: count hook blocks in lane notes. The root-cause fix remains D3, Operator-owned.
+10. **Rate-limit resilience (ops).**
+    - Rule: rounds and reviews checkpoint per lane and resume on the same SHA. No reviewer fan-out. At most 8 Opus agents and at most 18 agents running in total, keeping 2 free under the cap of 20 for the validator and diagnostics. When budget is tight, verdict agents are launched before new slices.
+    - Lives in: lead procedure.
+    - Enforcement: the lead counts running members in `team.json` before each dispatch.
+
+**Next tick:** pinged at :11/:26/:41/:56 local when the lead is idle. I will check:
+- whether A1-A10 were adopted;
+- R5 formal verdicts;
+- the re-FAIL rate of the 9 R5 remediation lanes;
+- E0 hit counts;
+- running Opus and total agents against the cap.
+
+</topic>
+
+<topic id="tick-3" status="active" updated_at="2026-10-11T07:40:00Z" summary="Disk lock safety, re-FAIL risk, context hygiene, R6 routing gaps">
+
+## Tick 3 — 2026-10-11T07:40Z (sources: `tools/disk-build-lock.sh`, `builders/studio-env.sh`, live lock root `Handshake_Artifacts/WP-KERNEL-STUDIO/.disk-build-lock/`, `ledger.json`, `team.json`, `R6-review-{a,b,c}.json`, product `git status`/`git log`)
+
+**(1) Disk lock: findings from reading the code and the live lock root**
+- No deadlock cycle found. There is one lock; the cargo build-dir lock is always taken after it; re-entry works through the exported token; children whose environment is cleared don't get the `cargo` function.
+- **Locks were broken minutes after acquisition.** It is not proven that exclusion failed: whether the holders were still alive when broken is UNVERIFIED.
+  - The live root holds 5 `stale.*` dirs (07:02–07:18Z) whose dir name does not match the token inside. They come from the old implementation (`2026...Z-` tokens).
+  - The holder of a lock acquired at 07:18:05Z had it broken in the same minute, by a waiter that had queued at 07:04:56Z and still ran the old exported functions.
+  - A prism-eng6 4-crate check that started at 07:04:42Z was broken within the same minute.
+  - Old and new code run side by side under the same schema `@1`, because waiters keep their functions for up to the 7200 s timeout.
+- **Holder identity is PID + image only.** The live `held` record shows `exe=bash.exe` and `child_exe=bash.exe`. A reused Windows PID now running another bash.exe reads as alive, so the lock sticks until every waiter hits 75. CX-VAL-004 requires PID + start time + command line.
+- **Unknown Windows PID counts as gone.** `dbl_alive` returns gone when `winpid` is `-`, which contradicts the header's "unknown = alive". This fails open.
+- **Release failures are ignored.** `dbl_release` does not check whether `mv -T held released.*` succeeded. Whether Windows refuses a directory rename while waiters have `held/owner` open is UNVERIFIED. If it does, a dead holder plus PID reuse leaves the lock stuck.
+- **No queue, so rounds starve.** Acquisition is a 1 s poll race with no order. A round waiting to start competes with about 18 builders; once it holds the lock, every builder waits 30–60 min.
+- **A hung holder never times out.** Builders hold the lock through `cargo test` (libtest has no per-test timeout); the old records include `cargo test -p hsk-studio-motion-js`. One hung test blocks everyone, and only an Operator-approved process stop can clear it (GLOBAL-INSPECT-014).
+- **Bypass.** The PowerShell tool, `command cargo` and editors skip the shell function, so they take no lock and set no target environment.
+
+**(2) Re-FAIL risk.** Seven lanes are one FAIL verdict away from CX-EXEC-015(1):
+- SMB-WEB: FAIL_V2; Opus rem-web-r6 running.
+- SMB-PRISM-ENG-5: FAIL_V2. The fix 65a08c9 landed at 06:06Z, but the lane is not READY.
+- SMB-PRESS: READY a1c9747.
+- SMB-MOTION-JS: READY ffe5592.
+- SMB-DEVELOP: PASS_V3, but a new jobs slice 78fd379 is READY on the same lane.
+- SMB-CONTROLS and SMB-COMPONENTS: PASS_V3, each with 2 FAILs.
+
+Every R5 and R6 FAIL was a reviewer-CONFIRMED defect (tick-log 05:40Z, 06:49Z). The review is therefore the real oracle, and running it before a verdict is cheaper than spending one.
+
+**(3) Context.** Retirements came at 575k (builder-motion), 646k (builder-develop) and about 830k (press-3), above the START_LOG ">~400k" rule. Token counts are only visible at completion. press-3's lane then failed R6 because WIP was pushed into the candidate (`candidate_wip_untested`); this is a correlation, not proven.
+
+**(4) Routing gaps in the R6 records**
+- **rem-kb-harness has stalled.** Dispatched 05:31Z for the R5 FAIL_V1 lanes kernel-bindings (any actor can release another actor's ticket) and harness (empty verdict passes). It is still "running", has 0 commits since 05:30Z, and leaves 10 uncommitted modified files in the shared tree, with harness mtimes around 05:40Z.
+- **prism-eng-5 will miss R7.** Its fix is in 2074f5e, but the lane stays FAIL_V2 and is not READY.
+- **No decision recorded on V4 for code from before the 05:40Z adoption.** The R6-c reviewer asked the lead to decide whether V4-01/V4-06 apply to it (layout f40d6a2, vector 3561b12, fig decoders); develop `tiff.rs`/`ljpeg.rs` and lrcat `wal_snapshot.rs` lack V4-01 as well.
+- **PLAUSIBLE findings carried 2–4 rounds without a disposition:**
+  - pigment `PlanLimits` (R2/R3/R5/R6);
+  - render-gpu formula copy (R3/R5/R6) and the `Pipeline` -> `Unavailable` mapping;
+  - press cancel/ASCII85/NaN boxes;
+  - components `swap_component`;
+  - score block validation.
+- **Worker found via PATH, 3rd instance.** score-plugin looks up its worker on PATH, the same PLAUSIBLE seen in motion-js and reel-native. It belongs with D18.
+
+**Proposals**
+1. **Lock protocol fence and identity.**
+   - Rule: bump the schema to `@2`. An acquirer that sees another schema in `held` or `stage.*` exits 75 with "protocol mismatch".
+     - Record identity as PID + start time + command, per CX-VAL-004.
+     - Treat an unknown Windows PID as alive.
+     - On release, retry the rename until `held` is gone or carries another token, and log any failure.
+   - Prevents: overlapping builds and stuck locks.
+   - Lives in: `tools/disk-build-lock.sh` (steward; both copies).
+   - Enforcement: add three cases to `disk-build-lock-test.sh`:
+     - T9: 20 reader loops on `held/owner` during 200 acquire/release cycles; expect 0 failed releases and 0 overlapping fake builds, from the start/end log.
+     - T10: an old-schema waiter is refused.
+     - T11: a dead holder whose Windows PID is reused by bash.exe is not held forever.
+2. **Round priority without starving builders.**
+   - Rule: a waiting round writes `R/round-pending` (token plus Windows PID). Builders do not start new acquisitions while it is live. The round holds the lock only during cargo units (not export, probe or reporting), releases between units, and re-asserts `round-pending` so it wins the next gap. At most one builder hold runs per gap.
+   - Prevents: verdict delay and 30–60 min builder idle time.
+   - Lives in: `disk-build-lock.sh`, `run-round.sh`.
+   - Enforcement: T12, where a round waiter acquires within one builder hold.
+3. **Bounded holds.**
+   - Rule: the `cargo` wrapper refuses `cargo test` except `--doc`; tests go through the per-test runner with the repo's `.config/nextest.toml` (CX-EXEC-005).
+     - The holder records `max_hold_s` (builder 900, round 5400).
+     - A waiter that sees a holder past `max_hold_s` writes one `OVER_MAX_HOLD` line to `R/events.log`.
+     - The lead asks once with `PROCESS_STOP_APPROVED:<pid>` plus the recorded start time; nobody force-breaks.
+   - Prevents: one hung test blocking every builder.
+   - Lives in: `studio-env.sh` wrapper, lead procedure.
+   - Enforcement: one `case` arm in the wrapper.
+4. **Detect lock bypass.**
+   - Rule: each tick checks that the `tasklist` count of `cargo.exe` is at most the holder's child plus 0, and that no `handshake-studio-assets/target` exists. On a hit, name the agent and fix its command form; for the PowerShell tool, require the Bash form.
+   - Prevents: silent CX-984-002 violations.
+   - Lives in: lead and workflow ticks.
+   - Enforcement: 2 read-only commands.
+5. **Pre-verdict review for lanes with 2 FAILs.**
+   - Rule: before WEB, PRISM-ENG-5, PRESS, MOTION-JS, DEVELOP, CONTROLS or COMPONENTS enter a round, one read-only review runs on the diff since the lane's last FAIL, using the reviewer prompt and the lane's V4-06 class regex. CONFIRMED > 0 sends the lane back to its builder, and no verdict is spent.
+   - Prevents: a 3rd FAIL that ends in Operator escalation (the D20 pattern).
+   - Lives in: lead round dispatch.
+   - Enforcement: admission requires `notes.pre_review {sha == READY sha, confirmed: 0}`.
+6. **Lane-tip admission.**
+   - Rule: a lane is judged only if `git log <READY sha>..<candidate> -- crates/<crate>` is empty, or its newer tip has been re-READY. A READY lane pushes nothing to its crate until its verdict.
+   - Prevents: a verdict spent on WIP (press R6 `candidate_wip_untested`, 6e95976).
+   - Lives in: round dispatch, or entrypoint step 0 given a READY-sha list.
+   - Enforcement: one git command per lane.
+7. **New scope gets a new lane.**
+   - Rule: once a lane has 1 FAIL, new capability slices get a new lane id or MT (operator-allowed extra MTs). The failed lane carries only remediation of named findings.
+   - Prevents: feature work burning a remediation budget (develop 78fd379 on a 2-FAIL lane).
+   - Lives in: lead dispatch.
+   - Enforcement: at each tick, every READY event on a lane with FAIL ≥ 1 cites a finding id.
+8. **Retire agents mechanically.**
+   - Rule: retire a code agent at the slice boundary after the first of:
+     - 2 READY events;
+     - 90 min since `launched`/`resumed`;
+     - a FAIL verdict on its lane (remediation goes to a fresh agent: finding + lane file + brief);
+     - a reported usage over 350k.
+     The lane file is the only carryover.
+   - Prevents: drift above 600k.
+   - Lives in: lead procedure.
+   - Enforcement: a tick scan of `team.json` timestamps and READY events per agent name in `tick-log.jsonl`.
+9. **Stall and WIP custody.**
+   - Rule: an agent with no commit for 45 min while its crates have uncommitted changes gets replaced. The replacement first compiles and commits the WIP or reports it, and never discards it. Apply this now to rem-kb-harness.
+   - Prevents: stalled FAIL lanes, and stale shared-tree WIP that feeds the stale-artifact class.
+   - Lives in: lead tick.
+   - Enforcement: per crate, the last commit time from `git log -1` and `git status --short -- crates/<crate>`.
+10. **Close PLAUSIBLE findings and the V4 scope.**
+    - Rule: a PLAUSIBLE seen in 2 reviews gets a lead disposition (fix lane, proof test, or waiver with reason) in the lane file, and reviewers skip waived items.
+      - Decide once that V4-01/V4-02 apply to every decoder module at HEAD, enforced by a step-0 check of the attribute over a `decoder_modules` list in `round-features.toml`.
+      - Re-mark prism-eng-5 READY after a pre-review (#5).
+      - Route the score-plugin PATH lookup with D18.
+    - Prevents: review effort re-spent every round, and fixes that never get judged.
+    - Lives in: lead procedure, reviewer prompt.
+    - Enforcement: count of carried PLAUSIBLE without a disposition per round = 0.
+
+</topic>
+
+<topic id="tick-4" status="active" updated_at="2026-10-11T10:15:31Z" summary="Plausible register, usage cut-off resilience, V4 gaps, R7 rerun plan">
+
+## Tick 4 — 2026-10-11T10:15Z (workflow-2; sources: R5/R6 reviews, R7 pre-reviews, `ledger.json`, `team.json`, `builders/lanes/*.json`, `journal/tick-log.jsonl`, product git at efda89a → 8a9ef31, `get_usage` at 10:01Z and 10:09Z)
+
+**(1) Plausible register.** Written to `workflow/plausible-register.json`.
+- 122 raw PLAUSIBLE entries deduplicate to 52 open items: 34 FIX_LANE, 13 LEAD_DECISION, 4 OPERATOR_DECISION, 1 REVIEW. Another 34 items have closed since their review. Every entry was re-read at origin (9b66924 or 1f99350), and its file:line is given there.
+- 10 items have been carried for 3 or more rounds. Three of them have been carried for 4:
+  - PLR-005 pigment `PlanLimits` (R2–R6);
+  - PLR-015 score block admission (R2–R6);
+  - PLR-017 develop LJPEG restart markers (R3–R7).
+- 11 open items are one-line or doc-only fixes.
+- `lead_decisions: []` is left empty for the lead to fill in.
+- There are no R7 review files. R7 wrote no durable output before it was stopped.
+
+**(2) Usage cut-off: facts**
+- **Timing.** The cut-off came at about 08:06Z, not 09:50Z.
+  - Evidence: `round_R7.stopped_at` is 08:06:27Z, and the last pushes before the cut-off were c8fb9c3 at 08:07:44Z and efda89a at 08:08:02Z.
+  - 09:50Z is when the limit reset; the current 5-hour window resets at 14:50Z. The team was idle for 1 h 44 min.
+- **Burn rate.** The previous window (about 04:50Z to 09:50Z) ran out 3 h 16 min in, which is about 31% per hour. A full window lasts only at 20% per hour or less.
+  - The current window was at 6% at 10:01Z and 8% at 10:09Z. That is about 17% per hour after the resume burst.
+  - Weekly usage is 56%, and it resets 2026-10-13T11:00Z.
+- **Lead context.** `get_usage(self)` called from this sub-agent reports 827k of 1M tokens (83%), with auto-compact at 97%.
+  - Sub-agent contexts are far smaller, so this is most likely the lead's window. That is UNVERIFIED.
+  - V4-16 does not cover the lead.
+- **What the cut-off cost.**
+  - No product WIP was lost. Develop (4 files) and interop-psd (2 files) were edited 08:06–08:08Z, stayed in the shared tree, and were committed as 60b0e47 and 29501d7 at 09:54–09:56Z.
+  - R7 produced nothing. Validator and 3 reviewers (Opus) were launched at 08:04:23Z and stopped at 08:06:27Z. There is no `validation/R7-review-*.json`, and `studio-round/ROUND_IDENTITY.json` is still the R6 identity.
+  - In the 2 minutes before the limit, 7 agents were launched (5 Opus) without a budget reading.
+  - Both usage cut-offs landed on a round: R4 at 04:50Z after 72 min, and R7.
+- **Conclusion.** Commit cadence is not the weak point. Launching without pacing is, together with Opus review work that is duplicated.
+
+**(3) V4 rules not followed**
+- **V4-06 is the most broken rule.** The R7 pre-reviews found stale or mismatched site lists in 4 lanes:
+  - develop, 26 vs 24, and prism-eng-6, stale list: both were part of the FIX_FIRST reason (2 of the 5 FIX_FIRST results);
+  - press, 8 listed vs 25 regex hits, and motion-js-worker, 4 vs 8: both PLAUSIBLE.
+  - Two Opus pre-reviewers counted these sites by hand.
+  - The lists live under at least 5 key shapes, so no script can count them:
+    - `notes.remediation_R5.v4_06_sites` (motion-js);
+    - `notes.remediation_R5.v4_06.class_A.sites` (components);
+    - `notes.r5_plausible_remediation.v4_06_sites` (session);
+    - `notes.r6_plausibles.v4_06_site_lists` (prism-eng6);
+    - `notes.remediation_R6.class_sites` (press).
+- **V4-13, V4-14 and V4-15 have state gaps.**
+  - FIX_FIRST is recorded only in the ledger's `r7_prereview` field. The lane files for press (READY a1c9747), prism-eng5 and prism-eng6 still say READY_FOR_VALIDATION. The validator template takes its input from "READY_FOR_VALIDATION in builders/lanes/*.json".
+  - Lane files are one per crate, so a crate cannot hold two lane ids. `hsk-studio-interop-vector.json` shows 'SMB-INTEROP-VECTOR-1' READY c8fb9c3, which is the work of SMB-INTEROP-VECTOR-RECORDS (ledger status null). The ledger itself shows SMB-INTEROP-VECTOR READY 42fba02.
+- **The ledger is stale.**
+  - `updated_at` is 08:06:27Z, and 13 product commits have landed since.
+  - SMB-INTEROP-PSD-RECEIPT, SMB-INTEROP-VECTOR-RECORDS, SMB-BLENDIF-CLIP-ADOPT and SMB-PRISM-ENG-8 have status null although their work is pushed.
+- **V4-07.**
+  - components `design.rs:256` gained a 'never a pick' claim after the V4 adoption, with no test cited (PLR-048).
+  - prism (8a9ef31) and develop (60b0e47) each needed a doc-claim sweep after pre-review.
+  - Doc claims account for 2 of the 5 FIX_FIRST results.
+- **V4-16.**
+  - steward-3 was retired at about 580k (08:02Z, after the 07:30Z adoption), and the workflow agent at about 410k.
+  - The lead has no refresh rule.
+- **WF2-017/018 never landed.** v2 recorded them as adopted (START_LOG workflow-v2-adoption: "resume + lead-restart prompts in DISPATCH_TEMPLATES"). DISPATCH_TEMPLATES has no `resume` or `lead-restart` topic, and the 09:51Z resume used ad-hoc prompts.
+- **Followed:**
+  - V4-01 on decoders touched after the adoption: the only reviewer-flagged gap is prism `lib.rs`. A scan of 184 touched `src` files also found interop-fig `import.rs` and `semantic_decode.rs` without the lint; NOT_INSPECTED whether they parse bytes.
+  - V4-10 counts: 6 Opus and 13 agents running at the cut-off, per the `team.json` timestamps.
+  - V4-13 routing.
+
+**(4) R7 rerun plan.** The next steward sync is on or after 8a9ef31.
+- **What changed.**
+  - 10 crates changed after the R7 candidate 0e48167: composite, develop, interop-psd, interop-vector, kernel-bindings, motion-js, pigment, prism, render-cpu and render-gpu.
+  - 11 crates changed between bd8533f and 0e48167 and have never been reviewed: chronicle, folio, harness, interop-fig, press, reel, reel-native, score-device, score-plugin, session and web.
+- **Before the sync:**
+  - The steward adds `hsk-studio-kernel-bindings = [["test-faults"]]`. It is still absent from `.config/round-features.toml` at HEAD.
+  - The lead refreshes the ledger.
+- **Judge these as crate units:**
+  - a. **Pigment and its consumers.** The Blend-If clip refusal 0d28c03 and its adoption commits b10475d, 2aeeeba and 1f99350 have all landed. Lanes: PIGMENT-ENG-2, EFFECTS-WAVE-1/2, PIGMENT-WINDOW, PIGMENT-BLENDIF-CLIP, BLENDIF-CLIP-ADOPT, COMPOSITE-ADJ, RENDER-CPU-ADJ/WINDOW/FX2 and RENDER-GPU-ADJ.
+    - Record the render-gpu crate result as D20 evidence for SMB-RENDER-GPU, without changing its status.
+  - b. **interop-psd:** PSD, PSD-ADJ and PSD-WIDE, plus PSD-RECEIPT (1a088a9, 29501d7).
+  - c. **interop-vector:** VECTOR 42fba02, FOLIO-MIGRATE and VECTOR-RECORDS c8fb9c3 as one claim.
+  - d. **kernel-bindings:** 111f4ed, once the test-faults matrix is in.
+  - e. **develop:** DEVELOP 60b0e47 and DEVELOP-JOBS 78fd379 together. The reviewer re-checks only the 3 FIX_FIRST items plus PLR-018 and PLR-020.
+  - f. **motion-js:** MOTION-JS, WORKER and SANDBOX-2 at 1d972f1.
+    - N1 was fixed in 961c301. Pre-review B said WORKER is SAFE once judged together with that fix.
+    - The reviewer re-checks only N1 and PLR-036.
+  - g. **Validator only:** controls, components, components-folio-migrate and web. These crates are unchanged since their SAFE_TO_JUDGE pre-review at 0e48167, so the pre-review stands as their review.
+  - h. **One reviewer for the 11-crate delta** (bd8533f..0e48167), without web or press.
+- **Keep out of R7:**
+  - RENDER-GPU and ROUND-ENTRYPOINT (D20).
+  - INTEROP-MEDIA (D9).
+  - PRESS: at 10:14Z it had 9 uncommitted files and nothing pushed since a1c9747.
+  - The whole prism crate. ENG-6 fixes are still landing (8a9ef31), the ENG-5 FIX_FIRST paperwork lane file is unchanged since 05:27Z, and ENG-8 1f6a3d0 is not READY. Judge prism as one unit at the following sync.
+- **Size.** 1 validator plus 2 reviewers (one for a–f, one for h), instead of 1 + 3.
+
+**Proposals**
+1. **Pace launches by measured usage.**
+   - Prevents: cut-offs during a round (R4, R7) and idle outages.
+   - Rule: the lead calls `get_usage` at every tick and before every Opus launch or round. Take the line = 100 × the elapsed fraction of the 5-hour window.
+     - Usage above the line + 10, or at 70% or more: verdict agents only, no new slices.
+     - 80% or more: no round or Opus launch that cannot finish before the reset (R5 took 38 min, R6 46 min).
+     - 90% or more: broadcast "commit what is green and set `next` in the lane file", then launch nothing.
+     - Weekly: at most about 22% per remaining day.
+   - Lives in: lead procedure (new V4-17 in DISPATCH_TEMPLATES).
+   - Enforcement: every tick-log line carries `usage_5h` and `usage_week`. A dispatch with no reading from the last 15 min counts as a violation at the workflow tick.
+2. **A pre-review stands as the review when the tree is unchanged; reviewers read diffs only.**
+   - Prevents: duplicated Opus review. Pre-reviews A and B covered 10 lanes that R7 then sent to 3 more reviewers.
+   - Rule: if `git diff --quiet <last reviewed sha> <candidate> -- crates/<c>` holds, the crate gets no new review. Reviewers get only crates that changed, plus the diff base. A round is 1 validator and at most 2 reviewers.
+   - Lives in: round dispatch (V4-10 amendment).
+   - Enforcement: the dispatch lists `review_base` per crate.
+3. **One V4-06 key and a mechanical count.**
+   - Prevents: FIX_FIRST caused by stale site lists (2 of 5 at R7, plus 2 PLAUSIBLE mismatches) and hand counting by Opus.
+   - Rule: site lists live only under `notes.v4_06: [{finding, regex, sha, sites:[{file_line, status}]}]` in the lane file.
+   - Enforcement: the admission script (proposal 5) runs `git grep -c -E <regex> <sha> -- crates/<c>/src` and compares the count with `len(sites)`. The builder runs it before READY. A mismatch means the lane is not admitted.
+4. **Lane state per lane id, with FIX_FIRST written into it.**
+   - Prevents: FIX_FIRST lanes that still read READY, and per-crate files that cannot represent V4-15 lanes.
+   - Rule: use one file per lane id, or the per-crate `lanes:{<id>:{status, ready_sha}}` shape that `hsk-studio-prism-eng.json` already uses. A pre-review writes `FIX_FIRST` there. The validator template takes its inputs from the dispatch's admission list, never from lane-file status.
+   - Lives in: builder template STATE, validator template.
+   - Enforcement: the admission script refuses a lane whose ledger and lane-file status or SHA disagree.
+5. **Crate-unit admission script** (refines V4-14).
+   - Prevents: a crate judged with an unjudged lane's commits inside it, for example prism ENG-6/ENG-8 commits within ENG-3/ENG-7, or VECTOR-RECORDS within SMB-INTEROP-VECTOR.
+   - Rule: a crate enters a round only when every lane with commits in it since its last verdict is READY and not FIX_FIRST. Those lanes are judged together. No round runs while `ledger.updated_at` is older than the newest commit in an admitted crate.
+   - Lives in: one lead-owned kernel script, `wp-studio-module-work/tools/round-admission.py`, which also runs the checks in proposals 3, 4 and 9. A new script is justified: `steward-sync.sh` belongs to the steward's sync, and `run-round.sh` is product code that may not read `.GOV` (CX-211).
+   - Enforcement: the round dispatch attaches the script's output, and the validator judges only that list.
+6. **Lead refresh and the missing templates.**
+   - Prevents: the lead's context compacting mid-round. The Operator noted that the lead drifts first; it is at about 83%.
+   - Rule: the lead refreshes at 85% or at a round boundary, whichever comes first, once the ledger and `resume_plan` are current. Add the adopted WF2-017 (`resume`) and WF2-018 (`lead-restart`) topics to DISPATCH_TEMPLATES now.
+   - Enforcement: the tick line records the lead's context %.
+7. **Clear the register this tick.**
+   - Prevents: PLAUSIBLE items carried 2–4 rounds, re-reported by every reviewer.
+   - Rule:
+     - The lead fills `lead_decisions` for the 13 LEAD_DECISION items, one line each.
+     - FIX_LANE items go as one batch per crate to that owner's next slice. Examples: PLR-034 and PLR-035 to reel-native, copying the score-plugin 7d5641c and motion-js 961c301 pattern now rather than waiting for D18; PLR-014 and PLR-015 to score; PLR-011 to PLR-013 to nib.
+     - Reviewers receive the register and re-check only the entries for their crates.
+   - Lives in: `workflow/plausible-register.json`, reviewer prompt.
+   - Enforcement: entries with `rounds_carried` of 3 or more and no decision = 0.
+8. **A FIX_FIRST fix is re-checked by Sonnet.**
+   - Prevents: an Opus re-review of the whole lane after paperwork or doc fixes.
+   - Rule: when a lane goes back from FIX_FIRST to READY, a Sonnet reader checks only the named FIX_FIRST items at the new SHA, then the lane enters the next round.
+   - Enforcement: a `notes.prereview_recheck {sha, items, result}` entry is required for admission.
+9. **Doc-claim list before READY** (V4-07 made mechanical).
+   - Prevents: false doc claims (2 of 5 FIX_FIRST, and PLR-048).
+   - Rule: the builder greps its crate's doc comments and DESCRIPTOR for never/always/guarantee/cannot/refuses/every where no test is cited in the same doc block. Each hit goes into `notes.v4_07` as cite or weaken. Prism's `tests/wide_doc_claims.rs`, which pins the DESCRIPTOR claim text, is optional.
+   - Enforcement: the admission script prints the hit count, and the reviewer receives the list.
 
 </topic>

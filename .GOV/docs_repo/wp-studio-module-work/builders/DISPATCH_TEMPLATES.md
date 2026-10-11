@@ -19,6 +19,7 @@ RULES: Only depend on crates allowed for your crate (WORKSPACE_RULES). Do not ed
 CARGO (exact form so the gameplan hook resolves the Studio gameplan):
 `cd "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-assets/handshake-studio-assets" && source "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/docs_repo/wp-studio-module-work/builders/studio-env.sh" && cargo <check|clippy|test> -p hsk-studio-{crate} --tests`
 (Operator rule: never build/test/check on C:; the env file puts target and TMP/TEMP under Handshake_Artifacts on D:.)
+TESTS (since 2026-10-11T07:53:55Z): studio-env.sh wraps cargo in a disk-wide build lock (CX-984-002) and REFUSES plain `cargo test` (no per-test timeout); run tests with `cargo nextest run -p hsk-studio-{crate}` (same --features/--test args; `-- --nocapture` becomes `--no-capture`) and doctests with `cargo test --doc -p hsk-studio-{crate}`. Builds may wait for the lock (validator rounds have priority): run long commands in the background. Scratch/red-proof trees set their own STUDIO_OWNER (tree-binding guard refuses a shared target).
 Over ~2 min: run_in_background and poll. Cargo build-dir lock waits are normal (shared warm target). No outer timeout wrappers. Never bypass the gameplan hook; if it blocks, fix the failing step.
 
 LOOP: implement the brief's minimal slice -> check -> clippy -> focused tests (≤5, no massive suites) -> commit + push as soon as it compiles (message: what capability landed) -> next capability. If `git commit` hits index.lock, wait 5 s and retry. Push: `git push origin codex/handshake-studio-assets`.
@@ -32,7 +33,33 @@ RETRY GUARD (GLOBAL-GAMEPLAN-003/004): when the gameplan hook blocks an identica
 
 DEADLINE: first pushed commit within 30 min; then a pushed commit at least every 30 min.
 
+V4 RULES: mandatory for every builder and remediation agent; read topic `v4-rules` below.
+
 FINAL MESSAGE (≤12 lines): commits, capabilities done, test counts, blockers, suggested next slice.
+
+</topic>
+
+<topic id="v4-rules" status="active" version="1" summary="Workflow v4 amendments adopted 2026-10-11T05:40Z from workflow/workflow-review-ticks.md tick-2 (R5 failure classes)">
+
+## Workflow v4 rules (every code agent)
+
+- [V4-01] Hostile sizes: every module that decodes untrusted bytes (files, wire, worker replies) carries `#![deny(clippy::arithmetic_side_effects)]` in new code and on any module you touch; use checked/saturating/wrapping explicitly with a typed error on overflow.
+- [V4-02] Check size bounds AND the running aggregate before allocating; every decoder has at least a `dims_u32_max`-style test and an `aggregate_over_budget`-style test.
+- [V4-03] No silent green: a test that cannot prove its claim (no hardware, missing corpus) is `#[ignore]` with a reason, or prints a line starting `NOT_PROVEN:` (the round counts it as NOT_PROVEN, never PASS). Tests never read machine-local paths (no `C:/`, drive letters, user profile); external corpora come from the checked-in corpus-root config.
+- [V4-04] Fault-injection hooks exist only under `cfg(test)` or a non-default `test-faults` feature; never in default product builds.
+- [V4-05] Frozen duplicates (D16 ZIP/deflate/CRC, D18 worker supervision, interop-media timecode): never add another copy; the round step 0 refuses new matches of the duplicate fingerprints.
+- [V4-06] Remediation names the failure CLASS and a search regex for it; the agent lists every matching site in the crate with fixed/not-applicable per site in the lane notes. A count mismatch blocks READY_FOR_VALIDATION.
+- [V4-07] A doc/DESCRIPTOR claim using never/always/guarantees/proves must cite the test that proves it, or be weakened.
+- [V4-08] Hostile text formats (CSS, SVG/XML, HTML, PDF strings): tokenize per the spec (decode escapes first), never substring-match raw text; at least 3 adversarial tests (escape, comment/decoy, case/whitespace).
+- [V4-09] Free text goes through files: `git commit -F <file>` and Write/Edit tools, never long inline shell heredocs (the gameplan hook gates words inside quoted text, D3).
+- [V4-10] Lead procedure: reviews resume per lane (incremental files, no reviewer sub-agent fan-out); at most 8 Opus and 18 agents running; verdict agents (validator/reviewers/remediation) launch before new slices.
+- [V4-11] (added 2026-10-11T06:05Z; press builder hit a stale rlib after a temp revert/restore in the shared tree) Never restore source files with preserved timestamps (on Windows `cmd copy`, `Copy-Item`, `robocopy`, `cp -p`, `shutil.copy2` and archive extraction ALL keep old mtimes — measured in diagnostics/stale-artifacts.md); after any temporary revert/restore of files, `touch` every restored file before the next build, so the shared target cannot reuse stale artifacts (GLOBAL-VALIDATION-024). Prefer red-proof runs on a scratch copy outside the shared tree over reverting shared files. A scratch/red-proof copy ALWAYS uses its own `STUDIO_OWNER` (own target dir): cargo hashes workspace members relative to the workspace root, so two trees sharing a target reuse each other's artifacts (diagnostics/stale-artifacts.md).
+- [V4-13] (tick 3, adopted 2026-10-11T07:35Z) Lead procedure: a lane with 2 failed verdicts gets a read-only adversarial PRE-REVIEW of its diff since the last FAIL before it enters a round; FIX_FIRST findings go back to the builder; only SAFE_TO_JUDGE lanes are offered to the validator.
+- [V4-14] (tick 3) A lane is judged only if nothing was pushed to its crate after its READY commit, or the later commits are listed as part of the claim; unfinished work is never pushed under a READY lane (use a new lane id or keep it local until ready).
+- [V4-15] (tick 3) New features start on a NEW lane id; remediation stays on the failing lane. Never stack a feature slice onto a lane that has open FAILs.
+- [V4-16] (tick 3) Lead procedure, context hygiene: retire/refresh a builder at the first of: 2 READY events, 90 min of work, a FAIL on its lane, or ~350k tokens; the lane file is the only handoff. A builder with no pushed commit for 30 min gets a status ping; at 60 min it is stopped and resumed with an explicit commit-what-is-green instruction (never discard its work).
+- [V4-21] (added 2026-10-11T16:25:40Z after a privacy slip) Never put the Operator's email address or any personal data in any outbound request, header (incl. User-Agent), URL, query string or payload. When a service asks for contact information in a User-Agent (e.g. crates.io API), use a generic string naming the project only (e.g. `hsk-studio-research`), or use the local cargo registry / docs pages instead.
+- [V4-12] (added 2026-10-11T06:20Z; an agent ran another lane's `edit1.py` from the shared scratchpad and edited that lane's files) All agents share one session scratchpad: keep every helper script and temp file under `<scratchpad>/<your-lane-id>/` with lane-specific names; never run a script you did not write; never edit files outside your owned paths, even to "undo" something — report it to the lead instead.
 
 </topic>
 

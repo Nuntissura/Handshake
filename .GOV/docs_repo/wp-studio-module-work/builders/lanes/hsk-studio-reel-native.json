@@ -1,106 +1,580 @@
 {
-  "crate": "hsk-studio-reel-native",
-  "lane": "SMB-REEL-NATIVE-AV1-WORKER",
-  "status": "READY_FOR_VALIDATION",
-  "phase": "AV1 decode in an isolated worker process (feature av1): reel-native-av1-worker binary hosting rav1d, WorkerAv1Provider (reel MediaProvider id av1), versioned stdio protocol, per-request and per-segment deadlines, output caps from declared dimensions, typed decoder_crashed with bounded respawn, hostile-mutation replay. Default build unchanged and trivial.",
-  "commits": [
-    {
-      "sha": "e95163a",
-      "subject": "reel-native: AV1 decode in an isolated worker process (reel-native-av1-worker bin, WorkerAv1Provider, versioned stdio protocol, deadlines, output caps, bounded respawn, typed decoder_crashed), tests/av1_worker.rs (3) + wire unit"
-    }
-  ],
-  "capabilities_done": [
-    "Binary reel-native-av1-worker (required-features av1; src/bin + src/worker.rs worker_main): hosts hsk_studio_reel::av1::Av1Decoder on a 32 MiB-stack thread; a stdin reader thread exits the process when the host closes stdin (parent gone mid-decode); a panic hook exits with code 70 so a rav1d abort ends the process at once without Windows Error Reporting",
-    "WorkerAv1Provider (src/host.rs): implements reel MediaProvider with id av1 (descriptor = reel av1::descriptor()); indexes and demuxes ISOBMFF/Matroska through reel's own providers in OutputMode::Packets (frame-accurate start, pre-roll), validates av1C with reel parse_av1c before any spawn, sends OPEN(config,color,bounds) + one PACKET per temporal unit + FINISH, forwards pictures to the caller's sink with the same tag matching, pre-roll drop, format-change refusal and receipt fields as reel's in-process Pump; decode_av1 returns Av1Error::{Reel, Worker(Av1WorkerFault)}, the MediaProvider port maps faults into ReelError",
-    "Wire protocol (src/wire.rs): hand-written u32-length-prefixed frames, kind+version+request-id header, caps checked before allocation, HELLO with protocol version + decoder id/version (host refuses a worker whose version differs: worker_version_mismatch), exact plane-length validation of every FRAME against its declared format, error classes as indices into a fixed static table (no string leaks), no new dependency",
-    "Supervision: per-request batch_deadline (default 30 s) and per-segment segment_deadline (default 300 s) on the real monotonic clock -> worker killed, decoder_deadline; cancel kills the worker (Canceled); reply cap = declared track dimensions x av1C chroma/bit depth (<= Limits::max_chunk_bytes) and decoder pixel limit = declared pixels (rav1d frame_size_limit) -> decoder_output_too_large; end of stream -> decoder_crashed{exit_code} with the process reaped; bounded respawn (max_spawns per spawn_window, default 16 per 10 s -> worker_respawn_limited); max_workers (default 2) alive at once -> worker_pool_busy; only Child handles this provider spawned are killed",
-    "Quiet spawn: CREATE_NO_WINDOW on Windows, env_clear (empty worker environment), stderr null, stdin/stdout piped; Av1WorkerStats (spawned, requests, crashed, killed_*, alive, last_crash_exit_code) makes every process action observable",
-    "Test fault injection in the worker (WorkerTestFault via env HSK_REEL_NATIVE_AV1_WORKER_TEST_FAULT, set only by Av1WorkerOptions): hang_on_packet, exit_on_packet, exit_on_open, oversize_frame, garbage_reply",
-    "Deterministic output: for mp4 and mkv, whole clip, random access with pre-roll and a two-frame span, the worker's chunk stream (pts, duration, index, flags, bytes) AND the whole SegmentReceipt (including bytes_read, decoder id/version, video format) are equal to reel's in-process decode; frame digests equal the libdav1d oracle SHA-256 in reel provenance.json",
-    "Hostile replay: 6 single-byte replacements of the mp4 mdat payload that the in-process decoder aborts on (offset=value 826=0, 949=128, 966=255, 994=0, 1004=128, 1009=255) plus one port-level call each end as decoder_crashed (exit code 70) with the test process alive; a typed MEDIA_CORRUPT mutation (817=0) and a changed-but-decodable mutation (824=0) are answered by the SAME worker (no respawn); after 7 crashes a fresh worker decodes the clean clip bit-exactly; every crashed process reaped (alive == 1 idle)"
-  ],
-  "tests": {
-    "argv": "cargo test -p hsk-studio-reel-native --features av1 --tests -- --nocapture (studio-env.sh cargo form from WORKSPACE_RULES; shared edit tree, not an export)",
-    "exit": 0,
-    "sha": "e95163a",
-    "passed": 4,
-    "failed": 0
+ "crate": "hsk-studio-reel-native",
+ "lane": "SMB-REEL-NATIVE-AV1-WORKER",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "R7 review B remediation (SMB-REEL-NATIVE-AV1-WORKER x2 CONFIRMED: PLR-034 parent-directory worker lookup, PLR-035 uncancellable HELLO wait) on 7886369, the same fixes as motion-js 961c301 and score-plugin 7d5641c in reel-native's existing supervisor copy; D18 untouched (no new supervisor copy)",
+ "commits": [
+  {
+   "sha": "e95163a",
+   "subject": "reel-native: AV1 decode in an isolated worker process (reel-native-av1-worker bin, WorkerAv1Provider, versioned stdio protocol, deadlines, output caps, bounded respawn, typed decoder_crashed), tests/av1_worker.rs (3) + wire unit"
   },
-  "blockers": [],
-  "lock_wait_s": 0,
-  "bg_pids": [],
-  "next": "Independent validator round on e95163a (or later): reel-native needs the av1 feature run (steward-owned .config/round-features.toml has no hsk-studio-reel-native entry: request [[\"av1\"]] via the lead; the default run compiles an empty crate); the worker binary is built by cargo for tests/av1_worker.rs. Then lead/steward: D14 packaging of reel-native-av1-worker next to the host executable, and the reel hook R1/R2 below so Registry::standard() consumers cannot reach the in-process decoder with untrusted AV1.",
-  "updated_at": "2026-10-11T03:50:00Z",
-  "notes": {
-    "lanes": {
-      "SMB-REEL-NATIVE-AV1-WORKER": {
-        "status": "READY_FOR_VALIDATION (isolation scope; trusted AV1 decode quality is reel's)",
-        "commits": ["e95163a"],
-        "task": "Isolated worker process for untrusted AV1 (START_LOG 2026-10-11T03:30:19Z decision): rav1d 1.1.0 aborts the process on 9.7% of single-byte corruptions (reel lane SMB-REEL-ENG-3).",
-        "route_notes": {
-          "retry_guard": "One product (test) failure: the supervision test raced the cancel against the first PACKET (a cancel seen between packets returns Canceled without a kill, so killed_canceled was 0). Route: product failure -> fix committed (Av1WorkerStats.requests added so the test cancels only after OPEN + PACKET are on the wire; HEAD changed to e95163a), then rerun. No gameplan step added, no flags or arguments changed to dodge the hook, no retry-guard block occurred.",
-          "hook_cwd_note": "A shell command run from the kernel root whose text merely contained a gated phrase resolved the kernel's WP-KERNEL-012 gameplan (confirm_binding target missing) and was blocked before running; the lane file was then written with the Write tool instead of a shell heredoc. Cargo runs use the Studio cargo form and resolve the Studio gameplan."
-        },
-        "tests_breakdown": {
-          "lib unit": "wire::tests::wire_roundtrip_and_bounds (round trips of OPEN/PACKET/FINISH/FRAME/ERROR, every colour tag, stale id, wrong version, every truncation of a FRAME, lying plane lengths, hostile length above cap, catch-all for unknown error text)",
-          "tests/av1_worker.rs worker_decode_is_bit_exact_with_in_process_and_the_dav1d_oracle": "mp4+mkv x 3 spans equal to in-process (chunks and full receipt), oracle hashes, one worker served all segments (spawned 1, crashed 0), typed refusals without a spawn (av1-profile), tiny chunk limit -> MEDIA_LIMIT_EXCEEDED, wrong codec id and Packets output refused",
-          "tests/av1_worker.rs hostile_aborting_mutations_end_as_typed_errors_and_the_host_survives": "see capabilities_done; 7 crashes contained in 0.73 s and 1.44 s on two runs (panic-hook exit code 70, no WerFault delay)",
-          "tests/av1_worker.rs supervision_kills_on_deadline_cancel_oversize_garbage_and_bounds_respawn": "hang -> decoder_deadline; oversize reply -> decoder_output_too_large; unknown frame kind -> worker_protocol; exit_on_packet x2 -> decoder_crashed{86}, third -> worker_respawn_limited (spawned 2, denied 1, alive 0); max_workers=1 busy -> worker_pool_busy, cancel mid-request kills (killed_canceled 1, alive 0); pre-cancelled token spawns nothing"
-        },
-        "build": "check and clippy, default and --features av1 --tests: clean for hsk-studio-reel-native (observe has 2 pre-existing warnings, not ours); rustfmt applied to the crate; default-feature build is empty, no dependencies; forbid(unsafe_code) always (no unsafe anywhere in this crate: FFI stays in reel src/av1/ffi.rs)",
-        "deps": "No crates.io dependency, no dep-request line. Path deps hsk-studio-accord and hsk-studio-reel (both allowed for reel-native), optional behind feature av1; reel is enabled with features=[\"av1\"] in the dependency table because tools/workspace-probe.rs rejects 'dep/feature' selectors in the [features] table. Cargo.lock in the shared worktree now lists reel-native -> accord, reel (written by cargo, NOT staged by this lane; steward sync owns the lock).",
-        "findings": [
-          {
-            "id": "panic-hook-exit-avoids-wer",
-            "text": "A rav1d panic runs the Rust panic hook BEFORE the abort. The worker's hook calls process::exit(70), so the host sees end-of-stream and a prompt exit code instead of a process held alive ~5 s by Windows Error Reporting (motion-js finding wer-holds-aborted-worker). Needs no unsafe/SetErrorMode. Aborts that never reach the hook (stack overflow, foreign abort, allocation failure) are NOT converted: they are contained by the host kill at batch_deadline (decoder_deadline, or decoder_crashed with exit_code None)."
-          },
-          {
-            "id": "cargo-feature-unification",
-            "text": "Features are per package, so av1 on reel-native also links reel's in-process rav1d decoder into the host image (never called by this crate). The host still needs reel's av1 module only for descriptor(), DECODER_ID, decoder_version() and parse_av1c()."
-          },
-          {
-            "id": "cancel-between-packets",
-            "text": "Cancel observed between packets returns Canceled without killing the worker (the session goes back to the pool; the next OPEN replaces any open decoder); cancel observed while a request is in flight kills the worker."
-          },
-          {
-            "id": "declared-dimension-policy",
-            "text": "Frames larger than the container's declared track size (x av1C chroma/depth) are refused (decoder pixel limit + reply cap). Stricter than in-process reel, which only bounds by max_chunk_bytes. UNVERIFIED for AV1 streams whose render_size differs from the coded frame size and whose container declares the render size."
-          },
-          {
-            "id": "reel-error-mapping-unverified",
-            "text": "ReelError is closed, so contained faults cross the port as: decoder_crashed/worker_protocol -> Corrupt{what}, worker_version_mismatch -> Unsupported, decoder_deadline/decoder_output_too_large/worker_respawn_limited/worker_pool_busy -> LimitExceeded, worker_spawn_failed -> CodecUnavailable{av1}. UNVERIFIED mapping; the precise code is on Av1Error::code() through decode_av1."
-          },
-          {
-            "id": "partial-delivery-on-error",
-            "text": "Pictures already given to the sink before a fault stay delivered; an Err means the segment is incomplete (same as in-process Truncated semantics)."
-          }
-        ],
-        "reel_api_requests": [
-          {
-            "id": "R1-decoder-injection",
-            "text": "IsobmffProvider/MatroskaProvider::deliver route OutputMode::Decoded for av01/V_AV1 straight to crate::av1::decode_video_track when reel feature av1 is on; there is no hook to route decode to an external provider. Requested: an injectable video-decoder port (open(config,color,limits)/send(unit,tag)/finish/next_frame) on the providers or the Registry, so Registry::standard() consumers get the worker through the isobmff/matroska ids. WorkerAv1Provider currently re-implements reel's Pump matching (~60 lines) over OutputMode::Packets and is reached only through id av1."
-          },
-          {
-            "id": "R2-split-av1-feature",
-            "text": "Split reel feature av1 so the AV1 demux/config types (parse_av1c, Av1Config, descriptor, DECODER_ID) are available without the in-process rav1d decoder, or make the in-process path opt-in per call; today enabling reel-native/av1 forces the in-process decoder into the host image and leaves it reachable via the isobmff/matroska ids for untrusted input."
-          },
-          {
-            "id": "R3-port-fault-variant",
-            "text": "A ReelError variant (or code) for 'isolated decoder fault' (crash/deadline/protocol) would replace the UNVERIFIED mapping above."
-          },
-          {
-            "id": "R4-small-helpers",
-            "text": "pub verify_grant and check_cancel (or a Grant::verify) would remove two small duplicated helpers in host.rs."
-          }
-        ],
-        "not_proven": [
-          "operating-system memory/CPU cap for the worker (Windows Job Object needs unsafe FFI; the crate forbids unsafe): enforced bounds are the declared-dimension decoder limit, the reply cap, the wall-clock kill and the bounded respawn",
-          "crash-reporter behaviour for aborts that do not reach the Rust panic hook, and on other operating systems",
-          "worker executable packaging next to the host or via with_worker_program (START_LOG D14 applies unchanged)",
-          "10/12-bit, 4:2:2/4:4:4 and film-grain streams through the worker (no fixture; same Av1Decoder code path as reel, the wire carries every layout)",
-          "throughput: decode speed through the pipe in the dev profile not measured"
-        ]
-      }
-    }
+  {
+   "sha": "c7be531",
+   "subject": "reel-native: WorkerAv1Provider is reel's ExternalVideoDecoder (Registry::with_video_decoder routes untrusted AV1 to the worker; crash/deadline/protocol -> ReelError::DecoderFault), container demux and pump now reel's route, test helper uses SourceTrust::Trusted, +1 routing test"
+  },
+  {
+   "sha": "f080dd6",
+   "subject": "reel-native: R5 remediation - checked declared-size and wire plane arithmetic, host feature without rav1d, test faults behind test-faults"
+  },
+  {
+   "sha": "7886369",
+   "subject": "reel-native R7 review B (SMB-REEL-NATIVE-AV1-WORKER, PLR-034, PLR-035): worker found only beside the executable, HELLO wait cancel-polled"
   }
+ ],
+ "capabilities_done": [
+  "Binary reel-native-av1-worker (required-features av1; src/bin + src/worker.rs worker_main): hosts hsk_studio_reel::av1::Av1Decoder on a 32 MiB-stack thread; a stdin reader thread exits the process when the host closes stdin (parent gone mid-decode); a panic hook exits with code 70 so a rav1d abort ends the process at once without Windows Error Reporting",
+  "WorkerAv1Provider (src/host.rs): implements reel MediaProvider with id av1 (descriptor = reel av1::descriptor()); indexes and demuxes ISOBMFF/Matroska through reel's own providers in OutputMode::Packets (frame-accurate start, pre-roll), validates av1C with reel parse_av1c before any spawn, sends OPEN(config,color,bounds) + one PACKET per temporal unit + FINISH, forwards pictures to the caller's sink with the same tag matching, pre-roll drop, format-change refusal and receipt fields as reel's in-process Pump; decode_av1 returns Av1Error::{Reel, Worker(Av1WorkerFault)}, the MediaProvider port maps faults into ReelError",
+  "Wire protocol (src/wire.rs): hand-written u32-length-prefixed frames, kind+version+request-id header, caps checked before allocation, HELLO with protocol version + decoder id/version (host refuses a worker whose version differs: worker_version_mismatch), exact plane-length validation of every FRAME against its declared format, error classes as indices into a fixed static table (no string leaks), no new dependency",
+  "Supervision: per-request batch_deadline (default 30 s) and per-segment segment_deadline (default 300 s) on the real monotonic clock -> worker killed, decoder_deadline; cancel kills the worker (Canceled); reply cap = declared track dimensions x av1C chroma/bit depth (<= Limits::max_chunk_bytes) and decoder pixel limit = declared pixels (rav1d frame_size_limit) -> decoder_output_too_large; end of stream -> decoder_crashed{exit_code} with the process reaped; bounded respawn (max_spawns per spawn_window, default 16 per 10 s -> worker_respawn_limited); max_workers (default 2) alive at once -> worker_pool_busy; only Child handles this provider spawned are killed",
+  "Quiet spawn: CREATE_NO_WINDOW on Windows, env_clear (empty worker environment), stderr null, stdin/stdout piped; Av1WorkerStats (spawned, requests, crashed, killed_*, alive, last_crash_exit_code) makes every process action observable",
+  "Test fault injection in the worker (WorkerTestFault via env HSK_REEL_NATIVE_AV1_WORKER_TEST_FAULT, set only by Av1WorkerOptions): hang_on_packet, exit_on_packet, exit_on_open, oversize_frame, garbage_reply",
+  "Deterministic output: for mp4 and mkv, whole clip, random access with pre-roll and a two-frame span, the worker's chunk stream (pts, duration, index, flags, bytes) AND the whole SegmentReceipt (including bytes_read, decoder id/version, video format) are equal to reel's in-process decode; frame digests equal the libdav1d oracle SHA-256 in reel provenance.json",
+  "Hostile replay: 6 single-byte replacements of the mp4 mdat payload that the in-process decoder aborts on (offset=value 826=0, 949=128, 966=255, 994=0, 1004=128, 1009=255) plus one port-level call each end as decoder_crashed (exit code 70) with the test process alive; a typed MEDIA_CORRUPT mutation (817=0) and a changed-but-decodable mutation (824=0) are answered by the SAME worker (no respawn); after 7 crashes a fresh worker decodes the clean clip bit-exactly; every crashed process reaped (alive == 1 idle)",
+  "Reel route integration (follow-up of SMB-REEL-AV1-ROUTE bfef27f): impl ExternalVideoDecoder for WorkerAv1Provider (identity = rav1d + linked version, supports AV1, open() checks a worker out and sends OPEN with the container-declared size/config/colour/limits, WorkerSession implements VideoDecodeSession: PACKET per unit, FINISH, pictures pushed to reel's PictureSink one at a time); registering it with Registry::with_video_decoder makes every untrusted isobmff/matroska decode of AV1 run in the worker; the host-side Plan/Demux/Pump/Forward duplicate of reel's pump was deleted (decode_av1 now demuxes through reel on an untrusted route whose only decoder is this provider, with a fault slot so the typed Av1Error keeps exit codes); fault mapping: decoder_crashed -> ReelError::DecoderFault{Crashed}, decoder_deadline -> {Deadline}, worker_protocol -> {Protocol}; output too large / respawn limited / pool busy stay LimitExceeded, version mismatch Unsupported, spawn failure CodecUnavailable",
+  "R5: av1 = host only (hsk-studio-reel without its av1 feature, no rav1d; decoder id checked and version learned from HELLO, pinned per pool, interned bounded); av1-worker = av1 + hsk-studio-reel/av1 for the worker bin; test-faults = fault injection only; checked declared-size and wire plane arithmetic; deny(clippy::arithmetic_side_effects) on host/wire/worker"
+ ],
+ "tests": {
+  "argv": "studio-env.sh cargo nextest run -p hsk-studio-reel-native --no-fail-fast with --features av1-worker,test-faults (10) and --features av1-worker (4); cargo clippy -p hsk-studio-reel-native --all-targets clean for default, av1, av1-worker, av1-worker+test-faults, av1+test-faults; cargo fmt -p hsk-studio-reel-native --check clean",
+  "exit": 0,
+  "sha": "7886369",
+  "passed": 10,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "Validator round on 7886369 with round-features [av1-worker] and [av1-worker,test-faults] (unchanged). Behaviour change for embedders: Av1WorkerOptions::program = None now finds reel-native-av1-worker only in the directory of the running executable; cargo test and example binaries sit one directory below the worker and pass with_worker_program(env!(\"CARGO_BIN_EXE_reel-native-av1-worker\")) (this crate's tests already did), embedders that relied on the parent-directory lookup pass the path or ship the worker beside the host (D14 packaging stays with the lead). New test-faults variant WorkerTestFault::StallHello (worker sleeps before HELLO). Open and untouched: D18 shared supervisor, D14 packaging. Red-proof scratch tree (movable to the recycle bin when the lead agrees): Handshake_Artifacts/WP-KERNEL-STUDIO/smb-reel-r7-redproof (src, target, tmp).",
+ "updated_at": "2026-10-11T11:19:13Z",
+ "notes": {
+  "lanes": {
+   "SMB-REEL-NATIVE-AV1-WORKER": {
+    "status": "READY_FOR_VALIDATION (isolation scope; trusted AV1 decode quality is reel's)",
+    "commits": [
+     "e95163a"
+    ],
+    "task": "Isolated worker process for untrusted AV1 (START_LOG 2026-10-11T03:30:19Z decision): rav1d 1.1.0 aborts the process on 9.7% of single-byte corruptions (reel lane SMB-REEL-ENG-3).",
+    "route_notes": {
+     "retry_guard": "One product (test) failure: the supervision test raced the cancel against the first PACKET (a cancel seen between packets returns Canceled without a kill, so killed_canceled was 0). Route: product failure -> fix committed (Av1WorkerStats.requests added so the test cancels only after OPEN + PACKET are on the wire; HEAD changed to e95163a), then rerun. No gameplan step added, no flags or arguments changed to dodge the hook, no retry-guard block occurred.",
+     "hook_cwd_note": "A shell command run from the kernel root whose text merely contained a gated phrase resolved the kernel's WP-KERNEL-012 gameplan (confirm_binding target missing) and was blocked before running; the lane file was then written with the Write tool instead of a shell heredoc. Cargo runs use the Studio cargo form and resolve the Studio gameplan."
+    },
+    "tests_breakdown": {
+     "lib unit": "wire::tests::wire_roundtrip_and_bounds (round trips of OPEN/PACKET/FINISH/FRAME/ERROR, every colour tag, stale id, wrong version, every truncation of a FRAME, lying plane lengths, hostile length above cap, catch-all for unknown error text)",
+     "tests/av1_worker.rs worker_decode_is_bit_exact_with_in_process_and_the_dav1d_oracle": "mp4+mkv x 3 spans equal to in-process (chunks and full receipt), oracle hashes, one worker served all segments (spawned 1, crashed 0), typed refusals without a spawn (av1-profile), tiny chunk limit -> MEDIA_LIMIT_EXCEEDED, wrong codec id and Packets output refused",
+     "tests/av1_worker.rs hostile_aborting_mutations_end_as_typed_errors_and_the_host_survives": "see capabilities_done; 7 crashes contained in 0.73 s and 1.44 s on two runs (panic-hook exit code 70, no WerFault delay)",
+     "tests/av1_worker.rs supervision_kills_on_deadline_cancel_oversize_garbage_and_bounds_respawn": "hang -> decoder_deadline; oversize reply -> decoder_output_too_large; unknown frame kind -> worker_protocol; exit_on_packet x2 -> decoder_crashed{86}, third -> worker_respawn_limited (spawned 2, denied 1, alive 0); max_workers=1 busy -> worker_pool_busy, cancel mid-request kills (killed_canceled 1, alive 0); pre-cancelled token spawns nothing"
+    },
+    "build": "check and clippy, default and --features av1 --tests: clean for hsk-studio-reel-native (observe has 2 pre-existing warnings, not ours); rustfmt applied to the crate; default-feature build is empty, no dependencies; forbid(unsafe_code) always (no unsafe anywhere in this crate: FFI stays in reel src/av1/ffi.rs)",
+    "deps": "No crates.io dependency, no dep-request line. Path deps hsk-studio-accord and hsk-studio-reel (both allowed for reel-native), optional behind feature av1; reel is enabled with features=[\"av1\"] in the dependency table because tools/workspace-probe.rs rejects 'dep/feature' selectors in the [features] table. Cargo.lock in the shared worktree now lists reel-native -> accord, reel (written by cargo, NOT staged by this lane; steward sync owns the lock).",
+    "findings": [
+     {
+      "id": "panic-hook-exit-avoids-wer",
+      "text": "A rav1d panic runs the Rust panic hook BEFORE the abort. The worker's hook calls process::exit(70), so the host sees end-of-stream and a prompt exit code instead of a process held alive ~5 s by Windows Error Reporting (motion-js finding wer-holds-aborted-worker). Needs no unsafe/SetErrorMode. Aborts that never reach the hook (stack overflow, foreign abort, allocation failure) are NOT converted: they are contained by the host kill at batch_deadline (decoder_deadline, or decoder_crashed with exit_code None)."
+     },
+     {
+      "id": "cargo-feature-unification",
+      "text": "Features are per package, so av1 on reel-native also links reel's in-process rav1d decoder into the host image (never called by this crate). The host still needs reel's av1 module only for descriptor(), DECODER_ID, decoder_version() and parse_av1c()."
+     },
+     {
+      "id": "cancel-between-packets",
+      "text": "Cancel observed between packets returns Canceled without killing the worker (the session goes back to the pool; the next OPEN replaces any open decoder); cancel observed while a request is in flight kills the worker."
+     },
+     {
+      "id": "declared-dimension-policy",
+      "text": "Frames larger than the container's declared track size (x av1C chroma/depth) are refused (decoder pixel limit + reply cap). Stricter than in-process reel, which only bounds by max_chunk_bytes. UNVERIFIED for AV1 streams whose render_size differs from the coded frame size and whose container declares the render size."
+     },
+     {
+      "id": "reel-error-mapping-unverified",
+      "text": "ReelError is closed, so contained faults cross the port as: decoder_crashed/worker_protocol -> Corrupt{what}, worker_version_mismatch -> Unsupported, decoder_deadline/decoder_output_too_large/worker_respawn_limited/worker_pool_busy -> LimitExceeded, worker_spawn_failed -> CodecUnavailable{av1}. UNVERIFIED mapping; the precise code is on Av1Error::code() through decode_av1."
+     },
+     {
+      "id": "partial-delivery-on-error",
+      "text": "Pictures already given to the sink before a fault stay delivered; an Err means the segment is incomplete (same as in-process Truncated semantics)."
+     }
+    ],
+    "reel_api_requests": [
+     {
+      "id": "R1-decoder-injection",
+      "text": "IsobmffProvider/MatroskaProvider::deliver route OutputMode::Decoded for av01/V_AV1 straight to crate::av1::decode_video_track when reel feature av1 is on; there is no hook to route decode to an external provider. Requested: an injectable video-decoder port (open(config,color,limits)/send(unit,tag)/finish/next_frame) on the providers or the Registry, so Registry::standard() consumers get the worker through the isobmff/matroska ids. WorkerAv1Provider currently re-implements reel's Pump matching (~60 lines) over OutputMode::Packets and is reached only through id av1."
+     },
+     {
+      "id": "R2-split-av1-feature",
+      "text": "Split reel feature av1 so the AV1 demux/config types (parse_av1c, Av1Config, descriptor, DECODER_ID) are available without the in-process rav1d decoder, or make the in-process path opt-in per call; today enabling reel-native/av1 forces the in-process decoder into the host image and leaves it reachable via the isobmff/matroska ids for untrusted input."
+     },
+     {
+      "id": "R3-port-fault-variant",
+      "text": "A ReelError variant (or code) for 'isolated decoder fault' (crash/deadline/protocol) would replace the UNVERIFIED mapping above."
+     },
+     {
+      "id": "R4-small-helpers",
+      "text": "pub verify_grant and check_cancel (or a Grant::verify) would remove two small duplicated helpers in host.rs."
+     }
+    ],
+    "not_proven": [
+     "operating-system memory/CPU cap for the worker (Windows Job Object needs unsafe FFI; the crate forbids unsafe): enforced bounds are the declared-dimension decoder limit, the reply cap, the wall-clock kill and the bounded respawn",
+     "crash-reporter behaviour for aborts that do not reach the Rust panic hook, and on other operating systems",
+     "worker executable packaging next to the host or via with_worker_program (START_LOG D14 applies unchanged)",
+     "10/12-bit, 4:2:2/4:4:4 and film-grain streams through the worker (no fixture; same Av1Decoder code path as reel, the wire carries every layout)",
+     "throughput: decode speed through the pipe in the dev profile not measured"
+    ],
+    "integration": {
+     "commit": "c7be531",
+     "task": "Re-opened for a small fix by the lead after reel's SMB-REEL-AV1-ROUTE (bfef27f): (1) the frozen test helper in_process now passes SourceTrust::Trusted; (2) WorkerAv1Provider implements reel's ExternalVideoDecoder so Registry::with_video_decoder routes untrusted AV1 to the worker, faults mapped to ReelError::DecoderFault; (3) +1 test proving untrusted routing reaches the worker.",
+     "tests_breakdown": {
+      "lib unit": "wire::tests::wire_roundtrip_and_bounds (unchanged)",
+      "worker_decode_is_bit_exact_with_in_process_and_the_dav1d_oracle": "unchanged assertions; in_process helper uses decode_segment_routed(.., SourceTrust::Trusted); chunks and full receipts still equal to the in-process decode, which now flows through reel's route on both sides",
+      "hostile_aborting_mutations_end_as_typed_errors_and_the_host_survives": "unchanged except the port mapping: decode_segment returns ReelError::DecoderFault{Crashed} (code MEDIA_DECODER_FAULT) instead of Corrupt{decoder_crashed}; 7 crashes contained in 1.17 s (exit code 70)",
+      "supervision_kills_on_deadline_cancel_oversize_garbage_and_bounds_respawn": "unchanged and green through the new session path (deadline, oversize, garbage, respawn bound, pool busy, cancel mid-request kill, pre-cancelled token)",
+      "untrusted_decode_through_a_registry_is_routed_to_the_worker_and_survives_aborting_input": "NEW: worker registered ONLY as the registry's video decoder; plain Registry::decode_segment (untrusted) of mp4 and mkv sends OPEN + 3 PACKET + FINISH to the worker, frame digests equal the dav1d oracle and chunks plus whole receipt equal the trusted in-process decode; one worker serves both containers; a byte replacement that aborts the in-process decoder (826=0) through the same plain call returns ReelError::DecoderFault{Crashed} with this test process alive; the pool recovers (second worker, clean decode); a registry WITHOUT the worker answers CodecUnavailable{av01}, never in-process"
+     },
+     "route_notes": {
+      "retry_guard": "No gameplan block and no failing run in this task: the previous known failure (in_process helper vs the untrusted default) was fixed by editing the helper, committed (HEAD changed) before the rerun. No gameplan step added."
+     },
+     "resolved_reel_requests": {
+      "R1-decoder-injection": "done in reel (ExternalVideoDecoder); implemented here",
+      "R2-split-av1-feature": "routing needs no reel feature; this package still enables reel av1 because the worker binary uses Av1Decoder, so the host lib in the same package still links rav1d (never called). Remaining option: move the worker binary and worker.rs into their own package (new crate + root Cargo.toml edit = steward) and make the host depend on reel without av1; DecoderIdentity needs a build-time constant instead of av1::decoder_version() there.",
+      "R3-port-fault-variant": "done in reel (ReelError::DecoderFault); mapped here",
+      "R4-small-helpers": "still duplicated here: check_cancel and verify_grant (private in reel); read_head. Harmless."
+     },
+     "changed_behaviour": [
+      "Av1Error::into_reel (port mapping of decode_segment on id av1): DecoderCrashed/DecoderDeadline/Protocol are ReelError::DecoderFault, no longer Corrupt/LimitExceeded/Corrupt carrying the fault code in what",
+      "decode_av1 now fails the zero-count, codec, output and grant checks before indexing (unchanged order) and everything after that is reel's container provider: error precedence for AV1 requests equals the in-process path",
+      "A FRAME reply to OPEN is now a protocol violation (killed worker, ReelError::DecoderFault{Protocol}); before, pictures arriving before any packet were silently dropped by the pump"
+     ]
+    }
+   }
+  },
+  "verdicts": [
+   {
+    "round": "STUDIO-R5",
+    "lane": "SMB-REEL-NATIVE-AV1-WORKER",
+    "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
+    "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
+    "decision": "failed",
+    "verdict": "FAIL_V1",
+    "failures": [
+     {
+      "failure_kind": "product",
+      "failure_class": "host-declared-dims-overflow",
+      "file_line": "crates/hsk-studio-reel-native/src/host.rs:1056-1080 (open_session :948-950); reel src/matroska.rs:391-392"
+     },
+     {
+      "failure_kind": "product",
+      "failure_class": "wire-frame-dims-overflow",
+      "file_line": "crates/hsk-studio-reel-native/src/wire.rs:514 (contract :8-9)"
+     },
+     {
+      "failure_kind": "product",
+      "failure_class": "test-fault-hooks-in-product-api",
+      "file_line": "crates/hsk-studio-reel-native/src/host.rs:87-88,500-502; src/worker.rs:34-78; src/lib.rs:40"
+     },
+     {
+      "failure_kind": "product",
+      "failure_class": "worker-feature-links-in-process-decoder",
+      "file_line": "crates/hsk-studio-reel-native/Cargo.toml:9,13; src/lib.rs:21-24"
+     },
+     {
+      "failure_kind": "product",
+      "failure_class": "worker-supervisor-cap-duplicate",
+      "file_line": "crates/hsk-studio-reel-native/src/host.rs:300-414 vs crates/hsk-studio-motion-js/src/quickjs_worker.rs:153-254"
+     }
+    ],
+    "remediation": "checked_mul/add in caps + wire (overflow typed); test-faults feature; split worker package; one supervisor owner",
+    "status_after": "FAIL_V1",
+    "review": "validation/R5-review-b.json",
+    "round_ref": "validation/round-R5.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
+    "idempotency_key": "STUDIO-R5:SMB-REEL-NATIVE-AV1-WORKER:1d404f8c4b72:FAIL_V1",
+    "recorded_at": "2026-10-11T05:38:23Z",
+    "by": "wp_validator STUDIO-R5"
+   },
+   {
+    "round": "STUDIO-R7",
+    "lane": "SMB-REEL-NATIVE-AV1-WORKER",
+    "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
+    "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
+    "decision": "failed",
+    "verdict": "FAIL_V2",
+    "failures": [
+     {
+      "failure_kind": "product",
+      "failure_class": "worker-lookup-parent-dir",
+      "file_line": "crates/hsk-studio-reel-native/src/host.rs:458-469"
+     },
+     {
+      "failure_kind": "product",
+      "failure_class": "hello-wait-ignores-cancel",
+      "file_line": "crates/hsk-studio-reel-native/src/host.rs:609"
+     }
+    ],
+    "remediation": "Exe-dir-only worker lookup (as motion-js discover_beside); cancel-polled HELLO wait + stalled-HELLO test",
+    "status_after": "FAIL_V2",
+    "review": "validation/R7-review-b.json",
+    "round_ref": "validation/round-R7.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
+    "idempotency_key": "STUDIO-R7:SMB-REEL-NATIVE-AV1-WORKER:dff7ef51d282:FAIL_V2",
+    "recorded_at": "2026-10-11T11:04:31Z",
+    "by": "wp_validator STUDIO-R7"
+   },
+   {
+    "round": "STUDIO-R8",
+    "lane": "SMB-REEL-NATIVE-AV1-WORKER",
+    "candidate": "f6e5a490e2ad0e142938a8bba1f78cadb96f5e84",
+    "tree": "bf944e29dd336acd38969f0dc25353adb529d61d",
+    "decision": "passed",
+    "verdict": "PASS_V3",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V3",
+    "review": "validation/R8-review-b.json",
+    "round_ref": "validation/round-R8.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R8",
+    "idempotency_key": "STUDIO-R8:SMB-REEL-NATIVE-AV1-WORKER:f6e5a490e2ad:PASS_V3",
+    "recorded_at": "2026-10-11T12:42:21Z",
+    "by": "wp_validator STUDIO-R8"
+   },
+   {
+    "round": "STUDIO-R9",
+    "lane": "SMB-REEL-NATIVE-AV1-WORKER",
+    "candidate": "4d80e50d40432799c08f0f8b8f0047c9a00d056a",
+    "tree": "18b50331f3b2b92c1985cd8b83e00560d88096bf",
+    "decision": "passed",
+    "verdict": "PASS_V4",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V4",
+    "review": "validation/R9-prereview-reel.json + validation/R9-review-b.json",
+    "round_ref": "validation/round-R9.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R9",
+    "idempotency_key": "STUDIO-R9:SMB-REEL-NATIVE-AV1-WORKER:4d80e50d4043:PASS_V4",
+    "recorded_at": "2026-10-11T14:23:56Z",
+    "by": "wp_validator STUDIO-R9"
+   },
+   {
+    "round": "STUDIO-R10",
+    "lane": "SMB-REEL-NATIVE-AV1-WORKER",
+    "candidate": "62d8983b86417340399ed7c785c6b297debabbfd",
+    "tree": "a64a74da642ad52e759e97ccdd6a00be069d47bc",
+    "decision": "passed",
+    "verdict": "PASS_V5",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V5",
+    "review": "NOT_REVIEWED as a lane (R10-review-a cx_val_009_sweep: AV1-WORKER and NATIVE-FAULTS claims stand)",
+    "round_ref": "validation/round-R10.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R10",
+    "idempotency_key": "STUDIO-R10:SMB-REEL-NATIVE-AV1-WORKER:62d8983b8641:PASS_V5",
+    "recorded_at": "2026-10-11T15:37:40Z",
+    "by": "wp_validator STUDIO-R10"
+   },
+   {
+    "round": "STUDIO-R11",
+    "lane": "SMB-REEL-NATIVE-AV1-WORKER",
+    "candidate": "6956d3f1180cbc9b3bcc59a98eacdb2beb114085",
+    "tree": "a56d447fa80c74d8ebe17c55baf5754a06f5833e",
+    "decision": "passed",
+    "verdict": "PASS_V6",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V6",
+    "review": "NOT_REVIEWED as a lane (R11-review-a cx_val_009_sweep: AV1-WORKER and NATIVE-FAULTS claims stand)",
+    "round_ref": "validation/round-R11.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R11",
+    "idempotency_key": "STUDIO-R11:SMB-REEL-NATIVE-AV1-WORKER:6956d3f1180c:PASS_V6",
+    "recorded_at": "2026-10-11T17:31:37Z",
+    "by": "wp_validator STUDIO-R11"
+   }
+  ],
+  "remediation_R5": {
+   "at": "2026-10-11T06:04:35Z",
+   "commit": "f080dd6",
+   "review_ref": "validation/R5-review-b.json SMB-REEL-NATIVE-AV1-WORKER",
+   "method": "Regression tests written first and run RED against the e95163a/c7be531 product code (--features av1): frame_dims_u32_max_is_malformed panicked at wire.rs:514 (overflow), hostile_declared_dims_u32_max_are_refused_before_any_spawn panicked at host.rs:1060 (overflow), worker_ignores_fault_env_without_test_faults failed (worker exited on exit_on_open). First RED attempt was blocked by reel's in-progress working tree (unresolved mkv_content/mkv_pcm imports, another builder's uncommitted edits); reran after reel committed b105e4c.",
+   "tests_breakdown": {
+    "av1-worker,test-faults": "lib wire 2/2 (wire_roundtrip_and_bounds, frame_dims_u32_max_is_malformed), av1_worker 5/5 (incl. new hostile_declared_dims_u32_max_are_refused_before_any_spawn), worker_fault_env compiled empty",
+    "av1-worker": "lib wire 2/2, worker_fault_env 1/1 (av1_worker skipped: required-features)",
+    "av1": "lib wire 2/2 (host build without rav1d)",
+    "default": "0 tests (empty crate)",
+    "clippy": "--all-targets clean for default, av1, av1-worker, av1-worker+test-faults, av1+test-faults (observe: 2 pre-existing warnings)"
+   },
+   "findings": [
+    {
+     "finding": "overflow host.rs:1056-1070 declared_frame_cap, :1080 decoder_budget",
+     "fix": "checked_mul/checked_add; overflow -> ReelError::LimitExceeded{av1-declared-dimensions} before checkout (no spawn); reply_cap saturating_add",
+     "regression_test": "tests/av1_worker.rs hostile_declared_dims_u32_max_are_refused_before_any_spawn (u32::MAX x u32::MAX with av1C 4:2:0 8-bit, 4:4:4 10-bit, no record) -> MEDIA_LIMIT_EXCEEDED, spawned 0"
+    },
+    {
+     "finding": "overflow wire.rs:514 decode_frame",
+     "fix": "checked_mul chain -> WireError::Malformed",
+     "regression_test": "src/wire.rs frame_dims_u32_max_is_malformed (u32::MAX dims at 10/12 bit 4:2:0/4:4:4/mono and 8-bit 4:4:4 -> Malformed; aggregate-over-cap framing -> TooLarge)"
+    },
+    {
+     "finding": "test_hook_in_product host.rs:87-88,500-502; worker.rs:34-78,143-166; lib.rs:40",
+     "fix": "feature test-faults; WorkerTestFault moved to src/test_fault.rs (mod cfg(all(av1, test-faults))); Av1WorkerOptions::test_fault, Pool.fault_env, env set on spawn, worker Faults (env read), encode_oversize_frame/encode_garbage all cfg test-faults; tests/av1_worker.rs required-features av1-worker,test-faults",
+     "regression_test": "tests/worker_fault_env.rs worker_ignores_fault_env_without_test_faults (worker binary spawned hidden with HSK_REEL_NATIVE_AV1_WORKER_TEST_FAULT=exit_on_open; hand-encoded OPEN must be answered, exit 0 on stdin close)"
+    },
+    {
+     "finding": "scope_gap Cargo.toml:9,13 / lib.rs:21-24 (worker feature links in-process rav1d into the host)",
+     "fix": "split inside the package (no new crate): av1 = [dep:hsk-studio-accord, dep:hsk-studio-reel] with reel default-features=false and no features; av1-worker = [av1, hsk-studio-reel/av1]; bin required-features av1-worker; worker module cfg(av1-worker); host uses always-compiled reel av1_descriptor/parse_av1c/Av1Config and learns the decoder version from HELLO (DESCRIPTOR: version 'unknown' until the first HELLO).",
+     "proof": "cargo tree -p hsk-studio-reel-native -e features --features av1: 36 lines, 0 rav1d; --features av1-worker: 166 lines, rav1d v1.1.0 (bitdepth_8, bitdepth_16). Not blocked by feature unification; D18 not needed for this item.",
+     "probe_note": "tools/workspace-probe.rs rejects dep/feature selectors (unsupported_dependency_feature_selector) only when the probe is run with --feature hsk-studio-reel-native/av1-worker; steward-sync probes without features. Recorded in the steward request."
+    },
+    {
+     "finding": "cap_duplicate host.rs:300-414,466-481 vs motion-js (D18)",
+     "fix": "not in this pass (Operator decision D18); no third copy; DESCRIPTOR not_proven lists it"
+    }
+   ],
+   "v4_06_sites": {
+    "class_unchecked_hostile_size_arithmetic": {
+     "regex": "u64::from\\([^)]*\\) \\*|\\* u64::from| \\* (w|h|cw|ch|bytes_per_sample)\\b|\\+= |Instant::now\\(\\) \\+|\\+ wire::|\\+ (filler|payload|planes_len)|[0-9] \\+ |\\- 64\\)",
+     "sites_at_1d404f8": [
+      "host.rs:338 Instant::now()+patience: fixed (deadline_after)",
+      "host.rs:626 Instant::now()+batch_deadline: fixed (deadline_after)",
+      "host.rs:649 frames += 1: fixed (saturating_add)",
+      "host.rs:958 Instant::now()+segment_deadline: fixed (deadline_after)",
+      "host.rs:959 frame_cap + REPLY_SLACK: fixed (saturating_add)",
+      "host.rs:963 MAX_REQUEST_FRAME - 64: fixed (const MAX_PACKET_BYTES)",
+      "host.rs:1039 filled += n: fixed (saturating_add)",
+      "host.rs:1059-1062,1068 declared_frame_cap: fixed (checked, LimitExceeded)",
+      "host.rs:1080 decoder_budget: fixed (checked, LimitExceeded)",
+      "wire.rs:91 4 + payload.len(): fixed (saturating_add)",
+      "wire.rs:367 96 + planes_len (+ sum): fixed (saturating fold/add)",
+      "wire.rs:414 len + filler: fixed (saturating_add; test-faults only)",
+      "wire.rs:514 w*h*bytes_per_sample: fixed (checked, Malformed)",
+      "worker.rs:106 count += 1: fixed (saturating_add)",
+      "wire.rs:4 doc text: not-applicable"
+     ],
+     "sites_at_f080dd6": "1 match (wire.rs:4 doc comment); clippy::arithmetic_side_effects denied on host.rs, wire.rs, worker.rs with 0 findings in every feature set"
+    },
+    "class_test_hook_in_product": {
+     "regex": "test_fault|TEST_FAULT|WorkerTestFault|env::var|fault_env",
+     "sites_at_f080dd6": "host.rs 43,111,125,509,581-582,926 (each cfg(feature = \"test-faults\")); lib.rs 29,41 (cfg(all(av1, test-faults))); test_fault.rs (module gated); worker.rs 23,44,52,58,66-80 (Faults, cfg test-faults); lib.rs 45 DESCRIPTOR text only"
+    }
+   },
+   "governance": "steward request appended to builders/dep-requests.jsonl: round-features hsk-studio-reel-native = [[av1-worker],[av1-worker,test-faults]] (replaces [[av1]])",
+   "retry_guard": "No gameplan block. The first RED attempt failed to compile (reel working tree, infrastructure) and was not a rerun of a recorded failure; GREEN runs after commit f080dd6 (new HEAD). No gameplan step added."
+  },
+  "v4_06_class": "worker lookup outside the running executable's directory, and a blocking wait on a worker that has no cancel poll",
+  "v4_06_regex": "(code lines only) \\b(recv_timeout|recv|try_wait|wait|sleep|join|read_frame|current_exe|parent|is_file|var|discover_program|discover_beside)\\b|Command::new over crates/hsk-studio-reel-native/src/**/*.rs",
+  "v4_06_scope": "crates/hsk-studio-reel-native/src at 7886369 (src/host.rs test module included, tests/ not scanned)",
+  "v4_06_count": {
+   "hits": 45,
+   "listed": 45
+  },
+  "v4_06_sites": [
+   {
+    "file_line": "src/host.rs:304",
+    "verdict": "NOT_APPLICABLE: pure Instant arithmetic, no lookup or wait"
+   },
+   {
+    "file_line": "src/host.rs:306",
+    "verdict": "NOT_APPLICABLE: pure Instant arithmetic, no lookup or wait"
+   },
+   {
+    "file_line": "src/host.rs:369",
+    "verdict": "NOT_APPLICABLE: non-blocking liveness poll"
+   },
+   {
+    "file_line": "src/host.rs:373",
+    "verdict": "OK: the single cancel-polled wait (WAIT_SLICE slices: cancel, then wall deadline), used for the HELLO wait (FIXED 7886369) and every reply wait"
+   },
+   {
+    "file_line": "src/host.rs:375",
+    "verdict": "OK: the single cancel-polled wait (WAIT_SLICE slices: cancel, then wall deadline), used for the HELLO wait (FIXED 7886369) and every reply wait"
+   },
+   {
+    "file_line": "src/host.rs:397",
+    "verdict": "NOT_APPLICABLE: post-failure cleanup bounded by `patience` (0 or EXIT_PATIENCE 500 ms), not a wait on the worker's progress"
+   },
+   {
+    "file_line": "src/host.rs:399",
+    "verdict": "NOT_APPLICABLE: post-failure cleanup bounded by `patience` (0 or EXIT_PATIENCE 500 ms), not a wait on the worker's progress"
+   },
+   {
+    "file_line": "src/host.rs:404",
+    "verdict": "NOT_APPLICABLE: reaps a child that was just killed; bounded by the kill"
+   },
+   {
+    "file_line": "src/host.rs:421",
+    "verdict": "NOT_APPLICABLE: blocking read on the worker I/O thread; the calling thread waits through Session::wait and killing the child ends the read"
+   },
+   {
+    "file_line": "src/host.rs:426",
+    "verdict": "NOT_APPLICABLE: job channel on the worker I/O thread; ends when the Session (its sender) is dropped"
+   },
+   {
+    "file_line": "src/host.rs:432",
+    "verdict": "NOT_APPLICABLE: blocking read on the worker I/O thread; the calling thread waits through Session::wait and killing the child ends the read"
+   },
+   {
+    "file_line": "src/host.rs:464",
+    "verdict": "FIXED 7886369: discover_beside looks in the executable's directory only (was: that directory, then its parent; PLR-034)"
+   },
+   {
+    "file_line": "src/host.rs:466",
+    "verdict": "FIXED 7886369: discover_beside looks in the executable's directory only (was: that directory, then its parent; PLR-034)"
+   },
+   {
+    "file_line": "src/host.rs:469",
+    "verdict": "FIXED 7886369: discover_program delegates to discover_beside"
+   },
+   {
+    "file_line": "src/host.rs:470",
+    "verdict": "FIXED 7886369: discover_program delegates to discover_beside"
+   },
+   {
+    "file_line": "src/host.rs:579",
+    "verdict": "NOT_APPLICABLE: runs the path chosen at construction (explicit Av1WorkerOptions::program or the executable-directory file); this crate performs no search"
+   },
+   {
+    "file_line": "src/host.rs:598",
+    "verdict": "NOT_APPLICABLE: reaps a child that was just killed in the spawn-failure path; bounded by the kill"
+   },
+   {
+    "file_line": "src/host.rs:615",
+    "verdict": "FIXED 7886369: HELLO wait goes through Session::wait (cancel polled every WAIT_SLICE, spawn_timeout as the bound); was recv_timeout(spawn_timeout) with no cancel (PLR-035)"
+   },
+   {
+    "file_line": "src/host.rs:717",
+    "verdict": "OK: exchange waits through Session::wait, which polls cancel and the wall deadline"
+   },
+   {
+    "file_line": "src/host.rs:921",
+    "verdict": "OK: reached only when no explicit program is configured; the fixed lookup"
+   },
+   {
+    "file_line": "src/host.rs:922",
+    "verdict": "OK: the configured or discovered program must be an existing file before construction succeeds"
+   },
+   {
+    "file_line": "src/host.rs:1241",
+    "verdict": "NOT_APPLICABLE: test code (host unit test worker_is_found_only_beside_the_running_executable) in a scratch directory"
+   },
+   {
+    "file_line": "src/host.rs:1243",
+    "verdict": "NOT_APPLICABLE: test code (host unit test worker_is_found_only_beside_the_running_executable) in a scratch directory"
+   },
+   {
+    "file_line": "src/host.rs:1246",
+    "verdict": "NOT_APPLICABLE: test code (host unit test worker_is_found_only_beside_the_running_executable) in a scratch directory"
+   },
+   {
+    "file_line": "src/host.rs:1248",
+    "verdict": "NOT_APPLICABLE: test code (host unit test worker_is_found_only_beside_the_running_executable) in a scratch directory"
+   },
+   {
+    "file_line": "src/host.rs:1250",
+    "verdict": "NOT_APPLICABLE: test code (host unit test worker_is_found_only_beside_the_running_executable) in a scratch directory"
+   },
+   {
+    "file_line": "src/host.rs:1252",
+    "verdict": "NOT_APPLICABLE: test code (host unit test worker_is_found_only_beside_the_running_executable) in a scratch directory"
+   },
+   {
+    "file_line": "src/host.rs:1254",
+    "verdict": "NOT_APPLICABLE: test code (host unit test worker_is_found_only_beside_the_running_executable) in a scratch directory"
+   },
+   {
+    "file_line": "src/host.rs:1256",
+    "verdict": "NOT_APPLICABLE: test code (host unit test worker_is_found_only_beside_the_running_executable) in a scratch directory"
+   },
+   {
+    "file_line": "src/host.rs:1260",
+    "verdict": "NOT_APPLICABLE: test code (host unit test worker_is_found_only_beside_the_running_executable) in a scratch directory"
+   },
+   {
+    "file_line": "src/host.rs:1261",
+    "verdict": "NOT_APPLICABLE: test code (host unit test worker_is_found_only_beside_the_running_executable) in a scratch directory"
+   },
+   {
+    "file_line": "src/host.rs:1262",
+    "verdict": "NOT_APPLICABLE: test code (host unit test worker_is_found_only_beside_the_running_executable) in a scratch directory"
+   },
+   {
+    "file_line": "src/host.rs:1263",
+    "verdict": "NOT_APPLICABLE: test code (host unit test worker_is_found_only_beside_the_running_executable) in a scratch directory"
+   },
+   {
+    "file_line": "src/lib.rs:45",
+    "verdict": "NOT_APPLICABLE: DESCRIPTOR text; its bounds name the lookup rule and the cancel-polled HELLO wait with their tests"
+   },
+   {
+    "file_line": "src/test_fault.rs:43",
+    "verdict": "NOT_APPLICABLE: fault-injection environment read in the worker, compiled only with test-faults (V4-04; tests/worker_fault_env.rs)"
+   },
+   {
+    "file_line": "src/wire.rs:71",
+    "verdict": "NOT_APPLICABLE: blocking frame read, only ever called on the worker I/O thread (host) or the worker stdin thread; the host's calling thread never blocks on it"
+   },
+   {
+    "file_line": "src/wire.rs:672",
+    "verdict": "NOT_APPLICABLE: unit test on in-memory slices"
+   },
+   {
+    "file_line": "src/wire.rs:679",
+    "verdict": "NOT_APPLICABLE: unit test on in-memory slices"
+   },
+   {
+    "file_line": "src/wire.rs:685",
+    "verdict": "NOT_APPLICABLE: unit test on in-memory slices"
+   },
+   {
+    "file_line": "src/wire.rs:731",
+    "verdict": "NOT_APPLICABLE: unit test on in-memory slices"
+   },
+   {
+    "file_line": "src/worker.rs:66",
+    "verdict": "NOT_APPLICABLE: injected fault sleeps inside the worker process (test-faults only); the host kills or times out the worker"
+   },
+   {
+    "file_line": "src/worker.rs:79",
+    "verdict": "NOT_APPLICABLE: injected fault sleeps inside the worker process (test-faults only); the host kills or times out the worker"
+   },
+   {
+    "file_line": "src/worker.rs:140",
+    "verdict": "NOT_APPLICABLE: worker-process side; ends when the host closes stdin or kills the process"
+   },
+   {
+    "file_line": "src/worker.rs:222",
+    "verdict": "NOT_APPLICABLE: worker-process side; ends when the host closes stdin or kills the process"
+   },
+   {
+    "file_line": "src/worker.rs:242",
+    "verdict": "NOT_APPLICABLE: worker-process side; ends when the host closes stdin or kills the process"
+   }
+  ],
+  "remediation_R7": {
+   "source": "validation/R7-review-b.json lane SMB-REEL-NATIVE-AV1-WORKER (reviewed commit dff7ef5) + workflow/plausible-register.json PLR-034, PLR-035",
+   "commits": [
+    "7886369"
+   ],
+   "findings": [
+    {
+     "finding": "SMB-REEL-NATIVE-AV1-WORKER CONFIRMED security_worker_lookup_parent_dir (host.rs:458-469 at dff7ef5; PLR-034)",
+     "class": "worker lookup outside the running executable's directory",
+     "diagnosis": "discover_program accepted reel-native-av1-worker[.exe] from the executable's directory and then from its PARENT; a binary planted there ran as the decoder worker (HELLO checks only self-reported decoder id, version and protocol).",
+     "fix": "discover_beside(exe) = exe.parent().join(name) filtered by is_file(), nothing else (same shape as motion-js discover_beside); discover_program delegates to it; Av1WorkerOptions::program still overrides; docs updated.",
+     "regression_test": "host.rs unit worker_is_found_only_beside_the_running_executable (decoy in the parent not used, directory named like the worker not a program, beside-the-exe file found, no parent -> None) + tests/av1_worker.rs default_discovery_does_not_look_in_the_parent_of_the_executable_directory (real cargo layout: the worker binary sits in the parent of the test executable's directory; default discovery is WorkerProgramMissing, the explicit path works)",
+     "red_proof": "scratch copy with the parent lookup restored: host unit FAIL host.rs:1253 `the parent directory must not be searched` (found the decoy in the parent); default_discovery FAIL av1_worker.rs:570 left None right Some(WorkerProgramMissing) (the real layout was exercised, not the NOT_PROVEN branch)"
+    },
+    {
+     "finding": "SMB-REEL-NATIVE-AV1-WORKER CONFIRMED uncancellable_wait (host.rs:609 at dff7ef5; PLR-035)",
+     "class": "blocking wait on a worker that has no cancel poll",
+     "diagnosis": "Pool::spawn waited for HELLO with session.frames.recv_timeout(spawn_timeout), ignoring the caller's cancel token, while request waits polled in WAIT_SLICE.",
+     "fix": "Pool::spawn(cancel) and checkout(cancel) (open_session passes its token); the HELLO wait uses Session::wait (cancel polled every WAIT_SLICE, spawn_timeout as the wall bound). A cancel runs fail(Failure::Canceled): killed_canceled counted, worker killed and reaped, Av1Error::Reel(Canceled); a stall without cancel is worker_spawn_failed as before. spawn/checkout now return Av1Error (Canceled is not a worker fault). test-faults: WorkerTestFault::StallHello (worker sleeps HANG_LIMIT before HELLO).",
+     "regression_test": "tests/av1_worker.rs canceled_call_does_not_wait_for_a_stalled_hello (cancel after 300 ms against a 30 s spawn_timeout: Canceled in < 5 s, sink empty, spawned 1, killed_canceled 1, spawn_failed 0, crashed 0, alive 0; without cancel a 400 ms spawn_timeout gives Worker(SpawnFailed) in < 10 s, spawned 1, spawn_failed 1, alive 0)",
+     "red_proof": "scratch copy with recv_timeout(spawn_timeout) restored: FAIL av1_worker.rs:510 left Worker(SpawnFailed) right Reel(Canceled) after 30.1 s (the call waited out the whole spawn_timeout)"
+    }
+   ],
+   "tests_breakdown": {
+    "av1-worker,test-faults": "10/10: lib 3 (wire_roundtrip_and_bounds, frame_dims_u32_max_is_malformed, host worker_is_found_only_beside_the_running_executable), av1_worker 7 (5 existing + default_discovery_does_not_look_in_the_parent_of_the_executable_directory + canceled_call_does_not_wait_for_a_stalled_hello)",
+    "av1-worker": "4/4: lib 3, worker_fault_env 1 (av1_worker is required-features test-faults)",
+    "clippy": "--all-targets clean for default, av1, av1-worker, av1-worker+test-faults, av1+test-faults (observe: 2 pre-existing too_many_arguments warnings, not ours)",
+    "fmt": "cargo fmt -p hsk-studio-reel-native --check clean (also reformatted one pre-existing wrapped line in host.rs open_session)"
+   },
+   "red_proof_tree": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-reel-r7-redproof/src (git archive of the committed workspace + the two crates overlaid + the three reverts), STUDIO_OWNER=smb-reel-r7-redproof, its own target and tmp; the shared edit tree was never reverted (V4-11).",
+   "route": "No gameplan step added and no retry-guard block occurred.",
+   "v4_06": "see notes.v4_06_* (class, regex, count, per-site verdicts)",
+   "at": "2026-10-11T11:19:13Z"
+  }
+ }
 }

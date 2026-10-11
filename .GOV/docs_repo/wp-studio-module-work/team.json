@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T03:24:59Z",
+ "updated_at": "2026-10-11T19:31:43Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -129,7 +129,7 @@
     "workflow/*"
    ],
    "launched": "2026-10-11T00:48Z",
-   "status": "idle (tick 1 reviewed; v3 adopted)",
+   "status": "retired 2026-10-11T09:51:51Z (context ~410k, V4-16); replaced by workflow-2",
    "resumed": "2026-10-11T01:02Z",
    "output": "workflow/workflow-review-001.md, workflow/workflow.json"
   },
@@ -573,7 +573,7 @@
    "model": "opus",
    "role": "workspace steward (entrypoint feature matrix/doctests; syncs on lead request)",
    "launched": "2026-10-11T03:13:35Z",
-   "status": "running"
+   "status": "retired 2026-10-11T06:08:06Z (context full; replaced by steward-3)"
   },
   {
    "name": "builder-components-migrate",
@@ -605,6 +605,1490 @@
    "model": "opus",
    "role": "prism defects diagnose+fix + matrix fusion",
    "launched": "2026-10-11T04:04:25Z",
+   "status": "done 2026-10-11T05:47:08Z (SMB-PRISM-ENG-5 READY at bac4790)"
+  },
+  {
+   "name": "builder-interop-fig",
+   "agent_id": "a077fdccf97327c43",
+   "model": "sonnet",
+   "role": "SMB-INTEROP-FIG slice 1 container/identity/opaque/loss/version-reject",
+   "owns": [
+    "crates/hsk-studio-interop-fig/**",
+    "builders/lanes/hsk-studio-interop-fig.json"
+   ],
+   "launched": "2026-10-11T04:56:14Z",
+   "status": "done 2026-10-11T06:38:16Z (SMB-INTEROP-FIG READY at deea33c)"
+  },
+  {
+   "name": "builder-score-device",
+   "agent_id": "adf739a6ae95e19a6",
+   "model": "sonnet",
+   "role": "SMB-SCORE-DEVICE caps 1-4 pure Rust ring/counters/clocked device, then cpal-backend",
+   "owns": [
+    "crates/hsk-studio-score-device/**",
+    "builders/lanes/hsk-studio-score-device.json"
+   ],
+   "launched": "2026-10-11T04:56:14Z",
+   "status": "done 2026-10-11T05:17:48Z (SMB-SCORE-DEVICE READY at d992b40)"
+  },
+  {
+   "name": "builder-score-plugin",
+   "agent_id": "ab5e3013b68b23a89",
+   "model": "sonnet",
+   "role": "SMB-SCORE-PLUGIN slice 1 out-of-process host, budgets, typed outcomes",
+   "owns": [
+    "crates/hsk-studio-score-plugin/**",
+    "builders/lanes/hsk-studio-score-plugin.json"
+   ],
+   "launched": "2026-10-11T04:56:14Z",
+   "status": "done 2026-10-11T06:08:06Z (6c45e64; large context -> fresh agent for next slice)"
+  },
+  {
+   "name": "builder-pulse-eng-1",
+   "agent_id": "a4bdfd3b58dd344c2",
+   "model": "sonnet",
+   "role": "SMB-PULSE-ENG-1 100ns<->ticks rounding rule + receipt (reuse accord Rounding)",
+   "owns": [
+    "crates/hsk-studio-pulse/**",
+    "builders/lanes/hsk-studio-pulse-eng-1.json"
+   ],
+   "launched": "2026-10-11T04:56:14Z",
+   "status": "done 2026-10-11T05:02:56Z (SMB-PULSE-ENG-1 READY at 6a60ef6)"
+  },
+  {
+   "name": "builder-press-3",
+   "agent_id": "aa5de2b6720dcf7bf",
+   "model": "sonnet",
+   "role": "SMB-PRESS slice 3 outline/annotation text redaction",
+   "owns": [
+    "crates/hsk-studio-press/**",
+    "builders/lanes/hsk-studio-press.json"
+   ],
+   "launched": "2026-10-11T04:56:14Z",
+   "status": "retired (dd1df63 done; context full; next press slice -> fresh builder)"
+  },
+  {
+   "name": "validator-r5",
+   "agent_id": "a9e4011f28a0acd1b",
+   "model": "opus",
+   "role": "independent union round R5 on steward sync 1d404f8",
+   "owns": [
+    "validation/round-R5.json",
+    "lane verdicts"
+   ],
+   "launched": "2026-10-11T05:02:18Z",
+   "status": "done 2026-10-11T05:40:44Z (R5 COMPLETE: 25 PASS, 21 FAIL, 2 BLOCKED)"
+  },
+  {
+   "name": "reviewer-r5-a",
+   "agent_id": "a315da0eb43e05294",
+   "model": "opus",
+   "role": "adversarial review R5 group A (render/composite/pigment/controls/nib/score/psd/develop/prism-eng5)",
+   "owns": [
+    "validation/R5-review-a.json"
+   ],
+   "launched": "2026-10-11T05:02:18Z",
+   "status": "done 2026-10-11T05:31:12Z (review COMPLETE)"
+  },
+  {
+   "name": "reviewer-r5-b",
+   "agent_id": "a02970d1fd08aa8c3",
+   "model": "opus",
+   "role": "adversarial review R5 group B (reel/av1/media/motion-js/press/web/bindings/harness)",
+   "owns": [
+    "validation/R5-review-b.json"
+   ],
+   "launched": "2026-10-11T05:02:18Z",
+   "status": "done 2026-10-11T05:31:12Z (review COMPLETE)"
+  },
+  {
+   "name": "reviewer-r5-c",
+   "agent_id": "ad0534962edafbe56",
+   "model": "opus",
+   "role": "adversarial review R5 group C (lrcat/layout/folio/components/vector/session/package + rest)",
+   "owns": [
+    "validation/R5-review-c.json"
+   ],
+   "launched": "2026-10-11T05:02:18Z",
+   "status": "done 2026-10-11T05:31:12Z (review COMPLETE)"
+  },
+  {
+   "name": "architect-adjustments",
+   "agent_id": "ad52cc6e97525e0e4",
+   "model": "opus",
+   "role": "SMB-PIGMENT-ENG-2/SMB-FOLIO-ENG-5 adjustment layers + advanced blending (mask density/feather/invert, blend-if, knockout, effect stack records), adjust_math single owner, follow-up briefs",
+   "owns": [
+    "crates/hsk-studio-pigment/**",
+    "crates/hsk-studio-folio/**",
+    "diagnostics/adjustments-advanced-blending.md",
+    "builders/briefs/lane-*-adjustments.md",
+    "builders/briefs/lane-effects-wave-1.md",
+    "builders/lanes/hsk-studio-pigment-eng-2.json"
+   ],
+   "launched": "2026-10-11T05:06:03Z",
+   "status": "done 2026-10-11T05:57:08Z (2f705f1; decision note + 5 briefs)"
+  },
+  {
+   "name": "builder-render-gpu-3",
+   "agent_id": "a7a94f4e1e7394e5f",
+   "model": "sonnet",
+   "role": "SMB-RENDER-GPU slice 3: non-separable + approximate separable modes from pigment blend_math",
+   "owns": [
+    "crates/hsk-studio-render-gpu/**",
+    "builders/lanes/hsk-studio-render-gpu.json"
+   ],
+   "launched": "2026-10-11T05:06:03Z",
+   "status": "retired 2026-10-11T06:40:58Z (459c5d9; context ~795k; effects slice -> fresh builder)"
+  },
+  {
+   "name": "builder-score-2",
+   "agent_id": "a38d16d5479d8b80c",
+   "model": "sonnet",
+   "role": "SMB-SCORE slice: bounce over ClipResampler with exact sample-count receipt; layout.rs ticks_per_sample -> accord",
+   "owns": [
+    "crates/hsk-studio-score/**",
+    "builders/lanes/hsk-studio-score.json"
+   ],
+   "launched": "2026-10-11T05:06:03Z",
+   "status": "done 2026-10-11T05:36:48Z (SMB-SCORE READY at 70ce263)"
+  },
+  {
+   "name": "builder-reel-2",
+   "agent_id": "aaf4b1e97d05fa7e4",
+   "model": "sonnet",
+   "role": "SMB-REEL slice: Matroska ContentEncodings + A_PCM decode, MXF OP1a index (ST 377-1/378), IndexCache",
+   "owns": [
+    "crates/hsk-studio-reel/**",
+    "builders/lanes/hsk-studio-reel.json"
+   ],
+   "launched": "2026-10-11T05:18:52Z",
+   "status": "done 2026-10-11T06:34:07Z (SMB-REEL READY at d9bf614)"
+  },
+  {
+   "name": "builder-develop-2",
+   "agent_id": "aebb0baf8faa80472",
+   "model": "sonnet",
+   "role": "SMB-DEVELOP slice: tile-parallel scoped threads + optional bit-identical SIMD; determinism across thread counts",
+   "owns": [
+    "crates/hsk-studio-develop/**",
+    "builders/lanes/hsk-studio-develop.json"
+   ],
+   "launched": "2026-10-11T05:18:52Z",
+   "status": "done 2026-10-11T05:55:29Z (SMB-DEVELOP-WIDE READY at 85fe452)"
+  },
+  {
+   "name": "rem-lrcat",
+   "agent_id": "a3dd453765ffb145b",
+   "model": "sonnet",
+   "role": "R5 remediation interop-lrcat (overflow chain OOM, reconciles tautology)",
+   "owns": [
+    "crates/hsk-studio-interop-lrcat/**"
+   ],
+   "launched": "2026-10-11T05:31:12Z",
+   "status": "done 2026-10-11T05:53:27Z (SMB-INTEROP-LRCAT READY at d48c746)"
+  },
+  {
+   "name": "rem-layout",
+   "agent_id": "a4ad9f5374fb4a95f",
+   "model": "sonnet",
+   "role": "R5 remediation interop-layout (Properties clone amplification)",
+   "owns": [
+    "crates/hsk-studio-interop-layout/**"
+   ],
+   "launched": "2026-10-11T05:31:12Z",
+   "status": "done 2026-10-11T05:37:43Z (SMB-INTEROP-LAYOUT READY at f40d6a2)"
+  },
+  {
+   "name": "rem-components",
+   "agent_id": "a64f987b72f9b14e3",
+   "model": "opus",
+   "role": "R5 remediation components (2nd FAIL: swap/switch binding type check, Design duplicate ids)",
+   "owns": [
+    "crates/hsk-studio-components/**"
+   ],
+   "launched": "2026-10-11T05:31:12Z",
+   "status": "done 2026-10-11T05:46:06Z (SMB-COMPONENTS-FOLIO-MIGRATE READY at ed9b130)"
+  },
+  {
+   "name": "rem-vector",
+   "agent_id": "a3c266a471ce3400b",
+   "model": "sonnet",
+   "role": "R5 remediation interop-vector (DOCTYPE comment decoy entity bypass, Assigned profile export loss)",
+   "owns": [
+    "crates/hsk-studio-interop-vector/**"
+   ],
+   "launched": "2026-10-11T05:31:12Z",
+   "status": "done 2026-10-11T05:35:50Z (SMB-INTEROP-VECTOR-FOLIO-MIGRATE READY at 3561b12)"
+  },
+  {
+   "name": "rem-motionjs-reelnative",
+   "agent_id": "a229681526cda8782",
+   "model": "opus",
+   "role": "R5 remediation motion-js + reel-native (overflows, fault-mode gating, rav1d host link split, classify from engine signals)",
+   "owns": [
+    "crates/hsk-studio-motion-js/**",
+    "crates/hsk-studio-reel-native/**"
+   ],
+   "launched": "2026-10-11T05:31:12Z",
+   "status": "done 2026-10-11T06:08:06Z (ffe5592, f080dd6)"
+  },
+  {
+   "name": "rem-controls",
+   "agent_id": "a8888645be589d9f1",
+   "model": "opus",
+   "role": "R5 remediation controls (2nd FAIL: unchanged-value-as-success class audit)",
+   "owns": [
+    "crates/hsk-studio-controls/**"
+   ],
+   "launched": "2026-10-11T05:31:12Z",
+   "status": "done 2026-10-11T05:52:30Z (SMB-CONTROLS READY at fec865b)"
+  },
+  {
+   "name": "rem-web",
+   "agent_id": "a4c6c00da713d3a50",
+   "model": "sonnet",
+   "role": "R5 remediation web (CSS escape decoding, base href, URL attribute coverage)",
+   "owns": [
+    "crates/hsk-studio-web/**"
+   ],
+   "launched": "2026-10-11T05:31:12Z",
+   "status": "done 2026-10-11T05:55:29Z (SMB-WEB READY at 8682e6f)"
+  },
+  {
+   "name": "rem-kb-harness",
+   "agent_id": "a3bdce1470a50926e",
+   "model": "sonnet",
+   "role": "R5 remediation kernel-bindings (ticket ownership, canonical wire) + harness (verify nothing_checked)",
+   "owns": [
+    "crates/hsk-studio-kernel-bindings/**",
+    "crates/hsk-studio-harness/**"
+   ],
+   "launched": "2026-10-11T05:31:12Z",
+   "status": "done 2026-10-11T07:46:25Z"
+  },
+  {
+   "name": "rem-psd",
+   "agent_id": "ad300e07eb9c23042",
+   "model": "sonnet",
+   "role": "R5 remediation interop-psd gray BPC drop",
+   "owns": [
+    "crates/hsk-studio-interop-psd/**"
+   ],
+   "launched": "2026-10-11T05:31:12Z",
+   "status": "retired 2026-10-11T06:23:08Z (eb7080d; context ~750k; next psd slice -> fresh builder)"
+  },
+  {
+   "name": "builder-composite-adj",
+   "agent_id": "a6dd32974a205272c",
+   "model": "sonnet",
+   "role": "lane-composite-adjustments: lower folio raster records to pigment PlanExtensions",
+   "owns": [
+    "crates/hsk-studio-composite/**",
+    "builders/lanes/hsk-studio-composite.json"
+   ],
+   "launched": "2026-10-11T05:57:08Z",
+   "status": "retired (b2cf5c6; context large)"
+  },
+  {
+   "name": "builder-render-cpu-adj",
+   "agent_id": "ae1660a7fcf08038b",
+   "model": "sonnet",
+   "role": "lane-render-cpu-adjustments: evaluate PlanExtensions via pigment adjust_math/coverage_math",
+   "owns": [
+    "crates/hsk-studio-render-cpu/**",
+    "builders/lanes/hsk-studio-render-cpu.json"
+   ],
+   "launched": "2026-10-11T05:57:08Z",
+   "status": "retired 2026-10-11T06:42:07Z (7274827; context ~600k)"
+  },
+  {
+   "name": "builder-effects-1",
+   "agent_id": "a9741a4a91f2b1931",
+   "model": "sonnet",
+   "role": "lane-effects-wave-1: pigment effect nodes (first effects per brief)",
+   "owns": [
+    "crates/hsk-studio-pigment/**",
+    "builders/lanes/hsk-studio-pigment-effects.json"
+   ],
+   "launched": "2026-10-11T05:57:08Z",
+   "status": "done 2026-10-11T06:29:43Z (SMB-EFFECTS-WAVE-2 READY at d982b5c)"
+  },
+  {
+   "name": "builder-prism-eng7",
+   "agent_id": "a2d58a71df3a0e497",
+   "model": "opus",
+   "role": "SMB-PRISM-ENG-7 thread-safe admitted transforms + optional fast path with proven error bound",
+   "owns": [
+    "crates/hsk-studio-prism/**",
+    "builders/lanes/hsk-studio-prism-eng7.json"
+   ],
+   "launched": "2026-10-11T05:57:08Z",
+   "status": "done 2026-10-11T06:21:24Z (SMB-PRISM-ENG-7 READY at 8634765)"
+  },
+  {
+   "name": "validator-r6",
+   "agent_id": "a3516559ceb552c5d",
+   "model": "opus",
+   "role": "independent union round R6 on steward sync bd8533f",
+   "owns": [
+    "validation/round-R6.json",
+    "lane verdicts"
+   ],
+   "launched": "2026-10-11T06:04:14Z",
+   "status": "done 2026-10-11T06:49:55Z (R6 COMPLETE: 31 PASS, 9 FAIL, 1 BLOCKED, 1 NOT_PROVEN; exit 73)"
+  },
+  {
+   "name": "reviewer-r6-a",
+   "agent_id": "aebca1e5a6d01218e",
+   "model": "opus",
+   "role": "adversarial review R6 group A (pigment-eng-2, render-gpu, controls, develop, prism-eng-5/6, components)",
+   "owns": [
+    "validation/R6-review-a.json"
+   ],
+   "launched": "2026-10-11T06:04:14Z",
+   "status": "done 2026-10-11T06:37:43Z (COMPLETE: render-gpu, prism-eng-5, prism-eng-6 FAIL; develop-wide, pigment-eng-2 PASS_WITH_NOTES; rest PASS)"
+  },
+  {
+   "name": "reviewer-r6-b",
+   "agent_id": "ae3a58a1719c91bf6",
+   "model": "opus",
+   "role": "adversarial review R6 group B (score, score-device, score-plugin, press, web)",
+   "owns": [
+    "validation/R6-review-b.json"
+   ],
+   "launched": "2026-10-11T06:04:14Z",
+   "status": "done 2026-10-11T06:29:17Z (COMPLETE: score PASS; score-device, score-plugin PASS_WITH_NOTES; press, web FAIL)"
+  },
+  {
+   "name": "reviewer-r6-c",
+   "agent_id": "a04691cb1b5f34e1e",
+   "model": "opus",
+   "role": "adversarial review R6 group C (lrcat, interop-layout, interop-vector, interop-fig, pulse-eng-1)",
+   "owns": [
+    "validation/R6-review-c.json"
+   ],
+   "launched": "2026-10-11T06:04:14Z",
+   "status": "done 2026-10-11T06:23:08Z (COMPLETE: fig FAIL 2 CONFIRMED, rest PASS)"
+  },
+  {
+   "name": "steward-3",
+   "agent_id": "a3b11a66f094bc519",
+   "model": "opus",
+   "role": "workspace steward (fresh; R7 sync: motion-js/reel-native matrices, probe per matrix feature set, pins)",
+   "owns": [
+    "root manifests, lock, .config, round entrypoint script, workspace probe",
+    "builders/lanes/workspace-steward.json"
+   ],
+   "launched": "2026-10-11T06:08:06Z",
+   "status": "retired 2026-10-11T08:02:20Z (sync 0e48167 = R7 candidate; context ~580k; next sync -> fresh steward)"
+  },
+  {
+   "name": "builder-press-4",
+   "agent_id": "ad6bf01b733aeb6e4",
+   "model": "sonnet",
+   "role": "press: PDF reader hostile-input hardening (V4-01 on filters/reader/syntax/writer, decode budgets, depth/cycle bounds) + remaining redaction gaps",
+   "owns": [
+    "crates/hsk-studio-press/**",
+    "builders/lanes/hsk-studio-press.json"
+   ],
+   "launched": "2026-10-11T06:10:16Z",
+   "status": "done 2026-10-11T06:56:02Z (a1c9747)"
+  },
+  {
+   "name": "builder-motion-js-sandbox",
+   "agent_id": "a23573d27b2bf43d7",
+   "model": "sonnet",
+   "role": "SMB-MOTION-JS-SANDBOX-2: AST validator + Windows Job Object caps (unforgeable memory/CPU budget signal)",
+   "owns": [
+    "crates/hsk-studio-motion-js/**",
+    "builders/lanes/hsk-studio-motion-js.json"
+   ],
+   "launched": "2026-10-11T06:10:16Z",
+   "status": "done 2026-10-11T07:18:57Z (SMB-MOTION-JS-SANDBOX-2 READY at 288b018)"
+  },
+  {
+   "name": "builder-session-2",
+   "agent_id": "aac0fd60d705854d7",
+   "model": "sonnet",
+   "role": "session: receipt eviction, Diverged resolve/discard, negative paths (R5 PLAUSIBLE)",
+   "owns": [
+    "crates/hsk-studio-session/**",
+    "builders/lanes/hsk-studio-session.json"
+   ],
+   "launched": "2026-10-11T06:10:16Z",
+   "status": "done 2026-10-11T06:35:45Z (SMB-SESSION READY at 82a97b4)"
+  },
+  {
+   "name": "builder-vector-2",
+   "agent_id": "af7acf6b0842d7cb9",
+   "model": "sonnet",
+   "role": "interop-vector: SVG patterns, clip paths, masks -> folio records or typed loss",
+   "owns": [
+    "crates/hsk-studio-interop-vector/**",
+    "builders/lanes/hsk-studio-interop-vector.json"
+   ],
+   "launched": "2026-10-11T06:10:16Z",
+   "status": "done 2026-10-11T06:49:55Z (42fba02)"
+  },
+  {
+   "name": "builder-develop-jobs",
+   "agent_id": "a9e869e5f2e9e9fc9",
+   "model": "sonnet",
+   "role": "develop: adopt prism AdmittedWideJob in tile threads (identity + timings)",
+   "owns": [
+    "crates/hsk-studio-develop/**",
+    "builders/lanes/hsk-studio-develop.json"
+   ],
+   "launched": "2026-10-11T06:21:24Z",
+   "status": "done 2026-10-11T06:43:42Z (SMB-DEVELOP READY at 78fd379)"
+  },
+  {
+   "name": "infra-stale-artifacts",
+   "agent_id": "ac8d42cfcde44875b",
+   "model": "sonnet",
+   "role": "read-only research: stale cargo artifacts with shared target + concurrent edits; recommendation for studio-env.sh",
+   "owns": [
+    "diagnostics/stale-artifacts.md"
+   ],
+   "launched": "2026-10-11T06:23:08Z",
+   "status": "done 2026-10-11T06:56:02Z (diagnostics/stale-artifacts.md; root cause confirmed)"
+  },
+  {
+   "name": "rem-web-r6",
+   "agent_id": "a0a357702923e8f01",
+   "model": "opus",
+   "role": "R6 remediation web (2nd FAIL, NEEDS_NEW_APPROACH: WHATWG tokenizer agreement; diagnosis web-tokenizer.md)",
+   "owns": [
+    "crates/hsk-studio-web/**",
+    "builders/lanes/hsk-studio-web.json",
+    "diagnostics/web-tokenizer.md"
+   ],
+   "launched": "2026-10-11T06:29:17Z",
+   "status": "done 2026-10-11T07:42:44Z"
+  },
+  {
+   "name": "rem-score-r6",
+   "agent_id": "a3ec1826380373652",
+   "model": "sonnet",
+   "role": "R6 remediation score-device (counters = data loss only, lead decision) + score-plugin (TOCTOU staging copy, bounded timeouts)",
+   "owns": [
+    "crates/hsk-studio-score-device/**",
+    "crates/hsk-studio-score-plugin/**"
+   ],
+   "launched": "2026-10-11T06:29:17Z",
+   "status": "done 2026-10-11T07:42:44Z"
+  },
+  {
+   "name": "rem-prism-r6",
+   "agent_id": "ae7924301d8c902ea",
+   "model": "sonnet",
+   "role": "R6 remediation prism: mAB input-count slice panic + V4-06 sweep, DESCRIPTOR claim, STU-CON-044 64-px chunk conformance",
+   "owns": [
+    "crates/hsk-studio-prism/**",
+    "builders/lanes/hsk-studio-prism-eng6.json"
+   ],
+   "launched": "2026-10-11T06:37:43Z",
+   "status": "done 2026-10-11T07:19:59Z (SMB-PRISM-ENG-6 READY at d7027c3)"
+  },
+  {
+   "name": "builder-chronicle-table",
+   "agent_id": "a47bc2ecc96a016c4",
+   "model": "sonnet",
+   "role": "chronicle exports property addressability table; session drops its copy (CX-CAP-001)",
+   "owns": [
+    "crates/hsk-studio-chronicle/**",
+    "crates/hsk-studio-session/**"
+   ],
+   "launched": "2026-10-11T06:37:43Z",
+   "status": "done 2026-10-11T06:52:45Z (549e46d, b77518c)"
+  },
+  {
+   "name": "builder-reel-v4",
+   "agent_id": "aced00ef4f7b5bd25",
+   "model": "sonnet",
+   "role": "reel V4-01/02 on isobmff/fragments/wav/y4m/identity/registry",
+   "owns": [
+    "crates/hsk-studio-reel/**",
+    "builders/lanes/hsk-studio-reel.json"
+   ],
+   "launched": "2026-10-11T06:37:43Z",
+   "status": "done 2026-10-11T07:30:00Z (3c82784)"
+  },
+  {
+   "name": "builder-pigment-window",
+   "agent_id": "ac613cfedd126ae7f",
+   "model": "sonnet",
+   "role": "pigment windowed effect matte API (bit-identical to reference; removes backends' 64x64 / 24 px margin limits)",
+   "owns": [
+    "crates/hsk-studio-pigment/**"
+   ],
+   "launched": "2026-10-11T06:40:19Z",
+   "status": "done 2026-10-11T07:26:25Z"
+  },
+  {
+   "name": "builder-render-gpu-fx",
+   "agent_id": "aae1c3088e70fb224",
+   "model": "sonnet",
+   "role": "render-gpu: Blend-If agreement vs pigment evaluate_stack + effects execution",
+   "owns": [
+    "crates/hsk-studio-render-gpu/**",
+    "builders/lanes/hsk-studio-render-gpu.json"
+   ],
+   "launched": "2026-10-11T06:42:07Z",
+   "status": "done 2026-10-11T07:46:25Z"
+  },
+  {
+   "name": "builder-folio-eng-6",
+   "agent_id": "aae0d3c4eaf850fb7",
+   "model": "sonnet",
+   "role": "SMB-FOLIO-ENG-6: adjustment layer accepted as graph Source (option A) for stack position",
+   "owns": [
+    "crates/hsk-studio-folio/**",
+    "builders/lanes/hsk-studio-folio-eng-6.json"
+   ],
+   "launched": "2026-10-11T06:44:43Z",
+   "status": "done 2026-10-11T06:52:45Z (0241877)"
+  },
+  {
+   "name": "builder-psd-adj-graph",
+   "agent_id": "af98bcfa1c1669fd6",
+   "model": "sonnet",
+   "role": "interop-psd: emit adjustment Source + input_ordinal; clipped-to-adjustment typed loss",
+   "owns": [
+    "crates/hsk-studio-interop-psd/**",
+    "builders/lanes/hsk-studio-interop-psd.json"
+   ],
+   "launched": "2026-10-11T06:52:45Z",
+   "status": "done 2026-10-11T07:26:25Z"
+  },
+  {
+   "name": "builder-folio-eng-7",
+   "agent_id": "ab828e686737a132f",
+   "model": "sonnet",
+   "role": "SMB-FOLIO-ENG-7: StudioPattern paint, vector clip/mask records, layer reference field",
+   "owns": [
+    "crates/hsk-studio-folio/**",
+    "builders/lanes/hsk-studio-folio-eng-7.json"
+   ],
+   "launched": "2026-10-11T06:52:45Z",
+   "status": "done 2026-10-11T07:26:25Z"
+  },
+  {
+   "name": "builder-vector-records",
+   "agent_id": "a5bb570aa1618a199",
+   "model": "sonnet",
+   "role": "interop-vector maps SVG pattern/clip/mask to folio StudioVectorRecords + export round trip",
+   "owns": [
+    "crates/hsk-studio-interop-vector/**"
+   ],
+   "launched": "2026-10-11T07:26:25Z",
+   "status": "done 2026-10-11T09:57:04Z (c8fb9c3)"
+  },
+  {
+   "name": "builder-render-cpu-window",
+   "agent_id": "a8660daf20fbfff29",
+   "model": "sonnet",
+   "role": "render-cpu adopts pigment windowed matte; lifts 24 px margin refusal",
+   "owns": [
+    "crates/hsk-studio-render-cpu/**"
+   ],
+   "launched": "2026-10-11T07:26:25Z",
+   "status": "done 2026-10-11T07:53:55Z (SMB-RENDER-CPU-FX2 READY at 8d46aa8)"
+  },
+  {
+   "name": "prereview-r7-a",
+   "agent_id": "a5318316b06254831",
+   "model": "opus",
+   "role": "R7 pre-review (V4-13): prism-eng-5/6, develop, controls, components",
+   "owns": [
+    "validation/R7-prereview-a.json"
+   ],
+   "launched": "2026-10-11T07:30:00Z",
+   "status": "done 2026-10-11T07:59:09Z (controls, components SAFE; prism-eng-5/6, develop FIX_FIRST)"
+  },
+  {
+   "name": "prereview-r7-b",
+   "agent_id": "a255d3956b66293a1",
+   "model": "opus",
+   "role": "R7 pre-review (V4-13): press, motion-js(+worker), web",
+   "owns": [
+    "validation/R7-prereview-b.json"
+   ],
+   "launched": "2026-10-11T07:30:00Z",
+   "status": "done 2026-10-11T08:04:23Z (web + motion-js-worker SAFE; press, motion-js FIX_FIRST)"
+  },
+  {
+   "name": "builder-pigment-blendif-clip",
+   "agent_id": "a8eb0661d6a47bb46",
+   "model": "sonnet",
+   "role": "pigment: define (or uniformly refuse) Blend-If on clip base / clipped layer",
+   "owns": [
+    "crates/hsk-studio-pigment/**"
+   ],
+   "launched": "2026-10-11T07:47:52Z",
+   "status": "done 2026-10-11T08:05:44Z (0d28c03)"
+  },
+  {
+   "name": "builder-kb-faults",
+   "agent_id": "a208d072674560090",
+   "model": "sonnet",
+   "role": "kernel-bindings: gate fault hooks behind test-faults (V4-04)",
+   "owns": [
+    "crates/hsk-studio-kernel-bindings/**"
+   ],
+   "launched": "2026-10-11T07:47:52Z",
+   "status": "done 2026-10-11T08:06:27Z (111f4ed)"
+  },
+  {
+   "name": "builder-prism-eng8",
+   "agent_id": "a96c336734bab0381",
+   "model": "sonnet",
+   "role": "SMB-PRISM-ENG-8: non-monotonic destination table curves per ICC.1:2022",
+   "owns": [
+    "crates/hsk-studio-prism/**"
+   ],
+   "launched": "2026-10-11T07:54:48Z",
+   "status": "done 2026-10-11T10:16:47Z (8a9ef31)"
+  },
+  {
+   "name": "builder-psd-receipt",
+   "agent_id": "ae8a7a62c6cf7e72d",
+   "model": "sonnet",
+   "role": "SMB-INTEROP-PSD-RECEIPT: carry prism AbsoluteReport (DIV-ABS divergence) into psd receipts",
+   "owns": [
+    "crates/hsk-studio-interop-psd/**"
+   ],
+   "launched": "2026-10-11T07:54:48Z",
+   "status": "done 2026-10-11T09:57:04Z (1a088a9, 29501d7)"
+  },
+  {
+   "name": "builder-develop-prereview",
+   "agent_id": "a360c94cf0d5dbb21",
+   "model": "sonnet",
+   "role": "develop FIX_FIRST: stale 64-px claims, site list, lane split",
+   "owns": [
+    "crates/hsk-studio-develop/**"
+   ],
+   "launched": "2026-10-11T07:59:09Z",
+   "status": "done 2026-10-11T10:12:35Z"
+  },
+  {
+   "name": "rem-press-soundness",
+   "agent_id": "ae12f5b706787c4c0",
+   "model": "opus",
+   "role": "press proof soundness (pre-review B N1-N7; backstop raw-byte scan; diagnosis)",
+   "owns": [
+    "crates/hsk-studio-press/**",
+    "diagnostics/press-proof-soundness.md"
+   ],
+   "launched": "2026-10-11T08:04:23Z",
+   "status": "done 2026-10-11T11:03:27Z (1c3fd8c)"
+  },
+  {
+   "name": "rem-motionjs-nul",
+   "agent_id": "a854c9e92d9fe4fec",
+   "model": "sonnet",
+   "role": "motion-js NUL validator + input errors never poison (pre-review B N1)",
+   "owns": [
+    "crates/hsk-studio-motion-js/**"
+   ],
+   "launched": "2026-10-11T08:04:23Z",
+   "status": "done 2026-10-11T10:12:35Z"
+  },
+  {
+   "name": "validator-r7",
+   "agent_id": "aff6ffac7b9580b83",
+   "model": "opus",
+   "role": "independent union round R7 on 0e48167",
+   "owns": [
+    "validation/round-R7.json",
+    "lane verdicts"
+   ],
+   "launched": "2026-10-11T08:04:23Z",
+   "status": "stopped 2026-10-11T08:06:27Z (usage limit; rerun after reset)"
+  },
+  {
+   "name": "reviewer-r7-a",
+   "agent_id": "aac557c9e04e83445",
+   "model": "opus",
+   "role": "R7 review A render + colour",
+   "owns": [
+    "validation/R7-review-a.json"
+   ],
+   "launched": "2026-10-11T08:04:23Z",
+   "status": "stopped 2026-10-11T08:06:27Z (usage limit; rerun after reset)"
+  },
+  {
+   "name": "reviewer-r7-b",
+   "agent_id": "a2e70cd64f8960943",
+   "model": "opus",
+   "role": "R7 review B formats + media",
+   "owns": [
+    "validation/R7-review-b.json"
+   ],
+   "launched": "2026-10-11T08:04:23Z",
+   "status": "stopped 2026-10-11T08:06:27Z (usage limit; rerun after reset)"
+  },
+  {
+   "name": "reviewer-r7-c",
+   "agent_id": "adec6570c63b64c5c",
+   "model": "opus",
+   "role": "R7 review C runtime + security",
+   "owns": [
+    "validation/R7-review-c.json"
+   ],
+   "launched": "2026-10-11T08:04:23Z",
+   "status": "stopped 2026-10-11T08:06:27Z (usage limit; rerun after reset)"
+  },
+  {
+   "name": "builder-blendif-adopt",
+   "agent_id": "af1f494d86bbcc83d",
+   "model": "sonnet",
+   "role": "adopt pigment Blend-If clip refusals in composite/render-cpu/render-gpu",
+   "owns": [
+    "crates/hsk-studio-composite/**",
+    "crates/hsk-studio-render-cpu/**",
+    "crates/hsk-studio-render-gpu/**"
+   ],
+   "launched": "2026-10-11T08:05:44Z",
+   "status": "done 2026-10-11T10:12:35Z"
+  },
+  {
+   "name": "workflow-2",
+   "agent_id": "a24169b28aca5b72c",
+   "model": "opus",
+   "role": "adversarial workflow agent (fresh), tick 4: plausible register, outage resilience, R7 plan",
+   "owns": [
+    "workflow/workflow-review-ticks.md",
+    "workflow/plausible-register.json"
+   ],
+   "launched": "2026-10-11T09:51:51Z",
+   "status": "idle (tick 4 done 2026-10-11T10:18:58Z; V4-17..20 adopted)"
+  },
+  {
+   "name": "steward-4",
+   "agent_id": "aa47e9b1d09b20c5e",
+   "model": "opus",
+   "role": "workspace steward (fresh): sync for R7 rerun (kernel-bindings test-faults matrix, dep requests), canary, lock audit",
+   "owns": [
+    "root manifests/lock/.config/round entrypoint/probe/disk lock",
+    "builders/lanes/workspace-steward.json"
+   ],
+   "launched": "2026-10-11T10:12:35Z",
+   "status": "idle 2026-10-11T10:25:34Z (sync dff7ef5 = R7 candidate; C12 green)"
+  },
+  {
+   "name": "validator-r7b",
+   "agent_id": "aa63869aeef0a3d05",
+   "model": "opus",
+   "role": "round R7 rerun on dff7ef5",
+   "owns": [
+    "validation/round-R7.json"
+   ],
+   "launched": "2026-10-11T10:27:15Z",
+   "status": "done 2026-10-11T11:05:38Z (R7 COMPLETE 61 PASS / 4 FAIL)"
+  },
+  {
+   "name": "reviewer-r7b-a",
+   "agent_id": "aa3b2acda9258b57b",
+   "model": "opus",
+   "role": "R7 rerun review A (render/colour/develop + two-FAIL rechecks)",
+   "owns": [
+    "validation/R7-review-a.json"
+   ],
+   "launched": "2026-10-11T10:27:15Z",
+   "status": "done 2026-10-11T10:56:49Z (COMPLETE; rechecks all SAFE)"
+  },
+  {
+   "name": "reviewer-r7b-b",
+   "agent_id": "a82a58cffce488866",
+   "model": "opus",
+   "role": "R7 rerun review B (formats/runtime/security + two-FAIL rechecks)",
+   "owns": [
+    "validation/R7-review-b.json"
+   ],
+   "launched": "2026-10-11T10:27:15Z",
+   "status": "done 2026-10-11T11:02:40Z (COMPLETE: rechecks SAFE; psd, reel-av1-route, reel-native FAIL)"
+  },
+  {
+   "name": "builder-refusal-keys",
+   "agent_id": "a9d6a9db317615620",
+   "model": "sonnet",
+   "role": "SMB-REFUSAL-KEYS (PLR-006)",
+   "owns": [
+    "crates/hsk-studio-composite/**",
+    "crates/hsk-studio-render-cpu/**",
+    "crates/hsk-studio-render-gpu/**"
+   ],
+   "launched": "2026-10-11T10:27:15Z",
+   "status": "done 2026-10-11T11:05:38Z"
+  },
+  {
+   "name": "builder-score-guards",
+   "agent_id": "ace26feb3045a3268",
+   "model": "sonnet",
+   "role": "SMB-SCORE-GUARDS (PLR-015)",
+   "owns": [
+    "crates/hsk-studio-score/**"
+   ],
+   "launched": "2026-10-11T10:27:15Z",
+   "status": "done 2026-10-11T11:05:38Z"
+  },
+  {
+   "name": "builder-folio-uniq",
+   "agent_id": "a7e61876a208f8ddc",
+   "model": "sonnet",
+   "role": "SMB-FOLIO-UNIQUENESS (PLR-049) + SMB-COMPONENTS-FOOTPRINT (PLR-046)",
+   "owns": [
+    "crates/hsk-studio-folio/**",
+    "crates/hsk-studio-components/**"
+   ],
+   "launched": "2026-10-11T10:27:15Z",
+   "status": "done"
+  },
+  {
+   "name": "builder-pigment-fx-ops",
+   "agent_id": "a657e4b6265264ac0",
+   "model": "sonnet",
+   "role": "SMB-PIGMENT-FX-OPS",
+   "owns": [
+    "crates/hsk-studio-pigment/**"
+   ],
+   "launched": "2026-10-11T10:56:49Z",
+   "status": "done 2026-10-11T11:09:18Z (d3ce607, fe5fde0)"
+  },
+  {
+   "name": "rem-reel-r7",
+   "agent_id": "ade75129ac9cf5956",
+   "model": "sonnet",
+   "role": "R7 remediation: reel proxy trust (PLR-033) + reel-native worker lookup/HELLO cancel (PLR-034/035)",
+   "owns": [
+    "crates/hsk-studio-reel/**",
+    "crates/hsk-studio-reel-native/**"
+   ],
+   "launched": "2026-10-11T11:02:40Z",
+   "status": "done 2026-10-11T11:19:58Z"
+  },
+  {
+   "name": "rem-psd-r7",
+   "agent_id": "afab58e8a9799a487",
+   "model": "sonnet",
+   "role": "R7 remediation: interop-psd non-finite descriptor numbers -> typed loss",
+   "owns": [
+    "crates/hsk-studio-interop-psd/**"
+   ],
+   "launched": "2026-10-11T11:02:40Z",
+   "status": "done 2026-10-11T11:19:58Z"
+  },
+  {
+   "name": "builder-press-differences",
+   "agent_id": "ae152c733e557d792",
+   "model": "sonnet",
+   "role": "SMB-PRESS-DIFFERENCES",
+   "owns": [
+    "crates/hsk-studio-press/**"
+   ],
+   "launched": "2026-10-11T11:03:27Z",
+   "status": "done 2026-10-11T11:32:26Z (607d47c)"
+  },
+  {
+   "name": "builder-pigment-admit-parity",
+   "agent_id": "a3f9f5c0041454c28",
+   "model": "sonnet",
+   "role": "SMB-PIGMENT-ADMIT-PARITY sweep",
+   "owns": [
+    "crates/hsk-studio-pigment/**"
+   ],
+   "launched": "2026-10-11T11:09:18Z",
+   "status": "done 2026-10-11T11:27:36Z (b2f5f81)"
+  },
+  {
+   "name": "prereview-r8-reel",
+   "agent_id": "a4874ff0cd83ddab6",
+   "model": "opus",
+   "role": "V4-13 pre-review: SMB-REEL-AV1-ROUTE + SMB-REEL-NATIVE-AV1-WORKER",
+   "owns": [
+    "validation/R8-prereview-reel.json"
+   ],
+   "launched": "2026-10-11T11:20:25Z",
+   "status": "done 2026-10-11T11:35:03Z"
+  },
+  {
+   "name": "builder-fx-ops-adopt",
+   "agent_id": "a81d309b2b0fea86e",
+   "model": "sonnet",
+   "role": "SMB-FX-OPS-ADOPT (composite, render-cpu, render-gpu, interop-psd)",
+   "owns": [
+    "crates/hsk-studio-composite/**",
+    "crates/hsk-studio-render-cpu/**",
+    "crates/hsk-studio-render-gpu/**",
+    "crates/hsk-studio-interop-psd/**"
+   ],
+   "launched": "2026-10-11T11:27:36Z",
+   "status": "done 2026-10-11T11:51:26Z (SMB-FX-OPS-ADOPT READY at f6e5a49)"
+  },
+  {
+   "name": "prereview-r8-press",
+   "agent_id": "a77ec7c9758fb7cae",
+   "model": "opus",
+   "role": "V4-13 pre-review SMB-PRESS + SMB-PRESS-DIFFERENCES",
+   "owns": [
+    "validation/R8-prereview-press.json"
+   ],
+   "launched": "2026-10-11T11:32:26Z",
+   "status": "done 2026-10-11T11:58:46Z (FIX_FIRST both lanes)"
+  },
+  {
+   "name": "builder-reel-plr032",
+   "agent_id": "ab349e73553a5b02d",
+   "model": "sonnet",
+   "role": "reel PLR-032 + PLR-029 before R8",
+   "owns": [
+    "crates/hsk-studio-reel/**"
+   ],
+   "launched": "2026-10-11T11:35:03Z",
+   "status": "done 2026-10-11T11:53:17Z (bf3c196)"
+  },
+  {
+   "name": "steward-5",
+   "agent_id": "ae0fc4df8a15b0f2a",
+   "model": "opus",
+   "role": "workspace steward (fresh): R8 sync + canary C13 + lock audit",
+   "owns": [
+    "root workspace files",
+    "kernel tools/",
+    "builders/studio-env.sh",
+    "builders/lanes/workspace-steward.json"
+   ],
+   "launched": "2026-10-11T11:58:46Z",
+   "status": "idle 2026-10-11T19:18:40Z (pin sync 9ffe946; C17 exit 73 59/59)"
+  },
+  {
+   "name": "research-reel-eng",
+   "agent_id": "aec690856e408fa02",
+   "model": "sonnet",
+   "role": "briefs for SMB-REEL-ENG-1, SMB-REEL-ENG-2, SMB-REEL-NATIVE-ENG-1 (gap vs current code, verified spec sources)",
+   "owns": [
+    "builders/briefs/lane-reel-eng-1.md",
+    "builders/briefs/lane-reel-eng-2.md",
+    "builders/briefs/lane-reel-native-eng-1.md"
+   ],
+   "launched": "2026-10-11T11:58:46Z",
+   "status": "done 2026-10-11T12:44:14Z (3 briefs; ENG-1 ~90% exists; ENG-2/NATIVE-ENG-1 need Operator D22-D26)"
+  },
+  {
+   "name": "builder-web-difftest",
+   "agent_id": "a5a0cf7b65b0889b2",
+   "model": "sonnet",
+   "role": "SMB-WEB-DIFFTEST (html5ever dev-dep differential test); holds commits until SYNC DONE",
+   "owns": [
+    "crates/hsk-studio-web/** (tests + dev-dep)",
+    "builders/lanes/hsk-studio-web-difftest.json"
+   ],
+   "launched": "2026-10-11T11:58:46Z",
+   "status": "done 2026-10-11T12:47:22Z (f4b47cd; 9 disagreement classes)"
+  },
+  {
+   "name": "rem-press-r8",
+   "agent_id": "a2b33383976f063af",
+   "model": "opus",
+   "role": "SMB-PRESS + SMB-PRESS-DIFFERENCES R8 pre-review remediation (fail-closed proof); holds commits until SYNC DONE",
+   "owns": [
+    "crates/hsk-studio-press/**",
+    "builders/lanes/hsk-studio-press.json"
+   ],
+   "launched": "2026-10-11T11:58:46Z",
+   "status": "done 2026-10-11T12:49:07Z (49731a5)"
+  },
+  {
+   "name": "validator-r8",
+   "agent_id": "a5a5571c256230c74",
+   "model": "opus",
+   "role": "WP validator STUDIO-R8 on f6e5a49",
+   "owns": [
+    "validation/round-R8.json",
+    "verdict fields in lane files + ledger lanes"
+   ],
+   "launched": "2026-10-11T12:10:13Z",
+   "status": "done 2026-10-11T12:44:14Z (R8 COMPLETE: 59 PASS / 1 FAIL)"
+  },
+  {
+   "name": "reviewer-r8-a",
+   "agent_id": "ac4570bf90ceb448b",
+   "model": "opus",
+   "role": "R8 reviewer A (pigment/composite/render/psd adoption)",
+   "owns": [
+    "validation/R8-review-a.json"
+   ],
+   "launched": "2026-10-11T12:10:13Z",
+   "status": "done 2026-10-11T12:35:33Z (COMPLETE; EFFECTS-WAVE-1 + FX-OPS PASS; ADMIT-PARITY 2 CONFIRMED, FX-OPS-ADOPT 1 CONFIRMED (PASS_WITH_NOTES); REFUSAL-KEYS paperwork)"
+  },
+  {
+   "name": "reviewer-r8-b",
+   "agent_id": "a5b2202895c800b97",
+   "model": "opus",
+   "role": "R8 reviewer B (reel/reel-native/psd/score/components/folio) + two-FAIL rechecks",
+   "owns": [
+    "validation/R8-review-b.json"
+   ],
+   "launched": "2026-10-11T12:10:13Z",
+   "status": "done 2026-10-11T12:33:34Z (COMPLETE; 3 rechecks SAFE; 0 CONFIRMED; PLR-053..056)"
+  },
+  {
+   "name": "builder-score-plugin-rate",
+   "agent_id": "afda75ca38dfed07b",
+   "model": "sonnet",
+   "role": "SMB-SCORE-PLUGIN-RATE (PLR-054)",
+   "owns": [
+    "crates/hsk-studio-score-plugin/**",
+    "builders/lanes/hsk-studio-score-plugin-rate.json"
+   ],
+   "launched": "2026-10-11T12:34:11Z",
+   "status": "done 2026-10-11T12:48:10Z (SMB-SCORE-PLUGIN-RATE READY at e9fb519)"
+  },
+  {
+   "name": "rem-composite-adj",
+   "agent_id": "a6ffb96d4c6786c82",
+   "model": "sonnet",
+   "role": "SMB-COMPOSITE-ADJ R8 FAIL remediation + SMB-PARITY-FOLLOWUP (pigment reachable-only predicates, render-cpu explicit mask formats)",
+   "owns": [
+    "crates/hsk-studio-composite/**",
+    "crates/hsk-studio-pigment/**",
+    "crates/hsk-studio-render-cpu/**",
+    "builders/lanes/hsk-studio-composite.json",
+    "builders/lanes/hsk-studio-parity-followup.json"
+   ],
+   "launched": "2026-10-11T12:46:09Z",
+   "status": "done 2026-10-11T13:14:07Z (SMB-PARITY-FOLLOWUP READY at 1c80811)"
+  },
+  {
+   "name": "builder-reel-eng-1",
+   "agent_id": "a74131639d4099cef",
+   "model": "sonnet",
+   "role": "SMB-REEL-ENG-1 gaps (export exact-or-error, zero-duration elst, MOV oracle) + PLR-056 test",
+   "owns": [
+    "crates/hsk-studio-reel/**",
+    "builders/lanes/hsk-studio-reel-eng-1.json"
+   ],
+   "launched": "2026-10-11T12:46:09Z",
+   "status": "done (bd5bd60; retired, V4-16)"
+  },
+  {
+   "name": "builder-psd-budget",
+   "agent_id": "a19ab0fabd26f363e",
+   "model": "sonnet",
+   "role": "SMB-INTEROP-PSD-BUDGET (PLR-053)",
+   "owns": [
+    "crates/hsk-studio-interop-psd/**",
+    "builders/lanes/hsk-studio-interop-psd-budget.json"
+   ],
+   "launched": "2026-10-11T12:46:09Z",
+   "status": "done 2026-10-11T13:02:11Z (SMB-INTEROP-PSD-BUDGET READY at a5eff01)"
+  },
+  {
+   "name": "builder-reel-native-faults",
+   "agent_id": "aae3098bb55fde0eb",
+   "model": "sonnet",
+   "role": "SMB-REEL-NATIVE-FAULTS (PLR-055)",
+   "owns": [
+    "crates/hsk-studio-reel-native/**",
+    "builders/lanes/hsk-studio-reel-native-faults.json"
+   ],
+   "launched": "2026-10-11T12:46:09Z",
+   "status": "done 2026-10-11T13:29:27Z (SMB-REEL-NATIVE-FAULTS READY at a024461)"
+  },
+  {
+   "name": "builder-web-parity",
+   "agent_id": "a157b1e74d96f0f7f",
+   "model": "opus",
+   "role": "SMB-WEB-PARITY (D1-D8 fixes, D9 normalise/refuse)",
+   "owns": [
+    "crates/hsk-studio-web/**",
+    "builders/lanes/hsk-studio-web-parity.json"
+   ],
+   "launched": "2026-10-11T12:47:57Z",
+   "status": "done (4d80e50; retired V4-16)"
+  },
+  {
+   "name": "prereview-r9-press",
+   "agent_id": "a20c5e5a9e059f8a5",
+   "model": "opus",
+   "role": "V4-13 pre-review SMB-PRESS + DIFFERENCES at 49731a5",
+   "owns": [
+    "validation/R9-prereview-press.json"
+   ],
+   "launched": "2026-10-11T12:49:07Z",
+   "status": "done 2026-10-11T13:10:26Z (FIX_FIRST both lanes: R9-F1 /V CMap, R9-F2 gs font/inherited font, R9-F3 split Tj)"
+  },
+  {
+   "name": "rem-press-r9",
+   "agent_id": "a46be5b3d6a17bb58",
+   "model": "opus",
+   "role": "SMB-PRESS + DIFFERENCES positive-determination remediation",
+   "owns": [
+    "crates/hsk-studio-press/**",
+    "builders/lanes/hsk-studio-press.json"
+   ],
+   "launched": "2026-10-11T13:11:01Z",
+   "status": "done 2026-10-11T14:26:28Z (cc3eaae)"
+  },
+  {
+   "name": "prereview-r9-reel",
+   "agent_id": "a1147709c8b4fa7b7",
+   "model": "opus",
+   "role": "V4-13 pre-review SMB-REEL-AV1-ROUTE + SMB-REEL-NATIVE-AV1-WORKER (reopened by ENG-1 / NATIVE-FAULTS)",
+   "owns": [
+    "validation/R9-prereview-reel.json"
+   ],
+   "launched": "2026-10-11T13:29:55Z",
+   "status": "done 2026-10-11T13:47:18Z (AV1-ROUTE + AV1-WORKER SAFE; ENG-1 1 CONFIRMED advisory)"
+  },
+  {
+   "name": "prereview-r9-web",
+   "agent_id": "af4459a9236a7f1c3",
+   "model": "opus",
+   "role": "V4-13 pre-review SMB-WEB (reopened by DIFFTEST + PARITY)",
+   "owns": [
+    "validation/R9-prereview-web.json"
+   ],
+   "launched": "2026-10-11T13:44:52Z",
+   "status": "done 2026-10-11T14:13:49Z (FIX_FIRST: F1 CDATA CR asset hide, F2 D9 hole, F3/F4 LF)"
+  },
+  {
+   "name": "rem-reel-eng-1",
+   "agent_id": "a53e18ed34975cca8",
+   "model": "sonnet",
+   "role": "SMB-REEL-ENG-1 pre-review fixes (MXF non-permutation, per-track elst refusal, nearest, PLR-057); holds commits until SYNC DONE",
+   "owns": [
+    "crates/hsk-studio-reel/**",
+    "builders/lanes/hsk-studio-reel-eng-1.json"
+   ],
+   "launched": "2026-10-11T13:47:44Z",
+   "status": "done 2026-10-11T14:20:09Z (0474906)"
+  },
+  {
+   "name": "validator-r9",
+   "agent_id": "a73748dc0411994ee",
+   "model": "opus",
+   "role": "WP validator STUDIO-R9 on 4d80e50",
+   "owns": [
+    "validation/round-R9.json",
+    "verdict fields"
+   ],
+   "launched": "2026-10-11T13:53:55Z",
+   "status": "done 2026-10-11T14:25:13Z (R9 COMPLETE: 36 PASS / 1 FAIL)"
+  },
+  {
+   "name": "reviewer-r9-a",
+   "agent_id": "aefe8183b241e9b8d",
+   "model": "opus",
+   "role": "R9 reviewer A (pigment/composite/render-cpu/psd)",
+   "owns": [
+    "validation/R9-review-a.json"
+   ],
+   "launched": "2026-10-11T13:53:55Z",
+   "status": "done 2026-10-11T14:15:23Z (COMPLETE: COMPOSITE-ADJ PASS, PARITY PASS, PSD-BUDGET 1 CONFIRMED; sweep no break)"
+  },
+  {
+   "name": "reviewer-r9-b",
+   "agent_id": "adead94be12e321dd",
+   "model": "opus",
+   "role": "R9 reviewer B (score-plugin/reel-native/reel reopen/web lanes)",
+   "owns": [
+    "validation/R9-review-b.json"
+   ],
+   "launched": "2026-10-11T13:53:55Z",
+   "status": "done 2026-10-11T14:20:09Z (COMPLETE: SCORE-PLUGIN-RATE + NATIVE-FAULTS 0 CONFIRMED; sweep no break; web advisory test gaps routed to rem-web-r9)"
+  },
+  {
+   "name": "rem-web-r9",
+   "agent_id": "a736b08781f7f26c9",
+   "model": "opus",
+   "role": "web R9 pre-review remediation (F1 raw-text consumers class, F2-F4, P1-P4)",
+   "owns": [
+    "crates/hsk-studio-web/**",
+    "builders/lanes/hsk-studio-web-parity.json",
+    "builders/lanes/hsk-studio-web-difftest.json"
+   ],
+   "launched": "2026-10-11T14:14:23Z",
+   "status": "done (62d8983; retired V4-16)"
+  },
+  {
+   "name": "rem-psd-budget",
+   "agent_id": "aeef608996fc3b993",
+   "model": "sonnet",
+   "role": "SMB-INTEROP-PSD-BUDGET R9 remediation (no whole-import fail; pigment counting rule; memory bound docs)",
+   "owns": [
+    "crates/hsk-studio-interop-psd/**",
+    "builders/lanes/hsk-studio-interop-psd-budget.json"
+   ],
+   "launched": "2026-10-11T14:15:33Z",
+   "status": "done (ce22fa5; retired)"
+  },
+  {
+   "name": "prereview-r10-reel-route",
+   "agent_id": "a0f0b39c253eb4402",
+   "model": "sonnet",
+   "role": "V4-13 narrow pre-review SMB-REEL-AV1-ROUTE after 0474906",
+   "owns": [
+    "validation/R10-prereview-reel-route.json"
+   ],
+   "launched": "2026-10-11T14:25:45Z",
+   "status": "done 2026-10-11T14:34:04Z (SAFE_TO_JUDGE)"
+  },
+  {
+   "name": "prereview-r10-press",
+   "agent_id": "a8b2c2504eb9ae72d",
+   "model": "opus",
+   "role": "V4-13 pre-review SMB-PRESS + DIFFERENCES at cc3eaae",
+   "owns": [
+    "validation/R10-prereview-press.json"
+   ],
+   "launched": "2026-10-11T14:26:28Z",
+   "status": "done 2026-10-11T15:00:20Z (FIX_FIRST: R10-F1..F7 parser differentials + semantics, R10-D1)"
+  },
+  {
+   "name": "rem-press-r10",
+   "agent_id": "a8f723dcc68d58313",
+   "model": "opus",
+   "role": "SMB-PRESS + DIFFERENCES canonical-rewrite remediation",
+   "owns": [
+    "crates/hsk-studio-press/**",
+    "builders/lanes/hsk-studio-press.json"
+   ],
+   "launched": "2026-10-11T15:00:50Z",
+   "status": "done 2026-10-11T16:29:51Z (b8ce934)"
+  },
+  {
+   "name": "prereview-r10-web",
+   "agent_id": "a902a26c7f58c3fcc",
+   "model": "opus",
+   "role": "V4-13 pre-review SMB-WEB at 62d8983",
+   "owns": [
+    "validation/R10-prereview-web.json"
+   ],
+   "launched": "2026-10-11T15:03:19Z",
+   "status": "done 2026-10-11T15:25:17Z (FIX_FIRST: R10-F1 CSS number arm url hide)"
+  },
+  {
+   "name": "validator-r10",
+   "agent_id": "a728b1119e8fc2617",
+   "model": "opus",
+   "role": "WP validator STUDIO-R10 on 62d8983",
+   "owns": [
+    "validation/round-R10.json",
+    "verdict fields"
+   ],
+   "launched": "2026-10-11T15:10:24Z",
+   "status": "done 2026-10-11T15:38:37Z (R10 COMPLETE: 11 PASS / 2 FAIL)"
+  },
+  {
+   "name": "reviewer-r10-a",
+   "agent_id": "af3879865af1a48bb",
+   "model": "opus",
+   "role": "R10 single reviewer (reel ENG-1, psd budget, reopen sweep)",
+   "owns": [
+    "validation/R10-review-a.json"
+   ],
+   "launched": "2026-10-11T15:10:24Z",
+   "status": "done 2026-10-11T15:29:19Z (COMPLETE: PSD-BUDGET 1 CONFIRMED note, ENG-1 2 CONFIRMED FIX_FIRST; sweep no break)"
+  },
+  {
+   "name": "rem-web-r10",
+   "agent_id": "a3f28794ed41def23",
+   "model": "opus",
+   "role": "web R10 remediation (spec-exact CSS Syntax 3 tokenizer; every CSS URL scanned)",
+   "owns": [
+    "crates/hsk-studio-web/**",
+    "builders/lanes/hsk-studio-web-parity.json",
+    "builders/lanes/hsk-studio-web-difftest.json"
+   ],
+   "launched": "2026-10-11T15:25:27Z",
+   "status": "done (b0a1887; retired)"
+  },
+  {
+   "name": "rem-reel-eng-1-r10",
+   "agent_id": "a65a2d0969bbacc9b",
+   "model": "sonnet",
+   "role": "SMB-REEL-ENG-1 R10 review fixes (edit-list duplicate delivery completeness, refused tmcd, PLR-062)",
+   "owns": [
+    "crates/hsk-studio-reel/**",
+    "builders/lanes/hsk-studio-reel-eng-1.json"
+   ],
+   "launched": "2026-10-11T15:30:02Z",
+   "status": "done (7cdf18e)"
+  },
+  {
+   "name": "rem-psd-budget-r10",
+   "agent_id": "a07e5cfff7b916ca2",
+   "model": "sonnet",
+   "role": "SMB-INTEROP-PSD-BUDGET: uncounted cap must not drop visible stacks",
+   "owns": [
+    "crates/hsk-studio-interop-psd/**",
+    "builders/lanes/hsk-studio-interop-psd-budget.json"
+   ],
+   "launched": "2026-10-11T15:30:02Z",
+   "status": "done (85532ad)"
+  },
+  {
+   "name": "prereview-r11-psd-budget",
+   "agent_id": "a5ca7f2d32bb67431",
+   "model": "sonnet",
+   "role": "V4-13 pre-review SMB-INTEROP-PSD-BUDGET at 85532ad",
+   "owns": [
+    "validation/R11-prereview-psd-budget.json"
+   ],
+   "launched": "2026-10-11T15:44:05Z",
+   "status": "done 2026-10-11T16:02:32Z (SAFE_TO_JUDGE; PLR-063..065)"
+  },
+  {
+   "name": "prereview-r11-reel-route",
+   "agent_id": "a482e23901160398d",
+   "model": "sonnet",
+   "role": "V4-13 narrow pre-review SMB-REEL-AV1-ROUTE after e424f46/7cdf18e",
+   "owns": [
+    "validation/R11-prereview-reel-route.json"
+   ],
+   "launched": "2026-10-11T16:04:19Z",
+   "status": "done 2026-10-11T16:13:13Z (SAFE_TO_JUDGE)"
+  },
+  {
+   "name": "prereview-r11-web",
+   "agent_id": "a76015682b3f3a984",
+   "model": "opus",
+   "role": "V4-13 pre-review SMB-WEB at b0a1887",
+   "owns": [
+    "validation/R11-prereview-web.json"
+   ],
+   "launched": "2026-10-11T16:26:06Z",
+   "status": "done 2026-10-11T16:55:12Z (FIX_FIRST: R11-F1 SMIL values, R11-F2 marker, R11-P1 data:)"
+  },
+  {
+   "name": "prereview-r11-press",
+   "agent_id": "a9b944ac602fb63ca",
+   "model": "opus",
+   "role": "V4-13 pre-review SMB-PRESS + DIFFERENCES at b8ce934",
+   "owns": [
+    "validation/R11-prereview-press.json"
+   ],
+   "launched": "2026-10-11T16:30:04Z",
+   "status": "stopped 2026-10-11T16:40:05Z by the agent's own decision (declined the project; no verdict; output file is an incomplete skeleton)"
+  },
+  {
+   "name": "prereview-r11-press-2",
+   "agent_id": "a63793126be5eb03b",
+   "model": "opus",
+   "role": "V4-13 pre-review SMB-PRESS + DIFFERENCES at b8ce934 (re-dispatch)",
+   "owns": [
+    "validation/R11-prereview-press.json"
+   ],
+   "launched": "2026-10-11T16:40:30Z",
+   "status": "done 2026-10-11T17:22:04Z (FIX_FIRST: R11-F1..F6)"
+  },
+  {
+   "name": "rem-web-r11",
+   "agent_id": "ab7a3519fb2afe068",
+   "model": "opus",
+   "role": "web R11 remediation (spec-derived URL carrier inventory, SMIL values/marker, data: scan-or-deny)",
+   "owns": [
+    "crates/hsk-studio-web/**",
+    "builders/lanes/hsk-studio-web-parity.json",
+    "builders/lanes/hsk-studio-web-difftest.json"
+   ],
+   "launched": "2026-10-11T16:55:24Z",
+   "status": "done (5cd8c9e; retired)"
+  },
+  {
+   "name": "validator-r11",
+   "agent_id": "a38b9c7baf179bc6d",
+   "model": "opus",
+   "role": "WP validator STUDIO-R11 on 6956d3f",
+   "owns": [
+    "validation/round-R11.json",
+    "verdict fields"
+   ],
+   "launched": "2026-10-11T17:07:30Z",
+   "status": "done 2026-10-11T17:59:47Z (R11 COMPLETE: 13 PASS / 0 FAIL)"
+  },
+  {
+   "name": "reviewer-r11-a",
+   "agent_id": "a5a14d0a8cbd550c1",
+   "model": "sonnet",
+   "role": "R11 single reviewer (reel ENG-1 remediation, PSD budget confirm, sweep)",
+   "owns": [
+    "validation/R11-review-a.json"
+   ],
+   "launched": "2026-10-11T17:07:30Z",
+   "status": "done 2026-10-11T17:59:47Z (COMPLETE; notes REEL-R11-1..4)"
+  },
+  {
+   "name": "rem-press-flatten",
+   "agent_id": "ad69e034b4bc5c016",
+   "model": "opus",
+   "role": "Operator D27 flatten + narrow (renderer research first: hayro)",
+   "owns": [
+    "crates/hsk-studio-press/**",
+    "builders/lanes/hsk-studio-press.json"
+   ],
+   "launched": "2026-10-11T18:00:23Z",
+   "status": "done 2026-10-11T19:08:49Z (d079292; awaiting steward pin)"
+  },
+  {
+   "name": "prereview-r12-web",
+   "agent_id": "ae711af600213e9e7",
+   "model": "opus",
+   "role": "V4-13 pre-review SMB-WEB at 5cd8c9e",
+   "owns": [
+    "validation/R12-prereview-web.json"
+   ],
+   "launched": "2026-10-11T18:04:13Z",
+   "status": "done 2026-10-11T18:32:40Z (FIX_FIRST: R12-F1..F3)"
+  },
+  {
+   "name": "rem-web-r12",
+   "agent_id": "a45a8c6ff48043746",
+   "model": "sonnet",
+   "role": "web R12 remediation (load context first, self-reference, trim, P1-P4)",
+   "owns": [
+    "crates/hsk-studio-web/**",
+    "builders/lanes/hsk-studio-web-parity.json",
+    "builders/lanes/hsk-studio-web-difftest.json"
+   ],
+   "launched": "2026-10-11T18:32:51Z",
+   "status": "done 2026-10-11T19:16:40Z (e409030)"
+  },
+  {
+   "name": "builder-pigment-planlimits",
+   "agent_id": "a1a854435e911dcbb",
+   "model": "sonnet",
+   "role": "SMB-PIGMENT-PLANLIMITS (PLR-005 + PLR-058)",
+   "owns": [
+    "crates/hsk-studio-pigment/**",
+    "builders/lanes/hsk-studio-pigment-planlimits.json"
+   ],
+   "launched": "2026-10-11T19:14:14Z",
+   "status": "done 2026-10-11T19:31:43Z (SMB-PIGMENT-PLANLIMITS READY at 71be1aa)"
+  },
+  {
+   "name": "prereview-r13-web",
+   "agent_id": "ab70e82824a76999d",
+   "model": "opus",
+   "role": "V4-13 pre-review SMB-WEB at e409030 (last before escalation)",
+   "owns": [
+    "validation/R13-prereview-web.json"
+   ],
+   "launched": "2026-10-11T19:16:56Z",
+   "status": "running"
+  },
+  {
+   "name": "prereview-r13-press",
+   "agent_id": "a8c0554d09076009c",
+   "model": "opus",
+   "role": "V4-13 pre-review SMB-PRESS + DIFFERENCES (D27 flatten) at 9ffe946",
+   "owns": [
+    "validation/R13-prereview-press.json"
+   ],
+   "launched": "2026-10-11T19:18:55Z",
    "status": "running"
   }
  ]

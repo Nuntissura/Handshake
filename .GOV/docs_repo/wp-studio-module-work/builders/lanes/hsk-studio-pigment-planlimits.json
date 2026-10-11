@@ -1,0 +1,341 @@
+{
+ "crate": "hsk-studio-pigment",
+ "lane": "SMB-PIGMENT-PLANLIMITS",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "PLR-058 (validate: structure on every node, operator collection on reachable nodes only) + PLR-005 (caller-supplied PlanLimits at admission, tighten only); compiled, clippy clean, pigment 69/69 and dependants green on the pushed tree",
+ "commits": [
+  {
+   "sha": "5ed1ead",
+   "subject": "pigment (SMB-PIGMENT-PLANLIMITS): callers can tighten plan limits at admission (PLR-005); validate collects operators from reachable nodes only (PLR-058)"
+  },
+  {
+   "sha": "71be1aa",
+   "subject": "pigment (SMB-PIGMENT-PLANLIMITS): admit_extended_with_limits doc resolves its link and cites the limit tests (doc comment only)"
+  }
+ ],
+ "capabilities_done": [
+  "PLR-058: RenderPlan::validate checks structure over every node (limits, root and input indexes, forward references = no cycles, rects, finite/unit ranges, mode applicability, clipping-run rules) but returns only the operators of nodes reachable from the root (RenderPlan::reachable_nodes, the helper every admission predicate uses); an unreachable node with an operator a backend refuses admits through validate, admit and admit_extended, the same node reached from the root is refused with the same key; reachability is computed after the structure passed (candidates (node, operator) are bounded by the layer budget), so an over-budget plan is refused before any traversal",
+  "PLR-005: admit_with_limits(plan, &PlanLimits, backend, request, cancel) and admit_extended_with_limits(plan, extensions, &PlanLimits, backend, request, cancel); admit and admit_extended are exactly these with PlanLimits::default(); PlanLimits::MAXIMUM (65536 nodes, 65536 layers, depth 64) is the hard maxima and Default; PlanLimits::within_maximum(); limits only tighten: a field above its maximum is PlanError::LimitAboveMaximum{kind: PlanLimitKind, requested, maximum} (code plan_limit_above_maximum, BackendError::InvalidPlan on admission), checked first in RenderPlan::validate so validate, admit_with_limits and admit_extended_with_limits all enforce it, never clamped; order on admission: cancel, stale revision, limits, plan",
+  "docs and DESCRIPTOR: validate topic (structure vs capability), plan_limits topic, admission line; each claim cites its test (V4-07)"
+ ],
+ "tests": {
+  "argv": [
+   "cargo",
+   "nextest",
+   "run",
+   "-p",
+   "hsk-studio-pigment",
+   "--no-fail-fast"
+  ],
+  "exit": 0,
+  "sha": "71be1aa",
+  "passed": 69,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 64,
+ "bg_pids": [],
+ "next": "Independent validator round on 5ed1ead and 71be1aa (new lane id, V4-15). Open for the lead: notes.decisions_for_lead items 1 and 2 (PlanExtensions::validate still adds envelope operators from every entry; backends adopting admit_with_limits).",
+ "updated_at": "2026-10-11T19:31:11Z",
+ "notes": {
+  "origin": "plausible-register PLR-005 (lead decision WAIVE_WITH_STUB -> this lane implements it) and PLR-058 (lead decision FIX_LANE: structural well-formedness stays all-nodes, capability collection becomes reachable-only); START_LOG lead decision 2026-10-11T13:09:17Z (parity follow-up: every pigment admission predicate reads only nodes reachable from the root); lane SMB-PARITY-FOLLOWUP decisions_for_lead item 2",
+  "scope_as_assigned": "(1) PLR-058 split of RenderPlan::validate; (2) PLR-005 caller-supplied PlanLimits path, tighten only, loosening a typed error, documented in the DESCRIPTOR with test citations. Backend crates (render-cpu, render-gpu, composite) not changed.",
+  "api_added": [
+   "render_plan::admit_with_limits",
+   "render_plan::admit_extended_with_limits (also re-exported from render_plan::extensions)",
+   "PlanLimits::MAXIMUM, PlanLimits::within_maximum",
+   "PlanLimitKind {Nodes, Layers, Depth} with key()",
+   "PlanError::LimitAboveMaximum {kind, requested: u64, maximum: u64}, code plan_limit_above_maximum (PlanError is not non_exhaustive: a dependant matching it exhaustively would need an arm; none does, render-gpu --tests compiles)"
+  ],
+  "files": [
+   "crates/hsk-studio-pigment/src/render_plan.rs (PlanLimits, PlanLimitKind, PlanError::LimitAboveMaximum, validate, admit, admit_with_limits, admit_core, DESCRIPTOR)",
+   "crates/hsk-studio-pigment/src/render_plan/extensions.rs (admit_extended, admit_extended_with_limits)",
+   "crates/hsk-studio-pigment/tests/plan_reachability.rs (new)",
+   "crates/hsk-studio-pigment/tests/plan_limits.rs (new)"
+  ],
+  "tests_added": [
+   "tests/plan_reachability.rs unreachable_unsupported_operator_admits_reachable_one_is_refused (five operator kinds: blend mode multiply, tile node, coverage_u8 mask, clip_to_base route without backend support, pass-through group; unreachable admits on validate, admit and admit_extended and validate omits the operator; reachable refused with the same key and validate reports it)",
+   "tests/plan_reachability.rs reachable_refusal_is_reported_when_an_unreachable_node_comes_first",
+   "tests/plan_reachability.rs structure_stays_checked_on_unreachable_nodes (ten malformed unreachable nodes incl. forward reference, self reference, input u32::MAX, NaN opacity, fill above one, tool-only mode, pass-through over isolated, empty rect, NaN colour, clip without base: same typed PlanError on validate, admit, admit_extended; predicates do not hang on a cyclic plan)",
+   "tests/plan_limits.rs tightened_limits_refuse_what_the_defaults_admit (max_nodes, max_layers, max_depth one below and zero: typed error on validate, admit_with_limits, admit_extended_with_limits; exactly enough admits with the default ledger; a host execute that admits with its limits delivers 0 chunks when refused and 1 when it fits)",
+   "tests/plan_limits.rs loosening_past_the_maxima_is_a_typed_error_everywhere (each field at max+1 and usize::MAX on validate, admit_with_limits, admit_extended_with_limits for a valid, an over-budget and an empty plan; first offending field order; 65537-node plan not admitted by loosening; order stale revision/cancel before limits)",
+   "tests/plan_limits.rs defaults_are_the_maxima_and_unchanged (default = 65536/65536/64 = MAXIMUM; boundary 65536 nodes, 65536 layers, depth 64 admit and one more is refused with the same error on admit and admit_with_limits(default); execute with default limits on an over-budget plan delivers nothing)"
+  ],
+  "tests_changed": [],
+  "check_clippy": "cargo clippy -p hsk-studio-pigment --tests --examples --no-deps: exit 0, no warning, at 71be1aa; cargo test --doc -p hsk-studio-pigment exit 0 (0 doctests); cargo doc -p hsk-studio-pigment --no-deps: my intra-doc link warning fixed in 71be1aa, the other rustdoc warnings pre-exist (effect_math links, private admit_plan_rules link); rustfmt: the two new test files are rustfmt output, every hunk added to render_plan.rs and extensions.rs is rustfmt-conformant (the remaining rustfmt hunks of render_plan.rs are pre-existing lines)",
+  "dependants": {
+   "argv": [
+    "cargo",
+    "nextest",
+    "run",
+    "-p",
+    "hsk-studio-render-cpu",
+    "-p",
+    "hsk-studio-composite",
+    "-p",
+    "hsk-studio-develop",
+    "-p",
+    "hsk-studio-interop-psd",
+    "--no-fail-fast"
+   ],
+   "exit": 0,
+   "sha": "5ed1ead",
+   "passed": 139,
+   "failed": 0,
+   "skipped": 1,
+   "per_crate_passed": {
+    "hsk-studio-render-cpu": 29,
+    "hsk-studio-composite": 28,
+    "hsk-studio-develop": 28,
+    "hsk-studio-interop-psd": 50
+   },
+   "note": "run at 5ed1ead; 71be1aa changes one doc comment in extensions.rs and nothing else (git diff 5ed1ead 71be1aa), so the result is reused (GLOBAL-CLOSURE-050). The skipped test is develop real_dng.rs:144, #[ignore] (needs the CC0 sample corpus), pre-existing. cargo check -p hsk-studio-render-gpu --tests exit 0 (new PlanError variant breaks no exhaustive match)."
+  },
+  "red_proofs": [
+   {
+    "what": "PLR-058 tests on current origin head",
+    "tree": "scratch copy of origin 9ffe946 (git archive; own STUDIO_OWNER=planlimits-redproof, own target; Handshake_Artifacts/WP-KERNEL-STUDIO/planlimits-redproof), src unchanged, only tests/plan_reachability.rs and tests/plan_limits.rs copied in and touched",
+    "argv": [
+     "cargo",
+     "nextest",
+     "run",
+     "-p",
+     "hsk-studio-pigment",
+     "--test",
+     "plan_reachability",
+     "--no-fail-fast"
+    ],
+    "exit": 100,
+    "result": "3 run: 1 passed, 2 failed: unreachable_unsupported_operator_admits_reachable_one_is_refused (plan_reachability.rs:253, the unreachable operator is still collected) and reachable_refusal_is_reported_when_an_unreachable_node_comes_first (plan_reachability.rs:301 'assertion failed: !ops.contains(&Operator::Blend(StudioBlendMode::Multiply))'); structure_stays_checked_on_unreachable_nodes passes on origin by design (guard: the fix must not loosen structure) and is red on mutant m3 below; all green at the fix (log: 6 passed in the scratch tree with the fixed sources)"
+   },
+   {
+    "what": "PLR-005 tests on current origin head",
+    "tree": "same scratch tree",
+    "argv": [
+     "cargo",
+     "nextest",
+     "run",
+     "-p",
+     "hsk-studio-pigment",
+     "--test",
+     "plan_limits",
+     "--no-fail-fast"
+    ],
+    "exit": 101,
+    "result": "does not compile: 25 errors (E0425 admit_with_limits / admit_extended_with_limits, E0433 PlanLimitKind, E0599 PlanLimits::MAXIMUM and within_maximum, no variant LimitAboveMaximum): the capability does not exist on origin; green at the fix"
+   },
+   {
+    "what": "runtime-red mutants of the fix (same scratch tree, fixed sources copied in with one edit, files touched for a current mtime; tests plan_limits + plan_reachability, 6 tests, fix = 6 passed)",
+    "mutants": [
+     {
+      "name": "m1_limits_ignored (admit_core validates with PlanLimits::default())",
+      "exit": 100,
+      "failed": [
+       "tightened_limits_refuse_what_the_defaults_admit",
+       "loosening_past_the_maxima_is_a_typed_error_everywhere"
+      ]
+     },
+     {
+      "name": "m2_no_maximum (within_maximum never errors)",
+      "exit": 100,
+      "failed": [
+       "loosening_past_the_maxima_is_a_typed_error_everywhere"
+      ]
+     },
+     {
+      "name": "m3_structure_skipped (validate skips unreachable nodes entirely)",
+      "exit": 100,
+      "failed": [
+       "structure_stays_checked_on_unreachable_nodes"
+      ]
+     },
+     {
+      "name": "m4_all_nodes_capability (reachable filter removed from the operator collection)",
+      "exit": 100,
+      "failed": [
+       "unreachable_unsupported_operator_admits_reachable_one_is_refused",
+       "reachable_refusal_is_reported_when_an_unreachable_node_comes_first"
+      ]
+     },
+     {
+      "name": "m5_default_changed (MAXIMUM.max_depth 64 -> 63)",
+      "exit": 100,
+      "failed": [
+       "defaults_are_the_maxima_and_unchanged",
+       "loosening_past_the_maxima_is_a_typed_error_everywhere"
+      ]
+     }
+    ],
+    "result": "every one of the six new tests is red on at least one of: origin head, a mutant; nothing from the scratch tree is in a commit"
+   }
+  ],
+  "v4_06": {
+   "class_a": "pigment code that reads every node of the plan to decide what a backend must support, although both backends read only the nodes reachable from the root (render-cpu/render-gpu `if !reach[i]`)",
+   "regex_a": "(self|plan)\\.nodes",
+   "scope_a": "crates/hsk-studio-pigment/src/*.rs and src/*/*.rs at 71be1aa, non-test (19 matches; blend_math.rs fold_nodes does not match the regex: it is the stack oracle over StackNode, not a plan)",
+   "sites_a": [
+    {
+     "file_line": "crates/hsk-studio-pigment/src/render_plan.rs:481",
+     "verdict": "NOT_APPLICABLE: validate Empty check (structure)"
+    },
+    {
+     "file_line": "crates/hsk-studio-pigment/src/render_plan.rs:484",
+     "verdict": "NOT_APPLICABLE: validate node budget (structure, stays all-nodes)"
+    },
+    {
+     "file_line": "crates/hsk-studio-pigment/src/render_plan.rs:487",
+     "verdict": "NOT_APPLICABLE: validate root index (structure)"
+    },
+    {
+     "file_line": "crates/hsk-studio-pigment/src/render_plan.rs:496",
+     "verdict": "NOT_APPLICABLE: validate depth table (structure)"
+    },
+    {
+     "file_line": "crates/hsk-studio-pigment/src/render_plan.rs:498",
+     "verdict": "FIXED (5ed1ead, PLR-058): the loop keeps every structural check on every node; the operators it records are filtered by the reachable set after the loop"
+    },
+    {
+     "file_line": "crates/hsk-studio-pigment/src/render_plan.rs:546",
+     "verdict": "NOT_APPLICABLE: validate child group lookup for mode applicability (structure)"
+    },
+    {
+     "file_line": "crates/hsk-studio-pigment/src/render_plan.rs:648",
+     "verdict": "ALREADY_FIXED (SMB-PARITY-FOLLOWUP 1c80811): has_pass_through_fill reads reachable groups only"
+    },
+    {
+     "file_line": "crates/hsk-studio-pigment/src/render_plan.rs:665",
+     "verdict": "NOT_APPLICABLE: reachable_nodes itself (flags sized by the plan)"
+    },
+    {
+     "file_line": "crates/hsk-studio-pigment/src/render_plan.rs:672",
+     "verdict": "NOT_APPLICABLE: reachable_nodes itself (index via get, hostile indexes ignored)"
+    },
+    {
+     "file_line": "crates/hsk-studio-pigment/src/render_plan.rs:693",
+     "verdict": "ALREADY_FIXED (a873234): has_pass_through_mask reads reachable groups only"
+    },
+    {
+     "file_line": "crates/hsk-studio-pigment/src/render_plan.rs:713",
+     "verdict": "ALREADY_FIXED (a873234): uses_premultiplied_alpha reads the target and reachable tiles only"
+    },
+    {
+     "file_line": "crates/hsk-studio-pigment/src/render_plan.rs:723",
+     "verdict": "NOT_APPLICABLE: has_leaf_root reads the root node only"
+    },
+    {
+     "file_line": "crates/hsk-studio-pigment/src/render_plan.rs:1072",
+     "verdict": "ALREADY_FIXED (1c80811): has_solid_outside_unit reads reachable Solids only"
+    },
+    {
+     "file_line": "crates/hsk-studio-pigment/src/render_plan.rs:1084",
+     "verdict": "ALREADY_FIXED (1c80811): has_mask_density reads reachable groups only"
+    },
+    {
+     "file_line": "crates/hsk-studio-pigment/src/render_plan/extensions.rs:254",
+     "verdict": "NOT_CHANGED (decision for the lead, item 1): nodes_holding_effects walks every node for the EffectsNested envelope operator"
+    },
+    {
+     "file_line": "crates/hsk-studio-pigment/src/render_plan/extensions.rs:255",
+     "verdict": "NOT_CHANGED (decision for the lead, item 1): same loop as 254"
+    },
+    {
+     "file_line": "crates/hsk-studio-pigment/src/render_plan/extensions.rs:279",
+     "verdict": "NOT_CHANGED (decision for the lead, item 1): call of nodes_holding_effects in PlanExtensions::validate"
+    },
+    {
+     "file_line": "crates/hsk-studio-pigment/src/render_plan/extensions.rs:282",
+     "verdict": "NOT_APPLICABLE: envelope entry target lookup (ExtensionTarget, structure)"
+    },
+    {
+     "file_line": "crates/hsk-studio-pigment/src/render_plan/extensions.rs:298",
+     "verdict": "NOT_APPLICABLE: adjustment input lookup (AdjustmentInput, structure)"
+    }
+   ],
+   "counts_a": {
+    "matched": 19,
+    "FIXED": 1,
+    "ALREADY_FIXED": 5,
+    "NOT_APPLICABLE": 10,
+    "NOT_CHANGED": 3,
+    "UNCLASSIFIED": 0
+   },
+   "class_b": "pigment code that applies a fixed plan budget instead of the caller's PlanLimits (a host could not tighten it)",
+   "regex_b": "^[^/]*(PlanLimits::default\\(\\)|MAX_EFFECTS_PER_(LAYER|PLAN))",
+   "scope_b": "crates/hsk-studio-pigment/src/*.rs and src/*/*.rs at 71be1aa, code lines (9 matches); sites outside the crate are listed in follow_ups",
+   "sites_b": [
+    {
+     "file_line": "crates/hsk-studio-pigment/src/render_plan.rs:976",
+     "verdict": "BY_DESIGN: admit is admit_with_limits with the defaults (test defaults_are_the_maxima_and_unchanged)"
+    },
+    {
+     "file_line": "crates/hsk-studio-pigment/src/render_plan/extensions.rs:471",
+     "verdict": "BY_DESIGN: admit_extended is admit_extended_with_limits with the defaults (same test)"
+    },
+    {
+     "file_line": "crates/hsk-studio-pigment/src/render_plan/extensions.rs:338",
+     "verdict": "NOT_CHANGED (follow-up 3): envelope effect budget is a fixed constant outside PlanLimits"
+    },
+    {
+     "file_line": "crates/hsk-studio-pigment/src/render_plan/extensions.rs:21",
+     "verdict": "NOT_APPLICABLE: import"
+    },
+    {
+     "file_line": "crates/hsk-studio-pigment/src/render_plan/extensions.rs:22",
+     "verdict": "NOT_APPLICABLE: import"
+    },
+    {
+     "file_line": "crates/hsk-studio-pigment/src/effect_math.rs:51",
+     "verdict": "NOT_APPLICABLE: constant definition MAX_EFFECTS_PER_LAYER"
+    },
+    {
+     "file_line": "crates/hsk-studio-pigment/src/effect_math.rs:53",
+     "verdict": "NOT_APPLICABLE: constant definition MAX_EFFECTS_PER_PLAN"
+    },
+    {
+     "file_line": "crates/hsk-studio-pigment/src/effect_math/window.rs:32",
+     "verdict": "NOT_APPLICABLE: import"
+    },
+    {
+     "file_line": "crates/hsk-studio-pigment/src/effect_math/window.rs:658",
+     "verdict": "NOT_APPLICABLE: render-time guard of one windowed effect stack, not a plan admission budget"
+    }
+   ],
+   "counts_b": {
+    "matched": 9,
+    "BY_DESIGN": 2,
+    "NOT_APPLICABLE": 6,
+    "NOT_CHANGED": 1,
+    "UNCLASSIFIED": 0
+   }
+  },
+  "v4": {
+   "V4-01": "render_plan.rs is the plan IR, not a byte decoder, and carries no arithmetic_side_effects deny (an inner deny there would also cover extensions.rs); no arithmetic added: within_maximum compares and converts with try_from/unwrap_or(u64::MAX), the new candidate list and reachable lookups index only through get",
+   "V4-02": "size bounds before allocating: limits (incl. the new maximum check) and the node budget run before the reachable traversal; the (node, operator) candidate list is bounded by the layer budget that the loop checks first; tests cover 65536/65537 nodes and layers and depth 64/65 (defaults_are_the_maxima_and_unchanged) and usize::MAX limits",
+   "V4-03": "no hardware, no machine-local path, nothing prints NOT_PROVEN, no test is ignored",
+   "V4-04": "no fault-injection hooks",
+   "V4-05": "no frozen duplicate added",
+   "V4-07": "DESCRIPTOR topics validate and plan_limits, the doc comments of validate, PlanLimits, admit_with_limits and admit_extended_with_limits cite plan_reachability and plan_limits test names; the envelope-budget statement carries no test claim",
+   "V4-08": "not applicable (no hostile text format)",
+   "V4-09": "commit messages through git commit -F; helper script and logs under the lane scratch folder",
+   "V4-11": "scratch copy only (own STUDIO_OWNER and target, files touched when written); no shared file reverted or restored",
+   "V4-12": "scratch under <scratchpad>/SMB-PIGMENT-PLANLIMITS/ (own helper mutate_planlimits.py, never ran another lane's script) and Handshake_Artifacts/WP-KERNEL-STUDIO/planlimits-redproof",
+   "V4-21": "no personal data in any request (no network request made)"
+  },
+  "gameplan_and_retry_guard": "cargo through studio-env.sh in the cd-first form; one command was blocked by the gameplan hook before running because it started with a variable assignment instead of the cd (the hook then resolved the kernel pointer, whose steps are not this lane's); rerun in the cd-first form passed; no gameplan step added (command form, not a preparation failure); no retry-guard block; red-proof runs (expected non-zero) used a pointer file in the scratch folder naming the Studio gameplan with a relative path",
+  "behaviour_change": "the ExactnessLedger of a plan that contains nodes no layer reaches no longer lists those nodes' operators, and its lowest class can rise when only an unreachable node was Approximate (the ledger now describes what a backend executes); the 139 dependant tests (render-cpu, composite, develop, interop-psd) are unchanged. Reachable plans: ledger and operator order identical.",
+  "decisions_for_lead": [
+   "1. PlanExtensions::validate (extensions.rs) still adds envelope operators (Blend-If, adjustment, effects, feather, EffectsNested) from every entry, including entries addressed to unreachable groups. Evidence that backends disagree: render-cpu ExtPrep::build (plan_sink/extended.rs:199) prepares every envelope entry with no reachability filter, render-gpu looks an entry up per executed layer (plan_sink.rs:486). Making the envelope reachable-only here would admit a plan render-cpu then prepares (and may refuse) entry by entry, so it needs a backend decision first; not changed.",
+   "2. Backends adopting caller limits: render-cpu plan_sink.rs:1395 (admit) and :1427 (admit_extended), render-gpu plan_sink.rs:964 and :965 call the default-limits entry points. ExecuteRequest cannot gain a field (dependants build it by struct literal). Options: a PlanLimits field on each backend struct set by a builder method and passed to admit_with_limits / admit_extended_with_limits, or a RenderBackend::execute_with_limits default method. Not done here (backend crates are out of scope)."
+  ],
+  "follow_ups": [
+   "1. render-cpu / render-gpu: adopt admit_with_limits and admit_extended_with_limits behind a host-configurable PlanLimits (decisions_for_lead item 2).",
+   "2. composite lower_render_plan.rs:922 and tests/render_plan_lowering.rs:2072 call validate(&PlanLimits::default()): unchanged and correct (default limits); composite's own lowering limits (max_steps, depth) are a separate budget.",
+   "3. PlanLimits covers nodes, layers and depth only; the envelope budgets MAX_EFFECTS_PER_LAYER (64) and MAX_EFFECTS_PER_PLAN (4096) in PlanExtensions::validate are fixed constants. Tightening them needs a new field on PlanLimits (pub fields, built by literal by hosts: add it with a builder, not a breaking field) or an envelope-limits argument.",
+   "4. PlanExtensions envelope operator collection reachable-only: decisions_for_lead item 1."
+  ],
+  "plausible_not_addressed": [
+   "PLAUSIBLE: RenderPlan::validate allocates a depth table of nodes.len() usize before the layer budget is enforced; bounded by max_nodes (checked first, at most 65536 entries), so not a hostile-size risk, but a caller-tightened max_nodes would shrink it further"
+  ],
+  "date": "2026-10-11"
+ }
+}

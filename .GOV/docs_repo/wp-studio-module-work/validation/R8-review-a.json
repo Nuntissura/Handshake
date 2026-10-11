@@ -1,0 +1,268 @@
+{
+ "round": "STUDIO-R8",
+ "group": "A (pigment, composite, render-cpu, render-gpu adoption part, interop-psd adoption part)",
+ "reviewed_commit": "f6e5a490e2ad0e142938a8bba1f78cadb96f5e84",
+ "reviewer": "independent adversarial reviewer A (Opus), read-only, committed blobs at f6e5a49 only (git archive f6e5a49 / b2f5f81 / dff7ef5 of the five crates into the session scratchpad; git diff dff7ef5..f6e5a49), no sub-agents, no cargo",
+ "status": "COMPLETE",
+ "started_at": "2026-10-11T12:10:05Z",
+ "updated_at": "2026-10-11T12:33:39Z",
+ "severity_rule": "CONFIRMED only with file:line at f6e5a49 (or kernel file/key for process facts); else PLAUSIBLE. Paths relative to handshake-studio-assets/ at f6e5a49 unless marked @b2f5f81.",
+ "lanes": [
+  {
+   "lane": "SMB-EFFECTS-WAVE-1",
+   "crate": "hsk-studio-pigment (resubmission; remediation spans composite, render-cpu, render-gpu, interop-psd)",
+   "diff_reviewed": "remediation_claim (kernel ledger.json lanes[SMB-EFFECTS-WAVE-1].remediation_claim, 11:56:26Z): pigment d3ce607 + fe5fde0 (owner), b2f5f81 (parity), consumers cdd0644, e8f5f98, 7011298, f6e5a49. git log dff7ef5..f6e5a49 -- crates/hsk-studio-pigment = d3ce607, fe5fde0, b2f5f81 only: every later pigment commit is in the claim (V4-14 ok).",
+   "checked": "Failure class 'effects-with-blend-if-admitted-then-refused-by-every-backend', searched at every admission and backend site, not only the cited ones. (1) pigment validate crates/hsk-studio-pigment/src/render_plan/extensions.rs:389-397: non-identity Blend-If (any entry != IDENTITY_RANGE, :385) on an unclipped layer with a non-empty effect stack is reported as EffectsWithBlendIf instead of BlendIf; effects on a clip role never reach it (EffectClipRun :333-334); one entry per (group, layer) (ExtensionDuplicate), so effects and ranges cannot be split across two entries. intrinsic Unsupported :206; admit_extended :480-487 lowers by extension_exactness, so Unsupported whatever the backend claims, before any sink call. (2) render-cpu: the only effects/Blend-If site is prepare plan_sink.rs:587-589 (defence, ExtOperator::EffectsWithBlendIf.key()); its predicate is the same as pigment's (blend_if slot only for a non-identity entry, plan_sink/extended.rs:207-210; effect slot only for a non-empty stack, :213-231). (3) render-gpu: only plan_sink.rs:610-612 (defence, pigment key); same predicate (BlendIfGpu::from_entries skips identity entries, src/ext.rs:49-51, Some only if count > 0, :72; fx only for non-empty effects, plan_sink.rs:497). No other refusal mentioning effects or Blend-If in either backend (grep blend_if|effects over src). (4) composite: evaluation ledger blend_if_operator(role, has_effects) src/lower_extensions.rs:604-611 called at src/evaluate_static.rs:678; lowering ledger per-entry pigment validate src/lower_render_plan.rs:313 reports the same operator; DESCRIPTOR unsupported list names it. (5) interop-psd: typed loss src/proposal.rs:705-721 under ExtOperator::EffectsWithBlendIf.key(); recorded ranges are non-default only (src/adjust.rs:395-414), enabled stack with an enabled effect only (:710-713), mirroring composite convert_effects (lower_extensions.rs:573-579). (6) No other crate implements RenderBackend or calls admit_extended (git grep at f6e5a49). Tests: pigment tests/effects_ops.rs:209-286 (validate reports the combination, three backends incl. all-Exact refuse with 0 sink calls, counterfactuals effects-only, ranges-only, different layers, identity ranges) would fail on the dff7ef5 validate (it returned BlendIf and admitted at Approximate); consumer tests render-cpu src/plan_sink/refusal_keys.rs:346-416 (admit_extended error == prepare error), composite effects_with_blend_if_and_nested_effects_are_reported_like_pigment, interop-psd tests/clip_role_losses.rs:340-380.",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "loss_code_precision",
+     "file_line": "crates/hsk-studio-interop-psd/src/proposal.rs:705-721 (no isolation check) vs crates/hsk-studio-pigment/src/render_plan/extensions.rs:327-329 (EffectPassThrough before the Blend-If branch) and composite effect_on_pass_through",
+     "evidence": "A Pass Through PSD group with an enabled effect stack and non-default blend ranges gets the loss code effects_with_blend_if, while pigment refuses it first as EffectPassThrough and composite marks the step effect_on_pass_through. The user is told a refusal reason that is not the one the renderer gives. The new test covers an isolated folder only (tests/clip_role_losses.rs:374-379). No wrong pixels: the layer is refused either way.",
+     "remediation": "Skip the combination entry when the layer is pass_through (or emit the pass-through code), with one test"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "carried_open_item (R7-review-a SMB-EFFECTS-WAVE-1 PLAUSIBLE single_owner_within_crate)",
+     "file_line": "crates/hsk-studio-pigment/src/render_plan/extensions.rs:333",
+     "evidence": "EffectClipRun still restates the clip rule (is_clip(layer) || next layer is_clip) instead of g.clip_role(e.layer) != Some(Unclipped); the new EffectsWithBlendIf arm (:395) relies on that equivalence ('a layer with effects is never a clip role'). Today the two agree.",
+     "remediation": "As in R7: use Group::clip_role for EffectClipRun"
+    }
+   ],
+   "verified_fixes": [
+    {
+     "prior": "STUDIO-R7 SMB-EFFECTS-WAVE-1 FAIL_V1 effects-with-blend-if-admitted-then-refused-by-every-backend (R7-review-a CONFIRMED)",
+     "fix_commit": "d3ce607 + fe5fde0 (pigment), cdd0644, e8f5f98, 7011298, f6e5a49 (consumers)",
+     "evidence": "pigment src/render_plan/extensions.rs:395 + :206 + admit_extended :480-487; backends keep only defence checks under pigment's key (render-cpu plan_sink.rs:587-589, render-gpu plan_sink.rs:610-612) with predicates equal to pigment's; composite ledgers record EffectsWithBlendIf (lower_extensions.rs:606, evaluate_static.rs:678); interop-psd typed loss (proposal.rs:714-721). The class is gone at every site found."
+    },
+    {
+     "prior": "R7-review-a SMB-COMPOSITE-ADJ CONFIRMED consumer half (composite ledger promised Approximate)",
+     "fix_commit": "7011298",
+     "evidence": "composite src/lower_extensions.rs:604-611, src/evaluate_static.rs:678; lowering ledger via pigment validate per entry (src/lower_render_plan.rs:313)"
+    }
+   ],
+   "open_items_not_reraised": "R7 PLAUSIBLE process_v4_14 (0d28c03 missing from the effects lane file commits list): still not listed in kernel builders/lanes/hsk-studio-pigment-effects.json commits (process only)",
+   "recommendation": "PASS",
+   "recommendation_note": "The remediation is the one CX-VAL-008 required (pigment-owned intrinsic refusal, backends use its key, composite and interop-psd follow). No admission/backend site still admits the combination and refuses later. Notes only.",
+   "reviewed_at": "2026-10-11T12:24:30Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-FX-OPS",
+   "crate": "hsk-studio-pigment",
+   "diff_reviewed": "d3ce607 (src) + fe5fde0 (tests/effects_ops.rs) over dff7ef5; later b2f5f81 (same crate, claimed by SMB-PIGMENT-ADMIT-PARITY and listed in the effects lane file commits) only adds AlphaPremultiplied and admit_plan_rules, no change to the FX-OPS arms",
+   "checked": "ExtOperator::EffectsWithBlendIf key effects_with_blend_if, intrinsic Unsupported (src/render_plan/extensions.rs:206); EffectsNested key effects_nested, intrinsic EFFECT_EXACTNESS (:211). nodes_holding_effects (:243-264): one forward pass over the node table, group flag = a layer of the group has effects in the envelope, or a layer's input is an earlier flagged node (flags.get on a later index is None -> false, so a forward reference is never followed; hostile case asserted tests/effects_ops.rs:335-337). validate reports EffectsNested once per plan when an effect layer's input is an EARLIER flagged node (:358-365). Additive: two variants of a #[non_exhaustive] enum, key/class arms added, no v1 type changed. Tests tests/effects_ops.rs (5): keys/classes; validate reports and counterfactuals; refusal for all-Exact / all-Approximate / natural-class backends with 0 sink calls through the default execute_extended; nesting through a middle group, sibling counterfactuals, hostile forward input; Unsupported declaration refused before the sink; Approximate declaration admitted and an Exact claim recorded at Approximate (never above pigment); a Fitted floor refused. Each assertion would fail on dff7ef5 (no such operators). Compared with render-cpu's own nesting rule (plan_sink.rs:473-480, :590-598, :692-706): same definition for reachable layers.",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "stricter_than_backends_on_unreachable_nodes",
+     "file_line": "crates/hsk-studio-pigment/src/render_plan/extensions.rs:243-264, :358-365 (every node of the table) vs crates/hsk-studio-render-cpu/src/plan_sink.rs:476-481 (unreachable nodes skipped, has_effects false)",
+     "evidence": "Pigment reports EffectsNested for an effect layer in a subtree the root never reaches (the test plan nested() itself has root 4, so the cases on nodes 2 and 3 are unreachable: tests/effects_ops.rs:290-298, :304-314). render-cpu, which declares EffectsNested Unsupported, would have rendered such a plan (it skips unreachable nodes), so admission now refuses a plan the backend can execute. Opposite direction of the R7 class (no wrong pixels, no admitted-then-refused), and composite emits only reachable steps, but the lane notes call the definition 'the same as render-cpu's has_effects[input]', which holds only for reachable layers. Same pattern in ADMIT-PARITY (see that lane).",
+     "remediation": "Either restrict nodes_holding_effects/validate to nodes reachable from the root, or document that the envelope rules read every node (as Solid range does) and adjust the lane note"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "backend_capability_difference_user_reachable",
+     "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:1728 (EffectsNested Unsupported) vs crates/hsk-studio-render-gpu/src/plan_sink.rs:1121 (EffectsNested supported, Approximate)",
+     "evidence": "Asked by the lead: a document with a group drop shadow over a child layer with its own effect (common in PSDs) is admitted and rendered by render-gpu and refused by render-cpu. Since d3ce607 the refusal is uniform at shared admission, typed (effects_nested), before any sink call, and visible to a caller through extension_exactness, which is exactly lead decision 2026-10-11T10:56:49Z. The user can still hit it: a host without a GPU adapter (render-gpu Unavailable) has only render-cpu, and neither composite's ledger (records EffectsNested at pigment's Approximate, evaluate_static.rs:686-692) nor interop-psd (no loss entry for nesting) says that the CPU path cannot render it. No crate in the workspace depends on both backends, so no fallback policy exists to judge (git grep at f6e5a49).",
+     "remediation": "None for this lane (decided design). Lead/Operator: decide whether render-cpu implements nesting (one frame per nesting level) or hosts must surface 'GPU only' before export"
+    }
+   ],
+   "verified_fixes": [],
+   "recommendation": "PASS",
+   "recommendation_note": "Operators, classes and admission behaviour match the lead decision; tests assert refusal for the most permissive backend and the admitted class ceiling, with counterfactuals. Notes only. (Process note: notes.fx_ops does not list the later same-file pigment commit b2f5f81; it is in the shared lane file commits list and in the EFFECTS-WAVE-1 remediation_claim, and touches no FX-OPS arm.)",
+   "reviewed_at": "2026-10-11T12:24:30Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-ADMIT-PARITY",
+   "crate": "hsk-studio-pigment",
+   "diff_reviewed": "b2f5f81 (src/render_plan.rs, src/render_plan/extensions.rs, tests/admit_parity.rs); no later pigment commit. Site list read against the backends as they stand in the b2f5f81 tree (= render-cpu 18607e5 / render-gpu ba3e47d), which is the state the list names ('file:line before commit b2f5f81').",
+   "checked": "Code: has_pass_through_mask (src/render_plan.rs:560-571: PassThrough layer with a non-clip mask), uses_premultiplied_alpha (:573-578: target or any Tile node), has_leaf_root (:583-585); admit_plan_rules (:862-895) runs last in admit (after the v1 density refusal) and in admit_extended (src/render_plan/extensions.rs:505), so older refusals keep their keys (tests/admit_parity.rs earlier_refusals_keep_their_keys_before_the_new_rules: density, fill and sample range win). AlphaPremultiplied intrinsic Approximate, declared per backend, class = intrinsic.lowest_of(declaration) (never above pigment); leaf root checks Blend(Normal) against the floor without recording (test leaf_root_normal_class_is_decided_at_admission asserts the ledger has no 'normal'). Tripwire src/render_plan.rs:985-1004 (in-crate exhaustive match of SampleFormat and AlphaConvention). Tests would fail on fe5fde0 (admit returned Ok for a masked pass-through layer, a premultiplied tile, a Fitted-Normal leaf root under an Exact floor). Count: regex unsupported\\(|map_err\\(unsupported\\) + the leaf_root_class direct BackendError::Unsupported over render-cpu/render-gpu src at b2f5f81 = 52 + 28 = 80 sites, exactly the 80 file:line entries in kernel builders/lanes/hsk-studio-pigment-effects.json notes.v4_06_sites (set compare, 0 unlisted, 0 stale). Spot checks of the classification (20 sites, read in context at b2f5f81): agree u: render-cpu plan_sink.rs:154 (BlendError UnknownDiscriminant/TooDeep/Adjustment are not produced by the per-pixel blend calls; pigment blend_math.rs:259-273), :451 and render-gpu :385 (SampleFormat has one variant), :579 / effects.rs:128 (internal invariants; effects.rs:128 needs a frame that prepare never leaves missing without nesting), extended.rs:104 (same MAX_FEATHER_PX bound: coverage_math.rs:63-70 and extensions.rs:403), :105 (validate uses the same check_range), :124 and :155 (same effect.validate() and MAX_EFFECTS_PER_LAYER as validate, extensions.rs:337-350, window.rs:658), render-gpu :360 (feather_kernel is the bound, ext.rs:284), :587 (BlendChannel has 4 variants, coverage_math.rs:103-108; validate refuses a repeated channel), :596 (AdjustmentOp::prepare builds the same PreparedCurve, adjust_math.rs:365-373; compile_adjustment has an arm for each of the 7 kinds gpu_adjust_supported admits, kernel.rs:166-192); agree covered: render-cpu :153/:567 (exactness(Blend) is Unsupported exactly when !blend_supported, plan_sink.rs:160-163 and :1671-1677 @b2f5f81), :551/:564 (PassThroughOpacity / NonIsolatedBlendedGroup Unsupported in exactness), render-gpu :478 (gpu_blend_supported in both), :490 (validate refuses knockout), :534 (clip-to-base filtered first; exactness _ => Unsupported), :595 (opcode_of is Some for every AdjustmentKind::ALL member). One disagreement and one weak pin below.",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "misclassified_site_latent_admitted_then_refused (R5/R7 class, not reachable today)",
+     "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:623 (@b2f5f81 :614, listed 'covered: shared admission decides it') vs crates/hsk-studio-render-cpu/src/plan_sink.rs:1678 ('| Operator::Mask(_) => Exactness::Exact'); crates/hsk-studio-pigment/src/render_plan.rs:53-57 (MaskFormat #[non_exhaustive]: CoverageU8, CoverageU16Le, BaseAlpha) and :985-1004 (tripwire covers SampleFormat and AlphaConvention only)",
+     "evidence": "For render-cpu, admission does NOT decide the mask-format refusal: its exactness answers Exact for every Mask(format) other than BaseAlpha, so a fourth MaskFormat variant would be admitted at Exact and then refused at prepare under Operator::Mask(other).key(), the exact class this lane exists to close. Today the arm is unreachable only because the enum has no fourth variant (BaseAlpha is filtered by the clipped arm first). render-gpu is correct (exactness '_ => Unsupported', plan_sink.rs:1092). The test named every_enum_a_backend_refuses_on_has_an_admission_decision does not include MaskFormat although both backends refuse on it.",
+     "remediation": "render-cpu exactness: name Mask(CoverageU8 | CoverageU16Le) => Exact and let other formats fall to Unsupported; add MaskFormat to the in-crate tripwire; reclassify the site as (u) in notes.v4_06_sites"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "decision_doc_misstates_backend_behaviour",
+     "file_line": "kernel diagnostics/adjustments-advanced-blending.md topic admission-parity, open-rules row alpha_premultiplied ('any node, reachable or not'); crates/hsk-studio-render-cpu/src/plan_sink.rs:473 and crates/hsk-studio-render-gpu/src/plan_sink.rs:413 @b2f5f81 (unreachable nodes skipped before verify_tile and before the mask checks)",
+     "evidence": "The backends never refused an unreachable premultiplied tile or an unreachable masked pass-through layer; pigment now does (uses_premultiplied_alpha and has_pass_through_mask read every node, src/render_plan.rs:560-578; asserted on purpose for the tile, tests/admit_parity.rs:408-418). So b2f5f81 is not only 'the same outcome earlier': plans whose only premultiplied tile or masked pass-through layer is unreachable were executed before and are refused now. Stricter direction (no wrong pixels, no admitted-then-refused); composite lowers only steps reachable from the root (src/lower_render_plan.rs:497-616), so Studio's own plans are not affected. The doc sentence is wrong about the backends and hides a behaviour change.",
+     "remediation": "Correct the doc (backends: reachable nodes only; pigment: every node, deliberate) or restrict the two predicates to reachable nodes"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "one_directional_pin",
+     "file_line": "crates/hsk-studio-pigment/tests/admit_parity.rs:512-516 (literal 3004) vs crates/hsk-studio-render-gpu/src/fx.rs:25, :129 (MAX_TAPS, effect_size refusal)",
+     "evidence": "The (u) verdict for render-gpu effect_size rests on this test, which copies render-gpu's bound as a literal: it fails if pigment raises MAX_EFFECT_SIZE_PX (as its doc says) but not if render-gpu lowers MAX_TAPS; no render-gpu test compares MAX_TAPS with pigment's widest kernel (grep MAX_EFFECT_SIZE_PX over render-gpu: none).",
+     "remediation": "Add a render-gpu unit test asserting feather_kernel(MAX_EFFECT_SIZE_PX).len() <= MAX_TAPS"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "gpu_only_post_admission_refusals_without_preflight",
+     "file_line": "crates/hsk-studio-render-gpu/src/ext.rs:324-326 (mask_feather_cost, FEATHER_MAX_OPS 2^31) and src/plan_sink.rs:1975 (effect_cost), class (c) in the sweep",
+     "evidence": "Admitted feather radii (validate allows up to 10000 px) over a large layer region exceed 2^31 tap operations on render-gpu, which then refuses after admission while render-cpu feathers per chunk. Classed (c) 'resource' by the sweep, defensible, but unlike render-cpu (which publishes pigment's layer_window_cost for a pre-flight) render-gpu exposes no pre-flight, so a host cannot know before execute. Not the 'every backend' class.",
+     "remediation": "Optional: publish the GPU feather/effect cost predicates as a pre-flight, or record the residual in the decision doc"
+    }
+   ],
+   "verified_fixes": [
+    {
+     "prior": "kernel notes.fx_ops.same_class_open (mask_on_pass_through, alpha_premultiplied, sample_format left open by SMB-PIGMENT-FX-OPS)",
+     "fix_commit": "b2f5f81",
+     "evidence": "src/render_plan.rs:862-895 admit_plan_rules; tests/admit_parity.rs pass_through_mask_is_refused_for_every_backend, premultiplied_alpha_is_a_declared_capability, leaf_root_normal_class_is_decided_at_admission; sample_format reachable by no plan (single variant) with the tripwire at :985"
+    }
+   ],
+   "recommendation": "PASS_WITH_NOTES",
+   "recommendation_note": "The three rules are correct, ordered last, tested non-tautologically; the 80-site count matches exactly and 19 of 20 spot-checked verdicts hold. The CONFIRMED render-cpu Mask(_) => Exact item is latent (no fourth MaskFormat today) but is the lane's own class and a small fix; the doc item is a misstatement plus an undeclared stricter behaviour on unreachable nodes.",
+   "reviewed_at": "2026-10-11T12:31:00Z"
+  },
+  {
+   "lane": "SMB-FX-OPS-ADOPT",
+   "crate": "hsk-studio-render-gpu (cdd0644) + hsk-studio-render-cpu (e8f5f98) + hsk-studio-composite (7011298) + hsk-studio-interop-psd (f6e5a49)",
+   "diff_reviewed": "git show cdd0644, e8f5f98, 7011298, f6e5a49; no later commit in any of the four crates up to f6e5a49 (V4-14 ok per crate)",
+   "checked": "Agreement with pigment's validate/admit answer per ExtOperator at f6e5a49. render-cpu extension_exactness (src/plan_sink.rs:1708-1730): AdjustmentLayer, every Adjustment kind, BlendIf, MaskDensity, MaskFeather, the six Effect kinds = pigment intrinsic; EffectsNested and AlphaPremultiplied named Unsupported; BlendIfClipBase, BlendIfClippedLayer, EffectsWithBlendIf, Knockout(_) fall to Unsupported (the first three are intrinsically Unsupported anyway; validate never reports Knockout). render-gpu (src/plan_sink.rs:1115-1140): supported set reports intrinsic.lowest_of(Fitted), so EffectsNested = Approximate (pigment's class, never above), AlphaPremultiplied explicit false, Adjustment(kind) = gpu_adjust_supported (7 kinds, no BrightnessContrast), Effect = six kinds. Defence checks now use pigment keys: render-cpu plan_sink.rs:398, :451, :588, :591, :613, plan_sink/effects.rs:129; render-gpu plan_sink.rs:318, :384, :531, :611; leaf_root_class (render-gpu :1039-1049) only records 'normal' after admit/admit_extended (:963-967), the floor check is pigment's (same error value Unsupported{normal, Fitted} as before). composite: blend_if_operator(role, has_effects) (src/lower_extensions.rs:604-611), nested effects in the evaluation ledger over emitted inputs (src/evaluate_static.rs:684-692) and in the lowering ledger via pigment validate of the whole envelope (src/lower_render_plan.rs:334-349), pass-through mask as PASS_THROUGH_MASK_OPERATOR Unavailable/Unsupported (evaluate_static.rs:225-229, :253-256, lower_plan.rs:114-116). interop-psd typed losses with pigment codes (src/proposal.rs:684-721). Tests compare with pigment's answers (render-cpu refusal_keys.rs:346-416 admit_extended error == prepare error; render-gpu refusal_keys fx_ops_declarations_and_nested_ledger_equal_pigments; composite effects_with_blend_if_and_nested_effects_are_reported_like_pigment validates the lowered envelope with pigment and admits/refuses with an all-Exact and a no-nesting double, counterfactuals incl. hidden inner layer; interop-psd tests/clip_role_losses.rs:340-412) and would fail on the pre-adoption code (render-gpu nesting parity was refused at b2f5f81; composite recorded BlendIf). No test file outside the new cases changed (git diff dff7ef5..f6e5a49 of the four crates' tests: only additions plus the REFUSAL-KEYS literal-to-code edit). No new fault hook, env read or machine path (diff grep). EffectsNested CPU/GPU question: see SMB-PIGMENT-FX-OPS finding 2 (user-reachable on a host without a GPU adapter, uniform and typed at admission, per lead decision 10:56:49Z).",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "consumer_ledger_misses_plan_level_envelope_refusal (consumer half of the R7 class, narrow trigger)",
+     "file_line": "crates/hsk-studio-composite/src/lower_render_plan.rs:311-321 (per-entry probes) and :334-349 (whole-envelope validate added by 7011298, Err discarded by is_ok_and) vs crates/hsk-studio-pigment/src/render_plan/extensions.rs:336-338 (total_effects > MAX_EFFECTS_PER_PLAN -> PlanError::EffectLimit) and :465-479 (admit_extended maps it to InvalidPlan)",
+     "evidence": "Composite checks the envelope one entry at a time, so a plan-level envelope rule is invisible to it; 7011298 now validates the whole envelope but only to look for EffectsNested and drops any error. A document whose rendered layers carry more than 4096 effects in total (e.g. 65 layers with 64 effects each; composite caps 64 per layer, lower_extensions.rs:584, and 4096 steps, no total cap: grep) lowers Ok with a ledger that records the effects at Approximate and no refusal, and pigment admission then refuses it as InvalidPlan(EffectLimit) for every backend. Typed, before any sink call; no wrong pixels.",
+     "remediation": "In record_envelope, map a whole-envelope validate error other than the carried AdjustmentUnsupported/knockout cases to CompositeError::Plan (or record an Unsupported entry), and add one test with 65 x 64 effects"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "loss_code_precision",
+     "file_line": "crates/hsk-studio-interop-psd/src/proposal.rs:705-721",
+     "evidence": "Same item as SMB-EFFECTS-WAVE-1 finding 1: a Pass Through group with effects and ranges is reported as effects_with_blend_if, while the renderer refuses it as effect_on_pass_through.",
+     "remediation": "As there"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "single_owner_mirror",
+     "file_line": "crates/hsk-studio-composite/src/evaluate_static.rs:684-692 (nesting rule restated over emitted inputs) vs crates/hsk-studio-pigment/src/render_plan/extensions.rs:243-264, :358-365",
+     "evidence": "The lowering ledger asks pigment (whole-envelope validate), but the evaluation ledger re-derives 'effects nested' itself, like the R7 PLAUSIBLE clip_roles mirror. The new test asserts equality on five fixtures (nested, inner only, outer only, hidden inner, flat), so drift is guarded only there.",
+     "remediation": "Derive the evaluation entry from pigment's validate of the lowered envelope where one exists, or keep the equality test and extend it when the rule changes"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "process_claim_scope (V4-14 / V4-20)",
+     "file_line": "kernel ledger.json lanes[SMB-FX-OPS-ADOPT].commits = ['f6e5a49'] (candidate f6e5a49); kernel builders/lanes/hsk-studio-composite.json notes.fx_ops_adopt.v4_06_sites (two entries without line numbers)",
+     "evidence": "The ledger claim names one of the four lane commits (the other three are named only in the note text and in each crate's notes.fx_ops_adopt.sha). The composite site list uses function names instead of file:line, so the V4-20 mechanical count cannot match it.",
+     "remediation": "List cdd0644, e8f5f98, 7011298, f6e5a49 in the ledger commits; give the composite sites file:line"
+    }
+   ],
+   "verified_fixes": [
+    {
+     "prior": "R7-review-a SMB-RENDER-CPU-WINDOW PLAUSIBLE backend_capability_disagreement (effects_nested refused locally after admission)",
+     "fix_commit": "e8f5f98 (+ pigment d3ce607)",
+     "evidence": "render-cpu declares EffectsNested Unsupported (src/plan_sink.rs:1728), so shared admission refuses it before any sink call; local checks plan_sink.rs:590-591, effects.rs:129 are defence under pigment's key"
+    },
+    {
+     "prior": "R7-review-a SMB-RENDER-CPU-ADJ / SMB-RENDER-GPU-ADJ / SMB-RENDER-CPU-FX2 PLAUSIBLE inherits_root_finding (backend-local effects_with_blend_if key)",
+     "fix_commit": "e8f5f98, cdd0644",
+     "evidence": "render-cpu src/plan_sink.rs:587-589, render-gpu src/plan_sink.rs:610-612 use ExtOperator::EffectsWithBlendIf.key()"
+    },
+    {
+     "prior": "R7-review-a SMB-COMPOSITE-ADJ CONFIRMED consumer half (ledger Approximate for effects + Blend-If)",
+     "fix_commit": "7011298",
+     "evidence": "src/lower_extensions.rs:606, src/evaluate_static.rs:678; test effects_with_blend_if_and_nested_effects_are_reported_like_pigment"
+    },
+    {
+     "prior": "render-gpu fx_stack_mask_group_and_nesting_parity refused at admission at b2f5f81 (recorded expected failure, kernel notes.admit_parity.dependents)",
+     "fix_commit": "cdd0644",
+     "evidence": "src/plan_sink.rs:1121 EffectsNested in the supported arm; class Approximate"
+    }
+   ],
+   "recommendation": "PASS_WITH_NOTES",
+   "recommendation_note": "Backends and composite agree with pigment's validate/admit for every ExtOperator; classes are never above pigment; keys are pigment's; tests compare with pigment. The CONFIRMED composite item is a narrow, typed, pre-existing per-entry blind spot that 7011298 now touches and discards; fix with one test.",
+   "reviewed_at": "2026-10-11T12:31:00Z"
+  },
+  {
+   "lane": "SMB-REFUSAL-KEYS",
+   "crate": "hsk-studio-composite (b7064fc) + hsk-studio-render-cpu (18607e5) + hsk-studio-render-gpu (ba3e47d)",
+   "diff_reviewed": "git show b7064fc, 18607e5, ba3e47d (claim judged at those commits); overlap: the same files were later changed by SMB-FX-OPS-ADOPT (7011298 composite, e8f5f98 render-cpu, cdd0644 render-gpu)",
+   "checked": "Claim (kernel lane files notes.refusal_keys; PLR-006): defence-in-depth refusals of rules pigment's admission decides use pigment's constants/enums. Verified at f6e5a49: render-gpu pass-through opacity and fill are two checks in admission order under Operator::PassThroughOpacity.key() and PASS_THROUGH_FILL_OPERATOR (src/plan_sink.rs:469-474; before ba3e47d one check reported fill under the opacity key while pigment admit says group_pass_through_fill_opacity: the real drift); EffectError::Unsupported maps to EffectFeature::key in both backends (render-gpu src/fx.rs:108, render-cpu src/plan_sink/extended.rs:130; before, effect_parameter); pass-through clip base is InvalidPlan(PlanError::ClipBasePassThrough { node }) with the group node (render-cpu src/plan_sink.rs:541, render-gpu :687 with group_node read before the run-walk shadow) and composite's ledger key/reason REFUSE_CLIP_BASE_PASS_THROUGH = PlanError::ClipBasePassThrough { node: 0 }.code() (src/lower_extensions.rs:96, evaluate_static.rs:590-592); blend mode / mask format / adjustment and effect kind keys are pigment's. Tests (cfg(test) modules src/plan_sink/refusal_keys.rs in both backends, composite refusal_keys_are_pigments): per rule pigment's admit error equals the pigment-named expectation AND prepare alone returns the same error; GPU through BackendChoice::None (no adapter, no NOT_PROVEN). They would fail on the pre-lane code (GPU fill case: opacity key; clip base: literal Unsupported vs InvalidPlan; EffectFeature cases: effect_parameter). Only test change to an existing test: composite pass_through_group_as_clip_base... now asserts the pigment code (the old contains('clip_base_pass_through') would still have matched the new string). V4-06 recount of the lane regexes at the lane commits: composite 64 = 64 (exact set); render-cpu 65 hits vs 63 listed (unlisted src/plan_sink.rs:135 inside fn unsupported, :1258 a doc comment), render-gpu 43 vs 41 (unlisted src/lib.rs:53 DESCRIPTOR, src/plan_sink.rs:201 inside fn unsupported); no refusal site missing. Overlap check: git diff 18607e5..f6e5a49 of both refusal_keys.rs removes only doc/import lines (no assertion of this lane removed); the later commits turned this lane's NOT_APPLICABLE 'backend-owned key' verdicts for alpha_premultiplied, mask_on_pass_through, effects_with_blend_if and effects_nested into pigment keys (now correct by pigment d3ce607/b2f5f81).",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "process_v4_14",
+     "file_line": "kernel builders/lanes/hsk-studio-{render-cpu,render-gpu,composite}.json notes.refusal_keys (sha 18607e5 / ba3e47d / b7064fc, no later-commit claim); kernel ledger.json lanes[SMB-REFUSAL-KEYS].commits = ['ba3e47d']; git log 18607e5..f6e5a49 -- crates/hsk-studio-render-cpu = e8f5f98, ba3e47d..f6e5a49 -- crates/hsk-studio-render-gpu = cdd0644, b7064fc..f6e5a49 -- crates/hsk-studio-composite = 7011298",
+     "evidence": "Each of the three crates received a later commit (SMB-FX-OPS-ADOPT) that edits this lane's own files (src/plan_sink.rs, src/plan_sink/refusal_keys.rs, composite evaluate_static.rs / lower_render_plan.rs) after its READY commit; none is listed in this lane's claim, and the ledger names one of its three commits. Only render-cpu notes.fx_ops_adopt.supersedes_note mentions one superseded site (effects.rs:128); this lane's verdicts for plan_sink.rs:395/448/581/584/604 (cpu) and :316/:382/:527/:606 (gpu) are stale at f6e5a49. The code at f6e5a49 is consistent and keeps every assertion of this lane, so this is paperwork (same class as R7 ENG-7 / ENG-2, closed then by lead claim_includes_later).",
+     "remediation": "Record claim_includes_later (e8f5f98, cdd0644, 7011298, files touched, owning lane SMB-FX-OPS-ADOPT) and list b7064fc, 18607e5, ba3e47d in the ledger commits; mark the superseded site verdicts"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "process_v4_06_count (V4-20 mechanical count)",
+     "file_line": "kernel builders/lanes/hsk-studio-render-cpu.json notes.v4_06_sites (63) vs 65 regex hits at 18607e5; builders/lanes/hsk-studio-render-gpu.json notes.v4_06_sites (41) vs 43 hits at ba3e47d",
+     "evidence": "The four unlisted hits are not refusal sites (two helper bodies, one doc comment, one DESCRIPTOR string), so nothing is missed, but the exclusion rule is not written in notes.v4_06_regex and the steward's mechanical checker will report a count mismatch, which V4-06 says blocks READY.",
+     "remediation": "List the four lines as NOT_APPLICABLE (helper/doc/descriptor) or state the exclusions in the regex note"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "disclosed_open_keys (not re-raised as new)",
+     "file_line": "crates/hsk-studio-render-cpu/src/plan_sink/extended.rs:122-125, :155 ('effect_limit'), :133, :161 ('effect_parameter'); render-gpu src/fx.rs:109",
+     "evidence": "Defence keys for rules pigment's validate decides (PlanError::EffectLimit / EffectParameter, admitted as InvalidPlan with codes plan_effect_limit / plan_effect_parameter) stay backend literals, unlike ClipBasePassThrough which this lane converted to pigment's PlanError value. Disclosed by the lane as a candidate lead decision; unreachable after admission today.",
+     "remediation": "Lead decision on the lane's candidate (align to the PlanError value, as for ClipBasePassThrough)"
+    }
+   ],
+   "verified_fixes": [
+    {
+     "prior": "PLR-006 (FIX_LANE, lead 2026-10-11T10:18:58Z): backend/composite defence refusals use pigment literals",
+     "fix_commit": "b7064fc, 18607e5, ba3e47d",
+     "evidence": "render-gpu src/plan_sink.rs:469-474 (fill drift fixed), src/fx.rs:108; render-cpu src/plan_sink.rs:541, :554, :563, src/plan_sink/extended.rs:130; composite src/lower_extensions.rs:96; per-crate tests compare backend error with pigment admit"
+    },
+    {
+     "prior": "R7-review-a SMB-BLENDIF-CLIP-ADOPT PLAUSIBLE key_duplicate (blend_clipped_layers_as_group_off_not_modelled in composite and interop-psd)",
+     "fix_commit": "none",
+     "evidence": "Still a literal in both crates at f6e5a49 (not in this lane's scope: pigment exports no key for it); not re-raised"
+    }
+   ],
+   "recommendation": "FIX_FIRST",
+   "recommendation_note": "Paperwork only (V4-14 later-commit claim, ledger commit list, V4-06 count notes). The code claim holds at ba3e47d and still holds at f6e5a49; the drift fix and the per-rule admit-equals-prepare tests are real.",
+   "reviewed_at": "2026-10-11T12:33:00Z"
+  }
+ ],
+ "cx_val_009_sweep": {
+  "scope": "R7 PASS lanes in the crates changed dff7ef5..f6e5a49 of group A: pigment (ENG-1 PASS_V4, ENG-2 PASS_V2, EFFECTS-WAVE-2 PASS_V1, WINDOW PASS_V1, BLENDIF-CLIP PASS_V1), composite (COMPOSITE PASS_V4, CLIP-ALIGN PASS_V4, ADJ PASS_V1, BLENDIF-CLIP-ADOPT PASS_V1), render-cpu (RENDER-CPU PASS_V4, CLIP PASS_V4, ADJ PASS_V1, WINDOW PASS_V1, FX2 PASS_V1), render-gpu (RENDER-GPU-ADJ PASS_V1), interop-psd (INTEROP-PSD PASS_V4, WIDE PASS_V2, RECEIPT PASS_V1, CLIP-ROLES PASS_V1)",
+  "method": "git diff dff7ef5..f6e5a49 per crate; existing test files: only additions plus the composite clip-base key edit (no assertion removed in pigment, composite, interop-psd tests; render-cpu and render-gpu tests/ unchanged); new admission rules checked against every test backend and fixture that could meet them",
+  "result": "NO_BREAK_FOUND",
+  "per_crate": [
+   {
+    "crate": "hsk-studio-pigment",
+    "changed_by": "d3ce607, fe5fde0, b2f5f81",
+    "finding": "Additive: three variants of the non_exhaustive ExtOperator, an extra match arm after the clip-role arms (BLENDIF-CLIP roles unchanged, extensions.rs:393-396), admit_plan_rules last in admit/admit_extended. Existing pigment test backends all rate Blend(Normal) Exact (tests/render_plan.rs:193-203, :410; plan_extensions.rs:78, :104; effects.rs:298, :318; effects_wave2.rs:227; blend_if_clip.rs:111, :140), no existing fixture puts a coverage mask on a pass-through layer or declares premultiplied alpha (grep), so the new rules change no earlier outcome. effect_math and effect_math/window.rs untouched (WAVE-2, WINDOW claims stand). ENG-1 DESCRIPTOR 'admission' text still true; new admission_parity key cites tests."
+   },
+   {
+    "crate": "hsk-studio-composite",
+    "changed_by": "b7064fc (REFUSAL-KEYS), 7011298 (FX-OPS-ADOPT)",
+    "finding": "One public observable changed on purpose: the evaluation-ledger key and Unavailable reason for a pass-through clip base are now plan_clip_base_pass_through (was clip_base_pass_through), DESCRIPTOR updated, no other crate matches the old string (git grep at f6e5a49). A masked pass-through group is now Unavailable at evaluation (before: Ready in composite, then refused by both backends), which only removes an admitted-then-refused case. blend_if_operator keeps the clip-role arms (BLENDIF-CLIP-ADOPT). See SMB-FX-OPS-ADOPT CONFIRMED item for the plan-level envelope blind spot (pre-existing, not a regression of a PASS claim)."
+   },
+   {
+    "crate": "hsk-studio-render-cpu",
+    "changed_by": "18607e5 (REFUSAL-KEYS), e8f5f98 (FX-OPS-ADOPT)",
+    "finding": "Behaviour change only in which layer refuses: premultiplied alpha, mask on pass-through, effects with Blend-If and nested effects are now refused at shared admission with the same BackendError value the backend returned (key and Unsupported class), before any source lookup; tests/cpu_plan.rs:1247-1257 (premultiplied tile, expects unsupported('alpha_premultiplied', Unsupported)) and the cpu_effects keys still match. Keys changed only on unreachable defence paths (blend_mode -> mode key, mask_format -> format key, effect_parameter -> feature key for EffectError::Unsupported). extension_exactness classes unchanged for every operator ADJ/WINDOW/FX2 claim (intrinsic). Latent item: see ADMIT-PARITY CONFIRMED Mask(_) => Exact."
+   },
+   {
+    "crate": "hsk-studio-render-gpu (ADJ part; SMB-RENDER-GPU excluded D20)",
+    "changed_by": "ba3e47d (REFUSAL-KEYS), cdd0644 (FX-OPS-ADOPT)",
+    "finding": "RENDER-GPU-ADJ claims hold: classes intrinsic.lowest_of(Fitted), never above pigment (EffectsNested Approximate); no new fault hook (diff grep for cfg(feature, test-faults, env reads: none; refusal_keys modules are #[cfg(test)], plan_sink.rs:2290-2291); leaf-root refusal moved to pigment with the identical error value; fx_stack_mask_group_and_nesting_parity (was refused at b2f5f81) is admitted again. GPU parity proofs remain adapter-dependent (require_gpu = true, V4-03)."
+   },
+   {
+    "crate": "hsk-studio-interop-psd",
+    "changed_by": "2fa2202 (SMB-INTEROP-PSD R7 review B remediation; group B), f6e5a49 (FX-OPS-ADOPT)",
+    "finding": "f6e5a49 restructures note_clip_role_gaps (CLIP-ROLES's function) but the clip-role path after the new non-clip branch is unchanged (proposal.rs:722 onward) and the CLIP-ROLES tests are unchanged; new losses add entries only for unclipped layers. 2fa2202 (adjust.rs, descriptor.rs, effects.rs) is reviewed by group B and not judged here."
+   }
+  ],
+  "v4_checks": "V4-01: no new byte decoding; touched decoding modules keep their deny (interop-psd proposal.rs, render-cpu/gpu plan_sink.rs; pigment render_plan has none, pre-existing, structured IR). V4-02: new allocations bounded by validated plan/envelope sizes. V4-03: new tests need no hardware and print no NOT_PROVEN. V4-04: no new hook. V4-07: new never/always claims cite tests (effects_ops.rs, admit_parity.rs, refusal_keys tests), except the decision-doc reachability sentence (ADMIT-PARITY finding 2)."
+ },
+ "pending_lanes": [],
+ "completed_at": "2026-10-11T12:33:30Z",
+ "summary": "SMB-EFFECTS-WAVE-1 PASS (R7 FAIL class gone at every admission/backend/consumer site found); SMB-PIGMENT-FX-OPS PASS; SMB-PIGMENT-ADMIT-PARITY PASS_WITH_NOTES (80 = 80 sites; 19/20 spot checks agree; render-cpu Mask(_) => Exact makes one 'covered' site latent admitted-then-refused); SMB-FX-OPS-ADOPT PASS_WITH_NOTES (all ExtOperator answers agree with pigment; composite drops whole-envelope validate errors); SMB-REFUSAL-KEYS FIX_FIRST (paperwork: later FX-OPS-ADOPT commits not in its claim, V4-06 counts 65/63 and 43/41). CX-VAL-009: no break found.",
+ "top_findings": [
+  "ADMIT-PARITY CONFIRMED: render-cpu exactness rates every Mask(format) except BaseAlpha Exact (plan_sink.rs:1678), so its mask-format refusal (:623) is not decided by admission; latent because MaskFormat has no 4th variant and the tripwire (render_plan.rs:985-1004) omits MaskFormat",
+  "FX-OPS-ADOPT CONFIRMED: composite record_envelope discards whole-envelope validate errors (lower_render_plan.rs:334-349), so >4096 effects per plan lowers with a clean ledger and pigment admission refuses InvalidPlan(EffectLimit)",
+  "REFUSAL-KEYS CONFIRMED (process): e8f5f98/cdd0644/7011298 rewrote its files after READY and are not in its claim; V4-06 counts off by 2 in both backends (non-refusal hits unlisted)"
+ ]
+}

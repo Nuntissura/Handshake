@@ -1,0 +1,1081 @@
+{
+ "round": "STUDIO-R6",
+ "round_opened": true,
+ "rule_refs": [
+  "CX-VAL-001",
+  "CX-VAL-002",
+  "CX-VAL-004",
+  "CX-VAL-005",
+  "CX-VAL-006",
+  "CX-VAL-007",
+  "CX-VAL-008",
+  "CX-VAL-009",
+  "CX-VAL-010",
+  "CX-STATUS-001",
+  "CX-STATUS-002",
+  "CX-STATUS-003",
+  "CX-EXEC-015",
+  "CX-VERIFY-002",
+  "V4-03 NOT_PROVEN"
+ ],
+ "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a",
+ "tree": "834aa5599ffabf691558a25f777ce42f73d78103",
+ "candidate_note": "steward sync bd8533f (sync 9ab64c2 + entrypoint/policy/fixture config) named by lead; origin moved past it during the round (0d6d76e ... 82a97b4): later pushes go to R7",
+ "round_identity_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/ROUND_IDENTITY.json",
+ "export": {
+  "file_count": 753,
+  "manifest_sha256": "6fe4d2f999020f79fd24c5ee3a9b70e85ec2875b0c1fd57d8640e05aae078798",
+  "git_blob_equal": true,
+  "refresh": "tools/export-refresh.sh in place 2026-10-11T06:05:26Z: 79 added, 106 changed, 568 unchanged, 1 deleted, blob_mismatch 0 (from 1d404f8); manifest equals steward canary C8 export (studio-team-dev/steward-export)"
+ },
+ "started_at": "2026-10-11T06:09:12Z",
+ "completed_at": "2026-10-11T06:47:09Z",
+ "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6",
+ "running_record": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/RUNNING-R6.jsonl (opened, running, refused_launch, process_identity pid 350600 @06:13:29Z, completed, verdicts_accepted, verdicts_recorded)",
+ "gameplan": ".GOV/task_packets/WP-KERNEL-STUDIO/gameplans/STUDIO-MODULE-ROUND.yaml before_round PASS 12/12 @edit HEAD e007703 (confirms bound at cdc2c0f, re-bound at 92a7eef and e007703 as builder pushes moved the edit HEAD; GP-003 build-process scan (Win32_Process / tasklist) before each bind; GP-013 cites steward canary C8-bd8533f; GP-014 added after a refused launch)",
+ "canary": {
+  "reused": true,
+  "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/steward-export/results/C8-bd8533f",
+  "round_json_sha256": "dbca8b2ae1eb6900e72b8afd8b4dbeb5f3653fdde79135b3f9e02dfde9764ae9",
+  "sha": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a",
+  "export_manifest_sha256": "6fe4d2f999020f79fd24c5ee3a9b70e85ec2875b0c1fd57d8640e05aae078798",
+  "summary": "steward canary via the same entrypoint on the same SHA and identical export manifest: exit 0, complete, 49 units, not_proven 0 (canary runs one test per package), absent [], timed_out []",
+  "reuse_basis": "CX-VERIFY-002 + lead dispatch (GP-013)"
+ },
+ "union": {
+  "selection": [
+   "hsk-studio-components",
+   "hsk-studio-composite",
+   "hsk-studio-controls",
+   "hsk-studio-develop",
+   "hsk-studio-folio",
+   "hsk-studio-interop-fig",
+   "hsk-studio-interop-layout",
+   "hsk-studio-interop-lrcat",
+   "hsk-studio-interop-psd",
+   "hsk-studio-interop-vector",
+   "hsk-studio-layout",
+   "hsk-studio-package",
+   "hsk-studio-pigment",
+   "hsk-studio-press",
+   "hsk-studio-prism",
+   "hsk-studio-pulse",
+   "hsk-studio-reel",
+   "hsk-studio-render-cpu",
+   "hsk-studio-render-gpu",
+   "hsk-studio-score",
+   "hsk-studio-score-device",
+   "hsk-studio-score-plugin",
+   "hsk-studio-session",
+   "hsk-studio-web"
+  ],
+  "selection_rule": "crates of READY lanes whose content is in bd8533f + crates of PASS lanes returned to READY by CX-VAL-009; not selected: accord, chronicle, observe, nib, type, motion, motion-js, harness, kernel-bindings, interop-media, reel-native (no READY content in candidate, closure unchanged, or FAIL/BLOCKED lanes without new commits)",
+  "argv": "bash tools/run-round.sh --results <studio-round>/results/R6 --target-dir <studio-round>/target <24 crates> (cwd export; no caller env)",
+  "target_dir": "Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/target (warm from R5; workspace sources re-touched by the entrypoint; build 54.77 s)",
+  "started_at": "2026-10-11T06:13:35Z",
+  "ended_at": "2026-10-11T06:19:12Z",
+  "build_exit": 0,
+  "run_exit": 0,
+  "exit": 73,
+  "summary": "default 491/491 pass, 2 skipped (develop real_dng ignored, score streaming real-rate ignored); reel+av1 32/32; score-plugin+test-faults 9/9; score-plugin+clap+test-faults 11/11; fixture score-plugin/clap-gain build 0; 30 doctest units exit 0 (0 doctests); absent [] timed_out []; 37 NOT_PROVEN -> exit 73",
+  "units": 32,
+  "not_proven_count": 37,
+  "not_proven_by_binary": {
+   "default|hsk-studio-prism::oracle_t1_lcms2": 32,
+   "default|hsk-studio-prism::wide_profiles": 3,
+   "features:hsk-studio-score-plugin+clap+test-faults|hsk-studio-score-plugin::clap_fixture": 2
+  },
+  "hashes": {
+   "round.json": "7921237ab58468f1e566d8a0d6e06a1f4dc69caaa35c0a4b2e9b42cdba47647a",
+   "tests.json": "efa49705a40f8649ceb7b5131b8eee2b9890bbfd3e68068493e3f291f2edbe0b",
+   "junit.xml": "25d920c8d2e89810d6b9ace2f69cd5af095c483a3a21e96ae9e359bd9292e87d",
+   "run.stderr.txt": "f4421f6808bfe95fa23b3652a3e103b7ba645983aba5c85dddf574994ac38c8b",
+   "build.stderr.txt": "05f60d42e44057c1afa5dab788394824222c056206264915ef5fd271ac7a252d",
+   "units.tsv": "05a7db4c7e14ba727f497ce52d75671746034e4adba2dc74b3eeccd651882a8d",
+   "oracle-corpus.manifest.txt": "db8648b40ca91f130cee36740d8df327b14b8ba9ca1764790a954aabcba44aa5",
+   "step0.policy.json": "2135d671aa53f9f52374bd8af6ea8b1c2d2f2a86f3f7917dee920853351816ab",
+   "features/hsk-studio-reel+av1/junit.xml": "366669bc428a8076a204c51530a304467a541ccee2897eb815f91d1ec18eaee8",
+   "features/hsk-studio-score-plugin+test-faults/junit.xml": "d0bf7146d5a2b6bb8d787d5efad254dd82b174dc74cd9f7704e7ddae5ed257ad",
+   "features/hsk-studio-score-plugin+clap+test-faults/junit.xml": "d4c68ad1d247fa2764f367e8e1aff87704c9c3e9c460daf9e6ea9126f1272214",
+   "fixtures/score-plugin+clap-gain.json": "904eb1e842f71923a6030770c6d8918992cdc23c6ea075134e1385e5898e3a6c"
+  },
+  "per_crate": {
+   "components": 16,
+   "composite": 13,
+   "controls": 16,
+   "develop": 24,
+   "folio": 35,
+   "interop-fig": 5,
+   "interop-layout": 11,
+   "interop-lrcat": 9,
+   "interop-psd": 24,
+   "interop-vector": 13,
+   "layout": 6,
+   "package": 18,
+   "pigment": 24,
+   "press": 18,
+   "prism": 120,
+   "pulse": 18,
+   "reel": 28,
+   "render-cpu": 11,
+   "render-gpu": 12,
+   "score": 29,
+   "score-device": 5,
+   "score-plugin": 7,
+   "session": 14,
+   "web": 15
+  },
+  "step0": "cargo metadata --locked --offline ok; registry-sync check clean (approved_added [], unrequested [], manifest_changed false, probe_changed false); policy: machine-path violations 0 (10 pinned files, pins_dropped {}), duplicate new_sites {} for D16/D18/TIMECODE",
+  "oracle_corpus": {
+   "root": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus",
+   "file_count": 12,
+   "manifest_sha256": "db8648b40ca91f130cee36740d8df327b14b8ba9ca1764790a954aabcba44aa5"
+  },
+  "env": {
+   "set_by_entrypoint": [
+    "CARGO_TARGET_DIR",
+    "TMP",
+    "TEMP",
+    "TMPDIR",
+    "CARGO_PROFILE_DEV_DEBUG",
+    "CARGO_PROFILE_TEST_DEBUG",
+    "CARGO_TERM_COLOR"
+   ],
+   "env_unset": "",
+   "rustc_wrapper": "",
+   "tools": {
+    "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+    "cargo": "cargo 1.97.1 (c980f4866 2026-06-30)",
+    "nextest": "cargo-nextest 0.9.148 (cd1d6d546 2026-10-07)"
+   }
+  }
+ },
+ "junit_success_output_checks": [
+  "render-gpu: GPU_BACKEND dx12:discrete:NVIDIA GeForce RTX 3090 in slice 2/3 parity tests; no NOT_PROVEN line (GPU proofs ran)",
+  "prism: 35 NOT_PROVEN lines searched=[<export>/crates/hsk-studio-prism/../../../../Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/icc] (path absent from exports)",
+  "score-plugin clap_fixture: 2 NOT_PROVEN lines 'native CLAP path not run; set HSK_SCORE_PLUGIN_CLAP_FIXTURE' (entrypoint unsets HSK_*)"
+ ],
+ "not_proven": [
+  {
+   "lane": "SMB-PRISM-ENG-5",
+   "capability": "T1 lcms2 parity on installed profiles",
+   "tests": 32,
+   "reason": "corpus root unresolved from exports (corpus.json icc_root CARGO_MANIFEST_DIR-relative); fix 65a08c9 after freeze"
+  },
+  {
+   "lane": "SMB-PRISM-ENG-6",
+   "capability": "ENG-5 finding closures on installed-profile pairs",
+   "tests": "same 32 T1 tests",
+   "reason": "same corpus root"
+  },
+  {
+   "lane": "SMB-PRISM-ENG-3",
+   "capability": "real installed CMYK/HLG profile admission",
+   "tests": "wide_profiles admission_order (3 lines)",
+   "reason": "same corpus root"
+  },
+  {
+   "lane": "SMB-SCORE-PLUGIN",
+   "capability": "native CLAP path (clap-gain fixture)",
+   "tests": 2,
+   "reason": "HSK_SCORE_PLUGIN_CLAP_FIXTURE unset by entrypoint; MANIFEST reader 6c45e64 after freeze"
+  },
+  {
+   "lane": "SMB-SCORE-DEVICE",
+   "capability": "cap 5 CpalProvider (cpal-backend)",
+   "tests": "not built",
+   "reason": "no round-features set at bd8533f; native proof NOT_PROVEN by design"
+  }
+ ],
+ "adversarial_review": {
+  "refs": {
+   "validation/R6-review-a.json": "sha256 43f8d757",
+   "validation/R6-review-b.json": "sha256 e8e092bb",
+   "validation/R6-review-c.json": "sha256 be4f59c3"
+  },
+  "coverage": "A: pigment-eng-2, pigment-eng-1, render-gpu, controls, develop(+wide), prism-eng-5, prism-eng-6, components(+folio-migrate); B: score, score-device, score-plugin, press, web; C: interop-lrcat, interop-layout, interop-vector(+folio-migrate), interop-fig, pulse-eng-1",
+  "fold_rule": "every CONFIRMED finding re-read by the validator at the cited file:line in the export before it drives a FAIL; PLAUSIBLE items are notes unless verified",
+  "not_reviewed": [
+   "SMB-ROUND-ENTRYPOINT (no reviewer scope; validator read tools/run-round.sh at bd8533f and compared R6/C8 artifacts)",
+   "CX-VAL-009 re-included PASS lanes (verdict from re-proof; changed inputs reviewed under the lanes that changed them, except reel 233f406/569023e and interop-psd 0b9aeeb, whose diffs the validator read)"
+  ],
+  "validator_disagreements": [
+   "SMB-SCORE-PLUGIN FAIL (reviewer PASS_WITH_NOTES): CONFIRMED Duration::MAX spawn_timeout panics the host (supervisor.rs:394) instead of typed InvalidConfig",
+   "SMB-SCORE-DEVICE FAIL (reviewer PASS_WITH_NOTES): lead decision 2026-10-11T06:29:17Z made counters real-loss-only, superseding brief test 1",
+   "SMB-DEVELOP-WIDE BLOCKED (reviewer PASS_WITH_NOTES): CONFIRMED STU-CON-044 64-px chunk delta needs Operator enrichment or explicit lead waiver",
+   "SMB-INTEROP-VECTOR-FOLIO-MIGRATE PLAUSIBLE working-space inheritance verified as a code path (host-built snapshot only); kept as note, not FAIL"
+  ]
+ },
+ "proof_reuse": {
+  "lanes": [
+   "SMB-TYPE (PASS_V5)",
+   "SMB-TYPE-ENV",
+   "SMB-TYPE-FONTS",
+   "SMB-TYPE-FIXTURES",
+   "SMB-TYPE-ENG-1",
+   "SMB-TYPE-DOCTEST",
+   "SMB-ACCORD-ENG-1",
+   "SMB-ACCORD-ENG-2",
+   "SMB-MOTION",
+   "SMB-NIB-ENG-1"
+  ],
+  "basis": "CX-VAL-002: crate + workspace-dep closure unchanged 1d404f8..bd8533f; Cargo.lock adds 56 packages and changes gpu-allocator, wgpu-hal, windows 0.58 family + 3 Studio crates, none in these closures (checked from both lock files); no new verdict"
+ },
+ "excluded": [
+  {
+   "lane": "SMB-INTEROP-PSD-WIDE",
+   "reason": "submission head 6e7198a (V4 sweep 0d6d76e) after freeze; R5 remediation 0b9aeeb present and its gray-BPC tests green (precision_color_export 13/13); no R6 review -> R7"
+  },
+  {
+   "lane": "SMB-REEL-AV1-ROUTE, SMB-REEL-ENG-3",
+   "reason": "lane head 0993b25 after freeze; R5 remediation 233f406/569023e present and green (review_r5_regressions 3/3, av1_decode 4/4 incl. 1080p); no R6 review -> R7"
+  },
+  {
+   "lane": "SMB-REEL-NATIVE-AV1-WORKER",
+   "reason": "remediation f080dd6 after freeze"
+  },
+  {
+   "lane": "SMB-MOTION-JS, SMB-MOTION-JS-WORKER",
+   "reason": "remediation ffe5592 (+ steward fc7822b matrix) after freeze; NEEDS_NEW_APPROACH / FAIL_V1 unchanged"
+  },
+  {
+   "lane": "SMB-HARNESS, SMB-KERNEL-BINDINGS",
+   "reason": "no new commit since R5 FAIL_V1 (fixes pending)"
+  },
+  {
+   "lane": "SMB-INTEROP-MEDIA, SMB-INTEROP-MEDIA-PULSE",
+   "reason": "BLOCKED (Operator D9); not rerun while blocked"
+  },
+  {
+   "lane": "SMB-PRISM-ENG-7, adjustment/effects lanes",
+   "reason": "status null or commits after freeze"
+  }
+ ],
+ "scope_rule": "READY_FOR_VALIDATION lanes (ledger snapshot sha256 7d8a48ca @06:09Z) whose content is in bd8533f, plus PASS lanes returned to READY by CX-VAL-009",
+ "included_count": 42,
+ "verdict_counts": {
+  "PASS_V3": 22,
+  "BLOCKED": 1,
+  "PASS_V2": 7,
+  "FAIL_V3": 2,
+  "FAIL_V1": 4,
+  "FAIL_V2": 3,
+  "PASS_V1": 2,
+  "NOT_PROVEN": 1
+ },
+ "verdict_numbering": "Vn = 1 + highest prior PASS_V/FAIL_V number of the lane (BLOCKED, NOT_PROVEN and inconclusive do not count)",
+ "not_proven_rule": "V4-03: a test printing NOT_PROVEN is never PASS; a lane whose acceptance depends on it is not PASS (FAIL if a product failure exists, else inconclusive NOT_PROVEN with status unchanged)",
+ "counters": [
+  {
+   "lane": "SMB-RENDER-GPU",
+   "counter": "fix budget (failed verdicts R3, R5, R6 = 3, limit 3)",
+   "outcome": "fix_budget_exhausted: escalate to Operator; no new claim until an Operator decision is recorded"
+  }
+ ],
+ "lanes": [
+  {
+   "lane": "SMB-DEVELOP",
+   "crate": "hsk-studio-develop",
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3; ledger status stays READY_FOR_VALIDATION: newer submission 78fd379 (not in bd8533f) queued for next round",
+   "tests": "develop 24/24 pass (develop_dng 9/9 incl. tiny-LJPEG + dims_u32_max + aggregate bombs), real_dng ignored (reasoned)",
+   "failures": [],
+   "remediation": null,
+   "note": "R5 FAIL ljpeg-tiny-file-forces-frame-allocation fixed before allocation for compression 1 and 7 (dng.rs:466-479, 5ef2dd9/8962bbc); PLAUSIBLE: converter side effects on a failing parallel run depend on thread count; tiff.rs/ljpeg.rs lack V4-01 deny",
+   "review": "validation/R6-review-a.json",
+   "idempotency_key": "STUDIO-R6:SMB-DEVELOP:bd8533f9b29c:PASS_V3",
+   "recorded_at": "2026-10-11T06:47:09Z"
+  },
+  {
+   "lane": "SMB-DEVELOP-WIDE",
+   "crate": "hsk-studio-develop",
+   "decision": "blocked",
+   "verdict": "BLOCKED",
+   "status_change": "BLOCKED (blocked_on Operator decision D13 remainder: STU-CON-044 64-px chunk enrichment (CX-105) or explicit lead waiver)",
+   "tests": "develop_profile 3/3 pass (admitted wide route; exact-peak ledger, peak-1 denied with no tile)",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "stu-con-044-chunk-size-not-64px",
+     "file_line": "crates/hsk-studio-develop/src/convert.rs:13-14; src/lib.rs DESCRIPTOR pending[0]",
+     "evidence": "STU-CON-044 64-pixel chunk text still not met (WIDE_CHUNK_PIXELS 262144); disclosed; D13(b) closed accounting only, spec text unchanged",
+     "source": "R6-review-a CONFIRMED, re-verified by validator at bd8533f",
+     "artifact_ref": "export bd8533f9 crates/hsk-studio-develop/src/convert.rs:13-14; src/lib.rs DESCRIPTOR pending[0]"
+    }
+   ],
+   "remediation": "Blocked on Operator STU-CON-044 enrichment (chunk = admitted request bound) or explicit lead waiver of the 64-px text",
+   "blocked_on": "Operator decision D13 remainder: STU-CON-044 64-px chunk enrichment (CX-105) or explicit lead waiver",
+   "note": "Accounting half of the R5 blocker verified fixed: PrismConverter goes through AdmittedWideEngine (convert.rs:85-92, prism e7cf81f); PLAUSIBLE: admitted route is x86_64-windows-msvc only, not stated in develop DESCRIPTOR",
+   "review": "validation/R6-review-a.json",
+   "idempotency_key": "STUDIO-R6:SMB-DEVELOP-WIDE:bd8533f9b29c:BLOCKED",
+   "recorded_at": "2026-10-11T06:47:09Z"
+  },
+  {
+   "lane": "SMB-COMPONENTS",
+   "crate": "hsk-studio-components",
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "tests": "components 16/16 pass (instance_resolution 12/12)",
+   "failures": [],
+   "remediation": null,
+   "note": "R5 FAIL swap-switch-skip-variable-binding-type-check fixed (check_shape uses design.variables(), ed9b130); PLAUSIBLE: whole-instance payload vs field-level footprint (lost update), DESCRIPTOR never-claims uncited, swap refuses unmatched props",
+   "review": "validation/R6-review-a.json",
+   "idempotency_key": "STUDIO-R6:SMB-COMPONENTS:bd8533f9b29c:PASS_V3",
+   "recorded_at": "2026-10-11T06:47:09Z"
+  },
+  {
+   "lane": "SMB-COMPONENTS-FOLIO-MIGRATE",
+   "crate": "hsk-studio-components",
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "tests": "components 16/16 pass (design_refuses_repeated_ids)",
+   "failures": [],
+   "remediation": null,
+   "note": "R5 FAIL design-new-accepts-duplicate-component-ids fixed (Design::new -> Result, design.rs:87-163, ed9b130); PLAUSIBLE: uniqueness rules restated beside Folio validate_design_records",
+   "review": "validation/R6-review-a.json",
+   "idempotency_key": "STUDIO-R6:SMB-COMPONENTS-FOLIO-MIGRATE:bd8533f9b29c:PASS_V2",
+   "recorded_at": "2026-10-11T06:47:09Z"
+  },
+  {
+   "lane": "SMB-SCORE",
+   "crate": "hsk-studio-score",
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "tests": "score 29/29 pass, 1 ignored (streaming_src real-rate, reasoned)",
+   "failures": [],
+   "remediation": null,
+   "note": "streaming SRC bit-identical to whole-clip by construction and by to_bits oracle (5 rate pairs x 53 lengths); layout tick math now delegates to accord (2fe5f36); PLAUSIBLE: graph identity hashed after render, carried R2/R3 items",
+   "review": "validation/R6-review-b.json",
+   "idempotency_key": "STUDIO-R6:SMB-SCORE:bd8533f9b29c:PASS_V3",
+   "recorded_at": "2026-10-11T06:47:09Z"
+  },
+  {
+   "lane": "SMB-RENDER-GPU",
+   "crate": "hsk-studio-render-gpu",
+   "decision": "failed",
+   "verdict": "FAIL_V3",
+   "status_change": "FAIL_V3; fix_budget_exhausted blocker (CX-EXEC-015(1)): escalate, no new claim until Operator decision; post-freeze commits 459c5d9 not admitted",
+   "tests": "render-gpu 12/12 pass on dx12 NVIDIA GeForce RTX 3090 (GPU_BACKEND lines; 0 NOT_PROVEN)",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "test-fault-hooks-in-product-api",
+     "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:447-452,477-488,565-572; src/device.rs:298; Cargo.toml:7-8",
+     "evidence": "pub doc(hidden) with_shader_source/with_injected_loss and pub simulate_device_loss (Device::destroy) ship in the default build; no test-faults feature (V4-04)",
+     "source": "R6-review-a CONFIRMED, re-verified by validator at bd8533f",
+     "artifact_ref": "export bd8533f9 crates/hsk-studio-render-gpu/src/plan_sink.rs:447-452,477-488,565-572; src/device.rs:298; Cargo.toml:7-8"
+    }
+   ],
+   "remediation": "Gate fault constructors and simulate_device_loss behind a non-default test-faults feature; tests enable it",
+   "counters": {
+    "failed_verdicts": 3,
+    "limit": 3,
+    "outcome": "fix_budget_exhausted (CX-EXEC-015(1)): blocker recorded, escalate to Operator; no new claim until an Operator decision"
+   },
+   "note": "R5 no-adapter-early-return-green now accounted at round level (NOT_PROVEN line counted, exit 73; V4-03); slice-3 WGSL vs pigment blend_math genuine (hand + lattice oracles); PLAUSIBLE: DESCRIPTOR never-claims uncited, hand-transcribed formulas, Pipeline->Unavailable",
+   "review": "validation/R6-review-a.json",
+   "idempotency_key": "STUDIO-R6:SMB-RENDER-GPU:bd8533f9b29c:FAIL_V3",
+   "recorded_at": "2026-10-11T06:47:09Z"
+  },
+  {
+   "lane": "SMB-INTEROP-VECTOR",
+   "crate": "hsk-studio-interop-vector",
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "tests": "interop-vector 13/13 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "R5 FAIL doctype-scan-comment-bypass-allows-dtd fixed (allow_dtd constant false, prolog-only scan_prolog, 3561b12); PLAUSIBLE: no <!doctype case/char-ref decoy case; D16 CRC table known",
+   "review": "validation/R6-review-c.json",
+   "idempotency_key": "STUDIO-R6:SMB-INTEROP-VECTOR:bd8533f9b29c:PASS_V3",
+   "recorded_at": "2026-10-11T06:47:09Z"
+  },
+  {
+   "lane": "SMB-INTEROP-VECTOR-FOLIO-MIGRATE",
+   "crate": "hsk-studio-interop-vector",
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "tests": "interop-vector 13/13 pass (assigned_colour_profile_export_is_a_typed_loss)",
+   "failures": [],
+   "remediation": null,
+   "note": "R5 FAIL export-ignores-assigned-colour-profile-silently fixed for a colour's own Assigned binding; PLAUSIBLE (verified code path, host-built snapshot only): Unassigned paint under an Assigned document working space exports as sRGB without loss (svg_export.rs:48-50,756-760)",
+   "review": "validation/R6-review-c.json",
+   "idempotency_key": "STUDIO-R6:SMB-INTEROP-VECTOR-FOLIO-MIGRATE:bd8533f9b29c:PASS_V2",
+   "recorded_at": "2026-10-11T06:47:09Z"
+  },
+  {
+   "lane": "SMB-INTEROP-FIG",
+   "crate": "hsk-studio-interop-fig",
+   "decision": "failed",
+   "verdict": "FAIL_V1",
+   "status_change": "FAIL_V1; ledger status stays READY_FOR_VALIDATION: newer submission deea33c (not in bd8533f) queued for next round",
+   "tests": "interop-fig 5/5 pass (synthetic fixtures only)",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "real-fixture-branch-silent-green",
+     "file_line": "crates/hsk-studio-interop-fig/tests/fig_import.rs:615-665 (return at :633-635)",
+     "evidence": "no tests/fixtures dir at bd8533f: the actual-file edit/reopen branch returns green with no NOT_PROVEN line and no #[ignore] (V4-03)",
+     "source": "R6-review-c CONFIRMED, re-verified by validator at bd8533f",
+     "artifact_ref": "export bd8533f9 crates/hsk-studio-interop-fig/tests/fig_import.rs:615-665 (return at :633-635)"
+    },
+    {
+     "failure_kind": "product",
+     "failure_class": "local-header-crosscheck-overclaim",
+     "file_line": "crates/hsk-studio-interop-fig/src/container.rs:12,397-406; src/descriptor.rs:3",
+     "evidence": "doc + DESCRIPTOR claim the local header must match the central directory; code compares only signature and name (method, flags, CRC, sizes unchecked)",
+     "source": "R6-review-c CONFIRMED, re-verified by validator at bd8533f",
+     "artifact_ref": "export bd8533f9 crates/hsk-studio-interop-fig/src/container.rs:12,397-406; src/descriptor.rs:3"
+    }
+   ],
+   "remediation": "Print NOT_PROVEN (D17) in the no-fixture branch; cross-check local method/flags/CRC/sizes or drop the claim",
+   "note": "Bounded ZIP/EOCD, safe names, duplicate refusal, aggregate inflate bound verified by reviewer; PLAUSIBLE: trailing compressed bytes ignored, duplicate struct field ids, no bounded_case, V4-01 deny absent (pre-V4), D16 duplicate known",
+   "review": "validation/R6-review-c.json",
+   "idempotency_key": "STUDIO-R6:SMB-INTEROP-FIG:bd8533f9b29c:FAIL_V1",
+   "recorded_at": "2026-10-11T06:47:09Z"
+  },
+  {
+   "lane": "SMB-INTEROP-LAYOUT",
+   "crate": "hsk-studio-interop-layout",
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "tests": "interop-layout 11/11 pass (decode_amplification 2/2)",
+   "failures": [],
+   "remediation": null,
+   "note": "R5 FAIL idml-properties-xml-cloned-per-content fixed (Arc-shared Properties, charged per use against max_model_bytes, f40d6a2); PLAUSIBLE: no V4-06 site list / V4-01 deny (pre-V4), D16 known",
+   "review": "validation/R6-review-c.json",
+   "idempotency_key": "STUDIO-R6:SMB-INTEROP-LAYOUT:bd8533f9b29c:PASS_V2",
+   "recorded_at": "2026-10-11T06:47:09Z"
+  },
+  {
+   "lane": "SMB-CONTROLS",
+   "crate": "hsk-studio-controls",
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "tests": "controls 16/16 pass (step_effect 7/7)",
+   "failures": [],
+   "remediation": null,
+   "note": "R5 FAIL integer-step-silent-noop-at-saturation fixed (one no-effect rule for every discrete move, fec865b); PLAUSIBLE: stray End reports terminal Success",
+   "review": "validation/R6-review-a.json",
+   "idempotency_key": "STUDIO-R6:SMB-CONTROLS:bd8533f9b29c:PASS_V3",
+   "recorded_at": "2026-10-11T06:47:09Z"
+  },
+  {
+   "lane": "SMB-PRESS",
+   "crate": "hsk-studio-press",
+   "decision": "failed",
+   "verdict": "FAIL_V2",
+   "status_change": "FAIL_V2; ledger status stays READY_FOR_VALIDATION: newer submission dd1df63 (not in bd8533f) queued for next round",
+   "tests": "press pdf_delivery 18/18 pass",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "collision-exemption-on-non-content-streams",
+     "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:247-254,371-421 (doc :259-262)",
+     "evidence": "looks_like_content admits any stream without /Subtype: a Tj needle in a reachable non-content stream becomes a kept-text collision, is_proven true",
+     "source": "R6-review-b CONFIRMED, re-verified by validator at bd8533f",
+     "artifact_ref": "export bd8533f9 crates/hsk-studio-press/src/sanitized_save.rs:247-254,371-421 (doc :259-262)"
+    },
+    {
+     "failure_kind": "product",
+     "failure_class": "is-proven-ignores-opaque-text-streams",
+     "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:82-84,104-110,385-387,488-495",
+     "evidence": "composite-font text without ToUnicode is listed, not blocking: a removed word redrawn under other glyph codes reads proven (fix dd1df63 after freeze)",
+     "source": "R6-review-b CONFIRMED, re-verified by validator at bd8533f",
+     "artifact_ref": "export bd8533f9 crates/hsk-studio-press/src/sanitized_save.rs:82-84,104-110,385-387,488-495"
+    },
+    {
+     "failure_kind": "product",
+     "failure_class": "wip-engine-untested-doc-cites-absent-test",
+     "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:13-16; tests/pdf_delivery.rs",
+     "evidence": "6e95976 slice-5 engine-only WIP in candidate; module doc cites raster_class_is_listed_and_region_images_are_removed, absent at bd8533f (V4-07)",
+     "source": "R6-review-b CONFIRMED, re-verified by validator at bd8533f",
+     "artifact_ref": "export bd8533f9 crates/hsk-studio-press/src/sanitized_save.rs:13-16; tests/pdf_delivery.rs"
+    }
+   ],
+   "remediation": "Collision rule only for content_resources streams; opaque text blocks the proof; land slice-5 tests with the engine",
+   "note": "R5 FAIL is-proven-ignores-undecodable-streams fixed (03fb753, fully_decoded on every claim site); class 2 is the same family as R5 (lead correction dd1df63 = new diagnosis); PLAUSIBLE: raster class admits encoded payloads, NaN glyph boxes, uncancellable scan, filters.rs doc drift",
+   "review": "validation/R6-review-b.json",
+   "idempotency_key": "STUDIO-R6:SMB-PRESS:bd8533f9b29c:FAIL_V2",
+   "recorded_at": "2026-10-11T06:47:09Z"
+  },
+  {
+   "lane": "SMB-WEB",
+   "crate": "hsk-studio-web",
+   "decision": "failed",
+   "verdict": "FAIL_V2",
+   "status_change": "FAIL_V2",
+   "tests": "web source_dom_patch 15/15 pass",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "legacy-charref-without-semicolon-not-decoded",
+     "file_line": "crates/hsk-studio-web/src/charref.rs:94-109 (claim :11-12); src/assets.rs:384-391",
+     "evidence": "&quot (legacy, no ';') stays verbatim but a browser decodes it in attributes: '\"' closes a CSS string and hides an external url() from collection",
+     "source": "R6-review-b CONFIRMED, re-verified by validator at bd8533f",
+     "artifact_ref": "export bd8533f9 crates/hsk-studio-web/src/charref.rs:94-109 (claim :11-12); src/assets.rs:384-391"
+    },
+    {
+     "failure_kind": "product",
+     "failure_class": "integration-point-style-overdecoded",
+     "file_line": "crates/hsk-studio-web/src/dom.rs:496-525; src/assets.rs:446-452",
+     "evidence": "no HTML integration points: <style> under svg foreignObject is parsed foreign and charref-decoded; browser reads raw text, url() fetched uncollected",
+     "source": "R6-review-b CONFIRMED, re-verified by validator at bd8533f",
+     "artifact_ref": "export bd8533f9 crates/hsk-studio-web/src/dom.rs:496-525; src/assets.rs:446-452"
+    }
+   ],
+   "remediation": "Decode legacy no-';' refs per the attribute rule (or deny); model HTML integration points (style there is raw text)",
+   "note": "R5 FAILs css-escape and base-href/url-attributes fixed (CSS Syntax 3 tokenizer, decode before classify, base href denial); PLAUSIBLE: SMIL set/animate href values unscanned and unlisted",
+   "review": "validation/R6-review-b.json",
+   "idempotency_key": "STUDIO-R6:SMB-WEB:bd8533f9b29c:FAIL_V2",
+   "recorded_at": "2026-10-11T06:47:09Z"
+  },
+  {
+   "lane": "SMB-SCORE-DEVICE",
+   "crate": "hsk-studio-score-device",
+   "decision": "failed",
+   "verdict": "FAIL_V1",
+   "status_change": "FAIL_V1",
+   "tests": "score-device 5/5 pass (callback_alloc 1, foundation_contract 4); cpal-backend not built by the round",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "full-refusal-counted-as-overrun",
+     "file_line": "crates/hsk-studio-score-device/src/ring.rs:128-141 (:136); src/counters.rs:59-60,97-101; tests/foundation_contract.rs:100-104,131-136",
+     "evidence": "Full refusal (block kept, nothing dropped) adds overrun+discontinuity; lead decision 06:29:17Z: counters mean real loss only, supersedes brief test 1",
+     "source": "R6-review-b CONFIRMED, re-verified by validator at bd8533f",
+     "artifact_ref": "export bd8533f9 crates/hsk-studio-score-device/src/ring.rs:128-141 (:136); src/counters.rs:59-60,97-101; tests/foundation_contract.rs:100-104,131-136"
+    }
+   ],
+   "remediation": "Full counts nothing (lead 06:29:17Z); overrun/discontinuity only on real drops; update test 1 to that rule",
+   "not_proven": [
+    {
+     "capability": "cap 5 CpalProvider (feature cpal-backend)",
+     "tests": "none built: .config/round-features.toml has no score-device set at bd8533f; native test #[ignore] by design",
+     "reason": "not built, linted or tested by the round; not part of acceptance tests 1-5 (brief: native stays NOT_PROVEN)"
+    }
+   ],
+   "note": "Code matched brief test 1 at submission; acceptance amended by lead after freeze. Callback no-alloc/no-lock, ring ordering, underrun silence, CloseReport reconcile verified; PLAUSIBLE: open wait not cancellable, bytes_in_flight unbounded vs doc",
+   "review": "validation/R6-review-b.json",
+   "idempotency_key": "STUDIO-R6:SMB-SCORE-DEVICE:bd8533f9b29c:FAIL_V1",
+   "recorded_at": "2026-10-11T06:47:09Z"
+  },
+  {
+   "lane": "SMB-SCORE-PLUGIN",
+   "crate": "hsk-studio-score-plugin",
+   "decision": "failed",
+   "verdict": "FAIL_V1",
+   "status_change": "FAIL_V1; ledger status stays READY_FOR_VALIDATION: newer submission 6c45e64 (not in bd8533f) queued for next round",
+   "tests": "score-plugin default 7/7; +test-faults 9/9; +clap+test-faults 11/11 (clap_fixture 2 passed as NOT_PROVEN)",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "host-limits-instant-overflow-panic",
+     "file_line": "crates/hsk-studio-score-plugin/src/supervisor.rs:394,453,467; src/host.rs:287-297",
+     "evidence": "pub HostLimits.spawn_timeout/shutdown_grace only checked non-zero; Instant::now() + Duration::MAX panics in the host instead of InvalidConfig",
+     "source": "R6-review-b CONFIRMED, re-verified by validator at bd8533f",
+     "artifact_ref": "export bd8533f9 crates/hsk-studio-score-plugin/src/supervisor.rs:394,453,467; src/host.rs:287-297"
+    },
+    {
+     "failure_kind": "product",
+     "failure_class": "hash-then-load-window-undisclosed-in-descriptor",
+     "file_line": "crates/hsk-studio-score-plugin/src/clap_backend.rs:68,126-159; src/backend.rs:70-87; src/lib.rs:56",
+     "evidence": "worker hashes via fs::read then loader reopens the path (TOCTOU, disclosed only in module doc); DESCRIPTOR says the worker checks again before use",
+     "source": "R6-review-b CONFIRMED, re-verified by validator at bd8533f",
+     "artifact_ref": "export bd8533f9 crates/hsk-studio-score-plugin/src/clap_backend.rs:68,126-159; src/backend.rs:70-87; src/lib.rs:56"
+    }
+   ],
+   "remediation": "Bound spawn_timeout/shutdown_grace (<= MAX_DEADLINE) or checked_add; disclose or close the hash-then-load window",
+   "not_proven": [
+    {
+     "capability": "native CLAP path in the worker (clap-gain fixture)",
+     "tests": "clap_fixture::clap_fixture_gain_runs_in_the_worker, clap_fixture::clap_refuses_tampered_and_non_library_files",
+     "reason": "reads HSK_SCORE_PLUGIN_CLAP_FIXTURE (entrypoint unsets HSK_*); corpus MANIFEST reader 6c45e64 after freeze -> R7"
+    }
+   ],
+   "note": "Process isolation, single-file supervision (D18, no 4th copy), test-faults gating and CLAP unsafe surface verified by reviewer; reviewer PASS_WITH_NOTES, validator FAIL on the CONFIRMED panic; PLAUSIBLE: parent-dir worker discovery, 512 MiB hash buffer unaccounted, worker-reported state versions trusted",
+   "review": "validation/R6-review-b.json",
+   "idempotency_key": "STUDIO-R6:SMB-SCORE-PLUGIN:bd8533f9b29c:FAIL_V1",
+   "recorded_at": "2026-10-11T06:47:09Z"
+  },
+  {
+   "lane": "SMB-INTEROP-LRCAT",
+   "crate": "hsk-studio-interop-lrcat",
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "tests": "interop-lrcat 9/9 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "R5 FAILs fixed: extraction-wide overflow claim set + aggregate retained-text budget; honest row accounting (16de2ca/eaac5fe/d48c746); PLAUSIBLE: wal_snapshot.rs lacks V4-01 deny (bounded, no defect)",
+   "review": "validation/R6-review-c.json",
+   "idempotency_key": "STUDIO-R6:SMB-INTEROP-LRCAT:bd8533f9b29c:PASS_V2",
+   "recorded_at": "2026-10-11T06:47:09Z"
+  },
+  {
+   "lane": "SMB-PULSE-ENG-1",
+   "crate": "hsk-studio-pulse",
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "tests": "pulse 18/18 pass (reference_time 5/5)",
+   "failures": [],
+   "remediation": null,
+   "note": "100 ns <-> ticks rule 127008/5 derived (gcd) and delegated to accord Timescale/Rounding; typed Overflow/Underflow; no findings",
+   "review": "validation/R6-review-c.json",
+   "idempotency_key": "STUDIO-R6:SMB-PULSE-ENG-1:bd8533f9b29c:PASS_V1",
+   "recorded_at": "2026-10-11T06:47:09Z"
+  },
+  {
+   "lane": "SMB-PRISM-ENG-5",
+   "crate": "hsk-studio-prism",
+   "decision": "failed",
+   "verdict": "FAIL_V2",
+   "status_change": "FAIL_V2",
+   "tests": "prism oracle_t0_analytic 41/41; oracle_t1_lcms2 42/42 passed, of which 32 NOT_PROVEN (installed legs/pairs)",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "oracle-corpus-root-unresolved-from-exports",
+     "file_line": "crates/hsk-studio-prism/tests/oracle/corpus.json:4-5; tests/wide_support/mod.rs:384 (vs .config/oracle-corpus.toml:8-9)",
+     "evidence": "icc_root ../../../../Handshake_Artifacts joined to CARGO_MANIFEST_DIR resolves under studio-round/ (absent): R6 junit searched=[...hsk-studio-prism\\../../../../...]",
+     "source": "R6-review-a CONFIRMED, re-verified by validator at bd8533f",
+     "artifact_ref": "export bd8533f9 crates/hsk-studio-prism/tests/oracle/corpus.json:4-5; tests/wide_support/mod.rs:384 (vs .config/oracle-corpus.toml:8-9)"
+    }
+   ],
+   "remediation": "Resolve icc_root via the .config/oracle-corpus.toml walk-up (subdir icc), as the workspace convention requires (65a08c9)",
+   "not_proven": [
+    {
+     "capability": "T1 lcms2 parity on installed profiles (17 of 20 pairs, 15 of 21 legs) + wide_profiles installed cases",
+     "tests": "oracle_t1_lcms2: 32 tests; wide_profiles::admission_order_matrix_v4_matrix_v2_mab_and_installed_profiles",
+     "reason": "installed_profile_absent: corpus root unresolved from round exports (fix 65a08c9 after freeze -> R7)"
+    }
+   ],
+   "note": "R5 part 1 fixed (bac4790): no C:/ reads, missing profile = counted NOT_PROVEN, SKIP-green gone; T0 analytic and synthetic T1 legs proven; PLAUSIBLE: asserted T1 metric uses the engine's own dest->PCS leg (lcms Lab comparison printed, not asserted)",
+   "review": "validation/R6-review-a.json",
+   "idempotency_key": "STUDIO-R6:SMB-PRISM-ENG-5:bd8533f9b29c:FAIL_V2",
+   "recorded_at": "2026-10-11T06:47:09Z"
+  },
+  {
+   "lane": "SMB-PRISM-ENG-6",
+   "crate": "hsk-studio-prism",
+   "decision": "failed",
+   "verdict": "FAIL_V1",
+   "status_change": "FAIL_V1",
+   "tests": "prism 120/120 pass (wide_admitted 1, wide_fusion 1, wide_hostile 2, foundation 20); 35 NOT_PROVEN in oracle_t1/wide_profiles",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "mab-input-count-slice-panic",
+     "file_line": "crates/hsk-studio-prism/src/icc_eval.rs:655-660 (to_pcs :876-882; moxcms 0.9.1 reader.rs:369, profile.rs:584)",
+     "evidence": "inputs = u8 num_input_channels; grid_points is [u8;16]; moxcms admits mAB 17..255 inputs when outputs <= 4, so grid_points[..inputs] panics before Clut::new",
+     "source": "R6-review-a CONFIRMED, re-verified by validator at bd8533f",
+     "artifact_ref": "export bd8533f9 crates/hsk-studio-prism/src/icc_eval.rs:655-660 (to_pcs :876-882; moxcms 0.9.1 reader.rs:369, profile.rs:584)"
+    },
+    {
+     "failure_kind": "product",
+     "failure_class": "descriptor-admission-scope-contradiction",
+     "file_line": "crates/hsk-studio-prism/src/wide.rs:1039 (WIDE_DESCRIPTOR admitted_route vs not_in_scope)",
+     "evidence": "admitted_route says the caller ledger is charged before every allocation; not_in_scope still lists caller memory-ledger admission of the wide path",
+     "source": "R6-review-a CONFIRMED, re-verified by validator at bd8533f",
+     "artifact_ref": "export bd8533f9 crates/hsk-studio-prism/src/wide.rs:1039 (WIDE_DESCRIPTOR admitted_route vs not_in_scope)"
+    }
+   ],
+   "remediation": "Refuse mAB inputs > 8 (or > grid_points.len()) before slicing + 17-input hostile test; fix WIDE_DESCRIPTOR scope",
+   "not_proven": [
+    {
+     "capability": "ENG-5 finding closures that rest on installed-profile T1 pairs (e.g. HLG, installed CMYK legs)",
+     "tests": "oracle_t1_lcms2 installed legs/pairs (32)",
+     "reason": "installed_profile_absent: corpus root unresolved from round exports (SMB-PRISM-ENG-5 FAIL_V2; 65a08c9 after freeze)"
+    }
+   ],
+   "note": "f64 evaluator, ICC 8.10.2 fallback, fused matrix pairs and AdmittedWideEngine ledger route (e7cf81f) verified by reviewer; KNOWN_FINDINGS deletions forced by passing runs; PLAUSIBLE: lease bounds unmeasured, curv gamma <= 0 accepted, 8 RGB->CMYK abs combos re-attributed to a divergence without a committed proof",
+   "review": "validation/R6-review-a.json",
+   "idempotency_key": "STUDIO-R6:SMB-PRISM-ENG-6:bd8533f9b29c:FAIL_V1",
+   "recorded_at": "2026-10-11T06:47:09Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-ENG-2",
+   "crate": "hsk-studio-pigment + hsk-studio-folio",
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "tests": "pigment 24/24 (adjust_coverage 4, plan_extensions 6); folio 35/35 (raster_records_contract 3/3)",
+   "failures": [],
+   "remediation": null,
+   "note": "Covers SMB-FOLIO-ENG-5 (StudioRasterRecords). Hand oracles recomputed by reviewer vs psd-tools/GIMP sources; envelope additive and refusing; PLAUSIBLE: threshold rounding vs cited psd-tools, adjustment hard bounds have two owners (folio vs pigment), pass-through opacity doc vs class",
+   "review": "validation/R6-review-a.json",
+   "idempotency_key": "STUDIO-R6:SMB-PIGMENT-ENG-2:bd8533f9b29c:PASS_V1",
+   "recorded_at": "2026-10-11T06:47:09Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-ENG-1",
+   "crate": "hsk-studio-pigment",
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "tests": "pigment 24/24 pass (plan_extensions pass-through fill regression non-tautological)",
+   "failures": [],
+   "remediation": null,
+   "note": "R5 FAIL pass-through-fill-opacity-admitted fixed in shared admit (render_plan.rs:411-417,795-800; d576ec5, V4-06 sweep c2bbb9b/2f705f1); PLAUSIBLE: composite still records fill_opacity Approximate (verified evaluate_static.rs:189-190, routed to composite), PlanLimits default, backend copies of refusals",
+   "review": "validation/R6-review-a.json",
+   "idempotency_key": "STUDIO-R6:SMB-PIGMENT-ENG-1:bd8533f9b29c:PASS_V3",
+   "recorded_at": "2026-10-11T06:47:09Z"
+  },
+  {
+   "lane": "SMB-ROUND-ENTRYPOINT",
+   "crate": "workspace",
+   "decision": "failed",
+   "verdict": "FAIL_V3",
+   "status_change": "FAIL_V3",
+   "tests": "step0 clean (lock, registry, policy: 0 machine-path violations, 0 new duplicate sites); 32 units built and run; exit 73 with 37 NOT_PROVEN counted",
+   "failures": [
+    {
+     "failure_kind": "product",
+     "failure_class": "corpus-binding-precedes-fixture-placement",
+     "file_line": "tools/run-round.sh:301-341 (corpus manifest) vs :428-486 (fixture written into the corpus root :471-482)",
+     "evidence": "R6 oracle-corpus.manifest.txt binds clap-gain dll 292c7583 (C8 build); the round then placed 11bdbe8b (06:13:46Z): bound content != tested content",
+     "source": "validator finding at bd8533f (no reviewer scope), verified against R6 artifacts",
+     "artifact_ref": "export bd8533f9 tools/run-round.sh:301-341 (corpus manifest) vs :428-486 (fixture written into the corpus root :471-482)"
+    },
+    {
+     "failure_kind": "product",
+     "failure_class": "shared-corpus-fixture-overwritten-across-owners",
+     "file_line": "tools/run-round.sh:471-482; .config/oracle-fixtures.toml",
+     "evidence": "every run os.replace()s the fixture in the shared corpus; at 06:24:10Z a run (round_sha 2074f5e) replaced it (b2892526): concurrent owners swap inputs",
+     "source": "validator finding at bd8533f (no reviewer scope), verified against R6 artifacts",
+     "artifact_ref": "export bd8533f9 tools/run-round.sh:471-482; .config/oracle-fixtures.toml"
+    }
+   ],
+   "remediation": "Bind the corpus after fixture placement; place fixtures per owner so a run never replaces another owner's input",
+   "note": "NOT_PROVEN accounting (junit system-out), oracle corpus walk-up, fixture build unit, feature matrix and step-0 V4-03/V4-05 policy all exercised in R6; header lines 44-47 claim corpus binding; coverage gap: no score-device cpal-backend set (lead routed)",
+   "review": "NOT_REVIEWED",
+   "review_note": "no reviewer scope for run-round.sh in R6; validator read tools/run-round.sh at bd8533f and compared R6 + C8 artifacts",
+   "idempotency_key": "STUDIO-R6:SMB-ROUND-ENTRYPOINT:bd8533f9b29c:FAIL_V3",
+   "recorded_at": "2026-10-11T06:47:09Z"
+  },
+  {
+   "lane": "SMB-LAYOUT",
+   "crate": "hsk-studio-layout",
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "tests": "layout 6/6 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "crate unchanged; closure (folio) changed",
+   "review": "NOT_REVIEWED",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate or workspace-dep closure changed 1d404f8..bd8533f)",
+   "idempotency_key": "STUDIO-R6:SMB-LAYOUT:bd8533f9b29c:PASS_V3",
+   "recorded_at": "2026-10-11T06:47:09Z"
+  },
+  {
+   "lane": "SMB-LAYOUT-FOLIO-MIGRATE",
+   "crate": "hsk-studio-layout",
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "tests": "layout 6/6 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "crate unchanged; closure (folio) changed",
+   "review": "NOT_REVIEWED",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate or workspace-dep closure changed 1d404f8..bd8533f)",
+   "idempotency_key": "STUDIO-R6:SMB-LAYOUT-FOLIO-MIGRATE:bd8533f9b29c:PASS_V2",
+   "recorded_at": "2026-10-11T06:47:09Z"
+  },
+  {
+   "lane": "SMB-PULSE",
+   "crate": "hsk-studio-pulse",
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "tests": "pulse 18/18 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "crate changed by SMB-PULSE-ENG-1 (6a60ef6, reviewed under that lane)",
+   "review": "NOT_REVIEWED",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate or workspace-dep closure changed 1d404f8..bd8533f)",
+   "idempotency_key": "STUDIO-R6:SMB-PULSE:bd8533f9b29c:PASS_V3",
+   "recorded_at": "2026-10-11T06:47:09Z"
+  },
+  {
+   "lane": "SMB-REEL",
+   "crate": "hsk-studio-reel",
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3; ledger status stays READY_FOR_VALIDATION: newer submission d9bf614 (not in bd8533f) queued for next round",
+   "tests": "reel 28/28 default, reel+av1 32/32 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "crate changed by R5 remediation 233f406/569023e (lanes AV1-ROUTE/ENG-3, not judged this round): validator read the diff, additive checked arithmetic + regressions, no test removed or ignored",
+   "review": "NOT_REVIEWED",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate or workspace-dep closure changed 1d404f8..bd8533f)",
+   "idempotency_key": "STUDIO-R6:SMB-REEL:bd8533f9b29c:PASS_V3",
+   "recorded_at": "2026-10-11T06:47:09Z"
+  },
+  {
+   "lane": "SMB-COMPOSITE",
+   "crate": "hsk-studio-composite",
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "tests": "composite 13/13 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "crate unchanged; closure changed (pigment/folio/prism). Note: evaluate_static.rs:189-190 records fill_opacity Approximate for PassThrough fill<1 while pigment admit now refuses it (route to SMB-COMPOSITE-ADJ)",
+   "review": "NOT_REVIEWED",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate or workspace-dep closure changed 1d404f8..bd8533f)",
+   "idempotency_key": "STUDIO-R6:SMB-COMPOSITE:bd8533f9b29c:PASS_V3",
+   "recorded_at": "2026-10-11T06:47:09Z"
+  },
+  {
+   "lane": "SMB-COMPOSITE-CLIP-ALIGN",
+   "crate": "hsk-studio-composite",
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "tests": "composite 13/13 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "crate unchanged; closure changed",
+   "review": "NOT_REVIEWED",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate or workspace-dep closure changed 1d404f8..bd8533f)",
+   "idempotency_key": "STUDIO-R6:SMB-COMPOSITE-CLIP-ALIGN:bd8533f9b29c:PASS_V3",
+   "recorded_at": "2026-10-11T06:47:09Z"
+  },
+  {
+   "lane": "SMB-RENDER-CPU",
+   "crate": "hsk-studio-render-cpu",
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "tests": "render-cpu 11/11 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "crate unchanged; closure changed (pigment/folio/prism)",
+   "review": "NOT_REVIEWED",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate or workspace-dep closure changed 1d404f8..bd8533f)",
+   "idempotency_key": "STUDIO-R6:SMB-RENDER-CPU:bd8533f9b29c:PASS_V3",
+   "recorded_at": "2026-10-11T06:47:09Z"
+  },
+  {
+   "lane": "SMB-RENDER-CPU-CLIP",
+   "crate": "hsk-studio-render-cpu",
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "tests": "render-cpu 11/11 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "crate unchanged; closure changed",
+   "review": "NOT_REVIEWED",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate or workspace-dep closure changed 1d404f8..bd8533f)",
+   "idempotency_key": "STUDIO-R6:SMB-RENDER-CPU-CLIP:bd8533f9b29c:PASS_V3",
+   "recorded_at": "2026-10-11T06:47:09Z"
+  },
+  {
+   "lane": "SMB-PACKAGE",
+   "crate": "hsk-studio-package",
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "tests": "package 18/18 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "crate unchanged; closure (folio) changed",
+   "review": "NOT_REVIEWED",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate or workspace-dep closure changed 1d404f8..bd8533f)",
+   "idempotency_key": "STUDIO-R6:SMB-PACKAGE:bd8533f9b29c:PASS_V3",
+   "recorded_at": "2026-10-11T06:47:09Z"
+  },
+  {
+   "lane": "SMB-PACKAGE-STREAM-SAVE",
+   "crate": "hsk-studio-package",
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "tests": "package 18/18 pass (streaming_save 4/4)",
+   "failures": [],
+   "remediation": null,
+   "note": "crate unchanged; closure (folio) changed",
+   "review": "NOT_REVIEWED",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate or workspace-dep closure changed 1d404f8..bd8533f)",
+   "idempotency_key": "STUDIO-R6:SMB-PACKAGE-STREAM-SAVE:bd8533f9b29c:PASS_V2",
+   "recorded_at": "2026-10-11T06:47:09Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3; ledger status stays READY_FOR_VALIDATION: newer submission eb7080d (not in bd8533f) queued for next round",
+   "tests": "interop-psd 24/24 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "crate changed by 0b9aeeb (SMB-INTEROP-PSD-WIDE remediation, not judged this round): validator read the diff, 8 files additive, tests added (18 -> 24), none removed or ignored",
+   "review": "NOT_REVIEWED",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate or workspace-dep closure changed 1d404f8..bd8533f)",
+   "idempotency_key": "STUDIO-R6:SMB-INTEROP-PSD:bd8533f9b29c:PASS_V3",
+   "recorded_at": "2026-10-11T06:47:09Z"
+  },
+  {
+   "lane": "SMB-SESSION",
+   "crate": "hsk-studio-session",
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3; ledger status stays READY_FOR_VALIDATION: newer submission 82a97b4 (not in bd8533f) queued for next round",
+   "tests": "session 14/14 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "crate unchanged; closure (folio) changed",
+   "review": "NOT_REVIEWED",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate or workspace-dep closure changed 1d404f8..bd8533f)",
+   "idempotency_key": "STUDIO-R6:SMB-SESSION:bd8533f9b29c:PASS_V3",
+   "recorded_at": "2026-10-11T06:47:09Z"
+  },
+  {
+   "lane": "SMB-PRISM-ENG-1",
+   "crate": "hsk-studio-prism",
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "tests": "wide_bpc 3/3 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "prism changed by ENG-5/ENG-6 (reviewed under those lanes)",
+   "review": "NOT_REVIEWED",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate or workspace-dep closure changed 1d404f8..bd8533f)",
+   "idempotency_key": "STUDIO-R6:SMB-PRISM-ENG-1:bd8533f9b29c:PASS_V3",
+   "recorded_at": "2026-10-11T06:47:09Z"
+  },
+  {
+   "lane": "SMB-PRISM-ENG-2",
+   "crate": "hsk-studio-prism",
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "tests": "wide_absolute 2/2 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "prism changed by ENG-5/ENG-6 (reviewed under those lanes)",
+   "review": "NOT_REVIEWED",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate or workspace-dep closure changed 1d404f8..bd8533f)",
+   "idempotency_key": "STUDIO-R6:SMB-PRISM-ENG-2:bd8533f9b29c:PASS_V3",
+   "recorded_at": "2026-10-11T06:47:09Z"
+  },
+  {
+   "lane": "SMB-PRISM-ENG-3",
+   "crate": "hsk-studio-prism",
+   "decision": "inconclusive",
+   "verdict": "NOT_PROVEN",
+   "status_change": "none: READY_FOR_VALIDATION retained (inconclusive, CX-STATUS-003); blocker recorded",
+   "tests": "wide_inputs 2/2, wide_profiles 3/3 passed; admission_order_matrix_v4_matrix_v2_mab_and_installed_profiles printed NOT_PROVEN x3",
+   "failures": [],
+   "remediation": null,
+   "not_proven": [
+    {
+     "capability": "real installed CMYK (USWebCoatedSWOP, CoatedFOGRA39) and HLG (Rec2100HLG203) profile admission above MAX_PROFILE_BYTES",
+     "tests": "wide_profiles::admission_order_matrix_v4_matrix_v2_mab_and_installed_profiles (installed loop)",
+     "reason": "installed_profile_absent: corpus root unresolved from round exports (SMB-PRISM-ENG-5 FAIL_V2; 65a08c9 after freeze)"
+    }
+   ],
+   "blocker": "NOT_PROVEN installed-profile admission until the corpus root resolves from exports (65a08c9, R7)",
+   "note": "decision inconclusive (CX-STATUS-003): installed CMYK/HLG admission is part of the ENG-3 scope; synthetic cap lift (large_cmyk_*), admission order and K-ramp proven",
+   "review": "NOT_REVIEWED",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate or workspace-dep closure changed 1d404f8..bd8533f)",
+   "idempotency_key": "STUDIO-R6:SMB-PRISM-ENG-3:bd8533f9b29c:NOT_PROVEN",
+   "recorded_at": "2026-10-11T06:47:09Z"
+  },
+  {
+   "lane": "SMB-PRISM-ENG-4",
+   "crate": "hsk-studio-prism",
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "tests": "wide_determinism 2/2 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "digests re-pinned by ENG-6 (lead ack 05:47:08Z); prism changed by ENG-5/ENG-6",
+   "review": "NOT_REVIEWED",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate or workspace-dep closure changed 1d404f8..bd8533f)",
+   "idempotency_key": "STUDIO-R6:SMB-PRISM-ENG-4:bd8533f9b29c:PASS_V3",
+   "recorded_at": "2026-10-11T06:47:09Z"
+  },
+  {
+   "lane": "SMB-FOLIO-ENG-1",
+   "crate": "hsk-studio-folio",
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "tests": "timeline_contract 5/5 (folio 35/35) pass",
+   "failures": [],
+   "remediation": null,
+   "note": "folio changed by ff92dea raster records (reviewed under SMB-PIGMENT-ENG-2)",
+   "review": "NOT_REVIEWED",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate or workspace-dep closure changed 1d404f8..bd8533f)",
+   "idempotency_key": "STUDIO-R6:SMB-FOLIO-ENG-1:bd8533f9b29c:PASS_V3",
+   "recorded_at": "2026-10-11T06:47:09Z"
+  },
+  {
+   "lane": "SMB-FOLIO-ENG-2",
+   "crate": "hsk-studio-folio",
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "tests": "appearance_contract 4/4 (folio 35/35) pass",
+   "failures": [],
+   "remediation": null,
+   "note": "folio changed by ff92dea (reviewed under SMB-PIGMENT-ENG-2)",
+   "review": "NOT_REVIEWED",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate or workspace-dep closure changed 1d404f8..bd8533f)",
+   "idempotency_key": "STUDIO-R6:SMB-FOLIO-ENG-2:bd8533f9b29c:PASS_V3",
+   "recorded_at": "2026-10-11T06:47:09Z"
+  },
+  {
+   "lane": "SMB-FOLIO-ENG-3",
+   "crate": "hsk-studio-folio",
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "tests": "layout_contract 4/4 (folio 35/35) pass",
+   "failures": [],
+   "remediation": null,
+   "note": "folio changed by ff92dea (reviewed under SMB-PIGMENT-ENG-2)",
+   "review": "NOT_REVIEWED",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate or workspace-dep closure changed 1d404f8..bd8533f)",
+   "idempotency_key": "STUDIO-R6:SMB-FOLIO-ENG-3:bd8533f9b29c:PASS_V3",
+   "recorded_at": "2026-10-11T06:47:09Z"
+  },
+  {
+   "lane": "SMB-FOLIO-ENG-4",
+   "crate": "hsk-studio-folio",
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "tests": "folio 35/35 pass",
+   "failures": [],
+   "remediation": null,
+   "note": "folio changed by ff92dea (reviewed under SMB-PIGMENT-ENG-2)",
+   "review": "NOT_REVIEWED",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate or workspace-dep closure changed 1d404f8..bd8533f)",
+   "idempotency_key": "STUDIO-R6:SMB-FOLIO-ENG-4:bd8533f9b29c:PASS_V2",
+   "recorded_at": "2026-10-11T06:47:09Z"
+  }
+ ],
+ "infrastructure": [
+  "Validator invocation error: first launch passed relative ../../../results (resolved outside the owner dir) and was refused by the entrypoint (exit 2, nothing built); cause recorded as gameplan GP-014; no verdict impact",
+  "Shared corpus mutated after the round: at 06:24:10Z another run (round_sha 2074f5e) replaced oracle-corpus/score-plugin/clap-gain (b2892526); R6 clap tests read the env var only, so no R6 verdict depended on it (see SMB-ROUND-ENTRYPOINT FAIL_V3)",
+  "Gameplan confirms bind to the edit-tree HEAD, which builder pushes moved 6c45e64 -> dd1df63 -> cdc2c0f -> 92a7eef -> e007703 during preparation; GP-003 (no build processes on D:) re-checked before each bind; a builder clippy run was seen at 06:11Z, none at bind time 06:13:00Z; builders may have built on D: during the round (one-build-per-disk only checked at start)",
+  "Round outputs not cleaned (studio-round/target kept warm for R7 at the same stable path; deletion is the lead's call)"
+ ],
+ "by": "wp_validator STUDIO-R6 (Opus, fresh context, not implementer)"
+}
