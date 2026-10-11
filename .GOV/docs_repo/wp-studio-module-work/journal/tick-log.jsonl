@@ -100,3 +100,5 @@
 {"t": "2026-10-11T07:46:25Z", "event": "SMB-HARNESS READY_FOR_VALIDATION c41b067 (rem-kb-harness)", "lanes_moved": ["SMB-HARNESS READY"], "commits": ["c41b067"], "progress": "direct: product commit"}
 {"t": "2026-10-11T07:46:25Z", "event": "SMB-RENDER-GPU-ADJ READY_FOR_VALIDATION a6ac630 (builder-render-gpu-fx)", "lanes_moved": ["SMB-RENDER-GPU-ADJ READY"], "commits": ["a6ac630"], "progress": "direct: product commit"}
 {"t": "2026-10-11T07:47:52Z", "event": "SMB-RENDER-CPU-WINDOW READY_FOR_VALIDATION 0f58c1c (builder-render-cpu-window)", "lanes_moved": ["SMB-RENDER-CPU-WINDOW READY"], "commits": ["0f58c1c"], "progress": "direct: product commit"}
+{"t": "2026-10-11T07:53:55Z", "event": "SMB-RENDER-CPU-FX2 READY_FOR_VALIDATION 8d46aa8 (builder-render-cpu-window)", "lanes_moved": ["SMB-RENDER-CPU-FX2 READY"], "commits": ["8d46aa8"], "progress": "direct: product commit"}
+{"t": "2026-10-11T07:53:55Z", "event": "SMB-PRISM-ENG-6 READY_FOR_VALIDATION e26f623 (builder-prism-plausibles)", "lanes_moved": ["SMB-PRISM-ENG-6 READY"], "commits": ["e26f623"], "progress": "direct: product commit"}

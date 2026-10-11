@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T07:47:52Z",
+ "updated_at": "2026-10-11T07:53:55Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1193,7 +1193,7 @@
     "crates/hsk-studio-render-cpu/**"
    ],
    "launched": "2026-10-11T07:26:25Z",
-   "status": "running (SMB-RENDER-CPU-FX2: wave-2 effects via window API) 2026-10-11T07:47:52Z"
+   "status": "done 2026-10-11T07:53:55Z (SMB-RENDER-CPU-FX2 READY at 8d46aa8)"
   },
   {
    "name": "prereview-r7-a",

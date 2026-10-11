@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T07:47:52Z",
+ "updated_at": "2026-10-11T07:53:55Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -1472,13 +1472,14 @@
    "blocked_on": null,
    "commits": [
     "987af00",
-    "d7027c3"
+    "d7027c3",
+    "e26f623"
    ],
    "verdicts": [
     "STUDIO-R6 FAIL_V1 @bd8533f"
    ],
-   "candidate": "d7027c3",
-   "note": "R6 remediation: mAB/mBA input channels > min(grid array, ICC max 16) refused malformed_profile before indexing (ICC.1:2022 Tables 46/48; 17/64/255 inputs red-first), V4-06 177 sites annotated; DESCRIPTOR not_in_scope scoped to plain WideEngine + admitted_route cites tests; STU-CON-044: admitted transforms/job bands run in <=64-pixel chunks with per-chunk cancellation, receipts record chunks, digests unchanged, 24 MP 100->102 ms; 128 green 0 NOT_PROVEN",
+   "candidate": "e26f623",
+   "note": "R6 plausibles: (1) lease sizes measured with counting allocator for every lease kind (no under-estimate; plan lease tightest at 0.75), doc/DESCRIPTOR state exact charge + ratios; (2) destination curves with gamma<=0 / constant refused at plan build (WideError::NonInvertibleCurve, ICC.1:2022 Annex F.2/F.3, clause 10.18), sources unchanged; open: non-monotonic non-constant destination table not refused; (3) DIV-ABS-V2-DISPLAY-WTPT-001: AbsoluteReport carries media_white_rule + divergence, T1 asserts all 30 combinations; numeric behaviour unchanged; 137 green 0 NOT_PROVEN; red proofs on scratch tree; open for interop-psd: keeps only receipt.clip, drops receipt.absolute",
    "r6_review_routed": {
     "to": "rem-prism-r6",
     "at": "2026-10-11T06:37:43Z",
@@ -1838,11 +1839,15 @@
    "crate": "hsk-studio-render-cpu",
    "origin": "render-cpu window slice",
    "scope": "wave-2 effects (inner shadow, outer/inner glow) via windowed API",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-render-cpu-window",
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "8d46aa8"
+   ],
+   "verdicts": [],
+   "candidate": "8d46aa8",
+   "note": "wave-2 effects (inner shadow, outer/inner glow) through the windowed path, no kind-specific code; six-effect stack bit-identical across chunks 48/17/7/5 x 1-3 workers; 304 px margin identical to uncut oracle; exactness = pigment Approximate; refusals by feature key, 0 sink calls; 29 green via the per-test runner"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
@@ -1936,7 +1941,8 @@
   "SMB-FOLIO-ENG-7",
   "SMB-KERNEL-BINDINGS",
   "SMB-HARNESS",
-  "SMB-RENDER-CPU-WINDOW"
+  "SMB-RENDER-CPU-WINDOW",
+  "SMB-RENDER-CPU-FX2"
  ],
  "round_R6": {
   "candidate": "bd8533f",

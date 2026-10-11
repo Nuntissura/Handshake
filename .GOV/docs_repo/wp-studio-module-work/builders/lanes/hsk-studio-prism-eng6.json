@@ -2,7 +2,7 @@
  "crate": "hsk-studio-prism",
  "lane": "SMB-PRISM-ENG-6",
  "status": "READY_FOR_VALIDATION",
- "phase": "R6 remediation (review A): hostile mAB channel count refused typed (red-proofed), WIDE_DESCRIPTOR not_in_scope scoped, STU-CON-044 64-pixel chunks with chunk account in every wide conversion; ENG-6 findings and ENG-7 jobs unchanged",
+ "phase": "R6 plausibles (review A): lease sizes measured per kind with a counting allocator (tests/wide_heap.rs), non-invertible destination curves refused at plan time (non_invertible_curve), absolute media-white rule + DIV-ABS-V2-DISPLAY-WTPT-001 in every receipt and asserted in T1; after R6 remediation d7027c3 (hostile mAB, descriptor, STU-CON-044 chunks)",
  "commits": [
   {
    "sha": "3926709",
@@ -35,6 +35,10 @@
   {
    "sha": "d7027c3",
    "subject": "Prism R6 remediation (SMB-PRISM-ENG-6): hostile mAB channel count refused typed, descriptor not_in_scope scoped, wide conversions run in 64-pixel chunks with a chunk account (STU-CON-044)"
+  },
+  {
+   "sha": "e26f623",
+   "subject": "Prism R6 plausibles (SMB-PRISM-ENG-6): measured lease heap, non-invertible destination curves refused at plan time, absolute media-white rule and DIV-ABS-V2-DISPLAY-WTPT-001 in every receipt"
   }
  ],
  "capabilities_done": [
@@ -47,20 +51,21 @@
   "R5-A item 3: tests/oracle/corpus.json (checked-in config, root ../../../../Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/icc relative to the crate) + tests/oracle/populate_corpus.py (stdlib, reads the fixture's system default_locations, copies SHA-256-verified files, writes MANIFEST.json); oracle_t1 and wide_profiles read installed profiles only via wide_support::corpus_read; a missing/mismatched profile prints `NOT_PROVEN: <test> <case> reason=...` on uncaptured stderr and fails under HSK_PRISM_REQUIRE_CORPUS=1 or require_corpus=true; corpus populated on this host (9/9 profiles)",
   "D13 option b: AdmittedWideEngine<A: ProviderAdmission> (additive): provider lease (actor, cache vectors), plan lease kept with each cached plan, transient parse/build lease (bounds from the ICC tag table: parse 2x, plan 8x stored bytes, BPC 4 stages + ramp), per-request digest/frame lease, output lease carried by AdmittedWideTransform; denial before any parse; try_clear_cache/try_retire/set_matrix_fusion check retirement; AdmittedWideError Admission|Refused|Wide; pixels bit-identical to WideEngine; WIDE_DESCRIPTOR admitted_route",
   "Workflow v4: #![deny(clippy::arithmetic_side_effects)] on icc_eval, wide, wide_admitted, wide_plan, bpc, admitted (123 lint sites -> 0: checked/saturating, CLUT index wrapping only after Clut::new checked bounds); tests/wide_hostile.rs (u32-max tag offset/size/count, curv u32::MAX entries, mft2 255^4 CLUT, mAB 255^3 CLUT, >2 MiB profile, aggregate over ledger budget and pixel bound before any parse); NOT_PROVEN lines on uncaptured stderr (wide_determinism unpinned target, wide_admitted/wide_hostile non-msvc target); absolute claims in my docs/descriptor cite tests or were weakened",
-  "R6 remediation d7027c3: Table::build refuses mAB/mBA input-channel counts above min(grid array, ICC 16) before slicing (red-proofed on the previous source: slice panic), WIDE_DESCRIPTOR not_in_scope scoped + tests cited, wide conversions (transform, admitted transform, job bands) run in ADMITTED_CHUNK_PIXELS = 64 chunks with WideChunkAccount in WideReceipt::chunks / WideBandReport::chunks (STU-CON-044 internal reading; 24 MP linear P3->sRGB 16 threads 100 -> 102 ms; literal one-call-per-64-px priced); details in notes.remediation_R6"
+  "R6 remediation d7027c3: Table::build refuses mAB/mBA input-channel counts above min(grid array, ICC 16) before slicing (red-proofed on the previous source: slice panic), WIDE_DESCRIPTOR not_in_scope scoped + tests cited, wide conversions (transform, admitted transform, job bands) run in ADMITTED_CHUNK_PIXELS = 64 chunks with WideChunkAccount in WideReceipt::chunks / WideBandReport::chunks (STU-CON-044 internal reading; 24 MP linear P3->sRGB 16 threads 100 -> 102 ms; literal one-call-per-64-px priced); details in notes.remediation_R6",
+  "R6 plausibles e26f623: tests/wide_heap.rs (counting-allocator proof per lease kind, 10 synthetic families + 12 installed CMYK conversions), WideError::NonInvertibleCurve + Curve::require_invertible in icc_eval::from_pcs, AbsoluteReport.media_white_rule/divergence + WideProfileDescriptor.profile_class/is_v2_display, T1 attribution assertion for the 30 DIV-ABS-V2-DISPLAY-WTPT-001 combinations"
  ],
  "tests": {
-  "argv": "cd wt-studio-assets/handshake-studio-assets && STUDIO_OWNER=prism-eng6 HSK_PRISM_REQUIRE_CORPUS=1 source builders/studio-env.sh && cargo test -p hsk-studio-prism --tests --no-fail-fast (2 ignored benches: release timing)",
+  "argv": "cd wt-studio-assets/handshake-studio-assets && HSK_PRISM_REQUIRE_CORPUS=1 source builders/studio-env.sh && cargo nextest run -p hsk-studio-prism --no-fail-fast --success-output immediate (studio-env.sh now refuses cargo test; 2 ignored benches)",
   "exit": 0,
-  "sha": "d7027c3",
-  "passed": 128,
+  "sha": "e26f623",
+  "passed": 137,
   "failed": 0
  },
  "blockers": [],
  "lock_wait_s": 0,
  "bg_pids": [],
- "next": "Validator: re-judge R6 items (hostile mAB, descriptor, STU-CON-044 reading in notes.remediation_R6.item3_stu_con_044: internal 64-pixel chunks vs literal one-call-per-64-pixels). Lead/Operator: decide whether the internal chunking satisfies the sentence. develop owner: update convert.rs docs (64-pixel text is stale for Prism). Open PLAUSIBLE R6 items not in this pass: lease sizes unmeasured, Gamma(g<=0) destination refusal, unguarded DIV-ABS-V2-DISPLAY-WTPT-001 combos.",
- "updated_at": "2026-10-11T07:19:05Z",
+ "next": "Validator: re-judge the three R6 PLAUSIBLE items (notes.r6_plausibles) and the earlier R6 remediation items. Lead/Operator: D15 still decides which wtpt reading is normative (receipts now name the divergence); acknowledge the new WideError variant NonInvertibleCurve and the AbsoluteReport/WideProfileDescriptor fields. interop-psd owner: carry receipt.absolute (rule + divergence) into the import receipt. develop owner: convert.rs docs still say 64-pixel text is stale for Prism (unchanged). Optional tightening of the over-reserving parse/plan/build leases is a follow-up with the measured ratios in notes.r6_plausibles.item1_lease_sizes.",
+ "updated_at": "2026-10-11T07:53:04Z",
  "notes": {
   "verdicts": [
    {
@@ -696,6 +701,102 @@
      }
     ]
    }
+  },
+  "r6_plausibles": {
+   "scope": "R6 review A PLAUSIBLE items for SMB-PRISM-ENG-6 (validation/R6-review-a.json lanes[7].findings[2..4]); base d7027c3; one commit e26f623 on codex/handshake-studio-assets; no other crate touched, no digest re-pinned, prism suite 128 -> 137 passed (2 ignored benches), dependents compile",
+   "item1_lease_sizes": {
+    "verdict": "REAL as a proof gap (no test measured heap; the descriptor said so); NOT real as an under-estimate: no lease was below the measured heap in any of 22 cases x 16 measured quantities",
+    "evidence": "src/wide_admitted.rs at d7027c3 :13-22 'conservative upper bounds', :41-47 factors; src/wide.rs WIDE_DESCRIPTOR admitted_route 'not measured heap (no allocator-peak test yet)'; tests/wide_admitted.rs asserted bookkeeping only",
+    "test": "tests/wide_heap.rs: leased_bytes_cover_the_measured_heap_per_lease_kind_for_synthetic_families (10 families: srgb v4 para -> P3 fused, v2 curv gamma, 65535/65536-entry curv tables both sides + BPC, 16-bit mAB 33^3, 16-bit CMYK 17^4 source/destination BPC relative+perceptual, 8-bit mft1 CMYK 17^4 source/destination, u8 -> u16 CMYK BPC) and leased_bytes_cover_the_measured_heap_for_installed_cmyk_profiles (SWOP, FOGRA39, GRACoL x to/from sRGB x relative/perceptual, BPC on; corpus root, NOT_PROVEN line when absent)",
+    "method": "thread-local counting global allocator (requested bytes: grow before the system call, realloc counts new before old), mock ledger logs reservations in call order without allocating inside the measured region; per call: provider (kept, peak), parse (inspect_profile peak), miss transform (output kept, plan kept after dropping the result, build transient above plan+output, total peak <= request+output+plan+build), hit transform (output kept, request transient, total peak), try_clear_cache frees <= plan lease, job (prepare peak/kept, band allocates 0 bytes, finish peak, receipt kept, plan kept)",
+    "measured_over_leased": {
+     "provider_lease": "1.00 exact (1336/1336)",
+     "output_lease": "0.84-0.87 at 100 pixels (vector exact, receipt strings charged x4)",
+     "plan_lease": "worst 0.75 (curv tables 65536 both sides: 6292890/8428112); other families 0.0005-0.24",
+     "build_transient_vs_build_plus_request": "0.02-0.32 (0.32 = mAB 33^3 without BPC; BPC cases 0.02-0.14 because the bound charges 4 extra plan stages)",
+     "request_transient": "0.29-0.35 (850/2913, 1106/3169)",
+     "parse_peak": "0.012-0.37 (inspect_profile of each case's source profile; 0.37 = 16-bit 17^4 CMYK and 65536-entry curv tables, parse is about 1x stored against a 2x stored charge)",
+     "job_receipt": "0.25 (82/328); job_finish_peak 0 of 2625 bytes"
+    },
+    "one_violation_found_and_fixed_in_the_test": "first run: provider_kept lease 1336 < measured 1368 - the 32 bytes were the first push into the test mock's own log Vec inside the measured region (not the engine); fixed by pre-sizing the log; engine lease is exact",
+    "red_proof": "scratch tree Handshake_Artifacts/WP-KERNEL-STUDIO/prism-plausibles-redproof (own STUDIO_OWNER prism-plausibles-redproof, copy of the edit tree + 3 mutations): PLAN_FACTOR 8 -> 2 makes the synthetic test fail: 'trc_tables_65536_both_sides_bpc: plan_kept lease 2131604 is below the measured heap 6292890 (ratio 2.95)'; the installed-profile test still passes at factor 2 (ratios <= 0.24 x 4)",
+    "fix": "factors NOT tightened (evidence supports the bounds, not smaller ones: tightest over-reserving bound has 1.33x margin and the leases are numbers callers budget against); module doc of wide_admitted.rs and WIDE_DESCRIPTOR admitted_route now state exactly what is charged (formulas, stored-bytes definition, which leases are exact), cite the tests and the measured ratios, and say the leases over-reserve; the 'not measured heap' sentence is gone (V4-07)",
+    "known_limits": "unit = requested allocator bytes (stack, allocator bookkeeping, RSS excluded); per-thread counter, all measured operations single-threaded; admitted route is x86_64-windows-msvc only (NOT_PROVEN line elsewhere); parse_peak is measured on the source profile of each case (the destination parse is inside the miss total peak and the build transient); candidate follow-ups for tighter leases: stored bytes count the file AND every tag (about 2x), BPC term 4 x whole plan (measured <= 0.14)"
+   },
+   "item2_gamma_le_0_destination": {
+    "verdict": "REAL",
+    "evidence": "icc_eval.rs at d7027c3: from_mox :212-215 (curv count 1: g == 1 -> Identity else Gamma(g), g = 0 accepted), :225 (para type 0 any finite g), Curve::inverse :297-333 (root(y, g) = pow(y, 1/g) for Gamma and para 1-4 exponents); before the fix g = 0 mapped in-gamut linear values to 0 and values above 1 to inf (NonfiniteOutput), g < 0 gave device values above 1; types 1-4 refused only a = 0",
+    "basis": "ICC.1:2022 (archive.color.org/specification/ICC.1-2022-05.pdf, text via pdftotext): Annex F.2 (grayTRC, p.101) and F.3 (red/green/blueTRC, p.102): a constant one-dimensional curve cannot be inverted and the inverse of a non-invertible curve is undefined; clause 10.6 (curveType, p.48): n = 1 is gamma as u8Fixed8 (so g = 0 is a constant curve y = 1); clause 10.18 (parametricCurveType, p.70-71): domain and range [0,1], values outside are clipped (so g < 0 is the constant 1)",
+    "fix": "Curve::require_invertible (icc_eval.rs) refuses Gamma(g) and para types 1-4 with g <= 0 and constant tables; called for the matrix and Gray TRCs in icc_eval::from_pcs, so it fires when the plan is built (before the cache is touched, before BPC/absolute, fused and staged alike, plain/admitted/job); new typed WideError::NonInvertibleCurve code non_invertible_curve (Observe outcome Unsupported); the same curves remain valid as sources",
+    "tests": "tests/wide_r6_plausibles.rs: destination_tone_curves_that_cannot_be_inverted_are_refused_at_plan_time (10 curves: curv gamma 0, para0 g 0/-1/-2.4, para1 g 0, para2 g -1, para3 g 0, para4 g -2.4, constant tables; v2 and v4; RGB and Gray destinations; Lab source; fusion on/off; relative+BPC, perceptual+BPC, absolute; nothing cached; forward use still converts), invertible_destination_curves_of_every_encoding_still_convert (7 controls), non_invertible_destination_is_refused_before_any_charge_is_kept_and_for_jobs (plain job, AdmittedWideEngine transform and prepare_job: typed refusal, ledger back to the provider lease)",
+    "red_proof": "scratch tree with the two require_invertible calls removed: 'curv_gamma_0 v0x2100000 fusion=true RelativeColorimetric bpc=false: a non-invertible destination converted' and the admitted-route test fails",
+    "t0_cases": "not added: the T0 fixture holds analytic reference values generated offline; a refusal has no reference value (Rust tests above carry it)",
+    "not_refused_remaining_gap": "a destination table TRC that is monotonic-violating but not constant: the standard calls its inverse undefined (F.1 requires monotonic) and table_inverse assumes monotonic; left as is because refusing it could reject real profiles with noisy tables (no evidence either way in the corpus)",
+    "forward_use": "unchanged: a g <= 0 source evaluates unbounded (parametric curves are not clipped to 0..1 by design, HDR PCS); the standard's clip rule is not applied there"
+   },
+   "item3_div_abs_v2_display_wtpt": {
+    "verdict": "REAL in both parts: (a) the attribution evidence existed as a committed diagnostic (abs_with_d50_wtpt printed since e77ad28) but nothing asserted it, pairs only, no destination-leg variant; (b) no receipt or code path named the divergence (src has no DIV-* id before this commit)",
+    "paths": "absolute colorimetric is applied in exactly one place, wide_plan.rs build (the PcsMap::Scale of src wtpt / dst wtpt); WideEngine::transform (wide.rs compute), AdmittedWideEngine::transform (wraps it), WideEngine::prepare_job/finish (wide_job.rs:564) and AdmittedWideEngine::prepare_job/finish all copy plan.absolute; the legacy Prism/AdmittedPrism routes refuse every intent but relative (lib.rs:306 / admitted.rs UnsupportedIntent); so no path could apply a different convention, only none of them named it",
+    "fix": "AbsoluteReport gains media_white_rule ('wtpt_as_written' when applied, '' otherwise) and divergence (Some('DIV-ABS-V2-DISPLAY-WTPT-001') when the LittleCMS 2 reading of the same pair - v2 display (mntr, major 2) wtpt read as D50, Lab source D50 - gives another PCS scale by more than 1e-3; None when both agree), computed once in wide_plan::build; WideProfileDescriptor gains profile_class and is_v2_display(); constants MEDIA_WHITE_RULE_WTPT_AS_WRITTEN and ABS_V2_DISPLAY_WTPT_DIVERGENCE exported; numeric behaviour unchanged (D15 still decides the normative reading); a missing wtpt remains a typed refusal (lcms2 would assume D50 - a second documented convention difference, not silent)",
+    "basis": "lcms2 _cmsReadMediaWhitePoint (cmsio1.c, fetched from raw.githubusercontent.com/mm2/Little-CMS master): D50 for a v2 display-class profile, D50 when wtpt is absent; ICC.1:2022 clause 6.2.3 and 9.2.36 (p.10-11, p.41): the media white point of a monitor/display profile is the PCS white (PCS illuminant, clause 7.2.16) - the current text points toward the lcms2 reading for displays",
+    "tests": "tests/wide_r6_plausibles.rs absolute_receipt_names_the_media_white_rule_and_the_v2_display_divergence_on_every_route (10 pairs x 5 routes: fused, staged, plain job, admitted transform, admitted job; identical record, pixels equal; flag true exactly when the D50-reading profiles give other pixels), absolute_record_is_empty_for_every_other_intent_and_bpc_is_ignored_for_absolute, descriptor_reports_profile_class_and_v2_display_membership; tests/oracle_t1_lcms2.rs Judge::prove_wtpt_attribution asserts for every combination registered under the divergence (28 pair combos + 2 destination legs = 30): the engine with the v2 display wtpt read as D50 passes the SAME gate (max dE2000 0.0008-0.0256, gate 0.1 matrix / 1.5 LUT) and the failing run's receipt carries the divergence; registry_divergence_id_is_the_one_the_receipt_carries",
+    "red_proof": "scratch tree with divergence forced to None: the absolute test fails ('v4_d50_to_v2_display_d65: divergence flag left None') and 16 T1 tests fail ('registered under DIV-ABS-V2-DISPLAY-WTPT-001 but the receipt says ... divergence: None'), 27 pass",
+    "cross_lane": "interop-psd convert.rs keeps only receipt.clip (no receipt.absolute): its owner should carry media_white_rule and divergence into the import receipt when the intent is absolute (interop-psd maps its Intent::AbsoluteColorimetric to Prism's at convert.rs:108)"
+   },
+   "v4_06_site_lists": {
+    "destination_tone_curve_inverted_without_invertibility_check": {
+     "regex": "\\.inverse\\(|Curve::from_mox|Gamma\\(",
+     "sites": {
+      "src/icc_eval.rs:834 FromPcs::encode_linear Matrix trc[c].inverse": "fixed (curves built in from_pcs :968 guard)",
+      "src/icc_eval.rs:837 FromPcs::encode_linear Gray c.inverse": "fixed (from_pcs :956 guard)",
+      "src/icc_eval.rs:1027 Fused::encode dst curve inverse": "fixed (dst curves are the guarded FromPcs curves)",
+      "src/icc_eval.rs:209-225 Curve::from_mox Gamma(g) constructors": "not_applicable: forward use is defined; the guard sits at the destination use",
+      "src/icc_eval.rs:934 to_pcs Gray from_mox": "not_applicable: source (forward) curve",
+      "src/icc_eval.rs:878 trc3 / :637 curves() from_mox": "not_applicable: source TRCs and table pipeline curves are evaluated forward (B2A table curves are stored in evaluation direction)"
+     },
+     "count_before": 3,
+     "unguarded_after": 0
+    },
+    "absolute_colorimetric_applied_without_recording_rule_or_divergence": {
+     "regex": "AbsoluteColorimetric|media_white|\\.absolute\\b|PcsMap::Scale",
+     "sites": {
+      "src/wide_plan.rs build (the only place that applies it)": "fixed (rule + divergence recorded here)",
+      "src/wide.rs:1079 compute receipt: absolute: plan.absolute": "consistent (copies the record)",
+      "src/wide_job.rs:564 finish receipt: absolute: plan.absolute": "consistent (copies the record)",
+      "src/lib.rs:306 / src/admitted.rs legacy UnsupportedIntent": "not_applicable: legacy routes refuse absolute",
+      "src/icc_eval.rs:863 table_index": "not_applicable: picks the colorimetric table",
+      "other crates: interop-psd convert.rs:108,268-270": "cross_lane: consumer drops receipt.absolute (see item3.cross_lane)"
+     },
+     "count_before": 3,
+     "unrecorded_after": 0,
+     "count_note": "3 = the applier (wide_plan.rs build) + the two receipt copies (wide.rs, wide_job.rs) in this crate, none recorded the rule or the divergence; the 3 other listed sites are legacy refusals / table choice / another crate"
+    },
+    "ledger_charge_site_without_measured_proof": {
+     "regex": "reserve\\(&self\\.admission|reserve_without_cancellation\\(&admission",
+     "sites": {
+      "src/wide_admitted.rs:150 provider": "proven (wide_heap provider_kept/provider_peak, exact)",
+      "src/wide_admitted.rs:206 inspect_profile parse": "proven (parse_peak)",
+      "src/wide_admitted.rs:272 prepare_job work": "proven (job_prepare_peak/kept, job_finish_peak)",
+      "src/wide_admitted.rs:273 prepare_job receipt": "proven (job_receipt_kept)",
+      "src/wide_admitted.rs:275 prepare_job plan": "proven (job_plan_kept)",
+      "src/wide_admitted.rs:279 prepare_job build": "proven (job_prepare_peak)",
+      "src/wide_admitted.rs:335 transform request": "proven (request_transient)",
+      "src/wide_admitted.rs:336 transform output": "proven (output_kept, hit_output_kept)",
+      "src/wide_admitted.rs:338 transform plan": "proven (plan_kept, cleared)",
+      "src/wide_admitted.rs:342 transform build": "proven (build_transient, miss_total_peak)"
+     },
+     "count_before": 10,
+     "unmeasured_after": 0
+    }
+   },
+   "retry_guard_route": "run 1 (wide_heap + wide_r6_plausibles, cargo test) failed on a defect of MY test mock (its ledger log Vec allocated inside the measured region: provider 1368 vs 1336); fixed in the test source and rerun as a narrower target set (wide_heap only) - the edit is the cause, not an argument tweak to evade the guard; no commit in between (HEAD unchanged), no gameplan step added; later runs: full cargo test (green), then the lead's studio-env.sh began refusing `cargo test` (CX-EXEC-005, steward edit 09:48) so the final proof ran as cargo nextest run (a different tool, same package, passes); route (a)/(b) never needed",
+   "infra": "waited 207 s for the disk build lock behind other lanes (normal); a studio-env.sh change landed mid-session (cargo test refused, nextest required); red-proof tree built in its own target (STUDIO_OWNER=prism-plausibles-redproof); ICC.1:2022 text extracted into the session scratchpad only (pdf fetched by WebFetch from archive.color.org, no personal data in the request)",
+   "acknowledge": [
+    "WideError::NonInvertibleCurve / code non_invertible_curve (new public variant; dependents match WideError with wildcards: develop map_wide, interop-psd IccRefusal(e.code()))",
+    "AbsoluteReport fields media_white_rule, divergence; WideProfileDescriptor field profile_class and is_v2_display(); consts MEDIA_WHITE_RULE_WTPT_AS_WRITTEN, ABS_V2_DISPLAY_WTPT_DIVERGENCE",
+    "T1 oracle now asserts the D50-wtpt attribution for all 30 registered combinations (proof, not a threshold change)"
+   ],
+   "scratch": "Handshake_Artifacts/WP-KERNEL-STUDIO/prism-plausibles-redproof (3 mutations, own target); session scratchpad smb-prism-plausibles/ (ICC text, outputs, this script)"
   }
  }
 }

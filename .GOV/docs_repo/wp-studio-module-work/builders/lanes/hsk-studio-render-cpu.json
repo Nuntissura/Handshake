@@ -2,8 +2,12 @@
   "crate": "hsk-studio-render-cpu",
   "lane": "SMB-RENDER-CPU-CLIP",
   "status": "READY_FOR_VALIDATION",
-  "phase": "SMB-RENDER-CPU-WINDOW pushed (be1836b code + tests, 0f58c1c test lint): effect layers on pigment's windowed API, 24 px effect_margin refusal removed; check + clippy clean, 26 tests pass at 0f58c1c. Earlier: ADJ-1 (49afca1) and EFFECTS-1 (c4bdaef, 9b2f3af, 5674e9c); execute_extended: adjustment layer, Blend-If, mask density, mask feather, effects wave 1 (drop shadow, colour overlay, solid stroke); clip-to-base, R3 remediation 9468d33.",
+  "phase": "SMB-RENDER-CPU-FX2 pushed (8d46aa8): wave 2 effect kinds (inner shadow, outer glow, inner glow) enabled on the windowed API, 29 tests pass. SMB-RENDER-CPU-WINDOW pushed before it (be1836b code + tests, 0f58c1c test lint): effect layers on pigment's windowed API, 24 px effect_margin refusal removed; check + clippy clean, 26 tests pass at 0f58c1c. Earlier: ADJ-1 (49afca1) and EFFECTS-1 (c4bdaef, 9b2f3af, 5674e9c); execute_extended: adjustment layer, Blend-If, mask density, mask feather, effects wave 1 (drop shadow, colour overlay, solid stroke); clip-to-base, R3 remediation 9468d33.",
   "commits": [
+    {
+      "sha": "8d46aa8",
+      "subject": "render-cpu: layer effects wave 2 (inner shadow, outer glow, inner glow) on the windowed API (SMB-RENDER-CPU-FX2)"
+    },
     {
       "sha": "0f58c1c",
       "subject": "render-cpu windowed effects test: clippy is_multiple_of and Range::contains (test-only)"
@@ -72,28 +76,62 @@
     "report(): one Observe terminal frame; example render-cpu-consumer; DESCRIPTOR updated (clip_to_base key, clip_base_pass_through unsupported, clipping removed from pending) and still checked against constants",
     "R3 (SMB-RENDER-CPU CONFIRMED x2): (1) pass-through layer with fill_opacity < 1 refused in prepare as Unsupported{group_pass_through_fill_opacity} before the first sink call (a non-isolated group has no group result to scale; opacity < 1 was already refused); (2) a panic in a worker or in TileSink::accept is caught (workers: whole loop under catch_unwind -> Message::Failed; sink: deliver() on every thread count) and returned as Unavailable(worker_panic|sink_panic); StopWorkers releases parked workers on any exit incl. unwind; the parallel path can no longer hang",
     "ADJ-1 (49afca1): RenderBackend::extension_exactness (AdjustmentLayer, Adjustment(_), BlendIf, MaskDensity, MaskFeather = Exact so the receipt class is pigment's intrinsic Approximate; Knockout and unknown operators Unsupported) and execute_extended (Renderer::execute_extended_detailed): admit_extended first, ExtPrep::build (adjustments prepared once, identical feather radii share a kernel, resident tables charged as a running aggregate to max_working_bytes before allocation), then the existing chunked compositor. Adjustment layer: per pixel of the placeholder rect k = opacity*fill*mask*blend_if and adjust_math::composite_adjustment on the group running buffer (inside a clip run on the run buffer G only); Blend-If: coverage_math::blend_if_weight multiplies the source alpha (also the clip-run composite with the base layer's ranges; the source colour of an adjustment layer is its content f(backdrop), Studio rule); mask density/invert via coverage_math::mask_coverage (density 1 keeps the v1 inversion so v1 bytes are unchanged); mask feather: per-chunk separable blur with coverage_math::feather_kernel, feather_support margin, clamped at the mask plane border, before invert/density; per-worker feather scratch (chunk plane + horizontal pass with margin rows) is part of the reserved scratch (peak_working_bytes). Empty envelope without a density mask takes the v1 path (bytes and receipt identical); a density mask with an empty envelope takes the envelope admission (mask_density Approximate). V4-01: plan_sink.rs, plan_sink/extended.rs, px.rs deny clippy::arithmetic_side_effects.",
+    "FX2 (8d46aa8, SMB-RENDER-CPU-FX2): wave 2 effect kinds inner shadow, outer glow and inner glow enabled through the windowed path (no kind-specific code); extension_exactness reports ExtOperator::intrinsic() (Approximate) for all six kinds; gradient glow, Precise technique, range below 100 % and jitter remain typed refusals by feature key at pigment admission before the first sink call; bit-identical to render_layer_reference (mixed six-effect stack, chunks 48/17/7/5 on 1-3 workers) and to the uncut windowed oracle (304 px margin); budget charged by the same frame_shape and layer_window_cost model, limit-1 refused with 0 sink calls (tests/cpu_effects_fx2.rs, 3 tests).",
     "WINDOW (be1836b, SMB-RENDER-CPU-WINDOW): effects wave 1 run on pigment effect_math::window (a797b67/379a56f): per chunk the effect window W = layer bounds grown by stack_support_px (the stack margin), clipped to the chunk; WindowGeometry::uncut(bounds, margin, W) with site_origin (0, 0); AlphaSource FrameAlpha over a content frame (frame_content: tile/solid/vector/isolated group times the mask with feather, density, invert; frame = W grown by the margin clipped to the layer bounds, so memory follows min(layer, chunk + 2 * margin)^2 and not a 64 px plane); render_layer_window composes the window over the running backdrop; the 24 px effect_margin refusal and the per-tile 64 x 64 recompute are gone, any margin renders. Budget: the per-worker frame (16 B per pixel per group level), frame feather scratch, window input arrays (28 B per window pixel) and pigment layer_window_cost peak of the largest window are part of the reserved scratch / peak_working_bytes and charged to max_working_bytes before the first sink call; the predicted peak is also WindowLimits.max_bytes, WindowLimits.max_work = MAX_EFFECT_WINDOW_WORK (1e9, new pub const); a layer whose largest window is predicted above it is Unsupported{effect_work_limit} before the first sink call. extension_exactness unchanged (pigment's intrinsic class). V4-01: effects.rs / extended.rs keep deny(arithmetic_side_effects).",
     "EFFECTS-1 (c4bdaef, 5674e9c): layer effects wave 1 through execute_extended with pigment effect_math as the single owner (render_layer_reference: matte maths, composition order, fade rules). A layer with effects is evaluated per tile of a frame (tile + effect_support_px margin, <= 64 px per side = pigment's reference plane; tile side min(64 - 2*margin, chunk side)): content over the frame by the chunked compositor (nested isolated group, mask with feather/density/invert read clamped beyond the plane), EffectPlane, render_layer_reference over the running backdrop of the tile, tile written back. Layer bounds and group extent grow by the margin. extension_exactness: Effect(DropShadow|ColourOverlay|Stroke) Exact (receipt class Approximate); other EffectKind (pigment d982b5c inner shadow / outer glow / inner glow) Unsupported. Typed refusals before the first sink call: margin > 24 px (effect_margin), effects with Blend-If on one layer (effects_with_blend_if), effects inside the content of a layer with effects (effects_nested). Per-worker frame memory (content frame, group levels, 3 reference planes, mattes, frame feather scratch) is part of the reserved scratch / peak_working_bytes; effect records charged as a running aggregate. V4-01: plan_sink/effects.rs denies clippy::arithmetic_side_effects."
   ],
   "tests": {
     "argv": [
       "cargo",
-      "test",
+      "nextest",
+      "run",
       "-p",
       "hsk-studio-render-cpu",
       "--tests"
     ],
     "exit": 0,
-    "sha": "0f58c1c",
-    "passed": 26,
+    "sha": "8d46aa8",
+    "passed": 29,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "Independent validator round on 0f58c1c (ADJ-1 + EFFECTS-1 + WINDOW, 26 tests). Follow-ups (not started): wave 2 kinds (inner shadow, outer glow, inner glow) are available in the windowed API and still Unsupported here until a lane enables and tests them; satin, gradient/pattern overlay, bevel in pigment first.",
-  "updated_at": "2026-10-11T07:47:04Z",
+  "next": "Independent validator round on 8d46aa8 (claim = lanes SMB-RENDER-CPU-WINDOW be1836b/0f58c1c and SMB-RENDER-CPU-FX2 8d46aa8, 29 tests). Follow-ups (not started): satin, gradient/pattern overlay, bevel, gradient glows in pigment first.",
+  "updated_at": "2026-10-11T07:52:39Z",
   "notes": {
+    "fx2": {
+      "lane": "SMB-RENDER-CPU-FX2",
+      "rule": "V4-15: a new feature lane id on this lane file; commit 8d46aa8 belongs to it and is listed in the claim together with SMB-RENDER-CPU-WINDOW (be1836b, 0f58c1c), V4-14",
+      "pigment_api": "effect_math::window (a797b67 and follow-ups) and the wave 2 ops of d982b5c (InnerShadowOp, OuterGlowOp, InnerGlowOp); pigment not edited",
+      "files": [
+        "src/plan_sink.rs (extension_exactness: all six EffectKind members report ExtOperator::intrinsic(); the doc cites its tests)",
+        "src/plan_sink/effects.rs, src/plan_sink/extended.rs (docs only: waves 1 and 2; no kind-specific code, the window path was already generic)",
+        "src/lib.rs (DESCRIPTOR effects and pending text)",
+        "tests/cpu_effects_fx2.rs (new, 3 tests), tests/cpu_effects.rs (capability loop updated, see tests_changed)"
+      ],
+      "tests_added": [
+        "wave2_parity_with_reference_across_chunkings_and_workers",
+        "wave2_large_margin_matches_the_uncut_windowed_oracle",
+        "wave2_exactness_refusals_and_budget"
+      ],
+      "tests_changed": "tests/cpu_effects.rs effect_refusals_and_scratch_charge_stay_typed, intentionally: the capability loop asserted Unsupported for the three wave 2 kinds; it now asserts ExtOperator::intrinsic() (Approximate) for every kind of EffectKind::ALL. Nothing else changed.",
+      "parity": "wave2_parity_with_reference_across_chunkings_and_workers: 17 x 13 tile with partial alpha and holes on a 48 x 44 plane (opacity .9, fill .6, opaque backdrop), stack [outer glow (spread .3, size 5, Screen), drop shadow, inner shadow (offset, choke .25, size 4, Multiply), Dissolve overlay, inner glow edge (choke .2), inner glow centre]; all 2112 pixels f32 to_bits equal to render_layer_reference for chunks 48/17/7/5 on 1/1/2/3 workers and to each other; more than 300 pixels differ from the same layer without effects; the receipt carries inner_shadow, outer_glow, inner_glow and drop_shadow at Approximate. wave2_large_margin_matches_the_uncut_windowed_oracle: 40 x 30 plan, 20 x 16 tile, inner shadow (blur 200, offset 4) + outer glow (blur 200) + centre inner glow (blur 120), margin 304 (refused by the old 24 px limit): bit-identical to render_layer_window with WindowGeometry::uncut over one whole-extent window (AlphaPlaneRef), chunks (64, 1 worker) and (13, 3 workers), more than 600 pixels differ from the plain layer. Photoshop parity NOT_PROVEN (D5 15-17).",
+      "refusals_and_budget": "wave2_exactness_refusals_and_budget: extension_exactness equals intrinsic equals Approximate for all six kinds; gradient fill, Precise technique, range .5 and jitter .2 are Unsupported{glow_gradient | glow_technique_precise | glow_range | glow_jitter} with 0 sink calls (pigment admission, render-cpu unchanged); an Exact floor refuses inner_shadow, outer_glow and inner_glow as Unsupported{key, Approximate}; charge for the three-effect stack on a 1 x 1 plan = 32 + 3 * 64 + 16 + 28 + layer_window_cost(ops, 1 x 1).peak_bytes = 268 + peak, limit-1 is BudgetExceeded{need, need-1} with 0 sink calls.",
+      "v4": {
+        "V4-01": "touched modules keep deny(arithmetic_side_effects); clippy clean for the crate (pre-existing warnings only in hsk-studio-observe)",
+        "V4-02": "the work, size and aggregate tests of SMB-RENDER-CPU-WINDOW cover the shared window path; the budget limit-1 case is repeated for the wave 2 stack",
+        "V4-03": "Photoshop parity NOT_PROVEN (D5 15-17)",
+        "V4-07": "the extension_exactness doc claim now cites its tests; no new claim words",
+        "V4-09": "commit message via -F file under the scratch folder smb-render-cpu-window/",
+        "V4-11": "no file restored; V4-12: helper files only in the lane scratch folder"
+      },
+      "retry_guard": "the first test run was refused by studio-env.sh (exit 2): the cargo test form is no longer accepted there, the message names the nextest runner with the same -p and --tests arguments (infrastructure change after the earlier lane). The tests were then run with that runner, which is the mandated form and not an argument tweak to pass the guard: 29 of 29 passed on the first run, no product failure, no gameplan step added.",
+      "decisions_for_lead": [
+        "None new: wave 2 kinds use the same window, frame, charge, work limit and dissolve coordinates as wave 1; the inner kinds are clipped to the layer alpha by pigment, so the effect window is still the layer bounds grown by the margin."
+      ],
+      "date": "2026-10-11T07:52:39Z"
+    },
     "window": {
       "lane": "SMB-RENDER-CPU-WINDOW",
       "pigment_api": "effect_math::window a797b67 / 379a56f / f3e75bf (window_matte, render_layer_window, layer_window_cost, stack_support_px, WindowGeometry::uncut, AlphaSource, WindowLimits); pigment not edited",
