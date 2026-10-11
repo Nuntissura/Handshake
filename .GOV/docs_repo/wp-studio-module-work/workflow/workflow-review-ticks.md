@@ -1,7 +1,7 @@
 ---
 file_id: WP-STUDIO-MODULE-WORK-WORKFLOW-REVIEW-TICKS
 file_kind: workflow_tick_reviews
-updated_at: 2026-10-11T05:45:00Z
+updated_at: 2026-10-11T07:40:00Z
 ---
 
 <topic id="tick-1" status="active" updated_at="2026-10-11T02:14:00Z" summary="Interval 01:20Z-02:10Z; lock-fix challenge">
@@ -101,5 +101,118 @@ updated_at: 2026-10-11T05:45:00Z
 - the re-FAIL rate of the 9 R5 remediation lanes;
 - E0 hit counts;
 - running Opus and total agents against the cap.
+
+</topic>
+
+<topic id="tick-3" status="active" updated_at="2026-10-11T07:40:00Z" summary="Disk lock safety, re-FAIL risk, context hygiene, R6 routing gaps">
+
+## Tick 3 — 2026-10-11T07:40Z (sources: `tools/disk-build-lock.sh`, `builders/studio-env.sh`, live lock root `Handshake_Artifacts/WP-KERNEL-STUDIO/.disk-build-lock/`, `ledger.json`, `team.json`, `R6-review-{a,b,c}.json`, product `git status`/`git log`)
+
+**(1) Disk lock: findings from reading the code and the live lock root**
+- No deadlock cycle found. There is one lock; the cargo build-dir lock is always taken after it; re-entry works through the exported token; children whose environment is cleared don't get the `cargo` function.
+- **Locks were broken minutes after acquisition.** It is not proven that exclusion failed: whether the holders were still alive when broken is UNVERIFIED.
+  - The live root holds 5 `stale.*` dirs (07:02–07:18Z) whose dir name does not match the token inside. They come from the old implementation (`2026...Z-` tokens).
+  - The holder of a lock acquired at 07:18:05Z had it broken in the same minute, by a waiter that had queued at 07:04:56Z and still ran the old exported functions.
+  - A prism-eng6 4-crate check that started at 07:04:42Z was broken within the same minute.
+  - Old and new code run side by side under the same schema `@1`, because waiters keep their functions for up to the 7200 s timeout.
+- **Holder identity is PID + image only.** The live `held` record shows `exe=bash.exe` and `child_exe=bash.exe`. A reused Windows PID now running another bash.exe reads as alive, so the lock sticks until every waiter hits 75. CX-VAL-004 requires PID + start time + command line.
+- **Unknown Windows PID counts as gone.** `dbl_alive` returns gone when `winpid` is `-`, which contradicts the header's "unknown = alive". This fails open.
+- **Release failures are ignored.** `dbl_release` does not check whether `mv -T held released.*` succeeded. Whether Windows refuses a directory rename while waiters have `held/owner` open is UNVERIFIED. If it does, a dead holder plus PID reuse leaves the lock stuck.
+- **No queue, so rounds starve.** Acquisition is a 1 s poll race with no order. A round waiting to start competes with about 18 builders; once it holds the lock, every builder waits 30–60 min.
+- **A hung holder never times out.** Builders hold the lock through `cargo test` (libtest has no per-test timeout); the old records include `cargo test -p hsk-studio-motion-js`. One hung test blocks everyone, and only an Operator-approved process stop can clear it (GLOBAL-INSPECT-014).
+- **Bypass.** The PowerShell tool, `command cargo` and editors skip the shell function, so they take no lock and set no target environment.
+
+**(2) Re-FAIL risk.** Seven lanes are one FAIL verdict away from CX-EXEC-015(1):
+- SMB-WEB: FAIL_V2; Opus rem-web-r6 running.
+- SMB-PRISM-ENG-5: FAIL_V2. The fix 65a08c9 landed at 06:06Z, but the lane is not READY.
+- SMB-PRESS: READY a1c9747.
+- SMB-MOTION-JS: READY ffe5592.
+- SMB-DEVELOP: PASS_V3, but a new jobs slice 78fd379 is READY on the same lane.
+- SMB-CONTROLS and SMB-COMPONENTS: PASS_V3, each with 2 FAILs.
+
+Every R5 and R6 FAIL was a reviewer-CONFIRMED defect (tick-log 05:40Z, 06:49Z). The review is therefore the real oracle, and running it before a verdict is cheaper than spending one.
+
+**(3) Context.** Retirements came at 575k (builder-motion), 646k (builder-develop) and about 830k (press-3), above the START_LOG ">~400k" rule. Token counts are only visible at completion. press-3's lane then failed R6 because WIP was pushed into the candidate (`candidate_wip_untested`); this is a correlation, not proven.
+
+**(4) Routing gaps in the R6 records**
+- **rem-kb-harness has stalled.** Dispatched 05:31Z for the R5 FAIL_V1 lanes kernel-bindings (any actor can release another actor's ticket) and harness (empty verdict passes). It is still "running", has 0 commits since 05:30Z, and leaves 10 uncommitted modified files in the shared tree, with harness mtimes around 05:40Z.
+- **prism-eng-5 will miss R7.** Its fix is in 2074f5e, but the lane stays FAIL_V2 and is not READY.
+- **No decision recorded on V4 for code from before the 05:40Z adoption.** The R6-c reviewer asked the lead to decide whether V4-01/V4-06 apply to it (layout f40d6a2, vector 3561b12, fig decoders); develop `tiff.rs`/`ljpeg.rs` and lrcat `wal_snapshot.rs` lack V4-01 as well.
+- **PLAUSIBLE findings carried 2–4 rounds without a disposition:**
+  - pigment `PlanLimits` (R2/R3/R5/R6);
+  - render-gpu formula copy (R3/R5/R6) and the `Pipeline` -> `Unavailable` mapping;
+  - press cancel/ASCII85/NaN boxes;
+  - components `swap_component`;
+  - score block validation.
+- **Worker found via PATH, 3rd instance.** score-plugin looks up its worker on PATH, the same PLAUSIBLE seen in motion-js and reel-native. It belongs with D18.
+
+**Proposals**
+1. **Lock protocol fence and identity.**
+   - Rule: bump the schema to `@2`. An acquirer that sees another schema in `held` or `stage.*` exits 75 with "protocol mismatch".
+     - Record identity as PID + start time + command, per CX-VAL-004.
+     - Treat an unknown Windows PID as alive.
+     - On release, retry the rename until `held` is gone or carries another token, and log any failure.
+   - Prevents: overlapping builds and stuck locks.
+   - Lives in: `tools/disk-build-lock.sh` (steward; both copies).
+   - Enforcement: add three cases to `disk-build-lock-test.sh`:
+     - T9: 20 reader loops on `held/owner` during 200 acquire/release cycles; expect 0 failed releases and 0 overlapping fake builds, from the start/end log.
+     - T10: an old-schema waiter is refused.
+     - T11: a dead holder whose Windows PID is reused by bash.exe is not held forever.
+2. **Round priority without starving builders.**
+   - Rule: a waiting round writes `R/round-pending` (token plus Windows PID). Builders do not start new acquisitions while it is live. The round holds the lock only during cargo units (not export, probe or reporting), releases between units, and re-asserts `round-pending` so it wins the next gap. At most one builder hold runs per gap.
+   - Prevents: verdict delay and 30–60 min builder idle time.
+   - Lives in: `disk-build-lock.sh`, `run-round.sh`.
+   - Enforcement: T12, where a round waiter acquires within one builder hold.
+3. **Bounded holds.**
+   - Rule: the `cargo` wrapper refuses `cargo test` except `--doc`; tests go through the per-test runner with the repo's `.config/nextest.toml` (CX-EXEC-005).
+     - The holder records `max_hold_s` (builder 900, round 5400).
+     - A waiter that sees a holder past `max_hold_s` writes one `OVER_MAX_HOLD` line to `R/events.log`.
+     - The lead asks once with `PROCESS_STOP_APPROVED:<pid>` plus the recorded start time; nobody force-breaks.
+   - Prevents: one hung test blocking every builder.
+   - Lives in: `studio-env.sh` wrapper, lead procedure.
+   - Enforcement: one `case` arm in the wrapper.
+4. **Detect lock bypass.**
+   - Rule: each tick checks that the `tasklist` count of `cargo.exe` is at most the holder's child plus 0, and that no `handshake-studio-assets/target` exists. On a hit, name the agent and fix its command form; for the PowerShell tool, require the Bash form.
+   - Prevents: silent CX-984-002 violations.
+   - Lives in: lead and workflow ticks.
+   - Enforcement: 2 read-only commands.
+5. **Pre-verdict review for lanes with 2 FAILs.**
+   - Rule: before WEB, PRISM-ENG-5, PRESS, MOTION-JS, DEVELOP, CONTROLS or COMPONENTS enter a round, one read-only review runs on the diff since the lane's last FAIL, using the reviewer prompt and the lane's V4-06 class regex. CONFIRMED > 0 sends the lane back to its builder, and no verdict is spent.
+   - Prevents: a 3rd FAIL that ends in Operator escalation (the D20 pattern).
+   - Lives in: lead round dispatch.
+   - Enforcement: admission requires `notes.pre_review {sha == READY sha, confirmed: 0}`.
+6. **Lane-tip admission.**
+   - Rule: a lane is judged only if `git log <READY sha>..<candidate> -- crates/<crate>` is empty, or its newer tip has been re-READY. A READY lane pushes nothing to its crate until its verdict.
+   - Prevents: a verdict spent on WIP (press R6 `candidate_wip_untested`, 6e95976).
+   - Lives in: round dispatch, or entrypoint step 0 given a READY-sha list.
+   - Enforcement: one git command per lane.
+7. **New scope gets a new lane.**
+   - Rule: once a lane has 1 FAIL, new capability slices get a new lane id or MT (operator-allowed extra MTs). The failed lane carries only remediation of named findings.
+   - Prevents: feature work burning a remediation budget (develop 78fd379 on a 2-FAIL lane).
+   - Lives in: lead dispatch.
+   - Enforcement: at each tick, every READY event on a lane with FAIL ≥ 1 cites a finding id.
+8. **Retire agents mechanically.**
+   - Rule: retire a code agent at the slice boundary after the first of:
+     - 2 READY events;
+     - 90 min since `launched`/`resumed`;
+     - a FAIL verdict on its lane (remediation goes to a fresh agent: finding + lane file + brief);
+     - a reported usage over 350k.
+     The lane file is the only carryover.
+   - Prevents: drift above 600k.
+   - Lives in: lead procedure.
+   - Enforcement: a tick scan of `team.json` timestamps and READY events per agent name in `tick-log.jsonl`.
+9. **Stall and WIP custody.**
+   - Rule: an agent with no commit for 45 min while its crates have uncommitted changes gets replaced. The replacement first compiles and commits the WIP or reports it, and never discards it. Apply this now to rem-kb-harness.
+   - Prevents: stalled FAIL lanes, and stale shared-tree WIP that feeds the stale-artifact class.
+   - Lives in: lead tick.
+   - Enforcement: per crate, the last commit time from `git log -1` and `git status --short -- crates/<crate>`.
+10. **Close PLAUSIBLE findings and the V4 scope.**
+    - Rule: a PLAUSIBLE seen in 2 reviews gets a lead disposition (fix lane, proof test, or waiver with reason) in the lane file, and reviewers skip waived items.
+      - Decide once that V4-01/V4-02 apply to every decoder module at HEAD, enforced by a step-0 check of the attribute over a `decoder_modules` list in `round-features.toml`.
+      - Re-mark prism-eng-5 READY after a pre-review (#5).
+      - Route the score-plugin PATH lookup with D18.
+    - Prevents: review effort re-spent every round, and fixes that never get judged.
+    - Lives in: lead procedure, reviewer prompt.
+    - Enforcement: count of carried PLAUSIBLE without a disposition per round = 0.
 
 </topic>

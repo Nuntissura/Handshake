@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T07:27:28Z",
+ "updated_at": "2026-10-11T07:30:00Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -1007,7 +1007,7 @@
     "STUDIO-R6 FAIL_V2 @bd8533f"
    ],
    "candidate": "bac4790",
-   "note": "R5 remediation: installed profiles only via D: corpus root (tests/oracle/corpus.json + populate_corpus.py), missing -> NOT_PROVEN line, fails under HSK_PRISM_REQUIRE_CORPUS=1 (negative-tested); T0 known findings empty; T1 only DIV-* (D15)",
+   "note": "R5 remediation: installed profiles only via D: corpus root (tests/oracle/corpus.json + populate_corpus.py), missing -> NOT_PROVEN line, fails under HSK_PRISM_REQUIRE_CORPUS=1 (negative-tested); T0 known findings empty; T1 only DIV-* (D15); 2026-10-11T07:30:00Z fix 65a08c9 (+d7027c3) in tree; lane re-offered for R7 only after pre-review A (V4-13)",
    "r5_review_routed": {
     "to": "builder-prism-eng6",
     "at": "2026-10-11T05:31:12Z",

@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T07:27:28Z",
+ "updated_at": "2026-10-11T07:30:00Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -129,7 +129,7 @@
     "workflow/*"
    ],
    "launched": "2026-10-11T00:48Z",
-   "status": "idle (tick 2 done: v4 amendments adopted; next ping at :11/:26/:41/:56 when lead idle)",
+   "status": "idle (tick 3 done 2026-10-11T07:30:00Z; V4-13..16 adopted)",
    "resumed": "2026-10-11T01:02Z",
    "output": "workflow/workflow-review-001.md, workflow/workflow.json"
   },
@@ -864,7 +864,7 @@
     "crates/hsk-studio-harness/**"
    ],
    "launched": "2026-10-11T05:31:12Z",
-   "status": "running"
+   "status": "running (stopped by lead at 07:31Z after ~2 h without a commit, 690 uncommitted lines; resumed with commit-what-is-green instruction) 2026-10-11T07:30:00Z"
   },
   {
    "name": "rem-psd",
@@ -1112,7 +1112,7 @@
     "builders/lanes/hsk-studio-reel.json"
    ],
    "launched": "2026-10-11T06:37:43Z",
-   "status": "done 2026-10-11T07:27:28Z (SMB-REEL READY at 3c82784)"
+   "status": "done 2026-10-11T07:30:00Z (3c82784)"
   },
   {
    "name": "builder-pigment-window",
@@ -1193,6 +1193,28 @@
     "crates/hsk-studio-render-cpu/**"
    ],
    "launched": "2026-10-11T07:26:25Z",
+   "status": "running"
+  },
+  {
+   "name": "prereview-r7-a",
+   "agent_id": "a5318316b06254831",
+   "model": "opus",
+   "role": "R7 pre-review (V4-13): prism-eng-5/6, develop, controls, components",
+   "owns": [
+    "validation/R7-prereview-a.json"
+   ],
+   "launched": "2026-10-11T07:30:00Z",
+   "status": "running"
+  },
+  {
+   "name": "prereview-r7-b",
+   "agent_id": "a255d3956b66293a1",
+   "model": "opus",
+   "role": "R7 pre-review (V4-13): press, motion-js(+worker), web",
+   "owns": [
+    "validation/R7-prereview-b.json"
+   ],
+   "launched": "2026-10-11T07:30:00Z",
    "status": "running"
   }
  ]
