@@ -1,153 +1,170 @@
 {
-  "crate": "hsk-studio-interop-layout",
-  "lane": "SMB-INTEROP-LAYOUT-ENG-1",
-  "status": "READY_FOR_VALIDATION",
-  "phase": "R5 remediation applied on slice 2 (f40d6a2): decode no longer clones range Properties per Content/Br; logical model size budgeted; local ZIP headers cross-checked. Slice 2: reflow + overset per thread through hsk-studio-layout, Folio-to-IDML export for created/edited Folio documents, explicit loss for text frames inside groups (slice 1 unchanged underneath)",
-  "commits": [
-    {
-      "sha": "d575678",
-      "subject": "interop-layout slice 1a: bounded IDML ZIP container, designmap/spread/story decode into a typed model, Folio proposal, typed loss report, canonical export + byte-exact Content replacement, INDD header detection with native-editability blocker"
-    },
-    {
-      "sha": "958f431",
-      "subject": "interop-layout slice 1b: DESCRIPTOR, interop-layout-consumer example, import_indd with uninhabited Ok type, 5 focused tests, rustfmt + clippy clean"
-    },
-    {
-      "sha": "198a8e5",
-      "subject": "interop-layout slice 2a: reflow_import (layout reflow + overset per thread, typed refusals, first-baseline mapping reported), export_folio (Folio pages/frames/stories to IDML package), explicit loss for text frames inside groups"
-    },
-    {
-      "sha": "5e058ae",
-      "subject": "interop-layout slice 2b: 4 focused tests (reflow + overset per thread with typed refusals and group-frame loss, Folio-created export round trip, edited-import export with names then reflow, export refusals/cancel), DESCRIPTOR + consumer --reflow, rustfmt/clippy clean"
-    },
-    {
-      "sha": "f40d6a2",
-      "subject": "interop-layout R5 remediation: share each range's attributes and Properties across its runs/paragraphs (Arc) instead of cloning per Content/Br, charge the logical model size against Limits.max_model_bytes (typed budget_exceeded), cross-check local ZIP headers with the central directory; regression tests decode_amplification"
-    }
-  ],
-  "capabilities_done": [
-    "slice 1 (958f431): bounded IDML ZIP open (every part kept with sha256), designmap/spread/story decode into a typed model + Folio proposal validated by Folio, typed loss report, canonical export_idml, byte-exact replace_content + write_idml, INDD header detection + NativeEditabilityBlocked (Ok type Infallible)",
-    "reflow.rs: reflow_import(import, ParagraphShaper, ReflowOptions, token) -> ThreadReflow[] per story with a Folio frame chain: hsk-studio-layout reflow (FirstFit/Knuth-Plass) with the exact overset span (first unplaced story byte .. end of story) and lines per frame, or the typed layout refusal (multi-column, vertical justification, auto size, cap-height/em-box/x-height first baseline, missing_font, ...) per thread without hiding other threads; stories flagged reflow_certified=false (RTL/CJK/vertical/complex script) refused as unsupported_composition BEFORE shaping; shaping is a host port (ParagraphShaper, FixedAdvanceShaper fixture) because IDML names fonts and carries none; AscentOffset/LeadingOffset/FixedHeight first baselines are mapped to layout's fixed offset (inset_top + max(min, first shaped paragraph metric)) on a derived document copy and reported as first_baseline_mapped_to_fixed",
-    "folio_export.rs: export_folio(FolioExportInput {StudioDocument, StoryInput[], ExportNames}, Limits, token) -> FolioExport {bytes, model, loss}: Folio validation first (validate_document), then a complete IDML package (mimetype, container.xml, designmap, Resources/Preferences.xml with page size/facing/bleed/margins, one spread part per StudioPageSpread with pages placed spine-at-origin or spread-centred, rectangular text frames with TextFramePreference and thread links, one story part per StudioTextStory with Br paragraph ends, style/language names through ExportNames, StoryDirection/ParagraphDirection); IdmlImport::export_names() returns the style/language names of an import so an imported-then-edited Folio document exports back to the same names; unmapped references -> built-in no-style + style_name_unmapped/language_name_unmapped; artboards, non-text layers, layer appearance, sequences, per-page bleed differences, single-sided pages in a facing document, unknown story direction, interior newlines are typed loss entries; non-area stories and unresolved stored content are typed refusals; deterministic ids (us1, up1, uf1, ua1)",
-    "idml_decode.rs: every TextFrame inside a Group (any depth) is counted as preserved_opaque text_frame_in_group_not_decoded (group stays verbatim; links into it end the chain and are reported thread_link_outside_subset); decision: typed loss, not decoding, because group transforms are not composed in this slice",
-    "lib.rs/descriptor/example: layout re-exported as `layout`; DESCRIPTOR documents reflow, folio_export and groups; interop-layout-consumer --idml FILE --reflow ADVANCE_PT prints per-thread lines/overset/refusal",
-    "R5 remediation (f40d6a2): ParaModel/RunModel style, attrs, props, language are Arc-shared per source range; Limits.max_model_bytes (default 256 MiB) charges the logical (export) size per paragraph/run with typed BudgetExceeded(model_bytes); container.rs cross-checks local method/CRC/sizes/encryption with the central directory (data-descriptor form accepted)"
-  ],
-  "tests": {
-    "argv": "cargo test -p hsk-studio-interop-layout --tests --no-fail-fast",
-    "exit": 0,
-    "sha": "f40d6a2",
-    "passed": 11,
-    "failed": 0
+ "crate": "hsk-studio-interop-layout",
+ "lane": "SMB-INTEROP-LAYOUT-ENG-1",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "R5 remediation applied on slice 2 (f40d6a2): decode no longer clones range Properties per Content/Br; logical model size budgeted; local ZIP headers cross-checked. Slice 2: reflow + overset per thread through hsk-studio-layout, Folio-to-IDML export for created/edited Folio documents, explicit loss for text frames inside groups (slice 1 unchanged underneath)",
+ "commits": [
+  {
+   "sha": "d575678",
+   "subject": "interop-layout slice 1a: bounded IDML ZIP container, designmap/spread/story decode into a typed model, Folio proposal, typed loss report, canonical export + byte-exact Content replacement, INDD header detection with native-editability blocker"
   },
-  "blockers": [],
-  "lock_wait_s": null,
-  "bg_pids": [],
-  "next": "Independent validator round on f40d6a2 for crates/hsk-studio-interop-layout: tests/layout_edit_roundtrip (slice 1, 5 tests), tests/layout_reflow_folio_export (slice 2, 4 tests) and tests/decode_amplification (R5 remediation, 2 tests). Later: Type-backed ParagraphShaper with IDML style-to-font resolution (needs fonts from the host), text-wrap obstacles, decoding frames inside groups with composed transforms, Chronicle patch write-back of Folio edits into an existing IDML (instead of regenerating), Resources/Styles.xml and swatches, master spreads, InDesign oracle fixtures (D5).",
-  "updated_at": "2026-10-11T05:35:59Z",
-  "notes": {
-    "remediation_R5": {
-      "source": "validation/R5-review-c.json lane SMB-INTEROP-LAYOUT, reviewed commit 1d404f8 (lane code d575678..5e058ae)",
-      "finding_confirmed_unbounded_allocation": {
-        "root_cause": "idml_decode.rs StoryBuilder cloned the range prototype (RunModel with char_style, attrs, props XML, language) for every Content and Br, and the ParaModel template (style, attrs, props XML) for every new paragraph; memory ~ #Content x |Properties|, built before any budget applied",
-        "fix": "ParaModel.{style,attrs,props} and RunModel.{char_style,attrs,props,language} are Arc-shared, built once per source range, so a Content/Br/paragraph clones pointers. Fixing only the memory would leave export_idml writing the Properties once per run/paragraph (canonical form is one CharacterStyleRange per run), so the logical size of every paragraph and run (shared data counted per use + text + fixed overhead 128/192 B) is also charged against new Limits.max_model_bytes (default 256 MiB, same order as max_inflated_bytes): over it = IdmlError::BudgetExceeded(model_bytes) at decode, and an accepted import cannot export to more story bytes than the limit. This is the review's second remediation option applied in addition to its first",
-        "public_api_change": "ParaModel/RunModel field types (Arc<str>, Arc<Attrs>, Option<Arc<Opaque>>, Option<Arc<str>>); Limits gains max_model_bytes (callers using ..Limits::default() are unaffected); DESCRIPTOR limits and memory text updated",
-        "red_green": "RED on unfixed code (crate source as at 5e058ae): tests/decode_amplification range_properties_are_shared_not_cloned_per_content FAILED: 132199 retained bytes per extra paragraph for a 65536-byte Properties block (about 2x: paragraph and character range). GREEN at f40d6a2: same test passes (per-thread counting allocator, growth per paragraph < PAD/8) and logical_model_bytes_are_charged_and_bound_the_export passes (150 paragraphs accepted under a 24 MiB limit and exports to >= 2*PAD*150 story bytes <= limit; 220 refused as budget_exceeded)",
-        "tests": "cargo test -p hsk-studio-interop-layout --tests --no-fail-fast at f40d6a2: decode_amplification 2/2, layout_edit_roundtrip 5/5, layout_reflow_folio_export 4/4 = 11 passed, 0 failed; cargo clippy --tests --examples clean for this crate; cargo fmt -p applied"
-      },
-      "plausible_cap_duplicate_container": {
-        "real": "partly",
-        "fixed": "container.rs claimed local headers were cross-checked against the central directory but compared only the name. Now also: local encryption flags refused, local method must equal central, local CRC/compressed/uncompressed sizes must equal central unless the data-descriptor flag (bit 3) is set with all three local fields zero (the deferred form). New typed codes zip_invalid(local_method_mismatch|local_header_mismatch|encrypted). Cases added to zip_traversal_duplicate_inflate_xml_entity (method, CRC, both sizes, encryption flag, deferred accepted, deferred with mismatch refused)",
-        "not_fixed": "single ZIP container/CRC-32 owner across interop-layout, package and interop-vector is the lead decision D16/CX-CAP-001 (module-map edges are Operator-owned); no change made here. A real InDesign-written IDML has not been opened: whether InDesign uses data descriptors is UNVERIFIED; the deferred form is accepted so such a file is not refused"
-      },
-      "not_in_scope_seen": "export_idml/export_model have no Limits argument, so export size is bounded only through max_model_bytes at decode (models built by hand or by folio_export are not charged); reflow_import still clones the Folio document once per certified story (review note, cancellable, not filed)"
-    },
-    "mt": "MT-35551 foundation; slice 2 covers rtl_cjk_overset_loss_cancel_stale's overset part (now measured) and the Folio-to-IDML direction",
-    "validation_evidence": {
-      "tests": "PASS 9/9 on the tree equal to pushed 5e058ae (5 slice-1 tests 6.2 s incl. the 20 MiB inflate-bomb fixture, 4 slice-2 tests 0.02 s)",
-      "oracle_values": "reflow expectations were hand-computed before the first run (5 lines of capacity: frame 1 baselines 8/18/28 in 30 pt, frame 2 baselines 8/18 in 20 pt; paragraph 5 bytes 45..54 overset; after appending ' llll' the overset is 45..59) and matched layout's output unchanged",
-      "break_it": "slice 2: swapping inset right/left in the export, dropping the Br on the last run of a paragraph, and using line height instead of ascent in the first-baseline mapping each failed 3 of the 4 slice-2 tests; all restored. Slice 1: removing the case-fold duplicate check and the thread reciprocity check failed their tests (earlier round)",
-      "clippy": "PASS no interop-layout warnings (--tests --examples); hsk-studio-type and hsk-studio-observe emit their own pre-existing warnings",
-      "rustfmt": "cargo fmt -p hsk-studio-interop-layout applied to this crate only",
-      "fixed_point": "export_folio bytes == export_idml(import of those bytes) byte for byte (the canonical writer is a fixed point across the Folio and model paths)",
-      "closure": "workspace-probe closure_packages counts workspace members only (visited set): interop-layout, accord, folio, observe, layout, type = 6 <= 35; third-party (cargo tree) 35 packages, all already in Cargo.lock; layout adds unicode-linebreak; type adds bitflags, bytemuck, unicode-bidi-mirroring, unicode-ccc, unicode-properties, unicode-script; the steward sync must add the registry pins for these to this crate's registry entry (no dep-request line: layout is an allowed path edge)"
-    },
-    "decisions_for_lead": [
-      "Frames inside Groups: typed loss (text_frame_in_group_not_decoded, counted per nested frame) instead of decoding, because composing group transforms and re-nesting on export is a separate slice; the group is preserved verbatim by both write paths",
-      "First baseline: layout composes only a fixed first baseline measured from the frame top, InDesign defaults to AscentOffset, so every default IDML frame would be refused; reflow_import maps Ascent/Leading/Fixed to a fixed offset on a derived copy (inset_top + max(min offset, metric of the story's first shaped paragraph)) and reports it as first_baseline_mapped_to_fixed. UNVERIFIED against InDesign (whether the minimum offset is measured from the frame top or the inset edge, and whether the first line's metric differs per frame in a thread). Cap height / em box / x-height stay refused by layout",
-      "Shaping is a host port: IDML names fonts and carries none, Type needs font bytes, so ParagraphShaper is the seam (ShapeContext carries the story, text, paragraph index, byte source and IDML paragraph style name). FixedAdvanceShaper is a fixture, not shaping; no Type-backed shaper was written or exercised here",
-      "Folio export writes IDML ids deterministically and does not carry Folio ids in the file; style and language names come from ExportNames (IdmlImport::export_names() for imported documents); a Folio document created from scratch has no IDML style definitions, so style names reference styles the package does not define (InDesign behaviour for undefined style names UNVERIFIED)",
-      "export_folio validates with Folio before writing and refuses non-area stories (point/path/frame_grid) and unresolved stored content with typed errors rather than writing a partial package",
-      "Edited-import export regenerates designmap/spreads/stories from Folio (everything the decoder reported preserved_opaque in those parts, such as graphics and local overrides, is NOT carried because the Folio document does not hold it); lossless write-back into an existing IDML needs the Chronicle patch path (not built)"
-    ],
-    "not_proven": [
-      "No InDesign has opened a package written by export_folio/export_idml and no InDesign-produced fixture exists here; package shape, DOMVersion 16.0, PagesPerDocument=1 and container.xml layout follow the public structure and the Craft case study (behaviour reference only, no code copied) and are UNVERIFIED",
-      "Reflow correctness is proven only against layout's own conventions and hand-computed fixed-advance values; no Type shaping, no real fonts, no comparison with InDesign line breaks or its overset flag",
-      "Frames inside groups, anchored objects, text wrap, multiple columns, vertical justification, auto-sizing frames are not composed (refused or reported)",
-      "Right-to-left binding, page sides for single-page facing spreads (spine position rule) and default margins when MarginPreference is absent remain as in slice 1 (UNVERIFIED)",
-      "Cargo.lock in the shared worktree is modified by local cargo runs (layout/type edges for this crate); not staged"
-    ],
-    "mistakes_recorded": [
-      "A python text-mode rewrite and a sed with line numbers applied to two files at once during break-it step were checked with git diff; no stray changes remained. index.lock contention on one commit was retried after a wait as instructed. No amend, rebase or bare commit was used; no shared-gameplan steps were added"
-    ],
-    "verdicts": [
-      {
-        "round": "STUDIO-R5",
-        "lane": "SMB-INTEROP-LAYOUT",
-        "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
-        "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
-        "decision": "failed",
-        "verdict": "FAIL_V1",
-        "failures": [
-          {
-            "failure_kind": "product",
-            "failure_class": "idml-properties-xml-cloned-per-content",
-            "file_line": "crates/hsk-studio-interop-layout/src/idml_decode.rs:756-779,812-815,723-737"
-          }
-        ],
-        "remediation": "Store Properties once per range (Rc/index) or charge every cloned byte to a decode budget; add amplification test",
-        "status_after": "READY_FOR_VALIDATION (newer submission f40d6a2)",
-        "review": "validation/R5-review-c.json",
-        "round_ref": "validation/round-R5.json",
-        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
-        "idempotency_key": "STUDIO-R5:SMB-INTEROP-LAYOUT:1d404f8c4b72:FAIL_V1",
-        "recorded_at": "2026-10-11T05:38:23Z",
-        "by": "wp_validator STUDIO-R5"
-      },
-      {
-        "round": "STUDIO-R6",
-        "lane": "SMB-INTEROP-LAYOUT",
-        "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a",
-        "tree": "834aa5599ffabf691558a25f777ce42f73d78103",
-        "decision": "passed",
-        "verdict": "PASS_V2",
-        "failures": [],
-        "remediation": null,
-        "status_after": "PASS_V2",
-        "review": "validation/R6-review-c.json",
-        "round_ref": "validation/round-R6.json",
-        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6",
-        "idempotency_key": "STUDIO-R6:SMB-INTEROP-LAYOUT:bd8533f9b29c:PASS_V2",
-        "recorded_at": "2026-10-11T06:47:09Z",
-        "by": "wp_validator STUDIO-R6"
-      },
-      {
-        "round": "STUDIO-R7",
-        "lane": "SMB-INTEROP-LAYOUT",
-        "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
-        "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
-        "decision": "passed",
-        "verdict": "PASS_V3",
-        "failures": [],
-        "remediation": null,
-        "status_after": "PASS_V3",
-        "review": "validation/R7-review-b.json",
-        "round_ref": "validation/round-R7.json",
-        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
-        "idempotency_key": "STUDIO-R7:SMB-INTEROP-LAYOUT:dff7ef51d282:PASS_V3",
-        "recorded_at": "2026-10-11T11:04:31Z",
-        "by": "wp_validator STUDIO-R7"
-      }
-    ]
+  {
+   "sha": "958f431",
+   "subject": "interop-layout slice 1b: DESCRIPTOR, interop-layout-consumer example, import_indd with uninhabited Ok type, 5 focused tests, rustfmt + clippy clean"
+  },
+  {
+   "sha": "198a8e5",
+   "subject": "interop-layout slice 2a: reflow_import (layout reflow + overset per thread, typed refusals, first-baseline mapping reported), export_folio (Folio pages/frames/stories to IDML package), explicit loss for text frames inside groups"
+  },
+  {
+   "sha": "5e058ae",
+   "subject": "interop-layout slice 2b: 4 focused tests (reflow + overset per thread with typed refusals and group-frame loss, Folio-created export round trip, edited-import export with names then reflow, export refusals/cancel), DESCRIPTOR + consumer --reflow, rustfmt/clippy clean"
+  },
+  {
+   "sha": "f40d6a2",
+   "subject": "interop-layout R5 remediation: share each range's attributes and Properties across its runs/paragraphs (Arc) instead of cloning per Content/Br, charge the logical model size against Limits.max_model_bytes (typed budget_exceeded), cross-check local ZIP headers with the central directory; regression tests decode_amplification"
   }
+ ],
+ "capabilities_done": [
+  "slice 1 (958f431): bounded IDML ZIP open (every part kept with sha256), designmap/spread/story decode into a typed model + Folio proposal validated by Folio, typed loss report, canonical export_idml, byte-exact replace_content + write_idml, INDD header detection + NativeEditabilityBlocked (Ok type Infallible)",
+  "reflow.rs: reflow_import(import, ParagraphShaper, ReflowOptions, token) -> ThreadReflow[] per story with a Folio frame chain: hsk-studio-layout reflow (FirstFit/Knuth-Plass) with the exact overset span (first unplaced story byte .. end of story) and lines per frame, or the typed layout refusal (multi-column, vertical justification, auto size, cap-height/em-box/x-height first baseline, missing_font, ...) per thread without hiding other threads; stories flagged reflow_certified=false (RTL/CJK/vertical/complex script) refused as unsupported_composition BEFORE shaping; shaping is a host port (ParagraphShaper, FixedAdvanceShaper fixture) because IDML names fonts and carries none; AscentOffset/LeadingOffset/FixedHeight first baselines are mapped to layout's fixed offset (inset_top + max(min, first shaped paragraph metric)) on a derived document copy and reported as first_baseline_mapped_to_fixed",
+  "folio_export.rs: export_folio(FolioExportInput {StudioDocument, StoryInput[], ExportNames}, Limits, token) -> FolioExport {bytes, model, loss}: Folio validation first (validate_document), then a complete IDML package (mimetype, container.xml, designmap, Resources/Preferences.xml with page size/facing/bleed/margins, one spread part per StudioPageSpread with pages placed spine-at-origin or spread-centred, rectangular text frames with TextFramePreference and thread links, one story part per StudioTextStory with Br paragraph ends, style/language names through ExportNames, StoryDirection/ParagraphDirection); IdmlImport::export_names() returns the style/language names of an import so an imported-then-edited Folio document exports back to the same names; unmapped references -> built-in no-style + style_name_unmapped/language_name_unmapped; artboards, non-text layers, layer appearance, sequences, per-page bleed differences, single-sided pages in a facing document, unknown story direction, interior newlines are typed loss entries; non-area stories and unresolved stored content are typed refusals; deterministic ids (us1, up1, uf1, ua1)",
+  "idml_decode.rs: every TextFrame inside a Group (any depth) is counted as preserved_opaque text_frame_in_group_not_decoded (group stays verbatim; links into it end the chain and are reported thread_link_outside_subset); decision: typed loss, not decoding, because group transforms are not composed in this slice",
+  "lib.rs/descriptor/example: layout re-exported as `layout`; DESCRIPTOR documents reflow, folio_export and groups; interop-layout-consumer --idml FILE --reflow ADVANCE_PT prints per-thread lines/overset/refusal",
+  "R5 remediation (f40d6a2): ParaModel/RunModel style, attrs, props, language are Arc-shared per source range; Limits.max_model_bytes (default 256 MiB) charges the logical (export) size per paragraph/run with typed BudgetExceeded(model_bytes); container.rs cross-checks local method/CRC/sizes/encryption with the central directory (data-descriptor form accepted)"
+ ],
+ "tests": {
+  "argv": "cargo test -p hsk-studio-interop-layout --tests --no-fail-fast",
+  "exit": 0,
+  "sha": "f40d6a2",
+  "passed": 11,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": null,
+ "bg_pids": [],
+ "next": "Independent validator round on f40d6a2 for crates/hsk-studio-interop-layout: tests/layout_edit_roundtrip (slice 1, 5 tests), tests/layout_reflow_folio_export (slice 2, 4 tests) and tests/decode_amplification (R5 remediation, 2 tests). Later: Type-backed ParagraphShaper with IDML style-to-font resolution (needs fonts from the host), text-wrap obstacles, decoding frames inside groups with composed transforms, Chronicle patch write-back of Folio edits into an existing IDML (instead of regenerating), Resources/Styles.xml and swatches, master spreads, InDesign oracle fixtures (D5).",
+ "updated_at": "2026-10-11T05:35:59Z",
+ "notes": {
+  "remediation_R5": {
+   "source": "validation/R5-review-c.json lane SMB-INTEROP-LAYOUT, reviewed commit 1d404f8 (lane code d575678..5e058ae)",
+   "finding_confirmed_unbounded_allocation": {
+    "root_cause": "idml_decode.rs StoryBuilder cloned the range prototype (RunModel with char_style, attrs, props XML, language) for every Content and Br, and the ParaModel template (style, attrs, props XML) for every new paragraph; memory ~ #Content x |Properties|, built before any budget applied",
+    "fix": "ParaModel.{style,attrs,props} and RunModel.{char_style,attrs,props,language} are Arc-shared, built once per source range, so a Content/Br/paragraph clones pointers. Fixing only the memory would leave export_idml writing the Properties once per run/paragraph (canonical form is one CharacterStyleRange per run), so the logical size of every paragraph and run (shared data counted per use + text + fixed overhead 128/192 B) is also charged against new Limits.max_model_bytes (default 256 MiB, same order as max_inflated_bytes): over it = IdmlError::BudgetExceeded(model_bytes) at decode, and an accepted import cannot export to more story bytes than the limit. This is the review's second remediation option applied in addition to its first",
+    "public_api_change": "ParaModel/RunModel field types (Arc<str>, Arc<Attrs>, Option<Arc<Opaque>>, Option<Arc<str>>); Limits gains max_model_bytes (callers using ..Limits::default() are unaffected); DESCRIPTOR limits and memory text updated",
+    "red_green": "RED on unfixed code (crate source as at 5e058ae): tests/decode_amplification range_properties_are_shared_not_cloned_per_content FAILED: 132199 retained bytes per extra paragraph for a 65536-byte Properties block (about 2x: paragraph and character range). GREEN at f40d6a2: same test passes (per-thread counting allocator, growth per paragraph < PAD/8) and logical_model_bytes_are_charged_and_bound_the_export passes (150 paragraphs accepted under a 24 MiB limit and exports to >= 2*PAD*150 story bytes <= limit; 220 refused as budget_exceeded)",
+    "tests": "cargo test -p hsk-studio-interop-layout --tests --no-fail-fast at f40d6a2: decode_amplification 2/2, layout_edit_roundtrip 5/5, layout_reflow_folio_export 4/4 = 11 passed, 0 failed; cargo clippy --tests --examples clean for this crate; cargo fmt -p applied"
+   },
+   "plausible_cap_duplicate_container": {
+    "real": "partly",
+    "fixed": "container.rs claimed local headers were cross-checked against the central directory but compared only the name. Now also: local encryption flags refused, local method must equal central, local CRC/compressed/uncompressed sizes must equal central unless the data-descriptor flag (bit 3) is set with all three local fields zero (the deferred form). New typed codes zip_invalid(local_method_mismatch|local_header_mismatch|encrypted). Cases added to zip_traversal_duplicate_inflate_xml_entity (method, CRC, both sizes, encryption flag, deferred accepted, deferred with mismatch refused)",
+    "not_fixed": "single ZIP container/CRC-32 owner across interop-layout, package and interop-vector is the lead decision D16/CX-CAP-001 (module-map edges are Operator-owned); no change made here. A real InDesign-written IDML has not been opened: whether InDesign uses data descriptors is UNVERIFIED; the deferred form is accepted so such a file is not refused"
+   },
+   "not_in_scope_seen": "export_idml/export_model have no Limits argument, so export size is bounded only through max_model_bytes at decode (models built by hand or by folio_export are not charged); reflow_import still clones the Folio document once per certified story (review note, cancellable, not filed)"
+  },
+  "mt": "MT-35551 foundation; slice 2 covers rtl_cjk_overset_loss_cancel_stale's overset part (now measured) and the Folio-to-IDML direction",
+  "validation_evidence": {
+   "tests": "PASS 9/9 on the tree equal to pushed 5e058ae (5 slice-1 tests 6.2 s incl. the 20 MiB inflate-bomb fixture, 4 slice-2 tests 0.02 s)",
+   "oracle_values": "reflow expectations were hand-computed before the first run (5 lines of capacity: frame 1 baselines 8/18/28 in 30 pt, frame 2 baselines 8/18 in 20 pt; paragraph 5 bytes 45..54 overset; after appending ' llll' the overset is 45..59) and matched layout's output unchanged",
+   "break_it": "slice 2: swapping inset right/left in the export, dropping the Br on the last run of a paragraph, and using line height instead of ascent in the first-baseline mapping each failed 3 of the 4 slice-2 tests; all restored. Slice 1: removing the case-fold duplicate check and the thread reciprocity check failed their tests (earlier round)",
+   "clippy": "PASS no interop-layout warnings (--tests --examples); hsk-studio-type and hsk-studio-observe emit their own pre-existing warnings",
+   "rustfmt": "cargo fmt -p hsk-studio-interop-layout applied to this crate only",
+   "fixed_point": "export_folio bytes == export_idml(import of those bytes) byte for byte (the canonical writer is a fixed point across the Folio and model paths)",
+   "closure": "workspace-probe closure_packages counts workspace members only (visited set): interop-layout, accord, folio, observe, layout, type = 6 <= 35; third-party (cargo tree) 35 packages, all already in Cargo.lock; layout adds unicode-linebreak; type adds bitflags, bytemuck, unicode-bidi-mirroring, unicode-ccc, unicode-properties, unicode-script; the steward sync must add the registry pins for these to this crate's registry entry (no dep-request line: layout is an allowed path edge)"
+  },
+  "decisions_for_lead": [
+   "Frames inside Groups: typed loss (text_frame_in_group_not_decoded, counted per nested frame) instead of decoding, because composing group transforms and re-nesting on export is a separate slice; the group is preserved verbatim by both write paths",
+   "First baseline: layout composes only a fixed first baseline measured from the frame top, InDesign defaults to AscentOffset, so every default IDML frame would be refused; reflow_import maps Ascent/Leading/Fixed to a fixed offset on a derived copy (inset_top + max(min offset, metric of the story's first shaped paragraph)) and reports it as first_baseline_mapped_to_fixed. UNVERIFIED against InDesign (whether the minimum offset is measured from the frame top or the inset edge, and whether the first line's metric differs per frame in a thread). Cap height / em box / x-height stay refused by layout",
+   "Shaping is a host port: IDML names fonts and carries none, Type needs font bytes, so ParagraphShaper is the seam (ShapeContext carries the story, text, paragraph index, byte source and IDML paragraph style name). FixedAdvanceShaper is a fixture, not shaping; no Type-backed shaper was written or exercised here",
+   "Folio export writes IDML ids deterministically and does not carry Folio ids in the file; style and language names come from ExportNames (IdmlImport::export_names() for imported documents); a Folio document created from scratch has no IDML style definitions, so style names reference styles the package does not define (InDesign behaviour for undefined style names UNVERIFIED)",
+   "export_folio validates with Folio before writing and refuses non-area stories (point/path/frame_grid) and unresolved stored content with typed errors rather than writing a partial package",
+   "Edited-import export regenerates designmap/spreads/stories from Folio (everything the decoder reported preserved_opaque in those parts, such as graphics and local overrides, is NOT carried because the Folio document does not hold it); lossless write-back into an existing IDML needs the Chronicle patch path (not built)"
+  ],
+  "not_proven": [
+   "No InDesign has opened a package written by export_folio/export_idml and no InDesign-produced fixture exists here; package shape, DOMVersion 16.0, PagesPerDocument=1 and container.xml layout follow the public structure and the Craft case study (behaviour reference only, no code copied) and are UNVERIFIED",
+   "Reflow correctness is proven only against layout's own conventions and hand-computed fixed-advance values; no Type shaping, no real fonts, no comparison with InDesign line breaks or its overset flag",
+   "Frames inside groups, anchored objects, text wrap, multiple columns, vertical justification, auto-sizing frames are not composed (refused or reported)",
+   "Right-to-left binding, page sides for single-page facing spreads (spine position rule) and default margins when MarginPreference is absent remain as in slice 1 (UNVERIFIED)",
+   "Cargo.lock in the shared worktree is modified by local cargo runs (layout/type edges for this crate); not staged"
+  ],
+  "mistakes_recorded": [
+   "A python text-mode rewrite and a sed with line numbers applied to two files at once during break-it step were checked with git diff; no stray changes remained. index.lock contention on one commit was retried after a wait as instructed. No amend, rebase or bare commit was used; no shared-gameplan steps were added"
+  ],
+  "verdicts": [
+   {
+    "round": "STUDIO-R5",
+    "lane": "SMB-INTEROP-LAYOUT",
+    "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
+    "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
+    "decision": "failed",
+    "verdict": "FAIL_V1",
+    "failures": [
+     {
+      "failure_kind": "product",
+      "failure_class": "idml-properties-xml-cloned-per-content",
+      "file_line": "crates/hsk-studio-interop-layout/src/idml_decode.rs:756-779,812-815,723-737"
+     }
+    ],
+    "remediation": "Store Properties once per range (Rc/index) or charge every cloned byte to a decode budget; add amplification test",
+    "status_after": "READY_FOR_VALIDATION (newer submission f40d6a2)",
+    "review": "validation/R5-review-c.json",
+    "round_ref": "validation/round-R5.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
+    "idempotency_key": "STUDIO-R5:SMB-INTEROP-LAYOUT:1d404f8c4b72:FAIL_V1",
+    "recorded_at": "2026-10-11T05:38:23Z",
+    "by": "wp_validator STUDIO-R5"
+   },
+   {
+    "round": "STUDIO-R6",
+    "lane": "SMB-INTEROP-LAYOUT",
+    "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a",
+    "tree": "834aa5599ffabf691558a25f777ce42f73d78103",
+    "decision": "passed",
+    "verdict": "PASS_V2",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V2",
+    "review": "validation/R6-review-c.json",
+    "round_ref": "validation/round-R6.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6",
+    "idempotency_key": "STUDIO-R6:SMB-INTEROP-LAYOUT:bd8533f9b29c:PASS_V2",
+    "recorded_at": "2026-10-11T06:47:09Z",
+    "by": "wp_validator STUDIO-R6"
+   },
+   {
+    "round": "STUDIO-R7",
+    "lane": "SMB-INTEROP-LAYOUT",
+    "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
+    "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
+    "decision": "passed",
+    "verdict": "PASS_V3",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V3",
+    "review": "validation/R7-review-b.json",
+    "round_ref": "validation/round-R7.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
+    "idempotency_key": "STUDIO-R7:SMB-INTEROP-LAYOUT:dff7ef51d282:PASS_V3",
+    "recorded_at": "2026-10-11T11:04:31Z",
+    "by": "wp_validator STUDIO-R7"
+   },
+   {
+    "round": "STUDIO-R8",
+    "lane": "SMB-INTEROP-LAYOUT",
+    "candidate": "f6e5a490e2ad0e142938a8bba1f78cadb96f5e84",
+    "tree": "bf944e29dd336acd38969f0dc25353adb529d61d",
+    "decision": "passed",
+    "verdict": "PASS_V4",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V4",
+    "review": "NOT_REVIEWED (closure-only reopen (crate unchanged dff7ef5..f6e5a49))",
+    "round_ref": "validation/round-R8.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R8",
+    "idempotency_key": "STUDIO-R8:SMB-INTEROP-LAYOUT:f6e5a490e2ad:PASS_V4",
+    "recorded_at": "2026-10-11T12:42:21Z",
+    "by": "wp_validator STUDIO-R8"
+   }
+  ]
+ }
 }

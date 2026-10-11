@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T12:35:33Z",
+ "updated_at": "2026-10-11T12:44:14Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1574,7 +1574,7 @@
     "builders/briefs/lane-reel-native-eng-1.md"
    ],
    "launched": "2026-10-11T11:58:46Z",
-   "status": "running"
+   "status": "done 2026-10-11T12:44:14Z (3 briefs; ENG-1 ~90% exists; ENG-2/NATIVE-ENG-1 need Operator D22-D26)"
   },
   {
    "name": "builder-web-difftest",
@@ -1610,7 +1610,7 @@
     "verdict fields in lane files + ledger lanes"
    ],
    "launched": "2026-10-11T12:10:13Z",
-   "status": "running"
+   "status": "done 2026-10-11T12:44:14Z (R8 COMPLETE: 59 PASS / 1 FAIL)"
   },
   {
    "name": "reviewer-r8-a",

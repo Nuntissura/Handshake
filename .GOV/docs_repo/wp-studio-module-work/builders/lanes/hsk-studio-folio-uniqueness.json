@@ -1,74 +1,93 @@
 {
-  "crate": "hsk-studio-folio",
-  "lane": "SMB-FOLIO-UNIQUENESS",
-  "status": "READY_FOR_VALIDATION",
-  "phase": "step 1 (folio) and step 2 (components) landed, compiled, clippy clean, 62/62 tests pass on pushed 3b6e9a9",
-  "commits": [
-    {
-      "sha": "bd4e811",
-      "subject": "Folio: public identity uniqueness pass (check_identity_uniqueness, check_variable_identity_uniqueness)"
-    },
-    {
-      "sha": "3b6e9a9",
-      "subject": "Components: Folio's identity pass replaces the rebuilt id rules (SMB-FOLIO-UNIQUENESS); override proposals write the whole instance record (SMB-COMPONENTS-FOOTPRINT)"
-    }
-  ],
-  "capabilities_done": [
-    "src/identity.rs: pub fn check_identity_uniqueness(&StudioDocument, &StudioDesignRecords) -> Result<(), Diagnostic> and pub fn check_variable_identity_uniqueness(&[StudioVariableCollection], &[StudioVariable]) -> Result<(), Diagnostic>, documented namespaces and precedence, re-exported from the crate root (additive)",
-    "crate-private identity::Namespaces is the only owner of the id rules: validate (documents) and validate_design_records claim ids through it at the same points (outcomes and order unchanged)",
-    "components step 2 in crates/hsk-studio-components (commit 3b6e9a9): Design::new and VariableTable::new call the Folio pass; rebuilt rules deleted",
-    "folio test identity_uniqueness_pass_names_each_namespace_and_agrees_with_the_validators (9 record cases, 3 document cases, cross-kind namespace sharing, documented precedence; validators checked for the same diagnostic)"
-  ],
-  "tests": {
-    "argv": "cargo nextest run -p hsk-studio-folio -p hsk-studio-components --no-fail-fast",
-    "exit": 0,
-    "sha": "3b6e9a9",
-    "passed": 62,
-    "failed": 0
+ "crate": "hsk-studio-folio",
+ "lane": "SMB-FOLIO-UNIQUENESS",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "step 1 (folio) and step 2 (components) landed, compiled, clippy clean, 62/62 tests pass on pushed 3b6e9a9",
+ "commits": [
+  {
+   "sha": "bd4e811",
+   "subject": "Folio: public identity uniqueness pass (check_identity_uniqueness, check_variable_identity_uniqueness)"
   },
-  "blockers": [],
-  "lock_wait_s": 1060,
-  "bg_pids": [],
-  "next": "Independent validator: crates/hsk-studio-folio at bd4e811 (tests/design_records_contract.rs identity test + the 44 existing folio tests) and crates/hsk-studio-components at 3b6e9a9 (design_refuses_repeated_ids incl. the instance-id case; lane SMB-COMPONENTS-FOOTPRINT shares commit 3b6e9a9). Behaviour differences to accept or reverse are in notes.behaviour_differences.",
-  "updated_at": "2026-10-11T11:06:04Z",
-  "notes": {
-    "plr": "PLR-049 (lead decision FIX_LANE): folio exposes its uniqueness pass, components calls it and deletes its rebuild (CX-CAP-001)",
-    "commits_per_crate": "bd4e811 touches only crates/hsk-studio-folio; 3b6e9a9 touches only crates/hsk-studio-components and carries BOTH lanes' components changes (SMB-FOLIO-UNIQUENESS step 2 and SMB-COMPONENTS-FOOTPRINT), per the commit-per-crate rule",
-    "behaviour_differences": [
-      "Design::new now also refuses a repeated component INSTANCE id (SCIN) and a repeated PAINT STYLE id (SSTY) with Duplicate(<id>): Folio's pass covers both namespaces, the old components index did not key by them (a repeated SCIN made validate_with_instance replace only the first record). Test: design_refuses_repeated_ids (instance case). Paint styles are covered by the Folio test only (the components fixture has none).",
-      "Detection order when several repeats exist at once: document nodes, design entries, components then sets (id, then container layer), collections, variables, then the NEW instances and paint styles. Every repeat the old code refused is refused with the same Duplicate(id) and in the same relative order; only inputs whose sole repeat is an instance or paint style id changed from accepted to refused.",
-      "VariableTable::new (public) keeps its outcomes and now calls check_variable_identity_uniqueness; Design builds its lookup with the crate-private VariableTable::index after the full pass.",
-      "Folio validators (validate_document, validate_design_records) are unchanged in outcome and order: they claim ids through the same Namespaces at the same points; the old per-function unique() helper in records.rs and the nodes.insert(...).is_some() checks in lib.rs are gone."
-    ],
-    "gates": {
-      "head_at_run": "3b6e9a9cf0e7999addc0501d3a2a0d3af4f4a25f (pushed; crates/hsk-studio-folio and crates/hsk-studio-components clean vs HEAD)",
-      "check": "cargo check -p hsk-studio-folio -p hsk-studio-composite -p hsk-studio-interop-psd -p hsk-studio-layout -p hsk-studio-components -p hsk-studio-interop-vector -p hsk-studio-session -p hsk-studio-interop-layout --tests: exit 0 (no warnings in folio/components)",
-      "clippy": "cargo clippy -p hsk-studio-folio -p hsk-studio-components --tests --examples: exit 0; the only warnings are 2 pre-existing too_many_arguments in the dependency hsk-studio-observe",
-      "nextest": "62/62 pass (folio 45, components 17), exit 0",
-      "doctest": "cargo test --doc -p hsk-studio-folio -p hsk-studio-components: exit 0 (0 doctests)",
-      "fmt": "cargo fmt --check: no diff in identity.rs, records.rs, the changed regions of lib.rs/tests, or any components file; pre-existing diffs remain in folio appearance.rs, timeline.rs, lib.rs:40 and two test files (untouched)"
-    },
-    "red_proof": {
-      "method": "in-place mutation inside one disk-lock hold (restored byte-identically from a backup, mtimes touched, cmp verified, rerun 62/62): (1) propose_overrides write footprint back to per-field override keys, (2) Design::new uniqueness call removed, (3) Folio container-layer target changed from the component id to the layer id",
-      "result": "5 failed of 62: components design_refuses_repeated_ids, set_members_must_have_distinct_ids, concurrent_proposals_on_one_instance_conflict, alias_type_disjoint_stale_cancel (adapted footprint assertions); folio identity_uniqueness_pass_names_each_namespace_and_agrees_with_the_validators"
-    },
-    "v4_06_sweep": {
-      "class": "id/name uniqueness rules rebuilt outside Folio",
-      "regex": "unique\\(|\\.is_some\\(\\)\\s*\\{|E::Duplicate",
-      "sites": [
-        "design.rs property_definitions: unique(names) for property names inside one definition list: NOT covered (Folio checks it inside validate_component and exposes no standalone pass); same CX-CAP-001 class, left as is, candidate for a later Folio export",
-        "instance_resolution.rs:387 VariantAssignmentDuplicate and :473 out.insert(...).is_some() (override double source): components-specific evaluator rules over STU-DS-109/116, not id namespaces; left as is",
-        "instance_resolution.rs unique() helper still used only by property_definitions"
-      ]
-    },
-    "no_new_dependency": true,
-    "lock_wait_note": "lock_wait_s is the longest measured wait (first check queued behind validator round R7, 1060 s); later batches ran inside one studio_disk_lock_run hold each",
-    "scope": "one agent in crates/hsk-studio-folio and crates/hsk-studio-components; Cargo.lock, root Cargo.toml and other crates untouched (Cargo.lock shows as modified in the shared tree from the steward, not staged)",
-    "workflow_observations": [
-      "python text-mode open(path,'w') on Windows writes CRLF while the product repo files are LF (git autocrlf=true hides it in git status; bash grep -c with a CR pattern matched every line in this tool): detected via byte counts and converted back before any commit; use newline='' or binary writes for .rs edits",
-      "builder cargo commands queued 17 min behind validator round R7 (the round holds the disk lock in slices); batching check + clippy + per-test runner + doctests in one studio_disk_lock_run hold cut later waits to seconds",
-      "poll commands that mention a gated word (the per-test runner's name) and run from the kernel cwd hit the WP-KERNEL-012 gameplan (broken confirm binding); prefix polls with cd to the product workspace",
-      "the components lane file was rewritten by the R7 validator during this lane (R7 verdicts PASS_V4/PASS_V3 at dff7ef5, before these commits); this lane kept those entries and reset the components status to READY_FOR_VALIDATION because 3b6e9a9 changes the passing lanes' inputs"
-    ]
+  {
+   "sha": "3b6e9a9",
+   "subject": "Components: Folio's identity pass replaces the rebuilt id rules (SMB-FOLIO-UNIQUENESS); override proposals write the whole instance record (SMB-COMPONENTS-FOOTPRINT)"
   }
+ ],
+ "capabilities_done": [
+  "src/identity.rs: pub fn check_identity_uniqueness(&StudioDocument, &StudioDesignRecords) -> Result<(), Diagnostic> and pub fn check_variable_identity_uniqueness(&[StudioVariableCollection], &[StudioVariable]) -> Result<(), Diagnostic>, documented namespaces and precedence, re-exported from the crate root (additive)",
+  "crate-private identity::Namespaces is the only owner of the id rules: validate (documents) and validate_design_records claim ids through it at the same points (outcomes and order unchanged)",
+  "components step 2 in crates/hsk-studio-components (commit 3b6e9a9): Design::new and VariableTable::new call the Folio pass; rebuilt rules deleted",
+  "folio test identity_uniqueness_pass_names_each_namespace_and_agrees_with_the_validators (9 record cases, 3 document cases, cross-kind namespace sharing, documented precedence; validators checked for the same diagnostic)"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-folio -p hsk-studio-components --no-fail-fast",
+  "exit": 0,
+  "sha": "3b6e9a9",
+  "passed": 62,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 1060,
+ "bg_pids": [],
+ "next": "Independent validator: crates/hsk-studio-folio at bd4e811 (tests/design_records_contract.rs identity test + the 44 existing folio tests) and crates/hsk-studio-components at 3b6e9a9 (design_refuses_repeated_ids incl. the instance-id case; lane SMB-COMPONENTS-FOOTPRINT shares commit 3b6e9a9). Behaviour differences to accept or reverse are in notes.behaviour_differences.",
+ "updated_at": "2026-10-11T11:06:04Z",
+ "notes": {
+  "plr": "PLR-049 (lead decision FIX_LANE): folio exposes its uniqueness pass, components calls it and deletes its rebuild (CX-CAP-001)",
+  "commits_per_crate": "bd4e811 touches only crates/hsk-studio-folio; 3b6e9a9 touches only crates/hsk-studio-components and carries BOTH lanes' components changes (SMB-FOLIO-UNIQUENESS step 2 and SMB-COMPONENTS-FOOTPRINT), per the commit-per-crate rule",
+  "behaviour_differences": [
+   "Design::new now also refuses a repeated component INSTANCE id (SCIN) and a repeated PAINT STYLE id (SSTY) with Duplicate(<id>): Folio's pass covers both namespaces, the old components index did not key by them (a repeated SCIN made validate_with_instance replace only the first record). Test: design_refuses_repeated_ids (instance case). Paint styles are covered by the Folio test only (the components fixture has none).",
+   "Detection order when several repeats exist at once: document nodes, design entries, components then sets (id, then container layer), collections, variables, then the NEW instances and paint styles. Every repeat the old code refused is refused with the same Duplicate(id) and in the same relative order; only inputs whose sole repeat is an instance or paint style id changed from accepted to refused.",
+   "VariableTable::new (public) keeps its outcomes and now calls check_variable_identity_uniqueness; Design builds its lookup with the crate-private VariableTable::index after the full pass.",
+   "Folio validators (validate_document, validate_design_records) are unchanged in outcome and order: they claim ids through the same Namespaces at the same points; the old per-function unique() helper in records.rs and the nodes.insert(...).is_some() checks in lib.rs are gone."
+  ],
+  "gates": {
+   "head_at_run": "3b6e9a9cf0e7999addc0501d3a2a0d3af4f4a25f (pushed; crates/hsk-studio-folio and crates/hsk-studio-components clean vs HEAD)",
+   "check": "cargo check -p hsk-studio-folio -p hsk-studio-composite -p hsk-studio-interop-psd -p hsk-studio-layout -p hsk-studio-components -p hsk-studio-interop-vector -p hsk-studio-session -p hsk-studio-interop-layout --tests: exit 0 (no warnings in folio/components)",
+   "clippy": "cargo clippy -p hsk-studio-folio -p hsk-studio-components --tests --examples: exit 0; the only warnings are 2 pre-existing too_many_arguments in the dependency hsk-studio-observe",
+   "nextest": "62/62 pass (folio 45, components 17), exit 0",
+   "doctest": "cargo test --doc -p hsk-studio-folio -p hsk-studio-components: exit 0 (0 doctests)",
+   "fmt": "cargo fmt --check: no diff in identity.rs, records.rs, the changed regions of lib.rs/tests, or any components file; pre-existing diffs remain in folio appearance.rs, timeline.rs, lib.rs:40 and two test files (untouched)"
+  },
+  "red_proof": {
+   "method": "in-place mutation inside one disk-lock hold (restored byte-identically from a backup, mtimes touched, cmp verified, rerun 62/62): (1) propose_overrides write footprint back to per-field override keys, (2) Design::new uniqueness call removed, (3) Folio container-layer target changed from the component id to the layer id",
+   "result": "5 failed of 62: components design_refuses_repeated_ids, set_members_must_have_distinct_ids, concurrent_proposals_on_one_instance_conflict, alias_type_disjoint_stale_cancel (adapted footprint assertions); folio identity_uniqueness_pass_names_each_namespace_and_agrees_with_the_validators"
+  },
+  "v4_06_sweep": {
+   "class": "id/name uniqueness rules rebuilt outside Folio",
+   "regex": "unique\\(|\\.is_some\\(\\)\\s*\\{|E::Duplicate",
+   "sites": [
+    "design.rs property_definitions: unique(names) for property names inside one definition list: NOT covered (Folio checks it inside validate_component and exposes no standalone pass); same CX-CAP-001 class, left as is, candidate for a later Folio export",
+    "instance_resolution.rs:387 VariantAssignmentDuplicate and :473 out.insert(...).is_some() (override double source): components-specific evaluator rules over STU-DS-109/116, not id namespaces; left as is",
+    "instance_resolution.rs unique() helper still used only by property_definitions"
+   ]
+  },
+  "no_new_dependency": true,
+  "lock_wait_note": "lock_wait_s is the longest measured wait (first check queued behind validator round R7, 1060 s); later batches ran inside one studio_disk_lock_run hold each",
+  "scope": "one agent in crates/hsk-studio-folio and crates/hsk-studio-components; Cargo.lock, root Cargo.toml and other crates untouched (Cargo.lock shows as modified in the shared tree from the steward, not staged)",
+  "workflow_observations": [
+   "python text-mode open(path,'w') on Windows writes CRLF while the product repo files are LF (git autocrlf=true hides it in git status; bash grep -c with a CR pattern matched every line in this tool): detected via byte counts and converted back before any commit; use newline='' or binary writes for .rs edits",
+   "builder cargo commands queued 17 min behind validator round R7 (the round holds the disk lock in slices); batching check + clippy + per-test runner + doctests in one studio_disk_lock_run hold cut later waits to seconds",
+   "poll commands that mention a gated word (the per-test runner's name) and run from the kernel cwd hit the WP-KERNEL-012 gameplan (broken confirm binding); prefix polls with cd to the product workspace",
+   "the components lane file was rewritten by the R7 validator during this lane (R7 verdicts PASS_V4/PASS_V3 at dff7ef5, before these commits); this lane kept those entries and reset the components status to READY_FOR_VALIDATION because 3b6e9a9 changes the passing lanes' inputs"
+  ],
+  "verdicts": [
+   {
+    "round": "STUDIO-R8",
+    "lane": "SMB-FOLIO-UNIQUENESS",
+    "candidate": "f6e5a490e2ad0e142938a8bba1f78cadb96f5e84",
+    "tree": "bf944e29dd336acd38969f0dc25353adb529d61d",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V1",
+    "review": "validation/R8-review-b.json",
+    "round_ref": "validation/round-R8.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R8",
+    "idempotency_key": "STUDIO-R8:SMB-FOLIO-UNIQUENESS:f6e5a490e2ad:PASS_V1",
+    "recorded_at": "2026-10-11T12:42:21Z",
+    "by": "wp_validator STUDIO-R8"
+   }
+  ]
+ }
 }

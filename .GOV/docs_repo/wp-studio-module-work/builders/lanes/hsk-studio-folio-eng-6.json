@@ -1,88 +1,105 @@
 {
-  "crate": "hsk-studio-folio",
-  "lane": "SMB-FOLIO-ENG-6",
-  "status": "READY_FOR_VALIDATION",
-  "phase": "adjustment layer as a composition-graph Source (option A) plus clip-base refusal; compiled, clippy clean, tests pass on pushed 0241877",
-  "commits": [
-    {
-      "sha": "0241877",
-      "subject": "Folio ENG-6: adjustment layers are composition-graph sources with a stack position (STU-RAS-007, STU-CMP-092)"
-    }
-  ],
-  "capabilities_done": [
-    "lib.rs validate() Source arm: kind adjustment with payload PrimitiveReference{hsk.studio.adjustment@1, object_id == own layer id} is a source operation (out: image, one, source) and an edge source into a group's inputs; stack position = input_ordinal (STU-CMP-092). PrimitiveReference with another schema or another object id -> PayloadMismatch (target = the layer); Unsupported payload -> UnsupportedDescriptor (unchanged); wrong ports -> InvalidPort (existing)",
-    "raster.rs validate_adjustment_clip_bases (called from validate() after the edge checks): per group, inputs walked by input_ordinal bottom first, base = nearest earlier unclipped input; a clipped layer whose base is an adjustment layer -> new Code::AdjustmentClipBase (target = the clipped layer); an adjustment layer that is itself clipped is accepted and is not a base for layers above it",
-    "record existence: unchanged validate_raster_records (adjustment layer without record -> DanglingReference; record on a non-adjustment layer -> PayloadMismatch) plus the existing ResolutionIssue for an unresolvable hsk.studio.adjustment@1 primitive (Snapshot::require_available -> Unavailable); exercised in the new tests",
-    "DESCRIPTOR input text and raster.rs module docs extended (V4-07: no never/always/guarantees/proves claim without a cited test)"
-  ],
-  "tests": {
-    "argv": [
-      "cargo",
-      "test",
-      "-p",
-      "hsk-studio-folio",
-      "--tests"
-    ],
-    "exit": 0,
-    "sha": "0241877",
-    "passed": 39,
-    "failed": 0
-  },
-  "blockers": [],
-  "lock_wait_s": 0,
-  "bg_pids": [],
-  "next": "Independent validator round on 0241877 for crates/hsk-studio-folio: tests/adjustment_graph_contract.rs (4), then the full folio suite (35 existing + 4). Consumer follow-ups: composite (narrow adjustment_not_in_composition_graph), interop-psd (emit Source op + input_ordinal for adjustment layers, handle clipped-to-adjustment as a typed loss).",
-  "updated_at": "2026-10-11T06:51:11Z",
-  "notes": {
-    "origin": "composite builder 8ff8c7a blocker 'FOLIO API GAP' (lib.rs Source arm allowed raster/vector/text only); lead decision option A",
-    "design": {
-      "source_arm": "lib.rs validate(): kind adjustment accepted in the Source arm when the payload is PrimitiveReference{schema_id: hsk.studio.adjustment@1, object_id == own layer id}; output port out, image, one, source (same descriptor as raster).",
-      "clip_base": "Spec reading: STU-RAS-015 defines a clipping mask through 'a base layer's content/alpha'; STU-RAS-007 says an adjustment layer is applied to the layers below '(or clipped to its parent)', i.e. the adjustment layer is the clipped layer; STU-RAS-035 repeats 'clip-to-parent option'. No clause names an adjustment layer as a clip base, so it is refused (matches pigment PlanError::AdjustmentClipBase). The spec is silent rather than prohibiting; Photoshop behaviour UNVERIFIED (Photoshop allows clipping layers to an adjustment layer and limits them to its mask), so this is a Studio rule pending an enrichment or the D5 oracle.",
-      "additivity": "no field added to any struct; one new Code variant AdjustmentClipBase (dependents match folio Code with wildcards; cargo check --tests of composite, interop-psd, layout, components, interop-vector, session and their folio dependents exit 0 on the tree equal to 0241877); documents without an adjustment layer in the graph validate as before (test existing_documents_validate_identically asserts the document JSON round-trips unchanged, an adjustment layer outside the graph with any object id stays valid, and other kinds live_filter/fill/mask/placed_asset stay UnsupportedDescriptor sources)"
-    },
-    "validation_evidence": {
-      "check": "PASS cargo check -p hsk-studio-folio --tests",
-      "clippy": "PASS no warnings cargo clippy -p hsk-studio-folio --tests (run after the final source and the rustfmt of the new test file)",
-      "folio_tests": "PASS 39/39 on the tree equal to 0241877: adjustment_graph_contract 4 (new), appearance_contract 4, design_records_contract 4, foundation_contract 15, layout_contract 4, raster_records_contract 3, timeline_contract 5, unit 0",
-      "dependents_check": "PASS exit 0: cargo check -p hsk-studio-composite -p hsk-studio-interop-psd -p hsk-studio-layout -p hsk-studio-components -p hsk-studio-interop-vector -p hsk-studio-session --tests",
-      "rustfmt": "tests/adjustment_graph_contract.rs rustfmt --edition 2024 clean; lib.rs and raster.rs not reformatted (other lanes' hunks)"
-    },
-    "tests_added": [
-      "adjustment_layer_is_a_graph_source_with_a_stack_position (validates; ordered_inputs follow input_ordinal, edge array order irrelevant; output port shape; inspect_bytes round trip; record set validates)",
-      "adjustment_record_must_exist_and_match_the_layer (object_id and schema mismatch -> PayloadMismatch, Unsupported payload -> UnsupportedDescriptor, vector output -> InvalidPort, absent primitive -> ResolutionIssue + Unavailable, missing record -> DanglingReference, record on raster layer -> PayloadMismatch)",
-      "adjustment_clip_base_rule (clipped above adjustment -> AdjustmentClipBase target = clipped layer, ordinal order not array order, clipped adjustment accepted, clipped layer below the adjustment accepted)",
-      "existing_documents_validate_identically"
-    ],
-    "left_out": [
-      "clipping bases other than adjustment layers (pass-through group, mask-bearing clipped layer) stay composite's lowering concern",
-      "a clipped layer with no base (bottom of a group) is not checked here (composite refuses it)"
-    ],
-    "consumer_follow_ups": [
-      "interop-psd: emit a Source op and an input_ordinal for adjustment layers; a PSD layer clipped to an adjustment layer would now fail validation with AdjustmentClipBase (importer must unclip with a typed loss receipt or refuse typed)",
-      "composite: lower() already maps a Source op with an image output to Step::Source; the adjustment_not_in_composition_graph refusal can be narrowed to layers truly absent from the graph; lower_to_render_plan_extended recognises the layer by kind + payload"
-    ],
-    "workflow_observations": [
-      "all gated cargo commands passed the shared gameplan gate; no gameplan step added; no failure occurred (route not needed)",
-      "pathspec commit only (new test file git-added by explicit path first); commit message via git commit -F; scratch under <scratchpad>/smb-folio-eng-6/"
-    ],
-    "verdicts": [
-      {
-        "round": "STUDIO-R7",
-        "lane": "SMB-FOLIO-ENG-6",
-        "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
-        "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
-        "decision": "passed",
-        "verdict": "PASS_V1",
-        "failures": [],
-        "remediation": null,
-        "status_after": "PASS_V1",
-        "review": "validation/R7-review-b.json",
-        "round_ref": "validation/round-R7.json",
-        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
-        "idempotency_key": "STUDIO-R7:SMB-FOLIO-ENG-6:dff7ef51d282:PASS_V1",
-        "recorded_at": "2026-10-11T11:04:31Z",
-        "by": "wp_validator STUDIO-R7"
-      }
-    ]
+ "crate": "hsk-studio-folio",
+ "lane": "SMB-FOLIO-ENG-6",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "adjustment layer as a composition-graph Source (option A) plus clip-base refusal; compiled, clippy clean, tests pass on pushed 0241877",
+ "commits": [
+  {
+   "sha": "0241877",
+   "subject": "Folio ENG-6: adjustment layers are composition-graph sources with a stack position (STU-RAS-007, STU-CMP-092)"
   }
+ ],
+ "capabilities_done": [
+  "lib.rs validate() Source arm: kind adjustment with payload PrimitiveReference{hsk.studio.adjustment@1, object_id == own layer id} is a source operation (out: image, one, source) and an edge source into a group's inputs; stack position = input_ordinal (STU-CMP-092). PrimitiveReference with another schema or another object id -> PayloadMismatch (target = the layer); Unsupported payload -> UnsupportedDescriptor (unchanged); wrong ports -> InvalidPort (existing)",
+  "raster.rs validate_adjustment_clip_bases (called from validate() after the edge checks): per group, inputs walked by input_ordinal bottom first, base = nearest earlier unclipped input; a clipped layer whose base is an adjustment layer -> new Code::AdjustmentClipBase (target = the clipped layer); an adjustment layer that is itself clipped is accepted and is not a base for layers above it",
+  "record existence: unchanged validate_raster_records (adjustment layer without record -> DanglingReference; record on a non-adjustment layer -> PayloadMismatch) plus the existing ResolutionIssue for an unresolvable hsk.studio.adjustment@1 primitive (Snapshot::require_available -> Unavailable); exercised in the new tests",
+  "DESCRIPTOR input text and raster.rs module docs extended (V4-07: no never/always/guarantees/proves claim without a cited test)"
+ ],
+ "tests": {
+  "argv": [
+   "cargo",
+   "test",
+   "-p",
+   "hsk-studio-folio",
+   "--tests"
+  ],
+  "exit": 0,
+  "sha": "0241877",
+  "passed": 39,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "Independent validator round on 0241877 for crates/hsk-studio-folio: tests/adjustment_graph_contract.rs (4), then the full folio suite (35 existing + 4). Consumer follow-ups: composite (narrow adjustment_not_in_composition_graph), interop-psd (emit Source op + input_ordinal for adjustment layers, handle clipped-to-adjustment as a typed loss).",
+ "updated_at": "2026-10-11T06:51:11Z",
+ "notes": {
+  "origin": "composite builder 8ff8c7a blocker 'FOLIO API GAP' (lib.rs Source arm allowed raster/vector/text only); lead decision option A",
+  "design": {
+   "source_arm": "lib.rs validate(): kind adjustment accepted in the Source arm when the payload is PrimitiveReference{schema_id: hsk.studio.adjustment@1, object_id == own layer id}; output port out, image, one, source (same descriptor as raster).",
+   "clip_base": "Spec reading: STU-RAS-015 defines a clipping mask through 'a base layer's content/alpha'; STU-RAS-007 says an adjustment layer is applied to the layers below '(or clipped to its parent)', i.e. the adjustment layer is the clipped layer; STU-RAS-035 repeats 'clip-to-parent option'. No clause names an adjustment layer as a clip base, so it is refused (matches pigment PlanError::AdjustmentClipBase). The spec is silent rather than prohibiting; Photoshop behaviour UNVERIFIED (Photoshop allows clipping layers to an adjustment layer and limits them to its mask), so this is a Studio rule pending an enrichment or the D5 oracle.",
+   "additivity": "no field added to any struct; one new Code variant AdjustmentClipBase (dependents match folio Code with wildcards; cargo check --tests of composite, interop-psd, layout, components, interop-vector, session and their folio dependents exit 0 on the tree equal to 0241877); documents without an adjustment layer in the graph validate as before (test existing_documents_validate_identically asserts the document JSON round-trips unchanged, an adjustment layer outside the graph with any object id stays valid, and other kinds live_filter/fill/mask/placed_asset stay UnsupportedDescriptor sources)"
+  },
+  "validation_evidence": {
+   "check": "PASS cargo check -p hsk-studio-folio --tests",
+   "clippy": "PASS no warnings cargo clippy -p hsk-studio-folio --tests (run after the final source and the rustfmt of the new test file)",
+   "folio_tests": "PASS 39/39 on the tree equal to 0241877: adjustment_graph_contract 4 (new), appearance_contract 4, design_records_contract 4, foundation_contract 15, layout_contract 4, raster_records_contract 3, timeline_contract 5, unit 0",
+   "dependents_check": "PASS exit 0: cargo check -p hsk-studio-composite -p hsk-studio-interop-psd -p hsk-studio-layout -p hsk-studio-components -p hsk-studio-interop-vector -p hsk-studio-session --tests",
+   "rustfmt": "tests/adjustment_graph_contract.rs rustfmt --edition 2024 clean; lib.rs and raster.rs not reformatted (other lanes' hunks)"
+  },
+  "tests_added": [
+   "adjustment_layer_is_a_graph_source_with_a_stack_position (validates; ordered_inputs follow input_ordinal, edge array order irrelevant; output port shape; inspect_bytes round trip; record set validates)",
+   "adjustment_record_must_exist_and_match_the_layer (object_id and schema mismatch -> PayloadMismatch, Unsupported payload -> UnsupportedDescriptor, vector output -> InvalidPort, absent primitive -> ResolutionIssue + Unavailable, missing record -> DanglingReference, record on raster layer -> PayloadMismatch)",
+   "adjustment_clip_base_rule (clipped above adjustment -> AdjustmentClipBase target = clipped layer, ordinal order not array order, clipped adjustment accepted, clipped layer below the adjustment accepted)",
+   "existing_documents_validate_identically"
+  ],
+  "left_out": [
+   "clipping bases other than adjustment layers (pass-through group, mask-bearing clipped layer) stay composite's lowering concern",
+   "a clipped layer with no base (bottom of a group) is not checked here (composite refuses it)"
+  ],
+  "consumer_follow_ups": [
+   "interop-psd: emit a Source op and an input_ordinal for adjustment layers; a PSD layer clipped to an adjustment layer would now fail validation with AdjustmentClipBase (importer must unclip with a typed loss receipt or refuse typed)",
+   "composite: lower() already maps a Source op with an image output to Step::Source; the adjustment_not_in_composition_graph refusal can be narrowed to layers truly absent from the graph; lower_to_render_plan_extended recognises the layer by kind + payload"
+  ],
+  "workflow_observations": [
+   "all gated cargo commands passed the shared gameplan gate; no gameplan step added; no failure occurred (route not needed)",
+   "pathspec commit only (new test file git-added by explicit path first); commit message via git commit -F; scratch under <scratchpad>/smb-folio-eng-6/"
+  ],
+  "verdicts": [
+   {
+    "round": "STUDIO-R7",
+    "lane": "SMB-FOLIO-ENG-6",
+    "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
+    "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V1",
+    "review": "validation/R7-review-b.json",
+    "round_ref": "validation/round-R7.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
+    "idempotency_key": "STUDIO-R7:SMB-FOLIO-ENG-6:dff7ef51d282:PASS_V1",
+    "recorded_at": "2026-10-11T11:04:31Z",
+    "by": "wp_validator STUDIO-R7"
+   },
+   {
+    "round": "STUDIO-R8",
+    "lane": "SMB-FOLIO-ENG-6",
+    "candidate": "f6e5a490e2ad0e142938a8bba1f78cadb96f5e84",
+    "tree": "bf944e29dd336acd38969f0dc25353adb529d61d",
+    "decision": "passed",
+    "verdict": "PASS_V2",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V2",
+    "review": "NOT_REVIEWED (changed inputs reviewed under SMB-FOLIO-UNIQUENESS)",
+    "round_ref": "validation/round-R8.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R8",
+    "idempotency_key": "STUDIO-R8:SMB-FOLIO-ENG-6:f6e5a490e2ad:PASS_V2",
+    "recorded_at": "2026-10-11T12:42:21Z",
+    "by": "wp_validator STUDIO-R8"
+   }
+  ]
+ }
 }

@@ -1,163 +1,197 @@
 {
-  "crate": "hsk-studio-pigment+hsk-studio-folio",
-  "lane": "SMB-PIGMENT-ENG-2 / SMB-FOLIO-ENG-5",
-  "status": "READY_FOR_VALIDATION",
-  "phase": "slice complete on pushed 2f705f1 (pigment/folio unchanged through HEAD bd8533f): check + clippy --no-deps clean, 59 pigment+folio tests green; dependents check exit 0 and composite/render-cpu/render-gpu tests green at 2f705f1; R5 remediation + V4-06 class sweep folded in",
-  "commits": [
-    {
-      "sha": "bd480f9",
-      "subject": "Pigment ENG-2: single-owner adjust_math + coverage_math with hand-computed oracle tests"
-    },
-    {
-      "sha": "d576ec5",
-      "subject": "Pigment ENG-2: render-plan extension envelope (PlanExtensions, ExtOperator, admit_extended, RenderBackend defaults), StackNode::Adjustment, psd-tools/GIMP-cited formulas; R5 remediation pass-through fill"
-    },
-    {
-      "sha": "ff92dea",
-      "subject": "Folio ENG-5: StudioRasterRecords sidecar (adjustments, mask parameters, advanced blending, effect stacks, global light); V4-07 doc citations"
-    },
-    {
-      "sha": "2587930",
-      "subject": "Pigment ENG-2: LayerExtension/PlanExtensions/AdjustmentOp #[non_exhaustive] + builders"
-    },
-    {
-      "sha": "c2bbb9b",
-      "subject": "Pigment R5 class sweep (V4-06): v1 admit refuses mask density < 1; envelope admits MaskDensity"
-    },
-    {
-      "sha": "2f705f1",
-      "subject": "Pigment R5 class sweep (V4-06): shared admission refuses Solid colour outside [0,1]"
-    }
-  ],
-  "capabilities_done": [
-    "decision note diagnostics/adjustments-advanced-blending.md (owners, curves capability split, IR shapes, exactness, D5 additions, spec gaps, sources)",
-    "pigment::adjust_math single owner: levels, curves (natural spline), hue_saturation master + colorize, brightness_contrast legacy (modern = typed refusal), exposure (linearize_gamma), invert, threshold, posterize; composite_adjustment (alpha-preserving rule)",
-    "pigment::coverage_math single owner: mask_coverage (density/invert), feather_sigma/support/kernel, Blend-If range_weight/blend_if_weight",
-    "pigment::render_plan PlanExtensions envelope: adjustment layer on transparent Solid placeholder, Blend-If, mask feather, knockout refused (PlanError::KnockoutUnsupported -> Unsupported knockout_*), ExtOperator classes, admit_extended, RenderBackend::extension_exactness/execute_extended defaults (refuse, never render without the envelope), digest_with; 10 new PlanError variants",
-    "blend_math StackNode::Adjustment single-pixel oracle node + BlendError::Adjustment",
-    "folio::StudioRasterRecords (hsk.studio.raster_records@1) + validate_raster_records + raster_records_schema",
-    "briefs: lane-composite-adjustments, lane-render-cpu-adjustments, lane-render-gpu-adjustments, lane-interop-psd-adjustments, lane-effects-wave-1"
-  ],
-  "tests": {
-    "argv": [
-      "cargo",
-      "test",
-      "-p",
-      "hsk-studio-pigment",
-      "-p",
-      "hsk-studio-folio",
-      "--tests"
-    ],
-    "exit": 0,
-    "sha": "2f705f1",
-    "passed": 59,
-    "failed": 0
+ "crate": "hsk-studio-pigment+hsk-studio-folio",
+ "lane": "SMB-PIGMENT-ENG-2 / SMB-FOLIO-ENG-5",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slice complete on pushed 2f705f1 (pigment/folio unchanged through HEAD bd8533f): check + clippy --no-deps clean, 59 pigment+folio tests green; dependents check exit 0 and composite/render-cpu/render-gpu tests green at 2f705f1; R5 remediation + V4-06 class sweep folded in",
+ "commits": [
+  {
+   "sha": "bd480f9",
+   "subject": "Pigment ENG-2: single-owner adjust_math + coverage_math with hand-computed oracle tests"
   },
-  "blockers": [],
-  "lock_wait_s": 0,
-  "bg_pids": [],
-  "next": "independent validator round; follow-up lanes per briefs (composite lowering, render-cpu, render-gpu, interop-psd mapping, effects wave 1)",
-  "updated_at": "2026-10-11T08:04:11Z",
-  "notes": {
-    "verdicts": [
-      {
-        "round": "STUDIO-R6",
-        "lane": "SMB-PIGMENT-ENG-2",
-        "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a",
-        "tree": "834aa5599ffabf691558a25f777ce42f73d78103",
-        "decision": "passed",
-        "verdict": "PASS_V1",
-        "failures": [],
-        "remediation": null,
-        "status_after": "PASS_V1",
-        "review": "validation/R6-review-a.json",
-        "round_ref": "validation/round-R6.json",
-        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6",
-        "idempotency_key": "STUDIO-R6:SMB-PIGMENT-ENG-2:bd8533f9b29c:PASS_V1",
-        "recorded_at": "2026-10-11T06:47:09Z",
-        "by": "wp_validator STUDIO-R6"
-      },
-      {
-        "round": "STUDIO-R7",
-        "lane": "SMB-PIGMENT-BLENDIF-CLIP",
-        "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
-        "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
-        "decision": "passed",
-        "verdict": "PASS_V1",
-        "failures": [],
-        "remediation": null,
-        "status_after": "PASS_V1",
-        "review": "validation/R7-review-a.json",
-        "round_ref": "validation/round-R7.json",
-        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
-        "idempotency_key": "STUDIO-R7:SMB-PIGMENT-BLENDIF-CLIP:dff7ef51d282:PASS_V1",
-        "recorded_at": "2026-10-11T11:04:31Z",
-        "by": "wp_validator STUDIO-R7"
-      },
-      {
-        "round": "STUDIO-R7",
-        "lane": "SMB-PIGMENT-ENG-2",
-        "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
-        "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
-        "decision": "passed",
-        "verdict": "PASS_V2",
-        "failures": [],
-        "remediation": null,
-        "status_after": "PASS_V2",
-        "review": "validation/R7-review-a.json",
-        "round_ref": "validation/round-R7.json",
-        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
-        "idempotency_key": "STUDIO-R7:SMB-PIGMENT-ENG-2:dff7ef51d282:PASS_V2",
-        "recorded_at": "2026-10-11T11:04:31Z",
-        "by": "wp_validator STUDIO-R7"
-      }
-    ],
-    "remediation_R5": "validation/R5-review-a.json SMB-PIGMENT-ENG-1 CONFIRMED (render_plan.rs validate admitted PassThrough with fill<1 as fill_opacity Approximate; backends refused with different codes). Fixed d576ec5: validate no longer rates pass-through fill as FillOpacity; admit refuses it for every backend as Unsupported{group_pass_through_fill_opacity, unsupported} (render-cpu's existing key, so its test cpu_plan.rs:1926 stays green; render-gpu now refuses at admit too). Regression: tests/plan_extensions.rs pass_through_fill_is_refused_uniformly_by_admit. Placed in admit (shared admission), not as a validate InvalidPlan error, because an InvalidPlan would change render-cpu's expected error class.",
-    "v4_06_class": "failure class: a plan feature admitted by pigment's shared validate/admit at a class that every backend then refuses at execute (inconsistent admission). Search regex over crates/hsk-studio-pigment/src: 'fill_opacity|PassThroughOpacity|FillOpacity|NonIsolatedBlendedGroup|density|rgba|BaseAlpha|Operator::Vector|extension_exactness'",
-    "v4_06_sites": [
-      "render_plan.rs validate FillOpacity for PassThrough fill<1: FIXED d576ec5",
-      "render_plan.rs admit pass-through fill<1: FIXED d576ec5 (PASS_THROUGH_FILL_OPERATOR)",
-      "render_plan.rs MaskInput.density<1 admitted as Mask(format) Exact, refused by both backends 'mask_density': FIXED c2bbb9b (v1 admit refuses; envelope ExtOperator::MaskDensity)",
-      "render_plan.rs Solid rgb outside [0,1] (R5 PLAUSIBLE): FIXED 2f705f1 (SAMPLE_RANGE_OPERATOR in admit_core)",
-      "render_plan.rs PassThroughOpacity (opacity<1): NOT_APPLICABLE (both backends return Unsupported from exactness, so admit already refuses uniformly)",
-      "render_plan.rs NonIsolatedBlendedGroup: NOT_APPLICABLE (backends Unsupported via exactness -> admit refuses)",
-      "render_plan.rs Operator::Vector: NOT_APPLICABLE (capability per backend through exactness; gpu Unsupported -> admit refuses)",
-      "render_plan.rs Mask(BaseAlpha) clip-to-base: NOT_APPLICABLE (supports_clip_to_base opt-in refusal in admit)",
-      "render_plan/extensions.rs ExtOperator: NOT_APPLICABLE (admit_extended asks extension_exactness, default Unsupported)",
-      "blend_math.rs fold_nodes group_pass_through_opacity Approximate: NOT_APPLICABLE (single-pixel reference oracle, not admission)"
-    ],
-    "r5_not_addressed": "R5 PLAUSIBLE pigment item 'PlanLimits through admit' (admit validates with PlanLimits::default()) is a capability request, not this failure class; left open.",
-    "blend_if_clip": {
-      "recorded_at": "2026-10-11T08:04:11Z",
-      "task": "Blend-If on a clip base and on a clipped layer (small semantics slice, fresh builder session)",
-      "option": "b (refuse): no public source defines either case; see diagnostics/adjustments-advanced-blending.md topic blend-if-clip-roles for the evidence table",
-      "commit": {
-        "sha": "0d28c03",
-        "subject": "Pigment: Blend-If on a clip base or a clipped layer is refused for every backend (no public definition)",
-        "pushed": true
-      },
-      "rule": "render_plan::ClipRole + Group::clip_role; ExtOperator::BlendIfClipBase (blend_if_clip_base) and BlendIfClippedLayer (blend_if_clipped_layer), intrinsic Unsupported, reported by PlanExtensions::validate instead of BlendIf for non-identity ranges, so admit_extended refuses them for every backend whatever it claims; identity ranges and unclipped layers unchanged",
-      "checks": {
-        "cargo_check_pigment_tests": 0,
-        "clippy_no_deps": "clean",
-        "nextest_pigment": "46 passed, 0 failed (4 new in tests/blend_if_clip.rs)",
-        "dependents_check": "composite, render-cpu, render-gpu, interop-psd --tests exit 0",
-        "dependents_tests": "render-cpu + composite nextest 51 passed, 0 failed (no existing test there uses Blend-If on a clip role); render-gpu tests not run here (need an adapter), the two affected tests are identified by reading"
-      },
-      "claim": "not claimed: status of this lane is unchanged (V4-15: the lead assigns a new lane id for this slice)",
-      "dependents_obligations": [
-        "render-cpu: dead clip-base Blend-If path (plan_sink.rs base.fx.blend_if / run-composite weight) is now unreachable behind admit_extended; remove it",
-        "render-gpu: tests/gpu_plan.rs ext_blend_if_parity group/clip case (root layer 2 is clipped) and fx_admission_and_refusals_run_without_adapter (on_clipped expects Unavailable no_adapter) must expect Unsupported blend_if_clipped_layer; blend_if_clip_base check stays as defence in depth",
-        "composite: lower_extensions.rs operators() pushes ExtOperator::BlendIf for clip roles; report BlendIfClipBase/BlendIfClippedLayer or refuse in lowering",
-        "interop-psd: typed loss entry for ranges on a clip base or clipped layer (owner picks the code)"
-      ],
-      "d5_oracle_cases_added": "18-23 (diagnostics topic blend-if-clip-roles)"
-    },
-    "additivity": "v1 IR and folio structs are struct-literal built / exhaustively matched by dependents (evidence in decision note topic additivity); additions travel in render_plan::PlanExtensions and folio::StudioRasterRecords; new envelope types are #[non_exhaustive] with builders",
-    "dependents": "cargo check of composite, render-cpu, render-gpu, interop-psd, layout, components, interop-vector, interop-layout --tests: exit 0 at 2587930, c2bbb9b and 2f705f1; composite 13, render-cpu 11, render-gpu 12 tests passed, 0 failed at c2bbb9b and again at 2f705f1. Earlier transient failures were other lanes' uncommitted working-tree edits (interop-layout Arc<str> mid-edit; interop-psd export.rs missing Plane import), not caused by this lane.",
-    "clippy": "pigment/folio linted with --no-deps (clean); a plain clippy run failed in hsk-studio-prism on another lane's uncommitted icc_eval.rs edits (approx_constant)",
-    "v4": "V4-01: folio raster.rs denies clippy::arithmetic_side_effects; V4-07: new doc/DESCRIPTOR claims cite tests; V4-09: commits via -F files; V4-03: Photoshop parity NOT_PROVEN, D5 cases listed in the decision note",
-    "d5_oracle_additions": "decision note topic oracle-d5 cases 1-11 (adjustment layer alpha rule, levels order, curves interpolation, hue/sat, brightness/contrast modern+legacy, exposure linearisation, threshold metric, posterize mapping, Blend-If ramps/gray metric, mask density/feather sigma, knockout); effects brief adds 12-14",
-    "spec_gaps": "raster knockout depth shallow/deep has no spec field (only STU-VEC-153 4-member enum); no StudioDocument Global Light field (kept in the sidecar); no identity prefix for hsk.studio.adjustment@1; STU-RAS-159 cross-pair ordering unstated"
+  {
+   "sha": "d576ec5",
+   "subject": "Pigment ENG-2: render-plan extension envelope (PlanExtensions, ExtOperator, admit_extended, RenderBackend defaults), StackNode::Adjustment, psd-tools/GIMP-cited formulas; R5 remediation pass-through fill"
+  },
+  {
+   "sha": "ff92dea",
+   "subject": "Folio ENG-5: StudioRasterRecords sidecar (adjustments, mask parameters, advanced blending, effect stacks, global light); V4-07 doc citations"
+  },
+  {
+   "sha": "2587930",
+   "subject": "Pigment ENG-2: LayerExtension/PlanExtensions/AdjustmentOp #[non_exhaustive] + builders"
+  },
+  {
+   "sha": "c2bbb9b",
+   "subject": "Pigment R5 class sweep (V4-06): v1 admit refuses mask density < 1; envelope admits MaskDensity"
+  },
+  {
+   "sha": "2f705f1",
+   "subject": "Pigment R5 class sweep (V4-06): shared admission refuses Solid colour outside [0,1]"
   }
+ ],
+ "capabilities_done": [
+  "decision note diagnostics/adjustments-advanced-blending.md (owners, curves capability split, IR shapes, exactness, D5 additions, spec gaps, sources)",
+  "pigment::adjust_math single owner: levels, curves (natural spline), hue_saturation master + colorize, brightness_contrast legacy (modern = typed refusal), exposure (linearize_gamma), invert, threshold, posterize; composite_adjustment (alpha-preserving rule)",
+  "pigment::coverage_math single owner: mask_coverage (density/invert), feather_sigma/support/kernel, Blend-If range_weight/blend_if_weight",
+  "pigment::render_plan PlanExtensions envelope: adjustment layer on transparent Solid placeholder, Blend-If, mask feather, knockout refused (PlanError::KnockoutUnsupported -> Unsupported knockout_*), ExtOperator classes, admit_extended, RenderBackend::extension_exactness/execute_extended defaults (refuse, never render without the envelope), digest_with; 10 new PlanError variants",
+  "blend_math StackNode::Adjustment single-pixel oracle node + BlendError::Adjustment",
+  "folio::StudioRasterRecords (hsk.studio.raster_records@1) + validate_raster_records + raster_records_schema",
+  "briefs: lane-composite-adjustments, lane-render-cpu-adjustments, lane-render-gpu-adjustments, lane-interop-psd-adjustments, lane-effects-wave-1"
+ ],
+ "tests": {
+  "argv": [
+   "cargo",
+   "test",
+   "-p",
+   "hsk-studio-pigment",
+   "-p",
+   "hsk-studio-folio",
+   "--tests"
+  ],
+  "exit": 0,
+  "sha": "2f705f1",
+  "passed": 59,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "independent validator round; follow-up lanes per briefs (composite lowering, render-cpu, render-gpu, interop-psd mapping, effects wave 1)",
+ "updated_at": "2026-10-11T08:04:11Z",
+ "notes": {
+  "verdicts": [
+   {
+    "round": "STUDIO-R6",
+    "lane": "SMB-PIGMENT-ENG-2",
+    "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a",
+    "tree": "834aa5599ffabf691558a25f777ce42f73d78103",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V1",
+    "review": "validation/R6-review-a.json",
+    "round_ref": "validation/round-R6.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6",
+    "idempotency_key": "STUDIO-R6:SMB-PIGMENT-ENG-2:bd8533f9b29c:PASS_V1",
+    "recorded_at": "2026-10-11T06:47:09Z",
+    "by": "wp_validator STUDIO-R6"
+   },
+   {
+    "round": "STUDIO-R7",
+    "lane": "SMB-PIGMENT-BLENDIF-CLIP",
+    "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
+    "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V1",
+    "review": "validation/R7-review-a.json",
+    "round_ref": "validation/round-R7.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
+    "idempotency_key": "STUDIO-R7:SMB-PIGMENT-BLENDIF-CLIP:dff7ef51d282:PASS_V1",
+    "recorded_at": "2026-10-11T11:04:31Z",
+    "by": "wp_validator STUDIO-R7"
+   },
+   {
+    "round": "STUDIO-R7",
+    "lane": "SMB-PIGMENT-ENG-2",
+    "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
+    "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
+    "decision": "passed",
+    "verdict": "PASS_V2",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V2",
+    "review": "validation/R7-review-a.json",
+    "round_ref": "validation/round-R7.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
+    "idempotency_key": "STUDIO-R7:SMB-PIGMENT-ENG-2:dff7ef51d282:PASS_V2",
+    "recorded_at": "2026-10-11T11:04:31Z",
+    "by": "wp_validator STUDIO-R7"
+   },
+   {
+    "round": "STUDIO-R8",
+    "lane": "SMB-PIGMENT-ENG-2",
+    "candidate": "f6e5a490e2ad0e142938a8bba1f78cadb96f5e84",
+    "tree": "bf944e29dd336acd38969f0dc25353adb529d61d",
+    "decision": "passed",
+    "verdict": "PASS_V3",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V3",
+    "review": "NOT_REVIEWED (R8-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+    "round_ref": "validation/round-R8.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R8",
+    "idempotency_key": "STUDIO-R8:SMB-PIGMENT-ENG-2:f6e5a490e2ad:PASS_V3",
+    "recorded_at": "2026-10-11T12:42:21Z",
+    "by": "wp_validator STUDIO-R8"
+   },
+   {
+    "round": "STUDIO-R8",
+    "lane": "SMB-PIGMENT-BLENDIF-CLIP",
+    "candidate": "f6e5a490e2ad0e142938a8bba1f78cadb96f5e84",
+    "tree": "bf944e29dd336acd38969f0dc25353adb529d61d",
+    "decision": "passed",
+    "verdict": "PASS_V2",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V2",
+    "review": "NOT_REVIEWED (R8-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+    "round_ref": "validation/round-R8.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R8",
+    "idempotency_key": "STUDIO-R8:SMB-PIGMENT-BLENDIF-CLIP:f6e5a490e2ad:PASS_V2",
+    "recorded_at": "2026-10-11T12:42:21Z",
+    "by": "wp_validator STUDIO-R8"
+   }
+  ],
+  "remediation_R5": "validation/R5-review-a.json SMB-PIGMENT-ENG-1 CONFIRMED (render_plan.rs validate admitted PassThrough with fill<1 as fill_opacity Approximate; backends refused with different codes). Fixed d576ec5: validate no longer rates pass-through fill as FillOpacity; admit refuses it for every backend as Unsupported{group_pass_through_fill_opacity, unsupported} (render-cpu's existing key, so its test cpu_plan.rs:1926 stays green; render-gpu now refuses at admit too). Regression: tests/plan_extensions.rs pass_through_fill_is_refused_uniformly_by_admit. Placed in admit (shared admission), not as a validate InvalidPlan error, because an InvalidPlan would change render-cpu's expected error class.",
+  "v4_06_class": "failure class: a plan feature admitted by pigment's shared validate/admit at a class that every backend then refuses at execute (inconsistent admission). Search regex over crates/hsk-studio-pigment/src: 'fill_opacity|PassThroughOpacity|FillOpacity|NonIsolatedBlendedGroup|density|rgba|BaseAlpha|Operator::Vector|extension_exactness'",
+  "v4_06_sites": [
+   "render_plan.rs validate FillOpacity for PassThrough fill<1: FIXED d576ec5",
+   "render_plan.rs admit pass-through fill<1: FIXED d576ec5 (PASS_THROUGH_FILL_OPERATOR)",
+   "render_plan.rs MaskInput.density<1 admitted as Mask(format) Exact, refused by both backends 'mask_density': FIXED c2bbb9b (v1 admit refuses; envelope ExtOperator::MaskDensity)",
+   "render_plan.rs Solid rgb outside [0,1] (R5 PLAUSIBLE): FIXED 2f705f1 (SAMPLE_RANGE_OPERATOR in admit_core)",
+   "render_plan.rs PassThroughOpacity (opacity<1): NOT_APPLICABLE (both backends return Unsupported from exactness, so admit already refuses uniformly)",
+   "render_plan.rs NonIsolatedBlendedGroup: NOT_APPLICABLE (backends Unsupported via exactness -> admit refuses)",
+   "render_plan.rs Operator::Vector: NOT_APPLICABLE (capability per backend through exactness; gpu Unsupported -> admit refuses)",
+   "render_plan.rs Mask(BaseAlpha) clip-to-base: NOT_APPLICABLE (supports_clip_to_base opt-in refusal in admit)",
+   "render_plan/extensions.rs ExtOperator: NOT_APPLICABLE (admit_extended asks extension_exactness, default Unsupported)",
+   "blend_math.rs fold_nodes group_pass_through_opacity Approximate: NOT_APPLICABLE (single-pixel reference oracle, not admission)"
+  ],
+  "r5_not_addressed": "R5 PLAUSIBLE pigment item 'PlanLimits through admit' (admit validates with PlanLimits::default()) is a capability request, not this failure class; left open.",
+  "blend_if_clip": {
+   "recorded_at": "2026-10-11T08:04:11Z",
+   "task": "Blend-If on a clip base and on a clipped layer (small semantics slice, fresh builder session)",
+   "option": "b (refuse): no public source defines either case; see diagnostics/adjustments-advanced-blending.md topic blend-if-clip-roles for the evidence table",
+   "commit": {
+    "sha": "0d28c03",
+    "subject": "Pigment: Blend-If on a clip base or a clipped layer is refused for every backend (no public definition)",
+    "pushed": true
+   },
+   "rule": "render_plan::ClipRole + Group::clip_role; ExtOperator::BlendIfClipBase (blend_if_clip_base) and BlendIfClippedLayer (blend_if_clipped_layer), intrinsic Unsupported, reported by PlanExtensions::validate instead of BlendIf for non-identity ranges, so admit_extended refuses them for every backend whatever it claims; identity ranges and unclipped layers unchanged",
+   "checks": {
+    "cargo_check_pigment_tests": 0,
+    "clippy_no_deps": "clean",
+    "nextest_pigment": "46 passed, 0 failed (4 new in tests/blend_if_clip.rs)",
+    "dependents_check": "composite, render-cpu, render-gpu, interop-psd --tests exit 0",
+    "dependents_tests": "render-cpu + composite nextest 51 passed, 0 failed (no existing test there uses Blend-If on a clip role); render-gpu tests not run here (need an adapter), the two affected tests are identified by reading"
+   },
+   "claim": "not claimed: status of this lane is unchanged (V4-15: the lead assigns a new lane id for this slice)",
+   "dependents_obligations": [
+    "render-cpu: dead clip-base Blend-If path (plan_sink.rs base.fx.blend_if / run-composite weight) is now unreachable behind admit_extended; remove it",
+    "render-gpu: tests/gpu_plan.rs ext_blend_if_parity group/clip case (root layer 2 is clipped) and fx_admission_and_refusals_run_without_adapter (on_clipped expects Unavailable no_adapter) must expect Unsupported blend_if_clipped_layer; blend_if_clip_base check stays as defence in depth",
+    "composite: lower_extensions.rs operators() pushes ExtOperator::BlendIf for clip roles; report BlendIfClipBase/BlendIfClippedLayer or refuse in lowering",
+    "interop-psd: typed loss entry for ranges on a clip base or clipped layer (owner picks the code)"
+   ],
+   "d5_oracle_cases_added": "18-23 (diagnostics topic blend-if-clip-roles)"
+  },
+  "additivity": "v1 IR and folio structs are struct-literal built / exhaustively matched by dependents (evidence in decision note topic additivity); additions travel in render_plan::PlanExtensions and folio::StudioRasterRecords; new envelope types are #[non_exhaustive] with builders",
+  "dependents": "cargo check of composite, render-cpu, render-gpu, interop-psd, layout, components, interop-vector, interop-layout --tests: exit 0 at 2587930, c2bbb9b and 2f705f1; composite 13, render-cpu 11, render-gpu 12 tests passed, 0 failed at c2bbb9b and again at 2f705f1. Earlier transient failures were other lanes' uncommitted working-tree edits (interop-layout Arc<str> mid-edit; interop-psd export.rs missing Plane import), not caused by this lane.",
+  "clippy": "pigment/folio linted with --no-deps (clean); a plain clippy run failed in hsk-studio-prism on another lane's uncommitted icc_eval.rs edits (approx_constant)",
+  "v4": "V4-01: folio raster.rs denies clippy::arithmetic_side_effects; V4-07: new doc/DESCRIPTOR claims cite tests; V4-09: commits via -F files; V4-03: Photoshop parity NOT_PROVEN, D5 cases listed in the decision note",
+  "d5_oracle_additions": "decision note topic oracle-d5 cases 1-11 (adjustment layer alpha rule, levels order, curves interpolation, hue/sat, brightness/contrast modern+legacy, exposure linearisation, threshold metric, posterize mapping, Blend-If ramps/gray metric, mask density/feather sigma, knockout); effects brief adds 12-14",
+  "spec_gaps": "raster knockout depth shallow/deep has no spec field (only STU-VEC-153 4-member enum); no StudioDocument Global Light field (kept in the sidecar); no identity prefix for hsk.studio.adjustment@1; STU-RAS-159 cross-pair ordering unstated"
+ }
 }

@@ -1,120 +1,137 @@
 {
-  "crate": "hsk-studio-folio",
-  "lane": "SMB-FOLIO-ENG-7",
-  "status": "READY_FOR_VALIDATION",
-  "phase": "StudioVectorRecords sidecar (pattern paint, vector clip, vector mask, layer attachment) compiled, clippy clean, 44/44 folio tests pass on pushed aa0351a",
-  "commits": [
-    {
-      "sha": "d0eb304",
-      "subject": "Folio ENG-7: StudioVectorRecords sidecar (hsk.studio.vector_records@1): pattern paint, vector clip and mask, layer clip/mask attachment"
-    },
-    {
-      "sha": "aa0351a",
-      "subject": "Folio ENG-7: vector-record reference graph is linear in its inputs"
-    }
+ "crate": "hsk-studio-folio",
+ "lane": "SMB-FOLIO-ENG-7",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "StudioVectorRecords sidecar (pattern paint, vector clip, vector mask, layer attachment) compiled, clippy clean, 44/44 folio tests pass on pushed aa0351a",
+ "commits": [
+  {
+   "sha": "d0eb304",
+   "subject": "Folio ENG-7: StudioVectorRecords sidecar (hsk.studio.vector_records@1): pattern paint, vector clip and mask, layer clip/mask attachment"
+  },
+  {
+   "sha": "aa0351a",
+   "subject": "Folio ENG-7: vector-record reference graph is linear in its inputs"
+  }
+ ],
+ "capabilities_done": [
+  "src/vector.rs StudioVectorRecords (schema hsk.studio.vector_records@1, #[non_exhaustive] top level, new(), lookups pattern/pattern_paint/clip/mask/attachment, vector_records_schema()): one set per SDOC document, same sidecar precedent as StudioRasterRecords (ff92dea/2f705f1). No existing struct or enum changed (StudioPaint, StudioLayer, StudioMask, LayerAppearance, StudioNodeDesign untouched); one new module + two doc edits in paint.rs and DESCRIPTOR text in lib.rs",
+  "StudioPattern (hsk.studio.pattern@1, STU-VEC-017/138, STU-COL-195): pattern_id (set-local key), name, tile_type (grid|brick_by_row|brick_by_column|hex_by_row|hex_by_column with capture_token RECTANGULAR/HORIZONTAL_HEXAGONAL/VERTICAL_HEXAGONAL, brick = None), horizontal/vertical spacing (document-unit Length, any sign), source = definition (content_layer_id SLYR subtree root, tile_width/height >= 0, brick_offset 0..=100 percent, overlap_order label, move_tile_with_art) or live_source (source_layer_id, scaling_factor > 0, horizontal_alignment start|center|end with START/CENTER/END tokens)",
+  "StudioPatternPaint = the paint.pattern kind (STU-VEC-134 value 5): binds row N (index) of an SSTY PAINT style of the design records to a pattern, with placement = parametric (the eight STU-VEC-138/STU-COL-196 fields: rotation, scale_factor percent > 0, shear_angle, shear_axis, shift_angle, shift_distance Length, reflect, reflect_angle) or matrix [a b c d e f] (finite, invertible); the row's own paint remains the stand-in for consumers that do not read the set; at most one binding per (style, row)",
+  "StudioVectorClip (clip_id, source_layer_id with vector or group payload, clip_rule NONZERO|EVENODD = STU-VEC-110 tokens) and StudioVectorMask (mask_id, source_layer_id any payload, mode ALPHA|VECTOR|LUMINANCE per STU-VEC-053, mask_clip and invert_mask booleans default false per STU-VEC-153, optional document-unit region Bounds); StudioMaskAttachment = the clip/mask reference field of a layer (layer_id, clip_id?, mask_id?, one entry per layer, at least one reference)",
+  "validate_vector_records(records, document, Option<&StudioDesignRecords>, Budget, token): typed codes (InvalidId for set-local id grammar and wrong prefixes, InvalidField for ranges, InvalidUnit for non-document-unit/negative-size Lengths, DanglingReference for unknown layer/clip/mask/pattern/style/row, PayloadMismatch for a clip source that is not vector/group, DuplicateIdentity, BudgetExceeded, Canceled, RenderCycle); reference graph layer->children, layer->clip/mask source, layer->style->pattern, pattern->content layer, iterative DFS (no recursion), edges linear in inputs; deny(clippy::arithmetic_side_effects) on vector.rs",
+  "DESCRIPTOR api and input text list the vector records (V4-07: no never/always/guarantees/proves claim added); paint.rs module note points to vector.rs for the pattern kind"
+ ],
+ "tests": {
+  "argv": "cargo test -p hsk-studio-folio --tests",
+  "exit": 0,
+  "sha": "aa0351a",
+  "passed": 44,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 592,
+ "bg_pids": [],
+ "next": "Independent validator round on aa0351a for crates/hsk-studio-folio: tests/vector_records_contract.rs (5 new) plus the 39 existing folio tests. Consumer follow-up (interop-vector, separate lane): emit StudioPattern + StudioPatternPaint + StudioVectorClip/Mask + StudioMaskAttachment instead of pattern_paint_not_representable / clip_path_not_representable / mask_not_representable losses (see notes.consumer_mapping).",
+ "updated_at": "2026-10-11T07:24:37Z",
+ "notes": {
+  "origin": "interop-vector slice 3 (42fba02) blockers: pattern paint kind (STU-VEC-017/138), vector clip and mask records (STU-VEC-053), clip/mask reference on layers",
+  "design_decision": {
+   "sidecar_not_variant": "The brief asked for a pattern kind alongside Solid/Gradient in StudioPaint. Adding a StudioPaint variant (even with #[non_exhaustive], which is itself a breaking change) breaks exhaustive matches with no wildcard in interop-vector: src/svg_export.rs:264, src/svg_adapter.rs:2017, tests/vector_edit_roundtrip.rs:465; this lane may not edit that crate and the brief requires dependents to keep compiling. So the pattern kind is a binding of a style row in the sidecar (StudioPatternPaint) and the row keeps a valid Solid/Gradient paint as stand-in. If the lead later wants the variant, interop-vector needs three match arms and the folio change is one variant plus the same validator (coordinated round).",
+   "no_new_struct_fields": "StudioLayer/StudioMask/LayerAppearance/StudioNodeDesign/StudioAppearanceRow are unchanged, so existing literals compile; StudioVectorRecords is #[non_exhaustive] so later vector members can be added without breaking dependents",
+   "style_rows_by_index": "appearance rows carry no id and cannot gain one without breaking literal constructors (interop-vector builds StudioAppearanceRow::Fill/Stroke by literal); a binding therefore names (style_id, row index); the code that reorders rows must update bindings. Validator checks the row exists.",
+   "transform_on_the_fill": "STU-COL-196 puts the transform on the pattern fill; STU-VEC-138 lists it under the paint contract; stored on StudioPatternPaint.placement",
+   "cycle_check": "added because SVG 2 16.1.2 makes reference loops invalid and a renderer would recurse (pattern whose tile artwork paints with the pattern, clip/mask source containing its target); RenderCycle code already existed, no new Code variant"
+  },
+  "spec_gaps": [
+   "STU-VEC-053 states mask mode tokens and a mask 'region' but no clip rule, no region geometry and no units: clip_rule reuses STU-VEC-110 NONZERO/EVENODD (NONE unrepresentable); region = one document-unit rectangle (minimal form of SVG mask x/y/width/height); no objectBoundingBox mode exists in the spec (caller converts, as the gradient import does)",
+   "Meaning of mask.alpha / mask.vector / mask.luminance is not specified beyond the tokens: stored only",
+   "STU-VEC-053 'use-as-mask' sibling semantics (clips the objects above it within its container) not stored; the attachment names each clipped layer explicitly",
+   "Accord has no identity prefix for hsk.studio.pattern@1 or for clips (SMSK belongs to the raster StudioMask): pattern_id/clip_id/mask_id are set-local key-grammar ids",
+   "STU-COL-195 overlap_order members are not enumerated: stored as an opaque label",
+   "STU-COL-195 'grid' vs STU-VEC-138 'tile.rectangular': read as one member (the five-member union needs it); brick_by_row/brick_by_column have UNKNOWN interchange tokens and unrecovered offset parameters",
+   "STU-COL-196 says every transform field defaults to neutral 0.0, but a 0 percent scale is not invertible and STU-VEC-138 gives pattern_scale in percent: scale_factor is explicit and must be positive, identity() uses 100; composition order of the eight parameters is not stated (stored only)",
+   "StudioPatternPlacement::Matrix is a Folio addition (exact affine for SVG patternTransform), like StudioGradient::transform; the spec has no matrix field",
+   "pattern bounds spec marks unknown (spacing, shift distance, angles) are checked for finiteness/document unit only; tile size >= 0 (hard_min 0) and scaling_factor > 0 (physical domain) are the only bounds beyond spec numbers",
+   "Raster tile-bitmap patterns (STU-RAS-161, artifact tier, three colour modes) are a different content kind and are not stored here (definition model references a layer subtree)"
   ],
-  "capabilities_done": [
-    "src/vector.rs StudioVectorRecords (schema hsk.studio.vector_records@1, #[non_exhaustive] top level, new(), lookups pattern/pattern_paint/clip/mask/attachment, vector_records_schema()): one set per SDOC document, same sidecar precedent as StudioRasterRecords (ff92dea/2f705f1). No existing struct or enum changed (StudioPaint, StudioLayer, StudioMask, LayerAppearance, StudioNodeDesign untouched); one new module + two doc edits in paint.rs and DESCRIPTOR text in lib.rs",
-    "StudioPattern (hsk.studio.pattern@1, STU-VEC-017/138, STU-COL-195): pattern_id (set-local key), name, tile_type (grid|brick_by_row|brick_by_column|hex_by_row|hex_by_column with capture_token RECTANGULAR/HORIZONTAL_HEXAGONAL/VERTICAL_HEXAGONAL, brick = None), horizontal/vertical spacing (document-unit Length, any sign), source = definition (content_layer_id SLYR subtree root, tile_width/height >= 0, brick_offset 0..=100 percent, overlap_order label, move_tile_with_art) or live_source (source_layer_id, scaling_factor > 0, horizontal_alignment start|center|end with START/CENTER/END tokens)",
-    "StudioPatternPaint = the paint.pattern kind (STU-VEC-134 value 5): binds row N (index) of an SSTY PAINT style of the design records to a pattern, with placement = parametric (the eight STU-VEC-138/STU-COL-196 fields: rotation, scale_factor percent > 0, shear_angle, shear_axis, shift_angle, shift_distance Length, reflect, reflect_angle) or matrix [a b c d e f] (finite, invertible); the row's own paint remains the stand-in for consumers that do not read the set; at most one binding per (style, row)",
-    "StudioVectorClip (clip_id, source_layer_id with vector or group payload, clip_rule NONZERO|EVENODD = STU-VEC-110 tokens) and StudioVectorMask (mask_id, source_layer_id any payload, mode ALPHA|VECTOR|LUMINANCE per STU-VEC-053, mask_clip and invert_mask booleans default false per STU-VEC-153, optional document-unit region Bounds); StudioMaskAttachment = the clip/mask reference field of a layer (layer_id, clip_id?, mask_id?, one entry per layer, at least one reference)",
-    "validate_vector_records(records, document, Option<&StudioDesignRecords>, Budget, token): typed codes (InvalidId for set-local id grammar and wrong prefixes, InvalidField for ranges, InvalidUnit for non-document-unit/negative-size Lengths, DanglingReference for unknown layer/clip/mask/pattern/style/row, PayloadMismatch for a clip source that is not vector/group, DuplicateIdentity, BudgetExceeded, Canceled, RenderCycle); reference graph layer->children, layer->clip/mask source, layer->style->pattern, pattern->content layer, iterative DFS (no recursion), edges linear in inputs; deny(clippy::arithmetic_side_effects) on vector.rs",
-    "DESCRIPTOR api and input text list the vector records (V4-07: no never/always/guarantees/proves claim added); paint.rs module note points to vector.rs for the pattern kind"
+  "consumer_mapping": {
+   "interop-vector": "SVG <pattern> -> StudioPattern{definition} whose content_layer_id is a group layer of the converted tile children (consumer sets visible=false on the artwork layers if it does not want them drawn; Folio does not decide), tile_width/height from the tile, spacing 0, placement Matrix from patternTransform (objectBoundingBox converted to document units by the consumer); fill url(#p) fallback -> the row keeps the fallback Solid as stand-in. <clipPath> -> StudioVectorClip{source_layer_id = group of the clip shapes, clip_rule from clip-rule (a clip needs one rule for the whole source: mixed rules stay a typed loss); <mask> -> StudioVectorMask{mode from mask-type: luminance -> LUMINANCE, alpha -> ALPHA; region from x/y/width/height converted}; clip-path/mask on an element -> StudioMaskAttachment on its layer."
+  },
+  "unverified": [
+   "grid == tile.rectangular reading (see spec_gaps)",
+   "that a consumer should treat the row paint as stand-in rather than ignore the row (design choice; no spec clause)",
+   "Illustrator/Affinity behaviour of live-source pattern alignment and scaling (spec lists parameters only; no oracle)"
   ],
   "tests": {
-    "argv": "cargo test -p hsk-studio-folio --tests",
-    "exit": 0,
-    "sha": "aa0351a",
-    "passed": 44,
-    "failed": 0
+   "file": "crates/hsk-studio-folio/tests/vector_records_contract.rs (5 tests)",
+   "full_record_set_validates_and_round_trips": "valid set incl. both pattern models, both placements, clip, mask with region, two attachments; design records of the same document also validate; JSON round trip equals input; omitted defaults; token tables (ALPHA/VECTOR/LUMINANCE, NONZERO/EVENODD, capture tokens); unknown fields/models/tokens refused",
+   "spec_ranges_and_document_units_are_enforced": "brick_offset 0..=100, tile size >= 0, document unit on every Length, scaling_factor > 0, scale_factor > 0, NaN/inf angles, singular and overflowing matrix, label/id grammar, mask region size/unit",
+   "references_resolve_with_typed_errors": "dangling content/source/clip/mask/layer/pattern/style/row (row u32::MAX included), wrong id prefix, payload mismatch for a raster clip source, attachment without references, duplicates in every namespace, pattern binding without design records, mismatching document ids",
+   "reference_cycles_are_refused": "self-clip, mask source containing its target (RenderCycle with the layer as target), pattern whose tile artwork paints with the pattern, mask-through-pattern loop; clipped group with its own child as geometry is accepted",
+   "hostile_sizes_are_bounded_by_the_budget_and_do_not_recurse": "1500-deep reference chain (open: Ok; closed: RenderCycle), aggregate over budget (nodes 2000 vs 2999 records -> BudgetExceeded; exact 2999 -> Ok), small budget on the full fixture, cancellation -> Canceled"
   },
-  "blockers": [],
-  "lock_wait_s": 592,
-  "bg_pids": [],
-  "next": "Independent validator round on aa0351a for crates/hsk-studio-folio: tests/vector_records_contract.rs (5 new) plus the 39 existing folio tests. Consumer follow-up (interop-vector, separate lane): emit StudioPattern + StudioPatternPaint + StudioVectorClip/Mask + StudioMaskAttachment instead of pattern_paint_not_representable / clip_path_not_representable / mask_not_representable losses (see notes.consumer_mapping).",
-  "updated_at": "2026-10-11T07:24:37Z",
-  "notes": {
-    "origin": "interop-vector slice 3 (42fba02) blockers: pattern paint kind (STU-VEC-017/138), vector clip and mask records (STU-VEC-053), clip/mask reference on layers",
-    "design_decision": {
-      "sidecar_not_variant": "The brief asked for a pattern kind alongside Solid/Gradient in StudioPaint. Adding a StudioPaint variant (even with #[non_exhaustive], which is itself a breaking change) breaks exhaustive matches with no wildcard in interop-vector: src/svg_export.rs:264, src/svg_adapter.rs:2017, tests/vector_edit_roundtrip.rs:465; this lane may not edit that crate and the brief requires dependents to keep compiling. So the pattern kind is a binding of a style row in the sidecar (StudioPatternPaint) and the row keeps a valid Solid/Gradient paint as stand-in. If the lead later wants the variant, interop-vector needs three match arms and the folio change is one variant plus the same validator (coordinated round).",
-      "no_new_struct_fields": "StudioLayer/StudioMask/LayerAppearance/StudioNodeDesign/StudioAppearanceRow are unchanged, so existing literals compile; StudioVectorRecords is #[non_exhaustive] so later vector members can be added without breaking dependents",
-      "style_rows_by_index": "appearance rows carry no id and cannot gain one without breaking literal constructors (interop-vector builds StudioAppearanceRow::Fill/Stroke by literal); a binding therefore names (style_id, row index); the code that reorders rows must update bindings. Validator checks the row exists.",
-      "transform_on_the_fill": "STU-COL-196 puts the transform on the pattern fill; STU-VEC-138 lists it under the paint contract; stored on StudioPatternPaint.placement",
-      "cycle_check": "added because SVG 2 16.1.2 makes reference loops invalid and a renderer would recurse (pattern whose tile artwork paints with the pattern, clip/mask source containing its target); RenderCycle code already existed, no new Code variant"
-    },
-    "spec_gaps": [
-      "STU-VEC-053 states mask mode tokens and a mask 'region' but no clip rule, no region geometry and no units: clip_rule reuses STU-VEC-110 NONZERO/EVENODD (NONE unrepresentable); region = one document-unit rectangle (minimal form of SVG mask x/y/width/height); no objectBoundingBox mode exists in the spec (caller converts, as the gradient import does)",
-      "Meaning of mask.alpha / mask.vector / mask.luminance is not specified beyond the tokens: stored only",
-      "STU-VEC-053 'use-as-mask' sibling semantics (clips the objects above it within its container) not stored; the attachment names each clipped layer explicitly",
-      "Accord has no identity prefix for hsk.studio.pattern@1 or for clips (SMSK belongs to the raster StudioMask): pattern_id/clip_id/mask_id are set-local key-grammar ids",
-      "STU-COL-195 overlap_order members are not enumerated: stored as an opaque label",
-      "STU-COL-195 'grid' vs STU-VEC-138 'tile.rectangular': read as one member (the five-member union needs it); brick_by_row/brick_by_column have UNKNOWN interchange tokens and unrecovered offset parameters",
-      "STU-COL-196 says every transform field defaults to neutral 0.0, but a 0 percent scale is not invertible and STU-VEC-138 gives pattern_scale in percent: scale_factor is explicit and must be positive, identity() uses 100; composition order of the eight parameters is not stated (stored only)",
-      "StudioPatternPlacement::Matrix is a Folio addition (exact affine for SVG patternTransform), like StudioGradient::transform; the spec has no matrix field",
-      "pattern bounds spec marks unknown (spacing, shift distance, angles) are checked for finiteness/document unit only; tile size >= 0 (hard_min 0) and scaling_factor > 0 (physical domain) are the only bounds beyond spec numbers",
-      "Raster tile-bitmap patterns (STU-RAS-161, artifact tier, three colour modes) are a different content kind and are not stored here (definition model references a layer subtree)"
-    ],
-    "consumer_mapping": {
-      "interop-vector": "SVG <pattern> -> StudioPattern{definition} whose content_layer_id is a group layer of the converted tile children (consumer sets visible=false on the artwork layers if it does not want them drawn; Folio does not decide), tile_width/height from the tile, spacing 0, placement Matrix from patternTransform (objectBoundingBox converted to document units by the consumer); fill url(#p) fallback -> the row keeps the fallback Solid as stand-in. <clipPath> -> StudioVectorClip{source_layer_id = group of the clip shapes, clip_rule from clip-rule (a clip needs one rule for the whole source: mixed rules stay a typed loss); <mask> -> StudioVectorMask{mode from mask-type: luminance -> LUMINANCE, alpha -> ALPHA; region from x/y/width/height converted}; clip-path/mask on an element -> StudioMaskAttachment on its layer."
-    },
-    "unverified": [
-      "grid == tile.rectangular reading (see spec_gaps)",
-      "that a consumer should treat the row paint as stand-in rather than ignore the row (design choice; no spec clause)",
-      "Illustrator/Affinity behaviour of live-source pattern alignment and scaling (spec lists parameters only; no oracle)"
-    ],
-    "tests": {
-      "file": "crates/hsk-studio-folio/tests/vector_records_contract.rs (5 tests)",
-      "full_record_set_validates_and_round_trips": "valid set incl. both pattern models, both placements, clip, mask with region, two attachments; design records of the same document also validate; JSON round trip equals input; omitted defaults; token tables (ALPHA/VECTOR/LUMINANCE, NONZERO/EVENODD, capture tokens); unknown fields/models/tokens refused",
-      "spec_ranges_and_document_units_are_enforced": "brick_offset 0..=100, tile size >= 0, document unit on every Length, scaling_factor > 0, scale_factor > 0, NaN/inf angles, singular and overflowing matrix, label/id grammar, mask region size/unit",
-      "references_resolve_with_typed_errors": "dangling content/source/clip/mask/layer/pattern/style/row (row u32::MAX included), wrong id prefix, payload mismatch for a raster clip source, attachment without references, duplicates in every namespace, pattern binding without design records, mismatching document ids",
-      "reference_cycles_are_refused": "self-clip, mask source containing its target (RenderCycle with the layer as target), pattern whose tile artwork paints with the pattern, mask-through-pattern loop; clipped group with its own child as geometry is accepted",
-      "hostile_sizes_are_bounded_by_the_budget_and_do_not_recurse": "1500-deep reference chain (open: Ok; closed: RenderCycle), aggregate over budget (nodes 2000 vs 2999 records -> BudgetExceeded; exact 2999 -> Ok), small budget on the full fixture, cancellation -> Canceled"
-    },
-    "validation_evidence": {
-      "check": "PASS cargo check -p hsk-studio-folio --tests",
-      "clippy": "PASS no warnings cargo clippy -p hsk-studio-folio --tests (final source aa0351a)",
-      "folio_tests": "PASS 44/44 on the tree equal to aa0351a: vector_records_contract 5 (new), adjustment_graph_contract 4, appearance_contract 4, design_records_contract 4, foundation_contract 15, layout_contract 4, raster_records_contract 3, timeline_contract 5, unit 0",
-      "dependents_check": "PASS exit 0 (at d0eb304; aa0351a changes no public item): cargo check -p hsk-studio-composite -p hsk-studio-interop-psd -p hsk-studio-layout -p hsk-studio-components -p hsk-studio-interop-vector -p hsk-studio-session -p hsk-studio-interop-layout --tests",
-      "rustfmt": "src/vector.rs and tests/vector_records_contract.rs rustfmt --edition 2024 clean; lib.rs and paint.rs not reformatted"
-    },
-    "v4": {
-      "V4-01": "deny(clippy::arithmetic_side_effects) in vector.rs; row index via usize::try_from; graph counters saturating",
-      "V4-02": "records charged against Budget.nodes per collection before work; tests: row u32::MAX (dims_u32_max analogue) and aggregate over budget on a 2999-record chain; DFS is iterative",
-      "V4-03": "no #[ignore], no machine-local paths, no NOT_PROVEN",
-      "V4-04": "no fault hooks",
-      "V4-05": "no ZIP/CRC/deflate/worker/timecode code",
-      "V4-06": "not a remediation lane",
-      "V4-07": "no never/always/guarantees/proves in vector.rs, its tests or the DESCRIPTOR text added",
-      "V4-08": "no hostile text format parsed (pure typed JSON records)",
-      "V4-09": "commit messages via git commit -F; this lane file via the Write tool",
-      "V4-11": "no file restored with preserved timestamps",
-      "V4-12": "scratch only under <scratchpad>/smb-folio-eng-7/"
-    },
-    "workflow_observations": [
-      "first test run failed on a fixture mistake in my own test (mask source = layer 4 while layer 4 was the attachment target, a correct RenderCycle); route (a): fixed the test, committed d0eb304 (HEAD changed), identical command re-run green; no gameplan step added, no flags changed",
-      "the hook resolved WP-KERNEL-012's gameplan once because the command started with a variable assignment instead of cd; commands now start with cd <product workspace> && (START_LOG cargo-tooling note)",
-      "studio-env.sh was being edited by the steward during my first source attempt (export -f error, exit 1); the next source succeeded",
-      "disk-build-lock waits 27 s - 592 s behind other lanes' builds",
-      "pathspec commits only (new files git-added by explicit path first); git push origin codex/handshake-studio-assets"
-    ],
-    "verdicts": [
-      {
-        "round": "STUDIO-R7",
-        "lane": "SMB-FOLIO-ENG-7",
-        "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
-        "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
-        "decision": "passed",
-        "verdict": "PASS_V1",
-        "failures": [],
-        "remediation": null,
-        "status_after": "PASS_V1",
-        "review": "validation/R7-review-b.json",
-        "round_ref": "validation/round-R7.json",
-        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
-        "idempotency_key": "STUDIO-R7:SMB-FOLIO-ENG-7:dff7ef51d282:PASS_V1",
-        "recorded_at": "2026-10-11T11:04:31Z",
-        "by": "wp_validator STUDIO-R7"
-      }
-    ]
-  }
+  "validation_evidence": {
+   "check": "PASS cargo check -p hsk-studio-folio --tests",
+   "clippy": "PASS no warnings cargo clippy -p hsk-studio-folio --tests (final source aa0351a)",
+   "folio_tests": "PASS 44/44 on the tree equal to aa0351a: vector_records_contract 5 (new), adjustment_graph_contract 4, appearance_contract 4, design_records_contract 4, foundation_contract 15, layout_contract 4, raster_records_contract 3, timeline_contract 5, unit 0",
+   "dependents_check": "PASS exit 0 (at d0eb304; aa0351a changes no public item): cargo check -p hsk-studio-composite -p hsk-studio-interop-psd -p hsk-studio-layout -p hsk-studio-components -p hsk-studio-interop-vector -p hsk-studio-session -p hsk-studio-interop-layout --tests",
+   "rustfmt": "src/vector.rs and tests/vector_records_contract.rs rustfmt --edition 2024 clean; lib.rs and paint.rs not reformatted"
+  },
+  "v4": {
+   "V4-01": "deny(clippy::arithmetic_side_effects) in vector.rs; row index via usize::try_from; graph counters saturating",
+   "V4-02": "records charged against Budget.nodes per collection before work; tests: row u32::MAX (dims_u32_max analogue) and aggregate over budget on a 2999-record chain; DFS is iterative",
+   "V4-03": "no #[ignore], no machine-local paths, no NOT_PROVEN",
+   "V4-04": "no fault hooks",
+   "V4-05": "no ZIP/CRC/deflate/worker/timecode code",
+   "V4-06": "not a remediation lane",
+   "V4-07": "no never/always/guarantees/proves in vector.rs, its tests or the DESCRIPTOR text added",
+   "V4-08": "no hostile text format parsed (pure typed JSON records)",
+   "V4-09": "commit messages via git commit -F; this lane file via the Write tool",
+   "V4-11": "no file restored with preserved timestamps",
+   "V4-12": "scratch only under <scratchpad>/smb-folio-eng-7/"
+  },
+  "workflow_observations": [
+   "first test run failed on a fixture mistake in my own test (mask source = layer 4 while layer 4 was the attachment target, a correct RenderCycle); route (a): fixed the test, committed d0eb304 (HEAD changed), identical command re-run green; no gameplan step added, no flags changed",
+   "the hook resolved WP-KERNEL-012's gameplan once because the command started with a variable assignment instead of cd; commands now start with cd <product workspace> && (START_LOG cargo-tooling note)",
+   "studio-env.sh was being edited by the steward during my first source attempt (export -f error, exit 1); the next source succeeded",
+   "disk-build-lock waits 27 s - 592 s behind other lanes' builds",
+   "pathspec commits only (new files git-added by explicit path first); git push origin codex/handshake-studio-assets"
+  ],
+  "verdicts": [
+   {
+    "round": "STUDIO-R7",
+    "lane": "SMB-FOLIO-ENG-7",
+    "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
+    "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V1",
+    "review": "validation/R7-review-b.json",
+    "round_ref": "validation/round-R7.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
+    "idempotency_key": "STUDIO-R7:SMB-FOLIO-ENG-7:dff7ef51d282:PASS_V1",
+    "recorded_at": "2026-10-11T11:04:31Z",
+    "by": "wp_validator STUDIO-R7"
+   },
+   {
+    "round": "STUDIO-R8",
+    "lane": "SMB-FOLIO-ENG-7",
+    "candidate": "f6e5a490e2ad0e142938a8bba1f78cadb96f5e84",
+    "tree": "bf944e29dd336acd38969f0dc25353adb529d61d",
+    "decision": "passed",
+    "verdict": "PASS_V2",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V2",
+    "review": "NOT_REVIEWED (changed inputs reviewed under SMB-FOLIO-UNIQUENESS)",
+    "round_ref": "validation/round-R8.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R8",
+    "idempotency_key": "STUDIO-R8:SMB-FOLIO-ENG-7:f6e5a490e2ad:PASS_V2",
+    "recorded_at": "2026-10-11T12:42:21Z",
+    "by": "wp_validator STUDIO-R8"
+   }
+  ]
+ }
 }

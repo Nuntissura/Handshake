@@ -1,1028 +1,1164 @@
 {
-  "crate": "hsk-studio-render-cpu",
-  "lane": "SMB-RENDER-CPU-CLIP",
-  "status": "READY_FOR_VALIDATION",
-  "phase": "SMB-RENDER-CPU-FX2 pushed (8d46aa8): wave 2 effect kinds (inner shadow, outer glow, inner glow) enabled on the windowed API, 29 tests pass. SMB-RENDER-CPU-WINDOW pushed before it (be1836b code + tests, 0f58c1c test lint): effect layers on pigment's windowed API, 24 px effect_margin refusal removed; check + clippy clean, 26 tests pass at 0f58c1c. Earlier: ADJ-1 (49afca1) and EFFECTS-1 (c4bdaef, 9b2f3af, 5674e9c); execute_extended: adjustment layer, Blend-If, mask density, mask feather, effects wave 1 (drop shadow, colour overlay, solid stroke); clip-to-base, R3 remediation 9468d33.",
-  "commits": [
+ "crate": "hsk-studio-render-cpu",
+ "lane": "SMB-RENDER-CPU-CLIP",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "SMB-RENDER-CPU-FX2 pushed (8d46aa8): wave 2 effect kinds (inner shadow, outer glow, inner glow) enabled on the windowed API, 29 tests pass. SMB-RENDER-CPU-WINDOW pushed before it (be1836b code + tests, 0f58c1c test lint): effect layers on pigment's windowed API, 24 px effect_margin refusal removed; check + clippy clean, 26 tests pass at 0f58c1c. Earlier: ADJ-1 (49afca1) and EFFECTS-1 (c4bdaef, 9b2f3af, 5674e9c); execute_extended: adjustment layer, Blend-If, mask density, mask feather, effects wave 1 (drop shadow, colour overlay, solid stroke); clip-to-base, R3 remediation 9468d33.",
+ "commits": [
+  {
+   "sha": "e8f5f98",
+   "subject": "render-cpu (SMB-FX-OPS-ADOPT): name EffectsNested and AlphaPremultiplied Unsupported in extension_exactness; defence-in-depth refusals use pigment's keys"
+  },
+  {
+   "sha": "18607e5",
+   "subject": "render-cpu: defence-in-depth refusals use pigment's keys, never literals (SMB-REFUSAL-KEYS, PLR-006)"
+  },
+  {
+   "sha": "b10475d",
+   "subject": "render-cpu: drop the unreachable Blend-If application on clip roles (SMB-BLENDIF-CLIP-ADOPT)"
+  },
+  {
+   "sha": "8d46aa8",
+   "subject": "render-cpu: layer effects wave 2 (inner shadow, outer glow, inner glow) on the windowed API (SMB-RENDER-CPU-FX2)"
+  },
+  {
+   "sha": "0f58c1c",
+   "subject": "render-cpu windowed effects test: clippy is_multiple_of and Range::contains (test-only)"
+  },
+  {
+   "sha": "be1836b",
+   "subject": "render-cpu: effect layers run on pigment's windowed API (SMB-RENDER-CPU-WINDOW), no 24 px margin limit"
+  },
+  {
+   "sha": "7274827",
+   "subject": "render-cpu: extension_exactness reports pigment's declared class, never a better one (CX-CAP-001)"
+  },
+  {
+   "sha": "5674e9c",
+   "subject": "render-cpu: extension_exactness reports Exact only for the wave 1 effect kinds"
+  },
+  {
+   "sha": "9b2f3af",
+   "subject": "render-cpu effects test: the reference plane of the stack case holds the layer plus its effect margin"
+  },
+  {
+   "sha": "c4bdaef",
+   "subject": "render-cpu: layer effects wave 1 (drop shadow, colour overlay, solid stroke) through execute_extended (SMB-RENDER-CPU-EFFECTS-1)"
+  },
+  {
+   "sha": "49afca1",
+   "subject": "render-cpu: execute_extended - adjustment layers, Blend-If, mask density and mask feather (SMB-RENDER-CPU-ADJ-1)"
+  },
+  {
+   "sha": "9468d33",
+   "subject": "Render-cpu R3: pass-through layer with fill_opacity < 1 is refused typed (group_pass_through_fill_opacity, before the first sink call) instead of rendering at full strength; parallel run no longer hangs when a worker or the sink panics (catch_unwind in workers and sink delivery, StopWorkers unwind guard) and returns Unavailable worker_panic|sink_panic on every thread count; clip_base_pass_through test follows pigment validate refusal; regression tests (fill, panicking sink at 1/2/4 threads, injected panicking worker)"
+  },
+  {
+   "sha": "9819e52",
+   "subject": "render-cpu: clip test also covers a clip run inside a pass-through parent group (bytes equal to the flat plan)"
+  },
+  {
+   "sha": "d470e2f9c84893519803565eed28830f8d7ba92d",
+   "subject": "render-cpu: clip-to-base (pigment BaseAlpha run semantics: per-chunk run buffer, base mask, clipped layers bounded by base alpha, base mode/opacity on the run, one scratch level per run); supports_clip_to_base = true, Approximate; typed refusal for pass-through base; 3 hand-derived clip tests with chunk/thread determinism"
+  },
+  {
+   "sha": "2d06a3a",
+   "subject": "render-cpu: parallel chunks (scoped workers, in-order delivery, reorder window, scratch charge per worker); tests extended"
+  },
+  {
+   "sha": "f105552",
+   "subject": "render-cpu: VectorFill payload is nib OwnedPath (local anchor model deleted); coverage rasterization kept; vector fault tests"
+  },
+  {
+   "sha": "ff57d4a362aa291011a8de12f465d5876c5863e4",
+   "subject": "render-cpu: rustfmt"
+  },
+  {
+   "sha": "1e3cfaf",
+   "subject": "migration to the pigment RenderBackend port (admit() first, plan IR/TilePlanes/TileSink/RenderReceipt, pigment blend_math), groups, masks, vector payload"
+  }
+ ],
+ "capabilities_done": [
+  "impl RenderBackend<V: VectorSource+Serialize> for Renderer; identity {hsk-studio-render-cpu, 0.1, Cpu}; exactness(): Tile/Solid/groups/coverage masks Exact, Vector+FillOpacity+Mask(BaseAlpha) Approximate, Blend(m)=pigment facts for layer-applicable modes with a function else Unsupported, PassThroughOpacity/NonIsolatedBlendedGroup Unsupported",
+  "execution order: pigment admit() -> source verification -> bounded chunks; cancel+deadline between chunks; RAII scratch lease vs request.max_working_bytes; receipt only after last chunk",
+  "layers: opacity*fill_opacity product (Approximate), u8/u16 masks with inversion (density!=1 refused), isolated groups via per-depth scratch, pass-through groups onto the running backdrop, DAG fanout, leaf root",
+  "vector payload VectorFill { path: nib::OwnedPath (plan pixels), rgba, aa_samples }: nib validates, render-cpu closes open subpaths and rasterizes n*n supersampled exact-curve winding via kurbo; Serialize binds the path by nib canonical JSON so RenderPlan::digest covers it",
+  "blend arithmetic: ONLY pigment::blend_math::composite_over (f32)",
+  "parallel chunks: Renderer::with_threads(chunk, n), byte-identical output and sink order",
+  "clip-to-base (MaskFormat::BaseAlpha): supports_clip_to_base() = true; run [base, c1..cn] (base = nearest earlier unclipped layer of the group) evaluated per chunk into one scratch buffer G = base content with its own mask (no opacity/fill/mode); each ci composited onto G with own mode/opacity/fill and source alpha * base alpha, G alpha held at base alpha (read from G itself, no extra plane); G composited onto the running backdrop with the BASE layer's mode/opacity/fill; group extent ignores clipped layers (never beyond base); isolated and pass-through parent groups work (pass-through parent: run lands on the running backdrop); per-pixel, so chunk and thread determinism is unchanged; scratch need = 1 level per run + deepest member (accounted in need/peak_working_bytes); isolated-group base evaluates straight into G; exactness Approximate (Photoshop rule UNVERIFIED)",
+  "report(): one Observe terminal frame; example render-cpu-consumer; DESCRIPTOR updated (clip_to_base key, clip_base_pass_through unsupported, clipping removed from pending) and still checked against constants",
+  "R3 (SMB-RENDER-CPU CONFIRMED x2): (1) pass-through layer with fill_opacity < 1 refused in prepare as Unsupported{group_pass_through_fill_opacity} before the first sink call (a non-isolated group has no group result to scale; opacity < 1 was already refused); (2) a panic in a worker or in TileSink::accept is caught (workers: whole loop under catch_unwind -> Message::Failed; sink: deliver() on every thread count) and returned as Unavailable(worker_panic|sink_panic); StopWorkers releases parked workers on any exit incl. unwind; the parallel path can no longer hang",
+  "ADJ-1 (49afca1): RenderBackend::extension_exactness (AdjustmentLayer, Adjustment(_), BlendIf, MaskDensity, MaskFeather = Exact so the receipt class is pigment's intrinsic Approximate; Knockout and unknown operators Unsupported) and execute_extended (Renderer::execute_extended_detailed): admit_extended first, ExtPrep::build (adjustments prepared once, identical feather radii share a kernel, resident tables charged as a running aggregate to max_working_bytes before allocation), then the existing chunked compositor. Adjustment layer: per pixel of the placeholder rect k = opacity*fill*mask*blend_if and adjust_math::composite_adjustment on the group running buffer (inside a clip run on the run buffer G only); Blend-If: coverage_math::blend_if_weight multiplies the source alpha (also the clip-run composite with the base layer's ranges; the source colour of an adjustment layer is its content f(backdrop), Studio rule); mask density/invert via coverage_math::mask_coverage (density 1 keeps the v1 inversion so v1 bytes are unchanged); mask feather: per-chunk separable blur with coverage_math::feather_kernel, feather_support margin, clamped at the mask plane border, before invert/density; per-worker feather scratch (chunk plane + horizontal pass with margin rows) is part of the reserved scratch (peak_working_bytes). Empty envelope without a density mask takes the v1 path (bytes and receipt identical); a density mask with an empty envelope takes the envelope admission (mask_density Approximate). V4-01: plan_sink.rs, plan_sink/extended.rs, px.rs deny clippy::arithmetic_side_effects.",
+  "FX2 (8d46aa8, SMB-RENDER-CPU-FX2): wave 2 effect kinds inner shadow, outer glow and inner glow enabled through the windowed path (no kind-specific code); extension_exactness reports ExtOperator::intrinsic() (Approximate) for all six kinds; gradient glow, Precise technique, range below 100 % and jitter remain typed refusals by feature key at pigment admission before the first sink call; bit-identical to render_layer_reference (mixed six-effect stack, chunks 48/17/7/5 on 1-3 workers) and to the uncut windowed oracle (304 px margin); budget charged by the same frame_shape and layer_window_cost model, limit-1 refused with 0 sink calls (tests/cpu_effects_fx2.rs, 3 tests).",
+  "WINDOW (be1836b, SMB-RENDER-CPU-WINDOW): effects wave 1 run on pigment effect_math::window (a797b67/379a56f): per chunk the effect window W = layer bounds grown by stack_support_px (the stack margin), clipped to the chunk; WindowGeometry::uncut(bounds, margin, W) with site_origin (0, 0); AlphaSource FrameAlpha over a content frame (frame_content: tile/solid/vector/isolated group times the mask with feather, density, invert; frame = W grown by the margin clipped to the layer bounds, so memory follows min(layer, chunk + 2 * margin)^2 and not a 64 px plane); render_layer_window composes the window over the running backdrop; the 24 px effect_margin refusal and the per-tile 64 x 64 recompute are gone, any margin renders. Budget: the per-worker frame (16 B per pixel per group level), frame feather scratch, window input arrays (28 B per window pixel) and pigment layer_window_cost peak of the largest window are part of the reserved scratch / peak_working_bytes and charged to max_working_bytes before the first sink call; the predicted peak is also WindowLimits.max_bytes, WindowLimits.max_work = MAX_EFFECT_WINDOW_WORK (1e9, new pub const); a layer whose largest window is predicted above it is Unsupported{effect_work_limit} before the first sink call. extension_exactness unchanged (pigment's intrinsic class). V4-01: effects.rs / extended.rs keep deny(arithmetic_side_effects).",
+  "EFFECTS-1 (c4bdaef, 5674e9c): layer effects wave 1 through execute_extended with pigment effect_math as the single owner (render_layer_reference: matte maths, composition order, fade rules). A layer with effects is evaluated per tile of a frame (tile + effect_support_px margin, <= 64 px per side = pigment's reference plane; tile side min(64 - 2*margin, chunk side)): content over the frame by the chunked compositor (nested isolated group, mask with feather/density/invert read clamped beyond the plane), EffectPlane, render_layer_reference over the running backdrop of the tile, tile written back. Layer bounds and group extent grow by the margin. extension_exactness: Effect(DropShadow|ColourOverlay|Stroke) Exact (receipt class Approximate); other EffectKind (pigment d982b5c inner shadow / outer glow / inner glow) Unsupported. Typed refusals before the first sink call: margin > 24 px (effect_margin), effects with Blend-If on one layer (effects_with_blend_if), effects inside the content of a layer with effects (effects_nested). Per-worker frame memory (content frame, group levels, 3 reference planes, mattes, frame feather scratch) is part of the reserved scratch / peak_working_bytes; effect records charged as a running aggregate. V4-01: plan_sink/effects.rs denies clippy::arithmetic_side_effects.",
+  "SMB-FX-OPS-ADOPT (e8f5f98): extension_exactness names ExtOperator::EffectsNested and ExtOperator::AlphaPremultiplied Unsupported explicitly; the local checks (alpha_premultiplied x2, mask_on_pass_through, effects_with_blend_if, effects_nested x2) are defence in depth under ExtOperator::*.key() / PASS_THROUGH_MASK_OPERATOR; descriptor says admission"
+ ],
+ "tests": {
+  "argv": [
+   "cargo",
+   "nextest",
+   "run",
+   "-p",
+   "hsk-studio-render-cpu",
+   "--tests"
+  ],
+  "exit": 0,
+  "sha": "8d46aa8",
+  "passed": 29,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "SMB-FX-OPS-ADOPT READY_FOR_VALIDATION on e8f5f98 (new lane id; the claim of the top-level lane is unchanged, V4-14 lists this commit; nothing is claimed on SMB-RENDER-GPU, which stays BLOCKED/D20): independent validator round on e8f5f98 for this crate's adoption of pigment's effects_ops and admission_parity rules (notes.fx_ops_adopt). Earlier next, unchanged: SMB-REFUSAL-KEYS READY_FOR_VALIDATION on 18607e5 (new lane id; the claim of the top-level lane stays 8d46aa8, V4-14 lists this commit; nothing is claimed on SMB-RENDER-GPU, which stays BLOCKED/D20): independent validator round on 18607e5 for this crate's refusal keys (notes.refusal_keys, notes.v4_06_sites). Earlier next, unchanged: SMB-BLENDIF-CLIP-ADOPT READY_FOR_VALIDATION on b10475d (separate lane id; the claim of SMB-RENDER-CPU-WINDOW/FX2 stays 8d46aa8, V4-14 lists this commit): Independent validator round on 8d46aa8 (claim = lanes SMB-RENDER-CPU-WINDOW be1836b/0f58c1c and SMB-RENDER-CPU-FX2 8d46aa8, 29 tests). Follow-ups (not started): satin, gradient/pattern overlay, bevel, gradient glows in pigment first.",
+ "updated_at": "2026-10-11T11:50:57Z",
+ "notes": {
+  "refusal_keys": {
+   "lane": "SMB-REFUSAL-KEYS",
+   "status": "READY_FOR_VALIDATION",
+   "sha": "18607e5",
+   "scope": "Plausible register PLR-006, lead decision FIX_LANE 2026-10-11T10:18:58Z: rules pigment's admission already refuses and that this crate re-checks as defence in depth use pigment's exported key constants and operator enums (or the code of pigment's own PlanError where pigment has no operator key), never a literal. Behaviour otherwise unchanged. New lane id per V4-15; nothing is claimed on SMB-RENDER-GPU (BLOCKED, fix budget) and no verdict, fixed key or earlier note was changed.",
+   "files": [
+    "src/plan_sink.rs (prepare, unit_rgb, verify_tile, blend_error; imports; comment on the fill rule)",
+    "src/plan_sink/extended.rs (coverage_error, adjust_error, effect_error incl. new EffectError::Unsupported arm, window_error, feather kernel length check)",
+    "src/plan_sink/refusal_keys.rs (new, cfg(test))"
+   ],
+   "changes": [
     {
-      "sha": "e8f5f98",
-      "subject": "render-cpu (SMB-FX-OPS-ADOPT): name EffectsNested and AlphaPremultiplied Unsupported in extension_exactness; defence-in-depth refusals use pigment's keys"
+     "rule": "samples outside [0, 1] (verify_tile, unit_rgb, blend/coverage/adjust mappers)",
+     "before": "literal sample_range_outside_unit",
+     "after": "SAMPLE_RANGE_OPERATOR"
     },
     {
-      "sha": "18607e5",
-      "subject": "render-cpu: defence-in-depth refusals use pigment's keys, never literals (SMB-REFUSAL-KEYS, PLR-006)"
+     "rule": "coverage mask with density below 1 on the v1 path",
+     "before": "literal mask_density",
+     "after": "MASK_DENSITY_OPERATOR"
     },
     {
-      "sha": "b10475d",
-      "subject": "render-cpu: drop the unreachable Blend-If application on clip roles (SMB-BLENDIF-CLIP-ADOPT)"
+     "rule": "pass-through layer below full fill",
+     "before": "literal group_pass_through_fill_opacity",
+     "after": "PASS_THROUGH_FILL_OPERATOR"
     },
     {
-      "sha": "8d46aa8",
-      "subject": "render-cpu: layer effects wave 2 (inner shadow, outer glow, inner glow) on the windowed API (SMB-RENDER-CPU-FX2)"
+     "rule": "pass-through layer below full opacity / non-isolated blended group",
+     "before": "literals group_pass_through_opacity, group_non_isolated_blended",
+     "after": "Operator::PassThroughOpacity.key(), Operator::NonIsolatedBlendedGroup.key()"
     },
     {
-      "sha": "0f58c1c",
-      "subject": "render-cpu windowed effects test: clippy is_multiple_of and Range::contains (test-only)"
+     "rule": "blend mode without a compositing function; mask format without a reader",
+     "before": "literals blend_mode, mask_format (generic backend spelling; admission reports the mode's / format's own key)",
+     "after": "Operator::Blend(mode).key(), Operator::Mask(format).key(); BlendError mapper: mode key for GroupOnly/ToolOnly/Unsupported, BlendError::code otherwise"
     },
     {
-      "sha": "be1836b",
-      "subject": "render-cpu: effect layers run on pigment's windowed API (SMB-RENDER-CPU-WINDOW), no 24 px margin limit"
+     "rule": "mask feather / Blend-If domain failures",
+     "before": "literals mask_feather, blend_if",
+     "after": "ExtOperator::MaskFeather.key(), ExtOperator::BlendIf.key()"
     },
     {
-      "sha": "7274827",
-      "subject": "render-cpu: extension_exactness reports pigment's declared class, never a better one (CX-CAP-001)"
+     "rule": "effect plane shape / over budget",
+     "before": "literals effect_plane_shape, effect_over_budget",
+     "after": "EffectError::PlaneShape.code(), EffectError::OverBudget.code() (same strings)"
     },
     {
-      "sha": "5674e9c",
-      "subject": "render-cpu: extension_exactness reports Exact only for the wave 1 effect kinds"
+     "rule": "gradient glow, glow range, glow jitter, Precise technique (EffectError::Unsupported)",
+     "before": "fell into the wildcard and was reported as effect_parameter",
+     "after": "EffectFeature::key, the key admit_extended reports"
     },
     {
-      "sha": "9b2f3af",
-      "subject": "render-cpu effects test: the reference plane of the stack case holds the layer plus its effect margin"
-    },
-    {
-      "sha": "c4bdaef",
-      "subject": "render-cpu: layer effects wave 1 (drop shadow, colour overlay, solid stroke) through execute_extended (SMB-RENDER-CPU-EFFECTS-1)"
-    },
-    {
-      "sha": "49afca1",
-      "subject": "render-cpu: execute_extended - adjustment layers, Blend-If, mask density and mask feather (SMB-RENDER-CPU-ADJ-1)"
-    },
-    {
-      "sha": "9468d33",
-      "subject": "Render-cpu R3: pass-through layer with fill_opacity < 1 is refused typed (group_pass_through_fill_opacity, before the first sink call) instead of rendering at full strength; parallel run no longer hangs when a worker or the sink panics (catch_unwind in workers and sink delivery, StopWorkers unwind guard) and returns Unavailable worker_panic|sink_panic on every thread count; clip_base_pass_through test follows pigment validate refusal; regression tests (fill, panicking sink at 1/2/4 threads, injected panicking worker)"
-    },
-    {
-      "sha": "9819e52",
-      "subject": "render-cpu: clip test also covers a clip run inside a pass-through parent group (bytes equal to the flat plan)"
-    },
-    {
-      "sha": "d470e2f9c84893519803565eed28830f8d7ba92d",
-      "subject": "render-cpu: clip-to-base (pigment BaseAlpha run semantics: per-chunk run buffer, base mask, clipped layers bounded by base alpha, base mode/opacity on the run, one scratch level per run); supports_clip_to_base = true, Approximate; typed refusal for pass-through base; 3 hand-derived clip tests with chunk/thread determinism"
-    },
-    {
-      "sha": "2d06a3a",
-      "subject": "render-cpu: parallel chunks (scoped workers, in-order delivery, reorder window, scratch charge per worker); tests extended"
-    },
-    {
-      "sha": "f105552",
-      "subject": "render-cpu: VectorFill payload is nib OwnedPath (local anchor model deleted); coverage rasterization kept; vector fault tests"
-    },
-    {
-      "sha": "ff57d4a362aa291011a8de12f465d5876c5863e4",
-      "subject": "render-cpu: rustfmt"
-    },
-    {
-      "sha": "1e3cfaf",
-      "subject": "migration to the pigment RenderBackend port (admit() first, plan IR/TilePlanes/TileSink/RenderReceipt, pigment blend_math), groups, masks, vector payload"
+     "rule": "clipping run whose base is a pass-through group",
+     "before": "literal clip_base_pass_through (Unsupported)",
+     "after": "BackendError::InvalidPlan(PlanError::ClipBasePassThrough { node }) exactly as pigment's validation returns it"
     }
-  ],
-  "capabilities_done": [
-    "impl RenderBackend<V: VectorSource+Serialize> for Renderer; identity {hsk-studio-render-cpu, 0.1, Cpu}; exactness(): Tile/Solid/groups/coverage masks Exact, Vector+FillOpacity+Mask(BaseAlpha) Approximate, Blend(m)=pigment facts for layer-applicable modes with a function else Unsupported, PassThroughOpacity/NonIsolatedBlendedGroup Unsupported",
-    "execution order: pigment admit() -> source verification -> bounded chunks; cancel+deadline between chunks; RAII scratch lease vs request.max_working_bytes; receipt only after last chunk",
-    "layers: opacity*fill_opacity product (Approximate), u8/u16 masks with inversion (density!=1 refused), isolated groups via per-depth scratch, pass-through groups onto the running backdrop, DAG fanout, leaf root",
-    "vector payload VectorFill { path: nib::OwnedPath (plan pixels), rgba, aa_samples }: nib validates, render-cpu closes open subpaths and rasterizes n*n supersampled exact-curve winding via kurbo; Serialize binds the path by nib canonical JSON so RenderPlan::digest covers it",
-    "blend arithmetic: ONLY pigment::blend_math::composite_over (f32)",
-    "parallel chunks: Renderer::with_threads(chunk, n), byte-identical output and sink order",
-    "clip-to-base (MaskFormat::BaseAlpha): supports_clip_to_base() = true; run [base, c1..cn] (base = nearest earlier unclipped layer of the group) evaluated per chunk into one scratch buffer G = base content with its own mask (no opacity/fill/mode); each ci composited onto G with own mode/opacity/fill and source alpha * base alpha, G alpha held at base alpha (read from G itself, no extra plane); G composited onto the running backdrop with the BASE layer's mode/opacity/fill; group extent ignores clipped layers (never beyond base); isolated and pass-through parent groups work (pass-through parent: run lands on the running backdrop); per-pixel, so chunk and thread determinism is unchanged; scratch need = 1 level per run + deepest member (accounted in need/peak_working_bytes); isolated-group base evaluates straight into G; exactness Approximate (Photoshop rule UNVERIFIED)",
-    "report(): one Observe terminal frame; example render-cpu-consumer; DESCRIPTOR updated (clip_to_base key, clip_base_pass_through unsupported, clipping removed from pending) and still checked against constants",
-    "R3 (SMB-RENDER-CPU CONFIRMED x2): (1) pass-through layer with fill_opacity < 1 refused in prepare as Unsupported{group_pass_through_fill_opacity} before the first sink call (a non-isolated group has no group result to scale; opacity < 1 was already refused); (2) a panic in a worker or in TileSink::accept is caught (workers: whole loop under catch_unwind -> Message::Failed; sink: deliver() on every thread count) and returned as Unavailable(worker_panic|sink_panic); StopWorkers releases parked workers on any exit incl. unwind; the parallel path can no longer hang",
-    "ADJ-1 (49afca1): RenderBackend::extension_exactness (AdjustmentLayer, Adjustment(_), BlendIf, MaskDensity, MaskFeather = Exact so the receipt class is pigment's intrinsic Approximate; Knockout and unknown operators Unsupported) and execute_extended (Renderer::execute_extended_detailed): admit_extended first, ExtPrep::build (adjustments prepared once, identical feather radii share a kernel, resident tables charged as a running aggregate to max_working_bytes before allocation), then the existing chunked compositor. Adjustment layer: per pixel of the placeholder rect k = opacity*fill*mask*blend_if and adjust_math::composite_adjustment on the group running buffer (inside a clip run on the run buffer G only); Blend-If: coverage_math::blend_if_weight multiplies the source alpha (also the clip-run composite with the base layer's ranges; the source colour of an adjustment layer is its content f(backdrop), Studio rule); mask density/invert via coverage_math::mask_coverage (density 1 keeps the v1 inversion so v1 bytes are unchanged); mask feather: per-chunk separable blur with coverage_math::feather_kernel, feather_support margin, clamped at the mask plane border, before invert/density; per-worker feather scratch (chunk plane + horizontal pass with margin rows) is part of the reserved scratch (peak_working_bytes). Empty envelope without a density mask takes the v1 path (bytes and receipt identical); a density mask with an empty envelope takes the envelope admission (mask_density Approximate). V4-01: plan_sink.rs, plan_sink/extended.rs, px.rs deny clippy::arithmetic_side_effects.",
-    "FX2 (8d46aa8, SMB-RENDER-CPU-FX2): wave 2 effect kinds inner shadow, outer glow and inner glow enabled through the windowed path (no kind-specific code); extension_exactness reports ExtOperator::intrinsic() (Approximate) for all six kinds; gradient glow, Precise technique, range below 100 % and jitter remain typed refusals by feature key at pigment admission before the first sink call; bit-identical to render_layer_reference (mixed six-effect stack, chunks 48/17/7/5 on 1-3 workers) and to the uncut windowed oracle (304 px margin); budget charged by the same frame_shape and layer_window_cost model, limit-1 refused with 0 sink calls (tests/cpu_effects_fx2.rs, 3 tests).",
-    "WINDOW (be1836b, SMB-RENDER-CPU-WINDOW): effects wave 1 run on pigment effect_math::window (a797b67/379a56f): per chunk the effect window W = layer bounds grown by stack_support_px (the stack margin), clipped to the chunk; WindowGeometry::uncut(bounds, margin, W) with site_origin (0, 0); AlphaSource FrameAlpha over a content frame (frame_content: tile/solid/vector/isolated group times the mask with feather, density, invert; frame = W grown by the margin clipped to the layer bounds, so memory follows min(layer, chunk + 2 * margin)^2 and not a 64 px plane); render_layer_window composes the window over the running backdrop; the 24 px effect_margin refusal and the per-tile 64 x 64 recompute are gone, any margin renders. Budget: the per-worker frame (16 B per pixel per group level), frame feather scratch, window input arrays (28 B per window pixel) and pigment layer_window_cost peak of the largest window are part of the reserved scratch / peak_working_bytes and charged to max_working_bytes before the first sink call; the predicted peak is also WindowLimits.max_bytes, WindowLimits.max_work = MAX_EFFECT_WINDOW_WORK (1e9, new pub const); a layer whose largest window is predicted above it is Unsupported{effect_work_limit} before the first sink call. extension_exactness unchanged (pigment's intrinsic class). V4-01: effects.rs / extended.rs keep deny(arithmetic_side_effects).",
-    "EFFECTS-1 (c4bdaef, 5674e9c): layer effects wave 1 through execute_extended with pigment effect_math as the single owner (render_layer_reference: matte maths, composition order, fade rules). A layer with effects is evaluated per tile of a frame (tile + effect_support_px margin, <= 64 px per side = pigment's reference plane; tile side min(64 - 2*margin, chunk side)): content over the frame by the chunked compositor (nested isolated group, mask with feather/density/invert read clamped beyond the plane), EffectPlane, render_layer_reference over the running backdrop of the tile, tile written back. Layer bounds and group extent grow by the margin. extension_exactness: Effect(DropShadow|ColourOverlay|Stroke) Exact (receipt class Approximate); other EffectKind (pigment d982b5c inner shadow / outer glow / inner glow) Unsupported. Typed refusals before the first sink call: margin > 24 px (effect_margin), effects with Blend-If on one layer (effects_with_blend_if), effects inside the content of a layer with effects (effects_nested). Per-worker frame memory (content frame, group levels, 3 reference planes, mattes, frame feather scratch) is part of the reserved scratch / peak_working_bytes; effect records charged as a running aggregate. V4-01: plan_sink/effects.rs denies clippy::arithmetic_side_effects.",
-    "SMB-FX-OPS-ADOPT (e8f5f98): extension_exactness names ExtOperator::EffectsNested and ExtOperator::AlphaPremultiplied Unsupported explicitly; the local checks (alpha_premultiplied x2, mask_on_pass_through, effects_with_blend_if, effects_nested x2) are defence in depth under ExtOperator::*.key() / PASS_THROUGH_MASK_OPERATOR; descriptor says admission"
-  ],
-  "tests": {
+   ],
+   "keys_changed_on_defence_only_paths": [
+    "only on paths that shared admission refuses before any sink call (prepare and the error mappers are reachable without admission only from unit tests): clip_base_pass_through -> InvalidPlan(plan_clip_base_pass_through); blend_mode -> the mode's key; mask_format -> the format's key; BlendError (other than OutOfDomain) -> mode key or its code; effect_parameter -> the feature key for EffectError::Unsupported. Strings that were already equal to pigment's (sample_range_outside_unit, mask_density, group_pass_through_opacity, group_pass_through_fill_opacity, group_non_isolated_blended, mask_feather, blend_if, effect_plane_shape, effect_over_budget) are byte-identical."
+   ],
+   "tests_added": [
+    "plan_sink::refusal_keys::defence_in_depth_refusal_keys_are_pigments (src/plan_sink/refusal_keys.rs)"
+   ],
+   "tests_changed": {},
+   "test_detail": "per rule (pass-through opacity, pass-through fill, non-isolated blended group, blend mode without function, mask density on the v1 path, solid outside [0, 1], pass-through clip base): the BackendError of pigment's admit equals the pigment-named expectation AND prepare on its own returns RenderError::Backend of that same error; the four EffectFeature cases (gradient glow, Precise, range, jitter): ExtPrep::build on its own equals admit_extended; coverage_error / effect_error / window_error / blend_error compared with ExtOperator::key, SAMPLE_RANGE_OPERATOR, EffectError::code, Operator::Blend key and BlendError::code",
+   "tests": {
     "argv": [
-      "cargo",
-      "nextest",
-      "run",
-      "-p",
-      "hsk-studio-render-cpu",
-      "--tests"
+     "cargo",
+     "nextest",
+     "run",
+     "-p",
+     "hsk-studio-render-cpu",
+     "-p",
+     "hsk-studio-render-gpu",
+     "-p",
+     "hsk-studio-composite",
+     "--no-fail-fast"
     ],
     "exit": 0,
-    "sha": "8d46aa8",
-    "passed": 29,
-    "failed": 0
+    "sha": "ba3e47d",
+    "passed": 31,
+    "failed": 0,
+    "note": "one invocation over the three crates of this lane at ba3e47d (78 passed: render-cpu 31, render-gpu 22, composite 25); the render-gpu parity tests ran on the host adapter (backend auto), tests/gpu-proof.toml require_gpu = true unchanged, 0 NOT_PROVEN"
+   },
+   "check_clippy": "cargo clippy -p hsk-studio-render-cpu -p hsk-studio-render-gpu -p hsk-studio-composite --tests --examples --no-deps clean (0 warnings) and cargo clippy -p hsk-studio-render-gpu --tests --features test-faults --no-deps clean at ba3e47d; cargo fmt --check clean for render-cpu and render-gpu",
+   "pigment_gaps": [
+    "pigment exports no Operator/ExtOperator key or constant for 'the base of a clipping run is a pass-through group': its only name is PlanError::ClipBasePassThrough (validate, InvalidPlan, code plan_clip_base_pass_through). That name is used (not edited into pigment). Blocker only for the alternative reading: if the lead wants an Unsupported operator key for it (like PASS_THROUGH_FILL_OPERATOR), pigment must export a constant first."
+   ],
+   "not_changed": [
+    "backend-owned keys pigment's admission does not report: plan_shape, effects_nested, effects_with_blend_if, effect_scratch, effect_work_limit, effect_window_domain, effect_source, feather_scratch, vector_geometry, vector_aa_samples, alpha_premultiplied, sample_format, mask_on_pass_through (pigment validate/admit has no rule for premultiplied alpha, target format or a mask on a pass-through layer)",
+    "effect_limit / effect_parameter stay backend category keys: pigment admission reports those rules as InvalidPlan(PlanError::EffectLimit | EffectParameter { node }) (a different variant that needs a node, codes plan_effect_limit / plan_effect_parameter), so there is no pigment Unsupported key to equal. Candidate lead decision (register PLAUSIBLE): align them to the PlanError code with node 0 as composite already does for PlanError::EffectClipRun."
+   ],
+   "v4": {
+    "V4-01": "deny(clippy::arithmetic_side_effects) kept on every touched module; the only new conversions are u32::try_from(node index) with the typed overflow error",
+    "V4-03": "the new tests need no hardware and read no machine-local path; nothing prints NOT_PROVEN",
+    "V4-06": "class: refusal key written as a string literal where pigment names the rule; regex in notes.v4_06_regex over non-test src; 63 sites listed in notes.v4_06_sites (verdict counts {'NOT_APPLICABLE': 40, 'FIXED': 21, 'PIGMENT_ALREADY': 2}); UNCLASSIFIED 0; fixed sites show as their pigment-derived expression because the regex also matches the constructor call",
+    "V4-07": "no DESCRIPTOR text names a changed key (render-cpu cites plan_clip_base_pass_through already)",
+    "V4-09": "commit message through git commit -F",
+    "V4-11": "no file restored; no scratch tree"
+   }
   },
-  "blockers": [],
-  "lock_wait_s": 0,
-  "bg_pids": [],
-  "next": "SMB-FX-OPS-ADOPT READY_FOR_VALIDATION on e8f5f98 (new lane id; the claim of the top-level lane is unchanged, V4-14 lists this commit; nothing is claimed on SMB-RENDER-GPU, which stays BLOCKED/D20): independent validator round on e8f5f98 for this crate's adoption of pigment's effects_ops and admission_parity rules (notes.fx_ops_adopt). Earlier next, unchanged: SMB-REFUSAL-KEYS READY_FOR_VALIDATION on 18607e5 (new lane id; the claim of the top-level lane stays 8d46aa8, V4-14 lists this commit; nothing is claimed on SMB-RENDER-GPU, which stays BLOCKED/D20): independent validator round on 18607e5 for this crate's refusal keys (notes.refusal_keys, notes.v4_06_sites). Earlier next, unchanged: SMB-BLENDIF-CLIP-ADOPT READY_FOR_VALIDATION on b10475d (separate lane id; the claim of SMB-RENDER-CPU-WINDOW/FX2 stays 8d46aa8, V4-14 lists this commit): Independent validator round on 8d46aa8 (claim = lanes SMB-RENDER-CPU-WINDOW be1836b/0f58c1c and SMB-RENDER-CPU-FX2 8d46aa8, 29 tests). Follow-ups (not started): satin, gradient/pattern overlay, bevel, gradient glows in pigment first.",
-  "updated_at": "2026-10-11T11:50:57Z",
-  "notes": {
-    "refusal_keys": {
-      "lane": "SMB-REFUSAL-KEYS",
-      "status": "READY_FOR_VALIDATION",
-      "sha": "18607e5",
-      "scope": "Plausible register PLR-006, lead decision FIX_LANE 2026-10-11T10:18:58Z: rules pigment's admission already refuses and that this crate re-checks as defence in depth use pigment's exported key constants and operator enums (or the code of pigment's own PlanError where pigment has no operator key), never a literal. Behaviour otherwise unchanged. New lane id per V4-15; nothing is claimed on SMB-RENDER-GPU (BLOCKED, fix budget) and no verdict, fixed key or earlier note was changed.",
-      "files": [
-        "src/plan_sink.rs (prepare, unit_rgb, verify_tile, blend_error; imports; comment on the fill rule)",
-        "src/plan_sink/extended.rs (coverage_error, adjust_error, effect_error incl. new EffectError::Unsupported arm, window_error, feather kernel length check)",
-        "src/plan_sink/refusal_keys.rs (new, cfg(test))"
-      ],
-      "changes": [
-        {
-          "rule": "samples outside [0, 1] (verify_tile, unit_rgb, blend/coverage/adjust mappers)",
-          "before": "literal sample_range_outside_unit",
-          "after": "SAMPLE_RANGE_OPERATOR"
-        },
-        {
-          "rule": "coverage mask with density below 1 on the v1 path",
-          "before": "literal mask_density",
-          "after": "MASK_DENSITY_OPERATOR"
-        },
-        {
-          "rule": "pass-through layer below full fill",
-          "before": "literal group_pass_through_fill_opacity",
-          "after": "PASS_THROUGH_FILL_OPERATOR"
-        },
-        {
-          "rule": "pass-through layer below full opacity / non-isolated blended group",
-          "before": "literals group_pass_through_opacity, group_non_isolated_blended",
-          "after": "Operator::PassThroughOpacity.key(), Operator::NonIsolatedBlendedGroup.key()"
-        },
-        {
-          "rule": "blend mode without a compositing function; mask format without a reader",
-          "before": "literals blend_mode, mask_format (generic backend spelling; admission reports the mode's / format's own key)",
-          "after": "Operator::Blend(mode).key(), Operator::Mask(format).key(); BlendError mapper: mode key for GroupOnly/ToolOnly/Unsupported, BlendError::code otherwise"
-        },
-        {
-          "rule": "mask feather / Blend-If domain failures",
-          "before": "literals mask_feather, blend_if",
-          "after": "ExtOperator::MaskFeather.key(), ExtOperator::BlendIf.key()"
-        },
-        {
-          "rule": "effect plane shape / over budget",
-          "before": "literals effect_plane_shape, effect_over_budget",
-          "after": "EffectError::PlaneShape.code(), EffectError::OverBudget.code() (same strings)"
-        },
-        {
-          "rule": "gradient glow, glow range, glow jitter, Precise technique (EffectError::Unsupported)",
-          "before": "fell into the wildcard and was reported as effect_parameter",
-          "after": "EffectFeature::key, the key admit_extended reports"
-        },
-        {
-          "rule": "clipping run whose base is a pass-through group",
-          "before": "literal clip_base_pass_through (Unsupported)",
-          "after": "BackendError::InvalidPlan(PlanError::ClipBasePassThrough { node }) exactly as pigment's validation returns it"
-        }
-      ],
-      "keys_changed_on_defence_only_paths": [
-        "only on paths that shared admission refuses before any sink call (prepare and the error mappers are reachable without admission only from unit tests): clip_base_pass_through -> InvalidPlan(plan_clip_base_pass_through); blend_mode -> the mode's key; mask_format -> the format's key; BlendError (other than OutOfDomain) -> mode key or its code; effect_parameter -> the feature key for EffectError::Unsupported. Strings that were already equal to pigment's (sample_range_outside_unit, mask_density, group_pass_through_opacity, group_pass_through_fill_opacity, group_non_isolated_blended, mask_feather, blend_if, effect_plane_shape, effect_over_budget) are byte-identical."
-      ],
-      "tests_added": [
-        "plan_sink::refusal_keys::defence_in_depth_refusal_keys_are_pigments (src/plan_sink/refusal_keys.rs)"
-      ],
-      "tests_changed": {},
-      "test_detail": "per rule (pass-through opacity, pass-through fill, non-isolated blended group, blend mode without function, mask density on the v1 path, solid outside [0, 1], pass-through clip base): the BackendError of pigment's admit equals the pigment-named expectation AND prepare on its own returns RenderError::Backend of that same error; the four EffectFeature cases (gradient glow, Precise, range, jitter): ExtPrep::build on its own equals admit_extended; coverage_error / effect_error / window_error / blend_error compared with ExtOperator::key, SAMPLE_RANGE_OPERATOR, EffectError::code, Operator::Blend key and BlendError::code",
-      "tests": {
-        "argv": [
-          "cargo",
-          "nextest",
-          "run",
-          "-p",
-          "hsk-studio-render-cpu",
-          "-p",
-          "hsk-studio-render-gpu",
-          "-p",
-          "hsk-studio-composite",
-          "--no-fail-fast"
-        ],
-        "exit": 0,
-        "sha": "ba3e47d",
-        "passed": 31,
-        "failed": 0,
-        "note": "one invocation over the three crates of this lane at ba3e47d (78 passed: render-cpu 31, render-gpu 22, composite 25); the render-gpu parity tests ran on the host adapter (backend auto), tests/gpu-proof.toml require_gpu = true unchanged, 0 NOT_PROVEN"
-      },
-      "check_clippy": "cargo clippy -p hsk-studio-render-cpu -p hsk-studio-render-gpu -p hsk-studio-composite --tests --examples --no-deps clean (0 warnings) and cargo clippy -p hsk-studio-render-gpu --tests --features test-faults --no-deps clean at ba3e47d; cargo fmt --check clean for render-cpu and render-gpu",
-      "pigment_gaps": [
-        "pigment exports no Operator/ExtOperator key or constant for 'the base of a clipping run is a pass-through group': its only name is PlanError::ClipBasePassThrough (validate, InvalidPlan, code plan_clip_base_pass_through). That name is used (not edited into pigment). Blocker only for the alternative reading: if the lead wants an Unsupported operator key for it (like PASS_THROUGH_FILL_OPERATOR), pigment must export a constant first."
-      ],
-      "not_changed": [
-        "backend-owned keys pigment's admission does not report: plan_shape, effects_nested, effects_with_blend_if, effect_scratch, effect_work_limit, effect_window_domain, effect_source, feather_scratch, vector_geometry, vector_aa_samples, alpha_premultiplied, sample_format, mask_on_pass_through (pigment validate/admit has no rule for premultiplied alpha, target format or a mask on a pass-through layer)",
-        "effect_limit / effect_parameter stay backend category keys: pigment admission reports those rules as InvalidPlan(PlanError::EffectLimit | EffectParameter { node }) (a different variant that needs a node, codes plan_effect_limit / plan_effect_parameter), so there is no pigment Unsupported key to equal. Candidate lead decision (register PLAUSIBLE): align them to the PlanError code with node 0 as composite already does for PlanError::EffectClipRun."
-      ],
-      "v4": {
-        "V4-01": "deny(clippy::arithmetic_side_effects) kept on every touched module; the only new conversions are u32::try_from(node index) with the typed overflow error",
-        "V4-03": "the new tests need no hardware and read no machine-local path; nothing prints NOT_PROVEN",
-        "V4-06": "class: refusal key written as a string literal where pigment names the rule; regex in notes.v4_06_regex over non-test src; 63 sites listed in notes.v4_06_sites (verdict counts {'NOT_APPLICABLE': 40, 'FIXED': 21, 'PIGMENT_ALREADY': 2}); UNCLASSIFIED 0; fixed sites show as their pigment-derived expression because the regex also matches the constructor call",
-        "V4-07": "no DESCRIPTOR text names a changed key (render-cpu cites plan_clip_base_pass_through already)",
-        "V4-09": "commit message through git commit -F",
-        "V4-11": "no file restored; no scratch tree"
-      }
-    },
-    "v4_06_regex": "\\bunsupported\\(|\\bUnsupported\\s*\\{|FxError::Unsupported\\(|\\bErr\\(\"[a-z_]+\"\\)|\\bok_or\\(\"[a-z_]+\"\\)|Unavailable\\(\"[a-z_]+\"\\)|\\bPlanError::[A-Za-z]+ \\{",
-    "v4_06_sites": [
-      {
-        "file_line": "src/coverage.rs:25",
-        "verdict": "NOT_APPLICABLE: backend-owned key 'vector_geometry' (pigment admission does not report this rule under it)"
-      },
-      {
-        "file_line": "src/coverage.rs:38",
-        "verdict": "NOT_APPLICABLE: backend-owned key 'vector_aa_samples' (pigment admission does not report this rule under it)"
-      },
-      {
-        "file_line": "src/plan_sink/effects.rs:113",
-        "verdict": "NOT_APPLICABLE: backend-owned key 'plan_shape' (pigment admission does not report this rule under it)"
-      },
-      {
-        "file_line": "src/plan_sink/effects.rs:128",
-        "verdict": "NOT_APPLICABLE: backend-owned key 'effects_nested' (pigment admission does not report this rule under it)"
-      },
-      {
-        "file_line": "src/plan_sink/effects.rs:165",
-        "verdict": "NOT_APPLICABLE: backend-owned key 'plan_shape' (pigment admission does not report this rule under it)"
-      },
-      {
-        "file_line": "src/plan_sink/effects.rs:168",
-        "verdict": "NOT_APPLICABLE: backend-owned key 'effect_scratch' (pigment admission does not report this rule under it)"
-      },
-      {
-        "file_line": "src/plan_sink/effects.rs:273",
-        "verdict": "NOT_APPLICABLE: backend-owned key 'plan_shape' (pigment admission does not report this rule under it)"
-      },
-      {
-        "file_line": "src/plan_sink/extended.rs:103",
-        "verdict": "FIXED: SAMPLE_RANGE_OPERATOR"
-      },
-      {
-        "file_line": "src/plan_sink/extended.rs:104",
-        "verdict": "FIXED: ExtOperator::MaskFeather.key()"
-      },
-      {
-        "file_line": "src/plan_sink/extended.rs:105",
-        "verdict": "FIXED: ExtOperator::BlendIf.key()"
-      },
-      {
-        "file_line": "src/plan_sink/extended.rs:110",
-        "verdict": "FIXED: SAMPLE_RANGE_OPERATOR"
-      },
-      {
-        "file_line": "src/plan_sink/extended.rs:111",
-        "verdict": "PIGMENT_ALREADY: AdjustError payload string"
-      },
-      {
-        "file_line": "src/plan_sink/extended.rs:124",
-        "verdict": "NOT_APPLICABLE: coarse backend category 'effect_limit' for EffectError values; pigment admission reports the same rules as InvalidPlan(PlanError::Effect*{node}) (a different variant that needs a node), so no equality claim; lead decision candidate"
-      },
-      {
-        "file_line": "src/plan_sink/extended.rs:126",
-        "verdict": "FIXED: EffectError::PlaneShape.code()"
-      },
-      {
-        "file_line": "src/plan_sink/extended.rs:127",
-        "verdict": "FIXED: EffectError::OverBudget.code()"
-      },
-      {
-        "file_line": "src/plan_sink/extended.rs:130",
-        "verdict": "FIXED: EffectFeature::key (EffectError::Unsupported arm added; was effect_parameter)"
-      },
-      {
-        "file_line": "src/plan_sink/extended.rs:133",
-        "verdict": "NOT_APPLICABLE: coarse backend category 'effect_parameter' for EffectError values; pigment admission reports the same rules as InvalidPlan(PlanError::Effect*{node}) (a different variant that needs a node), so no equality claim; lead decision candidate"
-      },
-      {
-        "file_line": "src/plan_sink/extended.rs:150",
-        "verdict": "NOT_APPLICABLE: backend-owned key 'effect_work_limit' (pigment admission does not report this rule under it)"
-      },
-      {
-        "file_line": "src/plan_sink/extended.rs:153",
-        "verdict": "NOT_APPLICABLE: backend unavailability code, not a pigment refusal key"
-      },
-      {
-        "file_line": "src/plan_sink/extended.rs:155",
-        "verdict": "NOT_APPLICABLE: coarse backend category 'effect_limit' for EffectError values; pigment admission reports the same rules as InvalidPlan(PlanError::Effect*{node}) (a different variant that needs a node), so no equality claim; lead decision candidate"
-      },
-      {
-        "file_line": "src/plan_sink/extended.rs:157",
-        "verdict": "FIXED: EffectError::PlaneShape.code()"
-      },
-      {
-        "file_line": "src/plan_sink/extended.rs:159",
-        "verdict": "NOT_APPLICABLE: backend-owned key 'effect_window_domain' (pigment admission does not report this rule under it)"
-      },
-      {
-        "file_line": "src/plan_sink/extended.rs:160",
-        "verdict": "NOT_APPLICABLE: backend-owned key 'effect_source' (pigment admission does not report this rule under it)"
-      },
-      {
-        "file_line": "src/plan_sink/extended.rs:161",
-        "verdict": "NOT_APPLICABLE: coarse backend category 'effect_parameter' for EffectError values; pigment admission reports the same rules as InvalidPlan(PlanError::Effect*{node}) (a different variant that needs a node), so no equality claim; lead decision candidate"
-      },
-      {
-        "file_line": "src/plan_sink/extended.rs:256",
-        "verdict": "FIXED: ExtOperator::MaskFeather.key()"
-      },
-      {
-        "file_line": "src/plan_sink/extended.rs:380",
-        "verdict": "NOT_APPLICABLE: backend-owned key 'effect_work_limit' (pigment admission does not report this rule under it)"
-      },
-      {
-        "file_line": "src/plan_sink/extended.rs:501",
-        "verdict": "NOT_APPLICABLE: backend-owned key 'plan_shape' (pigment admission does not report this rule under it)"
-      },
-      {
-        "file_line": "src/plan_sink/extended.rs:524",
-        "verdict": "NOT_APPLICABLE: backend-owned key 'plan_shape' (pigment admission does not report this rule under it)"
-      },
-      {
-        "file_line": "src/plan_sink/extended.rs:570",
-        "verdict": "NOT_APPLICABLE: backend-owned key 'feather_scratch' (pigment admission does not report this rule under it)"
-      },
-      {
-        "file_line": "src/plan_sink.rs:111",
-        "verdict": "NOT_APPLICABLE: backend unavailability code, not a pigment refusal key"
-      },
-      {
-        "file_line": "src/plan_sink.rs:136",
-        "verdict": "PIGMENT_ALREADY: operator is the unsupported() helper argument"
-      },
-      {
-        "file_line": "src/plan_sink.rs:150",
-        "verdict": "FIXED: SAMPLE_RANGE_OPERATOR"
-      },
-      {
-        "file_line": "src/plan_sink.rs:153",
-        "verdict": "FIXED: Operator::Blend(mode).key()"
-      },
-      {
-        "file_line": "src/plan_sink.rs:154",
-        "verdict": "FIXED: BlendError::code (was blend_mode)"
-      },
-      {
-        "file_line": "src/plan_sink.rs:340",
-        "verdict": "FIXED: SAMPLE_RANGE_OPERATOR"
-      },
-      {
-        "file_line": "src/plan_sink.rs:395",
-        "verdict": "NOT_APPLICABLE: backend-owned key 'alpha_premultiplied' (pigment admission does not report this rule under it)"
-      },
-      {
-        "file_line": "src/plan_sink.rs:436",
-        "verdict": "FIXED: SAMPLE_RANGE_OPERATOR"
-      },
-      {
-        "file_line": "src/plan_sink.rs:448",
-        "verdict": "NOT_APPLICABLE: backend-owned key 'alpha_premultiplied' (pigment admission does not report this rule under it)"
-      },
-      {
-        "file_line": "src/plan_sink.rs:451",
-        "verdict": "NOT_APPLICABLE: backend-owned key 'sample_format' (pigment admission does not report this rule under it)"
-      },
-      {
-        "file_line": "src/plan_sink.rs:538",
-        "verdict": "FIXED: PlanError::ClipBasePassThrough (was clip_base_pass_through)"
-      },
-      {
-        "file_line": "src/plan_sink.rs:551",
-        "verdict": "FIXED: Operator::PassThroughOpacity.key()"
-      },
-      {
-        "file_line": "src/plan_sink.rs:560",
-        "verdict": "FIXED: PASS_THROUGH_FILL_OPERATOR"
-      },
-      {
-        "file_line": "src/plan_sink.rs:564",
-        "verdict": "FIXED: Operator::NonIsolatedBlendedGroup.key()"
-      },
-      {
-        "file_line": "src/plan_sink.rs:567",
-        "verdict": "FIXED: Operator::Blend(mode).key()"
-      },
-      {
-        "file_line": "src/plan_sink.rs:579",
-        "verdict": "NOT_APPLICABLE: backend-owned key 'plan_shape' (pigment admission does not report this rule under it)"
-      },
-      {
-        "file_line": "src/plan_sink.rs:581",
-        "verdict": "NOT_APPLICABLE: backend-owned key 'effects_with_blend_if' (pigment admission does not report this rule under it)"
-      },
-      {
-        "file_line": "src/plan_sink.rs:584",
-        "verdict": "NOT_APPLICABLE: backend-owned key 'effects_nested' (pigment admission does not report this rule under it)"
-      },
-      {
-        "file_line": "src/plan_sink.rs:601",
-        "verdict": "FIXED: MASK_DENSITY_OPERATOR"
-      },
-      {
-        "file_line": "src/plan_sink.rs:604",
-        "verdict": "NOT_APPLICABLE: backend-owned key 'mask_on_pass_through' (pigment admission does not report this rule under it)"
-      },
-      {
-        "file_line": "src/plan_sink.rs:614",
-        "verdict": "FIXED: Operator::Mask(format).key()"
-      },
-      {
-        "file_line": "src/plan_sink.rs:728",
-        "verdict": "NOT_APPLICABLE: backend-owned key 'plan_shape' (pigment admission does not report this rule under it)"
-      },
-      {
-        "file_line": "src/plan_sink.rs:734",
-        "verdict": "NOT_APPLICABLE: backend-owned key 'plan_shape' (pigment admission does not report this rule under it)"
-      },
-      {
-        "file_line": "src/plan_sink.rs:770",
-        "verdict": "NOT_APPLICABLE: backend unavailability code, not a pigment refusal key"
-      },
-      {
-        "file_line": "src/plan_sink.rs:831",
-        "verdict": "NOT_APPLICABLE: backend-owned key 'plan_shape' (pigment admission does not report this rule under it)"
-      },
-      {
-        "file_line": "src/plan_sink.rs:861",
-        "verdict": "NOT_APPLICABLE: backend unavailability code, not a pigment refusal key"
-      },
-      {
-        "file_line": "src/plan_sink.rs:888",
-        "verdict": "NOT_APPLICABLE: backend-owned key 'plan_shape' (pigment admission does not report this rule under it)"
-      },
-      {
-        "file_line": "src/plan_sink.rs:970",
-        "verdict": "NOT_APPLICABLE: backend unavailability code, not a pigment refusal key"
-      },
-      {
-        "file_line": "src/plan_sink.rs:992",
-        "verdict": "NOT_APPLICABLE: backend-owned key 'plan_shape' (pigment admission does not report this rule under it)"
-      },
-      {
-        "file_line": "src/plan_sink.rs:1200",
-        "verdict": "NOT_APPLICABLE: backend-owned key 'chunk_scratch' (pigment admission does not report this rule under it)"
-      },
-      {
-        "file_line": "src/plan_sink.rs:1444",
-        "verdict": "NOT_APPLICABLE: backend unavailability code, not a pigment refusal key"
-      },
-      {
-        "file_line": "src/plan_sink.rs:1603",
-        "verdict": "NOT_APPLICABLE: backend unavailability code, not a pigment refusal key"
-      },
-      {
-        "file_line": "src/plan_sink.rs:1640",
-        "verdict": "NOT_APPLICABLE: backend unavailability code, not a pigment refusal key"
-      },
-      {
-        "file_line": "src/report.rs:11",
-        "verdict": "NOT_APPLICABLE: report mapping of an error to Outcome, no key"
-      }
+  "v4_06_regex": "\\bunsupported\\(|\\bUnsupported\\s*\\{|FxError::Unsupported\\(|\\bErr\\(\"[a-z_]+\"\\)|\\bok_or\\(\"[a-z_]+\"\\)|Unavailable\\(\"[a-z_]+\"\\)|\\bPlanError::[A-Za-z]+ \\{",
+  "v4_06_sites": [
+   {
+    "file_line": "src/coverage.rs:25",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'vector_geometry' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/coverage.rs:38",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'vector_aa_samples' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/plan_sink/effects.rs:113",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'plan_shape' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/plan_sink/effects.rs:128",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'effects_nested' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/plan_sink/effects.rs:165",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'plan_shape' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/plan_sink/effects.rs:168",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'effect_scratch' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/plan_sink/effects.rs:273",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'plan_shape' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/plan_sink/extended.rs:103",
+    "verdict": "FIXED: SAMPLE_RANGE_OPERATOR"
+   },
+   {
+    "file_line": "src/plan_sink/extended.rs:104",
+    "verdict": "FIXED: ExtOperator::MaskFeather.key()"
+   },
+   {
+    "file_line": "src/plan_sink/extended.rs:105",
+    "verdict": "FIXED: ExtOperator::BlendIf.key()"
+   },
+   {
+    "file_line": "src/plan_sink/extended.rs:110",
+    "verdict": "FIXED: SAMPLE_RANGE_OPERATOR"
+   },
+   {
+    "file_line": "src/plan_sink/extended.rs:111",
+    "verdict": "PIGMENT_ALREADY: AdjustError payload string"
+   },
+   {
+    "file_line": "src/plan_sink/extended.rs:124",
+    "verdict": "NOT_APPLICABLE: coarse backend category 'effect_limit' for EffectError values; pigment admission reports the same rules as InvalidPlan(PlanError::Effect*{node}) (a different variant that needs a node), so no equality claim; lead decision candidate"
+   },
+   {
+    "file_line": "src/plan_sink/extended.rs:126",
+    "verdict": "FIXED: EffectError::PlaneShape.code()"
+   },
+   {
+    "file_line": "src/plan_sink/extended.rs:127",
+    "verdict": "FIXED: EffectError::OverBudget.code()"
+   },
+   {
+    "file_line": "src/plan_sink/extended.rs:130",
+    "verdict": "FIXED: EffectFeature::key (EffectError::Unsupported arm added; was effect_parameter)"
+   },
+   {
+    "file_line": "src/plan_sink/extended.rs:133",
+    "verdict": "NOT_APPLICABLE: coarse backend category 'effect_parameter' for EffectError values; pigment admission reports the same rules as InvalidPlan(PlanError::Effect*{node}) (a different variant that needs a node), so no equality claim; lead decision candidate"
+   },
+   {
+    "file_line": "src/plan_sink/extended.rs:150",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'effect_work_limit' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/plan_sink/extended.rs:153",
+    "verdict": "NOT_APPLICABLE: backend unavailability code, not a pigment refusal key"
+   },
+   {
+    "file_line": "src/plan_sink/extended.rs:155",
+    "verdict": "NOT_APPLICABLE: coarse backend category 'effect_limit' for EffectError values; pigment admission reports the same rules as InvalidPlan(PlanError::Effect*{node}) (a different variant that needs a node), so no equality claim; lead decision candidate"
+   },
+   {
+    "file_line": "src/plan_sink/extended.rs:157",
+    "verdict": "FIXED: EffectError::PlaneShape.code()"
+   },
+   {
+    "file_line": "src/plan_sink/extended.rs:159",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'effect_window_domain' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/plan_sink/extended.rs:160",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'effect_source' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/plan_sink/extended.rs:161",
+    "verdict": "NOT_APPLICABLE: coarse backend category 'effect_parameter' for EffectError values; pigment admission reports the same rules as InvalidPlan(PlanError::Effect*{node}) (a different variant that needs a node), so no equality claim; lead decision candidate"
+   },
+   {
+    "file_line": "src/plan_sink/extended.rs:256",
+    "verdict": "FIXED: ExtOperator::MaskFeather.key()"
+   },
+   {
+    "file_line": "src/plan_sink/extended.rs:380",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'effect_work_limit' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/plan_sink/extended.rs:501",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'plan_shape' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/plan_sink/extended.rs:524",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'plan_shape' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/plan_sink/extended.rs:570",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'feather_scratch' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/plan_sink.rs:111",
+    "verdict": "NOT_APPLICABLE: backend unavailability code, not a pigment refusal key"
+   },
+   {
+    "file_line": "src/plan_sink.rs:136",
+    "verdict": "PIGMENT_ALREADY: operator is the unsupported() helper argument"
+   },
+   {
+    "file_line": "src/plan_sink.rs:150",
+    "verdict": "FIXED: SAMPLE_RANGE_OPERATOR"
+   },
+   {
+    "file_line": "src/plan_sink.rs:153",
+    "verdict": "FIXED: Operator::Blend(mode).key()"
+   },
+   {
+    "file_line": "src/plan_sink.rs:154",
+    "verdict": "FIXED: BlendError::code (was blend_mode)"
+   },
+   {
+    "file_line": "src/plan_sink.rs:340",
+    "verdict": "FIXED: SAMPLE_RANGE_OPERATOR"
+   },
+   {
+    "file_line": "src/plan_sink.rs:395",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'alpha_premultiplied' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/plan_sink.rs:436",
+    "verdict": "FIXED: SAMPLE_RANGE_OPERATOR"
+   },
+   {
+    "file_line": "src/plan_sink.rs:448",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'alpha_premultiplied' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/plan_sink.rs:451",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'sample_format' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/plan_sink.rs:538",
+    "verdict": "FIXED: PlanError::ClipBasePassThrough (was clip_base_pass_through)"
+   },
+   {
+    "file_line": "src/plan_sink.rs:551",
+    "verdict": "FIXED: Operator::PassThroughOpacity.key()"
+   },
+   {
+    "file_line": "src/plan_sink.rs:560",
+    "verdict": "FIXED: PASS_THROUGH_FILL_OPERATOR"
+   },
+   {
+    "file_line": "src/plan_sink.rs:564",
+    "verdict": "FIXED: Operator::NonIsolatedBlendedGroup.key()"
+   },
+   {
+    "file_line": "src/plan_sink.rs:567",
+    "verdict": "FIXED: Operator::Blend(mode).key()"
+   },
+   {
+    "file_line": "src/plan_sink.rs:579",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'plan_shape' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/plan_sink.rs:581",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'effects_with_blend_if' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/plan_sink.rs:584",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'effects_nested' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/plan_sink.rs:601",
+    "verdict": "FIXED: MASK_DENSITY_OPERATOR"
+   },
+   {
+    "file_line": "src/plan_sink.rs:604",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'mask_on_pass_through' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/plan_sink.rs:614",
+    "verdict": "FIXED: Operator::Mask(format).key()"
+   },
+   {
+    "file_line": "src/plan_sink.rs:728",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'plan_shape' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/plan_sink.rs:734",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'plan_shape' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/plan_sink.rs:770",
+    "verdict": "NOT_APPLICABLE: backend unavailability code, not a pigment refusal key"
+   },
+   {
+    "file_line": "src/plan_sink.rs:831",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'plan_shape' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/plan_sink.rs:861",
+    "verdict": "NOT_APPLICABLE: backend unavailability code, not a pigment refusal key"
+   },
+   {
+    "file_line": "src/plan_sink.rs:888",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'plan_shape' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/plan_sink.rs:970",
+    "verdict": "NOT_APPLICABLE: backend unavailability code, not a pigment refusal key"
+   },
+   {
+    "file_line": "src/plan_sink.rs:992",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'plan_shape' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/plan_sink.rs:1200",
+    "verdict": "NOT_APPLICABLE: backend-owned key 'chunk_scratch' (pigment admission does not report this rule under it)"
+   },
+   {
+    "file_line": "src/plan_sink.rs:1444",
+    "verdict": "NOT_APPLICABLE: backend unavailability code, not a pigment refusal key"
+   },
+   {
+    "file_line": "src/plan_sink.rs:1603",
+    "verdict": "NOT_APPLICABLE: backend unavailability code, not a pigment refusal key"
+   },
+   {
+    "file_line": "src/plan_sink.rs:1640",
+    "verdict": "NOT_APPLICABLE: backend unavailability code, not a pigment refusal key"
+   },
+   {
+    "file_line": "src/report.rs:11",
+    "verdict": "NOT_APPLICABLE: report mapping of an error to Outcome, no key"
+   }
+  ],
+  "blendif_clip_adopt": {
+   "lane": "SMB-BLENDIF-CLIP-ADOPT",
+   "status": "READY_FOR_VALIDATION",
+   "sha": "b10475d",
+   "scope": "Pigment 0d28c03 (lane SMB-PIGMENT-BLENDIF-CLIP, diagnostics topic blend-if-clip-roles) refuses a non-identity Blend-If on a clip base (blend_if_clip_base) and on a clipped layer (blend_if_clipped_layer) for every backend; this lane adopts that in the consumers. New lane id per V4-15; nothing is claimed on SMB-RENDER-GPU (BLOCKED, fix budget) and no verdict, fixed key or earlier note was changed.",
+   "files": [
+    "src/plan_sink.rs (clip_run: run composite without base.fx.blend_if; composite_clipped: no Blend-If weight; docs)",
+    "src/lib.rs (DESCRIPTOR extensions/operators.unsupported)",
+    "tests/cpu_extended.rs (+1 test)"
+   ],
+   "removed": [
+    "plan_sink.rs clip_run: LayerFx { blend_if: base.fx.blend_if, .. } on the run composite (the base layer's Blend-If weighing G against the running backdrop)",
+    "plan_sink.rs composite_clipped: blend_set(layer) and the blend_weight multiplication of a clipped layer's source alpha (same operator class, same refusal; removed with the base path because it was the other half of the same unreachable semantics)"
+   ],
+   "kept": "Blend-If on unclipped layers and unclipped adjustment layers (composite(), adjust()): behaviour and bytes unchanged, tests blend_if_ramps_hand_values and the adjustment tests pass unchanged. extension_exactness needed no change: the wildcard arm already answers Unsupported for BlendIfClipBase and BlendIfClippedLayer (asserted)",
+   "tests_added": [
+    "blend_if_on_clip_roles_is_refused_before_any_sink_call"
+   ],
+   "test_detail": "roles pinned through Group::clip_role; blend_if_clip_base on the base and blend_if_clipped_layer on the clipped layer: BackendError::Unsupported{key, Unsupported} with 0 sink calls; backend reports Unsupported for both operators; identity ranges on both roles are no operator and render bytes equal to the plain plan; the same ranges on an unclipped layer weigh the source alpha (hand values (0.45, 0.05, 0.05) and (0.55, 0.15, 0.15), receipt blend_if Approximate)",
+   "tests": {
+    "argv": [
+     "cargo",
+     "nextest",
+     "run",
+     "-p",
+     "hsk-studio-render-cpu",
+     "--tests"
     ],
-    "blendif_clip_adopt": {
-      "lane": "SMB-BLENDIF-CLIP-ADOPT",
-      "status": "READY_FOR_VALIDATION",
-      "sha": "b10475d",
-      "scope": "Pigment 0d28c03 (lane SMB-PIGMENT-BLENDIF-CLIP, diagnostics topic blend-if-clip-roles) refuses a non-identity Blend-If on a clip base (blend_if_clip_base) and on a clipped layer (blend_if_clipped_layer) for every backend; this lane adopts that in the consumers. New lane id per V4-15; nothing is claimed on SMB-RENDER-GPU (BLOCKED, fix budget) and no verdict, fixed key or earlier note was changed.",
-      "files": [
-        "src/plan_sink.rs (clip_run: run composite without base.fx.blend_if; composite_clipped: no Blend-If weight; docs)",
-        "src/lib.rs (DESCRIPTOR extensions/operators.unsupported)",
-        "tests/cpu_extended.rs (+1 test)"
-      ],
-      "removed": [
-        "plan_sink.rs clip_run: LayerFx { blend_if: base.fx.blend_if, .. } on the run composite (the base layer's Blend-If weighing G against the running backdrop)",
-        "plan_sink.rs composite_clipped: blend_set(layer) and the blend_weight multiplication of a clipped layer's source alpha (same operator class, same refusal; removed with the base path because it was the other half of the same unreachable semantics)"
-      ],
-      "kept": "Blend-If on unclipped layers and unclipped adjustment layers (composite(), adjust()): behaviour and bytes unchanged, tests blend_if_ramps_hand_values and the adjustment tests pass unchanged. extension_exactness needed no change: the wildcard arm already answers Unsupported for BlendIfClipBase and BlendIfClippedLayer (asserted)",
-      "tests_added": [
-        "blend_if_on_clip_roles_is_refused_before_any_sink_call"
-      ],
-      "test_detail": "roles pinned through Group::clip_role; blend_if_clip_base on the base and blend_if_clipped_layer on the clipped layer: BackendError::Unsupported{key, Unsupported} with 0 sink calls; backend reports Unsupported for both operators; identity ranges on both roles are no operator and render bytes equal to the plain plan; the same ranges on an unclipped layer weigh the source alpha (hand values (0.45, 0.05, 0.05) and (0.55, 0.15, 0.15), receipt blend_if Approximate)",
-      "tests": {
-        "argv": [
-          "cargo",
-          "nextest",
-          "run",
-          "-p",
-          "hsk-studio-render-cpu",
-          "--tests"
-        ],
-        "exit": 0,
-        "sha": "b10475d",
-        "passed": 30,
-        "failed": 0
-      },
-      "check_clippy": "cargo check --tests, cargo clippy -p hsk-studio-render-cpu --tests --examples --no-deps clean, cargo fmt -p hsk-studio-render-cpu applied; deny(clippy::arithmetic_side_effects) kept on every touched module (V4-01)",
-      "v4": {
-        "V4-03": "Photoshop behaviour NOT_PROVEN (D5 cases 18-23)",
-        "V4-06": "class: Blend-If application on a clip role (regex blend_set|blend_weight|fx\\.blend_if|blend_if: over src/plan_sink.rs and src/plan_sink/extended.rs): removed from the two functions that applied it to a clip role (clip_run, composite_clipped); the 13 matching lines that remain are the import, the effects_with_blend_if refusal in prepare, composite() and adjust() (unclipped layers), the LayerFx field, the blend_sets table, blend_weight, ExtPrep::build and blend_set: none applies ranges to a clip base or a clipped layer, and a clipped adjustment layer's ranges are refused by admission before adjust() could read them",
-        "V4-07": "extension_exactness doc and DESCRIPTOR text cite the new test",
-        "V4-09": "commit message through git commit -F"
-      },
-      "red_proof": "the refusal is pigment's (admit_extended runs first), so a mutation of render-cpu cannot change the refusal assertions; non-vacuity: the unclipped counterfactual in the same test must still weigh and the same ranges on the roles must be refused (a global refusal would fail the counterfactual)",
-      "plausible_not_addressed": [
-        "adjust() still reads blend_set(layer) for a clipped adjustment layer: unreachable (admission refuses the ranges) and shared with unclipped adjustment layers, so it was left as is"
-      ],
-      "retry_guard": "no hook block; the first test run after the commit-ready tree and the rerun on the pushed commit (HEAD changed) both passed",
-      "date": "2026-10-11T10:11:27Z"
-    },
-    "fx2": {
-      "lane": "SMB-RENDER-CPU-FX2",
-      "rule": "V4-15: a new feature lane id on this lane file; commit 8d46aa8 belongs to it and is listed in the claim together with SMB-RENDER-CPU-WINDOW (be1836b, 0f58c1c), V4-14",
-      "pigment_api": "effect_math::window (a797b67 and follow-ups) and the wave 2 ops of d982b5c (InnerShadowOp, OuterGlowOp, InnerGlowOp); pigment not edited",
-      "files": [
-        "src/plan_sink.rs (extension_exactness: all six EffectKind members report ExtOperator::intrinsic(); the doc cites its tests)",
-        "src/plan_sink/effects.rs, src/plan_sink/extended.rs (docs only: waves 1 and 2; no kind-specific code, the window path was already generic)",
-        "src/lib.rs (DESCRIPTOR effects and pending text)",
-        "tests/cpu_effects_fx2.rs (new, 3 tests), tests/cpu_effects.rs (capability loop updated, see tests_changed)"
-      ],
-      "tests_added": [
-        "wave2_parity_with_reference_across_chunkings_and_workers",
-        "wave2_large_margin_matches_the_uncut_windowed_oracle",
-        "wave2_exactness_refusals_and_budget"
-      ],
-      "tests_changed": "tests/cpu_effects.rs effect_refusals_and_scratch_charge_stay_typed, intentionally: the capability loop asserted Unsupported for the three wave 2 kinds; it now asserts ExtOperator::intrinsic() (Approximate) for every kind of EffectKind::ALL. Nothing else changed.",
-      "parity": "wave2_parity_with_reference_across_chunkings_and_workers: 17 x 13 tile with partial alpha and holes on a 48 x 44 plane (opacity .9, fill .6, opaque backdrop), stack [outer glow (spread .3, size 5, Screen), drop shadow, inner shadow (offset, choke .25, size 4, Multiply), Dissolve overlay, inner glow edge (choke .2), inner glow centre]; all 2112 pixels f32 to_bits equal to render_layer_reference for chunks 48/17/7/5 on 1/1/2/3 workers and to each other; more than 300 pixels differ from the same layer without effects; the receipt carries inner_shadow, outer_glow, inner_glow and drop_shadow at Approximate. wave2_large_margin_matches_the_uncut_windowed_oracle: 40 x 30 plan, 20 x 16 tile, inner shadow (blur 200, offset 4) + outer glow (blur 200) + centre inner glow (blur 120), margin 304 (refused by the old 24 px limit): bit-identical to render_layer_window with WindowGeometry::uncut over one whole-extent window (AlphaPlaneRef), chunks (64, 1 worker) and (13, 3 workers), more than 600 pixels differ from the plain layer. Photoshop parity NOT_PROVEN (D5 15-17).",
-      "refusals_and_budget": "wave2_exactness_refusals_and_budget: extension_exactness equals intrinsic equals Approximate for all six kinds; gradient fill, Precise technique, range .5 and jitter .2 are Unsupported{glow_gradient | glow_technique_precise | glow_range | glow_jitter} with 0 sink calls (pigment admission, render-cpu unchanged); an Exact floor refuses inner_shadow, outer_glow and inner_glow as Unsupported{key, Approximate}; charge for the three-effect stack on a 1 x 1 plan = 32 + 3 * 64 + 16 + 28 + layer_window_cost(ops, 1 x 1).peak_bytes = 268 + peak, limit-1 is BudgetExceeded{need, need-1} with 0 sink calls.",
-      "v4": {
-        "V4-01": "touched modules keep deny(arithmetic_side_effects); clippy clean for the crate (pre-existing warnings only in hsk-studio-observe)",
-        "V4-02": "the work, size and aggregate tests of SMB-RENDER-CPU-WINDOW cover the shared window path; the budget limit-1 case is repeated for the wave 2 stack",
-        "V4-03": "Photoshop parity NOT_PROVEN (D5 15-17)",
-        "V4-07": "the extension_exactness doc claim now cites its tests; no new claim words",
-        "V4-09": "commit message via -F file under the scratch folder smb-render-cpu-window/",
-        "V4-11": "no file restored; V4-12: helper files only in the lane scratch folder"
-      },
-      "retry_guard": "the first test run was refused by studio-env.sh (exit 2): the cargo test form is no longer accepted there, the message names the nextest runner with the same -p and --tests arguments (infrastructure change after the earlier lane). The tests were then run with that runner, which is the mandated form and not an argument tweak to pass the guard: 29 of 29 passed on the first run, no product failure, no gameplan step added.",
-      "decisions_for_lead": [
-        "None new: wave 2 kinds use the same window, frame, charge, work limit and dissolve coordinates as wave 1; the inner kinds are clipped to the layer alpha by pigment, so the effect window is still the layer bounds grown by the margin."
-      ],
-      "date": "2026-10-11T07:52:39Z"
-    },
-    "window": {
-      "lane": "SMB-RENDER-CPU-WINDOW",
-      "pigment_api": "effect_math::window a797b67 / 379a56f / f3e75bf (window_matte, render_layer_window, layer_window_cost, stack_support_px, WindowGeometry::uncut, AlphaSource, WindowLimits); pigment not edited",
-      "files": [
-        "src/plan_sink/effects.rs (rewritten: effect_layer, effect_window, FrameAlpha AlphaSource, frame_content kept)",
-        "src/plan_sink/extended.rs (EffectLayer.bounds, stack_support_px margin, FrameShape/frame_shape/frame_scratch_bytes with layer_window_cost, window_error mapping, MAX_EFFECT_MARGIN removed, MAX_EFFECT_WINDOW_WORK)",
-        "src/plan_sink.rs (prepare records effect bounds, run passes the chunk dims to frame_shape, pub use MAX_EFFECT_WINDOW_WORK)",
-        "src/lib.rs (re-export, DESCRIPTOR effects/limits text)",
-        "tests/cpu_window.rs (new, 5 tests), tests/cpu_effects.rs (2 assertions updated, see tests_changed)"
-      ],
-      "tests_added": [
-        "parity_with_reference_across_chunkings_and_threads",
-        "large_margin_renders_and_matches_the_uncut_windowed_oracle",
-        "window_cost_is_charged_and_limit_minus_one_is_refused_before_any_sink_call",
-        "work_limit_and_hostile_geometry_stay_typed",
-        "group_content_and_feathered_mask_frames_match_the_windowed_oracle"
-      ],
-      "tests_changed": "tests/cpu_effects.rs effect_refusals_and_scratch_charge_stay_typed, intentionally: (1) the typed refusal Unsupported{effect_margin} for a size 30 shadow (margin 45 > 24) is replaced by the assertion that the plan renders (1 sink call, pixel red); (2) the hand-derived charge 19,700 (169-pixel reference frame x 116 B) is replaced by the new model 32 + 64 + 16 + 28 + layer_window_cost(ops, 1 x 1).peak_bytes, with limit-1 still BudgetExceeded and 0 sink calls. Header doc of the file follows. No other existing test changed; the 21 earlier tests pass.",
-      "parity": "tests/cpu_window.rs parity_with_reference_across_chunkings_and_threads: 17 x 13 tile with partial alpha and holes, Multiply layer at opacity .8 / fill .5, Multiply shadow (offset, spread, blur), Dissolve overlay, outside and inside strokes, on a 48 x 44 plane; f32 to_bits equal to render_layer_reference for chunks 48/17/7/5/11 with 1/1/2/3/4 workers: opaque backdrop all 2112 pixels, translucent backdrop the 35 x 31 region the effect rewrites (reference backdrop = the rendered running buffer), pixels outside the region equal the backdrop-only render bit for bit, all chunkings equal each other. Photoshop parity NOT_PROVEN (D5 12-14).",
-      "large_margin": "200 px blur (support 300; refused as effect_margin before) and 1000 px blur (MAX_EFFECT_SIZE_PX, support 1500): shadow of one opaque pixel equals w0 * w0 of coverage_math::feather_kernel (1e-9). 40 x 30 plan, tile 20 x 16, shadow Multiply offset (45, 5) size 200 + overlay + outside stroke (margin 305): bit-identical to render_layer_window with WindowGeometry::uncut over one whole-extent window and an AlphaPlaneRef (independent of the backend frame code) for chunks (64, 1 worker) and (13, 3 workers). Group content (two solids, Multiply member) with a u8 mask, feather 2, opacity .85 / fill .7 + shadow + stroke: within 1e-5 of the oracle built from a content-only render (colour is re-derived from premultiplied arithmetic there), chunks 30/11/7 on 1/1/3 workers bit-equal to each other.",
-      "budget": "charge per worker = frame (16 B per frame pixel per group level, frame = window grown by the margin clipped to the layer) + frame feather scratch + window arrays (28 B per window pixel) + layer_window_cost(ops, largest window).peak_bytes; test: 12 x 10 plan, chunk 8, 4 x 4 layer, size 30 shadow: 2048 + 64 + 256 + 1792 + peak, limit-1 -> BudgetExceeded{need, need-1} with 0 sink calls, 2 workers 8192 + 64 + 2 * (2048 + peak). Work: size 1000 shadow on a 512 x 512 layer with chunk 512 predicts more than MAX_EFFECT_WINDOW_WORK -> Unsupported{effect_work_limit}, 0 sink calls; 30000 px distance renders with a 4 x 4 frame.",
-      "decisions_for_lead": [
-        "Dissolve (and any stochastic mode) in effects now uses plan coordinates with seed 0 (WindowGeometry site_origin (0, 0)), equal to render_layer_reference on a plane placed at the plan origin and independent of chunking; the previous per-tile reference used frame-relative coordinates, which depended on the chunk size. The v1 compositor keeps absolute coordinates with seed = plan revision (unchanged), so a dissolve effect and a dissolve layer use different seeds.",
-        "One window per chunk and effect layer, no sub-tiling; MAX_EFFECT_WINDOW_WORK = 1e9 inner-loop visits (about seconds) bounds the time between cancel/deadline checks; a larger window is a typed refusal at admission and the chunk size is the knob (a 1000 px blur with 8 px chunks is admitted, with 512 px chunks refused). Lead may change the constant.",
-        "The alpha source reads a content frame (layer content clipped to window + margin) instead of evaluating the layer per read: the content is evaluated once per chunk window, i.e. ((chunk + 2 * margin) / chunk)^2 times per pixel for large margins (pigment recomputes its halo per window the same way); a larger chunk size reduces it. Memory is charged, not hidden.",
-        "Effect kinds beyond wave 1 (inner shadow, outer glow, inner glow) stay Unsupported in extension_exactness although the windowed API evaluates them; enabling them is a separate lane with its own tests."
-      ],
-      "plausible_not_addressed": [
-        "cancel and deadline are still observed between chunks only; a window is bounded by MAX_EFFECT_WINDOW_WORK, not interruptible.",
-        "per-worker frame buffers are allocated eagerly at the worst-case size (charged), not lazily.",
-        "pigment dilation is O(window area x offsets): a large spread is refused through the work limit, not approximated.",
-        "layer_window_cost is evaluated once for the largest window of each layer; smaller edge windows rely on pigment's own limit check (WindowLimits bytes = the largest predicted peak) which returns a typed BudgetExceeded if a prediction were ever not monotone."
-      ],
-      "v4": {
-        "V4-01": "effects.rs, extended.rs, plan_sink.rs, px.rs and the test files keep deny(clippy::arithmetic_side_effects); clippy clean; all integer arithmetic checked or wrapping",
-        "V4-02": "hostile sizes: work_limit_and_hostile_geometry_stay_typed (512 x 512 window refused, 30000 px distance), budget limit-1 test",
-        "V4-03": "Photoshop parity NOT_PROVEN (D5 12-14); this lane proves identity with pigment's reference and windowed oracle only",
-        "V4-06": "not a remediation lane",
-        "V4-07": "no new claim words; the one pre-existing 'never grown' doc claim in extended.rs was weakened; descriptor text cites tests",
-        "V4-09": "commit messages through -F files under the scratch folder smb-render-cpu-window/",
-        "V4-11": "no file restored with preserved timestamps; cargo fmt only",
-        "V4-12": "helper files only under the lane scratch folder smb-render-cpu-window/"
-      },
-      "retry_guard": "first cargo test run: 25 of 26 passed, the new group-content oracle test failed on my own plan numbering (InvalidPlan ForwardReference in the content-only plan); route (a) product/test fault fixed by a code commit (be1836b changed HEAD) before the rerun; the rerun (working tree = 0f58c1c content, run before the 5-line lint commit) passed 26 of 26 with HEAD be1836b. No gameplan step added.",
-      "check_clippy": "cargo check, cargo clippy -p hsk-studio-render-cpu --tests --examples (clean for this crate; pre-existing warnings only in hsk-studio-observe) and cargo test -p hsk-studio-render-cpu --tests (1 unit + cpu_effects 5 + cpu_extended 5 + cpu_plan 10 + cpu_window 5 = 26 passed) on the tree committed as 0f58c1c; cargo fmt -p hsk-studio-render-cpu applied",
-      "date": "2026-10-11T07:47:04Z"
-    },
-    "clip_lane": {
-      "lane": "SMB-RENDER-CPU-CLIP",
-      "pigment_commit": "4e533d5",
-      "composite_lowering_commit": "26f835e",
-      "tests_added": [
-        "clip_to_base_two_layer_run",
-        "clip_to_base_multi_layer_runs_chunk_and_thread_deterministic",
-        "clip_to_base_hidden_base_lowering_shape_and_refusals"
-      ],
-      "tests_notes": "hand-derived pixels from composite_over at 1e-6: 2-layer run with partial-alpha tile base (alpha HELD at base alpha, nothing outside base), multi-layer run (base with own mask, Multiply clipped, isolated-group clipped, vector base with .5 coverage, second run clips to the NEW base), chunks 1,2,3,4,64 and threads 2,3,8 byte-equal incl. sink order and peak_working_bytes == scratch_bytes(2,2,workers); composite hidden-base lowering shape [A, D, E clipped] clips to D not A, and pass-through base typed Unsupported before the first sink call",
-      "decisions_for_lead": [
-        "Base that is a pass-through (non-isolated) group: typed Unsupported{operator: clip_base_pass_through}, never guessed. Pigment's doc defines G from isolated base content and blends with the base layer's mode, which PassThrough is not.",
-        "Group extent excludes clipped layers (they cannot draw outside the base); this only narrows the work region."
-      ],
-      "check_clippy": "PASS, no warnings from this crate (pre-existing warnings only in hsk-studio-observe)",
-      "tree": "shared edit tree at 9819e52 for this crate; cargo fmt -p hsk-studio-render-cpu applied"
-    },
-    "oracle_notes": "Hand-computed pixel values compared at 1e-6 because pigment blend_math is f32; independent per-pixel reference (analytic coverage, hand-folded isolated group + checker mask) byte-equal across chunk sizes 1,2,3,4,64 with dyadic inputs. Adobe parity NOT_PROVEN; Photoshop clipping-group rule UNVERIFIED.",
-    "decisions_for_lead": [
-      "Typed refusals (no guess): pass-through opacity<1, non-isolated blended group, mask density != 1, mask on pass-through layer, premultiplied alpha, samples outside [0,1], invalid vector geometry, aa_samples outside 1..=16, clip base that is a pass-through group.",
-      "fill_opacity is folded in as a product (class Approximate); mask density semantics unverified against Photoshop."
+    "exit": 0,
+    "sha": "b10475d",
+    "passed": 30,
+    "failed": 0
+   },
+   "check_clippy": "cargo check --tests, cargo clippy -p hsk-studio-render-cpu --tests --examples --no-deps clean, cargo fmt -p hsk-studio-render-cpu applied; deny(clippy::arithmetic_side_effects) kept on every touched module (V4-01)",
+   "v4": {
+    "V4-03": "Photoshop behaviour NOT_PROVEN (D5 cases 18-23)",
+    "V4-06": "class: Blend-If application on a clip role (regex blend_set|blend_weight|fx\\.blend_if|blend_if: over src/plan_sink.rs and src/plan_sink/extended.rs): removed from the two functions that applied it to a clip role (clip_run, composite_clipped); the 13 matching lines that remain are the import, the effects_with_blend_if refusal in prepare, composite() and adjust() (unclipped layers), the LayerFx field, the blend_sets table, blend_weight, ExtPrep::build and blend_set: none applies ranges to a clip base or a clipped layer, and a clipped adjustment layer's ranges are refused by admission before adjust() could read them",
+    "V4-07": "extension_exactness doc and DESCRIPTOR text cite the new test",
+    "V4-09": "commit message through git commit -F"
+   },
+   "red_proof": "the refusal is pigment's (admit_extended runs first), so a mutation of render-cpu cannot change the refusal assertions; non-vacuity: the unclipped counterfactual in the same test must still weigh and the same ranges on the roles must be refused (a global refusal would fail the counterfactual)",
+   "plausible_not_addressed": [
+    "adjust() still reads blend_set(layer) for a clipped adjustment layer: unreachable (admission refuses the ranges) and shared with unclipped adjustment layers, so it was left as is"
+   ],
+   "retry_guard": "no hook block; the first test run after the commit-ready tree and the rerun on the pushed commit (HEAD changed) both passed",
+   "date": "2026-10-11T10:11:27Z"
+  },
+  "fx2": {
+   "lane": "SMB-RENDER-CPU-FX2",
+   "rule": "V4-15: a new feature lane id on this lane file; commit 8d46aa8 belongs to it and is listed in the claim together with SMB-RENDER-CPU-WINDOW (be1836b, 0f58c1c), V4-14",
+   "pigment_api": "effect_math::window (a797b67 and follow-ups) and the wave 2 ops of d982b5c (InnerShadowOp, OuterGlowOp, InnerGlowOp); pigment not edited",
+   "files": [
+    "src/plan_sink.rs (extension_exactness: all six EffectKind members report ExtOperator::intrinsic(); the doc cites its tests)",
+    "src/plan_sink/effects.rs, src/plan_sink/extended.rs (docs only: waves 1 and 2; no kind-specific code, the window path was already generic)",
+    "src/lib.rs (DESCRIPTOR effects and pending text)",
+    "tests/cpu_effects_fx2.rs (new, 3 tests), tests/cpu_effects.rs (capability loop updated, see tests_changed)"
+   ],
+   "tests_added": [
+    "wave2_parity_with_reference_across_chunkings_and_workers",
+    "wave2_large_margin_matches_the_uncut_windowed_oracle",
+    "wave2_exactness_refusals_and_budget"
+   ],
+   "tests_changed": "tests/cpu_effects.rs effect_refusals_and_scratch_charge_stay_typed, intentionally: the capability loop asserted Unsupported for the three wave 2 kinds; it now asserts ExtOperator::intrinsic() (Approximate) for every kind of EffectKind::ALL. Nothing else changed.",
+   "parity": "wave2_parity_with_reference_across_chunkings_and_workers: 17 x 13 tile with partial alpha and holes on a 48 x 44 plane (opacity .9, fill .6, opaque backdrop), stack [outer glow (spread .3, size 5, Screen), drop shadow, inner shadow (offset, choke .25, size 4, Multiply), Dissolve overlay, inner glow edge (choke .2), inner glow centre]; all 2112 pixels f32 to_bits equal to render_layer_reference for chunks 48/17/7/5 on 1/1/2/3 workers and to each other; more than 300 pixels differ from the same layer without effects; the receipt carries inner_shadow, outer_glow, inner_glow and drop_shadow at Approximate. wave2_large_margin_matches_the_uncut_windowed_oracle: 40 x 30 plan, 20 x 16 tile, inner shadow (blur 200, offset 4) + outer glow (blur 200) + centre inner glow (blur 120), margin 304 (refused by the old 24 px limit): bit-identical to render_layer_window with WindowGeometry::uncut over one whole-extent window (AlphaPlaneRef), chunks (64, 1 worker) and (13, 3 workers), more than 600 pixels differ from the plain layer. Photoshop parity NOT_PROVEN (D5 15-17).",
+   "refusals_and_budget": "wave2_exactness_refusals_and_budget: extension_exactness equals intrinsic equals Approximate for all six kinds; gradient fill, Precise technique, range .5 and jitter .2 are Unsupported{glow_gradient | glow_technique_precise | glow_range | glow_jitter} with 0 sink calls (pigment admission, render-cpu unchanged); an Exact floor refuses inner_shadow, outer_glow and inner_glow as Unsupported{key, Approximate}; charge for the three-effect stack on a 1 x 1 plan = 32 + 3 * 64 + 16 + 28 + layer_window_cost(ops, 1 x 1).peak_bytes = 268 + peak, limit-1 is BudgetExceeded{need, need-1} with 0 sink calls.",
+   "v4": {
+    "V4-01": "touched modules keep deny(arithmetic_side_effects); clippy clean for the crate (pre-existing warnings only in hsk-studio-observe)",
+    "V4-02": "the work, size and aggregate tests of SMB-RENDER-CPU-WINDOW cover the shared window path; the budget limit-1 case is repeated for the wave 2 stack",
+    "V4-03": "Photoshop parity NOT_PROVEN (D5 15-17)",
+    "V4-07": "the extension_exactness doc claim now cites its tests; no new claim words",
+    "V4-09": "commit message via -F file under the scratch folder smb-render-cpu-window/",
+    "V4-11": "no file restored; V4-12: helper files only in the lane scratch folder"
+   },
+   "retry_guard": "the first test run was refused by studio-env.sh (exit 2): the cargo test form is no longer accepted there, the message names the nextest runner with the same -p and --tests arguments (infrastructure change after the earlier lane). The tests were then run with that runner, which is the mandated form and not an argument tweak to pass the guard: 29 of 29 passed on the first run, no product failure, no gameplan step added.",
+   "decisions_for_lead": [
+    "None new: wave 2 kinds use the same window, frame, charge, work limit and dissolve coordinates as wave 1; the inner kinds are clipped to the layer alpha by pigment, so the effect window is still the layer bounds grown by the margin."
+   ],
+   "date": "2026-10-11T07:52:39Z"
+  },
+  "window": {
+   "lane": "SMB-RENDER-CPU-WINDOW",
+   "pigment_api": "effect_math::window a797b67 / 379a56f / f3e75bf (window_matte, render_layer_window, layer_window_cost, stack_support_px, WindowGeometry::uncut, AlphaSource, WindowLimits); pigment not edited",
+   "files": [
+    "src/plan_sink/effects.rs (rewritten: effect_layer, effect_window, FrameAlpha AlphaSource, frame_content kept)",
+    "src/plan_sink/extended.rs (EffectLayer.bounds, stack_support_px margin, FrameShape/frame_shape/frame_scratch_bytes with layer_window_cost, window_error mapping, MAX_EFFECT_MARGIN removed, MAX_EFFECT_WINDOW_WORK)",
+    "src/plan_sink.rs (prepare records effect bounds, run passes the chunk dims to frame_shape, pub use MAX_EFFECT_WINDOW_WORK)",
+    "src/lib.rs (re-export, DESCRIPTOR effects/limits text)",
+    "tests/cpu_window.rs (new, 5 tests), tests/cpu_effects.rs (2 assertions updated, see tests_changed)"
+   ],
+   "tests_added": [
+    "parity_with_reference_across_chunkings_and_threads",
+    "large_margin_renders_and_matches_the_uncut_windowed_oracle",
+    "window_cost_is_charged_and_limit_minus_one_is_refused_before_any_sink_call",
+    "work_limit_and_hostile_geometry_stay_typed",
+    "group_content_and_feathered_mask_frames_match_the_windowed_oracle"
+   ],
+   "tests_changed": "tests/cpu_effects.rs effect_refusals_and_scratch_charge_stay_typed, intentionally: (1) the typed refusal Unsupported{effect_margin} for a size 30 shadow (margin 45 > 24) is replaced by the assertion that the plan renders (1 sink call, pixel red); (2) the hand-derived charge 19,700 (169-pixel reference frame x 116 B) is replaced by the new model 32 + 64 + 16 + 28 + layer_window_cost(ops, 1 x 1).peak_bytes, with limit-1 still BudgetExceeded and 0 sink calls. Header doc of the file follows. No other existing test changed; the 21 earlier tests pass.",
+   "parity": "tests/cpu_window.rs parity_with_reference_across_chunkings_and_threads: 17 x 13 tile with partial alpha and holes, Multiply layer at opacity .8 / fill .5, Multiply shadow (offset, spread, blur), Dissolve overlay, outside and inside strokes, on a 48 x 44 plane; f32 to_bits equal to render_layer_reference for chunks 48/17/7/5/11 with 1/1/2/3/4 workers: opaque backdrop all 2112 pixels, translucent backdrop the 35 x 31 region the effect rewrites (reference backdrop = the rendered running buffer), pixels outside the region equal the backdrop-only render bit for bit, all chunkings equal each other. Photoshop parity NOT_PROVEN (D5 12-14).",
+   "large_margin": "200 px blur (support 300; refused as effect_margin before) and 1000 px blur (MAX_EFFECT_SIZE_PX, support 1500): shadow of one opaque pixel equals w0 * w0 of coverage_math::feather_kernel (1e-9). 40 x 30 plan, tile 20 x 16, shadow Multiply offset (45, 5) size 200 + overlay + outside stroke (margin 305): bit-identical to render_layer_window with WindowGeometry::uncut over one whole-extent window and an AlphaPlaneRef (independent of the backend frame code) for chunks (64, 1 worker) and (13, 3 workers). Group content (two solids, Multiply member) with a u8 mask, feather 2, opacity .85 / fill .7 + shadow + stroke: within 1e-5 of the oracle built from a content-only render (colour is re-derived from premultiplied arithmetic there), chunks 30/11/7 on 1/1/3 workers bit-equal to each other.",
+   "budget": "charge per worker = frame (16 B per frame pixel per group level, frame = window grown by the margin clipped to the layer) + frame feather scratch + window arrays (28 B per window pixel) + layer_window_cost(ops, largest window).peak_bytes; test: 12 x 10 plan, chunk 8, 4 x 4 layer, size 30 shadow: 2048 + 64 + 256 + 1792 + peak, limit-1 -> BudgetExceeded{need, need-1} with 0 sink calls, 2 workers 8192 + 64 + 2 * (2048 + peak). Work: size 1000 shadow on a 512 x 512 layer with chunk 512 predicts more than MAX_EFFECT_WINDOW_WORK -> Unsupported{effect_work_limit}, 0 sink calls; 30000 px distance renders with a 4 x 4 frame.",
+   "decisions_for_lead": [
+    "Dissolve (and any stochastic mode) in effects now uses plan coordinates with seed 0 (WindowGeometry site_origin (0, 0)), equal to render_layer_reference on a plane placed at the plan origin and independent of chunking; the previous per-tile reference used frame-relative coordinates, which depended on the chunk size. The v1 compositor keeps absolute coordinates with seed = plan revision (unchanged), so a dissolve effect and a dissolve layer use different seeds.",
+    "One window per chunk and effect layer, no sub-tiling; MAX_EFFECT_WINDOW_WORK = 1e9 inner-loop visits (about seconds) bounds the time between cancel/deadline checks; a larger window is a typed refusal at admission and the chunk size is the knob (a 1000 px blur with 8 px chunks is admitted, with 512 px chunks refused). Lead may change the constant.",
+    "The alpha source reads a content frame (layer content clipped to window + margin) instead of evaluating the layer per read: the content is evaluated once per chunk window, i.e. ((chunk + 2 * margin) / chunk)^2 times per pixel for large margins (pigment recomputes its halo per window the same way); a larger chunk size reduces it. Memory is charged, not hidden.",
+    "Effect kinds beyond wave 1 (inner shadow, outer glow, inner glow) stay Unsupported in extension_exactness although the windowed API evaluates them; enabling them is a separate lane with its own tests."
+   ],
+   "plausible_not_addressed": [
+    "cancel and deadline are still observed between chunks only; a window is bounded by MAX_EFFECT_WINDOW_WORK, not interruptible.",
+    "per-worker frame buffers are allocated eagerly at the worst-case size (charged), not lazily.",
+    "pigment dilation is O(window area x offsets): a large spread is refused through the work limit, not approximated.",
+    "layer_window_cost is evaluated once for the largest window of each layer; smaller edge windows rely on pigment's own limit check (WindowLimits bytes = the largest predicted peak) which returns a typed BudgetExceeded if a prediction were ever not monotone."
+   ],
+   "v4": {
+    "V4-01": "effects.rs, extended.rs, plan_sink.rs, px.rs and the test files keep deny(clippy::arithmetic_side_effects); clippy clean; all integer arithmetic checked or wrapping",
+    "V4-02": "hostile sizes: work_limit_and_hostile_geometry_stay_typed (512 x 512 window refused, 30000 px distance), budget limit-1 test",
+    "V4-03": "Photoshop parity NOT_PROVEN (D5 12-14); this lane proves identity with pigment's reference and windowed oracle only",
+    "V4-06": "not a remediation lane",
+    "V4-07": "no new claim words; the one pre-existing 'never grown' doc claim in extended.rs was weakened; descriptor text cites tests",
+    "V4-09": "commit messages through -F files under the scratch folder smb-render-cpu-window/",
+    "V4-11": "no file restored with preserved timestamps; cargo fmt only",
+    "V4-12": "helper files only under the lane scratch folder smb-render-cpu-window/"
+   },
+   "retry_guard": "first cargo test run: 25 of 26 passed, the new group-content oracle test failed on my own plan numbering (InvalidPlan ForwardReference in the content-only plan); route (a) product/test fault fixed by a code commit (be1836b changed HEAD) before the rerun; the rerun (working tree = 0f58c1c content, run before the 5-line lint commit) passed 26 of 26 with HEAD be1836b. No gameplan step added.",
+   "check_clippy": "cargo check, cargo clippy -p hsk-studio-render-cpu --tests --examples (clean for this crate; pre-existing warnings only in hsk-studio-observe) and cargo test -p hsk-studio-render-cpu --tests (1 unit + cpu_effects 5 + cpu_extended 5 + cpu_plan 10 + cpu_window 5 = 26 passed) on the tree committed as 0f58c1c; cargo fmt -p hsk-studio-render-cpu applied",
+   "date": "2026-10-11T07:47:04Z"
+  },
+  "clip_lane": {
+   "lane": "SMB-RENDER-CPU-CLIP",
+   "pigment_commit": "4e533d5",
+   "composite_lowering_commit": "26f835e",
+   "tests_added": [
+    "clip_to_base_two_layer_run",
+    "clip_to_base_multi_layer_runs_chunk_and_thread_deterministic",
+    "clip_to_base_hidden_base_lowering_shape_and_refusals"
+   ],
+   "tests_notes": "hand-derived pixels from composite_over at 1e-6: 2-layer run with partial-alpha tile base (alpha HELD at base alpha, nothing outside base), multi-layer run (base with own mask, Multiply clipped, isolated-group clipped, vector base with .5 coverage, second run clips to the NEW base), chunks 1,2,3,4,64 and threads 2,3,8 byte-equal incl. sink order and peak_working_bytes == scratch_bytes(2,2,workers); composite hidden-base lowering shape [A, D, E clipped] clips to D not A, and pass-through base typed Unsupported before the first sink call",
+   "decisions_for_lead": [
+    "Base that is a pass-through (non-isolated) group: typed Unsupported{operator: clip_base_pass_through}, never guessed. Pigment's doc defines G from isolated base content and blends with the base layer's mode, which PassThrough is not.",
+    "Group extent excludes clipped layers (they cannot draw outside the base); this only narrows the work region."
+   ],
+   "check_clippy": "PASS, no warnings from this crate (pre-existing warnings only in hsk-studio-observe)",
+   "tree": "shared edit tree at 9819e52 for this crate; cargo fmt -p hsk-studio-render-cpu applied"
+  },
+  "oracle_notes": "Hand-computed pixel values compared at 1e-6 because pigment blend_math is f32; independent per-pixel reference (analytic coverage, hand-folded isolated group + checker mask) byte-equal across chunk sizes 1,2,3,4,64 with dyadic inputs. Adobe parity NOT_PROVEN; Photoshop clipping-group rule UNVERIFIED.",
+  "decisions_for_lead": [
+   "Typed refusals (no guess): pass-through opacity<1, non-isolated blended group, mask density != 1, mask on pass-through layer, premultiplied alpha, samples outside [0,1], invalid vector geometry, aa_samples outside 1..=16, clip base that is a pass-through group.",
+   "fill_opacity is folded in as a product (class Approximate); mask density semantics unverified against Photoshop."
+  ],
+  "previous_phase": "nib OwnedPath payload (f105552) + parallel chunks (2d06a3a) pushed; 5 tests passed on the shared tree at 2d06a3a",
+  "verdicts": [
+   {
+    "round": "STUDIO-R3",
+    "lane": "SMB-RENDER-CPU",
+    "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
+    "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
+    "decision": "failed",
+    "verdict": "FAIL_V1",
+    "failures": [
+     {
+      "failure_class": "pass-through-fill-opacity-ignored",
+      "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:432 (fold :517 unused on non-isolated path :771-773)"
+     },
+     {
+      "failure_class": "parallel-delivery-hang-on-panic",
+      "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:1159-1214"
+     }
     ],
-    "previous_phase": "nib OwnedPath payload (f105552) + parallel chunks (2d06a3a) pushed; 5 tests passed on the shared tree at 2d06a3a",
-    "verdicts": [
-      {
-        "round": "STUDIO-R3",
-        "lane": "SMB-RENDER-CPU",
-        "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
-        "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
-        "decision": "failed",
-        "verdict": "FAIL_V1",
-        "failures": [
-          {
-            "failure_class": "pass-through-fill-opacity-ignored",
-            "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:432 (fold :517 unused on non-isolated path :771-773)"
-          },
-          {
-            "failure_class": "parallel-delivery-hang-on-panic",
-            "file_line": "crates/hsk-studio-render-cpu/src/plan_sink.rs:1159-1214"
-          }
-        ],
-        "remediation": "Refuse pass-through when opacity*fill_opacity<1; set abort+notify via unwind guard; catch_unwind workers -> Failed",
-        "round_ref": "validation/round-R3.json",
-        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
-        "idempotency_key": "STUDIO-R3:SMB-RENDER-CPU:404ff3ae8cd7:FAIL_V1",
-        "recorded_at": "2026-10-11T03:11:21Z",
-        "by": "wp_validator STUDIO-R3"
-      },
-      {
-        "round": "STUDIO-R3",
-        "lane": "SMB-RENDER-CPU-CLIP",
-        "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
-        "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
-        "decision": "passed",
-        "verdict": "PASS_V1",
-        "failures": [],
-        "remediation": null,
-        "round_ref": "validation/round-R3.json",
-        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
-        "idempotency_key": "STUDIO-R3:SMB-RENDER-CPU-CLIP:404ff3ae8cd7:PASS_V1",
-        "recorded_at": "2026-10-11T03:11:21Z",
-        "by": "wp_validator STUDIO-R3"
-      },
-      {
-        "round": "STUDIO-R5",
-        "lane": "SMB-RENDER-CPU",
-        "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
-        "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
-        "decision": "passed",
-        "verdict": "PASS_V2",
-        "failures": [],
-        "remediation": null,
-        "status_after": "PASS_V2",
-        "review": "validation/R5-review-a.json",
-        "round_ref": "validation/round-R5.json",
-        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
-        "idempotency_key": "STUDIO-R5:SMB-RENDER-CPU:1d404f8c4b72:PASS_V2",
-        "recorded_at": "2026-10-11T05:38:23Z",
-        "by": "wp_validator STUDIO-R5"
-      },
-      {
-        "round": "STUDIO-R5",
-        "lane": "SMB-RENDER-CPU-CLIP",
-        "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
-        "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
-        "decision": "passed",
-        "verdict": "PASS_V2",
-        "failures": [],
-        "remediation": null,
-        "status_after": "PASS_V2",
-        "review": "NOT_REVIEWED",
-        "round_ref": "validation/round-R5.json",
-        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
-        "idempotency_key": "STUDIO-R5:SMB-RENDER-CPU-CLIP:1d404f8c4b72:PASS_V2",
-        "recorded_at": "2026-10-11T05:38:23Z",
-        "by": "wp_validator STUDIO-R5"
-      },
-      {
-        "round": "STUDIO-R6",
-        "lane": "SMB-RENDER-CPU",
-        "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a",
-        "tree": "834aa5599ffabf691558a25f777ce42f73d78103",
-        "decision": "passed",
-        "verdict": "PASS_V3",
-        "failures": [],
-        "remediation": null,
-        "status_after": "PASS_V3",
-        "review": "NOT_REVIEWED",
-        "round_ref": "validation/round-R6.json",
-        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6",
-        "idempotency_key": "STUDIO-R6:SMB-RENDER-CPU:bd8533f9b29c:PASS_V3",
-        "recorded_at": "2026-10-11T06:47:09Z",
-        "by": "wp_validator STUDIO-R6"
-      },
-      {
-        "round": "STUDIO-R6",
-        "lane": "SMB-RENDER-CPU-CLIP",
-        "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a",
-        "tree": "834aa5599ffabf691558a25f777ce42f73d78103",
-        "decision": "passed",
-        "verdict": "PASS_V3",
-        "failures": [],
-        "remediation": null,
-        "status_after": "PASS_V3",
-        "review": "NOT_REVIEWED",
-        "round_ref": "validation/round-R6.json",
-        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6",
-        "idempotency_key": "STUDIO-R6:SMB-RENDER-CPU-CLIP:bd8533f9b29c:PASS_V3",
-        "recorded_at": "2026-10-11T06:47:09Z",
-        "by": "wp_validator STUDIO-R6"
-      },
-      {
-        "round": "STUDIO-R7",
-        "lane": "SMB-RENDER-CPU-ADJ",
-        "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
-        "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
-        "decision": "passed",
-        "verdict": "PASS_V1",
-        "failures": [],
-        "remediation": null,
-        "status_after": "PASS_V1",
-        "review": "validation/R7-review-a.json",
-        "round_ref": "validation/round-R7.json",
-        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
-        "idempotency_key": "STUDIO-R7:SMB-RENDER-CPU-ADJ:dff7ef51d282:PASS_V1",
-        "recorded_at": "2026-10-11T11:04:31Z",
-        "by": "wp_validator STUDIO-R7"
-      },
-      {
-        "round": "STUDIO-R7",
-        "lane": "SMB-RENDER-CPU-WINDOW",
-        "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
-        "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
-        "decision": "passed",
-        "verdict": "PASS_V1",
-        "failures": [],
-        "remediation": null,
-        "status_after": "PASS_V1",
-        "review": "validation/R7-review-a.json",
-        "round_ref": "validation/round-R7.json",
-        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
-        "idempotency_key": "STUDIO-R7:SMB-RENDER-CPU-WINDOW:dff7ef51d282:PASS_V1",
-        "recorded_at": "2026-10-11T11:04:31Z",
-        "by": "wp_validator STUDIO-R7"
-      },
-      {
-        "round": "STUDIO-R7",
-        "lane": "SMB-RENDER-CPU-FX2",
-        "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
-        "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
-        "decision": "passed",
-        "verdict": "PASS_V1",
-        "failures": [],
-        "remediation": null,
-        "status_after": "PASS_V1",
-        "review": "validation/R7-review-a.json",
-        "round_ref": "validation/round-R7.json",
-        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
-        "idempotency_key": "STUDIO-R7:SMB-RENDER-CPU-FX2:dff7ef51d282:PASS_V1",
-        "recorded_at": "2026-10-11T11:04:31Z",
-        "by": "wp_validator STUDIO-R7"
-      },
-      {
-        "round": "STUDIO-R7",
-        "lane": "SMB-RENDER-CPU",
-        "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
-        "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
-        "decision": "passed",
-        "verdict": "PASS_V4",
-        "failures": [],
-        "remediation": null,
-        "status_after": "PASS_V4",
-        "review": "NOT_REVIEWED",
-        "round_ref": "validation/round-R7.json",
-        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
-        "idempotency_key": "STUDIO-R7:SMB-RENDER-CPU:dff7ef51d282:PASS_V4",
-        "recorded_at": "2026-10-11T11:04:31Z",
-        "by": "wp_validator STUDIO-R7"
-      },
-      {
-        "round": "STUDIO-R7",
-        "lane": "SMB-RENDER-CPU-CLIP",
-        "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
-        "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
-        "decision": "passed",
-        "verdict": "PASS_V4",
-        "failures": [],
-        "remediation": null,
-        "status_after": "PASS_V4",
-        "review": "NOT_REVIEWED",
-        "round_ref": "validation/round-R7.json",
-        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
-        "idempotency_key": "STUDIO-R7:SMB-RENDER-CPU-CLIP:dff7ef51d282:PASS_V4",
-        "recorded_at": "2026-10-11T11:04:31Z",
-        "by": "wp_validator STUDIO-R7"
-      },
-      {
-        "round": "STUDIO-R7",
-        "lane": "SMB-BLENDIF-CLIP-ADOPT",
-        "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
-        "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
-        "decision": "passed",
-        "verdict": "PASS_V1",
-        "failures": [],
-        "remediation": null,
-        "status_after": "PASS_V1",
-        "review": "validation/R7-review-a.json",
-        "round_ref": "validation/round-R7.json",
-        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
-        "idempotency_key": "STUDIO-R7:SMB-BLENDIF-CLIP-ADOPT:dff7ef51d282:PASS_V1",
-        "recorded_at": "2026-10-11T11:04:31Z",
-        "by": "wp_validator STUDIO-R7"
-      }
-    ],
-    "r3_remediation": {
-      "finding": "R3 SMB-RENDER-CPU CONFIRMED: (a) plan_sink.rs:432 pass-through refused only for opacity < 1, fill_opacity never applied on the non-isolated path although pigment adds FillOpacity (Approximate) so the plan was admitted and rendered at full strength; (b) plan_sink.rs:1159-1214 abort was set only after the delivery loop, so a panicking sink or worker left parked workers waiting forever and thread::scope never returned.",
-      "fix": "src/plan_sink.rs prepare(): unsupported(group_pass_through_fill_opacity) for pass_through && fill_opacity < 1. caught()/deliver() helpers (catch_unwind -> Unavailable worker_panic|sink_panic) used by the serial and parallel paths; run_parallel takes an injectable ChunkFn, each worker loop runs under catch_unwind and on a crash sets abort, notifies and sends Message::Failed(worker_panic); StopWorkers RAII guard sets abort+notify_all on every exit of the delivering thread incl. unwind. src/lib.rs DESCRIPTOR unsupported/failure text updated.",
-      "tests": "tests/cpu_plan.rs pass_through_fill_opacity_is_refused_typed_never_ignored (fill 1 -> red [1,0,0,1]; fill .5 and 0 -> Unsupported{group_pass_through_fill_opacity, Unsupported} at the Approximate floor, 0 sink calls, scratch 0, threads 1 and 3; Multiply+fill stays Approximate-admitted); panicking_sink_is_a_typed_error_and_never_hangs_any_thread_count (16 one-pixel chunks, threads 1/2/4, panic at call 0 and 5 -> Unavailable(sink_panic), sink.calls == panic_at+1, scratch 0, renderer reusable with receipt.chunks == 16); src unit test plan_sink::tests::panicking_worker_is_a_typed_error_and_never_hangs (injected panic at chunk 3, workers 2/3/4, typed worker_panic, in-order delivered prefix <= 3, 20 s hang watchdog). Existing clip_to_base_hidden_base_lowering_shape_and_refusals now expects InvalidPlan(ClipBasePassThrough{node:4}) (pigment validate refuses first).",
-      "red_before_fix": "verified: fill check disabled -> fill test FAILED; pre-fix plan_sink.rs (git HEAD blob) with the sink-panic test limited to threads 2/4 -> 30 s case deadline exceeded (the reported hang); fix restored byte-identical afterwards.",
-      "tests_run": "render-cpu --lib --test cpu_plan --examples 11/11 (1 unit + 10 integration); clippy --tests --examples clean; no crate depends on render-cpu",
-      "process": "first test invocations did not compile (missing import in the new test module, then another lane's transient hsk-studio-folio compile error); the identical-retry guard then blocked the same argv, so the targets were rerun as narrower per-target/filtered commands. No gameplan step added.",
-      "date": "2026-10-11T03:18:00Z",
-      "clip_base_pass_through_test": {
-        "test": "tests/cpu_plan.rs clip_to_base_hidden_base_lowering_shape_and_refusals (assertion at ~1881)",
-        "cause": "expectation change, not a regression: pigment 276e2a3 made RenderPlan::validate refuse a pass-through clip base, so admit() now returns BackendError::InvalidPlan(PlanError::ClipBasePassThrough{node:4}) before render-cpu prepare() could return Unsupported{clip_base_pass_through}; the plan, 0 sink calls and 0 scratch assertions are unchanged",
-        "fixed_in": "9468d33 (render-cpu); the test failed on the shared tree only between pigment 276e2a3 and render-cpu 9468d33 (pigment is committed first by assignment order)",
-        "verified": "render-cpu --lib --test cpu_plan --examples 11/11 and clip_to_base filter 3/3 on the pushed state"
-      }
+    "remediation": "Refuse pass-through when opacity*fill_opacity<1; set abort+notify via unwind guard; catch_unwind workers -> Failed",
+    "round_ref": "validation/round-R3.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
+    "idempotency_key": "STUDIO-R3:SMB-RENDER-CPU:404ff3ae8cd7:FAIL_V1",
+    "recorded_at": "2026-10-11T03:11:21Z",
+    "by": "wp_validator STUDIO-R3"
+   },
+   {
+    "round": "STUDIO-R3",
+    "lane": "SMB-RENDER-CPU-CLIP",
+    "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
+    "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "round_ref": "validation/round-R3.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
+    "idempotency_key": "STUDIO-R3:SMB-RENDER-CPU-CLIP:404ff3ae8cd7:PASS_V1",
+    "recorded_at": "2026-10-11T03:11:21Z",
+    "by": "wp_validator STUDIO-R3"
+   },
+   {
+    "round": "STUDIO-R5",
+    "lane": "SMB-RENDER-CPU",
+    "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
+    "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
+    "decision": "passed",
+    "verdict": "PASS_V2",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V2",
+    "review": "validation/R5-review-a.json",
+    "round_ref": "validation/round-R5.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
+    "idempotency_key": "STUDIO-R5:SMB-RENDER-CPU:1d404f8c4b72:PASS_V2",
+    "recorded_at": "2026-10-11T05:38:23Z",
+    "by": "wp_validator STUDIO-R5"
+   },
+   {
+    "round": "STUDIO-R5",
+    "lane": "SMB-RENDER-CPU-CLIP",
+    "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
+    "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
+    "decision": "passed",
+    "verdict": "PASS_V2",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V2",
+    "review": "NOT_REVIEWED",
+    "round_ref": "validation/round-R5.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
+    "idempotency_key": "STUDIO-R5:SMB-RENDER-CPU-CLIP:1d404f8c4b72:PASS_V2",
+    "recorded_at": "2026-10-11T05:38:23Z",
+    "by": "wp_validator STUDIO-R5"
+   },
+   {
+    "round": "STUDIO-R6",
+    "lane": "SMB-RENDER-CPU",
+    "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a",
+    "tree": "834aa5599ffabf691558a25f777ce42f73d78103",
+    "decision": "passed",
+    "verdict": "PASS_V3",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V3",
+    "review": "NOT_REVIEWED",
+    "round_ref": "validation/round-R6.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6",
+    "idempotency_key": "STUDIO-R6:SMB-RENDER-CPU:bd8533f9b29c:PASS_V3",
+    "recorded_at": "2026-10-11T06:47:09Z",
+    "by": "wp_validator STUDIO-R6"
+   },
+   {
+    "round": "STUDIO-R6",
+    "lane": "SMB-RENDER-CPU-CLIP",
+    "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a",
+    "tree": "834aa5599ffabf691558a25f777ce42f73d78103",
+    "decision": "passed",
+    "verdict": "PASS_V3",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V3",
+    "review": "NOT_REVIEWED",
+    "round_ref": "validation/round-R6.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6",
+    "idempotency_key": "STUDIO-R6:SMB-RENDER-CPU-CLIP:bd8533f9b29c:PASS_V3",
+    "recorded_at": "2026-10-11T06:47:09Z",
+    "by": "wp_validator STUDIO-R6"
+   },
+   {
+    "round": "STUDIO-R7",
+    "lane": "SMB-RENDER-CPU-ADJ",
+    "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
+    "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V1",
+    "review": "validation/R7-review-a.json",
+    "round_ref": "validation/round-R7.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
+    "idempotency_key": "STUDIO-R7:SMB-RENDER-CPU-ADJ:dff7ef51d282:PASS_V1",
+    "recorded_at": "2026-10-11T11:04:31Z",
+    "by": "wp_validator STUDIO-R7"
+   },
+   {
+    "round": "STUDIO-R7",
+    "lane": "SMB-RENDER-CPU-WINDOW",
+    "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
+    "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V1",
+    "review": "validation/R7-review-a.json",
+    "round_ref": "validation/round-R7.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
+    "idempotency_key": "STUDIO-R7:SMB-RENDER-CPU-WINDOW:dff7ef51d282:PASS_V1",
+    "recorded_at": "2026-10-11T11:04:31Z",
+    "by": "wp_validator STUDIO-R7"
+   },
+   {
+    "round": "STUDIO-R7",
+    "lane": "SMB-RENDER-CPU-FX2",
+    "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
+    "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V1",
+    "review": "validation/R7-review-a.json",
+    "round_ref": "validation/round-R7.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
+    "idempotency_key": "STUDIO-R7:SMB-RENDER-CPU-FX2:dff7ef51d282:PASS_V1",
+    "recorded_at": "2026-10-11T11:04:31Z",
+    "by": "wp_validator STUDIO-R7"
+   },
+   {
+    "round": "STUDIO-R7",
+    "lane": "SMB-RENDER-CPU",
+    "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
+    "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
+    "decision": "passed",
+    "verdict": "PASS_V4",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V4",
+    "review": "NOT_REVIEWED",
+    "round_ref": "validation/round-R7.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
+    "idempotency_key": "STUDIO-R7:SMB-RENDER-CPU:dff7ef51d282:PASS_V4",
+    "recorded_at": "2026-10-11T11:04:31Z",
+    "by": "wp_validator STUDIO-R7"
+   },
+   {
+    "round": "STUDIO-R7",
+    "lane": "SMB-RENDER-CPU-CLIP",
+    "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
+    "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
+    "decision": "passed",
+    "verdict": "PASS_V4",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V4",
+    "review": "NOT_REVIEWED",
+    "round_ref": "validation/round-R7.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
+    "idempotency_key": "STUDIO-R7:SMB-RENDER-CPU-CLIP:dff7ef51d282:PASS_V4",
+    "recorded_at": "2026-10-11T11:04:31Z",
+    "by": "wp_validator STUDIO-R7"
+   },
+   {
+    "round": "STUDIO-R7",
+    "lane": "SMB-BLENDIF-CLIP-ADOPT",
+    "candidate": "dff7ef51d282509846803ac406a9fe12957355df",
+    "tree": "7cdea3f7a595c77bfc1bdb24a6089e8c706f32e7",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V1",
+    "review": "validation/R7-review-a.json",
+    "round_ref": "validation/round-R7.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R7",
+    "idempotency_key": "STUDIO-R7:SMB-BLENDIF-CLIP-ADOPT:dff7ef51d282:PASS_V1",
+    "recorded_at": "2026-10-11T11:04:31Z",
+    "by": "wp_validator STUDIO-R7"
+   },
+   {
+    "round": "STUDIO-R8",
+    "lane": "SMB-REFUSAL-KEYS",
+    "candidate": "f6e5a490e2ad0e142938a8bba1f78cadb96f5e84",
+    "tree": "bf944e29dd336acd38969f0dc25353adb529d61d",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V1",
+    "review": "validation/R8-review-a.json",
+    "round_ref": "validation/round-R8.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R8",
+    "idempotency_key": "STUDIO-R8:SMB-REFUSAL-KEYS:f6e5a490e2ad:PASS_V1",
+    "recorded_at": "2026-10-11T12:42:21Z",
+    "by": "wp_validator STUDIO-R8"
+   },
+   {
+    "round": "STUDIO-R8",
+    "lane": "SMB-FX-OPS-ADOPT",
+    "candidate": "f6e5a490e2ad0e142938a8bba1f78cadb96f5e84",
+    "tree": "bf944e29dd336acd38969f0dc25353adb529d61d",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V1",
+    "review": "validation/R8-review-a.json",
+    "round_ref": "validation/round-R8.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R8",
+    "idempotency_key": "STUDIO-R8:SMB-FX-OPS-ADOPT:f6e5a490e2ad:PASS_V1",
+    "recorded_at": "2026-10-11T12:42:21Z",
+    "by": "wp_validator STUDIO-R8"
+   },
+   {
+    "round": "STUDIO-R8",
+    "lane": "SMB-BLENDIF-CLIP-ADOPT",
+    "candidate": "f6e5a490e2ad0e142938a8bba1f78cadb96f5e84",
+    "tree": "bf944e29dd336acd38969f0dc25353adb529d61d",
+    "decision": "passed",
+    "verdict": "PASS_V2",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V2",
+    "review": "NOT_REVIEWED (R8-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+    "round_ref": "validation/round-R8.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R8",
+    "idempotency_key": "STUDIO-R8:SMB-BLENDIF-CLIP-ADOPT:f6e5a490e2ad:PASS_V2",
+    "recorded_at": "2026-10-11T12:42:21Z",
+    "by": "wp_validator STUDIO-R8"
+   },
+   {
+    "round": "STUDIO-R8",
+    "lane": "SMB-RENDER-CPU",
+    "candidate": "f6e5a490e2ad0e142938a8bba1f78cadb96f5e84",
+    "tree": "bf944e29dd336acd38969f0dc25353adb529d61d",
+    "decision": "passed",
+    "verdict": "PASS_V5",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V5",
+    "review": "NOT_REVIEWED (R8-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+    "round_ref": "validation/round-R8.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R8",
+    "idempotency_key": "STUDIO-R8:SMB-RENDER-CPU:f6e5a490e2ad:PASS_V5",
+    "recorded_at": "2026-10-11T12:42:21Z",
+    "by": "wp_validator STUDIO-R8"
+   },
+   {
+    "round": "STUDIO-R8",
+    "lane": "SMB-RENDER-CPU-CLIP",
+    "candidate": "f6e5a490e2ad0e142938a8bba1f78cadb96f5e84",
+    "tree": "bf944e29dd336acd38969f0dc25353adb529d61d",
+    "decision": "passed",
+    "verdict": "PASS_V5",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V5",
+    "review": "NOT_REVIEWED (R8-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+    "round_ref": "validation/round-R8.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R8",
+    "idempotency_key": "STUDIO-R8:SMB-RENDER-CPU-CLIP:f6e5a490e2ad:PASS_V5",
+    "recorded_at": "2026-10-11T12:42:21Z",
+    "by": "wp_validator STUDIO-R8"
+   },
+   {
+    "round": "STUDIO-R8",
+    "lane": "SMB-RENDER-CPU-ADJ",
+    "candidate": "f6e5a490e2ad0e142938a8bba1f78cadb96f5e84",
+    "tree": "bf944e29dd336acd38969f0dc25353adb529d61d",
+    "decision": "passed",
+    "verdict": "PASS_V2",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V2",
+    "review": "NOT_REVIEWED (R8-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+    "round_ref": "validation/round-R8.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R8",
+    "idempotency_key": "STUDIO-R8:SMB-RENDER-CPU-ADJ:f6e5a490e2ad:PASS_V2",
+    "recorded_at": "2026-10-11T12:42:21Z",
+    "by": "wp_validator STUDIO-R8"
+   },
+   {
+    "round": "STUDIO-R8",
+    "lane": "SMB-RENDER-CPU-WINDOW",
+    "candidate": "f6e5a490e2ad0e142938a8bba1f78cadb96f5e84",
+    "tree": "bf944e29dd336acd38969f0dc25353adb529d61d",
+    "decision": "passed",
+    "verdict": "PASS_V2",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V2",
+    "review": "NOT_REVIEWED (R8-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+    "round_ref": "validation/round-R8.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R8",
+    "idempotency_key": "STUDIO-R8:SMB-RENDER-CPU-WINDOW:f6e5a490e2ad:PASS_V2",
+    "recorded_at": "2026-10-11T12:42:21Z",
+    "by": "wp_validator STUDIO-R8"
+   },
+   {
+    "round": "STUDIO-R8",
+    "lane": "SMB-RENDER-CPU-FX2",
+    "candidate": "f6e5a490e2ad0e142938a8bba1f78cadb96f5e84",
+    "tree": "bf944e29dd336acd38969f0dc25353adb529d61d",
+    "decision": "passed",
+    "verdict": "PASS_V2",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V2",
+    "review": "NOT_REVIEWED (R8-review-a cx_val_009_sweep NO_BREAK_FOUND)",
+    "round_ref": "validation/round-R8.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R8",
+    "idempotency_key": "STUDIO-R8:SMB-RENDER-CPU-FX2:f6e5a490e2ad:PASS_V2",
+    "recorded_at": "2026-10-11T12:42:21Z",
+    "by": "wp_validator STUDIO-R8"
+   }
+  ],
+  "r3_remediation": {
+   "finding": "R3 SMB-RENDER-CPU CONFIRMED: (a) plan_sink.rs:432 pass-through refused only for opacity < 1, fill_opacity never applied on the non-isolated path although pigment adds FillOpacity (Approximate) so the plan was admitted and rendered at full strength; (b) plan_sink.rs:1159-1214 abort was set only after the delivery loop, so a panicking sink or worker left parked workers waiting forever and thread::scope never returned.",
+   "fix": "src/plan_sink.rs prepare(): unsupported(group_pass_through_fill_opacity) for pass_through && fill_opacity < 1. caught()/deliver() helpers (catch_unwind -> Unavailable worker_panic|sink_panic) used by the serial and parallel paths; run_parallel takes an injectable ChunkFn, each worker loop runs under catch_unwind and on a crash sets abort, notifies and sends Message::Failed(worker_panic); StopWorkers RAII guard sets abort+notify_all on every exit of the delivering thread incl. unwind. src/lib.rs DESCRIPTOR unsupported/failure text updated.",
+   "tests": "tests/cpu_plan.rs pass_through_fill_opacity_is_refused_typed_never_ignored (fill 1 -> red [1,0,0,1]; fill .5 and 0 -> Unsupported{group_pass_through_fill_opacity, Unsupported} at the Approximate floor, 0 sink calls, scratch 0, threads 1 and 3; Multiply+fill stays Approximate-admitted); panicking_sink_is_a_typed_error_and_never_hangs_any_thread_count (16 one-pixel chunks, threads 1/2/4, panic at call 0 and 5 -> Unavailable(sink_panic), sink.calls == panic_at+1, scratch 0, renderer reusable with receipt.chunks == 16); src unit test plan_sink::tests::panicking_worker_is_a_typed_error_and_never_hangs (injected panic at chunk 3, workers 2/3/4, typed worker_panic, in-order delivered prefix <= 3, 20 s hang watchdog). Existing clip_to_base_hidden_base_lowering_shape_and_refusals now expects InvalidPlan(ClipBasePassThrough{node:4}) (pigment validate refuses first).",
+   "red_before_fix": "verified: fill check disabled -> fill test FAILED; pre-fix plan_sink.rs (git HEAD blob) with the sink-panic test limited to threads 2/4 -> 30 s case deadline exceeded (the reported hang); fix restored byte-identical afterwards.",
+   "tests_run": "render-cpu --lib --test cpu_plan --examples 11/11 (1 unit + 10 integration); clippy --tests --examples clean; no crate depends on render-cpu",
+   "process": "first test invocations did not compile (missing import in the new test module, then another lane's transient hsk-studio-folio compile error); the identical-retry guard then blocked the same argv, so the targets were rerun as narrower per-target/filtered commands. No gameplan step added.",
+   "date": "2026-10-11T03:18:00Z",
+   "clip_base_pass_through_test": {
+    "test": "tests/cpu_plan.rs clip_to_base_hidden_base_lowering_shape_and_refusals (assertion at ~1881)",
+    "cause": "expectation change, not a regression: pigment 276e2a3 made RenderPlan::validate refuse a pass-through clip base, so admit() now returns BackendError::InvalidPlan(PlanError::ClipBasePassThrough{node:4}) before render-cpu prepare() could return Unsupported{clip_base_pass_through}; the plan, 0 sink calls and 0 scratch assertions are unchanged",
+    "fixed_in": "9468d33 (render-cpu); the test failed on the shared tree only between pigment 276e2a3 and render-cpu 9468d33 (pigment is committed first by assignment order)",
+    "verified": "render-cpu --lib --test cpu_plan --examples 11/11 and clip_to_base filter 3/3 on the pushed state"
+   }
+  },
+  "adj1": {
+   "lane": "SMB-RENDER-CPU-ADJ-1",
+   "pigment_api": "2f705f1 (adjust_math, coverage_math, render_plan::PlanExtensions, admit_extended); not edited",
+   "files": [
+    "src/plan_sink.rs (prepare + Eval wiring, run(), execute_extended_detailed, extension_exactness)",
+    "src/plan_sink/extended.rs (new: ExtPrep, Fx scratch, feather blur, Eval::adjust)",
+    "src/px.rs (new: checked geometry helpers)",
+    "src/lib.rs (mod px, DESCRIPTOR extensions)",
+    "tests/cpu_extended.rs (new, 5 tests)",
+    "tests/cpu_plan.rs (rustfmt only)"
+   ],
+   "tests_added": [
+    "adjustment_layer_hand_values_pigment_parity_and_clip_run",
+    "mask_density_and_invert_hand_values",
+    "blend_if_ramps_hand_values",
+    "mask_feather_hand_values_budget_and_aggregate",
+    "refusals_stay_typed_and_the_v1_path_is_unchanged"
+   ],
+   "parity": "8 adjustment kinds (levels, curves, hue_saturation, brightness_contrast legacy, exposure, invert, threshold, posterize) x opaque and half-transparent backdrops (16 pixels, modes Normal/Multiply, opacities .5/.75/1) are bit-identical (f32 to_bits equal, max diff 0) to pigment evaluate_stack Adjustment nodes; Photoshop parity NOT_PROVEN (D5 cases 1, 9, 10; V4-03).",
+   "hand_values": {
+    "invert_opacity_half": "(0.2,0.4,0.6,1.0) -> (0.5,0.5,0.5,1.0); alpha .5 backdrop keeps alpha .5",
+    "clip_run": "invert clipped to red base A over gray .2: left (0,1,1,1), right stays (.2,.2,.2,1)",
+    "mask_density": "u16 16384/65535 coverage, density .5 -> .62500191; density 0 -> 1; inverted .5 -> .87499809",
+    "blend_if": "gray ramp [.2,.4,.6,1] weights 0,0,.5,1,1,.5,0 for values .1 .2 .3 .4 .5 .8 1.0; source .5 x underlying red .5 -> .25; adjustment content f(backdrop) weight .25 -> .35",
+    "feather_2px": "taps .39905028 .24203623 .05400558 .00443305; edge coverage 0, w3, w2+w3, w1+w2+w3, 1-(w1+w2+w3), 1-(w2+w3), 1-w3, 1; chunk 4/5/12 and threads 1-3 bit-identical",
+    "budget": "peak_working_bytes 1756 = 1152 scratch + 28 kernel + 576 feather scratch; limit 1755 -> BudgetExceeded{1756,1755}; two distinct radii: running aggregate 28 then 72 > 50 refused before the second kernel; feather 10000 px refused"
+   },
+   "decisions_for_lead": [
+    "Empty envelope + density mask: execute_extended takes the envelope admission (pigment admit_extended admits density as ExtOperator::MaskDensity with an empty envelope); the v1 execute() keeps the mask_density refusal. An empty envelope without density takes the unchanged v1 path.",
+    "Blend-If source colour for an adjustment layer = its content f(backdrop) (pigment says the layer content is f(backdrop)); Photoshop behaviour UNVERIFIED (D5 case 9). On a clip run the base layer's Blend-If applies to the run composite (G vs running backdrop). Backdrop weight reads the stored backdrop rgb, transparent pixels read black (pigment blend_if_weight has no alpha input).",
+    "Density 1 keeps the v1 inline inversion (1 - c) instead of mask_coverage so v1 bytes cannot change; density < 1 and every feathered layer's effective coverage go through mask_coverage."
+   ],
+   "api_changes_needed_in_pigment": [],
+   "plausible_not_addressed": [
+    "feather compute cost is O(support) per pixel and only the scratch/kernel memory is charged to max_working_bytes (same class as the open R5 PLAUSIBLE item for coverage.rs winding cost); cancel and deadline are observed between chunks only.",
+    "coverage.rs (untouched) still has 2 unchecked arithmetic sites (hits += ..., n * n) under the V4-01 lint."
+   ],
+   "v4_01_sweep": "regex: clippy::arithmetic_side_effects over src/**. plan_sink.rs 62 sites -> 0 (checked helpers in px.rs, saturating/checked in Geometry, scratch_bytes, reserve, run_parallel), extended.rs 0, px.rs 0; coverage.rs 2 sites not applicable (module not touched).",
+   "retry_guard": "no hook block; cargo test run twice on different HEADs (first on the working tree before the commit, then on pushed 49afca1). No gameplan step added.",
+   "check_clippy": "cargo clippy -p hsk-studio-render-cpu --tests clean (warnings only in hsk-studio-observe/prism/pigment, pre-existing)",
+   "tests_note_5674e9c": "cpu_extended.rs fixtures moved to tests/common/mod.rs (shared with cpu_effects.rs); no assertion changed."
+  },
+  "effects1": {
+   "lane": "SMB-RENDER-CPU-EFFECTS-1",
+   "pigment_api": "e007703 (effect_math wave 1, effect_support_px, render_layer_reference); pigment HEAD also had d982b5c (wave 2 kinds) by the time of the tests; not edited",
+   "files": [
+    "src/plan_sink/effects.rs (new: effect_layer, effect_tiles, effect_tile, frame_content)",
+    "src/plan_sink/extended.rs (EffectLayer table, ExtPrep effects, FrameShape, Frame/Fx frame scratch, effect_error)",
+    "src/plan_sink.rs (prepare: margin bounds, effects_nested / effects_with_blend_if refusals, PLayer layer_opacity + fill_opacity, run(): frame charge, extension_exactness)",
+    "src/px.rs (grow_rect)",
+    "src/lib.rs (DESCRIPTOR effects)",
+    "tests/cpu_effects.rs (new, 5 tests), tests/common/mod.rs (shared fixtures)"
+   ],
+   "tests_added": [
+    "drop_shadow_hand_values_and_reference_parity",
+    "colour_overlay_hand_values_clip_and_full_strength",
+    "stroke_rings_hand_values_and_reference_parity",
+    "effect_stack_matches_reference_for_every_chunking",
+    "effect_refusals_and_scratch_charge_stay_typed"
+   ],
+   "parity": "vs pigment render_layer_reference, bit-identical (f32 to_bits, max diff 0): drop shadow 225 + 225 px (bar blur taps, block with spread/size/offset/knockout, chunk 8 and 5, 1-2 workers), colour overlay 2 x 2 px (fill 1 and 0), stroke outside/inside/centre/wide 196 px, 4-effect stack (multiply shadow, overlay, outside + inside strokes, opacity .8 fill .5) 3 x 1440 px at chunks 40/13/9 with 1/1/3 workers, equal to each other. Photoshop parity NOT_PROVEN (D5 12-14).",
+   "hand_values": {
+    "shadow_fill0": "1 px opaque red, shadow black .5: fill 1 -> red; fill 0 -> (0,0,0,.5); layer opacity .5 -> alpha .25; knockout -> clear",
+    "shadow_offset": "angle 180 distance 2: matte at x = 4 for a pixel at x = 2 (pigment convention (-cos a, sin a) * d)",
+    "shadow_blur_2px": "row 7 of a full-height bar: [w3, w2, w1, w0, w1, w2, w3] = .00443305 .05400558 .24203623 .39905028 ...",
+    "overlay": "red 50% over blue opaque -> (.5, 0, .5, 1); over alpha 0 stays clear; fill 0 -> (1, 0, 0, .5)",
+    "stroke_1px": "orthogonal ring 1.0, diagonal 1.5 - hypot(.5,.5) = .79289322, 2 px away 0; inside: 8 border pixels 1, centre 0 (the brief's 'ring coverage 1 on the 8-neighbour ring' holds for orthogonal neighbours only; pigment's ramp gives .7929 on diagonals)",
+    "budget": "1x1 chunk, shadow size 4 (margin 6, frame 13x13 = 169 px): 32 + 64 + 169 * 116 = 19700; limit 19699 -> BudgetExceeded{19700, 19699}"
+   },
+   "decisions_for_lead": [
+    "Pigment's reference reads zero beyond its plane (shift_zero, blur, dilate), so render_layer_reference equals the backend only when the plane holds the layer plus its margin; the backend evaluates frames beyond the target and yields the uncut shadow (first stack attempt: 21 px off by 8e-7 .. 3e-4 near the plane edge because the test plane was smaller; the test plane was fixed, not the backend).",
+    "Effects together with Blend-If on one layer are refused (effects_with_blend_if): the Blend-If weight depends on the backdrop of the content composite and Photoshop behaviour with effects is UNVERIFIED; pigment admits the combination, so this is a backend-side refusal that happens after shared admission (still before the first sink call).",
+    "Effects nested inside the content of an effect layer are refused (effects_nested), same reason: one frame scratch per worker.",
+    "Mask on an effect layer multiplies the content alpha (the shape alpha the matte is derived from, pigment module doc); without effects the v1 path multiplies the mask into opacity, so a masked effect layer can differ from the same layer without effects by f32 rounding.",
+    "Effect kinds pigment added after wave 1 (d982b5c inner shadow, outer glow, inner glow) are Unsupported here until implemented and tested (kind-by-kind allow list in extension_exactness)."
+   ],
+   "api_changes_needed_in_pigment": [
+    "Windowed matte API: effect_math::reference_matte / render_layer_reference work on planes of at most 64 x 64 and recompute the margin of every tile, so this backend refuses effect margins above 24 px (effect_margin) and a layer pays (64 / tile side)^2 recompute. A production path needs a matte function over a window with an explicit halo contract (window rect + halo from effect_support_px, no 64 px plane limit, work budget per window) and a streaming dilate/blur; then margins up to MAX_EFFECT_SIZE_PX (1000) become possible."
+   ],
+   "plausible_not_addressed": [
+    "EffectPlane / render_layer_reference allocate inside pigment per tile (several 16 KB-class vectors); the scratch charge is an estimate of those allocations (4 bytes per pixel x (effects + 12) + 3 planes of 16 bytes), not a measured bound.",
+    "Pixels of an effect region where nothing is drawn are rewritten with the reference's composite_over(a_s = 0) result, which equals the backdrop for opaque backdrops and can differ by an ulp for translucent ones.",
+    "Effect compute cost per tile is not charged to a deadline-aware budget; cancel and deadline are observed between chunks only."
+   ],
+   "incident_stale_artifact": "Between the first green effects run (c4bdaef) and the run after 9b2f3af, all five cpu_effects tests failed with Unsupported{colour_overlay|drop_shadow}: the shared-target test binary of hsk-studio-render-cpu had been built from an older plan_sink.rs (extension_exactness answered Unsupported for Effect kinds, probe test showed Adjustment/BlendIf Exact but Effect Unsupported) although the source and HEAD were correct. Cause: stale artifact in the shared target dir (UNVERIFIED which build wrote it; the shared worktree is edited by other lanes). Fix: touch crates/hsk-studio-render-cpu/src/plan_sink.rs and lib.rs, rebuild, 21/21. The hook did not block the rerun; no gameplan step added because there is no machine check for it; lead may want a freshness check of target artifacts vs source mtimes (infrastructure, affects every lane).",
+   "retry_guard": "route (a) product failure (stack test reference plane too small) fixed by commit 9b2f3af then rerun; route none for the stale artifact (hook did not block). Two temporary debug tests (tests/rcpu_debug.rs, rcpu_debug2.rs) were never committed and were moved to the scratchpad subfolder rcpu/.",
+   "check_clippy": "cargo clippy -p hsk-studio-render-cpu --tests clean on 5674e9c; plan_sink.rs, plan_sink/extended.rs, plan_sink/effects.rs, px.rs and the new test files carry deny(clippy::arithmetic_side_effects)"
+  },
+  "exactness_class_correction": {
+   "finding": "Coordinator check: extension_exactness returned Exact for the envelope operators and the three wave 1 effects although pigment declares them Approximate (D5 cases 1, 9, 10, 12-14); only invert is Exact in pigment. Correct reading: yes, it exceeded pigment's class. Receipts were never affected (admit_extended takes op.intrinsic().lowest_of(backend class)), but the reported capability class must not exceed pigment's (CX-CAP-001).",
+   "fix": "7274827: extension_exactness returns ExtOperator::intrinsic() for every supported operator (adjustment layer, the 8 adjustment kinds, Blend-If, mask density, mask feather, DropShadow/ColourOverlay/Stroke) and Unsupported otherwise. Earlier commit messages/notes that say 'Exact' for these (49afca1, c4bdaef, 5674e9c and the capabilities_done entries ADJ-1/EFFECTS-1) describe the superseded behaviour.",
+   "tests": "cpu_extended refusals_stay_typed_and_the_v1_path_is_unchanged asserts backend class == op.intrinsic() for AdjustmentLayer, BlendIf, MaskDensity, MaskFeather and all AdjustmentKind::ALL (invert Exact, mask feather Approximate); cpu_effects effect_refusals_and_scratch_charge_stay_typed asserts the same for the wave 1 effect kinds (Approximate) and Unsupported for the others.",
+   "reference_parity": "bit_identical to pigment's reference for adjustments (evaluate_stack) and effects (render_layer_reference) is a separate fact carried by the parity tests (notes.adj1.parity, notes.effects1.parity), not by the class."
+  },
+  "fx_ops_adopt": {
+   "lane": "SMB-FX-OPS-ADOPT",
+   "status": "READY_FOR_VALIDATION",
+   "sha": "e8f5f98",
+   "pigment": [
+    "d3ce607",
+    "fe5fde0",
+    "b2f5f81"
+   ],
+   "scope": "Consumer adoption of pigment SMB-PIGMENT-FX-OPS (d3ce607, fe5fde0) and SMB-PIGMENT-ADMIT-PARITY (b2f5f81); per-consumer changes as in diagnostics/adjustments-advanced-blending.md topics effects-ops and admission-parity. New lane id per V4-15; nothing is claimed on SMB-RENDER-GPU (BLOCKED/D20) and no verdict, fixed key or earlier note was changed.",
+   "files": [
+    "src/plan_sink.rs (extension_exactness, verify_tile, prepare, imports)",
+    "src/plan_sink/effects.rs (run-time nesting guard key, import)",
+    "src/lib.rs (DESCRIPTOR text only)",
+    "src/plan_sink/refusal_keys.rs (cfg(test))"
+   ],
+   "changes": [
+    {
+     "rule": "nested effects",
+     "before": "wildcard Unsupported (implicit), literal effects_nested at plan_sink.rs prepare and effects.rs run-time guard",
+     "after": "explicit EffectsNested => Unsupported; both guards use ExtOperator::EffectsNested.key(); shared admission refuses before any sink call"
     },
-    "adj1": {
-      "lane": "SMB-RENDER-CPU-ADJ-1",
-      "pigment_api": "2f705f1 (adjust_math, coverage_math, render_plan::PlanExtensions, admit_extended); not edited",
-      "files": [
-        "src/plan_sink.rs (prepare + Eval wiring, run(), execute_extended_detailed, extension_exactness)",
-        "src/plan_sink/extended.rs (new: ExtPrep, Fx scratch, feather blur, Eval::adjust)",
-        "src/px.rs (new: checked geometry helpers)",
-        "src/lib.rs (mod px, DESCRIPTOR extensions)",
-        "tests/cpu_extended.rs (new, 5 tests)",
-        "tests/cpu_plan.rs (rustfmt only)"
-      ],
-      "tests_added": [
-        "adjustment_layer_hand_values_pigment_parity_and_clip_run",
-        "mask_density_and_invert_hand_values",
-        "blend_if_ramps_hand_values",
-        "mask_feather_hand_values_budget_and_aggregate",
-        "refusals_stay_typed_and_the_v1_path_is_unchanged"
-      ],
-      "parity": "8 adjustment kinds (levels, curves, hue_saturation, brightness_contrast legacy, exposure, invert, threshold, posterize) x opaque and half-transparent backdrops (16 pixels, modes Normal/Multiply, opacities .5/.75/1) are bit-identical (f32 to_bits equal, max diff 0) to pigment evaluate_stack Adjustment nodes; Photoshop parity NOT_PROVEN (D5 cases 1, 9, 10; V4-03).",
-      "hand_values": {
-        "invert_opacity_half": "(0.2,0.4,0.6,1.0) -> (0.5,0.5,0.5,1.0); alpha .5 backdrop keeps alpha .5",
-        "clip_run": "invert clipped to red base A over gray .2: left (0,1,1,1), right stays (.2,.2,.2,1)",
-        "mask_density": "u16 16384/65535 coverage, density .5 -> .62500191; density 0 -> 1; inverted .5 -> .87499809",
-        "blend_if": "gray ramp [.2,.4,.6,1] weights 0,0,.5,1,1,.5,0 for values .1 .2 .3 .4 .5 .8 1.0; source .5 x underlying red .5 -> .25; adjustment content f(backdrop) weight .25 -> .35",
-        "feather_2px": "taps .39905028 .24203623 .05400558 .00443305; edge coverage 0, w3, w2+w3, w1+w2+w3, 1-(w1+w2+w3), 1-(w2+w3), 1-w3, 1; chunk 4/5/12 and threads 1-3 bit-identical",
-        "budget": "peak_working_bytes 1756 = 1152 scratch + 28 kernel + 576 feather scratch; limit 1755 -> BudgetExceeded{1756,1755}; two distinct radii: running aggregate 28 then 72 > 50 refused before the second kernel; feather 10000 px refused"
-      },
-      "decisions_for_lead": [
-        "Empty envelope + density mask: execute_extended takes the envelope admission (pigment admit_extended admits density as ExtOperator::MaskDensity with an empty envelope); the v1 execute() keeps the mask_density refusal. An empty envelope without density takes the unchanged v1 path.",
-        "Blend-If source colour for an adjustment layer = its content f(backdrop) (pigment says the layer content is f(backdrop)); Photoshop behaviour UNVERIFIED (D5 case 9). On a clip run the base layer's Blend-If applies to the run composite (G vs running backdrop). Backdrop weight reads the stored backdrop rgb, transparent pixels read black (pigment blend_if_weight has no alpha input).",
-        "Density 1 keeps the v1 inline inversion (1 - c) instead of mask_coverage so v1 bytes cannot change; density < 1 and every feathered layer's effective coverage go through mask_coverage."
-      ],
-      "api_changes_needed_in_pigment": [],
-      "plausible_not_addressed": [
-        "feather compute cost is O(support) per pixel and only the scratch/kernel memory is charged to max_working_bytes (same class as the open R5 PLAUSIBLE item for coverage.rs winding cost); cancel and deadline are observed between chunks only.",
-        "coverage.rs (untouched) still has 2 unchecked arithmetic sites (hits += ..., n * n) under the V4-01 lint."
-      ],
-      "v4_01_sweep": "regex: clippy::arithmetic_side_effects over src/**. plan_sink.rs 62 sites -> 0 (checked helpers in px.rs, saturating/checked in Geometry, scratch_bytes, reserve, run_parallel), extended.rs 0, px.rs 0; coverage.rs 2 sites not applicable (module not touched).",
-      "retry_guard": "no hook block; cargo test run twice on different HEADs (first on the working tree before the commit, then on pushed 49afca1). No gameplan step added.",
-      "check_clippy": "cargo clippy -p hsk-studio-render-cpu --tests clean (warnings only in hsk-studio-observe/prism/pigment, pre-existing)",
-      "tests_note_5674e9c": "cpu_extended.rs fixtures moved to tests/common/mod.rs (shared with cpu_effects.rs); no assertion changed."
+    {
+     "rule": "premultiplied alpha",
+     "before": "wildcard Unsupported (implicit), literal alpha_premultiplied (tile and target)",
+     "after": "explicit AlphaPremultiplied => Unsupported; ExtOperator::AlphaPremultiplied.key()"
     },
-    "effects1": {
-      "lane": "SMB-RENDER-CPU-EFFECTS-1",
-      "pigment_api": "e007703 (effect_math wave 1, effect_support_px, render_layer_reference); pigment HEAD also had d982b5c (wave 2 kinds) by the time of the tests; not edited",
-      "files": [
-        "src/plan_sink/effects.rs (new: effect_layer, effect_tiles, effect_tile, frame_content)",
-        "src/plan_sink/extended.rs (EffectLayer table, ExtPrep effects, FrameShape, Frame/Fx frame scratch, effect_error)",
-        "src/plan_sink.rs (prepare: margin bounds, effects_nested / effects_with_blend_if refusals, PLayer layer_opacity + fill_opacity, run(): frame charge, extension_exactness)",
-        "src/px.rs (grow_rect)",
-        "src/lib.rs (DESCRIPTOR effects)",
-        "tests/cpu_effects.rs (new, 5 tests), tests/common/mod.rs (shared fixtures)"
-      ],
-      "tests_added": [
-        "drop_shadow_hand_values_and_reference_parity",
-        "colour_overlay_hand_values_clip_and_full_strength",
-        "stroke_rings_hand_values_and_reference_parity",
-        "effect_stack_matches_reference_for_every_chunking",
-        "effect_refusals_and_scratch_charge_stay_typed"
-      ],
-      "parity": "vs pigment render_layer_reference, bit-identical (f32 to_bits, max diff 0): drop shadow 225 + 225 px (bar blur taps, block with spread/size/offset/knockout, chunk 8 and 5, 1-2 workers), colour overlay 2 x 2 px (fill 1 and 0), stroke outside/inside/centre/wide 196 px, 4-effect stack (multiply shadow, overlay, outside + inside strokes, opacity .8 fill .5) 3 x 1440 px at chunks 40/13/9 with 1/1/3 workers, equal to each other. Photoshop parity NOT_PROVEN (D5 12-14).",
-      "hand_values": {
-        "shadow_fill0": "1 px opaque red, shadow black .5: fill 1 -> red; fill 0 -> (0,0,0,.5); layer opacity .5 -> alpha .25; knockout -> clear",
-        "shadow_offset": "angle 180 distance 2: matte at x = 4 for a pixel at x = 2 (pigment convention (-cos a, sin a) * d)",
-        "shadow_blur_2px": "row 7 of a full-height bar: [w3, w2, w1, w0, w1, w2, w3] = .00443305 .05400558 .24203623 .39905028 ...",
-        "overlay": "red 50% over blue opaque -> (.5, 0, .5, 1); over alpha 0 stays clear; fill 0 -> (1, 0, 0, .5)",
-        "stroke_1px": "orthogonal ring 1.0, diagonal 1.5 - hypot(.5,.5) = .79289322, 2 px away 0; inside: 8 border pixels 1, centre 0 (the brief's 'ring coverage 1 on the 8-neighbour ring' holds for orthogonal neighbours only; pigment's ramp gives .7929 on diagonals)",
-        "budget": "1x1 chunk, shadow size 4 (margin 6, frame 13x13 = 169 px): 32 + 64 + 169 * 116 = 19700; limit 19699 -> BudgetExceeded{19700, 19699}"
-      },
-      "decisions_for_lead": [
-        "Pigment's reference reads zero beyond its plane (shift_zero, blur, dilate), so render_layer_reference equals the backend only when the plane holds the layer plus its margin; the backend evaluates frames beyond the target and yields the uncut shadow (first stack attempt: 21 px off by 8e-7 .. 3e-4 near the plane edge because the test plane was smaller; the test plane was fixed, not the backend).",
-        "Effects together with Blend-If on one layer are refused (effects_with_blend_if): the Blend-If weight depends on the backdrop of the content composite and Photoshop behaviour with effects is UNVERIFIED; pigment admits the combination, so this is a backend-side refusal that happens after shared admission (still before the first sink call).",
-        "Effects nested inside the content of an effect layer are refused (effects_nested), same reason: one frame scratch per worker.",
-        "Mask on an effect layer multiplies the content alpha (the shape alpha the matte is derived from, pigment module doc); without effects the v1 path multiplies the mask into opacity, so a masked effect layer can differ from the same layer without effects by f32 rounding.",
-        "Effect kinds pigment added after wave 1 (d982b5c inner shadow, outer glow, inner glow) are Unsupported here until implemented and tested (kind-by-kind allow list in extension_exactness)."
-      ],
-      "api_changes_needed_in_pigment": [
-        "Windowed matte API: effect_math::reference_matte / render_layer_reference work on planes of at most 64 x 64 and recompute the margin of every tile, so this backend refuses effect margins above 24 px (effect_margin) and a layer pays (64 / tile side)^2 recompute. A production path needs a matte function over a window with an explicit halo contract (window rect + halo from effect_support_px, no 64 px plane limit, work budget per window) and a streaming dilate/blur; then margins up to MAX_EFFECT_SIZE_PX (1000) become possible."
-      ],
-      "plausible_not_addressed": [
-        "EffectPlane / render_layer_reference allocate inside pigment per tile (several 16 KB-class vectors); the scratch charge is an estimate of those allocations (4 bytes per pixel x (effects + 12) + 3 planes of 16 bytes), not a measured bound.",
-        "Pixels of an effect region where nothing is drawn are rewritten with the reference's composite_over(a_s = 0) result, which equals the backdrop for opaque backdrops and can differ by an ulp for translucent ones.",
-        "Effect compute cost per tile is not charged to a deadline-aware budget; cancel and deadline are observed between chunks only."
-      ],
-      "incident_stale_artifact": "Between the first green effects run (c4bdaef) and the run after 9b2f3af, all five cpu_effects tests failed with Unsupported{colour_overlay|drop_shadow}: the shared-target test binary of hsk-studio-render-cpu had been built from an older plan_sink.rs (extension_exactness answered Unsupported for Effect kinds, probe test showed Adjustment/BlendIf Exact but Effect Unsupported) although the source and HEAD were correct. Cause: stale artifact in the shared target dir (UNVERIFIED which build wrote it; the shared worktree is edited by other lanes). Fix: touch crates/hsk-studio-render-cpu/src/plan_sink.rs and lib.rs, rebuild, 21/21. The hook did not block the rerun; no gameplan step added because there is no machine check for it; lead may want a freshness check of target artifacts vs source mtimes (infrastructure, affects every lane).",
-      "retry_guard": "route (a) product failure (stack test reference plane too small) fixed by commit 9b2f3af then rerun; route none for the stale artifact (hook did not block). Two temporary debug tests (tests/rcpu_debug.rs, rcpu_debug2.rs) were never committed and were moved to the scratchpad subfolder rcpu/.",
-      "check_clippy": "cargo clippy -p hsk-studio-render-cpu --tests clean on 5674e9c; plan_sink.rs, plan_sink/extended.rs, plan_sink/effects.rs, px.rs and the new test files carry deny(clippy::arithmetic_side_effects)"
+    {
+     "rule": "effects together with Blend-If",
+     "before": "literal effects_with_blend_if",
+     "after": "ExtOperator::EffectsWithBlendIf.key() (pigment refuses first, intrinsic Unsupported)"
     },
-    "exactness_class_correction": {
-      "finding": "Coordinator check: extension_exactness returned Exact for the envelope operators and the three wave 1 effects although pigment declares them Approximate (D5 cases 1, 9, 10, 12-14); only invert is Exact in pigment. Correct reading: yes, it exceeded pigment's class. Receipts were never affected (admit_extended takes op.intrinsic().lowest_of(backend class)), but the reported capability class must not exceed pigment's (CX-CAP-001).",
-      "fix": "7274827: extension_exactness returns ExtOperator::intrinsic() for every supported operator (adjustment layer, the 8 adjustment kinds, Blend-If, mask density, mask feather, DropShadow/ColourOverlay/Stroke) and Unsupported otherwise. Earlier commit messages/notes that say 'Exact' for these (49afca1, c4bdaef, 5674e9c and the capabilities_done entries ADJ-1/EFFECTS-1) describe the superseded behaviour.",
-      "tests": "cpu_extended refusals_stay_typed_and_the_v1_path_is_unchanged asserts backend class == op.intrinsic() for AdjustmentLayer, BlendIf, MaskDensity, MaskFeather and all AdjustmentKind::ALL (invert Exact, mask feather Approximate); cpu_effects effect_refusals_and_scratch_charge_stay_typed asserts the same for the wave 1 effect kinds (Approximate) and Unsupported for the others.",
-      "reference_parity": "bit_identical to pigment's reference for adjustments (evaluate_stack) and effects (render_layer_reference) is a separate fact carried by the parity tests (notes.adj1.parity, notes.effects1.parity), not by the class."
-    },
-    "fx_ops_adopt": {
-      "lane": "SMB-FX-OPS-ADOPT",
-      "status": "READY_FOR_VALIDATION",
-      "sha": "e8f5f98",
-      "pigment": [
-        "d3ce607",
-        "fe5fde0",
-        "b2f5f81"
-      ],
-      "scope": "Consumer adoption of pigment SMB-PIGMENT-FX-OPS (d3ce607, fe5fde0) and SMB-PIGMENT-ADMIT-PARITY (b2f5f81); per-consumer changes as in diagnostics/adjustments-advanced-blending.md topics effects-ops and admission-parity. New lane id per V4-15; nothing is claimed on SMB-RENDER-GPU (BLOCKED/D20) and no verdict, fixed key or earlier note was changed.",
-      "files": [
-        "src/plan_sink.rs (extension_exactness, verify_tile, prepare, imports)",
-        "src/plan_sink/effects.rs (run-time nesting guard key, import)",
-        "src/lib.rs (DESCRIPTOR text only)",
-        "src/plan_sink/refusal_keys.rs (cfg(test))"
-      ],
-      "changes": [
-        {
-          "rule": "nested effects",
-          "before": "wildcard Unsupported (implicit), literal effects_nested at plan_sink.rs prepare and effects.rs run-time guard",
-          "after": "explicit EffectsNested => Unsupported; both guards use ExtOperator::EffectsNested.key(); shared admission refuses before any sink call"
-        },
-        {
-          "rule": "premultiplied alpha",
-          "before": "wildcard Unsupported (implicit), literal alpha_premultiplied (tile and target)",
-          "after": "explicit AlphaPremultiplied => Unsupported; ExtOperator::AlphaPremultiplied.key()"
-        },
-        {
-          "rule": "effects together with Blend-If",
-          "before": "literal effects_with_blend_if",
-          "after": "ExtOperator::EffectsWithBlendIf.key() (pigment refuses first, intrinsic Unsupported)"
-        },
-        {
-          "rule": "mask on a pass-through layer",
-          "before": "literal mask_on_pass_through",
-          "after": "PASS_THROUGH_MASK_OPERATOR"
-        }
-      ],
-      "tests": {
-        "argv": [
-          "cargo",
-          "nextest",
-          "run",
-          "-p",
-          "hsk-studio-render-cpu",
-          "--no-fail-fast"
-        ],
-        "exit": 0,
-        "passed": 32,
-        "failed": 0,
-        "clippy_fmt": "cargo clippy -p hsk-studio-render-cpu --tests: no warning; cargo fmt --check clean",
-        "added": [
-          "plan_sink::refusal_keys::defence_in_depth_refusal_keys_are_pigments: cases 'coverage mask on a pass-through layer' and 'premultiplied alpha at the target'",
-          "plan_sink::refusal_keys::fx_ops_declarations_and_refusals_equal_pigments: the three operators declared Unsupported; nested effects and effects with Blend-If: admit_extended error equals prepare error, key = ExtOperator::*.key()"
-        ],
-        "kept_unchanged": "cpu_effects.rs effect_refusals_and_scratch_charge_stay_typed (keys effects_with_blend_if, effects_nested, now reached through shared admission) and cpu_plan.rs premultiplied case pass without edits"
-      },
-      "v4_06_regex": "\"(alpha_premultiplied|mask_on_pass_through|effects_with_blend_if|effects_nested)\" over src/ (string literals standing for a rule pigment now decides at shared admission)",
-      "v4_06_sites": [
-        {
-          "file_line": "src/plan_sink.rs:398",
-          "verdict": "FIXED: ExtOperator::AlphaPremultiplied.key()"
-        },
-        {
-          "file_line": "src/plan_sink.rs:451",
-          "verdict": "FIXED: ExtOperator::AlphaPremultiplied.key()"
-        },
-        {
-          "file_line": "src/plan_sink.rs:588",
-          "verdict": "FIXED: ExtOperator::EffectsWithBlendIf.key()"
-        },
-        {
-          "file_line": "src/plan_sink.rs:591",
-          "verdict": "FIXED: ExtOperator::EffectsNested.key()"
-        },
-        {
-          "file_line": "src/plan_sink.rs:613",
-          "verdict": "FIXED: PASS_THROUGH_MASK_OPERATOR"
-        },
-        {
-          "file_line": "src/plan_sink/effects.rs:129",
-          "verdict": "FIXED: ExtOperator::EffectsNested.key()"
-        }
-      ],
-      "supersedes_note": "notes.v4_06_sites entry src/plan_sink/effects.rs:128 (NOT_APPLICABLE: backend-owned key 'effects_nested') no longer holds: pigment owns the key since d3ce607; the site is now effects.rs:129 and FIXED above. The earlier note was not edited."
+    {
+     "rule": "mask on a pass-through layer",
+     "before": "literal mask_on_pass_through",
+     "after": "PASS_THROUGH_MASK_OPERATOR"
     }
+   ],
+   "tests": {
+    "argv": [
+     "cargo",
+     "nextest",
+     "run",
+     "-p",
+     "hsk-studio-render-cpu",
+     "--no-fail-fast"
+    ],
+    "exit": 0,
+    "passed": 32,
+    "failed": 0,
+    "clippy_fmt": "cargo clippy -p hsk-studio-render-cpu --tests: no warning; cargo fmt --check clean",
+    "added": [
+     "plan_sink::refusal_keys::defence_in_depth_refusal_keys_are_pigments: cases 'coverage mask on a pass-through layer' and 'premultiplied alpha at the target'",
+     "plan_sink::refusal_keys::fx_ops_declarations_and_refusals_equal_pigments: the three operators declared Unsupported; nested effects and effects with Blend-If: admit_extended error equals prepare error, key = ExtOperator::*.key()"
+    ],
+    "kept_unchanged": "cpu_effects.rs effect_refusals_and_scratch_charge_stay_typed (keys effects_with_blend_if, effects_nested, now reached through shared admission) and cpu_plan.rs premultiplied case pass without edits"
+   },
+   "v4_06_regex": "\"(alpha_premultiplied|mask_on_pass_through|effects_with_blend_if|effects_nested)\" over src/ (string literals standing for a rule pigment now decides at shared admission)",
+   "v4_06_sites": [
+    {
+     "file_line": "src/plan_sink.rs:398",
+     "verdict": "FIXED: ExtOperator::AlphaPremultiplied.key()"
+    },
+    {
+     "file_line": "src/plan_sink.rs:451",
+     "verdict": "FIXED: ExtOperator::AlphaPremultiplied.key()"
+    },
+    {
+     "file_line": "src/plan_sink.rs:588",
+     "verdict": "FIXED: ExtOperator::EffectsWithBlendIf.key()"
+    },
+    {
+     "file_line": "src/plan_sink.rs:591",
+     "verdict": "FIXED: ExtOperator::EffectsNested.key()"
+    },
+    {
+     "file_line": "src/plan_sink.rs:613",
+     "verdict": "FIXED: PASS_THROUGH_MASK_OPERATOR"
+    },
+    {
+     "file_line": "src/plan_sink/effects.rs:129",
+     "verdict": "FIXED: ExtOperator::EffectsNested.key()"
+    }
+   ],
+   "supersedes_note": "notes.v4_06_sites entry src/plan_sink/effects.rs:128 (NOT_APPLICABLE: backend-owned key 'effects_nested') no longer holds: pigment owns the key since d3ce607; the site is now effects.rs:129 and FIXED above. The earlier note was not edited."
   }
+ }
 }
