@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T09:59:23Z",
+ "updated_at": "2026-10-11T10:06:33Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -834,15 +834,16 @@
     "5882f3c",
     "cd2ff81",
     "a53c52d",
-    "ffe5592"
+    "ffe5592",
+    "1d972f1"
    ],
    "verdicts": [
     "STUDIO-R3 FAIL_V1 @404ff3a",
     "STUDIO-R5 FAIL_V2 @1d404f8 (counter NEEDS_NEW_APPROACH)"
    ],
    "lane_file": "builders/lanes/hsk-studio-motion-js.json",
-   "candidate": "ffe5592",
-   "note": "R5 NEEDS_NEW_APPROACH resolved by diagnosis (diagnostics/motion-js-classify.md): budget class only from host interrupt handler (fuel/cancel/deadline) + rquickjs Error::Allocation; messages never select a class; real stack/OOM now Unsupported (rquickjs 0.14.0 exposes no unforgeable signal) and typed Budget(Stack/Memory) listed NOT_PROVEN; forged-message tests red-first; 32 green across feature sets",
+   "candidate": "1d972f1",
+   "note": "pre-review B N1 fixed (961c301, 1d972f1): validator refuses raw NUL with exact line:col (escapes still admitted and evaluate); rquickjs InvalidString with NUL in source -> Parse(span), never Internal/poison (worker not killed, provider usable); V4-06 36 sites (3 fixed incl. ScriptedEngine bad args -> Parse); 3 carried R5 PLAUSIBLEs real and fixed (worker lookup only beside executable, HELLO wait cancellable every 5 ms, host-read path >256 bytes refused, reply cap independent of source length); 59 green across 3 feature sets; red on scratch copy of 0e48167",
    "review_findings": "R2-review-b: PASS recommendation; formal verdict pending next round",
    "review_findings_r3": "R3 FAIL_V1 remediated a53c52d (getter loop, InternalError classification)",
    "r5_review_routed": {
@@ -1366,13 +1367,14 @@
    "owner": "builder-motion-js-worker",
    "commits": [
     "a53c52d",
-    "ffe5592"
+    "ffe5592",
+    "1d972f1"
    ],
    "verdicts": [
     "STUDIO-R5 FAIL_V1 @1d404f8"
    ],
-   "candidate": "ffe5592",
-   "note": "R5: fault injection, worker fault env read and unsafe_in_process only under non-default test-faults; worker_fault_env test proves default worker ignores fault env; AST validator + OS caps split to SMB-MOTION-JS-SANDBOX-2 (NOT_PROVEN in DESCRIPTOR)",
+   "candidate": "1d972f1",
+   "note": "judged with the motion-js N1 fix head (pre-review B); carried R5 PLAUSIBLEs fixed in 961c301; V4-06 site lists refreshed at 1d972f1",
    "r5_review_routed": {
     "to": "rem-motionjs-reelnative",
     "at": "2026-10-11T05:31:12Z",

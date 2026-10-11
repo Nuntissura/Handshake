@@ -2,7 +2,7 @@
   "crate": "hsk-studio-motion-js",
   "mt": "MT-35563",
   "status": "READY_FOR_VALIDATION",
-  "phase": "SMB-MOTION-JS-SANDBOX-2 delivered on top of the R5 remediation (ffe5592): profile validator before the engine (307c13c) + Windows Job Object caps (0cc4251) + tolerant native-abort test (34a1713); R5 remediation itself still awaits its validator round",
+  "phase": "SMB-MOTION-JS-SANDBOX-2 delivered on top of the R5 remediation (ffe5592), plus the R7 pre-review B remediation (961c301, 1d972f1): a raw NUL in the source is a typed refusal in both layers, never a provider poison; the three carried R5 PLAUSIBLEs (worker lookup, HELLO wait, reply cap) fixed; no round has judged ffe5592 or later yet",
   "commits": [
     {
       "sha": "1f87cd2",
@@ -75,6 +75,18 @@
       "branch": "codex/handshake-studio-assets",
       "pushed": true,
       "summary": "SANDBOX-2 follow-up: worker calls SetErrorMode + _set_abort_behavior at start so abort() ends it at once (exit code 3); native-abort test strict again (engine_crashed, exit 3, < 5 s), NOT_PROVEN branch removed; windows-sys feature Win32_System_Diagnostics_Debug (dep request amended)"
+    },
+    {
+      "sha": "961c301",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "R7 pre-review B: validator refuses a raw U+0000 anywhere (ViolationKind::NulCharacter, exact line:column); QuickJS classify maps rquickjs Error::InvalidString caused by a NUL in the source to Parse at the same span (no Internal, no poison); worker found only beside the running executable; HELLO wait cancel-polled; realm refuses a host-read path above MAX_PATH_BYTES and the reply cap no longer depends on the source length"
+    },
+    {
+      "sha": "1d972f1",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "R7 pre-review B V4-06 sweep: ScriptedEngine alloc:/slow: malformed argument is Parse (1:1), not Internal"
     }
   ],
   "capabilities_done": [
@@ -91,28 +103,25 @@
     "R3 fix 2 (classification by engine signal): interrupts are classified from our own handler state (Tripped Fuel/Cancel/Deadline), adapter failures from the rquickjs error type, never from error names; a user-thrown InternalError (any name/message/prototype trick) is plain data -> Unsupported and the provider is NOT poisoned",
     "SANDBOX-2 profile validator (src/profile.rs): iterative lexical validator, bounded bracket stack, no dependency; refuses class/extends/super/import/export/async/await/yield/with/debugger/new/this/enum, DENIED_NAMES (eval, Function, constructor, __proto__, Proxy, Reflect, Promise, globalThis, timers, SharedArrayBuffer, Atomics, WebAssembly, ...) as identifiers and as exact string values after escape decoding, template and regex literals, getters/setters, generators, optional chaining and post-ES2018 operators, private names, identifier escapes, non-ASCII identifiers, numeric separators, BigInt, legacy octal, HTML-like comments; exact 1-based line:column; hostile sizes are typed Budget; MotionJsProvider::new applies it to JavaScript engines before a permit or the engine (without_validator/with_validator); ProviderStats::validation_rejected",
     "SANDBOX-2 OS caps (src/os_caps.rs, src/job_object.rs): one Job Object per worker; completion-port notices -> Budget(Memory) even if the script swallowed the engine OOM; CPU allowance re-armed per request, enforced by a 5 ms host poll of the job's user+kernel time (kernel limit kept as backstop); OsCapConfig/OsCapPolicy/OsCapStatus/OsLimits; QuickJsBackend::os_caps/os_limits; WorkerStats::killed_os_memory/killed_os_cpu; Linux/macOS: OsCapStatus::Unavailable(PlatformNotSupported), Required -> os_caps_unavailable",
-    "SANDBOX-2 follow-up: motion-js-worker hardens itself against the platform crash reporter (SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX) and UCRT _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT), APIs checked on Microsoft Learn, flag values from the SDK ucrt/stdlib.h); abort() now ends the worker in about 2 s total test time with exit code 3: crash test 10 of 10 strict, 0 deadline kills (before: 2-10 s per run)"
+    "SANDBOX-2 follow-up: motion-js-worker hardens itself against the platform crash reporter (SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX) and UCRT _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT), APIs checked on Microsoft Learn, flag values from the SDK ucrt/stdlib.h); abort() now ends the worker in about 2 s total test time with exit code 3: crash test 10 of 10 strict, 0 deadline kills (before: 2-10 s per run)",
+    "R7 pre-review B (SMB-MOTION-JS N1, CONFIRMED): NUL in source. Validator: whole-source precondition after the byte bound, ViolationKind::NulCharacter (nul_character, class Parse) at the exact 1-based line:column of the first raw U+0000 (profile::nul_span, counted like the scanner), escapes (backslash-zero, x00, u0000) still admitted. Engine: classify maps rquickjs Error::InvalidString (CString::new(src), rquickjs-core-0.14.0 src/context/ctx.rs:144) to EngineFailure::Parse(Some(nul_span)) when the source holds a NUL, so it is a typed per-call refusal, the worker is not killed and the provider is not poisoned; an InvalidString the source cannot explain and every other non-exception wrapper error stay Internal (genuine invariant).",
+    "R7 carried R5 PLAUSIBLEs, all real and fixed: (1) discover_beside: worker looked up only in the running executable's directory (example passes the cargo layout path explicitly); (2) spawn HELLO wait polled every 5 ms for cancel (killed_canceled), spawn_timeout still bounds it, test fault StallHello; (3) response_cap = 8*max_nodes + 4096 independent of the source, realm refuses a host-read path above MAX_PATH_BYTES (256) as ReferenceMissing for both backends."
   ],
   "tests": {
-    "argv": "cargo test -p hsk-studio-motion-js --tests --no-fail-fast with (a) default, (b) --features quickjs, (c) --features quickjs,test-faults (studio-env.sh cargo form, shared edit tree)",
+    "argv": "studio-env.sh cargo nextest run -p hsk-studio-motion-js --no-fail-fast with (a) default, (b) --features quickjs, (c) --features quickjs,test-faults; cargo test --doc -p hsk-studio-motion-js --features quickjs,test-faults",
     "exit": 0,
-    "sha": "288b018",
-    "passed": 44,
+    "sha": "1d972f1",
+    "passed": 59,
     "failed": 0,
     "breakdown": {
-      "default": "foundation_contract 4/4, profile_contract 2/2",
-      "quickjs": "lib wire unit 1/1, foundation 4/4, profile_contract 2/2, quickjs_contract 7/7 (worker), worker_fault_env 1/1, os_caps 3/3 (quickjs_worker skipped: required-features)",
-      "quickjs,test-faults": "lib wire unit 1/1, foundation 4/4, profile_contract 2/2, quickjs_contract 7/7 (in-process), quickjs_worker 3/3 (native abort asserted strictly: engine_crashed, exit code 3, under 5 s), os_caps 3/3"
+      "default": "8/8 (foundation_contract 4, profile_contract 4)",
+      "quickjs": "24/24 (worker backend: lib unit 3 incl. reply_cap_covers_the_longest_realm_reply_for_a_tiny_source and worker_is_found_only_beside_the_running_executable, foundation 4, profile 4, quickjs_contract 9, worker_fault_env 1, os_caps 3)",
+      "quickjs,test-faults": "27/27 (in-process quickjs_contract 9, quickjs_worker 4 incl. canceled_evaluation_does_not_wait_for_a_stalled_hello, os_caps 3, lib unit 3, foundation 4, profile 4; worker_fault_env is built only without test-faults)",
+      "doctests": "0 tests"
     },
-    "red_on_mutations": "job_object.rs mutated in place (restored from a copy and touched, V4-11): memory notices ignored -> job_memory_cap_gives_typed_budget_even_when_the_script_swallows_the_error FAILED (swallowed bomb = Unsupported, expected Budget); CPU deadline not re-armed -> job_cpu_cap_gives_typed_budget_and_is_rearmed_per_request FAILED (healthy request run 3 killed)",
+    "red_on_mutations": "R7pre red proofs in notes.remediation_R7pre.red_proof (0e48167 + new tests: 4 FAIL; HELLO wait and parent lookup reverted: 2 FAIL; old scripted.rs: 1 FAIL); earlier SANDBOX-2 mutations unchanged: job_object.rs memory notices ignored -> job_memory_cap_gives_typed_budget_even_when_the_script_swallows_the_error FAILED; CPU deadline not re-armed -> job_cpu_cap_gives_typed_budget_and_is_rearmed_per_request FAILED",
     "not_proven_lines": [],
-    "check_clippy": "clippy --all-targets clean for hsk-studio-motion-js with default, quickjs, quickjs+test-faults (observe: 2 pre-existing too_many_arguments warnings, not ours)",
-    "crash_test_x10": {
-      "method": "test binary built once per variant and run 10 times directly (cargo test --no-run, then the exe; the per-run line is in the scratchpad)",
-      "before_hardening_head_0cc4251": "10 runs: 0 deadline kills, test duration 2, 6, 6, 7, 7, 7, 7, 7, 9, 10 s (hold varies); earlier on a loaded host 3 of 4 runs passed the 10 s deadline",
-      "after_hardening_tolerant_test": "10 runs: 0 deadline kills, 1-2 s each",
-      "after_hardening_strict_test": "10 runs: 0 deadline kills, 0 failures, 1-2 s each"
-    }
+    "check_clippy": "clippy --all-targets clean for hsk-studio-motion-js with default, quickjs, quickjs+test-faults at 1d972f1 (observe: 2 pre-existing too_many_arguments warnings, not ours)"
   },
   "blockers": [],
   "dep_request": "appended to builders/dep-requests.jsonl: rquickjs 0.14.0, std, default_features false, optional, native_kind native-ffi, pure_rust false; resolved closure adds rquickjs-core 0.14.0, rquickjs-sys 0.14.0 (native-ffi), hashbrown 0.17.1, allocator-api2 0.2.21, relative-path 2.0.2 (locked only), cc 1.7.0, find-msvc-tools 0.1.14, shlex 2.0.1 (build). Steward: registry/lock pins + probe check (-sys only in motion-js, already in NATIVE_OWNERS). Cargo.lock NOT staged. Slice 3 adds NO dependency (hand-written codec, std only); Cargo.lock and root Cargo.toml untouched. | SANDBOX-2 (2026-10-11T06:50:32Z): appended windows-sys 0.61.2 (optional, feature quickjs, native-ffi, five Win32 features, already in Cargo.lock, no new package); the crate manifest at 0cc4251 already lists it, Cargo.lock NOT staged by this lane.",
@@ -250,8 +259,8 @@
       "text": "Interrupt causes come from our handler (Tripped), adapter failures from rquickjs error types, thrown-value kind from captured prototype identity; message text is used only for the three forgeable budget/marker classes documented in r3-internalerror-poison-fixed. [SUPERSEDED by R5 ffe5592: no message text selects a class; QuickJS stack/heap limit errors are Thrown -> Unsupported; Budget only from interrupt state and rquickjs Error::Allocation; see notes.remediation_R5]"
     }
   ],
-  "next": "Validator round on the pushed head (round-features unchanged: [quickjs], [quickjs,test-faults]; steward pins windows-sys with six features from dep-requests.jsonl before the round). Open: D18 shared worker supervisor (not touched); D14 worker packaging; full AST allowlist if EXPR-PROVIDER-13 needs it.",
-  "updated_at": "2026-10-11T07:14:57Z",
+  "next": "Validator round on the pushed head 1d972f1 (round-features unchanged: [quickjs], [quickjs,test-faults]). R7 pre-review B recommendation was FIX_FIRST for SMB-MOTION-JS (N1) and SAFE_TO_JUDGE for SMB-MOTION-JS-WORKER on the same head; both are addressed here. Open: SMB-MOTION-JS P1 (forged SyntaxError prototype -> Parse, optional, not a budget class, no poison) and SMB-MOTION-JS-WORKER P1 (late job notice charged to the next request, UNVERIFIED kernel ordering, not reproducible) are untouched; D18 shared worker supervisor and D14 packaging stay with the lead.",
+  "updated_at": "2026-10-11T10:05:46Z",
   "notes": {
     "verdicts": [
       {
@@ -449,6 +458,117 @@
         ],
         "result": "baseline 10 runs on the previous worker: 0 deadline kills but 2-10 s per run; hardened: 10 of 10 typed crashes in 1-2 s, then the same 10 of 10 with the strict assertion"
       }
+    },
+    "remediation_R7pre": {
+      "at": "2026-10-11T10:05:46Z",
+      "commits": [
+        "961c301",
+        "1d972f1"
+      ],
+      "head": "1d972f16cf2a4c376c2d3376ffc29fe2d9adc5dc",
+      "review_ref": "validation/R7-prereview-b.json (SMB-MOTION-JS N1 CONFIRMED; SMB-MOTION-JS-WORKER P2 carried R5 PLAUSIBLEs, P3 stale V4-06 lists)",
+      "diagnosis": {
+        "class": "input-caused engine error classified as Internal/poisoning",
+        "cause": "profile validator accepted a raw U+0000 inside string literals and comments; rquickjs fails CString::new(src) before the engine runs (Error::InvalidString); quickjs.rs classify mapped every non-exception wrapper error to EngineFailure::Internal; provider.rs map_failure poisons on Internal (sticky)",
+        "engine_evidence": "rquickjs-core-0.14.0 src/context/ctx.rs:144 (eval_raw: CString::new(src)? -> Error::InvalidString, the only source-derived site on the eval path; :187 CString::new(filename) is the constant 'expr'); src/result.rs:78 (InvalidString(NulError)), :502 (From<NulError>); JS_Eval itself takes input_len (rquickjs-sys-0.14.0 quickjs/quickjs.c:38316-38326) so the engine could parse a NUL, the wrapper refuses first. Other code points: &str is valid UTF-8 so no lone surrogates or overlong forms reach the wrapper; no other code point produces InvalidString or any other non-exception error on this path (Error::Exception from JS_Eval is a thrown value handled by the describer).",
+        "why_third_fail_class": "same outcome as R3 and R5 (script input -> Internal -> sticky poison) by a route no test covered"
+      },
+      "fixes": {
+        "validator": "profile.rs: ViolationKind::NulCharacter (nul_character, Parse), whole-source precondition after the byte bound, exact line:column via nul_span; escapes stay admitted",
+        "engine": "quickjs.rs classify(.., source): InvalidString + NUL in source -> Parse(Some(nul_span)); InvalidString without NUL, Allocation and others unchanged. Wire needs no change (Parse crosses as failure code 0 with its span)",
+        "scripted_double": "scripted.rs: alloc:/slow: malformed argument -> malformed() Parse 1:1 (was Internal)",
+        "plausible_worker_lookup": "quickjs_worker.rs discover_beside(exe): exe directory only; examples/motion-js-consumer.rs cargo_layout_worker passes target/<profile>/ explicitly",
+        "plausible_hello_wait": "quickjs_worker.rs spawn(cancel): HELLO wait polled in WAIT_SLICE, cancel kills and reaps the starting worker (killed_canceled), spawn_timeout still bounds the wait",
+        "plausible_response_cap": "quickjs.rs install_host: host-read path above MAX_PATH_BYTES -> Pending::Failure(ReferenceMissing); quickjs_wire.rs response_cap = max_nodes*8 + REPLY_SLACK 4096 (+ const assert MAX_PATH_BYTES+128 <= slack)"
+      },
+      "tests": {
+        "new": [
+          "tests/profile_contract.rs profile_refuses_a_raw_nul_anywhere_and_keeps_nul_escapes (15 NUL positions: string, comment, block comment, CRLF, U+2028, backslash-NUL, outside, multibyte, only NUL, lone CR, ordering vs a denied name; 6 escape spellings still admitted; byte bound outranks)",
+          "tests/profile_contract.rs profile_nul_refusal_precedes_the_engine_and_never_poisons (provider, engine never sees the source, usable after each refusal)",
+          "tests/quickjs_contract.rs quickjs_nul_in_source_is_a_refusal_not_a_poison (engine layer without validator and with validator; string, line comment, block comment, CRLF line 2, backslash-NUL, outside, after throw; provider usable after each; zero budget denials and faults; worker spawned once, no kill; escape spellings evaluate: 'a\\0b'.length etc.); runs in-process (test-faults) and against the worker (quickjs)",
+          "tests/quickjs_contract.rs quickjs_overlong_host_read_path_is_a_reference_error_not_an_oversize_kill (paths of 256/257/5000/100000 bytes built at run time, smallest output quota)",
+          "tests/quickjs_worker.rs canceled_evaluation_does_not_wait_for_a_stalled_hello (+ spawn_timeout still bounds an uncanceled stall, typed SpawnFailed)",
+          "src/quickjs_worker.rs unit worker_is_found_only_beside_the_running_executable",
+          "src/quickjs_wire.rs unit reply_cap_covers_the_longest_realm_reply_for_a_tiny_source",
+          "tests/foundation_contract.rs quota_fuel_and_deadline_accounting (alloc:abc, slow:abc -> Parse 1:1, not poisoned)"
+        ]
+      },
+      "red_proof": {
+        "method": "scratch tree under the artifact root (own STUDIO_OWNER smb-motionjs-nul-red, own target; tree-binding guard satisfied; files touched after every overlay, V4-11): git archive 0e48167 + the new test files from 961c301",
+        "scratch_path": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-motionjs-nul-red (src/ and its own target/tmp; left in place, not deleted)",
+        "red_0e48167_quickjs": "4 FAIL of 22: profile_refuses_a_raw_nul_anywhere_and_keeps_nul_escapes (validator accepted the NUL), profile_nul_refusal_precedes_the_engine_and_never_poisons (engine ran: Ok), quickjs_nul_in_source_is_a_refusal_not_a_poison (first case: Err Unsupported span None = the poison, expected Parse 1:11), quickjs_overlong_host_read_path_is_a_reference_error_not_an_oversize_kill (OutputType, expected ReferenceMissing for the 5000-byte path)",
+        "red_mutation_current_tree": "HELLO wait reverted to recv_timeout(spawn_timeout) and discover_beside reverted to exe dir + parent dir: canceled_evaluation_does_not_wait_for_a_stalled_hello FAIL after 30.2 s (Unsupported, expected Canceled); worker_is_found_only_beside_the_running_executable FAIL (parent decoy returned)",
+        "red_scripted": "0e48167 scripted.rs + new foundation_contract.rs: quota_fuel_and_deadline_accounting FAIL (Unsupported span None, expected Parse 1:1)",
+        "green": "1d972f1: default 8/8, quickjs 24/24, quickjs+test-faults 27/27"
+      },
+      "v4_06": {
+        "class": "input-caused engine error classified as Internal/poisoning",
+        "regex": "EngineFailure::Internal|internal_report[(]|self[.]poison[(][)]|rquickjs::Error::(Allocation|InvalidString)|=> out[.]u8[(]7[)]|malformed[(][)]",
+        "scope": "crates/hsk-studio-motion-js/src at 1d972f1",
+        "count_check": "36 matching lines; 36 listed; 1 FIXED (InvalidString), 2 FIXED (scripted malformed arguments), 33 not-applicable",
+        "sites": [
+          "quickjs.rs:703 rquickjs::Error::InvalidString -> Parse(nul_span): FIXED (was the Internal fallthrough, N1)",
+          "quickjs.rs:705 InvalidString without a NUL in the source -> Internal: not-applicable (source cannot explain it: genuine invariant, fail closed)",
+          "quickjs.rs:707 other wrapper errors -> Internal: not-applicable (Utf8/FromJs/IntoJs/borrow errors cannot be produced by source text: eval returns Value, the extractor is our bootstrap, thrown values go through the describer)",
+          "quickjs.rs:702 Error::Allocation -> Budget(Memory): not-applicable (wrapper allocation failure, not text)",
+          "quickjs.rs:316 Runtime::new failure; :329 limit readback mismatch; :437,:440,:443 (test-faults reproduce path); :473,:476 runtime and limits; :508 context build: not-applicable (set-up before any source)",
+          "quickjs.rs:424,:427 internal_report() and :452 (test-faults reproduce path result): not-applicable (definition and test-fault body)",
+          "quickjs.rs:601 install_host failure; :604 load_tools (constant BOOTSTRAP): not-applicable",
+          "quickjs.rs:627 shared.stop after eval: not-applicable (stop is set only by Shared::record, which fills pending; run_realm replaces the end with Pending, so the Internal value never leaves)",
+          "quickjs.rs:758 drive limits mismatch (host config vs job): not-applicable",
+          "quickjs.rs:825 test-faults run_in_process thread spawn/join failure: not-applicable (thread resources)",
+          "quickjs_worker.rs:528 Waited::Frame with a kernel cap notice: not-applicable (replaced by Memory/Cpu from the kernel event)",
+          "quickjs_worker.rs:647 verify_limits readback Ok(None): not-applicable (no source)",
+          "quickjs_worker.rs:698 internal_report() on rejected limits in the worker: not-applicable (host-supplied limits, no source)",
+          "quickjs_wire.rs:282 encode 7 and :317 decode 7: not-applicable (wire encoding of an already-decided class; a NUL now crosses as Parse code 0, tests quickjs_nul_in_source_is_a_refusal_not_a_poison against the worker)",
+          "provider.rs:281 Internal => poison; :457 catch_unwind panic; :463 realm not fresh/dropped: not-applicable (the mapping; poisons only engine-reported invariants after this fix)",
+          "scripted.rs:118 alloc:<bytes> and :125 slow:<ms> malformed argument: FIXED (malformed() Parse, was Internal) test quota_fuel_and_deadline_accounting",
+          "scripted.rs:51,:56,:149 malformed() definition, number(), unknown command word: not-applicable (already Parse)",
+          "scripted.rs:106 spin and :115 recurse (STEP_CAP exhausted) and :147 'internal' command: not-applicable (deliberate scripted faults of a test double; the commands exist to return Internal)"
+        ]
+      },
+      "v4_06_refresh_SMB_MOTION_JS_WORKER": {
+        "note": "refreshes notes.remediation_R5.v4_06_sites (taken at ffe5592) at 1d972f1; both classes re-run over src and examples",
+        "class_message_classification": {
+          "regex": "indexOf[(]message|Maximum call stack|out of memory|FLAG_(STACK|OUT|UNAVAILABLE)|BudgetKind::(Stack|Memory)",
+          "count_check": "8 matching lines, 8 listed, 0 message-derived (pre-review: 8 at 0e48167, 4 listed)",
+          "sites": [
+            "descriptor.rs:2 text only: not-applicable",
+            "quickjs.rs:702 Error::Allocation -> Budget(Memory): engine/wrapper signal, kept",
+            "quickjs_wire.rs:225,:226 BUDGETS table: not-applicable (encoding of an already-decided class)",
+            "quickjs_worker.rs:549 events.memory -> Budget(Memory): not-applicable (Job Object kernel event, not text)",
+            "quickjs_worker.rs:557 killed_os_memory counter: not-applicable",
+            "quickjs_worker.rs:595 request frame above MAX_REQUEST_FRAME -> Budget(Memory): not-applicable (host-side size check)",
+            "scripted.rs:120 alloc:<bytes> above the memory limit -> Budget(Memory): not-applicable (scripted command argument, not engine message text)"
+          ]
+        },
+        "class_test_hook_in_product": {
+          "regex": "test_fault|TEST_FAULT|WorkerTestFault|unsafe_in_process|env::var|fault_env|from_env|injected_fault",
+          "count_check": "39 matching lines over src and examples (31 code sites, 8 doc or descriptor text lines), 39 accounted; every code site sits under cfg(feature = \"test-faults\") (attribute on the item, field, block or match arm) or inside the cfg(test) module; the product build without the feature compiles and tests/worker_fault_env.rs proves a product worker ignores the variable",
+          "code_sites_with_gating_cfg_line": [
+            "lib.rs:51 (cfg :50)",
+            "quickjs.rs:223 enum (cfg :221), :241-:255 impl (cfg :240), :375 field (cfg :374), :382 (cfg :380), :461 (cfg :459), :778 (cfg :777), :866 (cfg :865), :874,:876 (cfg :873), :903 (cfg :901)",
+            "quickjs_worker.rs:50 (cfg :49), :107 (cfg :106), :120 (cfg :119), :306 (cfg :305), :350 (cfg :349), :421-:422 (cfg :419), :689-:691 (cfg :688), :702 (cfg :700), :729 (cfg :728), :755 (cfg :753; the new StallHello sleep)",
+            "quickjs_wire.rs:570 (cfg :569), :613 (cfg :612), :703 (cfg :702), all inside the cfg(test) module",
+            "examples/motion-js-consumer.rs:99 (cfg :97)"
+          ],
+          "text_only": "quickjs.rs:8,:9,:220,:288,:895 docs; quickjs_worker.rs:687 doc; os_caps.rs:47 doc; descriptor.rs:2"
+        }
+      },
+      "plausibles": {
+        "R5_carried_worker_lookup": "REAL (a file planted one directory above the host exe was executed as the worker); FIXED 961c301",
+        "R5_carried_hello_wait": "REAL (cancel ignored for up to spawn_timeout, 10 s default, measured 30.2 s with a 30 s timeout in the red run); FIXED 961c301",
+        "R5_carried_response_cap": "REAL (assumption path <= source is false for a run-time built path; with max_output_nodes 1 a 5000-byte path killed the worker and answered OutputType, in-process answered ReferenceMissing); FIXED 961c301",
+        "pre_review_SMB_MOTION_JS_P1": "NOT CHANGED: a thrown object with a SyntaxError prototype maps to Parse with a forged span; not a budget class, no poison; optional per the review",
+        "pre_review_SMB_MOTION_JS_WORKER_P1": "NOT CHANGED: late Job Object notice could be charged to the next request; kernel posting order UNVERIFIED and not reproducible, so a fix would be untestable",
+        "pre_review_SMB_MOTION_JS_WORKER_P3": "FIXED: V4-06 site lists refreshed above (v4_06_refresh_SMB_MOTION_JS_WORKER)"
+      },
+      "governance": "no dependency change, no Cargo.lock or root Cargo.toml edit; commits used git commit -F <file> -- crates/hsk-studio-motion-js; the shared tree holds other lanes' uncommitted files, untouched",
+      "retry_guard": "No gameplan block on a product failure; one hook block because a leading assignment before the cd made the hook resolve the WP-KERNEL-012 gameplan (command text fixed by putting cd first); no gameplan step added",
+      "unverified": [
+        "behaviour on non-Windows targets (no non-Windows build)",
+        "kernel ordering of Job Object notices (WORKER P1)"
+      ]
     }
   }
 }

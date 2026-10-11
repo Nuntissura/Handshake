@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T09:59:23Z",
+ "updated_at": "2026-10-11T10:06:33Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1293,7 +1293,7 @@
     "crates/hsk-studio-motion-js/**"
    ],
    "launched": "2026-10-11T08:04:23Z",
-   "status": "running (resumed 2026-10-11T09:51:51Z after usage-limit cut-off)"
+   "status": "done 2026-10-11T10:06:33Z (SMB-MOTION-JS-WORKER READY at 1d972f1)"
   },
   {
    "name": "validator-r7",
