@@ -1904,7 +1904,7 @@
     "builders/lanes/hsk-studio-web-difftest.json"
    ],
    "launched": "2026-10-11T15:25:27Z",
-   "status": "done 2026-10-11T16:25:40Z (b0a1887; privacy slip: email in one crates.io User-Agent, reported)"
+   "status": "done (b0a1887; retired)"
   },
   {
    "name": "rem-reel-eng-1-r10",
@@ -1961,7 +1961,7 @@
     "validation/R11-prereview-web.json"
    ],
    "launched": "2026-10-11T16:26:06Z",
-   "status": "running"
+   "status": "done 2026-10-11T16:55:12Z (FIX_FIRST: R11-F1 SMIL values, R11-F2 marker, R11-P1 data:)"
   },
   {
    "name": "prereview-r11-press",
@@ -1983,6 +1983,19 @@
     "validation/R11-prereview-press.json"
    ],
    "launched": "2026-10-11T16:40:30Z",
+   "status": "running"
+  },
+  {
+   "name": "rem-web-r11",
+   "agent_id": "ab7a3519fb2afe068",
+   "model": "opus",
+   "role": "web R11 remediation (spec-derived URL carrier inventory, SMIL values/marker, data: scan-or-deny)",
+   "owns": [
+    "crates/hsk-studio-web/**",
+    "builders/lanes/hsk-studio-web-parity.json",
+    "builders/lanes/hsk-studio-web-difftest.json"
+   ],
+   "launched": "2026-10-11T16:55:24Z",
    "status": "running"
   }
  ]
