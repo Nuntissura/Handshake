@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T12:48:10Z",
+ "updated_at": "2026-10-11T12:49:07Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -690,8 +690,8 @@
    "lane_id": "SMB-PRESS",
    "crate": "hsk-studio-press",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-press",
-   "phase": "validation",
-   "status": null,
+   "phase": "validation (V4-13 pre-review R9 running)",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-press",
    "brief": null,
    "commits": [
@@ -707,14 +707,17 @@
     "a1c9747",
     "187e6cf",
     "a4d2234",
-    "1c3fd8c"
+    "1c3fd8c",
+    "e8b464b",
+    "a85b85f",
+    "49731a5"
    ],
    "verdicts": [
     "STUDIO-R5 FAIL_V1 @1d404f8 (newer submission e75bd5a pending)",
     "STUDIO-R6 FAIL_V2 @bd8533f (newer submission dd1df63 pending)"
    ],
-   "candidate": "1c3fd8c",
-   "note": "hardening 023c817 (V4-01 on filters/reader/syntax/writer, 107 sites; per-stage + aggregate decode budget, max_filters 8, depth clamp 256, ref chains 16 hops, /W /Size /Index /Length bounds), R6 c520095 (kept-text exemption only for page-tree-reachable contents/forms; hidden zlib behind raster filters; ASCII85 tail), V4-02 tests 007f8bc (red-proved on scratch copy; nesting overflowed stack on old code), redaction gaps a1c9747 (other name trees, Submit/ResetForm /Fields, attachments); 31 green; pre-review B N1-N7 fixed with sound-by-construction backstop (diagnostics/press-proof-soundness.md): every output byte scanned, raw matches excused only inside bytes a decoder read and confirmed, TrailingData/UnreadableContent NotProven, single content walker with q/Q/gs/Tf/Do + inherited resources, kept text = drawn only; PLR-040 codec-structure check; 38 green; red on 0e48167 copy (40 sub-cases proven -> not proven). Needs V4-13 pre-review before judging (2 FAILs).; R8 pre-review FIX_FIRST (excluded from R8, V4-19); remediation dispatched with lead decision fail-closed (START_LOG).",
+   "candidate": "49731a5",
+   "note": "hardening 023c817 (V4-01 on filters/reader/syntax/writer, 107 sites; per-stage + aggregate decode budget, max_filters 8, depth clamp 256, ref chains 16 hops, /W /Size /Index /Length bounds), R6 c520095 (kept-text exemption only for page-tree-reachable contents/forms; hidden zlib behind raster filters; ASCII85 tail), V4-02 tests 007f8bc (red-proved on scratch copy; nesting overflowed stack on old code), redaction gaps a1c9747 (other name trees, Submit/ResetForm /Fields, attachments); 31 green; pre-review B N1-N7 fixed with sound-by-construction backstop (diagnostics/press-proof-soundness.md): every output byte scanned, raw matches excused only inside bytes a decoder read and confirmed, TrailingData/UnreadableContent NotProven, single content walker with q/Q/gs/Tf/Do + inherited resources, kept text = drawn only; PLR-040 codec-structure check; 38 green; red on 0e48167 copy (40 sub-cases proven -> not proven). Needs V4-13 pre-review before judging (2 FAILs).; R8 pre-review FIX_FIRST (excluded from R8, V4-19); remediation dispatched with lead decision fail-closed (START_LOG).; R8 pre-review remediation (fail-closed) e8b464b/a85b85f/49731a5: whole object table read (F1), joined TJ needles (F2/D2), UnreadableRemovedText NotProven (F3/D3), Type3/vertical -> RedactionClass Type3Text/VerticalText (F4/D4), drawn-reading exemption (P1), only /.notdef blank (D1), V4-06 211 sites (F5/D5); 6 new tests red on 607d47c; 57/57; residual: crate not rustfmt-clean (pre-existing).",
    "r5_review_routed": {
     "to": "builder-press-3",
     "at": "2026-10-11T05:31:12Z",
@@ -724,22 +727,7 @@
     "to": "builder-press-4 (message)",
     "at": "2026-10-11T06:29:17Z",
     "ref": "validation/R6-review-b.json"
-   },
-   "blockers": [
-    {
-     "kind": "V4-13 pre-review FIX_FIRST",
-     "ref": "validation/R8-prereview-press.json",
-     "items": [
-      "F1",
-      "F2",
-      "F3",
-      "F4",
-      "F5",
-      "P1"
-     ],
-     "recorded_at": "2026-10-11T11:58:11Z"
-    }
-   ]
+   }
   },
   {
    "lane_id": "SMB-WEB",
@@ -2358,29 +2346,18 @@
    "crate": "hsk-studio-press",
    "origin": "press 1c3fd8c residual",
    "scope": "/Differences + Type3 + encoding-less fonts decoded via AGL or opaque (NotProven)",
-   "phase": "validation",
-   "status": null,
+   "phase": "validation (V4-13 pre-review R9 running)",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-press-differences",
    "commits": [
-    "607d47c"
+    "607d47c",
+    "e8b464b",
+    "a85b85f",
+    "49731a5"
    ],
    "verdicts": [],
-   "candidate": "607d47c",
-   "note": "simple fonts decoded via base encodings + /Differences + AGL (BSD-3, 4089 entries embedded with notice; PUA names left unmappable), ToUnicode completion, else OpaqueText NotProven; Type3 names from /Differences only; encoding reads charged; 51 green; 4 new tests red on 1c3fd8c; residual: Type3 /Widths /1000 in region selector (pre-review checks); R8 pre-review FIX_FIRST (excluded from R8, V4-19); remediation dispatched with lead decision fail-closed (START_LOG).",
-   "blockers": [
-    {
-     "kind": "V4-13 pre-review FIX_FIRST",
-     "ref": "validation/R8-prereview-press.json",
-     "items": [
-      "D1",
-      "D2",
-      "D3",
-      "D4",
-      "D5"
-     ],
-     "recorded_at": "2026-10-11T11:58:11Z"
-    }
-   ]
+   "candidate": "49731a5",
+   "note": "simple fonts decoded via base encodings + /Differences + AGL (BSD-3, 4089 entries embedded with notice; PUA names left unmappable), ToUnicode completion, else OpaqueText NotProven; Type3 names from /Differences only; encoding reads charged; 51 green; 4 new tests red on 1c3fd8c; residual: Type3 /Widths /1000 in region selector (pre-review checks); R8 pre-review FIX_FIRST (excluded from R8, V4-19); remediation dispatched with lead decision fail-closed (START_LOG).; R8 pre-review remediation (fail-closed) e8b464b/a85b85f/49731a5: whole object table read (F1), joined TJ needles (F2/D2), UnreadableRemovedText NotProven (F3/D3), Type3/vertical -> RedactionClass Type3Text/VerticalText (F4/D4), drawn-reading exemption (P1), only /.notdef blank (D1), V4-06 211 sites (F5/D5); 6 new tests red on 607d47c; 57/57; residual: crate not rustfmt-clean (pre-existing)."
   },
   {
    "lane_id": "SMB-RENDER-GPU-PROBE",
@@ -2496,6 +2473,17 @@
    "status": null,
    "owner": "builder-web-parity",
    "lane_file": "builders/lanes/hsk-studio-web-parity.json",
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-FMT-SWEEP",
+   "crate": "workspace (press first; any crate not rustfmt-clean)",
+   "origin": "rem-press-r8 report (press never rustfmt-clean: 429 src + 253 test hunks at 49731a5)",
+   "scope": "mechanical rustfmt-only commits, one per crate, no behaviour change, after the crate's pending verdict (V4-14), so pre-reviews/rounds never see formatting noise mixed with fixes",
+   "phase": "queued (after R9 verdicts)",
+   "status": null,
+   "owner": null,
    "commits": [],
    "verdicts": []
   }

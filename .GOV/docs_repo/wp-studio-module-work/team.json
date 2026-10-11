@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T12:48:10Z",
+ "updated_at": "2026-10-11T12:49:07Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1598,7 +1598,7 @@
     "builders/lanes/hsk-studio-press.json"
    ],
    "launched": "2026-10-11T11:58:46Z",
-   "status": "running"
+   "status": "done 2026-10-11T12:49:07Z (49731a5)"
   },
   {
    "name": "validator-r8",
@@ -1707,6 +1707,17 @@
     "builders/lanes/hsk-studio-web-parity.json"
    ],
    "launched": "2026-10-11T12:47:57Z",
+   "status": "running"
+  },
+  {
+   "name": "prereview-r9-press",
+   "agent_id": "a20c5e5a9e059f8a5",
+   "model": "opus",
+   "role": "V4-13 pre-review SMB-PRESS + DIFFERENCES at 49731a5",
+   "owns": [
+    "validation/R9-prereview-press.json"
+   ],
+   "launched": "2026-10-11T12:49:07Z",
    "status": "running"
   }
  ]
