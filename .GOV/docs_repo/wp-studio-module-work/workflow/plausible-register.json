@@ -229,7 +229,7 @@
    "status": "OPEN",
    "verified_at": "1f99350",
    "disposition": "LEAD_DECISION",
-   "disposition_note": "lane notes call it a capability request; recommend waiver until host adoption (no current caller needs tighter limits) so reviewers stop re-reporting it"
+   "disposition_note": "fix claimed 5ed1ead/71be1aa (SMB-PIGMENT-PLANLIMITS); reviewer confirms next round"
   },
   {
    "id": "PLR-006",
@@ -1051,7 +1051,7 @@
    "status": "OPEN",
    "verified_at": "1c80811",
    "disposition": "FIX_LANE",
-   "disposition_note": "lead: split structural (all nodes) vs capability (reachable) in the next pigment lane"
+   "disposition_note": "fix claimed 5ed1ead/71be1aa (SMB-PIGMENT-PLANLIMITS); reviewer confirms next round"
   },
   {
    "id": "PLR-059",
@@ -1202,6 +1202,36 @@
    "verified_at": "6956d3f",
    "disposition": "FIX_LANE",
    "disposition_note": "next reel lane"
+  },
+  {
+   "id": "PLR-069",
+   "lane": "SMB-PIGMENT-PLANLIMITS",
+   "file_line": "crates/hsk-studio-pigment PlanExtensions::validate; render-cpu ExtPrep::build vs render-gpu per-layer lookup",
+   "finding": "envelope operators are still collected from entries on unreachable groups; render-cpu prepares every envelope entry while render-gpu looks entries up per executed layer (backend disagreement)",
+   "first_seen": "builder report 71be1aa",
+   "seen_in": [
+    "lane notes follow-ups"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "71be1aa",
+   "disposition": "FIX_LANE",
+   "disposition_note": "lead: same reachable-only rule for envelope entries in pigment and render-cpu (render-gpu already per executed layer); render-gpu untouched (D20)"
+  },
+  {
+   "id": "PLR-070",
+   "lane": "SMB-PIGMENT-PLANLIMITS",
+   "file_line": "render-cpu plan_sink.rs:1395,1427; render-gpu plan_sink.rs:964,965",
+   "finding": "backends still call admit/admit_extended with default limits; adoption of admit_with_limits for caller-supplied PlanLimits pending; envelope effect budgets are constants outside PlanLimits",
+   "first_seen": "builder report 71be1aa",
+   "seen_in": [
+    "lane notes follow-ups"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "71be1aa",
+   "disposition": "FIX_LANE",
+   "disposition_note": "render-cpu adoption in the PLR-069 lane; render-gpu after D20"
   }
  ],
  "process_items": [

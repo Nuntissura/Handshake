@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T16:04:09Z",
+ "updated_at": "2026-10-11T19:31:43Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -2067,7 +2067,7 @@
     "builders/lanes/hsk-studio-pigment-planlimits.json"
    ],
    "launched": "2026-10-11T19:14:14Z",
-   "status": "running"
+   "status": "done 2026-10-11T19:31:43Z (SMB-PIGMENT-PLANLIMITS READY at 71be1aa)"
   },
   {
    "name": "prereview-r13-web",

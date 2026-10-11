@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T19:18:40Z",
+ "updated_at": "2026-10-11T19:31:43Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -2370,12 +2370,17 @@
    "crate": "hsk-studio-pigment",
    "origin": "plausible register lead decision 2026-10-11T10:18:58Z",
    "scope": "stub: admit with caller PlanLimits (PLR-005)",
-   "phase": "build (PLR-005 tighten-only caller limits + PLR-058 reachable capability collection)",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-pigment-planlimits",
-   "commits": [],
+   "commits": [
+    "5ed1ead",
+    "71be1aa"
+   ],
    "verdicts": [],
-   "lane_file": "builders/lanes/hsk-studio-pigment-planlimits.json"
+   "lane_file": "builders/lanes/hsk-studio-pigment-planlimits.json",
+   "candidate": "71be1aa",
+   "note": "PLR-058: RenderPlan::validate structural checks on every node, operator collection reachable-only (unreachable unsupported operator admits via validate/admit/admit_extended; reachable refused same key); PLR-005: admit_with_limits / admit_extended_with_limits (&PlanLimits), PlanLimits::MAXIMUM (65536 nodes/layers, depth 64 = Default), within_maximum(), PlanLimitKind, PlanError::LimitAboveMaximum (typed, never clamped); DESCRIPTOR validate + plan_limits topics cite tests; 6 tests red on scratch 9ffe946 (+ mutants); pigment 69/69; dependants render-cpu/composite/develop/interop-psd 139 passed; render-gpu check clean; receipts: unreachable nodes no longer in ExactnessLedger"
   },
   {
    "lane_id": "SMB-REFUSAL-KEYS",
@@ -2834,7 +2839,8 @@
   "SMB-REEL-ENG-1",
   "SMB-PARITY-FOLLOWUP",
   "SMB-REEL-NATIVE-FAULTS",
-  "SMB-WEB-PARITY"
+  "SMB-WEB-PARITY",
+  "SMB-PIGMENT-PLANLIMITS"
  ],
  "round_R6": {
   "candidate": "bd8533f",
