@@ -1,0 +1,24 @@
+[
+ {
+  "crate": "hsk-studio-pulse",
+  "brief_path": ".GOV/docs_repo/wp-studio-module-work/builders/briefs/hsk-studio-pulse.md",
+  "ready": true,
+  "depends_on_crates": [
+   "hsk-studio-accord",
+   "hsk-studio-observe"
+  ],
+  "suggested_wave": 1,
+  "notes": "std-only; folio allowed but unused (folio has no sequence type; STU-VID-010 gap). Oracle fixture from MT-35540 (25fps trim/ripple)."
+ },
+ {
+  "crate": "hsk-studio-score",
+  "brief_path": ".GOV/docs_repo/wp-studio-module-work/builders/briefs/hsk-studio-score.md",
+  "ready": true,
+  "depends_on_crates": [
+   "hsk-studio-accord",
+   "hsk-studio-observe"
+  ],
+  "suggested_wave": 1,
+  "notes": "std-only; fixture from MT-35541; hard limiter from STU-FX-136a gives real latency path; hound dev-dep optional."
+ }
+]

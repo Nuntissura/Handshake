@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T00:50:00Z",
+ "updated_at": "2026-10-11T01:20:00Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -14,7 +14,8 @@
     "crates/<27 new>/** (scaffold only)"
    ],
    "launched": "2026-10-11T00:48Z",
-   "status": "running"
+   "status": "running",
+   "resumed": "2026-10-11T01:02Z"
   },
   {
    "name": "type-lane",
@@ -26,7 +27,8 @@
     "MT-35536.json"
    ],
    "launched": "2026-10-11T00:48Z",
-   "status": "running"
+   "status": "running",
+   "resumed": "2026-10-11T01:02Z"
   },
   {
    "name": "spec-reader-a",
@@ -37,7 +39,8 @@
     "builders/briefs/*"
    ],
    "launched": "2026-10-11T00:48Z",
-   "status": "running"
+   "status": "running",
+   "resumed": "2026-10-11T01:02Z"
   },
   {
    "name": "spec-reader-b",
@@ -48,7 +51,8 @@
     "builders/briefs/*"
    ],
    "launched": "2026-10-11T00:48Z",
-   "status": "running"
+   "status": "running",
+   "resumed": "2026-10-11T01:02Z"
   },
   {
    "name": "research-formats",
@@ -59,7 +63,8 @@
     "research/formats-psd-native.md"
    ],
    "launched": "2026-10-11T00:48Z",
-   "status": "running"
+   "status": "running",
+   "resumed": "2026-10-11T01:02Z"
   },
   {
    "name": "research-color",
@@ -70,7 +75,8 @@
     "research/color-codecs-raw.md"
    ],
    "launched": "2026-10-11T00:48Z",
-   "status": "running"
+   "status": "running",
+   "resumed": "2026-10-11T01:02Z"
   },
   {
    "name": "research-craft",
@@ -81,7 +87,8 @@
     "research/craft-case-study.md"
    ],
    "launched": "2026-10-11T00:48Z",
-   "status": "running"
+   "status": "running",
+   "resumed": "2026-10-11T01:02Z"
   },
   {
    "name": "research-adobe",
@@ -92,7 +99,9 @@
     "research/adobe-behavior.md"
    ],
    "launched": "2026-10-11T00:48Z",
-   "status": "running"
+   "status": "done",
+   "resumed": "2026-10-11T01:02Z",
+   "output": "research/adobe-behavior.md"
   },
   {
    "name": "api-digest",
@@ -103,7 +112,8 @@
     "research/existing-api-digest.md"
    ],
    "launched": "2026-10-11T00:48Z",
-   "status": "running"
+   "status": "done",
+   "output": "research/existing-api-digest.md"
   },
   {
    "name": "workflow",
@@ -114,6 +124,30 @@
     "workflow/*"
    ],
    "launched": "2026-10-11T00:48Z",
+   "status": "idle (first review done; offset ticks)",
+   "resumed": "2026-10-11T01:02Z",
+   "output": "workflow/workflow-review-001.md, workflow/workflow.json"
+  },
+  {
+   "name": "engine-color",
+   "agent_id": "aea9d407e6b28c4da",
+   "model": "sonnet",
+   "role": "color engine teardown (specs, open engines, black-box plan; no decompilation)",
+   "owns": [
+    "research/engine-color.md"
+   ],
+   "launched": "2026-10-11T01:10Z",
+   "status": "running"
+  },
+  {
+   "name": "engine-video",
+   "agent_id": "afae4f4bb132948a6",
+   "model": "sonnet",
+   "role": "video codec engine teardown (specs, open engines, black-box plan; no decompilation)",
+   "owns": [
+    "research/engine-video.md"
+   ],
+   "launched": "2026-10-11T01:10Z",
    "status": "running"
   }
  ]

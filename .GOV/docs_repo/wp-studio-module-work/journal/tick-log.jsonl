@@ -1,3 +1,4 @@
 {"t": "2026-10-11T00:42:00Z", "tick": 0, "event": "session start; folder, start log, gameplan STUDIO-MODULE-BUILD, ledger created"}
 {"t": "2026-10-11T00:50:00Z", "tick": 0, "event": "wave1 launched: steward, type-lane, spec-reader-a/b, 4 researchers, api-digest, workflow"}
 {"t": "2026-10-11T01:05:00Z", "tick": 1, "event": "lead session restart recovery: 10 agents resumed; operator disk rule (no C: builds) applied via builders/studio-env.sh; C: install temp removed; tool install rebuilt on D:; decompile request declined -> black-box oracle plan", "lanes_moved": [], "commits": [], "progress": "no direct progress"}
+{"t": "2026-10-11T01:20:00Z", "tick": 2, "event": "workflow v2 adopted (partial; D1-D5 open for Operator); prep corpus redirect; engine researchers launched; tools installed from verified release binaries; api-digest, adobe-behavior, workflow-review-001 done", "lanes_moved": [], "commits": [], "progress": "no direct progress"}

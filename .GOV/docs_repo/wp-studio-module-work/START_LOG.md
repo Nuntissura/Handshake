@@ -113,7 +113,7 @@ Message 2:
 - Gate patterns match anywhere in a command's text, including quoted strings and heredocs (e.g. the per-test runner's name). Use the Edit/Write tools, not shell, to write text containing those words.
 - No outer `timeout` wrappers (hook blocks; CX-EXEC-005).
 - Validator union rounds: one build + one test invocation over all ready crates, on an export of the pushed SHA refreshed in place at `Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/` (GLOBAL-VALIDATION-023..025).
-- sccache and cargo-nextest: NOT installed at session start (not on PATH, not in `~/.cargo/bin`). A first install attempt built in cargo's temp dir on C: (operator correction: not allowed); it was stopped and its two C: temp dirs (only `.rustc_info.json`) removed. Reinstall 2026-10-11T00:58Z builds on D: (`studio-team-dev/tool-install`, target + TMP on D:), binaries to `~/.cargo/bin`. Already installed: cargo-deny, clippy, rustfmt, cargo-tarpaulin, cargo-miri, rust-analyzer, just (retired for governance). Tool installs allowed by operator if they cut time (record here).
+- sccache and cargo-nextest: NOT installed at session start (not on PATH, not in `~/.cargo/bin`). A first install attempt built in cargo's temp dir on C: (operator correction: not allowed); it was stopped and its two C: temp dirs (only `.rustc_info.json`) removed. Reinstall from source on D: was stopped (sccache pulls aws-lc-sys C build; blocked the critical path). INSTALLED 2026-10-11T01:15Z from official GitHub release binaries (no build): sccache 0.18.0 (mozilla/sccache, zip sha256 8965c74d…363d verified) and the per-test runner 0.9.148 (nextest-rs, zip sha256 7a931b4a…c782 verified), copied to `~/.cargo/bin` (tools on C: allowed). sccache use: validator rounds only (`RUSTC_WRAPPER=sccache`, `SCCACHE_DIR` under `Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/sccache`, `CARGO_INCREMENTAL=0`); builders keep incremental without sccache. Already installed: cargo-deny, clippy, rustfmt, cargo-tarpaulin, cargo-miri, rust-analyzer, just (retired for governance). Tool installs allowed by operator if they cut time (record here).
 - Only the workspace steward edits root `Cargo.toml` (members, workspace metadata/registry). Builders edit only their crate dir; dependency needs go to `builders/dep-requests.jsonl`.
 
 </topic>
@@ -138,12 +138,49 @@ State: `ledger.json` (lane status per CX-STATUS-001 values), `journal/tick-log.j
 
 </topic>
 
+<topic id="prep-corpus" status="active" summary="Existing Studio prep research: read before any new research">
+
+## Existing prep corpus (Operator 2026-10-11: most prep work is already done — reuse, research only gaps)
+
+- `.GOV/reference/studio_app_feature_research/`: feature maps (01 Photoshop, 02 Affinity, 03 InDesign, 20 Illustrator, 21 Figma), leaf indexes (04, 06, 07, 22, 23), feature-use cards (15-17, 24, 25), 05 studio primitive map, 08 gap resolution notes, 10 studio command contracts, 11 + 26 provider posture maps, 12 + 27 parity matrices, 13 layer-graph vertical slice, 19 local-first Rust posture, `_installed_export_scripts/` (ExtendScript exporters for Photoshop/Illustrator/InDesign = oracle starting point), `_source_snapshots/`, `repass-2026-10-09/` (engineering, photocraft/filmcraft/light-effect/vector-design root drills = Craft case studies, argus-diagnostics, handshake root drills).
+- `.GOV/docs_repo/studio-collaboration-2026-10-09/`: adobe-original-team (photo/design/media original behaviour, cross-suite control semantics, parity red team), modular-authoring team preparations (visual, visual-components, visual-companion, media, web, shared, embedding, partition, whiteboard gap, autonomous research), backend red team (plugin platform, expression provider, PDF/audio drills, backpressure), spec-mt team (asset-first MT refactor plan, spec/MT source evidence).
+- `Handshake_Artifacts/WP-KERNEL-STUDIO/autonomous-research-team/` (concurrency, interchange, presentation), `studio-repass-*/source`.
+- Files are large (up to 30 MB): grep or json selectors with bounded output only.
+
+</topic>
+
 <topic id="decisions" status="active" summary="Lead decisions with reasons">
 
 ## Lead decisions
 
 - 2026-10-11T01:00Z — Operator asked whether to decompile the Adobe suite (at least the engines) to rewrite in Rust. Lead decision: NO decompilation/disassembly of Adobe binaries. Reasons: Adobe terms prohibit reverse engineering; EU Software Directive 2009/24/EC art. 6 allows decompilation only for interoperability of an independent program and not to develop a substantially similar program (lead reading of public text, not legal advice); derived code would taint the reusable GitHub asset; decompiled optimized C++ is slower to use than public specs. Instead: public specs/SDK docs (PSD/PSB, ISO 32000 blend modes, DNG, XMP, IDML, Photoshop/AE/UXP/ExtendScript object models) + black-box oracle testing as a licensed user (art. 5(3): observe, study, test) — controlled inputs rendered/exported by installed Adobe apps, compared to Studio output. Adobe apps open foreground windows -> oracle export sessions need Operator approval (scripted batch or one-time manual export). Research agents draft the oracle plan.
 - 2026-10-11T00:55Z — Lead session restart stopped all agents after ~8 min; resumed all 10 from saved transcripts with the D:-only cargo env.
+
+</topic>
+
+<topic id="workflow-v2-adoption" status="active" version="2" summary="Lead adoption of workflow-review-001">
+
+## Workflow v2 adoption (2026-10-11T01:30Z; source `workflow/workflow-review-001.md`, `workflow/workflow.json`)
+
+Adopted:
+- Builders run their brief's focused tests (`--no-fail-fast`) before READY_FOR_VALIDATION; a resubmission after FAIL must first pass the validator's exact failing command. Basis: Operator instruction "build it, break it, research and diagnose, fix it" + "bundle checks and tests" (CX-021 Operator authority over CX-EXEC-014 implementer-only-compile procedure). Independent validator verdicts unchanged (CX-PROOF-002).
+- Scaffold gate: no builder starts before the steward's 27-crate scaffold is pushed and `cargo metadata` succeeds. Waves by dependency: wave 1 = crates needing only the existing 8; later waves when upstream lanes have a pushed compiling commit. Every lane ends each turn compiling.
+- Shared files steward-only: builders stage only `crates/hsk-studio-<own>/**`; never `Cargo.lock`/root `Cargo.toml`; steward commits a lock sync before each round; lock-only failure = infrastructure.
+- Per-lane state file `builders/lanes/<crate>.json` written at every commit and before long jobs (with PID); `ledger.json` = lead index; resume + lead-restart prompts in DISPATCH_TEMPLATES.
+- Continuous rounds with one reusable round script; re-check a PASS lane only when its relevant inputs changed (CX-VAL-002); every engine brief carries >= 1 oracle value the builder cannot edit (e.g. PSD Maximize-Compatibility merged composite as a no-Adobe-launch oracle).
+- Paperwork cap: at most one kernel commit per lead tick; no new gameplan step without an observed failure.
+- Workflow tick stays +7 min (11,26,41,56); after two quiet ticks may drop to 30 min (lead decides per tick).
+
+Adapted:
+- Model choice: builders stay Sonnet (Operator: cheap agents for code); an engine lane escalates to an Opus builder at its first NEEDS_NEW_APPROACH or second FAIL; Opus diagnostics on any repeated failure.
+- One build per disk (CX-984-002) KEPT without waiver: validator rounds use the SAME shared target dir as builders (`studio-team-dev/target`), so Cargo's build-dir lock serializes them (different source path = separate fingerprints; disk cost accepted).
+
+Open Operator decisions (not adopted; recorded for the Operator):
+- D1: explicit confirmation that builder focused tests override CX-EXEC-014 for this WP (lead adopted on the basis of Operator instructions; Operator may reverse).
+- D2: waive CX-984-002 one-build-per-disk for D: (would let validator rounds and builders build in parallel on separate targets).
+- D3: change the global gameplan hook to match gated words only in command position, not inside quoted text/heredocs (global tooling; Operator-only).
+- D4: prep tools `ae_render.py`, `ae_scripting.py`, `adobe-install-harvest.py` (prep corpus `_tools/`) extract embedded JSON/string tables from Adobe DLLs (string extraction, not disassembly). Lead: NOT run this session pending Operator policy.
+- D5: black-box oracle sessions (Photoshop/Illustrator/InDesign/AE render-reference export scripts per `research/adobe-behavior.md`) open foreground windows and the Photoshop gamma-blend check flips a global Color Settings value (restore after) -> needs an Operator-approved session.
 
 </topic>
 

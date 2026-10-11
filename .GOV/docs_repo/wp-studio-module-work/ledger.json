@@ -326,5 +326,6 @@
    "commits": [],
    "verdicts": []
   }
- ]
+ ],
+ "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane"
 }

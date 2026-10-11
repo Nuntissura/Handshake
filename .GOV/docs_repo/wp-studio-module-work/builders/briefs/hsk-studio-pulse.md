@@ -48,7 +48,7 @@ Expected oracle (MT-35540, independent arithmetic): 25 fps = 10_160_640_000 tick
 
 ## Deps
 - No new crates.io dependency needed (std + 3 workspace crates). Do NOT add serde/num-rational in slice 1. If JSON snapshot IO is later required, reuse the already steward-pinned `serde 1.0.229` / `serde_json 1.0.151` (registry metadata of folio/chronicle, pure-rust) via dep-request rather than a new crate.
-- Build/test: `cd "<ws root>" && cargo check -p hsk-studio-pulse --tests`, `cargo clippy -p hsk-studio-pulse --tests`, `cargo test -p hsk-studio-pulse` (focused, shared target per START_LOG cargo-tooling).
+- Build/test (never on C:): `cd "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-assets/handshake-studio-assets" && source "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/docs_repo/wp-studio-module-work/builders/studio-env.sh" && cargo check -p hsk-studio-pulse --tests` (then `cargo clippy -p hsk-studio-pulse --tests`, `cargo test -p hsk-studio-pulse`); focused only, shared warm target.
 
 </topic>
 
