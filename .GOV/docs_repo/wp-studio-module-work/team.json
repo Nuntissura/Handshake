@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T02:28:57Z",
+ "updated_at": "2026-10-11T02:46:55Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -413,7 +413,7 @@
    "model": "sonnet",
    "role": "Folio frames/threads/pages",
    "launched": "2026-10-11T02:16:22Z",
-   "status": "done 5d737e3"
+   "status": "done (folio frames 5d737e3, layout migrate 64dd62d)"
   },
   {
    "name": "builder-components",
@@ -437,7 +437,7 @@
    "model": "sonnet",
    "role": "kernel-bindings slice 1",
    "launched": "2026-10-11T02:28:30Z",
-   "status": "running"
+   "status": "done a7d631c"
   },
   {
    "name": "builder-web",
@@ -477,6 +477,22 @@
    "model": "sonnet",
    "role": "develop WideEngine + speed",
    "launched": "2026-10-11T02:39:54Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-interop-lrcat",
+   "agent_id": "ac1ccc0dfdf6d4842",
+   "model": "sonnet",
+   "role": "interop-lrcat slice 1",
+   "launched": "2026-10-11T02:46:55Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-interop-layout",
+   "agent_id": "a0fe389bf53c4e4de",
+   "model": "sonnet",
+   "role": "interop-layout slice 1",
+   "launched": "2026-10-11T02:46:55Z",
    "status": "running"
   }
  ]

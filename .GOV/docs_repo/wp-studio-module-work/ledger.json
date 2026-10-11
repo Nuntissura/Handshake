@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T02:41:51Z",
+ "updated_at": "2026-10-11T02:46:55Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -336,9 +336,9 @@
    "lane_id": "SMB-INTEROP-LAYOUT",
    "crate": "hsk-studio-interop-layout",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-interop-layout",
-   "phase": "brief",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-interop-layout",
    "brief": null,
    "commits": [],
    "verdicts": []
@@ -411,12 +411,18 @@
    "lane_id": "SMB-KERNEL-BINDINGS",
    "crate": "hsk-studio-kernel-bindings",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-kernel-bindings",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-kernel-bindings",
    "brief": null,
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "95dee5e",
+    "2c78bfa",
+    "a7d631c"
+   ],
+   "verdicts": [],
+   "candidate": "a7d631c",
+   "note": "strict versioned wire envelopes over session ports; TransientHost; exactly-once; 5 tests + break-it"
   },
   {
    "lane_id": "SMB-PRESS",
@@ -439,12 +445,17 @@
    "lane_id": "SMB-WEB",
    "crate": "hsk-studio-web",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-web",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-web",
    "brief": null,
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "b081975",
+    "da39753"
+   ],
+   "verdicts": [],
+   "candidate": "da39753",
+   "note": "span-preserving HTML subset parser, DOM keys, span patches bound to sha256, breakpoints; 5 tests; slice2 in progress"
   },
   {
    "lane_id": "SMB-SCORE-DEVICE",
@@ -483,9 +494,9 @@
    "lane_id": "SMB-INTEROP-LRCAT",
    "crate": "hsk-studio-interop-lrcat",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-interop-lrcat",
-   "phase": "brief",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-interop-lrcat",
    "brief": null,
    "commits": [],
    "verdicts": []
@@ -906,11 +917,14 @@
    "crate": "hsk-studio-layout",
    "origin": "SMB-FOLIO-ENG-3 landed (5d737e3)",
    "scope": "layout consumes Folio pages/text frames/threads/stories (delete crate-local frame/thread model) per notes.layout_migration in hsk-studio-folio-eng-3.json",
-   "phase": "brief",
-   "status": null,
-   "owner": null,
-   "commits": [],
-   "verdicts": []
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
+   "owner": "builder-folio-eng-3 (reused)",
+   "commits": [
+    "64dd62d"
+   ],
+   "verdicts": [],
+   "candidate": "64dd62d"
   },
   {
    "lane_id": "SMB-FOLIO-ENG-4",
@@ -947,5 +961,16 @@
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
- "dispatch_queue": []
+ "dispatch_queue": [
+  {
+   "lanes": [
+    "SMB-REEL-ENG-3"
+   ],
+   "crate": "hsk-studio-reel",
+   "priority": "normal",
+   "assign_to": "next free slot (fresh agent)",
+   "brief": "lead dispatch text (AV1 via rav1d behind feature av1, asm off, ffmpeg-generated fixture under artifact root)",
+   "reason": "20-subagent cap at dispatch"
+  }
+ ]
 }

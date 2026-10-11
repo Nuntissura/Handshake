@@ -1,0 +1,48 @@
+{
+  "crate": "hsk-studio-kernel-bindings",
+  "lane": "MT-35556 slice 1",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slice 1 complete: strict versioned wire envelopes + transient host + BridgePorts over session slice-2 ports + 5 contract tests + consumer example",
+  "commits": [
+    {"sha": "95dee5e", "subject": "KernelBindings slice 1a: versioned strict wire envelopes, transient host, BridgePorts implementing session GrantPort/CommitPort/JobPort"},
+    {"sha": "2c78bfa", "subject": "KernelBindings slice 1b: five contract tests, kernel-bindings-consumer example, revoked-vs-missing grant reasons, strict whitespace framing"},
+    {"sha": "a7d631c", "subject": "KernelBindings slice 1c: clippy clean; break-it verified"}
+  ],
+  "capabilities_done": [
+    "wire: Envelope{bridge_version,correlation_id,idempotency_key,actor,resource_id,expected_revision,lease_epoch,body} with bodies grant_check|commit|lookup|job_admit|job_release|diagnostic and Reply{bridge_version,correlation_id,result}; canonical compact JSON (struct field order); decode refuses unknown/duplicate fields, foreign bridge_version (read first, alone), leading/trailing bytes, oversize, invalid DomainId, invalid actor/key, non-lowercase hex, with 12 distinct stable codes; encode validates first so it never emits what decode refuses",
+    "host: HostBridge (bytes in, bytes out) + TransientHost (memory only): grants per principal/resource/action with revoke (revoked vs missing), commit rechecks the grant even for a known key, idempotency bound to principal+resource+binding (conflict discloses nothing), lease-epoch fence, expected-revision compare, successor == expected+1, monotonic receipts with opaque host_ref, job admission (slots+bytes), FaultPlan{DropAck,RevokeBeforeCommit,BumpEpoch}, independent inspection API",
+    "adapter: BridgePorts<H>.grants()/commits()/jobs() implement session GrantPort/CommitPort/JobPort (session slice 2, 6a162da) over envelopes; no/undecodable/mismatched reply => denied grant, refused job, commit outcome Unknown (never Rejected); lookup() for reconcile; one best-effort diagnostic envelope per terminal commit result; sent-request log for golden/zero-bytes proofs",
+    "DESCRIPTOR with storage NONE and later_host_adapters (7 entries, all NOT_IMPLEMENTED_HOST_ONLY); example kernel-bindings-consumer --descriptor|--roundtrip|--revoke|--drop-ack|--cancel printing the receipt chain"
+  ],
+  "tests": {
+    "argv": "cargo test -p hsk-studio-kernel-bindings --no-fail-fast",
+    "exit": 0,
+    "sha": "a7d631c",
+    "passed": 5,
+    "failed": 0,
+    "names": [
+      "roundtrip_envelopes_through_session_and_idempotent_replay",
+      "fail_closed_on_absent_or_revoked_grant",
+      "stale_epoch_conflict_and_unknown_outcome",
+      "cancel_semantics_and_diagnostics",
+      "wire_strictness_and_descriptor"
+    ],
+    "clippy": "cargo clippy -p hsk-studio-kernel-bindings --tests --examples: clean (only pre-existing observe too_many_arguments warnings)"
+  },
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "Validator round. Follow-ups: (1) steward to add serde 1.0.229 + serde_json 1.0.151 probe approval for hsk-studio-kernel-bindings (dep-requests.jsonl lines appended; folio is a dev-dependency only); (2) session is still building in the shared tree: re-run after any session port-trait change; (3) wire carries a JobAdmit/JobRelease and Diagnostic but no host-side cancel/status for jobs (Job Runtime semantics stay host-only); (4) host adoption (MT-36200..36231) is out of scope.",
+  "updated_at": "2026-10-11T02:45:34Z",
+  "notes": {
+    "oracle": "host state read through TransientHost inspection API (committed revision, receipt count, idempotency size, jobs in flight, diagnostics) and the host-held document bytes parsed independently with folio::inspect_bytes; byte-level golden for the grant_check request; the commit request is re-encoded from its decoded form and compared byte for byte",
+    "break_it": "temporarily disabling (a) the host expected-revision compare, (b) the host commit-time grant recheck, (c) mapping a lost reply to Unknown (made it Rejected) made tests 2 and 3 fail; sources restored byte-identical (git diff empty) before the next commit",
+    "fixture": "tests/fixtures/doc-rev9.handshake is a 5099-byte package written by session-consumer --demo (revision 9); kernel-bindings has no package edge, so it is a checked-in static input, not generated",
+    "design": "session owns the port traits and private doubles; this crate owns the public wire envelopes and the executable transient adapter; no Handshake crate, path or .GOV reference",
+    "known_gaps": [
+      "revision_updates travel as address JSON strings obtained generically via serde (chronicle is not a direct edge)",
+      "idempotent replay is proven at two levels: session-level (stored receipt, commit not re-sent) and host-level (same commit bytes answer the same receipt, applied once)",
+      "no async/threads/transport by design; HostBridge is synchronous bytes in/out"
+    ]
+  }
+}
