@@ -1,0 +1,680 @@
+{
+ "round": "STUDIO-R7",
+ "group": "B",
+ "reviewed_commit": "dff7ef51d282509846803ac406a9fe12957355df",
+ "reviewer": "independent adversarial reviewer (Opus), group B (formats, media, runtime, security), read-only, committed blobs at dff7ef5 only (git archive into scratch), no sub-agents, no cargo",
+ "status": "COMPLETE",
+ "started_at": "2026-10-11T10:28:19Z",
+ "updated_at": "2026-10-11T11:01:45Z",
+ "severity_rule": "CONFIRMED = file:line read at dff7ef5 by this reviewer; PLAUSIBLE = reasoning, process or external fact not proven at dff7ef5",
+ "recommendation_rule": "FAIL when a lane has a CONFIRMED product defect in its claimed scope; PASS_WITH_NOTES when CONFIRMED items are doc/process-only or PLAUSIBLE only; validator decides",
+ "method": "git archive dff7ef5 (20 crates + .config + tools) into scratch; git diff <last judged candidate>..dff7ef5 per crate; line-numbered reads; lane files and plausible register read in the kernel; waived register items not re-raised",
+ "summary": {
+  "SMB-MOTION-JS": {
+   "recommendation": "PASS_WITH_NOTES",
+   "CONFIRMED": 0,
+   "PLAUSIBLE": 1,
+   "recheck": "SAFE_TO_JUDGE"
+  },
+  "SMB-WEB": {
+   "recommendation": "PASS_WITH_NOTES",
+   "CONFIRMED": 0,
+   "PLAUSIBLE": 1,
+   "recheck": "SAFE_TO_JUDGE"
+  },
+  "SMB-MOTION-JS-WORKER": {
+   "recommendation": "PASS_WITH_NOTES",
+   "CONFIRMED": 0,
+   "PLAUSIBLE": 1,
+   "recheck": "SAFE_TO_JUDGE"
+  },
+  "SMB-INTEROP-PSD": {
+   "recommendation": "FAIL",
+   "CONFIRMED": 1,
+   "PLAUSIBLE": 1
+  },
+  "SMB-FOLIO-ENG-6": {
+   "recommendation": "PASS_WITH_NOTES",
+   "CONFIRMED": 0,
+   "PLAUSIBLE": 1
+  },
+  "SMB-FOLIO-ENG-7": {
+   "recommendation": "PASS_WITH_NOTES",
+   "CONFIRMED": 0,
+   "PLAUSIBLE": 1
+  },
+  "SMB-INTEROP-VECTOR": {
+   "recommendation": "PASS_WITH_NOTES",
+   "CONFIRMED": 0,
+   "PLAUSIBLE": 2
+  },
+  "SMB-REEL": {
+   "recommendation": "PASS_WITH_NOTES",
+   "CONFIRMED": 0,
+   "PLAUSIBLE": 3
+  },
+  "SMB-REEL-ENG-3": {
+   "recommendation": "PASS_WITH_NOTES",
+   "CONFIRMED": 0,
+   "PLAUSIBLE": 1
+  },
+  "SMB-REEL-AV1-ROUTE": {
+   "recommendation": "FAIL",
+   "CONFIRMED": 1,
+   "PLAUSIBLE": 1
+  },
+  "SMB-REEL-NATIVE-AV1-WORKER": {
+   "recommendation": "FAIL",
+   "CONFIRMED": 2,
+   "PLAUSIBLE": 0
+  },
+  "SMB-INTEROP-FIG": {
+   "recommendation": "PASS_WITH_NOTES",
+   "CONFIRMED": 0,
+   "PLAUSIBLE": 2
+  },
+  "SMB-SCORE": {
+   "recommendation": "PASS_WITH_NOTES",
+   "CONFIRMED": 0,
+   "PLAUSIBLE": 1
+  },
+  "SMB-SCORE-DEVICE": {
+   "recommendation": "PASS_WITH_NOTES",
+   "CONFIRMED": 0,
+   "PLAUSIBLE": 2
+  },
+  "SMB-SCORE-PLUGIN": {
+   "recommendation": "PASS_WITH_NOTES",
+   "CONFIRMED": 0,
+   "PLAUSIBLE": 1
+  },
+  "SMB-SESSION": {
+   "recommendation": "PASS_WITH_NOTES",
+   "CONFIRMED": 0,
+   "PLAUSIBLE": 1
+  },
+  "SMB-CHRONICLE-TABLE": {
+   "recommendation": "PASS",
+   "CONFIRMED": 0,
+   "PLAUSIBLE": 0
+  },
+  "SMB-KERNEL-BINDINGS": {
+   "recommendation": "PASS_WITH_NOTES",
+   "CONFIRMED": 0,
+   "PLAUSIBLE": 2
+  },
+  "SMB-HARNESS": {
+   "recommendation": "PASS_WITH_NOTES",
+   "CONFIRMED": 0,
+   "PLAUSIBLE": 1
+  },
+  "SMB-MOTION-JS-SANDBOX-2": {
+   "recommendation": "PASS_WITH_NOTES",
+   "CONFIRMED": 0,
+   "PLAUSIBLE": 1
+  },
+  "SMB-PULSE-ENG-1": {
+   "recommendation": "PASS",
+   "CONFIRMED": 0,
+   "PLAUSIBLE": 0
+  },
+  "SMB-INTEROP-LRCAT": {
+   "recommendation": "PASS",
+   "CONFIRMED": 0,
+   "PLAUSIBLE": 0
+  },
+  "SMB-INTEROP-LAYOUT": {
+   "recommendation": "PASS",
+   "CONFIRMED": 0,
+   "PLAUSIBLE": 0
+  }
+ },
+ "lanes": [
+  {
+   "lane": "SMB-MOTION-JS",
+   "crate": "hsk-studio-motion-js",
+   "commit_scope": "961c301 + 1d972f1 (R7 pre-review B fix) over 288b018; last commit touching the crate at dff7ef5 is 1d972f1 = lane head (V4-14 ok)",
+   "recheck": {
+    "decision": "SAFE_TO_JUDGE",
+    "rule": "V4-13 (2 FAILs: R3 FAIL_V1, R5 FAIL_V2)",
+    "prior": "R7-prereview-b SMB-MOTION-JS FIX_FIRST (N1 raw U+0000 -> InvalidString -> Internal -> sticky poison)",
+    "evidence": "Validator: profile.rs:269-271 refuses a raw NUL anywhere as NulCharacter (class Parse, profile.rs:165) right after the byte bound and before the scan; nul_span (profile.rs:383-399) counts lines exactly as the scanner. Engine layer (validator-free provider): quickjs.rs:703-706 maps rquickjs Error::InvalidString to Parse(Some(nul_span)) only when the source holds a NUL, else Internal; Parse crosses the wire as code 0 with its span (quickjs_wire.rs decode_failure 0 -> Parse) and provider.rs:268 maps it without poisoning. 1d972f1 closes the same class in the scripted double (scripted.rs:51-53, :118, :125). The only non-exception rquickjs errors left on the evaluate path are Allocation (real wrapper allocation, Memory) and constant-input wrapper failures. Tests: profile_contract.rs:267 (15 NUL positions incl. CRLF/U+2028/backslash-NUL, 6 escape spellings admitted, byte bound outranks) and :319 (engine never sees the source, provider usable after each refusal); quickjs_contract.rs:406 runs with validator() None, asserts Parse at the exact span, !is_poisoned, zero denials/faults, one worker spawn with no kill/crash, then the validated provider with realms_started 0. The pre-review red proof (lane notes remediation_R7pre.red_proof) shows these fail at 0e48167."
+   },
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "process_V4-20",
+     "file_line": "kernel builders/lanes/hsk-studio-motion-js.json notes.remediation_R7pre (no notes.v4_06_sites key)",
+     "evidence": "V4-20 (tick 4, 10:18:58Z) asks for one site-list key notes.v4_06_sites = [{file_line, verdict}]. The lane records the R7 class sweep inside remediation_R7pre (diagnosis/fixes/tests) and the older lists under remediation_R5; the pre-review P3 stale-list item is answered only by the 1d972f1 commit message. Lane update 10:05:46Z predates V4-20, so this is a process note.",
+     "remediation": "Steward/builder: emit notes.v4_06_sites for the class 'input-caused engine error classified as Internal' (regex EngineFailure::Internal|poison) at 1d972f1"
+    }
+   ],
+   "verified_fixes": [
+    "N1 raw-NUL provider poison FIXED in both layers (see recheck.evidence).",
+    "Overlong run-time host-read path: install_host refuses path.len() > MAX_PATH_BYTES as ReferenceMissing (quickjs.rs:546-549) for both backends; response_cap no longer depends on source length (quickjs_wire.rs:558-564) with a const assert that MAX_PATH_BYTES+128 <= REPLY_SLACK (:552); test quickjs_contract.rs:474 (paths 256..100000 built at run time, killed_oversize 0).",
+    "No remaining script-input -> Internal route found: evaluate's stop branch (quickjs.rs:625-628) is always overridden by the recorded Pending (run_realm :511-513); exchange's Waited::Frame-with-events Internal (quickjs_worker.rs:528) is always replaced because OsEvents has only memory/cpu (os_caps.rs:130-140, merge at :142); terminate kills and blocks on wait (quickjs_worker.rs:229-243) so a deadline kill reports gone and does not poison."
+   ],
+   "recommendation": "PASS_WITH_NOTES",
+   "recommendation_note": "Safe to judge. The third-report class (script input -> Internal -> poison) is closed at the validator and at the engine layer, and the engine-layer test runs without the validator, so it pins the classifier. Carried PLR-037 (forged SyntaxError -> Parse) is lead-WAIVED and not re-raised."
+  },
+  {
+   "lane": "SMB-WEB",
+   "crate": "hsk-studio-web",
+   "commit_scope": "no change since pre-review: last crate commit at dff7ef5 is 08ad0ad (lane READY commit); git diff 08ad0ad..dff7ef5 over crates/hsk-studio-web is empty; closure deps hsk-studio-accord and hsk-studio-observe unchanged in that range",
+   "recheck": {
+    "decision": "SAFE_TO_JUDGE",
+    "rule": "V4-13 (R5 FAIL_V1, R6 FAIL_V2) + V4-18 (pre-review result stands while the crate is unchanged)",
+    "prior": "R7-prereview-b SMB-WEB SAFE_TO_JUDGE at 0e48167 (crate = 08ad0ad)",
+    "evidence": "git log dff7ef5 -- crates/hsk-studio-web: newest 08ad0ad; git diff 08ad0ad dff7ef5 -- crates/hsk-studio-web, hsk-studio-accord, hsk-studio-observe: 0 lines. No later push to the crate, so V4-14 holds and the pre-review stands unchanged."
+   },
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "carried_scope_statement",
+     "file_line": "crates/hsk-studio-web/src/lib.rs:35 (DESCRIPTOR assets.not_scanned); src/assets.rs attr_kind",
+     "evidence": "Pre-review P1 = register PLR-041 (OPEN, FIX_LANE, not waived): inline <script> bodies (run-time fetches) are neither scanned nor listed in not_scanned; attributionsrc / MathML mglyph src unhandled (engine support UNVERIFIED). Unchanged at dff7ef5 because the crate is unchanged.",
+     "remediation": "Route per register FIX_LANE: add 'inline script bodies' to not_scanned; verify and scan or list attributionsrc/mglyph"
+    }
+   ],
+   "verified_fixes": [
+    "R6 FAIL classes (legacy semicolon-less charref; integration-point style over-decoding) and the SMIL PLAUSIBLE: verified fixed and red-proved per R7-prereview-b; the tree is byte-identical at dff7ef5."
+   ],
+   "recommendation": "PASS_WITH_NOTES",
+   "recommendation_note": "Safe to judge on the unchanged pre-review basis. PLR-042 (plain '..' to the AssetPort) is lead-ACCEPTED and not re-raised."
+  },
+  {
+   "lane": "SMB-MOTION-JS-WORKER",
+   "crate": "hsk-studio-motion-js",
+   "commit_scope": "judged on the motion-js fix head 1d972f1 (dff7ef5); 961c301 changed quickjs_worker.rs (exe-dir-only lookup, cancel-polled HELLO wait, StallHello test fault) and quickjs_wire.rs (reply cap)",
+   "recheck": {
+    "decision": "SAFE_TO_JUDGE",
+    "rule": "V4-13 (R5 FAIL_V1 + earlier) ; pre-review said SAFE_TO_JUDGE on the same head as the SMB-MOTION-JS N1 fix",
+    "prior": "R7-prereview-b SMB-MOTION-JS-WORKER SAFE_TO_JUDGE (no CONFIRMED; P2 carried R5 PLAUSIBLEs, P3 stale V4-06 list)",
+    "evidence": "Worker changes since 288b018 re-read: discover_beside (quickjs_worker.rs:287-290) joins only exe.parent() and requires is_file, with unit test worker_is_found_only_beside_the_running_executable (decoy in the parent dir, a directory named like the worker, empty path). HELLO wait (quickjs_worker.rs:464-479) polls WAIT_SLICE, returns Canceled (killed_canceled) on cancel and spawn_failed at spawn_timeout; dropping the session kills and reaps (Drop -> terminate). StallHello is under cfg(feature = test-faults) (quickjs.rs:221-237 under the gated enum, worker_main sleep gated at quickjs_worker.rs:753-758). Test tests/quickjs_worker.rs canceled_evaluation_does_not_wait_for_a_stalled_hello asserts Canceled within 5 s with (spawned, killed_canceled) = (1, 1) and an uncanceled stall ends as SpawnFailed. The worker reply cap is source-independent and covers the longest realm reply (quickjs_wire.rs unit reply_cap_covers_the_longest_realm_reply_for_a_tiny_source). No change to job_object.rs (unsafe surface as pre-reviewed)."
+   },
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "carried_budget_misattribution",
+     "file_line": "crates/hsk-studio-motion-js/src/quickjs_worker.rs:524-547 (drain_events only after a request), :582-585 (arm_cpu with no drain before the request)",
+     "evidence": "Register PLR-036 (OPEN, FIX_LANE, not waived): a late PROCESS_MEMORY_LIMIT notice for request N, posted after N's drain, is charged to request N+1 on a pooled worker. Unchanged at dff7ef5 (lane next: 'untouched'). Kernel posting order UNVERIFIED.",
+     "remediation": "Drain and discard events before arming each request; a late notice on an idle worker retires it without charging a script"
+    }
+   ],
+   "verified_fixes": [
+    "Pre-review P2 carried R5 PLAUSIBLEs (parent-dir lookup, uncancellable HELLO, source-length reply cap) FIXED in 961c301 with tests (see recheck.evidence).",
+    "V4-04 for the new fault: WorkerTestFault::StallHello and its env mapping exist only with feature test-faults (quickjs.rs:221-262: enum and impl both under cfg(feature = test-faults) at :221 and :240)."
+   ],
+   "recommendation": "PASS_WITH_NOTES",
+   "recommendation_note": "All three R5 WORKER items and the three carried PLAUSIBLEs are fixed and tested on the fix head; only PLR-036 (UNVERIFIED kernel ordering) remains open."
+  },
+  {
+   "lane": "SMB-INTEROP-PSD",
+   "crate": "hsk-studio-interop-psd",
+   "commit_scope": "bd8533f..dff7ef5: 0d6d76e 6e7198a (R5/V4) + ADJ-1 92a7eef 3cd145c 319231c 4ee398a eb7080d + ADJ-2 cbed946 + RECEIPT 1a088a9 + CLIP-ROLES 29501d7 (15 files, +3122/-127); sub-lanes -WIDE, -ADJ, -RECEIPT, -CLIP-ROLES reviewed together; 29501d7 is the last crate commit and is listed in the lane file",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "hostile_value_unchecked_whole_import_refusal",
+     "file_line": "crates/hsk-studio-interop-psd/src/adjust.rs:277-289 (CgEd Brgh/Cntr taken from descriptor::Value::number with no finite check); src/descriptor.rs:57-63, :197-201 (doub/UntF give any f64 bit pattern, NaN and inf included); crates/hsk-studio-folio/src/raster.rs:694-703 (BrightnessContrast must be finite); src/proposal.rs:1673-1677 (any record refusal -> whole import Err Proposal(raster_records_rejected)); contradicting adjust.rs:5-8, proposal.rs:1674 comment and lib.rs:79 DESCRIPTOR raster_records",
+     "evidence": "Every other parser pre-checks the Folio range (levels/curves/hue/exposure/mask feather/effects all refuse non-finite values with a fixed reason, which keeps the layer a typed unsupported layer). The CgEd branch does not: a CgEd descriptor whose Brgh (or Cntr) item is a 'doub' or 'UntF' holding NaN or inf is accepted as BrightnessContrast { brightness: NaN }. validate_raster_records then refuses it (raster.rs:699-702 finite), and to_proposal maps that to PsdError::Proposal(\"raster_records_rejected\") for the WHOLE document. One corrupt adjustment-layer descriptor makes the entire PSD unimportable instead of one typed unsupported layer. The code comment at proposal.rs:1674 says 'The parsers pre-check the Folio ranges; a rejection here is a mapping defect, not input' and the DESCRIPTOR says an out-of-range record keeps the layer a typed unsupported layer; both are false for this input. No test feeds a non-finite CgEd value (tests/adjustment_records.rs covers NaN only for expA and mask feather).",
+     "remediation": "In the CgEd branch require brightness/contrast finite (else fall back to brit or refuse with brightness_contrast_range); add the NaN/inf CgEd case to the hostile test"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "receipt_first_call_assumption",
+     "file_line": "crates/hsk-studio-interop-psd/src/convert.rs:204-211 (AbsoluteSummary::absorb), proposal.rs:1073-1077 (bpc/engine from the first call)",
+     "evidence": "The display receipt keeps absolute/bpc/engine fields from the first converter call and only ORs the divergence, on the stated assumption that every call of one import uses the same profile pair and intent. That holds for the current routing (one document profile); a future per-layer route would silently report only the first call. Not a defect at dff7ef5.",
+     "remediation": "Optional: assert equality of later calls' rule/engine fields or record a mixed marker"
+    }
+   ],
+   "verified_fixes": [
+    "Descriptor reader (descriptor.rs) is bounded: depth <= 8 (objects :157, lists :181), items per container <= 512 and <= remaining bytes before Vec::with_capacity (:164, :186), total items charged before each read (:113-116, 8192), key <= 128 bytes, strings <= max_name_units (1024) and checked against remaining bytes; unknown type tag refuses the descriptor with a fixed code (:222); deny(arithmetic_side_effects) at :11.",
+    "ADJ-1 parsers refuse out-of-range values with fixed reasons before Folio (levels :123-130, curves point count/range/ascending :188-200, hue/saturation ranges :226-233, exposure finite and gamma > 0 :321, threshold/posterize ranges, mask feather finite within MAX_MASK_FEATHER :473), and every refusal becomes a typed Unsupported loss on the layer path (proposal.rs:498, :514, :526, :563); effect values are checked per unit and range (effects.rs:97-133) and an unmappable effect is a typed loss, not a default (:381-384).",
+    "ADJ-2: adjustment layers become 'adjustment' layers with a PrimitiveReference and a graph source op (proposal.rs:579-588); unresolved primitive or unreadable record keeps the layer unsupported with a typed loss (:562-573). unclip_adjustment_bases (:614-641) demotes a run clipped to an adjustment base and records clip_to_adjustment_not_supported with base id; export compares against the value written to Folio so an unedited export keeps the file's clipping byte (export.rs:178-185). Tests tests/adjustment_graph_source.rs:153, :191, :239 use bounded_case.",
+    "CLIP-ROLES: note_clip_role_gaps (proposal.rs:658-707) derives Base/Clipped from the written clip flags exactly as pigment Group::clip_role (pigment render_plan.rs:162-171, bottom-first index+1 = top-first k-1) and reports blend_if_clip_base / blend_if_clipped_layer (pigment's keys) and blend_clipped_layers_as_group_off_not_modelled; tests/clip_role_losses.rs:149 and :205 assert paths, kinds, counts and that the ranges/toggle stay in the record.",
+    "RECEIPT (1a088a9): absolute/bpc/engine fields are copied from the Prism wide receipt per call; a divergence on any call is kept (convert.rs absorb); the divergence becomes one Transformed loss entry (test precision_color_export absolute_report_is_carried_to_the_receipt_and_a_divergence_becomes_a_loss_entry).",
+    "V4-01: every module touched since bd8533f (adjust, convert, descriptor, effects, export, loss, proposal, samples) carries deny(clippy::arithmetic_side_effects); export.rs index arithmetic now goes through checked sample_range/size_mul."
+   ],
+   "recommendation": "FAIL",
+   "recommendation_note": "The new record mapping is bounded and typed almost everywhere, but one hostile CgEd double turns a per-layer typed loss into a refusal of the whole import, contradicting the module doc, the proposal.rs:1674 invariant and the DESCRIPTOR. Cheap fix (finite check + test). PLR-016 (Lab neutral, Operator decision) not re-raised."
+  },
+  {
+   "lane": "SMB-FOLIO-ENG-6",
+   "crate": "hsk-studio-folio",
+   "commit_scope": "0241877 (first review); lane head 0241877; later folio commits d0eb304/aa0351a belong to SMB-FOLIO-ENG-7 (separate lane id, additive module)",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "rule_scope_root_stack",
+     "file_line": "crates/hsk-studio-folio/src/raster.rs:952-988 (validate_adjustment_clip_bases walks only d.graph.edges, :963); src/lib.rs:933-938 (graph.outputs only checked for dangling ports); DESCRIPTOR lib.rs (\"a layer clipped to an adjustment layer is refused as AdjustmentClipBase\")",
+     "evidence": "The clip-base rule is built from edges grouped by target op, so a root-level stack listed in graph.outputs is never checked. interop-psd treats graph.outputs as the root stack in bottom-first order (proposal.rs:1519-1520) and its test calls it a 'root-level stack' that follows the same rule (interop-psd tests/adjustment_graph_source.rs:236-239). A producer other than the PSD importer can therefore write root outputs [adjustment, clipped raster] and Folio accepts it while the DESCRIPTOR states the arrangement is refused. Pigment refuses it later at plan time, so nothing renders wrongly; whether graph.outputs is an ordered composite in Folio's own contract is not stated, hence PLAUSIBLE.",
+     "remediation": "Either apply the rule to graph.outputs in order (and test it) or scope the DESCRIPTOR/doc to group inputs"
+    }
+   ],
+   "verified_fixes": [
+    "Source arm (lib.rs:817-829): kind adjustment is an Image source only with PrimitiveReference hsk.studio.adjustment@1 naming its own layer id; another schema or id is PayloadMismatch, any other payload UnsupportedDescriptor. Other kinds stay refused (test existing_documents_validate_identically loops live_filter/fill/mask/placed_asset).",
+    "Clip-base rule: per (target layer, op) the inputs are sorted by input_ordinal (unique per port, enforced at lib.rs:901-908 and the 0..n check at :916-920), base = nearest earlier unclipped input, a clipped layer over an adjustment base is AdjustmentClipBase targeted at the clipped layer; a clipped adjustment layer is accepted and is not a base. Test adjustment_clip_base_rule covers refusal, reversed edge array order (ordinal, not array order), clipped adjustment accepted, clipped layer below the adjustment, unclipped content.",
+    "Additivity: one new Code variant, no struct field; the wire document round-trips byte-equal (existing_documents_validate_identically); cancellation polled in the new loops (raster.rs canceled(token) per edge and per stack).",
+    "V4-01: raster.rs carries deny(clippy::arithmetic_side_effects); the new code has no integer arithmetic."
+   ],
+   "recommendation": "PASS_WITH_NOTES",
+   "recommendation_note": "Option A is implemented as decided and the rule matches pigment's AdjustmentClipBase for group stacks; the root-outputs gap is a scope/doc question (pigment backstops it). D19(h) Photoshop behaviour stays with the Operator."
+  },
+  {
+   "lane": "SMB-FOLIO-ENG-7",
+   "crate": "hsk-studio-folio",
+   "commit_scope": "d0eb304 + aa0351a (first review); lane head aa0351a = last folio commit at dff7ef5",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "index_binding_fragility",
+     "file_line": "crates/hsk-studio-folio/src/vector.rs:16-22 (binding by (style_id, row index)), :714-715 (row checked only for range)",
+     "evidence": "A StudioPatternPaint names a PAINT style row by index; the validator only checks row < rows.len(). An edit that reorders or deletes rows without rewriting the bindings silently moves the pattern onto another valid row (no stale-binding detection, e.g. no digest of the bound row). Disclosed in the module doc and recorded as a spec gap (D19 i: PAINT rows carry no id), so this is a known design limit, not a code defect.",
+     "remediation": "Optional: store the bound row's paint digest in the binding and refuse a mismatch (typed StaleBinding)"
+    }
+   ],
+   "verified_fixes": [
+    "Validator (vector.rs:607-730): document_id binding, set-local ids in the key grammar and unique per kind, every SLYR reference resolved (DanglingReference), clip source restricted to vector/group payloads, attachment needs a clip or mask and resolves both, pattern bindings resolve style, row range and pattern, duplicate (style,row) refused; lengths go through finite_length/bounds in the document unit; scale_factor and scaling_factor > 0 and finite; matrix finite with a finite non-zero determinant (:391-395).",
+    "Cycle check (vector.rs:493-600) is an iterative DFS (no recursion on hostile chains) over layer->child, layer->clip/mask source, layer->style->pattern->content edges; aa0351a makes the style a node so edges grow with the sum, and source lookups use maps built once; every edge insertion and DFS step ticks the Ctx budget. A self-attachment is a RenderCycle (state 1 hit on the same node).",
+    "Records are charged per kind through cx.nodes before their loops; deny(clippy::arithmetic_side_effects) at vector.rs:68; tests/vector_records_contract.rs has 5 tests incl. reference_cycles_are_refused (:575) and hostile_sizes_are_bounded_by_the_budget_and_do_not_recurse (:644).",
+    "Sidecar instead of a StudioPaint variant keeps dependents compiling (no StudioPaint/StudioLayer change in the diff: lib.rs and paint.rs edits are doc/DESCRIPTOR only)."
+   ],
+   "recommendation": "PASS_WITH_NOTES",
+   "recommendation_note": "Bounded, typed and acyclic as claimed; spec gaps are recorded under D19(i) and not re-raised."
+  },
+  {
+   "lane": "SMB-INTEROP-VECTOR",
+   "crate": "hsk-studio-interop-vector",
+   "commit_scope": "bd8533f..dff7ef5: 60b998c (R6 working-space loss) + 42fba02 (slice 3, references resolved or typed) + c8fb9c3 (slice 4 = -RECORDS, Folio vector records import/export); 13 files +5700/-286; lane file id SMB-INTEROP-VECTOR-1 names c8fb9c3 as candidate, which is the last crate commit",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "process_V4-15",
+     "file_line": "kernel builders/lanes/hsk-studio-interop-vector.json (lane SMB-INTEROP-VECTOR-1, notes.slice4 'follow-up slice of this lane')",
+     "evidence": "Slice 4 (c8fb9c3, 08:07Z) is a new feature pushed under the existing lane id after V4-15 (07:30Z: new features start on a NEW lane id). The lane had no open FAIL (R6 PASS_V3), so the 'never stack onto open FAILs' half does not apply; process note only.",
+     "remediation": "Record slice 4 under its own lane id (SMB-INTEROP-VECTOR-RECORDS) in the ledger so a FAIL on it does not reopen the PASS_V3 lane"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "carried_register_item",
+     "file_line": "crates/hsk-studio-interop-vector/tests/vector_edit_roundtrip.rs:412-451",
+     "evidence": "Register PLR-050 (OPEN, FIX_LANE): the DOCTYPE decoy tests still have no lowercase '<!doctype' and no character-reference case (V4-08 case/whitespace class). Unchanged by slices 3/4.",
+     "remediation": "Add '<!doctype svg [...]>' (lowercase) and mixed-case cases to the prolog-classification test"
+    }
+   ],
+   "verified_fixes": [
+    "Definition work is bounded in aggregate, not per definition: inside a frame elements/segments are charged to importer-wide inst_elements/inst_segments that are never reset (svg_adapter.rs:964-994, defs.rs:256-262); exhaustion is a soft failure (defs.rs soft(): definition_budget) that rolls back to the Mark and keeps the use as a typed loss; reference depth 8 and loop refusal (masking.rs:27, ref_stack), clip members <= 64 (masking.rs:30), reference work charged per segment and node (masking.rs:216-220).",
+    "Rollback (defs.rs:289-313) truncates every collection a definition can grow (def layers/paths, records, attachments with their index, nodes, styles, provenance, loss with frame-note dedup, definition cache via its log); frames are always left before the error propagates (defs.rs build_clip: leave_frame before result?).",
+    "Test tests/vector_records_roundtrip.rs records_stay_bounded_and_typed asserts self-referencing mask/pattern/clip loops are typed, a 12-pattern chain stores 8 and reports pattern_depth_exceeded, the aggregate definition budget (max_nodes 20) stores one mask and types three uses while the import succeeds, 1e300 tiles and unusable mask-type are typed, and export refuses records that do not match the document (Folio error) instead of writing them.",
+    "Export: definition ids come from Defs::fresh, which skips every layer name and earlier id (svg_export.rs:269-280, taken seeded at :1029), so url(#..) cannot collide with a layer id attribute; definitions are drained from a worklist (records.rs drain_defs), not recursion.",
+    "V4-01: deny(clippy::arithmetic_side_effects) at svg_adapter.rs:4 and svg_export.rs:8 covers the new css/defs/masking and records submodules (lint levels inherit).",
+    "R6 PLAUSIBLE working-space inheritance: 60b998c reports working_space_not_converted for an assigned RGB working space (DESCRIPTOR loss list)."
+   ],
+   "recommendation": "PASS_WITH_NOTES",
+   "recommendation_note": "No CONFIRMED defect found in the reviewed paths (budgets, rollback, export ids, record validation); review depth on 5.7k new lines is sampled on the hostile-input and round-trip paths. D16 CRC duplicate (PLR-043) is an Operator decision and not re-raised."
+  },
+  {
+   "lane": "SMB-REEL",
+   "crate": "hsk-studio-reel",
+   "commit_scope": "bd8533f..dff7ef5: slice 4 (b105e4c ContentEncodings + Matroska PCM, c952022/0993b25 tests, 231115f MXF index reader, bb1ad00 IndexCache over MkvIndex, d9bf614 MXF multi-partition test) + V4 hardening 2a6f32e/3c82784 + b555905 (comment-only); 41 files +8017/-459; last crate commit b555905 = lane 'validator round on b555905'",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "decompression_amplification",
+     "file_line": "crates/hsk-studio-reel/src/mkv_content.rs:285-296 (zlib per frame capped at max), src/matroska.rs:1580-1586 (DecodeSink with limits.max_chunk_bytes); src/model.rs:84-93 (Limits has no aggregate decoded-bytes bound)",
+     "evidence": "Each stored frame inflates to at most max_chunk_bytes (8 MiB by default), and that bomb case is tested, but nothing bounds the total one request inflates: deflate reaches about 1000:1, so a 64 MiB file of small zlib frames makes a packets request emit tens of GB to the sink. Cancellation and the consumer's own limits are the only stop. The module doc promises per-frame bounds only, so this is a scope note, not a broken claim.",
+     "remediation": "Optional: an aggregate decoded-bytes budget per request (typed LimitExceeded) or a ratio cap"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "stats_undercount",
+     "file_line": "crates/hsk-studio-reel/src/matroska.rs:1223-1262 (approx_bytes omits MkvTrackInfo.content_encodings, :289); src/mkv_content.rs:37-39 (16 encodings x 64 KiB header-stripping settings per track)",
+     "evidence": "MkvIndex::approx_bytes is documented as approximate resident bytes for cache accounting but does not count the retained ContentEncodings settings (up to 16 x 64 KiB per track, 64 tracks). IndexCache bounds entries by count (capacity <= 64 entries), not bytes, so this only skews CacheStats.approx_bytes.",
+     "remediation": "Add the encodings' settings bytes (and codec_id strings) to approx_bytes"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "carried_register_item",
+     "file_line": "crates/hsk-studio-reel/src/lib.rs:23 (pub mod fixtures)",
+     "evidence": "PLR-029 (OPEN, FIX_LANE): synthetic container builders including hostile lace-header forging ship in the product API; the lane known_gaps says feature-gating was deliberately not done.",
+     "remediation": "Gate fixtures behind cfg(test) or a non-default feature, as V4-04 does for fault hooks"
+    }
+   ],
+   "verified_fixes": [
+    "ContentEncodings (mkv_content.rs): count <= 16, header-stripping settings <= 64 KiB, unique orders sorted highest first, scope 0 or > 7 Corrupt, scope 0x4 / encryption / bzlib / lzo1x / malformed are typed per-track refusals kept in content_refusal (matroska.rs:466-487) so other tracks stay usable; each decoded frame and CodecPrivate is capped (decompress_to_vec_zlib_with_limit, HasMoreOutput -> LimitExceeded).",
+    "Content-encoded PCM is refused typed (matroska.rs:1553-1557) instead of reading stored (compressed or stripped) bytes as samples; mkv_pcm.rs validates the rate (finite integer 1..u32::MAX), block-size divisibility and timestamp drift with checked i128 math and refuses discontinuities rather than shifting samples.",
+    "MXF KLV (mxf/klv.rs): BER 0x80 refused, more than 8 length octets refused, the value must lie within the source/partition end before use (read_klv), pack and run-in sizes capped; tests/mxf_index.rs covers u32::MAX counts and u64::MAX BER per lane notes.",
+    "V4-01: 16 modules under deny(clippy::arithmetic_side_effects) incl. isobmff, fragments, wav, y4m, identity, registry, cache, mxf/*, mkv_*; V4-02 tests in tests/v4_hardening.rs (dims_u32_max + aggregate_over_budget per container family, :128..:1200) and tests/v4_alloc_budget.rs (3 allocation proofs).",
+    "V4-05: no new D16/D18 fingerprint match (zlib via miniz_oxide only); the step-0 patterns re-run by this reviewer over crates/*/src at dff7ef5 match only the allowed files."
+   ],
+   "recommendation": "PASS_WITH_NOTES",
+   "recommendation_note": "Sampled review of the new hostile-byte paths (ContentEncodings, Matroska PCM, MXF KLV, cache) found typed bounds and no CONFIRMED defect. PLR-030 (in-process cancel) is lead-WAIVED and PLR-031 (BSD-2 notice) is an Operator decision; neither is re-raised."
+  },
+  {
+   "lane": "SMB-REEL-ENG-3",
+   "crate": "hsk-studio-reel",
+   "commit_scope": "trusted-input AV1 (feature av1) incl. R5 remediation 233f406 + V4-01 569023e, first judged this round (R6 read the diff only)",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "preallocation_guard_from_container_metadata",
+     "file_line": "crates/hsk-studio-reel/src/av1/mod.rs:149-157; src/av1_config.rs:40-66 (pixel_limit from av1C subsampling and bit depth)",
+     "evidence": "The rav1d frame_size_limit is derived from the container's av1C record. The sequence header inside the bitstream can declare a heavier layout (4:4:4 12-bit against an av1C of 4:2:0 8-bit), so the decoder may allocate pictures up to 4x the max_chunk_bytes budget before the packed-size check refuses them. The code comment calls it a pre-allocation guard and the exact size is checked later; the path is TRUSTED-INPUT-ONLY. Not a defect at dff7ef5.",
+     "remediation": "Optional: compute the limit from the 4:4:4 16-bit worst case, or re-check against the parsed sequence header"
+    }
+   ],
+   "verified_fixes": [
+    "R5 lying decoder: planes_match_format (video.rs:274-288) computes the expected plane size with checked u64 math from the picture's own format and maps a mismatch to DecoderFault::Protocol; tests/review_r5_regressions.rs (u32::MAX x u32::MAX).",
+    "Matroska PixelWidth/PixelHeight bounded at the source (typed LimitExceeded video-dimensions) and the AV1 pixel limit derived from av1C layout (1080p decodes at default limits, fixture av1-1920x1080-2f.mp4) per 233f406.",
+    "Unsafe confined to av1/ffi.rs: lib.rs:15-16 forbid(unsafe_code) without the feature and deny with it; av1/ incl. ffi.rs under deny(clippy::arithmetic_side_effects) (569023e).",
+    "The process abort on corrupt bitstreams is disclosed in DESCRIPTOR features.av1 and the module docs; untrusted input is routed to the external decoder by default (SourceTrust::Untrusted)."
+   ],
+   "recommendation": "PASS_WITH_NOTES",
+   "recommendation_note": "Trusted-input scope as decided. PLR-030 (send/finish ignore cancel) is lead-WAIVED and PLR-031 (third-party notice) is an Operator decision; both not re-raised."
+  },
+  {
+   "lane": "SMB-REEL-AV1-ROUTE",
+   "crate": "hsk-studio-reel",
+   "commit_scope": "routing bfef27f (R5) + remediation 233f406/569023e; slice 4 only adds decode_video_track_with (VideoContent) for Matroska ContentEncodings",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "trust_boundary_proxy_inherits_original_trust",
+     "file_line": "crates/hsk-studio-reel/src/registry.rs:178-194 (one VideoRoute built from the caller's trust), :206-219 (the proxy reader is decoded with that same &route), :234 (original); src/video.rs:215-217 (Trusted + AV1 -> Chosen::InProcess)",
+     "evidence": "decode_segment_routed takes one SourceTrust for 'the source bytes' and builds one VideoRoute from it. When a preview request prefers a proxy and the proxy is usable, the proxy's reader (a different source with its own grant) is decoded through the same route. A caller that vouches for the original (Trusted) therefore sends proxy bytes to the in-process rav1d decoder, which the crate documents as aborting the process on corrupt streams (DESCRIPTOR features.av1; lane mutation probe: 9.7% of single-byte mutations abort). Proxies are generated or fetched separately, so a digest check of the original does not cover them. Register PLR-033 (OPEN, FIX_LANE), still present at dff7ef5.",
+     "remediation": "Give ProxySource its own SourceTrust (default Untrusted) and build a separate VideoRoute for the proxy; add a test that a Trusted original with an untrusted proxy never selects InProcess"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "carried_register_item",
+     "file_line": "crates/hsk-studio-reel/src/video.rs:296-331 (format checked against itself; packed copy at :312 before the max_chunk_bytes check at :316)",
+     "evidence": "PLR-032 (OPEN, FIX_LANE): a decoded picture is never compared with the container-declared VideoTrack width/height, and an oversize picture is fully packed into a second buffer before it is refused, doubling the transient memory of a hostile external decoder reply.",
+     "remediation": "Check picture.format against the VideoTrack dims and the packed size before packing"
+    }
+   ],
+   "verified_fixes": [
+    "Default routing: SourceTrust::Untrusted is the Default (video.rs:33-41); untrusted AV1 goes only to a registered ExternalVideoDecoder that supports the codec, else CodecUnavailable (video.rs:215-222); a container feature or content-encoding refusal is reported once a decoder exists (decode_video_track_with).",
+    "Matroska V_AV1 with ContentEncodings: packets are decoded through the same ContentPlan before they reach the decoder (video.rs:454 DecodeSink), so stripped headers and zlib are undone before rav1d or the worker sees them."
+   ],
+   "recommendation": "FAIL",
+   "recommendation_note": "The trust statement for the original leaks to the proxy source and routes unvouched proxy bytes into an in-process decoder that can abort the host process. It is a carried FIX_LANE item that is still unfixed; the fix is local (separate proxy trust)."
+  },
+  {
+   "lane": "SMB-REEL-NATIVE-AV1-WORKER",
+   "crate": "hsk-studio-reel-native",
+   "commit_scope": "f080dd6 (R5 remediation: checked declared-size and wire plane arithmetic, host feature without rav1d, test faults behind test-faults); no later crate commit",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "security_worker_lookup_parent_dir",
+     "file_line": "crates/hsk-studio-reel-native/src/host.rs:458-469 (discover_program tries the exe dir, then dir.parent())",
+     "evidence": "With no explicit program, reel-native-av1-worker[.exe] is also accepted from the PARENT of the running executable's directory; a binary planted there runs as the decoder worker (HELLO checks only self-reported identity and ABI). The two sibling copies fixed this class in this round as a real defect (motion-js 961c301 discover_beside; score-plugin 7d5641c exe-directory-only), so reel-native is the only D18 copy with the parent lookup. Register PLR-034 (OPEN, FIX_LANE).",
+     "remediation": "Search only the executable directory (as motion-js discover_beside); tests pass the cargo bin path explicitly"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "uncancellable_wait",
+     "file_line": "crates/hsk-studio-reel-native/src/host.rs:609 (session.frames.recv_timeout(self.spawn_timeout) with no cancel poll)",
+     "evidence": "The HELLO wait blocks for the whole spawn_timeout whatever the caller's cancel token says, while the request wait polls in WAIT_SLICE (host.rs:373). motion-js fixed the identical wait in 961c301 (cancel-polled loop plus a stalled-HELLO test). Register PLR-035 (OPEN, FIX_LANE).",
+     "remediation": "Poll WAIT_SLICE with cancel checks as in motion-js quickjs_worker.rs:464-479; test with a stalled-HELLO fault"
+    }
+   ],
+   "verified_fixes": [
+    "V4-04: WorkerTestFault, Av1WorkerOptions::test_fault and the worker's env read exist only with feature test-faults (lib.rs:28-29, :40-41; host.rs:42-43, :109-111, :925-926; wire.rs:427-436); tests/worker_fault_env.rs runs without the feature.",
+    "The host feature av1 does not link rav1d (Cargo.toml: av1 = accord + reel without its av1 feature; av1-worker adds hsk-studio-reel/av1 for the worker binary only); round-features runs [av1-worker] and [av1-worker, test-faults].",
+    "V4-01 deny on host.rs, wire.rs and worker.rs; the DESCRIPTOR bounds cite tests for declared-dims overflow and reply-plane overflow.",
+    "D18: no new supervision copy (Command::new / creation_flags only in the three allowed files at dff7ef5)."
+   ],
+   "recommendation": "FAIL",
+   "recommendation_note": "Both items are carried R5 PLAUSIBLEs (register FIX_LANE, not waived) that the sibling worker hosts fixed in this round; reel-native is now the only copy with a parent-directory worker lookup and an uncancellable HELLO wait. The validator may downgrade to PASS_WITH_NOTES if the lead routes them under D18 instead."
+  },
+  {
+   "lane": "SMB-INTEROP-FIG",
+   "crate": "hsk-studio-interop-fig",
+   "commit_scope": "c75577d (R6 remediation) + deea33c (R6 follow-up) over the R6 FAIL_V1 candidate; last crate commit deea33c",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "fixture_location_vs_corpus_convention",
+     "file_line": "crates/hsk-studio-interop-fig/tests/fig_import.rs:808-824 (Operator .fig files read from CARGO_MANIFEST_DIR/tests/fixtures, not hash-pinned); .config/oracle-corpus.toml:1-17",
+     "evidence": "The real-file branch now prints NOT_PROVEN instead of returning silently (fixed). But the Figma files D17 asks for are 'local copies only', while the test reads them from the crate's tests/fixtures directory. A round runs on a git-archive export, so an uncommitted local copy is never seen there, and a file that is seen is not pinned by sha256 as the corpus convention requires. The proof cannot reach the round unless the Operator's files are committed.",
+     "remediation": "Read Figma fixtures from the oracle-corpus root (fig/ subdirectory) with sha256 pins and NOT_PROVEN on absence"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "carried_register_item",
+     "file_line": "crates/hsk-studio-interop-fig/tests/fig_import.rs (0 uses of bounded_case)",
+     "evidence": "PLR-052 (OPEN, FIX_LANE): no 60 s bounded_case wrapper, so a hostile-input hang would hang the round instead of failing the test. The new hostile cases (trailing bytes, two zstd frames, u32::MAX sizes) were added without it.",
+     "remediation": "Wrap the hostile-input tests in bounded_case as the other format crates do"
+    }
+   ],
+   "verified_fixes": [
+    "R6 CONFIRMED real-fixture-branch-silent-green FIXED: fig_import.rs:817-823 prints a 'NOT_PROVEN:' line that tools/run-round.sh collects from system-out and system-err (run-round.sh:668-681), so the round exits 73 instead of counting a pass.",
+    "R6 CONFIRMED local-header-crosscheck-overclaim FIXED: container.rs:483-500 checks local encryption flags, method, CRC and both sizes against the central directory (data-descriptor form only with all-zero local fields); the module doc now names the checks and cites unsupported_version_duplicate_key_bomb_cancel (tests/fig_import.rs:426), whose assertions the builder red-proved at 4cfbf0f.",
+    "R6 PLAUSIBLE trailing compressed bytes FIXED: inflate_exact (container.rs:248-281) drives miniz_oxide's resumable inflater and refuses input left after the final block (Trailing), used for ZIP entries and Kiwi chunks; the zstd path reads one frame and refuses leftover input (kiwi.rs:563). ruzstd 0.9.0 consumes the optional 4-byte content checksum (frame_decoder.rs:346-353, local registry), so a checksummed frame is not a false trailing refusal.",
+    "R6 PLAUSIBLE duplicate struct field ids FIXED: kiwi.rs:217 refuses a duplicate field id in every definition kind, structs included.",
+    "V4-01: deny(clippy::arithmetic_side_effects) on container.rs:18 and kiwi.rs:12 with checked take/u16_at/u32_at helpers; V4-05: the D16 CRC/ZIP copy stays in the allowed file only (no new fingerprint match)."
+   ],
+   "recommendation": "PASS_WITH_NOTES",
+   "recommendation_note": "Both R6 CONFIRMED items and two carried PLAUSIBLEs are fixed with red-proved tests. Remaining notes are test-harness and fixture-location process items. PLR-043 (D16 duplicate ZIP readers) is an Operator decision and not re-raised."
+  },
+  {
+   "lane": "SMB-SCORE",
+   "crate": "hsk-studio-score",
+   "commit_scope": "no crate commit in bd8533f..dff7ef5 (R6 PASS_V3 at bd8533f); closure (accord, observe) unchanged",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "carried_register_items",
+     "file_line": "crates/hsk-studio-score/src/bounce.rs:211; src/src_bounce.rs graph_identity; src/block.rs validate; src/dsp.rs; src/eq.rs",
+     "evidence": "PLR-014 (identity hashed after the bounce ran; RampedGain identity carries its current value) and PLR-015 (non-divisor rates admitted, f32::MAX gain publishes inf, limiter/EQ reset on discard) are OPEN with lead disposition FIX_LANE (SMB-SCORE-GUARDS for PLR-015). Unchanged at dff7ef5 because the crate is unchanged.",
+     "remediation": "As routed by the lead (SMB-SCORE-GUARDS); capture identity before the first block"
+    }
+   ],
+   "verified_fixes": [
+    "Crate and closure are byte-identical to the R6 PASS_V3 candidate for this crate (git log bd8533f..dff7ef5 over hsk-studio-score, -accord, -observe: no commit), so the R6 verified items (bit-identical streaming SRC, exact counts, scoped working set) stand."
+   ],
+   "recommendation": "PASS_WITH_NOTES",
+   "recommendation_note": "Unchanged since its last PASS; only carried register items remain."
+  },
+  {
+   "lane": "SMB-SCORE-DEVICE",
+   "crate": "hsk-studio-score-device",
+   "commit_scope": "436242f (R6 remediation) over the R6 FAIL_V1 candidate; last crate commit",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "api_semantics",
+     "file_line": "crates/hsk-studio-score-device/src/ring.rs:147-151 (Producer::drop_block)",
+     "evidence": "drop_block counts one overrun, one discontinuity and a block of dropped frames whenever the producer calls it; it takes no block and does not check that the ring was full, so a caller can record loss that never met backpressure. The doc limits it to replaceable previews and the counts stay consistent with the lead's 'real loss only' decision (the producer did give the block up), so this is a usage note.",
+     "remediation": "Optional: accept drop_block only right after a PushError::Full (e.g. return it from the refused offer)"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "proof_scope",
+     "file_line": "crates/hsk-studio-score-device/src/cpal_backend.rs (open_output: wait_ready then backend drop joins the owner thread)",
+     "evidence": "The open wait now polls cancel (open_wait.rs:15, unit test without a device), but after a cancel the backend drop still joins an owner thread that may be inside cpal's build_output_stream; the DESCRIPTOR states end-to-end native cancel is NOT_PROVEN and the round only compiles cpal-backend (native tests ignored without STUDIO_NATIVE_AUDIO=1).",
+     "remediation": "None required for this round; keep the NOT_PROVEN entry"
+    }
+   ],
+   "verified_fixes": [
+    "R6 CONFIRMED counter_semantics FIXED per lead decision 06:29:17Z: try_push_block refusing Full counts refused_offers only (ring.rs:129-142); overruns/discontinuities/dropped_frames come only from capture frames that did not fit (push_frames :156-168) or an explicit drop_block; CounterSnapshot/CloseReport carry refused_offers; tests ring_fill_and_overflow_discontinuity (amended) and backpressured_stream_with_retries_is_lossless.",
+    "R6 CONFIRMED round_coverage_gap FIXED: .config/round-features.toml:19 hsk-studio-score-device = [[\"cpal-backend\"]], so the round builds and clippy-checks cpal_backend.rs.",
+    "R6 PLAUSIBLE doc_drift FIXED: Admission::acquire checks max_bytes_in_flight (default 16 MiB) with checked_add together with max_open_streams under one lock (provider.rs:58-76) and Permit::release returns both (provider.rs:85-97); test admission_bounds_streams_and_bytes.",
+    "R6 PLAUSIBLE uncancellable open FIXED at the wait: open_wait::wait_ready polls the token every slice; a ready message wins over a late cancel; Disconnected/timeout are Unavailable."
+   ],
+   "recommendation": "PASS_WITH_NOTES",
+   "recommendation_note": "Both R6 CONFIRMED items and both PLAUSIBLEs are addressed; the callback no-alloc/no-lock proof is unchanged."
+  },
+  {
+   "lane": "SMB-SCORE-PLUGIN",
+   "crate": "hsk-studio-score-plugin",
+   "commit_scope": "6c45e64 (clap_fixture via oracle corpus) + 7d5641c (R6 remediation) + 10016b5 (streaming SHA-256); last crate commit 10016b5",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "platform_scope",
+     "file_line": "crates/hsk-studio-score-plugin/src/staging.rs:13-16 (Unix NOT_PROVEN against a same-user process), :96-138",
+     "evidence": "On Windows the copy is re-hashed through a handle opened with FILE_SHARE_READ only, so after the second hash no writer, deleter or pre-existing write/delete handle can exist (a sharing violation makes the open fail), and the loader gets the copy's path. On Unix the copy is 0o400 in a 0o700 directory, but a same-user process can still replace the directory entry between the second hash and the load; disclosed as NOT_PROVEN in the module doc. Acceptable for a Windows-first round; listed so the DESCRIPTOR keeps the platform split.",
+     "remediation": "Unix: load via a file descriptor path (/proc/self/fd/N) or keep the disclosure"
+    }
+   ],
+   "verified_fixes": [
+    "R6 CONFIRMED security_toctou FIXED: clap_backend.rs:138-147 refuses a load without a host-made stage directory, stage_verified (staging.rs:96-138) hashes and copies the original in one pass through one handle into a create_new file inside the per-worker directory, re-hashes the copy through the kept handle and returns that path; PluginEntry::load receives only the staged path (clap_backend.rs:77). Tests: staging::tests (tampering after staging, held copy cannot be modified, refusals leave nothing), clap_fixture::clap_loads_a_private_verified_copy_not_the_approved_path.",
+    "R6 CONFIRMED host-limits-instant-overflow FIXED: IsolatedHost::new refuses zero or > MAX_DEADLINE spawn_timeout/shutdown_grace (host.rs:336-341) and supervisor deadlines go through after() (supervisor.rs:50, clamped checked_add); test host_limits_are_bounded_at_admission.",
+    "R6 PLAUSIBLE parent-dir worker lookup FIXED: discover_program joins only exe.parent() (supervisor.rs:71-77).",
+    "R6 PLAUSIBLE 512 MiB hash buffer FIXED: hashing::stream_sha256 over a fixed 64 KiB buffer for host verify_content, the reference worker and staging (10016b5; tests large_stream_hashes_in_bounded_memory 96 MiB, host_hashes_a_large_plugin_file_in_bounded_memory).",
+    "R6 PLAUSIBLE worker-reported state versions FIXED: host owns state_version (ParamSet must be host + 1, capture equal, a worker calling the host version stale is a protocol fault); test fault_injection::worker_cannot_rewrite_the_state_version.",
+    "6c45e64: clap_fixture locates the fixture through .config/oracle-corpus.toml and the MANIFEST sha256, prints NOT_PROVEN when absent (V4-03); D18: supervision still only in supervisor.rs (fingerprint scan at dff7ef5)."
+   ],
+   "recommendation": "PASS_WITH_NOTES",
+   "recommendation_note": "All R6 CONFIRMED and PLAUSIBLE items are fixed with tests; the hash-then-load window is closed on Windows and disclosed for Unix."
+  },
+  {
+   "lane": "SMB-SESSION",
+   "crate": "hsk-studio-session",
+   "commit_scope": "82a97b4 (receipt eviction policy, diverged discard/resync, V4 hardening) + dad971d (doc) + b77518c (consume chronicle table); last crate commit b77518c",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "revision_monotonicity",
+     "file_line": "crates/hsk-studio-session/src/session.rs:1380-1402 (resync_inner adopts the authority snapshot), :1436-1470 (inspect_authority_document checks document id and revision == receipt revision only)",
+     "evidence": "resync_diverged accepts the authority document at whatever revision the authority's receipt names, including one below the session's current revision, and keeps the other committed receipts in the idempotency table; a later replay of one of those keys returns its stored Applied for a revision the resync may have undone. The command is operator-initiated and reports revision_before/revision_after, so this is a hardening note, not a broken claim.",
+     "remediation": "Optional: refuse (or flag in DivergenceReport) an authority revision below the current one and clear receipts above it"
+    }
+   ],
+   "verified_fixes": [
+    "Receipt eviction (session.rs:41-57 doc, :881-930): only acknowledged committed receipts evict, oldest first; pending and reconcile-adopted unacknowledged receipts are never evicted; room is established before work and the eviction happens when the receipt is stored, so a failing submit evicts nothing; a replay of an evicted key is refused stale_revision by the expected-revision check (:776-778). Tests receipt_table_is_bounded_and_evicts_only_acknowledged_receipts and unacknowledged_and_pending_receipts_are_kept_and_a_full_table_refuses_typed.",
+    "Diverged commits: both operator commands re-run the grant check and re-look the receipt up (diverged_precondition :1409-1432); resync bytes are bounded by the folio input budget, parsed by folio, and must name this document at the receipt revision with every tile asset in the source package (:1436-1470); otherwise nothing changes.",
+    "b77518c removes the session copy of the addressability table and consumes chronicle's (CX-CAP-001); the test asserts the session vector equals chronicle::seed_revisions and refusals for non-addressable pairs leave revision, bytes and vector untouched.",
+    "V4-01: crate-level deny(clippy::arithmetic_side_effects) (lib.rs:6)."
+   ],
+   "recommendation": "PASS_WITH_NOTES",
+   "recommendation_note": "Eviction and divergence handling are bounded, typed and fail-closed as claimed; one hardening note on resync to an older authority revision."
+  },
+  {
+   "lane": "SMB-CHRONICLE-TABLE",
+   "crate": "hsk-studio-chronicle",
+   "commit_scope": "549e46d (export PROPERTIES / addressable / seed_revisions / mask_property); only crate commit in bd8533f..dff7ef5",
+   "findings": [],
+   "verified_fixes": [
+    "addressable (lib.rs:301-307) is an exhaustive match over NodeKind x Property with no wildcard (Layer: name and visible; Artboard/PageSpread: name only), and prepare's address check reads it, so the exported table and the enforced table cannot drift.",
+    "seed_revisions (lib.rs:318-) seeds only addressable pairs and skips layers with an Unsupported payload (layer_addressable :309-311); mask_property (:352-361) refuses non-addressable addresses and unknown nodes (returns false) and otherwise neutralises through the same set() the editor uses.",
+    "Test exported_table_is_the_table_prepare_enforces covers every node kind x property including an unsupported layer, and session consumes the table (b77518c) instead of a copy (CX-CAP-001).",
+    "V4-01: crate-level deny(clippy::arithmetic_side_effects) (lib.rs:2) with the depth increments saturating."
+   ],
+   "recommendation": "PASS",
+   "recommendation_note": "Additive single-owner export; no defect found."
+  },
+  {
+   "lane": "SMB-KERNEL-BINDINGS",
+   "crate": "hsk-studio-kernel-bindings",
+   "commit_scope": "be2ee84 (R5 remediation) + 111f4ed (V4-04 fault hooks behind test-faults); last crate commit 111f4ed",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "self_asserted_ticket_owner",
+     "file_line": "crates/hsk-studio-kernel-bindings/src/host.rs:304-326 (job_admit: standing grant by (account, principal, resource, action), no grant token), :472-487 (job_release: owner = envelope actor ids + resource), cf. :378-383 (commit also requires the bearer grant_token)",
+     "evidence": "The R5 fix binds a ticket to the account, principal and resource named in the envelope, but those ids are self-asserted by the caller and tickets are sequential u64s. Commit is protected by the grant token as a bearer secret; JobAdmit and JobRelease are not, so a caller that knows another principal's ids (not secret) can still release that principal's jobs. Whether the transport authenticates the actor is not stated in the crate (UNVERIFIED), hence PLAUSIBLE.",
+     "remediation": "Require the grant token on JobAdmit/JobRelease (or bind the ticket to the token), or document that actor ids are transport-authenticated"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "no_red_proof",
+     "file_line": "commit be2ee84 message ('Red proof on the old code was not run'); tests/bridge_contract.rs",
+     "evidence": "The five new R5 regression tests were not run against the pre-fix code, so it is not shown that they fail on a revert. By reading, job_tickets_are_released_only_by_their_owner, lease_epoch_is_issued_by_the_host_not_adopted_from_callers and only_canonical_bytes_decode assert outcomes the old code could not produce, so this is a process gap rather than a suspected vacuous test.",
+     "remediation": "Run the new tests on a scratch export of the R5 candidate (own STUDIO_OWNER, V4-11) and record the red result"
+    }
+   ],
+   "verified_fixes": [
+    "R5 JobRelease by any actor FIXED as far as the envelope identity goes: job_release refuses a non-owner with JobDenyCode::NotTicketOwner and changes nothing; an unknown ticket is acknowledged (idempotent retry) (host.rs:472-487).",
+    "R5 non-canonical wire FIXED: decode re-encodes the decoded value and requires byte equality (wire.rs:600-608, WireError::NonCanonical), after the size bound, a leading '{', no trailing whitespace and a version probe; serde_json's recursion limit bounds nesting.",
+    "R5 PLAUSIBLE lease epoch FIXED: older epoch is StaleEpoch, newer is EpochNotIssued, and a commit never adopts the caller's epoch (host.rs:404-416).",
+    "V4-04: Fault, plan_fault and the faults queue exist only under cfg(any(test, feature = \"test-faults\")) (host.rs:24-30, :116-117, :371-375); the default build uses lose_reply = false; compile_fail doctests and a source-scan test pin it; round-features runs [test-faults] for the crate.",
+    "V4-01: deny(clippy::arithmetic_side_effects) on adapter.rs:7, host.rs:11, wire.rs:13."
+   ],
+   "recommendation": "PASS_WITH_NOTES",
+   "recommendation_note": "The three R5 items are fixed in code and the fault hooks are gated; ownership still rests on caller-asserted ids for the job API."
+  },
+  {
+   "lane": "SMB-HARNESS",
+   "crate": "hsk-studio-harness",
+   "commit_scope": "c41b067 (R5 remediation); only crate commit in bd8533f..dff7ef5",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "same_file_detection",
+     "file_line": "crates/hsk-studio-harness/src/cli.rs:177-184 (same_file: canonicalize both, else literal compare)",
+     "evidence": "--save is refused without --overwrite only when the canonical paths are equal. A hard link (or a second path to the same file that canonicalize does not unify) to the input package is not detected, so edit --save can still replace the input through another name. The manual says the caller owns the destination; edge case only.",
+     "remediation": "Optional: compare file identity (volume serial + file index on Windows, dev+ino on Unix) instead of canonical paths"
+    }
+   ],
+   "verified_fixes": [
+    "R5 vacuous verify FIXED: the CLI refuses verify with no --expect-* before opening (cli.rs:187-190, usage exit 2); Run::verify_live refuses a verify with no revision and no expectation as nothing_to_check (harness.rs:625-636); Run::finish reports nothing_checked with ok false when no operation ran (harness.rs:663-671). Tests verify_checks_something_and_save_never_clobbers_the_input, an_empty_run_is_nothing_checked_not_a_pass.",
+    "R5 PLAUSIBLE silent input replace FIXED: edit --save naming the input package is a usage error unless --overwrite (cli.rs:191-197).",
+    "V4-01 deny on cli.rs:8, harness.rs:11, manual.rs:4; source-scan test quiet_sources_use_no_process_network_or_environment_api backs the quiet claim; no D18 supervision code in the crate."
+   ],
+   "recommendation": "PASS_WITH_NOTES",
+   "recommendation_note": "Both R5 items are fixed and tested."
+  },
+  {
+   "lane": "SMB-MOTION-JS-SANDBOX-2",
+   "crate": "hsk-studio-motion-js",
+   "commit_scope": "307c13c (profile validator) 0cc4251 (Job Object caps) 34a1713 288b018 (crash-reporter hardening), judged on the fix head 1d972f1 which adds the NUL refusal to the same validator (961c301)",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "lexical_scope",
+     "file_line": "crates/hsk-studio-motion-js/src/profile.rs:10-13 (not a parser; computed access invisible), :40-56 (DENIED_KEYWORDS / DENIED_NAMES)",
+     "evidence": "The validator is lexical: identifier escapes are refused (profile.rs:573 IdentifierEscape), string values are compared after cooking, template and regex literals are refused, so the classic spellings are covered. A name assembled at run time (computed member access over string concatenation) is not visible to it, which the module doc states; ambient objects not on the list (Object, Symbol, Date, arguments) remain reachable. EXPR-PROVIDER-05 stays NOT_PROVEN in the DESCRIPTOR, so this is a scope reminder, not a defect.",
+     "remediation": "None for this round; keep the DESCRIPTOR NOT_PROVEN entry until an AST/semantic layer exists"
+    }
+   ],
+   "verified_fixes": [
+    "The validator runs in the provider before any engine (provider.rs:419-424) and its refusals are typed with exact spans; the byte bound precedes the scan and the NUL precondition (profile.rs:266-271).",
+    "Job Object caps and the worker's crash-reporter hardening: pre-review B found no defect in job_object.rs (signatures vs windows-sys 0.61.2, handle lifetimes, non-inheritable handles); unchanged since (git diff 288b018..dff7ef5 does not touch job_object.rs or os_caps.rs).",
+    "Budget(Memory)/Budget(Cpu) come only from kernel job notices (OsEvents memory/cpu, os_caps.rs:130-146; drain job_object.rs:199-219), never from script text."
+   ],
+   "recommendation": "PASS_WITH_NOTES",
+   "recommendation_note": "Delivered split scope (lexical validator + OS caps) is as claimed; PLR-036 (late memory notice) is carried under SMB-MOTION-JS-WORKER."
+  },
+  {
+   "lane": "SMB-PULSE-ENG-1",
+   "crate": "hsk-studio-pulse",
+   "commit_scope": "no crate commit in bd8533f..dff7ef5 (R6 PASS_V1 at 6a60ef6); closure: accord/observe unchanged, folio changed additively (ENG-6 new Code variant, ENG-7 new vector module)",
+   "findings": [],
+   "verified_fixes": [
+    "Closure change is compatible: pulse matches folio::Code only through from_diagnostic with a wildcard arm (timeline_edit.rs:874-881), so the new Code::AdjustmentClipBase maps to FolioRejected; no other folio API pulse uses changed (ENG-6/ENG-7 add no field to existing structs).",
+    "The R6 verified items (100 ns <-> ticks rule 127008/5 delegated to accord Timescale/Rounding, typed Overflow/Underflow) stand on the unchanged crate."
+   ],
+   "recommendation": "PASS",
+   "recommendation_note": "Unchanged since its R6 PASS; folio closure change is additive and wildcard-matched."
+  },
+  {
+   "lane": "SMB-INTEROP-LRCAT",
+   "crate": "hsk-studio-interop-lrcat",
+   "commit_scope": "no crate commit in bd8533f..dff7ef5 (R6 PASS_V2); closure accord/observe unchanged",
+   "findings": [],
+   "verified_fixes": [
+    "Crate and closure byte-identical to the R6 candidate (git log bd8533f..dff7ef5 over hsk-studio-interop-lrcat, -accord, -observe: no commit); the R6 verified fixes (extraction-wide overflow claim set, aggregate retained-text budget, honest row accounting) stand. The R6 PLAUSIBLE (wal_snapshot.rs without V4-01 deny, bounded, no defect) is unchanged and was not carried into the plausible register's open list."
+   ],
+   "recommendation": "PASS",
+   "recommendation_note": "Quick re-check only: unchanged since R6."
+  },
+  {
+   "lane": "SMB-INTEROP-LAYOUT",
+   "crate": "hsk-studio-interop-layout",
+   "commit_scope": "no crate commit in bd8533f..dff7ef5 (R6 PASS_V2); closure: accord/observe/layout unchanged, folio changed additively (ENG-6/ENG-7)",
+   "findings": [],
+   "verified_fixes": [
+    "Crate unchanged since the R6 candidate; interop-layout has no match on folio::Code (git grep at dff7ef5) and the folio change adds no field to existing structs, so the closure change does not alter its behaviour. ENG-6 lists layout among the dependents checked with cargo check (lane notes).",
+    "The D16 ZIP/CRC copy stays in the allowed file only (crates/hsk-studio-interop-layout/src/container.rs); no new fingerprint match at dff7ef5."
+   ],
+   "recommendation": "PASS",
+   "recommendation_note": "Quick re-check only: unchanged since R6. PLR-043 (three bounded ZIP readers) and PLR-044 (baseline reference edge) are Operator decisions and not re-raised."
+  }
+ ],
+ "pending_lanes": [],
+ "completed_at": "2026-10-11T11:01:45Z"
+}

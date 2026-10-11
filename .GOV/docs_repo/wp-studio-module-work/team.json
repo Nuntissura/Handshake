@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T10:56:49Z",
+ "updated_at": "2026-10-11T11:02:40Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1408,7 +1408,7 @@
     "validation/R7-review-b.json"
    ],
    "launched": "2026-10-11T10:27:15Z",
-   "status": "running"
+   "status": "done 2026-10-11T11:02:40Z (COMPLETE: rechecks SAFE; psd, reel-av1-route, reel-native FAIL)"
   },
   {
    "name": "builder-refusal-keys",
@@ -1455,6 +1455,29 @@
     "crates/hsk-studio-pigment/**"
    ],
    "launched": "2026-10-11T10:56:49Z",
+   "status": "running"
+  },
+  {
+   "name": "rem-reel-r7",
+   "agent_id": "PENDING-R1",
+   "model": "sonnet",
+   "role": "R7 remediation: reel proxy trust (PLR-033) + reel-native worker lookup/HELLO cancel (PLR-034/035)",
+   "owns": [
+    "crates/hsk-studio-reel/**",
+    "crates/hsk-studio-reel-native/**"
+   ],
+   "launched": "2026-10-11T11:02:40Z",
+   "status": "running"
+  },
+  {
+   "name": "rem-psd-r7",
+   "agent_id": "PENDING-R2",
+   "model": "sonnet",
+   "role": "R7 remediation: interop-psd non-finite descriptor numbers -> typed loss",
+   "owns": [
+    "crates/hsk-studio-interop-psd/**"
+   ],
+   "launched": "2026-10-11T11:02:40Z",
    "status": "running"
   }
  ]
