@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T21:11:03Z",
+ "updated_at": "2026-10-11T21:19:45Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3204,5 +3204,28 @@
    "SMB-INTEROP-MEDIA (D9)"
   ],
   "team": "steward sync + canary, 1 validator (opus) + 1 reviewer (sonnet, pigment plan limits)"
+ },
+ "round_R12": {
+  "candidate": "3d795a5",
+  "candidate_full": "3d795a590acd213d71605aa1f8cb923e233be1c2",
+  "opened_at": "2026-10-11T21:19:45Z",
+  "sync": "steward-5: already in sync since 9ffe946 (probe 46/46, licence OK)",
+  "canary": "C18 exit 73, 59/59, step 0 clean; NOT_PROVEN only interop-fig D17; press WIP at the candidate builds",
+  "excluded": [
+   "SMB-PRESS + SMB-PRESS-DIFFERENCES (R13 remediation running; WIP commits in the candidate are not judged)",
+   "SMB-RENDER-GPU, SMB-ROUND-ENTRYPOINT (D20)",
+   "SMB-INTEROP-MEDIA (D9)"
+  ],
+  "ready": [
+   "SMB-WEB-PARITY (claim through 3d795a5)",
+   "SMB-WEB-DIFFTEST (claim incl. later commits through 3d795a5)",
+   "SMB-PIGMENT-PLANLIMITS (5ed1ead, 71be1aa)"
+  ],
+  "two_fail_rechecks": {
+   "SMB-WEB": "R13-prereview-web (full, e409030: no URL-hiding finding) + R14-prereview-web-narrow (3d795a5: SAFE_TO_JUDGE)",
+   "SMB-INTEROP-PSD-BUDGET": "unchanged since 85532ad (SAFE) if reopened",
+   "SMB-REEL-AV1-ROUTE": "unchanged since 7cdf18e if reopened"
+  },
+  "team": "1 validator (opus) + 1 reviewer (sonnet: pigment plan limits + dependants sweep)"
  }
 }
