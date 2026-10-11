@@ -2,7 +2,7 @@
   "crate": "hsk-studio-interop-psd",
   "lane": "SMB-INTEROP-PSD",
   "status": "READY_FOR_VALIDATION",
-  "phase": "R5 remediation complete (0b9aeeb..6e7198a) + SMB-INTEROP-PSD-ADJ-1 complete (92a7eef..eb7080d: adjustment, Blend-If, mask parameter, knockout and lfx2 records into folio StudioRasterRecords)",
+  "phase": "R5 remediation complete (0b9aeeb..6e7198a) + SMB-INTEROP-PSD-ADJ-1 complete (92a7eef..eb7080d: adjustment, Blend-If, mask parameter, knockout and lfx2 records into folio StudioRasterRecords) + SMB-INTEROP-PSD-ADJ-2 complete (cbed946: adjustment layers are folio graph sources with input_ordinal; layer clipped to an adjustment layer imported unclipped with typed loss clip_to_adjustment_not_supported)",
   "commits": [
     {
       "sha": "ee30d62",
@@ -67,6 +67,10 @@
     {
       "sha": "eb7080d",
       "subject": "ADJ-1 V4-06 sweep: wrong-typed bool descriptor item refuses its effect instead of defaulting; non-object list entries reported"
+    },
+    {
+      "sha": "cbed946",
+      "subject": "ADJ-2: adjustment layers are graph sources with a stack position (source op + input_ordinal edge); layer clipped to an adjustment layer imported unclipped with typed loss clip_to_adjustment_not_supported; export keeps the clipping byte (pushed with two pigment commits that were local-only)"
     }
   ],
   "capabilities_done": [
@@ -101,15 +105,18 @@
     "R5 remediation: gray BPC reaches Prism (SMB-INTEROP-PSD-WIDE CONFIRMED); RGB with an embedded profile on the wide path (intent + BPC applied, ICC v2 matrix profiles); legacy converters record rendering_intent_not_applied_legacy_rgb / black_point_compensation_not_applied_legacy_rgb; apply_edits all-or-nothing; untiled export cells keep original samples; non-finite and alpha-range losses; luni and rename name losses; literal 28-row blend key test",
     "ADJ-1 adjustment records: levl (normalized_0_1, composite + RGB records, Lvls tail preserved), curv (v1 bitmap / v4 count, 2..19 points, (output,input) pairs, composite/R/G/B, extras preserved), hue/hue2 (master, colorization, shifted bands, 36-byte tail preserved), brit (signed) with CgEd precedence and useLegacy, expA, nvrt, thrs, post -> StudioAdjustment on an adjustment layer (PrimitiveReference hsk.studio.adjustment@1 keyed by its own SLYR id)",
     "ADJ-1 layer records: Blend-If gray/R/G/B -> StudioAdvancedBlending.blend_ranges (extra channels preserved), knko 0/1/2 (depth 2 = Enabled + knockout_depth_not_represented), infx/clbl/tsly, channel_blend assumed all enabled (recorded); mask density byte/255*100 and feather f64 px and invert flag -> StudioMaskParameters (vector parameters preserved)",
-    "ADJ-1 effects: lfx2/lmfx object-effects version 0 + descriptor 16 via the bounded descriptor reader -> StudioEffectStack (drop/inner shadow, outer/inner glow, bevel/emboss without texture, satin, colour overlay, solid stroke); single slots and multi lists merged in descriptor order; gradient/pattern content, unmapped blend ids and unknown enumerations are typed losses; not rendered (layer_effects_not_rendered kept)"
+    "ADJ-1 effects: lfx2/lmfx object-effects version 0 + descriptor 16 via the bounded descriptor reader -> StudioEffectStack (drop/inner shadow, outer/inner glow, bevel/emboss without texture, satin, colour overlay, solid stroke); single slots and multi lists merged in descriptor order; gradient/pattern content, unmapped blend ids and unknown enumerations are typed losses; not rendered (layer_effects_not_rendered kept)",
+    "ADJ-2 graph: every mapped adjustment layer has an image source operation (out: image, one, source) and an edge into its group with input_ordinal in Photoshop stack order (bottom 0); root adjustment layers are in graph.outputs in the same bottom-first order; validated by folio (ENG-6 0241877) in to_proposal and again by an independent validate_document call in the tests",
+    "ADJ-2 clip rule: Folio's base rule (nearest earlier stack input not itself clipped) is applied to every stack (group and root) from the clip flags as read; a layer or group whose base is an adjustment layer is written unclipped (whole run sharing that base) and gets the typed loss clip_to_adjustment_not_supported (Unsupported) whose path names the layer and base ids; a clipped adjustment layer is not a base; export compares clipping against the value written to Folio so an unedited export is byte-identical"
   ],
   "tests": {
     "argv": "cargo test -p hsk-studio-interop-psd --tests --no-fail-fast",
     "exit": 0,
-    "sha": "eb7080d",
-    "passed": 30,
+    "sha": "cbed946",
+    "passed": 33,
     "failed": 0,
     "files": [
+      "tests/adjustment_graph_source.rs (3: adjustment_layer_between_raster_layers_keeps_its_stack_position, clipped_to_adjustment_layer_is_unclipped_with_a_typed_loss_and_exports_unchanged, root_stack_applies_the_clip_base_rule_and_a_clipped_adjustment_layer_is_no_base)",
       "tests/adjustment_records.rs (5: levels_block_maps_to_normalized_record_and_bad_blocks_stay_typed, curves_block_maps_composite_curve_and_refuses_bad_point_data, blending_ranges_mask_parameters_and_knockout_map_to_records, lfx2_stack_merges_single_and_multi_slots_in_source_order, hostile_descriptor_and_adjustment_sizes_are_typed_refusals)",
       "tests/foundation_contract.rs (5)",
       "tests/review_r2_regressions.rs (6: +unreadable_unicode_layer_name_is_a_typed_loss, +psd_blend_key_rows_match_the_specification_literally)",
@@ -121,8 +128,8 @@
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "Photoshop-authored fixtures (D5) to settle UNVERIFIED items: CMYK stored-inverted, Lab 16-bit encoding, 16-bit scale, ZIP prediction 16/32, Blend-If channel order, advanced-blending defaults, curves v4 channel order, effect enum spellings and single/multi duplication; AdmittedPrism / AdmittedWideEngine routing decision (lead); composite lane: graph ordering of adjustment layers (folio allows a Source operation only on raster/vector/text layers) and lowering of StudioRasterRecords; export of edited adjustment/effect records back to PSD bytes; gradient/pattern effect contents once folio has gradient/pattern primitives; RGB LUT profiles via the wide path need a test; mask pixel edit export; merged CMYK/Lab oracle",
-  "updated_at": "2026-10-11T06:20:29Z",
+  "next": "Photoshop-authored fixtures (D5) to settle UNVERIFIED items: CMYK stored-inverted, Lab 16-bit encoding, 16-bit scale, ZIP prediction 16/32, Blend-If channel order, advanced-blending defaults, curves v4 channel order, effect enum spellings and single/multi duplication; AdmittedPrism / AdmittedWideEngine routing decision (lead); composite lane: lowering of StudioRasterRecords and adjustment layers (the graph ordering is now emitted, ADJ-2); Photoshop-authored fixture for a layer clipped to an adjustment layer (D5, decides whether the Studio rule or a different representation is right); export of edited adjustment/effect records back to PSD bytes; gradient/pattern effect contents once folio has gradient/pattern primitives; RGB LUT profiles via the wide path need a test; mask pixel edit export; merged CMYK/Lab oracle",
+  "updated_at": "2026-10-11T07:06:24Z",
   "notes": {
     "mt": "MT-35548",
     "adj1": {
@@ -159,6 +166,41 @@
         "export of edited adjustment/effect/mask-parameter/Blend-If records back to PSD bytes (unedited export stays byte-identical; asserted in the tests via write_psd round trip)",
         "Global Light pair (document-level record decision pending), gradient/pattern effect contents, bevel texture and gloss contour, hue bands in the IR, adjustments beyond the first nine keys (blnc, blwh, selc, mixr, grdm, phfl, vibA, clrL stay adjustment_layer_not_applied)"
       ]
+    },
+    "adj2": {
+      "lane": "SMB-INTEROP-PSD-ADJ-2",
+      "brief": "dispatch message 2026-10-11 (follow-up of ADJ-1); consumer follow-up listed in lanes/hsk-studio-folio-eng-6.json notes.consumer_follow_ups",
+      "status": "READY_FOR_VALIDATION on cbed946 (pushed): check and clippy clean for this crate (only the two too_many_arguments warnings in hsk-studio-observe), 33/33 tests (3 new in tests/adjustment_graph_source.rs, 30 existing unchanged). Photoshop behaviour for a layer clipped to an adjustment layer is UNVERIFIED (D5); the tests check the importer mapping and Folio validation only",
+      "design_decisions": [
+        "Graph: mapped_adjustment_layer pushes the same source operation as a raster layer (operation_key source, port out image/one/source) and returns a StackEntry; walk/group collect StackEntry instead of bare addresses, so group edges (input_ordinal = bottom-first index, STU-CMP-092) and root graph.outputs include the adjustment layer in PSD order. Unmapped adjustment layers (psd_adjustment, unresolved primitive) stay outside the graph as before",
+        "Clip rule mirrors folio raster.rs validate_adjustment_clip_bases exactly (base = nearest earlier input of the same stack that is not clipped, any layer kind, groups included) so the document validates; it is applied at both group level (folio checks it) and root level (folio does not, but the render-plan IR refuses it: pigment PlanError::AdjustmentClipBase), from the clip flags as read: the demotion does not change which layer is the base, so every layer clipped to the same adjustment layer is unclipped instead of re-clipping to the layer below it",
+        "Representation: the closest valid one is unclipped (the layer then composites over everything below instead of being limited to the adjustment layer's mask); recorded loss kind Unsupported, code clip_to_adjustment_not_supported, path layer[<psd index>]/clipping(layer_id=<SLYR>,base_layer_id=<SLYR of the adjustment layer>), one entry per demoted layer",
+        "Export: the PSD layer record keeps clipping = 1; export.rs compares edits against the Folio value the importer wrote (proposal.snapshot) instead of re-deriving it from the record, so an unedited export is byte-identical and applies nothing (asserted). An edit that re-clips such a layer is written as before",
+        "DESCRIPTOR: capabilities gained adjustment_layers_as_graph_sources_with_input_ordinal and layer_clipped_to_adjustment_unclipped_with_typed_loss; pending item adjustment_layer_graph_ordering_owned_by_composite replaced by photoshop_clip_to_adjustment_layer_behaviour_unverified (review_r2_regressions descriptor test stays green)"
+      ],
+      "v4_01": "proposal.rs and export.rs keep deny(clippy::arithmetic_side_effects); the new code has no arithmetic (iterator order, slot index = Vec::len, no counters)",
+      "v4_02": "no new decoder or allocation from file sizes: the demotion walks the existing stack entries (bounded by max_layers) once per stack; no new size-driven allocation, so no new dims_u32_max/aggregate_over_budget case is needed (existing ones stay green)",
+      "v4_06_class": "layer clipping flag changed, ignored or dropped without a typed loss entry",
+      "v4_06_regex": "clipped:|\\.clipping\\b|clipping[:,]|\\.clipped\\b|\"clipped\" over crates/hsk-studio-interop-psd/src/**/*.rs (comment lines excluded)",
+      "v4_06_sites_20_listed_20": {
+        "fixed_2": [
+          "proposal.rs:620 appearance.insert(clipped=false): the only site that changes the flag; typed loss clip_to_adjustment_not_supported at :623-626; a missing appearance object is PsdError::Proposal(clip_demotion_appearance_missing), not a silent skip",
+          "export.rs:184 before.clipped from the written Folio value (otherwise an unedited export would have rewritten the clipping byte of every demoted layer)"
+        ],
+        "not_applicable_18": [
+          "convert.rs:159,160,407,408 pixels_clipped/channels_clipped: colour gamut clip counters, a different property (4)",
+          "layers.rs:277,458,509 clipping field, parse and serialize of the raw byte: byte-exact (3)",
+          "export.rs:222-224 applies a changed value and reports it as applied clipped (3)",
+          "proposal.rs:218 StackEntry.clipped field, :352 ImportedLook.clipped field, :366 derived from the record byte as before, :590/:726/:813 StackEntry reads imported_look, :607 read in the rule, :662 JSON write of the same value (7)"
+        ]
+      },
+      "plausible_not_fixed": [
+        "A layer clipped to a base that is NOT in the graph (unmapped adjustment key such as blnc/selc, psd_fill, psd_raster_unmapped, unresolved primitive) keeps clipped = true and its Folio base becomes the next mapped input below (pre-existing; ADJ-2 does not change it). If that next input is a mapped adjustment layer, the layer is unclipped and the loss names that adjustment layer although the PSD base was the unmapped layer",
+        "Photoshop allows clipping to an adjustment layer (UNVERIFIED, D5): if the oracle shows the Studio rule loses the display, folio and pigment need a representation (clip base = adjustment mask) before this loss can go",
+        "export of edited adjustment/effect records back to PSD bytes is still not in scope (unchanged)"
+      ],
+      "retry_guard": "no gated command failed on a product cause. The first full test launch (run_in_background) exited 1 while sourcing studio-env.sh: the steward changed tools/disk-build-lock.sh (dbl_exe replaced by dbl_image) one minute earlier while studio-env.sh still exported dbl_exe (export: dbl_exe: not a function); fixed upstream within ~2 minutes. After the env sourced cleanly the identical test command was run again (background launches carry no exit code and are not recorded by the retry guard; HEAD and gameplan unchanged); no gameplan step added (route: none needed, infrastructure fixed by its owner)",
+      "process": "shared worktree: git add of the one new test file by explicit path, pathspec commit with -F, no amend/rebase; origin was two commits behind local (pigment lane), the push carried them (fast-forward only); scratch under <scratchpad>/smb-psd-adj-graph/ (commit message file only)"
     },
     "remediation_R5": {
       "finding": "SMB-INTEROP-PSD-WIDE CONFIRMED (validation/R5-review-a.json, 1d404f8/213b30a): proposal.rs gray route dropped black point compensation for every gray profile on the false premise TRC(0)=0",

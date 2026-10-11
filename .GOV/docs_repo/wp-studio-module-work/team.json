@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T06:56:02Z",
+ "updated_at": "2026-10-11T07:07:15Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1159,7 +1159,7 @@
     "builders/lanes/hsk-studio-interop-psd.json"
    ],
    "launched": "2026-10-11T06:52:45Z",
-   "status": "running"
+   "status": "done 2026-10-11T07:07:15Z (SMB-INTEROP-PSD-ADJ READY at cbed946)"
   },
   {
    "name": "builder-folio-eng-7",

@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T06:56:02Z",
+ "updated_at": "2026-10-11T07:07:15Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -1688,11 +1688,12 @@
    "status": "READY_FOR_VALIDATION",
    "owner": "rem-psd (queued after R5 fix)",
    "commits": [
-    "eb7080d"
+    "eb7080d",
+    "cbed946"
    ],
    "verdicts": [],
-   "candidate": "eb7080d",
-   "note": "ADJ-1 92a7eef..eb7080d: levl/curv/hue2/brit(CgEd)/expA/nvrt/thrs/post adjustment descriptors, Blend-If, mask density/feather/invert, knko/infx/clbl/tsly, lfx2/lmfx effects -> folio raster records (gradient/pattern content typed loss); records only; hostile-size tests; open: adjustment layers have no folio graph node (composite ordering), D5 format assumptions as loss entries"
+   "candidate": "cbed946",
+   "note": "adjustment layers emitted as folio graph Source with input_ordinal in Photoshop stack order (root bottom-first); layers clipped to an adjustment layer imported unclipped + typed loss clip_to_adjustment_not_supported per layer (Photoshop behaviour UNVERIFIED, D5); export compares clipping to the value written (unedited export byte-identical); 33 of 33 green; open: clip base on unmapped layer keeps clip to next mapped input (pre-existing)"
   },
   {
    "lane_id": "SMB-EFFECTS-WAVE-1",
