@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T03:51:11Z",
+ "updated_at": "2026-10-11T04:04:47Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -762,11 +762,15 @@
    "crate": "hsk-studio-prism",
    "origin": "research/engine-color.md",
    "scope": "oracle fixtures T0 analytic (f64) + T1 offline lcms2 2.19.1 generator OUTSIDE the workspace graph committing numeric fixtures only (STU-COL-140/325; tool name+version recorded)",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-prism-eng5",
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "baeecf3"
+   ],
+   "verdicts": [],
+   "candidate": "baeecf3",
+   "note": "T0 41 analytic (max 7.8e-6) + T1 42 vs lcms2 2.19.0 (imagecodecs wheel venv on D:); 11 findings pinned as expected-fail; 3 divergences pending Photoshop T3; retry-guard flag-change disclosed"
   },
   {
    "lane_id": "SMB-TYPE-DOCTEST",
@@ -1141,11 +1145,11 @@
    "lane_id": "SMB-PRISM-ENG-6",
    "crate": "hsk-studio-prism",
    "origin": "develop-wide: wide transform ~110 ns/px",
-   "scope": "fuse linear matrix->matrix profile pairs into one 3x3 plan (deterministic, byte-identical vs unfused within stated tolerance); optional admission-ledger hook for STU-CON-044; FIX DEFECT: gray kTRC + BPC on -> garbage black point (interop-psd notes.prism_defect_for_prism_lane)",
-   "phase": "brief",
+   "scope": "fuse linear matrix->matrix profile pairs into one 3x3 plan (deterministic, byte-identical vs unfused within stated tolerance); optional admission-ledger hook for STU-CON-044; FIX DEFECT: gray kTRC + BPC on -> garbage black point (interop-psd notes.prism_defect_for_prism_lane); + fix the 11 ENG-5 findings (curv gamma<2.2 zero-channel, XYZ clamp, HLG saturation, PCS->CMYK shadows, CMYK BPC black, table interp/inverse)",
+   "phase": "build",
    "status": null,
-   "owner": null,
-   "blocked_on": "after SMB-PRISM-ENG-5 agent releases crate",
+   "owner": "builder-prism-eng6 (opus)",
+   "blocked_on": null,
    "commits": [],
    "verdicts": []
   },
@@ -1154,11 +1158,16 @@
    "crate": "hsk-studio-components",
    "origin": "SMB-FOLIO-ENG-4 landed 0e6142c",
    "scope": "migrate crate-local records onto folio StudioDesignRecords per hsk-studio-folio-eng-4.json migration notes",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-components-migrate",
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "c6251f0",
+    "992cca1"
+   ],
+   "verdicts": [],
+   "candidate": "992cca1",
+   "note": "components evaluate folio StudioDesignRecords via Design index; duplicates deleted; 13 tests; 5 mutants caught"
   },
   {
    "lane_id": "SMB-INTEROP-VECTOR-FOLIO-MIGRATE",
@@ -1195,11 +1204,15 @@
    "crate": "hsk-studio-reel",
    "origin": "reel-native AV1 worker lane",
    "scope": "reel hook to route av01/V_AV1 decode to an external (worker) decoder provider by policy (untrusted -> worker; in-process only when explicitly trusted); ReelError worker-fault variant; enabling worker routing must not require linking the in-process decoder",
-   "phase": "brief",
-   "status": null,
-   "owner": null,
-   "commits": [],
-   "verdicts": []
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
+   "owner": "builder-reel-native-av1 (reused)",
+   "commits": [
+    "bfef27f"
+   ],
+   "verdicts": [],
+   "candidate": "bfef27f",
+   "note": "SourceTrust routing (untrusted->external decoder), DecoderFault variant, AV1 parser always compiled; 25/28 tests; broke one reel-native test -> fix dispatched"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",

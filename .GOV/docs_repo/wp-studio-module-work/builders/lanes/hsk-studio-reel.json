@@ -2,7 +2,7 @@
   "crate": "hsk-studio-reel",
   "lane": "hsk-studio-reel",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice 3 complete (Matroska/WebM index + cue seek + sampled identity/relink); STUDIO-R2 fixes and accord Timescale migration included; candidate fa365cd",
+  "phase": "slice 3 complete (Matroska/WebM index + cue seek + sampled identity/relink) + AV1 decode routing (SMB-REEL-AV1-ROUTE): untrusted AV1 -> registered external decoder else CodecUnavailable, in-process rav1d only for trusted sources, ReelError::DecoderFault; STUDIO-R2 fixes and accord Timescale migration included",
   "commits": [
     {
       "sha": "f09f33b",
@@ -59,6 +59,10 @@
     {
       "sha": "f0bc09d",
       "subject": "av1: document trusted-input-only limit (rav1d panic aborts the process)"
+    },
+    {
+      "sha": "bfef27f",
+      "subject": "reel: compressed-video decode routing (SourceTrust default untrusted -> registered ExternalVideoDecoder else CodecUnavailable; in-process rav1d only for trusted sources), ReelError::DecoderFault (crashed/deadline/protocol), pure av1_config always compiled, one packet pump for both hosts, tests/video_route.rs (3)"
     }
   ],
   "capabilities_done": [
@@ -70,20 +74,21 @@
     "R3 fixes (dcc1b37, SMB-REEL-ENG-3): matroska.rs lace-size sum via try_fold/checked_add -> Corrupt lace-sizes-exceed-block; finish_durations checked_sub (falls back, never panics); tests/review_r3_regressions.rs r3_1/r3_2 (RED on 404ff3a code: overflow panics at accum.rs / matroska.rs:1045; GREEN after fix)",
     "SMB-REEL-ENG-3 av1 (feature av1, default OFF): ISOBMFF av01 + av1C and Matroska V_AV1 + CodecPrivate -> OutputMode::Decoded -> ChunkKind::VideoFrame chunks (planar Y,U,V tight, LE u16 above 8 bit), SegmentReceipt.video (VideoFormat: dims, bit depth, chroma, ColorInfo with origin SequenceHeader|Container|Untagged) and decoder_id rav1d + decoder_version from the linked crate; av1::Av1Decoder/DecodedFrame/parse_av1c/descriptor; bit-exact vs libdav1d oracle on both containers; random access via sync-sample pre-roll; typed refusals (av1C version/profile Unsupported, bitstream Corrupt, frame limit LimitExceeded)",
     "R2 fixes: wav truncation underflow, y4m non-ASCII token, moov largesize overflow, unaligned edit start (trim_start), PCM chunk runs charge the budget, sound version typed, index bound to source_len, original grant verified before proxy probe",
-    "accord migration: thin error adapters over accord Timescale; y4m FrameRate::from_fps/fps_fraction; PCM edit alignment via Timescale::rescale; local gcd removed"
+    "accord migration: thin error adapters over accord Timescale; y4m FrameRate::from_fps/fps_fraction; PCM edit alignment via Timescale::rescale; local gcd removed",
+    "SMB-REEL-AV1-ROUTE: (1) routing port in every build, no cargo feature: SourceTrust (default Untrusted), VideoRoute, ExternalVideoDecoder/VideoDecodeSession/PictureSink/VideoStreamSpec/DecodedPicture/DecoderIdentity; Registry::with_video_decoder/set_video_decoder + Registry::decode_segment_routed(trust) (decode_segment = untrusted), MediaProvider::decode_segment_routed (defaulted method, existing implementers compile unchanged); policy: untrusted -> external decoder if it supports the codec else CodecUnavailable{codec}; trusted -> in-process rav1d when feature av1 is compiled in, else external, else CodecUnavailable; (2) ReelError::DecoderFault{fault: DecoderFault::{Crashed,Deadline,Protocol}} code MEDIA_DECODER_FAULT, distinct from Corrupt/Unsupported, outcome_for -> Unavailable; the route maps VideoDecodeError::Fault -> DecoderFault and passes Media errors through, and refuses a picture whose planes disagree with its declared format as DecoderFault::Protocol; (3) feature split: AV1 record parser/descriptor (Av1Config, parse_av1c, av1_descriptor) moved to the always-compiled av1_config module and re-exported at the crate root (av1:: paths unchanged); the in-process decoder (Av1Decoder, DecodedFrame, DECODER_ID, decoder_version) stays behind av1 and is now one routed session behind the same packet pump as external decoders (src/video.rs, replacing av1::Pump); default build unchanged otherwise, forbid(unsafe_code) intact"
   ],
   "tests": {
-    "argv": "cargo test -p hsk-studio-reel --no-fail-fast (default: 22) / --features av1 (25)",
+    "argv": "cargo test -p hsk-studio-reel --tests (default: 25 = 22 + 3 new) / --features av1 (28 = 25 + 3 new); also cargo check --all-targets and clippy --tests in both feature sets, clean",
     "exit": 0,
-    "sha": "f0bc09d",
-    "passed": 25,
+    "sha": "bfef27f",
+    "passed": 28,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "validator round on f0bc09d (default and --features av1); steward: probe approved list + registry pins for hsk-studio-reel rav1d/libc (dep-requests, optional); LEAD: to_method 1.1.0 is CC0-1.0 (license gate); untrusted AV1 needs subprocess isolation (notes.lanes.SMB-REEL-ENG-3.blockers); earlier candidate fa365cd follow-ups: Matroska ContentEncodings and A_PCM decode, MXF OP1a index, IndexCache over MkvIndex, feature-gate fixtures",
-  "updated_at": "2026-10-11T03:29:23Z",
+  "next": "validator round on bfef27f (default and --features av1; tests/video_route.rs runs in both). REEL-NATIVE FOLLOW-UP REQUIRED (reel-native is frozen, owner must be re-opened): its tests/av1_worker.rs worker_decode_is_bit_exact_with_in_process_and_the_dav1d_oracle now fails at the in_process helper (CodecUnavailable av01, verified by run at bfef27f) because decode_segment is untrusted by default; fix = registry.decode_segment_routed(..., SourceTrust::Trusted) there; usage notes in notes.lanes.SMB-REEL-AV1-ROUTE.reel_native_usage. Earlier items unchanged: steward probe approved list + registry pins for rav1d/libc; LEAD: to_method 1.1.0 CC0-1.0; Matroska ContentEncodings and A_PCM decode, MXF OP1a index, IndexCache over MkvIndex, feature-gate fixtures",
+  "updated_at": "2026-10-11T04:03:48Z",
   "notes": {
     "decisions": [
       {
@@ -165,6 +170,73 @@
           "operating point fixed to 0, highest spatial layer only; hidden-frame-only temporal units yield no chunk (receipt Partial)",
           "Registry::standard() has no 'av1' provider id: AV1 is reached through the isobmff/matroska providers; av1::descriptor() makes the capability enumerable",
           "decode speed in the unoptimised dev profile not measured"
+        ],
+        "followup": "blocker 'untrusted input aborts the process' is resolved by routing in SMB-REEL-AV1-ROUTE: untrusted AV1 is never decoded in-process by default"
+      },
+      "SMB-REEL-AV1-ROUTE": {
+        "status": "READY_FOR_VALIDATION",
+        "commits": [
+          "bfef27f"
+        ],
+        "task": "Implement the reel API changes recorded by lane SMB-REEL-NATIVE-AV1-WORKER (R1 decoder injection, R2 feature split, R3 fault variant) with the policy: untrusted -> external/worker provider if registered else typed CodecUnavailable; in-process rav1d only when the caller marks the source trusted.",
+        "route_notes": {
+          "retry_guard": "No gameplan block occurred in this lane. Product failures: none in reel. One known cross-crate failure was run once on purpose to verify a claim (reel-native test worker_decode_is_bit_exact_with_in_process_and_the_dav1d_oracle, filter run at bfef27f); it is a product consequence of the policy, not an infrastructure cause, so no gameplan step was added; the fix lives in reel-native (frozen) and will change HEAD.",
+          "hook_cwd_note": "Lane JSON updates run from a script file (python script.py) so shell text containing a gated phrase never triggers gameplan resolution from the kernel root."
+        },
+        "api": {
+          "policy": "SourceTrust::Untrusted (default) -> VideoRoute.external if it supports the codec, else MEDIA_CODEC_UNAVAILABLE naming av01/V_AV1; SourceTrust::Trusted -> in-process rav1d if feature av1 is compiled in, else external, else MEDIA_CODEC_UNAVAILABLE. 'Trusted prefers in-process' is my reading of 'in-process only when marked trusted' (permission, not mandate); a caller wanting the worker for trusted media simply passes Untrusted.",
+          "entry_points": [
+            "Registry::with_video_decoder(Arc<dyn ExternalVideoDecoder>) / set_video_decoder (one per registry, second = Unsupported duplicate-video-decoder) / video_decoder_identity()",
+            "Registry::decode_segment (untrusted) and Registry::decode_segment_routed(.., SourceTrust)",
+            "MediaProvider::decode_segment_routed(.., &VideoRoute) (defaulted); IsobmffProvider/MatroskaProvider override it, decode_segment = default route",
+            "VideoRoute::{untrusted(), trusted(), with_external(&dyn ExternalVideoDecoder)}",
+            "ExternalVideoDecoder::{identity() -> DecoderIdentity{id,version: &'static str}, supports(VideoCodec), open(&VideoStreamSpec{codec,container,config,color,width,height,limits}, &CancellationToken) -> Box<dyn VideoDecodeSession>}",
+            "VideoDecodeSession::{send(packet, tag, cancel, &mut dyn PictureSink), finish(cancel, &mut dyn PictureSink)}; PictureSink::accept(DecodedPicture{tag,format,film_grain_applied,planes})",
+            "VideoDecodeError::{Media(ReelError), Fault(DecoderFault)} with into_reel(); ReelError::DecoderFault{fault}; DecoderFault::{Crashed,Deadline,Protocol}.code() = decoder_crashed|decoder_deadline|decoder_protocol"
+          ],
+          "unchanged_signatures": "SegmentRequest, Limits, Grant, SegmentReceipt, MediaProvider::decode_segment/probe/encode_segment, IsobmffProvider/MatroskaProvider unit structs, decode_packets, build_index, av1::{Av1Decoder, DecodedFrame, DECODER_ID, decoder_version, descriptor, parse_av1c, Av1Config} all keep their shapes and paths, so reel-native compiles unchanged (checked: check and clippy --features av1 --tests clean)."
+        },
+        "tests_breakdown": {
+          "tests/video_route.rs untrusted_video_reaches_the_registered_external_decoder_with_exact_packets_and_receipts": "fake external decoder, mp4 and mkv: the decoder is opened once with the container's own av1C/CodecPrivate, the declared 16x16 and the container name; it receives exactly the container's packets in decode order (ground truth = OutputMode::Packets delivery) and one finish; chunks have hand-computed bytes, pts, index, sync; receipt carries the decoder identity, Exact, video format; random access on the last frame feeds the two pre-roll packets, drops their pictures, delivers one chunk",
+          "tests/video_route.rs trust_and_registration_decide_who_decodes": "matrix per container: nothing registered -> CodecUnavailable{av01|V_AV1} for registry, bare provider and plain decode_segment (sink untouched); trusted -> rav1d with feature av1 else CodecUnavailable; registered decoder that does not support AV1 -> unavailable and never opened; registered + untrusted -> external; registered + trusted -> rav1d without touching the external decoder (feature av1) or the external decoder (no feature); direct provider call with an explicit VideoRoute; second set_video_decoder refused, descriptor list unchanged",
+          "tests/video_route.rs decoder_faults_are_a_distinct_typed_error_and_media_errors_pass_through": "fault on open/packet/finish -> ReelError::DecoderFault with the right fault and code, Display 'MEDIA_DECODER_FAULT decoder_crashed', distinct code from Corrupt/Unsupported, pictures delivered before the fault stay delivered, outcome_for -> Failure(Unavailable); a Media(Corrupt) from the decoder passes through unchanged; a short plane -> DecoderFault::Protocol with nothing delivered; VideoDecodeError::into_reel covers both shapes",
+          "existing": "all 22 default and 25 av1 tests unchanged and green; the only edit to an existing test is the helper decode() in tests/av1_decode.rs, which now calls decode_segment_routed(.., &VideoRoute::trusted()) because the in-process decoder is no longer reachable by default (that is the requested policy)"
+        },
+        "findings": [
+          {
+            "id": "default-is-now-untrusted",
+            "text": "Behaviour change with feature av1: Registry::decode_segment and the container providers' decode_segment no longer decode AV1 in-process; they return CodecUnavailable unless an external decoder is registered or the caller uses the trusted route. Without feature av1 nothing changes (CodecUnavailable before and after)."
+          },
+          {
+            "id": "reel-native-test-break",
+            "text": "VERIFIED by run at bfef27f: hsk-studio-reel-native tests/av1_worker.rs::worker_decode_is_bit_exact_with_in_process_and_the_dav1d_oracle panics at the in_process helper (line 131) with CodecUnavailable{av01}. Its other tests (hostile_aborting_mutations, supervision, wire unit) pass against the new reel. reel-native is frozen, so this lane did not edit it."
+          },
+          {
+            "id": "matroska-order",
+            "text": "Matroska V_AV1 with ContentEncodings: with no decoder available the answer is now CodecUnavailable (decoder choice first), with a decoder it is Unsupported content-encoding; previously (feature av1) Unsupported came first. No fixture covers it (UNVERIFIED impact)."
+          },
+          {
+            "id": "picture-validation",
+            "text": "Every picture from any decoder is checked against its declared format (plane count and exact plane bytes) before it can reach the sink; a mismatch is DecoderFault::Protocol. Never fires for rav1d (the in-process path builds planes from the format), it exists for external decoders."
+          },
+          {
+            "id": "enum-variant-added",
+            "text": "ReelError gained a variant (not non_exhaustive): exhaustive matches would break; inside reel only code() and outcome_for matched exhaustively (both updated); the only dependent crate (reel-native) uses wildcard arms and compiled unchanged."
+          }
+        ],
+        "reel_native_usage": [
+          "NOW (breaks a frozen test): tests/av1_worker.rs in_process(): replace registry.decode_segment(&mut src, None, &req, ..) by registry.decode_segment_routed(&mut src, None, &req, .., SourceTrust::Trusted) to compare the worker against the in-process decoder of trusted fixtures.",
+          "INTEGRATE (removes ~250 duplicated lines in src/host.rs: Plan/Demux/Pump/Forward/verify_grant/read_head/check_cancel): implement hsk_studio_reel::ExternalVideoDecoder for WorkerAv1Provider. identity() = DecoderIdentity{id: av1::DECODER_ID, version: av1::decoder_version()} (HELLO already verifies it); supports(VideoCodec::Av1); open(spec, cancel) = parse_av1c(spec.config) if non-empty, frame_cap = declared_frame_cap(cfg, spec.width, spec.height, &spec.limits), checkout worker, OPEN{max_chunk_bytes: decoder_budget(spec.width, spec.height, &spec.limits), color: spec.color, config: spec.config}, return a session owning the lease + Clock; VideoDecodeSession::send = PACKET exchange whose on_frame converts WireFrame -> DecodedPicture and calls out.accept; finish = FINISH exchange. Then wire the host with Registry::standard().with_video_decoder(Arc::new(worker.clone())): untrusted isobmff/matroska Decoded requests reach the worker through the normal registry calls and reel's pump does matching, pre-roll, format-change and receipt fields. decode_av1 / the av1 provider id can stay as a thin wrapper or be retired.",
+          "FAULTS: in the session return VideoDecodeError::Fault(DecoderFault::Crashed | Deadline | Protocol) for Av1WorkerFault::DecoderCrashed | DecoderDeadline | Protocol and update Av1Error::into_reel to ReelError::DecoderFault{fault} for those three; keep OutputTooLarge, RespawnLimited, PoolBusy -> LimitExceeded, VersionMismatch -> Unsupported, SpawnFailed -> CodecUnavailable. DecoderFault::code() strings equal the existing reel-native codes (decoder_crashed, decoder_deadline), worker_protocol becomes decoder_protocol.",
+          "CANCEL/DEADLINE: the route passes the caller's CancellationToken to open, send and finish; reel-native's Clock{cancel, segment_wall} maps to it unchanged. VideoStreamSpec.limits carries Limits (max_chunk_bytes for caps), width/height are the container-declared size (0 = undeclared, then fall back to limits).",
+          "NO-LINK SPLIT (feature requirement 3): routing and the AV1 record parser/descriptor need no reel feature any more (Av1Config, parse_av1c, av1_descriptor at the crate root). A host image without rav1d still needs the worker binary (which uses av1::Av1Decoder, feature av1) in a SEPARATE package, because Cargo unifies features per package: new worker package (root Cargo.toml edit = steward) depending on reel with features=[\"av1\"], host package depending on reel WITHOUT av1. DecoderIdentity takes &'static str, so a host without rav1d needs a build-time constant (or interning) for the worker's decoder version instead of av1::decoder_version().",
+          "DEFAULTS for embedders: untrusted media -> Registry with_video_decoder(worker) and plain decode_segment; do not pass SourceTrust::Trusted for imports. Trusted is for generated fixtures and content the caller has hashed against a known-good digest."
+        ],
+        "not_proven": [
+          "an actual out-of-process decoder through this port: only a fake external provider is exercised here; the real one is reel-native (frozen, integration pending)",
+          "preference when a source is Trusted and a worker is registered: in-process wins (policy reading, see api.policy); the lead can flip it to 'external whenever registered' by changing choose() in src/video.rs",
+          "codecs other than AV1 (VideoCodec is non_exhaustive; H.264/HEVC providers are out of scope)",
+          "behaviour for Matroska V_AV1 tracks with ContentEncodings under the new decoder-first ordering (no fixture)"
         ]
       }
     }

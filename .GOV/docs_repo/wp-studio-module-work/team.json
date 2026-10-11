@@ -525,7 +525,7 @@
    "model": "sonnet",
    "role": "prism ICC oracle fixtures",
    "launched": "2026-10-11T02:56:47Z",
-   "status": "running"
+   "status": "done baeecf3"
   },
   {
    "name": "builder-motion-js-worker",
@@ -581,7 +581,7 @@
    "model": "sonnet",
    "role": "components -> folio records",
    "launched": "2026-10-11T03:24:59Z",
-   "status": "running"
+   "status": "done 992cca1"
   },
   {
    "name": "builder-vector-migrate",
@@ -598,6 +598,14 @@
    "role": "reel-native AV1 worker isolation",
    "launched": "2026-10-11T03:30:47Z",
    "status": "done e95163a"
+  },
+  {
+   "name": "builder-prism-eng6",
+   "agent_id": "a74f8f4045005046c",
+   "model": "opus",
+   "role": "prism defects diagnose+fix + matrix fusion",
+   "launched": "2026-10-11T04:04:25Z",
+   "status": "running"
   }
  ]
 }

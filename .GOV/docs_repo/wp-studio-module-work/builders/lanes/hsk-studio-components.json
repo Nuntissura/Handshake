@@ -1,8 +1,8 @@
 {
   "crate": "hsk-studio-components",
-  "lane": "hsk-studio-components",
+  "lane": "SMB-COMPONENTS-FOLIO-MIGRATE",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice-2-complete + R3 remediation (override types, distinct member ids, dead-action reachability, resolvable switch/swap)",
+  "phase": "Folio migration: components evaluates Folio StudioDesignRecords (single source of truth); crate-local duplicate record types deleted; slice-2 + R3 behaviour kept",
   "commits": [
     {
       "sha": "69b63c1",
@@ -23,26 +23,35 @@
     {
       "sha": "0111960",
       "subject": "Components R3: override types vs property/variable sources, distinct set member ids, dead actions add no reachability, switch/swap never return an unresolvable instance"
+    },
+    {
+      "sha": "c6251f0",
+      "subject": "Components: migrate onto Folio design records (StudioDesignRecords) as the single source of truth; crate-local component/instance/variable/auto-layout/child-layout/clamp/constraint/reaction types deleted; Design index + Design::validate (folio::validate_design_records + crate rules); proposals validated by Folio; LocalContent keeps what Folio left out; 13 tests adapted to Folio fixtures"
+    },
+    {
+      "sha": "992cca1",
+      "subject": "Components tests: a proposal is refused with Folio's code and path when the successor instance does not validate (scale factor, set id as main)"
     }
   ],
   "capabilities_done": [
     "slice 1 (69b63c1..556237d): component definitions and variant sets, instances with property-granular overrides and STU-DS-116 precedence (Source + reads per field), variables with collections/modes/alias chains (AliasCycle, TypeMismatch, MissingModeValue), propose_overrides + check_footprint (same-key stale, disjoint admissible, record-level keys), swap_component/switch_variant/rematch_overrides with DroppedOverride (STU-DS-119), constraints MIN|CENTER|MAX|STRETCH|SCALE + resize_component, prototype flow validated against Folio artboards, instance_layer bridge, report()/DESCRIPTOR, components-consumer example",
     "slice 2 auto_layout.rs (f8b5328): solve_auto_layout(root, optional root resize, limits, cancel) -> pre-order PlacedBox list (parent-local rects, paint_rank, in_flow). Horizontal/vertical flow; wrap with line planning, counter_axis_spacing and counter_axis_align_content SPACE_BETWEEN; item_spacing incl. negative; four paddings; primary MIN/CENTER/MAX/SPACE_BETWEEN and counter MIN/CENTER/MAX alignment with per-child layout_align (INHERIT/STRETCH); FIXED/HUG/FILL sizing with min/max clamps (min>max = InvalidLayout), grow 0|1 equal share with clamp redistribution; ABSOLUTE children and plain-frame children placed by Constraints (STU-DS-048); arbitrary nesting (depth<=32, nodes<=4096); item_reverse_z_index as paint_rank; deterministic, inputs borrowed",
     "slice 2 typed refusals: InconsistentSizing (container AUTO/FIXED vs layout_sizing, grow vs FILL, align vs STRETCH), InvalidLayout (ranges, clamp order, FILL root, placement), UnsupportedLayout (grid, baseline, strokes_included_in_layout, space_between_with_hug, wrap_with_hug_primary, fill_in_wrap, wrap_counter_hug_with_fill, hug_without_auto_layout)",
-    "R3 remediation (0111960): build_overrides checks each override value against the definition literal, the referenced component property type and the bound variable type; validate_set refuses duplicate member ids and a member sharing the set id (Duplicate); validate_flow adds reachability edges only for action_index 0; switch_variant and swap_component run check_shape (properties defined with the right types, VARIANT only on a set, kept overrides fit the target node) so an Ok result always resolves"
+    "R3 remediation (0111960): build_overrides checks each override value against the definition literal, the referenced component property type and the bound variable type; validate_set refuses duplicate member ids and a member sharing the set id (Duplicate); validate_flow adds reachability edges only for action_index 0; switch_variant and swap_component run check_shape (properties defined with the right types, VARIANT only on a set, kept overrides fit the target node) so an Ok result always resolves",
+    "FOLIO MIGRATION (c6251f0, 992cca1): src/design.rs new. Design<'a> = borrowed index over a folio StudioDocument + StudioDesignRecords + LocalContent (new() only indexes and never refuses; validate() = folio::validate_design_records mapped into ComponentsError, then the crate rules; validate_with_instance() = Folio validation of the record set with a successor instance). A component definition is the group layer folio StudioComponent.layer_id; definition nodes are the document layers under it (name, parent, sibling order from the document); set membership is a document fact (components whose layer is a child of the set layer). instance_resolution.rs: resolve_instance/propose_overrides/resolve_variable/swap_component/switch_variant/rematch_overrides operate on StudioComponentInstance, StudioOverrideRecord, StudioVariable, StudioVariableCollection, StudioValue, StudioPropertyValue; VariableTable::new(&collections,&variables) evaluates a record set without validation and refuses cycle/type/missing mode typed; propose_overrides returns a proposal only after the successor validates in Folio. constraints.rs: apply_constraints takes folio StudioConstraint, resize_component(design, component_id, new_size) reads StudioNodeDesign.constraints (default top_left) and NodeLocal rects. auto_layout.rs: solve_auto_layout(design, root_id, root_size, limits, cancel) builds a borrowed tree from the document + StudioAutoLayout/StudioChildLayout/StudioSizeClamps/StudioConstraint records; algorithm text unchanged. prototype.rs: reactions are the StudioReaction records of the per-node design entries; PrototypeFlow keeps only flow_id + start_frame_id; navigation ends the action array only for NODE/BACK/CLOSE (STU-PRO-104), URL/SET_VARIABLE actions do not."
   ],
   "tests": {
     "argv": "cargo test -p hsk-studio-components --tests",
     "exit": 0,
-    "sha": "0111960",
+    "sha": "992cca1",
     "passed": 13,
     "failed": 0
   },
   "blockers": [],
-  "lock_wait_s": 1,
+  "lock_wait_s": null,
   "bg_pids": [],
-  "next": "Independent validator: tests/instance_resolution.rs (9: 5 earlier + 4 R3 regression) and tests/auto_layout.rs (4) on pushed HEAD for crates/hsk-studio-components. Later: GRID flow (STU-DS-146/147/150), BASELINE (needs Layout/Type baselines), stroke accounting once the spec defines it, STU-DS-132 explicit variable modes per container, scale_factor (STU-DS-106), layout-grids, style registry, library publish, Layout reflow of text in resized instances; the queued Folio lane for design frames/auto-layout/components/variables/reactions will let the crate-local records move. R3 PLAUSIBLE not in this pass: write-footprint keys are not scoped to the instance (two instances of one component editing the same node/field share a key); swap_component refuses (does not drop and report) instance properties the target does not define.",
-  "updated_at": "2026-10-11T03:17:59Z",
+  "next": "Independent validator: crates/hsk-studio-components on pushed HEAD (992cca1 or later): tests/instance_resolution.rs (9) and tests/auto_layout.rs (4); read src/design.rs first, then check that no crate-local copy of a Folio record type remains (grep the deleted names in notes.folio_migration.removed_public_types). Later: STU-DS-132 explicit_variable_modes (Folio now stores them per container; resolution still takes caller modes), instance-scoped override node ids once the spec says (Folio UNVERIFIED), interop-fig/interop-layout can depend on Folio records instead of components types (no dependent uses components yet), GRID/BASELINE as before. R3 PLAUSIBLE items from before are unchanged: write-footprint keys are not scoped to the instance; swap_component refuses instead of dropping instance properties the target does not define.",
+  "updated_at": "2026-10-11T03:55:04Z",
   "notes": {
     "checks": "cargo check/clippy --tests --examples clean for hsk-studio-components; full clean-tree run of all test targets at f8b5328: 4 + 5 passed",
     "break_it_slice2": "three mutants applied then reverted (tree diff empty vs f8b5328): Center alignment divisor 2.0->3.0, grow clamp redistribution 'rem -= c' removed, hug content gap term removed. Result: flow_hug_gap_padding_alignment, fill_clamps_space_between_and_resize and nested_absolute_hug_fill_and_resize FAILED with the expected geometry deltas; wrap_lines_and_typed_refusals unaffected (no centre or grow-clamp path). Slice 1 mutants (constraints MAX, footprint check) were recorded earlier",
@@ -135,6 +144,75 @@
       "evidence": "cargo test -p hsk-studio-components --tests: 13 passed (4 auto_layout, 9 instance_resolution = 5 earlier + 4 new); cargo clippy -p hsk-studio-components --tests --examples clean (only pre-existing observe too_many_arguments warnings in the dependency)",
       "api_compat": "no public signature or type changed; swap_component/switch_variant may now return typed errors where they previously returned an unresolvable instance",
       "git_rule": "pathspec commits only; never --amend, rebase or a bare commit in the shared worktree"
+    },
+    "previous_lane_value": "hsk-studio-components",
+    "folio_needs_status": "RESOLVED by folio 0e6142c (StudioDesignRecords): design frame/auto layout/child layout/clamps/constraints, components, sets, instances, variables, reactions, component_property_references, explicit_variable_modes all exist as Folio records; see folio_migration for what components still keeps and why.",
+    "folio_migration": {
+      "commits": [
+        "c6251f0",
+        "992cca1"
+      ],
+      "removed_public_types": [
+        "Value, VarType, VarEntry, Mode, Collection, Variable, VarRegistry (-> StudioValue, VariableType, StudioMode, StudioVariableCollection, StudioVariable, VariableTable over the Folio vectors)",
+        "PropType, PropertyDef, DefNode, ComponentDef, ComponentSet, DefRegistry, InstanceProp, OverrideRecord, Instance, OVERRIDABLE_FIELDS (-> ComponentPropertyType, StudioComponentProperty, document layers + NodeLocal, StudioComponent, StudioComponentSet, Design, StudioInstanceProperty, StudioOverrideRecord, StudioComponentInstance, folio::OVERRIDABLE_FIELDS)",
+        "AutoLayout, LayoutMode, WrapMode, AxisSizing, PrimaryAlign, CounterAlign, AlignContent, ChildAlign, ChildSizing, Positioning, SizeClamps, Placement, LayoutNode (-> StudioAutoLayout, LayoutMode, LayoutWrap, AxisSizingMode, PrimaryAxisAlign, CounterAxisAlign, CounterAxisAlignContent, ChildAlign, ChildSizing, ChildPositioning, StudioSizeClamps, StudioConstraint + NodeLocal.rect, a private borrowed tree built from the document)",
+        "ConstraintKind, Constraints, NodeGeometry (-> ConstraintType, StudioConstraint, NodeLocal.rect)",
+        "Trigger, Navigation, Action, Reaction (-> StudioTrigger, Navigation, StudioAction, StudioReaction)"
+      ],
+      "added_public_items": [
+        "Design (new, validate, validate_with_instance, component, set_of, members, node_design, document, records, local, variables), LocalContent, NodeLocal, VariableTable",
+        "ComponentsError::Folio(folio::Diagnostic) + From<Diagnostic>: VariantAssignmentIncomplete/Duplicate, VariableAliasCycle->AliasCycle, DuplicateIdentity->Duplicate, BudgetExceeded, Canceled keep their variant; every other Folio code is Folio(Diagnostic)",
+        "FlowWarning.node_id"
+      ],
+      "api_changes": "resolve_instance(inst,&Design,modes,rev,limits,cancel); propose_overrides(inst,edits,&Design,modes,rev,limits,cancel); resolve_variable(&VariableTable,id,modes,limits,cancel); swap_component/switch_variant/rematch_overrides take &Design (rematch also the two StudioComponent definitions); apply_constraints(child,old,new,&StudioConstraint); resize_component(&Design,component_id,new_size,cancel); solve_auto_layout(&Design,root_id,root_size,limits,cancel); validate_flow(&PrototypeFlow,&Design,limits,cancel). No dependent crate uses components yet (checked by grep).",
+      "stays_local": {
+        "local_content": "NodeLocal per definition layer: literal field values (StudioValue, never an alias), variable bindings (field -> SVAR), authored rect (x,y,w,h, document geometry unit). Folio notes left_out: node field values of definitions, bindings, layer geometry. An artboard root falls back to its Folio bounds.",
+        "prototype_flow": "PrototypeFlow{flow_id SPTF, start_frame_id}: Folio has no flow container (flow_starting_points not modelled).",
+        "outputs_and_limits": "RectPt/SizePt/PlacedNode/PlacedBox/AutoLayoutResult/Resolution/OverrideProposal/FlowReport, Limits/LayoutLimits/FlowLimits, footprints (check_footprint). Names RectPt/SizePt kept; units are the document geometry unit (points for a pt document).",
+        "crate_rules": "two or more members per set (STU-DS-102; Folio leaves it unenforced), SLOT refused, one source per field (literal vs binding AmbiguousSource), container rect required for definition geometry, container AUTO/FIXED vs child HUG/FILL/FIXED/grow/align agreement (Folio: not stated, not enforced), GRID/BASELINE/strokes_included_in_layout/hug+wrap refusals, CHANGE_TO/SCROLL_TO refused, check_value guard (finite numbers, bounded text, one easing function) for values that did not pass through Folio because folio's StudioValue::validate is crate-private"
+      },
+      "decisions": [
+        "Design::new only indexes; evaluators stay defensive so a set that Folio refuses yields a typed refusal, never a loop (the alias cycle / alias type clash / missing mode value tests run the evaluator on a Folio-invalid set and also assert Folio's refusal)",
+        "STU-DS-113 label spelling is opaque in Folio: the label is matched to property_name exactly; an unknown label is UnsupportedProperty at resolution",
+        "Folio accepts only a component as StudioComponentInstance.main_component_id; the evaluator still accepts a set id (default variant, STU-DS-104) but a proposal whose successor names a set is refused by Folio (Folio(InvalidField main_component_id)); components-consumer now names the default member and selects the variant with a VARIANT property",
+        "Folio check_instances requires every instance property, VARIANT included, to have a property definition, so Folio-valid sets define a VARIANT property named like the variant group (default = the default variant's value)",
+        "Effective sizing of a node = its StudioChildLayout sizing, else the sizing implied by its own container modes (AUTO hug, FIXED fixed), else FIXED; missing child fields default INHERIT / grow 0 / AUTO; the root of a solve has no flow parent so FILL on a root comes only from a child record and is refused (fill_on_root)",
+        "Every node of a solved tree needs an authored rect (InvalidLayout rect_missing@id) except an artboard root (Folio bounds)",
+        "Any armed (non-null) trigger of the 17 StudioTrigger types counts for reachability; only NODE/BACK/CLOSE end the action array (STU-PRO-104); a reaction on a page spread is a node of the document (no owning frame, no edge)",
+        "FlowWarning.reaction_index is the index in the flow's reaction order = design entries in record order, each node's reactions in stored order; the warning also carries node_id",
+        "An override value may be a VARIABLE_ALIAS, and an instance property / property default may be an alias or carry bound_variable_id: all resolve through resolve_variable and their chains join the read footprint; bound_variable_id and an alias value naming different variables are AmbiguousSource(instance, property/<name>)",
+        "propose_overrides validates the successor by cloning the record set with the instance replaced and running folio::validate_design_records with folio::Unresolved (resolution issues are the host's, via Design::validate with its resolver); cost is O(records) per proposal"
+      ],
+      "test_changes": [
+        "13 tests kept with their expected values; fixtures are now a Folio document of group layers + StudioDesignRecords + LocalContent built by a test World/T builder, and expected values are Folio types (StudioValue::Float{value:200.0} for Value::Float(200.0), etc.)",
+        "CHANGED assertion 1: v2.validate() == Err(MissingModeValue) (VarRegistry::validate deleted) is now Folio's refusal of the record set (Code::InvalidField at <svar>/values_by_mode); the evaluator-level MissingModeValue{SVAR-20,b} assertion is unchanged",
+        "CHANGED assertion 2: 'a refused set registers nothing' (DefRegistry equality) dropped: there is no registry, Design is borrowed; the registration errors VariantAssignmentIncomplete/Duplicate and Duplicate(SCMP-51|50) now come from Design::validate through Folio with the same values",
+        "CHANGED fixture: the null-trigger reaction moved from the Button entry to the Card entry so the flattened reaction order keeps warning (1,1); Frame 4 stays unreachable",
+        "CHANGED fixture: the container-vs-child sizing disagreement case (root sizing set to FIXED while primary AUTO) is expressed on a nested container whose child record says FIXED, because Folio roots have no child record; expected InconsistentSizing(id 1) unchanged",
+        "ADDED: Folio refuses the cycle / alias type clash / GRID / clamp min>max / missing node reaction records (asserted with Folio codes); proposal successor refused by Folio (scale_factor 0, set id as main); URL action does not end the array and warns after CLOSE; set with one member -> NoSuchVariant; resize without a container rect -> InvalidGeometry; unknown solve root -> NoSuchNode; missing authored rect -> InvalidLayout rect_missing"
+      ],
+      "verification": {
+        "tests": "cargo test -p hsk-studio-components --tests: 13 passed (4 auto_layout, 9 instance_resolution) on the tree equal to 992cca1",
+        "clippy": "cargo clippy -p hsk-studio-components --tests --examples: no warning in the crate (only the pre-existing observe too_many_arguments warnings of the dependency)",
+        "rustfmt": "cargo fmt -p hsk-studio-components applied to the whole crate (the old sources were not rustfmt-clean)",
+        "example": "components-consumer run for large/dark, small/light and --cancel (stdout fields, footprints, rejected:canceled exit 2); --descriptor output parses as JSON",
+        "break_it": "five mutants applied then reverted from scratch copies (git status of the crate empty after each): constraint CENTER divisor 2->3 (constraints_hand_computed failed, x 43.33 vs 60), navigation no longer ends the action array (actions_after_the_first failed, F3 reachable), propose_overrides without validate_with_instance (alias_type_disjoint_stale_cancel failed: Ok instead of Folio InvalidField), local literal+binding AmbiguousSource check removed (override_rules_and_properties failed), auto-layout cross-axis centre divisor 2->3 (flow_hug_gap_padding_alignment failed, y 23.33 vs 30)"
+      },
+      "not_proven": [
+        "no oracle against Figma/Adobe (unchanged); the Folio-fed solver was checked against the same hand-computed rectangles",
+        "performance: propose_overrides clones the record set once per proposal; definition_nodes is rebuilt per call; not measured at 4096 records",
+        "STU-DS-132 explicit_variable_modes are stored by Folio but not read by resolution",
+        "STU-DS-117 overridden_node_id is assumed to be a definition node id (Folio UNVERIFIED instance-scoped vs definition)",
+        "override values for fills/strokes/effects are six-type StudioValue only (Folio)"
+      ],
+      "workflow_observations": [
+        "git: pathspec commits only; c6251f0 was committed and pushed without the Co-Authored-By trailer (noticed after the push; no amend per rules), 992cca1 has it",
+        "gameplan hook: one command of mine was blocked before it ran because it began with a variable assignment instead of the exact 'cd <dir> && source <env> && cargo' form (the hook then resolved the broken WP-KERNEL-012 binding); fixed by using the exact form, no flag or argument was changed to get past a block. Lead rule noted: product failure -> commit the fix (HEAD changes) then rerun; infrastructure cause -> add one cause-naming gameplan step then rerun; neither route was needed this lane (no retry-guard block occurred)",
+        "I started to drive the break-it cargo runs from a Python subprocess (which would have hidden cargo from the hook); it died at once on the WSL bash path before running anything, and I replaced it by running every cargo command from the Bash tool so the hook sees it",
+        "stage method: new modules were compiled under src/next/ beside the old ones, then swapped in one script together with lib.rs/tests/example so the crate compiled at every save; src/next/ is gone",
+        "the session scratchpad directory is shared with other agents (a descriptor.rs and lane_update.py of other lanes sit there): my scratch files were written under generic names before I noticed; the swapped-in content was verified in git, later scratch files use a comp_fm_ prefix",
+        "cargo fmt touched files between edits (Edit refused stale files twice); those edits went through a script"
+      ]
     }
   }
 }
