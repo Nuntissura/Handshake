@@ -2,63 +2,62 @@
   "crate": "hsk-studio-components",
   "lane": "hsk-studio-components",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice-1-complete",
+  "phase": "slice-2-complete",
   "commits": [
-    {"sha": "69b63c1", "subject": "Components: definitions + variant sets, instances with property-granular overrides and DS-116 precedence, variables (collections, modes, alias cycle/type checks), constraints, prototype flow validated against Folio artboards, instance layer bridge (compiles, clippy clean; tests next)"},
+    {"sha": "69b63c1", "subject": "Components: definitions + variant sets, instances with property-granular overrides and DS-116 precedence, variables (collections, modes, alias cycle/type checks), constraints, prototype flow validated against Folio artboards, instance layer bridge"},
     {"sha": "423cb0f", "subject": "Components: swap/variant switch with overrides_dropped re-match (STU-DS-119) and five hand-computed focused tests"},
-    {"sha": "556237d", "subject": "Components: components-consumer example (variant + mode + text override, footprint, Observe terminal outcome)"}
+    {"sha": "556237d", "subject": "Components: components-consumer example (variant + mode + text override, footprint, Observe terminal outcome)"},
+    {"sha": "f8b5328", "subject": "Components slice 2: auto layout (STU-DS-144..149 subset) as an own f64 evaluator with typed refusals; four hand-computed tests"}
   ],
   "capabilities_done": [
-    "instance_resolution.rs: ComponentDef/ComponentSet/DefRegistry (STU-DS-102..109: set registration refuses variant_assignment_incomplete/duplicate and undeclared values), PropertyDef (BOOLEAN/TEXT/INSTANCE_SWAP/VARIANT; SLOT refused), Instance + OverrideRecord, resolve_instance with STU-DS-116 tiers (override > instance component property else property default > definition literal > definition variable binding), Source per field, per-field reads footprint, closed STU-DS-115 override set, base definitions never mutated",
-    "instance_resolution.rs: VarRegistry/Collection/Mode/Variable (STU-DS-121..127 subset: six resolved types, Literal|Alias entries), resolve_variable with per-collection mode selection (default mode otherwise), alias path walk with AliasCycle, TypeMismatch on alias or literal type, MissingModeValue (never zero), NoSuchMode, max_alias_depth budget",
-    "instance_resolution.rs: propose_overrides (successor Instance + full Resolution after full success only, write footprint = edited (node,field), read footprint = record keys the edited fields depend on), check_footprint/OverrideProposal::admit (same-key drift Stale, disjoint drift admissible; record-level keys (id,\"\") for STU-DS-163), swap_component/switch_variant/rematch_overrides by (layer name, sibling ordinal path) with DroppedOverride list (STU-DS-119)",
-    "constraints.rs: ConstraintKind MIN|CENTER|MAX|STRETCH|SCALE both axes, default MIN/MIN (STU-DS-151/152), apply_constraints (points, finite, non-negative, STRETCH collapse and SCALE with zero parent refused as InvalidGeometry, no clamping), resize_component cascading down the node hierarchy",
-    "prototype.rs: PrototypeFlow/Reaction/Trigger/Action/Navigation (pointer subset of STU-PRO-105/110/111; null trigger = authored not armed), validate_flow against folio::StudioDocument artboards (start frame, destinations, overlay position, reaction node exists, owning-frame walk via Folio parents), reachability from the start frame (cycles legal), action-after-navigation warnings, ChangeTo/ScrollTo refused as unsupported",
-    "folio_bridge.rs: INSTANCE_LAYER_BINDING + instance_layer(..) -> folio::StudioLayer {kind component_instance, PrimitiveReference hsk.studio.component_instance@1 / SCIN-*}; passes folio::validate_document under a resolver accepting the binding",
-    "lib.rs: ComponentsError (24 variants, stable code()), report() one Observe terminal outcome, DESCRIPTOR; examples/components-consumer.rs (--descriptor, --size, --mode, --text, --cancel)"
+    "slice 1 (69b63c1..556237d): component definitions and variant sets, instances with property-granular overrides and STU-DS-116 precedence (Source + reads per field), variables with collections/modes/alias chains (AliasCycle, TypeMismatch, MissingModeValue), propose_overrides + check_footprint (same-key stale, disjoint admissible, record-level keys), swap_component/switch_variant/rematch_overrides with DroppedOverride (STU-DS-119), constraints MIN|CENTER|MAX|STRETCH|SCALE + resize_component, prototype flow validated against Folio artboards, instance_layer bridge, report()/DESCRIPTOR, components-consumer example",
+    "slice 2 auto_layout.rs (f8b5328): solve_auto_layout(root, optional root resize, limits, cancel) -> pre-order PlacedBox list (parent-local rects, paint_rank, in_flow). Horizontal/vertical flow; wrap with line planning, counter_axis_spacing and counter_axis_align_content SPACE_BETWEEN; item_spacing incl. negative; four paddings; primary MIN/CENTER/MAX/SPACE_BETWEEN and counter MIN/CENTER/MAX alignment with per-child layout_align (INHERIT/STRETCH); FIXED/HUG/FILL sizing with min/max clamps (min>max = InvalidLayout), grow 0|1 equal share with clamp redistribution; ABSOLUTE children and plain-frame children placed by Constraints (STU-DS-048); arbitrary nesting (depth<=32, nodes<=4096); item_reverse_z_index as paint_rank; deterministic, inputs borrowed",
+    "slice 2 typed refusals: InconsistentSizing (container AUTO/FIXED vs layout_sizing, grow vs FILL, align vs STRETCH), InvalidLayout (ranges, clamp order, FILL root, placement), UnsupportedLayout (grid, baseline, strokes_included_in_layout, space_between_with_hug, wrap_with_hug_primary, fill_in_wrap, wrap_counter_hug_with_fill, hug_without_auto_layout)"
   ],
   "tests": {
-    "argv": "cargo test -p hsk-studio-components --test instance_resolution --no-fail-fast",
+    "argv": "cargo test -p hsk-studio-components --tests --no-fail-fast",
     "exit": 0,
-    "sha": "423cb0f",
-    "passed": 5,
+    "sha": "f8b5328",
+    "passed": 9,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 1,
   "bg_pids": [],
-  "next": "Independent validator: tests/instance_resolution.rs (5 cases) on the pushed HEAD for crates/hsk-studio-components. Later slices: auto layout (STU-DS-130..150, taffy 0.14.0 mapping gap UNVERIFIED), layout-grids, style registry, library publish/subscribe, exposed-instance projection, scale_factor (STU-DS-106), prototype reactions beyond pointer triggers (variable/mode actions, conditionals, timeouts, ChangeTo via switch_variant), Layout reflow integration once layout/folio frames are stable.",
-  "updated_at": "2026-10-11T02:37:18Z",
+  "next": "Independent validator: tests/instance_resolution.rs (5) and tests/auto_layout.rs (4) on pushed HEAD for crates/hsk-studio-components. Later: GRID flow (STU-DS-146/147/150), BASELINE (needs Layout/Type baselines), stroke accounting once the spec defines it, STU-DS-132 explicit variable modes per container, scale_factor (STU-DS-106), layout-grids, style registry, library publish, Layout reflow of text in resized instances; the queued Folio lane for design frames/auto-layout/components/variables/reactions will let the crate-local records move.",
+  "updated_at": "2026-10-11T02:49:28Z",
   "notes": {
-    "checks": "cargo check --tests and cargo clippy --tests --examples clean for hsk-studio-components (sibling crates' own warnings not touched); example runs: --size large --mode dark --text 'Buy now' and --cancel",
-    "break_it": "two mutants applied and reverted: constraints Max ignoring parent growth (constraints_hand_computed FAILED) and check_footprint disabled (alias_type_disjoint_stale_cancel FAILED); other three cases unaffected, as expected",
-    "oracles": "hand-computed: horizontal 100->200 wide child x=10,w=20: MIN (10,20) MAX (110,20) CENTER (60,20) STRETCH (10,120) SCALE (20,40); vertical 50->80 tall child y=5,h=10: MIN (5,10) MAX (35,10) CENTER (20,10) STRETCH (5,40) SCALE (8,16); hierarchy 100x50->200x80: A stretch 60x40 -> 160x70, nested B max/max (5,5) -> (105,35). Not an Adobe/Figma row: no original-app oracle (Figma-authored fixtures) was run",
-    "spec_gaps": [
-      "STU-DS-117 gives overridden_node_id + overridden_fields[] but no storage for override VALUES: chosen = a values map inside each OverrideRecord whose key set must equal overridden_fields; for spec enrichment",
-      "STU-DS-116 'ambiguous double-source' is undefined beyond the sentence: implemented as definition node with both a literal and a variable binding for one field, a field listed twice, or two override records for one (node, field)",
-      "STU-DS-119 re-match key 'layer name, position in the child hierarchy' implemented as the path of (name, ordinal among siblings) from the root; smart-animate pairing (STU-PRO-018) not checked",
-      "STU-DS-125 EASING/TIMING value shapes and units are not declared in the cited text: Easing(String) and Timing(f64 >= 0) are placeholders; EXPRESSION storage (STU-DS-126) not modelled",
-      "STU-DS-130 variable scope/bindable-field enforcement (picker eligibility, typed error for binding outside the closed sets) not implemented",
-      "STU-DS-163 record-level conflicts are approximated by (record_id, \"\") footprint keys; exact revision-vector semantics of STU-SDB-004 UNVERIFIED",
-      "A stretched child that would collapse below zero is refused (InvalidGeometry), not clamped: clamping policy is not stated in STU-DS-151"
+    "checks": "cargo check/clippy --tests --examples clean for hsk-studio-components; full clean-tree run of all test targets at f8b5328: 4 + 5 passed",
+    "break_it_slice2": "three mutants applied then reverted (tree diff empty vs f8b5328): Center alignment divisor 2.0->3.0, grow clamp redistribution 'rem -= c' removed, hug content gap term removed. Result: flow_hug_gap_padding_alignment, fill_clamps_space_between_and_resize and nested_absolute_hug_fill_and_resize FAILED with the expected geometry deltas; wrap_lines_and_typed_refusals unaffected (no centre or grow-clamp path). Slice 1 mutants (constraints MAX, footprint check) were recorded earlier",
+    "oracles_slice2": "hand-computed: row hug 130x70 (A 10,10 / B 40,30 / C 90,10), gap -5 gives 100 wide, column 60x130; fill 300 wide row: L 50, G1 130, G2 80 (max clamp), resized 400: G1 230; SPACE_BETWEEN gap 90 (x 10,150,270); min-clamp 150/50; wrap 100 wide lines 2,2,1 at y 0,25,50 (hug 70) and counter SPACE_BETWEEN y 0,40,80; nested column: header fill/hug 180x20 centred items at 57 and 93, body x 50 y 38, absolute badge right/bottom (180,68) in an 88 tall hugged frame, resized to 300 wide: items 107/143, badge x 280. Not a Figma/Adobe oracle: no original-app comparison was run",
+    "taffy_evaluation": "taffy 0.14.0, MIT (docs.rs latest page read); pure-Rust status, f32 vs f64 geometry and negative-gap behaviour were NOT stated by the page read and remain UNVERIFIED. Not adopted: the spec contract has checkable differences from CSS flex (container AUTO/FIXED plus child HUG/FILL/FIXED must agree, grow limited to 0|1, SPACE_BETWEEN as a primary-align mode, negative gaps legal, absolute children fall back to constraints, f64 point determinism). No dep request filed",
+    "spec_gaps_slice2": [
+      "grow distribution semantics (equal share vs flex-basis content share) not stated; implemented equal share, relation to Figma UNVERIFIED",
+      "overflow alignment: centre/max of an overflowing line packs to the start (no negative offsets); children never shrink; both unspecified",
+      "SPACE_BETWEEN with overflow: gap floors at 0; with one item packs to start; unspecified",
+      "container AUTO/FIXED modes and child layout_sizing are redundant in STU-DS-144/148; chosen: both must agree (InconsistentSizing)",
+      "STU-DS-045 strokes_included_in_layout: how stroke weight enters spacing is unspecified, so true is refused",
+      "plain-frame children paint_rank = document order (last on top); auto-layout default first-on-top follows item_reverse_z_index false; both UNVERIFIED against Figma",
+      "paddings/spacing use the studio_declared hard bounds of STU-DS-145 (gaps -10000..100000, padding 0..100000); 2 dp precision not enforced",
+      "hugging leaf uses authored width/height as intrinsic content; text measurement is Layout/Type scope",
+      "wrap + FILL primary child, wrap + hug primary, hug on a plain frame are refused rather than guessed"
     ],
     "folio_needs": [
-      "No design frame / auto-layout frame node: a prototype frame is a Folio artboard today; frames need children, clips_content, layout_mode and constraints per child (STU-DS-130..152)",
-      "No component, component_set, component_instance, variable, variable_collection or reaction record types: all crate-local values; instance is only a layer of kind component_instance with PrimitiveReference to SCIN-*",
-      "No place for per-node reactions (STU-PRO-103), component_property_references (STU-DS-113) or node constraints (STU-DS-152) on StudioLayer",
-      "Folio Resolver::primitive for SCIN-*/SCMP-*/SVAR-* is host-owned; this crate provides INSTANCE_LAYER_BINDING for primitive_layer_binding"
+      "No design frame / auto-layout frame node: LayoutNode/AutoLayout/Placement are crate-local; Folio needs layout_mode, wrap, axis sizing modes, align fields, spacing/padding, clamps and per-child layout_align/grow/positioning/sizing (STU-DS-144/148/149) plus constraints per child (STU-DS-152)",
+      "No component, component_set, component_instance, variable, variable_collection or reaction record types; no per-node reactions (STU-PRO-103), component_property_references (STU-DS-113) or explicit_variable_modes (STU-DS-132)",
+      "Folio Resolver::primitive for SCIN-*/SCMP-*/SVAR-* is host-owned; INSTANCE_LAYER_BINDING is provided for primitive_layer_binding"
     ],
     "not_proven": [
-      "layout reflow of text inside resized instances: depends on hsk-studio-layout (edge allowed, not used in this slice)",
-      "alias resolution at 10k-variable scale and per-field resolution cost not measured (O(nodes x alias depth), no memoisation across fields)",
-      "variable-bound component properties (bound_variable_id) are resolved and type-checked but have no dedicated test case",
-      "INSTANCE_SWAP property values are only type-checked as strings; they do not change the nested instance's main_component_id yet",
-      "Slot properties and nested/exposed instances (STU-DS-118) are refused or absent"
+      "no Figma/Adobe oracle for auto layout (hand-computed only); wrap fill/stretch interplay, min-clamp on the cross axis and nested wrap containers have no dedicated case",
+      "performance: content_size is recomputed per level (O(nodes x depth)); no memoisation; not measured at 4096 nodes",
+      "text reflow inside resized instances and baseline alignment depend on Layout/Type",
+      "variable-bound component properties and INSTANCE_SWAP value effects (slice 1) still lack dedicated cases"
     ],
-    "workspace_observations": [
-      "Folio gained StudioLayer.text_frame (commit ae75f55) between reading and first compile; instance_layer sets text_frame: None",
-      "a formatter appears to rewrite edited .rs files on save (instance_resolution.rs is ~1040 lines vs ~760 written); no action taken",
-      "no new crates.io dependency; no dep-requests line needed; Cargo.lock not staged by this lane (path deps only, edges accord/folio/observe are within the declared DAG)"
+    "workflow_observations": [
+      "gameplan retry-guard blocked an identical test rerun after my own malformed mutant command failed to compile (same HEAD, no gameplan change); resolved by committing real work (HEAD changed), no gameplan edit and no bypass",
+      "shell commands run from the kernel root that mention gated words in text hit the WP-KERNEL-012 gameplan (broken confirm binding, other device); JSON written with the Write tool instead",
+      "a formatter appears to rewrite edited .rs files on save",
+      "no new crates.io dependency; Cargo.lock not staged by this lane"
     ]
   }
 }

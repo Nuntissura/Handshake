@@ -1,0 +1,44 @@
+{
+  "crate": "hsk-studio-harness",
+  "lane": "SMB-HARNESS-1",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slice 1 pushed (headless only): explicit selection, open/summary/edit/panel/save/reopen/verify over the real session, controls panel, one Observe frame per operation, JSON + generated manual; 4 focused tests green",
+  "commits": [
+    {"sha": "c47e256", "subject": "Harness slice 1 (headless only): explicit provider selection, open/summary/edit/panel/save/reopen/verify over the real session, controls panel bound to a layer, one Observe frame per operation, JSON reports and a manual generated from the descriptors; studio-harness example"}
+  ],
+  "capabilities_done": [
+    "Harness::new(Selection{providers, references}): nothing selected by default; unknown or duplicate provider refused before any step (UnknownProvider / DuplicateProvider); only selected providers are registered in the session (chronicle.patch is the one available provider); references default to unresolved (honest), trust_all is an explicit development stand-in recorded in every report",
+    "Run: open_path/open_bytes, summary (document, layers with appearance values, artboards, page spreads, sequences, stories, unresolved references, providers), rename / set_visible through the selected chronicle provider (patch JSON built from the session's own revision vector, revision-checked, optional --expect-revision), panel (agent JSON of the controls descriptors bound to a layer plus the commit route of every control), panel_set (descriptor parse -> ValueStore -> session submit; refused commit is undone in the store), save_to (atomic, via session), checkpoint (verified in-memory package), reopen (second independent session) and verify (revision, byte-identical encoded document, every committed edit present), verify_live with caller expectations",
+    "one Observe terminal frame per operation: session operations use the session's report, harness-owned operations (summary, panel, panel_set refusals, verify) emit their own frame (redacted: no names or values); report states one_frame_per_operation and per-op frame counts; a failure before the document is identified is `unaddressed` (0 frames), exactly as the session reports it",
+    "cli::run(args) -> (exit, stdout): help (text and --json), descriptors (owner/version parsed from the real DESCRIPTOR consts of accord, folio, session, controls, observe), providers, open, panel, edit, verify; exit 0 pass, 1 failed/refused with JSON, 2 usage; deterministic byte-identical output; the manual is generated from the command table, the live provider list and the controls manual topics",
+    "examples/studio-harness.rs: thin forwarder (no [[bin]], no window, no process spawn, no network); DESCRIPTOR const; tests/fixtures/demo.handshake made by `session-consumer --demo` (regenerate the same way)"
+  ],
+  "tests": {
+    "argv": "cargo test -p hsk-studio-harness --tests --no-fail-fast",
+    "exit": 0,
+    "sha": "c47e256",
+    "passed": 4,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "steward: lock sync + registry pin/probe approval for hsk-studio-harness (one dep-request line appended: serde_json 1.0.151 std; every other dependency is an allowed path edge: accord, folio, session, controls, observe). Validator round. Next slice candidates: gesture/control-driven edits once chronicle gains appearance properties, Run over a ProviderRegistry with more providers (when a second provider exists), multi-edit atomic batch, idempotency keys + commit/grant ports behind flags, desktop window consumer if the lead widens the probe",
+  "updated_at": "2026-10-11T02:51:29Z",
+  "notes": {
+    "desktop_window": "DECISION PENDING (lead): a desktop window consumer needs eframe/winit, which tools/workspace-probe.rs forbids for every crate (egui only for controls). Slice 1 is headless only and states `desktop_window_consumer` in not_proven in every report and in DESCRIPTOR.",
+    "edge_gap": "The harness may depend only on accord, folio, session, controls, observe. It needs no direct chronicle/package edge: patch JSON is built from the session's revision vector (serde_json::to_value of the revision entry address) and re-open/verify go through a second Session. If a future slice needs chronicle types or package readers directly the allowed edges must be widened by the lead (not requested now).",
+    "appearance_values": "folio has LayerAppearance (opacity, fill opacity, blend mode, clipped, isolation, mask) but chronicle only has name/visible properties, so the panel projects appearance controls read-only (route none, reason no_chronicle_property) and an edit is refused with no_commit_route. Needs a chronicle appearance property (chronicle lane) before these controls can commit.",
+    "controls_use": "panel is built only from hsk-studio-controls descriptors (text, toggle, number slider with % unit, integer, choice, one collapsible section); the dead-control audit runs (7/7 consumed) and is part of the panel JSON; no egui types appear in the harness API.",
+    "fixture": "tests/fixtures/demo.handshake (5099 bytes, revision 9) generated by `cargo run -p hsk-studio-session --example session-consumer -- --demo DIR` under the artifact root; the fixture carries one unresolved tile reference (default references mode reports it).",
+    "files_and_paths": "The harness never picks a path: every path is a command-line argument. The only test that writes files uses TMP (asserts it is not on C:, removes its directory on drop) and the example run used the artifact root.",
+    "gate_event": "A cargo test run was blocked once by gameplan step GP-018 (develop_digest placeholder digests, uncommitted in the develop lane); not bypassed: waited for the develop commit c90f967 and re-ran.",
+    "known_gaps": [
+      "no RenderPort / visual capture (render engines are not dependencies; capability stays NOT_PROVEN)",
+      "no idempotency keys, grant/commit/job ports: the session runs standalone (its own commit authority)",
+      "edit sequence stops at the first failing edit; no multi-edit atomic batch",
+      "artboard and page-spread renames are supported by chronicle but not exposed by the harness commands (layers only)",
+      "stories and sequences are summarized (ids, names, counts) but not editable"
+    ]
+  }
+}

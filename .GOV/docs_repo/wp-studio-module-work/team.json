@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T02:46:55Z",
+ "updated_at": "2026-10-11T02:52:29Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -389,7 +389,7 @@
    "model": "sonnet",
    "role": "controls slice 1",
    "launched": "2026-10-11T02:16:22Z",
-   "status": "running"
+   "status": "retired (refresh rule 481k); controls 62ea29a + harness c47e256 READY"
   },
   {
    "name": "builder-interop-vector",
@@ -421,7 +421,7 @@
    "model": "sonnet",
    "role": "components slice 1",
    "launched": "2026-10-11T02:18:19Z",
-   "status": "running"
+   "status": "done (slices 1-2; f8b5328)"
   },
   {
    "name": "builder-render-cpu-clip",
@@ -493,6 +493,14 @@
    "model": "sonnet",
    "role": "interop-layout slice 1",
    "launched": "2026-10-11T02:46:55Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-reel-av1",
+   "agent_id": "aef09eeda397823cf",
+   "model": "sonnet",
+   "role": "reel AV1 (SMB-REEL-ENG-3)",
+   "launched": "2026-10-11T02:52:29Z",
    "status": "running"
   }
  ]

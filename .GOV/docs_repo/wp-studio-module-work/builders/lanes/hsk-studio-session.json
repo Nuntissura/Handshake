@@ -2,29 +2,33 @@
   "crate": "hsk-studio-session",
   "mt": "MT-35554",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice 2 complete: injected Grant/Commit/Job/Clock ports, idempotency keys + canonical receipts, outcome-unknown reconcile, bounded admission, shutdown drain, export_checkpoint, preview preservation",
+  "phase": "slice 3 complete: lazy package source (assets and previews read on demand, none held at rest), host-supplied previews API",
   "commits": [
-    {"sha": "371ac82", "subject": "Session slice 1: open (package -> folio snapshot), revision-checked submit of chronicle-prepared transactions, atomic save, enumerable instance-owned provider registry, one Observe report per operation", "pushed": true, "slice": 1},
+    {"sha": "371ac82", "subject": "Session slice 1: open, revision-checked submit, atomic save, provider registry, one Observe report per operation", "pushed": true, "slice": 1},
     {"sha": "a7640e7", "subject": "Session slice 1: four real round-trip contract tests and session-consumer example", "pushed": true, "slice": 1},
     {"sha": "6a162da", "subject": "Session slice 2: injected Grant/Commit/Job/Clock ports, idempotency keys with canonical receipts, outcome-unknown reconcile, bounded admission, shutdown drain, export_checkpoint, preview preservation", "pushed": true, "slice": 2},
-    {"sha": "c3bcecd", "subject": "Session slice 2: four contract tests (keyed replay + grant recheck, lost-ack reconcile exactly once, admission/cancel-after-commit/drain, verified checkpoint + previews) and checkpoint in session-consumer", "pushed": true, "slice": 2}
+    {"sha": "c3bcecd", "subject": "Session slice 2: four contract tests and checkpoint in session-consumer", "pushed": true, "slice": 2},
+    {"sha": "0a6f920", "subject": "Session slice 3: lazy package source (assets and previews read on demand, hash-verified, none held at rest), save pulls assets one at a time from the source, host-supplied previews API", "pushed": true, "slice": 3},
+    {"sha": "6d0616f", "subject": "Session slice 3: tests (lazy source with per-thread allocation and byte-read bounds, host-supplied previews follow the revision, typed lazy failures + memory sessions) and example stats", "pushed": true, "slice": 3}
   ],
   "capabilities_done": [
     "slice 1: open (package -> folio snapshot), revision-checked submit through an instance-owned provider registry, atomic save with destination re-read, cancellation + budgets, one Observe frame per operation, session-consumer",
-    "slice 2 ports (src/ports.rs): GrantPort (fresh check on every submit, replay, save, export), CommitPort (commit + lookup; Committed/Rejected/Stale/StaleEpoch/Unknown), JobPort (admit/release, ticket released by RAII guard), Clock; all optional in SessionPorts (absent = standalone, session is its own authority)",
-    "slice 2 idempotency: submit_keyed(key, ...) binds key to SHA-256 over account+principal+resource+action+provider+payload hash+expected revision; identical retry returns the stored canonical receipt (replayed=true) after a fresh grant check with no admission or authority call; same key + any change = idempotency_conflict; a commit authority requires a key (key_required, the crate mints no identifiers); bounded table (Budgets.max_receipts, receipts_full)",
-    "slice 2 exactly-once: Unknown commit outcome is stored pending under its key (local snapshot NOT advanced); further submits are refused (reconciliation_required); reconcile() / a same-key retry looks the key up: Found -> adopted once (binding, revision and base revision verified), Absent -> cleared and safely retried, unreachable -> stays pending; receipt mismatch stays pending (receipt_mismatch / diverged)",
-    "slice 2 admission: Admission (cloneable shared handle) bounds slots AND bytes, never blocks, Permit releases on drop; overloaded{retry_after_ms}, cost_exceeds_budget; acquired after grant/replay lookup, released on success, error and cancel exits; JobPort ticket released the same way",
-    "slice 2 cancel: pre-commit cancel publishes nothing and never calls the authority; a cancel that arrives during the authority commit leaves the edit and sets Applied.cancel_too_late",
-    "slice 2 shutdown: close_admission() / drain(deadline_ms) on the injected Clock: closed submits -> closed, pending keys resolved by lookup until the deadline, unresolved keys reported in DrainReport.abandoned (never dropped), save/export/reconcile stay available",
-    "slice 2 export_checkpoint: write_package_with -> read_package re-read of the in-memory bytes (document bytes, revision, quarantined and preview counts compared) -> Checkpoint{revision, bytes, sha256}",
-    "slice 2 previews: loaded at open with PackageReader::previews/read_preview (bounded, unreadable ones skipped and counted); rewritten on save/export while the document is still the revision they describe, dropped and counted after an edit (SaveReceipt.previews_preserved/previews_dropped)"
+    "slice 2: injected GrantPort/CommitPort/JobPort/Clock, idempotency keys + canonical receipts, outcome-unknown reconcile (exactly once), bounded admission, shutdown drain, export_checkpoint",
+    "slice 3 lazy source (src/source.rs): open keeps the package as a Read+Seek stream behind PackageReader (structure and every entry checksum verified in bounded 1 MiB chunks); the document and the entries that must be preserved verbatim (opaque, unlisted) are read through a second logical cursor over the same stream and verified against the manifest SHA-256; asset and preview bodies are NOT read at open (tile digests are checked against the manifest only). Resident at rest: document, preserved unknown entries, host-supplied previews",
+    "slice 3 on-demand reads: save/export pull each asset from the source one at a time (PackageReader::read_asset, SHA-256 verified, bounded by the writer's max and the manifest's declared size) and source previews lazily; the real cause of a failed read (hash_mismatch, io, canceled) is reported instead of asset_absent; the written file becomes the new source (old handle released) and in-memory sessions (open_bytes) release their copy on first save",
+    "slice 3 host previews: Session::set_previews(rendered_for_revision, Vec<PreviewImage>) validates (dimensions, byte length, colour tag, unique content, <= MAX_SUPPLIED_PREVIEWS, total bytes) and accepts only the current revision (stale_revision otherwise); supplied previews replace the source's at the next save/export at that revision; anything rendered for another revision is dropped and counted (SaveReceipt/Checkpoint.previews_dropped); supplied previews are released once written. PixelFormat/PreviewImage/PreviewInfo re-exported so hosts need no package dependency",
+    "slice 3 accounting: Session::source_bytes_read() and Session::resident_bytes()"
   ],
   "tests": {
-    "passed": 8,
+    "passed": 11,
     "failed": 0,
-    "command": "cargo test -p hsk-studio-session --no-fail-fast --tests",
-    "slice2_new": [
+    "command": "cargo test -p hsk-studio-session --no-fail-fast",
+    "slice3_new": [
+      "lazy_source_holds_no_assets_and_save_streams_them_on_demand",
+      "host_supplied_previews_follow_the_revision",
+      "lazy_failures_are_typed_cancel_reads_nothing_and_memory_sessions_work"
+    ],
+    "slice2": [
       "keyed_submit_replays_the_canonical_receipt_and_rechecks_grants",
       "lost_acknowledgement_is_reconciled_and_applied_exactly_once",
       "admission_overload_cancel_after_commit_and_shutdown_drain",
@@ -36,31 +40,33 @@
       "cancellation_budgets_and_hostile_input_leave_files_and_state_intact",
       "providers_are_instance_owned_enumerable_and_not_trusted"
     ],
-    "check_clippy": "check/clippy -p hsk-studio-session --tests --examples: clean (only pre-existing observe too_many_arguments warnings)",
-    "evidence": "private test doubles (tests only) really enforce epoch, expected revision and idempotency and keep their own durable document copy: the authority's last document is parsed by folio and compared byte for byte with the session snapshot; lost-ack case: authority commits durably, session stays at the old revision, reconcile adopts once (authority commits == 1, commit calls == 1 after the replayed retry); request-lost case: retry looks up Absent then commits once; shutdown on a test clock: lookup cost 1500 ms, drain(2000) elapsed 1500, unresolved key reported; admission held elsewhere -> overloaded, nothing started; in_flight == (0,0) and job admitted == released on success, error, cancel and unknown-outcome paths; checkpoint and saved file re-read with package::read_package / list_previews / read_preview",
-    "break_it": "temporarily (a) disabled the identical-key binding check -> keyed_submit test failed at the conflict assertion (isolated run); (b) adoption without publish -> reconcile test failed (revision 7 vs 8); (c) JobGuard never releasing -> keyed and drain tests failed (job tickets (n,0) vs (n,n)); source restored byte-identical to c3bcecd (git diff empty) and the full 8/8 run repeated green afterwards",
-    "tree": "shared edit tree; crate files identical to pushed c3bcecd"
+    "check_clippy": "check/clippy -p hsk-studio-session --tests --examples: clean (only pre-existing observe too_many_arguments warnings); kernel-bindings still checks clean against it",
+    "evidence": "memory bound with a per-thread counting allocator (each test body runs on its own thread): 4 MiB asset in a 4,198,334-byte package: open peak 1,050,685 B (one 1 MiB chunk, not the asset), retained after open 9,860 B, bytes read at open 4,201,578 (one pass, no second); an edit reads 0 source bytes and retains < 256 KiB; save reads the asset once (8,392,731 B = asset + one verification pass over the written file), retained after save 0; save peak 17.8 MB (4.25x asset). Lazy failure case: asset byte flipped behind the session's back -> save fails hash_mismatch with Failure(Validation), destination bytes untouched, no temp/marker left, Save As target never created; the same session saves correctly after the byte is repaired (nothing cached); canceled save reads 0 bytes; package-reader parity for the opaque entry (name, Opaque loss note)",
+    "break_it": "temporarily (a) writing host-supplied previews regardless of revision, (b) writing source previews after an edit, (c) discarding the real cause of a lazy read failure: the export, previews and lazy-source tests failed with previews counted (8,1,0) vs (8,0,1) and (9,1,1) vs (9,0,2), and the lazy-failure test with asset_absent vs hash_mismatch; source restored byte-identical to 6d0616f (git diff empty), full 11/11 repeated green afterwards",
+    "tree": "shared edit tree; crate files identical to pushed 6d0616f"
   },
-  "demo": "cargo run -p hsk-studio-session --example session-consumer -- --demo <artifact-root>/studio-session/demo2: rev 7 -> 9, saved, export_checkpoint (rev 9, sha256 printed), independent read matches, 5 Observe frames for 5 operations",
+  "demo": "cargo run -p hsk-studio-session --example session-consumer -- --demo <artifact-root>/studio-session/demo3: rev 7 -> 9, saved, checkpoint, source_bytes_read 17298 and resident_bytes 2178 printed, independent read matches",
   "blockers": [],
-  "dep_requests": "none new: reuses package::sha256_hex_of (no sha2 dependency added); serde_json dev-dependency request from slice 1 stands. Cargo.lock/root Cargo.toml untouched by this lane.",
+  "dep_requests": "none: only existing path edges and package's public API (PackageReader, EntryMeta, read_asset, previews, read_preview, sha256_hex_of). Cargo.lock/root Cargo.toml untouched by this lane.",
+  "api_compat": [
+    "kernel-bindings compatibility: slice 3 is additive only. No signature, field or enum variant of the slice-1/2 public API changed (SessionPorts, SessionConfig, Session::open_path/open_bytes/submit/submit_keyed/reconcile/drain/save/save_to/export_checkpoint, Applied, SaveReceipt, Checkpoint, SessionError, the port traits). kernel-bindings checks clean against it.",
+    "added: Session::set_previews, Session::source_bytes_read, Session::resident_bytes, PreviewReceipt, MAX_SUPPLIED_PREVIEWS, re-exports PixelFormat/PreviewImage/PreviewInfo",
+    "behaviour notes: open_bytes copies the given bytes (the lazy source must own them); SaveReceipt/Checkpoint.previews_dropped now also counts source previews replaced by host-supplied ones; a package with a corrupted asset now fails at save/export (hash_mismatch) rather than at open, because assets are no longer read at open (the whole archive is still CRC-verified at open)"
+  ],
   "decisions": [
-    "A commit authority is optional: absent = standalone (session commits locally, grants allow-all); present = the authority is canonical and the local snapshot advances only after a matching receipt",
-    "Idempotency binding uses package::sha256_hex_of over a NUL-separated canonical tuple (no new crypto dependency)",
-    "While any commit outcome is pending, new submits are refused (reconciliation_required): authority revision checks already make blind submits safe, but refusing keeps local state unambiguous",
-    "Previews are rewritten only while the document is still the opened revision (a preview of the pre-edit content in an edited file would be wrong); no host-supplied fresh previews API in this slice",
-    "Grant checks use the session actor; transaction attribution still travels in the chronicle Patch actor (no Session-per-agent)",
-    "Report frames for reconcile and drain are operations too (one frame each); close_admission is a flag flip with no frame"
+    "Lazy open is built from package's public API only (PackageReader + EntryMeta data offsets + a second cursor over one shared stream); package has no lazy into_opened, so the document/opaque/unlisted classification and tile-digest-vs-manifest check mirror package's into_opened strictness in src/source.rs",
+    "Previews are written only when they describe the revision being written; host-supplied previews are accepted only for the current revision",
+    "Grant action for set_previews is Action::Save (a new Action variant would break exhaustive matches in kernel-bindings)",
+    "No new SessionError variants: stale previews reuse StaleRevision, invalid previews reuse Package(PreviewMismatch)/TooManyEntries/TotalTooLarge"
   ],
   "known_gaps": [
-    "the public executable adapter over these ports (transient store) belongs to kernel-bindings; this crate ships only traits and tests-only doubles",
-    "cancel-acknowledgement bound (1000 ms) is not separately timed: operations are synchronous and cancel is polled at entry, in the provider and before commit",
-    "assets are held in memory after open (package Opened); lazy PackageReader::read_asset streaming is a later slice",
-    "no API for a host to supply fresh previews after an edit",
-    "post-save verification failure (VerifyMismatch) leaves the newly written file in place and does not advance saved_revision",
-    "idempotency table is in memory only: receipts are not persisted across sessions (the authority's receipt store is the durable one)",
+    "save is NOT constant-memory: package's write_package_with collects every referenced asset (as parts) before writing and save_atomic takes the whole package as bytes, so a save peaks at a few copies of the package (4.25x the asset in the test). The session holds nothing at rest, but true streaming save needs a package API change (writer that streams parts and a save_atomic that accepts a writer/reader); recommend to the package lane",
+    "open is O(file) in I/O: PackageReader::open CRC-verifies every entry (bounded memory); no way to skip it with the current package API",
+    "post-save verification (VerifyMismatch) leaves the newly written file in place and does not advance saved_revision",
+    "idempotency table is in memory only; the authority's receipt store is the durable one",
+    "cancel-acknowledgement bound is not separately timed (operations are synchronous, cancel is polled at entry, in provider/read loops and before commit)",
     "resolver in session-consumer grants everything: example stand-in only"
   ],
-  "next": "Validator round on c3bcecd. Next slice candidates: host-supplied previews after an edit, lazy asset streaming, multi-output delivery capture (immutable revision/presets/output verification) behind the JobPort, kernel-bindings adapter once that lane exists.",
-  "updated_at": "2026-10-11T02:36:27Z"
+  "next": "Validator round on 6d0616f. Next slice candidates: streaming save once package offers a writer-based API, multi-output delivery capture (immutable revision/presets/output verification) behind the JobPort, lazy opaque-entry handling for very large unknown records.",
+  "updated_at": "2026-10-11T02:52:05Z"
 }
