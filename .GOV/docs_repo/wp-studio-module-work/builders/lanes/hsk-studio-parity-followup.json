@@ -230,6 +230,25 @@
   },
   "doc_correction": "the kernel diagnostics topic admission-parity row alpha_premultiplied already carries the correction (lead, 2026-10-11T12:44:14Z); this lane makes the pigment predicates match it",
   "date": "2026-10-11T13:08:24Z",
-  "extension_date": "2026-10-11T13:13:35Z"
+  "extension_date": "2026-10-11T13:13:35Z",
+  "verdicts": [
+   {
+    "round": "STUDIO-R9",
+    "lane": "SMB-PARITY-FOLLOWUP",
+    "candidate": "4d80e50d40432799c08f0f8b8f0047c9a00d056a",
+    "tree": "18b50331f3b2b92c1985cd8b83e00560d88096bf",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V1",
+    "review": "validation/R9-review-a.json",
+    "round_ref": "validation/round-R9.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R9",
+    "idempotency_key": "STUDIO-R9:SMB-PARITY-FOLLOWUP:4d80e50d4043:PASS_V1",
+    "recorded_at": "2026-10-11T14:23:56Z",
+    "by": "wp_validator STUDIO-R9"
+   }
+  ]
  }
 }

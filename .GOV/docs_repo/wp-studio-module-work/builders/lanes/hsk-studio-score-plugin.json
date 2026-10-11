@@ -145,6 +145,23 @@
     "idempotency_key": "STUDIO-R8:SMB-SCORE-PLUGIN:f6e5a490e2ad:PASS_V3",
     "recorded_at": "2026-10-11T12:42:21Z",
     "by": "wp_validator STUDIO-R8"
+   },
+   {
+    "round": "STUDIO-R9",
+    "lane": "SMB-SCORE-PLUGIN",
+    "candidate": "4d80e50d40432799c08f0f8b8f0047c9a00d056a",
+    "tree": "18b50331f3b2b92c1985cd8b83e00560d88096bf",
+    "decision": "passed",
+    "verdict": "PASS_V4",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V4",
+    "review": "NOT_REVIEWED as a lane (R9-review-b cx_val_009_sweep NO R8 CLAIM BROKEN)",
+    "round_ref": "validation/round-R9.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R9",
+    "idempotency_key": "STUDIO-R9:SMB-SCORE-PLUGIN:4d80e50d4043:PASS_V4",
+    "recorded_at": "2026-10-11T14:23:56Z",
+    "by": "wp_validator STUDIO-R9"
    }
   ],
   "scope_label": "READY_FOR_VALIDATION covers (1) the isolation/lifecycle slice exercised with the REFERENCE worker and (2) the native CLAP host path exercised against ONE standalone parameterless gain fixture. Not proven: CLAP latency/state/audio-ports/parameters/thread affinity of real third-party plugins, VST3, OS memory caps. Default builds are unaffected by feature clap (OFF).",

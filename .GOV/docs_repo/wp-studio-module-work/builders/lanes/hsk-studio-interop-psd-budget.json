@@ -57,32 +57,110 @@
   "v4_06_regex": "Budget|\\.budget\\b|raster_records_rejected|folio_rejected|inspect_bytes|validate_raster_records|MAX_EFFECTS|MAX_ITEMS_PER_CONTAINER|MAX_TOTAL_ITEMS|EffectLimit|effects_over_budget over crates/hsk-studio-interop-psd/src/**/*.rs, lines starting with // excluded (grep -rnP ... src --include=*.rs | grep -vP '^\\S+:\\d+:\\s*//'), measured at a5eff01",
   "v4_06_count": 26,
   "v4_06_sites": [
-   {"file_line": "src/descriptor.rs:19", "verdict": "NOT_APPLICABLE: constant, descriptor items per container (512); an over-count is a typed descriptor refusal, tested by hostile_descriptor_and_adjustment_sizes_are_typed_refusals"},
-   {"file_line": "src/descriptor.rs:21", "verdict": "NOT_APPLICABLE: constant, total descriptor items (8192), same test"},
-   {"file_line": "src/descriptor.rs:178", "verdict": "NOT_APPLICABLE: object item count over the container cap -> typed refusal, same test"},
-   {"file_line": "src/descriptor.rs:200", "verdict": "NOT_APPLICABLE: list item count over the container cap -> typed refusal, same test"},
-   {"file_line": "src/descriptor.rs:244", "verdict": "NOT_APPLICABLE: aggregate item counter start, same test"},
-   {"file_line": "src/effects.rs:25", "verdict": "NOT_APPLICABLE: import of Folio's MAX_EFFECTS (now only used by the const assert)"},
-   {"file_line": "src/effects.rs:29", "verdict": "FIXED: pigment's MAX_EFFECTS_PER_LAYER / MAX_EFFECTS_PER_PLAN are re-exported from their owner instead of Folio's 1024 being the only bound"},
-   {"file_line": "src/effects.rs:37", "verdict": "FIXED: typed loss code effects_over_budget for the per-layer degrade"},
-   {"file_line": "src/effects.rs:38", "verdict": "FIXED: compile-time guard that pigment's per-layer limit stays inside Folio's"},
-   {"file_line": "src/effects.rs:394", "verdict": "FIXED: per-layer cap now pigment's 64 (was Folio's 1024 with code effects_limit); the 65th mapped instance refuses the stack with effects_over_budget"},
-   {"file_line": "src/error.rs:27", "verdict": "FIXED: PsdError::EffectLimit variant (typed input error)"},
-   {"file_line": "src/error.rs:64", "verdict": "FIXED: stable code psd_effect_limit"},
-   {"file_line": "src/lib.rs:80", "verdict": "FIXED: DESCRIPTOR capability strings for the two new behaviours"},
-   {"file_line": "src/lib.rs:81", "verdict": "NOT_APPLICABLE: DESCRIPTOR raster_records sentence, unchanged (its 'unreadable or out-of-range record keeps the layer a typed unsupported layer' is now true for the budget cause too, tested by effects_heavy_layers_lose_their_stack_with_a_typed_loss_and_the_document_imports)"},
-   {"file_line": "src/lib.rs:82", "verdict": "FIXED: DESCRIPTOR effect_limits key, cites tests_effects_budget"},
-   {"file_line": "src/proposal.rs:39", "verdict": "NOT_APPLICABLE: import"},
-   {"file_line": "src/proposal.rs:40", "verdict": "NOT_APPLICABLE: import"},
-   {"file_line": "src/proposal.rs:121", "verdict": "NOT_APPLICABLE: ProposalConfig.budget field (caller-owned Folio budget, unchanged)"},
-   {"file_line": "src/proposal.rs:136", "verdict": "NOT_APPLICABLE: ProposalConfig::new signature, unchanged"},
-   {"file_line": "src/proposal.rs:533", "verdict": "FIXED: per-plan aggregate filter against pigment's MAX_EFFECTS_PER_PLAN"},
-   {"file_line": "src/proposal.rs:534", "verdict": "FIXED: over the per-plan limit -> PsdError::EffectLimit (typed input error)"},
-   {"file_line": "src/proposal.rs:1724", "verdict": "NOT_APPLICABLE by scope, see not_fixed[0]: inspect_bytes on the document with the caller's budget; layer count is bounded earlier by Limits::max_layers (psd_layer_limit); effects add no document nodes"},
-   {"file_line": "src/proposal.rs:1728", "verdict": "NOT_APPLICABLE by scope, see not_fixed[0]: folio_rejected for a rejection of the document itself (a different finding than PLR-053)"},
-   {"file_line": "src/proposal.rs:1740", "verdict": "FIXED: record-validation node budget sized from records + instances"},
-   {"file_line": "src/proposal.rs:1743", "verdict": "FIXED: validate_raster_records now receives the sized budget"},
-   {"file_line": "src/proposal.rs:1744", "verdict": "NOT_APPLICABLE: after the sizing a BudgetExceeded cannot come from the input; every remaining rejection here is a mapping defect, as the comment says (the parsers pre-check the Folio ranges)"}
+   {
+    "file_line": "src/descriptor.rs:19",
+    "verdict": "NOT_APPLICABLE: constant, descriptor items per container (512); an over-count is a typed descriptor refusal, tested by hostile_descriptor_and_adjustment_sizes_are_typed_refusals"
+   },
+   {
+    "file_line": "src/descriptor.rs:21",
+    "verdict": "NOT_APPLICABLE: constant, total descriptor items (8192), same test"
+   },
+   {
+    "file_line": "src/descriptor.rs:178",
+    "verdict": "NOT_APPLICABLE: object item count over the container cap -> typed refusal, same test"
+   },
+   {
+    "file_line": "src/descriptor.rs:200",
+    "verdict": "NOT_APPLICABLE: list item count over the container cap -> typed refusal, same test"
+   },
+   {
+    "file_line": "src/descriptor.rs:244",
+    "verdict": "NOT_APPLICABLE: aggregate item counter start, same test"
+   },
+   {
+    "file_line": "src/effects.rs:25",
+    "verdict": "NOT_APPLICABLE: import of Folio's MAX_EFFECTS (now only used by the const assert)"
+   },
+   {
+    "file_line": "src/effects.rs:29",
+    "verdict": "FIXED: pigment's MAX_EFFECTS_PER_LAYER / MAX_EFFECTS_PER_PLAN are re-exported from their owner instead of Folio's 1024 being the only bound"
+   },
+   {
+    "file_line": "src/effects.rs:37",
+    "verdict": "FIXED: typed loss code effects_over_budget for the per-layer degrade"
+   },
+   {
+    "file_line": "src/effects.rs:38",
+    "verdict": "FIXED: compile-time guard that pigment's per-layer limit stays inside Folio's"
+   },
+   {
+    "file_line": "src/effects.rs:394",
+    "verdict": "FIXED: per-layer cap now pigment's 64 (was Folio's 1024 with code effects_limit); the 65th mapped instance refuses the stack with effects_over_budget"
+   },
+   {
+    "file_line": "src/error.rs:27",
+    "verdict": "FIXED: PsdError::EffectLimit variant (typed input error)"
+   },
+   {
+    "file_line": "src/error.rs:64",
+    "verdict": "FIXED: stable code psd_effect_limit"
+   },
+   {
+    "file_line": "src/lib.rs:80",
+    "verdict": "FIXED: DESCRIPTOR capability strings for the two new behaviours"
+   },
+   {
+    "file_line": "src/lib.rs:81",
+    "verdict": "NOT_APPLICABLE: DESCRIPTOR raster_records sentence, unchanged (its 'unreadable or out-of-range record keeps the layer a typed unsupported layer' is now true for the budget cause too, tested by effects_heavy_layers_lose_their_stack_with_a_typed_loss_and_the_document_imports)"
+   },
+   {
+    "file_line": "src/lib.rs:82",
+    "verdict": "FIXED: DESCRIPTOR effect_limits key, cites tests_effects_budget"
+   },
+   {
+    "file_line": "src/proposal.rs:39",
+    "verdict": "NOT_APPLICABLE: import"
+   },
+   {
+    "file_line": "src/proposal.rs:40",
+    "verdict": "NOT_APPLICABLE: import"
+   },
+   {
+    "file_line": "src/proposal.rs:121",
+    "verdict": "NOT_APPLICABLE: ProposalConfig.budget field (caller-owned Folio budget, unchanged)"
+   },
+   {
+    "file_line": "src/proposal.rs:136",
+    "verdict": "NOT_APPLICABLE: ProposalConfig::new signature, unchanged"
+   },
+   {
+    "file_line": "src/proposal.rs:533",
+    "verdict": "FIXED: per-plan aggregate filter against pigment's MAX_EFFECTS_PER_PLAN"
+   },
+   {
+    "file_line": "src/proposal.rs:534",
+    "verdict": "FIXED: over the per-plan limit -> PsdError::EffectLimit (typed input error)"
+   },
+   {
+    "file_line": "src/proposal.rs:1724",
+    "verdict": "NOT_APPLICABLE by scope, see not_fixed[0]: inspect_bytes on the document with the caller's budget; layer count is bounded earlier by Limits::max_layers (psd_layer_limit); effects add no document nodes"
+   },
+   {
+    "file_line": "src/proposal.rs:1728",
+    "verdict": "NOT_APPLICABLE by scope, see not_fixed[0]: folio_rejected for a rejection of the document itself (a different finding than PLR-053)"
+   },
+   {
+    "file_line": "src/proposal.rs:1740",
+    "verdict": "FIXED: record-validation node budget sized from records + instances"
+   },
+   {
+    "file_line": "src/proposal.rs:1743",
+    "verdict": "FIXED: validate_raster_records now receives the sized budget"
+   },
+   {
+    "file_line": "src/proposal.rs:1744",
+    "verdict": "NOT_APPLICABLE: after the sizing a BudgetExceeded cannot come from the input; every remaining rejection here is a mapping defect, as the comment says (the parsers pre-check the Folio ranges)"
+   }
   ],
   "v4_07": "new claims: error.rs EffectLimit doc cites effects_over_the_plan_limit_are_a_typed_input_error_not_a_mapping_defect; proposal.rs collect_records doc and the validation-site comment cite the same test and effects_at_pigments_plan_limit_import_fully_with_the_record_budget_sized_from_the_input; DESCRIPTOR effect_limits cites tests_effects_budget. No 'never/always/guarantees/proves' left without a test",
   "retry_guard": "no gated run was blocked and none failed on a product cause in the shared tree. Red runs were launched with run_in_background (no exit code recorded by the guard) on the scratch tree; the first red run used an earlier version of the third test (a scratch-only change), the second the final test file. A first launch attempt began with variable assignments before the leading cd, so the hook resolved the wrong gameplan (WP-KERNEL-012, confirm_binding target missing) and blocked it; relaunched with cd first (the exact dispatch form). No gameplan step added",
@@ -92,6 +170,31 @@
    "inspect_bytes on the document with the caller's nodes still reports an input-caused budget refusal as Proposal(\"folio_rejected\") (proposal.rs:1724-1728), the same code family as PLR-053 but for document nodes (layers, operations, edges) which the caller's budget owns. R8 review B names it as a design choice. Cheap follow-up if wanted: map Code::BudgetExceeded there to a typed input error",
    "pigment counts live (enabled) effects per layer, the importer counts every mapped instance because Folio charges them all; a layer with more than 64 mapped instances of which some are disabled loses its whole stack here although pigment would accept the live ones. How often Photoshop-authored files reach 64 instances in one layer is UNVERIFIED (D5)",
    "a host that validates ImportProposal::raster_records again with its own default Budget (nodes 4096) gets BudgetExceeded for a document with about 4000 or more instances (records + instances is the need); no other crate calls validate_raster_records today (grep over crates/), and ImportProposal exposes no helper for the needed node count"
+  ],
+  "verdicts": [
+   {
+    "round": "STUDIO-R9",
+    "lane": "SMB-INTEROP-PSD-BUDGET",
+    "candidate": "4d80e50d40432799c08f0f8b8f0047c9a00d056a",
+    "tree": "18b50331f3b2b92c1985cd8b83e00560d88096bf",
+    "decision": "failed",
+    "verdict": "FAIL_V1",
+    "failures": [
+     {
+      "failure_kind": "product",
+      "failure_class": "document-wide-effect-cap-fails-whole-import",
+      "file_line": "crates/hsk-studio-interop-psd/src/proposal.rs:530-534; src/effects.rs:223,:357"
+     }
+    ],
+    "remediation": "count effects like pigment plan; beyond cap per-stack typed loss, no whole-import Err; test >4096 imports",
+    "status_after": "FAIL_V1",
+    "review": "validation/R9-review-a.json",
+    "round_ref": "validation/round-R9.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R9",
+    "idempotency_key": "STUDIO-R9:SMB-INTEROP-PSD-BUDGET:4d80e50d4043:FAIL_V1",
+    "recorded_at": "2026-10-11T14:23:56Z",
+    "by": "wp_validator STUDIO-R9"
+   }
   ]
  }
 }

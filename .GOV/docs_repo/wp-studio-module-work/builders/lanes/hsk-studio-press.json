@@ -1,8 +1,8 @@
 {
  "crate": "hsk-studio-press",
  "lane": "MT-35557 press: V4 hardening slice + remediation R6 + redaction gaps (slice 6) + remediation R7 pre-review B (N1-N7, lead PLR-039/PLR-040)",
- "status": "READY_FOR_VALIDATION",
- "phase": "R8 pre-review FIX_FIRST remediated (lead decision 2026-10-11T11:58:11Z: the proof fails closed) for both lanes: SMB-PRESS F1-F5 + P1 and SMB-PRESS-DIFFERENCES D1-D5; READY commit 49731a5 (nothing later touches the crate); 57/57 tests, clippy clean, 6 new regression tests red on 607d47c",
+ "status": null,
+ "phase": "R9 pre-review FIX_FIRST remediation in progress (builder rem-press-r9; lead decision 2026-10-11T13:10:26Z POSITIVE DETERMINATION) for SMB-PRESS (R9-F1..F3, R9-P1, R9-P2, R9-V1) and SMB-PRESS-DIFFERENCES (R9-D1..D3); last READY commit 49731a5 is superseded, nothing is READY until this remediation sets it",
  "commits": [
   {
    "sha": "70b4c74",
@@ -161,8 +161,8 @@
  "blockers": [],
  "lock_wait_s": 0,
  "bg_pids": [],
- "next": "Validator: judge SMB-PRESS and SMB-PRESS-DIFFERENCES together on 49731a5 (V4-14: commits 187e6cf..49731a5 incl. 607d47c and the three R8 commits). Lead items in notes.remediation_R8pre.residuals_for_lead (fmt, SMB-PRESS-GEOMETRY, stray non-tokenizing streams). Later lanes: SMB-PRESS-GEOMETRY (FontMatrix/WMode geometry), Acrobat fixture oracle (D5).",
- "updated_at": "2026-10-11T12:47:54Z",
+ "next": "rem-press-r9: one determination pass (font/writing mode/geometry/reading per show operator), selector font graphics state, normalised run matching, regression tests, red proofs on a scratch copy of 49731a5",
+ "updated_at": "2026-10-11T13:22:08Z",
  "notes": {
   "test_names": [
    "pdf_object_edit_save_independent_reopen",
@@ -1578,6 +1578,13 @@
     "Partial-ToUnicode opacity is strict: real composite fonts whose /ToUnicode omits glyphs that are drawn (symbols, some ligatures) now block with OpaqueText when a needle search ran."
    ]
   },
-  "v4_06_sha": "49731a5"
+  "v4_06_sha": "49731a5",
+  "remediation_R9pre": {
+   "review": "validation/R9-prereview-press.json (head 49731a5)",
+   "lead_decision": "START_LOG 2026-10-11T13:10:26Z POSITIVE DETERMINATION",
+   "builder": "rem-press-r9",
+   "status": "in_progress",
+   "started_at": "2026-10-11T13:21:24Z"
+  }
  }
 }

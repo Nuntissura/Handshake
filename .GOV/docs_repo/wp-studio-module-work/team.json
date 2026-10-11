@@ -1776,7 +1776,7 @@
     "verdict fields"
    ],
    "launched": "2026-10-11T13:53:55Z",
-   "status": "running"
+   "status": "done 2026-10-11T14:25:13Z (R9 COMPLETE: 36 PASS / 1 FAIL)"
   },
   {
    "name": "reviewer-r9-a",
