@@ -1,9 +1,29 @@
 {
   "crate": "hsk-studio-composite",
-  "lane": "SMB-COMPOSITE-CLIP-ALIGN",
-  "status": "READY_FOR_VALIDATION",
-  "phase": "slice 3 + clip align: clipping lowered to pigment clip-to-base route; pass-through group as clip base is a typed Unavailable (5814f8d)",
+  "lane": "SMB-COMPOSITE-ADJ-1",
+  "status": "BLOCKED",
+  "phase": "adjustments + mask parameters + Blend-If + knockout + effects wave 1/2 lowering and pass-through-fill ledger agreement (R6 remediation); 555ea97 green (20/20, clippy clean); dc8e91a (effects wave 2) compiles and is clippy clean, its tests are blocked by a stale pigment artifact in the shared target (infra)",
   "commits": [
+    {
+      "sha": "8ff8c7a",
+      "subject": "Composite DESCRIPTOR and docs: effects wave 2 (inner shadow, outer glow, inner glow) lowered, glow refusal keys, proof map cites the wave 2 test (V4-07)"
+    },
+    {
+      "sha": "dc8e91a",
+      "subject": "Composite effects wave 2 lowering: folio inner shadow, outer glow and inner glow -> pigment InnerShadowOp/OuterGlowOp/InnerGlowOp (spread/choke percent/100 with a lowering note, jitter 0 on solid-colour glows with note glow_jitter_ignored_solid_colour, gradient/range/Precise refused under pigment's feature keys); tests derive pixels from pigment render_layer_reference"
+    },
+    {
+      "sha": "555ea97",
+      "subject": "Composite effects wave 1 lowering: folio StudioEffectStack -> pigment EffectOps (drop shadow, colour overlay, solid stroke) in LayerExtension.effects; typed refusals; evaluation mirrors them; tests against pigment render_layer_reference; DESCRIPTOR v3"
+    },
+    {
+      "sha": "23f600b",
+      "subject": "Composite adjustments slice 1 tests: five hand-derived cases (adjustment placeholder + envelope entry, mask density/invert/feather, Blend-If order and units, knockout and effect-stack refusal, evaluation ledger keys and classes equal pigment)"
+    },
+    {
+      "sha": "cdc2c0f",
+      "subject": "Composite adjustments slice 1: lower_to_render_plan_extended builds pigment PlanExtensions from folio StudioRasterRecords; evaluate_extended records ExtOperator keys and classes from pigment; v1 operator literals derived from pigment Operator"
+    },
     {
       "sha": "99a03e6",
       "subject": "Composite R3: a hidden or empty clip base drops its clipped run in evaluation too (an Unavailable clipped layer no longer blocks the parent) and lowering stops checking that run's status for an empty base; regression test with hand-derived statuses, extents and layer counts"
@@ -48,7 +68,13 @@
     "clipping: Folio `clipped` lowers to MaskInput::clip_to_base() on the clipped layer; base = nearest unclipped input below in the group (consecutive clipped layers share it); hidden or empty base drops its clipped layers; Unavailable (typed, never ignored) for: no base (bottom layer or clipped root), clipped layer with its own mask (one mask slot), clipped layer that is a pass-through group",
     "clip align (new, SMB-COMPOSITE-CLIP-ALIGN): a visible non-empty pass-through group (default group mode) serving as a clip base is Unavailable `clip_base_pass_through` at both evaluate (parent step status + ledger operator clip_base_pass_through Unsupported, receipt lowest Unsupported) and lower_to_render_plan (authoritative, exactly when a clipped layer would be emitted on that base), consistent with render-cpu's typed refusal; a hidden or empty pass-through base drops its clipped layers (no refusal); an isolated (non-pass-through) group base lowers normally",
     "blend maths: none local; re-exports pigment (CX-CAP-001, test greps src); observe: outcome_of/eval_outcome/report; DESCRIPTOR v2 (mapping + unsupported list updated); example composite-consumer",
-    "R3 (SMB-COMPOSITE + SMB-COMPOSITE-CLIP-ALIGN CONFIRMED): evaluate() skips a clipped input whose clip base is hidden or empty (status, extent and pass-through check) so the parent is no longer input_unavailable because of a run lowering drops; lower_to_render_plan phase 1 uses the same rule (empty = Ready with no extent) so a clipped child of an empty base is not reachable either; an Unavailable (visible) base and a visible non-empty base keep the typed refusals"
+    "R3 (SMB-COMPOSITE + SMB-COMPOSITE-CLIP-ALIGN CONFIRMED): evaluate() skips a clipped input whose clip base is hidden or empty (status, extent and pass-through check) so the parent is no longer input_unavailable because of a run lowering drops; lower_to_render_plan phase 1 uses the same rule (empty = Ready with no extent) so a clipped child of an empty base is not reachable either; an Unavailable (visible) base and a visible non-empty base keep the typed refusals",
+    "extended lowering (SMB-COMPOSITE-ADJ-1): lower_to_render_plan_extended(plan, report, snap, &StudioRasterRecords, root, target, info) -> ExtendedLowering{plan, extensions: PlanExtensions, sources, mask_sources, exactness, notes: Vec<LoweringNote>}; evaluate_extended(plan, snap, &records, cancel); the v1 lower_to_render_plan / evaluate are unchanged (empty envelope path)",
+    "adjustment layers: a Layer over a transparent Solid placeholder (isolated group: the group content extent; pass-through group: the target extent; empty isolated group: dropped, it changes nothing) + LayerExtension.adjustment; levels (absent channel = IDENTITY), curves (/255, corner flag dropped = a lowering note, Approximate), hue_saturation (master or colorization values; zero-shift bands are the identity, a shifted band is hue_saturation_bands), brightness_contrast (use_legacy carried; modern refused by pigment admission, ledger Unsupported), exposure (linearize_gamma 1.0 linear_light / 2.2 encoded, a note; use_legacy refused), invert, threshold (/255; non-default colours refused threshold_colours), posterize",
+    "mask parameters: density/100 and inverted on the MaskInput, feather px in LayerExtension.mask_feather_px (enabled coverage mask only); Blend-If level/255 [black_start, black_end, white_start, white_end], source then destination, gray/red/green/blue, identity entries dropped; knockout Enabled (and Inherited resolved through containment) -> Knockout::Shallow, refused by pigment admit_extended as knockout_shallow, ledger Unsupported, eval_outcome Failure(Unsupported)",
+    "effects wave 1 (drop shadow, colour overlay, solid stroke) and wave 2 (inner shadow, outer glow, inner glow, colour source) -> LayerExtension.effects in list order (percent/100; spread and choke read as percent of the size with a note; Global Light resolved into the angle); refusals (typed, evaluation and lowering agree): other kinds layer_effects_not_rendered, effect_stack_scale, effect_contour, effect_noise, effect_stroke_fill, effect_stroke_overprint, effect_global_light_unresolved, effect_colour_missing/_profile/_linear_light, effect_parameter, effect_limit, effect_on_adjustment_layer/_pass_through/_clipped_layer/_clip_base, pigment feature keys glow_gradient/glow_range/glow_technique_precise",
+    "R6 remediation (remediation_R6): evaluation ledger agrees with pigment admission for a pass-through group with fill < 1: key PASS_THROUGH_FILL_OPERATOR, class Unsupported, step Unavailable, StepAppearance::exactness Unsupported; all v1 operator keys and classes in evaluation come from pigment Operator::key/intrinsic (test evaluation_ledger_keys_and_classes_are_pigments)",
+    "DESCRIPTOR v3 (extended lowering, proof map to tests, unsupported list shrunk only for what is lowered)"
   ],
   "tests": {
     "argv": [
@@ -60,15 +86,26 @@
       "--no-fail-fast"
     ],
     "exit": 0,
-    "sha": "99a03e6",
-    "passed": 13,
+    "sha": "555ea97",
+    "passed": 20,
     "failed": 0
   },
-  "blockers": [],
+  "blockers": [
+    {
+      "error": "INFRA, not a product failure: `cargo test -p hsk-studio-composite` at dc8e91a fails to compile with E0432/E0599 'no EffectFeature / GlowSource / GlowTechnique / InnerGlowOp / InnerShadowOp / OuterGlowOp in effect_math, no variant EffectOp::InnerShadow, no EffectError::Unsupported' although crates/hsk-studio-pigment/src/effect_math.rs (mtime 2026-10-11 08:27:22, d982b5c) has them and `cargo check`/`clippy` of composite pass. The shared target holds pigment rlib/rmeta variants built at 08:31:27, 08:33:07 and 08:33:49 whose rmeta contain no wave-2 symbols (grep -c EffectFeature = 0; the 08:24 and 08:30 variants have 6) and whose dep-info mtime is newer than every pigment source, so cargo treats them as fresh (`Dirty ... the dependency was rebuilt`, then compiles against the stale lib). Same class as V4-11 (a temporary revert or an older tree built into the shared target, then restored with an old mtime) and as the render-cpu and press lane incidents.",
+      "file_line": "crates/hsk-studio-composite/src/lower_extensions.rs:28 (imports), :453-545 (wave 2 arms); stale input: Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/target/debug/deps/libhsk_studio_pigment-{95e959967b98a116,ceda027bc2ee1a1e,78a6f59dbd347062}.rmeta",
+      "attempts": "1) cargo check/clippy (separate check artifacts) compile wave 2; 2) cargo build -p hsk-studio-pigment --tests -v shows pigment lib Fresh and its own effects_wave2 test failing the same way, so this is not composite code; 3) not done on purpose: touching pigment sources (V4-12: outside my owned paths), a private CARGO_TARGET_DIR (CX-984-002 one build per disk), changing flags (retry guard). Needed from the lead: `touch` crates/hsk-studio-pigment/src/{effect_math.rs,render_plan.rs,render_plan/extensions.rs,lib.rs} (mtime only) or remove the three stale pigment artifacts, then rerun; HEAD moves with other lanes' commits so the retry guard clears by itself. Retried at HEAD 7274827 and at the commit 8ff8c7a (HEAD had moved, the hook allowed it): the identical compile error each time, i.e. 3 failed runs, same infra cause; pigment sources untouched since 08:27:22."
+    },
+    {
+      "error": "FOLIO API GAP (needs a folio change, not editable here): an adjustment layer (kind adjustment, PrimitiveReference hsk.studio.adjustment@1) has no graph operation and no stack position. folio validate_document (crates/hsk-studio-folio/src/lib.rs:801-815) allows OperationKind::Source only for layer kinds raster/vector/text, so the layer cannot be an edge source into a group's ordered `inputs`; STU-CMP-092 (spec line 22455) makes input_ordinal the sole stack order and says storage-array order and containment do not create stack authority, and richer operation kinds need their own declared descriptors (line 22457). Result today: lower() never emits a step for an adjustment layer, so a real Snapshot cannot carry an adjustment layer into a plan.",
+      "file_line": "crates/hsk-studio-folio/src/lib.rs:801-815 (Source descriptor match on l.kind); spec 14-studio-creative-suite.md lines 22455-22457",
+      "attempts": "Composite lowers what is representable and refuses the rest: a visible adjustment layer contained (Parent::Node) in a rendered group but absent from the composition graph is Unavailable adjustment_not_in_composition_graph (never dropped); the lowering of the layer itself is exercised on a hand-built LoweredPlan step (tests adjustment_layer_lowers_to_transparent_placeholder_and_envelope_entry). Exact folio change needed (either): (A) in validate_document's Source arm accept l.kind == \"adjustment\" with Payload::PrimitiveReference{schema_id: hsk.studio.adjustment@1, object_id: own layer id}, value_type Image, cardinality One, semantic Source, so it is an edge source into the group's `inputs` with an input_ordinal; or (B) a new canonical operation kind `adjustment` (one output `out`, image) declared in the descriptor set with the same placement rule. Composite needs nothing more: lower() maps a Source op with an image output to Step::Source and the extended lowering recognises the layer by kind + payload."
+    }
+  ],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "Independent validator round on 99a03e6. Not addressed here (outside the R3 remediation assignment): R3 PLAUSIBLE items for composite (pigment Operator keys derived from literals, non-neutral pass-through root). Open from before: Photoshop semantics for a pass-through group as clip base and for the clipping-group rule are UNVERIFIED (oracle pending).",
-  "updated_at": "2026-10-11T03:18:00Z",
+  "next": "1) Lead: touch the pigment sources (or clear the 3 stale artifacts) so `cargo test -p hsk-studio-composite --tests` can run on dc8e91a; expected 21 tests (render_plan_lowering 16, static_plan 5); then the lane can be READY_FOR_VALIDATION on that sha. 2) Folio gap above (adjustment layer graph position). 3) Not done, by design: effects other than wave 1/2 kinds, gradient/pattern/Precise glows, bevel, satin (all typed refusals); Photoshop parity NOT_PROVEN (D5 cases 1-17).",
+  "updated_at": "2026-10-11T06:43:34Z",
   "notes": {
     "clip_align_lane": {
       "lane": "SMB-COMPOSITE-CLIP-ALIGN",
@@ -188,6 +225,65 @@
       "red_before_fix": "verified: against the pre-fix evaluate_static.rs/lower_render_plan.rs the new test fails (root status Unavailable input_unavailable:SLYR-...0003/source/out); fix restored byte-identical afterwards.",
       "tests_run": "composite --tests --no-fail-fast 13/13 (static_plan 5, render_plan_lowering 8); clippy --tests --examples clean; no crate depends on composite",
       "date": "2026-10-11T03:18:00Z"
+    },
+    "remediation_R6": {
+      "finding": "R6 review A: evaluate_static.rs rated a pass-through group with fill < 1 as Approximate (fill_opacity) while pigment admission (d576ec5) refuses it for every backend.",
+      "fix": "cdc2c0f: record_appearance records PASS_THROUGH_FILL_OPERATOR with class Unsupported; appearance_block makes the step Unavailable(PASS_THROUGH_FILL_OPERATOR) so lowering refuses too; StepAppearance::exactness is Unsupported for it; FillOpacity / PassThroughOpacity / clip_to_base come from Operator::key/intrinsic.",
+      "test": "tests/render_plan_lowering.rs evaluation_ledger_keys_and_classes_are_pigments (pass-through group with fill 25 percent: ledger key PASS_THROUGH_FILL_OPERATOR Unsupported, step Unavailable, plan.lowest_exactness Unsupported; FillOpacity and PassThroughOpacity keys/classes equal pigment's).",
+      "v4_06": {
+        "class": "composite hand-codes pigment operator keys or classes as literals (drift against pigment admission)",
+        "regex": "ledger\\.record\\(\\s*\"|Exactness::(Exact|Fitted|Approximate|Unsupported)\\b",
+        "sites_matched": 14,
+        "fixed": [
+          "src/lower_render_plan.rs:318 kind.key() + Unsupported (class marks pigment's own prepare() refusal of modern brightness/contrast)",
+          "src/lower_plan.rs:107 pass-through fill Unsupported (was Approximate)",
+          "src/evaluate_static.rs:216 PASS_THROUGH_FILL_OPERATOR Unsupported (was fill_opacity Approximate)",
+          "src/evaluate_static.rs:358 modern brightness/contrast Unsupported from AdjustmentOp::prepare()",
+          "src/evaluate_static.rs:474 PlanError::AdjustmentClipBase code as key",
+          "src/evaluate_static.rs:484 PlanError::EffectClipRun code as key"
+        ],
+        "also_replaced_before_the_regex_run": "the old record_appearance literals fill_opacity / group_pass_through_opacity / clip_to_base (evaluate_static.rs) and the Approximate literals in StepAppearance::exactness (lower_plan.rs) now use Operator::FillOpacity / PassThroughOpacity / Mask(BaseAlpha) key() and intrinsic()",
+        "not_applicable": [
+          "src/lib.rs:125 comparison, not a record",
+          "src/lower_plan.rs:178 fold identity",
+          "src/evaluate_static.rs:207 'source' Exact: composite-owned evaluation key (pigment calls it tile)",
+          "src/evaluate_static.rs:465 clip_base_pass_through Unsupported: composite-owned refusal key asserted by an existing test, no pigment operator exists",
+          "src/lower_extensions.rs:155,245,392,412 Approximate: composite's own lowering notes (curve corner, exposure exponent, spread/choke percent, glow jitter)"
+        ],
+        "count_check": "6 fixed + 8 not applicable = 14 matched"
+      },
+      "route": "tests: route (a) twice (product/test-fixture failure fixed by a commit, 23f600b and 555ea97, then rerun); the 08:3x failure of dc8e91a is infrastructure and no gameplan step was added (no machine check can see a stale artifact; the lead may want an mtime or rmeta-symbol freshness check of target artifacts)."
+    },
+    "adjustments_slice": {
+      "brief": "builders/briefs/lane-composite-adjustments.md",
+      "files": [
+        "src/lower_extensions.rs (new: record -> envelope conversion, refusal codes, LoweringNote)",
+        "src/lower_render_plan.rs (lower_to_render_plan_extended; v1 body shared, unchanged behaviour)",
+        "src/evaluate_static.rs (evaluate_extended; ledger from pigment)",
+        "src/lower_plan.rs (StepAppearance::exactness from pigment)",
+        "src/lib.rs (exports, eval_outcome, DESCRIPTOR v3)",
+        "tests/render_plan_lowering.rs (+7 tests), tests/static_plan.rs (descriptor version 3)"
+      ],
+      "tests_added": [
+        "adjustment_layer_lowers_to_transparent_placeholder_and_envelope_entry (acceptance 1; also pass-through area, v1 refusal, real-snapshot refusal, clip base adjustment, brightness/contrast modern vs legacy, hue bands, threshold colours)",
+        "mask_parameters_lower_to_density_invert_and_feather (acceptance 2)",
+        "blend_if_ranges_lower_in_pigment_order_and_units (acceptance 3)",
+        "knockout_and_effect_stack_are_refused (acceptance 4: knockout_shallow via admit_extended, Inherited, unsupported effect kind)",
+        "evaluation_ledger_keys_and_classes_are_pigments (acceptance 5)",
+        "effect_stack_lowers_to_pigment_ops_that_render_as_derived (wave 1, hand-derived pixels from pigment render_layer_reference)",
+        "effect_refusals_are_typed_and_nothing_is_dropped_or_approximated_silently",
+        "inner_shadow_and_glows_lower_to_pigment_ops_that_render_as_derived (wave 2; dc8e91a, not yet run: infra blocker)"
+      ],
+      "decisions_and_readings": [
+        "Return shape is a struct (ExtendedLowering), a superset of the brief's tuple: the MaskTable and the ledger are needed by the caller.",
+        "Hue/Saturation bands: all-zero bands are the identity (PSD writes six defaults) and are ignored; a band with any non-zero shift is refused hue_saturation_bands (the brief's 'any band' read as 'any band that does something').",
+        "Exposure use_legacy has no pigment counterpart: refused exposure_use_legacy. Channel enablement (channel_blend) other than all on: refused channel_blend_unsupported. Interior/clipped-effects and transparency-shapes toggles only matter with effects/knockout and are not carried (they are not refused).",
+        "Knockout Inherited resolves through the containment parent chain (Photoshop rule UNVERIFIED, D5 11); root layers with Blend-If, knockout or effects are wrapped so the wrapper layer carries the entry.",
+        "Effect colours: another profile than the document blending profile is refused (no conversion in composite); in a linear_light plan only channel values 0 and 1 are accepted (the profile transfer is not decoded here). Stack scale other than 100 is refused. visible_in_editor and anti_alias are not render inputs here (anti_alias only acts on a contour, and only a linear contour is accepted).",
+        "Spread and choke percent/100 (lead decision, spec unit conflict D19); glow jitter on a solid colour is passed as 0 and reported glow_jitter_ignored_solid_colour (lead decision, D5 16)."
+      ],
+      "not_proven": "NOT_PROVEN: Photoshop parity of every adjustment, Blend-If, mask density/feather, knockout and effect rendering (pigment classes are Approximate/Unsupported readings; D5 cases 1-17). Folio's drop shadow spread unit (pixels in STU-RAS-157, percent by observation and Photoshop UI) is a spec gap.",
+      "scratch": "helper scripts and message files live under <scratchpad>/lane-composite-adjustments/ with the composite-adj- prefix (V4-12)."
     }
   }
 }

@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T06:43:42Z",
+ "updated_at": "2026-10-11T06:44:43Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -1564,8 +1564,15 @@
    "phase": "build",
    "status": null,
    "owner": "builder-composite-adj",
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "cdc2c0f",
+    "23f600b",
+    "555ea97",
+    "dc8e91a",
+    "8ff8c7a"
+   ],
+   "verdicts": [],
+   "note": "adjustments (8 kinds) + mask density/invert/feather + Blend-If + knockout(refused shallow) + effects wave 1 lowered; ledger keys/classes from pigment; R6 pass-through fill fix; wave 2 lowered (dc8e91a, 8ff8c7a) awaiting rerun after stale pigment artifacts; 20/20 at 555ea97; real adjustment layers refused adjustment_not_in_composition_graph until SMB-FOLIO-ENG-6"
   },
   {
    "lane_id": "SMB-RENDER-CPU-ADJ",
@@ -1642,6 +1649,17 @@
    "verdicts": [],
    "candidate": "d982b5c",
    "note": "inner shadow (choke), outer glow, inner glow (edge/center) colour source, Approximate, shared matte chain; typed refusals glow_gradient/range/jitter/technique_precise; additive (EffectError non_exhaustive); 33 green (3 new); dependents compile; D5 cases 15-17"
+  },
+  {
+   "lane_id": "SMB-FOLIO-ENG-6",
+   "crate": "hsk-studio-folio",
+   "origin": "composite lowering gap (8ff8c7a): adjustment layers have no graph node",
+   "scope": "option A (lead): adjustment layer kind accepted in Source arm with PrimitiveReference hsk.studio.adjustment@1 naming its own record; stack position via input_ordinal (STU-CMP-092, STU-RAS-007)",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-folio-eng-6",
+   "commits": [],
+   "verdicts": []
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
