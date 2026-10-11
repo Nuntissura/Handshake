@@ -294,6 +294,8 @@ Workflow v3 amendments (2026-10-11T02:12:42Z, source workflow/workflow-review-ti
 - Lead acknowledgement 2026-10-11T19:08:49Z (press D27 flatten d079292): accepted — renderer hayro-interpret 0.7.0 (+ kurbo 0.13.1; top-level hayro rejected because it pulls `image`, which workspace-probe rejects; 0.8.0 too new) driving the crate's own rasteriser; normal (non-optional) dependencies; under redact_and_save, images/vectors/shadings/inline images in a region are painted over instead of refused (PdfDoc::redact_region alone still refuses); defaults 150 dpi, 2^24-pixel budget; residuals listed in lane notes.d27_flatten.
 - Operator directive 2026-10-11T19:08:49Z: no branching of gov_kernel; resolve our work with other agents' work. Done: local gov_kernel merged origin/gov_kernel (12 WP-KERNEL-012 commits, 0 overlapping paths) and pushed (185dd47b). One backup branch gov_kernel-backup-studio-20261011T190442Z was pushed BEFORE this directive arrived; deleting it needs Operator approval (not done).
 
+- Operator approval 2026-10-11T19:10:48Z: delete GitHub branch gov_kernel-backup-studio-20261011T190442Z. Done after verifying its tip dc7d0df0 is an ancestor of origin/gov_kernel (no commit lost).
+
 Open Operator decisions (not adopted; recorded for the Operator):
 - D1: explicit confirmation that builder focused tests override CX-EXEC-014 for this WP (lead adopted on the basis of Operator instructions; Operator may reverse).
 - D2: waive CX-984-002 one-build-per-disk for D: (would let validator rounds and builders build in parallel on separate targets).
