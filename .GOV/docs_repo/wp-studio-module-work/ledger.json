@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T02:39:54Z",
+ "updated_at": "2026-10-11T02:41:51Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -32,7 +32,12 @@
    "commits": [
     "3f6d5ab scaffold 27 crates",
     "47f212f Type transitive pins",
-    "96ad053 probe policy: native/wgpu/egui per designated owner; generated approved list"
+    "96ad053 probe policy: native/wgpu/egui per designated owner; generated approved list",
+    "9e867f5 sync (incl D9 edge, reverted later)",
+    "57ce0fa sync",
+    "ce4362e entrypoint step0",
+    "d842b6b probe semver build metadata",
+    "404ff3a sync (D9 edge reverted; probe 35/35; canary 26/26)"
    ],
    "verdicts": [],
    "note": "baseline 133 pass; 3 Type doctest failures (vendored ttf-parser examples src/provider/ttf/mod.rs:182,205,2080)"
@@ -417,12 +422,18 @@
    "lane_id": "SMB-PRESS",
    "crate": "hsk-studio-press",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-press",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-press",
    "brief": null,
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "70b4c74",
+    "08080cb",
+    "8b24131"
+   ],
+   "verdicts": [],
+   "candidate": "8b24131",
+   "note": "own bounded PDF parser/writer (lopdf rejected: 57-pkg closure > probe cap 35); text redaction + payload proof; refusals; 5 tests; slice2 XObject text/LZW/sanitize in progress"
   },
   {
    "lane_id": "SMB-WEB",
@@ -704,11 +715,12 @@
    "status": "READY_FOR_VALIDATION",
    "owner": "steward",
    "commits": [
-    "faf1be4"
+    "faf1be4",
+    "ce4362e"
    ],
    "verdicts": [],
-   "candidate": "faf1be4",
-   "note": "tools/run-round.sh + .config/nextest.toml; export mode refreshes mtimes (shared target reuse trap); canary mode"
+   "candidate": "ce4362e",
+   "note": "step 0 fail-fast metadata --locked + registry-sync check (exit 75); export mode rewrites nothing"
   },
   {
    "lane_id": "SMB-TYPE-ENV",

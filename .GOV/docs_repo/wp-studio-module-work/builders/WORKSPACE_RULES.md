@@ -23,12 +23,12 @@ owner: workspace-steward
 
 <topic id="path-deps" status="active" summary="Allowed intra-Studio edges (root workspace.metadata.studio.dependencies)">
 
-- Add allowed edges yourself: `hsk-studio-<dep> = { path = "../hsk-studio-<dep>", version = "=0.1.0", default-features = false }`. Other edges reject (`dependency_outside_declared_dag`); a new edge needs a lead decision, then the steward adds it (`steward-sync.sh --add-edge crate=dep`).
+- Add allowed edges yourself: `hsk-studio-<dep> = { path = "../hsk-studio-<dep>", version = "=0.1.0", default-features = false }`. Other edges reject (`dependency_outside_declared_dag`); a new edge needs a lead decision, then the steward adds it (`steward-sync.sh --add-edge crate=dep`; `--remove-edge` reverts). interop-media -> pulse (D9) is NOT allowed (Operator decision pending).
 - Every crate may use `accord` + `observe`, except: accord -> none; observe -> accord; folio -> accord only. Extra edges:
 - chronicle: folio | pigment: prism, folio | prism, nib, type, score, reel, controls: none
 - layout: folio, type, nib | develop: pigment, prism | components: folio, layout | pulse: folio
-- motion: folio, nib, type | composite: folio, prism, pigment, nib, type | interop-media: folio, pulse (D9)
-- render-cpu, render-gpu: prism, pigment, nib, type | package, interop-lrcat, press, web: folio
+- motion: folio, nib, type | composite: folio, prism, pigment, nib, type
+- render-cpu, render-gpu: prism, pigment, nib, type | package, interop-media, interop-lrcat, press, web: folio
 - interop-psd: folio, pigment, prism, type | interop-vector: folio, nib, type, prism
 - interop-fig: folio, components, type | interop-layout: folio, layout, type, prism
 - session: folio, chronicle, package | harness: folio, session, controls | kernel-bindings: folio, session
@@ -46,7 +46,7 @@ owner: workspace-steward
 
 <topic id="steward-sync" status="active" summary="Steward sync commit method (round candidate)">
 
-- Tool: `bash .GOV/docs_repo/wp-studio-module-work/tools/steward-sync.sh [--add-edge crate=dep]` (helpers: export-refresh.sh, edges.py, license_gate.py, probe_provenance.py; assets `tools/registry-sync.py`).
+- Tool: `bash .GOV/docs_repo/wp-studio-module-work/tools/steward-sync.sh [--add-edge|--remove-edge crate=dep] [--allow-unrequested]` (helpers: export-refresh.sh, edges.py, license_gate.py, probe_provenance.py; assets `tools/registry-sync.py`).
 - Steps: require HEAD == origin; refresh `Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/sync-export/src` in place (dedicated index, changed files only); derive Cargo.lock with `cargo metadata --offline` (minimal, pins kept, never `cargo update`); `registry-sync.py --write`; license gate; verify `cargo metadata --locked --offline`, registry-sync check, probe per crate.
 - Commit: temp `GIT_INDEX_FILE`, `git read-tree HEAD`, `update-index --cacheinfo` for changed Cargo.lock / root Cargo.toml / tools/workspace-probe.rs only, `write-tree`, `commit-tree -p HEAD`, `git update-ref refs/heads/codex/handshake-studio-assets <new> <HEAD>` (CAS; fails if a builder moved HEAD -> rerun), push. Shared index and working files untouched. SYNC_SHA = round candidate; the sync export gets its ROUND_IDENTITY.
 - Round entrypoint `tools/run-round.sh` (export mode) rewrites nothing: step 0 `cargo metadata --locked --offline` + `registry-sync.py` check exit 75 on drift -> request a steward sync.
