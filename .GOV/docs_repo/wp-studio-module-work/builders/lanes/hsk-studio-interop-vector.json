@@ -2,7 +2,7 @@
   "crate": "hsk-studio-interop-vector",
   "lane": "SMB-INTEROP-VECTOR-1",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice3-masking-patterns-R6",
+  "phase": "slice4-vector-records (c8fb9c3 pushed; 23/23 tests, clippy clean)",
   "commits": [
     {
       "sha": "f058a1b",
@@ -39,6 +39,10 @@
     {
       "sha": "42fba02",
       "subject": "slice 3: pattern, clipPath and mask references resolved to exact results or typed losses (css.rs, masking.rs); style/url() tokenised as CSS; export reports Folio layer mask, clip-to-base, blend mode, fill opacity; arithmetic deny on svg_adapter.rs and svg_export.rs; 5 tests"
+    },
+    {
+      "sha": "c8fb9c3",
+      "subject": "slice 4: patterns, clipPaths and masks are stored in the Folio vector records (hsk.studio.vector_records@1) and exported from them; clip-rule/fill-rule keywords case-insensitive; 4 new tests, 6 expectations updated where a loss disappears"
     }
   ],
   "capabilities_done": [
@@ -59,21 +63,84 @@
     "slice 3 pattern paint: href chain with visited set and depth 8 (SVG 2 16.1.6 href over xlink:href, 16.1.2 loops invalid), attribute and content inheritance per SVG 1.1 13.3 / SVG 2; zero or missing tile, singular patternTransform and no content paint nothing (Ignored pattern_zero_size_no_paint, pattern_transform_singular_no_paint, pattern_empty_no_paint); negative tile and href loop are invalid references (fallback colour); a real tiling is Unsupported pattern_paint_not_representable with the author's fallback colour as stand-in (Approximated pattern_fallback_color_used); pattern_href_cycle, pattern_href_chain_too_long, pattern_units_unparsed, pattern_size_negative; definitions Ignored pattern_definition_not_stored; gradient href chains over 8 now report gradient_href_chain_too_long instead of being cut silently; href over xlink:href for gradients",
     "slice 3 hardening (V4-01/02/08): one reference work budget ((max_segments + max_nodes) x 32 units, BudgetExceeded reference_work) charged by every clip/mask/pattern walk and style lookup, at most 64 children examined per definition; deny(clippy::arithmetic_side_effects) on svg_adapter.rs (css.rs, masking.rs inherit) and svg_export.rs with all integer sites checked or saturating; style attributes and url() tokenised per CSS Syntax 3 (css.rs: comments, strings, brackets, escapes decoded in identifiers, hex escape whitespace, case-insensitive names, !important, bare url tokens) replacing split(';') and contains(url paren); an infinite or NaN tolerance can no longer prove containment (found by the overflow test, fixed in 42fba02)",
     "slice 3 export: export_proposal reports Folio layer appearance SVG cannot hold instead of dropping it silently: layer_mask_not_exported (Unsupported; Ignored layer_mask_disabled_not_exported), layer_clipped_to_base_not_exported, layer_blend_mode_not_exported, layer_fill_opacity_not_exported, group_pass_through_isolated (Approximated); no-op clips and masks round-trip (import -> export -> import has no clip loss), hidden layers round-trip as display=none",
-    "R6 (60b998c): export_proposal reports working_space_not_converted (Unsupported, once per paint use incl. gradient stops) for Unassigned colours when the document assigns working_space_rgb; a colour with its own Assigned profile reports colour_profile_not_converted only; flat export_svg has no document and cannot know"
+    "R6 (60b998c): export_proposal reports working_space_not_converted (Unsupported, once per paint use incl. gradient stops) for Unassigned colours when the document assigns working_space_rgb; a colour with its own Assigned profile reports colour_profile_not_converted only; flat export_svg has no document and cannot know",
+    "slice 4 import (c8fb9c3, svg_adapter/defs.rs): VectorProposal.vector_records (StudioVectorRecords, validated by validate_vector_records against snapshot + design). clipPath not provably a no-op -> hidden group under the artboard of its member shapes in document points (one vector layer per member, VectorPath winding = clip-rule; path/rect/circle/ellipse/polygon/polyline and use of a shape with x/y shift; clipPathUnits objectBoundingBox converted with the element box) + StudioVectorClip + StudioMaskAttachment; clip-path on the clipPath or on a member nests as the attachment of that group or member. mask -> hidden group of the content walked with the normal import (paint included) + StudioVectorMask (mode from mask-type, region from x/y/width/height converted to a document-point rectangle, maskUnits/maskContentUnits objectBoundingBox converted) + attachment. Tiling pattern -> hidden tile group in tile space + StudioPattern (definition model, tile in pt, move_tile_with_art true) + StudioPatternPaint on the painted style row (placement Matrix = element matrix x patternTransform x cell origin x 1/px_to_pt; viewBox/preserveAspectRatio, patternContentUnits, patternUnits objectBoundingBox converted; stroke and fill rows); stand-in row paint = author fallback colour, else first solid colour of the tile (pattern_stand_in_derived), tile content outside the cell gets a stored tile-cell clip unless overflow is visible/auto. Identical uses share a record (DefKey: definition, matrix, box when a unit needs it); definitions built in a frame (own layer/path/outset vectors), cut back to a Mark on failure; own element/segment allowance for definition content (soft failure definition_budget); depth 8 and loop refusal; 64-member cap. Definitions no use stored are still reported Ignored *_definition_not_stored (deferred to the end of the import).",
+    "slice 4 export (svg_export/records.rs): export_proposal validates the records, writes <pattern> (one per pattern+matrix, patternTransform), <clipPath> (clip-rule, nested clip-path) and <mask> (maskUnits userSpaceOnUse region, mask-type alpha) in <defs> as a worklist, clip-path/mask attributes from attachments, url(#p) fallback-colour paints for bound rows; hidden source layers are written in their definition only; ids avoid layer names; the tile-cell clip is left to the pattern overflow default; typed export losses for parametric/live-source placement, VECTOR masks, mask inversion/mask_clip, brick/hex tiles, negative spacing, group references and masks inside a clip"
   ],
   "tests": {
-    "argv": "cargo test -p hsk-studio-interop-vector --tests --no-fail-fast",
+    "argv": "cargo nextest run -p hsk-studio-interop-vector --tests --no-fail-fast",
     "exit": 0,
-    "sha": "42fba02",
-    "passed": 19,
+    "sha": "c8fb9c3",
+    "passed": 23,
     "failed": 0
   },
   "blockers": [],
-  "lock_wait_s": 0,
+  "lock_wait_s": 74,
   "bg_pids": [],
-  "next": "Validator round on 42fba02 for crates/hsk-studio-interop-vector (19 tests: 13 earlier + assigned_working_space_export_is_a_typed_loss + masking_patterns.rs 5; two earlier pattern fixtures now carry tile content). Folio needs (lead): pattern paint kind (STU-VEC-017/138 StudioPattern), vector clip and vector mask records with mask mode ALPHA|VECTOR|LUMINANCE (STU-VEC-053) and a clip-path/mask reference field on layers, so patterns, clips and masks can be carried instead of reported. Later: text, brushes, artboards, an Illustrator-saved fixture for the AI markers.",
-  "updated_at": "2026-10-11T06:47:11Z",
+  "next": "Validator round on c8fb9c3 for crates/hsk-studio-interop-vector (23 tests: 19 earlier with 6 expectation updates + tests/vector_records_roundtrip.rs 4 new). Folio follow-ups (lead, optional): a StudioPaint pattern variant would remove the stand-in/binding indirection (needs 3 match arms here); parametric/live-source pattern placement export needs the composition order of the 8 STU-COL-196 fields (spec gap); VECTOR mask semantics; a vector-record reference for mixed clip rules (union of two rules). Later: text, brushes, artboards, an Illustrator-saved fixture for the AI markers.",
+  "updated_at": "2026-10-11T08:08:05Z",
   "notes": {
+    "slice4": {
+      "source": "folio SMB-FOLIO-ENG-7 (d0eb304, aa0351a) notes.consumer_mapping; follow-up slice of this lane",
+      "candidate": "c8fb9c3 (builder claim only; no PASS claimed)",
+      "mapped": [
+        "pattern fill/stroke (patternUnits/patternContentUnits objectBoundingBox|userSpaceOnUse, x/y/width/height, viewBox + preserveAspectRatio, patternTransform, href chain) -> StudioPattern{definition} + StudioPatternPaint{Matrix} on the style row; stand-in = author fallback or first tile colour",
+        "clipPath (userSpaceOnUse; objectBoundingBox without transform; shapes + use of a shape; clip-rule nonzero|evenodd, one rule per clip; clip-path on the clipPath and on members) -> StudioVectorClip + StudioMaskAttachment",
+        "mask (luminance|alpha via mask-type attribute or CSS; maskUnits/maskContentUnits both units; content with paint, gradients, nested clips/patterns) -> StudioVectorMask{region} + attachment",
+        "tile content leaving the cell -> stored tile-cell clip on the tile group (SVG overflow hidden); overflow visible|auto -> none"
+      ],
+      "still_lost_import": [
+        "clip: mixed clip-rule among path/polygon/polyline members (clip_rule_mixed); text or other non-shape member, use of a non-shape (clip_member_unsupported); unparsable member transform/lengths (clip_member_unparsed); more than 64 members; objectBoundingBox clipPath with transform (clip_units_not_stored, order UNVERIFIED); nested clip-path on a clipPath with transform or objectBoundingBox units; clipPathUnits value unparsed; clip-path on the root svg element",
+        "mask: own mask/clip-path/filter on the mask element; color-interpolation linearRGB; unusable mask-type; unparsable units or region; negative region; region or geometry beyond 1e9; content that produced no layer; mask on the root svg element; a rotated or skewed element gets the bounding box of the region (Approximated mask_region_bounding_box)",
+        "pattern: unparsable units/transform/viewBox/size (pattern_paint_not_representable + reason); objectBoundingBox on a box without width or height (pattern_degenerate_bbox); tile beyond 1e9; href chain over 8; loops",
+        "all: loop (*_reference_cycle), nesting over 8 (*_depth_exceeded), definition content over max_nodes elements / max_segments segments (definition_budget), geometry out of range (definition_geometry_out_of_range) - each a typed loss, the element stays as drawn"
+      ],
+      "still_lost_export": [
+        "parametric pattern placement (composition order of the 8 STU-COL-196 fields is a spec gap), live-source patterns, brick/hex tile types, negative spacing, VECTOR masks, invert_mask, mask_clip, a group reference or mask on a clip member, pattern stand-in that is a gradient"
+      ],
+      "test_expectation_changes": {
+        "masking_patterns.rs clip_path_exact_or_typed_loss": "hanging-out, tight-stroke, objectBoundingBox half-width, use with shift, nested clips and clip-rule evenodd cases no longer expect clip_path_not_representable / clip_rule_evenodd: they expect a stored clip, attachment counts and the rule (obb-with-transform stays typed)",
+        "masking_patterns.rs mask_exact_or_typed_loss": "luminance grey, stroke reach, late region, obb content half, topmost-child variants expect a stored mask instead of mask_not_representable + mask_type_*; bogus mask-type, own mask attribute and huge region stay typed",
+        "masking_patterns.rs pattern_paint_exact_or_typed_loss": "pattern_paint_not_representable count 5 -> 1 (only unparsable units); stored patterns 3 / bindings 4; pattern_definition_not_stored 10 -> 7 (definitions no use stored); stand-in styles exist; 8-hop chain stores a pattern",
+        "masking_patterns.rs hostile_references_are_bounded": "default-budget fan-out stores 5 clips (identical uses share a record) instead of clip_path_not_representable",
+        "paint_stroke_svgz.rs design_records_are_the_single_source": "pattern layer now has a stand-in style: paint_styles 1 -> 3, design nodes 2 -> 4, binding present; the dangling-style export case first expects Folio DanglingReference (the pattern binding dangles) and then the style_ref_unresolved fallback with the records emptied",
+        "vector_edit_roundtrip.rs unit_loss_stale_profile": "pattern codes pattern_definition_not_stored / pattern_paint_not_representable -> pattern_stand_in_derived and one stored pattern"
+      },
+      "api_change": "additive: VectorProposal.vector_records; new LossEntry codes; Limits docs; the interop-vector-consumer example exports with export_proposal; export_proposal returns VectorError::Folio when the records do not validate; export_svg (flat) has no document or records and draws the hidden source geometry of definition layers as ordinary paths (documented on the function)",
+      "spec_gaps_and_unverified": [
+        "UNVERIFIED: patternContentUnits=objectBoundingBox scales by the box size from the cell origin without adding the box origin (SVG 1.1 text read: content origin is the cell (x, y); the obb case is not settled)",
+        "UNVERIFIED: order of clipPath transform and the bounding-box map (the spec text read does not give it): such a clipPath stays a typed loss",
+        "UNVERIFIED: pattern with objectBoundingBox units on a box without width or height paints nothing (kept typed, not claimed exact)",
+        "move_tile_with_art = true is a reading (pattern fixed in the user space of the element); Folio gives no SVG counterpart",
+        "tile space (points, origin at the cell corner) and the Matrix meaning 'tile space to document points' are this crate's reading of Folio's 'pattern space'; Folio's note does not define the origin",
+        "a clip's members are unioned layer by layer, each with the clip rule; whether a Folio consumer unions member layers or treats them as one compound path is not stated (differs for evenodd overlaps between members)",
+        "mask region is an axis-aligned rectangle: a rotated element gets the bounding box (reported)"
+      ],
+      "v4": {
+        "V4-01": "svg_adapter.rs (defs.rs, masking.rs inherit) and svg_export.rs (records.rs inherits) keep deny(clippy::arithmetic_side_effects); clippy clean",
+        "V4-02": "records_stay_bounded_and_typed: tile 1e300 (dims analogue), definition allowance exceeded after the first of four mask uses (aggregate), depth chain of 12 patterns stops at 8, loops for mask/pattern/clip; reference_work budget unchanged",
+        "V4-03": "no #[ignore], no machine-local path in the new tests",
+        "V4-04": "no fault hooks",
+        "V4-05": "no ZIP/CRC/deflate/worker/timecode code added",
+        "V4-06": "not a remediation lane",
+        "V4-07": "DESCRIPTOR masking text cites tests/vector_records_roundtrip.rs tests; no never/always/guarantees/proves added in new docs",
+        "V4-08": "overflow and clip-rule read as CSS: escaped property name, upper-case keyword and whitespace, comment decoy, presentation attribute vs style (pattern_paint_is_stored_and_round_trips, clip_paths_nested_evenodd_round_trip); clip-rule/fill-rule keywords now compare case-insensitively (found while writing the case test)",
+        "V4-09": "commit message via git commit -F; this lane file via Edit",
+        "V4-11": "no file restored with preserved timestamps; no scratch tree needed",
+        "V4-12": "helper files only under <scratchpad>/smb-vector-records/"
+      },
+      "verification": {
+        "check_clippy": "cargo clippy -p hsk-studio-interop-vector --tests --examples: no warning in this crate (two pre-existing too_many_arguments warnings in hsk-studio-observe)",
+        "tests": "cargo nextest run -p hsk-studio-interop-vector --tests --no-fail-fast: 23/23 pass on the tree equal to c8fb9c3 (cargo test is refused by studio-env.sh, per-test runner used)",
+        "rustfmt": "defs.rs, records.rs, vector_records_roundtrip.rs rustfmt --edition 2024 clean; older files not reformatted",
+        "descriptor_json": "DESCRIPTOR parses as JSON (node check of the raw string)"
+      },
+      "retry_guard_route": "no gated command was blocked; two product failures (a hostile-case expectation and a mask-use budget count in my own new test, plus a missing member-length refusal found by hostile_references_are_bounded) were fixed by source/test changes before the pushed commit",
+      "workflow_observations": [
+        "studio-env.sh refuses cargo test and requires cargo nextest run; the dispatch text still says cargo test",
+        "first commit on this slice is the only one: the session limit cut the run after the push, the lane file was updated afterwards"
+      ]
+    },
     "remediation_R5": {
       "source": "validation/R5-review-c.json lanes SMB-INTEROP-VECTOR (f058a1b) and SMB-INTEROP-VECTOR-FOLIO-MIGRATE (30c3e64), reviewed at 1d404f8",
       "candidate": "3561b12",

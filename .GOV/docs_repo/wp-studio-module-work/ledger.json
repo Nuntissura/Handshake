@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T08:06:27Z",
+ "updated_at": "2026-10-11T09:53:33Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -1878,11 +1878,15 @@
    "crate": "hsk-studio-interop-vector",
    "origin": "follow-up",
    "scope": "map SVG pattern/clip/mask to StudioVectorRecords; export round trip",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-vector-records",
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "c8fb9c3"
+   ],
+   "verdicts": [],
+   "candidate": "c8fb9c3",
+   "note": "slice 4: SVG patterns/clipPaths/masks stored as folio StudioVectorRecords on import (pattern paint matrix placement, evenodd + nested clips, luminance/alpha masks with region) and written back by export_proposal; round trip is a fixed point; remaining typed losses listed in lane notes; export_proposal returns VectorError::Folio when records do not validate; 23 of 23 green; 6 expectations changed where losses disappeared"
   },
   {
    "lane_id": "SMB-WEB-DIFFTEST",
@@ -2063,7 +2067,8 @@
   "SMB-KERNEL-BINDINGS",
   "SMB-HARNESS",
   "SMB-RENDER-CPU-WINDOW",
-  "SMB-RENDER-CPU-FX2"
+  "SMB-RENDER-CPU-FX2",
+  "SMB-INTEROP-VECTOR-RECORDS"
  ],
  "round_R6": {
   "candidate": "bd8533f",
