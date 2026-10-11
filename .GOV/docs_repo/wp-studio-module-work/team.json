@@ -1824,6 +1824,17 @@
    ],
    "launched": "2026-10-11T14:15:33Z",
    "status": "running"
+  },
+  {
+   "name": "prereview-r10-reel-route",
+   "agent_id": "a0f0b39c253eb4402",
+   "model": "sonnet",
+   "role": "V4-13 narrow pre-review SMB-REEL-AV1-ROUTE after 0474906",
+   "owns": [
+    "validation/R10-prereview-reel-route.json"
+   ],
+   "launched": "2026-10-11T14:25:45Z",
+   "status": "running"
   }
  ]
 }
