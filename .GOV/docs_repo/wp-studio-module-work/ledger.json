@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T05:37:43Z",
+ "updated_at": "2026-10-11T05:40:44Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -50,7 +50,7 @@
    "crate": "hsk-studio-layout",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-layout",
    "phase": "done",
-   "status": "PASS_V1",
+   "status": "PASS_V2",
    "owner": "builder-folio-eng-1 (reused)",
    "brief": "builders/briefs/hsk-studio-layout.md",
    "commits": [
@@ -58,7 +58,8 @@
     "259ea44"
    ],
    "verdicts": [
-    "STUDIO-R3 PASS_V1 @404ff3a"
+    "STUDIO-R3 PASS_V1 @404ff3a",
+    "STUDIO-R5 PASS_V2 @1d404f8"
    ],
    "lane_file": "builders/lanes/hsk-studio-layout.json",
    "candidate": "259ea44",
@@ -69,8 +70,8 @@
    "lane_id": "SMB-DEVELOP",
    "crate": "hsk-studio-develop",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-develop",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "build",
+   "status": "FAIL_V2",
    "owner": "builder-develop",
    "brief": "builders/briefs/hsk-studio-develop.md",
    "commits": [
@@ -84,7 +85,8 @@
     "12e3043"
    ],
    "verdicts": [
-    "STUDIO-R3 FAIL_V1 @404ff3a"
+    "STUDIO-R3 FAIL_V1 @404ff3a",
+    "STUDIO-R5 FAIL_V2 @1d404f8"
    ],
    "lane_file": "builders/lanes/hsk-studio-develop.json",
    "candidate": "d40d553",
@@ -101,8 +103,8 @@
    "lane_id": "SMB-COMPONENTS",
    "crate": "hsk-studio-components",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-components",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "build",
+   "status": "FAIL_V2",
    "owner": "builder-components",
    "brief": null,
    "commits": [
@@ -113,7 +115,8 @@
     "0111960"
    ],
    "verdicts": [
-    "STUDIO-R3 FAIL_V1 @404ff3a"
+    "STUDIO-R3 FAIL_V1 @404ff3a",
+    "STUDIO-R5 FAIL_V2 @1d404f8"
    ],
    "lane_file": "builders/lanes/hsk-studio-components.json",
    "candidate": "0111960",
@@ -130,7 +133,7 @@
    "crate": "hsk-studio-pulse",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-pulse",
    "phase": "done",
-   "status": "PASS_V1",
+   "status": "PASS_V2",
    "owner": "builder-pulse",
    "brief": "builders/briefs/hsk-studio-pulse.md",
    "commits": [
@@ -142,7 +145,8 @@
     "6823c34"
    ],
    "verdicts": [
-    "STUDIO-R3 PASS_V1 @404ff3a"
+    "STUDIO-R3 PASS_V1 @404ff3a",
+    "STUDIO-R5 PASS_V2 @1d404f8"
    ],
    "lane_file": "builders/lanes/hsk-studio-pulse.json",
    "candidate": "b12a524",
@@ -173,7 +177,8 @@
     "70ce263"
    ],
    "verdicts": [
-    "STUDIO-R3 FAIL_V1 @404ff3a"
+    "STUDIO-R3 FAIL_V1 @404ff3a",
+    "STUDIO-R5 PASS_V2 @1d404f8 (newer submission 70ce263 pending)"
    ],
    "lane_file": "builders/lanes/hsk-studio-score.json",
    "candidate": "70ce263",
@@ -185,8 +190,8 @@
    "lane_id": "SMB-REEL",
    "crate": "hsk-studio-reel",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-reel",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "done",
+   "status": "PASS_V2",
    "owner": "builder-reel",
    "brief": "builders/briefs/hsk-studio-reel.md",
    "commits": [
@@ -202,7 +207,8 @@
     "dcc1b37"
    ],
    "verdicts": [
-    "STUDIO-R3 FAIL_V1 @404ff3a"
+    "STUDIO-R3 FAIL_V1 @404ff3a",
+    "STUDIO-R5 PASS_V2 @1d404f8"
    ],
    "lane_file": "builders/lanes/hsk-studio-reel.json",
    "candidate": "dcc1b37",
@@ -237,8 +243,8 @@
    "lane_id": "SMB-COMPOSITE",
    "crate": "hsk-studio-composite",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-composite",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "done",
+   "status": "PASS_V2",
    "owner": "builder-composite",
    "brief": "builders/briefs/hsk-studio-composite.md",
    "commits": [
@@ -251,7 +257,8 @@
     "99a03e6"
    ],
    "verdicts": [
-    "STUDIO-R3 FAIL_V1 @404ff3a"
+    "STUDIO-R3 FAIL_V1 @404ff3a",
+    "STUDIO-R5 PASS_V2 @1d404f8"
    ],
    "lane_file": "builders/lanes/hsk-studio-composite.json",
    "candidate": "99a03e6",
@@ -262,8 +269,8 @@
    "lane_id": "SMB-RENDER-CPU",
    "crate": "hsk-studio-render-cpu",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-render-cpu",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "done",
+   "status": "PASS_V2",
    "owner": "builder-render-cpu",
    "brief": "builders/briefs/hsk-studio-render-cpu.md",
    "commits": [
@@ -277,7 +284,8 @@
     "9468d33"
    ],
    "verdicts": [
-    "STUDIO-R3 FAIL_V1 @404ff3a"
+    "STUDIO-R3 FAIL_V1 @404ff3a",
+    "STUDIO-R5 PASS_V2 @1d404f8"
    ],
    "lane_file": "builders/lanes/hsk-studio-render-cpu.json",
    "note": "migrated to pigment RenderBackend + blend_math; 5 tests; Adobe parity NOT_PROVEN; VectorFill on nib OwnedPath; deterministic parallel chunks",
@@ -301,7 +309,8 @@
     "167dc28"
    ],
    "verdicts": [
-    "STUDIO-R3 FAIL_V1 @404ff3a"
+    "STUDIO-R3 FAIL_V1 @404ff3a",
+    "STUDIO-R5 FAIL_V2 @1d404f8 (newer submission 167dc28 pending)"
    ],
    "lane_file": "builders/lanes/hsk-studio-render-gpu.json",
    "candidate": "167dc28",
@@ -318,7 +327,7 @@
    "crate": "hsk-studio-package",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-package",
    "phase": "done",
-   "status": "PASS_V1",
+   "status": "PASS_V2",
    "owner": "builder-package",
    "brief": "builders/briefs/hsk-studio-package.md",
    "commits": [
@@ -332,7 +341,8 @@
     "64ece87"
    ],
    "verdicts": [
-    "STUDIO-R3 PASS_V1 @404ff3a"
+    "STUDIO-R3 PASS_V1 @404ff3a",
+    "STUDIO-R5 PASS_V2 @1d404f8"
    ],
    "lane_file": "builders/lanes/hsk-studio-package.json",
    "candidate": "64ece87",
@@ -344,8 +354,8 @@
    "lane_id": "SMB-INTEROP-PSD",
    "crate": "hsk-studio-interop-psd",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-interop-psd",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "done",
+   "status": "PASS_V2",
    "owner": "builder-interop-psd",
    "brief": "builders/briefs/hsk-studio-interop-psd.md",
    "commits": [
@@ -358,7 +368,8 @@
     "67c1723"
    ],
    "verdicts": [
-    "STUDIO-R3 FAIL_V1 @404ff3a"
+    "STUDIO-R3 FAIL_V1 @404ff3a",
+    "STUDIO-R5 PASS_V2 @1d404f8"
    ],
    "lane_file": "builders/lanes/hsk-studio-interop-psd.json",
    "candidate": "213b30a",
@@ -383,7 +394,8 @@
     "3561b12"
    ],
    "verdicts": [
-    "STUDIO-R3 PASS_V1 @404ff3a"
+    "STUDIO-R3 PASS_V1 @404ff3a",
+    "STUDIO-R5 FAIL_V2 @1d404f8 (newer submission 3561b12 pending)"
    ],
    "candidate": "3561b12",
    "note": "R5 remediation: allow_dtd always false, scan_prolog skips comment/PI/CDATA decoys, internal subset -> EntityDenied; regression red-first; 13 of 13 green",
@@ -424,7 +436,9 @@
     "5e058ae",
     "f40d6a2"
    ],
-   "verdicts": [],
+   "verdicts": [
+    "STUDIO-R5 FAIL_V1 @1d404f8 (newer submission f40d6a2 pending)"
+   ],
    "candidate": "f40d6a2",
    "note": "R5 remediation: ParaModel/RunModel share Arc props per source range (no per-Content clone) + Limits.max_model_bytes 256 MiB charged (BudgetExceeded model_bytes) also bounding export; PLAUSIBLE fixed: local vs central ZIP header cross-check now method/CRC/sizes/encryption; red-first 132,199 B per extra paragraph; 11 of 11 green",
    "r5_review_routed": {
@@ -437,8 +451,8 @@
    "lane_id": "SMB-INTEROP-MEDIA",
    "crate": "hsk-studio-interop-media",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-interop-media",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "blocked",
+   "status": "BLOCKED",
    "owner": "builder-pulse (reused)",
    "brief": "builders/briefs/hsk-studio-interop-media.md",
    "commits": [
@@ -446,7 +460,8 @@
     "4a6bb19"
    ],
    "verdicts": [
-    "STUDIO-R3 BLOCKED @404ff3a"
+    "STUDIO-R3 BLOCKED @404ff3a",
+    "STUDIO-R5 BLOCKED @1d404f8"
    ],
    "lane_file": "builders/lanes/hsk-studio-interop-media.json",
    "candidate": "4a6bb19",
@@ -455,14 +470,15 @@
    "r5_review_routed": {
     "to": "BLOCKED on Operator D9 (timecode duplicate)",
     "at": "2026-10-11T05:31:12Z"
-   }
+   },
+   "blocked_on": "SMB-INTEROP-MEDIA-PULSE (Operator D9)"
   },
   {
    "lane_id": "SMB-CONTROLS",
    "crate": "hsk-studio-controls",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-controls",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "build",
+   "status": "FAIL_V2",
    "owner": "builder-controls",
    "brief": null,
    "commits": [
@@ -472,7 +488,8 @@
     "605796f"
    ],
    "verdicts": [
-    "STUDIO-R3 FAIL_V1 @404ff3a"
+    "STUDIO-R3 FAIL_V1 @404ff3a",
+    "STUDIO-R5 FAIL_V2 @1d404f8"
    ],
    "candidate": "605796f",
    "note": "slice1+2: spec gestures (STU-FX-149, SHL-188..192), undo coalescing, report(), integer domain, sections; 9 tests",
@@ -487,8 +504,8 @@
    "lane_id": "SMB-SESSION",
    "crate": "hsk-studio-session",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-session",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "done",
+   "status": "PASS_V2",
    "owner": "builder-session",
    "brief": "builders/briefs/hsk-studio-session.md",
    "commits": [
@@ -502,7 +519,8 @@
     "943a0d2"
    ],
    "verdicts": [
-    "STUDIO-R3 FAIL_V1 @404ff3a"
+    "STUDIO-R3 FAIL_V1 @404ff3a",
+    "STUDIO-R5 PASS_V2 @1d404f8"
    ],
    "lane_file": "builders/lanes/hsk-studio-session.json",
    "candidate": "943a0d2",
@@ -513,14 +531,16 @@
    "lane_id": "SMB-HARNESS",
    "crate": "hsk-studio-harness",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-harness",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "build",
+   "status": "FAIL_V1",
    "owner": "builder-controls (reused)",
    "brief": null,
    "commits": [
     "c47e256"
    ],
-   "verdicts": [],
+   "verdicts": [
+    "STUDIO-R5 FAIL_V1 @1d404f8"
+   ],
    "lane_file": "builders/lanes/hsk-studio-harness.json",
    "candidate": "c47e256",
    "note": "headless studio-harness: help/descriptors/providers/open/panel/edit/verify; explicit providers; deterministic JSON; generated manual; 4 tests; desktop GUI pending D11",
@@ -534,8 +554,8 @@
    "lane_id": "SMB-KERNEL-BINDINGS",
    "crate": "hsk-studio-kernel-bindings",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-kernel-bindings",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "build",
+   "status": "FAIL_V1",
    "owner": "builder-kernel-bindings",
    "brief": null,
    "commits": [
@@ -543,7 +563,9 @@
     "2c78bfa",
     "a7d631c"
    ],
-   "verdicts": [],
+   "verdicts": [
+    "STUDIO-R5 FAIL_V1 @1d404f8"
+   ],
    "candidate": "a7d631c",
    "note": "strict versioned wire envelopes over session ports; TransientHost; exactly-once; 5 tests + break-it",
    "r5_review_routed": {
@@ -569,7 +591,9 @@
     "cb38b86",
     "e75bd5a"
    ],
-   "verdicts": [],
+   "verdicts": [
+    "STUDIO-R5 FAIL_V1 @1d404f8 (newer submission e75bd5a pending)"
+   ],
    "candidate": "e75bd5a",
    "note": "R5 remediation 03fb753 (is_clean/region_cleared/is_proven require fully_decoded; regression red first) + slice 4 e75bd5a (named dests renamed HskRdN, URI actions + URI Base, /TU /Opt, struct /Alt /ActualText /E /T, /Info + XMP, popup/IRT reach, AP text via ToUnicode cmap.rs; Unverifiable -> report.complete false); 18 of 18 green; slice 5 dispatched with lead raster-class decision",
    "r5_review_routed": {
@@ -582,8 +606,8 @@
    "lane_id": "SMB-WEB",
    "crate": "hsk-studio-web",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-web",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "build",
+   "status": "FAIL_V1",
    "owner": "builder-web",
    "brief": null,
    "commits": [
@@ -591,7 +615,9 @@
     "da39753",
     "7cd898d"
    ],
-   "verdicts": [],
+   "verdicts": [
+    "STUDIO-R5 FAIL_V1 @1d404f8"
+   ],
    "candidate": "7cd898d",
    "note": "slices1-2: + refresh/KeyMap, collect_assets (all external schemes denied), preview_tree a11y, report(); 9 tests",
    "r5_review_routed": {
@@ -641,15 +667,17 @@
    "lane_id": "SMB-INTEROP-LRCAT",
    "crate": "hsk-studio-interop-lrcat",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-interop-lrcat",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "build",
+   "status": "FAIL_V1",
    "owner": "builder-interop-lrcat",
    "brief": null,
    "commits": [
     "e478186",
     "bab2221"
    ],
-   "verdicts": [],
+   "verdicts": [
+    "STUDIO-R5 FAIL_V1 @1d404f8"
+   ],
    "candidate": "bab2221",
    "note": "bounded read-only SQLite-byte decoder (no engine, CX-503R), WAL overlay gated, fingerprint SourceChanged; 5 tests + break-it; Lightroom schema UNVERIFIED (D12)",
    "r5_review_routed": {
@@ -662,8 +690,8 @@
    "lane_id": "SMB-MOTION-JS",
    "crate": "hsk-studio-motion-js",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-motion-js",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "build",
+   "status": "NEEDS_NEW_APPROACH",
    "owner": "builder-motion (reused)",
    "brief": "builders/briefs/hsk-studio-motion-js.md",
    "commits": [
@@ -673,7 +701,8 @@
     "a53c52d"
    ],
    "verdicts": [
-    "STUDIO-R3 FAIL_V1 @404ff3a"
+    "STUDIO-R3 FAIL_V1 @404ff3a",
+    "STUDIO-R5 FAIL_V2 @1d404f8 (counter NEEDS_NEW_APPROACH)"
    ],
    "lane_file": "builders/lanes/hsk-studio-motion-js.json",
    "candidate": "a53c52d",
@@ -692,14 +721,15 @@
    "origin": "research/color-codecs-raw.md risk 1; lead decision START_LOG decisions 01:50Z",
    "scope": "Prism-owned black-point compensation flag (STU-COL-136) on top of moxcms 0.9.1 transforms; published BPC algorithm",
    "phase": "done",
-   "status": "PASS_V1",
+   "status": "PASS_V2",
    "owner": "builder-folio-eng-1 (reused)",
    "brief": "research/engine-color.md topic bpc-algorithm (ISO 18619); prevent double-apply with moxcms hard-coded BPC (RGB v4 LUT perceptual/saturation)",
    "commits": [
     "0a057a1"
    ],
    "verdicts": [
-    "STUDIO-R3 PASS_V1 @404ff3a"
+    "STUDIO-R3 PASS_V1 @404ff3a",
+    "STUDIO-R5 PASS_V2 @1d404f8"
    ],
    "lane_file": "builders/lanes/hsk-studio-prism-eng.json",
    "candidate": "0a057a1"
@@ -709,8 +739,8 @@
    "crate": "hsk-studio-type",
    "origin": "diagnostics/type-lane.md topic strategy",
    "scope": "spike: harfrust =0.14.0 + read-fonts/skrifa provider behind a feature flag, side-by-side with vendored subset; compare against existing references; bounds at call boundary",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "done",
+   "status": "PASS_V1",
    "owner": "type-lane",
    "operator_decision": "D7 pending: accept call-boundary metering instead of in-shaper bounds before replacing the vendored path",
    "commits": [
@@ -718,7 +748,8 @@
     "f6fc17c8"
    ],
    "verdicts": [
-    "STUDIO-R3 None @404ff3a"
+    "STUDIO-R3 None @404ff3a",
+    "STUDIO-R5 PASS_V1 @1d404f8"
    ],
    "note": "harfrust feature spike: 11/11 exact parity; Devanagari+Hebrew shape (no reference); call-boundary metering; CJK peak 10.4->18.7 MB; reference made by upstream rustybuzz 0.20.1",
    "candidate": "f6fc17c",
@@ -751,15 +782,17 @@
    "crate": "hsk-studio-reel",
    "origin": "research/engine-video.md",
    "scope": "AV1 decode via rav1d behind reel adapter; deterministic decode contract (hash-testable normative output)",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "build",
+   "status": "FAIL_V1",
    "owner": "builder-reel-av1",
    "commits": [
     "a2b1947",
     "fc5a04a",
     "f0bc09d"
    ],
-   "verdicts": [],
+   "verdicts": [
+    "STUDIO-R5 FAIL_V1 @1d404f8"
+   ],
    "candidate": "dcc1b37",
    "note": "AV1 via rav1d 1.1.0 behind feature av1 (asm off), bit-exact vs libdav1d; TRUSTED INPUT ONLY: 9.7% of 1-byte mutations abort the process (uncatchable unwrap in rav1d extern C)",
    "r5_review_routed": {
@@ -801,13 +834,14 @@
    "origin": "research/engine-color.md",
    "scope": "absolute colorimetric with media-white scaling + first-class clip/gamut report in transform receipts",
    "phase": "done",
-   "status": "PASS_V1",
+   "status": "PASS_V2",
    "owner": "builder-folio-eng-1 (reused)",
    "commits": [
     "4f8d14e"
    ],
    "verdicts": [
-    "STUDIO-R3 PASS_V1 @404ff3a"
+    "STUDIO-R3 PASS_V1 @404ff3a",
+    "STUDIO-R5 PASS_V2 @1d404f8"
    ],
    "lane_file": "builders/lanes/hsk-studio-prism-eng.json",
    "candidate": "4f8d14e"
@@ -818,14 +852,15 @@
    "origin": "research/engine-color.md",
    "scope": "lift profile admission stepwise: raise 64 KiB cap for CMYK (557-723 KB) and HLG (973 KB) profiles with bounded limits; enable moxcms `lut`; order v4 matrix, v2 curv, mAB, mft/CMYK; + n-channel input path (gray/CMYK/Lab) public API for interop-psd",
    "phase": "done",
-   "status": "PASS_V1",
+   "status": "PASS_V2",
    "owner": "builder-folio-eng-1 (reused)",
    "commits": [
     "fb03223",
     "53f0d4d"
    ],
    "verdicts": [
-    "STUDIO-R3 PASS_V1 @404ff3a"
+    "STUDIO-R3 PASS_V1 @404ff3a",
+    "STUDIO-R5 PASS_V2 @1d404f8"
    ],
    "lane_file": "builders/lanes/hsk-studio-prism-eng.json",
    "candidate": "53f0d4d"
@@ -836,13 +871,14 @@
    "origin": "research/engine-color.md",
    "scope": "scalar-determinism harness: SIMD features off + fma check; engine id in receipts; byte-identical materialisation",
    "phase": "done",
-   "status": "PASS_V1",
+   "status": "PASS_V2",
    "owner": "builder-folio-eng-1 (reused)",
    "commits": [
     "40821f9"
    ],
    "verdicts": [
-    "STUDIO-R3 PASS_V1 @404ff3a"
+    "STUDIO-R3 PASS_V1 @404ff3a",
+    "STUDIO-R5 PASS_V2 @1d404f8"
    ],
    "lane_file": "builders/lanes/hsk-studio-prism-eng.json",
    "candidate": "40821f9"
@@ -852,13 +888,15 @@
    "crate": "hsk-studio-prism",
    "origin": "research/engine-color.md",
    "scope": "oracle fixtures T0 analytic (f64) + T1 offline lcms2 2.19.1 generator OUTSIDE the workspace graph committing numeric fixtures only (STU-COL-140/325; tool name+version recorded)",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "build",
+   "status": "FAIL_V1",
    "owner": "builder-prism-eng5",
    "commits": [
     "baeecf3"
    ],
-   "verdicts": [],
+   "verdicts": [
+    "STUDIO-R5 FAIL_V1 @1d404f8"
+   ],
    "candidate": "baeecf3",
    "note": "T0 41 analytic (max 7.8e-6) + T1 42 vs lcms2 2.19.0 (imagecodecs wheel venv on D:); 11 findings pinned as expected-fail; 3 divergences pending Photoshop T3; retry-guard flag-change disclosed",
    "r5_review_routed": {
@@ -872,15 +910,16 @@
    "crate": "hsk-studio-type",
    "origin": "diagnostics/baseline.md",
    "scope": "fix 3 failing vendored ttf-parser doctests (ttf_parser:: paths) src/provider/ttf/mod.rs:182,205,2080",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "done",
+   "status": "PASS_V1",
    "owner": "type-lane",
    "commits": [
     "94331b00b51f2ba6e2e48abc2e9fc7949bf16289",
     "ef8beac9"
    ],
    "verdicts": [
-    "STUDIO-R3 None @404ff3a"
+    "STUDIO-R3 None @404ff3a",
+    "STUDIO-R5 PASS_V1 @1d404f8"
    ],
    "candidate": "ef8beac",
    "review_findings": "R2-review-b CONFIRMED provenance CRLF claim fixed ef8beac (150 hashes from committed blobs; tests/provenance.rs guard); earlier claim retracted",
@@ -892,7 +931,7 @@
    "origin": "spec-reader-b report; STU-VID-010; lead decision 02:45Z",
    "scope": "Folio timeline document types: sequence, track (video/audio), clip (source ref, in/out, timeline position) with time fields as hsk_studio_accord::Ticks (folio may depend only on accord); snapshot/schema integration; neutral contract for interop-media TimelineProposal",
    "phase": "done",
-   "status": "PASS_V1",
+   "status": "PASS_V2",
    "owner": "builder-folio-eng-1",
    "depends_on_lanes": [],
    "commits": [
@@ -900,7 +939,8 @@
     "d2f4a5b"
    ],
    "verdicts": [
-    "STUDIO-R3 PASS_V1 @404ff3a"
+    "STUDIO-R3 PASS_V1 @404ff3a",
+    "STUDIO-R5 PASS_V2 @1d404f8"
    ],
    "lane_file": "builders/lanes/hsk-studio-folio-eng-1.json",
    "candidate": "d2f4a5b",
@@ -913,8 +953,8 @@
    "crate": "hsk-studio-pigment",
    "origin": "spec-reader-a report: no shared home for render-plan IR (no composite<->render edge)",
    "scope": "shared render-plan IR + backend port (candidate owner pigment), additive; migration of composite/render-cpu/render-gpu; plus single owner of per-pixel blend math + fidelity classes (composite 35-mode vs render-cpu 7-mode duplicate, CX-CAP-001)",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "build",
+   "status": "FAIL_V2",
    "owner": "architect-render-ir",
    "commits": [
     "4c3ac91",
@@ -922,7 +962,8 @@
     "276e2a3"
    ],
    "verdicts": [
-    "STUDIO-R3 PASS_V1 @404ff3a"
+    "STUDIO-R3 PASS_V1 @404ff3a",
+    "STUDIO-R5 FAIL_V2 @1d404f8"
    ],
    "candidate": "276e2a3",
    "note": "pigment owns render_plan IR + RenderBackend port + blend_math (35 modes, exactness); migrations dispatched to composite, render-cpu, interop-psd; render-gpu builds on it; clip-to-base route 4e533d5 (supports_clip_to_base default false)",
@@ -939,8 +980,8 @@
    "crate": "workspace",
    "origin": "validation/round-R1.json infrastructure notes",
    "scope": "steward: checked-in test entrypoint for Studio rounds (script + per-test runner config with slow-timeout/terminate-after per CX-EXEC-005) + one-test-per-package canary; fill HBR test_entrypoint/canary_check for WP-KERNEL-STUDIO; validator rounds use only that entrypoint (CX-VAL-007)",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "done",
+   "status": "PASS_V2",
    "owner": "steward",
    "commits": [
     "faf1be4",
@@ -952,7 +993,8 @@
     "1d404f8"
    ],
    "verdicts": [
-    "STUDIO-R3 PASS_V1 @404ff3a"
+    "STUDIO-R3 PASS_V1 @404ff3a",
+    "STUDIO-R5 PASS_V2 @1d404f8"
    ],
    "candidate": "2abb984",
    "note": "feature matrix (.config/round-features.toml), doctest step, full results storage, export dir guard; probe accepts bin/test/bench sections; R4 review remediation fd24723 (doctest per-test 120s timeout, round.json always written, absent matrix units exit 74, reel-native av1 matrix) + sync 1d404f8"
@@ -1032,13 +1074,14 @@
    "origin": "interop-psd gap: StudioLayer lacks appearance",
    "scope": "additive layer appearance: opacity, fill_opacity, blend_mode discriminant (STU-RAS-154/039), clipped, isolation flag, mask ref + flags; interop-psd writes them",
    "phase": "done",
-   "status": "PASS_V1",
+   "status": "PASS_V2",
    "owner": "builder-interop-psd (reused)",
    "commits": [
     "a51f7fa"
    ],
    "verdicts": [
-    "STUDIO-R3 PASS_V1 @404ff3a"
+    "STUDIO-R3 PASS_V1 @404ff3a",
+    "STUDIO-R5 PASS_V2 @1d404f8"
    ],
    "candidate": "a51f7fa",
    "note": "LayerAppearance (percent per STU-RAS-006), blend discriminant 1..=35, clipped, isolation, mask; 23 folio tests",
@@ -1049,8 +1092,8 @@
    "crate": "hsk-studio-nib",
    "origin": "render-cpu: VectorFill path model local until nib owns serializable path",
    "scope": "additive serializable path type in nib; render-cpu migrates VectorFill to it",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "done",
+   "status": "PASS_V2",
    "owner": "builder-render-cpu (reused)",
    "commits": [
     "59ef3b1",
@@ -1058,7 +1101,8 @@
     "07abf54"
    ],
    "verdicts": [
-    "STUDIO-R3 FAIL_V1 @404ff3a"
+    "STUDIO-R3 FAIL_V1 @404ff3a",
+    "STUDIO-R5 PASS_V2 @1d404f8"
    ],
    "candidate": "07abf54",
    "note": "OwnedPath additive; canonical JSON + sha256; no serde in nib (lead accepted)",
@@ -1070,7 +1114,7 @@
    "origin": "layout builder gaps",
    "scope": "Folio text-frame object, STU-LAY-122 thread fields, page list with per-page margins in spread, story-content contract; layout migrates its crate-local frame/thread model",
    "phase": "done",
-   "status": "PASS_V1",
+   "status": "PASS_V2",
    "owner": "builder-folio-eng-3",
    "commits": [
     "ae75f55",
@@ -1078,7 +1122,8 @@
     "5d737e3"
    ],
    "verdicts": [
-    "STUDIO-R3 PASS_V1 @404ff3a"
+    "STUDIO-R3 PASS_V1 @404ff3a",
+    "STUDIO-R5 PASS_V2 @1d404f8"
    ],
    "lane_file": "builders/lanes/hsk-studio-folio-eng-3.json",
    "candidate": "5d737e3",
@@ -1122,14 +1167,15 @@
    "origin": "composite clip-to-base 26f835e / pigment 4e533d5",
    "scope": "render-cpu implements clip-to-base (override supports_clip_to_base), reference semantics + hand-derived tests",
    "phase": "done",
-   "status": "PASS_V1",
+   "status": "PASS_V2",
    "owner": "builder-render-cpu-clip",
    "commits": [
     "d470e2f",
     "9819e52"
    ],
    "verdicts": [
-    "STUDIO-R3 PASS_V1 @404ff3a"
+    "STUDIO-R3 PASS_V1 @404ff3a",
+    "STUDIO-R5 PASS_V2 @1d404f8"
    ],
    "candidate": "9819e52",
    "note": "clip-to-base per pigment docs; Approximate; 8 tests; pass-through group as clip base refused (lead accepted; Photoshop UNVERIFIED)",
@@ -1140,13 +1186,15 @@
    "crate": "hsk-studio-motion-js",
    "origin": "motion-js slice2 finding: in-process QuickJS can abort host",
    "scope": "worker-process isolation for the quickjs engine (spawn/IPC, RSS/CPU/wall limits, crash containment, replay); AST profile validator (EXPR-PROVIDER-13)",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "build",
+   "status": "FAIL_V1",
    "owner": "builder-motion-js-worker",
    "commits": [
     "a53c52d"
    ],
-   "verdicts": [],
+   "verdicts": [
+    "STUDIO-R5 FAIL_V1 @1d404f8"
+   ],
    "candidate": "a53c52d",
    "note": "worker process isolation (CREATE_NO_WINDOW, deadline/cancel kill, crash -> engine_crashed, bounded respawn); in-process only via unsafe_in_process; Job Object/WerFault suppression NOT_PROVEN (needs unsafe)",
    "r5_review_routed": {
@@ -1161,13 +1209,14 @@
    "origin": "render-cpu clip lane: composite may emit pass-through group as clip base",
    "scope": "composite lowering: pass-through group used as clip base -> typed Unavailable (consistent with render-cpu refusal) until Photoshop oracle defines semantics",
    "phase": "done",
-   "status": "PASS_V1",
+   "status": "PASS_V2",
    "owner": "builder-render-cpu-clip (reused)",
    "commits": [
     "5814f8d"
    ],
    "verdicts": [
-    "STUDIO-R3 PASS_V1 @404ff3a"
+    "STUDIO-R3 PASS_V1 @404ff3a",
+    "STUDIO-R5 PASS_V2 @1d404f8"
    ],
    "candidate": "5814f8d",
    "review_findings_r3": "validation/R3-review.json CONFIRMED -> remediation dispatched 2026-10-11T03:01:38Z"
@@ -1177,13 +1226,15 @@
    "crate": "hsk-studio-layout",
    "origin": "SMB-FOLIO-ENG-3 landed (5d737e3)",
    "scope": "layout consumes Folio pages/text frames/threads/stories (delete crate-local frame/thread model) per notes.layout_migration in hsk-studio-folio-eng-3.json",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "done",
+   "status": "PASS_V1",
    "owner": "builder-folio-eng-3 (reused)",
    "commits": [
     "64dd62d"
    ],
-   "verdicts": [],
+   "verdicts": [
+    "STUDIO-R5 PASS_V1 @1d404f8"
+   ],
    "candidate": "64dd62d"
   },
   {
@@ -1191,15 +1242,17 @@
    "crate": "hsk-studio-folio",
    "origin": "components builder Folio needs",
    "scope": "design frame / auto-layout node, component + instance + variable + reaction record types, per-node reactions/property refs/constraints fields (additive); components migrates crate-local types; + paint types (solid/gradient) for vector appearance (interop-vector folio_need)",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "done",
+   "status": "PASS_V1",
    "owner": "builder-folio-eng-4",
    "commits": [
     "6567f43",
     "efeeaa2",
     "0e6142c"
    ],
-   "verdicts": [],
+   "verdicts": [
+    "STUDIO-R5 PASS_V1 @1d404f8"
+   ],
    "candidate": "0e6142c",
    "note": "StudioDesignRecords (paint/autolayout/reactions/components/variables) standalone set + validators; 32 folio tests; 13 dependents compile; mutants caught"
   },
@@ -1208,13 +1261,15 @@
    "crate": "hsk-studio-interop-psd",
    "origin": "prism ENG lanes landed",
    "scope": "CMYK/Lab/gray display via prism WideEngine; clamp recorded; original channels preserved",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "build",
+   "status": "FAIL_V1",
    "owner": "fresh builder",
    "commits": [
     "213b30a"
    ],
-   "verdicts": [],
+   "verdicts": [
+    "STUDIO-R5 FAIL_V1 @1d404f8"
+   ],
    "candidate": "213b30a",
    "note": "CMYK/Lab/gray via WideEngine; clamp recorded; originals preserved; 18 tests",
    "r5_review_routed": {
@@ -1228,32 +1283,37 @@
    "crate": "hsk-studio-develop",
    "origin": "prism ENG lanes landed",
    "scope": "output via WideEngine large chunks + demosaic speed tables, byte-identical output",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "blocked",
+   "status": "BLOCKED",
    "owner": "fresh builder",
    "commits": [
     "d40d553"
    ],
-   "verdicts": [],
+   "verdicts": [
+    "STUDIO-R5 BLOCKED @1d404f8"
+   ],
    "candidate": "d40d553",
    "note": "WideEngine output + speed tables (byte-identical); 24MP demosaic 1628->398ms",
    "r5_review_routed": {
     "to": "BLOCKED: STU-CON-044 accounting; lead decision D13 option b -> Prism admission-ledger hook queued on builder-prism-eng6",
     "at": "2026-10-11T05:31:12Z"
-   }
+   },
+   "blocked_on": "SMB-PRISM-ENG-6 (admission-ledger hook) / Operator D13 (STU-CON-044)"
   },
   {
    "lane_id": "SMB-PACKAGE-STREAM-SAVE",
    "crate": "hsk-studio-package",
    "origin": "session slice 3: save peaks ~4.25x asset size",
    "scope": "writer-based streaming package save (assets streamed from source readers, bounded memory) + atomic save over a streaming writer; session migrates after",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "done",
+   "status": "PASS_V1",
    "owner": "builder-package-stream",
    "commits": [
     "0dfac5e"
    ],
-   "verdicts": [],
+   "verdicts": [
+    "STUDIO-R5 PASS_V1 @1d404f8"
+   ],
    "candidate": "0dfac5e",
    "note": "streaming save: 64MiB asset peak heap 1283 KiB; byte-identical to buffered; failure safety; session migration dispatched to session remediation agent"
   },
@@ -1274,14 +1334,16 @@
    "crate": "hsk-studio-components",
    "origin": "SMB-FOLIO-ENG-4 landed 0e6142c",
    "scope": "migrate crate-local records onto folio StudioDesignRecords per hsk-studio-folio-eng-4.json migration notes",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "build",
+   "status": "FAIL_V1",
    "owner": "builder-components-migrate",
    "commits": [
     "c6251f0",
     "992cca1"
    ],
-   "verdicts": [],
+   "verdicts": [
+    "STUDIO-R5 FAIL_V1 @1d404f8"
+   ],
    "candidate": "992cca1",
    "note": "components evaluate folio StudioDesignRecords via Design index; duplicates deleted; 13 tests; 5 mutants caught",
    "r5_review_routed": {
@@ -1302,7 +1364,9 @@
     "30c3e64",
     "3561b12"
    ],
-   "verdicts": [],
+   "verdicts": [
+    "STUDIO-R5 FAIL_V1 @1d404f8 (newer submission 3561b12 pending)"
+   ],
    "candidate": "3561b12",
    "note": "R5 remediation: Assigned profile export -> colour_profile_not_converted loss per paint use; folio ResolutionIssues surfaced as losses; regression red-first",
    "r5_review_routed": {
@@ -1316,13 +1380,15 @@
    "crate": "hsk-studio-reel-native",
    "origin": "SMB-REEL-ENG-3 fuzz: rav1d aborts process on 9.7% of corrupted inputs",
    "scope": "host AV1 decode in an isolated worker process under reel-native (same pattern as motion-js worker: quiet spawn, versioned protocol, deadline/cancel kill, crash -> typed error, bounded respawn); reel routes untrusted AV1 to it; default stays off",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "build",
+   "status": "FAIL_V1",
    "owner": "builder-reel-native-av1",
    "commits": [
     "e95163a"
    ],
-   "verdicts": [],
+   "verdicts": [
+    "STUDIO-R5 FAIL_V1 @1d404f8"
+   ],
    "candidate": "e95163a",
    "note": "AV1 worker: equivalence with in-process decode, 6 aborting mutations contained (typed decoder_crashed), bounded respawn, quiet spawn; Job Object NOT_PROVEN; feature matrix entry needed",
    "r5_review_routed": {
@@ -1336,13 +1402,15 @@
    "crate": "hsk-studio-reel",
    "origin": "reel-native AV1 worker lane",
    "scope": "reel hook to route av01/V_AV1 decode to an external (worker) decoder provider by policy (untrusted -> worker; in-process only when explicitly trusted); ReelError worker-fault variant; enabling worker routing must not require linking the in-process decoder",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "build",
+   "status": "FAIL_V1",
    "owner": "builder-reel-native-av1 (reused)",
    "commits": [
     "bfef27f"
    ],
-   "verdicts": [],
+   "verdicts": [
+    "STUDIO-R5 FAIL_V1 @1d404f8"
+   ],
    "candidate": "bfef27f",
    "note": "SourceTrust routing (untrusted->external decoder), DecoderFault variant, AV1 parser always compiled; 25/28 tests; broke one reel-native test -> fix dispatched",
    "r5_review_routed": {
@@ -1400,7 +1468,24 @@
    "validation/R5-review-b.json",
    "validation/R5-review-c.json"
   ],
-  "gameplan_change": "ROUND GP-006 retired -> GP-013 (unchanged entrypoint OR canary exit 0 on candidate)"
+  "gameplan_change": "ROUND GP-006 retired -> GP-013 (unchanged entrypoint OR canary exit 0 on candidate)",
+  "completed_at": "2026-10-11T05:40:44Z",
+  "status": "COMPLETE",
+  "union_exit": 0,
+  "units": 41,
+  "crates": 28,
+  "default": "463/463 + 1 ignored",
+  "features": "reel+av1 28/28, motion-js+quickjs 14/14, type+harfrust 42/42, reel-native+av1 5/5",
+  "verdicts": {
+   "PASS_V1": 5,
+   "PASS_V2": 20,
+   "FAIL_V1": 14,
+   "FAIL_V2": 7,
+   "BLOCKED": 2
+  },
+  "record": "validation/round-R5.json",
+  "results": "studio-round/results/R5",
+  "notes": "13 PASS lanes reopened under CX-VAL-009; SMB-MOTION-JS FAIL_V2 NEEDS_NEW_APPROACH; R4 motion-js worker failure = flake (10.708 s R4 vs 7.707 s pass R5); pulse-eng-1 not judged (6a60ef6 after freeze); 6 lanes have post-freeze commits (status left READY)"
  },
  "next_round_after_R5": [
   "SMB-PULSE-ENG-1",

@@ -1,0 +1,61 @@
+{
+  "crate": "hsk-studio-score-plugin",
+  "lane": "hsk-studio-score-plugin",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slice 1 (pure-Rust process-isolated plugin host with reference worker) pushed; native CLAP backend not started",
+  "commits": [
+    {
+      "sha": "ccc9c9a",
+      "subject": "score-plugin: process-isolated plugin host (IsolatedHost, framed worker protocol, deadline/cancel/crash reclaim, admission permits, process ledger, lifecycle + state versioning, PluginProcessor over score Engine, reference gain/delay worker; CLAP NOT_PROVEN)"
+    }
+  ],
+  "capabilities_done": [
+    "Port + lifecycle (off-callback): PluginProvider (probe, activate) and PluginInstance (process / process_expecting, set_parameter, capture_state, last_fault, retire); ApprovedPlugin{path, content_sha256, format, arch, abi_version} + PluginGrant{actor, content_sha256} (no path without hash and grant; no discovery, no registry); LifecycleState Discovered/Probed/Active/Processing/Draining/Retired with checked transitions (IllegalTransition); typed PluginError (unauthorized, hash_mismatch, abi_mismatch, probe_timeout, crashed{exit_code}, timeout, stale_state, budget_exceeded, canceled, protocol(fault), illegal_transition, unavailable, invalid_config, invalid_block, non_finite_output)",
+    "Framed worker protocol (src/wire.rs, std only): header u32 magic 'HSPK' + u16 version + u8 kind + u32 length (11 bytes), length checked against the cap BEFORE allocation, payload read incrementally; HELLO first from the worker; request ids echoed by replies; planar f32 blocks with explicit frames/channels (frames <= score MAX_BLOCK_FRAMES, channels <= MAX_CHANNELS); garbage, version skew, unknown kind, oversize, truncated and id-mismatch are distinct protocol faults; every strict prefix of every message is rejected (unit test)",
+    "IsolatedHost (src/host.rs): never loads foreign code; spawns the worker with env_clear, null stderr, piped stdio and CREATE_NO_WINDOW on Windows; I/O thread per worker + 5 ms wait slices polling cancel and the wall-clock deadline; deadline -> kill+reap (Timeout, ProbeTimeout while spawning/probing/configuring); cancel -> kill+reap (Canceled); end of stream -> Crashed{exit_code} after EXIT_PATIENCE; protocol faults kill+reap; output block gets silence on every failure (FaultReport{error, killed, reaped, exit_code, safe_output}); Session::drop kills+reaps so any error path after the child exists reaps it (PLATFORM-12); Draining instance accepts only retire",
+    "Admission: HostLimits{max_workers, max_in_flight_bytes (2 x block bytes + max_state_bytes per instance), max_frame_bytes, max_plugin_file_bytes, spawn_timeout, shutdown_grace}; RAII Permit acquired without waiting (BudgetExceeded at once, partial acquisition released) and released only after the reap; host-owned process ledger (owner_session from the grant actor, started_unix_ms, pid, killed, reaped, exit_code) and HostStats counters",
+    "Authorization order before any spawn: cancel, deadline bounds, grant present and naming the same hash (Unauthorized), host arch + format Clap + abi (AbiMismatch), config bounds, permit (BudgetExceeded), bounded file read + SHA-256 compare (HashMismatch / Unavailable); the worker re-hashes the file before use",
+    "State versioning (STU-ARC-021 shape): state_version bound to the instance id; process_expecting(v) refuses a block prepared under an older version (StaleState, nothing written); set_parameter bumps the version; capture_state(max_bytes) returns a versioned Complete|Partial|Unavailable snapshot bounded by max_bytes; process receipts carry completeness",
+    "PluginProcessor: score Processor over a PluginInstance so the score Engine admits, publishes or discards the block (a failed or canceled plugin block is never published); typed error kept in take_error(); score outcome mapping documented",
+    "report(result, correlation_id, revision, cancel, Observe, SinkPort) with outcome_of: Success / Canceled / Failure(Validation | Loss | Unavailable); no plugin path or sample data attached",
+    "Reference worker bin score-plugin-worker (pure-Rust gain + real sample delay, parameter 0 = gain, state = gain) with test-only faults via HostOptions.test_args: crash-on-block=N, hang-on-block=N, garbage-on-block=N, oversize-on-block=N, short-on-block=N, hang-on-probe, partial-state, no-state, --latency N; panic hook exits 70 and injected crashes exit 86 (no platform crash dialog)",
+    "DESCRIPTOR (proof_status labels CLAP/VST3/OS resource caps NOT_PROVEN) and example consumer score-plugin-consumer (--descriptor, --worker PATH --gain G --frames N --latency L --crash-on N --hang-on N --deadline-ms MS)"
+  ],
+  "tests": {
+    "argv": "cargo test -p hsk-studio-score-plugin --tests --no-fail-fast (studio-env.sh cargo form; shared edit tree)",
+    "exit": 0,
+    "sha": "ccc9c9a",
+    "passed": 6,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "Independent validator round on ccc9c9a. Native CLAP backend (feature clap, worker only) is the next capability: needs clack-host 0.2.0 + clap-sys 0.5.0 + libloading pins (dep-request + steward probe approval for the -sys name) and a standalone clack-plugin gain fixture outside the workspace; CLAP stays NOT_PROVEN until a real plugin run.",
+  "updated_at": "2026-10-11T05:12:07Z",
+  "notes": {
+    "scope_label": "READY_FOR_VALIDATION covers the isolation/lifecycle slice proven with the REFERENCE worker. It does not prove CLAP or VST3 (MT-35560: a mock host does not prove a plugin format).",
+    "tests_breakdown": {
+      "lib unit wire::tests::wire_roundtrip_and_hostile_input": "round trip of every request/reply kind (bit-exact samples), every strict payload prefix rejected, oversize rejected before allocation, version skew, unknown kind, garbage, closed vs truncated",
+      "worker_gain_block_exact": "probe + activate (latency 3, gain 0.5); two consecutive 256-frame blocks through score Engine + PluginProcessor equal the independently recomputed delayed/halved signal bit-for-bit, receipts (frames, latency, start/end, state_version 1, provider identity, completeness), orderly retire: exit code 0, not killed, pid alive before and gone after (OS tasklist), permits back to 0 after reap, ledger reaped with owner session",
+      "crash_and_timeout_are_contained": "crash-on-block=1 -> Crashed{86}, silence, reaped, pid gone, Draining -> process is IllegalTransition; hang-on-block=1 with 300 ms deadline -> Timeout in [300, 600) ms, killed+reaped, pid gone via OS, silence",
+      "unauthorized_and_mismatch_rejected": "no grant / foreign grant -> Unauthorized, wrong SHA -> HashMismatch, arch/abi/Vst3 -> AbiMismatch, missing file -> Unavailable, all with spawned == 0 and an empty ledger; garbage/oversize/short worker frames -> Protocol(Garbage|Oversize|Truncated), worker gone, silence; hang-on-probe -> ProbeTimeout killed+reaped",
+      "lifecycle_and_stale_state": "lifecycle table; capture_state Complete v1 = gain bytes; capture max 4 -> BudgetExceeded from the worker, 65 > configured 64 -> BudgetExceeded host-side, instance still Active; set_parameter -> v2; process_expecting(1) -> StaleState and the output untouched; process_expecting(2) = in * 0.25 exactly; NaN/unknown parameter -> InvalidConfig; permits held until retire; process/capture after retire -> IllegalTransition{Retired}; retire idempotent; partial-state and no-state reported as Partial/Unavailable",
+      "admission_and_cancel": "max_workers=1: second activate and probe -> BudgetExceeded in < 250 ms with no spawn, slot freed by retire; byte budget below one instance -> BudgetExceeded and slot given back; pre-cancelled token spawns nothing; cancel mid-process through Engine -> Canceled, worker killed+reaped, engine published 0 frames, typed error kept; report() emits exactly one Terminal frame per outcome and then Closed"
+    },
+    "design_notes": {
+      "trait_deviation": "Brief signature PluginProvider::probe(p, d) gained grant + cancel parameters and activate(cfg) gained cancel + deadline (the grant is the Unauthorized gate; cancel/deadline are per call). PluginInstance::process gained cancel + deadline and writes into a score OutputBlock (the Engine publishes).",
+      "retire": "PluginInstance::retire(self: Box<Self>) delegates to IsolatedInstance::retire_in_place (non-consuming, idempotent) so illegal-after-retire calls are testable.",
+      "reference_worker": "The approved plugin file is hashed (host before spawn, worker before use) but never executed or loaded; the reference backend is a pure-Rust gain/delay processor.",
+      "bin_target": "score-plugin-worker is a [[bin]] without required-features so integration tests get CARGO_BIN_EXE_score-plugin-worker; the optional native CLAP backend will be added to the same worker behind feature clap.",
+      "ids": "instance ids are per host starting at 1; request ids per instance starting at 1.",
+      "reset_limit": "PluginProcessor::reset is a no-op: when the Engine discards a block the foreign plugin history has advanced and is not rewound (documented)."
+    },
+    "route_notes": {
+      "retry_guard": "No gameplan hook block and no failed run: check, clippy and the 6 tests passed first run; the only re-run was the same focused test command after a trivial test-assertion edit and rustfmt, both committed before the re-run (HEAD unchanged in this crate since). No gameplan step added, no flags/filters changed.",
+      "commit_trailer": "Commit ccc9c9a was made without the Co-Authored-By trailer; later commits include it (amend is forbidden)."
+    },
+    "build": "check and clippy (--tests --examples --bins) clean for hsk-studio-score-plugin; the only clippy warnings are 2 pre-existing too_many_arguments in hsk-studio-observe; cargo fmt applied to the crate only; forbid(unsafe_code); no crates.io dependency, no dep-request line; path deps accord, observe, score (all allowed).",
+    "os_caps": "NOT_PROVEN: no Windows Job Object / memory cap for the worker (needs unsafe FFI); wall-clock kill and frame/block bounds are the enforced limits."
+  }
+}

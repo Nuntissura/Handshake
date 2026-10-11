@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T05:37:43Z",
+ "updated_at": "2026-10-11T05:40:44Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -677,7 +677,7 @@
     "lane verdicts"
    ],
    "launched": "2026-10-11T05:02:18Z",
-   "status": "running"
+   "status": "done 2026-10-11T05:40:44Z (R5 COMPLETE: 25 PASS, 21 FAIL, 2 BLOCKED)"
   },
   {
    "name": "reviewer-r5-a",

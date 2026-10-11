@@ -131,6 +131,69 @@
         "idempotency_key": "STUDIO-R3:SMB-REEL:404ff3ae8cd7:FAIL_V1",
         "recorded_at": "2026-10-11T03:11:21Z",
         "by": "wp_validator STUDIO-R3"
+      },
+      {
+        "round": "STUDIO-R5",
+        "lane": "SMB-REEL",
+        "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
+        "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
+        "decision": "passed",
+        "verdict": "PASS_V2",
+        "failures": [],
+        "remediation": null,
+        "status_after": "PASS_V2",
+        "review": "validation/R5-review-b.json",
+        "round_ref": "validation/round-R5.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
+        "idempotency_key": "STUDIO-R5:SMB-REEL:1d404f8c4b72:PASS_V2",
+        "recorded_at": "2026-10-11T05:38:23Z",
+        "by": "wp_validator STUDIO-R5"
+      },
+      {
+        "round": "STUDIO-R5",
+        "lane": "SMB-REEL-ENG-3",
+        "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
+        "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
+        "decision": "failed",
+        "verdict": "FAIL_V1",
+        "failures": [
+          {
+            "failure_kind": "product",
+            "failure_class": "av1-default-pixel-limit-refuses-1080p",
+            "file_line": "crates/hsk-studio-reel/src/av1/mod.rs:148-151; src/model.rs:98; src/av1/ffi.rs:72"
+          }
+        ],
+        "remediation": "Derive the pixel limit from av1C chroma/bit depth (not 4:4:4 16-bit worst case); add 1080p-sized limit test",
+        "status_after": "FAIL_V1",
+        "review": "validation/R5-review-b.json",
+        "round_ref": "validation/round-R5.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
+        "idempotency_key": "STUDIO-R5:SMB-REEL-ENG-3:1d404f8c4b72:FAIL_V1",
+        "recorded_at": "2026-10-11T05:38:23Z",
+        "by": "wp_validator STUDIO-R5"
+      },
+      {
+        "round": "STUDIO-R5",
+        "lane": "SMB-REEL-AV1-ROUTE",
+        "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
+        "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
+        "decision": "failed",
+        "verdict": "FAIL_V1",
+        "failures": [
+          {
+            "failure_kind": "product",
+            "failure_class": "external-picture-plane-size-overflow",
+            "file_line": "crates/hsk-studio-reel/src/video.rs:262-271 (:269)"
+          }
+        ],
+        "remediation": "checked_mul in planes_match_format; overflow -> DecoderFault::Protocol; add lying-decoder u32::MAX test",
+        "status_after": "FAIL_V1",
+        "review": "validation/R5-review-b.json",
+        "round_ref": "validation/round-R5.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
+        "idempotency_key": "STUDIO-R5:SMB-REEL-AV1-ROUTE:1d404f8c4b72:FAIL_V1",
+        "recorded_at": "2026-10-11T05:38:23Z",
+        "by": "wp_validator STUDIO-R5"
       }
     ],
     "lanes": {

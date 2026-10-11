@@ -2,11 +2,15 @@
   "crate": "hsk-studio-reel-native",
   "lane": "SMB-REEL-NATIVE-AV1-WORKER",
   "status": "READY_FOR_VALIDATION",
-  "phase": "AV1 decode in an isolated worker process (feature av1): reel-native-av1-worker binary hosting rav1d, WorkerAv1Provider (reel MediaProvider id av1), versioned stdio protocol, per-request and per-segment deadlines, output caps from declared dimensions, typed decoder_crashed with bounded respawn, hostile-mutation replay. Default build unchanged and trivial.",
+  "phase": "AV1 decode in an isolated worker process (feature av1), now integrated with reel's decode route: WorkerAv1Provider is reel's ExternalVideoDecoder (Registry::with_video_decoder routes untrusted AV1 to the worker), crash/deadline/protocol faults are ReelError::DecoderFault; decode_av1 and provider id av1 kept as the typed-error path. Default build unchanged and trivial.",
   "commits": [
     {
       "sha": "e95163a",
       "subject": "reel-native: AV1 decode in an isolated worker process (reel-native-av1-worker bin, WorkerAv1Provider, versioned stdio protocol, deadlines, output caps, bounded respawn, typed decoder_crashed), tests/av1_worker.rs (3) + wire unit"
+    },
+    {
+      "sha": "c7be531",
+      "subject": "reel-native: WorkerAv1Provider is reel's ExternalVideoDecoder (Registry::with_video_decoder routes untrusted AV1 to the worker; crash/deadline/protocol -> ReelError::DecoderFault), container demux and pump now reel's route, test helper uses SourceTrust::Trusted, +1 routing test"
     }
   ],
   "capabilities_done": [
@@ -17,25 +21,28 @@
     "Quiet spawn: CREATE_NO_WINDOW on Windows, env_clear (empty worker environment), stderr null, stdin/stdout piped; Av1WorkerStats (spawned, requests, crashed, killed_*, alive, last_crash_exit_code) makes every process action observable",
     "Test fault injection in the worker (WorkerTestFault via env HSK_REEL_NATIVE_AV1_WORKER_TEST_FAULT, set only by Av1WorkerOptions): hang_on_packet, exit_on_packet, exit_on_open, oversize_frame, garbage_reply",
     "Deterministic output: for mp4 and mkv, whole clip, random access with pre-roll and a two-frame span, the worker's chunk stream (pts, duration, index, flags, bytes) AND the whole SegmentReceipt (including bytes_read, decoder id/version, video format) are equal to reel's in-process decode; frame digests equal the libdav1d oracle SHA-256 in reel provenance.json",
-    "Hostile replay: 6 single-byte replacements of the mp4 mdat payload that the in-process decoder aborts on (offset=value 826=0, 949=128, 966=255, 994=0, 1004=128, 1009=255) plus one port-level call each end as decoder_crashed (exit code 70) with the test process alive; a typed MEDIA_CORRUPT mutation (817=0) and a changed-but-decodable mutation (824=0) are answered by the SAME worker (no respawn); after 7 crashes a fresh worker decodes the clean clip bit-exactly; every crashed process reaped (alive == 1 idle)"
+    "Hostile replay: 6 single-byte replacements of the mp4 mdat payload that the in-process decoder aborts on (offset=value 826=0, 949=128, 966=255, 994=0, 1004=128, 1009=255) plus one port-level call each end as decoder_crashed (exit code 70) with the test process alive; a typed MEDIA_CORRUPT mutation (817=0) and a changed-but-decodable mutation (824=0) are answered by the SAME worker (no respawn); after 7 crashes a fresh worker decodes the clean clip bit-exactly; every crashed process reaped (alive == 1 idle)",
+    "Reel route integration (follow-up of SMB-REEL-AV1-ROUTE bfef27f): impl ExternalVideoDecoder for WorkerAv1Provider (identity = rav1d + linked version, supports AV1, open() checks a worker out and sends OPEN with the container-declared size/config/colour/limits, WorkerSession implements VideoDecodeSession: PACKET per unit, FINISH, pictures pushed to reel's PictureSink one at a time); registering it with Registry::with_video_decoder makes every untrusted isobmff/matroska decode of AV1 run in the worker; the host-side Plan/Demux/Pump/Forward duplicate of reel's pump was deleted (decode_av1 now demuxes through reel on an untrusted route whose only decoder is this provider, with a fault slot so the typed Av1Error keeps exit codes); fault mapping: decoder_crashed -> ReelError::DecoderFault{Crashed}, decoder_deadline -> {Deadline}, worker_protocol -> {Protocol}; output too large / respawn limited / pool busy stay LimitExceeded, version mismatch Unsupported, spawn failure CodecUnavailable"
   ],
   "tests": {
-    "argv": "cargo test -p hsk-studio-reel-native --features av1 --tests -- --nocapture (studio-env.sh cargo form from WORKSPACE_RULES; shared edit tree, not an export)",
+    "argv": "cargo test -p hsk-studio-reel-native --features av1 --tests -- --nocapture (studio-env.sh cargo form; shared edit tree, not an export)",
     "exit": 0,
-    "sha": "e95163a",
-    "passed": 4,
+    "sha": "c7be531",
+    "passed": 5,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "Independent validator round on e95163a (or later): reel-native needs the av1 feature run (steward-owned .config/round-features.toml has no hsk-studio-reel-native entry: request [[\"av1\"]] via the lead; the default run compiles an empty crate); the worker binary is built by cargo for tests/av1_worker.rs. Then lead/steward: D14 packaging of reel-native-av1-worker next to the host executable, and the reel hook R1/R2 below so Registry::standard() consumers cannot reach the in-process decoder with untrusted AV1.",
-  "updated_at": "2026-10-11T03:50:00Z",
+  "next": "Independent validator round on c7be531 (feature av1; steward-owned .config/round-features.toml still needs hsk-studio-reel-native = [[\"av1\"]], request via the lead; reel av1 and reel-native av1 share the worker binary built by cargo). Then lead/steward: D14 packaging of reel-native-av1-worker; optional package split (worker bin in its own package) if a host image must not link rav1d.",
+  "updated_at": "2026-10-11T04:09:53Z",
   "notes": {
     "lanes": {
       "SMB-REEL-NATIVE-AV1-WORKER": {
         "status": "READY_FOR_VALIDATION (isolation scope; trusted AV1 decode quality is reel's)",
-        "commits": ["e95163a"],
+        "commits": [
+          "e95163a"
+        ],
         "task": "Isolated worker process for untrusted AV1 (START_LOG 2026-10-11T03:30:19Z decision): rav1d 1.1.0 aborts the process on 9.7% of single-byte corruptions (reel lane SMB-REEL-ENG-3).",
         "route_notes": {
           "retry_guard": "One product (test) failure: the supervision test raced the cancel against the first PACKET (a cancel seen between packets returns Canceled without a kill, so killed_canceled was 0). Route: product failure -> fix committed (Av1WorkerStats.requests added so the test cancels only after OPEN + PACKET are on the wire; HEAD changed to e95163a), then rerun. No gameplan step added, no flags or arguments changed to dodge the hook, no retry-guard block occurred.",
@@ -99,8 +106,78 @@
           "worker executable packaging next to the host or via with_worker_program (START_LOG D14 applies unchanged)",
           "10/12-bit, 4:2:2/4:4:4 and film-grain streams through the worker (no fixture; same Av1Decoder code path as reel, the wire carries every layout)",
           "throughput: decode speed through the pipe in the dev profile not measured"
-        ]
+        ],
+        "integration": {
+          "commit": "c7be531",
+          "task": "Re-opened for a small fix by the lead after reel's SMB-REEL-AV1-ROUTE (bfef27f): (1) the frozen test helper in_process now passes SourceTrust::Trusted; (2) WorkerAv1Provider implements reel's ExternalVideoDecoder so Registry::with_video_decoder routes untrusted AV1 to the worker, faults mapped to ReelError::DecoderFault; (3) +1 test proving untrusted routing reaches the worker.",
+          "tests_breakdown": {
+            "lib unit": "wire::tests::wire_roundtrip_and_bounds (unchanged)",
+            "worker_decode_is_bit_exact_with_in_process_and_the_dav1d_oracle": "unchanged assertions; in_process helper uses decode_segment_routed(.., SourceTrust::Trusted); chunks and full receipts still equal to the in-process decode, which now flows through reel's route on both sides",
+            "hostile_aborting_mutations_end_as_typed_errors_and_the_host_survives": "unchanged except the port mapping: decode_segment returns ReelError::DecoderFault{Crashed} (code MEDIA_DECODER_FAULT) instead of Corrupt{decoder_crashed}; 7 crashes contained in 1.17 s (exit code 70)",
+            "supervision_kills_on_deadline_cancel_oversize_garbage_and_bounds_respawn": "unchanged and green through the new session path (deadline, oversize, garbage, respawn bound, pool busy, cancel mid-request kill, pre-cancelled token)",
+            "untrusted_decode_through_a_registry_is_routed_to_the_worker_and_survives_aborting_input": "NEW: worker registered ONLY as the registry's video decoder; plain Registry::decode_segment (untrusted) of mp4 and mkv sends OPEN + 3 PACKET + FINISH to the worker, frame digests equal the dav1d oracle and chunks plus whole receipt equal the trusted in-process decode; one worker serves both containers; a byte replacement that aborts the in-process decoder (826=0) through the same plain call returns ReelError::DecoderFault{Crashed} with this test process alive; the pool recovers (second worker, clean decode); a registry WITHOUT the worker answers CodecUnavailable{av01}, never in-process"
+          },
+          "route_notes": {
+            "retry_guard": "No gameplan block and no failing run in this task: the previous known failure (in_process helper vs the untrusted default) was fixed by editing the helper, committed (HEAD changed) before the rerun. No gameplan step added."
+          },
+          "resolved_reel_requests": {
+            "R1-decoder-injection": "done in reel (ExternalVideoDecoder); implemented here",
+            "R2-split-av1-feature": "routing needs no reel feature; this package still enables reel av1 because the worker binary uses Av1Decoder, so the host lib in the same package still links rav1d (never called). Remaining option: move the worker binary and worker.rs into their own package (new crate + root Cargo.toml edit = steward) and make the host depend on reel without av1; DecoderIdentity needs a build-time constant instead of av1::decoder_version() there.",
+            "R3-port-fault-variant": "done in reel (ReelError::DecoderFault); mapped here",
+            "R4-small-helpers": "still duplicated here: check_cancel and verify_grant (private in reel); read_head. Harmless."
+          },
+          "changed_behaviour": [
+            "Av1Error::into_reel (port mapping of decode_segment on id av1): DecoderCrashed/DecoderDeadline/Protocol are ReelError::DecoderFault, no longer Corrupt/LimitExceeded/Corrupt carrying the fault code in what",
+            "decode_av1 now fails the zero-count, codec, output and grant checks before indexing (unchanged order) and everything after that is reel's container provider: error precedence for AV1 requests equals the in-process path",
+            "A FRAME reply to OPEN is now a protocol violation (killed worker, ReelError::DecoderFault{Protocol}); before, pictures arriving before any packet were silently dropped by the pump"
+          ]
+        }
       }
-    }
+    },
+    "verdicts": [
+      {
+        "round": "STUDIO-R5",
+        "lane": "SMB-REEL-NATIVE-AV1-WORKER",
+        "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
+        "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
+        "decision": "failed",
+        "verdict": "FAIL_V1",
+        "failures": [
+          {
+            "failure_kind": "product",
+            "failure_class": "host-declared-dims-overflow",
+            "file_line": "crates/hsk-studio-reel-native/src/host.rs:1056-1080 (open_session :948-950); reel src/matroska.rs:391-392"
+          },
+          {
+            "failure_kind": "product",
+            "failure_class": "wire-frame-dims-overflow",
+            "file_line": "crates/hsk-studio-reel-native/src/wire.rs:514 (contract :8-9)"
+          },
+          {
+            "failure_kind": "product",
+            "failure_class": "test-fault-hooks-in-product-api",
+            "file_line": "crates/hsk-studio-reel-native/src/host.rs:87-88,500-502; src/worker.rs:34-78; src/lib.rs:40"
+          },
+          {
+            "failure_kind": "product",
+            "failure_class": "worker-feature-links-in-process-decoder",
+            "file_line": "crates/hsk-studio-reel-native/Cargo.toml:9,13; src/lib.rs:21-24"
+          },
+          {
+            "failure_kind": "product",
+            "failure_class": "worker-supervisor-cap-duplicate",
+            "file_line": "crates/hsk-studio-reel-native/src/host.rs:300-414 vs crates/hsk-studio-motion-js/src/quickjs_worker.rs:153-254"
+          }
+        ],
+        "remediation": "checked_mul/add in caps + wire (overflow typed); test-faults feature; split worker package; one supervisor owner",
+        "status_after": "FAIL_V1",
+        "review": "validation/R5-review-b.json",
+        "round_ref": "validation/round-R5.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
+        "idempotency_key": "STUDIO-R5:SMB-REEL-NATIVE-AV1-WORKER:1d404f8c4b72:FAIL_V1",
+        "recorded_at": "2026-10-11T05:38:23Z",
+        "by": "wp_validator STUDIO-R5"
+      }
+    ]
   }
 }

@@ -1,0 +1,33 @@
+{
+  "crate": "hsk-studio-pigment+hsk-studio-folio",
+  "lane": "SMB-PIGMENT-ENG-2 / SMB-FOLIO-ENG-5",
+  "status": null,
+  "phase": "adjust_math + coverage_math landed; next: render_plan PlanExtensions envelope, folio raster records, briefs",
+  "commits": [
+    {
+      "sha": "bd480f9",
+      "subject": "Pigment ENG-2: single-owner adjust_math + coverage_math with hand-computed oracle tests"
+    }
+  ],
+  "capabilities_done": [
+    "decision note diagnostics/adjustments-advanced-blending.md",
+    "pigment::adjust_math (levels, curves, hue_saturation master, exposure, invert, threshold, posterize; brightness_contrast refused; composite_adjustment rule)",
+    "pigment::coverage_math (mask_coverage density/invert, feather sigma/kernel, Blend-If range weight)"
+  ],
+  "tests": {
+    "argv": ["cargo", "test", "-p", "hsk-studio-pigment", "--test", "adjust_coverage"],
+    "exit": 0,
+    "sha": "bd480f9",
+    "passed": 4,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "render_plan PlanExtensions + admit_extended + RenderBackend default methods; folio StudioRasterRecords; briefs",
+  "updated_at": "2026-10-11T05:22:10Z",
+  "notes": {
+    "clippy": "cargo clippy without --no-deps fails in hsk-studio-prism (another lane's uncommitted icc_eval.rs edits: approx_constant LOG2_E/SQRT_2); pigment/folio linted with --no-deps: clean",
+    "additivity": "v1 IR and folio structs are struct-literal built elsewhere; additions travel in render_plan::PlanExtensions and folio::StudioRasterRecords (decision note topic additivity)"
+  }
+}

@@ -159,6 +159,31 @@
       "ToUnicode: bounded parser (codespacerange, bfchar, bfrange); cidchar/cidrange and usecmap are not interpreted; mixed-length codespaces decode greedily by ascending length.",
       "Per-object outcomes for the name tree report the holder of the tree root, not each leaf (leaves are rebuilt away).",
       "No Acrobat-saved fixture oracle yet (foreground session needs Operator approval, START_LOG D5)."
+    ],
+    "verdicts": [
+      {
+        "round": "STUDIO-R5",
+        "lane": "SMB-PRESS",
+        "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
+        "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
+        "decision": "failed",
+        "verdict": "FAIL_V1",
+        "failures": [
+          {
+            "failure_kind": "product",
+            "failure_class": "is-proven-ignores-undecodable-streams",
+            "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:314-316 (vs :11, :226-237, :276)"
+          }
+        ],
+        "remediation": "Require proof.fully_decoded() in is_proven (or typed NotProven); add undecodable-stream leak test",
+        "status_after": "READY_FOR_VALIDATION (newer submission e75bd5a)",
+        "review": "validation/R5-review-b.json",
+        "round_ref": "validation/round-R5.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
+        "idempotency_key": "STUDIO-R5:SMB-PRESS:1d404f8c4b72:FAIL_V1",
+        "recorded_at": "2026-10-11T05:38:23Z",
+        "by": "wp_validator STUDIO-R5"
+      }
     ]
   }
 }

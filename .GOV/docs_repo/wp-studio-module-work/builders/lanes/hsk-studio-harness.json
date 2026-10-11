@@ -39,6 +39,31 @@
       "edit sequence stops at the first failing edit; no multi-edit atomic batch",
       "artboard and page-spread renames are supported by chronicle but not exposed by the harness commands (layers only)",
       "stories and sequences are summarized (ids, names, counts) but not editable"
+    ],
+    "verdicts": [
+     {
+      "round": "STUDIO-R5",
+      "lane": "SMB-HARNESS",
+      "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
+      "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
+      "decision": "failed",
+      "verdict": "FAIL_V1",
+      "failures": [
+       {
+        "failure_kind": "product",
+        "failure_class": "verify-with-no-expectations-passes",
+        "file_line": "crates/hsk-studio-harness/src/cli.rs:192-198; src/harness.rs:618-630; src/manual.rs:23"
+       }
+      ],
+      "remediation": "Refuse verify with zero expectations (usage exit 2) or report nothing_checked, never pass",
+      "status_after": "FAIL_V1",
+      "review": "validation/R5-review-b.json",
+      "round_ref": "validation/round-R5.json",
+      "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
+      "idempotency_key": "STUDIO-R5:SMB-HARNESS:1d404f8c4b72:FAIL_V1",
+      "recorded_at": "2026-10-11T05:38:23Z",
+      "by": "wp_validator STUDIO-R5"
+     }
     ]
   }
 }

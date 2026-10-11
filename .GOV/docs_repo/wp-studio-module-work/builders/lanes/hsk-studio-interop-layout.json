@@ -74,6 +74,31 @@
     ],
     "mistakes_recorded": [
       "A python text-mode rewrite and a sed with line numbers applied to two files at once during break-it step were checked with git diff; no stray changes remained. index.lock contention on one commit was retried after a wait as instructed. No amend, rebase or bare commit was used; no shared-gameplan steps were added"
+    ],
+    "verdicts": [
+     {
+      "round": "STUDIO-R5",
+      "lane": "SMB-INTEROP-LAYOUT",
+      "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
+      "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
+      "decision": "failed",
+      "verdict": "FAIL_V1",
+      "failures": [
+       {
+        "failure_kind": "product",
+        "failure_class": "idml-properties-xml-cloned-per-content",
+        "file_line": "crates/hsk-studio-interop-layout/src/idml_decode.rs:756-779,812-815,723-737"
+       }
+      ],
+      "remediation": "Store Properties once per range (Rc/index) or charge every cloned byte to a decode budget; add amplification test",
+      "status_after": "READY_FOR_VALIDATION (newer submission f40d6a2)",
+      "review": "validation/R5-review-c.json",
+      "round_ref": "validation/round-R5.json",
+      "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
+      "idempotency_key": "STUDIO-R5:SMB-INTEROP-LAYOUT:1d404f8c4b72:FAIL_V1",
+      "recorded_at": "2026-10-11T05:38:23Z",
+      "by": "wp_validator STUDIO-R5"
+     }
     ]
   }
 }

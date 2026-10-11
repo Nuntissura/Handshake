@@ -219,6 +219,62 @@
         "idempotency_key": "STUDIO-R3:SMB-MOTION-JS:404ff3ae8cd7:FAIL_V1",
         "recorded_at": "2026-10-11T03:11:21Z",
         "by": "wp_validator STUDIO-R3"
+      },
+      {
+        "round": "STUDIO-R5",
+        "lane": "SMB-MOTION-JS",
+        "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
+        "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
+        "decision": "failed",
+        "verdict": "FAIL_V2",
+        "failures": [
+          {
+            "failure_kind": "product",
+            "failure_class": "quickjs-forged-internalerror-poisons-provider",
+            "file_line": "crates/hsk-studio-motion-js/src/quickjs.rs:167-171,680-682; src/provider.rs:184-186,231"
+          }
+        ],
+        "remediation": "Classify Stack/Memory budget from engine signals only; message-matched user throws -> Thrown; forged-message tests",
+        "status_after": "NEEDS_NEW_APPROACH",
+        "review": "validation/R5-review-b.json",
+        "round_ref": "validation/round-R5.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
+        "idempotency_key": "STUDIO-R5:SMB-MOTION-JS:1d404f8c4b72:FAIL_V2",
+        "recorded_at": "2026-10-11T05:38:23Z",
+        "by": "wp_validator STUDIO-R5"
+      },
+      {
+        "round": "STUDIO-R5",
+        "lane": "SMB-MOTION-JS-WORKER",
+        "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
+        "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
+        "decision": "failed",
+        "verdict": "FAIL_V1",
+        "failures": [
+          {
+            "failure_kind": "product",
+            "failure_class": "test-fault-hooks-in-product-api",
+            "file_line": "crates/hsk-studio-motion-js/src/quickjs_worker.rs:85-86; src/quickjs.rs:220-259,817-829; src/lib.rs:27-30"
+          },
+          {
+            "failure_kind": "product",
+            "failure_class": "scope-rss-cpu-ast-validator-undelivered",
+            "file_line": "crates/hsk-studio-motion-js/src/quickjs.rs:17-22; ledger SMB-MOTION-JS-WORKER scope"
+          },
+          {
+            "failure_kind": "flaky",
+            "failure_class": "worker-crash-test-wer-timing",
+            "file_line": "crates/hsk-studio-motion-js/tests/quickjs_worker.rs:241,262-276"
+          }
+        ],
+        "remediation": "Gate test faults + unsafe_in_process behind non-default test-faults feature; split or deliver RSS/CPU + AST scope",
+        "status_after": "FAIL_V1",
+        "review": "validation/R5-review-b.json",
+        "round_ref": "validation/round-R5.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
+        "idempotency_key": "STUDIO-R5:SMB-MOTION-JS-WORKER:1d404f8c4b72:FAIL_V1",
+        "recorded_at": "2026-10-11T05:38:23Z",
+        "by": "wp_validator STUDIO-R5"
       }
     ],
     "builder": [

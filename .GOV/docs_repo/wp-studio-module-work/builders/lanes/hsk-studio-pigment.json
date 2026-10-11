@@ -47,6 +47,31 @@
       "tests_run": "pigment --tests 14/14 (render_plan 4, blend_math 6, masked_patch 4); clippy --tests clean for pigment",
       "dependents": "cargo check --tests of render-gpu, develop, interop-psd clean (no exhaustive match on PlanError outside pigment); composite 13/13 and render-cpu 11/11 after their own R3 commits. render-cpu test clip_to_base_hidden_base_lowering_shape_and_refusals now expects InvalidPlan(ClipBasePassThrough{node:4}) instead of Unsupported{clip_base_pass_through} because validation refuses first; render-cpu/render-gpu execute-time copies remain as defense in depth (render-gpu not touched).",
       "date": "2026-10-11T03:18:00Z"
-    }
+    },
+    "verdicts": [
+      {
+        "round": "STUDIO-R5",
+        "lane": "SMB-PIGMENT-ENG-1",
+        "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
+        "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
+        "decision": "failed",
+        "verdict": "FAIL_V2",
+        "failures": [
+          {
+            "failure_kind": "product",
+            "failure_class": "pass-through-fill-opacity-admitted",
+            "file_line": "crates/hsk-studio-pigment/src/render_plan.rs:362-379"
+          }
+        ],
+        "remediation": "validate: PassThrough && fill_opacity<1 -> PassThroughOpacity (or new op) so admit refuses uniformly; add test",
+        "status_after": "FAIL_V2",
+        "review": "validation/R5-review-a.json",
+        "round_ref": "validation/round-R5.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
+        "idempotency_key": "STUDIO-R5:SMB-PIGMENT-ENG-1:1d404f8c4b72:FAIL_V2",
+        "recorded_at": "2026-10-11T05:38:23Z",
+        "by": "wp_validator STUDIO-R5"
+      }
+    ]
   }
 }

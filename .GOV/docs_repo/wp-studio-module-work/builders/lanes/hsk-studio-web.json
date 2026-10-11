@@ -54,6 +54,36 @@
     "spec_gaps": [
       "folio::StudioDocument has no web mode field (brief gap, unchanged): slice takes (source, revision) directly",
       "em/rem media units rejected typed: root font size is not part of the source revision"
+    ],
+    "verdicts": [
+     {
+      "round": "STUDIO-R5",
+      "lane": "SMB-WEB",
+      "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
+      "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
+      "decision": "failed",
+      "verdict": "FAIL_V1",
+      "failures": [
+       {
+        "failure_kind": "product",
+        "failure_class": "css-escape-bypasses-url-classification",
+        "file_line": "crates/hsk-studio-web/src/css.rs:63-85; src/assets.rs:99-131"
+       },
+       {
+        "failure_kind": "product",
+        "failure_class": "base-href-and-url-attributes-unscanned",
+        "file_line": "crates/hsk-studio-web/src/assets.rs:79-96; src/lib.rs:32"
+       }
+      ],
+      "remediation": "Decode CSS escapes before matching/classifying; handle <base href>; add missing URL attrs or list as not_scanned",
+      "status_after": "FAIL_V1",
+      "review": "validation/R5-review-b.json",
+      "round_ref": "validation/round-R5.json",
+      "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
+      "idempotency_key": "STUDIO-R5:SMB-WEB:1d404f8c4b72:FAIL_V1",
+      "recorded_at": "2026-10-11T05:38:23Z",
+      "by": "wp_validator STUDIO-R5"
+     }
     ]
   }
 }

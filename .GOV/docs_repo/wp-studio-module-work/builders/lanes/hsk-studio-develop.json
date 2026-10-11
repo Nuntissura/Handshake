@@ -92,6 +92,12 @@
       "branch": "codex/handshake-studio-assets",
       "pushed": true,
       "summary": "test for the converter length guard (R3 PLAUSIBLE pipeline.rs:639-647: wrong-length converter output -> typed invalid_length, no tile delivered; guard itself landed with the pipeline rewrite)"
+    },
+    {
+      "sha": "5ef2dd9",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "remediation_R5 (group A, CONFIRMED, candidate 1d404f8 / c008daf): lossless-JPEG DNG declared frame must fit in 8 x min(sum of block byte counts, file length) before the frame allocation, typed invalid_dimensions (dng.rs, before the vec![0u16; w*h]); hostile tiny file (asserted < 4 KiB; 16384x16384 tile and image, one tiny stream) test with a per-thread allocation tracker: RED on the old code (invalid_container after the 512 MiB allocation), green now"
     }
   ],
   "capabilities_done": [
@@ -139,6 +145,15 @@
     ]
   },
   "notes": [
+    {
+      "remediation_R5": {
+        "finding": "R5 group A CONFIRMED: ~300-byte lossless-JPEG DNG forced a 512 MiB allocation (block size check skipped for compression 7; dng.rs:438-449, bounds :17/:386)",
+        "fix": "5ef2dd9: for compression 7, width*height <= 8 * min(sum(block byte counts), file length) else invalid_dimensions, checked before vec![0u16; w*h]; the file-length cap stops blocks that overlap the same bytes from inflating the sum",
+        "test": "tests/develop_dng.rs dng_lossless_jpeg_declared_frame_cannot_outgrow_the_payload (hostile file: image and tile 16384x16384 = 2^28 samples over one 16-sample stream; asserts largest single allocation < 1 MiB via a per-thread tracking allocator, whose self-check sees a 2 MiB request, and typed invalid_dimensions). Verified RED with the check disabled (got invalid_container, i.e. the old path allocated and failed late); develop_dng 7/7 green on 5ef2dd9",
+        "observation_not_changed": "uncompressed DNG with many tile/strip offsets pointing at the same bytes passes the per-block in-file check and can still amplify a small file into a large frame allocation (needs blocks of real size, bounded by MAX_DNG_PIXELS); same class as R5 but not in the recorded finding, left as is",
+        "recorded_at": "2026-10-11T05:32:58Z"
+      }
+    },
     "kamadak-exif 0.6.1 verified (BSD-2-Clause, pure Rust, deps: mutate_once only, 2024-11-06) but NOT added: own IFD reader covers every DNG tag develop needs",
     "UNVERIFIED: whether Adobe anchors the CFA pattern at the raw frame origin or the ActiveArea origin; reader refuses ActiveArea origins that are not a multiple of the pattern period",
     "Robertson CCT table transcribed from colour-science (BSD-3) and checked against D65/A/D50 CCTs; LightSource temperatures documented in color.rs (Adobe SDK table UNVERIFIED)",
@@ -173,6 +188,53 @@
           "idempotency_key": "STUDIO-R3:SMB-DEVELOP:404ff3ae8cd7:FAIL_V1",
           "recorded_at": "2026-10-11T03:11:21Z",
           "by": "wp_validator STUDIO-R3"
+        },
+        {
+          "round": "STUDIO-R5",
+          "lane": "SMB-DEVELOP",
+          "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
+          "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
+          "decision": "failed",
+          "verdict": "FAIL_V2",
+          "failures": [
+            {
+              "failure_kind": "product",
+              "failure_class": "ljpeg-tiny-file-forces-frame-allocation",
+              "file_line": "crates/hsk-studio-develop/src/dng.rs:438-449 (bound :17)"
+            }
+          ],
+          "remediation": "For LJPEG require width*height <= 8 * sum(block byte counts) before allocating; add tiny-LJPEG test",
+          "status_after": "FAIL_V2",
+          "review": "validation/R5-review-a.json",
+          "round_ref": "validation/round-R5.json",
+          "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
+          "idempotency_key": "STUDIO-R5:SMB-DEVELOP:1d404f8c4b72:FAIL_V2",
+          "recorded_at": "2026-10-11T05:38:23Z",
+          "by": "wp_validator STUDIO-R5"
+        },
+        {
+          "round": "STUDIO-R5",
+          "lane": "SMB-DEVELOP-WIDE",
+          "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
+          "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
+          "decision": "blocked",
+          "verdict": "BLOCKED",
+          "failures": [
+            {
+              "failure_kind": "product",
+              "failure_class": "wide-transform-not-admitted-per-stu-con-044",
+              "file_line": "crates/hsk-studio-develop/src/convert.rs:1-11; src/lib.rs:230"
+            }
+          ],
+          "remediation": "Blocked on Operator D13 (STU-CON-044 enrichment) or SMB-PRISM-ENG-6 Prism admission-ledger hook",
+          "status_after": "BLOCKED",
+          "review": "validation/R5-review-a.json",
+          "round_ref": "validation/round-R5.json",
+          "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
+          "idempotency_key": "STUDIO-R5:SMB-DEVELOP-WIDE:1d404f8c4b72:BLOCKED",
+          "recorded_at": "2026-10-11T05:38:23Z",
+          "by": "wp_validator STUDIO-R5",
+          "blocked_on": "SMB-PRISM-ENG-6 (admission-ledger hook) / Operator D13 (STU-CON-044)"
         }
       ]
     }

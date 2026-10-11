@@ -43,6 +43,36 @@
       "SQLite WAL/auto_vacuum pointer-map pages, UTF-16 databases and WITHOUT ROWID tables are handled by code but have no fixture"
     ],
     "deps": "sha2 =0.10.9 (force-soft) added in the crate manifest; one dep-requests line appended; Cargo.lock not staged",
-    "git_note": "commit e478186 pre-dates the attribution trailer reminder and carries no Co-Authored-By; later commits do"
+    "git_note": "commit e478186 pre-dates the attribution trailer reminder and carries no Co-Authored-By; later commits do",
+    "verdicts": [
+     {
+      "round": "STUDIO-R5",
+      "lane": "SMB-INTEROP-LRCAT",
+      "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
+      "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
+      "decision": "failed",
+      "verdict": "FAIL_V1",
+      "failures": [
+       {
+        "failure_kind": "product",
+        "failure_class": "no-aggregate-retained-text-budget",
+        "file_line": "crates/hsk-studio-interop-lrcat/src/catalog_bytes.rs:489-521 (seen :504); src/extract.rs:504-518"
+       },
+       {
+        "failure_kind": "product",
+        "failure_class": "reconcile-check-tautological",
+        "file_line": "crates/hsk-studio-interop-lrcat/src/extract.rs:254-261,183-187; tests/catalog_decode.rs:167,482"
+       }
+      ],
+      "remediation": "Extraction-wide overflow visited set + aggregate retained-text budget; derive lost from per-row loss events; tests",
+      "status_after": "FAIL_V1",
+      "review": "validation/R5-review-c.json",
+      "round_ref": "validation/round-R5.json",
+      "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
+      "idempotency_key": "STUDIO-R5:SMB-INTEROP-LRCAT:1d404f8c4b72:FAIL_V1",
+      "recorded_at": "2026-10-11T05:38:23Z",
+      "by": "wp_validator STUDIO-R5"
+     }
+    ]
   }
 }

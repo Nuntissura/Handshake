@@ -1,0 +1,78 @@
+{
+ "crate": "hsk-studio-prism",
+ "lane": "SMB-PRISM-ENG-6",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "diagnosis + fixes done: wide path evaluated by Prism (f64, deterministic), all 11 ENG-5 findings closed, matrix-pair fusion; only DIV-* lead decisions remain in KNOWN_FINDINGS",
+ "commits": [
+  {
+   "sha": "3926709",
+   "subject": "Prism: evaluate wide-path ICC math in Prism (f64, moxcms parse-only), ICC 8.10.2 tag precedence, fused matrix pairs (SMB-PRISM-ENG-6 WIP)"
+  },
+  {
+   "sha": "fdd57ee",
+   "subject": "Prism oracle: close fixed findings (curv gamma zero, gray/RGB BPC black, negative PCS clamp, HDR clamp, LUT bake, CMYK BPC black, curv table interp/inverse, intent fallback); re-pin wide digests"
+  },
+  {
+   "sha": "dc42e34",
+   "subject": "Prism: table-driven deterministic ln/exp/pow (2x faster), trilinear Lab-indexed output CLUT as lcms2, fused-vs-staged equivalence test; T1 residue re-attributed to divergences"
+  },
+  {
+   "sha": "d9a8ce8",
+   "subject": "Prism: clippy clean (fdlibm ln2 split as bit patterns, std LOG2_E)"
+  }
+ ],
+ "capabilities_done": [
+  "diagnostics/prism-eng6.md: cause per finding with moxcms/pxfm file:line evidence; moxcms 0.9.1 and pxfm 0.1.30 are the newest releases (crates.io 2026-10-11) and master keeps the pure-gamma dirty_powf path: option (b) unavailable, option (a) taken, no vendor request",
+  "src/icc_eval.rs: deterministic ln/exp/pow from IEEE basic ops (const-evaluated 256-entry tables, Estrin polynomials, no libm, no FMA); curv identity/gamma/table, para 0-4 forward + sign-preserving inverse; CLUT 1D/2D/3D tetrahedral/4D first-input-linear; mft1/mft2/mAB/mBA with XYZ, Lab v4 and legacy v2 encodings; trilinear for Lab-indexed PCS->device CLUTs (lcms2 _cmsReadOutputLUT convention, verified 1e-6 on the 13^3 synthetic B2A1)",
+  "Plan = Prism source stage -> PCS map -> Prism destination stage; moxcms only parses (ColorProfile public fields); BPC probes (vertices, local black, ISO ramp) on the same exact stages",
+  "ICC.1:2022 8.10.2 tag precedence (intent table, table 0, matrix/TRC); MissingIntentTable only when none exists; WIDE_DESCRIPTOR updated",
+  "Matrix/TRC + Gray pairs fused into one affine 3x3 (A = Mdst^-1 diag(D50) map diag(1/D50) Msrc, b = Mdst^-1 diag(D50) o), identity curves skipped; WideEngine::set_matrix_fusion/matrix_fusion (additive; toggling clears the cache); tests/wide_fusion.rs: 7 pairs incl. BPC, absolute, curv 1.8, Gray: 100% bit-identical to the staged plan, identical clip reports",
+  "Receipts: WIDE_ENGINE_NAME hsk-studio-prism-icc / WIDE_ENGINE_VERSION 1 (additive consts); engine_build fma_contraction=false, interpolation tetrahedral_lab_output_trilinear, barycentric_weights exact_f64; pinned determinism digests re-pinned once (numeric path changed on purpose)"
+ ],
+ "tests": {
+  "argv": "cd wt-studio-assets/handshake-studio-assets && STUDIO_OWNER=prism-eng6 source builders/studio-env.sh && cargo test -p hsk-studio-prism --tests --no-fail-fast",
+  "exit": 0,
+  "sha": "d9a8ce8",
+  "passed": 117,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "Lead/Operator: decide DIV-ABS-V2-DISPLAY-WTPT-001, DIV-V4-PERCEPTUAL-BLACK-001, DIV-CMYK-PERCEPTUAL-BPC-BLACK-001 (T3 Photoshop reading) and acknowledge the ICC 8.10.2 fallback (validated ENG-3 assertion changed) and the lcms2 trilinear convention. interop-psd may drop its gray no-BPC workaround. Optional perf: source-curve tables for non-linear pairs (now ~180 ns/px release).",
+ "updated_at": "2026-10-11T05:27:27Z",
+ "notes": {
+  "findings_fixed": {
+   "PRISM-CURV-GAMMA-ZERO-001": "moxcms curv count=1 dirty_powf(0) garbage -> Prism pow(0)=0",
+   "PRISM-RGB-BPC-CURV-GAMMA-001": "same root; black L* 0 now",
+   "PRISM-GRAY-BPC-001": "same root; interop-psd repro now asserts BPC on == off, black L* 0, scale 1",
+   "PRISM-SOURCE-XYZ-NEGATIVE-CLAMP-001": "companion leg removed; PCS f64 unclamped",
+   "PRISM-HDR-SOURCE-CLAMP-001": "Prism mAB evaluator, parametric curves unbounded (HLG Y to 4.9)",
+   "PRISM-LUT-DEST-ACCURACY-001": "exact per-pixel B2A (no 33^3 XYZ-linear rebake) + trilinear Lab-indexed output CLUT as lcms2; residual absolute/BPC combos re-attributed to DIV-ABS-V2-DISPLAY-WTPT-001 (wtpt D50 forced: max 0.006) and DIV-CMYK-PERCEPTUAL-BPC-BLACK-001",
+   "PRISM-BPC-CMYK-BLACK-001": "BPC probes run through exact stages (no 17^4 rebake)",
+   "PRISM-LUT-SOURCE-REBAKE-001": "exact 4D CLUT (first input linear over 3D tetrahedral)",
+   "PRISM-CURV-TABLE-INTERP-001": "linear interpolation of curv entries (no 14-bit truncated index)",
+   "PRISM-TABLE-TRC-INVERSE-001": "exact inverse of the piecewise-linear table",
+   "PRISM-MISSING-INTENT-TABLE-REFUSAL-001": "ICC.1:2022 8.10.2 c) precedence: intent table, else table 0, else matrix/TRC; HLG saturation bpc=true now equals perceptual (DIV-V4-PERCEPTUAL-BLACK-001)"
+  },
+  "findings_remaining": "none of PRISM-*; T1 KNOWN_FINDINGS keeps only DIV-ABS-V2-DISPLAY-WTPT-001 (30 combos incl. 8 RGB->CMYK absolute re-attributed), DIV-V4-PERCEPTUAL-BLACK-001 (7 incl. HLG saturation bpc=true = perceptual via A2B0), DIV-CMYK-PERCEPTUAL-BPC-BLACK-001 (2: SWOP->FOGRA39 perceptual/saturation BPC, source black 0.86 vs lcms2 0.0); T0 KNOWN_FINDINGS empty",
+  "divergence_change": "DIV-CMYK-PERCEPTUAL-BPC-BLACK-001 no longer exceeds the gate on CMYK->sRGB (6 combos removed: the rebake amplified it); l_synth_cmyk_to_synth_v4para4 saturation bpc=true (DIV-V4) passes now",
+  "perf_release_ns_per_px": {
+   "linear_srgb_to_linear_p3_fused": 34.5,
+   "srgb_to_p3_fused": 187.3,
+   "srgb_to_p3_bpc_fused": 178.4,
+   "curv18_to_srgb_bpc_fused": 181.6,
+   "srgb_to_gray_fused": 91.7,
+   "basis": "tests/wide_fusion.rs --release, 20k px, includes validation and SHA-256 output digest; develop reported ~110 ns/px for its linear pair on the old moxcms legs"
+  },
+  "contract_changes_to_acknowledge": [
+   "wide_profiles A2B0-only profile: relative now = perceptual (ICC 8.10.2 c) instead of MissingIntentTable (ENG-3 assertion updated)",
+   "wide_determinism: digests re-pinned, engine name/version WIDE_ENGINE_*, weights exact_f64, fma_contraction false",
+   "EngineBuild.interpolation tetrahedral_lab_output_trilinear"
+  ],
+  "dependents": "check --tests PASS: pigment, interop-psd, composite, develop, render-cpu, render-gpu; suites PASS: interop-psd (18), develop (16, 1 ignored)",
+  "clippy": "clippy -p hsk-studio-prism --tests: no prism warnings",
+  "retry_guard_route": "one blocked identical rerun after the first suite failed (expected-fail registry flipping); route (a): committed the product fix 3926709 (HEAD changed), no flag changes, no gameplan step",
+  "scope_kept": "crates/hsk-studio-prism/** only; Cargo.toml/Cargo.lock untouched; no new dependency"
+ }
+}

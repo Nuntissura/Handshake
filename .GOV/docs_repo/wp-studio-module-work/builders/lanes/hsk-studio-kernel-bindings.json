@@ -43,6 +43,36 @@
       "revision_updates travel as address JSON strings obtained generically via serde (chronicle is not a direct edge)",
       "idempotent replay is proven at two levels: session-level (stored receipt, commit not re-sent) and host-level (same commit bytes answer the same receipt, applied once)",
       "no async/threads/transport by design; HostBridge is synchronous bytes in/out"
+    ],
+    "verdicts": [
+     {
+      "round": "STUDIO-R5",
+      "lane": "SMB-KERNEL-BINDINGS",
+      "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
+      "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
+      "decision": "failed",
+      "verdict": "FAIL_V1",
+      "failures": [
+       {
+        "failure_kind": "product",
+        "failure_class": "job-release-without-owner-check",
+        "file_line": "crates/hsk-studio-kernel-bindings/src/host.rs:235-238, :287-308"
+       },
+       {
+        "failure_kind": "product",
+        "failure_class": "wire-decode-accepts-non-canonical",
+        "file_line": "crates/hsk-studio-kernel-bindings/src/wire.rs:1-4 vs :537-565"
+       }
+      ],
+      "remediation": "Bind tickets to account+principal+resource, refuse foreign release; require re-encode byte equality on decode; tests",
+      "status_after": "FAIL_V1",
+      "review": "validation/R5-review-b.json",
+      "round_ref": "validation/round-R5.json",
+      "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
+      "idempotency_key": "STUDIO-R5:SMB-KERNEL-BINDINGS:1d404f8c4b72:FAIL_V1",
+      "recorded_at": "2026-10-11T05:38:23Z",
+      "by": "wp_validator STUDIO-R5"
+     }
     ]
   }
 }

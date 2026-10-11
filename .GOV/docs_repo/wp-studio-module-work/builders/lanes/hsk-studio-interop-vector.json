@@ -125,6 +125,52 @@
         "idempotency_key": "STUDIO-R3:SMB-INTEROP-VECTOR:404ff3ae8cd7:PASS_V1",
         "recorded_at": "2026-10-11T03:11:21Z",
         "by": "wp_validator STUDIO-R3"
+      },
+      {
+        "round": "STUDIO-R5",
+        "lane": "SMB-INTEROP-VECTOR-FOLIO-MIGRATE",
+        "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
+        "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
+        "decision": "failed",
+        "verdict": "FAIL_V1",
+        "failures": [
+          {
+            "failure_kind": "product",
+            "failure_class": "export-ignores-assigned-colour-profile-silently",
+            "file_line": "crates/hsk-studio-interop-vector/src/svg_export.rs:33-44,445-452"
+          }
+        ],
+        "remediation": "Typed loss (or prism conversion) when colour_profile_id is Assigned; surface ResolutionIssues; add test",
+        "status_after": "READY_FOR_VALIDATION (newer submission 3561b12)",
+        "review": "validation/R5-review-c.json",
+        "round_ref": "validation/round-R5.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
+        "idempotency_key": "STUDIO-R5:SMB-INTEROP-VECTOR-FOLIO-MIGRATE:1d404f8c4b72:FAIL_V1",
+        "recorded_at": "2026-10-11T05:38:23Z",
+        "by": "wp_validator STUDIO-R5"
+      },
+      {
+        "round": "STUDIO-R5",
+        "lane": "SMB-INTEROP-VECTOR",
+        "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
+        "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
+        "decision": "failed",
+        "verdict": "FAIL_V2",
+        "failures": [
+          {
+            "failure_kind": "product",
+            "failure_class": "doctype-scan-comment-bypass-allows-dtd",
+            "file_line": "crates/hsk-studio-interop-vector/src/svg_adapter.rs:380-395,450-467"
+          }
+        ],
+        "remediation": "Never set allow_dtd=true, or locate DOCTYPE only in the prolog after skipping comments/PIs; add bypass test",
+        "status_after": "READY_FOR_VALIDATION (newer submission 3561b12)",
+        "review": "validation/R5-review-c.json",
+        "round_ref": "validation/round-R5.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
+        "idempotency_key": "STUDIO-R5:SMB-INTEROP-VECTOR:1d404f8c4b72:FAIL_V2",
+        "recorded_at": "2026-10-11T05:38:23Z",
+        "by": "wp_validator STUDIO-R5"
       }
     ]
   }

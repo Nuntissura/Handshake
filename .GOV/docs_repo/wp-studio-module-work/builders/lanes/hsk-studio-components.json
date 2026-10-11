@@ -113,6 +113,52 @@
         "idempotency_key": "STUDIO-R3:SMB-COMPONENTS:404ff3ae8cd7:FAIL_V1",
         "recorded_at": "2026-10-11T03:11:21Z",
         "by": "wp_validator STUDIO-R3"
+      },
+      {
+        "round": "STUDIO-R5",
+        "lane": "SMB-COMPONENTS",
+        "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
+        "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
+        "decision": "failed",
+        "verdict": "FAIL_V2",
+        "failures": [
+          {
+            "failure_kind": "product",
+            "failure_class": "swap-switch-skip-variable-binding-type-check",
+            "file_line": "crates/hsk-studio-components/src/instance_resolution.rs:473 (vars None), :433-436, :538"
+          }
+        ],
+        "remediation": "check_shape: pass Some(design.variables()) and type-check bound property variables; add binding-clash swap test",
+        "status_after": "FAIL_V2",
+        "review": "validation/R5-review-c.json",
+        "round_ref": "validation/round-R5.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
+        "idempotency_key": "STUDIO-R5:SMB-COMPONENTS:1d404f8c4b72:FAIL_V2",
+        "recorded_at": "2026-10-11T05:38:23Z",
+        "by": "wp_validator STUDIO-R5"
+      },
+      {
+        "round": "STUDIO-R5",
+        "lane": "SMB-COMPONENTS-FOLIO-MIGRATE",
+        "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
+        "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
+        "decision": "failed",
+        "verdict": "FAIL_V1",
+        "failures": [
+          {
+            "failure_kind": "product",
+            "failure_class": "design-new-accepts-duplicate-component-ids",
+            "file_line": "crates/hsk-studio-components/src/design.rs:16-19,101-104,183-193; src/instance_resolution.rs:351-356"
+          }
+        ],
+        "remediation": "Refuse repeated component/set/layer ids in Design::new (Result) or require a validated Design typestate",
+        "status_after": "FAIL_V1",
+        "review": "validation/R5-review-c.json",
+        "round_ref": "validation/round-R5.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
+        "idempotency_key": "STUDIO-R5:SMB-COMPONENTS-FOLIO-MIGRATE:1d404f8c4b72:FAIL_V1",
+        "recorded_at": "2026-10-11T05:38:23Z",
+        "by": "wp_validator STUDIO-R5"
       }
     ],
     "r3_remediation": {

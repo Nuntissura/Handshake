@@ -90,6 +90,25 @@
       "git prints CRLF-to-LF warnings for the new files on commit (working copies are CRLF on this machine); content diffs are clean",
       "the shared gameplan gate passed for every cargo test run; no gameplan step was added (compile and test mistakes are recorded here per the lead rule: none occurred beyond one lifetime error in records.rs index() fixed before the first commit, and two clippy lints fixed before the first commit)",
       "scratch copies for the mutation checks were saved under the session scratchpad (outside the repo) and the source tree was restored from them; no scratch file was copied over the shared tree except those restorations, each verified by an empty git diff"
+    ],
+    "verdicts": [
+     {
+      "round": "STUDIO-R5",
+      "lane": "SMB-FOLIO-ENG-4",
+      "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
+      "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
+      "decision": "passed",
+      "verdict": "PASS_V1",
+      "failures": [],
+      "remediation": null,
+      "status_after": "PASS_V1",
+      "review": "validation/R5-review-c.json",
+      "round_ref": "validation/round-R5.json",
+      "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
+      "idempotency_key": "STUDIO-R5:SMB-FOLIO-ENG-4:1d404f8c4b72:PASS_V1",
+      "recorded_at": "2026-10-11T05:38:23Z",
+      "by": "wp_validator STUDIO-R5"
+     }
     ]
   }
 }

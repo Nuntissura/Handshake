@@ -202,6 +202,23 @@
         "idempotency_key": "STUDIO-R3:SMB-SCORE:404ff3ae8cd7:FAIL_V1",
         "recorded_at": "2026-10-11T03:11:21Z",
         "by": "wp_validator STUDIO-R3"
+      },
+      {
+        "round": "STUDIO-R5",
+        "lane": "SMB-SCORE",
+        "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
+        "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
+        "decision": "passed",
+        "verdict": "PASS_V2",
+        "failures": [],
+        "remediation": null,
+        "status_after": "READY_FOR_VALIDATION (newer submission 70ce263)",
+        "review": "validation/R5-review-a.json",
+        "round_ref": "validation/round-R5.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
+        "idempotency_key": "STUDIO-R5:SMB-SCORE:1d404f8c4b72:PASS_V2",
+        "recorded_at": "2026-10-11T05:38:23Z",
+        "by": "wp_validator STUDIO-R5"
       }
     ],
     "r3_remediation": {

@@ -34,6 +34,25 @@
   "watchdog_proof": "scratch crate steward/scratch/wd-probe, doctest_unit/kill_tree extracted verbatim, budget 5 s: a ok, b (infinite loop) TIMEOUT, c/e/d NOT_RUN, exit 124, 12 s, no leftover rustdoc/doctest process",
   "skip_rerun_rejected": "rerunning the rest with --skip/--exact is impossible: rustdoc splits test args on whitespace (observed: every doctest filtered out); remaining doctests are reported NOT_RUN",
   "shared_index": "2026-10-11T04:56Z: shared index entries of root Cargo.toml, Cargo.lock, tools/**, .config/** reset to HEAD (index only) and working Cargo.toml rewritten from HEAD (was pre-404ff3a stale copy with the reverted D9 edge); working Cargo.lock left as is (builder-local wasm-bindgen 0.2.129/js-sys/web-sys 0.3.106 resolutions, not in HEAD's lock)",
-  "earlier": "C2 @2abb984 exit 0; C1 @f433989 Windows CR plan bug fixed 2abb984; sync 1262c05 approvals: harness serde_json; interop-layout miniz_oxide, roxmltree, serde_json, sha2; interop-lrcat sha2; interop-vector miniz_oxide; reel libc, rav1d; web sha2; interop-media sha2 request unused by its manifest"
+  "earlier": "C2 @2abb984 exit 0; C1 @f433989 Windows CR plan bug fixed 2abb984; sync 1262c05 approvals: harness serde_json; interop-layout miniz_oxide, roxmltree, serde_json, sha2; interop-lrcat sha2; interop-vector miniz_oxide; reel libc, rav1d; web sha2; interop-media sha2 request unused by its manifest",
+  "verdicts": [
+   {
+    "round": "STUDIO-R5",
+    "lane": "SMB-ROUND-ENTRYPOINT",
+    "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
+    "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
+    "decision": "passed",
+    "verdict": "PASS_V2",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V2",
+    "review": "NOT_REVIEWED",
+    "round_ref": "validation/round-R5.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
+    "idempotency_key": "STUDIO-R5:SMB-ROUND-ENTRYPOINT:1d404f8c4b72:PASS_V2",
+    "recorded_at": "2026-10-11T05:38:23Z",
+    "by": "wp_validator STUDIO-R5"
+   }
+  ]
  }
 }
