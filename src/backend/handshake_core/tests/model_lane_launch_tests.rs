@@ -37,7 +37,8 @@ use handshake_core::swarm_orchestration::resource_scope::{
     OwnerAccountId, ResourceScope, WorkspaceScopeRef,
 };
 use handshake_core::swarm_orchestration::{
-    ByokCloudProvider, ModelInstanceId, SpawnRequest, SwarmCoordinator,
+    ByokCloudProvider, LiveSession, ModelInstanceId, ModelSessionFactory, RecordingSwarmSink,
+    RunBudget, SpawnRequest, SwarmConfig, SwarmCoordinator, SwarmError,
 };
 use serde_json::json;
 
@@ -825,5 +826,135 @@ fn model_lane_crdt_surreal_queries_scope_the_selected_row_on_all_five_fields() {
             requested, mismatched,
             "same-workspace partial scope must be denied"
         );
+    }
+}
+
+#[tokio::test]
+async fn model_lane_launch_rejects_direct_endpoint_frontend_tauri_and_terminal_bypass() {
+    let registry = DexterityLaunchAdapterRegistry::standard();
+    for adapter_kind in [
+        DexterityLaunchAdapterKind::DirectEndpoint,
+        DexterityLaunchAdapterKind::FrontendAppSrc,
+        DexterityLaunchAdapterKind::AppSrcTauri,
+        DexterityLaunchAdapterKind::TerminalOnly,
+        DexterityLaunchAdapterKind::ExternalCompat,
+    ] {
+        let err = registry
+            .normalize(launch_request(
+                adapter_kind.clone(),
+                90,
+                ModelLaneStatus::Ready,
+            ))
+            .expect_err("bypass adapter must fail before persistence");
+        assert!(
+            err.to_string().contains("bypass") || err.to_string().contains("external_compat"),
+            "unexpected bypass error: {err}"
+        );
+    }
+
+    let mut unsupported = launch_request(
+        DexterityLaunchAdapterKind::LocalModelRuntime,
+        91,
+        ModelLaneStatus::Ready,
+    );
+    unsupported.requested_tool_capability_tokens =
+        vec!["tool-capability://unsupported-shell".into()];
+    let err = registry
+        .normalize(unsupported)
+        .expect_err("unsupported tool capability must fail closed");
+    assert!(err.to_string().contains("unsupported tool capability"));
+
+    let (ledger, _drain) =
+        LedgerBatcher::manual_for_tests(LedgerBatcherConfig::default(), Arc::new(NoopOverflowSink))
+            .expect("manual process ledger");
+    let calls = Arc::new(AtomicUsize::new(0));
+    let compensations = Arc::new(AtomicUsize::new(0));
+    let factory = Arc::new(CountingFactory {
+        calls: calls.clone(),
+        compensations: compensations.clone(),
+    });
+    let coordinator = SwarmCoordinator::new(
+        SwarmConfig::new(RunBudget::defaulted(1)),
+        factory,
+        Arc::new(RecordingSwarmSink::new()),
+        ledger,
+    );
+    let request = SpawnRequest::new(
+        ModelInstanceId::new(ModelId::new_v7(), 34),
+        RuntimeAdapterBinding::LlamaCpp,
+        "KERNEL_BUILDER-MT003",
+        "coordinator-session-mt003-no-store",
+    )
+    .with_wp("WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1")
+    .with_mt("MT-003")
+    .with_dexterity_launch(spawn_contract("run-mt003-no-store", "lane-mt003-no-store"));
+    let err = coordinator
+        .spawn_session(request)
+        .await
+        .expect_err("Dexterity launch without ModelLaneStore must fail before factory");
+    assert!(matches!(err, SwarmError::LedgerFailed(_)));
+    assert_eq!(calls.load(Ordering::SeqCst), 0);
+}
+
+fn spawn_contract(run_id: &str, lane_id: &str) -> DexterityLaunchContract {
+    spawn_contract_for_adapter(run_id, lane_id, "llama_cpp")
+}
+
+fn spawn_contract_for_adapter(
+    run_id: &str,
+    lane_id: &str,
+    adapter_id: &str,
+) -> DexterityLaunchContract {
+    DexterityLaunchContract {
+        run_id: run_id.into(),
+        lane_id: lane_id.into(),
+        restart_generation: 0,
+        trace_id: "trace-mt003-runtime".into(),
+        run_span_id: "span-run-mt003-runtime".into(),
+        lane_span_id: "span-lane-mt003-runtime".into(),
+        routing_policy: "swarm_coordinator_model_runtime".into(),
+        context_bundle_id: "context-bundle://mt003/runtime".into(),
+        event_ledger_stream_id: "event-ledger://mt003/runtime".into(),
+        artifact_namespace: "artifact://mt003/runtime".into(),
+        task_board_id: "task-board://wp-1".into(),
+        locus_binding_ref: "locus://wp1/mt003/runtime".into(),
+        role: "local-runtime-lane".into(),
+        backend: "model_runtime".into(),
+        adapter_id: adapter_id.into(),
+        capability_token_ids: vec!["capability://dexterity/local-generate".into()],
+        effective_capability_snapshot_ref: "capability-snapshot://mt003/runtime".into(),
+        projection_plan_ref: None,
+        consent_receipt_ref: None,
+        tool_gate_decision_refs: vec!["toolgate://mt003/runtime/allow-read-context".into()],
+        memory_pack_ref: "memory-pack://fems/mt003/runtime".into(),
+        memory_pack_hash: sample_sha256(),
+        determinism_mode: "deterministic_replay".into(),
+        budget_summary_ref: "budget://mt003/runtime".into(),
+        candidate_model_ids: vec!["model://mt003/runtime-local".into()],
+        procedural_review_status: "runtime_spawn_preflighted".into(),
+        truncation_warning_ref: None,
+        rejection_reason_refs: vec![],
+        run_recovery_hint_ref: Some("usermanual://model-lane-launch-adapters#runtime".into()),
+        lane_recovery_hint_ref: Some("usermanual://model-lane-launch-adapters#reclaim".into()),
+    }
+}
+
+struct CountingFactory {
+    calls: Arc<AtomicUsize>,
+    compensations: Arc<AtomicUsize>,
+}
+
+#[async_trait]
+impl ModelSessionFactory for CountingFactory {
+    async fn create(&self, _request: &SpawnRequest) -> Result<LiveSession, SwarmError> {
+        self.calls.fetch_add(1, Ordering::SeqCst);
+        Err(SwarmError::FactoryFailed(
+            "CountingFactory must not be called by missing-store preflight".into(),
+        ))
+    }
+
+    async fn cancel_pending_create(&self, _request: &SpawnRequest) -> Result<(), SwarmError> {
+        self.compensations.fetch_add(1, Ordering::SeqCst);
+        Ok(())
     }
 }
