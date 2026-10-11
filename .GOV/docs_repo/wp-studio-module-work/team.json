@@ -1,0 +1,120 @@
+{
+ "schema": "hsk.studio_module_team@1",
+ "updated_at": "2026-10-11T00:50:00Z",
+ "lead": "kernel builder session (main)",
+ "members": [
+  {
+   "name": "steward",
+   "agent_id": "a3049ae7f23d77c0d",
+   "model": "opus",
+   "role": "workspace steward",
+   "owns": [
+    "handshake-studio-assets/Cargo.toml",
+    "Cargo.lock",
+    "crates/<27 new>/** (scaffold only)"
+   ],
+   "launched": "2026-10-11T00:48Z",
+   "status": "running"
+  },
+  {
+   "name": "type-lane",
+   "agent_id": "a5d99d479b1b53d39",
+   "model": "opus",
+   "role": "Type builder+diagnostician MT-35536",
+   "owns": [
+    "crates/hsk-studio-type/**",
+    "MT-35536.json"
+   ],
+   "launched": "2026-10-11T00:48Z",
+   "status": "running"
+  },
+  {
+   "name": "spec-reader-a",
+   "agent_id": "ac64bc810e796a434",
+   "model": "sonnet",
+   "role": "briefs visual/doc crates",
+   "owns": [
+    "builders/briefs/*"
+   ],
+   "launched": "2026-10-11T00:48Z",
+   "status": "running"
+  },
+  {
+   "name": "spec-reader-b",
+   "agent_id": "a30ed06680f0727a3",
+   "model": "sonnet",
+   "role": "briefs temporal/infra crates",
+   "owns": [
+    "builders/briefs/*"
+   ],
+   "launched": "2026-10-11T00:48Z",
+   "status": "running"
+  },
+  {
+   "name": "research-formats",
+   "agent_id": "a68a1027e221ed84d",
+   "model": "sonnet",
+   "role": "PSD + native format research",
+   "owns": [
+    "research/formats-psd-native.md"
+   ],
+   "launched": "2026-10-11T00:48Z",
+   "status": "running"
+  },
+  {
+   "name": "research-color",
+   "agent_id": "a8631b81dc6f7bf7f",
+   "model": "sonnet",
+   "role": "color/codecs/RAW research",
+   "owns": [
+    "research/color-codecs-raw.md"
+   ],
+   "launched": "2026-10-11T00:48Z",
+   "status": "running"
+  },
+  {
+   "name": "research-craft",
+   "agent_id": "a41149408c57ae505",
+   "model": "sonnet",
+   "role": "Craft case study",
+   "owns": [
+    "research/craft-case-study.md"
+   ],
+   "launched": "2026-10-11T00:48Z",
+   "status": "running"
+  },
+  {
+   "name": "research-adobe",
+   "agent_id": "abe7921a273295e21",
+   "model": "sonnet",
+   "role": "Adobe behaviour concepts",
+   "owns": [
+    "research/adobe-behavior.md"
+   ],
+   "launched": "2026-10-11T00:48Z",
+   "status": "running"
+  },
+  {
+   "name": "api-digest",
+   "agent_id": "ab88145126bafed98",
+   "model": "haiku",
+   "role": "existing crate API digest",
+   "owns": [
+    "research/existing-api-digest.md"
+   ],
+   "launched": "2026-10-11T00:48Z",
+   "status": "running"
+  },
+  {
+   "name": "workflow",
+   "agent_id": "a1eb72a601ed3f3ac",
+   "model": "opus",
+   "role": "adversarial workflow agent",
+   "owns": [
+    "workflow/*"
+   ],
+   "launched": "2026-10-11T00:48Z",
+   "status": "running"
+  }
+ ]
+}
