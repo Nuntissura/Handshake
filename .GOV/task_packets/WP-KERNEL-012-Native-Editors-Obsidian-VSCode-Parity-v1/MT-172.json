@@ -8212,7 +8212,8 @@
         "src/backend/handshake_core/src/test_harness/mod.rs",
         "src/backend/handshake_core/src/user_manual/seed.rs",
         "src/backend/handshake_core/src/user_manual/behavior_coverage.rs",
-        "src/backend/handshake_core/tests/user_manual_behavior_coverage_tests.rs"
+        "src/backend/handshake_core/tests/user_manual_behavior_coverage_tests.rs",
+        "src/backend/handshake_core/tests/operator_chat_capture_tests.rs"
       ],
       "whole_file_pg_retirements": [
         "src/backend/handshake_core/tests/model_lane_navigation_api_tests.rs",
@@ -8231,7 +8232,8 @@
         "wp1_console_stream_sse_tests.rs": "Remove three PG bodies178-421/knowledge_pg module/app_state_for import; KEEP existing real Surreal user_manual_support/start_server and remaining tests/helpers.",
         "test_harness": "Remove PG-only model_runtime_selection.rs and its mod.rs declaration; retain other harnesses.",
         "user_manual/seed.rs": "Remove obsolete navigation commands6341-42/test anchor6353/toolhash+push8443-8561 and old active native proof ID9167 only; retain valid current coverage.",
-        "native_proof_marker": "Exact recovery.reobserve row only: new RetiredPendingReplacement status, old proof ID historical plus explicit pending notice; active feature.tool_ids omits old ID. Verifier exact action/old-ID/retired-status triple requires absent active ID and notice; all other constraints unchanged. Coverage test retains historical marker861/asserts retired status; global953 splits exact retired row from all other DeclaredNotExecuted. No executed replacement proof claimed."
+        "native_proof_marker": "Exact recovery.reobserve row only: new RetiredPendingReplacement status, old proof ID historical plus explicit pending notice; active feature.tool_ids omits old ID. Verifier exact action/old-ID/retired-status triple requires absent active ID and notice; all other constraints unchanged. Coverage test retains historical marker861/asserts retired status; global953 splits exact retired row from all other DeclaredNotExecuted. No executed replacement proof claimed.",
+        "operator_chat_capture_tests.rs": "Admitted existing MT172 path under explicit Operator ALL-backend retirement; actual lines10/373-390 and SQLx consumers still execute PG/import missing support. Remove actual PG execution material, preserve valid non-PG coverage; complete source disposition/freeze/independent review pending. Distinct from operator_chat_route_tests.rs492-line KEEP."
       },
       "explicit_keep": [
         "operator_chat_route_tests.rs entire492-line current file",

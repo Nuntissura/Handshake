@@ -6,8 +6,8 @@
   "version": 3,
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "phase_id": "PHASE-02",
-  "updated_at": "2026-10-11T18:06:52.934687+00:00",
-  "updated_at_utc": "2026-10-11T18:06:52.934687+00:00",
+  "updated_at": "2026-10-11T18:24:20.933745+00:00",
+  "updated_at_utc": "2026-10-11T18:24:20.933745+00:00",
   "status": "CURRENT_HANDOFF_PHASE02_V3_OPEN_BACKEND_TEST_RETIREMENT_INVENTORY_AUTH_PROPOSAL_PENDING",
   "authority_precedence": [
     "Live Operator direction",
@@ -1220,7 +1220,7 @@
     }
   },
   "current_workflow": {
-    "baseline": "Actual STEP1 and disjoint launch/console source changes writer-reported complete; primary owns remaining six paths. Child completed but file ownership stays reserved until release. No combined freeze or new Cargo. Separate read-only auth mapping proposal actor; root high-level coordination, independent technical review remains separate.",
+    "baseline": "Actual19-path/133-input retirement freeze ddb9ae20... NOT_SOURCE_CLEAR: capture-test PG execution remains. Owning path already in BOTH MT172 lists and scoped disposition now recorded. Exclusive source remedy/replacement freeze/independent affected review pending; separate auth contract review REVISE_BEFORE_AMENDMENT. No new compiler/runtime acceptance.",
     "steps": [
       {
         "id": "WP012-P2-RESUME-001",
@@ -2629,7 +2629,7 @@
     }
   ],
   "resume_next_actions": [
-    "Finish current exclusive six-path native/manual/fixture/retired-status batch; STEP1 eight PG files+unconsumed CRDT helper and disjoint launch/console work are writer-reported complete. Retained mixed AC9/Surreal bodies require combined frozen independent affected review; no new Cargo until that closure and existing gates. Round28 failure remains historical, removed target is not an active undefined-helper repair. Separate read-only /root/phase02_auth_mapping_proposal develops authorized concrete mapping/amendment. Preserve0of5/runtimeNOT_RUN; later dirty changes require next checkpoint, not acceptance proof. External app wait/send/automation outcome remains unobserved; no retired-chat activation claimed.",
+    "Resolve exact operator_chat_capture_tests.rs PG execution/import blocker under explicit Operator ALL retirement and existing BOTH MT172 allowed lists; preserve distinct route-tests KEEP and valid non-PG coverage. Current133-input freeze ddb9ae20... NOT_SOURCE_CLEAR, no new Cargo until replacement freeze/independent review/readiness/gates. Auth proposal separately REVISE_BEFORE_AMENDMENT for exact six recorded issues; no product auth amendment admitted. Latest backups kernelc82b46d0/productabff11c7 preservation only; all history/accepted0of5 remain.",
     "Diagnosis chat01a129cd-bd03-73a2-a09a-60efba6055f3 awaits exact unresolved F2 question or actual compiler failure after narrow steering stopped F3 exploration. Source-observed pending acquisition token/envelope retention is not a verdict. Four fresh other chats startup VERIFIED; reviewer/delivery ownership unchanged.",
     "Preserve actual canonical targetbindingsNone; earlier recomputation recommendation is RETRACTED, no new algorithm. F1 sourcefix does not prove compile/runtime. Retain partial5ebc.../all originalF1-F5/001-007/controller/full8A-H/history then fullrawre-freeze/independent affected review/gameplan wholeCargo/actual perMTcompiledcheckpoint+push/independent canonical engine runtime HBR.",
     "Freeze the whole connected changed boundary and assertion mapping once; independent affected source review before current required full-core compile. Reuse only unchanged prior evidence; no SQLx blind restore, exclusion, weakened assertions or --lib substitute.",
@@ -5593,14 +5593,23 @@
       "authorization": "Authorize mapping proposal and contract amendment",
       "state": "Separate independently authorized ONE explicit NEW capability/action/resource/workspace/five-ID mapping+real authenticated session/grant lifecycle owner/expiry/revocation file-admission/full Surreal HTTP200/404/503/redaction/canonical-before-after proposal. Independent contract review BEFORE amendment. Outstanding,NOT retirement predecessor,not product-write/Cargo permission.",
       "limits": "No existing mapping invented;authority/local_accounts/resource_authority bridge write admission unresolved;503scope-extension absence NOT durable revocation.",
-      "current_actor": "/root/phase02_auth_mapping_proposal read-only concrete authorized mapping/amendment proposal; separate disjoint auth files, no product-write authority"
+      "current_actor": "/root/phase02_auth_mapping_proposal read-only concrete authorized mapping/amendment proposal; separate disjoint auth files, no product-write authority",
+      "review": "REVISE_BEFORE_AMENDMENT",
+      "required_revisions": [
+        "profile eligibility",
+        "registry asset/spec disposition",
+        "exact provider purposes/action predicates",
+        "existing native producer admission",
+        "atomic durable authorization/result/ACK",
+        "precise grant/context association"
+      ]
     },
     "failures_ref": "current_state.current_compile_round28:FAILED101nineerrors/result3f390cdd...stderr e5738028...zero7426drift;prior failures/held freezes/scoped review retraction/recipe retractions all inherited.",
     "cargo_rules_ref": "cargo_rules/current_workflow;single delivery owned required whole-core after reviewed stable full freeze/gameplan/current full input/profile/cache/resource/process gates,existing warm target/jobs1/incremental0;no native until core PASS/no per-helperCargo.",
     "agent_rules_ref": "teams/current_workflow/monitoring;root high-level developer leader,direct peer scoped helpers/exclusive file owner/one combined freeze/independent affected review/separate acceptance authority. Current coder /root/round19_boot_coder frozen standby;old external coder no future repair dispatch.",
     "dos_donts": "Current MT authority wins;preserve raw bytes/history/valid Surreal/prohibition coverage. No PostgreSQL/SQLite execution revival/SQLx add/fake auth-env-active/test skip-gate-delete substitute/lib-only acceptance/foreign process disruption/overlap/frozen proof edits. No duplicate broad audit/repeated green checks.",
     "timesinks": "Full connected source-bound closure before exact facade/caller fixes;avoid incomplete recipes/blind imports/per-coderCargo/new targets-profiles/cache restarts/unnecessary serial waits/root technical relay bottleneck. Reuse valid unaffected evidence/focused new dependency additions;do not confuse source-clear with compiler/runtime proof.",
-    "next_actor": "Primary coder finish exclusive remaining native/manual/fixture/retired-status batch; release completed child ownership explicitly, combined freeze and independent affected review before existing compiler gates. Separate read-only auth mapping proposal active. Core compiler proof remains false, runtime/native/accepted0of5 unchanged.",
+    "next_actor": "Exclusive coder reconcile actual capture-test PG retirement under current MT172 admission, replacement connected freeze then independent affected review. Separate auth proposal revises exact contract findings before amendment. No Cargo until source-clear/readiness/current gates; accepted0of5/BLOCKED/null verdicts retained.",
     "coordination_observation": {
       "id": "WP012-P2-V3-TRANSPORT-FALLBACK-001",
       "actual": "Root-owned app toolcells1060/1062/1068 terminated after pending more than10min; wait/send/automation update completion unknown, no applied update claimed. Actual local scope reviewer and primary coder/disjoint child fallback used; retired coder chat not resumed.",
@@ -5608,10 +5617,11 @@
     },
     "retirement_live_source": {
       "id": "WP012-P2-V3-RETIREMENT-SOURCE-001",
-      "evidence": "Writer-reported live source work, not independent review/compiler/runtime proof",
-      "completed": "STEP1 eight wholly PG files and unconsumed CRDT helper removed; mixed AC9 guard byte-exact retained, reported hash prefix42adcf6a. Disjoint launch/console child complete with retained bodies byte-exact.",
-      "active": "Primary /root/round19_boot_coder exclusive remaining six native/manual/fixture/retired-status paths; child completed, ownership retained until explicit release. Combined freeze/affected review/Cargo not yet performed.",
-      "blocker": "Historical Round28 FAILED101 retained; its failing PG target now source-removed, replacement source/proof closure pending. No acceptance advancement."
+      "freeze_sha256": "ddb9ae20eb3eb9a5fe584ef7ff9ee125cee72bb36f676bd7aaeedfc9704beac0",
+      "changed_paths": 19,
+      "bound_inputs": 133,
+      "review": "NOT_SOURCE_CLEAR",
+      "blocker": "Actual operator_chat_capture_tests.rs still imports missing knowledge_pg_support and executes PG/SQLx. Existing BOTH MT172 allowed lists verified; exact Operator ALL retirement recorded in owning MT172 retirement disposition. No compiler/runtime acceptance proof."
     }
   },
   "current_mt_records_verified": [
@@ -5727,6 +5737,11 @@
     ],
     "product_backup_commit": "34fb6f3441f3304232b9afaffff19bc8ca2f5a9c",
     "receipt": "Authorized Git agent confirms fresh matching remote refs/clean kernel/all24 checkpoint paths raw unchanged/gameplan pointer restored. Preservation only, not accepted compiler/runtime checkpoint.",
-    "post_backup_changes": "Initial kernel11d0f244/product34fb6f344 backups verified; subsequent authorized source/governance changes dirty and require later preservation checkpoint/push. Existing backups do not cover new changes or prove acceptance."
+    "post_backup_changes": "Initial kernel11d0f244/product34fb6f344 backups verified; subsequent authorized source/governance changes dirty and require later preservation checkpoint/push. Existing backups do not cover new changes or prove acceptance.",
+    "latest_backup": {
+      "kernel_commit": "c82b46d0b780d690a4f1a73be2b9bc8717f87ed5",
+      "product_commit": "abff11c7f3484cf5520b1e6ff5004a2e7be27524",
+      "provenance": "Parent root verified backup receipts; recorder performs no Git. Prior preservation history retained; backups not compiler/runtime checkpoint."
+    }
   }
 }
