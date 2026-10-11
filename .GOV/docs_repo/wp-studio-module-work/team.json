@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T05:55:29Z",
+ "updated_at": "2026-10-11T05:57:08Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -726,7 +726,7 @@
     "builders/lanes/hsk-studio-pigment-eng-2.json"
    ],
    "launched": "2026-10-11T05:06:03Z",
-   "status": "running"
+   "status": "done 2026-10-11T05:57:08Z (2f705f1; decision note + 5 briefs)"
   },
   {
    "name": "builder-render-gpu-3",
@@ -738,7 +738,7 @@
     "builders/lanes/hsk-studio-render-gpu.json"
    ],
    "launched": "2026-10-11T05:06:03Z",
-   "status": "done 2026-10-11T05:31:12Z (SMB-RENDER-GPU READY at 167dc28)"
+   "status": "running (R5 no-adapter NOT_PROVEN fix + lane-render-gpu-adjustments) 2026-10-11T05:57:08Z"
   },
   {
    "name": "builder-score-2",
@@ -875,6 +875,54 @@
     "crates/hsk-studio-interop-psd/**"
    ],
    "launched": "2026-10-11T05:31:12Z",
+   "status": "running (gray BPC via prism, then lane-interop-psd-adjustments) 2026-10-11T05:57:08Z"
+  },
+  {
+   "name": "builder-composite-adj",
+   "agent_id": "a6dd32974a205272c",
+   "model": "sonnet",
+   "role": "lane-composite-adjustments: lower folio raster records to pigment PlanExtensions",
+   "owns": [
+    "crates/hsk-studio-composite/**",
+    "builders/lanes/hsk-studio-composite.json"
+   ],
+   "launched": "2026-10-11T05:57:08Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-render-cpu-adj",
+   "agent_id": "ae1660a7fcf08038b",
+   "model": "sonnet",
+   "role": "lane-render-cpu-adjustments: evaluate PlanExtensions via pigment adjust_math/coverage_math",
+   "owns": [
+    "crates/hsk-studio-render-cpu/**",
+    "builders/lanes/hsk-studio-render-cpu.json"
+   ],
+   "launched": "2026-10-11T05:57:08Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-effects-1",
+   "agent_id": "a9741a4a91f2b1931",
+   "model": "sonnet",
+   "role": "lane-effects-wave-1: pigment effect nodes (first effects per brief)",
+   "owns": [
+    "crates/hsk-studio-pigment/**",
+    "builders/lanes/hsk-studio-pigment-effects.json"
+   ],
+   "launched": "2026-10-11T05:57:08Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-prism-eng7",
+   "agent_id": "a2d58a71df3a0e497",
+   "model": "opus",
+   "role": "SMB-PRISM-ENG-7 thread-safe admitted transforms + optional fast path with proven error bound",
+   "owns": [
+    "crates/hsk-studio-prism/**",
+    "builders/lanes/hsk-studio-prism-eng7.json"
+   ],
+   "launched": "2026-10-11T05:57:08Z",
    "status": "running"
   }
  ]

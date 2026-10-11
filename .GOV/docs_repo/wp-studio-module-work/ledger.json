@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T05:55:29Z",
+ "updated_at": "2026-10-11T05:57:08Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -983,6 +983,11 @@
     "to": "architect-adjustments",
     "at": "2026-10-11T05:31:12Z",
     "ref": "validation/R5-review-{a,b,c}.json CONFIRMED"
+   },
+   "r5_remediation": {
+    "commit": "d576ec5",
+    "by": "architect-adjustments",
+    "at": "2026-10-11T05:57:08Z"
    }
   },
   {
@@ -1440,11 +1445,20 @@
    "crate": "hsk-studio-pigment + hsk-studio-folio",
    "origin": "lead 2026-10-11: PSD display gap (composite unsupported effect/knockout/blend_if/mask density; interop-psd adjustment_layer_not_applied, layer_effects_not_rendered)",
    "scope": "adjustment layers + advanced blending: folio records (mask density/feather/invert, blend-if 8 values/channel STU-RAS-159, knockout 4-member enum STU-VEC-153, adjustment records first set, StudioEffectStack records STU-RAS-040/156-158); pigment IR nodes + adjust_math single owner + single-pixel oracle; briefs for composite/render-cpu/render-gpu/interop-psd/effects follow-ups",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "architect-adjustments",
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "bd480f9",
+    "d576ec5",
+    "ff92dea",
+    "2587930",
+    "c2bbb9b",
+    "2f705f1"
+   ],
+   "verdicts": [],
+   "candidate": "2f705f1",
+   "note": "owners: pigment adjust_math (adjustment maths + layer rule lerp(Cb,B(Cb,f(Cb)),k)), coverage_math (mask density/invert/feather, Blend-If weight), render_plan PlanExtensions envelope (backends opt in, refuse by default; knockout refused); folio StudioRasterRecords; develop Curve != Photoshop curves (decreasing preset). R5 pigment fix: pass-through fill<1 refused at admit for all backends; V4-06 sweep: mask density<1, Solid outside [0,1] refused. 59 tests (13 new). Approximate except invert; modern brightness/contrast refused (no documented formula). Spec gaps: shallow/deep knockout, Global Light sidecar, adjustment id prefix."
   },
   {
    "lane_id": "SMB-MOTION-JS-SANDBOX-2",
@@ -1461,10 +1475,65 @@
    "lane_id": "SMB-PRISM-ENG-7",
    "crate": "hsk-studio-prism",
    "origin": "prism ENG-6: exact f64 evaluation made non-linear wide transforms ~187 ns/px (sRGB->P3)",
-   "scope": "optional fast path: baked per-plan LUT/SIMD evaluation with a proven max-error bound vs the exact f64 path (exactness class recorded in receipts; exact path stays the oracle and the default for export)",
-   "phase": "stub",
+   "scope": "(1) thread-safe admitted transforms bit-identical across thread counts (develop P3->sRGB 1.8x bottleneck); (2) optional fast path with proven error bound, exact f64 default",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-prism-eng7",
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-COMPOSITE-ADJ",
+   "crate": "hsk-studio-composite",
+   "origin": "architect SMB-PIGMENT-ENG-2 (diagnostics/adjustments-advanced-blending.md)",
+   "scope": "brief builders/briefs/lane-composite-adjustments.md",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-composite-adj",
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-RENDER-CPU-ADJ",
+   "crate": "hsk-studio-render-cpu",
+   "origin": "architect SMB-PIGMENT-ENG-2 (diagnostics/adjustments-advanced-blending.md)",
+   "scope": "brief builders/briefs/lane-render-cpu-adjustments.md",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-render-cpu-adj",
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-RENDER-GPU-ADJ",
+   "crate": "hsk-studio-render-gpu",
+   "origin": "architect SMB-PIGMENT-ENG-2 (diagnostics/adjustments-advanced-blending.md)",
+   "scope": "brief builders/briefs/lane-render-gpu-adjustments.md",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-render-gpu-3",
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-INTEROP-PSD-ADJ",
+   "crate": "hsk-studio-interop-psd",
+   "origin": "architect SMB-PIGMENT-ENG-2 (diagnostics/adjustments-advanced-blending.md)",
+   "scope": "brief builders/briefs/lane-interop-psd-adjustments.md",
+   "phase": "build",
+   "status": null,
+   "owner": "rem-psd (queued after R5 fix)",
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-EFFECTS-WAVE-1",
+   "crate": "hsk-studio-pigment",
+   "origin": "architect SMB-PIGMENT-ENG-2 (diagnostics/adjustments-advanced-blending.md)",
+   "scope": "brief builders/briefs/lane-effects-wave-1.md",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-effects-1",
    "commits": [],
    "verdicts": []
   }

@@ -2,57 +2,36 @@
  "crate": "workspace",
  "lane": "SMB-ROUND-ENTRYPOINT",
  "status": "READY_FOR_VALIDATION",
- "phase": "R4 remediation fd24723 + steward sync 1d404f8 pushed; round candidate 1d404f8 (lock synced, probe 35/35, steward canary C5 exit 0, 44 units)",
+ "phase": "V4 step 0 policy + NOT_PROVEN + corpus convention + oracle fixture unit pushed; steward sync 9ab64c2 (fig, cpal, clack-host pins); R6 candidate bd8533f, canary C8 running",
  "commits": [
-  {"sha": "cd29932", "subject": "Round entrypoint: feature matrix, doctest step, full results, owner-dir guard"},
-  {"sha": "1262c05", "subject": "Steward sync: lock, registry pins and probe approvals for 198a8e5"},
-  {"sha": "f433989", "subject": "workspace-probe: accept Cargo bin/test/bench target tables"},
-  {"sha": "2abb984", "subject": "run-round: plan rows without CR on Windows (feature/doctest units ran as not-run)"},
   {"sha": "fd24723", "subject": "run-round: doctest per-test timeout, round.json always written, absent matrix units fail (R4 review)"},
-  {"sha": "1d404f8", "subject": "Steward sync: lock, registry pins and probe approvals for c7be531"}
+  {"sha": "1d404f8", "subject": "Steward sync: lock, registry pins and probe approvals for c7be531"},
+  {"sha": "4ea5171", "subject": "run-round: NOT_PROVEN accounting, commit-free oracle corpus root; registry-sync labels cpal native-ffi (R5 review A)"},
+  {"sha": "cf2e8c7", "subject": "run-round step 0 policy: V4-03 machine-local path gate, V4-05 frozen-duplicate fingerprints (workflow v4)"},
+  {"sha": "9ab64c2", "subject": "Steward sync: lock, registry pins and probe approvals for fec865b"},
+  {"sha": "bd8533f", "subject": "run-round: oracle fixture unit (CLAP gain), score-plugin feature matrix, frozen sites as exact files"}
  ],
  "capabilities_done": [
-  "feature matrix .config/round-features.toml@2 (type harfrust, motion-js quickjs, reel av1, reel-native av1): one (crate, features) unit each with own build, run, doctests",
-  "absent declared unit (feature_absent/crate_absent) fails the round: exit 74 after build/test failures in precedence; round.json absent_units",
-  "doctest per-test timeout: serial doctests (--test-threads=1); watchdog kills the unit process tree (Windows taskkill /T) when one 'test NAME ... ' line stays unfinished > [doctest] per-test-timeout-s (120); line gets TIMEOUT, unverdicted doctests of the unit reported NOT_RUN from -- --list; run exit 124; no outer wall-clock wrapper",
-  "round.json always written once the results dir exists: EXIT trap writes complete=false record with exit + reason (refusal, step 0 drift, interruption, aggregation failure)",
-  "full results: round.json@2 units with passed/failed/skipped/timed_out/not_run counts, per_crate_default, timed_out_tests; tests.json every reported test; junit per unit with success output and skipped tests",
-  "owner guard: export-mode results dir inside the export owner dir; step 0 fail-fast (exit 75) unchanged",
-  "steward sync 1d404f8 (base c7be531): Cargo.lock only (reel-native dependency list: accord, reel for av1); no new registry approvals; license gate OK; probe 35/35; D9 edge not added"
+  "NOT_PROVEN accounting: lines starting NOT_PROVEN: in nextest units' captured output (junit system-out/err) -> round.json not_proven [{unit, crate, binary, test, reason}], unit counts, tests.json; otherwise green round exits 73",
+  "oracle corpus convention .config/oracle-corpus.toml (search Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus, walk up <=8 ancestors from the workspace root; plain key = value lines); round.json oracle_corpus root, file count, sha256 manifest",
+  "oracle fixture unit .config/oracle-fixtures.toml: score-plugin clap-gain built offline+locked before the units and placed at <corpus>/score-plugin/clap-gain/ with MANIFEST.json (library sha256, source sha256, round sha); build failure = unit build failure; corpus absent = corpus_absent",
+  "step 0 policy (both modes, ~1.6 s): V4-03 machine-local paths over crates/*/{src,tests} (exit 72 beyond .config/machine-paths.toml pinned counts); V4-05 frozen duplicates over crates/*/src (exit 71 outside .config/duplicate-fingerprints.toml allowed files: D16 4 files, D18 quickjs_worker.rs/reel-native host.rs/score-plugin supervisor.rs, timecode pulse+interop-media time.rs)",
+  "round-features: score-plugin [test-faults], [clap, test-faults]",
+  "sync 9ab64c2: approvals interop-fig miniz_oxide/ruzstd/serde_json/sha2, score-device cpal (native-ffi label via registry-sync NATIVE_FFI_EXTRA), score-plugin clack-host (clap-sys native-ffi); 56 lock packages added; license gate OK; probe 35/35 + feature selections score-device/cpal-backend, score-plugin/clap, motion-js/quickjs, reel-native/av1 accepted"
  ],
- "tests": {"argv": "bash tools/run-round.sh --canary --all --results <steward-export>/results/C5-1d404f8 --target-dir studio-team-dev/target (export of 1d404f8)", "exit": 0, "sha": "1d404f8", "passed": 35, "failed": 0},
+ "tests": {"argv": "bash tools/run-round.sh --canary --all (steward export of 9ab64c2)", "exit": 0, "sha": "9ab64c2", "passed": null, "failed": 0},
  "blockers": [],
  "lock_wait_s": 0,
  "bg_pids": [],
- "next": "stay available for lead; next steward sync on request",
- "updated_at": "2026-10-11T04:59:44Z",
+ "next": "C8 canary result on bd8533f; report R6 candidate",
+ "updated_at": "2026-10-11T05:58:00Z",
  "notes": {
-  "canary_C5": "1d404f8 steward export, 2026-10-11T04:56:20Z..04:59:33Z: step 0 clean; default 31 run 31 passed 227 skipped; features motion-js+quickjs 1/1, reel+av1 1/1, reel-native+av1 1/1, type+harfrust 1/1; 39 doctest units exit 0 (0 doctests in the workspace); 44 units, absent [], timed_out [], exit 0; round.json sha256 7c0b4c6f..., tests.json acfa7af5..., junit.xml cda183e7...",
-  "canary_export_choice": "canary ran in studio-team-dev/steward-export, not studio-round: standing lead rule (d) (validators own studio-round; R3 collision), studio-round still holds the R4 export at 2abb984 (R4 union FAIL to triage), and the ROUND gameplan needs confirm GP-006 'entrypoint unchanged since last green round', which is false after fd24723; the entrypoint refuses results outside the export owner dir",
-  "C4_test_commit": "cba6117 unpublished commit object (2abb984 + fd24723 run-round.sh/round-features.toml): exit 74 as designed (reel-native av1 absent at 2abb984), other 42 units green",
-  "C3_fd24723": "published fd24723 before sync: step 0 exit 75 (lock drift), minimal round.json complete=false exit 75 written in 2 s",
-  "watchdog_proof": "scratch crate steward/scratch/wd-probe, doctest_unit/kill_tree extracted verbatim, budget 5 s: a ok, b (infinite loop) TIMEOUT, c/e/d NOT_RUN, exit 124, 12 s, no leftover rustdoc/doctest process",
-  "skip_rerun_rejected": "rerunning the rest with --skip/--exact is impossible: rustdoc splits test args on whitespace (observed: every doctest filtered out); remaining doctests are reported NOT_RUN",
-  "shared_index": "2026-10-11T04:56Z: shared index entries of root Cargo.toml, Cargo.lock, tools/**, .config/** reset to HEAD (index only) and working Cargo.toml rewritten from HEAD (was pre-404ff3a stale copy with the reverted D9 edge); working Cargo.lock left as is (builder-local wasm-bindgen 0.2.129/js-sys/web-sys 0.3.106 resolutions, not in HEAD's lock)",
-  "earlier": "C2 @2abb984 exit 0; C1 @f433989 Windows CR plan bug fixed 2abb984; sync 1262c05 approvals: harness serde_json; interop-layout miniz_oxide, roxmltree, serde_json, sha2; interop-lrcat sha2; interop-vector miniz_oxide; reel libc, rav1d; web sha2; interop-media sha2 request unused by its manifest",
-  "verdicts": [
-   {
-    "round": "STUDIO-R5",
-    "lane": "SMB-ROUND-ENTRYPOINT",
-    "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
-    "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
-    "decision": "passed",
-    "verdict": "PASS_V2",
-    "failures": [],
-    "remediation": null,
-    "status_after": "PASS_V2",
-    "review": "NOT_REVIEWED",
-    "round_ref": "validation/round-R5.json",
-    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
-    "idempotency_key": "STUDIO-R5:SMB-ROUND-ENTRYPOINT:1d404f8c4b72:PASS_V2",
-    "recorded_at": "2026-10-11T05:38:23Z",
-    "by": "wp_validator STUDIO-R5"
-   }
-  ]
+  "C7_9ab64c2": "steward export canary exit 0, 44 units, not_proven 0, absent 0, timed_out 0",
+  "C6_test_commit": "cab95be (unpublished: 1d404f8 + 4ea5171 tools) full prism + render-gpu: 125/125 passed, not_proven 0, oracle corpus recorded (10 files)",
+  "license_gate": "kernel tools/license_gate.py now (a) reads licenses from cached .crate archives when not extracted, (b) falls back to tools/license_evidence.json crates.io records accepted only when the checksum equals the pinned lock checksum (8 other-target crates: alsa, alsa-sys, coreaudio-rs, mach2, objc2-audio-toolbox, objc2-avf-audio, objc2-core-audio, objc2-core-audio-types; all MIT/Apache/Zlib/BSD; checksums equal), (c) checks honest kinds (-sys and NATIVE_FFI_EXTRA = native-ffi). No crate downloaded (download needs Operator consent).",
+  "machine_paths_baseline": "pinned 10 files (hostile-input vectors folio/package/web tests, lrcat synthetic catalog TSVs, Type provenance JSON, prism t1_lcms2.json populate-tool source dirs); deviation from 'allow-list only the corpus-root config': strict mode would fail every round on these non-read data hits; lead may delete entries to make files strict",
+  "corpus_convention_for_lanes": "prism tests/oracle/corpus.json icc_root is CARGO_MANIFEST_DIR-relative and does not resolve from round exports (studio-round/src/... -> studio-round/Handshake_Artifacts/...): prism should name subdir icc under the .config/oracle-corpus.toml root; score-plugin clap_fixture.rs should read <corpus>/score-plugin/clap-gain/MANIFEST.json instead of HSK_SCORE_PLUGIN_CLAP_FIXTURE",
+  "canary_export_choice": "steward canaries run in studio-team-dev/steward-export (rule d; validators own studio-round)",
+  "shared_index": "root file index entries reset to HEAD after each CAS commit; working Cargo.lock left as builders' local state"
  }
 }

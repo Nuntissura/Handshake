@@ -1,33 +1,58 @@
 {
   "crate": "hsk-studio-pigment+hsk-studio-folio",
   "lane": "SMB-PIGMENT-ENG-2 / SMB-FOLIO-ENG-5",
-  "status": null,
-  "phase": "adjust_math + coverage_math landed; next: render_plan PlanExtensions envelope, folio raster records, briefs",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slice complete on pushed 2f705f1 (pigment/folio unchanged through HEAD bd8533f): check + clippy --no-deps clean, 59 pigment+folio tests green; dependents check exit 0 and composite/render-cpu/render-gpu tests green at 2f705f1; R5 remediation + V4-06 class sweep folded in",
   "commits": [
-    {
-      "sha": "bd480f9",
-      "subject": "Pigment ENG-2: single-owner adjust_math + coverage_math with hand-computed oracle tests"
-    }
+    {"sha": "bd480f9", "subject": "Pigment ENG-2: single-owner adjust_math + coverage_math with hand-computed oracle tests"},
+    {"sha": "d576ec5", "subject": "Pigment ENG-2: render-plan extension envelope (PlanExtensions, ExtOperator, admit_extended, RenderBackend defaults), StackNode::Adjustment, psd-tools/GIMP-cited formulas; R5 remediation pass-through fill"},
+    {"sha": "ff92dea", "subject": "Folio ENG-5: StudioRasterRecords sidecar (adjustments, mask parameters, advanced blending, effect stacks, global light); V4-07 doc citations"},
+    {"sha": "2587930", "subject": "Pigment ENG-2: LayerExtension/PlanExtensions/AdjustmentOp #[non_exhaustive] + builders"},
+    {"sha": "c2bbb9b", "subject": "Pigment R5 class sweep (V4-06): v1 admit refuses mask density < 1; envelope admits MaskDensity"},
+    {"sha": "2f705f1", "subject": "Pigment R5 class sweep (V4-06): shared admission refuses Solid colour outside [0,1]"}
   ],
   "capabilities_done": [
-    "decision note diagnostics/adjustments-advanced-blending.md",
-    "pigment::adjust_math (levels, curves, hue_saturation master, exposure, invert, threshold, posterize; brightness_contrast refused; composite_adjustment rule)",
-    "pigment::coverage_math (mask_coverage density/invert, feather sigma/kernel, Blend-If range weight)"
+    "decision note diagnostics/adjustments-advanced-blending.md (owners, curves capability split, IR shapes, exactness, D5 additions, spec gaps, sources)",
+    "pigment::adjust_math single owner: levels, curves (natural spline), hue_saturation master + colorize, brightness_contrast legacy (modern = typed refusal), exposure (linearize_gamma), invert, threshold, posterize; composite_adjustment (alpha-preserving rule)",
+    "pigment::coverage_math single owner: mask_coverage (density/invert), feather_sigma/support/kernel, Blend-If range_weight/blend_if_weight",
+    "pigment::render_plan PlanExtensions envelope: adjustment layer on transparent Solid placeholder, Blend-If, mask feather, knockout refused (PlanError::KnockoutUnsupported -> Unsupported knockout_*), ExtOperator classes, admit_extended, RenderBackend::extension_exactness/execute_extended defaults (refuse, never render without the envelope), digest_with; 10 new PlanError variants",
+    "blend_math StackNode::Adjustment single-pixel oracle node + BlendError::Adjustment",
+    "folio::StudioRasterRecords (hsk.studio.raster_records@1) + validate_raster_records + raster_records_schema",
+    "briefs: lane-composite-adjustments, lane-render-cpu-adjustments, lane-render-gpu-adjustments, lane-interop-psd-adjustments, lane-effects-wave-1"
   ],
   "tests": {
-    "argv": ["cargo", "test", "-p", "hsk-studio-pigment", "--test", "adjust_coverage"],
+    "argv": ["cargo", "test", "-p", "hsk-studio-pigment", "-p", "hsk-studio-folio", "--tests"],
     "exit": 0,
-    "sha": "bd480f9",
-    "passed": 4,
+    "sha": "2f705f1",
+    "passed": 59,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "render_plan PlanExtensions + admit_extended + RenderBackend default methods; folio StudioRasterRecords; briefs",
-  "updated_at": "2026-10-11T05:22:10Z",
+  "next": "independent validator round; follow-up lanes per briefs (composite lowering, render-cpu, render-gpu, interop-psd mapping, effects wave 1)",
+  "updated_at": "2026-10-11T05:53:25Z",
   "notes": {
-    "clippy": "cargo clippy without --no-deps fails in hsk-studio-prism (another lane's uncommitted icc_eval.rs edits: approx_constant LOG2_E/SQRT_2); pigment/folio linted with --no-deps: clean",
-    "additivity": "v1 IR and folio structs are struct-literal built elsewhere; additions travel in render_plan::PlanExtensions and folio::StudioRasterRecords (decision note topic additivity)"
+    "remediation_R5": "validation/R5-review-a.json SMB-PIGMENT-ENG-1 CONFIRMED (render_plan.rs validate admitted PassThrough with fill<1 as fill_opacity Approximate; backends refused with different codes). Fixed d576ec5: validate no longer rates pass-through fill as FillOpacity; admit refuses it for every backend as Unsupported{group_pass_through_fill_opacity, unsupported} (render-cpu's existing key, so its test cpu_plan.rs:1926 stays green; render-gpu now refuses at admit too). Regression: tests/plan_extensions.rs pass_through_fill_is_refused_uniformly_by_admit. Placed in admit (shared admission), not as a validate InvalidPlan error, because an InvalidPlan would change render-cpu's expected error class.",
+    "v4_06_class": "failure class: a plan feature admitted by pigment's shared validate/admit at a class that every backend then refuses at execute (inconsistent admission). Search regex over crates/hsk-studio-pigment/src: 'fill_opacity|PassThroughOpacity|FillOpacity|NonIsolatedBlendedGroup|density|rgba|BaseAlpha|Operator::Vector|extension_exactness'",
+    "v4_06_sites": [
+      "render_plan.rs validate FillOpacity for PassThrough fill<1: FIXED d576ec5",
+      "render_plan.rs admit pass-through fill<1: FIXED d576ec5 (PASS_THROUGH_FILL_OPERATOR)",
+      "render_plan.rs MaskInput.density<1 admitted as Mask(format) Exact, refused by both backends 'mask_density': FIXED c2bbb9b (v1 admit refuses; envelope ExtOperator::MaskDensity)",
+      "render_plan.rs Solid rgb outside [0,1] (R5 PLAUSIBLE): FIXED 2f705f1 (SAMPLE_RANGE_OPERATOR in admit_core)",
+      "render_plan.rs PassThroughOpacity (opacity<1): NOT_APPLICABLE (both backends return Unsupported from exactness, so admit already refuses uniformly)",
+      "render_plan.rs NonIsolatedBlendedGroup: NOT_APPLICABLE (backends Unsupported via exactness -> admit refuses)",
+      "render_plan.rs Operator::Vector: NOT_APPLICABLE (capability per backend through exactness; gpu Unsupported -> admit refuses)",
+      "render_plan.rs Mask(BaseAlpha) clip-to-base: NOT_APPLICABLE (supports_clip_to_base opt-in refusal in admit)",
+      "render_plan/extensions.rs ExtOperator: NOT_APPLICABLE (admit_extended asks extension_exactness, default Unsupported)",
+      "blend_math.rs fold_nodes group_pass_through_opacity Approximate: NOT_APPLICABLE (single-pixel reference oracle, not admission)"
+    ],
+    "r5_not_addressed": "R5 PLAUSIBLE pigment item 'PlanLimits through admit' (admit validates with PlanLimits::default()) is a capability request, not this failure class; left open.",
+    "additivity": "v1 IR and folio structs are struct-literal built / exhaustively matched by dependents (evidence in decision note topic additivity); additions travel in render_plan::PlanExtensions and folio::StudioRasterRecords; new envelope types are #[non_exhaustive] with builders",
+    "dependents": "cargo check of composite, render-cpu, render-gpu, interop-psd, layout, components, interop-vector, interop-layout --tests: exit 0 at 2587930, c2bbb9b and 2f705f1; composite 13, render-cpu 11, render-gpu 12 tests passed, 0 failed at c2bbb9b and again at 2f705f1. Earlier transient failures were other lanes' uncommitted working-tree edits (interop-layout Arc<str> mid-edit; interop-psd export.rs missing Plane import), not caused by this lane.",
+    "clippy": "pigment/folio linted with --no-deps (clean); a plain clippy run failed in hsk-studio-prism on another lane's uncommitted icc_eval.rs edits (approx_constant)",
+    "v4": "V4-01: folio raster.rs denies clippy::arithmetic_side_effects; V4-07: new doc/DESCRIPTOR claims cite tests; V4-09: commits via -F files; V4-03: Photoshop parity NOT_PROVEN, D5 cases listed in the decision note",
+    "d5_oracle_additions": "decision note topic oracle-d5 cases 1-11 (adjustment layer alpha rule, levels order, curves interpolation, hue/sat, brightness/contrast modern+legacy, exposure linearisation, threshold metric, posterize mapping, Blend-If ramps/gray metric, mask density/feather sigma, knockout); effects brief adds 12-14",
+    "spec_gaps": "raster knockout depth shallow/deep has no spec field (only STU-VEC-153 4-member enum); no StudioDocument Global Light field (kept in the sidecar); no identity prefix for hsk.studio.adjustment@1; STU-RAS-159 cross-pair ordering unstated"
   }
 }

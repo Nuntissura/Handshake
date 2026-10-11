@@ -1,7 +1,7 @@
 ---
 file_id: WP-STUDIO-MODULE-WORK-DIAG-ADJUSTMENTS-ADVANCED-BLENDING
 file_kind: architecture_decision
-updated_at: 2026-10-11T05:14:30Z
+updated_at: 2026-10-11T05:52:02Z
 wp: WP-KERNEL-STUDIO
 lane: SMB-PIGMENT-ENG-2 / SMB-FOLIO-ENG-5
 owner: pigment-folio-architect
@@ -121,13 +121,14 @@ Rules:
 |---|---|---|
 | `adjustment_layer` (alpha-preserving lerp rule) | Approximate | Studio rule; Photoshop behaviour on semi-transparent backdrops UNVERIFIED -> D5 |
 | `invert` | Exact | `1 - x` per channel; Adobe help example 255->0, 5->250 (8-bit) |
-| `levels` | Approximate | GIMP levels formula (`(x-ib)/(iw-ib)` clamp, `^(1/gamma)`, output lerp); Photoshop order of composite/channel records UNVERIFIED |
-| `curves` | Approximate | spline through points; Photoshop interpolation not published |
-| `hue_saturation` (master only) | Approximate | GIMP HSL model; per-band colour ranges Unsupported in this slice |
-| `brightness_contrast` legacy and modern | Approximate | GIMP formulas; Photoshop modern curve not published |
-| `exposure` | Approximate | `(x * 2^ev + offset)^(1/gamma)` applied to the numbers given; Photoshop linearisation for 8/16-bit UNVERIFIED |
-| `threshold` | Approximate | `lum >= level`; Photoshop brightness metric UNVERIFIED |
-| `posterize` | Approximate | GIMP-style rounding; Photoshop mapping UNVERIFIED |
+| `levels` | Approximate | GIMP and psd-tools: `(x-ib)/(iw-ib)` clamped, `^(1/gamma)`, output lerp; channel record, then composite. Photoshop order UNVERIFIED |
+| `curves` | Approximate | natural cubic spline, flat outside the end points, clamped; channel curve, then composite (psd-tools, Krita). Photoshop interpolation unpublished |
+| `hue_saturation` (master + colorize) | Approximate | psd-tools empirical path. Hue bands are not in the IR (composite refuses them) |
+| `brightness_contrast` legacy | Approximate | relayed Photoshop-team statement plus a third-party measurement; pivot 0.5 |
+| `brightness_contrast` modern | Unsupported | no documented formula; typed refusal (`plan_adjustment_unsupported` → `Unsupported{brightness_contrast}`) |
+| `exposure` | Approximate | psd-tools: linearise with `linearize_gamma` (1 for linear plans, 2.2 for encoded plans), `*2^ev + offset`, clamp, `^(1/gamma)`, re-encode. Photoshop linearisation UNVERIFIED |
+| `threshold` | Approximate | `lum(0.3/0.59/0.11) >= level` (psd-tools); Photoshop metric UNVERIFIED |
+| `posterize` | Approximate | `floor(x n 255/256)/(n-1)` (psd-tools fitted toward Photoshop; GIMP rounds instead) |
 | `blend_if` | Approximate | linear split-slider ramps; gray metric UNVERIFIED |
 | `mask_density` | Approximate | linear density reading of Adobe help text |
 | `mask_feather` | Approximate | Gaussian; radius-to-sigma relation UNVERIFIED |
@@ -193,8 +194,62 @@ Formula sources are cited in each function's doc comment in `pigment/src/adjust_
 <topic id="sources" status="active" summary="Sources">
 
 ## Sources
+
+### Spec and local evidence
 - Spec v02.215 14.4: STU-RAS-007, 035, 040, 041, 113, 115, 124, 151-159; STU-VEC-153.
-- Local evidence: product files and lines cited above; Photoshop 2026 `Presets/Curves/*.acv` decoded read-only (no copy into assets).
-- Research reports by two online researcher agents (2026-10-11), with the cited URLs folded into the code doc comments: Adobe PSD file format spec, GIMP/GEGL operations, psd-tools, ag-psd, Krita.
+- Local evidence: the product files and lines cited above. Photoshop 2026 `Presets/Curves/*.acv` was decoded read-only; nothing was copied into assets.
+
+### Research reports (2026-10-11)
+Two online researcher agents produced these reports. helpx.adobe.com returned 403, so the Adobe help text comes from search snippets and is a paraphrase.
+- **Adobe PSD File Formats Specification** (https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/):
+  - Blending ranges: 4 bytes per range, composite gray source/destination, then per channel.
+  - Mask parameters: flag bit 4; user/vector density u8 and feather f64.
+  - `levl`: 29 x 5 u16, gamma x100.
+  - `curv`, `hue2`, `brit`/`CgEd`, `expA` (f32 x3), `nvrt`, `thrs`/`post` (u16 + pad), `mixr`.
+  - `knko`/`infx`/`clbl`/`tsly`: 1 byte + 3 pad.
+  - `lfx2`: version 0 + descriptor 16.
+- **psd-tools** (https://github.com/psd-tools/psd-tools, head b58704c, MIT) `src/psd_tools/composite/adjustments.py`:
+  - Levels: channel LUTs then composite (`_apply_luts`, `apply_levels`).
+  - Curves: scipy CubicSpline natural, flat outside, clipped.
+  - Hue/Saturation master: RGB lightness, then HSL hue, then `s/(1-S+0.01)` or `s(1+S)`; colorize (`_huesaturation`, `_apply_saturation`, `_apply_lightness`, `_huesaturation_colorize`).
+  - Exposure: x^2.2 linearisation.
+  - Posterize: floor with a 255/256 LUT correction.
+  - Threshold: `lum >= level`.
+  - Legacy brightness/contrast: not implemented there.
+  - `composite/composite.py`: mask density `share = density/255; shape = share*mask + (1-share)`; knockout NONE/SHALLOW/DEEP = 0/1/2 (issue 707: Photoshop deep = 2). Blend-If and feather are not applied.
+- **GIMP** (gitlab.gnome.org/GNOME/gimp):
+  - `app/operations/gimpoperationlevels.c`: per-channel then master.
+  - `gimpoperationposterize.c`: round-based.
+  - `gimpoperationthreshold.c`: max(R,G,B) by default.
+  - `gimpoperationbrightnesscontrast.c`.
+  - `core/gimpcurve.c`: Bezier-segment curves, not a natural spline.
+- **Krita** `libs/image/kis_cubic_curve*`: natural cubic spline.
+- **ag-psd** (https://github.com/Agamnentzar/ag-psd, head 04d927d):
+  - `psdReader.ts:523-541`: blending ranges as 4 x u8.
+  - `descriptor.ts:1155-1184`: `lfx2`/`lmfx` keys and the `*Multi` lists.
+  - Reads `knko` as bool.
+- **Legacy brightness/contrast**:
+  - A Photoshop-team statement relayed on W3C public-fx (https://lists.w3.org/Archives/Public/public-fx/2012JanMar/0060.html): brightness adds n, contrast is linear, +100 gives 0/255, -100 gives 127, -100 with brightness +100 gives 227.
+  - photocraft PR 2615: a third-party measurement, pivot 128/255.
+- **Mask feather sigma**: UNVERIFIED. The sources conflict: photocraft PR 2529 uses sigma = feather; a Montagent issue uses sigma = feather/2.
+
+</topic>
+
+<topic id="implementation" status="active" summary="Commits and verification (2026-10-11)">
+
+## Implementation (codex/handshake-studio-assets, pushed)
+- **bd480f9**: `pigment::adjust_math` and `pigment::coverage_math`, with hand-computed oracle tests (`tests/adjust_coverage.rs`).
+- **d576ec5**:
+  - The `render_plan::PlanExtensions` envelope (`src/render_plan/extensions.rs`), `ExtOperator`, `admit_extended`, the `RenderBackend::extension_exactness`/`execute_extended` defaults, and `digest_with`.
+  - `StackNode::Adjustment` and `BlendError::Adjustment`.
+  - Formula revisions to the psd-tools/GIMP-cited sources.
+  - R5 remediation: `admit` refuses a pass-through layer with fill < 1 as `group_pass_through_fill_opacity` for every backend.
+- **ff92dea**: `folio::StudioRasterRecords` (`src/raster.rs`, `tests/raster_records_contract.rs`) and V4-07 doc citations.
+- **2587930**: `LayerExtension`, `PlanExtensions` and `AdjustmentOp` are now `#[non_exhaustive]`, with builder methods.
+- **c2bbb9b and 2f705f1** (V4-06 sweep of the R5 failure class: shared admission admitted features that every backend then refused at execute):
+  - The v1 `admit` refuses `MaskInput.density < 1` as `mask_density`. The envelope admits it as `ExtOperator::MaskDensity`.
+  - Shared admission refuses a `Solid` colour outside [0,1] as `sample_range_outside_unit`.
+  - Both use the operator keys the backends already report, so the render-cpu and render-gpu tests stay green.
+- Brightness/contrast: modern mode is a typed refusal (`AdjustError::Unsupported("brightness_contrast.modern")`, `PlanError::AdjustmentUnsupported`). No documented formula exists; psd-tools carries a reverse-engineered spline and polynomial that a later lane may evaluate against the D5 oracle.
 
 </topic>
