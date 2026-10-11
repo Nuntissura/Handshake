@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T00:42:00Z",
+ "updated_at": "2026-10-11T02:35:00Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -11,23 +11,29 @@
    "lane_id": "SMB-TYPE",
    "crate": "hsk-studio-type",
    "mt_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/MT-35536.json",
-   "phase": "build",
-   "status": "BLOCKED",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "blocked_on": null,
-   "note": "operator approved changed approach + one fix round 2026-10-11",
+   "note": "fix round 4 (operator-approved); focused tests green as implementation evidence; awaiting independent validator",
    "owner": null,
-   "commits": [],
+   "commits": [
+    "e603db86031feb860039f59658273d8fe17d2b30 Type: admit default-ignorable-only Common spans through bounded shaping"
+   ],
    "verdicts": []
   },
   {
    "lane_id": "SMB-STEWARD",
    "crate": "workspace",
    "phase": "build",
-   "status": null,
+   "status": "done",
    "owner": null,
-   "commits": [],
+   "commits": [
+    "3f6d5ab scaffold 27 crates",
+    "47f212f Type transitive pins",
+    "96ad053 probe policy: native/wgpu/egui per designated owner; generated approved list"
+   ],
    "verdicts": [],
-   "note": "baseline + scaffold 27 declared crates"
+   "note": "baseline 133 pass; 3 Type doctest failures (vendored ttf-parser examples src/provider/ttf/mod.rs:182,205,2080)"
   },
   {
    "lane_id": "SMB-LAYOUT",
@@ -66,23 +72,25 @@
    "lane_id": "SMB-PULSE",
    "crate": "hsk-studio-pulse",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-pulse",
-   "phase": "brief",
+   "phase": "build",
    "status": null,
-   "owner": null,
-   "brief": null,
+   "owner": "builder-pulse",
+   "brief": "builders/briefs/hsk-studio-pulse.md",
    "commits": [],
-   "verdicts": []
+   "verdicts": [],
+   "lane_file": "builders/lanes/hsk-studio-pulse.json"
   },
   {
    "lane_id": "SMB-SCORE",
    "crate": "hsk-studio-score",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-score",
-   "phase": "brief",
+   "phase": "build",
    "status": null,
-   "owner": null,
-   "brief": null,
+   "owner": "builder-score",
+   "brief": "builders/briefs/hsk-studio-score.md",
    "commits": [],
-   "verdicts": []
+   "verdicts": [],
+   "lane_file": "builders/lanes/hsk-studio-score.json"
   },
   {
    "lane_id": "SMB-REEL",
@@ -110,23 +118,25 @@
    "lane_id": "SMB-COMPOSITE",
    "crate": "hsk-studio-composite",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-composite",
-   "phase": "brief",
+   "phase": "build",
    "status": null,
-   "owner": null,
-   "brief": null,
+   "owner": "builder-composite",
+   "brief": "builders/briefs/hsk-studio-composite.md",
    "commits": [],
-   "verdicts": []
+   "verdicts": [],
+   "lane_file": "builders/lanes/hsk-studio-composite.json"
   },
   {
    "lane_id": "SMB-RENDER-CPU",
    "crate": "hsk-studio-render-cpu",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-render-cpu",
-   "phase": "brief",
+   "phase": "build",
    "status": null,
-   "owner": null,
-   "brief": null,
+   "owner": "builder-render-cpu",
+   "brief": "builders/briefs/hsk-studio-render-cpu.md",
    "commits": [],
-   "verdicts": []
+   "verdicts": [],
+   "lane_file": "builders/lanes/hsk-studio-render-cpu.json"
   },
   {
    "lane_id": "SMB-RENDER-GPU",
@@ -143,23 +153,25 @@
    "lane_id": "SMB-PACKAGE",
    "crate": "hsk-studio-package",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-package",
-   "phase": "brief",
+   "phase": "build",
    "status": null,
-   "owner": null,
-   "brief": null,
+   "owner": "builder-package",
+   "brief": "builders/briefs/hsk-studio-package.md",
    "commits": [],
-   "verdicts": []
+   "verdicts": [],
+   "lane_file": "builders/lanes/hsk-studio-package.json"
   },
   {
    "lane_id": "SMB-INTEROP-PSD",
    "crate": "hsk-studio-interop-psd",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-interop-psd",
-   "phase": "brief",
+   "phase": "build",
    "status": null,
-   "owner": null,
-   "brief": null,
+   "owner": "builder-interop-psd",
+   "brief": "builders/briefs/hsk-studio-interop-psd.md",
    "commits": [],
-   "verdicts": []
+   "verdicts": [],
+   "lane_file": "builders/lanes/hsk-studio-interop-psd.json"
   },
   {
    "lane_id": "SMB-INTEROP-VECTOR",
@@ -323,6 +335,140 @@
    "status": null,
    "owner": null,
    "brief": null,
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-PRISM-ENG-1",
+   "crate": "hsk-studio-prism",
+   "origin": "research/color-codecs-raw.md risk 1; lead decision START_LOG decisions 01:50Z",
+   "scope": "Prism-owned black-point compensation flag (STU-COL-136) on top of moxcms 0.9.1 transforms; published BPC algorithm",
+   "phase": "brief",
+   "status": null,
+   "owner": null,
+   "brief": "research/engine-color.md topic bpc-algorithm (ISO 18619); prevent double-apply with moxcms hard-coded BPC (RGB v4 LUT perceptual/saturation)",
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-TYPE-ENG-1",
+   "crate": "hsk-studio-type",
+   "origin": "diagnostics/type-lane.md topic strategy",
+   "scope": "spike: harfrust =0.14.0 + read-fonts/skrifa provider behind a feature flag, side-by-side with vendored subset; compare against existing references; bounds at call boundary",
+   "phase": "brief",
+   "status": null,
+   "owner": null,
+   "operator_decision": "D7 pending: accept call-boundary metering instead of in-shaper bounds before replacing the vendored path",
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-REEL-ENG-1",
+   "crate": "hsk-studio-reel",
+   "origin": "research/engine-video.md",
+   "scope": "own ISOBMFF/MOV index reader (edit lists, ctts, tmcd) + index-first frame-accurate seek returning requested vs actual PTS; exact-or-error in export mode",
+   "phase": "brief",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-REEL-ENG-2",
+   "crate": "hsk-studio-reel",
+   "origin": "research/engine-video.md",
+   "scope": "ProRes decode from SMPTE RDD 36 (pure Rust), then DNxHD/HR (ST 2019-1); decoder id+version in every frame receipt",
+   "phase": "brief",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-REEL-ENG-3",
+   "crate": "hsk-studio-reel",
+   "origin": "research/engine-video.md",
+   "scope": "AV1 decode via rav1d behind reel adapter; deterministic decode contract (hash-testable normative output)",
+   "phase": "brief",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-PULSE-ENG-1",
+   "crate": "hsk-studio-pulse",
+   "origin": "research/engine-video.md",
+   "scope": "explicit rounding rule + receipt for 100 ns (Media Foundation) <-> 254016000000 ticks/s conversion (25401.6 ticks per 100 ns)",
+   "phase": "brief",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-REEL-NATIVE-ENG-1",
+   "crate": "hsk-studio-reel-native",
+   "origin": "research/engine-video.md",
+   "scope": "subprocess-isolated native codec provider: Media Foundation hardware MFTs via windows crate with mandatory software fallback; shared-memory frame ring, heartbeat, replay from last sync sample",
+   "phase": "brief",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-PRISM-ENG-2",
+   "crate": "hsk-studio-prism",
+   "origin": "research/engine-color.md",
+   "scope": "absolute colorimetric with media-white scaling + first-class clip/gamut report in transform receipts",
+   "phase": "brief",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-PRISM-ENG-3",
+   "crate": "hsk-studio-prism",
+   "origin": "research/engine-color.md",
+   "scope": "lift profile admission stepwise: raise 64 KiB cap for CMYK (557-723 KB) and HLG (973 KB) profiles with bounded limits; enable moxcms `lut`; order v4 matrix, v2 curv, mAB, mft/CMYK",
+   "phase": "brief",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-PRISM-ENG-4",
+   "crate": "hsk-studio-prism",
+   "origin": "research/engine-color.md",
+   "scope": "scalar-determinism harness: SIMD features off + fma check; engine id in receipts; byte-identical materialisation",
+   "phase": "brief",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-PRISM-ENG-5",
+   "crate": "hsk-studio-prism",
+   "origin": "research/engine-color.md",
+   "scope": "oracle fixtures T0 analytic (f64) + T1 offline lcms2 2.19.1 generator OUTSIDE the workspace graph committing numeric fixtures only (STU-COL-140/325; tool name+version recorded)",
+   "phase": "brief",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-TYPE-DOCTEST",
+   "crate": "hsk-studio-type",
+   "origin": "diagnostics/baseline.md",
+   "scope": "fix 3 failing vendored ttf-parser doctests (ttf_parser:: paths) src/provider/ttf/mod.rs:182,205,2080",
+   "phase": "brief",
+   "status": null,
+   "owner": null,
    "commits": [],
    "verdicts": []
   }

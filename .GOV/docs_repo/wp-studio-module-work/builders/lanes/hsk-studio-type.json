@@ -1,0 +1,20 @@
+{
+  "lane": "hsk-studio-type",
+  "mt": "MT-35536",
+  "status": "READY_FOR_VALIDATION",
+  "commits": [
+    {"sha": "e603db86031feb860039f59658273d8fe17d2b30", "tree": "1de50152f22184049941432e0b66870be9e331a3", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "Admit pinned default-ignorable Common control spans at both Type shape entries"}
+  ],
+  "tests": {
+    "check_tests": "PASS exit0 (pre-existing dead-code warnings only)",
+    "clippy_tests": "PASS exit0 (no findings on changed lines)",
+    "mixed_script_bidi_font_runs": "PASS 1/1 exact, predecessor first (implementer evidence)",
+    "font_axis_missing_cancel_stale": "PASS 1/1 (bundle, --no-fail-fast)",
+    "observe_foundation_contract_19": "PASS 19/19 (bundle, --no-fail-fast)",
+    "tree": "shared edit tree, not export of pushed SHA"
+  },
+  "blockers": [],
+  "next": "Independent validator round on export of e603db8 (or later HEAD): mixed_script_bidi_font_runs first, then remaining affected acceptance; workspace-probe closure + consumer/allocation acceptance not run by implementer",
+  "diagnostic_ref": ".GOV/docs_repo/wp-studio-module-work/diagnostics/type-lane.md",
+  "updated_at": "2026-10-11T01:16:00Z"
+}

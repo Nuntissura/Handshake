@@ -1,7 +1,7 @@
 ---
 file_id: WP-STUDIO-MODULE-WORK-DIAG-TYPE-LANE
 file_kind: lane_diagnostic
-updated_at: 2026-10-11T00:00:00Z
+updated_at: 2026-10-11T01:16:00Z
 wp: WP-KERNEL-STUDIO
 mt: MT-35536
 crate: hsk-studio-type
@@ -72,5 +72,19 @@ Recommendation:
 3. Gain: the Type lane stops owning HarfBuzz parity (archived upstream, gate-by-gate script expansion), and the oracle equals the provider by construction.
 
 Sources: https://github.com/harfbuzz/rustybuzz ; https://github.com/harfbuzz/harfrust ; crates.io API (harfrust, rustybuzz, read-fonts, skrifa, swash, unicode-bidi, unicode-linebreak, icu_segmenter, parley_engine, cosmic-text) ; https://doc.servo.org/icu_properties/bidi/struct.BidiClassAdapter.html
+
+</topic>
+
+<topic id="round-result" status="active" mt="MT-35536" summary="Fix round 4 implementation evidence; validator verdict pending">
+
+## Round result (implementation evidence, not a verdict)
+
+- Commit `e603db86031feb860039f59658273d8fe17d2b30` (tree `1de50152...`), pushed to `codex/handshake-studio-assets`; 2 files, +36/-3.
+- check `--tests`: exit 0 (pre-existing dead-code warnings only). clippy `--tests`: exit 0, no findings on changed lines.
+- Predecessor first: `mixed_script_bidi_font_runs --exact`: 1 passed (4.88 s), unchanged fixture and reference (sha 6579f9a9...).
+- Bundle `--no-fail-fast`: Type `font_axis_missing_cancel_stale` 1 passed; Observe `foundation_contract` 19 passed.
+- Tree note: shared edit tree (plus uncommitted steward root-manifest metadata), not an export of the pushed SHA. The independent round must re-run on an export.
+- Not run: workspace-probe closure extension (rustc tool; no manifest change in this diff); independent consumer/allocation acceptance.
+- MT-35536 lifecycle: READY_FOR_VALIDATION, blocked_on null; validator_verdict still FAIL_V3 until the independent round.
 
 </topic>

@@ -20,5 +20,90 @@
   ],
   "suggested_wave": 1,
   "notes": "std-only; fixture from MT-35541; hard limiter from STU-FX-136a gives real latency path; hound dev-dep optional."
+ },
+ {
+  "crate": "hsk-studio-motion",
+  "brief_path": ".GOV/docs_repo/wp-studio-module-work/builders/briefs/hsk-studio-motion.md",
+  "ready": true,
+  "depends_on_crates": [
+   "hsk-studio-accord",
+   "hsk-studio-observe"
+  ],
+  "suggested_wave": 1,
+  "notes": "std-only; keyframe/tangent eval + MOT-256 Date clock + dep-graph cycle + expression port; folio/nib/type allowed but unused in slice 1; seeded RNG algorithm unpublished (gap, not implemented); Adobe black-box oracle noted."
+ },
+ {
+  "crate": "hsk-studio-reel",
+  "brief_path": ".GOV/docs_repo/wp-studio-module-work/builders/briefs/hsk-studio-reel.md",
+  "ready": true,
+  "depends_on_crates": [
+   "hsk-studio-accord",
+   "hsk-studio-observe"
+  ],
+  "suggested_wave": 1,
+  "notes": "real Y4M + WAV providers (license-free), enumerable instance registry, MEDIA_CODEC_UNAVAILABLE; compressed codecs wave-2 after operator decision STU-VID-084; sha2 optional dep-request."
+ },
+ {
+  "crate": "hsk-studio-session",
+  "brief_path": ".GOV/docs_repo/wp-studio-module-work/builders/briefs/hsk-studio-session.md",
+  "ready": true,
+  "depends_on_crates": [
+   "hsk-studio-accord",
+   "hsk-studio-folio",
+   "hsk-studio-chronicle",
+   "hsk-studio-observe",
+   "hsk-studio-package"
+  ],
+  "suggested_wave": 2,
+  "notes": "capabilities 1-4 compile on existing crates (real chronicle provider); capability 5 needs package; needs sha2 dep-request for idempotency payload hash."
+ },
+ {
+  "crate": "hsk-studio-interop-media",
+  "brief_path": ".GOV/docs_repo/wp-studio-module-work/builders/briefs/hsk-studio-interop-media.md",
+  "ready": true,
+  "depends_on_crates": [
+   "hsk-studio-accord",
+   "hsk-studio-observe"
+  ],
+  "suggested_wave": 1,
+  "notes": "CMX3600 EDL import + tick/timecode adapters + explicit PRPROJ/AEP/SESX NativeDecoderMissing; contradiction: no folio timeline contract exists, so neutral TimelineProposal lives here."
+ },
+ {
+  "crate": "hsk-studio-kernel-bindings",
+  "brief_path": ".GOV/docs_repo/wp-studio-module-work/builders/briefs/hsk-studio-kernel-bindings.md",
+  "ready": true,
+  "depends_on_crates": [
+   "hsk-studio-accord",
+   "hsk-studio-folio",
+   "hsk-studio-session",
+   "hsk-studio-observe"
+  ],
+  "suggested_wave": 2,
+  "notes": "strictly after session; owns public wire envelopes + executable transient adapter (session keeps traits + private doubles); serde/serde_json pinned deps via dep-request."
+ },
+ {
+  "crate": "hsk-studio-harness",
+  "brief_path": ".GOV/docs_repo/wp-studio-module-work/builders/briefs/hsk-studio-harness.md",
+  "ready": true,
+  "depends_on_crates": [
+   "hsk-studio-accord",
+   "hsk-studio-folio",
+   "hsk-studio-session",
+   "hsk-studio-controls",
+   "hsk-studio-observe"
+  ],
+  "suggested_wave": 2,
+  "notes": "last in wave 2 (needs session + controls); capabilities 1-3 need only session(+package via session); open question: chronicle/package are not direct allowed edges for harness."
+ },
+ {
+  "crate": "hsk-studio-interop-lrcat",
+  "brief_path": ".GOV/docs_repo/wp-studio-module-work/builders/briefs/hsk-studio-interop-lrcat.md",
+  "ready": true,
+  "depends_on_crates": [
+   "hsk-studio-accord",
+   "hsk-studio-observe"
+  ],
+  "suggested_wave": 1,
+  "notes": "own bounded SQLite page+WAL byte decoder (no SQL engine); LightCraft cache is concept reference only; sha2 dep-request; real LR-produced catalog is validator-time oracle."
  }
 ]

@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T01:20:00Z",
+ "updated_at": "2026-10-11T02:25:00Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -14,7 +14,7 @@
     "crates/<27 new>/** (scaffold only)"
    ],
    "launched": "2026-10-11T00:48Z",
-   "status": "running",
+   "status": "idle (resume for lock sync / dep requests before rounds)",
    "resumed": "2026-10-11T01:02Z"
   },
   {
@@ -27,7 +27,7 @@
     "MT-35536.json"
    ],
    "launched": "2026-10-11T00:48Z",
-   "status": "running",
+   "status": "done (READY_FOR_VALIDATION e603db86)",
    "resumed": "2026-10-11T01:02Z"
   },
   {
@@ -63,8 +63,9 @@
     "research/formats-psd-native.md"
    ],
    "launched": "2026-10-11T00:48Z",
-   "status": "running",
-   "resumed": "2026-10-11T01:02Z"
+   "status": "done",
+   "resumed": "2026-10-11T01:02Z",
+   "output": "research/formats-psd-native.md"
   },
   {
    "name": "research-color",
@@ -75,8 +76,9 @@
     "research/color-codecs-raw.md"
    ],
    "launched": "2026-10-11T00:48Z",
-   "status": "running",
-   "resumed": "2026-10-11T01:02Z"
+   "status": "done",
+   "resumed": "2026-10-11T01:02Z",
+   "output": "research/color-codecs-raw.md"
   },
   {
    "name": "research-craft",
@@ -87,8 +89,9 @@
     "research/craft-case-study.md"
    ],
    "launched": "2026-10-11T00:48Z",
-   "status": "running",
-   "resumed": "2026-10-11T01:02Z"
+   "status": "done",
+   "resumed": "2026-10-11T01:02Z",
+   "output": "research/craft-case-study.md"
   },
   {
    "name": "research-adobe",
@@ -137,7 +140,8 @@
     "research/engine-color.md"
    ],
    "launched": "2026-10-11T01:10Z",
-   "status": "running"
+   "status": "done",
+   "output": "research/engine-color.md"
   },
   {
    "name": "engine-video",
@@ -148,6 +152,91 @@
     "research/engine-video.md"
    ],
    "launched": "2026-10-11T01:10Z",
+   "status": "done",
+   "output": "research/engine-video.md"
+  },
+  {
+   "name": "validator-r1",
+   "agent_id": "aff714484465615ab",
+   "model": "opus",
+   "role": "independent validator round R1 (MT-35536)",
+   "owns": [
+    "validation/round-R1.json",
+    "MT-35536 verdict"
+   ],
+   "launched": "2026-10-11T02:10Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-package",
+   "agent_id": "a38b75fa2cb8465ee",
+   "model": "sonnet",
+   "role": "builder wave 1",
+   "owns": [
+    "crates/hsk-studio-package/**",
+    "builders/lanes/hsk-studio-package.json"
+   ],
+   "launched": "2026-10-11T02:25Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-interop-psd",
+   "agent_id": "a7ba56eec6d84ec16",
+   "model": "sonnet",
+   "role": "builder wave 1",
+   "owns": [
+    "crates/hsk-studio-interop-psd/**",
+    "builders/lanes/hsk-studio-interop-psd.json"
+   ],
+   "launched": "2026-10-11T02:25Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-composite",
+   "agent_id": "a9ed876efcc89897c",
+   "model": "sonnet",
+   "role": "builder wave 1",
+   "owns": [
+    "crates/hsk-studio-composite/**",
+    "builders/lanes/hsk-studio-composite.json"
+   ],
+   "launched": "2026-10-11T02:25Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-render-cpu",
+   "agent_id": "a3888d1e1102968c6",
+   "model": "sonnet",
+   "role": "builder wave 1",
+   "owns": [
+    "crates/hsk-studio-render-cpu/**",
+    "builders/lanes/hsk-studio-render-cpu.json"
+   ],
+   "launched": "2026-10-11T02:25Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-pulse",
+   "agent_id": "aaded69b1f79df260",
+   "model": "sonnet",
+   "role": "builder wave 1",
+   "owns": [
+    "crates/hsk-studio-pulse/**",
+    "builders/lanes/hsk-studio-pulse.json"
+   ],
+   "launched": "2026-10-11T02:25Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-score",
+   "agent_id": "abe9866a854c08406",
+   "model": "sonnet",
+   "role": "builder wave 1",
+   "owns": [
+    "crates/hsk-studio-score/**",
+    "builders/lanes/hsk-studio-score.json"
+   ],
+   "launched": "2026-10-11T02:25Z",
    "status": "running"
   }
  ]

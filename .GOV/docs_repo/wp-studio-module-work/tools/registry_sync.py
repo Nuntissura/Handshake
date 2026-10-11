@@ -1,0 +1,150 @@
+"""Studio workspace registry sync (steward tool, WP-KERNEL-STUDIO).
+
+Derives `[workspace.metadata.studio.registry.<crate>]` (direct + locked closure) and the probe APPROVED table
+from member crate manifests + Cargo.lock, so pins are mechanical, never hand-written.
+
+Usage (run a cargo command first so Cargo.lock is current):
+  python -X utf8 -I registry_sync.py <workspace_root> [--requests <dep-requests.jsonl>] [--write] [--allow-unrequested]
+Default = check mode: prints planned changes, exit 1 if root Cargo.toml / probe APPROVED are out of sync.
+Gate: a newly approved (crate, lib) pair must have a matching request line unless --allow-unrequested.
+Exit 2 = invalid crate dependency spec (not exact "=X.Y.Z", implicit defaults, missing features, not locked).
+"""
+import json, pathlib, re, sys, tomllib
+
+CRATES_IO = "registry+https://github.com/rust-lang/crates.io-index"
+DEP_SECTIONS = ("dependencies", "dev-dependencies", "build-dependencies")
+NATIVE_FFI_EXTRA: set[str] = set()  # non -sys names the steward labels native-ffi (only valid in native owners)
+
+
+def fail(code, msg):
+    print(f"ERROR: {msg}")
+    sys.exit(code)
+
+
+def key(k):
+    return k if re.fullmatch(r"[A-Za-z0-9_-]+", k) else json.dumps(k)
+
+
+def arr(v):
+    return "[" + ", ".join(json.dumps(x) for x in v) + "]"
+
+
+def main():
+    args = sys.argv[1:]
+    root = pathlib.Path(args[0])
+    write, allow = "--write" in args, "--allow-unrequested" in args
+    req_path = pathlib.Path(args[args.index("--requests") + 1]) if "--requests" in args else None
+    manifest_text = (root / "Cargo.toml").read_text(encoding="utf-8")
+    manifest = tomllib.loads(manifest_text)
+    lock = tomllib.loads((root / "Cargo.lock").read_text(encoding="utf-8"))
+    pk = {(p["name"], p["version"]): p for p in lock["package"]}
+    byname = {}
+    for n, v in pk:
+        byname.setdefault(n, []).append(v)
+
+    def ident(edge):
+        f = edge.split()
+        if len(f) == 1:
+            if len(byname[f[0]]) != 1:
+                fail(2, f"ambiguous lock edge {edge}")
+            return (f[0], byname[f[0]][0])
+        return (f[0], f[1])
+
+    registry = {}  # owner -> {lib: (version, features)}
+    for member in manifest["workspace"]["members"]:
+        crate = tomllib.loads((root / member / "Cargo.toml").read_text(encoding="utf-8"))
+        owner = crate["package"]["name"]
+        tables = [crate.get(s, {}) for s in DEP_SECTIONS]
+        for t in crate.get("target", {}).values():
+            tables += [t.get(s, {}) for s in DEP_SECTIONS]
+        for table in tables:
+            for alias, spec in table.items():
+                if isinstance(spec, dict) and "path" in spec:
+                    continue
+                where = f"{owner}: {alias}"
+                if not isinstance(spec, dict):
+                    fail(2, f"{where}: use inline table with exact version, default-features = false, features")
+                lib = spec.get("package", alias)
+                ver = spec.get("version", "")
+                if not re.fullmatch(r"=\d+\.\d+\.\d+", ver):
+                    fail(2, f"{where}: version must be exact '=X.Y.Z' (got {ver!r})")
+                if spec.get("default-features") is not False:
+                    fail(2, f"{where}: default-features = false required")
+                if "features" not in spec:
+                    fail(2, f"{where}: features = [...] required (may be empty)")
+                if set(spec) - {"version", "features", "default-features", "optional", "package"}:
+                    fail(2, f"{where}: unsupported keys {sorted(set(spec))}")
+                entry = (ver[1:], sorted(spec["features"]))
+                prev = registry.setdefault(owner, {}).get(lib)
+                if prev and prev != entry:
+                    fail(2, f"{where}: conflicting specs {prev} vs {entry}")
+                if (lib, entry[0]) not in pk:
+                    fail(2, f"{where}: {lib}@{entry[0]} not in Cargo.lock (run cargo first)")
+                registry[owner][lib] = entry
+
+    sections, approved = [], []
+    for owner in [m.rsplit("/", 1)[1] for m in manifest["workspace"]["members"]]:
+        direct = registry.get(owner)
+        if not direct:
+            continue
+        seen, stack = set(), [(lib, v) for lib, (v, _) in direct.items()]
+        while stack:
+            i = stack.pop()
+            if i not in seen:
+                seen.add(i)
+                stack.extend(ident(e) for e in pk[i].get("dependencies", []))
+        locked = []
+        for n, v in sorted(seen):
+            p = pk[(n, v)]
+            if p.get("source") != CRATES_IO or not p.get("checksum"):
+                fail(2, f"{owner}: {n}@{v} is not a crates.io package with checksum")
+            kind = "native-ffi" if n.endswith(("-sys", "_sys")) or n in NATIVE_FFI_EXTRA else "pure-rust"
+            locked.append(f'"{n}@{v}" = {{ source = "{CRATES_IO}", checksum = "{p["checksum"]}", kind = "{kind}" }}')
+        d = ", ".join(
+            f'{key(lib)} = {{ version = "{v}", features = {arr(f)}, default-features = false }}'
+            for lib, (v, f) in sorted(direct.items())
+        )
+        sections.append(
+            f"[workspace.metadata.studio.registry.{owner}]\ndirect = {{ {d} }}\nlocked = {{ {', '.join(locked)} }}\n"
+        )
+        approved.append((owner, sorted(direct)))
+
+    # Root manifest: drop all registry sections, append regenerated ones.
+    blocks = re.split(r"(?m)^(?=\[)", manifest_text)
+    kept = [b for b in blocks if not b.startswith("[workspace.metadata.studio.registry.")]
+    new_manifest = "".join(kept).rstrip("\n") + "\n\n" + "\n".join(sections)
+
+    probe_path = root / "tools" / "workspace-probe.rs"
+    probe = probe_path.read_text(encoding="utf-8")
+    m = re.search(r"// BEGIN GENERATED APPROVED\n(.*?)// END GENERATED APPROVED", probe, re.S)
+    if not m:
+        fail(2, "probe APPROVED markers missing")
+    old_pairs = set(re.findall(r'"(hsk-studio-[^"]+)", &\[([^\]]*)\]', m.group(1)))
+    old_set = {(o, lib) for o, libs in old_pairs for lib in re.findall(r'"([^"]+)"', libs)}
+    body = "const APPROVED: &[(&str, &[&str])] = &[\n" + "".join(
+        f'    ("{o}", &[{", ".join(json.dumps(x) for x in libs)}]),\n' for o, libs in approved
+    ) + "];\n"
+    new_probe = probe[: m.start(1)] + body + probe[m.end(1):]
+
+    new_set = {(o, lib) for o, libs in approved for lib in libs}
+    added, removed = sorted(new_set - old_set), sorted(old_set - new_set)
+    requested = set()
+    if req_path and req_path.exists():
+        for line in req_path.read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                r = json.loads(line)
+                requested.add((r["crate"], r["dep"]))
+    unrequested = [a for a in added if a not in requested]
+    print(json.dumps({"owners": [o for o, _ in approved], "approved_added": added, "approved_removed": removed,
+                      "unrequested": unrequested, "manifest_changed": new_manifest != manifest_text,
+                      "probe_changed": new_probe != probe}))
+    if unrequested and not allow:
+        fail(1, "unrequested new direct libraries; add request lines or pass --allow-unrequested after review")
+    if write:
+        (root / "Cargo.toml").write_bytes(new_manifest.encode("utf-8"))
+        probe_path.write_bytes(new_probe.encode("utf-8"))
+    elif new_manifest != manifest_text or new_probe != probe:
+        sys.exit(1)
+
+
+main()
