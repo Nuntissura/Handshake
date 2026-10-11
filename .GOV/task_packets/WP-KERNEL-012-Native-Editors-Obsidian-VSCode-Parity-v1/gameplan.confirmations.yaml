@@ -2225,3 +2225,6 @@ confirmations:
 - {id: GP-475, head: 00caeceafd6fc85c348e2bbb68408d92836e2a36, at: '2026-10-11T17:02:14Z', by: builder, note: Root admits101freeze8b8b after SOURCE_CLEAR01a12be8; threecalltestdelta only; runtime isolation pending}
 - {id: GP-476, head: 00caeceafd6fc85c348e2bbb68408d92836e2a36, at: '2026-10-11T17:16:18Z', by: builder, note: Root admits103freeze99fec SOURCE_CLEAR01a12bf4 on requiredfeatures; constructoronlydelta runtimepending}
 - {id: GP-477, head: 00caeceafd6fc85c348e2bbb68408d92836e2a36, at: '2026-10-11T17:26:01Z', by: builder, note: Root admits104freeze953589 SOURCE_CLEAR01a12bfe; threetypedquerycalltestdelta runtimepending}
+- {id: GP-478, head: 34fb6f3441f3304232b9afaffff19bc8ca2f5a9c, at: '2026-10-11T18:07:55Z', by: coder, note: 'Whole admitted batch: 17 primary raw snapshots; both owning MT lists; exact root scope; no active proof'}
+- {id: GP-479, head: 34fb6f3441f3304232b9afaffff19bc8ca2f5a9c, at: '2026-10-11T18:07:55Z', by: coder, note: 'Whole admitted batch: 17 primary raw snapshots; both owning MT lists; exact root scope; no active proof'}
+- {id: GP-480, head: 34fb6f3441f3304232b9afaffff19bc8ca2f5a9c, at: '2026-10-11T18:07:55Z', by: coder, note: 'Whole admitted batch: 17 primary raw snapshots; both owning MT lists; exact root scope; no active proof'}

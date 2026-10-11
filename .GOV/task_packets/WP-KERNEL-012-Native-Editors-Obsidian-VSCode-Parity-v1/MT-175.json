@@ -2300,7 +2300,7 @@
   },
   "lifecycle": {
     "status": "BLOCKED",
-    "blocked_on": "Target MT170/wpv/target has no recorded Phase2 builder transfer; Shared schema/catalog/manifests/locks/host dependency closure unresolved; CKC route registration requires existing WP012 account adapter; helper visibility cannot revive header-spoof actor authority",
+    "blocked_on": "Latest shared core Round28 FAILED101 nine legacy PG inventory diagnostics; explicitly authorized scoped backend execution-test retirement pending implementation/freeze/independent review and required compiler proof. Real authenticated lifecycle mapping/full composer/runtime acceptance remains outstanding; no PASS.",
     "depends_on": [
       "MT-174"
     ],
@@ -2310,7 +2310,7 @@
     "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
     "claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
     "completed_by": null,
-    "next_actor": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER after exact resource/auth/schema blocker disposition"
+    "next_actor": "Root admits exclusive /root/round19_boot_coder retirement batch after this scoped record; disjoint launch/console child only. Independent reviewer then delivery under current gates; native MT175 retains MT174 predecessor."
   },
   "scope": {
     "summary": "Reconcile native import paths preserving current native host",
@@ -5512,6 +5512,23 @@
           }
         }
       }
+    },
+    "backend_test_retirement_20261011": {
+      "decision_id": "WP012-P2-BACKEND-TEST-RETIREMENT-20261011",
+      "operator_quote": "remove all poostgresal test, or sqlite test... postgresal and sqlite are abandoned and not allowed in handshake",
+      "authority": "Explicit Operator ALL actual PostgreSQL/SQLite execution-test retirement; parent root scoped admission after independent backend_retirement_scope_review source inspection. No fabricated USER_SIGNATURE.",
+      "state": "AUTHORIZED_SCOPED_IMPLEMENTATION_PENDING_ROOT_WRITER_DISPATCH",
+      "limits": [
+        "Active legacy PG test placement superseded; historical raw backup/non-executable inventory retained, not current proof gates.",
+        "Preserve valid Surreal coverage, independent acceptance, backend prohibition guards and original Phase2 obligations; retirement is not PASS or runtime proof.",
+        "Bounded inventory found no SQLite execution test; global absence not asserted.",
+        "Auth mapping proposal/amendment separately authorized and outstanding, not retirement predecessor.",
+        "One exclusive writer per file; one combined freeze and independent affected review before existing build admission. Root technical self-review prohibited."
+      ],
+      "owned_paths": [
+        "src/frontend/handshake_native/tests/test_model_runtime_panel_argus.rs"
+      ],
+      "partial_disposition": "Remove only PG test630-752 and PG import19; retain other native tests, source and proof obligations. Native runtime proof remains held until actual owning predecessors."
     }
   }
 }

@@ -6,8 +6,8 @@
   "version": 3,
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "phase_id": "PHASE-02",
-  "updated_at": "2026-10-11T19:46:42.460626+02:00",
-  "updated_at_utc": "2026-10-11T17:46:42.460626Z",
+  "updated_at": "2026-10-11T18:06:52.934687+00:00",
+  "updated_at_utc": "2026-10-11T18:06:52.934687+00:00",
   "status": "CURRENT_HANDOFF_PHASE02_V3_OPEN_BACKEND_TEST_RETIREMENT_INVENTORY_AUTH_PROPOSAL_PENDING",
   "authority_precedence": [
     "Live Operator direction",
@@ -16,8 +16,8 @@
     "This handoff for authorized execution coordination; never a replacement acceptance contract"
   ],
   "lanes": {
-    "Handshake (Product)": "WP-KERNEL-012 Phase2 OPEN:Operator explicitly authorized PostgreSQL/SQLite test removal and declares backends abandoned/not allowed;projectwide exact inventory active,valid Surreal/mixed/no_sqlite guards preserved. No deletion yet/scope disposition pending/auth proposal independently outstanding/runtime0of5.",
-    "Repo Governance": "Operator-authorized updates to existing current v2 handoff only;current team/run/freeze projections corrected while original request/history retained. No product-contract/authority/acceptance changes."
+    "Handshake (Product)": "Explicit ALL PG/SQLite execution-test retirement scoped and recorded; root writer dispatch next, no product changes by recorder. Valid Surreal/prohibition coverage retained; core Round28 FAILED101/runtime NOT_RUN/accepted0of5.",
+    "Repo Governance": "Scoped Operator-authorized MT172/174/175 retirement amendment and SAME v3 update after verified kernel merge/push. No acceptance/lifecycle status/signature changes; MT173 untouched."
   },
   "operator_request": {
     "verbatim": "you can adapt and change workflows and add or remove teams , add and remove roles to counter your failures, and increase progression rate, this is not mandatory. just giving you options so we can speed up progress in the most meaningful way so we have a working wp kernel 012. if you make changes let a sub agent record this in the handoff. matter of fact; write current workflow and goals, state of progress , what to do and dont, timesinks, cargo rules, agent rules and usecases and other helpfull insight in a new handoff.",
@@ -1220,7 +1220,7 @@
     }
   },
   "current_workflow": {
-    "baseline": "Root manages all chats/team leaders. Current connected25-path batch completed/frozen solely by retained writer;new coder leader startup only. Future adopted disjoint coder workflow awaits actual exclusive assignments;not executed.",
+    "baseline": "Actual STEP1 and disjoint launch/console source changes writer-reported complete; primary owns remaining six paths. Child completed but file ownership stays reserved until release. No combined freeze or new Cargo. Separate read-only auth mapping proposal actor; root high-level coordination, independent technical review remains separate.",
     "steps": [
       {
         "id": "WP012-P2-RESUME-001",
@@ -1334,7 +1334,7 @@
       },
       {
         "id": "WP012-P2-ADAPT-009",
-        "change": "Actual root-dispatched final owner-foundation fixes:existing-marker exclusive probe_owner reacquisition after Windows remove_file error with full identity validation/no create-truncate/original error/no synthetic success;five ProcessLedger canonical public query_values→next conversions preserve types/constants/bindings/all-row errors/double expects. Writer-reported catalog assertions restored pending fresh independent review.",
+        "change": "Actual root-dispatched final owner-foundation fixes:existing-marker exclusive probe_owner reacquisition after Windows remove_file error with full identity validation/no create-truncate/original error/no synthetic success;five ProcessLedger canonical public query_values\u2192next conversions preserve types/constants/bindings/all-row errors/double expects. Writer-reported catalog assertions restored pending fresh independent review.",
         "reason": "Exact evidenced current batch questions;assertion-mapping25 rows inspected by root,SHA4bfcde6892667fb6d0a34a53a2457a3f3ad40359da38099db6b30f35f6a63c04,not independent verdict. Lock probe embedded/LOCK matches restored actual path only. No scope/acceptance weakening."
       },
       {
@@ -2629,7 +2629,7 @@
     }
   ],
   "resume_next_actions": [
-    "Use v3 current_handoff_brief and current actual MT contracts. Reconcile explicitly authorized ALL actual PG/SQLite execution-test/support/manifest-reference retirement exact inventory/disposition/scope amendment,retain valid mixed Surreal/no_sqlite guards and historical non-executable inventory. Separate authorized NEW mapping/auth-lifecycle/fullSurrealHTTP proposal remains outstanding,independent contract review BEFORE amendment. No product deletion/assignment/newCargo yet/coreFAILED101/0of5. Operator authorized ALL gov_kernel dirt and WP012 matching-backup commit+push preserving other-device origin changes;preservation commits NOT acceptance/runtime checkpoint,see authorized_preservation_git_work. Recorder performed no Git.",
+    "Finish current exclusive six-path native/manual/fixture/retired-status batch; STEP1 eight PG files+unconsumed CRDT helper and disjoint launch/console work are writer-reported complete. Retained mixed AC9/Surreal bodies require combined frozen independent affected review; no new Cargo until that closure and existing gates. Round28 failure remains historical, removed target is not an active undefined-helper repair. Separate read-only /root/phase02_auth_mapping_proposal develops authorized concrete mapping/amendment. Preserve0of5/runtimeNOT_RUN; later dirty changes require next checkpoint, not acceptance proof. External app wait/send/automation outcome remains unobserved; no retired-chat activation claimed.",
     "Diagnosis chat01a129cd-bd03-73a2-a09a-60efba6055f3 awaits exact unresolved F2 question or actual compiler failure after narrow steering stopped F3 exploration. Source-observed pending acquisition token/envelope retention is not a verdict. Four fresh other chats startup VERIFIED; reviewer/delivery ownership unchanged.",
     "Preserve actual canonical targetbindingsNone; earlier recomputation recommendation is RETRACTED, no new algorithm. F1 sourcefix does not prove compile/runtime. Retain partial5ebc.../all originalF1-F5/001-007/controller/full8A-H/history then fullrawre-freeze/independent affected review/gameplan wholeCargo/actual perMTcompiledcheckpoint+push/independent canonical engine runtime HBR.",
     "Freeze the whole connected changed boundary and assertion mapping once; independent affected source review before current required full-core compile. Reuse only unchanged prior evidence; no SQLx blind restore, exclusion, weakened assertions or --lib substitute.",
@@ -5580,20 +5580,39 @@
     "progress": "Source104freeze95358952...independent SOURCE_CLEAR SOURCE ONLY;latest owning round28 whole-core FAILED101 nine recovery-scope PG-test dependency/module errors,7426no drift. Actual five MTs BLOCKED/null validator/null completed_by,accepted0/5;no core PASS/runtime/native checkpoint/acceptance.",
     "operator_retirement": {
       "quote": "remove all poostgresal test, or sqlite test... postgresal and sqlite are abandoned and not allowed in handshake",
-      "scope": "ALL actual PostgreSQL/SQLite execution tests/support/manifest references projectwide explicitly authorized for retirement. Preserve valid mixed/current Surreal coverage and no_sqlite prohibition guards;historical non-executable inventory retained,NOT active gates. No deletion executed yet.",
-      "coder_dispatch_requirements": "Reconcile exact path/action inventory and contract disposition/allowed-scope amendment,then exclusive writer assignment with raw before-byte preservation. Distinguish mixed valid coverage/guard-only sources;no blanket name-based removal or lost Surreal coverage. No repeated removal approval/no fake signatures."
+      "scope": "Verified scoped retirement admitted in MT172/174/175 records; product removal not executed by recorder. Eight wholly PG files plus precise mixed/core/native/manual/root-fixture dispositions; valid Surreal/prohibition guards retained, historical raw backed up/non-executable inventory not current gates.",
+      "coder_dispatch_requirements": "Reconcile exact path/action inventory and contract disposition/allowed-scope amendment,then exclusive writer assignment with raw before-byte preservation. Distinguish mixed valid coverage/guard-only sources;no blanket name-based removal or lost Surreal coverage. No repeated removal approval/no fake signatures.",
+      "record_refs": [
+        "MT-172.json#/implementation_record/backend_test_retirement_20261011",
+        "MT-174.json#/implementation_record/backend_test_retirement_20261011",
+        "MT-175.json#/implementation_record/backend_test_retirement_20261011"
+      ],
+      "ownership_correction": "Manual seed/behavior coverage/coverage test remain existing MT172 owner and both allowed lists. Earlier MT173 assumption retracted; no ownership transfer or MT173 write expansion."
     },
     "auth_proposal": {
       "authorization": "Authorize mapping proposal and contract amendment",
       "state": "Separate independently authorized ONE explicit NEW capability/action/resource/workspace/five-ID mapping+real authenticated session/grant lifecycle owner/expiry/revocation file-admission/full Surreal HTTP200/404/503/redaction/canonical-before-after proposal. Independent contract review BEFORE amendment. Outstanding,NOT retirement predecessor,not product-write/Cargo permission.",
-      "limits": "No existing mapping invented;authority/local_accounts/resource_authority bridge write admission unresolved;503scope-extension absence NOT durable revocation."
+      "limits": "No existing mapping invented;authority/local_accounts/resource_authority bridge write admission unresolved;503scope-extension absence NOT durable revocation.",
+      "current_actor": "/root/phase02_auth_mapping_proposal read-only concrete authorized mapping/amendment proposal; separate disjoint auth files, no product-write authority"
     },
     "failures_ref": "current_state.current_compile_round28:FAILED101nineerrors/result3f390cdd...stderr e5738028...zero7426drift;prior failures/held freezes/scoped review retraction/recipe retractions all inherited.",
     "cargo_rules_ref": "cargo_rules/current_workflow;single delivery owned required whole-core after reviewed stable full freeze/gameplan/current full input/profile/cache/resource/process gates,existing warm target/jobs1/incremental0;no native until core PASS/no per-helperCargo.",
     "agent_rules_ref": "teams/current_workflow/monitoring;root high-level developer leader,direct peer scoped helpers/exclusive file owner/one combined freeze/independent affected review/separate acceptance authority. Current coder /root/round19_boot_coder frozen standby;old external coder no future repair dispatch.",
     "dos_donts": "Current MT authority wins;preserve raw bytes/history/valid Surreal/prohibition coverage. No PostgreSQL/SQLite execution revival/SQLx add/fake auth-env-active/test skip-gate-delete substitute/lib-only acceptance/foreign process disruption/overlap/frozen proof edits. No duplicate broad audit/repeated green checks.",
     "timesinks": "Full connected source-bound closure before exact facade/caller fixes;avoid incomplete recipes/blind imports/per-coderCargo/new targets-profiles/cache restarts/unnecessary serial waits/root technical relay bottleneck. Reuse valid unaffected evidence/focused new dependency additions;do not confuse source-clear with compiler/runtime proof.",
-    "next_actor": "Diagnosis/dependency exact retirement inventory/disposition and separate mapping proposal;independent contract review before amendment;root exclusive coder assignment after actual scopes updated. Then combined freeze/affected review/readiness/current gates/one compile/required isolated tests and remaining Phase2 completion. MT173→174→175 predecessors retained."
+    "next_actor": "Primary coder finish exclusive remaining native/manual/fixture/retired-status batch; release completed child ownership explicitly, combined freeze and independent affected review before existing compiler gates. Separate read-only auth mapping proposal active. Core compiler proof remains false, runtime/native/accepted0of5 unchanged.",
+    "coordination_observation": {
+      "id": "WP012-P2-V3-TRANSPORT-FALLBACK-001",
+      "actual": "Root-owned app toolcells1060/1062/1068 terminated after pending more than10min; wait/send/automation update completion unknown, no applied update claimed. Actual local scope reviewer and primary coder/disjoint child fallback used; retired coder chat not resumed.",
+      "limits": "v3 current handoff; automation repoint still unverified. No foreign process disruption. Later governance amendments require further preservation checkpoint/push; no Git performed by recorder."
+    },
+    "retirement_live_source": {
+      "id": "WP012-P2-V3-RETIREMENT-SOURCE-001",
+      "evidence": "Writer-reported live source work, not independent review/compiler/runtime proof",
+      "completed": "STEP1 eight wholly PG files and unconsumed CRDT helper removed; mixed AC9 guard byte-exact retained, reported hash prefix42adcf6a. Disjoint launch/console child complete with retained bodies byte-exact.",
+      "active": "Primary /root/round19_boot_coder exclusive remaining six native/manual/fixture/retired-status paths; child completed, ownership retained until explicit release. Combined freeze/affected review/Cargo not yet performed.",
+      "blocker": "Historical Round28 FAILED101 retained; its failing PG target now source-removed, replacement source/proof closure pending. No acceptance advancement."
+    }
   },
   "current_mt_records_verified": [
     {
@@ -5696,9 +5715,18 @@
   },
   "authorized_preservation_git_work": {
     "id": "WP012-P2-V3-PRESERVATION-001",
-    "status": "OPERATOR_AUTHORIZED_NOT_EXECUTED_BY_RECORDER",
+    "status": "COMPLETE_REMOTE_VERIFIED_BY_AUTHORIZED_GIT_AGENT",
     "governance": "Commit+push ALL gov_kernel dirt preserving other-device origin changes;inspect/reconcile remote committed history without overwrite/destructive reset.",
     "product": "Commit+push WP012 product to matching backup branch preserving all dirty bytes.",
-    "limits": "Preservation/backup commits NOT accepted compiled runtime checkpoint or acceptance proof;NO Git operations performed by recorder,no force-overwrite/cleanup authority."
+    "limits": "Preservation/backup commits NOT accepted compiled runtime checkpoint or acceptance proof;NO Git operations performed by recorder,no force-overwrite/cleanup authority.",
+    "kernel_commit": "11d0f2444191234e405ca0c2b034e91bd865eccb",
+    "kernel_tree": "c63b76d6eb4b1b644551fd31044dc5e5690fb048",
+    "preserved_parents": [
+      "f4978da72a6e2a4dc771ff4f694d2b211dd4f414",
+      "58a1d6527f98b87bc0aa7ca0949314d3ca323b23"
+    ],
+    "product_backup_commit": "34fb6f3441f3304232b9afaffff19bc8ca2f5a9c",
+    "receipt": "Authorized Git agent confirms fresh matching remote refs/clean kernel/all24 checkpoint paths raw unchanged/gameplan pointer restored. Preservation only, not accepted compiler/runtime checkpoint.",
+    "post_backup_changes": "Initial kernel11d0f244/product34fb6f344 backups verified; subsequent authorized source/governance changes dirty and require later preservation checkpoint/push. Existing backups do not cover new changes or prove acceptance."
   }
 }

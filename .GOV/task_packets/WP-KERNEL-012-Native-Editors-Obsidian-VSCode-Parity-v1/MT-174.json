@@ -960,7 +960,8 @@
       "src/backend/handshake_core/src/loom_ai/mod.rs",
       "src/backend/handshake_core/src/main.rs",
       "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs",
-      "src/backend/handshake_core/src/workflows.rs"
+      "src/backend/handshake_core/src/workflows.rs",
+      "tests/live_pg/seed_fixture.sh"
     ],
     "forbidden_write_paths": [
       ".GOV/**",
@@ -3412,7 +3413,7 @@
   },
   "lifecycle": {
     "status": "BLOCKED",
-    "blocked_on": "Target MT170/wpv/target has no recorded Phase2 builder transfer; Shared schema/catalog/manifests/locks/host dependency closure unresolved; CKC route registration requires existing WP012 account adapter; helper visibility cannot revive header-spoof actor authority",
+    "blocked_on": "Latest shared core Round28 FAILED101 nine legacy PG inventory diagnostics; explicitly authorized scoped backend execution-test retirement pending implementation/freeze/independent review and required compiler proof. Real authenticated lifecycle mapping/full composer/runtime acceptance remains outstanding; no PASS.",
     "depends_on": [
       "MT-173"
     ],
@@ -3422,7 +3423,7 @@
     "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
     "claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
     "completed_by": null,
-    "next_actor": "Successor leader01a127a9 coordinates sole writer01a12446-7402 orphan repair via oldlead transport; independent review01a127a3-af37 after freeze"
+    "next_actor": "Root admits exclusive /root/round19_boot_coder retirement batch after this scoped record; disjoint launch/console child only. Independent reviewer then delivery under current gates; native MT175 retains MT174 predecessor."
   },
   "scope": {
     "summary": "Reconcile shared core/bootstrap/manifests import paths",
@@ -3442,7 +3443,8 @@
       "src/backend/handshake_core/src/loom_ai/mod.rs",
       "src/backend/handshake_core/src/main.rs",
       "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs",
-      "src/backend/handshake_core/src/workflows.rs"
+      "src/backend/handshake_core/src/workflows.rs",
+      "tests/live_pg/seed_fixture.sh"
     ],
     "forbidden_paths": [
       ".GOV/**",
@@ -4429,117 +4431,117 @@
   },
   "implementation_record": {
     "successor_coordination_20261010": {
-  "leader_thread_id": "01a127a9-bb00-72f0-8821-5145538a6bd8",
-  "writer_thread_id": "01a12446-7402-7532-8a12-7e93c6c1d9db",
-  "writer_transport_thread_id": "01a12445-b7e7-7091-8a42-19cae059c2e7",
-  "dependency_thread_id": "01a127a3-7a91-72f0-9cb2-c6bc87e0b318",
-  "review_thread_id": "01a127a3-af37-7763-856d-f04963632721",
-  "handoff_ref": "WP-KERNEL-012-phase02-successor-handoff-v1.json",
-  "next_action": "Create Operator-requested v2 handoff with sub-agent. Resume product work from current preflight/remaining recorded blockers then owning compile; never infer compiler/runtime/acceptance from affected source clear",
-  "write_ownership": "One product writer; successor owns MT state; old lead transport only",
-  "dispatch_preparation": "gameplan before_dispatch kernel_builder PASS13/13; no compile dispatched",
-  "proof": "Round04 remains FAILED101/149; source-only review is not compile/runtime/PASS",
-  "updated_at_utc": "2026-10-10T22:28:58.207652+00:00",
-  "api_review_agent": "/root/api_admission_review",
-  "api_review_scope": "Independent API registry/search evidence source-linked admission remedy only; main review team retains coordinator/orphan",
-  "latest_operator_direction": "2026-10-10: you can create new teams or new workflows if this can help you better or increase dev speed",
-  "api_dependency_result": "Complete connected API source delta frozen all10 live/before/after hashes verified; independent review active; actual engine-derived pins and runtime proof pending",
-  "fixture_correction": "Retain actual InMemoryLlmClient.with_embedding_dim768; ollama is registration binding, not client replacement",
-  "writer_delivery_verified": "API normalization turn01a127ec completed cursor323; writer idle, same solewriter preserved",
-  "monitoring": "Verified existing heartbeat ACTIVE10min target successor; all active chats plus collaboration agents",
-  "orphan_frozen": {
-    "writer_turn": "01a127ac-9a17-7ed1-b859-290c28fcde36",
-    "writer_final": "msg_0d010d1965b8e15e016acaabf7063c81918832d7724ef2af2f",
-    "binding_relative": "WP-KERNEL-012/MT-171/import-owner/round04-orphan-connected-bindings.json",
-    "binding_sha256": "3b53c047a3c010dd9d82864cfb74cc018374f258fc7a8dcbea242ac54d52e844",
-    "files": [
-      {
-        "path": "src\\backend\\handshake_core\\src\\swarm_orchestration\\coordinator.rs",
-        "before_sha256": "fa74f2ef70d3fb9b8830d54bff85cbbf6004b345c686a98a432fd666382efda6",
-        "after_sha256": "34b668e63e5d7e8308b8accd1bb9a56a8f169c8e9698d78a28c928658ac28099",
-        "byte_inverse_exact": true,
-        "added_lines": 171,
-        "removed_lines": 23
+      "leader_thread_id": "01a127a9-bb00-72f0-8821-5145538a6bd8",
+      "writer_thread_id": "01a12446-7402-7532-8a12-7e93c6c1d9db",
+      "writer_transport_thread_id": "01a12445-b7e7-7091-8a42-19cae059c2e7",
+      "dependency_thread_id": "01a127a3-7a91-72f0-9cb2-c6bc87e0b318",
+      "review_thread_id": "01a127a3-af37-7763-856d-f04963632721",
+      "handoff_ref": "WP-KERNEL-012-phase02-successor-handoff-v1.json",
+      "next_action": "Create Operator-requested v2 handoff with sub-agent. Resume product work from current preflight/remaining recorded blockers then owning compile; never infer compiler/runtime/acceptance from affected source clear",
+      "write_ownership": "One product writer; successor owns MT state; old lead transport only",
+      "dispatch_preparation": "gameplan before_dispatch kernel_builder PASS13/13; no compile dispatched",
+      "proof": "Round04 remains FAILED101/149; source-only review is not compile/runtime/PASS",
+      "updated_at_utc": "2026-10-10T22:28:58.207652+00:00",
+      "api_review_agent": "/root/api_admission_review",
+      "api_review_scope": "Independent API registry/search evidence source-linked admission remedy only; main review team retains coordinator/orphan",
+      "latest_operator_direction": "2026-10-10: you can create new teams or new workflows if this can help you better or increase dev speed",
+      "api_dependency_result": "Complete connected API source delta frozen all10 live/before/after hashes verified; independent review active; actual engine-derived pins and runtime proof pending",
+      "fixture_correction": "Retain actual InMemoryLlmClient.with_embedding_dim768; ollama is registration binding, not client replacement",
+      "writer_delivery_verified": "API normalization turn01a127ec completed cursor323; writer idle, same solewriter preserved",
+      "monitoring": "Verified existing heartbeat ACTIVE10min target successor; all active chats plus collaboration agents",
+      "orphan_frozen": {
+        "writer_turn": "01a127ac-9a17-7ed1-b859-290c28fcde36",
+        "writer_final": "msg_0d010d1965b8e15e016acaabf7063c81918832d7724ef2af2f",
+        "binding_relative": "WP-KERNEL-012/MT-171/import-owner/round04-orphan-connected-bindings.json",
+        "binding_sha256": "3b53c047a3c010dd9d82864cfb74cc018374f258fc7a8dcbea242ac54d52e844",
+        "files": [
+          {
+            "path": "src\\backend\\handshake_core\\src\\swarm_orchestration\\coordinator.rs",
+            "before_sha256": "fa74f2ef70d3fb9b8830d54bff85cbbf6004b345c686a98a432fd666382efda6",
+            "after_sha256": "34b668e63e5d7e8308b8accd1bb9a56a8f169c8e9698d78a28c928658ac28099",
+            "byte_inverse_exact": true,
+            "added_lines": 171,
+            "removed_lines": 23
+          },
+          {
+            "path": "src\\backend\\handshake_core\\src\\process_ledger\\writer.rs",
+            "before_sha256": "2cd3c41a30732586ca8520371de9920f1ea05224a72634b09ba506ca04e9d16b",
+            "after_sha256": "f34d05c4f525f83beef3f950ce44db5cb1cfea8a7a44072d37f0c5771633ecab",
+            "byte_inverse_exact": true,
+            "added_lines": 10,
+            "removed_lines": 0
+          }
+        ],
+        "review_owner": "01a127a3-af37-7763-856d-f04963632721",
+        "review": "Independent source-clear after one P2 EventSinkFailed fix; actual CRLF one-replacement inverse verified",
+        "proof": "SOURCE_ONLY; full prior review reused plus corrected independent one-line inverse; compile/runtime/canonical/acceptance NOT_RUN",
+        "current_coordinator_sha256": "14e8104df3fb2edae015d20ff9350d50af0856c49c27f3b397643e2bb3209751"
       },
-      {
-        "path": "src\\backend\\handshake_core\\src\\process_ledger\\writer.rs",
-        "before_sha256": "2cd3c41a30732586ca8520371de9920f1ea05224a72634b09ba506ca04e9d16b",
-        "after_sha256": "f34d05c4f525f83beef3f950ce44db5cb1cfea8a7a44072d37f0c5771633ecab",
-        "byte_inverse_exact": true,
-        "added_lines": 10,
-        "removed_lines": 0
-      }
-    ],
-    "review_owner": "01a127a3-af37-7763-856d-f04963632721",
-    "review": "Independent source-clear after one P2 EventSinkFailed fix; actual CRLF one-replacement inverse verified",
-    "proof": "SOURCE_ONLY; full prior review reused plus corrected independent one-line inverse; compile/runtime/canonical/acceptance NOT_RUN",
-    "current_coordinator_sha256": "14e8104df3fb2edae015d20ff9350d50af0856c49c27f3b397643e2bb3209751"
-  },
-  "coordinator_dependency_owner": "01a127a3-7a91-72f0-9cb2-c6bc87e0b318 owns runtime/scoped reclaimer/helper/productionfactory producer closure; mainreview retains coordinator consumer; all named paths explicitly MT172",
-  "api_frozen": {
-    "writer_turn": "01a127bd-01cf-7172-bba7-7ea7e33200f0",
-    "writer_final": "msg_0d010d1965b8e15e016acab4a493d08191a3df08771a30de2b",
-    "binding_relative": "WP-KERNEL-012/MT-171/import-owner/connected-api-admission/bindings.json",
-    "binding_sha256": "abeb522124fe07ab91e1341ebdba449a165cb4ac8637304cf1ac1326f181fcd5",
-    "live_before_after_hashes_verified": 10,
-    "review_owner": "/root/api_admission_review",
-    "review": "INDEPENDENT_AFFECTED_SOURCE_REVIEW_ACTIVE",
-    "proof": "Source only frozen; compiler/runtime/engine INFO/revocation/replay/atomicity/acceptance NOT_RUN"
-  },
-  "api_affected_review": {
-    "review_id": "WP012-P2-API-NONE-AFFECTED-RECHECK-20261010",
-    "reviewer": "/root/api_admission_review",
-    "verdict": "SOURCE_CLEAR",
-    "binding_sha256": "5582bac1a9dfe35c2941fb33a479b7aff7a55b5c56d5f6d8742fa973d1efbc24",
-    "file_sha256": "ffe103e4cc4829cb907ce6d661d9931ab673ad4a207c531f90b224c8aea5f303",
-    "scope": "Normalization-only delta plus unchanged prior affected evidence; three lines1176-1180; all19 dependencies matched",
-    "proof_limits": "Source only. Compiler/SQL/canonical retry/revocation/rollback/engine INFO/count/MT acceptance unproven; no error-count or readiness claim"
-  },
-  "coordinator_frozen": {
-    "writer_turn": "01a127d2-f0c1-7553-b31f-4f4bf9bf185c",
-    "writer_final": "msg_0d010d1965b8e15e016acab841c10481919908ca219aae1395",
-    "binding_relative": "WP-KERNEL-012/MT-171/import-owner/connected-coordinator/bindings.json",
-    "binding_sha256": "89e6c7729f47a08a98e57e373f194fdf18edf6012f19f6f2d564788adaec373a",
-    "live_hashes_verified": 6,
-    "api_ten_and_writer_unchanged": true,
-    "review_owner": "01a127a3-af37-7763-856d-f04963632721",
-    "review": "INDEPENDENT_AFFECTED_SOURCE_REVIEW_ACTIVE",
-    "proof": "Parse only all6; type/compiler/tests/SQL/runtime/canonical durability/acceptance NOT_RUN"
-  },
-  "api_remediation_frozen": {
-    "writer_turn": "01a127e1-2bee-79d0-bc82-110d0210f080",
-    "writer_final": "msg_0d010d1965b8e15e016acaba20b41c8191bc645fdb36cb0a9e",
-    "binding_relative": "WP-KERNEL-012/MT-171/import-owner/connected-api-remediation/bindings.json",
-    "binding_sha256": "3463df82d91074377283e8af5c9255db002a594e0bba1ddea3b9dd228c9e5e6c",
-    "live_api_hashes_verified": 10,
-    "changed_files": 5,
-    "coordinator6_writer_unchanged": true,
-    "reviewer": "/root/api_admission_review",
-    "review": "INDEPENDENT_AFFECTED_RECHECK_ACTIVE",
-    "proof": "Syntax only; compiler/SQL/runtime/genuine INFO/engine count/acceptance NOT_RUN"
-  },
-  "coordinator_affected_review": {
-    "review_id": "WP012-P2-COORDINATOR-REMEDIATION-AFFECTED-RECHECK-20261010",
-    "reviewer_thread": "01a127a3-af37-7763-856d-f04963632721",
-    "reviewer_turn": "01a127eb-f284-76b0-af48-049c13e46bfe",
-    "reviewer_final": "msg_0b419e58b4e00afa016acabb9bdde08191bc02c28529e08fbf",
-    "verdict": "SOURCE_CLEAR",
-    "binding_sha256": "ac6615c4bde15a6923c836b92302660ec0c822a1fa5055b2323945bea8d51e31",
-    "scope": "F1-F7 and completeF6 receipt identity closure; both hashes/diffs/exact inverses verified, unchanged producers reused",
-    "proof_limits": "Source only; compiler/runtime/SQL/canonical durability/HBR/acceptance outstanding; retained START/compensation debt unchanged"
-  },
-  "coordinator_remediation_frozen": {
-    "writer_turn": "01a127e8-b2c4-78d2-9e39-52898efe1d36",
-    "writer_final": "msg_0d010d1965b8e15e016acabb408e4c819192670b60dfe2ab8a",
-    "binding_relative": "WP-KERNEL-012/MT-171/import-owner/connected-coordinator-remediation/bindings.json",
-    "binding_sha256": "ac6615c4bde15a6923c836b92302660ec0c822a1fa5055b2323945bea8d51e31",
-    "two_live_and18_dependencies_verified": true,
-    "review_owner": "01a127a3-af37-7763-856d-f04963632721",
-    "review": "INDEPENDENT_AFFECTED_RECHECK_ACTIVE",
-    "proof": "Parse only; compiler/tests/SQL/runtime/canonical outcome/PASS NOT_RUN"
-  },
-  "current_proof_floor": "Both affected source deltas independently clear; MT171-175 remain BLOCKED, acceptance0/5, round04 FAILED101/149 remains latest compile; all further proof pending"
-},
+      "coordinator_dependency_owner": "01a127a3-7a91-72f0-9cb2-c6bc87e0b318 owns runtime/scoped reclaimer/helper/productionfactory producer closure; mainreview retains coordinator consumer; all named paths explicitly MT172",
+      "api_frozen": {
+        "writer_turn": "01a127bd-01cf-7172-bba7-7ea7e33200f0",
+        "writer_final": "msg_0d010d1965b8e15e016acab4a493d08191a3df08771a30de2b",
+        "binding_relative": "WP-KERNEL-012/MT-171/import-owner/connected-api-admission/bindings.json",
+        "binding_sha256": "abeb522124fe07ab91e1341ebdba449a165cb4ac8637304cf1ac1326f181fcd5",
+        "live_before_after_hashes_verified": 10,
+        "review_owner": "/root/api_admission_review",
+        "review": "INDEPENDENT_AFFECTED_SOURCE_REVIEW_ACTIVE",
+        "proof": "Source only frozen; compiler/runtime/engine INFO/revocation/replay/atomicity/acceptance NOT_RUN"
+      },
+      "api_affected_review": {
+        "review_id": "WP012-P2-API-NONE-AFFECTED-RECHECK-20261010",
+        "reviewer": "/root/api_admission_review",
+        "verdict": "SOURCE_CLEAR",
+        "binding_sha256": "5582bac1a9dfe35c2941fb33a479b7aff7a55b5c56d5f6d8742fa973d1efbc24",
+        "file_sha256": "ffe103e4cc4829cb907ce6d661d9931ab673ad4a207c531f90b224c8aea5f303",
+        "scope": "Normalization-only delta plus unchanged prior affected evidence; three lines1176-1180; all19 dependencies matched",
+        "proof_limits": "Source only. Compiler/SQL/canonical retry/revocation/rollback/engine INFO/count/MT acceptance unproven; no error-count or readiness claim"
+      },
+      "coordinator_frozen": {
+        "writer_turn": "01a127d2-f0c1-7553-b31f-4f4bf9bf185c",
+        "writer_final": "msg_0d010d1965b8e15e016acab841c10481919908ca219aae1395",
+        "binding_relative": "WP-KERNEL-012/MT-171/import-owner/connected-coordinator/bindings.json",
+        "binding_sha256": "89e6c7729f47a08a98e57e373f194fdf18edf6012f19f6f2d564788adaec373a",
+        "live_hashes_verified": 6,
+        "api_ten_and_writer_unchanged": true,
+        "review_owner": "01a127a3-af37-7763-856d-f04963632721",
+        "review": "INDEPENDENT_AFFECTED_SOURCE_REVIEW_ACTIVE",
+        "proof": "Parse only all6; type/compiler/tests/SQL/runtime/canonical durability/acceptance NOT_RUN"
+      },
+      "api_remediation_frozen": {
+        "writer_turn": "01a127e1-2bee-79d0-bc82-110d0210f080",
+        "writer_final": "msg_0d010d1965b8e15e016acaba20b41c8191bc645fdb36cb0a9e",
+        "binding_relative": "WP-KERNEL-012/MT-171/import-owner/connected-api-remediation/bindings.json",
+        "binding_sha256": "3463df82d91074377283e8af5c9255db002a594e0bba1ddea3b9dd228c9e5e6c",
+        "live_api_hashes_verified": 10,
+        "changed_files": 5,
+        "coordinator6_writer_unchanged": true,
+        "reviewer": "/root/api_admission_review",
+        "review": "INDEPENDENT_AFFECTED_RECHECK_ACTIVE",
+        "proof": "Syntax only; compiler/SQL/runtime/genuine INFO/engine count/acceptance NOT_RUN"
+      },
+      "coordinator_affected_review": {
+        "review_id": "WP012-P2-COORDINATOR-REMEDIATION-AFFECTED-RECHECK-20261010",
+        "reviewer_thread": "01a127a3-af37-7763-856d-f04963632721",
+        "reviewer_turn": "01a127eb-f284-76b0-af48-049c13e46bfe",
+        "reviewer_final": "msg_0b419e58b4e00afa016acabb9bdde08191bc02c28529e08fbf",
+        "verdict": "SOURCE_CLEAR",
+        "binding_sha256": "ac6615c4bde15a6923c836b92302660ec0c822a1fa5055b2323945bea8d51e31",
+        "scope": "F1-F7 and completeF6 receipt identity closure; both hashes/diffs/exact inverses verified, unchanged producers reused",
+        "proof_limits": "Source only; compiler/runtime/SQL/canonical durability/HBR/acceptance outstanding; retained START/compensation debt unchanged"
+      },
+      "coordinator_remediation_frozen": {
+        "writer_turn": "01a127e8-b2c4-78d2-9e39-52898efe1d36",
+        "writer_final": "msg_0d010d1965b8e15e016acabb408e4c819192670b60dfe2ab8a",
+        "binding_relative": "WP-KERNEL-012/MT-171/import-owner/connected-coordinator-remediation/bindings.json",
+        "binding_sha256": "ac6615c4bde15a6923c836b92302660ec0c822a1fa5055b2323945bea8d51e31",
+        "two_live_and18_dependencies_verified": true,
+        "review_owner": "01a127a3-af37-7763-856d-f04963632721",
+        "review": "INDEPENDENT_AFFECTED_RECHECK_ACTIVE",
+        "proof": "Parse only; compiler/tests/SQL/runtime/canonical outcome/PASS NOT_RUN"
+      },
+      "current_proof_floor": "Both affected source deltas independently clear; MT171-175 remain BLOCKED, acceptance0/5, round04 FAILED101/149 remains latest compile; all further proof pending"
+    },
     "round04_orphan_ledger_ownership_partial_reconciliation": {
       "status": "PARTIAL_LEDGER_OWNERSHIP_PRESERVED_RETRY_INTERFACE_BLOCKED",
       "review_reference": "01a12790-278b-7d31-a0e7-bb517a242891",
@@ -4887,217 +4889,217 @@
       "proof": "Type/SQL/tests/runtime/canonical NOT_RUN; no acceptance/PASS. Other compiler contract groups held."
     },
     "round03_mechanical_source_remediation": {
-  "status": "FROZEN_ROUND03_MECHANICAL_GROUP_ONLY",
-  "authority_ref": "01a12747-b50b-7fe1-b88c-7b9fe26c71a9",
-  "bindings": {
-    "src/backend/handshake_core/src/kernel/mod.rs": {
-      "before_sha256": "b1ca0ca9b9dfb9ed661e46340c86fd278b705e37232a50467d09b35886f4b66e",
-      "after_sha256": "65c351f7ac93dbc9aaa7245a30bddb0e62d70a0f95ff2a3d93d66d2032690e92",
-      "before_artifact": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-171\\import-owner\\round03-mechanical-before-kernel-mod.rs",
-      "diff_artifact": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-171\\import-owner\\round03-mechanical-kernel-mod.rs.diff",
-      "diff_sha256": "6b10789ae45b1bf64b25638748380fe5270b44daa0ee3498c3271167d5dd8fbd",
-      "inverse_exact": true
+      "status": "FROZEN_ROUND03_MECHANICAL_GROUP_ONLY",
+      "authority_ref": "01a12747-b50b-7fe1-b88c-7b9fe26c71a9",
+      "bindings": {
+        "src/backend/handshake_core/src/kernel/mod.rs": {
+          "before_sha256": "b1ca0ca9b9dfb9ed661e46340c86fd278b705e37232a50467d09b35886f4b66e",
+          "after_sha256": "65c351f7ac93dbc9aaa7245a30bddb0e62d70a0f95ff2a3d93d66d2032690e92",
+          "before_artifact": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-171\\import-owner\\round03-mechanical-before-kernel-mod.rs",
+          "diff_artifact": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-171\\import-owner\\round03-mechanical-kernel-mod.rs.diff",
+          "diff_sha256": "6b10789ae45b1bf64b25638748380fe5270b44daa0ee3498c3271167d5dd8fbd",
+          "inverse_exact": true
+        },
+        "src/backend/handshake_core/src/api/mod.rs": {
+          "before_sha256": "5e2c1158042909c7fc691d4580c0df30a6b552b89e3528661edfae2f2d49f06f",
+          "after_sha256": "d7f6a652fc4401014f4b05838ff39b6f7b138ffec056d840dd8ed74663c28e0f",
+          "before_artifact": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-171\\import-owner\\round03-mechanical-before-api-mod.rs",
+          "diff_artifact": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-171\\import-owner\\round03-mechanical-api-mod.rs.diff",
+          "diff_sha256": "47c6455ecc8a11ead8eb734d213193dfe6600cc244cedeaae74d5d5c34de0af2",
+          "inverse_exact": true
+        },
+        "src/backend/handshake_core/src/api/atelier.rs": {
+          "before_sha256": "a8c1d9959491817b418b0b98805bc00526aa1742591e990ba2167e2be73ba198",
+          "after_sha256": "af77e0d6d4db76369786da61fe2e2190132bc8bc4846fbe9d6d8ed7b3b027f46",
+          "before_artifact": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-171\\import-owner\\round03-mechanical-before-api-atelier.rs",
+          "diff_artifact": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-171\\import-owner\\round03-mechanical-api-atelier.rs.diff",
+          "diff_sha256": "a8bb7af254933c8ed1d49397c1f3faac8586bd3345df9cad8bc81d92b1c89ce7",
+          "inverse_exact": true
+        }
+      },
+      "delta": "Remove only later duplicate two kernel declarations/documentation/as_str arms/list entries; earlier canonical declarations retained; SessionCheckpointed and other events unchanged. Declare existing account_scope module only. Qualify handler existing AtelierError, leave mapper local import unchanged.",
+      "proof": "Exact scoped before/after/diff hashes and byte inverse verified; no compiler/test rerun. Round03 original30errors remains failed proof.",
+      "remaining_debt": "Lifecycle/attached/semantic/loom binding/coordinator contract groups held; no runtime export/activation/routes/boot/auth/adoption/policy/grants changes."
     },
-    "src/backend/handshake_core/src/api/mod.rs": {
-      "before_sha256": "5e2c1158042909c7fc691d4580c0df30a6b552b89e3528661edfae2f2d49f06f",
-      "after_sha256": "d7f6a652fc4401014f4b05838ff39b6f7b138ffec056d840dd8ed74663c28e0f",
-      "before_artifact": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-171\\import-owner\\round03-mechanical-before-api-mod.rs",
-      "diff_artifact": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-171\\import-owner\\round03-mechanical-api-mod.rs.diff",
-      "diff_sha256": "47c6455ecc8a11ead8eb734d213193dfe6600cc244cedeaae74d5d5c34de0af2",
-      "inverse_exact": true
-    },
-    "src/backend/handshake_core/src/api/atelier.rs": {
-      "before_sha256": "a8c1d9959491817b418b0b98805bc00526aa1742591e990ba2167e2be73ba198",
-      "after_sha256": "af77e0d6d4db76369786da61fe2e2190132bc8bc4846fbe9d6d8ed7b3b027f46",
-      "before_artifact": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-171\\import-owner\\round03-mechanical-before-api-atelier.rs",
-      "diff_artifact": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-171\\import-owner\\round03-mechanical-api-atelier.rs.diff",
-      "diff_sha256": "a8bb7af254933c8ed1d49397c1f3faac8586bd3345df9cad8bc81d92b1c89ce7",
-      "inverse_exact": true
-    }
-  },
-  "delta": "Remove only later duplicate two kernel declarations/documentation/as_str arms/list entries; earlier canonical declarations retained; SessionCheckpointed and other events unchanged. Declare existing account_scope module only. Qualify handler existing AtelierError, leave mapper local import unchanged.",
-  "proof": "Exact scoped before/after/diff hashes and byte inverse verified; no compiler/test rerun. Round03 original30errors remains failed proof.",
-  "remaining_debt": "Lifecycle/attached/semantic/loom binding/coordinator contract groups held; no runtime export/activation/routes/boot/auth/adoption/policy/grants changes."
-},
     "core_shared_edges_lock_reconciliation": {
-  "status": "FROZEN_LOCK_RECONCILIATION_FULL_METADATA_COMPILE_HELD",
-  "authority_ref": "01a126fc-386d-7792-b0b4-ca13fda53ddd",
-  "gameplan": "GP438 corrected resolver scope; before_dispatch PASS10/10",
-  "resolver": {
-    "command": "cargo update --workspace --offline --manifest-path src/backend/handshake_core/Cargo.toml",
-    "exit_code": 0,
-    "toolchain": "1.97.1-x86_64-pc-windows-msvc",
-    "cargo_home": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-171\\import-owner\\cargo-home",
-    "temp": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-171\\import-owner\\tmp",
-    "before_lock": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-171\\import-owner\\mt174-core-lock-before-shared-edges.lock",
-    "before_sha256": "e6b3aefa02d0de40f1bc1fada4d467493ddbb43762b16f64cd57fae57f4ed5ba",
-    "stdout": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-171\\import-owner\\mt174-core-shared-edges-resolver.stdout.log",
-    "stderr": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-171\\import-owner\\mt174-core-shared-edges-resolver.stderr.log",
-    "stderr_sha256": "232811e0d922d2917b24aebffc0f616e9ab38340c7f9c793ba3be821b588ed19"
-  },
-  "actual_delta": {
-    "added": [
-      "doctest-file1.1.1",
-      "handshake-diag-ring0.1.0 path",
-      "interprocess2.4.2",
-      "recvmsg1.0.0",
-      "widestring1.2.1"
-    ],
-    "removed": [],
-    "existing_versions_checksums_changed": [],
-    "only_existing_package_changed": "handshake_core root dependencies adds handshake-diag-ring and interprocess",
-    "source_edges": {
-      "handshake-diag-ring": {
-        "name": "handshake-diag-ring",
-        "version": "0.1.0",
-        "dependencies": [
-          "bytemuck",
-          "memmap2",
-          "serde",
-          "serde_json"
+      "status": "FROZEN_LOCK_RECONCILIATION_FULL_METADATA_COMPILE_HELD",
+      "authority_ref": "01a126fc-386d-7792-b0b4-ca13fda53ddd",
+      "gameplan": "GP438 corrected resolver scope; before_dispatch PASS10/10",
+      "resolver": {
+        "command": "cargo update --workspace --offline --manifest-path src/backend/handshake_core/Cargo.toml",
+        "exit_code": 0,
+        "toolchain": "1.97.1-x86_64-pc-windows-msvc",
+        "cargo_home": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-171\\import-owner\\cargo-home",
+        "temp": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-171\\import-owner\\tmp",
+        "before_lock": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-171\\import-owner\\mt174-core-lock-before-shared-edges.lock",
+        "before_sha256": "e6b3aefa02d0de40f1bc1fada4d467493ddbb43762b16f64cd57fae57f4ed5ba",
+        "stdout": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-171\\import-owner\\mt174-core-shared-edges-resolver.stdout.log",
+        "stderr": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-171\\import-owner\\mt174-core-shared-edges-resolver.stderr.log",
+        "stderr_sha256": "232811e0d922d2917b24aebffc0f616e9ab38340c7f9c793ba3be821b588ed19"
+      },
+      "actual_delta": {
+        "added": [
+          "doctest-file1.1.1",
+          "handshake-diag-ring0.1.0 path",
+          "interprocess2.4.2",
+          "recvmsg1.0.0",
+          "widestring1.2.1"
+        ],
+        "removed": [],
+        "existing_versions_checksums_changed": [],
+        "only_existing_package_changed": "handshake_core root dependencies adds handshake-diag-ring and interprocess",
+        "source_edges": {
+          "handshake-diag-ring": {
+            "name": "handshake-diag-ring",
+            "version": "0.1.0",
+            "dependencies": [
+              "bytemuck",
+              "memmap2",
+              "serde",
+              "serde_json"
+            ]
+          },
+          "handshake_core": {
+            "name": "handshake_core",
+            "version": "0.1.0",
+            "dependencies": [
+              "argon2",
+              "async-trait",
+              "axum 0.7.9",
+              "base64 0.22.1",
+              "blake3",
+              "bytes",
+              "candle-core",
+              "candle-nn",
+              "candle-transformers",
+              "caseless",
+              "chacha20poly1305",
+              "chrono",
+              "chrono-tz",
+              "curve25519-dalek 5.0.0",
+              "dirs",
+              "duckdb",
+              "dunce",
+              "ed25519-dalek 3.0.0",
+              "eventsource-stream",
+              "fs2",
+              "futures",
+              "futures-util",
+              "getrandom 0.2.16",
+              "globset",
+              "half",
+              "handshake-diag-ring",
+              "handshake_document",
+              "handshake_storage_support",
+              "hex",
+              "hmac",
+              "icalendar",
+              "idna",
+              "image",
+              "interprocess",
+              "jsonschema",
+              "keyring",
+              "libc",
+              "llama-cpp-2",
+              "llama-cpp-sys-2",
+              "lopdf",
+              "memmap2",
+              "once_cell",
+              "portable-pty",
+              "rappct",
+              "regex",
+              "reqwest 0.12.24",
+              "secrecy",
+              "serde",
+              "serde_json",
+              "sha2 0.10.9",
+              "static_assertions",
+              "subtle",
+              "surrealdb",
+              "tempfile",
+              "thiserror 2.0.20",
+              "tiktoken-rs",
+              "tokenizers 0.23.1",
+              "tokio",
+              "tokio-cron-scheduler",
+              "tokio-tungstenite 0.26.2",
+              "tokio-util",
+              "tower",
+              "tower-http",
+              "tracing",
+              "tracing-appender",
+              "tracing-subscriber",
+              "tract-onnx",
+              "tree-sitter",
+              "tree-sitter-javascript",
+              "tree-sitter-rust",
+              "tree-sitter-typescript",
+              "unicode-normalization",
+              "uuid",
+              "which 8.0.2",
+              "windows 0.62.2",
+              "windows-sys 0.61.2",
+              "wineventhook",
+              "wiremock",
+              "yaml_serde",
+              "yrs",
+              "zeroize",
+              "zip 0.6.6"
+            ]
+          },
+          "interprocess": {
+            "name": "interprocess",
+            "version": "2.4.2",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "checksum": "069323743400cb7ab06a8fe5c1ed911d36b6919ec531661d034c89083629595b",
+            "dependencies": [
+              "doctest-file",
+              "libc",
+              "recvmsg",
+              "widestring",
+              "windows-sys 0.61.2"
+            ]
+          }
+        }
+      },
+      "frozen_inputs_sha256": {
+        "src/backend/handshake_core/Cargo.toml": "75e6500bb15ede6bc94cee01612d0c36014516d2831135a7683e7329b648dab7",
+        "src/backend/handshake_core/Cargo.lock": "32172ddd938ebbac92f283c22e8294f2be4c9592acf89476ae1a09817ef998d3",
+        "src/backend/handshake_document/Cargo.toml": "acef03516c8f139a57773975c415117eec3f371352e772c641a0ca1cd21af7a4",
+        "src/backend/handshake_storage_support/Cargo.toml": "2349b93d340b75adcebfd46ecf483c8f9b333557bb4b9761c8e3ee7addf666e1",
+        "src/frontend/handshake_native/diag_ring/Cargo.toml": "887661d6de99fcebbb9d2b0a2e74f5794d7eb7d50f034cb48610cc6e49021558"
+      },
+      "metadata": {
+        "command": "cargo metadata --locked --offline --format-version 1 --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils",
+        "exit_code": 0,
+        "full_graph": true,
+        "packages": 834,
+        "nodes": 834,
+        "artifact": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-171\\import-owner\\mt174-core-shared-edges-full-metadata.json",
+        "sha256": "3397d1e1126e2985245ddce8781343583e244c96969ee3ad80557e86b5f5fe29",
+        "stderr": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-171\\import-owner\\mt174-core-shared-edges-full-metadata.stderr.log",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "root_features": [
+          "app-runtime",
+          "candle-runtime-engine",
+          "default",
+          "duckdb-flight-recorder",
+          "kernel-runtime",
+          "local-inference-default",
+          "os-keychain",
+          "runtime-full",
+          "surreal-test-support",
+          "test-utils",
+          "tokenization"
         ]
       },
-      "handshake_core": {
-        "name": "handshake_core",
-        "version": "0.1.0",
-        "dependencies": [
-          "argon2",
-          "async-trait",
-          "axum 0.7.9",
-          "base64 0.22.1",
-          "blake3",
-          "bytes",
-          "candle-core",
-          "candle-nn",
-          "candle-transformers",
-          "caseless",
-          "chacha20poly1305",
-          "chrono",
-          "chrono-tz",
-          "curve25519-dalek 5.0.0",
-          "dirs",
-          "duckdb",
-          "dunce",
-          "ed25519-dalek 3.0.0",
-          "eventsource-stream",
-          "fs2",
-          "futures",
-          "futures-util",
-          "getrandom 0.2.16",
-          "globset",
-          "half",
-          "handshake-diag-ring",
-          "handshake_document",
-          "handshake_storage_support",
-          "hex",
-          "hmac",
-          "icalendar",
-          "idna",
-          "image",
-          "interprocess",
-          "jsonschema",
-          "keyring",
-          "libc",
-          "llama-cpp-2",
-          "llama-cpp-sys-2",
-          "lopdf",
-          "memmap2",
-          "once_cell",
-          "portable-pty",
-          "rappct",
-          "regex",
-          "reqwest 0.12.24",
-          "secrecy",
-          "serde",
-          "serde_json",
-          "sha2 0.10.9",
-          "static_assertions",
-          "subtle",
-          "surrealdb",
-          "tempfile",
-          "thiserror 2.0.20",
-          "tiktoken-rs",
-          "tokenizers 0.23.1",
-          "tokio",
-          "tokio-cron-scheduler",
-          "tokio-tungstenite 0.26.2",
-          "tokio-util",
-          "tower",
-          "tower-http",
-          "tracing",
-          "tracing-appender",
-          "tracing-subscriber",
-          "tract-onnx",
-          "tree-sitter",
-          "tree-sitter-javascript",
-          "tree-sitter-rust",
-          "tree-sitter-typescript",
-          "unicode-normalization",
-          "uuid",
-          "which 8.0.2",
-          "windows 0.62.2",
-          "windows-sys 0.61.2",
-          "wineventhook",
-          "wiremock",
-          "yaml_serde",
-          "yrs",
-          "zeroize",
-          "zip 0.6.6"
-        ]
+      "config": {
+        "path": "C:\\Projects\\LLM Projects\\handshake-desktop\\gov-runtime\\host-profile-wp012-phase02-builder.json",
+        "sha256": "e78cfb2b53b69e29e69e65bf3a77d88c8732eac88be438779f5e7f798a1f717a",
+        "override": "TEMP/TMP/TMPDIR existing owned import-owner/tmp; no target/compiler invoked"
       },
-      "interprocess": {
-        "name": "interprocess",
-        "version": "2.4.2",
-        "source": "registry+https://github.com/rust-lang/crates.io-index",
-        "checksum": "069323743400cb7ab06a8fe5c1ed911d36b6919ec531661d034c89083629595b",
-        "dependencies": [
-          "doctest-file",
-          "libc",
-          "recvmsg",
-          "widestring",
-          "windows-sys 0.61.2"
-        ]
-      }
-    }
-  },
-  "frozen_inputs_sha256": {
-    "src/backend/handshake_core/Cargo.toml": "75e6500bb15ede6bc94cee01612d0c36014516d2831135a7683e7329b648dab7",
-    "src/backend/handshake_core/Cargo.lock": "32172ddd938ebbac92f283c22e8294f2be4c9592acf89476ae1a09817ef998d3",
-    "src/backend/handshake_document/Cargo.toml": "acef03516c8f139a57773975c415117eec3f371352e772c641a0ca1cd21af7a4",
-    "src/backend/handshake_storage_support/Cargo.toml": "2349b93d340b75adcebfd46ecf483c8f9b333557bb4b9761c8e3ee7addf666e1",
-    "src/frontend/handshake_native/diag_ring/Cargo.toml": "887661d6de99fcebbb9d2b0a2e74f5794d7eb7d50f034cb48610cc6e49021558"
-  },
-  "metadata": {
-    "command": "cargo metadata --locked --offline --format-version 1 --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils",
-    "exit_code": 0,
-    "full_graph": true,
-    "packages": 834,
-    "nodes": 834,
-    "artifact": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-171\\import-owner\\mt174-core-shared-edges-full-metadata.json",
-    "sha256": "3397d1e1126e2985245ddce8781343583e244c96969ee3ad80557e86b5f5fe29",
-    "stderr": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-171\\import-owner\\mt174-core-shared-edges-full-metadata.stderr.log",
-    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "root_features": [
-      "app-runtime",
-      "candle-runtime-engine",
-      "default",
-      "duckdb-flight-recorder",
-      "kernel-runtime",
-      "local-inference-default",
-      "os-keychain",
-      "runtime-full",
-      "surreal-test-support",
-      "test-utils",
-      "tokenization"
-    ]
-  },
-  "config": {
-    "path": "C:\\Projects\\LLM Projects\\handshake-desktop\\gov-runtime\\host-profile-wp012-phase02-builder.json",
-    "sha256": "e78cfb2b53b69e29e69e65bf3a77d88c8732eac88be438779f5e7f798a1f717a",
-    "override": "TEMP/TMP/TMPDIR existing owned import-owner/tmp; no target/compiler invoked"
-  },
-  "limits": "Only core lock product mutation; manifest/features/toolchain/profile/source bytes unchanged. Compiler/type/tests/SQL/runtime/canonical NOT_RUN; no acceptance PASS. Compile retry root-owned only after affected review. Existing MT174 malformed encoding bytes preserved, no lossy rewrite."
-},
+      "limits": "Only core lock product mutation; manifest/features/toolchain/profile/source bytes unchanged. Compiler/type/tests/SQL/runtime/canonical NOT_RUN; no acceptance PASS. Compile retry root-owned only after affected review. Existing MT174 malformed encoding bytes preserved, no lossy rewrite."
+    },
     "source_reconciliation_artifact": "WP-KERNEL-012/MT-171/import-owner/mt174-import-reconciliation.json",
     "reconciled_paths": [
       {
@@ -5878,6 +5880,23 @@
         "owner_slice_ref": "MT-172.json#/implementation_record/embedded_runtime_owner_dependency_reconciliation",
         "status": "FIRST_OWNER_SOURCE_SLICE_PARTIAL_PENDING_CLAIM_INTERFACE_REMEDY; main unchanged"
       }
+    },
+    "backend_test_retirement_20261011": {
+      "decision_id": "WP012-P2-BACKEND-TEST-RETIREMENT-20261011",
+      "operator_quote": "remove all poostgresal test, or sqlite test... postgresal and sqlite are abandoned and not allowed in handshake",
+      "authority": "Explicit Operator ALL actual PostgreSQL/SQLite execution-test retirement; parent root scoped admission after independent backend_retirement_scope_review source inspection. No fabricated USER_SIGNATURE.",
+      "state": "AUTHORIZED_SCOPED_IMPLEMENTATION_PENDING_ROOT_WRITER_DISPATCH",
+      "limits": [
+        "Active legacy PG test placement superseded; historical raw backup/non-executable inventory retained, not current proof gates.",
+        "Preserve valid Surreal coverage, independent acceptance, backend prohibition guards and original Phase2 obligations; retirement is not PASS or runtime proof.",
+        "Bounded inventory found no SQLite execution test; global absence not asserted.",
+        "Auth mapping proposal/amendment separately authorized and outstanding, not retirement predecessor.",
+        "One exclusive writer per file; one combined freeze and independent affected review before existing build admission. Root technical self-review prohibited."
+      ],
+      "owned_paths": [
+        "tests/live_pg/seed_fixture.sh"
+      ],
+      "partial_disposition": "KEEP HTTP seeds/exports consumed by current Surreal; remove psql section13, LOCUS export268 and active PG startup instructions only. Exact new root fixture path admitted by explicit ALL retirement."
     }
   }
 }

@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 592
+generation: 595
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -496,3 +496,6 @@ steps:
 - {id: GP-475, role: builder, at: before_dispatch, do: verify lifecycle test three private storage calls have independently reviewed public query_values repair, check: {type: confirm}, source: round25 exit101 process_reclaim_real_lifecycle_surreal_tests E0624 at224428474; reviewed101freeze8b8b, state: active}
 - {id: GP-476, role: builder, at: before_dispatch, do: verify MT016 test three obsolete constructors have independently reviewed for_test_scope repair, check: {type: confirm}, source: round26 exit101 mt016_surreal_loom_search_tests E0599 at151243353 for_scoped_store; reviewed103freeze99fec, state: active}
 - {id: GP-477, role: builder, at: before_dispatch, do: verify restart-resume test three private storage calls have independently reviewed typed query_values repair, check: {type: confirm}, source: round27 exit101 restart_resume_boot_bound_surreal_tests E0624 at78151202; reviewed104freeze953589, state: active}
+- {id: GP-478, role: coder, at: before_dispatch, do: confirm resolved retirement targets in assigned WP; exclusive owner; retained non-PG scope, check: {type: confirm}, source: Operator PG/SQLite retirement; root exclusive STEP1, state: active}
+- {id: GP-479, role: coder, at: before_dispatch, do: confirm external raw before bytes preserved and hashes verified, check: {type: confirm}, source: Operator PG/SQLite retirement; root exclusive STEP1, state: active}
+- {id: GP-480, role: coder, at: before_dispatch, do: confirm current MT admission and root STEP1; no Cargo or active proof freeze, check: {type: confirm}, source: Operator PG/SQLite retirement; root exclusive STEP1, state: active}
