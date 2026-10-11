@@ -2,7 +2,7 @@
   "crate": "hsk-studio-interop-vector",
   "lane": "SMB-INTEROP-VECTOR-1",
   "status": "READY_FOR_VALIDATION",
-  "phase": "R5-remediation-groupC",
+  "phase": "slice3-masking-patterns-R6",
   "commits": [
     {
       "sha": "f058a1b",
@@ -31,6 +31,14 @@
     {
       "sha": "3561b12",
       "subject": "R5 remediation: DOCTYPE classified in the XML prolog only, DTD processing never enabled (comment/PI decoy can no longer enable entity expansion); SVG export reports colour_profile_not_converted per paint use and surfaces Folio ResolutionIssues; 2 regression tests"
+    },
+    {
+      "sha": "60b998c",
+      "subject": "R6: export reports working_space_not_converted when the document assigns an RGB working space (Unassigned colours were written as sRGB hex silently); regression test"
+    },
+    {
+      "sha": "42fba02",
+      "subject": "slice 3: pattern, clipPath and mask references resolved to exact results or typed losses (css.rs, masking.rs); style/url() tokenised as CSS; export reports Folio layer mask, clip-to-base, blend mode, fill opacity; arithmetic deny on svg_adapter.rs and svg_export.rs; 5 tests"
     }
   ],
   "capabilities_done": [
@@ -45,20 +53,26 @@
     "slice 2 stroke: width, cap (Butt/Round/Projecting wire 1..3), join (Miter/Round/Bevel wire 1..3), miter limit 1..500 (clamped and reported), dash array (odd list repeated, invalid or percent typed) and offset, StudioStrokeStyle with Length pt values (align CENTER), dash lists over Folio 256 are a typed loss, all exported",
     "slice 2 SVGZ: import_svg detects one gzip member, inflates with miniz_oxide decompress_to_vec_with_limit under Limits.max_decompressed_bytes (default 32 MiB), verifies CRC-32 and size, never unwraps twice; gzip_svg writes deterministic SVGZ",
     "folio migration: import_svg returns VectorProposal.design (StudioDesignRecords, document_id = snapshot) as the single source of paint/stroke/appearance, validated by folio::validate_design_records against the validated document (retained records capped at 16 per max_nodes, BudgetExceeded design_records); solid alpha = row opacity percent, gradient alpha folded into stop opacity percent (row 100), values cleaned to 1e-10 so export/import is a fixed point; export_svg(paths, design, opts) / export_proposal read the style a layer names (fill_style_id), validate each with validate_paint_style, and report hidden rows, non-normal blend, non-CENTER align, gradient midpoint/interpolation/dither, off-8-bit colours, dangling style refs as typed losses",
-    "R5 remediation (3561b12): scan_prolog walks the XML prolog (declaration, comments, PIs, whitespace) and classifies the one real DOCTYPE; ParsingOptions.allow_dtd is always false; internal subset or unterminated DOCTYPE -> EntityDenied; a legacy external-id DOCTYPE is blanked (same byte length) before parsing and reported doctype_external_id_ignored; DOCTYPE text in comments, PIs and CDATA is inert; export reports colour_profile_not_converted (Unsupported) once per paint use (also for a shared gradient definition) when any colour has an Assigned profile, and maps Folio ResolutionIssues of validate_paint_style to colour_profile_unresolved|hash_mismatch|unauthorized|unsupported losses"
+    "R5 remediation (3561b12): scan_prolog walks the XML prolog (declaration, comments, PIs, whitespace) and classifies the one real DOCTYPE; ParsingOptions.allow_dtd is always false; internal subset or unterminated DOCTYPE -> EntityDenied; a legacy external-id DOCTYPE is blanked (same byte length) before parsing and reported doctype_external_id_ignored; DOCTYPE text in comments, PIs and CDATA is inert; export reports colour_profile_not_converted (Unsupported) once per paint use (also for a shared gradient definition) when any colour has an Assigned profile, and maps Folio ResolutionIssues of validate_paint_style to colour_profile_unresolved|hash_mismatch|unauthorized|unsupported losses",
+    "slice 3 clip-path: resolved per SVG 1.1 14.3 and CSS Masking 1 5.1/6.1 (Folio has no vector clip): a clipPath that contains everything the element paints is dropped (Ignored clip_path_noop_dropped; rectangles incl. through use of a rect, clipPathUnits userSpaceOnUse and objectBoundingBox, transform, stroke reach bounded by half width x largest scale x miter limit or square-cap diagonal, nested clip-path on the clipPath or on a child with loop (clip_path_reference_cycle) and depth-8 guards (clip_path_depth_exceeded), invalid reference = no clipping (Ignored clip_path_reference_invalid)); an empty clipPath (no child, hidden, zero-size) hides the layer (Approximated clip_path_empty_hides_element); anything else stays drawn with Unsupported clip_path_not_representable (+ clip_rule_evenodd when an unanalysed shape uses evenodd); basic shapes, file urls, unparsable values typed (unsupported_clip_path, external_clip_path_denied, clip_path_value_unparsed); definitions Ignored clip_path_definition_not_stored",
+    "slice 3 mask: identity masks dropped (Ignored mask_noop_dropped): maskUnits region (default -10%/-10%/120%/120%) and maskContentUnits, topmost opaque unstroked rect covering the element, white for mask-type luminance and any colour for alpha (mask-type as attribute or CSS, case-insensitive); empty mask, zero region and dangling reference hide the layer (Approximated mask_empty_hides_element, mask_reference_invalid_hidden per CSS Masking 1 7.1); else Unsupported mask_not_representable + mask_type_alpha|mask_type_luminance; file urls and unparsable values typed (external_mask_denied, mask_value_unparsed, unsupported_mask)",
+    "slice 3 pattern paint: href chain with visited set and depth 8 (SVG 2 16.1.6 href over xlink:href, 16.1.2 loops invalid), attribute and content inheritance per SVG 1.1 13.3 / SVG 2; zero or missing tile, singular patternTransform and no content paint nothing (Ignored pattern_zero_size_no_paint, pattern_transform_singular_no_paint, pattern_empty_no_paint); negative tile and href loop are invalid references (fallback colour); a real tiling is Unsupported pattern_paint_not_representable with the author's fallback colour as stand-in (Approximated pattern_fallback_color_used); pattern_href_cycle, pattern_href_chain_too_long, pattern_units_unparsed, pattern_size_negative; definitions Ignored pattern_definition_not_stored; gradient href chains over 8 now report gradient_href_chain_too_long instead of being cut silently; href over xlink:href for gradients",
+    "slice 3 hardening (V4-01/02/08): one reference work budget ((max_segments + max_nodes) x 32 units, BudgetExceeded reference_work) charged by every clip/mask/pattern walk and style lookup, at most 64 children examined per definition; deny(clippy::arithmetic_side_effects) on svg_adapter.rs (css.rs, masking.rs inherit) and svg_export.rs with all integer sites checked or saturating; style attributes and url() tokenised per CSS Syntax 3 (css.rs: comments, strings, brackets, escapes decoded in identifiers, hex escape whitespace, case-insensitive names, !important, bare url tokens) replacing split(';') and contains(url paren); an infinite or NaN tolerance can no longer prove containment (found by the overflow test, fixed in 42fba02)",
+    "slice 3 export: export_proposal reports Folio layer appearance SVG cannot hold instead of dropping it silently: layer_mask_not_exported (Unsupported; Ignored layer_mask_disabled_not_exported), layer_clipped_to_base_not_exported, layer_blend_mode_not_exported, layer_fill_opacity_not_exported, group_pass_through_isolated (Approximated); no-op clips and masks round-trip (import -> export -> import has no clip loss), hidden layers round-trip as display=none",
+    "R6 (60b998c): export_proposal reports working_space_not_converted (Unsupported, once per paint use incl. gradient stops) for Unassigned colours when the document assigns working_space_rgb; a colour with its own Assigned profile reports colour_profile_not_converted only; flat export_svg has no document and cannot know"
   ],
   "tests": {
     "argv": "cargo test -p hsk-studio-interop-vector --tests --no-fail-fast",
     "exit": 0,
-    "sha": "3561b12",
-    "passed": 13,
+    "sha": "42fba02",
+    "passed": 19,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "Validator round on 3561b12 for crates/hsk-studio-interop-vector (13 tests: 11 existing + doctype_decoy_cannot_enable_entity_expansion + assigned_colour_profile_export_is_a_typed_loss). Later: patterns, clip paths and masks, text, an Illustrator-saved fixture to confirm the AI private-data markers; pattern/image/CMYK/spot paints wait for Folio paint kinds.",
-  "updated_at": "2026-10-11T05:34:50Z",
+  "next": "Validator round on 42fba02 for crates/hsk-studio-interop-vector (19 tests: 13 earlier + assigned_working_space_export_is_a_typed_loss + masking_patterns.rs 5; two earlier pattern fixtures now carry tile content). Folio needs (lead): pattern paint kind (STU-VEC-017/138 StudioPattern), vector clip and vector mask records with mask mode ALPHA|VECTOR|LUMINANCE (STU-VEC-053) and a clip-path/mask reference field on layers, so patterns, clips and masks can be carried instead of reported. Later: text, brushes, artboards, an Illustrator-saved fixture for the AI markers.",
+  "updated_at": "2026-10-11T06:47:11Z",
   "notes": {
     "remediation_R5": {
       "source": "validation/R5-review-c.json lanes SMB-INTEROP-VECTOR (f058a1b) and SMB-INTEROP-VECTOR-FOLIO-MIGRATE (30c3e64), reviewed at 1d404f8",
@@ -171,7 +185,67 @@
         "idempotency_key": "STUDIO-R5:SMB-INTEROP-VECTOR:1d404f8c4b72:FAIL_V2",
         "recorded_at": "2026-10-11T05:38:23Z",
         "by": "wp_validator STUDIO-R5"
-      }
-    ]
+      },
+      {"round": "STUDIO-R6", "lane": "SMB-INTEROP-VECTOR", "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a", "tree": "834aa5599ffabf691558a25f777ce42f73d78103", "decision": "passed", "verdict": "PASS_V3", "failures": [], "remediation": null, "status_after": "PASS_V3", "review": "validation/R6-review-c.json", "round_ref": "validation/round-R6.json", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6", "idempotency_key": "STUDIO-R6:SMB-INTEROP-VECTOR:bd8533f9b29c:PASS_V3", "recorded_at": "2026-10-11T06:47:09Z", "by": "wp_validator STUDIO-R6"},
+      {"round": "STUDIO-R6", "lane": "SMB-INTEROP-VECTOR-FOLIO-MIGRATE", "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a", "tree": "834aa5599ffabf691558a25f777ce42f73d78103", "decision": "passed", "verdict": "PASS_V2", "failures": [], "remediation": null, "status_after": "PASS_V2", "review": "validation/R6-review-c.json", "round_ref": "validation/round-R6.json", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6", "idempotency_key": "STUDIO-R6:SMB-INTEROP-VECTOR-FOLIO-MIGRATE:bd8533f9b29c:PASS_V2", "recorded_at": "2026-10-11T06:47:09Z", "by": "wp_validator STUDIO-R6"}
+    ],
+    "remediation_R6": {
+      "source": "lead message R6 review C PLAUSIBLE on SMB-INTEROP-VECTOR-FOLIO-MIGRATE",
+      "verified": "real: grep working_space in src showed only svg_adapter.rs import setting Unassigned; export_proposal and Writer never read Snapshot.document().working_space_rgb, so Unassigned colours in an assigned non-sRGB working space were written as sRGB hex with no loss entry",
+      "fix": "60b998c svg_export.rs note_profiles(): working_space_not_converted (Unsupported) once per paint use when doc.working_space_rgb is Assigned and a colour is Unassigned; colour_profile_not_converted unchanged for Assigned colours; no conversion (the export holds no profile bytes) and no new edge",
+      "regression_test": "tests/vector_edit_roundtrip.rs::assigned_working_space_export_is_a_typed_loss. RED on pre-fix source (scratch export of the 023c817 tree under Handshake_Artifacts/WP-KERNEL-STUDIO/interop-vector-redproof with its own target dir): assertion left 0 right 2 at tests line 534; GREEN at 60b998c",
+      "v4_06_class": "export ignores a document-level colour space; regex working_space|blending_space|colour_profile over crates/hsk-studio-interop-vector/src: svg_adapter.rs import sets Unassigned x5 (working_space_rgb/cmyk/gray/spot, blending_space) = not applicable (import claims no profile); svg_export.rs paint sites (solid, gradient stops) = fixed; working_space_cmyk/gray/spot and blending_space cannot affect the RGB channels this crate writes = not applicable; flat export_svg (no document) = documented limit",
+      "commit": "separate commit 60b998c as requested"
+    },
+    "slice3": {
+      "folio_findings_at_HEAD_cdc2c0f": {
+        "paint": "StudioPaint = Solid | Gradient only; paint.rs declares pattern, image, video, none, CMYK/gray/spot/lab paint kinds as gaps (STU-VEC-134); no StudioPattern (spec STU-VEC-017, STU-VEC-138 name it)",
+        "clip": "no vector clip record; LayerAppearance.clipped is a raster-style clip-to-base flag (Photoshop clipping mask), not an SVG clipPath; using it would need a hidden base layer and a render-side confirmation that a zero fill-opacity base still clips (UNVERIFIED), so it is not used",
+        "mask": "StudioMask = raster coverage tiles (coverage_u8|coverage_u16le with content digest and artifact manifest) + enabled + linked; StudioRasterRecords (2f705f1) adds density/feather/inverted for those tiles and needs appearance.mask; an SVG mask is vector content with no tiles, no mask mode (ALPHA|VECTOR|LUMINANCE, STU-VEC-053), no region, and SVG has no density/feather/invert, so nothing of it maps and StudioRasterRecords is not used (not duplicated)",
+        "preservation_option": "Payload::Unsupported{kind,schema_id,encoded_bytes,reason} could carry the original definition XML, but there is no field tying it to the referencing layer; not used; lead decision"
+      },
+      "folio_need_for_lead": [
+        "pattern paint kind with tile geometry, units, transform and content (STU-VEC-017/138)",
+        "vector clip record (clip path geometry, clip-rule, units) and vector mask record (mask mode ALPHA|VECTOR|LUMINANCE, region, content units) per STU-VEC-053",
+        "a clip/mask reference field on StudioLayer or a StudioNodeDesign reference set",
+        "until then every non-trivial use is a typed loss and the element is drawn unclipped/unmasked"
+      ],
+      "spec_and_standards_cited": [
+        "SVG 1.1 13.3 patterns (inheritance via href, patternUnits/patternContentUnits defaults, viewBox overrides patternContentUnits, zero disables rendering, negative is an error, overflow hidden)",
+        "SVG 1.1 14.3 clipPath (clipPathUnits default userSpaceOnUse, children OR'd, clip-rule from the child, clip-path on clipPath/child intersects, empty clips everything)",
+        "SVG 1.1 14.4 mask (maskUnits default objectBoundingBox, -10%/-10%/120%/120%, maskContentUnits default userSpaceOnUse, value = luminance x alpha, zero region disables rendering)",
+        "SVG 2 16.1.2 circular references invalid, 16.1.6 href over xlink:href, 13.2 paint fallback for invalid references",
+        "CSS Masking 1 5.1 invalid clip-path reference clips nothing, 6.1 empty clipPath clips away the element, 7.1 invalid mask reference is a transparent black layer, 9.2 mask-type luminance|alpha (initial luminance, presentation attribute)",
+        "CSS Syntax 3 comments, strings, escapes, url tokens"
+      ],
+      "decisions": [
+        "no crate-local pattern/clip/mask store (ENG-DAG-FORBID-003; the earlier crate-local paint types were a debt the Folio migration repaid): exact results or typed losses only",
+        "exact results are decided with a conservative geometric proof (content control points mapped into the clip rectangle space, tight bbox by curve extrema, stroke outset bound, 1e-9 relative tolerance, finite numbers only); everything not proven is Open = typed loss and the element is not changed",
+        "definitions (pattern/clipPath/mask) are reported Ignored at the definition; what a use means is reported at the use",
+        "CSS Masking 7.1 (dangling mask = transparent black) is followed over SVG 1.1 (error) and hides the layer, reversible by setting visible; UNVERIFIED how browsers treat it today",
+        "clipPath with objectBoundingBox units AND a transform is not analysed (order of the two maps not pinned down)"
+      ],
+      "unverified": [
+        "order of clipPath transform and the bounding-box map (recalled from Blink, not checked in source)",
+        "browser treatment of a dangling mask reference (spec text followed)",
+        "CSS escapes in url() are not percent-decoded; an id containing % cannot be referenced",
+        "the stroke reach bound is conservative (miter limit, not true join angles): a 10 px stroke needs a 20 px margin to count as contained"
+      ],
+      "tests": "tests/masking_patterns.rs: clip_path_exact_or_typed_loss, mask_exact_or_typed_loss, pattern_paint_exact_or_typed_loss, hostile_references_are_bounded, css_values_are_tokenised_not_substring_matched; red on the pre-slice source 60b998c (all 5 fail: blanket unsupported_*, !important / URL() / comment decoy mishandled), green at 42fba02; the overflow assertions caught a real false no-op (infinite tolerance) during development",
+      "v4": {
+        "V4-01": "deny(clippy::arithmetic_side_effects) on svg_adapter.rs (+css.rs, masking.rs) and svg_export.rs; 17 + 7 integer sites made checked or saturating",
+        "V4-02": "reference_work aggregate budget test (5-level fan-out of 8 under max_nodes 400, max_segments 1000 -> BudgetExceeded reference_work; the same file passes under the default budget), depth 8, children 64, hostile numbers",
+        "V4-03": "no #[ignore], no machine-local path in the new tests",
+        "V4-04": "no fault hooks",
+        "V4-05": "no ZIP/CRC/deflate/worker/timecode code added",
+        "V4-07": "DESCRIPTOR masking text lists the proving tests",
+        "V4-08": "css.rs tokeniser; adversarial tests: escapes (cl\\69p-path, u\\72l, hex escape with space in a url token), comment decoy and comments around values, case/whitespace/quotes (CLIP-PATH : URL( '#c' ), URL(#g), !IMPORTANT), a semicolon inside a url string, an escaped parenthesis",
+        "V4-09": "commit messages and this lane update through files",
+        "V4-11": "red proofs on a scratch export under Handshake_Artifacts/WP-KERNEL-STUDIO/interop-vector-redproof (own target dir), extracted with tar -m",
+        "V4-12": "helper files only under <scratchpad>/hsk-studio-interop-vector/"
+      },
+      "retry_guard_route": "(a) product failure fixed by a commit: mask_exact_or_typed_loss failed (infinite tolerance), fix committed as 42fba02 (HEAD changed), then the identical full test command; no flags or filters changed to evade the guard (one narrower diagnostic run was made before the commit, it was a different command)",
+      "api_change": "additive only: no public type changed, LossEntry codes added, Limits unchanged (reference limits are constants); unsupported_pattern/unsupported_mask/unsupported_clip_path at the definition are replaced by Ignored *_definition_not_stored plus the use-site codes; unsupported_clip_path and unsupported_mask remain for values that are not a url()"
+    }
   }
 }
