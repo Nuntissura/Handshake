@@ -1029,7 +1029,7 @@
    "status": "OPEN",
    "verified_at": "bd5bd60",
    "disposition": "FIX_LANE",
-   "disposition_note": "routed to rem-reel-eng-1 (FIX_FIRST before R10)"
+   "disposition_note": "fix claimed 0474906 (SMB-REEL-ENG-1); reviewer confirms in R10"
   },
   {
    "id": "PLR-058",

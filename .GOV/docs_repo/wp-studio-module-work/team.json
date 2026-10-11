@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T14:15:23Z",
+ "updated_at": "2026-10-11T14:18:24Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1764,7 +1764,7 @@
     "builders/lanes/hsk-studio-reel-eng-1.json"
    ],
    "launched": "2026-10-11T13:47:44Z",
-   "status": "running"
+   "status": "done 2026-10-11T14:18:24Z (SMB-REEL-ENG-1 READY at 0474906)"
   },
   {
    "name": "validator-r9",

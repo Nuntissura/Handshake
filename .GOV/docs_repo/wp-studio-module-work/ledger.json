@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T14:13:49Z",
+ "updated_at": "2026-10-11T14:18:24Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -961,32 +961,20 @@
    "crate": "hsk-studio-reel",
    "origin": "research/engine-video.md",
    "scope": "own ISOBMFF/MOV index reader (edit lists, ctts, tmcd) + index-first frame-accurate seek returning requested vs actual PTS; exact-or-error in export mode",
-   "phase": "FIX_FIRST before judgement (rem-reel-eng-1; excluded from R9)",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-reel-eng-1",
    "commits": [
     "6d232da",
     "2ddff00",
-    "bd5bd60"
+    "bd5bd60",
+    "0474906"
    ],
    "verdicts": [],
    "brief": "builders/briefs/lane-reel-eng-1.md",
-   "candidate": "bd5bd60",
-   "note": "export exact-or-error: ReelError::NotExact{requested,nearest} (MEDIA_NOT_EXACT) before first payload read at 5 provider sites; video shortfall under Export -> ReelError::Incomplete (MEDIA_INCOMPLETE); zero-duration elst handled (fragmented last edit open-ended, other non-empty zero-duration Unsupported elst-zero-duration); fiel/clap raw advisory API; ffmpeg MOV oracle fixture 4197 B with provenance; PLR-056 in-process oversize test; nextest 56 default / 61 av1, doctests, clippy, fmt clean; 17 mutation red proofs on scratch; residual R1: NotExact guard fires after external decoder session open (worker may spawn); R2 mxf no Incomplete branch",
-   "lane_file": "builders/lanes/hsk-studio-reel-eng-1.json",
-   "blockers": [
-    {
-     "kind": "V4-13 pre-review advisory CONFIRMED",
-     "ref": "validation/R9-prereview-reel.json",
-     "items": [
-      "MXF reordered path: hostile non-permutation temporal offsets -> Ok complete=false disposition Exact even for Export (mxf/provider.rs:185-269, mxf/mod.rs:695-711)",
-      "elst-zero-duration refusal fails the whole file index (isobmff.rs:1356,1619-1622) [PLAUSIBLE]",
-      "nearest == requested for an edit-trimmed first sample [PLAUSIBLE]",
-      "PLR-057 guard after decoder session open"
-     ],
-     "recorded_at": "2026-10-11T13:47:18Z"
-    }
-   ]
+   "candidate": "0474906",
+   "note": "R9 pre-review fixes 0474906: MXF non-permutation temporal offsets -> Err(Corrupt mxf-temporal-offset) before any essence read (Preview and Export); elst-zero-duration refusal per track (TrackIndex::unsupported; seek/probe/select_track refuse); NotExact.nearest of an edit-trimmed first sample = next whole presented sample; PLR-057 export exact-start check before the decoder session opens (Fake.opens observed); 6 tests red on scratch 60b3f63 + 7 single-fix mutations red; nextest 60 default / 65 av1, doctests, clippy, fmt; reel-native check clean; routing (registry.rs, choose(), Forward) untouched. Residual: edit-media-rate-not-1 still file-wide Unsupported; default_track() may return a refused track. Claim 6d232da + 2ddff00 + bd5bd60 + 0474906. Crate changed after R9-prereview-reel -> new V4-13 pre-review for AV1-ROUTE before R10",
+   "lane_file": "builders/lanes/hsk-studio-reel-eng-1.json"
   },
   {
    "lane_id": "SMB-REEL-ENG-2",

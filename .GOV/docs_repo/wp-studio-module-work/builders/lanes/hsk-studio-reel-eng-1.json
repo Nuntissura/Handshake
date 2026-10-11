@@ -2,7 +2,7 @@
  "crate": "hsk-studio-reel",
  "lane": "SMB-REEL-ENG-1",
  "status": "READY_FOR_VALIDATION",
- "phase": "slice 1 (whole lane) complete on bd5bd60: export is exact or it fails (5 delivery sites + video Incomplete), zero-duration elst, raw fiel/clap, ffmpeg MOV oracle, PLR-056; base bf3c196 (SMB-REEL-AV1-ROUTE PASS_V3 at R8)",
+ "phase": "rem-reel-eng-1 R9 pre-review remediation complete on 0474906: mxf non-permutation temporal offsets refused, zero-duration elst costs only its track, NotExact.nearest retryable for an edit-trimmed first sample, exact-start check before the decoder session opens (PLR-057); claim = 6d232da + 2ddff00 + bd5bd60 + 0474906; base 60b3f63 (SMB-REEL-AV1-ROUTE trust routing untouched)",
  "commits": [
   {
    "sha": "6d232da",
@@ -15,6 +15,10 @@
   {
    "sha": "bd5bd60",
    "subject": "reel (SMB-REEL-ENG-1, wip, lane status null): export-guard test names the delivery site that reached the sink"
+  },
+  {
+   "sha": "0474906",
+   "subject": "reel (SMB-REEL-ENG-1, rem-reel-eng-1 R9, wip, lane status null): mxf non-permutation refused; zero-duration elst per track; export nearest retryable; no decoder session for a refused export"
   }
  ],
  "capabilities_done": [
@@ -22,20 +26,24 @@
   "G2 elst zero segment_duration: empty edit of no length is no segment; non-empty zero-length edit = open-ended only as the LAST edit of a FRAGMENTED file; anywhere else Unsupported elst-zero-duration; the 4096 edit-entry bound counts declared entries",
   "G3 raw fiel/clap: pub FieldInfo { fields, detail }, pub CleanAperture { width, height, horiz_off, vert_off } as (i32, i32) pairs; TrackIndex.field_info / clean_aperture; advisory (a short or lying child leaves None and the track indexable); no interpretation, no division",
   "ffmpeg-made MOV oracle: tests/fixtures/mov/ (4197 bytes, sha256 4480db23..., generate-mov.sh, provenance.json with the ffprobe outputs): presented PTS, decode-order composition times, sync samples [0, 12], negative ctts, edit list, drop-frame tmcd start 107891",
-  "PLR-056 (bundled): in-process test of the oversize-picture refusal on the trusted rav1d path (mp4 sample entry and mkv PixelWidth/PixelHeight patched below the 16x16 the stream holds)"
+  "PLR-056 (bundled): in-process test of the oversize-picture refusal on the trusted rav1d path (mp4 sample entry and mkv PixelWidth/PixelHeight patched below the 16x16 the stream holds)",
+  "R9-1 (CONFIRMED) mxf reordered picture path: temporal offsets that are not a permutation over the requested range (two display positions on one coded unit) are Corrupt mxf-temporal-offset before any essence read, for Preview and Export; they used to return Ok with complete == false and disposition Exact",
+  "R9-2 (PLAUSIBLE, verified) elst-zero-duration costs only its track: build_index marks the track (TrackIndex::unsupported() == Some, no edits, no presented samples); seek, probe and every delivery of it are Unsupported elst-zero-duration, other tracks index and deliver",
+  "R9-3 (PLAUSIBLE R3, verified) NotExact.nearest for a start inside an edit-trimmed first sample is the start of the next whole presented sample (was: equal to requested); a start inside a whole sample keeps that sample's start; every refusal of export_is_exact_or_error_for_every_provider is retried at its nearest",
+  "R9-4 (PLR-057) the Export exact-start check (isobmff::require_exact_track_start) runs in decode_video_track_with before the decoder session is opened: a refused or out-of-range export opens no session (no worker spawn)"
  ],
  "tests": {
-  "argv": "studio-env.sh cargo nextest run -p hsk-studio-reel --no-fail-fast (default: 56) / --features av1 (61); cargo test --doc -p hsk-studio-reel (default and --features av1: 2 doctests each, 1 compile_fail + 1 pass); cargo clippy -p hsk-studio-reel --tests --examples (default and --features av1) clean; cargo fmt -p hsk-studio-reel --check clean; dependents: cargo check -p hsk-studio-reel-native --tests (default, av1-worker, av1-worker+test-faults) clean on a scratch copy of 2ddff00",
+  "argv": "studio-env.sh (STUDIO_OWNER=smb-reel-eng1-redproof, scratch crate byte-equal to pushed 0474906) cargo nextest run -p hsk-studio-reel --no-fail-fast (default: 60) / --features av1 (65); cargo test --doc -p hsk-studio-reel (default and --features av1: 2 doctests each, 1 compile_fail + 1 pass); cargo clippy -p hsk-studio-reel --tests --examples (default and --features av1) clean; cargo fmt -p hsk-studio-reel --check clean; dependents: cargo check -p hsk-studio-reel-native --tests (default, av1-worker, av1-worker+test-faults) clean",
   "exit": 0,
-  "sha": "bd5bd60",
-  "passed": 61,
+  "sha": "0474906",
+  "passed": 65,
   "failed": 0
  },
  "blockers": [],
  "lock_wait_s": 0,
  "bg_pids": [],
- "next": "Validator round on bd5bd60 (default and --features av1; doctests default and av1). Claim = 6d232da + 2ddff00 + bd5bd60. Follow-ups outside this lane: SMB-REEL-ENG-2 (same crate, consumes field_info / clean_aperture); a NotExact pre-check before an external decoder is opened (residual R1); a future export queue (STU-VID-060..064) is the first non-test caller of Purpose::Export.",
- "updated_at": "2026-10-11T13:10:05Z",
+ "next": "Validator round on 0474906 (default and --features av1; doctests default and av1). Claim = 6d232da + 2ddff00 + bd5bd60 + 0474906. Trust routing untouched: registry.rs is not in the diff; video.rs choose() and the Forward declared-size check are unchanged (the only video.rs change is the Export pre-check block before the session open and its import). Follow-ups outside this lane: SMB-REEL-ENG-2 (same crate, consumes field_info / clean_aperture); edit-media-rate-not-1 is still a file-wide Unsupported (same shape elst-zero-duration had; not an R9 item); a future export queue (STU-VID-060..064) is the first non-test caller of Purpose::Export.",
+ "updated_at": "2026-10-11T14:17:31Z",
  "notes": {
   "base": "bf3c196 (reel sources identical to the brief's e8b464b/f6e5a49 state); no other commit touched crates/hsk-studio-reel between bf3c196 and 6d232da (V4-14)",
   "behaviour_changes": [
@@ -58,6 +66,26 @@
     "id": "B4",
     "change": "additive public API: ReelError::{NotExact, Incomplete} (ReelError is not non_exhaustive: an exhaustive external match breaks; reel-native uses wildcards and compiles), FieldInfo, CleanAperture, TrackIndex.field_info, TrackIndex.clean_aperture",
     "pinned_by": "tests/engine_video.rs fiel_and_clap_are_raw_and_advisory; reel-native cargo check (3 feature sets)"
+   },
+   {
+    "id": "B5",
+    "change": "mxf picture track (variable-size index, temporal reordering): a request whose display positions do not map one-to-one onto coded positions (display_position_of(coded(d)) != d for a requested d) is Err(Corrupt mxf-temporal-offset) before any essence read, Preview and Export alike; was Ok with complete == false and disposition Exact (also for Export). A conformant index is a permutation and delivers as before",
+    "pinned_by": "tests/mxf_index.rs mxf_temporal_offsets_that_are_not_a_permutation_are_refused"
+   },
+   {
+    "id": "B6",
+    "change": "isobmff: Unsupported elst-zero-duration no longer fails build_index. The track that carries the edit is flagged (pub TrackIndex::unsupported() -> Option<&'static str>, additive; edits and presented empty); TrackIndex::seek, IsobmffProvider::probe (default track) and select_track (every delivery incl. PCM, video decode and cached index) return Unsupported with that name. The other tracks of the file index and deliver. A file whose only track is refused now indexes (build_index Ok) and fails at probe/decode with the same typed error",
+    "pinned_by": "tests/engine_video.rs zero_duration_edit_costs_only_its_track, fragmented_zero_duration_edit (assertions adapted: progressive and non-last-fragmented zero-length edits index, the track is refused)"
+   },
+   {
+    "id": "B7",
+    "change": "NotExact.nearest: for a start inside an edit-trimmed first sample (the cut presented sample of an edit that starts inside a sample, first or later in the edit list) nearest is the pts of the next whole presented sample, a start export can be retried at; was the cut sample's own presented start (== requested for a request at that start). A start inside a whole sample keeps that sample's start. A track whose only presented samples are cut keeps nearest = the cut sample's presented start (nothing exact exists)",
+    "pinned_by": "tests/engine_video.rs nearest_of_a_trimmed_first_sample_is_a_start_export_accepts, export_is_exact_or_error_for_every_provider (trimmed case nearest 0 -> 501 units; every refusal retried at nearest)"
+   },
+   {
+    "id": "B8",
+    "change": "Compressed-video decode under Purpose::Export: require_exact_track_start (seek + NotExact) runs before the decoder session is opened, so NotExact and OutOfRange of an export are returned before ExternalVideoDecoder::open / in-process open_session; Preview takes no pre-check (error order unchanged); the guard in deliver_packets stays (same shared helper)",
+    "pinned_by": "tests/video_route.rs export_not_exact_is_refused_before_a_decoder_session_opens (Fake decoder opens counter, mp4 and mkv)"
    }
   ],
   "decisions": [
@@ -65,7 +93,11 @@
    "D2 require_exact_start takes `nearest` as a closure evaluated only on a refusal, so Preview and exact exports do no extra work and see no new error (the brief's signature took a Ticks value)",
    "D3 guard placement keeps existing error precedence: after OutOfRange in isobmff (track.seek), wav (declared length) and mxf (end > total); wav/pcm/y4m/mxf guards precede every payload read; Truncated/OutOfRange for an unaligned export request are therefore reported as before when they apply first",
    "D4 test builders: instead of adding fiel/clap fields to Mp4Spec (9 struct-literal sites would have been edited) tests/common gained mp4_bytes_with_children + visual_child (raw child bytes, so truncated and lying children are writable); no existing test edited except video_route.rs (+Plan::DropPicture, +1 test) and v4_hardening.rs (+ zero-length entry assertions inside the existing aggregate test)",
-   "D5 FieldInfo/CleanAperture follow the brief: clap fields are the eight signed 32-bit values of the Apple clean aperture atom (page re-read 2026-10-11: all eight SInt32)"
+   "D5 FieldInfo/CleanAperture follow the brief: clap fields are the eight signed 32-bit values of the Apple clean aperture atom (page re-read 2026-10-11: all eight SInt32)",
+   "D6 mxf non-permutation is refused as Corrupt mxf-temporal-offset for Preview too (not Incomplete/Partial): it is the same class as the existing Corrupt for a coded position no display position maps to; refusing in the pre-pass leaves the sink untouched, which an Incomplete after delivery would not; delivered == count holds for every Ok result afterwards, so no unreachable Incomplete branch was added",
+   "D7 zero-duration elst: per-track refusal through a private TrackIndex field + public accessor, not a new error variant (no ReelError change, reel-native unaffected); only elst-zero-duration moved per track, edit-media-rate-not-1 and the other index errors stay file-wide",
+   "D8 NotExact.nearest means 'a start the same export is accepted at': next whole presented sample for a cut first sample; Case.preview_start in the export test separates the unit a preview delivers from nearest",
+   "D9 the PLR-057 pre-check is skipped for Preview (seek would move OutOfRange ahead of decoder-open errors); for Export it also moves OutOfRange before the session open"
   ],
   "tests_breakdown": {
    "tests/engine_video.rs": "4 tests: export_is_exact_or_error_for_every_provider, fragmented_zero_duration_edit, fiel_and_clap_are_raw_and_advisory, ffmpeg_made_mov_matches_independent_oracle",
@@ -174,11 +206,11 @@
   },
   "v4_06_class": "a delivery path that returns Ok with an Approximate, Partial or incomplete result without consulting req.purpose (export must be exact)",
   "v4_06_regex": "Disposition::(Approximate|Partial)|complete: |complete = false|\\.complete\\b   (over crates/hsk-studio-reel/src excluding lib.rs, which holds the DESCRIPTOR text)",
-  "v4_06_count": "17 matching lines at bd5bd60: 7 fixed (6 sites), 10 not applicable; a mismatch blocks READY",
+  "v4_06_count": "17 matching lines at 0474906 (17 at origin 60b3f63, same file:line set apart from the shifts below): 8 fixed (7 sites), 9 not applicable; the mxf provider.rs complete: verdict is corrected (R9 pre-review CONFIRMED)",
   "v4_06_sites": [
    {
-    "site": "src/isobmff.rs:2018 Disposition::Approximate (deliver_packets, also Matroska packets and the video route)",
-    "status": "fixed 6d232da (require_exact_start :1904)"
+    "site": "src/isobmff.rs:2088 Disposition::Approximate (deliver_packets, also Matroska packets and the video route)",
+    "status": "fixed 6d232da (guard now isobmff::require_exact_track_start at deliver_packets :1978 and, for compressed video, video.rs:453 before the decoder session opens, 0474906)"
    },
    {
     "site": "src/isobmff/pcm.rs:562 Disposition::Approximate (deliver_pcm_stream: isobmff and Matroska PCM)",
@@ -193,27 +225,27 @@
     "status": "fixed 6d232da (guard :302)"
    },
    {
-    "site": "src/mxf/provider.rs:258 Disposition::Approximate",
+    "site": "src/mxf/provider.rs:273 Disposition::Approximate",
     "status": "fixed 6d232da (guard :113)"
    },
    {
-    "site": "src/video.rs:520 Disposition::Partial",
-    "status": "fixed 6d232da (Incomplete branch :514)"
+    "site": "src/video.rs:527 Disposition::Partial",
+    "status": "fixed 6d232da (Incomplete branch for Export)"
    },
    {
-    "site": "src/video.rs:521 receipt.complete = false (same branch)",
+    "site": "src/video.rs:528 receipt.complete = false (same branch)",
     "status": "fixed 6d232da"
    },
    {
-    "site": "src/isobmff.rs:2029, src/isobmff/pcm.rs:573, src/wav.rs:408, src/y4m.rs:408 complete: true",
+    "site": "src/isobmff.rs:2099, src/isobmff/pcm.rs:573, src/wav.rs:408, src/y4m.rs:408 complete: true",
     "status": "not applicable: constant, the delivery either completed or returned an error"
    },
    {
-    "site": "src/mxf/provider.rs:269 complete: delivered == req.count",
-    "status": "not applicable by reading, NOT PROVEN: no Partial disposition is produced and every requested display position is delivered or the call errors; no test drives delivered < count (residual R2)"
+    "site": "src/mxf/provider.rs:286 complete: delivered == req.count",
+    "status": "CORRECTED in 0474906 (was 'not applicable by reading, NOT PROVEN'; R9 pre-review CONFIRMED a reachable shortfall): on the reordered picture path two display positions on one coded unit gave delivered < count, Ok, disposition Exact, also for Export. Fixed: the pre-pass at provider.rs:187-205 refuses a non-permutation as Corrupt mxf-temporal-offset before any read, so each requested display position is delivered once for every Ok result; red on origin head and on mutation M1 of test mxf_temporal_offsets_that_are_not_a_permutation_are_refused"
    },
    {
-    "site": "src/y4m.rs:523 complete: !canceled && written == total_units",
+    "site": "src/y4m.rs:523 complete: !canceled && written == spec.total_units",
     "status": "not applicable: encode receipt, not a delivery"
    },
    {
@@ -233,13 +265,82 @@
   },
   "gameplan_route": "no hook block and no retry-guard hit in this lane. Red runs were wrapped in a loop that exits 0, so no failed gated run was recorded. One Bash call that did not start with a cd to the product or scratch tree was rejected by the hook (it resolved an unrelated broken WP gameplan from the kernel cwd): infrastructure/launch-form cause, fixed by splitting the copy from the cd-led command; the lane-file script holds a gated word, so it is written with the Write tool and run as python file (as in hook_cwd_note of the AV1-ROUTE lane)",
   "residuals": [
-   "R1 Export + compressed video: the NotExact guard sits in deliver_packets, i.e. after the external decoder session was opened (or the in-process one created); the sink is untouched but a worker process may already have been spawned for a refused export. Cheap follow-up: seek + require_exact_start in decode_video_track_with before open().",
-   "R2 mxf complete: delivered == req.count has no Export Incomplete branch (no reachable shortfall found, not proven, no test)",
-   "R3 NotExact.nearest == requested for an edit-trimmed first sample (the presented sample is cut); documented in the test, not in the error docs",
-   "R4 STILL NOT DONE (brief later slices): edit media rate other than 1.0 (Unsupported edit-media-rate-not-1), mdcv/clli HDR metadata, persisting the index, multi-sample tmcd tracks, stz2, multiple sample descriptions",
+   "R1 RESOLVED in 0474906 (PLR-057, B8): NotExact guard before the external decoder session is opened",
+   "R2 RESOLVED in 0474906 (B5): the mxf reordered path refuses a non-permutation; mxf complete == (delivered == count) is constant true for every Ok result (test above)",
+   "R3 RESOLVED in 0474906 (B7): NotExact.nearest differs from requested for an edit-trimmed first sample (error doc and DESCRIPTOR updated)",
+   "R4 STILL NOT DONE (brief later slices): edit media rate other than 1.0 (Unsupported edit-media-rate-not-1, still file-wide), mdcv/clli HDR metadata, persisting the index, multi-sample tmcd tracks, stz2, multiple sample descriptions",
    "R5 UNVERIFIED (brief): ISO/IEC 14496-12 text for zero segment_duration (W3C-quoted 2012 edition only); fiel detail 9/14 direction in real files (raw by design); Apple/Adobe treatment of a zero-duration edit (no black-box probe run)",
-   "R6 no caller outside tests sets Purpose::Export yet (future export queue STU-VID-060..064): the guard is proven by these tests only",
-   "R7 scratch to remove when the lead agrees: Handshake_Artifacts/WP-KERNEL-STUDIO/smb-reel-eng1-redproof (src, target, tmp, pristine) and engine-video-oracle/reel-eng-1 (fixture authoring copy, ffprobe outputs, tmp)"
-  ]
+   "R6 no caller outside tests sets Purpose::Export yet (future export queue STU-VID-060..064): the guards are proven by these tests only",
+   "R7 scratch to remove when the lead agrees: Handshake_Artifacts/WP-KERNEL-STUDIO/smb-reel-eng1-redproof (src now holds the R9 GREEN crate, target, tmp, pristine) and engine-video-oracle/reel-eng-1 (fixture authoring copy, ffprobe outputs, tmp); scratchpad SMB-REEL-ENG-1-R9 holds reel-work, head-export, commit-export, logs and helper scripts",
+   "R8 NEW (accepted, unverified frequency): a stored per-track refusal means a consumer that lists tracks must read TrackIndex::unsupported(); default_track() still returns the first video track even when it is the refused one (probe/decode then report the refusal)"
+  ],
+  "remediation_R9pre": {
+   "agent": "rem-reel-eng-1 (fresh Sonnet), commit 0474906 on origin 60b3f63; no commit before the coordinator message SYNC DONE 4d80e50 (hold rule); R9 candidate 4d80e50 excludes this lane",
+   "source": "validation/R9-prereview-reel.json advisory section SMB-REEL-ENG-1 (1 CONFIRMED, 2 PLAUSIBLE) + PLR-057",
+   "items": {
+    "1_mxf_confirmed": "fixed (B5), verified against the code before editing: temporal offsets [0,-1,...] give lo = hi = 0, one coded unit visited, delivered 1 of 2, Ok complete false Exact (read from provider.rs and display_position_of; the red run at origin head reaches the sink on that request); the test also covers an earlier display position owning the coded unit (entry 3 on coded 2) and a tail collision (entry 9 on coded 8) with positive controls",
+    "2_elst_file_wide": "verified true (build_index propagated finish_track's error with ?, one track's elst failed the whole index); no existing contract required file-wide failure (the lane's own B3 test was the only pin and was adapted); fixed per track (B6)",
+    "3_nearest": "verified true (nearest == requested for the cut first sample, no retry start); fixed (B7)",
+    "4_plr057": "fixed (B8); observation used: the Fake ExternalVideoDecoder.opens list in tests/video_route.rs (reel-native worker counters are not reachable from this crate)"
+   },
+   "edited_existing_tests": [
+    "tests/engine_video.rs fragmented_zero_duration_edit: the 'anywhere else a zero length is refused' assertions changed from index_of(..).unwrap_err() == Unsupported to: the file indexes, the track is unsupported() == Some, no edits, no presented samples, seek is Unsupported (contract amended by B6)",
+    "tests/engine_video.rs export_is_exact_or_error_for_every_provider: Case gained preview_start (the unit a preview delivers); the edit-trimmed case's nearest 0 -> 501 units (B7); every refusal is retried at nearest and must deliver Exact; Preview assertions unchanged"
+   ],
+   "red_proofs": {
+    "tree": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-reel-eng1-redproof (own STUDIO_OWNER smb-reel-eng1-redproof, own target; src refreshed in place from git archive 60b3f63 with current mtimes; V4-11); logs in scratchpad SMB-REEL-ENG-1-R9: red-head-av1.log, mut-M1..M7.log",
+    "origin_head_plus_new_tests": "src files of 60b3f63 + the new tests + a stub TrackIndex::unsupported() -> None (the new tests call it): --features av1 run, 65 tests: 59 passed, 6 failed: export_is_exact_or_error_for_every_provider (trimmed case nearest), mxf_temporal_offsets_that_are_not_a_permutation_are_refused (sink reached), fragmented_zero_duration_edit ('the file must index: MEDIA_UNSUPPORTED elst-zero-duration'), nearest_of_a_trimmed_first_sample_is_a_start_export_accepts, zero_duration_edit_costs_only_its_track ('the file indexes ...'), export_not_exact_is_refused_before_a_decoder_session_opens ('mp4: a refused export opened a decoder session'); GREEN at 0474906: 60 default / 65 av1 passed",
+    "mutations_on_the_fixed_tree": [
+     {
+      "id": "M1",
+      "mutation": "mxf pre-pass never refuses (if false && ...)",
+      "red": "mxf_temporal_offsets_that_are_not_a_permutation_are_refused: the sink must not be reached"
+     },
+     {
+      "id": "M2",
+      "mutation": "build_index arm for elst-zero-duration never matches (file-wide failure again)",
+      "red": "fragmented_zero_duration_edit: the file must index; zero_duration_edit_costs_only_its_track: the file indexes"
+     },
+     {
+      "id": "M3",
+      "mutation": "nearest = first.target.pts (cut sample's own start)",
+      "red": "export_is_exact_or_error_for_every_provider and nearest_of_a_trimmed_first_sample: left nearest 0, right 4242067200 (501 units)"
+     },
+     {
+      "id": "M4",
+      "mutation": "video.rs Export pre-check disabled",
+      "red": "export_not_exact_is_refused_before_a_decoder_session_opens: mp4: a refused export opened a decoder session (left 1, right 0)"
+     },
+     {
+      "id": "M5",
+      "mutation": "select_track does not refuse an unsupported track",
+      "red": "zero_duration_edit_costs_only_its_track: audio track Packets left packets-of-compact-pcm-track, right elst-zero-duration"
+     },
+     {
+      "id": "M6",
+      "mutation": "TrackIndex::seek does not refuse an unsupported track",
+      "red": "fragmented_zero_duration_edit and zero_duration_edit_costs_only_its_track: OutOfRange instead of Unsupported"
+     },
+     {
+      "id": "M7",
+      "mutation": "probe does not refuse an unsupported default track",
+      "red": "zero_duration_edit_costs_only_its_track: probe of the refused single-track file returned Ok"
+     }
+    ],
+    "restore": "after each mutation the GREEN files were re-copied from the working copy with current mtimes (r9-sync-work.sh), scratch crate verified byte-equal to git archive 0474906 before the final runs"
+   },
+   "v4_compliance": {
+    "V4-01": "isobmff.rs, video.rs, mxf/ keep deny(clippy::arithmetic_side_effects); new code uses saturating_add / get(range) only; clippy --tests --examples clean in both feature sets",
+    "V4-02": "the mxf pre-pass adds at most count x 257 index lookups, count already bounded by limits.max_samples before the pre-pass; no allocation depends on a file field; per-track refusal adds no allocation or loop",
+    "V4-03": "no test reads a machine path; no NOT_PROVEN prints",
+    "V4-06": "see v4_06_*: count 17 = 17, one verdict corrected",
+    "V4-07": "new doc/DESCRIPTOR text cites its test (mxf_temporal_offsets_that_are_not_a_permutation_are_refused, zero_duration_edit_costs_only_its_track, nearest_of_a_trimmed_first_sample_is_a_start_export_accepts, export_not_exact_is_refused_before_a_decoder_session_opens); no never/always/guarantees added",
+    "V4-09": "commit via git commit -F <file> with a pathspec; no amend, no rebase",
+    "V4-11": "red proofs and mutations only on the scratch tree with its own owner; no file of the shared tree was reverted; files copied into the shared tree after SYNC DONE",
+    "V4-12": "helper scripts under scratchpad/SMB-REEL-ENG-1-R9/ with lane-specific names"
+   },
+   "gameplan_route": "one retry-guard hit: after a test mistake of my own (mxf positive controls rewound through the damaged entry) the identical default-feature run was blocked (same command, same HEAD). Route: ran the distinct --features av1 command (required anyway), kept all red/mutation runs as redirected logs ending in echo so no failed gated run was recorded, and reran the default command after the commit changed HEAD. One launch-form rejection: a Bash call that did not start with a cd to the scratch tree resolved an unrelated broken WP gameplan (hook_cwd_note of the AV1-ROUTE lane); fixed by splitting the sync from the cd-led cargo call",
+   "trust_routing_untouched": "git diff 60b3f63..0474906 -- crates/hsk-studio-reel: registry.rs not in the diff; video.rs only gains the Export pre-check block and the import; choose(), Forward, within_declared_size, VideoRoute, SourceTrust unchanged"
+  }
  }
 }
