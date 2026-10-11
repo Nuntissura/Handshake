@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T02:56:47Z",
+ "updated_at": "2026-10-11T03:01:38Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -405,7 +405,7 @@
    "model": "sonnet",
    "role": "press slice 1",
    "launched": "2026-10-11T02:16:22Z",
-   "status": "running"
+   "status": "done (slices 1-2; 1df11b2)"
   },
   {
    "name": "builder-folio-eng-3",
@@ -461,7 +461,7 @@
    "model": "opus",
    "role": "adversarial review R3 (code since 87c1cd9)",
    "launched": "2026-10-11T02:38:16Z",
-   "status": "running"
+   "status": "done (18/26 FAIL at 57ce0fa; findings routed)"
   },
   {
    "name": "builder-psd-wide",
@@ -533,6 +533,38 @@
    "model": "sonnet",
    "role": "motion-js worker isolation",
    "launched": "2026-10-11T02:56:47Z",
+   "status": "running"
+  },
+  {
+   "name": "fix-r3-render-chain",
+   "agent_id": "acacadf8d8b8f6a4d",
+   "model": "sonnet",
+   "role": "R3 remediation pigment/composite/render-cpu",
+   "launched": "2026-10-11T03:01:38Z",
+   "status": "running"
+  },
+  {
+   "name": "fix-r3-render-gpu",
+   "agent_id": "ae91387a904677e8d",
+   "model": "opus",
+   "role": "R3 remediation render-gpu (test integrity)",
+   "launched": "2026-10-11T03:01:38Z",
+   "status": "running"
+  },
+  {
+   "name": "fix-r3-nib-controls-score",
+   "agent_id": "aa8eeb575a36c7618",
+   "model": "sonnet",
+   "role": "R3 remediation nib/controls/score",
+   "launched": "2026-10-11T03:01:38Z",
+   "status": "running"
+  },
+  {
+   "name": "fix-r3-session-components-media",
+   "agent_id": "ac40942730c7aebf9",
+   "model": "sonnet",
+   "role": "R3 remediation session/components/interop-media",
+   "launched": "2026-10-11T03:01:38Z",
    "status": "running"
   }
  ]
