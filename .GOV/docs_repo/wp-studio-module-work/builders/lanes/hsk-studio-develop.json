@@ -1,7 +1,7 @@
 {
   "crate": "hsk-studio-develop",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice4_wide_conversion_scalar_speed_and_r3_fixes_done_real_dng_awaiting_download_approval",
+  "phase": "slice5_tile_parallel_r5_v4_and_admitted_wide_done_real_dng_awaiting_download_approval",
   "commits": [
     {
       "sha": "68e87672ac310b9401461c20815f4dadff452fe2",
@@ -94,37 +94,63 @@
       "summary": "test for the converter length guard (R3 PLAUSIBLE pipeline.rs:639-647: wrong-length converter output -> typed invalid_length, no tile delivered; guard itself landed with the pipeline rewrite)"
     },
     {
-      "sha": "5ef2dd9",
+      "sha": "5ef2dd9d8c501c3549c46ae87863292b9c158a85",
       "branch": "codex/handshake-studio-assets",
       "pushed": true,
       "summary": "remediation_R5 (group A, CONFIRMED, candidate 1d404f8 / c008daf): lossless-JPEG DNG declared frame must fit in 8 x min(sum of block byte counts, file length) before the frame allocation, typed invalid_dimensions (dng.rs, before the vec![0u16; w*h]); hostile tiny file (asserted < 4 KiB; 16384x16384 tile and image, one tiny stream) test with a per-thread allocation tracker: RED on the old code (invalid_container after the 512 MiB allocation), green now"
+    },
+    {
+      "sha": "f13284309303284596c32f48621eedafaf8d424b",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "tile-parallel develop on std scoped threads (par.rs: Threads single/new/auto, run_indexed, for_each_band): normalise + demosaic row bands, output tiles, image assembly; converter route = stage A batch parallel, converter driven from the calling thread in tile order, stage C parallel; lowest failing tile decides the error; branch-free per-row-phase normalisation loop; develop_with_threads / develop_to_image_threads / demosaic_normalized_threads (defaults use Threads::auto); develop-bench reports per-thread-count timings + digests + determinism line; tests/develop_parallel.rs (4)"
+    },
+    {
+      "sha": "8962bbc12b37a1a3cea6d727136e342b9dd1a651",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "workflow v4 on dng.rs: payload bound for EVERY compression (V4-06 class sweep), deny(arithmetic_side_effects) with all 45 sites checked (V4-01), dims_u32_max + aggregate_over_budget tests (V4-02), thread-count claims cite their tests (V4-07)"
+    },
+    {
+      "sha": "85fe452737b926c661a88124fbbe2719f149571c",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "remediation_R5_develop_wide: PrismConverter converts through Prism AdmittedWideEngine (e7cf81f) so every wide-path allocation is charged to the caller ledger before it happens; short_admission_budget_is_refused_before_any_work; profile_transform_admitted now checks ledger == provider leases + cached plan leases"
     }
   ],
   "capabilities_done": [
     "recipe: typed DevelopRecipe/Enables(12)/NormalizedCrop/ResolvedCurves; refuses unsupported process/engine/token/demosaic/WB/crop/contribution",
     "pipeline: CfaPlane (spec_v1 + large limits validated at admission, Bayer x4 + X-Trans 6x6, phase/origin), normalised bilinear_reflect_native_v1 demosaic, as-shot WB gains, calibration matrix, [Prism working->output], exposure, monotone Hermite curves, crop floor/ceil, Pigment Grid tiles (rgb_f32le + alpha f32le + coverage_u8), develop_to_image",
     "atomic: all tiles computed before sink; cancel/stale/sink error -> no receipt; plane immutable; sha256 in receipt; route recorded (scalar only, sse2 refused)",
-    "profile transform: ProfileConverter port + PrismConverter (admitted inspection of both profiles: verified linear-light descriptors under the caller ledger, plus WideEngine admission), then conversion through Prism WideEngine in requests of at most WIDE_CHUNK_PIXELS=262144 (limit 2097152; with_chunk_pixels), relative colorimetric / BPC off; plan cache => each profile parsed once per frame (receipt profile_stats: plan hits/misses/parses); range refusal outside 0..1 never clipped; output unclamped and destination values outside 0..1 counted in receipt profile_stats.clip (method, pixels, per-channel, max overshoot); identity skip only after inspection; receipt profile_route prism_admitted_wide + profile_calls (requests); independent ICC colorant oracle test (1e-4) unchanged and green; the wide transform is NOT charged to the caller admission ledger (bounded by request size, 2 MiB profiles, 8 plans)",
+    "profile transform: ProfileConverter port + PrismConverter (admitted inspection of both profiles: verified linear-light descriptors under the caller ledger, plus WideEngine admission), then conversion through Prism WideEngine in requests of at most WIDE_CHUNK_PIXELS=262144 (limit 2097152; with_chunk_pixels), relative colorimetric / BPC off; plan cache => each profile parsed once per frame (receipt profile_stats: plan hits/misses/parses); range refusal outside 0..1 never clipped; output unclamped and destination values outside 0..1 counted in receipt profile_stats.clip (method, pixels, per-channel, max overshoot); identity skip only after inspection; receipt profile_route prism_admitted_wide + profile_calls (requests); independent ICC colorant oracle test (1e-4) unchanged and green; the wide transform is charged to the caller admission ledger through Prism AdmittedWideEngine from 85fe452 (provider lease, plan + transient build leases on a miss, request + output leases per request; a denial is prism_refused:admission_denied before any parse); before that commit it was unaccounted",
     "observe: report() outcome mapping (incl. Prism codes), DESCRIPTOR, develop-consumer example",
     "dng: classic TIFF IFD walk (bounded), SubIFD raw selection, strips/tiles with checked sizes, uncompressed 8/16-bit LE/BE, lossless JPEG (compression 7), LinearizationTable, per-site BlackLevel repeat + BlackLevelDeltaH/V, WhiteLevel, ActiveArea, DefaultCrop, raw-IFD-scoped tag lookup, cfa_plane windows (Refuse | ClampReported counted), unapplied-feature report (opcode lists, default scale/user crop, profile maps, orientation)",
     "colour: DNG camera->XYZ D50 (CM/FM two-profile mired interpolation, iterative white from AsShotNeutral or AsShotWhiteXY, Robertson 1968 CCT, Bradford, ForwardMatrix and ColorMatrix paths with the same neutral->D50 Y=1 convention), recipe built from DNG tags with BaselineExposure policy",
     "scalar speed (no SIMD, no unsafe, output byte-identical, pinned by develop_digest): demosaic stencil per (row phase, column phase, missing channel) with linear offsets in the reference summation order (sites within 2 samples of an edge use the original reflect routine), CfaPlane channel lookup table used by admission and normalisation, row-wise tile/alpha/coverage writes without per-pixel division, develop_to_image row copy, exposure == 1 with no curve skips only the identity multiply (finiteness refusal kept), curve segment found by branch-free count, stage-A products unchecked only when every gain/coefficient is 0 or within 1e-100..1e100 (then no product can overflow or round to zero; the f32 rounding refusals are kept)",
-    "R3 fixes (validation/R3-review.json SMB-DEVELOP CONFIRMED): cfa_plane uses checked_sub for the per-site black shift and for sample - shift, so finite but absurd BlackLevel/BlackLevelDelta DOUBLE values (rounded black saturating at an i64 limit) give typed invalid_levels (Refuse and ClampReported) instead of an overflow panic/wrap; representable large shifts keep the old sample_out_of_range behaviour. fetch-corpus.sh default now resolves from the crate directory with the same CORPUS_RELATIVE string as tests/real_dng.rs (dry run prints the sibling Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/dng); STUDIO_DNG_CORPUS still overrides both; no download performed"
+    "R3 fixes (validation/R3-review.json SMB-DEVELOP CONFIRMED): cfa_plane uses checked_sub for the per-site black shift and for sample - shift, so finite but absurd BlackLevel/BlackLevelDelta DOUBLE values (rounded black saturating at an i64 limit) give typed invalid_levels (Refuse and ClampReported) instead of an overflow panic/wrap; representable large shifts keep the old sample_out_of_range behaviour. fetch-corpus.sh default now resolves from the crate directory with the same CORPUS_RELATIVE string as tests/real_dng.rs (dry run prints the sibling Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/dng); STUDIO_DNG_CORPUS still overrides both; no download performed",
+    "tile-parallel develop (std::thread::scope, no new deps, no unsafe): Threads = single | new(1..=64) | auto (min(available_parallelism, 16), resolved once); develop_with_threads / develop_to_image_threads / demosaic_normalized_threads, and develop / develop_with / develop_to_image / demosaic_normalized now default to Threads::auto(); normalisation and demosaic by row bands of about 64 Ki samples, output tiles from a shared counter, image assembly by tile-row bands; converter route: stage A of a batch of 4*threads tiles in parallel, converter driven from the calling thread in tile order, stage C in parallel, stage-A failures held back so errors surface in serial order; lowest failing tile decides the error whatever the thread count; cancellation checked between bands and tiles -> canceled, nothing delivered; receipt unchanged (route scalar, no thread field), Sse2 hint still unsupported_execution",
+    "normalisation loop: per-row-phase black/denominator tables, branch-free, safe code the compiler can vectorise with IEEE binary64 division + binary32 conversion; byte-identical (develop_digest + 24 MP digests)",
+    "DNG decoder (R5 + workflow v4): declared frame must fit the payload for compression 1 and 7 (width*height*bytes_per_sample, resp. 1 bit per sample, vs summed block byte counts capped by the file length) before the frame allocation; dng.rs under deny(clippy::arithmetic_side_effects); hostile-size tests dims_u32_max and aggregate_over_budget with a per-thread allocation tracker",
+    "PrismConverter::new takes (&AdmittedPrism, &mut AdmittedWideEngine<A>, ...) with one admission type for both; wide inspection (transient parse lease), plan build, request and output are leased on the caller ledger first"
   ],
   "tests": {
-    "passed": 16,
+    "passed": 24,
     "failed": 0,
     "ignored": 1,
     "targets": {
       "develop_recipe": "5/5",
-      "develop_dng": "6/6 (new dng_black_level_delta_overflow_is_a_typed_refusal; RED on 12e3043 with attempt to subtract with overflow at dng.rs:744, GREEN after the fix)",
-      "develop_profile": "2/2 (profile_transform_admitted updated for the wide route: 1 request, 1 observation, ledger == provider lease; oracle 1e-4 unchanged; new wide_requests_are_chunk_invariant_and_report_plan_cache_and_clip, also covers the wrong-length converter refusal)",
-      "develop_digest": "2/2 new (scalar_output_is_byte_identical_to_the_pre_rewrite_oracle, curve_eval_is_byte_identical_to_the_pre_rewrite_oracle; digests taken on 12e3043 before the rewrite)",
-      "real_dng": "1 passed (new fetch_script_default_matches_test_default) + 1 ignored (needs corpus download approval)"
+      "develop_dng": "9/9 (new: dng_lossless_jpeg_declared_frame_cannot_outgrow_the_payload RED on the old code, dng_dims_u32_max_is_a_typed_refusal_without_allocation, dng_aggregate_over_budget_is_refused_before_allocating RED with the uncompressed bound disabled)",
+      "develop_profile": "3/3 (new short_admission_budget_is_refused_before_any_work; profile_transform_admitted updated: ledger == both provider leases + cached plan leases; ICC colorant oracle 1e-4 unchanged and green with Prism ENG-6)",
+      "develop_digest": "2/2 (pre-rewrite oracle digests unchanged by the parallel + normalise rewrite)",
+      "develop_parallel": "4/4 new (output_is_identical_for_every_thread_count over 1/2/3/8 threads incl. demosaic, tiles+receipt, image, default entry point; converter_is_driven_in_tile_order_on_the_calling_thread; lowest_failing_tile_decides_the_error_for_every_thread_count both layouts, fused and converter route; cancellation_returns_canceled_and_no_partial_output pre/in-flight/converter-triggered)",
+      "real_dng": "1 passed + 1 ignored (needs corpus download approval)"
     },
+    "argv": "cargo test -p hsk-studio-develop --tests",
+    "exit": 0,
+    "sha": "85fe452737b926c661a88124fbbe2719f149571c",
     "check_tests": "PASS",
-    "clippy_tests": "PASS (no develop findings; observe has 2 pre-existing too_many_arguments warnings)",
-    "head": "d40d553090845101ff5803543e58b1d7355c1f40"
+    "clippy_tests": "PASS for develop with cargo clippy -p hsk-studio-develop --tests --no-deps (the plain form stopped inside hsk-studio-prism earlier while that lane was mid V4-01; re-run of the plain form not needed for this verdict)",
+    "head": "85fe452737b926c661a88124fbbe2719f149571c"
   },
   "speed_release_24mp_synthetic": {
     "plane_admit_ms": 43,
@@ -133,7 +159,57 @@
     "develop_curve_exposure_ms": 2279,
     "mpix_per_s_identity": 23.1,
     "route": "scalar",
-    "note": "single thread, 6000x4000 RGGB, Limits::LARGE, 384 tiles of 256, release, shared busy host, one run 2026-10-11 after 84b77d2; before (12e3043): plane_admit 106, demosaic_only 1628, identity 3335, curve+exposure 5308. New stage develop_profile_p3_to_srgb (Display P3 -> sRGB linear, WideEngine, 384 requests, 1 plan build / 383 hits / 2 parses, 2.68M pixels with out-of-gamut values in the clip report): 4137 ms = 5.8 Mpx/s, of which about 110 ns/px (2.6 s) is inside the Prism wide transform (probe: 262144 px = 28 ms; per-f32 output hashing only about 10 ns/px)"
+    "note": "single thread, 6000x4000 RGGB, Limits::LARGE, 384 tiles of 256, release, shared busy host, one run 2026-10-11 after 84b77d2; before (12e3043): plane_admit 106, demosaic_only 1628, identity 3335, curve+exposure 5308. New stage develop_profile_p3_to_srgb (Display P3 -> sRGB linear, WideEngine, 384 requests, 1 plan build / 383 hits / 2 parses, 2.68M pixels with out-of-gamut values in the clip report): 4137 ms = 5.8 Mpx/s, of which about 110 ns/px (2.6 s) is inside the Prism wide transform (probe: 262144 px = 28 ms; per-f32 output hashing only about 10 ns/px)",
+    "threads_run_2026-10-11": {
+      "frame": "6000x4000 RGGB synthetic, Limits::LARGE, 384 tiles of 256, release, shared busy host (32 logical CPUs, other lanes building), develop-bench --threads 1,2,4,8,16 / 1,16, four runs at 8962bbc and 85fe452 (85fe452 = admitted wide engine)",
+      "before_pre_change_same_session": {
+        "plane_admit_ms": 43,
+        "demosaic_only_ms": 370,
+        "develop_identity_ms": 1098,
+        "develop_curve_ms": 2464,
+        "develop_profile_p3_to_srgb_ms": 2493
+      },
+      "after_1_thread_range": {
+        "demosaic_only_ms": "297-322",
+        "develop_identity_ms": "651-759",
+        "develop_curve_ms": "1725-1992",
+        "develop_profile_p3_to_srgb_ms": "1838-2037"
+      },
+      "after_2_threads": {
+        "demosaic_only_ms": 199,
+        "develop_identity_ms": 553,
+        "develop_curve_ms": 1132,
+        "develop_profile_p3_to_srgb_ms": 1622
+      },
+      "after_4_threads": {
+        "demosaic_only_ms": 128,
+        "develop_identity_ms": 338,
+        "develop_curve_ms": 706,
+        "develop_profile_p3_to_srgb_ms": 1490
+      },
+      "after_8_threads": {
+        "demosaic_only_ms": 102,
+        "develop_identity_ms": 300,
+        "develop_curve_ms": 452,
+        "develop_profile_p3_to_srgb_ms": 1410
+      },
+      "after_16_threads_range_4_runs": {
+        "demosaic_only_ms": "59-90",
+        "develop_identity_ms": "196-278",
+        "develop_curve_ms": "254-346",
+        "develop_profile_p3_to_srgb_ms": "1366-1432"
+      },
+      "latest_85fe452_16_threads": {
+        "demosaic_only_ms": 72,
+        "develop_identity_ms": 214,
+        "develop_curve_ms": 254,
+        "develop_profile_p3_to_srgb_ms": 1432,
+        "identity_mpix_per_s": 112.1
+      },
+      "speedup_16_threads_vs_pre_change": "demosaic ~5x (370 to ~70 ms), identity ~5x (1098 to ~215 ms), curve+exposure ~9.5x (2464 to ~260 ms), P3 to sRGB ~1.8x (2493 to ~1400 ms)",
+      "note": "timings are noisy (shared host): identity at 8 vs 16 threads ranged 196-300 ms, the plateau is allocation/page-fault and memory bandwidth bound. The profile stage is bound by the serial Prism wide transform (about 1.3 s of the remaining time, through the admitted route with an unmetered ledger); only stage A and stage C around it run in parallel. The 85fe452 profile timing (admitted wide engine, Prism ENG-6 evaluation) is within noise of the 8962bbc one.",
+      "identity_proof_24mp": "sha256 of every stage output is identical for 1, 2, 4, 8, 16 and 32 threads (determinism=PASS, develop-bench) and equals the pre-change baseline taken on the unmodified pipeline: demosaic 9d72ed3e3e6fe1bbd6e12c38c6de33ed7ba69995899ef54190707578d9510821, develop_identity c764a2f32e2d439280bbb4495cb035f2a2cf41b668b6e5045840ee8d08d021aa, develop_curve 9e9fb9f36d30d611c8d44d0f129e5b99b351d7d65c5b85f9945b335145817414, develop_profile_tiles 60c9423609adf5417f4cdb96d226cfce73bd4adb02f724e40d1ac7450bcc6ebc; profile receipt (calls 384, plan hits 383 / misses 1 / parses 2, clip pixels 2681886) identical for every thread count"
+    }
   },
   "blockers": [],
   "pending_operator_decision": {
@@ -148,10 +224,10 @@
     {
       "remediation_R5": {
         "finding": "R5 group A CONFIRMED: ~300-byte lossless-JPEG DNG forced a 512 MiB allocation (block size check skipped for compression 7; dng.rs:438-449, bounds :17/:386)",
-        "fix": "5ef2dd9: for compression 7, width*height <= 8 * min(sum(block byte counts), file length) else invalid_dimensions, checked before vec![0u16; w*h]; the file-length cap stops blocks that overlap the same bytes from inflating the sum",
+        "fix": "5ef2dd9: for compression 7, width*height <= 8 * min(sum(block byte counts), file length) else invalid_dimensions, checked before vec![0u16; w*h]; the file-length cap stops blocks that overlap the same bytes from inflating the sum; 8962bbc extends the bound to compression 1 (see v4_06_declared_size_allocations)",
         "test": "tests/develop_dng.rs dng_lossless_jpeg_declared_frame_cannot_outgrow_the_payload (hostile file: image and tile 16384x16384 = 2^28 samples over one 16-sample stream; asserts largest single allocation < 1 MiB via a per-thread tracking allocator, whose self-check sees a 2 MiB request, and typed invalid_dimensions). Verified RED with the check disabled (got invalid_container, i.e. the old path allocated and failed late); develop_dng 7/7 green on 5ef2dd9",
-        "observation_not_changed": "uncompressed DNG with many tile/strip offsets pointing at the same bytes passes the per-block in-file check and can still amplify a small file into a large frame allocation (needs blocks of real size, bounded by MAX_DNG_PIXELS); same class as R5 but not in the recorded finding, left as is",
-        "recorded_at": "2026-10-11T05:32:58Z"
+        "recorded_at": "2026-10-11T05:32:58Z",
+        "uncompressed_overlap_followup": "FIXED in 8962bbc (workflow v4 V4-06 sweep): the same payload bound now applies to compression 1; earlier observation was: uncompressed DNG with many tile/strip offsets pointing at the same bytes passes the per-block in-file check and can still amplify a small file into a large frame allocation (needs blocks of real size, bounded by MAX_DNG_PIXELS); same class as R5 but not in the recorded finding, left as is"
       }
     },
     "kamadak-exif 0.6.1 verified (BSD-2-Clause, pure Rust, deps: mutate_once only, 2024-11-06) but NOT added: own IFD reader covers every DNG tag develop needs",
@@ -159,8 +235,8 @@
     "Robertson CCT table transcribed from colour-science (BSD-3) and checked against D65/A/D50 CCTs; LightSource temperatures documented in color.rs (Adobe SDK table UNVERIFIED)",
     "OpcodeList1-3 are reported as unapplied (require_complete refuses); optional-vs-required opcode parsing not implemented",
     "Prism wide route: working RGB must still be finite in 0..1 (typed refusal channel_range, never clipped); the 64-pixel per-call parsing is gone (plan cache; requests up to 262144 px)",
-    "SPEC DELTA (needs lead/Operator): STU-CON-044 (spec v02.215 line 22588) still says admitted Prism transform in bounded chunks of at most 64 pixels with accounted lifetime and no fallback to the legacy route; the wide route is neither 64-pixel nor ledger-accounted. Admitted inspection of both profiles is kept; the transform leg needs a spec enrichment or a Prism ledger hook",
-    "Behaviour change: DevelopReceipt no longer derives Eq (profile_stats carries f64 clip overshoot); PRISM_CHUNK removed, WIDE_CHUNK_PIXELS added; PrismConverter::new now takes (&AdmittedPrism, &mut WideEngine, ...); profile_route for a converted run is prism_admitted_wide",
+    "SPEC DELTA (needs lead/Operator): STU-CON-044 (spec v02.215 line 22588) still says admitted Prism transform in bounded chunks of at most 64 pixels with accounted lifetime and no fallback to the legacy route; the wide route is neither 64-pixel nor ledger-accounted. Admitted inspection of both profiles is kept; the transform leg needs a spec enrichment or a Prism ledger hook UPDATE 85fe452: the wide route is now ledger-accounted through Prism AdmittedWideEngine (see remediation_R5_develop_wide); only the 64-pixel chunk size of the spec text remains a delta (requests are up to 262144 pixels).",
+    "Behaviour change: DevelopReceipt no longer derives Eq (profile_stats carries f64 clip overshoot); PRISM_CHUNK removed, WIDE_CHUNK_PIXELS added; PrismConverter::new now takes (&AdmittedPrism, &mut WideEngine, ...); profile_route for a converted run is prism_admitted_wide UPDATE 85fe452: PrismConverter::new now takes (&AdmittedPrism<A>, &mut AdmittedWideEngine<A>, ...).",
     "Prism perf finding: WideEngine::transform costs about 110 ns/px (moxcms two legs plus clip scan plus output hash); a matrix/TRC to matrix/TRC pair with linear TRCs could fuse into one 3x3 plan inside Prism (develop stays the consumer, no colour math here)",
     "Not done (outside this task): multi-threaded tiles (tiles are independent; scoped threads are safe Rust), ledger accounting of wide requests, SIMD, R3 PLAUSIBLE LJPEG items (pre-allocation bound dng.rs:438-449; ljpeg.rs:141-158 fill bytes / RST sequence + hand KATs). R3 PLAUSIBLE pipeline.rs:639-647 (converter length) is fixed and tested",
     {
@@ -237,8 +313,63 @@
           "blocked_on": "SMB-PRISM-ENG-6 (admission-ledger hook) / Operator D13 (STU-CON-044)"
         }
       ]
+    },
+    {
+      "remediation_R5_develop_wide": {
+        "lane": "SMB-DEVELOP-WIDE (BLOCKED on STU-CON-044 accounting until Prism ENG-6)",
+        "fix": "85fe452: convert.rs uses Prism AdmittedWideEngine (e7cf81f); AdmittedWideError maps to the existing typed codes (admission_denied keeps outcome unavailable, cancellation stays canceled); the unaccounted WideEngine is no longer used anywhere in the crate",
+        "test": "tests/develop_profile.rs short_admission_budget_is_refused_before_any_work: ledger with a cap; peak measured on an unlimited run; exactly the peak succeeds with identical bytes; peak-1 is denied with Prism(admission_denied) while taking the last lease of the first request: no tile, converter.calls()==0, no Prism observation, cache stats all zero (nothing parsed or planned), no plan lease, ledger back to the provider leases; a ledger holding only the two provider leases is denied at inspection before any pixel work. The old code had no accounted path (the WideEngine API has no ledger), so there is no RED run on it",
+        "ledger_accounting_check": "profile_transform_admitted: after all cases the live ledger equals prism.provider + wide.provider + wide.plan_reserved_bytes() (transient inspection/build/request/output leases all retired)",
+        "prism_eng6_digest_evidence": "develop colour digests did not change with Prism through 987af00 (tree clean at that point): the 24 MP Display P3 -> sRGB tile digest 60c9423609adf5417f4cdb96d226cfce73bd4adb02f724e40d1ac7450bcc6ebc and its receipt counters equal the values recorded before any of this session's edits (prism then = fdd57ee + that lane's uncommitted WIP), the independent ICC colorant oracle (1e-4) passes, and develop_digest (no converter) is Prism-independent; nothing was re-pinned",
+        "timing_with_eng6": "P3 to sRGB 24 MP: 1.83-2.04 s at 1 thread, 1.37-1.43 s at 16 threads (unmetered ledger); linear pair uses the fused matrix plan. Non-linear (encoded) profiles are still refused by develop (linear-light inspection), so the ~187 ns/px non-linear Prism path is not exercised here",
+        "recorded_at": "2026-10-11T05:54:20Z"
+      }
+    },
+    {
+      "v4_06_declared_size_allocations": {
+        "class": "a size/count declared by untrusted bytes drives an allocation (or loop) before the payload present is shown to support it",
+        "regex": "vec!\\[|with_capacity|\\.reserve\\(|\\.resize\\(|\\.to_vec\\(",
+        "scope": "crates/hsk-studio-develop/src/*.rs at 8962bbc (convert.rs changed afterwards, no new match)",
+        "matches": 26,
+        "sites": {
+          "convert.rs:192": "not applicable: length of the caller-supplied pixel slice",
+          "curves.rs:17": "not applicable: constant",
+          "curves.rs:55,62": "not applicable: n is 2..=32 (Curve::new validates before prepare)",
+          "dng.rs:480 samples": "FIXED: payload bound for compression 7 (5ef2dd9) and compression 1 (8962bbc) before the allocation; tests dng_lossless_jpeg_declared_frame_cannot_outgrow_the_payload, dng_aggregate_over_budget_is_refused_before_allocating",
+          "dng.rs:577": "not applicable: constant [0.0]",
+          "dng.rs:788 window bytes": "not applicable: window validated inside the active area, which lies inside the frame already bounded by MAX_DNG_PIXELS (saturating math)",
+          "ljpeg.rs:37": "not applicable: constant LUT",
+          "ljpeg.rs:65": "not applicable: copy of Huffman values already inside the DHT segment",
+          "ljpeg.rs:334": "FIXED earlier (R3 LJPEG bomb guard, ljpeg.rs:276-283: total <= max_samples and total <= 8 * stream length before decode_scan); test dng_lossless_jpeg bomb case",
+          "par.rs:79,108,123": "not applicable: job/band/worker counts derived from tile counts bounded by Limits.max_tiles and plane size, workers <= 64",
+          "pipeline.rs:361,532": "not applicable: w*h of an admitted plane (Limits-bounded, bytes already supplied by the caller)",
+          "pipeline.rs:447": "not applicable: period*period <= 36",
+          "pipeline.rs:776,799,800,801": "not applicable: bounded by the grid tile edge <= Limits.max_tile_edge (invalid_grid) and max_output_bytes before any tile is computed",
+          "pipeline.rs:964,978": "not applicable: <= tile_count <= Limits.max_tiles",
+          "pipeline.rs:1096": "not applicable: output is a crop of an admitted plane under caller-set Limits",
+          "tiff.rs:99": "not applicable: entry count <= MAX_ENTRIES_PER_IFD (1024)",
+          "tiff.rs:179,211": "not applicable: data_of proves count * type_size bytes lie inside the file before the allocation (at most 8x the present bytes)"
+        },
+        "compression_paths_checked": "compression 1 (uncompressed, strips and tiles) and 7 (lossless JPEG, strips and tiles); every other compression refuses unsupported_compression before any allocation",
+        "count_check": "listed sites = 26 = regex matches (grep -cE over src/*.rs)"
+      }
+    },
+    {
+      "simd_decision": {
+        "result": "no std::arch/AVX2 route; normalisation made branch-free and table-driven instead (safe code, bit-identical)",
+        "measured_probe": "throwaway single-file probe outside the repo, 24 MP RGGB, one thread: scalar normalise 40-60 ms, SSE2 intrinsics 15-29 ms, branch-free portable loop 16.7 ms; both fast variants bit-identical to scalar on all 24 M sites (IEEE binary64 division and binary32 conversion are correctly rounded per lane)",
+        "why_no_intrinsics": "(1) the compiler requires unsafe to call a #[target_feature] function from a non-annotated caller even on x86_64 where sse2 is baseline, which conflicts with the crate #![forbid(unsafe_code)]; (2) the portable loop is as fast as the SSE2 version in the probe; (3) ExecutionHint::Sse2 -> unsupported_execution and route \"scalar\" are pinned by tests/develop_recipe.rs and stay; (4) estimated (single-thread probe divided by 16, not measured in situ) the normalise stage is about 1 ms of roughly 200 ms at 16 threads, so AVX2 runtime dispatch would not change the result"
+      }
+    },
+    {
+      "workflow_routes": {
+        "retry_guard": "route (a): the deliberate RED run of the new LJPEG test was blocked on an identical rerun at an unchanged HEAD; no flags changed to evade it; the tracker self-check was added in the test instead, the fix committed (HEAD change) and the target rerun green. Later RED runs used different test filters only after a commit had changed HEAD",
+        "v4_09": "commits 8962bbc and 85fe452 used git commit -F; earlier commits of this session (5ef2dd9, f132843) used inline -m before the v4 notice",
+        "prism_lint": "plain cargo clippy -p hsk-studio-develop --tests failed inside hsk-studio-prism (45 arithmetic_side_effects errors, another lane mid V4-01) at one point; develop was linted with --no-deps",
+        "push": "85fe452 push was rejected as a ref-lock race (remote ref already at 85fe452, expected 6e95976; most likely another lane pushed the shared local branch, which already contained 85fe452); origin/codex/handshake-studio-assets == 85fe452 after fetch"
+      }
     }
   ],
-  "next": "after download approval: run real_dng ignored test (+ ExifTool oracle), fix any refusals; open R3 PLAUSIBLE LJPEG items; optional: tile-parallel develop (scoped threads), SIMD sse2 normalisation, encoded (non-linear) profiles when Prism admits them, spec STU-CON-044 enrichment for the wide route",
-  "updated_at": "2026-10-11T03:08:39Z"
+  "next": "after download approval: run real_dng ignored test (+ ExifTool oracle), fix any refusals; open R3 PLAUSIBLE LJPEG items (ljpeg.rs fill bytes / RST sequence + hand KATs; ljpeg.rs and tiff.rs are not under deny(arithmetic_side_effects) yet: V4-01 applies when they are touched); encoded (non-linear) profiles now that Prism evaluates curves/CLUTs itself (needs a decision on the linear_light tile contract); STU-CON-044 spec text still names 64-pixel chunks (spec enrichment, Operator); optional: AVX2/std::arch normalisation (skipped, see notes.simd_decision)",
+  "updated_at": "2026-10-11T05:54:20Z"
 }

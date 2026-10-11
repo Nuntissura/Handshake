@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T05:53:27Z",
+ "updated_at": "2026-10-11T05:55:29Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -70,8 +70,8 @@
    "lane_id": "SMB-DEVELOP",
    "crate": "hsk-studio-develop",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-develop",
-   "phase": "build",
-   "status": "FAIL_V2",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-develop",
    "brief": "builders/briefs/hsk-studio-develop.md",
    "commits": [
@@ -82,15 +82,16 @@
     "1cd586c",
     "01bfeb3",
     "a8dd8e8",
-    "12e3043"
+    "12e3043",
+    "85fe452"
    ],
    "verdicts": [
     "STUDIO-R3 FAIL_V1 @404ff3a",
     "STUDIO-R5 FAIL_V2 @1d404f8"
    ],
    "lane_file": "builders/lanes/hsk-studio-develop.json",
-   "candidate": "d40d553",
-   "note": "11 tests + 1 ignored real-DNG; prism output route; 24MP full develop 3.3s scalar; real CC0 DNGs await Operator download approval (D10)",
+   "candidate": "85fe452",
+   "note": "R5 LJPEG bound 5ef2dd9 (red-first) + V4 sweep 8962bbc (payload bound covers uncompressed overlapping tiles; 45 sites; 26 alloc sites listed) + tile-parallel f132843 (digests identical 1..32 threads; demosaic ~5x, full develop ~5x, curve+exposure ~9.5x, P3->sRGB 1.8x limited by serial prism transform) + AdmittedWideEngine 85fe452; SIMD skipped (forbid unsafe; table-driven loop equally fast); 24 green 1 ignored",
    "review_findings": "R2-review-a CONFIRMED fixed 01bfeb3 (regression tests)",
    "review_findings_r3": "R3 CONFIRMED fixed d40d553 (BlackLevelDelta checked_sub; corpus path unified)",
    "r5_review_routed": {
@@ -608,20 +609,21 @@
    "lane_id": "SMB-WEB",
    "crate": "hsk-studio-web",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-web",
-   "phase": "build",
-   "status": "FAIL_V1",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-web",
    "brief": null,
    "commits": [
     "b081975",
     "da39753",
-    "7cd898d"
+    "7cd898d",
+    "8682e6f"
    ],
    "verdicts": [
     "STUDIO-R5 FAIL_V1 @1d404f8"
    ],
-   "candidate": "7cd898d",
-   "note": "slices1-2: + refresh/KeyMap, collect_assets (all external schemes denied), preview_tree a11y, report(); 9 tests",
+   "candidate": "8682e6f",
+   "note": "R5 remediation 5518980 + sweep 8682e6f: CSS Syntax 3 tokenizer (cssurl.rs) decodes escapes before classifying; HTML charrefs decoded first (charref.rs); any base href -> relative refs Denied(BaseHref); WHATWG URL attribute index scanned (srcset, poster, object data, formaction, ping, meta refresh, xlink:href, SVG url()); srcdoc Denied(InlineDocument); ambiguous encoded paths Denied; sweep found hidden meta refresh via charref; 15 of 15 green, 6 red-first",
    "r5_review_routed": {
     "to": "rem-web",
     "at": "2026-10-11T05:31:12Z",
@@ -1291,17 +1293,18 @@
    "crate": "hsk-studio-develop",
    "origin": "prism ENG lanes landed",
    "scope": "output via WideEngine large chunks + demosaic speed tables, byte-identical output",
-   "phase": "blocked",
-   "status": "BLOCKED",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "fresh builder",
    "commits": [
-    "d40d553"
+    "d40d553",
+    "85fe452"
    ],
    "verdicts": [
     "STUDIO-R5 BLOCKED @1d404f8"
    ],
-   "candidate": "d40d553",
-   "note": "WideEngine output + speed tables (byte-identical); 24MP demosaic 1628->398ms",
+   "candidate": "85fe452",
+   "note": "STU-CON-044: PrismConverter now uses prism AdmittedWideEngine (caller ledger charged before any parse/plan/tile; one byte short refused, exact budget identical bytes)",
    "r5_review_routed": {
     "to": "BLOCKED: STU-CON-044 accounting; lead decision D13 option b -> Prism admission-ledger hook queued on builder-prism-eng6",
     "at": "2026-10-11T05:31:12Z"
@@ -1531,6 +1534,9 @@
   "SMB-PRISM-ENG-5",
   "SMB-SCORE-PLUGIN",
   "SMB-CONTROLS",
-  "SMB-INTEROP-LRCAT"
+  "SMB-INTEROP-LRCAT",
+  "SMB-WEB",
+  "SMB-DEVELOP",
+  "SMB-DEVELOP-WIDE"
  ]
 }

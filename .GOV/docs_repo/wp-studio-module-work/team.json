@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T05:53:27Z",
+ "updated_at": "2026-10-11T05:55:29Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -774,7 +774,7 @@
     "builders/lanes/hsk-studio-develop.json"
    ],
    "launched": "2026-10-11T05:18:52Z",
-   "status": "running"
+   "status": "done 2026-10-11T05:55:29Z (SMB-DEVELOP-WIDE READY at 85fe452)"
   },
   {
    "name": "rem-lrcat",
@@ -852,7 +852,7 @@
     "crates/hsk-studio-web/**"
    ],
    "launched": "2026-10-11T05:31:12Z",
-   "status": "running"
+   "status": "done 2026-10-11T05:55:29Z (SMB-WEB READY at 8682e6f)"
   },
   {
    "name": "rem-kb-harness",
