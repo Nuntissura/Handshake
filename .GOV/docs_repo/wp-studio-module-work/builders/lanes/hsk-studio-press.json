@@ -1,8 +1,8 @@
 {
  "crate": "hsk-studio-press",
  "lane": "MT-35557 press: V4 hardening slice + remediation R6 + redaction gaps (slice 6) + remediation R7 pre-review B (N1-N7, lead PLR-039/PLR-040)",
- "status": "READY_FOR_VALIDATION",
- "phase": "R10 pre-review FIX_FIRST remediated (lead decision 2026-10-11T15:00:20Z CANONICAL REWRITE) for both lanes: SMB-PRESS R10-F1..F7, R10-P1, R10-P2, R10-P4, R10-V1 and SMB-PRESS-DIFFERENCES R10-D1 (R10-D2 = F7); READY commit b8ce934 (claim 054037c 47f1588 b8ce934, nothing later touches the crate); 99/99 tests, doctests 0, clippy clean, 12 new regression tests red on cc3eaae with every sub-case named",
+ "status": null,
+ "phase": "D27 flatten + narrow (rem-press-flatten, started 2026-10-11T18:04:47Z): renderer research in progress; SMB-PRESS and SMB-PRESS-DIFFERENCES not ready (R11 pre-review FIX_FIRST at b8ce934, Operator decision D27)",
  "commits": [
   {
    "sha": "70b4c74",
@@ -209,8 +209,8 @@
  "blockers": [],
  "lock_wait_s": 0,
  "bg_pids": [],
- "next": "Validator: judge SMB-PRESS and SMB-PRESS-DIFFERENCES together on b8ce934 (V4-14: commits 054037c 47f1588 b8ce934 plus the earlier claims). Lead items in notes.remediation_R10pre.residuals_for_lead. Later lanes: SMB-PRESS-GEOMETRY, fmt sweep.",
- "updated_at": "2026-10-11T16:28:59Z",
+ "next": "rem-press-flatten: research renderer (hayro family), dep request, flatten pipeline, tests, red proofs",
+ "updated_at": "2026-10-11T18:04:47Z",
  "notes": {
   "test_names": [
    "pdf_object_edit_save_independent_reopen",
@@ -3595,6 +3595,12 @@
     "Default_Ignorable_Code_Point taken from ICU4X baked data, not from a UCD file (none available locally, no download made); cross-checked against Python unicodedata 16.0.0 by the UCD derivation rule.",
     "SMB-PRESS-GEOMETRY (Type 3 / vertical geometry) remains a separate lane; fmt sweep pending."
    ]
+  },
+  "d27_flatten": {
+   "builder": "rem-press-flatten",
+   "started_at": "2026-10-11T18:04:47Z",
+   "decision": "START_LOG D27 (17:22:04Z) and D27 DECIDED (17:59:47Z): Flatten + narrow",
+   "status": "in progress"
   }
  }
 }
