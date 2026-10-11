@@ -589,7 +589,7 @@
    "model": "sonnet",
    "role": "interop-vector -> folio paint",
    "launched": "2026-10-11T03:24:59Z",
-   "status": "running"
+   "status": "done 30c3e64"
   },
   {
    "name": "builder-reel-native-av1",
@@ -597,7 +597,7 @@
    "model": "sonnet",
    "role": "reel-native AV1 worker isolation",
    "launched": "2026-10-11T03:30:47Z",
-   "status": "running"
+   "status": "done e95163a"
   }
  ]
 }

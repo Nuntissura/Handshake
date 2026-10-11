@@ -28,6 +28,7 @@ STATE: keep `.GOV/docs_repo/wp-studio-module-work/builders/lanes/hsk-studio-{cra
 ESCALATION: same error after 2 distinct fix attempts -> stop that capability, record the blocker (error text + file:line + what you tried) in the lane file, continue other capabilities; if nothing else remains, finish.
 
 GAMEPLAN + GIT DISCIPLINE (lead rules): do NOT add steps to the shared gameplan for product compile/test mistakes in your own crate (record them in your lane file notes and fix them with a commit, which clears the retry guard); gameplan steps are only for preparation/infrastructure failures that affect every lane. Never `git commit --amend`, never `git rebase`, never bare `git commit` in the shared worktree — new pathspec commits only.
+RETRY GUARD (GLOBAL-GAMEPLAN-003/004): when the gameplan hook blocks an identical rerun, NEVER change flags/arguments/test filters just to make the command look different. Legitimate routes only: (a) product failure -> commit the fix (HEAD changes), then rerun; (b) infrastructure/preparation cause (stale artifact, environment, disk) -> add ONE cause-naming gameplan step (machine check preferred) via the gameplan tool, then rerun. Record which route you took in your lane notes.
 
 DEADLINE: first pushed commit within 30 min; then a pushed commit at least every 30 min.
 

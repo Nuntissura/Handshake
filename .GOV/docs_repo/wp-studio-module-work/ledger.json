@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T03:38:01Z",
+ "updated_at": "2026-10-11T03:51:11Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -1165,20 +1165,39 @@
    "crate": "hsk-studio-interop-vector",
    "origin": "SMB-FOLIO-ENG-4 landed 0e6142c",
    "scope": "migrate crate-local records onto folio StudioDesignRecords per hsk-studio-folio-eng-4.json migration notes",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-vector-migrate",
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "30c3e64"
+   ],
+   "verdicts": [],
+   "candidate": "30c3e64",
+   "note": "paint/stroke/appearance in folio design records (single source); 11 tests; retry-guard cleared by flag change (process finding, rule added)"
   },
   {
    "lane_id": "SMB-REEL-NATIVE-AV1-WORKER",
    "crate": "hsk-studio-reel-native",
    "origin": "SMB-REEL-ENG-3 fuzz: rav1d aborts process on 9.7% of corrupted inputs",
    "scope": "host AV1 decode in an isolated worker process under reel-native (same pattern as motion-js worker: quiet spawn, versioned protocol, deadline/cancel kill, crash -> typed error, bounded respawn); reel routes untrusted AV1 to it; default stays off",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-reel-native-av1",
+   "commits": [
+    "e95163a"
+   ],
+   "verdicts": [],
+   "candidate": "e95163a",
+   "note": "AV1 worker: equivalence with in-process decode, 6 aborting mutations contained (typed decoder_crashed), bounded respawn, quiet spawn; Job Object NOT_PROVEN; feature matrix entry needed"
+  },
+  {
+   "lane_id": "SMB-REEL-AV1-ROUTE",
+   "crate": "hsk-studio-reel",
+   "origin": "reel-native AV1 worker lane",
+   "scope": "reel hook to route av01/V_AV1 decode to an external (worker) decoder provider by policy (untrusted -> worker; in-process only when explicitly trusted); ReelError worker-fault variant; enabling worker routing must not require linking the in-process decoder",
+   "phase": "brief",
+   "status": null,
+   "owner": null,
    "commits": [],
    "verdicts": []
   }
@@ -1187,5 +1206,8 @@
  "dispatch_queue": [],
  "consolidation_candidates": [
   "general bounded ZIP reading: interop-layout (in-crate) vs package (strict canonical container, no deflate) -> consider one owner for general bounded ZIP read (e.g. package exposing a non-canonical bounded reader) later"
+ ],
+ "steward_next_sync": [
+  "round-features: hsk-studio-reel-native [[\"av1\"]]"
  ]
 }
