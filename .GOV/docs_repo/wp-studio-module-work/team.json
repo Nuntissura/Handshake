@@ -2195,6 +2195,17 @@
    ],
    "launched": "2026-10-11T22:15:41Z",
    "status": "running"
+  },
+  {
+   "name": "prereview-r15-reel-narrow",
+   "agent_id": "a24ee3eb9de99586b",
+   "model": "sonnet",
+   "role": "narrow V4-13 pre-reviews SMB-REEL-AV1-ROUTE + SMB-REEL-NATIVE-AV1-WORKER at 4b76604",
+   "owns": [
+    "validation/R15-prereview-reel-narrow.json"
+   ],
+   "launched": "2026-10-11T22:20:04Z",
+   "status": "running"
   }
  ]
 }
