@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T22:29:14Z",
+ "updated_at": "2026-10-11T22:37:22Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -1820,6 +1820,12 @@
     "recommendation": "SAFE_TO_JUDGE",
     "head": "a024461",
     "at": "2026-10-11T13:47:18Z"
+   },
+   "r15_prereview": {
+    "ref": "validation/R15-prereview-reel-narrow.json",
+    "recommendation": "SAFE_TO_JUDGE",
+    "head": "4b76604",
+    "at": "2026-10-11T22:37:22Z"
    }
   },
   {
@@ -1876,6 +1882,12 @@
     "recommendation": "SAFE_TO_JUDGE",
     "head": "47f1588",
     "at": "2026-10-11T16:13:13Z"
+   },
+   "r15_prereview": {
+    "ref": "validation/R15-prereview-reel-narrow.json",
+    "recommendation": "SAFE_TO_JUDGE",
+    "head": "4b76604",
+    "at": "2026-10-11T22:37:22Z"
    }
   },
   {
@@ -3368,5 +3380,21 @@
   ],
   "not_judged": "reel/reel-native lanes (in-flight WIP at candidate; AV1 two-FAIL lanes deferred, no charge); SMB-REEL-RECEIPTS and SMB-REEL-NATIVE-FAULTS-2 became READY after the round opened",
   "notes": "PLR-076 DESCRIPTOR line 'dropped from the file unless a kept page draws them' needs the exception documented or fixed"
+ },
+ "round_R14": {
+  "candidate": "4b76604",
+  "candidate_full": "4b766047fb5c195f60df6f3fa57869042bf91536",
+  "opened_at": "2026-10-11T22:37:22Z",
+  "basis": "same SHA as R13 (no steward sync needed; canary C19 on the same SHA); R13 union run already covered reel + reel-native at this SHA (information-only there) -> reuse under CX-VAL-002 if the validator confirms identical inputs",
+  "ready": [
+   "SMB-REEL-RECEIPTS (b8b276d)",
+   "SMB-REEL-NATIVE-FAULTS-2 (4b76604)"
+  ],
+  "two_fail_rechecks": {
+   "SMB-REEL-AV1-ROUTE": "R15-prereview-reel-narrow SAFE",
+   "SMB-REEL-NATIVE-AV1-WORKER": "R15-prereview-reel-narrow SAFE"
+  },
+  "reopen": "reel + reel-native lanes (CX-VAL-009)",
+  "team": "1 validator (opus); review input = R15 narrow pre-review"
  }
 }

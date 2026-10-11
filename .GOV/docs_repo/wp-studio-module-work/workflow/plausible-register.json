@@ -1337,6 +1337,21 @@
    "verified_at": "b8b276d",
    "disposition": "FIX_LANE",
    "disposition_note": "touches Forward in video.rs (AV1-ROUTE 2-FAIL area): needs a narrow pre-review; later reel lane"
+  },
+  {
+   "id": "PLR-078",
+   "lane": "SMB-REEL-NATIVE-FAULTS-2",
+   "file_line": "crates/hsk-studio-reel-native wire.rs / host.rs / DESCRIPTOR",
+   "finding": "docs say 'bytes that are no frame' before HELLO is a protocol fault; true only when the first four bytes read as a length above 1024 \u2014 a short banner then EOF stays spawn_failed; three reply-grammar rules (BATCH_END count, OPENED answering PACKET/FINISH, >64 FRAMEs) have no host-level test; config-OBU tag u64::MAX case unverified",
+   "first_seen": "R15-prereview-reel-narrow",
+   "seen_in": [
+    "R15-prereview-reel-narrow"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "4b76604",
+   "disposition": "FIX_LANE",
+   "disposition_note": "doc rewording + tests in the next reel-native lane"
   }
  ],
  "process_items": [
