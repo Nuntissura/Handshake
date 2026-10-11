@@ -1,9 +1,17 @@
 {
   "crate": "hsk-studio-composite",
   "lane": "SMB-COMPOSITE-ADJ-1",
-  "status": "BLOCKED",
-  "phase": "adjustments + mask parameters + Blend-If + knockout + effects wave 1/2 lowering and pass-through-fill ledger agreement (R6 remediation); 555ea97 green (20/20, clippy clean); dc8e91a (effects wave 2) compiles and is clippy clean, its tests are blocked by a stale pigment artifact in the shared target (infra)",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "adjustments + mask parameters + Blend-If + knockout + effects waves 1/2 + real folio graph adjustment layers lowered; remediation_R6 (pass-through fill ledger); compiled, clippy clean, 22/22 on pushed b2cf5c6",
   "commits": [
+    {
+      "sha": "b2cf5c6",
+      "subject": "Composite: real folio graph adjustment layer (Folio ENG-6) lowers at its input_ordinal, test evaluates the lowered stack against pigment evaluate_stack; adjustment_not_in_composition_graph narrowed to an adjustment layer without a graph operation; DESCRIPTOR proof map updated"
+    },
+    {
+      "sha": "0f917cc",
+      "subject": "Composite wave 2 test fixture fix: the glow kind blocks carry their required fields (inner glow source and choke, outer glow spread), so the refusal cases deserialise"
+    },
     {
       "sha": "8ff8c7a",
       "subject": "Composite DESCRIPTOR and docs: effects wave 2 (inner shadow, outer glow, inner glow) lowered, glow refusal keys, proof map cites the wave 2 test (V4-07)"
@@ -86,26 +94,15 @@
       "--no-fail-fast"
     ],
     "exit": 0,
-    "sha": "555ea97",
-    "passed": 20,
+    "sha": "b2cf5c6",
+    "passed": 22,
     "failed": 0
   },
-  "blockers": [
-    {
-      "error": "INFRA, not a product failure: `cargo test -p hsk-studio-composite` at dc8e91a fails to compile with E0432/E0599 'no EffectFeature / GlowSource / GlowTechnique / InnerGlowOp / InnerShadowOp / OuterGlowOp in effect_math, no variant EffectOp::InnerShadow, no EffectError::Unsupported' although crates/hsk-studio-pigment/src/effect_math.rs (mtime 2026-10-11 08:27:22, d982b5c) has them and `cargo check`/`clippy` of composite pass. The shared target holds pigment rlib/rmeta variants built at 08:31:27, 08:33:07 and 08:33:49 whose rmeta contain no wave-2 symbols (grep -c EffectFeature = 0; the 08:24 and 08:30 variants have 6) and whose dep-info mtime is newer than every pigment source, so cargo treats them as fresh (`Dirty ... the dependency was rebuilt`, then compiles against the stale lib). Same class as V4-11 (a temporary revert or an older tree built into the shared target, then restored with an old mtime) and as the render-cpu and press lane incidents.",
-      "file_line": "crates/hsk-studio-composite/src/lower_extensions.rs:28 (imports), :453-545 (wave 2 arms); stale input: Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/target/debug/deps/libhsk_studio_pigment-{95e959967b98a116,ceda027bc2ee1a1e,78a6f59dbd347062}.rmeta",
-      "attempts": "1) cargo check/clippy (separate check artifacts) compile wave 2; 2) cargo build -p hsk-studio-pigment --tests -v shows pigment lib Fresh and its own effects_wave2 test failing the same way, so this is not composite code; 3) not done on purpose: touching pigment sources (V4-12: outside my owned paths), a private CARGO_TARGET_DIR (CX-984-002 one build per disk), changing flags (retry guard). Needed from the lead: `touch` crates/hsk-studio-pigment/src/{effect_math.rs,render_plan.rs,render_plan/extensions.rs,lib.rs} (mtime only) or remove the three stale pigment artifacts, then rerun; HEAD moves with other lanes' commits so the retry guard clears by itself. Retried at HEAD 7274827 and at the commit 8ff8c7a (HEAD had moved, the hook allowed it): the identical compile error each time, i.e. 3 failed runs, same infra cause; pigment sources untouched since 08:27:22."
-    },
-    {
-      "error": "FOLIO API GAP (needs a folio change, not editable here): an adjustment layer (kind adjustment, PrimitiveReference hsk.studio.adjustment@1) has no graph operation and no stack position. folio validate_document (crates/hsk-studio-folio/src/lib.rs:801-815) allows OperationKind::Source only for layer kinds raster/vector/text, so the layer cannot be an edge source into a group's ordered `inputs`; STU-CMP-092 (spec line 22455) makes input_ordinal the sole stack order and says storage-array order and containment do not create stack authority, and richer operation kinds need their own declared descriptors (line 22457). Result today: lower() never emits a step for an adjustment layer, so a real Snapshot cannot carry an adjustment layer into a plan.",
-      "file_line": "crates/hsk-studio-folio/src/lib.rs:801-815 (Source descriptor match on l.kind); spec 14-studio-creative-suite.md lines 22455-22457",
-      "attempts": "Composite lowers what is representable and refuses the rest: a visible adjustment layer contained (Parent::Node) in a rendered group but absent from the composition graph is Unavailable adjustment_not_in_composition_graph (never dropped); the lowering of the layer itself is exercised on a hand-built LoweredPlan step (tests adjustment_layer_lowers_to_transparent_placeholder_and_envelope_entry). Exact folio change needed (either): (A) in validate_document's Source arm accept l.kind == \"adjustment\" with Payload::PrimitiveReference{schema_id: hsk.studio.adjustment@1, object_id: own layer id}, value_type Image, cardinality One, semantic Source, so it is an edge source into the group's `inputs` with an input_ordinal; or (B) a new canonical operation kind `adjustment` (one output `out`, image) declared in the descriptor set with the same placement rule. Composite needs nothing more: lower() maps a Source op with an image output to Step::Source and the extended lowering recognises the layer by kind + payload."
-    }
-  ],
+  "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "1) Lead: touch the pigment sources (or clear the 3 stale artifacts) so `cargo test -p hsk-studio-composite --tests` can run on dc8e91a; expected 21 tests (render_plan_lowering 16, static_plan 5); then the lane can be READY_FOR_VALIDATION on that sha. 2) Folio gap above (adjustment layer graph position). 3) Not done, by design: effects other than wave 1/2 kinds, gradient/pattern/Precise glows, bevel, satin (all typed refusals); Photoshop parity NOT_PROVEN (D5 cases 1-17).",
-  "updated_at": "2026-10-11T06:45:00Z",
+  "next": "Independent validator round on b2cf5c6. Not done, by design: effect kinds beyond wave 1/2 (bevel, satin, gradient/pattern overlay), gradient/Precise/ranged glows (typed refusals); Photoshop parity NOT_PROVEN (D5 cases 1-17).",
+  "updated_at": "2026-10-11T06:54:32Z",
   "notes": {
     "clip_align_lane": {
       "lane": "SMB-COMPOSITE-CLIP-ALIGN",
@@ -217,8 +214,40 @@
         "recorded_at": "2026-10-11T05:38:23Z",
         "by": "wp_validator STUDIO-R5"
       },
-      {"round": "STUDIO-R6", "lane": "SMB-COMPOSITE", "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a", "tree": "834aa5599ffabf691558a25f777ce42f73d78103", "decision": "passed", "verdict": "PASS_V3", "failures": [], "remediation": null, "status_after": "PASS_V3", "review": "NOT_REVIEWED", "round_ref": "validation/round-R6.json", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6", "idempotency_key": "STUDIO-R6:SMB-COMPOSITE:bd8533f9b29c:PASS_V3", "recorded_at": "2026-10-11T06:47:09Z", "by": "wp_validator STUDIO-R6"},
-      {"round": "STUDIO-R6", "lane": "SMB-COMPOSITE-CLIP-ALIGN", "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a", "tree": "834aa5599ffabf691558a25f777ce42f73d78103", "decision": "passed", "verdict": "PASS_V3", "failures": [], "remediation": null, "status_after": "PASS_V3", "review": "NOT_REVIEWED", "round_ref": "validation/round-R6.json", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6", "idempotency_key": "STUDIO-R6:SMB-COMPOSITE-CLIP-ALIGN:bd8533f9b29c:PASS_V3", "recorded_at": "2026-10-11T06:47:09Z", "by": "wp_validator STUDIO-R6"}
+      {
+        "round": "STUDIO-R6",
+        "lane": "SMB-COMPOSITE",
+        "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a",
+        "tree": "834aa5599ffabf691558a25f777ce42f73d78103",
+        "decision": "passed",
+        "verdict": "PASS_V3",
+        "failures": [],
+        "remediation": null,
+        "status_after": "PASS_V3",
+        "review": "NOT_REVIEWED",
+        "round_ref": "validation/round-R6.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6",
+        "idempotency_key": "STUDIO-R6:SMB-COMPOSITE:bd8533f9b29c:PASS_V3",
+        "recorded_at": "2026-10-11T06:47:09Z",
+        "by": "wp_validator STUDIO-R6"
+      },
+      {
+        "round": "STUDIO-R6",
+        "lane": "SMB-COMPOSITE-CLIP-ALIGN",
+        "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a",
+        "tree": "834aa5599ffabf691558a25f777ce42f73d78103",
+        "decision": "passed",
+        "verdict": "PASS_V3",
+        "failures": [],
+        "remediation": null,
+        "status_after": "PASS_V3",
+        "review": "NOT_REVIEWED",
+        "round_ref": "validation/round-R6.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6",
+        "idempotency_key": "STUDIO-R6:SMB-COMPOSITE-CLIP-ALIGN:bd8533f9b29c:PASS_V3",
+        "recorded_at": "2026-10-11T06:47:09Z",
+        "by": "wp_validator STUDIO-R6"
+      }
     ],
     "r3_remediation": {
       "finding": "R3 SMB-COMPOSITE (evaluate_static.rs:311-324) and SMB-COMPOSITE-CLIP-ALIGN (5814f8d did not fix it): a visible clipped child under a hidden or empty base that is itself Unavailable (e.g. clipped_with_mask_unsupported) still set blocked=input_unavailable on the parent, while lowering drops that run; the same document with an available clipped child lowered to an empty root.",
@@ -297,6 +326,17 @@
         }
       ]
     },
-    "folio_gap_decision": "Lead chose option A (adjustment layer kind accepted in folio's Source arm with a PrimitiveReference hsk.studio.adjustment@1 naming its own id). A folio builder is being dispatched; when it lands, add a test that lowers a real snapshot with a visible adjustment layer inside a rendered group (replaces the hand-built plan step in adjustment_layer_lowers_to_transparent_placeholder_and_envelope_entry)."
+    "resolved_blockers": [
+      {
+        "id": "stale_pigment_artifacts_from_export_canary",
+        "resolved_at": "2026-10-11T06:54:32Z",
+        "summary": "Pigment rlib/rmeta variants without effects wave 2 (built from older exports by the steward canary into the shared target) made cargo test of dc8e91a and 8ff8c7a fail to compile three times (infra, E0432/E0599 on pigment wave-2 symbols). The pigment owner touched the sources, the canary moved to its own target; the identical command then compiled and ran. One test fixture bug surfaced (0f917cc: inner/outer glow kind blocks missing required fields), fixed by a commit (route a). No gameplan step was added."
+      },
+      {
+        "id": "folio_adjustment_graph_gap",
+        "resolved_at": "2026-10-11T06:54:32Z",
+        "summary": "Folio ENG-6 (0241877, option A) makes an adjustment layer a graph Source with a stack position from input_ordinal and refuses a layer clipped to it (Code::AdjustmentClipBase, matching pigment). Composite needed no change; adjustment_not_in_composition_graph now only covers an adjustment layer contained in a rendered group WITHOUT a graph operation. Test adjustment_layer_in_a_real_folio_graph_lowers_at_its_input_ordinal lowers a real snapshot and checks the lowered stack against pigment evaluate_stack: adjustment between = (0.5, 0.25, 0.0), on top = (0.5, 0.75, 1.0)."
+      }
+    ]
   }
 }

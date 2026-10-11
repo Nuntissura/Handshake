@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T06:52:45Z",
+ "updated_at": "2026-10-11T06:54:51Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -887,7 +887,7 @@
     "builders/lanes/hsk-studio-composite.json"
    ],
    "launched": "2026-10-11T05:57:08Z",
-   "status": "running (rerun after pigment touch; then READY; folio-dependent test after ENG-6) 2026-10-11T06:44:43Z"
+   "status": "retired (b2cf5c6; context large)"
   },
   {
    "name": "builder-render-cpu-adj",

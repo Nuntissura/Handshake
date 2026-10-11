@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T06:52:45Z",
+ "updated_at": "2026-10-11T06:54:51Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -1632,18 +1632,20 @@
    "crate": "hsk-studio-composite",
    "origin": "architect SMB-PIGMENT-ENG-2 (diagnostics/adjustments-advanced-blending.md)",
    "scope": "brief builders/briefs/lane-composite-adjustments.md",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-composite-adj",
    "commits": [
     "cdc2c0f",
     "23f600b",
     "555ea97",
     "dc8e91a",
-    "8ff8c7a"
+    "8ff8c7a",
+    "b2cf5c6"
    ],
    "verdicts": [],
-   "note": "adjustments (8 kinds) + mask density/invert/feather + Blend-If + knockout(refused shallow) + effects wave 1 lowered; ledger keys/classes from pigment; R6 pass-through fill fix; wave 2 lowered (dc8e91a, 8ff8c7a) awaiting rerun after stale pigment artifacts; 20/20 at 555ea97; real adjustment layers refused adjustment_not_in_composition_graph until SMB-FOLIO-ENG-6"
+   "note": "adjustments, mask params, Blend-If, knockout (refused), effects waves 1+2 lowered (cdc2c0f..b2cf5c6); R6 pass-through fill fix; real folio snapshot with adjustment layer lowered at its input_ordinal and checked vs pigment evaluate_stack; 22 of 22 green; Photoshop parity NOT_PROVEN",
+   "candidate": "b2cf5c6"
   },
   {
    "lane_id": "SMB-RENDER-CPU-ADJ",
@@ -1845,7 +1847,8 @@
   "SMB-RENDER-CPU-ADJ",
   "SMB-RENDER-GPU-ADJ",
   "SMB-CHRONICLE-TABLE",
-  "SMB-MOTION-JS-SANDBOX-2"
+  "SMB-MOTION-JS-SANDBOX-2",
+  "SMB-COMPOSITE-ADJ"
  ],
  "round_R6": {
   "candidate": "bd8533f",
