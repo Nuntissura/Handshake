@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T06:48:19Z",
+ "updated_at": "2026-10-11T06:49:55Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -314,7 +314,7 @@
    "crate": "hsk-studio-render-gpu",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-render-gpu",
    "phase": "validation",
-   "status": "FAIL_V3",
+   "status": "BLOCKED",
    "owner": "builder-render-gpu",
    "brief": "builders/briefs/hsk-studio-render-gpu.md",
    "commits": [
@@ -358,7 +358,9 @@
      "recorded_at": "2026-10-11T06:47:09Z",
      "by": "wp_validator STUDIO-R6"
     }
-   ]
+   ],
+   "blocked_on": "CX-EXEC-015(1) fix_budget_exhausted after FAIL_V3 (R6); no new claim until an Operator decision is recorded (D20)",
+   "fix_budget_exhausted_at": "2026-10-11T06:49:55Z"
   },
   {
    "lane_id": "SMB-PACKAGE",
@@ -1096,7 +1098,7 @@
    "origin": "validation/round-R1.json infrastructure notes",
    "scope": "steward: checked-in test entrypoint for Studio rounds (script + per-test runner config with slow-timeout/terminate-after per CX-EXEC-005) + one-test-per-package canary; fill HBR test_entrypoint/canary_check for WP-KERNEL-STUDIO; validator rounds use only that entrypoint (CX-VAL-007)",
    "phase": "done",
-   "status": "FAIL_V3",
+   "status": "BLOCKED",
    "owner": "steward",
    "commits": [
     "faf1be4",
@@ -1113,7 +1115,9 @@
     "STUDIO-R6 FAIL_V3 @bd8533f"
    ],
    "candidate": "2abb984",
-   "note": "feature matrix (.config/round-features.toml), doctest step, full results storage, export dir guard; probe accepts bin/test/bench sections; R4 review remediation fd24723 (doctest per-test 120s timeout, round.json always written, absent matrix units exit 74, reel-native av1 matrix) + sync 1d404f8"
+   "note": "feature matrix (.config/round-features.toml), doctest step, full results storage, export dir guard; probe accepts bin/test/bench sections; R4 review remediation fd24723 (doctest per-test 120s timeout, round.json always written, absent matrix units exit 74, reel-native av1 matrix) + sync 1d404f8",
+   "blocked_on": "CX-EXEC-015(1) fix_budget_exhausted after FAIL_V3 (R6); no new claim until an Operator decision is recorded (D20)",
+   "fix_budget_exhausted_at": "2026-10-11T06:49:55Z"
   },
   {
    "lane_id": "SMB-TYPE-ENV",
@@ -1853,7 +1857,22 @@
    "FAIL_V2": 3,
    "PASS_V1": 2,
    "NOT_PROVEN": 1
-  }
+  },
+  "completed_at": "2026-10-11T06:49:55Z",
+  "status": "COMPLETE",
+  "crates": 24,
+  "build_s": 54.77,
+  "default": "491/491 (2 ignored with reasons)",
+  "features": "reel+av1 32/32, score-plugin test-faults 9/9, clap+test-faults 11/11, 30 doctest units exit 0",
+  "not_proven": "37 lines: prism T1 32 + wide_profiles 3 (corpus root, fixed 65a08c9 in R7), score-plugin clap_fixture 2 (fixed 6c45e64 in R7); score-device cpal-backend not built (no round-features entry)",
+  "verdicts": {
+   "PASS": 31,
+   "FAIL": 9,
+   "BLOCKED": 1,
+   "NOT_PROVEN": 1
+  },
+  "record": "validation/round-R6.json",
+  "results": "studio-round/results/R6"
  },
  "round_R7_candidate": {
   "sha": "2074f5e",

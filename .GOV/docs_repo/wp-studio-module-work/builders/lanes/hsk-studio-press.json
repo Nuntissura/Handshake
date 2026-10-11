@@ -1,8 +1,8 @@
 {
   "crate": "hsk-studio-press",
-  "lane": "MT-35557 press slice 5 + opaque_text correction",
+  "lane": "MT-35557 press: V4 hardening slice (arithmetic deny, bounded decode, hostile-size tests) + remediation R6",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice 5 complete (raster_unsearchable class, RemoveImages, file targets, embedded-file names, XMP everywhere, ToUnicode in the payload proof, V4-01/02/07/08/09 applied); lead correction landed: unreadable composite text blocks the proof (NotProven::OpaqueText)",
+  "phase": "hardening slice landed (V4-01 deny on filters/reader/syntax/writer, per-stage decode budget, xref/object-stream/depth/overlap bounds, V4-02 tests) and R6 review-B remediation landed; redaction gaps (other name trees, SubmitForm /Fields, embedded-file content) not started",
   "commits": [
     {
       "sha": "70b4c74",
@@ -59,6 +59,18 @@
     {
       "sha": "dd1df63",
       "subject": "Press: unreadable composite text blocks the proof (NotProven::OpaqueText), typed not_proven_reasons"
+    },
+    {
+      "sha": "023c817",
+      "subject": "Press V4-01: arithmetic deny on filters, reader, syntax, writer; bounded decode, xref/object-stream, depth and overlap limits"
+    },
+    {
+      "sha": "c520095",
+      "subject": "Press remediation R6 (review B): kept-text exemption only for page content and reachable forms; hidden zlib behind raster filters; NaN glyph boxes; cancellable scans"
+    },
+    {
+      "sha": "007f8bc",
+      "subject": "Press V4-02 tests for the hostile-input hardening (023c817): dims_u32_max, aggregate_over_budget, nesting/cycles/overlap; descriptor"
     }
   ],
   "capabilities_done": [
@@ -96,20 +108,25 @@
     "slice 5 (5) payload proof reads /ToUnicode: show_text.rs reads page content, forms and appearances through each font's CMap (cached per font object, decoded under the shared budget); needle text comes from RedactionReport.removed_unicode (new) or the needle bytes; kept page text = collision, appearance text = hit (PayloadLocation::DecodedText); verify_payload_absent_unicode; composite-font text without a map is listed in PayloadProof.opaque_text_streams (not blocking)",
     "slice 5 (6) matching ignores case, runs of white space (incl. no-break space) and zero-width characters (Matcher normalizes both needle and text and maps spans back to the original); PDF string tokenization tests cover escapes (octal, hex, name #xx), nested parentheses, comment decoys, wrongly cased names",
     "workflow v4: V4-01 #![deny(clippy::arithmetic_side_effects)] on cmap, content, error, pdf_edit, raster, redaction, sanitized_save, show_text, text_codec, text_fields (clippy clean); V4-02 hostile_decoder_bounds_dims_and_aggregate (u32-edge ranges, five-byte codes, entry cap, aggregate budget over streams and ToUnicode, inline dictionary cap, raster prefix bomb); V4-07 DESCRIPTOR and doc claims cite tests or are reworded (key never -> out_of_scope); V4-08 pdf_string_tokenization_adversarial; V4-09 commit messages via git commit -F",
-    "lead correction (class 'proven while some text was never checked'): PayloadProof.needles_searched counts the distinct needles searched; when it is > 0 and opaque_text_streams is not empty (composite-font text without a usable /ToUnicode), PayloadProof::is_clean, RedactedOutput::region_cleared / is_proven and TextRedactedOutput::is_proven are false with the typed reason NotProven::OpaqueText; PayloadProof::not_proven_reasons / RedactedOutput::not_proven_reasons / TextRedactedOutput::not_proven_reasons return every reason (codes leak, structure, undecodable_stream, opaque_text, region_incomplete, residual_in_region, text_fields_kept); press-consumer prints not_proven; test opaque_composite_text_blocks_the_proof fails on 272909b (RED run observed: reasons [] = proven)"
+    "lead correction (class 'proven while some text was never checked'): PayloadProof.needles_searched counts the distinct needles searched; when it is > 0 and opaque_text_streams is not empty (composite-font text without a usable /ToUnicode), PayloadProof::is_clean, RedactedOutput::region_cleared / is_proven and TextRedactedOutput::is_proven are false with the typed reason NotProven::OpaqueText; PayloadProof::not_proven_reasons / RedactedOutput::not_proven_reasons / TextRedactedOutput::not_proven_reasons return every reason (codes leak, structure, undecodable_stream, opaque_text, region_incomplete, residual_in_region, text_fields_kept); press-consumer prints not_proven; test opaque_composite_text_blocks_the_proof fails on 272909b (RED run observed: reasons [] = proven)",
+    "hardening 1 (V4-01): #![deny(clippy::arithmetic_side_effects)] now on filters, reader, syntax, writer (107 flagged sites fixed with checked/saturating arithmetic, get()-based indexing and typed errors: filters 43, syntax 40, reader 23, writer 1); every module of the crate except lib.rs (no arithmetic) carries the deny; clippy clean",
+    "hardening 2 (bounded decoding, workflow v4): every filter stage output is charged to the operation budget (a chain pays for its intermediates), a failed stage is charged (cap overrun = the cap, other failure = the input examined), unfiltered streams obey the per-stream cap, decoded_total vs decoded_bytes names what bound the stage, Limits::max_filters (8) bounds the chain, predictor output is never longer than its input (no 64 MiB row from a few bytes; partial last PNG row stays partial), LZW/ASCIIHex/ASCII85/RunLength use checked arithmetic and cap checks incl. the final partial group",
+    "hardening 3 (xref / object streams / depth / cycles): Limits::max_object_number (8,388,607, ISO 32000 Annex C Table C.1 via a secondary source) on xref table, xref stream and object headers and on the number that sizes a save table (table size checked against max_bytes before writing; free list computed without materializing it); /W exactly 3 fields of <= 8 bytes; /Size and /Index counts checked against the stream data; indirect /Length reads a number only; bytes parsed over all indirect objects <= 2 x input (overlapping /Length streams); bytes parsed from one object stream <= its decoded size (members at one offset); Limits::max_nodes (16 Mi) on parsed objects; numeric tokens <= 64 chars; nesting depth clamped to HARD_MAX_DEPTH 256 whatever max_depth says (tokenizer, purge_list, page and field walks); reference chains end as null after MAX_REF_HOPS 16 (cycles too); AcroForm names shared via Rc and charged to max_bytes (huge /T x many kids, one /T shared by many fields)",
+    "hardening 4 (V4-02 tests): hostile_parser_dims_u32_max, aggregate_over_budget_many_streams, hostile_nesting_cycles_and_overlap (integration) + filters unit tests budget_is_charged_by_every_stage_and_by_failures, predictor_rows_are_not_padded_and_chains_are_bounded; each red-proved on a scratch copy at 555ea97 sources",
+    "remediation R6 (review B, c520095): kept-text exemption only for streams that draw kept text (show_text::kept_text_streams: /Contents of pages reached from /Root /Pages and forms reachable from their resources), any other stream is scanned strictly; hidden zlib behind a raster filter name is inflated and scanned (raster::hidden_zlib); non-finite glyph boxes read as touching every region; scan and endobj count poll cancellation per 1 MiB window; ASCII85 final group above 2^32 refused; test stray_streams_and_hidden_payloads_are_not_kept_text"
   ],
   "tests": {
-    "argv": "cargo test -p hsk-studio-press --test pdf_delivery --no-fail-fast",
+    "argv": "cargo test -p hsk-studio-press --no-fail-fast",
     "exit": 0,
-    "sha": "dd1df63",
-    "passed": 24,
+    "sha": "007f8bc",
+    "passed": 30,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "Validator round on dd1df63 (one test target, 24 tests: 9 earlier + 5 slice 3 + 1 R5 + 3 slice 4 + 5 slice 5 + 1 opaque_text). Then: V4-01 for the untouched decoder modules filters, reader, syntax, writer (crate-wide arithmetic deny); Acrobat-saved fixture oracle (outline, annotation text, destinations, file targets); other name trees, SubmitForm /Fields, embedded-file content; prepress facts, Type3/pattern text, rotated pages; Folio page projection mapping (needs lead decision).",
-  "updated_at": "2026-10-11T06:08:06Z",
+  "next": "Validator round on 007f8bc (30 tests: 28 in pdf_delivery = 24 earlier + 3 hostile + 1 R6, plus 2 filters unit tests). Then: redaction gaps (other name trees, SubmitForm /Fields, embedded-file content); Acrobat-saved fixture oracle (needs Operator D5); prepress facts, Type3/pattern text, rotated pages; Folio page projection mapping (needs lead decision).",
+  "updated_at": "2026-10-11T06:48:54Z",
   "notes": {
     "test_names": [
       "pdf_object_edit_save_independent_reopen",
@@ -135,7 +152,11 @@
       "proof_reads_tounicode_text_and_region_needles",
       "hostile_decoder_bounds_dims_and_aggregate",
       "pdf_string_tokenization_adversarial",
-      "opaque_composite_text_blocks_the_proof"
+      "opaque_composite_text_blocks_the_proof",
+      "hostile_parser_dims_u32_max",
+      "aggregate_over_budget_many_streams",
+      "hostile_nesting_cycles_and_overlap",
+      "stray_streams_and_hidden_payloads_are_not_kept_text"
     ],
     "dep_decision": "lopdf =0.45.0 REJECTED per brief fallback clause: cargo tree of lopdf (default-features=false, windows msvc, no Cargo.toml in the workspace touched; scratch crate at Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/tmp/press-lopdf-probe) resolves to 57 packages (aes, cipher, ecb, cbc, md-5, sha2 0.11, rand 0.10, getrandom 0.4, nom 8, stringprep+unicode crates, brotli-decompressor, weezl, encoding_rs, simdutf8, thiserror 2/syn 3 ...) versus tools/workspace-probe.rs closure_packages cap 35. lopdf also has no stated read limits (UNVERIFIED in source; not read). Own bounded parser/writer instead. Deps: miniz_oxide =0.9.1 (with-alloc, MIT OR Zlib OR Apache-2.0, already locked) and sha2 =0.10.9 force-soft; both appended to builders/dep-requests.jsonl. Slice 3 added NO dependency.",
     "cargo_lock": "Cargo.lock not committed by this lane. If the steward's registry sync flags press closure: miniz_oxide + adler2 + sha2 closure only; no -sys crates.",
@@ -234,7 +255,159 @@
         "idempotency_key": "STUDIO-R5:SMB-PRESS:1d404f8c4b72:FAIL_V1",
         "recorded_at": "2026-10-11T05:38:23Z",
         "by": "wp_validator STUDIO-R5"
+      },
+      {
+        "round": "STUDIO-R6",
+        "lane": "SMB-PRESS",
+        "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a",
+        "tree": "834aa5599ffabf691558a25f777ce42f73d78103",
+        "decision": "failed",
+        "verdict": "FAIL_V2",
+        "failures": [
+          {
+            "failure_kind": "product",
+            "failure_class": "collision-exemption-on-non-content-streams",
+            "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:247-254,371-421 (doc :259-262)"
+          },
+          {
+            "failure_kind": "product",
+            "failure_class": "is-proven-ignores-opaque-text-streams",
+            "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:82-84,104-110,385-387,488-495"
+          },
+          {
+            "failure_kind": "product",
+            "failure_class": "wip-engine-untested-doc-cites-absent-test",
+            "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:13-16; tests/pdf_delivery.rs"
+          }
+        ],
+        "remediation": "Collision rule only for content_resources streams; opaque text blocks the proof; land slice-5 tests with the engine",
+        "status_after": "FAIL_V2; ledger status stays READY_FOR_VALIDATION: newer submission dd1df63 (not in bd8533f) queued for next round",
+        "review": "validation/R6-review-b.json",
+        "round_ref": "validation/round-R6.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6",
+        "idempotency_key": "STUDIO-R6:SMB-PRESS:bd8533f9b29c:FAIL_V2",
+        "recorded_at": "2026-10-11T06:47:09Z",
+        "by": "wp_validator STUDIO-R6"
       }
-    ]
+    ],
+    "unit_test_names": [
+      "filters::tests::budget_is_charged_by_every_stage_and_by_failures",
+      "filters::tests::predictor_rows_are_not_padded_and_chains_are_bounded"
+    ],
+    "hardening_v4": {
+      "commits": [
+        "023c817 (engine)",
+        "007f8bc (tests, descriptor)"
+      ],
+      "v4_01_sites_fixed": {
+        "filters.rs": 43,
+        "syntax.rs": 40,
+        "reader.rs": 23,
+        "writer.rs": 1,
+        "total": 107,
+        "clippy_after": "clean (0 arithmetic_side_effects)"
+      },
+      "limits_added": {
+        "max_object_number": "8388607; xref table, xref stream, object header, save table",
+        "max_filters": "8; filter chain length",
+        "max_nodes": "16777216; parsed objects over one document parse (lexer metering)",
+        "HARD_MAX_DEPTH": "256 constant clamp of max_depth (stack safety), not a Limits field",
+        "MAX_REF_HOPS": "16 constant shared by PdfDoc::resolve and redaction::res, not a Limits field"
+      },
+      "budgets": "per-stage charge, failure charge, unfiltered cap, overlap budget (2 x input bytes parsed over indirect objects), per-object-stream parsed bytes <= decoded size, field-name bytes <= max_bytes",
+      "spec_basis": "ISO 32000-2: 7.3 objects, 7.4.4.4 predictors, 7.5.4 xref table, 7.5.7 object streams (members never overlap; /Extends is a DAG), 7.5.8 xref streams (/W field widths, 0 omits a field; /Size = highest number + 1; /Index default [0 Size]); Annex C Table C.1 maximum indirect objects 8,388,607 (read through a secondary source: LuaTeX list quoting the table, and qpdf manual for 7.5.7/7.5.8; the ISO text itself was not fetched)",
+      "behaviour_changes": [
+        "Unfiltered streams larger than max_decoded_bytes are now refused (before: only the total budget applied)",
+        "A final PNG-predictor row shorter than Columns is no longer zero-padded",
+        "Numeric tokens above 64 characters are Malformed (before: degraded to a real)",
+        "Objects with numbers above max_object_number are refused (before: accepted; a save then built a table with one line per number)",
+        "Stream-bytes of overlapping objects beyond 2 x input are refused"
+      ],
+      "red_proofs": {
+        "method": "scratch workspace outside the shared tree (Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/tmp/press-red-scratch, own target dir) with the src modules of 555ea97 and the new tests; V4-11: every copied file gets a current mtime",
+        "hostile_parser_dims_u32_max": "RED: /Index [4294967295 1] gave Malformed(no_root), want InputLimit(object_number)",
+        "aggregate_over_budget_many_streams": "RED: Flate+ASCIIHex chain verified Ok (65 streams decoded, no budget error) on the old code; the plain case differed only by the error name",
+        "hostile_nesting_cycles_and_overlap": "RED: stack overflow of the test thread (max_depth usize::MAX over 100000 nested arrays)"
+      },
+      "gameplan_route": "No retry-guard block. One shared-tree test run failed on a test-data bug in my new test (zero bytes instead of spaces made a 512 KiB numeric token); fixed in the test before any commit and rerun (route a). One command was blocked by the hook because it did not start with the cd to the product workspace (hook then resolved the WP-KERNEL-012 gameplan); rerun with the leading cd.",
+      "v4_12": "helper scripts and outputs of this session live in <scratchpad>/hsk-studio-press/ with press-hard-* names; an earlier clippy output file press-clippy1.txt was written to the shared studio-team-dev/tmp before the rule arrived (mine, harmless)."
+    },
+    "remediation_R6": {
+      "review": "validation/R6-review-b.json, SMB-PRESS (3 CONFIRMED, 4 PLAUSIBLE); candidate bd8533f",
+      "class": "proof reads proven while a removed string survives in a place the rule did not look: an exemption or skip keyed on the SHAPE of a stream (or on a computed value that can be non-finite) instead of its role",
+      "class_regex": "looks_like_content|kept_text|collisions.entry|show_spans|f64::min|f64::max|fn touches",
+      "class_sites": [
+        {
+          "site": "sanitized_save.rs ops = parse_content(..) (gates every collision/show_spans exemption)",
+          "status": "fixed c520095: parsed only for kept_text_streams or annotation appearance streams"
+        },
+        {
+          "site": "sanitized_save.rs collisions.entry (mapped ToUnicode text)",
+          "status": "fixed c520095: reachable only through ops, which is None for non-kept streams; appearance streams stay hits"
+        },
+        {
+          "site": "sanitized_save.rs collisions.entry (show operand strings)",
+          "status": "fixed c520095: same gate, plus !is_ap"
+        },
+        {
+          "site": "sanitized_save.rs show_spans (byte ranges exempt from the decoded scan)",
+          "status": "fixed c520095: empty when ops is None"
+        },
+        {
+          "site": "show_text.rs content_resources",
+          "status": "not applicable: only supplies fonts/resources to stream text reading, grants no exemption"
+        },
+        {
+          "site": "text_fields.rs appearance_stream_nums",
+          "status": "not applicable: marks MORE streams strict (any dict with /AP), never exempts"
+        },
+        {
+          "site": "redaction.rs bbox f64::min/max (NaN dropped)",
+          "status": "fixed c520095: non-finite point = unbounded box; touches() true on NaN"
+        },
+        {
+          "site": "redaction.rs touches() callers (glyph box, annotation rect, image placement, form box)",
+          "status": "fixed c520095: all four go through the fail-closed touches/bbox"
+        }
+      ],
+      "findings": [
+        {
+          "id": "CONFIRMED proof_gap looks_like_content (sanitized_save.rs:247-254,402-421)",
+          "status": "FIXED c520095",
+          "evidence": "kept_text_streams in show_text.rs; test stray_streams_and_hidden_payloads_are_not_kept_text (three stray shapes: no Subtype, Subtype Form not drawn, Pattern) RED on the 023c817 modules in the scratch copy ('/Filter /FlateDecode: []' = no hit); the drawn form keeps its collision"
+        },
+        {
+          "id": "CONFIRMED opaque_text_streams listed, not blocking",
+          "status": "ALREADY FIXED by dd1df63 (after candidate bd8533f)",
+          "evidence": "NotProven::OpaqueText; test opaque_composite_text_blocks_the_proof (RED on 272909b, recorded earlier); passes at 007f8bc"
+        },
+        {
+          "id": "CONFIRMED candidate_wip_untested (6e95976 engine without tests, doc cites absent test)",
+          "status": "ALREADY FIXED by 5a91fd7 (tests) and 70c2ace (docs)",
+          "evidence": "tests/pdf_delivery.rs raster_class_is_listed_and_region_images_are_removed exists and passes; process rule accepted: no engine-only WIP pushes (023c817 -> 007f8bc gap was bridged by committing engine and tests within minutes, both pushed after green runs)"
+        },
+        {
+          "id": "PLAUSIBLE r5_class_reopened (image XObject + raster filter + zlib bytes)",
+          "status": "FIXED c520095",
+          "evidence": "raster::hidden_zlib; test class 2 loops JBIG2/CCITT/DCT/JPX, RED on the old modules (hits [] for JBIG2Decode); a zlib bomb behind a raster name is InputLimit. Codec-magic check REJECTED: raster_class_is_listed... feeds codec data without magic and real files vary"
+        },
+        {
+          "id": "PLAUSIBLE proof_independence (NaN glyph box dropped by min/max; same-selector residual)",
+          "status": "NaN part FIXED c520095; same-selector part OPEN",
+          "evidence": "test class 3 (nine 1e38 cm operators): RED 'the unlocatable string was kept' on the old modules. The residual pass still re-runs the same selector (needs an independent per-region text extraction; not done)"
+        },
+        {
+          "id": "PLAUSIBLE cancellation (scan/endobj count without cancel)",
+          "status": "FIXED c520095",
+          "evidence": "scan() and count_marker() poll the token per 1 MiB window with needle-length overlap; test class 4 puts a needle across the 2 MiB edge and finds it once; the in-window poll itself is not testable deterministically"
+        },
+        {
+          "id": "PLAUSIBLE doc_drift filters.rs header / ASCII85 truncation",
+          "status": "FIXED (header in 023c817, ASCII85 in c520095)",
+          "evidence": "filters.rs header lists LZW; ascii85 refuses a final group above 2^32 (unit test predictor_rows_are_not_padded_and_chains_are_bounded); valid encoders never exceed it (n digits padded with 'u' stay below 2^32)"
+        }
+      ],
+      "count_check": "3 CONFIRMED + 4 PLAUSIBLE = 7 findings listed above: 5 fixed in c520095 (one of them, proof_independence, only its NaN half), 2 already fixed by earlier commits (dd1df63; 5a91fd7 + 70c2ace); open: the same-selector residual pass"
+    }
   }
 }

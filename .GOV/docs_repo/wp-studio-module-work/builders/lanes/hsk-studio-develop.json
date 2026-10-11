@@ -347,7 +347,9 @@
           "recorded_at": "2026-10-11T05:38:23Z",
           "by": "wp_validator STUDIO-R5",
           "blocked_on": "SMB-PRISM-ENG-6 (admission-ledger hook) / Operator D13 (STU-CON-044)"
-        }
+        },
+        {"round": "STUDIO-R6", "lane": "SMB-DEVELOP", "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a", "tree": "834aa5599ffabf691558a25f777ce42f73d78103", "decision": "passed", "verdict": "PASS_V3", "failures": [], "remediation": null, "status_after": "PASS_V3; ledger status stays READY_FOR_VALIDATION: newer submission 78fd379 (not in bd8533f) queued for next round", "review": "validation/R6-review-a.json", "round_ref": "validation/round-R6.json", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6", "idempotency_key": "STUDIO-R6:SMB-DEVELOP:bd8533f9b29c:PASS_V3", "recorded_at": "2026-10-11T06:47:09Z", "by": "wp_validator STUDIO-R6"},
+        {"round": "STUDIO-R6", "lane": "SMB-DEVELOP-WIDE", "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a", "tree": "834aa5599ffabf691558a25f777ce42f73d78103", "decision": "blocked", "verdict": "BLOCKED", "failures": [{"failure_kind": "product", "failure_class": "stu-con-044-chunk-size-not-64px", "file_line": "crates/hsk-studio-develop/src/convert.rs:13-14; src/lib.rs DESCRIPTOR pending[0]"}], "remediation": "Blocked on Operator STU-CON-044 enrichment (chunk = admitted request bound) or explicit lead waiver of the 64-px text", "status_after": "BLOCKED (blocked_on Operator decision D13 remainder: STU-CON-044 64-px chunk enrichment (CX-105) or explicit lead waiver)", "review": "validation/R6-review-a.json", "round_ref": "validation/round-R6.json", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6", "idempotency_key": "STUDIO-R6:SMB-DEVELOP-WIDE:bd8533f9b29c:BLOCKED", "recorded_at": "2026-10-11T06:47:09Z", "by": "wp_validator STUDIO-R6", "blocked_on": "Operator decision D13 remainder: STU-CON-044 64-px chunk enrichment (CX-105) or explicit lead waiver"}
       ]
     },
     {

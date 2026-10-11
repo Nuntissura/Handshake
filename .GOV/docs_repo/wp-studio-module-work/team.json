@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T06:48:19Z",
+ "updated_at": "2026-10-11T06:49:55Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -935,7 +935,7 @@
     "lane verdicts"
    ],
    "launched": "2026-10-11T06:04:14Z",
-   "status": "running"
+   "status": "done 2026-10-11T06:49:55Z (R6 COMPLETE: 31 PASS, 9 FAIL, 1 BLOCKED, 1 NOT_PROVEN; exit 73)"
   },
   {
    "name": "reviewer-r6-a",
@@ -1028,7 +1028,7 @@
     "builders/lanes/hsk-studio-interop-vector.json"
    ],
    "launched": "2026-10-11T06:10:16Z",
-   "status": "done 2026-10-11T06:48:19Z (SMB-INTEROP-VECTOR READY at 42fba02)"
+   "status": "done 2026-10-11T06:49:55Z (42fba02)"
   },
   {
    "name": "builder-develop-jobs",

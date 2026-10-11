@@ -40,6 +40,9 @@
   "next": "steward sync pins cpal; validator round runs default-feature tests + (optional) `STUDIO_NATIVE_AUDIO=1 cargo test -p hsk-studio-score-device --features cpal-backend --test native_cpal -- --ignored` and an independent loopback capture of the exact submitted blocks for the MT-35559 oracle; later slices: native input (capture) via cpal, measured device latency report, non-f32 formats via preallocated scratch",
   "updated_at": "2026-10-11T05:16:39Z",
   "notes": {
+    "verdicts": [
+      {"round": "STUDIO-R6", "lane": "SMB-SCORE-DEVICE", "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a", "tree": "834aa5599ffabf691558a25f777ce42f73d78103", "decision": "failed", "verdict": "FAIL_V1", "failures": [{"failure_kind": "product", "failure_class": "full-refusal-counted-as-overrun", "file_line": "crates/hsk-studio-score-device/src/ring.rs:128-141 (:136); src/counters.rs:59-60,97-101; tests/foundation_contract.rs:100-104,131-136"}], "remediation": "Full counts nothing (lead 06:29:17Z); overrun/discontinuity only on real drops; update test 1 to that rule", "status_after": "FAIL_V1", "review": "validation/R6-review-b.json", "round_ref": "validation/round-R6.json", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6", "idempotency_key": "STUDIO-R6:SMB-SCORE-DEVICE:bd8533f9b29c:FAIL_V1", "recorded_at": "2026-10-11T06:47:09Z", "by": "wp_validator STUDIO-R6", "not_proven": [{"capability": "cap 5 CpalProvider (feature cpal-backend)", "reason": "not built, linted or tested by the round; not part of acceptance tests 1-5 (brief: native stays NOT_PROVEN)"}]}
+    ],
     "mt": "MT-35559",
     "proof_class": "Capabilities 1-4 prove ring/callback/counter/lifecycle semantics with simulated (software clocked) hardware only. NATIVE DEVICE ORACLE IS NOT_PROVEN (MT-35559: simulated rings are insufficient; the external loopback capture of the exact submitted blocks has not been done).",
     "native_smoke_evidence": {

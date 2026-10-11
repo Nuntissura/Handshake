@@ -167,7 +167,8 @@
         "idempotency_key": "STUDIO-R5:SMB-PULSE:1d404f8c4b72:PASS_V2",
         "recorded_at": "2026-10-11T05:38:23Z",
         "by": "wp_validator STUDIO-R5"
-      }
+      },
+      {"round": "STUDIO-R6", "lane": "SMB-PULSE", "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a", "tree": "834aa5599ffabf691558a25f777ce42f73d78103", "decision": "passed", "verdict": "PASS_V3", "failures": [], "remediation": null, "status_after": "PASS_V3", "review": "NOT_REVIEWED", "round_ref": "validation/round-R6.json", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6", "idempotency_key": "STUDIO-R6:SMB-PULSE:bd8533f9b29c:PASS_V3", "recorded_at": "2026-10-11T06:47:09Z", "by": "wp_validator STUDIO-R6"}
     ]
   }
 }

@@ -105,7 +105,7 @@
   "lock_wait_s": 0,
   "bg_pids": [],
   "next": "1) Lead: touch the pigment sources (or clear the 3 stale artifacts) so `cargo test -p hsk-studio-composite --tests` can run on dc8e91a; expected 21 tests (render_plan_lowering 16, static_plan 5); then the lane can be READY_FOR_VALIDATION on that sha. 2) Folio gap above (adjustment layer graph position). 3) Not done, by design: effects other than wave 1/2 kinds, gradient/pattern/Precise glows, bevel, satin (all typed refusals); Photoshop parity NOT_PROVEN (D5 cases 1-17).",
-  "updated_at": "2026-10-11T06:43:34Z",
+  "updated_at": "2026-10-11T06:45:00Z",
   "notes": {
     "clip_align_lane": {
       "lane": "SMB-COMPOSITE-CLIP-ALIGN",
@@ -216,7 +216,9 @@
         "idempotency_key": "STUDIO-R5:SMB-COMPOSITE-CLIP-ALIGN:1d404f8c4b72:PASS_V2",
         "recorded_at": "2026-10-11T05:38:23Z",
         "by": "wp_validator STUDIO-R5"
-      }
+      },
+      {"round": "STUDIO-R6", "lane": "SMB-COMPOSITE", "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a", "tree": "834aa5599ffabf691558a25f777ce42f73d78103", "decision": "passed", "verdict": "PASS_V3", "failures": [], "remediation": null, "status_after": "PASS_V3", "review": "NOT_REVIEWED", "round_ref": "validation/round-R6.json", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6", "idempotency_key": "STUDIO-R6:SMB-COMPOSITE:bd8533f9b29c:PASS_V3", "recorded_at": "2026-10-11T06:47:09Z", "by": "wp_validator STUDIO-R6"},
+      {"round": "STUDIO-R6", "lane": "SMB-COMPOSITE-CLIP-ALIGN", "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a", "tree": "834aa5599ffabf691558a25f777ce42f73d78103", "decision": "passed", "verdict": "PASS_V3", "failures": [], "remediation": null, "status_after": "PASS_V3", "review": "NOT_REVIEWED", "round_ref": "validation/round-R6.json", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6", "idempotency_key": "STUDIO-R6:SMB-COMPOSITE-CLIP-ALIGN:bd8533f9b29c:PASS_V3", "recorded_at": "2026-10-11T06:47:09Z", "by": "wp_validator STUDIO-R6"}
     ],
     "r3_remediation": {
       "finding": "R3 SMB-COMPOSITE (evaluate_static.rs:311-324) and SMB-COMPOSITE-CLIP-ALIGN (5814f8d did not fix it): a visible clipped child under a hidden or empty base that is itself Unavailable (e.g. clipped_with_mask_unsupported) still set blocked=input_unavailable on the parent, while lowering drops that run; the same document with an available clipped child lowered to an empty root.",
@@ -284,6 +286,17 @@
       ],
       "not_proven": "NOT_PROVEN: Photoshop parity of every adjustment, Blend-If, mask density/feather, knockout and effect rendering (pigment classes are Approximate/Unsupported readings; D5 cases 1-17). Folio's drop shadow spread unit (pixels in STU-RAS-157, percent by observation and Photoshop UI) is a spec gap.",
       "scratch": "helper scripts and message files live under <scratchpad>/lane-composite-adjustments/ with the composite-adj- prefix (V4-12)."
-    }
+    },
+    "stale_pigment_artifacts_from_export_canary": {
+      "cause": "The steward canary built older exports into the builders' shared target, so pigment rlib/rmeta variants without effects wave 2 looked fresher than the shared tree's sources (lead, 2026-10-11). Pigment owner touches the sources; the canary moves to its own target.",
+      "route": "retry-guard route: infrastructure cause recorded here; no gameplan step, no flag changes; the identical cargo test is rerun after the pigment sources are touched.",
+      "log": [
+        {
+          "at": "2026-10-11T06:45:00Z",
+          "event": "lead instruction: wait about 5 min for the pigment owner to touch the sources, then rerun the same composite command"
+        }
+      ]
+    },
+    "folio_gap_decision": "Lead chose option A (adjustment layer kind accepted in folio's Source arm with a PrimitiveReference hsk.studio.adjustment@1 naming its own id). A folio builder is being dispatched; when it lands, add a test that lowers a real snapshot with a visible adjustment layer inside a rendered group (replaces the hand-built plan step in adjustment_layer_lowers_to_transparent_placeholder_and_envelope_entry)."
   }
 }

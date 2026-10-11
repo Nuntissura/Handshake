@@ -160,7 +160,8 @@
         "idempotency_key": "STUDIO-R5:SMB-RENDER-GPU:1d404f8c4b72:FAIL_V2",
         "recorded_at": "2026-10-11T05:38:23Z",
         "by": "wp_validator STUDIO-R5"
-      }
+      },
+      {"round": "STUDIO-R6", "lane": "SMB-RENDER-GPU", "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a", "tree": "834aa5599ffabf691558a25f777ce42f73d78103", "decision": "failed", "verdict": "FAIL_V3", "failures": [{"failure_kind": "product", "failure_class": "test-fault-hooks-in-product-api", "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:447-452,477-488,565-572; src/device.rs:298; Cargo.toml:7-8"}], "remediation": "Gate fault constructors and simulate_device_loss behind a non-default test-faults feature; tests enable it", "status_after": "FAIL_V3; fix_budget_exhausted blocker (CX-EXEC-015(1)): escalate, no new claim until Operator decision; post-freeze commits 459c5d9 not admitted", "review": "validation/R6-review-a.json", "round_ref": "validation/round-R6.json", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6", "idempotency_key": "STUDIO-R6:SMB-RENDER-GPU:bd8533f9b29c:FAIL_V3", "recorded_at": "2026-10-11T06:47:09Z", "by": "wp_validator STUDIO-R6"}
     ],
     "r3_remediation": {
       "review": ".GOV/docs_repo/wp-studio-module-work/validation/R3-review.json lane SMB-RENDER-GPU (reviewed 57ce0fa/404ff3a)",

@@ -1,0 +1,33 @@
+{
+  "crate": "hsk-studio-folio",
+  "lane": "SMB-FOLIO-ENG-6",
+  "status": null,
+  "phase": "implementing: adjustment layer as a composition-graph Source (option A) plus clip-base refusal; check/clippy/tests pending",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {
+    "argv": null,
+    "exit": null,
+    "sha": null,
+    "passed": null,
+    "failed": null
+  },
+  "blockers": [],
+  "lock_wait_s": null,
+  "bg_pids": [],
+  "next": "cargo check -p hsk-studio-folio --tests, clippy, tests/adjustment_graph_contract.rs (4), dependents check, commit + push",
+  "updated_at": "2026-10-11T06:49:14Z",
+  "notes": {
+    "origin": "composite builder 8ff8c7a blocker 'FOLIO API GAP' (lib.rs Source arm allowed raster/vector/text only); lead decision option A",
+    "design": {
+      "source_arm": "lib.rs validate(): kind adjustment accepted in the Source arm when the payload is PrimitiveReference{schema_id: hsk.studio.adjustment@1, object_id == own layer id}; output port out, image, one, source (same descriptor as raster). PrimitiveReference of another schema or another object id -> PayloadMismatch; Unsupported payload -> UnsupportedDescriptor (unchanged); wrong ports -> InvalidPort (existing)",
+      "record_existence": "validate_raster_records already refuses an adjustment layer without its record (DanglingReference) and a record on a non-adjustment layer (PayloadMismatch); the document validator reports an unresolvable adjustment primitive as a ResolutionIssue (Snapshot::require_available -> Unavailable)",
+      "clip_base": "raster.rs validate_adjustment_clip_bases (called from validate()): per group, inputs walked by input_ordinal bottom first; base = nearest earlier unclipped input; a clipped layer whose base is an adjustment layer -> new Code::AdjustmentClipBase (target = clipped layer). Spec reading: STU-RAS-015 base = a layer's content/alpha; STU-RAS-007 adjustment is applied to layers below or clipped to its parent (= the adjustment is the clipped layer); no clause names an adjustment layer as a base -> refused, matching pigment PlanError::AdjustmentClipBase. Photoshop behaviour UNVERIFIED",
+      "additivity": "no field added to any struct; one new Code variant (dependents match Code with wildcards, verified by the dependents check); documents without an adjustment layer in the graph validate as before (test existing_documents_validate_identically)"
+    },
+    "consumer_follow_ups": [
+      "interop-psd: emit a Source op and an input_ordinal for adjustment layers; a PSD layer clipped to an adjustment layer would now fail validation with AdjustmentClipBase (importer must unclip with a loss receipt or refuse typed)",
+      "composite: lower() already maps a Source op with an image output to Step::Source; the adjustment_not_in_composition_graph refusal can be narrowed to layers truly absent from the graph"
+    ]
+  }
+}

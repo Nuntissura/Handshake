@@ -157,7 +157,8 @@
       "idempotency_key": "STUDIO-R5:SMB-WEB:1d404f8c4b72:FAIL_V1",
       "recorded_at": "2026-10-11T05:38:23Z",
       "by": "wp_validator STUDIO-R5"
-     }
+     },
+      {"round": "STUDIO-R6", "lane": "SMB-WEB", "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a", "tree": "834aa5599ffabf691558a25f777ce42f73d78103", "decision": "failed", "verdict": "FAIL_V2", "failures": [{"failure_kind": "product", "failure_class": "legacy-charref-without-semicolon-not-decoded", "file_line": "crates/hsk-studio-web/src/charref.rs:94-109 (claim :11-12); src/assets.rs:384-391"}, {"failure_kind": "product", "failure_class": "integration-point-style-overdecoded", "file_line": "crates/hsk-studio-web/src/dom.rs:496-525; src/assets.rs:446-452"}], "remediation": "Decode legacy no-';' refs per the attribute rule (or deny); model HTML integration points (style there is raw text)", "status_after": "FAIL_V2", "review": "validation/R6-review-b.json", "round_ref": "validation/round-R6.json", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6", "idempotency_key": "STUDIO-R6:SMB-WEB:bd8533f9b29c:FAIL_V2", "recorded_at": "2026-10-11T06:47:09Z", "by": "wp_validator STUDIO-R6"}
     ]
   }
 }

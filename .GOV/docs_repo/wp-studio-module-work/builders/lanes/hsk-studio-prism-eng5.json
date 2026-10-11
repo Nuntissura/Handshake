@@ -547,7 +547,8 @@
     "idempotency_key": "STUDIO-R5:SMB-PRISM-ENG-5:1d404f8c4b72:FAIL_V1",
     "recorded_at": "2026-10-11T05:38:23Z",
     "by": "wp_validator STUDIO-R5"
-   }
+   },
+   {"round": "STUDIO-R6", "lane": "SMB-PRISM-ENG-5", "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a", "tree": "834aa5599ffabf691558a25f777ce42f73d78103", "decision": "failed", "verdict": "FAIL_V2", "failures": [{"failure_kind": "product", "failure_class": "oracle-corpus-root-unresolved-from-exports", "file_line": "crates/hsk-studio-prism/tests/oracle/corpus.json:4-5; tests/wide_support/mod.rs:384 (vs .config/oracle-corpus.toml:8-9)"}], "remediation": "Resolve icc_root via the .config/oracle-corpus.toml walk-up (subdir icc), as the workspace convention requires (65a08c9)", "status_after": "FAIL_V2", "review": "validation/R6-review-a.json", "round_ref": "validation/round-R6.json", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6", "idempotency_key": "STUDIO-R6:SMB-PRISM-ENG-5:bd8533f9b29c:FAIL_V2", "recorded_at": "2026-10-11T06:47:09Z", "by": "wp_validator STUDIO-R6", "not_proven": [{"capability": "T1 lcms2 parity on installed profiles (17 of 20 pairs, 15 of 21 legs) + wide_profiles installed cases", "reason": "installed_profile_absent: corpus root unresolved from round exports (fix 65a08c9 after freeze -> R7)"}]}
   ]
  }
 }
