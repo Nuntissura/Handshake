@@ -1,0 +1,259 @@
+{
+ "crate": "hsk-studio-reel-native",
+ "lane": "SMB-REEL-NATIVE-FAULTS-2",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "PLR-059, PLR-060 and PLR-061 fixed at 4b76604 (pushed on origin b8b276d); crate untouched after 4b76604 (V4-14)",
+ "commits": [
+  {
+   "sha": "4b76604",
+   "subject": "reel-native (SMB-REEL-NATIVE-FAULTS-2, PLR-059/060/061): an unsent FRAME tag and a bad HELLO are counted worker protocol faults; wire protocol doc matches the enforced rules"
+  }
+ ],
+ "capabilities_done": [
+  "PLR-059 host.rs Pool::exchange: a reply FRAME whose tag no PACKET of the session carried is Failure::Protocol (protocol_faults +1 once, worker terminated, Av1Error::Worker(Protocol); through the Registry route ReelError::DecoderFault{Protocol}). WorkerSession.sent_tags (a HashSet filled by send() for every non-empty packet before the request, one entry per packet reel feeds the session) is lent to the exchange through Call.sent and checked in the same condition as the frame-count bound and the declared-size rule, so one violation is one fail() call. Before, reel's Forward dropped such a picture without a word and the call ended Ok with a Partial receipt (Preview) or an Incomplete error (Export), nothing counted. Pre-roll pictures carry sent tags and stay legal (test worker_decode_is_bit_exact_with_in_process_and_the_dav1d_oracle, random access with pre-roll).",
+  "PLR-060 host.rs Pool::spawn: a HELLO above HELLO_CAP or made of bytes that are no frame (WireError::TooLarge or Malformed from the read) is Failure::Protocol (counted once, worker terminated, worker_protocol), like an undecodable HELLO, which now takes the same fail() path instead of a second hand-written copy of the counting. Kept as spawn_failed (worker_spawn_failed, ReelError::CodecUnavailable): end of stream before HELLO (the worker exits), silence past spawn_timeout, process creation failure and a missing pipe or I/O thread. A well-formed HELLO of another protocol version or decoder stays worker_version_mismatch.",
+  "PLR-061 wire.rs: the protocol comment replaced by the replies the host accepts per request (OPEN: OPENED or ERROR, no FRAME or BATCH_END; PACKET and FINISH: FRAMEs within the declared size and carrying a sent tag, then BATCH_END with the matching count, or ERROR; every reply echoes the request id) and the HELLO rules, each citing its test; host.rs module docs (new protocol and handshake bullets), Av1WorkerFault::Protocol and SpawnFailed docs and the lib.rs DESCRIPTOR bounds name the same rules (V4-07, the DESCRIPTOR still parses as JSON).",
+  "test-faults only (V4-04): WorkerTestFault::WrongTag (every decoded FRAME answered with the top tag bit flipped; picture, size and framing unchanged), OversizeHello (HELLO padded to twice HELLO_CAP), GarbageHello (text bytes, not a frame), MalformedHello (right kind and version, a string longer than the frame), ExitBeforeHello (exit 86 before the greeting); wire.rs encode_oversize_hello, encode_malformed_hello and GARBAGE_HELLO behind cfg(all(av1-worker, test-faults)); worker.rs Faults::on_hello, exit_before_hello and the WrongTag arm of reshape. A product worker has none of them (tests/worker_fault_env.rs unchanged and green)."
+ ],
+ "tests": {
+  "argv": "scratch tree smb-reel-native-faults-2-redproof at origin b8b276d + this crate (content of 4b76604, byte-identical): studio-env.sh with STUDIO_OWNER=smb-reel-native-faults-2-redproof; cargo nextest run -p hsk-studio-reel-native --no-fail-fast --no-tests=pass (default, --features av1-worker, --features av1-worker,test-faults); cargo test --doc -p hsk-studio-reel-native (same three sets); cargo clippy -p hsk-studio-reel-native --tests (default, av1, av1-worker, av1-worker+test-faults, av1+test-faults); cargo fmt -p hsk-studio-reel-native --check",
+  "exit": 0,
+  "sha": "4b76604",
+  "passed": 19,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 302,
+ "bg_pids": [],
+ "next": "Validator round on 4b76604 with round-features [av1-worker] and [av1-worker,test-faults] (unchanged). Open and untouched: D18 shared supervisor, D14 packaging, R9 pre-review carried PLAUSIBLE items 1 and 2 of SMB-REEL-NATIVE-AV1-WORKER. Red-proof scratch tree kept (movable to the recycle bin when the lead agrees): Handshake_Artifacts/WP-KERNEL-STUDIO/smb-reel-native-faults-2-redproof (src, target, tmp, base-b8b276d).",
+ "updated_at": "2026-10-11T22:18:54Z",
+ "notes": {
+  "plr": "PLR-059, PLR-060, PLR-061 (R9-prereview-reel advisory on SMB-REEL-NATIVE-FAULTS, verified_at a024461, FIX_LANE).",
+  "tests_added": {
+   "tests/av1_worker.rs frame_with_an_unsent_tag_is_a_protocol_fault": "WrongTag worker, mp4 then mkv through decode_av1: Av1Error::Worker(Protocol), code worker_protocol, empty sink, stats (protocol_faults n, spawn_failed 0, killed_oversize 0, crashed 0, alive 0) so it is counted once per call and is not the output-cap kill; then the Registry with_video_decoder route: ReelError::DecoderFault{Protocol}, empty sink, (spawned 3, protocol_faults 3, spawn_failed 0, killed_oversize 0, crashed 0, alive 0). Shared legs in assert_protocol_fault_counted_once_per_call",
+   "tests/av1_worker.rs oversize_hello_is_a_protocol_fault_not_a_spawn_failure": "OversizeHello worker, same legs and counters (spawn_failed 0)",
+   "tests/av1_worker.rs garbage_hello_is_a_protocol_fault_not_a_spawn_failure": "GarbageHello worker, same legs and counters (the first four bytes of the text read as a length above HELLO_CAP)",
+   "tests/av1_worker.rs malformed_hello_is_a_protocol_fault_not_a_spawn_failure": "MalformedHello worker, same legs and counters; regression guard that passes on origin by design (the decoder arm already counted it): it keeps the two HELLO arms in agreement",
+   "tests/av1_worker.rs a_worker_that_never_greets_is_a_spawn_failure_not_a_protocol_fault": "ExitBeforeHello worker: Av1Error::Worker(SpawnFailed), code worker_spawn_failed, stats (spawned 1, spawn_failed 1, protocol_faults 0, crashed 0, alive 0); Registry route code MEDIA_CODEC_UNAVAILABLE, (spawned 2, spawn_failed 2, protocol_faults 0); a program file that is no executable: SpawnFailed, (spawned 0, spawn_failed 1, protocol_faults 0, alive 0). Regression guard that passes on origin by design (the boundary this fix must not move). Silence past spawn_timeout stays pinned by canceled_call_does_not_wait_for_a_stalled_hello"
+  },
+  "red_proofs": {
+   "tree": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-reel-native-faults-2-redproof/src/handshake-studio-assets (git archive of origin plus a private git history C0..C17 (18 commits), one commit per variant so every run has its own HEAD), STUDIO_OWNER=smb-reel-native-faults-2-redproof with its own target and tmp; the shared edit tree was never built in or reverted (V4-11); files copied into the scratch tree get fresh mtimes (cp, git checkout, python rewrite).",
+   "R0 origin 7410f29 host.rs + new infra and tests (C3)": "19 tests, 3 FAIL, 16 PASS (the two guards pass by design). oversize_hello_is_a_protocol_fault_not_a_spawn_failure and garbage_hello_is_a_protocol_fault_not_a_spawn_failure FAIL at tests/av1_worker.rs:678 (left Worker(SpawnFailed), right Worker(Protocol)); frame_with_an_unsent_tag_is_a_protocol_fault FAILS at tests/av1_worker.rs:677 (unwrap_err on an Ok value: the receipt is complete false, disposition Partial, actual units 0, i.e. the silent shortfall of PLR-059). Log: scratchpad SMB-REEL-NATIVE-FAULTS-2/red-r0-final.log (first run before the per-variant split: red-r0.log)",
+   "R0 origin b8b276d (current head at push, reel receipts commit included) host.rs + new infra and tests (C8)": "same result: 19 tests, 3 FAIL (oversize hello, garbage hello, unsent tag), 16 PASS. Log: scratchpad SMB-REEL-NATIVE-FAULTS-2/red-r0-b8b276d.log",
+   "M1 tag check removed (on the fix, C9 base)": "frame_with_an_unsent_tag_is_a_protocol_fault FAIL, 18 PASS",
+   "M2 no tag ever recorded as sent": "4 FAIL: worker_decode_is_bit_exact_with_in_process_and_the_dav1d_oracle, hostile_aborting_mutations_end_as_typed_errors_and_the_host_survives, exact_and_smaller_pictures_than_declared_are_accepted, untrusted_decode_through_a_registry_is_routed_to_the_worker_and_survives_aborting_input (every legal picture would be refused)",
+   "M3 end of stream or silence before HELLO classified as protocol fault": "2 FAIL: a_worker_that_never_greets_is_a_spawn_failure_not_a_protocol_fault, canceled_call_does_not_wait_for_a_stalled_hello",
+   "M4 only the latest sent tag accepted (over-strict recency)": "SURVIVES: 19 PASS. The fixtures' decoder answers every picture in the batch of its own packet, so no test sends a picture of an EARLIER packet; the implemented rule is membership in the sent set, by reading, NOT_PROVEN by a test; docs claim only unsent tags and pre-roll pictures. Optional follow-up: a delayed-output fault variant.",
+   "M5 oversize or garbage HELLO counted twice": "2 FAIL: oversize_hello_is_a_protocol_fault_not_a_spawn_failure, garbage_hello_is_a_protocol_fault_not_a_spawn_failure (protocol_faults 2, expected 1)",
+   "M6 undecodable HELLO is a spawn failure again": "malformed_hello_is_a_protocol_fault_not_a_spawn_failure FAIL, 18 PASS",
+   "M7 unsent-tag fault counted twice": "2 FAIL: frame_with_an_unsent_tag_is_a_protocol_fault, oversize_picture_under_the_reply_cap_is_a_protocol_fault (same condition, protocol_faults 2 per call)",
+   "green": "C9 = origin b8b276d + crate content of 4b76604 (byte-identical to the shared tree): nextest default 0 tests (no-tests=pass), av1-worker 5/5, av1-worker+test-faults 19/19; doctests 0 tests exit 0 for all three sets; clippy --tests exit 0 for default, av1, av1-worker, av1-worker+test-faults, av1+test-faults (only the 2 pre-existing too_many_arguments warnings of the dependency hsk-studio-observe); fmt --check clean. Also green on origin 7410f29 (C7). Logs: scratchpad SMB-REEL-NATIVE-FAULTS-2/final-b8b276d.log, final-g3.log, mutations.log"
+  },
+  "route_notes": {
+   "shared_tree_state": "the shared edit tree held only other builders' uncommitted hsk-studio-score edits and a Cargo.lock patch; nothing was built or tested there. Edits were made under crates/hsk-studio-reel-native only (exact-match patch scripts under the lane scratchpad, LF endings kept) and committed with a pathspec commit (git commit -F, -- crates/hsk-studio-reel-native); origin moved from 7410f29 to b8b276d (reel receipts, another lane) while this lane ran, so every proof was repeated on b8b276d.",
+   "retry_guard": "not hit. One gated command was refused by the hook before it ran because the leading cd was not the first statement (a variable assignment came first, so the kernel root gameplan of another WP was resolved and refused); route: infrastructure/command form, no gameplan step added, command re-issued with the leading cd first. All expected-failure red runs were followed by runs on a changed HEAD (own private scratch commit per variant), never by an identical rerun.",
+   "lane_file": "this file is the only governance file written; the lead commits it."
+  },
+  "adjacent_not_fixed": [
+   {
+    "file_line": "crates/hsk-studio-reel/src/av1/mod.rs Av1Decoder::open (config OBUs sent with tag u64::MAX) against host.rs:776",
+    "text": "reel's decoder feeds the av1C configuration OBUs with tag u64::MAX; a picture produced from them (a frame OBU inside the av1C record, which AV1-ISOBMFF does not allow) would reach the host with a tag no packet carried and is now a counted worker protocol fault, where reel used to skip it silently. Same treatment as the declared-size rule, which already applies to such pictures since 471b679. Not measured with a crafted container (no fixture), so UNVERIFIED in practice; flagged for the lead, no code change."
+   },
+   {
+    "file_line": "crates/hsk-studio-reel-native/src/host.rs:776 (membership, not order)",
+    "text": "the host checks that a tag was sent, not that it is the oldest unanswered one or that it was answered before: a worker that answers with the tag of an earlier packet (or twice) is not a protocol fault here; reel's Forward decides what to do with it (drain, drop). See mutant M4."
+   },
+   {
+    "file_line": "R9-prereview-reel SMB-REEL-NATIVE-AV1-WORKER carried PLAUSIBLE 1 and 2",
+    "text": "explicit bare Av1WorkerOptions::program resolved by the Windows search path; HELLO wait bounded by spawn_timeout, not the segment deadline. Unchanged, optional, D18-adjacent."
+   }
+  ],
+  "adjacent_fixed": [
+   {
+    "file_line": "crates/hsk-studio-reel-native/src/worker.rs doc of struct Faults",
+    "text": "R9 pre-review note (cosmetic): the doc said 'first request' although the picture faults act on every picture; reworded in the same commit."
+   }
+  ],
+  "v4_06_class": "a worker protocol violation (a reply or greeting the wire grammar does not allow, or whose content the host can check: picture size, picture tag) that the host does not classify as its counted Failure::Protocol (protocol_faults +1 once, worker terminated, Av1Error::Worker(Protocol)), or a worker wire failure at HELLO typed as a spawn failure",
+  "v4_06_regex": "(Waited::\\w+|Reply::\\w+|wire::decode_hello|wire::decode_reply|wire::read_frame|Failure::Protocol|sent\\.contains|within_declared_size|accept_hello)|spawn_failed\\(\\) (python re.search per code line; lines starting with // excluded)",
+  "v4_06_scope": "crates/hsk-studio-reel-native/src/**/*.rs at 4b76604 (git ls-tree + git show of the committed blobs), each file read up to its #[cfg(test)] unit-test module; the unit-test modules and tests/ are not scanned. Script: scratchpad SMB-REEL-NATIVE-FAULTS-2/scan.py; raw hit list: v406-sites.txt in the same folder",
+  "v4_06_count": {
+   "hits": 43,
+   "listed": 43
+  },
+  "v4_06_sites": [
+   {
+    "file_line": "src/host.rs:400",
+    "verdict": "NOT_APPLICABLE: Session::wait forwards a frame it read; the callers classify it (spawn :646, exchange :756)"
+   },
+   {
+    "file_line": "src/host.rs:401",
+    "verdict": "NOT_APPLICABLE: Session::wait forwards the read error; classified by the callers (spawn :653/:658, exchange :759-:765)"
+   },
+   {
+    "file_line": "src/host.rs:402",
+    "verdict": "NOT_APPLICABLE: channel closed (I/O thread gone) is WireError::Closed; classified by the callers"
+   },
+   {
+    "file_line": "src/host.rs:405",
+    "verdict": "NOT_APPLICABLE: cancel, not a worker reply"
+   },
+   {
+    "file_line": "src/host.rs:408",
+    "verdict": "NOT_APPLICABLE: wall-clock deadline, not a worker reply"
+   },
+   {
+    "file_line": "src/host.rs:445",
+    "verdict": "FIXED: the HELLO read with HELLO_CAP; its TooLarge error now ends as a counted protocol fault at :653 (PLR-060)"
+   },
+   {
+    "file_line": "src/host.rs:456",
+    "verdict": "NOT_APPLICABLE: reply read with the request cap: TooLarge is the output-cap kill (:759), Closed the crash path (:765)"
+   },
+   {
+    "file_line": "src/host.rs:569",
+    "verdict": "NOT_APPLICABLE: accept_hello compares a well-formed HELLO with the expected protocol version and decoder; a mismatch is worker_version_mismatch by design, unchanged"
+   },
+   {
+    "file_line": "src/host.rs:622",
+    "verdict": "NOT_APPLICABLE: process creation failed: a real spawn failure (test a_worker_that_never_greets_is_a_spawn_failure_not_a_protocol_fault, second leg)"
+   },
+   {
+    "file_line": "src/host.rs:629",
+    "verdict": "NOT_APPLICABLE: pipes missing after spawn: a real spawn failure"
+   },
+   {
+    "file_line": "src/host.rs:643",
+    "verdict": "NOT_APPLICABLE: the I/O thread could not be started: a real spawn failure"
+   },
+   {
+    "file_line": "src/host.rs:646",
+    "verdict": "NOT_APPLICABLE: the HELLO frame goes to decode_hello (:663)"
+   },
+   {
+    "file_line": "src/host.rs:647",
+    "verdict": "NOT_APPLICABLE: cancel while the worker starts"
+   },
+   {
+    "file_line": "src/host.rs:653",
+    "verdict": "FIXED: PLR-060: a HELLO above the cap or made of bytes that are no frame (TooLarge, Malformed) is Failure::Protocol"
+   },
+   {
+    "file_line": "src/host.rs:654",
+    "verdict": "FIXED: the Failure::Protocol call of :653, the shared counting path (protocol_faults +1 once)"
+   },
+   {
+    "file_line": "src/host.rs:658",
+    "verdict": "NOT_APPLICABLE: kept on purpose: silence past spawn_timeout or end of stream before HELLO is a spawn failure (tests canceled_call_does_not_wait_for_a_stalled_hello, a_worker_that_never_greets_is_a_spawn_failure_not_a_protocol_fault)"
+   },
+   {
+    "file_line": "src/host.rs:660",
+    "verdict": "NOT_APPLICABLE: same arm as :658"
+   },
+   {
+    "file_line": "src/host.rs:663",
+    "verdict": "FIXED: decode_hello; its Err arm :669 now uses the shared counting path"
+   },
+   {
+    "file_line": "src/host.rs:664",
+    "verdict": "NOT_APPLICABLE: accept_hello guard; a mismatch falls to worker_version_mismatch"
+   },
+   {
+    "file_line": "src/host.rs:669",
+    "verdict": "FIXED: an undecodable HELLO is Failure::Protocol through fail() (was a second hand-written copy of the same counting, same behaviour; test malformed_hello_is_a_protocol_fault_not_a_spawn_failure)"
+   },
+   {
+    "file_line": "src/host.rs:716",
+    "verdict": "NOT_APPLICABLE: the Failure::Protocol arm of fail(), the one place protocol_faults is bumped for a worker protocol violation"
+   },
+   {
+    "file_line": "src/host.rs:756",
+    "verdict": "NOT_APPLICABLE: the reply bytes go to decode_reply (:769)"
+   },
+   {
+    "file_line": "src/host.rs:757",
+    "verdict": "NOT_APPLICABLE: cancel"
+   },
+   {
+    "file_line": "src/host.rs:758",
+    "verdict": "NOT_APPLICABLE: wall-clock deadline kill"
+   },
+   {
+    "file_line": "src/host.rs:759",
+    "verdict": "NOT_APPLICABLE: reply frame above the declared-size reply cap: Failure::Oversize (decoder_output_too_large), the output-cap policy (test supervision_kills_on_deadline_cancel_oversize_garbage_and_bounds_respawn)"
+   },
+   {
+    "file_line": "src/host.rs:762",
+    "verdict": "NOT_APPLICABLE: malformed reply framing is already Failure::Protocol (counted); read_frame returns only Closed or TooLarge, so the arm is kept for exhaustiveness"
+   },
+   {
+    "file_line": "src/host.rs:763",
+    "verdict": "NOT_APPLICABLE: counted (Failure::Protocol)"
+   },
+   {
+    "file_line": "src/host.rs:765",
+    "verdict": "NOT_APPLICABLE: end of stream is the crash path"
+   },
+   {
+    "file_line": "src/host.rs:769",
+    "verdict": "NOT_APPLICABLE: decode_reply; its Err and every disallowed Ok reply fall to the catch-all :796 (counted)"
+   },
+   {
+    "file_line": "src/host.rs:772",
+    "verdict": "NOT_APPLICABLE: a FRAME is accepted only for want == BatchEnd; a FRAME answering OPEN falls to :796 (a024461, test frame_reply_to_open_is_a_protocol_fault)"
+   },
+   {
+    "file_line": "src/host.rs:775",
+    "verdict": "NOT_APPLICABLE: the declared-size check (471b679, PLR-055, test oversize_picture_under_the_reply_cap_is_a_protocol_fault)"
+   },
+   {
+    "file_line": "src/host.rs:776",
+    "verdict": "FIXED: PLR-059: the FRAME tag must be one of the tags sent in the session (test frame_with_an_unsent_tag_is_a_protocol_fault)"
+   },
+   {
+    "file_line": "src/host.rs:781",
+    "verdict": "FIXED: the one Failure::Protocol of the FRAME arm: frame-count, declared-size and unsent-tag violations are counted here once"
+   },
+   {
+    "file_line": "src/host.rs:789",
+    "verdict": "NOT_APPLICABLE: OPENED is accepted only for want == Opened with no FRAME before it; an OPENED for a PACKET falls to :796"
+   },
+   {
+    "file_line": "src/host.rs:790",
+    "verdict": "NOT_APPLICABLE: BATCH_END is accepted only for want == BatchEnd with a count equal to the FRAMEs received; otherwise :796"
+   },
+   {
+    "file_line": "src/host.rs:795",
+    "verdict": "NOT_APPLICABLE: a typed decoder ERROR is a statement about the media; the worker stays usable by design (documented on exchange)"
+   },
+   {
+    "file_line": "src/host.rs:796",
+    "verdict": "NOT_APPLICABLE: the catch-all: Failure::Protocol (counted); receives an Err from decode_reply and every disallowed Ok reply"
+   },
+   {
+    "file_line": "src/host.rs:1231",
+    "verdict": "NOT_APPLICABLE: within_declared_size definition (PLR-055)"
+   },
+   {
+    "file_line": "src/wire.rs:519",
+    "verdict": "NOT_APPLICABLE: decode_reply constructs Reply::Opened; whether it is allowed is decided in exchange (:789)"
+   },
+   {
+    "file_line": "src/wire.rs:524",
+    "verdict": "NOT_APPLICABLE: decode_reply constructs Reply::BatchEnd; allowed and counted in exchange (:790)"
+   },
+   {
+    "file_line": "src/wire.rs:533",
+    "verdict": "NOT_APPLICABLE: an ERROR with a class or table index outside the fixed table is Malformed (Err from decode_reply, counted at :796)"
+   },
+   {
+    "file_line": "src/wire.rs:540",
+    "verdict": "NOT_APPLICABLE: FRAME layout is validated by decode_frame (plane count and lengths, overflow); the tag is a host decision (:776)"
+   },
+   {
+    "file_line": "src/worker.rs:337",
+    "verdict": "NOT_APPLICABLE: the worker reads host requests, not worker output"
+   }
+  ]
+ }
+}

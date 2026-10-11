@@ -210,3 +210,4 @@
 {"t": "2026-10-11T22:04:43Z", "event": "press R14 pre-review SAFE_TO_JUDGE at 7410f29 (no flattened-page leak; PLR-076 recoverability residual); round R13 for press next", "progress": "no direct progress (pre-review routing)"}
 {"t": "2026-10-11T22:15:41Z", "event": "R13 opened on 4b76604 for press (C19 59/59); validator (opus); reel/reel-native lanes not judged (in-flight WIP)", "progress": "no direct progress (round dispatch)"}
 {"t": "2026-10-11T22:17:09Z", "event": "SMB-REEL-RECEIPTS READY_FOR_VALIDATION b8b276d (builder-reel-receipts)", "lanes_moved": ["SMB-REEL-RECEIPTS READY"], "commits": ["b8b276d"], "progress": "direct: product commit"}
+{"t": "2026-10-11T22:19:49Z", "event": "SMB-REEL-NATIVE-FAULTS-2 READY_FOR_VALIDATION 4b76604 (builder-reel-native-faults-2)", "lanes_moved": ["SMB-REEL-NATIVE-FAULTS-2 READY"], "commits": ["4b76604"], "progress": "direct: product commit"}

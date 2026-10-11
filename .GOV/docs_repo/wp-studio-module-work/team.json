@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T22:17:09Z",
+ "updated_at": "2026-10-11T22:19:49Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -2182,7 +2182,7 @@
     "builders/lanes/hsk-studio-reel-native-faults-2.json"
    ],
    "launched": "2026-10-11T21:46:37Z",
-   "status": "running"
+   "status": "done 2026-10-11T22:19:49Z (SMB-REEL-NATIVE-FAULTS-2 READY at 4b76604)"
   },
   {
    "name": "validator-r13",

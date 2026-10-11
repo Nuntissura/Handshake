@@ -1066,7 +1066,7 @@
    "status": "OPEN",
    "verified_at": "a024461",
    "disposition": "FIX_LANE",
-   "disposition_note": "next reel-native lane (after R9)"
+   "disposition_note": "fix claimed 4b76604 (SMB-REEL-NATIVE-FAULTS-2); reviewer confirms next round"
   },
   {
    "id": "PLR-060",
@@ -1081,7 +1081,7 @@
    "status": "OPEN",
    "verified_at": "a024461",
    "disposition": "FIX_LANE",
-   "disposition_note": "next reel-native lane (after R9)"
+   "disposition_note": "fix claimed 4b76604 (SMB-REEL-NATIVE-FAULTS-2); reviewer confirms next round"
   },
   {
    "id": "PLR-061",
@@ -1096,7 +1096,7 @@
    "status": "OPEN",
    "verified_at": "a024461",
    "disposition": "FIX_LANE",
-   "disposition_note": "next reel-native lane (after R9)"
+   "disposition_note": "fix claimed 4b76604 (SMB-REEL-NATIVE-FAULTS-2); reviewer confirms next round"
   },
   {
    "id": "PLR-062",
