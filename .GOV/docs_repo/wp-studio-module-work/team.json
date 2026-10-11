@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T06:54:51Z",
+ "updated_at": "2026-10-11T06:56:02Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -992,7 +992,7 @@
     "builders/lanes/hsk-studio-press.json"
    ],
    "launched": "2026-10-11T06:10:16Z",
-   "status": "running"
+   "status": "done 2026-10-11T06:56:02Z (a1c9747)"
   },
   {
    "name": "builder-motion-js-sandbox",
@@ -1051,7 +1051,7 @@
     "diagnostics/stale-artifacts.md"
    ],
    "launched": "2026-10-11T06:23:08Z",
-   "status": "running"
+   "status": "done 2026-10-11T06:56:02Z (diagnostics/stale-artifacts.md; root cause confirmed)"
   },
   {
    "name": "rem-web-r6",

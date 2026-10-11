@@ -1,8 +1,8 @@
 {
   "crate": "hsk-studio-press",
-  "lane": "MT-35557 press: V4 hardening slice (arithmetic deny, bounded decode, hostile-size tests) + remediation R6",
+  "lane": "MT-35557 press: V4 hardening slice (arithmetic deny, bounded decode, hostile-size tests) + remediation R6 + redaction gaps (slice 6)",
   "status": "READY_FOR_VALIDATION",
-  "phase": "hardening slice landed (V4-01 deny on filters/reader/syntax/writer, per-stage decode budget, xref/object-stream/depth/overlap bounds, V4-02 tests) and R6 review-B remediation landed; redaction gaps (other name trees, SubmitForm /Fields, embedded-file content) not started",
+  "phase": "hardening slice, R6 review-B remediation and slice 6 (other name trees, SubmitForm/ResetForm /Fields, embedded-file content) landed; clippy clean, tests green on a1c9747",
   "commits": [
     {
       "sha": "70b4c74",
@@ -71,6 +71,10 @@
     {
       "sha": "007f8bc",
       "subject": "Press V4-02 tests for the hostile-input hardening (023c817): dims_u32_max, aggregate_over_budget, nesting/cycles/overlap; descriptor"
+    },
+    {
+      "sha": "a1c9747",
+      "subject": "Press slice 6: other name trees, SubmitForm/ResetForm /Fields and embedded-file content in the text-field redaction"
     }
   ],
   "capabilities_done": [
@@ -113,20 +117,21 @@
     "hardening 2 (bounded decoding, workflow v4): every filter stage output is charged to the operation budget (a chain pays for its intermediates), a failed stage is charged (cap overrun = the cap, other failure = the input examined), unfiltered streams obey the per-stream cap, decoded_total vs decoded_bytes names what bound the stage, Limits::max_filters (8) bounds the chain, predictor output is never longer than its input (no 64 MiB row from a few bytes; partial last PNG row stays partial), LZW/ASCIIHex/ASCII85/RunLength use checked arithmetic and cap checks incl. the final partial group",
     "hardening 3 (xref / object streams / depth / cycles): Limits::max_object_number (8,388,607, ISO 32000 Annex C Table C.1 via a secondary source) on xref table, xref stream and object headers and on the number that sizes a save table (table size checked against max_bytes before writing; free list computed without materializing it); /W exactly 3 fields of <= 8 bytes; /Size and /Index counts checked against the stream data; indirect /Length reads a number only; bytes parsed over all indirect objects <= 2 x input (overlapping /Length streams); bytes parsed from one object stream <= its decoded size (members at one offset); Limits::max_nodes (16 Mi) on parsed objects; numeric tokens <= 64 chars; nesting depth clamped to HARD_MAX_DEPTH 256 whatever max_depth says (tokenizer, purge_list, page and field walks); reference chains end as null after MAX_REF_HOPS 16 (cycles too); AcroForm names shared via Rc and charged to max_bytes (huge /T x many kids, one /T shared by many fields)",
     "hardening 4 (V4-02 tests): hostile_parser_dims_u32_max, aggregate_over_budget_many_streams, hostile_nesting_cycles_and_overlap (integration) + filters unit tests budget_is_charged_by_every_stage_and_by_failures, predictor_rows_are_not_padded_and_chains_are_bounded; each red-proved on a scratch copy at 555ea97 sources",
-    "remediation R6 (review B, c520095): kept-text exemption only for streams that draw kept text (show_text::kept_text_streams: /Contents of pages reached from /Root /Pages and forms reachable from their resources), any other stream is scanned strictly; hidden zlib behind a raster filter name is inflated and scanned (raster::hidden_zlib); non-finite glyph boxes read as touching every region; scan and endobj count poll cancellation per 1 MiB window; ASCII85 final group above 2^32 refused; test stray_streams_and_hidden_payloads_are_not_kept_text"
+    "remediation R6 (review B, c520095): kept-text exemption only for streams that draw kept text (show_text::kept_text_streams: /Contents of pages reached from /Root /Pages and forms reachable from their resources), any other stream is scanned strictly; hidden zlib behind a raster filter name is inflated and scanned (raster::hidden_zlib); non-finite glyph boxes read as touching every region; scan and endobj count poll cancellation per 1 MiB window; ASCII85 final group above 2^32 refused; test stray_streams_and_hidden_payloads_are_not_kept_text",
+    "slice 6 (a1c9747): (1) keys of every /Names tree except /Dests and /EmbeddedFiles (JavaScript, AP, Pages, Templates, IDS, URLS, ...) renamed to opaque HskRdN and the tree rebuilt as one sorted leaf (TextRole::NameTreeKey, policy name_trees); (2) strings of /Fields of SubmitForm and ResetForm actions through the text mode (TextRole::ActionFields, policy form_labels; refs inside /Fields untouched); (3) embedded file content: a file specification whose /EF stream decodes to bytes holding a match loses /EF and /RF, the stream leaves the file (TextRole::EmbeddedFileContent Dropped; undecodable = Unverifiable; policy embedded_content off = KeptByPolicy); test name_trees_submit_fields_and_embedded_content_redacted"
   ],
   "tests": {
     "argv": "cargo test -p hsk-studio-press --no-fail-fast",
     "exit": 0,
-    "sha": "007f8bc",
-    "passed": 30,
+    "sha": "a1c9747",
+    "passed": 31,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "Validator round on 007f8bc (30 tests: 28 in pdf_delivery = 24 earlier + 3 hostile + 1 R6, plus 2 filters unit tests). Then: redaction gaps (other name trees, SubmitForm /Fields, embedded-file content); Acrobat-saved fixture oracle (needs Operator D5); prepress facts, Type3/pattern text, rotated pages; Folio page projection mapping (needs lead decision).",
-  "updated_at": "2026-10-11T06:48:54Z",
+  "next": "Validator round on a1c9747 (31 tests: 29 in pdf_delivery = 24 earlier + 3 hostile + 1 R6 + 1 slice 6, plus 2 filters unit tests). Then: independent per-region text extraction for the residual pass (R6 PLAUSIBLE, open); Acrobat-saved fixture oracle (needs Operator D5); script code in name-tree values, field /TM /MK captions, direct structure elements without /P; prepress facts, Type3/pattern text, rotated pages; Folio page projection mapping (needs lead decision).",
+  "updated_at": "2026-10-11T06:54:44Z",
   "notes": {
     "test_names": [
       "pdf_object_edit_save_independent_reopen",
@@ -156,7 +161,8 @@
       "hostile_parser_dims_u32_max",
       "aggregate_over_budget_many_streams",
       "hostile_nesting_cycles_and_overlap",
-      "stray_streams_and_hidden_payloads_are_not_kept_text"
+      "stray_streams_and_hidden_payloads_are_not_kept_text",
+      "name_trees_submit_fields_and_embedded_content_redacted"
     ],
     "dep_decision": "lopdf =0.45.0 REJECTED per brief fallback clause: cargo tree of lopdf (default-features=false, windows msvc, no Cargo.toml in the workspace touched; scratch crate at Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/tmp/press-lopdf-probe) resolves to 57 packages (aes, cipher, ecb, cbc, md-5, sha2 0.11, rand 0.10, getrandom 0.4, nom 8, stringprep+unicode crates, brotli-decompressor, weezl, encoding_rs, simdutf8, thiserror 2/syn 3 ...) versus tools/workspace-probe.rs closure_packages cap 35. lopdf also has no stated read limits (UNVERIFIED in source; not read). Own bounded parser/writer instead. Deps: miniz_oxide =0.9.1 (with-alloc, MIT OR Zlib OR Apache-2.0, already locked) and sha2 =0.10.9 force-soft; both appended to builders/dep-requests.jsonl. Slice 3 added NO dependency.",
     "cargo_lock": "Cargo.lock not committed by this lane. If the steward's registry sync flags press closure: miniz_oxide + adler2 + sha2 closure only; no -sys crates.",
@@ -408,6 +414,26 @@
         }
       ],
       "count_check": "3 CONFIRMED + 4 PLAUSIBLE = 7 findings listed above: 5 fixed in c520095 (one of them, proof_independence, only its NaN half), 2 already fixed by earlier commits (dd1df63; 5a91fd7 + 70c2ace); open: the same-selector residual pass"
+    },
+    "slice6": {
+      "commit": "a1c9747",
+      "closed_gaps": [
+        "other name trees (keys)",
+        "SubmitForm /Fields (and ResetForm)",
+        "embedded-file content"
+      ],
+      "decisions": [
+        "Name-tree keys are identifiers nothing in the file refers to: renamed like the embedded-file names (no reference rewrite needed). The values (script code) are not text slots and stay not covered; sanitize_full_rewrite drops JavaScript on request.",
+        "SubmitForm/ResetForm /Fields strings are field names: replacing them changes which fields the action targets (the redaction intent wins); they share the form_labels flag. Indirect references inside /Fields are untouched.",
+        "An attachment is not text we can edit: a match in its decoded bytes drops the whole /EF (and /RF) of the file specification; an attachment that cannot be decoded is Unverifiable (kept, report incomplete), never silently dropped or assumed clean.",
+        "Embedded content is matched as UTF-8 (BOM-aware) and Latin-1 in 1 MiB windows with 4 KiB overlap; UTF-16 without a byte-order mark and attachments inside compressed containers (zip, docx) are not read, by the redaction or by the byte-level payload proof (a needle compressed inside an attachment's own container is out of reach of both)."
+      ],
+      "red": "compile-red by construction: TextFieldPolicy.name_trees / embedded_content and the three TextRole variants do not exist at 007f8bc; the test asserts per-role outcome rows, a proven output, an independent inflate of every stream, the policy-off run (6 kept) and the undecodable attachment",
+      "known_gaps": [
+        "Script code (name-tree values, JS actions) is not redacted; field /TM and /MK captions; structure elements that are direct dictionaries without /P",
+        "The residual pass of redact_and_save re-runs the same selector (R6 PLAUSIBLE, open)",
+        "Acrobat-saved fixture oracle still pending (Operator D5)"
+      ]
     }
   }
 }

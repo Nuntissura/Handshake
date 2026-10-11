@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T06:54:51Z",
+ "updated_at": "2026-10-11T06:56:02Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -650,14 +650,15 @@
     "cb38b86",
     "e75bd5a",
     "272909b",
-    "dd1df63"
+    "dd1df63",
+    "a1c9747"
    ],
    "verdicts": [
     "STUDIO-R5 FAIL_V1 @1d404f8 (newer submission e75bd5a pending)",
     "STUDIO-R6 FAIL_V2 @bd8533f (newer submission dd1df63 pending)"
    ],
-   "candidate": "dd1df63",
-   "note": "correction: opaque composite text blocks is_clean/region_cleared/is_proven whenever a needle search ran (NotProven::OpaqueText), not_proven_reasons() listed and printed; red when check disabled; 24 of 24 green; reader hardening slice dispatched 2026-10-11T06:10:16Z (builder-press-4, fresh)",
+   "candidate": "a1c9747",
+   "note": "hardening 023c817 (V4-01 on filters/reader/syntax/writer, 107 sites; per-stage + aggregate decode budget, max_filters 8, depth clamp 256, ref chains 16 hops, /W /Size /Index /Length bounds), R6 c520095 (kept-text exemption only for page-tree-reachable contents/forms; hidden zlib behind raster filters; ASCII85 tail), V4-02 tests 007f8bc (red-proved on scratch copy; nesting overflowed stack on old code), redaction gaps a1c9747 (other name trees, Submit/ResetForm /Fields, attachments); 31 green",
    "r5_review_routed": {
     "to": "builder-press-3",
     "at": "2026-10-11T05:31:12Z",
