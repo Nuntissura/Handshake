@@ -2,48 +2,133 @@
   "crate": "hsk-studio-interop-lrcat",
   "lane": "SMB-INTEROP-LRCAT-1",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice-1-complete",
+  "phase": "slice-1-complete+R5-remediation",
   "commits": [
     {"sha": "e478186", "subject": "Lrcat slice 1a: bounded read-only SQLite byte decoder (header, table b-tree, records, overflow, schema, committed-WAL overlay, freelist check), fixed Lightroom extraction into typed proposals with loss/count receipts, fingerprint, synthetic fixtures + generator"},
-    {"sha": "bab2221", "subject": "Lrcat slice 1b: five contract tests, interop-lrcat-consumer example"}
+    {"sha": "bab2221", "subject": "Lrcat slice 1b: five contract tests, interop-lrcat-consumer example"},
+    {"sha": "16de2ca", "subject": "Lrcat R5 remediation: shared overflow chains refused, aggregate retained-text budget, honest row accounting, checked arithmetic"},
+    {"sha": "eaac5fe", "subject": "Lrcat R5 remediation: fixture generator moved out of the product repo (CX-503R), retained-budget test isolates cloned text"},
+    {"sha": "d48c746", "subject": "Lrcat R5 remediation: charge the lowercase duplicate-table-name copy (class sweep site)"}
   ],
   "capabilities_done": [
-    "granted immutable ByteSource/Grant/WalGrant{None,Granted,PresentButNotGranted} + Limits (main/wal bytes, pages, page reads, rows, cells, payload, overflow pages, depth, columns, opaque retention), every bound checked before allocation or read",
-    "internal bounded SQLite decoder (catalog_bytes): header validation (magic, page size, versions, usable size, payload fractions, encoding 1/2/3, page count rules, truncation), iterative table b-tree walk (0x05/0x0d) with depth cap + visited-page cycle detection, varints, records (selected columns only), overflow chains with page cap + cycle/short/long detection, sqlite_master + bounded CREATE TABLE column/rowid-alias/WITHOUT ROWID tokenizer, freelist trunk-chain anomaly report, encrypted-looking header heuristic; nothing generic is pub",
+    "granted immutable ByteSource/Grant/WalGrant{None,Granted,PresentButNotGranted} + Limits (main/wal bytes, pages, page reads, rows, cells, payload, overflow pages, depth, columns, opaque retention, retained text), every bound checked before allocation or read",
+    "internal bounded SQLite decoder (catalog_bytes): header validation (magic, page size, versions, usable size, payload fractions, encoding 1/2/3, page count rules, truncation), iterative table b-tree walk (0x05/0x0d) with depth cap + visited-page cycle detection, varints, records (selected columns only), overflow chains with page cap + cycle/short/long detection AND an extraction-wide overflow-page claim set (R5: a page consumed by another cell's chain = Cycle overflow_shared), sqlite_master + bounded CREATE TABLE column/rowid-alias/WITHOUT ROWID tokenizer, freelist trunk-chain anomaly report, encrypted-looking header heuristic; nothing generic is pub",
     "WAL snapshot (wal_snapshot): header magic/version/page size/checksum, salt + cumulative checksum chain, committed-prefix overlay (page -> WAL offset), db size from last commit frame, uncommitted/invalid tail reported; Fingerprint{main_len,wal_len,committed_wal_len,sha256_main,sha256_wal} taken before and after decode, difference => SourceChanged",
-    "extract_catalog(Grant, Limits, CancellationToken) -> CatalogProposal: photos (path relative to root folder, capture time, rating, pick, color label, orientation, format, size), develop settings opaque + SHA-256 + simple Lua scalars, collections (standard/smart/other), members, keywords, assignments, Adobe_variablesTable schema version; per-entity counts with rows_seen == mapped + lost; aggregated typed LossNote list (editable/translated/approximate/opaque/unsupported/missing); count-only losses for AdditionalMetadata, HarvestedExif, develop history/snapshot, collection content; unmapped tables listed; orphan rows lost not dropped",
-    "report() Observe mapping, DESCRIPTOR (fixed extraction only, no SQL engine, unverified list), interop-lrcat-consumer example (--descriptor, --main FILE [--wal FILE | --wal-present-ungranted])",
-    "fixtures: tests/fixtures/generate_fixtures.py (Python sqlite3 as offline generator ONLY, run once under the artifact root) + synthetic-main.lrcat, synthetic-wal.lrcat + committed and uncommitted-tail -wal, expected TSVs computed from the generator model, PROVENANCE.json with Python SHA-256"
+    "extract_catalog(Grant, Limits, CancellationToken) -> CatalogProposal: photos, develop settings opaque + SHA-256 + simple Lua scalars, collections, members, keywords, assignments, Adobe_variablesTable schema version; per-entity counts from three separate sources (walker rows_seen, entries kept = mapped, whole-row loss events = lost) cross-checked by CatalogProposal::reconciles against the proposal content (R5); aggregated typed LossNote list; count-only losses; unmapped tables listed; orphan rows and repeated rowids lost (duplicate_rowid) not dropped or overwritten",
+    "R5: aggregate retained-text budget Limits.max_retained_text_bytes (default 512 MiB, hard ceiling 2 GiB, typed limit_retained_text): schema entries, lookup tables, proposal entries and every kept or cloned string charged per copy before it is made; payload reservation bounded by what the database can supply",
+    "report() Observe mapping, DESCRIPTOR (fixed extraction only, no SQL engine, unverified list, claims cite tests), interop-lrcat-consumer example (--descriptor, --main FILE [--wal FILE | --wal-present-ungranted])",
+    "fixtures: synthetic-main.lrcat, synthetic-wal.lrcat + committed and uncommitted-tail -wal, expected TSVs computed from the generator model, PROVENANCE.json with Python SHA-256; the offline Python sqlite3 generator now lives OUTSIDE the product repo (artifact root WP-KERNEL-STUDIO/interop-lrcat/fixtures-gen/generate_fixtures.py, sha256 in PROVENANCE.json)"
   ],
   "tests": {
-    "argv": "cargo test -p hsk-studio-interop-lrcat --test catalog_decode --no-fail-fast",
+    "argv": "cargo test -p hsk-studio-interop-lrcat --tests --no-fail-fast",
     "exit": 0,
-    "sha": "bab2221",
-    "passed": 5,
+    "sha": "d48c746",
+    "passed": 9,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "Steward registry sync for dep-request sha2 0.10.9 (force-soft) for hsk-studio-interop-lrcat (probe approved list), then validator round. Next slice: validator-time oracle on a Lightroom-written catalog (Operator-granted), XMP inflate with output cap (miniz_oxide, dep request), develop settings semantics, CKC promotion via shared ports.",
-  "updated_at": "2026-10-11T03:06:35Z",
+  "next": "Validator re-check of the R5 group C lrcat findings (shared-overflow OOM, reconcile-by-construction, generator location). Then: validator-time oracle on a Lightroom-written catalog (D12), XMP inflate with output cap (miniz_oxide, dep request), develop settings semantics, CKC promotion via shared ports.",
+  "updated_at": "2026-10-11T05:52:17Z",
   "notes": {
-    "clippy": "cargo clippy -p hsk-studio-interop-lrcat --tests --examples: no warnings for this crate",
-    "break_it": "7 mutations each fail a test: remove WAL overlay lookup, b-tree cycle check, overflow cycle check, before/after fingerprint compare, WAL frame checksum compare, ungranted-WAL gate, commit-frame rule",
+    "clippy": "cargo clippy -p hsk-studio-interop-lrcat --tests --examples: no warnings for this crate at d48c746",
+    "break_it": "slice 1: 7 mutations each fail a test (WAL overlay lookup, b-tree cycle check, overflow cycle check, before/after fingerprint compare, WAL frame checksum compare, ungranted-WAL gate, commit-frame rule). R5: RED evidence is the run on the unmodified crate (see remediation_R5); source mutations of the new claim set and clone charge were attempted but the edit was denied by the auto-mode classifier, so they were NOT run",
     "source_basis": "own implementation from sqlite.org/fileformat2.html (WAL header/frame/checksum, table cell + overflow formulas, freelist trunk, header offsets verified by fetch); LightCraft cache read as concept reference only, no code copied (no SOURCE_PROVENANCE entry needed)",
     "design_choices": [
       "WalGrant::PresentButNotGranted is Err(UngrantedWal) (fail closed: catalog could be stale); freelist anomalies, uncommitted/invalid WAL tail, unmapped tables are typed LossNotes, not errors; encrypted is Err(Encrypted) by HEURISTIC (no magic + near-uniform bytes)",
       "main file header version/size is overridden by the last WAL commit frame size and page 1 is read through the overlay",
       "only a granted WAL is hashed/overlaid; hash of the whole main+WAL is taken twice (before/after) plus the decode read = three reads of the bytes",
-      "report() takes correlation_id/revision like interop-vector (Observation needs them)"
+      "report() takes correlation_id/revision like interop-vector (Observation needs them)",
+      "R5: EntityCount.lost = rows that produced NO entry (whole-row loss events); a mapped row with field-level losses stays mapped and its field notes are listed separately; first row wins for a repeated rowid in the path lookup tables"
     ],
     "unverified": [
-      "Lightroom table/column names beyond the brief list (Adobe_variablesTable.Adobe_DBVersion, AgLibraryCollection.creationId values, AgLibraryFile.idx_filename/baseName/extension, Adobe_images column set) are not yet checked against a Lightroom-written catalog (validator-time oracle)",
+      "Lightroom table/column names beyond the brief list (Adobe_variablesTable.Adobe_DBVersion, AgLibraryCollection.creationId values, AgLibraryFile.idx_filename/baseName/extension, Adobe_images column set) are not yet checked against a Lightroom-written catalog (validator-time oracle, D12)",
       "KNOWN_PROCESS_VERSIONS is an unofficial community mapping of Camera Raw ProcessVersion internal numbers; KNOWN_SCHEMA_VERSIONS is empty, so every catalog reports schema_version_unrecognised",
-      "SQLite WAL/auto_vacuum pointer-map pages, UTF-16 databases and WITHOUT ROWID tables are handled by code but have no fixture"
+      "SQLite WAL/auto_vacuum pointer-map pages, UTF-16 databases and WITHOUT ROWID tables are handled by code but have no fixture",
+      "R5: 'a valid SQLite file never shares an overflow page between cells' is taken from the file-format document (each overflow page belongs to exactly one cell's chain), not observed on a Lightroom-written catalog; a real catalog that violated it would now fail closed with overflow_shared",
+      "R5: the retained-text budget is an ACCOUNTING bound (inline struct size + 24 bytes slack + text length per retained entry); real heap peak (Vec growth, hash tables) was not measured and may be a small multiple of the budget"
     ],
-    "deps": "sha2 =0.10.9 (force-soft) added in the crate manifest; one dep-requests line appended; Cargo.lock not staged",
+    "deps": "sha2 =0.10.9 (force-soft) added in the crate manifest; one dep-requests line appended; Cargo.lock not staged. R5 added no dependency.",
     "git_note": "commit e478186 pre-dates the attribution trailer reminder and carries no Co-Authored-By; later commits do",
+    "remediation_R5": {
+      "source": "validation/R5-review-c.json, lane SMB-INTEROP-LRCAT, candidate 1d404f8 (crate sources identical to bab2221); validator failure classes no-aggregate-retained-text-budget and reconcile-check-tautological",
+      "finding_1_unbounded_retention": {
+        "root_cause": "overflow visited set was per cell, and every text copied out of lookup rows or cloned into each PhotoProposal (root_path, path_from_root, file_name) was uncounted; sqlite_master table names and the lowercase duplicate-name copy were uncounted too",
+        "fix": "catalog_bytes.rs: Db.overflow_claimed (extraction-wide) -> Cycle overflow_shared on reuse by another chain, overflow_cycle for a loop in the same chain; Db.charge + Limits.max_retained_text_bytes -> LimitKind::RetainedText (limit_retained_text) charged in read_schema, text(), clone_text(), put(), every proposal push, develop scalars, composed file names, duplicate-name set; payload() reserves min(declared, what the database can supply) after the overflow-page cap check",
+        "regression_tests": ["shared_overflow_chain_across_rows_is_refused", "retained_text_budget_counts_every_copy"],
+        "red": "shared_overflow_chain_across_rows_is_refused FAILED on the unmodified crate (Ok with 6 photos each holding the same 499-byte value, instead of Err); retained_text_budget_counts_every_copy cannot compile on the old crate (no max_retained_text_bytes) and now proves 16 rows x one stored 440-byte path fail a 9000-byte budget while 16 rows with a 1-byte path fit it"
+      },
+      "finding_2_reconcile_by_construction": {
+        "root_cause": "count() computed lost = seen.saturating_sub(mapped), so rows_seen == mapped + lost held for any input, and root/folder/file lookups were reported mapped = seen even when a repeated rowid overwrote an earlier row",
+        "fix": "extract.rs: rows() returns Walked{seen (b-tree walker), lost (whole-row Dropped events, each also a LossNote)}; mapped = entries really kept (vector or map length); put() keeps the first row and drops a repeated rowid as duplicate_rowid; CatalogProposal::reconciles now also requires mapped == the proposal's own entries per entity, the Adobe_images count to exist, and no overflow in the sum",
+        "regression_test": "reconciliation_is_cross_checked_not_constructed",
+        "red": "FAILED on the unmodified crate: reconciles() stayed true after photos.pop() (assert 'mapped must equal the entries actually present'); the repeated-rowid image asserted (seen, mapped, lost) == (2, 1, 1)"
+      },
+      "plausible_python_sqlite_generator": "REAL (script imports sqlite3 inside the product crate, no recorded exemption): moved out of the product repo to the artifact root with sha256 + location in tests/fixtures/PROVENANCE.json (option 2 of the review remediation); git rm of tests/fixtures/generate_fixtures.py; fixtures and expected TSVs unchanged; no lead exemption was recorded or needed",
+      "v4_01": "#![deny(clippy::arithmetic_side_effects)] added to catalog_bytes, extract, source, error (all modules touched); all arithmetic on untrusted values is checked/saturating/try_from with typed errors; wal_snapshot.rs untouched and NOT yet under the deny (not in R5 scope for this lane)",
+      "v4_02": "dims_u32_max-style test: sizes_at_numeric_maximum_are_typed_refusals (page size 0/65535, page count u32::MAX, root page u32::MAX/i64::MIN, ncells 0xffff, cell pointer 0xffff, child page u32::MAX, payload u64::MAX, overflow pointer u32::MAX, 1 GiB payload with widest caps, header size 200, serial type u64::MAX); aggregate_over_budget-style test: retained_text_budget_counts_every_copy (plus the existing opaque-bytes budget case in process_enable_smart_rule_unknown_loss)",
+      "v4_06": {
+        "class_A": {
+          "name": "no-aggregate-retained-text-budget: input-derived data retained, copied or amplified per row without an extraction-wide claim or budget",
+          "regex": "\\.clone\\(\\)|\\.to_vec\\(\\)|\\.into_owned\\(\\)|\\.push\\(|\\.insert\\(|\\.extend\\(|extend_from_slice|String::from|to_owned\\(\\)|with_capacity|format!",
+          "scope": "crates/hsk-studio-interop-lrcat/src/*.rs except lib.rs (lib.rs has 0 matches)",
+          "total_matches": 73,
+          "per_file": {"wal_snapshot.rs": 5, "extract.rs": 22, "catalog_bytes.rs": 46},
+          "sites": [
+            {"file": "wal_snapshot.rs", "lines": "42,44,45", "status": "not-applicable", "why": "hex() of a fixed 32-byte hash"},
+            {"file": "wal_snapshot.rs", "lines": "185,188", "status": "not-applicable", "why": "pending/overlay entries are linear in the granted WAL, bounded by max_wal_bytes (<= 1 GiB) and the frame header size"},
+            {"file": "extract.rs", "lines": "260,263,266,267,268", "status": "not-applicable", "why": "LossLog keys capped at MAX_LOSS_KEYS (4096) with sanitized (<= 64 char) free-form parts"},
+            {"file": "extract.rs", "lines": "322,323", "status": "not-applicable", "why": "counts vector holds one entry per walked table (named tables + max_unmapped_tables)"},
+            {"file": "extract.rs", "lines": "341", "status": "fixed", "why": "put(): entry charged before insert; repeated rowid dropped as duplicate_rowid"},
+            {"file": "extract.rs", "lines": "352", "status": "fixed", "why": "clone_text(): length charged before the clone"},
+            {"file": "extract.rs", "lines": "550", "status": "fixed", "why": "composed file name charged before format!"},
+            {"file": "extract.rs", "lines": "621,732,750,775,791", "status": "fixed", "why": "photo, collection, member, keyword, assignment pushes charge entry_bytes (strings charged in text()/clone_text())"},
+            {"file": "extract.rs", "lines": "693", "status": "fixed", "why": "develop push charges entry + every scalar + process-version copy"},
+            {"file": "extract.rs", "lines": "699", "status": "not-applicable", "why": "opaque settings bytes: separate max_retained_opaque_bytes budget checked before the copy (test process_enable_smart_rule_unknown_loss)"},
+            {"file": "extract.rs", "lines": "831", "status": "not-applicable", "why": "count entity name from a sanitized (<= 64 char) table name, <= max_unmapped_tables entries"},
+            {"file": "extract.rs", "lines": "903,915,919", "status": "fixed", "why": "Lua scalar strings are <= 256/64 bytes, <= 512 per row, transient; the retained map is charged at the develop push"},
+            {"file": "extract.rs", "lines": "971", "status": "fixed", "why": "lowercase duplicate-table-name copy now charged (found by this sweep, commit d48c746)"},
+            {"file": "catalog_bytes.rs", "lines": "78,93,145,146", "status": "not-applicable", "why": "transient per-row decode copies bounded by max_payload; retained results are charged at the retention site"},
+            {"file": "catalog_bytes.rs", "lines": "157,158,193,194,195,196,503,507,514", "status": "not-applicable", "why": "error value clones (fixed-size enum)"},
+            {"file": "catalog_bytes.rs", "lines": "170,172,173,177,178,187,190,197", "status": "not-applicable", "why": "record header vectors bounded by max_columns / wanted column count, dropped per row"},
+            {"file": "catalog_bytes.rs", "lines": "452,661,683", "status": "not-applicable", "why": "per-walk visited set / freelist set of u32, bounded by page_count <= max_pages and the page-read budget, dropped after the walk"},
+            {"file": "catalog_bytes.rs", "lines": "477,483,485,490", "status": "not-applicable", "why": "children vector <= usable/2 per page; DFS stack bounded by max_cells (checked before pushes)"},
+            {"file": "catalog_bytes.rs", "lines": "530,546", "status": "not-applicable", "why": "per-cell local payload copy <= one page, dropped after the row"},
+            {"file": "catalog_bytes.rs", "lines": "562,563,584", "status": "fixed", "why": "payload buffer reserved after the overflow-page cap check and bounded by what the database can supply; chain pages each consumed once"},
+            {"file": "catalog_bytes.rs", "lines": "570", "status": "fixed", "why": "the extraction-wide overflow claim set itself (<= page_count entries)"},
+            {"file": "catalog_bytes.rs", "lines": "577", "status": "not-applicable", "why": "per-chain page list <= needed <= max_overflow_pages"},
+            {"file": "catalog_bytes.rs", "lines": "641", "status": "fixed", "why": "schema table entries charged (name + columns + entry) in read_schema"},
+            {"file": "catalog_bytes.rs", "lines": "745,752,755,768,772,779,782,784,848,860", "status": "not-applicable", "why": "CREATE TABLE tokenizer/parser input capped at MAX_SCHEMA_SQL (64 KiB); the retained columns are charged at line 641"}
+          ],
+          "listed_matches_sum": 73,
+          "note": "line numbers are for commit d48c746; the grouped line lists sum to the grep count per file (5 + 22 + 46)"
+        },
+        "class_B": {
+          "name": "reconcile-check-tautological: accounting value derived from the value it is later compared with (claim true by construction)",
+          "regex": "saturating_sub\\(mapped|reconciles|rows_seen|\\blost\\b",
+          "scope": "crates/hsk-studio-interop-lrcat/src/*.rs except lib.rs",
+          "total_matches": 28,
+          "sites": [
+            {"file": "extract.rs", "lines": "71,72,74,75,211,213,238,320,400", "status": "not-applicable", "why": "doc comments (rewritten to the new three-source definition)"},
+            {"file": "extract.rs", "lines": "79,81,282", "status": "not-applicable", "why": "field declarations"},
+            {"file": "extract.rs", "lines": "215,229", "status": "fixed", "why": "reconciles(): no longer a pure function of the counts; checks mapped against the proposal content and requires the Adobe_images count"},
+            {"file": "extract.rs", "lines": "324,326,416,427,437,473,476,479,480,481,825,828,831,832", "status": "fixed", "why": "lost comes from whole-row loss events (rows(), count_only(), unmapped()), rows_seen from the walker; the only saturating_sub(mapped) site is deleted (0 matches now)"}
+          ],
+          "listed_matches_sum": 28
+        },
+        "tests_side": "tests/catalog_decode.rs: the two reconciles() asserts reported by the review are kept and are now meaningful; assert_independent_reconciliation checks walker count vs proposal content vs loss notes for every entity of both fixtures"
+      },
+      "v4_07": "DESCRIPTOR: the 'never opens a path / never writes / never links' sentence is rewritten to a checkable statement citing cancel_stale_no_source_write_no_sql_closure; new overflow_shared, retained-budget, accounting and size-maximum sentences cite their tests",
+      "v4_09": "commit messages written to scratchpad files and passed with git commit -F; no inline heredoc for free text (one short python helper edit for line fixes)",
+      "retry_guard": "route (a): the RED run failed at HEAD d9a8ce8 (product failure, new tests red on the old crate); the fix was committed (16de2ca, HEAD changed) before the green run; no flags, arguments or filters were changed between runs; no gameplan step added",
+      "behaviour_changes": [
+        "Limits gains a pub field max_retained_text_bytes (struct-literal callers need ..Limits::default()); LimitKind gains RetainedText; HARD_MAX_RETAINED_TEXT_BYTES exported; no other workspace crate depends on this crate (grep: only root Cargo.toml and tools/workspace-probe.rs name it)",
+        "an overflow page reused by a second chain now fails the whole extraction (Cycle overflow_shared) instead of being decoded again",
+        "a repeated rowid in AgLibraryRootFolder/Folder/File keeps the first row and reports the later one as duplicate_rowid; extra Adobe_variablesTable rows beyond the first Adobe_DBVersion are variables_not_mapped",
+        "payload(): up-front reservation no longer follows the declared size (bounded by what the database can supply)"
+      ]
+    },
     "verdicts": [
      {
       "round": "STUDIO-R5",

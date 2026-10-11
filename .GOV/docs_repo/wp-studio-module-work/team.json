@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T05:52:30Z",
+ "updated_at": "2026-10-11T05:53:27Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -785,7 +785,7 @@
     "crates/hsk-studio-interop-lrcat/**"
    ],
    "launched": "2026-10-11T05:31:12Z",
-   "status": "running"
+   "status": "done 2026-10-11T05:53:27Z (SMB-INTEROP-LRCAT READY at d48c746)"
   },
   {
    "name": "rem-layout",

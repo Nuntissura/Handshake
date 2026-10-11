@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T05:52:30Z",
+ "updated_at": "2026-10-11T05:53:27Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -673,19 +673,20 @@
    "lane_id": "SMB-INTEROP-LRCAT",
    "crate": "hsk-studio-interop-lrcat",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-interop-lrcat",
-   "phase": "build",
-   "status": "FAIL_V1",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-interop-lrcat",
    "brief": null,
    "commits": [
     "e478186",
-    "bab2221"
+    "bab2221",
+    "d48c746"
    ],
    "verdicts": [
     "STUDIO-R5 FAIL_V1 @1d404f8"
    ],
-   "candidate": "bab2221",
-   "note": "bounded read-only SQLite-byte decoder (no engine, CX-503R), WAL overlay gated, fingerprint SourceChanged; 5 tests + break-it; Lightroom schema UNVERIFIED (D12)",
+   "candidate": "d48c746",
+   "note": "R5 remediation (16de2ca, eaac5fe, d48c746): extraction-wide overflow page claims (shared -> Cycle overflow_shared), max_retained_text_bytes 512 MiB charged on every kept/cloned string (found extra per-photo path clones); reconcile cross-checked (rows_seen from b-tree walker, lost from whole-row loss events, duplicate_rowid loss); Python fixture generator moved to artifact root with provenance; V4-01 on 4 modules; 9 of 9 green; caveat: no-shared-overflow assumption from SQLite file-format doc, unverified on a Lightroom catalog (D12)",
    "r5_review_routed": {
     "to": "rem-lrcat",
     "at": "2026-10-11T05:31:12Z",
@@ -1529,6 +1530,7 @@
   "SMB-PRISM-ENG-6",
   "SMB-PRISM-ENG-5",
   "SMB-SCORE-PLUGIN",
-  "SMB-CONTROLS"
+  "SMB-CONTROLS",
+  "SMB-INTEROP-LRCAT"
  ]
 }
