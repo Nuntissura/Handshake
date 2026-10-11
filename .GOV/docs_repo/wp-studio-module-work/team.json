@@ -1730,7 +1730,7 @@
     "builders/lanes/hsk-studio-press.json"
    ],
    "launched": "2026-10-11T13:11:01Z",
-   "status": "running"
+   "status": "done 2026-10-11T14:26:28Z (cc3eaae)"
   },
   {
    "name": "prereview-r9-reel",
@@ -1834,6 +1834,17 @@
     "validation/R10-prereview-reel-route.json"
    ],
    "launched": "2026-10-11T14:25:45Z",
+   "status": "running"
+  },
+  {
+   "name": "prereview-r10-press",
+   "agent_id": "a8b2c2504eb9ae72d",
+   "model": "opus",
+   "role": "V4-13 pre-review SMB-PRESS + DIFFERENCES at cc3eaae",
+   "owns": [
+    "validation/R10-prereview-press.json"
+   ],
+   "launched": "2026-10-11T14:26:28Z",
    "status": "running"
   }
  ]

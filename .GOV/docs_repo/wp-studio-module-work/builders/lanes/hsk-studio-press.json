@@ -1,8 +1,8 @@
 {
  "crate": "hsk-studio-press",
  "lane": "MT-35557 press: V4 hardening slice + remediation R6 + redaction gaps (slice 6) + remediation R7 pre-review B (N1-N7, lead PLR-039/PLR-040)",
- "status": null,
- "phase": "R9 pre-review FIX_FIRST remediation in progress (builder rem-press-r9; lead decision 2026-10-11T13:10:26Z POSITIVE DETERMINATION) for SMB-PRESS (R9-F1..F3, R9-P1, R9-P2, R9-V1) and SMB-PRESS-DIFFERENCES (R9-D1..D3); last READY commit 49731a5 is superseded, nothing is READY until this remediation sets it",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "R9 pre-review FIX_FIRST remediated (lead decision 2026-10-11T13:10:26Z POSITIVE DETERMINATION) for both lanes: SMB-PRESS R9-F1..F3, R9-P1, R9-P2, R9-V1 and SMB-PRESS-DIFFERENCES R9-D1..D3; READY commit cc3eaae (claim 60b3f63..cc3eaae, nothing later touches the crate); 73/73 tests, clippy clean, 13 new regression tests red on 49731a5 with every listed sub-case named",
  "commits": [
   {
    "sha": "70b4c74",
@@ -103,6 +103,30 @@
   {
    "sha": "49731a5",
    "subject": "Press R8: kerned removed runs are needles; DESCRIPTOR and docs per V4-07"
+  },
+  {
+   "sha": "60b3f63",
+   "subject": "Press R9 pre-review remediation (wip, lane status null): positive determination pass"
+  },
+  {
+   "sha": "047afea",
+   "subject": "Press R9 (wip, lane status null): one regression test per R9 item; kept collisions per operator"
+  },
+  {
+   "sha": "5eda648",
+   "subject": "Press R9 (wip, lane status null): one test per listed sub-case; red run names each failing sub-case"
+  },
+  {
+   "sha": "5d1991a",
+   "subject": "Press R9 (wip, lane status null): DESCRIPTOR and docs per V4-07; ESC segments in drawn text; text bound test"
+  },
+  {
+   "sha": "637d280",
+   "subject": "Press R9 (wip, lane status null): removal runs join across text objects of a content stream"
+  },
+  {
+   "sha": "cc3eaae",
+   "subject": "Press R9 (wip, lane status null): needles indexed by first character for text matching"
   }
  ],
  "capabilities_done": [
@@ -149,20 +173,26 @@
   "slice 6 (a1c9747): (1) keys of every /Names tree except /Dests and /EmbeddedFiles (JavaScript, AP, Pages, Templates, IDS, URLS, ...) renamed to opaque HskRdN and the tree rebuilt as one sorted leaf (TextRole::NameTreeKey, policy name_trees); (2) strings of /Fields of SubmitForm and ResetForm actions through the text mode (TextRole::ActionFields, policy form_labels; refs inside /Fields untouched); (3) embedded file content: a file specification whose /EF stream decodes to bytes holding a match loses /EF and /RF, the stream leaves the file (TextRole::EmbeddedFileContent Dropped; undecodable = Unverifiable; policy embedded_content off = KeptByPolicy); test name_trees_submit_fields_and_embedded_content_redacted",
   "R7 pre-review B: payload proof sound by construction: raw backstop over every output byte (no span subtraction), decoders report consumed input (NotProven::TrailingData), inline-image data decoded and scanned (PayloadLocation::InlineImage), dictionary keys scanned, spellings bytes/PDFDoc/UTF-8/UTF-16BE/LE/hex + ToUnicode codes, one content walker (q/Q, gs /Font, Tf across page streams and into Do forms, inherited resources, /DR for appearances), kept text = drawn by Do from a page, stray content-role streams read, NotProven::UnreadableContent; PLR-040 raster class requires JPEG/JPX/JBIG2 structure or CCITT rows that decode to the image size",
   "SMB-PRESS-DIFFERENCES (607d47c, lead decision on the 1c3fd8c residual): simple fonts are read through /Encoding (base encoding StandardEncoding/WinAnsiEncoding/MacRomanEncoding/PDFDocEncoding, implicit StandardEncoding for a non-embedded non-symbolic font, /Differences glyph names through the Adobe Glyph List + uniXXXX/uXXXX conventions, Type3 from /Differences only); the proof (page/appearance/stray text, code spellings) and the redaction (removed_unicode) both see that text; a code nothing reads (unmappable glyph name, embedded or symbolic font without /Encoding, malformed /Differences) is read through /ToUnicode or makes the text opaque: NotProven::OpaqueText when a needle search ran. Details in notes.differences.",
-  "R8 pre-review remediation (e8b464b, a85b85f, 49731a5; lead decision 11:58Z, proof fails closed): content walk over the object table (page objects outside the page tree read as Stray with their resources; every other stream that tokenizes as content read as Stray with none; an unresolvable font in stray content is opaque); kerned TJ matched spaced and joined (readings and bytes; selector records adjacent removed elements joined); composite text with a code its /ToUnicode does not name is opaque; removed strings without a complete reading -> NotProven::UnreadableRemovedText (RedactionReport.removed_unreadable, RedactedOutput.unreadable_removed); the selector returns encoding/ToUnicode budget errors; Type3 or vertical text on the page -> RedactionClass::Type3Text / VerticalText (RegionIncomplete); kept-text exemption only for drawn readings (P1); only /.notdef is a blank glyph name (D1); DESCRIPTOR wording per V4-07"
+  "R8 pre-review remediation (e8b464b, a85b85f, 49731a5; lead decision 11:58Z, proof fails closed): content walk over the object table (page objects outside the page tree read as Stray with their resources; every other stream that tokenizes as content read as Stray with none; an unresolvable font in stray content is opaque); kerned TJ matched spaced and joined (readings and bytes; selector records adjacent removed elements joined); composite text with a code its /ToUnicode does not name is opaque; removed strings without a complete reading -> NotProven::UnreadableRemovedText (RedactionReport.removed_unreadable, RedactedOutput.unreadable_removed); the selector returns encoding/ToUnicode budget errors; Type3 or vertical text on the page -> RedactionClass::Type3Text / VerticalText (RegionIncomplete); kept-text exemption only for drawn readings (P1); only /.notdef is a blank glyph name (D1); DESCRIPTOR wording per V4-07",
+  "R9 positive determination: one determination pass (show_text::Walker) records font state, writing mode, geometry and reading for every text-showing operator of every stream the object-table scan reaches; is_proven / region_cleared computed from it (TextCause, NotProven::UnresolvedWritingMode, RedactedOutput.region_undetermined)",
+  "R9 writing mode: closed ISO 32000-2 Table 116 lists (V vertical), embedded /WMode 0|1, /UseCMap and usecmap, else unresolved (determination.rs)",
+  "R9 selector font graphics state: Tf, gs /Font [font size] and /LW, q/Q, inherited by forms; UnresolvedFont / UnresolvedWritingMode classes",
+  "R9 drawing-order run matching (joined and spaced, forms inline), token rule only exempts within one string; removal runs per content stream; no length minimum for unreadable removed text",
+  "R9 direct Type 3 CharProcs walked; no dictionary-key gate on the catch-all",
+  "R9 normalisation (language escapes incl. PDFDoc 0x1B, default-ignorables, NFKC via minimal NFKD table Unicode 16.0.0, white space) for proof and text-field matcher; strings, names, operands and non-kept stream text matched as text"
  ],
  "tests": {
   "argv": "cargo nextest run -p hsk-studio-press --no-fail-fast",
   "exit": 0,
-  "sha": "49731a5",
-  "passed": 57,
+  "sha": "cc3eaae",
+  "passed": 73,
   "failed": 0
  },
  "blockers": [],
  "lock_wait_s": 0,
  "bg_pids": [],
- "next": "rem-press-r9: one determination pass (font/writing mode/geometry/reading per show operator), selector font graphics state, normalised run matching, regression tests, red proofs on a scratch copy of 49731a5",
- "updated_at": "2026-10-11T13:22:08Z",
+ "next": "Validator: judge SMB-PRESS and SMB-PRESS-DIFFERENCES together on cc3eaae (V4-14: commits 60b3f63..cc3eaae plus the earlier claim 187e6cf..49731a5). Lead items in notes.remediation_R9pre.residuals_for_lead. Later lanes: SMB-PRESS-GEOMETRY, fmt sweep.",
+ "updated_at": "2026-10-11T14:25:27Z",
  "notes": {
   "test_names": [
    "pdf_object_edit_save_independent_reopen",
@@ -551,854 +581,1534 @@
    ],
    "gameplan_route": "two retry-guard blocks after product test failures; route (a): fixes committed (187e6cf, a4d2234), HEAD changed, rerun green"
   },
-  "v4_06_class": "Union of the press classes: [R7pre] the proof subtracted or skipped bytes its own model did not decode or read; [DIFF] a font code is turned into text by a rule narrower than what a viewer draws; [R8] the proof or the selector reads proven while text a viewer draws was never read (objects or streams the walk does not reach, per-string readings of one kerned run, skipped or unmapped codes, a budget overrun read as 'no reading', empty glyph-name stems, selector geometry not computed for Type3/vertical text, bytes exempted as kept text that the font does not draw)",
-  "v4_06_regex": "\\.ok\\(\\)|Err\\(_\\) =>|return Ok\\(\\(out|return Ok\\(\\(ops|Ok\\(\\(ops, false\\)\\)|=> break|b'~' =>|b == b'>'|InlineClass::Searchable|\\.read\\(|\\.decode\\(|\\.encode\\(|latin1\\(|char::from\\(\\*b\\)|parse_to_unicode\\(|SimpleEncoding::of_font|FontText::|FontInfo \\{|\\.cmap|font_named\\(|lookup_font\\(|font_of\\(|unicode_of\\(|fonts_in\\(|read_font\\(|expand_ligatures\\(|same_words\\(|is_composite\\(|pages\\(|pages_outside_tree\\(|content_role_streams\\(|looks_like_content\\(|run_unreached\\(|appearance_roots\\(|push\\(' '\\)|record_removed\\(|flush_run\\(|decode_checked\\(|reading_of\\(|Glyph::Blank|Slot::NoGlyph|FontSel::Unresolved|FontSel::Unset|\"Type3\"|WMode|fn show\\(|raw_drawn\\.|shown_needles\\(",
-  "v4_06_scope": "git grep -n -E <v4_06_regex> 49731a5 -- crates/hsk-studio-press/src (every file, unit tests included); verdict prefix = class(es) the line matches",
-  "v4_06_count": 211,
+  "v4_06_class": "Union of the press classes: [R7pre] the proof subtracted or skipped bytes its own model did not decode or read; [DIFF] a font code is turned into text by a rule narrower than what a viewer draws; [R8] the proof or the selector reads proven while text a viewer draws was never read (objects or streams the walk does not reach, per-string readings of one kerned run, skipped or unmapped codes, a budget overrun read as 'no reading', empty glyph-name stems, selector geometry not computed for Type3/vertical text, bytes exempted as kept text that the font does not draw); [R9] a text-showing operator whose font, writing mode, geometry or reading is not positively determined reads as proven or cleared (CMap writing mode by name suffix, font state only by Tf name, inherited fonts re-resolved, runs matched per operator, a length minimum for unreadable text, the token rule suppressing concatenated matches, exact-character matching, a dictionary-key gate on content)",
+  "v4_06_regex": "\\.ok\\(\\)|Err\\(_\\) =>|return Ok\\(\\(out|return Ok\\(\\(ops|Ok\\(\\(ops, false\\)\\)|=> break|b'~' =>|b == b'>'|InlineClass::Searchable|\\.read\\(|\\.decode\\(|\\.encode\\(|latin1\\(|char::from\\(\\*b\\)|parse_to_unicode\\(|SimpleEncoding::of_font|FontText::|FontInfo \\{|\\.cmap|font_named\\(|lookup_font\\(|font_of\\(|unicode_of\\(|fonts_in\\(|read_font\\(|expand_ligatures\\(|same_words\\(|is_composite\\(|pages\\(|pages_outside_tree\\(|content_role_streams\\(|looks_like_content\\(|run_unreached\\(|appearance_roots\\(|push\\(' '\\)|record_removed\\(|flush_run\\(|decode_checked\\(|reading_of\\(|Glyph::Blank|Slot::NoGlyph|FontSel::Unresolved|FontSel::Unset|\"Type3\"|WMode|fn show\\(|raw_drawn\\.|shown_needles\\(|b\"Tf\"|b\"gs\"|run_form\\(|ends_with\\(|writing_mode\\(|predefined\\(|UseCMap|usecmap|font_info\\(|ext_gstate\\(|gs_font\\(|FontSel::Known|MIN_DISTINCTIVE_NEEDLE|needles_searched|structural_reasons\\(|removed_unreadable|unreadable_removed|root_texts\\(|\\.matches\\(|Needles::new|CharProcs|normali[sz]ed?(_str)?\\(|decode_text\\(|is_ignorable\\(|Escapes::Segments|stream_text_hits\\(|string_text_hits\\(|\\.causes\\(\\)|\\.geometry\\(\\)|FontState::|region_undetermined|page_classes\\(",
+  "v4_06_scope": "git grep -n -E <v4_06_regex> cc3eaae -- crates/hsk-studio-press/src (every file, unit tests included); verdict prefix = class(es) the line matches; [carried from 49731a5 ...] = same line text as a 49731a5 site, verdict kept",
+  "v4_06_count": 381,
   "v4_06_sites": [
    {
     "file_line": "crates/hsk-studio-press/src/cmap.rs:130",
-    "verdict": "[DIFF] n/a: ToUnicode CMap parser; a map that does not parse is no map (composite text opaque, composite removed text unreadable)"
+    "verdict": "[DIFF] n/a: ToUnicode CMap parser; a map that does not parse is no map (composite text opaque, composite removed text unreadable) [carried from 49731a5 cmap.rs:130, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/cmap.rs:243",
-    "verdict": "[R8] FIXED (R8 F3 class): decode = decode_checked(..).0; completeness is judged where a reading decides a verdict (walker composite branch show_text.rs:499, selector reading_of redaction.rs:380); the remaining decode callers read simple-font /ToUnicode text whose per-code completeness enc.read decides (encoding.rs:156)"
+    "verdict": "[R8] FIXED (R8 F3 class): decode = decode_checked(..).0; completeness is judged where a reading decides a verdict (walker composite branch show_text.rs:499, selector reading_of redaction.rs:380); the remaining decode callers read simple-font /ToUnicode text whose per-code completeness enc.read decides (encoding.rs:156) [carried from 49731a5 cmap.rs:243, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/cmap.rs:250",
-    "verdict": "[R8] FIXED (R8): decode_checked reports a skipped (unmapped or partial) code"
+    "verdict": "[R8] FIXED (R8): decode_checked reports a skipped (unmapped or partial) code [carried from 49731a5 cmap.rs:250, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/content.rs:46",
-    "verdict": "[R7pre] FIXED (R7): dangling operands reported; run_page -> unreadable operands_across_streams"
+    "verdict": "[R7pre] FIXED (R7): dangling operands reported; run_page -> unreadable operands_across_streams [carried from 49731a5 content.rs:46, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/content.rs:61",
-    "verdict": "[R7pre] n/a: tokenizer ends an operand list at an operator keyword"
+    "verdict": "[R7pre] n/a: tokenizer ends an operand list at an operator keyword [carried from 49731a5 content.rs:61, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/content.rs:111",
-    "verdict": "[R7pre] n/a: end of tokenization (all input consumed)"
+    "verdict": "[R7pre] n/a: end of tokenization (all input consumed) [carried from 49731a5 content.rs:111, line text unchanged]"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:13",
+    "verdict": "doc/attribute line (V4-07: its claims cite tests, checked mechanically at the READY sha); no behaviour"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:14",
+    "verdict": "doc/attribute line (V4-07: its claims cite tests, checked mechanically at the READY sha); no behaviour"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:15",
+    "verdict": "doc/attribute line (V4-07: its claims cite tests, checked mechanically at the READY sha); no behaviour"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:16",
+    "verdict": "doc/attribute line (V4-07: its claims cite tests, checked mechanically at the READY sha); no behaviour"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:17",
+    "verdict": "doc/attribute line (V4-07: its claims cite tests, checked mechanically at the READY sha); no behaviour"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:18",
+    "verdict": "doc/attribute line (V4-07: its claims cite tests, checked mechanically at the READY sha); no behaviour"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:37",
+    "verdict": "[R9-F1] FIXED: positive writing mode: closed lists of the 61 ISO 32000-2 Table 116 names (V and Identity-V vertical), embedded /WMode 0|1 in dictionary or program, vertical wins, anything else WMode::Unresolved, never assumed horizontal (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:43",
+    "verdict": "doc/attribute line (V4-07: its claims cite tests, checked mechanically at the READY sha); no behaviour"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:63",
+    "verdict": "[R9-F1] FIXED: positive writing mode: closed lists of the 61 ISO 32000-2 Table 116 names (V and Identity-V vertical), embedded /WMode 0|1 in dictionary or program, vertical wins, anything else WMode::Unresolved, never assumed horizontal (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:65",
+    "verdict": "[R9-F1] FIXED: positive writing mode: closed lists of the 61 ISO 32000-2 Table 116 names (V and Identity-V vertical), embedded /WMode 0|1 in dictionary or program, vertical wins, anything else WMode::Unresolved, never assumed horizontal (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:67",
+    "verdict": "[R9-F1] FIXED: positive writing mode: closed lists of the 61 ISO 32000-2 Table 116 names (V and Identity-V vertical), embedded /WMode 0|1 in dictionary or program, vertical wins, anything else WMode::Unresolved, never assumed horizontal (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:69",
+    "verdict": "[R9-F1] FIXED: positive writing mode: closed lists of the 61 ISO 32000-2 Table 116 names (V and Identity-V vertical), embedded /WMode 0|1 in dictionary or program, vertical wins, anything else WMode::Unresolved, never assumed horizontal (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:74",
+    "verdict": "[R9-F1] FIXED: positive writing mode: closed lists of the 61 ISO 32000-2 Table 116 names (V and Identity-V vertical), embedded /WMode 0|1 in dictionary or program, vertical wins, anything else WMode::Unresolved, never assumed horizontal (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:75",
+    "verdict": "[R9-F1] FIXED: positive writing mode: closed lists of the 61 ISO 32000-2 Table 116 names (V and Identity-V vertical), embedded /WMode 0|1 in dictionary or program, vertical wins, anything else WMode::Unresolved, never assumed horizontal (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:76",
+    "verdict": "[R9-F1] FIXED: positive writing mode: closed lists of the 61 ISO 32000-2 Table 116 names (V and Identity-V vertical), embedded /WMode 0|1 in dictionary or program, vertical wins, anything else WMode::Unresolved, never assumed horizontal (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:77",
+    "verdict": "[R9-F1] FIXED: positive writing mode: closed lists of the 61 ISO 32000-2 Table 116 names (V and Identity-V vertical), embedded /WMode 0|1 in dictionary or program, vertical wins, anything else WMode::Unresolved, never assumed horizontal (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:78",
+    "verdict": "[R9-F1] FIXED: positive writing mode: closed lists of the 61 ISO 32000-2 Table 116 names (V and Identity-V vertical), embedded /WMode 0|1 in dictionary or program, vertical wins, anything else WMode::Unresolved, never assumed horizontal (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:80",
+    "verdict": "[R9-F1] FIXED: positive writing mode: closed lists of the 61 ISO 32000-2 Table 116 names (V and Identity-V vertical), embedded /WMode 0|1 in dictionary or program, vertical wins, anything else WMode::Unresolved, never assumed horizontal (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:84",
+    "verdict": "[R9-F1] FIXED: positive writing mode: closed lists of the 61 ISO 32000-2 Table 116 names (V and Identity-V vertical), embedded /WMode 0|1 in dictionary or program, vertical wins, anything else WMode::Unresolved, never assumed horizontal (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:86",
+    "verdict": "[R9-F1] FIXED: positive writing mode: closed lists of the 61 ISO 32000-2 Table 116 names (V and Identity-V vertical), embedded /WMode 0|1 in dictionary or program, vertical wins, anything else WMode::Unresolved, never assumed horizontal (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:87",
+    "verdict": "[R9-F1] FIXED: positive writing mode: closed lists of the 61 ISO 32000-2 Table 116 names (V and Identity-V vertical), embedded /WMode 0|1 in dictionary or program, vertical wins, anything else WMode::Unresolved, never assumed horizontal (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:88",
+    "verdict": "[R9-F1] FIXED: positive writing mode: closed lists of the 61 ISO 32000-2 Table 116 names (V and Identity-V vertical), embedded /WMode 0|1 in dictionary or program, vertical wins, anything else WMode::Unresolved, never assumed horizontal (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:95",
+    "verdict": "[R9-F1] FIXED: positive writing mode: closed lists of the 61 ISO 32000-2 Table 116 names (V and Identity-V vertical), embedded /WMode 0|1 in dictionary or program, vertical wins, anything else WMode::Unresolved, never assumed horizontal (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:96",
+    "verdict": "[R9-F1] FIXED: positive writing mode: closed lists of the 61 ISO 32000-2 Table 116 names (V and Identity-V vertical), embedded /WMode 0|1 in dictionary or program, vertical wins, anything else WMode::Unresolved, never assumed horizontal (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:98",
+    "verdict": "[R9-F1] FIXED: positive writing mode: closed lists of the 61 ISO 32000-2 Table 116 names (V and Identity-V vertical), embedded /WMode 0|1 in dictionary or program, vertical wins, anything else WMode::Unresolved, never assumed horizontal (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:101",
+    "verdict": "[R9-F1] FIXED: positive writing mode: closed lists of the 61 ISO 32000-2 Table 116 names (V and Identity-V vertical), embedded /WMode 0|1 in dictionary or program, vertical wins, anything else WMode::Unresolved, never assumed horizontal (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:104",
+    "verdict": "[R9-F1] FIXED: positive writing mode: closed lists of the 61 ISO 32000-2 Table 116 names (V and Identity-V vertical), embedded /WMode 0|1 in dictionary or program, vertical wins, anything else WMode::Unresolved, never assumed horizontal (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:107",
+    "verdict": "[R9-F1] FIXED: a used CMap (/UseCMap in the dictionary, usecmap in the program) is followed (depth <= 4) and decides with the rest; an unknown name or a non-name operand is Unresolved (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:108",
+    "verdict": "[R9-F1] FIXED: positive writing mode: closed lists of the 61 ISO 32000-2 Table 116 names (V and Identity-V vertical), embedded /WMode 0|1 in dictionary or program, vertical wins, anything else WMode::Unresolved, never assumed horizontal (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:111",
+    "verdict": "[R9-F1] FIXED: positive writing mode: closed lists of the 61 ISO 32000-2 Table 116 names (V and Identity-V vertical), embedded /WMode 0|1 in dictionary or program, vertical wins, anything else WMode::Unresolved, never assumed horizontal (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:116",
+    "verdict": "[R7pre][R9-F1] FIXED: an embedded CMap that fails to decode is WMode::Unresolved (never horizontal); InputLimit/Canceled propagate on the line above"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:118",
+    "verdict": "doc/attribute line (V4-07: its claims cite tests, checked mechanically at the READY sha); no behaviour"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:119",
+    "verdict": "doc/attribute line (V4-07: its claims cite tests, checked mechanically at the READY sha); no behaviour"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:120",
+    "verdict": "[R9-F1] FIXED: a CMap program that does not tokenize is Unresolved (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:123",
+    "verdict": "[R9-F1] FIXED: positive writing mode: closed lists of the 61 ISO 32000-2 Table 116 names (V and Identity-V vertical), embedded /WMode 0|1 in dictionary or program, vertical wins, anything else WMode::Unresolved, never assumed horizontal (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:124",
+    "verdict": "[R9-F1] FIXED: a used CMap (/UseCMap in the dictionary, usecmap in the program) is followed (depth <= 4) and decides with the rest; an unknown name or a non-name operand is Unresolved (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:125",
+    "verdict": "[R9-F1] FIXED: a used CMap (/UseCMap in the dictionary, usecmap in the program) is followed (depth <= 4) and decides with the rest; an unknown name or a non-name operand is Unresolved (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:131",
+    "verdict": "[R9-F1] FIXED: positive writing mode: closed lists of the 61 ISO 32000-2 Table 116 names (V and Identity-V vertical), embedded /WMode 0|1 in dictionary or program, vertical wins, anything else WMode::Unresolved, never assumed horizontal (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:143",
+    "verdict": "unit test predefined_names_are_closed_lists (n/a)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:144",
+    "verdict": "unit test predefined_names_are_closed_lists (n/a)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:145",
+    "verdict": "unit test predefined_names_are_closed_lists (n/a)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:146",
+    "verdict": "unit test predefined_names_are_closed_lists (n/a)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:149",
+    "verdict": "unit test predefined_names_are_closed_lists (n/a)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:150",
+    "verdict": "unit test predefined_names_are_closed_lists (n/a)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/determination.rs:151",
+    "verdict": "unit test predefined_names_are_closed_lists (n/a)"
    },
    {
     "file_line": "crates/hsk-studio-press/src/encoding.rs:78",
-    "verdict": "[R8] n/a: subtype list for the implicit base; Type3 has its own branch (encoding.rs:225)"
+    "verdict": "[R8] n/a: subtype list for the implicit base; Type3 has its own branch (encoding.rs:225) [carried from 49731a5 encoding.rs:78, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/encoding.rs:82",
-    "verdict": "[DIFF] n/a: shared composite test (Type0, CIDFontType0/2)"
+    "verdict": "[DIFF] n/a: shared composite test (Type0, CIDFontType0/2) [carried from 49731a5 encoding.rs:82, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/encoding.rs:155",
-    "verdict": "[R8] n/a: NoGlyph/Unknown codes fall back to /ToUnicode and only Unknown makes the reading opaque; NoGlyph is now only an unassigned base code, /.notdef, a Type3 code outside /Differences, a non-embedded ZapfDingbats symbol or a zero-width/soft-hyphen name (D1 FIXED at encoding.rs:341)"
+    "verdict": "[R8] n/a: NoGlyph/Unknown codes fall back to /ToUnicode and only Unknown makes the reading opaque; NoGlyph is now only an unassigned base code, /.notdef, a Type3 code outside /Differences, a non-embedded ZapfDingbats symbol or a zero-width/soft-hyphen name (D1 FIXED at encoding.rs:341) [carried from 49731a5 encoding.rs:155, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/encoding.rs:156",
-    "verdict": "[DIFF] n/a: per-code /ToUnicode completion of an unread code (empty = not read; Unknown stays opaque)"
+    "verdict": "[DIFF] n/a: per-code /ToUnicode completion of an unread code (empty = not read; Unknown stays opaque) [carried from 49731a5 encoding.rs:156, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/encoding.rs:174",
-    "verdict": "[R7pre] n/a: a code index below 256 always fits u8 (encode: code spellings only)"
+    "verdict": "[R7pre] n/a: a code index below 256 always fits u8 (encode: code spellings only) [carried from 49731a5 encoding.rs:174, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/encoding.rs:187",
-    "verdict": "[DIFF] n/a: ligature expansion adds a reading and removes none"
+    "verdict": "[DIFF] n/a: same_words compares letters and digits; used for raw_drawn (P1, show_text.rs:517) and the selector's 'tells more than the bytes' test (redaction.rs:389) [carried from 49731a5 encoding.rs:208, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/encoding.rs:208",
-    "verdict": "[DIFF] n/a: same_words compares letters and digits; used for raw_drawn (P1, show_text.rs:517) and the selector's 'tells more than the bytes' test (redaction.rs:389)"
+    "file_line": "crates/hsk-studio-press/src/encoding.rs:204",
+    "verdict": "[R8] n/a: Type3 implicit base is empty (names only from /Differences); Type3 geometry is the selector's Type3Text (redaction.rs:310) [carried from 49731a5 encoding.rs:225, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/encoding.rs:225",
-    "verdict": "[R8] n/a: Type3 implicit base is empty (names only from /Differences); Type3 geometry is the selector's Type3Text (redaction.rs:310)"
+    "file_line": "crates/hsk-studio-press/src/encoding.rs:231",
+    "verdict": "[R8] n/a: a base-table code without a character is unassigned (draws .notdef) [carried from 49731a5 encoding.rs:252, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/encoding.rs:252",
-    "verdict": "[R8] n/a: a base-table code without a character is unassigned (draws .notdef)"
+    "file_line": "crates/hsk-studio-press/src/encoding.rs:242",
+    "verdict": "[R8] n/a: PDFDocEncoding undefined codes (unassigned) [carried from 49731a5 encoding.rs:263, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/encoding.rs:263",
-    "verdict": "[R8] n/a: PDFDocEncoding undefined codes (unassigned)"
+    "file_line": "crates/hsk-studio-press/src/encoding.rs:245",
+    "verdict": "[R8] n/a: Base::Empty (Type3 before /Differences, non-embedded ZapfDingbats symbols) [carried from 49731a5 encoding.rs:266, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/encoding.rs:266",
-    "verdict": "[R8] n/a: Base::Empty (Type3 before /Differences, non-embedded ZapfDingbats symbols)"
+    "file_line": "crates/hsk-studio-press/src/encoding.rs:256",
+    "verdict": "[R7pre] n/a: a /Differences code outside 0..=255 leaves the next name without a code -> malformed -> every code unknown (fail closed) [carried from 49731a5 encoding.rs:277, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/encoding.rs:277",
-    "verdict": "[R7pre] n/a: a /Differences code outside 0..=255 leaves the next name without a code -> malformed -> every code unknown (fail closed)"
+    "file_line": "crates/hsk-studio-press/src/encoding.rs:279",
+    "verdict": "[R8] n/a: Glyph::Blank maps to NoGlyph; Blank is only /.notdef now (encoding.rs:341) [carried from 49731a5 encoding.rs:300, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/encoding.rs:300",
-    "verdict": "[R8] n/a: Glyph::Blank maps to NoGlyph; Blank is only /.notdef now (encoding.rs:341)"
+    "file_line": "crates/hsk-studio-press/src/encoding.rs:297",
+    "verdict": "[R8] n/a: a mapped name whose text normalizes to nothing (zero-width characters, soft hyphen) draws no text [carried from 49731a5 encoding.rs:318, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/encoding.rs:318",
-    "verdict": "[R8] n/a: a mapped name whose text normalizes to nothing (zero-width characters, soft hyphen) draws no text"
+    "file_line": "crates/hsk-studio-press/src/encoding.rs:320",
+    "verdict": "[R8] FIXED (D1): Blank only for the exact name .notdef; an empty stem (/.s1, /_, /.A) is Unknown -> opaque (test empty_stem_glyph_names_are_opaque; unit glyph_names_follow_the_agl_specification) [carried from 49731a5 encoding.rs:341, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/encoding.rs:341",
-    "verdict": "[R8] FIXED (D1): Blank only for the exact name .notdef; an empty stem (/.s1, /_, /.A) is Unknown -> opaque (test empty_stem_glyph_names_are_opaque; unit glyph_names_follow_the_agl_specification)"
+    "file_line": "crates/hsk-studio-press/src/encoding.rs:345",
+    "verdict": "[R7pre] n/a: a uniXXXX group that is not hex or not a character -> None -> Unknown (fail closed) [carried from 49731a5 encoding.rs:366, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/encoding.rs:366",
-    "verdict": "[R7pre] n/a: a uniXXXX group that is not hex or not a character -> None -> Unknown (fail closed)"
+    "file_line": "crates/hsk-studio-press/src/encoding.rs:351",
+    "verdict": "[R7pre] n/a: a uXXXX value that is not a character -> None -> Unknown (fail closed) [carried from 49731a5 encoding.rs:372, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/encoding.rs:372",
-    "verdict": "[R7pre] n/a: a uXXXX value that is not a character -> None -> Unknown (fail closed)"
+    "file_line": "crates/hsk-studio-press/src/encoding.rs:377",
+    "verdict": "[DIFF] n/a: unit-test helper [carried from 49731a5 encoding.rs:398, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/encoding.rs:398",
-    "verdict": "[DIFF] n/a: unit-test helper"
+    "file_line": "crates/hsk-studio-press/src/encoding.rs:381",
+    "verdict": "[DIFF] n/a: unit-test helper [carried from 49731a5 encoding.rs:402, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/encoding.rs:402",
-    "verdict": "[DIFF] n/a: unit-test helper"
+    "file_line": "crates/hsk-studio-press/src/encoding.rs:422",
+    "verdict": "[R8] n/a: unit test (D1: .notdef is the only blank name) [carried from 49731a5 encoding.rs:443, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/encoding.rs:443",
-    "verdict": "[R8] n/a: unit test (D1: .notdef is the only blank name)"
+    "file_line": "crates/hsk-studio-press/src/encoding.rs:430",
+    "verdict": "[R8] n/a: unit test (soft hyphen reads as no text) [carried from 49731a5 encoding.rs:451, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/encoding.rs:451",
-    "verdict": "[R8] n/a: unit test (soft hyphen reads as no text)"
+    "file_line": "crates/hsk-studio-press/src/encoding.rs:440",
+    "verdict": "[R8] n/a: unit test (StandardEncoding unassigned code) [carried from 49731a5 encoding.rs:461, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/encoding.rs:461",
-    "verdict": "[R8] n/a: unit test (StandardEncoding unassigned code)"
+    "file_line": "crates/hsk-studio-press/src/encoding.rs:444",
+    "verdict": "[R8] n/a: unit test (WinAnsiEncoding unassigned code) [carried from 49731a5 encoding.rs:465, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/encoding.rs:465",
-    "verdict": "[R8] n/a: unit test (WinAnsiEncoding unassigned code)"
+    "verdict": "[R8] n/a: unit test (/Differences through references) [carried from 49731a5 encoding.rs:486, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/encoding.rs:486",
-    "verdict": "[R8] n/a: unit test (/Differences through references)"
+    "file_line": "crates/hsk-studio-press/src/encoding.rs:478",
+    "verdict": "[R8] n/a: unit test (non-embedded ZapfDingbats) [carried from 49731a5 encoding.rs:499, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/encoding.rs:499",
-    "verdict": "[R8] n/a: unit test (non-embedded ZapfDingbats)"
+    "file_line": "crates/hsk-studio-press/src/encoding.rs:484",
+    "verdict": "[R8] n/a: unit test (Type3 codes outside /Differences) [carried from 49731a5 encoding.rs:505, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/encoding.rs:505",
-    "verdict": "[R8] n/a: unit test (Type3 codes outside /Differences)"
+    "file_line": "crates/hsk-studio-press/src/encoding.rs:509",
+    "verdict": "[DIFF] n/a: unit test (encoding budget) [carried from 49731a5 encoding.rs:530, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/encoding.rs:530",
-    "verdict": "[DIFF] n/a: unit test (encoding budget)"
+    "file_line": "crates/hsk-studio-press/src/encoding.rs:511",
+    "verdict": "[DIFF] n/a: unit test (encoding budget) [carried from 49731a5 encoding.rs:530, line text unchanged]"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/encoding.rs:512",
+    "verdict": "[DIFF] n/a: unit test (encoding budget overrun is InputLimit) [carried from 49731a5 encoding.rs:533, line text unchanged]"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/encoding.rs:518",
+    "verdict": "[DIFF] n/a: unit test (reading) [carried from 49731a5 encoding.rs:539, line text unchanged]"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/encoding.rs:520",
+    "verdict": "[DIFF] n/a: unit test (unknown names opaque) [carried from 49731a5 encoding.rs:541, line text unchanged]"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/encoding.rs:522",
+    "verdict": "[DIFF] n/a: unit test (ToUnicode fallback) [carried from 49731a5 encoding.rs:543, line text unchanged]"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/encoding.rs:523",
+    "verdict": "[DIFF] n/a: unit test (ToUnicode fallback) [carried from 49731a5 encoding.rs:544, line text unchanged]"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/encoding.rs:527",
+    "verdict": "[DIFF] n/a: unit test (Type3 ToUnicode fallback) [carried from 49731a5 encoding.rs:548, line text unchanged]"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/encoding.rs:528",
+    "verdict": "[DIFF] n/a: unit test (Type3 code outside /Differences) [carried from 49731a5 encoding.rs:549, line text unchanged]"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/encoding.rs:531",
+    "verdict": "[DIFF] n/a: unit test (encode) [carried from 49731a5 encoding.rs:552, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/encoding.rs:532",
-    "verdict": "[DIFF] n/a: unit test (encoding budget)"
+    "verdict": "[DIFF] n/a: unit test (encode) [carried from 49731a5 encoding.rs:553, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/encoding.rs:533",
-    "verdict": "[DIFF] n/a: unit test (encoding budget overrun is InputLimit)"
-   },
-   {
-    "file_line": "crates/hsk-studio-press/src/encoding.rs:539",
-    "verdict": "[DIFF] n/a: unit test (reading)"
-   },
-   {
-    "file_line": "crates/hsk-studio-press/src/encoding.rs:541",
-    "verdict": "[DIFF] n/a: unit test (unknown names opaque)"
+    "file_line": "crates/hsk-studio-press/src/encoding.rs:540",
+    "verdict": "unit test helpers_expand_ligatures_and_compare_words: ligatures now spelled out by norm.rs (expand_ligatures deleted as redundant) (n/a)"
    },
    {
     "file_line": "crates/hsk-studio-press/src/encoding.rs:543",
-    "verdict": "[DIFF] n/a: unit test (ToUnicode fallback)"
+    "verdict": "[DIFF] n/a: unit test (same_words) [carried from 49731a5 encoding.rs:561, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/encoding.rs:544",
-    "verdict": "[DIFF] n/a: unit test (ToUnicode fallback)"
-   },
-   {
-    "file_line": "crates/hsk-studio-press/src/encoding.rs:548",
-    "verdict": "[DIFF] n/a: unit test (Type3 ToUnicode fallback)"
-   },
-   {
-    "file_line": "crates/hsk-studio-press/src/encoding.rs:549",
-    "verdict": "[DIFF] n/a: unit test (Type3 code outside /Differences)"
-   },
-   {
-    "file_line": "crates/hsk-studio-press/src/encoding.rs:552",
-    "verdict": "[DIFF] n/a: unit test (encode)"
-   },
-   {
-    "file_line": "crates/hsk-studio-press/src/encoding.rs:553",
-    "verdict": "[DIFF] n/a: unit test (encode)"
-   },
-   {
-    "file_line": "crates/hsk-studio-press/src/encoding.rs:559",
-    "verdict": "[DIFF] n/a: unit test (ligatures)"
-   },
-   {
-    "file_line": "crates/hsk-studio-press/src/encoding.rs:560",
-    "verdict": "[DIFF] n/a: unit test (ligatures)"
-   },
-   {
-    "file_line": "crates/hsk-studio-press/src/encoding.rs:561",
-    "verdict": "[DIFF] n/a: unit test (same_words)"
-   },
-   {
-    "file_line": "crates/hsk-studio-press/src/encoding.rs:562",
-    "verdict": "[DIFF] n/a: unit test (same_words)"
+    "verdict": "[DIFF] n/a: unit test (same_words) [carried from 49731a5 encoding.rs:562, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/error.rs:80",
-    "verdict": "[R8] FIXED (F4/D4): RedactionClass::VerticalText (lead decision 11:58Z)"
+    "verdict": "doc/attribute line (V4-07: its claims cite tests, checked mechanically at the READY sha); no behaviour"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/error.rs:81",
+    "verdict": "doc/attribute line (V4-07: its claims cite tests, checked mechanically at the READY sha); no behaviour"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/error.rs:91",
+    "verdict": "doc/attribute line (V4-07: its claims cite tests, checked mechanically at the READY sha); no behaviour"
    },
    {
     "file_line": "crates/hsk-studio-press/src/filters.rs:90",
-    "verdict": "[R7pre] n/a: not decodable -> streams_not_decodable blocks"
+    "verdict": "[R7pre] n/a: not decodable -> streams_not_decodable blocks [carried from 49731a5 filters.rs:90, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/filters.rs:213",
-    "verdict": "[R7pre] n/a: malformed LZW EarlyChange -> decode_error blocks"
+    "verdict": "[R7pre] n/a: malformed LZW EarlyChange -> decode_error blocks [carried from 49731a5 filters.rs:213, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/filters.rs:235",
-    "verdict": "[R7pre] n/a: malformed predictor Colors -> decode_error blocks"
+    "verdict": "[R7pre] n/a: malformed predictor Colors -> decode_error blocks [carried from 49731a5 filters.rs:235, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/filters.rs:236",
-    "verdict": "[R7pre] n/a: malformed predictor BitsPerComponent -> decode_error blocks"
+    "verdict": "[R7pre] n/a: malformed predictor BitsPerComponent -> decode_error blocks [carried from 49731a5 filters.rs:236, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/filters.rs:237",
-    "verdict": "[R7pre] n/a: malformed predictor Columns -> decode_error blocks"
+    "verdict": "[R7pre] n/a: malformed predictor Columns -> decode_error blocks [carried from 49731a5 filters.rs:237, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/filters.rs:346",
-    "verdict": "[R7pre] n/a: LZW without EOD consumed all input"
+    "verdict": "[R7pre] n/a: LZW without EOD consumed all input [carried from 49731a5 filters.rs:346, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/filters.rs:357",
-    "verdict": "[R7pre] FIXED (R7): LZW EOD 257, consumed reported, trailing -> TrailingData"
+    "verdict": "[R7pre] FIXED (R7): LZW EOD 257, consumed reported, trailing -> TrailingData [carried from 49731a5 filters.rs:357, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/filters.rs:434",
-    "verdict": "[R7pre] FIXED (R7): ASCIIHex '>' consumed reported, trailing -> TrailingData"
+    "verdict": "[R7pre] FIXED (R7): ASCIIHex '>' consumed reported, trailing -> TrailingData [carried from 49731a5 filters.rs:434, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/filters.rs:473",
-    "verdict": "[R7pre] FIXED (R7): ASCII85 '~>' consumed reported, trailing -> TrailingData"
+    "verdict": "[R7pre] FIXED (R7): ASCII85 '~>' consumed reported, trailing -> TrailingData [carried from 49731a5 filters.rs:473, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/filters.rs:522",
-    "verdict": "[R7pre] FIXED (R7): RunLength 128 consumed reported, trailing -> TrailingData"
+    "verdict": "[R7pre] FIXED (R7): RunLength 128 consumed reported, trailing -> TrailingData [carried from 49731a5 filters.rs:522, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/lib.rs:57",
-    "verdict": "[R7pre] n/a: Observe outcome mapping"
+    "file_line": "crates/hsk-studio-press/src/lib.rs:30",
+    "verdict": "n/a: public re-export (MIN_DISTINCTIVE_NEEDLE now only bounds byte-scanned needles; readability has no minimum)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/lib.rs:78",
-    "verdict": "[R8] FIXED (V4-07): DESCRIPTOR wording (geometry, independence, context_rule, content_walk, removed_text, removed_unreadable, codes); the line matches through its WMode/Type3 text"
+    "file_line": "crates/hsk-studio-press/src/lib.rs:60",
+    "verdict": "[R7pre] n/a: Observe outcome mapping [carried from 49731a5 lib.rs:57, line text unchanged]"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/lib.rs:81",
+    "verdict": "[R9] V4-07 FIXED: DESCRIPTOR geometry, fail_closed, removed_text, removed_unreadable, determination, matching, normalisation, token_rule, content_walk, not_covered, text_fields matching/appearance updated, every claim cites an existing test"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/norm.rs:7",
+    "verdict": "doc/attribute line (V4-07: its claims cite tests, checked mechanically at the READY sha); no behaviour"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/norm.rs:42",
+    "verdict": "[R9-P2] FIXED: one normalisation for needles and every haystack: ESC..ESC segments (text strings) or ESC characters, default-ignorable characters, NFKD table + canonical mark order, white-space runs (tests language_escapes_and_invisible_characters_never_hide_text, zero_width_and_compatibility_characters_never_hide_text)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/norm.rs:62",
+    "verdict": "[R9-P2] FIXED: one normalisation for needles and every haystack: ESC..ESC segments (text strings) or ESC characters, default-ignorable characters, NFKD table + canonical mark order, white-space runs (tests language_escapes_and_invisible_characters_never_hide_text, zero_width_and_compatibility_characters_never_hide_text)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/norm.rs:70",
+    "verdict": "[R9-P2] FIXED: one normalisation for needles and every haystack: ESC..ESC segments (text strings) or ESC characters, default-ignorable characters, NFKD table + canonical mark order, white-space runs (tests language_escapes_and_invisible_characters_never_hide_text, zero_width_and_compatibility_characters_never_hide_text)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/norm.rs:94",
+    "verdict": "[R9-P2] FIXED: one normalisation for needles and every haystack: ESC..ESC segments (text strings) or ESC characters, default-ignorable characters, NFKD table + canonical mark order, white-space runs (tests language_escapes_and_invisible_characters_never_hide_text, zero_width_and_compatibility_characters_never_hide_text)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/norm.rs:99",
+    "verdict": "[R9-P2] FIXED: one normalisation for needles and every haystack: ESC..ESC segments (text strings) or ESC characters, default-ignorable characters, NFKD table + canonical mark order, white-space runs (tests language_escapes_and_invisible_characters_never_hide_text, zero_width_and_compatibility_characters_never_hide_text)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/norm.rs:140",
+    "verdict": "[R9-P2] FIXED: one normalisation for needles and every haystack: ESC..ESC segments (text strings) or ESC characters, default-ignorable characters, NFKD table + canonical mark order, white-space runs (tests language_escapes_and_invisible_characters_never_hide_text, zero_width_and_compatibility_characters_never_hide_text)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/norm.rs:155",
+    "verdict": "[R9-P2] FIXED: one normalisation for needles and every haystack: ESC..ESC segments (text strings) or ESC characters, default-ignorable characters, NFKD table + canonical mark order, white-space runs (tests language_escapes_and_invisible_characters_never_hide_text, zero_width_and_compatibility_characters_never_hide_text)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/norm.rs:156",
+    "verdict": "[R9-P2] FIXED: one normalisation for needles and every haystack: ESC..ESC segments (text strings) or ESC characters, default-ignorable characters, NFKD table + canonical mark order, white-space runs (tests language_escapes_and_invisible_characters_never_hide_text, zero_width_and_compatibility_characters_never_hide_text)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/norm.rs:160",
+    "verdict": "[R9-P2] FIXED: one normalisation for needles and every haystack: ESC..ESC segments (text strings) or ESC characters, default-ignorable characters, NFKD table + canonical mark order, white-space runs (tests language_escapes_and_invisible_characters_never_hide_text, zero_width_and_compatibility_characters_never_hide_text)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/norm.rs:176",
+    "verdict": "unit test escapes_invisible_and_compatibility_characters_normalise (n/a)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/norm.rs:180",
+    "verdict": "unit test escapes_invisible_and_compatibility_characters_normalise (n/a)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/norm.rs:182",
+    "verdict": "unit test escapes_invisible_and_compatibility_characters_normalise (n/a)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/norm.rs:183",
+    "verdict": "unit test escapes_invisible_and_compatibility_characters_normalise (n/a)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/norm.rs:200",
+    "verdict": "[R9-P2] FIXED: one normalisation for needles and every haystack: ESC..ESC segments (text strings) or ESC characters, default-ignorable characters, NFKD table + canonical mark order, white-space runs (tests language_escapes_and_invisible_characters_never_hide_text, zero_width_and_compatibility_characters_never_hide_text)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/norm.rs:203",
+    "verdict": "unit test escapes_invisible_and_compatibility_characters_normalise (n/a)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/norm_data.rs:3",
+    "verdict": "doc/attribute line (V4-07: its claims cite tests, checked mechanically at the READY sha); no behaviour"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/pdf_edit.rs:134",
+    "verdict": "n/a: inspection projection of a text string (no proof or selector decision); decode_text reads PDFDocEncoded 0x1B as ESC since R9-P2"
    },
    {
     "file_line": "crates/hsk-studio-press/src/pdf_edit.rs:176",
-    "verdict": "[R8] n/a: object-model page list (walk_pages) for redact_region and inspect; the proof walks the object table itself (sanitized_save.rs:782-814)"
+    "verdict": "[R8] n/a: object-model page list (walk_pages) for redact_region and inspect; the proof walks the object table itself (sanitized_save.rs:782-814) [carried from 49731a5 pdf_edit.rs:176, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/pdf_edit.rs:218",
-    "verdict": "[R8] n/a: page tree of the editing API; pages outside it are not redaction targets and their text blocks the proof (F1)"
+    "verdict": "[R8] n/a: page tree of the editing API; pages outside it are not redaction targets; the proof reads their text like any stray content (readable text is matched, only text that is not positively determined blocks) [reworded per R9-V1]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/pdf_edit.rs:303",
-    "verdict": "[R7pre] n/a: catalog projection .ok() (object-model proposal, not the proof)"
+    "verdict": "[R7pre] n/a: catalog projection .ok() (object-model proposal, not the proof) [carried from 49731a5 pdf_edit.rs:303, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/pdf_edit.rs:481",
-    "verdict": "[R7pre] n/a: catalog projection .ok() (object-model proposal, not the proof)"
+    "verdict": "[R7pre] n/a: catalog projection .ok() (object-model proposal, not the proof) [carried from 49731a5 pdf_edit.rs:303, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/raster.rs:98",
-    "verdict": "[R7pre] FIXED (R7): Searchable inline images are decoded and scanned (sanitized_save.rs:530)"
+    "verdict": "[R7pre] FIXED (R7): Searchable inline images are decoded and scanned (sanitized_save.rs:530) [carried from 49731a5 raster.rs:98, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/raster.rs:138",
-    "verdict": "[R7pre] n/a: hidden_zlib Err -> None; codec_signature decides raster, non-codec data blocks (PLR-040)"
+    "verdict": "[R7pre] n/a: hidden_zlib Err -> None; codec_signature decides raster, non-codec data blocks (PLR-040) [carried from 49731a5 raster.rs:138, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/raster.rs:149",
-    "verdict": "[R7pre] n/a: bounds -> Err -> not raster -> blocks"
+    "verdict": "[R7pre] n/a: bounds -> Err -> not raster -> blocks [carried from 49731a5 raster.rs:149, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/raster.rs:154",
-    "verdict": "[R7pre] n/a: bounds -> Err -> not raster -> blocks"
+    "verdict": "[R7pre] n/a: bounds -> Err -> not raster -> blocks [carried from 49731a5 raster.rs:154, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/raster.rs:159",
-    "verdict": "[R7pre] n/a: bounds -> Err -> not raster -> blocks"
+    "verdict": "[R7pre] n/a: bounds -> Err -> not raster -> blocks [carried from 49731a5 raster.rs:159, line text unchanged]"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/raster.rs:231",
+    "verdict": "n/a: JPX codestream end marker check (raster class), not text"
    },
    {
     "file_line": "crates/hsk-studio-press/src/raster.rs:306",
-    "verdict": "[R7pre] n/a: JBIG2 length overflow -> not raster (fail closed)"
+    "verdict": "[R7pre] n/a: JBIG2 length overflow -> not raster (fail closed) [carried from 49731a5 raster.rs:306, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/raster.rs:387",
-    "verdict": "[R7pre] n/a: CCITT table build"
+    "verdict": "[R7pre] n/a: CCITT table build [carried from 49731a5 raster.rs:387, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/raster.rs:419",
-    "verdict": "[R7pre] n/a: invalid CCITT code -> Err -> not raster"
+    "verdict": "[R7pre] n/a: invalid CCITT code -> Err -> not raster [carried from 49731a5 raster.rs:419, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/raster.rs:558",
-    "verdict": "[R7pre] n/a: CCITT width out of range -> not raster (fail closed)"
+    "verdict": "[R7pre] n/a: CCITT width out of range -> not raster (fail closed) [carried from 49731a5 raster.rs:558, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/raster.rs:559",
-    "verdict": "[R7pre] n/a: CCITT height out of range -> not raster (fail closed)"
+    "verdict": "[R7pre] n/a: CCITT height out of range -> not raster (fail closed) [carried from 49731a5 raster.rs:559, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/reader.rs:89",
-    "verdict": "[R7pre] n/a: xref number validation (refusal)"
+    "verdict": "[R7pre] n/a: xref number validation (refusal) [carried from 49731a5 reader.rs:89, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/reader.rs:103",
-    "verdict": "[R7pre] n/a: /Length recovery parse (whole parse fails closed)"
+    "verdict": "[R7pre] n/a: /Length recovery parse (whole parse fails closed) [carried from 49731a5 reader.rs:103, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/reader.rs:104",
-    "verdict": "[R7pre] n/a: /Length recovery parse (whole parse fails closed)"
+    "verdict": "[R7pre] n/a: /Length recovery parse (whole parse fails closed) [carried from 49731a5 reader.rs:103, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/reader.rs:113",
-    "verdict": "[R7pre] n/a: indirect /Length read as a number only"
+    "verdict": "[R7pre] n/a: indirect /Length read as a number only [carried from 49731a5 reader.rs:113, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/reader.rs:134",
-    "verdict": "[R7pre] n/a: declared /Length validation (recovery scan otherwise)"
+    "verdict": "[R7pre] n/a: declared /Length validation (recovery scan otherwise) [carried from 49731a5 reader.rs:134, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/reader.rs:288",
-    "verdict": "[R7pre] n/a: xref stream /W validation (refusal)"
+    "verdict": "[R7pre] n/a: xref stream /W validation (refusal) [carried from 49731a5 reader.rs:288, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/reader.rs:298",
-    "verdict": "[R7pre] n/a: xref field validation (refusal)"
+    "verdict": "[R7pre] n/a: xref field validation (refusal) [carried from 49731a5 reader.rs:298, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/reader.rs:305",
-    "verdict": "[R7pre] n/a: xref field validation (refusal)"
+    "verdict": "[R7pre] n/a: xref field validation (refusal) [carried from 49731a5 reader.rs:305, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/reader.rs:364",
-    "verdict": "[DIFF] n/a: PDF version string of the header, not font text"
+    "verdict": "[DIFF] n/a: PDF version string of the header, not font text [carried from 49731a5 reader.rs:364, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/reader.rs:455",
-    "verdict": "[R7pre] n/a: required integer key (refusal)"
+    "verdict": "[R7pre] n/a: required integer key (refusal) [carried from 49731a5 reader.rs:455, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/redaction.rs:15",
-    "verdict": "[R8] FIXED (F4/D4): module docs: Type3 and vertical geometry not computed -> Type3Text / VerticalText"
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:34",
+    "verdict": "n/a: import"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/redaction.rs:149",
-    "verdict": "[DIFF] FIXED: FontInfo carries enc, resolved, type3, vertical"
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:84",
+    "verdict": "doc/attribute line (V4-07: its claims cite tests, checked mechanically at the READY sha); no behaviour"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/redaction.rs:262",
-    "verdict": "[DIFF] FIXED (F3): a font the resources do not hold is resolved=false -> its removed text is unreadable"
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:92",
+    "verdict": "doc/attribute line (V4-07: its claims cite tests, checked mechanically at the READY sha); no behaviour"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/redaction.rs:287",
-    "verdict": "[DIFF] n/a: shared composite test"
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:93",
+    "verdict": "[R9-F3] FIXED: every removed string and every joined run of consecutive removed strings of a content stream (flush at a kept non-empty string, Do, end of content) records its reading and completeness; no length minimum downstream (tests split_runs_are_read_whole, kerning_word_spaces_are_read, removed_runs_join_across_show_operators, glyph_by_glyph_unreadable_text_is_never_proven)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/redaction.rs:289",
-    "verdict": "[DIFF] FIXED (F4): a composite font's /Encoding is checked for vertical writing (cmap_vertical)"
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:174",
+    "verdict": "[DIFF] FIXED: FontInfo carries enc, resolved, type3, vertical [carried from 49731a5 redaction.rs:149, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/redaction.rs:292",
-    "verdict": "[DIFF] FIXED: composite FontInfo (resolved, vertical, ToUnicode)"
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:183",
+    "verdict": "[R9-F1][R9-F2] FIXED: one FontInfo per font dictionary (address-keyed, pass-long), carried by value; composite writing mode from determination::writing_mode, simple fonts horizontal (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes; tests font_is_graphics_state_in_the_selector, fonts_inherited_into_forms_are_resolved, undetermined_fonts_never_read_as_cleared)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/redaction.rs:309",
-    "verdict": "[DIFF] FIXED (F3/D3; pre-review site redaction.rs:264): the encoding's budget error is returned, not mapped to 'no encoding' (test unreadable_removed_text_is_never_proven, budget case)"
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:226",
+    "verdict": "[R9-F3] FIXED: every removed string and every joined run of consecutive removed strings of a content stream (flush at a kept non-empty string, Do, end of content) records its reading and completeness; no length minimum downstream (tests split_runs_are_read_whole, kerning_word_spaces_are_read, removed_runs_join_across_show_operators, glyph_by_glyph_unreadable_text_is_never_proven)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/redaction.rs:310",
-    "verdict": "[R8] FIXED (F4): Type3 font flagged -> RedactionClass::Type3Text in show"
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:275",
+    "verdict": "[R9-F2] FIXED: the font is graphics state (saved by q, restored by Q, inherited by forms) (tests font_is_graphics_state_in_the_selector, fonts_inherited_into_forms_are_resolved, undetermined_fonts_never_read_as_cleared)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/redaction.rs:311",
-    "verdict": "[DIFF] FIXED: simple FontInfo (enc, type3)"
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:286",
+    "verdict": "[R9-F3] FIXED: every removed string and every joined run of consecutive removed strings of a content stream (flush at a kept non-empty string, Do, end of content) records its reading and completeness; no length minimum downstream (tests split_runs_are_read_whole, kerning_word_spaces_are_read, removed_runs_join_across_show_operators, glyph_by_glyph_unreadable_text_is_never_proven)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/redaction.rs:328",
-    "verdict": "[DIFF] n/a: ToUnicode parse; a map that does not parse is no map (composite removed text unreadable)"
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:296",
+    "verdict": "[R9-F1][R9-F2] FIXED: one FontInfo per font dictionary (address-keyed, pass-long), carried by value; composite writing mode from determination::writing_mode, simple fonts horizontal (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes; tests font_is_graphics_state_in_the_selector, fonts_inherited_into_forms_are_resolved, undetermined_fonts_never_read_as_cleared)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/redaction.rs:331",
-    "verdict": "[R7pre] FIXED (F3): load_to_unicode returns InputLimit/Canceled (was .ok()? at 607d47c); any other decode error = no map -> composite removed text unreadable"
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:304",
+    "verdict": "[R9-F1][R9-F2] FIXED: one FontInfo per font dictionary (address-keyed, pass-long), carried by value; composite writing mode from determination::writing_mode, simple fonts horizontal (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes; tests font_is_graphics_state_in_the_selector, fonts_inherited_into_forms_are_resolved, undetermined_fonts_never_read_as_cleared)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/redaction.rs:336",
-    "verdict": "[R8] n/a: doc of cmap_vertical"
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:305",
+    "verdict": "[R9-F1][R9-F2] FIXED: one FontInfo per font dictionary (address-keyed, pass-long), carried by value; composite writing mode from determination::writing_mode, simple fonts horizontal (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes; tests font_is_graphics_state_in_the_selector, fonts_inherited_into_forms_are_resolved, undetermined_fonts_never_read_as_cleared)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:306",
+    "verdict": "[R9-F1][R9-F2] FIXED: one FontInfo per font dictionary (address-keyed, pass-long), carried by value; composite writing mode from determination::writing_mode, simple fonts horizontal (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes; tests font_is_graphics_state_in_the_selector, fonts_inherited_into_forms_are_resolved, undetermined_fonts_never_read_as_cleared)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:322",
+    "verdict": "doc/attribute line (V4-07: its claims cite tests, checked mechanically at the READY sha); no behaviour"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:323",
+    "verdict": "[DIFF] FIXED (F3/D3; pre-review site redaction.rs:264): the encoding's budget error is returned, not mapped to 'no encoding' (test unreadable_removed_text_is_never_proven, budget case) [carried from 49731a5 redaction.rs:309, line text unchanged]"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:324",
+    "verdict": "[R8] FIXED (F4): Type3 font flagged -> RedactionClass::Type3Text in show [carried from 49731a5 redaction.rs:310, line text unchanged]"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:325",
+    "verdict": "[R9-F1][R9-F2] FIXED: one FontInfo per font dictionary (address-keyed, pass-long), carried by value; composite writing mode from determination::writing_mode, simple fonts horizontal (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes; tests font_is_graphics_state_in_the_selector, fonts_inherited_into_forms_are_resolved, undetermined_fonts_never_read_as_cleared)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:333",
+    "verdict": "[R9-F2] FIXED: Tf resolves the name in the resources in force once; a name that is no font dictionary is FontSel::Unresolved (tests font_is_graphics_state_in_the_selector, fonts_inherited_into_forms_are_resolved, undetermined_fonts_never_read_as_cleared)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:343",
+    "verdict": "[R9-F1][R9-F2] FIXED: one FontInfo per font dictionary (address-keyed, pass-long), carried by value; composite writing mode from determination::writing_mode, simple fonts horizontal (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes; tests font_is_graphics_state_in_the_selector, fonts_inherited_into_forms_are_resolved, undetermined_fonts_never_read_as_cleared)"
    },
    {
     "file_line": "crates/hsk-studio-press/src/redaction.rs:344",
-    "verdict": "[R8] FIXED (F4): /WMode 1 in the CMap dictionary (or /UseCMap nesting over 4) = vertical"
+    "verdict": "[R9-F2] FIXED: the font is graphics state (saved by q, restored by Q, inherited by forms) (tests font_is_graphics_state_in_the_selector, fonts_inherited_into_forms_are_resolved, undetermined_fonts_never_read_as_cleared)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/redaction.rs:348",
-    "verdict": "[DIFF] FIXED (F4): /UseCMap of a vertical CMap"
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:350",
+    "verdict": "[R9-F2] FIXED: gs applies an ExtGState /Font [font size] (font and size, ISO 32000-2 8.4.5 Table 57) and /LW; a malformed /Font is FontSel::Unresolved (tests font_is_graphics_state_in_the_selector, fonts_inherited_into_forms_are_resolved, undetermined_fonts_never_read_as_cleared)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/redaction.rs:358",
-    "verdict": "[R7pre] FIXED (F4): an embedded CMap that does not decode counts as vertical (fail closed)"
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:369",
+    "verdict": "[R9-F1][R9-F2] FIXED: one FontInfo per font dictionary (address-keyed, pass-long), carried by value; composite writing mode from determination::writing_mode, simple fonts horizontal (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes; tests font_is_graphics_state_in_the_selector, fonts_inherited_into_forms_are_resolved, undetermined_fonts_never_read_as_cleared)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/redaction.rs:371",
-    "verdict": "[R8] FIXED (F3): reading_of returns (text, complete); incomplete -> removed_unreadable -> UnreadableRemovedText"
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:370",
+    "verdict": "[R9-F2] FIXED: the font is graphics state (saved by q, restored by Q, inherited by forms) (tests font_is_graphics_state_in_the_selector, fonts_inherited_into_forms_are_resolved, undetermined_fonts_never_read_as_cleared)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/redaction.rs:378",
-    "verdict": "[DIFF] FIXED (F3): composite reading through decode_checked"
-   },
-   {
-    "file_line": "crates/hsk-studio-press/src/redaction.rs:380",
-    "verdict": "[R8] FIXED (F3): a partial composite reading is incomplete"
-   },
-   {
-    "file_line": "crates/hsk-studio-press/src/redaction.rs:387",
-    "verdict": "[DIFF] FIXED: encoding reading of the removed string (ToUnicode completes unknown codes)"
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:374",
+    "verdict": "[R9-F2] FIXED: the font is graphics state (saved by q, restored by Q, inherited by forms) (tests font_is_graphics_state_in_the_selector, fonts_inherited_into_forms_are_resolved, undetermined_fonts_never_read_as_cleared)"
    },
    {
     "file_line": "crates/hsk-studio-press/src/redaction.rs:388",
-    "verdict": "[DIFF] n/a: raw byte reading, the comparison base of same_words"
+    "verdict": "[DIFF] n/a: ToUnicode parse; a map that does not parse is no map (composite removed text unreadable) [carried from 49731a5 redaction.rs:328, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/redaction.rs:389",
-    "verdict": "[DIFF] FIXED: encoding reading used when it differs from the bytes in letters or digits"
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:391",
+    "verdict": "[R7pre] FIXED (F3): load_to_unicode returns InputLimit/Canceled (was .ok()? at 607d47c); any other decode error = no map -> composite removed text unreadable [carried from 49731a5 redaction.rs:331, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/redaction.rs:392",
-    "verdict": "[DIFF] FIXED (F3/D3): an opaque encoding reading is incomplete (the ToUnicode text is kept as the best reading)"
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:401",
+    "verdict": "[R8 F3][R9-F2] FIXED: the removed string is read through the graphics-state font; no determined font = incomplete reading (UnreadableRemovedText)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:402",
+    "verdict": "[R9-F2] FIXED: the font is graphics state (saved by q, restored by Q, inherited by forms) (tests font_is_graphics_state_in_the_selector, fonts_inherited_into_forms_are_resolved, undetermined_fonts_never_read_as_cleared)"
    },
    {
     "file_line": "crates/hsk-studio-press/src/redaction.rs:404",
-    "verdict": "[R8] FIXED (F4/D4): show marks Type3Text / VerticalText for any non-empty string on the page; a Type3 advance is not 'exact'"
+    "verdict": "[R8 F3][R9-F2] FIXED: the removed string is read through the graphics-state font; no determined font = incomplete reading (UnreadableRemovedText)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/redaction.rs:436",
-    "verdict": "[R8] FIXED (F3): record_removed stores the reading and its completeness"
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:406",
+    "verdict": "[R8] FIXED (F3): a partial composite reading is incomplete [carried from 49731a5 redaction.rs:380, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/redaction.rs:437",
-    "verdict": "[R8] FIXED (F3): same"
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:413",
+    "verdict": "[DIFF] FIXED: encoding reading of the removed string (ToUnicode completes unknown codes) [carried from 49731a5 redaction.rs:387, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/redaction.rs:447",
-    "verdict": "[R8] FIXED (F2, removal side): flush_run records adjacent removed TJ elements joined (test kerned_tj_runs_are_read_whole)"
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:414",
+    "verdict": "[DIFF] n/a: raw byte reading, the comparison base of same_words [carried from 49731a5 redaction.rs:388, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/redaction.rs:450",
-    "verdict": "[R8] FIXED (F2): same"
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:415",
+    "verdict": "[DIFF] FIXED: encoding reading used when it differs from the bytes in letters or digits [carried from 49731a5 redaction.rs:389, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/redaction.rs:702",
-    "verdict": "[R8] FIXED (F3): Tj / quote / double-quote removal records the reading"
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:418",
+    "verdict": "[R8 F3][R9-F2] FIXED: the removed string is read through the graphics-state font; no determined font = incomplete reading (UnreadableRemovedText)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/redaction.rs:727",
-    "verdict": "[R8] FIXED (F3): TJ element removal records the reading"
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:431",
+    "verdict": "[R9-F1][R9-F2] FIXED: any non-empty string on the page with a Type 3 font, a vertical or unresolved writing mode, or no determined font marks Type3Text/VerticalText/UnresolvedWritingMode/UnresolvedFont (refused or RegionIncomplete) (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes; tests font_is_graphics_state_in_the_selector, fonts_inherited_into_forms_are_resolved, undetermined_fonts_never_read_as_cleared)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/redaction.rs:735",
-    "verdict": "[R8] FIXED (F2): a run ends at a kept non-empty element"
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:433",
+    "verdict": "[R9-F1][R9-F2] FIXED: any non-empty string on the page with a Type 3 font, a vertical or unresolved writing mode, or no determined font marks Type3Text/VerticalText/UnresolvedWritingMode/UnresolvedFont (refused or RegionIncomplete) (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes; tests font_is_graphics_state_in_the_selector, fonts_inherited_into_forms_are_resolved, undetermined_fonts_never_read_as_cleared)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/redaction.rs:748",
-    "verdict": "[R8] FIXED (F2): a run ends with the operator"
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:434",
+    "verdict": "[R9-F1][R9-F2] FIXED: any non-empty string on the page with a Type 3 font, a vertical or unresolved writing mode, or no determined font marks Type3Text/VerticalText/UnresolvedWritingMode/UnresolvedFont (refused or RegionIncomplete) (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes; tests font_is_graphics_state_in_the_selector, fonts_inherited_into_forms_are_resolved, undetermined_fonts_never_read_as_cleared)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/redaction.rs:847",
-    "verdict": "[R8] n/a: doc of sets_wmode_one"
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:444",
+    "verdict": "[R9-F1][R9-F2] FIXED: any non-empty string on the page with a Type 3 font, a vertical or unresolved writing mode, or no determined font marks Type3Text/VerticalText/UnresolvedWritingMode/UnresolvedFont (refused or RegionIncomplete) (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes; tests font_is_graphics_state_in_the_selector, fonts_inherited_into_forms_are_resolved, undetermined_fonts_never_read_as_cleared)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/redaction.rs:850",
-    "verdict": "[R8] FIXED (F4): /WMode 1 in embedded CMap data"
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:445",
+    "verdict": "[R9-F1][R9-F2] FIXED: any non-empty string on the page with a Type 3 font, a vertical or unresolved writing mode, or no determined font marks Type3Text/VerticalText/UnresolvedWritingMode/UnresolvedFont (refused or RegionIncomplete) (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes; tests font_is_graphics_state_in_the_selector, fonts_inherited_into_forms_are_resolved, undetermined_fonts_never_read_as_cleared)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:439",
-    "verdict": "[R8] FIXED (F1): looks_like_content selects the streams the object-table catch-all walks (those that tokenize become Stray); a stream nothing references as content and that does not tokenize is not content and is scanned in every spelling"
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:446",
+    "verdict": "[R9-F1][R9-F2] FIXED: any non-empty string on the page with a Type 3 font, a vertical or unresolved writing mode, or no determined font marks Type3Text/VerticalText/UnresolvedWritingMode/UnresolvedFont (refused or RegionIncomplete) (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes; tests font_is_graphics_state_in_the_selector, fonts_inherited_into_forms_are_resolved, undetermined_fonts_never_read_as_cleared)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:463",
-    "verdict": "[R8] FIXED (P1): shown_needles exempts only readings the operator draws (test kept_text_needs_a_drawn_reading)"
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:475",
+    "verdict": "[R9-F3] FIXED: every removed string and every joined run of consecutive removed strings of a content stream (flush at a kept non-empty string, Do, end of content) records its reading and completeness; no length minimum downstream (tests split_runs_are_read_whole, kerning_word_spaces_are_read, removed_runs_join_across_show_operators, glyph_by_glyph_unreadable_text_is_never_proven)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:467",
-    "verdict": "[R8] FIXED (P1): bytes exempt only where raw_drawn"
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:476",
+    "verdict": "[R8 F3][R9-F2] FIXED: the removed string is read through the graphics-state font; no determined font = incomplete reading (UnreadableRemovedText)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:530",
-    "verdict": "[R7pre] FIXED (R7): Searchable inline images decoded and scanned"
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:479",
+    "verdict": "[R9-F3] FIXED: every removed string and every joined run of consecutive removed strings of a content stream (flush at a kept non-empty string, Do, end of content) records its reading and completeness; no length minimum downstream (tests split_runs_are_read_whole, kerning_word_spaces_are_read, removed_runs_join_across_show_operators, glyph_by_glyph_unreadable_text_is_never_proven)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:542",
-    "verdict": "[R7pre] n/a: inline decode error -> streams_not_decodable blocks"
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:492",
+    "verdict": "[R9-F3] FIXED: every removed string and every joined run of consecutive removed strings of a content stream (flush at a kept non-empty string, Do, end of content) records its reading and completeness; no length minimum downstream (tests split_runs_are_read_whole, kerning_word_spaces_are_read, removed_runs_join_across_show_operators, glyph_by_glyph_unreadable_text_is_never_proven)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:565",
-    "verdict": "[R7pre] n/a: inline raster prefix decode error -> streams_not_decodable blocks"
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:509",
+    "verdict": "[R9-F3] FIXED: every removed string and every joined run of consecutive removed strings of a content stream (flush at a kept non-empty string, Do, end of content) records its reading and completeness; no length minimum downstream (tests split_runs_are_read_whole, kerning_word_spaces_are_read, removed_runs_join_across_show_operators, glyph_by_glyph_unreadable_text_is_never_proven)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:616",
-    "verdict": "[DIFF] n/a: composite code spellings via ToUnicode"
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:633",
+    "verdict": "[R9-F2] FIXED: a form inherits the caller's RESOLVED font (FontSel in Gfx), never re-resolved by name in the form's /Resources; the per-name cache that was cleared here is gone (tests font_is_graphics_state_in_the_selector, fonts_inherited_into_forms_are_resolved, undetermined_fonts_never_read_as_cleared)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:617",
-    "verdict": "[DIFF] FIXED: simple-font code spellings from the encoding and ToUnicode"
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:712",
+    "verdict": "[R9-F2] FIXED: Tf resolves the name in the resources in force once; a name that is no font dictionary is FontSel::Unresolved (tests font_is_graphics_state_in_the_selector, fonts_inherited_into_forms_are_resolved, undetermined_fonts_never_read_as_cleared)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:618",
-    "verdict": "[DIFF] n/a: an opaque font has no spellings (its text blocks as opaque)"
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:715",
+    "verdict": "[R9-F2] FIXED: Tf resolves the name in the resources in force once; a name that is no font dictionary is FontSel::Unresolved (tests font_is_graphics_state_in_the_selector, fonts_inherited_into_forms_are_resolved, undetermined_fonts_never_read_as_cleared)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:774",
-    "verdict": "[R7pre] n/a: stream decode error -> streams_not_decodable blocks"
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:717",
+    "verdict": "[R9-F2] FIXED: gs applies an ExtGState /Font [font size] (font and size, ISO 32000-2 8.4.5 Table 57) and /LW; a malformed /Font is FontSel::Unresolved (tests font_is_graphics_state_in_the_selector, fonts_inherited_into_forms_are_resolved, undetermined_fonts_never_read_as_cleared)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:719",
+    "verdict": "[R9-F2] FIXED: gs applies an ExtGState /Font [font size] (font and size, ISO 32000-2 8.4.5 Table 57) and /LW; a malformed /Font is FontSel::Unresolved (tests font_is_graphics_state_in_the_selector, fonts_inherited_into_forms_are_resolved, undetermined_fonts_never_read_as_cleared)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:764",
+    "verdict": "[R9-F3] FIXED: every removed string and every joined run of consecutive removed strings of a content stream (flush at a kept non-empty string, Do, end of content) records its reading and completeness; no length minimum downstream (tests split_runs_are_read_whole, kerning_word_spaces_are_read, removed_runs_join_across_show_operators, glyph_by_glyph_unreadable_text_is_never_proven)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:773",
+    "verdict": "[R9-F3] FIXED: every removed string and every joined run of consecutive removed strings of a content stream (flush at a kept non-empty string, Do, end of content) records its reading and completeness; no length minimum downstream (tests split_runs_are_read_whole, kerning_word_spaces_are_read, removed_runs_join_across_show_operators, glyph_by_glyph_unreadable_text_is_never_proven)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:790",
+    "verdict": "[R9-F3] FIXED: every removed string and every joined run of consecutive removed strings of a content stream (flush at a kept non-empty string, Do, end of content) records its reading and completeness; no length minimum downstream (tests split_runs_are_read_whole, kerning_word_spaces_are_read, removed_runs_join_across_show_operators, glyph_by_glyph_unreadable_text_is_never_proven)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:796",
+    "verdict": "[R9-F3] FIXED: every removed string and every joined run of consecutive removed strings of a content stream (flush at a kept non-empty string, Do, end of content) records its reading and completeness; no length minimum downstream (tests split_runs_are_read_whole, kerning_word_spaces_are_read, removed_runs_join_across_show_operators, glyph_by_glyph_unreadable_text_is_never_proven)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:856",
+    "verdict": "[R9-F3] FIXED: every removed string and every joined run of consecutive removed strings of a content stream (flush at a kept non-empty string, Do, end of content) records its reading and completeness; no length minimum downstream (tests split_runs_are_read_whole, kerning_word_spaces_are_read, removed_runs_join_across_show_operators, glyph_by_glyph_unreadable_text_is_never_proven)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:878",
+    "verdict": "[R9-F2] FIXED: a form inherits the caller's RESOLVED font (FontSel in Gfx), never re-resolved by name in the form's /Resources; the per-name cache that was cleared here is gone (tests font_is_graphics_state_in_the_selector, fonts_inherited_into_forms_are_resolved, undetermined_fonts_never_read_as_cleared)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:903",
+    "verdict": "[R9-F3] FIXED: every removed string and every joined run of consecutive removed strings of a content stream (flush at a kept non-empty string, Do, end of content) records its reading and completeness; no length minimum downstream (tests split_runs_are_read_whole, kerning_word_spaces_are_read, removed_runs_join_across_show_operators, glyph_by_glyph_unreadable_text_is_never_proven)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:1029",
+    "verdict": "[R9-F3] FIXED: every removed string and every joined run of consecutive removed strings of a content stream (flush at a kept non-empty string, Do, end of content) records its reading and completeness; no length minimum downstream (tests split_runs_are_read_whole, kerning_word_spaces_are_read, removed_runs_join_across_show_operators, glyph_by_glyph_unreadable_text_is_never_proven)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/redaction.rs:1168",
+    "verdict": "[R9-F3] FIXED: every removed string and every joined run of consecutive removed strings of a content stream (flush at a kept non-empty string, Do, end of content) records its reading and completeness; no length minimum downstream (tests split_runs_are_read_whole, kerning_word_spaces_are_read, removed_runs_join_across_show_operators, glyph_by_glyph_unreadable_text_is_never_proven)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:29",
+    "verdict": "doc/attribute line (V4-07: its claims cite tests, checked mechanically at the READY sha); no behaviour"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:152",
+    "verdict": "doc/attribute line (V4-07: its claims cite tests, checked mechanically at the READY sha); no behaviour"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:153",
+    "verdict": "doc/attribute line (V4-07: its claims cite tests, checked mechanically at the READY sha); no behaviour"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:173",
+    "verdict": "n/a: import / reason code"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:192",
+    "verdict": "doc/attribute line (V4-07: its claims cite tests, checked mechanically at the READY sha); no behaviour"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:207",
+    "verdict": "doc/attribute line (V4-07: its claims cite tests, checked mechanically at the READY sha); no behaviour"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:210",
+    "verdict": "n/a: count of needles searched (reported)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:236",
+    "verdict": "[R9-F3 (iii)] FIXED: the needles_searched gate applies only to a plain payload check (PayloadProof::not_proven_reasons); a redaction applies the determination to the whole saved file whatever was removed (structural_reasons(true)) (tests undetermined_fonts_never_read_as_cleared, unknown_cmap_names_are_unresolved_writing_modes, opaque_composite_text_blocks_the_proof)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:240",
+    "verdict": "[R9-F3 (iii)] FIXED: the needles_searched gate applies only to a plain payload check (PayloadProof::not_proven_reasons); a redaction applies the determination to the whole saved file whatever was removed (structural_reasons(true)) (tests undetermined_fonts_never_read_as_cleared, unknown_cmap_names_are_unresolved_writing_modes, opaque_composite_text_blocks_the_proof)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:251",
+    "verdict": "n/a: import / reason code"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:337",
+    "verdict": "[R9-P2] n/a: needle text of a removed string (normalised before matching; 0x1B now ESC)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:515",
+    "verdict": "[R9-P2] FIXED: strings, names, non-show content operands and non-kept stream text matched as normalised text (tests language_escapes_and_invisible_characters_never_hide_text, zero_width_and_compatibility_characters_never_hide_text)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:521",
+    "verdict": "[R9-P2] FIXED: strings, names, non-show content operands and non-kept stream text matched as normalised text (tests language_escapes_and_invisible_characters_never_hide_text, zero_width_and_compatibility_characters_never_hide_text)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:523",
+    "verdict": "[R9-F3][R9-P2] FIXED: needles matched in each root's drawing-order text, joined and spaced, every reading kind, normalised (both escape forms when an ESC is present); token rule only exempts a match inside one string (tests split_runs_are_read_whole, kerning_word_spaces_are_read, removed_runs_join_across_show_operators, glyph_by_glyph_unreadable_text_is_never_proven; tests language_escapes_and_invisible_characters_never_hide_text, zero_width_and_compatibility_characters_never_hide_text)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:535",
+    "verdict": "[R9-P2] FIXED: strings, names, non-show content operands and non-kept stream text matched as normalised text (tests language_escapes_and_invisible_characters_never_hide_text, zero_width_and_compatibility_characters_never_hide_text)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:541",
+    "verdict": "[R9] n/a: plumbing of the proof result"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:545",
+    "verdict": "[R9-F3][R9-P2] FIXED: needles matched in each root's drawing-order text, joined and spaced, every reading kind, normalised (both escape forms when an ESC is present); token rule only exempts a match inside one string (tests split_runs_are_read_whole, kerning_word_spaces_are_read, removed_runs_join_across_show_operators, glyph_by_glyph_unreadable_text_is_never_proven; tests language_escapes_and_invisible_characters_never_hide_text, zero_width_and_compatibility_characters_never_hide_text)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:547",
+    "verdict": "[R9-P2] FIXED: strings, names, non-show content operands and non-kept stream text matched as normalised text (tests language_escapes_and_invisible_characters_never_hide_text, zero_width_and_compatibility_characters_never_hide_text)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:582",
+    "verdict": "[R8 P1][R9] FIXED: needles a kept operator draws = raw_drawn byte spellings + font-reading matches lying wholly in that operator"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:586",
+    "verdict": "[R8] FIXED (P1): bytes exempt only where raw_drawn [carried from 49731a5 sanitized_save.rs:467, line text unchanged]"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:643",
+    "verdict": "[R7pre] FIXED (R7): Searchable inline images decoded and scanned [carried from 49731a5 sanitized_save.rs:530, line text unchanged]"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:655",
+    "verdict": "[R7pre] n/a: inline decode error -> streams_not_decodable blocks [carried from 49731a5 sanitized_save.rs:542, line text unchanged]"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:678",
+    "verdict": "[R7pre] n/a: inline decode error -> streams_not_decodable blocks [carried from 49731a5 sanitized_save.rs:542, line text unchanged]"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:729",
+    "verdict": "[DIFF] n/a: font-code spellings for the backstop; a composite font without a map has none (its text is opaque)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:730",
+    "verdict": "[DIFF] n/a: font-code spellings for the backstop; a composite font without a map has none (its text is opaque)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:731",
+    "verdict": "[DIFF] n/a: font-code spellings for the backstop; a composite font without a map has none (its text is opaque)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:768",
+    "verdict": "[R9 determination] FIXED: geometry of every operator drawn on a region's page (content and every form it draws) from the saved file; not computed = RegionIncomplete (tests undetermined_fonts_never_read_as_cleared, unknown_cmap_names_are_unresolved_writing_modes, opaque_composite_text_blocks_the_proof; tests font_is_graphics_state_in_the_selector, fonts_inherited_into_forms_are_resolved, undetermined_fonts_never_read_as_cleared)"
    },
    {
     "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:782",
-    "verdict": "[R8] FIXED (F1): page tree walked as kept text; the tree's page objects recorded"
+    "verdict": "[R9 determination] FIXED: geometry of every operator drawn on a region's page (content and every form it draws) from the saved file; not computed = RegionIncomplete (tests undetermined_fonts_never_read_as_cleared, unknown_cmap_names_are_unresolved_writing_modes, opaque_composite_text_blocks_the_proof; tests font_is_graphics_state_in_the_selector, fonts_inherited_into_forms_are_resolved, undetermined_fonts_never_read_as_cleared)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:788",
-    "verdict": "[R8] FIXED (F1): page objects outside the page tree walked as Stray with their resources (test partial_tounicode_and_unreachable_pages_are_read_or_opaque)"
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:807",
+    "verdict": "n/a: count of needles searched (reported)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:792",
-    "verdict": "[R8] n/a: appearance roots (every dictionary with /AP) walked as Appearance (unchanged)"
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:826",
+    "verdict": "[R9-F3][R9-P2] FIXED: needles matched in each root's drawing-order text, joined and spaced, every reading kind, normalised (both escape forms when an ESC is present); token rule only exempts a match inside one string (tests split_runs_are_read_whole, kerning_word_spaces_are_read, removed_runs_join_across_show_operators, glyph_by_glyph_unreadable_text_is_never_proven; tests language_escapes_and_invisible_characters_never_hide_text, zero_width_and_compatibility_characters_never_hide_text)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:799",
-    "verdict": "[R8] n/a: content-role streams walked as Stray with own resources (unchanged). Correction of the R7 verdict for pre-review site :799/:809 ('it has no resources' was false for page content outside the tree): streams no role reaches now go to the object-table catch-all (:812-814) and page objects outside the tree to :788"
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:829",
+    "verdict": "[R9-P2] FIXED: strings, names, non-show content operands and non-kept stream text matched as normalised text (tests language_escapes_and_invisible_characters_never_hide_text, zero_width_and_compatibility_characters_never_hide_text)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:812",
-    "verdict": "[R8] FIXED (F1): object-table catch-all over every decoded non-raster content-like stream"
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:844",
+    "verdict": "[R9-P2] FIXED: strings, names, non-show content operands and non-kept stream text matched as normalised text (tests language_escapes_and_invisible_characters_never_hide_text, zero_width_and_compatibility_characters_never_hide_text)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:814",
-    "verdict": "[R8] FIXED (F1): run_unreached (Stray, no resources: an unresolvable font makes the text opaque)"
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:852",
+    "verdict": "[R9-P2] FIXED: strings, names, non-show content operands and non-kept stream text matched as normalised text (tests language_escapes_and_invisible_characters_never_hide_text, zero_width_and_compatibility_characters_never_hide_text)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:830",
-    "verdict": "[DIFF] FIXED (F2): joined raw reading of a kerned TJ"
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:935",
+    "verdict": "[R7pre] n/a: stream decode error -> streams_not_decodable blocks [carried from 49731a5 sanitized_save.rs:774, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:837",
-    "verdict": "[R8] FIXED (P1): the joined raw reading counts as drawn only when every string's bytes are drawn"
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:944",
+    "verdict": "[R8] FIXED (F1): page tree walked as kept text; the tree's page objects recorded [carried from 49731a5 sanitized_save.rs:782, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:840",
-    "verdict": "[R8] FIXED (P1): raw_drawn merged over kept contexts"
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:950",
+    "verdict": "[R8] FIXED (F1): page objects outside the page tree walked as Stray with their resources (test partial_tounicode_and_unreachable_pages_are_read_or_opaque) [carried from 49731a5 sanitized_save.rs:788, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:841",
-    "verdict": "[R8] FIXED (P1): same"
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:954",
+    "verdict": "[R8] n/a: appearance roots (every dictionary with /AP) walked as Appearance (unchanged) [carried from 49731a5 sanitized_save.rs:792, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:843",
-    "verdict": "[R8] FIXED (P1): same (any kept context that draws the bytes)"
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:961",
+    "verdict": "[R8] n/a: content-role streams walked as Stray with own resources (unchanged). Correction of the R7 verdict for pre-review site :799/:809 ('it has no resources' was false for page content outside the tree): streams no role reaches now go to the object-table catch-all (:812-814) and page objects outside the tree to :788 [carried from 49731a5 sanitized_save.rs:799, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:892",
-    "verdict": "[R8] FIXED (P1): exemptions per kept show operator from shown_needles"
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:974",
+    "verdict": "[R8] FIXED (F1): run_unreached (Stray, no resources: an unresolvable font makes the text opaque) [carried from 49731a5 sanitized_save.rs:814, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:903",
-    "verdict": "[DIFF] n/a: fonts a stream can select (code spellings); page objects outside the tree now contribute their resources (F1)"
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:988",
+    "verdict": "[R9 determination] FIXED: every undetermined operator listed with its TextCause; font/code causes opaque, writing mode NotProven::UnresolvedWritingMode (tests undetermined_fonts_never_read_as_cleared, unknown_cmap_names_are_unresolved_writing_modes, opaque_composite_text_blocks_the_proof)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:74",
-    "verdict": "[DIFF] n/a: raw byte reading helper"
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:996",
+    "verdict": "[R9 determination] FIXED: geometry of every operator drawn on a region's page (content and every form it draws) from the saved file; not computed = RegionIncomplete (tests undetermined_fonts_never_read_as_cleared, unknown_cmap_names_are_unresolved_writing_modes, opaque_composite_text_blocks_the_proof; tests font_is_graphics_state_in_the_selector, fonts_inherited_into_forms_are_resolved, undetermined_fonts_never_read_as_cleared)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:75",
-    "verdict": "[DIFF] n/a: body of the raw byte reading helper"
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:1010",
+    "verdict": "[R8 P1] FIXED (rule unchanged): bytes exempt only where the simple font reads them as the same letters"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:98",
-    "verdict": "[DIFF] n/a: read_font (simple: encoding + ToUnicode; composite: ToUnicode or Opaque)"
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:1011",
+    "verdict": "[R8 P1] FIXED (rule unchanged): bytes exempt only where the simple font reads them as the same letters"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:99",
-    "verdict": "[DIFF] n/a: shared composite test"
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:1013",
+    "verdict": "[R8 P1] FIXED (rule unchanged): bytes exempt only where the simple font reads them as the same letters"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:105",
-    "verdict": "[DIFF] n/a: ToUnicode parse"
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:1018",
+    "verdict": "[R9-F3][R9-P2] FIXED: needles matched in each root's drawing-order text, joined and spaced, every reading kind, normalised (both escape forms when an ESC is present); token rule only exempts a match inside one string (tests split_runs_are_read_whole, kerning_word_spaces_are_read, removed_runs_join_across_show_operators, glyph_by_glyph_unreadable_text_is_never_proven; tests language_escapes_and_invisible_characters_never_hide_text, zero_width_and_compatibility_characters_never_hide_text)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:107",
-    "verdict": "[R7pre] n/a: a ToUnicode that does not decode (not budget) = no map: composite -> Opaque, simple -> the encoding decides"
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:1024",
+    "verdict": "[R9-F3][R9-P2] FIXED: needles matched in each root's drawing-order text, joined and spaced, every reading kind, normalised (both escape forms when an ESC is present); token rule only exempts a match inside one string (tests split_runs_are_read_whole, kerning_word_spaces_are_read, removed_runs_join_across_show_operators, glyph_by_glyph_unreadable_text_is_never_proven; tests language_escapes_and_invisible_characters_never_hide_text, zero_width_and_compatibility_characters_never_hide_text)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:111",
-    "verdict": "[DIFF] n/a: composite with ToUnicode (completeness checked per string at show_text.rs:499)"
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:1031",
+    "verdict": "[R9-F3][R9-P2] FIXED: needles matched in each root's drawing-order text, joined and spaced, every reading kind, normalised (both escape forms when an ESC is present); token rule only exempts a match inside one string (tests split_runs_are_read_whole, kerning_word_spaces_are_read, removed_runs_join_across_show_operators, glyph_by_glyph_unreadable_text_is_never_proven; tests language_escapes_and_invisible_characters_never_hide_text, zero_width_and_compatibility_characters_never_hide_text)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:112",
-    "verdict": "[DIFF] n/a: composite without ToUnicode stays opaque"
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:1034",
+    "verdict": "[R9-F3][R9-P2] FIXED: needles matched in each root's drawing-order text, joined and spaced, every reading kind, normalised (both escape forms when an ESC is present); token rule only exempts a match inside one string (tests split_runs_are_read_whole, kerning_word_spaces_are_read, removed_runs_join_across_show_operators, glyph_by_glyph_unreadable_text_is_never_proven; tests language_escapes_and_invisible_characters_never_hide_text, zero_width_and_compatibility_characters_never_hide_text)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:113",
-    "verdict": "[DIFF] n/a: simple font = encoding + optional ToUnicode"
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:1041",
+    "verdict": "[R9][R8 P1] FIXED: kept text is a collision (and exempts bytes) only through font readings of determined fonts, never a guess for an unresolved font or the bytes"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:118",
-    "verdict": "[DIFF] n/a: font cache by object number / address"
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:1110",
+    "verdict": "[R9-P2] FIXED: strings, names, non-show content operands and non-kept stream text matched as normalised text (tests language_escapes_and_invisible_characters_never_hide_text, zero_width_and_compatibility_characters_never_hide_text)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:1121",
+    "verdict": "[R8 P1][R9] FIXED: needles a kept operator draws = raw_drawn byte spellings + font-reading matches lying wholly in that operator"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:1132",
+    "verdict": "[DIFF] n/a: fonts a stream can select (code spellings); page objects outside the tree now contribute their resources (F1) [carried from 49731a5 sanitized_save.rs:903, line text unchanged]"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:1155",
+    "verdict": "[R9-P2] FIXED: strings, names, non-show content operands and non-kept stream text matched as normalised text (tests language_escapes_and_invisible_characters_never_hide_text, zero_width_and_compatibility_characters_never_hide_text)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:1217",
+    "verdict": "doc/attribute line (V4-07: its claims cite tests, checked mechanically at the READY sha); no behaviour"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:1220",
+    "verdict": "doc/attribute line (V4-07: its claims cite tests, checked mechanically at the READY sha); no behaviour"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:1228",
+    "verdict": "doc/attribute line (V4-07: its claims cite tests, checked mechanically at the READY sha); no behaviour"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:1232",
+    "verdict": "doc/attribute line (V4-07: its claims cite tests, checked mechanically at the READY sha); no behaviour"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:1233",
+    "verdict": "[R9-F3 (iii)] FIXED: every removed string or run without a complete reading counts, the 6-byte minimum is gone (tests split_runs_are_read_whole, kerning_word_spaces_are_read, removed_runs_join_across_show_operators, glyph_by_glyph_unreadable_text_is_never_proven)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:1240",
+    "verdict": "[R9 determination] FIXED: geometry of every operator drawn on a region's page (content and every form it draws) from the saved file; not computed = RegionIncomplete (tests undetermined_fonts_never_read_as_cleared, unknown_cmap_names_are_unresolved_writing_modes, opaque_composite_text_blocks_the_proof; tests font_is_graphics_state_in_the_selector, fonts_inherited_into_forms_are_resolved, undetermined_fonts_never_read_as_cleared)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:1252",
+    "verdict": "doc/attribute line (V4-07: its claims cite tests, checked mechanically at the READY sha); no behaviour"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:1258",
+    "verdict": "[R9-F3 (iii)] FIXED: every removed string or run without a complete reading counts, the 6-byte minimum is gone (tests split_runs_are_read_whole, kerning_word_spaces_are_read, removed_runs_join_across_show_operators, glyph_by_glyph_unreadable_text_is_never_proven)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:1266",
+    "verdict": "[R9 determination] FIXED: geometry of every operator drawn on a region's page (content and every form it draws) from the saved file; not computed = RegionIncomplete (tests undetermined_fonts_never_read_as_cleared, unknown_cmap_names_are_unresolved_writing_modes, opaque_composite_text_blocks_the_proof; tests font_is_graphics_state_in_the_selector, fonts_inherited_into_forms_are_resolved, undetermined_fonts_never_read_as_cleared)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:1273",
+    "verdict": "[R9-F3 (iii)] FIXED: the needles_searched gate applies only to a plain payload check (PayloadProof::not_proven_reasons); a redaction applies the determination to the whole saved file whatever was removed (structural_reasons(true)) (tests undetermined_fonts_never_read_as_cleared, unknown_cmap_names_are_unresolved_writing_modes, opaque_composite_text_blocks_the_proof)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:1279",
+    "verdict": "doc/attribute line (V4-07: its claims cite tests, checked mechanically at the READY sha); no behaviour"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:1294",
+    "verdict": "[R9-F3] n/a: byte-scan needle threshold only; short removed strings still form joined runs (needles) and their readability counts without a minimum (tests split_runs_are_read_whole, kerning_word_spaces_are_read, removed_runs_join_across_show_operators, glyph_by_glyph_unreadable_text_is_never_proven)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:1328",
+    "verdict": "[R9-F3] n/a: byte-scan needle threshold only; short removed strings still form joined runs (needles) and their readability counts without a minimum (tests split_runs_are_read_whole, kerning_word_spaces_are_read, removed_runs_join_across_show_operators, glyph_by_glyph_unreadable_text_is_never_proven)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:1332",
+    "verdict": "[R9-F3 (iii)] FIXED: every removed string or run without a complete reading counts, the 6-byte minimum is gone (tests split_runs_are_read_whole, kerning_word_spaces_are_read, removed_runs_join_across_show_operators, glyph_by_glyph_unreadable_text_is_never_proven)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:1333",
+    "verdict": "[R9-F3 (iii)] FIXED: every removed string or run without a complete reading counts, the 6-byte minimum is gone (tests split_runs_are_read_whole, kerning_word_spaces_are_read, removed_runs_join_across_show_operators, glyph_by_glyph_unreadable_text_is_never_proven)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:1339",
+    "verdict": "[R9-P2] n/a: needle text of a removed string (normalised before matching; 0x1B now ESC)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:1352",
+    "verdict": "[R9 determination] FIXED: geometry of every operator drawn on a region's page (content and every form it draws) from the saved file; not computed = RegionIncomplete (tests undetermined_fonts_never_read_as_cleared, unknown_cmap_names_are_unresolved_writing_modes, opaque_composite_text_blocks_the_proof; tests font_is_graphics_state_in_the_selector, fonts_inherited_into_forms_are_resolved, undetermined_fonts_never_read_as_cleared)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:1356",
+    "verdict": "[R9 determination] FIXED: geometry of every operator drawn on a region's page (content and every form it draws) from the saved file; not computed = RegionIncomplete (tests undetermined_fonts_never_read_as_cleared, unknown_cmap_names_are_unresolved_writing_modes, opaque_composite_text_blocks_the_proof; tests font_is_graphics_state_in_the_selector, fonts_inherited_into_forms_are_resolved, undetermined_fonts_never_read_as_cleared)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:1357",
+    "verdict": "[R9 determination] FIXED: geometry of every operator drawn on a region's page (content and every form it draws) from the saved file; not computed = RegionIncomplete (tests undetermined_fonts_never_read_as_cleared, unknown_cmap_names_are_unresolved_writing_modes, opaque_composite_text_blocks_the_proof; tests font_is_graphics_state_in_the_selector, fonts_inherited_into_forms_are_resolved, undetermined_fonts_never_read_as_cleared)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/sanitized_save.rs:1366",
+    "verdict": "[R9-F3 (iii)] FIXED: every removed string or run without a complete reading counts, the 6-byte minimum is gone (tests split_runs_are_read_whole, kerning_word_spaces_are_read, removed_runs_join_across_show_operators, glyph_by_glyph_unreadable_text_is_never_proven)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:10",
+    "verdict": "doc/attribute line (V4-07: its claims cite tests, checked mechanically at the READY sha); no behaviour"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:44",
+    "verdict": "n/a: import"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:63",
+    "verdict": "[R9-F1] FIXED: the walker's FontText carries the determined writing mode; geometry/causes report vertical and unresolved (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:67",
+    "verdict": "[R9-F1] FIXED: the walker's FontText carries the determined writing mode; geometry/causes report vertical and unresolved (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:69",
+    "verdict": "[R9-F1] FIXED: the walker's FontText carries the determined writing mode; geometry/causes report vertical and unresolved (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:96",
+    "verdict": "[DIFF] n/a: raw byte reading helper [carried from 49731a5 show_text.rs:74, line text unchanged]"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:97",
+    "verdict": "[DIFF] n/a: body of the raw byte reading helper [carried from 49731a5 show_text.rs:75, line text unchanged]"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:120",
+    "verdict": "[DIFF] n/a: read_font (simple: encoding + ToUnicode; composite: ToUnicode or Opaque) [carried from 49731a5 show_text.rs:98, line text unchanged]"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:126",
+    "verdict": "[DIFF] n/a: ToUnicode parse [carried from 49731a5 show_text.rs:105, line text unchanged]"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:128",
+    "verdict": "[R7pre] n/a: a ToUnicode that does not decode (not budget) = no map: composite -> Opaque, simple -> the encoding decides [carried from 49731a5 show_text.rs:107, line text unchanged]"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:131",
+    "verdict": "[R9-F1] FIXED: the walker's FontText carries the determined writing mode; geometry/causes report vertical and unresolved (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes)"
    },
    {
     "file_line": "crates/hsk-studio-press/src/show_text.rs:132",
-    "verdict": "[DIFF] n/a: call of read_font"
+    "verdict": "[R9-F1] FIXED: the walker's FontText carries the determined writing mode; geometry/causes report vertical and unresolved (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:141",
-    "verdict": "[DIFF] n/a: font resolution by resource name"
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:133",
+    "verdict": "[R9-F1] FIXED: the walker's FontText carries the determined writing mode; geometry/causes report vertical and unresolved (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:150",
-    "verdict": "[DIFF] n/a: font resolution"
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:135",
+    "verdict": "[R9-P1] FIXED: glyph procedures of EVERY Type 3 font dictionary (indirect or direct, any nesting <= 64) are content-role streams read with the font's resources (test direct_type3_glyph_procedures_are_read)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:136",
+    "verdict": "[R8][DIFF] FIXED: per-string readings (encoding, /ToUnicode, bytes); an undetermined font or an unread code makes the operator opaque"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:140",
+    "verdict": "[DIFF] n/a: font cache by object number / address [carried from 49731a5 show_text.rs:118, line text unchanged]"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:154",
+    "verdict": "[DIFF] n/a: call of read_font [carried from 49731a5 show_text.rs:132, line text unchanged]"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:163",
+    "verdict": "[DIFF] n/a: font resolution by resource name [carried from 49731a5 show_text.rs:141, line text unchanged]"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:172",
+    "verdict": "[DIFF] n/a: font resolution [carried from 49731a5 show_text.rs:150, line text unchanged]"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:256",
+    "verdict": "[R9-F1] FIXED: the walker's FontText carries the determined writing mode; geometry/causes report vertical and unresolved (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:265",
+    "verdict": "[R9 determination] FIXED: no font or an unresolved font is not determined in ANY role (appearances included: no viewer-default font assumed) and the text is opaque (tests undetermined_fonts_never_read_as_cleared, unknown_cmap_names_are_unresolved_writing_modes, opaque_composite_text_blocks_the_proof)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:272",
+    "verdict": "[R9 determination] FIXED: no font or an unresolved font is not determined in ANY role (appearances included: no viewer-default font assumed) and the text is opaque (tests undetermined_fonts_never_read_as_cleared, unknown_cmap_names_are_unresolved_writing_modes, opaque_composite_text_blocks_the_proof)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:273",
+    "verdict": "[R9 determination] FIXED: no font or an unresolved font is not determined in ANY role (appearances included: no viewer-default font assumed) and the text is opaque (tests undetermined_fonts_never_read_as_cleared, unknown_cmap_names_are_unresolved_writing_modes, opaque_composite_text_blocks_the_proof)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:274",
+    "verdict": "[R9 determination] FIXED: no font or an unresolved font is not determined in ANY role (appearances included: no viewer-default font assumed) and the text is opaque (tests undetermined_fonts_never_read_as_cleared, unknown_cmap_names_are_unresolved_writing_modes, opaque_composite_text_blocks_the_proof)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:275",
+    "verdict": "[R9-F1] FIXED: the walker's FontText carries the determined writing mode; geometry/causes report vertical and unresolved (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:288",
+    "verdict": "[R9 determination] FIXED: no font or an unresolved font is not determined in ANY role (appearances included: no viewer-default font assumed) and the text is opaque (tests undetermined_fonts_never_read_as_cleared, unknown_cmap_names_are_unresolved_writing_modes, opaque_composite_text_blocks_the_proof)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:296",
+    "verdict": "[R9-F1] FIXED: the walker's FontText carries the determined writing mode; geometry/causes report vertical and unresolved (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:297",
+    "verdict": "[R9-F1] FIXED: the walker's FontText carries the determined writing mode; geometry/causes report vertical and unresolved (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes)"
    },
    {
     "file_line": "crates/hsk-studio-press/src/show_text.rs:298",
-    "verdict": "[R7pre] n/a: pre-decoded content parse: None -> unread (run_page, run_stream, Do) or not content (run_unreached)"
+    "verdict": "[R9-F1] FIXED: the walker's FontText carries the determined writing mode; geometry/causes report vertical and unresolved (tests writing_mode_is_read_from_the_cmap, unknown_cmap_names_are_unresolved_writing_modes)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:301",
-    "verdict": "[R7pre] n/a: on-demand parse (text-field scan): None -> unread"
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:439",
+    "verdict": "[R7pre] n/a: pre-decoded content parse: None -> unread (run_page, run_stream, Do) or not content (run_unreached) [carried from 49731a5 show_text.rs:298, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:303",
-    "verdict": "[R7pre] n/a: decode error -> None -> unread"
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:442",
+    "verdict": "[R7pre] n/a: on-demand parse (text-field scan): None -> unread [carried from 49731a5 show_text.rs:301, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:327",
-    "verdict": "[R8] n/a: page state starts without a font"
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:444",
+    "verdict": "[R7pre] n/a: decode error -> None -> unread [carried from 49731a5 show_text.rs:303, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:334",
-    "verdict": "[R8] n/a: after an unreadable stream the font is unknown: Unresolved (opaque for Kept and Stray) and the stream is unread"
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:468",
+    "verdict": "[R8] n/a: page state starts without a font [carried from 49731a5 show_text.rs:327, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:356",
-    "verdict": "[R8] FIXED (F1): run_unreached"
-   },
-   {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:366",
-    "verdict": "[R8] n/a: memo key (font unset at stream start)"
-   },
-   {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:374",
-    "verdict": "[R8] n/a: stream state starts without a font"
-   },
-   {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:384",
-    "verdict": "[DIFF] n/a: run_bytes input that does not parse: raw text + opaque"
-   },
-   {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:385",
-    "verdict": "[R8] n/a: separator after the raw text of an unreadable appearance (opaque anyway)"
-   },
-   {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:389",
-    "verdict": "[R8] n/a: run_bytes state starts without a font"
-   },
-   {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:394",
-    "verdict": "[DIFF] n/a: font resolution by Tf name (appearance falls back to /DR)"
-   },
-   {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:397",
-    "verdict": "[DIFF] n/a: font resolution"
-   },
-   {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:401",
-    "verdict": "[DIFF] n/a: font resolution through /DR (appearances)"
-   },
-   {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:405",
-    "verdict": "[R8] n/a: a name nothing resolves = Unresolved (opaque for Kept and Stray, show_text.rs:542)"
-   },
-   {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:423",
-    "verdict": "[DIFF] n/a: ExtGState /Font resolution"
-   },
-   {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:426",
-    "verdict": "[R8] n/a: an ExtGState /Font that is not a font = Unresolved"
-   },
-   {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:458",
-    "verdict": "[DIFF] n/a: Tf name resolution"
-   },
-   {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:459",
-    "verdict": "[R8] n/a: Tf without a name operand = Unresolved"
-   },
-   {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:497",
-    "verdict": "[DIFF] FIXED (F3 class, proof side): composite text read through decode_checked"
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:477",
+    "verdict": "[R8] n/a: after an unreadable stream the font is unknown: Unresolved (opaque for Kept and Stray) and the stream is unread [carried from 49731a5 show_text.rs:334, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/show_text.rs:499",
-    "verdict": "[R8] FIXED: a code the ToUnicode does not name makes the text opaque (test partial_tounicode_and_unreachable_pages_are_read_or_opaque)"
+    "verdict": "[R8] FIXED (F1): run_unreached [carried from 49731a5 show_text.rs:356, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:504",
-    "verdict": "[R8] FIXED (F2/D2): the spaced per-string reading is kept; the joined reading is added for a kerned TJ (show_text.rs:549-557)"
-   },
-   {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:506",
-    "verdict": "[DIFF] n/a: opaque composite text: flagged, bytes kept"
-   },
-   {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:508",
-    "verdict": "[DIFF] n/a: same"
-   },
-   {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:510",
-    "verdict": "[DIFF] FIXED: simple-font readings"
-   },
-   {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:514",
-    "verdict": "[DIFF] n/a: raw reading, the base for the other readings"
-   },
-   {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:515",
-    "verdict": "[DIFF] FIXED: encoding reading (opaque when a code stays unknown)"
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:509",
+    "verdict": "[R8] n/a: memo key (font unset at stream start) [carried from 49731a5 show_text.rs:366, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/show_text.rs:517",
-    "verdict": "[DIFF] FIXED (P1): raw_drawn = the encoding reads the bytes as the same letters"
-   },
-   {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:520",
-    "verdict": "[DIFF] FIXED: ligature glyphs spelled out"
-   },
-   {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:523",
-    "verdict": "[DIFF] FIXED (F2/D2): ToUnicode reading of a simple font, also joined"
-   },
-   {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:529",
-    "verdict": "[R8] FIXED (F2/D2): spaced readings kept, joined ones added (D5 verdict update for 607d47c show_text.rs:458-474)"
+    "verdict": "[R8] n/a: page state starts without a font [carried from 49731a5 show_text.rs:327, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/show_text.rs:531",
-    "verdict": "[R8] FIXED (F2/D2): same"
+    "verdict": "[R7pre N5] FIXED (rule unchanged): bytes that do not tokenize are an unreadable record (opaque)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:542",
-    "verdict": "[R8] FIXED (F1): an unresolved font in Kept or Stray content is opaque"
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:533",
+    "verdict": "[R7pre N5] FIXED (rule unchanged): bytes that do not tokenize are an unreadable record (opaque)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:544",
-    "verdict": "[DIFF] n/a: bytes kept with the opaque flag"
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:538",
+    "verdict": "[R8] n/a: page state starts without a font [carried from 49731a5 show_text.rs:327, line text unchanged]"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:543",
+    "verdict": "[DIFF] n/a: font resolution by Tf name (appearance falls back to /DR) [carried from 49731a5 show_text.rs:394, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/show_text.rs:546",
-    "verdict": "[DIFF+R8] n/a: no Tf yet: the bytes are scanned as bytes; raw_drawn stays false, so they do not exempt kept text (P1)"
+    "verdict": "[DIFF] n/a: font resolution [carried from 49731a5 show_text.rs:397, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:548",
-    "verdict": "[R8] FIXED (P1): per-string raw_drawn"
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:547",
+    "verdict": "[R7pre N4/N6] n/a: resource and /AcroForm /DR lookup; a name nothing holds is Unresolved (now opaque in every role)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:551",
-    "verdict": "[DIFF] FIXED (F2/D2): joined raw reading"
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:550",
+    "verdict": "[DIFF] n/a: font resolution through /DR (appearances) [carried from 49731a5 show_text.rs:401, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/show_text.rs:552",
-    "verdict": "[DIFF] FIXED (F2/D2): joined ligature reading"
+    "verdict": "[R7pre N4/N6] n/a: resource and /AcroForm /DR lookup; a name nothing holds is Unresolved (now opaque in every role)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:559",
-    "verdict": "[R8] n/a: separator between operators"
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:554",
+    "verdict": "[R8] n/a: a name nothing resolves = Unresolved (opaque for Kept and Stray, show_text.rs:542) [carried from 49731a5 show_text.rs:405, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:624",
-    "verdict": "[DIFF] FIXED (F2/D2): text-field joined view (raw run)"
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:558",
+    "verdict": "[R7pre N4] FIXED (unchanged): the walker's font is graphics state including gs /Font"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:625",
-    "verdict": "[R8] FIXED (F2/D2): separator between joined readings (not inside them)"
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:572",
+    "verdict": "[DIFF] n/a: ExtGState /Font resolution [carried from 49731a5 show_text.rs:423, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:628",
-    "verdict": "[R8] FIXED (F2/D2): same"
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:575",
+    "verdict": "[R8] n/a: an ExtGState /Font that is not a font = Unresolved [carried from 49731a5 show_text.rs:426, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:755",
-    "verdict": "[R8] n/a: content-role streams (forms, tiling patterns, Type3 glyph procedures, streams with /Resources), unchanged; streams it misses go to the catch-all (sanitized_save.rs:812)"
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:581",
+    "verdict": "[R9 determination] FIXED: no font or an unresolved font is not determined in ANY role (appearances included: no viewer-default font assumed) and the text is opaque (tests undetermined_fonts_never_read_as_cleared, unknown_cmap_names_are_unresolved_writing_modes, opaque_composite_text_blocks_the_proof)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:769",
-    "verdict": "[R8] n/a: Type3 CharProcs as content roles (glyph procedures walked as Stray)"
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:582",
+    "verdict": "[R9 determination] FIXED: no font or an unresolved font is not determined in ANY role (appearances included: no viewer-default font assumed) and the text is opaque (tests undetermined_fonts_never_read_as_cleared, unknown_cmap_names_are_unresolved_writing_modes, opaque_composite_text_blocks_the_proof)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:786",
-    "verdict": "[DIFF] n/a: collects fonts for code spellings"
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:583",
+    "verdict": "[R9 determination] FIXED: no font or an unresolved font is not determined in ANY role (appearances included: no viewer-default font assumed) and the text is opaque (tests undetermined_fonts_never_read_as_cleared, unknown_cmap_names_are_unresolved_writing_modes, opaque_composite_text_blocks_the_proof)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/show_text.rs:791",
-    "verdict": "[DIFF] n/a: font resolution"
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:587",
+    "verdict": "[DIFF] n/a: raw reading, the base for the other readings [carried from 49731a5 show_text.rs:514, line text unchanged]"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:589",
+    "verdict": "[R9 determination] FIXED: font state recorded per operator (Known / NoFont / Unresolved)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:590",
+    "verdict": "[R8][DIFF] FIXED: per-string readings (encoding, /ToUnicode, bytes); an undetermined font or an unread code makes the operator opaque"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:592",
+    "verdict": "[R8] FIXED: a code the ToUnicode does not name makes the text opaque (test partial_tounicode_and_unreachable_pages_are_read_or_opaque) [carried from 49731a5 show_text.rs:499, line text unchanged]"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:596",
+    "verdict": "[R8][DIFF] FIXED: per-string readings (encoding, /ToUnicode, bytes); an undetermined font or an unread code makes the operator opaque"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:600",
+    "verdict": "[R8][DIFF] FIXED: per-string readings (encoding, /ToUnicode, bytes); an undetermined font or an unread code makes the operator opaque"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:601",
+    "verdict": "[DIFF] FIXED: encoding reading (opaque when a code stays unknown) [carried from 49731a5 show_text.rs:515, line text unchanged]"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:603",
+    "verdict": "[R8][DIFF] FIXED: per-string readings (encoding, /ToUnicode, bytes); an undetermined font or an unread code makes the operator opaque"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:604",
+    "verdict": "[R8][DIFF] FIXED: per-string readings (encoding, /ToUnicode, bytes); an undetermined font or an unread code makes the operator opaque"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:608",
+    "verdict": "[R9 determination] FIXED: font state recorded per operator (Known / NoFont / Unresolved)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:643",
+    "verdict": "[R7pre N4] FIXED (unchanged): Tf selects the font in the resources in force (or /DR for an appearance)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:645",
+    "verdict": "[DIFF] n/a: Tf name resolution [carried from 49731a5 show_text.rs:458, line text unchanged]"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:646",
+    "verdict": "[R8] n/a: Tf without a name operand = Unresolved [carried from 49731a5 show_text.rs:459, line text unchanged]"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:650",
+    "verdict": "[R7pre N4] FIXED (unchanged): the walker's font is graphics state including gs /Font"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:652",
+    "verdict": "[R7pre N4] FIXED (unchanged): the walker's font is graphics state including gs /Font"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:721",
+    "verdict": "[R9 determination] FIXED: font state recorded per operator (Known / NoFont / Unresolved)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:732",
+    "verdict": "[R9-F3] FIXED: drawing-order text per root (forms inline), joined and spaced, every reading kind; charged to max_decoded_total characters (InputLimit text_runs, test determination_text_is_bounded) (tests split_runs_are_read_whole, kerning_word_spaces_are_read, removed_runs_join_across_show_operators, glyph_by_glyph_unreadable_text_is_never_proven)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:776",
+    "verdict": "[R9-F3] FIXED: drawing-order text per root (forms inline), joined and spaced, every reading kind; charged to max_decoded_total characters (InputLimit text_runs, test determination_text_is_bounded) (tests split_runs_are_read_whole, kerning_word_spaces_are_read, removed_runs_join_across_show_operators, glyph_by_glyph_unreadable_text_is_never_proven)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:790",
+    "verdict": "[R9-F3] FIXED: drawing-order text per root (forms inline), joined and spaced, every reading kind; charged to max_decoded_total characters (InputLimit text_runs, test determination_text_is_bounded) (tests split_runs_are_read_whole, kerning_word_spaces_are_read, removed_runs_join_across_show_operators, glyph_by_glyph_unreadable_text_is_never_proven)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:915",
+    "verdict": "doc/attribute line (V4-07: its claims cite tests, checked mechanically at the READY sha); no behaviour"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:918",
+    "verdict": "[R8] n/a: content-role streams (forms, tiling patterns, Type3 glyph procedures, streams with /Resources), unchanged; streams it misses go to the catch-all (sanitized_save.rs:812) [carried from 49731a5 show_text.rs:755, line text unchanged]"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:946",
+    "verdict": "[R9-P1] FIXED: glyph procedures of EVERY Type 3 font dictionary (indirect or direct, any nesting <= 64) are content-role streams read with the font's resources (test direct_type3_glyph_procedures_are_read)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:947",
+    "verdict": "[R9-P1] FIXED: glyph procedures of EVERY Type 3 font dictionary (indirect or direct, any nesting <= 64) are content-role streams read with the font's resources (test direct_type3_glyph_procedures_are_read)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:965",
+    "verdict": "[DIFF] n/a: collects fonts for code spellings [carried from 49731a5 show_text.rs:786, line text unchanged]"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/show_text.rs:970",
+    "verdict": "[DIFF] n/a: font resolution [carried from 49731a5 show_text.rs:791, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/syntax.rs:381",
-    "verdict": "[R7pre] n/a: octal escape (string syntax)"
+    "verdict": "[R7pre] n/a: octal escape (string syntax) [carried from 49731a5 syntax.rs:381, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/syntax.rs:410",
-    "verdict": "[R7pre] n/a: hex string end (string syntax)"
+    "verdict": "[R7pre] n/a: hex string end (string syntax) [carried from 49731a5 syntax.rs:410, line text unchanged]"
    },
    {
     "file_line": "crates/hsk-studio-press/src/syntax.rs:442",
-    "verdict": "[R7pre] n/a: number token -> Malformed"
+    "verdict": "[R7pre] n/a: number token -> Malformed [carried from 49731a5 syntax.rs:442, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/text_fields.rs:308",
-    "verdict": "[R8] n/a: Matcher whitespace normalization, not a show-operator reading"
+    "file_line": "crates/hsk-studio-press/src/text_codec.rs:52",
+    "verdict": "[R9-P2] FIXED: a PDFDocEncoded byte 0x1B reads as ESC (pdf.js drops 0x1B..0x1B), so normalisation drops the language escape"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/text_fields.rs:441",
-    "verdict": "[R8] n/a: tag-gapped markup reading (/RC, XMP), not a show-operator reading"
+    "file_line": "crates/hsk-studio-press/src/text_fields.rs:295",
+    "verdict": "[R9-P2] FIXED: the text-field matcher uses the proof normalisation and matches with ESC..ESC dropped and with ESC dropped (test language_escapes_and_invisible_characters_never_hide_text)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/text_fields.rs:469",
-    "verdict": "[R7pre] n/a: rich-text character reference"
+    "file_line": "crates/hsk-studio-press/src/text_fields.rs:296",
+    "verdict": "[R9-P2] FIXED: the text-field matcher uses the proof normalisation and matches with ESC..ESC dropped and with ESC dropped (test language_escapes_and_invisible_characters_never_hide_text)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/text_fields.rs:470",
-    "verdict": "[R7pre] n/a: rich-text character reference"
+    "file_line": "crates/hsk-studio-press/src/text_fields.rs:333",
+    "verdict": "[R9-P2] FIXED: the text-field matcher uses the proof normalisation and matches with ESC..ESC dropped and with ESC dropped (test language_escapes_and_invisible_characters_never_hide_text)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/text_fields.rs:494",
-    "verdict": "[R8] n/a: markup whitespace collapse, not a show-operator reading"
+    "file_line": "crates/hsk-studio-press/src/text_fields.rs:353",
+    "verdict": "[R9-P2] FIXED: the text-field matcher uses the proof normalisation and matches with ESC..ESC dropped and with ESC dropped (test language_escapes_and_invisible_characters_never_hide_text)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/text_fields.rs:571",
-    "verdict": "[R8] n/a: appearance roots: every dictionary with /AP in the object table"
+    "file_line": "crates/hsk-studio-press/src/text_fields.rs:367",
+    "verdict": "[R9-P2] FIXED: the text-field matcher uses the proof normalisation and matches with ESC..ESC dropped and with ESC dropped (test language_escapes_and_invisible_characters_never_hide_text)"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/text_fields.rs:716",
-    "verdict": "[R7pre] n/a: undecodable appearance -> Unverifiable/Dropped"
+    "file_line": "crates/hsk-studio-press/src/text_fields.rs:436",
+    "verdict": "[R8] n/a: Matcher whitespace normalization, not a show-operator reading [carried from 49731a5 text_fields.rs:308, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/text_fields.rs:956",
-    "verdict": "[DIFF] n/a: embedded-file bytes, not font text"
+    "file_line": "crates/hsk-studio-press/src/text_fields.rs:464",
+    "verdict": "[R7pre] n/a: rich-text character reference [carried from 49731a5 text_fields.rs:469, line text unchanged]"
    },
    {
-    "file_line": "crates/hsk-studio-press/src/text_fields.rs:1268",
-    "verdict": "[R7pre] n/a: key utf8"
+    "file_line": "crates/hsk-studio-press/src/text_fields.rs:465",
+    "verdict": "[R7pre] n/a: rich-text character reference [carried from 49731a5 text_fields.rs:470, line text unchanged]"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/text_fields.rs:489",
+    "verdict": "[R8] n/a: Matcher whitespace normalization, not a show-operator reading [carried from 49731a5 text_fields.rs:308, line text unchanged]"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/text_fields.rs:501",
+    "verdict": "n/a: text string decoded for the matcher (normalisation applied there)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/text_fields.rs:566",
+    "verdict": "[R8] n/a: appearance roots: every dictionary with /AP in the object table [carried from 49731a5 text_fields.rs:571, line text unchanged]"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/text_fields.rs:688",
+    "verdict": "n/a: text string decoded for the matcher (normalisation applied there)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/text_fields.rs:711",
+    "verdict": "[R7pre] n/a: undecodable appearance -> Unverifiable/Dropped [carried from 49731a5 text_fields.rs:716, line text unchanged]"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/text_fields.rs:735",
+    "verdict": "n/a: text string decoded for the matcher (normalisation applied there)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/text_fields.rs:768",
+    "verdict": "n/a: text string decoded for the matcher (normalisation applied there)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/text_fields.rs:770",
+    "verdict": "n/a: text string decoded for the matcher (normalisation applied there)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/text_fields.rs:778",
+    "verdict": "n/a: text string decoded for the matcher (normalisation applied there)"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/text_fields.rs:951",
+    "verdict": "[DIFF] n/a: embedded-file bytes, not font text [carried from 49731a5 text_fields.rs:956, line text unchanged]"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/text_fields.rs:1263",
+    "verdict": "[R7pre] n/a: key utf8 [carried from 49731a5 text_fields.rs:1268, line text unchanged]"
    }
   ],
   "differences": {
@@ -1578,13 +2288,115 @@
     "Partial-ToUnicode opacity is strict: real composite fonts whose /ToUnicode omits glyphs that are drawn (symbols, some ligatures) now block with OpaqueText when a needle search ran."
    ]
   },
-  "v4_06_sha": "49731a5",
+  "v4_06_sha": "cc3eaae",
   "remediation_R9pre": {
    "review": "validation/R9-prereview-press.json (head 49731a5)",
-   "lead_decision": "START_LOG 2026-10-11T13:10:26Z POSITIVE DETERMINATION",
+   "lead_decision": "START_LOG 2026-10-11T13:10:26Z POSITIVE DETERMINATION (builds on 2026-10-11T11:58:11Z fail-closed)",
    "builder": "rem-press-r9",
-   "status": "in_progress",
-   "started_at": "2026-10-11T13:21:24Z"
+   "status": "complete",
+   "started_at": "2026-10-11T13:21:24Z",
+   "completed_at": "2026-10-11T14:25:27Z",
+   "lanes": {
+    "SMB-PRESS": {
+     "status": "READY_FOR_VALIDATION",
+     "ready_sha": "cc3eaae",
+     "findings": [
+      "R9-F1",
+      "R9-F2",
+      "R9-F3",
+      "R9-P1",
+      "R9-P2",
+      "R9-V1"
+     ]
+    },
+    "SMB-PRESS-DIFFERENCES": {
+     "status": "READY_FOR_VALIDATION",
+     "ready_sha": "cc3eaae",
+     "findings": [
+      "R9-D1",
+      "R9-D2 (= R9-F3)",
+      "R9-D3 (= R9-F2)"
+     ]
+    }
+   },
+   "claim_commits_v4_14": "60b3f63 047afea 5eda648 5d1991a 637d280 cc3eaae (all pushed while lane status was null; their subjects say wip for that reason); nothing after cc3eaae touches the crate",
+   "design": {
+    "determination_pass": "show_text::Walker records a ShowRec for EVERY text-showing operator of every content stream the object-table scan reaches: FontState (Known | NoFont | Unresolved; Tf, gs /Font, q/Q, form inheritance, /DR for appearances, nothing else), WMode (determination::writing_mode: closed ISO 32000-2 Table 116 lists, embedded /WMode 0|1 in dict or program, /UseCMap and usecmap, else Unresolved), type3, per-string readings (font text, /ToUnicode text, bytes) and unreadable. ShowRec::causes -> PayloadProof.undetermined_text (TextCause) -> NotProven::OpaqueText (no font, unresolved font, unreadable code) / NotProven::UnresolvedWritingMode; ShowRec::geometry over the region page closure (page content + every form it draws, from the saved file) -> RedactedOutput.region_undetermined -> NotProven::RegionIncomplete. A redaction applies the determination to the whole saved file whatever was removed (structural_reasons(true)); a plain verify_payload_absent keeps the needles_searched gate.",
+    "matching": "Walker::root_texts builds per root (page, page object outside the tree, appearance, stray stream) the drawing-order text (forms inline, a repeated form a boundary) per reading kind, joined and spaced, with per-character string provenance; needles (normalised, indexed by first char) are matched once per text; the whole-token rule exempts only a match inside ONE string glued to a letter of that string; kept roots give collisions only through font readings of determined fonts. Strings, names, non-show content operands (both escape forms) and the text of every stream that is not only kept page text (UTF-16 with BOM else UTF-8, if any byte is outside printable ASCII) are matched as normalised text.",
+    "normalisation": "norm.rs + generated norm_data.rs (Python unicodedata 16.0.0 NFKD; 2008 code points whose decomposition lies in Latin text + U+0300..U+036F; canonical ordering by MARK_CLASS): ESC..ESC segments (text strings, pdf.js semantics incl. PDFDoc 0x1B and unmatched ESC) or ESC characters (drawn text and streams; both forms when an ESC is present), default-ignorable characters, white-space runs. No new dependency (no NFKC crate in the workspace for this crate; minimal table per the dispatch).",
+    "selector": "redaction.rs Gfx carries FontSel (Unset | Known(Rc<FontInfo>) | Unresolved) by value: Tf resolves in the resources in force, gs applies /Font [font size] and /LW, q/Q save/restore, forms inherit the resolved font; FontInfo cached per font dictionary address; FontInfo.wmode from determination::writing_mode; show() marks Type3Text / VerticalText / UnresolvedWritingMode / UnresolvedFont (new) for any non-empty string on the page; removal runs = consecutive removed strings of a content stream (flush at kept non-empty string, Do, end), readability per string and per run without the 6-byte minimum.",
+    "replaced_or_deleted": [
+     "redaction.rs cmap_vertical (name ends_with -V) and sets_wmode_one (byte search for /WMode 1) -> determination::writing_mode (tri-state)",
+     "redaction.rs per-name font cache cleared by run_form, Gfx.font name -> FontSel carried by value",
+     "redaction.rs TJ-local run (flush_run(&mut run)) -> one content-stream run",
+     "sanitized_save.rs looks_like_content dictionary-key gate -> every decoded non-raster stream that tokenizes is walked",
+     "sanitized_save.rs per-record matching of rec.mapped / rec.joined / raw_joined and KeptOp.readings, text_found -> Needles::matches over root texts",
+     "sanitized_save.rs MIN_DISTINCTIVE_NEEDLE filter on unreadable removed text -> none",
+     "show_text.rs ShowRec.all/mapped/joined/bytes and Shown.all/joined/mapped -> StrRead per string + root_texts; FontText::Opaque -> Composite { cmap: None, wmode }",
+     "encoding.rs expand_ligatures -> NFKD table (its unit-test assertion moved to the normalisation)",
+     "text_fields.rs is_ignorable and its normalize -> norm.rs (with ESC segments and NFKD)"
+    ],
+    "new_public_api": "RedactionClass::UnresolvedFont, RedactionClass::UnresolvedWritingMode, TextCause, NotProven::UnresolvedWritingMode, PayloadProof.undetermined_text, RedactedOutput.region_undetermined (RedactionClass now also Ord)",
+    "spec_basis": "ISO 32000-2:2020 9.7.5.2 Table 116 (predefined CMap names, from the PDF Association Arlington model tsv/latest/FontType0.tsv Encoding PossibleValues, read via gh api 2026-10-11; split cross-checked with pdfminer.six 20260107 IS_VERTICAL for 59 names, 0 differences), Table 118 (CMap stream /WMode 0|1 default 0, /UseCMap; Arlington CMapStream.tsv), Table 57 (ExtGState /Font; Arlington GraphicsStateParameter.tsv), Table 119 Type 0 font dictionary, 7.8.3 resource inheritance and 8.4.2 graphics state stack (clause titles confirmed on pdf-issues.pdfa.org 32000-2-2020 clause07/clause09 pages), 7.9.2.2 text strings (language escapes; pdf.js src/core/string_utils.js stringToPDFString read via gh api for the ESC..ESC / ESC..end and PDFDoc 0x1B behaviour); 9.2.4 simple fonts horizontal only: read through a secondary source (Apryse PDFNet Font reference), stated as such in determination.rs. The full ISO PDF could not be opened (WebFetch size limit 10 MB); no download was made."
+   },
+   "tests_new": {
+    "R9-F1 /V CMap": "writing_mode_is_read_from_the_cmap",
+    "R9-F1 unknown CMap name": "unknown_cmap_names_are_unresolved_writing_modes",
+    "R9-F2 font via gs": "font_is_graphics_state_in_the_selector",
+    "R9-F2 font inherited by a form without its own /Font (and gs Type 3)": "fonts_inherited_into_forms_are_resolved",
+    "R9-F2 unresolvable font (and no font)": "undetermined_fonts_never_read_as_cleared",
+    "R9-F3 split Tj in one BT (and across BT, Do; ToUnicode, /Differences; text-field pass; token rule)": "split_runs_are_read_whole",
+    "R9-F3 kerning-number word space": "kerning_word_spaces_are_read",
+    "R9-F3 (SECRE) Tj (T-ALPHA) Tj + outline twin (also one BT per piece)": "removed_runs_join_across_show_operators",
+    "R9-F3 one-glyph-per-operator unreadable composite": "glyph_by_glyph_unreadable_text_is_never_proven",
+    "R9-P1 Type3 direct font dict with CharProcs (and keyed stray stream)": "direct_type3_glyph_procedures_are_read",
+    "R9-P2 language escape (PDFDocEncoding, UTF-16BE)": "language_escapes_and_invisible_characters_never_hide_text",
+    "R9-P2 zero-width needle (soft hyphen, word joiner, NFKC forms, ToUnicode zero-width/ESC, XMP)": "zero_width_and_compatibility_characters_never_hide_text",
+    "V4-02 bound of the new text aggregate": "determination_text_is_bounded"
+   },
+   "existing_tests_adjusted": [
+    "opaque_composite_text_blocks_the_proof: the no-needle case (only (ab) removed, CID text without /ToUnicode on the page) now reads NOT proven / NOT cleared with [OpaqueText] (decision: every operator of the saved file must be determined whatever was removed; this was the R9-F3 (iii) gap); proof.is_clean() of the plain check stays true.",
+    "annotation_text_slots_and_appearance_redacted and region_redaction_with_text_fields_closes_outline_and_annotation_leaks: fixture only, the appearances name /Helv which no resource dictionary held; the catalog now lists it in /AcroForm /DR (decision: an unresolved font is not determined, no viewer default is assumed). Assertions unchanged; both pass on 49731a5 too (red run).",
+    "encoding unit test helpers_expand_ligatures_and_compare_words: the ligature assertions check the normalisation that replaced expand_ligatures."
+   ],
+   "red_proof": {
+    "method": "V4-11 scratch tree Handshake_Artifacts/WP-KERNEL-STUDIO/press-r9-redproof/src = git archive 49731a5 (handshake-studio-assets), crate sources checked equal to 49731a5 by sha256 (sanitized_save, redaction, show_text, encoding, cmap, text_fields, text_codec, error, lib), own STUDIO_OWNER press-r9-redproof and target; tests/pdf_delivery.rs = the cc3eaae test file (sha256 prefix 5431f27ce968a7d2) with the 13 lines containing R9-new-api removed, written fresh (IDENTITY.json there). Each R9 test collects every failing sub-case before asserting, so one run names each sub-case.",
+    "argv": "cargo nextest run -p hsk-studio-press --no-fail-fast --test pdf_delivery <the 13 new tests> opaque_composite_text_blocks_the_proof annotation_text_slots_and_appearance_redacted region_redaction_with_text_fields_closes_outline_and_annotation_leaks",
+    "exit": 100,
+    "result": "16 run: 14 failed (all 13 new tests + opaque_composite_text_blocks_the_proof), 2 passed (the two fixture-adjusted tests). Sub-cases named red on 49731a5: R9-F1 predefined /V, /UseCMap /V, program /V usecmap (cleared, unredacted [], not refused); UniJIS2004-UTF16-H, invented name, /WMode 2, untokenizable program (cleared, not refused), appearance with unknown CMap (clean); R9-F2 gs no Tf and gs + q/Q (run not removed, SECRET-ALPHA still drawn), Type 3 via Tf inherited by a form, via gs inherited by a form, via gs in page text (not refused, []), unresolved font name (not refused, cleared), no font (cleared, no OpaqueText); R9-F3 split Tj / Td / two BT appearances, ToUnicode split, /Differences split, split across Do, text-field pass, concatenated match after a glued letter (all []), kerning word space ([]), (SECRE) Tj (T-ALPHA) Tj + twin (proven, hits []), glyph-by-glyph unreadable (proven); R9-P1 direct Type 3 CharProc ([]), keyed stray stream (opaque []); R9-P2 PDFDoc and UTF-16BE language escapes (title not found, outcome), zero-width space, soft hyphen + word joiner, fullwidth, mathematical bold (title not found), ToUnicode zero-width and ESC readings ([]), XMP ([]); determination_text_is_bounded (no text_runs bound: Ok).",
+    "log": "scratchpad SMB-PRESS-R9/red_run3.log (session-local)"
+   },
+   "green": {
+    "argv": "cargo nextest run -p hsk-studio-press --no-fail-fast",
+    "exit": 0,
+    "sha": "cc3eaae",
+    "passed": 73,
+    "failed": 0
+   },
+   "doctests": {
+    "argv": "cargo test --doc -p hsk-studio-press",
+    "exit": 0,
+    "sha": "cc3eaae",
+    "doctests": 0
+   },
+   "clippy": {
+    "argv": "cargo clippy -p hsk-studio-press --tests --examples",
+    "exit": 0,
+    "sha": "cc3eaae",
+    "press_warnings": 0,
+    "note": "only hsk-studio-observe warnings (too_many_arguments x2), not this crate"
+   },
+   "fmt": "not applied (dispatch: do not rustfmt untouched code; fmt sweep is a later lane); new code follows the crate's existing long-line style",
+   "gameplan_route": "retry guard blocked one identical rerun after test failures (13:51Z): route (a), fix committed (047afea), HEAD changed, rerun green; one hook block for a command that did not start with the workspace cd (no run happened; reissued with the leading cd). No gameplan step added.",
+   "v4_06_note": "class extended with [R9]; regex = the 49731a5 regex (verified equal to notes.v4_06_regex before the change; 211 at 49731a5) plus R9 terms reaching the R9-F1/F2 sites (b\"Tf\", b\"gs\", run_form, ends_with, writing_mode, predefined, UseCMap/usecmap, font_info, ext_gstate, gs_font, FontSel::Known, MIN_DISTINCTIVE_NEEDLE, needles_searched, structural_reasons, removed_unreadable, unreadable_removed, root_texts, .matches(, Needles::new, CharProcs, normalize/normalized/normalized_str, decode_text, is_ignorable, Escapes::Segments, stream_text_hits, string_text_hits, .causes(), .geometry(), FontState::, region_undetermined, page_classes). 381 sites at cc3eaae (old regex alone: 250). 142 verdicts carried where the line text equals a 49731a5 site (they cite 49731a5 line numbers, marked [carried ...]); 239 new verdicts. R9-V1: pdf_edit.rs:218 verdict reworded (readable text outside the tree is read, only undetermined text blocks); the looks_like_content gate (old sanitized_save.rs:439) is deleted; the Type 3 CharProcs site (old show_text.rs:769) now covers direct dictionaries (R9-P1).",
+   "residuals_for_lead": [
+    "Strictness by decision: any text-showing operator anywhere in the saved file that is not positively determined (CJK subset fonts without /ToUnicode, appearance streams naming fonts only a viewer default supplies, predefined CMaps outside Table 116 such as UniJIS2004-UTF16-H, Type 3 text with unread names) now withholds region_cleared and is_proven of every redaction of that file, whatever was removed.",
+    "Region geometry is over-approximated: undetermined, Type 3 or vertical text in ANY form drawn by the region's page blocks clearing, even a form far from the region (the walker does not track CTM); the selector itself only marks forms whose box touches the region.",
+    "Normalisation is NFKC-equivalent only within its table scope (Latin-target compatibility decompositions + canonical order of U+0300..U+036F marks); other compatibility characters compare as themselves (DESCRIPTOR proof.normalisation / not_covered).",
+    "A form drawn twice by the same root is joined to its neighbours only at its first occurrence (boundary at repeats; DESCRIPTOR not_covered).",
+    "Bytes of a stream drawn only as kept page text outside its show operators (comments) are matched by byte spellings only, not as normalised text.",
+    "SMB-PRESS-GEOMETRY (Type 3 / vertical / unresolved-font geometry) remains a separate lane; fmt sweep pending."
+   ]
   }
  }
 }
