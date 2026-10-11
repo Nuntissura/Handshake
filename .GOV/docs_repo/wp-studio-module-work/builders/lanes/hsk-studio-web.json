@@ -2,10 +2,11 @@
   "crate": "hsk-studio-web",
   "lane": "SMB-WEB-1",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice 1 complete: span-preserving HTML subset parser, DOM view, source-patch edits, media-query breakpoints, typed loss/refusal reports, web-consumer example",
+  "phase": "slice 2 complete (refresh + key map, granted-asset collection, preview tree, observe report) on top of slice 1 (parser, DOM view, source patches, breakpoints, loss/refusal reports)",
   "commits": [
     {"sha": "b081975", "subject": "Web slice 1: span-preserving HTML subset parser, DOM view, source-patch edits (attribute/text/insert/remove), media-query breakpoints, typed loss and refusal reports"},
-    {"sha": "da39753", "subject": "Web slice 1: web-consumer example (--descriptor, --tree, --set-attr, --media)"}
+    {"sha": "da39753", "subject": "Web slice 1: web-consumer example (--descriptor, --tree, --set-attr, --media)"},
+    {"sha": "7cd898d", "subject": "Web slice 2: refresh with key map, granted-asset collection (external URLs denied, port only for relative refs), preview tree (roles, names, tab order, media-gated display), observe report"}
   ],
   "capabilities_done": [
     "parse(): dependency-free byte scanner; every node keeps its exact source byte span; children tile the parent content so concatenated spans equal the source; unedited round trip is byte-exact (source retained, apply of an empty patch returns identical bytes and revision)",
@@ -16,22 +17,28 @@
     "Patch ops as TextEdit span replacements bound to base revision + sha256: set_attribute (keeps quote style, appends after last attribute, valueless -> =\"v\"), remove_attribute (with its leading whitespace), set_text (text node, text-only element, raw/RCDATA bodies with unsafe-close refusal), remove_node, insert_element, insert_fragment (fragment must parse inside the subset); apply (StaleRevision, Conflict, OverlappingEdits, InvalidSpan, size limit, revision overflow), SourcePatch::compose, WebDoc::apply_patch (apply + reparse)",
     "Entities: common named set + numeric (invalid -> U+FFFD), unresolved well-formed references reported verbatim, escape_text/escape_attr",
     "responsive: parse_media_query (min-width/max-width px, and, comma list, all/screen/only), Breakpoint::matches, scan_media_blocks + document_media_blocks over style bodies (comments/strings skipped, nesting depth, per-query typed errors in document offsets); unsupported media type/feature/unit/syntax typed",
-    "WebError::code() + outcome() mapping to observe::Outcome; DESCRIPTOR JSON (validated parseable); examples/web-consumer.rs run against a synthetic CRLF file (tree, set-attr byte-exact output, media)"
+    "WebError::code() + outcome() mapping to observe::Outcome; DESCRIPTOR JSON (validated parseable); examples/web-consumer.rs run against a synthetic CRLF file (tree, set-attr byte-exact output, media)",
+    "slice 2 refresh: refresh(old, new_src, old.revision+1) re-parses at exactly R+1 (any other revision is StaleRevision) and returns a KeyMap (old<->new ids, map_key, added/removed subtree roots + exact node counts); identity = prefix/suffix, then HTML-id elements in any order, then id-less siblings by tag in order; equals parse(apply(patch)) (asserted on view rows and sha)",
+    "slice 2 assets: collect_assets over img/source/video/audio/iframe/embed/track/input src, link/a/area/use href, object data, video poster, style attribute url(), style body url() and @import string; only relative references reach the AssetPort; external schemes, //, file:, javascript:/vbscript: (also through entity/newline tricks) are typed Denied without a port call; data: = Inline, #x = SameDocument; Granted/Unavailable/Denied from the port; spans point at the reference bytes; cancellation before the port is consulted",
+    "slice 2 preview: preview_tree(doc, width) = per-element role, accessible name (aria-labelledby, aria-label, alt, label for/wrapping, value, content, title), heading level, focusable, tabindex, tab_order (positive ascending then natural; negative/disabled skipped), display resolved from inline style tag rules gated by the @media chain at the width (importance, origin, specificity, order), hidden attribute / input hidden / aria-hidden, unnamed list; carries source_revision and viewport width; unsupported rules listed (at-rules, combinators/attribute/pseudo selectors, nested blocks, unsupported media queries)",
+    "slice 2 observe: report()/outcome_of() deliver Success | Canceled | Failure(Validation|Unsupported) with correlation id and revision only (no source text); a cancelled token reports Canceled; wrong revision refused by observe"
   ],
   "tests": {
     "argv": "focused test run: -p hsk-studio-web --no-fail-fast --test source_dom_patch",
     "exit": 0,
-    "sha": "b081975",
-    "passed": 5,
+    "sha": "7cd898d",
+    "passed": 9,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "Slice 2 candidates (brief): refresh(old,new_src) with NodeKey map added/removed, collect_assets with a granted-asset AssetPort (denies http/https/file/javascript without calling the port), preview_tree (roles, accessible names, tab order, active inline style rules at a width), observe report() wiring; later decision: html5ever/lol_html for full HTML5 tree building",
-  "updated_at": "2026-10-11T02:43:57Z",
+  "next": "Validator round on 7cd898d. Later (not started): Folio mode=web mapping once Folio defines it, template/snippet and tag-library surfaces, CSS designer panel descriptors, optional srcset/image-set asset scanning, full HTML5 tree building decision (html5ever/lol_html)",
+  "updated_at": "2026-10-11T02:55:00Z",
   "notes": {
-    "tests_run": ["round_trip_is_byte_exact_and_spans_tile", "minimal_diff_patches_rewrite_only_affected_spans", "hostile_input_is_bounded_and_typed", "entities_decode_the_common_set_and_report_the_rest", "breakpoints_parse_match_and_refuse_typed"],
+    "tests_run": ["round_trip_is_byte_exact_and_spans_tile", "minimal_diff_patches_rewrite_only_affected_spans", "hostile_input_is_bounded_and_typed", "entities_decode_the_common_set_and_report_the_rest", "breakpoints_parse_match_and_refuse_typed", "code_edit_refresh_same_revision", "external_asset_denial_cancel_stale", "breakpoint_keyboard_a11y_preview", "observe_report_maps_outcomes"],
+    "slice2_limits": "Limits gained max_rules (2048); preview refuses rules x elements above 20M comparisons (LimitExceeded Rules); LimitKind::Rules and WebError::InvalidViewport added; no new dependencies in slice 2",
+    "slice2_not_modelled": "layout and the full cascade (only display is resolved); name-from-content does not exclude hidden descendants; srcset, image-set() and meta refresh are not scanned for assets; refresh identity for anonymous same-tag siblings is by order only",
     "check_clippy": "check and clippy -p hsk-studio-web --tests --examples: clean (no warnings from this crate)",
     "dep_requests": "sha2 =0.10.9 force-soft appended to builders/dep-requests.jsonl (SourcePatch binds to the SHA-256 of the source); Cargo.lock, root Cargo.toml and probe not touched by this lane; steward sync needed (probe approved list needs hsk-studio-web)",
     "first_test_run": "first run failed 1 of 5 on a wrong node-count expectation in the test itself (1 + 20000*3, not +20000); fixed in the test, no product change. The gameplan retry-guard then required a changed HEAD or gameplan: satisfied by committing the fix (b081975), no edit to the shared STUDIO-MODULE-BUILD.yaml. Lead may prefer a gameplan step per GLOBAL-GAMEPLAN-003",

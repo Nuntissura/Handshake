@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T02:52:29Z",
+ "updated_at": "2026-10-11T02:55:46Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -316,11 +316,12 @@
     "f058a1b",
     "ebd2efd",
     "f95a3c0",
-    "41d4ff1"
+    "41d4ff1",
+    "f0cdb55"
    ],
    "verdicts": [],
-   "candidate": "41d4ff1",
-   "note": "SVG import/export on nib OwnedPath, typed losses, hostile budgets, AI blocker, PDF port; 5 tests; slice2 gradients/SVGZ/strokes in progress"
+   "candidate": "f0cdb55",
+   "note": "slices1-2: SVG import/export + gradients, appearance rows, strokes, SVGZ bomb-limited; 9 tests"
   },
   {
    "lane_id": "SMB-INTEROP-FIG",
@@ -389,12 +390,14 @@
     "371ac82",
     "a7640e7",
     "6a162da",
-    "c3bcecd"
+    "c3bcecd",
+    "0a6f920",
+    "6d0616f"
    ],
    "verdicts": [],
    "lane_file": "builders/lanes/hsk-studio-session.json",
-   "candidate": "c3bcecd",
-   "note": "slice2 ports/idempotency/exactly-once/admission/drain/export_checkpoint; 8 tests + break-it; slice3 lazy assets + host previews in progress"
+   "candidate": "6d0616f",
+   "note": "slices1-3: + lazy assets (measured residency), host previews; 11 tests + break-it; streaming save NOT met (needs package writer API)"
   },
   {
    "lane_id": "SMB-HARNESS",
@@ -935,7 +938,7 @@
    "lane_id": "SMB-FOLIO-ENG-4",
    "crate": "hsk-studio-folio",
    "origin": "components builder Folio needs",
-   "scope": "design frame / auto-layout node, component + instance + variable + reaction record types, per-node reactions/property refs/constraints fields (additive); components migrates crate-local types",
+   "scope": "design frame / auto-layout node, component + instance + variable + reaction record types, per-node reactions/property refs/constraints fields (additive); components migrates crate-local types; + paint types (solid/gradient) for vector appearance (interop-vector folio_need)",
    "phase": "brief",
    "status": null,
    "owner": null,
@@ -961,6 +964,17 @@
    "phase": "build",
    "status": null,
    "owner": "fresh builder",
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-PACKAGE-STREAM-SAVE",
+   "crate": "hsk-studio-package",
+   "origin": "session slice 3: save peaks ~4.25x asset size",
+   "scope": "writer-based streaming package save (assets streamed from source readers, bounded memory) + atomic save over a streaming writer; session migrates after",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-package-stream",
    "commits": [],
    "verdicts": []
   }

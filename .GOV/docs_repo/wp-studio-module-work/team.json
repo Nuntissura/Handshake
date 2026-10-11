@@ -357,7 +357,7 @@
     "builders/lanes/hsk-studio-session.json"
    ],
    "launched": "2026-10-11T02:08:13Z",
-   "status": "running"
+   "status": "retired (refresh rule 572k); session READY 6d0616f"
   },
   {
    "name": "fix-folio-fps",
@@ -397,7 +397,7 @@
    "model": "sonnet",
    "role": "interop-vector slice 1",
    "launched": "2026-10-11T02:16:22Z",
-   "status": "running"
+   "status": "done (slices 1-2; f0cdb55)"
   },
   {
    "name": "builder-press",
@@ -501,6 +501,14 @@
    "model": "sonnet",
    "role": "reel AV1 (SMB-REEL-ENG-3)",
    "launched": "2026-10-11T02:52:29Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-package-stream",
+   "agent_id": "a77942876329c005e",
+   "model": "sonnet",
+   "role": "package streaming save",
+   "launched": "2026-10-11T02:53:18Z",
    "status": "running"
   }
  ]

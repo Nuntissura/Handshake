@@ -2,49 +2,58 @@
   "crate": "hsk-studio-interop-vector",
   "lane": "SMB-INTEROP-VECTOR-1",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice-1-complete",
+  "phase": "slice-2-complete",
   "commits": [
     {"sha": "f058a1b", "subject": "slice 1: SVG import into Folio proposal + nib anchors + typed loss, hostile-input budgets, SVG export, AI blocker, PDF port"},
     {"sha": "f95a3c0", "subject": "plain-attribute lookups (xlink:href counted once), five focused contract tests"},
     {"sha": "ebd2efd", "subject": "hierarchical export_proposal, DESCRIPTOR, interop-vector-consumer example"},
-    {"sha": "41d4ff1", "subject": "report preserveAspectRatio slice as unclipped (Approximated)"}
+    {"sha": "41d4ff1", "subject": "report preserveAspectRatio slice as unclipped (Approximated)"},
+    {"sha": "f0cdb55", "subject": "slice 2: gradients as typed Paint, ordered appearance rows + paint-order, stroke cap/join/miter/dash, bounded SVGZ import + gzip_svg"}
   ],
   "capabilities_done": [
     "import_svg: svg viewBox/width/height/preserveAspectRatio, g/a, path (arcs, quad, smooth -> cubic anchors, relative handles in pt), rect(rx,ry), circle, ellipse, line, polyline, polygon, transform baked, fill/stroke/stroke-width/fill-rule/fill-opacity/stroke-opacity/opacity/color/display/visibility via attributes or inline style, px->pt recorded once in Provenance",
     "VectorProposal: Folio snapshot validated by folio::validate_document (artboard + group/vector layers, Payload::Vector SVPT ids, LayerAppearance opacity), VectorPath (nib Anchor, Winding), StyleProposal (plain data, SSTY ids), LossEntry list (Approximated, TransformBaked, Unsupported, ExternalDenied, Ignored), VectorPath::to_geometry -> nib::OwnedPath",
     "hostile input: DOCTYPE internal subset refused (EntityDenied), external DTD id inert and reported, no href/url() ever followed (ExternalDenied), byte/node/depth/segment budgets, 1e9 coordinate cap, cancel per element and per 256 segments",
-    "export_svg (flat) and export_proposal (groups, names, visibility, opacity): deterministic text, import->export->import twice stable within 1e-9 pt, edited anchor survives",
+    "export_svg (flat) and export_proposal (groups, names, visibility, opacity): deterministic text, import->export->import twice stable within 1e-9 pt, edited anchor survives; *_with_loss variants report export losses",
     "identify_ai header sniff; import_ai always NativeEditabilityBlocked with original bytes preserved byte-exact (STU-IO-186); PdfVectorProvider trait + NoPdfProvider (PdfUnavailable)",
-    "report() Observe mapping, DESCRIPTOR, interop-vector-consumer example (--descriptor, --svg [--export], --ai)"
+    "report() Observe mapping, DESCRIPTOR, interop-vector-consumer example (--descriptor, --svg [--export], --ai)",
+    "slice 2 gradients: linearGradient/radialGradient via url(#id) with gradientUnits, gradientTransform, spreadMethod, href chain inheritance (depth 8, cycles refused, local only), stop offset/stop-color/stop-opacity (style or attribute), percent lengths, one stop = solid, no stops / degenerate bbox / singular transform = typed loss; Paint::{Solid,Linear,Radial} with the final gradient-space -> document-pt transform (bbox mapping folded in)",
+    "slice 2 appearance: StyleProposal.items = ordered Fill/Stroke rows (bottom to top); SVG paint-order maps to row order; export writes [Fill,Stroke] and [Stroke,Fill] as one element, any longer stack as one path per row under a group with Approximated appearance_stack_duplicated",
+    "slice 2 stroke: width, cap (Butt/Round/Projecting wire 1..3), join (Miter/Round/Bevel wire 1..3), miter limit 1..500 (clamped and reported), dash array (odd list repeated, invalid or percent typed) and offset, all scaled to pt and exported",
+    "slice 2 SVGZ: import_svg detects one gzip member, inflates with miniz_oxide decompress_to_vec_with_limit under Limits.max_decompressed_bytes (default 32 MiB), verifies CRC-32 and size, never unwraps twice; gzip_svg writes deterministic SVGZ"
   ],
   "tests": {
     "argv": "cargo test -p hsk-studio-interop-vector --tests --no-fail-fast",
     "exit": 0,
-    "sha": "41d4ff1",
-    "passed": 5,
+    "sha": "f0cdb55",
+    "passed": 9,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "Steward registry sync for dep-requests roxmltree =0.21.1 and svgtypes =0.16.1 (adds siphasher 1.0.x to the lock; memchr and kurbo already locked), then validator round. Next slice: gradients/appearance mapping, SVGZ, text-on-path loss detail, Illustrator-saved fixture to verify AI private-data marker names.",
-  "updated_at": "2026-10-11T02:37:44Z",
+  "next": "Steward registry sync for dep-requests roxmltree =0.21.1, svgtypes =0.16.1 and miniz_oxide =0.9.1 (miniz_oxide and adler2 already locked; siphasher is new), then validator round. Next: patterns, clip paths and masks, text, an Illustrator-saved fixture to confirm the AI private-data markers.",
+  "updated_at": "2026-10-11T02:55:24Z",
   "notes": {
-    "tests_tree": "shared edit tree at 41d4ff1 (other lanes may have uncommitted edits); clippy --tests --examples clean for this crate",
-    "nib_dependency": "nib OwnedPath (SMB-NIB-ENG-1) had landed; used via OwnedPath::from_anchors in VectorPath::to_geometry. Anchor/Point/Winding from nib public API.",
-    "folio_note": "folio StudioLayer gained text_frame (other lane); this crate sets text_frame: None and will need a follow-up edit only if StudioLayer gains more required fields.",
+    "tests_tree": "9 focused tests pass (5 slice-1 + 4 slice-2 including the decompression-bomb test); clippy --tests --examples clean for this crate; shared edit tree at f0cdb55 (other lanes may have uncommitted edits)",
+    "api_change_slice2": "StyleProposal.fill/stroke replaced by items: Vec<AppearanceItem> (fills()/strokes() helpers); StrokePaint removed; Limits gains max_decompressed_bytes; Provenance gains decoded_len; VectorError gains Gzip(&str); the slice-1 paint-server test now uses a pattern as the unsupported server because gradients are supported",
+    "folio_need": "Folio has no paint, gradient, stroke-style or appearance-row types: StudioGradient (STU-RAS-160), fill kinds (STU-VEC-134), stroke entries (STU-VEC-020, 143-145) and the appearance stack (STU-VEC-022, STU-DS-034b) are crate-local in hsk-studio-interop-vector::model until the PAINT/style owner lands them; layer opacity already maps to Folio LayerAppearance. Spec gaps: dash phase (stroke-dashoffset) is not in STU-VEC-145; gradient stop midpoints (STU-VEC-136) have no SVG counterpart; per-row opacity, blend and visibility (STU-VEC-015) are not expressible per row in SVG, so opacity is folded into alpha and the rest is not carried",
+    "gradient_model": "Paint keeps gradient parameters in gradient space plus one affine to document points; objectBoundingBox is converted exactly with the tight bbox of the element geometry (curve extrema), so `units` is provenance only; export always writes userSpaceOnUse with the full matrix",
+    "nib_dependency": "nib OwnedPath (SMB-NIB-ENG-1) landed; used via OwnedPath::from_anchors in VectorPath::to_geometry",
+    "folio_note": "folio StudioLayer gained text_frame (other lane); this crate sets text_frame: None",
     "design_choices": [
       "no allow_external field on ImportPolicy: no code path fetches anything, so a switch that can only be false would mislead",
-      "element opacity lives only in Folio LayerAppearance (single source of truth); StyleProposal carries fill/stroke colour with fill/stroke opacity folded into alpha, and stroke width in pt",
-      "compound SVG path = several VectorPath sharing layer_id (one Payload::Vector layer lists all ids); spec question: does a layer with several path ids mean one compound shape for fill-rule hole semantics (UNVERIFIED)",
+      "element opacity lives only in Folio LayerAppearance; fill and stroke opacity are folded into paint alpha (gradient stops included)",
+      "compound SVG path = several VectorPath sharing layer_id (one Payload::Vector layer lists all ids); UNVERIFIED whether that carries compound fill-rule hole semantics",
       "Winding::None encodes fill none (nib: no fill); the fill-rule of an unfilled path is not kept",
       "closing curve whose end equals the first anchor is merged into the first anchor's incoming handle (Illustrator storage)",
-      "a legacy DOCTYPE with external id only (Illustrator-era SVG) is accepted and reported ExternalDenied doctype_external_id_ignored; roxmltree never resolves it"
+      "a legacy DOCTYPE with external id only is accepted and reported ExternalDenied doctype_external_id_ignored; roxmltree never resolves it",
+      "SVGZ: one gzip member only; the decompressed payload is never unwrapped again; input cap max_bytes applies to the compressed bytes"
     ],
     "unverified": [
       "AI private-data marker names (/Illustrator, AIPrivateData, %AI) not confirmed on an Illustrator-saved fixture",
       "whether Folio expects one SVPT per layer or several for compound paths"
     ],
-    "deps": "roxmltree =0.21.1 (std, no positions) and svgtypes =0.16.1 (std) added in the crate manifest; two dep-requests lines appended; Cargo.lock not staged"
+    "deps": "roxmltree =0.21.1 (std), svgtypes =0.16.1 (std), miniz_oxide =0.9.1 (default-features off, with-alloc) in the crate manifest; three dep-requests lines appended; Cargo.lock not staged"
   }
 }
