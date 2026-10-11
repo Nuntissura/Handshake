@@ -262,6 +262,8 @@ Workflow v3 amendments (2026-10-11T02:12:42Z, source workflow/workflow-review-ti
 
 - Lead decision 2026-10-11T14:25:45Z (pacing, V4-17): weekly usage 71% with ~44 h to reset is the binding limit (5-hour window 66%). Until reset: Opus only for press, web and validators; narrow pre-reviews and routine reviews on Sonnet; rounds keep 1 validator + at most 2 reviewers and only when READY lanes justify it; no new feature lanes on Opus.
 
+- Lead decision 2026-10-11T14:41:47Z (PSD budget R9 remediation): accept MAX_UNCOUNTED_EFFECTS_PER_DOCUMENT = 4096 (hidden/disabled/master-off instances bounded with typed loss effects_unrendered_over_document_budget); memory/node bound = max_layers + 8192; panel order (top-most first) decides which stacks keep effects past a cap.
+
 Open Operator decisions (not adopted; recorded for the Operator):
 - D1: explicit confirmation that builder focused tests override CX-EXEC-014 for this WP (lead adopted on the basis of Operator instructions; Operator may reverse).
 - D2: waive CX-984-002 one-build-per-disk for D: (would let validator rounds and builders build in parallel on separate targets).

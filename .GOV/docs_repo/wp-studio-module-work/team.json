@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T14:18:24Z",
+ "updated_at": "2026-10-11T14:41:46Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1823,7 +1823,7 @@
     "builders/lanes/hsk-studio-interop-psd-budget.json"
    ],
    "launched": "2026-10-11T14:15:33Z",
-   "status": "running"
+   "status": "done 2026-10-11T14:41:46Z (SMB-INTEROP-PSD-BUDGET READY at ce22fa5)"
   },
   {
    "name": "prereview-r10-reel-route",

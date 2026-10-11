@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T14:34:04Z",
+ "updated_at": "2026-10-11T14:41:47Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -2575,16 +2575,28 @@
    "origin": "PLR-053 (R8-review-b)",
    "scope": "PSDs whose effect count exceeds folio's default node budget import with typed per-layer losses (or an input-sized budget within a documented hard cap), never whole-import raster_records_rejected",
    "phase": "validation",
-   "status": "FAIL_V1",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-psd-budget",
    "commits": [
-    "a5eff01"
+    "a5eff01",
+    "5f5bbb2",
+    "ce22fa5"
    ],
    "verdicts": [
     "STUDIO-R9 FAIL_V1 @4d80e50"
    ],
-   "candidate": "a5eff01",
-   "note": "PLR-053: pigment limits imported (64/layer, 4096/document, single owner effect_math); >64 per layer -> typed loss effects_over_budget on that layer's stack (lfx2 kept byte-exact), document imports; >4096 per document -> PsdError::EffectLimit (psd_effect_limit) typed input error; record-validation node budget = max(caller nodes, records + instances). Behaviour change: a caller Budget::nodes below that is raised (R9 reviewer: check this does not override a caller safety bound). 3 new tests red on scratch f4b47cd, crate 44/44, clippy clean; V4-06 26 = 26. Not fixed: inspect_bytes node exhaustion still Proposal(folio_rejected); importer counts all mapped instances (stricter than pigment's enabled-only)"
+   "candidate": "ce22fa5",
+   "note": "R9 FAIL_V1 remediation 5f5bbb2 + ce22fa5: count like the render plan (enabled instances of enabled stacks on layers visible with every enclosing group; evidence composite lower_extensions.rs:569-593, lower_render_plan.rs:525-563/738-753/430-435, pigment render_plan/extensions.rs:326-339); >64 counted or >1024 mapped per layer -> effects_over_budget; stack crossing 4096 counted and all later -> effects_over_document_budget; uncounted (hidden/disabled) capped at 4096 -> effects_unrendered_over_document_budget (lead accepts); PsdError::EffectLimit removed (no effect count fails the import); memory bound max_layers + 8192 documented on ProposalConfig.budget + DESCRIPTOR; 5 new tests red on scratch 4d80e50; 48/48; V4-06 56 = 56",
+   "remediation_claim": {
+    "failure_class": "document-wide whole-import failure at 4096 effects incl. disabled (STUDIO-R9 FAIL_V1)",
+    "rule": "CX-VAL-008",
+    "commits": [
+     "5f5bbb2",
+     "ce22fa5"
+    ],
+    "summary": "count like the render plan; typed loss per stack past caps; no effect count fails the import; uncounted instances capped (lead accepts MAX_UNCOUNTED_EFFECTS_PER_DOCUMENT = 4096); memory bound documented",
+    "recorded_at": "2026-10-11T14:41:47Z"
+   }
   },
   {
    "lane_id": "SMB-REEL-NATIVE-FAULTS",
