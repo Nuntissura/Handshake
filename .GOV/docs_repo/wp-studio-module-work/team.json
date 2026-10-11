@@ -1857,7 +1857,7 @@
     "builders/lanes/hsk-studio-press.json"
    ],
    "launched": "2026-10-11T15:00:50Z",
-   "status": "running"
+   "status": "done 2026-10-11T16:29:51Z (b8ce934)"
   },
   {
    "name": "prereview-r10-web",
@@ -1961,6 +1961,17 @@
     "validation/R11-prereview-web.json"
    ],
    "launched": "2026-10-11T16:26:06Z",
+   "status": "running"
+  },
+  {
+   "name": "prereview-r11-press",
+   "agent_id": "a9b944ac602fb63ca",
+   "model": "opus",
+   "role": "V4-13 pre-review SMB-PRESS + DIFFERENCES at b8ce934",
+   "owns": [
+    "validation/R11-prereview-press.json"
+   ],
+   "launched": "2026-10-11T16:30:04Z",
    "status": "running"
   }
  ]
