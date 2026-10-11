@@ -2148,6 +2148,17 @@
    ],
    "launched": "2026-10-11T21:20:01Z",
    "status": "done 2026-10-11T21:39:53Z (COMPLETE: plan limits PASS_WITH_NOTES; PLR-072..075)"
+  },
+  {
+   "name": "prereview-r14-press",
+   "agent_id": "ad394a84efa1b861e",
+   "model": "opus",
+   "role": "V4-13 pre-review SMB-PRESS + DIFFERENCES at 7410f29",
+   "owns": [
+    "validation/R14-prereview-press.json"
+   ],
+   "launched": "2026-10-11T21:42:31Z",
+   "status": "running"
   }
  ]
 }
