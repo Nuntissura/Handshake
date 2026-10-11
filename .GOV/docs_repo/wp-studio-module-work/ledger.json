@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T06:34:07Z",
+ "updated_at": "2026-10-11T06:35:45Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -515,8 +515,8 @@
    "lane_id": "SMB-SESSION",
    "crate": "hsk-studio-session",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-session",
-   "phase": "done",
-   "status": "PASS_V2",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-session",
    "brief": "builders/briefs/hsk-studio-session.md",
    "commits": [
@@ -527,15 +527,16 @@
     "0a6f920",
     "6d0616f",
     "63c1f5d",
-    "943a0d2"
+    "943a0d2",
+    "82a97b4"
    ],
    "verdicts": [
     "STUDIO-R3 FAIL_V1 @404ff3a",
     "STUDIO-R5 PASS_V2 @1d404f8"
    ],
    "lane_file": "builders/lanes/hsk-studio-session.json",
-   "candidate": "943a0d2",
-   "note": "slices1-3: + lazy assets (measured residency), host previews; 11 tests + break-it; streaming save NOT met (needs package writer API); hardening slice dispatched 2026-10-11T06:10:16Z (builder-session-2)",
+   "candidate": "82a97b4",
+   "note": "receipt policy EvictAcknowledged default (pending/unacknowledged never evicted; full -> typed receipts_full), Diverged commits resolved only by operator discard/resync (resync re-looks authority, bounded bytes), exhaustive seed/mask matches + chronicle table equality test, crate-wide V4-01 (16 sites), aggregate check in set_previews, DESCRIPTOR claims qualified + cited; 19 green (5 new) red-proof on scratch copy; behaviour change: default evicts acknowledged receipts (RefuseWhenFull restores old)",
    "review_findings_r3": "R3 findings remediated 63c1f5d,943a0d2"
   },
   {
@@ -1687,7 +1688,8 @@
   "SMB-EFFECTS-WAVE-2",
   "SMB-REEL-AV1-ROUTE",
   "SMB-REEL-ENG-3",
-  "SMB-REEL"
+  "SMB-REEL",
+  "SMB-SESSION"
  ],
  "round_R6": {
   "candidate": "bd8533f",
