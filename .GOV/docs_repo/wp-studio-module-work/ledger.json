@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T12:34:11Z",
+ "updated_at": "2026-10-11T12:35:33Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -2179,11 +2179,36 @@
    "status": "READY_FOR_VALIDATION",
    "owner": "builder-refusal-keys",
    "commits": [
+    "b7064fc",
+    "18607e5",
     "ba3e47d"
    ],
    "verdicts": [],
    "candidate": "ba3e47d",
-   "note": "PLR-006: backend/composite defence-in-depth refusal literals replaced by pigment constants/enums (composite b7064fc, render-cpu 18607e5, render-gpu ba3e47d); real drift fixed (gpu reported pass-through fill under the opacity key; glow features fell into effect_parameter); per-crate test that backend refusal equals pigment admit for the same plan; V4-06 sites cpu 63 / gpu 41 / composite 64 classified; 78 green; defence-only key changes listed per lane"
+   "note": "PLR-006: backend/composite defence-in-depth refusal literals replaced by pigment constants/enums (composite b7064fc, render-cpu 18607e5, render-gpu ba3e47d); real drift fixed (gpu reported pass-through fill under the opacity key; glow features fell into effect_parameter); per-crate test that backend refusal equals pigment admit for the same plan; V4-06 sites cpu 63 / gpu 41 / composite 64 classified; 78 green; defence-only key changes listed per lane",
+   "claim_includes_later": {
+    "recorded_at": "2026-10-11T12:35:33Z",
+    "by": "lead (V4-14 paperwork, R8-review-a FIX_FIRST process_v4_14; R7 precedent PRISM-ENG-7)",
+    "commits": [
+     "e8f5f98 (render-cpu)",
+     "cdd0644 (render-gpu)",
+     "7011298 (composite)"
+    ],
+    "owning_lane": "SMB-FX-OPS-ADOPT",
+    "note": "these later commits touch the refusal-key files; reviewer A found no SMB-REFUSAL-KEYS test assertion removed"
+   },
+   "v4_06_addendum": {
+    "recorded_at": "2026-10-11T12:35:33Z",
+    "by": "lead (R8-review-a process_v4_06_count; recount verified by lead with the lane regex via git grep -P)",
+    "scope": "src/ excluding src/plan_sink/refusal_keys.rs (key table) and tests/: render-cpu 65 hits at 18607e5 vs 63 listed, render-gpu 43 hits at ba3e47d vs 41 listed",
+    "sites": {
+     "crates/hsk-studio-render-cpu/src/plan_sink.rs:135": "NOT_APPLICABLE (definition of the unsupported() helper)",
+     "crates/hsk-studio-render-cpu/src/plan_sink.rs:1258": "NOT_APPLICABLE (doc comment)",
+     "crates/hsk-studio-render-gpu/src/lib.rs:53": "NOT_APPLICABLE (DESCRIPTOR string)",
+     "crates/hsk-studio-render-gpu/src/plan_sink.rs:201": "NOT_APPLICABLE (definition of the unsupported() helper)"
+    },
+    "result": "65 = 63 + 2, 43 = 41 + 2"
+   }
   },
   {
    "lane_id": "SMB-SCORE-GUARDS",

@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T12:34:11Z",
+ "updated_at": "2026-10-11T12:35:33Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1621,7 +1621,7 @@
     "validation/R8-review-a.json"
    ],
    "launched": "2026-10-11T12:10:13Z",
-   "status": "running"
+   "status": "done 2026-10-11T12:35:33Z (COMPLETE; EFFECTS-WAVE-1 + FX-OPS PASS; ADMIT-PARITY 2 CONFIRMED, FX-OPS-ADOPT 1 CONFIRMED (PASS_WITH_NOTES); REFUSAL-KEYS paperwork)"
   },
   {
    "name": "reviewer-r8-b",
