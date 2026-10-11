@@ -5,7 +5,7 @@ use handshake_core::{
         bootstrap_workspace_settings_schema, workspace_settings_test_event_count,
         workspace_settings_test_seed_legacy_unscoped_row, SurrealStorage, SurrealStorageConfig,
         SurrealWorkspaceSettingsError, SurrealWorkspaceSettingsStore,
-        SurrealWorkspaceSettingsWrite,
+        SurrealWorkspaceSettingsWrite, DEFAULT_SHUTDOWN_WAIT,
     },
     swarm_orchestration::resource_scope::{
         AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef, OwnerAccountId, ResourceScope,
@@ -71,10 +71,13 @@ async fn open_store(
     SurrealStorage,
     SurrealWorkspaceSettingsStore,
 ) {
-    let config = SurrealStorageConfig::for_scoped_store(
+    let namespace = format!("hs_test_ns_{}", Uuid::now_v7().simple());
+    let database = format!("hs_test_db_{}", Uuid::now_v7().simple());
+    let config = SurrealStorageConfig::for_test_scope(
         directory.path().join("mt021-surreal"),
-        "mt021_test",
-        "workspace_settings",
+        &namespace,
+        &database,
+        DEFAULT_SHUTDOWN_WAIT,
     )
     .expect("surreal config");
     let storage = SurrealStorage::open(config.clone())
@@ -413,10 +416,13 @@ async fn concurrent_compare_and_set_has_one_winner_and_one_stale_loser() {
 #[tokio::test]
 async fn legacy_unattributed_row_is_never_visible_or_mutated() {
     let directory = TempDir::new().expect("tempdir");
-    let config = SurrealStorageConfig::for_scoped_store(
+    let namespace = format!("hs_test_ns_{}", Uuid::now_v7().simple());
+    let database = format!("hs_test_db_{}", Uuid::now_v7().simple());
+    let config = SurrealStorageConfig::for_test_scope(
         directory.path().join("mt021-surreal"),
-        "mt021_test",
-        "workspace_settings",
+        &namespace,
+        &database,
+        DEFAULT_SHUTDOWN_WAIT,
     )
     .expect("surreal config");
     let storage = SurrealStorage::open(config).await.expect("open store");

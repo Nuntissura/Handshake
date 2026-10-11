@@ -18,7 +18,7 @@ use handshake_core::{
     },
     storage::surreal::{
         bootstrap_loom_search_schema, bootstrap_model_registry_schema, bootstrap_schema,
-        SurrealStorage, SurrealStorageConfig,
+        SurrealStorage, SurrealStorageConfig, DEFAULT_SHUTDOWN_WAIT,
     },
     swarm_orchestration::resource_scope::{
         AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef, ExactResourceScopeAttribution,
@@ -133,10 +133,13 @@ fn loom_schema_does_not_redefine_canonical_model_registry_authority() {
 #[tokio::test]
 async fn registry_schema_survives_loom_bootstrap_after_canonical_registry() {
     let temp = TempDir::new().expect("tempdir");
-    let config = SurrealStorageConfig::for_scoped_store(
+    let namespace = format!("hs_test_ns_{}", uuid::Uuid::now_v7().simple());
+    let database = format!("hs_test_db_{}", uuid::Uuid::now_v7().simple());
+    let config = SurrealStorageConfig::for_test_scope(
         temp.path().join("store"),
-        "model_registry",
-        "schema_order",
+        &namespace,
+        &database,
+        DEFAULT_SHUTDOWN_WAIT,
     )
     .expect("config");
     let (storage, store) = open_store(config).await;
@@ -177,10 +180,13 @@ async fn registry_schema_survives_loom_bootstrap_after_canonical_registry() {
 #[tokio::test]
 async fn registry_restart_recovers_configured_set_defaults_and_stable_receipts() {
     let temp = TempDir::new().expect("tempdir");
-    let config = SurrealStorageConfig::for_scoped_store(
+    let namespace = format!("hs_test_ns_{}", uuid::Uuid::now_v7().simple());
+    let database = format!("hs_test_db_{}", uuid::Uuid::now_v7().simple());
+    let config = SurrealStorageConfig::for_test_scope(
         temp.path().join("store"),
-        "model_registry",
-        "restart",
+        &namespace,
+        &database,
+        DEFAULT_SHUTDOWN_WAIT,
     )
     .expect("config");
     let scope = exact_scope("WS-MODEL-REGISTRY-RESTART");
@@ -253,10 +259,13 @@ async fn registry_restart_recovers_configured_set_defaults_and_stable_receipts()
 #[tokio::test]
 async fn exact_scope_and_runtime_role_never_widen() {
     let temp = TempDir::new().expect("tempdir");
-    let config = SurrealStorageConfig::for_scoped_store(
+    let namespace = format!("hs_test_ns_{}", uuid::Uuid::now_v7().simple());
+    let database = format!("hs_test_db_{}", uuid::Uuid::now_v7().simple());
+    let config = SurrealStorageConfig::for_test_scope(
         temp.path().join("store"),
-        "model_registry",
-        "scope_role",
+        &namespace,
+        &database,
+        DEFAULT_SHUTDOWN_WAIT,
     )
     .expect("config");
     let (_storage, store) = open_store(config).await;
@@ -319,10 +328,13 @@ async fn exact_scope_and_runtime_role_never_widen() {
 #[tokio::test]
 async fn active_selection_cas_has_one_winner_stable_retry_and_no_failed_mutation() {
     let temp = TempDir::new().expect("tempdir");
-    let config = SurrealStorageConfig::for_scoped_store(
+    let namespace = format!("hs_test_ns_{}", uuid::Uuid::now_v7().simple());
+    let database = format!("hs_test_db_{}", uuid::Uuid::now_v7().simple());
+    let config = SurrealStorageConfig::for_test_scope(
         temp.path().join("store"),
-        "model_registry",
-        "active_cas",
+        &namespace,
+        &database,
+        DEFAULT_SHUTDOWN_WAIT,
     )
     .expect("config");
     let (_storage, store) = open_store(config).await;
@@ -445,10 +457,13 @@ async fn active_selection_cas_has_one_winner_stable_retry_and_no_failed_mutation
 #[tokio::test]
 async fn verified_unload_rebind_increments_once_and_identical_retry_is_stable() {
     let temp = TempDir::new().expect("tempdir");
-    let config = SurrealStorageConfig::for_scoped_store(
+    let namespace = format!("hs_test_ns_{}", uuid::Uuid::now_v7().simple());
+    let database = format!("hs_test_db_{}", uuid::Uuid::now_v7().simple());
+    let config = SurrealStorageConfig::for_test_scope(
         temp.path().join("store"),
-        "model_registry",
-        "rebind",
+        &namespace,
+        &database,
+        DEFAULT_SHUTDOWN_WAIT,
     )
     .expect("config");
     let (_storage, store) = open_store(config).await;
@@ -501,10 +516,13 @@ async fn verified_unload_rebind_increments_once_and_identical_retry_is_stable() 
 #[tokio::test]
 async fn boot_set_conflict_rolls_back_every_earlier_row_in_the_transaction() {
     let temp = TempDir::new().expect("tempdir");
-    let config = SurrealStorageConfig::for_scoped_store(
+    let namespace = format!("hs_test_ns_{}", uuid::Uuid::now_v7().simple());
+    let database = format!("hs_test_db_{}", uuid::Uuid::now_v7().simple());
+    let config = SurrealStorageConfig::for_test_scope(
         temp.path().join("store"),
-        "model_registry",
-        "boot_atomic",
+        &namespace,
+        &database,
+        DEFAULT_SHUTDOWN_WAIT,
     )
     .expect("config");
     let (_storage, store) = open_store(config).await;
@@ -553,10 +571,13 @@ async fn boot_set_conflict_rolls_back_every_earlier_row_in_the_transaction() {
 #[tokio::test]
 async fn receipt_and_projection_tampering_fail_closed() {
     let temp = TempDir::new().expect("tempdir");
-    let config = SurrealStorageConfig::for_scoped_store(
+    let namespace = format!("hs_test_ns_{}", uuid::Uuid::now_v7().simple());
+    let database = format!("hs_test_db_{}", uuid::Uuid::now_v7().simple());
+    let config = SurrealStorageConfig::for_test_scope(
         temp.path().join("store"),
-        "model_registry",
-        "tamper",
+        &namespace,
+        &database,
+        DEFAULT_SHUTDOWN_WAIT,
     )
     .expect("config");
     let (_storage, store) = open_store(config).await;
@@ -608,10 +629,13 @@ async fn receipt_and_projection_tampering_fail_closed() {
 #[tokio::test]
 async fn orphan_receipt_stale_and_revoked_authority_are_rejected() {
     let temp = TempDir::new().expect("tempdir");
-    let config = SurrealStorageConfig::for_scoped_store(
+    let namespace = format!("hs_test_ns_{}", uuid::Uuid::now_v7().simple());
+    let database = format!("hs_test_db_{}", uuid::Uuid::now_v7().simple());
+    let config = SurrealStorageConfig::for_test_scope(
         temp.path().join("store"),
-        "model_registry",
-        "negative_authority",
+        &namespace,
+        &database,
+        DEFAULT_SHUTDOWN_WAIT,
     )
     .expect("config");
     let (_storage, store) = open_store(config).await;

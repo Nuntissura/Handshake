@@ -2834,15 +2834,18 @@ mod tests {
     /// scope. Tests that intend to exercise a cloud lane must provide that same
     /// authority instead of stopping at the fail-closed scope guard.
     async fn test_surreal_storage() -> crate::storage::surreal::SurrealStorage {
-        use crate::storage::surreal::{SurrealStorage, SurrealStorageConfig};
+        use crate::storage::surreal::{SurrealStorage, SurrealStorageConfig, DEFAULT_SHUTDOWN_WAIT};
         let store_path = std::env::temp_dir().join(format!(
             "handshake-production-factory-{}",
             uuid::Uuid::now_v7()
         ));
-        let config = SurrealStorageConfig::for_scoped_store(
+        let namespace = format!("hs_test_ns_{}", uuid::Uuid::now_v7().simple());
+        let database = format!("hs_test_db_{}", uuid::Uuid::now_v7().simple());
+        let config = SurrealStorageConfig::for_test_scope(
             store_path,
-            "handshake_test",
-            "production_factory",
+            &namespace,
+            &database,
+            DEFAULT_SHUTDOWN_WAIT,
         )
         .expect("valid embedded test store configuration");
         SurrealStorage::open(config)
