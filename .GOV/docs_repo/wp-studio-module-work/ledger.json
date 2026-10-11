@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T23:27:24Z",
+ "updated_at": "2026-10-11T23:35:11Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3439,5 +3439,25 @@
    "SMB-REEL-NATIVE-FAULTS-2 PASS_V1"
   ],
   "notes": "PLR-077, PLR-078 notes; RECEIPTS V4-06 key shape"
+ },
+ "round_R15": {
+  "candidate": "b8b31c7",
+  "candidate_full": "b8b31c7c50daadbb2b582cfd7e9c4fefd1aff564",
+  "opened_at": "2026-10-11T23:35:11Z",
+  "sync": "already in sync since 9ffe946",
+  "canary": "C20 exit 73, 59/59, step 0 clean; NOT_PROVEN only interop-fig D17",
+  "ready": [
+   "SMB-PIGMENT-FOLLOWUPS (9085252, b8b31c7)"
+  ],
+  "reopen": "pigment + render-cpu and dependants (composite, develop, interop-psd; render-gpu excluded D20) per CX-VAL-009",
+  "two_fail_rechecks": {
+   "SMB-INTEROP-PSD-BUDGET": "crate source unchanged since SAFE pre-review 85532ad (dependency closure change only)",
+   "SMB-DEVELOP": "crate unchanged; V4-18"
+  },
+  "excluded": [
+   "SMB-RENDER-GPU, SMB-ROUND-ENTRYPOINT (D20)",
+   "SMB-INTEROP-MEDIA (D9)"
+  ],
+  "team": "1 validator (opus) + 1 reviewer (sonnet)"
  }
 }

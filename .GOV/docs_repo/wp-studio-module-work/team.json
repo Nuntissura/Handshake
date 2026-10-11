@@ -1561,7 +1561,7 @@
     "builders/lanes/workspace-steward.json"
    ],
    "launched": "2026-10-11T11:58:46Z",
-   "status": "idle 2026-10-11T22:15:22Z (R13 candidate 4b76604; C19 exit 73 59/59)"
+   "status": "idle 2026-10-11T23:35:11Z (R15 candidate b8b31c7; C20 exit 73 59/59)"
   },
   {
    "name": "research-reel-eng",
