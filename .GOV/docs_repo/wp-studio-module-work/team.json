@@ -1355,7 +1355,7 @@
   },
   {
    "name": "workflow-2",
-   "agent_id": "PENDING-W",
+   "agent_id": "a24169b28aca5b72c",
    "model": "opus",
    "role": "adversarial workflow agent (fresh), tick 4: plausible register, outage resilience, R7 plan",
    "owns": [
