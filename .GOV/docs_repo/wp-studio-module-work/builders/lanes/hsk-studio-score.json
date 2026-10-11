@@ -1,17 +1,45 @@
 {
   "crate": "hsk-studio-score",
-  "mt": "MT-35541",
+  "lane": "hsk-studio-score",
   "status": "READY_FOR_VALIDATION",
-  "phase": "foundation + resampler (exact alignment) + chain + mix + equalizer + ramp + spectrum + meters + bounce receipt pushed; ready for independent validator round at 4f549cc",
+  "phase": "remediation of R2-review-b SMB-SCORE findings (ramp cancel step, resample exact count) pushed at b5e9e19; ready for independent validator round",
   "commits": [
-    {"sha": "6e17a6a72883cd88a6282c60d8df4562c1458141", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "foundation: engine/admission/cancel/busy/stale, Unity/Gain/Pan/ChannelMix, HardLimiter, observe report, consumer"},
-    {"sha": "76ba23aec8b03f32e20a37e79f481c321e7f51fe", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "rubato sinc ClipResampler via Engine::resample, exact gain/pan/mix tests, resampling properties"},
-    {"sha": "31d83959dead354ac930b5e3796e54ba6919785e", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "effect Chain (per-stage bypass, live latency sum) + Engine::mix ordered send submix"},
-    {"sha": "6f736b80d766ff7f4ff1baa634ea2db3d215b8d6", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "Equalizer (RBJ biquad cascade, FX-136a ranges, analytic magnitude_db) with known-response test"},
-    {"sha": "59d5e09ca1493a1cf3e4a9b1d8d223ab69c8a02e", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "RampedGain, SpectrumAnalyzer (Hann + radix-2 FFT, checked against naive DFT), per-channel RMS in BlockReceipt"},
-    {"sha": "b2379a56a0b56a4e35249b9b1533cca45b428eb8", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "explicit features = [] on rubato pin (probe registry_features_missing)"},
-    {"sha": "d33954415fe59ba1de727374f3bfda3f9663345e", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "exact-alignment sinc resampler (pad + drop), Engine::bounce + BounceReceipt, Processor::identity, std-only SHA-256"},
-    {"sha": "4f549cc6a2db88c5c624d1e164142cb52124be51", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "alignment_bounce focused tests (3), tone alignment bound tightened to 0.05 frames"}
+    {
+      "sha": "6e17a6a72883cd88a6282c60d8df4562c1458141",
+      "subject": "foundation: engine/admission/cancel/busy/stale, Unity/Gain/Pan/ChannelMix, HardLimiter, observe report, consumer"
+    },
+    {
+      "sha": "76ba23aec8b03f32e20a37e79f481c321e7f51fe",
+      "subject": "rubato sinc ClipResampler via Engine::resample, exact gain/pan/mix tests, resampling properties"
+    },
+    {
+      "sha": "31d83959dead354ac930b5e3796e54ba6919785e",
+      "subject": "effect Chain (per-stage bypass, live latency sum) + Engine::mix ordered send submix"
+    },
+    {
+      "sha": "6f736b80d766ff7f4ff1baa634ea2db3d215b8d6",
+      "subject": "Equalizer (RBJ biquad cascade, FX-136a ranges, analytic magnitude_db) with known-response test"
+    },
+    {
+      "sha": "59d5e09ca1493a1cf3e4a9b1d8d223ab69c8a02e",
+      "subject": "RampedGain, SpectrumAnalyzer (Hann + radix-2 FFT, checked against naive DFT), per-channel RMS in BlockReceipt"
+    },
+    {
+      "sha": "b2379a56a0b56a4e35249b9b1533cca45b428eb8",
+      "subject": "explicit features = [] on rubato pin (probe registry_features_missing)"
+    },
+    {
+      "sha": "d33954415fe59ba1de727374f3bfda3f9663345e",
+      "subject": "exact-alignment sinc resampler (pad + drop), Engine::bounce + BounceReceipt, Processor::identity, std-only SHA-256"
+    },
+    {
+      "sha": "4f549cc6a2db88c5c624d1e164142cb52124be51",
+      "subject": "alignment_bounce focused tests (3), tone alignment bound tightened to 0.05 frames"
+    },
+    {
+      "sha": "b5e9e193f26b85928077300eace80679ae7c627c",
+      "subject": "Score: canceled ramp block keeps pre-block state (snapshot before cancel poll, Processor::commit so unstarted chain stages never revert), exact integer resample count with trimmed-tail receipt field, regression tests"
+    }
   ],
   "capabilities_done": [
     "ChannelLayout (ordered unique labels; stereo [100,101]), BlockSpec, exact sample<->ticks (5_292_000 ticks/sample @48k, 5_760_000 @44.1k, 7_938_000 @32k; non-divisor rates rejected)",
@@ -21,31 +49,65 @@
     "Engine::bounce + BounceReceipt (STU-ARC-021): whole clip rendered in blocks, latency-compensated (renders latency extra silent frames, drops the first latency outputs), requested_frames vs actual_frames, exact start/end/duration ticks, blocks, revision, latency_dropped_frames, whole-clip peak/rms, chain_identity (SHA-256 of Processor::identity, domain-separated, includes crate version), digest (SHA-256 per-channel stream scheme, independent of block size; scheme in BounceReceipt docs); sink gets contiguous BounceChunks on the input timeline; all refusals before first block/sink call; slot held for the whole bounce; processor reset at start and on failure",
     "Processor::identity canonical strings for Unity/Gain/Pan/ChannelMix/RampedGain/HardLimiter/Equalizer/Chain (f32/f64 as exact bit hex); custom processors report 'unspecified'",
     "std-only SHA-256 (digest.rs): NIST vectors and hashlib oracle values in tests; crate closure stays std + rubato (no sha2 dep added)",
-    "normalised_to_value / value_to_normalised, db helpers, HardLimiterParams::from_normalised; Observe report(); DESCRIPTOR + examples/score-consumer"
+    "normalised_to_value / value_to_normalised, db helpers, HardLimiterParams::from_normalised; Observe report(); DESCRIPTOR + examples/score-consumer",
+    "R2 remediation: RampedGain cancel/discard keeps pre-block state exactly (Processor::commit, Chain forwarding); resample exact integer count with trimmed_tail_frames receipt field and zeroed unpublished tail; both with regression tests"
   ],
   "tests": {
-    "foundation_contract": {"passed": 5, "failed": 0},
-    "dsp_resample": {"passed": 3, "failed": 0},
-    "chain_mix": {"passed": 2, "failed": 0},
-    "eq_response": {"passed": 1, "failed": 0},
-    "ramp_spectrum": {"passed": 2, "failed": 0},
-    "alignment_bounce": {"passed": 3, "failed": 0},
-    "passed": 16,
-    "failed": 0,
-    "command": "whole-crate run, no-fail-fast flag: 6 integration files, 16 tests, 0 unit/doc tests, all green at 4f549cc",
-    "check_tests_examples": "PASS exit0",
-    "clippy_tests_examples": "PASS: no findings in hsk-studio-score (2 pre-existing too_many_arguments warnings in hsk-studio-observe, not this lane)",
-    "oracle_values": "bounce gain-0.5 fixture digest 5482ae8c...a8c0 and transparent-limiter (latency 240) digest 70a93016...1f9e computed independently with Python hashlib per the documented scheme; chain identity bfcb1642...7283; start_ticks 254_016_000_000 for sample 48000 @48k; rms 0.15309311; SHA-256('abc') ba7816bf...; impulse index 1600->1470 (48k->44.1k) exact"
+    "argv": "cargo test -p hsk-studio-score --tests --no-fail-fast",
+    "exit": 0,
+    "sha": "b5e9e193f26b85928077300eace80679ae7c627c",
+    "passed": 18,
+    "failed": 0
   },
-  "api_notes": "Deviations from brief (stronger): Processor::process takes &CancellationToken and returns Result; Processor::accepts/required_sample_rate_hz/max_frames/identity/reset added; Engine owns resource + live revision (RequestContext has no current_revision); BlockReceipt is Copy with labels()/peak()/rms(); HardLimiter::new(rate, channels, HardLimiterParams). Spec declares no Mono/5.1 labels (UNVERIFIED) so ChannelLayout::mono(label) takes the label. Send type is named SendRoute (std Send would be shadowed). ResampleReceipt gained pad_input_frames/drop_output_frames.",
-  "limitations": [
-    "Equalizer shapes follow the W3C Audio EQ Cookbook; Adobe curve parity and spec flags constant_q/low2ndorder/high2ndorder/ultraquiet are not mapped (spec declares no semantics).",
-    "Cancel inside Engine::resample is polled only at admission and at the publication gate (rubato process_all is one call; bounded by MAX_BLOCK_FRAMES). Engine::bounce polls between blocks.",
-    "RampedGain::reset restores the pre-block value (discard semantics); a Chain un-bypass reset therefore reverts that stage's last ramp.",
-    "Resampler residual alignment 0.007..0.010 frames is a measured value on five rate pairs, not a proof for every pair; pairs whose reduced denominator q needs pad > MAX_BLOCK_FRAMES are rejected with invalid_rate."
-  ],
   "blockers": [],
-  "dep_requests": ["rubato 5.0.1 (default-features=false, features=[]) logged in builders/dep-requests.jsonl with resolved closure; no new dependency in this round (SHA-256 is in-crate). Builder never stages Cargo.lock."],
+  "lock_wait_s": 0,
+  "bg_pids": [],
   "next": "independent validator round on 4f549cc; then: bounce over a sample-rate-converting stage (ClipResampler inside a bounce), loudness (spec gap STU-FX-147) once the Operator selects a standard, score-device/score-plugin crates consume Processor + Engine::process",
-  "updated_at": "2026-10-11T02:25:00Z"
+  "updated_at": "2026-10-11T02:23:56Z",
+  "notes": {
+    "mt": "MT-35541",
+    "api_notes": "Deviations from brief (stronger): Processor::process takes &CancellationToken and returns Result; Processor::accepts/required_sample_rate_hz/max_frames/identity/reset added; Engine owns resource + live revision (RequestContext has no current_revision); BlockReceipt is Copy with labels()/peak()/rms(); HardLimiter::new(rate, channels, HardLimiterParams). Spec declares no Mono/5.1 labels (UNVERIFIED) so ChannelLayout::mono(label) takes the label. Send type is named SendRoute (std Send would be shadowed). ResampleReceipt gained pad_input_frames/drop_output_frames.",
+    "limitations": [
+      "Equalizer shapes follow the W3C Audio EQ Cookbook; Adobe curve parity and spec flags constant_q/low2ndorder/high2ndorder/ultraquiet are not mapped (spec declares no semantics).",
+      "Cancel inside Engine::resample is polled only at admission and at the publication gate (rubato process_all is one call; bounded by MAX_BLOCK_FRAMES). Engine::bounce polls between blocks.",
+      "Resampler residual alignment 0.007..0.010 frames is a measured value on five rate pairs, not a proof for every pair; pairs whose reduced denominator q needs pad > MAX_BLOCK_FRAMES are rejected with invalid_rate.",
+      "RampedGain::reset reverts only an unpublished block; after publication (Processor::commit) reset is a no-op, so a Chain un-bypass or bounce-start reset no longer reverts the last published ramp. Wrappers around a Processor must forward reset and commit (a wrapper that does not forward commit still commits lazily at the next process start)."
+    ],
+    "dep_requests": [
+      "rubato 5.0.1 (default-features=false, features=[]) logged in builders/dep-requests.jsonl with resolved closure; no new dependency in this round (SHA-256 is in-crate). Builder never stages Cargo.lock."
+    ],
+    "test_files": {
+      "foundation_contract": {
+        "passed": 5,
+        "failed": 0
+      },
+      "dsp_resample": {
+        "passed": 3,
+        "failed": 0
+      },
+      "chain_mix": {
+        "passed": 2,
+        "failed": 0
+      },
+      "eq_response": {
+        "passed": 1,
+        "failed": 0
+      },
+      "ramp_spectrum": {
+        "passed": 3,
+        "failed": 0
+      },
+      "alignment_bounce": {
+        "passed": 4,
+        "failed": 0
+      }
+    },
+    "check_clippy": "check and clippy -p hsk-studio-score --tests --examples: PASS, no findings in hsk-studio-score (2 pre-existing too_many_arguments warnings in hsk-studio-observe)",
+    "remediation_R2_review_b": {
+      "review": "validation/R2-review-b.json lane SMB-SCORE, judged commit 87c1cd9 (does not contain d339544/4f549cc)",
+      "finding_1_ramp_cancel_step": "FIXED: RampedGain snapshots before=current before the cancel poll; new uncommitted flag + Processor::commit (default no-op; Engine::run_block calls it after publication; Chain forwards it and commits at block start) so reset reverts only an unpublished block and is a no-op for chain stages that never ran. Regression test ramp_spectrum::canceled_ramp_block_never_steps_alone_or_in_a_chain (RED on previous ramp.rs: current reverted 1.0 -> 0.0; GREEN now). Covers cancel at the ramp poll, cancel in a middle chain stage with a later ramp stage never run, and reset with nothing in flight.",
+      "finding_2_resample_48001": "ALREADY FIXED by d339544 (not in judged 87c1cd9): Engine::resample publishes exactly requested=ceil(n*out/in) from u128 math; verified 44100@44.1k->48k = 48000. Added: ResampleReceipt.trimmed_tail_frames (frames rubato produced past drop+requested, 1 for 44100@44.1k->48k), zeroing of everything past the published count, shortfall still refused (ResampleFailed, never zero-padded), regression test alignment_bounce::resampler_publishes_the_exact_integer_frame_count (five 1-second pairs, adjacent-clip tiling 160000..208000, length sweep 1..80 + neighbours on four pairs)."
+    },
+    "unaddressed_review_findings": "block.rs:49 (non-divisor rate admission), dsp.rs:514/eq.rs:229 (limiter/EQ state snapshot on discard), dsp.rs:113 (non-finite output) were PLAUSIBLE findings outside this remediation assignment; not changed."
+  }
 }

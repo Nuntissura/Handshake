@@ -29,6 +29,6 @@
   ],
   "cause_of_failed_run": "test fixture bug (an escape sequence in a strictness fixture was written as a plain character, so the fixture text was valid JSON); fixed in df2c896. The gameplan retry-guard was satisfied by a HEAD change, not bypassed.",
   "blockers": [],
-  "next": "Independent validator round on df2c896.",
+  "next": "Independent validator round on df2c896; render-cpu consumes OwnedPath since f105552.",
   "updated_at": "2026-10-11T09:10:00Z"
 }

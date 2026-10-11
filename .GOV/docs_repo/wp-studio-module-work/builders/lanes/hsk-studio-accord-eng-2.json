@@ -1,0 +1,86 @@
+{
+  "crate": "hsk-studio-accord",
+  "lane": "SMB-ACCORD-ENG-2",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "done",
+  "commits": [
+    {"sha": "fa0e4b9fc601d1a0ac1115fbda965caf37392e3b", "subject": "Accord: exact Timescale/rational tick conversion (Rounding, Conversion, Ticks::from_timescale/to_timescale, signed + rescale, FrameRate::from_fps/fps_fraction)"}
+  ],
+  "capabilities_done": [
+    "Timescale (reduced units/second fraction): new(u32), rational(u64,u64), units_per_second, exact_ticks_per_unit",
+    "Timescale::ticks_from_units / units_from_ticks (u64 <-> Ticks) and signed_ticks_from_units / signed_units_from_ticks (i64 <-> i64 ticks), 128-bit, explicit Rounding{Floor,Ceil,NearestHalfUp (ties toward +inf)}, Conversion{value, exact}",
+    "Timescale::rescale(value:i64, to:Timescale, Rounding): units of one timescale as units of another with no tick intermediate",
+    "Ticks::from_timescale(value:u64, timescale:u32, Rounding) and Ticks::to_timescale(self, timescale:u32, Rounding) convenience wrappers",
+    "FrameRate::from_fps(num,den) exact table rate (UnsupportedFrameRate for zero/inexact/off-table/legacy) and FrameRate::fps_fraction()"
+  ],
+  "tests": {
+    "argv": "cargo test -p hsk-studio-accord --tests --no-fail-fast",
+    "exit": 0,
+    "sha": "fa0e4b9fc601d1a0ac1115fbda965caf37392e3b",
+    "passed": 17,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "Validator round on fa0e4b9 or later; then reel/pulse/interop-media owners migrate per notes.migration_steps (this lane migrated nothing).",
+  "updated_at": "2026-10-11T02:22:30Z",
+  "notes": {
+    "checks": {
+      "cargo_check_tests": "PASS",
+      "cargo_clippy_tests": "PASS no warnings",
+      "workspace": "cargo check --workspace --tests --keep-going: 0 errors (warnings only in other crates), Finished",
+      "tests_split": "13 existing foundation_contract + 4 new timescale_contract"
+    },
+    "files": [
+      "crates/hsk-studio-accord/src/timescale.rs (new; re-exported from lib.rs by 3 lines)",
+      "crates/hsk-studio-accord/tests/timescale_contract.rs (new, 4 tests)"
+    ],
+    "strictly_additive": "No ValidationError variant added (downstream matches stay exhaustive-safe); DESCRIPTOR unchanged; no Ticks/FrameRate field or signature changed.",
+    "error_mapping": "Timescale/rate of zero -> ValidationError::OutOfRange; result or 128-bit intermediate not fitting target (also a negative result for unsigned Ticks) -> TickOverflow; FrameRate::from_fps failures -> UnsupportedFrameRate.",
+    "rounding_semantics": "NearestHalfUp = nearest, exact tie toward +infinity (equals reel's media_to_ticks rule, equals interop-media half-away-from-zero for non-negative values, equals pulse Rounding::NearestHalfUp). 100 ns unit = 25401.6 ticks: Floor 25401, Ceil/Nearest 25402, exact=false; signed -1 unit: Nearest -25402, Ceil -25401. 8192 Hz is a true tie: 31007812.5 ticks.",
+    "needs_found": {
+      "reel": [
+        "time.rs media_to_ticks(i64 value, u32 timescale) -> i64 ticks + exact, NearestHalfUp ties +inf, tick-range overflow (isobmff.rs:298,1094,1139,1182,1610)",
+        "time.rs exact_ticks_per_unit(rate) (wav.rs:217,256; isobmff/pcm.rs:235)",
+        "y4m.rs:166-179 F-tag fps num/den -> table FrameRate; y4m.rs:399 and :455 local gcd for ticks_per_frame -> F num:den writer",
+        "isobmff/pcm.rs:245-251 media_time * rate / media_timescale with exact-divisibility check (unit rescale, no tick intermediate)"
+      ],
+      "interop_media": [
+        "time.rs rational_to_ticks(i64 value, u32 rate_num, u32 rate_den) -> Ticks + exact (non-negative only, half-away == half-up)",
+        "time.rs frame_rate_from_fraction(num, den) and fps_fraction(rate) and reduce/gcd (reduce still used by edl.rs)"
+      ],
+      "pulse": [
+        "rational.rs ticks_from_rational_seconds(n:u64, d:u64, Rounding{Exact,Floor,Ceil,NearestHalfUp}) -> {ticks, exact}",
+        "time.rs frame_rate_from_fps(num, den), fps_fraction(rate) (+ folio SequenceFrameRate::accord() consumer fps_fraction_of)",
+        "time.rs ticks_per_sample(hz) exact-or-refuse, ticks_from_samples / samples_from_ticks_exact / samples_floor",
+        "time.rs snap_to_frame ticks -> frame boundary with Rounding"
+      ]
+    },
+    "migration_steps": {
+      "reel": [
+        "time.rs: replace media_to_ticks body with Timescale::new(ts) (map OutOfRange -> Corrupt{zero-timescale}) .signed_ticks_from_units(value, Rounding::NearestHalfUp) (map TickOverflow -> LimitExceeded{tick-range}); TickValue{ticks,exact} = Conversion<i64>{value,exact}. Existing test values (1001@30000 = 8_475_667_200 exact; +-1@10_000_000 = +-25_402 inexact) are reproduced bit-for-bit.",
+        "time.rs: exact_ticks_per_unit(rate) = Timescale::new(rate).ok()?.exact_ticks_per_unit(); drop the '// moves to accord' markers.",
+        "y4m.rs:166-179: FrameRate::from_fps(num, den) (all failures -> Unsupported{frame-rate-not-broadcast}; the not-tick-exact/not-broadcast split disappears) ; ticks_exact stays true. y4m.rs writer: use the FrameRate already built at :390 and rate.fps_fraction() instead of gcd(TICKS_PER_SECOND, tpf); delete y4m.rs gcd (:455).",
+        "isobmff/pcm.rs:245-253: first_frame = Timescale::new(media_timescale)?.rescale(media_time, Timescale::new(rate)?, Rounding::Floor); require .exact else Unsupported{pcm-edit-not-frame-aligned}; negative value stays Corrupt{elst-media-time}.",
+        "Remove unused use hsk_studio_accord::TICKS_PER_SECOND imports left behind."
+      ],
+      "interop_media": [
+        "time.rs rational_to_ticks: Timescale::rational(u64::from(rate_num), u64::from(rate_den)) (zero -> InvalidRational), value negative -> NegativeTime as now, then ticks_from_units(value as u64, Rounding::NearestHalfUp); map Conversion.exact to Exactness::Exact / Approximate(RoundingRule::HalfAwayFromZero) (identical for non-negative values); TickOverflow already maps to TimecodeOverflow.",
+        "time.rs frame_rate_from_fraction: keep the zero check (InvalidFrameRate) then FrameRate::from_fps(num, den); fps_fraction(rate) = rate.fps_fraction().",
+        "Keep local reduce/gcd only while edl.rs uses reduce; otherwise Timescale::rational(n,d)?.units_per_second()."
+      ],
+      "pulse": [
+        "time.rs: fps_fraction(rate) -> rate.fps_fraction() (or drop the pub wrapper); frame_rate_from_fps -> FrameRate::from_fps (same UnsupportedFrameRate for zero/inexact/off-table, so behaviour is unchanged).",
+        "rational.rs ticks_from_rational_seconds(n, d, rounding): d == 0 -> InvalidInput as now; Timescale::rational(d, 1)?.ticks_from_units(n, accord_rounding); Rounding::Exact stays a pulse-local mode = Floor then Err(Inexact) when !exact; Floor/Ceil/NearestHalfUp map 1:1; keep RationalConversion as a thin adapter or return Conversion<Ticks>.",
+        "time.rs ticks_per_sample(hz): Timescale::new(hz).ok().and_then(|t| t.exact_ticks_per_unit()).ok_or(UnsupportedSampleRate); samples_floor may use units_from_ticks(.., Floor).",
+        "time.rs snap_to_frame (optional): Timescale::rational(fps num, fps den).units_from_ticks(ticks, rounding) then frames_to_ticks; Exact mode checks !exact.",
+        "Out of scope for accord and left in pulse: reduced_speed/SpeedMath (folio Speed), rational_seconds_from_ticks gcd, timecode label arithmetic."
+      ],
+      "folio": [
+        "timeline.rs SequenceFrameRate fps fraction consumers: call accord FrameRate::fps_fraction() on SequenceFrameRate::accord() (pulse::fps_fraction_of delegates)."
+      ]
+    },
+    "left_open": "Timecode label arithmetic (nominal/base/frames_to_timecode/timecode_to_frames) is duplicated between interop-media/time.rs and pulse/time.rs; it is label math, not tick conversion, so it stays pulse-owned until the lead adds interop-media -> pulse. A signed Ticks delta type was not added: only reel needs signed ticks and i64 via signed_* covers it."
+  }
+}

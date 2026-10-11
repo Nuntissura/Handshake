@@ -1,11 +1,12 @@
 {
   "crate": "hsk-studio-render-cpu",
   "status": "READY_FOR_VALIDATION",
-  "phase": "pigment RenderBackend port + vector payload on nib OwnedPath (f105552); next: parallel chunks",
+  "phase": "nib OwnedPath payload (f105552) + parallel chunks (2d06a3a) pushed",
   "commits": [
     {"sha": "1e3cfaf", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "migration to the pigment RenderBackend port (admit() first, plan IR/TilePlanes/TileSink/RenderReceipt, pigment blend_math), groups, masks, vector payload"},
     {"sha": "ff57d4a362aa291011a8de12f465d5876c5863e4", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "rustfmt"},
-    {"sha": "f105552", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "VectorFill payload = nib OwnedPath; local anchor model deleted; coverage rasterization kept; vector fault tests"}
+    {"sha": "f105552", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "VectorFill payload = nib OwnedPath; local anchor model deleted; coverage rasterization kept; vector fault tests"},
+    {"sha": "2d06a3a", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "parallel chunks: Renderer::with_threads(chunk, n), scoped workers, in-order delivery on the calling thread, 2n reorder window, per-worker scratch charge; byte-identical output and sink order, 3 thread counts tested, 30 repeat runs without a flake"}
   ],
   "capabilities_done": [
     "impl RenderBackend<V: VectorSource+Serialize> for Renderer; identity {hsk-studio-render-cpu, 0.1, Cpu}; exactness(): Tile/Solid/groups/masks Exact, Vector+FillOpacity Approximate, Blend(m)=pigment facts for layer-applicable modes with a function else Unsupported, PassThroughOpacity/NonIsolatedBlendedGroup Unsupported",
@@ -21,7 +22,7 @@
     "command": "cargo test -p hsk-studio-render-cpu --tests --no-fail-fast",
     "cases": ["known_alpha_mask_sample_math", "chunk_boundary_equals_independent_reference", "sink_error_cancel_releases_bytes", "unsupported_op_stale_result", "receipt_binds_revision_profile_and_observe"],
     "check_clippy": "PASS, no warnings from this crate",
-    "tree": "shared edit tree at f105552, not an export of the pushed SHA"
+    "tree": "shared edit tree at 2d06a3a, not an export of the pushed SHA"
   },
   "oracle_notes": "Hand-computed pixel values compared at 1e-6 because pigment blend_math is f32; independent per-pixel reference (analytic coverage, hand-folded isolated group + checker mask) byte-equal across chunk sizes 1,2,3,4,64 with dyadic inputs. Adobe parity NOT_PROVEN.",
   "decisions_for_lead": [
@@ -29,6 +30,6 @@
     "fill_opacity is folded in as a product (class Approximate); mask density semantics unverified against Photoshop."
   ],
   "blockers": [],
-  "next": "parallel chunks with deterministic sink order (in progress); independent validator round",
-  "updated_at": "2026-10-11T09:50:00Z"
+  "next": "independent validator round on 2d06a3a",
+  "updated_at": "2026-10-11T10:20:00Z"
 }

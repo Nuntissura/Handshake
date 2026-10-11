@@ -1,7 +1,7 @@
 ---
 file_id: WP-STUDIO-MODULE-WORK-DIAG-TYPE-LANE
 file_kind: lane_diagnostic
-updated_at: 2026-10-11T02:00:00Z
+updated_at: 2026-10-11T02:22:46Z
 wp: WP-KERNEL-STUDIO
 mt: MT-35536
 crate: hsk-studio-type
@@ -123,5 +123,19 @@ Sources: https://github.com/harfbuzz/rustybuzz ; https://github.com/harfbuzz/har
 - `FIXTURES_PROVENANCE.json` replaces `FONTS_PROVENANCE.json` and covers 13 files. One `tests/fixtures/.gitattributes` with `* -text` keeps every fixture byte-exact.
 - Licenses: font 3 is OFL-1.1, per its name table and upstream rsms/inter. No blocker.
 - Run once (`--no-fail-fast`, 0 `HSK_TYPE_*` variables): unit 37/37, foundation_contract 2/2, doc 0/0, exit 0. Not a verdict.
+
+</topic>
+
+<topic id="provenance-eol-correction" status="active" mt="MT-35536" summary="Correction: earlier 0-drift provenance claim was wrong">
+
+## Provenance correction (commit ef8beac9)
+
+- My 94331b00 claim of "0 drift" was wrong. I hashed the Windows working-tree bytes, and many of those files had CRLF line endings, while the committed git blobs are LF. Measured: 25/74 rustybuzz hashes and 9/9 unicode-bidi hashes did not match the committed bytes. They matched the CRLF working tree. This included my own ot_shape_plan.rs/shape.rs refresh. The independent review R2-review-b (87c1cd9) found this.
+- My earlier statement that the edited files had no CR bytes also came from an unreliable check.
+- Root cause fix:
+  - All 150 derivative hashes were recomputed from committed blobs (`git show HEAD:<path>`). Each provenance file now records its `hash_basis` and an `eol_hash_correction` entry.
+  - The 38 CRLF/mixed working-tree copies were normalized to their committed LF bytes. `git hash-object` now equals the index blob for all 196 crate files.
+  - `tests/provenance.rs` checks the vendored hashes after normalizing CRLF to LF, and the `-text` fixtures as exact bytes.
+- Check output: `vendored provenance: checked 150, drift 0`; `fixture provenance: checked 15, drift 0`. An independent check against the blobs on `origin/codex/handshake-studio-assets` also found 150 checked, 0 drift. Full default run: 41 passed, exit 0.
 
 </topic>

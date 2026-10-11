@@ -1,112 +1,101 @@
 {
-  "lane": "hsk-studio-type",
-  "mt": "MT-35536",
-  "status": "PASS_V4",
+  "crate": "hsk-studio-type",
+  "lane": "SMB-TYPE-PROVENANCE-EOL",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
   "commits": [
     {
-      "sha": "e603db86031feb860039f59658273d8fe17d2b30",
-      "tree": "1de50152f22184049941432e0b66870be9e331a3",
-      "branch": "codex/handshake-studio-assets",
-      "pushed": true,
-      "summary": "Admit pinned default-ignorable Common control spans at both Type shape entries"
-    },
-    {
-      "sha": "94331b00b51f2ba6e2e48abc2e9fc7949bf16289",
-      "tree": "64f80bbd68e3256095ecd81dd7c5ee9b6b557783",
-      "branch": "codex/handshake-studio-assets",
-      "pushed": true,
-      "summary": "Type: env-free evidence lookup, private-module doc examples as text, provenance refresh",
-      "lanes": [
-        "SMB-TYPE-DOCTEST",
-        "SMB-TYPE-ENV"
-      ]
-    },
-    {
-      "sha": "947b5e7c2bb4e844311734072e60c645d8bad2db",
-      "tree": "d9292faf67848fa291e45710b57b1bcc5c644100",
-      "branch": "codex/handshake-studio-assets",
-      "pushed": true,
-      "summary": "Type: vendor OFL-1.1 test fonts 0-2 with licenses and provenance",
-      "lanes": [
-        "SMB-TYPE-FONTS"
-      ]
-    },
-    {
-      "sha": "31ea01e5f5f389d13174de3443067b5bb700396e",
-      "tree": "aca7d223d5e29b3a2eda0ba6339f23cc47490430",
-      "branch": "codex/handshake-studio-assets",
-      "pushed": true,
-      "summary": "Type: check in all test evidence so tests run from the Studio repo alone",
-      "lanes": [
-        "SMB-TYPE-FIXTURES"
-      ]
+      "sha": "ef8beac990a1a032a6af3c94c2e9a396f7a5662b",
+      "subject": "Type: provenance hashes over committed LF blobs, with a check"
     }
+  ],
+  "capabilities_done": [
+    "all 150 vendored derivative hashes (74 rustybuzz, 67 ttf-parser, 9 unicode-bidi) recomputed from committed git blobs; hash_basis recorded",
+    "38 CRLF/mixed working-tree copies normalized to committed LF bytes (git hash-object == index blob for all 196 crate files)",
+    "tests/provenance.rs: vendored hashes (LF-normalized) + fixture hashes (exact bytes)"
   ],
   "tests": {
-    "check_tests": "PASS exit0 (pre-existing dead-code warnings only)",
-    "clippy_tests": "PASS exit0 (no findings on changed lines)",
-    "mixed_script_bidi_font_runs": "PASS 1/1 exact, predecessor first (implementer evidence)",
-    "font_axis_missing_cancel_stale": "PASS 1/1 (bundle, --no-fail-fast)",
-    "observe_foundation_contract_19": "PASS 19/19 (bundle, --no-fail-fast)",
-    "tree": "shared edit tree, not export of pushed SHA"
+    "argv": "cargo test -p hsk-studio-type --no-fail-fast -- --nocapture",
+    "exit": 0,
+    "sha": "ef8beac990a1a032a6af3c94c2e9a396f7a5662b",
+    "passed": 41,
+    "failed": 0
   },
   "blockers": [],
-  "next": "PASS_V4 on 96ad0530 (STUDIO-R1); follow-up lanes SMB-TYPE-DOCTEST, SMB-TYPE-ENV (94331b00), SMB-TYPE-FONTS (947b5e7c), SMB-TYPE-FIXTURES (31ea01e5) await independent validation",
-  "verdicts": [
-    {
-      "round": "STUDIO-R1",
-      "verdict": "PASS_V4",
-      "candidate": "96ad05306c74ae57514a99a6668c8bdb1441d094",
-      "mt": "MT-35536",
-      "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R1",
-      "round_ref": ".GOV/docs_repo/wp-studio-module-work/validation/round-R1.json",
-      "failures": [],
-      "recorded_at": "2026-10-11T01:31:21Z"
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "resume SMB-TYPE-ENG-1 (harfrust spike, commit c65e1a7d): spike test refuses Devanagari UnsupportedProfile on the harfrust path; diagnose, then report parity",
+  "updated_at": "2026-10-11T02:22:46Z",
+  "notes": {
+    "correction": "The 94331b00 claim of 0 provenance drift was wrong: it hashed Windows CRLF working-tree bytes, not committed LF blobs (R2-review-b, commit 87c1cd9).",
+    "provenance_check_output": "vendored provenance: checked 150, drift 0; fixture provenance: checked 15, drift 0 (tests/provenance.rs at ef8beac9); independent blob check against origin/codex/handshake-studio-assets: checked 150 drift 0",
+    "test_breakdown": "unit 37, foundation_contract 2, provenance 2, harfrust_spike 0 (feature off), doc 0",
+    "mt_35536": "PASS_V4 on 96ad0530 (STUDIO-R1)",
+    "prior_lanes_ready": {
+      "SMB-TYPE-DOCTEST": "94331b00b51f2ba6e2e48abc2e9fc7949bf16289",
+      "SMB-TYPE-ENV": "94331b00b51f2ba6e2e48abc2e9fc7949bf16289",
+      "SMB-TYPE-FONTS": "947b5e7c2bb4e844311734072e60c645d8bad2db",
+      "SMB-TYPE-FIXTURES": "31ea01e5f5f389d13174de3443067b5bb700396e"
+    },
+    "in_progress": {
+      "SMB-TYPE-ENG-1": "c65e1a7da0fb4d50ba0302d84bf23456f1603581 (feature harfrust; default build unchanged; spike test failing on coverage-gain case)"
+    },
+    "history": {
+      "verdicts": [
+        {
+          "round": "STUDIO-R1",
+          "verdict": "PASS_V4",
+          "candidate": "96ad05306c74ae57514a99a6668c8bdb1441d094",
+          "mt": "MT-35536",
+          "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R1",
+          "round_ref": ".GOV/docs_repo/wp-studio-module-work/validation/round-R1.json",
+          "failures": [],
+          "recorded_at": "2026-10-11T01:31:21Z"
+        }
+      ],
+      "followup_lanes": [
+        {
+          "id": "SMB-TYPE-DOCTEST",
+          "status": "READY_FOR_VALIDATION",
+          "commit": "94331b00b51f2ba6e2e48abc2e9fc7949bf16289",
+          "change": "src/provider/ttf/mod.rs:182,205,2080 doc fences -> text; module is crate-private (mod provider), so ttf_parser:: or crate paths cannot compile as doctests; line numbers unchanged; ttf provenance hash + change note refreshed",
+          "tests": "cargo test -p hsk-studio-type --no-fail-fast: Doc-tests 0 run / 0 failed (no remaining doc examples); unit 37/37; foundation_contract 2/2; exit0"
+        },
+        {
+          "id": "SMB-TYPE-ENV",
+          "status": "READY_FOR_VALIDATION",
+          "commit": "94331b00b51f2ba6e2e48abc2e9fc7949bf16289",
+          "change": "tests/support/mod.rs research(): nearest CARGO_MANIFEST_DIR ancestor holding Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35536/studio-assets-kernel-builder/research; HSK_TYPE_* stay optional overrides; reference sha 6579f9a9 and recipe bytes unchanged; example type-consumer shares support/mod.rs",
+          "tests": "run with no HSK_TYPE_* set: foundation_contract 2/2 (mixed_script_bidi_font_runs, font_axis_missing_cancel_stale), exit0; export path studio-round/src/... resolves the same root (path walk checked, not run there)",
+          "residual": "resolved by SMB-TYPE-FONTS (947b5e7c): fonts 0..2 + licenses vendored in tests/fixtures/fonts",
+          "survivor_branch": "shape.rs:93-95 unreachable with pinned fixtures: Common spans are all pinned default-ignorables; no fixture font (Inter static/variable, NotoSansArabic, NotoSansSC) has an ignorable glyph in GSUB input coverage under DFLT default features (Inter calt lookup 52 lists them only in backtrack/lookahead); engine never sets not_found_variation_selector; so no glyph survives removal. Defensive guard for caller fonts that substitute an ignorable; no test added (would need a synthetic font)"
+        },
+        {
+          "id": "provenance-drift-fix",
+          "status": "READY_FOR_VALIDATION",
+          "commit": "94331b00b51f2ba6e2e48abc2e9fc7949bf16289",
+          "change": "rustybuzz source-provenance.json hashes for hb/shape.rs and hb/ot_shape_plan.rs were stale after e603db8; refreshed + common_control_remediation record; both vendored provenance files now 0 drift"
+        },
+        {
+          "id": "SMB-TYPE-FONTS",
+          "status": "READY_FOR_VALIDATION",
+          "commit": "947b5e7c2bb4e844311734072e60c645d8bad2db",
+          "change": "tests/fixtures/fonts: Inter-Regular.ttf, NotoSansArabic-Regular.ttf, NotoSansSC-Regular.otf, OFL.txt, NotoSans-OFL.txt byte-identical to hash pins (529be850, bdff3e56, faa6c9df, 156202d7, 6a73f954); .gitattributes '* -text' (OFL.txt is CRLF, root text=auto eol=lf would rewrite); FONTS_PROVENANCE.json (source path, upstream, OFL-1.1 evidence, sha256); support font_root() = CARGO_MANIFEST_DIR/tests/fixtures/fonts + recipe file name, HSK_TYPE_FONT_ROOT optional",
+          "licenses": "all OFL-1.1: name ID 13/14 in each font, OS/2 fsType 0; upstream rsms/inter, notofonts/arabic, googlefonts/noto-cjk Sans/LICENSE; unmodified so Inter RFN not triggered; no blocker",
+          "recipe": "NOT edited: type-exact-oracle-recipe.json is pinned evidence outside the repo (sha 4b5e892e in MT research_basis); its absolute paths now serve only as file-name keys/provenance",
+          "tests": "Type crate full run --no-fail-fast: unit 37/37, foundation_contract 2/2, doc 0/0, exit0 (no HSK_TYPE_* env); committed blobs re-hashed equal for both license texts",
+          "remaining_external": "research root (recipe/preparation/variable font 3/goldens) and validator reference file stay under Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35536 (Studio-owned, resolved by ancestor walk)"
+        },
+        {
+          "id": "SMB-TYPE-FIXTURES",
+          "status": "READY_FOR_VALIDATION",
+          "commit": "31ea01e5f5f389d13174de3443067b5bb700396e",
+          "change": "tests/fixtures/evidence: recipe 4b5e892e, preparation b6e733fd, variable record 34f5c533, Inter variable font 3 29160a80 + Inter-variable-OFL.txt 5b9321a4, bidi goldens 90a42d9e + Unicode-data-license.txt e7a93b00, reference 6579f9a9; all byte-identical (committed blobs re-hashed). support: fixtures() = CARGO_MANIFEST_DIR/tests/fixtures; research() = fixtures/evidence; font_root() = fixtures/fonts; reference_file() = fixtures/evidence/...; HSK_TYPE_RESEARCH_ROOT/FONT_ROOT/REFERENCE_FILE optional overrides only; ancestor walk to Handshake_Artifacts removed. Provenance consolidated: tests/fixtures/FIXTURES_PROVENANCE.json (13 files); tests/fixtures/.gitattributes '* -text'",
+          "licenses": "font 3 OFL-1.1 (name ID 13/14, fsType 0, upstream rsms/inter, Google Fonts ofl); goldens carry one BidiCharacterTest line, Unicode-3.0 notice included; no blocker",
+          "handshake_artifacts_not_used": "proof by code path: tests/support, foundation_contract and examples/type-consumer contain no Handshake_Artifacts, ancestors(), drive-letter or wtc- path; every default resolves under CARGO_MANIFEST_DIR; run had 0 HSK_TYPE_* env vars. File-open tracing not available (not observed)",
+          "tests": "unit 37/37, foundation_contract 2/2, doc 0/0, exit 0"
+        }
+      ]
     }
-  ],
-  "followup_lanes": [
-    {
-      "id": "SMB-TYPE-DOCTEST",
-      "status": "READY_FOR_VALIDATION",
-      "commit": "94331b00b51f2ba6e2e48abc2e9fc7949bf16289",
-      "change": "src/provider/ttf/mod.rs:182,205,2080 doc fences -> text; module is crate-private (mod provider), so ttf_parser:: or crate paths cannot compile as doctests; line numbers unchanged; ttf provenance hash + change note refreshed",
-      "tests": "cargo test -p hsk-studio-type --no-fail-fast: Doc-tests 0 run / 0 failed (no remaining doc examples); unit 37/37; foundation_contract 2/2; exit0"
-    },
-    {
-      "id": "SMB-TYPE-ENV",
-      "status": "READY_FOR_VALIDATION",
-      "commit": "94331b00b51f2ba6e2e48abc2e9fc7949bf16289",
-      "change": "tests/support/mod.rs research(): nearest CARGO_MANIFEST_DIR ancestor holding Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35536/studio-assets-kernel-builder/research; HSK_TYPE_* stay optional overrides; reference sha 6579f9a9 and recipe bytes unchanged; example type-consumer shares support/mod.rs",
-      "tests": "run with no HSK_TYPE_* set: foundation_contract 2/2 (mixed_script_bidi_font_runs, font_axis_missing_cancel_stale), exit0; export path studio-round/src/... resolves the same root (path walk checked, not run there)",
-      "residual": "resolved by SMB-TYPE-FONTS (947b5e7c): fonts 0..2 + licenses vendored in tests/fixtures/fonts",
-      "survivor_branch": "shape.rs:93-95 unreachable with pinned fixtures: Common spans are all pinned default-ignorables; no fixture font (Inter static/variable, NotoSansArabic, NotoSansSC) has an ignorable glyph in GSUB input coverage under DFLT default features (Inter calt lookup 52 lists them only in backtrack/lookahead); engine never sets not_found_variation_selector; so no glyph survives removal. Defensive guard for caller fonts that substitute an ignorable; no test added (would need a synthetic font)"
-    },
-    {
-      "id": "provenance-drift-fix",
-      "status": "READY_FOR_VALIDATION",
-      "commit": "94331b00b51f2ba6e2e48abc2e9fc7949bf16289",
-      "change": "rustybuzz source-provenance.json hashes for hb/shape.rs and hb/ot_shape_plan.rs were stale after e603db8; refreshed + common_control_remediation record; both vendored provenance files now 0 drift"
-    },
-    {
-      "id": "SMB-TYPE-FONTS",
-      "status": "READY_FOR_VALIDATION",
-      "commit": "947b5e7c2bb4e844311734072e60c645d8bad2db",
-      "change": "tests/fixtures/fonts: Inter-Regular.ttf, NotoSansArabic-Regular.ttf, NotoSansSC-Regular.otf, OFL.txt, NotoSans-OFL.txt byte-identical to hash pins (529be850, bdff3e56, faa6c9df, 156202d7, 6a73f954); .gitattributes '* -text' (OFL.txt is CRLF, root text=auto eol=lf would rewrite); FONTS_PROVENANCE.json (source path, upstream, OFL-1.1 evidence, sha256); support font_root() = CARGO_MANIFEST_DIR/tests/fixtures/fonts + recipe file name, HSK_TYPE_FONT_ROOT optional",
-      "licenses": "all OFL-1.1: name ID 13/14 in each font, OS/2 fsType 0; upstream rsms/inter, notofonts/arabic, googlefonts/noto-cjk Sans/LICENSE; unmodified so Inter RFN not triggered; no blocker",
-      "recipe": "NOT edited: type-exact-oracle-recipe.json is pinned evidence outside the repo (sha 4b5e892e in MT research_basis); its absolute paths now serve only as file-name keys/provenance",
-      "tests": "Type crate full run --no-fail-fast: unit 37/37, foundation_contract 2/2, doc 0/0, exit0 (no HSK_TYPE_* env); committed blobs re-hashed equal for both license texts",
-      "remaining_external": "research root (recipe/preparation/variable font 3/goldens) and validator reference file stay under Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35536 (Studio-owned, resolved by ancestor walk)"
-    },
-    {
-      "id": "SMB-TYPE-FIXTURES",
-      "status": "READY_FOR_VALIDATION",
-      "commit": "31ea01e5f5f389d13174de3443067b5bb700396e",
-      "change": "tests/fixtures/evidence: recipe 4b5e892e, preparation b6e733fd, variable record 34f5c533, Inter variable font 3 29160a80 + Inter-variable-OFL.txt 5b9321a4, bidi goldens 90a42d9e + Unicode-data-license.txt e7a93b00, reference 6579f9a9; all byte-identical (committed blobs re-hashed). support: fixtures() = CARGO_MANIFEST_DIR/tests/fixtures; research() = fixtures/evidence; font_root() = fixtures/fonts; reference_file() = fixtures/evidence/...; HSK_TYPE_RESEARCH_ROOT/FONT_ROOT/REFERENCE_FILE optional overrides only; ancestor walk to Handshake_Artifacts removed. Provenance consolidated: tests/fixtures/FIXTURES_PROVENANCE.json (13 files); tests/fixtures/.gitattributes '* -text'",
-      "licenses": "font 3 OFL-1.1 (name ID 13/14, fsType 0, upstream rsms/inter, Google Fonts ofl); goldens carry one BidiCharacterTest line, Unicode-3.0 notice included; no blocker",
-      "handshake_artifacts_not_used": "proof by code path: tests/support, foundation_contract and examples/type-consumer contain no Handshake_Artifacts, ancestors(), drive-letter or wtc- path; every default resolves under CARGO_MANIFEST_DIR; run had 0 HSK_TYPE_* env vars. File-open tracing not available (not observed)",
-      "tests": "unit 37/37, foundation_contract 2/2, doc 0/0, exit 0"
-    }
-  ],
-  "diagnostic_ref": ".GOV/docs_repo/wp-studio-module-work/diagnostics/type-lane.md",
-  "updated_at": "2026-10-11T02:00:00Z"
+  }
 }

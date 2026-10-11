@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T02:16:22Z",
+ "updated_at": "2026-10-11T02:22:36Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -191,7 +191,7 @@
     "builders/lanes/hsk-studio-interop-psd.json"
    ],
    "launched": "2026-10-11T02:25Z",
-   "status": "running"
+   "status": "retired (refresh rule 790k); interop-psd READY 67c1723; folio-eng-2 READY a51f7fa"
   },
   {
    "name": "builder-composite",
@@ -203,7 +203,7 @@
     "builders/lanes/hsk-studio-composite.json"
    ],
    "launched": "2026-10-11T02:25Z",
-   "status": "running"
+   "status": "retired (refresh rule); composite READY 26f835e"
   },
   {
    "name": "builder-render-cpu",
@@ -215,7 +215,7 @@
     "builders/lanes/hsk-studio-render-cpu.json"
    ],
    "launched": "2026-10-11T02:25Z",
-   "status": "running"
+   "status": "retired (refresh rule); render-cpu READY 2d06a3a; nib READY df2c896"
   },
   {
    "name": "builder-pulse",
@@ -373,7 +373,7 @@
    "model": "sonnet",
    "role": "remediation score (review B)",
    "launched": "2026-10-11T02:13:54Z",
-   "status": "running"
+   "status": "done b5e9e19"
   },
   {
    "name": "builder-accord-eng-2",
@@ -413,6 +413,22 @@
    "model": "sonnet",
    "role": "Folio frames/threads/pages",
    "launched": "2026-10-11T02:16:22Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-components",
+   "agent_id": "a23cbc1b5d94d070b",
+   "model": "sonnet",
+   "role": "components slice 1",
+   "launched": "2026-10-11T02:18:19Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-render-cpu-clip",
+   "agent_id": "a064b349c934ae100",
+   "model": "sonnet",
+   "role": "render-cpu clip-to-base",
+   "launched": "2026-10-11T02:22:36Z",
    "status": "running"
   }
  ]

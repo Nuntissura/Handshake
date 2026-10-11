@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T02:16:22Z",
+ "updated_at": "2026-10-11T02:24:18Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -79,12 +79,13 @@
    "lane_id": "SMB-COMPONENTS",
    "crate": "hsk-studio-components",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-components",
-   "phase": "brief",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-components",
    "brief": null,
    "commits": [],
-   "verdicts": []
+   "verdicts": [],
+   "lane_file": "builders/lanes/hsk-studio-components.json"
   },
   {
    "lane_id": "SMB-PULSE",
@@ -111,8 +112,8 @@
    "lane_id": "SMB-SCORE",
    "crate": "hsk-studio-score",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-score",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-score",
    "brief": "builders/briefs/hsk-studio-score.md",
    "commits": [
@@ -122,13 +123,15 @@
     "6f736b8",
     "59d5e09",
     "b2379a5",
-    "4f549cc"
+    "4f549cc",
+    "d339544",
+    "b5e9e19"
    ],
    "verdicts": [],
    "lane_file": "builders/lanes/hsk-studio-score.json",
-   "candidate": "4f549cc",
+   "candidate": "b5e9e19",
    "note": "exact-alignment resampler (5 pairs measured), bounce receipt; 16 tests; probe fix b2379a5",
-   "review_findings": "R2-review-b CONFIRMED: ramp cancel ordering, 44.1k->48k 48001 frames -> fresh remediation agent"
+   "review_findings": "R2-review-b CONFIRMED fixed: ramp cancel (b5e9e19, + chain stage case), exact resample count (d339544 + receipt b5e9e19); 3 PLAUSIBLE open"
   },
   {
    "lane_id": "SMB-REEL",
@@ -185,12 +188,13 @@
     "d5ed91a",
     "e362ba6",
     "a6f2c7e",
-    "118f8f8"
+    "118f8f8",
+    "26f835e"
    ],
    "verdicts": [],
    "lane_file": "builders/lanes/hsk-studio-composite.json",
-   "candidate": "118f8f8",
-   "note": "migrated to pigment; lowers Folio appearance; clipping typed Unavailable; next: pigment clip route + clipping lowering"
+   "candidate": "26f835e",
+   "note": "clip-to-base lowered (pigment 4e533d5 MaskFormat::BaseAlpha); Approximate; typed Unavailable edge cases"
   },
   {
    "lane_id": "SMB-RENDER-CPU",
@@ -205,12 +209,14 @@
     "a56af78",
     "badff26",
     "1e3cfaf",
-    "ff57d4a"
+    "ff57d4a",
+    "f105552",
+    "2d06a3a"
    ],
    "verdicts": [],
    "lane_file": "builders/lanes/hsk-studio-render-cpu.json",
-   "note": "migrated to pigment RenderBackend + blend_math; 5 tests; Adobe parity NOT_PROVEN",
-   "candidate": "ff57d4a"
+   "note": "migrated to pigment RenderBackend + blend_math; 5 tests; Adobe parity NOT_PROVEN; VectorFill on nib OwnedPath; deterministic parallel chunks",
+   "candidate": "2d06a3a"
   },
   {
    "lane_id": "SMB-RENDER-GPU",
@@ -258,8 +264,8 @@
    "lane_id": "SMB-INTEROP-PSD",
    "crate": "hsk-studio-interop-psd",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-interop-psd",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-interop-psd",
    "brief": "builders/briefs/hsk-studio-interop-psd.md",
    "commits": [
@@ -267,13 +273,15 @@
     "710ab18",
     "4cc3742",
     "fe3c193",
-    "d07ffb4"
+    "d07ffb4",
+    "1c80aef",
+    "67c1723"
    ],
    "verdicts": [],
    "lane_file": "builders/lanes/hsk-studio-interop-psd.json",
-   "candidate": "d07ffb4",
-   "note": "own parser; 28 blend keys -> pigment StudioBlendMode; byte-identical rewrite; to_proposal via folio; 5 tests; UNVERIFIED items need Photoshop fixtures; writes Folio appearance (d07ffb4); slice3 deep color/CMYK-Lab via prism/export in progress",
-   "review_findings": "R2-review-a CONFIRMED: duplicate BlendMode enum, 1-byte tail drop, user-mask rect bit4, stale descriptor -> remediation dispatched (not a formal verdict; R2 did not open)"
+   "candidate": "67c1723",
+   "note": "12 tests; 16/32-bit; ICC via prism when admitted; export byte-identical unedited; CMYK/Lab/gray await prism n-channel path (ENG-3)",
+   "review_findings": "R2-review-a findings fixed 1c80aef (regression tests)"
   },
   {
    "lane_id": "SMB-INTEROP-VECTOR",
@@ -339,13 +347,18 @@
    "lane_id": "SMB-SESSION",
    "crate": "hsk-studio-session",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-session",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-session",
    "brief": "builders/briefs/hsk-studio-session.md",
-   "commits": [],
+   "commits": [
+    "371ac82",
+    "a7640e7"
+   ],
    "verdicts": [],
-   "lane_file": "builders/lanes/hsk-studio-session.json"
+   "lane_file": "builders/lanes/hsk-studio-session.json",
+   "candidate": "a7640e7",
+   "note": "open/submit/save/reopen round trips; registry; cancel/budgets; 4 tests + break-it; slice2 ports/idempotency in progress"
   },
   {
    "lane_id": "SMB-HARNESS",
@@ -550,7 +563,7 @@
    "lane_id": "SMB-PRISM-ENG-3",
    "crate": "hsk-studio-prism",
    "origin": "research/engine-color.md",
-   "scope": "lift profile admission stepwise: raise 64 KiB cap for CMYK (557-723 KB) and HLG (973 KB) profiles with bounded limits; enable moxcms `lut`; order v4 matrix, v2 curv, mAB, mft/CMYK",
+   "scope": "lift profile admission stepwise: raise 64 KiB cap for CMYK (557-723 KB) and HLG (973 KB) profiles with bounded limits; enable moxcms `lut`; order v4 matrix, v2 curv, mAB, mft/CMYK; + n-channel input path (gray/CMYK/Lab) public API for interop-psd",
    "phase": "build",
    "status": null,
    "owner": "builder-folio-eng-1 (reused)",
@@ -624,11 +637,12 @@
    "status": "READY_FOR_VALIDATION",
    "owner": "architect-render-ir",
    "commits": [
-    "4c3ac91"
+    "4c3ac91",
+    "4e533d5"
    ],
    "verdicts": [],
    "candidate": "4c3ac91",
-   "note": "pigment owns render_plan IR + RenderBackend port + blend_math (35 modes, exactness); migrations dispatched to composite, render-cpu, interop-psd; render-gpu builds on it",
+   "note": "pigment owns render_plan IR + RenderBackend port + blend_math (35 modes, exactness); migrations dispatched to composite, render-cpu, interop-psd; render-gpu builds on it; clip-to-base route 4e533d5 (supports_clip_to_base default false)",
    "review_findings": "R2-review-a: PASS recommendation (no CONFIRMED findings); formal verdict pending next round"
   },
   {
@@ -726,11 +740,16 @@
    "crate": "hsk-studio-nib",
    "origin": "render-cpu: VectorFill path model local until nib owns serializable path",
    "scope": "additive serializable path type in nib; render-cpu migrates VectorFill to it",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-render-cpu (reused)",
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "59ef3b1",
+    "df2c896"
+   ],
+   "verdicts": [],
+   "candidate": "df2c896",
+   "note": "OwnedPath additive; canonical JSON + sha256; no serde in nib (lead accepted)"
   },
   {
    "lane_id": "SMB-FOLIO-ENG-3",
@@ -749,21 +768,36 @@
    "crate": "hsk-studio-accord",
    "origin": "R2-review-b cap_duplicate reel timing helpers vs pulse; reel cannot depend on pulse",
    "scope": "single owner of rational timescale/rate -> Ticks conversion in accord (additive); pulse and reel consume it; remove duplicates",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-accord-eng-2",
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "fa0e4b9"
+   ],
+   "verdicts": [],
+   "candidate": "fa0e4b9",
+   "note": "Timescale/Rounding/Conversion/rescale + FrameRate::from_fps/fps_fraction; 17 accord tests; migrations: reel (reel builder), pulse/folio/interop-media (same agent)"
   },
   {
    "lane_id": "SMB-INTEROP-MEDIA-PULSE",
    "crate": "hsk-studio-interop-media",
    "origin": "interop-media builder; CX-CAP-001 timecode duplicate",
    "scope": "after steward adds interop-media->pulse edge (provisional D9): replace src/time.rs timecode/DF arithmetic with pulse APIs; tests unchanged; also interop-media src/time.rs:114 fps_fraction copy",
-   "phase": "blocked",
-   "status": "BLOCKED",
-   "blocked_on": "steward: root allowed edge interop-media->pulse (provisional D9)",
-   "owner": null,
+   "phase": "build",
+   "status": null,
+   "blocked_on": null,
+   "owner": "builder-accord-eng-2 (reused)",
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-RENDER-CPU-CLIP",
+   "crate": "hsk-studio-render-cpu",
+   "origin": "composite clip-to-base 26f835e / pigment 4e533d5",
+   "scope": "render-cpu implements clip-to-base (override supports_clip_to_base), reference semantics + hand-derived tests",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-render-cpu-clip",
    "commits": [],
    "verdicts": []
   }
