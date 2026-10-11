@@ -2,7 +2,7 @@
   "crate": "hsk-studio-reel",
   "lane": "hsk-studio-reel",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice 3 complete (Matroska/WebM index + cue seek + sampled identity/relink) + AV1 decode routing (SMB-REEL-AV1-ROUTE): untrusted AV1 -> registered external decoder else CodecUnavailable, in-process rav1d only for trusted sources, ReelError::DecoderFault; STUDIO-R2 fixes and accord Timescale migration included",
+  "phase": "slice 4 complete: R5 remediation, Matroska ContentEncodings + A_PCM, MXF OP1a/OP-Atom index reader, IndexCache over MkvIndex (on top of slice 3 + AV1 routing)",
   "commits": [
     {
       "sha": "f09f33b",
@@ -83,6 +83,18 @@
     {
       "sha": "0993b25",
       "subject": "tests: Matroska PCM / ContentEncodings proof as 3 focused tests; rustfmt"
+    },
+    {
+      "sha": "231115f",
+      "subject": "MXF OP1a / OP-Atom index reader (ST 377-1): KLV, partitions (footer chain + scan fallback), Primer/Header Metadata tracks and descriptors, Index Table Segments (constant + variable size, temporal reordering, slices, delta entries), frame-accurate offsets, essence elements as packets (MxfProvider, opt-in); essence opaque"
+    },
+    {
+      "sha": "bb1ad00",
+      "subject": "IndexCache over MkvIndex (get_or_build_matroska, MatroskaProvider::decode_cached, MkvIndex::approx_bytes), shared capacity with MediaIndex"
+    },
+    {
+      "sha": "d9bf614",
+      "subject": "tests: synthetic frame-wrapped constant-size MXF over two body partitions + scan fallback; DESCRIPTOR wording"
     }
   ],
   "capabilities_done": [
@@ -98,20 +110,22 @@
     "SMB-REEL-AV1-ROUTE: (1) routing port in every build, no cargo feature: SourceTrust (default Untrusted), VideoRoute, ExternalVideoDecoder/VideoDecodeSession/PictureSink/VideoStreamSpec/DecodedPicture/DecoderIdentity; Registry::with_video_decoder/set_video_decoder + Registry::decode_segment_routed(trust) (decode_segment = untrusted), MediaProvider::decode_segment_routed (defaulted method, existing implementers compile unchanged); policy: untrusted -> external decoder if it supports the codec else CodecUnavailable{codec}; trusted -> in-process rav1d when feature av1 is compiled in, else external, else CodecUnavailable; (2) ReelError::DecoderFault{fault: DecoderFault::{Crashed,Deadline,Protocol}} code MEDIA_DECODER_FAULT, distinct from Corrupt/Unsupported, outcome_for -> Unavailable; the route maps VideoDecodeError::Fault -> DecoderFault and passes Media errors through, and refuses a picture whose planes disagree with its declared format as DecoderFault::Protocol; (3) feature split: AV1 record parser/descriptor (Av1Config, parse_av1c, av1_descriptor) moved to the always-compiled av1_config module and re-exported at the crate root (av1:: paths unchanged); the in-process decoder (Av1Decoder, DecodedFrame, DECODER_ID, decoder_version) stays behind av1 and is now one routed session behind the same packet pump as external decoders (src/video.rs, replacing av1::Pump); default build unchanged otherwise, forbid(unsafe_code) intact",
     "R5 remediation (SMB-REEL-AV1-ROUTE, SMB-REEL-ENG-3, cross-lane matroska dims): see notes.remediation_R5",
     "slice4 Matroska ContentEncodings (RFC 9559 5.1.4.1.31): header stripping (algo 3) and zlib (algo 0) undone per frame (lacing split first), stacked encodings in ContentEncodingOrder descending order, private scope decodes CodecPrivate, AV1-in-Matroska gets decoded packets; encryption (type 1), bzlib/lzo1x, scope 0x4 and malformed/unknown encodings are a typed per-track refusal (Unsupported content-encryption | content-compression-algo | content-encoding-scope-next | content-encoding, Corrupt content-encoding-scope | content-encoding-order); output capped by max_chunk_bytes (LimitExceeded content-decoded-bytes), damaged zlib or adler is Corrupt content-zlib",
-    "slice4 Matroska A_PCM/INT/LIT, A_PCM/INT/BIG (8-bit unsigned, others signed), A_PCM/FLOAT/IEEE (little endian): compact PcmStream per track through the shared deliver_pcm_stream (bounded slices, exact requested/actual ticks, big-endian swapped to little endian); positions by running frame count, block timestamps only as a 1-unit consistency check (Unsupported pcm-timestamp-discontinuity); probe reports the PCM window"
+    "slice4 Matroska A_PCM/INT/LIT, A_PCM/INT/BIG (8-bit unsigned, others signed), A_PCM/FLOAT/IEEE (little endian): compact PcmStream per track through the shared deliver_pcm_stream (bounded slices, exact requested/actual ticks, big-endian swapped to little endian); positions by running frame count, block timestamps only as a 1-unit consistency check (Unsupported pcm-timestamp-discontinuity); probe reports the PCM window",
+    "slice4 MXF (ST 377-1:2019, read from pub.smpte.org): build_mxf_index (run-in, header pack, partition enumeration by footer chain with KLV scan fallback, Fill-aware partition layout, Primer + Local Set header metadata resolved to picture/sound tracks with descriptors, Essence Container Data BodySID/IndexSID), Index Table Segments with static tags (constant EditUnitByteCount incl. contiguous-base rule, variable entries, slices, delta entries, temporal offsets, identical header/footer repeats collapsed), MxfIndex::{locate, locate_coded, display_position_of, element_offset (11.4), edit_unit_element (key inspection), wrapping_of, clip_end}, MxfProvider (opt-in via Registry::register; probe; Packets output in decode order with pre-roll to the previous random access point for pictures, per-unit for sound, clip-wrapped slices for OP-Atom; Decoded = CodecUnavailable naming the coding)",
+    "slice4 IndexCache over MkvIndex: one capacity/LRU shared with MediaIndex, entry answers only its own kind, hit verifies the grant, failed builds cache nothing, new revision invalidates older ones"
   ],
   "tests": {
-    "argv": "cargo test -p hsk-studio-reel --tests (default: 31) / --features av1 (35); clippy --tests clean in both",
+    "argv": "cargo test -p hsk-studio-reel --tests (default: 35) / --features av1 (39); clippy --tests --examples clean in both feature sets",
     "exit": 0,
-    "sha": "0993b25",
-    "passed": 35,
+    "sha": "d9bf614",
+    "passed": 39,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "MXF OP1a index reader, then IndexCache over MkvIndex (capability 3). Validator: re-run reel on the pushed head; steward: add miniz_oxide =0.9.1 (with-alloc) to hsk-studio-reel in the registry pins and probe approved list (dep request recorded in notes.dep_requests; dep-requests.jsonl not edited by the builder).",
-  "updated_at": "2026-10-11T06:00:25Z",
+  "next": "Validator round on d9bf614 (default and --features av1). Steward: pins for miniz_oxide =0.9.1 (with-alloc) on hsk-studio-reel (dep-requests.jsonl line appended 2026-10-11). Open: V4-01 deny(arithmetic_side_effects) is still missing on isobmff.rs, isobmff/fragments.rs, wav.rs, y4m.rs, identity.rs, registry.rs (listed by clippy -W, ~110 sites); MXF is not in Registry::standard() (pinned at 4 providers by foundation_contract and reel-native tests); reel-native tests/av1_worker.rs follow-up from SMB-REEL-AV1-ROUTE still pending.",
+  "updated_at": "2026-10-11T06:33:28Z",
   "notes": {
     "decisions": [
       {
@@ -338,7 +352,8 @@
         "kind": "normal",
         "reason": "zlib (RFC 1950) inflate with an output cap (decompress_to_vec_zlib_with_limit) for Matroska ContentEncodings; same pin and features as interop-fig, interop-layout, interop-psd, interop-vector and press (already in Cargo.lock; forbid(unsafe_code) without the simd feature)",
         "pure_rust": true,
-        "dep_requests_jsonl_edited": false
+        "dep_requests_jsonl_edited": true,
+        "note": "line appended to builders/dep-requests.jsonl on coordinator instruction (steward note 2026-10-11)"
       }
     ],
     "remediation_R5": {
@@ -407,6 +422,44 @@
       "v4_06_count": "regex hits in crates/hsk-studio-reel/src (non-fixture) at 569023e: 5 lines (ffi.rs doc comment, ffi.rs:229 checked, ffi.rs:258 checked, ffi.rs:261 loop bound, model.rs:361); all listed above or fixed",
       "v4_01_status": "deny(clippy::arithmetic_side_effects) is now module-wide on video.rs, av1_config.rs, av1/ (incl. ffi.rs), model.rs, matroska.rs, isobmff/pcm.rs and the new mkv_content.rs/mkv_pcm.rs. NOT yet clean (open debt, listed by clippy -W arithmetic_side_effects): isobmff.rs ~49, wav.rs ~30, y4m.rs ~14, identity.rs ~9, isobmff/fragments.rs 8, cache.rs 5, registry.rs 1; isobmff.rs got a one-line pub(crate) re-export only",
       "gameplan_route": "RED runs failed on the unfixed code; fixes and tests were committed (HEAD changed) before each rerun (route a, product failure -> commit); no gameplan step added; one rerun was hook-blocked because the same command had failed on the same HEAD (the commit and the rerun must be separate shell calls)"
+    },
+    "slice4_mxf": {
+      "authority": "SMPTE ST 377-1:2019 (https://pub.smpte.org/pub/st377-1/st377-1-2019.pdf, readable; sections 6.3 KLV, 6.4.1 KAG, 6.6 run-in, 7 partitions, 9.1-9.3 header metadata + Primer, 9.6.1 set keys, 11 index tables, Annex A/B/E/F/H). ST 378 (OP1a), ST 390 (OP-Atom), ST 379 (Generic Container) and ST 400 (labels) were NOT read: UNVERIFIED are the operational pattern labels (reader reports the label, accepts any pattern), the Generic Container keys used to find essence elements (06.0e.2b.34.01.02.01.vv.0d.01.03.01 + track number; system items 0d.01.03.01.04.xx) and the ST 400 data definition labels used by classify(); all three were checked only against ffmpeg-written files and libavformat positions.",
+      "oracles": "ffprobe -show_packets (pos/pts/dts/size/flags) of two ffmpeg 8.1.1 files; independent Python parse (klvdump/metadump written from the spec) agrees with the Rust index entries for the OP1a file; synthetic file built in the test from ST 377-1 layouts for the multi-partition constant-size path.",
+      "decisions": [
+        "Partitions: footer chain validated (this_partition agreement, strictly decreasing links, first pack must be a footer, last must be the header) else KLV scan; RIP not used.",
+        "Essence start = first byte after pack, optional Fill, HeaderByteCount, IndexByteCount and any Fill (spec 6.2.1 item order: leading Fill is not essence); stream offset -> file offset via the last partition of the BodySID with body_offset <= offset.",
+        "Header metadata from the LAST complete (status 3/4) partition carrying metadata, else the first carrying any.",
+        "Property ULs matched by their last 8 bytes (registry version byte ignored) through the Primer; index segments use static tags (spec: Primer is not used for index tables).",
+        "Temporal reordering applies only to picture tracks of variable-size indexes (11.1.6); random access = flags bit 7 (open GOP I pictures have it clear in ffmpeg files, so pre-roll walks back to the previous RA entry); sync on chunks = RA bit for pictures, true otherwise.",
+        "Wrapping heuristic: OP-Atom label byte 13 == 0x10 with a constant-size index, or a Generic Container essence label with wrapping byte 2, is clip wrapped (stream offsets exclude the KL); else frame wrapped. ffmpeg's OP-Atom file labels BWF as frame wrapped (byte 1) although it is clip wrapped, so the OP-Atom rule is needed. A wrong guess surfaces as Corrupt mxf-index-points-outside-essence / mxf-stream-offset-outside-essence, never a fabricated offset."
+      ],
+      "not_proven": [
+        "NOT_PROVEN: index repetition across body partitions with different segments (only identical header/footer copies are collapsed; overlapping non-identical segments are refused as Corrupt mxf-index-overlap but that refusal is untested on a real file).",
+        "NOT_PROVEN: RIP, sparse/partial index tables, clip-wrapped essence over several partitions, DM/ST 410 generic stream partitions, run-in > 0 (code path exists in find_header_partition; no fixture).",
+        "NOT_PROVEN: any MXF essence decode (opaque by design); AES3/Wave/MPEG descriptors beyond the properties listed in meta.rs.",
+        "NOT_PROVEN: MxfProvider in Registry::standard() (deliberately opt-in)."
+      ],
+      "files": "src/mxf/{mod,klv,meta,tables,provider}.rs; tests/mxf_index.rs (3 tests); fixtures tests/fixtures/mxf/{mpeg2-pcm-op1a.mxf (127545 B, sha256 236ac0ab..), pcm-opatom.mxf (18489 B, sha256 1d28964a..), generate-mxf.sh}"
+    },
+    "slice4_matroska": {
+      "authority": "RFC 9559 (ContentEncodings 5.1.4.1.31, block lacing 10.3) fetched from rfc-editor.org; matroska.org codec specs for A_PCM (8-bit unsigned, FLOAT little endian) fetched 2026-10-11.",
+      "design": "ContentPlan (mkv_content.rs) decodes frames through DecodeSink between deliver_packets and the real sink, so isobmff.rs deliver_packets is untouched; video route gets the same sink via decode_video_track_with + VideoContent; MkvTrack.pcm holds the compact PcmStream (mkv_pcm.rs) delivered by the shared deliver_pcm_stream (pcm.rs, now module-wide deny-clean); isobmff.rs only gained a one-line pub(crate) re-export.",
+      "fixtures": "tests/fixtures/mkv/{pcm-*.mkv x5 (ffmpeg), enc-*.mkv x4 (make_encoded_mkv.py, Python zlib)}; ffprobe -show_data_hash sha256 equals Python frames for the single-encoding files.",
+      "known_gaps": [
+        "bzlib (1) and lzo1x (2) compression, scope 0x4 and encryption are refused per track (typed), not implemented.",
+        "PCM with lacing needs a DefaultDuration (existing laced-frame rule); PCM tracks with a timestamp gap are refused (pcm-timestamp-discontinuity) rather than gap-filled.",
+        "Matroska V_AV1 with ContentEncodings now decodes through the route (decoded packets); no AV1 fixture with encodings exists (NOT_PROVEN end to end; the packet transform itself is tested on V_VP8 fixtures)."
+      ]
+    },
+    "v4_compliance": {
+      "V4-01": "deny(clippy::arithmetic_side_effects) module-wide on: matroska.rs, mkv_content.rs, mkv_pcm.rs, isobmff/pcm.rs, cache.rs, model.rs, video.rs, av1_config.rs, av1/ (incl. ffi.rs), mxf/ (all). NOT yet: isobmff.rs, isobmff/fragments.rs, wav.rs, y4m.rs, identity.rs, registry.rs. Note: the lint is clippy-only (cargo check does not run it).",
+      "V4-02": "dims_u32_max-style: r5 lying decoder u32::MAX x u32::MAX, r5 matroska u32::MAX/2^32 dims, mxf u32::MAX entry/delta/essence-container counts and u64::MAX BER; aggregate_over_budget-style: matroska max_samples, zlib bomb vs max_chunk_bytes, mxf max_samples (index entries) and max_probe_bytes.",
+      "V4-03": "No test needs hardware or an external corpus; fixtures are committed; no machine-local paths in tests. No NOT_PROVEN prints (open items are listed above, not asserted).",
+      "V4-05": "No deflate/CRC of our own: miniz_oxide library only.",
+      "V4-06": "see remediation_R5.v4_06_*",
+      "V4-07": "absolute words weakened or tied to a named test in the new modules (mxf, mkv_content, mkv_pcm, provider docs).",
+      "V4-09": "all commits after the V4 notice use git commit -F with a message file; scripts live in scratchpad/hsk-studio-reel/ (V4-12)."
     }
   }
 }
