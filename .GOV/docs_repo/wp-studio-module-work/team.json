@@ -1811,7 +1811,7 @@
     "builders/lanes/hsk-studio-web-difftest.json"
    ],
    "launched": "2026-10-11T14:14:23Z",
-   "status": "done 2026-10-11T15:02:55Z (62d8983)"
+   "status": "done (62d8983; retired V4-16)"
   },
   {
    "name": "rem-psd-budget",
@@ -1868,7 +1868,7 @@
     "validation/R10-prereview-web.json"
    ],
    "launched": "2026-10-11T15:03:19Z",
-   "status": "running"
+   "status": "done 2026-10-11T15:25:17Z (FIX_FIRST: R10-F1 CSS number arm url hide)"
   },
   {
    "name": "validator-r10",
@@ -1891,6 +1891,19 @@
     "validation/R10-review-a.json"
    ],
    "launched": "2026-10-11T15:10:24Z",
+   "status": "running"
+  },
+  {
+   "name": "rem-web-r10",
+   "agent_id": "a3f28794ed41def23",
+   "model": "opus",
+   "role": "web R10 remediation (spec-exact CSS Syntax 3 tokenizer; every CSS URL scanned)",
+   "owns": [
+    "crates/hsk-studio-web/**",
+    "builders/lanes/hsk-studio-web-parity.json",
+    "builders/lanes/hsk-studio-web-difftest.json"
+   ],
+   "launched": "2026-10-11T15:25:27Z",
    "status": "running"
   }
  ]
