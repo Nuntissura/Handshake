@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T05:17:48Z",
+ "updated_at": "2026-10-11T05:18:52Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -665,7 +665,7 @@
     "builders/lanes/hsk-studio-press.json"
    ],
    "launched": "2026-10-11T04:56:14Z",
-   "status": "done 2026-10-11T05:17:48Z (SMB-PRESS READY at cb38b86)"
+   "status": "running (slice 4 redaction holes, resumed 2026-10-11T05:18:52Z)"
   },
   {
    "name": "validator-r5",
@@ -750,7 +750,31 @@
     "builders/lanes/hsk-studio-score.json"
    ],
    "launched": "2026-10-11T05:06:03Z",
-   "status": "done 2026-10-11T05:16:39Z (SMB-SCORE READY at 2fe5f36)"
+   "status": "running (streaming resampler slice, resumed 2026-10-11T05:18:52Z)"
+  },
+  {
+   "name": "builder-reel-2",
+   "agent_id": "aaf4b1e97d05fa7e4",
+   "model": "sonnet",
+   "role": "SMB-REEL slice: Matroska ContentEncodings + A_PCM decode, MXF OP1a index (ST 377-1/378), IndexCache",
+   "owns": [
+    "crates/hsk-studio-reel/**",
+    "builders/lanes/hsk-studio-reel.json"
+   ],
+   "launched": "2026-10-11T05:18:52Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-develop-2",
+   "agent_id": "aebb0baf8faa80472",
+   "model": "sonnet",
+   "role": "SMB-DEVELOP slice: tile-parallel scoped threads + optional bit-identical SIMD; determinism across thread counts",
+   "owns": [
+    "crates/hsk-studio-develop/**",
+    "builders/lanes/hsk-studio-develop.json"
+   ],
+   "launched": "2026-10-11T05:18:52Z",
+   "status": "running"
   }
  ]
 }
