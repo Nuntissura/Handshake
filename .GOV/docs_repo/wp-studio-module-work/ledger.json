@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T21:41:57Z",
+ "updated_at": "2026-10-11T21:45:45Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3223,5 +3223,11 @@
    "SMB-REEL-AV1-ROUTE": "unchanged since 7cdf18e if reopened"
   },
   "team": "1 validator (opus) + 1 reviewer (sonnet: pigment plan limits + dependants sweep)"
+ },
+ "handoff": {
+  "file": "HANDOFF.md",
+  "snapshot": "snapshots/SNAPSHOT-20261011T214451Z.json",
+  "push_helper": "tools/lead-kernel-push.sh",
+  "updated_at": "2026-10-11T21:45:45Z"
  }
 }
