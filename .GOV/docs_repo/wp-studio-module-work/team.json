@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T03:24:59Z",
+ "updated_at": "2026-10-11T04:56:14Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -573,7 +573,7 @@
    "model": "opus",
    "role": "workspace steward (entrypoint feature matrix/doctests; syncs on lead request)",
    "launched": "2026-10-11T03:13:35Z",
-   "status": "running"
+   "status": "running (resumed after rate limit 2026-10-11T04:56:14Z)"
   },
   {
    "name": "builder-components-migrate",
@@ -605,6 +605,66 @@
    "model": "opus",
    "role": "prism defects diagnose+fix + matrix fusion",
    "launched": "2026-10-11T04:04:25Z",
+   "status": "running (resumed after rate limit 2026-10-11T04:56:14Z)"
+  },
+  {
+   "name": "builder-interop-fig",
+   "agent_id": "a077fdccf97327c43",
+   "model": "sonnet",
+   "role": "SMB-INTEROP-FIG slice 1 container/identity/opaque/loss/version-reject",
+   "owns": [
+    "crates/hsk-studio-interop-fig/**",
+    "builders/lanes/hsk-studio-interop-fig.json"
+   ],
+   "launched": "2026-10-11T04:56:14Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-score-device",
+   "agent_id": "adf739a6ae95e19a6",
+   "model": "sonnet",
+   "role": "SMB-SCORE-DEVICE caps 1-4 pure Rust ring/counters/clocked device, then cpal-backend",
+   "owns": [
+    "crates/hsk-studio-score-device/**",
+    "builders/lanes/hsk-studio-score-device.json"
+   ],
+   "launched": "2026-10-11T04:56:14Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-score-plugin",
+   "agent_id": "ab5e3013b68b23a89",
+   "model": "sonnet",
+   "role": "SMB-SCORE-PLUGIN slice 1 out-of-process host, budgets, typed outcomes",
+   "owns": [
+    "crates/hsk-studio-score-plugin/**",
+    "builders/lanes/hsk-studio-score-plugin.json"
+   ],
+   "launched": "2026-10-11T04:56:14Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-pulse-eng-1",
+   "agent_id": "a4bdfd3b58dd344c2",
+   "model": "sonnet",
+   "role": "SMB-PULSE-ENG-1 100ns<->ticks rounding rule + receipt (reuse accord Rounding)",
+   "owns": [
+    "crates/hsk-studio-pulse/**",
+    "builders/lanes/hsk-studio-pulse-eng-1.json"
+   ],
+   "launched": "2026-10-11T04:56:14Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-press-3",
+   "agent_id": "aa5de2b6720dcf7bf",
+   "model": "sonnet",
+   "role": "SMB-PRESS slice 3 outline/annotation text redaction",
+   "owns": [
+    "crates/hsk-studio-press/**",
+    "builders/lanes/hsk-studio-press.json"
+   ],
+   "launched": "2026-10-11T04:56:14Z",
    "status": "running"
   }
  ]

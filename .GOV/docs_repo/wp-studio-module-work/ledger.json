@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T04:04:47Z",
+ "updated_at": "2026-10-11T04:56:14Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -373,10 +373,10 @@
    "lane_id": "SMB-INTEROP-FIG",
    "crate": "hsk-studio-interop-fig",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-interop-fig",
-   "phase": "brief",
+   "phase": "build",
    "status": null,
-   "owner": null,
-   "brief": null,
+   "owner": "builder-interop-fig",
+   "brief": "builders/briefs/hsk-studio-interop-fig.md",
    "commits": [],
    "verdicts": []
   },
@@ -515,7 +515,7 @@
    ],
    "verdicts": [],
    "candidate": "1df11b2",
-   "note": "slices1-2: + form XObject COW redaction, sanitize Thumb/PieceInfo/XMP/JS/embedded, LZW, proof rule (kept_text_collisions vs hits, region_cleared); 9 tests; next: outline/bookmark + annotation text redaction option"
+   "note": "slices1-2: + form XObject COW redaction, sanitize Thumb/PieceInfo/XMP/JS/embedded, LZW, proof rule (kept_text_collisions vs hits, region_cleared); 9 tests; next: outline/bookmark + annotation text redaction option; slice 3 (outline/annotation redaction) dispatched 2026-10-11T04:56:14Z to builder-press-3; round candidate stays 1df11b2 unless sync includes slice 3"
   },
   {
    "lane_id": "SMB-WEB",
@@ -538,10 +538,10 @@
    "lane_id": "SMB-SCORE-DEVICE",
    "crate": "hsk-studio-score-device",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-score-device",
-   "phase": "brief",
+   "phase": "build",
    "status": null,
-   "owner": null,
-   "brief": null,
+   "owner": "builder-score-device",
+   "brief": "builders/briefs/hsk-studio-score-device.md",
    "commits": [],
    "verdicts": []
   },
@@ -549,10 +549,10 @@
    "lane_id": "SMB-SCORE-PLUGIN",
    "crate": "hsk-studio-score-plugin",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-score-plugin",
-   "phase": "brief",
+   "phase": "build",
    "status": null,
-   "owner": null,
-   "brief": null,
+   "owner": "builder-score-plugin",
+   "brief": "builders/briefs/hsk-studio-score-plugin.md",
    "commits": [],
    "verdicts": []
   },
@@ -688,11 +688,12 @@
    "crate": "hsk-studio-pulse",
    "origin": "research/engine-video.md",
    "scope": "explicit rounding rule + receipt for 100 ns (Media Foundation) <-> 254016000000 ticks/s conversion (25401.6 ticks per 100 ns)",
-   "phase": "brief",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-pulse-eng-1",
    "commits": [],
-   "verdicts": []
+   "verdicts": [],
+   "brief": "research/engine-video.md + builders/briefs/hsk-studio-pulse.md"
   },
   {
    "lane_id": "SMB-REEL-NATIVE-ENG-1",
