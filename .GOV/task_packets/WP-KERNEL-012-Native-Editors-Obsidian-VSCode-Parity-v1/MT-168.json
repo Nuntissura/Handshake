@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-168",
   "created_at_utc": "2026-10-02T07:40:00Z",
-  "updated_at_utc": "2026-10-09T19:40:27.206115+00:00",
+  "updated_at_utc": "2026-10-10T02:39:42.324294Z",
   "identity": {
     "mt_id": "MT-168",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -248,7 +248,7 @@
     "generator": null
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "FAIL_V3",
     "blocked_on": null,
     "depends_on": [],
     "blocks": [
@@ -256,19 +256,19 @@
       "MT-169"
     ],
     "active": true,
-    "validator_verdict": "FAIL_V1",
+    "validator_verdict": "FAIL_V3",
     "claimed_by": "KERNEL_BUILDER-new-lead-20261009",
     "completed_by": null,
-    "next_actor": "WP_VALIDATOR",
+    "next_actor": "KERNEL_BUILDER",
     "rounds_without_output": 0,
     "diagnosis_refs": [
       "MT-153.json#analysis_20261001_step1_w_scans_ownership",
       "MT-167.json#diagnosis_20261002_dbdae422_grant_table_scan"
     ],
-    "candidate_commit": "85f45913a0c11019b3a49c9f213356d73495e765",
-    "status_before_ready": "BLOCKED",
-    "pushed_verified": "Fresh git ls-remote feat/WP-KERNEL-012 exact85f; clean product; R18 native0 preserved",
-    "ready_for_validation_at_utc": "2026-10-09T19:40:27.206115+00:00",
+    "candidate_commit": "00caeceafd6fc85c348e2bbb68408d92836e2a36",
+    "status_before_ready": "FAIL_V2",
+    "pushed_verified": "Fresh clean product and live ls-remote exact00ca; component78 native0 independently reviewed",
+    "ready_for_validation_at_utc": "2026-10-10T01:35:59.234693+00:00",
     "ready_for_validation_by": "KERNEL_BUILDER-new-lead-20261009",
     "selection_note": {
       "MT-168": [
@@ -287,10 +287,10 @@
       "extra_build_proof_proposal": "R6 counterfactual: revert 2ad00add+6846e7d4 and run the MT-168 cost tests (expected fail) - declare in extra_build_proofs if the validator adopts it"
     },
     "gameplan": "kernel_builder before_submit PASS 2/2 at 280ef985 (GP-023 cmd; GP-158 confirmed: loom_store/api loom untouched, tag-edge permission branch byte-equal)",
-    "prior_validator_verdict": null,
-    "validated_by": "WP_VALIDATOR-20261008-READY13-X64-ARMHOST",
-    "validated_at_utc": "2026-10-08T16:59:02.694177Z",
-    "validated_commit": "1ad04e431fa1c8a6b71533122bdfd532111a0557",
+    "prior_validator_verdict": "FAIL_V2",
+    "validated_by": "WP_VALIDATOR-new-lead-subordinate-20261009",
+    "validated_at_utc": "2026-10-10T02:39:42.324294Z",
+    "validated_commit": "00caeceafd6fc85c348e2bbb68408d92836e2a36",
     "claimed_at_utc": "2026-10-09T00:06:04.571037+00:00"
   },
   "scope": {
@@ -415,7 +415,7 @@
     {
       "tier": "FLIGHT_RECORDER_EVENTLEDGER",
       "status": "UNCHANGED",
-      "reason": "Index-run receipts keep their current EventLedger shape; spec Ãƒâ€šÃ‚Â§2.3.14.4.6 FR latency logging is not widened by this MT."
+      "reason": "Index-run receipts keep their current EventLedger shape; spec Ã‚Â§2.3.14.4.6 FR latency logging is not widened by this MT."
     },
     {
       "tier": "INTERNAL_DIAGNOSTICS",
@@ -469,7 +469,7 @@
   "group": "E5",
   "spec_basis": {
     "kind": "remediation_derived_mt",
-    "note": "Created to own recorded validator failures/diagnoses that had no owning MT; CX-SPEC-TRUTH-001 activation gate does not apply to remediation work. Downstream timing baseline: Master Spec v02.206 Ãƒâ€šÃ‚Â§2.3.14.17.3 (02-system-architecture.md:4470-4478) as quoted in MT-167.json#spec_basis."
+    "note": "Created to own recorded validator failures/diagnoses that had no owning MT; CX-SPEC-TRUTH-001 activation gate does not apply to remediation work. Downstream timing baseline: Master Spec v02.206 Ã‚Â§2.3.14.17.3 (02-system-architecture.md:4470-4478) as quoted in MT-167.json#spec_basis."
   },
   "hbr_swarm_allocation": "Grant-check cost independent of other workspaces' rows is what lets parallel agents/workspaces coexist; no new swarm surface; no waiver.",
   "operator_decision": {
@@ -1498,6 +1498,243 @@
         },
         "runtime_executed": false,
         "status_effect": "No independent PASS; fresh original3 acceptance required"
+      },
+      {
+        "id": "PR-WP012-MT168-WPV-ORIGINAL3-20261010-85F-R19",
+        "check_id": "MT-168-ORIGINAL3-BOUNDED-LINK",
+        "executor_role": "WP_VALIDATOR",
+        "executor": "WP_VALIDATOR-new-lead-subordinate-20261009",
+        "covers": [
+          "MT-168"
+        ],
+        "commit": "85f45913a0c11019b3a49c9f213356d73495e765",
+        "tree": "3d6119409baeff624ff988475ad04606f1bc1fd7",
+        "result": "FAIL",
+        "exit_code": 100,
+        "started_at_utc": "2026-10-09T19:45:12.8574852Z",
+        "completed_at_utc": "2026-10-10T00:44:05.1106085Z",
+        "proof": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/junit-85f45913a0c11019b3a49c9f213356d73495e765-core-targeted-mt168-bounded-r19.xml",
+        "artifact_ref": {
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/junit-85f45913a0c11019b3a49c9f213356d73495e765-core-targeted-mt168-bounded-r19.xml",
+          "bytes": 54366,
+          "sha256": "74c19c4f1f06d17cf1831cc9883f6f0f11226e1efa64ce6c341e44a845b00c93"
+        },
+        "checks": [
+          {
+            "check_id": "api::code_nav_index::account_tests::mounted_index_account_source_witness_revocation_and_workspace_delete",
+            "result": "PASS",
+            "duration_seconds": 49.017
+          },
+          {
+            "check_id": "mt167_batch_and_per_file_writer_produce_equal_rows",
+            "result": "PASS",
+            "duration_seconds": 118.785
+          },
+          {
+            "check_id": "mt167_code_nav_index_median_within_spec_baseline",
+            "result": "FAIL",
+            "duration_seconds": 101.053
+          }
+        ],
+        "timing": {
+          "median_target_seconds": 5,
+          "sample_max_seconds": 30,
+          "warmups": 1,
+          "measured_samples": 5,
+          "mt008_fixture": {
+            "samples_seconds": [
+              8.3437984,
+              7.093838,
+              6.6022959,
+              6.8715856,
+              8.0796183
+            ],
+            "median_seconds": 7.093838,
+            "warmup_ms": 8156
+          },
+          "fems_seed": {
+            "samples_ms": [
+              5787,
+              6086,
+              6755,
+              6444,
+              6825
+            ],
+            "median_ms": 6444,
+            "warmup_ms": 5811,
+            "assertion_state": "Measured; firstMT008 panic precedes Fems assertion"
+          }
+        },
+        "outcomes": {
+          "core_runner_exit": 100,
+          "native_wrapper_exit": 0,
+          "host_child_exit": 0,
+          "scheduler_result": 0,
+          "tests": 3,
+          "passed": 2,
+          "failed": 1
+        },
+        "failure_kind": "product",
+        "failure_class": "MT167-ORIGINAL-MEDIAN-5S-UNMET",
+        "failure_evidence": "Original tests/mt167_code_nav_index_cost_tests.rs:264:9 MT008 median7.093838s must meet5s target",
+        "environment": {
+          "frozen_file_inputs": {
+            "total": 13,
+            "unchanged": true
+          },
+          "compiler_changes": [
+            {
+              "at_utc": "2026-10-09T23:23:59.235866Z",
+              "pid": 33416,
+              "start_filetime": 134360491567383824,
+              "change": "memory2->5 only"
+            },
+            {
+              "at_utc": "2026-10-09T23:34:33.986391Z",
+              "pid": 33416,
+              "change": "configured/effective IO1->2 only"
+            },
+            {
+              "at_utc": "2026-10-09T23:40:07.900315Z",
+              "pids": [
+                42304,
+                33416
+              ],
+              "change": "CPU Normal32/memory5/IO2;42304 shared cache affects future compilers; no cache data mutation"
+            },
+            {
+              "at_utc": "2026-10-09T23:49:24Z",
+              "pids": [
+                30516,
+                51712,
+                27124
+              ],
+              "change": "Owned no-run Cargo/client/compiler CPU32/memory5/IO2"
+            },
+            {
+              "at_utc": "2026-10-09T23:51:56.354143Z",
+              "pid": 21272,
+              "change": "Owned MSVC linker CPU32/memory5/IO2"
+            }
+          ],
+          "inheritance": "Natural compiler32932/client34356 CPU32/memory5/IO2 verified; no verification build",
+          "runtime": "Host/capture/bash conditions unchanged; no test/runtime process priority mutation; individual test priorities NOT_INSPECTED",
+          "os_exclusions": "Before tests: Defender exact C:\\Projects\\LLM Projects verified23:44:54Z; Search initial incomplete apply superseded by fresh23:50:07Z15canonical probes included=false/reason2 USER/HRESULT0",
+          "telemetry": "Inventory child44100 completed naturally; no stop happened; WPbytes110456276832/free_kib461135984 observed; diagnostic-only override returned0",
+          "preserved_diagnostics": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/frozen-inputs/mt168-85f-r19-closed",
+          "causal_limit": "Original median floor unmet; bounded-source-change versus host-condition attribution UNVERIFIED; no regression or unchanged-environment claim"
+        },
+        "preservation_manifest": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/frozen-inputs/mt168-85f-r19-closed/manifest.json",
+        "preservation_manifest_sha256": "f749675e90f0259e12ea2a84069d4ea09c60d8494d4d1f2366097288a571fba9",
+        "original_copy_pairs": 92,
+        "proof_reconciliation": {
+          "CX-VAL-002": "Inspected R4/r7 passing evidence retained under original producing commits and conditions; old timing measurements not rebound to85f",
+          "VPX-004": "Fresh original3 bound to85f actual source/config/binaries and explicit environment interventions; historical timings not reproduced",
+          "CX-GP-003/006": "Unchanged incident inputs verified reused or scoped N/A; native fixture cleanup/broker source claims absent in original3; no broadened test surface"
+        },
+        "unclosed_proof": "No full-floor PASS; original5s median decisive FAIL. Other historical evidence retains its producing binding"
+      },
+      {
+        "id": "PR-WP012-MT168-WPV-ORIGINAL3-20261010-00CA-R20",
+        "check_id": "MT-168-ORIGINAL3-SLOT12-GUARD",
+        "executor_role": "WP_VALIDATOR",
+        "executor": "WP_VALIDATOR-new-lead-subordinate-20261009",
+        "covers": [
+          "MT-168"
+        ],
+        "commit": "00caeceafd6fc85c348e2bbb68408d92836e2a36",
+        "tree": "c868e58e88f2eabecc70d256ab89c03a8791d9d9",
+        "result": "FAIL",
+        "exit_code": 100,
+        "started_at_utc": "2026-10-10T01:37:29.8638263Z",
+        "completed_at_utc": "2026-10-10T02:35:12.2407548Z",
+        "proof": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/junit-00caeceafd6fc85c348e2bbb68408d92836e2a36-core-targeted-mt168-slot12-r20.xml",
+        "artifact_ref": {
+          "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/junit-00caeceafd6fc85c348e2bbb68408d92836e2a36-core-targeted-mt168-slot12-r20.xml",
+          "bytes": 54440,
+          "sha256": "1f3c25a47ea815625bc6a0d15a4710d82c9cd70929ffd187ba5ffe5e2177ec52"
+        },
+        "checks": [
+          {
+            "check_id": "api::code_nav_index::account_tests::mounted_index_account_source_witness_revocation_and_workspace_delete",
+            "result": "PASS",
+            "duration_seconds": 76.762
+          },
+          {
+            "check_id": "mt167_batch_and_per_file_writer_produce_equal_rows",
+            "result": "PASS",
+            "duration_seconds": 136.335
+          },
+          {
+            "check_id": "mt167_code_nav_index_median_within_spec_baseline",
+            "result": "FAIL",
+            "duration_seconds": 167.183
+          }
+        ],
+        "timing": {
+          "median_target_seconds": 5,
+          "sample_max_seconds": 30,
+          "warmups": 1,
+          "measured_samples": 5,
+          "mt008_fixture": {
+            "samples_seconds": [
+              6.9239582,
+              13.6746067,
+              11.7331387,
+              7.6276435,
+              40.3626287
+            ],
+            "median_seconds": 11.7331387,
+            "warmup_ms": 6397
+          },
+          "fems_seed": {
+            "samples_ms": [
+              9069,
+              11374,
+              7013,
+              12194,
+              11507
+            ],
+            "median_ms": 11374,
+            "warmup_ms": 9039,
+            "assertion_state": "Measured; MT008 maximum-sample panic precedes median and FEMS assertions"
+          }
+        },
+        "outcomes": {
+          "core_runner_exit": 100,
+          "native_wrapper_exit": 0,
+          "host_child_exit": 0,
+          "scheduler_result": 0,
+          "tests": 3,
+          "passed": 2,
+          "failed": 1,
+          "selected_skipped": 0
+        },
+        "failure_kind": "product",
+        "failure_class": "MT167-ORIGINAL-30S-MAXIMUM-AND-5S-MEDIAN-UNMET",
+        "failure_evidence": "Original test line260 maximum30s assertion:40.3626287s sample; median11.7331387s also exceeds5s; median assertion not reached",
+        "environment": {
+          "compiler": "Normal CPU32/memory5/configured+effectiveIO2 per frozen helper policy and native readbacks",
+          "runtime_scheduling": "unchanged original Scheduler host/runtime scheduling; no runtime scheduling mutation",
+          "exclusions": "Defender project and Search USER exclusions were applied before R19 and retained; historical actual evidence in preserved R19 manifest; no exclusion mutation during R20",
+          "resource_policy": "exact00ca approved waiver; refusal/stopping disabled; inventory diagnostic only",
+          "performance_causality": "UNPROVEN: different walltimes do not establish candidate-induced regression"
+        },
+        "native_scheduling_observations": [
+          "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/diagnostics/r20-native-compiler-15316.readback.json",
+          "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/diagnostics/r20-native-compiler-25308.readback.json",
+          "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/diagnostics/r20-native-compiler-27796.readback.json",
+          "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/diagnostics/r20-native-compiler.readback.json"
+        ],
+        "preservation_manifest": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/frozen-inputs/mt168-00ca-r20-closed/manifest.json",
+        "preservation_manifest_sha256": "d445d3f133db80d73d839d66543ab7b06c58ced3abbeab21f9cdc8ce8b138699",
+        "original_copy_pairs": 57,
+        "proof_reconciliation": {
+          "CX-VAL-002": "Prior R4/r7/R19/D1 proofs retain original producing bindings; component78 scoped schema164 PASS cannot replace original3 performance",
+          "VPX-004": "Fresh original3 uses00ca source/metadata/binaries, exact frozen13 and explicit Normal compiler conditions; no unchanged timing or candidate-regression claim",
+          "CX-GP-003/006": "Unchanged controls reused or scoped N/A by actual route; no fullREADY13/private EXPLAIN/new tests"
+        },
+        "unclosed_proof": "No complete-floor PASS; original maximum and median limits unmet. Other historical evidence retains its own producing binding"
       }
     ],
     "running_record_ready13_20261008": {
@@ -1904,7 +2141,83 @@
       ],
       "failure_scope": "Preserve6core product assertions,2native product assertions and1native TIMEOUT separately; do not infer underlying causes or propagate non-owned proof failures"
     },
-    "latest_verdict_ref": "validation_source_20261008_1ad04e43"
+    "latest_verdict_ref": "validation_runtime_20261010_00ca_r20",
+    "running_record_r19_20261009": {
+      "candidate_commit": "85f45913a0c11019b3a49c9f213356d73495e765",
+      "executor_role": "WP_VALIDATOR",
+      "executor_session": "WP_VALIDATOR-new-lead-subordinate-20261009",
+      "state": "CLOSED_FAILED",
+      "covers": [
+        "MT-168"
+      ],
+      "artifact_owner_mt": "MT-170",
+      "work_owner_mt": "MT-168",
+      "output_suffix": "-mt168-bounded-r19",
+      "named_case_count": 3,
+      "prepared_at_utc": "2026-10-09T19:44:53.862030+00:00",
+      "target": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/target",
+      "source": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/export-current",
+      "controller_preservation": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/frozen-inputs/mt168-85f-r19-before-runtime-controls/manifest.json",
+      "predecessor": "R18 native compile0; Scheduler3221225786 distinct and originals preserved",
+      "unchanged_proof_reuse": [
+        "PR-WP012-MT168-WPV-ACCEPTANCE-20261009-51C-R4 passing cases only excluding exact163/MT167",
+        "PR-WP012-MT168-WPV-EXACT163-20261009-34AA-R7"
+      ],
+      "freeze_policy": "MT/canonical/controller/input writes closed from capture freeze through native numeric exit; external Scheduler outcome observed separately",
+      "started_at_utc": "2026-10-09T19:45:12.8574852Z",
+      "completed_at_utc": "2026-10-10T00:44:05.1106085Z",
+      "results_ref": "validation_runtime_20261010_85f_r19",
+      "proof_record_id": "PR-WP012-MT168-WPV-ORIGINAL3-20261010-85F-R19",
+      "preservation_manifest": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/frozen-inputs/mt168-85f-r19-closed/manifest.json",
+      "preservation_manifest_sha256": "f749675e90f0259e12ea2a84069d4ea09c60d8494d4d1f2366097288a571fba9",
+      "outcomes": {
+        "core_runner_exit": 100,
+        "native_wrapper_exit": 0,
+        "host_child_exit": 0,
+        "scheduler_result": 0,
+        "tests": 3,
+        "passed": 2,
+        "failed": 1
+      }
+    },
+    "running_record_r20_20261010": {
+      "schema_id": "hsk.validator_running_record@1",
+      "state": "closed",
+      "phase": "complete",
+      "executor": "WP_VALIDATOR-new-lead-subordinate-20261009",
+      "candidate_commit": "00caeceafd6fc85c348e2bbb68408d92836e2a36",
+      "candidate_tree": "c868e58e88f2eabecc70d256ab89c03a8791d9d9",
+      "started_at_utc": "2026-10-10T01:37:29.8638263Z",
+      "completed_at_utc": "2026-10-10T02:35:12.2407548Z",
+      "frozen_input_sha256": {
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-union-round.sh": "0b9d713fd2b7fe5d70b0c53bc4542b756a3011bfaa3d68c8f582d399df421882",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\gov-runtime\\host-profile-wp012.json": "f8c6a6cc4ffe432e9cea5f6b9986376a8f34416d8bbbd7ff1e31e1d62382367a",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-round-selection-targeted.sh": "d2106f18fc01054498d5bcd85c7cb9d562c89f67a9189a97c9ede916eb11e61b",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\MT-168.json": "fffd2f464a26fd005bd49b3554374a249121bf540aee0a75cb7392e7b75363cd",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-backend-profile.toml": "907ada7b9183a23aed970f02c074f4749bb062f929f36e49e93c9409ae62099c",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-export-metadata.py": "cc32bd2680ded760ef6974a0ea3818a1a6fd5f330ff0ea768ac9f175b2b6b871",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-export-refresh.sh": "304f8fd40a1b02c71d77c9055c179818f2c835697365ab662df983286fb61d3b",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-export-verify.py": "0c6800b4906f8d59c6c2fc3ebfcba1dbca555c4079ad01e4277e36aaa695d174",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\nextest-core.toml": "522fb158b73b5501edd4e8ac5c4a8a38fedfbaedadf1c1cb7a0518fbb95fc262",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\nextest.toml": "790f1077eaba5580d2ba8732e0d2ffed8ea1b5dd4badefc2b8da07c6fb0da91f",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-round-selection.json": "8136d98e94f047a7ae6e85a9fb53699277fb8edc7a3b83178c87c8911498f546",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\WPV-round-observer.ps1": "1193f635ef693e6dac8d5ab419d3f5982aa1f12c3158e51e8db55e3779300ae3",
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-170\\wpv\\launch-r20.ps1": "d45d5f8874c1050a0066fe2eba0de09206314da4d9ea5c27aecace1ce491ae74"
+      },
+      "outcomes": {
+        "core_runner_exit": 100,
+        "native_wrapper_exit": 0,
+        "host_child_exit": 0,
+        "scheduler_result": 0,
+        "tests": 3,
+        "passed": 2,
+        "failed": 1,
+        "selected_skipped": 0
+      },
+      "proof_ref": "PR-WP012-MT168-WPV-ORIGINAL3-20261010-00CA-R20",
+      "preservation_manifest": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/frozen-inputs/mt168-00ca-r20-closed/manifest.json",
+      "preservation_manifest_sha256": "d445d3f133db80d73d839d66543ab7b06c58ced3abbeab21f9cdc8ce8b138699"
+    }
   },
   "authored_by": "KERNEL_BUILDER-20261002",
   "authored_via": "KB-PREP-002 from .GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE.json; MT-167 narrow-MT shape",
@@ -1978,6 +2291,14 @@
           "AC-168-5 remaining: loom_block_and_source_read_cost_is_independent_of_unrelated_grant_rows",
           "MT-170 test explicit shutdown/close_and_remove (review R7)"
         ]
+      },
+      {
+        "sha": "00caeceafd6fc85c348e2bbb68408d92836e2a36",
+        "acs": [
+          "MT168 downstream timing remediation: replace three full-array ID predicates with id != NONE; original typed/distinct/count/THROW and transaction retained"
+        ],
+        "component_proof": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/diagnostics/slot12-component-v2/component.exit.json; compile0/runtime0,78 comparisons, independent WPV PASS",
+        "acceptance_effect": "NONE; original3 fresh boundary proof required"
       }
     ],
     "remaining": [
@@ -2997,7 +3318,7 @@
     "covered_mts": [
       "MT-168"
     ],
-    "candidate_commit": "85f45913a0c11019b3a49c9f213356d73495e765",
+    "candidate_commit": "00caeceafd6fc85c348e2bbb68408d92836e2a36",
     "operator_quotes": [
       "rip out those restrictions asap in parallel",
       "start fucking working and do not stop untill the mt gets validated pass.",
@@ -3018,9 +3339,9 @@
       "Single owned job, fixed warm target, process protection and observation retained"
     ],
     "status_effect": "NONE; FAIL_V1 retained until independent verdict",
-    "previous_candidate_commit": "292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4",
-    "binding_updated_at_utc": "2026-10-09T19:38:56.511161+00:00",
-    "binding_update_reason": "R18 original inputs preserved; exact current MT168 candidate waiver applies to capture/observer/union"
+    "previous_candidate_commit": "85f45913a0c11019b3a49c9f213356d73495e765",
+    "binding_updated_at_utc": "2026-10-10T01:35:59.234693+00:00",
+    "binding_update_reason": "R19 and D1 originals preserved; new reviewed slot12 candidate exact binding; resource stop/refusal disabled"
   },
   "operator_decision_request_20261009_exact163_proof": {
     "state": "APPROVED",
@@ -3043,7 +3364,7 @@
     "observed": "Instrumented parity PASS119.600s; timing FAIL160.736s; MT008 median12.9450916s exceeds5s",
     "statement_records": 882,
     "normal_complete_17_slot_groups": 18,
-    "source_mapping": "Current PERSIST_CLEAN_CODE_BATCH engine542Ã¢â‚¬â€œ577; normal SDK public slots0BEGIN/1entitiesIF/2filesINSERT/3authorityFOR/4ledgerINSERT/5receiptFOR/6spansINSERT/7replaceevidenceFOR/8entitylinksINSERT/9edgesIF/10edgelinksINSERT/11sourcesUPDATEIF/12threeverificationIF/13entitylinkFOR/14edgelinkFOR/15fencesFOR/16COMMIT; count17 alone is not query identity",
+    "source_mapping": "Current PERSIST_CLEAN_CODE_BATCH engine542â€“577; normal SDK public slots0BEGIN/1entitiesIF/2filesINSERT/3authorityFOR/4ledgerINSERT/5receiptFOR/6spansINSERT/7replaceevidenceFOR/8entitylinksINSERT/9edgesIF/10edgelinksINSERT/11sourcesUPDATEIF/12threeverificationIF/13entitylinkFOR/14edgelinkFOR/15fencesFOR/16COMMIT; count17 alone is not query identity",
     "slot14_edge_link_verification_us": [
       1725850,
       3701789,
@@ -3289,5 +3610,232 @@
     "independent_validator": "new-root/wpv",
     "input_release_after_original_preservation": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/frozen-inputs/mt168-85f4591-mandatory-compile-r18-closed/manifest.json",
     "unrelated_team_notice": "Operator reports different-device WP Stub Studio/docs/spec work; preserve disjoint edits; do not expand MT168"
+  },
+  "validation_runtime_20261010_85f_r19": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "failed",
+    "verdict": "FAIL_V2",
+    "validated_by": "WP_VALIDATOR-new-lead-subordinate-20261009",
+    "validated_at_utc": "2026-10-10T00:51:30.801655Z",
+    "candidate_commit": "85f45913a0c11019b3a49c9f213356d73495e765",
+    "candidate_tree": "3d6119409baeff624ff988475ad04606f1bc1fd7",
+    "started_at": "2026-10-09T19:45:12.8574852Z",
+    "completed_at": "2026-10-10T00:44:05.1106085Z",
+    "results_ref": "validation.proof_records[PR-WP012-MT168-WPV-ORIGINAL3-20261010-85F-R19]",
+    "proof_record_ids": [
+      "PR-WP012-MT168-WPV-ORIGINAL3-20261010-85F-R19"
+    ],
+    "artifact_ref": {
+      "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/junit-85f45913a0c11019b3a49c9f213356d73495e765-core-targeted-mt168-bounded-r19.xml",
+      "bytes": 54366,
+      "sha256": "74c19c4f1f06d17cf1831cc9883f6f0f11226e1efa64ce6c341e44a845b00c93"
+    },
+    "checks": [
+      {
+        "check_id": "api::code_nav_index::account_tests::mounted_index_account_source_witness_revocation_and_workspace_delete",
+        "result": "PASS",
+        "duration_seconds": 49.017
+      },
+      {
+        "check_id": "mt167_batch_and_per_file_writer_produce_equal_rows",
+        "result": "PASS",
+        "duration_seconds": 118.785
+      },
+      {
+        "check_id": "mt167_code_nav_index_median_within_spec_baseline",
+        "result": "FAIL",
+        "duration_seconds": 101.053
+      }
+    ],
+    "timing": {
+      "median_target_seconds": 5,
+      "sample_max_seconds": 30,
+      "warmups": 1,
+      "measured_samples": 5,
+      "mt008_fixture": {
+        "samples_seconds": [
+          8.3437984,
+          7.093838,
+          6.6022959,
+          6.8715856,
+          8.0796183
+        ],
+        "median_seconds": 7.093838,
+        "warmup_ms": 8156
+      },
+      "fems_seed": {
+        "samples_ms": [
+          5787,
+          6086,
+          6755,
+          6444,
+          6825
+        ],
+        "median_ms": 6444,
+        "warmup_ms": 5811,
+        "assertion_state": "Measured; firstMT008 panic precedes Fems assertion"
+      }
+    },
+    "failure_kind": "product",
+    "failure_class": "MT167-ORIGINAL-MEDIAN-5S-UNMET",
+    "runtime_state": "CLOSED_FAILED",
+    "environment_ref": "validation.proof_records[PR-WP012-MT168-WPV-ORIGINAL3-20261010-85F-R19].environment",
+    "preservation_manifest_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/frozen-inputs/mt168-85f-r19-closed/manifest.json",
+    "preservation_manifest_sha256": "f749675e90f0259e12ea2a84069d4ea09c60d8494d4d1f2366097288a571fba9",
+    "remediation_required": [
+      {
+        "failure_kind": "product",
+        "failure_class": "MT167-ORIGINAL-MEDIAN-5S-UNMET",
+        "failed_check_refs": [
+          "mt167_code_nav_index_median_within_spec_baseline"
+        ],
+        "artifact_refs": [
+          "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/junit-85f45913a0c11019b3a49c9f213356d73495e765-core-targeted-mt168-bounded-r19.xml"
+        ],
+        "repair_direction": "Diagnose original route stage timings; meet unchanged5s median, retain mounted-account/full-row parity. Cause UNVERIFIED; no unchanged retry or floor change."
+      }
+    ],
+    "independent_review": "WPV directly opened source/assertion, actualJUnit/logs, export metadata and preserved hashes; root independently read numeric outcomes/manifest",
+    "gameplan": {
+      "before_verdict": "PASS14/14",
+      "frozen_input_recheck": "13/13 unchanged"
+    },
+    "scope_limit": "Independent current85f original3 FAIL only; historyFAIL_V1 retained; no downstream status release or source regression causal claim",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "MT168-85f45913a0c11019b3a49c9f213356d73495e765-WPV-RUNTIME-FAIL_V2-20261010",
+        "at_utc": "2026-10-10T00:51:30.801655Z",
+        "decision": "failed"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "MT168-85f45913a0c11019b3a49c9f213356d73495e765-WPV-RUNTIME-FAIL_V2-20261010",
+        "at_utc": "2026-10-10T00:51:30.801655Z",
+        "decision": "failed",
+        "state_effect": "One lifecycle transition READY_FOR_VALIDATION -> FAIL_V2 from independent closed original3 product proof"
+      }
+    ]
+  },
+  "slot12_remediation_20261010": {
+    "candidate": "00caeceafd6fc85c348e2bbb68408d92836e2a36",
+    "tree": "c868e58e88f2eabecc70d256ab89c03a8791d9d9",
+    "diagnostic_manifest_sha256": "67c5fd6de34a378e8b9c66f8b5ba865ffb2dd254f094793f7d6bfbe8b6fe110f",
+    "original_before_ready_sha256": "a4337cde7749774a0d96a89bd2885f2ecf01f17920b2455709e51ef8c8e5ee83",
+    "failed_no_where_attempt": "Preserved component-v1; missing-record standalone selector Expected record got none; transaction result not reached",
+    "revised_proof": "Current schema164;78 old/new visible sets, exact errors, decisions, rollback and zero residue matched",
+    "fresh_acceptance_required": [
+      "original mounted account",
+      "both original MT167 cases"
+    ],
+    "status_effect": "READY only; no independent PASS"
+  },
+  "validation_runtime_20261010_00ca_r20": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "decision": "failed",
+    "verdict": "FAIL_V3",
+    "validated_by": "WP_VALIDATOR-new-lead-subordinate-20261009",
+    "validated_at_utc": "2026-10-10T02:39:42.324294Z",
+    "candidate_commit": "00caeceafd6fc85c348e2bbb68408d92836e2a36",
+    "candidate_tree": "c868e58e88f2eabecc70d256ab89c03a8791d9d9",
+    "started_at": "2026-10-10T01:37:29.8638263Z",
+    "completed_at": "2026-10-10T02:35:12.2407548Z",
+    "results_ref": "validation.proof_records[PR-WP012-MT168-WPV-ORIGINAL3-20261010-00CA-R20]",
+    "proof_record_ids": [
+      "PR-WP012-MT168-WPV-ORIGINAL3-20261010-00CA-R20"
+    ],
+    "artifact_ref": {
+      "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/junit-00caeceafd6fc85c348e2bbb68408d92836e2a36-core-targeted-mt168-slot12-r20.xml",
+      "bytes": 54440,
+      "sha256": "1f3c25a47ea815625bc6a0d15a4710d82c9cd70929ffd187ba5ffe5e2177ec52"
+    },
+    "checks": [
+      {
+        "check_id": "api::code_nav_index::account_tests::mounted_index_account_source_witness_revocation_and_workspace_delete",
+        "result": "PASS",
+        "duration_seconds": 76.762
+      },
+      {
+        "check_id": "mt167_batch_and_per_file_writer_produce_equal_rows",
+        "result": "PASS",
+        "duration_seconds": 136.335
+      },
+      {
+        "check_id": "mt167_code_nav_index_median_within_spec_baseline",
+        "result": "FAIL",
+        "duration_seconds": 167.183
+      }
+    ],
+    "timing": {
+      "median_target_seconds": 5,
+      "sample_max_seconds": 30,
+      "warmups": 1,
+      "measured_samples": 5,
+      "mt008_fixture": {
+        "samples_seconds": [
+          6.9239582,
+          13.6746067,
+          11.7331387,
+          7.6276435,
+          40.3626287
+        ],
+        "median_seconds": 11.7331387,
+        "warmup_ms": 6397
+      },
+      "fems_seed": {
+        "samples_ms": [
+          9069,
+          11374,
+          7013,
+          12194,
+          11507
+        ],
+        "median_ms": 11374,
+        "warmup_ms": 9039,
+        "assertion_state": "Measured; MT008 maximum-sample panic precedes median and FEMS assertions"
+      }
+    },
+    "failure_kind": "product",
+    "failure_class": "MT167-ORIGINAL-30S-MAXIMUM-AND-5S-MEDIAN-UNMET",
+    "runtime_state": "CLOSED_FAILED",
+    "environment_ref": "validation.proof_records[PR-WP012-MT168-WPV-ORIGINAL3-20261010-00CA-R20].environment",
+    "preservation_manifest_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/frozen-inputs/mt168-00ca-r20-closed/manifest.json",
+    "preservation_manifest_sha256": "d445d3f133db80d73d839d66543ab7b06c58ced3abbeab21f9cdc8ce8b138699",
+    "remediation_required": [
+      {
+        "failure_kind": "product",
+        "failure_class": "MT167-ORIGINAL-30S-MAXIMUM-AND-5S-MEDIAN-UNMET",
+        "failed_check_refs": [
+          "mt167_code_nav_index_median_within_spec_baseline"
+        ],
+        "artifact_refs": [
+          "../Handshake_Artifacts/WP-KERNEL-012/MT-170/wpv/junit-00caeceafd6fc85c348e2bbb68408d92836e2a36-core-targeted-mt168-slot12-r20.xml"
+        ],
+        "repair_direction": "Original30s maximum and5s median remain unmet. Preserve source/timing and obtain evidence-based cause before a changed repair; no unchanged retry or floor change. Candidate-induced regression UNPROVEN."
+      }
+    ],
+    "independent_review": "WPV opened exact source/assertions, JUnit, full logs, export verification/metadata and closed preservation pairs",
+    "gameplan": {
+      "before_dispatch": "PASS37/37",
+      "before_round": "PASS98/98",
+      "before_verdict": "PASS14/14",
+      "frozen_input_recheck": "13/13 unchanged"
+    },
+    "scope_limit": "Independent00ca original3 FAIL only; FAIL_V1/V2 and all earlier records retained; no downstream status release or causal regression assertion",
+    "verdict_events": [
+      {
+        "event": "accepted",
+        "idempotency_key": "MT168-00caeceafd6fc85c348e2bbb68408d92836e2a36-WPV-RUNTIME-FAIL_V3-20261010",
+        "at_utc": "2026-10-10T02:39:42.324294Z",
+        "decision": "failed"
+      },
+      {
+        "event": "completed",
+        "idempotency_key": "MT168-00caeceafd6fc85c348e2bbb68408d92836e2a36-WPV-RUNTIME-FAIL_V3-20261010",
+        "at_utc": "2026-10-10T02:39:42.324294Z",
+        "decision": "failed",
+        "state_effect": "One lifecycle transition READY_FOR_VALIDATION -> FAIL_V3 from independent closed original3 product proof"
+      }
+    ]
   }
 }

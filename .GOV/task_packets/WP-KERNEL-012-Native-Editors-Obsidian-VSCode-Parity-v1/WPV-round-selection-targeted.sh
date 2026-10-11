@@ -1,7 +1,7 @@
 # MT168 affected mounted account and downstream proof; original greens retain original bindings
-ROUND_SELECTION_SHA=292d7a1c8bd0b24f9bf0be07746b08e7b8d7f0a4
+ROUND_SELECTION_SHA=00caeceafd6fc85c348e2bbb68408d92836e2a36
 ROUND_SELECTION_MODE=targeted
-ROUND_SELECTION_OUTPUT_SUFFIX=-mt168-link-r14
+ROUND_SELECTION_OUTPUT_SUFFIX=-mt168-slot12-r20
 CORE_SKIP=0
 CORE_CHECK_LIB=0
 CORE_LIB=1

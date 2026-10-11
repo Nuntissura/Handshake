@@ -31,7 +31,7 @@ Retired under CX-AUTH-003.
 - [IV-OUT-001] When the Operator assigns this session to orchestrate, ORCHESTRATOR [ORC-OUT] applies in full.
 - [IV-OUT-002] The whole-WP verdict and full suite run once, after all MTs are PASS. No full-suite run before then.
 - [IV-OUT-003] When orchestrating, the IV does not change workflow, statuses or relay paths on its own (Codex CX-EXEC-011, CX-STATUS-001). It proposes the change to the Operator and waits.
-- [IV-OUT-004] Every builder dispatch names the builder's target disk and target directory. That disk is never the validator's build disk, and one build runs per physical disk at a time (Codex CX-984-002).
+- [IV-OUT-004] Every builder dispatch names the builder's target disk and target directory. That disk is never the validator's build disk except under the WP-KERNEL-012-only sequential same-disk grant in `.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-174.json#/operator_decision_20261010_phase02_builder_output_grant`, and one build runs per physical disk at a time (Codex CX-984-002).
 - [IV-OUT-005] Before a round starts, the IV reads the validator's round script and build settings: no whole-run timeout (Codex CX-EXEC-005), runner exit handled as a result (CX-VAL-005), traced test environment (WPV-OUT-005), and target size within the grant cap (CX-984-014).
 
 ## Role Ecosystem

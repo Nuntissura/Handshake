@@ -156,5 +156,16 @@
     "execution_owner": "KERNEL_BUILDER",
     "recorded_per": "CX-585C (operator-supplied unique signature ilja210620262303, 2026-06-21; not fabricated). Recorded directly in packet.json + refinement.json per the folded KERNEL_BUILDER no-ACP convention (matching WP-KERNEL-011; no ORCHESTRATOR_GATES entry).",
     "blocking_note": "RESOLVED. WP-KERNEL-011 is merged into canonical main (handshake_main main=97a22310, shell committed). Signature recorded; worktree ../wtc-native-editors-v1 on feat/WP-KERNEL-012 (canonical main code + gov_kernel .GOV junction, not based on another WP branch) is governed-correct. WP is ACTIVATED_READY_FOR_DEV."
+  },
+  "consolidation_phase_01": {
+    "phase_id": "PHASE-01",
+    "contract_ref": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase-01-consolidation-contract-v1.json",
+    "contract_status": "PREPARATION_ONLY_NOT_ACTIVATED",
+    "source_reconciliation_ref": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase-01-source-reconciliation-v1.json",
+    "original_scope_history_preserved": true,
+    "approval_disposition_ref": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase-01-consolidation-contract-v1.json#approval_disposition",
+    "research_spec_ref": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase-01-consolidation-contract-v1.json#research_basis",
+    "phase_owner": "KERNEL_BUILDER_PHASE01",
+    "no_product_permission_in_phase01": true
   }
 }

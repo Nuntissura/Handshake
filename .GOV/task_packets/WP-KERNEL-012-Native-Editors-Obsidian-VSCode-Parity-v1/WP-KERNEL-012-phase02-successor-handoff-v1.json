@@ -1,0 +1,903 @@
+{
+  "schema_id": "handshake.phase_successor_handoff.v1",
+  "schema_status": "LOCAL_TYPED_HANDOFF_OPERATOR_REQUESTED",
+  "file_id": "WP012-PHASE02-SUCCESSOR-HANDOFF-V1",
+  "file_kind": "phase_successor_handoff",
+  "version": 1,
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "phase_id": "PHASE-02",
+  "status": "HANDOFF_ACKED_SUCCESSOR_ACTIVE_PHASE02_OPEN",
+  "authority_precedence": [
+    "Live Operator direction",
+    "Applicable WP governance pin and explicit scoped adoption/overrides",
+    "Current live kernel Codex/role authority and actual typed WP/MT contracts",
+    "This handoff for authorized execution coordination; never a replacement acceptance contract"
+  ],
+  "lanes": {
+    "Handshake (Product)": "Consolidate preserved CKC Surreal and WP1 work into existing WP012; repair recorded dependency/source failures; required compile and independent acceptance pending.",
+    "Repo Governance": "Successor leadership, connected-repair workflow, team registrations, restartable state and bounded snapshot."
+  },
+  "operator_authorization": {
+    "source": "Live coordinating chat 01a123c2-dc39-7440-ba22-7d956aca9edb; 2026-10-10",
+    "latest_verbatim": "start new teams to accomplish this\n\n\"**Biggest gain: complete connected repairs in one write-and-review cycle.** Review team recommends:\n\n- **Check the full affected path before writing.** Include callers, data types, immediate guards and existing test fixtures. Latest example: the embedding fixture was called ready before its client-catalog requirement was checked. That readiness claim is now retracted.\n- **Reduce handoff churn.** I should send one reconciled instruction per repair, keep the next reviewed batch queued, and request independent review once the changed files are frozen.\n- **Keep parallel readers, one writer.** Reviewers prepare separate API/CLI and coordinator repairs concurrently; shared dependencies get resolved before writing.\n- **Build when inputs can advance.** Finish known repairs, reuse unaffected valid evidence, then run the required Cargo check. Avoid repeated builds against known failures.\n- **focused dependency checks before expensive builds**. This needs better inspection of the exact changed boundary, without massive test suites or audits &#x20;\n\nThese changes target our current repair delays. No larger test suite needed.\n\nMoving modularization earlier has **not been established as safe** against the current phase dependencies. I wouldn’t promise that shortcut will unblock this batch.\" also update the workflow. record everything in a new handoff file; include repo and task state, dos and dont, timesinks.\n\nthen start a new chat that takes over from you. instruct the new leader kernel builder on adjust workflow, new sub teams, and to take over your work. and drive this phase to passing closure asap. it can propose a faster better workflow at the start of the session, scope expansion approved  is allowed to make own descicions to proceed and prgress work without operator.",
+    "retained_limits": [
+      "Scope expansion approved only for the current evidenced blocker/failure/time sink; smallest direct fix and required proof.",
+      "No massive tests/evals/audits/reviews, adjacent features/cleanup/hardening or redundant artifacts.",
+      "Routine technical/execution decisions within authorization need no repeated permission. Independent acceptance, signatures and role boundaries preserved. No pending policy option adopted by this handoff; successor assesses latest delegated authority and records lawful actual choices or exact external dependency."
+    ],
+    "build_quote": "you get 180gb make the changes and continue work",
+    "team_authorization": "Fresh teams and fresh takeover chat explicitly requested; continuing and messaging existing workflow chats authorized."
+  },
+  "startup": {
+    "kernel_root": "Resolve this handoff from live wt-gov-kernel on gov_kernel; preserve direct governance path when using product worktree.",
+    "required_reads": [
+      "AGENTS.md",
+      "CLAUDE.md",
+      ".GOV/codex/Handshake_Codex_v1.4.md",
+      ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md for leader/writer/dependency implementer context",
+      ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md for separate reviewers",
+      ".GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md for final acceptance/integration owner",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json",
+      ".GOV/spec/SPEC_CURRENT.md and applicable resolved v02.206 anchors",
+      "packet.json",
+      "refinement.json",
+      "MT-171.json through MT-175.json",
+      "gameplan.yaml before gated actions"
+    ],
+    "read_policy": "Read once per revision/scope. Open only affected sections for changed scope or exact unresolved question; no repeated full startup scans.",
+    "worktree": "../wtc-WP-KERNEL-012",
+    "branch": "feat/WP-KERNEL-012",
+    "governance_branch": "gov_kernel",
+    "product_reference_limit": "Navigation only; no product authority."
+  },
+  "history_refs": {
+    "overall_plan": {
+      "path": "WP-KERNEL-012-overall-consolidation-handoff-v1.json",
+      "pointers": [
+        "/operator_request",
+        "/architecture_alignment",
+        "/source_inventory",
+        "/phases",
+        "/phase_coordination"
+      ]
+    },
+    "phase01": {
+      "path": "WP-KERNEL-012-phase-01-handoff-v1.json",
+      "sha256": "b74258f92be95f4b1a486c2c41b06f05addc17f1545a890721c9f398f48059bf",
+      "status": "PHASE01_CLOSED_SCOPED_EXTERNAL_PASS_PHASE02_READY_FOR_FRESH_DELEGATION"
+    },
+    "phase01_source_map": {
+      "path": "WP-KERNEL-012-phase-01-source-reconciliation-v1.json",
+      "sha256": "5efdd2d86b82c877a613186e57933134e87d5706e1a7fc1dcf46e27690253f7f",
+      "reuse": "Original scope, requirement/acceptance/implementation/history references retained; do not duplicate large bodies.",
+      "retained_activation_sha256": "2857efac8c6d92f409a6f808d3de50ab64e47cfc6de6dd70175d2c0a9d051f58",
+      "hash_limit": "Current map hash observed in fresh snapshot; activation hash preserved separately, not current-content equality."
+    },
+    "phase01_contract": {
+      "path": "WP-KERNEL-012-phase-01-consolidation-contract-v1.json",
+      "sha256": "061e1e58478bb87d3b279a4b02c78c7a8007499d091e7fb9ed84460db0c4287a"
+    },
+    "snapshot": {
+      "path": "WP-KERNEL-012-phase02-successor-repo-snapshot-v1.json",
+      "sha256": "1c0ec3c527cbdb68a724282f632eb404f89a007031f1baf339b6b9027aba5ec3",
+      "limit": "Inventory and named hashes only; not full-byte backup, accepted candidate or atomic freeze."
+    }
+  },
+  "current_state": {
+    "phase01": "CLOSED scoped external preparation review; preserve original closure limitations.",
+    "phase02": "OPEN; source consolidation/remediation active. MT171-175 BLOCKED; no independent validator verdicts/completed_by.",
+    "accepted_mts": {
+      "accepted": 0,
+      "total": 5,
+      "percentage": 0,
+      "scope": "MT171-175 accepted closure only; not an overall project percentage."
+    },
+    "product_head": "00caeceafd6fc85c348e2bbb68408d92836e2a36",
+    "product_tree": "c868e58e88f2eabecc70d256ab89c03a8791d9d9",
+    "product_dirty_paths_at_snapshot": 501,
+    "progress_limit": "No pushed phase product commit or acceptance advancement established by this handoff. Source-only reviewed fixes are not compiler/runtime/accepted closure proof.",
+    "canonical_task_records": "MT171-175 lifecycle and proof remain canonical; latest scoped remediation records may be more specific than legacy aggregate blocked_on.",
+    "new_handoff_does_not": "Reset original scope, source pins, dirty bytes, counters, approvals, failure history or acceptance.",
+    "source_drift": "Handpick current clean c6c993da23d17073f491f04712f2fa4b8ad90f77 differs retained 994fc055765a61b32e40df0b757c4816959285d3 pin; record only, no repin/import/publish/compatibility claim."
+  },
+  "teams": {
+    "transition": "Successor ACK received; coordinating root and old Phase2 lead relinquish further dispatch/state ownership. Existing sole writer retained. Fresh dependency/review teams owned by successor. In-flight predecessor source reports preserved; no duplicate dispatch.",
+    "successor": {
+      "thread_id": "01a127a9-bb00-72f0-8821-5145538a6bd8",
+      "title": "WP012-Phase-02-Successor-Kernel-Builder",
+      "host_id": "local",
+      "role": "KERNEL_BUILDER leader; phase coordination and typed state ownership",
+      "state": "ACKED_COORDINATION_AND_TYPED_STATE_OWNERSHIP"
+    },
+    "dependency": {
+      "thread_id": "01a127a3-7a91-72f0-9cb2-c6bc87e0b318",
+      "title": "WP012-Phase-02-Connected-Dependency-Team",
+      "host_id": "local",
+      "role": "Focused read-only full affected dependency path before mutation/build; no acceptance",
+      "state": "CREATED_AUTHORITY_READ_STANDBY_PENDING_TRANSFER"
+    },
+    "review": {
+      "thread_id": "01a127a3-af37-7763-856d-f04963632721",
+      "title": "WP012-Phase-02-Connected-Repair-Review-Team",
+      "host_id": "local",
+      "role": "Separate independent technical source/remedy/affected review; acceptance only within assigned validator authority",
+      "state": "CREATED_AUTHORITY_READ_STANDBY_PENDING_TRANSFER"
+    },
+    "writer": {
+      "thread_id": "01a12446-7402-7532-8a12-7e93c6c1d9db",
+      "name": "/root/import_owner",
+      "parent_thread_id": "01a12445-b7e7-7091-8a42-19cae059c2e7",
+      "role": "Existing sole product writer; explicit owned connected batch only",
+      "state": "ORPHAN_LEDGER_FIELDS_PARTIAL_FROZEN_RETRY_SEAM_BLOCKED"
+    },
+    "predecessors": [
+      {
+        "thread_id": "01a123c2-dc39-7440-ba22-7d956aca9edb",
+        "role": "Outgoing root; coordination only"
+      },
+      {
+        "thread_id": "01a12445-b7e7-7091-8a42-19cae059c2e7",
+        "title": "WP012-Phase-02-Product-Consolidation",
+        "role": "Outgoing Phase2 lead",
+        "transfer_checkpoint": {
+          "turn": "01a127a5-ca76-7523-9ba2-d0fed2c97fbc",
+          "final": "msg_03c98a7b364e6f01016acaa99097708191a081cfec3617b3ca",
+          "state": "TRANSFER_CHECKPOINT_COMPLETE_NO_FURTHER_DISPATCH",
+          "mt174_sha256": "4f9f3168cf429f294b918ca7f93e638173cae632ca21e16c18322995992978a7"
+        },
+        "relinquish_confirmation": {
+          "turn": "01a127aa-c131-7463-95f5-3b92c4713ed6",
+          "final": "msg_03c98a7b364e6f01016acaaab49c04819185749b4ed4eb7f19",
+          "state": "RELINQUISHED_NO_NEW_DISPATCH_OR_WRITES"
+        }
+      },
+      {
+        "thread_id": "01a12447-38d2-7832-9ce2-31b9780b2a02",
+        "title": "WP012-Phase-02-Review-Team",
+        "role": "Outgoing main reviewer; latest CLI source-clear"
+      },
+      {
+        "thread_id": "01a12780-b308-7472-9d35-d4865beb6e43",
+        "title": "WP012-Phase-02-Coordinator-Blocker-Review",
+        "role": "Outgoing supporting reviewer; latest orphan seam"
+      },
+      {
+        "thread_id": "01a12446-92c7-7e40-ada0-273c6bdd31a7",
+        "name": "/root/source_helper",
+        "state": "IDLE_COMPLETED"
+      },
+      {
+        "name": "/root/dependency_check_team",
+        "kind": "collaboration_agent_team",
+        "role": "Outgoing focused dependency team; final current diagnosis transfer only"
+      }
+    ],
+    "phase01_do_not_resume": [
+      "01a12415-6e8e-77e0-b6fe-d43b4298f266",
+      "01a12415-c947-7cc1-aa65-60362f2c0bd4"
+    ]
+  },
+  "workflow_adjustment": {
+    "approval": "Explicit live Operator request above; bounded adjustment, not new WP gates/status/acceptance.",
+    "rules": [
+      {
+        "id": "WP012-P2-WORKFLOW-001",
+        "requirement": "Before one connected repair, inspect exact callers, data types, immediate guards and existing fixtures needed to complete that repair."
+      },
+      {
+        "id": "WP012-P2-WORKFLOW-002",
+        "requirement": "Where affected, inspect actual authorization/session/workspace, schema permissions, atomic producer/consumer fields and attribution, failure/cancellation/retry and durable ACK boundaries."
+      },
+      {
+        "id": "WP012-P2-WORKFLOW-003",
+        "requirement": "Dependency team returns one source-bound disposition: exact current hashes/anchors, smallest repair, file ownership, remaining unknown and existing required proof; no broad audit/new suite."
+      },
+      {
+        "id": "WP012-P2-WORKFLOW-004",
+        "requirement": "Leader reconciles reader/reviewer findings into one complete writer instruction; queued follow-up is separate only if independent or truly blocked."
+      },
+      {
+        "id": "WP012-P2-WORKFLOW-005",
+        "requirement": "Parallel readers own disjoint questions; exactly one product writer owns shared files. Resolve shared dependencies before mutation."
+      },
+      {
+        "id": "WP012-P2-WORKFLOW-006",
+        "requirement": "Writer completes connected changed path, freezes exact files/hashes/diff, then requests one separate independent affected review for that batch."
+      },
+      {
+        "id": "WP012-P2-WORKFLOW-007",
+        "requirement": "Route exact reviewer findings to same writer; verify only recorded affected fix; reuse unrelated valid source/evidence."
+      },
+      {
+        "id": "WP012-P2-WORKFLOW-008",
+        "requirement": "Before costly build, focused dependency check covers only changed boundary and still-open evidenced failures; no massive tests/evals/audits/reviews or new compliance artifacts."
+      },
+      {
+        "id": "WP012-P2-WORKFLOW-009",
+        "requirement": "Finish known source repairs, reconcile stable affected inputs and unchanged proof, then run required owning Cargo compile/static checks; never rerun known failure unchanged."
+      },
+      {
+        "id": "WP012-P2-WORKFLOW-010",
+        "requirement": "Run required final broad/production-boundary proof under independent validator ownership; focused source checks never replace it."
+      },
+      {
+        "id": "WP012-P2-WORKFLOW-011",
+        "requirement": "Record statuses, blockers, ownership and proof references in existing MT/WP surfaces; no new lifecycle vocabulary or duplicate ledgers."
+      },
+      {
+        "id": "WP012-P2-WORKFLOW-012",
+        "requirement": "Compile-success checkpoint commit/push follows applicable authority; acceptance names pushed candidate, current evidence and actual assertions."
+      },
+      {
+        "id": "WP012-P2-WORKFLOW-013",
+        "requirement": "Use terse messages with spaces, exact IDs, source bindings and one next action; avoid layered repetitive prompts."
+      },
+      {
+        "id": "WP012-P2-WORKFLOW-014",
+        "requirement": "Fresh leader may propose faster bounded workflow and make authorized technical/execution choices without waiting for Operator; unresolved product-policy/spec decisions remain explicit."
+      },
+      {
+        "id": "WP012-P2-WORKFLOW-015",
+        "requirement": "Scope expansion stays tied to exact current blocker, smallest direct fix and required proof; no adjacent feature/hardening/cleanup."
+      }
+    ],
+    "connected_batch_completion": "Actual affected dependency closure, frozen reviewed delta, required compile/static evidence and applicable independent acceptance; not number of messages/checks."
+  },
+  "round04": {
+    "record": "MT-174.json#/operator_decision_20261010_phase02_builder_output_grant/compile_attempt_4",
+    "status": "FAILED",
+    "exit_code": 101,
+    "actual_errors": 149,
+    "warnings": 50,
+    "command": "cargo check --locked --manifest-path src/backend/handshake_core/Cargo.toml --lib --tests --features app-runtime,surreal-test-support,test-utils -j 1",
+    "candidate": {
+      "relative": "WP-KERNEL-012/MT-174/kb-phase02/round04/compile-candidate.json",
+      "sha256": "6844aab73fc73d69d52a23910a1bc336ed8a3611e4f5f8ff6eebf5133d6296c6"
+    },
+    "result": {
+      "relative": "WP-KERNEL-012/MT-174/kb-phase02/round04/compile-result.json",
+      "sha256": "5ba0d8e24b49004713d3cf1830864d736a75401ad75c59be69e244a20f3d2ed6"
+    },
+    "stderr": {
+      "relative": "WP-KERNEL-012/MT-174/kb-phase02/round04/compile.stderr.log",
+      "sha256": "9a89557cab8a33d541c40eb9c00227dd318001bb99f77b860777095f9561a02c"
+    },
+    "inputs": "498 captured dirty path hashes unchanged across run; subsequent repairs invalidate current compile binding.",
+    "groups_at_failure": {
+      "storage": 98,
+      "embedding_request": 7,
+      "api_loom": 4,
+      "vault_borrow": 1,
+      "coordinator_cleanup": 10,
+      "coordinator_execution": 13,
+      "launch_metadata": 12,
+      "platform": 3,
+      "validate_visibility": 1
+    },
+    "max_target_bytes": 11634138779,
+    "cap_bytes": 180000000000,
+    "proof_limits": "Tests, SQL/type/runtime acceptance NOT_RUN. Source repair review never proves compiler count reduction. 30 to149 does not establish regression origin.",
+    "next": "No compile while known connected source groups remain unresolved."
+  },
+  "current_repairs": {
+    "source_clear_record_refs": [
+      "reviewed_semantic_request_remedy",
+      "reviewed_storage_remedy",
+      "reviewed_mechanical_two_remedy",
+      "reviewed_platform_remedy",
+      "reviewed_coordinator_cancel_accessor",
+      "reviewed_spawn_metadata_remedy",
+      "reviewed_cli_scoped_remedy"
+    ],
+    "source_clear_limit": "Read current referenced node/hash before reuse. Advisory source-clear only; no Cargo/type/runtime/acceptance PASS.",
+    "cli": {
+      "status": "SOURCE_CLEAR",
+      "review_thread": "01a12447-38d2-7832-9ce2-31b9780b2a02",
+      "turn": "01a1279f-e996-74a3-9517-9ef4558fcfd0",
+      "final": "msg_0de0500f74688d0b016acaa82f65c481919c7db375b2d71dcd",
+      "binding_relative": "WP-KERNEL-012/MT-171/import-owner/round04-scoped-cli-bindings.json",
+      "binding_sha256": "bca05614a5b3356bae98e4626d0672a5d708460b70eec53cfa86395f8ad38667",
+      "cli_sha256": "39cd155a3bc0db31f72404b073d6626cd6c456b497c58d20a955f58305a030fb",
+      "manual_sha256": "a585a004aeb5f778b7cafd55b9154ed9f35278b042f1d2ea2086e0fe59afebf2",
+      "finding": "Actual scoped production type/trigger, fourteen fixture trait signatures, three assertions, exact manual symbol and no-call fixture preserved. Reclaim owner unchanged.",
+      "limit": "Component no-call fixture claims no canonical row/kill/STOP/ACK proof."
+    },
+    "api": {
+      "status": "PRODUCTION_PARTIAL_FROZEN_FIXTURE_DEPENDENCY_HELD",
+      "record": "MT-174.json#/operator_decision_20261010_phase02_builder_output_grant/compile_attempt_4/reviewed_api_four_remedy",
+      "production_sha256": "7c40cf39d1fbecdba849ebb4af133b9ee65d59ec2017e28c8f58814d1cd5aa2a",
+      "production_binding_sha256": "724adf48017c44d2a64bcac3a9ad82a95c42487e572b72f23d6246de1d8c498f",
+      "production_scope": "Actual authorized five-field account/principal/session/access_space/workspace propagation with concrete Surreal store and FlightRecorder through create/finalize/refresh/journal/patch/search; preserve current auth/storage/event/error behavior.",
+      "retraction": "Fixture mutation-ready claim retracted; registration alone misses actual ready model catalog/hash/capability/dimension guard.",
+      "dependency_chain": "Existing fixture -> issued actual token/channel -> authenticated workspace/create/search/patch -> exact account scope -> one component model registration/catalog/hash -> actual client embedding -> real schema/source bundle/index -> unchanged assertions.",
+      "catalog_direction": "Existing retained deterministic client with test-local catalog adapter; explicit component-only declaration. No production model/runtime mutation or physical-model proof claimed.",
+      "schema_blocker": "Production bootstrap extension overwrites protected index permissions with NONE; extension requires scope/hash/receipt fields missing existing atomic bundle/source attribution. Exact connected schema/producer remedy pending.",
+      "constraints": "No authority fabrication, static fake account, direct synthetic vectors/index seeds, root-test bypass, skip/gate/assertion weakening or journal coverage change.",
+      "required_assertions": "Retain ungated embedding title/blockID/indexrow1/semantic_available/updatedembeddingrow1; journal idempotence/index/findability.",
+      "connected_dependency_final": {
+        "source": "Completed /root/dependency_check_team disposition forwarded by coordinating root; source-only, no edits/runs/artifacts/acceptance.",
+        "status": "COMPLETE_DEPENDENCY_DIAGNOSIS_CONNECTED_REMEDY_NOT_SOURCE_READY",
+        "identity_binding": "Current API source7c40cf39d1fbecdba849ebb4af133b9ee65d59ec2017e28c8f58814d1cd5aa2a; product HEAD00caeceafd6fc85c348e2bbb68408d92836e2a36; WP1 pin98efa4d019c4f670186cd3ec1f048ece3adf0dcd.",
+        "steps": [
+          {
+            "step": 1,
+            "anchors": "storage/surreal/schema.surql5194-5198; loom_search_schema.surql14-15",
+            "finding": "Retain shared protected index predicates; imported extension NONE overwrite conflicts. Record link assertion must compare record::id($value) with record::id($this.id).",
+            "direction": "Remove conflicting NONE overwrite while retaining exact scope/hash/fingerprint/receipt/768 and protected predicates; no blanket defaults or FULL permissions."
+          },
+          {
+            "step": 2,
+            "anchors": "storage/surreal/loom_canvas_store.rs56/62",
+            "finding": "Guarded actual creator/auth record links exist; thin index UPSERT lacks complete canonical indexing attribution.",
+            "direction": "Stamp source owner/account/principal/session/Space strings from guarded actual links; retain created_in_session_id/protected resource/grant/bridge/rollback. Reuse canonical keyword-only fullIndexContent and distinct KNOWLEDGE_LOOM_BLOCK_INDEXED receipt aggregate loom_block_search_index/block_id before index, within existing atomic producer."
+          },
+          {
+            "step": 3,
+            "anchors": "storage/surreal/loom_search.rs905-967; storage/surreal/loom_store.rs1545",
+            "finding": "Create/update producer must share actual canonical search text/hash/fingerprint.",
+            "direction": "Reuse existing canonical functions; fallback source hash SHA256 canonical search text, retain original content_hash. Keep MUTATED receipt/timestamp/replay/atomicity. Text change invalidates embedding until real reindex."
+          },
+          {
+            "step": 4,
+            "anchors": "api/loom.rs911-931; storage/surreal/database.rs1073; storage/surreal/loom_store.rs1306",
+            "finding": "Journal already uses owned bundle; earlier legacy journal rewrite inference from stale comment retracted.",
+            "direction": "No legacy database1073/loom_store1306 journal rewrite."
+          },
+          {
+            "step": 5,
+            "anchors": "storage/surreal/loom_search.rs745; storage/surreal/model_registry.rs976",
+            "finding": "Short register_embedding_model omits required revision/receipt IDs/fingerprints/timestamps/last_observed_by.",
+            "direction": "Reuse existing SurrealModelRegistryStore::persist_role_bound_boot_set_and_read_back(scope,&[RoleBoundModelRegistration::embedding(reg.clone())]) complete constructor."
+          },
+          {
+            "step": 6,
+            "anchors": "storage/surreal/loom_search.rs1220; loom_search_schema.surql46/65; schema.surql3916",
+            "finding": "Registry read/initial write permissions NONE. Search under fs.read/Read publishes trace/resultset/results/receipt; result tables NONE and shared trace requires fs.write/Create. Receipt source/actor/authority not admitted. No existing predicate found admitting actual registry/search tuples.",
+            "direction": "Separate independent review must resolve narrow source-linked protected policy/producer admission before mutation-ready disposition. No root bypass, direct vectors or endpoint capability widening."
+          },
+          {
+            "step": 7,
+            "anchors": "storage/surreal/event_ledger.rs268; schema.surql6323; storage/surreal/loom_search.rs925",
+            "finding": "Receipt producer must use canonical principal/workspace/authority stamping; current reindex source string conflicts with existing admitted branch.",
+            "direction": "Reuse event_ledger::prepare_event plus exact scope; avoid KernelActorSystem/missing authority. Keep ledger UPDATE/DELETE NONE. Existing fn::mt120_loom_receipt accepts loom_search_v2; align actual source+payload.workspace_id+authority/principal, no branch broadening."
+          },
+          {
+            "step": 8,
+            "anchors": "Existing MT264 embedding assertions and authenticated API fixture",
+            "direction": "After connected source guards resolved, local actual-auth fixture uses same declared TEST registration/catalog/durable store. Preserve both existing assertions; no physical-model acceptance proof."
+          }
+        ],
+        "current_hashes": {
+          "src/backend/handshake_core/src/storage/surreal/schema.surql": "92feea2cfb6a145389b2e2fd1154e85901c69ce8dc87cd843c0d0cc4d9609507",
+          "src/backend/handshake_core/src/storage/surreal/loom_canvas_store.rs": "6b15134024b7ab8431c0a9d4f74c773db2061780672614e53bbc5e646a76091f",
+          "src/backend/handshake_core/src/storage/surreal/loom_search.rs": "20a790b0d2dfbb764714d1face299b43ccaeeb3ad51f219b294cbb84d71fa388",
+          "src/backend/handshake_core/src/storage/surreal/loom_store.rs": "2f938931a3e0fea19022cf8eb55d4af50a9798e53148279c079780158e399854",
+          "src/backend/handshake_core/src/storage/surreal/model_registry.rs": "f8934b85cb637d39d413ca632d01d30a08ba3ed46656d702bbef57437db90775",
+          "src/backend/handshake_core/src/storage/surreal/model_registry_schema.surql": "5deeb93b6465a69f6a960ec46730aea631743a7eadf6dec327c5bd58e52ec1f9",
+          "src/backend/handshake_core/src/storage/surreal/event_ledger.rs": "0285f804a6bfae0174426e638d67f3ce1e3974ae559780b8dfd5239011a4d3ba"
+        },
+        "handoff_hash_check": "Named current schema/loom_store/model_registry/registry_schema/event_ledger hashes re-read by handoff author; canvas/search hashes in fresh snapshot. No technical verdict by author.",
+        "required_next": "Fresh teams reconcile complete connected source-linked schema/producer/registry/search/receipt admission; no partial catalog/index fixture ready claim.",
+        "proof": "NOT_RUN; no source readiness, compiler reduction, fixture/runtime or acceptance PASS."
+      }
+    },
+    "orphan": {
+      "status": "FOUR_LEDGER_FIELDS_SOURCE_CLEAR_ORPHAN_READINESS_RETRACTED",
+      "partial_binding_relative": "WP-KERNEL-012/MT-171/import-owner/round04-orphan-ledger-preservation-bindings.json",
+      "partial_binding_sha256": "32e59f5e43cd0ca3a2515abf101a3ed20f1cf8a0d0996ed793b8ce92c820bb75",
+      "coordinator_sha256": "fa74f2ef70d3fb9b8830d54bff85cbbf6004b345c686a98a432fd666382efda6",
+      "writer_turn": "01a1279d-c670-7ff2-8029-b22aa3e986c7",
+      "writer_final": "msg_0d010d1965b8e15e016acaa7e497c88191b88d2ba3fc2df571",
+      "review_thread": "01a12780-b308-7472-9d35-d4865beb6e43",
+      "review_turn": "01a127a1-bfc0-7ca3-a12f-fb48503287c2",
+      "review_final": "msg_09077f3c39290cf0016acaa89294a087d283d5da6b2e3154b4",
+      "partial": "SessionHandle/try_insert_ready retain ledger_os_pid, ledger_engine_kind_override, ledger_start_override, ledger_lifecycle; independent exact inverse reported. Cleanup/duplicate transfer/retry incomplete.",
+      "exact_blocker": "writer.rs608-670 constructs actual stopped_at/ProcessStop+permit/ACK internally then consumes them; caller cannot retain exact queued STOP after timeout/cancellation. recorded_start disappears at queue acceptance.",
+      "connected_remedy": "Coordinator plus writer.rs only: retain original queued ProcessStop under existing permit lock in both publication methods; initialize two existing constructors empty; crate-private clone accessor. Replay original payload via existing reserved commit and fresh durable ACK. Retain owner/START/capacity/stable eviction ID/generation through failure.",
+      "scope_amendment": "Standing/latest approved blocker expansion replaces former no-writer restriction only for this exact seam. Old leader notified; successor dispatch after takeover. No SQL/batcher/factory edits.",
+      "release_boundary": "Actual teardown + confirmed durable STOP + stable-ID eviction delivery before capacity release; missing START, uncertain/rejected ACK or sink failure retain ownership and retry.",
+      "carried_debts": "Local sandbox START and cloud/CLI late-START compensation remain queue-only; rest live-session cleanup/reaper/routing/generation/real reclaimer consumers still carried. This seam does not clear all coordinator diagnostics.",
+      "proof": "SOURCE_ONLY; no execution/ACK/retry/cancel/orphan/compiler/acceptance proof.",
+      "recorded_scope_amendment": {
+        "authorization": "Parent live Operator successor/workflow handoff instruction with standing and latest exact-blocker scope expansion approval",
+        "amends_only": "Prior no-writer-edit boundary for exact queued STOP retention/replay seam",
+        "allowed_writer": "ActiveProcessLifecycle exact queued ProcessStop retained slot empty in two constructors; both STOP publication methods clone actual constructed STOP under existing permit lock immediately before enqueue; crate-private read-only clone accessor",
+        "allowed_coordinator": "Retain lifecycle/START/cleanup owner; first durable STOP observed ACK; timeout/lost ACK/cancel replay retained original payload with ReservedProcessStop.commit_with_durable_ack and fresh real store ACK; non-lifecycle captures START and constructs STOP once before enqueue; same-generation single attempt/capacity/stable eviction retained",
+        "prohibited": "No SQL/batcher/factory expansion, timestamp rebuilding, AlreadyStopped durability substitute, changed permissions/ACK/flags/Drop",
+        "carried_forward": "Local queue-only START/late-compensation producer and remaining cleanup/execution debt",
+        "execution_owner": "Successor Kernel Builder after takeover; same solewriter; predecessor issues no duplicate dispatch",
+        "proof": "NOT_RUN"
+      }
+    }
+  },
+  "build_and_validation": {
+    "grant_ref": "MT-174.json#/operator_decision_20261010_phase02_builder_output_grant",
+    "cap_bytes": 180000000000,
+    "cap_unit": "Decimal bytes =180GB; builder target only, not caches/log/temp or validator target.",
+    "artifact_root_kernel_relative": "../Handshake_Artifacts",
+    "artifact_root_observed_absolute": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts",
+    "owner_relative": "WP-KERNEL-012/MT-174/kb-phase02",
+    "target_relative": "WP-KERNEL-012/MT-174/kb-phase02/target",
+    "host_profile_kernel_relative": "../gov-runtime/host-profile-wp012-phase02-builder.json",
+    "host_profile_sha256": "df7068d5f93a49d17f48f7404a7c4251e2be8f17abc1d2fd5bb04068ee727081",
+    "toolchain": "1.97.1-x86_64-pc-windows-msvc",
+    "incremental": "0",
+    "dev_debug": "line-tables-only",
+    "test_debug": "line-tables-only",
+    "jobs": 1,
+    "cargo_home_original": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/MT-171/import-owner/cargo-home",
+    "cargo_home_existing_short_alias": "C:/Projects/LLMPRO~1/HANDSH~3/HANDSH~3/WP-KER~1/MT-171/IMPORT~1/CARGO-~1",
+    "alias_limit": "Same existing owned physical cache; no new alias/cache copy/extraction/global registry mutation.",
+    "resource_rules": [
+      "WP012-only sequential builder/validator same physical disk with disjoint owned mutable targets under recorded KB-OUT-008/IV-OUT-004 exception.",
+      "One Cargo/build per physical disk and one per lane; verify exact outputs and target cap at launch; retain current profile/features/toolchain.",
+      "Gameplan check before gated commands; resume/incident checks via controller; failing hook corrected, never bypassed.",
+      "Asynchronous launch, owned process identity/start/command/exit/log; monitor at least60s; no whole-run timeout or foreign process action.",
+      "Builder compile/static only; independent runtime acceptance separate. Native MT175 own named command remains required."
+    ],
+    "resolved_predecessors": [
+      "180GB cap/grant narrow binding established; round04 peak11.63GB, not cap failure.",
+      "Locked resolver graph repaired; preserve explicit pins/checksums. Current lock differs earlier historical locks; use current source hash.",
+      "RocksDB ordinary long-path false absence retracted; short alias verified same files/archive hashes; C1083 did not recur round03. Do not repeat extraction."
+    ],
+    "proof_reuse": "Reuse only unchanged relevant inputs/config/dependencies/asserted behavior; accepted commit-to-commit reuse under actual pin/adopted validator rules. Dirty-tree source review is not accepted runtime proof."
+  },
+  "pending_decisions": [
+    {
+      "id": "WP012-P2-DECISION-WATCHER-ORIGINAL-SCOPE",
+      "record": "MT-172.json#/implementation_record/canonical_adoption_wire_validation/trusted_server_original_scope_binding/pending_operator_policy_proposal",
+      "status": "PENDING_OPERATOR_POLICY_DECISION_NOT_PERMISSION",
+      "blocked_action": "Immutable watcher workspace CREATE/fs.write reservation and child binding, fs.read/read mapping; actual original-five scope/current child/durable original START admission.",
+      "limit": "No option adopted by this handoff. Successor assesses latest delegated autonomy against applicable pinned policy/spec authority, records an actual lawful choice if authorized, otherwise exact required external decision. Never fabricate approval, original scope, grant or accepted proof."
+    },
+    {
+      "id": "WP012-P2-DECISION-ZERO-PROCESS-STARTUP-REPORT",
+      "record": "Existing startup-bounded-recovery-api-union owner record; successor resolves exact typed pointer before acting.",
+      "status": "PENDING_OPERATOR_SEMANTIC_DECISION",
+      "question": "Kernel always-zero-process report versus retained WP1 zero-case empty-report semantics.",
+      "limit": "No option adopted by this handoff. Successor assesses delegated decision authority and records actual chosen semantics if lawful; preserve original acceptance until reconciled, no Noop/filter/skip or invented approval gate."
+    },
+    {
+      "id": "WP012-LATER-ASSET-SPEC-AND-PIN",
+      "record": "WP-KERNEL-012-phase-01-handoff-v1.json#/approval_and_readiness",
+      "status": "LATER_PHASE_DEPENDENT_APPROVAL_UNSETTLED",
+      "limit": "Later asset/spec publication requires applicable current approval; no moving modularization earlier safety claim."
+    },
+    {
+      "id": "WP012-LATER-FACIAL-AND-DEPLOYMENT",
+      "record": "WP-KERNEL-012-overall-consolidation-handoff-v1.json#/unresolved_decisions",
+      "status": "EXTERNAL_CONTRACT_UNAVAILABLE",
+      "limit": "Facial current ID system unavailable/stale GitHub; concrete asset publishing/deploy destination unbound. No unapproved deployment."
+    }
+  ],
+  "timesinks_and_preventable_failures": [
+    {
+      "id": "WP012-P2-TS-001",
+      "problem": "Tiny sequential field repair/review cycles missed connected guard/dependency closure.",
+      "mitigation": "Inspect actual invocation path and fixtures once; one complete connected writer instruction/frozen affected review."
+    },
+    {
+      "id": "WP012-P2-TS-002",
+      "problem": "Embedding fixture ready claim missed actual catalog guard; later exact schema/write boundary also blocks assertions.",
+      "mitigation": "Read registration AND client/catalog/hash AND bootstrap/schema/atomic producer/consumer before fixture readiness; preserve retraction, no proxy proof."
+    },
+    {
+      "id": "WP012-P2-TS-003",
+      "problem": "Orphan ready claim missed exact retained STOP/ACK interface across cancellation.",
+      "mitigation": "Retain original enqueue payload/ACK boundary and actual START lineage through retries; no queue-as-durability or reconstructed fresh timestamp."
+    },
+    {
+      "id": "WP012-P2-TS-004",
+      "problem": "Many layered messages and overlapping reader diagnoses delayed writer progress.",
+      "mitigation": "One leader reconciles each batch; disjoint read teams, existing one writer, canonical queued next disposition."
+    },
+    {
+      "id": "WP012-P2-TS-005",
+      "problem": "Build started against locked manifest mismatch; repeated source groups costly.",
+      "mitigation": "Exact current locked graph and focused changed-boundary preflight before required stable compile."
+    },
+    {
+      "id": "WP012-P2-TS-006",
+      "problem": "Ordinary path false absence led to RocksDB extraction proposal.",
+      "mitigation": "Verify same exact file via short/extended path and archive before absence claim. No extraction performed; old absence inference retracted."
+    },
+    {
+      "id": "WP012-P2-TS-007",
+      "problem": "Compile error increase30->149 could be mistaken for repair regression.",
+      "mitigation": "Keep exact output/candidate provenance; individual origin UNVERIFIED absent evidence. Source clears do not establish new compiler count."
+    },
+    {
+      "id": "WP012-P2-TS-008",
+      "problem": "Full-artifact scans, warm target copying, huge JSON/source-map dumps and repeated authority reads.",
+      "mitigation": "Named bounded hashes/current typed pointers only; compatible owned cache reuse; no duplicate giant bodies."
+    },
+    {
+      "id": "WP012-P2-TS-009",
+      "problem": "Lifecycle/status summaries can lag newer exact scoped remediation.",
+      "mitigation": "Resolve current owning node and observed inputs before dispatch; do not rewrite verdict/status from transient coordination."
+    },
+    {
+      "id": "WP012-P2-TS-010",
+      "problem": "Stale journal comment inferred legacy producer rewrite without actual call-path inspection; inference retracted.",
+      "mitigation": "Use actual owned journal bundle path; no database1073/loom_store1306 rewrite."
+    }
+  ],
+  "dos_and_donts": [
+    {
+      "id": "WP012-P2-HANDOFF-001",
+      "do": "Preserve all original scope/history/pins/dirty bytes and other-device work.",
+      "dont": "Reset/clean/switch/reseed/drop old obligations or tests."
+    },
+    {
+      "id": "WP012-P2-HANDOFF-002",
+      "do": "Keep live governance in kernel; product changes in assigned WP012 worktree.",
+      "dont": "Main-governance copy/junction revival, product governance commits, new topology."
+    },
+    {
+      "id": "WP012-P2-HANDOFF-003",
+      "do": "Retain one writer and separate source/acceptance review.",
+      "dont": "Root/leader self-certification or overlapping product writers."
+    },
+    {
+      "id": "WP012-P2-HANDOFF-004",
+      "do": "Record exact source-only limits and required execution.",
+      "dont": "Fake PASS/signatures/identity/ACK, guard bypass, skips/gates/assertion weakening."
+    },
+    {
+      "id": "WP012-P2-HANDOFF-005",
+      "do": "Use current typed contracts and original consumed-source acceptance ownership.",
+      "dont": "Execute every retained historical command or blanket Phase08 deferral."
+    },
+    {
+      "id": "WP012-P2-HANDOFF-006",
+      "do": "Bound authorized repairs to exact failures.",
+      "dont": "Massive tests/evals/audits/reviews, new adjacent features/hardening/cleanup/artifacts."
+    },
+    {
+      "id": "WP012-P2-HANDOFF-007",
+      "do": "Continue independent authorized work while exact product-policy question held.",
+      "dont": "Infer unavailable Operator policy decisions from autonomy/build cap."
+    },
+    {
+      "id": "WP012-P2-HANDOFF-008",
+      "do": "Quiet owned background work and precise process ownership.",
+      "dont": "Foreign stop/kill/restart/focus changes/installers/interactive prompts."
+    },
+    {
+      "id": "WP012-P2-HANDOFF-009",
+      "do": "Respect current retirements and protected directories/branches.",
+      "dont": "Revive Just/memory/universal ACP gates, departed chats or paused heartbeat."
+    }
+  ],
+  "phase_close": {
+    "required": "Complete Phase2 agreed source-to-destination reconciliation, required own compile/static proof on exact stable candidate, consumed acceptance ownership and applicable independent source/technical proof. Preserve no whole-WP success claim.",
+    "mt_refs": [
+      "MT-171.json",
+      "MT-172.json",
+      "MT-173.json",
+      "MT-174.json",
+      "MT-175.json"
+    ],
+    "independent_acceptance": "Use actual packet topology and pinned criteria; builder/source reviewer cannot fabricate verdict. Every consumed obligation retains independent proof requirement before combined acceptance.",
+    "closeout": "Fresh bounded repo/task snapshot + one typed handoff, exact pushed commit/tree, retained findings and next actor. Start next fresh phase only after applicable predecessor proof/approvals.",
+    "remaining_phases_ref": "WP-KERNEL-012-overall-consolidation-handoff-v1.json#/phases",
+    "remaining_order": "03 bounded compilation units ->04 reusable assets ->05 retained WP012 completion ->06 independent combined acceptance ->07 independent integration/agreed deployment ->08 remaining original CKC/Posekit/WP1 work.",
+    "moving_modularization_earlier": "NOT_ESTABLISHED_SAFE; do not promise it unblocks current dependency batch."
+  },
+  "takeover_actions": [
+    "Read verified authority/actual MT state and saved snapshot; ACK exact leadership/write/review/resource boundaries.",
+    "Collect finishing old dependency/orphan reports; bind them to fresh dependency and separate review team without duplicate exploration.",
+    "One reconciled orphan coordinator+writer seam instruction; same sole writer, freeze/review affected batch.",
+    "Complete exact API schema/producer/client/catalog fixture closure disposition before dependent writes; source guards/assertions retained.",
+    "Review remaining coordinator/routing/generation/dependency failures only as they block named source groups; one writer.",
+    "Run required unchanged command after stable repairs/resource/gameplan preparation; report actual result and keep independent runtime acceptance separate.",
+    "Commit/push compiled assigned changes, progress MT proof/verdict surfaces under actual authority; phase closes only with required external proof."
+  ],
+  "monitoring": {
+    "tick_minutes": 10,
+    "existing_automation_id": "wp012-phase-team-checkin",
+    "successor_transfer_status": "VERIFIED_ACTIVE_SUCCESSOR_TARGET",
+    "policy": "Check all active chats/helpers with compact wait_threads cursors/timeoutMs0, plus list_agents; no unchanged narration. Notify meaningful progress/completion/failure/precise required decision. Long jobs observed at least60s.",
+    "paused_old_automation": "wp-012-next-repair-progress-tick; do not reactivate.",
+    "target_thread_id": "01a127a9-bb00-72f0-8821-5145538a6bd8",
+    "verification": {
+      "source": "Outgoing root read saved automation TOML and reported verification",
+      "automation_id": "wp012-phase-team-checkin",
+      "target_thread_id": "01a127a9-bb00-72f0-8821-5145538a6bd8",
+      "status": "ACTIVE",
+      "cadence_minutes": 10,
+      "successor_prompt_present": true
+    }
+  },
+  "registration": {
+    "leader": {
+      "thread_id": "01a127a9-bb00-72f0-8821-5145538a6bd8",
+      "host_id": "local",
+      "title": "WP012-Phase-02-Successor-Kernel-Builder",
+      "source": "Coordinating root actual creation confirmation",
+      "handoff_hash_at_launch": "7deb900aabafbc07e7a81290852ae8ef59db2087de88ae99f2cf28ae62eb4666",
+      "superseded_draft_hash": "71fd8688c13b3e5cb9e72b221fc8e412ddf404194f3fcd8c3aa3ec5cef601bab",
+      "instruction": "Re-read affected current-source-map/scope-amendment/team registration/dependency fields; latest exact MT records canonical."
+    },
+    "fresh_teams": "Created and registered; successor owns dispatch. Existing sole writer retained; new acceptance verdict not claimed.",
+    "handoff_ack": {
+      "thread_id": "01a127a9-bb00-72f0-8821-5145538a6bd8",
+      "source": "Outgoing root actual received successor message, forwarded to handoff author",
+      "observed": "Live authority, actual orphan and canonical branches inspected; takes Phase2 coordination and typed MT state, same writer/new teams/no self-review; approved STOP seam and API reader will dispatch concurrently.",
+      "scope": "Leadership ACK only; no source/compile/runtime/acceptance PASS"
+    },
+    "dependency_final": "COMPLETED_SOURCE_ONLY_DISPOSITION_EMBEDDED_NO_SOURCE_READY"
+  },
+  "task_state_snapshot": [
+    {
+      "mt_id": "MT-171",
+      "title": "Reconcile CKC-owned core import paths",
+      "lifecycle": {
+        "status": "BLOCKED",
+        "blocked_on": "Target MT170/wpv/target has no recorded Phase2 builder transfer; Shared schema/catalog/manifests/locks/host dependency closure unresolved; CKC route registration requires existing WP012 account adapter; helper visibility cannot revive header-spoof actor authority",
+        "depends_on": [],
+        "blocks": [],
+        "active": true,
+        "validator_verdict": null,
+        "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
+        "claimed_at_utc": "2026-10-10T07:29:10.632262+02:00",
+        "completed_by": null,
+        "next_actor": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER after exact resource/auth/schema blocker disposition"
+      },
+      "closure_unit": {
+        "outcome": "Reconcile CKC-owned core import paths",
+        "requirement_refs": [
+          "source_map original contracts applicable to owning module"
+        ],
+        "acceptance_refs": [
+          "WP012-P1-BOUNDARY-005"
+        ],
+        "materialized_acceptance": [
+          {
+            "id": "WP012-P1-MT-171-AC1",
+            "requirement": "Reconcile every exact owned source path/blob against current WP012; shared edits serial; preserve current auth/schema/error/rollback/durability protections and original history"
+          },
+          {
+            "id": "WP012-P1-MT-171-AC2",
+            "requirement": "Own compile command passes on reconciled candidate; record every consumed source acceptance owner and independent proof requirement before combined acceptance; only explicit unfinished unconsumed work may remain Phase08"
+          }
+        ]
+      },
+      "proof_checks": [
+        {
+          "check_id": "WP012-P1-MT-171-COMPILE",
+          "executor_role": "KERNEL_BUILDER",
+          "command_or_method": "cargo check --locked --manifest-path src/backend/handshake_core/Cargo.toml --lib --tests --features app-runtime,surreal-test-support,test-utils -j 1",
+          "expected": "Compile exact reconciled candidate; no runtime verdict",
+          "configuration_binding": "Retain current approved owning host/config/target; inspect before dispatch; no new target/profile or hardware tuning",
+          "evidence_required": [
+            "candidate commit/tree",
+            "exact source path/blob reconciliation",
+            "command/config/toolchain/target/features",
+            "result"
+          ]
+        }
+      ],
+      "runtime_acceptance": "Independent owning MT proof for consumed source obligations before combined acceptance, not before source preservation/import; do not execute all retained commands indiscriminately",
+      "record_sha256": "8bd252947f6cca64cfff242532234571a4581fb962c56773e35254e33f67f0fe"
+    },
+    {
+      "mt_id": "MT-172",
+      "title": "Reconcile WP1-owned core import paths",
+      "lifecycle": {
+        "status": "BLOCKED",
+        "blocked_on": "Target MT170/wpv/target has no recorded Phase2 builder transfer; Shared schema/catalog/manifests/locks/host dependency closure unresolved; CKC route registration requires existing WP012 account adapter; helper visibility cannot revive header-spoof actor authority",
+        "depends_on": [],
+        "blocks": [],
+        "active": true,
+        "validator_verdict": null,
+        "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
+        "claimed_at_utc": "2026-10-10T07:29:10.632262+02:00",
+        "completed_by": null,
+        "next_actor": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER after exact resource/auth/schema blocker disposition"
+      },
+      "closure_unit": {
+        "outcome": "Reconcile WP1-owned core import paths",
+        "requirement_refs": [
+          "source_map original contracts applicable to owning module"
+        ],
+        "acceptance_refs": [
+          "WP012-P1-BOUNDARY-003"
+        ],
+        "materialized_acceptance": [
+          {
+            "id": "WP012-P1-MT-172-AC1",
+            "requirement": "Reconcile every exact owned source path/blob against current WP012; shared edits serial; preserve current auth/schema/error/rollback/durability protections and original history"
+          },
+          {
+            "id": "WP012-P1-MT-172-AC2",
+            "requirement": "Own compile command passes on reconciled candidate; record every consumed source acceptance owner and independent proof requirement before combined acceptance; only explicit unfinished unconsumed work may remain Phase08"
+          }
+        ]
+      },
+      "proof_checks": [
+        {
+          "check_id": "WP012-P1-MT-172-COMPILE",
+          "executor_role": "KERNEL_BUILDER",
+          "command_or_method": "cargo check --locked --manifest-path src/backend/handshake_core/Cargo.toml --lib --tests --features app-runtime,surreal-test-support,test-utils -j 1",
+          "expected": "Compile exact reconciled candidate; no runtime verdict",
+          "configuration_binding": "Retain current approved owning host/config/target; inspect before dispatch; no new target/profile or hardware tuning",
+          "evidence_required": [
+            "candidate commit/tree",
+            "exact source path/blob reconciliation",
+            "command/config/toolchain/target/features",
+            "result"
+          ]
+        }
+      ],
+      "runtime_acceptance": "Independent owning MT proof for consumed source obligations before combined acceptance, not before source preservation/import; do not execute all retained commands indiscriminately",
+      "record_sha256": "c25da17513747a2ef6602e46ec43bc6478f92e6e3c707d30a94f4e951ec5c094"
+    },
+    {
+      "mt_id": "MT-173",
+      "title": "Reconcile shared storage/schema/migration import paths",
+      "lifecycle": {
+        "status": "BLOCKED",
+        "blocked_on": "Target MT170/wpv/target has no recorded Phase2 builder transfer; Shared schema/catalog/manifests/locks/host dependency closure unresolved; CKC route registration requires existing WP012 account adapter; helper visibility cannot revive header-spoof actor authority",
+        "depends_on": [
+          "MT-171",
+          "MT-172"
+        ],
+        "blocks": [],
+        "active": true,
+        "validator_verdict": null,
+        "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
+        "claimed_at_utc": "2026-10-10T07:29:10.632262+02:00",
+        "completed_by": null,
+        "next_actor": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER after exact resource/auth/schema blocker disposition"
+      },
+      "closure_unit": {
+        "outcome": "Reconcile shared storage/schema/migration import paths",
+        "requirement_refs": [
+          "source_map original contracts applicable to owning module"
+        ],
+        "acceptance_refs": [
+          "WP012-P1-BOUNDARY-003"
+        ],
+        "materialized_acceptance": [
+          {
+            "id": "WP012-P1-MT-173-AC1",
+            "requirement": "Reconcile every exact owned source path/blob against current WP012; shared edits serial; preserve current auth/schema/error/rollback/durability protections and original history"
+          },
+          {
+            "id": "WP012-P1-MT-173-AC2",
+            "requirement": "Own compile command passes on reconciled candidate; record every consumed source acceptance owner and independent proof requirement before combined acceptance; only explicit unfinished unconsumed work may remain Phase08"
+          }
+        ]
+      },
+      "proof_checks": [
+        {
+          "check_id": "WP012-P1-MT-173-COMPILE",
+          "executor_role": "KERNEL_BUILDER",
+          "command_or_method": "cargo check --locked --manifest-path src/backend/handshake_core/Cargo.toml --lib --tests --features app-runtime,surreal-test-support,test-utils -j 1",
+          "expected": "Compile exact reconciled candidate; no runtime verdict",
+          "configuration_binding": "Retain current approved owning host/config/target; inspect before dispatch; no new target/profile or hardware tuning",
+          "evidence_required": [
+            "candidate commit/tree",
+            "exact source path/blob reconciliation",
+            "command/config/toolchain/target/features",
+            "result"
+          ]
+        }
+      ],
+      "runtime_acceptance": "Independent owning MT proof for consumed source obligations before combined acceptance, not before source preservation/import; do not execute all retained commands indiscriminately",
+      "record_sha256": "230f736a4566f94f55e8c8f075bf31fd59af1ad3f8c4b0996f5495b402b46930"
+    },
+    {
+      "mt_id": "MT-174",
+      "title": "Reconcile shared core/bootstrap/manifests import paths",
+      "lifecycle": {
+        "status": "BLOCKED",
+        "blocked_on": "Target MT170/wpv/target has no recorded Phase2 builder transfer; Shared schema/catalog/manifests/locks/host dependency closure unresolved; CKC route registration requires existing WP012 account adapter; helper visibility cannot revive header-spoof actor authority",
+        "depends_on": [
+          "MT-173"
+        ],
+        "blocks": [],
+        "active": true,
+        "validator_verdict": null,
+        "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
+        "claimed_at_utc": "2026-10-10T07:29:10.632262+02:00",
+        "completed_by": null,
+        "next_actor": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER after exact resource/auth/schema blocker disposition"
+      },
+      "closure_unit": {
+        "outcome": "Reconcile shared core/bootstrap/manifests import paths",
+        "requirement_refs": [
+          "source_map original contracts applicable to owning module"
+        ],
+        "acceptance_refs": [
+          "WP012-P1-BOUNDARY-003"
+        ],
+        "materialized_acceptance": [
+          {
+            "id": "WP012-P1-MT-174-AC1",
+            "requirement": "Reconcile every exact owned source path/blob against current WP012; shared edits serial; preserve current auth/schema/error/rollback/durability protections and original history"
+          },
+          {
+            "id": "WP012-P1-MT-174-AC2",
+            "requirement": "Own compile command passes on reconciled candidate; record every consumed source acceptance owner and independent proof requirement before combined acceptance; only explicit unfinished unconsumed work may remain Phase08"
+          }
+        ]
+      },
+      "proof_checks": [
+        {
+          "check_id": "WP012-P1-MT-174-COMPILE",
+          "executor_role": "KERNEL_BUILDER",
+          "command_or_method": "cargo check --locked --manifest-path src/backend/handshake_core/Cargo.toml --lib --tests --features app-runtime,surreal-test-support,test-utils -j 1",
+          "expected": "Compile exact reconciled candidate; no runtime verdict",
+          "configuration_binding": "Retain features/toolchain/profiles; use isolated target under operator_decision_20261010_phase02_builder_output_grant; inspect dispatch before compile; no other target/profile or hardware tuning",
+          "evidence_required": [
+            "candidate commit/tree",
+            "exact source path/blob reconciliation",
+            "command/config/toolchain/target/features",
+            "result"
+          ]
+        }
+      ],
+      "runtime_acceptance": "Independent owning MT proof for consumed source obligations before combined acceptance, not before source preservation/import; do not execute all retained commands indiscriminately",
+      "record_sha256": "4f9f3168cf429f294b918ca7f93e638173cae632ca21e16c18322995992978a7"
+    },
+    {
+      "mt_id": "MT-175",
+      "title": "Reconcile native import paths preserving current native host",
+      "lifecycle": {
+        "status": "BLOCKED",
+        "blocked_on": "Target MT170/wpv/target has no recorded Phase2 builder transfer; Shared schema/catalog/manifests/locks/host dependency closure unresolved; CKC route registration requires existing WP012 account adapter; helper visibility cannot revive header-spoof actor authority",
+        "depends_on": [
+          "MT-174"
+        ],
+        "blocks": [],
+        "active": true,
+        "validator_verdict": null,
+        "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
+        "claimed_at_utc": "2026-10-10T07:29:10.632262+02:00",
+        "completed_by": null,
+        "next_actor": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER after exact resource/auth/schema blocker disposition"
+      },
+      "closure_unit": {
+        "outcome": "Reconcile native import paths preserving current native host",
+        "requirement_refs": [
+          "source_map original contracts applicable to owning module"
+        ],
+        "acceptance_refs": [
+          "WP012-P1-BOUNDARY-006",
+          "WP012-P1-BOUNDARY-007"
+        ],
+        "materialized_acceptance": [
+          {
+            "id": "WP012-P1-MT-175-AC1",
+            "requirement": "Reconcile every exact owned source path/blob against current WP012; shared edits serial; preserve current auth/schema/error/rollback/durability protections and original history"
+          },
+          {
+            "id": "WP012-P1-MT-175-AC2",
+            "requirement": "Own compile command passes on reconciled candidate; record every consumed source acceptance owner and independent proof requirement before combined acceptance; only explicit unfinished unconsumed work may remain Phase08"
+          }
+        ]
+      },
+      "proof_checks": [
+        {
+          "check_id": "WP012-P1-MT-175-COMPILE",
+          "executor_role": "KERNEL_BUILDER",
+          "command_or_method": "cargo check --locked --manifest-path src/frontend/handshake_native/Cargo.toml --tests -j 1",
+          "expected": "Compile exact reconciled candidate; no runtime verdict",
+          "configuration_binding": "Retain current approved owning host/config/target; inspect before dispatch; no new target/profile or hardware tuning",
+          "evidence_required": [
+            "candidate commit/tree",
+            "exact source path/blob reconciliation",
+            "command/config/toolchain/target/features",
+            "result"
+          ]
+        }
+      ],
+      "runtime_acceptance": "Independent owning MT proof for consumed source obligations before combined acceptance, not before source preservation/import; do not execute all retained commands indiscriminately",
+      "record_sha256": "2ab504ec44c7617d5d135ab60c1b635e9473eb0c6b442f92a6110a990db5ecd5"
+    }
+  ],
+  "current_hash_refs": "WP-KERNEL-012-phase02-successor-repo-snapshot-v1.json#/governance_hashes and /product_hashes",
+  "updated_at_utc": "2026-10-10T21:16:32.1068928Z"
+}

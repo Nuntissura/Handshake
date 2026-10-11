@@ -4110,5 +4110,16 @@
       "preserved": "One product writer; independent WPV acceptance; original assertions/timeouts/floors; later explicit stops override",
       "handoff": "Old root01a11df3-6dc8-7cd1-b059-a7bc8cd34312 and retained team stopped; new lead01a12218-be60-7720-8b59-23e3fae1ac42; transferred existing heartbeat"
     }
-  ]
+  ],
+  "consolidation_phase_01": {
+    "phase_id": "PHASE-01",
+    "contract_ref": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase-01-consolidation-contract-v1.json",
+    "contract_status": "PREPARATION_ONLY_NOT_ACTIVATED",
+    "source_reconciliation_ref": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase-01-source-reconciliation-v1.json",
+    "original_scope_history_preserved": true,
+    "approval_disposition_ref": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase-01-consolidation-contract-v1.json#approval_disposition",
+    "research_spec_ref": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase-01-consolidation-contract-v1.json#research_basis",
+    "phase_owner": "KERNEL_BUILDER_PHASE01",
+    "no_product_permission_in_phase01": true
+  }
 }
