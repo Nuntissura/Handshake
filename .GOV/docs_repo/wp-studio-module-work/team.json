@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T06:36:35Z",
+ "updated_at": "2026-10-11T06:37:43Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -946,7 +946,7 @@
     "validation/R6-review-a.json"
    ],
    "launched": "2026-10-11T06:04:14Z",
-   "status": "running"
+   "status": "done 2026-10-11T06:37:43Z (COMPLETE: render-gpu, prism-eng-5, prism-eng-6 FAIL; develop-wide, pigment-eng-2 PASS_WITH_NOTES; rest PASS)"
   },
   {
    "name": "reviewer-r6-b",
@@ -1076,6 +1076,42 @@
     "crates/hsk-studio-score-plugin/**"
    ],
    "launched": "2026-10-11T06:29:17Z",
+   "status": "running"
+  },
+  {
+   "name": "rem-prism-r6",
+   "agent_id": "ae7924301d8c902ea",
+   "model": "sonnet",
+   "role": "R6 remediation prism: mAB input-count slice panic + V4-06 sweep, DESCRIPTOR claim, STU-CON-044 64-px chunk conformance",
+   "owns": [
+    "crates/hsk-studio-prism/**",
+    "builders/lanes/hsk-studio-prism-eng6.json"
+   ],
+   "launched": "2026-10-11T06:37:43Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-chronicle-table",
+   "agent_id": "a47bc2ecc96a016c4",
+   "model": "sonnet",
+   "role": "chronicle exports property addressability table; session drops its copy (CX-CAP-001)",
+   "owns": [
+    "crates/hsk-studio-chronicle/**",
+    "crates/hsk-studio-session/**"
+   ],
+   "launched": "2026-10-11T06:37:43Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-reel-v4",
+   "agent_id": "aced00ef4f7b5bd25",
+   "model": "sonnet",
+   "role": "reel V4-01/02 on isobmff/fragments/wav/y4m/identity/registry",
+   "owns": [
+    "crates/hsk-studio-reel/**",
+    "builders/lanes/hsk-studio-reel.json"
+   ],
+   "launched": "2026-10-11T06:37:43Z",
    "status": "running"
   }
  ]

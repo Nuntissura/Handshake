@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T06:36:35Z",
+ "updated_at": "2026-10-11T06:37:43Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -266,7 +266,12 @@
    "lane_file": "builders/lanes/hsk-studio-composite.json",
    "candidate": "99a03e6",
    "note": "clip-to-base lowered (pigment 4e533d5 MaskFormat::BaseAlpha); Approximate; typed Unavailable edge cases",
-   "review_findings_r3": "R3 findings remediated 99a03e6 (regression tests fail on old code)"
+   "review_findings_r3": "R3 findings remediated 99a03e6 (regression tests fail on old code)",
+   "r6_review_routed": {
+    "to": "builder-composite-adj (pass-through fill exactness)",
+    "at": "2026-10-11T06:37:43Z",
+    "ref": "validation/R6-review-a.json"
+   }
   },
   {
    "lane_id": "SMB-RENDER-CPU",
@@ -323,6 +328,11 @@
     "to": "steward-2 (NOT_PROVEN accounting)",
     "at": "2026-10-11T05:31:12Z",
     "ref": "validation/R5-review-{a,b,c}.json CONFIRMED"
+   },
+   "r6_review_routed": {
+    "to": "builder-render-gpu-3 (message: test-faults gating)",
+    "at": "2026-10-11T06:37:43Z",
+    "ref": "validation/R6-review-a.json"
    }
   },
   {
@@ -947,6 +957,11 @@
     "to": "builder-prism-eng6",
     "at": "2026-10-11T05:31:12Z",
     "ref": "validation/R5-review-{a,b,c}.json CONFIRMED"
+   },
+   "r6_review_routed": {
+    "to": "fixed after candidate in 65a08c9 (in R7 candidate 2074f5e)",
+    "at": "2026-10-11T06:37:43Z",
+    "ref": "validation/R6-review-a.json"
    }
   },
   {
@@ -1350,7 +1365,12 @@
     "to": "BLOCKED: STU-CON-044 accounting; lead decision D13 option b -> Prism admission-ledger hook queued on builder-prism-eng6",
     "at": "2026-10-11T05:31:12Z"
    },
-   "blocked_on": "SMB-PRISM-ENG-6 (admission-ledger hook) / Operator D13 (STU-CON-044)"
+   "blocked_on": "SMB-PRISM-ENG-6 (admission-ledger hook) / Operator D13 (STU-CON-044)",
+   "r6_review_routed": {
+    "to": "rem-prism-r6 (STU-CON-044 64-px chunk conformance or Operator escalation)",
+    "at": "2026-10-11T06:37:43Z",
+    "ref": "validation/R6-review-a.json"
+   }
   },
   {
    "lane_id": "SMB-PACKAGE-STREAM-SAVE",
@@ -1383,7 +1403,12 @@
    ],
    "verdicts": [],
    "candidate": "987af00",
-   "note": "11 ENG-5 findings fixed: 10 rooted in moxcms 0.9.1 numerics -> Prism evaluates curves/CLUT/mft/mAB/mBA in deterministic f64, moxcms parse-only; intent fallback per ICC.1:2022 8.10.2; fusion bit-identical 7 pairs (linear 34.5 ns/px, sRGB->P3 187 ns/px); AdmittedWideEngine e7cf81f (STU-CON-044 hook); V4-01 lint 123 sites; prism 120 of 120, 0 NOT_PROVEN; commits 3926709 fdd57ee dc42e34 d9a8ce8 bac4790 e7cf81f 987af00"
+   "note": "11 ENG-5 findings fixed: 10 rooted in moxcms 0.9.1 numerics -> Prism evaluates curves/CLUT/mft/mAB/mBA in deterministic f64, moxcms parse-only; intent fallback per ICC.1:2022 8.10.2; fusion bit-identical 7 pairs (linear 34.5 ns/px, sRGB->P3 187 ns/px); AdmittedWideEngine e7cf81f (STU-CON-044 hook); V4-01 lint 123 sites; prism 120 of 120, 0 NOT_PROVEN; commits 3926709 fdd57ee dc42e34 d9a8ce8 bac4790 e7cf81f 987af00",
+   "r6_review_routed": {
+    "to": "rem-prism-r6",
+    "at": "2026-10-11T06:37:43Z",
+    "ref": "validation/R6-review-a.json"
+   }
   },
   {
    "lane_id": "SMB-COMPONENTS-FOLIO-MIGRATE",

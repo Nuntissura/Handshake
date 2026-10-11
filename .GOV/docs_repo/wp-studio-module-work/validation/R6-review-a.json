@@ -1,0 +1,451 @@
+{
+ "round": "STUDIO-R6",
+ "group": "A",
+ "reviewed_commit": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a",
+ "base_commit": "1d404f8c4b72a849da064c4709e025bd05369b78",
+ "reviewer": "independent adversarial reviewer (Opus), read-only, committed blobs only (git archive bd8533f / git diff 1d404f8..bd8533f), no sub-agents, no cargo",
+ "status": "COMPLETE",
+ "started_at": "2026-10-11T06:03:53Z",
+ "updated_at": "2026-10-11T06:34:26Z",
+ "status_note": "All 10 group-A lanes reviewed at bd8533f from committed blobs (git archive / git diff 1d404f8..bd8533f); no cargo run. Paths are relative to handshake-studio-assets/ at bd8533f (moxcms paths refer to the local cargo registry copy of moxcms 0.9.1). CONFIRMED items carry file:line read at bd8533f; PLAUSIBLE items were not executed.",
+ "lanes": [
+  {
+   "lane": "SMB-PIGMENT-ENG-2",
+   "crate": "hsk-studio-pigment + hsk-studio-folio",
+   "commit_scope": "bd480f9, d576ec5, ff92dea, 2587930, c2bbb9b, 2f705f1 over 1d404f8 (pigment/folio unchanged after 2f705f1 through bd8533f)",
+   "verified_fixes": [
+    {
+     "r5_plausible": "Solid rgb outside [0,1] passes validate and admit (R5-review-a SMB-PIGMENT-ENG-1 item 2)",
+     "fix_commit": "2f705f1",
+     "evidence": "crates/hsk-studio-pigment/src/render_plan.rs:801-806 admit_core refuses has_solid_outside_unit() as Unsupported{sample_range_outside_unit} for v1 admit and admit_extended alike; tests/plan_extensions.rs:468-494 builds [2,0,0,1], shows validate Ok and both admission paths refused with the backend key."
+    },
+    {
+     "v4_06_site": "MaskInput.density<1 admitted as Mask(format) Exact, then refused by both backends (same failure class as R5)",
+     "fix_commit": "c2bbb9b",
+     "evidence": "render_plan.rs:716-729 v1 admit refuses has_mask_density() as Unsupported{mask_density} (the key render-cpu plan_sink.rs:460 and render-gpu plan_sink.rs:316 report); render_plan/extensions.rs:264-266 reports ExtOperator::MaskDensity on the envelope path; tests/plan_extensions.rs:415-463 covers refused, admitted through the envelope for a supporting backend, refused for a legacy backend, density 1 control."
+    }
+   ],
+   "checked": "Formulas against the cited sources (psd-tools composite/adjustments.py fetched 2026-10-11): levels channel LUT then master, (t-ib)/(iw-ib) clipped, ^(1/gamma), output lerp; curves natural CubicSpline, clamped to the end points; hue/saturation master lightness in RGB first, HSL hue rotate, s/(1-S+0.01) or s(1+S); colorize replaces h/s and applies lightness; exposure x^g * 2^ev + offset, clip, ^(1/gamma), ^(1/g); posterize floor(x n 255/256)/(n-1); invert 1-x; modern brightness/contrast refused (psd-tools implements only modern, legacy unchanged, disclosed). All match adjust_math.rs except threshold (finding). Hand oracles in tests/adjust_coverage.rs recomputed: natural spline (0,0),(0.5,0.75),(1,1) at 0.25 = 0.421875 (m1=-3), levels 0.66568542, sat+50 on (0.6,0.4,0.4) = (0.696078,0.303922,0.303922), exposure g2.2 0.68517545, feather centre tap 0.3990503, Blend-If ramps, legacy B/C 227/255: all correct and not engine echoes. Thomas solver and spline eval (adjust_math.rs:237-277) are the textbook form. Refusals: adjustment parameter/unsupported, knockout, Blend-If on pass-through, feather without mask, adjustment clip base, duplicate/invalid target all typed (extensions.rs:177-262); admit_extended maps knockout and modern B/C to Unsupported{feature} (:298-308); default execute_extended never renders without the envelope (render_plan.rs:683-696, test plan_extensions.rs:308-335). Folio raster.rs denies arithmetic_side_effects (:36), charges layers and effects to the node budget (:963, :753), bounds curves 256, effects 1024, bands 64, and checks adjustment-layer linkage both ways (:975-1017).",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "formula_deviation",
+     "file_line": "crates/hsk-studio-pigment/src/adjust_math.rs:85-89 (facts), :618-625 (apply)",
+     "evidence": "Threshold is cited as psd-tools apply_threshold but implemented as lum >= level. psd-tools rounds luminance to the LUT scale and compares strictly against (threshold - 1/255) * (lut-1)/lut * bit_factor, which moves the 8-bit boundary by about half a code value. A pixel with lum 127.6/255 at level 128 is white in psd-tools and black here. The hand test only uses lum 0.6 and 0.3, far from the boundary. The class is Approximate and UNVERIFIED against Photoshop (D5 7), so this is a citation/behaviour mismatch, not a contract break.",
+     "remediation": "Either implement the cited psd-tools rounding/offset with a boundary test, or reword the citation as a Studio rule",
+     "commit": "bd480f9,d576ec5"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "inconsistent_bounds",
+     "file_line": "crates/hsk-studio-folio/src/raster.rs:658,695-700,708-709,717 vs crates/hsk-studio-pigment/src/adjust_math.rs:177-180,396-408,414-425,433",
+     "evidence": "Folio accepts levels gamma > 0, any finite brightness/contrast and exposure/offset, exposure gamma > 0, and threshold level 0. Pigment prepare refuses levels gamma outside [0.1,9.99], legacy brightness outside +-100, exposure outside +-20 / offset outside +-0.5, exposure gamma outside [0.01,9.99], and threshold below 1/255. A Folio-valid record can therefore fail at admission with plan_adjustment_parameter. The refusal is typed, but the hard bounds have two owners with different values (pigment uses the STU-RAS-151 soft ranges as hard bounds).",
+     "remediation": "One owner for adjustment hard bounds: pigment exposes the ranges and folio validates with them, or pigment clamps soft ranges",
+     "commit": "ff92dea,d576ec5"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "stale_doc",
+     "file_line": "crates/hsk-studio-pigment/src/render_plan.rs:463-466 vs :225",
+     "evidence": "has_pass_through_fill says fill on a non-isolated group is 'undefined (no group result to scale, like opacity)', so intrinsically Unsupported. But Operator::PassThroughOpacity keeps intrinsic class Approximate (:225), and blend_math fold_nodes implements pass-through opacity. Today both backends report PassThroughOpacity Unsupported, so admission is uniform; the doc and the class disagree on whether pass-through opacity is defined.",
+     "remediation": "Drop 'like opacity' from the doc, or make PassThroughOpacity intrinsically Unsupported with one shared refusal",
+     "commit": "d576ec5"
+    }
+   ],
+   "recommendation": "PASS_WITH_NOTES",
+   "recommendation_note": "The envelope is additive and refuses rather than ignores. The math is single-owner and matches the cited sources except threshold rounding. The hand oracles are genuine. No stub or silent green was found. The V4-06 sites spot-checked (mask density, Solid range, pass-through fill, PassThroughOpacity/NonIsolatedBlendedGroup via backend Unsupported at render-cpu plan_sink.rs:1329-1331 and render-gpu :736) hold."
+  },
+  {
+   "lane": "SMB-PIGMENT-ENG-1",
+   "crate": "hsk-studio-pigment",
+   "commit_scope": "R5 remediation folded into d576ec5 (SMB-PIGMENT-ENG-2 commit) over 1d404f8",
+   "verified_fixes": [
+    {
+     "r5_failure": "pass-through-fill-opacity-admitted (render_plan.rs:362-379 at 1d404f8)",
+     "fix_commit": "d576ec5",
+     "evidence": "crates/hsk-studio-pigment/src/render_plan.rs:411-417 validate no longer adds FillOpacity for a PassThrough layer; :795-800 admit_core refuses has_pass_through_fill() (:467-476) as Unsupported{group_pass_through_fill_opacity, unsupported} before Ok, for every backend and on both v1 admit and admit_extended. tests/plan_extensions.rs:349-410 builds a pass-through layer with fill 0.5, asserts validate reports PassThroughGroup and not FillOpacity, and admit refuses at Exact and Approximate floors even for a backend that claims every operator Exact; controls cover fill 1 admitted and a Multiply layer keeping Approximate fill_opacity. Before the fix the Approximate floor admitted, so the test is not tautological. The key equals render-cpu's (plan_sink.rs:444), so cpu_plan.rs stays consistent; render-gpu's prepare copy (plan_sink.rs:299) is now unreachable for fill."
+    }
+   ],
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "cross_lane_inconsistency",
+     "file_line": "crates/hsk-studio-composite/src/evaluate_static.rs:189-190 (composite unchanged 1d404f8..bd8533f)",
+     "evidence": "Composite evaluation still records fill_opacity Approximate for a PassThrough step with fill < 1, while pigment admit now refuses that plan as Unsupported for every backend. Composite therefore reports Ready/Approximate for a document that admission refuses. The R5 remediation and its V4-06 sweep were scoped to pigment src only.",
+     "remediation": "Composite derives the pass-through fill verdict from pigment (has_pass_through_fill / PASS_THROUGH_FILL_OPERATOR) and blocks",
+     "commit": "d576ec5 (pigment); composite 118f8f8,26f835e"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "missing_capability",
+     "file_line": "crates/hsk-studio-pigment/src/render_plan.rs:761-806 (admit_core)",
+     "evidence": "Carried from R2/R3/R5 and declared not addressed in the lane notes: admission still validates with PlanLimits::default(), so a caller cannot tighten plan limits through shared admission.",
+     "remediation": "Carry PlanLimits in ExecuteRequest or as an admit parameter",
+     "commit": "4c3ac91"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "cap_duplicate",
+     "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:299,316; crates/hsk-studio-render-cpu/src/plan_sink.rs:444,460",
+     "evidence": "Pass-through fill and mask density are now refused once in pigment admit, but both backends keep their prepare-time copies (now dead for these conditions). This is the same 'kept as defence in depth' pattern R5 noted for clip_base_pass_through: the rule has three owners again.",
+     "remediation": "Remove the backend copies or turn them into debug asserts that cite PASS_THROUGH_FILL_OPERATOR / MASK_DENSITY_OPERATOR",
+     "commit": "d576ec5,c2bbb9b"
+    }
+   ],
+   "recommendation": "PASS",
+   "recommendation_note": "The R5 FAIL item is fixed exactly as remediated (shared admission, one key, uniform for every backend) with a non-tautological regression. The remaining items are carried or cross-lane PLAUSIBLE notes."
+  },
+  {
+   "lane": "SMB-RENDER-GPU",
+   "crate": "hsk-studio-render-gpu",
+   "commit_scope": "159cf9c + 167dc28 (slice 3, committed 05:21Z/05:23Z, before the v4 rules at 05:40Z) over 1d404f8; no render-gpu commit after 167dc28 through bd8533f; round tooling 4ea5171/cf2e8c7",
+   "verified_fixes": [
+    {
+     "r5_failure": "no-adapter-early-return-green (tests/gpu_plan.rs:336-358 at 1d404f8)",
+     "fix_commit": "4ea5171 (tools/run-round.sh, steward) + workflow v4 V4-03; the crate itself is unchanged",
+     "evidence": "NOT fixed in the crate: tests/gpu_plan.rs:383-403 gpu_gate still returns Ok(None) on NoAdapter unless HSK_STUDIO_TEST_REQUIRE_GPU=1, and run-round.sh:147-148 still unsets HSK_*. The failure class is closed at round level instead: the gate prints a line starting 'NOT_PROVEN:' (:394); .config/nextest.toml stores passing tests' stdout/stderr in junit; run-round.sh:549 parses NOT_PROVEN from system-out/system-err; an otherwise green round exits 73, never 0 (run-round.sh:39-42,57-61). V4-03 makes this the accepted form. Every GPU-execution test goes through gpu_gate (:865, :970, :1160, :1294, :1712, :2210, :2363); no other early return skips a GPU proof. The validator must gate on round.json not_proven for this crate."
+    }
+   ],
+   "checked": "Slice 3 WGSL bodies compared operation by operation with pigment blend_math.rs at bd8533f: linear_burn/linear_dodge_add/linear_light/vivid_light (incl. s==0 and s>=1 branches)/pin_light/hard_mix/subtract/divide (:375-416) match kernel.rs FORMULAS; hsk_clip_color keeps l, n, x from the input as pigment clip_color (:451-466); hsk_rank3 is exactly the stable ascending position of pigment's stable sort_by in set_sat (:479-489; -0.0 versus 0.0 differs only between zero-valued min/mid, same output); darker/lighter colour compare left-to-right sums with ties keeping the backdrop as pigment (:520-533). Hand table rechecked: hue (0.563333,0.296667,0.163333), vivid_light (0.25,0.25,0.333333), hard_mix (1,0,1), colour clip cases; the table is also asserted against pigment blend_rgb on the CPU before any device call (gpu_plan.rs:2198-2206), so it is an independent oracle. The no-adapter branch of the slice-3 test asserts Unavailable(no_adapter) with 0 sink calls (:2210-2232).",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "v4_violation",
+     "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:447-452 (with_shader_source), :477-488 (with_injected_loss), :565-572 (simulate_device_loss); src/device.rs:298; Cargo.toml:7-8 (no test-faults feature)",
+     "evidence": "The code calls these 'Fault-injection constructor' in its own docs. They are pub (#[doc(hidden)]) in the default product build: arbitrary WGSL compiled on the real device (reused by reacquire), a forged Lost state, and Device::destroy on demand. V4-04 requires fault hooks only under cfg(test) or a non-default test-faults feature. R5 review A raised this as PLAUSIBLE, and the R5 validator failed SMB-MOTION-JS-WORKER on the same class (test-fault-hooks-in-product-api). The commits predate the v4 adoption, but the hooks are in the reviewed candidate.",
+     "remediation": "Add a non-default test-faults feature; gate the three hooks and the GpuContext one; tests enable it via dev-dependency features",
+     "commit": "b7d90dc (hooks), 167dc28 (candidate)"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "v4_violation",
+     "file_line": "crates/hsk-studio-render-gpu/src/lib.rs:25 (DESCRIPTOR blend.refused 'never replaced by normal', device.unavailable 'never a CPU fallback', loss 'never sets the latch')",
+     "evidence": "Slice 3 rewrote the DESCRIPTOR with absolute 'never' claims and cites no test. Tests exist for some of them (REFUSED_MODES pin, device_destroy_is_detected_by_the_lost_callback), but V4-07 requires the citation or a weaker wording.",
+     "remediation": "Cite the proving test next to each never/always claim in DESCRIPTOR or weaken the wording",
+     "commit": "159cf9c,167dc28"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "cap_duplicate",
+     "file_line": "crates/hsk-studio-render-gpu/src/kernel.rs:27-114 (FORMULAS, FORMULAS_RGB); src/kernel.wgsl:36-96 (hsk_lum, hsk_clip_color, hsk_set_lum, hsk_sat, hsk_rank3, hsk_set_sat)",
+     "evidence": "Carried from R3/R5 and widened by slice 3. The formula bodies (now 21 per-channel or whole-colour bodies plus the non-separable helpers) are hand transcriptions of pigment blend_math. Drift is caught only by the GPU parity tests, which report NOT_PROVEN without an adapter, so on a GPU-less host a pigment formula change ships with no failing check.",
+     "remediation": "Pigment owns the WGSL snippets beside each Rust formula; render-gpu concatenates them (one source per formula)",
+     "commit": "0551b8d,159cf9c,167dc28"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bug",
+     "file_line": "crates/hsk-studio-render-gpu/src/error.rs:63-65",
+     "evidence": "Carried from R5, unchanged: GpuError::Pipeline maps to BackendError::Unavailable(\"shader_validation\"), the same variant as 'no GPU'. A host that matches on the variant to choose a CPU fallback treats a shader defect as a missing device.",
+     "remediation": "Add a pigment BackendError internal/defect variant and map Pipeline to it",
+     "commit": "b7d90dc"
+    }
+   ],
+   "recommendation": "FAIL",
+   "recommendation_note": "The slice-3 maths is a faithful transcription with genuine hand and lattice oracles, and the R5 no-adapter FAIL is now accounted at round level (NOT_PROVEN, exit 73) rather than fixed in the crate. FAIL on V4-04: fault-injection constructors remain in the default product API, the same class the R5 validator failed for motion-js-worker. The fix is mechanical (feature-gate)."
+  },
+  {
+   "lane": "SMB-CONTROLS",
+   "crate": "hsk-studio-controls",
+   "commit_scope": "fec865b (R5 remediation) over 1d404f8",
+   "verified_fixes": [
+    {
+     "r5_failure": "integer-step-silent-noop-at-saturation (descriptor.rs:688-691 at 1d404f8)",
+     "fix_commit": "fec865b",
+     "evidence": "crates/hsk-studio-controls/src/descriptor.rs:680-706 step_value computes next for both kinds and routes it through moved() (:720-725), which returns StepNoEffect when next == current before validate_value; the integer arm (:693) still saturates, so i64::MAX+1 / MIN-1 is refused, not Ok(same). dir == 0 is refused explicitly (:701-705), because noise removal alone could change an off-grid number. tests/step_effect.rs:120-173 covers MAX/MIN in all 4 role combinations, the store path (store untouched, revision unchanged), a domain-edge hard bound, an inner hard bound still OutOfHardBoundsInt (not clamped), dir 0 for integers and on-/off-grid numbers, f64::MAX +-, and toggle/choice TypeMismatch. Pre-fix the MAX case returned Ok(MAX), so the test is not tautological."
+    },
+    {
+     "r5_plausible": "failed gesture End leaves the gesture open, undocumented (store.rs:205-209)",
+     "fix_commit": "fec865b",
+     "evidence": "Behaviour kept and now specified: store.rs GesturePhase::End doc (:61-64) and ValueStore::apply doc (:178-180) state that a refused End leaves the gesture open until a legal End or Abort; pinned by tests/step_effect.rs:289 no_change_is_reported_by_route_and_a_refused_end_keeps_the_gesture."
+    }
+   ],
+   "checked": "V4-06 site list: the lane regex gives 35 matching lines over src/*.rs + examples at bd8533f (grep -cE), equal to the claimed 35; spot-checked descriptor.rs:274/277 (scrub clamp, non-terminal live sample), :653 pointer_value (absolute), egui_adapter.rs:140-147 (slider arrows now read by the adapter and sent through step_value with roles; egui's own value change is ignored while an arrow is pressed), :153 (track click relabelled Pointer), report.rs:44-52 (Ok(None) by gesture phase). V4-01: descriptor.rs:12 #![deny(clippy::arithmetic_side_effects)]; strict_decimal (:735-752) rewritten split-based and equivalent to the old grammar for '1.', '.5', '.', '+', '1e', '1e+', '1e5e3', '1.2.3', '--1'; parse_hex_color (:754-764) chunk-based, alpha 255 default. V4-07: new never/always doc claims cite tests (descriptor.rs:691-698, :709-716; report.rs:3-5; lib.rs DESCRIPTOR proof keys).",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "api_semantics",
+     "file_line": "crates/hsk-studio-controls/src/report.rs:48-52",
+     "evidence": "An End with no open gesture and no change reports Success, while an Abort with no open gesture reports Canceled. The doc lists both, but a stray End from a host (for example focus loss with no drag) produces a terminal Success frame for an operation that never happened.",
+     "remediation": "Report a stray End (no open gesture) as non-terminal (None), like a no-change Update",
+     "commit": "fec865b"
+    }
+   ],
+   "recommendation": "PASS",
+   "recommendation_note": "The R5 FAIL is fixed with one shared no-effect rule for every discrete move, the second step route (slider arrows) now goes through it, and the class sweep count matches. No stub or fake test was found."
+  },
+  {
+   "lane": "SMB-DEVELOP",
+   "crate": "hsk-studio-develop",
+   "commit_scope": "5ef2dd9 (R5 remediation), f132843 (tile-parallel), 8962bbc (V4 on dng.rs) over 1d404f8",
+   "verified_fixes": [
+    {
+     "r5_failure": "ljpeg-tiny-file-forces-frame-allocation (dng.rs:438-449 at 1d404f8)",
+     "fix_commit": "5ef2dd9 (compression 7), 8962bbc (compression 1)",
+     "evidence": "crates/hsk-studio-develop/src/dng.rs:466-479: payload = sum of block byte counts (saturating) capped by the file length, so overlapping blocks add nothing; needed = pixels.div_ceil(8) for lossless JPEG (at least one Huffman bit per sample) or pixels * bytes_per_sample uncompressed; needed > payload -> InvalidDimensions BEFORE the frame allocation at :480 (usize::try_from, no cast). Worst case is now 16x the file size in memory, for a file that really carries the payload. ljpeg.rs:272-283 keeps the per-stream bound (total <= max_samples and <= 8 * stream length). tests/develop_dng.rs:1002-1026 builds a < 4 KiB file declaring 16384x16384 and asserts InvalidDimensions with a per-thread tracking allocator whose self-check sees a 2 MiB request; :1033-1060 (dims_u32_max, every compression, largest allocation < 1 MiB) and :1063-1103 (aggregate bombs for compression 1 and 7, largest allocation < 4 MiB) are the V4-02 tests. Lane records RED on the old code."
+    }
+   ],
+   "checked": "V4-06 site list: the lane regex gives 26 matching lines over src/*.rs at bd8533f (convert 1, curves 3, dng 3, ljpeg 3, par 3, pipeline 10, tiff 3), equal to the claimed 26; spot-checked dng.rs:480 (fixed), ljpeg.rs:334 (allocation size = the checked total at :272-283), tiff.rs:99/179/211 (counts bounded by MAX_ENTRIES_PER_IFD and data_of). V4-01: dng.rs:11 deny(clippy::arithmetic_side_effects); the rewritten copy loop (dng.rs:517-553) uses checked ranges and get_mut/get, so a hostile block geometry is a typed error rather than a panic. Tile-parallel determinism (par.rs): run_indexed hands out indices in increasing order, so every index below a failing one has been fetched and is computed unless cancelled, and the result scan returns the lowest failing slot; for_each_band does the same under its queue lock; outputs land at fixed positions; panics are re-raised; no unsafe. On the converter route stage-A errors are held as values and surface in tile order after earlier stage-C results (pipeline.rs:963-1007).",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "nondeterminism",
+     "file_line": "crates/hsk-studio-develop/src/pipeline.rs:965-1003 (BATCH_TILES_PER_THREAD :719); tests/develop_parallel.rs:284-313",
+     "evidence": "With a converter, every tile of a batch (4 x threads tiles, so 4 on Threads::single and 64 on 16 threads) is converted before any stage C of that batch runs. When tile j fails in stage C, the converter has already been called for later tiles, and how many depends on the thread count. The returned error is identical, but the caller-owned converter's side effects differ: calls(), Prism plan-cache stats, Observe frames sent to the converter's sink, and ledger leases taken and released. A serial run before f132843 stopped after tile j. The parallel test asserts only the error and the calling thread, not recorder.calls on a failing run. The DESCRIPTOR claims refusals are identical for every thread count.",
+     "remediation": "Run stage C of a batch before converting the next tile past a failure, or document converter side effects as count-dependent",
+     "commit": "f132843"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "v4_gap",
+     "file_line": "crates/hsk-studio-develop/src/tiff.rs:1 (no deny), :97 base + 2 + i * 12; src/ljpeg.rs:1 (no deny), :141-158",
+     "evidence": "tiff.rs and ljpeg.rs decode untrusted DNG bytes but carry no #![deny(clippy::arithmetic_side_effects)]. They were not touched after v4, so V4-01 does not strictly bind them, but the lane's V4-01 claim covers dng.rs only. The ljpeg restart handling (0xFF fill before RSTn, RST index sequence) is carried unremediated from R3/R5.",
+     "remediation": "Apply deny(arithmetic_side_effects) to tiff.rs/ljpeg.rs; fix RSTn fill/sequence with hand-encoded KATs",
+     "commit": "c008daf,e4d2b52"
+    }
+   ],
+   "recommendation": "PASS",
+   "recommendation_note": "The R5 FAIL is fixed before the allocation for both compressions, with allocation-tracked hostile tests. The parallel rewrite keeps outputs and errors deterministic; only the converter's side effects on a failing run depend on the thread count."
+  },
+  {
+   "lane": "SMB-DEVELOP-WIDE",
+   "crate": "hsk-studio-develop",
+   "commit_scope": "85fe452 (AdmittedWideEngine consumption) over 1d404f8, on Prism e7cf81f",
+   "verified_fixes": [
+    {
+     "r5_failure": "wide-transform-not-admitted-per-stu-con-044 (BLOCKED; convert.rs:1-11, lib.rs:230 at 1d404f8)",
+     "fix_commit": "85fe452 (+ Prism e7cf81f); lead decision D13 option (b), START_LOG.md:237",
+     "evidence": "Accounting part fixed: crates/hsk-studio-develop/src/convert.rs:85-92 PrismConverter holds &mut AdmittedWideEngine<A>; inspect (:195-199) and transform (:223-227) go through it; map_admitted (:160-166) keeps admission_denied as Prism(admission_denied) and cancellation as Canceled; the unaccounted WideEngine is no longer imported. Prism wide_admitted.rs:189-253 reserves the request, output, plan and build leases before engine.transform parses or allocates, and keeps the plan lease only when a plan was cached (:254-261). tests/develop_profile.rs:453-524 measures the peak on an unlimited ledger, succeeds at exactly the peak with identical bytes, and at peak-1 is denied with no tile, calls()==0, no Observe frame, zero parses/plans and the ledger back to the provider leases; provider-only is denied at inspection."
+    }
+   ],
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "spec_deviation",
+     "file_line": "crates/hsk-studio-develop/src/convert.rs:13-14; src/lib.rs DESCRIPTOR pending[0]; spec 14-studio-creative-suite.md STU-CON-044",
+     "evidence": "The code itself states that the 64-pixel chunk size of STU-CON-044 is still not used: requests are up to WIDE_CHUNK_PIXELS = 262,144 pixels. Lead decision D13 (b) resolved the accounted-lifetime half by a ledger hook 'instead of spec enrichment' (START_LOG.md:237), but spec enrichment is Operator-only (START_LOG.md:231, CX-105). The chunk-size text therefore remains a disclosed delta with no Operator record.",
+     "remediation": "Operator records STU-CON-044 enrichment (chunk size = admitted request bound), or the lead explicitly waives the 64-px text",
+     "commit": "bfbdbf4,85fe452"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "portability",
+     "file_line": "crates/hsk-studio-prism/src/admitted.rs:46-54 (supported_target); crates/hsk-studio-develop/src/convert.rs:85-92",
+     "evidence": "AdmittedWideEngine::new refuses with UnsupportedAdmission on every target except x86_64-windows-msvc, as AdmittedPrism already did. Since 85fe452 develop's profile conversion has no other route, so working-to-output conversion is unavailable off Windows. This is disclosed in WIDE_DESCRIPTOR admitted_route, but not in the develop DESCRIPTOR.",
+     "remediation": "State the target restriction in develop DESCRIPTOR/convert.rs docs, or lift it in Prism admission",
+     "commit": "85fe452,e7cf81f"
+    }
+   ],
+   "recommendation": "PASS_WITH_NOTES",
+   "recommendation_note": "The STU-CON-044 accounting gap that blocked R5 is closed with a real ledger route and an exact-peak test. The remaining 64-pixel chunk text is disclosed and needs an Operator enrichment or an explicit lead waiver. The validator decides whether D13 (b) covers it."
+  },
+  {
+   "lane": "SMB-PRISM-ENG-5",
+   "crate": "hsk-studio-prism",
+   "commit_scope": "bac4790 (R5 remediation, committed under SMB-PRISM-ENG-6) over 1d404f8",
+   "verified_fixes": [
+    {
+     "r5_failure": "t1-oracle-reads-machine-local-c-profiles-skip-green (part 1: machine-local paths and silent skip)",
+     "fix_commit": "bac4790",
+     "evidence": "No test reads C:/ any more: tests/oracle_t1_lcms2.rs:124 and tests/wide_profiles.rs:163 read installed profiles only through wide_support::corpus_read (tests/wide_support/mod.rs:392-405), which checks the recorded SHA-256. t1_lcms2.json default_locations is read only by tests/oracle/populate_corpus.py and is pinned as provenance in .config/machine-paths.toml (step-0 V4-03 gate). A missing or mismatched profile calls not_proven (mod.rs:407-411), which prints 'NOT_PROVEN: oracle_t1 <case> reason=...' and asserts when require_corpus or HSK_PRISM_REQUIRE_CORPUS=1 is set. run-round.sh counts the line and exits 73, never 0. The SKIP/UNPINNED-and-return-green paths are gone (lane V4-06 list 5 -> 0)."
+    }
+   ],
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "test_integrity",
+     "file_line": "crates/hsk-studio-prism/tests/oracle/corpus.json:4-5; tests/wide_support/mod.rs:384; .config/oracle-corpus.toml:8-9 (bd8533f)",
+     "evidence": "R5 remediation part 2 ('documented relocatable external root') is not met. icc_root = '../../../../Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/icc', joined to CARGO_MANIFEST_DIR. From the validator's round export (Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/src/handshake-studio-assets/crates/hsk-studio-prism) this resolves to studio-round/Handshake_Artifacts/..., which does not exist. The workspace's own corpus convention at the same commit says such a crate-relative path 'does NOT resolve from round exports' and that crate configs must name only a subdirectory under the .config/oracle-corpus.toml root. In every validator round, therefore, the installed-profile T1 cases (17 of 20 pairs, 15 of 21 legs) and wide_profiles' installed cases report NOT_PROVEN: honest, but the oracle can never be proven in a round. ledger.json round_R6.known_not_proven records this, with the fix routed to SMB-PRISM-ENG-7, which is not in bd8533f.",
+     "remediation": "Resolve icc_root via the .config/oracle-corpus.toml walk-up (subdir 'icc'), as the workspace convention requires (ENG-7)",
+     "commit": "bac4790"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "test_integrity",
+     "file_line": "crates/hsk-studio-prism/tests/oracle_t1_lcms2.rs:316-342",
+     "evidence": "Carried from R5 and now load-bearing. The asserted T1 metric maps both Prism's and lcms2's device output through the engine's own destination->PCS leg (device_to_lab with the engine under test). The independent comparisons against lcms2's stored Lab (de_vs_lcms_lab, ref_consistency) are printed in the ORACLE_T1 line but never asserted. SMB-PRISM-ENG-6 rewrote both legs and closed destination-side findings on this metric.",
+     "remediation": "Assert de_vs_lcms_lab (or ref_consistency) against a stated threshold next to the main metric",
+     "commit": "d035f93"
+    }
+   ],
+   "recommendation": "FAIL",
+   "recommendation_note": "Machine-local paths and silent green are fixed: missing data is now a counted NOT_PROVEN. But the external root does not resolve from round exports, against the workspace corpus convention at the same commit, so T1 stays unproven in every validator round. The known fix (ENG-7) is not in the candidate."
+  },
+  {
+   "lane": "SMB-PRISM-ENG-6",
+   "crate": "hsk-studio-prism",
+   "commit_scope": "3926709, fdd57ee, dc42e34, d9a8ce8, bac4790, e7cf81f, 987af00 over 1d404f8",
+   "verified_fixes": [
+    {
+     "r5_review_item": "clippy approx_constant at icc_eval.rs:31-32 (R5 review A)",
+     "fix_commit": "d9a8ce8",
+     "evidence": "crates/hsk-studio-prism/src/icc_eval.rs:37-39: LN2_HI/LN2_LO as f64::from_bits fdlibm split, LOG2E = std::f64::consts::LOG2_E."
+    },
+    {
+     "r5_review_item": "Prism admission-ledger hook for STU-CON-044 (R5 SMB-DEVELOP-WIDE blocker)",
+     "fix_commit": "e7cf81f",
+     "evidence": "src/wide_admitted.rs:116-136 charges a provider lease before constructing the engine; :189-253 checks the actor and pixel bound, then reserves request, output, plan and build leases before engine.transform; the plan lease is kept only when the cache grew (:254-261); try_clear_cache/try_retire check retirement (:158-175). tests/wide_admitted.rs:51-99 asserts the exact ledger after denial, first request (provider + plan + output), cache hit, output drop and retire (0)."
+    },
+    {
+     "r5_findings": "11 ENG-5 PRISM-* findings",
+     "fix_commit": "3926709, fdd57ee, dc42e34",
+     "evidence": "T0 KNOWN_FINDINGS is empty (tests/oracle_t0_analytic.rs:24); T1 KNOWN_FINDINGS holds only DIV-ABS-V2-DISPLAY-WTPT-001 x30, DIV-V4-PERCEPTUAL-BLACK-001 x7 and DIV-CMYK-PERCEPTUAL-BPC-BLACK-001 x2 (grep at bd8533f). The registry fails when a listed combo stops reproducing (oracle_t0_analytic.rs:133), so these deletions are forced by passing runs, not edited thresholds. Root cause matches the code: icc_eval.rs:148-165 pow returns 0 for x==0, y>0 (the moxcms dirty_powf garbage path is gone); curv tables interpolate linearly (:261-269); the destination table inverse is exact piecewise-linear (:338-367); the ICC 8.10.2 precedence is pick() = intent table else table 0 (:821-823), then matrix/TRC."
+    }
+   ],
+   "checked": "Deterministic elementary functions (icc_eval.rs:33-165) re-derived: the LN_TAB bucket index is the top 8 mantissa bits, so |r| <= 1/512 and m-c is exact; the log1p degree-6 and e^r degree-5 Estrin polynomials expand to the stated series; n*LN2_HI is exact for |n| < 2^21; exp under/overflow cuts and scale2 cover the subnormal range. The CLUT (:413-442) checks strides, total and the largest reachable index with checked arithmetic before the wrapping index helpers are used; inputs <= 8, outputs <= 16, grid >= 2. The tetrahedral case table matches lcms2's six tetrahedra. Fusion (:923-974) folds the Gray source columns correctly; tests/wide_fusion.rs asserts max diff <= 2e-6 and >= 99% bit-identical (documented as 'up to f64 rounding'). V4-01: deny(arithmetic_side_effects) at admitted.rs:19, bpc.rs:28, icc_eval.rs:26, wide.rs:12, wide_admitted.rs:26, wide_plan.rs:12.",
+   "findings": [
+    {
+     "severity": "CONFIRMED",
+     "kind": "hostile_input_panic",
+     "file_line": "crates/hsk-studio-prism/src/icc_eval.rs:655-660 (Table::build, LutWarehouse::Multidimensional: t.grid_points[..inputs]); reached via to_pcs :876-882 from wide_plan.rs:52 (WideEngine/AdmittedWideEngine::transform); moxcms 0.9.1 reader.rs:369-371, profile.rs:584",
+     "evidence": "inputs = usize::from(t.num_input_channels) is the untrusted u8 from the mAB tag, while moxcms LutMultidimensionalType.grid_points is [u8; 16]. moxcms only skips the tag when 'in_channels > 4 && out_channels > 4' (&&, not ||), and bounds its own grid loops with .take(in_channels) over 16 entries. An RGB profile whose A2B0 is an mAB with 17..255 inputs, 3 outputs and a CLUT (first 16 grid points 2, about 196 KB of data, inside the 2 MiB limit) therefore parses in moxcms and passes admit() (wide.rs:288-380 checks only tag types). The slice panics in Table::build before Clut::new's inputs <= 8 check and before to_pcs compares table.inputs with the device channels. Before 3926709, moxcms's own transform checked channel counts (katana md_pipeline.rs:200), so this crash is new with the Prism evaluator. tests/wide_hostile.rs covers u32-max sizes and oversized CLUTs, but not the channel count.",
+     "remediation": "In Table::build refuse inputs > 8 (or > grid_points.len()) before slicing; add an mAB 17-input hostile test",
+     "commit": "3926709"
+    },
+    {
+     "severity": "CONFIRMED",
+     "kind": "stale_doc",
+     "file_line": "crates/hsk-studio-prism/src/wide.rs:1039 (WIDE_DESCRIPTOR admitted_route vs not_in_scope)",
+     "evidence": "The same descriptor says in admitted_route that AdmittedWideEngine 'charges the caller's ledger before every allocation', and still lists 'caller memory-ledger admission of the wide path (bounded by profile size, pixel limit and cache capacity)' under not_in_scope. A consumer reading not_in_scope would conclude that develop's conversion is unaccounted.",
+     "remediation": "Drop the not_in_scope entry or scope it to the plain WideEngine; cite tests/wide_admitted.rs in admitted_route (V4-07)",
+     "commit": "e7cf81f"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "unproven_bound",
+     "file_line": "crates/hsk-studio-prism/src/wide_admitted.rs:13-22,36-42,227-243; tests/wide_admitted.rs:51-99",
+     "evidence": "The lease sizes come from reasoned factors (parse 2x stored bytes + 16 KiB, plan 8x + 16 KiB, BPC 4 x plan + ramp) and are called 'conservative upper bounds'. No test measures the real heap of a parse/plan/BPC build against the lease (develop's DNG tests show a tracking allocator is feasible). The ledger tests only check bookkeeping. An under-estimate, for example a fused plan cloning curve tables more than once, would pass silently while STU-CON-044 accounting reads as exact.",
+     "remediation": "Add a tracking-allocator test: peak heap of transform on a miss (incl. BPC, CMYK table) <= reserved bytes",
+     "commit": "e7cf81f"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "missing_refusal",
+     "file_line": "crates/hsk-studio-prism/src/icc_eval.rs:212-215,225 (Gamma(g) for curv count 1 or para type 0, any g), :298 (inverse root uses 1/g)",
+     "evidence": "A curv gamma of 0 (u8Fixed8 0) or a para type-0 gamma <= 0 is accepted. On a destination, inverse() computes pow(v, 1/g) with g = 0 or g < 0, so in-gamut values map silently to 0 (or 1/inf) instead of a typed refusal for a non-invertible curve. Types 1-4 refuse only a = 0.",
+     "remediation": "Refuse g <= 0 (and non-finite) for destination curves as MalformedProfile; add T0 cases",
+     "commit": "3926709"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "test_integrity",
+     "file_line": "crates/hsk-studio-prism/tests/oracle_t1_lcms2.rs:49 (KNOWN_FINDINGS: DIV-ABS-V2-DISPLAY-WTPT-001 x30)",
+     "evidence": "When PRISM-LUT-DEST-ACCURACY-001 was closed, 8 RGB->CMYK absolute combos that still exceed the gate were re-attributed to the pending divergence DIV-ABS-V2-DISPLAY-WTPT-001. The attribution evidence (wtpt forced to D50 gives max 0.0055) comes from an uncommitted experiment, and expected-fail entries cannot fail the gate, so these 8 combos are unguarded until the lead decides the divergence.",
+     "remediation": "Commit the wtpt-forced-D50 variant as an asserting test, so the re-attribution is proven",
+     "commit": "dc42e34"
+    }
+   ],
+   "recommendation": "FAIL",
+   "recommendation_note": "The f64 evaluator, the 8.10.2 fallback and the ledger route are real and well evidenced. The 11 findings are closed by forced registry deletions with unchanged thresholds. FAIL on the CONFIRMED hostile-input panic that the new evaluator introduced (mAB with more than 16 inputs). The fix is a one-line bound plus a hostile test."
+  },
+  {
+   "lane": "SMB-COMPONENTS",
+   "crate": "hsk-studio-components",
+   "commit_scope": "ed9b130 (R5 remediation for both components lanes) over 1d404f8",
+   "verified_fixes": [
+    {
+     "r5_failure": "swap-switch-skip-variable-binding-type-check (instance_resolution.rs:473 at 1d404f8, R5-review-c CONFIRMED)",
+     "fix_commit": "ed9b130",
+     "evidence": "crates/hsk-studio-components/src/instance_resolution.rs:434-486 build_overrides takes &VariableTable (no Option), so no caller can skip variable_clash (:467-471). check_shape (:499-537) now checks the instance id (SCIN), every property's literal type or its bound variable's existence and type (prop_type_ok, :266-275), every override against the node's binding through build_overrides with design.variables(), and every carried VariableAlias override for existence and declared type. resolve_instance uses the same build_overrides with design.variables(). tests/instance_resolution.rs:1710-1820 builds each case on both sides: the plain instance resolves, swap or switch onto a member whose Button binds fills to a Color variable is refused TypeMismatch(fills) (it returned Ok before), a property bound to a wrong-type variable, an alias override of the wrong type or to a missing variable, and an invalid instance id. Each is refused by resolve_instance and by swap/switch alike, and a right-typed swap still resolves."
+    },
+    {
+     "r5_plausible": "write footprint keys shared by every instance of a component (instance_resolution.rs:810-826 at 1d404f8)",
+     "fix_commit": "ed9b130",
+     "evidence": "propose_overrides (:876-891) keys writes as override_key(instance_id, override/<node_id>/<field>) (:46-51); reads are taken from the edited fields' resolution reads; tests/instance_resolution.rs:1988 override_write_keys_are_scoped_to_the_instance. The lib DESCRIPTOR footprints text cites that test."
+    }
+   ],
+   "checked": "V4-06 counts recomputed at bd8533f: class A regex 41 lines and class B regex 31 lines over src/*.rs, equal to the lane's 41 and 31. select_member (:347-391) now refuses a second matching member (VariantAssignmentDuplicate) instead of taking the first, and property_definitions refuses a name repeated within one list (design.rs:257-274). No stub or fake behaviour: each new refusal has a paired positive control in the tests.",
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "api_semantics",
+     "file_line": "crates/hsk-studio-components/src/instance_resolution.rs:802-810 (OverrideProposal.instance), :845-891",
+     "evidence": "A proposal carries the whole successor instance, cloned from the proposer's snapshot, while its write footprint now names only the edited (instance_id, override/<node>/<field>) keys. Two proposals that edit different fields of the same instance have disjoint footprints and both admit, as STU-ARC-011 requires. But if the host commits proposal.instance as a record replacement, the second commit drops the first proposal's override (lost update). The footprint promises field-level disjointness that the payload does not express. This pre-dates ed9b130, which made the per-field keys explicit.",
+     "remediation": "Carry the edited fields as a delta (node, field, value) to be merged, or add (instance_id, \"\") to the write footprint",
+     "commit": "69b63c1,ed9b130"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "v4_violation",
+     "file_line": "crates/hsk-studio-components/src/lib.rs:198 (DESCRIPTOR model.variables 'never zero', model.overrides 'never a flattened subtree copy; base definitions are never mutated')",
+     "evidence": "ed9b130 edited this DESCRIPTOR (footprints and the Design::new duplicate rule), but its untouched never-claims cite no test. The lane disclosed that pre-existing never/always wording was not audited under V4-07.",
+     "remediation": "Cite the proving tests for each never-claim in DESCRIPTOR or weaken the wording",
+     "commit": "ed9b130"
+    },
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "bug",
+     "file_line": "crates/hsk-studio-components/src/instance_resolution.rs swap_component (:748-763)",
+     "evidence": "Carried R3 PLAUSIBLE, declared unchanged by the lane: swap_component refuses when the instance carries a component property the new main does not define, instead of dropping it with a DroppedOverride-style report (STU-DS-119 re-match semantics apply to overrides only).",
+     "remediation": "Decide per STU-DS-119 whether unmatched instance properties drop with a report or refuse; add a regression for it",
+     "commit": "0111960"
+    }
+   ],
+   "recommendation": "PASS",
+   "recommendation_note": "The R5 FAIL class is fixed in check_shape with the same checks resolution makes, and the regressions compare both sides. The PLAUSIBLE write-key item is also fixed. The remaining items are API-semantics and carried notes."
+  },
+  {
+   "lane": "SMB-COMPONENTS-FOLIO-MIGRATE",
+   "crate": "hsk-studio-components",
+   "commit_scope": "ed9b130 over 1d404f8",
+   "verified_fixes": [
+    {
+     "r5_failure": "design-new-accepts-duplicate-component-ids (design.rs:16-19,101-104,183-193 at 1d404f8, R5-review-c CONFIRMED)",
+     "fix_commit": "ed9b130",
+     "evidence": "crates/hsk-studio-components/src/design.rs:87-163 Design::new returns R<Design> and refuses Duplicate for document node ids (artboards, page spreads and layers share one namespace, :91-106), design entry node ids (:116-121), component and set ids in one namespace (:122-137), container layers of components and sets (reported with the component/set id), and collection and variable ids (VariableTable::new, instance_resolution.rs:124-144). Indexes are filled only after the uniqueness checks, so no lookup can pick one of two records. The module doc (:16-22) is weakened to what is tested and cites design_refuses_repeated_ids. tests/instance_resolution.rs:1822 covers a member id twice (it used to resolve the second definition), a layer id twice, a layer id equal to an artboard id, a design entry twice, two definitions on one container layer, a collection twice, a variable twice, and a standalone VariableTable."
+    }
+   ],
+   "findings": [
+    {
+     "severity": "PLAUSIBLE",
+     "kind": "consistency",
+     "file_line": "crates/hsk-studio-components/src/design.rs:87-163 vs hsk-studio-folio validate_design_records (records.rs:616-627)",
+     "evidence": "Design::new and Folio now both own uniqueness rules for the same records. They agree on the cases tested, but the namespace choices (artboard/spread/layer as one namespace; container layer reported under the component/set id) are restated in components rather than delegated to Folio. A future Folio change to id namespaces would not reach Design::new.",
+     "remediation": "Expose Folio's id-uniqueness pass as a function and call it from Design::new",
+     "commit": "ed9b130"
+    }
+   ],
+   "recommendation": "PASS",
+   "recommendation_note": "The R5 FAIL is fixed: an unvalidated Design can no longer resolve silently under a repeated id, and the regression reproduces the R5 case. The API change (Design::new -> Result) has no out-of-crate callers."
+  }
+ ],
+ "pending_lanes": [],
+ "completed_at": "2026-10-11T06:34:26Z",
+ "summary": {
+  "confirmed_per_lane": {
+   "SMB-PIGMENT-ENG-2": 0,
+   "SMB-PIGMENT-ENG-1": 0,
+   "SMB-RENDER-GPU": 1,
+   "SMB-CONTROLS": 0,
+   "SMB-DEVELOP": 0,
+   "SMB-DEVELOP-WIDE": 1,
+   "SMB-PRISM-ENG-5": 1,
+   "SMB-PRISM-ENG-6": 2,
+   "SMB-COMPONENTS": 0,
+   "SMB-COMPONENTS-FOLIO-MIGRATE": 0
+  },
+  "recommendations": {
+   "SMB-PIGMENT-ENG-2": "PASS_WITH_NOTES",
+   "SMB-PIGMENT-ENG-1": "PASS",
+   "SMB-RENDER-GPU": "FAIL",
+   "SMB-CONTROLS": "PASS",
+   "SMB-DEVELOP": "PASS",
+   "SMB-DEVELOP-WIDE": "PASS_WITH_NOTES",
+   "SMB-PRISM-ENG-5": "FAIL",
+   "SMB-PRISM-ENG-6": "FAIL",
+   "SMB-COMPONENTS": "PASS",
+   "SMB-COMPONENTS-FOLIO-MIGRATE": "PASS"
+  },
+  "r5_fail_items_verified_fixed": "pigment-eng-1 1/1 (d576ec5), controls 1/1 (fec865b), develop 1/1 (5ef2dd9+8962bbc), develop-wide accounting 1/1 (85fe452+e7cf81f; 64-px chunk text residual), components 1/1 (ed9b130), components-folio-migrate 1/1 (ed9b130); render-gpu no-adapter: resolved at round level only (NOT_PROVEN accounting 4ea5171, V4-03), crate unchanged; prism-eng-5: partial (C: paths and silent skip fixed in bac4790, root not relocatable to round exports)",
+  "top_findings": [
+   "SMB-PRISM-ENG-6 CONFIRMED: icc_eval.rs:655-660 slices moxcms grid_points[..num_input_channels] (u8 count, array of 16) before any channel bound; moxcms admits in>4 when out<=4 (&&), so a hostile mAB with 17+ inputs panics the wide transform",
+   "SMB-RENDER-GPU CONFIRMED V4-04: with_shader_source / with_injected_loss / simulate_device_loss are public fault-injection hooks in the default product build (plan_sink.rs:447-488,565; no test-faults feature)",
+   "SMB-PRISM-ENG-5 CONFIRMED: corpus.json icc_root is CARGO_MANIFEST_DIR-relative and does not resolve from round exports (workspace .config/oracle-corpus.toml:8-9 says so), so T1 installed-profile cases are NOT_PROVEN in every validator round; fix routed to ENG-7, not in bd8533f"
+  ],
+  "cross_lane": [
+   "Pass-through fill < 1: pigment admit now refuses uniformly (d576ec5), but composite evaluate_static.rs:189-190 still rates it fill_opacity Approximate (composite unchanged since 1d404f8).",
+   "Round accounting: tools/run-round.sh exits 73 on any NOT_PROVEN line, so render-gpu without an adapter and prism T1 without a resolvable corpus can no longer read as PASS; the validator must gate on round.json not_proven.",
+   "V4-04/V4-07 apply to code reviewed after 05:40Z even when committed earlier: render-gpu (159cf9c/167dc28) predates the rules and was not re-touched."
+  ]
+ }
+}
