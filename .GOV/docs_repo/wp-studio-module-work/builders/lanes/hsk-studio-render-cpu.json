@@ -1,21 +1,35 @@
 {
   "crate": "hsk-studio-render-cpu",
-  "status": null,
-  "phase": "slice-1 compiled+pushed; focused tests being written",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slice-1 pushed (plan/executor/blend math/path coverage/observe); starting slice-2 (remaining W3C blend modes)",
   "commits": [
-    {"sha": "98719b52f4f6bf1f31017b9b0f99df2629975eef", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "plan, bounded chunk executor, straight-alpha blend math, path coverage, observe report"}
+    {"sha": "98719b52f4f6bf1f31017b9b0f99df2629975eef", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "plan, bounded chunk executor, straight-alpha blend math, path coverage, observe report"},
+    {"sha": "a56af78", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "five focused cpu_plan tests"}
   ],
   "capabilities_done": [
     "BlendMode (7 STU-RAS-154 members) + typed UnsupportedBlend(code) + blend_mode_name",
     "composite_straight (W3C straight-alpha source-over, f64 intermediate)",
-    "RenderPlan/Op(fill|tile|path_fill)/TileSource/SourceTile (+pigment ResolvedTile adapter)",
-    "Renderer::render bounded chunk executor: cancel+deadline between chunks, stale revision, preflight validation, RAII scratch lease, RenderReceipt",
-    "PathFill coverage: exact winding of true curves (kurbo) at n*n samples, NonZero/EvenOdd",
-    "report(): one Observe terminal frame",
-    "examples/render-cpu-consumer (--descriptor, --selftest)"
+    "RenderPlan/Op(fill|tile|path_fill)/TileSource/SourceTile (+pigment ResolvedTile adapter, tested through pigment wire::Tile)",
+    "Renderer::render bounded chunk executor: cancel+deadline between chunks, stale revision, preflight validation (hash/stride/profile/space/value), RAII scratch lease + budget, RenderReceipt",
+    "PathFill coverage: exact winding of true curves (kurbo) at n*n samples, NonZero/EvenOdd, relative handles",
+    "report(): one Observe terminal frame; RenderError->Outcome mapping",
+    "examples/render-cpu-consumer (--descriptor, --selftest); DESCRIPTOR validated against constants"
   ],
-  "tests": {"passed": 0, "failed": 0, "note": "cargo check --tests --examples PASS (no warnings); clippy and focused tests not yet run"},
+  "tests": {
+    "passed": 5,
+    "failed": 0,
+    "command": "cargo test -p hsk-studio-render-cpu --tests --no-fail-fast",
+    "cases": ["known_alpha_mask_sample_math", "chunk_boundary_equals_independent_reference", "sink_error_cancel_releases_bytes", "unsupported_op_stale_result", "receipt_binds_revision_profile_and_observe"],
+    "check_tests_examples": "PASS no warnings",
+    "clippy": "PASS for this crate (only pre-existing observe too_many_arguments warnings, not ours)",
+    "tree": "shared edit tree, not export of pushed SHA"
+  },
+  "oracle_notes": "hand-computed Normal/Multiply/Screen/Darken/Lighten/Difference/Overlay vectors; independent per-pixel reference (analytic coverage) byte-equal across chunk sizes 1,2,3,4,64; Adobe parity NOT_PROVEN (W3C formulas only)",
+  "decisions_for_lead": [
+    "OPEN: render-cpu defines its OWN plan IR (plan_sink.rs); composite has no shared edge to it. Steward/lead to decide where a neutral plan IR lives (candidate: pigment) or whether composite lowers into render-cpu types via an allowed edge.",
+    "Tile source contract: SourceTile (own view) with from_resolved(pigment::ResolvedTile, Grid) adapter, because render-cpu has no folio edge and ResolvedTile needs folio TileRef to construct."
+  ],
   "blockers": [],
-  "next": "write tests/cpu_plan.rs (5 focused), clippy, run tests, then extra W3C blend modes",
-  "updated_at": "2026-10-11T05:00:00Z"
+  "next": "slice-2: remaining W3C blend modes (colour_dodge, colour_burn, hard_light, soft_light, exclusion, hue, saturation, colour, luminosity) with hand-computed vectors; then masks (pigment coverage planes) and isolated groups",
+  "updated_at": "2026-10-11T05:25:00Z"
 }

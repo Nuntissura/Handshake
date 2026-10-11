@@ -1,26 +1,47 @@
 {
   "crate": "hsk-studio-package",
-  "status": null,
-  "phase": "slice implemented; focused tests running",
+  "mt": "MT-35547",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "minimal slice complete: container write/read/preflight/manifest/atomic save + observe mapping + consumer example",
   "commits": [
-    {"sha": "8d9f694", "subject": "Package: STORE-only ZIP64 container writer, strict bounded reader, canonical manifest, atomic save", "pushed": true}
+    {"sha": "8d9f694", "subject": "Package: STORE-only ZIP64 container writer, strict bounded reader, canonical manifest, atomic save", "pushed": true},
+    {"sha": "a6d049a", "subject": "Package: traversal/absolute name codes and foundation contract tests (roundtrip, hostile ZIP, manifest, quarantine, atomic save)", "pushed": true},
+    {"sha": "5bc338d", "subject": "Package: real process-exit-before-rename interrupted-save proof, rustfmt", "pushed": true}
   ],
   "capabilities_done": [
-    "limits (entries/entry/total/name/manifest bytes), STORE-only ZIP+ZIP64 writer (deterministic, Auto|Always)",
-    "strict canonical-form bounded reader/preflight (CD/local cross-check, tiling layout, no gaps/overlap/prepend/trailing, CRC)",
-    "canonical manifest (strict parse, version gate before decode, sorted, SHA-256 + len per entry)",
-    "write_package/write_package_with (digest-keyed assets, preserved quarantine), AssetSource + MemoryAssetSource",
-    "read_package (folio::inspect_bytes reuse, quarantine + LossNote, asset/doc cross-checks)",
-    "save_atomic/save_atomic_with (injectable AtomicFs, temp+sync_all+readback verify+rename w/ backoff)",
-    "DESCRIPTOR, outcome_for/outcome_for_opened/report, example package-consumer"
+    "Limits (entries, entry bytes, total bytes, name length, manifest bytes); STORE-only; nothing is ever inflated, deflate entries rejected as unsupported_compression",
+    "In-house ZIP/ZIP64 writer: deterministic (fixed times, fixed order), Zip64Policy Auto|Always",
+    "Canonical-form bounded reader preflight(): EOCD must be final record, ZIP64 locator/record cross-checks, CD vs local-header agreement, entries tile [0,cd_offset) exactly (no gap/overlap/prepend/trailing), no descriptors/comments/encryption, ASCII-only safe names, dup + case-fold dup + file-vs-dir conflict, CRC-32",
+    "Canonical manifest: strict parse (unknown container_version reported first, re-serialization must equal bytes), per-entry SHA-256 + len, kinds document|asset|preview|opaque",
+    "write_package / write_package_with: digest-keyed assets/<sha256hex> via AssetSource (MemoryAssetSource for fixtures), absent/oversize/lying asset = typed error before any output, preserved quarantined entries re-emitted as opaque",
+    "read_package: folio::inspect_bytes reuse, verified assets map, Quarantined + LossNote (unlisted|opaque|preview), manifest<->document identity check, referenced-asset presence check",
+    "save_atomic / save_atomic_with: injectable AtomicFs, temp in same dir (create_new), sync_all, read-back verify + byte compare, rename with PermissionDenied/sharing-violation backoff; last-good retained on every failure path",
+    "DESCRIPTOR, outcome_for / outcome_for_opened / report (Observe mapping), example package-consumer (--descriptor, --write DOC OUT [--assets DIR], --read IN)"
   ],
-  "tests": {"passed": null, "failed": null, "note": "5 tests in tests/foundation_contract.rs pending first run"},
+  "tests": {
+    "passed": 5,
+    "failed": 0,
+    "command": "cargo test -p hsk-studio-package --no-fail-fast --no-default-features --test foundation_contract",
+    "names": ["mixed_graph_roundtrip_with_assets", "hostile_zip_rejected", "manifest_integrity_and_version", "unknown_record_quarantined_verbatim", "atomic_save_retains_last_good_and_cancel"],
+    "check_clippy": "check/clippy -p hsk-studio-package --tests --examples: clean (only pre-existing observe too_many_arguments warnings)",
+    "extra_evidence": "python zipfile testzip() accepts the written container; package-consumer --write then --read works on a real file; atomic test spawns a real child process that exits between durable temp and rename (exit code 86): last-good byte-identical, exactly one complete stale temp, next save recovers",
+    "tree": "shared edit tree at 5bc338d, not an export of the pushed SHA"
+  },
   "blockers": [],
-  "next": "run focused tests, fix, push, READY_FOR_VALIDATION",
+  "dep_requests": "builders/dep-requests.jsonl: crc32fast 1.5.2, sha2 0.10.9 (force-soft), serde 1.0.229, serde_json 1.0.151 (pins already in the crate manifest; steward registry/lock sync pending; tools/workspace-probe.rs not run by builder; Cargo.lock not committed by this lane)",
   "decisions": [
-    "Followed lead decision (in-house STORE-only ZIP64 + crc32fast) over brief's zip crate; Limits has no max_ratio (nothing is inflated; deflate entries are rejected as unsupported_compression)",
-    "No mimetype entry (would invent a MIME name); first physical entry is manifest.json",
-    "Entry names restricted to ASCII [A-Za-z0-9._-] components (removes unicode normalisation/case-fold ambiguity)"
+    "Followed lead decision (in-house STORE-only ZIP64 + crc32fast) over the brief's zip crate; Limits has no max_ratio",
+    "No mimetype entry (would invent a MIME name); first physical entry is manifest.json (enforced)",
+    "Entry names restricted to ASCII [A-Za-z0-9._-] components: removes unicode normalisation/case-fold ambiguity; non-ASCII names in foreign archives are rejected whole",
+    "Archive comment and any trailing bytes are rejected (EOCD must be last 22 bytes or follow ZIP64 record+locator)",
+    "UnsupportedVersion maps to Failure(Validation) per brief; Io, absent/unauthorized/missing asset map to Failure(Unavailable)"
   ],
-  "updated_at": "2026-10-11T03:50:00Z"
+  "known_gaps": [
+    "Oracle independence: roundtrip oracle is own writer vs own reader; mitigated by Python zipfile acceptance and an independent raw ZIP builder in the hostile test; a validator should add a third-party unzip/7z open of a written package",
+    "kill during the rename call itself and stale-temp sweep after a crash not covered (stale temp is left, never deleted by liveness guess)",
+    "ReadOnly folio inspections cannot be re-written (write takes a Snapshot)",
+    "No streaming from Read (slice is &[u8] / Write)"
+  ],
+  "next": "Validator round on pushed 5bc338d; next slice: blob table with codec ids (raw first, ruzstd decode behind approved dep), streaming reader over Read+Seek with bounded EOCD scan, stale-temp sweep with owner-pid marker, previews entries as real kind",
+  "updated_at": "2026-10-11T03:40:00Z"
 }

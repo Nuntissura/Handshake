@@ -1,0 +1,23 @@
+{
+  "lane": "SMB-ACCORD-ENG-1",
+  "crate": "hsk-studio-accord",
+  "status": "READY_FOR_VALIDATION",
+  "commits": [
+    {"sha": "b1fe6e8", "tree": "8862e2ce91b1bd10356c344da6b3e884e5db5c72", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "Accord: Ticks checked_sub, saturating_sub, and Ord/Hash"}
+  ],
+  "capabilities_done": [
+    "Ticks: derive PartialOrd, Ord, Hash (additive)",
+    "Ticks::checked_sub(self, other) -> Result<Self>: underflow is ValidationError::TickOverflow, consistent with checked_add",
+    "Ticks::saturating_sub (const, clamps at 0)"
+  ],
+  "tests": {
+    "clippy_tests": "PASS no warnings",
+    "accord_full_no_fail_fast": "PASS 13/13 (12 existing + 1 new tick_subtraction_ordering_and_hash)",
+    "passed": 13,
+    "failed": 0,
+    "workspace_check": "cargo check --workspace --tests --keep-going: only 2 errors, both in other lanes' uncommitted work, unrelated to Ticks: hsk-studio-pigment (E0583 missing module file blend_math, src/lib.rs:4) and hsk-studio-score (E0502 borrow in src/chain.rs:158); every other crate incl. all accord dependents compiles"
+  },
+  "blockers": [],
+  "next": "Independent validator round on pushed b1fe6e8 or later HEAD (crates/hsk-studio-accord unchanged since); Cargo.lock was touched by cargo (ruzstd) and deliberately not staged",
+  "updated_at": "2026-10-11T03:55:00Z"
+}

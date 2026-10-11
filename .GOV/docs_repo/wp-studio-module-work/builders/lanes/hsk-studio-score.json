@@ -2,28 +2,44 @@
   "crate": "hsk-studio-score",
   "mt": "MT-35541",
   "status": "READY_FOR_VALIDATION",
-  "phase": "foundation slice pushed; continuing with rubato resampler, gain/pan/mix exact tests, effect chain (later commits will supersede this SHA)",
+  "phase": "foundation + resampler + chain + mix + equalizer pushed; builder continuing with further slices (later commits supersede this SHA)",
   "commits": [
-    {"sha": "6e17a6a72883cd88a6282c60d8df4562c1458141", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "Score: preallocated block engine, admission, cancel/busy/stale, unity/gain/pan/mix, hard limiter, observe report, consumer"}
+    {"sha": "6e17a6a72883cd88a6282c60d8df4562c1458141", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "foundation: engine/admission/cancel/busy/stale, Unity/Gain/Pan/ChannelMix, HardLimiter, observe report, consumer"},
+    {"sha": "76ba23aec8b03f32e20a37e79f481c321e7f51fe", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "rubato sinc ClipResampler via Engine::resample, exact gain/pan/mix tests, resampling properties"},
+    {"sha": "31d83959dead354ac930b5e3796e54ba6919785e", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "effect Chain (per-stage bypass, live latency sum) + Engine::mix ordered send submix"},
+    {"sha": "6f736b80d766ff7f4ff1baa634ea2db3d215b8d6", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "Equalizer (RBJ biquad cascade, FX-136a ranges, analytic magnitude_db) with known-response test"}
   ],
   "capabilities_done": [
-    "ChannelLayout (ordered unique labels, stereo [100,101]), BlockSpec, exact sample<->ticks (5_292_000 ticks/sample @48k; non-divisor rates rejected)",
-    "Engine::process: admission order cancel>MissingContext>ResourceMismatch>StaleRevision>Busy(RAII Reservation)>frames/rate/channels/lengths/overflow/non-finite>processor rate+layout>capacity; zero writes on refusal; discard-unpublished on mid-block cancel/stale with processor reset; Copy allocation-free BlockReceipt (labels, per-channel peak, latency, start/end sample+ticks)",
-    "Processors: Unity (bit-exact), Gain, Pan (mono->stereo equal power, exact endpoints), ChannelMix (matrix; stereo_to_mono, mono_to_stereo), HardLimiter (FX-136a ranges, lookahead sliding-min + release + boxcar, clamp backstop, overshoot_events diagnostic, latency=round(ms*rate/1000))",
-    "normalised_to_value / value_to_normalised, db helpers, HardLimiterParams::from_normalised",
+    "ChannelLayout (ordered unique labels; stereo [100,101]), BlockSpec, exact sample<->ticks (5_292_000 ticks/sample @48k, 5_760_000 @44.1k, 7_938_000 @32k; non-divisor rates rejected)",
+    "Engine::process: admission order cancel>MissingContext>ResourceMismatch>StaleRevision>Busy(RAII Reservation)>frames/rate/channels/lengths/overflow/non-finite>processor rate+layout>capacity; zero writes on refusal (previous publication preserved); discard-unpublished + processor reset on mid-block cancel or revision bump; Copy allocation-free BlockReceipt (labels, per-channel peak, latency, start/end sample + ticks)",
+    "Processors: Unity (bit-exact), Gain, Pan (mono->stereo equal power, exact endpoints), ChannelMix (matrix; stereo_to_mono, mono_to_stereo), HardLimiter (FX-136a ranges, lookahead sliding-min + release + boxcar, clamp backstop, overshoot_events diagnostic, latency=round(ms*rate/1000)=341 @7.1ms/48k), Equalizer (peaking/low-high shelf/low-high pass, f64 TDF2, FX-136a ranges, analytic magnitude_db)",
+    "Chain: ordered effect stack that is a Processor; per-stage bypass (layout-preserving only); live latency sum; preallocated scratch; Processor::max_frames admission",
+    "Engine::mix: ordered SendRoute list -> submix (level per send), refuse-before-write incl. TimelineMismatch",
+    "Engine::resample + ClipResampler: rubato Async sinc 256-tap, startup delay trimmed, exact requested-vs-actual output frame accounting, exact-or-refused timeline mapping",
+    "normalised_to_value / value_to_normalised, db helpers, HardLimiterParams::from_normalised (slots in0..in3)",
     "Observe report(): Success/Canceled/Failure(Validation|Unavailable), exactly one terminal frame",
     "DESCRIPTOR + examples/score-consumer (--descriptor --frames --capacity --rate --limiter --cancel)"
   ],
   "tests": {
-    "foundation_contract": {"passed": 5, "failed": 0, "command": "cargo test -p hsk-studio-score --test foundation_contract --no-fail-fast"},
+    "foundation_contract": {"passed": 5, "failed": 0},
+    "dsp_resample": {"passed": 3, "failed": 0},
+    "chain_mix": {"passed": 2, "failed": 0},
+    "eq_response": {"passed": 1, "failed": 0},
+    "passed": 11,
+    "failed": 0,
+    "command": "cargo test -p hsk-studio-score --test foundation_contract --test dsp_resample --test chain_mix --test eq_response --no-fail-fast",
     "check_tests_examples": "PASS exit0",
     "clippy_tests_examples": "PASS: no findings in hsk-studio-score (2 pre-existing too_many_arguments warnings in hsk-studio-observe, not this lane)",
-    "passed": 5,
-    "failed": 0
+    "oracle_values": "unity fixture 256 frames bit-exact; gain 0.5/2.0, pan endpoints (1,0)/(0,1), stereo_to_mono [1,.5]/[.5,-.5] -> [.75,0], chain [.75,.125,0,.125], mix [3,4,5,6]; resample 48k->44.1k 4800->4410 frames, 1 kHz amplitude 0.5+-1e-3, residual <1e-3; peaking +12 dB exact at centre, Butterworth -3.0103 dB corner, shelf DC/Nyquist gain"
   },
-  "api_notes": "Deviations from brief (stronger): Processor::process takes &CancellationToken and returns Result; Processor::accepts/required_sample_rate_hz/reset added; Engine owns resource+live revision (RequestContext has no current_revision) so a revision bump mid-block discards the block; BlockReceipt is Copy with labels()/peak() slices; HardLimiter::new(rate, channels, HardLimiterParams). Spec declares no Mono/5.1 labels (UNVERIFIED) so ChannelLayout::mono(label) takes the label.",
+  "api_notes": "Deviations from brief (stronger): Processor::process takes &CancellationToken and returns Result; Processor::accepts/required_sample_rate_hz/max_frames/reset added; Engine owns resource + live revision (RequestContext has no current_revision) so a revision bump mid-block discards the block; BlockReceipt is Copy with labels()/peak() slices; HardLimiter::new(rate, channels, HardLimiterParams). Spec declares no Mono/5.1 labels (UNVERIFIED) so ChannelLayout::mono(label) takes the label. Send type is named SendRoute (std Send would be shadowed).",
+  "limitations": [
+    "ClipResampler alignment: rubato trims floor(256*ratio/2) output frames; measured residual lead 0.4..1.02 output frames across 48k->44.1k, 48k->48k, 48k->96k, 44.1k->48k (test bound 1.6). Exact alignment would need the rubato Fft resampler (default feature; adds realfft/rustfft) or an own calibrated trim.",
+    "Equalizer shapes follow the W3C Audio EQ Cookbook; Adobe curve parity and spec flags constant_q/low2ndorder/high2ndorder/ultraquiet are not mapped (spec declares no semantics).",
+    "Cancel inside Engine::resample is polled only at admission and at the publication gate (rubato process_all is one call; bounded by MAX_BLOCK_FRAMES)."
+  ],
   "blockers": [],
-  "dep_requests": [],
-  "next": "rubato 5.0.1 resampler (Async sinc, default-features=false) + dep-requests line; tests/dsp_resample.rs (exact gain/pan/mix values, resampling property); effect Chain",
-  "updated_at": "2026-10-11T03:45:00Z"
+  "dep_requests": ["rubato 5.0.1 (default-features=false) logged in builders/dep-requests.jsonl with resolved closure; steward must add registry pins for audioadapter 5.0.0, audioadapter-buffers 5.2.0, audioadapter-sample 5.2.0, audio-codec-algorithms 0.8.1 (0BSD OR Apache-2.0), num-integer 0.1.47, num-traits 0.2.19, autocfg 1.5.1, windowfunctions 0.1.1, visibility 0.1.1, syn 2.0.119, quote 1.0.47, proc-macro2 1.0.107, unicode-ident 1.0.26 and sync Cargo.lock (builder never stages Cargo.lock)"],
+  "next": "gain ramp/de-zippered parameter smoothing, sample-format conversion (i16/i24/f64 <-> f32, interleave), RMS metering in receipt, spectral analyzer (needs realfft dep request); independent validator round",
+  "updated_at": "2026-10-11T01:45:00Z"
 }

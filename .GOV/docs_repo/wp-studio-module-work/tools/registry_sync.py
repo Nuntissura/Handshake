@@ -7,7 +7,7 @@ Usage (run a cargo command first so Cargo.lock is current):
   python -X utf8 -I registry_sync.py <workspace_root> [--requests <dep-requests.jsonl>] [--write] [--allow-unrequested]
 Default = check mode: prints planned changes, exit 1 if root Cargo.toml / probe APPROVED are out of sync.
 Gate: a newly approved (crate, lib) pair must have a matching request line unless --allow-unrequested.
-Exit 2 = invalid crate dependency spec (not exact "=X.Y.Z", implicit defaults, missing features, not locked).
+Exit 2 = dependency not in Cargo.lock / ambiguous lock edge. Crate spec defects (builder-owned) are reported in "spec_defects", not fatal.
 """
 import json, pathlib, re, sys, tomllib
 
@@ -51,6 +51,7 @@ def main():
         return (f[0], f[1])
 
     registry = {}  # owner -> {lib: (version, features)}
+    defects = []  # crate manifest problems the probe will reject (builder-owned files)
     for member in manifest["workspace"]["members"]:
         crate = tomllib.loads((root / member / "Cargo.toml").read_text(encoding="utf-8"))
         owner = crate["package"]["name"]
@@ -67,14 +68,16 @@ def main():
                 lib = spec.get("package", alias)
                 ver = spec.get("version", "")
                 if not re.fullmatch(r"=\d+\.\d+\.\d+", ver):
-                    fail(2, f"{where}: version must be exact '=X.Y.Z' (got {ver!r})")
+                    defects.append(f"{where}: version must be exact '=X.Y.Z' (got {ver!r}); not pinned")
+                    continue
                 if spec.get("default-features") is not False:
-                    fail(2, f"{where}: default-features = false required")
+                    defects.append(f"{where}: default-features = false required; not pinned")
+                    continue
                 if "features" not in spec:
-                    fail(2, f"{where}: features = [...] required (may be empty)")
+                    defects.append(f"{where}: features = [...] missing; pinned as [] but probe rejects registry_features_missing")
                 if set(spec) - {"version", "features", "default-features", "optional", "package"}:
-                    fail(2, f"{where}: unsupported keys {sorted(set(spec))}")
-                entry = (ver[1:], sorted(spec["features"]))
+                    defects.append(f"{where}: unsupported keys {sorted(set(spec))}; probe rejects")
+                entry = (ver[1:], sorted(spec.get("features", [])))
                 prev = registry.setdefault(owner, {}).get(lib)
                 if prev and prev != entry:
                     fail(2, f"{where}: conflicting specs {prev} vs {entry}")
@@ -136,7 +139,7 @@ def main():
                 requested.add((r["crate"], r["dep"]))
     unrequested = [a for a in added if a not in requested]
     print(json.dumps({"owners": [o for o, _ in approved], "approved_added": added, "approved_removed": removed,
-                      "unrequested": unrequested, "manifest_changed": new_manifest != manifest_text,
+                      "unrequested": unrequested, "spec_defects": defects, "manifest_changed": new_manifest != manifest_text,
                       "probe_changed": new_probe != probe}))
     if unrequested and not allow:
         fail(1, "unrequested new direct libraries; add request lines or pass --allow-unrequested after review")

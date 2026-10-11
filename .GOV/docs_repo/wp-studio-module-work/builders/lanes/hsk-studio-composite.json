@@ -1,0 +1,42 @@
+{
+  "crate": "hsk-studio-composite",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slice 1 complete: blend maths + plan lowering + static eval + receipt + observe report",
+  "commits": [
+    {"sha": "4eb5cec", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "35-member StudioBlendMode, W3C separable and non-separable blend functions, fidelity tags, straight-alpha source-over, isolated and pass-through group stack evaluation"},
+    {"sha": "d5ed91a", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "Lower Folio snapshot to disposable ordered plan, static extents and unavailable reporting, render receipt, observe report, consumer example, oracle tests"},
+    {"sha": "e362ba6", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "prism Transfer -> BlendSpace mapping, algebraic blend-law sweep over 125x125 lattice"},
+    {"sha": "a6f2c7e", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "Reference text only: Adobe wording and luminance caveat for darker/lighter colour"}
+  ],
+  "capabilities_done": [
+    "blend: StudioBlendMode STU-RAS-154/039 discriminants 1..35, MODE_TABLE with fidelity class (exact|fitted|approximate|unsupported), applicability and reference per mode",
+    "blend: W3C Compositing 1 s10.1 separable (multiply screen overlay darken lighten colour-dodge colour-burn hard-light soft-light difference exclusion) and s10.2 non-separable (hue saturation colour luminosity) with Lum/Sat/SetLum/SetSat/ClipColor",
+    "blend: community-documented approximate modes (linear burn/dodge/light, vivid light, pin light, hard mix, subtract, divide, darker/lighter colour, dissolve with deterministic coordinate hash)",
+    "blend: typed refusals (pass_through on layer, behind/clear tool-only, average/negation/reflect/glow/erase unrecovered, out-of-domain, nesting depth); never Normal",
+    "blend: straight-alpha source-over with blend (W3C s5.1), premultiplied helpers, isolated vs pass-through group stack evaluation, receipt = declared blend space + lowest fidelity + distinct operator tags",
+    "blend: BlendSpace (encoded|linear) explicit input; From<prism::Transfer>; composite never converts",
+    "plan: lower(Snapshot, expected_revision, BlendSpace, Limits, cancel) -> LoweredPlan (Kahn, deterministic tie-break, fanout once, cycle/stale/budget/cancel), authored ids and input_ordinal order, layer/node projections",
+    "eval: evaluate(plan, snapshot, cancel) -> EvalReport (raster tile bounding extents via pigment Rect/Grid, hidden excluded from parent, vector/text/unsupported/unresolved/unassigned-profile reported Unavailable, cycle/dangling/stale/tool-only mode refusals), RenderReceipt{revision, blend_profile_bound, blend space, lowest fidelity, static_closure}",
+    "observe: outcome_of/eval_outcome/report; DESCRIPTOR; example composite-consumer (--descriptor --modes --doc FILE --expected-revision N [--space])"
+  ],
+  "tests": {
+    "passed": 11,
+    "failed": 0,
+    "detail": "static_plan 5/5, blend_oracles 5/5, blend_laws 1/1 (cargo test -p hsk-studio-composite --test static_plan --test blend_oracles --test blend_laws --no-fail-fast, on tree at e362ba6; later commit a6f2c7e changes reference strings only). check --tests --examples and clippy --tests --examples clean for this crate (warnings only from hsk-studio-observe, not owned).",
+    "tree": "shared edit tree (other builders' uncommitted changes present), not an export of the pushed SHA",
+    "oracle_values": "hand-computed per family in tests/blend_oracles.rs: separable (multiply screen overlay hard-light darken lighten difference exclusion dodge burn soft-light both branches), non-separable (hue saturation colour luminosity incl. ClipColor n<0 and x>1), straight-alpha source-over, isolated vs pass-through groups, approximate community modes. Analytic vectors only, NOT Photoshop parity."
+  },
+  "blockers": [],
+  "assumptions_for_validator_and_spec_queue": [
+    "input_ordinal 0 = first composited (bottom-most): SPEC GAP, UNVERIFIED against Photoshop (black-box oracle pending)",
+    "Fidelity 'exact' = cited published W3C formula verbatim, NOT Adobe parity; soft_light may differ in Photoshop (oracle pending); Photoshop mapping of Normal group = isolated and Pass Through = non-isolated UNVERIFIED",
+    "darker/lighter colour compare channel sums (Adobe help wording per search snippet; community thread reports luminance-weighted; UNVERIFIED); hard_mix uses a+b>=1; divide by 0 -> 1 (0/0 -> 0); pass-through opacity<1 = premultiplied lerp: all tagged approximate",
+    "Foundation composite descriptor has no authored blend parameter; plan composite steps carry the spec default PassThrough (STU-RAS-154)",
+    "Unsupported by design (typed/listed in DESCRIPTOR, not faked): masks, mattes, backdrop, effects, precomps, clipping, knockout, blend-if, fill opacity, 3D, time, vector/text to image",
+    "No Cargo edge from composite to render-cpu/render-gpu (neutral plan-IR home still open); render-cpu brief defines its own 7-mode sample_math: overlap to reconcile",
+    "BlendSpace is a caller input: Folio's blending_space is a ProfileBinding only; host maps resolved profile transfer (prism Transfer) via BlendSpace::from"
+  ],
+  "dep_requests": ["serde_json 1.0.151 dev-dependency (std) logged in builders/dep-requests.jsonl; prism path edge added (allowed, already in closure via pigment)"],
+  "next": "Independent validator round. Suggested next slice: clipping group, fill opacity and knockout once Photoshop oracle data exists; buffer-level (tile) compositing sharing blend maths with render-cpu once a neutral home or edge is decided",
+  "updated_at": "2026-10-11T05:15:00Z"
+}

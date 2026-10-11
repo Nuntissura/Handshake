@@ -1,0 +1,18 @@
+{
+  "crate": "hsk-studio-develop",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slice1_pushed_dng_reader_next",
+  "commits": [
+    {"sha": "68e87672ac310b9401461c20815f4dadff452fe2", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "decoded-CFA native 1.0 slice: CfaPlane (STU-CON-043 limits), bilinear reflect demosaic, as-shot WB, matrix, exposure, Hermite curves, tiled output, report, consumer example"}
+  ],
+  "capabilities_done": [
+    "recipe: typed DevelopRecipe/Enables(12)/NormalizedCrop/ResolvedCurves, validate refuses unsupported process/engine/token/demosaic/WB/crop/profile/contribution",
+    "pipeline: CfaPlane (spec_v1 + large limits, Bayer x4 + X-Trans 6x6, phase/origin), normalised demosaic bilinear_reflect_native_v1, WB gains, calibration matrix, exposure, monotone Hermite curves, crop floor/ceil, Pigment Grid tiles (rgb_f32le + alpha f32le + coverage_u8)",
+    "atomic: all tiles computed before sink; cancel/stale/sink error -> no receipt, plane immutable, sha256 in receipt",
+    "observe: report() outcome mapping, DESCRIPTOR, develop-consumer example"
+  ],
+  "tests": {"passed": 5, "failed": 0, "target": "develop_recipe", "check_tests": "PASS", "clippy_tests": "PASS (no develop findings)"},
+  "blockers": [],
+  "next": "dng.rs: TIFF/DNG IFD parser (uncompressed + lossless JPEG), CFA/black/white/linearization, ColorMatrix/ForwardMatrix -> camera_to_profile_rgb, window to CfaPlane; then decode_container for DNG",
+  "updated_at": "2026-10-11T01:40:00Z"
+}

@@ -1,0 +1,73 @@
+{
+  "crate": "hsk-studio-pulse",
+  "mt": "MT-35540",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slice-1 time algebra (lead scope: pulse owns time only)",
+  "commits": [
+    {
+      "sha": "416b3761f6d74ba86bad23663673c255df59bde8",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "Pulse: integer-tick time algebra (rates, timecode DF/NDF labels, rational interchange, tick ranges, trim/ripple lanes)"
+    },
+    {
+      "sha": "9502a9bc2f0c04f0ef2880279d16a57036b0d6e9",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "Pulse: lane scheduling queries, lift/extract/roll/slide, frame snapping, typed timecode parse, STU-VID-012a display enumeration"
+    }
+  ],
+  "capabilities_done": [
+    "timebase_from_import (reuses accord FrameRate::from_import + receipt), frames_to_ticks, ticks_to_frames_exact/floor, fps_fraction, frame_rate_from_fps",
+    "audio sample <-> ticks exact (ticks_from_samples, samples_from_ticks_exact)",
+    "timecode label functions: frames_to_timecode, timecode_to_frames, ticks_to_timecode, timecode_to_ticks; NDF + DF (29.97 drop 2, 59.94 drop 4); DF refused on non-NTSC rates; skipped DF labels refused",
+    "rational interchange: ticks_from_rational_seconds with Rounding {Exact,Floor,Ceil,NearestHalfUp} + loss flag, rational_seconds_from_ticks, Speed (reduced rational, sign = reverse, exact span/duration)",
+    "TickDelta (signed, checked), offset, TickRange [start,end) algebra, Grid {Free, Frames(rate)}",
+    "lane ops over ordered Vec<TickRange>: validate_lane, ripple_shift, trim_end, trim_start, ripple_trim_end, ripple_trim_start",
+    "report() -> one Observe terminal outcome; DESCRIPTOR; examples/pulse-consumer.rs",
+    "scheduling queries over ordered lane: range_at, next_edit_point, prev_edit_point, gaps, close_gap",
+    "lift_span / extract_span with LanePiece{origin, range, head_cut, tail_cut} (consumer moves source windows by the cuts); roll_edit; slide",
+    "snap_to_frame (Rounding), parse_timecode (':' NDF, ';' DF), TimeDisplay enumeration STU-VID-012a codes 100-112/200/201, time_display_from_import (113 -> frame-rate-matched + warning), format_ticks"
+  ],
+  "scope_note": "2026-10-11 lead decision: pulse owns time only. A first draft of Sequence/Track/Clip/EditProposal planners was written but NEVER committed; moved out of the crate (not in repo; scratchpad copy only) before the first commit. Folio lane (SMB-FOLIO-ENG-1) owns sequence/track/clip document types and consumes pulse time types.",
+  "accord_requests": [
+    "accord::Ticks has no checked_sub, Ord/PartialOrd or Hash; pulse wraps this (checked_sub -> Underflow, compare via value()). Optional later accord change: derive Ord/Hash on Ticks (lead decision).",
+    "accord::FrameRate exposes only ticks_per_frame(); pulse adds fps_fraction/frame_rate_from_fps externally."
+  ],
+  "tests": {
+    "check_tests": "PASS",
+    "clippy_tests_examples": "PASS (no findings in pulse; 2 pre-existing too_many_arguments warnings in observe)",
+    "foundation_contract": {
+      "passed": 5,
+      "failed": 0,
+      "cases": [
+        "ripple_trim_fixture_25fps",
+        "legacy_rates_and_conversions",
+        "timecode_labels",
+        "lane_refusals",
+        "cancel_and_observe"
+      ]
+    },
+    "passed": 7,
+    "failed": 0,
+    "schedule_and_display": {
+      "passed": 2,
+      "failed": 0,
+      "cases": [
+        "lane_scheduling_and_cuts",
+        "display_parse_and_snap"
+      ]
+    }
+  },
+  "oracle_values": {
+    "mt_35540_25fps": "2*10160640000 = 20321280000 trimmed duration and ripple start (hardcoded literals)",
+    "timecode": "29.97 DF frame 1800 -> 00:01:00;02, 17982 -> 00:10:00;00, 107892 -> 01:00:00;00; 59.94 DF 3600 -> 00:01:00;04, 35964 -> 00:10:00;00 (FFmpeg libavutil/timecode.c drop rule fetched 2026-10-11; Wikipedia SMPTE timecode lists no 59.94 DF); 23.976 NDF 86400 frames = 915372057600000 ticks (3603.6 s)"
+  },
+  "blockers": [],
+  "next": "Sequence-time ops over Folio timeline nodes once Folio lane lands document types (trim/ripple/razor/roll/slip/slide planners with link/sync-lock, proposal footprints, using pulse lane ops + Speed + LanePiece cuts); multicam cut-list range algebra; media decoder typed port; feet+frames after verification",
+  "updated_at": "2026-10-11T01:38:25Z",
+  "open_interpretations": [
+    "UNVERIFIED: a timecode display counts frames of its own rate over real time (a 25 fps sequence showing 24 fps timecode); no Adobe oracle yet",
+    "UNVERIFIED: code 113 fallback for 29.97/59.94 picks the non-drop member; feet+frames displays (111/112) return timecode_unsupported until frames-per-foot is verified"
+  ]
+}

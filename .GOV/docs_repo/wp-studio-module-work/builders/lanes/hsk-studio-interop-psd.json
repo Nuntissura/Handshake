@@ -1,0 +1,40 @@
+{
+  "crate": "hsk-studio-interop-psd",
+  "mt": "MT-35548",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slice-1 complete: own parser + byte-exact writer + loss report + Folio proposal + Observe report; mask sidecar next",
+  "commits": [
+    {"sha": "ee30d62", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "own bounded PSD/PSB reader (4 compressions, layers, groups, resources, merged composite), byte-exact writer, typed loss report"},
+    {"sha": "710ab18", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "Folio import proposal (hierarchy, linear-light Pigment tiles, appearance sidecar, loss, provenance), edit-loop apply, Observe report (pushed by another lane's push)"},
+    {"sha": "4cc3742", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "PSD blend keys to Pigment StudioBlendMode, merged-image oracle helper (placeholder never an oracle)"}
+  ],
+  "capabilities_done": [
+    "header + color mode (all 8 modes) + color-mode-data bytes kept",
+    "image resources: byte-exact blocks, ICC 1039, untagged 1041, version info 1057 (hasRealMergedData) -> MergedStatus Real|Placeholder|Unknown",
+    "layer records: rect, channel table, blend key kept verbatim (28 known keys, unknown => None + typed loss, never Normal), opacity, clipping, flags, mask data view, blending-ranges view, Pascal + luni names, tagged blocks byte-exact with padding",
+    "group hierarchy from lsct (type 1/2 folder, 3 bounding divider) via PsdDocument::tree",
+    "compressions 0 raw, 1 PackBits RLE (PSD 2-byte / PSB 4-byte row counts), 2 ZIP (zlib via miniz_oxide), 3 ZIP+prediction (8-bit; 16/32-bit implemented but UNVERIFIED)",
+    "PSB (version 2): 8-byte section/channel lengths, wide tagged keys, Lr16/Lr32/Layr layer-info blocks",
+    "merged composite decode (all compressions) + MergedImage::to_rgba8 + merged_oracle_rgba8 (None when hasRealMergedData=0) as self-check oracle input",
+    "typed loss report (kind + fixed code + index/key path) with hand-written JSON; adjustment/fill/text/smart-object/effects/vector keys labelled from the spec key tables",
+    "write_psd: unmodified document re-emits byte-identical (PSD and PSB/Lr16); layer rename regenerates luni + Pascal only",
+    "to_proposal: Folio snapshot via folio::inspect_bytes (hierarchy, group mix ops with bottom-first ordinals, hidden flag -> visible, canvas artboard), 8-bit RGB/gray pixels -> linear-light rgb_f32le + straight f32 alpha Pigment tiles (256 grid, sRGB EOTF, sparse), appearance sidecar (opacity, blend key + Pigment StudioBlendMode, clipping, clbl/infx/knko), layer_map, provenance (sha256, icc hash, assumed profile)",
+    "edit loop: Snapshot::rename -> ImportProposal::apply_to_document -> write_psd -> read_psd, only name/visibility change",
+    "Observe: report() emits exactly one terminal frame (Success | Failure(Validation|Unsupported|Loss) | Canceled)",
+    "limits: input, layers, pixels, decoded bytes, tagged block size/count, name units, resources, group depth; cancellation checks; truncation sweep + byte-flip sweep never panic"
+  ],
+  "tests": {"passed": 5, "failed": 0, "command": "cargo test -p hsk-studio-interop-psd --tests --no-fail-fast", "clippy": "clean for this crate (--tests --examples); pre-existing too_many_arguments warnings are in hsk-studio-observe", "check": "PASS"},
+  "unverified": [
+    "layer flags bit 1 SET = hidden (spec text says visible; PhotoCraft psd source and ag-psd/psd-tools behaviour agree on hidden) -> needs a Photoshop-authored fixture",
+    "ZIP+prediction for 16-bit (BE word delta) and 32-bit (byte-plane shuffle + byte delta): behaviour-reference only, spec is silent; ZIP being zlib-wrapped likewise",
+    "16-bit sample scale (/65535 assumed) for to_rgba8; 16/32-bit and CMYK/Lab pixels are not mapped into tiles in this slice",
+    "PSB merged-image RLE uses 4-byte row counts (spec only states this for layer channels)",
+    "global tagged-block alignment (pad to 4 outside length) vs layer-level (inside length): parser tries both and stores pad bytes; round trip is exact either way",
+    "ordinal 0 = bottom-most child in Folio ordered_composite edges (assumed from PSD file order; Folio fixture does not state direction)",
+    "Folio v1 StudioLayer has no opacity/blend/clipping/mask fields: they travel only in ImportProposal::appearance; kind strings psd_adjustment, psd_fill, psd_raster_unmapped and schema_id psd.tagged.<key> are importer-local labels (open vocabulary), need lead naming decision"
+  ],
+  "blockers": [],
+  "next": "layer-mask planes as Pigment-compatible coverage_u8 sidecar; then Photoshop-authored fixtures (oracle tier 0/1) to verify flags bit, prediction, 16-bit scale; ICC conversion of tiles via prism once a profile route exists",
+  "dep_requests": "miniz_oxide =0.9.1 (with-alloc) and serde_json =1.0.151 (std), both default-features=false, inline in crate manifest, lines appended to dep-requests.jsonl; Cargo.lock not staged",
+  "updated_at": "2026-10-11T01:47:00Z"
+}

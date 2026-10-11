@@ -299,6 +299,18 @@
     "crates/hsk-studio-pigment/** (additive)"
    ],
    "launched": "2026-10-11T02:55Z",
+   "status": "done (4c3ac91)"
+  },
+  {
+   "name": "builder-render-gpu",
+   "agent_id": "a7dfba9a91090b31a",
+   "model": "sonnet",
+   "role": "builder wave 2",
+   "owns": [
+    "crates/hsk-studio-render-gpu/**",
+    "builders/lanes/hsk-studio-render-gpu.json"
+   ],
+   "launched": "2026-10-11T04:00Z",
    "status": "running"
   }
  ]

@@ -3,7 +3,34 @@
   "mt": "MT-35536",
   "status": "PASS_V4",
   "commits": [
-    {"sha": "e603db86031feb860039f59658273d8fe17d2b30", "tree": "1de50152f22184049941432e0b66870be9e331a3", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "Admit pinned default-ignorable Common control spans at both Type shape entries"}
+    {
+      "sha": "e603db86031feb860039f59658273d8fe17d2b30",
+      "tree": "1de50152f22184049941432e0b66870be9e331a3",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "Admit pinned default-ignorable Common control spans at both Type shape entries"
+    },
+    {
+      "sha": "94331b00b51f2ba6e2e48abc2e9fc7949bf16289",
+      "tree": "64f80bbd68e3256095ecd81dd7c5ee9b6b557783",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "Type: env-free evidence lookup, private-module doc examples as text, provenance refresh",
+      "lanes": [
+        "SMB-TYPE-DOCTEST",
+        "SMB-TYPE-ENV"
+      ]
+    },
+    {
+      "sha": "947b5e7c2bb4e844311734072e60c645d8bad2db",
+      "tree": "d9292faf67848fa291e45710b57b1bcc5c644100",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "Type: vendor OFL-1.1 test fonts 0-2 with licenses and provenance",
+      "lanes": [
+        "SMB-TYPE-FONTS"
+      ]
+    }
   ],
   "tests": {
     "check_tests": "PASS exit0 (pre-existing dead-code warnings only)",
@@ -14,10 +41,53 @@
     "tree": "shared edit tree, not export of pushed SHA"
   },
   "blockers": [],
-  "next": "PASS_V4 on 96ad0530 (STUDIO-R1); no further Type source round for MT-35536; lead updates ledger",
+  "next": "PASS_V4 on 96ad0530 (STUDIO-R1); follow-up lanes SMB-TYPE-DOCTEST, SMB-TYPE-ENV (94331b00) and SMB-TYPE-FONTS (947b5e7c) await independent validation",
   "verdicts": [
-    {"round": "STUDIO-R1", "verdict": "PASS_V4", "candidate": "96ad05306c74ae57514a99a6668c8bdb1441d094", "mt": "MT-35536", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R1", "round_ref": ".GOV/docs_repo/wp-studio-module-work/validation/round-R1.json", "failures": [], "recorded_at": "2026-10-11T01:31:21Z"}
+    {
+      "round": "STUDIO-R1",
+      "verdict": "PASS_V4",
+      "candidate": "96ad05306c74ae57514a99a6668c8bdb1441d094",
+      "mt": "MT-35536",
+      "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R1",
+      "round_ref": ".GOV/docs_repo/wp-studio-module-work/validation/round-R1.json",
+      "failures": [],
+      "recorded_at": "2026-10-11T01:31:21Z"
+    }
+  ],
+  "followup_lanes": [
+    {
+      "id": "SMB-TYPE-DOCTEST",
+      "status": "READY_FOR_VALIDATION",
+      "commit": "94331b00b51f2ba6e2e48abc2e9fc7949bf16289",
+      "change": "src/provider/ttf/mod.rs:182,205,2080 doc fences -> text; module is crate-private (mod provider), so ttf_parser:: or crate paths cannot compile as doctests; line numbers unchanged; ttf provenance hash + change note refreshed",
+      "tests": "cargo test -p hsk-studio-type --no-fail-fast: Doc-tests 0 run / 0 failed (no remaining doc examples); unit 37/37; foundation_contract 2/2; exit0"
+    },
+    {
+      "id": "SMB-TYPE-ENV",
+      "status": "READY_FOR_VALIDATION",
+      "commit": "94331b00b51f2ba6e2e48abc2e9fc7949bf16289",
+      "change": "tests/support/mod.rs research(): nearest CARGO_MANIFEST_DIR ancestor holding Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35536/studio-assets-kernel-builder/research; HSK_TYPE_* stay optional overrides; reference sha 6579f9a9 and recipe bytes unchanged; example type-consumer shares support/mod.rs",
+      "tests": "run with no HSK_TYPE_* set: foundation_contract 2/2 (mixed_script_bidi_font_runs, font_axis_missing_cancel_stale), exit0; export path studio-round/src/... resolves the same root (path walk checked, not run there)",
+      "residual": "resolved by SMB-TYPE-FONTS (947b5e7c): fonts 0..2 + licenses vendored in tests/fixtures/fonts",
+      "survivor_branch": "shape.rs:93-95 unreachable with pinned fixtures: Common spans are all pinned default-ignorables; no fixture font (Inter static/variable, NotoSansArabic, NotoSansSC) has an ignorable glyph in GSUB input coverage under DFLT default features (Inter calt lookup 52 lists them only in backtrack/lookahead); engine never sets not_found_variation_selector; so no glyph survives removal. Defensive guard for caller fonts that substitute an ignorable; no test added (would need a synthetic font)"
+    },
+    {
+      "id": "provenance-drift-fix",
+      "status": "READY_FOR_VALIDATION",
+      "commit": "94331b00b51f2ba6e2e48abc2e9fc7949bf16289",
+      "change": "rustybuzz source-provenance.json hashes for hb/shape.rs and hb/ot_shape_plan.rs were stale after e603db8; refreshed + common_control_remediation record; both vendored provenance files now 0 drift"
+    },
+    {
+      "id": "SMB-TYPE-FONTS",
+      "status": "READY_FOR_VALIDATION",
+      "commit": "947b5e7c2bb4e844311734072e60c645d8bad2db",
+      "change": "tests/fixtures/fonts: Inter-Regular.ttf, NotoSansArabic-Regular.ttf, NotoSansSC-Regular.otf, OFL.txt, NotoSans-OFL.txt byte-identical to hash pins (529be850, bdff3e56, faa6c9df, 156202d7, 6a73f954); .gitattributes '* -text' (OFL.txt is CRLF, root text=auto eol=lf would rewrite); FONTS_PROVENANCE.json (source path, upstream, OFL-1.1 evidence, sha256); support font_root() = CARGO_MANIFEST_DIR/tests/fixtures/fonts + recipe file name, HSK_TYPE_FONT_ROOT optional",
+      "licenses": "all OFL-1.1: name ID 13/14 in each font, OS/2 fsType 0; upstream rsms/inter, notofonts/arabic, googlefonts/noto-cjk Sans/LICENSE; unmodified so Inter RFN not triggered; no blocker",
+      "recipe": "NOT edited: type-exact-oracle-recipe.json is pinned evidence outside the repo (sha 4b5e892e in MT research_basis); its absolute paths now serve only as file-name keys/provenance",
+      "tests": "Type crate full run --no-fail-fast: unit 37/37, foundation_contract 2/2, doc 0/0, exit0 (no HSK_TYPE_* env); committed blobs re-hashed equal for both license texts",
+      "remaining_external": "research root (recipe/preparation/variable font 3/goldens) and validator reference file stay under Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35536 (Studio-owned, resolved by ancestor walk)"
+    }
   ],
   "diagnostic_ref": ".GOV/docs_repo/wp-studio-module-work/diagnostics/type-lane.md",
-  "updated_at": "2026-10-11T01:31:21Z"
+  "updated_at": "2026-10-11T01:45:00Z"
 }

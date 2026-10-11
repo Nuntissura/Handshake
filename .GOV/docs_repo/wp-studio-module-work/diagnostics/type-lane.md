@@ -1,7 +1,7 @@
 ---
 file_id: WP-STUDIO-MODULE-WORK-DIAG-TYPE-LANE
 file_kind: lane_diagnostic
-updated_at: 2026-10-11T01:16:00Z
+updated_at: 2026-10-11T01:45:00Z
 wp: WP-KERNEL-STUDIO
 mt: MT-35536
 crate: hsk-studio-type
@@ -86,5 +86,30 @@ Sources: https://github.com/harfbuzz/rustybuzz ; https://github.com/harfbuzz/har
 - Tree note: shared edit tree (plus uncommitted steward root-manifest metadata), not an export of the pushed SHA. The independent round must re-run on an export.
 - Not run: workspace-probe closure extension (rustc tool; no manifest change in this diff); independent consumer/allocation acceptance.
 - MT-35536 lifecycle: READY_FOR_VALIDATION, blocked_on null; validator_verdict still FAIL_V3 until the independent round.
+
+</topic>
+
+<topic id="followup-r1" status="active" mt="MT-35536" summary="Post-PASS_V4 follow-up lanes SMB-TYPE-DOCTEST and SMB-TYPE-ENV">
+
+## Follow-up lanes after PASS_V4 (commit 94331b00)
+
+- SMB-TYPE-DOCTEST: the 3 ttf doc examples sit in the crate-private `provider` module, so no path can compile as a doctest. They are fenced as `text` with line numbers unchanged. Doc-tests now run 0, fail 0.
+- SMB-TYPE-ENV: `research()` walks up from `CARGO_MANIFEST_DIR` to the pinned evidence root. The worktree and `studio-round/src/...` exports both resolve it without `HSK_TYPE_*`. Reference and recipe hashes are unchanged.
+- Residual: fonts 0..2 still load from absolute paths in the hash-pinned recipe (the `wtc-native-editors-v1` worktree).
+- Survivor guard `shape.rs:93-95` cannot be reached with the pinned fixtures; a reachable case needs a font whose GSUB input coverage includes an ignorable glyph. No test was added.
+- Provenance drift left by e603db8 (`hb/shape.rs`, `hb/ot_shape_plan.rs`) is fixed. Both vendored provenance files now show 0 drift.
+- Run once (`--no-fail-fast`, no `HSK_TYPE_*` env): unit 37/37, foundation_contract 2/2, doc 0/0, exit 0. Not a verdict.
+
+</topic>
+
+<topic id="fonts-vendored" status="active" mt="MT-35536" summary="SMB-TYPE-FONTS: OFL test fonts vendored into the Type crate">
+
+## SMB-TYPE-FONTS (commit 947b5e7c)
+
+- Vendored fonts 0..2 and their licenses into `crates/hsk-studio-type/tests/fixtures/fonts/`, byte-identical to the hash pins, so reference 6579f9a9 stays valid. The `FONTS_PROVENANCE.json` there records source, upstream, license evidence and sha256.
+- Licenses: all three fonts are OFL-1.1, per name ID 13/14, fsType 0 and upstream (rsms/inter, notofonts/arabic, googlefonts/noto-cjk). The files are unmodified, so there is no blocker.
+- `.gitattributes '* -text'` keeps exact bytes. Inter's `OFL.txt` is CRLF and the root `text=auto eol=lf` would otherwise rewrite it and break its hash.
+- The recipe JSON is unchanged because it is pinned evidence (sha 4b5e892e). Fonts are now resolved by its file names under `CARGO_MANIFEST_DIR`, so the `wtc-native-editors-v1` worktree is no longer read.
+- Run once (`--no-fail-fast`, no env vars): unit 37/37, foundation_contract 2/2, doc 0/0, exit 0. Not a verdict.
 
 </topic>

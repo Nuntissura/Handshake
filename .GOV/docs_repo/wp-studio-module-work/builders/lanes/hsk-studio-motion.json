@@ -1,0 +1,45 @@
+{
+  "crate": "hsk-studio-motion",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slice-2 complete (PropertyStore) on top of slice 1 (keyframe evaluator, property state machine + expression ports, dependency graph, Date clock, receipt/descriptor/observe report, motion-consumer example)",
+  "commits": [
+    {"sha": "5fb234d", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "Motion: keyframe segment evaluator, property state machine, expression ports, dependency graph, Date clock"},
+    {"sha": "e29dae0", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "Motion: foundation contract tests, pure-closure fuel fix, clippy clean"},
+    {"sha": "bebb218", "tree": "689d6e4c8dce65915cd8e5a5d4f2d6b180b443e3", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "Motion: document monotone time-curve invariant (comment only)"},
+    {"sha": "07c6662", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "Motion: PropertyStore evaluates properties in dependency order and serves cross-property reads"},
+    {"sha": "f06e184", "tree": "6e4ad9a", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "Motion: PropertyStore contract tests (dependency order, cross-reads, revisions, failure isolation, shared fuel)"}
+  ],
+  "capabilities_done": [
+    "Property::sample at exact EvalTick (i64, negative allowed): held ends, independent in/out interpolation (Linear/Bezier/ContinuousBezier/AutoBezier/Hold), hold out = step, non-interpolable = hold (MOT-031b), per-component temporal tangents {speed,influence} (single tangent broadcasts), cubic (time,value) segment solved by 64 fixed bisection steps, exact key endpoints, finite + hard-bound checks (OutOfBounds, never clamped)",
+    "Property validation: unique strictly increasing key times (distinct duplicate_key_time / unsorted_keys codes), component counts, influence 0..=1, NonFinite, MissingTangent, tick_overflow, dimension/key limits, stable key segment",
+    "Four-state machine (static|keyframed|expression_driven|expression_over_keyframes), retained static value (MOT-020b), revision + stale-revision rejection, expression error disables and falls back with disabled_by_error{code,span}, cancel never disables, Fuel shared allowance, NoProvider pure closure (unsupported)",
+    "ExpressionProvider / HostRead typed ports (no engine types), ExprErrorCode = MOT-259 vocabulary",
+    "PropertyPath validation; DepGraph::commit_expression (atomic, iterative, cycle participants in cycle order), eval_order (deterministic Kahn), ReferenceResolver -> ReferenceMissing / AmbiguousReference",
+    "DateProfile::utc_ms (MOT-256 exact i128 math, trunc toward zero, +-8.64e15 edge reject), civil_from_ms, to_iso_string (MOT-257), parse_iso_exact (4-digit and signed 6-digit years, UTC Z only)",
+    "EvalReceipt, DESCRIPTOR (valid JSON), report() through observe::SinkPort, example motion-consumer (--descriptor, --keys, --tick, --seed)",
+    "PropertyStore (insert/set_reads/update/evaluate_tick): evaluates all properties at one tick in DepGraph eval_order; evaluated values served as HostRead; reads limited to the declared read set (else reference_missing); canonical-tick read = evaluated value (incl. fallback of a disabled expression); other-tick read = keyframed/static value, unsupported for an expression-active target (no re-entry); one shared Fuel; store revision advances on accepted insert/set_reads/update, stale revision rejected; cycle/unknown/duplicate refused with the store unchanged; hard error (cancel, out_of_bounds) aborts the tick with no partial result and every property stays in the store"
+  ],
+  "tests": {
+    "check_tests_examples": "PASS exit0 at f06e184",
+    "clippy_tests_examples": "PASS at f06e184, no findings in hsk-studio-motion (observe has 2 pre-existing too_many_arguments warnings, not ours)",
+    "foundation_contract": "PASS 5/5 (keyframe_sampling_analytic, tangent_defaults_and_rejects, dependency_cycle_and_order, date_clock_vectors, expression_policy_fallback) re-run together with store_contract at f06e184",
+    "store_contract": "PASS 3/3 (store_orders_and_serves_cross_property_reads, store_revisions_cycles_and_unknowns, store_failure_isolation_and_fallback); hand-computed order/values/fuel, e.g. z = base 2 + y 5 + x 5 = 12, per-property fuel [2,0,0,2,2,2,3] = 11, shared-allowance exhaustion leaves z fuel_used 1",
+    "command": "package test run, tests only, no-fail-fast, both test files in one invocation, shared edit tree (not an export of the pushed SHA)",
+    "passed": 8,
+    "failed": 0,
+    "oracle": "hand-computed values in test comments (e.g. asymmetric segment X=[0,.5,.75,1] Y=[0,4,10,8]: value 6.25 at tick 301_644_000_000; smoothstep 1.5625 at u=.25; ECMAScript Date vectors incl. +275760-09-13 and -271821-04-20); no Adobe oracle run yet"
+  },
+  "blockers": [],
+  "decisions": [
+    {"id": "spec-vs-ae-spatial-ease", "text": "STU-MOT-033 (tangents per component) followed. research/adobe-behavior.md (AE scripting docs, UNVERIFIED black-box): a spatial position key has ONE path-speed ease, not per-component. Conflict recorded, not resolved: evaluator accepts either per-component tangents or one broadcast tangent. Spatial path-speed ease (MOT-036) is later scope (needs nib path length)."},
+    {"id": "mixed-segment-handle", "text": "Segment with one Bezier-family side and one Linear side: the linear side contributes a chord handle (speed = chord slope, influence 1/3). Hold on the ARRIVAL side counts as non-bezier; only the departure out_interp=Hold steps. UNVERIFIED against After Effects; needs black-box valueAtTime oracle."},
+    {"id": "auto-continuous-bezier", "text": "ContinuousBezier and AutoBezier evaluate from stored tangents exactly like Bezier; deriving/maintaining them is authoring-time (MOT-037/038), never in the evaluator. Bezier-family side with no stored tangent = MissingTangent."},
+    {"id": "non-monotone-time", "text": "NonMonotoneTime guard is unreachable for influence in 0..=1 (proved in keyframe.rs comment); kept as invariant guard."},
+    {"id": "expression-budget-disables", "text": "Budget exhaustion (shared Fuel) is treated as an expression error: expression is disabled with disabled_by_error=Budget until set_expression/set_expression_enabled re-enable it (revision advances). Rationale: MOT-071/259 + determinism. A host that wants retry-without-disable must give a larger Fuel."},
+    {"id": "default-influence", "text": "DEFAULT_INFLUENCE = 0.16666666666 per MOT-034a (AE easy-ease UI shows 33.33%; whether that is influence-of-speed vs fraction of segment is UNVERIFIED, confirm black-box before locking)."},
+    {"id": "no-rng", "text": "Seed carried as u64 in context/request/receipt only; no RNG (algorithm unpublished, MOT-074/076 gap)."},
+    {"id": "store-other-tick-reads", "text": "PropertyStore other-tick read of an expression-active target is unsupported (expressions never re-entered: deterministic, cycle-safe). A host needing valueAtTime of expression properties must add a re-entrant evaluator with its own cycle/fuel policy (later slice)."}
+  ],
+  "next": "Independent validator round on f06e184 (tests/foundation_contract.rs + tests/store_contract.rs). Later slices, not started per coordinator: AE valueAtTime black-box oracle (D5 session), spatial tangents/roving (needs nib), Folio mapping of hsk.studio.property@1 if the Operator opens it.",
+  "updated_at": "2026-10-11T03:40:00Z"
+}
