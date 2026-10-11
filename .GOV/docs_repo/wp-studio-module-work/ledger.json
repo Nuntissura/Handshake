@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T17:06:51Z",
+ "updated_at": "2026-10-11T17:22:04Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -697,8 +697,8 @@
    "lane_id": "SMB-PRESS",
    "crate": "hsk-studio-press",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-press",
-   "phase": "validation (V4-13 pre-review R11 running)",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "paused: Operator decision D27 (redaction assurance level)",
+   "status": "BLOCKED",
    "owner": "builder-press",
    "brief": null,
    "commits": [
@@ -748,7 +748,15 @@
     "ref": "validation/R11-prereview-press.json",
     "recommendation": "NONE (incomplete: reviewer stopped by its own decision)",
     "at": "2026-10-11T16:40:05Z"
-   }
+   },
+   "blockers": [
+    {
+     "kind": "operator_decision",
+     "ref": "START_LOG D27",
+     "prereview": "validation/R11-prereview-press.json FIX_FIRST (R11-F1..F6)",
+     "recorded_at": "2026-10-11T17:22:04Z"
+    }
+   ]
   },
   {
    "lane_id": "SMB-WEB",
@@ -2497,8 +2505,8 @@
    "crate": "hsk-studio-press",
    "origin": "press 1c3fd8c residual",
    "scope": "/Differences + Type3 + encoding-less fonts decoded via AGL or opaque (NotProven)",
-   "phase": "validation (V4-13 pre-review R11 running)",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "paused: Operator decision D27 (redaction assurance level)",
+   "status": "BLOCKED",
    "owner": "builder-press-differences",
    "commits": [
     "607d47c",
@@ -2522,7 +2530,15 @@
     "ref": "validation/R11-prereview-press.json",
     "recommendation": "NONE (incomplete: reviewer stopped by its own decision)",
     "at": "2026-10-11T16:40:05Z"
-   }
+   },
+   "blockers": [
+    {
+     "kind": "operator_decision",
+     "ref": "START_LOG D27",
+     "prereview": "validation/R11-prereview-press.json FIX_FIRST (R11-F1..F6)",
+     "recorded_at": "2026-10-11T17:22:04Z"
+    }
+   ]
   },
   {
    "lane_id": "SMB-RENDER-GPU-PROBE",

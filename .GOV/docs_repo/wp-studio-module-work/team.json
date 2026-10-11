@@ -1983,7 +1983,7 @@
     "validation/R11-prereview-press.json"
    ],
    "launched": "2026-10-11T16:40:30Z",
-   "status": "running"
+   "status": "done 2026-10-11T17:22:04Z (FIX_FIRST: R11-F1..F6)"
   },
   {
    "name": "rem-web-r11",
