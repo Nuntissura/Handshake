@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T07:46:25Z",
+ "updated_at": "2026-10-11T07:47:52Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -1801,11 +1801,15 @@
    "crate": "hsk-studio-render-cpu",
    "origin": "follow-up",
    "scope": "adopt pigment windowed matte; remove 24 px margin refusal",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-render-cpu-window",
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "0f58c1c"
+   ],
+   "verdicts": [],
+   "candidate": "0f58c1c",
+   "note": "windowed effects (be1836b, 0f58c1c): 24 px margin refusal and per-tile recompute removed; one window per chunk via WindowGeometry::uncut + render_layer_window, FrameAlpha AlphaSource; layer_window_cost charged before first sink; work limit 1e9 typed refusal; f32-bit parity across 5 chunkings x 1-4 workers; 200 px blur (margin 305) identical to uncut oracle; Dissolve chunk-independent (plan coords, seed 0); 26 green"
   },
   {
    "lane_id": "SMB-INTEROP-VECTOR-RECORDS",
@@ -1826,6 +1830,17 @@
    "phase": "queued (after SMB-WEB is judged in R7; V4-14/15)",
    "status": null,
    "owner": null,
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-RENDER-CPU-FX2",
+   "crate": "hsk-studio-render-cpu",
+   "origin": "render-cpu window slice",
+   "scope": "wave-2 effects (inner shadow, outer/inner glow) via windowed API",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-render-cpu-window",
    "commits": [],
    "verdicts": []
   }
@@ -1920,7 +1935,8 @@
   "SMB-PIGMENT-WINDOW",
   "SMB-FOLIO-ENG-7",
   "SMB-KERNEL-BINDINGS",
-  "SMB-HARNESS"
+  "SMB-HARNESS",
+  "SMB-RENDER-CPU-WINDOW"
  ],
  "round_R6": {
   "candidate": "bd8533f",

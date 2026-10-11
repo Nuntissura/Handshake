@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T07:46:25Z",
+ "updated_at": "2026-10-11T07:47:52Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1193,7 +1193,7 @@
     "crates/hsk-studio-render-cpu/**"
    ],
    "launched": "2026-10-11T07:26:25Z",
-   "status": "running"
+   "status": "running (SMB-RENDER-CPU-FX2: wave-2 effects via window API) 2026-10-11T07:47:52Z"
   },
   {
    "name": "prereview-r7-a",
@@ -1215,6 +1215,28 @@
     "validation/R7-prereview-b.json"
    ],
    "launched": "2026-10-11T07:30:00Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-pigment-blendif-clip",
+   "agent_id": "a8eb0661d6a47bb46",
+   "model": "sonnet",
+   "role": "pigment: define (or uniformly refuse) Blend-If on clip base / clipped layer",
+   "owns": [
+    "crates/hsk-studio-pigment/**"
+   ],
+   "launched": "2026-10-11T07:47:52Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-kb-faults",
+   "agent_id": "a208d072674560090",
+   "model": "sonnet",
+   "role": "kernel-bindings: gate fault hooks behind test-faults (V4-04)",
+   "owns": [
+    "crates/hsk-studio-kernel-bindings/**"
+   ],
+   "launched": "2026-10-11T07:47:52Z",
    "status": "running"
   }
  ]

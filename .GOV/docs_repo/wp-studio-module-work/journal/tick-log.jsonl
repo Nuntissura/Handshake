@@ -99,3 +99,4 @@
 {"t": "2026-10-11T07:46:25Z", "event": "SMB-KERNEL-BINDINGS READY_FOR_VALIDATION be2ee84 (rem-kb-harness)", "lanes_moved": ["SMB-KERNEL-BINDINGS READY"], "commits": ["be2ee84"], "progress": "direct: product commit"}
 {"t": "2026-10-11T07:46:25Z", "event": "SMB-HARNESS READY_FOR_VALIDATION c41b067 (rem-kb-harness)", "lanes_moved": ["SMB-HARNESS READY"], "commits": ["c41b067"], "progress": "direct: product commit"}
 {"t": "2026-10-11T07:46:25Z", "event": "SMB-RENDER-GPU-ADJ READY_FOR_VALIDATION a6ac630 (builder-render-gpu-fx)", "lanes_moved": ["SMB-RENDER-GPU-ADJ READY"], "commits": ["a6ac630"], "progress": "direct: product commit"}
+{"t": "2026-10-11T07:47:52Z", "event": "SMB-RENDER-CPU-WINDOW READY_FOR_VALIDATION 0f58c1c (builder-render-cpu-window)", "lanes_moved": ["SMB-RENDER-CPU-WINDOW READY"], "commits": ["0f58c1c"], "progress": "direct: product commit"}
