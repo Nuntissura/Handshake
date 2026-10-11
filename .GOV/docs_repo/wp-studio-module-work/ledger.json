@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T22:15:22Z",
+ "updated_at": "2026-10-11T22:17:09Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -2817,12 +2817,16 @@
    "crate": "hsk-studio-reel",
    "origin": "plausible register",
    "scope": "PLR-066..068: receipts take delivered counts/ends from what was delivered; y4m past-end pre-check",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-reel-receipts",
    "lane_file": "builders/lanes/hsk-studio-reel-receipts.json",
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "b8b276d"
+   ],
+   "verdicts": [],
+   "candidate": "b8b276d",
+   "note": "PLR-066..068: receipts (units, complete, actual end) from what the loop delivered at wav/y4m/PCM/mxf (cfg(test) seam model::short_loop; tests per call site in src/delivery_tests.rs); Partial packet receipt actual.end_pts = latest delivered chunk end; y4m Export past the last complete frame -> OutOfRange before first read (Preview keeps Truncated); every-provider past-end test; routing untouched (no registry/video/cache/matroska/av1 diff); nextest 69 default / 76 av1; 15 mutations red; V4-06 60 sites. Residual: video-route Partial receipt keeps packet end_pts (needs Forward in video.rs) -> PLR-077"
   },
   {
    "lane_id": "SMB-REEL-NATIVE-FAULTS-2",
@@ -2937,7 +2941,8 @@
   "SMB-PARITY-FOLLOWUP",
   "SMB-REEL-NATIVE-FAULTS",
   "SMB-WEB-PARITY",
-  "SMB-PIGMENT-PLANLIMITS"
+  "SMB-PIGMENT-PLANLIMITS",
+  "SMB-REEL-RECEIPTS"
  ],
  "round_R6": {
   "candidate": "bd8533f",

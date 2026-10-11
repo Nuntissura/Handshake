@@ -1171,7 +1171,7 @@
    "status": "OPEN",
    "verified_at": "6956d3f",
    "disposition": "FIX_LANE",
-   "disposition_note": "next reel lane"
+   "disposition_note": "fix claimed b8b276d (SMB-REEL-RECEIPTS); reviewer confirms next round"
   },
   {
    "id": "PLR-067",
@@ -1186,7 +1186,7 @@
    "status": "OPEN",
    "verified_at": "6956d3f",
    "disposition": "FIX_LANE",
-   "disposition_note": "next reel lane"
+   "disposition_note": "fix claimed b8b276d (SMB-REEL-RECEIPTS); reviewer confirms next round"
   },
   {
    "id": "PLR-068",
@@ -1201,7 +1201,7 @@
    "status": "OPEN",
    "verified_at": "6956d3f",
    "disposition": "FIX_LANE",
-   "disposition_note": "next reel lane"
+   "disposition_note": "fix claimed b8b276d (SMB-REEL-RECEIPTS); reviewer confirms next round"
   },
   {
    "id": "PLR-069",
@@ -1322,6 +1322,21 @@
    "verified_at": "7410f29",
    "disposition": "FIX_LANE",
    "disposition_note": "next press lane: scope 'certain' to draw-reachability or report NotProven::PaintedSourceKept; document meanwhile"
+  },
+  {
+   "id": "PLR-077",
+   "lane": "SMB-REEL-RECEIPTS",
+   "file_line": "crates/hsk-studio-reel/src/video.rs (Forward)",
+   "finding": "a video-route Partial receipt (decoder dropped a picture) keeps the packet end_pts instead of the end of delivered pictures",
+   "first_seen": "builder report b8b276d",
+   "seen_in": [
+    "lane notes residual"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "b8b276d",
+   "disposition": "FIX_LANE",
+   "disposition_note": "touches Forward in video.rs (AV1-ROUTE 2-FAIL area): needs a narrow pre-review; later reel lane"
   }
  ],
  "process_items": [

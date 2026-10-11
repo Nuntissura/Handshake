@@ -1,0 +1,467 @@
+{
+ "crate": "hsk-studio-reel",
+ "lane": "SMB-REEL-RECEIPTS",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "SMB-REEL-RECEIPTS (new lane, V4-15: the three open follow-ups PLR-066/067/068 of SMB-REEL-ENG-1 after R11) complete on b8b276d: every delivery receipt states what the provider's own loop delivered (count, completeness and the end of the actual span; wav no longer computes the count from the request), a Partial packet receipt over a repeating edit list ends where the delivered chunks end, a y4m Export past the last complete frame is OutOfRange before the first read; SMB-REEL-AV1-ROUTE trust routing untouched (registry.rs, video.rs, cache.rs, matroska.rs, av1/* not in the diff); base 7410f29",
+ "commits": [
+  {
+   "sha": "b8b276d",
+   "subject": "reel (SMB-REEL-RECEIPTS, wip, lane status null): receipts state what the loop delivered (PLR-066, PLR-067); y4m export range past the end is OutOfRange before the first read (PLR-068)"
+  }
+ ],
+ "capabilities_done": [
+  "PLR-066 (REEL-R11-1) the wav receipt's delivered count is the loop cursor (cursor - start), not deliver_end - start (computed from the request and the file length); the end of the actual span at the wav, y4m, PCM and mxf sites is the end of what the loop delivered (cursor / start + frames counted / cursor / start + delivered edit units), requested.end_pts keeps naming the request's end",
+  "PLR-066 every delivery_complete call site (wav, y4m, PCM, mxf) is pinned by a test that fails when the receipt states the request: src/delivery_tests.rs (cfg(test) only) stops each delivery loop one unit short through the cfg(test) seam model::short_loop (V4-04), no error on the way; Preview must be Ok + Partial + complete false + actual.units = count - 1 + actual.end_pts = end of count - 1 units + outcome Failure(Loss) with requested still naming count units and their end, Export must be Incomplete { requested, delivered = count - 1 }; with the seam off both purposes are Exact with actual end = requested end; mxf covers both loops (OP-Atom clip slices, OP1a reordered coded path); the packet site is pinned by the existing repeated_media_sample_is_a_shortfall_not_a_silent_success (reachable without a seam)",
+  "PLR-066 V4-06 regex extended with the tokens `delivered =` and `end_pts` (the R11 review found them missing) and the sites relisted: see notes.v4_06",
+  "PLR-067 (REEL-R11-2) a Partial packet receipt over a repeating edit list: actual.end_pts is the latest end (pts + duration) of a chunk the packet loop delivered as a requested unit (0..40 units for the two delivered chunks of s0 s1 s0 s1), requested.end_pts stays the end of the presented range (80 units); tests/engine_video.rs repeated_media_sample_is_a_shortfall_not_a_silent_success asserts both ends, and a second shape with the repeat in the middle (s0 s0 s1: delivered chunks 0..20 and 40..60 end at 60, not at start + units x duration)",
+  "PLR-068 (REEL-R11-3) Y4mProvider refuses an Export whose range runs past the last complete frame with ReelError::OutOfRange { requested, first: 0, end = the complete frames in ticks } BEFORE the first payload read and before the exactness check (order as in wav, PCM and mxf); a y4m Preview keeps its existing contract (streams the frames that exist, ends Truncated { delivered }); tests/engine_video.rs export_range_past_the_end_is_refused_before_the_first_read_for_every_provider enumerates every registry provider (Case.past_end), Export and Preview, and pins the y4m detail (OutOfRange value, unaligned past-end start is OutOfRange, a range ending exactly at the last frame is Exact, Preview Truncated with one frame delivered)",
+  "V4-07 DESCRIPTOR export.rule and export.tests updated: the receipt claim now says units, completeness and span end come from the loop and cites the four call-site tests; the past-the-end claim cites the every-provider test and names the y4m Preview exception; model.rs doc of delivery_complete and isobmff deliver_packets doc name their tests"
+ ],
+ "tests": {
+  "argv": "studio-env.sh (shared tree, default STUDIO_OWNER) cargo nextest run -p hsk-studio-reel --no-fail-fast (default: 69) / --features av1 (76); cargo test --doc -p hsk-studio-reel (default and --features av1: 2 doctests each, 1 compile_fail + 1 pass); cargo clippy -p hsk-studio-reel --tests --examples (default and --features av1): no warning in hsk-studio-reel (2 pre-existing too_many_arguments warnings in hsk-studio-observe/src/lib.rs, not this crate); cargo fmt -p hsk-studio-reel --check clean",
+  "exit": 0,
+  "sha": "b8b276d",
+  "passed": 76,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "Validator round on b8b276d (default and --features av1; doctests default and av1). Claim = b8b276d on base 7410f29. Trust routing untouched: registry.rs, video.rs, cache.rs, matroska.rs, av1/*, av1_config.rs are not in `git diff 7410f29..b8b276d -- crates/hsk-studio-reel`. Residuals for the lead: R1 (the video route's Partial receipt keeps the packet receipt's actual.end_pts when the decoder dropped a picture; fixing it needs a delivered-end tracker in video.rs Forward, off-limits while SMB-REEL-AV1-ROUTE is at 2/3).",
+ "updated_at": "2026-10-11T22:16:35Z",
+ "notes": {
+  "base": "7410f29 (origin head when the lane started; no other commit touched crates/hsk-studio-reel between the R11 candidate 6956d3f and 7410f29, V4-14)",
+  "source": "validation/R11-review-a.json REEL-R11-1, REEL-R11-2, REEL-R11-3 (all CONFIRMED notes) = workflow/plausible-register.json PLR-066, PLR-067, PLR-068",
+  "decisions": [
+   "D1 the PLR-066 call-site tests need a loop that delivers less than it was asked for without an error, which no reachable input produces (that is the loop invariant the receipts rely on); the seam is cfg(test) only (V4-04): model::short_loop, a thread-local shortfall applied by one `#[cfg(test)] let loop_end = short_loop::bound(loop_end);` line in each of the five loops (wav, y4m, PCM, mxf clip slices, mxf coded positions); no product build contains it. The tests live in src/delivery_tests.rs (cfg(test) module) because the seam is crate-private; it includes the integration tests' own synthetic builders through #[path] (tests/common/mod.rs), so there is no second copy of the fixtures",
+   "D2 the y4m past-end check is Export only: a y4m header declares no frame count, and the existing, unedited contract tests (foundation_contract wav_and_y4m_exact_truncated_and_bounded, v4_hardening y4m cases) pin a Preview of a range past the last complete frame as frames-then-Truncated { delivered }; the DESCRIPTOR claim is an Export rule, so the code now matches it and the Preview behaviour is kept and pinned (the every-provider test asserts Truncated { delivered: 1 } with one frame at the sink)",
+   "D3 in y4m the range check moved ahead of require_exact_start: an Export that is both unaligned and past the end is OutOfRange (as in wav, PCM and mxf), not NotExact; pinned in the y4m part of the every-provider test",
+   "D4 definition of the end of actual: wav/PCM the loop cursor, y4m start + frames counted, mxf start + delivered edit units (equal to the end of the requested range whenever everything was delivered, which is every reachable mxf/wav/y4m/PCM result), isobmff packets the latest pts + duration of a delivered non-preroll chunk; requested.end_pts is the request's own end at every site (isobmff: the end of the last presented entry of the requested range)",
+   "D5 the mxf coded path cannot name WHICH requested positions are missing in an unreachable shortfall, so its actual span is `start .. start + delivered`; that is a definition, documented at the site, not a claim about positions"
+  ],
+  "residuals": [
+   "R1 NEW video route: a Partial receipt caused by a decoder that dropped a picture (video.rs:520-532, pictures delivered < count) keeps actual.end_pts of the packet receipt (the end of the packets), only actual.units follows the pictures; the end of the last delivered PICTURE is known only to Forward (video.rs:272-368, off-limits to this lane while SMB-REEL-AV1-ROUTE is at 2/3 failed verdicts, 'Forward ... not to be touched'). Candidate PLR for the lead: track the latest picture end in Forward (or a sink wrapper) and set receipt.actual.end_pts from it",
+   "R2 the y4m Preview of a range past the last complete frame still streams the frames that exist and ends Truncated { delivered } (D2); a consumer that wants OutOfRange there needs a decision to edit the existing contract tests",
+   "R3 the shortfall branches of the wav, y4m, PCM and mxf receipts remain unreachable on real input (loop invariants); they are proven by the cfg(test) seam, not by an input file",
+   "R4 REEL-R11-4 (slot table and pre-roll sized by the media-sample span of the range, not its count) is a separate open item, not part of this lane",
+   "R5 scratch to remove when the lead agrees: Handshake_Artifacts/WP-KERNEL-STUDIO/smb-reel-receipts-redproof (src = the GREEN crate at the claim, target, tmp); scratchpad SMB-REEL-RECEIPTS holds the helper scripts and logs"
+  ],
+  "red_proofs": {
+   "tree": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-reel-receipts-redproof (own STUDIO_OWNER smb-reel-receipts-redproof, own target; src = git archive of 7410f29, workspace and Cargo.lock as committed; every file changed in it rewritten with a current mtime by python shutil.copyfile / write, V4-11; no file of the shared tree was reverted or restored); logs in scratchpad SMB-REEL-RECEIPTS: red-R0a-head.log, red-R0b-head-plus-wiring.log, mut-M*.log, mut-summary.log",
+   "R0a_origin_head_plus_new_integration_tests": {
+    "what": "src of 7410f29 + the new tests/engine_video.rs only (65 tests)",
+    "result": "63 passed, 2 FAILED: export_range_past_the_end_is_refused_before_the_first_read_for_every_provider ('y4m frames: sink reached although the export must be refused first', engine_video.rs:60) and repeated_media_sample_is_a_shortfall_not_a_silent_success (actual.end_pts is the end of the delivered chunks, not of the presented range: left Ticks(33868800000) = 80 units, right Ticks(16934400000) = 40 units)"
+   },
+   "R0b_origin_head_receipts_plus_seam_wiring": {
+    "what": "GREEN crate with every receipt fix reverted to the 7410f29 derivation (wav delivered = deliver_end - start and end deliver_end; y4m end want_end and no range check; PCM end want_end; mxf end = requested end; isobmff.rs = 7410f29) but the seam wired into the loops and all new tests (69 tests)",
+    "result": "63 passed, 6 FAILED: wav_receipt_states_what_the_loop_delivered (actual.units is the loop's count, not the request's: left 100, right 99), y4m_receipt_states_what_the_loop_delivered / pcm_receipt_states_what_the_loop_delivered / mxf_receipt_states_what_the_loop_delivered (actual.end_pts is the end of what was delivered, not of what was requested), export_range_past_the_end_is_refused_before_the_first_read_for_every_provider, repeated_media_sample_is_a_shortfall_not_a_silent_success"
+   },
+   "mutations_on_the_fixed_tree": [
+    {
+     "id": "M01",
+     "site": "wav",
+     "mutation": "delivered = deliver_end - start (the R11 tautology: computed from the request and the file length)",
+     "nextest_exit": 100,
+     "red": [
+      "delivery_tests::wav_receipt_states_what_the_loop_delivered"
+     ]
+    },
+    {
+     "id": "M02",
+     "site": "wav",
+     "mutation": "actual.end_pts = deliver_end (the requested, file-clamped end)",
+     "nextest_exit": 100,
+     "red": [
+      "delivery_tests::wav_receipt_states_what_the_loop_delivered"
+     ]
+    },
+    {
+     "id": "M03",
+     "site": "wav",
+     "mutation": "complete = true (the R11 reviewer's revert to a constant)",
+     "nextest_exit": 100,
+     "red": [
+      "delivery_tests::wav_receipt_states_what_the_loop_delivered"
+     ]
+    },
+    {
+     "id": "M04",
+     "site": "y4m",
+     "mutation": "delivered = req.count (the count from the request)",
+     "nextest_exit": 100,
+     "red": [
+      "delivery_tests::y4m_receipt_states_what_the_loop_delivered"
+     ]
+    },
+    {
+     "id": "M05",
+     "site": "y4m",
+     "mutation": "actual.end_pts = want_end (the requested end)",
+     "nextest_exit": 100,
+     "red": [
+      "delivery_tests::y4m_receipt_states_what_the_loop_delivered"
+     ]
+    },
+    {
+     "id": "M06",
+     "site": "y4m",
+     "mutation": "complete = true",
+     "nextest_exit": 100,
+     "red": [
+      "delivery_tests::y4m_receipt_states_what_the_loop_delivered"
+     ]
+    },
+    {
+     "id": "M07",
+     "site": "pcm",
+     "mutation": "delivered = want_end - start (from the request)",
+     "nextest_exit": 100,
+     "red": [
+      "delivery_tests::pcm_receipt_states_what_the_loop_delivered"
+     ]
+    },
+    {
+     "id": "M08",
+     "site": "pcm",
+     "mutation": "actual_end = tick_at(want_end) (the requested end)",
+     "nextest_exit": 100,
+     "red": [
+      "delivery_tests::pcm_receipt_states_what_the_loop_delivered"
+     ]
+    },
+    {
+     "id": "M09",
+     "site": "pcm",
+     "mutation": "complete = true",
+     "nextest_exit": 100,
+     "red": [
+      "delivery_tests::pcm_receipt_states_what_the_loop_delivered"
+     ]
+    },
+    {
+     "id": "M10",
+     "site": "mxf",
+     "mutation": "delivery_complete(req, req.count) (the count from the request)",
+     "nextest_exit": 100,
+     "red": [
+      "delivery_tests::mxf_receipt_states_what_the_loop_delivered"
+     ]
+    },
+    {
+     "id": "M11",
+     "site": "mxf",
+     "mutation": "actual.end_pts = the requested end",
+     "nextest_exit": 100,
+     "red": [
+      "delivery_tests::mxf_receipt_states_what_the_loop_delivered"
+     ]
+    },
+    {
+     "id": "M12",
+     "site": "mxf",
+     "mutation": "complete = true",
+     "nextest_exit": 100,
+     "red": [
+      "delivery_tests::mxf_receipt_states_what_the_loop_delivered"
+     ]
+    },
+    {
+     "id": "M13",
+     "site": "isobmff packets",
+     "mutation": "actual.end_pts = the presented range end (the PLR-067 state)",
+     "nextest_exit": 100,
+     "red": [
+      "engine_video repeated_media_sample_is_a_shortfall_not_a_silent_success"
+     ]
+    },
+    {
+     "id": "M15",
+     "site": "y4m range",
+     "mutation": "the Export past-end check never fires (PLR-068 state)",
+     "nextest_exit": 100,
+     "red": [
+      "engine_video export_range_past_the_end_is_refused_before_the_first_read_for_every_provider"
+     ]
+    },
+    {
+     "id": "M16",
+     "site": "y4m range",
+     "mutation": "the past-end check also applies to Preview",
+     "nextest_exit": 100,
+     "red": [
+      "engine_video export_range_past_the_end_is_refused_before_the_first_read_for_every_provider",
+      "foundation_contract registry_is_enumerable_instance_owned_and_reports",
+      "foundation_contract wav_and_y4m_exact_truncated_and_bounded",
+      "v4_alloc_budget y4m_frame_buffer_is_bounded_by_the_source",
+      "v4_hardening y4m_aggregate_over_budget",
+      "v4_hardening y4m_dims_u32_max"
+     ]
+    }
+   ],
+   "restore": "after the last mutation the GREEN files were synced back from the shared tree (only files that differ, current mtimes) and the scratch crate compared byte-equal to the shared tree crate at the claim (LF-insensitive)"
+  },
+  "v4_06": {
+   "class": "a receipt or delivery state (units, completeness, disposition, the end of the actual span) that is computed from the request, a constant or the source's length instead of from what the delivery loop delivered; and (PLR-068) a delivery path with no range-past-the-end refusal before its first payload read",
+   "regex": "complete: |complete = |\\.complete\\b|Disposition::(Exact|Approximate|Partial)|slots\\[|vec!\\[None;|delivered =|end_pts   (over crates/hsk-studio-reel/src excluding lib.rs, which holds the DESCRIPTOR text; the R10 regex plus the tokens `delivered =` and `end_pts` the R11 review found missing)",
+   "range_check_regex": "OutOfRange (src, excluding error.rs and report.rs): the delivery sites that refuse a range past the end before their first payload read are isobmff.rs requested_range (packets: isobmff, matroska, and the video route's Export pre-check in video.rs, which calls it), wav.rs (declared samples), y4m.rs (NEW, Export), isobmff/pcm.rs (PCM: isobmff and matroska), mxf/provider.rs (total units); mxf/tables.rs OutOfRange is the index lookup, not a delivery site",
+   "count": "60 matching lines at the claim (R10 regex without the two new tokens: 34 = 29 in src + 5 in the new test file, 29 = the 29 of the R11 recount); 7 fixed, 53 not applicable",
+   "sites": [
+    {
+     "site": "src/delivery_tests.rs:7",
+     "status": "not applicable: test code (the new call-site tests and their doc)"
+    },
+    {
+     "site": "src/delivery_tests.rs:16",
+     "status": "not applicable: test code (the new call-site tests and their doc)"
+    },
+    {
+     "site": "src/delivery_tests.rs:119",
+     "status": "not applicable: test code (the new call-site tests and their doc)"
+    },
+    {
+     "site": "src/delivery_tests.rs:122",
+     "status": "not applicable: test code (the new call-site tests and their doc)"
+    },
+    {
+     "site": "src/delivery_tests.rs:127",
+     "status": "not applicable: test code (the new call-site tests and their doc)"
+    },
+    {
+     "site": "src/delivery_tests.rs:132",
+     "status": "not applicable: test code (the new call-site tests and their doc)"
+    },
+    {
+     "site": "src/delivery_tests.rs:159",
+     "status": "not applicable: test code (the new call-site tests and their doc)"
+    },
+    {
+     "site": "src/delivery_tests.rs:169",
+     "status": "not applicable: test code (the new call-site tests and their doc)"
+    },
+    {
+     "site": "src/delivery_tests.rs:172",
+     "status": "not applicable: test code (the new call-site tests and their doc)"
+    },
+    {
+     "site": "src/delivery_tests.rs:174",
+     "status": "not applicable: test code (the new call-site tests and their doc)"
+    },
+    {
+     "site": "src/delivery_tests.rs:176",
+     "status": "not applicable: test code (the new call-site tests and their doc)"
+    },
+    {
+     "site": "src/isobmff.rs:468",
+     "status": "not applicable: TrackIndex::seek's own enum / the exact-start predicate, no receipt"
+    },
+    {
+     "site": "src/isobmff.rs:1960",
+     "status": "not applicable: TrackIndex::seek's own enum / the exact-start predicate, no receipt"
+    },
+    {
+     "site": "src/isobmff.rs:2047",
+     "status": "not applicable: doc comment of deliver_packets"
+    },
+    {
+     "site": "src/isobmff.rs:2064",
+     "status": "not applicable: TrackIndex::seek's own enum / the exact-start predicate, no receipt"
+    },
+    {
+     "site": "src/isobmff.rs:2080",
+     "status": "not applicable: the slot table of R10 (first presented entry wins), unchanged here"
+    },
+    {
+     "site": "src/isobmff.rs:2084",
+     "status": "not applicable: the slot table of R10 (first presented entry wins), unchanged here"
+    },
+    {
+     "site": "src/isobmff.rs:2111",
+     "status": "not applicable: the slot table of R10 (first presented entry wins), unchanged here"
+    },
+    {
+     "site": "src/isobmff.rs:2140",
+     "status": "not applicable: the packet loop's own counter (the count every receipt field reads)"
+    },
+    {
+     "site": "src/isobmff.rs:2150",
+     "status": "not applicable: reads the loop counter (R10), pinned by repeated_media_sample_is_a_shortfall_not_a_silent_success"
+    },
+    {
+     "site": "src/isobmff.rs:2157",
+     "status": "not applicable: the REQUESTED end, the end of the presented range the request names"
+    },
+    {
+     "site": "src/isobmff.rs:2167",
+     "status": "fixed (PLR-067): end_actual is the latest end of a chunk the loop delivered (was the presented range end); asserted in repeated_media_sample_is_a_shortfall_not_a_silent_success"
+    },
+    {
+     "site": "src/model.rs:261",
+     "status": "not applicable: field definition"
+    },
+    {
+     "site": "src/model.rs:280",
+     "status": "not applicable: field definition"
+    },
+    {
+     "site": "src/model.rs:422",
+     "status": "not applicable: field definition"
+    },
+    {
+     "site": "src/model.rs:471",
+     "status": "not applicable: doc comment of delivery_complete"
+    },
+    {
+     "site": "src/model.rs:487",
+     "status": "not applicable: delivery_complete itself, the one place the delivered count is compared with the request (unit test delivery_complete_is_computed_from_delivered_units)"
+    },
+    {
+     "site": "src/model.rs:501",
+     "status": "not applicable: delivery_disposition, derives the disposition from exactness and completeness"
+    },
+    {
+     "site": "src/model.rs:503",
+     "status": "not applicable: delivery_disposition, derives the disposition from exactness and completeness"
+    },
+    {
+     "site": "src/model.rs:504",
+     "status": "not applicable: delivery_disposition, derives the disposition from exactness and completeness"
+    },
+    {
+     "site": "src/model.rs:505",
+     "status": "not applicable: delivery_disposition, derives the disposition from exactness and completeness"
+    },
+    {
+     "site": "src/model.rs:622",
+     "status": "not applicable: unit-test assertions"
+    },
+    {
+     "site": "src/model.rs:625",
+     "status": "not applicable: unit-test assertions"
+    },
+    {
+     "site": "src/model.rs:626",
+     "status": "not applicable: unit-test assertions"
+    },
+    {
+     "site": "src/model.rs:627",
+     "status": "not applicable: unit-test assertions"
+    },
+    {
+     "site": "src/report.rs:13",
+     "status": "not applicable: consumer (outcome_for)"
+    },
+    {
+     "site": "src/video.rs:366",
+     "status": "not applicable: Forward's picture counter (loop-derived; Forward is outside this lane)"
+    },
+    {
+     "site": "src/video.rs:530",
+     "status": "not applicable: already computed from the pictures delivered (pump.fwd.delivered < req.count); the actual.end_pts of this receipt stays the packet receipt's end (residual R1, needs Forward, outside this lane)"
+    },
+    {
+     "site": "src/video.rs:531",
+     "status": "not applicable: already computed from the pictures delivered (pump.fwd.delivered < req.count); the actual.end_pts of this receipt stays the packet receipt's end (residual R1, needs Forward, outside this lane)"
+    },
+    {
+     "site": "src/wav.rs:383",
+     "status": "fixed (PLR-066): the loop cursor (was deliver_end - start, computed from the request and the file length); wav_receipt_states_what_the_loop_delivered"
+    },
+    {
+     "site": "src/wav.rs:387",
+     "status": "fixed (PLR-066): reads the loop count; wav_receipt_states_what_the_loop_delivered"
+    },
+    {
+     "site": "src/wav.rs:391",
+     "status": "not applicable: the REQUESTED end"
+    },
+    {
+     "site": "src/wav.rs:402",
+     "status": "fixed (PLR-067 class): the end of what the loop delivered (was deliver_end); wav_receipt_states_what_the_loop_delivered"
+    },
+    {
+     "site": "src/wav.rs:548",
+     "status": "not applicable: encode receipt, not a delivery"
+    },
+    {
+     "site": "src/y4m.rs:350",
+     "status": "not applicable: the loop's own frame counter (receipt count, or the Truncated value inside the loop); y4m_receipt_states_what_the_loop_delivered mutation-checked"
+    },
+    {
+     "site": "src/y4m.rs:391",
+     "status": "not applicable: the loop's own frame counter (receipt count, or the Truncated value inside the loop); y4m_receipt_states_what_the_loop_delivered mutation-checked"
+    },
+    {
+     "site": "src/y4m.rs:397",
+     "status": "not applicable: reads the loop counter; y4m_receipt_states_what_the_loop_delivered"
+    },
+    {
+     "site": "src/y4m.rs:407",
+     "status": "not applicable: the REQUESTED end"
+    },
+    {
+     "site": "src/y4m.rs:418",
+     "status": "fixed (PLR-067 class): start + frames delivered (was want_end); y4m_receipt_states_what_the_loop_delivered"
+    },
+    {
+     "site": "src/y4m.rs:546",
+     "status": "not applicable: encode receipt, not a delivery"
+    },
+    {
+     "site": "src/isobmff/pcm.rs:550",
+     "status": "not applicable: the loop cursor (already, R10); pcm_receipt_states_what_the_loop_delivered mutation-checked"
+    },
+    {
+     "site": "src/isobmff/pcm.rs:551",
+     "status": "not applicable: reads the loop cursor; pcm_receipt_states_what_the_loop_delivered"
+    },
+    {
+     "site": "src/isobmff/pcm.rs:556",
+     "status": "not applicable: the REQUESTED end"
+    },
+    {
+     "site": "src/isobmff/pcm.rs:566",
+     "status": "fixed (PLR-067 class): actual_end = tick_at(cursor), the end of what the loop delivered (was want_end); pcm_receipt_states_what_the_loop_delivered"
+    },
+    {
+     "site": "src/mxf/mod.rs:259",
+     "status": "not applicable: index metadata flag"
+    },
+    {
+     "site": "src/mxf/provider.rs:178",
+     "status": "not applicable: the mxf loops' own counters (clip slices; requested coded positions)"
+    },
+    {
+     "site": "src/mxf/provider.rs:263",
+     "status": "not applicable: the mxf loops' own counters (clip slices; requested coded positions)"
+    },
+    {
+     "site": "src/mxf/provider.rs:276",
+     "status": "not applicable: reads the loops' count; mxf_receipt_states_what_the_loop_delivered"
+    },
+    {
+     "site": "src/mxf/provider.rs:280",
+     "status": "not applicable: the REQUESTED end"
+    },
+    {
+     "site": "src/mxf/provider.rs:285",
+     "status": "fixed (PLR-067 class): start + delivered edit units (was the requested end); mxf_receipt_states_what_the_loop_delivered"
+    }
+   ]
+  },
+  "v4_compliance": {
+   "V4-01": "deny(clippy::arithmetic_side_effects) is on every touched module (isobmff.rs and pcm.rs, model.rs, mxf/ (provider.rs inherits mod.rs), wav.rs, y4m.rs); new arithmetic is checked_add / saturating_sub / saturating_add / max; delivery_tests.rs is cfg(test)",
+   "V4-02": "no new allocation and no new loop; the y4m check reads info.complete_frames before the frame buffer; a count of u64::MAX is still LimitExceeded frame-range (checked_add) before the new check, as before",
+   "V4-03": "tests read no machine path (fixtures via include_bytes and the synthetic builders); no NOT_PROVEN prints",
+   "V4-04": "the only fault hook is model::short_loop, cfg(test) only; no feature, no product build contains it",
+   "V4-06": "see v4_06: the regex now carries `delivered =` and `end_pts`; counts listed above",
+   "V4-07": "DESCRIPTOR export.rule/tests, model.rs, isobmff.rs and y4m.rs docs cite the tests that prove the claim (names listed in capabilities_done); the y4m Preview exception is named",
+   "V4-09": "commit via git commit -F <file> with a pathspec after git add of the one new file; no amend, no rebase; all text written with the Write tool",
+   "V4-11": "red proofs and mutations only on the scratch tree with its own owner; no file of the shared tree was reverted or restored",
+   "V4-12": "helper scripts and logs under scratchpad/SMB-REEL-RECEIPTS/ with lane-specific names; no script of another lane was run",
+   "V4-21": "no outbound request was made in this lane"
+  },
+  "gameplan_route": "no retry-guard hit and no gameplan step added. One Bash call was rejected by the hook because it began with a variable assignment, not a cd to the product or scratch tree, so the hook resolved the kernel's unrelated WP-KERNEL-012 gameplan (launch-form cause, as recorded in hook_cwd_note of the AV1-ROUTE lane); fixed by starting every cargo call with cd and defining variables after it. Red and mutation runs were redirected to logs and ended with echo, so no failed gated run was recorded",
+  "trust_routing_untouched": "git diff 7410f29..b8b276d -- crates/hsk-studio-reel lists exactly: src/delivery_tests.rs (new), isobmff.rs, isobmff/pcm.rs, lib.rs, model.rs, mxf/provider.rs, wav.rs, y4m.rs, tests/engine_video.rs; registry.rs, video.rs, cache.rs, matroska.rs, av1/*, av1_config.rs are not in it (choose(), VideoRoute, Chosen, Forward and the declared-size check unchanged)",
+  "dependents": "cargo check -p hsk-studio-reel-native --tests clean at 4b76604 (b8b276d + the FAULTS-2 commit, default features and --features av1-worker,test-faults); no public item of hsk-studio-reel changed (the only additions are pub(crate) and cfg(test)); reel-native reads actual.start_pts only"
+ }
+}

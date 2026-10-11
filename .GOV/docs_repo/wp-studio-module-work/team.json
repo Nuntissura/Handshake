@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T19:31:43Z",
+ "updated_at": "2026-10-11T22:17:09Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -2170,7 +2170,7 @@
     "builders/lanes/hsk-studio-reel-receipts.json"
    ],
    "launched": "2026-10-11T21:46:37Z",
-   "status": "running"
+   "status": "done 2026-10-11T22:17:09Z (SMB-REEL-RECEIPTS READY at b8b276d)"
   },
   {
    "name": "builder-reel-native-faults-2",
