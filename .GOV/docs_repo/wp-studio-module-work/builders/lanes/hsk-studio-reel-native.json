@@ -248,6 +248,23 @@
     "idempotency_key": "STUDIO-R9:SMB-REEL-NATIVE-AV1-WORKER:4d80e50d4043:PASS_V4",
     "recorded_at": "2026-10-11T14:23:56Z",
     "by": "wp_validator STUDIO-R9"
+   },
+   {
+    "round": "STUDIO-R10",
+    "lane": "SMB-REEL-NATIVE-AV1-WORKER",
+    "candidate": "62d8983b86417340399ed7c785c6b297debabbfd",
+    "tree": "a64a74da642ad52e759e97ccdd6a00be069d47bc",
+    "decision": "passed",
+    "verdict": "PASS_V5",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V5",
+    "review": "NOT_REVIEWED as a lane (R10-review-a cx_val_009_sweep: AV1-WORKER and NATIVE-FAULTS claims stand)",
+    "round_ref": "validation/round-R10.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R10",
+    "idempotency_key": "STUDIO-R10:SMB-REEL-NATIVE-AV1-WORKER:62d8983b8641:PASS_V5",
+    "recorded_at": "2026-10-11T15:37:40Z",
+    "by": "wp_validator STUDIO-R10"
    }
   ],
   "remediation_R5": {

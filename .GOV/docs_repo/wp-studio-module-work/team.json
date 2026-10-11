@@ -1880,7 +1880,7 @@
     "verdict fields"
    ],
    "launched": "2026-10-11T15:10:24Z",
-   "status": "running"
+   "status": "done 2026-10-11T15:38:37Z (R10 COMPLETE: 11 PASS / 2 FAIL)"
   },
   {
    "name": "reviewer-r10-a",

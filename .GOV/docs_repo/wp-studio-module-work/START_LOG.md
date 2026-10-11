@@ -272,6 +272,8 @@ Workflow v3 amendments (2026-10-11T02:12:42Z, source workflow/workflow-review-ti
 
 - Lead clarification 2026-10-11T15:29:19Z (R10 review A, PSD uncounted cap): the 14:41:47Z decision covers hidden/disabled/master-off instances only; crossing the uncounted cap must not drop later visible (counted) stacks. Stated to the R10 validator as fact; verdict is the validator's.
 
+- Lead acceptance 2026-10-11T15:38:37Z (R10 validator judgment): the repeated-media completeness defect (older SMB-REEL code) is charged once to SMB-REEL-ENG-1 whose export claim it breaks; SMB-REEL keeps its PASS with a note; the ENG-1 remediation must also fix the Preview completeness flag.
+
 Open Operator decisions (not adopted; recorded for the Operator):
 - D1: explicit confirmation that builder focused tests override CX-EXEC-014 for this WP (lead adopted on the basis of Operator instructions; Operator may reverse).
 - D2: waive CX-984-002 one-build-per-disk for D: (would let validator rounds and builders build in parallel on separate targets).

@@ -341,6 +341,36 @@
    },
    "gameplan_route": "one retry-guard hit: after a test mistake of my own (mxf positive controls rewound through the damaged entry) the identical default-feature run was blocked (same command, same HEAD). Route: ran the distinct --features av1 command (required anyway), kept all red/mutation runs as redirected logs ending in echo so no failed gated run was recorded, and reran the default command after the commit changed HEAD. One launch-form rejection: a Bash call that did not start with a cd to the scratch tree resolved an unrelated broken WP gameplan (hook_cwd_note of the AV1-ROUTE lane); fixed by splitting the sync from the cd-led cargo call",
    "trust_routing_untouched": "git diff 60b3f63..0474906 -- crates/hsk-studio-reel: registry.rs not in the diff; video.rs only gains the Export pre-check block and the import; choose(), Forward, within_declared_size, VideoRoute, SourceTrust unchanged"
-  }
+  },
+  "verdicts": [
+   {
+    "round": "STUDIO-R10",
+    "lane": "SMB-REEL-ENG-1",
+    "candidate": "62d8983b86417340399ed7c785c6b297debabbfd",
+    "tree": "a64a74da642ad52e759e97ccdd6a00be069d47bc",
+    "decision": "failed",
+    "verdict": "FAIL_V1",
+    "failures": [
+     {
+      "failure_kind": "product",
+      "failure_class": "export-ok-with-fewer-units-repeated-media",
+      "file_line": "crates/hsk-studio-reel/src/isobmff.rs:2011-2015,2083,2085-2089,2099 (build_presentation :1426-1481 presents a sample once per covering edit)"
+     },
+     {
+      "failure_kind": "product",
+      "failure_class": "per-track-refusal-bypassed-by-timecode-read",
+      "file_line": "crates/hsk-studio-reel/src/isobmff/timecode.rs:66-82; isobmff.rs:1646-1655 (doc 'every use of it is Unsupported')"
+     }
+    ],
+    "remediation": "one chunk per presented entry or refuse repeated media; complete = delivered==count; timecode honours track refusal",
+    "status_after": "FAIL_V1",
+    "review": "validation/R10-review-a.json (lane recommendation FIX_FIRST)",
+    "round_ref": "validation/round-R10.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R10",
+    "idempotency_key": "STUDIO-R10:SMB-REEL-ENG-1:62d8983b8641:FAIL_V1",
+    "recorded_at": "2026-10-11T15:37:40Z",
+    "by": "wp_validator STUDIO-R10"
+   }
+  ]
  }
 }

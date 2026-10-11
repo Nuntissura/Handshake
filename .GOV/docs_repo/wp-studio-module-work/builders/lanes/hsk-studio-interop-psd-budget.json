@@ -546,6 +546,31 @@
    },
    "phase": "PLR-053 fixed and pushed (a5eff01): red on a scratch copy of origin f4b47cd (3/3 fail), green at a5eff01 (effects_budget 3/3, crate 44/44, doctests 0, clippy clean for this crate)",
    "superseded_by": "notes.remediation_R9 (R9 FIX_FIRST: the document-wide whole-import failure psd_effect_limit and the mapped-instance counting of a5eff01 are replaced; the per-layer typed loss, the sized record-validation budget and the red proof on f4b47cd stand as history)"
-  }
+  },
+  "verdicts": [
+   {
+    "round": "STUDIO-R10",
+    "lane": "SMB-INTEROP-PSD-BUDGET",
+    "candidate": "62d8983b86417340399ed7c785c6b297debabbfd",
+    "tree": "a64a74da642ad52e759e97ccdd6a00be069d47bc",
+    "decision": "failed",
+    "verdict": "FAIL_V2",
+    "failures": [
+     {
+      "failure_kind": "product",
+      "failure_class": "uncounted-cap-closes-tally-for-rendered-stacks",
+      "file_line": "crates/hsk-studio-interop-psd/src/effects.rs:113-114,119-120,132-136; src/proposal.rs:559-561; tests/effects_budget.rs:782-792"
+     }
+    ],
+    "remediation": "uncounted cap must not drop visible live stacks; close per category; test >4096 hidden then visible live Kept",
+    "status_after": "FAIL_V2",
+    "review": "validation/R10-review-a.json (lane recommendation PASS_WITH_NOTES conditional on the lead reading; lead clarified hidden/disabled only)",
+    "round_ref": "validation/round-R10.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R10",
+    "idempotency_key": "STUDIO-R10:SMB-INTEROP-PSD-BUDGET:62d8983b8641:FAIL_V2",
+    "recorded_at": "2026-10-11T15:37:40Z",
+    "by": "wp_validator STUDIO-R10"
+   }
+  ]
  }
 }
