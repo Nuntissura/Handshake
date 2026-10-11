@@ -2629,7 +2629,7 @@
     }
   ],
   "resume_next_actions": [
-    "Delivery acquire actual numeric preflight and launch/result for conditional ONE required wholecore: final backup/current HEAD,125live10absences,7416fullinventory,wrapper absence support,GP481 actualRound28 cause/freshHEAD confirmation and resource/profile/process gates. SOURCE_CLEAR13524a6c349 source only; no launch/PASS claimed. R2 adoption pending, no auth implementation/spec publication;accepted0of5.",
+    "Conditional ONE required wholecore compile admission successfully delivered; actual launch/result still UNOBSERVED, no PASS. Registry proposal actual draft/diff/static hashes embedded,37original+2additions, no FR job/publish; await explicit R2 adoption and exact human diff review under Spec11.1.6 before auth contract-scope amendment. Latest remoteverified backups producta886d317/kernelf8317bd7 preservation only; next requested checkpoint after stable notice. All0of5/proof limits retained.",
     "Diagnosis chat01a129cd-bd03-73a2-a09a-60efba6055f3 awaits exact unresolved F2 question or actual compiler failure after narrow steering stopped F3 exploration. Source-observed pending acquisition token/envelope retention is not a verdict. Four fresh other chats startup VERIFIED; reviewer/delivery ownership unchanged.",
     "Preserve actual canonical targetbindingsNone; earlier recomputation recommendation is RETRACTED, no new algorithm. F1 sourcefix does not prove compile/runtime. Retain partial5ebc.../all originalF1-F5/001-007/controller/full8A-H/history then fullrawre-freeze/independent affected review/gameplan wholeCargo/actual perMTcompiledcheckpoint+push/independent canonical engine runtime HBR.",
     "Freeze the whole connected changed boundary and assertion mapping once; independent affected source review before current required full-core compile. Reuse only unchanged prior evidence; no SQLx blind restore, exclusion, weakened assertions or --lib substitute.",
@@ -5730,6 +5730,25 @@
           "SpecCurrentv215 sections2.3.13.12.2-4/11.1.6; reviewer verifies v206/v215 cited auth+registry requirements same after version normalization, no unrelatedv215 new gates"
         ],
         "proposed_amendment_disposition": "Concrete proposed MT172/173/174/175 file-scope and spec/registry eligibility/lifecycle amendment embedded only. Actual typed MT auth-write scope NOT amended here; actual publication/registry human review NOT performed or claimed. Root presents concrete prepared proposal for applicable decision before authority publication/future auth implementation."
+      },
+      "registry_proposal_artifacts": {
+        "id": "WP012-P2-AUTH-R2-REGISTRY-DRAFT-001",
+        "refs": [
+          {
+            "kernel_relative_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/phase02-auth-mapping-proposal/capability_registry_draft.json",
+            "sha256": "3c41121d2c2d17259ad914bfba5dc43937946bdd85f76e1b9a7354596cf02610"
+          },
+          {
+            "kernel_relative_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/phase02-auth-mapping-proposal/capability_registry_diff.json",
+            "sha256": "dbb7531dfd9ff8e04ed25cf176c178748dd6745eb3fd3425f290f157ad2d9e89"
+          },
+          {
+            "kernel_relative_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/phase02-auth-mapping-proposal/capability_registry_static_validation.json",
+            "sha256": "805d45baad7c0c3dae6b51e6033df8e76bf3f240bbe4b9156392274e9f728abe"
+          }
+        ],
+        "observed": "37original entries preserved/exactly2 proposed additions/no engine changes, static proposal only",
+        "limits": "No FR job/publish/human approval; root actual R2 adoption and exact registry human-review questions pending, no answer assumed. Spec11.1.6 requires human approval of actual diff. No task-contract auth scope amendment."
       }
     },
     "failures_ref": "current_state.current_compile_round28:FAILED101nineerrors/result3f390cdd...stderr e5738028...zero7426drift;prior failures/held freezes/scoped review retraction/recipe retractions all inherited.",
@@ -5737,7 +5756,7 @@
     "agent_rules_ref": "teams/current_workflow/monitoring;root high-level developer leader,direct peer scoped helpers/exclusive file owner/one combined freeze/independent affected review/separate acceptance authority. Current coder /root/round19_boot_coder frozen standby;old external coder no future repair dispatch.",
     "dos_donts": "Current MT authority wins;preserve raw bytes/history/valid Surreal/prohibition coverage. No PostgreSQL/SQLite execution revival/SQLx add/fake auth-env-active/test skip-gate-delete substitute/lib-only acceptance/foreign process disruption/overlap/frozen proof edits. No duplicate broad audit/repeated green checks.",
     "timesinks": "Full connected source-bound closure before exact facade/caller fixes;avoid incomplete recipes/blind imports/per-coderCargo/new targets-profiles/cache restarts/unnecessary serial waits/root technical relay bottleneck. Reuse valid unaffected evidence/focused new dependency additions;do not confuse source-clear with compiler/runtime proof.",
-    "next_actor": "Delivery ONE conditional next required wholecore after final backup/current HEAD binding/125live10absences/7416fullinventory/wrapper absence handling/GP481 actualRound28 cause/freshHEAD-bound resource-profile-process gates. No launch observed; R2 adoption user question pending, proposal only; accepted0of5 unchanged.",
+    "next_actor": "Actual R2 adoption and Spec11.1.6 human-review questions await user answer on concrete registry draft/diff; no scope amendment/publication. Delivery conditional ONE compile instruction successfully delivered, launch/result UNOBSERVED at recording; no acceptance0of5 advancement.",
     "coordination_observation": {
       "id": "WP012-P2-V3-TRANSPORT-FALLBACK-001",
       "actual": "Root-owned app toolcells1060/1062/1068 terminated after pending more than10min; wait/send/automation update completion unknown, no applied update claimed. Actual local scope reviewer and primary coder/disjoint child fallback used; retired coder chat not resumed.",
@@ -5900,11 +5919,10 @@
     "receipt": "Authorized Git agent confirms fresh matching remote refs/clean kernel/all24 checkpoint paths raw unchanged/gameplan pointer restored. Preservation only, not accepted compiler/runtime checkpoint.",
     "post_backup_changes": "Initial kernel11d0f244/product34fb6f344 backups verified; subsequent authorized source/governance changes dirty and require later preservation checkpoint/push. Existing backups do not cover new changes or prove acceptance.",
     "latest_backup": {
-      "product_commit": "7ed712d83a6dd195e3815434bb0f33b6a10dbbc8",
-      "product_tree": "55a52fc8a46bc5b043dd9dd618d6e68315be770a",
-      "kernel_previous_commit": "66370c5e9092d4d4aac3ef4601e957395ca19d02",
-      "kernel_new_checkpoint": "PENDING_RECORDER_STABLE_WRITE_COMPLETION",
-      "provenance": "Direct authorized_git_backup receipt fresh remoteverified product/CLEAN and replacement freeze raw unchanged; preservation only"
+      "product_commit": "a886d317e5fb9d48d5e8bb8b3a0499365dc78697",
+      "kernel_commit": "f8317bd7d080ade67bf8d589e2deddbc98feae91",
+      "provenance": "Parent root/authorized Git agent fresh remoteverified checkpoint receipts, rawdrift0/CLEAN at checkpoint; this later requested registry-ref update is not yet included",
+      "limits": "Preservation only, no compiler/runtime checkpoint; no recursive self-hash update"
     },
     "prior_backup_history": [
       {
