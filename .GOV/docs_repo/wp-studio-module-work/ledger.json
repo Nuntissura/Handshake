@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T06:51:39Z",
+ "updated_at": "2026-10-11T06:52:45Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -1726,20 +1726,24 @@
    "crate": "hsk-studio-folio",
    "origin": "composite lowering gap (8ff8c7a): adjustment layers have no graph node",
    "scope": "option A (lead): adjustment layer kind accepted in Source arm with PrimitiveReference hsk.studio.adjustment@1 naming its own record; stack position via input_ordinal (STU-CMP-092, STU-RAS-007)",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-folio-eng-6",
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "0241877"
+   ],
+   "verdicts": [],
+   "candidate": "0241877",
+   "note": "adjustment layer accepted as graph Source (PrimitiveReference hsk.studio.adjustment@1 naming own id), stack via input_ordinal; layer clipped to an adjustment layer refused (Code::AdjustmentClipBase, Studio rule; Photoshop allows it - UNVERIFIED, D5/D19); record existence via existing checks; 39 of 39 green"
   },
   {
    "lane_id": "SMB-FOLIO-ENG-7",
    "crate": "hsk-studio-folio",
    "origin": "interop-vector slice 3 (42fba02) blockers",
    "scope": "StudioPattern paint kind (STU-VEC-017/138), vector clip and mask records with mask mode ALPHA|VECTOR|LUMINANCE (STU-VEC-053), clip/mask reference field on layers; additive; then interop-vector maps them",
-   "phase": "queued (after SMB-FOLIO-ENG-6; one crate one agent)",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-folio-eng-7",
    "commits": [],
    "verdicts": []
   },
@@ -1760,9 +1764,7 @@
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
- "dispatch_queue": [
-  "SMB-FOLIO-ENG-7"
- ],
+ "dispatch_queue": [],
  "consolidation_candidates": [
   "general bounded ZIP reading now has THREE in-crate implementations: interop-layout (IDML), interop-fig (4cfbf0f, over miniz_oxide), package (strict canonical STORE-only container). CX-CAP-001 -> one owner needed; needs a module-map edge or new leaf crate = Operator decision D16",
   "CRC-32 table duplicated: interop-vector gzip.rs vs interop-layout (R5 review C PLAUSIBLE) -> fold into D16 single owner for bounded ZIP/deflate/CRC"

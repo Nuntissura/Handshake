@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T06:51:39Z",
+ "updated_at": "2026-10-11T06:52:45Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1100,7 +1100,7 @@
     "crates/hsk-studio-session/**"
    ],
    "launched": "2026-10-11T06:37:43Z",
-   "status": "done 2026-10-11T06:51:15Z (SMB-CHRONICLE-TABLE READY at b77518c)"
+   "status": "done 2026-10-11T06:52:45Z (549e46d, b77518c)"
   },
   {
    "name": "builder-reel-v4",
@@ -1147,6 +1147,30 @@
     "builders/lanes/hsk-studio-folio-eng-6.json"
    ],
    "launched": "2026-10-11T06:44:43Z",
+   "status": "done 2026-10-11T06:52:45Z (0241877)"
+  },
+  {
+   "name": "builder-psd-adj-graph",
+   "agent_id": "af98bcfa1c1669fd6",
+   "model": "sonnet",
+   "role": "interop-psd: emit adjustment Source + input_ordinal; clipped-to-adjustment typed loss",
+   "owns": [
+    "crates/hsk-studio-interop-psd/**",
+    "builders/lanes/hsk-studio-interop-psd.json"
+   ],
+   "launched": "2026-10-11T06:52:45Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-folio-eng-7",
+   "agent_id": "ab828e686737a132f",
+   "model": "sonnet",
+   "role": "SMB-FOLIO-ENG-7: StudioPattern paint, vector clip/mask records, layer reference field",
+   "owns": [
+    "crates/hsk-studio-folio/**",
+    "builders/lanes/hsk-studio-folio-eng-7.json"
+   ],
+   "launched": "2026-10-11T06:52:45Z",
    "status": "running"
   }
  ]
