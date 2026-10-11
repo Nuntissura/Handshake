@@ -82,6 +82,7 @@ impl OwnedReapedChildCleanup {
             handshake_core::process_ledger::ReclaimResourceScope::from_exact(
                 &killed.ready.original_scope
             )
+            .expect("killed child attribution is an exact cleanup scope")
         );
         Self {
             storage,
@@ -177,7 +178,8 @@ fn owned_reclaimer(
 ) -> Arc<dyn RestartOrphanReclaimer> {
     let scope = handshake_core::process_ledger::ReclaimResourceScope::from_exact(
         &killed.ready.original_scope,
-    );
+    )
+    .expect("killed child attribution is an exact reclaimer scope");
     Arc::new(
         handshake_core::process_ledger::restart_resume::SurrealRestartOrphanReclaimer::new(
             Arc::new(ObservedReclaimStore {
@@ -495,7 +497,8 @@ async fn mt195_runtime_hard_kill_child_leaves_reopened_checkpoint_and_active_pro
     assert_eq!(claimed.len(), 1);
     let scope = handshake_core::process_ledger::ReclaimResourceScope::from_exact(
         &killed.ready.original_scope,
-    );
+    )
+    .expect("hard-killed child attribution is an exact evidence scope");
     let cleanup =
         OwnedReapedChildCleanup::from_killed_child(storage.clone(), scope.clone(), &killed);
     let mut mismatch = claimed[0].clone();
@@ -527,7 +530,8 @@ async fn mt195_runtime_hard_kill_child_leaves_reopened_checkpoint_and_active_pro
         storage.clone(),
         handshake_core::process_ledger::ReclaimResourceScope::from_exact(
             &killed.ready.original_scope,
-        ),
+        )
+        .expect("hard-killed child attribution is an exact recovery scope"),
         owned_reclaimer(storage.clone(), &killed),
     )
     .run()
@@ -744,7 +748,8 @@ async fn mt195_runtime_event_gap_persists_failed_report_and_decision_evidence() 
         storage.clone(),
         handshake_core::process_ledger::ReclaimResourceScope::from_exact(
             &killed.ready.original_scope,
-        ),
+        )
+        .expect("event-gap child attribution is an exact recovery scope"),
         owned_reclaimer(storage.clone(), &killed),
     );
     assert_eq!(runner.consume_event_sequence_for_test().await.unwrap(), 2);
@@ -799,7 +804,8 @@ async fn mt195_runtime_operator_cancel_persists_failed_report_and_decision_evide
         storage.clone(),
         handshake_core::process_ledger::ReclaimResourceScope::from_exact(
             &killed.ready.original_scope,
-        ),
+        )
+        .expect("operator-cancel child attribution is an exact recovery scope"),
         owned_reclaimer(storage.clone(), &killed),
     );
     runner.arm_operator_cancel_before_resume();
@@ -862,7 +868,8 @@ async fn mt195_runtime_transient_embedded_unavailable_backs_off_and_resumes_afte
         RestartResumeDbBackoffPolicy::new(2, Duration::from_millis(1)),
         handshake_core::process_ledger::ReclaimResourceScope::from_exact(
             &killed.ready.original_scope,
-        ),
+        )
+        .expect("transient-return child attribution is an exact recovery scope"),
         Arc::new(DeferredOwnedReclaimer {
             retained: Arc::clone(&retained),
             killed: killed.clone(),

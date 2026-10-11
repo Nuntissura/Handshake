@@ -23,6 +23,7 @@ use handshake_core::{
     },
 };
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use surrealdb::types::{Datetime, RecordId, SurrealValue};
 use uuid::Uuid;
 
@@ -175,14 +176,21 @@ async fn seed_original_queue(
         access_space_id: origin.access_space_id.to_string(),
         workspace_id: origin.workspace_id.to_string(),
     };
+    let bindings = QueueCreate {
+        record: RecordId::new("kernel_session_queue", expected.clone()),
+        row,
+    };
     let rows = storage
-        .query_values::<String, _>(
-            "LET $rows = CREATE $record CONTENT $row; RETURN $rows[0].session_run_id;",
-            QueueCreate {
-                record: RecordId::new("kernel_session_queue", expected.clone()),
-                row,
-            },
-        )
+        .with_data_operation(|database| {
+            Box::pin(async move {
+                database
+                    .query_values::<String, _>(
+                        "CREATE $record CONTENT $row RETURN VALUE session_run_id;",
+                        bindings,
+                    )
+                    .await
+            })
+        })
         .await
         .expect("original scoped queue CREATE");
     assert_eq!(rows, vec![expected]);
@@ -235,17 +243,24 @@ async fn seed_original_checkpoint(
         access_space_id: origin.access_space_id.to_string(),
         workspace_id: origin.workspace_id.to_string(),
     };
+    let bindings = CheckpointCreate {
+        record: RecordId::new(
+            "kernel_session_checkpoint",
+            cp.checkpoint_id.as_uuid().to_string(),
+        ),
+        row,
+    };
     let rows = storage
-        .query_values::<Uuid, _>(
-            "LET $rows = CREATE $record CONTENT $row; RETURN $rows[0].checkpoint_id;",
-            CheckpointCreate {
-                record: RecordId::new(
-                    "kernel_session_checkpoint",
-                    cp.checkpoint_id.as_uuid().to_string(),
-                ),
-                row,
-            },
-        )
+        .with_data_operation(|database| {
+            Box::pin(async move {
+                database
+                    .query_values::<Uuid, _>(
+                        "CREATE $record CONTENT $row RETURN VALUE checkpoint_id;",
+                        bindings,
+                    )
+                    .await
+            })
+        })
         .await
         .expect("original scoped checkpoint CREATE");
     assert_eq!(rows, vec![cp.checkpoint_id.as_uuid()]);
@@ -318,14 +333,21 @@ async fn seed_original_process(
         access_space_id: origin.access_space_id.to_string(),
         workspace_id: origin.workspace_id.to_string(),
     };
+    let bindings = ProcessCreate {
+        record: RecordId::new("kernel_process_lifecycle", start.process_uuid.to_string()),
+        row,
+    };
     let rows = storage
-        .query_values::<Uuid, _>(
-            "LET $rows = CREATE $record CONTENT $row; RETURN $rows[0].process_uuid;",
-            ProcessCreate {
-                record: RecordId::new("kernel_process_lifecycle", start.process_uuid.to_string()),
-                row,
-            },
-        )
+        .with_data_operation(|database| {
+            Box::pin(async move {
+                database
+                    .query_values::<Uuid, _>(
+                        "CREATE $record CONTENT $row RETURN VALUE process_uuid;",
+                        bindings,
+                    )
+                    .await
+            })
+        })
         .await
         .expect("original scoped process CREATE");
     assert_eq!(rows, vec![start.process_uuid]);
@@ -402,14 +424,21 @@ pub async fn seed_original_replay_event(
         access_space_id: origin.access_space_id.to_string(),
         workspace_id: origin.workspace_id.to_string(),
     };
+    let bindings = EventCreate {
+        record: RecordId::new("kernel_event_ledger", row.event_id.clone()),
+        row,
+    };
     let rows = storage
-        .query_values::<i64, _>(
-            "LET $rows = CREATE $record CONTENT $row; RETURN $rows[0].event_sequence;",
-            EventCreate {
-                record: RecordId::new("kernel_event_ledger", row.event_id.clone()),
-                row,
-            },
-        )
+        .with_data_operation(|database| {
+            Box::pin(async move {
+                database
+                    .query_values::<i64, _>(
+                        "CREATE $record CONTENT $row RETURN VALUE event_sequence;",
+                        bindings,
+                    )
+                    .await
+            })
+        })
         .await
         .expect("original scoped replay CREATE preserves engine sequence allocator");
     assert_eq!(rows.len(), 1);
@@ -437,7 +466,8 @@ pub async fn verify_original_seed_rows(
     process_uuid: Option<Uuid>,
 ) {
     validate_original_scope(origin);
-    let scope = ReclaimResourceScope::from_exact(origin);
+    let scope = ReclaimResourceScope::from_exact(origin)
+        .expect("original seed attribution is an exact reclaim scope");
     let mut records = vec![
         RecordId::new("kernel_session_queue", format!("SR-{session_id}")),
         RecordId::new("kernel_session_checkpoint", checkpoint_id.to_string()),
@@ -449,9 +479,17 @@ pub async fn verify_original_seed_rows(
         ));
     }
     for record in records {
-        let rows = storage.query_values::<OriginalScopeRow,_>(
-            "SELECT owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id FROM ONLY $record;",
-            OriginalScopeRead {record}).await.expect("canonical original scope reread");
+        let rows = storage
+            .with_data_operation(|database| {
+                Box::pin(async move {
+                    database.query_values::<OriginalScopeRow, _>(
+                        "SELECT owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id FROM ONLY $record;",
+                        OriginalScopeRead { record },
+                    ).await
+                })
+            })
+            .await
+            .expect("canonical original scope reread");
         assert_eq!(
             rows.len(),
             1,
@@ -463,9 +501,18 @@ pub async fn verify_original_seed_rows(
     struct SessionRead {
         session_run_id: String,
     }
-    let rows = storage.query_values::<OriginalScopeRow,_>(
-        "SELECT owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id FROM kernel_event_ledger WHERE session_run_id = $session_run_id ORDER BY event_sequence;",
-        SessionRead {session_run_id: format!("SR-{session_id}")}).await.expect("canonical original replay scope reread");
+    let session_run_id = format!("SR-{session_id}");
+    let rows = storage
+        .with_data_operation(|database| {
+            Box::pin(async move {
+                database.query_values::<OriginalScopeRow, _>(
+                    "SELECT owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id FROM kernel_event_ledger WHERE session_run_id = $session_run_id ORDER BY event_sequence;",
+                    SessionRead { session_run_id },
+                ).await
+            })
+        })
+        .await
+        .expect("canonical original replay scope reread");
     assert!(!rows.is_empty(), "original replay row required");
     for row in rows {
         assert_original_row(&row, &scope);
