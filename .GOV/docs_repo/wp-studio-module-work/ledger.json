@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T05:02:18Z",
+ "updated_at": "2026-10-11T05:02:56Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -688,12 +688,16 @@
    "crate": "hsk-studio-pulse",
    "origin": "research/engine-video.md",
    "scope": "explicit rounding rule + receipt for 100 ns (Media Foundation) <-> 254016000000 ticks/s conversion (25401.6 ticks per 100 ns)",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-pulse-eng-1",
-   "commits": [],
+   "commits": [
+    "6a60ef6"
+   ],
    "verdicts": [],
-   "brief": "research/engine-video.md + builders/briefs/hsk-studio-pulse.md"
+   "brief": "research/engine-video.md + builders/briefs/hsk-studio-pulse.md",
+   "candidate": "6a60ef6",
+   "note": "100ns<->ticks rule 127008/5 via accord Rounding (no duplication); receipts with exact residual; NearestHalfUp round-trip identity proven (exhaustive +-300000, strides, i64 edges); typed Overflow/Underflow; 18/18 pulse; unconsumed until D9"
   },
   {
    "lane_id": "SMB-REEL-NATIVE-ENG-1",
@@ -1241,5 +1245,8 @@
    "validation/R5-review-c.json"
   ],
   "gameplan_change": "ROUND GP-006 retired -> GP-013 (unchanged entrypoint OR canary exit 0 on candidate)"
- }
+ },
+ "next_round_after_R5": [
+  "SMB-PULSE-ENG-1"
+ ]
 }

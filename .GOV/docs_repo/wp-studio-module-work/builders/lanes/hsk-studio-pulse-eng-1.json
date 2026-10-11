@@ -1,0 +1,65 @@
+{
+  "crate": "hsk-studio-pulse",
+  "lane": "SMB-PULSE-ENG-1",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "REFERENCE_TIME (100 ns) <-> ticks rounding rule + receipt landed, pushed",
+  "commits": [
+    {
+      "sha": "6a60ef668f79f81d720d5dbd0b4dfbf09ed635fe",
+      "subject": "Pulse: explicit rounding rule + receipt for Media Foundation REFERENCE_TIME (100 ns) <-> ticks at 127008/5 ticks per unit (accord Rounding, residual over 5 / 127008, i64 range -> typed overflow, round-trip identity under NearestHalfUp)"
+    }
+  ],
+  "capabilities_done": [
+    "ticks_from_reference_time(i64 100ns, accord::Rounding) -> ReferenceTimeToTicks{input_100ns, ticks:i64, rounding, exact, residual{numerator,denominator=5}}; exact iff n % 5 == 0; accord Timescale::signed_ticks_from_units does the rounding (no duplicate enum or arithmetic)",
+    "reference_time_from_ticks(i64 ticks, Rounding) -> TicksToReferenceTime{input_ticks, reference_time_100ns, rounding, exact, residual{denominator=127008}}; exact iff ticks % 127008 == 0; tie 63504 -> NearestHalfUp toward +inf; cannot overflow",
+    "reference_time_from_sequence_ticks(Ticks, Rounding): ticks above i64::MAX -> Overflow (receipt is signed)",
+    "residual = exact - result as an exact fraction (exact = result + numerator/denominator), computed in i128 from the integer inputs; ReferenceTimeToTicks::sequence_ticks() negative -> Underflow; require_exact() on both receipts -> Inexact",
+    "constants derived from accord TICKS_PER_SECOND via const gcd: REFERENCE_TIME_UNITS_PER_SECOND=10_000_000, TICKS_PER_REFERENCE_UNIT_NUM=127008, _DEN=5; REFERENCE_TIME_ROUNDING=NearestHalfUp (interchange rule)",
+    "range: |100ns| > 363_102_010_773_131 (about 420 days, same bound for Floor/Ceil/NearestHalfUp) -> PulseError::Overflow, never a panic; i64::MIN/MAX covered both directions",
+    "rule documented in src/reference_time.rs module docs (6 numbered points) and in pulse DESCRIPTOR (operation + model.reference_time); strictly additive: no existing pulse API, error variant or test changed"
+  ],
+  "tests": {
+    "argv": "cargo test -p hsk-studio-pulse --tests --no-fail-fast",
+    "exit": 0,
+    "sha": "6a60ef668f79f81d720d5dbd0b4dfbf09ed635fe",
+    "passed": 18,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "interop-media consumer (D9 pending): adopt ticks_from_reference_time for Media Foundation sample times; none in this lane",
+  "updated_at": "2026-10-11T05:01:58Z",
+  "notes": {
+    "mt": "MT-35540",
+    "scope": "additive; dependents unchanged",
+    "checks": {
+      "cargo_check_tests": "PASS",
+      "cargo_clippy_tests": "PASS (no pulse findings; 2 pre-existing too_many_arguments warnings in observe)",
+      "dependents": "cargo check -p hsk-studio-interop-media -p hsk-studio-reel --tests: PASS",
+      "rustfmt": "clean (lib.rs, reference_time.rs, tests/reference_time.rs)",
+      "test_split": "foundation_contract 5, reference_time 5 (new), schedule_and_display 2, timeline_edit 6; after a rustfmt-only change to tests/reference_time.rs the two targets reference_time + foundation_contract were rerun green (10 passed)"
+    },
+    "tests_new": [
+      "forward_hand_values_and_residuals",
+      "backward_hand_values_ties_and_sequence_ticks",
+      "round_trip_is_identity_under_nearest",
+      "range_edges_are_typed_overflow_never_panic",
+      "receipt_invariants_and_require_exact"
+    ],
+    "oracle_values": {
+      "forward_nearest": "1 unit = 25401.6 -> 25402 (residual -2/5); 2 -> 50803 (1/5); 333667 units (MF 29.97 frame) = 8475675667.2 -> 8475675667 (1/5), not the canonical 8475667200",
+      "exact": "5 -> 127008; 10_000_000 -> 254016000000; 400_000 (25 fps frame) -> 10160640000",
+      "backward_tie": "63504 ticks = 2.5 units: Floor 2, Ceil 3, NearestHalfUp 3 (residual -63504/127008); -63504 -> -2",
+      "edge": "N_MAX 363102010773131 units = 9223372036854764409.6 ticks (Floor ...409, Ceil/Nearest ...410); N_MAX+1 and i64::MAX/MIN -> overflow; i64::MAX ticks = 363102010773131.36 units",
+      "independence": "values computed with Python fractions.Fraction and, for the round trip, an independent i128 floor((2*127008*n+5)/10) formula in the test; the exhaustive range is +-300_000 plus a ~200k-sample stride and 1000 values at each i64 edge"
+    },
+    "proof_of_identity": "forward error <= 2/5 tick = 2/127008 unit < 1/2, so nearest in the other direction returns n; Floor/Floor is NOT an identity (1 unit -> 25401 ticks -> 0 units), asserted in the test",
+    "retry_guard_route": "none needed; no gated run failed",
+    "known_limits": [
+      "receipts use i64 ticks (about +-420 days); sequence Ticks above i64::MAX are refused as overflow",
+      "pulse::Rounding (pulse-local, has Exact) is a different type from accord::Rounding used here; callers import accord's, require_exact() gives the refusing behaviour",
+      "interop-media has no pulse edge (D9 pending), so no consumer adopts these functions yet"
+    ]
+  }
+}
