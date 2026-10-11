@@ -807,10 +807,11 @@
     "heartbeat": {
       "automation_id": "wp012-phase-team-checkin",
       "kind": "heartbeat",
-      "status": "ACTIVE",
+      "status": "PAUSED",
       "interval_minutes": 10,
       "target": "01a127a9-bb00-72f0-8821-5145538a6bd8",
-      "verified_from_saved_configuration": true
+      "verified_from_saved_configuration": true,
+      "pause_verification": "Root automation tool actualPAUSED/exactpromptpreserved; no automatic restart on app launch until Operator explicitly resumes"
     },
     "phase01": {
       "preparation": "Three repairs delivered",
@@ -871,11 +872,11 @@
       "action": "Fresh typed handoff/snapshot/workflow independently preservation-clear; newleader ACK+oldlead relinquish, heartbeat transferred verified, actual samewriter successor instruction active. Root transfer complete; successor owns further state/dispatch."
     },
     "phase02": {
-      "scope": "MT171\u2013175 assigned CKC Surreal/WP1 product imports into existing WP012 worktree; serial shared ownership",
+      "scope": "MT171–175 assigned CKC Surreal/WP1 product imports into existing WP012 worktree; serial shared ownership",
       "predecessor_review": {
         "thread_id": "01a12415-c947-7cc1-aa65-60362f2c0bd4",
         "turn_id": "01a12443-4ed7-7003-afe7-148a50d317a2",
-        "verdict": "PASS \u2014 three-field repair review only",
+        "verdict": "PASS — three-field repair review only",
         "remaining_repair_blocker": "NONE",
         "activation": "Existing Operator authorization; verify usable contract/worktree, record activation/claim; no repeated signature KB-PREP-003",
         "runtime_verdict": "NONE"
@@ -889,7 +890,7 @@
       "observed_state": {
         "lead": "Active one-file storage remedy after independent disposition; field source review clear, other diagnostics carried.",
         "review": "Active exact2 mechanical failure disposition; next frozen storage affected check only.",
-        "startup_item": "MT171\u2013175 claimed; 180000000000-byte WP012 isolated builder binding applied/reviewed. Round03 Rust compile FAILED30; exact contract source repairs active; runtime/acceptance pending.",
+        "startup_item": "MT171–175 claimed; 180000000000-byte WP012 isolated builder binding applied/reviewed. Round03 Rust compile FAILED30; exact contract source repairs active; runtime/acceptance pending.",
         "current_blockers": [
           {
             "item": "compile-output-binding",
@@ -1727,7 +1728,7 @@
             "diagnosis": {
               "source_thread_id": "01a12447-38d2-7832-9ce2-31b9780b2a02",
               "source_turn_id": "01a124a1-30df-7993-b9d1-31adc2481a15",
-              "authority": "MasterSpec\u00a72.3.13.12.4 record-user/ResourceBroker boundary for EventLedger/FR projections",
+              "authority": "MasterSpec§2.3.13.12.4 record-user/ResourceBroker boundary for EventLedger/FR projections",
               "new_event_read": "Carry broker-verified AuthorizedResourceContext/exact five-field attribution from authorize_request+admitted canonical workspace; GET/idempotency/race owner+workspace storage query before limit; stamp server native/chat payload; runtime-chat correlation session remains distinct from authenticated session",
               "admission": "Retain body actor/workspace checks, live session/grant/capability, scoped get_workspace,401/403,audit fail-closed; same-account authorized principals/historical sessions readable under account+workspace, no full equality to current caller",
               "dependent_replay": "Forward: preserve server-minted typed ORIGINAL attribution in new native pending/completion payload + FR projection at original authorized write; retry/recovery uses immutable original attribution, never current caller. Ordinary dereference of historical ledger resource/session links is insufficient and retracted",
@@ -1889,7 +1890,7 @@
               "boundaries": "Selective owned declarations only; preserve fields/indexes/permissions/current cleanup/replay/legacy history; no table replacement, generic permission widening or fabricated ownership/backfill",
               "retraction": {
                 "source": "Lead msg_03c98a7b364e6f01016ac9efa1ab408191ad8044a215df0cbb",
-                "correction": "Writer retracts missing-field claim: existing imported process_ledger_schema.surql23\u201343 declares fields and is reached by production bootstrap",
+                "correction": "Writer retracts missing-field claim: existing imported process_ledger_schema.surql23–43 declares fields and is reached by production bootstrap",
                 "action": "Separate reviewer narrowed to exact existing SurQL/current bootstrap binding; no core schema edits/duplicate declarations",
                 "tables": [
                   "kernel_session_queue",
@@ -1901,7 +1902,7 @@
                   "source": "Review turn01a124cf-285e-7640-822d-58910ef263b3",
                   "schema_sha256": "88fcf556e38da0e1b281ea6eb54a0a07bf22886296a67776c9a2c0e4d272a1a1",
                   "source_blob": "6c0935d0a393b8f160c6dacd8d4aca9fc5410888",
-                  "proof": "All five optional string fields/exact-scope indexes already dedicated SurQL23\u201343; IF NOT EXISTS/no default/backfill/legacy NONE; main init awaits run_migrations\u2192production base+dedicated process_ledger schema install before runner",
+                  "proof": "All five optional string fields/exact-scope indexes already dedicated SurQL23–43; IF NOT EXISTS/no default/backfill/legacy NONE; main init awaits run_migrations→production base+dedicated process_ledger schema install before runner",
                   "limits": "Schema-install admin operation only, no ordinary protected-content fallback; runtime/compile NOT_RUN/legacy acceptance unresolved",
                   "action": "No schema change, duplicate definitions, table replacement or permission repair needed"
                 }
@@ -1923,7 +1924,7 @@
               "caller_review": {
                 "source": "Review turn01a124db-6432-7b30-bf8f-67c8a45bd80a",
                 "ownership": "Bounded MT172 retained-current fixture expansion, not source blob import; runtime_child.rs/runtime_chaos.rs only plus owned signatures",
-                "origin": "Mint once original seed/child setup; persist five fields at original fixture CREATE with typed fields/sequence/links/claims intact; canonical reread before readiness; carry validated origin/readiness\u2192reopen\u2192strict product-local startup env; no restart mint/backfill",
+                "origin": "Mint once original seed/child setup; persist five fields at original fixture CREATE with typed fields/sequence/links/claims intact; canonical reread before readiness; carry validated origin/readiness→reopen→strict product-local startup env; no restart mint/backfill",
                 "cleanup": "Exact original owned child kill+wait receipt binds process/PID/session/origin/exit status; test-only cleanup accepts only matching already-reaped child, errors other/live/partial, never PID kill; real durable Surreal reclaimer/same reopened store performs marker+STOP; production registry unchanged",
                 "proof": "Original five chaos tests/entrypoint kill-reap/reopen/resume/report/replay/marker-STOP/origin/product1-1-0/gap-cancel/backoff assertions retained; affected mismatch/unowned reap denial added; no test/process/runtime run",
                 "route": "Exact finding routed lead; assigned after diagnostics serially; no repeated approval/no fabricated containment/no Noop/store swap"
@@ -1935,7 +1936,7 @@
                 "finding": {
                   "source": "Review turn01a124df-cb39-75b0-849d-3d0fcd7a5689",
                   "verified_authority": "MT137.json#/scope/acceptance_criteria AC-137-2; MT172/174 AC1 preserve current protections/history and consumed source independent acceptance",
-                  "conflict": "Same no-process candidate report cannot satisfy imported test396 orphan_reclaims.is_empty and protected runner626\u2013632/session_checkpoint restart128\u2013135 zero-result per-candidate entry",
+                  "conflict": "Same no-process candidate report cannot satisfy imported test396 orphan_reclaims.is_empty and protected runner626–632/session_checkpoint restart128–135 zero-result per-candidate entry",
                   "state": "BLOCKED_ON_OPERATOR_SEMANTIC_CHOICE",
                   "choice_1": "All successful per-candidate scans incl0; explicitly supersede imported empty assertion with exact one-entry/session/0/persisted equality",
                   "choice_2": "Only actual reclaimed processes; explicitly accept protected zero-reporting change, source empty assertion/current positive assertions retained",
@@ -1953,7 +1954,7 @@
                 "independent": "Original origin/evidence/handoff may proceed; fixture files reported unchanged at blocker",
                 "boundaries": "No schema write/backfill/producer fallback/guessed base-only finding; original caller/current cleanup assertions preserved",
                 "record": "MT172#/implementation_record/startup_runner_scope_reconciliation/remaining_caller_origin_dependency/original_create_schema_blocker",
-                "evidence": "Ledger SCHEMAFULL schema916; replay845 flat-five filter; writer all-SurQL absence check; pinned WP1 schema686\u2013690 optional/nonblank; hashes in existing owner node",
+                "evidence": "Ledger SCHEMAFULL schema916; replay845 flat-five filter; writer all-SurQL absence check; pinned WP1 schema686–690 optional/nonblank; hashes in existing owner node",
                 "independent_review": {
                   "source": "Review turn01a124ea-9fee-7923-b984-0e336a2da2f7",
                   "evidence": "Current SCHEMAFULL916/payload.*937 then created_at lacks five fields; frozen runner845 to851 requires them; pinned WP1 schema686 to690 defines optional/nonblank fields",
@@ -2100,7 +2101,7 @@
             "write_owner": "Phase2 lead/sole import owner",
             "evidence": "Current diagnostics owner/ring/sampler/hook/session and shipped Palmistry watcher protected; imported owner dormant, independent global/session/ring/sampler/hook and incompatible wire format",
             "remedy": "Fold missing source capabilities into current sole owner/facade and sole shipped watcher; same session/ring, coherent wire extension when required; no duplicate startup, wire alias or discarded capability",
-            "scope": "Map exact owner/diag_ring/standalonePalmistry extensions to preserved MT082\u2013094/MT175; backend launch/storage MT172/173. Existing Operator blocker expansion, no new approval gate",
+            "scope": "Map exact owner/diag_ring/standalonePalmistry extensions to preserved MT082–094/MT175; backend launch/storage MT172/173. Existing Operator blocker expansion, no new approval gate",
             "action": "Writer minimum direct unit, freeze changed paths/hashes and applicable existing proof; separate affected-fix review only",
             "limits": "HELD_NOT_ACTIVATED; compile/runtime NOT_RUN; native profile/legacy/report/output dependencies unchanged",
             "provenance_dependency": {
@@ -2219,7 +2220,7 @@
                       "state": "INDEPENDENT_AFFECTED_STATIC_CHECK_COMPLETE",
                       "write_owner": "01a12446-7402-7532-8a12-7e93c6c1d9db",
                       "authority_review": "01a125b0-b651-7bb3-8d11-a69cfa0e0706",
-                      "exact_failure": "api~103 original_scope directly deserializes ExactResourceScopeAttribution; resource_scope.rs238\u2013245 lacks deny_unknown_fields/custom deserializer, original_scope.extra discarded",
+                      "exact_failure": "api~103 original_scope directly deserializes ExactResourceScopeAttribution; resource_scope.rs238–245 lacks deny_unknown_fields/custom deserializer, original_scope.extra discarded",
                       "next": "Freeze narrow repair; separate affected-fix verification only, then freshbackendchallenge source prerequisite",
                       "approval": "Existing bounded blocker authorization; no Operator gate",
                       "writer_turn": "01a125b3-3a67-7bf2-acc5-911f49e9e586",
@@ -2228,7 +2229,7 @@
                         "path": "src/backend/handshake_core/src/api/palmistry.rs",
                         "sha256": "fd285b38a607cd9662cdd53d5c133d59b4c5347b4ef6d29b851860349730b7a6",
                         "baseline_sha256": "20cf157b78e4a3c0663734aef6c599eafe234c91a83e79e261f932b6a7e88407",
-                        "owner_observation": "Field-specific privateClosedScope exactfive deny_unknown_fields\u2192unchanged sharedtype; existing owningtest one nestedextra rejection; parse0 only",
+                        "owner_observation": "Field-specific privateClosedScope exactfive deny_unknown_fields→unchanged sharedtype; existing owningtest one nestedextra rejection; parse0 only",
                         "writer_message": "msg_0d010d1965b8e15e016aca2a116d6c8191a140c186177982f1",
                         "unchanged_manifest_sha256": "c2efbe841cbd5f6a3e99663c999481dc835e9eb38aef8005fbf5b3fbd379b63b",
                         "unchanged_store_sha256": "a07c46ab3ace0182315eadfb974c97658d6bf16f3421d862209e7e0e230e1e40",
@@ -2239,7 +2240,7 @@
                           "scope": "Recorded nested-scope strictdeserializer/owningcase and preservation only",
                           "result": "NO_NEW_AFFECTED_STATIC_BLOCKER",
                           "message_id": "msg_0de0500f74688d0b016aca2ae502b481918436867d54e87359",
-                          "observation": "Actualfield103 invokes strictprivateClosedScope108\u2013135; exactlyfive typedfields converted oneforone; existingtarget nestedextra rejection3285\u20133287. Readonlyinverse reproduces prior20cf... LF exactly; final fd285... unchanged.",
+                          "observation": "Actualfield103 invokes strictprivateClosedScope108–135; exactlyfive typedfields converted oneforone; existingtarget nestedextra rejection3285–3287. Readonlyinverse reproduces prior20cf... LF exactly; final fd285... unchanged.",
                           "limits": "Source review only; assertion/type/Cargo/tests/runtime/live proof NOT_RUN; no acceptance/adoption verdict."
                         },
                         "limits": "All types/Cargo/tests/runtime NOT_RUN; no adoption/PASS. ADOPT remains unavailable before active/reattach/spawn/HMAC. Core graph invalidated; outputgrant blocked."
@@ -2328,7 +2329,7 @@
                       "contract_ref": "01a12533-1f0e-7002-8172-e20eddf4aa50",
                       "write_owner": "01a12446-7402-7532-8a12-7e93c6c1d9db",
                       "scope": "Bind originalfive scopefields from trustedSERVER authority; reject caller-scope mismatch BEFORElifecycleadoption",
-                      "next": "Separate reviewer exactproducer/association diagnosis\u2192smallest authorized writeunit or precise externaldependency; no duplicate audit",
+                      "next": "Separate reviewer exactproducer/association diagnosis→smallest authorized writeunit or precise externaldependency; no duplicate audit",
                       "limits": "No invented/reminted/default/backfilledscope, caller/native signedclaim/syntheticfixture as trustedsource, profilewidening or replacedoriginalfive. ADOPTunavailable; realoriginalSTARTACK-scopedverifier/canonicalreread/HMAC+observer/retry/runtime outstanding.",
                       "writer_turn": "01a125d2-f6b7-7023-9011-d81f0a6d71a8",
                       "owner_blocker": {
@@ -2336,7 +2337,7 @@
                         "writer_turn": "01a125d2-f6b7-7023-9011-d81f0a6d71a8",
                         "writer_message": "msg_0d010d1965b8e15e016aca325e91b48191a4d42ab26a7424b0",
                         "status": "BLOCKED_EXACT_PRODUCER_AUTHORITY_RECONCILIATION_NO_PRODUCT_EDIT",
-                        "owner_observation": "Inspected callerexact_scope/shape-onlybootenv/pinnedopaqueisolationIDs/OSpeer and currentbroker paths do not establish persisted ORIGINALfive\u2194currentchild/originalsession/principal-workspace association",
+                        "owner_observation": "Inspected callerexact_scope/shape-onlybootenv/pinnedopaqueisolationIDs/OSpeer and currentbroker paths do not establish persisted ORIGINALfive↔currentchild/originalsession/principal-workspace association",
                         "exact_blocker": "Need canonical producer/admission association preserving originalscope/session/identity acrossretry, rather than unprovenconstructor/env/caller/signedclaim",
                         "independent_diagnosis": {
                           "thread_id": "01a12447-38d2-7832-9ce2-31b9780b2a02",
@@ -2345,8 +2346,8 @@
                           "result": "Current authenticatedbroker identity/workspace authority exists; no ORIGINAL immutable nativewatch scope association in inspected exactmodules. No unavailablecredentials/newpermissionrequest.",
                           "scope": "Exact missing originalfive/child-authority producer and smallest admissionbinding remedy only",
                           "message_id": "msg_0de0500f74688d0b016aca345e23348191aed89f1c5dea1ba7",
-                          "canonical_current_authority": "authority.rs authenticated_session_credentials1046\u20131066\u2192authenticate_local_session and authorize_request1322\u20131391\u2192authorize_protected_resource/currentprofile_can: CURRENT persisted identity +authorizedworkspace; not historical ORIGINALnative-launch association",
-                          "exact_missing_association": "Immutable server-created authenticatedORIGINALfive\u2194native-launchsession/processUUID/nonce/expectedsigner/OSparent-childgenerations, record-user permissions, persisted before consumed as adoptionauthority; latercurrentcontext cannot backfilloriginal"
+                          "canonical_current_authority": "authority.rs authenticated_session_credentials1046–1066→authenticate_local_session and authorize_request1322–1391→authorize_protected_resource/currentprofile_can: CURRENT persisted identity +authorizedworkspace; not historical ORIGINALnative-launch association",
+                          "exact_missing_association": "Immutable server-created authenticatedORIGINALfive↔native-launchsession/processUUID/nonce/expectedsigner/OSparent-childgenerations, record-user permissions, persisted before consumed as adoptionauthority; latercurrentcontext cannot backfilloriginal"
                         },
                         "limits": "No productbytes changed/actualbinding advanced. Current ADOPTunavailable; compile/runtime/realSTARTACK-scopedverifier-HMAC proof pending. No surrogateauthority/default/remint/backfill/profilewidening/acceptancechange."
                       },
@@ -2356,21 +2357,21 @@
                         "write_owner": "01a12446-7402-7532-8a12-7e93c6c1d9db",
                         "scope": "Existing Palmistry API/SurrealPalmistryStore/palmistry_schema.surql admissionassociation, reuse authenticatedsession/workspaceauthority; necessary api/mod mount and diagnostics/palmistry_launch nativeproducer wiring, conversionseam onlyifneeded",
                         "ordering": "Native capture trustedexactscope/bindingreference BEFOREoriginalwatch launch; retain SAMEoriginalUUID/session/nonce. Adoption freshcurrentbroker authorization LOADimmutableassociation/equalALLfive/exactchild, never CREATE/backfill missingassociation. Reservation separate realSTARTACK/verifier.",
-                        "proof_ref": "Exact reviewer01a125da... realauthenticatedaccount/session-authorizedworkspace\u2192immutableassociation independentcanonicalreread; identity/scope/revocation/concurrency/restartretry/producerbeforelaunch/nobackfill requirements retained",
+                        "proof_ref": "Exact reviewer01a125da... realauthenticatedaccount/session-authorizedworkspace→immutableassociation independentcanonicalreread; identity/scope/revocation/concurrency/restartretry/producerbeforelaunch/nobackfill requirements retained",
                         "limits": "No secondchild/reaper/capability-profilegrant/helddiagnosticsactivation; preserve legacy/nativeownership. Existingalreadyspawned child lacking genuinelypreexistingassociation unprovable/failclosed; no inspectedactualrunningPID claim/foreignprocessdisruption. ADOPTunavailable until realSTARTACK-verifier canonicalreread/HMAC+observerretry proof. Allactualproof NOT_RUN/outputgrantblocked.",
-                        "next": "Smallest serial affectedsourceunit freeze\u2192separate affectedreview; exact technicalordering question goes reviewer, no inventedbinding",
+                        "next": "Smallest serial affectedsourceunit freeze→separate affectedreview; exact technicalordering question goes reviewer, no inventedbinding",
                         "writer_turn": "01a125de-1169-7662-afcc-0f8e7029178d",
                         "focused_ordering_dependency": {
                           "source_ref": "MT-172.json#/implementation_record/canonical_adoption_wire_validation/trusted_server_original_scope_binding/focused_ordering_dependency",
                           "writer_turn": "01a125de-1169-7662-afcc-0f8e7029178d",
                           "writer_message": "msg_0d010d1965b8e15e016aca34ec40988191b772c8a508d72508",
                           "owner_observation": "Prelaunchreservation cannot know unbornchildPID/OSgeneration. Existingverifier PERMISSIONSNONE/new_exact filters not record-userpermission; diagnostics.read notCREATEauthority.",
-                          "question": "Exact immutable prelaunch originalscope/launchidentity reservation\u2192laterimmutablechild evidence binding ordering; EXISTING CREATE/read capability/action/record-userpredicate, no inventedPID/authority/grant",
+                          "question": "Exact immutable prelaunch originalscope/launchidentity reservation→laterimmutablechild evidence binding ordering; EXISTING CREATE/read capability/action/record-userpredicate, no inventedPID/authority/grant",
                           "independent_diagnosis": {
                             "thread_id": "01a12447-38d2-7832-9ce2-31b9780b2a02",
                             "turn_id": "01a125e3-5af6-7b82-84f5-b248c2c7c14b",
                             "state": "COMPLETED_ORDER_TECHNICALLY_POSSIBLE_ADMISSION_AUTHORITY_NONE_VERIFIED",
-                            "result": "Native originalidentity+expectedpubverifier known beforeownedspawn; immutable reservation no unbornchildfacts\u2192canonicalACK\u2192sameChildspawn\u2192independentOS/challenge\u2192separateimmutablebindingappend. No currentassociation CREATE/bind/read mapping verified.",
+                            "result": "Native originalidentity+expectedpubverifier known beforeownedspawn; immutable reservation no unbornchildfacts→canonicalACK→sameChildspawn→independentOS/challenge→separateimmutablebindingappend. No currentassociation CREATE/bind/read mapping verified.",
                             "scope": "Only recorded reservation-ordering and existingadmissionauthority question",
                             "exact_authority_dependency": "Canonical product spec/contract decision names EXISTING capability+ResourceAction+protectedresource for reservationCREATE, childbindingCREATE, associationread; corresponding exactrecord-userpredicates. Existinggrants compatibility separately required, never silently provisioned.",
                             "permission_retraction": "Prior missing-plumbing remedy/routing does not authorizeCREATE/bind/read. Generalblockerrepair scope approval supplies no operationmapping. No productedits occurred; admission/schema/mount/nativeproducer writes held.",
@@ -2415,9 +2416,9 @@
                             "proposed_record_user_rules": "mt109_has_workspace_access exactoperationaction/capability +exact ORIGINAL owner_account_id/actor_principal_id/authenticated_session_id/access_space_id/workspace_id equals $auth/broker; create/select only, update/deleteNONE; immutable childbinding existingreservation exactfive+launchidentity+serverobservedchild, uniqueonebinding identicalretry/conflictdeny, no mutation/backfill",
                             "source_basis": "Reviewer inspected workspacePOST fs.write/Create/Workspace +GET fs.read/Read; creatorgrant selectedactions/$granted delegatedcaps; Operator/Coder sourcefs.read/write compatibility only",
                             "grant_availability": "UNVERIFIED; actual targetpersistedgrant +currentlive session/principaldelegation/profile/action/capability/revocation/expiry independentlyrequired, neverinferred/provisioned",
-                            "ordering": "Prelaunchimmutable reservationcanonicalACK\u2192SAMEnativeownedspawn\u2192backendindependent actualchildOS+freshchallenge\u2192separateimmutablechildbinding beforeadopt; no unbornchildfields/retrospectiveoriginalscope",
+                            "ordering": "Prelaunchimmutable reservationcanonicalACK→SAMEnativeownedspawn→backendindependent actualchildOS+freshchallenge→separateimmutablechildbinding beforeadopt; no unbornchildfields/retrospectiveoriginalscope",
                             "approval_scope": "Semantic mapping and corresponding exactrecord-userassociation policy only; normalcanonical spec/contractversion-enrichment workflow; no newcap/profile/grant/service/rootstorage/helddiagnosticsactivation",
-                            "canonical_authority_target": "Reviewernamed activeSPEC_CURRENT bundle06-mechanical-integrations \u00a76.13 linked11-shared-dev-platform-and-oss-foundations \u00a711.1 +MT172 applicablepacket/refinement; rootcoord proposal notauthority",
+                            "canonical_authority_target": "Reviewernamed activeSPEC_CURRENT bundle06-mechanical-integrations §6.13 linked11-shared-dev-platform-and-oss-foundations §11.1 +MT172 applicablepacket/refinement; rootcoord proposal notauthority",
                             "rejection": "AssociationCREATE/read/adoption remainblocked",
                             "preserved_proof": "Realrecord-user CREATE/read allowed/eachfive mismatch-wrongaction-revocation denied; immutableconflict/concurrentretry/restart; independentcanonical reservationACK before samechildspawn/boundchild reread. REALoriginalSTARTACK-scopedverifier-HMAC separate; allactualproofNOT_RUN/outputgrantblocked."
                           },
@@ -3103,7 +3104,7 @@
                                                           "state": "STANDALONE_SOURCE_INDEPENDENTLY_REVIEWED_NO_NEW_AFFECTED_STATIC_BLOCKER",
                                                           "finding_ref": "review01a126cf-4ddc-7532-84d3-3219d39cdd64",
                                                           "source_pin": "98efa4d019c4f670186cd3ec1f048ece3adf0dcd",
-                                                          "source_ranges": "1375\u20131410 original standalone reconcile_kill_operation",
+                                                          "source_ranges": "1375–1410 original standalone reconcile_kill_operation",
                                                           "lead_thread": "01a12445-b7e7-7091-8a42-19cae059c2e7",
                                                           "lead_turn": "01a126d0-da2d-7c71-8f01-d8909989dd28",
                                                           "lead_ack": "msg_03c98a7b364e6f01016aca72ec961481919b8a4ada0b7c6d6b",
@@ -3154,7 +3155,7 @@
                                                               "state": "ROUTED_SAME_LEAD_WRITER_START_PENDING_CONFIRMATION",
                                                               "finding_ref": "review01a126e1-b6dd-76d1-becd-589f7775ae56",
                                                               "source_pin": "98efa4d019c4f670186cd3ec1f048ece3adf0dcd",
-                                                              "source_ranges": "1907\u2013~2078 original boot-pass contracts",
+                                                              "source_ranges": "1907–~2078 original boot-pass contracts",
                                                               "lead_thread": "01a12445-b7e7-7091-8a42-19cae059c2e7",
                                                               "lead_turn": "01a126e2-ebc8-7841-9530-07d8cecb538e",
                                                               "lead_ack": "msg_03c98a7b364e6f01016aca778d2b34819196bd7775e24ba286",
@@ -3222,7 +3223,7 @@
                         "source": "Review01a12556-1810-73f2-aeb0-70b5fe1a60f2 full report/followup in reviewchat01a12447-38d2-7832-9ce2-31b9780b2a02",
                         "current_main_sha256": "2a59bd0a12c9cb7ec5e887811de77c22bc71ed79496e2603758a57f9ea1fca7b",
                         "current_crash_sha256": "ec2568ab56b6bded3c4e58a75798fa2a7fea19563cd10a49479c245df94b99dc",
-                        "proof": "Both current hashes repeatedlymatch; constructor bodies byte-equivalent after LF normalization plus sole len-as-u32\u2192eventcount substitution; full priorprefix CRLF reconstructs exactc5787592; original APIs/bodies/tests retained; actualtypedVec count/rich-first/abnormal-onlyfloor/clean branch/persistence/survivor/finalization unchanged; MT092 mapping verified",
+                        "proof": "Both current hashes repeatedlymatch; constructor bodies byte-equivalent after LF normalization plus sole len-as-u32→eventcount substitution; full priorprefix CRLF reconstructs exactc5787592; original APIs/bodies/tests retained; actualtypedVec count/rich-first/abnormal-onlyfloor/clean branch/persistence/survivor/finalization unchanged; MT092 mapping verified",
                         "limits": "No executable/crash/currentfactory/runtime/auth proof; new constructedVec countfixture excludes sampledtimestamp, old timestamp expression unchanged only; no fullunit verdict",
                         "reuse": "Only while same current main/crash inputs and relevant assertions match"
                       }
@@ -3239,7 +3240,7 @@
                       "independent_result": {
                         "source": "Review01a1255a-f65d-70e1-ab81-1c6e2a0ace32; finalmsg_0de0500f74688d0b016aca13a2b8a881918ac01fe88c7e51bf",
                         "product_source_result": "NO_OTHER_NEW_AFFECTED_STATIC_ROUTING_BLOCKER",
-                        "proof": "Allsix hashes initial/final match; oldv1 prefixes/APIs/defaults/assertions retained; strict explicitV2 nonce config\u2192actualdefaultfactory\u2192one realmappedreader/sharedArc; fulltyped120 wrapper/bounded actualerror/same-nonce failure-preserving reopen/canonical sourcefixtures inspected; count proof reused; exact five-line capacity inverse reconstructs9ee8f2de",
+                        "proof": "Allsix hashes initial/final match; oldv1 prefixes/APIs/defaults/assertions retained; strict explicitV2 nonce config→actualdefaultfactory→one realmappedreader/sharedArc; fulltyped120 wrapper/bounded actualerror/same-nonce failure-preserving reopen/canonical sourcefixtures inspected; count proof reused; exact five-line capacity inverse reconstructs9ee8f2de",
                         "gap": "New lifecycle Ping/Shutdown send_control bounds only connectretry; write/flush/replyread blocking, possible hang before ownedguard/boundedwait",
                         "limits": "No tests/type/Cargo/Pod/binary/defaultfactory/crash/layout/runtime proof; source corruptcase asserts is_err only, sourceactuallast-error return inspected; nonce/config notauth, all signed/adoption/key/sourcecapability obligations retained"
                       },
@@ -3247,7 +3248,7 @@
                         "source": "Same review01a1255a-f65d-70e1-ab81-1c6e2a0ace32",
                         "path": "src/frontend/palmistry/tests/test_lifecycle.rs",
                         "prior_sha256": "c95ddd27707694a65b9bb6a283b1f58809f747f01bc6a0502b704e0e12c26e4d",
-                        "anchors": "Newtwo calls550/553; helper136 connectbudget, write-flush159\u2013161/read_line165 no complete replydeadline",
+                        "anchors": "Newtwo calls550/553; helper136 connectbudget, write-flush159–161/read_line165 no complete replydeadline",
                         "remedy": "Bound only newtwo complete control exchanges through write/reply; release/cancel ownedIPC at deadline, preserve fixture-ownedchild cleanup; no orphanblockingthread/foreignkill/generalIPC audit",
                         "writer_turn": "01a1255f-e1cb-7110-8fc2-be0e10776ed9",
                         "state": "NO_NEW_AFFECTED_STATIC_CONNECTION_BLOCKER_RUNTIME_NOT_RUN",
@@ -3498,7 +3499,15 @@
       "version": 3,
       "root_thread_id": "01a127a9-bb00-72f0-8821-5145538a6bd8",
       "authority": "Navigation to current requested handoff; current owning MT records win. Original successor transition and review evidence remain historical unchanged.",
-      "automation_update": "UNKNOWN; no successful repoint claimed"
+      "automation_update": "Actual heartbeatPAUSED verified by root automation tool; prior unconfirmed repoint observations remain historical",
+      "operator_restart_pause": {
+        "id": "WP012-P2-OPERATOR-RESTART-PAUSE-001",
+        "state": "WAIT_FOR_EXPLICIT_OPERATOR_RESUME",
+        "current_file_id": "WP012-PHASE02-SUCCESSOR-HANDOFF-V3",
+        "current_version": 3,
+        "root_thread_id": "01a127a9-bb00-72f0-8821-5145538a6bd8",
+        "limits": "All workers completed/idle,137source-clear SOURCE_ONLY;Round29FAILED101/resourceNOT_PASSED/no nextCargo/accepted0of5/authpending; final documentation checkpoint then safe apprestart, no automatic heartbeat continuation"
+      }
     }
   }
 }

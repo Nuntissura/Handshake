@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 596
+generation: 599
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -500,3 +500,6 @@ steps:
 - {id: GP-479, role: coder, at: before_dispatch, do: confirm external raw before bytes preserved and hashes verified, check: {type: confirm}, source: Operator PG/SQLite retirement; root exclusive STEP1, state: active}
 - {id: GP-480, role: coder, at: before_dispatch, do: confirm current MT admission and root STEP1; no Cargo or active proof freeze, check: {type: confirm}, source: Operator PG/SQLite retirement; root exclusive STEP1, state: active}
 - {id: GP-481, role: builder, at: before_dispatch, do: verify reviewed backend retirement freeze preserves valid coverage and binds ten actual path absences, check: {type: confirm}, source: round28 exit101 recovery_scope_api_pg_tests nine E0583/E0433; authorized backend retirement135freeze, state: active}
+- {id: GP-482, role: builder, at: before_dispatch, do: verify reviewed restart-resume three private-call closures bind exact consumer and unchanged producer, check: {type: confirm}, source: round29 exit101 restart_resume_surreal_tests E0624 at209307331; three-closure repair137freeze, state: active}
+- {id: GP-483, role: builder, at: before_dispatch, do: verify fresh RAM commit paging and owned process resource admission before next compile, check: {type: confirm}, source: 'round29 stall: RAM469MiB commit55.55GB physical16.65GB paging78167/s; root resource admission required', state: active}
+- {id: GP-484, role: builder, at: before_dispatch, do: verify Node file access for bounded status reads; forbid duplicate stalled PowerShell readers, check: {type: confirm}, source: 'round29 infrastructure: two pending status shell reads; distinct Node fs succeeded', state: active}
