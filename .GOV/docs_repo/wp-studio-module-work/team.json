@@ -2113,7 +2113,7 @@
     "builders/lanes/hsk-studio-press.json"
    ],
    "launched": "2026-10-11T20:27:46Z",
-   "status": "running"
+   "status": "done 2026-10-11T21:41:57Z (7410f29)"
   },
   {
    "name": "prereview-r14-web-narrow",
