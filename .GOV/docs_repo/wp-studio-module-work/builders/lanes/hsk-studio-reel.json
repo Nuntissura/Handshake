@@ -2,7 +2,7 @@
   "crate": "hsk-studio-reel",
   "lane": "hsk-studio-reel",
   "status": "READY_FOR_VALIDATION",
-  "phase": "R7 review B remediation (SMB-REEL-AV1-ROUTE CONFIRMED, PLR-033) on 8438b1d + 589f544: ProxySource carries its own trust (ProxySource::new = Untrusted, with_trust grants it for that proxy alone) and the proxy is decoded through its own route, never the original's; slice 4 + R6 V4 hardening unchanged",
+  "phase": "R8 pre-review remediation (SMB-REEL-AV1-ROUTE PLR-032, SMB-REEL PLR-029, docs) on bf3c196: decoded pictures are compared with the container-declared size (sequence maximum) and the chunk budget before they are packed; the synthetic fixtures left the public API (tests/common); registry trust routing and proxy no-fallback documented; R7 proxy-trust fix (8438b1d, 589f544) and slice 4 + R6 V4 hardening unchanged",
   "commits": [
     {
       "sha": "f09f33b",
@@ -115,6 +115,10 @@
     {
       "sha": "589f544",
       "subject": "reel DESCRIPTOR: video_routing states the per-source trust rule (PLR-033) and cites its test"
+    },
+    {
+      "sha": "bf3c196",
+      "subject": "reel (SMB-REEL-AV1-ROUTE PLR-032, SMB-REEL PLR-029): decoded pictures are checked against the container-declared size before they are packed; synthetic fixtures leave the public API"
     }
   ],
   "capabilities_done": [
@@ -133,20 +137,21 @@
     "slice4 Matroska A_PCM/INT/LIT, A_PCM/INT/BIG (8-bit unsigned, others signed), A_PCM/FLOAT/IEEE (little endian): compact PcmStream per track through the shared deliver_pcm_stream (bounded slices, exact requested/actual ticks, big-endian swapped to little endian); positions by running frame count, block timestamps only as a 1-unit consistency check (Unsupported pcm-timestamp-discontinuity); probe reports the PCM window",
     "slice4 MXF (ST 377-1:2019, read from pub.smpte.org): build_mxf_index (run-in, header pack, partition enumeration by footer chain with KLV scan fallback, Fill-aware partition layout, Primer + Local Set header metadata resolved to picture/sound tracks with descriptors, Essence Container Data BodySID/IndexSID), Index Table Segments with static tags (constant EditUnitByteCount incl. contiguous-base rule, variable entries, slices, delta entries, temporal offsets, identical header/footer repeats collapsed), MxfIndex::{locate, locate_coded, display_position_of, element_offset (11.4), edit_unit_element (key inspection), wrapping_of, clip_end}, MxfProvider (opt-in via Registry::register; probe; Packets output in decode order with pre-roll to the previous random access point for pictures, per-unit for sound, clip-wrapped slices for OP-Atom; Decoded = CodecUnavailable naming the coding)",
     "slice4 IndexCache over MkvIndex: one capacity/LRU shared with MediaIndex, entry answers only its own kind, hit verifies the grant, failed builds cache nothing, new revision invalidates older ones",
-    "v4 hardening (2a6f32e, 3c82784): V4-01 deny on isobmff.rs, isobmff/fragments.rs, wav.rs, y4m.rs, identity.rs, registry.rs (111 sites fixed); V4-02 dims_u32_max + aggregate_over_budget tests for y4m, wav, isobmff, fragments, identity; 3 per-thread largest-allocation proofs; 7 latent bugs fixed (see notes.v4_hardening)"
+    "v4 hardening (2a6f32e, 3c82784): V4-01 deny on isobmff.rs, isobmff/fragments.rs, wav.rs, y4m.rs, identity.rs, registry.rs (111 sites fixed); V4-02 dims_u32_max + aggregate_over_budget tests for y4m, wav, isobmff, fragments, identity; 3 per-thread largest-allocation proofs; 7 latent bugs fixed (see notes.v4_hardening)",
+    "R8 pre-review fixes (bf3c196): PLR-032 decoded picture vs container-declared size and chunk budget before packing (Protocol / LimitExceeded, 2 tests + red proof); PLR-029 fixtures out of the public API (tests/common, compile_fail doctest); registry decode_segment / decode_segment_routed trust routing and proxy no-fallback documented (see notes.plr_032_029)"
   ],
   "tests": {
-    "argv": "studio-env.sh cargo nextest run -p hsk-studio-reel --no-fail-fast (default: 49) / --features av1 (53); cargo clippy -p hsk-studio-reel --tests --examples clean in both feature sets; cargo fmt -p hsk-studio-reel --check clean",
+    "argv": "studio-env.sh cargo nextest run -p hsk-studio-reel --no-fail-fast (default: 51) / --features av1 (55); cargo test --doc -p hsk-studio-reel (default and --features av1: 2 doctests each); cargo clippy -p hsk-studio-reel --tests --examples clean in both feature sets; cargo fmt -p hsk-studio-reel --check clean",
     "exit": 0,
-    "sha": "589f544",
-    "passed": 53,
+    "sha": "bf3c196",
+    "passed": 55,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "Validator round on 589f544 (default and --features av1). Behaviour change for callers: ProxySource is built with ProxySource::new(reader, grant, revision) (optionally .with_trust(..)) or with the new `trust` field; a Trusted original with a default (Untrusted) proxy now decodes the proxy through the registered external decoder or answers CodecUnavailable, and does not fall back to the original on its own (the caller retries with prefer=Original). NOT in this pass: PLR-032 (picture vs container-declared dims, pack before max_chunk_bytes; FIX_LANE on SMB-REEL-AV1-ROUTE), PLR-029 (pub mod fixtures; FIX_LANE), the SMB-REEL PLAUSIBLE notes (aggregate decoded-bytes budget, approx_bytes undercount), SMB-REEL-ENG-3 av1C-derived pixel limit; PLR-030 lead-WAIVED, PLR-031 Operator. Red-proof scratch tree (movable to the recycle bin when the lead agrees): Handshake_Artifacts/WP-KERNEL-STUDIO/smb-reel-r7-redproof (src, target, tmp).",
-  "updated_at": "2026-10-11T11:19:13Z",
+  "next": "Validator round on bf3c196 (default and --features av1; doctests default and av1). Claim = 8438b1d + 589f544 + bf3c196 (PLR-033 proxy trust, PLR-032, PLR-029). Behaviour changes for callers: (1) a decoded picture larger than the container-declared size on either side is DecoderFault::Protocol (smaller is legal: the declared size is the AV1 sequence maximum); (2) hsk_studio_reel::fixtures no longer exists (builders live in tests/common); (3) earlier: ProxySource::new(reader, grant, revision) / with_trust, a proxy that cannot be decoded under its own route fails the request without falling back to the original (documented). NOT in this pass: the SMB-REEL PLAUSIBLE notes (aggregate decoded-bytes budget, approx_bytes undercount), SMB-REEL-ENG-3 av1C-derived pixel limit, decoded bit depth / chroma vs av1C; PLR-030 lead-WAIVED, PLR-031 Operator. Red-proof scratch tree (movable to the recycle bin when the lead agrees): Handshake_Artifacts/WP-KERNEL-STUDIO/smb-reel-plr032-redproof (src, target, tmp); the older smb-reel-r7-redproof can go too.",
+  "updated_at": "2026-10-11T11:51:24Z",
   "notes": {
     "decisions": [
       {
@@ -158,7 +163,7 @@
     "tests_breakdown": "unit 1 + foundation_contract 5 + review_r2_regressions 7 + slice2_contract 4 + slice3_contract 3; clippy --tests --examples clean for hsk-studio-reel",
     "known_gaps": [
       "Y4M request past a record-aligned end returns Truncated (brief test 2 semantics) while WAV returns OutOfRange (declared length): deliberate, reviewer PLAUSIBLE item not changed",
-      "pub mod fixtures ships synthetic byte builders in the public API (reviewer PLAUSIBLE); feature-gating not done",
+      "RESOLVED at bf3c196 (PLR-029): the synthetic builders moved to tests/common and are no longer exported",
       "fMP4 previous-traf base rule implemented but untested; tmcd counter-mode record interpretation not applied",
       "IndexCache is ISOBMFF-only (MediaIndex); Matroska has no cache yet",
       "Matroska: no DTS (dts == pts), lacing needs a DefaultDuration that is a TimestampScale multiple, ContentEncodings not undone, TrackTimestampScale ignored, SeekHead/Tags/Chapters/Attachments skipped"
@@ -764,243 +769,6 @@
         "process-level RSS: the allocation proofs count the largest single allocation request per thread, not resident memory"
       ]
     },
-    "v4_06_class": "trust stated for one source applied to a different source: a trust decision (SourceTrust / VideoRoute) that reaches a decoder choice for bytes other than the ones the caller vouched for",
-    "v4_06_regex": "^\\s*[^/\\s].*\\b(SourceTrust|VideoRoute|decode_segment_routed|proxy_trust|trust|route)\\b (code lines only: lines starting with // or /// are excluded) over crates/hsk-studio-reel/src/**/*.rs",
-    "v4_06_scope": "crates/hsk-studio-reel/src at 589f544; test code is outside the scope (tests/ is not scanned)",
-    "v4_06_count": {
-      "hits": 57,
-      "listed": 57
-    },
-    "v4_06_sites": [
-      {
-        "file_line": "src/isobmff.rs:19",
-        "verdict": "NOT_APPLICABLE: import or re-export, no routing decision"
-      },
-      {
-        "file_line": "src/isobmff.rs:1636",
-        "verdict": "OK: decode_segment is the Untrusted route with no external decoder (compressed video is CodecUnavailable)"
-      },
-      {
-        "file_line": "src/isobmff.rs:1639",
-        "verdict": "OK: the route is the caller's for this one reader and passes unchanged to decode_video_track_with; nothing here derives or widens trust"
-      },
-      {
-        "file_line": "src/isobmff.rs:1646",
-        "verdict": "OK: the route is the caller's for this one reader and passes unchanged to decode_video_track_with; nothing here derives or widens trust"
-      },
-      {
-        "file_line": "src/isobmff.rs:1659",
-        "verdict": "OK: the route is the caller's for this one reader and passes unchanged to decode_video_track_with; nothing here derives or widens trust"
-      },
-      {
-        "file_line": "src/isobmff.rs:1701",
-        "verdict": "OK: cached-index decode uses the Untrusted default route with no external decoder, so compressed video is CodecUnavailable, never in-process"
-      },
-      {
-        "file_line": "src/isobmff.rs:1714",
-        "verdict": "OK: the route is the caller's for this one reader and passes unchanged to decode_video_track_with; nothing here derives or widens trust"
-      },
-      {
-        "file_line": "src/isobmff.rs:1737",
-        "verdict": "OK: the route is the caller's for this one reader and passes unchanged to decode_video_track_with; nothing here derives or widens trust"
-      },
-      {
-        "file_line": "src/lib.rs:67",
-        "verdict": "NOT_APPLICABLE: import or re-export, no routing decision"
-      },
-      {
-        "file_line": "src/lib.rs:68",
-        "verdict": "NOT_APPLICABLE: import or re-export, no routing decision"
-      },
-      {
-        "file_line": "src/lib.rs:73",
-        "verdict": "NOT_APPLICABLE: DESCRIPTOR text; its video_routing policy states the per-source rule and cites the test (589f544)"
-      },
-      {
-        "file_line": "src/matroska.rs:23",
-        "verdict": "NOT_APPLICABLE: import or re-export, no routing decision"
-      },
-      {
-        "file_line": "src/matroska.rs:1497",
-        "verdict": "OK: cached-index decode uses the Untrusted default route with no external decoder, so compressed video is CodecUnavailable, never in-process"
-      },
-      {
-        "file_line": "src/matroska.rs:1510",
-        "verdict": "OK: the route is the caller's for this one reader and passes unchanged to decode_video_track_with; nothing here derives or widens trust"
-      },
-      {
-        "file_line": "src/matroska.rs:1547",
-        "verdict": "OK: the route is the caller's for this one reader and passes unchanged to decode_video_track_with; nothing here derives or widens trust"
-      },
-      {
-        "file_line": "src/matroska.rs:1663",
-        "verdict": "OK: decode_segment is the Untrusted route with no external decoder (compressed video is CodecUnavailable)"
-      },
-      {
-        "file_line": "src/matroska.rs:1666",
-        "verdict": "OK: the route is the caller's for this one reader and passes unchanged to decode_video_track_with; nothing here derives or widens trust"
-      },
-      {
-        "file_line": "src/matroska.rs:1673",
-        "verdict": "OK: the route is the caller's for this one reader and passes unchanged to decode_video_track_with; nothing here derives or widens trust"
-      },
-      {
-        "file_line": "src/matroska.rs:1686",
-        "verdict": "OK: the route is the caller's for this one reader and passes unchanged to decode_video_track_with; nothing here derives or widens trust"
-      },
-      {
-        "file_line": "src/model.rs:4",
-        "verdict": "NOT_APPLICABLE: import or re-export, no routing decision"
-      },
-      {
-        "file_line": "src/model.rs:393",
-        "verdict": "NOT_APPLICABLE: trait default ignores the route; providers that never decode compressed video have no decoder to choose"
-      },
-      {
-        "file_line": "src/model.rs:400",
-        "verdict": "NOT_APPLICABLE: trait default ignores the route; providers that never decode compressed video have no decoder to choose"
-      },
-      {
-        "file_line": "src/registry.rs:8",
-        "verdict": "NOT_APPLICABLE: import or re-export, no routing decision"
-      },
-      {
-        "file_line": "src/registry.rs:33",
-        "verdict": "FIXED 8438b1d: ProxySource carries its own trust field (PLR-033)"
-      },
-      {
-        "file_line": "src/registry.rs:43",
-        "verdict": "FIXED 8438b1d: ProxySource::new starts Untrusted"
-      },
-      {
-        "file_line": "src/registry.rs:48",
-        "verdict": "FIXED 8438b1d: with_trust grants trust for that proxy's grant alone"
-      },
-      {
-        "file_line": "src/registry.rs:49",
-        "verdict": "FIXED 8438b1d: with_trust grants trust for that proxy's grant alone"
-      },
-      {
-        "file_line": "src/registry.rs:193",
-        "verdict": "OK: decode_segment is SourceTrust::Untrusted for the original; a proxy defaults Untrusted through ProxySource::new"
-      },
-      {
-        "file_line": "src/registry.rs:200",
-        "verdict": "OK: decode_segment is SourceTrust::Untrusted for the original; a proxy defaults Untrusted through ProxySource::new"
-      },
-      {
-        "file_line": "src/registry.rs:209",
-        "verdict": "OK: the trust parameter is documented as the ORIGINAL's (req.grant) only"
-      },
-      {
-        "file_line": "src/registry.rs:217",
-        "verdict": "OK: the trust parameter is documented as the ORIGINAL's (req.grant) only"
-      },
-      {
-        "file_line": "src/registry.rs:219",
-        "verdict": "OK: this route is built for the original's reader only"
-      },
-      {
-        "file_line": "src/registry.rs:220",
-        "verdict": "OK: the original's trust, used for the original's reader only"
-      },
-      {
-        "file_line": "src/registry.rs:242",
-        "verdict": "FIXED 8438b1d: the proxy's own trust is read from the ProxySource (PLR-033)"
-      },
-      {
-        "file_line": "src/registry.rs:248",
-        "verdict": "FIXED 8438b1d: separate route for the proxy reader (was one route for both readers, registry.rs:218-219 at dff7ef5)"
-      },
-      {
-        "file_line": "src/registry.rs:249",
-        "verdict": "FIXED 8438b1d: the proxy route takes the proxy's trust, never the original's"
-      },
-      {
-        "file_line": "src/registry.rs:250",
-        "verdict": "OK: the registered external decoder is shared, only trust differs per source"
-      },
-      {
-        "file_line": "src/registry.rs:252",
-        "verdict": "FIXED 8438b1d: the proxy reader is decoded with &proxy_route"
-      },
-      {
-        "file_line": "src/registry.rs:273",
-        "verdict": "OK: original bytes under the original's trust, also after an unusable proxy fell back (ProxyUnusableUsedOriginal; test trusted_original_never_lends_its_trust_to_a_proxy last block)"
-      },
-      {
-        "file_line": "src/video.rs:37",
-        "verdict": "OK: type definition or constructor; defaults are Untrusted and Trusted needs an explicit trusted()/field"
-      },
-      {
-        "file_line": "src/video.rs:163",
-        "verdict": "OK: type definition or constructor; defaults are Untrusted and Trusted needs an explicit trusted()/field"
-      },
-      {
-        "file_line": "src/video.rs:164",
-        "verdict": "OK: type definition or constructor; defaults are Untrusted and Trusted needs an explicit trusted()/field"
-      },
-      {
-        "file_line": "src/video.rs:168",
-        "verdict": "OK: type definition or constructor; defaults are Untrusted and Trusted needs an explicit trusted()/field"
-      },
-      {
-        "file_line": "src/video.rs:172",
-        "verdict": "OK: type definition or constructor; defaults are Untrusted and Trusted needs an explicit trusted()/field"
-      },
-      {
-        "file_line": "src/video.rs:178",
-        "verdict": "OK: type definition or constructor; defaults are Untrusted and Trusted needs an explicit trusted()/field"
-      },
-      {
-        "file_line": "src/video.rs:181",
-        "verdict": "OK: type definition or constructor; defaults are Untrusted and Trusted needs an explicit trusted()/field"
-      },
-      {
-        "file_line": "src/video.rs:189",
-        "verdict": "OK: type definition or constructor; defaults are Untrusted and Trusted needs an explicit trusted()/field"
-      },
-      {
-        "file_line": "src/video.rs:200",
-        "verdict": "OK: type definition or constructor; defaults are Untrusted and Trusted needs an explicit trusted()/field"
-      },
-      {
-        "file_line": "src/video.rs:202",
-        "verdict": "OK: type definition or constructor; defaults are Untrusted and Trusted needs an explicit trusted()/field"
-      },
-      {
-        "file_line": "src/video.rs:203",
-        "verdict": "OK: type definition or constructor; defaults are Untrusted and Trusted needs an explicit trusted()/field"
-      },
-      {
-        "file_line": "src/video.rs:217",
-        "verdict": "OK: choose() is the only place trust is read: Trusted + AV1 + feature av1 -> in-process, else the external decoder if it supports the codec, else None -> CodecUnavailable"
-      },
-      {
-        "file_line": "src/video.rs:219",
-        "verdict": "OK: choose() is the only place trust is read: Trusted + AV1 + feature av1 -> in-process, else the external decoder if it supports the codec, else None -> CodecUnavailable"
-      },
-      {
-        "file_line": "src/video.rs:222",
-        "verdict": "OK: choose() is the only place trust is read: Trusted + AV1 + feature av1 -> in-process, else the external decoder if it supports the codec, else None -> CodecUnavailable"
-      },
-      {
-        "file_line": "src/video.rs:377",
-        "verdict": "OK: the route passes unchanged to choose(); no trust is derived here"
-      },
-      {
-        "file_line": "src/video.rs:387",
-        "verdict": "OK: the route passes unchanged to choose(); no trust is derived here"
-      },
-      {
-        "file_line": "src/video.rs:401",
-        "verdict": "OK: the route passes unchanged to choose(); no trust is derived here"
-      },
-      {
-        "file_line": "src/video.rs:403",
-        "verdict": "OK: the route passes unchanged to choose(); no trust is derived here"
-      }
-    ],
     "remediation_R7": {
       "source": "validation/R7-review-b.json lane SMB-REEL-AV1-ROUTE (reviewed commit dff7ef5) + workflow/plausible-register.json PLR-033",
       "commits": [
@@ -1028,8 +796,633 @@
         "fmt": "cargo fmt -p hsk-studio-reel --check clean"
       },
       "route": "No gameplan step added and no retry-guard block occurred; red proofs ran on a scratch copy (own STUDIO_OWNER smb-reel-r7-redproof, own target), never on the shared edit tree.",
-      "v4_06": "see notes.v4_06_* (class, regex, count, per-site verdicts)",
+      "v4_06": {
+        "class": "trust stated for one source applied to a different source: a trust decision (SourceTrust / VideoRoute) that reaches a decoder choice for bytes other than the ones the caller vouched for",
+        "regex": "^\\s*[^/\\s].*\\b(SourceTrust|VideoRoute|decode_segment_routed|proxy_trust|trust|route)\\b (code lines only: lines starting with // or /// are excluded) over crates/hsk-studio-reel/src/**/*.rs",
+        "scope": "crates/hsk-studio-reel/src at 589f544; test code is outside the scope (tests/ is not scanned)",
+        "count": {
+          "hits": 57,
+          "listed": 57
+        },
+        "sites": [
+          {
+            "file_line": "src/isobmff.rs:19",
+            "verdict": "NOT_APPLICABLE: import or re-export, no routing decision"
+          },
+          {
+            "file_line": "src/isobmff.rs:1636",
+            "verdict": "OK: decode_segment is the Untrusted route with no external decoder (compressed video is CodecUnavailable)"
+          },
+          {
+            "file_line": "src/isobmff.rs:1639",
+            "verdict": "OK: the route is the caller's for this one reader and passes unchanged to decode_video_track_with; nothing here derives or widens trust"
+          },
+          {
+            "file_line": "src/isobmff.rs:1646",
+            "verdict": "OK: the route is the caller's for this one reader and passes unchanged to decode_video_track_with; nothing here derives or widens trust"
+          },
+          {
+            "file_line": "src/isobmff.rs:1659",
+            "verdict": "OK: the route is the caller's for this one reader and passes unchanged to decode_video_track_with; nothing here derives or widens trust"
+          },
+          {
+            "file_line": "src/isobmff.rs:1701",
+            "verdict": "OK: cached-index decode uses the Untrusted default route with no external decoder, so compressed video is CodecUnavailable, never in-process"
+          },
+          {
+            "file_line": "src/isobmff.rs:1714",
+            "verdict": "OK: the route is the caller's for this one reader and passes unchanged to decode_video_track_with; nothing here derives or widens trust"
+          },
+          {
+            "file_line": "src/isobmff.rs:1737",
+            "verdict": "OK: the route is the caller's for this one reader and passes unchanged to decode_video_track_with; nothing here derives or widens trust"
+          },
+          {
+            "file_line": "src/lib.rs:67",
+            "verdict": "NOT_APPLICABLE: import or re-export, no routing decision"
+          },
+          {
+            "file_line": "src/lib.rs:68",
+            "verdict": "NOT_APPLICABLE: import or re-export, no routing decision"
+          },
+          {
+            "file_line": "src/lib.rs:73",
+            "verdict": "NOT_APPLICABLE: DESCRIPTOR text; its video_routing policy states the per-source rule and cites the test (589f544)"
+          },
+          {
+            "file_line": "src/matroska.rs:23",
+            "verdict": "NOT_APPLICABLE: import or re-export, no routing decision"
+          },
+          {
+            "file_line": "src/matroska.rs:1497",
+            "verdict": "OK: cached-index decode uses the Untrusted default route with no external decoder, so compressed video is CodecUnavailable, never in-process"
+          },
+          {
+            "file_line": "src/matroska.rs:1510",
+            "verdict": "OK: the route is the caller's for this one reader and passes unchanged to decode_video_track_with; nothing here derives or widens trust"
+          },
+          {
+            "file_line": "src/matroska.rs:1547",
+            "verdict": "OK: the route is the caller's for this one reader and passes unchanged to decode_video_track_with; nothing here derives or widens trust"
+          },
+          {
+            "file_line": "src/matroska.rs:1663",
+            "verdict": "OK: decode_segment is the Untrusted route with no external decoder (compressed video is CodecUnavailable)"
+          },
+          {
+            "file_line": "src/matroska.rs:1666",
+            "verdict": "OK: the route is the caller's for this one reader and passes unchanged to decode_video_track_with; nothing here derives or widens trust"
+          },
+          {
+            "file_line": "src/matroska.rs:1673",
+            "verdict": "OK: the route is the caller's for this one reader and passes unchanged to decode_video_track_with; nothing here derives or widens trust"
+          },
+          {
+            "file_line": "src/matroska.rs:1686",
+            "verdict": "OK: the route is the caller's for this one reader and passes unchanged to decode_video_track_with; nothing here derives or widens trust"
+          },
+          {
+            "file_line": "src/model.rs:4",
+            "verdict": "NOT_APPLICABLE: import or re-export, no routing decision"
+          },
+          {
+            "file_line": "src/model.rs:393",
+            "verdict": "NOT_APPLICABLE: trait default ignores the route; providers that never decode compressed video have no decoder to choose"
+          },
+          {
+            "file_line": "src/model.rs:400",
+            "verdict": "NOT_APPLICABLE: trait default ignores the route; providers that never decode compressed video have no decoder to choose"
+          },
+          {
+            "file_line": "src/registry.rs:8",
+            "verdict": "NOT_APPLICABLE: import or re-export, no routing decision"
+          },
+          {
+            "file_line": "src/registry.rs:33",
+            "verdict": "FIXED 8438b1d: ProxySource carries its own trust field (PLR-033)"
+          },
+          {
+            "file_line": "src/registry.rs:43",
+            "verdict": "FIXED 8438b1d: ProxySource::new starts Untrusted"
+          },
+          {
+            "file_line": "src/registry.rs:48",
+            "verdict": "FIXED 8438b1d: with_trust grants trust for that proxy's grant alone"
+          },
+          {
+            "file_line": "src/registry.rs:49",
+            "verdict": "FIXED 8438b1d: with_trust grants trust for that proxy's grant alone"
+          },
+          {
+            "file_line": "src/registry.rs:193",
+            "verdict": "OK: decode_segment is SourceTrust::Untrusted for the original; a proxy defaults Untrusted through ProxySource::new"
+          },
+          {
+            "file_line": "src/registry.rs:200",
+            "verdict": "OK: decode_segment is SourceTrust::Untrusted for the original; a proxy defaults Untrusted through ProxySource::new"
+          },
+          {
+            "file_line": "src/registry.rs:209",
+            "verdict": "OK: the trust parameter is documented as the ORIGINAL's (req.grant) only"
+          },
+          {
+            "file_line": "src/registry.rs:217",
+            "verdict": "OK: the trust parameter is documented as the ORIGINAL's (req.grant) only"
+          },
+          {
+            "file_line": "src/registry.rs:219",
+            "verdict": "OK: this route is built for the original's reader only"
+          },
+          {
+            "file_line": "src/registry.rs:220",
+            "verdict": "OK: the original's trust, used for the original's reader only"
+          },
+          {
+            "file_line": "src/registry.rs:242",
+            "verdict": "FIXED 8438b1d: the proxy's own trust is read from the ProxySource (PLR-033)"
+          },
+          {
+            "file_line": "src/registry.rs:248",
+            "verdict": "FIXED 8438b1d: separate route for the proxy reader (was one route for both readers, registry.rs:218-219 at dff7ef5)"
+          },
+          {
+            "file_line": "src/registry.rs:249",
+            "verdict": "FIXED 8438b1d: the proxy route takes the proxy's trust, never the original's"
+          },
+          {
+            "file_line": "src/registry.rs:250",
+            "verdict": "OK: the registered external decoder is shared, only trust differs per source"
+          },
+          {
+            "file_line": "src/registry.rs:252",
+            "verdict": "FIXED 8438b1d: the proxy reader is decoded with &proxy_route"
+          },
+          {
+            "file_line": "src/registry.rs:273",
+            "verdict": "OK: original bytes under the original's trust, also after an unusable proxy fell back (ProxyUnusableUsedOriginal; test trusted_original_never_lends_its_trust_to_a_proxy last block)"
+          },
+          {
+            "file_line": "src/video.rs:37",
+            "verdict": "OK: type definition or constructor; defaults are Untrusted and Trusted needs an explicit trusted()/field"
+          },
+          {
+            "file_line": "src/video.rs:163",
+            "verdict": "OK: type definition or constructor; defaults are Untrusted and Trusted needs an explicit trusted()/field"
+          },
+          {
+            "file_line": "src/video.rs:164",
+            "verdict": "OK: type definition or constructor; defaults are Untrusted and Trusted needs an explicit trusted()/field"
+          },
+          {
+            "file_line": "src/video.rs:168",
+            "verdict": "OK: type definition or constructor; defaults are Untrusted and Trusted needs an explicit trusted()/field"
+          },
+          {
+            "file_line": "src/video.rs:172",
+            "verdict": "OK: type definition or constructor; defaults are Untrusted and Trusted needs an explicit trusted()/field"
+          },
+          {
+            "file_line": "src/video.rs:178",
+            "verdict": "OK: type definition or constructor; defaults are Untrusted and Trusted needs an explicit trusted()/field"
+          },
+          {
+            "file_line": "src/video.rs:181",
+            "verdict": "OK: type definition or constructor; defaults are Untrusted and Trusted needs an explicit trusted()/field"
+          },
+          {
+            "file_line": "src/video.rs:189",
+            "verdict": "OK: type definition or constructor; defaults are Untrusted and Trusted needs an explicit trusted()/field"
+          },
+          {
+            "file_line": "src/video.rs:200",
+            "verdict": "OK: type definition or constructor; defaults are Untrusted and Trusted needs an explicit trusted()/field"
+          },
+          {
+            "file_line": "src/video.rs:202",
+            "verdict": "OK: type definition or constructor; defaults are Untrusted and Trusted needs an explicit trusted()/field"
+          },
+          {
+            "file_line": "src/video.rs:203",
+            "verdict": "OK: type definition or constructor; defaults are Untrusted and Trusted needs an explicit trusted()/field"
+          },
+          {
+            "file_line": "src/video.rs:217",
+            "verdict": "OK: choose() is the only place trust is read: Trusted + AV1 + feature av1 -> in-process, else the external decoder if it supports the codec, else None -> CodecUnavailable"
+          },
+          {
+            "file_line": "src/video.rs:219",
+            "verdict": "OK: choose() is the only place trust is read: Trusted + AV1 + feature av1 -> in-process, else the external decoder if it supports the codec, else None -> CodecUnavailable"
+          },
+          {
+            "file_line": "src/video.rs:222",
+            "verdict": "OK: choose() is the only place trust is read: Trusted + AV1 + feature av1 -> in-process, else the external decoder if it supports the codec, else None -> CodecUnavailable"
+          },
+          {
+            "file_line": "src/video.rs:377",
+            "verdict": "OK: the route passes unchanged to choose(); no trust is derived here"
+          },
+          {
+            "file_line": "src/video.rs:387",
+            "verdict": "OK: the route passes unchanged to choose(); no trust is derived here"
+          },
+          {
+            "file_line": "src/video.rs:401",
+            "verdict": "OK: the route passes unchanged to choose(); no trust is derived here"
+          },
+          {
+            "file_line": "src/video.rs:403",
+            "verdict": "OK: the route passes unchanged to choose(); no trust is derived here"
+          }
+        ]
+      },
       "at": "2026-10-11T11:19:13Z"
+    },
+    "v4_06_class": "decoded-picture size or format produced, compared or sized without being bounded against the container-declared size and the chunk budget BEFORE the picture is copied or allocated (PLR-032), including the declared-size inputs to those sites",
+    "v4_06_regex": "^(?!\\s*//).*(\\b(DecodedPicture|DecodedFrame|VideoFormat|planes_match_format|within_declared_size|packed_len|plane_dims|frame_bytes|pack_into|pixel_limit|frame_size_limit|packed|planes|declared_w|declared_h)\\b|\\bdeclared:|self\\.declared\\b|\\b(width|height): (track|video|info)\\.)",
+    "v4_06_regex_note": "grep -rnP over crates/hsk-studio-reel/src --include=*.rs, run from the crate directory; code lines only (lines whose first non-blank text is // or /// are excluded); lines that START with a keyword match (the R7 regex consumed the first character)",
+    "v4_06_scope": "crates/hsk-studio-reel/src at bf3c196; test code (tests/) is outside the scope",
+    "v4_06_count": {
+      "hits": 86,
+      "listed": 86
+    },
+    "v4_06_sites": [
+      {
+        "file_line": "src/av1/ffi.rs:54",
+        "verdict": "NOT_APPLICABLE: RawPicture field; filled only by copy_picture after its checked total fits max_frame_bytes"
+      },
+      {
+        "file_line": "src/av1/ffi.rs:111",
+        "verdict": "OK: pixel bound from the av1C layout (Av1Config::pixel_limit) is handed to rav1d before it allocates a picture; tests r5_av1_pixel_limit_follows_the_record_layout_and_bit_depth, av1_decode 1080p"
+      },
+      {
+        "file_line": "src/av1/ffi.rs:241",
+        "verdict": "OK: capacity of the plane list (at most 3 entries), not pixel storage"
+      },
+      {
+        "file_line": "src/av1/ffi.rs:280",
+        "verdict": "OK: each plane is allocated and copied only after copy_picture's checked total <= max_frame_bytes"
+      },
+      {
+        "file_line": "src/av1/ffi.rs:290",
+        "verdict": "NOT_APPLICABLE: struct field initialiser"
+      },
+      {
+        "file_line": "src/av1/mod.rs:30",
+        "verdict": "NOT_APPLICABLE: import"
+      },
+      {
+        "file_line": "src/av1/mod.rs:52",
+        "verdict": "NOT_APPLICABLE: DecodedFrame type definition of the public in-process decoder (documented TRUSTED INPUT ONLY); frames are bounded in ffi.rs copy_picture"
+      },
+      {
+        "file_line": "src/av1/mod.rs:55",
+        "verdict": "NOT_APPLICABLE: DecodedFrame type definition of the public in-process decoder (documented TRUSTED INPUT ONLY); frames are bounded in ffi.rs copy_picture"
+      },
+      {
+        "file_line": "src/av1/mod.rs:60",
+        "verdict": "NOT_APPLICABLE: DecodedFrame type definition of the public in-process decoder (documented TRUSTED INPUT ONLY); frames are bounded in ffi.rs copy_picture"
+      },
+      {
+        "file_line": "src/av1/mod.rs:63",
+        "verdict": "NOT_APPLICABLE: DecodedFrame type definition of the public in-process decoder (documented TRUSTED INPUT ONLY); frames are bounded in ffi.rs copy_picture"
+      },
+      {
+        "file_line": "src/av1/mod.rs:65",
+        "verdict": "OK: pack_into is a helper for users of the public Av1Decoder; the planes it copies were bounded to max_frame_bytes in copy_picture; the routed path packs in video.rs Forward::accept"
+      },
+      {
+        "file_line": "src/av1/mod.rs:66",
+        "verdict": "OK: pack_into is a helper for users of the public Av1Decoder; the planes it copies were bounded to max_frame_bytes in copy_picture; the routed path packs in video.rs Forward::accept"
+      },
+      {
+        "file_line": "src/av1/mod.rs:105",
+        "verdict": "NOT_APPLICABLE: frame_from copies the format fields and moves the planes of an already bounded RawPicture"
+      },
+      {
+        "file_line": "src/av1/mod.rs:106",
+        "verdict": "NOT_APPLICABLE: frame_from copies the format fields and moves the planes of an already bounded RawPicture"
+      },
+      {
+        "file_line": "src/av1/mod.rs:108",
+        "verdict": "NOT_APPLICABLE: frame_from copies the format fields and moves the planes of an already bounded RawPicture"
+      },
+      {
+        "file_line": "src/av1/mod.rs:123",
+        "verdict": "NOT_APPLICABLE: frame_from copies the format fields and moves the planes of an already bounded RawPicture"
+      },
+      {
+        "file_line": "src/av1/mod.rs:131",
+        "verdict": "NOT_APPLICABLE: queue of already bounded frames; InProcessSession::drain empties it after every send and finish"
+      },
+      {
+        "file_line": "src/av1/mod.rs:152",
+        "verdict": "OK: pixel limit derived from av1C with saturating/checked arithmetic and handed to rav1d at open"
+      },
+      {
+        "file_line": "src/av1/mod.rs:154",
+        "verdict": "OK: pixel limit derived from av1C with saturating/checked arithmetic and handed to rav1d at open"
+      },
+      {
+        "file_line": "src/av1/mod.rs:157",
+        "verdict": "OK: pixel limit derived from av1C with saturating/checked arithmetic and handed to rav1d at open"
+      },
+      {
+        "file_line": "src/av1/mod.rs:188",
+        "verdict": "NOT_APPLICABLE: accessor"
+      },
+      {
+        "file_line": "src/av1/mod.rs:207",
+        "verdict": "OK: hands the picture to the route's PictureSink = Forward::accept, where the declared-size and chunk-budget checks run before packing (tests decoded_picture_size_is_checked_against_the_container_declared_size, oversize_decoded_picture_is_refused_before_it_is_copied)"
+      },
+      {
+        "file_line": "src/av1/mod.rs:211",
+        "verdict": "NOT_APPLICABLE: plane move"
+      },
+      {
+        "file_line": "src/av1_config.rs:45",
+        "verdict": "OK: saturating_mul / checked_div, u32 saturation; the doc claim 'checked before it is copied' is now true and cites the test"
+      },
+      {
+        "file_line": "src/isobmff/pcm.rs:121",
+        "verdict": "NOT_APPLICABLE: audio (LPCM) error string that contains the word packed; not a decoded video frame"
+      },
+      {
+        "file_line": "src/isobmff.rs:1617",
+        "verdict": "NOT_APPLICABLE: probe layout reports the sample-entry size; nothing is allocated from it"
+      },
+      {
+        "file_line": "src/isobmff.rs:1618",
+        "verdict": "NOT_APPLICABLE: probe layout reports the sample-entry size; nothing is allocated from it"
+      },
+      {
+        "file_line": "src/isobmff.rs:1729",
+        "verdict": "FIXED (this commit): the declared size (av01 sample entry, u16 x u16 = sequence maximum) now reaches Forward::declared via decode_video_track_with"
+      },
+      {
+        "file_line": "src/isobmff.rs:1730",
+        "verdict": "FIXED (this commit): the declared size (av01 sample entry, u16 x u16 = sequence maximum) now reaches Forward::declared via decode_video_track_with"
+      },
+      {
+        "file_line": "src/lib.rs:81",
+        "verdict": "NOT_APPLICABLE: re-export"
+      },
+      {
+        "file_line": "src/lib.rs:87",
+        "verdict": "NOT_APPLICABLE: DESCRIPTOR text; picture_checks states the rule and cites both tests"
+      },
+      {
+        "file_line": "src/matroska.rs:1187",
+        "verdict": "NOT_APPLICABLE: stored track info; PixelWidth/PixelHeight are bounded at parse (video_dimension <= 1<<20; test r5_matroska_declared_video_dimensions_are_bounded_at_the_source)"
+      },
+      {
+        "file_line": "src/matroska.rs:1188",
+        "verdict": "NOT_APPLICABLE: stored track info; PixelWidth/PixelHeight are bounded at parse (video_dimension <= 1<<20; test r5_matroska_declared_video_dimensions_are_bounded_at_the_source)"
+      },
+      {
+        "file_line": "src/matroska.rs:1538",
+        "verdict": "FIXED (this commit): the declared size (PixelWidth x PixelHeight = sequence maximum) now reaches Forward::declared via decode_video_track_with"
+      },
+      {
+        "file_line": "src/matroska.rs:1539",
+        "verdict": "FIXED (this commit): the declared size (PixelWidth x PixelHeight = sequence maximum) now reaches Forward::declared via decode_video_track_with"
+      },
+      {
+        "file_line": "src/matroska.rs:1646",
+        "verdict": "NOT_APPLICABLE: probe layout reports the track size; nothing is allocated from it"
+      },
+      {
+        "file_line": "src/matroska.rs:1647",
+        "verdict": "NOT_APPLICABLE: probe layout reports the track size; nothing is allocated from it"
+      },
+      {
+        "file_line": "src/model.rs:285",
+        "verdict": "NOT_APPLICABLE: receipt field: the format that was actually delivered"
+      },
+      {
+        "file_line": "src/model.rs:333",
+        "verdict": "NOT_APPLICABLE: VideoFormat type definition"
+      },
+      {
+        "file_line": "src/model.rs:341",
+        "verdict": "NOT_APPLICABLE: VideoFormat type definition"
+      },
+      {
+        "file_line": "src/model.rs:347",
+        "verdict": "OK: plane dimensions from u32 sizes via div_ceil, a Vec of at most 3 tuples; callers do checked u64 arithmetic"
+      },
+      {
+        "file_line": "src/model.rs:359",
+        "verdict": "OK: try_fold with checked_add / checked_mul, None on overflow, no allocation"
+      },
+      {
+        "file_line": "src/model.rs:361",
+        "verdict": "OK: try_fold with checked_add / checked_mul, None on overflow, no allocation"
+      },
+      {
+        "file_line": "src/video.rs:92",
+        "verdict": "NOT_APPLICABLE: DecodedPicture type / PictureSink trait definition"
+      },
+      {
+        "file_line": "src/video.rs:95",
+        "verdict": "NOT_APPLICABLE: DecodedPicture type / PictureSink trait definition"
+      },
+      {
+        "file_line": "src/video.rs:97",
+        "verdict": "NOT_APPLICABLE: DecodedPicture type / PictureSink trait definition"
+      },
+      {
+        "file_line": "src/video.rs:102",
+        "verdict": "NOT_APPLICABLE: DecodedPicture type / PictureSink trait definition"
+      },
+      {
+        "file_line": "src/video.rs:277",
+        "verdict": "FIXED (this commit): new Forward::declared field = the container-declared (width, height), 0 = side not declared"
+      },
+      {
+        "file_line": "src/video.rs:278",
+        "verdict": "NOT_APPLICABLE: first delivered format; a change inside one segment stays refused (av1-format-change-mid-segment)"
+      },
+      {
+        "file_line": "src/video.rs:280",
+        "verdict": "FIXED (this commit): the packed buffer is written only after every check passed"
+      },
+      {
+        "file_line": "src/video.rs:287",
+        "verdict": "OK: planes vs format with checked u64 arithmetic (R5 fix); test r5_route_lying_decoder_dimensions_cannot_overflow_the_plane_check; 10-bit format with 8-bit planes covered in decoded_picture_size_is_checked_against_the_container_declared_size"
+      },
+      {
+        "file_line": "src/video.rs:288",
+        "verdict": "OK: planes vs format with checked u64 arithmetic (R5 fix); test r5_route_lying_decoder_dimensions_cannot_overflow_the_plane_check; 10-bit format with 8-bit planes covered in decoded_picture_size_is_checked_against_the_container_declared_size"
+      },
+      {
+        "file_line": "src/video.rs:292",
+        "verdict": "OK: planes vs format with checked u64 arithmetic (R5 fix); test r5_route_lying_decoder_dimensions_cannot_overflow_the_plane_check; 10-bit format with 8-bit planes covered in decoded_picture_size_is_checked_against_the_container_declared_size"
+      },
+      {
+        "file_line": "src/video.rs:293",
+        "verdict": "OK: planes vs format with checked u64 arithmetic (R5 fix); test r5_route_lying_decoder_dimensions_cannot_overflow_the_plane_check; 10-bit format with 8-bit planes covered in decoded_picture_size_is_checked_against_the_container_declared_size"
+      },
+      {
+        "file_line": "src/video.rs:307",
+        "verdict": "FIXED (this commit): within_declared_size: comparisons only, no arithmetic; larger than declared on either side is false; 0 = side not declared; smaller is legal (sequence maximum)"
+      },
+      {
+        "file_line": "src/video.rs:308",
+        "verdict": "FIXED (this commit): within_declared_size: comparisons only, no arithmetic; larger than declared on either side is false; 0 = side not declared; smaller is legal (sequence maximum)"
+      },
+      {
+        "file_line": "src/video.rs:309",
+        "verdict": "FIXED (this commit): within_declared_size: comparisons only, no arithmetic; larger than declared on either side is false; 0 = side not declared; smaller is legal (sequence maximum)"
+      },
+      {
+        "file_line": "src/video.rs:314",
+        "verdict": "FIXED (this commit): packed_len: checked_add over the planes that exist, None on overflow, no allocation"
+      },
+      {
+        "file_line": "src/video.rs:316",
+        "verdict": "FIXED (this commit): packed_len: checked_add over the planes that exist, None on overflow, no allocation"
+      },
+      {
+        "file_line": "src/video.rs:322",
+        "verdict": "FIXED (this commit): Forward::accept, the PLR-032 site: every check now precedes the copy"
+      },
+      {
+        "file_line": "src/video.rs:331",
+        "verdict": "FIXED (this commit): planes_match_format || !within_declared_size -> DecoderFault::Protocol before the format is recorded or anything is copied"
+      },
+      {
+        "file_line": "src/video.rs:346",
+        "verdict": "FIXED (this commit): packed_len over max_chunk_bytes (or overflow) -> LimitExceeded av1-frame-bytes before packing; test oversize_decoded_picture_is_refused_before_it_is_copied (meter < 1 MiB)"
+      },
+      {
+        "file_line": "src/video.rs:351",
+        "verdict": "FIXED (this commit): packing copy now runs only after the planes, the declared size and the chunk budget passed"
+      },
+      {
+        "file_line": "src/video.rs:352",
+        "verdict": "FIXED (this commit): packing copy now runs only after the planes, the declared size and the chunk budget passed"
+      },
+      {
+        "file_line": "src/video.rs:353",
+        "verdict": "FIXED (this commit): packing copy now runs only after the planes, the declared size and the chunk budget passed"
+      },
+      {
+        "file_line": "src/video.rs:364",
+        "verdict": "NOT_APPLICABLE: the packed frame handed to the sink"
+      },
+      {
+        "file_line": "src/video.rs:463",
+        "verdict": "OK: the declared size is also told to an external decoder (VideoStreamSpec); the route no longer relies on the decoder honouring it"
+      },
+      {
+        "file_line": "src/video.rs:464",
+        "verdict": "OK: the declared size is also told to an external decoder (VideoStreamSpec); the route no longer relies on the decoder honouring it"
+      },
+      {
+        "file_line": "src/video.rs:479",
+        "verdict": "FIXED (this commit): declared: (video.width, video.height) wired into Forward"
+      },
+      {
+        "file_line": "src/video.rs:482",
+        "verdict": "NOT_APPLICABLE: empty buffer initialiser"
+      },
+      {
+        "file_line": "src/y4m.rs:49",
+        "verdict": "OK: checked_mul / checked_add / None on overflow"
+      },
+      {
+        "file_line": "src/y4m.rs:67",
+        "verdict": "NOT_APPLICABLE: parsed header field"
+      },
+      {
+        "file_line": "src/y4m.rs:179",
+        "verdict": "OK: header frame size computed checked and refused over max_chunk_bytes (LimitExceeded frame-bytes) before any frame buffer; tests y4m_dims_u32_max, y4m_frame_buffer_is_bounded_by_the_source"
+      },
+      {
+        "file_line": "src/y4m.rs:180",
+        "verdict": "OK: header frame size computed checked and refused over max_chunk_bytes (LimitExceeded frame-bytes) before any frame buffer; tests y4m_dims_u32_max, y4m_frame_buffer_is_bounded_by_the_source"
+      },
+      {
+        "file_line": "src/y4m.rs:184",
+        "verdict": "OK: header frame size computed checked and refused over max_chunk_bytes (LimitExceeded frame-bytes) before any frame buffer; tests y4m_dims_u32_max, y4m_frame_buffer_is_bounded_by_the_source"
+      },
+      {
+        "file_line": "src/y4m.rs:195",
+        "verdict": "OK: record size via checked_add"
+      },
+      {
+        "file_line": "src/y4m.rs:200",
+        "verdict": "NOT_APPLICABLE: struct field initialiser"
+      },
+      {
+        "file_line": "src/y4m.rs:213",
+        "verdict": "OK: record size via checked_add"
+      },
+      {
+        "file_line": "src/y4m.rs:214",
+        "verdict": "OK: record size via checked_add"
+      },
+      {
+        "file_line": "src/y4m.rs:259",
+        "verdict": "NOT_APPLICABLE: probe layout"
+      },
+      {
+        "file_line": "src/y4m.rs:260",
+        "verdict": "NOT_APPLICABLE: probe layout"
+      },
+      {
+        "file_line": "src/y4m.rs:318",
+        "verdict": "OK: usize::try_from refusal before the frame buffer; the buffer is allocated only when one record fits the source"
+      },
+      {
+        "file_line": "src/y4m.rs:454",
+        "verdict": "OK: encode path: frame size filtered to <= max_chunk_bytes before the buffer"
+      },
+      {
+        "file_line": "src/y4m.rs:455",
+        "verdict": "OK: encode path: frame size filtered to <= max_chunk_bytes before the buffer"
+      },
+      {
+        "file_line": "src/y4m.rs:460",
+        "verdict": "OK: encode path: frame size filtered to <= max_chunk_bytes before the buffer"
+      },
+      {
+        "file_line": "src/y4m.rs:494",
+        "verdict": "OK: checked_mul; a lying chunk count is chunk-size-mismatch"
+      }
+    ],
+    "plr_032_029": {
+      "source": "validation/R8-prereview-reel.json lane SMB-REEL-AV1-ROUTE (head 589f544) + workflow/plausible-register.json PLR-032, PLR-029",
+      "commit": "bf3c196",
+      "plr_032": {
+        "finding": "video.rs Forward::accept compared a decoded picture only with its own format; an oversize picture was copied whole into `packed` before max_chunk_bytes refused it",
+        "fix": "Forward gains `declared` (container width/height from the av01 sample entry / Matroska PixelWidth+PixelHeight; 0 = side not declared). Before any copy: planes_match_format (unchanged), within_declared_size (a picture larger than declared on either side = DecoderFault::Protocol), packed_len (checked_add over the planes that exist) against max_chunk_bytes (LimitExceeded av1-frame-bytes). Declared size is the AV1 SEQUENCE MAXIMUM (AV1-ISOBMFF 2.2.4: sample entry = max_frame_width/height; Matroska V_AV1: PixelWidth/PixelHeight = max_frame_*), so a smaller picture is LEGAL and stays accepted (<=, not ==).",
+        "tests": [
+          "tests/v4_alloc_budget.rs oversize_decoded_picture_is_refused_before_it_is_copied (per-thread largest-allocation meter; 24 MiB picture allocated before the meter reset; case 1 declared 16x16 -> Protocol, case 2 declared 4096x4096 + 24 MiB frame over the 8 MiB budget -> LimitExceeded, both largest < 1 MiB and nothing delivered; case 3 accepted 2048x2048 picture -> delivered and the meter SEES the packing copy = instrument check)",
+          "tests/video_route.rs decoded_picture_size_is_checked_against_the_container_declared_size (mp4 + mkv fixtures declaring 16x16: 17x16, 16x17, 32x16, 16x32, 64x64 -> Protocol, empty sink, one packet fed; 10-bit format with 8-bit planes -> Protocol; 16x16, 8x8, 16x1, 1x16, 1x1 delivered with receipt.video = the delivered size; synthetic av01 mp4 with declared sides 0: unchecked side vs checked side)"
+        ],
+        "red_proof": "scratch copy of 589f544 (git archive of the blob tree, src/ files byte-identical to the commit) in Handshake_Artifacts/WP-KERNEL-STUDIO/smb-reel-plr032-redproof (STUDIO_OWNER smb-reel-plr032-redproof; own target and tmp) plus the new tests/common and the two new test files: default features, 51 tests: 49 passed, 2 FAILED. oversize_decoded_picture_is_refused_before_it_is_copied: 'assertion left == right failed: 4096x4096 picture, container declares 16x16 left: LimitExceeded { what: \"av1-frame-bytes\" } right: DecoderFault { fault: Protocol }' (v4_alloc_budget.rs:449); decoded_picture_size_is_checked_against_the_container_declared_size: a 17x16 picture was DELIVERED, 3 chunks, receipt.video width 17 (video_route.rs:736). Both pass at the fix.",
+        "red_proof_limit": "The alloc assertion of case 2 and the meter bound of case 1 sit after the result assertion, so the red run stops at the result assertion of case 1; the meter's ability to see the packing copy is shown by case 3 of the same test (accepted picture, largest >= frame).",
+        "behaviour_change": "A picture larger than the container-declared size (either side) is now DecoderFault::Protocol also on the in-process (feature av1, trusted) path; the real fixtures (16x16 mp4+mkv, 1920x1080 mp4) decode unchanged (av1 run 55/55). A picture smaller than declared stays legal.",
+        "not_done": "No check of the decoded bit depth / chroma layout against the av1C record (the register finding is about SIZE; av1C vs sequence header mismatches in real files are unverified, so a hard refusal could reject valid files)"
+      },
+      "plr_029": {
+        "finding": "src/lib.rs pub mod fixtures shipped synthetic container builders (incl. hostile lace-header forging) in the product API",
+        "fix": "git mv src/fixtures -> tests/common (history kept, 100%/96% renames). Eight integration test files use `mod common; use common::*;`; examples/reel-consumer.rs includes it with #[path = \"../tests/common/mod.rs\"]; `pub mod fixtures;` is deleted from lib.rs. Nothing in the crate exports the builders any more (no feature, no cfg).",
+        "why_not_a_feature": "a non-default `fixtures` cargo feature (the register note) would make the 8 integration tests and the example compile only with that feature; the round's default-features unit for hsk-studio-reel (.config/round-features.toml, steward-owned: [[\"av1\"]]) would then skip them (cargo skips a target whose required-features are off). Moving the module out of the library satisfies V4-04 more strongly (not in the product build under any feature) without touching steward-owned files. No other workspace crate used hsk_studio_reel::fixtures (grep of crates/ at 589f544).",
+        "test": "lib.rs crate-doc doctest: `compile_fail` `use hsk_studio_reel::fixtures::wav_pcm16;` plus a passing sibling doctest that resolves hsk_studio_reel::Registry (so the failure comes from the missing module, not a misspelt crate); cargo test --doc: 2 passed (default and --features av1). Red proof: at the 589f544 copy with only the doctest added the compile_fail doctest FAILED ('Test compiled successfully, but it's marked compile_fail'). The 49 existing tests that used the builders still pass through tests/common.",
+        "api_break": "hsk_studio_reel::fixtures no longer exists (no in-repo user outside this crate)"
+      },
+      "docs_v4_07": "registry.rs decode_segment: the ORIGINAL is read as Untrusted, a proxy keeps its own ProxySource::trust (new = Untrusted, with_trust grants it for that proxy alone), a Trusted proxy reaches in-process rav1d with feature av1; decode_segment_routed: two-step proxy fallback (unusable BEFORE decode = stale grant/probe error/layout mismatch -> original under `trust`; a proxy that passes those checks and then cannot be decoded under its own route, e.g. Untrusted + no external decoder = CodecUnavailable, fails the whole request with NO fallback to the original; semantics unchanged, the CodecUnavailable case pinned by trusted_original_never_lends_its_trust_to_a_proxy 'nothing registered' block). Also weakened/cited: video.rs module docs + Forward + VideoStreamSpec.width, av1_config.rs pixel_limit, lib.rs docs + DESCRIPTOR video_routing.picture_checks.",
+      "tests_at_commit": {
+        "default": 51,
+        "av1": 55,
+        "doctests": "2 + 2",
+        "clippy": "clean (--tests --examples, default and --features av1; observe has 2 pre-existing too_many_arguments warnings)",
+        "fmt": "cargo fmt -p hsk-studio-reel --check clean"
+      },
+      "route": "No gameplan block and no retry-guard hit; red proofs ran on a scratch copy with its own STUDIO_OWNER, never on the shared edit tree. The scratch tree sits under Handshake_Artifacts (D:) instead of the session scratchpad (C:) because of the Operator's no-C: rule for cargo builds; movable to the recycle bin when the lead agrees.",
+      "at": "2026-10-11T11:51:24Z"
     }
   }
 }

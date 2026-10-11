@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T11:51:26Z",
+ "updated_at": "2026-10-11T11:53:17Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1547,7 +1547,7 @@
     "crates/hsk-studio-reel/**"
    ],
    "launched": "2026-10-11T11:35:03Z",
-   "status": "running"
+   "status": "done 2026-10-11T11:53:17Z (bf3c196)"
   }
  ]
 }

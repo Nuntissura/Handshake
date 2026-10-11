@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T11:51:26Z",
+ "updated_at": "2026-10-11T11:53:17Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -241,7 +241,7 @@
    ],
    "lane_file": "builders/lanes/hsk-studio-reel.json",
    "candidate": "3c82784",
-   "note": "V4 hardening 2a6f32e/3c82784/b555905: deny(arithmetic_side_effects) on identity/registry/wav/y4m/isobmff/fragments (111 sites); 7 latent bugs fixed (y4m frame count wrap, y4m 805 MB alloc from 41-byte file, wav clamped byte rate, isobmff stsz 160 MB reservation, read_sample 4 GiB pre-check, fMP4 silent partial index after 2^20 boxes -> LimitExceeded, Read n>len trust); 48 default / 52 av1 green; red proof on old sources (805 MB, 160 MB, 4.29 GB allocations seen)",
+   "note": "V4 hardening 2a6f32e/3c82784/b555905: deny(arithmetic_side_effects) on identity/registry/wav/y4m/isobmff/fragments (111 sites); 7 latent bugs fixed (y4m frame count wrap, y4m 805 MB alloc from 41-byte file, wav clamped byte rate, isobmff stsz 160 MB reservation, read_sample 4 GiB pre-check, fMP4 silent partial index after 2^20 boxes -> LimitExceeded, Read n>len trust); 48 default / 52 av1 green; red proof on old sources (805 MB, 160 MB, 4.29 GB allocations seen); PLR-029 fix bf3c196: pub mod fixtures moved to tests/common (git mv), compile_fail doctest proves the path no longer resolves. Crate changed after R7 -> re-include in R8 (CX-VAL-009).",
    "review_findings": "R2-review-b 7 CONFIRMED fixed 75a4d89 (regression tests)",
    "review_findings_r3": "R3 FAIL_V1 remediated dcc1b37 (checked lace sum + duration fill)"
   },
@@ -957,7 +957,7 @@
     "STUDIO-R7 PASS_V2 @dff7ef5"
    ],
    "candidate": "569023e",
-   "note": "R5 remediation: AV1 pixel limit derived from av1C layout + bit depth; 1080p decodes at default limits (new 1080p fixture); red-first",
+   "note": "R5 remediation: AV1 pixel limit derived from av1C layout + bit depth; 1080p decodes at default limits (new 1080p fixture); red-first; crate changed after R7 (bf3c196 also refuses oversize pictures on the in-process av1 path) -> re-include in R8 (CX-VAL-009).",
    "r5_review_routed": {
     "to": "builder-reel-2",
     "at": "2026-10-11T05:31:12Z",
@@ -1671,20 +1671,21 @@
    "origin": "reel-native AV1 worker lane",
    "scope": "reel hook to route av01/V_AV1 decode to an external (worker) decoder provider by policy (untrusted -> worker; in-process only when explicitly trusted); ReelError worker-fault variant; enabling worker routing must not require linking the in-process decoder",
    "phase": "validation",
-   "status": null,
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-reel-native-av1 (reused)",
    "commits": [
     "bfef27f",
     "569023e",
     "8438b1d",
-    "589f544"
+    "589f544",
+    "bf3c196"
    ],
    "verdicts": [
     "STUDIO-R5 FAIL_V1 @1d404f8",
     "STUDIO-R7 FAIL_V2 @dff7ef5"
    ],
-   "candidate": "589f544",
-   "note": "R5 remediation 233f406/569023e: checked plane arithmetic (lying decoder -> DecoderFault::Protocol), Matroska PixelWidth/Height bounded 1<<20; red-first; R7 FAIL fix (PLR-033): ProxySource has its own trust (default Untrusted; with_trust for that proxy only); proxies decode through their own route; untrusted AV1 -> worker or CodecUnavailable; test red on scratch revert; 49 default / 53 av1. At 2/3 FAILs -> V4-13 pre-review before R8.",
+   "candidate": "bf3c196",
+   "note": "R5 remediation 233f406/569023e: checked plane arithmetic (lying decoder -> DecoderFault::Protocol), Matroska PixelWidth/Height bounded 1<<20; red-first; R7 FAIL fix (PLR-033): ProxySource has its own trust (default Untrusted; with_trust for that proxy only); proxies decode through their own route; untrusted AV1 -> worker or CodecUnavailable; test red on scratch revert; 49 default / 53 av1. At 2/3 FAILs -> V4-13 pre-review before R8.; PLR-032 fix bf3c196 (pre-review FIX_FIRST condition): Forward::accept refuses a picture larger than the container-declared size (<=, declared 0 = unchecked) as DecoderFault::Protocol before any copy; packed size checked vs max_chunk_bytes before extend; 2 new tests red on scratch 589f544; docs nits (pre-review findings 2-3) addressed; 51 default / 55 av1. Claim 8438b1d + 589f544 + bf3c196. Pre-review condition met per builder (independent check = R8 validator). Not done: av1C bit depth/chroma check (lead: out of PLR-032 scope).",
    "r5_review_routed": {
     "to": "builder-reel-2",
     "at": "2026-10-11T05:31:12Z",
@@ -1695,14 +1696,7 @@
     "at": "2026-10-11T11:35:03Z",
     "ref": "validation/R8-prereview-reel.json",
     "head": "589f544"
-   },
-   "blockers": [
-    {
-     "error": "PLR-032 open (pre-review FIX_FIRST, V4-19)",
-     "file_line": "crates/hsk-studio-reel/src/video.rs:293-324",
-     "attempts": 0
-    }
-   ]
+   }
   },
   {
    "lane_id": "SMB-PIGMENT-ENG-2",
