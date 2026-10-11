@@ -1,0 +1,234 @@
+{
+  "round": "STUDIO-R9",
+  "group": "B",
+  "reviewed_commit": "4d80e50d40432799c08f0f8b8f0047c9a00d056a",
+  "base_commit": "f6e5a490e2ad0e142938a8bba1f78cadb96f5e84",
+  "reviewer": "independent adversarial reviewer (Opus), group B (score-plugin, reel-native, reel reopen, web lanes), read-only, committed blobs at 4d80e50 only (git archive of the crates into scratch; git show/diff against f6e5a49), no sub-agents, no cargo",
+  "status": "COMPLETE",
+  "started_at": "2026-10-11T13:53:50Z",
+  "updated_at": "2026-10-11T14:19:44Z",
+  "severity_rule": "CONFIRMED = file:line read at 4d80e50 by this reviewer and the behaviour follows from the code read; PLAUSIBLE = reasoning, process or external fact not proven at 4d80e50",
+  "recommendation_rule": "FAIL when a lane has a CONFIRMED product defect in its claimed scope; PASS_WITH_NOTES when CONFIRMED items are doc/process-only or PLAUSIBLE only; validator decides",
+  "lanes": [
+    {
+      "lane": "SMB-SCORE-PLUGIN-RATE",
+      "crate": "hsk-studio-score-plugin",
+      "commit_scope": "claim e9fb519; git log f6e5a49..4d80e50 -- crates/hsk-studio-score-plugin crates/hsk-studio-score lists e9fb519 only (score unchanged, so the oracle ticks_per_sample is the R8 one); nothing after the READY commit (V4-14 ok); 528d01c is a lock/registry sync only",
+      "findings": [
+        {
+          "severity": "PLAUSIBLE",
+          "kind": "worker_side_check_order",
+          "file_line": "crates/hsk-studio-score-plugin/src/backend.rs:201-212 (Reference::configure runs verify_file, a streamed sha256 of the plugin file, before the channel/frame/rate checks); clap_backend.rs:175-187 (rate checked before staging/loading: fine)",
+          "evidence": "The reference worker hashes the plugin file before it refuses a bad rate. Not reachable with a bad rate from the host (ProcessConfig::validate at types.rs:134-135 runs in activate_isolated at host.rs:409, before admit/verify_content/start_worker at :433-446), and the refusal value is still E_CONFIG. Wasted work only on a direct worker request; pre-existing order (channels/frames had the same position before e9fb519).",
+          "remediation": "Optional: move the cheap config checks (channels, frames, validate_sample_rate) above verify_file in Reference::configure, as ClapBackend::configure already does for staging"
+        }
+      ],
+      "verified_fixes": [
+        "PLR-054 FIXED: one rule. types.rs:110-114 validate_sample_rate = hsk_studio_score::ticks_per_sample (score layout.rs:79-87: rate > MAX_SAMPLE_RATE_HZ (768_000, layout.rs:11) -> InvalidRate, else Timescale exact_ticks_per_unit, so 0 and non-divisors are refused) mapped to InvalidConfig. Called at the three decision sites and nowhere else re-implemented: ProcessConfig::validate types.rs:135, Reference::configure backend.rs:212, ClapBackend::configure clap_backend.rs:187. The three MAX_SAMPLE_RATE_HZ imports and compare lines are gone (regex below).",
+        "Every entry point: the only constructor of a configured worker is IsolatedHost::activate_isolated (host.rs:400-503); PluginProvider::activate delegates to it (host.rs:567-574); probe (host.rs:507-565) sends no configure and carries no rate. In activate_isolated the order is cancel, deadline, authorize, config.validate() (host.rs:409), then budget math, supervisor.admit (:433-437), verify_content, spec_of, start_worker (:440-446) and only then ConfigureSpec{sample_rate_hz} (:448-449). So a refused rate never reaches admit or spawn. ConfigureSpec is otherwise constructed only by the wire decoder (wire.rs:446-461, worker side; the worker's only consumer is worker.rs:174-175 -> backend.configure, which validates) and a wire unit test (wire.rs:752). No reconfigure/set-rate API exists on IsolatedInstance (grep sample_rate_hz: host.rs:585 field, :747-748 accessor, :768 equality with the block rate after input.validate() at :766).",
+        "No 'admitted, fails later' path left: a configured rate passes ticks_per_sample, a block must equal it (host.rs:768-770) and InputBlock::validate applies the same ticks_per_sample, so an activated instance cannot fail its first block on the rate.",
+        "Tests would fail if reverted: foundation_contract.rs sample_rate_is_refused_at_activation_before_any_spawn (new, +80 lines) refuses 0, 44_101, 47_999, 22_051, 96_001, 11_000, 768_001, 1_536_000, u32::MAX through activate_isolated AND the trait activate, then asserts stats (spawned, workers_live, in_flight_bytes) == (0, 0, 0); five of those rates (44_101, 47_999, 22_051, 96_001, 11_000) passed the old 0/MAX check, so the old host activates a worker (lane red proof: IsolatedInstance{state: Active} at 44_101). The accepted side activates 8_000..768_000 (spawned == 6) and runs one 44_100 Hz block bit-exact. rate_gate_tests.rs pins each worker backend separately over a 28-rate table (Reference::configure -> E_CONFIG for refused; ClapBackend::configure -> E_CONFIG for refused, E_UNAVAILABLE for admitted, which also proves the rate check precedes staging) and first asserts the table equals score's rule, so reverting any one site is red independently. Hand factorisations checked: 47_999 = 7 x 6_857 (prime), 768_000 = 2^11 x 3 x 5^3, 1_536_000 = 2^12 x 3 x 5^3 (divisor above the bound), 254_016_000_000 / 768_000 = 330_750.",
+        "V4-06 recount (regex from notes.v4_06_sites, grep -P over src/examples/tests excluding tests/fixtures): f6e5a49 = 11 matches (lane: 11 at eefe44d; score-plugin unchanged between them); 4d80e50 product code = types.rs:101 (doc), types.rs:111 (the one call), host.rs:768/770 (block-rate equality, not a rule) + rate_gate_tests.rs:119/125-127 (oracle). Matches the lane listing.",
+        "DESCRIPTOR (lib.rs:64) parses as JSON at 4d80e50; limits.sample_rate states the rule and cites the four tests (V4-07)."
+      ],
+      "recommendation": "PASS_WITH_NOTES",
+      "recommendation_note": "Single rule at every entry point, refusal before admit/spawn, independent red-on-revert tests per site. The only note is an optional worker-side ordering nit outside the claim."
+    },
+    {
+      "lane": "SMB-REEL-NATIVE-FAULTS",
+      "crate": "hsk-studio-reel-native",
+      "commit_scope": "claim 471b679 + a024461; git diff a024461..4d80e50 over reel-native, reel, accord, observe, root Cargo.toml/Cargo.lock and .config is empty (the two later commits e849d4c/4d80e50 are web only), so the crate at 4d80e50 is the a024461 crate judged by R9-prereview-reel; built on that pre-review (counting_check, regression_check), not redone",
+      "findings": [
+        {
+          "severity": "PLAUSIBLE",
+          "kind": "carried_prereview_items_registered",
+          "file_line": "crates/hsk-studio-reel-native/src/host.rs:747-760 (no in-flight tag check, PLR-059); host.rs:627-633 vs :641-645 (malformed/oversize HELLO -> spawn_failed, PLR-060); wire.rs:5-7 (module doc still allows FRAME for every request, PLR-061)",
+          "evidence": "Re-read at 4d80e50, unchanged from a024461. They are the remaining members of the lane's own V4-06 class ('a reply the request does not allow') that are not counted as protocol_faults: PLR-059 (FRAME with an unsent tag dropped by reel Forward video.rs:323-325, uncounted, worker stays pooled) and PLR-060 (handshake wire violation typed worker_spawn_failed). Both are pre-existing lines, outside the two claimed fixes, and registered with disposition FIX_LANE 'next reel-native lane (after R9)'. Not re-raised as new.",
+          "remediation": "As registered (PLR-059..061)"
+        },
+        {
+          "severity": "PLAUSIBLE",
+          "kind": "declared_size_rule_duplicated_across_crates",
+          "file_line": "crates/hsk-studio-reel-native/src/host.rs:1193-1201 within_declared_size (:1198); crates/hsk-studio-reel/src/video.rs:301-310 within_declared_size (private fn, :307)",
+          "evidence": "471b679 adds a second copy of reel's declared-size rule in the host (same body, same citations, 'Same rule as reel's Forward sink check'). Today they agree (read both). If the reel rule changes (e.g. per-entry declared sizes, the R8 first-sample-entry note) the host may refuse what reel accepts or the reverse; the host copy is the one that counts. Small CX-CAP-001 style duplication, not a defect.",
+          "remediation": "Optional: export the rule from hsk-studio-reel (pub fn on VideoStreamSpec or VideoFormat) and call it from host.rs, or add a test that pins both copies to one table"
+        }
+      ],
+      "verified_fixes": [
+        "PLR-055 FIXED: Pool::exchange (host.rs:709-772) checks every batch FRAME with within_declared_size(&picture.format, declared) BEFORE on_frame (host.rs:747-756) -> self.fail(session, Failure::Protocol) (:754) -> fail() bumps protocol_faults once, terminates, returns Av1Error::Worker(Av1WorkerFault::Protocol) (host.rs:692-696). declared comes from VideoStreamSpec (open_session host.rs:1070 -> WorkerSession.declared -> Call.declared :841). Through the Registry route WorkerSession::convert fills the fault slot and maps to ReelError::DecoderFault{Protocol} (host.rs:810-819), no second bump anywhere (grep protocol_faults: only :642 HELLO-decode and :693).",
+        "FRAME answering OPEN FIXED (a024461): the Reply::Frame arm is guarded by want == Want::BatchEnd (host.rs:747); for Want::Opened a FRAME falls to the catch-all `_ => self.fail(session, Failure::Protocol)` (host.rs:769). The open_session closure (host.rs:1083-1090) is now unreachable for a FRAME and stays as a second refusal.",
+        "Every other reply-class violation in exchange is counted once and typed: wrong request id or undecodable reply -> decode_reply Err (wire.rs:468-501: id mismatch Malformed :471-473, unknown kind, unknown error class/what index, bad frame fields, plane length mismatch) -> catch-all Protocol; OPENED to a batch or after frames, BATCH_END to OPEN or with a wrong count, > MAX_FRAMES_PER_BATCH frames -> Protocol (host.rs:749, :762-769); malformed framing -> Protocol (:737-738); over-cap frame -> Oversize/killed_oversize (documented separate class, :734-735). Each path returns right after one fail().",
+        "Tests would fail if reverted (read at 4d80e50, tests/av1_worker.rs): oversize_picture_under_the_reply_cap_is_a_protocol_fault (:482) asserts Worker(Protocol), code worker_protocol, empty sink and (protocol_faults, killed_oversize, crashed, alive) == (round+1, 0, 0, 0) per container, then the Registry route -> DecoderFault{Protocol}, protocol_faults 3 (a double count or a reel-side refusal is red; lane red R1/R2 recorded Reel(DecoderFault) at origin); exact_and_smaller_pictures_than_declared_are_accepted (:550) pins <= (exact 16x16 and 14x14 decode, 0 faults, worker alive) so a strict or equality rule is red (lane red R3/R4); frame_reply_to_open_is_a_protocol_fault (:595) same shape for FrameOnOpen (lane red R5: Reel(DecoderFault) vs Worker(Protocol)). Unit declared_size_is_a_maximum_checked_per_side in host.rs.",
+        "V4-04 (test-faults absent from default/product builds): Cargo.toml features default = [], test-faults = [] (no other workspace crate depends on reel-native, so no feature unification); test_fault module and WorkerTestFault re-export only under all(av1, test-faults) (lib.rs:28-29, :40-41); worker Faults struct/impl incl. on_open and reshape under cfg(test-faults) (worker.rs:41-105), flush_batch takes faults and calls reshape only under cfg (worker.rs:153-166), OPEN hook block cfg-gated (worker.rs:196-206); wire encode_tiny_frame/encode_oversize_frame/encode_garbage under all(av1-worker, test-faults) (wire.rs:428, :436, :463); host fault_env and Av1WorkerOptions::test_fault cfg-gated (host.rs:121-122, :135-136, :597-602, :955-956). The new host within_declared_size check is product code, as required.",
+        "V4-05 / D18: duplicate-supervision fingerprints (Command::new, .creation_flags() over crates/ at 4d80e50 = 19 lines, f6e5a49 = 19 lines; reel-native src only host.rs:463 and :591 (pre-existing); neither commit adds spawn, kill or creation-flag code (diff read).",
+        "V4-14: crate commits after READY a024461: none (git log a024461..4d80e50 lists only web commits)."
+      ],
+      "recommendation": "PASS_WITH_NOTES",
+      "recommendation_note": "Both claimed violations are now counted once, typed worker_protocol, before reel's route; hooks are test-faults only; no third supervisor copy. Remaining uncounted members of the class are the registered PLR-059/060 (pre-existing, next reel-native lane)."
+    },
+    {
+      "lane": "SMB-WEB-PARITY",
+      "crate": "hsk-studio-web",
+      "status": "advisory_withdrawn",
+      "status_note": "Lead withdrew SMB-WEB-PARITY and SMB-WEB-DIFFTEST from R9 at about 14:14Z (crate-level FIX_FIRST from validation/R9-prereview-web.json); review stopped mid-way; what was checked before the withdrawal is kept here as advisory for the remediation and the next review. Not a verdict input.",
+      "commit_scope": "claim 1c67557, 6d1c591, e849d4c, 4d80e50 (web parity) + SMB-WEB-DIFFTEST eefe44d..f4b47cd; partial review only",
+      "findings": [
+        {
+          "severity": "CONFIRMED",
+          "kind": "asset_gate_gap_at_f6e5a49_closed_but_unpinned",
+          "file_line": "f6e5a49 crates/hsk-studio-web/src/assets.rs:528 (tag = tag_name lowercased: 'image') with :139 (srcset only for ('img' | 'source')); 4d80e50 assets.rs:640 (tag = local_name: 'img' for an HTML image) with :145",
+          "evidence": "A browser turns an HTML <image> start tag into img (HTML Standard 13.2.6.4.7), so <image srcset=\"https://e.invalid/x 1x\"></image> loads the candidate. At f6e5a49 (SMB-WEB PASS_V3 at R7) collect_assets looked up attr_kind('image', 'srcset') = None, so that URL was never classified (no Denied, no port call): a gate bypass for srcset (also lowsrc/longdesc, which browsers do not load). The difftest lane's D1 gate_impact said 'none found' because it only checked src (('img' | 'image', 'src') is listed). 4d80e50 closes it as a side effect of D1 (local_name). No test pins it: grep of tests/ finds no <image ... srcset> and no collect_assets call on an HTML <image>; reverting assets.rs:640 to the source tag name would stay green.",
+          "remediation": "In the web remediation: add one asset-gate test (<image srcset=\"https://e.invalid/x 1x\"> and <IMAGE srcset=...> -> Denied(external_scheme), plus a relative candidate reaching the port); record the closed f6e5a49 gap against SMB-WEB (CX-VAL-009)"
+        },
+        {
+          "severity": "CONFIRMED",
+          "kind": "rule_row_without_refusal_test",
+          "file_line": "crates/hsk-studio-web/src/dom/construction.rs:553 ('rb' | 'rtc' arm); doc claim construction.rs:11-13 and tests/html_parity.rs:370-371 ('one input per row of the detection rule')",
+          "evidence": "grep over tests/ for rb/rtc finds only corpus.rs:828-829 (accepted, agreeing inputs) and html_parity.rs:400 (<ruby><rt><rp>, the rp/rt arm). No input makes the rb/rtc arm refuse, so deleting it keeps every test green while <ruby><rb>a<rtc></rtc></rb></ruby> would be accepted although a browser pops rb (13.2.6.4.7 'rb, rtc': generate implied end tags; html5ever 0.40.1 rules.rs same). The option-with-select-in-scope arm (:540-541) and optgroup-without-select arm (:549-550) also have no refusing input in tests/ (only agreeing ones). Rule logic itself read as correct against the spec and html5ever.",
+          "remediation": "Add refusing inputs per arm (<ruby><rb><rtc></rtc></rb></ruby>, <select><option><option></option></option></select>, <option><optgroup></optgroup></option>) to tree_construction_that_moves_authored_nodes_is_refused_typed"
+        },
+        {
+          "severity": "PLAUSIBLE",
+          "kind": "edit_changes_neighbour_value_in_pre",
+          "file_line": "crates/hsk-studio-web/src/dom.rs:1376-1386 (first-LF rule keyed on node.index == 0); src/source_dom_patch.rs:300-317, :545 (keep_first_lf only for the written value)",
+          "evidence": "insert_element/insert_fragment at index 0 of a pre/listing/textarea, or remove_node of its leading comment/element, changes which node is first, so an untouched text that starts with LF changes its decoded value (LF appears or disappears). This is what a browser reads from the new source, so not wrong; but the DESCRIPTOR patch.values wording covers only the written value. Not run.",
+          "remediation": "Optional: document it on patch.values, or have insert/remove add/drop one LF on the shifted text"
+        }
+      ],
+      "verified_fixes": [
+        "1c67557 is behaviour-free: token-level comparison of all 15 files (Rust lexer keeping string/char literals and comments exact, whitespace ignored, trailing commas before closers dropped): 7 files token-identical; the other 8 differ only by inserted braces around match-arm bodies, the removed arm comma, and ';' inserted after return/break/continue (checked: every inserted ';' follows return/break/continue within its statement), i.e. rustfmt output; 0 other differences.",
+        "html5ever is dev-only: crates/hsk-studio-web/Cargo.toml [dependencies] = accord, observe, sha2; html5ever =0.40.1 under [dev-dependencies]; src/ and examples/ never reference html5ever/markup5ever (only doc comments).",
+        "N1/N2 only in the comparator: crate src inserts no implied element and moves no text (dom.rs/construction.rs only refuse); N1 = tests/html5ever_differential/events.rs:79-132 drop_implied (per-name budget = reference count minus model count, attribute-less HTML elements only, not aligned with the model's event), N2 = model.rs Skeleton; an authored element is never dropped because the counts match.",
+        "Scope/special sets checked against html5ever 0.40.1 tag_sets.rs (local registry) and the WHATWG parsing page (fetched about 14:08Z): 'select' is in the default scope list in both; the crate's SCOPE_HTML equals html5ever html_default_scope; SPECIAL is HTML-only (smaller than the spec's set, so the li/dd/dt walk refuses more, conservative).",
+        "NUL -> U+FFFD at the asset gate (lead decision 13:44Z): classify (assets.rs:162-202) still trims C0/space, strips tab/LF/CR, denies '//' and every valid scheme first; a U+FFFD where a raw NUL was cannot hide a scheme or '//' because the browser's URL parser receives the same U+FFFD (tokenizer replaces NUL before the URL parser, U+FFFD is not a C0 control): 'java\\0script:' -> relative for both, '\\0//e.invalid' -> relative path for both (the old crate trimmed the NUL and over-denied it as protocol_relative). Control characters other than NUL are still Denied (assets.rs:379). No new bypass found; the change is test-unpinned (no test passes a raw NUL attribute through collect_assets).",
+        "Asset gate is tree-shape independent: collect_assets (assets.rs:619-679) walks every element in document order without skipping subtrees, so a D9 detection gap could not hide a URL; attribute merging of ignored html/body start tags is covered because those tags are refused and every element's attributes are scanned anyway."
+      ],
+      "not_reviewed_before_withdrawal": [
+        "SMB-WEB-DIFFTEST harness/oracle sink correctness and generator floors",
+        "full D9 rule table vs every in-body/in-table/in-head spec step (spot-checked: p-closing set, headings, form, li/dd/dt, button, a/nobr, select/input/hr/option/optgroup, rb/rtc/rp/rt, table/section/row/colgroup, head/after-head/after-body skeleton)",
+        "V4-06 recount (97 sites)"
+      ],
+      "recommendation": "WITHDRAWN",
+      "recommendation_note": "Advisory only; carry the two CONFIRMED items into the web remediation."
+    },
+    {
+      "lane": "SMB-WEB-DIFFTEST",
+      "crate": "hsk-studio-web",
+      "status": "advisory_withdrawn",
+      "status_note": "Withdrawn from R9 by the lead together with SMB-WEB-PARITY (crate-level FIX_FIRST, validation/R9-prereview-web.json). Not reviewed beyond the comparator normalisation and dependency checks recorded under SMB-WEB-PARITY.verified_fixes (html5ever dev-only; N1/N2 in events.rs/model.rs only).",
+      "commit_scope": "eefe44d, 8119ceb, 960edc0, 0f64ee9, f4b47cd + claim_includes_later 1c67557..4d80e50",
+      "findings": [],
+      "verified_fixes": [],
+      "recommendation": "WITHDRAWN",
+      "recommendation_note": "See SMB-WEB-PARITY advisory: the CONFIRMED rule-row test gap (rb/rtc, option-in-select, optgroup-without-select) belongs to the difftest/parity test set as well."
+    }
+  ],
+  "cx_val_009_sweep": {
+    "rule": "CX-VAL-009: a PASS lane whose crate (or dependency closure) changed after its PASS is re-checked; CONFIRMED only with file:line at 4d80e50",
+    "base": "f6e5a49 (R8 PASS commit for all lanes below)",
+    "dependency_closure": "git diff f6e5a49..4d80e50 over accord, observe, score, rust-toolchain.toml and .config is empty; root Cargo.toml changes only the web registry metadata (html5ever dev-dep); Cargo.lock is purely additive (13 html5ever packages, no existing package changed)",
+    "built_on": "validation/R9-prereview-reel.json (AV1-ROUTE and NATIVE-AV1-WORKER regression checks at a024461, both SAFE_TO_JUDGE); reel and reel-native are byte-unchanged a024461..4d80e50 (git diff --stat empty), so V4-18 lets that result stand and it is not redone",
+    "lanes": [
+      {
+        "lane": "SMB-REEL",
+        "r8": "PASS_V5 @f6e5a49",
+        "crate_commits_since": [
+          "6d232da",
+          "2ddff00",
+          "bd5bd60 (all lane SMB-REEL-ENG-1, excluded from R9)"
+        ],
+        "result": "NO R8 CLAIM BROKEN (by reading)",
+        "evidence": [
+          "V4 hardening: deny(clippy::arithmetic_side_effects) carried by the same 16 src modules at both commits (av1/mod.rs, av1_config.rs, cache.rs, identity.rs, isobmff.rs, isobmff/fragments.rs, isobmff/pcm.rs, matroska.rs, mkv_content.rs, mkv_pcm.rs, model.rs, mxf/mod.rs, registry.rs, video.rs, wav.rs, y4m.rs); no new allocation sized from a file field (fiel needs 2 bytes, clap 32 fixed, isobmff.rs:776-797; the elst loop allocates less than before).",
+          "Edit-count bound kept and tightened: isobmff.rs build_edits counts every declared entry incl. skipped ones (`seen > 4096`, test addition v4_hardening.rs isobmff_aggregate_over_budget zero_length 4096 ok / 4097 edit-count); build_presentation max_edit_entries unchanged (isobmff.rs:1394).",
+          "PLR-029 stays closed: lib.rs exposes no fixtures (only the compile_fail doctest line 20); the lib.rs diff only re-exports FieldInfo and CleanAperture and extends DESCRIPTOR.",
+          "DESCRIPTOR: every pre-existing key is unchanged except errors (MEDIA_NOT_EXACT, MEDIA_INCOMPLETE appended); export and isobmff_index added (JSON parsed at both commits).",
+          "Preview behaviour unchanged on every provider: require_exact_start (model.rs:454-466) returns Ok for Purpose::Preview without evaluating `nearest`; video.rs Incomplete branch is Export-only (video.rs:512-519). Existing tests: no assertion edited (numstat: av1_decode +102/-0, video_route +80/-0, v4_hardening +12/-0, engine_video new; tests/common/mod.rs only threads an empty extra_children slice through moov()). The one pre-existing Export test (foundation_contract.rs:917) refuses StrictOriginalRequired before the new guard.",
+          "R8 carried PLAUSIBLEs (no aggregate decoded-bytes bound; approx_bytes) untouched: matroska.rs and mkv_content.rs are not in the diff."
+        ],
+        "notes": [
+          "Behaviour changes owned by ENG-1 (excluded, not R8 claims): Export at a non-whole start now NotExact instead of Ok/Approximate; a zero-duration non-empty edit outside the last entry of a fragmented file now fails the whole file (Unsupported elst-zero-duration via build_index `?`, isobmff.rs:1356-1361, :1621) where f6e5a49 indexed it (for a PCM track f6e5a49 only failed that track's window as pcm-edit-list-shape); MXF reordered Export Ok-incomplete (R9-prereview-reel ENG-1 CONFIRMED, pre-existing at f6e5a49)."
+        ]
+      },
+      {
+        "lane": "SMB-REEL-ENG-3",
+        "r8": "PASS_V3 @f6e5a49",
+        "result": "NO R8 CLAIM BROKEN; one R8 PLAUSIBLE closed",
+        "evidence": [
+          "In-process AV1 code unchanged: src/av1/** and src/av1_config.rs are not in git diff --stat f6e5a49..4d80e50; the 1080p test and fixture unchanged (av1_decode.rs diff is +102/-0).",
+          "R8-review-b ENG-3 PLAUSIBLE 'in-process half of the declared-size check untested' is CLOSED by bd5bd60: tests/av1_decode.rs:273 oversize_picture_on_the_trusted_rav1d_path_is_refused (feature av1) patches declared sizes on the real rav1d path: 15x16, 16x15, 8x8, 1x1 -> DecoderFault::Protocol and empty sink; 17x16, 32x32, 255x255 -> oracle digests; 0x16 unchecked side, 0x15 refused (:300-325).",
+          "R8 carried PLAUSIBLE (av1C-layout pre-allocation, trusted-input-only, PLR-030 WAIVED) unchanged."
+        ]
+      },
+      {
+        "lane": "SMB-REEL-AV1-ROUTE",
+        "r8": "PASS_V3 @f6e5a49",
+        "result": "NO R8 CLAIM BROKEN (R9-prereview-reel SAFE_TO_JUDGE at a024461 stands; reel unchanged since bd5bd60)",
+        "evidence": [
+          "Re-read at 4d80e50: Forward::accept order unchanged (video.rs:321-368: tag/preroll, planes_match_format || within_declared_size -> Protocol, format change, packed_len before copy); within_declared_size video.rs:307; the only video.rs change is the Export Incomplete branch after decode (:512-519), reading no trust."
+        ]
+      },
+      {
+        "lane": "SMB-REEL-NATIVE-AV1-WORKER",
+        "r8": "PASS_V3 @f6e5a49",
+        "result": "NO R8 CLAIM BROKEN (R9-prereview-reel SAFE_TO_JUDGE at a024461 stands; crate byte-identical a024461..4d80e50)",
+        "evidence": [
+          "471b679/a024461 only add a stricter counted refusal and test-faults hooks (see lane SMB-REEL-NATIVE-FAULTS); D18 fingerprints 19 = 19 lines; discover_beside, HELLO cancel, declared-dims overflow and wire bounds unchanged per the pre-review.",
+          "reel's new ReelError variants cannot reach the worker wire as new classes: encode_error wildcard arm (wire.rs:413-418), and the worker hosts Av1Decoder directly."
+        ]
+      },
+      {
+        "lane": "SMB-SCORE-PLUGIN (added: crate changed after R8 PASS_V3 by e9fb519)",
+        "r8": "PASS_V3 @f6e5a49",
+        "result": "NO R8 CLAIM BROKEN",
+        "evidence": [
+          "e9fb519 touches only types.rs (rate rule + docs), backend.rs/clap_backend.rs (rate line + import), lib.rs (cfg(test) module + DESCRIPTOR limits.sample_rate), rate_gate_tests.rs (new), tests/foundation_contract.rs (+82, one new test, no edited assertion); hashing, staging, supervisor, host process lifecycle and wire untouched; DESCRIPTOR other keys unchanged."
+        ]
+      }
+    ],
+    "cross_lane_note": {
+      "severity": "CONFIRMED",
+      "lane": "SMB-WEB (R7 PASS_V3; recheck owned by R9-prereview-web, web lanes withdrawn from R9)",
+      "file_line": "f6e5a49 crates/hsk-studio-web/src/assets.rs:528 + :139",
+      "evidence": "At f6e5a49 the asset gate did not classify <image srcset=...> (tag taken as 'image', srcset only for img/source) although a browser creates an img and loads the candidates; 4d80e50 closes it via local_name (assets.rs:640) without a pinning test. Details under lanes[SMB-WEB-PARITY].findings[0].",
+      "remediation": "Add the pinning asset-gate test in the web remediation; record the gap against the SMB-WEB R7 PASS"
+    }
+  },
+  "pending_lanes": [],
+  "withdrawn_lanes": {
+    "lanes": [
+      "SMB-WEB-PARITY",
+      "SMB-WEB-DIFFTEST"
+    ],
+    "by": "lead update received about 14:14Z",
+    "reason": "crate-level FIX_FIRST from validation/R9-prereview-web.json; remediation started",
+    "handling": "partial findings kept as advisory (status advisory_withdrawn); not verdict inputs"
+  },
+  "method": "git archive of score, score-plugin, reel, reel-native, web at 4d80e50 and f6e5a49 into scratch; git log/diff/show per crate and per commit; line-numbered reads; V4-06 regex recount (score-plugin); D18 fingerprint scan over crates/ at both commits; DESCRIPTOR JSON parsed at both commits (score-plugin, reel, reel-native, web); 1c67557 checked by a token-level Rust comparison script (scratchpad R9-review-b/fmtcheck.py); html5ever 0.40.1 tag_sets.rs/rules.rs read in the local registry; WHATWG parsing page fetched for the default scope list and in-body rules; kernel reads: R8-review-b, round-R8, R9-prereview-reel (built on, not redone), R9-prereview-web, DISPATCH_TEMPLATES v4-rules, START_LOG decisions, plausible-register PLR-054/055/059-061, lane files, ledger",
+  "summary": {
+    "SMB-SCORE-PLUGIN-RATE": {
+      "recommendation": "PASS_WITH_NOTES",
+      "CONFIRMED": 0,
+      "PLAUSIBLE": 1
+    },
+    "SMB-REEL-NATIVE-FAULTS": {
+      "recommendation": "PASS_WITH_NOTES",
+      "CONFIRMED": 0,
+      "PLAUSIBLE": 2,
+      "note": "PLAUSIBLE 1 = registered PLR-059/060/061 carried"
+    },
+    "SMB-WEB-PARITY": {
+      "recommendation": "WITHDRAWN (advisory_withdrawn)",
+      "CONFIRMED": 2,
+      "PLAUSIBLE": 1,
+      "note": "partial review; both CONFIRMED are test/pinning gaps, one is a closed f6e5a49 gate gap"
+    },
+    "SMB-WEB-DIFFTEST": {
+      "recommendation": "WITHDRAWN (advisory_withdrawn)",
+      "CONFIRMED": 0,
+      "PLAUSIBLE": 0
+    },
+    "cx_val_009": "no R8 PASS claim broken for SMB-REEL, SMB-REEL-ENG-3, SMB-REEL-AV1-ROUTE, SMB-REEL-NATIVE-AV1-WORKER, SMB-SCORE-PLUGIN; ENG-3 R8 PLAUSIBLE closed by bd5bd60; cross-lane CONFIRMED for SMB-WEB (closed at 4d80e50, unpinned)"
+  },
+  "completed_at": "2026-10-11T14:19:44Z"
+}

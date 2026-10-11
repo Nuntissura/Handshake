@@ -1764,7 +1764,7 @@
     "builders/lanes/hsk-studio-reel-eng-1.json"
    ],
    "launched": "2026-10-11T13:47:44Z",
-   "status": "done 2026-10-11T14:18:24Z (SMB-REEL-ENG-1 READY at 0474906)"
+   "status": "done 2026-10-11T14:20:09Z (0474906)"
   },
   {
    "name": "validator-r9",
@@ -1798,7 +1798,7 @@
     "validation/R9-review-b.json"
    ],
    "launched": "2026-10-11T13:53:55Z",
-   "status": "running"
+   "status": "done 2026-10-11T14:20:09Z (COMPLETE: SCORE-PLUGIN-RATE + NATIVE-FAULTS 0 CONFIRMED; sweep no break; web advisory test gaps routed to rem-web-r9)"
   },
   {
    "name": "rem-web-r9",
