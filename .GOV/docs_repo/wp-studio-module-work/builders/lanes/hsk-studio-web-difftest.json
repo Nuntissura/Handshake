@@ -2,7 +2,7 @@
   "crate": "hsk-studio-web",
   "lane": "SMB-WEB-DIFFTEST",
   "status": "READY_FOR_VALIDATION",
-  "phase": "differential target green at 8298898 (22/22) with the parity lane's crate fixes; R9 remediation extended it: crate values compared, gate-level style-sheet-text check, generator covers CR in foreign CDATA and </> before LF, oracle correction O1 documented",
+  "phase": "differential target green at b0a1887 (24/24) incl. the rem-web-r10 gate-level CSS check css-urls (separately written CSS Syntax 3 reference over html5ever's text, three readings), Theme::Css generator and corpus group css_urls",
   "commits": [
     {
       "sha": "eefe44d",
@@ -31,6 +31,18 @@
     {
       "sha": "8298898",
       "subject": "web (SMB-WEB-DIFFTEST, rem-web-r9, wip, lane status null): oracle correction O1 keeps noscript raw text under scripting"
+    },
+    {
+      "sha": "5e0598b",
+      "subject": "web (SMB-WEB-DIFFTEST + SMB-WEB-PARITY, rem-web-r10, wip, lane status null): gate-level CSS differential (css-urls) with a separately written reference reading; CSS generator theme; DESCRIPTOR css_urls"
+    },
+    {
+      "sha": "fc0763e",
+      "subject": "web (SMB-WEB-DIFFTEST, rem-web-r10, wip, lane status null): css-urls never-granted check counts per value; CSS output bound test"
+    },
+    {
+      "sha": "b0a1887",
+      "subject": "web (SMB-WEB-PARITY + SMB-WEB-DIFFTEST, rem-web-r10, wip, lane status null): scan Gecko's bad-url reading too (url(x \\) ends at that ) in Firefox)"
     }
   ],
   "capabilities_done": [
@@ -39,20 +51,21 @@
     "both parsers reduced to one event list: element namespace + ASCII-lowercased name, effective attributes (first duplicate wins, decoded values), decoded text, raw-text/RCDATA/script/noscript bodies, comments, CDATA and bogus comments; fragment parsing with a div context, plus 12 whole documents with explicit html/head/body; both scripting-flag readings of html5ever (noscript raw text vs markup)",
     "hand-written adversarial corpora (all with the WHATWG section in the source): namespaces and integration points (91 inputs), script/RAWTEXT/RCDATA boundaries incl. escape and double-escape, close-tag spellings per element, EOF (338), comments/markup declarations/CDATA/bogus (71), character references (206 spellings x up to 26 contexts = 5350 comparisons), tag and attribute syntax (67), duplicate attributes (38), NUL and newlines (59), image start tag (9), pre/listing/textarea leading newline (14), tree-construction restructuring (60), documents (12)",
     "deterministic generator (SplitMix64, no new crates): themes Mixed, Namespaces, RawText, CharRefs, DupAttrs, Noise (NUL/CR), Fuzz (1-3 random delimiter edits); typed refusals counted, floors on comparable inputs per test (NOT_PROVEN panic below the floor), failures minimised by delta debugging and printed with the input; HSK_DIFFTEST_SCALE=<n> multiplies the generated corpora for soak runs",
-    "duplicate attributes: besides first-wins on the event list, the number of attributes html5ever dropped must equal the crate's LossKind::DuplicateAttribute entries"
+    "duplicate attributes: besides first-wins on the event list, the number of attributes html5ever dropped must equal the crate's LossKind::DuplicateAttribute entries",
+    "rem-web-r10: css_reference.rs (second CSS Syntax 3 reading: preprocess, index cursor, component-value tree, URL policy walk, spec/engines/Gecko readings); harness css-urls check per CSS carrier on every input; Theme::Css; corpus css_urls; tests css_url_payloads_read_like_the_reference, generated_css_urls"
   ],
   "tests": {
-    "argv": "cargo nextest run -p hsk-studio-web --test html5ever_differential --no-fail-fast --offline --no-capture (shared tree, crate dir byte-identical to 8298898; also green inside the full 66/66 web run at 62d8983); soak HSK_DIFFTEST_SCALE=10 ... generated (7 tests, 123385 comparable documents)",
+    "argv": "cargo nextest run -p hsk-studio-web --test html5ever_differential --no-fail-fast --offline (inside the 94/94 web run at b0a1887); soak HSK_DIFFTEST_SCALE=10 generated, HSK_DIFFTEST_SCALE=50 css",
     "exit": 0,
-    "sha": "8298898",
-    "passed": 22,
+    "sha": "b0a1887",
+    "passed": 24,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 386,
   "bg_pids": [],
-  "next": "judged together with SMB-WEB-PARITY in the next web round (V4-14 claim lists eefe44d 8119ceb 960edc0 0f64ee9 f4b47cd 77ed037 8298898)",
-  "updated_at": "2026-10-11T15:01:43Z",
+  "next": "judged together with SMB-WEB-PARITY (V4-14 claim in that lane's next)",
+  "updated_at": "2026-10-11T16:24:39Z",
   "notes": {
     "scope_kept": "test code + the crate's Cargo.toml dev-dependency only; src/, examples/, tests/source_dom_patch.rs, other crates, root Cargo.toml/Cargo.lock, ledger/team/other lane files untouched; no product defect fixed in this lane",
     "dep_request": "builders/dep-requests.jsonl line appended 2026-10-11T12:10:21Z (after SYNC DONE f6e5a49): kind dev, html5ever 0.40.1, features [], pure_rust true, license MIT OR Apache-2.0. New lock packages from a local offline resolve (13): html5ever 0.40.1, markup5ever 0.40.0, web_atoms 0.3.0, tendril 0.5.1, string_cache 0.11.0, string_cache_codegen 0.11.2 (MIT OR Apache-2.0); phf 0.14.0, phf_codegen 0.14.0, phf_generator 0.14.0, phf_shared 0.14.0, precomputed-hash 0.1.1, new_debug_unreachable 1.0.6 (MIT); fastrand 2.5.0 (Apache-2.0 OR MIT). The shared Cargo.lock was not touched (no cargo ran in the shared tree).",
@@ -222,6 +235,19 @@
           "attempts": 0
         }
       ]
+    },
+    "remediation_R10pre": {
+      "by": "rem-web-r10 (SMB-WEB-PARITY remediation; the dispatch asked to update this lane when the difftest changes)",
+      "commits": [
+        "5e0598b",
+        "fc0763e",
+        "b0a1887"
+      ],
+      "changes": "tests/html5ever_differential: css_reference.rs = a second CSS Syntax 3 reading written separately (preprocess-then-index, component-value tree, tree walk), all three readings; harness check css-urls per CSS carrier (crate collect_assets vs reference over html5ever's text; bad/computed never granted, per-value count); Theme::Css generator (hostile fragments in style attributes, HTML/SVG style bodies, SVG presentation attributes); corpus group css_urls (42); tests css_url_payloads_read_like_the_reference, generated_css_urls; the css-urls check also runs on every existing group",
+      "licence": "cssparser 0.38.0 (crates.io API and repo Cargo.toml, 2026-10-11): MPL-2.0 for every release 0.33-0.38; tools/license_gate.py OK set (MIT, Apache-2.0, 0BSD, BSD-2/3, Zlib, Unlicense, Unicode, ISC, BSL-1.0, MIT-0, CC0-1.0) refuses it -> not added as a dev-dependency, no dep-request line",
+      "red_proof": "at 62d8983 with these files: css_url_payloads_read_like_the_reference 23/42 disagreeing, generated_css_urls 875/3000, generated_mixed 1 (<svg fill=&notin;url(/>) -> FAIL; 21 other tests pass (parity lane notes.remediation_R10pre.red_proof)",
+      "soak": "scale 10 all generated at b0a1887c655747fa6823ba42b6a02b6402a134d6: 153385 comparable, 0 disagreements; scale 50 css: css_urls 42/0, generated_css 150000/0",
+      "comparator_fix": "fc0763e: the bad/computed never-granted check compares per-value counts (a bad string and a URL string with the same text were a false positive at scale 10, gen:Css:96271)"
     }
   }
 }

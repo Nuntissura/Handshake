@@ -2,7 +2,7 @@
   "crate": "hsk-studio-web",
   "lane": "SMB-WEB-PARITY",
   "status": "READY_FOR_VALIDATION",
-  "phase": "R9 pre-review remediation (validation/R9-prereview-web.json F1-F4 CONFIRMED, P1-P4 PLAUSIBLE; R9 review B advisory pins) on pushed 62d8983: F1 class fixed at the root (every text consumer reads the parser's text; spans locate), F2-F4 fixed, P1 narrow N2, P2 lint, P3/P4 and review-B pins; 66/66 web tests, doctests, clippy --tests --examples, fmt clean; red proofs on scratch copies (4d80e50 + new tests; mutant of 8298898)",
+  "phase": "R10 pre-review remediation (validation/R10-prereview-web.json R10-F1 CONFIRMED, R10-P1 not accepted by the lead 2026-10-11T15:25:17Z) on pushed b0a1887: CSS Syntax 3 tokenizer for every URL consumer, every CSS URL reported or denied, three engine readings, gate tests red at 62d8983, differential css-urls + CC0 corpus + scratch cssparser run",
   "commits": [
     {
       "sha": "1c67557",
@@ -31,6 +31,26 @@
     {
       "sha": "62d8983",
       "subject": "web (SMB-WEB-PARITY, rem-web-r9): V4-07 claims about the gate's text and foreign inserts cite their tests"
+    },
+    {
+      "sha": "ca91987",
+      "subject": "web (SMB-WEB-PARITY, rem-web-r10, wip, lane status null): CSS Syntax 3 tokenizer for the asset gate; image-set/src/image/@import strings and computed URLs reported"
+    },
+    {
+      "sha": "c35deb1",
+      "subject": "web (SMB-WEB-PARITY, rem-web-r10, wip, lane status null): gate tests for CSS URLs in every carrier (R10-F1, CDO/CDC, R10-P1 strings, computed URLs, both non-ASCII readings, nesting limit)"
+    },
+    {
+      "sha": "5e0598b",
+      "subject": "web (SMB-WEB-DIFFTEST + SMB-WEB-PARITY, rem-web-r10, wip, lane status null): gate-level CSS differential (css-urls) with a separately written reference reading; CSS generator theme; DESCRIPTOR css_urls"
+    },
+    {
+      "sha": "fc0763e",
+      "subject": "web (SMB-WEB-DIFFTEST, rem-web-r10, wip, lane status null): css-urls never-granted check counts per value; CSS output bound test"
+    },
+    {
+      "sha": "b0a1887",
+      "subject": "web (SMB-WEB-PARITY + SMB-WEB-DIFFTEST, rem-web-r10, wip, lane status null): scan Gecko's bad-url reading too (url(x \\) ends at that ) in Firefox)"
     }
   ],
   "capabilities_done": [
@@ -52,20 +72,25 @@
     "R9 P2: preview.rs and responsive.rs carry #![deny(clippy::arithmetic_side_effects)] (saturating arithmetic)",
     "R9 P3: raw U+0000 in URL attributes pinned equal to &#0; (reference, decision, port calls) for relative, //, scheme and javascript spellings",
     "R9 P4: DESCRIPTOR select_content listed once (pinned), decoding/scanned wording updated, section numbers 13.2.4.2 (stack/scope/special) and 13.2.4.3 (active formatting markers)",
-    "R9 review B: <image srcset> / <IMAGE SRCSET> classified like img srcset (pinned; the f6e5a49 gap closed by 4d80e50 local_name); refusing inputs for the rb/rtc, option-with-select and optgroup-without-select arms plus the colgroup and head-noscript text arms; neighbour LF effect of insert/remove documented on set_text and DESCRIPTOR patch.values"
+    "R9 review B: <image srcset> / <IMAGE SRCSET> classified like img srcset (pinned; the f6e5a49 gap closed by 4d80e50 local_name); refusing inputs for the rb/rtc, option-with-select and optgroup-without-select arms plus the colgroup and head-noscript text arms; neighbour LF effect of insert/remove documented on set_text and DESCRIPTOR patch.values",
+    "R10-F1 (cssurl number arm): CSS Syntax 3 tokenizer (W3C CRD 2026-10-01, 3.3 and 4.3.1-4.3.15) replaces the hand-written subset; 1.url(/*) is number, delim, url token",
+    "same-class hole found and fixed: <!--url(/*) was read as the function --url( whose /* hid a later url (CDO is a token)",
+    "R10-P1: strings of url()/src()/image-set()/-webkit-image-set()/image()/cross-fade() and @import reported; computed URLs inside URL functions Denied(computed_url)",
+    "engine readings: spec non-ASCII ranges, engines >= U+0080, Gecko bad-url remnants after whitespace (url(x \\) ends there in Firefox), union reported",
+    "nesting > 1024 refuses limit_depth; output bounded by the node limit on every reading"
   ],
   "tests": {
-    "argv": "cargo nextest run -p hsk-studio-web --no-fail-fast --offline (studio-env.sh, shared tree, crate dir byte-identical to 62d8983); cargo test --doc -p hsk-studio-web; cargo clippy -p hsk-studio-web --tests --examples --offline; cargo fmt -p hsk-studio-web --check; cargo run -p hsk-studio-web --example web-consumer -- --descriptor (valid JSON, 10 refused_typed entries); soak at 8298898 (src identical to 62d8983 except docs): HSK_DIFFTEST_SCALE=10 cargo nextest run -p hsk-studio-web --test html5ever_differential generated",
+    "argv": "cargo nextest run -p hsk-studio-web --no-fail-fast --offline (studio-env.sh, shared tree at b0a1887); cargo test --doc -p hsk-studio-web; cargo clippy -p hsk-studio-web --tests --examples --offline; cargo fmt -p hsk-studio-web --check; cargo run -p hsk-studio-web --example web-consumer -- --descriptor; soak HSK_DIFFTEST_SCALE=10 ... --test html5ever_differential generated and HSK_DIFFTEST_SCALE=50 ... css",
     "exit": 0,
-    "sha": "62d8983",
-    "passed": 66,
+    "sha": "b0a1887",
+    "passed": 94,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 2,
   "bg_pids": [],
-  "next": "R9 validation of SMB-WEB-PARITY with the claim 1c67557 6d1c591 e849d4c 4d80e50 77ed037 8298898 62d8983 and SMB-WEB-DIFFTEST eefe44d..f4b47cd + 77ed037 8298898 (V4-14); lead acknowledgement of notes.remediation_R9pre.lead_acks",
-  "updated_at": "2026-10-11T15:01:43Z",
+  "next": "R10/R11 validation of SMB-WEB-PARITY + SMB-WEB-DIFFTEST with the claim 1c67557 6d1c591 e849d4c 4d80e50 77ed037 8298898 62d8983 ca91987 c35deb1 5e0598b fc0763e b0a1887 (difftest commits eefe44d..f4b47cd included, V4-14); lead acks in notes.remediation_R10pre.lead_acks",
+  "updated_at": "2026-10-11T16:24:39Z",
   "notes": {
     "lead_decision": "START_LOG 2026-10-11T12:47:22Z (web differential test SMB-WEB-DIFFTEST): D1-D8 fix per WHATWG; D9 (i) implied elements documented normalisation in model.rs and comparator, (ii) re-parenting refused typed",
     "spec_read": "html.spec.whatwg.org/multipage/parsing.html read 2026-10-11 (13.2.3.5 preprocessing; 13.2.5 data/RCDATA/RAWTEXT/script data/tag name/attribute name/attribute value/comment U+0000 entries; 13.2.4.3 special and scope lists; 13.2.6.4.7 in body (every start/end tag group), .9 in table, .10 in table text); html5ever 0.40.1 tree_builder/rules.rs, mod.rs, tag_sets.rs read in the local registry to find where the oracle differs (default scope lacks annotation-xml, special lacks keygen/search and is HTML-only, ignore_lf is consumed by a parse-error token, new customizable-select rules implemented, no 'in select' mode)",
@@ -412,6 +437,160 @@
         "html5ever '&#10x' and '</>' ignore-LF deviation: the comparator corrects '</>' after '>' only (O1); '&#10x' still not in corpora",
         "builders/lanes/hsk-studio-web.json (SMB-WEB) is stale (READY at 08ad0ad) - not edited (not this builder's file)"
       ]
+    },
+    "remediation_R10pre": {
+      "builder": "rem-web-r10",
+      "spec": "validation/R10-prereview-web.json (head 62d8983: R10-F1 CONFIRMED, R10-P1) + lead decision START_LOG 2026-10-11T15:25:17Z (spec-exact CSS Syntax 3 tokenizer for every URL consumer; every CSS URL a browser loads reported or denied); R9 normalised-text rule 14:14:23Z kept (the tokenizer reads WebDoc::sheet text and decoded attribute values)",
+      "spec_read": "CSS Syntax 3 W3C CRD 2026-10-01 (https://www.w3.org/TR/css-syntax-3/ downloaded 2026-10-11: 3.3, 4, 4.1, 4.2, 4.3.1-4.3.15, 5.4, 5.5.11); CSS Values 4 WD 2024-03-12 4.5, 4.5.2, 4.5.3; CSS Images 4 WD 2025-09-30 2.4 image-set, 2.5 image(), 2.6 cross-fade, Appendix A -webkit-image-set; CSS Values 5 arbitrary substitution functions (var, if, inherit, attr, random-item); engines read: Blink css_tokenizer.cc + css_parser_idioms.h, WebKit CSSTokenizer.cpp + CSSParserIdioms.h (main, 2026-10-11), Servo cssparser 0.38.0 tokenizer.rs",
+      "commits": [
+        "ca91987",
+        "c35deb1",
+        "5e0598b",
+        "fc0763e",
+        "b0a1887"
+      ],
+      "tokenizer_coverage": {
+        "3.3 preprocessing": "Tokenizer::at: CR LF, CR, FF -> LF, U+0000 -> U+FFFD on the fly, spans stay source bytes (test preprocessing_cr_ff_crlf_and_nul)",
+        "whitespace-token": "4.3.1 (next_token)",
+        "string-token / bad-string-token": "4.3.5 string(): ending quote, EOF (eof flag), newline reconsumed as bad string, escaped newline, valid escape (strings_escapes_newlines_and_eof)",
+        "hash-token (id/unrestricted)": "4.3.1 # case with 4.3.9 for the type flag (hash_at_keyword_cdo_cdc_and_delims)",
+        "delim-token": "4.3.1 + - . < @ \\ # anything else (numbers_..., hash_...)",
+        "number/percentage/dimension": "4.3.3 numeric() + 4.3.13 number(): '.' only before a digit, exponent only before a digit (after optional sign), unit via 4.3.9 + 4.3.12 (numbers_take_a_dot_or_exponent_only_before_a_digit; corpus cases 27-37)",
+        "ident/function/url-token/bad-url": "4.3.4 ident_like(): url( + whitespace/quote rule; 4.3.6 url(); 4.3.15 remnants() (url_function_or_url_token, url_tokens_whitespace_quotes_and_remnants)",
+        "comments": "4.3.2 comments(): only at token start (comments_only_where_a_token_starts)",
+        "CDO/CDC": "4.3.1 < and - cases (hash_at_keyword_cdo_cdc_and_delims; gate cdo_and_cdc_are_tokens_not_identifiers)",
+        "at-keyword": "4.3.1 @ case with 4.3.9",
+        "escapes": "4.3.7 escaped() and 4.3.8 valid_escape (escaped_code_points)",
+        "( ) [ ] { } : ; ,": "4.3.1 (corpus case 49 for block structure)",
+        "unicode-range": "4.3.11 + 4.3.14 behind the 4.3.1 flag (unicode_range_only_when_allowed); the URL scan runs with the flag off: 5.5.11 re-tokenizes only the unicode-range descriptor value, which takes no URL, and its tokens contain no quote, comment, ( or ), so declaration extents cannot change",
+        "4.2 non-ASCII ident code point": "both readings: specification ranges and engines >= U+0080 (non_ascii_ident_code_points_spec_and_engines)",
+        "corpus": "CC0 css-parsing-tests component_value_list.json: 50/50 cases equal (engines reading, unicode ranges on) (css_parsing_tests_component_value_list)"
+      },
+      "url_consumers": [
+        "style attribute on any element (InlineStyle)",
+        "SVG presentation attributes fill, stroke, clip-path, cursor, filter, mask, marker-start, marker-mid, marker-end on any element",
+        "style element sheet (HTML RAWTEXT body; foreign: text + CDATA under the foreign rules) via WebDoc::sheet",
+        "SVG set/animate to/from/by/values when attributeName is one of the CSS attributes (Kind::Css)",
+        "inside CSS: url tokens, bad-url tokens (denied), strings of url(), src(), image-set(), -webkit-image-set(), image(), cross-fade(), -webkit-cross-fade(), the string after @import, computed URLs inside those functions (var/attr/env/if/inherit/custom/unknown -> Denied(computed_url)); empty URLs skipped (CSS Values 4 4.5.2)"
+      ],
+      "differential": {
+        "licence_check": "cssparser 0.38.0 (crates.io API and repo Cargo.toml, 2026-10-11): MPL-2.0 for every release 0.33-0.38; tools/license_gate.py OK set (MIT, Apache-2.0, 0BSD, BSD-2/3, Zlib, Unlicense, Unicode, ISC, BSL-1.0, MIT-0, CC0-1.0) refuses it -> not added as a dev-dependency, no dep-request line",
+        "corpus": "css-parsing-tests (github.com/CourtBouillon/css-parsing-tests, upstream SimonSapin; LICENSE = CC0 public-domain dedication, in the gate's OK set): component_value_list.json (file commit d03e4f4, repo head 203ce36) + LICENSE vendored under crates/hsk-studio-web/tests/data/css-parsing-tests (sha256 a8d7a525... json, 5f9019a9... LICENSE); used by cssurl::tests. @rmenke/css-tokenizer-tests (MIT per package.json, no LICENSE file) checked, not used",
+        "difftest": "tests/html5ever_differential: css_reference.rs = a second CSS Syntax 3 reading written separately (preprocess-then-index, component-value tree, tree walk), all three readings; harness check css-urls per CSS carrier (crate collect_assets vs reference over html5ever's text; bad/computed never granted, per-value count); Theme::Css generator (hostile fragments in style attributes, HTML/SVG style bodies, SVG presentation attributes); corpus group css_urls (42); tests css_url_payloads_read_like_the_reference, generated_css_urls; the css-urls check also runs on every existing group",
+        "scratch_engine_differential": "not committed (MPL-2.0): Handshake_Artifacts/WP-KERNEL-STUDIO/smb-web-r10-cssparser (cssparser 0.38.0 from the local cargo registry, default features off; cssurl.rs copied from b0a1887, sha256 recorded by the run); token structure (component values) of the crate tokenizer (engines + Gecko reading) vs cssparser over 300010 generated + hand-written CSS inputs: 0 disagreements; URL lists (css_references vs the same policy on cssparser's tree) on 235330 inputs both non-ASCII readings agree on: 0 disagreements; 2047 inputs skipped for a documented cssparser deviation ('-' + backslash + newline starts an ident in cssparser 0.38: is_ident_start tests has_newline_at(1) at the backslash; Blink and the spec read a delim; extents identical, no URL effect). The first run (fc0763e) found 99 token disagreements, all one class -> Gecko bad-url reading added in b0a1887"
+      },
+      "tests_added": {
+        "unit (src/cssurl/tests.rs, 18)": "per algorithm with escape/decoy/case inputs: preprocessing_cr_ff_crlf_and_nul, comments_only_where_a_token_starts, numbers_take_a_dot_or_exponent_only_before_a_digit, url_function_or_url_token, strings_escapes_newlines_and_eof, url_tokens_whitespace_quotes_and_remnants, gecko_bad_url_after_whitespace, escaped_code_points, hash_at_keyword_cdo_cdc_and_delims, non_ascii_ident_code_points_spec_and_engines, unicode_range_only_when_allowed, css_parsing_tests_component_value_list (CC0 corpus 50/50); URL rules: r10_f1_payloads_report_the_later_url, image_set_src_image_and_import_strings_are_urls, computed_urls_inside_url_functions_are_reported, bad_urls_are_reported_and_spans_locate_values, nesting_beyond_the_limit_is_refused, output_is_bounded_by_the_limit",
+        "gate (tests/css_url_gate.rs, 8)": "every payload in a style attribute, an HTML style body, an SVG style body and SVG fill/mask presentation attributes: r10_f1_number_and_dot_cannot_hide_a_later_url, cdo_and_cdc_are_tokens_not_identifiers, url_strings_of_image_set_src_image_and_import_are_scanned, computed_urls_inside_url_functions_are_denied, url_tokens_escapes_comments_and_bad_urls_follow_the_tokenizer, both_non_ascii_ident_readings_are_scanned, gecko_bad_url_reading_is_scanned, css_nesting_beyond_the_limit_is_refused_typed",
+        "difftest (2 + css-urls check on all groups)": "css_url_payloads_read_like_the_reference (42 inputs), generated_css_urls (3000 x scale)"
+      },
+      "red_proof": {
+        "tree": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-web-r10-red/src/handshake-studio-assets = git archive 62d8983 (accord, observe, web, Cargo.lock, rust-toolchain.toml, .config) + 3-member workspace manifest + tests/css_url_gate.rs and tests/html5ever_differential/{css_reference,harness,generator,corpus,main}.rs from b0a1887 (git show, every file touched); STUDIO_OWNER=smb-web-r10-red; RED_IDENTITY.json",
+        "argv": "cargo nextest run -p hsk-studio-web --test css_url_gate --test html5ever_differential --no-fail-fast --offline --no-capture",
+        "result": "exit 100, 32 tests: 11 FAIL / 21 PASS (log smb-web-r10-red/red-62d8983-b0a1887.log; first run with c35deb1 gate tests: red-62d8983-gate.log 7/7 FAIL)",
+        "per_test": {
+          "r10_f1_number_and_dot_cannot_hide_a_later_url": "RED: style attribute a:1.url(/*);background:url(https://evil.example/p.png) reports [] (the R10-F1 payload)",
+          "cdo_and_cdc_are_tokens_not_identifiers": "RED: a:<!--url(/*)-->;background:url(evil) reports [] (old crate read <!--url( as the function --url( and its /* hid the rest)",
+          "url_strings_of_image_set_src_image_and_import_are_scanned": "RED: image-set(\"https://evil...\" 1x) after 1.url(/*) reports []",
+          "computed_urls_inside_url_functions_are_denied": "RED: image-set(var(--u) 1x) not reported",
+          "url_tokens_escapes_comments_and_bad_urls_follow_the_tokenizer": "RED on the hostile-prefix variants (1.url(/*), <!--url(/*), x U+00A0 url(/*)); the bare variants were already right",
+          "both_non_ascii_ident_readings_are_scanned": "RED: x U+00A0 url(/*) hides the later url (old crate = engines reading only)",
+          "gecko_bad_url_reading_is_scanned": "RED: url(x \\);background:url(evil) reports only the bad url",
+          "css_nesting_beyond_the_limit_is_refused_typed": "RED: 1100 nested ( scan ok instead of limit_depth",
+          "css_url_payloads_read_like_the_reference": "RED: 23 of 42 inputs disagree (signature ATTRIBUTE/css-urls)",
+          "generated_css_urls": "RED: 875 of 3000 generated documents disagree (css-urls); shortest: <style>1.url(p</style>, <style>src('x</style>, <style>src(a(</style>",
+          "generated_mixed": "RED: 1 input, <svg fill=&notin;url(/></svg> (U+2209 is no ident code point in the specification reading, so url(/ is a url token there)"
+        },
+        "unit_tests": "cssurl::tests exercise the new tokenizer API (did not exist at 62d8983); their red/green evidence is the corpus and the per-algorithm expectations, written from the specification text and traced by hand",
+        "green": "b0a1887c655747fa6823ba42b6a02b6402a134d6 shared tree: 94/94 web tests (lib 20 = cssurl 18 + charref 2, css_url_gate 8, html_parity 18, source_dom_patch 24, html5ever_differential 24), doctests 0/0 ok, clippy --tests --examples no web warning, fmt clean, web-consumer --descriptor valid JSON"
+      },
+      "soak": {
+        "scale_10_all_generated": "HSK_DIFFTEST_SCALE=10 ... generated at b0a1887c655747fa6823ba42b6a02b6402a134d6: 8 tests run: 8 passed, 16 skipped; 153385 comparable documents, 0 disagreements (generated_char_refs 21460, generated_css 30000, generated_dup_attrs 12587, generated_fuzz 16364, generated_mixed 24868, generated_namespaces 19643, generated_noise 8249, generated_raw_text 20214)",
+        "scale_50_css": "HSK_DIFFTEST_SCALE=50 ... css at b0a1887c655747fa6823ba42b6a02b6402a134d6: 2 tests run: 2 passed (1 slow), 22 skipped; css_urls 42 compared / 0 disagreeing, generated_css 150000 compared / 0 disagreeing",
+        "earlier": "scale 10 at 5e0598b found one comparator false positive (gen:Css:96271, value collision in the never-granted check), fixed in fc0763e (route a: commit, then rerun); scale 50 css at fc0763e: 150000 + 40, 0 disagreements",
+        "logs": "scratchpad SMB-WEB-R10/soak-10-b0a1887.log, soak-50-css-b0a1887.log"
+      },
+      "v4_06": {
+        "class": "CSS tokenization sites: every function that scans CSS text and every call into a CSS scanner (lead decision 15:25:17Z: the tokenizer every URL consumer uses must be CSS Syntax 3 exact)",
+        "regex": "fn (next_token|comments|numeric|number|ident_like|string|url|bad_url|remnants|escaped|ident_sequence|unicode_range|scan|css_references|skip_string|prelude_end|block_end|parse_stylesheet|parse_declarations|parse_selectors|scan_media_blocks|scan_mapped|parse_media_query|document_media_blocks|ident|css)\\b|(css_references|parse_stylesheet|parse_declarations|parse_selectors|scan_mapped|scan_media_blocks|parse_media_query|document_media_blocks)\\(|b?\"\\*/\"",
+        "scope": "git grep -nE \"<regex>\" b0a1887 -- crates/hsk-studio-web/src ':!crates/hsk-studio-web/src/entity_table.rs' ':!crates/hsk-studio-web/src/cssurl/tests.rs' | grep -vE '^[^:]+:[^:]+:[0-9]+:\\s*//'",
+        "site_count": 40,
+        "fixed": 17,
+        "not_applicable": 23,
+        "at_62d8983": "31 sites with the same regex (cssurl had escaped/ident/string/remnants/css_references and the */ search; the number arm that hid R10-F1 was inline in css_references)",
+        "sites": [
+          "assets.rs:443:    fn css( = FIXED: the gate consumes css_references (url, bad, computed kinds); nesting beyond 1024 refuses LimitExceeded(Depth)",
+          "assets.rs:451:        let found = css_references(css, room).map_err(|span| WebError::LimitExceeded { = FIXED: the gate consumes css_references (url, bad, computed kinds); nesting beyond 1024 refuses LimitExceeded(Depth)",
+          "css.rs:33:fn skip_string(b: &[u8], i: usize) -> Option<usize> { = NOT_APPLICABLE: preview/media scanner (display, breakpoints) over WebDoc::sheet text; decides no URL and loads nothing",
+          "css.rs:95:fn prelude_end(b: &[u8], from: usize, at: Locate<'_>) -> Result<(usize, u8), WebError> { = NOT_APPLICABLE: preview/media scanner (display, breakpoints) over WebDoc::sheet text; decides no URL and loads nothing",
+          "css.rs:100:            b'/' if b.get(add(j, 1)) == Some(&b'*') => match find(&b[add(j, 2)..], b\"*/\") { = NOT_APPLICABLE: preview/media scanner (display, breakpoints) over WebDoc::sheet text; decides no URL and loads nothing",
+          "css.rs:121:fn block_end(b: &[u8], open: usize, at: Locate<'_>) -> Result<(usize, bool), WebError> { = NOT_APPLICABLE: preview/media scanner (display, breakpoints) over WebDoc::sheet text; decides no URL and loads nothing",
+          "css.rs:126:            b'/' if b.get(add(j, 1)) == Some(&b'*') => match find(&b[add(j, 2)..], b\"*/\") { = NOT_APPLICABLE: preview/media scanner (display, breakpoints) over WebDoc::sheet text; decides no URL and loads nothing",
+          "css.rs:159:pub(crate) fn parse_stylesheet( = NOT_APPLICABLE: preview/media scanner (display, breakpoints) over WebDoc::sheet text; decides no URL and loads nothing",
+          "css.rs:175:                let off = find(&b[add(i, 2)..], b\"*/\").ok_or_else(|| css_error(at(&(i..len))))?; = NOT_APPLICABLE: preview/media scanner (display, breakpoints) over WebDoc::sheet text; decides no URL and loads nothing",
+          "css.rs:216:                    let breakpoints = parse_media_query(&css[q.clone()]).map_err(|e| { = NOT_APPLICABLE: preview/media scanner (display, breakpoints) over WebDoc::sheet text; decides no URL and loads nothing",
+          "css.rs:307:fn ident(s: &str, from: usize) -> Option<usize> { = NOT_APPLICABLE: preview/media scanner (display, breakpoints) over WebDoc::sheet text; decides no URL and loads nothing",
+          "css.rs:322:pub(crate) fn parse_selectors(text: &str) -> Option<Vec<Compound>> { = NOT_APPLICABLE: preview/media scanner (display, breakpoints) over WebDoc::sheet text; decides no URL and loads nothing",
+          "css.rs:365:pub(crate) fn parse_declarations(text: &str) -> Vec<Declaration> { = NOT_APPLICABLE: preview/media scanner (display, breakpoints) over WebDoc::sheet text; decides no URL and loads nothing",
+          "cssurl.rs:260:    pub(crate) fn next_token(&mut self) -> Option<Token> { = FIXED: CSS Syntax 3 algorithm (section cited at the function), the only tokenizer the asset gate uses; three readings scanned",
+          "cssurl.rs:343:    fn comments(&mut self) { = FIXED: CSS Syntax 3 algorithm (section cited at the function), the only tokenizer the asset gate uses; three readings scanned",
+          "cssurl.rs:346:            self.pos = match self.s.get(body..).and_then(|r| r.find(\"*/\")) { = FIXED: CSS Syntax 3 algorithm (section cited at the function), the only tokenizer the asset gate uses; three readings scanned",
+          "cssurl.rs:354:    fn numeric(&mut self) -> Kind { = FIXED: CSS Syntax 3 algorithm (section cited at the function), the only tokenizer the asset gate uses; three readings scanned",
+          "cssurl.rs:374:    fn number(&mut self) -> (Range<usize>, bool) { = FIXED: CSS Syntax 3 algorithm (section cited at the function), the only tokenizer the asset gate uses; three readings scanned",
+          "cssurl.rs:409:    fn ident_like(&mut self) -> Kind { = FIXED: CSS Syntax 3 algorithm (section cited at the function), the only tokenizer the asset gate uses; three readings scanned",
+          "cssurl.rs:432:    fn string(&mut self, ending: char) -> Kind { = FIXED: CSS Syntax 3 algorithm (section cited at the function), the only tokenizer the asset gate uses; three readings scanned",
+          "cssurl.rs:473:    fn url(&mut self) -> Kind { = FIXED: CSS Syntax 3 algorithm (section cited at the function), the only tokenizer the asset gate uses; three readings scanned",
+          "cssurl.rs:537:    fn bad_url(&mut self, partial: String, inner: Range<usize>) -> Kind { = FIXED: CSS Syntax 3 algorithm (section cited at the function), the only tokenizer the asset gate uses; three readings scanned",
+          "cssurl.rs:543:    fn remnants(&mut self) { = FIXED: CSS Syntax 3 algorithm (section cited at the function), the only tokenizer the asset gate uses; three readings scanned",
+          "cssurl.rs:557:    fn escaped(&mut self) -> char { = FIXED: CSS Syntax 3 algorithm (section cited at the function), the only tokenizer the asset gate uses; three readings scanned",
+          "cssurl.rs:584:    fn ident_sequence(&mut self) -> String { = FIXED: CSS Syntax 3 algorithm (section cited at the function), the only tokenizer the asset gate uses; three readings scanned",
+          "cssurl.rs:602:    fn unicode_range(&mut self) -> Kind { = FIXED: CSS Syntax 3 algorithm (section cited at the function), the only tokenizer the asset gate uses; three readings scanned",
+          "cssurl.rs:766:fn scan(mut tokens: Tokenizer<'_>, css: &str, limit: usize) -> Result<Vec<CssRef>, Range<usize>> = FIXED: CSS Syntax 3 algorithm (section cited at the function), the only tokenizer the asset gate uses; three readings scanned",
+          "cssurl.rs:887:pub(crate) fn css_references(css: &str, limit: usize) -> Result<Vec<CssRef>, Range<usize>> { = FIXED: CSS Syntax 3 algorithm (section cited at the function), the only tokenizer the asset gate uses; three readings scanned",
+          "preview.rs:342:            parse_stylesheet(&style.text, &|r| style.span(r), &mut sheet, &limits, cancel)?; = NOT_APPLICABLE: preview/media scanner (display, breakpoints) over WebDoc::sheet text; decides no URL and loads nothing",
+          "preview.rs:390:        let Some(selectors) = parse_selectors(&selector) else { = NOT_APPLICABLE: preview/media scanner (display, breakpoints) over WebDoc::sheet text; decides no URL and loads nothing",
+          "preview.rs:408:                declarations: parse_declarations(&rule.declarations), = NOT_APPLICABLE: preview/media scanner (display, breakpoints) over WebDoc::sheet text; decides no URL and loads nothing",
+          "preview.rs:466:            && let Some(d) = last_display(&parse_declarations(&style)) = NOT_APPLICABLE: preview/media scanner (display, breakpoints) over WebDoc::sheet text; decides no URL and loads nothing",
+          "responsive.rs:173:pub fn parse_media_query(query: &str) -> Result<Vec<Breakpoint>, WebError> { = NOT_APPLICABLE: preview/media scanner (display, breakpoints) over WebDoc::sheet text; decides no URL and loads nothing",
+          "responsive.rs:234:pub fn scan_media_blocks( = NOT_APPLICABLE: preview/media scanner (display, breakpoints) over WebDoc::sheet text; decides no URL and loads nothing",
+          "responsive.rs:240:    scan_mapped(css, &|r| at(base, r.start)..at(base, r.end), limits, cancel) = NOT_APPLICABLE: preview/media scanner (display, breakpoints) over WebDoc::sheet text; decides no URL and loads nothing",
+          "responsive.rs:244:fn scan_mapped( = NOT_APPLICABLE: preview/media scanner (display, breakpoints) over WebDoc::sheet text; decides no URL and loads nothing",
+          "responsive.rs:264:                let Some(off) = b[at(i, 2)..].windows(2).position(|w| w == b\"*/\") else { = NOT_APPLICABLE: preview/media scanner (display, breakpoints) over WebDoc::sheet text; decides no URL and loads nothing",
+          "responsive.rs:328:                let breakpoints = parse_media_query(&css[qs..qe]) = NOT_APPLICABLE: preview/media scanner (display, breakpoints) over WebDoc::sheet text; decides no URL and loads nothing",
+          "responsive.rs:353:pub fn document_media_blocks( = NOT_APPLICABLE: preview/media scanner (display, breakpoints) over WebDoc::sheet text; decides no URL and loads nothing",
+          "responsive.rs:366:        out.extend(scan_mapped( = NOT_APPLICABLE: preview/media scanner (display, breakpoints) over WebDoc::sheet text; decides no URL and loads nothing"
+        ]
+      },
+      "v4": {
+        "V4-01": "cssurl.rs keeps #![deny(clippy::arithmetic_side_effects)] (saturating/checked only); the test module allows it with a reason (fixed test inputs)",
+        "V4-02": "no token vector is materialised; open blocks capped at MAX_NESTING=1024 with a typed refusal (nesting_beyond_the_limit_is_refused, css_nesting_beyond_the_limit_is_refused_typed); output <= limit (= room under max_nodes + 1, refused typed by the gate) on every reading (output_is_bounded_by_the_limit); union keys <= 3 x limit; extra readings run only when the text holds a code point they read differently",
+        "V4-07": "DESCRIPTOR assets.decoding/css_urls/not_scanned/proof and cssurl module docs cite the proving tests; 'never' claims cite tests",
+        "V4-08": "each unit and gate group has escape, comment/decoy and case/whitespace inputs; nothing is substring-matched",
+        "V4-09": "commits via git commit -F with pathspec crates/hsk-studio-web; edits via Write/Edit and scripts under scratchpad/SMB-WEB-R10 (the bash tool collapses doubled backslashes in heredocs: corpus.rs was repaired with Edit before any commit)",
+        "V4-11": "red proof on a scratch copy outside the shared tree with its own STUDIO_OWNER (smb-web-r10-red), files touched after extraction; scratch engine differential under its own owner (smb-web-r10-cssparser)",
+        "V4-12": "helper scripts and logs only under scratchpad/SMB-WEB-R10 and Handshake_Artifacts/WP-KERNEL-STUDIO/smb-web-r10-*"
+      },
+      "behaviour_changes": [
+        "image-set()/-webkit-image-set()/image()/src()/cross-fade() strings and @import strings are reported (were not scanned; R10-P1)",
+        "new DenyReason::ComputedUrl (code computed_url, public enum variant): var()/attr()/env()/if()/custom/unknown functions inside a URL function",
+        "collect_assets refuses limit_depth when CSS blocks nest deeper than 1024",
+        "empty URLs (url(), url(\"\"), image-set(\"\")) are no longer reported (CSS Values 4 4.5.2 invalid resource); a bad url with an empty partial value is now reported denied",
+        "CSS text is scanned under three readings and the union reported (spec non-ASCII ranges, engines >= U+0080, Gecko bad-url remnants after whitespace): a document can report a reference only one engine reads",
+        "CDO <!-- is a token (was the start of an identifier --...)"
+      ],
+      "residuals": [
+        "strings in custom property values / custom-function arguments outside URL functions become URLs only through a URL function reading var()/a custom function: denied where that function is in this document; in an external stylesheet it is outside this crate's scan (DESCRIPTOR not_scanned)",
+        "css.rs and responsive.rs (preview display, media breakpoints) remain subset byte scanners over the same sheet text; they decide no URL (V4-06 NOT_APPLICABLE), a divergence there changes preview display only",
+        "conservative over-reporting kept: cross-fade() strings, strings in ( ) blocks inside URL functions, @import strings anywhere, unknown functions inside URL functions denied as computed, url-token/string in any context",
+        "the Gecko reading is verified against cssparser 0.38 source and the scratch differential, not in a running Firefox (UNVERIFIED there)",
+        "no CSS reference tokenizer under a licence the gate accepts exists as a dev-dependency; the committed differential's reference is a second implementation by the same remediation agent (mitigated by the CC0 corpus and the scratch cssparser run)"
+      ],
+      "lead_acks": [
+        "behaviour changes listed above (notably DenyReason::ComputedUrl, empty URLs skipped, union of three readings, limit_depth refusal)",
+        "vendored CC0 test data crates/hsk-studio-web/tests/data/css-parsing-tests (LICENSE kept; no dependency)",
+        "scratch-only use of MPL-2.0 cssparser for evidence (local registry, never in the workspace)"
+      ],
+      "gameplan_route": "no retry-guard block; the failed scale-10 soak (comparator false positive) was rerun only after commit fc0763e changed HEAD (route a); no gameplan step added"
     }
   }
 }

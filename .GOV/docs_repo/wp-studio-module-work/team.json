@@ -1904,7 +1904,7 @@
     "builders/lanes/hsk-studio-web-difftest.json"
    ],
    "launched": "2026-10-11T15:25:27Z",
-   "status": "running"
+   "status": "done 2026-10-11T16:25:40Z (b0a1887; privacy slip: email in one crates.io User-Agent, reported)"
   },
   {
    "name": "rem-reel-eng-1-r10",
@@ -1951,6 +1951,17 @@
    ],
    "launched": "2026-10-11T16:04:19Z",
    "status": "done 2026-10-11T16:13:13Z (SAFE_TO_JUDGE)"
+  },
+  {
+   "name": "prereview-r11-web",
+   "agent_id": "a76015682b3f3a984",
+   "model": "opus",
+   "role": "V4-13 pre-review SMB-WEB at b0a1887",
+   "owns": [
+    "validation/R11-prereview-web.json"
+   ],
+   "launched": "2026-10-11T16:26:06Z",
+   "status": "running"
   }
  ]
 }

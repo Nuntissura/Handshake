@@ -276,6 +276,9 @@ Workflow v3 amendments (2026-10-11T02:12:42Z, source workflow/workflow-review-ti
 
 - Lead decision 2026-10-11T15:43:55Z (PSD budget R10 remediation): past the uncounted cap, a visible stack keeps its live instances and drops its switched-off instances with Transformed loss effects_unrendered_dropped_over_document_budget (rendered output unchanged, memory bound kept); hidden/master-off/all-off stacks follow only the uncounted cap.
 
+- Lead acknowledgement 2026-10-11T16:25:40Z (web R10 remediation b0a1887): accepted — Denied(ComputedUrl) for var()/attr()/env()/if()/unknown functions inside URL functions; empty URLs not reported (CSS Values 4 §4.5.2); union of three CSS readings (spec, engines, Gecko bad-url); limit_depth typed refusal at 1024 nesting; vendored CC0 css-parsing-tests data with its LICENSE; residual: custom-property strings that become URLs via an external stylesheet are listed not_scanned.
+- PRIVACY INCIDENT 2026-10-11T16:25:40Z (reported to the Operator): the rem-web-r10 agent made one crates.io API request whose User-Agent header carried the Operator's email address (not repeated). Rule added to DISPATCH_TEMPLATES v4-rules as V4-21: never put the Operator's email or any personal data in any request, header, URL or payload; use a generic User-Agent naming the project only.
+
 Open Operator decisions (not adopted; recorded for the Operator):
 - D1: explicit confirmation that builder focused tests override CX-EXEC-014 for this WP (lead adopted on the basis of Operator instructions; Operator may reverse).
 - D2: waive CX-984-002 one-build-per-disk for D: (would let validator rounds and builders build in parallel on separate targets).
