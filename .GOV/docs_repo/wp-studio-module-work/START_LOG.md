@@ -228,6 +228,8 @@ Workflow v3 amendments (2026-10-11T02:12:42Z, source workflow/workflow-review-ti
 
 - Lead finding 2026-10-11T06:43:42Z (stale artifacts, 5 incidents): steward canaries built exports of older commits (current mtimes) into the builders' shared target `studio-team-dev/target`; the develop builder found an rlib from pre-change sources with a newer mtime there. Rule from now: export trees (steward canary, sync exports, probes, red-proof copies) never share a target dir with the edit tree; validators keep `studio-round/target`. Mechanism (path-relative metadata hashing) under verification in diagnostics/stale-artifacts.md.
 
+- Lead decision 2026-10-11T07:19:59Z (STU-CON-044, D13 remainder): spec sentence 'Use the admitted Prism transform in bounded chunks of at most 64 pixels ... with actual profile/engine/options receipts and accounted lifetime' is read as: admitted transforms and job bands execute in <=64-pixel chunks with per-chunk cancellation, receipts record chunk counts, lifetime accounted by the admitted lease charged at prepare (prism d7027c3; output bit-identical; 24 MP 100->102 ms). The literal per-64-pixel admitted CALL reading would cost ~1.9 s per 24 MP at one thread; not adopted. PROVISIONAL: Operator may require the literal reading or enrich the spec (CX-105). SMB-DEVELOP-WIDE can be re-judged on this basis.
+
 Open Operator decisions (not adopted; recorded for the Operator):
 - D1: explicit confirmation that builder focused tests override CX-EXEC-014 for this WP (lead adopted on the basis of Operator instructions; Operator may reverse).
 - D2: waive CX-984-002 one-build-per-disk for D: (would let validator rounds and builders build in parallel on separate targets).

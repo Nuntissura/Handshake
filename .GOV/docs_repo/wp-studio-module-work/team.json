@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T07:18:57Z",
+ "updated_at": "2026-10-11T07:19:59Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1088,7 +1088,7 @@
     "builders/lanes/hsk-studio-prism-eng6.json"
    ],
    "launched": "2026-10-11T06:37:43Z",
-   "status": "running"
+   "status": "done 2026-10-11T07:19:59Z (SMB-PRISM-ENG-6 READY at d7027c3)"
   },
   {
    "name": "builder-chronicle-table",

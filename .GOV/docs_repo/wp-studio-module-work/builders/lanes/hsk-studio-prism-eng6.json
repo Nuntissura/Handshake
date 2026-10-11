@@ -2,7 +2,7 @@
  "crate": "hsk-studio-prism",
  "lane": "SMB-PRISM-ENG-6",
  "status": "READY_FOR_VALIDATION",
- "phase": "all 11 ENG-5 findings closed; matrix-pair fusion; R5-A corpus remediation (no machine-local paths, NOT_PROVEN); admission-ledger route AdmittedWideEngine (D13 b); workflow v4 rules applied; only DIV-* lead decisions remain",
+ "phase": "R6 remediation (review A): hostile mAB channel count refused typed (red-proofed), WIDE_DESCRIPTOR not_in_scope scoped, STU-CON-044 64-pixel chunks with chunk account in every wide conversion; ENG-6 findings and ENG-7 jobs unchanged",
  "commits": [
   {
    "sha": "3926709",
@@ -31,6 +31,10 @@
   {
    "sha": "987af00",
    "subject": "Prism V4 rules: deny(arithmetic_side_effects) on every touched module, hostile-size tests, NOT_PROVEN markers on uncaptured stderr, absolute doc claims cite tests"
+  },
+  {
+   "sha": "d7027c3",
+   "subject": "Prism R6 remediation (SMB-PRISM-ENG-6): hostile mAB channel count refused typed, descriptor not_in_scope scoped, wide conversions run in 64-pixel chunks with a chunk account (STU-CON-044)"
   }
  ],
  "capabilities_done": [
@@ -42,23 +46,57 @@
   "Receipts: WIDE_ENGINE_NAME hsk-studio-prism-icc / WIDE_ENGINE_VERSION 1 (additive consts); engine_build fma_contraction=false, interpolation tetrahedral_lab_output_trilinear, barycentric_weights exact_f64; pinned determinism digests re-pinned once (numeric path changed on purpose)",
   "R5-A item 3: tests/oracle/corpus.json (checked-in config, root ../../../../Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/icc relative to the crate) + tests/oracle/populate_corpus.py (stdlib, reads the fixture's system default_locations, copies SHA-256-verified files, writes MANIFEST.json); oracle_t1 and wide_profiles read installed profiles only via wide_support::corpus_read; a missing/mismatched profile prints `NOT_PROVEN: <test> <case> reason=...` on uncaptured stderr and fails under HSK_PRISM_REQUIRE_CORPUS=1 or require_corpus=true; corpus populated on this host (9/9 profiles)",
   "D13 option b: AdmittedWideEngine<A: ProviderAdmission> (additive): provider lease (actor, cache vectors), plan lease kept with each cached plan, transient parse/build lease (bounds from the ICC tag table: parse 2x, plan 8x stored bytes, BPC 4 stages + ramp), per-request digest/frame lease, output lease carried by AdmittedWideTransform; denial before any parse; try_clear_cache/try_retire/set_matrix_fusion check retirement; AdmittedWideError Admission|Refused|Wide; pixels bit-identical to WideEngine; WIDE_DESCRIPTOR admitted_route",
-  "Workflow v4: #![deny(clippy::arithmetic_side_effects)] on icc_eval, wide, wide_admitted, wide_plan, bpc, admitted (123 lint sites -> 0: checked/saturating, CLUT index wrapping only after Clut::new checked bounds); tests/wide_hostile.rs (u32-max tag offset/size/count, curv u32::MAX entries, mft2 255^4 CLUT, mAB 255^3 CLUT, >2 MiB profile, aggregate over ledger budget and pixel bound before any parse); NOT_PROVEN lines on uncaptured stderr (wide_determinism unpinned target, wide_admitted/wide_hostile non-msvc target); absolute claims in my docs/descriptor cite tests or were weakened"
+  "Workflow v4: #![deny(clippy::arithmetic_side_effects)] on icc_eval, wide, wide_admitted, wide_plan, bpc, admitted (123 lint sites -> 0: checked/saturating, CLUT index wrapping only after Clut::new checked bounds); tests/wide_hostile.rs (u32-max tag offset/size/count, curv u32::MAX entries, mft2 255^4 CLUT, mAB 255^3 CLUT, >2 MiB profile, aggregate over ledger budget and pixel bound before any parse); NOT_PROVEN lines on uncaptured stderr (wide_determinism unpinned target, wide_admitted/wide_hostile non-msvc target); absolute claims in my docs/descriptor cite tests or were weakened",
+  "R6 remediation d7027c3: Table::build refuses mAB/mBA input-channel counts above min(grid array, ICC 16) before slicing (red-proofed on the previous source: slice panic), WIDE_DESCRIPTOR not_in_scope scoped + tests cited, wide conversions (transform, admitted transform, job bands) run in ADMITTED_CHUNK_PIXELS = 64 chunks with WideChunkAccount in WideReceipt::chunks / WideBandReport::chunks (STU-CON-044 internal reading; 24 MP linear P3->sRGB 16 threads 100 -> 102 ms; literal one-call-per-64-px priced); details in notes.remediation_R6"
  ],
  "tests": {
-  "argv": "cd wt-studio-assets/handshake-studio-assets && STUDIO_OWNER=prism-eng6 source builders/studio-env.sh && cargo test -p hsk-studio-prism --tests --no-fail-fast",
+  "argv": "cd wt-studio-assets/handshake-studio-assets && STUDIO_OWNER=prism-eng6 HSK_PRISM_REQUIRE_CORPUS=1 source builders/studio-env.sh && cargo test -p hsk-studio-prism --tests --no-fail-fast (2 ignored benches: release timing)",
   "exit": 0,
-  "sha": "987af00",
-  "passed": 120,
+  "sha": "d7027c3",
+  "passed": 128,
   "failed": 0
  },
  "blockers": [],
  "lock_wait_s": 0,
  "bg_pids": [],
- "next": "Lead/Operator: decide DIV-ABS-V2-DISPLAY-WTPT-001, DIV-V4-PERCEPTUAL-BLACK-001, DIV-CMYK-PERCEPTUAL-BPC-BLACK-001 (T3 Photoshop reading); acknowledge ICC 8.10.2 fallback (ENG-3 assertion changed) and lcms2 trilinear convention. develop owner: switch PrismConverter to AdmittedWideEngine (STU-CON-044 spec text still says 64-pixel admitted chunks: enrichment). interop-psd: may drop the gray no-BPC workaround. Round entrypoint: set HSK_PRISM_REQUIRE_CORPUS=1 where the corpus is provisioned.",
- "updated_at": "2026-10-11T05:45:35Z",
+ "next": "Validator: re-judge R6 items (hostile mAB, descriptor, STU-CON-044 reading in notes.remediation_R6.item3_stu_con_044: internal 64-pixel chunks vs literal one-call-per-64-pixels). Lead/Operator: decide whether the internal chunking satisfies the sentence. develop owner: update convert.rs docs (64-pixel text is stale for Prism). Open PLAUSIBLE R6 items not in this pass: lease sizes unmeasured, Gamma(g<=0) destination refusal, unguarded DIV-ABS-V2-DISPLAY-WTPT-001 combos.",
+ "updated_at": "2026-10-11T07:19:05Z",
  "notes": {
   "verdicts": [
-   {"round": "STUDIO-R6", "lane": "SMB-PRISM-ENG-6", "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a", "tree": "834aa5599ffabf691558a25f777ce42f73d78103", "decision": "failed", "verdict": "FAIL_V1", "failures": [{"failure_kind": "product", "failure_class": "mab-input-count-slice-panic", "file_line": "crates/hsk-studio-prism/src/icc_eval.rs:655-660 (to_pcs :876-882; moxcms 0.9.1 reader.rs:369, profile.rs:584)"}, {"failure_kind": "product", "failure_class": "descriptor-admission-scope-contradiction", "file_line": "crates/hsk-studio-prism/src/wide.rs:1039 (WIDE_DESCRIPTOR admitted_route vs not_in_scope)"}], "remediation": "Refuse mAB inputs > 8 (or > grid_points.len()) before slicing + 17-input hostile test; fix WIDE_DESCRIPTOR scope", "status_after": "FAIL_V1", "review": "validation/R6-review-a.json", "round_ref": "validation/round-R6.json", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6", "idempotency_key": "STUDIO-R6:SMB-PRISM-ENG-6:bd8533f9b29c:FAIL_V1", "recorded_at": "2026-10-11T06:47:09Z", "by": "wp_validator STUDIO-R6", "not_proven": [{"capability": "ENG-5 finding closures that rest on installed-profile T1 pairs (e.g. HLG, installed CMYK legs)", "reason": "installed_profile_absent: corpus root unresolved from round exports (SMB-PRISM-ENG-5 FAIL_V2; 65a08c9 after freeze)"}]}
+   {
+    "round": "STUDIO-R6",
+    "lane": "SMB-PRISM-ENG-6",
+    "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a",
+    "tree": "834aa5599ffabf691558a25f777ce42f73d78103",
+    "decision": "failed",
+    "verdict": "FAIL_V1",
+    "failures": [
+     {
+      "failure_kind": "product",
+      "failure_class": "mab-input-count-slice-panic",
+      "file_line": "crates/hsk-studio-prism/src/icc_eval.rs:655-660 (to_pcs :876-882; moxcms 0.9.1 reader.rs:369, profile.rs:584)"
+     },
+     {
+      "failure_kind": "product",
+      "failure_class": "descriptor-admission-scope-contradiction",
+      "file_line": "crates/hsk-studio-prism/src/wide.rs:1039 (WIDE_DESCRIPTOR admitted_route vs not_in_scope)"
+     }
+    ],
+    "remediation": "Refuse mAB inputs > 8 (or > grid_points.len()) before slicing + 17-input hostile test; fix WIDE_DESCRIPTOR scope",
+    "status_after": "FAIL_V1",
+    "review": "validation/R6-review-a.json",
+    "round_ref": "validation/round-R6.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6",
+    "idempotency_key": "STUDIO-R6:SMB-PRISM-ENG-6:bd8533f9b29c:FAIL_V1",
+    "recorded_at": "2026-10-11T06:47:09Z",
+    "by": "wp_validator STUDIO-R6",
+    "not_proven": [
+     {
+      "capability": "ENG-5 finding closures that rest on installed-profile T1 pairs (e.g. HLG, installed CMYK legs)",
+      "reason": "installed_profile_absent: corpus root unresolved from round exports (SMB-PRISM-ENG-5 FAIL_V2; 65a08c9 after freeze)"
+     }
+    ]
+   }
   ],
   "findings_fixed": {
    "PRISM-CURV-GAMMA-ZERO-001": "moxcms curv count=1 dirty_powf(0) garbage -> Prism pow(0)=0",
@@ -139,6 +177,525 @@
     "count_after": 0
    }
   },
-  "v4_rules_applied": "V4-01 deny + explicit math; V4-02 tests/wide_hostile.rs (dims_u32_max_and_oversized_tables_are_refused_typed, aggregate_over_budget_is_denied_before_any_parse); V4-03 NOT_PROVEN + corpus root; V4-04 no fault hooks added; V4-07 claims cite tests or weakened (icc_eval, bpc, wide_plan, wide_admitted docs, WIDE_DESCRIPTOR stages); V4-09 commit 987af00 via git commit -F"
+  "v4_rules_applied": "V4-01 deny + explicit math; V4-02 tests/wide_hostile.rs (dims_u32_max_and_oversized_tables_are_refused_typed, aggregate_over_budget_is_denied_before_any_parse); V4-03 NOT_PROVEN + corpus root; V4-04 no fault hooks added; V4-07 claims cite tests or weakened (icc_eval, bpc, wide_plan, wide_admitted docs, WIDE_DESCRIPTOR stages); V4-09 commit 987af00 via git commit -F",
+  "remediation_R6": {
+   "scope": "R6 adversarial review A (candidate bd8533f) findings for SMB-PRISM-ENG-6: lanes[7].findings[0] hostile mAB panic, findings[1] stale descriptor claim, and SMB-DEVELOP-WIDE finding STU-CON-044 (64-pixel chunks). Other R6 items: SMB-PRISM-ENG-5 corpus root was already fixed in 65a08c9 (not redone). NOT in this pass (not in the dispatch): lanes[7] findings[2] lease sizes unmeasured (PLAUSIBLE), findings[3] Gamma(g) with g <= 0 on destination curves (PLAUSIBLE), findings[4] unguarded DIV-ABS-V2-DISPLAY-WTPT-001 combos (PLAUSIBLE)",
+   "base": "288b018",
+   "target_dir": "STUDIO_OWNER=prism-eng6 for the edit tree; the red-proof/baseline scratch tree was built in the SAME target dir and cargo reused its stale prism lib (see infra_incident); scratch builds must use their own STUDIO_OWNER",
+   "item1_hostile_mab_panic": {
+    "finding": "icc_eval.rs:655-660 Table::build sliced t.grid_points[..inputs] (grid_points: [u8; 16], inputs = untrusted tag byte 0..=255); moxcms 0.9.1 read_lut_abm_type skips a tag only when in_channels > 4 AND out_channels > 4, so an RGB profile with an mAB of 17..255 inputs, 3 outputs and a CLUT parses and reached the slice from to_pcs (wide_plan.rs:52)",
+    "fix": "Table::build now refuses inputs > mab_max_inputs(t.grid_points.len()) = min(16, grid array length) as MalformedProfile before anything indexes, and reads the grid with get(..inputs). ICC maximum cited from the spec text (archive.color.org/specification/ICC.1-2022-05.pdf, text extracted with pdftotext): Table 46 lutAToBType CLUT encoding (clause 10.12) and Table 48 lutBToAType CLUT encoding (clause 10.13): 'Number of grid points in each dimension. uInt8Number[16]. Only the first i entries are used, where i is the number of input channels', so i <= 16; device colour channels are at most 15 (Table 19 xCLR signatures 2CLR..FCLR; NOTE under Table 41 in clause 10.10 'Additional xCLR colour spaces (up to 15 channels)')",
+    "typed_outcomes": "17/64/255 inputs with or without CLUT, A2B0 mAB and B2A0 mBA: malformed_profile; 9 and 16 inputs (inside the ICC array, beyond Prism's 8-input CLUT bound in Clut::new): unsupported_profile; 17 and 255 outputs: unsupported_profile (MAX_CH 16 in Clut::new); 5 inputs on an RGB device: malformed_profile (to_pcs channel comparison)",
+    "test": "tests/wide_hostile.rs mab_input_channel_counts_beyond_the_icc_clut_array_are_refused_typed (builds the hostile profiles with mab_counts/rgb_with_table, converts one pixel through WideEngine::transform and asserts the typed error)",
+    "red_proof": "scratch tree Handshake_Artifacts/WP-KERNEL-STUDIO/prism-r6-redproof (git archive of HEAD 0f917cc prism/accord/observe, new tests/wide_hostile.rs copied in, V4-11 touch): the new test FAILS on the previous source with `panicked at crates\\hsk-studio-prism\\src\\icc_eval.rs:659:61: range end index 17 out of range for slice of length 16`; on the fixed tree it passes (prism suite below)",
+    "other_count_sites": "mft1/mft2 channel counts are bounded 1..=4 by moxcms (reader.rs: is_pcs && 1..=4) and again by Prism: grid vec is `inputs` long and Clut::new refuses inputs > 8 / outputs > 16 before any indexing; curve counts are compared with the device/PCS counts (a.len() != device etc.) before use; see v4_06"
+   },
+   "item2_descriptor": {
+    "finding": "wide.rs WIDE_DESCRIPTOR listed 'caller memory-ledger admission of the wide path' under not_in_scope while admitted_route says AdmittedWideEngine charges the ledger",
+    "fix": "not_in_scope entry scoped to the plain WideEngine (and points at admitted_route); admitted_route now cites tests/wide_admitted.rs admitted_wide_engine_charges_plans_outputs_and_requests_before_allocating, tests/wide_hostile.rs aggregate_over_budget_is_denied_before_any_parse and tests/wide_job.rs admitted_job_charges_everything_before_the_bands_for_every_thread_count, and says the byte counts are reasoned upper bounds, not measured heap (no allocator-peak test yet: R6 findings[2], not in this pass)",
+    "test": "tests/wide_admitted.rs descriptor_scopes_the_ledger_not_in_scope_entry_to_the_plain_engine_and_cites_its_tests (the old unscoped entry is absent, not_in_scope names the plain WideEngine, admitted_route cites the two proving tests, brackets/strings balance; python json.loads on the extracted constant is valid and lists the new `chunking` key)"
+   },
+   "item3_stu_con_044": {
+    "spec_file": ".GOV/spec/master-spec-v02.215/spec-modules/14-studio-creative-suite.md l.22588 (clause [STU-CON-044], second paragraph)",
+    "exact_sentence": "Use the admitted Prism transform in bounded chunks of at most64pixels, relative-colorimetric/depth32/BPCfalse, with actual profile/engine/options receipts and accounted lifetime. (spec text as stored: the spaces before 64, false and the digits are missing in the file)",
+    "reading": "The sentence is addressed to Develop (the caller of the admitted transform): the unit of work is one admitted transform call on at most 64 pixels, each with its own receipts and an accounted lifetime. It names three obligations: (a) chunk <= 64 pixels, (b) per-call profile/engine/options receipts, (c) accounted lifetime. Prism's legacy admitted route already implements the same bound internally (lib.rs and admitted.rs chunks(64)). Two readings: LITERAL = the caller drives one AdmittedWideEngine::transform call per 64 pixels; PRISM-INTERNAL = the admitted conversion itself is evaluated in <= 64-pixel chunks with a per-chunk record, whatever the request or band size",
+    "decision": "Implement PRISM-INTERNAL now (cheap, bit-identical, no API break) and price LITERAL; the lead/Operator decides whether PRISM-INTERNAL satisfies the sentence. Not a waiver: with this change develop's tile jobs run on 64-pixel chunks inside Prism; the caller-driven literal form remains possible (AdmittedWideEngine::transform accepts <= 64-pixel requests) and costs the numbers below. If the Operator insists on the literal form, develop must call transform per 64 pixels (serial, one engine) and forfeit prepare_job band parallelism",
+    "implementation": "ADMITTED_CHUNK_PIXELS = 64 (wide.rs, was CHUNK_PIXELS 1024) now sizes the chunk loop of WideEngine::compute (transform of WideEngine and AdmittedWideEngine) and of WideJob::convert_band / convert_band_in_place; each chunk starts with a cancellation check, then evaluation, finite-output check and digest update. WideChunkAccount {bound_pixels, chunks, pixels, max_chunk_pixels, scratch_bytes} is recorded per band (WideBandReport::chunks), per request and per job (WideReceipt::chunks; job = merge in band order). The digest staging buffer is one chunk of CMYK values (CHUNK_STAGE_BYTES = 1024 bytes on the band's stack, hoisted out of the per-chunk call); the admitted request lease already charged `CHUNK_PIXELS x out_ch x 4`, which is now 1 KiB instead of 16 KiB. Ledger charging is unchanged: everything is charged in full at prepare and a band charges nothing (tests/wide_job.rs admitted_job_charges_everything_before_the_bands_for_every_thread_count green unchanged)",
+    "what_the_lifetime_record_means": "per-chunk lifetime is structural and recorded as counts: a chunk begins at its cancellation check and ends at its digest update before the next chunk of that request/band begins; chunks/pixels/max_chunk_pixels/scratch_bytes are deterministic functions of the band sizes (equal for 1 and 8 threads). Prism-owned per-chunk memory is the 1 KiB stack staging only; chunk pixels live in the caller's band buffers (accounted by their owner) so there is no per-chunk ledger lease",
+    "not_accounted": "the stack staging buffer (<= 1024 bytes per in-flight band call) is not a ledger lease; per-chunk RECEIPTS are aggregated (one receipt per request/job with the chunk counts, not one per chunk); the lease sizes are still reasoned bounds (R6 findings[2])",
+    "tests": "tests/wide_chunks.rs: chunk_accounting_is_bounded_deterministic_and_allocation_free (band sizes 1/63/64/65/127/128/129/1000/2049 on SRGB->P3 and CMYK table -> sRGB with BPC: per-band, per-request and per-job accounts exact, job account equal for 1 and 8 threads, output bits equal the whole-frame request, ZERO heap allocations inside convert_band and convert_band_in_place measured with a thread-local counting global allocator), cancellation_is_checked_between_chunks_of_at_most_64_pixels (2 Mi-pixel band canceled from another thread at half its reference time: Err(Canceled), converted prefix 996416 px = 15569 x 64, nothing written after it, prefix equals the uninterrupted run), admitted_transform_and_job_report_their_chunks (admitted request 1000 px = 16 chunks, admitted job in two 500-px bands = 16 chunks, ledger live/calls unchanged across band calls, job bits = request bits), ignored bench bench_literal_64_pixel_admitted_calls_against_internal_chunks. Existing tests unchanged and green: wide_job (3), wide_determinism (digests NOT re-pinned), wide_admitted, wide_hostile, oracle T0/T1",
+    "numbers_release_24mp": {
+     "argv": "cargo test --release -p hsk-studio-prism --test wide_job -- --ignored --nocapture; one run each, same busy 32-thread host, same hour; before = git archive of HEAD 0f917cc built in the scratch tree, after = edit tree",
+     "before_ms_linear_p3_to_linear_srgb": {
+      "serial_transform": 1089,
+      "job_1t": 1019,
+      "job_2t": 515,
+      "job_8t": 186,
+      "job_16t": 100
+     },
+     "after_ms_linear_p3_to_linear_srgb": {
+      "serial_transform": 1118,
+      "job_1t": 1054,
+      "job_2t": 534,
+      "job_8t": 183,
+      "job_16t": 102
+     },
+     "before_ms_p3_to_srgb_encoded": {
+      "serial_transform": 6036,
+      "job_1t": 5594,
+      "job_2t": 2994,
+      "job_8t": 794,
+      "job_16t": 424
+     },
+     "after_ms_p3_to_srgb_encoded": {
+      "serial_transform": 5853,
+      "job_1t": 5840,
+      "job_2t": 2988,
+      "job_8t": 775,
+      "job_16t": 433
+     },
+     "reading": "internal 64-pixel chunking costs 0-3 percent (linear 16 threads 100 -> 102 ms; ENG-7 baseline was 103), within run-to-run noise; every run bit-identical to the serial path"
+    },
+    "literal_reading_cost_release": {
+     "argv": "cargo test --release -p hsk-studio-prism --test wide_chunks -- --include-ignored --nocapture; 2,097,152 pixels, one thread, AdmittedWideEngine with a counting ledger and a null sink, plan warmed (cache hit)",
+     "linear_p3_to_linear_srgb": {
+      "one_request_ms": 95,
+      "literal_32768_calls_of_64_px_ms": 170,
+      "us_per_call": 5.2,
+      "job_one_band_1t_ms": 90,
+      "extrapolated_24mp_1t_ms": {
+       "literal": 1946,
+       "job": 1028
+      }
+     },
+     "p3_to_srgb_encoded": {
+      "one_request_ms": 403,
+      "literal_32768_calls_of_64_px_ms": 482,
+      "us_per_call": 14.7,
+      "job_one_band_1t_ms": 394,
+      "extrapolated_24mp_1t_ms": {
+       "literal": 5511,
+       "job": 4509
+      }
+     },
+     "reading": "per-call cost is about 5 us on top of the pixel work (ledger charge, plan identity hash, Observe frame, Vec): +80 percent on the cheap linear pair, +20 percent on the encoded pair at one thread, and the literal form cannot use prepare_job parallelism: 24 MP linear is about 1.9 s serial against 0.102 s on 16 threads (about 19x)"
+    },
+    "develop_note": "crates/hsk-studio-develop/src/convert.rs module docs still say 'The 64-pixel chunk size of the spec text is still not used'; that is now stale for the Prism side (develop is not this agent's crate; owner to update and cite tests/wide_chunks.rs)"
+   },
+   "infra_incident": {
+    "what": "after the red-proof and baseline runs in the scratch tree, `cargo test -p hsk-studio-prism --tests` in the edit tree failed to compile its own new tests (E0425/E0422/E0609: no ADMITTED_CHUNK_PIXELS, no WideChunkAccount, no WideReceipt::chunks): cargo reused the previous prism lib",
+    "cause": "both trees use the same workspace-relative member path crates/hsk-studio-prism and the same CARGO_TARGET_DIR (prism-eng6): cargo hashes workspace members relative to the workspace root, so the scratch tree's lib (built later than the edit tree's edits) looked fresh to the edit tree (GLOBAL-VALIDATION-024 hazard)",
+    "fix": "touched every .rs/Cargo.toml of the edit crate (V4-11), rebuilt, suite green; red proof/baseline scratch trees get their own STUDIO_OWNER from now on. Recorded for the lead: V4-11 should add 'a scratch tree with the same relative layout needs its own STUDIO_OWNER target dir'",
+    "retry_guard_route": "the failing runs were background launches (no recorded exit code), so the hook never blocked; the rerun differed only by the touched sources (mtime), no flags or filters changed; no gameplan step added because a lane-specific confirm step in the shared gameplan would gate every lane and the cause is removed at the source (owner separation)"
+   },
+   "v4_01_02": "icc_eval, wide, wide_job, wide_admitted keep #![deny(clippy::arithmetic_side_effects)] (new code uses saturating/checked math; compile and clippy clean); V4-02 tests present: dims_u32_max_and_oversized_tables_are_refused_typed, aggregate_over_budget_is_denied_before_any_parse, and the new channel-count test",
+   "v4_03_04_05_07_09": "V4-03 wide_chunks admitted test prints NOT_PROVEN off x86_64-windows-msvc, the timing bench is #[ignore] with a reason, no machine-local path read; V4-04 no fault hooks; V4-05 no frozen-duplicate code; V4-07 new absolute-sounding doc claims cite tests/wide_chunks.rs or tests/wide_hostile.rs, descriptor text weakened where unmeasured; V4-09 commit via git commit -F, notes via Write",
+   "v4_06_class": "untrusted count indexes a fixed-size array/slice (and the panic constructs that can fire on it)",
+   "v4_06_sites": {
+    "regex": "[\\w\\)\\]]\\[[^\\]\\[;]+\\]|\\.take\\(|copy_from_slice|split_at|\\.chunks(_exact)?(_mut)?\\(|\\.windows\\(|\\bunreachable!|\\.expect\\(|\\.unwrap\\(\\)",
+    "count_hits": 177,
+    "count_listed": 177,
+    "count_before_fix": "1 site fixed (icc_eval.rs Table::build grid_points[..inputs]) of the class; the regex also lists every other index/slice/expect in crates/hsk-studio-prism/src",
+    "regions": [
+     {
+      "id": "adm.legacy_cost_header",
+      "verdict": "not_applicable",
+      "why": "fixed header offsets read after b.len() < 132 is refused (line 88); no count involved",
+      "count": 5,
+      "sites": [
+       "admitted.rs:94",
+       "admitted.rs:95",
+       "admitted.rs:96",
+       "admitted.rs:97",
+       "admitted.rs:98"
+      ]
+     },
+     {
+      "id": "adm.legacy_cost_tag_table",
+      "verdict": "not_applicable",
+      "why": "tag count n <= 8 (refused above 8) and end <= b.len() checked before b[132..end]; tag[..4] from chunks_exact(12); seen[index] with index from position() over names (len 8 = seen len)",
+      "count": 4,
+      "sites": [
+       "admitted.rs:115",
+       "admitted.rs:119",
+       "admitted.rs:121",
+       "admitted.rs:124"
+      ]
+     },
+     {
+      "id": "adm.legacy_cost_tag_data",
+      "verdict": "not_applicable",
+      "why": "offset <= last <= b.len() checked; data[..4], data[8..12] only after length != 16/44/20 short-circuits (data has exactly that length); word() uses get()",
+      "count": 5,
+      "sites": [
+       "admitted.rs:134",
+       "admitted.rs:137",
+       "admitted.rs:138",
+       "admitted.rs:144",
+       "admitted.rs:147"
+      ]
+     },
+     {
+      "id": "adm.legacy_cache_and_pixels",
+      "verdict": "not_applicable",
+      "why": "cache[i] with i from position(); pixels.chunks(64) / chunks_exact(3) yield exact-size slices; pixel[0..2] on a 3-element chunk",
+      "count": 4,
+      "sites": [
+       "admitted.rs:447",
+       "admitted.rs:469",
+       "admitted.rs:481",
+       "admitted.rs:482"
+      ]
+     },
+     {
+      "id": "bpc.fixed_arrays",
+      "verdict": "not_applicable",
+      "why": "constant indexes into [f64; 3] / [[f64; 3]; 3] (n[1], m[r][c], rhs[r] with r in 0..3, i <= 2)",
+      "count": 5,
+      "sites": [
+       "bpc.rs:60",
+       "bpc.rs:117",
+       "bpc.rs:118",
+       "bpc.rs:119",
+       "bpc.rs:130"
+      ]
+     },
+     {
+      "id": "bpc.ramp",
+      "verdict": "not_applicable",
+      "why": "initial/xyz/D50 are [f64; 3]; in_l is [f64; RAMP], out_l has RAMP entries, every index i < RAMP (i + 1 <= RAMP - 1 in the monotone pass); device vectors have the descriptor's channel count (1, 3 or 4)",
+      "count": 10,
+      "sites": [
+       "bpc.rs:194",
+       "bpc.rs:196",
+       "bpc.rs:199",
+       "bpc.rs:207",
+       "bpc.rs:208",
+       "bpc.rs:212",
+       "bpc.rs:214",
+       "bpc.rs:218",
+       "bpc.rs:220",
+       "bpc.rs:224"
+      ]
+     },
+     {
+      "id": "icc.const_tables",
+      "verdict": "not_applicable",
+      "why": "const-evaluated tables indexed by j < TAB, and LN_TAB/EXP_TAB indexed by an 8-bit mask / rem_euclid(256); no profile value",
+      "count": 4,
+      "sites": [
+       "icc_eval.rs:70",
+       "icc_eval.rs:80",
+       "icc_eval.rs:98",
+       "icc_eval.rs:143"
+      ]
+     },
+     {
+      "id": "icc.pcs_math_fixed_arrays",
+      "verdict": "not_applicable",
+      "why": "D50 and xyz are [f64; 3], constant indexes",
+      "count": 2,
+      "sites": [
+       "icc_eval.rs:182",
+       "icc_eval.rs:192"
+      ]
+     },
+     {
+      "id": "icc.curve_from_mox",
+      "verdict": "not_applicable",
+      "why": "v[0] only in the arm guarded by v.len() == 1, q[0] only in the arm q.len() == 1, copy_from_slice length min(q.len(), 7) into p[..min], p[1] is a constant index into [f64; 7]; other lengths return MalformedProfile",
+      "count": 4,
+      "sites": [
+       "icc_eval.rs:213",
+       "icc_eval.rs:223",
+       "icc_eval.rs:225",
+       "icc_eval.rs:232"
+      ]
+     },
+     {
+      "id": "icc.curve_table_eval_and_inverse",
+      "verdict": "not_applicable",
+      "why": "Curve::Table always holds >= 2 entries (from_mox length >= 2, split_tables entries >= 2), i <= len - 2 and j = i + 1; table_inverse indexes 0, last and bounded bisection indexes",
+      "count": 3,
+      "sites": [
+       "icc_eval.rs:268",
+       "icc_eval.rs:342",
+       "icc_eval.rs:343"
+      ]
+     },
+     {
+      "id": "icc.clut_new",
+      "verdict": "fixed",
+      "why": "inputs 1..=8 and outputs <= MAX_CH are refused first, strides/grid have exactly `inputs` entries, every stride product and the largest reachable index are checked against data.len() (tests/wide_hostile.rs dims_u32_max_and_oversized_tables_are_refused_typed); the grid slice that feeds it is now bounded by the ICC array in Table::build",
+      "count": 2,
+      "sites": [
+       "icc_eval.rs:432",
+       "icc_eval.rs:434"
+      ]
+     },
+     {
+      "id": "icc.clut_eval",
+      "verdict": "not_applicable",
+      "why": "grid/strides/input indexes are below Clut.inputs (<= 8, validated in Clut::new, callers pass exactly `inputs` values) and data indexes below the checked total (largest reachable index < data.len())",
+      "count": 23,
+      "sites": [
+       "icc_eval.rs:464",
+       "icc_eval.rs:465",
+       "icc_eval.rs:466",
+       "icc_eval.rs:468",
+       "icc_eval.rs:469",
+       "icc_eval.rs:473",
+       "icc_eval.rs:474",
+       "icc_eval.rs:475",
+       "icc_eval.rs:478",
+       "icc_eval.rs:481",
+       "icc_eval.rs:487",
+       "icc_eval.rs:489",
+       "icc_eval.rs:491",
+       "icc_eval.rs:493",
+       "icc_eval.rs:502",
+       "icc_eval.rs:503",
+       "icc_eval.rs:504",
+       "icc_eval.rs:505",
+       "icc_eval.rs:506",
+       "icc_eval.rs:515",
+       "icc_eval.rs:520",
+       "icc_eval.rs:546",
+       "icc_eval.rs:548"
+      ]
+     },
+     {
+      "id": "icc.mat3_and_pcs_encoding",
+      "verdict": "not_applicable",
+      "why": "constant indexes into [[f64; 3]; 3] and [f64; 3]; chunks_exact(entries) with entries >= 2 checked on the line before (split_tables)",
+      "count": 13,
+      "sites": [
+       "icc_eval.rs:557",
+       "icc_eval.rs:561",
+       "icc_eval.rs:562",
+       "icc_eval.rs:563",
+       "icc_eval.rs:579",
+       "icc_eval.rs:580",
+       "icc_eval.rs:583",
+       "icc_eval.rs:586",
+       "icc_eval.rs:589",
+       "icc_eval.rs:591",
+       "icc_eval.rs:594",
+       "icc_eval.rs:599",
+       "icc_eval.rs:621"
+      ]
+     },
+     {
+      "id": "icc.table_eval_scratch",
+      "verdict": "fixed",
+      "why": "v[..inputs], v[..outputs], tmp[..outputs] on [f64; MAX_CH = 16] arrays: Legacy inputs <= 8 / outputs <= 16 via Clut::new; Multi inputs <= min(grid array 16, ICC 16) by the new Table::build check (was unchecked for a table without CLUT, and sliced the 16-entry grid array for one with CLUT: the R6 panic), outputs <= 16 via Clut::new or == inputs; to_pcs/from_pcs also compare both counts with the device (tests/wide_hostile.rs mab_input_channel_counts_beyond_the_icc_clut_array_are_refused_typed)",
+      "count": 16,
+      "sites": [
+       "icc_eval.rs:713",
+       "icc_eval.rs:714",
+       "icc_eval.rs:716",
+       "icc_eval.rs:717",
+       "icc_eval.rs:718",
+       "icc_eval.rs:719",
+       "icc_eval.rs:724",
+       "icc_eval.rs:725",
+       "icc_eval.rs:730",
+       "icc_eval.rs:732",
+       "icc_eval.rs:737",
+       "icc_eval.rs:739",
+       "icc_eval.rs:741",
+       "icc_eval.rs:743",
+       "icc_eval.rs:745",
+       "icc_eval.rs:747"
+      ]
+     },
+     {
+      "id": "icc.stage_eval",
+      "verdict": "not_applicable",
+      "why": "device slices carry the descriptor channel count (Rgb 3, Gray 1, Cmyk 4; table inputs == device channels is checked in to_pcs), v: [f64; 16] with outputs == 3 / == device channels (<= 4) checked in to_pcs/from_pcs; out[c] c < 3 only for RGB matrix destinations; unreachable! only behind linear() == Some",
+      "count": 10,
+      "sites": [
+       "icc_eval.rs:779",
+       "icc_eval.rs:782",
+       "icc_eval.rs:791",
+       "icc_eval.rs:802",
+       "icc_eval.rs:811",
+       "icc_eval.rs:814",
+       "icc_eval.rs:815",
+       "icc_eval.rs:822",
+       "icc_eval.rs:824",
+       "icc_eval.rs:829"
+      ]
+     },
+     {
+      "id": "icc.stage_construction",
+      "verdict": "not_applicable",
+      "why": "table_index in 0..=2 of a [_; 3]; NEXT[r] with r < 3; expect(\"checked\") only after matrix_capable() proved the TRC fields present",
+      "count": 9,
+      "sites": [
+       "icc_eval.rs:845",
+       "icc_eval.rs:874",
+       "icc_eval.rs:882",
+       "icc_eval.rs:883",
+       "icc_eval.rs:885",
+       "icc_eval.rs:911",
+       "icc_eval.rs:912",
+       "icc_eval.rs:929",
+       "icc_eval.rs:937"
+      ]
+     },
+     {
+      "id": "icc.fused",
+      "verdict": "not_applicable",
+      "why": "src/dst hold 1 (Gray) or 3 (matrix) curves by construction, out has the destination channel count, a/b are [[f64; 3]; 3]/[f64; 3]",
+      "count": 8,
+      "sites": [
+       "icc_eval.rs:968",
+       "icc_eval.rs:974",
+       "icc_eval.rs:975",
+       "icc_eval.rs:976",
+       "icc_eval.rs:985",
+       "icc_eval.rs:987",
+       "icc_eval.rs:990",
+       "icc_eval.rs:994"
+      ]
+     },
+     {
+      "id": "lib.legacy_hex",
+      "verdict": "not_applicable",
+      "why": "HEX has 16 entries; indexes are a nibble",
+      "count": 2,
+      "sites": [
+       "lib.rs:103",
+       "lib.rs:104"
+      ]
+     },
+     {
+      "id": "lib.legacy_cache_and_pixels",
+      "verdict": "not_applicable",
+      "why": "cache[i] with i from position(); expect on a miss that parsed both profiles; chunks(64)/chunks_exact(3) exact-size slices",
+      "count": 5,
+      "sites": [
+       "lib.rs:347",
+       "lib.rs:349",
+       "lib.rs:374",
+       "lib.rs:384",
+       "lib.rs:385"
+      ]
+     },
+     {
+      "id": "lib.legacy_parse_profile",
+      "verdict": "not_applicable",
+      "why": "bytes[..4], [128..132] and [8] read after input.bytes.len() < 132 is refused (line 411); try_into on a 4-byte slice cannot fail; end <= len checked before bytes[132..end]; entry[..4] from chunks_exact(12); seen[index] with index from position() over `allowed` (len 10 = seen len)",
+      "count": 7,
+      "sites": [
+       "lib.rs:412",
+       "lib.rs:418",
+       "lib.rs:428",
+       "lib.rs:429",
+       "lib.rs:432",
+       "lib.rs:435",
+       "lib.rs:446"
+      ]
+     },
+     {
+      "id": "lib.legacy_expect",
+      "verdict": "not_applicable",
+      "why": "expect on a constant valid Budget and on results checked for Err one statement earlier",
+      "count": 3,
+      "sites": [
+       "lib.rs:557",
+       "lib.rs:580",
+       "lib.rs:598"
+      ]
+     },
+     {
+      "id": "wide.frame_and_admit",
+      "verdict": "not_applicable",
+      "why": "b.len() >= 132 is tested first (short-circuit) before b[36..40]; count <= MAX_WIDE_TAGS and table_end <= b.len() checked before b[132..table_end]; entry[0..3] from chunks_exact(12); header reads in admit() run after frame() proved len >= 132; a[0..2] index a [&[u8; 4]; 3]; be32/s15 use get() and return 0 out of range",
+      "count": 10,
+      "sites": [
+       "wide.rs:307",
+       "wide.rs:320",
+       "wide.rs:321",
+       "wide.rs:361",
+       "wide.rs:365",
+       "wide.rs:368",
+       "wide.rs:374",
+       "wide.rs:400",
+       "wide.rs:401",
+       "wide.rs:402"
+      ]
+     },
+     {
+      "id": "wide.clip_and_pixel",
+      "verdict": "not_applicable",
+      "why": "scan_clip takes at most `channels` (0 or the RGB/Gray output count, <= 3) values and channels_clipped has 4 entries; Lab px has 3 channels (in_ch == 3 for a Lab source); PcsMap arrays are [f64; 3]",
+      "count": 6,
+      "sites": [
+       "wide.rs:590",
+       "wide.rs:599",
+       "wide.rs:615",
+       "wide.rs:616",
+       "wide.rs:653",
+       "wide.rs:654"
+      ]
+     },
+     {
+      "id": "wide.cache_lookup",
+      "verdict": "not_applicable",
+      "why": "self.cache[i] with i from position() on the same vector",
+      "count": 1,
+      "sites": [
+       "wide.rs:896"
+      ]
+     },
+     {
+      "id": "wide.compute_chunks",
+      "verdict": "not_applicable",
+      "why": "chunk sizes are 64 x in_ch / out_ch with in_ch, out_ch in {1, 3, 4} (never 0), so chunks()/chunks_exact() never panic on a zero size",
+      "count": 2,
+      "sites": [
+       "wide.rs:991",
+       "wide.rs:994"
+      ]
+     },
+     {
+      "id": "wide.expect",
+      "verdict": "not_applicable",
+      "why": "expect on a constant valid Budget and on a compute result tested for Err above",
+      "count": 2,
+      "sites": [
+       "wide.rs:1064",
+       "wide.rs:1107"
+      ]
+     },
+     {
+      "id": "job.seal_chunk",
+      "verdict": "not_applicable",
+      "why": "groups of at most CHUNK_STAGE_BYTES / 4 values, so used <= CHUNK_STAGE_BYTES and stage[..used] is in range",
+      "count": 4,
+      "sites": [
+       "wide_job.rs:209",
+       "wide_job.rs:211",
+       "wide_job.rs:212",
+       "wide_job.rs:215"
+      ]
+     },
+     {
+      "id": "job.band_loops",
+      "verdict": "not_applicable",
+      "why": "chunk sizes 64 x in_ch / out_ch (1, 3 or 4); in place requires in_ch == out_ch <= 4 so src[..ch] fits [f32; 4]; the band length equals pixels x channels (BandLength refusal before the claim)",
+      "count": 6,
+      "sites": [
+       "wide_job.rs:378",
+       "wide_job.rs:381",
+       "wide_job.rs:420",
+       "wide_job.rs:423",
+       "wide_job.rs:425",
+       "wide_job.rs:426"
+      ]
+     },
+     {
+      "id": "job.expect",
+      "verdict": "not_applicable",
+      "why": "expect on a constant valid Budget",
+      "count": 1,
+      "sites": [
+       "wide_job.rs:498"
+      ]
+     },
+     {
+      "id": "plan.absolute_scale",
+      "verdict": "not_applicable",
+      "why": "src_mw and dst_mw are [f64; 3]",
+      "count": 1,
+      "sites": [
+       "wide_plan.rs:67"
+      ]
+     }
+    ]
+   }
+  }
  }
 }

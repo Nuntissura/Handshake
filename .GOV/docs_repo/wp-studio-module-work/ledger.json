@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T07:18:57Z",
+ "updated_at": "2026-10-11T07:19:59Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -1424,7 +1424,7 @@
     "STUDIO-R6 BLOCKED @bd8533f"
    ],
    "candidate": "85fe452",
-   "note": "STU-CON-044: PrismConverter now uses prism AdmittedWideEngine (caller ledger charged before any parse/plan/tile; one byte short refused, exact budget identical bytes)",
+   "note": "STU-CON-044: PrismConverter now uses prism AdmittedWideEngine (caller ledger charged before any parse/plan/tile; one byte short refused, exact budget identical bytes); 2026-10-11T07:19:59Z prism d7027c3 implements 64-pixel chunking (lead provisional reading of STU-CON-044); develop convert.rs doc still says 64-px text unused -> fix in next develop slice",
    "r5_review_routed": {
     "to": "BLOCKED: STU-CON-044 accounting; lead decision D13 option b -> Prism admission-ledger hook queued on builder-prism-eng6",
     "at": "2026-10-11T05:31:12Z"
@@ -1460,22 +1460,24 @@
    "origin": "develop-wide: wide transform ~110 ns/px",
    "scope": "fuse linear matrix->matrix profile pairs into one 3x3 plan (deterministic, byte-identical vs unfused within stated tolerance); optional admission-ledger hook for STU-CON-044; FIX DEFECT: gray kTRC + BPC on -> garbage black point (interop-psd notes.prism_defect_for_prism_lane); + fix the 11 ENG-5 findings (curv gamma<2.2 zero-channel, XYZ clamp, HLG saturation, PCS->CMYK shadows, CMYK BPC black, table interp/inverse)",
    "phase": "validation",
-   "status": "FAIL_V1",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-prism-eng6 (opus)",
    "blocked_on": null,
    "commits": [
-    "987af00"
+    "987af00",
+    "d7027c3"
    ],
    "verdicts": [
     "STUDIO-R6 FAIL_V1 @bd8533f"
    ],
-   "candidate": "987af00",
-   "note": "11 ENG-5 findings fixed: 10 rooted in moxcms 0.9.1 numerics -> Prism evaluates curves/CLUT/mft/mAB/mBA in deterministic f64, moxcms parse-only; intent fallback per ICC.1:2022 8.10.2; fusion bit-identical 7 pairs (linear 34.5 ns/px, sRGB->P3 187 ns/px); AdmittedWideEngine e7cf81f (STU-CON-044 hook); V4-01 lint 123 sites; prism 120 of 120, 0 NOT_PROVEN; commits 3926709 fdd57ee dc42e34 d9a8ce8 bac4790 e7cf81f 987af00",
+   "candidate": "d7027c3",
+   "note": "R6 remediation: mAB/mBA input channels > min(grid array, ICC max 16) refused malformed_profile before indexing (ICC.1:2022 Tables 46/48; 17/64/255 inputs red-first), V4-06 177 sites annotated; DESCRIPTOR not_in_scope scoped to plain WideEngine + admitted_route cites tests; STU-CON-044: admitted transforms/job bands run in <=64-pixel chunks with per-chunk cancellation, receipts record chunks, digests unchanged, 24 MP 100->102 ms; 128 green 0 NOT_PROVEN",
    "r6_review_routed": {
     "to": "rem-prism-r6",
     "at": "2026-10-11T06:37:43Z",
     "ref": "validation/R6-review-a.json"
-   }
+   },
+   "open_plausible": "R6 PLAUSIBLE not done: lease sizes unmeasured, Gamma(g<=0) destination refusal, unguarded DIV-ABS-V2-DISPLAY-WTPT combos"
   },
   {
    "lane_id": "SMB-COMPONENTS-FOLIO-MIGRATE",
