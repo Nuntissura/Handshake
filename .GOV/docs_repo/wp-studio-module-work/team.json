@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T12:50:22Z",
+ "updated_at": "2026-10-11T13:02:11Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1683,7 +1683,7 @@
     "builders/lanes/hsk-studio-interop-psd-budget.json"
    ],
    "launched": "2026-10-11T12:46:09Z",
-   "status": "running"
+   "status": "done 2026-10-11T13:02:11Z (SMB-INTEROP-PSD-BUDGET READY at a5eff01)"
   },
   {
    "name": "builder-reel-native-faults",

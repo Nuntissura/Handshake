@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T12:50:22Z",
+ "updated_at": "2026-10-11T13:02:11Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -2447,11 +2447,15 @@
    "crate": "hsk-studio-interop-psd",
    "origin": "PLR-053 (R8-review-b)",
    "scope": "PSDs whose effect count exceeds folio's default node budget import with typed per-layer losses (or an input-sized budget within a documented hard cap), never whole-import raster_records_rejected",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-psd-budget",
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "a5eff01"
+   ],
+   "verdicts": [],
+   "candidate": "a5eff01",
+   "note": "PLR-053: pigment limits imported (64/layer, 4096/document, single owner effect_math); >64 per layer -> typed loss effects_over_budget on that layer's stack (lfx2 kept byte-exact), document imports; >4096 per document -> PsdError::EffectLimit (psd_effect_limit) typed input error; record-validation node budget = max(caller nodes, records + instances). Behaviour change: a caller Budget::nodes below that is raised (R9 reviewer: check this does not override a caller safety bound). 3 new tests red on scratch f4b47cd, crate 44/44, clippy clean; V4-06 26 = 26. Not fixed: inspect_bytes node exhaustion still Proposal(folio_rejected); importer counts all mapped instances (stricter than pigment's enabled-only)"
   },
   {
    "lane_id": "SMB-REEL-NATIVE-FAULTS",
@@ -2582,7 +2586,8 @@
   "SMB-SCORE-GUARDS",
   "SMB-REFUSAL-KEYS",
   "SMB-FX-OPS-ADOPT",
-  "SMB-SCORE-PLUGIN-RATE"
+  "SMB-SCORE-PLUGIN-RATE",
+  "SMB-INTEROP-PSD-BUDGET"
  ],
  "round_R6": {
   "candidate": "bd8533f",
