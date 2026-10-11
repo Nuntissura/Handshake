@@ -55,6 +55,22 @@
     {
       "sha": "5cd8c9e",
       "subject": "web (SMB-WEB-PARITY + SMB-WEB-DIFFTEST, rem-web-r11): carrier inventory keeps SVG image src from the R7 scan"
+    },
+    {
+      "sha": "4462f7c",
+      "subject": "web (SMB-WEB-PARITY, no difftest file changed, rem-web-r12, wip, lane status null): load context decides first; self-references from style sheet/script carriers denied; URL-parser trimming; link rel/as; engine-only carriers"
+    },
+    {
+      "sha": "12c632d",
+      "subject": "web (SMB-WEB-PARITY, no difftest file changed, rem-web-r12, wip, lane status null): DESCRIPTOR load_contexts, data policy and inventory (61 rows); docs cite the R12 tests"
+    },
+    {
+      "sha": "d465b88",
+      "subject": "web (SMB-WEB-PARITY, no difftest file changed, rem-web-r12, wip, lane status null): a valueless URL attribute is the empty string (denied from style sheet/script/track/manifest carriers)"
+    },
+    {
+      "sha": "e409030",
+      "subject": "web (SMB-WEB-PARITY, no difftest file changed, rem-web-r12, wip, lane status null): the three R12 pre-review payloads as named gate tests"
     }
   ],
   "capabilities_done": [
@@ -68,17 +84,17 @@
     "rem-web-r11: css-urls carriers include SVG animation from/to/by/values of CSS targets (values split) and data: payload URLs read by a separately written reference data: reader; generator animation carrier and data: fragments; corpus css_urls 60 (floor pinned)"
   ],
   "tests": {
-    "argv": "cargo nextest run -p hsk-studio-web --no-fail-fast --offline (studio-env.sh, shared tree at 5cd8c9e); cargo test --doc -p hsk-studio-web; cargo clippy -p hsk-studio-web --tests --examples --offline; cargo fmt -p hsk-studio-web --check; cargo run -p hsk-studio-web --example web-consumer -- --descriptor; soak HSK_DIFFTEST_SCALE=10 ... generated and HSK_DIFFTEST_SCALE=50 ... css",
+    "argv": "cargo nextest run -p hsk-studio-web --no-fail-fast --offline (studio-env.sh, shared tree at e409030); cargo test --doc -p hsk-studio-web --offline; cargo clippy -p hsk-studio-web --tests --examples --offline; cargo fmt -p hsk-studio-web --check; cargo run -p hsk-studio-web --example web-consumer --offline -- --descriptor (valid JSON); soak HSK_DIFFTEST_SCALE=10 -E 'test(generated) | test(css_url)' and HSK_DIFFTEST_SCALE=50 -E 'test(css)'",
     "exit": 0,
-    "sha": "5cd8c9e",
-    "passed": 110,
+    "sha": "e409030",
+    "passed": 125,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 386,
   "bg_pids": [],
-  "next": "R11 validation of SMB-WEB-PARITY + SMB-WEB-DIFFTEST with the claim through 5cd8c9e (R11 commits 787cbad 7e21550 70e6477 5cd8c9e added to the R10 claim; V4-14); lead acks in notes.remediation_R11pre.lead_acks_needed",
-  "updated_at": "2026-10-11T18:02:44Z",
+  "next": "R12 validation with the claim through e409030: no difftest file changed since 5cd8c9e; soak re-run at e409030 (0 disagreements); see hsk-studio-web-parity.json notes.remediation_R12pre",
+  "updated_at": "2026-10-11T19:15:55Z",
   "notes": {
     "scope_kept": "test code + the crate's Cargo.toml dev-dependency only; src/, examples/, tests/source_dom_patch.rs, other crates, root Cargo.toml/Cargo.lock, ledger/team/other lane files untouched; no product defect fixed in this lane",
     "dep_request": "builders/dep-requests.jsonl line appended 2026-10-11T12:10:21Z (after SYNC DONE f6e5a49): kind dev, html5ever 0.40.1, features [], pure_rust true, license MIT OR Apache-2.0. New lock packages from a local offline resolve (13): html5ever 0.40.1, markup5ever 0.40.0, web_atoms 0.3.0, tendril 0.5.1, string_cache 0.11.0, string_cache_codegen 0.11.2 (MIT OR Apache-2.0); phf 0.14.0, phf_codegen 0.14.0, phf_generator 0.14.0, phf_shared 0.14.0, precomputed-hash 0.1.1, new_debug_unreachable 1.0.6 (MIT); fastrand 2.5.0 (Apache-2.0 OR MIT). The shared Cargo.lock was not touched (no cargo ran in the shared tree).",
@@ -283,6 +299,17 @@
       },
       "found": "a bad-url token or bad string spelling data: was classified Inline before the bad flag (gen:Css:70041): now Denied(not_granted) and never read",
       "residual": "the difftest reference shares the gate's policy lists by construction (second reading of the algorithms, same policy); its independent evidence remains the CC0 corpus and the R10 scratch cssparser run"
+    },
+    "remediation_R12pre": {
+      "builder": "rem-web-r12",
+      "difftest_files_changed": [],
+      "reason_listed": "V4-14: commits 4462f7c 12c632d d465b88 e409030 touched the crate the differential judges (src/assets.rs, carriers.rs, datauri.rs and the gate tests); the difftest files are byte-identical to 5cd8c9e",
+      "soak": {
+        "scale_10": "HSK_DIFFTEST_SCALE=10 cargo nextest run -p hsk-studio-web --test html5ever_differential -E 'test(generated) | test(css_url)' at e409030: 9 passed; 153445 comparable documents, 0 disagreements (css_urls 60, generated_css 30000, char_refs 21460, dup_attrs 12587, fuzz 16364, mixed 24868, namespaces 19643, noise 8249, raw_text 20214); log scratchpad SMB-WEB-R12/soak-10-e409030.log (also 153445 at 12c632d, soak-10-12c632d.log)",
+        "scale_50_css": "HSK_DIFFTEST_SCALE=50 ... -E 'test(css)' at e409030 was queued behind a steward round on the disk build lock for more than 4 minutes and was stopped by its builder before it started; not part of the claim (scale 10 is the required soak; scale 50 css was 150000 + 60 documents, 0 disagreements at 70e6477 in R11)",
+        "difftest_changed": "no: tests/html5ever_differential/* is unchanged since 5cd8c9e; its css-urls check covers CSS carriers (the reference's data: policy 'text/css or (import && inert)' equals the Resource and Stylesheet contexts); the load-context policy (script, track, manifest, self-reference) is proven by the standards-derived unit table and the gate tests, as the R12 pre-review advised"
+      },
+      "proof_surface_note": "load-context holes (script, track, manifest, self-reference) are invisible to the css-urls differential by construction (it compares CSS carriers); their proof is datauri::tests::load_context_decides_before_the_type and the r12_* gate tests (red on 5cd8c9e, mutant run in notes.remediation_R12pre of the parity lane)"
     }
   }
 }

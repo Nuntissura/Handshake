@@ -2055,7 +2055,7 @@
     "builders/lanes/hsk-studio-web-difftest.json"
    ],
    "launched": "2026-10-11T18:32:51Z",
-   "status": "running"
+   "status": "done 2026-10-11T19:16:40Z (e409030)"
   },
   {
    "name": "builder-pigment-planlimits",
