@@ -57,8 +57,8 @@
  "blockers": [],
  "lock_wait_s": 0,
  "bg_pids": [],
- "next": "lead names 2074f5e as the R7 candidate; next sync: new dep-requests lines; reel-native av1-worker integration tests (av1_worker.rs, worker_fault_env.rs) first run in full in R7 (canary runs one test per package)",
- "updated_at": "2026-10-11T06:35:28Z",
+ "next": "R7 candidate 2074f5e unchanged. Prepared, NOT committed until the lead says R6 finished: round-features render-gpu [[test-faults]], score-device [[cpal-backend]] (shared-tree .config/round-features.toml edited; dry-run over origin 42fba02: probe 45/45, only that file would commit) -> steward-sync.sh --overlay .config/round-features.toml, then canary C10 with --target-dir steward-export/target + sccache",
+ "updated_at": "2026-10-11T06:46:07Z",
  "notes": {
   "C8_bd8533f": "steward export canary exit 0, 49 units, not_proven 0, absent 0, timed_out 0",
   "C9_2074f5e": "steward export canary 2026-10-11T06:24:01Z..06:35:03Z: step 0 lock/registry/policy clean (V4-03 0 violations, 11 files with pinned hits; V4-05 0 new sites); fixture score-plugin/clap-gain built; default 34/34 (242 skipped); features motion-js+quickjs, motion-js+quickjs+test-faults, reel+av1, reel-native+av1-worker, reel-native+av1-worker+test-faults, score-plugin+test-faults, score-plugin+clap+test-faults, type+harfrust all build 0 / run 0; 43 doctest units exit 0; 53 units, not_proven 0, absent 0, timed_out 0, exit 0; round.json a635a908..., tests.json 52c9b605..., junit.xml 1249c1bd...; log studio-team-dev/steward/C9-2074f5e.log",
@@ -69,6 +69,7 @@
   "license_gate": "kernel tools/license_gate.py reads cached .crate archives and tools/license_evidence.json checksum-matched records for other-target crates; honest kinds (-sys and NATIVE_FFI_EXTRA = native-ffi)",
   "machine_paths_baseline": "pinned 11 files (10 baseline + press pdf_delivery.rs 2); lead may delete entries to make files strict",
   "canary_export_choice": "steward canaries run in studio-team-dev/steward-export (rule d; validators own studio-round)",
+  "export_target_rule": "lead root cause 2026-10-11 (5 stale-artifact incidents): export trees never share a target dir with the edit tree. C1..C9 canaries used --target-dir studio-team-dev/target (the builders' target) on touched exports and wrote older-source artifacts with newer mtimes there (C9 ran 06:24-06:35Z). From C10: --target-dir studio-team-dev/steward-export/target (TMP steward-export/tmp) with RUSTC_WRAPPER=sccache SCCACHE_DIR=studio-team-dev/sccache CARGO_INCREMENTAL=0; steward-sync.sh cargo runs use sync-export/target + tmp (STUDIO_OWNER=studio-team-dev/sync-export, asserted); rule and canary command in the steward-sync.sh header. First C10 build is cold. Validator rounds in studio-round also build into studio-team-dev/target (workflow v2 decision) and carry the same hazard (lead-owned). Separate targets mean steward canaries no longer serialize with builders through Cargo's build-dir lock (CX-984-002 one build per disk; D2 waiver open)",
   "shared_index": "steward-sync reconciles committed root paths in the shared index/working tree; working Cargo.lock left as builders' local state"
  }
 }

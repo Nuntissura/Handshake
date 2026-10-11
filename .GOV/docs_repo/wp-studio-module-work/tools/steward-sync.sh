@@ -13,6 +13,15 @@
 #   held the base blob; working file -> committed content when it held the base or overlay content; the working
 #   Cargo.lock stays builders' local state). Prints SYNC_SHA (= round candidate) and writes the export's
 #   ROUND_IDENTITY.json for it.
+# RULE: export trees never share a target dir with the edit tree. Cargo names path-package artifacts by the path
+#   relative to the workspace root, and exports carry current mtimes, so an export build into the builders' target
+#   (studio-team-dev/target) leaves artifacts from other sources that the edit tree then treats as fresh (lead root
+#   cause 2026-10-11, 5 stale-artifact incidents). This script's cargo runs use sync-export/target and sync-export/tmp.
+#   Steward canary (export of SYNC_SHA refreshed in place with export-refresh.sh into studio-team-dev/steward-export),
+#   from steward-export/src/handshake-studio-assets after sourcing builders/studio-env.sh:
+#     RUSTC_WRAPPER=sccache SCCACHE_DIR=<studio-team-dev>/sccache CARGO_INCREMENTAL=0 \
+#     bash tools/run-round.sh --canary --all --results <steward-export>/results/C<n>-<sha7> \
+#       --target-dir <steward-export>/target        (never studio-team-dev/target)
 # Usage: steward-sync.sh [--overlay RELPATH]... [--add-edge crate=dep]... [--remove-edge crate=dep]...
 #                        [--allow-unrequested] [--no-push] [--dry-run]
 # --overlay: steward-owned path relative to the workspace root (.config/*, tools/run-round.sh,
@@ -77,7 +86,11 @@ for rel in ${overlays[@]+"${overlays[@]}"}; do
   echo "OVERLAY $rel ${ovblob[$rel]:0:12}"
 done
 cd "$W" || exit 1
+# Export trees never share a target dir with the edit tree (see header): this export's cargo state stays in sync-export/.
+export STUDIO_OWNER=studio-team-dev/sync-export
 source "$WORK/builders/studio-env.sh"
+[ "$(cd "$CARGO_TARGET_DIR" && pwd)" = "$(cd "$EX/target" 2>/dev/null && pwd)" ] \
+  || { echo "steward-sync: export target $CARGO_TARGET_DIR is not $EX/target" >&2; exit 2; }
 cp Cargo.lock "$EX/committed-Cargo.lock"
 
 if [ ${#edges[@]} -gt 0 ]; then python -X utf8 -I "$TOOLS/edges.py" . "${edges[@]}" || exit 4; fi
