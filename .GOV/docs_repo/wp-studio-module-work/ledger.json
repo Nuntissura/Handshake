@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T13:47:18Z",
+ "updated_at": "2026-10-11T13:53:02Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -2873,5 +2873,35 @@
   ],
   "fix_budget_events": [],
   "infra_notes": "idle sccache server pid 297916 left running (not started by the validator; not stopped)"
+ },
+ "round_R9": {
+  "candidate": "4d80e50",
+  "candidate_full": "4d80e50d40432799c08f0f8b8f0047c9a00d056a",
+  "opened_at": "2026-10-11T13:53:02Z",
+  "sync": "steward-5: already in sync since pin sync 528d01c (probe 46/46, licence OK, 57/57 dep lines done)",
+  "canary": "C14 exit 73, 59/59 units, step 0 clean; NOT_PROVEN only interop-fig D17",
+  "excluded": [
+   "SMB-RENDER-GPU (D20)",
+   "SMB-ROUND-ENTRYPOINT (D20)",
+   "SMB-INTEROP-MEDIA (D9)",
+   "SMB-PRESS + SMB-PRESS-DIFFERENCES (R9 pre-review FIX_FIRST; rem-press-r9 running)",
+   "SMB-REEL-ENG-1 (R9 pre-review advisory CONFIRMED; rem-reel-eng-1 running)"
+  ],
+  "ready": [
+   "SMB-SCORE-PLUGIN-RATE",
+   "SMB-INTEROP-PSD-BUDGET",
+   "SMB-COMPOSITE-ADJ (remediation 07f6abd)",
+   "SMB-PARITY-FOLLOWUP",
+   "SMB-REEL-NATIVE-FAULTS",
+   "SMB-WEB-PARITY",
+   "SMB-WEB-DIFFTEST"
+  ],
+  "two_fail_rechecks": {
+   "SMB-REEL-AV1-ROUTE": "validation/R9-prereview-reel.json SAFE at a024461 (no reel commit after a024461 in 4d80e50)",
+   "SMB-REEL-NATIVE-AV1-WORKER": "validation/R9-prereview-reel.json SAFE at a024461",
+   "SMB-WEB": "validation/R9-prereview-web.json (pending)"
+  },
+  "cx_val_009": "crates changed f6e5a49..4d80e50 (+ dependency closure): score-plugin, interop-psd, composite, pigment, render-cpu, reel, reel-native, web (+ render-gpu/develop/etc via pigment closure; render-gpu lane excluded)",
+  "team": "1 validator + reviewers A (pigment/composite/render-cpu/psd) and B (score-plugin/reel-native/reel reopen/web lanes)"
  }
 }

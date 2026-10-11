@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T13:44:52Z",
+ "updated_at": "2026-10-11T13:53:55Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1561,7 +1561,7 @@
     "builders/lanes/workspace-steward.json"
    ],
    "launched": "2026-10-11T11:58:46Z",
-   "status": "running 2026-10-11T13:47:44Z (R9 sync + canary C14)"
+   "status": "idle 2026-10-11T13:53:02Z (R9 candidate 4d80e50 already in sync; C14 exit 73 59/59)"
   },
   {
    "name": "research-reel-eng",
@@ -1764,6 +1764,40 @@
     "builders/lanes/hsk-studio-reel-eng-1.json"
    ],
    "launched": "2026-10-11T13:47:44Z",
+   "status": "running"
+  },
+  {
+   "name": "validator-r9",
+   "agent_id": "a73748dc0411994ee",
+   "model": "opus",
+   "role": "WP validator STUDIO-R9 on 4d80e50",
+   "owns": [
+    "validation/round-R9.json",
+    "verdict fields"
+   ],
+   "launched": "2026-10-11T13:53:55Z",
+   "status": "running"
+  },
+  {
+   "name": "reviewer-r9-a",
+   "agent_id": "aefe8183b241e9b8d",
+   "model": "opus",
+   "role": "R9 reviewer A (pigment/composite/render-cpu/psd)",
+   "owns": [
+    "validation/R9-review-a.json"
+   ],
+   "launched": "2026-10-11T13:53:55Z",
+   "status": "running"
+  },
+  {
+   "name": "reviewer-r9-b",
+   "agent_id": "adead94be12e321dd",
+   "model": "opus",
+   "role": "R9 reviewer B (score-plugin/reel-native/reel reopen/web lanes)",
+   "owns": [
+    "validation/R9-review-b.json"
+   ],
+   "launched": "2026-10-11T13:53:55Z",
    "status": "running"
   }
  ]
