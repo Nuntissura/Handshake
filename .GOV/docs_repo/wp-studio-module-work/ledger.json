@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T11:53:17Z",
+ "updated_at": "2026-10-11T11:58:46Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -676,7 +676,7 @@
    "crate": "hsk-studio-press",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-press",
    "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "status": null,
    "owner": "builder-press",
    "brief": null,
    "commits": [
@@ -699,7 +699,7 @@
     "STUDIO-R6 FAIL_V2 @bd8533f (newer submission dd1df63 pending)"
    ],
    "candidate": "1c3fd8c",
-   "note": "hardening 023c817 (V4-01 on filters/reader/syntax/writer, 107 sites; per-stage + aggregate decode budget, max_filters 8, depth clamp 256, ref chains 16 hops, /W /Size /Index /Length bounds), R6 c520095 (kept-text exemption only for page-tree-reachable contents/forms; hidden zlib behind raster filters; ASCII85 tail), V4-02 tests 007f8bc (red-proved on scratch copy; nesting overflowed stack on old code), redaction gaps a1c9747 (other name trees, Submit/ResetForm /Fields, attachments); 31 green; pre-review B N1-N7 fixed with sound-by-construction backstop (diagnostics/press-proof-soundness.md): every output byte scanned, raw matches excused only inside bytes a decoder read and confirmed, TrailingData/UnreadableContent NotProven, single content walker with q/Q/gs/Tf/Do + inherited resources, kept text = drawn only; PLR-040 codec-structure check; 38 green; red on 0e48167 copy (40 sub-cases proven -> not proven). Needs V4-13 pre-review before judging (2 FAILs).",
+   "note": "hardening 023c817 (V4-01 on filters/reader/syntax/writer, 107 sites; per-stage + aggregate decode budget, max_filters 8, depth clamp 256, ref chains 16 hops, /W /Size /Index /Length bounds), R6 c520095 (kept-text exemption only for page-tree-reachable contents/forms; hidden zlib behind raster filters; ASCII85 tail), V4-02 tests 007f8bc (red-proved on scratch copy; nesting overflowed stack on old code), redaction gaps a1c9747 (other name trees, Submit/ResetForm /Fields, attachments); 31 green; pre-review B N1-N7 fixed with sound-by-construction backstop (diagnostics/press-proof-soundness.md): every output byte scanned, raw matches excused only inside bytes a decoder read and confirmed, TrailingData/UnreadableContent NotProven, single content walker with q/Q/gs/Tf/Do + inherited resources, kept text = drawn only; PLR-040 codec-structure check; 38 green; red on 0e48167 copy (40 sub-cases proven -> not proven). Needs V4-13 pre-review before judging (2 FAILs).; R8 pre-review FIX_FIRST (excluded from R8, V4-19); remediation dispatched with lead decision fail-closed (START_LOG).",
    "r5_review_routed": {
     "to": "builder-press-3",
     "at": "2026-10-11T05:31:12Z",
@@ -709,7 +709,22 @@
     "to": "builder-press-4 (message)",
     "at": "2026-10-11T06:29:17Z",
     "ref": "validation/R6-review-b.json"
-   }
+   },
+   "blockers": [
+    {
+     "kind": "V4-13 pre-review FIX_FIRST",
+     "ref": "validation/R8-prereview-press.json",
+     "items": [
+      "F1",
+      "F2",
+      "F3",
+      "F4",
+      "F5",
+      "P1"
+     ],
+     "recorded_at": "2026-10-11T11:58:11Z"
+    }
+   ]
   },
   {
    "lane_id": "SMB-WEB",
@@ -921,7 +936,7 @@
    "crate": "hsk-studio-reel",
    "origin": "research/engine-video.md",
    "scope": "own ISOBMFF/MOV index reader (edit lists, ctts, tmcd) + index-first frame-accurate seek returning requested vs actual PTS; exact-or-error in export mode",
-   "phase": "brief",
+   "phase": "brief (research-reel-eng writing builders/briefs/lane-reel-eng-1.md)",
    "status": null,
    "owner": null,
    "commits": [],
@@ -932,7 +947,7 @@
    "crate": "hsk-studio-reel",
    "origin": "research/engine-video.md",
    "scope": "ProRes decode from SMPTE RDD 36 (pure Rust), then DNxHD/HR (ST 2019-1); decoder id+version in every frame receipt",
-   "phase": "brief",
+   "phase": "brief (research-reel-eng writing builders/briefs/lane-reel-eng-2.md)",
    "status": null,
    "owner": null,
    "commits": [],
@@ -988,7 +1003,7 @@
    "crate": "hsk-studio-reel-native",
    "origin": "research/engine-video.md",
    "scope": "subprocess-isolated native codec provider: Media Foundation hardware MFTs via windows crate with mandatory software fallback; shared-memory frame ring, heartbeat, replay from last sync sample",
-   "phase": "brief",
+   "phase": "brief (research-reel-eng writing builders/briefs/lane-reel-native-eng-1.md)",
    "status": null,
    "owner": null,
    "commits": [],
@@ -1860,7 +1875,7 @@
    "origin": "architect SMB-PIGMENT-ENG-2 (diagnostics/adjustments-advanced-blending.md)",
    "scope": "brief builders/briefs/lane-effects-wave-1.md",
    "phase": "validation",
-   "status": "FAIL_V1",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-effects-1",
    "commits": [
     "e007703"
@@ -1868,8 +1883,34 @@
    "verdicts": [
     "STUDIO-R7 FAIL_V1 @dff7ef5"
    ],
-   "candidate": "e007703",
-   "note": "pigment effect_math + LayerExtension.effects + ExtOperator::Effect: drop shadow (spread/blur/offset/knockout), colour overlay, stroke inside/outside/centre, all Approximate; reference render <=64x64; bounds size<=1000 px, distance<=30000 px, 64 effects/layer, 4096/envelope, budget before loops; refusals on adjustment/pass-through/clip layers; spread modelled as hard grow + blur (brief formula degenerate on binary alpha; lead accepts provisionally, D5 case 12); 30 green (6 new)"
+   "candidate": "fe5fde0",
+   "note": "pigment effect_math + LayerExtension.effects + ExtOperator::Effect: drop shadow (spread/blur/offset/knockout), colour overlay, stroke inside/outside/centre, all Approximate; reference render <=64x64; bounds size<=1000 px, distance<=30000 px, 64 effects/layer, 4096/envelope, budget before loops; refusals on adjustment/pass-through/clip layers; spread modelled as hard grow + blur (brief formula degenerate on binary alpha; lead accepts provisionally, D5 case 12); 30 green (6 new)",
+   "remediation_claim": {
+    "failure_class": "effects-with-blend-if-admitted-then-refused-by-every-backend (STUDIO-R7 FAIL_V1)",
+    "rule": "CX-VAL-008 resubmission names its remediation",
+    "commits": {
+     "pigment (owner, CX-CAP-001)": [
+      "d3ce607",
+      "fe5fde0"
+     ],
+     "pigment admission parity": [
+      "b2f5f81"
+     ],
+     "consumer adoption": [
+      "cdd0644",
+      "e8f5f98",
+      "7011298",
+      "f6e5a49"
+     ]
+    },
+    "lanes": [
+     "SMB-PIGMENT-FX-OPS",
+     "SMB-PIGMENT-ADMIT-PARITY",
+     "SMB-FX-OPS-ADOPT"
+    ],
+    "summary": "ExtOperator::EffectsWithBlendIf is intrinsically Unsupported in pigment (refused at admission, key effects_with_blend_if); backends use pigment's key; interop-psd records a typed loss; composite ledger matches pigment validate",
+    "recorded_at": "2026-10-11T11:56:26Z"
+   }
   },
   {
    "lane_id": "SMB-EFFECTS-WAVE-2",
@@ -1995,9 +2036,9 @@
    "crate": "hsk-studio-web",
    "origin": "rem-web-r6 suggestion; root class = parser/browser disagreement",
    "scope": "test-only differential check: html5ever (dev-dependency, MIT/Apache) parses generated/adversarial inputs; compare element namespaces, raw-text/RCDATA boundaries and decoded attribute values with hsk-studio-web's model; disagreements fail; needs steward lock sync",
-   "phase": "queued (after SMB-WEB is judged in R7; V4-14/15)",
+   "phase": "build (holds commits until SYNC DONE)",
    "status": null,
-   "owner": null,
+   "owner": "builder-web-difftest",
    "commits": [],
    "verdicts": []
   },
@@ -2212,21 +2253,35 @@
    "origin": "press 1c3fd8c residual",
    "scope": "/Differences + Type3 + encoding-less fonts decoded via AGL or opaque (NotProven)",
    "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "status": null,
    "owner": "builder-press-differences",
    "commits": [
     "607d47c"
    ],
    "verdicts": [],
    "candidate": "607d47c",
-   "note": "simple fonts decoded via base encodings + /Differences + AGL (BSD-3, 4089 entries embedded with notice; PUA names left unmappable), ToUnicode completion, else OpaqueText NotProven; Type3 names from /Differences only; encoding reads charged; 51 green; 4 new tests red on 1c3fd8c; residual: Type3 /Widths /1000 in region selector (pre-review checks)"
+   "note": "simple fonts decoded via base encodings + /Differences + AGL (BSD-3, 4089 entries embedded with notice; PUA names left unmappable), ToUnicode completion, else OpaqueText NotProven; Type3 names from /Differences only; encoding reads charged; 51 green; 4 new tests red on 1c3fd8c; residual: Type3 /Widths /1000 in region selector (pre-review checks); R8 pre-review FIX_FIRST (excluded from R8, V4-19); remediation dispatched with lead decision fail-closed (START_LOG).",
+   "blockers": [
+    {
+     "kind": "V4-13 pre-review FIX_FIRST",
+     "ref": "validation/R8-prereview-press.json",
+     "items": [
+      "D1",
+      "D2",
+      "D3",
+      "D4",
+      "D5"
+     ],
+     "recorded_at": "2026-10-11T11:58:11Z"
+    }
+   ]
   },
   {
    "lane_id": "SMB-RENDER-GPU-PROBE",
    "crate": "hsk-studio-render-gpu",
    "origin": "R7: SMB-RENDER-GPU's no-adapter regression probe prints NOT_PROVEN while testing the opt-out, so every round including render-gpu exits 73",
    "scope": "probe tests the opt-out path without emitting the round marker (capture/assert instead of print), keeping real NOT_PROVEN reporting unchanged",
-   "phase": "queued (after D20 or as separate lane)",
+   "phase": "held for D20 (lead 2026-10-11T11:56:26Z): a test change in hsk-studio-render-gpu while SMB-RENDER-GPU is fix_budget_exhausted would be a new claim on a blocked crate",
    "status": null,
    "owner": null,
    "commits": [],
@@ -2261,6 +2316,17 @@
    "verdicts": [],
    "candidate": "f6e5a49",
    "note": "adoption of pigment FX-OPS + admission parity: render-gpu cdd0644 (EffectsNested supported Approximate, AlphaPremultiplied Unsupported, pigment keys; nesting parity test green again on RTX; 24 default / 27 test-faults), render-cpu e8f5f98 (EffectsNested + AlphaPremultiplied Unsupported, pigment keys; 32), composite 7011298 (ledgers match pigment validate for EffectsWithBlendIf/EffectsNested; mask_on_pass_through Unavailable; 27), interop-psd f6e5a49 (typed losses effects_with_blend_if, mask_on_pass_through with pigment codes; 41); tests compare against pigment answers"
+  },
+  {
+   "lane_id": "SMB-PRESS-GEOMETRY",
+   "crate": "hsk-studio-press",
+   "origin": "R8 pre-review press F4 (lead decision 2026-10-11T11:58:11Z)",
+   "scope": "region selector geometry for Type3 (advance = Widths x FontMatrix[0] x Tfs, extent from FontBBox x FontMatrix) and vertical writing (WMode 1, W2/DW2), replacing the fail-closed RegionIncomplete for those fonts",
+   "phase": "queued (after SMB-PRESS is judged)",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": []
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
@@ -2484,5 +2550,17 @@
    "6. Queued: SMB-RENDER-GPU-PROBE (round exit 73 noise), SMB-WEB-DIFFTEST, SMB-PIGMENT-PLANLIMITS stub.",
    "Operator items: D1-D20 (D20 fix budget render-gpu + round entrypoint), STU-CON-044 provisional reading, repo-local target 3.8 GB, C:\\x."
   ]
+ },
+ "r8_plan": {
+  "at": "2026-10-11T11:56:26Z",
+  "candidate": "steward-5 sync SHA (pending)",
+  "include": "every READY_FOR_VALIDATION lane + PASS lanes whose crate or dep closure changed since dff7ef5 (CX-VAL-009); SMB-REEL-AV1-ROUTE + SMB-REEL-NATIVE-AV1-WORKER per validation/R8-prereview-reel.json (AV1-ROUTE condition met by bf3c196); SMB-PRESS + SMB-PRESS-DIFFERENCES per validation/R8-prereview-press.json (pending)",
+  "exclude": [
+   "SMB-RENDER-GPU (D20)",
+   "SMB-ROUND-ENTRYPOINT (D20)",
+   "SMB-INTEROP-MEDIA (D9)"
+  ],
+  "team": "1 validator + 2 reviewers (V4-10)",
+  "known_noise": "render-gpu no-adapter probe prints NOT_PROVEN -> round exit 73 (SMB-RENDER-GPU-PROBE held for D20: test change in a fix-budget-exhausted crate)"
  }
 }

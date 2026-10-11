@@ -2,7 +2,7 @@
  "file_id": "WP-STUDIO-MODULE-WORK-PLAUSIBLE-REGISTER",
  "file_kind": "reviewer_plausible_decision_register",
  "schema": "hsk.studio_plausible_register@1",
- "updated_at": "2026-10-11T10:56:49Z",
+ "updated_at": "2026-10-11T11:58:11Z",
  "author": "workflow-2 (tick 4)",
  "authority_note": "Context for the lead, not a verdict. Packet/MT JSON, ledger.json and independent validator verdicts stay authoritative. Each entry was re-read at the product SHA named in verified_at (git show/grep of origin/codex/handshake-studio-assets in wt-studio-assets); no cargo was run.",
  "scope": "Every PLAUSIBLE finding in validation/R5-review-{a,b,c}.json, R6-review-{a,b,c}.json, R7-prereview-{a,b}.json (122 raw entries, deduplicated across rounds and lanes). No R7 review files exist: R7 was stopped at 2026-10-11T08:06:27Z before any reviewer or the validator wrote output (no validation/R7-review-*.json, no studio-round/results/R7).",
@@ -130,6 +130,14 @@
    "decision": "FIX_LANE",
    "reason": "folio exposes its id-uniqueness/namespace pass; components calls it and deletes its rebuild (CX-CAP-001); lane SMB-FOLIO-UNIQUENESS (folio then components)",
    "decided_at": "2026-10-11T10:18:58Z"
+  },
+  {
+   "at": "2026-10-11T11:58:11Z",
+   "items": [
+    "PLR-039"
+   ],
+   "decision": "re-opened: supersession does not hold (R8 pre-review press F4); fail closed for Type3/vertical text in a region; geometry later in SMB-PRESS-GEOMETRY",
+   "ref": "validation/R8-prereview-press.json"
   }
  ],
  "open": [

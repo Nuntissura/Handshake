@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T11:53:17Z",
+ "updated_at": "2026-10-11T11:58:46Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1536,7 +1536,7 @@
     "validation/R8-prereview-press.json"
    ],
    "launched": "2026-10-11T11:32:26Z",
-   "status": "running"
+   "status": "done 2026-10-11T11:58:46Z (FIX_FIRST both lanes)"
   },
   {
    "name": "builder-reel-plr032",
@@ -1548,6 +1548,57 @@
    ],
    "launched": "2026-10-11T11:35:03Z",
    "status": "done 2026-10-11T11:53:17Z (bf3c196)"
+  },
+  {
+   "name": "steward-5",
+   "agent_id": "ae0fc4df8a15b0f2a",
+   "model": "opus",
+   "role": "workspace steward (fresh): R8 sync + canary C13 + lock audit",
+   "owns": [
+    "root workspace files",
+    "kernel tools/",
+    "builders/studio-env.sh",
+    "builders/lanes/workspace-steward.json"
+   ],
+   "launched": "2026-10-11T11:58:46Z",
+   "status": "running"
+  },
+  {
+   "name": "research-reel-eng",
+   "agent_id": "aec690856e408fa02",
+   "model": "sonnet",
+   "role": "briefs for SMB-REEL-ENG-1, SMB-REEL-ENG-2, SMB-REEL-NATIVE-ENG-1 (gap vs current code, verified spec sources)",
+   "owns": [
+    "builders/briefs/lane-reel-eng-1.md",
+    "builders/briefs/lane-reel-eng-2.md",
+    "builders/briefs/lane-reel-native-eng-1.md"
+   ],
+   "launched": "2026-10-11T11:58:46Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-web-difftest",
+   "agent_id": "a5a0cf7b65b0889b2",
+   "model": "sonnet",
+   "role": "SMB-WEB-DIFFTEST (html5ever dev-dep differential test); holds commits until SYNC DONE",
+   "owns": [
+    "crates/hsk-studio-web/** (tests + dev-dep)",
+    "builders/lanes/hsk-studio-web-difftest.json"
+   ],
+   "launched": "2026-10-11T11:58:46Z",
+   "status": "running"
+  },
+  {
+   "name": "rem-press-r8",
+   "agent_id": "a2b33383976f063af",
+   "model": "opus",
+   "role": "SMB-PRESS + SMB-PRESS-DIFFERENCES R8 pre-review remediation (fail-closed proof); holds commits until SYNC DONE",
+   "owns": [
+    "crates/hsk-studio-press/**",
+    "builders/lanes/hsk-studio-press.json"
+   ],
+   "launched": "2026-10-11T11:58:46Z",
+   "status": "running"
   }
  ]
 }
