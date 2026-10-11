@@ -1928,7 +1928,7 @@
     "builders/lanes/hsk-studio-interop-psd-budget.json"
    ],
    "launched": "2026-10-11T15:30:02Z",
-   "status": "done 2026-10-11T15:43:54Z (SMB-INTEROP-PSD-BUDGET READY at 85532ad)"
+   "status": "done (85532ad)"
   },
   {
    "name": "prereview-r11-psd-budget",
@@ -1939,7 +1939,7 @@
     "validation/R11-prereview-psd-budget.json"
    ],
    "launched": "2026-10-11T15:44:05Z",
-   "status": "running"
+   "status": "done 2026-10-11T16:02:32Z (SAFE_TO_JUDGE; PLR-063..065)"
   }
  ]
 }

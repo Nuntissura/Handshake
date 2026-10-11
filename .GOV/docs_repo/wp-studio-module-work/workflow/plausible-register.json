@@ -1105,6 +1105,51 @@
    "verified_at": "cc3eaae",
    "disposition": "FIX_LANE",
    "disposition_note": "next reel lane (crate frozen for R10 to keep the AV1-ROUTE pre-review valid)"
+  },
+  {
+   "id": "PLR-063",
+   "lane": "SMB-INTEROP-PSD-BUDGET",
+   "file_line": "crates/hsk-studio-interop-psd/src/effects.rs:552-554",
+   "finding": "Folio 1024 mapped-instance ceiling counts both categories: a visible stack with 1 live + 1024 off instances is lost; 'each bound cuts only its own category' wording reads wider",
+   "first_seen": "R11-prereview-psd-budget",
+   "seen_in": [
+    "R11-prereview-psd-budget"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "85532ad",
+   "disposition": "FIX_LANE",
+   "disposition_note": "after R11 (crate frozen for the pre-review)"
+  },
+  {
+   "id": "PLR-064",
+   "lane": "SMB-INTEROP-PSD-BUDGET",
+   "file_line": "crates/hsk-studio-interop-psd DESCRIPTOR / docs",
+   "finding": "the two deliberate over-counts (no-pixel layers, clipped layers on hidden/empty base) are disclosed only in kernel lane notes, not in shipped docs/DESCRIPTOR; all fixtures are no-pixel layers",
+   "first_seen": "R11-prereview-psd-budget",
+   "seen_in": [
+    "R11-prereview-psd-budget"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "85532ad",
+   "disposition": "FIX_LANE",
+   "disposition_note": "after R11"
+  },
+  {
+   "id": "PLR-065",
+   "lane": "SMB-INTEROP-PSD-BUDGET",
+   "file_line": "crates/hsk-studio-interop-psd/tests/effects_budget.rs (helper)",
+   "finding": "nested hidden groups untested (helper cannot nest groups; a boolean in place of the hidden_groups counter would pass)",
+   "first_seen": "R11-prereview-psd-budget",
+   "seen_in": [
+    "R11-prereview-psd-budget"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "85532ad",
+   "disposition": "FIX_LANE",
+   "disposition_note": "after R11"
   }
  ],
  "process_items": [

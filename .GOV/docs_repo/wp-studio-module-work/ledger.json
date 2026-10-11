@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T15:43:54Z",
+ "updated_at": "2026-10-11T16:02:32Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -2613,7 +2613,7 @@
    "crate": "hsk-studio-interop-psd",
    "origin": "PLR-053 (R8-review-b)",
    "scope": "PSDs whose effect count exceeds folio's default node budget import with typed per-layer losses (or an input-sized budget within a documented hard cap), never whole-import raster_records_rejected",
-   "phase": "validation (two-FAIL lane: V4-13 pre-review before R11)",
+   "phase": "validation (pre-review SAFE; crate frozen until R11)",
    "status": "READY_FOR_VALIDATION",
    "owner": "builder-psd-budget",
    "commits": [
@@ -2636,6 +2636,12 @@
     ],
     "summary": "two independent tally sides; each cap cuts only its own category; visible live instances never refused by the uncounted cap",
     "recorded_at": "2026-10-11T15:43:55Z"
+   },
+   "r11_prereview": {
+    "ref": "validation/R11-prereview-psd-budget.json",
+    "recommendation": "SAFE_TO_JUDGE",
+    "head": "85532ad",
+    "at": "2026-10-11T16:02:32Z"
    }
   },
   {
