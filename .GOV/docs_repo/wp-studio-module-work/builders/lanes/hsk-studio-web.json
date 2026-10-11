@@ -2,13 +2,36 @@
   "crate": "hsk-studio-web",
   "lane": "SMB-WEB-1",
   "status": "READY_FOR_VALIDATION",
-  "phase": "R5-B remediation done on top of slice 2 (refresh + key map, granted-asset collection, preview tree, observe report) and slice 1 (parser, DOM view, source patches, breakpoints, loss/refusal reports)",
+  "phase": "R6-B remediation (Opus, escalated: second FAIL of the same class) on top of the R5-B remediation, slice 2 and slice 1: the parser reads bytes as an HTML parser does or refuses typed",
   "commits": [
-    {"sha": "b081975", "subject": "Web slice 1: span-preserving HTML subset parser, DOM view, source-patch edits (attribute/text/insert/remove), media-query breakpoints, typed loss and refusal reports"},
-    {"sha": "da39753", "subject": "Web slice 1: web-consumer example (--descriptor, --tree, --set-attr, --media)"},
-    {"sha": "7cd898d", "subject": "Web slice 2: refresh with key map, granted-asset collection (external URLs denied, port only for relative refs), preview tree (roles, names, tab order, media-gated display), observe report"},
-    {"sha": "5518980", "subject": "Web R5-B remediation: decode CSS escapes and character references before classifying asset URLs; base href; full URL attribute set"},
-    {"sha": "8682e6f", "subject": "Web R5-B class sweep (V4-06): decode http-equiv with the character-reference decoder before the refresh keyword check"}
+    {
+      "sha": "b081975",
+      "subject": "Web slice 1: span-preserving HTML subset parser, DOM view, source-patch edits (attribute/text/insert/remove), media-query breakpoints, typed loss and refusal reports"
+    },
+    {
+      "sha": "da39753",
+      "subject": "Web slice 1: web-consumer example (--descriptor, --tree, --set-attr, --media)"
+    },
+    {
+      "sha": "7cd898d",
+      "subject": "Web slice 2: refresh with key map, granted-asset collection (external URLs denied, port only for relative refs), preview tree (roles, names, tab order, media-gated display), observe report"
+    },
+    {
+      "sha": "5518980",
+      "subject": "Web R5-B remediation: decode CSS escapes and character references before classifying asset URLs; base href; full URL attribute set"
+    },
+    {
+      "sha": "8682e6f",
+      "subject": "Web R5-B class sweep (V4-06): decode http-equiv with the character-reference decoder before the refresh keyword check"
+    },
+    {
+      "sha": "ca0d27e",
+      "subject": "Web R6-B remediation: read HTML bytes as a browser does (exact character references, tokenizer states, tree-construction context) or refuse typed"
+    },
+    {
+      "sha": "08ad0ad",
+      "subject": "Web R6-B V4-07: the decoded-size bound cites a test that checks it over the whole named reference table"
+    }
   ],
   "capabilities_done": [
     "parse(): dependency-free byte scanner; every node keeps its exact source byte span; children tile the parent content so concatenated spans equal the source; unedited round trip is byte-exact (source retained, apply of an empty patch returns identical bytes and revision)",
@@ -27,25 +50,32 @@
     "R5-B 1: CSS URL references come from a CSS Syntax 3 tokenizer (cssurl.rs): escapes decoded before matching (u\\72l( , \\75rl( , ht\\74p: , hex + optional whitespace, escaped newline in strings), url/function/string/bad-url tokens, comments/strings/xurl(/1url(/url (/url/**/( are not url tokens; bad-url reported but never offered to the port",
     "R5-B 1: HTML character references are decoded before classification (charref.rs): numeric with or without semicolon and any digit count, URL/CSS punctuation names (colon sol bsol Tab NewLine lpar rpar ...); other well-formed named references deny the value (Denied UndecodableReference)",
     "R5-B 2: any <base href> (any value, any position, also valueless) makes every relative reference Denied(BaseHref); the base itself is reported; URL attribute set extended from the WHATWG attribute index (srcset, imagesrcset, poster, object data/codebase/classid/archive, form action, formaction, cite, ping, obsolete background/longdesc/lowsrc/manifest, meta refresh url, href and xlink:href on every element, svg url() presentation attributes, svg style text and CDATA, iframe srcdoc reported Denied(InlineDocument)); DESCRIPTOR scanned/not_scanned updated",
-    "R5-B PLAUSIBLE: relative paths with a backslash or percent-encoded dot/slash/backslash are Denied(AmbiguousPath) before the port"
+    "R5-B PLAUSIBLE: relative paths with a backslash or percent-encoded dot/slash/backslash are Denied(AmbiguousPath) before the port",
+    "R6-B 1: exact WHATWG character references (charref.rs + generated entity_table.rs, 2231 entries incl. 106 legacy names without ';', longest match, attribute-value rule for '=' and alphanumerics, numeric states with the windows-1252 C1 table); one decoder with Text/Attribute context for asset scanning, attr_value, text_content, view and decode_entities; Denied(UndecodableReference) removed (unknown names are literal for a browser too)",
+    "R6-B 2: tree-construction context: Node.namespace (Html/Svg/MathMl), dispatcher with HTML integration points (svg foreignObject/desc/title, annotation-xml encoding text/html|application/xhtml+xml) and MathML text integration points (mi mo mn ms mtext, not mglyph/malignmark), foreign start tags inherit the parent namespace, void only in HTML; style under integration points is RAWTEXT",
+    "R6-B sweep (same class): comment end at --!>, script data escaped/double-escaped states, CDATA section only under a foreign current node (else bogus comment to the first '>'), typed refusals foreign_breakout, scripting_dependent (noscript RAWTEXT reading ends earlier), select_content, frameset_document; foreign style sheet = child text content (text + CDATA concatenated)",
+    "R6-B PLAUSIBLE: SVG set/animate to/from/by/values scanned when attributeName is href, xlink:href, src or a url() presentation attribute"
   ],
   "tests": {
-    "argv": "cargo test -p hsk-studio-web --no-fail-fast --test source_dom_patch",
+    "argv": "cargo test -p hsk-studio-web --no-fail-fast",
     "exit": 0,
-    "sha": "8682e6f",
-    "passed": 15,
+    "sha": "08ad0ad",
+    "passed": 25,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "Independent re-review of R5 group B findings on 8682e6f (both CONFIRMED items and the PLAUSIBLE path item are addressed). Later (not started): Folio mode=web mapping once Folio defines it, template/snippet and tag-library surfaces, CSS designer panel descriptors, image-set()/src() string arguments in asset scanning, full HTML5 tree building decision (html5ever/lol_html)",
-  "updated_at": "2026-10-11T05:54:12Z",
+  "next": "Independent re-review of R6 group B findings on 08ad0ad (2 CONFIRMED + PLAUSIBLE addressed, plus 6 same-class sites from diagnostics/web-tokenizer.md). Lead option: html5ever as a dev-only differential oracle (needs a steward lock sync). Later (not started): Folio mode=web mapping, templates/snippets/tag libraries, CSS designer descriptors, image-set()/src() string arguments",
+  "updated_at": "2026-10-11T07:39:08Z",
   "notes": {
     "remediation_R5": {
       "round": "STUDIO-R5",
       "answers_verdict": "FAIL_V1 (candidate 1d404f8, web source identical at 7cd898d)",
-      "fix_commits": ["5518980", "8682e6f"],
+      "fix_commits": [
+        "5518980",
+        "8682e6f"
+      ],
       "pushed": "origin/codex/handshake-studio-assets contains 8682e6f",
       "failure_class": "raw-text matching of hostile URL spellings before decoding: CSS escapes, HTML character references, base href re-targeting, URL attributes outside the scan table",
       "class_regex": "url\\(|@import|\"(javascript|vbscript|data|file|http)|decode_entities\\(|decode_value\\(|css_references|classify\\(|is_ident_byte|eq_ignore_ascii_case\\(b\"",
@@ -104,16 +134,48 @@
         "V4-09": "commits via git commit -F with pathspec crates/hsk-studio-web"
       },
       "api_changes": "DenyReason gained BaseHref, InlineDocument, AmbiguousPath, UndecodableReference (non-exhaustive consumers must handle them); entity::named is pub(crate); no dependency change",
-      "not_scanned_after": ["image-set() and src() string arguments", "data: URI payloads", "iframe srcdoc contents (the attribute is reported Denied(InlineDocument))", "object param values", "itemid/itemtype identifiers", "legacy semicolon-less named references (no URL-structural character has one)"],
+      "not_scanned_after": [
+        "image-set() and src() string arguments",
+        "data: URI payloads",
+        "iframe srcdoc contents (the attribute is reported Denied(InlineDocument))",
+        "object param values",
+        "itemid/itemtype identifiers",
+        "legacy semicolon-less named references (no URL-structural character has one)"
+      ],
       "known_gaps": [
         "preview fidelity only (no asset reach): escaped property names and escaped @media keywords are not decoded; WebDoc::attr_value does not decode semicolon-less numeric references",
         "character-reference table is not the full 2231-name WHATWG table: unknown well-formed names deny the value instead of guessing"
       ]
     },
-    "tests_run": ["round_trip_is_byte_exact_and_spans_tile", "minimal_diff_patches_rewrite_only_affected_spans", "hostile_input_is_bounded_and_typed", "entities_decode_the_common_set_and_report_the_rest", "breakpoints_parse_match_and_refuse_typed", "code_edit_refresh_same_revision", "external_asset_denial_cancel_stale", "breakpoint_keyboard_a11y_preview", "observe_report_maps_outcomes", "css_escapes_cannot_hide_external_urls", "css_decoys_case_and_whitespace_follow_the_tokenizer", "character_references_cannot_hide_schemes", "base_href_re_targets_every_relative_reference", "more_url_attributes_and_foreign_content_are_scanned", "ambiguous_relative_paths_never_reach_the_port"],
+    "tests_run": [
+      "round_trip_is_byte_exact_and_spans_tile",
+      "minimal_diff_patches_rewrite_only_affected_spans",
+      "hostile_input_is_bounded_and_typed",
+      "entities_decode_the_common_set_and_report_the_rest",
+      "breakpoints_parse_match_and_refuse_typed",
+      "code_edit_refresh_same_revision",
+      "external_asset_denial_cancel_stale",
+      "breakpoint_keyboard_a11y_preview",
+      "observe_report_maps_outcomes",
+      "css_escapes_cannot_hide_external_urls",
+      "css_decoys_case_and_whitespace_follow_the_tokenizer",
+      "character_references_cannot_hide_schemes",
+      "base_href_re_targets_every_relative_reference",
+      "more_url_attributes_and_foreign_content_are_scanned",
+      "ambiguous_relative_paths_never_reach_the_port",
+      "legacy_named_reference_without_semicolon_in_attribute",
+      "legacy_reference_attribute_exceptions_and_longest_match",
+      "legacy_references_in_foreign_style_text_follow_the_data_state",
+      "svg_html_integration_points_read_style_as_raw_text",
+      "mathml_integration_points_and_nested_namespaces",
+      "foreign_breakout_and_cdata_follow_the_tree_builder",
+      "comment_script_and_noscript_states_follow_the_tokenizer",
+      "select_and_frameset_contexts_are_refused",
+      "svg_animation_of_href_is_scanned"
+    ],
     "slice2_limits": "Limits gained max_rules (2048); preview refuses rules x elements above 20M comparisons (LimitExceeded Rules); LimitKind::Rules and WebError::InvalidViewport added; no new dependencies in slice 2",
     "slice2_not_modelled": "layout and the full cascade (only display is resolved); name-from-content does not exclude hidden descendants; image-set()/src() string arguments are not scanned for assets (srcset and meta refresh are since the R5-B remediation); refresh identity for anonymous same-tag siblings is by order only",
-    "check_clippy": "check and clippy -p hsk-studio-web --tests --examples: clean (no warnings from this crate)",
+    "check_clippy": "check and clippy -p hsk-studio-web --tests --examples: clean at 08ad0ad (no warnings from this crate)",
     "dep_requests": "sha2 =0.10.9 force-soft appended to builders/dep-requests.jsonl (SourcePatch binds to the SHA-256 of the source); Cargo.lock, root Cargo.toml and probe not touched by this lane; steward sync needed (probe approved list needs hsk-studio-web)",
     "first_test_run": "first run failed 1 of 5 on a wrong node-count expectation in the test itself (1 + 20000*3, not +20000); fixed in the test, no product change. The gameplan retry-guard then required a changed HEAD or gameplan: satisfied by committing the fix (b081975), no edit to the shared STUDIO-MODULE-BUILD.yaml. Lead may prefer a gameplan step per GLOBAL-GAMEPLAN-003",
     "decisions": [
@@ -123,42 +185,180 @@
       "Self-closing slash on a non-void HTML element follows HTML (ignored, element stays open) and is recorded as SelfClosingIgnored; inside svg/math it closes the element",
       "Missing attribute inserts after the last attribute (not directly after the tag name) so existing attribute order and spacing stay untouched; unquoted values that need quoting become double-quoted (the only quote-style change)",
       "NodeKey = /<index>:<lower-case tag or #kind> path, computed on demand from parent links (no per-node key storage, bounded memory)",
-      "Entity decoding requires the terminating semicolon; legacy semicolon-less forms stay verbatim"
+      "Entity decoding requires the terminating semicolon; legacy semicolon-less forms stay verbatim (SUPERSEDED in R6 by exact WHATWG decoding: see remediation_R6)"
     ],
     "spec_gaps": [
       "folio::StudioDocument has no web mode field (brief gap, unchanged): slice takes (source, revision) directly",
       "em/rem media units rejected typed: root font size is not part of the source revision"
     ],
     "verdicts": [
-     {
-      "round": "STUDIO-R5",
-      "lane": "SMB-WEB",
-      "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
-      "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
-      "decision": "failed",
-      "verdict": "FAIL_V1",
-      "failures": [
-       {
-        "failure_kind": "product",
-        "failure_class": "css-escape-bypasses-url-classification",
-        "file_line": "crates/hsk-studio-web/src/css.rs:63-85; src/assets.rs:99-131"
-       },
-       {
-        "failure_kind": "product",
-        "failure_class": "base-href-and-url-attributes-unscanned",
-        "file_line": "crates/hsk-studio-web/src/assets.rs:79-96; src/lib.rs:32"
-       }
+      {
+        "round": "STUDIO-R5",
+        "lane": "SMB-WEB",
+        "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
+        "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
+        "decision": "failed",
+        "verdict": "FAIL_V1",
+        "failures": [
+          {
+            "failure_kind": "product",
+            "failure_class": "css-escape-bypasses-url-classification",
+            "file_line": "crates/hsk-studio-web/src/css.rs:63-85; src/assets.rs:99-131"
+          },
+          {
+            "failure_kind": "product",
+            "failure_class": "base-href-and-url-attributes-unscanned",
+            "file_line": "crates/hsk-studio-web/src/assets.rs:79-96; src/lib.rs:32"
+          }
+        ],
+        "remediation": "Decode CSS escapes before matching/classifying; handle <base href>; add missing URL attrs or list as not_scanned",
+        "status_after": "FAIL_V1",
+        "review": "validation/R5-review-b.json",
+        "round_ref": "validation/round-R5.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
+        "idempotency_key": "STUDIO-R5:SMB-WEB:1d404f8c4b72:FAIL_V1",
+        "recorded_at": "2026-10-11T05:38:23Z",
+        "by": "wp_validator STUDIO-R5"
+      },
+      {
+        "round": "STUDIO-R6",
+        "lane": "SMB-WEB",
+        "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a",
+        "tree": "834aa5599ffabf691558a25f777ce42f73d78103",
+        "decision": "failed",
+        "verdict": "FAIL_V2",
+        "failures": [
+          {
+            "failure_kind": "product",
+            "failure_class": "legacy-charref-without-semicolon-not-decoded",
+            "file_line": "crates/hsk-studio-web/src/charref.rs:94-109 (claim :11-12); src/assets.rs:384-391"
+          },
+          {
+            "failure_kind": "product",
+            "failure_class": "integration-point-style-overdecoded",
+            "file_line": "crates/hsk-studio-web/src/dom.rs:496-525; src/assets.rs:446-452"
+          }
+        ],
+        "remediation": "Decode legacy no-';' refs per the attribute rule (or deny); model HTML integration points (style there is raw text)",
+        "status_after": "FAIL_V2",
+        "review": "validation/R6-review-b.json",
+        "round_ref": "validation/round-R6.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6",
+        "idempotency_key": "STUDIO-R6:SMB-WEB:bd8533f9b29c:FAIL_V2",
+        "recorded_at": "2026-10-11T06:47:09Z",
+        "by": "wp_validator STUDIO-R6"
+      }
+    ],
+    "remediation_R6": {
+      "round": "STUDIO-R6",
+      "answers": "validation/R6-review-b.json SMB-WEB recommendation FAIL (candidate bd8533f, web source identical to 8682e6f)",
+      "diagnosis": "diagnostics/web-tokenizer.md (root cause, why R5 did not remove the class, options with evidence, decision)",
+      "fix_commits": [
+        "ca0d27e",
+        "08ad0ad"
       ],
-      "remediation": "Decode CSS escapes before matching/classifying; handle <base href>; add missing URL attrs or list as not_scanned",
-      "status_after": "FAIL_V1",
-      "review": "validation/R5-review-b.json",
-      "round_ref": "validation/round-R5.json",
-      "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
-      "idempotency_key": "STUDIO-R5:SMB-WEB:1d404f8c4b72:FAIL_V1",
-      "recorded_at": "2026-10-11T05:38:23Z",
-      "by": "wp_validator STUDIO-R5"
-     },
-      {"round": "STUDIO-R6", "lane": "SMB-WEB", "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a", "tree": "834aa5599ffabf691558a25f777ce42f73d78103", "decision": "failed", "verdict": "FAIL_V2", "failures": [{"failure_kind": "product", "failure_class": "legacy-charref-without-semicolon-not-decoded", "file_line": "crates/hsk-studio-web/src/charref.rs:94-109 (claim :11-12); src/assets.rs:384-391"}, {"failure_kind": "product", "failure_class": "integration-point-style-overdecoded", "file_line": "crates/hsk-studio-web/src/dom.rs:496-525; src/assets.rs:446-452"}], "remediation": "Decode legacy no-';' refs per the attribute rule (or deny); model HTML integration points (style there is raw text)", "status_after": "FAIL_V2", "review": "validation/R6-review-b.json", "round_ref": "validation/round-R6.json", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6", "idempotency_key": "STUDIO-R6:SMB-WEB:bd8533f9b29c:FAIL_V2", "recorded_at": "2026-10-11T06:47:09Z", "by": "wp_validator STUDIO-R6"}
-    ]
+      "pushed": "origin/codex/handshake-studio-assets contains 08ad0ad",
+      "failure_class": "the crate's reading of HTML bytes differs from a browser's: character-reference decoding, tokenizer states (comment end, script escapes, CDATA rule) and tree-construction context (namespace, integration points, breakout, noscript scripting flag, select, frameset), so a URL the browser fetches is neither reported nor denied",
+      "approach": "(b) own exact implementation, no new dependency; (a) rejected with evidence: html5gum 0.8.4 and html5tokenizer 0.5.2 leave tree construction (finding 2) to the caller, html5ever 0.40.1 has the tree builder but no byte offsets (TokenSink::process_token gets line numbers only) and an unsafe/build-script closure, lol_html 3.0.1 does not decode attribute values and has an 11-crate closure",
+      "dep_requests": "none (no dependency added; entity table is generated data from web_atoms 0.3.0 entities.rs, MIT OR Apache-2.0, the WHATWG entities.json, 12 entries spot-checked against html.spec.whatwg.org)",
+      "class_regex": "decode\\(|decode_entities\\(|find_raw(_text)?_close\\(|find_script_close\\(|comment_end\\(|CDATA|ContentModel::(RawText|Rcdata)|in_set\\((RAWTEXT|RCDATA|VOID|BREAKOUT|SELECT_DIVERGENT)|css_references\\(",
+      "class_regex_scope": "git grep -nE <regex> 08ad0ad -- crates/hsk-studio-web/src ':!crates/hsk-studio-web/src/entity_table.rs'",
+      "site_count": 57,
+      "sites": [
+        "assets.rs:378 css_references call = fixed (input is the browser's style text)",
+        "assets.rs:387 attribute decode = fixed (exact attribute context)",
+        "assets.rs:448 doc comment = not-applicable",
+        "assets.rs:454 HTML style RawText branch = fixed (raw text never decoded; RawText only where parse() puts HTML style)",
+        "assets.rs:462 CDATA section in foreign style = fixed (child text content concatenation)",
+        "assets.rs:471 foreign style text decode = fixed (exact text context)",
+        "charref.rs:25 doc comment = not-applicable",
+        "charref.rs:106 decode definition = fixed (new exact decoder)",
+        "charref.rs:191 unit test = not-applicable",
+        "charref.rs:192 unit test = not-applicable",
+        "cssurl.rs:237 css_references definition = not-applicable (verified faithful by R6 review)",
+        "dom.rs:7 doc comment = not-applicable",
+        "dom.rs:9 doc comment = not-applicable",
+        "dom.rs:14 doc comment = not-applicable",
+        "dom.rs:40 RCDATA set = not-applicable (list matches HTML: textarea, title)",
+        "dom.rs:112 doc comment = not-applicable",
+        "dom.rs:298 comment_end definition = fixed (new: --!> and comment start states)",
+        "dom.rs:336 find_script_close definition = fixed (new: script data escape states)",
+        "dom.rs:440 doc comment = not-applicable",
+        "dom.rs:441 find_raw_text_close definition = fixed (new)",
+        "dom.rs:442 dispatch to script/raw finder = fixed",
+        "dom.rs:460 doc comment = not-applicable",
+        "dom.rs:461 find_raw_close definition = fixed (appropriate end tag via keyword_at, same result as before)",
+        "dom.rs:594 comment_end call = fixed",
+        "dom.rs:603 CDATA branch = fixed (namespace rule)",
+        "dom.rs:604 comment = not-applicable",
+        "dom.rs:725 breakout check = fixed (new refusal)",
+        "dom.rs:738 select check = fixed (new refusal)",
+        "dom.rs:741 void only in HTML = fixed",
+        "dom.rs:760 RawText only for HTML elements = fixed",
+        "dom.rs:761 RawText content = fixed",
+        "dom.rs:762 RCDATA only for HTML elements = fixed",
+        "dom.rs:763 Rcdata content = fixed",
+        "dom.rs:772 annotation-xml encoding decode = fixed (exact attribute context)",
+        "dom.rs:781 noscript RAWTEXT reading = fixed (new refusal on disagreement)",
+        "dom.rs:807 raw body dispatch = fixed (script data finder)",
+        "dom.rs:816 raw close finder call = fixed",
+        "dom.rs:862 void end tag only for HTML = fixed",
+        "dom.rs:956 attr_value decode = fixed (exact attribute context; R5 known gap closed)",
+        "dom.rs:1019 text_content decode = fixed (exact text context)",
+        "dom.rs:1022 RCDATA owner check = not-applicable",
+        "dom.rs:1023 RCDATA decode = fixed (exact text context)",
+        "dom.rs:1053 view text decode = fixed (exact text context)",
+        "entity.rs:16 doc comment = not-applicable",
+        "entity.rs:18 decode_entities definition = fixed (delegates to the exact decoder)",
+        "entity.rs:19 decode call = fixed",
+        "error.rs:78 doc comment = not-applicable",
+        "error.rs:240 doc comment = not-applicable",
+        "error.rs:246 doc comment = not-applicable",
+        "lib.rs:35 DESCRIPTOR = fixed (html_subset foreign/tokenizer/refused_typed/entities/proof, assets decoding/classes/scanned/proof)",
+        "preview.rs:284 preview reads HTML RawText styles only = not-applicable (no asset reach; foreign style sheets not modelled by the preview, as before)",
+        "responsive.rs:294 media blocks from HTML RawText styles only = not-applicable (no asset reach)",
+        "source_dom_patch.rs:197 closes_raw = fixed (same close finder, script escape states)",
+        "source_dom_patch.rs:214 set_text RawText arm = fixed (closes_raw)",
+        "source_dom_patch.rs:220 set_text Rcdata arm = fixed (closes_raw)",
+        "source_dom_patch.rs:321 insert_element void check = not-applicable (builds HTML-context markup; a foreign destination is re-read by parse() on apply_patch, mismatches refuse)",
+        "source_dom_patch.rs:331 insert_element raw text = not-applicable (fragment checked by parse() with the script data finder)"
+      ],
+      "red_proof": "tree Handshake_Artifacts/WP-KERNEL-STUDIO/web-r6-redproof/src = git archive bd8533f (accord, observe, web, Cargo.lock, toolchain) + minimal workspace manifest + the 9 new tests appended (no expectation edits), STUDIO_OWNER=web-r6-redproof (own target, V4-11/12): 9 failed, 15 passed (log web-r6-redproof/red-bd8533f.log); e.g. R6 payloads reported nothing, url(&quot//e.invalid/w&quot) reached the port, noscript/select/frameset/svg breakout parsed with the URL hidden",
+      "green": "edit tree, web closure identical to 08ad0ad: 1 unit + 24 integration passed (log web-r6-redproof/green-2.log; ca0d27e content: green-1.log)",
+      "tests_added": [
+        "legacy_named_reference_without_semicolon_in_attribute",
+        "legacy_reference_attribute_exceptions_and_longest_match",
+        "legacy_references_in_foreign_style_text_follow_the_data_state",
+        "svg_html_integration_points_read_style_as_raw_text",
+        "mathml_integration_points_and_nested_namespaces",
+        "foreign_breakout_and_cdata_follow_the_tree_builder",
+        "comment_script_and_noscript_states_follow_the_tokenizer",
+        "select_and_frameset_contexts_are_refused",
+        "svg_animation_of_href_is_scanned",
+        "charref::tests::table_is_sorted_and_complete (unit)"
+      ],
+      "tests_changed": [
+        "entities_decode_the_common_set_and_report_the_rest: '&amp ' now decodes to '& ' (WHATWG named character reference state decodes legacy names without ';' in text); unresolved list unchanged",
+        "character_references_cannot_hide_schemes: '&notarealname;logo.png' is a literal value (longest match 'not' before an alphanumeric stays literal in attributes) and goes to the port -> Denied(NotGranted); was Denied(UndecodableReference) under the partial table"
+      ],
+      "adversarial_coverage_V4_08": "escape (legacy/numeric/C1 references, encoding=text&sol;html), decoy (&quot= in text vs attribute, plain svg style hides its url, CDATA inside foreign content, --!-> does not close, script double escape), case/whitespace (&QUOT, TITLE, foreignobject, TEXT/HTML, DIV, &quot before space/newline)",
+      "plausible_items": [
+        "assets.rs:125-146 SMIL set/animate: fixed (to/from/by/values scanned for href, xlink:href, src and url() presentation targets; other targets are not URLs)"
+      ],
+      "retry_guard_route": "no retry: one red run in the red-proof tree (exit 101 by design), one green run on the edit tree (different tree and argv), no gameplan step added; gameplan STUDIO-MODULE-BUILD check PASS 2/2 before each",
+      "v4": {
+        "V4-01": "deny(clippy::arithmetic_side_effects) added to dom.rs (81 sites rewritten with saturating `at()`), source_dom_patch.rs, error.rs; charref.rs/entity.rs/assets.rs keep it; clippy clean",
+        "V4-02": "not applicable: no allocation sized from declared dimensions; decoded text <= input + input/5 bytes (one byte growth per reference of >= 5 bytes, measured over the table)",
+        "V4-07": "DESCRIPTOR and module docs cite the proving tests; bounds stated from the generated table",
+        "V4-09": "commit via git commit -F with pathspec crates/hsk-studio-web; edits via files",
+        "V4-11/12": "red proof outside the shared tree with its own owner dir; helper scripts only under scratchpad/smb-web-r6"
+      },
+      "api_changes": "Node.namespace + pub enum Namespace; UnsupportedKind gained ForeignBreakout, FramesetDocument, SelectContent, ScriptingDependent; DenyReason::UndecodableReference removed; decode_entities is now the exact text decoder (output may grow by one byte per reference such as &nGt;); no dependency change",
+      "behaviour_changes": "documents with svg/math breakout tags, frameset, divergent select content or a disagreeing noscript are now refused typed; foreignObject/desc/title/mi/mtext/annotation-xml(HTML) style is RAWTEXT (also for the preview); HTML-content CDATA is a bogus comment to the first '>'",
+      "known_gaps": [
+        "tree divergences that do not change tokenization stay modelled literally (p auto-close, foster parenting, nested a/form/li/button, image->img rename); no URL is hidden by them because the tokenizer state is the same",
+        "a test-only differential oracle against a browser-grade parser (html5ever) is not in place (needs a dependency)"
+      ]
+    }
   }
 }

@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T07:30:00Z",
+ "updated_at": "2026-10-11T07:40:44Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1064,7 +1064,7 @@
     "diagnostics/web-tokenizer.md"
    ],
    "launched": "2026-10-11T06:29:17Z",
-   "status": "running"
+   "status": "done 2026-10-11T07:40:44Z (SMB-WEB READY at 08ad0ad)"
   },
   {
    "name": "rem-score-r6",

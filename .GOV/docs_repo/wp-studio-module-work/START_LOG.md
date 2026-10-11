@@ -232,6 +232,8 @@ Workflow v3 amendments (2026-10-11T02:12:42Z, source workflow/workflow-review-ti
 
 - Lead decisions 2026-10-11T07:30:00Z (workflow tick 3): adopted V4-13..16 (pre-review for 2-FAIL lanes, judge only lanes with no unclaimed later pushes, new features on new lane ids, builder context/commit-cadence hygiene); V4 applies to code added or touched after the 05:40Z adoption — untouched pre-adoption code yields PLAUSIBLE process notes, not FAIL; disk-lock proposals 1-4 sent to steward before R7; rem-kb-harness stopped at ~2 h without a commit (690 uncommitted lines) and resumed with commit-what-is-green; reviewer PLAUSIBLE items carried 2+ rounds get a lead decision register (next workflow tick compiles it); score-plugin worker lookup joins D18.
 
+- Lead acknowledgement 2026-10-11T07:40:44Z (web R6): two earlier web tests changed to match WHATWG (legacy `&amp` without `;` decodes in text; unknown named reference `&notarealname;` stays literal and `Denied(UndecodableReference)` is removed) — accepted as spec-conformant.
+
 Open Operator decisions (not adopted; recorded for the Operator):
 - D1: explicit confirmation that builder focused tests override CX-EXEC-014 for this WP (lead adopted on the basis of Operator instructions; Operator may reverse).
 - D2: waive CX-984-002 one-build-per-disk for D: (would let validator rounds and builders build in parallel on separate targets).
