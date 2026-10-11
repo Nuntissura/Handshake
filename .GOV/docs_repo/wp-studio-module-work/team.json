@@ -2079,6 +2079,17 @@
    ],
    "launched": "2026-10-11T19:16:56Z",
    "status": "running"
+  },
+  {
+   "name": "prereview-r13-press",
+   "agent_id": "a8c0554d09076009c",
+   "model": "opus",
+   "role": "V4-13 pre-review SMB-PRESS + DIFFERENCES (D27 flatten) at 9ffe946",
+   "owns": [
+    "validation/R13-prereview-press.json"
+   ],
+   "launched": "2026-10-11T19:18:55Z",
+   "status": "running"
   }
  ]
 }
