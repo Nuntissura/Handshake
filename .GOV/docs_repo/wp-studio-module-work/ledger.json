@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T05:31:12Z",
+ "updated_at": "2026-10-11T05:35:14Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -563,11 +563,12 @@
     "8b24131",
     "d1bb2ff",
     "1df11b2",
-    "cb38b86"
+    "cb38b86",
+    "e75bd5a"
    ],
    "verdicts": [],
-   "candidate": "cb38b86",
-   "note": "slice 3: redact_text_fields over outline /Title + annotation /Contents,/T,/Subj,/RC (PDFDocEncoding/UTF-16BE/LE/UTF-8 BOM; encoding preserved), Replace|Remove, widget /V,/DV only with explicit option, matching /AP dropped, per-object outcomes, KeptByPolicy stays a proof hit; proof change: /AP show operands now hits; 14/14; not covered: named dests, action URIs, /Opt,/TU, struct tree, popups outside /Annots, composite-font AP codes; ISO 32000 via secondary sources",
+   "candidate": "e75bd5a",
+   "note": "R5 remediation 03fb753 (is_clean/region_cleared/is_proven require fully_decoded; regression red first) + slice 4 e75bd5a (named dests renamed HskRdN, URI actions + URI Base, /TU /Opt, struct /Alt /ActualText /E /T, /Info + XMP, popup/IRT reach, AP text via ToUnicode cmap.rs; Unverifiable -> report.complete false); 18 of 18 green; slice 5 dispatched with lead raster-class decision",
    "r5_review_routed": {
     "to": "builder-press-3",
     "at": "2026-10-11T05:31:12Z",

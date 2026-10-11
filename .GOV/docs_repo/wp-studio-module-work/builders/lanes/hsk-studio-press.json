@@ -1,8 +1,8 @@
 {
   "crate": "hsk-studio-press",
-  "lane": "MT-35557 press slice 3",
+  "lane": "MT-35557 press slice 4 + remediation R5",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice 3 complete: outline-title and annotation-text redaction with per-object outcomes; appearance text counted as annotation text in the payload proof",
+  "phase": "slice 4 complete (destinations, URI actions, form labels, structure text, Info/XMP, popup/IRT, ToUnicode appearances); remediation R5 landed (undecodable streams never read as proven)",
   "commits": [
     {
       "sha": "70b4c74",
@@ -31,6 +31,14 @@
     {
       "sha": "cb38b86",
       "subject": "Press slice 3: outline-title and annotation-text redaction (Contents/T/Subj/RC, widget V/DV option, appearance drop) with per-object outcomes, redact_and_save_with, PDFDocEncoding/UTF-16 codec, annotation appearance text counts as a proof hit, +5 tests"
+    },
+    {
+      "sha": "03fb753",
+      "subject": "Press remediation R5: is_clean, region_cleared and is_proven require every stream decoded (a removed string stored in an undecodable stream no longer reads as proven); undecodable_stream_never_reads_as_proven (fails on the old verifier)"
+    },
+    {
+      "sha": "e75bd5a",
+      "subject": "Press slice 4: named destinations (tree rebuilt as one sorted leaf, opaque HskRdN names, every reference), URI actions, form /TU /Opt, structure /Alt /ActualText /E /T, /Info + XMP, popup/IRT annotations, ToUnicode-read appearances with Unverifiable/Dropped outcomes, per-object outcomes, +3 tests"
     }
   ],
   "capabilities_done": [
@@ -54,20 +62,26 @@
     "slice 3 (3): /RC (string or XHTML stream) judged raw, tag-stripped and tag-gapped with entities decoded; any match drops the key; unreadable text streams are dropped fail-closed and reported unreadable",
     "slice 3 (4): widget /V and /DV (string, text stream, array of strings) only with the explicit widget_values option; field/widget /T names never rewritten; every match the policy keeps is reported KeptByPolicy (TextFieldReport.complete == nothing kept)",
     "slice 3 (5): annotation /AP appearance streams (N/R/D, state dictionaries, nested forms) whose show operands match are dropped; per-object outcomes (object, direct, role, kind Replaced|Removed|Dropped|KeptByPolicy, matches, unreadable) carry no document text",
-    "slice 3 (6): payload proof treats annotation appearance streams as annotation text (show-operand match = hit, not kept_text_collision); UTF-16BE spellings for any PDFDocEncoding-readable needle and Unicode needles by PDFDoc/UTF-8/UTF-16BE; redact_and_save_with(regions, policy, Some(&TextFieldPolicy)) redacts the distinctive removed strings from outlines/annotations before the full save (RedactedOutput.text_fields); redact_text_fields_and_save(needles) = redact + full save + independent proof (TextRedactedOutput::is_proven)"
+    "slice 3 (6): payload proof treats annotation appearance streams as annotation text (show-operand match = hit, not kept_text_collision); UTF-16BE spellings for any PDFDocEncoding-readable needle and Unicode needles by PDFDoc/UTF-8/UTF-16BE; redact_and_save_with(regions, policy, Some(&TextFieldPolicy)) redacts the distinctive removed strings from outlines/annotations before the full save (RedactedOutput.text_fields); redact_text_fields_and_save(needles) = redact + full save + independent proof (TextRedactedOutput::is_proven)",
+    "remediation R5 (review R5 group B, CONFIRMED on 1d404f8/1df11b2): PayloadProof::is_clean, RedactedOutput::region_cleared and (through them) is_proven and TextRedactedOutput::is_proven now require proof.fully_decoded(); a stream with an unimplemented filter is scanned raw only, so a needle stored in its encoded form no longer reads as proven absent; streams_not_decodable names the blockers; test undecodable_stream_never_reads_as_proven fails on the old verifier (RED run observed: assertion !fully_decoded && !is_clean) and passes now",
+    "slice 4 (1): named destinations: name-tree keys of /Names /Dests (any depth) and legacy /Dests keys that match are renamed to unique opaque HskRdN (never colliding with existing keys); the same rename is applied to every /Dest, /OpenAction and GoTo /D reference (name or string, dangling references included); the tree is rebuilt as one sorted leaf (no /Limits, kids dropped) with the original values; DestName outcomes for the tree/dictionary holder and for every reference holder",
+    "slice 4 (2): URI actions: /S /URI actions anywhere reachable (/A, /AA, /OpenAction, /Next chains, nested) and the catalog /URI /Base are rewritten by the text mode (ActionUri outcomes)",
+    "slice 4 (3): form /TU and /Opt (option strings and [export display] pairs, nested arrays) via form_labels; structure elements (dictionaries with /S and /P or /Type /StructElem) /Alt /ActualText /E /T via structure_text; trailer /Info string entries and the catalog /Metadata XMP stream (match drops the key) via info_fields",
+    "slice 4 (4): annotations reached only through /Popup, /IRT or a popup's /Parent are judged like page annotations; every class has a policy flag (destinations, action_uris, form_labels, structure_text, info_fields) and a disabled class reports KeptByPolicy",
+    "slice 4 (5): appearance text is read through each font's /ToUnicode CMap (new cmap.rs: codespacerange, bfchar, bfrange incl. array form, bounded to 262144 entries / 65536-code ranges, stray delimiters terminate); a match drops the appearance; composite-font text without a usable /ToUnicode (or an undecodable appearance) on an edited annotation drops the appearance (Dropped, unreadable) and on an unedited annotation is reported Unverifiable (kept; report.complete == false; TextFieldReport.unverifiable)"
   ],
   "tests": {
     "argv": "cargo test -p hsk-studio-press --test pdf_delivery --no-fail-fast",
     "exit": 0,
-    "sha": "cb38b86",
-    "passed": 14,
+    "sha": "e75bd5a",
+    "passed": 18,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "Validator round on cb38b86 (one test target, 14 tests: 9 earlier + 5 slice 3). Then: Acrobat-saved fixture oracle (outline + annotation text), press-consumer --redact-text, popup/IRT annotations outside /Annots, named destinations / action URIs / field options / tooltips / structure-tree text, prepress facts, Type3/pattern text, rotated pages, Folio page projection mapping (needs lead decision).",
-  "updated_at": "2026-10-11T05:16:21Z",
+  "next": "Validator round on e75bd5a (one test target, 18 tests: 9 earlier + 5 slice 3 + 1 R5 + 3 slice 4). Then: Acrobat-saved fixture oracle (outline, annotation text, named destinations), press-consumer --redact-text, GoToR/Launch targets, other name trees (embedded file names), page/image /Metadata, proof-side ToUnicode reading, prepress facts, Type3/pattern text, rotated pages, Folio page projection mapping (needs lead decision).",
+  "updated_at": "2026-10-11T05:33:56Z",
   "notes": {
     "test_names": [
       "pdf_object_edit_save_independent_reopen",
@@ -83,7 +97,11 @@
       "annotation_text_slots_and_appearance_redacted",
       "widget_values_are_an_explicit_option_and_kept_text_is_reported",
       "region_redaction_with_text_fields_closes_outline_and_annotation_leaks",
-      "text_fields_refusals_bounds_and_atomicity"
+      "text_fields_refusals_bounds_and_atomicity",
+      "undecodable_stream_never_reads_as_proven",
+      "destinations_and_action_uris_redacted_with_consistent_references",
+      "form_labels_structure_text_info_and_xmp_redacted",
+      "popup_irt_annotations_and_composite_font_appearances"
     ],
     "dep_decision": "lopdf =0.45.0 REJECTED per brief fallback clause: cargo tree of lopdf (default-features=false, windows msvc, no Cargo.toml in the workspace touched; scratch crate at Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/tmp/press-lopdf-probe) resolves to 57 packages (aes, cipher, ecb, cbc, md-5, sha2 0.11, rand 0.10, getrandom 0.4, nom 8, stringprep+unicode crates, brotli-decompressor, weezl, encoding_rs, simdutf8, thiserror 2/syn 3 ...) versus tools/workspace-probe.rs closure_packages cap 35. lopdf also has no stated read limits (UNVERIFIED in source; not read). Own bounded parser/writer instead. Deps: miniz_oxide =0.9.1 (with-alloc, MIT OR Zlib OR Apache-2.0, already locked) and sha2 =0.10.9 force-soft; both appended to builders/dep-requests.jsonl. Slice 3 added NO dependency.",
     "cargo_lock": "Cargo.lock not committed by this lane. If the steward's registry sync flags press closure: miniz_oxide + adler2 + sha2 closure only; no -sys crates.",
@@ -114,11 +132,33 @@
       "AcroForm /NeedAppearances is not set after a widget appearance is dropped (catalog untouched); a viewer that does not regenerate shows an empty widget."
     ],
     "slice3_known_gaps": [
-      "Not covered (still proof hits, never hidden): named-destination names, action /URI, field /Opt and /TU, structure-tree /ActualText, popup/IRT annotations that are not in a page /Annots array, text inside nested appearance forms that use composite-font codes (the proof reads show operands byte-for-byte).",
+      "CLOSED by slice 4 (kept for history): named-destination names, action /URI, field /Opt and /TU, structure-tree /ActualText, popup/IRT annotations outside /Annots, composite-font codes in appearance streams (read through /ToUnicode).",
       "Rich text is judged by three spellings (raw, tags removed, tags as gaps) with the common entities decoded; XHTML in a non-UTF-8 stream without a byte-order mark is read as UTF-8.",
       "The needle is a Unicode string; redact_and_save_with bridges from content-stream bytes by PDFDocEncoding decoding of the distinctive (>= 6 byte) removed strings.",
       "No Acrobat-saved fixture oracle yet (foreground session needs Operator approval, START_LOG D5)."
     ],
-    "slice3_gameplan_route": "No retry-guard block occurred: both cargo test runs passed (the second after a descriptor/oracle edit, before the commit). No gameplan step added."
+    "slice3_gameplan_route": "No retry-guard block occurred: both cargo test runs passed (the second after a descriptor/oracle edit, before the commit). No gameplan step added.",
+    "remediation_R5": {
+      "finding": "adversarial review R5 group B (CONFIRMED, candidate 1d404f8, commit 1df11b2): sanitized_save.rs is_proven/region_cleared ignored streams that could not be decoded, so a removed string left in an undecodable stream still reported proven",
+      "fix": "PayloadProof::is_clean, RedactedOutput::region_cleared (hence is_proven) and TextRedactedOutput::is_proven now require proof.fully_decoded() (streams_not_decodable empty); DESCRIPTOR proof.fully_decoded documents the rule",
+      "test": "undecodable_stream_never_reads_as_proven: catalog /Hidden stream with /Filter /JBIG2Decode holding zlib bytes of the removed string; control document without it is proven; the independent inflate shows the needle survives; fails on the old verifier (RED run: assertion on !fully_decoded && !is_clean), passes on 03fb753",
+      "commit": "03fb753 (separate commit, pathspec crates/hsk-studio-press; reached origin through another lane's push because the shared branch carries all lanes)",
+      "consequence": "any document that holds a stream with an unimplemented filter (DCT, JPX, CCITT, JBIG2, Crypt, unknown) is now NOT proven; press-consumer prints undecoded_streams=N; JPEG-heavy real documents will not read as proven until those filters get a decoder or a typed 'raster stream, no text carrier' class is approved by the lead",
+      "gameplan_route": "RED run used a single-test filter command, the GREEN run the full target command (different normalized commands, no retry-guard bypass); the RED failure was a product failure fixed by the commit"
+    },
+    "slice4_decisions": [
+      "Destination names are identifiers: a matching name is renamed to a unique opaque HskRdN (not Replace/Remove text) so links keep working and keys never collide; the tree is rebuilt flat and sorted (valid, unbalanced) instead of patching /Limits.",
+      "Reference rewrite covers direct /Dest, /OpenAction and GoTo /D values (name or string); an indirect string reference stays a proof hit. GoToR/Launch targets are not touched.",
+      "Info + XMP: every string entry of the trailer /Info (custom keys too) and the catalog /Metadata stream (any match drops the key, like /RC) are one policy class, info_fields, default on.",
+      "Structure elements are recognised by /S plus /P (or /Type /StructElem); direct dictionaries without /P are not.",
+      "Unverifiable is a new outcome kind: an appearance the redaction cannot read on an UNEDITED annotation is kept and flips report.complete to false; on an EDITED annotation it is dropped.",
+      "The payload proof stays a byte scan: text visible only through a /ToUnicode CMap is judged by the redaction scan (appearance_scan), not by verify_payload_absent."
+    ],
+    "slice4_known_gaps": [
+      "GoToR/Launch /D and /F targets, other name trees (embedded file names, JavaScript names), page/image /Metadata, field /TM and /MK captions, structure elements that are direct dictionaries without /P: not covered, still proof hits.",
+      "ToUnicode: bounded parser (codespacerange, bfchar, bfrange); cidchar/cidrange and usecmap are not interpreted; mixed-length codespaces decode greedily by ascending length.",
+      "Per-object outcomes for the name tree report the holder of the tree root, not each leaf (leaves are rebuilt away).",
+      "No Acrobat-saved fixture oracle yet (foreground session needs Operator approval, START_LOG D5)."
+    ]
   }
 }
