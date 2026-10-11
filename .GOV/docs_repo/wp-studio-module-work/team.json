@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T06:08:54Z",
+ "updated_at": "2026-10-11T06:10:16Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -980,6 +980,54 @@
     "builders/lanes/workspace-steward.json"
    ],
    "launched": "2026-10-11T06:08:06Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-press-4",
+   "agent_id": "ad6bf01b733aeb6e4",
+   "model": "sonnet",
+   "role": "press: PDF reader hostile-input hardening (V4-01 on filters/reader/syntax/writer, decode budgets, depth/cycle bounds) + remaining redaction gaps",
+   "owns": [
+    "crates/hsk-studio-press/**",
+    "builders/lanes/hsk-studio-press.json"
+   ],
+   "launched": "2026-10-11T06:10:16Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-motion-js-sandbox",
+   "agent_id": "a23573d27b2bf43d7",
+   "model": "sonnet",
+   "role": "SMB-MOTION-JS-SANDBOX-2: AST validator + Windows Job Object caps (unforgeable memory/CPU budget signal)",
+   "owns": [
+    "crates/hsk-studio-motion-js/**",
+    "builders/lanes/hsk-studio-motion-js.json"
+   ],
+   "launched": "2026-10-11T06:10:16Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-session-2",
+   "agent_id": "aac0fd60d705854d7",
+   "model": "sonnet",
+   "role": "session: receipt eviction, Diverged resolve/discard, negative paths (R5 PLAUSIBLE)",
+   "owns": [
+    "crates/hsk-studio-session/**",
+    "builders/lanes/hsk-studio-session.json"
+   ],
+   "launched": "2026-10-11T06:10:16Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-vector-2",
+   "agent_id": "af7acf6b0842d7cb9",
+   "model": "sonnet",
+   "role": "interop-vector: SVG patterns, clip paths, masks -> folio records or typed loss",
+   "owns": [
+    "crates/hsk-studio-interop-vector/**",
+    "builders/lanes/hsk-studio-interop-vector.json"
+   ],
+   "launched": "2026-10-11T06:10:16Z",
    "status": "running"
   }
  ]

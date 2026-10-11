@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T06:08:54Z",
+ "updated_at": "2026-10-11T06:10:16Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -400,7 +400,7 @@
     "STUDIO-R5 FAIL_V2 @1d404f8 (newer submission 3561b12 pending)"
    ],
    "candidate": "3561b12",
-   "note": "R5 remediation: allow_dtd always false, scan_prolog skips comment/PI/CDATA decoys, internal subset -> EntityDenied; regression red-first; 13 of 13 green",
+   "note": "R5 remediation: allow_dtd always false, scan_prolog skips comment/PI/CDATA decoys, internal subset -> EntityDenied; regression red-first; 13 of 13 green; patterns/clip/mask slice dispatched 2026-10-11T06:10:16Z (builder-vector-2)",
    "r5_review_routed": {
     "to": "rem-vector",
     "at": "2026-10-11T05:31:12Z",
@@ -527,7 +527,7 @@
    ],
    "lane_file": "builders/lanes/hsk-studio-session.json",
    "candidate": "943a0d2",
-   "note": "slices1-3: + lazy assets (measured residency), host previews; 11 tests + break-it; streaming save NOT met (needs package writer API)",
+   "note": "slices1-3: + lazy assets (measured residency), host previews; 11 tests + break-it; streaming save NOT met (needs package writer API); hardening slice dispatched 2026-10-11T06:10:16Z (builder-session-2)",
    "review_findings_r3": "R3 findings remediated 63c1f5d,943a0d2"
   },
   {
@@ -600,7 +600,7 @@
     "STUDIO-R5 FAIL_V1 @1d404f8 (newer submission e75bd5a pending)"
    ],
    "candidate": "dd1df63",
-   "note": "correction: opaque composite text blocks is_clean/region_cleared/is_proven whenever a needle search ran (NotProven::OpaqueText), not_proven_reasons() listed and printed; red when check disabled; 24 of 24 green",
+   "note": "correction: opaque composite text blocks is_clean/region_cleared/is_proven whenever a needle search ran (NotProven::OpaqueText), not_proven_reasons() listed and printed; red when check disabled; 24 of 24 green; reader hardening slice dispatched 2026-10-11T06:10:16Z (builder-press-4, fresh)",
    "r5_review_routed": {
     "to": "builder-press-3",
     "at": "2026-10-11T05:31:12Z",
@@ -1471,9 +1471,9 @@
    "crate": "hsk-studio-motion-js",
    "origin": "R5 review group B CONFIRMED: SMB-MOTION-JS-WORKER undelivered scope split (lead decision)",
    "scope": "AST validator for admitted expression syntax + OS-level RSS/CPU cap for the worker process (Windows Job Objects; Linux rlimit/cgroup later); plus typed Budget(Stack/Memory) classification from an unforgeable host-side signal (worker-level watchdog/OS limit), currently NOT_PROVEN (rquickjs 0.14.0 gives no such signal)",
-   "phase": "stub",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-motion-js-sandbox",
    "commits": [],
    "verdicts": []
   },
