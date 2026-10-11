@@ -2068,6 +2068,17 @@
    ],
    "launched": "2026-10-11T19:14:14Z",
    "status": "running"
+  },
+  {
+   "name": "prereview-r13-web",
+   "agent_id": "ab70e82824a76999d",
+   "model": "opus",
+   "role": "V4-13 pre-review SMB-WEB at e409030 (last before escalation)",
+   "owns": [
+    "validation/R13-prereview-web.json"
+   ],
+   "launched": "2026-10-11T19:16:56Z",
+   "status": "running"
   }
  ]
 }
