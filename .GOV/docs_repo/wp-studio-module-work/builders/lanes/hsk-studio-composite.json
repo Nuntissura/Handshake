@@ -2,8 +2,12 @@
  "crate": "hsk-studio-composite",
  "lane": "SMB-COMPOSITE-ADJ-1",
  "status": "READY_FOR_VALIDATION",
- "phase": "adjustments + mask parameters + Blend-If + knockout + effects waves 1/2 + real folio graph adjustment layers lowered; remediation_R6 (pass-through fill ledger); compiled, clippy clean, 22/22 on pushed b2cf5c6",
+ "phase": "remediation_R8 (R8 FAIL_V2 plan-level-effect-limit-lowered-ok-then-refused-at-admission) on 07f6abd; compiled, clippy clean, composite 28/28 on the pushed tree",
  "commits": [
+  {
+   "sha": "07f6abd",
+   "subject": "composite (SMB-COMPOSITE-ADJ, remediation of R8 FAIL_V2): record_envelope returns pigment's whole-envelope validate error as CompositeError::Plan instead of discarding it"
+  },
   {
    "sha": "7011298",
    "subject": "composite (SMB-FX-OPS-ADOPT): ledgers record effects_with_blend_if and effects_nested like pigment's validate; a mask on a pass-through group is refused like the fill rule"
@@ -95,27 +99,47 @@
   "effects wave 1 (drop shadow, colour overlay, solid stroke) and wave 2 (inner shadow, outer glow, inner glow, colour source) -> LayerExtension.effects in list order (percent/100; spread and choke read as percent of the size with a note; Global Light resolved into the angle); refusals (typed, evaluation and lowering agree): other kinds layer_effects_not_rendered, effect_stack_scale, effect_contour, effect_noise, effect_stroke_fill, effect_stroke_overprint, effect_global_light_unresolved, effect_colour_missing/_profile/_linear_light, effect_parameter, effect_limit, effect_on_adjustment_layer/_pass_through/_clipped_layer/_clip_base, pigment feature keys glow_gradient/glow_range/glow_technique_precise",
   "R6 remediation (remediation_R6): evaluation ledger agrees with pigment admission for a pass-through group with fill < 1: key PASS_THROUGH_FILL_OPERATOR, class Unsupported, step Unavailable, StepAppearance::exactness Unsupported; all v1 operator keys and classes in evaluation come from pigment Operator::key/intrinsic (test evaluation_ledger_keys_and_classes_are_pigments)",
   "DESCRIPTOR v3 (extended lowering, proof map to tests, unsupported list shrunk only for what is lowered)",
-  "SMB-FX-OPS-ADOPT (7011298): blend_if_operator(role, has_effects) reports EffectsWithBlendIf for an unclipped layer with effects and a non-identity Blend-If; the evaluation ledger records EffectsNested (clip_roles returns the emitted inputs per group; lowering reads the nesting from pigment's validate of the whole envelope); a mask on a pass-through, unclipped layer is Unavailable under PASS_THROUGH_MASK_OPERATOR with ledger and StepAppearance::exactness Unsupported, like the fill rule"
+  "SMB-FX-OPS-ADOPT (7011298): blend_if_operator(role, has_effects) reports EffectsWithBlendIf for an unclipped layer with effects and a non-identity Blend-If; the evaluation ledger records EffectsNested (clip_roles returns the emitted inputs per group; lowering reads the nesting from pigment's validate of the whole envelope); a mask on a pass-through, unclipped layer is Unavailable under PASS_THROUGH_MASK_OPERATOR with ledger and StepAppearance::exactness Unsupported, like the fill rule",
+  "R8 remediation (notes.remediation_R8, CX-VAL-008): record_envelope returns every whole-envelope pigment validate error (plan-wide EffectLimit over MAX_EFFECTS_PER_PLAN, repeated (group, layer)) as CompositeError::Plan(PlanError) instead of discarding it (is_ok_and); carried knockout and refused adjustments cannot hide it; test plan_wide_effect_limit_is_refused_at_lowering_like_pigment_admission (65 x 64 effects refused, 64 x 64 lowers and admits)"
  ],
  "tests": {
   "argv": [
    "cargo",
-   "test",
+   "nextest",
+   "run",
+   "-p",
+   "hsk-studio-pigment",
+   "-p",
+   "hsk-studio-render-cpu",
    "-p",
    "hsk-studio-composite",
-   "--tests",
+   "-p",
+   "hsk-studio-render-gpu",
+   "-p",
+   "hsk-studio-interop-psd",
+   "-p",
+   "hsk-studio-develop",
    "--no-fail-fast"
   ],
   "exit": 0,
-  "sha": "b2cf5c6",
-  "passed": 22,
-  "failed": 0
+  "sha": "471b679",
+  "passed": 217,
+  "failed": 0,
+  "per_crate_passed": {
+   "hsk-studio-pigment": 60,
+   "hsk-studio-render-cpu": 33,
+   "hsk-studio-composite": 28,
+   "hsk-studio-render-gpu": 24,
+   "hsk-studio-interop-psd": 44,
+   "hsk-studio-develop": 28
+  },
+  "note": "one invocation at pushed tree 471b679 (contains a873234, 8ca30dd, 07f6abd; 217 passed, 1 skipped by nextest, none of the tests added here); the render-gpu, interop-psd and develop crates depend on pigment and are run only to show the pigment change breaks none of them; no NOT_PROVEN line printed. Doctests: cargo test --doc -p hsk-studio-pigment -p hsk-studio-render-cpu -p hsk-studio-composite exit 0 (0 doctests in each). Round feature sets (.config/round-features.toml): none declared for these three crates."
  },
  "blockers": [],
  "lock_wait_s": 0,
  "bg_pids": [],
- "next": "SMB-FX-OPS-ADOPT READY_FOR_VALIDATION on 7011298 (new lane id; the claim of the top-level lane is unchanged, V4-14 lists this commit; nothing is claimed on SMB-RENDER-GPU, which stays BLOCKED/D20): independent validator round on 7011298 for this crate's adoption of pigment's effects_ops and admission_parity rules (notes.fx_ops_adopt). Earlier next, unchanged: SMB-REFUSAL-KEYS READY_FOR_VALIDATION on b7064fc (new lane id; the claim of the top-level lane stays b2cf5c6, V4-14 lists this commit; nothing is claimed on SMB-RENDER-GPU, which stays BLOCKED/D20): independent validator round on b7064fc for this crate's refusal keys (notes.refusal_keys, notes.v4_06_sites). Earlier next, unchanged: SMB-BLENDIF-CLIP-ADOPT READY_FOR_VALIDATION on 1f99350 (separate lane id; the claim of the top-level lane stays b2cf5c6, V4-14 lists this commit): Independent validator round on b2cf5c6. Not done, by design: effect kinds beyond wave 1/2 (bevel, satin, gradient/pattern overlay), gradient/Precise/ranged glows (typed refusals); Photoshop parity NOT_PROVEN (D5 cases 1-17).",
- "updated_at": "2026-10-11T11:50:57Z",
+ "next": "Resubmission of SMB-COMPOSITE-ADJ after STUDIO-R8 FAIL_V2 (failure_class plan-level-effect-limit-lowered-ok-then-refused-at-admission), naming the validator's remediation: 'record_envelope maps whole-envelope pigment validate errors (EffectLimit) to a typed refusal; add 65x64-effects test' (CX-VAL-008), done on 07f6abd; notes.remediation_R8 has the red proof, the V4-06 sweep and the decisions. Nothing else is claimed by this commit; SMB-RENDER-GPU is untouched (BLOCKED/D20). Earlier next, unchanged: SMB-FX-OPS-ADOPT READY_FOR_VALIDATION on 7011298 (new lane id; the claim of the top-level lane is unchanged, V4-14 lists this commit; nothing is claimed on SMB-RENDER-GPU, which stays BLOCKED/D20): independent validator round on 7011298 for this crate's adoption of pigment's effects_ops and admission_parity rules (notes.fx_ops_adopt). Earlier next, unchanged: SMB-REFUSAL-KEYS READY_FOR_VALIDATION on b7064fc (new lane id; the claim of the top-level lane stays b2cf5c6, V4-14 lists this commit; nothing is claimed on SMB-RENDER-GPU, which stays BLOCKED/D20): independent validator round on b7064fc for this crate's refusal keys (notes.refusal_keys, notes.v4_06_sites). Earlier next, unchanged: SMB-BLENDIF-CLIP-ADOPT READY_FOR_VALIDATION on 1f99350 (separate lane id; the claim of the top-level lane stays b2cf5c6, V4-14 lists this commit): Independent validator round on b2cf5c6. Not done, by design: effect kinds beyond wave 1/2 (bevel, satin, gradient/pattern overlay), gradient/Precise/ranged glows (typed refusals); Photoshop parity NOT_PROVEN (D5 cases 1-17).",
+ "updated_at": "2026-10-11T13:08:24Z",
  "notes": {
   "refusal_keys": {
    "lane": "SMB-REFUSAL-KEYS",
@@ -966,6 +990,170 @@
     }
    ],
    "unverified": "Photoshop behaviour of a mask on a Pass Through group and of effects with Blend-If is not defined by any public source (D5 cases 24-29); composite refuses/reports and never guesses."
+  },
+  "remediation_R8": {
+   "lane": "SMB-COMPOSITE-ADJ",
+   "status": "READY_FOR_VALIDATION",
+   "sha": "07f6abd",
+   "resubmission_of": "STUDIO-R8 FAIL_V2 (validation/round-R8.json lane SMB-COMPOSITE-ADJ, failure_class plan-level-effect-limit-lowered-ok-then-refused-at-admission)",
+   "names_remediation": "record_envelope maps whole-envelope pigment validate errors (EffectLimit) to a typed refusal; add 65x64-effects test (CX-VAL-008)",
+   "finding": "lower_render_plan.rs record_envelope checked the envelope entry by entry (each layer within MAX_EFFECTS_PER_LAYER) and validated the whole envelope only to look for EffectsNested, dropping the error with is_ok_and, so 65 layers x 64 effects lowered Ok and pigment's admit_extended then refused every backend as InvalidPlan(PlanError::EffectLimit) (extensions.rs:336-338, total_effects > MAX_EFFECTS_PER_PLAN).",
+   "fix": "src/lower_render_plan.rs record_envelope: the whole-envelope validate result is matched; Ok(ops) records EffectsNested as before, Err(other) returns CompositeError::Plan(other) (pigment's own PlanError: EffectLimit, ExtensionDuplicate, ...). The probe is built so the carried features cannot end it early or hide a defect of a later entry: knockout cleared (as before) and the adjustment of an entry whose per-entry probe returned AdjustmentUnsupported dropped for the probe (LayerFeatures::refusal already refuses effects on an adjustment layer, so such an entry holds no effects). Docs of record_envelope and lower_to_render_plan_extended, DESCRIPTOR (extended_lowering text, proof map entry plan_wide_effect_limit, unsupported list) updated (V4-07: the claim cites the test).",
+   "files": [
+    "src/lower_render_plan.rs (record_envelope, two doc comments)",
+    "src/lib.rs (DESCRIPTOR text only; JSON checked with json.loads)",
+    "tests/render_plan_lowering.rs (+1 test, 3 helpers)"
+   ],
+   "error_form": "CompositeError::Plan(PlanError::EffectLimit { node }) (code plan_effect_limit): the crate's existing typed form for envelope defects (the per-entry probes already return it) and the very value admit_extended returns inside BackendError::InvalidPlan; the per-layer limit keeps its Unavailable(effect_limit) form because it names the layer.",
+   "decisions": [
+    "the plan-wide limit is decided by lower_to_render_plan_extended only: it counts the effects of the layers the plan renders from the requested root, and evaluate_extended reports every step of the document without a root, so a document-wide count there would over-refuse; the DESCRIPTOR says so",
+    "a refused adjustment (modern brightness/contrast) stays carried as an Unsupported entry when the plan is within the limit (test control), and no longer masks a plan-wide defect behind it",
+    "EffectsNested is now also recorded when a refused adjustment elsewhere in the envelope used to end the whole-envelope probe early (ledger more complete; admission refuses such a plan at the adjustment first, in entry order)"
+   ],
+   "tests_added": [
+    "plan_wide_effect_limit_is_refused_at_lowering_like_pigment_admission"
+   ],
+   "test_detail": "limits are pigment's MAX_EFFECTS_PER_LAYER / MAX_EFFECTS_PER_PLAN (no literal). (1) 64 layers x 64 effects (= 4096) lowers, extensions.validate Ok, admit_extended Ok. (2) 65 x 64: Err(CompositeError::Plan(PlanError::EffectLimit)), code plan_effect_limit. (3) 64 x 64 + one layer with one effect (smallest overshoot): the lowering error equals the error admit_extended gives the same plan with an envelope entry added by hand (InvalidPlan(EffectLimit { node })). (4) hidden layer: 65 layers of which one is hidden lowers (4096 counted). (5) enabled knockout on the first effect layer and a modern brightness/contrast adjustment at the bottom of the stack, each with 65 x 64: still Plan(EffectLimit); the adjustment at 64 x 64 lowers with ledger lowest Unsupported and admission refuses brightness_contrast (still carried).",
+   "tests": {
+    "argv": [
+     "cargo",
+     "nextest",
+     "run",
+     "-p",
+     "hsk-studio-pigment",
+     "-p",
+     "hsk-studio-render-cpu",
+     "-p",
+     "hsk-studio-composite",
+     "-p",
+     "hsk-studio-render-gpu",
+     "-p",
+     "hsk-studio-interop-psd",
+     "-p",
+     "hsk-studio-develop",
+     "--no-fail-fast"
+    ],
+    "exit": 0,
+    "sha": "471b679",
+    "passed": 217,
+    "failed": 0,
+    "per_crate_passed": {
+     "hsk-studio-pigment": 60,
+     "hsk-studio-render-cpu": 33,
+     "hsk-studio-composite": 28,
+     "hsk-studio-render-gpu": 24,
+     "hsk-studio-interop-psd": 44,
+     "hsk-studio-develop": 28
+    },
+    "note": "one invocation at pushed tree 471b679 (contains a873234, 8ca30dd, 07f6abd; 217 passed, 1 skipped by nextest, none of the tests added here); the render-gpu, interop-psd and develop crates depend on pigment and are run only to show the pigment change breaks none of them; no NOT_PROVEN line printed. Doctests: cargo test --doc -p hsk-studio-pigment -p hsk-studio-render-cpu -p hsk-studio-composite exit 0 (0 doctests in each). Round feature sets (.config/round-features.toml): none declared for these three crates."
+   },
+   "check_clippy": "cargo clippy -p hsk-studio-pigment -p hsk-studio-render-cpu -p hsk-studio-composite --tests --examples --no-deps: exit 0, no warning, at 471b679; cargo fmt --check: render-cpu clean; pigment and composite are not rustfmt-clean at HEAD (pre-existing diffs in lines this work did not touch: pigment render_plan.rs 175/278/297/493/504/611/832/968, tests/admit_parity.rs 230/278/309/354/396/417; composite files use the compact test style) and every hunk added here is rustfmt-conformant for pigment and render-cpu; composite fmt is not a gate (notes.blendif_clip_adopt)",
+   "red_proof": {
+    "tree": "scratch copy outside the shared tree: Handshake_Artifacts/WP-KERNEL-STUDIO/rem-composite-adj-redproof/src/handshake-studio-assets, git archive of origin/codex/handshake-studio-assets 6d232da, STUDIO_OWNER=rem-composite-adj-redproof (own target dir), only tests/render_plan_lowering.rs copied in, no src change",
+    "argv": [
+     "cargo",
+     "nextest",
+     "run",
+     "-p",
+     "hsk-studio-composite",
+     "--no-fail-fast"
+    ],
+    "result": "28 tests run: 27 passed, 1 failed; FAIL plan_wide_effect_limit_is_refused_at_lowering_like_pigment_admission, panicked at tests/render_plan_lowering.rs:2436 'expected Plan(EffectLimit), got Ok(ExtendedLowering { ... })' (the 65 x 64 case); nextest printed 'error: test run failed' (exit status 100 by nextest convention; the shell pipe hid the number)",
+    "green": "same test passes at the fix (composite 28/28 on the shared tree before commit and at 471b679)",
+    "v4_11": "the scratch tree was extracted once with fresh mtimes for the copied files and has its own target; no file of the shared tree was reverted or restored"
+   },
+   "v4_06_class": "a pigment validate/admit/prepare result is discarded or narrowed to a boolean in composite, so lowering returns Ok (or evaluation Ready) for something pigment's admission refuses (is_ok_and, .ok(), let _ =, unwrap_or*, is_ok/is_err, if let Ok, matches! on a validate/admit/prepare call)",
+   "v4_06_regex": "is_ok_and|\\.ok\\(\\)|let _ =|unwrap_or|\\bis_ok\\(\\)|\\bis_err\\(\\)|if let Ok\\(|matches!\\([^;]*(validate|admit|prepare)\\(",
+   "v4_06_scope": "crates/hsk-studio-composite/src/*.rs and examples/*.rs at 07f6abd (the DESCRIPTOR line of src/lib.rs excluded: JSON text)",
+   "v4_06_counts": {
+    "before_fix": 10,
+    "removed_by_fix": 1,
+    "removed_site": "src/lower_render_plan.rs:347 .is_ok_and(|ops| ops.contains(&ExtOperator::EffectsNested)) (FIXED, no longer matches)",
+    "at_candidate": 9,
+    "listed": 9,
+    "verdicts": {
+     "NOT_APPLICABLE": 9,
+     "FIXED": 0,
+     "UNCLASSIFIED": 0
+    }
+   },
+   "v4_06_sites": [
+    {
+     "file_line": "src/evaluate_static.rs:114",
+     "verdict": "NOT_APPLICABLE: checked_sub/u32::try_from(..).ok() on an extent, no pigment result (None is handled as no extent)"
+    },
+    {
+     "file_line": "src/evaluate_static.rs:115",
+     "verdict": "NOT_APPLICABLE: same as :114"
+    },
+    {
+     "file_line": "src/evaluate_static.rs:474",
+     "verdict": "NOT_APPLICABLE to this class: matches!(c.op.prepare(), Err(Unsupported)) records the Unsupported ledger entry; the other prepare errors (invalid parameter) are not recorded by evaluation, but lowering refuses them as Plan(AdjustmentParameter) in the per-entry probe (lower_render_plan.rs:322-333), so nothing is lowered Ok and refused at admission; the evaluation-vs-lowering difference is listed in plausible_not_addressed"
+    },
+    {
+     "file_line": "src/lib.rs:124",
+     "verdict": "NOT_APPLICABLE: report.require_ready().is_ok() is composite's own readiness, not a pigment result"
+    },
+    {
+     "file_line": "src/lower_extensions.rs:661",
+     "verdict": "NOT_APPLICABLE: Option::unwrap_or_default on the blending record, no pigment result"
+    },
+    {
+     "file_line": "src/lower_extensions.rs:678",
+     "verdict": "NOT_APPLICABLE: Result<Vec<EffectOp>, &str>::as_deref().unwrap_or_default() on composite's own conversion (the refusal code of the stack is read separately by LayerFeatures::refusal)"
+    },
+    {
+     "file_line": "src/lower_plan.rs:265",
+     "verdict": "NOT_APPLICABLE: map lookup unwrap_or_default on composite's own edge table"
+    },
+    {
+     "file_line": "src/lower_plan.rs:350",
+     "verdict": "NOT_APPLICABLE: unwrap_or_default on composite's own table"
+    },
+    {
+     "file_line": "examples/composite-consumer.rs:96",
+     "verdict": "NOT_APPLICABLE: display fallback text in the example, no pigment result"
+    }
+   ],
+   "v4_06_semantic_sweep": {
+    "what": "every direct call of a pigment validate/admit/prepare in composite src (the regex above only sees the discarding shapes)",
+    "count": 5,
+    "sites": [
+     {
+      "file_line": "src/evaluate_static.rs:474",
+      "verdict": "AdjustmentOp::prepare: see above (NOT_APPLICABLE to the admission class, listed in plausible_not_addressed)"
+     },
+     {
+      "file_line": "src/lower_extensions.rs:555",
+      "verdict": "EffectOp::validate: every EffectError is mapped to a refusal code (the last arm maps the rest to effect_parameter), none dropped"
+     },
+     {
+      "file_line": "src/lower_render_plan.rs:322",
+      "verdict": "per-entry PlanExtensions::validate probe: Ok folds the operators, AdjustmentUnsupported is carried as an Unsupported entry, every other error is returned as CompositeError::Plan (unchanged)"
+     },
+     {
+      "file_line": "src/lower_render_plan.rs:362",
+      "verdict": "FIXED: whole-envelope PlanExtensions::validate: was .is_ok_and(|ops| ops.contains(&EffectsNested)) which dropped every error; now Ok(ops) records EffectsNested and Err(other) is returned as CompositeError::Plan"
+     },
+     {
+      "file_line": "src/lower_render_plan.rs:922",
+      "verdict": "RenderPlan::validate: map_err(CompositeError::Plan), nothing dropped (unchanged)"
+     }
+    ]
+   },
+   "plausible_not_addressed": [
+    "evaluate_static.rs:474 ignores a prepare() error other than Unsupported (an adjustment with an out-of-range parameter): evaluation says Ready, lowering refuses it typed as Plan(AdjustmentParameter); an evaluation-vs-lowering difference, not an admitted-then-refused case, no test covers it",
+    "evaluate_extended does not report the plan-wide effect count (root dependent); a host that reads only the evaluation ledger sees it when lowering refuses",
+    "a premultiplied target or tile (caller-supplied alpha) is lowered Ok and is not listed in the lowering ledger; admission asks the backend for ExtOperator::AlphaPremultiplied (render-cpu and render-gpu declare it Unsupported); composite's documented stance is that it lowers Straight plans only (notes.fx_ops_adopt)"
+   ],
+   "v4": {
+    "V4-03": "no hardware, no machine-local path, nothing prints NOT_PROVEN",
+    "V4-07": "DESCRIPTOR claim cites test plan_wide_effect_limit_is_refused_at_lowering_like_pigment_admission and the proof map lists it",
+    "V4-09": "commit message through git commit -F",
+    "V4-12": "helper scripts and message files under <scratchpad>/SMB-COMPOSITE-ADJ-R8/ with the composite-adj- prefix",
+    "route": "tests: no retry-guard block hit; the first nextest of the new test is the red run on the scratch tree, the fix run passed first time"
+   },
+   "date": "2026-10-11T13:08:24Z"
   }
  }
 }

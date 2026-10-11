@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T13:02:11Z",
+ "updated_at": "2026-10-11T13:09:17Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -1823,8 +1823,8 @@
    "crate": "hsk-studio-composite",
    "origin": "architect SMB-PIGMENT-ENG-2 (diagnostics/adjustments-advanced-blending.md)",
    "scope": "brief builders/briefs/lane-composite-adjustments.md",
-   "phase": "remediation (rem-composite-adj, R8 FAIL_V2)",
-   "status": "FAIL_V2",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "rem-composite-adj",
    "commits": [
     "cdc2c0f",
@@ -1832,14 +1832,24 @@
     "555ea97",
     "dc8e91a",
     "8ff8c7a",
-    "b2cf5c6"
+    "b2cf5c6",
+    "07f6abd"
    ],
    "verdicts": [
     "STUDIO-R7 PASS_V1 @dff7ef5",
     "STUDIO-R8 FAIL_V2 @f6e5a49"
    ],
    "note": "adjustments, mask params, Blend-If, knockout (refused), effects waves 1+2 lowered (cdc2c0f..b2cf5c6); R6 pass-through fill fix; real folio snapshot with adjustment layer lowered at its input_ordinal and checked vs pigment evaluate_stack; 22 of 22 green; Photoshop parity NOT_PROVEN",
-   "candidate": "b2cf5c6"
+   "candidate": "07f6abd",
+   "remediation_claim": {
+    "failure_class": "plan-level-effect-limit-lowered-ok-then-refused-at-admission (STUDIO-R8 FAIL_V2)",
+    "rule": "CX-VAL-008",
+    "commits": [
+     "07f6abd"
+    ],
+    "summary": "record_envelope returns the whole-envelope validate error as CompositeError::Plan(PlanError::EffectLimit) (same as admission); knockout/refused adjustment cannot hide it; test plan_wide_effect_limit_is_refused_at_lowering_like_pigment_admission (64x64 ok, 65x64 refused) red on scratch 6d232da",
+    "recorded_at": "2026-10-11T13:09:17Z"
+   }
   },
   {
    "lane_id": "SMB-RENDER-CPU-ADJ",
@@ -2436,11 +2446,15 @@
    "crate": "hsk-studio-pigment + hsk-studio-render-cpu",
    "origin": "R8-review-a CONFIRMED on SMB-PIGMENT-ADMIT-PARITY (validator: routed fixes, not product FAIL)",
    "scope": "pigment uses_premultiplied_alpha/has_pass_through_mask read reachable nodes only (exact backend parity); render-cpu names Mask(CoverageU8|CoverageU16Le) Exact explicitly, other formats Unsupported; MaskFormat added to the parity tripwire; reclassify render-cpu plan_sink.rs:623 site",
-   "phase": "build",
+   "phase": "build (extension: 3 more predicates reachable-only, lead decision 2026-10-11T13:09:17Z)",
    "status": null,
    "owner": "rem-composite-adj",
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "a873234",
+    "8ca30dd"
+   ],
+   "verdicts": [],
+   "lane_file": "builders/lanes/hsk-studio-parity-followup.json"
   },
   {
    "lane_id": "SMB-INTEROP-PSD-BUDGET",
