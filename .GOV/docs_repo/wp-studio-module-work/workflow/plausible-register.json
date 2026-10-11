@@ -1216,7 +1216,7 @@
    "status": "OPEN",
    "verified_at": "71be1aa",
    "disposition": "FIX_LANE",
-   "disposition_note": "lead: same reachable-only rule for envelope entries in pigment and render-cpu (render-gpu already per executed layer); render-gpu untouched (D20)"
+   "disposition_note": "fix claimed 9085252/b8b31c7 (SMB-PIGMENT-FOLLOWUPS); reviewer confirms next round"
   },
   {
    "id": "PLR-070",
@@ -1231,7 +1231,7 @@
    "status": "OPEN",
    "verified_at": "71be1aa",
    "disposition": "FIX_LANE",
-   "disposition_note": "render-cpu adoption in the PLR-069 lane; render-gpu after D20"
+   "disposition_note": "fix claimed 9085252/b8b31c7 (SMB-PIGMENT-FOLLOWUPS); reviewer confirms next round"
   },
   {
    "id": "PLR-071",
@@ -1261,7 +1261,7 @@
    "status": "OPEN",
    "verified_at": "3d795a5",
    "disposition": "FIX_LANE",
-   "disposition_note": "next pigment lane (with PLR-069/070)"
+   "disposition_note": "fix claimed 9085252/b8b31c7 (SMB-PIGMENT-FOLLOWUPS); reviewer confirms next round"
   },
   {
    "id": "PLR-073",
@@ -1276,7 +1276,7 @@
    "status": "OPEN",
    "verified_at": "3d795a5",
    "disposition": "FIX_LANE",
-   "disposition_note": "next pigment lane (with PLR-069/070)"
+   "disposition_note": "fix claimed 9085252/b8b31c7 (SMB-PIGMENT-FOLLOWUPS); reviewer confirms next round"
   },
   {
    "id": "PLR-074",
@@ -1291,7 +1291,7 @@
    "status": "OPEN",
    "verified_at": "3d795a5",
    "disposition": "FIX_LANE",
-   "disposition_note": "next pigment lane (with PLR-069/070)"
+   "disposition_note": "fix claimed 9085252/b8b31c7 (SMB-PIGMENT-FOLLOWUPS); reviewer confirms next round"
   },
   {
    "id": "PLR-075",
@@ -1306,7 +1306,7 @@
    "status": "OPEN",
    "verified_at": "3d795a5",
    "disposition": "FIX_LANE",
-   "disposition_note": "next pigment lane (with PLR-069/070)"
+   "disposition_note": "fix claimed 9085252/b8b31c7 (SMB-PIGMENT-FOLLOWUPS); reviewer confirms next round"
   },
   {
    "id": "PLR-076",

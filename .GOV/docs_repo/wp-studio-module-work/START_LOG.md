@@ -310,6 +310,8 @@ Workflow v3 amendments (2026-10-11T02:12:42Z, source workflow/workflow-review-ti
 
 - Lead acknowledgement 2026-10-11T21:41:57Z (press R13 remediation 7410f29): accepted — XFA is stripped from every redaction output (dynamic XFA documents keep only their PDF pages); residuals documented in DESCRIPTOR: hayro CPU time not cancellable, codec-internal bitmaps/font programs bounded by their decoders, /AS optional-content states not applied, truncated/undecodable images refused, pdf.js-only ancestor resource merging and /Annots on emptied /Pages nodes, catalog-level structure tree root reported not-flattened, document JavaScript out of scope.
 
+- Lead decision 2026-10-11T23:27:25Z (pigment follow-ups b8b31c7): knockout, unsupported adjustment kinds and unsupported effect features remain typed errors on unreachable envelope entries (structural validity of the plan, not a backend capability); render-gpu admission follows the shared pigment change without a render-gpu code change (lane blocked on D20).
+
 Open Operator decisions (not adopted; recorded for the Operator):
 - D1: explicit confirmation that builder focused tests override CX-EXEC-014 for this WP (lead adopted on the basis of Operator instructions; Operator may reverse).
 - D2: waive CX-984-002 one-build-per-disk for D: (would let validator rounds and builders build in parallel on separate targets).
