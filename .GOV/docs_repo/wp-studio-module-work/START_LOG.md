@@ -225,6 +225,8 @@ Workflow v3 amendments (2026-10-11T02:12:42Z, source workflow/workflow-review-ti
 
 - Lead decision 2026-10-11T06:40:58Z: render-gpu `tests/gpu-proof.toml` keeps `require_gpu = true` for this WP (GPU parity must be proven on the validation host, RTX 3090); a GPU-less host flips it to false, which prints NOT_PROVEN lines the round counts (exit 73), never a silent pass. Blend-If semantics on adjustment layers and clip bases are defined by pigment's evaluate_stack (single owner); both backends must match it.
 
+- Lead finding 2026-10-11T06:43:42Z (stale artifacts, 5 incidents): steward canaries built exports of older commits (current mtimes) into the builders' shared target `studio-team-dev/target`; the develop builder found an rlib from pre-change sources with a newer mtime there. Rule from now: export trees (steward canary, sync exports, probes, red-proof copies) never share a target dir with the edit tree; validators keep `studio-round/target`. Mechanism (path-relative metadata hashing) under verification in diagnostics/stale-artifacts.md.
+
 Open Operator decisions (not adopted; recorded for the Operator):
 - D1: explicit confirmation that builder focused tests override CX-EXEC-014 for this WP (lead adopted on the basis of Operator instructions; Operator may reverse).
 - D2: waive CX-984-002 one-build-per-disk for D: (would let validator rounds and builders build in parallel on separate targets).

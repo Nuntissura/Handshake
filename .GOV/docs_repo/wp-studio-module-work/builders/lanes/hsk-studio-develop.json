@@ -1,7 +1,7 @@
 {
   "crate": "hsk-studio-develop",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice5_tile_parallel_r5_v4_and_admitted_wide_done_real_dng_awaiting_download_approval",
+  "phase": "slice6_prism_job_conversion_in_tile_workers_done_real_dng_awaiting_download_approval",
   "commits": [
     {
       "sha": "68e87672ac310b9401461c20815f4dadff452fe2",
@@ -116,6 +116,12 @@
       "branch": "codex/handshake-studio-assets",
       "pushed": true,
       "summary": "remediation_R5_develop_wide: PrismConverter converts through Prism AdmittedWideEngine (e7cf81f) so every wide-path allocation is charged to the caller ledger before it happens; short_admission_budget_is_refused_before_any_work; profile_transform_admitted now checks ledger == provider leases + cached plan leases"
+    },
+    {
+      "sha": "78fd3795edb89809b81468e7d9181b016d04a1c7",
+      "branch": "codex/handshake-studio-assets",
+      "pushed": true,
+      "summary": "profile conversion through Prism's thread-shared admitted wide job (ENG-7, 8634765): ProfileConverter is a job port (prepare -> Sync ConversionJob, convert_band in place, finish), tile workers convert their own bands between stage A and stage C, one terminal observation per job, whole frame charged at prepare; bands above BandLimits.band_pixels split, layouts above max_bands become several jobs; 24 MP P3 -> sRGB 1366-1432 ms -> 166-176 ms at 16 threads, digests unchanged"
     }
   ],
   "capabilities_done": [
@@ -131,26 +137,27 @@
     "tile-parallel develop (std::thread::scope, no new deps, no unsafe): Threads = single | new(1..=64) | auto (min(available_parallelism, 16), resolved once); develop_with_threads / develop_to_image_threads / demosaic_normalized_threads, and develop / develop_with / develop_to_image / demosaic_normalized now default to Threads::auto(); normalisation and demosaic by row bands of about 64 Ki samples, output tiles from a shared counter, image assembly by tile-row bands; converter route: stage A of a batch of 4*threads tiles in parallel, converter driven from the calling thread in tile order, stage C in parallel, stage-A failures held back so errors surface in serial order; lowest failing tile decides the error whatever the thread count; cancellation checked between bands and tiles -> canceled, nothing delivered; receipt unchanged (route scalar, no thread field), Sse2 hint still unsupported_execution",
     "normalisation loop: per-row-phase black/denominator tables, branch-free, safe code the compiler can vectorise with IEEE binary64 division + binary32 conversion; byte-identical (develop_digest + 24 MP digests)",
     "DNG decoder (R5 + workflow v4): declared frame must fit the payload for compression 1 and 7 (width*height*bytes_per_sample, resp. 1 bit per sample, vs summed block byte counts capped by the file length) before the frame allocation; dng.rs under deny(clippy::arithmetic_side_effects); hostile-size tests dims_u32_max and aggregate_over_budget with a per-thread allocation tracker",
-    "PrismConverter::new takes (&AdmittedPrism, &mut AdmittedWideEngine<A>, ...) with one admission type for both; wide inspection (transient parse lease), plan build, request and output are leased on the caller ledger first"
+    "PrismConverter::new takes (&AdmittedPrism, &mut AdmittedWideEngine<A>, ...) with one admission type for both; wide inspection (transient parse lease), plan build, request and output are leased on the caller ledger first",
+    "profile conversion via Prism jobs (78fd379): PrismConverter::prepare -> AdmittedWideEngine::prepare_job(WideBands::Sizes(per-tile pixel counts)) -> Sync ConversionJob; each develop tile worker runs stage A, convert_band_in_place on its own tile (sub-bands above BandLimits.band_pixels = WIDE_CHUNK_PIXELS 262144 by default), stage C; a window of tiles is one job (max_bands 65536 = MAX_WIDE_JOB_BANDS, a longer layout becomes several jobs, a single tile needing more bands is Prism pixel_limit); finish() once per job merges the clip report in band order and delivers the one terminal observation; an aborted run (stage error, band error, cancel) drops the job unfinished (no observation, leases released); lowest failing tile decides the error as before (geometry failure held back behind lower tiles); receipt: profile_calls = bands, plan hits/misses/parses per job (24 MP: calls 384, hits 0, misses 1, parses 2, clip pixels 2681886 identical for every thread count); error mapping keeps Prism codes band_index/band_claimed/band_length/job_incomplete (tests/develop_profile.rs job_contract_violations_keep_their_prism_codes)"
   ],
   "tests": {
-    "passed": 24,
+    "passed": 28,
     "failed": 0,
     "ignored": 1,
     "targets": {
       "develop_recipe": "5/5",
-      "develop_dng": "9/9 (new: dng_lossless_jpeg_declared_frame_cannot_outgrow_the_payload RED on the old code, dng_dims_u32_max_is_a_typed_refusal_without_allocation, dng_aggregate_over_budget_is_refused_before_allocating RED with the uncompressed bound disabled)",
-      "develop_profile": "3/3 (new short_admission_budget_is_refused_before_any_work; profile_transform_admitted updated: ledger == both provider leases + cached plan leases; ICC colorant oracle 1e-4 unchanged and green with Prism ENG-6)",
-      "develop_digest": "2/2 (pre-rewrite oracle digests unchanged by the parallel + normalise rewrite)",
-      "develop_parallel": "4/4 new (output_is_identical_for_every_thread_count over 1/2/3/8 threads incl. demosaic, tiles+receipt, image, default entry point; converter_is_driven_in_tile_order_on_the_calling_thread; lowest_failing_tile_decides_the_error_for_every_thread_count both layouts, fused and converter route; cancellation_returns_canceled_and_no_partial_output pre/in-flight/converter-triggered)",
+      "develop_dng": "9/9",
+      "develop_profile": "6/6 (new: job_contract_violations_keep_their_prism_codes, a_frame_beyond_one_job_is_converted_by_several_jobs (90000 one-pixel bands = 2 jobs), job_conversion_equals_the_serial_wide_transform_for_every_thread_count (oracle = serial AdmittedWideEngine::transform per tile, 1/2/4/8/16/32 threads, bit-identical + same clip count); updated: profile_transform_admitted, wide_requests_are_chunk_invariant_and_report_plan_cache_and_clip (job counters: 37 bands = 1 job = 1 plan hit, 1 observation), short_admission_budget_is_refused_before_any_work unchanged and green)",
+      "develop_digest": "2/2 (unchanged)",
+      "develop_parallel": "5/5 (new: converter_bands_run_once_each_on_the_tile_workers replaces converter_is_driven_in_tile_order_on_the_calling_thread; oversized_tiles_and_long_layouts_split_into_bands_and_jobs; cancellation test cancels from inside the 3rd converter band on 1/2/8 threads -> Canceled, nothing delivered)",
       "real_dng": "1 passed + 1 ignored (needs corpus download approval)"
     },
-    "argv": "cargo test -p hsk-studio-develop --tests",
+    "argv": "cargo test -p hsk-studio-develop --tests --no-fail-fast",
     "exit": 0,
-    "sha": "85fe452737b926c661a88124fbbe2719f149571c",
+    "sha": "78fd3795edb89809b81468e7d9181b016d04a1c7",
     "check_tests": "PASS",
-    "clippy_tests": "PASS for develop with cargo clippy -p hsk-studio-develop --tests --no-deps (the plain form stopped inside hsk-studio-prism earlier while that lane was mid V4-01; re-run of the plain form not needed for this verdict)",
-    "head": "85fe452737b926c661a88124fbbe2719f149571c"
+    "clippy_tests": "PASS: cargo clippy -p hsk-studio-develop --tests (plain form) shows no develop warning; the only warnings are 2 pre-existing too_many_arguments in hsk-studio-observe (another lane)",
+    "head": "78fd3795edb89809b81468e7d9181b016d04a1c7"
   },
   "speed_release_24mp_synthetic": {
     "plane_admit_ms": 43,
@@ -209,6 +216,35 @@
       "speedup_16_threads_vs_pre_change": "demosaic ~5x (370 to ~70 ms), identity ~5x (1098 to ~215 ms), curve+exposure ~9.5x (2464 to ~260 ms), P3 to sRGB ~1.8x (2493 to ~1400 ms)",
       "note": "timings are noisy (shared host): identity at 8 vs 16 threads ranged 196-300 ms, the plateau is allocation/page-fault and memory bandwidth bound. The profile stage is bound by the serial Prism wide transform (about 1.3 s of the remaining time, through the admitted route with an unmetered ledger); only stage A and stage C around it run in parallel. The 85fe452 profile timing (admitted wide engine, Prism ENG-6 evaluation) is within noise of the 8962bbc one.",
       "identity_proof_24mp": "sha256 of every stage output is identical for 1, 2, 4, 8, 16 and 32 threads (determinism=PASS, develop-bench) and equals the pre-change baseline taken on the unmodified pipeline: demosaic 9d72ed3e3e6fe1bbd6e12c38c6de33ed7ba69995899ef54190707578d9510821, develop_identity c764a2f32e2d439280bbb4495cb035f2a2cf41b668b6e5045840ee8d08d021aa, develop_curve 9e9fb9f36d30d611c8d44d0f129e5b99b351d7d65c5b85f9945b335145817414, develop_profile_tiles 60c9423609adf5417f4cdb96d226cfce73bd4adb02f724e40d1ac7450bcc6ebc; profile receipt (calls 384, plan hits 383 / misses 1 / parses 2, clip pixels 2681886) identical for every thread count"
+    },
+    "threads_run_2026-10-11_prism_jobs": {
+      "frame": "6000x4000 RGGB synthetic, Limits::LARGE, 384 tiles of 256, release, shared busy host (32 logical CPUs), develop-bench --threads 1,2,4,8,16,32 then 16,16,16,8,1 at 78fd379 (working tree == commit)",
+      "develop_profile_p3_to_srgb_ms": {
+        "t1": "1917-2051",
+        "t2": 1044,
+        "t4": 529,
+        "t8": "295-303",
+        "t16": "166-176",
+        "t32": 123
+      },
+      "before_85fe452_p3_to_srgb_ms": {
+        "t1": "1838-2037",
+        "t16": "1366-1432"
+      },
+      "speedup_16_threads": "about 8x (1366-1432 ms to 166-176 ms); 1 thread unchanged (the same per-pixel work)",
+      "other_stages_16_threads_ms": {
+        "demosaic_only": "59-78",
+        "develop_identity": "195-244",
+        "develop_curve": "240-275"
+      },
+      "full_develop_identity_ms": {
+        "t1": "719-909",
+        "t16": "195-244",
+        "t32": 280
+      },
+      "digests_all_thread_counts": "demosaic 9d72ed3e3e6fe1bbd6e12c38c6de33ed7ba69995899ef54190707578d9510821, develop_identity c764a2f32e2d439280bbb4495cb035f2a2cf41b668b6e5045840ee8d08d021aa, develop_curve 9e9fb9f36d30d611c8d44d0f129e5b99b351d7d65c5b85f9945b335145817414, develop_profile_tiles 60c9423609adf5417f4cdb96d226cfce73bd4adb02f724e40d1ac7450bcc6ebc: all equal to the pre-change baseline recorded above; determinism=PASS for 1,2,4,8,16,32 threads (5 stages compared)",
+      "profile_receipt_all_thread_counts": "(calls 384, plan_hits 0, plan_misses 1, plan_parses 2, clip pixels 2681886, per-channel [1640451, 463824, 642938, 0]); before: calls 384 / hits 383 / misses 1 / parses 2 (one request per tile, now one job per frame)",
+      "note": "the remaining gap to Prism's 103 ms linear-stage figure is stage A (demosaic sample -> gain -> matrix), stage C and the per-tile allocations around the conversion, which run on the same 16 workers"
     }
   },
   "blockers": [],
@@ -368,8 +404,24 @@
         "prism_lint": "plain cargo clippy -p hsk-studio-develop --tests failed inside hsk-studio-prism (45 arithmetic_side_effects errors, another lane mid V4-01) at one point; develop was linted with --no-deps",
         "push": "85fe452 push was rejected as a ref-lock race (remote ref already at 85fe452, expected 6e95976; most likely another lane pushed the shared local branch, which already contained 85fe452); origin/codex/handshake-studio-assets == 85fe452 after fetch"
       }
+    },
+    {
+      "develop_jobs": {
+        "request": "switch develop's conversion stage to Prism's thread-shared admitted job API (ENG-7, 8634765)",
+        "api_used": "AdmittedWideEngine::prepare_job(&WideJobRequest{source: Profile, destination, bands: Sizes(tile pixel counts), RelativeColorimetric, bpc false, revision == expected_revision, correlation_id, resource_id, actor}, cancel) -> AdmittedWideJob (Send + Sync); workers: convert_band_in_place(band, rgb.as_flattened_mut(), cancel); finish(cancel, sink) once on the calling thread; engine stays mutably borrowed until finish/drop",
+        "public_api_change": "ProfileConverter lost convert(&mut self, pixels) -> Vec and gained band_limits() (default BandLimits{262144, 65536}) and prepare(&mut self, &[usize], cancel) -> Box<dyn ConversionJob + '_>; new ConversionJob: Sync {convert_band(&self, band, &mut [[f32;3]], cancel), finish(self: Box<Self>, cancel)}; BandLimits and ConversionJob exported; PrismConverter::new unchanged; DevelopReceipt unchanged in shape (profile_calls now counts bands, profile_stats plan counters count jobs)",
+        "ledger": "the whole frame is charged at prepare (work, receipt, plan, build leases); short_admission_budget_is_refused_before_any_work passes unchanged: peak measured on an unlimited run, exactly the peak succeeds with identical bytes, peak-1 is denied with Prism(admission_denied) before any tile, parse, plan or observation, ledger back to the provider leases; leases of failed or abandoned jobs are released (job_contract_violations_keep_their_prism_codes checks the ledger == provider leases + plan lease at the end)",
+        "cancellation": "pre-cancel, in-flight cancel and a cancel raised inside the 3rd converter band return Canceled with no tile delivered on 1/2/8 threads (develop_parallel cancellation_returns_canceled_and_no_partial_output); a canceled token passed to prepare or a band is Canceled",
+        "error_mapping": "band_index, band_claimed, band_length, job_incomplete keep their Prism code through map_wide (DevelopError::Prism(code), outcome Validation); layout refusals channel_count (empty layout or empty band) and pixel_limit (band above MAX_WIDE_PIXELS or above MAX_WIDE_JOB_BANDS bands) likewise; asserted in job_contract_violations_keep_their_prism_codes",
+        "abort_policy": "an aborted run drops the job without finish(): no Prism observation is delivered for it (finish would report job_incomplete for bands the run never reached, which is not the cause); the develop error carries the code and develop's own report() observation is unchanged. Decision for the lead: if a failure observation per aborted job is wanted, call finish() only when the first error came from a band conversion",
+        "retry_guard_route": "no hook block occurred; no gameplan step added",
+        "stale_artifact_incident": "the first two cargo test runs failed to compile the tests against libhsk_studio_develop-7d43f6a3707a753d.rlib in the shared studio-team-dev target: file mtime 08:31:40 local, content from the pre-change sources (no band_limits / BandLimits strings in the rlib, present in the check rmeta). Who built it is UNVERIFIED (this session ran only check and clippy, which write rmeta, before the test run); cargo judged it fresh (inferred: its dep-info is newer than the 08:28 source mtimes). Fixed by touching every develop source, test and example file (V4-11) and rerunning; check and clippy were unaffected. Hazard for the lead: the shared target can hold an rlib whose content predates the current sources while its mtime is newer",
+        "v4": "V4-09 commit via git commit -F; V4-07 doc claims in convert.rs cite their tests (never-wording replaced); V4-12 scripts only in scratchpad/smb-develop-jobs; V4-01/02 do not apply (no untrusted-byte decoding added); no new copy of a frozen duplicate",
+        "not_done": "encoded (non-linear) profiles still refused by develop's linear-light inspection (Prism 24 MP encoded P3->sRGB 396 ms at 16 threads is available behind the same job API once the linear_light tile contract is decided); finish() on aborted jobs (see abort_policy); STU-CON-044 64-pixel chunk text unchanged (bands are tiles)",
+        "recorded_at": "2026-10-11T06:42:12Z"
+      }
     }
   ],
-  "next": "after download approval: run real_dng ignored test (+ ExifTool oracle), fix any refusals; open R3 PLAUSIBLE LJPEG items (ljpeg.rs fill bytes / RST sequence + hand KATs; ljpeg.rs and tiff.rs are not under deny(arithmetic_side_effects) yet: V4-01 applies when they are touched); encoded (non-linear) profiles now that Prism evaluates curves/CLUTs itself (needs a decision on the linear_light tile contract); STU-CON-044 spec text still names 64-pixel chunks (spec enrichment, Operator); optional: AVX2/std::arch normalisation (skipped, see notes.simd_decision)",
-  "updated_at": "2026-10-11T05:54:20Z"
+  "next": "after download approval: run real_dng ignored test (+ ExifTool oracle), fix any refusals; open R3 PLAUSIBLE LJPEG items (ljpeg.rs fill bytes / RST sequence + hand KATs; ljpeg.rs and tiff.rs are not under deny(arithmetic_side_effects) yet: V4-01 applies when they are touched); encoded (non-linear) profiles through the same job API (needs a decision on the linear_light tile contract); optional: finish() on aborted jobs (notes.develop_jobs.abort_policy); STU-CON-044 spec text still names 64-pixel chunks (spec enrichment, Operator); optional: AVX2/std::arch normalisation (skipped, see notes.simd_decision)",
+  "updated_at": "2026-10-11T06:42:12Z"
 }

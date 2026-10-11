@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T06:42:07Z",
+ "updated_at": "2026-10-11T06:43:42Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -83,15 +83,16 @@
     "01bfeb3",
     "a8dd8e8",
     "12e3043",
-    "85fe452"
+    "85fe452",
+    "78fd379"
    ],
    "verdicts": [
     "STUDIO-R3 FAIL_V1 @404ff3a",
     "STUDIO-R5 FAIL_V2 @1d404f8"
    ],
    "lane_file": "builders/lanes/hsk-studio-develop.json",
-   "candidate": "85fe452",
-   "note": "R5 LJPEG bound 5ef2dd9 (red-first) + V4 sweep 8962bbc (payload bound covers uncompressed overlapping tiles; 45 sites; 26 alloc sites listed) + tile-parallel f132843 (digests identical 1..32 threads; demosaic ~5x, full develop ~5x, curve+exposure ~9.5x, P3->sRGB 1.8x limited by serial prism transform) + AdmittedWideEngine 85fe452; SIMD skipped (forbid unsafe; table-driven loop equally fast); 24 green 1 ignored",
+   "candidate": "78fd379",
+   "note": "P3->sRGB via prism AdmittedWideJob on develop tile threads (one band per tile, large tiles split, >65536 bands split into jobs); digests identical 1..32 threads + bit-for-bit vs serial transform; 24 MP P3->sRGB 1366-1432 ms -> 166-176 ms @16; 28 green 1 ignored; receipt profile_calls now counts bands",
    "review_findings": "R2-review-a CONFIRMED fixed 01bfeb3 (regression tests)",
    "review_findings_r3": "R3 CONFIRMED fixed d40d553 (BlackLevelDelta checked_sub; corpus path unified)",
    "r5_review_routed": {

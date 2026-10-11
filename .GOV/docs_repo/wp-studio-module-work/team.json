@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T06:42:07Z",
+ "updated_at": "2026-10-11T06:43:42Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1040,7 +1040,7 @@
     "builders/lanes/hsk-studio-develop.json"
    ],
    "launched": "2026-10-11T06:21:24Z",
-   "status": "running"
+   "status": "done 2026-10-11T06:43:42Z (SMB-DEVELOP READY at 78fd379)"
   },
   {
    "name": "infra-stale-artifacts",

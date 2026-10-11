@@ -73,3 +73,4 @@
 {"t": "2026-10-11T06:40:58Z", "event": "SMB-RENDER-GPU READY_FOR_VALIDATION 459c5d9 (builder-render-gpu-3)", "lanes_moved": ["SMB-RENDER-GPU READY"], "commits": ["459c5d9"], "progress": "direct: product commit"}
 {"t": "2026-10-11T06:40:58Z", "event": "SMB-RENDER-GPU-ADJ READY_FOR_VALIDATION c5bd9be (builder-render-gpu-3)", "lanes_moved": ["SMB-RENDER-GPU-ADJ READY"], "commits": ["c5bd9be"], "progress": "direct: product commit"}
 {"t": "2026-10-11T06:42:07Z", "event": "SMB-RENDER-CPU-ADJ READY_FOR_VALIDATION 7274827 (builder-render-cpu-adj)", "lanes_moved": ["SMB-RENDER-CPU-ADJ READY"], "commits": ["7274827"], "progress": "direct: product commit"}
+{"t": "2026-10-11T06:43:42Z", "event": "SMB-DEVELOP READY_FOR_VALIDATION 78fd379 (builder-develop-jobs)", "lanes_moved": ["SMB-DEVELOP READY"], "commits": ["78fd379"], "progress": "direct: product commit"}
