@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T06:40:58Z",
+ "updated_at": "2026-10-11T06:42:07Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -1575,11 +1575,12 @@
    "status": "READY_FOR_VALIDATION",
    "owner": "builder-render-cpu-adj",
    "commits": [
-    "5674e9c"
+    "5674e9c",
+    "7274827"
    ],
    "verdicts": [],
-   "candidate": "5674e9c",
-   "note": "ADJ-1 49afca1: adjustment layers, Blend-If, mask density + feather via pigment adjust_math/coverage_math (no copy), knockout refused, 16-px parity bit-identical to evaluate_stack, budgets charged before allocation, V4-01 plan_sink 62 sites; EFFECTS-1 c4bdaef/9b2f3af/5674e9c: wave-1 effects via render_layer_reference per tile+margin, bit-identical parity, margin >24 px refused pending pigment windowed matte; 21 of 21 green; exactness label vs pigment Approximate under check"
+   "candidate": "7274827",
+   "note": "exactness fix: extension_exactness returns pigment's declared class per op (Approximate except invert), Unsupported otherwise, equality tests; parity bit-identity stays a test fact; 21 of 21 green"
   },
   {
    "lane_id": "SMB-RENDER-GPU-ADJ",

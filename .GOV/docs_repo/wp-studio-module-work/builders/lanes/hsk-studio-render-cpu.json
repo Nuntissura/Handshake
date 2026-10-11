@@ -5,6 +5,10 @@
   "phase": "ADJ-1 (49afca1) and EFFECTS-1 (c4bdaef, 9b2f3af, 5674e9c) pushed; execute_extended: adjustment layer, Blend-If, mask density, mask feather, effects wave 1 (drop shadow, colour overlay, solid stroke). Earlier phases unchanged (clip-to-base, R3 remediation 9468d33).",
   "commits": [
     {
+      "sha": "7274827",
+      "subject": "render-cpu: extension_exactness reports pigment's declared class, never a better one (CX-CAP-001)"
+    },
+    {
       "sha": "5674e9c",
       "subject": "render-cpu: extension_exactness reports Exact only for the wave 1 effect kinds"
     },
@@ -71,15 +75,15 @@
       "--tests"
     ],
     "exit": 0,
-    "sha": "5674e9c",
+    "sha": "7274827",
     "passed": 21,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "Independent validator round on 5674e9c (ADJ-1 + EFFECTS-1, 21 tests). Open pigment API request: windowed matte API (see notes.effects1.api_changes_needed_in_pigment).",
-  "updated_at": "2026-10-11T06:39:12Z",
+  "next": "Independent validator round on 7274827 (ADJ-1 + EFFECTS-1, 21 tests). Windowed matte API request is with a pigment builder; the 24 px effect_margin refusal stays until it lands.",
+  "updated_at": "2026-10-11T06:41:44Z",
   "notes": {
     "clip_lane": {
       "lane": "SMB-RENDER-CPU-CLIP",
@@ -281,6 +285,12 @@
       "incident_stale_artifact": "Between the first green effects run (c4bdaef) and the run after 9b2f3af, all five cpu_effects tests failed with Unsupported{colour_overlay|drop_shadow}: the shared-target test binary of hsk-studio-render-cpu had been built from an older plan_sink.rs (extension_exactness answered Unsupported for Effect kinds, probe test showed Adjustment/BlendIf Exact but Effect Unsupported) although the source and HEAD were correct. Cause: stale artifact in the shared target dir (UNVERIFIED which build wrote it; the shared worktree is edited by other lanes). Fix: touch crates/hsk-studio-render-cpu/src/plan_sink.rs and lib.rs, rebuild, 21/21. The hook did not block the rerun; no gameplan step added because there is no machine check for it; lead may want a freshness check of target artifacts vs source mtimes (infrastructure, affects every lane).",
       "retry_guard": "route (a) product failure (stack test reference plane too small) fixed by commit 9b2f3af then rerun; route none for the stale artifact (hook did not block). Two temporary debug tests (tests/rcpu_debug.rs, rcpu_debug2.rs) were never committed and were moved to the scratchpad subfolder rcpu/.",
       "check_clippy": "cargo clippy -p hsk-studio-render-cpu --tests clean on 5674e9c; plan_sink.rs, plan_sink/extended.rs, plan_sink/effects.rs, px.rs and the new test files carry deny(clippy::arithmetic_side_effects)"
+    },
+    "exactness_class_correction": {
+      "finding": "Coordinator check: extension_exactness returned Exact for the envelope operators and the three wave 1 effects although pigment declares them Approximate (D5 cases 1, 9, 10, 12-14); only invert is Exact in pigment. Correct reading: yes, it exceeded pigment's class. Receipts were never affected (admit_extended takes op.intrinsic().lowest_of(backend class)), but the reported capability class must not exceed pigment's (CX-CAP-001).",
+      "fix": "7274827: extension_exactness returns ExtOperator::intrinsic() for every supported operator (adjustment layer, the 8 adjustment kinds, Blend-If, mask density, mask feather, DropShadow/ColourOverlay/Stroke) and Unsupported otherwise. Earlier commit messages/notes that say 'Exact' for these (49afca1, c4bdaef, 5674e9c and the capabilities_done entries ADJ-1/EFFECTS-1) describe the superseded behaviour.",
+      "tests": "cpu_extended refusals_stay_typed_and_the_v1_path_is_unchanged asserts backend class == op.intrinsic() for AdjustmentLayer, BlendIf, MaskDensity, MaskFeather and all AdjustmentKind::ALL (invert Exact, mask feather Approximate); cpu_effects effect_refusals_and_scratch_charge_stay_typed asserts the same for the wave 1 effect kinds (Approximate) and Unsupported for the others.",
+      "reference_parity": "bit_identical to pigment's reference for adjustments (evaluate_stack) and effects (render_layer_reference) is a separate fact carried by the parity tests (notes.adj1.parity, notes.effects1.parity), not by the class."
     }
   }
 }

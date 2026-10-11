@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T06:40:58Z",
+ "updated_at": "2026-10-11T06:42:07Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -899,7 +899,7 @@
     "builders/lanes/hsk-studio-render-cpu.json"
    ],
    "launched": "2026-10-11T05:57:08Z",
-   "status": "done 2026-10-11T06:40:19Z (SMB-RENDER-CPU-ADJ READY at 5674e9c)"
+   "status": "retired 2026-10-11T06:42:07Z (7274827; context ~600k)"
   },
   {
    "name": "builder-effects-1",
@@ -1123,6 +1123,18 @@
     "crates/hsk-studio-pigment/**"
    ],
    "launched": "2026-10-11T06:40:19Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-render-gpu-fx",
+   "agent_id": "aae1c3088e70fb224",
+   "model": "sonnet",
+   "role": "render-gpu: Blend-If agreement vs pigment evaluate_stack + effects execution",
+   "owns": [
+    "crates/hsk-studio-render-gpu/**",
+    "builders/lanes/hsk-studio-render-gpu.json"
+   ],
+   "launched": "2026-10-11T06:42:07Z",
    "status": "running"
   }
  ]
