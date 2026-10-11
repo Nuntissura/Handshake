@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T02:28:57Z",
+ "updated_at": "2026-10-11T02:35:04Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -103,12 +103,13 @@
     "9502a9b",
     "e259dbe",
     "28d8ed4",
-    "b12a524"
+    "b12a524",
+    "6823c34"
    ],
    "verdicts": [],
    "lane_file": "builders/lanes/hsk-studio-pulse.json",
    "candidate": "b12a524",
-   "note": "slices1-3; lift/extract/close-gap, linked razor/roll/slide; 13 tests",
+   "note": "slices1-3; lift/extract/close-gap, linked razor/roll/slide; 13 tests; delegates to accord FrameRate/Timescale (6823c34)",
    "review_findings": "R2-review-b: PASS recommendation; formal verdict pending next round"
   },
   {
@@ -232,12 +233,13 @@
    "commits": [
     "a813cf3",
     "989d91d",
-    "7e7579f"
+    "7e7579f",
+    "0551b8d"
    ],
    "verdicts": [],
    "lane_file": "builders/lanes/hsk-studio-render-gpu.json",
-   "candidate": "7e7579f",
-   "note": "GpuBackend on pigment port; DX12+Vulkan RTX3090 5/5; parity 2.4e-7; device-loss proof; no-adapter typed path; slice2 modes/masks/groups in progress"
+   "candidate": "0551b8d",
+   "note": "slice1+2: 12 modes generated from pigment MODES, masks, groups, clip-to-base; parity 2.4e-7 DX12+Vulkan; typed no-adapter path"
   },
   {
    "lane_id": "SMB-PACKAGE",
@@ -790,18 +792,20 @@
    ],
    "verdicts": [],
    "candidate": "fa0e4b9",
-   "note": "Timescale/Rounding/Conversion/rescale + FrameRate::from_fps/fps_fraction; 17 accord tests; migrations: reel (reel builder), pulse/folio/interop-media (same agent)"
+   "note": "Timescale/Rounding/Conversion/rescale + FrameRate::from_fps/fps_fraction; 17 accord tests; migrations: reel (reel builder), pulse/folio/interop-media (same agent); migrations: reel b96a33e, pulse 6823c34, interop-media 9575239; folio doc 26b37c8"
   },
   {
    "lane_id": "SMB-INTEROP-MEDIA-PULSE",
    "crate": "hsk-studio-interop-media",
    "origin": "interop-media builder; CX-CAP-001 timecode duplicate",
    "scope": "after steward adds interop-media->pulse edge (provisional D9): replace src/time.rs timecode/DF arithmetic with pulse APIs; tests unchanged; also interop-media src/time.rs:114 fps_fraction copy",
-   "phase": "build",
-   "status": null,
-   "blocked_on": null,
+   "phase": "blocked",
+   "status": "BLOCKED",
+   "blocked_on": "Operator: the permission system denied adding hsk-studio-pulse to interop-media Cargo.toml (D9); lead does not route around a denial",
    "owner": "builder-accord-eng-2 (reused)",
-   "commits": [],
+   "commits": [
+    "9575239 (accord delegation part)"
+   ],
    "verdicts": []
   },
   {
@@ -809,17 +813,33 @@
    "crate": "hsk-studio-render-cpu",
    "origin": "composite clip-to-base 26f835e / pigment 4e533d5",
    "scope": "render-cpu implements clip-to-base (override supports_clip_to_base), reference semantics + hand-derived tests",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-render-cpu-clip",
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "d470e2f",
+    "9819e52"
+   ],
+   "verdicts": [],
+   "candidate": "9819e52",
+   "note": "clip-to-base per pigment docs; Approximate; 8 tests; pass-through group as clip base refused (lead accepted; Photoshop UNVERIFIED)"
   },
   {
    "lane_id": "SMB-MOTION-JS-WORKER",
    "crate": "hsk-studio-motion-js",
    "origin": "motion-js slice2 finding: in-process QuickJS can abort host",
    "scope": "worker-process isolation for the quickjs engine (spawn/IPC, RSS/CPU/wall limits, crash containment, replay); AST profile validator (EXPR-PROVIDER-13)",
+   "phase": "brief",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-COMPOSITE-CLIP-ALIGN",
+   "crate": "hsk-studio-composite",
+   "origin": "render-cpu clip lane: composite may emit pass-through group as clip base",
+   "scope": "composite lowering: pass-through group used as clip base -> typed Unavailable (consistent with render-cpu refusal) until Photoshop oracle defines semantics",
    "phase": "brief",
    "status": null,
    "owner": null,

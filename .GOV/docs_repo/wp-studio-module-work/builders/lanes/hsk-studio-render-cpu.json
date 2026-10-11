@@ -1,35 +1,57 @@
 {
   "crate": "hsk-studio-render-cpu",
+  "lane": "SMB-RENDER-CPU-CLIP",
   "status": "READY_FOR_VALIDATION",
-  "phase": "nib OwnedPath payload (f105552) + parallel chunks (2d06a3a) pushed",
+  "phase": "clip-to-base (pigment BaseAlpha) implemented and pushed d470e2f + 9819e52; base port migration, nib OwnedPath payload and parallel chunks pushed earlier",
   "commits": [
-    {"sha": "1e3cfaf", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "migration to the pigment RenderBackend port (admit() first, plan IR/TilePlanes/TileSink/RenderReceipt, pigment blend_math), groups, masks, vector payload"},
-    {"sha": "ff57d4a362aa291011a8de12f465d5876c5863e4", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "rustfmt"},
-    {"sha": "f105552", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "VectorFill payload = nib OwnedPath; local anchor model deleted; coverage rasterization kept; vector fault tests"},
-    {"sha": "2d06a3a", "branch": "codex/handshake-studio-assets", "pushed": true, "summary": "parallel chunks: Renderer::with_threads(chunk, n), scoped workers, in-order delivery on the calling thread, 2n reorder window, per-worker scratch charge; byte-identical output and sink order, 3 thread counts tested, 30 repeat runs without a flake"}
+    {"sha": "9819e52", "subject": "render-cpu: clip test also covers a clip run inside a pass-through parent group (bytes equal to the flat plan)"},
+    {"sha": "d470e2f9c84893519803565eed28830f8d7ba92d", "subject": "render-cpu: clip-to-base (pigment BaseAlpha run semantics: per-chunk run buffer, base mask, clipped layers bounded by base alpha, base mode/opacity on the run, one scratch level per run); supports_clip_to_base = true, Approximate; typed refusal for pass-through base; 3 hand-derived clip tests with chunk/thread determinism"},
+    {"sha": "2d06a3a", "subject": "render-cpu: parallel chunks (scoped workers, in-order delivery, reorder window, scratch charge per worker); tests extended"},
+    {"sha": "f105552", "subject": "render-cpu: VectorFill payload is nib OwnedPath (local anchor model deleted); coverage rasterization kept; vector fault tests"},
+    {"sha": "ff57d4a362aa291011a8de12f465d5876c5863e4", "subject": "render-cpu: rustfmt"},
+    {"sha": "1e3cfaf", "subject": "migration to the pigment RenderBackend port (admit() first, plan IR/TilePlanes/TileSink/RenderReceipt, pigment blend_math), groups, masks, vector payload"}
   ],
   "capabilities_done": [
-    "impl RenderBackend<V: VectorSource+Serialize> for Renderer; identity {hsk-studio-render-cpu, 0.1, Cpu}; exactness(): Tile/Solid/groups/masks Exact, Vector+FillOpacity Approximate, Blend(m)=pigment facts for layer-applicable modes with a function else Unsupported, PassThroughOpacity/NonIsolatedBlendedGroup Unsupported",
+    "impl RenderBackend<V: VectorSource+Serialize> for Renderer; identity {hsk-studio-render-cpu, 0.1, Cpu}; exactness(): Tile/Solid/groups/coverage masks Exact, Vector+FillOpacity+Mask(BaseAlpha) Approximate, Blend(m)=pigment facts for layer-applicable modes with a function else Unsupported, PassThroughOpacity/NonIsolatedBlendedGroup Unsupported",
     "execution order: pigment admit() -> source verification -> bounded chunks; cancel+deadline between chunks; RAII scratch lease vs request.max_working_bytes; receipt only after last chunk",
     "layers: opacity*fill_opacity product (Approximate), u8/u16 masks with inversion (density!=1 refused), isolated groups via per-depth scratch, pass-through groups onto the running backdrop, DAG fanout, leaf root",
-    "vector payload VectorFill { path: nib::OwnedPath (plan pixels), rgba, aa_samples }: nib validates (finite, bounded, MoveTo/Close rules), render-cpu closes open subpaths and rasterizes n*n supersampled exact-curve winding via kurbo; Serialize binds the path by nib canonical JSON so RenderPlan::digest covers it",
+    "vector payload VectorFill { path: nib::OwnedPath (plan pixels), rgba, aa_samples }: nib validates, render-cpu closes open subpaths and rasterizes n*n supersampled exact-curve winding via kurbo; Serialize binds the path by nib canonical JSON so RenderPlan::digest covers it",
     "blend arithmetic: ONLY pigment::blend_math::composite_over (f32)",
-    "report(): one Observe terminal frame; example render-cpu-consumer; DESCRIPTOR checked against constants (path_elements = nib MAX_PATH_ELEMENTS)"
+    "parallel chunks: Renderer::with_threads(chunk, n), byte-identical output and sink order",
+    "clip-to-base (MaskFormat::BaseAlpha): supports_clip_to_base() = true; run [base, c1..cn] (base = nearest earlier unclipped layer of the group) evaluated per chunk into one scratch buffer G = base content with its own mask (no opacity/fill/mode); each ci composited onto G with own mode/opacity/fill and source alpha * base alpha, G alpha held at base alpha (read from G itself, no extra plane); G composited onto the running backdrop with the BASE layer's mode/opacity/fill; group extent ignores clipped layers (never beyond base); isolated and pass-through parent groups work (pass-through parent: run lands on the running backdrop); per-pixel, so chunk and thread determinism is unchanged; scratch need = 1 level per run + deepest member (accounted in need/peak_working_bytes); isolated-group base evaluates straight into G; exactness Approximate (Photoshop rule UNVERIFIED)",
+    "report(): one Observe terminal frame; example render-cpu-consumer; DESCRIPTOR updated (clip_to_base key, clip_base_pass_through unsupported, clipping removed from pending) and still checked against constants"
   ],
   "tests": {
-    "passed": 5,
-    "failed": 0,
-    "command": "cargo test -p hsk-studio-render-cpu --tests --no-fail-fast",
-    "cases": ["known_alpha_mask_sample_math", "chunk_boundary_equals_independent_reference", "sink_error_cancel_releases_bytes", "unsupported_op_stale_result", "receipt_binds_revision_profile_and_observe"],
-    "check_clippy": "PASS, no warnings from this crate",
-    "tree": "shared edit tree at 2d06a3a, not an export of the pushed SHA"
+    "argv": ["cargo", "test", "-p", "hsk-studio-render-cpu", "--tests", "--no-fail-fast"],
+    "exit": 0,
+    "sha": "9819e52",
+    "passed": 8,
+    "failed": 0
   },
-  "oracle_notes": "Hand-computed pixel values compared at 1e-6 because pigment blend_math is f32; independent per-pixel reference (analytic coverage, hand-folded isolated group + checker mask) byte-equal across chunk sizes 1,2,3,4,64 with dyadic inputs. Adobe parity NOT_PROVEN.",
-  "decisions_for_lead": [
-    "Typed refusals (no guess): pass-through opacity<1, non-isolated blended group, mask density != 1, mask on pass-through layer, premultiplied alpha, samples outside [0,1], invalid vector geometry, aa_samples outside 1..=16.",
-    "fill_opacity is folded in as a product (class Approximate); mask density semantics unverified against Photoshop."
-  ],
   "blockers": [],
-  "next": "independent validator round on 2d06a3a",
-  "updated_at": "2026-10-11T10:20:00Z"
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "independent validator round on 9819e52 (clip lane); lead decisions: (1) pass-through group as clip base is refused (clip_base_pass_through) pending a Photoshop oracle, composite lowering currently emits it for a group-with-default-mode base; (2) clipped layer with its own mask is still a pigment/composite gap",
+  "updated_at": "2026-10-11T02:32:41Z",
+  "notes": {
+    "clip_lane": {
+      "lane": "SMB-RENDER-CPU-CLIP",
+      "pigment_commit": "4e533d5",
+      "composite_lowering_commit": "26f835e",
+      "tests_added": ["clip_to_base_two_layer_run", "clip_to_base_multi_layer_runs_chunk_and_thread_deterministic", "clip_to_base_hidden_base_lowering_shape_and_refusals"],
+      "tests_notes": "hand-derived pixels from composite_over at 1e-6: 2-layer run with partial-alpha tile base (alpha HELD at base alpha, nothing outside base), multi-layer run (base with own mask, Multiply clipped, isolated-group clipped, vector base with .5 coverage, second run clips to the NEW base), chunks 1,2,3,4,64 and threads 2,3,8 byte-equal incl. sink order and peak_working_bytes == scratch_bytes(2,2,workers); composite hidden-base lowering shape [A, D, E clipped] clips to D not A, and pass-through base typed Unsupported before the first sink call",
+      "decisions_for_lead": [
+        "Base that is a pass-through (non-isolated) group: typed Unsupported{operator: clip_base_pass_through}, never guessed. Pigment's doc defines G from isolated base content and blends with the base layer's mode, which PassThrough is not.",
+        "Group extent excludes clipped layers (they cannot draw outside the base); this only narrows the work region."
+      ],
+      "check_clippy": "PASS, no warnings from this crate (pre-existing warnings only in hsk-studio-observe)",
+      "tree": "shared edit tree at 9819e52 for this crate; cargo fmt -p hsk-studio-render-cpu applied"
+    },
+    "oracle_notes": "Hand-computed pixel values compared at 1e-6 because pigment blend_math is f32; independent per-pixel reference (analytic coverage, hand-folded isolated group + checker mask) byte-equal across chunk sizes 1,2,3,4,64 with dyadic inputs. Adobe parity NOT_PROVEN; Photoshop clipping-group rule UNVERIFIED.",
+    "decisions_for_lead": [
+      "Typed refusals (no guess): pass-through opacity<1, non-isolated blended group, mask density != 1, mask on pass-through layer, premultiplied alpha, samples outside [0,1], invalid vector geometry, aa_samples outside 1..=16, clip base that is a pass-through group.",
+      "fill_opacity is folded in as a product (class Approximate); mask density semantics unverified against Photoshop."
+    ],
+    "previous_phase": "nib OwnedPath payload (f105552) + parallel chunks (2d06a3a) pushed; 5 tests passed on the shared tree at 2d06a3a"
+  }
 }

@@ -311,7 +311,7 @@
     "builders/lanes/hsk-studio-render-gpu.json"
    ],
    "launched": "2026-10-11T04:00Z",
-   "status": "running"
+   "status": "retired (refresh rule 541k); render-gpu READY 0551b8d"
   },
   {
    "name": "validator-r2",
@@ -381,7 +381,7 @@
    "model": "sonnet",
    "role": "accord timescale owner",
    "launched": "2026-10-11T02:16:22Z",
-   "status": "running"
+   "status": "done (migrations; D9 blocked by permission denial)"
   },
   {
    "name": "builder-controls",
@@ -429,7 +429,7 @@
    "model": "sonnet",
    "role": "render-cpu clip-to-base",
    "launched": "2026-10-11T02:22:36Z",
-   "status": "running"
+   "status": "done 9819e52"
   },
   {
    "name": "builder-kernel-bindings",

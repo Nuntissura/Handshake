@@ -1,14 +1,16 @@
 {
   "crate": "hsk-studio-interop-media",
-  "mt": "MT-35552",
+  "lane": "SMB-INTEROP-MEDIA",
   "status": "READY_FOR_VALIDATION",
   "phase": "slice-1 CMX3600 EDL import/export + Folio mapping + native-format gap",
   "commits": [
     {
       "sha": "8be9cee8603fec9bce780550b87d5a2d61d085dc",
-      "branch": "codex/handshake-studio-assets",
-      "pushed": true,
-      "summary": "Interop-media: CMX3600 EDL import into neutral proposal with typed losses, Folio sequence + validated document revision, deterministic export, native PRPROJ/AEP/SESX blocked-loudly sniffing, example"
+      "subject": "Interop-media: CMX3600 EDL import into neutral proposal with typed losses, Folio sequence + validated document revision, deterministic export, native PRPROJ/AEP/SESX blocked-loudly sniffing, example"
+    },
+    {
+      "sha": "9575239193da1311816216cfe32b2f212264a92c",
+      "subject": "Interop-media: rational_to_ticks, frame_rate_from_fraction, fps_fraction delegate to accord Timescale/FrameRate (CX-CAP-001); timecode label collapse onto pulse still pending the pulse path dependency"
     }
   ],
   "capabilities_done": [
@@ -19,43 +21,69 @@
     "export_cmx3600(TimelineProposal) deterministic text for the round-trip-able subset (cuts, V index 0 + A/A2.., names, M2 speed as exact decimal); fixed point after one import/export cycle",
     "time adapters: parse_frame_rate (integer, n/d, decimal aliases 23.976/29.97/59.94 with RateSpelling receipt), frame_rate_from_ticks (legacy normalization receipt), timecode_to_frames / frames_to_timecode incl. drop-frame, rational_to_ticks with Exactness (Exact / NormalizedLegacy / Approximate(HalfAwayFromZero))",
     "native gap: sniff_native (gzip magic = PRPROJ candidate, RIFX = AEP candidate, XML root sesx / AfterEffectsProject), import_native always blocked with Missing loss for 7 entity classes; detection strings are UNVERIFIED candidates (need black-box saves)",
-    "report() -> one Observe terminal outcome; DESCRIPTOR; examples/interop-media-consumer.rs (--edl FILE --rate R [--drop] [--origin FRAMES] [--export], --sniff FILE) run: import, export, sniff, refusal exit 2"
+    "report() -> one Observe terminal outcome; DESCRIPTOR; examples/interop-media-consumer.rs (--edl FILE --rate R [--drop] [--origin FRAMES] [--export], --sniff FILE) run: import, export, sniff, refusal exit 2",
+    "SMB-ACCORD-ENG-2 migration part 1 (9575239): rational_to_ticks -> Timescale::rational(num,den).ticks_from_units(.., NearestHalfUp) (Exactness/RoundingRule public types and every error kind unchanged; negative -> NegativeTime, zero -> InvalidRational, overflow -> TimecodeOverflow); frame_rate_from_fraction -> FrameRate::from_fps after the InvalidFrameRate zero check; fps_fraction -> FrameRate::fps_fraction. reduce/gcd stay (edl.rs derive_speed ratio reduction)."
   ],
   "tests": {
-    "check_tests_examples": "PASS",
-    "clippy_tests_examples": "PASS (no findings in interop-media)",
-    "foundation_contract": {
-      "passed": 4,
-      "failed": 0,
-      "cases": [
-        "edl_fixture_ticks_losses_and_folio_sequence",
-        "timecode_rational_and_rates",
-        "edl_negative_paths_and_dispositions",
-        "round_trip_export_and_native_formats_blocked"
-      ]
-    },
+    "argv": "cargo test -p hsk-studio-interop-media --tests --no-fail-fast",
+    "exit": 0,
+    "sha": "9575239193da1311816216cfe32b2f212264a92c",
     "passed": 4,
     "failed": 0
   },
-  "oracle_values": {
-    "ticks": "01:00:00:00 at 25 fps = frame 90000 = 914457600000000 ticks; 50-frame record duration = 508032000000; 29.97 DF 01:00:00;00 = 107892 frames, 00:10:00;00 = 17982, 00:01:00;02 = 1800; rational (48, 24/1) = 508032000000 Exact, (1, 24000/1001) = 10594584000 Exact, (1, 13/1) = 19539692308 Approximate",
-    "edl": "hand-authored synthetic fixtures only; no Adobe-exported file used yet"
-  },
-  "contradiction_resolved": "brief said Folio has no timeline types; Folio now has StudioSequence/Track/Clip (89201e7) so the proposal maps into a Folio-validated sequence revision",
-  "edge_requests": [
-    "interop-media -> pulse is NOT in the allowed list (root metadata + STUDIO_MODULES). Timecode/drop-frame/rate label arithmetic is duplicated minimally in src/time.rs (documented). CX-CAP-001 wants one owner: lead decision needed to add the pulse edge and then collapse time.rs onto pulse."
+  "blockers": [
+    {
+      "error": "Edit tool permission denied by the auto mode classifier (Modify Shared Resources) when adding the hsk-studio-pulse path dependency to crates/hsk-studio-interop-media/Cargo.toml; the coordinator instruction authorizing the edge could not be applied, so D9 (collapse src/time.rs timecode/drop-frame label arithmetic onto pulse) is NOT done. No workaround attempted.",
+      "file_line": "crates/hsk-studio-interop-media/Cargo.toml:13",
+      "attempts": 1
+    }
   ],
-  "dep_requests": [
-    "sha2 (optional): digest of the original bytes for source_sha256 and opaque native blobs; line appended to builders/dep-requests.jsonl"
-  ],
-  "blockers": [],
-  "known_limits": [
-    "EDL has no frame rate: the caller supplies it (ImportRequest.frame_rate); source timecode assumed at the sequence rate",
-    "dissolves/wipes/keys are cuts-only with a loss note; the outgoing clip is not extended",
-    "linked V+A pairs from B events are linked in the Folio sequence; export splits them into two events",
-    "FCP7 XML, FCPXML, OTIO JSON, AAF/OMF not started (OTIO needs the pinned serde_json via dep request)",
-    "PRPROJ/AEP/SESX: no decoder; detection candidates UNVERIFIED; black-box oracle saves from the installed apps need an Operator-approved session"
-  ],
-  "next": "OTIO JSON subset (serde_json dep request) and FCP7 XML (roxmltree dep request) mapped through the same TimelineProposal; transitions as typed Folio transition data once Folio has them; lead decision on the pulse edge; black-box EDL export from Premiere for an independent oracle",
-  "updated_at": "2026-10-11T02:13:44Z"
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "D9 once the Cargo.toml edge is permitted: add hsk-studio-pulse = { path = \"../hsk-studio-pulse\", version = \"=0.1.0\", default-features = false }; add impl From<PulseError> for InteropError in error.rs (Canceled, Overflow->TimecodeOverflow, UnsupportedFrameRate, NotFrameAligned, TimecodeUnsupported, DropFrameUnsupported, other->InvalidTimecode); time.rs: timecode_format() = pulse::TimecodeFormat::new; frames_to_timecode = pulse::frames_to_timecode + hours>99 -> TimecodeOverflow + Display; timecode_to_frames = interop syntax bound (len 11..13, <=3 digits/field) -> pulse::parse_timecode -> ';' with non-drop = DropMismatch -> set drop flag -> minutes/seconds/frames range pre-check = InvalidTimecode -> pulse::timecode_to_frames, whose only remaining InvalidTimecode is a dropped label = DroppedTimecode; ticks_to_frames_exact = pulse::ticks_to_frames_exact; delete nominal/Base/base. Then the steward adds the root allowed edge. Earlier next: OTIO JSON subset (serde_json dep request) and FCP7 XML (roxmltree dep request) mapped through the same TimelineProposal; transitions as typed Folio transition data once Folio has them; lead decision on the pulse edge; black-box EDL export from Premiere for an independent oracle",
+  "updated_at": "2026-10-11T02:33:56Z",
+  "notes": {
+    "mt": "MT-35552",
+    "oracle_values": {
+      "ticks": "01:00:00:00 at 25 fps = frame 90000 = 914457600000000 ticks; 50-frame record duration = 508032000000; 29.97 DF 01:00:00;00 = 107892 frames, 00:10:00;00 = 17982, 00:01:00;02 = 1800; rational (48, 24/1) = 508032000000 Exact, (1, 24000/1001) = 10594584000 Exact, (1, 13/1) = 19539692308 Approximate",
+      "edl": "hand-authored synthetic fixtures only; no Adobe-exported file used yet"
+    },
+    "contradiction_resolved": "brief said Folio has no timeline types; Folio now has StudioSequence/Track/Clip (89201e7) so the proposal maps into a Folio-validated sequence revision",
+    "edge_requests": [
+      "interop-media -> pulse is NOT in the allowed list (root metadata + STUDIO_MODULES). Timecode/drop-frame/rate label arithmetic is duplicated minimally in src/time.rs (documented). CX-CAP-001 wants one owner: lead decision needed to add the pulse edge and then collapse time.rs onto pulse."
+    ],
+    "dep_requests": [
+      "sha2 (optional): digest of the original bytes for source_sha256 and opaque native blobs; line appended to builders/dep-requests.jsonl"
+    ],
+    "known_limits": [
+      "EDL has no frame rate: the caller supplies it (ImportRequest.frame_rate); source timecode assumed at the sequence rate",
+      "dissolves/wipes/keys are cuts-only with a loss note; the outgoing clip is not extended",
+      "linked V+A pairs from B events are linked in the Folio sequence; export splits them into two events",
+      "FCP7 XML, FCPXML, OTIO JSON, AAF/OMF not started (OTIO needs the pinned serde_json via dep request)",
+      "PRPROJ/AEP/SESX: no decoder; detection candidates UNVERIFIED; black-box oracle saves from the installed apps need an Operator-approved session"
+    ],
+    "tests_detail_before_migration": {
+      "check_tests_examples": "PASS",
+      "clippy_tests_examples": "PASS (no findings in interop-media)",
+      "foundation_contract": {
+        "passed": 4,
+        "failed": 0,
+        "cases": [
+          "edl_fixture_ticks_losses_and_folio_sequence",
+          "timecode_rational_and_rates",
+          "edl_negative_paths_and_dispositions",
+          "round_trip_export_and_native_formats_blocked"
+        ]
+      },
+      "passed": 4,
+      "failed": 0
+    },
+    "accord_migration": {
+      "lane": "SMB-ACCORD-ENG-2",
+      "commit": "9575239193da1311816216cfe32b2f212264a92c",
+      "tests": "4 passed with unchanged expected values (timecode_rational_and_rates covers rational_to_ticks incl. 1/13 and 1/11 Approximate, overflow, negative, zero; fps_fraction; frame_rate parsing); clippy clean; rustfmt clean",
+      "d9_expected_deviation": "after the pulse collapse, a timecode with a minutes/seconds/frames field above 255 AND a ';' separator under non-drop reports invalid_timecode (pulse::parse_timecode u8 range) instead of drop_mismatch; no test covers it"
+    },
+    "commits_converted": "commit entries converted from {sha, branch, summary, pushed} to {sha, subject}; all on codex/handshake-studio-assets and pushed"
+  }
 }

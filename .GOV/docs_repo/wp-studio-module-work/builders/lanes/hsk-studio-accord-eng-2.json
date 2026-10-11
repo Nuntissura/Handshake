@@ -2,9 +2,24 @@
   "crate": "hsk-studio-accord",
   "lane": "SMB-ACCORD-ENG-2",
   "status": "READY_FOR_VALIDATION",
-  "phase": "done",
+  "phase": "migrations applied: pulse done, folio doc only, interop-media part 1; interop-media D9 blocked",
   "commits": [
-    {"sha": "fa0e4b9fc601d1a0ac1115fbda965caf37392e3b", "subject": "Accord: exact Timescale/rational tick conversion (Rounding, Conversion, Ticks::from_timescale/to_timescale, signed + rescale, FrameRate::from_fps/fps_fraction)"}
+    {
+      "sha": "fa0e4b9fc601d1a0ac1115fbda965caf37392e3b",
+      "subject": "Accord: exact Timescale/rational tick conversion (Rounding, Conversion, Ticks::from_timescale/to_timescale, signed + rescale, FrameRate::from_fps/fps_fraction)"
+    },
+    {
+      "sha": "6823c34a6bd2049c3b98534b2afb5fcf175e64f9",
+      "subject": "Pulse: delegate to accord FrameRate/Timescale (migration applied by this lane)"
+    },
+    {
+      "sha": "26b37c8a5183aa1e3a1aac426b606ab966687008",
+      "subject": "Folio: doc points fps fractions to accord FrameRate::fps_fraction (swept in another lane's uncommitted lib.rs; origin repaired by the folio lane in ae75f55)"
+    },
+    {
+      "sha": "9575239193da1311816216cfe32b2f212264a92c",
+      "subject": "Interop-media: rational_to_ticks/frame_rate_from_fraction/fps_fraction delegate to accord (migration part 1)"
+    }
   ],
   "capabilities_done": [
     "Timescale (reduced units/second fraction): new(u32), rational(u64,u64), units_per_second, exact_ticks_per_unit",
@@ -20,11 +35,17 @@
     "passed": 17,
     "failed": 0
   },
-  "blockers": [],
+  "blockers": [
+    {
+      "error": "Edit permission denied by the auto mode classifier (Modify Shared Resources) on crates/hsk-studio-interop-media/Cargo.toml (add hsk-studio-pulse path dependency); D9 timecode collapse not done; no workaround attempted",
+      "file_line": "crates/hsk-studio-interop-media/Cargo.toml:13",
+      "attempts": 1
+    }
+  ],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "Validator round on fa0e4b9 or later; then reel/pulse/interop-media owners migrate per notes.migration_steps (this lane migrated nothing).",
-  "updated_at": "2026-10-11T02:22:30Z",
+  "next": "D9 for interop-media once the Cargo.toml edge is permitted (steps in hsk-studio-interop-media.json next); reel was already migrated by its owner (b96a33e); score/src/layout.rs ticks_per_sample is a further copy of Timescale::exact_ticks_per_unit (not in this task's paths)",
+  "updated_at": "2026-10-11T02:33:56Z",
   "notes": {
     "checks": {
       "cargo_check_tests": "PASS",
@@ -81,6 +102,21 @@
         "timeline.rs SequenceFrameRate fps fraction consumers: call accord FrameRate::fps_fraction() on SequenceFrameRate::accord() (pulse::fps_fraction_of delegates)."
       ]
     },
-    "left_open": "Timecode label arithmetic (nominal/base/frames_to_timecode/timecode_to_frames) is duplicated between interop-media/time.rs and pulse/time.rs; it is label math, not tick conversion, so it stays pulse-owned until the lead adds interop-media -> pulse. A signed Ticks delta type was not added: only reel needs signed ticks and i64 via signed_* covers it."
+    "left_open": "Timecode label arithmetic (nominal/base/frames_to_timecode/timecode_to_frames) is duplicated between interop-media/time.rs and pulse/time.rs; it is label math, not tick conversion, so it stays pulse-owned until the lead adds interop-media -> pulse. A signed Ticks delta type was not added: only reel needs signed ticks and i64 via signed_* covers it.",
+    "migrations_applied": {
+      "pulse": {
+        "commit": "6823c34a6bd2049c3b98534b2afb5fcf175e64f9",
+        "tests": "pulse 13/13, folio 24/24, clippy clean",
+        "public_api": "unchanged"
+      },
+      "folio": "no fps_fraction consumer remained in folio (d2f4a5b had moved it to pulse::fps_fraction_of, which now delegates to FrameRate::fps_fraction); only a doc line changed",
+      "interop_media": {
+        "commit": "9575239193da1311816216cfe32b2f212264a92c",
+        "tests": "4/4 unchanged expected values",
+        "pending": "D9 timecode label collapse onto pulse (needs the Cargo.toml dependency edit)"
+      },
+      "reel": "migrated by its own lane (b96a33e)"
+    },
+    "process_incident": "Commit 26b37c8 (folio doc line, pathspec crates/hsk-studio-folio) swept in the folio lane's uncommitted src/lib.rs (mod layout/mod story, new fields) and timeline.rs visibility edits while layout.rs/story.rs were still untracked, so origin briefly did not compile for folio. The folio lane committed the missing files in ae75f55 (origin compiles again). A repair commit aac129b was prepared as an unreferenced object and NOT published (update-ref/push was denied by the permission classifier); it is unnecessary now. Lesson for shared worktrees: before a pathspec commit on a crate another lane edits, run git status/diff on that crate and commit only paths this lane changed."
   }
 }
