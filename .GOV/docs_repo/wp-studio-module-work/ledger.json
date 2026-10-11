@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T06:21:24Z",
+ "updated_at": "2026-10-11T06:22:26Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -356,8 +356,8 @@
    "lane_id": "SMB-INTEROP-PSD",
    "crate": "hsk-studio-interop-psd",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-interop-psd",
-   "phase": "done",
-   "status": "PASS_V2",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-interop-psd",
    "brief": "builders/briefs/hsk-studio-interop-psd.md",
    "commits": [
@@ -367,15 +367,16 @@
     "fe3c193",
     "d07ffb4",
     "1c80aef",
-    "67c1723"
+    "67c1723",
+    "eb7080d"
    ],
    "verdicts": [
     "STUDIO-R3 FAIL_V1 @404ff3a",
     "STUDIO-R5 PASS_V2 @1d404f8"
    ],
    "lane_file": "builders/lanes/hsk-studio-interop-psd.json",
-   "candidate": "213b30a",
-   "note": "12 tests; 16/32-bit; ICC via prism when admitted; export byte-identical unedited; CMYK/Lab/gray await prism n-channel path (ENG-3)",
+   "candidate": "eb7080d",
+   "note": "carried PLAUSIBLE items fixed (apply_edits atomic, untiled export samples kept, non-finite tile typed error, alpha clamp/non-finite typed losses, oversized luni typed loss, literal 28-row blend key table); 30 of 30 green",
    "review_findings": "R2-review-a findings fixed 1c80aef (regression tests)",
    "review_findings_r3": "R3 CONFIRMED fixed 213b30a (tile blob typed error; merged composite stale flag)"
   },
@@ -1281,17 +1282,18 @@
    "crate": "hsk-studio-interop-psd",
    "origin": "prism ENG lanes landed",
    "scope": "CMYK/Lab/gray display via prism WideEngine; clamp recorded; original channels preserved",
-   "phase": "build",
-   "status": "FAIL_V1",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "fresh builder",
    "commits": [
-    "213b30a"
+    "213b30a",
+    "6e7198a"
    ],
    "verdicts": [
     "STUDIO-R5 FAIL_V1 @1d404f8"
    ],
-   "candidate": "213b30a",
-   "note": "CMYK/Lab/gray via WideEngine; clamp recorded; originals preserved; 18 tests",
+   "candidate": "6e7198a",
+   "note": "R5 remediation: BPC routed to prism for every source kind (prism gray BPC fixed upstream); TRC(0) shortcut removed; same class on RGB: legacy path hard-coded relcol no BPC -> wide path, legacy-only converters record not_applied loss; regression red-first",
    "r5_review_routed": {
     "to": "rem-psd",
     "at": "2026-10-11T05:31:12Z",
@@ -1530,11 +1532,15 @@
    "crate": "hsk-studio-interop-psd",
    "origin": "architect SMB-PIGMENT-ENG-2 (diagnostics/adjustments-advanced-blending.md)",
    "scope": "brief builders/briefs/lane-interop-psd-adjustments.md",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "rem-psd (queued after R5 fix)",
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "eb7080d"
+   ],
+   "verdicts": [],
+   "candidate": "eb7080d",
+   "note": "ADJ-1 92a7eef..eb7080d: levl/curv/hue2/brit(CgEd)/expA/nvrt/thrs/post adjustment descriptors, Blend-If, mask density/feather/invert, knko/infx/clbl/tsly, lfx2/lmfx effects -> folio raster records (gradient/pattern content typed loss); records only; hostile-size tests; open: adjustment layers have no folio graph node (composite ordering), D5 format assumptions as loss entries"
   },
   {
    "lane_id": "SMB-EFFECTS-WAVE-1",
@@ -1625,7 +1631,10 @@
   "SMB-MOTION-JS-WORKER",
   "SMB-REEL-NATIVE-AV1-WORKER",
   "SMB-EFFECTS-WAVE-1",
-  "SMB-PRISM-ENG-7"
+  "SMB-PRISM-ENG-7",
+  "SMB-INTEROP-PSD-WIDE",
+  "SMB-INTEROP-PSD",
+  "SMB-INTEROP-PSD-ADJ"
  ],
  "round_R6": {
   "candidate": "bd8533f",

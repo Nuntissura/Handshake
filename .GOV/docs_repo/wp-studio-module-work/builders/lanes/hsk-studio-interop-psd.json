@@ -2,7 +2,7 @@
   "crate": "hsk-studio-interop-psd",
   "lane": "SMB-INTEROP-PSD",
   "status": "READY_FOR_VALIDATION",
-  "phase": "R5 remediation complete (gray BPC reaches Prism, RGB on the wide path, carried PLAUSIBLE items, V4 rules on touched modules); next: SMB-INTEROP-PSD-ADJ-1 (adjustment/blend-range/lfx2 records)",
+  "phase": "R5 remediation complete (0b9aeeb..6e7198a) + SMB-INTEROP-PSD-ADJ-1 complete (92a7eef..eb7080d: adjustment, Blend-If, mask parameter, knockout and lfx2 records into folio StudioRasterRecords)",
   "commits": [
     {
       "sha": "ee30d62",
@@ -47,6 +47,26 @@
     {
       "sha": "6e7198a",
       "subject": "luni regression test prints the loss report on failure"
+    },
+    {
+      "sha": "92a7eef",
+      "subject": "ADJ-1 code: adjust.rs (levl/curv/hue/hue2/brit+CgEd/expA/nvrt/thrs/post, Blend-If ranges, mask parameters, knockout and blend toggles), descriptor.rs (bounded Photoshop descriptor reader), effects.rs (lfx2/lmfx to StudioEffectStack); ImportProposal::raster_records"
+    },
+    {
+      "sha": "3cd145c",
+      "subject": "ADJ-1 tests (5): levels, curves, ranges+mask+knockout+small adjustments, lfx2 stack order, hostile sizes; malformed blending ranges are a typed refusal"
+    },
+    {
+      "sha": "319231c",
+      "subject": "ADJ-1 tests: item-limit vs truncated descriptor expectations"
+    },
+    {
+      "sha": "4ee398a",
+      "subject": "ADJ-1: DESCRIPTOR capability and pending items; levels test cuts on a multiple of 4; doc claim cites its test"
+    },
+    {
+      "sha": "eb7080d",
+      "subject": "ADJ-1 V4-06 sweep: wrong-typed bool descriptor item refuses its effect instead of defaulting; non-object list entries reported"
     }
   ],
   "capabilities_done": [
@@ -77,15 +97,20 @@
     "stale base report entries color_mode_unmapped / bit_depth_unmapped removed from proposals whose pixels are mapped",
     "R3 CONFIRMED 1: tile blobs are caller data; export refuses a colour/alpha blob that is not exactly one 256x256 cell with PsdError::Encode(tile_blob_size) instead of indexing out of bounds (regression test, 5 damage shapes)",
     "R3 CONFIRMED 2: any applied edit other than a name clears resource 1057 hasRealMergedData and reports merged_composite_stale (also when 1057 is absent); composite bytes untouched; merged_oracle_rgba8 then returns None; name-only and no-op exports unchanged (regression test)",
-    "R3 PLAUSIBLE closed: IccConverter::convert_rgb length mismatch is a typed error (icc_conversion_failed)"
+    "R3 PLAUSIBLE closed: IccConverter::convert_rgb length mismatch is a typed error (icc_conversion_failed)",
+    "R5 remediation: gray BPC reaches Prism (SMB-INTEROP-PSD-WIDE CONFIRMED); RGB with an embedded profile on the wide path (intent + BPC applied, ICC v2 matrix profiles); legacy converters record rendering_intent_not_applied_legacy_rgb / black_point_compensation_not_applied_legacy_rgb; apply_edits all-or-nothing; untiled export cells keep original samples; non-finite and alpha-range losses; luni and rename name losses; literal 28-row blend key test",
+    "ADJ-1 adjustment records: levl (normalized_0_1, composite + RGB records, Lvls tail preserved), curv (v1 bitmap / v4 count, 2..19 points, (output,input) pairs, composite/R/G/B, extras preserved), hue/hue2 (master, colorization, shifted bands, 36-byte tail preserved), brit (signed) with CgEd precedence and useLegacy, expA, nvrt, thrs, post -> StudioAdjustment on an adjustment layer (PrimitiveReference hsk.studio.adjustment@1 keyed by its own SLYR id)",
+    "ADJ-1 layer records: Blend-If gray/R/G/B -> StudioAdvancedBlending.blend_ranges (extra channels preserved), knko 0/1/2 (depth 2 = Enabled + knockout_depth_not_represented), infx/clbl/tsly, channel_blend assumed all enabled (recorded); mask density byte/255*100 and feather f64 px and invert flag -> StudioMaskParameters (vector parameters preserved)",
+    "ADJ-1 effects: lfx2/lmfx object-effects version 0 + descriptor 16 via the bounded descriptor reader -> StudioEffectStack (drop/inner shadow, outer/inner glow, bevel/emboss without texture, satin, colour overlay, solid stroke); single slots and multi lists merged in descriptor order; gradient/pattern content, unmapped blend ids and unknown enumerations are typed losses; not rendered (layer_effects_not_rendered kept)"
   ],
   "tests": {
     "argv": "cargo test -p hsk-studio-interop-psd --tests --no-fail-fast",
     "exit": 0,
-    "sha": "6e7198a",
-    "passed": 25,
+    "sha": "eb7080d",
+    "passed": 30,
     "failed": 0,
     "files": [
+      "tests/adjustment_records.rs (5: levels_block_maps_to_normalized_record_and_bad_blocks_stay_typed, curves_block_maps_composite_curve_and_refuses_bad_point_data, blending_ranges_mask_parameters_and_knockout_map_to_records, lfx2_stack_merges_single_and_multi_slots_in_source_order, hostile_descriptor_and_adjustment_sizes_are_typed_refusals)",
       "tests/foundation_contract.rs (5)",
       "tests/review_r2_regressions.rs (6: +unreadable_unicode_layer_name_is_a_typed_loss, +psd_blend_key_rows_match_the_specification_literally)",
       "tests/precision_color_export.rs (14: +gray_black_point_compensation_is_applied_when_the_profile_black_is_not_zero, +rgb_intent_and_black_point_compensation_reach_prism_or_are_recorded, +apply_edits_is_all_or_nothing_and_export_keeps_untiled_cells, +non_finite_and_out_of_range_samples_are_typed_losses_on_import, +dims_u32_max_and_aggregate_over_budget_are_typed_errors; embedded_profiles_go_through_prism_and_refusals_are_typed_losses updated for the wide path refusal code)"
@@ -96,10 +121,45 @@
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "Photoshop-authored fixtures to settle UNVERIFIED items (CMYK stored-inverted, Lab 16-bit encoding, 16-bit scale, ZIP prediction 16/32); remaining R3 PLAUSIBLE: non-finite 32-bit samples and alpha clamp loss, zeroed colour under alpha 0 in untouched cells on pixel export, AdmittedPrism routing decision; RGB v2/LUT profiles via the wide path (legacy refuses them today); mask pixel edit export; clamp off-canvas tile iteration; merged CMYK/Lab oracle (merged_oracle_rgba8 is RGB/gray only)",
-  "updated_at": "2026-10-11T05:57:07Z",
+  "next": "Photoshop-authored fixtures (D5) to settle UNVERIFIED items: CMYK stored-inverted, Lab 16-bit encoding, 16-bit scale, ZIP prediction 16/32, Blend-If channel order, advanced-blending defaults, curves v4 channel order, effect enum spellings and single/multi duplication; AdmittedPrism / AdmittedWideEngine routing decision (lead); composite lane: graph ordering of adjustment layers (folio allows a Source operation only on raster/vector/text layers) and lowering of StudioRasterRecords; export of edited adjustment/effect records back to PSD bytes; gradient/pattern effect contents once folio has gradient/pattern primitives; RGB LUT profiles via the wide path need a test; mask pixel edit export; merged CMYK/Lab oracle",
+  "updated_at": "2026-10-11T06:20:29Z",
   "notes": {
     "mt": "MT-35548",
+    "adj1": {
+      "lane": "SMB-INTEROP-PSD-ADJ-1",
+      "brief": "builders/briefs/lane-interop-psd-adjustments.md; decision diagnostics/adjustments-advanced-blending.md; folio StudioRasterRecords ff92dea",
+      "status": "READY_FOR_VALIDATION on eb7080d: clippy clean for this crate, 30/30 tests (5 new in tests/adjustment_records.rs). Display parity NOT_PROVEN (D5 oracle); these tests prove the byte mapping only",
+      "verified_sources": [
+        "psd-tools psd/adjustments.py via WebFetch (2026-10-11): Curves header BHI (is_map u8, version u16 1|4, count_map u32; v1 count = popcount of the bitmap, v4 count = value), point count 2..19, 256-byte map when is_map; CurvesExtraMarker 4sHI; Levels version H + 29 x 5H; BrightnessContrast 3HBx; Exposure H3f; HueSaturation version H, enable B + pad, colorization 3h, master 3h, 6 x (4h range + 3h settings), remaining bytes kept",
+        "ag-psd descriptor.ts via WebFetch: parseEffects keys, BlnM ids for 16 modes, units (#Prc percent, #Ang angle, #Pxl pixels), colour RGBC Rd/Grn/Bl doubles"
+      ],
+      "unverified_assumptions_recorded_as_loss_entries": [
+        "curves (output,input) pair order is taken from the brief and the architecture note; psd-tools does not label the pair (curves_v4_channel_order_assumed for v4 sequential channels)",
+        "Blend-If pair order follows the layer record's channel order (id 0/1/2 = R/G/B); advanced_blending_defaults_assumed (interior false, clipped true, transparency shapes true, knockout disabled) and channel_blend_assumed_all_enabled",
+        "brightness_contrast_legacy_assumed (brit alone = legacy), exposure_legacy_flag_assumed_false",
+        "effect enumeration ids bvlS/bvlD/bvlT/GlwT/glwS/Styl/PntT and bool keys layerConceals/Invr/overprint/showInDialog are not quoted from a fetched source; blend ids beyond the 16 verified ones are unmapped (typed loss), never Normal",
+        "effect_single_and_multi_slots_merged: whether Photoshop writes the first multi entry also into the single slot is unknown",
+        "effect_colour_profile_unassigned: effect colours are document-encoded values with an unassigned Folio profile binding"
+      ],
+      "design_decisions": [
+        "IdMint::effect_stack_id has a default (None): hosts that mint no SEFX ids keep lfx2 preserved and reported (effect_stack_id_unavailable); existing IdMint implementers compile",
+        "A mapped adjustment layer needs a resolver that binds ('adjustment', hsk.studio.adjustment@1) and resolves the primitive; otherwise the layer stays psd_adjustment with adjustment_primitive_unresolved (a binding-less host would otherwise get folio_rejected for the whole import)",
+        "Adjustment layers get no graph operation: folio allows operation_kind Source only for raster/vector/text layers, so ordering relative to siblings is the layers array/parent order until the composite lane decides (gap recorded in next)",
+        "Only the first adjustment block of a layer is mapped; any other adjustment block keeps its adjustment_layer_not_applied entry",
+        "Identity levels/curves/hue bands: levels and curves records are kept for every mapped channel; hue bands with a zero shift are omitted (identity)",
+        "validate_raster_records runs inside to_proposal when records exist; a rejection is PsdError::Proposal(raster_records_rejected) (parsers pre-check the Folio ranges)"
+      ],
+      "v4_01": "adjust.rs, descriptor.rs, effects.rs deny(clippy::arithmetic_side_effects); counts checked against the remaining bytes before loops; descriptor depth 8, 512 items per container, 8192 total, 128-byte keys, name-limit strings",
+      "v4_02": "hostile_descriptor_and_adjustment_sizes_are_typed_refusals: descriptor count/key/string u32::MAX, depth 12, aggregate 17x512 items, unknown type, truncation, wrong version; curv v4 count u32::MAX and v1 32-curve bitmap in a short block, short hue2/levl/expA, NaN exposure, threshold/posterize range, mask feather NaN/20000/-1",
+      "v4_06_class": "descriptor item or list entry silently dropped or defaulted without a typed entry",
+      "v4_06_regex": "filter_map|\\.ok\\(\\)|unwrap_or|continue;|=> \\{\\}|=> None|_ => Ok\\(None\\)|\\.filter\\( over src/adjust.rs src/descriptor.rs src/effects.rs",
+      "v4_06_sites": "28 matches before the sweep (commit eb7080d's message says 31: miscount, corrected here), 26 after: fixed 3 (effects flag() defaulted a wrong-typed bool; masterFXSwitch read through the same default; filter_map dropped non-object list entries, now effect_slot_malformed), not-applicable 25 (effects: 4 typed value filters, 1 documented absent-key default for slot_of continue, 1 typed scale filter, 1 typed continue after a note; descriptor: 6 accessor mismatches returned to callers that refuse them, 1 lossy UTF-16 text; adjust: 2 channel-beyond-kept filters that set extra-channel notes, 1 bit index conversion, 1 checked_div by a constant, 1 use_legacy default with note, 1 non-default filter, 1 non-RGB channel id with extra note, 1 identity range skip, 3 documented toggle defaults with advanced_blending_defaults_assumed); count matches the regex output (26 final lines: 25 n/a + the noted filter_map)",
+      "retry_guard": "one diagnostic rerun was narrowed to `--test adjustment_records` to read the failing assertion text; every verdict run is the identical full command `cargo test -p hsk-studio-interop-psd --tests --no-fail-fast` after a commit (HEAD changed). Failures were test-expectation errors of mine (declared count with no bytes is item_limit; layer-level blocks are padded to 4 inside their length), fixed in test code",
+      "not_in_scope_left": [
+        "export of edited adjustment/effect/mask-parameter/Blend-If records back to PSD bytes (unedited export stays byte-identical; asserted in the tests via write_psd round trip)",
+        "Global Light pair (document-level record decision pending), gradient/pattern effect contents, bevel texture and gloss contour, hue bands in the IR, adjustments beyond the first nine keys (blnc, blwh, selc, mixr, grdm, phfl, vibA, clrL stay adjustment_layer_not_applied)"
+      ]
+    },
     "remediation_R5": {
       "finding": "SMB-INTEROP-PSD-WIDE CONFIRMED (validation/R5-review-a.json, 1d404f8/213b30a): proposal.rs gray route dropped black point compensation for every gray profile on the false premise TRC(0)=0",
       "root_fix": "BPC goes to Prism unchanged for every source kind (WideRoute.bpc = bpc); the black_point_compensation_skipped_gray loss code and Routing.bpc_requested are removed. Prism's ISO 18619 gray black detection is fixed upstream (PRISM-GRAY-BPC-001 closed by SMB-PRISM-ENG-6, fdd57ee/3926709, in HEAD and origin) and is the exact identity when the source black is 0, so no TRC(0)=0 shortcut and no bpc_unavailable workaround are used",
