@@ -1707,7 +1707,7 @@
     "builders/lanes/hsk-studio-web-parity.json"
    ],
    "launched": "2026-10-11T12:47:57Z",
-   "status": "done 2026-10-11T13:44:24Z (SMB-WEB-PARITY READY at 4d80e50)"
+   "status": "done (4d80e50; retired V4-16)"
   },
   {
    "name": "prereview-r9-press",
@@ -1752,7 +1752,7 @@
     "validation/R9-prereview-web.json"
    ],
    "launched": "2026-10-11T13:44:52Z",
-   "status": "running"
+   "status": "done 2026-10-11T14:13:49Z (FIX_FIRST: F1 CDATA CR asset hide, F2 D9 hole, F3/F4 LF)"
   },
   {
    "name": "rem-reel-eng-1",
@@ -1798,6 +1798,19 @@
     "validation/R9-review-b.json"
    ],
    "launched": "2026-10-11T13:53:55Z",
+   "status": "running"
+  },
+  {
+   "name": "rem-web-r9",
+   "agent_id": "a736b08781f7f26c9",
+   "model": "opus",
+   "role": "web R9 pre-review remediation (F1 raw-text consumers class, F2-F4, P1-P4)",
+   "owns": [
+    "crates/hsk-studio-web/**",
+    "builders/lanes/hsk-studio-web-parity.json",
+    "builders/lanes/hsk-studio-web-difftest.json"
+   ],
+   "launched": "2026-10-11T14:14:23Z",
    "status": "running"
   }
  ]

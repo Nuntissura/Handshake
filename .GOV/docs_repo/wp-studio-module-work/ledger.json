@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T13:53:02Z",
+ "updated_at": "2026-10-11T14:13:49Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -781,6 +781,11 @@
     "at": "2026-10-11T08:04:23Z",
     "ref": "validation/R7-prereview-b.json",
     "head": "0e48167"
+   },
+   "r9_prereview": {
+    "ref": "validation/R9-prereview-web.json",
+    "recommendation": "FIX_FIRST",
+    "at": "2026-10-11T14:13:49Z"
    }
   },
   {
@@ -2131,8 +2136,8 @@
    "crate": "hsk-studio-web",
    "origin": "rem-web-r6 suggestion; root class = parser/browser disagreement",
    "scope": "test-only differential check: html5ever (dev-dependency, MIT/Apache) parses generated/adversarial inputs; compare element namespaces, raw-text/RCDATA boundaries and decoded attribute values with hsk-studio-web's model; disagreements fail; needs steward lock sync",
-   "phase": "validation (difftest green at 4d80e50 with SMB-WEB-PARITY)",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "FIX_FIRST (withdrawn from R9 by lead before verdicts; rem-web-r9)",
+   "status": null,
    "owner": "builder-web-difftest",
    "commits": [
     "eefe44d",
@@ -2155,7 +2160,23 @@
     ],
     "owning_lane": "SMB-WEB-PARITY",
     "note": "comparator normalisations N1/N2 and generator guards changed in the parity lane; difftest judged together with SMB-WEB-PARITY"
-   }
+   },
+   "blockers": [
+    {
+     "kind": "V4-13 pre-review FIX_FIRST (crate)",
+     "ref": "validation/R9-prereview-web.json",
+     "items": [
+      "F1 CDATA CR->LF in asset scan (assets.rs:567-575)",
+      "F2 </image> in colgroup accepted",
+      "F3 <pre></> first LF",
+      "F4 svg textarea first LF",
+      "P1 N2 docs vs comparator",
+      "P2 preview.rs V4-01 lint",
+      "P3 NUL->U+FFFD asset gate test"
+     ],
+     "recorded_at": "2026-10-11T14:13:49Z"
+    }
+   ]
   },
   {
    "lane_id": "SMB-RENDER-CPU-FX2",
@@ -2560,8 +2581,8 @@
    "crate": "hsk-studio-web",
    "origin": "SMB-WEB-DIFFTEST disagreements D1-D9 (lead decision 2026-10-11T12:47:22Z)",
    "scope": "fix D1-D8 per WHATWG; D9 implied-element normalisation documented, re-parenting/reordering inputs refused with typed errors; make SMB-WEB-DIFFTEST's 5 red tests green; crate rustfmt-clean",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "FIX_FIRST (withdrawn from R9 by lead before verdicts; rem-web-r9)",
+   "status": null,
    "owner": "builder-web-parity",
    "lane_file": "builders/lanes/hsk-studio-web-parity.json",
    "commits": [
@@ -2572,7 +2593,23 @@
    ],
    "verdicts": [],
    "candidate": "4d80e50",
-   "note": "D1-D8 fixed per WHATWG (image->void img; NUL->U+FFFD in names/values/RCDATA/foreign text, dropped from HTML text; CR/CRLF->LF before references; first LF after pre/listing/textarea dropped incl. CR/CRLF/reference); local_name()/attr_local_name() decoded, spans keep source bytes (pinned); D9 rule table in src/dom/construction.rs with spec steps, typed refusals (implied_end_tag, adoption_agency, table_content, ignored_token, document_structure); N1 implied elements + N2 boundary whitespace normalised in comparator only; 35 disagreeing inputs -> 5 normalised, 30 refused; 32 accepted inputs match html5ever; 56/56 web tests; 9 parity tests red on scratch 471b679; corpora 0 disagreements (127,550 + 100,000 fuzz + 25,000 noise); V4-06 97 (56 fixed, 41 n/a); commits 1c67557 (rustfmt only), 6d1c591, e849d4c, 4d80e50"
+   "note": "D1-D8 fixed per WHATWG (image->void img; NUL->U+FFFD in names/values/RCDATA/foreign text, dropped from HTML text; CR/CRLF->LF before references; first LF after pre/listing/textarea dropped incl. CR/CRLF/reference); local_name()/attr_local_name() decoded, spans keep source bytes (pinned); D9 rule table in src/dom/construction.rs with spec steps, typed refusals (implied_end_tag, adoption_agency, table_content, ignored_token, document_structure); N1 implied elements + N2 boundary whitespace normalised in comparator only; 35 disagreeing inputs -> 5 normalised, 30 refused; 32 accepted inputs match html5ever; 56/56 web tests; 9 parity tests red on scratch 471b679; corpora 0 disagreements (127,550 + 100,000 fuzz + 25,000 noise); V4-06 97 (56 fixed, 41 n/a); commits 1c67557 (rustfmt only), 6d1c591, e849d4c, 4d80e50",
+   "blockers": [
+    {
+     "kind": "V4-13 pre-review FIX_FIRST (crate)",
+     "ref": "validation/R9-prereview-web.json",
+     "items": [
+      "F1 CDATA CR->LF in asset scan (assets.rs:567-575)",
+      "F2 </image> in colgroup accepted",
+      "F3 <pre></> first LF",
+      "F4 svg textarea first LF",
+      "P1 N2 docs vs comparator",
+      "P2 preview.rs V4-01 lint",
+      "P3 NUL->U+FFFD asset gate test"
+     ],
+     "recorded_at": "2026-10-11T14:13:49Z"
+    }
+   ]
   },
   {
    "lane_id": "SMB-FMT-SWEEP",
@@ -2885,7 +2922,8 @@
    "SMB-ROUND-ENTRYPOINT (D20)",
    "SMB-INTEROP-MEDIA (D9)",
    "SMB-PRESS + SMB-PRESS-DIFFERENCES (R9 pre-review FIX_FIRST; rem-press-r9 running)",
-   "SMB-REEL-ENG-1 (R9 pre-review advisory CONFIRMED; rem-reel-eng-1 running)"
+   "SMB-REEL-ENG-1 (R9 pre-review advisory CONFIRMED; rem-reel-eng-1 running)",
+   "SMB-WEB-PARITY + SMB-WEB-DIFFTEST (withdrawn by lead 2026-10-11T14:13:49Z: R9-prereview-web FIX_FIRST); SMB-WEB deferred_fix_first"
   ],
   "ready": [
    "SMB-SCORE-PLUGIN-RATE",

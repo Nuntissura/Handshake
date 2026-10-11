@@ -256,6 +256,8 @@ Workflow v3 amendments (2026-10-11T02:12:42Z, source workflow/workflow-review-ti
 
 - Lead decision 2026-10-11T13:44:24Z (web parity 4d80e50): accept N2 (whitespace-only text before <head> / after </body>,</html> normalised in the comparator; no authored element changes); accept the fail-closed over-refusals (table parts in template, td directly in table, late DOCTYPE, leading noscript with markup) as documented limitations for a later implied-tr/template lane; accept raw NUL in an attribute value reaching the AssetPort as U+FFFD (same as &#0;, matches what a browser sees) — R9 reviewer to confirm the gate still denies what it must.
 
+- Lead decision 2026-10-11T14:14:23Z (web R9 pre-review F1): root cause = a text consumer (asset scan) re-reads raw source instead of the tokenizer's normalised text; rule: every consumer that interprets text content reads the normalised text a browser parser hands on; raw spans are for location only (V4-06 class 'consumers of raw source text where normalised text is required').
+
 Open Operator decisions (not adopted; recorded for the Operator):
 - D1: explicit confirmation that builder focused tests override CX-EXEC-014 for this WP (lead adopted on the basis of Operator instructions; Operator may reverse).
 - D2: waive CX-984-002 one-build-per-disk for D: (would let validator rounds and builders build in parallel on separate targets).

@@ -1,0 +1,159 @@
+{
+  "kind": "pre-review",
+  "rule": "V4-13 (SMB-WEB: R5 FAIL_V1, R6 FAIL_V2, R7 PASS_V3; the crate changed after the PASS, so CX-VAL-009 reopens it in R9; a FAIL in R9 uses up the fix budget)",
+  "head": "4d80e50d40432799c08f0f8b8f0047c9a00d056a",
+  "base": "f6e5a490e2ad0e142938a8bba1f78cadb96f5e84",
+  "scope": "git diff f6e5a49..4d80e50 -- handshake-studio-assets/crates/hsk-studio-web (25 files, +7253/-602) + root Cargo.toml/Cargo.lock. Commits: eefe44d 8119ceb 960edc0 0f64ee9 f4b47cd (SMB-WEB-DIFFTEST) and 1c67557 6d1c591 e849d4c 4d80e50 (SMB-WEB-PARITY). origin/codex/handshake-studio-assets = 4d80e50 at fetch. hsk-studio-accord and hsk-studio-observe have not changed since 08ad0ad.",
+  "started_at": "2026-10-11T13:46:21Z",
+  "reviewed_at": "2026-10-11T14:11:31Z",
+  "status": "DONE",
+  "method": "Read committed blobs only (git show and git archive of 4d80e50 and f6e5a49 into the reviewer scratchpad). No cargo, no sub-agents, no edits outside this file. Findings marked CONFIRMED come from reading the code at 4d80e50 and the spec; none was executed. WHATWG HTML parsing.html was read 2026-10-11 via WebFetch: in column group, in head noscript, in table, after body, in body (select/input/option/optgroup/hr/textarea/keygen), the U+0000 entries of every tokenizer state, the CDATA rule, the end tag open state, the processing-instruction states 13.2.5.72-.76, the default scope and special lists (select is in the default scope), and the foreign-content NUL, breakout and 'any other end tag' rules.",
+  "lanes": [
+    {
+      "lane": "SMB-WEB",
+      "crate": "hsk-studio-web",
+      "last_verdicts": "R5 FAIL_V1 (1d404f8), R6 FAIL_V2 (bd8533f), R7 PASS_V3 (dff7ef5, crate = 08ad0ad); R8 unchanged",
+      "rustfmt_commit_1c67557": "Behaviour-free. I token-compared all 15 touched files (rough Rust lexer over git show of 1c67557^ and 1c67557). The token streams are identical once '{', '}', ';' and trailing ',' tokens are removed. The only residual differences are rustfmt match-arm block braces, trailing commas, and a ';' added after continue/return inside blocks.",
+      "prior_fail_fixed": [
+        {
+          "finding": "R5 css-escape-bypasses-url-classification",
+          "verdict": "STILL_FIXED",
+          "evidence": "cssurl.rs is unchanged since R7 apart from rustfmt (token-equal). The escape decoding, the url-function detection and the string/bad-url handling are at cssurl.rs:104-129, :149-177 and :247-308."
+        },
+        {
+          "finding": "R5 base-href-and-url-attributes-unscanned",
+          "verdict": "STILL_FIXED",
+          "evidence": "attr_kind (assets.rs:128-159), has_base_href (:348-364) and decide (:375-393) are unchanged. The element name used for attribute selection is now local_name (assets.rs:640), so <image srcset> in HTML content is scanned as img srcset (D1). Before this change the srcset of an HTML <image> was not scanned."
+        },
+        {
+          "finding": "R6 legacy-charref-without-semicolon-not-decoded",
+          "verdict": "STILL_FIXED",
+          "evidence": "The named-reference logic in charref.rs:114-131 (longest_named) and the attribute exception at :190-208 (:197) are unchanged. Only literal runs now go through push_literal (:40-62). The attribute exception still looks at the raw next byte, and CR or NUL give the same decision as the browser's LF or U+FFFD (neither is alphanumeric nor '=')."
+        },
+        {
+          "finding": "R6 integration-point-style-overdecoded",
+          "verdict": "STILL_FIXED",
+          "evidence": "The dispatcher (dom.rs:931-958), the integration points (:590-604) and RAWTEXT/RCDATA for HTML elements only (:1005-1013) are unchanged. An HTML style body is still read raw (assets.rs:546-553). Foreign style text now comes from text_value (U+FFFD + newline preprocessing, assets.rs:563), and CSS preprocessing gives the same result. See F1 for the CDATA pieces of foreign style, which are not preprocessed."
+        },
+        {
+          "finding": "R6 same-class sweep (comment --!>, script escape states, CDATA rule, noscript, select, frameset, breakout) + SMIL PLAUSIBLE",
+          "verdict": "STILL_FIXED",
+          "evidence": "comment_end dom.rs:426-446, find_script_close :469-578, the CDATA namespace rule :789-806, noscript :1029-1033 and :1184-1192, SELECT_DIVERGENT :978-983, frameset :972-977, breakout :946-956 and animated_kind assets.rs:594-608 are all unchanged in logic (6d1c591/4d80e50 only add tree_* hooks)."
+        }
+      ],
+      "new_findings": [
+        {
+          "id": "F1",
+          "severity": "CONFIRMED",
+          "kind": "security (asset gate hides a URL; same class as R5/R6: the crate's text differs from the browser's text before CSS tokenizing)",
+          "file_line": "crates/hsk-studio-web/src/assets.rs:567-575 (CDATA arm: inner.to_owned() with no input-stream preprocessing), :580 (concatenation with the now-preprocessed text pieces from :563), :586-588 (css over the joined text); cssurl.rs:163-170 (backslash + CR LF is one line continuation); lib.rs:43 DESCRIPTOR assets.scanned 'svg/math: the child text content, decoded text nodes and CDATA sections concatenated'",
+          "evidence": "Payload: <svg><style>:root{b:\"x\\<![CDATA[\\r]]>\\n;background:url(https://evil.example/p.png)}</style></svg> (\\r = raw CR byte, \\n = raw LF byte). The browser preprocesses the input stream first (CR followed by ']' becomes LF; 13.2.3.5), so the CDATA data is LF. The style's child text is :root{b:\"x\\ LF LF ;background:url(...)}. CSS reads backslash+LF as a continuation; the second LF ends the string as a bad-string; then url(https://evil.example/p.png) is a url token in a valid declaration and is loaded. The crate joins text ':root{b:\"x\\' + raw CDATA '\\r' + text '\\n;background:...'. cssurl::string treats backslash + CR LF as one continuation, so the string runs to EOF and swallows the url(). collect_assets reports nothing and the URL is neither denied nor offered to the port. The same happens with two CDATA sections ('<![CDATA[\\r]]><![CDATA[\\n...]]>') or with a comment between the pieces. Text pieces are fine since 6d1c591 (text_value preprocesses each slice, and every slice ends before '<'). Only CDATA inner text is passed through raw. The shape was already present at R7, but this round's D5/D7 class (input-stream preprocessing) covers it. The V4-06 regex of the lane does not match the CDATA arm, so the 97-site sweep could not list it. The difftest comparator preprocesses CDATA itself (model.rs:68-79) and does not model the gate's CSS join, so it cannot see this.",
+          "remediation": "Apply input-stream newline preprocessing (CR LF and lone CR become LF; U+0000 may stay because CSS maps it to U+FFFD) to the CDATA inner text before joining. Do not decode character references: CDATA has none. Add V4-08 tests: the payload above (escape), CR-ended CDATA followed by a comment and then an LF-led text (decoy), and CR LF and CR CR LF variants plus two CDATA sections (case/whitespace). Each must report the URL as Denied(ExternalScheme). Widen the class regex with CDATA|strip_prefix\\(OPEN and re-list the sites. Correct the DESCRIPTOR assets.decoding wording ('foreign style text with the text rules' is now the foreign-content rules)."
+        },
+        {
+          "id": "F2",
+          "severity": "CONFIRMED",
+          "kind": "spec_divergence (hole in the D9 detection rule: accepted with a different tree; contradicts the 12:47:22Z lead decision 'never accept with a different tree' and DESCRIPTOR tree_construction.refused)",
+          "file_line": "crates/hsk-studio-web/src/dom.rs:1144-1154 (</image> path), src/dom/construction.rs:589-603 (tree_ignored_end: only after-body modes and the initial mode), :401-411 and :456-461 (colgroup rules check text and start tags only), :38 (doc table row 'colgroup: everything except col, template, whitespace' leaves end tags out); lib.rs:43 DESCRIPTOR tree_construction.refused 'every input where a browser re-parents, reorders or drops an authored node'",
+          "evidence": "HTML Standard 13.2.6.4.12 'in column group' has no 'any other end tag' entry. An </image> end tag therefore falls to 'Anything else': if the current node is a colgroup, pop it, switch to 'in table' and reprocess (where it is then ignored). Input <table><colgroup></image><col></colgroup></table>: the crate accepts it, because tree_ignored_end returns Ok in InBody, the col is allowed under colgroup, and </colgroup> matches. The crate tree is table > colgroup > [#unsupported </image>, col]. The browser tree is table > [colgroup (empty), colgroup (implied) > col]: the authored col changes parent. The same happens to a following <template>, whitespace text or comment (in table they go into the table). Other modes ignore </image>, as verified in the spec: in head noscript 'any other end tag' = ignore; in table / table body / row / cell / caption it goes to 'in body' and is ignored; in template it is ignored. So colgroup is the only remaining hole for this token. No asset impact: col carries no URL, and template contents are scanned anyway. Not covered by html_parity.rs or the difftest corpora (grep: no </image> inside colgroup).",
+          "remediation": "In tree_ignored_end, refuse typed (TableContent) when the crate's current node is an HTML colgroup. Add the input to tree_construction_that_moves_authored_nodes_is_refused_typed and to the difftest tree group. Add '</image> (any end tag the crate keeps)' to the colgroup row of the construction.rs doc table."
+        },
+        {
+          "id": "F3",
+          "severity": "CONFIRMED",
+          "kind": "spec_divergence (D8 first-LF value; low impact, no asset reach)",
+          "file_line": "crates/hsk-studio-web/src/dom.rs:683-687 ('</' + non-letter, including '</>', becomes an opaque bogus node), :1376-1386 (first-LF rule requires node.index == 0); claim at dom.rs:38-39 and DESCRIPTOR decoded_values",
+          "evidence": "13.2.5.7 end tag open state, U+003E: 'missing-end-tag-name parse error. Switch to the data state.' No token is emitted. In <pre></>\\nx</pre> the next token after the pre start tag is therefore the LF, and the browser drops it (13.2.6.4.7), so the text is 'x'. The crate keeps '</>' as child 0 (Unsupported) and the text node is child 1, so text_value keeps the LF and returns '\\nx'. The same applies to listing. The model's unsupported_event maps '</>' to no event (model.rs:80-82), but no corpus input puts '</>' first in a pre.",
+          "remediation": "In the first-LF check, skip leading '</>' opaque nodes (they produce no token), or refuse '</>' as the first child of HTML pre/listing. Add a case to first_newline_after_pre_listing_textarea_is_dropped."
+        },
+        {
+          "id": "F4",
+          "severity": "CONFIRMED",
+          "kind": "edit value fidelity (low; claim DESCRIPTOR patch.values)",
+          "file_line": "crates/hsk-studio-web/src/source_dom_patch.rs:543-548 (insert_element adds the extra LF for any tag named pre/listing/textarea, with no namespace check), contrast :300-306 drops_first_lf (Html only, used by set_text); insertion_point :449-471 accepts an svg parent",
+          "evidence": "insert_element(doc, <svg> key, 0, \"textarea\", [], Some(\"\\nv\")) writes <textarea>\\n\\nv</textarea>. check_fragment parses that standalone as HTML and accepts it. After apply_patch the textarea sits in SVG content, where it is an SVG element with no first-LF rule, so it reads back '\\n\\nv', not '\\nv'. That contradicts 'values read back unchanged (edits_write_values_that_read_back_exactly)'. pre and listing are breakout tags and are refused on reparse; textarea is not.",
+          "remediation": "Decide keep_first_lf from the destination: the parent is an HTML element or an HTML/MathML-text integration point. Add an svg-parent case to edits_write_values_that_read_back_exactly."
+        },
+        {
+          "id": "P1",
+          "severity": "PLAUSIBLE",
+          "kind": "doc_claim (V4-07 precision: N2 narrower in the docs than in the comparator)",
+          "file_line": "crates/hsk-studio-web/src/dom.rs:27-28, src/dom/construction.rs:8-10, lib.rs:43 DESCRIPTOR tree_construction.normalised N2 ('whitespace-only text'); tests/html5ever_differential/model.rs:12-14, :125-152, :242-244 (trim_leading applies to mixed text)",
+          "evidence": "The 'initial', 'before html' and 'before head' modes ignore each whitespace character token, so the leading whitespace of a mixed run is dropped too. Example: <html>\\n  x<p>y</p></html> gives the browser a body with text 'x'; the crate keeps html > '\\n  x'. The comparator already trims leading whitespace of such runs (correct), but dom.rs, construction.rs and the DESCRIPTOR describe N2 as 'whitespace-only text', and the lead accepted N2 in those words (13:44:24Z). No element moves and there is no asset impact.",
+          "remediation": "Reword N2 everywhere as 'leading whitespace of text at the skeleton level before <html>/<head> is dropped; whitespace-only text after </body>/</html> moves into the body', and point to the comparator implementation."
+        },
+        {
+          "id": "P2",
+          "severity": "PLAUSIBLE",
+          "kind": "process V4-01 (lane claim inaccurate)",
+          "file_line": "crates/hsk-studio-web/src/preview.rs:1-15 (no #![deny(clippy::arithmetic_side_effects)]), :323 (touched by 6d1c591), :547 and :553 (unchecked '+'); lane hsk-studio-web-parity.json notes.v4.V4-01 says '... assets, preview keep it'",
+          "evidence": "`git grep -L arithmetic_side_effects` lists preview.rs (also responsive.rs, refresh.rs, report.rs, lib.rs, which were only touched by the rustfmt commit). preview.rs was touched behaviourally (local_name) but does not carry the lint the lane says it keeps. The sums are bounded by max_depth in practice.",
+          "remediation": "Add the module lint to preview.rs (saturating depth/sectioning sums) or correct the lane note."
+        },
+        {
+          "id": "P3",
+          "severity": "PLAUSIBLE",
+          "kind": "missing proof for an accepted asset-gate behaviour change (V4-07/V4-08)",
+          "file_line": "crates/hsk-studio-web/src/assets.rs:375-393 (decide: the is_control check no longer sees a raw NUL), src/charref.rs:55-57 (Attribute context U+0000 -> U+FFFD); no collect_assets test with a raw U+0000 in a URL value (grep of tests/)",
+          "evidence": "Lead asked (13:44:24Z) to confirm the gate still denies what it must. By reading: yes. classify (assets.rs:162-206) runs on the browser-identical value. U+FFFD is not trimmed as C0/space by either the crate or the URL parser, cannot start a valid scheme, and cannot form '//'. So '\\0http://x' and 'java\\0script:' are relative for both (same-origin path), '//e\\0vil' is still ProtocolRelative, and 'http:\\0//x' is still ExternalScheme. Only relative references with a NUL now reach the port as U+FFFD, which matches the browser. No test pins this change, though.",
+          "remediation": "Add a V4-08 test: <img src=\"a\\0b.png\"> reaches the port as 'a\\u{fffd}b.png'; '\\0//e.invalid/x', '//e\\0.invalid/x' and 'ht\\0tp://e.invalid' each give the decision above."
+        },
+        {
+          "id": "P4",
+          "severity": "PLAUSIBLE",
+          "kind": "cosmetic doc/DESCRIPTOR",
+          "file_line": "lib.rs:43 DESCRIPTOR html_subset.refused_typed (select_content listed twice), assets.decoding ('foreign style text with the text rules'); src/dom/construction.rs:146, :152 cite 13.2.4.3 for the scope and special lists (the current spec has them in 13.2.4.2, 'the stack of open elements'; 13.2.4.3 is the list of active formatting elements)",
+          "evidence": "DESCRIPTOR parsed with json.loads: valid JSON; refused_typed codes = [..., 'select_content', ..., 'select_content'].",
+          "remediation": "Merge the two select_content entries, update the decoding wording, fix the section numbers."
+        }
+      ],
+      "d1_d8_check": {
+        "D1 image->img": "OK. dom.rs:961-965 (HTML rules only; foreign image unchanged), local_name :1263-1273. </image> is ignored except in colgroup (F2).",
+        "D2/D3 names": "OK. name_key :159-169 and same_name :172-182. Duplicates are found on tokenizer names (:996-1004). Breakout/void/RAWTEXT tests use the raw name; a NUL never matches either reading.",
+        "D4/D5 attribute values": "OK. push_literal splits literal runs only at decoded references. CR before '&' becomes LF; CR LF split by a reference ('\\r&#10;' -> LF LF) and '&#13;\\n' -> CR LF match the browser. A NUL or CR after a legacy name does not trigger the attribute exception (same as the browser).",
+        "D6 NUL in text": "OK. foreign_text (dom.rs:741-742) follows the dispatcher: HTML at the root, in HTML elements and at HTML/MathML-text integration points. In-table-text NUL is dropped. Colgroup and head-noscript NUL is refused (conservative).",
+        "D7 CR in text": "OK. Text and RCDATA slices always end before '<' or at EOF, so a trailing CR becomes LF correctly. Raw script/style slices are fed to CSS, which preprocesses the same way. Exception: CDATA pieces of foreign style (F1).",
+        "D8 first LF": "OK for LF, CR, CR LF, '&#10;', '&#10' without semicolon, '&NewLine;', and for NUL or a comment first (kept). Foreign textarea is excluded (namespace check at :1378). Exceptions: '</>' first (F3) and insert_element into SVG (F4).",
+        "NUL in comments/doctype/CDATA": "Comment, doctype and CDATA nodes stay raw source by design (not in the decoded_values claim). Browser: comment and bogus comment U+0000 -> U+FFFD; CDATA U+0000 -> U+FFFD under the foreign rules. The comparator preprocesses these. Not a gate issue (CSS maps NUL too)."
+      },
+      "d9_check": {
+        "probes_refused_as_required": "misnested formatting (<b><i></b></i>: misnested_end_tag), nested tables, select/select, select/input, option/option, optgroup/optgroup, hr in select under option, frameset, head after body, content after </body>, </br> (void_end_tag), </p> with no open p (stray_end_tag), <svg><p> and <svg><font color> (foreign_breakout), <math><mi><svg><p> (breakout inside svg), nested a/nobr, p closed by blocks and table (both quirks readings), li/dd/dt loops, table parts outside a table, DOCTYPE after the first token, html/head/body start tags out of place, head noscript with markup",
+        "accepted_and_equal_to_browser": "<math><mi><svg>; <svg><foreignObject><div> inside <p> (foreignObject is a scope boundary); <button><select><button> (select is in the default scope per the current spec); textarea in select (the current spec has no select rule for textarea); implied tbody/colgroup sequences (styles, hidden inputs, whitespace and comments after an implied tbody or colgroup splice back into the authored order under N1); comments and PIs at every skeleton position (13.2.6.4.1-.22 insert them like comments; PIs end at the first '>' exactly like the bogus comment the crate keeps)",
+        "hole": "F2 (</image> in an authored colgroup)",
+        "conservative_over_refusals": "SPECIAL lacks MathML/SVG special elements, keygen and search; SCOPE_MATHML lacks annotation-xml; template contents with table parts; nested form in template. These are fail-closed and documented.",
+        "normalisations": "N1/N2 live only in tests/html5ever_differential (events::drop_implied, model::skeleton); the crate's tree and asset scan never apply them. The asset gate does not depend on tree shape, only on element name and namespace, and a re-parenting input is refused before any scan. The only gate hole found is F1, which is not caused by N1/N2."
+      },
+      "asset_gate_check": "Changes 6d1c591..4d80e50: local_name for attribute selection (fixes HTML <image srcset>, which was hidden before); raw NUL -> U+FFFD in values (sound, see P3); foreign style text via text_value (sound for text pieces). F1: CDATA pieces of foreign style can hide a url().",
+      "spans": "Documented at dom.rs:33-40 and pinned by dom_values_are_decoded_and_spans_keep_the_source_bytes (html_parity.rs:296-327). AssetRef span falls back to the whole value or content span when decoding changes offsets (assets.rs:468-475, :564).",
+      "hostile_sizes": "charref output is at most input + input/5 (Text context) or 3 x input (NUL-replacing contexts), checked over the table in charref::tests (:259-276). construction.rs carries the V4-01 lint, and its scans are O(depth <= max_depth=128) per token. No allocation is sized from declared values. See P2 for preview.rs.",
+      "v4_06_recount": "git grep -nE '<lane regex>' 4d80e50 -- crates/hsk-studio-web/src ':!...entity_table.rs', comment-only lines removed: 97 sites. That is the same set as the lane's 97 (no missing or extra), 56 fixed / 41 not-applicable. The regex does not reach the CDATA concatenation (F1).",
+      "v4_07": "DESCRIPTOR proofs name existing tests (56 = 22 difftest + 9 html_parity + 24 source_dom_patch + 1 unit), but tree_construction.refused is contradicted by F2, patch.values by F4, and assets.scanned (CDATA) by F1.",
+      "html5ever_dev_only": "OK. crates/hsk-studio-web/Cargo.toml [dependencies] is unchanged (accord, observe, sha2); html5ever =0.40.1 appears only under [dev-dependencies] with default-features=false; no src/ or examples/ reference; lib.rs:3 forbid(unsafe_code). Cargo.lock gains 13 packages (html5ever, markup5ever, web_atoms, tendril, string_cache(+codegen), phf x4, precomputed-hash, new_debug_unreachable, fastrand). The root registry metadata 'direct' entry for hsk-studio-web lists html5ever with no dev marker; whether the steward probe tells dev from normal deps is UNVERIFIED (advisory only).",
+      "wip_after_ready": false,
+      "wip_note": "Nothing was pushed to the crate after 4d80e50 (origin head = 4d80e50). The 9 commits after SMB-WEB's READY commit 08ad0ad are claimed by the new lane ids SMB-WEB-DIFFTEST (5 commits, lane status still null, 'wip') and SMB-WEB-PARITY (4 commits, READY_FOR_VALIDATION at 4d80e50). For V4-14 the judged claim must cover the DIFFTEST commits too: set SMB-WEB-DIFFTEST to READY (its 5 red tests are green at 4d80e50 per the parity lane) or list its commits in the claim before R9. builders/lanes/hsk-studio-web.json is stale (READY at 08ad0ad, 25 tests).",
+      "recommendation": "FIX_FIRST",
+      "recommendation_note": "F1 is a CONFIRMED asset-gate URL hiding, the exact R5/R6 FAIL class. F2 is a CONFIRMED counterexample to the D9 rule the lead required ('never accept with a different tree'). A validator finding either in R9 would end the lane's fix budget. Both fixes are small and local: preprocess the CDATA inner text in assets.rs, and refuse </image> under colgroup in construction.rs, each with tests. Fix F3/F4 and update the P1/P4 docs in the same pass; P2/P3 are cheap."
+    }
+  ],
+  "advisory": {
+    "SMB-WEB-PARITY": {
+      "status": "READY_FOR_VALIDATION at 4d80e50 (lane file); commits 1c67557 6d1c591 e849d4c 4d80e50",
+      "notes": [
+        "1c67557 is behaviour-free (token comparison, see SMB-WEB.rustfmt_commit_1c67557).",
+        "The construction.rs detection rule matches the spec rows I checked (in body p/heading/form/li/dd/dt/button/a/nobr/select/input/hr/option/optgroup/ruby, in table/table body/row, column group start tags and text, head noscript, after head, after body). Scope and special sets are the spec lists or smaller (fail-closed). The one missed path is F2.",
+        "The current WHATWG tokenizer has processing instructions (13.2.5.72-.76: '<?target ...>' ends at the first '>'; the xml/xml-stylesheet targets and invalid targets become bogus comments; at EOF the PI is dropped). Tree builder modes insert PIs where they insert comments (initial/before html into the Document, after body into html, in column group, in table). The crate's opaque processing_instruction node has the same span and position, so there is no structure or gate impact. The DESCRIPTOR could name PIs as such (advisory).",
+        "Red proof and 56/56 green are recorded in the lane file (not re-run here, no cargo)."
+      ]
+    },
+    "SMB-WEB-DIFFTEST": {
+      "status": "null (commits eefe44d..f4b47cd, test-only + dev-dependency)",
+      "notes": [
+        "Lane status needs a decision before R9 (V4-14, see wip_note).",
+        "The oracle sink (oracle.rs) implements append_before_sibling / append_based_on_parent_node / reparent_children / add_attrs_if_missing / template contents in the shape html5ever expects. Data::Pi produces no event (oracle.rs:312) while the model maps '<?x>' to a Comment (model.rs:68-96). That only agrees because html5ever 0.40.1 still reads '<?' as a bogus comment. If html5ever adopts the PI tokenizer, the comments group will diverge (advisory).",
+        "D9 coverage is hand-written (60 restructuring + 32 accepted + 20 whole documents); the generator deliberately avoids restructuring tags. Neither group has </image> in colgroup (F2) or '</>' before a pre LF (F3). Most groups run in fragment mode with a div context, so skeleton/DOCTYPE behaviour is compared only in the whole-document group.",
+        "events::drop_implied removes attribute-less implied html/head/body/tbody/colgroup by count budget and alignment. I checked it on the F2 input: it would still report the colgroup mismatch, so N1 does not mask F2.",
+        "The asset gate's CSS reading (style_children join) is outside the comparator's event model, so F1 is invisible to the difftest by construction. A small gate-level differential (html5ever DOM text content of each style vs the crate's joined text) would cover that class."
+      ]
+    }
+  }
+}
