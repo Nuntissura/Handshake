@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T03:01:38Z",
+ "updated_at": "2026-10-11T03:13:35Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -14,7 +14,7 @@
     "crates/<27 new>/** (scaffold only)"
    ],
    "launched": "2026-10-11T00:48Z",
-   "status": "idle (R2 base faf1be4 pushed; resume before each round for lock sync)",
+   "status": "retired (refresh rule 520k); replaced by steward-2",
    "resumed": "2026-10-11T01:02Z"
   },
   {
@@ -453,7 +453,7 @@
    "model": "opus",
    "role": "union round R3 on sync 57ce0fa",
    "launched": "2026-10-11T02:38:16Z",
-   "status": "running"
+   "status": "done (R3: 21 PASS_V1 + MT-35536 PASS_V5, 12 FAIL_V1); asked to record PASS_V5 in MT JSON"
   },
   {
    "name": "reviewer-r3",
@@ -565,6 +565,14 @@
    "model": "sonnet",
    "role": "R3 remediation session/components/interop-media",
    "launched": "2026-10-11T03:01:38Z",
+   "status": "running"
+  },
+  {
+   "name": "steward-2",
+   "agent_id": "af94e3ebb4218d2bb",
+   "model": "opus",
+   "role": "workspace steward (entrypoint feature matrix/doctests; syncs on lead request)",
+   "launched": "2026-10-11T03:13:35Z",
    "status": "running"
   }
  ]
