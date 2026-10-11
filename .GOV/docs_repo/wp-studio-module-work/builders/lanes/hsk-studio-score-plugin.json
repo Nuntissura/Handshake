@@ -2,11 +2,23 @@
   "crate": "hsk-studio-score-plugin",
   "lane": "hsk-studio-score-plugin",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice 1 (pure-Rust process-isolated plugin host with reference worker) pushed; native CLAP backend not started",
+  "phase": "slice 1 + optional native CLAP backend (feature clap) + coordinator R5/V4 remediation: process supervision in one module (supervisor.rs), fault injection behind non-default feature test-faults, V4 hostile-size rules",
   "commits": [
     {
       "sha": "ccc9c9a",
       "subject": "score-plugin: process-isolated plugin host (IsolatedHost, framed worker protocol, deadline/cancel/crash reclaim, admission permits, process ledger, lifecycle + state versioning, PluginProcessor over score Engine, reference gain/delay worker; CLAP NOT_PROVEN)"
+    },
+    {
+      "sha": "8a6bc23",
+      "subject": "score-plugin: worker Backend port (reference backend split out) + optional native CLAP backend in the worker (feature clap, default OFF, unsafe confined to clap_backend.rs via clack-host 0.2.0); HostOptions.backend; plugin_fault error"
+    },
+    {
+      "sha": "35f197e",
+      "subject": "score-plugin: CLAP fixture proof (standalone clack-plugin gain 0.5 fixture outside the workspace; tests/clap_fixture.rs under feature clap; host process does not map the library, bit-exact block, tampered/non-library files refused); DESCRIPTOR backends"
+    },
+    {
+      "sha": "67fdd10",
+      "subject": "score-plugin: supervisor.rs (D18 single-file process supervision), test-faults feature, V4 hostile-size rules"
     }
   ],
   "capabilities_done": [
@@ -19,29 +31,34 @@
     "PluginProcessor: score Processor over a PluginInstance so the score Engine admits, publishes or discards the block (a failed or canceled plugin block is never published); typed error kept in take_error(); score outcome mapping documented",
     "report(result, correlation_id, revision, cancel, Observe, SinkPort) with outcome_of: Success / Canceled / Failure(Validation | Loss | Unavailable); no plugin path or sample data attached",
     "Reference worker bin score-plugin-worker (pure-Rust gain + real sample delay, parameter 0 = gain, state = gain) with test-only faults via HostOptions.test_args: crash-on-block=N, hang-on-block=N, garbage-on-block=N, oversize-on-block=N, short-on-block=N, hang-on-probe, partial-state, no-state, --latency N; panic hook exits 70 and injected crashes exit 86 (no platform crash dialog)",
-    "DESCRIPTOR (proof_status labels CLAP/VST3/OS resource caps NOT_PROVEN) and example consumer score-plugin-consumer (--descriptor, --worker PATH --gain G --frames N --latency L --crash-on N --hang-on N --deadline-ms MS)"
+    "DESCRIPTOR (proof_status labels CLAP/VST3/OS resource caps NOT_PROVEN) and example consumer score-plugin-consumer (--descriptor, --worker PATH --gain G --frames N --latency L --crash-on N --hang-on N --deadline-ms MS)",
+    "Worker Backend port (src/backend.rs): trait Backend (probe, configure, process, set_parameter, capture_state) behind the unchanged protocol; the pure-Rust Reference backend lives there; HostOptions.backend = WorkerBackend::{Reference, Clap}; a worker started with --backend clap in a build without feature clap exits 3 and the host reports unavailable; backend identity comes from HELLO into probe descriptors and receipts",
+    "Native CLAP backend (src/clap_backend.rs, cargo feature clap, default OFF): clack-host 0.2.0 in the WORKER only; the only module with unsafe (one call: PluginEntry::load after the worker re-verified the approved SHA-256); crate is forbid(unsafe_code) without the feature and deny(unsafe_code) with it; loads the first plugin of the entry, activates at the negotiated rate/block bound (min_frames 1), processes planar f32 blocks via AudioPorts, delivers parameters as ParamValueEvent, reports latency 0 / state Unavailable / probe ports 0 because the extensions are not wired; new error plugin_fault for a plugin-reported processing failure",
+    "Standalone fixture tests/fixtures/clap-gain (own [workspace], clack-plugin =0.2.0 cdylib, fixed gain 0.5, no parameters; built by hand into Handshake_Artifacts/WP-KERNEL-STUDIO/score-plugin-fixture/target) and tests/clap_fixture.rs (feature clap; needs HSK_SCORE_PLUGIN_CLAP_FIXTURE=<dll path>): the real library ran in the worker and not in the host process (tasklist module list), two blocks bit-exact, tampered and non-library files refused",
+    "D18 / CX-CAP-001 (coordinator note): ALL process handling is in ONE file, src/supervisor.rs, with no plugin vocabulary: Supervisor::{new, stats, ledger, admit, spawn} and Session<F, E>::{exchange, fail, terminate, pid, is_usable} generic over the reply frame type F and the caller's framing-error type E (the caller supplies a ReadFn that reads one frame); spawn = env_clear + null stderr + piped stdio + CREATE_NO_WINDOW, admission Permit released after the reap, process ledger + counters, cancel/deadline/crash/protocol classification (Classified) and kill+reap. No heartbeat exists (liveness = the request deadline). host.rs maps Classified to PluginError and owns authorization, wire protocol, lifecycle, state versions. The code was written from the score-plugin design, not copied from motion-js or reel-native; moving supervisor.rs to the shared owner needs only a change of the use paths in host.rs",
+    "V4-04 / R5: fault injection (crash, hang, garbage, oversize, short frame, hang-on-probe, partial-state, no-state) lives in src/faults.rs behind the non-default cargo feature test-faults; HostOptions.test_args, FAULT_EXIT_CODE and the worker --fault argument exist only with it (a default worker exits 2 on --fault, asserted in foundation_contract::unauthorized_and_mismatch_rejected); HostOptions.reference_latency (product config of the reference backend) replaces passing --latency through test args",
+    "V4-01/02: #![deny(clippy::arithmetic_side_effects)] on wire.rs, host.rs, backend.rs, worker.rs, clap_backend.rs with checked/saturating arithmetic (34 sites fixed); decoder tests wire::tests::dims_u32_max (u32::MAX frames x u16::MAX channels, zero, one past each bound, hostile reply dims, state blob length, text length: Malformed before any buffer is sized) and wire::tests::aggregate_over_budget (maximal legal dims over a 2-sample payload, declared frame length above the cap consumes no payload byte, unsatisfiable length is Truncated, trailing byte refused)",
+    "V4-03: clap_fixture tests print a line starting NOT_PROVEN: and return when HSK_SCORE_PLUGIN_CLAP_FIXTURE is unset; no test reads a machine-local path (grep for drive letters/user profile in crates/hsk-studio-score-plugin: none); V4-07: absolute claims (never/proves/always) in docs and DESCRIPTOR cite their test or were weakened; V4-09: commit made with git commit -F"
   ],
   "tests": {
-    "argv": "cargo test -p hsk-studio-score-plugin --tests --no-fail-fast (studio-env.sh cargo form; shared edit tree)",
+    "argv": "cargo test -p hsk-studio-score-plugin --tests --no-fail-fast (default features), and with --features test-faults, and with --features clap,test-faults plus HSK_SCORE_PLUGIN_CLAP_FIXTURE=<built fixture dll> (studio-env.sh cargo form; shared edit tree)",
     "exit": 0,
-    "sha": "ccc9c9a",
-    "passed": 6,
+    "sha": "67fdd10",
+    "passed": 7,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "Independent validator round on ccc9c9a. Native CLAP backend (feature clap, worker only) is the next capability: needs clack-host 0.2.0 + clap-sys 0.5.0 + libloading pins (dep-request + steward probe approval for the -sys name) and a standalone clack-plugin gain fixture outside the workspace; CLAP stays NOT_PROVEN until a real plugin run.",
-  "updated_at": "2026-10-11T05:12:07Z",
+  "next": "Independent validator round on 67fdd10. Round config: default features = 7 tests (3 wire unit + 4 foundation); steward .config/round-features.toml needs hsk-studio-score-plugin = [\"test-faults\"] to run the 2 fault tests (11 with clap: +2 clap_fixture, which print NOT_PROVEN and return unless HSK_SCORE_PLUGIN_CLAP_FIXTURE is set to the built fixture dll: cd crates/hsk-studio-score-plugin/tests/fixtures/clap-gain && STUDIO_OWNER=score-plugin-fixture cargo build). Feature clap also needs the steward: registry pins clack-host 0.2.0 / clack-common 0.2.0 / clap-sys 0.5.0 and the native-ffi probe approval for clap-sys@0.5.0 in score-plugin only (dep-requests.jsonl). Next slice: clack-extensions latency + state + audio-ports, VST3 backend, realtime shared-memory handoff (STU-ARC-013), private staging copy to close the hash/load TOCTOU.",
+  "updated_at": "2026-10-11T05:47:32Z",
   "notes": {
-    "scope_label": "READY_FOR_VALIDATION covers the isolation/lifecycle slice proven with the REFERENCE worker. It does not prove CLAP or VST3 (MT-35560: a mock host does not prove a plugin format).",
+    "scope_label": "READY_FOR_VALIDATION covers (1) the isolation/lifecycle slice exercised with the REFERENCE worker and (2) the native CLAP host path exercised against ONE standalone parameterless gain fixture. Not proven: CLAP latency/state/audio-ports/parameters/thread affinity of real third-party plugins, VST3, OS memory caps. Default builds are unaffected by feature clap (OFF).",
     "tests_breakdown": {
-      "lib unit wire::tests::wire_roundtrip_and_hostile_input": "round trip of every request/reply kind (bit-exact samples), every strict payload prefix rejected, oversize rejected before allocation, version skew, unknown kind, garbage, closed vs truncated",
-      "worker_gain_block_exact": "probe + activate (latency 3, gain 0.5); two consecutive 256-frame blocks through score Engine + PluginProcessor equal the independently recomputed delayed/halved signal bit-for-bit, receipts (frames, latency, start/end, state_version 1, provider identity, completeness), orderly retire: exit code 0, not killed, pid alive before and gone after (OS tasklist), permits back to 0 after reap, ledger reaped with owner session",
-      "crash_and_timeout_are_contained": "crash-on-block=1 -> Crashed{86}, silence, reaped, pid gone, Draining -> process is IllegalTransition; hang-on-block=1 with 300 ms deadline -> Timeout in [300, 600) ms, killed+reaped, pid gone via OS, silence",
-      "unauthorized_and_mismatch_rejected": "no grant / foreign grant -> Unauthorized, wrong SHA -> HashMismatch, arch/abi/Vst3 -> AbiMismatch, missing file -> Unavailable, all with spawned == 0 and an empty ledger; garbage/oversize/short worker frames -> Protocol(Garbage|Oversize|Truncated), worker gone, silence; hang-on-probe -> ProbeTimeout killed+reaped",
-      "lifecycle_and_stale_state": "lifecycle table; capture_state Complete v1 = gain bytes; capture max 4 -> BudgetExceeded from the worker, 65 > configured 64 -> BudgetExceeded host-side, instance still Active; set_parameter -> v2; process_expecting(1) -> StaleState and the output untouched; process_expecting(2) = in * 0.25 exactly; NaN/unknown parameter -> InvalidConfig; permits held until retire; process/capture after retire -> IllegalTransition{Retired}; retire idempotent; partial-state and no-state reported as Partial/Unavailable",
-      "admission_and_cancel": "max_workers=1: second activate and probe -> BudgetExceeded in < 250 ms with no spawn, slot freed by retire; byte budget below one instance -> BudgetExceeded and slot given back; pre-cancelled token spawns nothing; cancel mid-process through Engine -> Canceled, worker killed+reaped, engine published 0 frames, typed error kept; report() emits exactly one Terminal frame per outcome and then Closed"
+      "wire::tests (3, default)": "wire_roundtrip_and_hostile_input; dims_u32_max; aggregate_over_budget",
+      "tests/foundation_contract.rs (4, default)": "worker_gain_block_exact (Engine + PluginProcessor, delay 3, gain 0.5 bit-exact over 2 blocks, orderly retire exit 0, OS pid gone, permits 0); unauthorized_and_mismatch_rejected (Unauthorized/HashMismatch/AbiMismatch/Unavailable with spawned == 0, missing worker program, default worker rejects --fault); lifecycle_and_stale_state (lifecycle table, versioned capture, StaleState with output untouched, illegal after retire, idempotent retire); admission_and_cancel (max_workers 1 and byte budget refuse at once, pre-cancelled token spawns nothing, report() one terminal frame per outcome)",
+      "tests/fault_injection.rs (2, feature test-faults)": "process_faults_are_contained (crash exit 86, hang killed at the 300 ms deadline in [300, 600) ms, garbage/oversize/short frames, hang-on-probe -> ProbeTimeout; silence in the output block, OS pid gone, permits 0); state_completeness_and_cancel_mid_process (partial/no state reported as such; cancel mid-process -> Canceled, worker killed+reaped, engine published 0 frames)",
+      "tests/clap_fixture.rs (2, feature clap + fixture dll)": "clap_fixture_gain_runs_in_the_worker (probe id/name, 2 blocks == input*0.5 bit-exact via Engine, tasklist shows the library mapped in the worker and not in the host test process, retire exit 0); clap_refuses_tampered_and_non_library_files (HashMismatch with no spawn; non-library bytes -> Unavailable, worker reaped)"
     },
     "design_notes": {
       "trait_deviation": "Brief signature PluginProvider::probe(p, d) gained grant + cancel parameters and activate(cfg) gained cancel + deadline (the grant is the Unauthorized gate; cancel/deadline are per call). PluginInstance::process gained cancel + deadline and writes into a score OutputBlock (the Engine publishes).",
@@ -52,10 +69,56 @@
       "reset_limit": "PluginProcessor::reset is a no-op: when the Engine discards a block the foreign plugin history has advanced and is not rewound (documented)."
     },
     "route_notes": {
-      "retry_guard": "No gameplan hook block and no failed run: check, clippy and the 6 tests passed first run; the only re-run was the same focused test command after a trivial test-assertion edit and rustfmt, both committed before the re-run (HEAD unchanged in this crate since). No gameplan step added, no flags/filters changed.",
-      "commit_trailer": "Commit ccc9c9a was made without the Co-Authored-By trailer; later commits include it (amend is forbidden)."
+      "retry_guard": "No gameplan hook block and no failed focused run in this lane. Infrastructure events: the shared tree's hsk-studio-score failed to build mid-edit by another lane (see shared_tree_block); one gameplan-hook block on a shell command run from the kernel root (it resolved the WP-KERNEL-012 gameplan) was avoided by running lane-file edits from the product workspace through a script file. Test commands were reruns only after HEAD or the crate source changed. No flags/filters changed, no gameplan step added.",
+      "commit_trailer": "Commit ccc9c9a was made without the Co-Authored-By trailer; later commits include it (amend is forbidden).",
+      "shared_tree_block": "The first clap-feature test run failed to build hsk-studio-score (another lane mid-edit: resample.rs imported crate::stream_resample before score lib.rs wired it). Infrastructure/shared-tree cause, not a score-plugin failure; no flags or arguments changed; polled cargo check until score compiled, then ran the identical command. No gameplan step added."
     },
-    "build": "check and clippy (--tests --examples --bins) clean for hsk-studio-score-plugin; the only clippy warnings are 2 pre-existing too_many_arguments in hsk-studio-observe; cargo fmt applied to the crate only; forbid(unsafe_code); no crates.io dependency, no dep-request line; path deps accord, observe, score (all allowed).",
-    "os_caps": "NOT_PROVEN: no Windows Job Object / memory cap for the worker (needs unsafe FFI); wall-clock kill and frame/block bounds are the enforced limits."
+    "build": "check and clippy (--tests --examples --bins), default, --features test-faults and --features clap,test-faults: clean for hsk-studio-score-plugin (only 2 pre-existing too_many_arguments warnings in hsk-studio-observe); cargo fmt applied to the crate only; forbid(unsafe_code) without feature clap",
+    "os_caps": "NOT_PROVEN: no Windows Job Object / memory cap for the worker (needs unsafe FFI); wall-clock kill and frame/block bounds are the enforced limits.",
+    "native_dep": {
+      "manifest": "clack-host = { version = \"=0.2.0\", default-features = false, features = [\"libloading\"], optional = true }; clap = [\"dep:clack-host\"]",
+      "dep_request": "appended to builders/dep-requests.jsonl (pure_rust false; native_ffi_packages clap-sys@0.5.0)",
+      "closure": "clack-host 0.2.0, clack-common 0.2.0, clap-sys 0.5.0 (declaration crate, no build script, no deps; -sys name), libloading 0.8.9 (ISC, already in Cargo.lock; clack-host pins =0.8, the brief said 0.9.0), objc2-foundation (macOS only)",
+      "cargo_lock": "cargo wrote the new packages into the shared Cargo.lock; this lane did NOT stage it (steward sync owns it)",
+      "fixture_deps": "the fixture has its own Cargo.lock (clack-plugin =0.2.0 and its closure) outside the workspace lock"
+    },
+    "known_limits": [
+      "CLAP backend: first plugin of the entry only (ApprovedPlugin has no plugin id yet)",
+      "hash then load is two file opens (TOCTOU window); fix = private staging copy in a host-provided directory",
+      "all CLAP calls on the worker's single thread (main-thread/audio-thread affinity NOT_PROVEN)",
+      "ledger is unbounded for a very long-lived host (one small entry per spawn)",
+      "supervisor.rs time arithmetic (Instant + Duration) is not under deny(arithmetic_side_effects): deadlines are bounded by MAX_DEADLINE (60 s) before they reach it"
+    ],
+    "v4_06_class_site_lists": {
+      "class_A_process_supervision_outside_supervisor_rs": {
+        "regex": "Command::new|env_clear|creation_flags|CREATE_NO_WINDOW|try_wait|\\.kill\\(\\)|Stdio::",
+        "scope": "src/*.rs examples/*.rs (product code)",
+        "matches": {
+          "src/supervisor.rs": 12,
+          "other product files": 0
+        },
+        "verdict": "12 of 12 product matches are in src/supervisor.rs (fixed); 0 elsewhere (the DESCRIPTOR text mentions CREATE_NO_WINDOW as documentation only)",
+        "not_applicable_test_only": [
+          "tests/common/mod.rs: tasklist query (OS liveness oracle)",
+          "tests/clap_fixture.rs: tasklist query (module-mapped oracle)",
+          "tests/foundation_contract.rs: one direct worker spawn to assert the default worker rejects --fault"
+        ]
+      },
+      "class_B_fault_hooks_in_product_code": {
+        "regex": "crash-on-block|hang-on-block|garbage-on-block|oversize-on-block|short-on-block|hang-on-probe|partial-state|no-state|FAULT_EXIT_CODE|test_args|--fault|HANG_LIMIT|exit\\(86\\)|mod faults|test-faults",
+        "scope": "src/*.rs examples/*.rs Cargo.toml",
+        "sites": [
+          "src/faults.rs (whole file) - fixed: mod faults is #[cfg(feature = \"test-faults\")] (lib.rs)",
+          "src/lib.rs FAULT_EXIT_CODE re-export - fixed: cfg(test-faults)",
+          "src/host.rs HostOptions.test_args field - fixed: cfg(test-faults)",
+          "src/host.rs IsolatedHost::new args.extend(test_args) - fixed: cfg(test-faults)",
+          "src/worker.rs --fault argument arm - fixed: cfg(test-faults) (default worker: unknown flag, exit 2)",
+          "src/worker.rs no_faults stub (Faults(()) with no-op on_probe/on_block/completeness, no fault names) - not-applicable: compiled only WITHOUT the feature and contains no fault behaviour",
+          "examples/score-plugin-consumer.rs --crash-on/--hang-on handling - fixed: cfg(test-faults), default build returns fault_flags_need_feature_test_faults",
+          "src/lib.rs DESCRIPTOR text and doc comments naming the faults - not-applicable: documentation strings"
+        ],
+        "count": "6 code sites fixed, 1 stub and 1 documentation site not-applicable, 0 ungated hooks"
+      }
+    }
   }
 }

@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T05:47:08Z",
+ "updated_at": "2026-10-11T05:48:18Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -641,7 +641,7 @@
     "builders/lanes/hsk-studio-score-plugin.json"
    ],
    "launched": "2026-10-11T04:56:14Z",
-   "status": "running"
+   "status": "done 2026-10-11T05:48:18Z (SMB-SCORE-PLUGIN READY at 67fdd10)"
   },
   {
    "name": "builder-pulse-eng-1",

@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T05:47:08Z",
+ "updated_at": "2026-10-11T05:48:18Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -646,12 +646,16 @@
    "lane_id": "SMB-SCORE-PLUGIN",
    "crate": "hsk-studio-score-plugin",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-score-plugin",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-score-plugin",
    "brief": "builders/briefs/hsk-studio-score-plugin.md",
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "67fdd10"
+   ],
+   "verdicts": [],
+   "candidate": "67fdd10",
+   "note": "slice 1 ccc9c9a (IsolatedHost over framed worker protocol, state versioning, PluginProcessor over score Engine) + 8a6bc23 Backend port + native CLAP feature (default OFF, unsafe only clap_backend.rs) + 35f197e CLAP fixture bit-exact in worker, library mapped in worker not host + 67fdd10 V4 remediation; supervision in one file src/supervisor.rs (D18 known site); fault modes only under test-faults; 7/9/11 green per feature set; CLAP beyond parameterless gain NOT_PROVEN"
   },
   {
    "lane_id": "SMB-REEL-NATIVE",
@@ -1468,7 +1472,11 @@
  ],
  "steward_next_sync": [
   "registry pins + probe approvals for hsk-studio-interop-fig dep requests (miniz_oxide, ruzstd, sha2, serde_json; all already locked)",
-  "registry pin + probe approval for cpal 0.18.2 closure (native-ffi incl alsa-sys, windows/objc2/jni/ndk) owner hsk-studio-score-device feature cpal-backend only (decision 01:40Z); round-features entry hsk-studio-score-device = [[\"cpal-backend\"]] only if native tests stay ignored without STUDIO_NATIVE_AUDIO"
+  "registry pin + probe approval for cpal 0.18.2 closure (native-ffi incl alsa-sys, windows/objc2/jni/ndk) owner hsk-studio-score-device feature cpal-backend only (decision 01:40Z); round-features entry hsk-studio-score-device = [[\"cpal-backend\"]] only if native tests stay ignored without STUDIO_NATIVE_AUDIO",
+  "registry pins clack-host, clack-common, clap-sys 0.5.0 (+ libloading 0.8.9 as pinned by clack-host) + native-ffi probe approval for clap-sys in hsk-studio-score-plugin only (feature clap)",
+  "round-features: hsk-studio-score-plugin = [[\"test-faults\"]] (and [\"clap\",\"test-faults\"] once pins land)",
+  "CLAP fixture: round/canary step builds tests/fixtures/clap-gain into the corpus root and tests locate it via the checked-in corpus config (V4-03, no HSK_* env in rounds); absent -> NOT_PROVEN",
+  "D18 duplicate fingerprints: known supervisor sites = motion-js quickjs_worker.rs, reel-native host.rs, score-plugin src/supervisor.rs (written fresh, single file); any further site refused"
  ],
  "round_R4": {
   "candidate": "2abb984",
@@ -1518,6 +1526,7 @@
   "SMB-COMPONENTS",
   "SMB-COMPONENTS-FOLIO-MIGRATE",
   "SMB-PRISM-ENG-6",
-  "SMB-PRISM-ENG-5"
+  "SMB-PRISM-ENG-5",
+  "SMB-SCORE-PLUGIN"
  ]
 }
