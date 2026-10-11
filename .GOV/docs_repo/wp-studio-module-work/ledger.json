@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T11:09:18Z",
+ "updated_at": "2026-10-11T11:16:29Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -1825,17 +1825,18 @@
    "origin": "architect SMB-PIGMENT-ENG-2 (diagnostics/adjustments-advanced-blending.md)",
    "scope": "brief builders/briefs/lane-interop-psd-adjustments.md",
    "phase": "validation",
-   "status": "FAIL_V1",
+   "status": "READY_FOR_VALIDATION",
    "owner": "rem-psd (queued after R5 fix)",
    "commits": [
     "eb7080d",
-    "cbed946"
+    "cbed946",
+    "2fa2202"
    ],
    "verdicts": [
     "STUDIO-R7 FAIL_V1 @dff7ef5"
    ],
-   "candidate": "cbed946",
-   "note": "adjustment layers emitted as folio graph Source with input_ordinal in Photoshop stack order (root bottom-first); layers clipped to an adjustment layer imported unclipped + typed loss clip_to_adjustment_not_supported per layer (Photoshop behaviour UNVERIFIED, D5); export compares clipping to the value written (unedited export byte-identical); 33 of 33 green; open: clip base on unmapped layer keeps clip to next mapped input (pre-existing)"
+   "candidate": "2fa2202",
+   "note": "R7 FAIL fix (2fa2202): descriptor numbers only via finite_number() (NaN/inf -> None); CgEd Brgh/Cntr + legacy brit checked finite and STU-RAS-151 soft range; out-of-range -> typed unsupported layer brightness_contrast_range, import continues; effects reads via finite_number(); adjacent fix: duplicate channel ids in blend ranges -> typed loss blend_ranges_duplicate_channel instead of whole-import failure; V4-06 37 sites; 39 green; both new tests red on dff7ef5 scratch copy"
   },
   {
    "lane_id": "SMB-EFFECTS-WAVE-1",

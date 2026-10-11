@@ -2,7 +2,7 @@
   "crate": "hsk-studio-interop-psd",
   "lane": "SMB-INTEROP-PSD",
   "status": "READY_FOR_VALIDATION",
-  "phase": "R5 remediation complete (0b9aeeb..6e7198a) + SMB-INTEROP-PSD-ADJ-1 complete (92a7eef..eb7080d: adjustment, Blend-If, mask parameter, knockout and lfx2 records into folio StudioRasterRecords) + SMB-INTEROP-PSD-ADJ-2 complete (cbed946: adjustment layers are folio graph sources with input_ordinal; layer clipped to an adjustment layer imported unclipped with typed loss clip_to_adjustment_not_supported) + SMB-INTEROP-PSD-RECEIPT complete (1a088a9: absolute/bpc/engine receipt fields carried) + SMB-INTEROP-PSD-CLIP-ROLES complete (29501d7: typed losses for Blend-If on clip roles and clbl=0)",
+  "phase": "R5 remediation complete (0b9aeeb..6e7198a) + SMB-INTEROP-PSD-ADJ-1 complete (92a7eef..eb7080d: adjustment, Blend-If, mask parameter, knockout and lfx2 records into folio StudioRasterRecords) + SMB-INTEROP-PSD-ADJ-2 complete (cbed946: adjustment layers are folio graph sources with input_ordinal; layer clipped to an adjustment layer imported unclipped with typed loss clip_to_adjustment_not_supported) + SMB-INTEROP-PSD-RECEIPT complete (1a088a9: absolute/bpc/engine receipt fields carried) + SMB-INTEROP-PSD-CLIP-ROLES complete (29501d7: typed losses for Blend-If on clip roles and clbl=0) + remediation_R7 complete (2fa2202: R7 review B CONFIRMED finding, CgEd NaN/inf reached Folio and failed the whole import)",
   "commits": [
     {
       "sha": "ee30d62",
@@ -79,6 +79,10 @@
     {
       "sha": "29501d7",
       "subject": "interop-psd: typed losses for Blend-If on a clip base or clipped layer and for Blend Clipped Layers as Group off (SMB-INTEROP-PSD-CLIP-ROLES)"
+    },
+    {
+      "sha": "2fa2202",
+      "subject": "interop-psd R7 review B: a non-finite or out-of-range descriptor number (CgEd brightness/contrast, and every other descriptor/adjustment number) is a typed loss on its layer, never a whole-import failure; duplicate channel ids in Blend-If ranges likewise"
     }
   ],
   "capabilities_done": [
@@ -122,8 +126,8 @@
   "tests": {
     "argv": "cargo nextest run -p hsk-studio-interop-psd --tests --no-fail-fast",
     "exit": 0,
-    "sha": "29501d7",
-    "passed": 37,
+    "sha": "2fa2202",
+    "passed": 39,
     "failed": 0,
     "files": [
       "tests/adjustment_graph_source.rs (3: adjustment_layer_between_raster_layers_keeps_its_stack_position, clipped_to_adjustment_layer_is_unclipped_with_a_typed_loss_and_exports_unchanged, root_stack_applies_the_clip_base_rule_and_a_clipped_adjustment_layer_is_no_base)",
@@ -132,7 +136,8 @@
       "tests/review_r2_regressions.rs (6: +unreadable_unicode_layer_name_is_a_typed_loss, +psd_blend_key_rows_match_the_specification_literally)",
       "tests/precision_color_export.rs (14: +gray_black_point_compensation_is_applied_when_the_profile_black_is_not_zero, +rgb_intent_and_black_point_compensation_reach_prism_or_are_recorded, +apply_edits_is_all_or_nothing_and_export_keeps_untiled_cells, +non_finite_and_out_of_range_samples_are_typed_losses_on_import, +dims_u32_max_and_aggregate_over_budget_are_typed_errors; embedded_profiles_go_through_prism_and_refusals_are_typed_losses updated for the wide path refusal code)",
       "tests/precision_color_export.rs (+2 at 1a088a9: absolute_report_is_carried_to_the_receipt_and_a_divergence_becomes_a_loss_entry, absolute_report_without_divergence_adds_no_divergence_entry)",
-      "tests/clip_role_losses.rs (2 at 29501d7: blend_if_on_a_clip_base_or_a_clipped_layer_keeps_the_ranges_and_reports_the_refusal, blend_clipped_layers_as_group_off_is_a_typed_loss_on_a_clip_base)"
+      "tests/clip_role_losses.rs (2 at 29501d7: blend_if_on_a_clip_base_or_a_clipped_layer_keeps_the_ranges_and_reports_the_refusal, blend_clipped_layers_as_group_off_is_a_typed_loss_on_a_clip_base)",
+      "tests/adjustment_records.rs (+2 at 2fa2202: non_finite_descriptor_numbers_are_typed_losses_not_import_failures, duplicate_channel_ids_in_blend_ranges_are_a_typed_loss_not_an_import_failure)"
     ],
     "clippy": "cargo clippy -p hsk-studio-interop-psd --tests: no warnings in this crate at 29501d7 (two too_many_arguments warnings are in hsk-studio-observe); doctests: cargo test --doc -p hsk-studio-interop-psd, 0 tests",
     "synthetic_fixtures": "tests/common/icc.rs: closed-form CMYK mft2 printer (linear in inks), gray kTRC (gamma 2), CIELAB D50 -> linear sRGB reference; no C: or installed-profile dependency"
@@ -140,8 +145,8 @@
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "Photoshop-authored fixtures (D5) to settle UNVERIFIED items: CMYK stored-inverted, Lab 16-bit encoding, 16-bit scale, ZIP prediction 16/32, Blend-If channel order, advanced-blending defaults, curves v4 channel order, effect enum spellings and single/multi duplication; AdmittedPrism / AdmittedWideEngine routing decision (lead); composite lane: lowering of StudioRasterRecords and adjustment layers (the graph ordering is now emitted, ADJ-2); Photoshop-authored fixture for a layer clipped to an adjustment layer (D5, decides whether the Studio rule or a different representation is right); export of edited adjustment/effect records back to PSD bytes; gradient/pattern effect contents once folio has gradient/pattern primitives; RGB LUT profiles via the wide path need a test; mask pixel edit export; merged CMYK/Lab oracle",
-  "updated_at": "2026-10-11T09:56:29Z",
+  "next": "Photoshop-authored fixtures (D5) to settle UNVERIFIED items: CMYK stored-inverted, Lab 16-bit encoding, 16-bit scale, ZIP prediction 16/32, Blend-If channel order, advanced-blending defaults, curves v4 channel order, effect enum spellings and single/multi duplication; AdmittedPrism / AdmittedWideEngine routing decision (lead); composite lane: lowering of StudioRasterRecords and adjustment layers (the graph ordering is now emitted, ADJ-2); Photoshop-authored fixture for a layer clipped to an adjustment layer (D5, decides whether the Studio rule or a different representation is right); export of edited adjustment/effect records back to PSD bytes; gradient/pattern effect contents once folio has gradient/pattern primitives; RGB LUT profiles via the wide path need a test; mask pixel edit export; merged CMYK/Lab oracle | R7 re-judge of remediation_R7 at 2fa2202",
+  "updated_at": "2026-10-11T11:15:57Z",
   "notes": {
     "mt": "MT-35548",
     "adj1": {
@@ -601,6 +606,170 @@
       "clbl": "clbl=0 on a clip base -> Unsupported entry blend_clipped_layers_as_group_off_not_modelled, path layer[i]/tagged/clbl(layer_id=ID); the record keeps blend_clipped_effects=false. Decision (OPEN, lead may widen): no entry where the setting changes nothing (no clipped layer above the layer, or set on the clipped layer itself); Photoshop writes clbl on layers generally, so an entry per clbl=0 layer would report non-effects",
       "tests": "tests/clip_role_losses.rs (2); red-proof: with the note_clip_role_gaps call commented out both tests fail at their first assertion (clip_role_losses.rs:170 and :211), restored and touched",
       "not_done": "composite lowering reporting of the two roles and render-gpu/render-cpu follow-ups are other lanes (diagnostics topic blend-if-clip-roles)"
+    },
+    "v4_06_regex": "\\bf64::from|\\bf32::from_bits|\\bfinite_number\\b|\\bis_number\\b|\\braw_number\\b|\\bas f64\\b (over crates/hsk-studio-interop-psd/src/adjust.rs, src/descriptor.rs, src/effects.rs; every line hit is listed, comment lines included)",
+    "v4_06_sites": [
+      {
+        "file_line": "src/adjust.rs:136",
+        "verdict": "NOT_APPLICABLE: levels input_black from a u16 refused above 255 and at/above the white by the levels_record_invalid guard before this line (folio 0..1)"
+      },
+      {
+        "file_line": "src/adjust.rs:137",
+        "verdict": "NOT_APPLICABLE: levels input_white from a u16 checked 1..=255 by levels_record_invalid before this line"
+      },
+      {
+        "file_line": "src/adjust.rs:138",
+        "verdict": "NOT_APPLICABLE: levels output_black from a u16 checked <= 255 by levels_record_invalid; test levl output-white/gamma cases"
+      },
+      {
+        "file_line": "src/adjust.rs:139",
+        "verdict": "NOT_APPLICABLE: levels output_white from a u16 checked <= 255 by levels_record_invalid; test 'output white 256'"
+      },
+      {
+        "file_line": "src/adjust.rs:140",
+        "verdict": "NOT_APPLICABLE: levels gamma from a u16 checked 10..=999 (0.10..9.99, folio > 0) by levels_record_invalid; test 'gamma 9' and 'gamma 1000'"
+      },
+      {
+        "file_line": "src/adjust.rs:201",
+        "verdict": "NOT_APPLICABLE: curves point comparison on a u16 already checked <= 255 by curves_point_range; strictly ascending enforced here"
+      },
+      {
+        "file_line": "src/adjust.rs:204",
+        "verdict": "NOT_APPLICABLE: curves point input/output from u16 values checked <= 255 (curves_point_range) and strictly ascending (curves_points_not_ascending), count 2..=19; folio 0..255 ascending"
+      },
+      {
+        "file_line": "src/adjust.rs:236",
+        "verdict": "NOT_APPLICABLE: hue/saturation/lightness from i16 values range-checked by shift() immediately above (hue_saturation_range); test hue2 8 out-of-range cases"
+      },
+      {
+        "file_line": "src/adjust.rs:256",
+        "verdict": "NOT_APPLICABLE: hue band range edge from an i16, finite by construction; folio requires finite edges only (hard bound unknown in STU-RAS-151)"
+      },
+      {
+        "file_line": "src/adjust.rs:297",
+        "verdict": "FIXED: CgEd Brgh/Cntr candidates are numeric items of ANY value (is_number), so a NaN/inf item reaches the range check instead of silently falling back to brit"
+      },
+      {
+        "file_line": "src/adjust.rs:299",
+        "verdict": "FIXED: CgEd Brgh read through finite_number then brightness_contrast_value (finite, -150..150) else Err brightness_contrast_range; test Brgh x13 hostile values"
+      },
+      {
+        "file_line": "src/adjust.rs:300",
+        "verdict": "FIXED: CgEd Cntr read through finite_number then brightness_contrast_value (finite, -150..150) else Err brightness_contrast_range; test Cntr x13 hostile values"
+      },
+      {
+        "file_line": "src/adjust.rs:316",
+        "verdict": "FIXED: legacy brit brightness (i16) held to the same -150..150 range via brightness_contrast_value; test brit 151/i16::MIN"
+      },
+      {
+        "file_line": "src/adjust.rs:317",
+        "verdict": "FIXED: legacy brit contrast (i16) held to the same -150..150 range via brightness_contrast_value; test brit -151/i16::MAX"
+      },
+      {
+        "file_line": "src/adjust.rs:330",
+        "verdict": "NOT_APPLICABLE: expA f32 bit pattern; finiteness of all three slots is checked at the exposure_range guard right after the map; test expA NaN/+inf/-inf per slot"
+      },
+      {
+        "file_line": "src/adjust.rs:332",
+        "verdict": "NOT_APPLICABLE: f32 to f64 widening of values then checked finite (exposure, offset, gamma) and gamma > 0 (exposure_range) before the record is built; test gamma 0/-1"
+      },
+      {
+        "file_line": "src/adjust.rs:348",
+        "verdict": "NOT_APPLICABLE: threshold level from a u16 refused above 255 by threshold_range (folio 0..255)"
+      },
+      {
+        "file_line": "src/adjust.rs:370",
+        "verdict": "NOT_APPLICABLE: Blend-If bounds from u8 pairs refused when low > high (blend_range_order); the one structural hole on this path (two channel entries with one id giving Folio duplicate ranges) is fixed in advanced_blending as blend_ranges_duplicate_channel, see remediation_R7.adjacent_fixed"
+      },
+      {
+        "file_line": "src/adjust.rs:486",
+        "verdict": "NOT_APPLICABLE: mask density from a u8 scaled to 0..100, finite by construction (folio 0..100)"
+      },
+      {
+        "file_line": "src/adjust.rs:489",
+        "verdict": "NOT_APPLICABLE: mask feather from a u64 bit pattern; finite and 0..=MAX_MASK_FEATHER checked at the next line (mask_feather_range); existing test feather NaN/20000/-1"
+      },
+      {
+        "file_line": "src/descriptor.rs:58",
+        "verdict": "NOT_APPLICABLE: doc comment naming finite_number"
+      },
+      {
+        "file_line": "src/descriptor.rs:60",
+        "verdict": "FIXED: raw_number (was pub(crate) number) is private to descriptor.rs; no consumer can read a raw descriptor number"
+      },
+      {
+        "file_line": "src/descriptor.rs:63",
+        "verdict": "NOT_APPLICABLE: i32 to f64, finite by construction (private accessor)"
+      },
+      {
+        "file_line": "src/descriptor.rs:64",
+        "verdict": "NOT_APPLICABLE: i64 to f64 cast, finite by construction (private accessor)"
+      },
+      {
+        "file_line": "src/descriptor.rs:70",
+        "verdict": "FIXED: finite_number is the only value accessor: NaN and the infinities give None"
+      },
+      {
+        "file_line": "src/descriptor.rs:71",
+        "verdict": "FIXED: the single is_finite filter every descriptor number now passes"
+      },
+      {
+        "file_line": "src/descriptor.rs:76",
+        "verdict": "NOT_APPLICABLE: is_number returns bool only and exposes no value; callers must still call finite_number"
+      },
+      {
+        "file_line": "src/descriptor.rs:77",
+        "verdict": "NOT_APPLICABLE: presence test on the private accessor, no value leaves"
+      },
+      {
+        "file_line": "src/descriptor.rs:167",
+        "verdict": "NOT_APPLICABLE: Cursor::f64 reads the raw 64-bit pattern (source of NaN/inf in doub/UntF); the stored Value is only readable through finite_number"
+      },
+      {
+        "file_line": "src/effects.rs:101",
+        "verdict": "NOT_APPLICABLE: percent() already refused non-finite and outside 0..=100; now via finite_number; test opacity NaN/101, spread NaN, noise +inf"
+      },
+      {
+        "file_line": "src/effects.rs:111",
+        "verdict": "NOT_APPLICABLE: percent_unbounded() already refused non-finite (bevel depth); now via finite_number"
+      },
+      {
+        "file_line": "src/effects.rs:119",
+        "verdict": "NOT_APPLICABLE: pixels() already refused non-finite and negative; now via finite_number; test distance +inf/-1, size -inf"
+      },
+      {
+        "file_line": "src/effects.rs:129",
+        "verdict": "NOT_APPLICABLE: angle() already refused non-finite and outside lo..=hi; now via finite_number; test angle NaN/181"
+      },
+      {
+        "file_line": "src/effects.rs:162",
+        "verdict": "NOT_APPLICABLE: presence test (is_number) separating an unmapped colour model from a bad number; the value is read at the next line"
+      },
+      {
+        "file_line": "src/effects.rs:163",
+        "verdict": "NOT_APPLICABLE: colour channel via finite_number then 0..=255 else effect_colour_range (unchanged outcome); test colour red NaN/green -inf/blue 256"
+      },
+      {
+        "file_line": "src/effects.rs:187",
+        "verdict": "NOT_APPLICABLE: contour Hrzn/Vrtc via finite_number, then 0..=255 and ascending checked at in_range else effect_contour_unmapped; test contour NaN/+inf/-inf/256"
+      },
+      {
+        "file_line": "src/effects.rs:351",
+        "verdict": "NOT_APPLICABLE: stack scale already refused non-finite and <= 0 (effect_scale_invalid); now via finite_number; test scale NaN/+inf/0/-5"
+      }
+    ],
+    "remediation_R7": {
+      "finding": "R7 review B SMB-INTEROP-PSD CONFIRMED (validation/R7-review-b.json, candidate dff7ef5): a CgEd Brgh/Cntr that is NaN or infinite was not range-checked (adjust.rs:277-289), Folio refused it (raster.rs:694-703) and to_proposal failed the WHOLE PSD (proposal.rs:1673-1677) instead of one typed unsupported layer",
+      "root_fix": "descriptor.rs: Value::number is private (raw_number); consumers use finite_number (NaN and infinities give None) or is_number, so a descriptor number cannot reach Folio unchecked. adjust.rs: brightness and contrast (CgEd items AND the legacy brit i16) must be finite and inside the STU-RAS-151 soft range -150..150 (hard bound unknown in the spec, Folio only requires finite; Photoshop's stored range UNVERIFIED, D5), else the fixed reason brightness_contrast_range keeps the layer a typed unsupported layer; a refused CgEd never falls back to brit. effects.rs: all seven descriptor-number reads moved to finite_number (value checks unchanged).",
+      "adjacent_fixed": "Found by a probe while sweeping (same sink proposal.rs:1673): a layer record whose channel table names one channel id twice with a non-default Blend-If range on both entries gave Folio two ranges for one channel (blend_ranges/channel duplicate) and failed the whole import with raster_records_rejected on dff7ef5 (probe red in the scratch copy). adjust.rs advanced_blending now refuses that record with the fixed reason blend_ranges_duplicate_channel (typed loss, import continues). Not a descriptor number: outside the V4-06 class below, listed here so the claim at proposal.rs:1674 holds",
+      "v4_06_class": "descriptor number reaches folio validation unchecked (a number decoded from hostile bytes - descriptor doub/UntF/long/comp, f32/f64 bit patterns, integer fields - becomes a Folio record field without a finite and spec-range check, so Folio refuses the record set and the whole import fails)",
+      "v4_06_regex": "\\bf64::from|\\bf32::from_bits|\\bfinite_number\\b|\\bis_number\\b|\\braw_number\\b|\\bas f64\\b",
+      "v4_06_sites": "see notes.v4_06_sites (single list, V4-20): count 37 = rg count of the regex over the three files; verdicts FIXED / NOT_APPLICABLE per site. Sites outside the three files that build Folio numbers from hostile bytes (proposal.rs, export.rs, convert.rs, pixels.rs, samples.rs) take u8/u16/u32 integers or pixel samples that already carry typed losses (non_finite_samples_zeroed, alpha_range_clamped) and no descriptor value",
+      "tests": "tests/adjustment_records.rs non_finite_descriptor_numbers_are_typed_losses_not_import_failures: CgEd Brgh and Cntr each x (doub NaN, NaN with payload, +inf, -inf; UntF NaN, +inf, -inf; doub 150.5, -150.5, f64::MAX; long 1000, -1000, i32::MIN) + bounds +-150 accepted + brit i16 151/-151/i16::MIN/i16::MAX; expA NaN/+inf/-inf per slot and gamma 0/-1; hue2 8 out-of-range cases; levl gamma 9/1000 and output 256; lfx2 12 effect-value cases, contour NaN/inf/256, stack scale NaN/inf/0/-5; a two-layer document where the hostile layer is a typed unsupported layer and the other layer keeps its effect record and every block stays byte-exact. duplicate_channel_ids_in_blend_ranges_are_a_typed_loss_not_an_import_failure for the adjacent item",
+      "red_proof": "Scratch copy of dff7ef5 (git archive) with the new tests/adjustment_records.rs, STUDIO_OWNER=smb-psd-r7-red (own target): non_finite_descriptor_numbers_are_typed_losses_not_import_failures and duplicate_channel_ids_in_blend_ranges_are_a_typed_loss_not_an_import_failure both FAIL at the proposal() unwrap with Proposal(raster_records_rejected) (the review finding; the crate's other 5 adjustment_records tests pass there); same two tests PASS on 2fa2202 in the edit tree (39/39). Scratch lives under the session scratchpad smb-psd-r7/red-src, target under Handshake_Artifacts/WP-KERNEL-STUDIO/smb-psd-r7-red",
+      "docs_claims_V4_07": "adjust.rs module doc and proposal.rs:1674 comment now cite the test that proves the claim; DESCRIPTOR text unchanged (it states 'unreadable or out-of-range record keeps the layer a typed unsupported layer', now proven by the same tests)",
+      "gameplan_route": "no gameplan step added: product failure fixed by a code commit (HEAD change); the scratch tree carries a .gameplan-active pointer to the same STUDIO-MODULE-BUILD gameplan so the hook resolves it (not a bypass: its two machine checks pass)",
+      "recorded_at": "2026-10-11T11:15:57Z"
     }
   }
 }
