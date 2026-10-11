@@ -2,7 +2,7 @@
   "crate": "hsk-studio-web",
   "lane": "SMB-WEB-PARITY",
   "status": "READY_FOR_VALIDATION",
-  "phase": "R10 pre-review remediation (validation/R10-prereview-web.json R10-F1 CONFIRMED, R10-P1 not accepted by the lead 2026-10-11T15:25:17Z) on pushed b0a1887: CSS Syntax 3 tokenizer for every URL consumer, every CSS URL reported or denied, three engine readings, gate tests red at 62d8983, differential css-urls + CC0 corpus + scratch cssparser run",
+  "phase": "R11 pre-review remediation (validation/R11-prereview-web.json R11-F1/F2 CONFIRMED, R11-P1 not accepted by the lead 2026-10-11T16:55:12Z) on pushed 5cd8c9e: carrier inventory table drives the gate; SMIL values split; every CSS property an animation target; data: payloads decided, CSS scanned recursively with bounds",
   "commits": [
     {
       "sha": "1c67557",
@@ -51,6 +51,22 @@
     {
       "sha": "b0a1887",
       "subject": "web (SMB-WEB-PARITY + SMB-WEB-DIFFTEST, rem-web-r10, wip, lane status null): scan Gecko's bad-url reading too (url(x \\) ends at that ) in Firefox)"
+    },
+    {
+      "sha": "787cbad",
+      "subject": "web (SMB-WEB-PARITY, rem-web-r11, wip, lane status null): URL carrier inventory drives the asset scan; SMIL values split on ';'; every CSS property an animation target; data: payloads decided and CSS scanned recursively"
+    },
+    {
+      "sha": "7e21550",
+      "subject": "web (SMB-WEB-PARITY + SMB-WEB-DIFFTEST, rem-web-r11, wip, lane status null): difftest css-urls covers SVG animation values and data: payloads; @namespace, import mark and filter() unit tests; DESCRIPTOR carrier inventory and data: policy"
+    },
+    {
+      "sha": "70e6477",
+      "subject": "web (SMB-WEB-PARITY + SMB-WEB-DIFFTEST, rem-web-r11, wip, lane status null): V4-02 bound on data: MIME parts (4096 bytes, longer = unknown type)"
+    },
+    {
+      "sha": "5cd8c9e",
+      "subject": "web (SMB-WEB-PARITY + SMB-WEB-DIFFTEST, rem-web-r11): carrier inventory keeps SVG image src from the R7 scan"
     }
   ],
   "capabilities_done": [
@@ -77,20 +93,24 @@
     "same-class hole found and fixed: <!--url(/*) was read as the function --url( whose /* hid a later url (CDO is a token)",
     "R10-P1: strings of url()/src()/image-set()/-webkit-image-set()/image()/cross-fade() and @import reported; computed URLs inside URL functions Denied(computed_url)",
     "engine readings: spec non-ASCII ranges, engines >= U+0080, Gecko bad-url remnants after whitespace (url(x \\) ends there in Firefox), union reported",
-    "nesting > 1024 refuses limit_depth; output bounded by the node limit on every reading"
+    "nesting > 1024 refuses limit_depth; output bounded by the node limit on every reading",
+    "rem-web-r11: URL carrier inventory (src/carriers.rs, 53 spec-cited rows with load context and fixture) drives collect_assets; every row reached by the dispatch and proven by its fixture (every_row_has_a_path_and_a_fixture)",
+    "rem-web-r11: R11-F1 animation values split on ';' like Blink/Gecko/WebKit; R11-F2 every CSS property of the inventory (incl. marker) is an animation target; animateMotion/animateTransform/animateColor",
+    "rem-web-r11: data: URLs (src/datauri.rs): Fetch/URL/MIME/Infra/Encoding reading; CSS payloads scanned recursively (MAX_DATA_NESTING 8, aggregate max_bytes, typed refusals); documents/scripts/tracks/playlists/unknown types denied outside image carriers",
+    "rem-web-r11: @namespace URLs not reported (P2); -moz- gradients and filter functions are value functions, filter() strings are URLs (P3); speculation rules denied; xml:base like base href; attributionsrc"
   ],
   "tests": {
-    "argv": "cargo nextest run -p hsk-studio-web --no-fail-fast --offline (studio-env.sh, shared tree at b0a1887); cargo test --doc -p hsk-studio-web; cargo clippy -p hsk-studio-web --tests --examples --offline; cargo fmt -p hsk-studio-web --check; cargo run -p hsk-studio-web --example web-consumer -- --descriptor; soak HSK_DIFFTEST_SCALE=10 ... --test html5ever_differential generated and HSK_DIFFTEST_SCALE=50 ... css",
+    "argv": "cargo nextest run -p hsk-studio-web --no-fail-fast --offline (studio-env.sh, shared tree at 5cd8c9e); cargo test --doc -p hsk-studio-web; cargo clippy -p hsk-studio-web --tests --examples --offline; cargo fmt -p hsk-studio-web --check; cargo run -p hsk-studio-web --example web-consumer -- --descriptor; soak HSK_DIFFTEST_SCALE=10 ... generated and HSK_DIFFTEST_SCALE=50 ... css",
     "exit": 0,
-    "sha": "b0a1887",
-    "passed": 94,
+    "sha": "5cd8c9e",
+    "passed": 110,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 2,
   "bg_pids": [],
-  "next": "R10/R11 validation of SMB-WEB-PARITY + SMB-WEB-DIFFTEST with the claim 1c67557 6d1c591 e849d4c 4d80e50 77ed037 8298898 62d8983 ca91987 c35deb1 5e0598b fc0763e b0a1887 (difftest commits eefe44d..f4b47cd included, V4-14); lead acks in notes.remediation_R10pre.lead_acks",
-  "updated_at": "2026-10-11T16:24:39Z",
+  "next": "R11 validation of SMB-WEB-PARITY + SMB-WEB-DIFFTEST with the claim through 5cd8c9e (R11 commits 787cbad 7e21550 70e6477 5cd8c9e added to the R10 claim; V4-14); lead acks in notes.remediation_R11pre.lead_acks_needed",
+  "updated_at": "2026-10-11T18:02:44Z",
   "notes": {
     "lead_decision": "START_LOG 2026-10-11T12:47:22Z (web differential test SMB-WEB-DIFFTEST): D1-D8 fix per WHATWG; D9 (i) implied elements documented normalisation in model.rs and comparator, (ii) re-parenting refused typed",
     "spec_read": "html.spec.whatwg.org/multipage/parsing.html read 2026-10-11 (13.2.3.5 preprocessing; 13.2.5 data/RCDATA/RAWTEXT/script data/tag name/attribute name/attribute value/comment U+0000 entries; 13.2.4.3 special and scope lists; 13.2.6.4.7 in body (every start/end tag group), .9 in table, .10 in table text); html5ever 0.40.1 tree_builder/rules.rs, mod.rs, tag_sets.rs read in the local registry to find where the oracle differs (default scope lacks annotation-xml, special lacks keygen/search and is HTML-only, ignore_lf is consumed by a parse-error token, new customizable-select rules implemented, no 'in select' mode)",
@@ -591,6 +611,227 @@
         "scratch-only use of MPL-2.0 cssparser for evidence (local registry, never in the workspace)"
       ],
       "gameplan_route": "no retry-guard block; the failed scale-10 soak (comparator false positive) was rerun only after commit fc0763e changed HEAD (route a); no gameplan step added"
+    },
+    "remediation_R11pre": {
+      "builder": "rem-web-r11",
+      "spec": "validation/R11-prereview-web.json (head b0a1887: R11-F1, R11-F2 CONFIRMED; R11-P1 not accepted; P2-P4) + lead decision START_LOG 2026-10-11T16:55:12Z (one spec-derived carrier inventory table; fix F1/F2 through it; data: payloads that can load subresources scanned recursively with bounds or denied; P2-P4 where cheap); R9 (normalised text) and R10 (CSS Syntax 3 tokenizer, every CSS URL reported or denied) decisions kept",
+      "spec_read": [
+        "HTML Standard 9 Oct 2026: indices.html attribute index (every value type naming a URL, URL set, image candidate strings; srcdoc; http-equiv refresh; script type speculationrules) and obsolete.html 16.2/16.3 (ReflectURL IDL) - downloaded 2026-10-11, parsed by scratch html_attrs.py",
+        "WICG Attribution Reporting (HTML monkeypatches 2.1, attributionsrc on a/area/img/script)",
+        "SVG 2 attindex.html (href/xlink:href rows), styling.html 6.6 presentation attributes, propidx.html; SVG Animations L2 ED 14 Sep 2025 (2.6 attributeName: CSS property first; 2.10 values)",
+        "engines: Blink svg_animation_element.cc ParseValues (Split(';'), StripWhiteSpace IsHTMLSpace), svg_animate_element.cc ResolveTargetProperty/AnimatedPropertyTypeForCSSAttribute, svg_element.cc; Gecko SMILCSSProperty.cpp IsPropertyAnimatable (incl. eCSSProperty_marker), SMILCompositor.cpp GetCSSPropertyToAnimate, SMILParserUtils.cpp ParseValues; WebKit SVGAnimationElement.cpp split(';') (raw.githubusercontent.com main, 2026-10-11)",
+        "CSS: @webref/css 8.7.6 css.json (MIT; W3C webref extract of every CSSWG property/descriptor/at-rule/function grammar), closure over type references to <url>/<image>/url()/src()/image-set()/image()/cross-fade() (scratch css_url_props.py; colour-only reach via light-dark() listed separately); Filter Effects 1 12 filter(); CSS Fonts 4 src; CSS Namespaces 3",
+        "data: URLs: Fetch data: URL processor, URL Standard (basic parser preprocessing, opaque path and query percent-encode sets), MIME Sniffing parse a MIME type, Fetch collect an HTTP quoted string, Infra forgiving-base64 decode, Encoding Standard encodings.json labels and index-windows-1252, CSS Syntax 3 CRD 2026-10-01 3.2 (fallback encoding, @charset bytes, BOM) - all fetched 2026-10-11 by plain GETs with curl's default user agent and no personal data (V4-21)"
+      ],
+      "commits": [
+        "787cbad",
+        "7e21550",
+        "70e6477",
+        "5cd8c9e"
+      ],
+      "inventory": {
+        "table": "src/carriers.rs CARRIERS: 53 rows (class, elements, names, path, load context, source citation, fixture); collect_assets dispatches through attribute_path / animation_target / animation_path / css_target, so a carrier is read exactly by its row's path",
+        "classes": "HTML attributes 29 (incl. obsolete and attributionsrc), SVG attributes 8 (href/xlink:href by element, xml:base, presentation attributes), SVG animation 2 (to/from/by whole, values split), element text 2 (style, script speculationrules), CSS properties 2 rows (49 URL/image properties incl. shorthands marker/mask/background/list-style/border-image and engine aliases; 52 colour-only light-dark properties), CSS at-rules 6 (@import, @font-face src, @counter-style symbols..., @color-profile src, @property initial-value, @namespace = NoLoad), CSS URL functions 1 row (url src image-set -webkit-image-set image cross-fade -webkit-cross-fade filter -webkit-filter), data: payload classes 3",
+        "test": "carriers::tests::every_row_has_a_path_and_a_fixture iterates every row: the dispatch must reach the row's path (no shadowing), its fixture must exist and every case of it (each element x name of the row, > 400 documents) must report the carried URL through collect_assets (or nothing for NoLoad, or the typed refusal for frame/frameset); fixtures unused by any row fail too; inventory_covers_every_source pins every class/source and lower-case names"
+      },
+      "fixes": {
+        "R11-F1": "assets.rs Path::AnimationValues with a CSS target: value_pieces splits on every ';' and strips HTML whitespace (Blink ParseValues; Gecko SVG whitespace differs only in U+000C, CSS whitespace), each piece scanned as its own CSS value with its own offset; to/from/by stay one value (engines parse them whole); Url-target values unchanged",
+        "R11-F2": "animation_target: any CSS property of the inventory (CssProperty rows + style + presentation attributes) is a CSS target, matched before attribute names (SVG Animations L2 2.6), ASCII case-insensitive and trimmed; covers Gecko's marker shorthand and every other URL-carrying property/shorthand; animation elements animate, set, animateMotion, animateTransform, animateColor",
+        "R11-P1": "datauri.rs: data: URLs read per Fetch/URL/MIME Sniffing/Infra/Encoding/CSS Syntax 3 3.2; decided by MIME essence x carrier load context (carrier rows): text/css scanned recursively everywhere; style sheet carriers (link href, @import URL) read inert types as CSS (quirks mode) and deny the rest; image/beacon/identifier carriers Inline; documents, navigations, SVG resource documents, CSS values, media, tracks keep only inert types (raster images, non-playlist audio/video, fonts, text/plain, octet-stream; scripts: image/audio/video/text/csv) and deny HTML, XML incl. SVG, scripts, JSON, WebVTT, playlists, PDF, multipart, unknown/sniffed types as Denied(inline_document); CSS payloads decoded with BOM > charset parameter > @charset (UTF-16 -> UTF-8) > UTF-8, decoders UTF-8, UTF-16BE/LE, windows-1252, replacement, other labels refused (denied); relative references inside a payload Denied(not_granted), never offered to the port; bounds MAX_DATA_NESTING = 8 (limit_depth) and Limits::max_bytes encoded payload bytes in total across depths (limit_bytes), both checked before decoding; MIME parts > 4096 bytes are an unknown type (no unbounded copy)",
+        "R11-P2": "cssurl: the URL right after @namespace (optional prefix ident; url token, string, url()/src() string, bad url/string) is not reported",
+        "R11-P3": "cssurl VALUE_FUNCTIONS: -moz-linear/radial/repeating gradients, filter functions, alpha(); filter()/-webkit-filter() strings are URLs (webref: filter( [ <image> | <string> ], ... ))",
+        "R11-P4": "V4-06 class regex below reaches the CSS hand-off call sites (.css(, css_references(), the animation routing (animation_target/animation_path, Path::AnimationValues) and the carrier table rows",
+        "found_by_difftest": "a bad-url token or bad string spelling data: was classified Inline before the bad flag (gen:Css:70041): now Denied(not_granted) and never read",
+        "kept_engine_union": "every CSS text still scanned under the three R10 readings; nested payload text too"
+      },
+      "tests_added": {
+        "unit carriers::tests (2)": "every_row_has_a_path_and_a_fixture, inventory_covers_every_source",
+        "unit datauri::tests (6)": "scheme_fragment_and_comma_follow_the_url_parser, percent_decoding_and_base64, mime_types_parse_like_mime_sniffing, css_payloads_decode_per_bom_charset_and_at_charset, decisions_by_type_and_load_context, oversized_headers_are_an_unknown_type",
+        "unit cssurl::tests (+3)": "namespace_urls_are_not_references, import_urls_are_marked, moz_gradients_filter_functions_and_filter_strings",
+        "gate tests/css_url_gate.rs (+5)": "r11_f1_animation_values_are_split_like_the_engines (4 elements x 9 targets x 8 decoys: comment, bad url, unterminated strings, escaped name, case/whitespace; url(a;b) reports a; relative piece reaches the port; to/from/by whole), r11_f2_every_css_property_is_an_animation_target (11 targets incl. marker/MARKER/' marker '/style x to/from/by/values x set/animate; relative marker document reaches the port), data_css_payloads_are_scanned_recursively (15 carriers/encodings incl. percent, base64, CSS escape, char refs, comment decoy, case, quirks types, nested, UTF-16 charset and BOM; relative inside denied; shift_jis denied; bad string denied; failed base64 denied), data_documents_are_denied_outside_image_carriers (6 payload types x 8 non-image carriers denied, 3 image carriers inline; script and iframe types), data_payloads_beyond_the_bounds_are_refused_typed (8 ok, 9 and 30 limit_depth; aggregate limit_bytes)",
+        "difftest": "css-urls check: from/to/by/values of animations of CSS targets as carriers (values split), data: payload URLs read by a separately written reference reader (css_reference.rs data_payload_css: char-vector, own MIME/base64/encoding code), @namespace skip and @import mark in the reference walk; generator Theme::Css: animation carrier (CSS and non-CSS targets incl. marker, MARKER, ' stroke ', style, width, href) and 12 data: fragments + filter(/-webkit-filter(/-moz-linear-gradient(/blur(/@namespace; corpus css_urls 42 -> 60 cases, floor pinned to 60"
+      },
+      "red_proof": {
+        "tree": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-web-r11-red/src/handshake-studio-assets = git archive b0a1887 (accord, observe, web, Cargo.lock, rust-toolchain.toml, .config) + the R10 red 3-member manifest + tests/css_url_gate.rs and tests/html5ever_differential/*.rs from 70e6477; every file touched after extraction; STUDIO_OWNER=smb-web-r11-red; RED_IDENTITY.json",
+        "argv": "cargo nextest run -p hsk-studio-web --test css_url_gate --test html5ever_differential --no-fail-fast --offline --no-capture",
+        "result": "exit 100, 37 tests: 7 FAIL / 30 PASS (log smb-web-r11-red/red-b0a1887-70e6477.log)",
+        "per_test": {
+          "r11_f1_animation_values_are_split_like_the_engines": "RED: <animate attributeName=fill values=\"none /*;url(https://evil.example/p.png)\"> reports [] (the pre-review payload)",
+          "r11_f2_every_css_property_is_an_animation_target": "RED: <set attributeName=marker to=url(https://evil.example/p.png)> reports []",
+          "data_css_payloads_are_scanned_recursively": "RED: <style>@import url(\"data:text/css,@import%20'https://evil.example/p.png';\")</style> reports only the data: URL as Inline",
+          "data_documents_are_denied_outside_image_carriers": "RED: iframe src=data:text/html,<img src=...> reported Inline",
+          "data_payloads_beyond_the_bounds_are_refused_typed": "RED: nested data: CSS never scanned (EVIL not reported, no limit_depth)",
+          "css_url_payloads_read_like_the_reference": "RED: 15 of 60 inputs disagree (css-urls), e.g. <style>@namespace url(t</style>, <style>@import\"data:,url(;</style>",
+          "generated_css_urls": "RED: 999 of 3000 generated documents disagree (css-urls), e.g. <div style=filter(f(></div>"
+        },
+        "unit_tests": "carriers::tests, datauri::tests and the new cssurl unit tests use modules/flags that did not exist at b0a1887 (no red run possible); their evidence is the specification-derived expectations and, for the inventory, the fixtures run through collect_assets"
+      },
+      "soak": {
+        "scale_10_final": "HSK_DIFFTEST_SCALE=10 cargo nextest run -p hsk-studio-web --test html5ever_differential -E 'test(generated) | test(css_url)' at 5cd8c9e: 9 passed; 153385 comparable generated documents + 60 css_urls inputs, 0 disagreements (char_refs 21460, css 30000, dup_attrs 12587, fuzz 16364, mixed 24868, namespaces 19643, noise 8249, raw_text 20214); log scratchpad SMB-WEB-R11/soak-10-5cd8c9e.log",
+        "scale_10_at_70e6477": "same 153385 documents, 0 disagreements (soak-10-70e6477.log)",
+        "scale_50_css": "HSK_DIFFTEST_SCALE=50 ... -E 'test(css)' at 70e6477 (5cd8c9e changes no CSS carrier): css_urls 60 compared / 0, generated_css 150000 compared / 0 disagreeing (soak-50-css-70e6477.log)",
+        "found_during_development": "the first generated run (scale 1) found gen:Css:70041 (a bad string spelling data: was read): fixed in 7e21550 before any soak"
+      },
+      "v4_06": {
+        "class": "URL carriers: every place that decides which text carries a URL, how it is split and read, and hands it to the URL classifier or the CSS scanner (R11-P4: includes the .css( call sites, the animation routing and the carrier table rows)",
+        "regex": "attribute_path|animation_target|animation_path|css_target|\\.css\\(|css_references\\(|style_children|speculation_rules|data_css|datauri::(parse|decide|css_text)|fn (reference|attribute|decide|classify|value_pieces|srcset_urls|refresh_url|tokens|has_base|collect_assets|scan|css_references)\\b|Path::(Url|UrlList|Srcset|Css|Refresh|Base|InlineDoc|AnimationValue|AnimationValues|CssToken|CssImport|Data|NoLoad)\\b",
+        "scope": "git grep -nE \"<regex>\" <head> -- crates/hsk-studio-web/src ':!crates/hsk-studio-web/src/entity_table.rs' ':!crates/hsk-studio-web/src/*/tests.rs', comment-only lines removed (scratch v406.py)",
+        "site_count": 110,
+        "fixed": 108,
+        "not_applicable": 2,
+        "sites": [
+          "assets.rs:142: fn classify(reference: &str) -> Option<AssetOutcome> { = FIXED: scheme classification of every reference; data: goes on to datauri (R11-P1)",
+          "assets.rs:202: fn tokens(s: &str) -> Vec<Range<usize>> { = FIXED: carrier routed by its inventory row path (every_row_has_a_path_and_a_fixture; css_url_gate)",
+          "assets.rs:224: fn srcset_urls(s: &str) -> Vec<Range<usize>> { = FIXED: carrier routed by its inventory row path (every_row_has_a_path_and_a_fixture; css_url_gate)",
+          "assets.rs:266: fn refresh_url(s: &str) -> Option<Range<usize>> { = FIXED: carrier routed by its inventory row path (every_row_has_a_path_and_a_fixture; css_url_gate)",
+          "assets.rs:329: fn has_base(doc: &WebDoc, cancel: &CancellationToken) -> Result<bool, WebError> { = FIXED: carrier routed by its inventory row path (every_row_has_a_path_and_a_fixture; css_url_gate)",
+          "assets.rs:340: carriers::attribute_path(&tag, &doc.attr_local_name(a)), = FIXED: carrier routed by its inventory row path (every_row_has_a_path_and_a_fixture; css_url_gate)",
+          "assets.rs:341: Some((Path::Base, _)) = FIXED: carrier routed by its inventory row path (every_row_has_a_path_and_a_fixture; css_url_gate)",
+          "assets.rs:353: fn value_pieces(text: &str) -> Vec<(usize, &str)> { = FIXED: carrier routed by its inventory row path (every_row_has_a_path_and_a_fixture; css_url_gate)",
+          "assets.rs:383: fn decide(&self, reference: &str, bad: bool, nested: bool) -> AssetOutcome { = FIXED: carrier routed by its inventory row path (every_row_has_a_path_and_a_fixture; css_url_gate)",
+          "assets.rs:434: fn reference( = FIXED: carrier routed by its inventory row path (every_row_has_a_path_and_a_fixture; css_url_gate)",
+          "assets.rs:458: && let Some(url) = datauri::parse(reference) = FIXED R11-P1: data: payload decided by type and load context, CSS scanned recursively with bounds (data_* gate tests)",
+          "assets.rs:460: match datauri::decide(load, &url) { = FIXED R11-P1: data: payload decided by type and load context, CSS scanned recursively with bounds (data_* gate tests)",
+          "assets.rs:473: return self.data_css(node, source, reference, &url, span, depth); = FIXED R11-P1: data: payload decided by type and load context, CSS scanned recursively with bounds (data_* gate tests)",
+          "assets.rs:483: fn data_css( = FIXED R11-P1: data: payload decided by type and load context, CSS scanned recursively with bounds (data_* gate tests)",
+          "assets.rs:509: .and_then(|bytes| datauri::css_text(&bytes, url.charset.as_deref())); = FIXED R11-P1: data: payload decided by type and load context, CSS scanned recursively with bounds (data_* gate tests)",
+          "assets.rs:528: self.css(node, source, &text, &|_| span.clone(), inner) = FIXED: carrier routed by its inventory row path (every_row_has_a_path_and_a_fixture; css_url_gate)",
+          "assets.rs:545: let found = css_references(css, room).map_err(|span| WebError::LimitExceeded { = FIXED: carrier routed by its inventory row path (every_row_has_a_path_and_a_fixture; css_url_gate)",
+          "assets.rs:577: fn attribute( = FIXED: carrier routed by its inventory row path (every_row_has_a_path_and_a_fixture; css_url_gate)",
+          "assets.rs:602: (Path::Url, _) | (Path::AnimationValue, Some(Path::Url)) => { = FIXED: carrier routed by its inventory row path (every_row_has_a_path_and_a_fixture; css_url_gate)",
+          "assets.rs:607: (Path::Base, _) => { = FIXED: carrier routed by its inventory row path (every_row_has_a_path_and_a_fixture; css_url_gate)",
+          "assets.rs:623: (Path::AnimationValues, Some(Path::Url)) => { = FIXED: carrier routed by its inventory row path (every_row_has_a_path_and_a_fixture; css_url_gate)",
+          "assets.rs:631: (Path::AnimationValues, Some(Path::Css)) => { = FIXED R11-F1: values of a CSS target split on every ';' before CSS (r11_f1_animation_values_are_split_like_the_engines)",
+          "assets.rs:636: self.css(node, &source, item, &piece, 0)?; = FIXED: carrier routed by its inventory row path (every_row_has_a_path_and_a_fixture; css_url_gate)",
+          "assets.rs:639: (Path::Css, _) | (Path::AnimationValue, Some(Path::Css)) => { = FIXED: carrier routed by its inventory row path (every_row_has_a_path_and_a_fixture; css_url_gate)",
+          "assets.rs:640: self.css(node, &source, text, &sub, 0)? = FIXED: carrier routed by its inventory row path (every_row_has_a_path_and_a_fixture; css_url_gate)",
+          "assets.rs:642: (Path::UrlList, _) => { = FIXED: carrier routed by its inventory row path (every_row_has_a_path_and_a_fixture; css_url_gate)",
+          "assets.rs:647: (Path::Srcset, _) => { = FIXED: carrier routed by its inventory row path (every_row_has_a_path_and_a_fixture; css_url_gate)",
+          "assets.rs:652: (Path::Refresh, _) => { = FIXED: carrier routed by its inventory row path (every_row_has_a_path_and_a_fixture; css_url_gate)",
+          "assets.rs:657: (Path::InlineDoc, _) if !text.trim().is_empty() => { = FIXED: carrier routed by its inventory row path (every_row_has_a_path_and_a_fixture; css_url_gate)",
+          "assets.rs:678: fn style_children(&mut self, id: NodeId) -> Result<(), WebError> { = FIXED: carrier routed by its inventory row path (every_row_has_a_path_and_a_fixture; css_url_gate)",
+          "assets.rs:685: self.css( = FIXED: carrier routed by its inventory row path (every_row_has_a_path_and_a_fixture; css_url_gate)",
+          "assets.rs:696: fn speculation_rules(&mut self, id: NodeId) -> Result<(), WebError> { = FIXED: speculation rules denied as an inline document (inventory row, speculation_rules fixture)",
+          "assets.rs:766: pub fn collect_assets( = FIXED: carrier routed by its inventory row path (every_row_has_a_path_and_a_fixture; css_url_gate)",
+          "assets.rs:799: .and_then(|t| carriers::animation_target(&t.trim().to_ascii_lowercase())) = FIXED R11-F2: animation target from the inventory (any CSS property incl. marker; r11_f2_every_css_property_is_an_animation_target)",
+          "assets.rs:805: let route = match carriers::animation_path(&tag, &name) { = FIXED R11-F2: animation target from the inventory (any CSS property incl. marker; r11_f2_every_css_property_is_an_animation_target)",
+          "assets.rs:811: None => match carriers::attribute_path(&tag, &name) { = FIXED: carrier routed by its inventory row path (every_row_has_a_path_and_a_fixture; css_url_gate)",
+          "assets.rs:812: Some((Path::Refresh, _)) if !refresh => None, = FIXED: carrier routed by its inventory row path (every_row_has_a_path_and_a_fixture; css_url_gate)",
+          "assets.rs:827: c.style_children(id)?; = FIXED: carrier routed by its inventory row path (every_row_has_a_path_and_a_fixture; css_url_gate)",
+          "assets.rs:830: c.speculation_rules(id)?; = FIXED: speculation rules denied as an inline document (inventory row, speculation_rules fixture)",
+          "carriers.rs:307: path: Path::Base, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:316: path: Path::Url, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:325: path: Path::Url, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:334: path: Path::Url, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:343: path: Path::Url, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:352: path: Path::Url, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:361: path: Path::Url, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:370: path: Path::Url, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:379: path: Path::Url, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:388: path: Path::Url, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:397: path: Path::Url, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:406: path: Path::Url, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:415: path: Path::Url, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:424: path: Path::UrlList, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:433: path: Path::Srcset, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:442: path: Path::Srcset, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:451: path: Path::InlineDoc, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:460: path: Path::Refresh, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:469: path: Path::NoLoad, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:478: path: Path::Url, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:487: path: Path::Url, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:496: path: Path::Url, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:505: path: Path::Url, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:514: path: Path::UrlList, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:523: path: Path::Url, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:532: path: Path::UrlList, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:541: path: Path::Url, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:550: path: Path::NoLoad, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:559: path: Path::UrlList, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:569: path: Path::Url, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:578: path: Path::Url, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:587: path: Path::Url, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:596: path: Path::Url, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:605: path: Path::Url, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:614: path: Path::Base, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:623: path: Path::Css, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:632: path: Path::Css, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:642: path: Path::AnimationValue, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:651: path: Path::AnimationValues, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:661: path: Path::Css, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:670: path: Path::InlineDoc, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:673: fixture: \"speculation_rules\", = FIXED: inventory row fixture name (resolved and run by every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:680: path: Path::CssToken, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:689: path: Path::CssToken, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:698: path: Path::CssImport, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:707: path: Path::CssToken, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:723: path: Path::CssToken, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:732: path: Path::CssToken, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:741: path: Path::CssToken, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:750: path: Path::NoLoad, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:759: path: Path::CssToken, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:769: path: Path::Data, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:772: fixture: \"data_css\", = FIXED: inventory row fixture name (resolved and run by every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:788: path: Path::Data, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:803: path: Path::Data, = FIXED: inventory row path (the dispatch reaches it and its fixture proves it: every_row_has_a_path_and_a_fixture)",
+          "carriers.rs:816: pub(crate) fn attribute_path(tag: &str, name: &str) -> Option<(Path, Load)> { = FIXED: inventory dispatch (attribute_path / css_target / animation_target / animation_path), proven per row by every_row_has_a_path_and_a_fixture and inventory_covers_every_source",
+          "carriers.rs:829: pub(crate) fn css_target(name: &str) -> bool { = FIXED: inventory dispatch (attribute_path / css_target / animation_target / animation_path), proven per row by every_row_has_a_path_and_a_fixture and inventory_covers_every_source",
+          "carriers.rs:834: Class::HtmlAttribute | Class::SvgAttribute => row.path == Path::Css, = FIXED: inventory dispatch (attribute_path / css_target / animation_target / animation_path), proven per row by every_row_has_a_path_and_a_fixture and inventory_covers_every_source",
+          "carriers.rs:843: pub(crate) fn animation_target(attribute_name: &str) -> Option<Path> { = FIXED: inventory dispatch (attribute_path / css_target / animation_target / animation_path), proven per row by every_row_has_a_path_and_a_fixture and inventory_covers_every_source",
+          "carriers.rs:844: if css_target(attribute_name) { = FIXED: inventory dispatch (attribute_path / css_target / animation_target / animation_path), proven per row by every_row_has_a_path_and_a_fixture and inventory_covers_every_source",
+          "carriers.rs:845: return Some(Path::Css); = FIXED: inventory dispatch (attribute_path / css_target / animation_target / animation_path), proven per row by every_row_has_a_path_and_a_fixture and inventory_covers_every_source",
+          "carriers.rs:848: return Some(Path::Url); = FIXED: inventory dispatch (attribute_path / css_target / animation_target / animation_path), proven per row by every_row_has_a_path_and_a_fixture and inventory_covers_every_source",
+          "carriers.rs:850: match attribute_path(\"\", attribute_name) { = FIXED: inventory dispatch (attribute_path / css_target / animation_target / animation_path), proven per row by every_row_has_a_path_and_a_fixture and inventory_covers_every_source",
+          "carriers.rs:851: Some((Path::Url, _)) => Some(Path::Url), = FIXED: inventory dispatch (attribute_path / css_target / animation_target / animation_path), proven per row by every_row_has_a_path_and_a_fixture and inventory_covers_every_source",
+          "carriers.rs:852: Some((Path::Css, _)) => Some(Path::Css), = FIXED: inventory dispatch (attribute_path / css_target / animation_target / animation_path), proven per row by every_row_has_a_path_and_a_fixture and inventory_covers_every_source",
+          "carriers.rs:858: pub(crate) fn animation_path(tag: &str, name: &str) -> Option<Path> { = FIXED: inventory dispatch (attribute_path / css_target / animation_target / animation_path), proven per row by every_row_has_a_path_and_a_fixture and inventory_covers_every_source",
+          "cssurl.rs:792: fn scan(mut tokens: Tokenizer<'_>, css: &str, limit: usize) -> Result<Vec<CssRef>, Range<usize>> { = FIXED: CSS scanner entry/algorithm (R10 tokenizer kept; R11: @namespace URL skipped, @import URL marked, filter() strings; namespace_urls_are_not_references, import_urls_are_marked, moz_gradients_filter_functions_and_filter_strings)",
+          "cssurl.rs:978: pub(crate) fn css_references(css: &str, limit: usize) -> Result<Vec<CssRef>, Range<usize>> { = FIXED: CSS scanner entry/algorithm (R10 tokenizer kept; R11: @namespace URL skipped, @import URL marked, filter() strings; namespace_urls_are_not_references, import_urls_are_marked, moz_gradients_filter_functions_and_filter_strings)",
+          "datauri.rs:530: pub(crate) fn decide(load: Load, url: &DataUrl<'_>) -> Decision { = FIXED R11-P1: data: URL reading and policy (datauri::tests)",
+          "dom.rs:1333: pub fn attribute(&self, id: NodeId, name: &str) -> Option<&Attr> { = NOT_APPLICABLE: DOM lookup of the first attribute by tokenizer name (reads attributeName, type, http-equiv for the gate; unchanged since the R9 parity pass)",
+          "lib.rs:46: pub const DESCRIPTOR: &str = r#\"{\"schema\":\"hsk.studio.web.descriptor@1\",\"crate\":\"hsk-studio-web\",\"module\":\"STU = NOT_APPLICABLE: DESCRIPTOR text documenting the carriers (no code)"
+        ]
+      },
+      "v4": {
+        "V4-01": "carriers.rs, datauri.rs, assets.rs and cssurl.rs carry #![deny(clippy::arithmetic_side_effects)]; saturating/checked/wrapping ops only; base64 bit buffer by wrapping_shl/shr",
+        "V4-02": "data: payloads: MAX_DATA_NESTING and the aggregate encoded-bytes budget (Limits::max_bytes) checked before decoding, refused limit_depth/limit_bytes (data_payloads_beyond_the_bounds_are_refused_typed); MIME parts > 4096 bytes not copied (oversized_headers_are_an_unknown_type); memory per payload <= 2x body + 3x text; nested references count against max_nodes (LimitExceeded(Nodes))",
+        "V4-06": "class URL carriers, 110 sites listed (108 FIXED, 2 NOT_APPLICABLE)",
+        "V4-07": "DESCRIPTOR assets.carrier_inventory/data_urls/scanned/css_urls/not_scanned and the collect_assets/assets/cssurl/datauri docs cite their tests",
+        "V4-08": "each new rule has escape, comment/decoy and case/whitespace inputs (gate tests above, datauri::tests per algorithm, cssurl namespace/import/filter tests)",
+        "V4-09": "commits via git commit -F with pathspec crates/hsk-studio-web; edits via Write/Edit and scripts under scratchpad/SMB-WEB-R11",
+        "V4-11": "red proof on a scratch copy outside the shared tree with its own STUDIO_OWNER (smb-web-r11-red), files touched after extraction",
+        "V4-12": "helpers and logs only under scratchpad/SMB-WEB-R11 and Handshake_Artifacts/WP-KERNEL-STUDIO/smb-web-r11-red",
+        "V4-21": "spec pages, engine sources, webref and Encoding data fetched with plain GETs (curl default user agent), no personal data in any request",
+        "step0_paths": "machine-path gate (run-round step 0 regex) over crates/hsk-studio-web/src and tests at HEAD: PASS, pinned counts unchanged (cssurl/tests.rs 1, source_dom_patch.rs 2, corpus.rs 1)"
+      },
+      "api_changes": [
+        "AssetRef gains pub data_depth: u32 (0 = in the document; n = inside n data: payloads)",
+        "AssetSource gains ScriptBody (script type=speculationrules text)",
+        "pub const MAX_DATA_NESTING: u32 = 8",
+        "DenyReason::InlineDocument and NotGranted docs widened (no new variant)"
+      ],
+      "behaviour_changes": [
+        "animations: values of CSS targets split on ';'; every CSS property of the inventory is a target (was: 9 presentation attributes + style); animateMotion/animateTransform/animateColor scanned like animate/set",
+        "data: URLs: text/css payloads (and quirks-mode style sheet types) scanned recursively with references reported at data_depth + 1; HTML/XML/SVG/script/JSON/VTT/playlist/PDF/multipart/unknown payloads Denied(inline_document) outside image carriers (incl. CSS values: SVG data: images in CSS are denied, the scan does not track the property); relative references inside payloads Denied(not_granted); bad tokens spelling data: Denied(not_granted)",
+        "@namespace URLs no longer reported (was Denied(external_scheme) etc.)",
+        "filter()/-webkit-filter() strings reported as URLs; -moz- gradients and filter functions inside URL functions no longer Denied(computed_url)",
+        "script type=speculationrules reported Denied(inline_document); xml:base treated like base href (re-targets every relative reference: Denied(base_href)); new carriers attributionsrc (a, area, img, script), frame longdesc, head profile, datasrc/itemid/itemtype/itemprop explicitly not loaded",
+        "data: payload scans are refused typed past MAX_DATA_NESTING (limit_depth) or the aggregate Limits::max_bytes (limit_bytes)"
+      ],
+      "residuals": [
+        "SVG data: images in CSS values (background-image etc.) are denied, not inline: the CSS scan does not track the property, and filter/mask/clip-path/marker/fill/stroke load SVG as resource documents; over-denial, safe",
+        "data: documents (HTML, XHTML, XML, SVG as a document) are denied, not scanned (no XML reader; srcdoc is denied the same way)",
+        "script text and URLs scripts compute are not scanned (the crate never executes scripts); speculation rules JSON is denied, not parsed",
+        "environment encoding: a data: CSS payload without BOM, charset or @charset is read as UTF-8 (the crate reads the document as text); labels other than UTF-8/UTF-16/windows-1252/replacement refuse the payload (fail closed)",
+        "the policy lists (inert types, script-blocked types, CSS property list, engine aliases) are spec- and engine-derived but not verified in a running browser (UNVERIFIED there); the inventory test proves the crate follows the table, not that browsers do",
+        "the difftest reference shares the gate's policy lists by construction (second reading of the algorithms, same policy); its independent evidence remains the CC0 corpus and the R10 scratch cssparser run"
+      ],
+      "lead_acks_needed": [
+        "API additions (AssetRef::data_depth, AssetSource::ScriptBody, MAX_DATA_NESTING)",
+        "data: policy incl. the over-denial of SVG data: images in CSS values and of data: favicons/icons that are SVG in link href",
+        "xml:base treated like base href; speculation rules denied"
+      ],
+      "gameplan_route": "one retry-guard block (identical focused nextest after a failing inventory fixture at the same HEAD): route (a) - the fix was committed (787cbad), then rerun; no gameplan step added"
     }
   }
 }

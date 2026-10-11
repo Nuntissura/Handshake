@@ -1996,7 +1996,7 @@
     "builders/lanes/hsk-studio-web-difftest.json"
    ],
    "launched": "2026-10-11T16:55:24Z",
-   "status": "running"
+   "status": "done 2026-10-11T18:03:46Z (5cd8c9e)"
   },
   {
    "name": "validator-r11",
@@ -2031,6 +2031,17 @@
     "builders/lanes/hsk-studio-press.json"
    ],
    "launched": "2026-10-11T18:00:23Z",
+   "status": "running"
+  },
+  {
+   "name": "prereview-r12-web",
+   "agent_id": "ae711af600213e9e7",
+   "model": "opus",
+   "role": "V4-13 pre-review SMB-WEB at 5cd8c9e",
+   "owns": [
+    "validation/R12-prereview-web.json"
+   ],
+   "launched": "2026-10-11T18:04:13Z",
    "status": "running"
   }
  ]

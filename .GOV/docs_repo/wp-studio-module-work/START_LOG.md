@@ -287,6 +287,8 @@ Workflow v3 amendments (2026-10-11T02:12:42Z, source workflow/workflow-review-ti
 
 - D27 DECIDED 2026-10-11T17:59:47Z by the Operator: 'Flatten + narrow'. Lead correction (anti-speculation): when recommending it the lead had not checked that press has NO page renderer; flattening needs a PDF rasteriser. Verified after the decision: hayro (pure-Rust CPU PDF rasteriser, Apache-2.0 OR MIT, newest 0.8.0 2026-10-04, ~3.2M downloads, repo github.com/LaurenzV/hayro; documented gaps: encryption, blending/isolation, knockout groups, colour-key masking). Missing rendering in a flattened page only removes content (fails safe). The option text 'one more build cycle' understated the work: it adds a dependency (licence gate + steward) and a raster pipeline. Implementation dispatched to rem-press-flatten.
 
+- Lead acknowledgement 2026-10-11T18:03:46Z (web R11 remediation 5cd8c9e): accepted — over-denial of SVG data: images in CSS values and SVG link icons (fail closed; the scan does not track the consuming property); data: documents and script bodies denied, not scanned; new public API AssetRef::data_depth, AssetSource::ScriptBody, MAX_DATA_NESTING; behaviour changes as listed in lane notes.remediation_R11pre.
+
 Open Operator decisions (not adopted; recorded for the Operator):
 - D1: explicit confirmation that builder focused tests override CX-EXEC-014 for this WP (lead adopted on the basis of Operator instructions; Operator may reverse).
 - D2: waive CX-984-002 one-build-per-disk for D: (would let validator rounds and builders build in parallel on separate targets).

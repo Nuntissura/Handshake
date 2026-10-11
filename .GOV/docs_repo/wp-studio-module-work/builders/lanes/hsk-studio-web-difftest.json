@@ -2,7 +2,7 @@
   "crate": "hsk-studio-web",
   "lane": "SMB-WEB-DIFFTEST",
   "status": "READY_FOR_VALIDATION",
-  "phase": "differential target green at b0a1887 (24/24) incl. the rem-web-r10 gate-level CSS check css-urls (separately written CSS Syntax 3 reference over html5ever's text, three readings), Theme::Css generator and corpus group css_urls",
+  "phase": "R11 pre-review remediation (judged with SMB-WEB-PARITY) on pushed 5cd8c9e: css-urls covers SVG animation values and data: payloads (separately written reference reader); generator and corpus extended",
   "commits": [
     {
       "sha": "eefe44d",
@@ -43,6 +43,18 @@
     {
       "sha": "b0a1887",
       "subject": "web (SMB-WEB-PARITY + SMB-WEB-DIFFTEST, rem-web-r10, wip, lane status null): scan Gecko's bad-url reading too (url(x \\) ends at that ) in Firefox)"
+    },
+    {
+      "sha": "7e21550",
+      "subject": "web (SMB-WEB-PARITY + SMB-WEB-DIFFTEST, rem-web-r11, wip, lane status null): difftest css-urls covers SVG animation values and data: payloads; @namespace, import mark and filter() unit tests; DESCRIPTOR carrier inventory and data: policy"
+    },
+    {
+      "sha": "70e6477",
+      "subject": "web (SMB-WEB-PARITY + SMB-WEB-DIFFTEST, rem-web-r11, wip, lane status null): V4-02 bound on data: MIME parts (4096 bytes, longer = unknown type)"
+    },
+    {
+      "sha": "5cd8c9e",
+      "subject": "web (SMB-WEB-PARITY + SMB-WEB-DIFFTEST, rem-web-r11): carrier inventory keeps SVG image src from the R7 scan"
     }
   ],
   "capabilities_done": [
@@ -52,20 +64,21 @@
     "hand-written adversarial corpora (all with the WHATWG section in the source): namespaces and integration points (91 inputs), script/RAWTEXT/RCDATA boundaries incl. escape and double-escape, close-tag spellings per element, EOF (338), comments/markup declarations/CDATA/bogus (71), character references (206 spellings x up to 26 contexts = 5350 comparisons), tag and attribute syntax (67), duplicate attributes (38), NUL and newlines (59), image start tag (9), pre/listing/textarea leading newline (14), tree-construction restructuring (60), documents (12)",
     "deterministic generator (SplitMix64, no new crates): themes Mixed, Namespaces, RawText, CharRefs, DupAttrs, Noise (NUL/CR), Fuzz (1-3 random delimiter edits); typed refusals counted, floors on comparable inputs per test (NOT_PROVEN panic below the floor), failures minimised by delta debugging and printed with the input; HSK_DIFFTEST_SCALE=<n> multiplies the generated corpora for soak runs",
     "duplicate attributes: besides first-wins on the event list, the number of attributes html5ever dropped must equal the crate's LossKind::DuplicateAttribute entries",
-    "rem-web-r10: css_reference.rs (second CSS Syntax 3 reading: preprocess, index cursor, component-value tree, URL policy walk, spec/engines/Gecko readings); harness css-urls check per CSS carrier on every input; Theme::Css; corpus css_urls; tests css_url_payloads_read_like_the_reference, generated_css_urls"
+    "rem-web-r10: css_reference.rs (second CSS Syntax 3 reading: preprocess, index cursor, component-value tree, URL policy walk, spec/engines/Gecko readings); harness css-urls check per CSS carrier on every input; Theme::Css; corpus css_urls; tests css_url_payloads_read_like_the_reference, generated_css_urls",
+    "rem-web-r11: css-urls carriers include SVG animation from/to/by/values of CSS targets (values split) and data: payload URLs read by a separately written reference data: reader; generator animation carrier and data: fragments; corpus css_urls 60 (floor pinned)"
   ],
   "tests": {
-    "argv": "cargo nextest run -p hsk-studio-web --test html5ever_differential --no-fail-fast --offline (inside the 94/94 web run at b0a1887); soak HSK_DIFFTEST_SCALE=10 generated, HSK_DIFFTEST_SCALE=50 css",
+    "argv": "cargo nextest run -p hsk-studio-web --no-fail-fast --offline (studio-env.sh, shared tree at 5cd8c9e); cargo test --doc -p hsk-studio-web; cargo clippy -p hsk-studio-web --tests --examples --offline; cargo fmt -p hsk-studio-web --check; cargo run -p hsk-studio-web --example web-consumer -- --descriptor; soak HSK_DIFFTEST_SCALE=10 ... generated and HSK_DIFFTEST_SCALE=50 ... css",
     "exit": 0,
-    "sha": "b0a1887",
-    "passed": 24,
+    "sha": "5cd8c9e",
+    "passed": 110,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 386,
   "bg_pids": [],
-  "next": "judged together with SMB-WEB-PARITY (V4-14 claim in that lane's next)",
-  "updated_at": "2026-10-11T16:24:39Z",
+  "next": "R11 validation of SMB-WEB-PARITY + SMB-WEB-DIFFTEST with the claim through 5cd8c9e (R11 commits 787cbad 7e21550 70e6477 5cd8c9e added to the R10 claim; V4-14); lead acks in notes.remediation_R11pre.lead_acks_needed",
+  "updated_at": "2026-10-11T18:02:44Z",
   "notes": {
     "scope_kept": "test code + the crate's Cargo.toml dev-dependency only; src/, examples/, tests/source_dom_patch.rs, other crates, root Cargo.toml/Cargo.lock, ledger/team/other lane files untouched; no product defect fixed in this lane",
     "dep_request": "builders/dep-requests.jsonl line appended 2026-10-11T12:10:21Z (after SYNC DONE f6e5a49): kind dev, html5ever 0.40.1, features [], pure_rust true, license MIT OR Apache-2.0. New lock packages from a local offline resolve (13): html5ever 0.40.1, markup5ever 0.40.0, web_atoms 0.3.0, tendril 0.5.1, string_cache 0.11.0, string_cache_codegen 0.11.2 (MIT OR Apache-2.0); phf 0.14.0, phf_codegen 0.14.0, phf_generator 0.14.0, phf_shared 0.14.0, precomputed-hash 0.1.1, new_debug_unreachable 1.0.6 (MIT); fastrand 2.5.0 (Apache-2.0 OR MIT). The shared Cargo.lock was not touched (no cargo ran in the shared tree).",
@@ -248,6 +261,28 @@
       "red_proof": "at 62d8983 with these files: css_url_payloads_read_like_the_reference 23/42 disagreeing, generated_css_urls 875/3000, generated_mixed 1 (<svg fill=&notin;url(/>) -> FAIL; 21 other tests pass (parity lane notes.remediation_R10pre.red_proof)",
       "soak": "scale 10 all generated at b0a1887c655747fa6823ba42b6a02b6402a134d6: 153385 comparable, 0 disagreements; scale 50 css: css_urls 42/0, generated_css 150000/0",
       "comparator_fix": "fc0763e: the bad/computed never-granted check compares per-value counts (a bad string and a URL string with the same text were a false positive at scale 10, gen:Css:96271)"
+    },
+    "remediation_R11pre": {
+      "builder": "rem-web-r11",
+      "see": "hsk-studio-web-parity.json notes.remediation_R11pre (one remediation for both lanes)",
+      "commits": [
+        "7e21550",
+        "70e6477",
+        "5cd8c9e"
+      ],
+      "difftest": "css-urls check: from/to/by/values of animations of CSS targets as carriers (values split), data: payload URLs read by a separately written reference reader (css_reference.rs data_payload_css: char-vector, own MIME/base64/encoding code), @namespace skip and @import mark in the reference walk; generator Theme::Css: animation carrier (CSS and non-CSS targets incl. marker, MARKER, ' stroke ', style, width, href) and 12 data: fragments + filter(/-webkit-filter(/-moz-linear-gradient(/blur(/@namespace; corpus css_urls 42 -> 60 cases, floor pinned to 60",
+      "red_proof": {
+        "css_url_payloads_read_like_the_reference": "RED: 15 of 60 inputs disagree (css-urls), e.g. <style>@namespace url(t</style>, <style>@import\"data:,url(;</style>",
+        "generated_css_urls": "RED: 999 of 3000 generated documents disagree (css-urls), e.g. <div style=filter(f(></div>"
+      },
+      "soak": {
+        "scale_10_final": "HSK_DIFFTEST_SCALE=10 cargo nextest run -p hsk-studio-web --test html5ever_differential -E 'test(generated) | test(css_url)' at 5cd8c9e: 9 passed; 153385 comparable generated documents + 60 css_urls inputs, 0 disagreements (char_refs 21460, css 30000, dup_attrs 12587, fuzz 16364, mixed 24868, namespaces 19643, noise 8249, raw_text 20214); log scratchpad SMB-WEB-R11/soak-10-5cd8c9e.log",
+        "scale_10_at_70e6477": "same 153385 documents, 0 disagreements (soak-10-70e6477.log)",
+        "scale_50_css": "HSK_DIFFTEST_SCALE=50 ... -E 'test(css)' at 70e6477 (5cd8c9e changes no CSS carrier): css_urls 60 compared / 0, generated_css 150000 compared / 0 disagreeing (soak-50-css-70e6477.log)",
+        "found_during_development": "the first generated run (scale 1) found gen:Css:70041 (a bad string spelling data: was read): fixed in 7e21550 before any soak"
+      },
+      "found": "a bad-url token or bad string spelling data: was classified Inline before the bad flag (gen:Css:70041): now Denied(not_granted) and never read",
+      "residual": "the difftest reference shares the gate's policy lists by construction (second reading of the algorithms, same policy); its independent evidence remains the CC0 corpus and the R10 scratch cssparser run"
     }
   }
 }
