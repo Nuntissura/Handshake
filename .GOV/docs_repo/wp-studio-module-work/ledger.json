@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T12:46:09Z",
+ "updated_at": "2026-10-11T12:47:22Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -2086,11 +2086,26 @@
    "crate": "hsk-studio-web",
    "origin": "rem-web-r6 suggestion; root class = parser/browser disagreement",
    "scope": "test-only differential check: html5ever (dev-dependency, MIT/Apache) parses generated/adversarial inputs; compare element namespaces, raw-text/RCDATA boundaries and decoded attribute values with hsk-studio-web's model; disagreements fail; needs steward lock sync",
-   "phase": "build (holds commits until SYNC DONE)",
+   "phase": "built; waiting on SMB-WEB-PARITY",
    "status": null,
    "owner": "builder-web-difftest",
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "eefe44d",
+    "8119ceb",
+    "960edc0",
+    "0f64ee9",
+    "f4b47cd"
+   ],
+   "verdicts": [],
+   "lane_file": "builders/lanes/hsk-studio-web-difftest.json",
+   "blockers": [
+    {
+     "kind": "product disagreements D1-D9 (5 red tests)",
+     "routed_to": "SMB-WEB-PARITY",
+     "recorded_at": "2026-10-11T12:47:22Z"
+    }
+   ],
+   "note": "html5ever 0.40.1 dev-dep (own TreeSink), 20 tests, ~13,100 generated + 5350 char-ref comparisons, soaks 220k clean except known classes; 0 char-ref disagreements; no asset-URL hiding found; dep request appended 12:10:21Z (steward pin pending, --locked exit 75 until then)"
   },
   {
    "lane_id": "SMB-RENDER-CPU-FX2",
@@ -2465,6 +2480,18 @@
    "phase": "build",
    "status": null,
    "owner": "builder-reel-native-faults",
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-WEB-PARITY",
+   "crate": "hsk-studio-web",
+   "origin": "SMB-WEB-DIFFTEST disagreements D1-D9 (lead decision 2026-10-11T12:47:22Z)",
+   "scope": "fix D1-D8 per WHATWG; D9 implied-element normalisation documented, re-parenting/reordering inputs refused with typed errors; make SMB-WEB-DIFFTEST's 5 red tests green; crate rustfmt-clean",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-web-parity",
+   "lane_file": "builders/lanes/hsk-studio-web-parity.json",
    "commits": [],
    "verdicts": []
   }

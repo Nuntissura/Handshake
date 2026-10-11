@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T12:46:09Z",
+ "updated_at": "2026-10-11T12:47:57Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1561,7 +1561,7 @@
     "builders/lanes/workspace-steward.json"
    ],
    "launched": "2026-10-11T11:58:46Z",
-   "status": "idle 2026-10-11T12:10:13Z (R8 sync no-op = f6e5a49; C13 exit 73 59/59; lock audit clean; repo-local target unchanged)"
+   "status": "running 2026-10-11T12:47:57Z (html5ever pin sync, no canary)"
   },
   {
    "name": "research-reel-eng",
@@ -1586,7 +1586,7 @@
     "builders/lanes/hsk-studio-web-difftest.json"
    ],
    "launched": "2026-10-11T11:58:46Z",
-   "status": "running"
+   "status": "done 2026-10-11T12:47:22Z (f4b47cd; 9 disagreement classes)"
   },
   {
    "name": "rem-press-r8",
@@ -1695,6 +1695,18 @@
     "builders/lanes/hsk-studio-reel-native-faults.json"
    ],
    "launched": "2026-10-11T12:46:09Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-web-parity",
+   "agent_id": "a157b1e74d96f0f7f",
+   "model": "opus",
+   "role": "SMB-WEB-PARITY (D1-D8 fixes, D9 normalise/refuse)",
+   "owns": [
+    "crates/hsk-studio-web/**",
+    "builders/lanes/hsk-studio-web-parity.json"
+   ],
+   "launched": "2026-10-11T12:47:57Z",
    "status": "running"
   }
  ]
