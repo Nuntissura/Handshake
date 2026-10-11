@@ -999,7 +999,7 @@
    "status": "OPEN",
    "verified_at": "f6e5a49",
    "disposition": "FIX_LANE",
-   "disposition_note": "routed 2026-10-11T12:44:14Z to SMB-REEL-NATIVE-FAULTS"
+   "disposition_note": "fix claimed 471b679 (+ FRAME-to-OPEN extension pending); reviewer confirms in R9"
   },
   {
    "id": "PLR-056",
