@@ -1,78 +1,79 @@
 {
   "crate": "hsk-studio-kernel-bindings",
-  "lane": "MT-35556 slice 1",
+  "lane": "MT-35556 slice 1 + R5 remediation",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice 1 complete: strict versioned wire envelopes + transient host + BridgePorts over session slice-2 ports + 5 contract tests + consumer example",
+  "phase": "R5 remediation pushed (be2ee84): job tickets bound to owner, canonical-only wire decoding, host-owned lease epoch; 10 contract tests green at pushed HEAD c41b067",
   "commits": [
     {"sha": "95dee5e", "subject": "KernelBindings slice 1a: versioned strict wire envelopes, transient host, BridgePorts implementing session GrantPort/CommitPort/JobPort"},
     {"sha": "2c78bfa", "subject": "KernelBindings slice 1b: five contract tests, kernel-bindings-consumer example, revoked-vs-missing grant reasons, strict whitespace framing"},
-    {"sha": "a7d631c", "subject": "KernelBindings slice 1c: clippy clean; break-it verified"}
+    {"sha": "a7d631c", "subject": "KernelBindings slice 1c: clippy clean; break-it verified"},
+    {"sha": "be2ee84", "subject": "KernelBindings R5 remediation: job tickets bound to their owner, canonical-only wire decoding, host-owned lease epoch"}
   ],
   "capabilities_done": [
-    "wire: Envelope{bridge_version,correlation_id,idempotency_key,actor,resource_id,expected_revision,lease_epoch,body} with bodies grant_check|commit|lookup|job_admit|job_release|diagnostic and Reply{bridge_version,correlation_id,result}; canonical compact JSON (struct field order); decode refuses unknown/duplicate fields, foreign bridge_version (read first, alone), leading/trailing bytes, oversize, invalid DomainId, invalid actor/key, non-lowercase hex, with 12 distinct stable codes; encode validates first so it never emits what decode refuses",
-    "host: HostBridge (bytes in, bytes out) + TransientHost (memory only): grants per principal/resource/action with revoke (revoked vs missing), commit rechecks the grant even for a known key, idempotency bound to principal+resource+binding (conflict discloses nothing), lease-epoch fence, expected-revision compare, successor == expected+1, monotonic receipts with opaque host_ref, job admission (slots+bytes), FaultPlan{DropAck,RevokeBeforeCommit,BumpEpoch}, independent inspection API",
-    "adapter: BridgePorts<H>.grants()/commits()/jobs() implement session GrantPort/CommitPort/JobPort (session slice 2, 6a162da) over envelopes; no/undecodable/mismatched reply => denied grant, refused job, commit outcome Unknown (never Rejected); lookup() for reconcile; one best-effort diagnostic envelope per terminal commit result; sent-request log for golden/zero-bytes proofs",
-    "DESCRIPTOR with storage NONE and later_host_adapters (7 entries, all NOT_IMPLEMENTED_HOST_ONLY); example kernel-bindings-consumer --descriptor|--roundtrip|--revoke|--drop-ack|--cancel printing the receipt chain"
+    "wire: Envelope{bridge_version,correlation_id,idempotency_key,actor,resource_id,expected_revision,lease_epoch,body} with bodies grant_check|commit|lookup|job_admit|job_release|diagnostic and Reply{bridge_version,correlation_id,result}; canonical compact JSON; decode refuses unknown/duplicate fields, foreign bridge_version (read first, alone), leading/trailing bytes, oversize, invalid DomainId, invalid actor/key, non-lowercase hex, and (R5) anything that does not re-encode to the input bytes (non_canonical); stable distinct codes (12 asserted in wire_strictness_and_descriptor, non_canonical in only_canonical_bytes_decode)",
+    "host: HostBridge + TransientHost (memory only): grants per principal/resource/action with revoke, commit rechecks grant even for a known key, idempotency bound to principal+resource+binding, lease-epoch fence, expected-revision compare, successor == expected+1 (checked), monotonic receipts, FaultPlan, independent inspection API; R5: job tickets bound to account+principal+resource (admission needs a standing grant, release by another owner is job denied not_ticket_owner), lease epoch host-owned (older = stale_epoch, newer = rejected epoch_not_issued, never adopted)",
+    "adapter: BridgePorts<H>.grants()/commits()/jobs() over session GrantPort/CommitPort/JobPort; no/undecodable/mismatched reply => denied grant, refused job, commit Unknown; lookup() for reconcile; one best-effort diagnostic per terminal commit result",
+    "DESCRIPTOR with storage NONE, later_host_adapters (7, all NOT_IMPLEMENTED_HOST_ONLY) and proven_by (claim -> test) ; example kernel-bindings-consumer"
   ],
   "tests": {
-    "argv": "cargo test -p hsk-studio-kernel-bindings --no-fail-fast",
+    "argv": "cargo test -p hsk-studio-kernel-bindings --tests",
     "exit": 0,
-    "sha": "a7d631c",
-    "passed": 5,
+    "sha": "c41b067",
+    "passed": 10,
     "failed": 0,
     "names": [
       "roundtrip_envelopes_through_session_and_idempotent_replay",
       "fail_closed_on_absent_or_revoked_grant",
       "stale_epoch_conflict_and_unknown_outcome",
       "cancel_semantics_and_diagnostics",
-      "wire_strictness_and_descriptor"
+      "wire_strictness_and_descriptor",
+      "job_admission_needs_a_standing_grant",
+      "job_tickets_are_released_only_by_their_owner",
+      "lease_epoch_is_issued_by_the_host_not_adopted_from_callers",
+      "only_canonical_bytes_decode",
+      "hostile_sizes_are_refused_typed"
     ],
-    "clippy": "cargo clippy -p hsk-studio-kernel-bindings --tests --examples: clean (only pre-existing observe too_many_arguments warnings)"
+    "clippy": "cargo clippy -p hsk-studio-kernel-bindings -p hsk-studio-harness --tests --examples at c41b067: clean (only the two pre-existing observe too_many_arguments warnings)"
   },
   "blockers": [],
-  "lock_wait_s": 0,
+  "lock_wait_s": 120,
   "bg_pids": [],
-  "next": "Validator round. Follow-ups: (1) steward to add serde 1.0.229 + serde_json 1.0.151 probe approval for hsk-studio-kernel-bindings (dep-requests.jsonl lines appended; folio is a dev-dependency only); (2) session is still building in the shared tree: re-run after any session port-trait change; (3) wire carries a JobAdmit/JobRelease and Diagnostic but no host-side cancel/status for jobs (Job Runtime semantics stay host-only); (4) host adoption (MT-36200..36231) is out of scope.",
-  "updated_at": "2026-10-11T02:45:34Z",
+  "next": "Validator round (R5 group B re-check of SMB-KERNEL-BINDINGS). Open items for the lead: (1) V4-04: Fault/plan_fault (DropAck, RevokeBeforeCommit, BumpEpoch) is public in the default build; gating it behind a non-default test-faults feature needs .config/round-features.toml (steward-owned, outside this crate) so the round runs the tests with the feature; not done. (2) Undecodable/mismatched commit replies share the lost-reply path but have no dedicated test (DESCRIPTOR and adapter docs say so). (3) steward: serde/serde_json probe approval for this crate (older dep-request lines stand).",
+  "updated_at": "2026-10-11T07:44:08Z",
   "notes": {
-    "oracle": "host state read through TransientHost inspection API (committed revision, receipt count, idempotency size, jobs in flight, diagnostics) and the host-held document bytes parsed independently with folio::inspect_bytes; byte-level golden for the grant_check request; the commit request is re-encoded from its decoded form and compared byte for byte",
-    "break_it": "temporarily disabling (a) the host expected-revision compare, (b) the host commit-time grant recheck, (c) mapping a lost reply to Unknown (made it Rejected) made tests 2 and 3 fail; sources restored byte-identical (git diff empty) before the next commit",
-    "fixture": "tests/fixtures/doc-rev9.handshake is a 5099-byte package written by session-consumer --demo (revision 9); kernel-bindings has no package edge, so it is a checked-in static input, not generated",
-    "design": "session owns the port traits and private doubles; this crate owns the public wire envelopes and the executable transient adapter; no Handshake crate, path or .GOV reference",
+    "oracle": "host state read through TransientHost inspection API (committed revision, receipt count, idempotency size, jobs in flight, diagnostics, lease epoch) and host-held document bytes parsed independently with folio::inspect_bytes; byte-level golden for the grant_check request",
+    "break_it": "R1 slice: disabling the host expected-revision compare, the commit-time grant recheck, or mapping a lost reply to Rejected failed tests 2 and 3. R5 remediation: red proof on the 1d404f8 code was NOT run; the break-it edits (disable owner check, admit grant check, epoch guard, canonical check) were not permitted in this session. The new tests assert the exploit outcome directly (foreign release leaves jobs_in_flight unchanged; u64::MAX epoch leaves lease_epoch at the host value and the legitimate writer still commits; whitespace/key-order/escape/omitted-null variants return non_canonical); the pre-fix code accepts every one of those inputs by construction (decode had no re-encode check, release removed any ticket, commit stored envelope.lease_epoch).",
+    "fixture": "tests/fixtures/doc-rev9.handshake (5099 bytes, session-consumer --demo, checked in)",
+    "design": "session owns the port traits and private doubles; this crate owns the public wire envelopes and the executable transient adapter",
     "known_gaps": [
       "revision_updates travel as address JSON strings obtained generically via serde (chronicle is not a direct edge)",
-      "idempotent replay is proven at two levels: session-level (stored receipt, commit not re-sent) and host-level (same commit bytes answer the same receipt, applied once)",
-      "no async/threads/transport by design; HostBridge is synchronous bytes in/out"
+      "no async/threads/transport by design; HostBridge is synchronous bytes in/out",
+      "job denial has no form in session's JobPort: an unauthorized admission surfaces to the session as JobRefused with UNREACHABLE_RETRY_AFTER_MS"
     ],
-    "verdicts": [
-     {
-      "round": "STUDIO-R5",
-      "lane": "SMB-KERNEL-BINDINGS",
-      "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
-      "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
-      "decision": "failed",
-      "verdict": "FAIL_V1",
-      "failures": [
-       {
-        "failure_kind": "product",
-        "failure_class": "job-release-without-owner-check",
-        "file_line": "crates/hsk-studio-kernel-bindings/src/host.rs:235-238, :287-308"
-       },
-       {
-        "failure_kind": "product",
-        "failure_class": "wire-decode-accepts-non-canonical",
-        "file_line": "crates/hsk-studio-kernel-bindings/src/wire.rs:1-4 vs :537-565"
-       }
+    "remediation_R5": {
+      "review": "validation/R5-review-b.json (candidate 1d404f8), lane SMB-KERNEL-BINDINGS",
+      "route": "product failures fixed by commit be2ee84; no gameplan step added (no infrastructure failure); cargo test ran green first time on each tree (retry guard never fired); disk-wide build lock waits of 2-3 min are normal",
+      "findings": [
+        {"id": "SMB-KERNEL-BINDINGS-95dee5e", "severity": "CONFIRMED", "kind": "authorization", "status": "fixed", "fix": "host.rs JobEntry{account,principal,resource,jobs,bytes}; job_admit checks a standing grant (JobDenyCode GrantMissing/GrantRevoked) and records the owner; job_release refuses a different account/principal/resource with JobDecision::Denied{NotTicketOwner} and changes nothing; unknown ticket stays Ack (idempotent)", "tests": ["job_tickets_are_released_only_by_their_owner", "job_admission_needs_a_standing_grant"]},
+        {"id": "SMB-KERNEL-BINDINGS-2c78bfa", "severity": "CONFIRMED", "kind": "contract_overclaim", "status": "fixed", "fix": "wire.rs decode re-encodes the decoded value and requires byte equality (WireError::NonCanonical, code non_canonical); contract text kept and now cites its tests", "tests": ["only_canonical_bytes_decode", "wire_strictness_and_descriptor"]},
+        {"id": "SMB-KERNEL-BINDINGS-lease-fence", "severity": "PLAUSIBLE", "kind": "fencing", "status": "fixed (real)", "fix": "host.rs commit: lease_epoch < host epoch = StaleEpoch, > host epoch = Rejected{epoch_not_issued}, and a commit no longer stores the caller's epoch", "tests": ["lease_epoch_is_issued_by_the_host_not_adopted_from_callers"]}
       ],
-      "remediation": "Bind tickets to account+principal+resource, refuse foreign release; require re-encode byte equality on decode; tests",
-      "status_after": "FAIL_V1",
-      "review": "validation/R5-review-b.json",
-      "round_ref": "validation/round-R5.json",
-      "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
-      "idempotency_key": "STUDIO-R5:SMB-KERNEL-BINDINGS:1d404f8c4b72:FAIL_V1",
-      "recorded_at": "2026-10-11T05:38:23Z",
-      "by": "wp_validator STUDIO-R5"
-     }
-    ]
+      "v4_06_site_lists": [
+        {"class": "host state keyed by a caller-supplied id read or changed without binding to the caller (V4-06 ownership class)", "regex": "(state|self\\.lock\\(\\))\\.(jobs|idempotency|tokens|grants|revoked|resources|receipts|diagnostics)\\b[^;]*\\.(get|get_mut|remove|insert|contains|contains_key|push|values)\\b", "scope": "crates/hsk-studio-kernel-bindings/**/*.rs", "matches": 31, "fixed": 6, "not_applicable": 25, "fixed_sites": ["host.rs:324-325 job_admit grant check", "host.rs:349 jobs.insert records owner", "host.rs:456 commit state write no longer adopts the caller epoch", "host.rs:486 job_release lookup", "host.rs:497 job_release remove (owner-gated)"], "not_applicable_sites": "host.rs:164,165,171,172,174,179,196,200 operator-side control and inspection API (not reachable over the wire); 253 diagnostics push (caller's own record, bounded by max_diagnostics); 271,272,283,296,392,395 grant and token lookups keyed by the envelope account+principal+resource+action; 379,380,382,385 test fault plan, same keying; 403,505 idempotency get filtered by account+principal+resource(+binding); 414 resource lookup after the grant check; 460,461 receipt and idempotency insert after all checks; 477 jobs_used read-only sum"},
+        {"class": "client-supplied value adopted into host-owned state", "regex": "(r|state|entry|current)\\.\\w+\\s*=\\s*(envelope|commit)\\.|\\.insert\\([^)]*(envelope|commit)\\.", "scope": "crates/hsk-studio-kernel-bindings/src", "matches_at_1d404f8": 2, "matches_now": 1, "fixed": 1, "not_applicable": 1, "sites": "fixed: host.rs r.epoch = envelope.lease_epoch (removed); n/a: host.rs:457 r.revision = commit.successor_revision (guarded by expected == current and checked_add(1) == successor)"},
+        {"class": "decoder accepting input the encoder cannot produce (non-canonical)", "regex": "from_slice|from_str|from_value|from_reader|Deserializer|DeserializeOwned", "scope": "crates/hsk-studio-kernel-bindings/{src,examples}", "matches": 4, "fixed": 2, "not_applicable": 2, "sites": "fixed: wire.rs:572 generic decode and :597 full deserialize (canonical re-encode check follows); n/a: wire.rs:17 import, :592 VersionProbe (result used only to read bridge_version, always followed by the full canonical decode)"},
+        {"class": "unchecked arithmetic in modules touched (V4-01)", "regex": "authoritative list is the lint itself: cargo clippy with #![deny(clippy::arithmetic_side_effects)]; a text grep (\\+= 1|\\+ 1|- 1|\\* 2|<< |>> ) over-matches generics and misses b - b'0', so it is advisory only", "scope": "src/host.rs src/wire.rs src/adapter.rs", "matches": 12, "fixed": 12, "not_applicable": 0, "sites": "converted sites: host.rs next_token, next_ticket, epoch bump fault, sequence, requests counter, successor revision (6); wire.rs hex_encode capacity, hex_decode b - b'0', b - b'a' + 10, shift, last-byte index (5); adapter.rs correlation counter (1); clippy findings remaining: 0. #![deny(clippy::arithmetic_side_effects)] on wire, host, adapter; lint verified active by a deliberate probe (removed); clippy clean"}
+      ],
+      "v4_notes": {
+        "V4-01": "done for wire, host, adapter",
+        "V4-02": "hostile_sizes_are_refused_typed: jobs u32::MAX, bytes u64::MAX, sum overflow, aggregate over the 64 MiB budget, document over max_document_bytes, update count over MAX_REVISION_UPDATES, u64::MAX fields round trip, successor wrap",
+        "V4-03": "no test is vacuous; tests read no machine-local paths",
+        "V4-04": "NOT done, see next (1)",
+        "V4-05": "no duplicate added",
+        "V4-07": "wire.rs, host.rs, adapter.rs docs and DESCRIPTOR claims cite their tests (DESCRIPTOR proven_by) or were weakened (never rejected -> lost reply tested only; no names/paths -> by construction)",
+        "V4-08": "JSON wire: escape, whitespace, key-order, comment, case, single-quote and number-form decoys in only_canonical_bytes_decode",
+        "V4-09": "commit via git commit -F; V4-11: no source reverted or restored; V4-12: helper files kept under scratchpad/r5-kb-harness/"
+      }
+    }
   }
 }

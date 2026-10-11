@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T07:42:44Z",
+ "updated_at": "2026-10-11T07:46:25Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -864,7 +864,7 @@
     "crates/hsk-studio-harness/**"
    ],
    "launched": "2026-10-11T05:31:12Z",
-   "status": "running (stopped by lead at 07:31Z after ~2 h without a commit, 690 uncommitted lines; resumed with commit-what-is-green instruction) 2026-10-11T07:30:00Z"
+   "status": "done 2026-10-11T07:46:25Z"
   },
   {
    "name": "rem-psd",
@@ -1135,7 +1135,7 @@
     "builders/lanes/hsk-studio-render-gpu.json"
    ],
    "launched": "2026-10-11T06:42:07Z",
-   "status": "running"
+   "status": "done 2026-10-11T07:46:25Z"
   },
   {
    "name": "builder-folio-eng-6",

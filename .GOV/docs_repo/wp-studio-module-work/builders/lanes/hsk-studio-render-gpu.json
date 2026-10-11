@@ -2,7 +2,7 @@
   "crate": "hsk-studio-render-gpu",
   "lane": "MT-35546",
   "status": "READY_FOR_VALIDATION",
-  "phase": "R5 no-adapter fix (479e1c7) + slice 4 plan-extension envelope on the GPU (c5bd9be: mask density/invert/feather, Blend-If, adjustment layers) + V4-01/04/07 compliance; docs-only follow-up b58305f; slice 3 (159cf9c, 167dc28) and R3 remediation (b7d90dc) unchanged. Effects (pigment e007703) stay typed Unsupported",
+  "phase": "slice 5 (a6ac630): Blend-If agreement check against pigment evaluate_stack (adjustment layer + plain layer agree, clip-base ranges refused as blend_if_clip_base because pigment does not define them), layer effects waves 1+2 (drop shadow, colour overlay, stroke, inner shadow, outer glow, inner glow) as WGSL matte passes with frame margins, reported operator classes never above pigment's. Earlier: R5 no-adapter fix (479e1c7) + slice 4 plan-extension envelope on the GPU (c5bd9be: mask density/invert/feather, Blend-If, adjustment layers) + V4-01/04/07 compliance; docs-only follow-up b58305f; slice 3 (159cf9c, 167dc28) and R3 remediation (b7d90dc) unchanged. Effects (pigment e007703) stay typed Unsupported",
   "commits": [
     {
       "sha": "a813cf3",
@@ -47,6 +47,10 @@
     {
       "sha": "459c5d9",
       "subject": "R6 review A (V4-04): compile-time proof that a default build has no public fault-injection hook (4 compile_fail,E0599 doctests; gate of the hooks itself is c5bd9be)"
+    },
+    {
+      "sha": "a6ac630",
+      "subject": "Render-gpu: layer effects (pigment effect_math waves 1 and 2) as WGSL matte passes; Blend-If agreement check against pigment; reported classes never above pigment's"
     }
   ],
   "capabilities_done": [
@@ -63,20 +67,25 @@
     "slice 4 envelope: GpuBackend::execute_extended / execute_extended_detailed / extension_exactness (all implemented operators Fitted, pigment intrinsic class kept in the ledger); admit_extended first; empty envelope without mask density < 1 = the v1 plan byte for byte (pixels, digest, ledger, peak bytes compared)",
     "mask density (shader step over host-converted/inverted/feathered coverage), mask feather (host separable Gaussian over pigment feather_kernel, windowed to the layer region, replicate clamp, scratch charged to max_working_bytes, cost bound 2^31 tap operations), Blend-If (<= 4 entries in plan order, identity dropped; weight multiplies the opacity), adjustment layers on the running backdrop incl. clip-run unit and pass-through parent: levels, curves (4096-entry table per channel from PreparedCurve), hue_saturation master + colorize, exposure, invert, threshold, posterize",
     "new module ext.rs (host side, deny(arithmetic_side_effects)), kernel_pixel.wgsl template instantiated as composite and composite_ext, entry point adjust; v1 pipeline layout (bindings 0-3) and v1 bytes unchanged; envelope buffers (288 B params + curve table 64 KiB / 16 B) only when a layer uses Blend-If or an adjustment",
-    "V4-04: with_shader_source, with_injected_loss and both simulate_device_loss compiled only with the non-default test-faults feature; the 3 tests using them are gated; default-features guard test fault_hooks_exist_only_under_the_test_faults_feature"
+    "V4-04: with_shader_source, with_injected_loss and both simulate_device_loss compiled only with the non-default test-faults feature; the 3 tests using them are gated; default-features guard test fault_hooks_exist_only_under_the_test_faults_feature",
+    "slice 5 agreement: ext_blend_if_agrees_with_pigment_evaluate_stack compares GPU output with pigment evaluate_stack for Blend-If on an adjustment layer (StackNode::Adjustment at opacity*fill*blend_if_weight(entries, f(Cb), Cb); invert, levels, hue_saturation x 2 range sets, translucent random backdrop, max error 6.3e-7 dx12 / 1.0e-6 vulkan) and on a plain layer (StackNode::Leaf at opacity*fill*weight, 1.8e-7); Blend-If on the BASE of a clipping run is refused Unsupported{blend_if_clip_base} in prepare (before any upload) because pigment does not define it",
+    "slice 5 class discipline: extension_exactness = ExtOperator::intrinsic().lowest_of(Fitted) for every supported operator (adjustment layer, adjustment kinds, Blend-If, mask density, mask feather, six effect kinds); receipts unchanged",
+    "slice 5 effects: new src/fx.rs + src/fx.wgsl (second compute module, entry point fx, bind group = 1 uniform block of 12080 bytes incl. up to 3004 blur taps + 4 storage buffers = the downlevel limit). Host: pigment shadow_split / shadow_offset / feather_kernel / effect_support_px are called, passes compiled per effect (INIT source plane, DILATE disc, BLUR_H/BLUR_V, SHIFT, FINISH combine) with per-effect buffers (T0/T1/T2 planes, matte into the mask buffer); WGSL transcribes pigment effect_math private helpers dilate/blur_ext/shift_ext/stroke_half and the combine steps of reference_matte; reads beyond the pass region = the constant a sample beyond pigment's reference plane reads (0 for shadow/glow/stroke-outside, 1 for inner effects)",
+    "slice 5 execution: a plan with effects renders every chunk as a FRAME (chunk grown by frame_margin = largest sum of effect margins along nested layers); eval_effect_layer: layer content (mask applied to its alpha, Normal over transparent) into the level below, behind-content effects (matte -> mask buffer -> solid colour composite with effect mode and effect opacity * layer opacity), content composite with opacity*fill, over-content effects, list order; staging read-back crops the central rows; levels/src/mask are frame-sized, three f32 planes + parameter block reserved in residency; MaskView/FeatherPlane reads beyond the plane replicate the nearest texel (render-cpu clamped read)",
+    "slice 5 budgets before dispatch (V4-02): blur kernels charged to max_working_bytes as a running aggregate while compiling (BudgetExceeded), frame buffers out of the chunk budget (BudgetExceeded, 30000 px shadow distance tested), per-pass cost bound 2^31 window*pixels with chunk shrink (Unsupported{effect_cost}, 1000 px grown glow tested), effects together with Blend-If refused effects_with_blend_if (as render-cpu)"
   ],
   "tests": {
-    "argv": "cargo test -p hsk-studio-render-gpu --tests --no-fail-fast -- --nocapture (default features: 15 tests) and the same with --features test-faults (18 tests); HSK_STUDIO_TEST_GPU_BACKEND=auto|vulkan",
+    "argv": "cargo test -p hsk-studio-render-gpu --tests -- --nocapture (default features: 20 tests) and the same with --features test-faults (23 tests); HSK_STUDIO_TEST_GPU_BACKEND=auto (dx12) and vulkan; cargo test -p hsk-studio-render-gpu --doc (4 compile_fail doctests)",
     "exit": 0,
-    "sha": "c5bd9be",
-    "passed": 18,
+    "sha": "a6ac630",
+    "passed": 23,
     "failed": 0
   },
   "blockers": [],
-  "lock_wait_s": 0,
+  "lock_wait_s": 772,
   "bg_pids": [],
-  "next": "queued by the coordinator: effects execution (pigment effect_math / LayerExtension.effects / ExtOperator::Effect): WGSL generated from or parity-checked against effect_math, blur as separable passes with the margin from effect_support_px, parity vs render_layer_reference. Other candidates: dissolve (needs plan seed + u64 hash), brightness_contrast legacy body, compute-shader feather, tile cache, Metal qualification",
-  "updated_at": "2026-10-11T06:39:38Z",
+  "next": "Independent validator round on a6ac630. Open for the lead: (1) pigment does not define Blend-If on the base of a clipping run while render-cpu implements it (decide: pigment defines it and both backends follow, or render-cpu refuses too); (2) pigment has no function combining an adjustment layer with its Blend-If weight (evaluate_stack takes the folded opacity); (3) Photoshop parity of effects stays NOT_PROVEN (D5 12-17). Other candidates: effect passes restricted to the layer window, binary64-grade blur accumulation, dissolve, brightness_contrast legacy body, compute-shader feather, tile cache, Metal qualification",
+  "updated_at": "2026-10-11T07:44:41Z",
   "notes": {
     "check_clippy": "check --tests --examples and clippy --tests --examples: no warnings in this crate (only pre-existing observe too_many_arguments)",
     "runs": {
@@ -161,7 +170,29 @@
         "recorded_at": "2026-10-11T05:38:23Z",
         "by": "wp_validator STUDIO-R5"
       },
-      {"round": "STUDIO-R6", "lane": "SMB-RENDER-GPU", "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a", "tree": "834aa5599ffabf691558a25f777ce42f73d78103", "decision": "failed", "verdict": "FAIL_V3", "failures": [{"failure_kind": "product", "failure_class": "test-fault-hooks-in-product-api", "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:447-452,477-488,565-572; src/device.rs:298; Cargo.toml:7-8"}], "remediation": "Gate fault constructors and simulate_device_loss behind a non-default test-faults feature; tests enable it", "status_after": "FAIL_V3; fix_budget_exhausted blocker (CX-EXEC-015(1)): escalate, no new claim until Operator decision; post-freeze commits 459c5d9 not admitted", "review": "validation/R6-review-a.json", "round_ref": "validation/round-R6.json", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6", "idempotency_key": "STUDIO-R6:SMB-RENDER-GPU:bd8533f9b29c:FAIL_V3", "recorded_at": "2026-10-11T06:47:09Z", "by": "wp_validator STUDIO-R6"}
+      {
+        "round": "STUDIO-R6",
+        "lane": "SMB-RENDER-GPU",
+        "candidate": "bd8533f9b29c1c9d98a7ecaa6ebb488f08d2054a",
+        "tree": "834aa5599ffabf691558a25f777ce42f73d78103",
+        "decision": "failed",
+        "verdict": "FAIL_V3",
+        "failures": [
+          {
+            "failure_kind": "product",
+            "failure_class": "test-fault-hooks-in-product-api",
+            "file_line": "crates/hsk-studio-render-gpu/src/plan_sink.rs:447-452,477-488,565-572; src/device.rs:298; Cargo.toml:7-8"
+          }
+        ],
+        "remediation": "Gate fault constructors and simulate_device_loss behind a non-default test-faults feature; tests enable it",
+        "status_after": "FAIL_V3; fix_budget_exhausted blocker (CX-EXEC-015(1)): escalate, no new claim until Operator decision; post-freeze commits 459c5d9 not admitted",
+        "review": "validation/R6-review-a.json",
+        "round_ref": "validation/round-R6.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R6",
+        "idempotency_key": "STUDIO-R6:SMB-RENDER-GPU:bd8533f9b29c:FAIL_V3",
+        "recorded_at": "2026-10-11T06:47:09Z",
+        "by": "wp_validator STUDIO-R6"
+      }
     ],
     "r3_remediation": {
       "review": ".GOV/docs_repo/wp-studio-module-work/validation/R3-review.json lane SMB-RENDER-GPU (reviewed 57ce0fa/404ff3a)",
@@ -338,6 +369,105 @@
       ],
       "tests_after": "default features: 15 integration tests + 4 doctests pass; --features test-faults: 18 pass (dx12 and vulkan), 0 doctests",
       "steward_request": "appended to builders/dep-requests.jsonl: hsk-studio-render-gpu = [[\"test-faults\"]] (round-features); until declared the default round omits the 3 fault tests"
+    },
+    "slice5_adj_agreement_and_effects": {
+      "lanes": {
+        "SMB-RENDER-GPU-ADJ": {
+          "status": "READY_FOR_VALIDATION",
+          "sha": "a6ac630",
+          "scope": "Blend-If agreement check (adjustment layer, clip base) against pigment evaluate_stack / adjust_math / coverage_math"
+        },
+        "SMB-RENDER-GPU-EFFECTS": {
+          "status": "READY_FOR_VALIDATION",
+          "sha": "a6ac630",
+          "scope": "layer effects waves 1 and 2 on the GPU, parity vs pigment render_layer_reference"
+        },
+        "note": "The top-level status/lane/verdicts of this file are unchanged: nothing is claimed on lane SMB-RENDER-GPU (BLOCKED, fix_budget_exhausted, D20) by this slice; the test-faults gating of 459c5d9 is untouched (only extended: no new fault hook, no new test using one)."
+      },
+      "agreement": {
+        "method": "read pigment first: evaluate_stack has StackNode::Leaf/Group/Adjustment only (no Blend-If input, no clip node); Adjustment takes the already folded opacity; blend_if_weight(entries, source_rgb, backdrop_rgb) multiplies the source alpha; BaseAlpha prose lists mode, opacity and fill of the BASE for the run composite",
+        "adjustment_layer_blend_if": {
+          "verdict": "AGREES (defined by composition of pigment text: LayerExtension doc \"Content = f(backdrop)\" + coverage_math \"weight of the layer colour\", k = opacity*fill*mask*blend_if)",
+          "test": "ext_blend_if_agrees_with_pigment_evaluate_stack case A: reference = evaluate_stack [Leaf(backdrop), Adjustment{op, mode, opacity: opacity*fill*blend_if_weight(entries, op.prepare().apply(Cb), Cb)}]",
+          "observed_max_error": "6.3e-7 dx12, 1.0e-6 vulkan (tolerance 5e-6); partial weights present at > 20 texels (not vacuous)",
+          "gap": "pigment exposes no function that combines an adjustment with its Blend-If weight; the source-colour reading lives in the caller (here the test, in render-cpu its own code). Suggest an adjust_math helper so no backend or test restates it",
+          "render_cpu": "same reading (lane notes adj1 decisions_for_lead): agrees"
+        },
+        "plain_layer_blend_if": {
+          "verdict": "AGREES (evaluate_stack Leaf at opacity*fill*blend_if_weight(entries, source, Cb))",
+          "observed_max_error": "1.8e-7"
+        },
+        "clip_base_blend_if": {
+          "verdict": "NOT DEFINED by pigment -> GPU refuses Unsupported{blend_if_clip_base} (typed, in prepare, before any upload), no semantics invented",
+          "reason": "MaskFormat::BaseAlpha prose: G starts as the base content with the base mask but not its opacity, fill or mode; G is composited with the BASE layer mode, opacity and fill. Blend-If is not listed in either place, two placements are possible (weigh G against the parent backdrop at the final composite, or weigh the base content while G is formed) and evaluate_stack cannot express a clip run. The previous slice-4 reading (final composite of the run unit) is one of them and is now removed",
+          "test": "fx_admission_and_refusals_run_without_adapter (hardware-independent) refuses it; red proof D with the refusal removed fails that test",
+          "render_cpu": "IMPLEMENTS the base ranges at the run composite (lane SMB-RENDER-CPU-ADJ-1): GPU and CPU now differ on this case. Lead decision needed: pigment defines it (then both follow and the GPU re-enables it) or render-cpu refuses it too"
+        },
+        "clipped_layer_blend_if": {
+          "verdict": "KEPT (judgement call, flagged): the clipped layer composites onto G, pigment names both roles (G is the backdrop, the layer colour is the source) and no alternative placement exists; parity only against the test-local Reference of ext_blend_if_parity, not against evaluate_stack (no clip node). The lead may extend the refusal to clipped layers by changing is_clip_base in prepare"
+        }
+      },
+      "effects": {
+        "kinds": "drop_shadow, colour_overlay, stroke (outside/inside/centre), inner_shadow, outer_glow, inner_glow (edge/centre); glow gradient/range/jitter/Precise remain pigment typed refusals (tested)",
+        "class": "Approximate everywhere (extension_exactness = pigment intrinsic lowest_of Fitted); ledger carries the effect keys as approximate (asserted per case); Photoshop parity NOT_PROVEN (D5 12-17, V4-03)",
+        "parity_vs_render_layer_reference": {
+          "wave1_worst": "1.8e-7 (dx12 and vulkan)",
+          "wave2_worst": "1.2e-7",
+          "stack_six_kinds_mask_group_nested_worst": "2.4e-7",
+          "tolerance": "1e-5 on alpha and premultiplied colour (planes of 48x44 holding layer + margin; chunk side 16 so the planes are 3x3 frames)",
+          "non_vacuity": "each case asserts it changes the bare layer (68..1119 texels) and the size-0 stroke and opacity-0 cases change nothing"
+        },
+        "differences_to_pigment_reference": "blur taps accumulate in binary32 (reference binary64), hypot as sqrt(x*x+y*y), GPU fma; observed effect on the result <= 2.4e-7 (1-2 ulp)",
+        "limits": "no 64 px reference-plane limit and no 24 px margin limit (render-cpu has them): margin is bounded by the chunk budget (BudgetExceeded) and a pass by 2^31 window*pixels (effect_cost); passes cover the whole layer region + margin per chunk frame (pigment windowed matte API NOT used, GPU-side passes); frame overdraw ((chunk+2*margin)/chunk)^2 for all layers of a plan with effects",
+        "nesting": "effects inside the content group of a layer with effects are supported on the GPU (margins add along the chain; tested with an outer glow inside a shadow+stroke layer); render-cpu refuses them (effects_nested)",
+        "mask": "a layer mask multiplies the content alpha the mattes derive from (as render-cpu); reads beyond the mask plane replicate the nearest texel (only reachable with effects, frames reach past the target)"
+      },
+      "tests_run": {
+        "dx12_default": "20 passed, 0 failed (before the formatting-only commit step; log test-default-2.log)",
+        "dx12_test_faults": "23 passed, 0 failed",
+        "vulkan_test_faults": "23 passed, 0 failed on the pushed a6ac630 tree (RTX 3090 discrete)",
+        "doctests": "4 compile_fail passed",
+        "clippy": "cargo clippy -p hsk-studio-render-gpu --tests --examples --no-deps: clean on default features and --features test-faults",
+        "fmt": "cargo fmt -p hsk-studio-render-gpu --check clean",
+        "new_or_changed_tests": [
+          "ext_blend_if_agrees_with_pigment_evaluate_stack (NEW, GPU)",
+          "fx_wave1_parity_vs_pigment_render_layer_reference (NEW, GPU)",
+          "fx_wave2_parity_vs_pigment_render_layer_reference (NEW, GPU)",
+          "fx_stack_mask_group_and_nesting_parity (NEW, GPU; also frame-budget, 30000 px distance and effect_cost refusals)",
+          "fx_admission_and_refusals_run_without_adapter (NEW, hardware-independent: classes, Fitted floor, unsupported effect mode, pigment glow refusal, effects+Blend-If, kernel aggregate budget, blend_if_clip_base, clipped-layer Blend-If admitted)",
+          "ext_blend_if_parity (CHANGED: the clip-base entry removed), ext_refusals_and_capabilities_run_without_adapter (CHANGED: class table = intrinsic lowest_of Fitted, effect capability, effect on an adjustment is pigment EffectOnAdjustment)"
+        ]
+      },
+      "red_proofs": {
+        "where": "scratch copy of the workspace (accord, observe, folio, prism, pigment, render-gpu) at Handshake_Artifacts/WP-KERNEL-STUDIO/smb-render-gpu-fx-redproof/ws with STUDIO_OWNER=smb-render-gpu-fx-redproof (own target, red-proof tree rule of studio-env.sh); mutations switched by SMBFX_MUTATE; the shared tree was never mutated (V4-11). The scratch location is on D: under the artifact root instead of the C: scratchpad because the disk rule forbids building from C: and the gameplan pointer is found upward from the cwd",
+        "A_dilate_ramp_without_half_pixel": "fx_wave1_parity FAILED, max_err 5.1e-2 (tolerance 1e-5)",
+        "B_no_frame_margin": "fx_wave2_parity FAILED, max_err 6.5e-2",
+        "C_swapped_behind_over_placement": "fx_stack_mask_group_and_nesting_parity FAILED, max_err 4.3e-1",
+        "D_clip_base_refusal_removed": "fx_admission_and_refusals_run_without_adapter FAILED (blend_if_clip_base expectation)",
+        "E_effect_class_reported_Fitted": "ext_refusals_and_capabilities_run_without_adapter FAILED (left Fitted, right Approximate)",
+        "logs": "scratchpad smb-render-gpu-fx/red-*.log"
+      },
+      "v4_audit": {
+        "V4-01": "deny(clippy::arithmetic_side_effects) on the new fx.rs and kept on plan_sink.rs/ext.rs/kernel.rs; every new site is checked/saturating (clippy clean)",
+        "V4-02": "aggregate_over_budget-style: blur kernel aggregate vs max_working_bytes (fx_admission...), frame budget (fx_stack...); size bounds: 30000 px distance (u32/i64 grow_rect, typed BudgetExceeded)",
+        "V4-03": "GPU proofs follow tests/gpu-proof.toml (require_gpu = true unchanged); Photoshop parity of effects is NOT_PROVEN and said so in DESCRIPTOR",
+        "V4-04": "no new fault hook; the 459c5d9 gating is untouched",
+        "V4-06": "class = reported operator class above pigment's: regex ^.*Exactness::Fitted in extension_exactness; sites: 1 (the function), fixed; backend exactness() for v1 operators is a different capability (blend modes) and pigment lowers it, not-applicable",
+        "V4-07": "DESCRIPTOR rewritten for the new behaviour (valid JSON checked with json.loads); every never/always claim cites its test or is weakened",
+        "V4-09": "git commit -F",
+        "V4-11/12": "red proofs on a scratch copy; helper scripts only under the scratchpad smb-render-gpu-fx folder with smbfx_ prefixes; no other lane's script run"
+      },
+      "retry_guard_route": "no gameplan block on a gated command; one hook error on a cd target given through a shell variable (resolved the WP-KERNEL-012 gameplan, command not run) fixed by a literal cd; no gameplan step added; no flags/filters changed to dodge a guard (the red runs use distinct filters on a distinct tree)",
+      "infrastructure_for_lead": [
+        "studio-env.sh: sourcing prints \"export: dbl_exe: not a function\" at line 72 and returns 1 although the cargo wrapper works (tools/disk-build-lock.sh does not define dbl_exe); builders ignore the exit status",
+        "disk build lock queue: a clippy run waited 772 s behind other lanes (queued 07:04:57Z, acquired 07:17:49Z)"
+      ],
+      "decisions_for_lead": [
+        "clip-base Blend-If: see agreement.clip_base_blend_if (GPU refuses, render-cpu implements)",
+        "clipped-layer Blend-If kept on the GPU as a judgement call (see agreement.clipped_layer_blend_if)",
+        "extension_exactness now reports pigment's class for every supported operator (tightened beyond the effects the brief named, for CX-CAP-001 consistency with render-cpu 7274827); receipts unchanged",
+        "effects nested in the content of a layer with effects and effect margins above 24 px are supported on the GPU; render-cpu refuses both (effects_nested, effect_margin), so the capabilities of the two backends differ"
+      ]
     }
   }
 }

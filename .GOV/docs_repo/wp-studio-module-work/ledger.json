@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T07:42:44Z",
+ "updated_at": "2026-10-11T07:46:25Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -591,19 +591,20 @@
    "lane_id": "SMB-HARNESS",
    "crate": "hsk-studio-harness",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-harness",
-   "phase": "build",
-   "status": "FAIL_V1",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-controls (reused)",
    "brief": null,
    "commits": [
-    "c47e256"
+    "c47e256",
+    "c41b067"
    ],
    "verdicts": [
     "STUDIO-R5 FAIL_V1 @1d404f8"
    ],
    "lane_file": "builders/lanes/hsk-studio-harness.json",
-   "candidate": "c47e256",
-   "note": "headless studio-harness: help/descriptors/providers/open/panel/edit/verify; explicit providers; deterministic JSON; generated manual; 4 tests; desktop GUI pending D11",
+   "candidate": "c41b067",
+   "note": "R5: verify with no expectation = usage error exit 2, verify_live refuses empty, verdict nothing_checked; PLAUSIBLE edit --save onto input refused without --overwrite; V4-01 on cli/harness/manual; 7 green; no red proof (denied)",
    "r5_review_routed": {
     "to": "rem-kb-harness",
     "at": "2026-10-11T05:31:12Z",
@@ -614,20 +615,21 @@
    "lane_id": "SMB-KERNEL-BINDINGS",
    "crate": "hsk-studio-kernel-bindings",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-kernel-bindings",
-   "phase": "build",
-   "status": "FAIL_V1",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-kernel-bindings",
    "brief": null,
    "commits": [
     "95dee5e",
     "2c78bfa",
-    "a7d631c"
+    "a7d631c",
+    "be2ee84"
    ],
    "verdicts": [
     "STUDIO-R5 FAIL_V1 @1d404f8"
    ],
-   "candidate": "a7d631c",
-   "note": "strict versioned wire envelopes over session ports; TransientHost; exactly-once; 5 tests + break-it",
+   "candidate": "be2ee84",
+   "note": "R5: tickets bound to account+principal+resource (release by other owner refused), canonical wire via re-encode byte equality, PLAUSIBLE lease_epoch u64::MAX fencing fixed (stale_epoch / epoch_not_issued), V4-01 on wire/host/adapter; 10 green; no red proof (break-it edits denied by permission system); V4-04 fault hooks -> follow-up dispatched",
    "r5_review_routed": {
     "to": "rem-kb-harness",
     "at": "2026-10-11T05:31:12Z",
@@ -1681,11 +1683,12 @@
    "status": "READY_FOR_VALIDATION",
    "owner": "builder-render-gpu-3",
    "commits": [
-    "c5bd9be"
+    "c5bd9be",
+    "a6ac630"
    ],
    "verdicts": [],
-   "candidate": "c5bd9be",
-   "note": "slice 4: execute_extended (mask density/invert/feather, Blend-If, adjustments levels/curves LUT/hue-sat/exposure/invert/threshold/posterize) WGSL transcribed + checked vs pigment; max err 6e-7; empty envelope byte-identical v1; knockout/effects/brightness_contrast refused; 15 default + 18 test-faults green dx12+vulkan RTX 3090; open: Blend-If on adjustment layer / clip base reading to agree with render-cpu via pigment oracle"
+   "candidate": "a6ac630",
+   "note": "Blend-If agreement: adjustment layer agrees with pigment evaluate_stack (6.3e-7 dx12 / 1.0e-6 vulkan); clip-base Blend-If undefined in pigment -> GPU refuses blend_if_clip_base (pigment semantics slice dispatched); effects waves 1+2 (6 kinds) in WGSL transcribed from pigment, parity 1.2e-7..2.4e-7 dx12+vulkan RTX 3090; budgets before dispatch; class never above pigment; 23 test-faults / 20 default green; 5 mutations red on scratch"
   },
   {
    "lane_id": "SMB-INTEROP-PSD-ADJ",
@@ -1915,7 +1918,9 @@
   "SMB-MOTION-JS-SANDBOX-2",
   "SMB-COMPOSITE-ADJ",
   "SMB-PIGMENT-WINDOW",
-  "SMB-FOLIO-ENG-7"
+  "SMB-FOLIO-ENG-7",
+  "SMB-KERNEL-BINDINGS",
+  "SMB-HARNESS"
  ],
  "round_R6": {
   "candidate": "bd8533f",
