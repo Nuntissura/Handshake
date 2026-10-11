@@ -7,7 +7,8 @@
     {"sha": "e09a491", "subject": "interop-fig slice 1: bounded .fig container, version policy gate, loss list, stale-source + sanitized policy, blocked semantic decode, DESCRIPTOR, report(), consumer example, 5 focused synthetic-fixture tests"},
     {"sha": "a3808f8", "subject": "interop-fig slice 2: hand-written Kiwi schema reader + bounded schema-driven census (type histogram, source ids verbatim s:l, DOCUMENT roots) over raw-deflate schema and zstd/deflate message chunks; soft decode failures are typed loss entries, bound hits hard errors"},
     {"sha": "4cfbf0f", "subject": "interop-fig: descriptor documents Kiwi census/limits/loss codes; consumer --inspect prints schema summary, census and loss under an explicit inspection policy"},
-    {"sha": "c75577d", "subject": "interop-fig R6 remediation: ZIP local headers cross-checked against the central directory, V4-01 arithmetic_side_effects deny on container.rs and kiwi.rs, NOT_PROVEN line without a Figma-authored fixture (V4-03), V4-07 claim sweep, regression assertions"}
+    {"sha": "c75577d", "subject": "interop-fig R6 remediation: ZIP local headers cross-checked against the central directory, V4-01 arithmetic_side_effects deny on container.rs and kiwi.rs, NOT_PROVEN line without a Figma-authored fixture (V4-03), V4-07 claim sweep, regression assertions"},
+    {"sha": "deea33c", "subject": "interop-fig R6 follow-up: bytes after a compressed stream end are refused (typed), duplicate struct field ids are a schema_invalid refusal"}
   ],
   "capabilities_done": [
     "container.rs: open_fig(bytes, Limits, token) -> FigContainer: ZIP (PK 03 04) with bounded entries/entry bytes/inflated bytes/ratio, exact + case-folded duplicate names, traversal/absolute/backslash/drive/control names, local-vs-central header check, overlap check, CRC-32, STORE/DEFLATE only; or bare canvas.fig stream; prelude fig-kiwi/fig-jam./fig-deck else Unknown (bare unknown = NotFig, in-ZIP unknown = opaque Unknown with no chunk table); u32 LE version; length-prefixed chunk table (ChunkOverflow); every part byte-exact with sha256, chunks as ranges with sha256; meta.json top-level keys only",
@@ -20,7 +21,7 @@
   "tests": {
     "argv": "cargo test -p hsk-studio-interop-fig --tests --no-fail-fast",
     "exit": 0,
-    "sha": "c75577d",
+    "sha": "deea33c",
     "passed": 5,
     "failed": 0
   },
@@ -28,7 +29,7 @@
   "lock_wait_s": null,
   "bg_pids": [],
   "next": "Independent validator round on 4cfbf0f. Then (needs operator): Figma-authored .fig files at tests/fixtures/*.fig to record real versions in version_map::OBSERVED_VERSIONS and confirm chunk numbering, field names and zstd use; only after original-produced semantic/render proof: node-to-Folio/Components mapping (variants, variables, modes, auto-layout, prototypes), images/fonts, .jam/.deck/.buzz/.site/.make, writer",
-  "updated_at": "2026-10-11T06:31:43Z",
+  "updated_at": "2026-10-11T06:37:25Z",
   "notes": {
     "mt": "MT-35550 foundation (fig_import)",
     "remediation_r6": {
@@ -43,7 +44,17 @@
       "v4_06_site_list_local_header_claim": "regex `cross-check|must match|local header` over src/*.rs: container.rs:12 (doc, now states the checked fields and cites the test), container.rs:425 (code comment above the implemented check), descriptor.rs:3 (DESCRIPTOR, now states the checked fields and cites the test). 3 sites, all fixed",
       "v4_07": "never/always/guarantee/prove sweep over src/*.rs and the example: 19 sites weakened or given a test citation (15 in sources/example: container.rs 3, kiwi.rs 2, import.rs 2, error.rs 2, semantic_decode.rs 2, version_map.rs 2, lib.rs 1, example 1; plus 4 DESCRIPTOR phrases); grep for the words over src/ and examples/ now returns 0",
       "gameplan_route": "first run of the new assertions was red at HEAD 4cfbf0f (product failure, route (a)); the green run on the fixed tree ran without a retry-guard block because HEAD had moved; no flags or filters changed, no gameplan steps added",
-      "not_addressed_plausible_findings": "R6 PLAUSIBLE items not in the remediation request and left open: (a) compressed bytes after the end of the deflate stream / first zstd frame are ignored (kiwi.rs inflate_raw, zstd_decode); (b) decode_schema allows duplicate struct field ids so guid fields are matched by value (kiwi.rs, census); (c) fig tests have no bounded_case 60 s wrapper; (d) D16 duplicate ZIP/CRC reader awaits the lead decision. Unchanged by this pass"
+      "not_addressed_plausible_findings": "R6 PLAUSIBLE items still open: (c) fig tests have no bounded_case 60 s wrapper; (d) D16 duplicate ZIP/CRC reader awaits the lead decision. Items (a) trailing compressed bytes and (b) duplicate struct field ids were closed in deea33c (see followup_r6b)"
+    },
+    "followup_r6b": {
+      "fixed_in": "deea33c",
+      "trailing_compressed_bytes": "container.rs inflate_exact (miniz_oxide resumable inflater, output cap, consumed-input check) refuses input left after the final DEFLATE block: ZIP entries -> Zip(trailing_compressed_bytes); canvas schema chunk -> schema_chunk_trailing_bytes; message chunk -> message_chunk_trailing_bytes; zstd chunk -> zstd_trailing_bytes when input remains after the first frame (concatenated frames are valid per RFC 8878 s3.1, only the first is decoded, so a census would be partial; a typed soft loss, no census). The first of chunks 0/1 that inflates is the final schema candidate (a parse failure or trailing bytes there is not retried on chunk 1)",
+      "duplicate_struct_field_ids": "decode_schema applies the field-id uniqueness check to every definition kind (structs were exempt): schema_invalid / duplicate_field_id, no last-wins; the census guid lookup by value is therefore unambiguous",
+      "tests": "unsupported_version_duplicate_key_bomb_cancel extended: clean deflate message control (census present, no false positive), junk after the schema chunk, after a deflate message, after a zstd message, two concatenated zstd frames, junk inside a ZIP entry's declared compressed size, GUID struct with duplicate field ids. Red run on the previous reader panicked at tests/fig_import.rs:673 (schema trailing assertion); green 5/5 at deea33c",
+      "v4_06_site_list_compressed_decode_calls": "regex `decompress_to_vec|StreamingDecoder::new|inflate_exact|inflate_raw\\(` over src/*.rs: 4 decode call sites (container.rs:517 ZIP entry, kiwi.rs:593 schema chunk, kiwi.rs:648 message deflate, kiwi.rs:545 zstd): 4 fixed, 0 remaining decompress_to_vec* calls",
+      "v4_06_site_list_field_id_lookups": "regex `f\\.value == |\\.value == |duplicate_` over kiwi.rs: :216 field-id uniqueness (fixed, structs now included), :197 duplicate definition names (already refused), :379 message field lookup by id, :462/:464 guid session/local by value, :478 enum value lookup: the last four not-applicable (ids unique per definition after :216)",
+      "v4_01": "inflate_exact is checked/saturating arithmetic under the container.rs deny; clippy clean",
+      "d16_note": "inflate_exact wraps miniz_oxide's own decompress() (no deflate implementation added, no new ZIP-parsing site); it replaces the decompress_to_vec_with_limit calls in this crate rather than adding a copy"
     },
     "not_proven": [
       "editable .fig import and Figma parity: NOT_PROVEN. No Figma-authored .fig exists on this machine; every fixture is synthetic and built from public community format notes (UNVERIFIED against a real file)",

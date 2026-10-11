@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-11T06:37:43Z",
+ "updated_at": "2026-10-11T06:38:16Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -430,11 +430,12 @@
    "brief": "builders/briefs/hsk-studio-interop-fig.md",
    "commits": [
     "4cfbf0f",
-    "c75577d"
+    "c75577d",
+    "deea33c"
    ],
    "verdicts": [],
-   "candidate": "c75577d",
-   "note": "R6 remediation: early return -> NOT_PROVEN line (sweep 2 sites), read_zip compares flags/method/CRC/sizes vs central dir (data-descriptor form accepted; typed codes), no new ZIP site (D16), u32::MAX tests, V4-01 on container.rs + kiwi.rs (41 sites), V4-07 sweep 19 claims; 5 of 5 green; red proof on 4cfbf0f; follow-up requested: trailing compressed bytes, duplicate schema field ids",
+   "candidate": "deea33c",
+   "note": "follow-up: trailing compressed bytes after deflate/zstd typed refusal (inflate_exact over miniz_oxide; concatenated zstd frames refused to avoid partial census), duplicate field ids refused for all definition kinds incl structs; red on previous reader; 5 of 5 green",
    "r6_review_routed": {
     "to": "builder-interop-fig (resumed)",
     "at": "2026-10-11T06:23:08Z",
