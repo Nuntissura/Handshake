@@ -252,3 +252,4 @@
 {"t": "2026-10-12T09:04:25Z", "event": "SMB-PRESS-STRUCT-FAILCLOSED READY_FOR_VALIDATION 2dde832 (rem-press-struct-r23)", "lanes_moved": ["SMB-PRESS-STRUCT-FAILCLOSED READY"], "commits": ["2dde832"], "progress": "direct: product commit"}
 {"t": "2026-10-12T09:35:55Z", "event": "R21 opened at 2dde832: canary C26 exit 73 59/59; validator-r21 launched (opus); weekly 98%", "progress": "no direct progress (dispatch)"}
 {"t": "2026-10-12T09:56:43Z", "event": "R21 COMPLETE at 2dde832: 27 PASS 0 FAIL; PLR-091..095/098 closed; weekly 99%", "progress": "validator verdicts advanced (27 PASS)"}
+{"t": "2026-10-12T09:57:55Z", "event": "dispatched 2 Sonnet builders: SMB-PRESS-STRUCT-ORPHANS, SMB-INTEROP-PSD-DOCS; weekly 99%", "progress": "no direct progress (dispatch)"}

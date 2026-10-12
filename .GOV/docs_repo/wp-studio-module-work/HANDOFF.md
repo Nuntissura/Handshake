@@ -52,7 +52,7 @@ Push helper for governance: `tools/lead-kernel-push.sh <message-file> <paths...>
 
 ## In flight at handoff
 
-- Nothing running at 2026-10-12T09:56:44Z unless `team.json` shows next lanes `running` (resume_plan step 1).
+- Dispatched 2026-10-12T09:57:55Z (Sonnet builders): SMB-PRESS-STRUCT-ORPHANS, SMB-INTEROP-PSD-DOCS; lane files `builders/lanes/hsk-studio-press-struct-orphans.json`, `hsk-studio-interop-psd-docs.json` are the handoff. Weekly usage was 99% at dispatch: if the limit stopped them, re-dispatch with the same scope (`ledger.json` resume_plan step 1).
 
 </topic>
 
