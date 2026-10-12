@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-12T00:44:33Z",
+ "updated_at": "2026-10-12T00:52:32Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3552,5 +3552,23 @@
    "SMB-DEVELOP PASS_V8 and SMB-INTEROP-PSD-BUDGET PASS_V5 (two-FAIL lanes, crates unchanged)"
   ],
   "notes": "PLR-079..082; SMB-RENDER-GPU-ADJ PASS_V4 no longer binds (pigment dependency changed) -> lead: BLOCKED with D20"
+ },
+ "round_R16": {
+  "candidate": "5606d16",
+  "candidate_full": "5606d162549db9f3959d4ecaee85dbb1592d18e3",
+  "opened_at": "2026-10-12T00:52:32Z",
+  "sync": "already in sync since 9ffe946",
+  "canary": "C21 exit 73, 59/59, step 0 clean; NOT_PROVEN only interop-fig D17",
+  "ready": [
+   "SMB-PIGMENT-NOTES (9cb44c2, fe035ce, 8980d04)",
+   "SMB-NOTES-BATCH-1 (27a9a81, 9088884, ab273d3, 5606d16)"
+  ],
+  "two_fail_rechecks": "validation/R16-prereview-notes-narrow.json (press, web, reel-native, interop-psd) \u2014 pending at opening",
+  "reopen": "press, web, reel-native, interop-psd, pigment, render-cpu and dependants (CX-VAL-009)",
+  "excluded": [
+   "render-gpu lanes (D20)",
+   "interop-media (D9)"
+  ],
+  "team": "1 validator (opus); review input = R16 narrow pre-review (+ validator's own read of the tests/docs-only pigment lane)"
  }
 }
