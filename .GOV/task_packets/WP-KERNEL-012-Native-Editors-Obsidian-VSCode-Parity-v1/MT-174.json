@@ -1,4 +1,43 @@
 {
+  "round50_independent_predecessor_actual_result_20261013": {
+    "attempt_id": "320afdf6809d42f89f99ea4e05660da3",
+    "candidate_head": "e17eb7a5851e1a35fa914b842c898fc93df83e01",
+    "candidate_tree": "19dcb82ab7a32c54a7edeecf85aa1a4c9e62db0f",
+    "result": "TEST_FAILED",
+    "exit_code": 101,
+    "failure": "TABLE_SET_MISMATCH expected306 actual294 missing12 extra0",
+    "tests": {
+      "passed": 0,
+      "failed": 1,
+      "filtered_out": 2545
+    },
+    "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round50-replacement-exact-predecessor-upgrade",
+    "measurement_sha256": "b155c3c762c59701c6add31259f461ac28fd6745792a20cdd71ff6bd4c287cd9",
+    "post_binding_sha256": "9fd1f0edf84de597d3e3539b2e2e05928124e0ababc2fde42ac5ddac59f1fb69",
+    "input_files": 7416,
+    "inputs_unchanged": true,
+    "runtime_acceptance": "NOT_EVALUATED",
+    "accepted_phase02_import_mts": "0/5",
+    "completed_utc": "2026-10-12T18:42:37.1178806Z",
+    "next_action": "MT183 complete reconciliation and minimum repair; no unchanged rerun",
+    "old_history_retained": true
+  },
+  "execution_restructure_20261013": {
+    "decision_ref": "packet.json#/operator_workflow_restructure_20261013",
+    "child_refs": [
+      "MT-183.json",
+      "MT-184.json",
+      "MT-185.json"
+    ],
+    "retained_acceptance_refs": [
+      "/closure_unit/materialized_acceptance",
+      "/scope/acceptance_criteria",
+      "/proof/consumed_source_checks",
+      "/spec_basis",
+      "/attempt_budget"
+    ],
+    "residual_disposition": "Every obligation not explicitly closed by a child remains required in its original parent. Historical dependencies/verdicts retained; aggregate parent PASS is not a child predecessor."
+  },
   "replacement_validator_assignment_20261012": {
     "id": "WP012-P2-REPLACEMENT-VALIDATOR-20261012",
     "operator_instruction": "then start a new validator team with sub agents in a new chat... seems an obvious thing to do",
@@ -5568,19 +5607,19 @@
     "generator": null
   },
   "lifecycle": {
-  "status": "BLOCKED",
-  "blocked_on": "Round47 original catalog and composed production disk fresh/reopen GREEN. Original predecessor upgrade failed COMMIT conflict; reviewed minimal duplicate-index repair pushed e17eb7a58 remains unproven because assigned Review dispatch failed four times. Delivery has no focused runtime grant. Genuine deployment root/authentication and native publication/acceptance remain unresolved; accepted0/5.",
-  "depends_on": [
-    "MT-173"
-  ],
-  "blocks": [],
-  "active": true,
-  "validator_verdict": null,
-  "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
-  "claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
-  "completed_by": null,
-  "next_actor": "Replacement INTEGRATION_VALIDATOR chat 01a1315e-b3ac-7aa2-a6bd-a725f17c65d5: source admission then sole owned exact predecessor proof on e17eb7a5851e1a35fa914b842c898fc93df83e01 after fresh gates and root freeze release; Delivery broad core after focused GREEN; native deployment still needs original root and genuine authenticated context."
-},
+    "status": "BLOCKED",
+    "blocked_on": "Round50 exact predecessor TABLE_SET_MISMATCH expected306 actual294 missing12 extra0. Complete schema repair and independent original proof outstanding. Genuine deployment/authentication/publication and consumed native acceptance unresolved; accepted0/5.",
+    "depends_on": [
+      "MT-173"
+    ],
+    "blocks": [],
+    "active": true,
+    "validator_verdict": null,
+    "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
+    "claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
+    "completed_by": null,
+    "next_actor": "Fresh devlead MT183 source reconciliation/repair and independent proof, then MT184 final core compile; MT186 real deployment admission precedes MT185 actual publication."
+  },
   "scope": {
     "summary": "Reconcile shared core/bootstrap/manifests import paths",
     "allowed_paths": [

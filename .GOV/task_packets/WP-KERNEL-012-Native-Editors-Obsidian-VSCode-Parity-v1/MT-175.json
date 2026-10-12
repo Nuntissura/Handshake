@@ -1,4 +1,18 @@
 {
+  "execution_restructure_20261013": {
+    "decision_ref": "packet.json#/operator_workflow_restructure_20261013",
+    "child_refs": [
+      "MT-186.json"
+    ],
+    "retained_acceptance_refs": [
+      "/closure_unit/materialized_acceptance",
+      "/scope/acceptance_criteria",
+      "/proof/consumed_source_checks",
+      "/spec_basis",
+      "/attempt_budget"
+    ],
+    "residual_disposition": "Every obligation not explicitly closed by a child remains required in its original parent. Historical dependencies/verdicts retained; aggregate parent PASS is not a child predecessor."
+  },
   "auth_mapping_r2_adoption_20261011": {
     "decision_id": "WP012-P2-AUTH-MAPPING-001-R2",
     "status": "ADOPTED_IMPLEMENTATION_AUTHORIZED",

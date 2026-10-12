@@ -1,0 +1,318 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-183",
+  "created_at_utc": "2026-10-12T22:15:27.486745+00:00",
+  "updated_at_utc": "2026-10-12T22:15:27.486745+00:00",
+  "identity": {
+    "mt_id": "MT-183",
+    "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+    "title": "Complete predecessor schema reconciliation and minimum repair",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "closure_unit": {
+    "outcome": "Complete predecessor schema reconciliation and minimum repair",
+    "requirement_refs": [
+      "packet.json#/operator_workflow_restructure_20261013",
+      "MT-174.json#/closure_unit",
+      "MT-174.json#/spec_basis"
+    ],
+    "acceptance_refs": [
+      "MT-174.json#/scope/acceptance_criteria"
+    ],
+    "materialized_acceptance": [
+      {
+        "id": "WP012-MT-183-AC1",
+        "requirement": "Original predecessor catalog/fingerprint/data/transaction/restart assertions pass after complete independent source reconciliation."
+      },
+      {
+        "id": "WP012-MT-183-AC2",
+        "requirement": "Preserve inherited scope/pins/proof/budgets; independent owner binds exact inputs and actual verdict. Parent and whole-WP acceptance remain separate."
+      }
+    ]
+  },
+  "model_routing": {
+    "model_tier": null,
+    "tier_reason": "Configured role defaults, no override; bounded successor outcome with parent acceptance retained",
+    "sized_for_declared_tier": false,
+    "escalate_to_tier_on_blocker": null
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 2,
+    "attempts_counted_per_failing_check_not_per_hypothesis": true,
+    "written_diagnosis_required_before_further_attempts": true,
+    "post_diagnosis_runs": {
+      "probe": 1,
+      "confirm": 1
+    },
+    "exhausted_budget_outcome": "blocked_with_diagnosis",
+    "lineage_refs": [
+      "MT-174.json#/attempt_budget",
+      "MT-174.json#/round50_independent_predecessor_actual_result_20261013",
+      "packet.json#/operator_workflow_restructure_20261013/budget_binding"
+    ],
+    "new_counter_or_allowance_created": false,
+    "authority_precedence": "Numeric fields are inherited policy ONLY. Parent cumulative per-check history and specific existing grants determine remaining allowance. Child-local counters/new allowances forbidden.",
+    "remaining_allowance_source_ref": "packet.json#/operator_workflow_restructure_20261013/budget_binding"
+  },
+  "execution": {
+    "lane": "KERNEL_BUILDER_FOLDED_NO_ACP",
+    "foreground_or_interactive_tools_forbidden": true,
+    "depends_on": [],
+    "allowed_write_paths": [
+      "src/backend/handshake_core/src/storage/surreal/schema.rs"
+    ],
+    "forbidden_write_paths": [
+      ".GOV/**",
+      "canonical schema.surql and historical migration literals/pins",
+      "manifests/lockfiles",
+      "product paths outside exact assigned source scope"
+    ],
+    "stop_conditions": [
+      "Source/config/tree drift",
+      "Applicable attempt allowance absent/exhausted",
+      "Shared-target or overlapping-writer conflict",
+      "Need wider source/API/spec authority"
+    ],
+    "module_ref": "src/backend/handshake_core/src/storage/surreal"
+  },
+  "proof": {
+    "parent_proof_refs": [
+      "MT-174.json#/proof",
+      "packet.json#/operator_workflow_restructure_20261013",
+      "WP-KERNEL-012-phase-01-source-reconciliation-v1.json#/combined_acceptance_binding"
+    ],
+    "checks": [
+      {
+        "check_id": "WP012-MT-183-CLOSURE",
+        "claim_refs": [
+          "WP012-MT-183-AC1"
+        ],
+        "executor_role": "INTEGRATION_VALIDATOR",
+        "command_or_method": "cargo test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils -j 1 --lib storage::surreal::schema::tests::mt139_exact_predecessor_upgrade_preserves_data_and_restarts_current -- --exact --nocapture --test-threads=1",
+        "expected": "Original predecessor catalog/fingerprint/data/transaction/restart assertions pass after complete independent source reconciliation.",
+        "timeout_seconds": null,
+        "on_timeout": "Observe owned process/resources; actual exit required; no foreign process action",
+        "evidence_required": [
+          "Exact candidate/tree/source/configuration bindings",
+          "Actual canonical outcome or exit and terminal evidence",
+          "Independent review/runtime observation where required",
+          "Inherited failure history and applicable allowance"
+        ]
+      }
+    ],
+    "independent_review_required": true,
+    "duplicate_parent_proof_forbidden": true,
+    "configuration_binding_ref": "packet.json#/operator_workflow_restructure_20261013/resource_grant_extension/183",
+    "release_evidence_before_runtime": {
+      "required": [
+        "Independent canonical schema versus actual final emitted composition reconciliation: exact TABLE/FIELD/INDEX/FUNCTION identities/order, removals and unique index emission",
+        "Existing schema_delta_upgrade_statements_re_emit_every_mt154_delta regression preserved; affected focused composition regression, if changed, maps to original owning native Rust proof before broad runtime",
+        "Frozen minimal source diff review with original assertions/pins/protections preserved"
+      ],
+      "does_not_prove_runtime": true
+    }
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-183.json",
+    "microtask_projection": null,
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": null,
+    "status": "ON_DEMAND_ONLY",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING",
+    "claimed_by": null,
+    "completed_by": null,
+    "next_actor": "Fresh devlead assigns sole source coder/independent validator after preservation/admission"
+  },
+  "scope": {
+    "summary": "Complete predecessor schema reconciliation and minimum repair",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/storage/surreal/schema.rs"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "canonical schema.surql and historical migration literals/pins",
+      "manifests/lockfiles",
+      "product paths outside exact assigned source scope"
+    ],
+    "acceptance_criteria": [
+      {
+        "id": "WP012-MT-183-AC1",
+        "requirement": "Original predecessor catalog/fingerprint/data/transaction/restart assertions pass after complete independent source reconciliation."
+      },
+      {
+        "id": "WP012-MT-183-AC2",
+        "requirement": "Preserve inherited scope/pins/proof/budgets; independent owner binds exact inputs and actual verdict. Parent and whole-WP acceptance remain separate."
+      }
+    ],
+    "proof_targets": [
+      "cargo test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils -j 1 --lib storage::surreal::schema::tests::mt139_exact_predecessor_upgrade_preserves_data_and_restarts_current -- --exact --nocapture --test-threads=1"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "Existing native surfaces for changed owning module"
+    ],
+    "argus_targets": [
+      "Retain original MT exact stable IDs; no replacement name inferred"
+    ],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": "Headless host proof retained; native consumer handled by dependent native unit"
+  },
+  "user_manual_obligation": {
+    "required": false,
+    "same_change_update_required": false,
+    "manual_version_bump_required": false,
+    "target_entries": [],
+    "expected_evidence": [],
+    "not_applicable_reason": "Bounded internal repair/compile/admission/publication introduces no new user-facing workflow. Original parent manual requirements retained; reassess if repair changes behavior.",
+    "inherited_parent_obligation_ref": "MT-174.json#/user_manual_obligation"
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": false,
+    "resources_touched": [
+      "Mapped original owning-module resources"
+    ],
+    "identity_and_scope_contexts": [
+      "account",
+      "Principal",
+      "session",
+      "AccessSpace",
+      "resource grant"
+    ],
+    "enforcement_boundaries": [
+      "Host record-user/ResourceBroker and adapter admission"
+    ],
+    "same_project_private_resource_cases": [
+      "Private metadata and content default deny across actors"
+    ],
+    "cross_account_negative_cases": [],
+    "derived_resource_non_widening_cases": [
+      "Mixed-scope outputs retain narrowest contributing scope"
+    ],
+    "revocation_and_context_switch_cases": [
+      "Pinned original context; invalidate revoked caches/handles"
+    ],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": [],
+    "expected_evidence": [],
+    "not_applicable_reason": "Local declaration-preserving repair/compiler evidence introduces no new product privacy behavior. Original parent privacy obligations unchanged; affected cases still require independent proof.",
+    "inherited_parent_obligation_ref": "MT-174.json#/resource_privacy_obligation"
+  },
+  "hbr_obligations": [
+    "HBR-COMPART-001",
+    "HBR-COMPART-002",
+    "HBR-INT-009",
+    "HBR-MAN-001..004",
+    "HBR-PRIV-001..008",
+    "Retained source-MT exact HBR rows; pin adoption assessed before activation"
+  ],
+  "hbr_int_009_tier_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "model_reports": [
+      "observations",
+      "blockers",
+      "attempt_diagnoses",
+      "operator_decision_requests",
+      "residual_risks",
+      "proposed_followups"
+    ],
+    "worker_final_status": "ready_for_validation_or_blocked",
+    "parent_handoff_ref": "MT-174.json#/handoff"
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Incomplete declaration closure",
+      "New ID resets attempts/orphans acceptance",
+      "Compile mistaken for runtime proof",
+      "Synthetic deployment/authentication"
+    ],
+    "minimum_controls": [
+      "Complete source reconciliation before costly proof",
+      "Retained parent map/history and immutable bindings",
+      "Sole writer/build owner",
+      "Canonical independent observation with original assertions"
+    ]
+  },
+  "obligation_binding": {
+    "parent_ref": "MT-174.json",
+    "required_original_obligations_unchanged": true,
+    "change_to_proof_mapping": "Only affected behavior invokes new proof/manual updates; reuse valid unchanged input evidence, never waive original acceptance."
+  },
+  "parent_binding": {
+    "parent_mt": "MT-174",
+    "authority_ref": "packet.json#/operator_workflow_restructure_20261013",
+    "delegates_only_current_outcome": true,
+    "original_residual_scope_remains_parent": true,
+    "parent_is_not_execution_predecessor": true
+  },
+  "spec_basis": {
+    "kind": "Operator-authorized preservation-first execution decomposition",
+    "parent_ref": "MT-174.json#/spec_basis",
+    "new_product_requirements": false
+  },
+  "repair_constraints": {
+    "effective_write_authority": "packet.json#/operator_core_unblock_amendments_20261012/bootstrap_catalog_reconciliation",
+    "original_import_owner_ref": "MT-173.json",
+    "required": "Compare full canonical definitions against actual assembled predecessor/production output: TABLE/FIELD/INDEX/FUNCTION identities, replacement order, removals and cross-composition uniqueness. Add only confirmed missing dependent declarations with existing scanner/emitter.",
+    "observed_round50": "expected306 actual294 missing12 extra0",
+    "candidate_inventory": "280 definitions plus old uq_atelier_collection_1 retirement is provisional until independently reconciled",
+    "forbidden": [
+      "tables-only repair",
+      "weaken counts/fingerprints/assertions",
+      "whole-schema replay",
+      "DML reseed",
+      "retry loop",
+      "transaction split",
+      "engine/pin upgrade"
+    ],
+    "proof_reuse": "Round47 only if actual affected behavior and relevant inputs unchanged; never substitutes repaired predecessor proof",
+    "admitted_source_checkpoint": "e17eb7a5851e1a35fa914b842c898fc93df83e01; MT171/172 imported source refs preserved, no dependence on parent aggregate PASS"
+  }
+}
