@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-12T01:12:47Z",
+ "updated_at": "2026-10-12T01:26:01Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3008,31 +3008,21 @@
    "crate": "hsk-studio-press + hsk-studio-web + hsk-studio-reel-native + hsk-studio-interop-psd",
    "origin": "plausible register",
    "scope": "PLR-076 (press), PLR-071 (web), PLR-078 (reel-native), PLR-064/065 (psd)",
-   "phase": "FIX_FIRST (press part, R16 narrow pre-review P-1); withdrawn from R16 before verdicts",
-   "status": null,
+   "phase": "validation (narrow pre-review of f0be2ba + fcda5f6 next)",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-notes-batch-1",
    "lane_file": "builders/lanes/notes-batch-1.json",
    "commits": [
     "27a9a81",
     "9088884",
     "ab273d3",
-    "5606d16"
+    "5606d16",
+    "f0be2ba",
+    "fcda5f6"
    ],
    "verdicts": [],
-   "candidate": "5606d16",
-   "note": "press 27a9a81 PLR-076: painted region source kept only via /AF, /Names or /Dests -> NotProven::PaintedSourceKept, DESCRIPTOR exact (131 tests); web 9088884 PLR-071: doc + citation fixed, cancellation test past the first iteration, wall-clock bound -> operation-count bound (138); reel-native ab273d3 PLR-078: docs/DESCRIPTOR match code, host-level tests for BATCH_END miscount, OPENED answering PACKET/FINISH, 65 FRAMEs, cut-short greeting (24 with av1-worker+test-faults); interop-psd 5606d16 PLR-064/065: over-counts documented with citations, helper nests groups, nested hidden groups test (53); 346 tests pass; red on origin (press, psd) or stated mutants (web W1-W5, reel-native N1-N4, psd P1-P4). Not done: config-OBU tag case, exact-64-FRAME acceptance test, press prune, psd group-own-lfx2 + zero-tile",
-   "blockers": [
-    {
-     "kind": "V4-13 narrow pre-review FIX_FIRST (press)",
-     "ref": "validation/R16-prereview-notes-narrow.json",
-     "items": [
-      "P-1 press doc claim vs kept /Resources and plain-key references",
-      "I-1 psd 'only past 4096' wording vs per-layer 65 cap (doc rider)",
-      "W-1 kernel lane note wall-clock site count 7 vs 9"
-     ],
-     "recorded_at": "2026-10-12T01:05:03Z"
-    }
-   ]
+   "candidate": "fcda5f6",
+   "note": "press 27a9a81 PLR-076: painted region source kept only via /AF, /Names or /Dests -> NotProven::PaintedSourceKept, DESCRIPTOR exact (131 tests); web 9088884 PLR-071: doc + citation fixed, cancellation test past the first iteration, wall-clock bound -> operation-count bound (138); reel-native ab273d3 PLR-078: docs/DESCRIPTOR match code, host-level tests for BATCH_END miscount, OPENED answering PACKET/FINISH, 65 FRAMEs, cut-short greeting (24 with av1-worker+test-faults); interop-psd 5606d16 PLR-064/065: over-counts documented with citations, helper nests groups, nested hidden groups test (53); 346 tests pass; red on origin (press, psd) or stated mutants (web W1-W5, reel-native N1-N4, psd P1-P4). Not done: config-OBU tag case, exact-64-FRAME acceptance test, press prune, psd group-own-lfx2 + zero-tile; R16 pre-review remediation f0be2ba (press: a surviving painted source is silent only when a kept page draws it \u2014 Do/sh/scn/gs/Tf targets, /AP /N /R /D, image /SMask /Mask, pattern /Shading, gs /SMask /G; every other reference reported PaintedSourceKept; reached/pruning unchanged; docs exact; 134/134; red on 5606d16 + mutants M1a-c, M2, M3) + fcda5f6 (psd doc rider: both caps apply); W-1 note count corrected"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",

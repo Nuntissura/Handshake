@@ -2,7 +2,7 @@
   "crate": "hsk-studio-press,hsk-studio-web,hsk-studio-reel-native,hsk-studio-interop-psd",
   "lane": "SMB-NOTES-BATCH-1",
   "status": "READY_FOR_VALIDATION",
-  "phase": "complete: PLR-076, PLR-071, PLR-078, PLR-064, PLR-065 landed one crate per commit, pushed, green; red proofs and mutants recorded",
+  "phase": "complete: PLR-076, PLR-071, PLR-078, PLR-064, PLR-065 landed one crate per commit; R16 narrow pre-review remediation (press P-1, psd I-1, lane-note W-1) landed in f0be2ba and fcda5f6, pushed, green; red proofs and mutants recorded in notes.remediation_R16pre",
   "commits": [
     {
       "sha": "27a9a81",
@@ -19,6 +19,14 @@
     {
       "sha": "5606d16",
       "subject": "interop-psd (SMB-NOTES-BATCH-1, PLR-064/065): both deliberate over-counts are stated in the shipped docs and DESCRIPTOR with test citations; nested hidden groups are tested"
+    },
+    {
+      "sha": "f0be2ba",
+      "subject": "press (SMB-NOTES-BATCH-1, R16 pre-review P-1): a painted region source is silent only when a kept page draws it; any other surviving reference is reported (NotProven::PaintedSourceKept)"
+    },
+    {
+      "sha": "fcda5f6",
+      "subject": "interop-psd (SMB-NOTES-BATCH-1, R16 pre-review I-1): the over-count docs say both caps apply (document 4096, per layer 64), not only past 4096"
     }
   ],
   "capabilities_done": [
@@ -26,20 +34,23 @@
     "PLR-071 web: decide_all doc sentence and citations; mid-loop cancellation tests in both loops; operation-count bound replaces the 20 s assertion",
     "PLR-078 reel-native: HELLO/greeting docs exact in wire.rs, host.rs and DESCRIPTOR; host-level tests for BATCH_END count, OPENED answering PACKET and FINISH, more than 64 FRAMEs, and the cut-short greeting boundary",
     "PLR-064 interop-psd: both over-counts disclosed in effects.rs, proposal.rs, ProposalConfig::budget and DESCRIPTOR effect_limits with test citations",
-    "PLR-065 interop-psd: test helper nests groups and clipped layers; nested hidden groups test"
+    "PLR-065 interop-psd: test helper nests groups and clipped layers; nested hidden groups test",
+    "R16 pre-review P-1 press: a painted region source is certain only when a kept page draws it (page content, drawn forms/patterns/Type 3 fonts, listed annotation appearances /N /R /D, image /SMask /Mask, shading pattern /Shading, gs /SMask /G); a kept page's non-drawn /Resources entry or a plain key of a drawn object is reported; claims in lib.rs, flatten_purge.rs and sanitized_save.rs exact; V4-06 relisted",
+    "R16 pre-review I-1 interop-psd: over-count docs say the document cap (4096) and the per-layer cap (64) both apply; docs only",
+    "R16 pre-review W-1 web: lane-note wall-clock count corrected to 9 = 5 fixed + 4 not applicable"
   ],
   "tests": {
-    "argv": "per crate, studio-env.sh with STUDIO_OWNER unset (shared edit tree): cargo nextest run -p <crate> [feature sets of .config/round-features.toml] --no-fail-fast; cargo test --doc -p <crate> [same sets]; cargo clippy -p <crate> --tests [sets]; cargo fmt -p <crate> --check (web, reel-native)",
+    "argv": "per crate, studio-env.sh with STUDIO_OWNER unset (shared edit tree): cargo nextest run -p <crate> [feature sets of .config/round-features.toml] --no-fail-fast; cargo test --doc -p <crate> [same sets]; cargo clippy -p <crate> --tests [sets]; cargo fmt -p <crate> --check (web, reel-native). At fcda5f6 re-run: hsk-studio-press (134/134) and hsk-studio-interop-psd (53/53), doctests and clippy; web (138) and reel-native (24) are carried from their last green runs (9088884, ab273d3): no commit touched them since",
     "exit": 0,
-    "sha": "5606d16",
-    "passed": 346,
+    "sha": "fcda5f6",
+    "passed": 349,
     "failed": 0
   },
   "blockers": [],
-  "lock_wait_s": 5,
+  "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "none for the builder. Lead: judge the four crates (press/web/reel-native/interop-psd each carry two failed verdicts in their lane history) after the V4-13 narrow pre-review of 7410f29..5606d16 per crate; update register items PLR-064, 065, 071, 076, 078 (see notes.not_done for what was deliberately left).",
-  "updated_at": "2026-10-12T00:43:39Z",
+  "next": "none for the builder. R16 narrow pre-review findings P-1 (press), I-1 (interop-psd) and W-1 (web lane note) are remediated (notes.remediation_R16pre); anything pushed to press or interop-psd after fcda5f6 invalidates this READY (V4-14). Lead: judge the four crates (press/web/reel-native/interop-psd each carry two failed verdicts in their lane history) after the V4-13 narrow pre-review of 7410f29..5606d16 per crate; update register items PLR-064, 065, 071, 076, 078 (see notes.not_done for what was deliberately left).",
+  "updated_at": "2026-10-12T01:25:17Z",
   "notes": {
     "scope": "Each crate: only the register item(s), nothing else. No product logic changed in web, reel-native (host decode), or interop-psd; press changes one seed of the usage analysis. Commits are pathspec commits (-- crates/<crate>), pushed after each crate; HEAD == origin == 5606d16 at the end. No amend, no rebase, no force.",
     "scratch": {
@@ -48,6 +59,7 @@
     },
     "gameplan_route": "No retry-guard hit. One infrastructure block: a scratch command that began with a variable assignment instead of a leading cd made the hook resolve the WP-KERNEL-012 gameplan (confirm_binding target missing); fixed by starting every gated command with the leading cd to the Studio tree (no bypass, no gameplan edit). One transient LNK1104 (link.exe) in a scratch mutant run; the identical mutant was rerun after a new commit and linked.",
     "press": {
+      "r16_pre_review": "superseded in part by remediation_R16pre.press (f0be2ba): the DESCRIPTOR sentence listing 'any plain reference' as reported, the module-doc statement that certain covers everything a kept page's scopes reach, and the V4-06 regex of this section",
       "plr": "PLR-076 (R14-P1)",
       "commit": "27a9a81",
       "decision": "fail-closed REPORT, not prune: pruning would mean editing /AF arrays, name-tree leaves or any other plain reference of the kept document, which cannot be proven safe in general. flatten_purge.rs: the trailer roots are pushed with certain=false (reached, not certain); certain now means drawn by a kept page scope or by the appearance stream (/AP /N /R /D, state dictionaries included) of an annotation a kept page lists in its own /Annots (new fn appearance_streams, seeded certain). A painted source reached only by plain reference stays in the file, is listed in RedactedOutput::painted_sources_kept, NotProven::PaintedSourceKept is the only reason, region_flattened and is_proven read false.",
@@ -153,9 +165,9 @@
         {
           "class": "wall-clock assertion in a test",
           "regex": "Instant::now|elapsed|Duration::from_secs",
-          "scope": "crates/hsk-studio-web before 9088884: 7 lines; after: 4",
-          "sites": "css_url_gate.rs Instant::now, elapsed, Duration::from_secs(20) assertion = 3 fixed (removed); css_url_gate.rs:28, html_parity.rs:28, source_dom_patch.rs:29, html5ever_differential/main.rs:65 = 4 not applicable (the per-case recv_timeout deadline convention of bounded_case, not an assertion on a measured duration)",
-          "recount": "7 = 3 fixed + 4 not applicable"
+          "scope": "crates/hsk-studio-web at b8b31c7 (before 9088884): 9 lines (git grep -n -E 'Instant::now|elapsed|Duration::from_secs'); at 9088884: 4",
+          "sites": "css_url_gate.rs:1987, :1993, :1995, :1998, :1999 (Instant::now, elapsed, eprintln of the elapsed time, the Duration::from_secs(20) assertion) = 5 fixed (removed); css_url_gate.rs:28, html_parity.rs:28, source_dom_patch.rs:29, html5ever_differential/main.rs:65 = 4 not applicable (the per-case recv_timeout deadline convention of bounded_case, not an assertion on a measured duration)",
+          "recount": "9 = 5 fixed + 4 not applicable (R16 pre-review W-1: the earlier '7 = 3 fixed + 4 not applicable' counted patterns, not lines)"
         }
       ],
       "v4_01_v4_02": "assets.rs keeps deny(clippy::arithmetic_side_effects); the cfg(test) hook uses saturating_add and no arithmetic otherwise; no new decoder."
@@ -244,6 +256,83 @@
         "recount": "6 = 1 documented + 2 pinned + 3 not applicable; the docs that said the importer counts 'what a plan counts' were reworded in effects.rs (header, StackShape), proposal.rs (collect_records, budget) and the effects_budget.rs header"
       },
       "v4_01_v4_02": "effects.rs and proposal.rs keep deny(clippy::arithmetic_side_effects); only comments, the DESCRIPTOR string and tests changed in src."
+    },
+    "remediation_R16pre": {
+      "source": "validation/R16-prereview-notes-narrow.json: press P-1 CONFIRMED (FIX_FIRST), P-2 PLAUSIBLE, P-3 INFO; interop-psd I-1 CONFIRMED (docs); web W-1 CONFIRMED (this file)",
+      "commits": [
+        "f0be2ba (hsk-studio-press)",
+        "fcda5f6 (hsk-studio-interop-psd)"
+      ],
+      "press": {
+        "rule": "fail-closed (lead): a painted region source of a flattened page that survives in the saved file is certain (silent) ONLY when a kept page DRAWS it: the Do, sh, scn/SCN, gs or Tf target of a scope a kept page draws (page content, the content of a drawn form, pattern or Type 3 font), an appearance stream (/AP /N /R /D, state dictionaries included) of an annotation a kept page lists in its own /Annots, or what drawing an object renders along with it (an image /SMask and /Mask, a shading pattern /Shading, a graphics state /SMask /G group). Any other surviving reference (a non-gated /Resources entry of a kept page such as /Properties or /ColorSpace, a plain key of a drawn object such as /Alternates or /PieceInfo, a form that only a plain reference reaches, catalog /AF, /Names, /Dests, trailer roots) is reported as NotProven::PaintedSourceKept; it is never pruned by this change (the kept structure is not edited; prefer-report).",
+        "code": "src/flatten_purge.rs only: Usage::follow() lost its flag and pushes every reference with certain=false; resources() and traverse() follow plain entries and keys through it; read_scope() pushes the named object certain only in a scope a kept page draws (Some(r) if certain => push(r.num, true), otherwise follow) and pushes rendered_with() targets certain; new fns smask_group() (the existing ExtGState /SMask /G lookup, now shared) and rendered_with(); drop_painted_sources() comments. sanitized_save.rs: doc comments only. lib.rs: DESCRIPTOR sentences only.",
+        "reach_and_pruning_unchanged": "`reached` is the same plain-reference closure as at 5606d16 (a Ref target of a certain scope is pushed once with certain=true and its keys are followed plain, as before; a direct target is followed plain), so `gone` and every pruning are unchanged; `certain` of this change is a subset of the old `certain` (draw targets, rendered_with targets and appearance streams were certain before too), so painted_sources_kept can only grow against 5606d16 (fail-closed).",
+        "docs": "flatten_purge.rs module docs (painted sources, usage analysis, a new paragraph Certain = drawn) and drop_painted_sources doc; sanitized_save.rs NotProven::PaintedSourceKept and RedactedOutput::painted_sources_kept; lib.rs DESCRIPTOR redaction.flatten.painted_over and redaction.flatten.purge. The 5606d16 sentence \"(a catalog /AF, a /Names or /Dests name tree, any plain reference) ... is reported\" was wider than the code (P-1); the new text lists the reported cases and what a kept page draws, and cites the tests. No never/always/guarantees/proves wording added (V4-07); the DESCRIPTOR pin test descriptor_names_the_painted_source_kept_by_reference_case checks the new needles and that every cited test exists.",
+        "tests_added": [
+          "painted_source_referenced_but_not_drawn_by_a_kept_page_is_reported (kept page two lists the image in /Properties, in /ColorSpace, under an unknown /Resources key: painted_sources_kept == [10], reasons == [PaintedSourceKept], region_flattened/is_proven false, image bytes stay, the unreferenced form is dropped; control: an /XObject entry nobody draws is dropped and not reported)",
+          "painted_source_referenced_by_a_key_of_a_drawn_object_is_reported (a plain key /PieceInfo of a form page two draws; the /Alternates of an image page two draws; an undrawn form listed in /Properties whose own content draws the image: each painted_sources_kept == [10], bytes stay)",
+          "painted_sources_rendered_with_a_drawn_object_are_not_reported (page two draws an image with an /SMask image, a shading, a shading pattern and a graphics state with an /SMask /G group, all listed on the flattened page one too: nothing reported, region_flattened true, image, mask and group stay)"
+        ],
+        "tests_changed": "painted_sources_drawn_by_kept_pages_or_annotation_appearances_are_not_reported gains two cases (appearance listed as /AP /R only, as /AP /D only; P-3); descriptor_names_the_painted_source_kept_by_reference_case has the new needles and a loop over the cited tests. No other test touched.",
+        "tests": "cargo nextest run -p hsk-studio-press: 134/134 (131 + 3 new; unit 41, pdf_delivery 70, flatten_redaction 9, flatten_r13 14); cargo test --doc: 0 tests; cargo clippy -p hsk-studio-press --tests clean (only the two pre-existing hsk-studio-observe warnings). Shared edit tree, studio-env.sh, STUDIO_OWNER unset.",
+        "red_proofs": {
+          "scratch": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-notes-batch-1-r16-red/src/handshake-studio-assets: git archive of 5606d16 with a private history (one commit per variant, so every run has its own HEAD), STUDIO_OWNER=smb-notes-batch-1-r16-red with its own target and tmp; the shared edit tree was never reverted or mutated (V4-11); every restored or mutated file was touched.",
+          "R0 5606d16 source + the new test file (scratch C1 de7dc04)": "14 tests, 3 FAIL: painted_source_referenced_but_not_drawn_by_a_kept_page_is_reported (all three listings: painted_sources_kept [] instead of [10], reasons [], region_flattened true, is_proven true), painted_source_referenced_by_a_key_of_a_drawn_object_is_reported (all three cases likewise), descriptor_names_the_painted_source_kept_by_reference_case (DESCRIPTOR lacks \"R16\"); the other 11 PASS, among them painted_sources_rendered_with_a_drawn_object_are_not_reported and the /AP /R /D cases (they pin the no-regression side, see the mutants)",
+          "C2 fix (scratch d2d45c0)": "14/14 PASS",
+          "M1a image /SMask and /Mask not rendered with the image (31b9052)": "painted_sources_rendered_with_a_drawn_object_are_not_reported FAIL (reported kept [12]); 13 PASS",
+          "M1b shading pattern /Shading not rendered with the pattern (c036907)": "same test FAIL (reported kept [15]); 13 PASS",
+          "M1c graphics state /SMask /G group not rendered with the gs (6444b8a)": "same test FAIL (reported kept [17]); 13 PASS",
+          "M2 a draw by a kept scope is not certain (d285203)": "3 FAIL: painted_sources_rendered_with_a_drawn_object_are_not_reported, painted_sources_under_a_region_do_not_survive, painted_sources_drawn_by_kept_pages_or_annotation_appearances_are_not_reported; 11 PASS",
+          "M3 appearance_streams reads only /AP /N (d398794)": "painted_sources_drawn_by_kept_pages_or_annotation_appearances_are_not_reported FAIL (rollover /AP /R and down /AP /D reported kept [10]); 13 PASS (the P-3 gap: before this change no test killed a mutant that dropped the R and D arms)"
+        },
+        "v4_06": {
+          "class": "a painted region source made certain (silently kept, not reported) without a draw by a kept page: a seed, a resource listing or the propagation of certainty along plain references (P-1: the 5606d16 regex u\\.push\\(|certain: true|trailer_roots\\( matched neither u.resources(rv, true) nor the follow(.., certain) propagation)",
+          "regex": "u\\.push\\(|self\\.push\\(|self\\.mark\\((n|r\\.num),|\\.follow\\(|\\.resources\\(|Scope \\{|certain: true|trailer_roots\\(|rendered_with\\(",
+          "scope": "git grep -n -E over crates/hsk-studio-press/src at f0be2ba (25 hits with the same regex at 5606d16: the added hits are rendered_with, the read_scope draw arms and the pushes of its targets)",
+          "count": 29,
+          "sites": [
+            "canon.rs:289 not applicable (liveness: reachable() of the staged canonical objects)",
+            "flatten_purge.rs:238 not applicable (liveness: remove_annotations check)",
+            "flatten_purge.rs:535 new draw-edge table (rendered_with: image /SMask /Mask, shading pattern /Shading, gs /SMask /G); the only keys beyond the named object that a draw makes certain; test painted_sources_rendered_with_a_drawn_object_are_not_reported, mutants M1a-M1c",
+            "flatten_purge.rs:555 not applicable (mechanism: mark() always reaches, certain only when the flag is set by a draw)",
+            "flatten_purge.rs:569 fixed (follow() pushes every plain reference with certain=false; was the traversal flag)",
+            "flatten_purge.rs:583 not applicable (marks the /Resources dictionary object itself, not a painted source)",
+            "flatten_purge.rs:590 not applicable (marks a gated sub-dictionary object; its entries are used only by name)",
+            "flatten_purge.rs:593 fixed (non-gated /Resources entries are plain references, not certain, also in a scope a kept page draws; P-1 case 1; test painted_source_referenced_but_not_drawn_by_a_kept_page_is_reported)",
+            "flatten_purge.rs:610 fixed (non-dictionary object reached: plain)",
+            "flatten_purge.rs:621 fixed (every key of a drawn object is a plain reference; P-1 case 2; test painted_source_referenced_by_a_key_of_a_drawn_object_is_reported)",
+            "flatten_purge.rs:624 not applicable (resources() of an own-scope stream: marks, plain entries via :593)",
+            "flatten_purge.rs:631 fixed (the scope of a stream or Type 3 font is certain only when the object itself was drawn: an undrawn form reached by a plain reference no longer draws certainly; P-1 case 3, same test)",
+            "flatten_purge.rs:642 not applicable (all_used: content unreadable, plain, uncertain, unchanged)",
+            "flatten_purge.rs:688 draw (Do, sh, scn/SCN, gs or Tf target of a scope a kept page draws is pushed certain; mutant M2)",
+            "flatten_purge.rs:689 plain (target of a scope no kept page draws, or a direct object: plain)",
+            "flatten_purge.rs:694 draw (rendered_with() of the drawn object)",
+            "flatten_purge.rs:695 draw (rendered_with() targets pushed certain)",
+            "flatten_purge.rs:805 plain (trailer roots, R14-P1, unchanged)",
+            "flatten_purge.rs:806 plain (u.push(r, false), R14-P1, unchanged)",
+            "flatten_purge.rs:814 draw (appearance streams /AP /N /R /D of the annotations a kept page lists; tests incl. /R and /D, mutant M3)",
+            "flatten_purge.rs:821 not applicable (page /Resources: marks the dictionary; gated entries by name through content, plain entries via :593)",
+            "flatten_purge.rs:828 draw (page scope: the content of a kept page draws)",
+            "flatten_purge.rs:847 not applicable (liveness: report filter when the analysis is incomplete)",
+            "flatten_purge.rs:873 not applicable (liveness: final report filter)",
+            "redaction.rs:1168 not applicable (liveness)",
+            "sanitized_save.rs:859 not applicable (liveness)",
+            "text_fields.rs:1541 not applicable (liveness)",
+            "writer.rs:123 not applicable (definition of trailer_roots)",
+            "writer.rs:142 not applicable (liveness)"
+          ],
+          "recount": "29 = 5 fixed + 6 draw + 3 plain + 6 not applicable (mechanism) + 9 not applicable (liveness: reachable() of the staged or saved objects, trailer_roots definition)"
+        },
+        "residuals": "P-2 (limit consumption doubles for an object that is both drawn and plain-reached, e.g. an annotation appearance form with its own /Resources: scopes (n,false) and (n,true), decoded twice against the shared budget) is unchanged and fail-closed (exhaustion: nothing dropped, every live painted source reported); not addressed. The image /Alternates and any key not in the rendered_with table stay reported even when a viewer would never draw them; annotation /F flags (Hidden, NoView) are not read, so the appearance of a hidden annotation a kept page lists is still certain (docs say so); a draw-edge missing from rendered_with (e.g. a Type 3 glyph or a pattern /ExtGState entry) reports a source a viewer draws: a false report, not a leak."
+      },
+      "interop_psd": {
+        "item": "I-1: effects.rs header and DESCRIPTOR effect_limits said a counted stack can be lost although the plan count fits \"only past 4096 apparent counted instances\"; the per-layer cap (64) loses a stack past 64 on one layer the plan never renders.",
+        "change": "docs only (effects.rs comment, DESCRIPTOR effect_limits clause both_caps_apply_the_document_cap_past_4096_apparent_counted_instances_and_the_per_layer_cap_past_64_on_one_such_layer), still citing the_importer_counts_layers_without_pixels_and_clipped_layers_on_hidden_or_empty_bases (asserts the 64 x 64 document case, a 65-instance layer lost with effects_over_budget, and the clipped cases); descriptor_states_the_importers_over_counts gains one needle. No logic change.",
+        "tests": "cargo nextest run -p hsk-studio-interop-psd: 53/53; cargo test --doc: 0 tests; cargo clippy -p hsk-studio-interop-psd --tests clean.",
+        "red_proof": "scratch C3 11d2bd8 (5606d16 psd source + the new test file): effects_budget 12 tests, 1 FAIL descriptor_states_the_importers_over_counts (effect_limits does not state both_caps_apply_...), 11 PASS"
+      },
+      "web_W1": "notes.web.v4_06[1] corrected in this file: 9 = 5 fixed + 4 not applicable (git grep -n -E \"Instant::now|elapsed|Duration::from_secs\" at b8b31c7: css_url_gate.rs:28, :1987, :1993, :1995, :1998, :1999, html5ever_differential/main.rs:65, html_parity.rs:28, source_dom_patch.rs:29; at 9088884: the 4 not applicable). No product change.",
+      "gameplan_route": "Every gated command started with the leading cd to the Studio tree and sourced studio-env.sh (shared tree: STUDIO_OWNER unset; scratch: STUDIO_OWNER=smb-notes-batch-1-r16-red), so the hook resolved the Studio gameplan; no block, no retry-guard hit, no gameplan edit. Failing red-proof runs each had their own scratch HEAD."
     },
     "not_done": [
       "PLR-078 'config-OBU tag u64::MAX' (reel Av1Decoder::open feeds av1C configuration OBUs with tag u64::MAX; a picture from them would now be an unsent tag): left as the R15 pre-review noted it, UNVERIFIED in practice (whether AV1-ISOBMFF forbids frame OBUs in configOBUs was not read); no code change.",
