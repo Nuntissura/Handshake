@@ -233,3 +233,4 @@
 {"t": "2026-10-12T02:26:42Z", "event": "press R17 remediation complete at bcc0688 (/OC fail-closed, 141/141); SMB-NOTES-BATCH-1 READY; narrow pre-review next", "commits": ["35be374", "d39bd28", "bcc0688"], "progress": "direct: product commits"}
 {"t": "2026-10-12T04:50:37Z", "event": "R18 opened at bfa1bbf: steward-5 already in sync, canary C23 exit 73 59/59; validator-r18 launched (opus); usage 5h 10% / weekly 93%", "progress": "no direct progress (dispatch)"}
 {"t": "2026-10-12T05:10:24Z", "event": "R18 COMPLETE at bfa1bbf: SMB-PRESS PASS_V4, SMB-PRESS-DIFFERENCES PASS_V2, SMB-NOTES-BATCH-1 PASS_V1; press 147/147; PLR-084 DOC; template CX-VAL-007 fix", "progress": "validator verdicts advanced (3 PASS)"}
+{"t": "2026-10-12T05:13:07Z", "event": "dispatched 3 Sonnet builders: SMB-PRESS-DOCS, SMB-REEL-PARTIAL-PTS, SMB-INTEROP-PSD-FOLIO-CEILING; usage weekly 94%", "progress": "no direct progress (dispatch)"}
