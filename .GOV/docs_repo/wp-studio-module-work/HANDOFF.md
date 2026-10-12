@@ -1,7 +1,7 @@
 ---
 file_id: WP-STUDIO-MODULE-WORK-HANDOFF
 file_kind: handoff
-updated_at: 2026-10-11T22:51:31Z
+updated_at: 2026-10-12T00:05:24Z
 wp: WP-KERNEL-STUDIO
 latest_snapshot: snapshots/SNAPSHOT-20261011T214451Z.json
 authority: ledger.json, team.json, workflow/plausible-register.json, validation/*, START_LOG.md (this file is a projection; they win on conflict)
@@ -39,8 +39,8 @@ Push helper for governance: `tools/lead-kernel-push.sh <message-file> <paths...>
 ## Done
 
 - 35 Rust crates exist as a standalone multi-crate module (not wired into Handshake), ~108k lines incl. tests; every crate builds and tests green on each canary (59/59 units).
-- 108 work lanes: 6 BLOCKED, 1 IN_WORK, 97 PASS, 4 QUEUED (see snapshot `lanes`; snapshot predates R12-R14).
-- Validation rounds R5-R14 complete (R4 abandoned): R12 = 45 PASS (web lanes passed); R13 = press PASS (SMB-PRESS PASS_V3 under D27, DIFFERENCES V1); R14 = 8 PASS reel/reel-native (both two-FAIL AV1 lanes PASS_V8, RECEIPTS V1, NATIVE-FAULTS-2 V1). No lane is at 2 open FAILs any more except the Operator-blocked SMB-RENDER-GPU / SMB-ROUND-ENTRYPOINT (D20).
+- 109 work lanes: 7 BLOCKED, 1 IN_WORK, 97 PASS, 4 QUEUED (snapshot predates R12-R15). SMB-RENDER-GPU-ADJ moved to BLOCKED (its PASS no longer binds after the pigment change; render-gpu waits on D20).
+- Validation rounds R5-R15 complete (R4 abandoned): R12 = 45 PASS (web lanes passed); R13 = press PASS (SMB-PRESS PASS_V3 under D27); R14 = 8 PASS reel/reel-native (both two-FAIL AV1 lanes PASS_V8); R15 = 31 PASS (pigment follow-ups + reopens). No open FAIL anywhere; only Operator-blocked lanes remain at their limits (D20).
 - Fully passed crates (27 of 35, every lane PASS): accord, chronicle, components, composite, controls, develop, folio, harness, interop-fig, interop-layout, interop-lrcat, interop-psd, interop-vector, kernel-bindings, layout, motion, motion-js, nib, package, prism, pulse, render-cpu, score, score-device, score-plugin, session, type. Not fully passed: interop-media, observe (no lane yet), pigment (plan-limits lane in R12), press, reel, reel-native, render-gpu, web (snapshot `crates`).
 - Strongest areas: Photoshop-style layer document, compositing (CPU + GPU), adjustments/effects/Blend-If, colour management, PSD import; raw develop; video indexing/AV1 worker/exact export; audio engine.
 
