@@ -146,11 +146,11 @@
       "MT-183"
     ],
     "blocks": [],
-    "active": false,
+    "active": true,
     "validator_verdict": "PENDING",
-    "claimed_by": null,
+    "claimed_by": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
     "completed_by": null,
-    "next_actor": "Fresh devlead assigns sole source coder/independent validator after preservation/admission"
+    "next_actor": "Assigned folded KERNEL_BUILDER prepares reviewed exact core compilation bindings after MT183 PASS; no source writes or launch before admission"
   },
   "scope": {
     "summary": "Final core compilation on frozen reconciled candidate",
