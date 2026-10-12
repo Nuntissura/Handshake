@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-12T05:30:06Z",
+ "updated_at": "2026-10-12T05:30:57Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -2410,6 +2410,17 @@
    ],
    "launched": "2026-10-12T05:13:07Z",
    "status": "done 2026-10-12T05:30:06Z (SMB-INTEROP-PSD-FOLIO-CEILING READY at fdc01f1)"
+  },
+  {
+   "name": "prereview-r21",
+   "agent_id": "a270969a042fe6433",
+   "model": "opus",
+   "role": "V4-13 narrow pre-review bfa1bbf..fdc01f1 (press-docs, reel-partial-pts, psd-folio-ceiling)",
+   "owns": [
+    "validation/R21-prereview-narrow.json"
+   ],
+   "launched": "2026-10-12T05:30:57Z",
+   "status": "running"
   }
  ]
 }

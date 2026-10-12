@@ -52,7 +52,7 @@ Push helper for governance: `tools/lead-kernel-push.sh <message-file> <paths...>
 
 ## In flight at handoff
 
-- Dispatched 2026-10-12T05:13:07Z (Sonnet builders): SMB-PRESS-DOCS, SMB-REEL-PARTIAL-PTS, SMB-INTEROP-PSD-FOLIO-CEILING. Their lane files `builders/lanes/hsk-studio-press-docs.json`, `hsk-studio-reel-partial-pts.json`, `hsk-studio-interop-psd-folio-ceiling.json` are the handoff; if no agent is alive on takeover, re-dispatch from `builders/DISPATCH_TEMPLATES.md` with the same scope (`ledger.json` resume_plan step 1).
+- 2026-10-12T05:30:57Z: the three Sonnet lanes are READY at fdc01f1 (SMB-PRESS-DOCS d868da0, SMB-REEL-PARTIAL-PTS 0c34342, SMB-INTEROP-PSD-FOLIO-CEILING ceb9d33..fdc01f1). Running: Opus narrow pre-review bfa1bbf..fdc01f1 (output `validation/R21-prereview-narrow.json`). If it is missing on takeover, re-dispatch it from the R20 pre-review structure; then round R19 per `ledger.json` resume_plan.
 
 </topic>
 
