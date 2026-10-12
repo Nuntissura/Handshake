@@ -143,7 +143,7 @@
     "generator": null
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "BLOCKED",
     "depends_on": [
       "MT-184"
     ],
@@ -152,7 +152,8 @@
     "validator_verdict": "PENDING",
     "claimed_by": null,
     "completed_by": null,
-    "next_actor": "Fresh devlead assigns sole source coder/independent validator after preservation/admission"
+    "next_actor": "Operator supplies explicit native dispatch adoption and original genuine deployment/context bindings",
+    "blocked_on": "Native exact command/profile/target adoption not authorized; original deployed executable/data root and existing authenticated context unbound"
   },
   "scope": {
     "summary": "Genuine native deployment and authenticated-context admission",
@@ -321,5 +322,44 @@
       "competing direct RocksDB opener"
     ],
     "after_admission": "MT185 actual publication; full native/source acceptance stays MT175/original consumed owners."
+  },
+  "native_dispatch_proposal_20261013": {
+    "decision_id": "WP012-NATIVE-DISPATCH-PROPOSAL-20261013",
+    "state": "PROPOSED_NOT_AUTHORIZED",
+    "authority_blocker": "KERNEL_BUILDER_PROTOCOL.md KB-OUT-008 requires named disk/directory; MT186 requires native command configuration reconciliation. Existing core dispatch does not automatically authorize native configuration.",
+    "proposed_action": "Explicitly adopt existing MT174 owning host/profile/target/cap for exactly one sequential original MT175 native check; no new target/profile or hardware changes",
+    "command": "cargo check --locked --manifest-path src/frontend/handshake_native/Cargo.toml --tests -j 1",
+    "cwd": "C:/Projects/LLM Projects/handshake-desktop/wtc-WP-KERNEL-012",
+    "candidate_commit": "37f452a6b3b07c0ffd91ab49c3f99632c4104bb8",
+    "candidate_tree": "e22db7bd603b56caac2fec5cef9afc2e8b38733f",
+    "compiler_owner": "KERNEL_BUILDER",
+    "output_owner": "WP-KERNEL-012/MT-174/kb-phase02",
+    "covered_mts": ["MT-175", "MT-186"],
+    "disk": "C:; physical disk0, reverify before launch",
+    "target": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/target",
+    "profile": "../gov-runtime/host-profile-wp012-phase02-builder.json",
+    "profile_sha256": "df7068d5f93a49d17f48f7404a7c4251e2be8f17abc1d2fd5bb04068ee727081",
+    "aggregate_existing_target_cap_bytes": 180000000000,
+    "configuration": "Exact existing profile/toolchain/j1/incremental0/dev+test line-tables-only and owned cache/TMP paths, explicitly adopted for native; default native features; root .cargo config applies, crate-local crt-static is not discovered from root by manifest-path",
+    "preconditions": ["Explicit operator native dispatch adoption and retained allowance reconciliation", "Independent exact configuration review", "Fresh scoped gameplan/source/config/tool/digest binding", "No competing build and sequential sole target owner", "Fresh disk/commit reserve/target cap and scheduling admission"],
+    "proof": "Actual numeric exit, closed original logs and unchanged source/config/tool/authority bindings; independent compile-only verdict, never deployment/runtime proof",
+    "limits": "One original native check only; no additional cap, new profile/target, counter reset, runtime provisioning or process disruption",
+    "risk_controls": "Explicit owned target overrides absent unscoped default; serialize one physical-disk job; monitor existing cap; preserve original command/root config and per-check history"
+  },
+  "genuine_admission_observation_20261013": {
+    "observer": "01a1323e-a014-7252-ab58-8cb5a256b792",
+    "approved_binding_selector": "%LOCALAPPDATA%/handshake/swarm_mcp_binding.json",
+    "binding_present": false,
+    "named_native_process_count": 0,
+    "named_core_process_count": 0,
+    "default_listener_port": 37501,
+    "listener_count": 0,
+    "default_store_selector": "%LOCALAPPDATA%/handshake/handshake-surreal",
+    "default_store_present": false,
+    "configured_backend_or_data_env": "HANDSHAKE_BACKEND_LISTEN_ADDR, HANDSHAKE_BACKEND_LISTEN_REPORT_FILE and HANDSHAKE_DATA_DIR unset at Process/User/Machine",
+    "original_deployment_executable_and_data_root": "UNBOUND; approved selectors only, no claim about renamed/unbound deployments",
+    "existing_session_grant_policy_reviewer": "UNBOUND; no authcall/DBquery/secret read/provisioning",
+    "canonical_outcome": "NOT_ACQUIRED",
+    "native_compiler_proof": "NOT_RUN; retained955-node metadata is resolution only"
   }
 }
