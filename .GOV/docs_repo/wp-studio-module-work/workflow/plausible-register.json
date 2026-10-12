@@ -1412,6 +1412,21 @@
    "verified_at": "b8b31c7",
    "disposition": "FIX_LANE",
    "disposition_note": "next pigment lane (PLR-082 render-gpu part after D20)"
+  },
+  {
+   "id": "PLR-083",
+   "lane": "SMB-PRESS",
+   "file_line": "crates/hsk-studio-press/src/flatten.rs:17-19; tests/flatten_r13.rs:1402",
+   "finding": "module doc says painted sources no kept page draws are dropped, but the code keeps and reports them when a kept object only references them; a test control pins an unbalanced BDC /OC in a form as silent (viewer behaviour UNVERIFIED)",
+   "first_seen": "R20-prereview-press-narrow",
+   "seen_in": [
+    "R20-prereview-press-narrow"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "bfa1bbf",
+   "disposition": "FIX_LANE",
+   "disposition_note": "doc fix + fail-closed review of unbalanced BDC in the next press lane"
   }
  ],
  "process_items": [
