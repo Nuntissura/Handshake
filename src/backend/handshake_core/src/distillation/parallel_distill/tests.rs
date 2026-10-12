@@ -395,7 +395,7 @@ fn build(
     let budget = RunBudget::defaulted(4)
         .with_concurrency(4)
         .with_lifetime_spawns(1000);
-    let coordinator = Arc::new(SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+    let coordinator = Arc::new(SwarmCoordinator::new(
         SwarmConfig::new(budget),
         factory.clone(),
         sink,
@@ -661,7 +661,7 @@ async fn real_parallel_tinyllama_teacher_student_generates() {
     // teacher generate on the factory-provided runtime. This proves real
     // parallel teacher+student generation end-to-end.
     let budget = RunBudget::defaulted(4).with_concurrency(4);
-    let coordinator = Arc::new(SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+    let coordinator = Arc::new(SwarmCoordinator::new(
         SwarmConfig::new(budget),
         prod_factory.clone(),
         sink,

@@ -3096,7 +3096,7 @@ mod tests {
             CloudLaneFactoryConfig::unconfigured(),
             None,
         ));
-        let dispatching = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        let dispatching = SwarmCoordinator::new(
             crate::swarm_orchestration::SwarmConfig::new(
                 RunBudget::defaulted(2).with_concurrency(2),
             ),
@@ -3319,7 +3319,7 @@ mod tests {
             ProductionModelSessionFactory::new(ledger.clone(), cloud, None)
                 .with_durable_worktree_vm_store(&model_lane_store),
         );
-        let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        let coordinator = SwarmCoordinator::new(
             crate::swarm_orchestration::SwarmConfig::new(
                 RunBudget::defaulted(4).with_concurrency(4),
             ),
@@ -3772,7 +3772,7 @@ mod tests {
         let store = Arc::new(InMemoryStore::default());
         let sink = Arc::new(RecordingSwarmSink::new());
         let factory = Arc::new(ProductionModelSessionFactory::local_only(ledger.clone()));
-        let coordinator = Arc::new(SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        let coordinator = Arc::new(SwarmCoordinator::new(
             crate::swarm_orchestration::SwarmConfig::new(
                 RunBudget::defaulted(4).with_concurrency(4),
             ),
@@ -3944,7 +3944,7 @@ mod tests {
             ProductionModelSessionFactory::new(ledger.clone(), cloud, None)
                 .with_durable_worktree_vm_store(&model_lane_store),
         );
-        let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        let coordinator = SwarmCoordinator::new(
             crate::swarm_orchestration::SwarmConfig::new(
                 RunBudget::defaulted(4).with_concurrency(4),
             ),
@@ -4033,7 +4033,7 @@ mod tests {
             ProductionModelSessionFactory::new(ledger.clone(), cloud, None)
                 .with_durable_worktree_vm_store(&model_lane_store),
         );
-        let coordinator = Arc::new(SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        let coordinator = Arc::new(SwarmCoordinator::new(
             crate::swarm_orchestration::SwarmConfig::new(
                 RunBudget::defaulted(2).with_concurrency(2),
             ),
@@ -4307,7 +4307,7 @@ mod tests {
             ProductionModelSessionFactory::new(ledger.clone(), cloud, None)
                 .with_durable_worktree_vm_store(&model_lane_store),
         );
-        let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        let coordinator = SwarmCoordinator::new(
             crate::swarm_orchestration::SwarmConfig::new(
                 RunBudget::defaulted(4).with_concurrency(4),
             ),
@@ -5472,7 +5472,7 @@ mod tests {
             .ensure_worktree_vm(worktree_id)
             .await
             .expect("pre-existing worktree VM");
-        let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        let coordinator = SwarmCoordinator::new(
             crate::swarm_orchestration::SwarmConfig::new(
                 RunBudget::defaulted(2).with_concurrency(2),
             ),
@@ -5548,7 +5548,7 @@ mod tests {
         let worktree_registry = factory
             .worktree_vm_registry_for(adapter)
             .expect("factory worktree registry");
-        let coordinator = Arc::new(SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        let coordinator = Arc::new(SwarmCoordinator::new(
             crate::swarm_orchestration::SwarmConfig::new(
                 RunBudget::defaulted(2).with_concurrency(2),
             )
@@ -5641,7 +5641,7 @@ mod tests {
         let worktree_registry = factory
             .worktree_vm_registry_for(adapter)
             .expect("factory worktree registry");
-        let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        let coordinator = SwarmCoordinator::new(
             crate::swarm_orchestration::SwarmConfig::new(
                 RunBudget::defaulted(2).with_concurrency(2),
             ),
@@ -5725,7 +5725,7 @@ mod tests {
         let worktree_registry = factory
             .worktree_vm_registry_for(adapter)
             .expect("factory worktree registry");
-        let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        let coordinator = SwarmCoordinator::new(
             crate::swarm_orchestration::SwarmConfig::new(
                 RunBudget::defaulted(2).with_concurrency(2),
             ),

@@ -82,8 +82,8 @@ async fn exact_scope_retry_and_predecessor_chain_survive_shutdown_and_reopen() {
     let (mut isolated, store, scope) = open_fixture().await;
     let namespace = isolated.namespace().to_owned();
     let database = isolated.database().to_owned();
-    assert_eq!(store.storage().namespace(), namespace);
-    assert_eq!(store.storage().database(), database);
+    assert_eq!(store.storage().config().namespace(), namespace);
+    assert_eq!(store.storage().config().database(), database);
 
     let first_a = store
         .upsert_user_manual_page_entity(&scope, ENTITY_KEY, "Runtime recovery A", provenance("A"))
@@ -134,8 +134,8 @@ isolated
     let reopened_storage = isolated.storage().clone();
     assert_eq!(isolated.namespace(), namespace);
     assert_eq!(isolated.database(), database);
-    assert_eq!(reopened_storage.namespace(), namespace);
-    assert_eq!(reopened_storage.database(), database);
+    assert_eq!(reopened_storage.config().namespace(), namespace);
+    assert_eq!(reopened_storage.config().database(), database);
     let reopened = SurrealUserManualKnowledgeStore::open(reopened_storage)
         .await
         .expect("reopen provider over same storage");

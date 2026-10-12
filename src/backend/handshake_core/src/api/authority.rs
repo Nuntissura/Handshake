@@ -442,7 +442,7 @@ mod local_account_http_tests {
                 StatusCode::FORBIDDEN
             );
             // Recreate only the retired vault residue to exercise the recovery boundary itself.
-            vault.put(&id, token.clone()).unwrap();
+            vault.put(&id, token.as_str()).unwrap();
             assert_eq!(
                 request(
                     &router,
@@ -832,7 +832,7 @@ mod local_account_http_tests {
         ));
         let vault = OsKeychainSecretsVault::new(format!("handshake-local-accounts-{installation}"));
         let session_id = session["session_id"].as_str().unwrap();
-        assert!(vault.get(session_id).is_ok_and(|stored| stored == token));
+        assert!(vault.get(session_id).is_ok_and(|stored| stored.as_str() == token));
         let other_vault =
             OsKeychainSecretsVault::new(format!("handshake-local-accounts-{installation}-other"));
         assert!(
