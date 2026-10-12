@@ -4,9 +4,9 @@
 //! satisfied by spawning the actually-installed Codex CLI on the host,
 //! capturing real stdout, asserting a real
 //! PID and a real exit code. The test resolves the binary path at
-//! run time using the OS PATH probe (`where` on Windows, `which`
-//! elsewhere) so it is portable across kernel-builder hosts. If Codex
-//! is not installed, the test fails with a
+//! run time using the operator-supplied absolute JSON source named by
+//! HANDSHAKE_OFFICIAL_CLI_CONFIG_PATH. No PATH discovery or fallback is used.
+//! Missing configuration or an unavailable configured Codex fails with a
 //! clear environmental error — that is the honest BLOCKED_ON_DEPENDENCY
 //! signal the brief asks for, not silent env-gated skipping.
 //!
@@ -19,10 +19,26 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use handshake_core::api::model_access::{
+    load_official_cli_config_from_path, HANDSHAKE_OFFICIAL_CLI_CONFIG_PATH,
+};
+
 use handshake_core::model_runtime::cloud::{
     CliBridgeConfig, CliInvocationContext, CliKind, CliOutputFormat, LiveCliSpawner,
     OfficialCliBridgeRuntime,
 };
+
+fn configured_codex() -> handshake_core::model_runtime::cloud::AllowlistedCliBridgeConfig {
+    let source = std::env::var_os(HANDSHAKE_OFFICIAL_CLI_CONFIG_PATH)
+        .expect("operator must supply the explicit official CLI configuration source");
+    let source = std::path::PathBuf::from(source);
+    if source.as_os_str().is_empty() || !source.is_absolute() {
+        panic!("official CLI configuration source must be absolute and nonempty");
+    }
+    load_official_cli_config_from_path(&source,
+        handshake_core::model_runtime::cloud::CliBridgeProvider::Codex)
+        .expect("operator Codex configuration must satisfy the production contract")
+}
 use handshake_core::process_ledger::{
     LedgerBatcher, LedgerBatcherConfig, LedgerEvent, NoopOverflowSink, ProcessLedgerDrain,
     ProcessLedgerError, ProcessLedgerStore,
@@ -81,11 +97,7 @@ fn invocation(model: &str) -> CliInvocationContext {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn live_cli_spawner_spawns_real_binary_and_returns_real_pid_and_stdout() {
-    let (mut config, _allowlist) = handshake_core::api::resolve_official_cli_config_from_path(
-        handshake_core::model_runtime::cloud::CliBridgeProvider::Codex,
-    )
-    .expect("installed Codex must resolve through the production validated PATH/config resolver")
-    .into_parts();
+    let (mut config, _allowlist) = configured_codex().into_parts();
     let exe = config.executable_path.clone();
     // This is deliberately a generic native-process lifecycle probe, not a
     // Codex inference request. Keep production Codex lanes pinned to the
@@ -118,7 +130,7 @@ async fn live_cli_spawner_spawns_real_binary_and_returns_real_pid_and_stdout() {
     )));
     let handle = runtime
         .register_bridge(config, "version-probe-model", "2026-05-20T18:10:00Z")
-        .expect("production-resolved Codex config must register");
+        .expect("explicitly configured Codex entrypoint must register");
     let mut live_invocation = invocation(name);
     live_invocation.working_dir = live_working_dir;
 
@@ -269,10 +281,7 @@ async fn live_cli_spawner_runs_authenticated_real_codex_model_turn() {
     const MODEL: &str = "gpt-5-codex";
     const MARKER: &str = "HSK_WP1_REAL_CODEX_OK";
 
-    let allowlisted = handshake_core::api::resolve_official_cli_config_from_path(
-        handshake_core::model_runtime::cloud::CliBridgeProvider::Codex,
-    )
-    .expect("installed Codex must resolve through the production validated PATH/config resolver");
+    let allowlisted = configured_codex();
     let (mut config, allowlist) = allowlisted.into_parts();
     assert!(
         allowlist.contains(MODEL),

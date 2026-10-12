@@ -76,6 +76,133 @@ use crate::model_runtime::cloud::{InteractiveLoginTransport, SecretsVaultError};
 
 type ApiError = (StatusCode, Json<Value>);
 
+/// Explicit source locator for retained live proofs; the loader itself never reads env.
+pub const HANDSHAKE_OFFICIAL_CLI_CONFIG_PATH: &str = "HANDSHAKE_OFFICIAL_CLI_CONFIG_PATH";
+
+/// Sanitized configuration failures: never retain input values or underlying error chains.
+#[derive(Debug, thiserror::Error)]
+pub enum OfficialCliConfigError {
+    #[error("official CLI configuration source must be an absolute nonempty path")]
+    InvalidSource,
+    #[error("official CLI configuration I/O failed ({0:?})")]
+    Io(std::io::ErrorKind),
+    #[error("official CLI configuration exceeds 1 MiB")]
+    TooLarge,
+    #[error("official CLI configuration JSON is invalid at {line}:{column}")]
+    Json { line: usize, column: usize },
+    #[error("official CLI configuration contract rejected: {0}")]
+    Contract(&'static str),
+}
+
+// All fields are required, including explicit null for working_dir. No Debug: argv,
+// env, paths and model identities must not enter diagnostic formatting.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct OfficialCliConfigV1 {
+    version: u32,
+    configured: bool,
+    provider: String,
+    executable_path: std::path::PathBuf,
+    args_template: Vec<String>,
+    output_format: OfficialCliConfigOutput,
+    env_vars: std::collections::HashMap<String, String>,
+    #[serde(deserialize_with = "required_cli_working_dir")]
+    working_dir: Option<std::path::PathBuf>,
+    timeout_seconds: u64,
+    model_allowlist: Vec<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum OfficialCliConfigOutput { Json, RawText, JsonStream }
+
+fn required_cli_working_dir<'de, D: serde::Deserializer<'de>>(deserializer: D)
+    -> Result<Option<std::path::PathBuf>, D::Error> {
+    Option::<std::path::PathBuf>::deserialize(deserializer)
+}
+
+/// Read one operator-supplied version-1 JSON record. Relative executable/cwd paths
+/// resolve against that record's parent; no PATH lookup, fallback, writes or token reads.
+/// Required fields: version, configured, provider, executable_path, args_template,
+/// output_format (json/raw_text/json_stream), env_vars, working_dir (path or null),
+/// timeout_seconds, model_allowlist. Values and authentication must come from the operator.
+/// Validation does not pin executable bytes, validate host environment policy,
+/// authenticate a CLI, establish model readiness or wire a host runtime. The
+/// existing launcher must still validate env and pin the same entrypoint at its
+/// runtime boundary; this source can change later.
+pub fn load_official_cli_config_from_path(
+    path: &std::path::Path,
+    expected_provider: CliBridgeProvider,
+) -> Result<crate::model_runtime::cloud::AllowlistedCliBridgeConfig, OfficialCliConfigError> {
+    use std::io::Read;
+    use crate::model_runtime::cloud::{
+        AllowlistedCliBridgeConfig, CliBridgeConfig, CliKind, CliModelAllowlist, CliOutputFormat,
+        validate_cli_executable_path,
+    };
+    use crate::model_runtime::cloud::official_cli_bridge::validate_cli_bridge_config_contract;
+    const MAX_BYTES: u64 = 1024 * 1024;
+    if path.as_os_str().is_empty() || !path.is_absolute() {
+        return Err(OfficialCliConfigError::InvalidSource);
+    }
+    let parent = path.parent().ok_or(OfficialCliConfigError::InvalidSource)?;
+    let file = std::fs::File::open(path).map_err(|error| OfficialCliConfigError::Io(error.kind()))?;
+    let mut bytes = Vec::new();
+    file.take(MAX_BYTES + 1).read_to_end(&mut bytes)
+        .map_err(|error| OfficialCliConfigError::Io(error.kind()))?;
+    if bytes.len() as u64 > MAX_BYTES { return Err(OfficialCliConfigError::TooLarge); }
+    let record: OfficialCliConfigV1 = serde_json::from_slice(&bytes)
+        .map_err(|error| OfficialCliConfigError::Json { line: error.line(), column: error.column() })?;
+    let reject = OfficialCliConfigError::Contract;
+    if record.version != 1 { return Err(reject("version")); }
+    if !record.configured { return Err(reject("configured")); }
+    if record.provider != expected_provider.id() { return Err(reject("provider")); }
+    if record.env_vars.keys().any(|name| name.eq_ignore_ascii_case(
+        crate::model_runtime::cloud::cli_bridge_runtime::CLI_BRIDGE_MODEL_ALLOWLIST_METADATA_ENV)) {
+        return Err(reject("reserved_environment_metadata"));
+    }
+    if record.model_allowlist.is_empty() || record.model_allowlist.iter()
+        .any(|model| model.is_empty() || model.trim() != model) {
+        return Err(reject("model_allowlist"));
+    }
+    let resolve = |value: std::path::PathBuf| -> Result<std::path::PathBuf, OfficialCliConfigError> {
+        if value.as_os_str().is_empty() || value.to_str().is_none_or(|value| value.trim().is_empty()) {
+            return Err(reject("path"));
+        }
+        let resolved = if value.is_absolute() { value } else {
+            if value.has_root() || value.components().any(|component|
+                matches!(component, std::path::Component::Prefix(_))) {
+                return Err(reject("path"));
+            }
+            parent.join(value)
+        };
+        if !resolved.is_absolute() { return Err(reject("path")); }
+        Ok(resolved)
+    };
+    let executable_path = resolve(record.executable_path)?;
+    if !executable_path.is_file() { return Err(reject("executable_file")); }
+    let working_dir = record.working_dir.map(resolve).transpose()?;
+    if working_dir.as_ref().is_some_and(|directory| !directory.is_dir()) {
+        return Err(reject("working_directory"));
+    }
+    let config = CliBridgeConfig {
+        cli_kind: match expected_provider {
+            CliBridgeProvider::ClaudeCode => CliKind::ClaudeCode,
+            CliBridgeProvider::Codex => CliKind::CodexCli,
+        },
+        executable_path, args_template: record.args_template,
+        output_format: match record.output_format {
+            OfficialCliConfigOutput::Json => CliOutputFormat::Json,
+            OfficialCliConfigOutput::RawText => CliOutputFormat::RawText,
+            OfficialCliConfigOutput::JsonStream => CliOutputFormat::JsonStream,
+        },
+        env_vars: record.env_vars, working_dir, timeout_seconds: record.timeout_seconds,
+    };
+    validate_cli_bridge_config_contract(&config).map_err(|_| reject("launch_contract"))?;
+    validate_cli_executable_path(&config.executable_path).map_err(|_| reject("executable_contract"))?;
+    let allowlist = CliModelAllowlist::new(record.model_allowlist).map_err(|_| reject("model_allowlist"))?;
+    Ok(AllowlistedCliBridgeConfig::new(config, allowlist))
+}
+
 /// Request body for storing a BYOK key. The key deserialises straight into a
 /// [`SecretString`] so it is redacted in `Debug` and cannot be logged by
 /// accident. Nothing else is accepted.
