@@ -2329,6 +2329,18 @@
    ],
    "launched": "2026-10-12T01:26:36Z",
    "status": "running"
+  },
+  {
+   "name": "validator-r17",
+   "agent_id": "a07675edb9c4e9264",
+   "model": "opus",
+   "role": "WP validator STUDIO-R17 on fcda5f6",
+   "owns": [
+    "validation/round-R17.json",
+    "verdict fields"
+   ],
+   "launched": "2026-10-12T01:33:45Z",
+   "status": "running"
   }
  ]
 }
