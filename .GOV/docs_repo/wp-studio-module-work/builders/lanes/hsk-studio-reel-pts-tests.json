@@ -90,6 +90,25 @@
    "V4-21": "no outbound request was made in this lane (git push to the product remote only)"
   },
   "gameplan_route": "no retry-guard hit and no gameplan step added. One launch-form slip: the first full-crate command began with `date -u ...;` before the leading cd, so the hook resolved a non-Studio gameplan and blocked it (GP-016.. GP-031 of other assignments, unconfirmed); I confirmed none of them and relaunched with a leading cd to the product workspace (the launch-form cause already recorded in the SMB-REEL-RECEIPTS and SMB-REEL-PARTIAL-PTS-2 lanes), which passed the Studio gameplan. All nextest runs were launched with run_in_background; the five mutant runs exited 100 by design on the scratch tree with its own owner, each on a different source state (product reds, not an infrastructure cause)",
-  "trust_routing_untouched": "git diff 3930a7c..172952f -- crates/hsk-studio-reel lists exactly src/lib.rs, src/video.rs, tests/video_route.rs; in video.rs only picture_span changed above the new #[cfg(test)] module: choose(), VideoRoute, Chosen, SourceTrust, VideoTrack, Forward, the Partial branch and every pre-existing error path are unchanged"
+  "trust_routing_untouched": "git diff 3930a7c..172952f -- crates/hsk-studio-reel lists exactly src/lib.rs, src/video.rs, tests/video_route.rs; in video.rs only picture_span changed above the new #[cfg(test)] module: choose(), VideoRoute, Chosen, SourceTrust, VideoTrack, Forward, the Partial branch and every pre-existing error path are unchanged",
+  "verdicts": [
+   {
+    "round": "STUDIO-R21",
+    "lane": "SMB-REEL-PTS-TESTS",
+    "candidate": "2dde8324d111ca15b53accb5a148a8deb0098d32",
+    "tree": "f10240fc625f32fb104262772b6541797cfb2226",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V1",
+    "review": "validation/R23-prereview-narrow.json lanes[1] SMB-REEL-PTS-TESTS SAFE_TO_JUDGE at 54c60f9 (R23-R1 INFO = PLR-100, R23-R2 INFO); hsk-studio-reel unchanged 54c60f9..2dde832",
+    "round_ref": "validation/round-R21.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R21",
+    "idempotency_key": "STUDIO-R21:SMB-REEL-PTS-TESTS:2dde8324d111:PASS_V1",
+    "recorded_at": "2026-10-12T09:54:57Z",
+    "by": "wp_validator STUDIO-R21"
+   }
+  ]
  }
 }

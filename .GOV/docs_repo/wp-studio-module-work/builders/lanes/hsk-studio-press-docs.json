@@ -97,6 +97,23 @@
     "idempotency_key": "STUDIO-R20:SMB-PRESS-DOCS:3930a7ce891c:PASS_V2",
     "recorded_at": "2026-10-12T07:24:27Z",
     "by": "wp_validator STUDIO-R20"
+   },
+   {
+    "round": "STUDIO-R21",
+    "lane": "SMB-PRESS-DOCS",
+    "candidate": "2dde8324d111ca15b53accb5a148a8deb0098d32",
+    "tree": "f10240fc625f32fb104262772b6541797cfb2226",
+    "decision": "passed",
+    "verdict": "PASS_V3",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V3",
+    "review": "validation/R23-prereview-narrow.json lanes[0] SMB-PRESS-STRUCT-FAILCLOSED FIX_FIRST at 54c60f9 (R23-P1..P3 -> lead decision 2026-10-12T08:41:40Z STRUCTURE TREE = NOT PROVEN; R23-P4/P5 inside it; R23-P6/P7 notes) + validation/R24-prereview-press-narrow.json lanes[0] SAFE_TO_JUDGE at 2dde832 (R24-P1/P3/P5 INFO, R24-P2 INFO = PLR-102, R24-P4 PLAUSIBLE pre-existing, R24-P6 kernel wording)",
+    "round_ref": "validation/round-R21.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R21",
+    "idempotency_key": "STUDIO-R21:SMB-PRESS-DOCS:2dde8324d111:PASS_V3",
+    "recorded_at": "2026-10-12T09:54:57Z",
+    "by": "wp_validator STUDIO-R21"
    }
   ]
  }
