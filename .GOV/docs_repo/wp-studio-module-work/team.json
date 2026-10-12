@@ -2355,7 +2355,7 @@
   },
   {
    "name": "prereview-r18-press-narrow",
-   "agent_id": "pending-see-next-commit",
+   "agent_id": "aaae9553e798dc230",
    "model": "sonnet",
    "role": "narrow V4-13 pre-review press fcda5f6..bcc0688",
    "owns": [
