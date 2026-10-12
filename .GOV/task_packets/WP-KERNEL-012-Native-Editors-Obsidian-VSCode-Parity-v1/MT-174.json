@@ -1,4 +1,111 @@
 {
+"round36_bootstrap_source_review_20261012":{"status":"NOT_SOURCE_CLEAR","reviewer_thread":"01a129ca-8eea-7f53-aa9d-7f81f6f08319","bindings_sha256":"01b635709e39f6b3874e7b4f5bfd42978235b3a8bdea3da93b4ecc5f4b9bdc13","finding_id":"WP012-P2-BOOTSTRAP-MODULE-RECEIPTS-001","finding":"Exact FINAL INFO and global receipt do not prove the existing five module primary completion/version/revision receipts; interrupted final module DDL before receipt UPSERT must not finalize global","remedy":"Read-only owning exact module receipt validation before FINAL reuse/resume/finalization; no DDL replay or autoenrollment","retained":"All seven raw bindings and original assertion lines/pins; no runtime/acceptance proof"},
+"round36_registry_server_config_source_review_20261012":{"state":"PREPARED_INDEPENDENT_STATIC_BINDINGS_CLEAR_RUNTIME_PENDING","config_kernel_relative_path":".GOV/operator/docs_local/.env.local","format":"JSON consumed by existing loader; not shell dotenv","config_sha256":"046f85579935b9f45477ac55537ec35fb148922be12cfcaa161527710bf19988","approval_record_sha256":"e8c13358c9381011c40a9719d0eeb48a944df68c83c4eb9b36d7c87a503456e2","reviewer_thread":"01a129ca-864f-78a2-9c19-c895774a8128","verified":"Canonical kernel containment; actual human approval pointer and exact approved draft/diff; original37 entries retained; engines/schema and all16 current spec hashes match","limits":"Existing ignored local configuration; no secrets/global env edits; refresh exact packet hash after any byte change; genuine session/grant/profile/FR publication proof pending"},
+"kernel_publication_reconciliation_20261012":{"state":"FAST_FORWARD_COMPLETE_SCOPED_COMMIT_PUSH_PENDING","from":"52f2381d7318104e4349139a52cad01ab417deef","to":"6f288d200e4573d2ee2d21cb83c88a03c77ceb89","operation":"git merge --ff-only origin/gov_kernel","gate":"PASS3/3 before_merge; scope corrected through controller GP501-503, retired GP013/015/414 history retained; product clean/current-proof obligations retained","preservation_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/kernel-publication-20261012/preservation-before-ff.json","observed":"All52 actual dirty/untracked files byte hashes unchanged; confirmation output excluded; Studio subtree exactly origin; prior committed ancestor already preserved on matching origin","limits":"No rebase/reset/stash/force/main merge/product acceptance"},
+
+"round36_bootstrap_source_freeze_20261012":{"status":"FROZEN_SOURCE_ONLY_INDEPENDENT_REVIEW_PENDING","bindings_ref":"..\\Handshake_Artifacts\\WP-KERNEL-012\\MT-174\\kb-phase02\\round36-bootstrap-catalog-repair\\source_bindings.json","bindings_sha256":"01b635709e39f6b3874e7b4f5bfd42978235b3a8bdea3da93b4ecc5f4b9bdc13","diff_sha256":"fa2e38a62d9e724fe2e94884698b6a540e9338d44a843e365ad21059f75ce676","files":7,"final_pin":"UNMEASURED_NONE; no readiness or runtime proof","measurement":"Existing MT139 actual Mem BASE and same ordered production FINAL observations precede intact original BASE assertion","limits":"No Cargo/runtime/acceptance; historical pins/assertions retained"},
+"round36_current_lifecycle_reconciliation_20261012":{"prior_current_fields":{"blocked_on":"Latest core Round32 FAILED101 on ef9b5d456, five private execute_returning diagnostics. Connected seven-call repair source-reviewed and pushed f66a07a8b; current candidate compile NOT_RUN. Exactly one Operator renewal consumed;31actual failed same-check launches, remaining0. Registry publication and approved R2 authenticated lifecycle/fullcomposer/runtime/native acceptance still outstanding; accepted0/5.","next_actor":"Operator explicit same-core budget renewal required before delivery can run current f66a07a8b; root retains steering. Independent runtime/registry/auth acceptance remains required; native waits for actual core success."},"basis":"Actual MT174 Round36 result and Operator core_unblock_until_resolved plus all approved finish without attendance","limits":"Historical failures and required independent runtime/native/acceptance preserved; BLOCKED lifecycle retained"},
+"round36_bootstrap_private_install_dependencies_20261012":{"status":"ADMITTED_SOURCE_ONLY","basis":"Operator approved exact bootstrap reconciliation and finish without attendance; inspected public installers re-enter base gate mid-production installation","paths":["src/backend/handshake_core/src/storage/surreal/swarm_outbox.rs","src/backend/handshake_core/src/storage/surreal/workspace_settings.rs"],"allowed_change":"Split each existing public verified bootstrap into the unchanged verified prerequisite plus private existing installer body; production composer consumes private installer after its own exact base verification","constraints":["Preserve public prerequisite and existing DDL/state behavior","No task-local bypass, new catalog checker, relaxed proof or assertions","Freeze all seven bootstrap paths for independent review before Cargo"]},
+  "round36_registry_four_file_review_20261012": {"id":"WP012-P2-REGISTRY-FOUR-FILE-REVIEW-20261012","state":"NOT_SOURCE_CLEAR_TWO_FINDINGS","reviewer_thread":"01a129ca-8eea-7f53-aa9d-7f81f6f08319","bindings_sha256":"f0e2bb1d38b66076ddae86012c1ad4a32204d33d7381964418813f94e6e2fef1","diff_sha256":"32d407d759417ef687fbd22ca999f3f4df5cf3dcf4bcf44e1a1882893b1a4232","independent_checks":"All four before/after/live bindings match; original test modules and419+37 assertion macro lines retained; original public grant query reconstructed exactly; profile mapping and server-owned canonical witness findings remediated","findings":[{"id":"WP012-P2-REGISTRY-HIDDEN-GRANT-HELPER-001","priority":"P1","failure":"Private ordinary-WHERE fn::mt109_has_grant reads SELECT NONE protected_resources.external_resource_id; genuine record-user snapshot cannot admit publication","remediation":"Reuse canonical located/bound resource/grant IDs with remaining visible live predicates; no field visibility widening or parallel checker"},{"id":"WP012-P2-REGISTRY-UNRESOLVED-SETTLEMENT-001","priority":"P1","failure":"Producer restores on every Err including unresolved settlement while detached worker may later commit; caller drop skips compensation","remediation":"Retain settlement/finalization ownership; restore only after observed cancelled/failure outcome, never unknown/pending or committed publication; reuse existing owned controller/cancellation machinery"}],"proof_limits":"No Cargo/tests/runtime/linearization/publication or acceptance;0/5 unchanged","ordering":"Sole writer finishes current bootstrap source batch, then repairs exact two registry findings"},
+  "round36_bootstrap_inline_state_dependencies_20261012": {"id":"WP012-P2-BOOTSTRAP-INLINE-STATE-20261012","state":"EXACT_ONE_LINE_OWNER_DEPENDENCIES_ADMITTED","paths":["src/backend/handshake_core/src/storage/surreal/model_lane.rs","src/backend/handshake_core/src/storage/surreal/cloud_model_lane.rs","src/backend/handshake_core/src/storage/surreal/swarm_outbox.rs","src/backend/handshake_core/src/storage/surreal/workspace_settings.rs"],"scope":"Only change existing private SCHEMA_STATE constant visibility to pub(super), allowing existing canonical schema owner to consume exact compiler-evaluated inline DDL; Palmistry already admitted","evidence":"Five module installers query inline SCHEMA_STATE before their .surql; omitting these definitions cannot represent exact final catalog; copying DDL or introducing Rust-literal parser would duplicate ownership","constraints":"No DDL body, public API, state version, module runtime or assertion changes; sole writer remains phase02_coder; freeze all seven affected files; no runtime/INFO acceptance","parent_approval":"round36_bootstrap_catalog_reconciliation_20261012"},
+  "round36_official_cli_config_source_review_20261012": {"id":"WP012-P2-OFFICIAL-CLI-CONFIG-REVIEW-20261012","state":"SOURCE_CONFIG_COMPATIBLE_RUNTIME_PENDING","reviewer_thread":"01a129ca-864f-78a2-9c19-c895774a8128","config_sha256":"98e746970ff69fd13684918d65731f23fd913fed3de237c0210f1e85bd81ce1d","review":"Independent exact config required fields/argv/cwd/allowlist checked against existing loader/preset; genuine official npm shim/script/manifests/nested win32-arm64 package/vendor native graph and actual --version/help inspected","native_sha256":"3AFC6A5195CE3FC08EE69B99521773B1542F129EE5B68DD4F0BB10CF7930C6EF","proof_limits":"No executed Rust loader, pinned process launch/sandbox/ACK, authentication or model readiness proof; no credentials read or source boundary relaxed"},
+  "round36_official_cli_setup_20261012": {"id":"WP012-P2-OFFICIAL-CLI-SETUP-20261012","state":"ACTUAL_ISOLATED_INSTALL_CONFIG_PREPARED_REVIEW_PENDING","operator_input":"Config does not exist; operator then authorized complete work/deploy/commit/push without attendance","package":"@openai/codex@0.162.1","installation":"../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/official-cli-setup/npm","numeric_install_exit":0,"actual_version":"codex-cli0.162.1","config_source":"../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/official-cli-setup/official-cli-config.json","config_sha256":"98e746970ff69fd13684918d65731f23fd913fed3de237c0210f1e85bd81ce1d","model_allowlist":["gpt-6.1-sol"],"evidence":"Dependency verified installed nonsecret CLI config/cache and current official model docs; root npm registry metadata/integrity and genuine installed shim/version inspected","runtime_locator":"HANDSHAKE_OFFICIAL_CLI_CONFIG_PATH must be set explicitly by owning runtime host to absolute config source; no global environment mutation or fallback","reviewer_thread":"01a129ca-864f-78a2-9c19-c895774a8128","proof_limits":"No credentials read, login/model execution, production loader/subprocess proof or runtime acceptance. No global PATH or existing package installation changed"},
+  "round36_registry_publication_authority_dependency_20261012": {"id":"WP012-P2-REGISTRY-PUBLICATION-AUTHORITY-20261012","state":"EXACT_FORCED_OWNER_DEPENDENCY_ADMITTED_SOURCE_ONLY","path":"src/backend/handshake_core/src/storage/surreal/resource_authority.rs","evidence":"Independent P1: initial job grant can become stale before file mutation. AuthorizationDecision159-172 lacks grant_version and distinct resource policy binding; existing authorize_protected_resource1146-1250 owns native session/resource/grant/delegation predicates","scope":"Extract/reuse existing exact canonical predicates for private publication-operation boundary under existing authenticated transaction/controller with before/after immutable authority binding and existing profile checks; preserve public audit/behavior and reviewed composer seams","constraints":"No new public authorization API, parallel checker, fabricated grant, preflight-only barrier or cross-store atomicity claim; preserve truthful restoration/unconfirmed state including outer commit failure","owner":"/root/phase02_coder","source_review":"Three P1 registry findings require repair and independent review; no compiler/runtime acceptance"},
+  "operator_finish_without_attendance_20261012": {"id":"WP012-P2-OPERATOR-FINISH-20261012","operator_quote":"all approved deploy , commit and push. i have to go to work now, please finish witouth me","scope":"Continue original authorized repairs, prepare missing official CLI configuration from actual installed backend and real model evidence, commit/push and existing deployment workflow without waiting for operator attendance","preserved":"No invented model allowlist, credentials, target or proof; existing role authority, source review, gameplan/resources and independent acceptance gates retained;35 failed core launches and0/5 runtime acceptance unchanged","official_cli_config":"Operator explicitly confirmed file does not exist; bounded actual setup discovery assigned to Dependency","registry_review":"Three P1 source findings: actual protocol profile mapping, server-owned canonical approval trust, current publication-boundary resource/grant authorization; sole coder repairs existing producer/workflows plus exact capabilities mapping; not SOURCE_CLEAR","bootstrap":"Approved exact base/final reconciliation retained, currently read-only queued after registry repairs"},
+  "round36_registry_real_caller_dependency_20261012": {"id":"WP012-P2-REGISTRY-REAL-CALLER-20261012","state":"EXACT_FORCED_DEPENDENCY_ADMITTED_SOURCE_ONLY","path":"src/backend/handshake_core/src/capabilities.rs","evidence":"api/jobs.rs329 uses profile_for_job_request; capabilities.rs429-443 overrides only calendar_sync and governance_pack_export, otherwise workflow_run Analyst; new registry caller requires existing Operator profile, so real registry invocation is rejected","scope":"Single existing capability_registry_build workflow protocol selection to existing Operator profile; retain actual capability enforcement, other protocol selections, session delegation and resource grants","review_ref":"round36_registry_producer_source_batch_20261012","owner":"/root/phase02_coder","ordering":"Finish current bootstrap source batch before returning to frozen registry findings; full registry review still pending","proof_limits":"No runtime authorization, publication, compiler or acceptance granted"},
+  "round36_registry_producer_source_batch_20261012": {"id":"WP012-P2-REGISTRY-PRODUCER-SOURCE-20261012","state":"SOURCE_FROZEN_INDEPENDENT_REVIEW_PENDING","owner":"/root/phase02_coder","paths":["src/backend/handshake_core/src/capability_registry_workflow.rs","src/backend/handshake_core/src/workflows.rs"],"bindings":"../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round36-registry-producer-repair/source_bindings.json","reviewer_thread":"01a129ca-8eea-7f53-aa9d-7f81f6f08319","scope":"Existing registry producer/caller; private supplied approval witness and exact approved artifact bindings; actual session/workspace original grant; truthful prepared/publication/receipt results; preserve baseline and previous asset failure behavior","proof_limits":"No actual publication, Flight Recorder, compiler, tests or runtime acceptance. Original workflows test module and421 assertion lines retained; independent source verdict pending","standing_approval":"Existing actual operator approval and exact artifact hashes preserved; no renewed approval manufactured or required"},
+  "round36_authenticated_composer_source_checkpoint_20261012": {"id":"WP012-P2-COMPOSER-SOURCE-CHECKPOINT-20261012","state":"SOURCE_CLEAR_CHECKPOINTED_RUNTIME_PENDING","commit":"2b7b94805e3d15dc441a0f22b658848d7d3a5ae5","remote_readback":"MATCHED origin refs/heads/feat/WP-KERNEL-012","source_bindings":"../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round36-authenticated-composer-repair/source_bindings.json","reviewer_thread":"01a129ca-8eea-7f53-aa9d-7f81f6f08319","review":"Independent whole nine-file SOURCE_CLEAR; fresh before/after/live byte bindings; repaired stale association observation and typed error mapping; original158 assertion lines retained","findings_closed":["WP012-P2-COMPOSER-STALE-GRANT-OBSERVATION-001","WP012-P2-COMPOSER-INFRA-DENIAL-001"],"proof_limits":"No compiler, test, native or runtime acceptance; same-core failed launches35; native/runtime0/5 unchanged","next":"Existing approved registry producer source repair, then exact approved bootstrap reconciliation; one stable reviewed batch before admitted core command"},
+  "round36_authenticated_lifecycle_bridge_dependency_20261012": {"source_review":{"id":"WP012-P2-ROUND36-COMPOSER-SOURCE-REVIEW-20261012","state":"NOT_SOURCE_CLEAR_TWO_FINDINGS_REMEDIATION_ASSIGNED","reviewer_thread_id":"01a129ca-8eea-7f53-aa9d-7f81f6f08319","bindings_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round36-authenticated-composer-repair/source_bindings.json","findings":[{"id":"WP012-P2-COMPOSER-STALE-GRANT-OBSERVATION-001","evidence":"Prequery zero eligible grant observation can terminally invalidate a genuine newly issued grant association registered after the query began","remedy":"Restrict observation invalidation to exact prequery captured association membership/generation; never revive terminal callback revocations or infer full membership from LIMIT2"},{"id":"WP012-P2-COMPOSER-INFRA-DENIAL-001","evidence":"API grant query converts typed Closed/StatementBudgetExhausted/StatementTimeout infrastructure into403","remedy":"Explicit infrastructure503 classification while retaining canonical actual auth403 and separate engine/settlement failures"}],"independent_observations":"All9 before/after/live byte hashes matched; original158 assertion-containing lines preserved; fixture exact one constructor substitution","runtime_acceptance":"NOT_RUN0/5; no compiler retry"},"forced_fixture_dependency":{"path":"src/backend/handshake_core/tests/model_lane_navigation_api_surreal_tests.rs","evidence":"Existing fixture360 mounts separately constructed lifecycle object, so enforcing one storage-owned registry would reject retained owner200 fixture","scope":"Replace only separate registry constructor with actual fixture storage.resource_access_lifecycle accessor; retain real native/grant/CRDT producers, component registration and every original assertion, absent Extension503 case","authority_ref":"MT-172.json#/auth_mapping_r2_adoption_20261011/exact_file_scope"},"id":"WP012-P2-ROUND36-AUTHENTICATED-LIFECYCLE-BRIDGE-20261012","state":"ADMITTED_EXISTING_R2_SERIAL_AFTER_CONSUMER_REVIEW","authority_ref":"packet.json#/auth_mapping_r2_adoption_20261011","requirement_ids":["WP012-P2-AUTH-R2-006","WP012-P2-AUTH-R2-007","WP012-P2-AUTH-R2-010"],"owner":"/root/phase02_coder","paths":["src/backend/handshake_core/src/storage/surreal.rs","src/backend/handshake_core/src/storage/surreal/local_accounts.rs","src/backend/handshake_core/src/storage/surreal/resource_authority.rs","src/backend/handshake_core/src/swarm_orchestration/resource_scope.rs","src/backend/handshake_core/src/api/authority.rs","src/backend/handshake_core/src/api/mod.rs","src/backend/handshake_core/src/main.rs"],"diagnosis":"Actual production registration/invalidation calls absent; composer discards exact scope. Native session contains four IDs and cannot prove workspace. Existing storage Arc owns all clones; existing native auth/durable mutation owners and lifecycle-aware factory already exist","assignment":"One initially empty storage-owned registry, same object reused by original composer/stores/factory. Derive exact tuple only from actual native credentials/channel/Origin and canonical authorized workspace/resource/grant/capability/action/purpose; preserve terminal tuples. Reuse nonmutating navigation grant/controller path. Native logout/session revoke/account disable/Space switch update only affected registered contexts after actual durable completion. Grant expiry/revoke invalidates only associated grant/version, not unrelated same-tuple grants. Preserve original envelope and durable epoch/policy/version rechecks inside guarded transaction and publication barrier","constraints":"No AppState field unless existing wiring demonstrably requires it, no per-request registry, no env tuple activation, no fabricated grants/versions, no GET audit writes, no new factory/sibling authority path. Existing R2 paths only; name forced dependencies before editing. Registration/callbacks alone never prove durable or inflight authorization","proof":"Independent affected-source review then whole stable core batch; original full composed HTTP and actual registry/Flight Recorder/runtime proof remain separate0/5","dependency_review_thread_id":"01a129ca-864f-78a2-9c19-c895774a8128"},
+  "round36_bootstrap_catalog_reconciliation_20261012": {"forced_palmistry_dependency":{"path":"src/backend/handshake_core/src/storage/surreal/palmistry.rs","evidence":"Public bootstrap at192 calls base prerequisite at195; composer invokes it after five module installs; OnceCell at240 retains public path","scope":"Extract existing crate-private installer for composer; retain public verified shared prerequisite. Exact base and final contracts only; unknown partial shapes fail closed. No caller bypass or third standalone enrollment","standalone_limit":"No inspected retained standalone base-plus-Palmistry reopen acceptance; do not claim it repaired or silently perform full startup"},"id":"WP012-P2-EXACT-BOOTSTRAP-CATALOG-20261012","state":"OPERATOR_APPROVED_SERIAL_SOURCE_PREPARATION_AFTER_PROVIDER_CONSUMERS_COMPOSER","operator_answer":"Approve exact bootstrap reconciliation","authority_ref":"packet.json#/operator_core_unblock_amendments_20261012/bootstrap_catalog_reconciliation","owner":"/root/phase02_coder","paths":["src/backend/handshake_core/src/storage/surreal/schema.rs","src/backend/handshake_core/src/storage/surreal.rs"],"source_diagnosis":"Shared bootstrap verifies exact base live catalog on every reuse; production then applies dedicated schemas in same database. Module tables/functions absent from base manifest cause reopen table/count/hash mismatch before any single replacement INFO pin can reconcile stages. Baseline ownership mismatch distinct from prior generated-source drift and newly changed navigation catalog","assignment":"Reconcile existing bootstrap_production_schemas/bootstrap_schema/inspect_schema/read_schema_catalog and canonical state at exact base-installation vs composed-production stages. Account for every owned module addition/override with deterministic source/canonical catalog expectations; preserve historical lineages and genuine observed-pin requirements","constraints":"No excluded/ignored objects, relaxed counts, caller-selected bypass, new parallel checker, blind state-pin overwrite or fabricated fingerprint. No additional module source writer or unrelated changes; name forced dependencies before expanding paths","proof":"Existing owning MT058/MT068 catalog/readiness proof retained; independent full production fresh/reopen proof and actual observed INFO required. Source preparation and core compiler success never imply runtime acceptance","compiler":"No launch until entire stable batch frozen, independent source review, fresh gameplan/resources; original required command and actual35 failure count unchanged"},
+  "auth_mapping_r2_adoption_20261011": {
+    "decision_id": "WP012-P2-AUTH-MAPPING-001-R2",
+    "status": "ADOPTED_IMPLEMENTATION_AUTHORIZED",
+    "recorded_at_utc": "2026-10-11T21:06:37.343345+00:00",
+    "authority_ref": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json#/auth_mapping_r2_adoption_20261011",
+    "operator_decision": {
+      "source_thread_id": "01a12cc3-aea2-77b1-a09d-c20a5a5c6900",
+      "operator_quote": "Approve R2 adoption and implementation",
+      "registry_operator_quote": "Approve this exact registry diff",
+      "registry_diff_sha256": "dbb7531dfd9ff8e04ed25cf176c178748dd6745eb3fd3425f290f157ad2d9e89",
+      "registry_draft_sha256": "3c41121d2c2d17259ad914bfba5dc43937946bdd85f76e1b9a7354596cf02610",
+      "human_actual_diff_approval": true,
+      "signature_invented": false
+    },
+    "additive_spec_adoption": {
+      "version": "v02.216",
+      "original_wp_spec_pin": "v02.206",
+      "anchors": [
+        "11.1.6.1",
+        "2.3.13.12.9"
+      ],
+      "manifest_path": ".GOV/spec/master-spec-v02.216/indexed-spec-manifest.json",
+      "manifest_sha256": "ce3a6bb87a4d65f2503131d3ff7a97d2f19621d9e22f684df400b75eef0186cb",
+      "unrelated_new_spec_requirements_adopted": false
+    },
+    "approved_unit_refs": [
+      "WP012-P2-AUTH-R2-001",
+      "WP012-P2-AUTH-R2-002",
+      "WP012-P2-AUTH-R2-003",
+      "WP012-P2-AUTH-R2-004",
+      "WP012-P2-AUTH-R2-005",
+      "WP012-P2-AUTH-R2-006",
+      "WP012-P2-AUTH-R2-007",
+      "WP012-P2-AUTH-R2-008",
+      "WP012-P2-AUTH-R2-009",
+      "WP012-P2-AUTH-R2-010",
+      "WP012-P2-AUTH-R2-011",
+      "WP012-P2-AUTH-R2-012"
+    ],
+    "exact_file_scope": {
+      "MT-174_newly_proposed_admission": [
+        "src/backend/handshake_core/src/api/authority.rs",
+        "src/backend/handshake_core/src/capabilities.rs",
+        "assets/capability_registry.json",
+        "src/backend/handshake_core/src/capability_registry_workflow.rs",
+        "src/backend/handshake_core/src/workflows.rs"
+      ],
+      "MT-174_existing_only_if_required_for_original_full_composer": [
+        "src/backend/handshake_core/src/lib.rs",
+        "src/backend/handshake_core/src/api/mod.rs",
+        "src/backend/handshake_core/src/main.rs"
+      ]
+    },
+    "execution_constraints": "Root assigns exclusive writers after dependency/interface reconciliation and real registry disposition. No Cargo/tests/Git/process authority is granted by this record. Native local_account reused unchanged; backend_client only if actual credential handoff requires. Frozen proof sequence and independent acceptance retained.",
+    "proof_disposition": "No compiler/runtime/native/acceptance PASS; Phase2 OPEN0/5. Actual extraction/review/publication Flight Recorder events and product registry publication are not fabricated.",
+    "registry_producer_dependency_admission": {
+      "admission_id": "WP012-P2-AUTH-R2-REGISTRY-PRODUCER-DEPENDENCY-001",
+      "recorded_at_utc": "2026-10-11T21:15:00.371997+00:00",
+      "owner_mt": "MT-174",
+      "paths": [
+        "src/backend/handshake_core/src/capability_registry_workflow.rs",
+        "src/backend/handshake_core/src/workflows.rs"
+      ],
+      "scope": {
+        "capability_registry_workflow.rs": "Existing producer only: exact human-approved draft/diff SHA256 binding, current normative provenance, scoped artifact paths and truthful publication/actual Flight Recorder failure state; retain previous registry and no fabricated events",
+        "workflows.rs": "Existing capability_registry_build protocol branch dispatch plus required caller parameter plumbing only. jobs.rs33-38 persists profile_id=default separately from capability_profile_id; existing workflows.rs11314 profile predicate cannot receive HTTP-created jobs. Preserve server-enforced capability/profile checks and no new profile/Analyst/Coder/model-lane eligibility.",
+        "captured_attribution": "Actual job workspace and immutable five-ID attribution into existing producer/caller Flight Recorder event payload and wsids; preserve RecordUserScope public shape and existing authorized FR scope."
+      },
+      "authorization_ref": "packet.json#/operator_decisions_20261009/0",
+      "approved_amendment_ref": "packet.json#/auth_mapping_r2_adoption_20261011",
+      "verified_source_refs": [
+        "capability_registry_workflow.rs91-100",
+        "capability_registry_workflow.rs543-707",
+        "workflows.rs11314-11355",
+        "jobs.rs33-38",
+        "api/flight_recorder.rs1815-1859"
+      ],
+      "blocker": "Producer regenerates product-root draft/diff/review, cites v02.113, accepts approve/reviewer flags without approved draft/diff hashes, and compares its newly authored review hash. Asset write precedes awaited actual Flight Recorder publish event; publication can therefore be unrecorded on FR failure. Existing exact approved artifacts are not yet bound to actual governed publication.",
+      "predecessor": "Repair existing producer/caller, independently review affected frozen candidate, compile/checkpoint under current authority, then actual governed publication with authentic Flight Recorder evidence before dependent auth writes. Conditional current137 compile freeze remains untouched.",
+      "prohibited": "No sibling script/new CLI; legacy bin/capability_registry_workflow.rs DuckDB recorder is prohibited; no registry/auth write or publication proof manufactured by admission",
+      "acceptance": "Twelve adopted units, original WPv206 pin, prior lineage/proof and OPEN0/5 unchanged",
+      "publication_proof_ref": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json#/auth_mapping_r2_adoption_20261011/registry_publication_proof"
+    },
+    "registry_publication_proof": {
+      "authority_ref": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json#/auth_mapping_r2_adoption_20261011/registry_publication_proof",
+      "state": "PENDING_ACTUAL_ADMISSION_AND_EXECUTION",
+      "runtime_inputs": "NOT_INSPECTED; independent admission pending"
+    }
+  },
   "operator_decision_20261010_phase02_builder_output_grant": {
     "decision_id": "WP012-PHASE02-BUILDER-OUTPUT-GRANT-20261010",
     "status": "APPROVED_REVIEW_PENDING_BEFORE_COMPILE",
@@ -945,6 +1052,10 @@
       "MT-173"
     ],
     "allowed_write_paths": [
+      "src/backend/handshake_core/src/capability_registry_workflow.rs",
+      "src/backend/handshake_core/src/api/authority.rs",
+      "src/backend/handshake_core/src/capabilities.rs",
+      "assets/capability_registry.json",
       "src/backend/handshake_core/Cargo.lock",
       "src/backend/handshake_core/Cargo.toml",
       "src/backend/handshake_core/build.rs",
@@ -986,7 +1097,7 @@
       {
         "check_id": "WP012-P1-MT-174-COMPILE",
         "executor_role": "KERNEL_BUILDER",
-        "command_or_method": "cargo check --locked --manifest-path src/backend/handshake_core/Cargo.toml --lib --tests --features app-runtime,surreal-test-support,test-utils -j 1",
+        "command_or_method": "cargo check --locked --manifest-path src/backend/handshake_core/Cargo.toml --lib --tests --features app-runtime,surreal-test-support,test-utils -j 1 --keep-going --message-format=json",
         "expected": "Compile exact reconciled candidate; no runtime verdict",
         "configuration_binding": "Retain features/toolchain/profiles; use isolated target under operator_decision_20261010_phase02_builder_output_grant; inspect dispatch before compile; no other target/profile or hardware tuning",
         "evidence_required": [
@@ -3413,7 +3524,7 @@
   },
   "lifecycle": {
     "status": "BLOCKED",
-    "blocked_on": "Latest shared core Round28 FAILED101 nine legacy PG inventory diagnostics; explicitly authorized scoped backend execution-test retirement pending implementation/freeze/independent review and required compiler proof. Real authenticated lifecycle mapping/full composer/runtime acceptance remains outstanding; no PASS.",
+    "blocked_on": "Latest core Round36 FAILED101 on336ddaca1; 126 errors across9 targets, 35 actual failed same-core launches retained. Connected repairs checkpointed through2b7b948; bootstrap seven-file source review found missing five-module completion receipt validation; exact repair pending; registry hidden-field and retained-settlement findings under sole-writer repair. Stable full batch compile pending current source review/gameplan/resource admission. Registry publication, real BASE/FINAL INFO pins/fresh-reopen, authenticated runtime/native and independent acceptance outstanding; accepted0/5.",
     "depends_on": [
       "MT-173"
     ],
@@ -3423,11 +3534,15 @@
     "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
     "claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
     "completed_by": null,
-    "next_actor": "Root admits exclusive /root/round19_boot_coder retirement batch after this scoped record; disjoint launch/console child only. Independent reviewer then delivery under current gates; native MT175 retains MT174 predecessor."
+    "next_actor": "Root continues authorized core_unblock_until_resolved and unattended finish; sole phase02_coder repairs exact registry findings, sole writer adds exact read-only five-module completion receipt checks, then Review rechecks affected freeze, Delivery waits for complete stable source clearance plus fresh preparation before one required changed-candidate core check. No repeated budget question, counter reset or acceptance substitution."
   },
   "scope": {
     "summary": "Reconcile shared core/bootstrap/manifests import paths",
     "allowed_paths": [
+      "src/backend/handshake_core/src/capability_registry_workflow.rs",
+      "src/backend/handshake_core/src/api/authority.rs",
+      "src/backend/handshake_core/src/capabilities.rs",
+      "assets/capability_registry.json",
       "src/backend/handshake_core/Cargo.lock",
       "src/backend/handshake_core/Cargo.toml",
       "src/backend/handshake_core/build.rs",
@@ -3466,7 +3581,7 @@
       {
         "check_id": "WP012-P1-MT-174-COMPILE",
         "executor_role": "KERNEL_BUILDER",
-        "command_or_method": "cargo check --locked --manifest-path src/backend/handshake_core/Cargo.toml --lib --tests --features app-runtime,surreal-test-support,test-utils -j 1",
+        "command_or_method": "cargo check --locked --manifest-path src/backend/handshake_core/Cargo.toml --lib --tests --features app-runtime,surreal-test-support,test-utils -j 1 --keep-going --message-format=json",
         "expected": "Compile exact reconciled candidate; no runtime verdict",
         "configuration_binding": "Retain features/toolchain/profiles; use isolated target under operator_decision_20261010_phase02_builder_output_grant; inspect dispatch before compile; no other target/profile or hardware tuning",
         "evidence_required": [
@@ -4413,6 +4528,111 @@
     "runtime_acceptance": "Independent validator pending; no acceptance claimed"
   },
   "remediation_record": {
+    "round36_actual_result_20261012": {
+      "id": "WP012-P2-ROUND36-ACTUAL-RESULT-20261012",
+      "candidate": "336ddaca1cdd8b55a1b93eecd04d0dae04e22ae3",
+      "status": "FAILED",
+      "exit_code": 101,
+      "actual_failed_same_core_launches": 35,
+      "inputs_unchanged": true,
+      "checked_files": 7416,
+      "checked_binding_keys": 20,
+      "error_messages": 126,
+      "failing_targets": 9,
+      "result_sha256": "b1069d02b075fa08ad40090d6a85ba79a871c6f5a738f165ebd8aacb5399a233",
+      "evidence_sha256": "a78a112a87e9e11890a016411c97ac7aa90da3fcc9ac55eed3540b8522a72592",
+      "post_binding_sha256": "8dba7777f688a4c4e061bc0a0e0544adb7ba3a10c72f40700108608415d886dc",
+      "collector_status": "BLOCKED_DIAGNOSTIC_GROUP_LIMIT_AND_NINE_UNOBSERVED_FAILED_TARGETS",
+      "collector_limit_action": "Use complete preserved raw126diagnostics; no collector-limit-only compiler rerun",
+      "bounded_authority_test_repair": {
+        "path": "src/backend/handshake_core/src/api/authority.rs",
+        "owner": "/root/phase02_coder",
+        "admission": "Already in both MT174 allowed lists",
+        "remedy": "Borrow existing Zeroizing<String> as_str at vault.put445 and comparison835; no clone/to_string/unzeroized carrier or assertion weakening"
+      },
+      "next": "Whole recorded source batch repair; canonical installed CLI config+real operator allowlist acquisition missing, no substitute/PATH revival/test removal",
+      "runtime_acceptance": "NOT_RUN",
+      "accepted_mts": "0/5"
+    },
+    "round36_pre_cargo_path_failure_20261012": {
+      "id": "WP012-P2-ROUND36-PRE-CARGO-PATH-20261012",
+      "attempt_id": "111b270e280244188088248ee1e83f11",
+      "status": "PRE_CARGO_FAILED",
+      "wrapper_pid": 21812,
+      "cargo_pid": null,
+      "actual_failed_same_core_launches": 34,
+      "rootcause": "Native PowerShell Join-Path interpolated into ordinary Python string; round36 path backslash-r became carriage return",
+      "diagnostic": "CANDIDATE_CAPTURE_FAILED; actual wrapper stderr OSError22 at capture code config read",
+      "result_sha256": "fe7a85e2f639cc2ad9cbb81d7723ce33cbcdf01018c72c65ad227cd0cee8111d",
+      "stderr_sha256": "880dff8f2f9383534166b42575908e9e01dda2a2aa9ba59b234c3c88580e73c4",
+      "remedy": "Normalize two joined path values before Python interpolation; all other capture paths inspected as forward slash or argv/environment inputs",
+      "changed_runner_sha256": "1a1d9a9f233f227323b5554ac833f5924dcb5f487243c409d8e73ef6f43882ab",
+      "state": "SOURCE_CLEAR_PATH_CORRECTION_RELEASED_PENDING_CURRENT_ADMISSION",
+      "source_config_metadata_unchanged": true,
+      "runtime_acceptance": "NOT_RUN"
+    },
+    "round36_praxidike_integration_review_20261012": {
+      "id": "WP012-P2-ROUND36-INTEGRATION-REVIEW-20261012",
+      "candidate": "336ddaca1cdd8b55a1b93eecd04d0dae04e22ae3",
+      "source_review": "SOURCE_CLEAR named product caller repair",
+      "tool_review": "All five teams reviewed; standalone tool correction SOURCE_CLEAR; 18 focused tests pass",
+      "runner_review": "SOURCE_CLEAR named P2 admission/result/nonzero correction; frozen draft source only",
+      "held_runner_sha256": "8768713f40f32cc7a54abe91a0ce01fa264a08d7d4b38b492695933f92e52ff7",
+      "held_config_sha256": "92a73b895c31de6ccaeb73c7e35c252cd83099f49bda29d6dfbf64f92a5f0665",
+      "held_probe": {
+        "attempt_id": "e75fa7ddfa254abb9ac4fc0a005de77e",
+        "wrapper_exit": 2,
+        "cargo_pid": null,
+        "actual_core_launch": false,
+        "result_sha256": "0dc31e62bb9459046829ac127a0c816af30824211129f6c476b6a39705a0a624"
+      },
+      "metadata": {
+        "kind": "ONE_LOCKED_OFFLINE_FULL_METADATA_NOT_COMPILATION",
+        "numeric_exit": 0,
+        "inputs_unchanged": true,
+        "checked_files": 7416,
+        "metadata_sha256": "2d8aadeb3d228bac309f0ea5d7b35ee4380baf992240cb9807a1f7837c177d53",
+        "provenance_sha256": "67a02354c7d014b57e3a5e7ed5dec2db9a8dbcd28ef480dd3df64c87ee29b5cf",
+        "expected_profiles": 485,
+        "resolved_feature_count": 11,
+        "actual_binary_identity": "Observed Cargo/rustc versions and binary hashes in metadata provenance; recomputed before/post compile"
+      },
+      "state": "RELEASED_TO_SOLE_DELIVERY_PENDING_CURRENT_ADMISSION",
+      "actual_failed_same_core_launches": 34,
+      "runtime_acceptance": "NOT_RUN"
+    },
+    "praxidike_core_command_adoption_20261012": {
+      "id": "WP012-P2-PRAXIDIKE-CORE-COMMAND-20261012",
+      "authorized_by": "Operator keep-going and Python Praxidike request",
+      "candidate": "336ddaca1cdd8b55a1b93eecd04d0dae04e22ae3",
+      "tree": "6c422fd1f34594394fbff412c82abfa2e90d9fc6",
+      "praxidike_commit": "3ef3aea56cc9e4b3a8e231a89a1ca70533d8da96",
+      "module_sha256": "8bd50b47e7a88abd24864ea49ebc9ae883bcdc3cbcb47fcea8f780cb63eaec4f",
+      "state": "RELEASED_TO_SOLE_DELIVERY_PENDING_CURRENT_ADMISSION",
+      "change": "Add keep-going and message-format=json in proof.checks[0] and scope.proof_targets[0]; historical commands preserved",
+      "retry_authority": "Existing core_unblock_until_resolved_20261012; 34 actual failed launches retained; no counter reset or unchanged retry",
+      "owner": "Delivery sole existing compile-owned.ps1",
+      "blockers": [
+        "Draft runner failures need fresh results and nonzero wrapper exit",
+        "Full locked/offline metadata and actual toolchain provenance missing",
+        "Current gameplan/resource admission and final runner/config review required"
+      ],
+      "runtime_acceptance": "NOT_RUN",
+      "accepted_mts": "0/5",
+      "command": "cargo check --locked --manifest-path src/backend/handshake_core/Cargo.toml --lib --tests --features app-runtime,surreal-test-support,test-utils -j 1 --keep-going --message-format=json"
+    },
+    "round35_actual_result_20261012": {"id": "WP012-P2-ROUND35-ACTUAL-RESULT-20261012", "candidate": "5249ae0d495382cb2418670b352548a922946eba", "status": "FAILED", "exit_code": 101, "inputs_unchanged": true, "actual_failed_same_core_launches": 34, "diagnostic": "38 ContextBundle test diagnostics mapped to eleven authenticated future output mismatches and two macro statement/expression arms", "result_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round35-helper-path/compile-result.json", "result_sha256": "46d9e2d983ec77df50e08f693137d978614374629ab6f8568a06fcaaa5b49700", "runtime_acceptance": "NOT_RUN", "next": "Connected single-file authenticated caller adapter repair; no unchanged retry"},
+    "round34_actual_result_20261012": {"id": "WP012-P2-ROUND34-ACTUAL-RESULT-20261012", "candidate": "16ff5939c063d0a41e8a91096f5420d84bf473b5", "status": "FAILED", "exit_code": 101, "inputs_unchanged": true, "actual_failed_same_core_launches": 33, "diagnostic": "Missing tests/knowledge_ingestion_support.rs at loom_artifact_migration_tests.rs4; canonical mod.rs exists", "result_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round34-console-module/compile-result.json", "result_sha256": "0b2f0317a62fb4a891c0188e6f7a05d2e984ffb635c042bed366da56234b8548", "runtime_acceptance": "NOT_RUN", "next": "One changed stale helper path; no unchanged retry"},
+    "round33_actual_result_20261012": {"id": "WP012-P2-ROUND33-ACTUAL-RESULT-20261012", "candidate": "35829060b23a461a502a6887ee74ed5e1552995b", "status": "FAILED", "exit_code": 101, "inputs_unchanged": true, "actual_failed_same_core_launches": 32, "diagnostic": "E0433 tests/wp1_console_stream_scope_surreal_tests.rs85 missing api::console_stream module", "result_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round33-connected-storage/compile-result.json", "result_sha256": "b8fd97de44170e6e81159d2589bccb339317c5b198881337a6a6aaeb2319ee03", "next": "Changed retained console module/product routing repair under until-resolved authorization; no unchanged retry", "runtime_acceptance": "NOT_RUN"},
+    "core_unblock_until_resolved_20261012": {"id": "WP012-P2-CORE-UNBLOCK-UNTIL-RESOLVED-20261012", "authorized_by": "Operator", "operator_quote": "unblocked until resolved; make sure the current fix is the fix for the rootcause and not more test and checks for no good reason", "state": "APPROVED_CONTINUATION_UNTIL_CORE_BLOCKER_RESOLVED", "scope": "Existing MT171-174 same core compile blocker and connected evidenced source repairs", "retry_authority": "Continue required same-core compilation on changed stable repaired inputs until core blocker resolved; prior31failedlaunches retained, no counter reset", "execution": "Verify actual rootcause and complete connected caller repair before compile; reuse unchanged source review; sole delivery owns existing warmtarget/profile/j1/180GB; no unchanged retries or needless additional tests/checks", "limits": "No acceptance weakening, independent runtime replacement, process-stop/cachecleanup/branchpruning/newworkflow approval; native/runtime predecessor boundaries preserved", "current_candidate": "f66a07a8bd944f2cd78b20ae013c5b728ca663c3"},
+    "round32_worktree_registry_compiler_blocker_20261012": {"id": "WP012-P2-ROUND32-WORKTREE-REGISTRY-COMPILER-BLOCKER", "result_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round32-crash-recovery/compile-result.json", "result_sha256": "87248db2bbb242e81c28c5f45d4f3372d860c4c2e20ca77064a46baa243df504", "stderr_sha256": "04352513ab30951e93c111d954de3045a9c4f836c82cf1b3fad4bf4d60d1d51b", "observed": "FAILED101 five E0624 private execute_returning calls in worktree_vm_registry_surreal_tests.rs774/790/873/890/966", "inputs_unchanged": true, "actual_failed_core_launches": 31, "remaining_authorized_runs": 0, "diagnosis": "Root inspected actual stderr and private producer surreal.rs1177: query_values<Value,B> then rows.len; same public typed facade yields equivalent Result", "repair_ref": "MT-172.json#/remediation_record/round32_worktree_registry_repair_20261012", "runtime_native_acceptance": "NOT_RUN; independent acceptance0/5 unchanged", "owned_process_closure": "Delivery fresh WMI: owned runner/Cargo/rustc closed; cache4820 retained for compatible reuse; no process stop", "completed_utc": "2026-10-12T00:01:14.3839304Z"},
+    "one_core_check_renewal_20261012": {"id": "WP012-P2-CORE-ONE-RUN-RENEWAL-20261012", "authorized_by": "Operator", "operator_quote": "Renew exactly one core check", "state": "ONE_RENEWED_RUN_CONSUMED_FAILED101", "actual_cargo_pid": 11652, "actual_wrapper_pid": 12712, "cargo_started_utc": "2026-10-11T23:59:46.772059Z", "result_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round32-crash-recovery/compile-result.json", "remaining_renewed_runs": 0, "prior_actual_failed_launches": 30, "additional_core_check_allowance": 1, "candidate_commit": "ef9b5d456455ce825e5ea5b57f88b586ba92a106", "remedy_ref": "MT-172.json#/remediation_record/round31_crash_recovery_repair_20261012", "command": "cargo check --locked --manifest-path src/backend/handshake_core/Cargo.toml --lib --tests --features app-runtime,surreal-test-support,test-utils -j 1", "conditions": "Independent SOURCE_CLEAR exact frozen candidate; fresh gameplan/input/resource admission; delivery sole owner; existing warm owned target/profile and180000000000bytecap; one build per physical disk", "limits": "Exactly one core run; no native/runtime/acceptance approval, counter reset, cache cleanup, process disruption or blanket retry"},
+    "same_core_check_attempt_reconciliation_20261012": {"id": "WP012-P2-CORE-ATTEMPT-RECONCILIATION-20261012", "reconciler_thread": "01a129ca-9bd2-7823-bc0d-746a6065835f", "canonical_evidence_root": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02", "observed_result_records": 31, "actual_cargo_launches": 30, "actual_failed_launches": 30, "excluded_record": "round09-sourceclear008 CACHE_IDENTITY_DRIFT: cargo null, exit null, no argv; no launch", "check": "cargo check --locked --manifest-path src/backend/handshake_core/Cargo.toml --lib --tests --features app-runtime,surreal-test-support,test-utils -j 1", "budget_ref": "#/attempt_budget", "initial_attempts_consumed": 2, "post_initial_actual_launches": 28, "allocation": "Individual probe/confirm labels not uniquely recorded; even most permissive chronological allowance one probe plus one confirm exhausted", "remaining_authorized_runs": 0, "explicit_renewal_found": false, "required_decision": "Operator explicitly renews same core-check budget against 30 consumed launches, states exact new allowance linked to Round31 remedy", "next": "Source repair and independent affected-source review permitted; no Cargo until renewal and fresh preparation pass", "limits": "No counter reset, acceptance, process/cache change or compile admission"},
+    "round31_crash_recovery_compiler_blocker_20261011": {"evidence_id":"WP012-PHASE02-ROUND31-CRASH-RECOVERY-COMPILER-BLOCKER","recorded_at_utc":"2026-10-11T21:48:35.690284+00:00","result_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round31-constructor-repair/compile-result.json","result_sha256":"bdefdda0bbeaa34d6d7fb9b71fc6f4b6c480b28bda362d9f30ce103375f83eed","stderr_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round31-constructor-repair/compile.stderr.log","stderr_sha256":"542243c8ffa8d411d5f5a383be883e6f5647a8c5a4599ea6b40ca4ed4dfa6acc","post_binding_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round31-constructor-repair/compile-post-binding.json","observed":"FAILED101 crash_recovery_e2e19 compiler diagnostics; all7416postinputs unchanged","input_digest":"7e2d55920720127b918c21a25b78b02d072d0de89b16a8d5ec4905b6af4d8472","source_review_binding_sha256":"c3c4e10668824de407a70aa8980147d3790227f0eca47031f208367e12010b60","diagnostic_groups":"runtime_child.rs missing Value197/274/275, query_values six calls179/239/322/406/452/466, cascading row-type mismatches; from_exact Result call handling in child and chaos plus clone fixture; see actual stderr for exact19 diagnostics","next_action":"Diagnosis leader01a129cd-bd03-73a2-a09a-60efba6055f3 read-only exact current code inspection before remedy/ownership admission. No remediation or next compile authorized by this evidence record.","remaining_predecessors":"Existing registry actual publication and approved R2 authenticated lifecycle/fullcomposer/runtime/native independent acceptance remain outstanding; PostgreSQL/SQLite execution retirement source-reviewed done, not an active blocker","kernel_publication_root_relay":"Root owns pending GP013 self-dirty publication-preparation exception and reports restoration of exact53 files with retained stashes/external raw snapshot; no kernel commit yet. No grant/status/proof inferred.","proof_state":"FAILED compiler; runtime/native/acceptance NOT_RUN; OPEN0/5 unchanged"},
+    "removed_constructor_combined_remedy_20261011": {"remediation_ref":".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-172.json#/remediation_record/removed_constructor_combined_remedy_20261011","work_owner_mt":"MT-174","consumer_owner_mt":"MT-172","boundary":"ONE wholecore confirming compile after all11 repairs combinedfreeze/independentreview/currentgates; Round30 actualfailure2 and source-evidencedadditional9 distinguished","state":"PENDING_COMBINED_REPAIR_PROOF","acceptance":"OPEN0/5 unchanged; no new runtime verdict or fabricated counter","independent_source_verdict":{"verdict_ref":".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-172.json#/remediation_record/removed_constructor_combined_remedy_20261011/independent_source_verdict","reviewer_thread_id":"01a129ca-8eea-7f53-aa9d-7f81f6f08319","verdict":"SOURCE_CLEAR","scope":"SOURCE_ONLY","binding_sha256":"c3c4e10668824de407a70aa8980147d3790227f0eca47031f208367e12010b60","next_action":"ONE existing required wholecore confirming check pending fresh gates/root resource admission; source verdict already relayed by root to sole coder and delivery","limits":"Compiler/runtime/native/cleanup durability/acceptance NOT_RUN; no authR2/fullcomposer judgment; no MT PASS/completed transition"},"recovery_checkpoint":{"checkpoint_ref":".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-172.json#/remediation_record/removed_constructor_combined_remedy_20261011/recovery_checkpoint","commit":"ce396f39926c8ed7afbf8ce6711811184325eb12","tree":"dc45cd7ffbef203be5aa4f85405b7473fc0f88a5","kind":"RECOVERY_CHECKPOINT_NOT_COMPILER_PASS","limits":"Recovery checkpoint does not prove corePASS/READY/runtime/native/acceptance; status/verdict/completed_by remain untouched"}},
+    "round30_workspace_settings_retired_config_20261011": {"evidence_id":"WP012-PHASE02-ROUND30-WORKSPACE-SETTINGS-RETIRED-CONFIG","result_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round30-restart-resume/compile-result.json","result_sha256":"5986f985671873fbc8e55edb665d2dc3a31b28148d54379113e9ca31aac9879b","stderr_ref":"../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round30-restart-resume/compile.stderr.log","stderr_sha256":"dbb2d32d8352abb1f7abdeb4b0076b1158ef8aa2430d09f628d0452d76e55eb4","observed":"FAILED101 twoE0599 workspace_settings_surreal_tests.rs74/416 for_scoped_store retired; inputs_unchanged=true","consumer_owner_mt":"MT-172","existing_scope_admission":"MT-172 execution.allowed_write_paths and scope.allowed_paths already admit tests/workspace_settings_surreal_tests.rs; no new MT174 path admission","root_diagnosis_remedy":"Only two constructors use existing for_test_scope(samepath,&generated_namespace,&generated_database,DEFAULT_SHUTDOWN_WAIT); each generated scope uses hs_test_ns_/hs_test_db_ plus Uuid::now_v7().simple lowerhex32. Import existing DEFAULT_SHUTDOWN_WAIT=30sec; preserve config.clone reopen and all assertions/idempotency/legacy denial. No production API revival or namespace-policy change.","verified_reference":"storage/surreal.rs for_test_scope signature/strict generated-name validation/DEFAULT_SHUTDOWN_WAIT; tests/mt016_surreal_loom_search_tests.rs149-159 existing public example","state":"RECORDED_FAILURE_AWAITING_SCOPED_MT172_CODER_REPAIR","proof":"No passing compiler/runtime/acceptance claimed"},
+    "auth_r2_registry_producer_dependency_20261011": {"admission_ref":".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json#/auth_mapping_r2_adoption_20261011/registry_producer_dependency_admission","joint_plan_ref":".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase02-successor-handoff-v3.json#/current_handoff_brief","state":"BLOCKED_REAL_REGISTRY_PUBLICATION_PREDECESSOR","missing":"Exact externally approved draft/diff binding and authentic governed publish/Flight Recorder failure-state evidence","next_actor":"Root assigns fresh exclusive producer/caller writer after current frozen compile boundary; no edits to current137 compile inputs during proof"},
+    "auth_r2_schema_pin_dependency_20261011": {"admission_ref":".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json#/auth_mapping_r2_adoption_20261011/schema_pin_dependency_admission","joint_plan_ref":".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase02-successor-handoff-v3.json#/current_handoff_brief","joint_plan_owner":"Successor root recorder; use its current reconciled plan before assigning exclusive coder paths","owner_mt":"MT-173","scope":"schema.rs generated hash/lineage dependency only; native/auth shared interfaces stay with reconciled exclusive owners; no acceptance waiver"},
     "batch_owner": "MT-171",
     "covered_mts": [
       "MT-171",

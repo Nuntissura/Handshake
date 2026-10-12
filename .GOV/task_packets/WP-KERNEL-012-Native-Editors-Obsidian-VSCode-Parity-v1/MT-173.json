@@ -1,4 +1,104 @@
 {
+  "round36_navigation_provider_preparation_20261012": {
+    "id": "WP012-P2-ROUND36-NAVIGATION-PROVIDER-PREP-20261012",
+    "state": "PROVIDER_CHECKPOINT_SOURCE_CLEAR_CURRENT_MINIMUM_CONSUMER_SEAMS_REOPENED_NOT_COMPILED",
+    "selected_context_source_dependency": {"id": "WP012-P2-NAVIGATION-SELECTED-CONTEXT-SOURCE-20261012", "state": "ADMITTED_MINIMUM_INTERNAL_VALIDATION_DEPENDENCY_FOR_CURRENT_SERIAL_CONSUMER", "paths": ["src/backend/handshake_core/src/storage/surreal/model_lane.rs", "src/backend/handshake_core/src/storage/surreal/model_lane_schema.surql"], "evidence": "Trace/span selector can select canonical context_handoff while excluding its source message. Consumer currently validates only visible message inputs, so handoff/artifact evidence can otherwise escape owning fresh-Yjs proof or survive denied message input", "scope": "Reuse private actual message/sender input acquired through selected canonical handoff/artifact's existing navigation_context_sources chain, exact source/receipt identity and consulted Document grants. Capture/recheck only those canonical validation dependencies in existing private input snapshot/controller; do not expose hidden messages/lanes/raw payload or authorize caller references. Validate owning bytes/site/history/fresh-Yjs before context/artifact evidence; omit denied/unresolved child and its evidence, preserving exact selector404 and authorized owner assertions", "owner": "/root/phase02_coder", "proof": "Affected source review of same eight-file candidate; no separate algorithm, extra file or intermediate Cargo. Runtime/publication/native acceptance remains unchanged"},
+    "canonical_sender_lane_dependency": {"id": "WP012-P2-NAVIGATION-CANONICAL-SENDER-LANE-20261012", "state": "ADMITTED_MINIMUM_TYPED_INTERNAL_DEPENDENCY_FOR_CURRENT_SERIAL_CONSUMER", "paths": ["src/backend/handshake_core/src/storage/surreal/model_lane.rs", "src/backend/handshake_core/src/storage/surreal/model_lane_schema.surql"], "evidence": "Recipient-lane selector preserves sender-or-recipient message matches but exposes only selected lane; owning CRDT validator needs actual sender lane kind/identity, not a reconstruction from the message's binding", "scope": "Minimum private actual typed source-lane identity acquired through canonical selected message's persisted sender-lane and exact source/receipt five-tuple/run binding under same Document predicate and protected transaction. Reuse NavigationLaneInput/owning serde types. Capture/recheck exact consulted sender source/receipt dependency membership with result barrier; no generic lane visibility, payload copy, dummy full records or self-proof from binding", "owner": "/root/phase02_coder", "proof": "Affected independent source review with current eight-file batch; original recipient/sender selectors/assertions preserved, no intermediate Cargo and no runtime acceptance"},
+    "artifact_alias_preservation_dependency": {"id": "WP012-P2-NAVIGATION-ARTIFACT-ALIASES-20261012", "state": "ADMITTED_MINIMUM_PROVIDER_PREDICATE_REOPEN_FOR_CURRENT_SERIAL_CONSUMER", "path": "src/backend/handshake_core/src/storage/surreal/model_lane_schema.surql", "evidence": "Existing ArtifactNavigationQuery/artifact_selector accepts artifact_ref, artifact_binding_id, artifact_manifest_ref, artifact_payload_ref, artifact_sha256/content_hash; existing owning artifact match compares these actual canonical fields. Frozen child_match only compares handoff.artifact_ref", "scope": "Match existing aliases against actual unique canonical artifact record in the same validated handoff-source-artifact-Document chain, retaining actual run/context/artifact conjuncts. No prefix authorization, hidden alias reconstruction, raw payload exposure or opaque unresolved-child authorization", "owner": "/root/phase02_coder", "proof": "Same affected source review with current consumer and recipient seam; all original assertions/selector semantics retained. Runtime NOT_RUN and publication prerequisites unchanged"},
+    "recipient_lane_input_dependency": {"id": "WP012-P2-NAVIGATION-RECIPIENT-LANE-INPUT-20261012", "state": "ADMITTED_MINIMUM_PROVIDER_SEAM_REOPEN_FOR_CURRENT_SERIAL_CONSUMER", "evidence": "Original message_mentions_lane tests sender OR ModelLaneTarget::Lane recipient; canonical stored target serde uses target_kind/target_id. Frozen private input omitted recipient target, so sender-only filtering would drop original recipient matches", "paths": ["src/backend/handshake_core/src/storage/surreal/model_lane.rs", "src/backend/handshake_core/src/storage/surreal/model_lane_schema.surql"], "scope": "Derive actual to_lane in existing private source input with closed target_kind and optional target_id fields, exact existing VALUE/ASSERT/source binding and reuse owning ModelLaneTarget serde decoder. Preserve original sender/recipient semantics; no raw canonical record reconstruction, unrelated inputs, public projection or permission expansion", "owner": "/root/phase02_coder", "proof": "Fresh independent affected-source review with six consumer files; previous four-file checkpoint source verdict remains historical. No intermediate Cargo or shared base pin changes without actual changed base input"},
+    "source_checkpoint": {"commit": "fe4eb4a4e237034c161940faea92a6012564ba03", "remote_verified_equal": true, "review_thread": "01a129ca-8eea-7f53-aa9d-7f81f6f08319", "review_verdict": "SOURCE_CLEAR_SOURCE_ONLY", "bindings_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round36-navigation-provider-repair/source_bindings.json", "compile": "NOT_RUN", "runtime": "NOT_RUN0/5", "limitations": "Serial owning consumer fresh Yjs validation, creator-epoch continuity, exact bootstrap reconciliation and independent native proof remain outstanding"},
+    "authority_ref": "packet.json#/operator_core_unblock_amendments_20261012/navigation",
+    "descendant_authority_ref": "packet.json#/operator_core_unblock_amendments_20261012/navigation/descendant_contract_amendment",
+    "descendant_contract": "Operator-approved typed canonical provenance and versioned redacted projection; unresolved/denied child data and derived refs omitted, exact selectors404; immutable sources/hashes and original positive/assertion floor preserved",
+    "recording_purpose_amendment_20261012": {"id": "WP012-P2-BOUNDED-RECORDING-PURPOSES-20261012", "state": "OPERATOR_APPROVED_SOURCE_PREPARATION", "operator_answer": "Approve bounded recording purposes", "scope": "Two closed diagnostic/checkpoint recording purposes using existing original Workspace/Create operation and actual capability/grant/session/resource; exact run, optional checkpoint lane and stream high-watermark receipt dependencies. Separate from RecoveryExecute and navigation read; no new capability or generic family widening", "provider_assignment": "Existing four-file provider batch: explicit operation matrix/purpose acceptance and exact family-specific source/ledger canonical identity/body/schema mapping. Preserve common five-family source_kind behavior for unrelated consumers, atomic checkpoint/high-watermark and immutable diagnostic receipts, idempotency/five-tuple/current authority denial. No admin business seed or existing-purpose substitution", "consumer_assignment": "MT172 existing owning producer methods wrapped across full reads/write/result in original recording-purpose transaction continuity; original assertions retained", "proof": "Source preparation only; compiler and independent runtime acceptance outstanding"},
+    "owner": "/root/phase02_coder",
+    "paths": ["src/backend/handshake_core/src/storage/surreal/model_lane.rs", "src/backend/handshake_core/src/storage/surreal/model_lane_schema.surql", "src/backend/handshake_core/src/storage/surreal/schema.surql", "src/backend/handshake_core/src/storage/surreal/schema.rs"],
+    "scope": "Approved NavigationRead/navigation_read WorkspaceRead with original model_lane.navigation.read capability/subject/grant; matching provider/schema operation branch and required descendant intersection; existing private read-only transaction controller path",
+    "source_boundary_assignment": "Provider-owned typed selector is query data distinct from exact five-tuple scope; full canonical row predicates validate immutable source/receipt identity and consulted descendant authority before scalar-only output. NavigationRead hides raw record_json/search_terms/idempotency and linked receipt payload/hash; preserve other purposes and field modifiers. No persisted duplicate scalar projection or function privilege elevation",
+    "continuity_assignment": "Capture and recheck only canonical descendants actually consulted by the bound selector, including exact identities and authority versions/epochs; workspace-only snapshot is insufficient. No broad principal/Space grant inventory or authorization writes",
+    "grant_marker_field_admission": "Only NavigationRead SELECT predicate on existing resource_grants.grant_version in model_lane_schema.surql; retain TYPE int ASSERT>=1, unchanged VALUE/write behavior and FULL other-purpose visibility. Marker uses original envelope and canonical selector/source provenance to pin exact eligible child grants plus original workspace grant; explicit sorted snapshot and dependency membership, expiry/revoke/delegation/policy recheck; disappearance denies publication",
+    "source_known_limit": "Other-principal creator epoch cannot be read through current principal-table permissions. No principal visibility expansion or NONE equality proof is admitted; preserve canonical enabled-creator/resource-lifecycle checks and record this limitation against R2 continuity before any runtime acceptance claim",
+    "crdt_identity_extraction_admission": "Extract only existing pure storage/key/receipt identity checks from wp012_model_lane_crdt_document_access into private shared helper; existing authorization/write/dependency behavior remains equivalent. Reuse existing lease/proposal/application identity helpers; do not use current guarded-message/live-lease admission as historical read authority",
+    "child_provenance_blocker": "Pure SQL identity helpers do not cover existing Rust byte/site/replay/historical lease and fresh Yjs realization checks. Restricted typed canonical reader below is admitted for same-transaction reuse; source implementation and independent review remain outstanding; unsupported children are not completed scope",
+    "restricted_reader_admission": "Only minimum engine VALUE-derived typed source provenance and canonical receipt validator-input fields, exact derivation/assertion/read-time source/receipt binding and real descendant grants. Carry actual CRDT presence/options/kind/binding and lane identity, never dummy canonical records, opaque artifact/memory fields or duplicate scalar projection. Existing bootstrap performs idempotent old-row backfill before schema-complete while preserving original JSON/receipt/hash bytes. Inputs remain private; owning Rust validation/materialization reused in later MT172",
+    "receipt_semantic_input_admission": "Pinned SurrealDB v3.2.0 doc/reduce.rs233-254 exposes only boolean full-row permission predicates; ordinary queries cannot extract hidden payload fields. Minimum distinct VALUE-derived semantic receipt field is admitted for exact proposal/promotion/application families: only owning validator-required keys and canonical application_evidence, exact derivation ASSERT and read-time ORIGINAL full-payload hash/source/receipt/DocumentRead-grant proof. Original receipt bytes/hash/order remain unchanged; existing administrative bootstrap performs idempotent backfill. Ordinary acquisition verifies complete payload hash before conversion; Navigation acquisition returns the distinct private semantic input after engine verification, then both reuse one existing semantic validator core. No subset named payload, subset hash, caller proof marker, arbitrary refs or copied lease payload; existing lease-history reader already supplies typed fields. Module-owned installation preferred; forced shared catalog/count/pin inputs must be named before edit, never fabricated",
+    "shared_schema_assignment": "schema.surql only exact existing model-lane/CRDT receipt read dispatch branches and minimum derived receipt-semantic field needed for bounded NavigationRead dependency and scalar diagnostic/recovery receipt visibility; preserve ordinary reads/writes. schema.rs only corresponding actually consumed generated source/catalog/count/lineage dependencies, with predecessors preserved. No principal inventory, nonce propagation, whole ledger table rewrite or generic child/raw visibility",
+    "shared_pin_measurement_dependency": "Independent source inspection confirms shared bootstrap precedes module bootstrap and observes full live INFO DB/table catalog including functions/fields on reopen. Module override cannot avoid shared count/catalog pins. Generated source SHA is computable; actual INFO fingerprint must be independently measured through existing authorized proof after core compilation, with compatible persisted-state lineage and fresh/reopen proof. Never invent INFO, skip the inspector or exclude changed entries. Existing baseline generated-source drift and newly changed catalog remain distinct dependencies",
+    "reader_grant_prerequisites": "Actual original WorkspaceRead/navigation grant plus existing mt120_document_access prerequisites, including separate workspace fs.read and exact descendant DocumentRead/fs.read grants; exact consulted membership/versions rechecked before publication. No automatic grant provisioning or capability substitution",
+    "migration_assignment": "Pair-local v8/revision8 installs changed module schema on reopened v7 stores while retaining supported v3-v7 predecessors; do not change shared schema.rs pins absent an actual consumed-input change",
+    "current_source_disposition": "DRAFT_NOT_FROZEN; independent design findings on receipt equality, wrapped-message stream, all selector/filter semantics and child continuity must be resolved before source review. Compiler NOT_RUN; no runtime verdict",
+    "constraints": "No RecoveryExecute expansion, SourceRead/fs.read substitution, workspace-wide private-child visibility, GET coordination/lease/receipt writes, new public wrapper or AppState field; preserve all ordinary operation branches and original authority continuity",
+    "dependency": "Exact generated schema hash/lineage update only if this input changes its consumed schema under existing schema_pin_dependency_admission; name equation/input before edit",
+    "serial_consumers": "MT172 navigation store/API/tests then MT174 composer; no overlapping writer",
+    "runtime_predecessors": "Actual canonical registry publication/Flight Recorder proof and real grants remain required; independent runtime/acceptance NOT_RUN0/5"
+  },
+  "auth_mapping_r2_adoption_20261011": {
+    "decision_id": "WP012-P2-AUTH-MAPPING-001-R2",
+    "status": "ADOPTED_IMPLEMENTATION_AUTHORIZED",
+    "recorded_at_utc": "2026-10-11T21:06:37.343345+00:00",
+    "authority_ref": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json#/auth_mapping_r2_adoption_20261011",
+    "operator_decision": {
+      "source_thread_id": "01a12cc3-aea2-77b1-a09d-c20a5a5c6900",
+      "operator_quote": "Approve R2 adoption and implementation",
+      "registry_operator_quote": "Approve this exact registry diff",
+      "registry_diff_sha256": "dbb7531dfd9ff8e04ed25cf176c178748dd6745eb3fd3425f290f157ad2d9e89",
+      "registry_draft_sha256": "3c41121d2c2d17259ad914bfba5dc43937946bdd85f76e1b9a7354596cf02610",
+      "human_actual_diff_approval": true,
+      "signature_invented": false
+    },
+    "additive_spec_adoption": {
+      "version": "v02.216",
+      "original_wp_spec_pin": "v02.206",
+      "anchors": [
+        "11.1.6.1",
+        "2.3.13.12.9"
+      ],
+      "manifest_path": ".GOV/spec/master-spec-v02.216/indexed-spec-manifest.json",
+      "manifest_sha256": "ce3a6bb87a4d65f2503131d3ff7a97d2f19621d9e22f684df400b75eef0186cb",
+      "unrelated_new_spec_requirements_adopted": false
+    },
+    "approved_unit_refs": [
+      "WP012-P2-AUTH-R2-001",
+      "WP012-P2-AUTH-R2-002",
+      "WP012-P2-AUTH-R2-003",
+      "WP012-P2-AUTH-R2-004",
+      "WP012-P2-AUTH-R2-005",
+      "WP012-P2-AUTH-R2-006",
+      "WP012-P2-AUTH-R2-007",
+      "WP012-P2-AUTH-R2-008",
+      "WP012-P2-AUTH-R2-009",
+      "WP012-P2-AUTH-R2-010",
+      "WP012-P2-AUTH-R2-011",
+      "WP012-P2-AUTH-R2-012"
+    ],
+    "exact_file_scope": {
+      "MT-173": [
+        "src/backend/handshake_core/src/storage/surreal.rs",
+        "src/backend/handshake_core/src/storage/surreal/model_lane.rs",
+        "src/backend/handshake_core/src/storage/surreal/model_lane_schema.surql",
+        "src/backend/handshake_core/src/storage/surreal/schema.surql",
+        "src/backend/handshake_core/src/storage/surreal/schema.rs"
+      ],
+      "MT-173_newly_proposed_admission": [
+        "src/backend/handshake_core/src/storage/surreal/local_accounts.rs",
+        "src/backend/handshake_core/src/storage/surreal/resource_authority.rs"
+      ]
+    },
+    "execution_constraints": "Root assigns exclusive writers after dependency/interface reconciliation and real registry disposition. No Cargo/tests/Git/process authority is granted by this record. Native local_account reused unchanged; backend_client only if actual credential handoff requires. Frozen proof sequence and independent acceptance retained.",
+    "proof_disposition": "No compiler/runtime/native/acceptance PASS; Phase2 OPEN0/5. Actual extraction/review/publication Flight Recorder events and product registry publication are not fabricated.",
+    "schema_pin_dependency_admission": {
+      "admission_id": "WP012-P2-AUTH-R2-SCHEMA-PIN-DEPENDENCY-001",
+      "recorded_at_utc": "2026-10-11T21:11:56.818229+00:00",
+      "owner_mt": "MT-173",
+      "path": "src/backend/handshake_core/src/storage/surreal/schema.rs",
+      "scope": "Minimum corresponding generated schema hash/lineage update only; no unrelated schema.rs rewrite",
+      "reason": "Approved model_lane_schema.surql/schema.surql auth changes alter the exact generated schema consumed by schema.rs4169 and GENERATED_SURREALQL_SHA256 at3789; bootstrap current-lineage checks5450-5464 compare those pins. Only corresponding generated hash/lineage dependency updates are admitted; retain historical predecessor pins and independent actual INFO/catalog proof.",
+      "authorization_ref": "packet.json#/operator_decisions_20261009/0",
+      "approved_amendment_ref": "packet.json#/auth_mapping_r2_adoption_20261011",
+      "joint_reconciliation_source": "Successor root direct assignment following current diagnosis/dependency finding; schema consumer independently inspected by scoped author",
+      "proof": "Compiler/runtime and schema INFO/catalog/lineage acceptance remain pending; prior evidence and predecessors preserved"
+    }
+  },
   "schema_id": "hsk.microtask_contract@1",
   "schema_version": "microtask_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
@@ -71,6 +171,8 @@
       "MT-172"
     ],
     "allowed_write_paths": [
+      "src/backend/handshake_core/src/storage/surreal/local_accounts.rs",
+      "src/backend/handshake_core/src/storage/surreal/resource_authority.rs",
       "src/backend/handshake_core/migrations/0337_model_lane_schema.down.sql",
       "src/backend/handshake_core/migrations/0337_model_lane_schema.sql",
       "src/backend/handshake_core/migrations/0338_user_manual_wp1_model_lane_origin.down.sql",
@@ -666,6 +768,8 @@
   "scope": {
     "summary": "Reconcile shared storage/schema/migration import paths",
     "allowed_paths": [
+      "src/backend/handshake_core/src/storage/surreal/local_accounts.rs",
+      "src/backend/handshake_core/src/storage/surreal/resource_authority.rs",
       "src/backend/handshake_core/migrations/0337_model_lane_schema.down.sql",
       "src/backend/handshake_core/migrations/0337_model_lane_schema.sql",
       "src/backend/handshake_core/migrations/0338_user_manual_wp1_model_lane_origin.down.sql",
@@ -2099,6 +2203,7 @@
     "runtime_acceptance": "Independent validator pending; no acceptance claimed"
   },
   "remediation_record": {
+    "auth_r2_schema_pin_dependency_20261011": {"admission_ref":".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json#/auth_mapping_r2_adoption_20261011/schema_pin_dependency_admission","joint_plan_ref":".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase02-successor-handoff-v3.json#/current_handoff_brief","joint_plan_owner":"Successor root recorder; use its current reconciled plan before assigning exclusive coder paths","owner_mt":"MT-173","scope":"schema.rs generated hash/lineage dependency only; native/auth shared interfaces stay with reconciled exclusive owners; no acceptance waiver"},
     "batch_owner": "MT-171",
     "covered_mts": [
       "MT-171",
