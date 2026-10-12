@@ -1,0 +1,910 @@
+{
+ "file_id": "WP-STUDIO-MODULE-WORK-SNAPSHOT-20261012T095644Z",
+ "file_kind": "work_snapshot",
+ "schema": "studio-snapshot.v1",
+ "taken_at": "2026-10-12T09:56:44Z",
+ "authority_note": "Point-in-time copy for handoff. Live authority: ledger.json, team.json, workflow/plausible-register.json, validation/*, START_LOG.md. If this file disagrees with them, they win.",
+ "repos": {
+  "governance_kernel": {
+   "repo": "https://github.com/Nuntissura/Handshake",
+   "branch": "gov_kernel",
+   "worktree": "wt-gov-kernel",
+   "head": "a8712586bb758239e6b144b718661e03642b5a18",
+   "origin_head": "a8712586bb758239e6b144b718661e03642b5a18",
+   "work_folder": ".GOV/docs_repo/wp-studio-module-work"
+  },
+  "product": {
+   "repo": "https://github.com/Nuntissura/assets",
+   "branch": "codex/handshake-studio-assets",
+   "subfolder": "handshake-studio-assets",
+   "worktree": "wt-studio-assets",
+   "head": "2dde8324d111ca15b53accb5a148a8deb0098d32",
+   "origin_head": "2dde8324d111ca15b53accb5a148a8deb0098d32",
+   "uncommitted": [
+    "M handshake-studio-assets/Cargo.lock",
+    " M handshake-studio-assets/crates/hsk-studio-score/src/block.rs",
+    " M handshake-studio-assets/crates/hsk-studio-score/src/bounce.rs",
+    " M handshake-studio-assets/crates/hsk-studio-score/src/chain.rs",
+    " M handshake-studio-assets/crates/hsk-studio-score/src/dsp.rs",
+    " M handshake-studio-assets/crates/hsk-studio-score/src/engine.rs",
+    " M handshake-studio-assets/crates/hsk-studio-score/src/eq.rs",
+    " M handshake-studio-assets/crates/hsk-studio-score/src/error.rs",
+    " M handshake-studio-assets/crates/hsk-studio-score/src/lib.rs",
+    " M handshake-studio-assets/crates/hsk-studio-score/src/resample.rs"
+   ]
+  },
+  "artifacts": "Handshake_Artifacts/WP-KERNEL-STUDIO (sibling of the worktrees; never build on C:)"
+ },
+ "lanes": {
+  "total": 120,
+  "by_category": {
+   "PASS": 108,
+   "DONE": 1,
+   "BLOCKED": 7,
+   "QUEUED_OR_HELD": 4
+  },
+  "non_pass": [
+   {
+    "lane": "SMB-STEWARD",
+    "crate": "workspace",
+    "status": "done",
+    "phase": "build"
+   },
+   {
+    "lane": "SMB-RENDER-GPU",
+    "crate": "hsk-studio-render-gpu",
+    "status": "BLOCKED",
+    "phase": "validation"
+   },
+   {
+    "lane": "SMB-INTEROP-MEDIA",
+    "crate": "hsk-studio-interop-media",
+    "status": "BLOCKED",
+    "phase": "blocked"
+   },
+   {
+    "lane": "SMB-REEL-NATIVE",
+    "crate": "hsk-studio-reel-native",
+    "status": null,
+    "phase": "brief"
+   },
+   {
+    "lane": "SMB-REEL-ENG-2",
+    "crate": "hsk-studio-reel",
+    "status": "BLOCKED",
+    "phase": "BLOCKED: Operator D22/D23/D24 (brief builders/briefs/lane-reel-eng-2.md ready; DNx also D25)"
+   },
+   {
+    "lane": "SMB-REEL-NATIVE-ENG-1",
+    "crate": "hsk-studio-reel-native",
+    "status": "BLOCKED",
+    "phase": "BLOCKED: Operator D24/D26 (H.264 prerequisites P1/P2) and D18 (supervisor); brief builders/briefs/lane-reel-native-eng-1.md ready"
+   },
+   {
+    "lane": "SMB-ROUND-ENTRYPOINT",
+    "crate": "workspace",
+    "status": "BLOCKED",
+    "phase": "done"
+   },
+   {
+    "lane": "SMB-INTEROP-MEDIA-PULSE",
+    "crate": "hsk-studio-interop-media",
+    "status": "BLOCKED",
+    "phase": "blocked"
+   },
+   {
+    "lane": "SMB-RENDER-GPU-ADJ",
+    "crate": "hsk-studio-render-gpu",
+    "status": "BLOCKED",
+    "phase": "validation"
+   },
+   {
+    "lane": "SMB-RENDER-GPU-PROBE",
+    "crate": "hsk-studio-render-gpu",
+    "status": null,
+    "phase": "held for D20 (lead 2026-10-11T11:56:26Z): a test change in hsk-studio-render-gpu while SMB-RENDER-GPU is fix_budget_exhausted would be a new claim on a blocked crate"
+   },
+   {
+    "lane": "SMB-PRESS-GEOMETRY",
+    "crate": "hsk-studio-press",
+    "status": null,
+    "phase": "queued (after SMB-PRESS is judged)"
+   },
+   {
+    "lane": "SMB-FMT-SWEEP",
+    "crate": "workspace (press first; any crate not rustfmt-clean)",
+    "status": null,
+    "phase": "queued (after R9 verdicts)"
+   }
+  ]
+ },
+ "crates": {
+  "count": 34,
+  "all_pass": [
+   "hsk-studio-accord",
+   "hsk-studio-chronicle",
+   "hsk-studio-components",
+   "hsk-studio-composite",
+   "hsk-studio-controls",
+   "hsk-studio-develop",
+   "hsk-studio-folio",
+   "hsk-studio-harness",
+   "hsk-studio-interop-fig",
+   "hsk-studio-interop-layout",
+   "hsk-studio-interop-lrcat",
+   "hsk-studio-interop-psd",
+   "hsk-studio-interop-vector",
+   "hsk-studio-kernel-bindings",
+   "hsk-studio-layout",
+   "hsk-studio-motion",
+   "hsk-studio-motion-js",
+   "hsk-studio-nib",
+   "hsk-studio-package",
+   "hsk-studio-pigment",
+   "hsk-studio-prism",
+   "hsk-studio-pulse",
+   "hsk-studio-render-cpu",
+   "hsk-studio-score",
+   "hsk-studio-score-device",
+   "hsk-studio-score-plugin",
+   "hsk-studio-session",
+   "hsk-studio-type",
+   "hsk-studio-web"
+  ],
+  "not_all_pass": {
+   "hsk-studio-interop-media": [
+    "BLOCKED"
+   ],
+   "hsk-studio-press": [
+    "PASS",
+    "QUEUED_OR_HELD"
+   ],
+   "hsk-studio-reel": [
+    "BLOCKED",
+    "PASS"
+   ],
+   "hsk-studio-reel-native": [
+    "BLOCKED",
+    "PASS",
+    "QUEUED_OR_HELD"
+   ],
+   "hsk-studio-render-gpu": [
+    "BLOCKED",
+    "QUEUED_OR_HELD"
+   ]
+  }
+ },
+ "rounds": {
+  "round_R10": {
+   "candidate": "62d8983",
+   "status": "COMPLETE",
+   "verdicts": {
+    "PASS": 11,
+    "FAIL": 2
+   },
+   "fails": [
+    "SMB-INTEROP-PSD-BUDGET FAIL_V2 (uncounted cap drops later visible stacks) -> rem-psd-budget-r10 (running); now a two-FAIL lane: V4-13 pre-review before next round",
+    "SMB-REEL-ENG-1 FAIL_V1 (edit-list repeated media: export Ok/Exact/complete with fewer units; refused tmcd Ok(None)) -> rem-reel-eng-1-r10 (running)"
+   ],
+   "not_judged": null,
+   "canary": "C15 exit 73, 59/59, step 0 clean; NOT_PROVEN only interop-fig D17"
+  },
+  "round_R11": {
+   "candidate": "6956d3f",
+   "status": "COMPLETE",
+   "verdicts": {
+    "PASS": 13,
+    "FAIL": 0
+   },
+   "fails": [],
+   "not_judged": null,
+   "canary": "C16 on b0a1887 exit 72 (step 0); C16b on 6956d3f exit 73, 59/59, step 0 clean; NOT_PROVEN only interop-fig D17"
+  },
+  "round_R12": {
+   "candidate": "3d795a5",
+   "status": "COMPLETE",
+   "verdicts": {
+    "PASS": 45,
+    "FAIL": 0
+   },
+   "fails": [],
+   "not_judged": null,
+   "canary": "C18 exit 73, 59/59, step 0 clean; NOT_PROVEN only interop-fig D17; press WIP at the candidate builds"
+  },
+  "round_R13": {
+   "candidate": "4b76604",
+   "status": "COMPLETE",
+   "verdicts": {
+    "PASS": 2,
+    "FAIL": 0
+   },
+   "fails": [],
+   "not_judged": "reel/reel-native lanes (in-flight WIP at candidate; AV1 two-FAIL lanes deferred, no charge); SMB-REEL-RECEIPTS and SMB-REEL-NATIVE-FAULTS-2 became READY after the round opened",
+   "canary": "C19 exit 73, 59/59, step 0 clean; NOT_PROVEN only interop-fig D17"
+  },
+  "round_R14": {
+   "candidate": "4b76604",
+   "status": "COMPLETE",
+   "verdicts": {
+    "PASS": 8,
+    "FAIL": 0
+   },
+   "fails": [],
+   "not_judged": null,
+   "canary": null
+  },
+  "round_R15": {
+   "candidate": "b8b31c7",
+   "status": "COMPLETE",
+   "verdicts": {
+    "PASS": 31,
+    "FAIL": 0
+   },
+   "fails": [],
+   "not_judged": null,
+   "canary": "C20 exit 73, 59/59, step 0 clean; NOT_PROVEN only interop-fig D17"
+  },
+  "round_R16": {
+   "candidate": "5606d16",
+   "status": "COMPLETE",
+   "verdicts": {
+    "PASS": 38,
+    "FAIL": 0
+   },
+   "fails": [],
+   "not_judged": "SMB-NOTES-BATCH-1 withdrawn; SMB-PRESS + DIFFERENCES deferred (FIX_FIRST P-1); render-gpu (D20); interop-media (D9)",
+   "canary": "C21 exit 73, 59/59, step 0 clean; NOT_PROVEN only interop-fig D17"
+  },
+  "round_R17": {
+   "candidate": "fcda5f6",
+   "status": "COMPLETE",
+   "verdicts": {
+    "PASS": 7,
+    "FAIL": 0
+   },
+   "fails": [],
+   "not_judged": "SMB-PRESS, SMB-PRESS-DIFFERENCES, SMB-NOTES-BATCH-1 (R17 pre-review FIX_FIRST; no charge); render-gpu (D20); interop-media (D9)",
+   "canary": "C22 exit 73, 59/59, step 0 clean; NOT_PROVEN only interop-fig D17"
+  },
+  "round_R18": {
+   "candidate": "bfa1bbf",
+   "status": "COMPLETE",
+   "verdicts": {
+    "PASS": 3,
+    "FAIL": 0
+   },
+   "fails": [],
+   "not_judged": "render-gpu lanes + SMB-ROUND-ENTRYPOINT + SMB-RENDER-GPU-ADJ (D20); interop-media (D9); no-claim lanes",
+   "canary": "C23 exit 73, 59/59 build 0/run 0, step 0 clean; NOT_PROVEN only interop-fig D17 (log studio-team-dev/steward/C23-bfa1bbf.log)"
+  },
+  "round_R19": {
+   "candidate": "fdc01f1",
+   "status": "COMPLETE",
+   "verdicts": {
+    "PASS": 21,
+    "FAIL": 0
+   },
+   "fails": [],
+   "not_judged": "render-gpu lanes + SMB-ROUND-ENTRYPOINT + SMB-RENDER-GPU-ADJ/PROBE (D20); interop-media (D9); no-claim lanes",
+   "canary": "C24 exit 73, 59/59 build 0/run 0, step 0 clean; NOT_PROVEN only interop-fig D17 (results studio-team-dev/steward-export/results/C24-fdc01f1)"
+  },
+  "round_R20": {
+   "candidate": "3930a7c",
+   "status": "COMPLETE",
+   "verdicts": {
+    "PASS": 24,
+    "FAIL": 0
+   },
+   "fails": [],
+   "not_judged": "render-gpu lanes + SMB-ROUND-ENTRYPOINT + SMB-RENDER-GPU-ADJ/PROBE (D20); interop-media (D9); no-claim lanes",
+   "canary": "C25 exit 73, 59/59 build 0/run 0, step 0 clean; NOT_PROVEN only interop-fig D17 (results studio-team-dev/steward-export/results/C25-3930a7c)"
+  },
+  "round_R21": {
+   "candidate": "2dde832",
+   "status": "COMPLETE",
+   "verdicts": {
+    "PASS": 27,
+    "FAIL": 0
+   },
+   "fails": [],
+   "not_judged": "render-gpu lanes + SMB-ROUND-ENTRYPOINT + SMB-RENDER-GPU-ADJ/PROBE (D20); interop-media (D9); no-claim lanes",
+   "canary": "C26 exit 73, 59/59 build 0/run 0, step 0 clean; NOT_PROVEN only interop-fig D17 (results studio-team-dev/steward-export/results/C26-2dde832)"
+  },
+  "round_R4": {
+   "candidate": "2abb984",
+   "status": "ABANDONED",
+   "verdicts": null,
+   "fails": null,
+   "not_judged": null,
+   "canary": null
+  },
+  "round_R5": {
+   "candidate": "1d404f8",
+   "status": "COMPLETE",
+   "verdicts": {
+    "PASS_V1": 5,
+    "PASS_V2": 20,
+    "FAIL_V1": 14,
+    "FAIL_V2": 7,
+    "BLOCKED": 2
+   },
+   "fails": null,
+   "not_judged": null,
+   "canary": "studio-team-dev/steward-export/results/C5-1d404f8 exit 0 44 units"
+  },
+  "round_R6": {
+   "candidate": "bd8533f",
+   "status": "COMPLETE",
+   "verdicts": {
+    "PASS": 31,
+    "FAIL": 9,
+    "BLOCKED": 1,
+    "NOT_PROVEN": 1
+   },
+   "fails": null,
+   "not_judged": null,
+   "canary": "studio-team-dev/steward-export/results/C8-bd8533f exit 0 49 units"
+  },
+  "round_R7": {
+   "candidate": "dff7ef5",
+   "status": "COMPLETE",
+   "verdicts": {
+    "PASS": 61,
+    "FAIL": 4
+   },
+   "fails": [
+    "SMB-EFFECTS-WAVE-1 FAIL_V1 -> SMB-PIGMENT-FX-OPS",
+    "SMB-INTEROP-PSD-ADJ FAIL_V1 -> rem-psd-r7",
+    "SMB-REEL-AV1-ROUTE FAIL_V2 -> rem-reel-r7 (one FAIL from budget)",
+    "SMB-REEL-NATIVE-AV1-WORKER FAIL_V2 -> rem-reel-r7 (one FAIL from budget)"
+   ],
+   "not_judged": null,
+   "canary": "C12 exit 73, 59 units green; only NOT_PROVEN = interop-fig D17; lock @2 no stale breaks"
+  },
+  "round_R7_candidate": {
+   "candidate": null,
+   "status": null,
+   "verdicts": null,
+   "fails": null,
+   "not_judged": null,
+   "canary": "C11 exit 73, 57/57 units green; only NOT_PROVEN = interop-fig Figma-authored fixture test (D17)"
+  },
+  "round_R8": {
+   "candidate": "f6e5a49",
+   "status": "COMPLETE",
+   "verdicts": {
+    "PASS": 59,
+    "FAIL": 1
+   },
+   "fails": [
+    "SMB-COMPOSITE-ADJ FAIL_V2 (plan-level effect limit lowered ok then refused at admission) -> rem-composite-adj"
+   ],
+   "not_judged": null,
+   "canary": "C13 exit 73, 59/59 units built+ran, step 0 clean; NOT_PROVEN only interop-fig D17 (render-gpu probe not in canary subset)"
+  },
+  "round_R9": {
+   "candidate": "4d80e50",
+   "status": "COMPLETE",
+   "verdicts": {
+    "PASS": 36,
+    "FAIL": 1
+   },
+   "fails": [
+    "SMB-INTEROP-PSD-BUDGET FAIL_V1 (document-wide whole-import fail at 4096 effects incl. disabled) -> rem-psd-budget (already running)"
+   ],
+   "not_judged": null,
+   "canary": "C14 exit 73, 59/59 units, step 0 clean; NOT_PROVEN only interop-fig D17"
+  }
+ },
+ "running_agents": [],
+ "open_plausible_items": [
+  {
+   "id": "PLR-001",
+   "lane": "SMB-RENDER-GPU",
+   "disposition": "FIX_LANE",
+   "note": "pigment owner adds a defect/internal BackendError variant (render_plan.rs:655-679 has none); render-gpu maps Pipeline to it. Lane is BLOCKED (D20): route with the D20 decision."
+  },
+  {
+   "id": "PLR-002",
+   "lane": "SMB-RENDER-GPU",
+   "disposition": "FIX_LANE",
+   "note": "cheapest: document 'TileSink must not call back into its backend' on pigment's TileSink port; alternative: deliver chunks after dropping the guard"
+  },
+  {
+   "id": "PLR-003",
+   "lane": "SMB-RENDER-GPU",
+   "disposition": "LEAD_DECISION",
+   "note": "recommend waiver with reason: lead decision 2026-10-11T06:40:58Z keeps require_gpu = true on the RTX 3090 validation host, so a formula drift fails GPU parity there; record pigment-owned WGSL snippets as CX-CAP debt for the post-D20 MT"
+  },
+  {
+   "id": "PLR-004",
+   "lane": "SMB-RENDER-CPU",
+   "disposition": "FIX_LANE",
+   "note": "recv_timeout plus per-row cancel/deadline poll; lane notes list the same class for feather, effects and windows (notes.adj1/effects1/window.plausible_not_addressed)"
+  },
+  {
+   "id": "PLR-005",
+   "lane": "SMB-PIGMENT-ENG-1",
+   "disposition": "LEAD_DECISION",
+   "note": "fix claimed 5ed1ead/71be1aa (SMB-PIGMENT-PLANLIMITS); reviewer confirms next round"
+  },
+  {
+   "id": "PLR-006",
+   "lane": "SMB-PIGMENT-ENG-1 (sites in render-cpu, render-gpu, composite)",
+   "disposition": "LEAD_DECISION",
+   "note": "accept as defence-in-depth only if the literals become pigment's constants (PASS_THROUGH_FILL_OPERATOR render_plan.rs:519, MASK_DENSITY_OPERATOR :790, clip-base key); otherwise remove the copies"
+  },
+  {
+   "id": "PLR-007",
+   "lane": "SMB-PIGMENT-ENG-2",
+   "disposition": "FIX_LANE",
+   "note": "one-line reword to a Studio rule; Photoshop parity stays on D5 case 7"
+  },
+  {
+   "id": "PLR-008",
+   "lane": "SMB-PIGMENT-ENG-2",
+   "disposition": "FIX_LANE",
+   "note": "folio owns the bound constants and pigment validates with them (pigment -> folio edge exists; folio cannot depend on pigment)"
+  },
+  {
+   "id": "PLR-009",
+   "lane": "SMB-PIGMENT-ENG-2",
+   "disposition": "FIX_LANE",
+   "note": "doc edit (drop 'like opacity') or make the class Unsupported"
+  },
+  {
+   "id": "PLR-010",
+   "lane": "SMB-CONTROLS",
+   "disposition": "LEAD_DECISION",
+   "note": "behaviour is documented; lane is SAFE_TO_JUDGE; accept with a cited test or change to None (non-terminal)"
+  },
+  {
+   "id": "PLR-011",
+   "lane": "SMB-NIB-ENG-1",
+   "disposition": "FIX_LANE",
+   "note": "nib unchanged since 07abf54; one nib slice for PLR-011..013"
+  },
+  {
+   "id": "PLR-012",
+   "lane": "SMB-NIB-ENG-1",
+   "disposition": "FIX_LANE",
+   "note": "return Result or validate inside; a waiver is possible because render-cpu validates first"
+  },
+  {
+   "id": "PLR-013",
+   "lane": "SMB-NIB-ENG-1",
+   "disposition": "FIX_LANE",
+   "note": "doc reword"
+  },
+  {
+   "id": "PLR-014",
+   "lane": "SMB-SCORE",
+   "disposition": "FIX_LANE",
+   "note": "capture identity after proc.reset(), before the first block (bounce.rs:193)"
+  },
+  {
+   "id": "PLR-015",
+   "lane": "SMB-SCORE",
+   "disposition": "FIX_LANE",
+   "note": "split: divisor check + non-finite output refusal are small fixes; discard-snapshot semantics needs a lead decision"
+  },
+  {
+   "id": "PLR-016",
+   "lane": "SMB-INTEROP-PSD-WIDE",
+   "disposition": "OPERATOR_DECISION",
+   "note": "D5: a Photoshop-authored 16-bit Lab fixture decides it; assumption is disclosed"
+  },
+  {
+   "id": "PLR-017",
+   "lane": "SMB-DEVELOP",
+   "disposition": "FIX_LANE",
+   "note": "new lane id (V4-15), hand-encoded KATs for fill bytes and out-of-order RST; ljpeg.rs unchanged since 01bfeb3"
+  },
+  {
+   "id": "PLR-018",
+   "lane": "SMB-DEVELOP-JOBS",
+   "disposition": "FIX_LANE",
+   "note": "60b0e47 did not touch it; break when end > start; test with BandLimits{1,1}"
+  },
+  {
+   "id": "PLR-019",
+   "lane": "SMB-DEVELOP",
+   "disposition": "FIX_LANE",
+   "note": "resolve through the oracle-corpus.toml walk; do it together with the D10 corpus download"
+  },
+  {
+   "id": "PLR-021",
+   "lane": "SMB-DEVELOP-WIDE",
+   "disposition": "FIX_LANE",
+   "note": "one DESCRIPTOR clause"
+  },
+  {
+   "id": "PLR-022",
+   "lane": "SMB-DEVELOP-WIDE (also prism, interop-psd)",
+   "disposition": "FIX_LANE",
+   "note": "grew from 2 to 3 copies since R5; prism makes merge public (CX-CAP-001), consumers switch"
+  },
+  {
+   "id": "PLR-023",
+   "lane": "SMB-PRISM-ENG-5",
+   "disposition": "FIX_LANE",
+   "note": "assert de_vs_lcms_lab against a stated threshold as part of the ENG-5 FIX_FIRST pass"
+  },
+  {
+   "id": "PLR-024",
+   "lane": "SMB-PRISM-ENG-5",
+   "disposition": "FIX_LANE",
+   "note": "fixture + generator line"
+  },
+  {
+   "id": "PLR-025",
+   "lane": "SMB-PRISM-ENG-5",
+   "disposition": "FIX_LANE",
+   "note": "pass the sha256 recorded in t1_lcms2.json"
+  },
+  {
+   "id": "PLR-026",
+   "lane": "SMB-PRISM-ENG-5",
+   "disposition": "LEAD_DECISION",
+   "note": "reviewer marked it optional; round exit 73 already catches a revert; recommend waive"
+  },
+  {
+   "id": "PLR-027",
+   "lane": "SMB-PRISM-ENG-6",
+   "disposition": "FIX_LANE",
+   "note": "one attribute line; lane reports 0 lint sites"
+  },
+  {
+   "id": "PLR-028",
+   "lane": "SMB-PRISM-ENG-6",
+   "disposition": "FIX_LANE",
+   "note": "lane-file edit by the prism builder"
+  },
+  {
+   "id": "PLR-029",
+   "lane": "SMB-REEL",
+   "disposition": "FIX_LANE",
+   "note": "non-default 'fixtures' feature (V4-04 class); lane known_gaps[1] lists it"
+  },
+  {
+   "id": "PLR-030",
+   "lane": "SMB-REEL-ENG-3",
+   "disposition": "LEAD_DECISION",
+   "note": "the in-process route is TRUSTED-INPUT-ONLY (decision 03:30:19Z); accept per-frame cancel granularity with a doc line, or fix"
+  },
+  {
+   "id": "PLR-031",
+   "lane": "SMB-REEL-ENG-3",
+   "disposition": "OPERATOR_DECISION",
+   "note": "D14 packaging; notices are required before any packaged build"
+  },
+  {
+   "id": "PLR-032",
+   "lane": "SMB-REEL-AV1-ROUTE",
+   "disposition": "FIX_LANE",
+   "note": "refuse as DecoderFault::Protocol before packing"
+  },
+  {
+   "id": "PLR-033",
+   "lane": "SMB-REEL-AV1-ROUTE",
+   "disposition": "FIX_LANE",
+   "note": "proxy decodes untrusted unless it carries its own trust"
+  },
+  {
+   "id": "PLR-034",
+   "lane": "SMB-REEL-NATIVE-AV1-WORKER",
+   "disposition": "FIX_LANE",
+   "note": "same class fixed in score-plugin 7d5641c and motion-js 961c301; copy the exe-dir-only lookup now rather than waiting for D18"
+  },
+  {
+   "id": "PLR-035",
+   "lane": "SMB-REEL-NATIVE-AV1-WORKER",
+   "disposition": "FIX_LANE",
+   "note": "WAIT_SLICE loop with cancel, as motion-js 961c301"
+  },
+  {
+   "id": "PLR-036",
+   "lane": "SMB-MOTION-JS-WORKER",
+   "disposition": "FIX_LANE",
+   "note": "drain and discard before arming each request; 961c301/1d972f1 did not change it"
+  },
+  {
+   "id": "PLR-037",
+   "lane": "SMB-MOTION-JS",
+   "disposition": "LEAD_DECISION",
+   "note": "reviewer marked optional; recommend waive (no budget class selectable, no poison)"
+  },
+  {
+   "id": "PLR-038",
+   "lane": "SMB-INTEROP-MEDIA",
+   "disposition": "FIX_LANE",
+   "note": "independent of D9; lands when the D9-blocked lane resumes"
+  },
+  {
+   "id": "PLR-041",
+   "lane": "SMB-WEB",
+   "disposition": "FIX_LANE",
+   "note": "DESCRIPTOR line plus an online check; this is the R5 FAIL #2 shape (under-stated scope)"
+  },
+  {
+   "id": "PLR-043",
+   "lane": "SMB-INTEROP-LAYOUT / SMB-INTEROP-FIG / SMB-INTEROP-VECTOR",
+   "disposition": "OPERATOR_DECISION",
+   "note": "D16; step 0 V4-05 fingerprints keep it from growing"
+  },
+  {
+   "id": "PLR-044",
+   "lane": "SMB-LAYOUT-FOLIO-MIGRATE",
+   "disposition": "LEAD_DECISION",
+   "note": "pick the Folio reference edge (Operator via CX-105 if the spec is silent), then one owner fixes layout or interop-layout"
+  },
+  {
+   "id": "PLR-045",
+   "lane": "SMB-FOLIO-ENG-4",
+   "disposition": "FIX_LANE",
+   "note": "folio owner; member-side check at :366-384 already exists"
+  },
+  {
+   "id": "PLR-046",
+   "lane": "SMB-COMPONENTS",
+   "disposition": "LEAD_DECISION",
+   "note": "choose delta payload or a widened footprint (instance_id, ''); STU-ARC-011"
+  },
+  {
+   "id": "PLR-047",
+   "lane": "SMB-COMPONENTS",
+   "disposition": "OPERATOR_DECISION",
+   "note": "STU-DS-119 states re-match semantics for overrides only; if the lead finds no spec text for properties, this is a CX-105 spec question"
+  },
+  {
+   "id": "PLR-048",
+   "lane": "SMB-COMPONENTS",
+   "disposition": "FIX_LANE",
+   "note": "cite tests or weaken; V4-07"
+  },
+  {
+   "id": "PLR-049",
+   "lane": "SMB-COMPONENTS-FOLIO-MIGRATE",
+   "disposition": "LEAD_DECISION",
+   "note": "no drift yet; waive or have folio expose its uniqueness pass"
+  },
+  {
+   "id": "PLR-050",
+   "lane": "SMB-INTEROP-VECTOR",
+   "disposition": "FIX_LANE",
+   "note": "two test cases; the V4-01 half is fixed (svg_adapter.rs carries the deny)"
+  },
+  {
+   "id": "PLR-051",
+   "lane": "SMB-PACKAGE-STREAM-SAVE",
+   "disposition": "FIX_LANE",
+   "note": "three StreamingFs-injected tests"
+  },
+  {
+   "id": "PLR-052",
+   "lane": "SMB-INTEROP-FIG",
+   "disposition": "FIX_LANE",
+   "note": "lane notes remediation_r6 list it as open"
+  },
+  {
+   "id": "PLR-053",
+   "lane": "SMB-INTEROP-PSD-ADJ",
+   "disposition": "FIX_LANE",
+   "note": "routed 2026-10-11T12:44:14Z to SMB-INTEROP-PSD-BUDGET"
+  },
+  {
+   "id": "PLR-054",
+   "lane": "SMB-SCORE-PLUGIN",
+   "disposition": "FIX_LANE",
+   "note": "fix claimed e9fb519 (SMB-SCORE-PLUGIN-RATE READY); reviewer confirms in R9"
+  },
+  {
+   "id": "PLR-055",
+   "lane": "SMB-REEL-NATIVE-AV1-WORKER",
+   "disposition": "FIX_LANE",
+   "note": "fix claimed 471b679 (+ FRAME-to-OPEN extension pending); reviewer confirms in R9"
+  },
+  {
+   "id": "PLR-056",
+   "lane": "SMB-REEL-ENG-3",
+   "disposition": "FIX_LANE",
+   "note": "fix claimed bd5bd60 (SMB-REEL-ENG-1); reviewer confirms in R9"
+  },
+  {
+   "id": "PLR-057",
+   "lane": "SMB-REEL-ENG-1",
+   "disposition": "FIX_LANE",
+   "note": "fix claimed 0474906 (SMB-REEL-ENG-1); reviewer confirms in R10"
+  },
+  {
+   "id": "PLR-058",
+   "lane": "SMB-PARITY-FOLLOWUP",
+   "disposition": "FIX_LANE",
+   "note": "fix claimed 5ed1ead/71be1aa (SMB-PIGMENT-PLANLIMITS); reviewer confirms next round"
+  },
+  {
+   "id": "PLR-059",
+   "lane": "SMB-REEL-NATIVE-FAULTS",
+   "disposition": "FIX_LANE",
+   "note": "fix claimed 4b76604 (SMB-REEL-NATIVE-FAULTS-2); reviewer confirms next round"
+  },
+  {
+   "id": "PLR-060",
+   "lane": "SMB-REEL-NATIVE-FAULTS",
+   "disposition": "FIX_LANE",
+   "note": "fix claimed 4b76604 (SMB-REEL-NATIVE-FAULTS-2); reviewer confirms next round"
+  },
+  {
+   "id": "PLR-061",
+   "lane": "SMB-REEL-NATIVE-FAULTS",
+   "disposition": "FIX_LANE",
+   "note": "fix claimed 4b76604 (SMB-REEL-NATIVE-FAULTS-2); reviewer confirms next round"
+  },
+  {
+   "id": "PLR-062",
+   "lane": "SMB-REEL-ENG-1",
+   "disposition": "FIX_LANE",
+   "note": "fix claimed e424f46/7cdf18e (SMB-REEL-ENG-1); reviewer confirms in R11"
+  },
+  {
+   "id": "PLR-064",
+   "lane": "SMB-INTEROP-PSD-BUDGET",
+   "disposition": "FIX_LANE",
+   "note": "fix claimed in SMB-NOTES-BATCH-1 (27a9a81/9088884/ab273d3/5606d16); reviewer confirms in R16"
+  },
+  {
+   "id": "PLR-065",
+   "lane": "SMB-INTEROP-PSD-BUDGET",
+   "disposition": "FIX_LANE",
+   "note": "fix claimed in SMB-NOTES-BATCH-1 (27a9a81/9088884/ab273d3/5606d16); reviewer confirms in R16"
+  },
+  {
+   "id": "PLR-066",
+   "lane": "SMB-REEL-ENG-1",
+   "disposition": "FIX_LANE",
+   "note": "fix claimed b8b276d (SMB-REEL-RECEIPTS); reviewer confirms next round"
+  },
+  {
+   "id": "PLR-067",
+   "lane": "SMB-REEL-ENG-1",
+   "disposition": "FIX_LANE",
+   "note": "fix claimed b8b276d (SMB-REEL-RECEIPTS); reviewer confirms next round"
+  },
+  {
+   "id": "PLR-068",
+   "lane": "SMB-REEL-ENG-1",
+   "disposition": "FIX_LANE",
+   "note": "fix claimed b8b276d (SMB-REEL-RECEIPTS); reviewer confirms next round"
+  },
+  {
+   "id": "PLR-069",
+   "lane": "SMB-PIGMENT-PLANLIMITS",
+   "disposition": "FIX_LANE",
+   "note": "fix claimed 9085252/b8b31c7 (SMB-PIGMENT-FOLLOWUPS); reviewer confirms next round"
+  },
+  {
+   "id": "PLR-070",
+   "lane": "SMB-PIGMENT-PLANLIMITS",
+   "disposition": "FIX_LANE",
+   "note": "render-cpu part fixed b8b31c7; remainder split to PLR-082"
+  },
+  {
+   "id": "PLR-071",
+   "lane": "SMB-WEB-PARITY",
+   "disposition": "FIX_LANE",
+   "note": "fix claimed in SMB-NOTES-BATCH-1 (27a9a81/9088884/ab273d3/5606d16); reviewer confirms in R16"
+  },
+  {
+   "id": "PLR-072",
+   "lane": "SMB-PIGMENT-PLANLIMITS",
+   "disposition": "FIX_LANE",
+   "note": "fix claimed 9085252/b8b31c7 (SMB-PIGMENT-FOLLOWUPS); reviewer confirms next round"
+  },
+  {
+   "id": "PLR-073",
+   "lane": "SMB-PIGMENT-PLANLIMITS",
+   "disposition": "FIX_LANE",
+   "note": "fix claimed 9085252/b8b31c7 (SMB-PIGMENT-FOLLOWUPS); reviewer confirms next round"
+  },
+  {
+   "id": "PLR-074",
+   "lane": "SMB-PIGMENT-PLANLIMITS",
+   "disposition": "FIX_LANE",
+   "note": "fix claimed 9085252/b8b31c7 (SMB-PIGMENT-FOLLOWUPS); reviewer confirms next round"
+  },
+  {
+   "id": "PLR-075",
+   "lane": "SMB-PIGMENT-PLANLIMITS",
+   "disposition": "FIX_LANE",
+   "note": "fix claimed 9085252/b8b31c7 (SMB-PIGMENT-FOLLOWUPS); reviewer confirms next round"
+  },
+  {
+   "id": "PLR-078",
+   "lane": "SMB-REEL-NATIVE-FAULTS-2",
+   "disposition": "FIX_LANE",
+   "note": "fix claimed in SMB-NOTES-BATCH-1 (27a9a81/9088884/ab273d3/5606d16); reviewer confirms in R16"
+  },
+  {
+   "id": "PLR-079",
+   "lane": "SMB-PIGMENT-FOLLOWUPS",
+   "disposition": "FIX_LANE",
+   "note": "fix claimed 9cb44c2/fe035ce/8980d04 (SMB-PIGMENT-NOTES); reviewer confirms in R16"
+  },
+  {
+   "id": "PLR-080",
+   "lane": "SMB-PIGMENT-FOLLOWUPS",
+   "disposition": "FIX_LANE",
+   "note": "fix claimed 9cb44c2/fe035ce/8980d04 (SMB-PIGMENT-NOTES); reviewer confirms in R16"
+  },
+  {
+   "id": "PLR-081",
+   "lane": "SMB-PIGMENT-FOLLOWUPS",
+   "disposition": "FIX_LANE",
+   "note": "fix claimed 9cb44c2/fe035ce/8980d04 (SMB-PIGMENT-NOTES); reviewer confirms in R16"
+  },
+  {
+   "id": "PLR-082",
+   "lane": "SMB-PIGMENT-FOLLOWUPS",
+   "disposition": "FIX_LANE",
+   "note": "next pigment lane (PLR-082 render-gpu part after D20)"
+  },
+  {
+   "id": "PLR-096",
+   "lane": "SMB-INTEROP-PSD-DESC-CAP",
+   "disposition": "DOC",
+   "note": "align in next interop-psd touch"
+  },
+  {
+   "id": "PLR-097",
+   "lane": "SMB-PRESS",
+   "disposition": "FIX_LANE",
+   "note": "improvement: walk indirect-array /K and write it back direct so the text is removed (option 1); after the fail-closed lane passes"
+  },
+  {
+   "id": "PLR-099",
+   "lane": "SMB-INTEROP-PSD-DESC-CAP",
+   "disposition": "DOC",
+   "note": "fold with PLR-096"
+  },
+  {
+   "id": "PLR-100",
+   "lane": "SMB-REEL-PTS-TESTS",
+   "disposition": "TEST",
+   "note": "optional reel-native test"
+  },
+  {
+   "id": "PLR-101",
+   "lane": "SMB-PRESS-STRUCT-FAILCLOSED",
+   "disposition": "FIX_LANE",
+   "note": "lead 2026-10-12T09:04:25Z: accepted for now (fail-closed over-report; crate tests green); scope the rule to saves that flatten a region in a later press lane; /MarkInfo-alone handling accepted"
+  },
+  {
+   "id": "PLR-102",
+   "lane": "SMB-PRESS",
+   "disposition": "FIX_LANE",
+   "note": "next press lane: fail closed when any surviving dictionary has struct-element shape (/Type /StructElem, or /S with /P and a struct text key) or an outline /SE remains; decide together with D28 (strip tree) and PLR-101"
+  }
+ ],
+ "resume_plan": {
+  "at": "2026-10-12T09:56:43Z",
+  "steps": [
+   "1. R21 COMPLETE (27 PASS, 0 FAIL). Next lanes (Sonnet, new ids): SMB-PRESS-STRUCT-ORPHANS (PLR-102: fail closed when any surviving dictionary has struct-element shape or an outline /SE remains; PLR-101: scope the structure-tree rule to saves that flatten a region; R21 V-2 lane wording), SMB-INTEROP-PSD-DOCS (PLR-096 + PLR-099 doc alignment, lane V4-06 section). Press and interop-psd changes reopen two-FAIL lanes SMB-PRESS and SMB-INTEROP-PSD-BUDGET -> V4-13 narrow pre-review, then round R22.",
+   "2. Then SMB-PRESS-GEOMETRY, SMB-FMT-SWEEP, notes residuals (config-OBU tag, exact-64 FRAME test, psd group-own-lfx2/zero-tile), PLR-097 (rewrite indirect /K arrays), PLR-100 (reel-native finish() test).",
+   "3. Keep pushing gov_kernel after every commit.",
+   "4. Blocked on Operator: D28 (strip structure tree on redaction save), D20, D22-D26, D9, D17, D5, D13/STU-CON-044, D21, repo-local target 3.8 GB, empty folder x at the C: root, scratch/probe trees cleanup (list in START_LOG); STUDIO_MODULES.json status vocabulary undefined."
+  ]
+ },
+ "operator_decisions_pending": [
+  "D20 render-gpu + round entrypoint 4th verdict (lead recommends allow)",
+  "D22-D26 ProRes/codec licensing, STU-VID-051 spec conflict, codec selection, DNx spec download, ISO 14496-15 access",
+  "D9 interop-media -> pulse edge",
+  "D17 Figma-authored .fig fixtures",
+  "D5 Photoshop black-box oracle session",
+  "D13/STU-CON-044",
+  "D21 optional AGL download",
+  "repo-local 3.8 GB handshake-studio-assets/target (delete or keep)",
+  "empty folder x at the C: root (delete by hand)",
+  "STUDIO_MODULES.json status vocabulary (only PLANNED_NOT_IMPLEMENTED defined; ledger is live)"
+ ],
+ "usage_at_snapshot": "weekly all-models 99% (resets 2026-10-13T11:00Z)"
+}

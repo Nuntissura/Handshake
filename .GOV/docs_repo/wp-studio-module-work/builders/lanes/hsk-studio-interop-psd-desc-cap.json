@@ -47,6 +47,25 @@
   "sibling_sites_of_the_r22_s1_phrase": "NOT changed (scope was proposal.rs:527-528 only): src/effects.rs header comment (about lines 74-76) and the Fit doc (about lines 145-146) say 'the count of the instances the record does not hold' / 'the number of switched-off instances the record does not hold', and the DESCRIPTOR clause 'naming_the_count_of_the_switched_off_instances_the_record_does_not_hold' (pinned by descriptor_states_the_loss_detail_and_the_list_cap_rules) carries the same shorter phrase; the DESCRIPTOR's next clause 'a_switched_off_instance_that_was_mapped_and_left_out_of_the_record' states the mapped rule. Lead decision whether to align them in a later doc-only commit",
   "formatting": "the new test region was formatted with rustfmt 1.97.1 (edition 2024) on a scratch copy and spliced back; older hunks of the file were not reformatted",
   "scratch": "<scratchpad>/SMB-INTEROP-PSD-DESC-CAP/ holds only logs, the rustfmt scratch copy and the commit message file; no script was run from the shared scratchpad besides rustfmt on my own copy (V4-12)",
-  "v4_21": "no outbound request made"
+  "v4_21": "no outbound request made",
+  "verdicts": [
+   {
+    "round": "STUDIO-R21",
+    "lane": "SMB-INTEROP-PSD-DESC-CAP",
+    "candidate": "2dde8324d111ca15b53accb5a148a8deb0098d32",
+    "tree": "f10240fc625f32fb104262772b6541797cfb2226",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V1",
+    "review": "validation/R23-prereview-narrow.json lanes[2] SMB-INTEROP-PSD-DESC-CAP SAFE_TO_JUDGE at 54c60f9 (R23-S1/S2 CONFIRMED doc/process = PLR-099; R23-S3 INFO); hsk-studio-interop-psd unchanged 54c60f9..2dde832",
+    "round_ref": "validation/round-R21.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R21",
+    "idempotency_key": "STUDIO-R21:SMB-INTEROP-PSD-DESC-CAP:2dde8324d111:PASS_V1",
+    "recorded_at": "2026-10-12T09:54:57Z",
+    "by": "wp_validator STUDIO-R21"
+   }
+  ]
  }
 }

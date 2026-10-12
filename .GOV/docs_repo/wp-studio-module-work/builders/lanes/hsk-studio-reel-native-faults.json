@@ -379,6 +379,23 @@
     "idempotency_key": "STUDIO-R20:SMB-REEL-NATIVE-FAULTS:3930a7ce891c:PASS_V8",
     "recorded_at": "2026-10-12T07:24:27Z",
     "by": "wp_validator STUDIO-R20"
+   },
+   {
+    "round": "STUDIO-R21",
+    "lane": "SMB-REEL-NATIVE-FAULTS",
+    "candidate": "2dde8324d111ca15b53accb5a148a8deb0098d32",
+    "tree": "f10240fc625f32fb104262772b6541797cfb2226",
+    "decision": "passed",
+    "verdict": "PASS_V9",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V9",
+    "review": "crate: R16 pre-review SAFE stands (V4-18, crate unchanged since 5606d16); dependency diff: validation/R23-prereview-narrow.json lanes[1] SMB-REEL-PTS-TESTS SAFE_TO_JUDGE at 54c60f9 (R23-R1 INFO = PLR-100, R23-R2 INFO); hsk-studio-reel unchanged 54c60f9..2dde832",
+    "round_ref": "validation/round-R21.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R21",
+    "idempotency_key": "STUDIO-R21:SMB-REEL-NATIVE-FAULTS:2dde8324d111:PASS_V9",
+    "recorded_at": "2026-10-12T09:54:57Z",
+    "by": "wp_validator STUDIO-R21"
    }
   ]
  }

@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-12T09:35:55Z",
+ "updated_at": "2026-10-12T09:57:55Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -2582,6 +2582,30 @@
     "validation/round-R21.json"
    ],
    "launched": "2026-10-12T09:35:55Z",
+   "status": "done (R21: 27 PASS, 0 FAIL; kernel a8712586)"
+  },
+  {
+   "name": "builder-press-struct-orphans",
+   "agent_id": "a02e86343256d7850",
+   "model": "sonnet",
+   "role": "SMB-PRESS-STRUCT-ORPHANS (PLR-102, PLR-101)",
+   "owns": [
+    "crates/hsk-studio-press/**",
+    "builders/lanes/hsk-studio-press-struct-orphans.json"
+   ],
+   "launched": "2026-10-12T09:57:55Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-psd-docs",
+   "agent_id": "af747ddbb96272637",
+   "model": "sonnet",
+   "role": "SMB-INTEROP-PSD-DOCS (PLR-096, PLR-099)",
+   "owns": [
+    "crates/hsk-studio-interop-psd/**",
+    "builders/lanes/hsk-studio-interop-psd-docs.json"
+   ],
+   "launched": "2026-10-12T09:57:55Z",
    "status": "running"
   }
  ]

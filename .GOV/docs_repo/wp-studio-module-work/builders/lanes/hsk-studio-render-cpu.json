@@ -1594,6 +1594,23 @@
     "idempotency_key": "STUDIO-R20:SMB-FX-OPS-ADOPT:3930a7ce891c:PASS_V10",
     "recorded_at": "2026-10-12T07:24:27Z",
     "by": "wp_validator STUDIO-R20"
+   },
+   {
+    "round": "STUDIO-R21",
+    "lane": "SMB-FX-OPS-ADOPT",
+    "candidate": "2dde8324d111ca15b53accb5a148a8deb0098d32",
+    "tree": "f10240fc625f32fb104262772b6541797cfb2226",
+    "decision": "passed",
+    "verdict": "PASS_V11",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V11",
+    "review": "NOT_REVIEWED as a lane; interop-psd diff: validation/R23-prereview-narrow.json lanes[2] SMB-INTEROP-PSD-DESC-CAP SAFE_TO_JUDGE at 54c60f9 (R23-S1/S2 CONFIRMED doc/process = PLR-099; R23-S3 INFO); hsk-studio-interop-psd unchanged 54c60f9..2dde832",
+    "round_ref": "validation/round-R21.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R21",
+    "idempotency_key": "STUDIO-R21:SMB-FX-OPS-ADOPT:2dde8324d111:PASS_V11",
+    "recorded_at": "2026-10-12T09:54:57Z",
+    "by": "wp_validator STUDIO-R21"
    }
   ],
   "r3_remediation": {

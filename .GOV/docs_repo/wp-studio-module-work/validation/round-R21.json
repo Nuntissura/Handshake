@@ -1,0 +1,962 @@
+{
+ "round": 21,
+ "round_id": "STUDIO-R21",
+ "round_opened": true,
+ "rule_refs": [
+  "CX-VAL-001",
+  "CX-VAL-002",
+  "CX-VAL-003",
+  "CX-VAL-004",
+  "CX-VAL-005",
+  "CX-VAL-006",
+  "CX-VAL-007",
+  "CX-VAL-008",
+  "CX-VAL-009",
+  "CX-VAL-010",
+  "CX-STATUS-001",
+  "CX-STATUS-002",
+  "CX-STATUS-003",
+  "CX-EXEC-015",
+  "CX-VERIFY-002",
+  "V4-03 NOT_PROVEN",
+  "V4-04",
+  "V4-06",
+  "V4-07",
+  "V4-13",
+  "V4-14",
+  "V4-18",
+  "V4-19"
+ ],
+ "candidate": "2dde8324d111ca15b53accb5a148a8deb0098d32",
+ "tree": "f10240fc625f32fb104262772b6541797cfb2226",
+ "candidate_note": "named by lead (ledger round_R21, opened 09:35:15Z); steward-5 in sync since 9ffe946 (no lock input changed); origin tip == edit HEAD == 2dde832 (git ls-remote 09:37:25Z; refs/remotes/origin == HEAD; no fetch by this validator); 3930a7c..2dde832 = six commits: 172952f (reel), 0c1be05 (interop-psd), d26d2fd, 2566f1b, 54c60f9, 2dde832 (press); 11 files, all under crates/hsk-studio-press (5), hsk-studio-reel (3), hsk-studio-interop-psd (3); Cargo.toml, Cargo.lock, tools/, .config/, rust-toolchain.toml unchanged (git diff empty)",
+ "round_identity_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/ROUND_IDENTITY.json",
+ "export": {
+  "file_count": 892,
+  "manifest_sha256": "59e91dda21caee0eb1d3745d3bae94f4c4053e63d57f06c941b0ae100c43c175",
+  "git_blob_equal": true,
+  "refresh": "kernel tools/export-refresh.sh in place 2026-10-12T09:38:11Z: 0 added, 11 changed, 881 unchanged, 0 deleted, blob_mismatch 0 (from 3930a7c; exactly the 11 files of 3930a7c..2dde832); manifest equals steward canary C26 export (59e91dda); round.json export_manifest_sha256 equal"
+ },
+ "started_at": "2026-10-12T09:40:13Z",
+ "completed_at": "2026-10-12T09:54:57Z",
+ "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R21",
+ "running_record": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/RUNNING-R21.jsonl (opened + running 09:40:13Z, process_identity and completed 09:42:52Z, verdicts_accepted before the state write, verdicts_recorded after it)",
+ "gameplan": ".GOV/task_packets/WP-KERNEL-STUDIO/gameplans/STUDIO-MODULE-ROUND.yaml (pointer studio-round/.gameplan-active) before_round PASS 12/12 @edit HEAD 2dde832 (GP-001 origin == HEAD; GP-003 lock audit 09:38:54Z held none, queue 0, no cargo or rustc process, only an idle sccache server pid 378796 not started by this session; GP-005 LongPathsEnabled=1; GP-009 the diff adds no env or config read (two include_str of the crates' own test files); GP-013 entrypoint + config unchanged since the green R20 and canary C26-2dde832 exit 73 = NOT_PROVEN interop-fig only, 59/59 units green; GP-004/GP-012 machine checks passed)",
+ "canary": {
+  "reused": true,
+  "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/steward-export/results/C26-2dde832",
+  "round_json_sha256": "a53d20e78bfc433e3d63339b3192775a2118f1f047ca293f24d9568dae9fcb41",
+  "sha": "2dde8324d111ca15b53accb5a148a8deb0098d32",
+  "export_manifest_sha256": "59e91dda21caee0eb1d3745d3bae94f4c4053e63d57f06c941b0ae100c43c175",
+  "summary": "steward canary via the same entrypoint on the same SHA and identical export manifest: exit 73 (only NOT_PROVEN interop-fig actual_fig_instance_variable_prototype_edit_reopen, D17), 59 units build 0/run 0, absent 0, timed_out 0, step 0 clean (log studio-team-dev/steward/C26-2dde832.log); canary profile runs one test per package (34 run), so the union run below is still required for the judged crates",
+  "reuse_basis": "CX-VERIFY-002 + lead dispatch (GP-013); canary exit 73 accepted because its only non-zero cause is NOT_PROVEN accounting (R10-R20 precedent)"
+ },
+ "union": {
+  "selection": [
+   "hsk-studio-press",
+   "hsk-studio-reel",
+   "hsk-studio-reel-native",
+   "hsk-studio-interop-psd"
+  ],
+  "selection_rule": "crates changed 3930a7c..2dde832 (press, reel, interop-psd) + workspace members whose dependency closure contains them (tomllib over the 35 crates/*/Cargo.toml at 2dde832 incl. dev/build/target dependencies, cross-checked against Cargo.lock: only hsk-studio-reel-native, closure accord/observe/reel); root inputs unchanged; web (SMB-NOTES-BATCH-1 part) and composite/render-cpu/render-gpu (SMB-FX-OPS-ADOPT parts) unchanged with their closures since their R16 proofs (proof reuse)",
+  "argv": "bash tools/[round entry script] --results <studio-round>/results/R21 --target-dir <studio-round>/target hsk-studio-press hsk-studio-reel hsk-studio-reel-native hsk-studio-interop-psd (cwd export; absolute D: paths; no caller env)",
+  "target_dir": "Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/target (warm from R20; every selected crate and its closure recompiled where the export mtimes changed)",
+  "started_at": "2026-10-12T09:40:25Z",
+  "ended_at": "2026-10-12T09:42:03Z",
+  "build_exit": 0,
+  "run_exit": 0,
+  "exit": 0,
+  "summary": "default 301/301 passed (press 161, reel 78, interop-psd 62); reel+av1 85/85; reel-native+av1-worker 5/5; reel-native+av1-worker+test-faults 24/24; 7 doctest units exit 0 (reel 2, reel+av1 2, the others none); 11 units; absent [] timed_out []; NOT_PROVEN 0 -> exit 0",
+  "units": 11,
+  "not_proven_count": 0,
+  "hashes": {
+   "round.json": "449bc2842cfc91e7794bd7e30093782ae85018e9a650652ec58c3352f054fdbd",
+   "tests.json": "bffe2f27cb2531e8c1cdd92d7263c03e52969a512f80b9191ded928078acc6ab",
+   "junit.xml": "26e8c465d78b2f0f4b6e43f9dcd09052e93501c90879b5491680554c0bda8dad",
+   "run.stderr.txt": "15f29b3b530418990ddb12a7cc554b01c586f77bf506a4fea27bb82835b4a375",
+   "build.stderr.txt": "5c86eff91c0419813491aebe14339f06737e13d1bc40b4cf708621c870689b43",
+   "units.tsv": "c0186bb0adfee6bafb29e5b2abd858fc428396c1970be5caa772f43a3727658a",
+   "oracle-corpus.manifest.txt": "38ab57b7a6fecd1c8b7e918552650b4c91d6c11baf9eda50fbd901d39ba73e35",
+   "step0.policy.json": "885a9bd86e044ba4ac436012c10c37d4eb74403ee292111c1f3b4325c8e3877b",
+   "features/hsk-studio-reel+av1/junit.xml": "4ef94c8301186d7af5058d6f50b365eb675fb13c0add178d2edfd5c1f680c454",
+   "features/hsk-studio-reel-native+av1-worker/junit.xml": "9ac1976f51c17dfc6f13a350843f6afd3d875e4e0d5e76686018136aec1018c7",
+   "features/hsk-studio-reel-native+av1-worker+test-faults/junit.xml": "6254fff2be374c18388832efd556dd5f4ec56899e11abf6400c737cfec31b033"
+  },
+  "per_crate_default": {
+   "press": 161,
+   "reel": 78,
+   "interop-psd": 62
+  },
+  "test_set_check": "vs R20 tests.json (unit + crate + binary + name): 398 -> 419; press 151 -> 161 (+10 by the SMB-PRESS-STRUCT-FAILCLOSED claim), reel default 73 -> 78 and av1 80 -> 85 (+5 by 172952f in both units), interop-psd 61 -> 62 (+1 by 0c1be05), reel-native 29 -> 29; missing 0 (the press tests the claim renamed or removed were added after 3930a7c and never entered a round set); 419 passed, 0 failed, 0 skipped, 0 NOT_PROVEN",
+  "step0": "cargo metadata --locked --offline ok; registry-sync check clean; machine-path violations 0 (13 files with pinned hits, pins_dropped {}), duplicate new_sites none; step0.policy.json byte-identical to R20 (885a9bd8); lock_sha256 86547db9 = R20",
+  "oracle_corpus": {
+   "file_count": 35,
+   "manifest_sha256": "38ab57b7a6fecd1c8b7e918552650b4c91d6c11baf9eda50fbd901d39ba73e35",
+   "note": "35 files (R20: 34; the score-plugin clap-gain fixture library placed at its content address and its MANIFEST.json updated, by the steward canary C26); no selected crate uses an oracle fixture (fixtures [])"
+  },
+  "fixtures": [],
+  "disk_lock": "schema @2 class round: holds 1, yields 0 (slice 300 s), waited 1 s, broke_stale none, 09:40:31Z..09:42:03Z",
+  "env": {
+   "set_by_entrypoint": [
+    "CARGO_TARGET_DIR",
+    "TMP",
+    "TEMP",
+    "TMPDIR",
+    "CARGO_PROFILE_DEV_DEBUG",
+    "CARGO_PROFILE_TEST_DEBUG",
+    "CARGO_TERM_COLOR"
+   ],
+   "env_added_by_caller": "none (CX-VAL-007)",
+   "rustc_wrapper": "",
+   "tools": {
+    "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+    "cargo": "cargo 1.97.1 (c980f4866 2026-06-30)",
+    "test_runner": "cargo-nextest 0.9.148 (cd1d6d546 2026-10-07)"
+   }
+  }
+ },
+ "junit_success_output_checks": [
+  "tests.json status passed for every new test: press kept_annotation_with_a_flattened_p_is_reported, direct_structure_tree_elements_off_the_kept_pages_are_reported, direct_structure_tree_on_kept_pages_is_reported_too, indirect_array_k_elements_off_the_kept_pages_are_reported, indirect_array_k_neutralization_controls, tagged_documents_read_not_proven_whatever_the_tree_looks_like, untagged_documents_and_stripped_trees_still_read_flattened, structure_tree_keys_are_read_as_names_not_text, structure_parents_left_in_the_file_are_reported, descriptor_states_the_structure_tree_rule; reel video::tests::picture_span_is_checked_and_typed, a_negative_presentation_time_never_reaches_a_delivered_picture, partial_video_receipt_spans_the_pictures_a_decoder_holds_until_finish, partial_video_receipt_follows_out_of_order_pictures_held_until_finish, fully_delivered_video_receipt_with_pictures_held_until_finish_is_the_packet_receipt (default and av1); interop-psd the_descriptor_readers_8192_item_cap_is_measured_per_effect_kind_and_stated_in_the_descriptor; carried claim tests structure_and_widgets_of_flattened_pages_are_removed, flattened_page_annotations_leave_and_structure_elements_stay, descriptor_states_the_painted_source_condition_and_the_purge_categories, silent_painted_source_visibility_is_not_checked, painted_source_referenced_by_a_kept_catalog_structure_is_reported, partial_video_receipt_spans_the_delivered_pictures, partial_video_receipt_follows_pictures_released_out_of_order, fully_delivered_video_receipt_end_is_the_packet_end, export_refuses_partial_video_decode (both sets), the four delivery_tests *_receipt_states_what_the_loop_delivered, descriptor_states_the_loss_detail_and_the_list_cap_rules, descriptor_states_the_importers_over_counts passed"
+ ],
+ "not_proven": [],
+ "not_proven_note": "V4-03: no NOT_PROVEN line in this union (the canary's only NOT_PROVEN is interop-fig D17, outside the selection)",
+ "adversarial_review": {
+  "refs": {
+   "validation/R23-prereview-narrow.json": "COMPLETE 2026-10-12T08:40:27Z (3930a7c..54c60f9; press FIX_FIRST R23-P1..P3 -> lead decision 08:41:40Z STRUCTURE TREE = NOT PROVEN, R23-P4/P5 folded into it, R23-P6/P7 notes; reel SAFE_TO_JUDGE (R23-R1 INFO = PLR-100, R23-R2 INFO); psd SAFE_TO_JUDGE (R23-S1/S2 = PLR-099, R23-S3 INFO); two_fail_lanes_reopened lists all four incl. SMB-REEL-NATIVE-AV1-WORKER, PROC-R19-V1)",
+   "validation/R24-prereview-press-narrow.json": "COMPLETE 2026-10-12T09:24:51Z (54c60f9..2dde832; press SAFE_TO_JUDGE: R24-P1 INFO (27 probe inputs, item 1 settled), R24-P2 INFO = PLR-102, R24-P3 INFO, R24-P4 PLAUSIBLE pre-existing, R24-P5 INFO process, R24-P6 kernel lane wording)",
+   "validation/R16-prereview-notes-narrow.json": "COMPLETE (b8b31c7..5606d16; reel-native SMB-REEL-NATIVE-AV1-WORKER SAFE_TO_JUDGE; crate unchanged since, V4-18)"
+  },
+  "coverage": "V4-13: two-FAIL lanes SMB-PRESS (R23 + R24, SAFE at 2dde832), SMB-REEL-AV1-ROUTE and SMB-INTEROP-PSD-BUDGET (R23, same diff; reel and interop-psd unchanged 54c60f9..2dde832); SMB-REEL-NATIVE-AV1-WORKER reopened only through its dependency on reel: crate unchanged since the R16 SAFE pre-review (V4-18) and the reel diff is R23 SAFE (named in R23 two_fail_lanes_reopened, PROC-R19-V1). Validator's own read at the 2dde832 export: press flatten_purge.rs:460-480 (edited_structure_root), :1028-1100 (catalog_names_structure_tree, holds, check_document), sanitized_save.rs:1385-1470 (proof predicates), :1525-1570 (save flow), the press src diff 3930a7c..2dde832 in full and tests/flatten_r13.rs:1576-1700, :1700-1760, :2072-2452; reel video.rs diff in full (picture_span and the cfg(test) module) and tests/video_route.rs diff in full; psd src diff -U0 (lib.rs:82, proposal.rs:528-529), descriptor.rs:14-24, :128, tests/effects_budget.rs:2175-2360 assertions; DESCRIPTORs of all three crates parsed as JSON at both revisions and diffed leaf by leaf (press 203 -> 203, reel 83 -> 86, psd 60 -> 60 with the effect_limits change purely additive); V4-06 regexes of the press and reel lanes re-run with git grep at 2dde832 (press 152, reel 8 = lane counts); workspace dependency closure recomputed from the manifests and Cargo.lock",
+  "fold_rule": "R12-R20 convention: every CONFIRMED finding re-read at the cited file:line in the export; a CONFIRMED product defect in a judged lane's claimed scope drives a FAIL on the lane that owns it; CONFIRMED doc-only items are notes + PLR (lead fold convention); PLAUSIBLE/INFO items are notes; PLR-096, PLR-097, PLR-098 (superseded), PLR-099, PLR-100, PLR-101, PLR-102 are registered and not charged; PLR-102 is outside the lane's narrowed claim (dispatch; validator note V-1)",
+  "fold_decisions": [
+   {
+    "finding": "R23-P1, R23-P2, R23-P3 (FIX_FIRST at 54c60f9)",
+    "owner": "SMB-PRESS-STRUCT-FAILCLOSED",
+    "decision": "closed by the 2dde832 remediation (STRUCTURE TREE = NOT PROVEN); judged PASS",
+    "why": "every R23 probe input is a tagged document and reads region_flattened false with ResidualInRegion only (tagged_documents_read_not_proven_whatever_the_tree_looks_like P1-P11, green); by reading, check_document counts any catalog /StructTreeRoot (alias chains included) or non-null /StructParents|/StructParent of the SAVED file"
+   },
+   {
+    "finding": "R23-P4, R23-P5 (pre-existing, conforming inputs)",
+    "owner": "SMB-PRESS-STRUCT-FAILCLOSED",
+    "decision": "inside the narrowed claim (reported through the tree rule)",
+    "why": "P6, P7, P8, P11 rows reported in the same test; text stays, the save reports it, as the decision says"
+   },
+   {
+    "finding": "R23-P6, R23-P7",
+    "owner": "SMB-PRESS-STRUCT-FAILCLOSED",
+    "decision": "notes",
+    "why": "V4-06 list redone (152 = git grep at 2dde832); STRUCT_TEXT_KEYS unchanged"
+   },
+   {
+    "finding": "R24-P1, R24-P3, R24-P5 (INFO)",
+    "owner": "SMB-PRESS-STRUCT-FAILCLOSED",
+    "decision": "notes",
+    "why": "item 1 settled by 27 probe inputs; source-side reader precedence loses data only; unrun mutants killed by existing rows by reading"
+   },
+   {
+    "finding": "R24-P2 (INFO) = PLR-102",
+    "owner": "SMB-PRESS",
+    "decision": "note, not charged (outside the narrowed claim; validator note V-1)",
+    "why": "the decision and the DESCRIPTOR define the tree as a catalog /StructTreeRoot or a /StructParents|/StructParent entry; elements no catalog tree names are the strings-living-elsewhere class region_cleared disclaims (sanitized_save.rs:1458)"
+   },
+   {
+    "finding": "R24-P4 (PLAUSIBLE, pre-existing)",
+    "owner": "SMB-PRESS",
+    "decision": "note",
+    "why": "no reader shown to rebuild the xref of a file this crate writes; parser-differential residual class"
+   },
+   {
+    "finding": "R24-P6 (CONFIRMED kernel lane wording)",
+    "owner": "SMB-PRESS-STRUCT-FAILCLOSED",
+    "decision": "note (validator note V-2)",
+    "why": "product text says the tree counts 1 (exact); the kernel claim's 'only region reason ... once' holds when nothing else mismatches"
+   },
+   {
+    "finding": "R23-R1, R23-R2 (INFO) = PLR-100",
+    "owner": "SMB-REEL-PTS-TESTS",
+    "decision": "notes, not charged",
+    "why": "reel-native WorkerSession releases in finish (crate unchanged, green); held-decoder Export shortfall reaches the same branch by reading"
+   },
+   {
+    "finding": "R23-S1, R23-S2 (CONFIRMED doc/process) = PLR-099; R23-S3 INFO",
+    "owner": "SMB-INTEROP-PSD-DESC-CAP",
+    "decision": "notes, not charged (fold convention)",
+    "why": "no code token changed; the DESCRIPTOR scopes every cap to a descriptor that fits; source docs and lane V4-06 section are doc/process items"
+   }
+  ],
+  "not_reviewed": [
+   "web part of SMB-NOTES-BATCH-1 and composite/render-cpu/render-gpu parts of SMB-FX-OPS-ADOPT were not re-read (byte-unchanged with their closures since the R16 runs that proved them)",
+   "no validator probe of the press tree rule was run beyond the union (CX-VERIFY-001): R24's 27-input probe and the lane's red proof stand as recorded",
+   "Photoshop-authored effect descriptors (item counts per instance) remain UNVERIFIED: no Photoshop-authored fixture"
+  ],
+  "validator_disagreements": [],
+  "validator_notes": [
+   {
+    "id": "V-1",
+    "severity": "INFO (judgement record)",
+    "crate": "hsk-studio-press",
+    "file_line": "src/flatten_purge.rs:1035-1054, :1064-1100; src/sanitized_save.rs:1458; DESCRIPTOR redaction.flatten.purge and region_clearing",
+    "finding": "PLR-102 (R24-P2: structure-element text that no catalog tree names, e.g. an outline /SE into a caller-stripped tree) is outside the narrowed claim: the decision, the lane claim and the DESCRIPTOR define a structure tree as a catalog /StructTreeRoot or a /StructParents|/StructParent entry; the DESCRIPTOR says a stripped tree is 'not reported' and region_cleared disclaims words living elsewhere. The kernel claim sentence 'covers ... tagged documents whose caller stripped the tree' holds for unreferenced tree objects (the control's fixture), not for elements referenced from outside the tree",
+    "evidence": "code and tests read at 2dde832 (untagged_documents_and_stripped_trees_still_read_flattened fixture); R24 probe J1/J2b/K1; no run by the validator",
+    "remediation": "lead: D28 implementation drops or neutralizes every reachable /StructElem; optionally narrow the lane claim sentence"
+   },
+   {
+    "id": "V-2",
+    "severity": "INFO",
+    "crate": "hsk-studio-press",
+    "file_line": "kernel builders/lanes/hsk-studio-press-struct-failclosed.json notes.claim.text",
+    "finding": "R24-P6: 'NotProven::ResidualInRegion as the only region reason and residual_in_region counting the tree once' is exact only when nothing else mismatches",
+    "evidence": "check_document returns bad + u32::from(tagged) (flatten_purge.rs:1099); product docs say the tree 'counts 1'",
+    "remediation": "lead: 'the tree adds 1 to residual_in_region and ResidualInRegion to the reasons'"
+   }
+  ],
+  "lead_decisions_applied": [
+   "ledger round_R21 (ready SMB-PRESS-STRUCT-FAILCLOSED, SMB-REEL-PTS-TESTS, SMB-INTEROP-PSD-DESC-CAP; CX-VAL-009 reopen of press, reel, reel-native (dependent), interop-psd lanes; two-FAIL rechecks R23 + R24 SAFE; excluded render-gpu lanes + SMB-ROUND-ENTRYPOINT + SMB-RENDER-GPU-ADJ/PROBE (D20), interop-media (D9))",
+   "START_LOG 2026-10-12T08:41:40Z STRUCTURE TREE = NOT PROVEN (supersedes the 07:26:27Z PLR-094 and 07:54:54Z sibling per-element rules); D28 Operator item open",
+   "START_LOG D27 (Operator 2026-10-11T17:59:47Z 'Flatten + narrow') and 2026-10-12T02:48:02Z MINIMAL DRAW SET (silence grant unchanged in this range)",
+   "START_LOG 2026-10-12T05:10:24Z (PLR-084 DOC: silence is syntactic, visibility not checked; residual unchanged)",
+   "START_LOG 2026-10-11T14:41:47Z, 15:29:19Z, 15:43:55Z (PSD budget: uncounted cap, two-sided tally, visible stack keeps live instances and drops switched-off ones)",
+   "START_LOG 2026-10-12T05:49:17Z (R21-S1: a visible stack over the 1024 ceiling drops all its switched-off instances with one typed loss; unchanged by 0c1be05)",
+   "START_LOG 2026-10-12T06:16:47Z (PLR-086 DOC: the 512-entry list cap is a category-blind parse bound; the 8192-item cap stated by 0c1be05 judged against the same stance; PROC-R19-V1 applied: dispatch named SMB-REEL-NATIVE-AV1-WORKER)",
+   "lead fold convention: CONFIRMED doc-only finding -> note + PLR; PLR-096..102 already registered, not charged"
+  ]
+ },
+ "proof_reuse": {
+  "basis": "CX-VAL-002: crate source + workspace-dep closure + root inputs unchanged from each proof commit to 2dde832 (3930a7c..2dde832 touches only press, reel and interop-psd; only reel-native depends on any of them); the round-R20 proof_reuse list (81) unchanged (none of its crates or closures in the diff); reused verdicts name both commits (proof commit in each entry, candidate 2dde832); no new verdict",
+  "lanes": [
+   "SMB-TYPE (PASS_V5 @404ff3a)",
+   "SMB-LAYOUT (PASS_V5 @f6e5a49)",
+   "SMB-DEVELOP (PASS_V9 @5606d16)",
+   "SMB-COMPONENTS (PASS_V5 @f6e5a49)",
+   "SMB-PULSE (PASS_V5 @f6e5a49)",
+   "SMB-SCORE (PASS_V4 @f6e5a49)",
+   "SMB-MOTION (PASS_V1 @404ff3a)",
+   "SMB-COMPOSITE (PASS_V9 @5606d16)",
+   "SMB-RENDER-CPU (PASS_V9 @5606d16)",
+   "SMB-PACKAGE (PASS_V5 @f6e5a49)",
+   "SMB-INTEROP-VECTOR (PASS_V6 @3d795a5)",
+   "SMB-INTEROP-FIG (PASS_V3 @3d795a5)",
+   "SMB-INTEROP-LAYOUT (PASS_V5 @3d795a5)",
+   "SMB-CONTROLS (PASS_V3 @bd8533f)",
+   "SMB-SESSION (PASS_V5 @f6e5a49)",
+   "SMB-HARNESS (PASS_V3 @f6e5a49)",
+   "SMB-KERNEL-BINDINGS (PASS_V3 @f6e5a49)",
+   "SMB-WEB (PASS_V5 @5606d16)",
+   "SMB-SCORE-DEVICE (PASS_V3 @f6e5a49)",
+   "SMB-SCORE-PLUGIN (PASS_V4 @4d80e50)",
+   "SMB-INTEROP-LRCAT (PASS_V2 @bd8533f)",
+   "SMB-MOTION-JS (PASS_V3 @dff7ef5)",
+   "SMB-PRISM-ENG-1 (PASS_V4 @dff7ef5)",
+   "SMB-TYPE-ENG-1 (PASS_V1 @1d404f8)",
+   "SMB-PULSE-ENG-1 (PASS_V3 @f6e5a49)",
+   "SMB-PRISM-ENG-2 (PASS_V4 @dff7ef5)",
+   "SMB-PRISM-ENG-3 (PASS_V3 @dff7ef5)",
+   "SMB-PRISM-ENG-4 (PASS_V4 @dff7ef5)",
+   "SMB-PRISM-ENG-5 (PASS_V3 @dff7ef5)",
+   "SMB-TYPE-DOCTEST (PASS_V1 @1d404f8)",
+   "SMB-FOLIO-ENG-1 (PASS_V5 @f6e5a49)",
+   "SMB-PIGMENT-ENG-1 (PASS_V9 @5606d16)",
+   "SMB-TYPE-ENV (PASS_V1 @404ff3a)",
+   "SMB-ACCORD-ENG-1 (PASS_V1 @404ff3a)",
+   "SMB-TYPE-FONTS (PASS_V1 @404ff3a)",
+   "SMB-TYPE-FIXTURES (PASS_V1 @404ff3a)",
+   "SMB-FOLIO-ENG-2 (PASS_V5 @f6e5a49)",
+   "SMB-NIB-ENG-1 (PASS_V2 @1d404f8)",
+   "SMB-FOLIO-ENG-3 (PASS_V5 @f6e5a49)",
+   "SMB-ACCORD-ENG-2 (PASS_V1 @404ff3a)",
+   "SMB-RENDER-CPU-CLIP (PASS_V9 @5606d16)",
+   "SMB-MOTION-JS-WORKER (PASS_V2 @dff7ef5)",
+   "SMB-COMPOSITE-CLIP-ALIGN (PASS_V9 @5606d16)",
+   "SMB-LAYOUT-FOLIO-MIGRATE (PASS_V4 @f6e5a49)",
+   "SMB-FOLIO-ENG-4 (PASS_V4 @f6e5a49)",
+   "SMB-DEVELOP-WIDE (PASS_V6 @5606d16)",
+   "SMB-PACKAGE-STREAM-SAVE (PASS_V4 @f6e5a49)",
+   "SMB-PRISM-ENG-6 (PASS_V2 @dff7ef5)",
+   "SMB-COMPONENTS-FOLIO-MIGRATE (PASS_V4 @f6e5a49)",
+   "SMB-INTEROP-VECTOR-FOLIO-MIGRATE (PASS_V5 @3d795a5)",
+   "SMB-PIGMENT-ENG-2 (PASS_V7 @5606d16)",
+   "SMB-MOTION-JS-SANDBOX-2 (PASS_V1 @dff7ef5)",
+   "SMB-PRISM-ENG-7 (PASS_V1 @dff7ef5)",
+   "SMB-COMPOSITE-ADJ (PASS_V6 @5606d16)",
+   "SMB-RENDER-CPU-ADJ (PASS_V6 @5606d16)",
+   "SMB-EFFECTS-WAVE-1 (PASS_V6 @5606d16)",
+   "SMB-EFFECTS-WAVE-2 (PASS_V6 @5606d16)",
+   "SMB-FOLIO-ENG-6 (PASS_V2 @f6e5a49)",
+   "SMB-FOLIO-ENG-7 (PASS_V2 @f6e5a49)",
+   "SMB-CHRONICLE-TABLE (PASS_V2 @f6e5a49)",
+   "SMB-PIGMENT-WINDOW (PASS_V6 @5606d16)",
+   "SMB-RENDER-CPU-WINDOW (PASS_V6 @5606d16)",
+   "SMB-INTEROP-VECTOR-RECORDS (PASS_V3 @3d795a5)",
+   "SMB-WEB-DIFFTEST (PASS_V2 @5606d16)",
+   "SMB-RENDER-CPU-FX2 (PASS_V6 @5606d16)",
+   "SMB-PRISM-ENG-8 (PASS_V1 @dff7ef5)",
+   "SMB-DEVELOP-JOBS (PASS_V6 @5606d16)",
+   "SMB-PIGMENT-BLENDIF-CLIP (PASS_V6 @5606d16)",
+   "SMB-BLENDIF-CLIP-ADOPT (PASS_V6 @5606d16)",
+   "SMB-PIGMENT-PLANLIMITS (PASS_V3 @5606d16)",
+   "SMB-REFUSAL-KEYS (PASS_V5 @5606d16)",
+   "SMB-SCORE-GUARDS (PASS_V1 @f6e5a49)",
+   "SMB-COMPONENTS-FOOTPRINT (PASS_V1 @f6e5a49)",
+   "SMB-FOLIO-UNIQUENESS (PASS_V1 @f6e5a49)",
+   "SMB-PIGMENT-FX-OPS (PASS_V5 @5606d16)",
+   "SMB-PIGMENT-ADMIT-PARITY (PASS_V5 @5606d16)",
+   "SMB-SCORE-PLUGIN-RATE (PASS_V1 @4d80e50)",
+   "SMB-PARITY-FOLLOWUP (PASS_V4 @5606d16)",
+   "SMB-WEB-PARITY (PASS_V2 @5606d16)",
+   "SMB-PIGMENT-FOLLOWUPS (PASS_V2 @5606d16)",
+   "SMB-PIGMENT-NOTES (PASS_V1 @5606d16)"
+  ],
+  "count": 81
+ },
+ "excluded": [
+  {
+   "lane": "SMB-RENDER-GPU",
+   "reason": "not_judged: CX-EXEC-015(1) fix_budget_exhausted, Operator decision D20 pending (render-gpu not in the union; crate unchanged since R16)"
+  },
+  {
+   "lane": "SMB-RENDER-GPU-ADJ",
+   "reason": "not_judged: render-gpu lanes excluded (D20); BLOCKED; not proof-reused"
+  },
+  {
+   "lane": "SMB-RENDER-GPU-PROBE",
+   "reason": "not_judged: no READY claim; render-gpu D20"
+  },
+  {
+   "lane": "SMB-ROUND-ENTRYPOINT",
+   "reason": "not_judged: CX-EXEC-015(1) fix_budget_exhausted, Operator decision D20 pending (entrypoint used for this round as infrastructure)"
+  },
+  {
+   "lane": "SMB-INTEROP-MEDIA, SMB-INTEROP-MEDIA-PULSE",
+   "reason": "not_judged: BLOCKED on Operator D9 (crate and lock closure unchanged)"
+  },
+  {
+   "lane": "queued/no-claim lanes (SMB-REEL-NATIVE, SMB-REEL-NATIVE-ENG-1, SMB-PRESS-GEOMETRY, SMB-REEL-ENG-2, SMB-FMT-SWEEP)",
+   "reason": "not_judged: no READY claim in 2dde832 (REEL-ENG-2 / REEL-NATIVE-ENG-1 BLOCKED on Operator D22-D26)"
+  }
+ ],
+ "deferred_fix_first": [],
+ "scope_rule": "READY SMB-PRESS-STRUCT-FAILCLOSED, SMB-REEL-PTS-TESTS, SMB-INTEROP-PSD-DESC-CAP; PASS lanes returned to READY by CX-VAL-009: press (SMB-PRESS, SMB-PRESS-DIFFERENCES, SMB-PRESS-DOCS, SMB-PRESS-DOCS-2, SMB-NOTES-BATCH-1), reel (SMB-REEL, -ENG-1, -ENG-3, -AV1-ROUTE, -RECEIPTS, -PARTIAL-PTS, -PARTIAL-PTS-2), dependant reel-native (SMB-REEL-NATIVE-AV1-WORKER, -FAULTS, -FAULTS-2), interop-psd (SMB-INTEROP-PSD, -WIDE, -ADJ, -RECEIPT, -CLIP-ROLES, -BUDGET, -FOLIO-CEILING, -LOSS-DETAIL, SMB-FX-OPS-ADOPT); two-FAIL lanes on V4-13 R23 (+ R24 for press) SAFE (+ V4-18 for reel-native); render-gpu lanes and SMB-ROUND-ENTRYPOINT excluded (D20), interop-media (D9); everything else proof_reuse",
+ "included_count": 27,
+ "verdict_counts": {
+  "PASS_V1": 3,
+  "PASS_V2": 3,
+  "PASS_V3": 3,
+  "PASS_V4": 2,
+  "PASS_V5": 2,
+  "PASS_V7": 2,
+  "PASS_V9": 1,
+  "PASS_V10": 1,
+  "PASS_V11": 3,
+  "PASS_V12": 4,
+  "PASS_V13": 2,
+  "PASS_V15": 1
+ },
+ "verdict_numbering": "Vn = 1 + highest prior PASS_V/FAIL_V number of the lane (BLOCKED, NOT_PROVEN and inconclusive do not count), computed once from the ledger before the state write (ledger sha256 49c2a9a6, kernel 1809cf07) and frozen in the verdicts_accepted event; asserted again by the state writer against the same ledger bytes",
+ "not_proven_rule": "V4-03: a test printing NOT_PROVEN is never PASS; a lane whose acceptance depends on it is not PASS. R21: no NOT_PROVEN line in the union",
+ "counters": [
+  {
+   "lane": "SMB-INTEROP-PSD-BUDGET, SMB-PRESS, SMB-REEL-AV1-ROUTE, SMB-REEL-NATIVE-AV1-WORKER",
+   "counter": "CX-EXEC-015(1) fix budget (failed verdicts 2, limit 3)",
+   "outcome": "passed; no counter acts"
+  },
+  {
+   "lane": "other 23 judged lanes",
+   "counter": "CX-EXEC-015(1) fix budget (failed verdicts 0 or 1, limit 3)",
+   "outcome": "passed; no counter acts"
+  },
+  {
+   "lane": "round",
+   "counter": "CX-EXEC-015(4) same infrastructure failure_class in two rounds",
+   "outcome": "none (no infrastructure failure)"
+  }
+ ],
+ "fix_budget_events": "none (no FAIL this round; no lane reached CX-EXEC-015(1); no NEEDS_NEW_APPROACH)",
+ "plr_candidates": [
+  "V-1 (claim precision, D28): PLR-102 holds the R24-P2 cases; the lane claim sentence on caller-stripped trees covers unreferenced tree objects only; a D28 strip must drop or neutralize every reachable /StructElem",
+  "V-2 (kernel wording): SMB-PRESS-STRUCT-FAILCLOSED notes.claim.text 'only region reason ... once' -> 'adds 1 and ResidualInRegion' (R24-P6)"
+ ],
+ "lanes": [
+  {
+   "lane": "SMB-PRESS-STRUCT-FAILCLOSED",
+   "crate": "hsk-studio-press",
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "tests": "press 161/161 default at 2dde832 (R20 151-test set all present; +10 by the SMB-PRESS-STRUCT-FAILCLOSED claim: kept_annotation_with_a_flattened_p_is_reported, direct_structure_tree_elements_off_the_kept_pages_are_reported, direct_structure_tree_on_kept_pages_is_reported_too, indirect_array_k_elements_off_the_kept_pages_are_reported, indirect_array_k_neutralization_controls, tagged_documents_read_not_proven_whatever_the_tree_looks_like, untagged_documents_and_stripped_trees_still_read_flattened, structure_tree_keys_are_read_as_names_not_text, structure_parents_left_in_the_file_are_reported, descriptor_states_the_structure_tree_rule); doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "claim d26d2fd + 2566f1b + 54c60f9 + 2dde832 judged against the START_LOG lead decision 2026-10-12T08:41:40Z STRUCTURE TREE = NOT PROVEN (supersedes the 07:26:27Z and 07:54:54Z per-element rules). CX-VAL-008: the resubmission names its remediation 'R23 FIX_FIRST -> STRUCTURE TREE = NOT PROVEN' (lane notes.remediation and the 2dde832 subject). Validator read at the 2dde832 export: flatten_purge.rs:1035-1049 catalog_names_structure_tree (catalog not yielded -> tree; key absent -> none; Null or a reference to no object -> none; any other value, or a chain not ending within MAX_REF_HOPS -> tree), :1052-1054 holds (null value = absent), :1064-1100 check_document (tagged = catalog rule OR a non-null /StructParents or /StructParent in any dictionary or stream dictionary of the SAVED file; scan bound Limits::depth_cap, a deeper value counts 1; returns bad + u32::from(tagged)); sanitized_save.rs:1532 neutralize_structure runs before the save (body unchanged apart from edited_structure_root, same Ref-then-dict conditions), :1541 save_full, :1543 reopen, :1563 check_document on the saved bytes, :1565 the same bytes returned; region_flattened (:1438) needs residual_in_region == 0 and region_reasons (:1414) pushes ResidualInRegion, so a tagged save reads region_flattened, region_cleared and is_proven false. The removed walk (unplaced_structure_elements, tree_elements, children) has no remaining reference; flatten.rs and sanitized_save.rs change comment lines only; flatten_purge.rs 39 non-comment lines. DESCRIPTOR parsed (203 -> 203 leaves): only redaction.flatten.purge (structure sentence 'that the purge reads (best effort)', the direct-root residual replaced by the STRUCTURE TREE = NOT PROVEN residual) and redaction.flatten.region_clearing changed; V4-07 counts unchanged (never 8, always 1, cannot 16, proves 0, guarantee 0). Tests are real: reported_for_the_tree asserts region_flattened false, region_cleared false, residual >= 1 and reasons exactly [ResidualInRegion]; read_as_flattened controls (untagged, caller-stripped tree with its objects unreferenced, /MarkInfo alone, /StructParents only on the flattened page) also assert SECRET-ALPHA gone; V4-08 key rows (name escapes, comment and string decoys, other-case keys, nulls, dangling, chains of 3 and 20); a tagged save with no region reported. Changed assertions (lane tests_changed) are narrowings on tagged fixtures: the last check of structure_and_widgets_of_flattened_pages_are_removed and flattened_page_annotations_leave_and_structure_elements_stay flips flattened -> reported once, their text assertions unchanged (diff read). Unrun mutants m2-m4 (PROC-RETRY-FILTER) are killed by existing rows of structure_tree_keys_are_read_as_names_not_text by reading (chain of 20 ending in null reported; null /StructParents and null-object root flattened). V4-06 regex re-run at 2dde832: 152 line hits = lane. V4-01 deny kept, saturating_add only. V4-14: no press commit after 2dde832 (= candidate). PLR-102 (R24-P2: structure-element text that no catalog tree names) is outside the narrowed claim (validator note V-1); PLR-101, PLR-097, PLR-098 (superseded) registered, not charged; R24-P6 kernel claim wording (V-2).",
+   "review": "validation/R23-prereview-narrow.json lanes[0] SMB-PRESS-STRUCT-FAILCLOSED FIX_FIRST at 54c60f9 (R23-P1..P3 -> lead decision 2026-10-12T08:41:40Z STRUCTURE TREE = NOT PROVEN; R23-P4/P5 inside it; R23-P6/P7 notes) + validation/R24-prereview-press-narrow.json lanes[0] SAFE_TO_JUDGE at 2dde832 (R24-P1/P3/P5 INFO, R24-P2 INFO = PLR-102, R24-P4 PLAUSIBLE pre-existing, R24-P6 kernel wording)",
+   "included_by": "READY_FOR_VALIDATION (lane file builders/lanes/hsk-studio-press-struct-failclosed.json, claim d26d2fd + 2566f1b + 54c60f9 + 2dde832, READY commit 2dde832; crate holds two-FAIL SMB-PRESS: V4-13 R23 + R24 SAFE_TO_JUDGE at 2dde832)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R21",
+   "idempotency_key": "STUDIO-R21:SMB-PRESS-STRUCT-FAILCLOSED:2dde8324d111:PASS_V1",
+   "recorded_at": "2026-10-12T09:54:57Z"
+  },
+  {
+   "lane": "SMB-REEL-PTS-TESTS",
+   "crate": "hsk-studio-reel",
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "tests": "reel 78/78 default and reel+av1 85/85 at 2dde832, doctests 2 + 2 exit 0 (R20 73/80 set all present; +5 in both units by 172952f: video::tests::picture_span_is_checked_and_typed, a_negative_presentation_time_never_reaches_a_delivered_picture, partial_video_receipt_spans_the_pictures_a_decoder_holds_until_finish, partial_video_receipt_follows_out_of_order_pictures_held_until_finish, fully_delivered_video_receipt_with_pictures_held_until_finish_is_the_packet_receipt)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "claim 172952f (PLR-092, R22-R1): a decoder that holds every picture until finish() drives the Partial span table, the out-of-order table and the fully delivered receipt; the negative-pts refusal of picture_span is shown unreachable through a container and reduced to one sign check with the same i64 end bound. Validator read at the 2dde832 export: video.rs:286-303 picture_span (u64::try_from(pts) -> Unsupported negative-presentation-time, then checked_add filtered to i64 -> LimitExceeded tick-range): for every pts >= 0 the same Ok/Err as the old body (i64 checked_add, then two u64 conversions); it differs only for pts < 0 (start checked first), which no container delivers; its only caller is :391; video.rs pub item count 46 at both revisions; Forward, accept, the Partial branch, choose() and every other error path unchanged; V4-01 deny kept. Tests are real: Fake::holding() keeps every tag the plan does not drop and releases it through out.accept inside finish (released_at_finish, asserted by assert_release_timing); the three original tables run with hold false and true; a_negative_presentation_time_never_reaches_a_delivered_picture builds a ctts v1 track presenting at -10, 10, 30 units (index ground truth asserted) and pins the packet-loop refusal before any decoder send; picture_span_is_checked_and_typed pins both refusals and the bound (lane red proofs M1-M5). DESCRIPTOR parsed (83 -> 86 leaves): export.rule gains the held-decoder clause and its three tests, export.tests[17..19] cite them; V4-07 counts unchanged. V4-06 regex re-run at 2dde832: 8 lines in reel = lane (workspace-wide also reel-native host.rs:896 WorkerSession = R23-R1 = PLR-100, registered, not charged). V4-14: no reel commit after 172952f.",
+   "review": "validation/R23-prereview-narrow.json lanes[1] SMB-REEL-PTS-TESTS SAFE_TO_JUDGE at 54c60f9 (R23-R1 INFO = PLR-100, R23-R2 INFO); hsk-studio-reel unchanged 54c60f9..2dde832",
+   "included_by": "READY_FOR_VALIDATION (lane file builders/lanes/hsk-studio-reel-pts-tests.json, commit 172952f; crate holds two-FAIL SMB-REEL-AV1-ROUTE and the dependant SMB-REEL-NATIVE-AV1-WORKER: V4-13 R23 SAFE_TO_JUDGE)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R21",
+   "idempotency_key": "STUDIO-R21:SMB-REEL-PTS-TESTS:2dde8324d111:PASS_V1",
+   "recorded_at": "2026-10-12T09:54:57Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-DESC-CAP",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "tests": "interop-psd 62/62 default at 2dde832 (R20 61-test set all present; +1 by 0c1be05: the_descriptor_readers_8192_item_cap_is_measured_per_effect_kind_and_stated_in_the_descriptor); doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "claim 0c1be05 (PLR-095): doc, DESCRIPTOR and test only. Validator read at the 2dde832 export: git diff -U0 3930a7c..2dde832 over src = one string line of the concat! DESCRIPTOR (lib.rs:82) and proposal.rs:528-529 doc ('the number of MAPPED switched-off instances the record does not hold ...'); no code token changed; descriptor.rs MAX_TOTAL_ITEMS 8192 (:21) charged per item (:128), list cap 512 unchanged. DESCRIPTOR parsed (60 -> 60 leaves): only effect_limits, purely additive (2281-char prefix and 640-char suffix byte-equal): the 8192-item cap counted category blind and per item, a descriptor over it refused whole (descriptor_item_limit) before any instance is mapped with every cap above scoped to a descriptor that fits, measured per-kind costs (required keys only and every key read), contour point 4 and 256 points, instances one descriptor holds, the thresholds 8/16/127 and which cap fires first; it cites the test; V4-07 counts unchanged (0). The test is real: it measures through the importer (largest bare filler 8192; each instance first checked to map; two-sided boundaries for the holds figures and thresholds; loss codes on both sides) and needles the DESCRIPTOR with the measured numbers. Photoshop-authored item counts are UNVERIFIED in the lane and the DESCRIPTOR states only the importer-read keys. R23-S1 (source docs of effects.rs/proposal.rs not scoped to the 8192 cap) and R23-S2 (no V4-06 section in the lane file) = PLR-099, sibling phrases = PLR-096: registered, not charged (fold convention). V4-14: no interop-psd commit after 0c1be05.",
+   "review": "validation/R23-prereview-narrow.json lanes[2] SMB-INTEROP-PSD-DESC-CAP SAFE_TO_JUDGE at 54c60f9 (R23-S1/S2 CONFIRMED doc/process = PLR-099; R23-S3 INFO); hsk-studio-interop-psd unchanged 54c60f9..2dde832",
+   "included_by": "READY_FOR_VALIDATION (lane file builders/lanes/hsk-studio-interop-psd-desc-cap.json, commit 0c1be05; crate holds two-FAIL SMB-INTEROP-PSD-BUDGET: V4-13 R23 SAFE_TO_JUDGE)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R21",
+   "idempotency_key": "STUDIO-R21:SMB-INTEROP-PSD-DESC-CAP:2dde8324d111:PASS_V1",
+   "recorded_at": "2026-10-12T09:54:57Z"
+  },
+  {
+   "lane": "SMB-PRESS",
+   "crate": "hsk-studio-press",
+   "decision": "passed",
+   "verdict": "PASS_V7",
+   "status_change": "PASS_V7",
+   "tests": "press 161/161 default at 2dde832 (R20 151-test set all present; +10 by the SMB-PRESS-STRUCT-FAILCLOSED claim: kept_annotation_with_a_flattened_p_is_reported, direct_structure_tree_elements_off_the_kept_pages_are_reported, direct_structure_tree_on_kept_pages_is_reported_too, indirect_array_k_elements_off_the_kept_pages_are_reported, indirect_array_k_neutralization_controls, tagged_documents_read_not_proven_whatever_the_tree_looks_like, untagged_documents_and_stripped_trees_still_read_flattened, structure_tree_keys_are_read_as_names_not_text, structure_parents_left_in_the_file_are_reported, descriptor_states_the_structure_tree_rule); doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 2,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "claim since PASS_V6 @3930a7c: hsk-studio-press changed only by the SMB-PRESS-STRUCT-FAILCLOSED claim (d26d2fd, 2566f1b, 54c60f9, 2dde832). Judged against the narrowed claim (D27 'Flatten + narrow' and the 08:41:40Z decision STRUCTURE TREE = NOT PROVEN): the new rule only adds 1 to residual_in_region for a saved document that has a structure tree (fail closed: it can turn a proven save into NotProven, never the reverse); the per-element walk of 54c60f9 is gone; neutralize_structure is unchanged apart from edited_structure_root (same Ref-then-dict conditions). The lane's R13 test structure_and_widgets_of_flattened_pages_are_removed changed only in its last check on its tagged fixture (flattened -> the tree reported once: residual 1, reasons [ResidualInRegion]); ALT-SECRET-PHOTO and WIDGET-VALUE-SECRET gone, KEPT-STRUCT-TEXT kept, neutralized 1, annotations removed 1 unchanged. Untagged documents read as before (untagged_documents_and_stripped_trees_still_read_flattened: flattened, no reason, SECRET-ALPHA gone). MINIMAL DRAW SET, the PLR-084 silence residual and the painted-source rules are byte-equal in the DESCRIPTOR purge clause; no show_text, canon, encoding, raster or flatten code changed (flatten.rs and sanitized_save.rs comment lines only). PLR-094 (registered on this lane) is covered by the tree rule (R23-P1..P5 inputs reported; R24-P1 27 probe inputs); PLR-097 and PLR-102 registered, not charged (V-1). Every press test green at 2dde832, none of the R20 set missing. No claim broken by reading.",
+   "review": "validation/R23-prereview-narrow.json lanes[0] SMB-PRESS-STRUCT-FAILCLOSED FIX_FIRST at 54c60f9 (R23-P1..P3 -> lead decision 2026-10-12T08:41:40Z STRUCTURE TREE = NOT PROVEN; R23-P4/P5 inside it; R23-P6/P7 notes) + validation/R24-prereview-press-narrow.json lanes[0] SAFE_TO_JUDGE at 2dde832 (R24-P1/P3/P5 INFO, R24-P2 INFO = PLR-102, R24-P4 PLAUSIBLE pre-existing, R24-P6 kernel wording); two-FAIL lane (FAIL_V1 R5, FAIL_V2 R6): V4-13 met by R23 (3930a7c..54c60f9) + R24 (54c60f9..2dde832)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-press changed 3930a7c..2dde832 by d26d2fd, 2566f1b, 54c60f9, 2dde832; no workspace dependant); two-FAIL lane (FAIL_V1 R5, FAIL_V2 R6): V4-13 R23 + R24 SAFE_TO_JUDGE for hsk-studio-press at 2dde832",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R21",
+   "idempotency_key": "STUDIO-R21:SMB-PRESS:2dde8324d111:PASS_V7",
+   "recorded_at": "2026-10-12T09:54:57Z"
+  },
+  {
+   "lane": "SMB-PRESS-DIFFERENCES",
+   "crate": "hsk-studio-press",
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "tests": "press 161/161 default at 2dde832 (R20 151-test set all present; +10 by the SMB-PRESS-STRUCT-FAILCLOSED claim: kept_annotation_with_a_flattened_p_is_reported, direct_structure_tree_elements_off_the_kept_pages_are_reported, direct_structure_tree_on_kept_pages_is_reported_too, indirect_array_k_elements_off_the_kept_pages_are_reported, indirect_array_k_neutralization_controls, tagged_documents_read_not_proven_whatever_the_tree_looks_like, untagged_documents_and_stripped_trees_still_read_flattened, structure_tree_keys_are_read_as_names_not_text, structure_parents_left_in_the_file_are_reported, descriptor_states_the_structure_tree_rule); doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "/Differences claim untouched since PASS_V4 @3930a7c: 3930a7c..2dde832 changes no encoding, font, show_text or canon source (press non-comment src lines: flatten_purge.rs 39 in edited_structure_root, catalog_names_structure_tree, holds and check_document; lib.rs the DESCRIPTOR line); DESCRIPTOR leaves other than redaction.flatten.purge and redaction.flatten.region_clearing byte-equal (parsed, 203 -> 203). Every press test green at 2dde832. No claim broken by reading.",
+   "review": "crate-level: validation/R23-prereview-narrow.json lanes[0] SMB-PRESS-STRUCT-FAILCLOSED FIX_FIRST at 54c60f9 (R23-P1..P3 -> lead decision 2026-10-12T08:41:40Z STRUCTURE TREE = NOT PROVEN; R23-P4/P5 inside it; R23-P6/P7 notes) + validation/R24-prereview-press-narrow.json lanes[0] SAFE_TO_JUDGE at 2dde832 (R24-P1/P3/P5 INFO, R24-P2 INFO = PLR-102, R24-P4 PLAUSIBLE pre-existing, R24-P6 kernel wording); no finding on /Differences",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-press changed 3930a7c..2dde832 by d26d2fd, 2566f1b, 54c60f9, 2dde832; no workspace dependant)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R21",
+   "idempotency_key": "STUDIO-R21:SMB-PRESS-DIFFERENCES:2dde8324d111:PASS_V5",
+   "recorded_at": "2026-10-12T09:54:57Z"
+  },
+  {
+   "lane": "SMB-PRESS-DOCS",
+   "crate": "hsk-studio-press",
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "tests": "press 161/161 default at 2dde832 (R20 151-test set all present; +10 by the SMB-PRESS-STRUCT-FAILCLOSED claim: kept_annotation_with_a_flattened_p_is_reported, direct_structure_tree_elements_off_the_kept_pages_are_reported, direct_structure_tree_on_kept_pages_is_reported_too, indirect_array_k_elements_off_the_kept_pages_are_reported, indirect_array_k_neutralization_controls, tagged_documents_read_not_proven_whatever_the_tree_looks_like, untagged_documents_and_stripped_trees_still_read_flattened, structure_tree_keys_are_read_as_names_not_text, structure_parents_left_in_the_file_are_reported, descriptor_states_the_structure_tree_rule); doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "claim d868da0 (PLR-083 wording, PLR-084 residual, PLR-076 shown by test) untouched: the PLR-084 silence-is-syntactic residual sentence and the painted-source clauses of redaction.flatten.purge are byte-equal (parsed; the change replaces the structure sentence and the direct-root residual only); silent_painted_source_visibility_is_not_checked, descriptor_states_that_painted_source_silence_is_syntactic and painted_source_referenced_by_a_kept_catalog_structure_is_reported green at 2dde832. No claim broken by reading.",
+   "review": "validation/R23-prereview-narrow.json lanes[0] SMB-PRESS-STRUCT-FAILCLOSED FIX_FIRST at 54c60f9 (R23-P1..P3 -> lead decision 2026-10-12T08:41:40Z STRUCTURE TREE = NOT PROVEN; R23-P4/P5 inside it; R23-P6/P7 notes) + validation/R24-prereview-press-narrow.json lanes[0] SAFE_TO_JUDGE at 2dde832 (R24-P1/P3/P5 INFO, R24-P2 INFO = PLR-102, R24-P4 PLAUSIBLE pre-existing, R24-P6 kernel wording)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-press changed 3930a7c..2dde832 by d26d2fd, 2566f1b, 54c60f9, 2dde832; no workspace dependant)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R21",
+   "idempotency_key": "STUDIO-R21:SMB-PRESS-DOCS:2dde8324d111:PASS_V3",
+   "recorded_at": "2026-10-12T09:54:57Z"
+  },
+  {
+   "lane": "SMB-PRESS-DOCS-2",
+   "crate": "hsk-studio-press",
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "tests": "press 161/161 default at 2dde832 (R20 151-test set all present; +10 by the SMB-PRESS-STRUCT-FAILCLOSED claim: kept_annotation_with_a_flattened_p_is_reported, direct_structure_tree_elements_off_the_kept_pages_are_reported, direct_structure_tree_on_kept_pages_is_reported_too, indirect_array_k_elements_off_the_kept_pages_are_reported, indirect_array_k_neutralization_controls, tagged_documents_read_not_proven_whatever_the_tree_looks_like, untagged_documents_and_stripped_trees_still_read_flattened, structure_tree_keys_are_read_as_names_not_text, structure_parents_left_in_the_file_are_reported, descriptor_states_the_structure_tree_rule); doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "claim 0f87710 (PLR-087 overview per category, R20-O3 region_cleared clause, same-class sites) kept under the narrowed claim: proof.region_cleared is byte-equal (not among the changed leaves); the purge clause still opens 'is purged by category'; the flatten.rs overview keeps the annotation half word for word, makes the structure half conditional (indirect root, best effort; PLR-093, R22-P2) and adds the tree rule; descriptor_states_the_painted_source_condition_and_the_purge_categories green. Its test flattened_page_annotations_leave_and_structure_elements_stay changed only in its last check on its tagged fixture (flattened -> the tree reported once: residual 1, reasons [ResidualInRegion]); the annotation 70/71, catalog key and array, /Alt-gone, /ActualText-kept, 2 /StructElem and neutralized-1 assertions are unchanged (diff read). No claim broken by reading.",
+   "review": "validation/R23-prereview-narrow.json lanes[0] SMB-PRESS-STRUCT-FAILCLOSED FIX_FIRST at 54c60f9 (R23-P1..P3 -> lead decision 2026-10-12T08:41:40Z STRUCTURE TREE = NOT PROVEN; R23-P4/P5 inside it; R23-P6/P7 notes) + validation/R24-prereview-press-narrow.json lanes[0] SAFE_TO_JUDGE at 2dde832 (R24-P1/P3/P5 INFO, R24-P2 INFO = PLR-102, R24-P4 PLAUSIBLE pre-existing, R24-P6 kernel wording)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-press changed 3930a7c..2dde832 by d26d2fd, 2566f1b, 54c60f9, 2dde832; no workspace dependant)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R21",
+   "idempotency_key": "STUDIO-R21:SMB-PRESS-DOCS-2:2dde8324d111:PASS_V2",
+   "recorded_at": "2026-10-12T09:54:57Z"
+  },
+  {
+   "lane": "SMB-NOTES-BATCH-1",
+   "crate": "hsk-studio-press + hsk-studio-web + hsk-studio-reel-native + hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "tests": "press 161/161 default at 2dde832 (R20 151-test set all present; +10 by the SMB-PRESS-STRUCT-FAILCLOSED claim: kept_annotation_with_a_flattened_p_is_reported, direct_structure_tree_elements_off_the_kept_pages_are_reported, direct_structure_tree_on_kept_pages_is_reported_too, indirect_array_k_elements_off_the_kept_pages_are_reported, indirect_array_k_neutralization_controls, tagged_documents_read_not_proven_whatever_the_tree_looks_like, untagged_documents_and_stripped_trees_still_read_flattened, structure_tree_keys_are_read_as_names_not_text, structure_parents_left_in_the_file_are_reported, descriptor_states_the_structure_tree_rule); doctest unit exit 0 (no doctests); reel-native +av1-worker 5/5 and +av1-worker+test-faults 24/24 at 2dde832 (= R20 set, none missing), rebuilt against the changed hsk-studio-reel; default 0 tests; 3 doctest units exit 0 (no doctests); interop-psd 62/62 default at 2dde832 (R20 61-test set all present; +1 by 0c1be05: the_descriptor_readers_8192_item_cap_is_measured_per_effect_kind_and_stated_in_the_descriptor); doctest unit exit 0 (no doctests); web 138/138 reused from STUDIO-R16 @5606d16 under CX-VAL-002",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "claim = PLR-076 (press), PLR-071 (web), PLR-078 (reel-native), PLR-064/065 (interop-psd), PASS_V3 @3930a7c. Press part: painted_source_referenced_by_a_kept_catalog_structure_is_reported green at 2dde832 (the tree rule can only add a reason). Reel-native part: crate byte-unchanged since 5606d16, rebuilt against the changed reel and green (5/5, 24/24). Interop-psd part: descriptor_states_the_importers_over_counts and the_importer_counts_layers_without_pixels_and_clipped_layers_on_hidden_or_empty_bases green at 2dde832; 0c1be05 only appends clauses to effect_limits (prefix and suffix byte-equal), the over-count clause unchanged. Web part: byte-unchanged with its closure (accord, observe) and the root inputs since 5606d16 (git log 5606d16..2dde832 over them empty), so the R16 run binds. V4-14: nothing pushed to web or reel-native after 5606d16, to press after 2dde832, to interop-psd after 0c1be05.",
+   "review": "press: validation/R23-prereview-narrow.json lanes[0] SMB-PRESS-STRUCT-FAILCLOSED FIX_FIRST at 54c60f9 (R23-P1..P3 -> lead decision 2026-10-12T08:41:40Z STRUCTURE TREE = NOT PROVEN; R23-P4/P5 inside it; R23-P6/P7 notes) + validation/R24-prereview-press-narrow.json lanes[0] SAFE_TO_JUDGE at 2dde832 (R24-P1/P3/P5 INFO, R24-P2 INFO = PLR-102, R24-P4 PLAUSIBLE pre-existing, R24-P6 kernel wording); interop-psd: validation/R23-prereview-narrow.json lanes[2] SMB-INTEROP-PSD-DESC-CAP SAFE_TO_JUDGE at 54c60f9 (R23-S1/S2 CONFIRMED doc/process = PLR-099; R23-S3 INFO); hsk-studio-interop-psd unchanged 54c60f9..2dde832; reel-native dependency diff (reel): validation/R23-prereview-narrow.json lanes[1] SMB-REEL-PTS-TESTS SAFE_TO_JUDGE at 54c60f9 (R23-R1 INFO = PLR-100, R23-R2 INFO); hsk-studio-reel unchanged 54c60f9..2dde832; web/reel-native crates: R16-prereview-notes-narrow SAFE (V4-18, unchanged since)",
+   "included_by": "CX-VAL-009 (PASS_V3 @3930a7c returned to READY: press and interop-psd changed, reel-native's closure changed)",
+   "proof_reuse": "CX-VAL-002: web part = STUDIO-R16 union run @5606d16 (results/R16, web 138/138); proof commit 5606d16, candidate 2dde832; web closure and root inputs unchanged",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R21",
+   "idempotency_key": "STUDIO-R21:SMB-NOTES-BATCH-1:2dde8324d111:PASS_V4",
+   "recorded_at": "2026-10-12T09:54:57Z"
+  },
+  {
+   "lane": "SMB-REEL",
+   "crate": "hsk-studio-reel",
+   "decision": "passed",
+   "verdict": "PASS_V13",
+   "status_change": "PASS_V13",
+   "tests": "reel 78/78 default and reel+av1 85/85 at 2dde832, doctests 2 + 2 exit 0 (R20 73/80 set all present; +5 in both units by 172952f: video::tests::picture_span_is_checked_and_typed, a_negative_presentation_time_never_reaches_a_delivered_picture, partial_video_receipt_spans_the_pictures_a_decoder_holds_until_finish, partial_video_receipt_follows_out_of_order_pictures_held_until_finish, fully_delivered_video_receipt_with_pictures_held_until_finish_is_the_packet_receipt)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "reel providers, registry and receipts: 172952f changes only the body and doc of the private fn picture_span (video.rs:286-303) plus a #[cfg(test)] module, the DESCRIPTOR export.rule/tests and tests/video_route.rs; isobmff, matroska, mxf, wav, y4m, registry, cache and av1 sources are not in the diff; video.rs pub item count 46 at both revisions. Every reel test green at 2dde832 in the default and av1 sets, none of the R20 set missing. No claim broken by reading.",
+   "review": "validation/R23-prereview-narrow.json lanes[1] SMB-REEL-PTS-TESTS SAFE_TO_JUDGE at 54c60f9 (R23-R1 INFO = PLR-100, R23-R2 INFO); hsk-studio-reel unchanged 54c60f9..2dde832",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-reel changed 3930a7c..2dde832 by 172952f: video.rs picture_span body + cfg(test) module, DESCRIPTOR export.rule/tests, tests/video_route.rs)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R21",
+   "idempotency_key": "STUDIO-R21:SMB-REEL:2dde8324d111:PASS_V13",
+   "recorded_at": "2026-10-12T09:54:57Z"
+  },
+  {
+   "lane": "SMB-REEL-ENG-1",
+   "crate": "hsk-studio-reel",
+   "decision": "passed",
+   "verdict": "PASS_V7",
+   "status_change": "PASS_V7",
+   "tests": "reel 78/78 default and reel+av1 85/85 at 2dde832, doctests 2 + 2 exit 0 (R20 73/80 set all present; +5 in both units by 172952f: video::tests::picture_span_is_checked_and_typed, a_negative_presentation_time_never_reaches_a_delivered_picture, partial_video_receipt_spans_the_pictures_a_decoder_holds_until_finish, partial_video_receipt_follows_out_of_order_pictures_held_until_finish, fully_delivered_video_receipt_with_pictures_held_until_finish_is_the_packet_receipt)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "export claim (exact or an error; Preview Partial with the true count; Export Incomplete before the first read) unchanged: the export pre-check and the Partial/Incomplete branches are untouched; picture_span gives the same Ok/Err as before for every pts >= 0, the only input a container delivers (a_negative_presentation_time_never_reaches_a_delivered_picture); export_refuses_partial_video_decode and repeated_media_sample_is_a_shortfall_not_a_silent_success green in both feature sets. No claim broken by reading.",
+   "review": "validation/R23-prereview-narrow.json lanes[1] SMB-REEL-PTS-TESTS SAFE_TO_JUDGE at 54c60f9 (R23-R1 INFO = PLR-100, R23-R2 INFO); hsk-studio-reel unchanged 54c60f9..2dde832",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-reel changed 3930a7c..2dde832 by 172952f: video.rs picture_span body + cfg(test) module, DESCRIPTOR export.rule/tests, tests/video_route.rs)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R21",
+   "idempotency_key": "STUDIO-R21:SMB-REEL-ENG-1:2dde8324d111:PASS_V7",
+   "recorded_at": "2026-10-12T09:54:57Z"
+  },
+  {
+   "lane": "SMB-REEL-ENG-3",
+   "crate": "hsk-studio-reel",
+   "decision": "passed",
+   "verdict": "PASS_V11",
+   "status_change": "PASS_V11",
+   "tests": "reel 78/78 default and reel+av1 85/85 at 2dde832, doctests 2 + 2 exit 0 (R20 73/80 set all present; +5 in both units by 172952f: video::tests::picture_span_is_checked_and_typed, a_negative_presentation_time_never_reaches_a_delivered_picture, partial_video_receipt_spans_the_pictures_a_decoder_holds_until_finish, partial_video_receipt_follows_out_of_order_pictures_held_until_finish, fully_delivered_video_receipt_with_pictures_held_until_finish_is_the_packet_receipt)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "AV1 decode contract (rav1d adapter, pixel limits, deterministic output) untouched: av1/* and av1_config.rs are not in the diff; the in-process session's finish() drain is the timing the new holding fake models (lane D5). reel+av1 85/85 at 2dde832. No claim broken by reading.",
+   "review": "validation/R23-prereview-narrow.json lanes[1] SMB-REEL-PTS-TESTS SAFE_TO_JUDGE at 54c60f9 (R23-R1 INFO = PLR-100, R23-R2 INFO); hsk-studio-reel unchanged 54c60f9..2dde832",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-reel changed 3930a7c..2dde832 by 172952f: video.rs picture_span body + cfg(test) module, DESCRIPTOR export.rule/tests, tests/video_route.rs)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R21",
+   "idempotency_key": "STUDIO-R21:SMB-REEL-ENG-3:2dde8324d111:PASS_V11",
+   "recorded_at": "2026-10-12T09:54:57Z"
+  },
+  {
+   "lane": "SMB-REEL-AV1-ROUTE",
+   "crate": "hsk-studio-reel",
+   "decision": "passed",
+   "verdict": "PASS_V11",
+   "status_change": "PASS_V11",
+   "tests": "reel 78/78 default and reel+av1 85/85 at 2dde832, doctests 2 + 2 exit 0 (R20 73/80 set all present; +5 in both units by 172952f: video::tests::picture_span_is_checked_and_typed, a_negative_presentation_time_never_reaches_a_delivered_picture, partial_video_receipt_spans_the_pictures_a_decoder_holds_until_finish, partial_video_receipt_follows_out_of_order_pictures_held_until_finish, fully_delivered_video_receipt_with_pictures_held_until_finish_is_the_packet_receipt)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 2,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "routing claim (untrusted AV1 -> worker or CodecUnavailable; proxies keep their own trust; decoded pictures checked against the declared size, PLR-032) unchanged: choose(), VideoRoute, Chosen, SourceTrust, planes_match_format, within_declared_size and Forward are byte-unchanged; only picture_span's body changed (same result for every pts >= 0). Every reel test green at 2dde832 in both sets. No claim broken by reading.",
+   "review": "validation/R23-prereview-narrow.json lanes[1] SMB-REEL-PTS-TESTS SAFE_TO_JUDGE at 54c60f9 (R23-R1 INFO = PLR-100, R23-R2 INFO); hsk-studio-reel unchanged 54c60f9..2dde832; two-FAIL lane (FAIL_V1 R5, FAIL_V2 R7): V4-13 met by the R23 narrow pre-review of the same diff",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-reel changed 3930a7c..2dde832 by 172952f: video.rs picture_span body + cfg(test) module, DESCRIPTOR export.rule/tests, tests/video_route.rs); two-FAIL lane (FAIL_V1 R5, FAIL_V2 R7): V4-13 R23 SAFE_TO_JUDGE for hsk-studio-reel (unchanged since 54c60f9)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R21",
+   "idempotency_key": "STUDIO-R21:SMB-REEL-AV1-ROUTE:2dde8324d111:PASS_V11",
+   "recorded_at": "2026-10-12T09:54:57Z"
+  },
+  {
+   "lane": "SMB-REEL-RECEIPTS",
+   "crate": "hsk-studio-reel",
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "tests": "reel 78/78 default and reel+av1 85/85 at 2dde832, doctests 2 + 2 exit 0 (R20 73/80 set all present; +5 in both units by 172952f: video::tests::picture_span_is_checked_and_typed, a_negative_presentation_time_never_reaches_a_delivered_picture, partial_video_receipt_spans_the_pictures_a_decoder_holds_until_finish, partial_video_receipt_follows_out_of_order_pictures_held_until_finish, fully_delivered_video_receipt_with_pictures_held_until_finish_is_the_packet_receipt)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "claim (receipts take units, completeness and the actual span from what was delivered, PLR-066..068) unchanged and now also driven with a decoder that holds its pictures until finish (the three held tests assert the same receipts); the wav, y4m, PCM, mxf and packet-loop receipt sites are not in the diff; the delivery_tests *_receipt_states_what_the_loop_delivered stay green. No claim broken by reading.",
+   "review": "validation/R23-prereview-narrow.json lanes[1] SMB-REEL-PTS-TESTS SAFE_TO_JUDGE at 54c60f9 (R23-R1 INFO = PLR-100, R23-R2 INFO); hsk-studio-reel unchanged 54c60f9..2dde832",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-reel changed 3930a7c..2dde832 by 172952f: video.rs picture_span body + cfg(test) module, DESCRIPTOR export.rule/tests, tests/video_route.rs)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R21",
+   "idempotency_key": "STUDIO-R21:SMB-REEL-RECEIPTS:2dde8324d111:PASS_V4",
+   "recorded_at": "2026-10-12T09:54:57Z"
+  },
+  {
+   "lane": "SMB-REEL-PARTIAL-PTS",
+   "crate": "hsk-studio-reel",
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "tests": "reel 78/78 default and reel+av1 85/85 at 2dde832, doctests 2 + 2 exit 0 (R20 73/80 set all present; +5 in both units by 172952f: video::tests::picture_span_is_checked_and_typed, a_negative_presentation_time_never_reaches_a_delivered_picture, partial_video_receipt_spans_the_pictures_a_decoder_holds_until_finish, partial_video_receipt_follows_out_of_order_pictures_held_until_finish, fully_delivered_video_receipt_with_pictures_held_until_finish_is_the_packet_receipt)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "claim 0c34342 (PLR-077: a Partial video receipt ends at the latest end of a delivered picture; empty span at its start when none; a complete decode unchanged) kept: the end is still the max over delivered ends from picture_span (same values for pts >= 0); its tests partial_video_receipt_spans_the_delivered_pictures and fully_delivered_video_receipt_end_is_the_packet_end keep their names and rows (bodies now shared with hold = false) and gain held-decoder twins. No claim broken by reading.",
+   "review": "validation/R23-prereview-narrow.json lanes[1] SMB-REEL-PTS-TESTS SAFE_TO_JUDGE at 54c60f9 (R23-R1 INFO = PLR-100, R23-R2 INFO); hsk-studio-reel unchanged 54c60f9..2dde832",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-reel changed 3930a7c..2dde832 by 172952f: video.rs picture_span body + cfg(test) module, DESCRIPTOR export.rule/tests, tests/video_route.rs)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R21",
+   "idempotency_key": "STUDIO-R21:SMB-REEL-PARTIAL-PTS:2dde8324d111:PASS_V3",
+   "recorded_at": "2026-10-12T09:54:57Z"
+  },
+  {
+   "lane": "SMB-REEL-PARTIAL-PTS-2",
+   "crate": "hsk-studio-reel",
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "tests": "reel 78/78 default and reel+av1 85/85 at 2dde832, doctests 2 + 2 exit 0 (R20 73/80 set all present; +5 in both units by 172952f: video::tests::picture_span_is_checked_and_typed, a_negative_presentation_time_never_reaches_a_delivered_picture, partial_video_receipt_spans_the_pictures_a_decoder_holds_until_finish, partial_video_receipt_follows_out_of_order_pictures_held_until_finish, fully_delivered_video_receipt_with_pictures_held_until_finish_is_the_packet_receipt)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "claim 2fb17a8 (PLR-085, PLR-088: the Partial span runs from the earliest delivered pts to the latest pts + duration, whatever the release order) kept: Forward and the Partial branch are byte-unchanged and picture_span gives the same Ok/Err for every pts >= 0; its three tests keep names and rows (bodies shared with hold = false) and run again with the holding decoder; the negative-start refusal it added (PLR-092) is reduced to one sign check, shown unreachable and pinned by picture_span_is_checked_and_typed. No claim broken by reading.",
+   "review": "validation/R23-prereview-narrow.json lanes[1] SMB-REEL-PTS-TESTS SAFE_TO_JUDGE at 54c60f9 (R23-R1 INFO = PLR-100, R23-R2 INFO); hsk-studio-reel unchanged 54c60f9..2dde832",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-reel changed 3930a7c..2dde832 by 172952f: video.rs picture_span body + cfg(test) module, DESCRIPTOR export.rule/tests, tests/video_route.rs)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R21",
+   "idempotency_key": "STUDIO-R21:SMB-REEL-PARTIAL-PTS-2:2dde8324d111:PASS_V2",
+   "recorded_at": "2026-10-12T09:54:57Z"
+  },
+  {
+   "lane": "SMB-REEL-NATIVE-AV1-WORKER",
+   "crate": "hsk-studio-reel-native",
+   "decision": "passed",
+   "verdict": "PASS_V12",
+   "status_change": "PASS_V12",
+   "tests": "reel-native +av1-worker 5/5 and +av1-worker+test-faults 24/24 at 2dde832 (= R20 set, none missing), rebuilt against the changed hsk-studio-reel; default 0 tests; 3 doctest units exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 2,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "worker-isolated AV1 decode claim: crate hsk-studio-reel-native byte-unchanged since its proof @5606d16; it consumes hsk-studio-reel, whose change is a private fn body, a cfg(test) module and DESCRIPTOR text (video.rs pub item count 46 at both revisions); its WorkerSession releases pictures inside finish (host.rs:896, :924), the timing the new reel holding fake models (PLR-100). Rebuilt and green in both feature sets. No claim broken by reading.",
+   "review": "crate: R16 pre-review SAFE stands (V4-18, crate unchanged since 5606d16); dependency diff: validation/R23-prereview-narrow.json lanes[1] SMB-REEL-PTS-TESTS SAFE_TO_JUDGE at 54c60f9 (R23-R1 INFO = PLR-100, R23-R2 INFO); hsk-studio-reel unchanged 54c60f9..2dde832",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: hsk-studio-reel-native unchanged since 5606d16, but its dependency closure (accord, observe, reel) contains hsk-studio-reel, changed by 172952f); two-FAIL lane (FAIL_V1 R5, FAIL_V2 R7): V4-13 covered by the R16 pre-review of the crate (unchanged since, V4-18) and the R23 SAFE pre-review of the reel diff (listed in R23 two_fail_lanes_reopened, PROC-R19-V1)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R21",
+   "idempotency_key": "STUDIO-R21:SMB-REEL-NATIVE-AV1-WORKER:2dde8324d111:PASS_V12",
+   "recorded_at": "2026-10-12T09:54:57Z"
+  },
+  {
+   "lane": "SMB-REEL-NATIVE-FAULTS",
+   "crate": "hsk-studio-reel-native",
+   "decision": "passed",
+   "verdict": "PASS_V9",
+   "status_change": "PASS_V9",
+   "tests": "reel-native +av1-worker 5/5 and +av1-worker+test-faults 24/24 at 2dde832 (= R20 set, none missing), rebuilt against the changed hsk-studio-reel; default 0 tests; 3 doctest units exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "worker protocol-fault claim (PLR-055) unchanged: crate byte-unchanged since 5606d16; rebuilt against the changed reel; +test-faults 24/24. No claim broken by reading.",
+   "review": "crate: R16 pre-review SAFE stands (V4-18, crate unchanged since 5606d16); dependency diff: validation/R23-prereview-narrow.json lanes[1] SMB-REEL-PTS-TESTS SAFE_TO_JUDGE at 54c60f9 (R23-R1 INFO = PLR-100, R23-R2 INFO); hsk-studio-reel unchanged 54c60f9..2dde832",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: hsk-studio-reel-native unchanged since 5606d16, but its dependency closure (accord, observe, reel) contains hsk-studio-reel, changed by 172952f)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R21",
+   "idempotency_key": "STUDIO-R21:SMB-REEL-NATIVE-FAULTS:2dde8324d111:PASS_V9",
+   "recorded_at": "2026-10-12T09:54:57Z"
+  },
+  {
+   "lane": "SMB-REEL-NATIVE-FAULTS-2",
+   "crate": "hsk-studio-reel-native",
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "tests": "reel-native +av1-worker 5/5 and +av1-worker+test-faults 24/24 at 2dde832 (= R20 set, none missing), rebuilt against the changed hsk-studio-reel; default 0 tests; 3 doctest units exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "claim (PLR-059..061: unknown-tag FRAME and malformed HELLO are protocol faults) unchanged: crate byte-unchanged since 5606d16; rebuilt against the changed reel; +test-faults 24/24. No claim broken by reading.",
+   "review": "crate: R16 pre-review SAFE stands (V4-18, crate unchanged since 5606d16); dependency diff: validation/R23-prereview-narrow.json lanes[1] SMB-REEL-PTS-TESTS SAFE_TO_JUDGE at 54c60f9 (R23-R1 INFO = PLR-100, R23-R2 INFO); hsk-studio-reel unchanged 54c60f9..2dde832",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: hsk-studio-reel-native unchanged since 5606d16, but its dependency closure (accord, observe, reel) contains hsk-studio-reel, changed by 172952f)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R21",
+   "idempotency_key": "STUDIO-R21:SMB-REEL-NATIVE-FAULTS-2:2dde8324d111:PASS_V5",
+   "recorded_at": "2026-10-12T09:54:57Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V15",
+   "status_change": "PASS_V15",
+   "tests": "interop-psd 62/62 default at 2dde832 (R20 61-test set all present; +1 by 0c1be05: the_descriptor_readers_8192_item_cap_is_measured_per_effect_kind_and_stated_in_the_descriptor); doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "importer claim unchanged: 0c1be05 changes no code token (lib.rs:82 one DESCRIPTOR string line whose effect_limits gains an additive clause, prefix and suffix byte-equal; proposal.rs:528-529 doc comment; tests/effects_budget.rs +1 test); parsing, layers, blend, display conversion, raster records and the effect-stack caps unchanged. Every interop-psd test green at 2dde832, none of the R20 set missing. No claim broken by reading.",
+   "review": "validation/R23-prereview-narrow.json lanes[2] SMB-INTEROP-PSD-DESC-CAP SAFE_TO_JUDGE at 54c60f9 (R23-S1/S2 CONFIRMED doc/process = PLR-099; R23-S3 INFO); hsk-studio-interop-psd unchanged 54c60f9..2dde832",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-interop-psd changed 3930a7c..2dde832 by 0c1be05: one DESCRIPTOR string line, a proposal.rs doc comment, tests; no workspace dependant)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R21",
+   "idempotency_key": "STUDIO-R21:SMB-INTEROP-PSD:2dde8324d111:PASS_V15",
+   "recorded_at": "2026-10-12T09:54:57Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-WIDE",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V13",
+   "status_change": "PASS_V13",
+   "tests": "interop-psd 62/62 default at 2dde832 (R20 61-test set all present; +1 by 0c1be05: the_descriptor_readers_8192_item_cap_is_measured_per_effect_kind_and_stated_in_the_descriptor); doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "wide display-conversion claim untouched (no code token changed in the crate); every interop-psd test green at 2dde832. No claim broken by reading.",
+   "review": "validation/R23-prereview-narrow.json lanes[2] SMB-INTEROP-PSD-DESC-CAP SAFE_TO_JUDGE at 54c60f9 (R23-S1/S2 CONFIRMED doc/process = PLR-099; R23-S3 INFO); hsk-studio-interop-psd unchanged 54c60f9..2dde832",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-interop-psd changed 3930a7c..2dde832 by 0c1be05: one DESCRIPTOR string line, a proposal.rs doc comment, tests; no workspace dependant)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R21",
+   "idempotency_key": "STUDIO-R21:SMB-INTEROP-PSD-WIDE:2dde8324d111:PASS_V13",
+   "recorded_at": "2026-10-12T09:54:57Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-ADJ",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V12",
+   "status_change": "PASS_V12",
+   "tests": "interop-psd 62/62 default at 2dde832 (R20 61-test set all present; +1 by 0c1be05: the_descriptor_readers_8192_item_cap_is_measured_per_effect_kind_and_stated_in_the_descriptor); doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "adjustment-layer claim untouched (adjust.rs and the descriptor reader unchanged; no code token changed); every interop-psd test green at 2dde832. No claim broken by reading.",
+   "review": "validation/R23-prereview-narrow.json lanes[2] SMB-INTEROP-PSD-DESC-CAP SAFE_TO_JUDGE at 54c60f9 (R23-S1/S2 CONFIRMED doc/process = PLR-099; R23-S3 INFO); hsk-studio-interop-psd unchanged 54c60f9..2dde832",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-interop-psd changed 3930a7c..2dde832 by 0c1be05: one DESCRIPTOR string line, a proposal.rs doc comment, tests; no workspace dependant)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R21",
+   "idempotency_key": "STUDIO-R21:SMB-INTEROP-PSD-ADJ:2dde8324d111:PASS_V12",
+   "recorded_at": "2026-10-12T09:54:57Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-RECEIPT",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V12",
+   "status_change": "PASS_V12",
+   "tests": "interop-psd 62/62 default at 2dde832 (R20 61-test set all present; +1 by 0c1be05: the_descriptor_readers_8192_item_cap_is_measured_per_effect_kind_and_stated_in_the_descriptor); doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "display receipt claim (prism absolute report, BPC outcome, engine identity carried) untouched (no code token changed); every interop-psd test green at 2dde832. No claim broken by reading.",
+   "review": "validation/R23-prereview-narrow.json lanes[2] SMB-INTEROP-PSD-DESC-CAP SAFE_TO_JUDGE at 54c60f9 (R23-S1/S2 CONFIRMED doc/process = PLR-099; R23-S3 INFO); hsk-studio-interop-psd unchanged 54c60f9..2dde832",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-interop-psd changed 3930a7c..2dde832 by 0c1be05: one DESCRIPTOR string line, a proposal.rs doc comment, tests; no workspace dependant)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R21",
+   "idempotency_key": "STUDIO-R21:SMB-INTEROP-PSD-RECEIPT:2dde8324d111:PASS_V12",
+   "recorded_at": "2026-10-12T09:54:57Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-CLIP-ROLES",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V12",
+   "status_change": "PASS_V12",
+   "tests": "interop-psd 62/62 default at 2dde832 (R20 61-test set all present; +1 by 0c1be05: the_descriptor_readers_8192_item_cap_is_measured_per_effect_kind_and_stated_in_the_descriptor); doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "Blend-If clip-role loss claim untouched (no code token changed); blend_if_on_a_clip_base_or_a_clipped_layer_keeps_the_ranges_and_reports_the_refusal and every other interop-psd test green at 2dde832. No claim broken by reading.",
+   "review": "validation/R23-prereview-narrow.json lanes[2] SMB-INTEROP-PSD-DESC-CAP SAFE_TO_JUDGE at 54c60f9 (R23-S1/S2 CONFIRMED doc/process = PLR-099; R23-S3 INFO); hsk-studio-interop-psd unchanged 54c60f9..2dde832",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-interop-psd changed 3930a7c..2dde832 by 0c1be05: one DESCRIPTOR string line, a proposal.rs doc comment, tests; no workspace dependant)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R21",
+   "idempotency_key": "STUDIO-R21:SMB-INTEROP-PSD-CLIP-ROLES:2dde8324d111:PASS_V12",
+   "recorded_at": "2026-10-12T09:54:57Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-BUDGET",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V10",
+   "status_change": "PASS_V10",
+   "tests": "interop-psd 62/62 default at 2dde832 (R20 61-test set all present; +1 by 0c1be05: the_descriptor_readers_8192_item_cap_is_measured_per_effect_kind_and_stated_in_the_descriptor); doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 2,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "claim (effect stacks beyond the bounds are typed per-layer losses, never a whole-import rejection; each bound cuts only its own category) unchanged: admit, charge, refused, the two-sided tally and the caps 64/4096/1024/512/8192 are byte-unchanged (no code token changed by 0c1be05). The new DESCRIPTOR clause states that a descriptor over the reader's 8192 items is refused whole (descriptor_item_limit, typed loss, stack lost, import continues) - a category-blind parse bound of the kind the lead accepted for the 512-entry list cap (PLR-086 DOC, 06:16:47Z) - and scopes the per-category caps to a descriptor that fits; the R10/R11 budget tests green at 2dde832. No claim broken by reading.",
+   "review": "validation/R23-prereview-narrow.json lanes[2] SMB-INTEROP-PSD-DESC-CAP SAFE_TO_JUDGE at 54c60f9 (R23-S1/S2 CONFIRMED doc/process = PLR-099; R23-S3 INFO); hsk-studio-interop-psd unchanged 54c60f9..2dde832; two-FAIL lane (FAIL_V1 R9, FAIL_V2 R10): V4-13 met by the R23 narrow pre-review of the same diff",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-interop-psd changed 3930a7c..2dde832 by 0c1be05: one DESCRIPTOR string line, a proposal.rs doc comment, tests; no workspace dependant); two-FAIL lane (FAIL_V1 R9, FAIL_V2 R10): V4-13 R23 SAFE_TO_JUDGE for hsk-studio-interop-psd (unchanged since 54c60f9)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R21",
+   "idempotency_key": "STUDIO-R21:SMB-INTEROP-PSD-BUDGET:2dde8324d111:PASS_V10",
+   "recorded_at": "2026-10-12T09:54:57Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-FOLIO-CEILING",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "tests": "interop-psd 62/62 default at 2dde832 (R20 61-test set all present; +1 by 0c1be05: the_descriptor_readers_8192_item_cap_is_measured_per_effect_kind_and_stated_in_the_descriptor); doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "claim (PLR-063: Folio's 1024 ceiling cuts only the switched-off instances of a visible stack with counted instances) unchanged in code; the new DESCRIPTOR clause scopes the ceiling cut to a descriptor that fits 8192 items (1 live + 1024 switched-off instances of 8 or more items each are refused whole with descriptor_item_limit first, pinned two-sided by the new test), the category-blind parse-bound stance of PLR-086 DOC; the R21-S1 all-or-nothing rule (05:49:17Z) is unchanged. Its four tests green with byte-unchanged bodies. No claim broken by reading.",
+   "review": "validation/R23-prereview-narrow.json lanes[2] SMB-INTEROP-PSD-DESC-CAP SAFE_TO_JUDGE at 54c60f9 (R23-S1/S2 CONFIRMED doc/process = PLR-099; R23-S3 INFO); hsk-studio-interop-psd unchanged 54c60f9..2dde832",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-interop-psd changed 3930a7c..2dde832 by 0c1be05: one DESCRIPTOR string line, a proposal.rs doc comment, tests; no workspace dependant)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R21",
+   "idempotency_key": "STUDIO-R21:SMB-INTEROP-PSD-FOLIO-CEILING:2dde8324d111:PASS_V3",
+   "recorded_at": "2026-10-12T09:54:57Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-LOSS-DETAIL",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "tests": "interop-psd 62/62 default at 2dde832 (R20 61-test set all present; +1 by 0c1be05: the_descriptor_readers_8192_item_cap_is_measured_per_effect_kind_and_stated_in_the_descriptor); doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "claim 3930a7c (PLR-089 loss detail: one Transformed entry per stack with dropped=<count>, the dropped instances' notes leave with them; PLR-086 DOC list-cap clause) unchanged in code; 0c1be05 corrects the proposal.rs doc to say the count is of MAPPED switched-off instances (R22-S1, as map_stack counts) and adds the 8192-item clause (R22-S2) without rewording the loss-detail or list-cap clauses (descriptor_states_the_loss_detail_and_the_list_cap_rules green); the four LOSS-DETAIL tests green. PLR-096 (sibling phrases in effects.rs and one DESCRIPTOR clause) registered, not charged. No claim broken by reading.",
+   "review": "validation/R23-prereview-narrow.json lanes[2] SMB-INTEROP-PSD-DESC-CAP SAFE_TO_JUDGE at 54c60f9 (R23-S1/S2 CONFIRMED doc/process = PLR-099; R23-S3 INFO); hsk-studio-interop-psd unchanged 54c60f9..2dde832",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-interop-psd changed 3930a7c..2dde832 by 0c1be05: one DESCRIPTOR string line, a proposal.rs doc comment, tests; no workspace dependant)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R21",
+   "idempotency_key": "STUDIO-R21:SMB-INTEROP-PSD-LOSS-DETAIL:2dde8324d111:PASS_V2",
+   "recorded_at": "2026-10-12T09:54:57Z"
+  },
+  {
+   "lane": "SMB-FX-OPS-ADOPT",
+   "crate": "hsk-studio-composite + hsk-studio-render-cpu + hsk-studio-render-gpu + hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V11",
+   "status_change": "PASS_V11",
+   "tests": "interop-psd 62/62 default at 2dde832 (R20 61-test set all present; +1 by 0c1be05: the_descriptor_readers_8192_item_cap_is_measured_per_effect_kind_and_stated_in_the_descriptor); doctest unit exit 0 (no doctests); composite 28/28, render-cpu 38/38 and render-gpu (information, D20) reused from STUDIO-R16 @5606d16 under CX-VAL-002",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "interop-psd part re-proven here (its FX-OPS typed losses effects_with_blend_if_on_one_layer_... and mask_on_a_pass_through_group_... unchanged and green); composite, render-cpu and render-gpu and their closures (accord, folio, nib, observe, pigment, prism) are byte-unchanged 5606d16..2dde832 and none depends on interop-psd, so their R16 results bind (proof commit 5606d16, candidate 2dde832). No claim broken by reading.",
+   "review": "NOT_REVIEWED as a lane; interop-psd diff: validation/R23-prereview-narrow.json lanes[2] SMB-INTEROP-PSD-DESC-CAP SAFE_TO_JUDGE at 54c60f9 (R23-S1/S2 CONFIRMED doc/process = PLR-099; R23-S3 INFO); hsk-studio-interop-psd unchanged 54c60f9..2dde832",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-interop-psd changed 3930a7c..2dde832 by 0c1be05: one DESCRIPTOR string line, a proposal.rs doc comment, tests; no workspace dependant)",
+   "proof_reuse": "CX-VAL-002: composite, render-cpu, render-gpu parts = STUDIO-R16 union run @5606d16 (results/R16); proof commit 5606d16, candidate 2dde832",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R21",
+   "idempotency_key": "STUDIO-R21:SMB-FX-OPS-ADOPT:2dde8324d111:PASS_V11",
+   "recorded_at": "2026-10-12T09:54:57Z"
+  }
+ ],
+ "infrastructure": [
+  "No infrastructure failure: step 0 clean, all 11 units built and ran, no fixture selected, disk lock @2 waited 1 s, no stale breaks",
+  "Exit 0: the union selection has no NOT_PROVEN test; round.json complete true, absent [] timed_out []",
+  "Gated-word hook: one command blocked before running, not a build or test: a CIM process listing whose name filter named the test runner (resolved the kernel's own gameplan from the kernel cwd; its unrelated steps GP-016..GP-031 were NOT confirmed); re-run without the word (V4-09, D3). One confirm batch refused by the tool for a note over 120 chars; re-issued with shorter notes",
+  "An idle sccache server (pid 378796) was present and not started by this session (left running)",
+  "Gameplan confirmations written beside the kernel gameplan (.GOV/task_packets/WP-KERNEL-STUDIO/STUDIO-MODULE-ROUND.confirmations.yaml, git-excluded), not committed",
+  "Known Operator item unchanged: repo-local wt-studio-assets/handshake-studio-assets/target (3.8 GB, newest 2026-10-11T10:21:51Z) reported by the lock audit, not written by this round; red-proof and pre-review scratch trees (START_LOG 06:32:00Z, 09:27:17Z) untouched",
+  "Edit tree holds uncommitted edits outside the judged crates (Cargo.lock, 9 hsk-studio-score files); the round built the committed export only",
+  "No git write in the edit tree (origin tip read with git ls-remote; no fetch); kernel files committed and pushed with tools/lead-kernel-push.sh (lead dispatch)",
+  "Round outputs not cleaned (studio-round/target kept warm at the same stable path; deletion is the lead call)",
+  "No outbound request other than git ls-remote/fetch/push to the project remotes (V4-21); no personal data in any request"
+ ],
+ "by": "wp_validator STUDIO-R21 (Opus, fresh context, not implementer)"
+}
