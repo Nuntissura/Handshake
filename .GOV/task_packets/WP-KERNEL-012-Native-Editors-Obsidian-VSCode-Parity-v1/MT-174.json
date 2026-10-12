@@ -1,5 +1,40 @@
 {
 
+  "round40_independent_catalog_measurement_assignment_20261012": {
+    "id": "WP012-P2-MT139-INDEPENDENT-CATALOG-MEASUREMENT-20261012",
+    "assigned_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
+    "operator_authority": "Live operator: all approved deploy, commit and push; finish without me",
+    "executor_thread": "01a129ca-8eea-7f53-aa9d-7f81f6f08319",
+    "executor_role": "INTEGRATION_VALIDATOR",
+    "workflow": "KERNEL_BUILDER_FOLDED_NO_ACP / DIRECT_REVIEW_V1",
+    "scope": "Bounded independent diagnostic catalog observation only; no product writes, acceptance verdict or MT completion",
+    "candidate": "880dda6d7fea02e230598d4c6215545ec35510fd",
+    "core_proof_ref": "MT-174.json#/round40_actual_core_20261012",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--manifest-path",
+      "src/backend/handshake_core/Cargo.toml",
+      "--features",
+      "app-runtime,surreal-test-support,test-utils",
+      "-j",
+      "1",
+      "--lib",
+      "storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog",
+      "--",
+      "--exact",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "resource_allocation": "Explicit sequential reuse of existing MT174 Delivery target; same pinned toolchain/profile and 180000000000 byte cap under existing WP012 grant; Delivery releases sole execution ownership to assigned Review thread for this observation",
+    "release_conditions": "Root pushed checkpoint; fresh actual role-scoped numeric gameplan/resources; unchanged original source/assertions; actual stdout/stderr/numeric exit and post-binding",
+    "outputs": "Actual BASE and FINAL printed SHA256, inventory/source fields, executed test count and original assertion outcome",
+    "next": "Measured pin reconciliation plus original registry external-input seam; independent fresh/reopen proof still mandatory",
+    "status": "ASSIGNED_PENDING_RELEASE"
+  }
+,
+
   "round40_actual_core_20261012": {
     "id": "WP012-P2-ROUND40-ACTUAL-CORE-20261012",
     "at_utc": "2026-10-12T10:58:51.715503+00:00",
