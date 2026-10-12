@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-12T07:55:28Z",
+ "updated_at": "2026-10-12T08:16:32Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -2537,7 +2537,7 @@
     "builders/lanes/hsk-studio-press-struct-failclosed.json"
    ],
    "launched": "2026-10-12T07:55:28Z",
-   "status": "running"
+   "status": "done 2026-10-12T08:16:32Z (SMB-PRESS-STRUCT-FAILCLOSED READY at 54c60f9)"
   }
  ]
 }
