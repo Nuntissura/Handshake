@@ -1,0 +1,95 @@
+{
+ "crate": "hsk-studio-reel",
+ "lane": "SMB-REEL-PTS-TESTS",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "SMB-REEL-PTS-TESTS (new lane id, V4-15; PLR-092 / R22-R1 of validation/R22-prereview-narrow.json) complete on 172952f, base 3930a7c (the only commit that touched crates/hsk-studio-reel after 3930a7c is 172952f, verified by git log 3930a7c..origin/codex/handshake-studio-assets -- crates/hsk-studio-reel): (1) a fake decoder that holds every picture until finish() now drives the Partial span table, the fully delivered receipt and the out-of-order table; (2) the refusal for a negative pts on a delivered picture is UNREACHABLE through any container (proof in notes.reachability, premise pinned by a route test) and picture_span keeps one sign check with the same i64 bound, pinned by a unit test",
+ "commits": [
+  {
+   "sha": "172952f",
+   "subject": "reel (SMB-REEL-PTS-TESTS, PLR-092, R22-R1): video receipts are tested for a decoder that holds pictures until finish; the negative-pts refusal is shown unreachable through a container and picture_span keeps one sign check"
+  }
+ ],
+ "capabilities_done": [
+  "PLR-092 part 1, tests/video_route.rs: Fake::holding() makes the fake session hold the tag of every packet whose picture the plan does not drop and release the pictures inside finish() in packet order (Seen.released_at_finish records the release; the default fake and every other test are unchanged); fake_registry(plan, hold) and assert_release_timing(...) are the two helpers",
+  "PLR-092 part 1, three new tests that run the EXISTING tables with the holding decoder: partial_video_receipt_spans_the_pictures_a_decoder_holds_until_finish (the 9-row mp4 and mkv table: Partial receipt spans the delivered pictures, empty span at the packet start when none), partial_video_receipt_follows_out_of_order_pictures_held_until_finish (the B-frame table, 5 rows), fully_delivered_video_receipt_with_pictures_held_until_finish_is_the_packet_receipt (whole clip, export, pre-roll ranges, repeating edit list: actual, requested, disposition equal the packet receipt, units included); the original three tests keep their names and assertions and call the same body with hold = false",
+  "PLR-092 part 2, reachability: the refusal is provably unreachable through ISOBMFF and Matroska (notes.reachability); a_negative_presentation_time_never_reaches_a_delivered_picture builds the closest input (ctts v1, no edit list, three samples presenting at -10, 10, 30 units) and pins the premise: a range whose first entry is negative is refused by the packet loop before any decoder send (Decoded and Packets output), a range from the second entry delivers only pts >= 0 (rows: Works Preview, Works Export, Works last entry, DropPicture of the first requested picture; plain and holding decoder) and the negative pre-roll sample reaches the decoder only",
+  "PLR-092 part 2, src/video.rs picture_span: the dead second sign check (the end of a non-negative start cannot be negative) is removed; the start is converted once with the typed refusal (Unsupported negative-presentation-time), the end is start.checked_add(duration) filtered to the i64 bound the packet loop uses (LimitExceeded tick-range); the unit test picture_span_is_checked_and_typed (new #[cfg(test)] module in video.rs, passes on the OLD code and on the new code) pins every refusal and the bound",
+  "src/lib.rs DESCRIPTOR export.rule sentence and export.tests cite the three new tests (V4-07: the sentence now says whether the decoder releases as it goes or holds until it finishes, and the three tests prove it)"
+ ],
+ "tests": {
+  "argv": "studio-env.sh (shared tree, default STUDIO_OWNER), launched in the background with a leading cd: cargo fmt -p hsk-studio-reel -- --check; cargo clippy -p hsk-studio-reel --tests (default) and --features av1: no warning in hsk-studio-reel (the 2 pre-existing too_many_arguments warnings are in hsk-studio-observe/src/lib.rs); cargo nextest run -p hsk-studio-reel --test video_route --lib --no-fail-fast (23 passed); cargo nextest run -p hsk-studio-reel --no-fail-fast (default: 78 passed); cargo nextest run -p hsk-studio-reel --features av1 --no-fail-fast (85 passed); cargo test --doc -p hsk-studio-reel (2 doctests: 1 pass + 1 compile_fail)",
+  "exit": 0,
+  "sha": "172952f",
+  "passed": 85,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 26,
+ "bg_pids": [],
+ "next": "Validator round on 172952f (default and --features av1; doctests). Claim = 172952f on base 3930a7c: 3 files (src/video.rs +64 -13, of which about 45 added lines are the new unit-test module; tests/video_route.rs +238 -15; src/lib.rs DESCRIPTOR 1 line). Production code touched: only the fn picture_span. Residuals for the lead: R1-R3 in notes.residuals.",
+ "updated_at": "2026-10-12T07:44:03Z",
+ "notes": {
+  "base": "3930a7c (origin/codex/handshake-studio-assets at start); git diff 3930a7c..172952f -- crates/hsk-studio-reel is exactly src/lib.rs, src/video.rs, tests/video_route.rs (303 insertions, 29 deletions)",
+  "source": "validation/R22-prereview-narrow.json R22-R1 (INFO, registered PLR-092): prove the bound with a test or drop the start refusal; add a finish()-holding fake plan",
+  "reachability": {
+   "result": "UNREACHABLE through ISOBMFF and Matroska (both feed Forward only through deliver_packets with a TrackIndex: isobmff.rs:1886 and :1926, matroska.rs:1528 and :1588). By reading, in this order: (1) every picture Forward::accept hands to the sink is a non-preroll chunk (video.rs:350 returns before picture_span at :391 for pre-roll); (2) a non-preroll chunk carries slots[slot], the pts of the FIRST presented entry of that media sample inside `wanted` (isobmff.rs:2081-2085 and :2111-2112); pre-roll chunks (:2113-2117) are the only chunks that get another pts; (3) `wanted` is a contiguous slice of track.presented (requested_range :1979-2000) and track.presented is non-decreasing in pts: build_presentation :1418-1490 walks the samples of each edit in pts order (order.sort_by_key :1430, pts_in_edit :377-389 is non-decreasing because media_to_ticks rounds NearestHalfUp, time.rs:8-10), the first entry of an edit that starts inside a sample is clamped to the edit start (:1455-1461), later edits start at or after the end of the previous edit (build_edits :1354-1409, start only grows by non-negative durations, entries past an edit's end are cut at :1467-1471), so every non-first entry of `wanted` has pts >= wanted[0].pts; (4) the only source of a negative presented pts is a track WITHOUT an edit list (build_edits :1320-1336: presentation_start = ticks(min(first sample pts, 0)); with an edit list presentation_start starts at 0 and only grows), and there the negative entries come first in presentation order; (5) deliver_packets refuses wanted[0].pts < 0 at isobmff.rs:2087 (to_ticks, :1730-1736) BEFORE its first read and sink call (:2107-2130), so a delivered pts is >= wanted[0].pts >= 0; (6) the end is pts + duration with duration unsigned, so it is >= pts >= 0. Therefore u64::try_from(pts) cannot fail for a delivered picture and neither could the removed u64::try_from(end).",
+   "pinned_by": "a_negative_presentation_time_never_reaches_a_delivered_picture (route level: the index presents -10, 10, 30 units; (0,3) is refused with Unsupported negative-presentation-time in Decoded and Packets output, the fake decoder was sent nothing and finished 0 times, no chunk reached the sink; ranges from entry 1 or 2 deliver pts >= 0 only and the negative pre-roll sample reaches the decoder only) and, if the packet-loop refusal is removed, its red proof M5 (notes.red_proofs)",
+   "not_proven": "a route-level test that reaches the refusal inside picture_span cannot be built from a container (that is the proof above); the refusal is therefore exercised only by the unit test picture_span_is_checked_and_typed. With the packet-loop check removed (mutant M5) the route would feed the decoder and the sink before picture_span refuses: the sign check stays as the second line of defense, not as a reachable error"
+  },
+  "behaviour_delta": "picture_span: same refusals, same variants, same i64 bound on the end; one difference on input no container produces: a start that is negative AND an end past the bound is now reported as negative-presentation-time (the start is checked first), before as tick-range. The removed u64::try_from(end) could not fail once the start converted. The unit test picture_span_is_checked_and_typed was written first and passed on the OLD picture_span (unit-old-code.log: 7/7 lib tests), and passes on the new one (78/78 default, 85/85 av1); none of its rows relies on the order of the two refusals",
+  "decisions": [
+   "D1 hold is a flag of the fake (Fake::holding), not a new Plan variant: the same drop plans (DropPicture, DropFrom, Works) combine with it, so the three existing tables run unchanged with hold = true and must give the same receipts; a dropped picture is never held, so a drop in the middle is still the packets-order drain of Forward::accept (existing behaviour)",
+   "D2 the held pictures are released in packet (tag) order at finish: releasing in another order would trigger the existing residual R1 of SMB-REEL-PARTIAL-PTS-2 (a later tag drains earlier pending packets) and is not part of this lane",
+   "D3 picture_span keeps the i64 bound (not u64): the packet loop's chunk_end check (isobmff.rs:2141-2144) is i64; a looser bound here would move a refusal to the packet loop, which gives the same final error but changes where it surfaces; parity avoids the argument",
+   "D4 the boundary test uses the crate's mp4_bytes/Mp4Spec through a small av01_spec(offsets, edits: Option) helper (av01_clip now calls it): no new fixture file, no second fake decoder, no machine path (V4-03)",
+   "D5 the real in-process decoder (src/av1/mod.rs InProcessSession::finish) drains pictures inside finish after rav1d's finish, so releasing at finish is a real path of the product, not only a fake"
+  ],
+  "residuals": [
+   "R1 the red-proof scratch tree Handshake_Artifacts/WP-KERNEL-STUDIO/smb-reel-pts-tests-redproof (own STUDIO_OWNER and target; src = git archive of 3930a7c plus the three lane files; its src/handshake-studio-assets crate files hold the pristine lane files after the last run, pristine-isobmff.rs beside it) is left for the lead to remove; the older smb-reel-partial-pts-2-redproof tree was not touched",
+   "R2 a decoder that releases a picture with a later TAG before earlier ones still drains the earlier pending packets in Forward::accept (residual R1 of SMB-REEL-PARTIAL-PTS-2, unchanged, not exercised by the held tests which release in tag order)",
+   "R3 Export is not asserted for a held decoder with a dropped picture (Incomplete): the held tests cover Export only for the complete decode (fully_delivered ... held ... rows); export_refuses_partial_video_decode still covers the synchronous drop"
+  ],
+  "red_proofs": {
+   "tree": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-reel-pts-tests-redproof (own STUDIO_OWNER smb-reel-pts-tests-redproof, own target; src = git archive of 3930a7c; the three lane files copied with cp (no -p) then touched; video.rs, isobmff.rs and lib.rs restored from pristine copies and touched before every run, V4-11; no file of the shared tree was reverted, restored or mutated). Logs in scratchpad SMB-REEL-PTS-TESTS/ (redproof-*.log, redproof-all.log), helper pts-tests-mutant.py",
+   "control_pristine": "committed files: cargo nextest run -p hsk-studio-reel --test video_route --lib: 23 passed (twice, first and after all mutants)",
+   "M1_span_before_finish": "mutant: the Partial branch reads the span taken BEFORE session.finish(): 23 tests, 19 passed, 4 FAILED, exit 100: partial_video_receipt_spans_the_pictures_a_decoder_holds_until_finish (left 0 = the packet start, right 21168000000 = the first delivered picture), partial_video_receipt_follows_out_of_order_pictures_held_until_finish, fully_delivered_video_receipt_with_pictures_held_until_finish_is_the_packet_receipt, a_negative_presentation_time_never_reaches_a_delivered_picture; every synchronous test passed, so the old suite could not see this class",
+   "M2_units_before_finish": "mutant: actual.units and the shortfall test read the delivered count before finish(): 4 FAILED, exit 100: the same three held tests and a_negative_presentation_time_never_reaches_a_delivered_picture (a held complete decode became Partial); the synchronous tests passed",
+   "M3_negative_start_accepted": "mutant: picture_span start = pts.unsigned_abs(): 1 FAILED, exit 100: picture_span_is_checked_and_typed (left Ok((1, 1)), right the negative-presentation-time refusal for pts -1)",
+   "M4_end_bound_dropped": "mutant: the i64 filter on the end removed: 1 FAILED, exit 100: picture_span_is_checked_and_typed (left Ok((1, 9223372036854775808)), right the tick-range refusal)",
+   "M5_negative_first_pts_clamped": "mutant (isobmff.rs): start_actual = Ticks::new(u64::try_from(wanted[0].pts).unwrap_or(0)), i.e. the packet loop no longer refuses a negative first entry: 1 FAILED, exit 100: a_negative_presentation_time_never_reaches_a_delivered_picture (the Packets-mode request (0,3) returned Ok instead of the refusal): the test pins the premise of the unreachability proof",
+   "green": "shared tree at 172952f: focused 23/23, default 78/78, --features av1 85/85, doctests 2"
+  },
+  "v4_06": {
+   "class": "a decode path of the video route that no test drives, or a refusal on input no container can produce (decoder timing: pictures released inside finish; negative presentation time on a delivered picture)",
+   "regex": "impl VideoDecodeSession for|negative-presentation-time   (grep -rnE over crates/hsk-studio-reel, *.rs)",
+   "count": "8 matching lines: 2 fixed (FakeSession, picture_span), 6 not applicable, all 8 listed in sites",
+   "sites": [
+    {"site": "tests/video_route.rs:150 impl VideoDecodeSession for FakeSession", "status": "FIXED: the session can hold pictures until finish (Fake::holding) and three tests drive it"},
+    {"site": "tests/v4_alloc_budget.rs:298 impl VideoDecodeSession for OnePictureSession", "status": "not applicable: measures the largest allocation of a refused picture; finish() returns Ok(()) and no receipt span is asserted"},
+    {"site": "tests/review_r5_regressions.rs:74 impl VideoDecodeSession for LyingSession", "status": "not applicable: a decoder that lies about tags/format (protocol fault); finish() returns Ok(()) and no receipt span is asserted"},
+    {"site": "src/av1/mod.rs:218 impl VideoDecodeSession for InProcessSession", "status": "not applicable: the real decoder; its finish() drains pictures (D5) and tests/av1_decode.rs runs complete decodes (85/85 with --features av1); a Partial real decode is not a case the fake route table needs"},
+    {"site": "src/isobmff.rs:1734 negative-presentation-time (to_ticks)", "status": "not applicable: the reachable refusal (a negative first requested entry, deliver_packets :2087); now pinned at the route by a_negative_presentation_time_never_reaches_a_delivered_picture"},
+    {"site": "src/video.rs:296 negative-presentation-time (picture_span)", "status": "FIXED: shown unreachable through a container (notes.reachability), reduced to one sign check, pinned by the unit test"},
+    {"site": "src/video.rs:583 negative-presentation-time (unit test negative())", "status": "not applicable: test code, the expected error of the unit test"},
+    {"site": "tests/video_route.rs:1603 negative-presentation-time (route test)", "status": "not applicable: test code, the expected error of the route test"}
+   ]
+  },
+  "v4_compliance": {
+   "V4-01": "video.rs keeps #![deny(clippy::arithmetic_side_effects)]; picture_span uses u64::try_from, checked_add and a try_from filter with typed errors; the new unit-test module uses no arithmetic (literals and constants only); clippy clean in both feature sets",
+   "V4-02": "no allocation, no loop and no size input added to product code; the fake holds at most one u64 per packet in a test",
+   "V4-03": "no machine path (fixtures by include_bytes and the synthetic mp4_bytes builder); no NOT_PROVEN prints; no ignored test",
+   "V4-04": "no fault hook added; the holding flag lives in the test file",
+   "V4-05": "no frozen-duplicate fingerprint touched",
+   "V4-06": "see v4_06: class, regex, 8 lines, 2 fixed (FakeSession, picture_span), 6 not applicable, all listed",
+   "V4-07": "the DESCRIPTOR sentence cites the three new tests besides the four old ones, all exist as fn (video_route.rs); the new text holds none of never/always/guarantee/prove; the picture_span doc comment says 'No container hands a negative start...' and cites the two tests that back it",
+   "V4-09": "commit via git commit -F <file> with the pathspec crates/hsk-studio-reel; no amend, no rebase; text written with the Write and Edit tools; the DESCRIPTOR change by a small python helper under the lane scratch folder",
+   "V4-11": "red proofs and mutants only on the scratch tree with its own STUDIO_OWNER; every restored or edited scratch file was touched before the build; no file of the shared tree was reverted or restored",
+   "V4-12": "helper files and logs under scratchpad/SMB-REEL-PTS-TESTS/ with lane-specific names (pts-tests-descriptor.py, pts-tests-mutant.py, commit-1.txt, *.log); no script of another lane was run",
+   "V4-14": "nothing is pushed to crates/hsk-studio-reel after the READY commit 172952f",
+   "V4-15": "new lane id; the AV1-ROUTE and PARTIAL-PTS-2 lanes were not stacked on",
+   "V4-21": "no outbound request was made in this lane (git push to the product remote only)"
+  },
+  "gameplan_route": "no retry-guard hit and no gameplan step added. One launch-form slip: the first full-crate command began with `date -u ...;` before the leading cd, so the hook resolved a non-Studio gameplan and blocked it (GP-016.. GP-031 of other assignments, unconfirmed); I confirmed none of them and relaunched with a leading cd to the product workspace (the launch-form cause already recorded in the SMB-REEL-RECEIPTS and SMB-REEL-PARTIAL-PTS-2 lanes), which passed the Studio gameplan. All nextest runs were launched with run_in_background; the five mutant runs exited 100 by design on the scratch tree with its own owner, each on a different source state (product reds, not an infrastructure cause)",
+  "trust_routing_untouched": "git diff 3930a7c..172952f -- crates/hsk-studio-reel lists exactly src/lib.rs, src/video.rs, tests/video_route.rs; in video.rs only picture_span changed above the new #[cfg(test)] module: choose(), VideoRoute, Chosen, SourceTrust, VideoTrack, Forward, the Partial branch and every pre-existing error path are unchanged"
+ }
+}

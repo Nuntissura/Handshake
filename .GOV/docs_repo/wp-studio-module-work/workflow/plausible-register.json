@@ -1585,7 +1585,7 @@
    "status": "OPEN",
    "verified_at": "2fb17a8",
    "disposition": "TEST",
-   "disposition_note": "next reel lane: add a finish()-holding fake plan; prove or remove the unreachable refusal"
+   "disposition_note": "next reel lane: add a finish()-holding fake plan; prove or remove the unreachable refusal; 2026-10-12T07:44:52Z fix submitted SMB-REEL-PTS-TESTS 172952f"
   },
   {
    "id": "PLR-093",
@@ -1676,6 +1676,13 @@
    "at": "2026-10-12T06:16:47Z",
    "item": "two-FAIL dependant lanes: dispatches must list every lane with 2 failed verdicts that a CX-VAL-009 reopen pulls in through a dependency (R19: SMB-REEL-NATIVE-AV1-WORKER reopened via reel was not named; V4-13 held via V4-18 + R21)",
    "owner": "lead"
+  },
+  {
+   "id": "PROC-CD-FIRST",
+   "at": "2026-10-12T07:44:52Z",
+   "item": "builders repeatedly start gated commands with `date`/variable assignments before the `cd`, so the gameplan hook resolves the kernel-root (WP-KERNEL-012) gameplan and blocks; DISPATCH_TEMPLATES builder CARGO section now says the leading `cd` must be the first token",
+   "owner": "lead",
+   "status": "applied"
   }
  ],
  "closed_since_review": [

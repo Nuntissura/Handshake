@@ -246,3 +246,4 @@
 {"t": "2026-10-12T07:05:49Z", "event": "R20 opened at 3930a7c: canary C25 exit 73 59/59; validator-r20 launched (opus); weekly 96%", "progress": "no direct progress (dispatch)"}
 {"t": "2026-10-12T07:26:27Z", "event": "R20 COMPLETE at 3930a7c: 24 PASS 0 FAIL; PLR-085..090 closed; PLR-094 lead decision fail closed; weekly 96%", "progress": "validator verdicts advanced (24 PASS)"}
 {"t": "2026-10-12T07:27:45Z", "event": "dispatched 3 Sonnet builders: SMB-PRESS-STRUCT-FAILCLOSED, SMB-INTEROP-PSD-DESC-CAP, SMB-REEL-PTS-TESTS; weekly 96%", "progress": "no direct progress (dispatch)"}
+{"t": "2026-10-12T07:44:52Z", "event": "SMB-REEL-PTS-TESTS READY_FOR_VALIDATION 172952f (builder-reel-pts-tests)", "lanes_moved": ["SMB-REEL-PTS-TESTS READY"], "commits": ["172952f"], "progress": "direct: product commit"}

@@ -19,6 +19,7 @@ RULES: Only depend on crates allowed for your crate (WORKSPACE_RULES). Do not ed
 CARGO (exact form so the gameplan hook resolves the Studio gameplan):
 `cd "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-assets/handshake-studio-assets" && source "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/docs_repo/wp-studio-module-work/builders/studio-env.sh" && cargo <check|clippy|test> -p hsk-studio-{crate} --tests`
 (Operator rule: never build/test/check on C:; the env file puts target and TMP/TEMP under Handshake_Artifacts on D:.)
+The leading `cd` must be the FIRST token of every gated command (no `date`, variable assignment or `NOW=$(...)` before it): otherwise the gameplan hook resolves the kernel-root gameplan of another WP and blocks (PROC-CD-FIRST, 2026-10-12T07:44:52Z).
 TESTS (since 2026-10-11T07:53:55Z): studio-env.sh wraps cargo in a disk-wide build lock (CX-984-002) and REFUSES plain `cargo test` (no per-test timeout); run tests with `cargo nextest run -p hsk-studio-{crate}` (same --features/--test args; `-- --nocapture` becomes `--no-capture`) and doctests with `cargo test --doc -p hsk-studio-{crate}`. Builds may wait for the lock (validator rounds have priority): run long commands in the background. Scratch/red-proof trees set their own STUDIO_OWNER (tree-binding guard refuses a shared target).
 Over ~2 min: run_in_background and poll. Cargo build-dir lock waits are normal (shared warm target). No outer timeout wrappers. Never bypass the gameplan hook; if it blocks, fix the failing step.
 

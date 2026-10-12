@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-12T07:27:45Z",
+ "updated_at": "2026-10-12T07:44:52Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -2525,7 +2525,7 @@
     "builders/lanes/hsk-studio-reel-pts-tests.json"
    ],
    "launched": "2026-10-12T07:27:45Z",
-   "status": "running"
+   "status": "done 2026-10-12T07:44:52Z (SMB-REEL-PTS-TESTS READY at 172952f)"
   }
  ]
 }
