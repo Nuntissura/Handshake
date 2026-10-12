@@ -1759,13 +1759,59 @@
    "finding": "residual: a dictionary with /S plus a struct text key but no /P and no /Type is not read as a structure element (pinned by a test row); its text survives unreported when nothing else marks the save",
    "first_seen": "builder report 1da2453",
    "seen_in": [
-    "builder report 1da2453"
+    "builder report 1da2453",
+    "R25-P2 PLAUSIBLE (no producer omitting /P found; /P required per third-party reference, ISO text not read)"
    ],
    "rounds_carried": 0,
    "status": "OPEN",
    "verified_at": "1da2453",
    "disposition": "FIX_LANE",
    "disposition_note": "pre-review R25 assesses; decide with D28"
+  },
+  {
+   "id": "PLR-104",
+   "lane": "SMB-PRESS",
+   "file_line": "crates/hsk-studio-press/src/flatten_purge.rs:53-56 (marked-content /Properties)",
+   "finding": "PRE-EXISTING, inside the proven (untagged) claim: a marked-content /Alt or /ActualText of the flattened page survives in shared or inherited /Properties resources and the save still reads proven (R25-P7)",
+   "first_seen": "R25-prereview-narrow",
+   "seen_in": [
+    "R25-prereview-narrow"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "1da2453",
+   "disposition": "FIX_LANE",
+   "disposition_note": "PRIORITY next press lane: reproduce; purge or fail closed (lead stance: fail closed if purge is not exact)"
+  },
+  {
+   "id": "PLR-105",
+   "lane": "SMB-PRESS-STRUCT-ORPHANS",
+   "file_line": "crates/hsk-studio-press/src/pdf_edit.rs:190-201; flatten_purge.rs:1130-1136, :1202; writer.rs:200-202",
+   "finding": "fail-closed gaps outside the claim: /S or /Type behind 15+ aliases not counted for shape; malformed object streams (no /Type, /N too small, bytes before /First, /N 0) not counted; element dict in trailer /ID copied and not scanned (R25-P3/P4/P5)",
+   "first_seen": "R25-prereview-narrow",
+   "seen_in": [
+    "R25-prereview-narrow"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "1da2453",
+   "disposition": "FIX_LANE",
+   "disposition_note": "fold into the PLR-104 press lane: count unreadable/over-chain cases (fail closed)"
+  },
+  {
+   "id": "PLR-106",
+   "lane": "SMB-INTEROP-PSD-DOCS",
+   "file_line": "crates/hsk-studio-interop-psd/src/proposal.rs:531-532",
+   "finding": "doc wording note (R25-S2)",
+   "first_seen": "R25-prereview-narrow",
+   "seen_in": [
+    "R25-prereview-narrow"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "1da2453",
+   "disposition": "DOC",
+   "disposition_note": "next interop-psd touch"
   }
  ],
  "process_items": [
