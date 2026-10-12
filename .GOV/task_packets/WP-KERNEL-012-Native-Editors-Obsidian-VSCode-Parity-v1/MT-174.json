@@ -1,4 +1,251 @@
 {
+  "round48_test_only_predecessor_diagnostic_release_20261012": {
+    "id": "WP012-P2-ROUND48-DIAGNOSTIC-RELEASE-20261012",
+    "status": "SOURCE_CLEAR_PUSHED_PRIMARY_DIAGNOSTIC_PENDING",
+    "product_commit": "b87ebc063c7b9d684d6027339bad45f1e6f7d3a7",
+    "product_tree": "02f62c526764c98226772c0be51370a39a3f64fd",
+    "source_review": {
+      "thread": "01a129ca-8eea-7f53-aa9d-7f81f6f08319",
+      "verdict": "SOURCE_CLEAR",
+      "binding_sha256": "00d1a3cb16ecabb1d2d4916c3640ef7ea77a8a1cc8891b2c08b8997c354bd1b3",
+      "diff_sha256": "8f61acf75eea32ec1e5a844e642e9da1210145644597f7c29dbd6fbbab78cc47",
+      "surreal_rs_after": "a9101cc6b224cfa092ac088d3d70dd32e5fff491466e02a42a721f5fc16f8e1e"
+    },
+    "scope": "cfg(test) indexed errors in existing admin query helpers; original first error, SQL/bindings and non-test expressions preserved; no underlying SQL correction guessed",
+    "selected_proof": "Original exact mt139_exact_predecessor_upgrade_preserves_data_and_restarts_current; unchanged assertions/profile/toolchain/owned warm target/j1/cap",
+    "prior_two_focused_proofs": "Retained Round47 catalog and production disk fresh/reopen; no automatic repeat for equivalent cfgtest diagnostic",
+    "cause": "Round47 actual101 NotExecuted masked primary transaction failure",
+    "admission": "Fresh currentHEAD selected/shared confirmations, numeric gameplan/resources, frozen reviewed pushed source/authority/config and full pre/post bindings",
+    "broad_core": "Required after focused failure removed",
+    "failed_core_launches_retained": 38,
+    "native_acceptance": "NOT_EVALUATED"
+  },
+  "round47_independent_focused_actual_results_20261012": {
+    "id": "WP012-P2-ROUND47-ACTUAL-20261012",
+    "status": "CATALOG_AND_PRODUCTION_REOPEN_GREEN_PREDECESSOR_UPGRADE_FAILED",
+    "product_commit": "64cbf0b022c1cdeb981583bfb29a387e9251c441",
+    "product_tree": "62480b61fe3c0cffd42776c992a1e385c803b4e7",
+    "proofs": [
+      {
+        "artifact_root": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round47-mt139-catalog-measurement",
+        "actual": {
+          "attempt_id": "0a30d1d66d6043cdb6fc932f866df45a",
+          "started_utc": "2026-10-12T15:07:30.4711906Z",
+          "status": "TEST_PASSED",
+          "exit_code": 0,
+          "runtime_acceptance": "NOT_EVALUATED",
+          "cap_bytes": 180000000000,
+          "gameplan_exit": 0,
+          "resources": {
+            "utc": "2026-10-12T15:07:56.4636549Z",
+            "available_mb": 5529,
+            "commit_reserve": 44866142208,
+            "pages_input": 455,
+            "page_reads": 100,
+            "free_bytes": 389132869632
+          },
+          "target_bytes_before": 30396256416.0,
+          "max_target_bytes": 31694715314,
+          "argv": [
+            "test",
+            "--locked",
+            "--manifest-path",
+            "src/backend/handshake_core/Cargo.toml",
+            "--features",
+            "app-runtime,surreal-test-support,test-utils",
+            "-j",
+            "1",
+            "--lib",
+            "storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog",
+            "--",
+            "--exact",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "cargo_pid": 30004,
+          "cargo_identity": {
+            "ProcessId": 30004,
+            "CreationDate": "2026-10-12T17:07:58.635004+02:00",
+            "CommandLine": "\"C:\\Users\\iljas\\.cargo\\bin\\cargo.exe\" test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils -j 1 --lib storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog -- --exact --nocapture --test-threads=1",
+            "ExecutablePath": "C:\\Users\\iljas\\.cargo\\bin\\cargo.exe"
+          },
+          "post_binding_exit": 0,
+          "inputs_unchanged": true,
+          "stdout_sha256": "688e76b1bea6190ccadcbc05124aa8b19db05ba3e49b11eaef482880521e0810",
+          "stderr_sha256": "82fd070fed2b10da126a9352e5149ad361d5d9930f72e24e7282d673f1602955",
+          "completed_utc": "2026-10-12T15:16:23.3320254Z"
+        },
+        "post_binding": {
+          "matched": true,
+          "binding_equal": {
+            "head": true,
+            "tree": true,
+            "status": true,
+            "files": true,
+            "authority": true,
+            "profile_sha256": true,
+            "toolchain": true,
+            "launcher_sha256": true,
+            "external_inputs": true
+          },
+          "files": 7416
+        },
+        "artifact_sha256": {
+          "measurement-result.json": "f96b9c4508d8f56f19a3e8074c2cdaf260e76f4200d576321cd8cc6318f7c19a",
+          "post-binding.json": "9fd1f0edf84de597d3e3539b2e2e05928124e0ababc2fde42ac5ddac59f1fb69",
+          "test.stdout.log": "688e76b1bea6190ccadcbc05124aa8b19db05ba3e49b11eaef482880521e0810",
+          "test.stderr.log": "82fd070fed2b10da126a9352e5149ad361d5d9930f72e24e7282d673f1602955"
+        }
+      },
+      {
+        "artifact_root": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round47-production-fresh-reopen",
+        "actual": {
+          "attempt_id": "8adb395eada944e982b6eb1798374b5e",
+          "started_utc": "2026-10-12T15:19:13.1709882Z",
+          "status": "TEST_PASSED",
+          "exit_code": 0,
+          "runtime_acceptance": "NOT_EVALUATED",
+          "cap_bytes": 180000000000,
+          "gameplan_exit": 0,
+          "resources": {
+            "utc": "2026-10-12T15:19:39.1255239Z",
+            "available_mb": 6540,
+            "commit_reserve": 45429805056,
+            "pages_input": 83,
+            "page_reads": 19,
+            "free_bytes": 389105639424
+          },
+          "target_bytes_before": 30396276384.0,
+          "max_target_bytes": 30396276384,
+          "argv": [
+            "test",
+            "--locked",
+            "--manifest-path",
+            "src/backend/handshake_core/Cargo.toml",
+            "--features",
+            "app-runtime,surreal-test-support,test-utils",
+            "-j",
+            "1",
+            "--lib",
+            "storage::surreal::schema::tests::bootstrap_is_concurrent_restart_safe_and_receipt_is_live",
+            "--",
+            "--exact",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "cargo_pid": 17232,
+          "cargo_identity": {
+            "ProcessId": 17232,
+            "CreationDate": "2026-10-12T17:19:41.269181+02:00",
+            "CommandLine": "\"C:\\Users\\iljas\\.cargo\\bin\\cargo.exe\" test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils -j 1 --lib storage::surreal::schema::tests::bootstrap_is_concurrent_restart_safe_and_receipt_is_live -- --exact --nocapture --test-threads=1",
+            "ExecutablePath": "C:\\Users\\iljas\\.cargo\\bin\\cargo.exe"
+          },
+          "post_binding_exit": 0,
+          "inputs_unchanged": true,
+          "stdout_sha256": "858fc8edbc21459e4208c178b68b5ba2e91419f13ba9f6f7c85bb65b4eda8122",
+          "stderr_sha256": "95fd68809918971ea381664a269ccdc71b0497a54df5e80b0205b83f206d9f7d",
+          "completed_utc": "2026-10-12T15:20:07.5136675Z"
+        },
+        "post_binding": {
+          "matched": true,
+          "binding_equal": {
+            "head": true,
+            "tree": true,
+            "status": true,
+            "files": true,
+            "authority": true,
+            "profile_sha256": true,
+            "toolchain": true,
+            "launcher_sha256": true,
+            "external_inputs": true
+          },
+          "files": 7416
+        },
+        "artifact_sha256": {
+          "measurement-result.json": "4ad63f74fe0eae9574ee6ed5b3d011b0d68664569430ba010a2a18484444b97e",
+          "post-binding.json": "9fd1f0edf84de597d3e3539b2e2e05928124e0ababc2fde42ac5ddac59f1fb69",
+          "test.stdout.log": "858fc8edbc21459e4208c178b68b5ba2e91419f13ba9f6f7c85bb65b4eda8122",
+          "test.stderr.log": "95fd68809918971ea381664a269ccdc71b0497a54df5e80b0205b83f206d9f7d"
+        }
+      },
+      {
+        "artifact_root": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round47-exact-predecessor-upgrade",
+        "actual": {
+          "attempt_id": "70f3f9383c1e454fb4df5d2b16126609",
+          "started_utc": "2026-10-12T15:22:47.5578031Z",
+          "status": "TEST_FAILED",
+          "exit_code": 101,
+          "runtime_acceptance": "NOT_EVALUATED",
+          "cap_bytes": 180000000000,
+          "gameplan_exit": 0,
+          "resources": {
+            "utc": "2026-10-12T15:23:13.7805708Z",
+            "available_mb": 6029,
+            "commit_reserve": 45106278400,
+            "pages_input": 0,
+            "page_reads": 0,
+            "free_bytes": 389091180544
+          },
+          "target_bytes_before": 30396276384.0,
+          "max_target_bytes": 30396276384.0,
+          "argv": [
+            "test",
+            "--locked",
+            "--manifest-path",
+            "src/backend/handshake_core/Cargo.toml",
+            "--features",
+            "app-runtime,surreal-test-support,test-utils",
+            "-j",
+            "1",
+            "--lib",
+            "storage::surreal::schema::tests::mt139_exact_predecessor_upgrade_preserves_data_and_restarts_current",
+            "--",
+            "--exact",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "cargo_pid": 8248,
+          "cargo_identity": {
+            "ProcessId": 8248,
+            "CreationDate": "2026-10-12T17:23:15.942296+02:00",
+            "CommandLine": "\"C:\\Users\\iljas\\.cargo\\bin\\cargo.exe\" test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils -j 1 --lib storage::surreal::schema::tests::mt139_exact_predecessor_upgrade_preserves_data_and_restarts_current -- --exact --nocapture --test-threads=1",
+            "ExecutablePath": "C:\\Users\\iljas\\.cargo\\bin\\cargo.exe"
+          },
+          "post_binding_exit": 0,
+          "inputs_unchanged": true,
+          "stdout_sha256": "c7f44e8e1213ce54db21af49c1e5d60329f2caa5da262fe698a7c889b5f7c125",
+          "stderr_sha256": "166caeeb788d8db05aebf6bef52c1ab8776878b74c225c044709eb2f27f5d127",
+          "completed_utc": "2026-10-12T15:23:31.1624822Z"
+        },
+        "post_binding": {
+          "matched": true,
+          "binding_equal": {
+            "head": true,
+            "tree": true,
+            "status": true,
+            "files": true,
+            "authority": true,
+            "profile_sha256": true,
+            "toolchain": true,
+            "launcher_sha256": true,
+            "external_inputs": true
+          },
+          "files": 7416
+        },
+        "artifact_sha256": {
+          "measurement-result.json": "f65d7b41d1020d77a4a08a00771ceff1bcbe799d1c209cd9650c3c6e0195707e",
+          "post-binding.json": "9fd1f0edf84de597d3e3539b2e2e05928124e0ababc2fde42ac5ddac59f1fb69",
+          "test.stdout.log": "c7f44e8e1213ce54db21af49c1e5d60329f2caa5da262fe698a7c889b5f7c125",
+          "test.stderr.log": "166caeeb788d8db05aebf6bef52c1ab8776878b74c225c044709eb2f27f5d127"
+        }
+      }
+    ],
+    "failed_core_launches_retained": 38,
+    "business_native_acceptance": "0/5_NOT_EVALUATED",
+    "next_action": "Expose indexed original predecessor transaction error with cfg(test)-only diagnostic; no retry or broad check before source review and fresh admission",
+    "broad_core": "REQUIRED_AFTER_FOCUSED_PREDECESSOR_GREEN",
+    "native_publication": "BLOCKED_UNRESOLVED_ORIGINAL_DEPLOYMENT_ROOT_AND_GENUINE_AUTH_CONTEXT"
+  },
   "round47_measured_pins_and_production_reopen_release_20261012": {
     "id": "WP012-P2-ROUND47-RELEASE-20261012",
     "status": "SOURCE_CLEAR_PUSHED_FOCUSED_PROOF_PENDING",

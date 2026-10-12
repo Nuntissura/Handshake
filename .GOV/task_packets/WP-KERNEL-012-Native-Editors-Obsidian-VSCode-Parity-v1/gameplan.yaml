@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 645
+generation: 646
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -543,3 +543,4 @@ steps:
 - {id: GP-522, role: integration_validator, at: before_round, do: verify cloud allocation field places FLEXIBLE after TYPE and preserves original VALUE expression, check: {type: confirm}, source: 'failure: MT139 cloud_model_lane_schema192 FLEXIBLE before TYPE rejected after reproduced BASE', state: active}
 - {id: GP-523, role: any, at: before_round, do: verify current BASE and production catalog pins match independent unchanged engine measurements exactly, check: {type: confirm}, source: 'failure: MT139 reached original stale BASE pin assertion after genuine BASE and FINAL catalog observations', state: active}
 - {id: GP-524, role: integration_validator, at: before_round, do: verify retained fresh and reopen test calls actual production bootstrap with exact composed catalog assertions, check: {type: confirm}, source: 'proof gap: original restart test covered shared bootstrap only; approved production state amendment needs real reopen', state: active}
+- {id: GP-525, role: integration_validator, at: before_round, do: verify predecessor diagnostic exposes indexed primary error and preserves original first error and SQL transaction, check: {type: confirm}, source: 'failure: retained predecessor upgrade returned masked NotExecuted; original migration primary error not emitted', state: active}
