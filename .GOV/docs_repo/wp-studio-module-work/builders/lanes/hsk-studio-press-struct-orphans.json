@@ -1,0 +1,421 @@
+{
+ "crate": "hsk-studio-press",
+ "lane": "SMB-PRESS-STRUCT-ORPHANS",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "READY: PLR-102 (structure-element shaped dictionaries read region_flattened false, fail closed) + PLR-101 (the structure rules apply only when a region is flattened) + docs/DESCRIPTOR + V4-06 (READY commit 1da2453)",
+ "commits": [
+  {
+   "sha": "0cb7103",
+   "subject": "press (SMB-PRESS-STRUCT-ORPHANS, PLR-102, PLR-101): a saved document that still holds a structure-element shaped dictionary reads region_flattened false; the structure rules apply only when a region is flattened"
+  },
+  {
+   "sha": "dce563e",
+   "subject": "press (SMB-PRESS-STRUCT-ORPHANS, PLR-102): the object-stream scan reads one header pair and member at a time; fail-closed rows for unreadable object streams; two doc words reworded (V4-07)"
+  },
+  {
+   "sha": "1da2453",
+   "subject": "press (SMB-PRESS-STRUCT-ORPHANS, V4-02): dims_u32_max-style rows for the object-stream scan (/N and /First 4294967295 read as claims, counted)"
+  }
+ ],
+ "capabilities_done": [
+  "PLR-102 (fail closed; lead dispatch 2026-10-12, R24-P2 inputs J1, J2a, J2b, K1): flatten_purge.rs check_document reads the SAVED document and now also counts, in the same single count as the structure tree (residual_in_region + 1 once, NotProven::ResidualInRegion; no new variant), any dictionary or stream dictionary that has the shape of a structure element (structure_shaped): /Type /StructElem, /Type /StructTreeRoot, /S a name together with /P and any key of STRUCT_TEXT_KEYS, or an /SE entry (outline item); read from the parsed dictionary (names decoded, references in /Type and /S followed, null = absent). It reads every object of the saved file to Limits::depth_cap and every member of an object stream the saved file holds as a stream (Scan::object_stream: decoded against max_decoded_total, parsed like the reader parses one, node meter, members that overlap bounded by the decoded size; a stream that cannot be decoded or parsed counts, fail closed). The scan is the old check_document loop moved into Scan::value (the /Pg and /P scan is unchanged).",
+  "PLR-101 (scope): check_document(saved, flat_pages, flattens) - the tree rule, /StructParents and the shape rule apply only when the save flattened at least one region (sanitized_save.rs passes !flattened.is_empty()); a save with no region applies none of them and the other checks run as before (nothing is marked NotProven by these rules).",
+  "Docs and DESCRIPTOR: flatten.rs overview, flatten_purge.rs module doc and check_document doc, sanitized_save.rs residual_in_region, region_flattened and NotProven::ResidualInRegion docs, DESCRIPTOR redaction.flatten.purge and redaction.flatten.region_clearing state both rules in the wording 'adds 1 and ResidualInRegion' (R21 V-2); needle test descriptor_states_the_structure_tree_rule (V4-07).",
+  "Tests (tests/flatten_r13.rs, 3 new + 3 changed): detached_structure_elements_are_reported (R24 J1, J2a, J2b, K1 plain and ASCIIHex-encoded, an element without /Type, a detached root with /ClassMap text, and 8 fail-closed rows for unreadable object streams), structure_shape_is_read_from_the_parsed_dictionary (21 rows: escapes, references, white space, comment, string, case, null, action / border style / page label decoys, boundary, inert object stream), structure_rules_apply_only_when_a_region_is_flattened (tagged document, J1, J2b, K1 with and without a region); changed: structure_parents_left_in_the_file_are_reported (no-region row moved to the PLR-101 test), structure_tree_keys_are_read_as_names_not_text (one row now reported, one control row added), descriptor_states_the_structure_tree_rule (new needles)."
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-press --tests --no-fail-fast",
+  "exit": 0,
+  "sha": "1da2453",
+  "passed": 164,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "Validator: judge SMB-PRESS-STRUCT-ORPHANS as the claim 0cb7103 + dce563e + 1da2453 (READY commit 1da2453; nothing else pushed to hsk-studio-press after it). Claim: with a flattened region, a saved document that still holds a structure tree, a /StructParents entry or a structure-element shaped dictionary (J1, J2b, K1 included) reads region_flattened false and NotProven::ResidualInRegion; a save with no region applies none of these rules. Open and not part of this claim: D28 (Operator, strip the tree; a strip must drop every reachable /StructElem and every /SE), PLR-097.",
+ "updated_at": "2026-10-12T10:25:50Z",
+ "notes": {
+  "remediation": "SMB-PRESS-STRUCT-ORPHANS (new lane id, V4-15). Source: lead dispatch 2026-10-12 (PLR-102 fail closed with R24 inputs J1, J2a, J2b, K1 from validation/R24-prereview-press-narrow.json R24-P2, and PLR-101 scope from round-R21 note V-1/V-2 and R24-P6). Builder: crate hsk-studio-press only; this lane file is the only kernel file written.",
+  "claim": {
+   "commits": [
+    "0cb7103",
+    "dce563e",
+    "1da2453"
+   ],
+   "ready_commit": "1da2453",
+   "text": "A redaction save that flattened at least one region, whose saved document still holds a structure tree (a /StructTreeRoot the catalog holds, or any /StructParents or /StructParent entry) or any dictionary with the shape of a structure element (/Type /StructElem or /StructTreeRoot; /S a name with /P and any of /Alt /ActualText /E /T /Lang /A /C /ID /Ref /AF /Phoneme /PhoneticAlphabet; an /SE entry) - reachable from the catalog under any key, or a member of an object stream the saved file holds as a stream - reads region_flattened false, region_cleared false and is_proven false: the rules add 1 to residual_in_region once (however many of them hold) and NotProven::ResidualInRegion to the reasons. A save with no region applies none of these rules. The redaction proof covers untagged documents, and documents whose caller removed every structure-element dictionary the saved file would still hold. A dictionary with /S and a text key but no /P and no /Type /StructElem is not read as an element (residual)."
+  },
+  "rule": {
+   "where": "crates/hsk-studio-press/src/flatten_purge.rs: structure_shaped, Scan::value, Scan::object_stream, check_document; called once from sanitized_save.rs redact_and_save_with with `!flattened.is_empty()`",
+   "one_count": "tree (catalog /StructTreeRoot), /StructParents or /StructParent, and the shape rule share ONE flag: residual_in_region + 1 once. Alternative (a second +1) would turn the three R21 assertions 'residual exactly 1' (structure_and_widgets_of_flattened_pages_are_removed, flattened_page_annotations_leave_and_structure_elements_stay, direct_structure_tree_on_kept_pages_is_reported_too) into 2 because every tagged fixture also holds elements",
+   "shape": "/Type is the name StructElem or StructTreeRoot (value followed through references); OR /S is a name (followed through references) and /P is held (not null) and any key of STRUCT_TEXT_KEYS is held; OR /SE is held (not null). Keys are the parsed dictionary's (names decoded), so /Struct#45lem, /#54ype and /S#45 count and a comment, a string or another case do not",
+   "j2a_count": "J2a (R24): residual 2, not 1: the existing /Pg scan counts the element whose /Pg is the flattened page (1, as before) and the shape rule adds its one count; region_flattened false, reasons [ResidualInRegion] as before",
+   "scope": "PLR-101: check_document(saved, flat_pages, flattens); tree, parents and shape rules need flattens; the XFA/NeedsRendering/Pg/P checks and the depth guard run for every save as before (with no region only the XFA/NeedsRendering and depth guard can fire; strip_xfa has already run)",
+   "object_streams": "an object stream that a kept object references stays in the saved file as a stream whose members no xref entry names (R24 K1); the scan decodes it (filters::decode_stream against a budget of max_decoded_total), reads N and First, then one header pair and member at a time (parse_standalone with max_depth and the node meter max_nodes), parsed bytes bounded by the decoded size; a stream that cannot be decoded or parsed counts (fail closed)"
+  },
+  "r24_inputs": {
+   "source": "validation/R24-prereview-press-narrow.json R24-P2; probe r24_probe.rs copied into the scratch tree only and run against dce563e (scratch/press-struct-orphans-redproof/probe-1.log, 27 cases)",
+   "J1": "residual 1 flattened false cleared false proven false reasons [ResidualInRegion]",
+   "J2a": "residual 2 flattened false cleared false proven false reasons [ResidualInRegion]",
+   "J2b": "residual 1 flattened false cleared false proven false reasons [ResidualInRegion]",
+   "K1": "residual 1 flattened false cleared false proven false reasons [ResidualInRegion]",
+   "controls_unchanged": {
+    "A2": "residual 0 flattened true cleared true proven true reasons []",
+    "B2": "residual 0 flattened true cleared true proven true reasons []",
+    "B4": "residual 0 flattened true cleared true proven true reasons []",
+    "C2": "residual 0 flattened true cleared true proven true reasons []"
+   },
+   "before_2dde832": "J1, J2b, K1 read residual 0 flattened true cleared true proven true; J2a residual 1 flattened false (R24-P2)",
+   "probe_full": [
+    "R24 | A1 catalog, root and element only in an object stream (xref-stream file) | residual 1 flattened false cleared false proven false reasons [ResidualInRegion] | survive [\"R24-ALT-SECRET\", \"R24-ACTUAL-SECRET\", \"R24-EXPANSION-SECRET\"] secret-alpha false | xref-kw 2 prev 0 objstm 0 | hayro-src TREE hayro-saved TREE",
+    "R24 | A2 control: same xref-stream file, catalog in the object stream names no tree | residual 0 flattened true cleared true proven true reasons [] | survive [] secret-alpha false | xref-kw 2 prev 0 objstm 0 | hayro-src none hayro-saved none",
+    "R24 | B1 revision 2 adds /StructTreeRoot to the catalog (/Prev chain) | residual 1 flattened false cleared false proven false reasons [ResidualInRegion] | survive [\"R24-ALT-SECRET\", \"R24-ACTUAL-SECRET\", \"R24-EXPANSION-SECRET\"] secret-alpha false | xref-kw 2 prev 0 objstm 0 | hayro-src TREE hayro-saved TREE",
+    "R24 | B2 control: revision 1 tagged, revision 2 replaces catalog and page two without tree keys | residual 0 flattened true cleared true proven true reasons [] | survive [] secret-alpha false | xref-kw 2 prev 0 objstm 0 | hayro-src none hayro-saved none",
+    "R24 | B3 revision 2 only adds /StructParents to the kept page | residual 1 flattened false cleared false proven false reasons [ResidualInRegion] | survive [] secret-alpha false | xref-kw 2 prev 0 objstm 0 | hayro-src none hayro-saved none",
+    "R24 | B4 revision 2 frees the catalog's tree objects (80, 81 free), revision 1 had them, no /StructParents | residual 0 flattened true cleared true proven true reasons [] | survive [] secret-alpha false | xref-kw 2 prev 0 objstm 0 | hayro-src TREE hayro-saved key-not-dict",
+    "R24 | C1 hybrid: catalog in the table names 80; 80 and 81 only in an object stream listed by /XRefStm | residual 1 flattened false cleared false proven false reasons [ResidualInRegion] | survive [\"R24-ALT-SECRET\", \"R24-ACTUAL-SECRET\", \"R24-EXPANSION-SECRET\"] secret-alpha false | xref-kw 2 prev 0 objstm 0 | hayro-src TREE hayro-saved TREE",
+    "R24 | C2 hybrid: the table lists 80 and 81 as free, /XRefStm lists them in the object stream | residual 0 flattened true cleared true proven true reasons [] | survive [] secret-alpha false | xref-kw 2 prev 0 objstm 0 | hayro-src TREE hayro-saved key-not-dict",
+    "R24 | D chain of 15 aliases ending in null | residual 0 flattened true cleared true proven true reasons [] | survive [] secret-alpha false | xref-kw 2 prev 0 objstm 0 | hayro-src key-not-dict hayro-saved key-not-dict",
+    "R24 | D chain of 16 aliases ending in null | residual 1 flattened false cleared false proven false reasons [ResidualInRegion] | survive [] secret-alpha false | xref-kw 2 prev 0 objstm 0 | hayro-src key-not-dict hayro-saved key-not-dict",
+    "R24 | D chain of 15 aliases ending in root | residual 1 flattened false cleared false proven false reasons [ResidualInRegion] | survive [\"R24-ALT-SECRET\", \"R24-ACTUAL-SECRET\", \"R24-EXPANSION-SECRET\"] secret-alpha false | xref-kw 2 prev 0 objstm 0 | hayro-src key-not-dict hayro-saved key-not-dict",
+    "R24 | D chain of 16 aliases ending in root | residual 1 flattened false cleared false proven false reasons [ResidualInRegion] | survive [\"R24-ALT-SECRET\", \"R24-ACTUAL-SECRET\", \"R24-EXPANSION-SECRET\"] secret-alpha false | xref-kw 2 prev 0 objstm 0 | hayro-src key-not-dict hayro-saved key-not-dict",
+    "R24 | D chain of 17 aliases ending in root | residual 1 flattened false cleared false proven false reasons [ResidualInRegion] | survive [\"R24-ALT-SECRET\", \"R24-ACTUAL-SECRET\", \"R24-EXPANSION-SECRET\"] secret-alpha false | xref-kw 2 prev 0 objstm 0 | hayro-src key-not-dict hayro-saved key-not-dict",
+    "R24 | D chain of 30 aliases ending in root | residual 1 flattened false cleared false proven false reasons [ResidualInRegion] | survive [\"R24-ALT-SECRET\", \"R24-ACTUAL-SECRET\", \"R24-EXPANSION-SECRET\"] secret-alpha false | xref-kw 2 prev 0 objstm 0 | hayro-src key-not-dict hayro-saved key-not-dict",
+    "R24 | E1 catalog key /#53tructTreeRoot | residual 1 flattened false cleared false proven false reasons [ResidualInRegion] | survive [\"R24-ALT-SECRET\", \"R24-ACTUAL-SECRET\", \"R24-EXPANSION-SECRET\"] secret-alpha false | xref-kw 2 prev 0 objstm 0 | hayro-src TREE hayro-saved TREE",
+    "R24 | E2 kept page key /StructParent#73 | residual 1 flattened false cleared false proven false reasons [ResidualInRegion] | survive [] secret-alpha false | xref-kw 2 prev 0 objstm 0 | hayro-src none hayro-saved none",
+    "R24 | E3 kept page key /#53#74#72#75#63#74#50#61#72#65#6E#74#73 | residual 1 flattened false cleared false proven false reasons [ResidualInRegion] | survive [] secret-alpha false | xref-kw 2 prev 0 objstm 0 | hayro-src none hayro-saved none",
+    "R24 | F1 kept page /StructParents 90 0 R, 90 = 1 | residual 1 flattened false cleared false proven false reasons [ResidualInRegion] | survive [] secret-alpha false | xref-kw 2 prev 0 objstm 0 | hayro-src none hayro-saved none",
+    "R24 | F2 kept page /StructParents 90 0 R, 90 = null | residual 1 flattened false cleared false proven false reasons [ResidualInRegion] | survive [] secret-alpha false | xref-kw 2 prev 0 objstm 0 | hayro-src none hayro-saved none",
+    "R24 | G1 a kept form XObject stream dictionary holds /StructParents | residual 1 flattened false cleared false proven false reasons [ResidualInRegion] | survive [] secret-alpha false | xref-kw 2 prev 0 objstm 0 | hayro-src none hayro-saved none",
+    "R24 | H1 catalog /StructTreeRoot 80 0 R then /StructTreeRoot null, /HskKeep 80 0 R keeps the tree objects | residual 1 flattened false cleared false proven false reasons [ResidualInRegion] | survive [\"R24-ALT-SECRET\", \"R24-ACTUAL-SECRET\", \"R24-EXPANSION-SECRET\"] secret-alpha false | xref-kw 2 prev 0 objstm 0 | hayro-src key-not-dict hayro-saved key-not-dict",
+    "R24 | H2 catalog /StructTreeRoot null then /StructTreeRoot 80 0 R | residual 1 flattened false cleared false proven false reasons [ResidualInRegion] | survive [\"R24-ALT-SECRET\", \"R24-ACTUAL-SECRET\", \"R24-EXPANSION-SECRET\"] secret-alpha false | xref-kw 2 prev 0 objstm 0 | hayro-src TREE hayro-saved TREE",
+    "R24 | I1 trailer /Root 1 0 R, 1 = 9 0 R (alias), 9 = catalog with /StructTreeRoot | residual 1 flattened false cleared false proven false reasons [ResidualInRegion] | survive [\"R24-ALT-SECRET\", \"R24-ACTUAL-SECRET\", \"R24-EXPANSION-SECRET\"] secret-alpha false | xref-kw 2 prev 0 objstm 0 | hayro-src TREE hayro-saved TREE",
+    "R24 | J1 detached: catalog /HskTree 80 0 R (a /StructTreeRoot dictionary under a private key) | residual 1 flattened false cleared false proven false reasons [ResidualInRegion] | survive [\"R24-ALT-SECRET\", \"R24-ACTUAL-SECRET\", \"R24-EXPANSION-SECRET\"] secret-alpha false | xref-kw 2 prev 0 objstm 0 | hayro-src none hayro-saved none",
+    "R24 | J2a stripped tree, outline /SE names an element whose /Pg is the flattened page | residual 2 flattened false cleared false proven false reasons [ResidualInRegion] | survive [\"R24-ALT-SECRET\", \"R24-ACTUAL-SECRET\", \"R24-EXPANSION-SECRET\"] secret-alpha false | xref-kw 2 prev 0 objstm 0 | hayro-src none hayro-saved none",
+    "R24 | J2b stripped tree, outline /SE names an element without /Pg (MCID 0, no page on its path) | residual 1 flattened false cleared false proven false reasons [ResidualInRegion] | survive [\"R24-ALT-SECRET\", \"R24-ACTUAL-SECRET\", \"R24-EXPANSION-SECRET\"] secret-alpha false | xref-kw 2 prev 0 objstm 0 | hayro-src none hayro-saved none",
+    "R24 | K1 inert object stream referenced by the catalog (/HskJunk 50 0 R), no xref entry names its members | residual 1 flattened false cleared false proven false reasons [ResidualInRegion] | survive [\"R24-ALT-SECRET\", \"R24-ACTUAL-SECRET\", \"R24-EXPANSION-SECRET\"] secret-alpha false | xref-kw 2 prev 0 objstm 1 | hayro-src none hayro-saved none"
+   ]
+  },
+  "tests_added": [
+   "detached_structure_elements_are_reported",
+   "structure_shape_is_read_from_the_parsed_dictionary",
+   "structure_rules_apply_only_when_a_region_is_flattened"
+  ],
+  "tests_changed": [
+   {
+    "test": "structure_parents_left_in_the_file_are_reported",
+    "assertion": "the last block (a tagged file saved with no region read reported for the tree) removed",
+    "why": "PLR-101: a save with no region applies none of the structure rules; the row moved to structure_rules_apply_only_when_a_region_is_flattened with the opposite expectation (nothing counted). The five rows with a region are unchanged"
+   },
+   {
+    "test": "structure_tree_keys_are_read_as_names_not_text",
+    "assertion": "row 'the keys in another case' (tree objects 80 and 81 wired in through /structtreeroot and /STRUCTTREEROOT) was expected flattened and is now expected reported; a control row with plain dictionaries behind the same keys is expected flattened",
+    "why": "the wrong-case keys name no tree, but the objects they reach are a /Type /StructTreeRoot and a /Type /StructElem dictionary the saved file holds: the detached-element class of PLR-102 (R24 J1). Direction of the change: more reported (fail closed). The key-case decoy itself stays pinned by the control row"
+   },
+   {
+    "test": "descriptor_states_the_structure_tree_rule",
+    "assertion": "needles for the new region_clearing clause, the scope sentence, the shape sentence and the PLR-101 sentence; stale sentences of 2dde832 absent; three new test names cited",
+    "why": "the DESCRIPTOR text changed (V4-07)"
+   },
+   {
+    "test": "fixture pages_output_with",
+    "assertion": "split into pages_output_with and pages_pdf (the input bytes), no behaviour change",
+    "why": "the PLR-101 test needs the same input saved with no region"
+   }
+  ],
+  "test_counts": {
+   "crate_full": "cargo nextest run -p hsk-studio-press --tests --no-fail-fast at 1da2453: 164 run, 164 passed (2dde832 had 161: +3 new tests, none removed)",
+   "flatten_r13": "44 tests (41 at 2dde832)",
+   "focused": "the new and changed tests: 7 selected (the three new, structure_tree_keys_are_read_as_names_not_text, structure_parents_left_in_the_file_are_reported, untagged_documents_and_stripped_trees_still_read_flattened, tagged_documents_read_not_proven_whatever_the_tree_looks_like): 7/7 pass on the sources of dce563e (mut-m0.log; the last commit adds two rows to one of them, focused-3.log 1/1); descriptor_states_the_structure_tree_rule passes in the full run",
+   "doctests": "cargo test --doc -p hsk-studio-press: 0 doctests, ok (doctest-final.log)",
+   "check_clippy": "cargo check -p hsk-studio-press --tests exit 0; cargo clippy -p hsk-studio-press --tests exit 0, no warning from hsk-studio-press (the 2 too_many_arguments warnings from hsk-studio-observe are pre-existing); one type_complexity warning of the first draft fixed with a type alias before the first commit",
+   "logs": "Handshake_Artifacts/WP-KERNEL-STUDIO/press-struct-orphans-redproof/{check-*,clippy-*,focused-*,full-*,doctest-final,red-1,probe-1,mut-*}.log"
+  },
+  "red_green": {
+   "method": "scratch tree Handshake_Artifacts/WP-KERNEL-STUDIO/press-struct-orphans-redproof/src (git archive of 2dde832, STUDIO_OWNER=press-struct-orphans-redproof, own target, V4-11); the FINAL tests/flatten_r13.rs copied in and touched; src byte-identical to 2dde832 (diff -rq against base-2dde832)",
+   "red_at_2dde832": "6 selected tests: 5 FAIL, 1 PASS. FAIL: detached_structure_elements_are_reported (J1, J2b, K1 plain and hex, the element without /Type, the detached root, every object-stream row read residual 0 flattened true), structure_shape_is_read_from_the_parsed_dictionary (all reported rows read flattened), structure_rules_apply_only_when_a_region_is_flattened (the tagged document with no region reads residual 1; J1, J2b, K1 with a region read flattened), structure_tree_keys_are_read_as_names_not_text (the narrowed row), descriptor_states_the_structure_tree_rule. PASS: structure_parents_left_in_the_file_are_reported (only a row moved). J2a was reported at 2dde832 already (the /Pg scan). Log: red-1.log",
+   "red_note": "red-1.log ran with the test file of that moment; the member-does-not-parse row and the two 4294967295 rows were added afterwards (they cannot be counted at 2dde832: the object-stream scan did not exist)",
+   "green": "same tests green on the shared tree at 1da2453; full crate 164/164",
+   "mutants": {
+    "method": "scratch copy of the final sources, one mutation per run (mutate.py, exact-match replacements, restore with cp + touch after every run), ALL in ONE batch command (PROC-RETRY-FILTER); nextest filter = the 7 focused tests; m0 = no mutation",
+    "result": "m0 passes 7/7; m1..m14 all KILLED (nextest exit 100)",
+    "table": {
+     "m0": {
+      "killed": false,
+      "failing_tests": [],
+      "first_rows": []
+     },
+     "m1": {
+      "killed": true,
+      "failing_tests": [
+       "detached_structure_elements_are_reported",
+       "structure_rules_apply_only_when_a_region_is_flattened",
+       "structure_shape_is_read_from_the_parsed_dictionary",
+       "structure_tree_keys_are_read_as_names_not_text"
+      ],
+      "first_rows": [
+       "/S a name, /P and text keys, no /Type",
+       "/S through a reference to a name",
+       "/Type through a reference to a name"
+      ]
+     },
+     "m2": {
+      "killed": true,
+      "failing_tests": [
+       "detached_structure_elements_are_reported",
+       "structure_shape_is_read_from_the_parsed_dictionary"
+      ],
+      "first_rows": [
+       "a structure tree root alone, with /ClassMap text",
+       "a structure tree root with /ClassMap text and no element under a private key"
+      ]
+     },
+     "m3": {
+      "killed": true,
+      "failing_tests": [
+       "detached_structure_elements_are_reported",
+       "structure_rules_apply_only_when_a_region_is_flattened",
+       "structure_shape_is_read_from_the_parsed_dictionary"
+      ],
+      "first_rows": [
+       "K1 with the object stream ASCIIHex-encoded",
+       "K1, with a region",
+       "K1: an object stream the catalog references, its members (catalog, root, element) named by no xref entry"
+      ]
+     },
+     "m4": {
+      "killed": true,
+      "failing_tests": [
+       "structure_rules_apply_only_when_a_region_is_flattened"
+      ],
+      "first_rows": [
+       "J1, no region: flattened pages 0 region_flattened false residual 1 reasons [ResidualInRegion], expected nothing counted",
+       "J2b, no region: flattened pages 0 region_flattened false residual 1 reasons [ResidualInRegion], expected nothing counted",
+       "a tagged document: catalog tree, /StructParents, an element, no region: flattened pages 0 region_flattened false residual 1 reasons [ResidualInRegion], expected nothing counted"
+      ]
+     },
+     "m5": {
+      "killed": true,
+      "failing_tests": [
+       "structure_shape_is_read_from_the_parsed_dictionary"
+      ],
+      "first_rows": [
+       "an outline item with /SE spelled /S#45 and a line break before the value",
+       "an outline item with /SE that names a plain dictionary"
+      ]
+     },
+     "m6": {
+      "killed": true,
+      "failing_tests": [
+       "structure_shape_is_read_from_the_parsed_dictionary"
+      ],
+      "first_rows": [
+       "/S through a reference to a name",
+       "/Type through a reference to a name"
+      ]
+     },
+     "m7": {
+      "killed": true,
+      "failing_tests": [
+       "structure_shape_is_read_from_the_parsed_dictionary"
+      ],
+      "first_rows": [
+       "boundary: /S and a text key, no /P and no /Type"
+      ]
+     },
+     "m8": {
+      "killed": true,
+      "failing_tests": [
+       "structure_shape_is_read_from_the_parsed_dictionary"
+      ],
+      "first_rows": [
+       "a page label dictionary, /S and /P (a prefix string)",
+       "null values"
+      ]
+     },
+     "m9": {
+      "killed": true,
+      "failing_tests": [
+       "detached_structure_elements_are_reported"
+      ],
+      "first_rows": [
+       "an object stream with a filter this crate refuses (DCTDecode)"
+      ]
+     },
+     "m10": {
+      "killed": true,
+      "failing_tests": [
+       "detached_structure_elements_are_reported"
+      ],
+      "first_rows": [
+       "an object stream without /N"
+      ]
+     },
+     "m11": {
+      "killed": true,
+      "failing_tests": [
+       "detached_structure_elements_are_reported"
+      ],
+      "first_rows": [
+       "an object stream whose member offset is past its data"
+      ]
+     },
+     "m12": {
+      "killed": true,
+      "failing_tests": [
+       "detached_structure_elements_are_reported"
+      ],
+      "first_rows": [
+       "an object stream whose three members are one dictionary (parsed bytes over the decoded size)"
+      ]
+     },
+     "m13": {
+      "killed": true,
+      "failing_tests": [
+       "detached_structure_elements_are_reported"
+      ],
+      "first_rows": [
+       "an object stream whose member does not parse"
+      ]
+     },
+     "m14": {
+      "killed": true,
+      "failing_tests": [
+       "detached_structure_elements_are_reported"
+      ],
+      "first_rows": [
+       "an object stream whose header lists more members than it holds"
+      ]
+     }
+    },
+    "descriptions": {
+     "m1": "structure_shaped no longer consulted",
+     "m2": "/Type /StructTreeRoot is not a shape",
+     "m3": "object streams are not scanned",
+     "m4": "structure rules apply to every save (flattens ignored)",
+     "m5": "/SE is not a shape",
+     "m6": "references in /Type and /S not followed",
+     "m7": "/P not required",
+     "m8": "no text key required",
+     "m9": "undecodable object stream not counted",
+     "m10": "object stream without /N or /First not counted",
+     "m11": "member offset past the data not counted",
+     "m12": "members overlapping past the decoded size not counted",
+     "m13": "member that fails to parse not counted",
+     "m14": "header that fails to read not counted"
+    },
+    "equivalent_mutant_removed": "a 15th mutant (the `n > data.len()/2 + 1` pre-check removed) survived: the header read fails at the same point, so the pre-check guarded nothing; the check and the vector of header pairs were removed (commit dce563e) and the scan reads one pair and member at a time",
+    "infra_note": "in the first batch m5 stopped with LNK1104 (link.exe could not open the test executable): an infrastructure error, not a test result; the second batch on the final source ran all 15 with m5 killed. Both batches were background commands (not recorded by the retry guard); logs mut-*-batch1.log and mut-*.log"
+   }
+  },
+  "v4_06": {
+   "class": "structure-element text surviving a redaction save without a report: a structure element's text or attributes (/Alt /ActualText /E /T /Lang /A /C /ID /Ref /AF /Phoneme /PhoneticAlphabet, /IDTree key text, /ClassMap attribute text) stays in the saved file of a save that flattened a region and no NotProven reason reports it (R24-P2: detached tree root J1, outline /SE J2a/J2b, inert object stream K1; earlier R22-P3, PLR-094, R23-P1..P5)",
+   "regex": "StructTreeRoot|StructElem|STRUCT_TEXT_KEYS|StructPass|scrub_nums|scrub_parent_tree|neutralize_structure|edited_structure_root|catalog_names_structure_tree|structure_shaped|check_document|structure_elements_neutralized|\"Pg\"|\"ParentTree\"|\"IDTree\"|\"ClassMap\"|\"StructParents?\"|structure_text|get\\(\"K\"\\)|set\\(\"K\"|remove\\(\"K\"\\)|\\.get\\(\"S\"\\)|\\.get\\(\"Obj\"\\)|\"Nums\"|depth < 64|holds\\(|\"SE\"|\"Outlines\"|\"ObjStm\"|object_stream|fn value\\(   (git grep -n -E over crates/hsk-studio-press/src tests examples; widened from 2dde832's regex by structure_shaped, \"SE\", \"Outlines\", \"ObjStm\", object_stream, fn value( )",
+   "counts": "1da2453: 201 line hits = src/flatten.rs 1 + src/flatten_purge.rs 67 + src/lib.rs 1 + src/norm.rs 1 + src/reader.rs 1 + src/sanitized_save.rs 12 + src/text_fields.rs 7 + tests/flatten_r13.rs 104 + tests/pdf_delivery.rs 7. The same regex at 2dde832 gives 156 (flatten.rs 1, flatten_purge.rs 51, lib.rs 1, norm.rs 1, reader.rs 1, sanitized_save.rs 11, text_fields.rs 7, tests/flatten_r13.rs 76, tests/pdf_delivery.rs 7); the 2dde832 lane's own narrower regex gave 152",
+   "recount": "201 = sum of the site groups below = 201 (v406_notes.py aborts on an unclassified group or a count mismatch)",
+   "open": "none: every site is FIXED, UNCHANGED (rule helper), CLOSED_AT_THE_REPORT (best-effort removal whose misses the rules report) or NOT_APPLICABLE (other mechanism or a false match)",
+   "same_class_not_matched_by_the_regex": "a struct-shaped dictionary with /S and text keys but no /P and no /Type /StructElem is not matched by the rule (residual, tested as the boundary row); structure text in a stream that is not an object stream (an embedded file, a marked-content property list in a kept page's content) is outside this check",
+   "sites": {
+    "src/flatten.rs": {
+     "(top level)": "1 (comment 1, code 0): FIXED; overview comment states both rules and the region condition; lines comment [24] code []"
+    },
+    "src/flatten_purge.rs": {
+     "(top level)": "5 (comment 5, code 0): FIXED; module opening and Structure bullet: :40-:44 new rule text FIXED; :29 and :35 describe neutralize_structure and edited_structure_root, text unchanged and correct; lines comment [29, 35, 40, 42, 44] code []",
+     "const STRUCT_TEXT_KEYS": "1 (comment 0, code 1): REUSED_BY_THE_RULE; the key set; structure_shaped reads it; lines comment [] code [305]",
+     "struct StructPass": "1 (comment 0, code 1): CLOSED_AT_THE_REPORT; best-effort removal state; what it misses is reported by the tree, parents or shape rule; lines comment [] code [307]",
+     "impl StructPass": "1 (comment 0, code 1): CLOSED_AT_THE_REPORT; best-effort removal; lines comment [] code [314]",
+     "item_on_flat": "2 (comment 0, code 2): CLOSED_AT_THE_REPORT; best-effort removal reads (/Obj, /Pg); lines comment [] code [319, 322]",
+     "element": "11 (comment 0, code 11): CLOSED_AT_THE_REPORT; best-effort removal reads (/Pg, /K, /S) of one element; lines comment [] code [331, 334, 343, 346, 361, 362, 369, 373, 379, 381, 382]",
+     "scrub_nums": "3 (comment 0, code 3): CLOSED_AT_THE_REPORT; best-effort parent-tree entry removal; lines comment [] code [390, 395, 433]",
+     "scrub_parent_tree": "7 (comment 2, code 5): comment NOT_APPLICABLE, code CLOSED_AT_THE_REPORT; best-effort parent-tree removal; :471 :473 are the doc of edited_structure_root; lines comment [471, 473] code [441, 444, 447, 450, 461]",
+     "edited_structure_root": "2 (comment 0, code 2): CLOSED_AT_THE_REPORT; which root the purge edits; lines comment [] code [474, 475]",
+     "neutralize_structure": "10 (comment 0, code 10): CLOSED_AT_THE_REPORT; best-effort removal; unchanged; lines comment [] code [480, 482, 485, 487, 494, 495, 497, 506, 515, 544]",
+     "prune_gated": "1 (comment 1, code 0): FIXED; :1037 is the doc of catalog_names_structure_tree (sits above its fn line); lines comment [1037] code []",
+     "catalog_names_structure_tree": "2 (comment 0, code 2): UNCHANGED; the catalog tree read; unchanged, now gated by `flattens` at its call in check_document; lines comment [] code [1041, 1043]",
+     "holds": "3 (comment 2, code 1): comment FIXED, code UNCHANGED; helper (null = absent); :1065-:1066 are the doc of structure_shaped; now also used by the shape rule; lines comment [1065, 1066] code [1058]",
+     "structure_shaped": "8 (comment 1, code 7): comment FIXED, code FIXED; PLR-102 shape rule (new); :1078 is the doc of Scan; lines comment [1078] code [1068, 1070, 1071, 1072, 1073, 1074, 1075]",
+     "value": "3 (comment 0, code 3): FIXED; Scan::value: the walk of check_document; the /Pg and /P scan stays UNCHANGED_SCAN, the structure flag gains the shape rule; lines comment [] code [1093, 1106, 1110]",
+     "object_stream": "3 (comment 2, code 1): comment FIXED, code FIXED; PLR-102 object streams the file holds as streams (new); :1180-:1181 are the doc of check_document; lines comment [1171, 1172] code [1123]",
+     "check_document": "4 (comment 0, code 4): FIXED; signature gains `flattens` (PLR-101), the tree rule is gated by it, the ObjStm scan call (new); lines comment [] code [1179, 1186, 1202, 1204]"
+    },
+    "src/lib.rs": {
+     "const DESCRIPTOR": "1 (comment 0, code 1): FIXED; redaction.flatten.purge and redaction.flatten.region_clearing state both rules (2 leaves, parsed before and after); lines comment [] code [95]"
+    },
+    "src/norm.rs": {
+     "escapes_invisible_and_compatibility_characters_normalise": "1 (comment 0, code 1): NOT_APPLICABLE; false match: a normalisation test string \"SE\"; lines comment [] code [264]"
+    },
+    "src/reader.rs": {
+     "parse_document": "1 (comment 0, code 1): NOT_APPLICABLE; input side: object streams are expanded through xref type-2 entries; the new scan covers the ones the file keeps as streams; lines comment [] code [450]"
+    },
+    "src/sanitized_save.rs": {
+     "(top level)": "1 (comment 0, code 1): NOT_APPLICABLE; import; lines comment [] code [76]",
+     "enum NotProven": "1 (comment 1, code 0): FIXED; ResidualInRegion doc names the structure-element dictionary; lines comment [160] code []",
+     "struct RedactedOutput": "3 (comment 2, code 1): comment FIXED, code NOT_APPLICABLE; :1308 :1310 residual_in_region doc FIXED; :1341 structure_elements_neutralized field declaration; lines comment [1308, 1310] code [1341]",
+     "region_reasons": "1 (comment 1, code 0): FIXED; :1438 region_flattened doc FIXED (it sits above its fn line); lines comment [1438] code []",
+     "redact_and_save_with": "4 (comment 1, code 3): comment FIXED, code FIXED; :1537 neutralize_structure call NOT_APPLICABLE (unchanged); :1568 comment and :1569 the check_document call FIXED (PLR-101 flag); :1580 field init NOT_APPLICABLE; lines comment [1568] code [1537, 1569, 1580]",
+     "sanitize_full_rewrite": "2 (comment 0, code 2): NOT_APPLICABLE; d.get(\"S\") JavaScript action name: another mechanism; lines comment [] code [1668, 1671]"
+    },
+    "src/text_fields.rs": {
+     "struct TextFieldPolicy": "1 (comment 0, code 1): NOT_APPLICABLE; structure_text policy slot: text_fields redacts /Alt /ActualText /E /T that match the removed strings and reports TextFieldOutcome; not a flatten-save check; lines comment [] code [90]",
+     "default": "1 (comment 0, code 1): NOT_APPLICABLE; structure_text default; lines comment [] code [119]",
+     "sweep": "3 (comment 0, code 3): NOT_APPLICABLE; structure-element slot builder of that policy; lines comment [] code [1009, 1025, 1032]",
+     "collect_filespec_nums": "1 (comment 0, code 1): NOT_APPLICABLE; d.get(\"S\") action name; lines comment [] code [1338]",
+     "outline_nums": "1 (comment 0, code 1): NOT_APPLICABLE; outline title walk of the text-field policy; lines comment [] code [1369]"
+    },
+    "tests/flatten_r13.rs": {
+     "structure_and_widgets_of_flattened_pages_are_removed": "6 (comment 0, code 6): PIN_UNCHANGED_ASSERTION_OF_THE_TREE_RULE; asserts or builds the rule; lines comment [] code [1583, 1592, 1593, 1594, 1608, 1609]",
+     "flattened_page_annotations_leave_and_structure_elements_stay": "7 (comment 0, code 7): PIN_UNCHANGED_ASSERTION_OF_THE_TREE_RULE; asserts or builds the rule; lines comment [] code [1626, 1637, 1638, 1639, 1673, 1677, 1678]",
+     "descriptor_states_the_painted_source_condition_and_the_purge_categories": "1 (comment 1, code 0): PIN_UNCHANGED_ASSERTION_OF_THE_TREE_RULE; asserts or builds the rule; lines comment [1704] code []",
+     "tree_output_with": "1 (comment 0, code 1): PIN_UNCHANGED_ASSERTION_OF_THE_TREE_RULE; asserts or builds the rule; lines comment [] code [1717]",
+     "direct_structure_tree_elements_off_the_kept_pages_are_reported": "10 (comment 0, code 10): PIN_UNCHANGED_ASSERTION_OF_THE_TREE_RULE; asserts or builds the rule; lines comment [] code [1755, 1756, 1757, 1764, 1766, 1769, 1775, 1781, 1787, 1788]",
+     "direct_structure_tree_on_kept_pages_is_reported_too": "7 (comment 0, code 7): PIN_UNCHANGED_ASSERTION_OF_THE_TREE_RULE; asserts or builds the rule; lines comment [] code [1822, 1824, 1825, 1826, 1828, 1835, 1836]",
+     "text_element": "1 (comment 0, code 1): PIN_UNCHANGED_ASSERTION_OF_THE_TREE_RULE; asserts or builds the rule; lines comment [] code [1847]",
+     "const INDIRECT_ROOT": "1 (comment 0, code 1): PIN_UNCHANGED_ASSERTION_OF_THE_TREE_RULE; asserts or builds the rule; lines comment [] code [1850]",
+     "const INDIRECT_ROOT_ARRAY": "2 (comment 1, code 1): PIN_UNCHANGED_ASSERTION_OF_THE_TREE_RULE; asserts or builds the rule; lines comment [1853] code [1851]",
+     "indirect_root_output": "1 (comment 1, code 0): PIN_UNCHANGED_ASSERTION_OF_THE_TREE_RULE; asserts or builds the rule; lines comment [1861] code []",
+     "indirect_array_k_elements_off_the_kept_pages_are_reported": "4 (comment 0, code 4): PIN_UNCHANGED_ASSERTION_OF_THE_TREE_RULE; asserts or builds the rule; lines comment [] code [1869, 1892, 1932, 1933]",
+     "indirect_array_k_neutralization_controls": "8 (comment 1, code 7): PIN_UNCHANGED_ASSERTION_OF_THE_TREE_RULE; asserts or builds the rule; lines comment [2046] code [1955, 1956, 1957, 2010, 2011, 2034, 2035]",
+     "tagged_documents_read_not_proven_whatever_the_tree_looks_like": "10 (comment 1, code 9): PIN_UNCHANGED_ASSERTION_OF_THE_TREE_RULE; asserts or builds the rule; lines comment [2282] code [2107, 2121, 2122, 2123, 2180, 2207, 2216, 2227, 2228]",
+     "structure_tree_keys_are_read_as_names_not_text": "14 (comment 1, code 13): FIXED_OR_NEW_TEST; asserts or builds the rule; lines comment [2359] code [2330, 2335, 2340, 2346, 2347, 2367, 2368, 2369, 2370, 2371, 2372, 2373, 2374]",
+     "object_stream": "1 (comment 0, code 1): FIXED_OR_NEW_TEST; asserts or builds the rule; lines comment [] code [2417]",
+     "outline_with": "1 (comment 1, code 0): FIXED_OR_NEW_TEST; asserts or builds the rule; lines comment [2442] code []",
+     "detached_structure_elements_are_reported": "8 (comment 0, code 8): FIXED_OR_NEW_TEST; asserts or builds the rule; lines comment [] code [2449, 2450, 2452, 2454, 2467, 2480, 2481, 2491]",
+     "structure_shape_is_read_from_the_parsed_dictionary": "10 (comment 0, code 10): FIXED_OR_NEW_TEST; asserts or builds the rule; lines comment [] code [2573, 2575, 2576, 2577, 2578, 2604, 2609, 2612, 2615, 2641]",
+     "structure_rules_apply_only_when_a_region_is_flattened": "7 (comment 1, code 6): FIXED_OR_NEW_TEST; asserts or builds the rule; lines comment [2707] code [2667, 2668, 2671, 2674, 2678, 2680]",
+     "descriptor_states_the_structure_tree_rule": "4 (comment 0, code 4): FIXED_OR_NEW_TEST; asserts or builds the rule; lines comment [] code [2715, 2716, 2717, 2729]"
+    },
+    "tests/pdf_delivery.rs": {
+     "xref_stream_object_stream_predictor_and_object_model": "1 (comment 0, code 1): NOT_APPLICABLE; reader test of object streams; lines comment [] code [512]",
+     "form_labels_structure_text_info_and_xmp_redacted": "6 (comment 0, code 6): NOT_APPLICABLE; text_fields structure text redaction, no flatten; lines comment [] code [1468, 1470, 1479, 1480, 1481, 1522]"
+    }
+   },
+   "tool": "scratchpad/SMB-PRESS-STRUCT-ORPHANS/v406.py and v406_notes.py (git grep, grouped by file and enclosing item)"
+  },
+  "v4_07": "added doc and DESCRIPTOR text uses none of never/always/guarantee(s)/proves (git diff 2dde832 added lines scanned with grep -w; two comment words reworded: 'never matched' in the structure_shaped doc and one test comment); DESCRIPTOR word counts parsed from JSON before and after: never 8, always 1, proven 3, cannot 16, proves 0, guarantee 0, unchanged; exactly 2 leaves changed (redaction.flatten.purge, redaction.flatten.region_clearing; orphans_edit_descriptor.py); the needle test descriptor_states_the_structure_tree_rule needles five sentences once each, checks the stale sentences absent, the four words absent in the rule slice and that the eleven cited tests exist as fn",
+  "v4_08": "the shape is read from the PARSED dictionary: tests structure_shape_is_read_from_the_parsed_dictionary (name escapes in a key and in a value, /S#45 for /SE, white space and line breaks, a comment and a string that hold the keys, the keys in another case, null values, references to names, an action / border style / page label that only look like an element) and structure_tree_keys_are_read_as_names_not_text",
+  "v4_01_02": "flatten_purge.rs keeps #![deny(clippy::arithmetic_side_effects)]; the new code uses saturating_add and checked_add; no vector is allocated for the object-stream header (one pair and member at a time); bounds: the decode (filters::decode_stream: max_decoded_bytes per stream and the shared max_decoded_total budget), the node meter (max_nodes), max_depth, parsed member bytes <= decoded size, loops end at the first unreadable pair. dims_u32_max-style rows: /N 4294967295 and /First 4294967295; aggregate-style row: members that overlap past the decoded size. The decode budget shared across object streams is not separately tested (the earlier stages charge the same streams first)",
+  "v4_11": "no file of the shared tree was reverted or restored; the red proof, the probe and the mutants ran in the scratch tree press-struct-orphans-redproof with its own STUDIO_OWNER and target; scratch sources were restored with cp and touch (mutate.py restore) and compared with diff -rq against the shared crate (only the scratch-only tests/r24_probe.rs differs)",
+  "v4_12": "helper scripts and text only under <scratchpad>/SMB-PRESS-STRUCT-ORPHANS/ (orphans_edit_descriptor.py, v406.py, v406_notes.py, mutate.py, lane_write.py, lane_final.py, commit-1.txt, commit-2.txt, commit-3.txt, v406 outputs); scratch tree and logs under Handshake_Artifacts/WP-KERNEL-STUDIO/press-struct-orphans-redproof/ (left for the lead to remove: src, base-2dde832, final, target, tmp, logs); no script of another lane was run",
+  "v4_14": "1da2453 is the READY commit; the claim is 0cb7103 + dce563e + 1da2453; nothing else was pushed to hsk-studio-press after it (git log origin/codex/handshake-studio-assets -- crates/hsk-studio-press)",
+  "v4_21": "no outbound request other than git fetch and git push to origin; no personal data in any request",
+  "retry_guard": "no retry-guard block. One hook block (PROC-CD-FIRST): a command whose first token was a variable assignment was blocked before it ran (the hook resolved another WP's kernel-root gameplan); nothing executed, no step of that gameplan was confirmed by this builder, the command was re-issued with `cd` first against the Studio gameplan. Every test-runner run was a background command (not recorded by the guard) and no failing run was repeated unchanged; no flag or filter was changed to avoid a block; the mutants ran as ONE batch command per batch (PROC-RETRY-FILTER). A second hook block: a command that carried the test-runner name inside inline free text (V4-09) was blocked before it ran; the edit was redone with the Edit tool",
+  "git": "commits by explicit pathspec (crates/hsk-studio-press) with git commit -F; pushes succeeded at once; shared-tree changes of other lanes (interop-psd, score, Cargo.lock) were never staged",
+  "lane_claim_wording": "R21 V-2 / R24-P6: this lane's claim says 'adds 1 and ResidualInRegion' (rule.one_count, claim.text). The SMB-PRESS-STRUCT-FAILCLOSED lane file still carries the broader sentence 'as the only region reason ... counting the tree once' in its notes.claim.text; that file is not this lane's and was not edited",
+  "residuals": [
+   "Boundary: a dictionary with /S, /P-less, with a text key and no /Type /StructElem is not read as an element (pinned by the boundary row); it is reported only when something else makes the document tagged or an outline /SE names it",
+   "Over-reporting (fail closed): any non-null /SE counts whatever it names; a /Type /StructTreeRoot dictionary counts without an element; an object stream the file holds as a stream that cannot be decoded or parsed counts",
+   "J2a reads residual 2 (the /Pg scan and the shape rule each count 1); region_flattened, cleared and the reasons are as before",
+   "Structure text outside dictionaries: the content-stream marked-content property lists of a kept page, embedded files, XMP are not read by this check",
+   "The best-effort neutralization (neutralize_structure) is unchanged and unaware of the new rule; PLR-097 (read more spellings) is only worthwhile if D28 keeps tagged documents",
+   "D28 (Operator, optional strip of the tree): a strip must drop or neutralize every reachable /StructElem and every /SE, otherwise the shape rule keeps reporting"
+  ],
+  "decisions_for_lead": [
+   "ONE combined count: tree, /StructParents and the shape rule add 1 together (a second +1 would change three R21 'residual exactly 1' assertions). Say if the orphan rule should add a separate +1",
+   "Extension beyond the dispatch: /Type /StructTreeRoot is also a shape (a detached root carries /ClassMap and /IDTree text, R23-P4); one line (structure_shaped) and mutant m2 / the two root rows if it should go",
+   "/SE counts whatever it names and without /Title (not restricted to a verified outline item)",
+   "An unreadable object stream (refused filter, bad header) counts as structure (fail closed)",
+   "Changed assertion: one row of structure_tree_keys_are_read_as_names_not_text (wrong-case keys that reach a tree root and an element) flipped from flattened to reported; see tests_changed"
+  ]
+ }
+}

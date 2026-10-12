@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-12T10:09:31Z",
+ "updated_at": "2026-10-12T10:26:38Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -2594,7 +2594,7 @@
     "builders/lanes/hsk-studio-press-struct-orphans.json"
    ],
    "launched": "2026-10-12T09:57:55Z",
-   "status": "running"
+   "status": "done 2026-10-12T10:26:38Z (SMB-PRESS-STRUCT-ORPHANS READY at 1da2453)"
   },
   {
    "name": "builder-psd-docs",
