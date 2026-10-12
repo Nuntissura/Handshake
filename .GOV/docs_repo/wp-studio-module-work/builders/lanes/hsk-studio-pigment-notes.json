@@ -915,6 +915,24 @@
    "PLAN-R15-6 (the reachable set exists three times), -7 (trait default execute_extended on an envelope that asks nothing), -8 (with_plan_limits replaces), -9 (timing bound and reference alphabet), -10 (composite ledger mixes validate and effect_modes), -11 (effect budgets over unreachable entries not pinned): not in this lane's assignment"
   ],
   "date": "2026-10-12T00:37:10Z",
-  "verdicts": []
+  "verdicts": [
+   {
+    "round": "STUDIO-R16",
+    "lane": "SMB-PIGMENT-NOTES",
+    "candidate": "5606d162549db9f3959d4ecaee85dbb1592d18e3",
+    "tree": "312fd702d8269b83497e898a6404f281cdc1e4e1",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V1",
+    "review": "validator's own read (lead dispatch) + validation/R16-prereview-notes-narrow.json advisory: tests/docs only (code_only_diff 0 src code lines)",
+    "round_ref": "validation/round-R16.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R16",
+    "idempotency_key": "STUDIO-R16:SMB-PIGMENT-NOTES:5606d162549d:PASS_V1",
+    "recorded_at": "2026-10-12T01:11:16Z",
+    "by": "wp_validator STUDIO-R16"
+   }
+  ]
  }
 }

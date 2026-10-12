@@ -722,6 +722,23 @@
     "idempotency_key": "STUDIO-R15:SMB-PIGMENT-FOLLOWUPS:b8b31c7c50da:PASS_V1",
     "recorded_at": "2026-10-12T00:03:10Z",
     "by": "wp_validator STUDIO-R15"
+   },
+   {
+    "round": "STUDIO-R16",
+    "lane": "SMB-PIGMENT-FOLLOWUPS",
+    "candidate": "5606d162549db9f3959d4ecaee85dbb1592d18e3",
+    "tree": "312fd702d8269b83497e898a6404f281cdc1e4e1",
+    "decision": "passed",
+    "verdict": "PASS_V2",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V2",
+    "review": "NOT_REVIEWED as a lane (validator read of every src hunk b8b31c7..5606d16 of its crate(s): comment/rustdoc, DESCRIPTOR string, cfg(test) or test-faults code only; R16 pre-review advisory: pigment/render-cpu src change is doc-only)",
+    "round_ref": "validation/round-R16.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R16",
+    "idempotency_key": "STUDIO-R16:SMB-PIGMENT-FOLLOWUPS:5606d162549d:PASS_V2",
+    "recorded_at": "2026-10-12T01:11:16Z",
+    "by": "wp_validator STUDIO-R16"
    }
   ]
  }

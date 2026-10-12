@@ -281,6 +281,23 @@
         "idempotency_key": "STUDIO-R12:SMB-WEB:3d795a590acd:PASS_V4",
         "recorded_at": "2026-10-11T21:49:57Z",
         "by": "wp_validator STUDIO-R12"
+      },
+      {
+        "round": "STUDIO-R16",
+        "lane": "SMB-WEB",
+        "candidate": "5606d162549db9f3959d4ecaee85dbb1592d18e3",
+        "tree": "312fd702d8269b83497e898a6404f281cdc1e4e1",
+        "decision": "passed",
+        "verdict": "PASS_V5",
+        "failures": [],
+        "remediation": null,
+        "status_after": "PASS_V5",
+        "review": "validation/R16-prereview-notes-narrow.json lanes[1] SMB-WEB: SAFE_TO_JUDGE (W-1 CONFIRMED process note, W-2 INFO)",
+        "round_ref": "validation/round-R16.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R16",
+        "idempotency_key": "STUDIO-R16:SMB-WEB:5606d162549d:PASS_V5",
+        "recorded_at": "2026-10-12T01:11:16Z",
+        "by": "wp_validator STUDIO-R16"
       }
     ],
     "remediation_R6": {

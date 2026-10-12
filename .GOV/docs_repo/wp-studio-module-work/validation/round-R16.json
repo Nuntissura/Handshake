@@ -1,0 +1,1179 @@
+{
+ "round": 16,
+ "round_id": "STUDIO-R16",
+ "round_opened": true,
+ "rule_refs": [
+  "CX-VAL-001",
+  "CX-VAL-002",
+  "CX-VAL-003",
+  "CX-VAL-004",
+  "CX-VAL-005",
+  "CX-VAL-006",
+  "CX-VAL-007",
+  "CX-VAL-008",
+  "CX-VAL-009",
+  "CX-VAL-010",
+  "CX-STATUS-001",
+  "CX-STATUS-002",
+  "CX-STATUS-003",
+  "CX-EXEC-015",
+  "CX-VERIFY-002",
+  "V4-03 NOT_PROVEN",
+  "V4-04",
+  "V4-06",
+  "V4-07",
+  "V4-13",
+  "V4-14",
+  "V4-18",
+  "V4-19"
+ ],
+ "candidate": "5606d162549db9f3959d4ecaee85dbb1592d18e3",
+ "tree": "312fd702d8269b83497e898a6404f281cdc1e4e1",
+ "candidate_note": "named by lead (ledger round_R16, opened 00:52:32Z); steward-5 in sync since 9ffe946 (no derivation input changed); origin tip == edit HEAD == 5606d16 (git ls-remote 00:54Z; no fetch by this validator); b8b31c7..5606d16 = 27a9a81 (press), 9cb44c2 + 8980d04 (pigment), 9088884 (web), fe035ce (render-cpu), ab273d3 (reel-native), 5606d16 (interop-psd); Cargo.toml, Cargo.lock, tools/, .config/, rust-toolchain.toml unchanged (git diff empty)",
+ "round_identity_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/ROUND_IDENTITY.json",
+ "export": {
+  "file_count": 892,
+  "manifest_sha256": "552e08cd7a9bfff90c30d9b29d81d4e1c4653a1c47f55414d35270f5e92b76f0",
+  "git_blob_equal": true,
+  "refresh": "kernel tools/export-refresh.sh in place 2026-10-12T00:54:40Z: 1 added, 25 changed, 866 unchanged, 0 deleted, blob_mismatch 0 (from b8b31c7; exactly the 26 files of b8b31c7..5606d16); manifest equals steward canary C21 export (552e08cd); round.json export_manifest_sha256 equal"
+ },
+ "started_at": "2026-10-12T00:56:50Z",
+ "completed_at": "2026-10-12T01:11:16Z",
+ "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R16",
+ "running_record": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/RUNNING-R16.jsonl (opened 00:56:50Z, running + process_identity (+ one correction of its recorded_at), completed 01:00:59Z, verdicts_accepted before the state write, verdicts_recorded after it)",
+ "gameplan": ".GOV/task_packets/WP-KERNEL-STUDIO/gameplans/STUDIO-MODULE-ROUND.yaml (pointer studio-round/.gameplan-active) before_round PASS 12/12 @edit HEAD 5606d16 (GP-001 origin == HEAD; GP-003 lock audit 00:55:23Z held none, queue 0, no cargo.exe, only an idle sccache server pid 371364 not started by this session; GP-005 LongPathsEnabled=1; GP-013 cites canary C21-5606d16 exit 73 = NOT_PROVEN interop-fig only, 59/59 units green; GP-004/GP-012 machine checks passed)",
+ "canary": {
+  "reused": true,
+  "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/steward-export/results/C21-5606d16",
+  "round_json_sha256": "bae2523fd32133d3d09611f3a0dacd87806be3076b54d128aa52cd139cb3f7e3",
+  "sha": "5606d162549db9f3959d4ecaee85dbb1592d18e3",
+  "export_manifest_sha256": "552e08cd7a9bfff90c30d9b29d81d4e1c4653a1c47f55414d35270f5e92b76f0",
+  "summary": "steward canary via the same entrypoint on the same SHA and identical export manifest: exit 73 (only NOT_PROVEN interop-fig actual_fig_instance_variable_prototype_edit_reopen, D17), 59 units build 0/run 0, absent 0, timed_out 0, step 0 clean",
+  "reuse_basis": "CX-VERIFY-002 + lead dispatch (GP-013); canary exit 73 accepted because its only non-zero cause is NOT_PROVEN accounting (R10-R15 precedent)"
+ },
+ "union": {
+  "selection": [
+   "hsk-studio-composite",
+   "hsk-studio-develop",
+   "hsk-studio-interop-psd",
+   "hsk-studio-pigment",
+   "hsk-studio-press",
+   "hsk-studio-reel-native",
+   "hsk-studio-render-cpu",
+   "hsk-studio-render-gpu",
+   "hsk-studio-web"
+  ],
+  "selection_rule": "crates changed b8b31c7..5606d16 (press, web, reel-native, interop-psd, pigment, render-cpu) + workspace members whose dependency closure contains them (tomllib over crates/*/Cargo.toml incl. dev-dependencies: composite, develop, interop-psd, render-cpu, render-gpu depend on pigment; nothing depends on press, web, reel-native, interop-psd or render-cpu); root inputs unchanged; render-gpu runs for information (D20); press ran because the run started before the pre-review completed (its result is information: press lanes deferred)",
+  "argv": "bash tools/[round entry script] --results <studio-round>/results/R16 --target-dir <studio-round>/target hsk-studio-composite hsk-studio-develop hsk-studio-interop-psd hsk-studio-pigment hsk-studio-press hsk-studio-reel-native hsk-studio-render-cpu hsk-studio-render-gpu hsk-studio-web (cwd export; absolute D: paths; no caller env)",
+  "target_dir": "Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/target (warm from R15)",
+  "started_at": "2026-10-12T00:57:24Z",
+  "ended_at": "2026-10-12T01:00:12Z",
+  "build_exit": 0,
+  "run_exit": 0,
+  "exit": 73,
+  "summary": "default 522/522 passed + 1 skipped (web 138, press 131, pigment 82, interop-psd 53, render-cpu 38, develop 28 + 1 #[ignore] real_dng, composite 28, render-gpu 24); reel-native+av1-worker 5/5; reel-native+av1-worker+test-faults 24/24; render-gpu+test-faults 27/27; 12 doctest units exit 0 (render-gpu 4 doctests, the others none); 16 units; absent [] timed_out []; 2 NOT_PROVEN = render-gpu no-adapter regression probe in default and test-faults (known noise, D20 lane) -> exit 73",
+  "units": 16,
+  "not_proven_count": 2,
+  "hashes": {
+   "round.json": "cb6439ad82314fcb34cd69ae0bbf9113370475518ba4f75366a4d9bb3f5d0ed9",
+   "tests.json": "9ff210a5a47c50a595e125d331502c5de308adbd6132ce64f8f13705f916cabc",
+   "junit.xml": "17b9f2f12db47fd741bc62a6ba002c08ef7902f7965efaecb74ba6fedbd830a3",
+   "run.stderr.txt": "afe34594c360801ee032ec296b1869b7a81e0d7ee5c3b0a22728d0795a92618f",
+   "build.stderr.txt": "1dff2a39e8293d9c66e170a3d3fa2bdb1f85671aed14e1b34e11cc75bed36ce8",
+   "units.tsv": "e951c76534130ccbe79c34d0966a0991ba6e607c0bd9f997b62d531b2f6ceeae",
+   "oracle-corpus.manifest.txt": "b9b78fe7ce075b07cd304f9abad1515924065fe39d48fe6480cc0a572c4bfe9b",
+   "step0.policy.json": "885a9bd86e044ba4ac436012c10c37d4eb74403ee292111c1f3b4325c8e3877b",
+   "features/hsk-studio-reel-native+av1-worker/junit.xml": "b61cb71a79ed4d9be19618316f275f8bef19f05dec92e9f5d7e3fc31ed4c10a4",
+   "features/hsk-studio-reel-native+av1-worker+test-faults/junit.xml": "b63d0f766b361bafa98568a5e6f691d0ef3b549d51a7f0bf3d4120e0bd5c8329",
+   "features/hsk-studio-render-gpu+test-faults/junit.xml": "a68040b668f6ee549c7da62786eae77e5b711b8fef0798724fa832e3ee5daf0c"
+  },
+  "per_crate_default": {
+   "composite": 28,
+   "develop": 28,
+   "interop-psd": 53,
+   "pigment": 82,
+   "press": 131,
+   "render-cpu": 38,
+   "render-gpu": 24,
+   "web": 138
+  },
+  "test_set_check": "no test missing vs the last full run of each crate: R15 (composite 28, develop 29 incl. ignored, interop-psd 50 -> 53, pigment 79 -> 82, render-cpu 37 -> 38, render-gpu 55 all units), R13 (press 128 -> 131, reel-native 24 -> 29 over av1-worker + test-faults units), R12 (web 135 -> 138); the 18 added tests are exactly the lanes' new tests and all passed; 582 passed, 1 skipped (real_dng #[ignore], D10)",
+  "step0": "cargo metadata --locked --offline ok; registry-sync check clean (manifest_changed false, probe_changed false); machine-path violations 0 (13 files with pinned hits, pins_dropped {}), duplicate new_sites none; step0.policy.json byte-identical to R15 (885a9bd8)",
+  "oracle_corpus": {
+   "file_count": 30,
+   "manifest_sha256": "b9b78fe7ce075b07cd304f9abad1515924065fe39d48fe6480cc0a572c4bfe9b",
+   "note": "30 files (R15: 29; the C21 canary placed a new score-plugin clap-gain fixture and MANIFEST.json); no selected crate uses an oracle fixture (fixtures [])"
+  },
+  "fixtures": [],
+  "disk_lock": "schema @2 class round: holds 1, yields 0 (slice 300 s), waited 0 s, broke_stale none, 00:57:31Z..01:00:12Z",
+  "env": {
+   "set_by_entrypoint": [
+    "CARGO_TARGET_DIR",
+    "TMP",
+    "TEMP",
+    "TMPDIR",
+    "CARGO_PROFILE_DEV_DEBUG",
+    "CARGO_PROFILE_TEST_DEBUG",
+    "CARGO_TERM_COLOR"
+   ],
+   "env_added_by_caller": "none (CX-VAL-007; caller env had no CARGO_/RUST/HSK_/SCCACHE_/STUDIO_/NEXT/GAMEPLAN variables; the harness shell TEMP/TMP are overwritten by the entrypoint)",
+   "rustc_wrapper": "",
+   "tools": {
+    "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+    "cargo": "cargo 1.97.1 (c980f4866 2026-06-30)",
+    "test_runner": "cargo-nextest 0.9.148 (cd1d6d546 2026-10-07)"
+   }
+  }
+ },
+ "junit_success_output_checks": [
+  "pigment default: effects_nested_ignores_an_input_that_is_not_an_earlier_node_of_a_reachable_group, admission_readers_of_nodes_and_entries_are_classified, the_reader_scan_flags_a_new_unclassified_reader, the_reader_scan_does_not_count_text_that_is_not_code passed; clip_run_validation_is_linear 0.34 s",
+  "render-cpu default: invalid_plan_indexes_are_refused_before_the_reachable_sweep passed; cpu_envelope_reach and cpu_plan_limits green",
+  "reel-native av1-worker+test-faults: the five new host-level tests and every R13 test passed (worker processes spawned, no NOT_PROVEN)",
+  "web default: the three new assets::tests and r13_f1_many_animations_sharing_ids_finish_within_the_bound (2.7 s) passed",
+  "render-gpu (information): gpu_plan parity tests print RTX 3090 lines (Blend-If vs evaluate_stack, effects waves 1/2, composition, envelope adjustments)"
+ ],
+ "not_proven": [
+  {
+   "unit": "default",
+   "crate": "hsk-studio-render-gpu",
+   "binary": "hsk-studio-render-gpu::gpu_plan",
+   "test": "no_adapter_is_not_a_green_gpu_proof_when_the_gpu_is_required",
+   "reason": "no adapter; regression probe not run"
+  },
+  {
+   "unit": "features:hsk-studio-render-gpu+test-faults",
+   "crate": "hsk-studio-render-gpu",
+   "binary": "hsk-studio-render-gpu::gpu_plan",
+   "test": "no_adapter_is_not_a_green_gpu_proof_when_the_gpu_is_required",
+   "reason": "no adapter; regression probe not run"
+  }
+ ],
+ "not_proven_note": "V4-03: the only NOT_PROVEN lines are the render-gpu no-adapter regression probe (SMB-RENDER-GPU / SMB-RENDER-GPU-PROBE, D20, known noise per lead dispatch); no judged lane's acceptance depends on that probe (render-gpu ran for information; its GPU parity tests ran on the RTX 3090 and passed)",
+ "adversarial_review": {
+  "refs": {
+   "validation/R16-prereview-notes-narrow.json": "sha256 85a9c8bd (COMPLETE, completed_at 2026-10-12T01:04:22Z; committed by the lead in 4056c654)"
+  },
+  "coverage": "V4-13 narrow pre-review (read-only, fresh context) of b8b31c7..5606d16 for the four two-FAIL lanes: SMB-PRESS FIX_FIRST (P-1 CONFIRMED, P-2 PLAUSIBLE, P-3 INFO), SMB-WEB SAFE_TO_JUDGE (W-1 CONFIRMED process, W-2 INFO), SMB-REEL-NATIVE-AV1-WORKER SAFE_TO_JUDGE (R-1, R-2 INFO), SMB-INTEROP-PSD-BUDGET SAFE_TO_JUDGE (I-1 CONFIRMED doc, I-2, I-3 INFO); advisory on SMB-PIGMENT-NOTES: docs/tests only (code_only_diff 0 src code lines). Validator's own read: every src hunk b8b31c7..5606d16 of the six crates and the SMB-PIGMENT-NOTES tests.",
+  "fold_rule": "R12-R15 convention: every CONFIRMED finding re-read at the cited file:line in the export; a CONFIRMED product defect in a judged lane's claimed scope drives a FAIL on the lane that owns it by blame and claim (one owner per defect); CONFIRMED process/doc-only items and CONFIRMED behaviour that predates the claim without breaking a resource bound or a claimed receipt are notes; PLAUSIBLE/INFO items are notes",
+  "fold_decisions": [
+   {
+    "finding": "P-1 (CONFIRMED, press DESCRIPTOR/doc 'any plain reference ... is reported' wider than the code)",
+    "owner": "SMB-NOTES-BATCH-1 (27a9a81 wrote the sentence); SMB-PRESS gated by it (V4-13)",
+    "decision": "not folded: SMB-NOTES-BATCH-1 withdrawn by the lead before verdicts; SMB-PRESS deferred_fix_first, SMB-PRESS-DIFFERENCES deferred with the crate (no FAIL, no charge)",
+    "why": "press lanes are not judged in R16; the lead decision 2026-10-12T01:05:36Z sets the remediation rule (certain only when a kept page actually draws it)"
+   },
+   {
+    "finding": "W-1 (CONFIRMED, process: V4-06 wall-clock count 7 in the SMB-NOTES-BATCH-1 lane notes vs 9 by git grep)",
+    "owner": "SMB-NOTES-BATCH-1 lane notes (withdrawn lane)",
+    "decision": "note (SMB-WEB judged)",
+    "why": "kernel-notes count only; every site handled (5 removed + 4 recv_timeout); no product effect (R15 PLAN-R15-2 class)"
+   },
+   {
+    "finding": "I-1 (CONFIRMED, doc-only: 'only past 4096 apparent counted instances' contradicted by the per-layer case)",
+    "owner": "5606d16 (SMB-NOTES-BATCH-1, withdrawn); topic of SMB-INTEROP-PSD-BUDGET",
+    "decision": "note on SMB-INTEROP-PSD-BUDGET",
+    "why": "doc-only (R12-R15 convention); counting code unchanged and the per-layer behaviour is pinned by the new test; remediation: name the per-layer case in the clause"
+   }
+  ],
+  "not_reviewed": [
+   "closure-only CX-VAL-009 lanes of pigment dependants (composite, develop) and the pigment / render-cpu / interop-psd PASS lanes are covered by the validator's read of every src hunk (comment, rustdoc, DESCRIPTOR string or cfg-gated test code only), not by a lane review"
+  ],
+  "validator_disagreements": [],
+  "validator_reads": [
+   "P-1 re-read flatten_purge.rs:544-561 (Usage::resources: non-GATED entries followed with the scope's certainty, :556) and :775-776 (page scope seeds u.resources(rv, true)), :829 (reported = painted AND live AND NOT certain), and the press DESCRIPTOR redaction.flatten.painted_over sentence ('any plain reference ... is not pruned and is reported'): agrees",
+   "W-1 re-ran git grep -n -E 'Instant::now|elapsed|Duration::from_secs' at b8b31c7 (9 lines: css_url_gate.rs :28, :1987, :1993, :1995, :1998, :1999, html5ever_differential/main.rs:65, html_parity.rs:28, source_dom_patch.rs:29) and at 5606d16 (the 4 recv_timeout lines): agrees",
+   "I-1 re-read effects.rs:46-56, the interop-psd DESCRIPTOR effect_limits clause ('..._only_past_4096_apparent_counted_instances_...') and tests/effects_budget.rs:1191-1213 (Lost(OVER_LAYER) for a 65-instance layer with no pixels, alone and clipped): agrees",
+   "SMB-PIGMENT-NOTES: effects_ops.rs new test traced against extensions.rs:250-274 and :386-396 (guard pinned); render-cpu callers plan_sink.rs:1433 and :1469 admit before reachable (:484, :1480); new render-cpu test drives both paths with four hostile plans",
+   "web src diff: assets.rs additions all under #[cfg(test)]; datauri.rs doc only; reel-native: lib.rs:27-28 test_fault module gated av1 + test-faults, worker.rs Faults / on_finish / bytes_then_exit under cfg(feature = test-faults), host.rs comment lines only; interop-psd: effects.rs / proposal.rs comment lines only",
+   "unchanged: git diff b8b31c7..5606d16 -- composite, develop, render-gpu, interop-media empty; git diff dff7ef5..5606d16 -- crates/hsk-studio-develop empty"
+  ],
+  "lead_decisions_applied": [
+   "ledger round_R16 (ready SMB-PIGMENT-NOTES, SMB-NOTES-BATCH-1; reopen press, web, reel-native, interop-psd, pigment, render-cpu and dependants; excluded render-gpu D20, interop-media D9, SMB-PRESS + SMB-PRESS-DIFFERENCES deferred, SMB-NOTES-BATCH-1 withdrawn)",
+   "lead message to the validator before verdicts (2026-10-12, after the pre-review): SMB-PRESS / SMB-PRESS-DIFFERENCES not_judged deferred_fix_first; SMB-NOTES-BATCH-1 withdrawn (press part FIX_FIRST); judge the web, reel-native and interop-psd reopened lanes and SMB-PIGMENT-NOTES",
+   "START_LOG 2026-10-12T01:05:36Z (press P-1 remediation rule)"
+  ]
+ },
+ "proof_reuse": {
+  "basis": "CX-VAL-002: crate source + workspace-dep closure unchanged from each proof commit to 5606d16 (b8b31c7..5606d16 touches only press, web, reel-native, interop-psd, pigment and render-cpu; nothing depends on press, web, reel-native, interop-psd or render-cpu, and every pigment dependant is judged or excluded here); the round-R15 proof_reuse list minus the press, web and reel-native lanes judged or deferred here; reused verdicts name both commits; no new verdict",
+  "lanes": [
+   "SMB-TYPE (PASS_V5 @404ff3a)",
+   "SMB-LAYOUT (PASS_V5 @f6e5a49)",
+   "SMB-COMPONENTS (PASS_V5 @f6e5a49)",
+   "SMB-PULSE (PASS_V5 @f6e5a49)",
+   "SMB-SCORE (PASS_V4 @f6e5a49)",
+   "SMB-REEL (PASS_V10 @4b76604)",
+   "SMB-MOTION (PASS_V1 @404ff3a)",
+   "SMB-PACKAGE (PASS_V5 @f6e5a49)",
+   "SMB-INTEROP-VECTOR (PASS_V6 @3d795a5)",
+   "SMB-INTEROP-FIG (PASS_V3 @3d795a5)",
+   "SMB-INTEROP-LAYOUT (PASS_V5 @3d795a5)",
+   "SMB-CONTROLS (PASS_V3 @bd8533f)",
+   "SMB-SESSION (PASS_V5 @f6e5a49)",
+   "SMB-HARNESS (PASS_V3 @f6e5a49)",
+   "SMB-KERNEL-BINDINGS (PASS_V3 @f6e5a49)",
+   "SMB-SCORE-DEVICE (PASS_V3 @f6e5a49)",
+   "SMB-SCORE-PLUGIN (PASS_V4 @4d80e50)",
+   "SMB-INTEROP-LRCAT (PASS_V2 @bd8533f)",
+   "SMB-MOTION-JS (PASS_V3 @dff7ef5)",
+   "SMB-PRISM-ENG-1 (PASS_V4 @dff7ef5)",
+   "SMB-TYPE-ENG-1 (PASS_V1 @1d404f8)",
+   "SMB-REEL-ENG-1 (PASS_V4 @4b76604)",
+   "SMB-REEL-ENG-3 (PASS_V8 @4b76604)",
+   "SMB-PULSE-ENG-1 (PASS_V3 @f6e5a49)",
+   "SMB-PRISM-ENG-2 (PASS_V4 @dff7ef5)",
+   "SMB-PRISM-ENG-3 (PASS_V3 @dff7ef5)",
+   "SMB-PRISM-ENG-4 (PASS_V4 @dff7ef5)",
+   "SMB-PRISM-ENG-5 (PASS_V3 @dff7ef5)",
+   "SMB-TYPE-DOCTEST (PASS_V1 @1d404f8)",
+   "SMB-FOLIO-ENG-1 (PASS_V5 @f6e5a49)",
+   "SMB-TYPE-ENV (PASS_V1 @404ff3a)",
+   "SMB-ACCORD-ENG-1 (PASS_V1 @404ff3a)",
+   "SMB-TYPE-FONTS (PASS_V1 @404ff3a)",
+   "SMB-TYPE-FIXTURES (PASS_V1 @404ff3a)",
+   "SMB-FOLIO-ENG-2 (PASS_V5 @f6e5a49)",
+   "SMB-NIB-ENG-1 (PASS_V2 @1d404f8)",
+   "SMB-FOLIO-ENG-3 (PASS_V5 @f6e5a49)",
+   "SMB-ACCORD-ENG-2 (PASS_V1 @404ff3a)",
+   "SMB-MOTION-JS-WORKER (PASS_V2 @dff7ef5)",
+   "SMB-LAYOUT-FOLIO-MIGRATE (PASS_V4 @f6e5a49)",
+   "SMB-FOLIO-ENG-4 (PASS_V4 @f6e5a49)",
+   "SMB-PACKAGE-STREAM-SAVE (PASS_V4 @f6e5a49)",
+   "SMB-PRISM-ENG-6 (PASS_V2 @dff7ef5)",
+   "SMB-COMPONENTS-FOLIO-MIGRATE (PASS_V4 @f6e5a49)",
+   "SMB-INTEROP-VECTOR-FOLIO-MIGRATE (PASS_V5 @3d795a5)",
+   "SMB-REEL-AV1-ROUTE (PASS_V8 @4b76604)",
+   "SMB-MOTION-JS-SANDBOX-2 (PASS_V1 @dff7ef5)",
+   "SMB-PRISM-ENG-7 (PASS_V1 @dff7ef5)",
+   "SMB-FOLIO-ENG-6 (PASS_V2 @f6e5a49)",
+   "SMB-FOLIO-ENG-7 (PASS_V2 @f6e5a49)",
+   "SMB-CHRONICLE-TABLE (PASS_V2 @f6e5a49)",
+   "SMB-INTEROP-VECTOR-RECORDS (PASS_V3 @3d795a5)",
+   "SMB-PRISM-ENG-8 (PASS_V1 @dff7ef5)",
+   "SMB-SCORE-GUARDS (PASS_V1 @f6e5a49)",
+   "SMB-COMPONENTS-FOOTPRINT (PASS_V1 @f6e5a49)",
+   "SMB-FOLIO-UNIQUENESS (PASS_V1 @f6e5a49)",
+   "SMB-SCORE-PLUGIN-RATE (PASS_V1 @4d80e50)",
+   "SMB-REEL-RECEIPTS (PASS_V1 @4b76604)"
+  ],
+  "count": 58
+ },
+ "excluded": [
+  {
+   "lane": "SMB-NOTES-BATCH-1",
+   "reason": "not_judged: withdrawn by lead before verdicts: press part FIX_FIRST per R16 narrow pre-review; remediation follows (its four commits are in the candidate; the web, reel-native and interop-psd lanes they reopened are judged)"
+  },
+  {
+   "lane": "SMB-PRESS",
+   "reason": "not_judged: deferred_fix_first (V4-13 R16-prereview-notes-narrow FIX_FIRST, P-1); no FAIL, no charge; its PASS_V3 @4b76604 does not bind to 5606d16 (crate changed by 27a9a81), status left for the lead (V4-19); press 131/131 green in this run for information"
+  },
+  {
+   "lane": "SMB-PRESS-DIFFERENCES",
+   "reason": "not_judged: deferred with the press crate by the lead (FIX_FIRST); no FAIL, no charge; its PASS_V1 @4b76604 does not bind to 5606d16; status left for the lead"
+  },
+  {
+   "lane": "SMB-RENDER-GPU",
+   "reason": "not_judged: CX-EXEC-015(1) fix_budget_exhausted, Operator decision D20 pending (render-gpu ran for information)"
+  },
+  {
+   "lane": "SMB-RENDER-GPU-ADJ",
+   "reason": "not_judged: render-gpu lanes excluded (D20); BLOCKED by the lead after R15; not proof-reused (its closure changed in R15 and again here)"
+  },
+  {
+   "lane": "SMB-RENDER-GPU-PROBE",
+   "reason": "not_judged: no READY claim; render-gpu D20"
+  },
+  {
+   "lane": "SMB-ROUND-ENTRYPOINT",
+   "reason": "not_judged: CX-EXEC-015(1) fix_budget_exhausted, Operator decision D20 pending (entrypoint used for this round as infrastructure)"
+  },
+  {
+   "lane": "SMB-INTEROP-MEDIA, SMB-INTEROP-MEDIA-PULSE",
+   "reason": "not_judged: BLOCKED on Operator D9 (crate and lock closure unchanged)"
+  },
+  {
+   "lane": "queued/no-claim lanes (SMB-REEL-NATIVE, SMB-REEL-NATIVE-ENG-1, SMB-PRESS-GEOMETRY, SMB-REEL-ENG-2, SMB-FMT-SWEEP)",
+   "reason": "not_judged: no READY claim in 5606d16 (REEL-ENG-2 / REEL-NATIVE-ENG-1 BLOCKED on Operator D22-D26)"
+  }
+ ],
+ "deferred_fix_first": [
+  {
+   "lane": "SMB-PRESS",
+   "pre_review": "validation/R16-prereview-notes-narrow.json lanes[0]",
+   "finding": "P-1 CONFIRMED (flatten_purge.rs:556 / :776 certainty for non-gated page /Resources entries and plain keys of drawn objects vs DESCRIPTOR 'any plain reference ... is reported')",
+   "route": "remediation per START_LOG 2026-10-12T01:05:36Z; new push to press reopens press lanes (V4-14)"
+  },
+  {
+   "lane": "SMB-PRESS-DIFFERENCES",
+   "pre_review": "same (crate-level deferral by the lead)",
+   "finding": "none on its claim (/Differences decoding); deferred with the crate",
+   "route": "judged with the press remediation round"
+  }
+ ],
+ "deferred_note": "the union run started before the pre-review was COMPLETE (dispatch: wait for it like a review); verdicts were taken only after it was COMPLETE and after the lead's routing message",
+ "scope_rule": "READY lane SMB-PIGMENT-NOTES (claim 9cb44c2 + fe035ce + 8980d04) plus PASS lanes returned to READY by CX-VAL-009 (crate or workspace-dep closure changed b8b31c7..5606d16: web, reel-native, interop-psd, pigment, render-cpu and dependants composite, develop); two-FAIL lanes judged on SAFE_TO_JUDGE (web, reel-native, interop-psd) or V4-18 (develop); press lanes deferred (FIX_FIRST); SMB-NOTES-BATCH-1 withdrawn; render-gpu lanes excluded (D20)",
+ "included_count": 38,
+ "verdict_counts": {
+  "PASS_V1": 1,
+  "PASS_V2": 4,
+  "PASS_V3": 1,
+  "PASS_V4": 1,
+  "PASS_V5": 4,
+  "PASS_V6": 13,
+  "PASS_V7": 2,
+  "PASS_V8": 3,
+  "PASS_V9": 8,
+  "PASS_V11": 1
+ },
+ "verdict_numbering": "Vn = 1 + highest prior PASS_V/FAIL_V number of the lane (BLOCKED, NOT_PROVEN and inconclusive do not count), computed once from the ledger before the state write (ledger sha256 4a27dcf7, after the lead's 4056c654 / c9ee2566 commits) and frozen in the verdicts_accepted event: e.g. SMB-INTEROP-PSD V10 -> V11, SMB-WEB V4 -> V5, SMB-REEL-NATIVE-AV1-WORKER V8 -> V9, SMB-PIGMENT-NOTES no prior verdict -> V1",
+ "not_proven_rule": "V4-03: a test printing NOT_PROVEN is never PASS; a lane whose acceptance depends on it is not PASS. R16: the two NOT_PROVEN lines belong to the excluded render-gpu D20 probe; no judged lane depends on it",
+ "counters": [
+  {
+   "lane": "SMB-WEB",
+   "counter": "CX-EXEC-015(1) fix budget (failed verdicts 2, limit 3)",
+   "outcome": "PASS_V5; no counter acts"
+  },
+  {
+   "lane": "SMB-REEL-NATIVE-AV1-WORKER",
+   "counter": "CX-EXEC-015(1) fix budget (failed verdicts 2, limit 3)",
+   "outcome": "PASS_V9; no counter acts"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-BUDGET",
+   "counter": "CX-EXEC-015(1) fix budget (failed verdicts 2, limit 3)",
+   "outcome": "PASS_V6; no counter acts"
+  },
+  {
+   "lane": "SMB-DEVELOP",
+   "counter": "CX-EXEC-015(1) fix budget (failed verdicts 2, limit 3)",
+   "outcome": "PASS_V9; no counter acts"
+  },
+  {
+   "lane": "SMB-PRESS",
+   "counter": "CX-EXEC-015(1) fix budget (failed verdicts 2, limit 3)",
+   "outcome": "not judged (deferred_fix_first); no verdict, no charge"
+  },
+  {
+   "lane": "other judged lanes",
+   "counter": "CX-EXEC-015(1) fix budget (failed verdicts 0-1, limit 3)",
+   "outcome": "passed; no counter acts"
+  },
+  {
+   "lane": "round",
+   "counter": "CX-EXEC-015(4) same infrastructure failure_class in two rounds",
+   "outcome": "none (no infrastructure failure)"
+  }
+ ],
+ "fix_budget_events": "none (no FAIL this round; no lane reached CX-EXEC-015(1); no NEEDS_NEW_APPROACH)",
+ "lanes": [
+  {
+   "lane": "SMB-PIGMENT-NOTES",
+   "crate": "hsk-studio-pigment + hsk-studio-render-cpu",
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "tests": "pigment 82/82 default (R15 79 + 3 new: effects_ops 1, plan_followups 2; no R15 test missing), doctest unit exit 0 (no doctests); render-cpu 38/38 default (R15 37 + 1 new cpu_envelope_reach invalid_plan_indexes_are_refused_before_the_reachable_sweep; no R15 test missing), doctest unit exit 0",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "Claim 9cb44c2, fe035ce, 8980d04 (base b8b31c7). V4-14 ok: no pigment or render-cpu commit after 8980d04 up to 5606d16. Behaviour: none changed (src hunks are rustdoc only: extensions.rs:285-295, plan_sink.rs:447-453, extended.rs:191-198). PLR-079 verified by reading: effects_nested_ignores_an_input_that_is_not_an_earlier_node_of_a_reachable_group roots its plans at the node under test, so the guard extensions.rs:389 (layer.input.0 < node) decides the result (forward input 1->2 rooted at 1 and a self reference: [DROP_SHADOW]; without the guard or with <= the result gains EffectsNested; backward control keeps EffectsNested); traced against nodes_holding_effects :250-274. PLR-081 verified: the three rewritten sentences are true and cite existing tests; render-cpu invalid_plan_indexes_are_refused_before_the_reachable_sweep drives execute (v1) and execute_extended (non-empty envelope) with root/input out of range, a later input and a self input: typed InvalidPlan, grid.calls 0. PLR-080: tests/reader_scan/mod.rs reads CARGO_MANIFEST_DIR/src recursively (no machine path); the source tripwire and its two self-tests are green. Green in this run: pigment 82 (3 new), render-cpu 38 (1 new), every R15 test of both crates; dependants composite 28, develop 28 (+1 ignored), interop-psd 53. PLAN-R15-5 correction lives in lane notes only (no product claim). Not addressed by this lane (lane notes.plausible_not_addressed): PLAN-R15-4/PLR-082 (D20), PLAN-R15-6..-11.",
+   "review": "validator's own read (lead dispatch) + validation/R16-prereview-notes-narrow.json advisory: tests/docs only (code_only_diff 0 src code lines)",
+   "included_by": "READY (ledger round_R16.ready; claim 9cb44c2 + fe035ce + 8980d04, lane file updated_at 2026-10-12T00:37:10Z after the last claimed commit)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R16",
+   "idempotency_key": "STUDIO-R16:SMB-PIGMENT-NOTES:5606d162549d:PASS_V1",
+   "recorded_at": "2026-10-12T01:11:16Z"
+  },
+  {
+   "lane": "SMB-WEB",
+   "crate": "hsk-studio-web",
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "tests": "web 138/138 default (R12 135 + 3 new assets::tests; no R12 test missing), doctest unit exit 0",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 2,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "web src change by 9088884 (SMB-NOTES-BATCH-1, withdrawn by the lead before verdicts; the commit is in the candidate) is cfg(test)-only code (assets.rs MAP_VISITS / CANCEL_AFTER / tick, :577-603, :699-700, :725-726), the decide_all doc (datauri.rs:611-614) and two DESCRIPTOR proof lists; URL decisions, load contexts, carriers inventory, tokenizer and data: policy unchanged (R16 pre-review behaviour_change NO, validator read of the src diff agrees). web 138/138 green incl. every R12 test and r13_f1_many_animations_sharing_ids_finish_within_the_bound (wall-clock assertion removed, operation-count bound added as a unit test). W-1 (CONFIRMED, process): the SMB-NOTES-BATCH-1 lane note counts 7 wall-clock lines where git grep at b8b31c7 gives 9 (5 removed + 4 recv_timeout); every site handled; kernel-notes correction for the withdrawn lane, no product effect -> note.",
+   "review": "validation/R16-prereview-notes-narrow.json lanes[1] SMB-WEB: SAFE_TO_JUDGE (W-1 CONFIRMED process note, W-2 INFO)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-web changed b8b31c7..5606d16 by 9088884 (cfg(test) hook, docs, DESCRIPTOR proof lists, tests)); two-FAIL lane (FAIL_V1 R5, FAIL_V2 R6): V4-13 R16-prereview-notes-narrow SAFE_TO_JUDGE for hsk-studio-web at 9088884 (== crate at 5606d16)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R16",
+   "idempotency_key": "STUDIO-R16:SMB-WEB:5606d162549d:PASS_V5",
+   "recorded_at": "2026-10-12T01:11:16Z"
+  },
+  {
+   "lane": "SMB-WEB-DIFFTEST",
+   "crate": "hsk-studio-web",
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "tests": "web 138/138 default (R12 135 + 3 new assets::tests; no R12 test missing), doctest unit exit 0",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "web src change by 9088884 (SMB-NOTES-BATCH-1, withdrawn by the lead before verdicts; the commit is in the candidate) is cfg(test)-only code (assets.rs MAP_VISITS / CANCEL_AFTER / tick, :577-603, :699-700, :725-726), the decide_all doc (datauri.rs:611-614) and two DESCRIPTOR proof lists; URL decisions, load contexts, carriers inventory, tokenizer and data: policy unchanged (R16 pre-review behaviour_change NO, validator read of the src diff agrees). web 138/138 green incl. every R12 test and r13_f1_many_animations_sharing_ids_finish_within_the_bound (wall-clock assertion removed, operation-count bound added as a unit test).",
+   "review": "NOT_REVIEWED as a lane (covered by validation/R16-prereview-notes-narrow.json SMB-WEB section: crate-wide behaviour_change NO)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-web changed b8b31c7..5606d16 by 9088884 (cfg(test) hook, docs, DESCRIPTOR proof lists, tests))",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R16",
+   "idempotency_key": "STUDIO-R16:SMB-WEB-DIFFTEST:5606d162549d:PASS_V2",
+   "recorded_at": "2026-10-12T01:11:16Z"
+  },
+  {
+   "lane": "SMB-WEB-PARITY",
+   "crate": "hsk-studio-web",
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "tests": "web 138/138 default (R12 135 + 3 new assets::tests; no R12 test missing), doctest unit exit 0",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "web src change by 9088884 (SMB-NOTES-BATCH-1, withdrawn by the lead before verdicts; the commit is in the candidate) is cfg(test)-only code (assets.rs MAP_VISITS / CANCEL_AFTER / tick, :577-603, :699-700, :725-726), the decide_all doc (datauri.rs:611-614) and two DESCRIPTOR proof lists; URL decisions, load contexts, carriers inventory, tokenizer and data: policy unchanged (R16 pre-review behaviour_change NO, validator read of the src diff agrees). web 138/138 green incl. every R12 test and r13_f1_many_animations_sharing_ids_finish_within_the_bound (wall-clock assertion removed, operation-count bound added as a unit test).",
+   "review": "NOT_REVIEWED as a lane (covered by validation/R16-prereview-notes-narrow.json SMB-WEB section: crate-wide behaviour_change NO)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-web changed b8b31c7..5606d16 by 9088884 (cfg(test) hook, docs, DESCRIPTOR proof lists, tests))",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R16",
+   "idempotency_key": "STUDIO-R16:SMB-WEB-PARITY:5606d162549d:PASS_V2",
+   "recorded_at": "2026-10-12T01:11:16Z"
+  },
+  {
+   "lane": "SMB-REEL-NATIVE-AV1-WORKER",
+   "crate": "hsk-studio-reel-native",
+   "decision": "passed",
+   "verdict": "PASS_V9",
+   "status_change": "PASS_V9",
+   "tests": "reel-native default unit 0 tests (as before), av1-worker 5/5, av1-worker+test-faults 24/24 (R13 19 + 5 new tests/av1_worker.rs; no R13 test missing), 3 doctest units exit 0",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 2,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "reel-native change by ab273d3 (SMB-NOTES-BATCH-1, withdrawn by the lead before verdicts; the commit is in the candidate): host.rs comment/doc lines only (host decode and every Failure mapping unchanged), wire.rs docs + items gated cfg(all(av1-worker, test-faults)), worker.rs hooks and test_fault.rs variants under test-faults only (lib.rs:27-28 mod test_fault gated; worker.rs:47 / :53 / :194 cfg(feature = test-faults)), DESCRIPTOR isolation.bounds reworded to the enforced first-four-bytes rule. V4-04 holds: the default and av1-worker units built and ran without the hooks. Green: av1-worker 5/5, av1-worker+test-faults 24/24 (5 new host-level tests: batch_end_count, opened on PACKET and FINISH, more than 64 FRAMEs, cut-short greeting). R-1 (INFO): config-OBU tag u64::MAX case and exact-64-FRAME acceptance stay open under PLR-078 (lane not_done); not part of this lane's claim.",
+   "review": "validation/R16-prereview-notes-narrow.json lanes[2] SMB-REEL-NATIVE-AV1-WORKER: SAFE_TO_JUDGE (no finding; R-1, R-2 INFO)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-reel-native changed b8b31c7..5606d16 by ab273d3 (docs, DESCRIPTOR isolation.bounds, test-faults-gated hooks, tests)); two-FAIL lane (FAIL_V1 R5, FAIL_V2 R7): V4-13 R16-prereview-notes-narrow SAFE_TO_JUDGE for hsk-studio-reel-native at ab273d3 (== crate at 5606d16)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R16",
+   "idempotency_key": "STUDIO-R16:SMB-REEL-NATIVE-AV1-WORKER:5606d162549d:PASS_V9",
+   "recorded_at": "2026-10-12T01:11:16Z"
+  },
+  {
+   "lane": "SMB-REEL-NATIVE-FAULTS",
+   "crate": "hsk-studio-reel-native",
+   "decision": "passed",
+   "verdict": "PASS_V6",
+   "status_change": "PASS_V6",
+   "tests": "reel-native default unit 0 tests (as before), av1-worker 5/5, av1-worker+test-faults 24/24 (R13 19 + 5 new tests/av1_worker.rs; no R13 test missing), 3 doctest units exit 0",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "reel-native change by ab273d3 (SMB-NOTES-BATCH-1, withdrawn by the lead before verdicts; the commit is in the candidate): host.rs comment/doc lines only (host decode and every Failure mapping unchanged), wire.rs docs + items gated cfg(all(av1-worker, test-faults)), worker.rs hooks and test_fault.rs variants under test-faults only (lib.rs:27-28 mod test_fault gated; worker.rs:47 / :53 / :194 cfg(feature = test-faults)), DESCRIPTOR isolation.bounds reworded to the enforced first-four-bytes rule. V4-04 holds: the default and av1-worker units built and ran without the hooks. Green: av1-worker 5/5, av1-worker+test-faults 24/24 (5 new host-level tests: batch_end_count, opened on PACKET and FINISH, more than 64 FRAMEs, cut-short greeting).",
+   "review": "NOT_REVIEWED as a lane (covered by validation/R16-prereview-notes-narrow.json SMB-REEL-NATIVE-AV1-WORKER section: host and wire behaviour unchanged)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-reel-native changed b8b31c7..5606d16 by ab273d3 (docs, DESCRIPTOR isolation.bounds, test-faults-gated hooks, tests))",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R16",
+   "idempotency_key": "STUDIO-R16:SMB-REEL-NATIVE-FAULTS:5606d162549d:PASS_V6",
+   "recorded_at": "2026-10-12T01:11:16Z"
+  },
+  {
+   "lane": "SMB-REEL-NATIVE-FAULTS-2",
+   "crate": "hsk-studio-reel-native",
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "tests": "reel-native default unit 0 tests (as before), av1-worker 5/5, av1-worker+test-faults 24/24 (R13 19 + 5 new tests/av1_worker.rs; no R13 test missing), 3 doctest units exit 0",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "reel-native change by ab273d3 (SMB-NOTES-BATCH-1, withdrawn by the lead before verdicts; the commit is in the candidate): host.rs comment/doc lines only (host decode and every Failure mapping unchanged), wire.rs docs + items gated cfg(all(av1-worker, test-faults)), worker.rs hooks and test_fault.rs variants under test-faults only (lib.rs:27-28 mod test_fault gated; worker.rs:47 / :53 / :194 cfg(feature = test-faults)), DESCRIPTOR isolation.bounds reworded to the enforced first-four-bytes rule. V4-04 holds: the default and av1-worker units built and ran without the hooks. Green: av1-worker 5/5, av1-worker+test-faults 24/24 (5 new host-level tests: batch_end_count, opened on PACKET and FINISH, more than 64 FRAMEs, cut-short greeting). The R15 doc-precision note on this lane's wire/host/DESCRIPTOR HELLO wording (PLR-078) is resolved by ab273d3 (docs now state the enforced rule).",
+   "review": "NOT_REVIEWED as a lane (covered by validation/R16-prereview-notes-narrow.json SMB-REEL-NATIVE-AV1-WORKER section: host and wire behaviour unchanged)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-reel-native changed b8b31c7..5606d16 by ab273d3 (docs, DESCRIPTOR isolation.bounds, test-faults-gated hooks, tests))",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R16",
+   "idempotency_key": "STUDIO-R16:SMB-REEL-NATIVE-FAULTS-2:5606d162549d:PASS_V2",
+   "recorded_at": "2026-10-12T01:11:16Z"
+  },
+  {
+   "lane": "SMB-DEVELOP",
+   "crate": "hsk-studio-develop",
+   "decision": "passed",
+   "verdict": "PASS_V9",
+   "status_change": "PASS_V9",
+   "tests": "develop 28/28 default + 1 skipped (real_dng_decode_and_develop #[ignore]: CC0 corpus D10, skipped in R12/R15 too; = R15 set), doctest unit exit 0",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 2,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "crate unchanged; the only closure change is pigment rustdoc + tests (no pigment code line changed), so nothing this crate links can behave differently. develop uses pigment Grid / Rect only; 28/28 green (+1 #[ignore] real_dng, D10).",
+   "review": "NOT_REVIEWED as a lane (validator read of every src hunk b8b31c7..5606d16 of its crate(s): comment/rustdoc, DESCRIPTOR string, cfg(test) or test-faults code only; R16 pre-review advisory: pigment/render-cpu src change is doc-only)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: workspace-dep closure pigment changed b8b31c7..5606d16 by 9cb44c2 + 8980d04; crate unchanged (git diff b8b31c7..5606d16 empty)); two-FAIL lane (FAIL_V1 R3, FAIL_V2 R5) reopened only through the dependency: crate unchanged since its SAFE_TO_JUDGE R7-review-a recheck (git diff dff7ef5..5606d16 -- crates/hsk-studio-develop empty), V4-18",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R16",
+   "idempotency_key": "STUDIO-R16:SMB-DEVELOP:5606d162549d:PASS_V9",
+   "recorded_at": "2026-10-12T01:11:16Z"
+  },
+  {
+   "lane": "SMB-COMPOSITE",
+   "crate": "hsk-studio-composite",
+   "decision": "passed",
+   "verdict": "PASS_V9",
+   "status_change": "PASS_V9",
+   "tests": "composite 28/28 default (= R15 set), doctest unit exit 0",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "crate unchanged; the only closure change is pigment rustdoc + tests (no pigment code line changed), so nothing this crate links can behave differently. composite 28/28 green (= R15 set).",
+   "review": "NOT_REVIEWED as a lane (validator read of every src hunk b8b31c7..5606d16 of its crate(s): comment/rustdoc, DESCRIPTOR string, cfg(test) or test-faults code only; R16 pre-review advisory: pigment/render-cpu src change is doc-only)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: workspace-dep closure pigment changed b8b31c7..5606d16 by 9cb44c2 + 8980d04; crate unchanged (git diff b8b31c7..5606d16 empty))",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R16",
+   "idempotency_key": "STUDIO-R16:SMB-COMPOSITE:5606d162549d:PASS_V9",
+   "recorded_at": "2026-10-12T01:11:16Z"
+  },
+  {
+   "lane": "SMB-RENDER-CPU",
+   "crate": "hsk-studio-render-cpu",
+   "decision": "passed",
+   "verdict": "PASS_V9",
+   "status_change": "PASS_V9",
+   "tests": "render-cpu 38/38 default (R15 37 + 1 new cpu_envelope_reach invalid_plan_indexes_are_refused_before_the_reachable_sweep; no R15 test missing), doctest unit exit 0",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "render-cpu src change is rustdoc only (plan_sink.rs:447-453 reachable(), extended.rs:191-198 ExtPrep::build); validator read: both callers admit first (execute_detailed :1433 admit_with_limits -> run -> prepare :484 reachable; execute_extended_detailed :1469 admit_extended_with_limits -> :1480 reachable). Every R15 render-cpu test green; no claim broken by reading.",
+   "review": "NOT_REVIEWED as a lane (validator read of every src hunk b8b31c7..5606d16 of its crate(s): comment/rustdoc, DESCRIPTOR string, cfg(test) or test-faults code only; R16 pre-review advisory: pigment/render-cpu src change is doc-only)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-render-cpu changed b8b31c7..5606d16 by fe035ce (test + rustdoc of plan_sink.rs / extended.rs only) and workspace-dep closure pigment by 9cb44c2 + 8980d04)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R16",
+   "idempotency_key": "STUDIO-R16:SMB-RENDER-CPU:5606d162549d:PASS_V9",
+   "recorded_at": "2026-10-12T01:11:16Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V11",
+   "status_change": "PASS_V11",
+   "tests": "interop-psd 53/53 default (R15 50 + 3 new tests/effects_budget.rs; no R15 test missing), doctest unit exit 0",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "interop-psd src change by 5606d16 is comments (effects.rs:48-56, :93-95; proposal.rs:140-144, :508-511) and the DESCRIPTOR effect_limits clause; counting code unchanged (proposal.rs:569 / :891 / :895 are context). Every R15 interop-psd test green; no claim broken by reading.",
+   "review": "NOT_REVIEWED as a lane (validator read of every src hunk b8b31c7..5606d16 of its crate(s): comment/rustdoc, DESCRIPTOR string, cfg(test) or test-faults code only; R16 pre-review advisory: pigment/render-cpu src change is doc-only)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-interop-psd changed b8b31c7..5606d16 by 5606d16 (comments, DESCRIPTOR effect_limits, tests) and workspace-dep closure pigment by 9cb44c2 + 8980d04)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R16",
+   "idempotency_key": "STUDIO-R16:SMB-INTEROP-PSD:5606d162549d:PASS_V11",
+   "recorded_at": "2026-10-12T01:11:16Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-ENG-1",
+   "crate": "hsk-studio-pigment",
+   "decision": "passed",
+   "verdict": "PASS_V9",
+   "status_change": "PASS_V9",
+   "tests": "pigment 82/82 default (R15 79 + 3 new: effects_ops 1, plan_followups 2; no R15 test missing), doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "pigment src change b8b31c7..5606d16 is the rustdoc of PlanExtensions::validate only (extensions.rs:285-295; code lines unchanged, R16 pre-review advisory code_only_diff 0 lines); the rest is tests. Every R15 pigment test green; no claim broken by reading.",
+   "review": "NOT_REVIEWED as a lane (validator read of every src hunk b8b31c7..5606d16 of its crate(s): comment/rustdoc, DESCRIPTOR string, cfg(test) or test-faults code only; R16 pre-review advisory: pigment/render-cpu src change is doc-only)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-pigment changed b8b31c7..5606d16 by 9cb44c2 + 8980d04 (tests + rustdoc of extensions.rs only))",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R16",
+   "idempotency_key": "STUDIO-R16:SMB-PIGMENT-ENG-1:5606d162549d:PASS_V9",
+   "recorded_at": "2026-10-12T01:11:16Z"
+  },
+  {
+   "lane": "SMB-RENDER-CPU-CLIP",
+   "crate": "hsk-studio-render-cpu",
+   "decision": "passed",
+   "verdict": "PASS_V9",
+   "status_change": "PASS_V9",
+   "tests": "render-cpu 38/38 default (R15 37 + 1 new cpu_envelope_reach invalid_plan_indexes_are_refused_before_the_reachable_sweep; no R15 test missing), doctest unit exit 0",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "render-cpu src change is rustdoc only (plan_sink.rs:447-453 reachable(), extended.rs:191-198 ExtPrep::build); validator read: both callers admit first (execute_detailed :1433 admit_with_limits -> run -> prepare :484 reachable; execute_extended_detailed :1469 admit_extended_with_limits -> :1480 reachable). Every R15 render-cpu test green; no claim broken by reading.",
+   "review": "NOT_REVIEWED as a lane (validator read of every src hunk b8b31c7..5606d16 of its crate(s): comment/rustdoc, DESCRIPTOR string, cfg(test) or test-faults code only; R16 pre-review advisory: pigment/render-cpu src change is doc-only)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-render-cpu changed b8b31c7..5606d16 by fe035ce (test + rustdoc of plan_sink.rs / extended.rs only) and workspace-dep closure pigment by 9cb44c2 + 8980d04)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R16",
+   "idempotency_key": "STUDIO-R16:SMB-RENDER-CPU-CLIP:5606d162549d:PASS_V9",
+   "recorded_at": "2026-10-12T01:11:16Z"
+  },
+  {
+   "lane": "SMB-COMPOSITE-CLIP-ALIGN",
+   "crate": "hsk-studio-composite",
+   "decision": "passed",
+   "verdict": "PASS_V9",
+   "status_change": "PASS_V9",
+   "tests": "composite 28/28 default (= R15 set), doctest unit exit 0",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "crate unchanged; the only closure change is pigment rustdoc + tests (no pigment code line changed), so nothing this crate links can behave differently. composite 28/28 green (= R15 set).",
+   "review": "NOT_REVIEWED as a lane (validator read of every src hunk b8b31c7..5606d16 of its crate(s): comment/rustdoc, DESCRIPTOR string, cfg(test) or test-faults code only; R16 pre-review advisory: pigment/render-cpu src change is doc-only)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: workspace-dep closure pigment changed b8b31c7..5606d16 by 9cb44c2 + 8980d04; crate unchanged (git diff b8b31c7..5606d16 empty))",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R16",
+   "idempotency_key": "STUDIO-R16:SMB-COMPOSITE-CLIP-ALIGN:5606d162549d:PASS_V9",
+   "recorded_at": "2026-10-12T01:11:16Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-WIDE",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V9",
+   "status_change": "PASS_V9",
+   "tests": "interop-psd 53/53 default (R15 50 + 3 new tests/effects_budget.rs; no R15 test missing), doctest unit exit 0",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "interop-psd src change by 5606d16 is comments (effects.rs:48-56, :93-95; proposal.rs:140-144, :508-511) and the DESCRIPTOR effect_limits clause; counting code unchanged (proposal.rs:569 / :891 / :895 are context). Every R15 interop-psd test green; no claim broken by reading.",
+   "review": "NOT_REVIEWED as a lane (validator read of every src hunk b8b31c7..5606d16 of its crate(s): comment/rustdoc, DESCRIPTOR string, cfg(test) or test-faults code only; R16 pre-review advisory: pigment/render-cpu src change is doc-only)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-interop-psd changed b8b31c7..5606d16 by 5606d16 (comments, DESCRIPTOR effect_limits, tests) and workspace-dep closure pigment by 9cb44c2 + 8980d04)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R16",
+   "idempotency_key": "STUDIO-R16:SMB-INTEROP-PSD-WIDE:5606d162549d:PASS_V9",
+   "recorded_at": "2026-10-12T01:11:16Z"
+  },
+  {
+   "lane": "SMB-DEVELOP-WIDE",
+   "crate": "hsk-studio-develop",
+   "decision": "passed",
+   "verdict": "PASS_V6",
+   "status_change": "PASS_V6",
+   "tests": "develop 28/28 default + 1 skipped (real_dng_decode_and_develop #[ignore]: CC0 corpus D10, skipped in R12/R15 too; = R15 set), doctest unit exit 0",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "crate unchanged; the only closure change is pigment rustdoc + tests (no pigment code line changed), so nothing this crate links can behave differently. develop uses pigment Grid / Rect only; 28/28 green (+1 #[ignore] real_dng, D10).",
+   "review": "NOT_REVIEWED as a lane (validator read of every src hunk b8b31c7..5606d16 of its crate(s): comment/rustdoc, DESCRIPTOR string, cfg(test) or test-faults code only; R16 pre-review advisory: pigment/render-cpu src change is doc-only)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: workspace-dep closure pigment changed b8b31c7..5606d16 by 9cb44c2 + 8980d04; crate unchanged (git diff b8b31c7..5606d16 empty))",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R16",
+   "idempotency_key": "STUDIO-R16:SMB-DEVELOP-WIDE:5606d162549d:PASS_V6",
+   "recorded_at": "2026-10-12T01:11:16Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-ENG-2",
+   "crate": "hsk-studio-pigment + hsk-studio-folio",
+   "decision": "passed",
+   "verdict": "PASS_V7",
+   "status_change": "PASS_V7",
+   "tests": "pigment 82/82 default (R15 79 + 3 new: effects_ops 1, plan_followups 2; no R15 test missing), doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "pigment src change b8b31c7..5606d16 is the rustdoc of PlanExtensions::validate only (extensions.rs:285-295; code lines unchanged, R16 pre-review advisory code_only_diff 0 lines); the rest is tests. Every R15 pigment test green; no claim broken by reading. folio unchanged b8b31c7..5606d16 (proof reused for its part).",
+   "review": "NOT_REVIEWED as a lane (validator read of every src hunk b8b31c7..5606d16 of its crate(s): comment/rustdoc, DESCRIPTOR string, cfg(test) or test-faults code only; R16 pre-review advisory: pigment/render-cpu src change is doc-only)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-pigment changed b8b31c7..5606d16 by 9cb44c2 + 8980d04 (tests + rustdoc of extensions.rs only))",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R16",
+   "idempotency_key": "STUDIO-R16:SMB-PIGMENT-ENG-2:5606d162549d:PASS_V7",
+   "recorded_at": "2026-10-12T01:11:16Z"
+  },
+  {
+   "lane": "SMB-COMPOSITE-ADJ",
+   "crate": "hsk-studio-composite",
+   "decision": "passed",
+   "verdict": "PASS_V6",
+   "status_change": "PASS_V6",
+   "tests": "composite 28/28 default (= R15 set), doctest unit exit 0",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "crate unchanged; the only closure change is pigment rustdoc + tests (no pigment code line changed), so nothing this crate links can behave differently. composite 28/28 green (= R15 set).",
+   "review": "NOT_REVIEWED as a lane (validator read of every src hunk b8b31c7..5606d16 of its crate(s): comment/rustdoc, DESCRIPTOR string, cfg(test) or test-faults code only; R16 pre-review advisory: pigment/render-cpu src change is doc-only)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: workspace-dep closure pigment changed b8b31c7..5606d16 by 9cb44c2 + 8980d04; crate unchanged (git diff b8b31c7..5606d16 empty))",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R16",
+   "idempotency_key": "STUDIO-R16:SMB-COMPOSITE-ADJ:5606d162549d:PASS_V6",
+   "recorded_at": "2026-10-12T01:11:16Z"
+  },
+  {
+   "lane": "SMB-RENDER-CPU-ADJ",
+   "crate": "hsk-studio-render-cpu",
+   "decision": "passed",
+   "verdict": "PASS_V6",
+   "status_change": "PASS_V6",
+   "tests": "render-cpu 38/38 default (R15 37 + 1 new cpu_envelope_reach invalid_plan_indexes_are_refused_before_the_reachable_sweep; no R15 test missing), doctest unit exit 0",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "render-cpu src change is rustdoc only (plan_sink.rs:447-453 reachable(), extended.rs:191-198 ExtPrep::build); validator read: both callers admit first (execute_detailed :1433 admit_with_limits -> run -> prepare :484 reachable; execute_extended_detailed :1469 admit_extended_with_limits -> :1480 reachable). Every R15 render-cpu test green; no claim broken by reading.",
+   "review": "NOT_REVIEWED as a lane (validator read of every src hunk b8b31c7..5606d16 of its crate(s): comment/rustdoc, DESCRIPTOR string, cfg(test) or test-faults code only; R16 pre-review advisory: pigment/render-cpu src change is doc-only)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-render-cpu changed b8b31c7..5606d16 by fe035ce (test + rustdoc of plan_sink.rs / extended.rs only) and workspace-dep closure pigment by 9cb44c2 + 8980d04)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R16",
+   "idempotency_key": "STUDIO-R16:SMB-RENDER-CPU-ADJ:5606d162549d:PASS_V6",
+   "recorded_at": "2026-10-12T01:11:16Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-ADJ",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V8",
+   "status_change": "PASS_V8",
+   "tests": "interop-psd 53/53 default (R15 50 + 3 new tests/effects_budget.rs; no R15 test missing), doctest unit exit 0",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "interop-psd src change by 5606d16 is comments (effects.rs:48-56, :93-95; proposal.rs:140-144, :508-511) and the DESCRIPTOR effect_limits clause; counting code unchanged (proposal.rs:569 / :891 / :895 are context). Every R15 interop-psd test green; no claim broken by reading.",
+   "review": "NOT_REVIEWED as a lane (validator read of every src hunk b8b31c7..5606d16 of its crate(s): comment/rustdoc, DESCRIPTOR string, cfg(test) or test-faults code only; R16 pre-review advisory: pigment/render-cpu src change is doc-only)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-interop-psd changed b8b31c7..5606d16 by 5606d16 (comments, DESCRIPTOR effect_limits, tests) and workspace-dep closure pigment by 9cb44c2 + 8980d04)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R16",
+   "idempotency_key": "STUDIO-R16:SMB-INTEROP-PSD-ADJ:5606d162549d:PASS_V8",
+   "recorded_at": "2026-10-12T01:11:16Z"
+  },
+  {
+   "lane": "SMB-EFFECTS-WAVE-1",
+   "crate": "hsk-studio-pigment",
+   "decision": "passed",
+   "verdict": "PASS_V6",
+   "status_change": "PASS_V6",
+   "tests": "pigment 82/82 default (R15 79 + 3 new: effects_ops 1, plan_followups 2; no R15 test missing), doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "pigment src change b8b31c7..5606d16 is the rustdoc of PlanExtensions::validate only (extensions.rs:285-295; code lines unchanged, R16 pre-review advisory code_only_diff 0 lines); the rest is tests. Every R15 pigment test green; no claim broken by reading.",
+   "review": "NOT_REVIEWED as a lane (validator read of every src hunk b8b31c7..5606d16 of its crate(s): comment/rustdoc, DESCRIPTOR string, cfg(test) or test-faults code only; R16 pre-review advisory: pigment/render-cpu src change is doc-only)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-pigment changed b8b31c7..5606d16 by 9cb44c2 + 8980d04 (tests + rustdoc of extensions.rs only))",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R16",
+   "idempotency_key": "STUDIO-R16:SMB-EFFECTS-WAVE-1:5606d162549d:PASS_V6",
+   "recorded_at": "2026-10-12T01:11:16Z"
+  },
+  {
+   "lane": "SMB-EFFECTS-WAVE-2",
+   "crate": "hsk-studio-pigment",
+   "decision": "passed",
+   "verdict": "PASS_V6",
+   "status_change": "PASS_V6",
+   "tests": "pigment 82/82 default (R15 79 + 3 new: effects_ops 1, plan_followups 2; no R15 test missing), doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "pigment src change b8b31c7..5606d16 is the rustdoc of PlanExtensions::validate only (extensions.rs:285-295; code lines unchanged, R16 pre-review advisory code_only_diff 0 lines); the rest is tests. Every R15 pigment test green; no claim broken by reading.",
+   "review": "NOT_REVIEWED as a lane (validator read of every src hunk b8b31c7..5606d16 of its crate(s): comment/rustdoc, DESCRIPTOR string, cfg(test) or test-faults code only; R16 pre-review advisory: pigment/render-cpu src change is doc-only)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-pigment changed b8b31c7..5606d16 by 9cb44c2 + 8980d04 (tests + rustdoc of extensions.rs only))",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R16",
+   "idempotency_key": "STUDIO-R16:SMB-EFFECTS-WAVE-2:5606d162549d:PASS_V6",
+   "recorded_at": "2026-10-12T01:11:16Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-WINDOW",
+   "crate": "hsk-studio-pigment",
+   "decision": "passed",
+   "verdict": "PASS_V6",
+   "status_change": "PASS_V6",
+   "tests": "pigment 82/82 default (R15 79 + 3 new: effects_ops 1, plan_followups 2; no R15 test missing), doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "pigment src change b8b31c7..5606d16 is the rustdoc of PlanExtensions::validate only (extensions.rs:285-295; code lines unchanged, R16 pre-review advisory code_only_diff 0 lines); the rest is tests. Every R15 pigment test green; no claim broken by reading.",
+   "review": "NOT_REVIEWED as a lane (validator read of every src hunk b8b31c7..5606d16 of its crate(s): comment/rustdoc, DESCRIPTOR string, cfg(test) or test-faults code only; R16 pre-review advisory: pigment/render-cpu src change is doc-only)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-pigment changed b8b31c7..5606d16 by 9cb44c2 + 8980d04 (tests + rustdoc of extensions.rs only))",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R16",
+   "idempotency_key": "STUDIO-R16:SMB-PIGMENT-WINDOW:5606d162549d:PASS_V6",
+   "recorded_at": "2026-10-12T01:11:16Z"
+  },
+  {
+   "lane": "SMB-RENDER-CPU-WINDOW",
+   "crate": "hsk-studio-render-cpu",
+   "decision": "passed",
+   "verdict": "PASS_V6",
+   "status_change": "PASS_V6",
+   "tests": "render-cpu 38/38 default (R15 37 + 1 new cpu_envelope_reach invalid_plan_indexes_are_refused_before_the_reachable_sweep; no R15 test missing), doctest unit exit 0",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "render-cpu src change is rustdoc only (plan_sink.rs:447-453 reachable(), extended.rs:191-198 ExtPrep::build); validator read: both callers admit first (execute_detailed :1433 admit_with_limits -> run -> prepare :484 reachable; execute_extended_detailed :1469 admit_extended_with_limits -> :1480 reachable). Every R15 render-cpu test green; no claim broken by reading.",
+   "review": "NOT_REVIEWED as a lane (validator read of every src hunk b8b31c7..5606d16 of its crate(s): comment/rustdoc, DESCRIPTOR string, cfg(test) or test-faults code only; R16 pre-review advisory: pigment/render-cpu src change is doc-only)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-render-cpu changed b8b31c7..5606d16 by fe035ce (test + rustdoc of plan_sink.rs / extended.rs only) and workspace-dep closure pigment by 9cb44c2 + 8980d04)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R16",
+   "idempotency_key": "STUDIO-R16:SMB-RENDER-CPU-WINDOW:5606d162549d:PASS_V6",
+   "recorded_at": "2026-10-12T01:11:16Z"
+  },
+  {
+   "lane": "SMB-RENDER-CPU-FX2",
+   "crate": "hsk-studio-render-cpu",
+   "decision": "passed",
+   "verdict": "PASS_V6",
+   "status_change": "PASS_V6",
+   "tests": "render-cpu 38/38 default (R15 37 + 1 new cpu_envelope_reach invalid_plan_indexes_are_refused_before_the_reachable_sweep; no R15 test missing), doctest unit exit 0",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "render-cpu src change is rustdoc only (plan_sink.rs:447-453 reachable(), extended.rs:191-198 ExtPrep::build); validator read: both callers admit first (execute_detailed :1433 admit_with_limits -> run -> prepare :484 reachable; execute_extended_detailed :1469 admit_extended_with_limits -> :1480 reachable). Every R15 render-cpu test green; no claim broken by reading.",
+   "review": "NOT_REVIEWED as a lane (validator read of every src hunk b8b31c7..5606d16 of its crate(s): comment/rustdoc, DESCRIPTOR string, cfg(test) or test-faults code only; R16 pre-review advisory: pigment/render-cpu src change is doc-only)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-render-cpu changed b8b31c7..5606d16 by fe035ce (test + rustdoc of plan_sink.rs / extended.rs only) and workspace-dep closure pigment by 9cb44c2 + 8980d04)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R16",
+   "idempotency_key": "STUDIO-R16:SMB-RENDER-CPU-FX2:5606d162549d:PASS_V6",
+   "recorded_at": "2026-10-12T01:11:16Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-RECEIPT",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V8",
+   "status_change": "PASS_V8",
+   "tests": "interop-psd 53/53 default (R15 50 + 3 new tests/effects_budget.rs; no R15 test missing), doctest unit exit 0",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "interop-psd src change by 5606d16 is comments (effects.rs:48-56, :93-95; proposal.rs:140-144, :508-511) and the DESCRIPTOR effect_limits clause; counting code unchanged (proposal.rs:569 / :891 / :895 are context). Every R15 interop-psd test green; no claim broken by reading.",
+   "review": "NOT_REVIEWED as a lane (validator read of every src hunk b8b31c7..5606d16 of its crate(s): comment/rustdoc, DESCRIPTOR string, cfg(test) or test-faults code only; R16 pre-review advisory: pigment/render-cpu src change is doc-only)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-interop-psd changed b8b31c7..5606d16 by 5606d16 (comments, DESCRIPTOR effect_limits, tests) and workspace-dep closure pigment by 9cb44c2 + 8980d04)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R16",
+   "idempotency_key": "STUDIO-R16:SMB-INTEROP-PSD-RECEIPT:5606d162549d:PASS_V8",
+   "recorded_at": "2026-10-12T01:11:16Z"
+  },
+  {
+   "lane": "SMB-DEVELOP-JOBS",
+   "crate": "hsk-studio-develop",
+   "decision": "passed",
+   "verdict": "PASS_V6",
+   "status_change": "PASS_V6",
+   "tests": "develop 28/28 default + 1 skipped (real_dng_decode_and_develop #[ignore]: CC0 corpus D10, skipped in R12/R15 too; = R15 set), doctest unit exit 0",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "crate unchanged; the only closure change is pigment rustdoc + tests (no pigment code line changed), so nothing this crate links can behave differently. develop uses pigment Grid / Rect only; 28/28 green (+1 #[ignore] real_dng, D10).",
+   "review": "NOT_REVIEWED as a lane (validator read of every src hunk b8b31c7..5606d16 of its crate(s): comment/rustdoc, DESCRIPTOR string, cfg(test) or test-faults code only; R16 pre-review advisory: pigment/render-cpu src change is doc-only)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: workspace-dep closure pigment changed b8b31c7..5606d16 by 9cb44c2 + 8980d04; crate unchanged (git diff b8b31c7..5606d16 empty))",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R16",
+   "idempotency_key": "STUDIO-R16:SMB-DEVELOP-JOBS:5606d162549d:PASS_V6",
+   "recorded_at": "2026-10-12T01:11:16Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-BLENDIF-CLIP",
+   "crate": "hsk-studio-pigment",
+   "decision": "passed",
+   "verdict": "PASS_V6",
+   "status_change": "PASS_V6",
+   "tests": "pigment 82/82 default (R15 79 + 3 new: effects_ops 1, plan_followups 2; no R15 test missing), doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "pigment src change b8b31c7..5606d16 is the rustdoc of PlanExtensions::validate only (extensions.rs:285-295; code lines unchanged, R16 pre-review advisory code_only_diff 0 lines); the rest is tests. Every R15 pigment test green; no claim broken by reading.",
+   "review": "NOT_REVIEWED as a lane (validator read of every src hunk b8b31c7..5606d16 of its crate(s): comment/rustdoc, DESCRIPTOR string, cfg(test) or test-faults code only; R16 pre-review advisory: pigment/render-cpu src change is doc-only)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-pigment changed b8b31c7..5606d16 by 9cb44c2 + 8980d04 (tests + rustdoc of extensions.rs only))",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R16",
+   "idempotency_key": "STUDIO-R16:SMB-PIGMENT-BLENDIF-CLIP:5606d162549d:PASS_V6",
+   "recorded_at": "2026-10-12T01:11:16Z"
+  },
+  {
+   "lane": "SMB-BLENDIF-CLIP-ADOPT",
+   "crate": "hsk-studio-composite + hsk-studio-render-cpu + hsk-studio-render-gpu",
+   "decision": "passed",
+   "verdict": "PASS_V6",
+   "status_change": "PASS_V6",
+   "tests": "composite 28/28 default (= R15 set), doctest unit exit 0; render-cpu 38/38 default (R15 37 + 1 new cpu_envelope_reach invalid_plan_indexes_are_refused_before_the_reachable_sweep; no R15 test missing), doctest unit exit 0; render-gpu 24/24 default + 27/27 test-faults + 4 doctests (information only, D20; the two NOT_PROVEN lines are its no-adapter probe)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "render-cpu src change is rustdoc only (plan_sink.rs:447-453 reachable(), extended.rs:191-198 ExtPrep::build); validator read: both callers admit first (execute_detailed :1433 admit_with_limits -> run -> prepare :484 reachable; execute_extended_detailed :1469 admit_extended_with_limits -> :1480 reachable). Every R15 render-cpu test green; no claim broken by reading. composite and render-gpu unchanged (git diff b8b31c7..5606d16 empty); render-gpu ran for information (D20) and is green.",
+   "review": "NOT_REVIEWED as a lane (validator read of every src hunk b8b31c7..5606d16 of its crate(s): comment/rustdoc, DESCRIPTOR string, cfg(test) or test-faults code only; R16 pre-review advisory: pigment/render-cpu src change is doc-only)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-render-cpu changed b8b31c7..5606d16 by fe035ce (test + rustdoc of plan_sink.rs / extended.rs only); closure pigment by 9cb44c2 + 8980d04)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R16",
+   "idempotency_key": "STUDIO-R16:SMB-BLENDIF-CLIP-ADOPT:5606d162549d:PASS_V6",
+   "recorded_at": "2026-10-12T01:11:16Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-CLIP-ROLES",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V8",
+   "status_change": "PASS_V8",
+   "tests": "interop-psd 53/53 default (R15 50 + 3 new tests/effects_budget.rs; no R15 test missing), doctest unit exit 0",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "interop-psd src change by 5606d16 is comments (effects.rs:48-56, :93-95; proposal.rs:140-144, :508-511) and the DESCRIPTOR effect_limits clause; counting code unchanged (proposal.rs:569 / :891 / :895 are context). Every R15 interop-psd test green; no claim broken by reading.",
+   "review": "NOT_REVIEWED as a lane (validator read of every src hunk b8b31c7..5606d16 of its crate(s): comment/rustdoc, DESCRIPTOR string, cfg(test) or test-faults code only; R16 pre-review advisory: pigment/render-cpu src change is doc-only)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-interop-psd changed b8b31c7..5606d16 by 5606d16 (comments, DESCRIPTOR effect_limits, tests) and workspace-dep closure pigment by 9cb44c2 + 8980d04)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R16",
+   "idempotency_key": "STUDIO-R16:SMB-INTEROP-PSD-CLIP-ROLES:5606d162549d:PASS_V8",
+   "recorded_at": "2026-10-12T01:11:16Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-PLANLIMITS",
+   "crate": "hsk-studio-pigment",
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "tests": "pigment 82/82 default (R15 79 + 3 new: effects_ops 1, plan_followups 2; no R15 test missing), doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "pigment src change b8b31c7..5606d16 is the rustdoc of PlanExtensions::validate only (extensions.rs:285-295; code lines unchanged, R16 pre-review advisory code_only_diff 0 lines); the rest is tests. Every R15 pigment test green; no claim broken by reading.",
+   "review": "NOT_REVIEWED as a lane (validator read of every src hunk b8b31c7..5606d16 of its crate(s): comment/rustdoc, DESCRIPTOR string, cfg(test) or test-faults code only; R16 pre-review advisory: pigment/render-cpu src change is doc-only)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-pigment changed b8b31c7..5606d16 by 9cb44c2 + 8980d04 (tests + rustdoc of extensions.rs only))",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R16",
+   "idempotency_key": "STUDIO-R16:SMB-PIGMENT-PLANLIMITS:5606d162549d:PASS_V3",
+   "recorded_at": "2026-10-12T01:11:16Z"
+  },
+  {
+   "lane": "SMB-REFUSAL-KEYS",
+   "crate": "hsk-studio-composite + hsk-studio-render-cpu + hsk-studio-render-gpu",
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "tests": "composite 28/28 default (= R15 set), doctest unit exit 0; render-cpu 38/38 default (R15 37 + 1 new cpu_envelope_reach invalid_plan_indexes_are_refused_before_the_reachable_sweep; no R15 test missing), doctest unit exit 0; render-gpu 24/24 default + 27/27 test-faults + 4 doctests (information only, D20; the two NOT_PROVEN lines are its no-adapter probe)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "render-cpu src change is rustdoc only (plan_sink.rs:447-453 reachable(), extended.rs:191-198 ExtPrep::build); validator read: both callers admit first (execute_detailed :1433 admit_with_limits -> run -> prepare :484 reachable; execute_extended_detailed :1469 admit_extended_with_limits -> :1480 reachable). Every R15 render-cpu test green; no claim broken by reading. composite and render-gpu unchanged (git diff b8b31c7..5606d16 empty); render-gpu ran for information (D20) and is green.",
+   "review": "NOT_REVIEWED as a lane (validator read of every src hunk b8b31c7..5606d16 of its crate(s): comment/rustdoc, DESCRIPTOR string, cfg(test) or test-faults code only; R16 pre-review advisory: pigment/render-cpu src change is doc-only)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-render-cpu changed b8b31c7..5606d16 by fe035ce (test + rustdoc of plan_sink.rs / extended.rs only); closure pigment by 9cb44c2 + 8980d04)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R16",
+   "idempotency_key": "STUDIO-R16:SMB-REFUSAL-KEYS:5606d162549d:PASS_V5",
+   "recorded_at": "2026-10-12T01:11:16Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-FX-OPS",
+   "crate": "hsk-studio-pigment",
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "tests": "pigment 82/82 default (R15 79 + 3 new: effects_ops 1, plan_followups 2; no R15 test missing), doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "pigment src change b8b31c7..5606d16 is the rustdoc of PlanExtensions::validate only (extensions.rs:285-295; code lines unchanged, R16 pre-review advisory code_only_diff 0 lines); the rest is tests. Every R15 pigment test green; no claim broken by reading.",
+   "review": "NOT_REVIEWED as a lane (validator read of every src hunk b8b31c7..5606d16 of its crate(s): comment/rustdoc, DESCRIPTOR string, cfg(test) or test-faults code only; R16 pre-review advisory: pigment/render-cpu src change is doc-only)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-pigment changed b8b31c7..5606d16 by 9cb44c2 + 8980d04 (tests + rustdoc of extensions.rs only))",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R16",
+   "idempotency_key": "STUDIO-R16:SMB-PIGMENT-FX-OPS:5606d162549d:PASS_V5",
+   "recorded_at": "2026-10-12T01:11:16Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-ADMIT-PARITY",
+   "crate": "hsk-studio-pigment",
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "tests": "pigment 82/82 default (R15 79 + 3 new: effects_ops 1, plan_followups 2; no R15 test missing), doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "pigment src change b8b31c7..5606d16 is the rustdoc of PlanExtensions::validate only (extensions.rs:285-295; code lines unchanged, R16 pre-review advisory code_only_diff 0 lines); the rest is tests. Every R15 pigment test green; no claim broken by reading.",
+   "review": "NOT_REVIEWED as a lane (validator read of every src hunk b8b31c7..5606d16 of its crate(s): comment/rustdoc, DESCRIPTOR string, cfg(test) or test-faults code only; R16 pre-review advisory: pigment/render-cpu src change is doc-only)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-pigment changed b8b31c7..5606d16 by 9cb44c2 + 8980d04 (tests + rustdoc of extensions.rs only))",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R16",
+   "idempotency_key": "STUDIO-R16:SMB-PIGMENT-ADMIT-PARITY:5606d162549d:PASS_V5",
+   "recorded_at": "2026-10-12T01:11:16Z"
+  },
+  {
+   "lane": "SMB-FX-OPS-ADOPT",
+   "crate": "hsk-studio-composite + hsk-studio-render-cpu + hsk-studio-render-gpu + hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V7",
+   "status_change": "PASS_V7",
+   "tests": "composite 28/28 default (= R15 set), doctest unit exit 0; render-cpu 38/38 default (R15 37 + 1 new cpu_envelope_reach invalid_plan_indexes_are_refused_before_the_reachable_sweep; no R15 test missing), doctest unit exit 0; interop-psd 53/53 default (R15 50 + 3 new tests/effects_budget.rs; no R15 test missing), doctest unit exit 0; render-gpu 24/24 default + 27/27 test-faults + 4 doctests (information only, D20; the two NOT_PROVEN lines are its no-adapter probe)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "render-cpu src change is rustdoc only (plan_sink.rs:447-453 reachable(), extended.rs:191-198 ExtPrep::build); validator read: both callers admit first (execute_detailed :1433 admit_with_limits -> run -> prepare :484 reachable; execute_extended_detailed :1469 admit_extended_with_limits -> :1480 reachable). Every R15 render-cpu test green; no claim broken by reading. interop-psd src change by 5606d16 is comments (effects.rs:48-56, :93-95; proposal.rs:140-144, :508-511) and the DESCRIPTOR effect_limits clause; counting code unchanged (proposal.rs:569 / :891 / :895 are context). Every R15 interop-psd test green; no claim broken by reading. composite and render-gpu unchanged; render-gpu ran for information (D20) and is green.",
+   "review": "NOT_REVIEWED as a lane (validator read of every src hunk b8b31c7..5606d16 of its crate(s): comment/rustdoc, DESCRIPTOR string, cfg(test) or test-faults code only; R16 pre-review advisory: pigment/render-cpu src change is doc-only)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-render-cpu changed b8b31c7..5606d16 by fe035ce (test + rustdoc of plan_sink.rs / extended.rs only); crate hsk-studio-interop-psd changed b8b31c7..5606d16 by 5606d16 (comments, DESCRIPTOR effect_limits, tests) and workspace-dep closure pigment by 9cb44c2 + 8980d04)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R16",
+   "idempotency_key": "STUDIO-R16:SMB-FX-OPS-ADOPT:5606d162549d:PASS_V7",
+   "recorded_at": "2026-10-12T01:11:16Z"
+  },
+  {
+   "lane": "SMB-PARITY-FOLLOWUP",
+   "crate": "hsk-studio-pigment + hsk-studio-render-cpu",
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "tests": "pigment 82/82 default (R15 79 + 3 new: effects_ops 1, plan_followups 2; no R15 test missing), doctest unit exit 0 (no doctests); render-cpu 38/38 default (R15 37 + 1 new cpu_envelope_reach invalid_plan_indexes_are_refused_before_the_reachable_sweep; no R15 test missing), doctest unit exit 0",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "pigment src change b8b31c7..5606d16 is the rustdoc of PlanExtensions::validate only (extensions.rs:285-295; code lines unchanged, R16 pre-review advisory code_only_diff 0 lines); the rest is tests. Every R15 pigment test green; no claim broken by reading. render-cpu src change is rustdoc only (plan_sink.rs:447-453 reachable(), extended.rs:191-198 ExtPrep::build); validator read: both callers admit first (execute_detailed :1433 admit_with_limits -> run -> prepare :484 reachable; execute_extended_detailed :1469 admit_extended_with_limits -> :1480 reachable). Every R15 render-cpu test green; no claim broken by reading.",
+   "review": "NOT_REVIEWED as a lane (validator read of every src hunk b8b31c7..5606d16 of its crate(s): comment/rustdoc, DESCRIPTOR string, cfg(test) or test-faults code only; R16 pre-review advisory: pigment/render-cpu src change is doc-only)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-pigment changed b8b31c7..5606d16 by 9cb44c2 + 8980d04 (tests + rustdoc of extensions.rs only); crate hsk-studio-render-cpu changed b8b31c7..5606d16 by fe035ce (test + rustdoc of plan_sink.rs / extended.rs only))",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R16",
+   "idempotency_key": "STUDIO-R16:SMB-PARITY-FOLLOWUP:5606d162549d:PASS_V4",
+   "recorded_at": "2026-10-12T01:11:16Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-BUDGET",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V6",
+   "status_change": "PASS_V6",
+   "tests": "interop-psd 53/53 default (R15 50 + 3 new tests/effects_budget.rs; no R15 test missing), doctest unit exit 0",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 2,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "interop-psd src change by 5606d16 is comments (effects.rs:48-56, :93-95; proposal.rs:140-144, :508-511) and the DESCRIPTOR effect_limits clause; counting code unchanged (proposal.rs:569 / :891 / :895 are context). Every R15 interop-psd test green; no claim broken by reading. New tests pin the importer's visibility rule: nested_hidden_groups_hide_every_descendant_until_the_outermost_closes (hidden_groups counter vs a boolean) and the_importer_counts_layers_without_pixels_and_clipped_layers_on_hidden_or_empty_bases (per-document and per-layer over-count). I-1 (CONFIRMED, doc-only): the DESCRIPTOR effect_limits clause and effects.rs:52-54 say a counted stack is lost although the plan count fits 'only past 4096 apparent counted instances', but a no-pixel layer with 65 live instances is Lost(OVER_LAYER) alone (tests/effects_budget.rs:1198-1200, :1211-1213); text written by 5606d16 (SMB-NOTES-BATCH-1, withdrawn); behaviour unchanged and pinned -> note (R12-R15 convention); remediation: name the per-layer case in the clause.",
+   "review": "validation/R16-prereview-notes-narrow.json lanes[3] SMB-INTEROP-PSD-BUDGET: SAFE_TO_JUDGE (I-1 CONFIRMED doc note, I-2, I-3 INFO)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-interop-psd changed b8b31c7..5606d16 by 5606d16 (comments, DESCRIPTOR effect_limits, tests) and workspace-dep closure pigment by 9cb44c2 + 8980d04); two-FAIL lane (FAIL_V1 R9, FAIL_V2 R10): V4-13 R16-prereview-notes-narrow SAFE_TO_JUDGE for hsk-studio-interop-psd at 5606d16",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R16",
+   "idempotency_key": "STUDIO-R16:SMB-INTEROP-PSD-BUDGET:5606d162549d:PASS_V6",
+   "recorded_at": "2026-10-12T01:11:16Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-FOLLOWUPS",
+   "crate": "hsk-studio-pigment + hsk-studio-render-cpu",
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "tests": "pigment 82/82 default (R15 79 + 3 new: effects_ops 1, plan_followups 2; no R15 test missing), doctest unit exit 0 (no doctests); render-cpu 38/38 default (R15 37 + 1 new cpu_envelope_reach invalid_plan_indexes_are_refused_before_the_reachable_sweep; no R15 test missing), doctest unit exit 0",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "pigment src change b8b31c7..5606d16 is the rustdoc of PlanExtensions::validate only (extensions.rs:285-295; code lines unchanged, R16 pre-review advisory code_only_diff 0 lines); the rest is tests. Every R15 pigment test green; no claim broken by reading. render-cpu src change is rustdoc only (plan_sink.rs:447-453 reachable(), extended.rs:191-198 ExtPrep::build); validator read: both callers admit first (execute_detailed :1433 admit_with_limits -> run -> prepare :484 reachable; execute_extended_detailed :1469 admit_extended_with_limits -> :1480 reachable). Every R15 render-cpu test green; no claim broken by reading. PLAN-R15-1/-2/-3 notes of this lane are addressed by SMB-PIGMENT-NOTES (PASS_V1 this round).",
+   "review": "NOT_REVIEWED as a lane (validator read of every src hunk b8b31c7..5606d16 of its crate(s): comment/rustdoc, DESCRIPTOR string, cfg(test) or test-faults code only; R16 pre-review advisory: pigment/render-cpu src change is doc-only)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-pigment changed b8b31c7..5606d16 by 9cb44c2 + 8980d04 (tests + rustdoc of extensions.rs only); crate hsk-studio-render-cpu changed b8b31c7..5606d16 by fe035ce (test + rustdoc of plan_sink.rs / extended.rs only))",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R16",
+   "idempotency_key": "STUDIO-R16:SMB-PIGMENT-FOLLOWUPS:5606d162549d:PASS_V2",
+   "recorded_at": "2026-10-12T01:11:16Z"
+  }
+ ],
+ "infrastructure": [
+  "No infrastructure failure: step 0 clean, all 16 units built and ran, no fixture selected, disk lock @2 waited 0 s, no stale breaks",
+  "Exit 73 is NOT_PROVEN accounting only (render-gpu no-adapter probe, known noise); round.json complete true, absent [] timed_out []",
+  "Gameplan hook gated one gameplan confirm command because its note text named the per-test runner (D3 class: gate words inside quoted text); re-issued with reworded notes (no bypass, no gameplan edit)",
+  "Running record: the process_identity line carried an estimated recorded_at (00:57:50Z, ahead of the clock); a correction record (00:57:56Z) states the actual window 00:57:21Z..00:57:43Z",
+  "An idle sccache server (pid 371364) was present and not started by this session (left running)",
+  "Gameplan confirmations written beside the kernel gameplan (.GOV/task_packets/WP-KERNEL-STUDIO/STUDIO-MODULE-ROUND.confirmations.yaml, as in earlier rounds); not committed",
+  "Known Operator item unchanged: repo-local wt-studio-assets/handshake-studio-assets/target (3.8 GB) reported by the lock audit, not written by this round",
+  "No git write in the edit tree (no fetch: origin tip read with git ls-remote); kernel files written, not committed (lead commits)",
+  "Round outputs not cleaned (studio-round/target kept warm at the same stable path; deletion is the lead call)"
+ ],
+ "by": "wp_validator STUDIO-R16 (Opus, fresh context, not implementer)"
+}

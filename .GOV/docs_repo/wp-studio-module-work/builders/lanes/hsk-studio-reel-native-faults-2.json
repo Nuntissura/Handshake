@@ -273,6 +273,23 @@
     "idempotency_key": "STUDIO-R14:SMB-REEL-NATIVE-FAULTS-2:4b766047fb5c:PASS_V1",
     "recorded_at": "2026-10-11T22:50:23Z",
     "by": "wp_validator STUDIO-R14"
+   },
+   {
+    "round": "STUDIO-R16",
+    "lane": "SMB-REEL-NATIVE-FAULTS-2",
+    "candidate": "5606d162549db9f3959d4ecaee85dbb1592d18e3",
+    "tree": "312fd702d8269b83497e898a6404f281cdc1e4e1",
+    "decision": "passed",
+    "verdict": "PASS_V2",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V2",
+    "review": "NOT_REVIEWED as a lane (covered by validation/R16-prereview-notes-narrow.json SMB-REEL-NATIVE-AV1-WORKER section: host and wire behaviour unchanged)",
+    "round_ref": "validation/round-R16.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R16",
+    "idempotency_key": "STUDIO-R16:SMB-REEL-NATIVE-FAULTS-2:5606d162549d:PASS_V2",
+    "recorded_at": "2026-10-12T01:11:16Z",
+    "by": "wp_validator STUDIO-R16"
    }
   ]
  }
