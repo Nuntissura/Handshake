@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-12T04:49:47Z",
+ "updated_at": "2026-10-12T05:10:24Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3287,14 +3287,13 @@
   "record": "validation/round-R7.json"
  },
  "resume_plan": {
-  "at": "2026-10-11T19:13:24Z",
-  "for_takeover": "read START_LOG.md (operator-instructions, repo-rules, cargo-tooling, lead decisions, D1-D27), builders/DISPATCH_TEMPLATES.md (builder/validator/v4-rules incl. V4-21), this ledger (lanes, round_R11 latest), team.json, validation/ (rounds + pre-reviews)",
+  "at": "2026-10-12T05:10:24Z",
   "steps": [
-   "1. In flight: round R18 validator at bfa1bbf (canary C23 reused if export manifest equal) judging SMB-NOTES-BATCH-1, SMB-PRESS, SMB-PRESS-DIFFERENCES (+ CX-VAL-009 reopens); then refresh HANDOFF.md + new snapshot.",
-   "2. If SAFE_TO_JUDGE: steward sync + canary (candidate = origin HEAD, expected bcc0688), then round R18 with 1 validator (review input = the pre-review) judging SMB-NOTES-BATCH-1, SMB-PRESS, SMB-PRESS-DIFFERENCES (+ CX-VAL-009 reopens of press). If FIX_FIRST: small fail-closed fix in the same lane, then repeat.",
-   "3. Then refresh HANDOFF.md and write a new snapshots/SNAPSHOT-<UTC>.json (same shape as SNAPSHOT-20261011T214451Z.json); push gov_kernel with tools/lead-kernel-push.sh.",
-   "4. Remaining after that: PLR-077 (reel video.rs Forward), PLR-082 (render-gpu caller limits, after D20), PLR-063 (psd Folio ceiling), notes-batch residuals (config-OBU tag, exact-64 FRAME test, psd group-own-lfx2/zero-tile), SMB-PRESS-GEOMETRY, SMB-FMT-SWEEP, STUDIO_MODULES.json status refresh, app UI + Handshake integration (not started).",
-   "5. Blocked on Operator: D20, D22-D26, D9, D17, D5, D13/STU-CON-044, repo-local 3.8 GB target, empty folder x at the C: root."
+   "1. R18 COMPLETE (3 PASS, 0 FAIL): press fully passed. Next: press doc lane SMB-PRESS-DOCS (PLR-083 doc + PLR-084 residual + PLR-076 report-or-document), reel SMB-REEL-PARTIAL-PTS (PLR-077; AV1-ROUTE 2-FAIL area -> narrow pre-review before judging), interop-psd SMB-INTEROP-PSD-FOLIO-CEILING (PLR-063).",
+   "2. Then SMB-PRESS-GEOMETRY (queued), SMB-FMT-SWEEP (rustfmt after verdicts), notes residuals (config-OBU tag, exact-64 FRAME test, psd group-own-lfx2/zero-tile).",
+   "3. Round R19 when the new lanes are READY: steward sync + canary + 1 validator.",
+   "4. Keep pushing gov_kernel after every commit (weekly usage >= 85%).",
+   "5. Blocked on Operator: D20 (render-gpu, round entrypoint, SMB-RENDER-GPU-ADJ/PROBE, PLR-082), D22-D26, D9, D17, D5, D13/STU-CON-044, D21, repo-local target 3.8 GB, empty folder x at the C: root; STUDIO_MODULES.json status vocabulary undefined (only PLANNED_NOT_IMPLEMENTED exists; ledger is live)."
   ]
  },
  "r8_plan": {

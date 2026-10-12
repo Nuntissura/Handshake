@@ -1420,13 +1420,30 @@
    "finding": "module doc says painted sources no kept page draws are dropped, but the code keeps and reports them when a kept object only references them; a test control pins an unbalanced BDC /OC in a form as silent (viewer behaviour UNVERIFIED)",
    "first_seen": "R20-prereview-press-narrow",
    "seen_in": [
-    "R20-prereview-press-narrow"
+    "R20-prereview-press-narrow",
+    "round-R18 (validator V-2, R20-N1 same item, not charged)"
+   ],
+   "rounds_carried": 1,
+   "status": "OPEN",
+   "verified_at": "bfa1bbf",
+   "disposition": "FIX_LANE",
+   "disposition_note": "doc fix + fail-closed review of unbalanced BDC in the next press lane",
+   "evidence": "R18 V-2: pdf.js master closes marked content left open by a form when the form stream ends, matching the code's fresh stack per form; R19-O1 part narrowed to other viewers (UNVERIFIED)"
+  },
+  {
+   "id": "PLR-084",
+   "lane": "SMB-PRESS",
+   "file_line": "crates/hsk-studio-press/src/flatten_purge.rs:757-773 (silence rule), 782-790 (grant)",
+   "finding": "MINIMAL DRAW SET silence is syntactic: a direct page-content Do that no viewer shows (zero-scale cm, empty clip, alpha 0, painted over) keeps a redacted painted source silent",
+   "first_seen": "round-R18 V-1 (INFO)",
+   "seen_in": [
+    "round-R18"
    ],
    "rounds_carried": 0,
    "status": "OPEN",
    "verified_at": "bfa1bbf",
-   "disposition": "FIX_LANE",
-   "disposition_note": "doc fix + fail-closed review of unbalanced BDC in the next press lane"
+   "disposition": "DOC",
+   "disposition_note": "lead decision 2026-10-12T05:10:24Z: state as residual in the press DESCRIPTOR + flatten docs (silence = a kept page draws it directly; visibility of that draw is not checked); no visibility analysis (D27 narrow; avoids reopening the certainty loop); fold with PLR-083 doc fix"
   }
  ],
  "process_items": [

@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-12T04:50:37Z",
+ "updated_at": "2026-10-12T05:10:24Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -2373,7 +2373,7 @@
     "validation/round-R18.json"
    ],
    "launched": "2026-10-12T04:50:37Z",
-   "status": "running"
+   "status": "done (R18: 3 PASS, 0 FAIL; kernel 60f45e54)"
   }
  ]
 }

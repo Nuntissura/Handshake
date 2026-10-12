@@ -358,3 +358,4 @@ Open Operator decisions (not adopted; recorded for the Operator):
 - Session crons expire after 7 days.
 
 </topic>
+- Lead decision 2026-10-12T05:10:24Z (round R18: press PASS_V4, PRESS-DIFFERENCES PASS_V2, NOTES-BATCH-1 PASS_V1, 0 FAIL): (1) R18 V-1 -> PLR-084 DOC: MINIMAL DRAW SET silence stays syntactic; the press DESCRIPTOR and flatten docs must say silence means a kept page draws the source directly and that the visibility of that draw (zero-scale, empty clip, alpha 0, painted over) is not checked; no visibility analysis is added (D27 'narrow'; a visibility rule would reopen the certainty-edge-case loop of R16-R20). (2) R18 V-2 evidence added to PLR-083 (pdf.js closes marked content left open at the end of a form stream). (3) Validator template corrected: the old `CARGO_INCREMENTAL=0` instruction contradicted CX-VAL-007 (no run-time env vars); the R18 validator was right to ignore it.
