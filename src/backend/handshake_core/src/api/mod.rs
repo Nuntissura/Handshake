@@ -87,6 +87,7 @@ pub mod bundles;
 pub mod calendar;
 pub mod canvases;
 pub mod code_nav_index;
+pub mod console_stream;
 pub mod debug_adapter;
 pub mod diagnostics;
 pub mod flight_recorder;
@@ -120,6 +121,7 @@ pub fn routes(state: AppState) -> Router {
     let preferences_routes = preferences::routes(state.clone());
     let calendar_routes = calendar::routes(state.clone());
     let code_nav_index_routes = code_nav_index::routes(state.clone());
+    let console_stream_routes = console_stream::routes(crate::console_stream::ConsoleBroadcast::shared());
     let locus_routes = locus::routes(state.clone());
     let canvas_routes = canvases::routes(state.clone());
     let job_routes = jobs::routes(state.clone());
@@ -155,6 +157,7 @@ pub fn routes(state: AppState) -> Router {
         .merge(preferences_routes)
         .merge(calendar_routes)
         .merge(code_nav_index_routes)
+        .merge(console_stream_routes)
         .merge(locus_routes)
         .merge(canvas_routes)
         .merge(log_routes)
