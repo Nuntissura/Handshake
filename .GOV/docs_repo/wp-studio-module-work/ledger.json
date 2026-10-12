@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-12T05:13:07Z",
+ "updated_at": "2026-10-12T05:21:38Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3067,12 +3067,15 @@
    "lane_id": "SMB-PRESS-DOCS",
    "crate": "hsk-studio-press",
    "origin": "PLR-083, PLR-084, PLR-076",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-press-docs",
-   "candidate": null,
-   "commits": [],
-   "verdicts": []
+   "candidate": "d868da0",
+   "commits": [
+    "d868da0"
+   ],
+   "verdicts": [],
+   "note": "docs/tests only (+78 -8, 5 press files): PLR-083 wording + flatten_r13 BDC note, PLR-084 residual in DESCRIPTOR/docs + 2 tests, PLR-076 covered by existing test flatten_r13.rs:488; press 149/149"
   },
   {
    "lane_id": "SMB-REEL-PARTIAL-PTS",
@@ -3202,7 +3205,8 @@
   "SMB-REEL-NATIVE-FAULTS-2",
   "SMB-PIGMENT-FOLLOWUPS",
   "SMB-PIGMENT-NOTES",
-  "SMB-NOTES-BATCH-1"
+  "SMB-NOTES-BATCH-1",
+  "SMB-PRESS-DOCS"
  ],
  "round_R6": {
   "candidate": "bd8533f",

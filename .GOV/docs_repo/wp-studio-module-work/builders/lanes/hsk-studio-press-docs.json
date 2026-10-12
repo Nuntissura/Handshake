@@ -1,0 +1,67 @@
+{
+ "crate": "hsk-studio-press",
+ "lane": "SMB-PRESS-DOCS",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "complete: PLR-083 doc wording + control comment, PLR-084 residual stated, PLR-076 proven by an existing test; docs and tests only, no product behaviour change",
+ "commits": [
+  {
+   "sha": "d868da0",
+   "subject": "press (SMB-PRESS-DOCS, PLR-083/084): docs match the code; silence of a painted source is stated as syntactic"
+  }
+ ],
+ "capabilities_done": [
+  "PLR-083 part 1 (R20-N1): flatten.rs module overview (lines 17-28) no longer says painted sources no kept content draws are dropped; it says what no kept content names and no kept object references is dropped, a painted source that stays is not pruned and its kept reference is not edited, only an image a kept page draws directly with Do is silent and every other one that stays is reported (RedactedOutput::painted_sources_kept, NotProven::PaintedSourceKept, region_flattened false). Same class fixed at the other sites listed in notes.v4_06 (sanitized_save.rs comment, flatten_purge.rs drop_painted_sources doc, DESCRIPTOR painted_over and purge: 'when no kept content names them and no kept object references them')",
+  "PLR-083 part 2: tests/flatten_r13.rs control 'a form the page draws is a stream of its own, not a content stream' (unbalanced BDC /OC in form 80, later Do silent) carries a one-line comment citing the R18 validator evidence V-2: pdf.js closes marked content left open when the form stream ends; other viewers UNVERIFIED. No behaviour change",
+  "PLR-084 (lead decision 2026-10-12T05:10:24Z): the residual 'silence is syntactic: it means a kept page's own content stream draws the image directly with Do, and the visibility of that draw (a zero-scale cm, an empty clip, an alpha of 0, a later object painted over it) is not checked' is stated in the DESCRIPTOR (redaction.flatten.painted_over, redaction.flatten.purge, proof.limitations), flatten.rs and flatten_purge.rs module docs, and the docs of NotProven::PaintedSourceKept and RedactedOutput::painted_sources_kept. No visibility analysis added. New needle test descriptor_states_that_painted_source_silence_is_syntactic (three keys hold the sentence exactly once each, the cited test exists, none of never/always/guarantee/proves in it). New pin test silent_painted_source_visibility_is_not_checked (zero-scale cm, empty clip, alpha 0 by gs, painted over: image stays and nothing is reported; control: the zero-scale draw inside BDC /OC is reported) proves the claim the sentence makes",
+  "PLR-076: no code change needed. The existing test tests/flatten_r13.rs painted_source_referenced_by_a_kept_catalog_structure_is_reported (line 488) builds a painted region source (image 10) that page two does not draw and that a kept catalog structure only references (catalog /AF, /Names /EmbeddedFiles tree, /Names /Dests name tree) and asserts, under the minimal draw set: painted_sources_kept == [10], not_proven_reasons == [PaintedSourceKept], region_flattened and is_proven false, the image bytes stay, the unreferenced form is gone, page two unchanged. It passes at d868da0 (run in the focused set and the full crate run). Code path: flatten_purge.rs drop_painted_sources follows the trailer roots as plain references (reached, never silent) and returns every live painted source that is not in the silent set"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-press --tests --no-fail-fast",
+  "exit": 0,
+  "sha": "d868da0",
+  "passed": 149,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "Validator: judge SMB-PRESS-DOCS at d868da0 (docs and tests only; press 149/149 incl. 2 new tests). Optional INFO R20-O3 left untouched (DESCRIPTOR proof.region_cleared still says 'no painted source of an old page kept unread, painted_sources_kept empty'; keep only the second clause if the lead wants it)",
+ "updated_at": "2026-10-12T05:21:05Z",
+ "notes": {
+  "scope_files": [
+   "crates/hsk-studio-press/src/flatten.rs",
+   "crates/hsk-studio-press/src/flatten_purge.rs",
+   "crates/hsk-studio-press/src/lib.rs (DESCRIPTOR only)",
+   "crates/hsk-studio-press/src/sanitized_save.rs (doc comments and one code comment only)",
+   "crates/hsk-studio-press/tests/flatten_r13.rs"
+  ],
+  "base": "bfa1bbf",
+  "diff": "5 files, +78 -8, no non-comment source line changed outside the DESCRIPTOR string; no Cargo.toml, no other crate",
+  "checks": {
+   "cargo_check": "cargo check -p hsk-studio-press --tests: exit 0 (studio-env.sh form)",
+   "clippy": "cargo clippy -p hsk-studio-press --tests: exit 0, no warning from hsk-studio-press (two pre-existing warnings come from the dependency hsk-studio-observe, not this lane)",
+   "focused_nextest": "cargo nextest run -p hsk-studio-press --tests --no-fail-fast -E 'test(silent_painted_source_visibility_is_not_checked) | test(descriptor_) | test(painted_source_referenced_by_a_kept_catalog_structure_is_reported) | test(painted_source_is_reported_when_a_content_stream_of_the_page_is_named_elsewhere)': 7 run, 7 passed (descriptor_names_the_painted_source_kept_by_reference_case, descriptor_states_the_narrowed_claim_and_its_limitations, descriptor_states_that_painted_source_silence_is_syntactic, silent_painted_source_visibility_is_not_checked, painted_source_referenced_by_a_kept_catalog_structure_is_reported, painted_source_is_reported_when_a_content_stream_of_the_page_is_named_elsewhere, widths_without_a_descriptor_are_bounded)",
+   "full_crate_nextest": "cargo nextest run -p hsk-studio-press --tests --no-fail-fast: 149 run, 149 passed (147 at bfa1bbf + 2 new)"
+  },
+  "retry_guard": "one gameplan block: the first nextest launch began with a date command before the leading cd, so the hook resolved another gameplan (WP gameplan of the governance repo) and blocked it before execution; route: command form (cd first, then source studio-env.sh, then cargo), no flag, argument or filter changed, no gameplan step added; the rerun passed the Studio gameplan (GP-016, GP-017)",
+  "v4_06": {
+   "class": "R20-N1 / PLR-083: a doc sentence or comment that says old-page painted sources that no kept content or kept page draws are dropped from the file, without the exception that a kept object which only references a source keeps it in the file and gets it reported",
+   "regex": "no kept content draws|nothing else draws|no kept page draws|unless a kept page draws|dropped from the file|sources? (is|are) dropped|are dropped from|is dropped from (git grep -n -i -E over crates/hsk-studio-press, src tests examples)",
+   "scope": "bfa1bbf: 10 line hits = 9 sites (flatten.rs 3 lines/1 site, flatten_purge.rs 1, lib.rs 1 line/2 sites, sanitized_save.rs 1, tests/flatten_r13.rs 2, tests/pdf_delivery.rs 2); d868da0: 7 line hits (the fixed sites no longer match)",
+   "sites": [
+    "FIXED (3 of the regex sites): flatten.rs:17-19 (module overview, reworded to names/references + reported + residual); lib.rs:95 redaction.flatten.painted_over 'their sources are dropped from the file when no kept content names them' (now '... and no kept object references them'); sanitized_save.rs:1523 comment (rewritten)",
+    "FIXED, same class, not matched by the regex (2): lib.rs:95 redaction.flatten.purge 'removed from every resource dictionary that lists them when no kept content names them' (same addition); flatten_purge.rs:846 drop_painted_sources doc 'sources no kept content names' (now 'and no kept object references')",
+    "NOT APPLICABLE (6 of the regex sites): flatten_purge.rs:29 (already exact: dropped from every resource dictionary when nothing refers to them but a gated entry no kept content names); lib.rs:95 purge opening 'what described or drew the old page is dropped from the file' (overview of annotations, structure and painted sources; the exact painted-source rule follows in the same key); tests/flatten_r13.rs:1413 doc of a_font_or_graphics_state_that_stays_is_not_a_painted_source (a document where page two names neither: both leave the file, asserted); tests/flatten_r13.rs:1519 (a stale needle: asserts the DESCRIPTOR does NOT say it); tests/pdf_delivery.rs:2524 and :2904 (documents where nothing references the source; it leaves the file, asserted by those tests)"
+   ],
+   "recount": "9 regex sites = 3 fixed + 6 not applicable; 2 more sites of the same class found beyond the regex and fixed"
+  },
+  "v4_07": "the new sentences use none of never, always, guarantees, proves (asserted by descriptor_states_that_painted_source_silence_is_syntactic); the claim 'visibility is not checked' cites silent_painted_source_visibility_is_not_checked",
+  "v4_11": "no file was restored or reverted; the tree was edited in place and built; no scratch copy",
+  "v4_12": "helper text only under <scratchpad>/SMB-PRESS-DOCS/ (commit message file)",
+  "v4_21": "no outbound request other than git push to origin; no personal data in any request",
+  "residuals": [
+   "R20-O3 (INFO, not in scope): DESCRIPTOR proof.region_cleared still says 'no painted source of an old page kept unread, painted_sources_kept empty'",
+   "PLR-083 second half stays a residual: the control still pins the unbalanced BDC /OC inside a form as silent; viewers other than pdf.js are UNVERIFIED (no outbound research in this lane, V4-21)"
+  ]
+ }
+}

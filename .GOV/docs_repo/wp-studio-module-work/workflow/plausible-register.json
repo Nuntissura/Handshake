@@ -1321,7 +1321,7 @@
    "status": "OPEN",
    "verified_at": "7410f29",
    "disposition": "FIX_LANE",
-   "disposition_note": "fix claimed in SMB-NOTES-BATCH-1 (27a9a81/9088884/ab273d3/5606d16); reviewer confirms in R16"
+   "disposition_note": "fix claimed in SMB-NOTES-BATCH-1 (27a9a81/9088884/ab273d3/5606d16); reviewer confirms in R16; 2026-10-12T05:21:38Z SMB-PRESS-DOCS d868da0: covered by existing test painted_source_referenced_by_a_kept_catalog_structure_is_reported (tests/flatten_r13.rs:488, /AF, /Names /EmbeddedFiles, /Names /Dests) under MINIMAL DRAW SET; close on next press PASS"
   },
   {
    "id": "PLR-077",
@@ -1427,7 +1427,7 @@
    "status": "OPEN",
    "verified_at": "bfa1bbf",
    "disposition": "FIX_LANE",
-   "disposition_note": "doc fix + fail-closed review of unbalanced BDC in the next press lane",
+   "disposition_note": "doc fix + fail-closed review of unbalanced BDC in the next press lane; 2026-10-12T05:21:38Z fix submitted SMB-PRESS-DOCS d868da0 (docs/tests only)",
    "evidence": "R18 V-2: pdf.js master closes marked content left open by a form when the form stream ends, matching the code's fresh stack per form; R19-O1 part narrowed to other viewers (UNVERIFIED)"
   },
   {
@@ -1443,7 +1443,7 @@
    "status": "OPEN",
    "verified_at": "bfa1bbf",
    "disposition": "DOC",
-   "disposition_note": "lead decision 2026-10-12T05:10:24Z: state as residual in the press DESCRIPTOR + flatten docs (silence = a kept page draws it directly; visibility of that draw is not checked); no visibility analysis (D27 narrow; avoids reopening the certainty loop); fold with PLR-083 doc fix"
+   "disposition_note": "lead decision 2026-10-12T05:10:24Z: state as residual in the press DESCRIPTOR + flatten docs (silence = a kept page draws it directly; visibility of that draw is not checked); no visibility analysis (D27 narrow; avoids reopening the certainty loop); fold with PLR-083 doc fix; 2026-10-12T05:21:38Z fix submitted SMB-PRESS-DOCS d868da0 (docs/tests only)"
   }
  ],
  "process_items": [
