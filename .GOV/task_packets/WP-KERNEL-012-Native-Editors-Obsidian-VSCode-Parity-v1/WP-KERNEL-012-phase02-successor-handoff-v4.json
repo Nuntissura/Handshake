@@ -4,7 +4,7 @@
   "file_kind": "handoff",
   "version": 4,
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
-  "updated_at_utc": "2026-10-12T22:35:47.464361+00:00",
+  "updated_at_utc": "2026-10-12T22:37:02.008357+00:00",
   "status": "DOCUMENTATION_RESTRUCTURED_PRODUCT_REPAIR_UNFINISHED",
   "authority_precedence": [
     "Root AGENTS/CLAUDE and current Handshake Codex",
@@ -135,7 +135,14 @@
       "useful_extra": "Module/build boundary review via helper or additional leader if useful; no duplicate writer",
       "authorization": "Operator explicitly requests fresh non-forked devlead and fresh leader chats with subagents; devlead may create/message them and instruct helpers to deliberate internally and report to it.",
       "startup": "Fresh local gov-kernel project chats, no fork/new worktree/branch/model override; read actual authority no hidden prior history",
-      "ownership_release": "Outgoing root retains sole kernel write ownership until it pushes this actual-team handoff and sends explicit release to devlead 01a1323d-2a04-78f1-9430-1589c9cd54ea. That message transfers sole kernel coordination; successor assigns the sole product coder lease and records subsequent helper/lease state here. No release is asserted merely by this file.",
+      "ownership_release": {
+        "status": "RELEASED_BY_OUTGOING_ROOT",
+        "source_chat": "01a12d57-24b8-7ca3-896d-b509653390fe",
+        "coordinator_chat": "01a1323d-2a04-78f1-9430-1589c9cd54ea",
+        "preserved_kernel_commit": "a6e78e910624bbeac10f52fae2cf8234c3b7eb93",
+        "message_received_at_utc": "2026-10-12T22:37:02.008357+00:00",
+        "kernel_owner": "01a1323d-2a04-78f1-9430-1589c9cd54ea"
+      },
       "gap_review_instruction": "All five leaders internally deliberate with helper agents. Dependency/spec-gap teams inspect Master Spec + current WP012/CKC/WP1 contracts, pinned source records and actual code; preserve every requirement and record all evidenced gaps/unknowns in the existing packet plan. No current acceptance inferred from screening.",
       "startup_observed": "All five fresh local leader chats active; successor confirmed read-only startup and helper ownership; no source edits or builds before explicit release.",
       "helper_ownership_reported": {
@@ -167,7 +174,29 @@
           "modules"
         ]
       },
-      "outgoing_root_chat": "01a12d57-24b8-7ca3-896d-b509653390fe"
+      "outgoing_root_chat": "01a12d57-24b8-7ca3-896d-b509653390fe",
+      "source_lease": {
+        "mt_id": "MT-183",
+        "parent_mt": "MT-174",
+        "owner_chat": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+        "worktree": "../wtc-WP-KERNEL-012",
+        "branch": "feat/WP-KERNEL-012",
+        "base_commit": "e17eb7a5851e1a35fa914b842c898fc93df83e01",
+        "allowed_write_paths": [
+          "src/backend/handshake_core/src/storage/surreal/schema.rs"
+        ],
+        "helpers": "READ_ONLY",
+        "kernel_writes": "COORDINATOR_ONLY",
+        "compiler_runtime_lease": "HELD_PENDING_COMPLETE_SOURCE_RECONCILIATION_AND_INDEPENDENT_REVIEW",
+        "required_outcome": "Complete reconciliation/minimum repair then reviewed candidate; no new attempts or acceptance",
+        "issued_at_utc": "2026-10-12T22:37:02.008357+00:00"
+      },
+      "root_helper_findings": {
+        "correctness": "No delegation conflict; preserve complete emitted identities/order/removals/uniqueness, DEFINE-only regression and single guarded transaction",
+        "proof": "Retain exact predecessor before485-target core; independently review new snapshot candidate/MT183 capture while retaining wrapper byte identity",
+        "dependency_cost": "No credential predecessor for183/184; retained CKC-Surreal/WP1 pins match inventory, reuse real small packages later, no current crate extraction",
+        "deliberated": true
+      }
     },
     "coordination": "Leaders report internally reconciled findings. Devlead deliberates with correctness/proof/dependency helper lenses. One lease on shared files and one build/test owner. Observe active lanes ≤60sec during launch/short proof; unchanged ticks quiet."
   },

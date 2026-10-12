@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-183",
   "created_at_utc": "2026-10-12T22:15:27.486745+00:00",
-  "updated_at_utc": "2026-10-12T22:15:27.486745+00:00",
+  "updated_at_utc": "2026-10-12T22:37:02.008357+00:00",
   "identity": {
     "mt_id": "MT-183",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -144,14 +144,15 @@
     "generator": null
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "BLOCKED",
     "depends_on": [],
     "blocks": [],
-    "active": false,
+    "active": true,
     "validator_verdict": "PENDING",
-    "claimed_by": null,
+    "claimed_by": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
     "completed_by": null,
-    "next_actor": "Fresh devlead assigns sole source coder/independent validator after preservation/admission"
+    "next_actor": "Assigned sole coder performs MT183 complete reconciliation/minimum repair; coordinator records source freeze; independent validator owns original focused proof",
+    "blocked_on": "Complete schema.rs reconciliation and repair; independent source clearance and pushed candidate before runtime"
   },
   "scope": {
     "summary": "Complete predecessor schema reconciliation and minimum repair",
@@ -249,8 +250,8 @@
   ],
   "hbr_int_009_tier_obligations": [],
   "handoff": {
-    "coder_session": null,
-    "wp_validator_session": null,
+    "coder_session": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+    "wp_validator_session": "01a1323e-c183-77e3-b8ba-b286507e5617",
     "review_request_receipt_id": null,
     "review_response_receipt_id": null,
     "model_reports": [
@@ -314,5 +315,6 @@
     ],
     "proof_reuse": "Round47 only if actual affected behavior and relevant inputs unchanged; never substitutes repaired predecessor proof",
     "admitted_source_checkpoint": "e17eb7a5851e1a35fa914b842c898fc93df83e01; MT171/172 imported source refs preserved, no dependence on parent aggregate PASS"
-  }
+  },
+  "source_lease_ref": "WP-KERNEL-012-phase02-successor-handoff-v4.json#/teams/new/source_lease"
 }
