@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-12T07:05:10Z",
+ "updated_at": "2026-10-12T07:26:27Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3464,13 +3464,13 @@
   "record": "validation/round-R7.json"
  },
  "resume_plan": {
-  "at": "2026-10-12T06:16:47Z",
+  "at": "2026-10-12T07:26:27Z",
   "steps": [
-   "1. In flight: round R20 validator at 3930a7c (canary C25) judging SMB-PRESS-DOCS-2, SMB-REEL-PARTIAL-PTS-2, SMB-INTEROP-PSD-LOSS-DETAIL + CX-VAL-009 reopens; then handoff + snapshot; next: press PLR-094 (possible /Alt leak, priority) + PLR-093 doc, psd PLR-095, reel PLR-092.",
+   "1. R20 COMPLETE (24 PASS, 0 FAIL). Next lanes (Sonnet, new ids): SMB-PRESS-STRUCT-FAILCLOSED (PLR-094 fail-closed per lead decision + PLR-093 doc + PLR-091 test), SMB-INTEROP-PSD-DESC-CAP (PLR-095: mapped-count wording + DESCRIPTOR 8192-item cap + measure items per effect instance), SMB-REEL-PTS-TESTS (PLR-092: finish()-holding fake plan; prove or remove the negative-pts refusal). All three reopen two-FAIL lanes (SMB-PRESS; SMB-INTEROP-PSD-BUDGET; SMB-REEL-AV1-ROUTE + SMB-REEL-NATIVE-AV1-WORKER) -> V4-13 narrow pre-review before the round.",
    "2. Then SMB-PRESS-GEOMETRY, SMB-FMT-SWEEP, notes residuals (config-OBU tag, exact-64 FRAME test, psd group-own-lfx2/zero-tile).",
-   "3. Round R20: steward sync + canary + 1 validator (list two-FAIL dependants, PROC-R19-V1).",
+   "3. Round R21: steward sync + canary + 1 validator (list all two-FAIL lanes, PROC-R19-V1).",
    "4. Keep pushing gov_kernel after every commit (weekly >= 85%).",
-   "5. Blocked on Operator: D20 (render-gpu, round entrypoint, SMB-RENDER-GPU-ADJ/PROBE, PLR-082), D22-D26, D9, D17, D5, D13/STU-CON-044, D21, repo-local target 3.8 GB, empty folder x at the C: root; STUDIO_MODULES.json status vocabulary undefined."
+   "5. Blocked on Operator: D20, D22-D26, D9, D17, D5, D13/STU-CON-044, D21, repo-local target 3.8 GB, empty folder x at the C: root, red-proof scratch trees cleanup; STUDIO_MODULES.json status vocabulary undefined."
   ]
  },
  "r8_plan": {
@@ -3726,8 +3726,8 @@
  },
  "handoff": {
   "file": "HANDOFF.md",
-  "snapshot": "snapshots/SNAPSHOT-20261012T061647Z.json",
-  "at": "2026-10-12T06:16:47Z"
+  "snapshot": "snapshots/SNAPSHOT-20261012T072627Z.json",
+  "at": "2026-10-12T07:26:27Z"
  },
  "round_R13": {
   "candidate": "4b76604",

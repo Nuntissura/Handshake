@@ -244,3 +244,4 @@
 {"t": "2026-10-12T06:32:00Z", "event": "SMB-REEL-PARTIAL-PTS-2 READY_FOR_VALIDATION 2fb17a8 (builder-reel-partial-pts-2)", "lanes_moved": ["SMB-REEL-PARTIAL-PTS-2 READY"], "commits": ["2fb17a8"], "progress": "direct: product commit"}
 {"t": "2026-10-12T06:34:34Z", "event": "SMB-INTEROP-PSD-LOSS-DETAIL READY_FOR_VALIDATION 3930a7c (builder-psd-loss-detail)", "lanes_moved": ["SMB-INTEROP-PSD-LOSS-DETAIL READY"], "commits": ["3930a7c"], "progress": "direct: product commit"}
 {"t": "2026-10-12T07:05:49Z", "event": "R20 opened at 3930a7c: canary C25 exit 73 59/59; validator-r20 launched (opus); weekly 96%", "progress": "no direct progress (dispatch)"}
+{"t": "2026-10-12T07:26:27Z", "event": "R20 COMPLETE at 3930a7c: 24 PASS 0 FAIL; PLR-085..090 closed; PLR-094 lead decision fail closed; weekly 96%", "progress": "validator verdicts advanced (24 PASS)"}

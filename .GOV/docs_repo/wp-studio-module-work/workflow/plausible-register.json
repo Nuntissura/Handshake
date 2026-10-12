@@ -1465,10 +1465,12 @@
     "builder report 0c34342"
    ],
    "rounds_carried": 0,
-   "status": "OPEN",
+   "status": "CLOSED",
    "verified_at": "0c34342",
    "disposition": "FIX_LANE",
-   "disposition_note": "next reel lane (AV1-ROUTE 2-FAIL area: narrow pre-review); 2026-10-12T06:32:00Z fix submitted SMB-REEL-PARTIAL-PTS-2 2fb17a8"
+   "disposition_note": "next reel lane (AV1-ROUTE 2-FAIL area: narrow pre-review); 2026-10-12T06:32:00Z fix submitted SMB-REEL-PARTIAL-PTS-2 2fb17a8",
+   "closed_by": "round-R20 PASS at 3930a7c (SMB-REEL-PARTIAL-PTS-2)",
+   "closed_at": "2026-10-12T07:26:27Z"
   },
   {
    "id": "PLR-086",
@@ -1480,10 +1482,12 @@
     "builder report fdc01f1"
    ],
    "rounds_carried": 0,
-   "status": "OPEN",
+   "status": "CLOSED",
    "verified_at": "fdc01f1",
    "disposition": "DOC",
-   "disposition_note": "lead decision 2026-10-12T06:16:47Z: the 512-entry list cap is a parse-level hostile-size bound (V4-02) and stays category-blind; state it as a residual in the interop-psd DESCRIPTOR (a list over 512 entries refuses the descriptor with descriptor_item_limit, losing that stack); revisit only if a real Photoshop file needs more (Photoshop's per-type instance limit UNVERIFIED); 2026-10-12T06:34:34Z fix submitted SMB-INTEROP-PSD-LOSS-DETAIL 3930a7c"
+   "disposition_note": "lead decision 2026-10-12T06:16:47Z: the 512-entry list cap is a parse-level hostile-size bound (V4-02) and stays category-blind; state it as a residual in the interop-psd DESCRIPTOR (a list over 512 entries refuses the descriptor with descriptor_item_limit, losing that stack); revisit only if a real Photoshop file needs more (Photoshop's per-type instance limit UNVERIFIED); 2026-10-12T06:34:34Z fix submitted SMB-INTEROP-PSD-LOSS-DETAIL 3930a7c",
+   "closed_by": "round-R20 PASS at 3930a7c (SMB-INTEROP-PSD-LOSS-DETAIL)",
+   "closed_at": "2026-10-12T07:26:27Z"
   },
   {
    "id": "PLR-087",
@@ -1495,10 +1499,12 @@
     "R21-prereview-narrow"
    ],
    "rounds_carried": 0,
-   "status": "OPEN",
+   "status": "CLOSED",
    "verified_at": "fdc01f1",
    "disposition": "DOC",
-   "disposition_note": "fold into next press doc touch (SMB-PRESS-GEOMETRY or fmt sweep); 2026-10-12T06:27:30Z fix submitted SMB-PRESS-DOCS-2 0f87710"
+   "disposition_note": "fold into next press doc touch (SMB-PRESS-GEOMETRY or fmt sweep); 2026-10-12T06:27:30Z fix submitted SMB-PRESS-DOCS-2 0f87710",
+   "closed_by": "round-R20 PASS at 3930a7c (SMB-PRESS-DOCS-2)",
+   "closed_at": "2026-10-12T07:26:27Z"
   },
   {
    "id": "PLR-088",
@@ -1510,10 +1516,12 @@
     "R21-prereview-narrow"
    ],
    "rounds_carried": 0,
-   "status": "OPEN",
+   "status": "CLOSED",
    "verified_at": "fdc01f1",
    "disposition": "TEST",
-   "disposition_note": "next reel lane (with PLR-085); 2026-10-12T06:32:00Z fix submitted SMB-REEL-PARTIAL-PTS-2 2fb17a8"
+   "disposition_note": "next reel lane (with PLR-085); 2026-10-12T06:32:00Z fix submitted SMB-REEL-PARTIAL-PTS-2 2fb17a8",
+   "closed_by": "round-R20 PASS at 3930a7c (SMB-REEL-PARTIAL-PTS-2)",
+   "closed_at": "2026-10-12T07:26:27Z"
   },
   {
    "id": "PLR-089",
@@ -1525,10 +1533,12 @@
     "R21-prereview-narrow"
    ],
    "rounds_carried": 0,
-   "status": "OPEN",
+   "status": "CLOSED",
    "verified_at": "fdc01f1",
    "disposition": "FIX_LANE",
-   "disposition_note": "next interop-psd lane (with PLR-086); 2026-10-12T06:34:34Z fix submitted SMB-INTEROP-PSD-LOSS-DETAIL 3930a7c"
+   "disposition_note": "next interop-psd lane (with PLR-086); 2026-10-12T06:34:34Z fix submitted SMB-INTEROP-PSD-LOSS-DETAIL 3930a7c",
+   "closed_by": "round-R20 PASS at 3930a7c (SMB-INTEROP-PSD-LOSS-DETAIL)",
+   "closed_at": "2026-10-12T07:26:27Z"
   },
   {
    "id": "PLR-090",
@@ -1540,10 +1550,12 @@
     "round-R19"
    ],
    "rounds_carried": 0,
-   "status": "OPEN",
+   "status": "CLOSED",
    "verified_at": "fdc01f1",
    "disposition": "FIX_LANE",
-   "disposition_note": "optional; fold into next interop-psd lane; 2026-10-12T06:34:34Z SMB-INTEROP-PSD-LOSS-DETAIL 3930a7c: no change - a later live instance changes the outcome (1025 off refused alone, kept with one live after them); pinned by tests; close on PASS"
+   "disposition_note": "optional; fold into next interop-psd lane; 2026-10-12T06:34:34Z SMB-INTEROP-PSD-LOSS-DETAIL 3930a7c: no change - a later live instance changes the outcome (1025 off refused alone, kept with one live after them); pinned by tests; close on PASS",
+   "closed_by": "round-R20 PASS at 3930a7c (SMB-INTEROP-PSD-LOSS-DETAIL)",
+   "closed_at": "2026-10-12T07:26:27Z"
   },
   {
    "id": "PLR-091",
@@ -1593,17 +1605,18 @@
   {
    "id": "PLR-094",
    "lane": "SMB-PRESS",
-   "file_line": "crates/hsk-studio-press/src/flatten.rs:450, :1029",
+   "file_line": "crates/hsk-studio-press/src/flatten_purge.rs:450, :1029 (corrected by R20 V-1)",
    "finding": "PLAUSIBLE (pre-existing): with a /StructTreeRoot written directly in the catalog, a structure element without /Pg can keep its /Alt (possibly redacted text) while region_flattened reads true",
    "first_seen": "R22-prereview-narrow",
    "seen_in": [
-    "R22-prereview-narrow"
+    "R22-prereview-narrow",
+    "round-R20 (not a FAIL: declared residual 'is not edited'; detection claimed only for /Pg-naming elements; case unexecuted)"
    ],
    "rounds_carried": 0,
    "status": "OPEN",
    "verified_at": "3930a7c",
    "disposition": "FIX_LANE",
-   "disposition_note": "PRIORITY next press lane: reproduce with a test; if confirmed, fail closed (strip or report NotProven) - redaction leak class"
+   "disposition_note": "lead decision 2026-10-12T07:26:27Z: FAIL CLOSED - when the catalog's /StructTreeRoot is left unedited (direct root) and it holds any structure element without /Pg (or any element the purge cannot place), region_flattened must read false and the save reports NotProven (no silent /Alt/ActualText/E survival); test with a probe fixture; DESCRIPTOR states it. Next press lane SMB-PRESS-STRUCT-FAILCLOSED."
   },
   {
    "id": "PLR-095",

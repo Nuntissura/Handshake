@@ -46,7 +46,7 @@ Message 2:
 
 <topic id="snapshot" status="active" summary="Repo and work state at session start">
 
-Latest handoff: `HANDOFF.md` (projection) and machine-readable snapshot `snapshots/SNAPSHOT-20261012T061647Z.json` (2026-10-12T06:16:47Z). The section below is the session-start snapshot (2026-10-11T00:37Z), kept as history.
+Latest handoff: `HANDOFF.md` (projection) and machine-readable snapshot `snapshots/SNAPSHOT-20261012T072627Z.json` (2026-10-12T07:26:27Z). The section below is the session-start snapshot (2026-10-11T00:37Z), kept as history.
 
 
 ## Snapshot (2026-10-11T00:37Z)
@@ -362,3 +362,4 @@ Open Operator decisions (not adopted; recorded for the Operator):
 - Lead decision 2026-10-12T05:49:17Z (R21 narrow pre-review, all SAFE_TO_JUDGE): R21-S1 accepted as built — a visible PSD effect stack over the 1024 Folio ceiling drops ALL its switched-off instances (one typed loss effects_unrendered_dropped_over_stack_ceiling), a stack at or under the ceiling keeps them all; this matches the lane's stated choice, the DESCRIPTOR and the R10 budget decision; keeping a prefix would need an ordering rule and is not required. The lead's brief wording 'off instances over the ceiling dropped' meant this all-or-nothing cut. Notes registered: PLR-087 (press doc), PLR-088 (reel test gap), PLR-089 (psd loss granularity).
 - Lead decision 2026-10-12T06:16:47Z (round R19 COMPLETE at fdc01f1: 21 PASS, 0 FAIL; PLR-063/076/077/083/084 closed): PLR-086 DOC — the interop-psd descriptor reader's 512-entry list cap stays a category-blind parse bound (V4-02); the DESCRIPTOR must state that a list over 512 entries refuses the descriptor (descriptor_item_limit) and that stack is lost. Process item PROC-R19-V1: dispatch briefs list every two-FAIL lane reopened through a dependency.
 - OPERATOR ITEM (housekeeping, 2026-10-12T06:32:00Z): builder red-proof scratch trees under Handshake_Artifacts/WP-KERNEL-STUDIO can be deleted when convenient (the lead does not delete non-temp paths without approval): smb-reel-partial-pts-redproof, smb-reel-partial-pts-2-redproof (its video.rs holds a deliberate mutant; isolated, own target), plus earlier *-redproof trees.
+- Lead decision 2026-10-12T07:26:27Z (round R20 COMPLETE at 3930a7c: 24 PASS, 0 FAIL; PLR-085..090 closed): PLR-094 FAIL CLOSED. A redaction claim may not read region_flattened true while structure-tree text (/Alt, /ActualText, /E) that the purge did not inspect survives: when a catalog-direct /StructTreeRoot is left unedited and holds any element without /Pg (or any element the purge cannot place on a kept page), the region is reported NotProven. Same stance as the R17 'fail-open not accepted' decision. Lane SMB-PRESS-STRUCT-FAILCLOSED (with PLR-093 doc and PLR-091 test).

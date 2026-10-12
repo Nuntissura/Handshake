@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-12T07:05:49Z",
+ "updated_at": "2026-10-12T07:26:27Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -2489,7 +2489,7 @@
     "validation/round-R20.json"
    ],
    "launched": "2026-10-12T07:05:49Z",
-   "status": "running"
+   "status": "done (R20: 24 PASS, 0 FAIL; kernel ee4af6dc)"
   }
  ]
 }
