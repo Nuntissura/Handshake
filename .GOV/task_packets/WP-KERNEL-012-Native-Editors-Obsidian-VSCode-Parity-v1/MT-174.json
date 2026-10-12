@@ -1,4 +1,26 @@
 {
+  "round43_prelaunch_scope_reconciliation_20261012": {
+    "id": "WP012-P2-ROUND43-ADMISSION-20261012",
+    "status": "PRELAUNCH_HELD_NO_CARGO",
+    "cause": "Shared confirmations bound previous product HEAD after test-only commit",
+    "candidate": "75c42c63a22a512477e9545041644ffd5969f47c",
+    "gameplan_exit": 1,
+    "cargo_launched": false,
+    "failed_core_launches_retained": 38,
+    "cause_step": "GP-519",
+    "scoped_disposition": {
+      "authority": [
+        "CX-GP-003",
+        "CX-GP-006",
+        "CX-VERIFY-002"
+      ],
+      "GP-409": "Selected: direct owned wrapper numerical outcome, compiler/profile. NONSELECTED: legacy MT168 Scheduler parent-exit survival; no survival claim",
+      "GP-417": "NONSELECTED: native/Scheduler host-exit proof; current exact MT139 is direct library test. No fabricated scheduler outcome",
+      "legacy_steps": "Retained unchanged; conditional nonselected scope does not replace applicable current admission/resource/binding checks"
+    },
+    "next": "Independent currentHEAD applicable confirmations and fresh numerical gate/resource admission; same exact existing MT139 diagnostic"
+  }
+,
   "round43_reviewed_diagnostic_release_20261012": {
     "id": "WP012-P2-ROUND43-MT139-DIAGNOSTIC-20261012",
     "status": "SOURCE_CLEAR_PUSHED_PENDING_INDEPENDENT_FOCUSED_RUN",
