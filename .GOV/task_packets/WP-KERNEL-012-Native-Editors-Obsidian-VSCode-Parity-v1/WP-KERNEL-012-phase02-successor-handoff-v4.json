@@ -4,7 +4,7 @@
   "file_kind": "handoff",
   "version": 4,
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
-  "updated_at_utc": "2026-10-12T22:28:21.871823+00:00",
+  "updated_at_utc": "2026-10-12T22:35:47.464361+00:00",
   "status": "DOCUMENTATION_RESTRUCTURED_PRODUCT_REPAIR_UNFINISHED",
   "authority_precedence": [
     "Root AGENTS/CLAUDE and current Handshake Codex",
@@ -15,7 +15,7 @@
   ],
   "lanes": {
     "Handshake (Product)": "No product edits in restructuring turn; Round50 predecessor fails and original phase02 acceptance remains0/5",
-    "Repo Governance": "All-MT scope screening, bounded execution contracts, workflow decision and this handoff; preservation/push pending"
+    "Repo Governance": "All-MT screening, cross-WP dependencies/gaps and smaller-MT workflow committed and pushed before fresh devlead creation; actual new team ownership recorded in this handoff for final preservation and explicit release."
   },
   "authoritative_decision_ref": "packet.json#/operator_workflow_restructure_20261013",
   "new_children": {
@@ -24,7 +24,7 @@
     "MT-185": "MT-185.json",
     "MT-186": "MT-186.json"
   },
-  "original_parent_residuals": "MT171\u2013175 AC1/AC2, source-map268records/3173items, all consumed independent runtime/native/source/HBR obligations remain required. Four child outcomes alone do not complete phase02.",
+  "original_parent_residuals": "MT171–175 AC1/AC2, source-map268records/3173items, all consumed independent runtime/native/source/HBR obligations remain required. Four child outcomes alone do not complete phase02.",
   "repository_state": {
     "kernel": {
       "worktree": "Live kernel root of this handoff",
@@ -32,7 +32,9 @@
       "baseline_head": "85e531027386ed853bef914c40debda88b727b19",
       "other_device": "Fresh fetch/reconcile required before push; no forcepush/new branch",
       "preservation_commit": "15566b4a3b24b331e0e7b2cbed7ea0e6a21b34c6",
-      "cross_wp_amendment_commit": "Resolve latest gov_kernel commit containing this handoff via Git history; root verifies remote before fresh chat creation"
+      "cross_wp_amendment_commit": "ba630f410adf23ef122bb3b63488ef6aa0e28aab",
+      "remote_verified_before_fresh_chat": "origin/gov_kernel independently read at ba630f410adf23ef122bb3b63488ef6aa0e28aab after non-force push; fresh fetch before actual-team handoff commit reports 0/0.",
+      "actual_team_handoff_commit": "Resolve containing commit through Git history; outgoing root independently verifies remote then releases ownership."
     },
     "product": {
       "worktree": "../wtc-WP-KERNEL-012",
@@ -40,8 +42,9 @@
       "head": "e17eb7a5851e1a35fa914b842c898fc93df83e01",
       "tree": "19dcb82ab7a32c54a7edeecf85aa1a4c9e62db0f",
       "dirty_observed": false,
-      "instruction": "After kernel preservation, inspect fresh dirt and commit/push legitimate authorized product changes if present; clean branch requires no fabricated empty/dirt commit.",
-      "remote_recheck_required": true
+      "instruction": "Reinspect branch/dirt before subsequent product mutations; retain current original source and pins. Successor owns future changes through one assigned coder.",
+      "remote_recheck_required": false,
+      "preservation_observed": "After kernel push, fresh product status clean, divergence 0/0 and matching-branch push returned Everything up-to-date at e17eb7a5851e1a35fa914b842c898fc93df83e01. No product commit fabricated."
     },
     "ignored_transient": "gameplan.confirmations.yaml existing dirty state is transient, excluded from explicit task commits; preserve file"
   },
@@ -114,8 +117,14 @@
       "disposition": "Read-only reference and evidence preservation; no old source/build writer auto-resumes"
     },
     "new": {
-      "devlead_chat": null,
-      "leader_chats": {},
+      "devlead_chat": "01a1323d-2a04-78f1-9430-1589c9cd54ea",
+      "leader_chats": {
+        "failure diagnostic": "01a1323e-8219-7f01-b326-bbd802d1ba9a",
+        "coder": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+        "dependency": "01a1323e-a014-7252-ab58-8cb5a256b792",
+        "independent validation": "01a1323e-c183-77e3-b8ba-b286507e5617",
+        "spec and cross-WP gap review": "01a1323e-d84e-7793-a23f-a1ac8626ceb7"
+      },
       "required": [
         "failure diagnostic",
         "coder",
@@ -126,10 +135,41 @@
       "useful_extra": "Module/build boundary review via helper or additional leader if useful; no duplicate writer",
       "authorization": "Operator explicitly requests fresh non-forked devlead and fresh leader chats with subagents; devlead may create/message them and instruct helpers to deliberate internally and report to it.",
       "startup": "Fresh local gov-kernel project chats, no fork/new worktree/branch/model override; read actual authority no hidden prior history",
-      "ownership_release": "Root sole kernel writer until explicit release message; successor sole kernel writer afterward, product only assigned coder, validator independent",
-      "gap_review_instruction": "All five leaders internally deliberate with helper agents. Dependency/spec-gap teams inspect Master Spec + current WP012/CKC/WP1 contracts, pinned source records and actual code; preserve every requirement and record all evidenced gaps/unknowns in the existing packet plan. No current acceptance inferred from screening."
+      "ownership_release": "Outgoing root retains sole kernel write ownership until it pushes this actual-team handoff and sends explicit release to devlead 01a1323d-2a04-78f1-9430-1589c9cd54ea. That message transfers sole kernel coordination; successor assigns the sole product coder lease and records subsequent helper/lease state here. No release is asserted merely by this file.",
+      "gap_review_instruction": "All five leaders internally deliberate with helper agents. Dependency/spec-gap teams inspect Master Spec + current WP012/CKC/WP1 contracts, pinned source records and actual code; preserve every requirement and record all evidenced gaps/unknowns in the existing packet plan. No current acceptance inferred from screening.",
+      "startup_observed": "All five fresh local leader chats active; successor confirmed read-only startup and helper ownership; no source edits or builds before explicit release.",
+      "helper_ownership_reported": {
+        "devlead": [
+          "correctness",
+          "proof",
+          "dependency_cost"
+        ],
+        "failure diagnostic": [
+          "failed_artifacts",
+          "composition"
+        ],
+        "coder": [
+          "declaration_inventory",
+          "emitter_semantics"
+        ],
+        "dependency": [
+          "source_conservation",
+          "source_build",
+          "auth_recovery"
+        ],
+        "independent validation": [
+          "schema_composition",
+          "acceptance_history"
+        ],
+        "spec and cross-WP gap review": [
+          "conservation",
+          "cross_wp",
+          "modules"
+        ]
+      },
+      "outgoing_root_chat": "01a12d57-24b8-7ca3-896d-b509653390fe"
     },
-    "coordination": "Leaders report internally reconciled findings. Devlead deliberates with correctness/proof/dependency helper lenses. One lease on shared files and one build/test owner. Observe active lanes \u226460sec during launch/short proof; unchanged ticks quiet."
+    "coordination": "Leaders report internally reconciled findings. Devlead deliberates with correctness/proof/dependency helper lenses. One lease on shared files and one build/test owner. Observe active lanes ≤60sec during launch/short proof; unchanged ticks quiet."
   },
   "proof_and_resources": {
     "gameplan": "gameplan.yaml existing active controller; show on_resume and before_round using actual role. No blanket confirm all role steps.",
@@ -335,7 +375,7 @@
       "independent_validation": "Original acceptance and negative/recovery/persistence boundaries; unchanged-input reuse only"
     },
     "smaller_mt_policy": {
-      "new_ids_start": "MT-187 after183\u2013186 allocation;176\u2013182 reserved",
+      "new_ids_start": "MT-187 after183–186 allocation;176–182 reserved",
       "immediate_units": [
         "MT183 complete schema repair + original focused proof",
         "MT184 final stable core compilation",
@@ -368,7 +408,7 @@
       {
         "id": "WP012-GAP-003",
         "state": "OPEN_ORIGINAL_ACCEPTANCE",
-        "basis": "Source reconciliation268 records/3173 mapped items; original171\u2013175 accepted0/5",
+        "basis": "Source reconciliation268 records/3173 mapped items; original171–175 accepted0/5",
         "owner": "Spec-gap/dependency leaders and original consumed proof owners",
         "dependency": "Imported source/compile does not complete native/runtime/source acceptance",
         "remediation": "Map every consumed original requirement/check to owner/evidence or explicit unresolved residual; preserve unfinished unconsumed source-WP work",
@@ -377,16 +417,16 @@
       {
         "id": "WP012-GAP-004",
         "state": "OPEN_MAPPING_RECONCILIATION",
-        "basis": "Dependency reviewed empty convenience maps CKC044/056/058\u2013067 and WP012128/130\u2013134; original acceptance is retained elsewhere",
+        "basis": "Dependency reviewed empty convenience maps CKC044/056/058–067 and WP012128/130–134; original acceptance is retained elsewhere",
         "owner": "Spec-gap leader",
         "dependency": "Blocks acceptance claims for unmapped consumption, not source preservation",
-        "remediation": "Recover exact original contract pointers; CKC044 already045\u2013055 split,056 findings tracker; do not duplicate/drop obligations",
+        "remediation": "Recover exact original contract pointers; CKC044 already045–055 split,056 findings tracker; do not duplicate/drop obligations",
         "proof": "Complete original requirement/source/consumer/proof conservation mapping"
       },
       {
         "id": "WP012-GAP-005",
         "state": "RESERVED_DRAFT_HYDRATION_GAP",
-        "basis": "MT179 backend-owned draft uses native proof command;177\u2013182 actual standalone destinations not all materialized",
+        "basis": "MT179 backend-owned draft uses native proof command;177–182 actual standalone destinations not all materialized",
         "owner": "Dependency/spec-gap and future module coder owners",
         "dependency": "Must resolve before those reserved module writes/buildability claims",
         "remediation": "Reuse existing document/support/diag/Palmistry packages; actual canonical standalone interface/manifest then distinct pinned host-adoption proof",
