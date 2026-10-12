@@ -1,4 +1,49 @@
 {
+  "auth_mapping_r2_adoption_20261011": {
+    "decision_id": "WP012-P2-AUTH-MAPPING-001-R2",
+    "status": "ADOPTED_IMPLEMENTATION_AUTHORIZED",
+    "recorded_at_utc": "2026-10-11T21:06:37.343345+00:00",
+    "authority_ref": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json#/auth_mapping_r2_adoption_20261011",
+    "operator_decision": {
+      "source_thread_id": "01a12cc3-aea2-77b1-a09d-c20a5a5c6900",
+      "operator_quote": "Approve R2 adoption and implementation",
+      "registry_operator_quote": "Approve this exact registry diff",
+      "registry_diff_sha256": "dbb7531dfd9ff8e04ed25cf176c178748dd6745eb3fd3425f290f157ad2d9e89",
+      "registry_draft_sha256": "3c41121d2c2d17259ad914bfba5dc43937946bdd85f76e1b9a7354596cf02610",
+      "human_actual_diff_approval": true,
+      "signature_invented": false
+    },
+    "additive_spec_adoption": {
+      "version": "v02.216",
+      "original_wp_spec_pin": "v02.206",
+      "anchors": [
+        "11.1.6.1",
+        "2.3.13.12.9"
+      ],
+      "manifest_path": ".GOV/spec/master-spec-v02.216/indexed-spec-manifest.json",
+      "manifest_sha256": "ce3a6bb87a4d65f2503131d3ff7a97d2f19621d9e22f684df400b75eef0186cb",
+      "unrelated_new_spec_requirements_adopted": false
+    },
+    "approved_unit_refs": [
+      "WP012-P2-AUTH-R2-001",
+      "WP012-P2-AUTH-R2-002",
+      "WP012-P2-AUTH-R2-003",
+      "WP012-P2-AUTH-R2-004",
+      "WP012-P2-AUTH-R2-005",
+      "WP012-P2-AUTH-R2-006",
+      "WP012-P2-AUTH-R2-007",
+      "WP012-P2-AUTH-R2-008",
+      "WP012-P2-AUTH-R2-009",
+      "WP012-P2-AUTH-R2-010",
+      "WP012-P2-AUTH-R2-011",
+      "WP012-P2-AUTH-R2-012"
+    ],
+    "exact_file_scope": {
+      "authority_ref": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json#/auth_mapping_r2_adoption_20261011 /scope"
+    },
+    "execution_constraints": "Root assigns exclusive writers after dependency/interface reconciliation and real registry disposition. No Cargo/tests/Git/process authority is granted by this record. Native local_account reused unchanged; backend_client only if actual credential handoff requires. Frozen proof sequence and independent acceptance retained.",
+    "proof_disposition": "No compiler/runtime/native/acceptance PASS; Phase2 OPEN0/5. Actual extraction/review/publication Flight Recorder events and product registry publication are not fabricated."
+  },
   "schema_id": "hsk.refinement_contract@1",
   "schema_version": "refinement_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE",

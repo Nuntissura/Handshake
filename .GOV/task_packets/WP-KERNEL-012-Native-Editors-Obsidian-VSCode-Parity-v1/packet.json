@@ -1,4 +1,247 @@
 {
+  "operator_core_unblock_amendments_20261012": {
+    "decision_id": "WP012-P2-CORE-UNBLOCK-AMENDMENTS-20261012",
+    "state": "APPROVED_SOURCE_PREPARATION_ONLY_RUNTIME_PREDECESSORS_PRESERVED",
+    "bootstrap_catalog_reconciliation": {"id": "WP012-P2-EXACT-BOOTSTRAP-CATALOG-20261012", "operator_quote": "Approve exact bootstrap reconciliation", "scope": "Existing bootstrap/catalog owner verifies exact shared base installation and exact composed production state, accounts for every module table/field/index/function override and preserves historical migration pins", "paths": ["src/backend/handshake_core/src/storage/surreal/schema.rs", "src/backend/handshake_core/src/storage/surreal.rs"], "forced_dependency_ref": "MT-174.json#/round36_bootstrap_catalog_reconciliation_20261012/forced_palmistry_dependency", "constraints": "No ignored objects, relaxed counts, caller-selected bypass, fabricated INFO/source proof, parallel checker or blind persisted-pin overwrite; exact deterministic stage/ownership/state contract and independent complete production fresh/reopen proof", "owner_mt": "MT-174", "implementation_ref": "MT-174.json#/round36_bootstrap_catalog_reconciliation_20261012", "ordering": "Serial sole writer after current provider, consumers and composer source; original compiler/source review/resource/gameplan and runtime publication prerequisites preserved"},
+    "navigation": {
+      "id": "WP012-P2-NAVIGATION-PREPUBLICATION-SOURCE-001",
+      "operator_quote": "Approve source preparation amendment",
+      "bounded_recording_purpose_amendment": {"id": "WP012-P2-BOUNDED-RECORDING-PURPOSES-20261012", "operator_quote": "Approve bounded recording purposes", "scope": "Two bounded diagnostic and recovery-checkpoint recording purposes retain existing original Workspace/Create operation and actual capability/grant; exact run/lane/receipt dependencies only", "preserved": "Ordinary recording only; RecoveryExecute, registry publication and independent runtime acceptance remain separate; original immutable records/hashes, atomic checkpoint high-watermark and all assertions retained", "implementation_ref": "MT-173.json#/round36_navigation_provider_preparation_20261012/recording_purpose_amendment_20261012", "owner_mts": ["MT-172", "MT-173"]},
+      "descendant_contract_amendment": {
+        "id": "WP012-P2-NAVIGATION-TYPED-PROVENANCE-REDACTION-001",
+        "operator_quote": "Approve typed provenance and redaction",
+        "scope": "Typed canonical descendant provenance and versioned redacted navigation projection; omit denied or unresolved child payloads/references and their derived evidence; return non-disclosing404 for exact denied/unresolved child selectors",
+        "preserved": "Stored records/hashes, actual canonical authority, authorized owner results and every original assertion; no invented resource/grant or reference-prefix authorization, new ResourceKind or runtime gate waiver",
+        "owner_mts": ["MT-172", "MT-173", "MT-174"]
+      },
+      "amendment": "Permit exclusive writer assignment, preparation and independent source review of already-approved R2 navigation source before actual registry publication; narrowly supersedes that source-assignment ordering condition",
+      "preserved": "Actual canonical registry publication and authentic Flight Recorder proof remain hard predecessors for registry-dependent runtime authorization and acceptance; all12 R2 units, original scope/pins/descendant restrictions and acceptance0/5 retained",
+      "owner_mts": ["MT-172", "MT-173", "MT-174"],
+      "assignment": "Serial sole coder; existing allowed paths; no blanket scope expansion or publication/grant fabrication"
+    },
+    "official_cli": {
+      "id": "WP012-P2-OFFICIAL-CLI-EXPLICIT-CONFIG-001",
+      "operator_quote": "Approve explicit backend config contract",
+      "amendment": "Authorize a versioned backend read-only explicit-path configuration contract carrying executable path, argv, output format, environment, working directory, timeout, provider and real nonempty operator model allowlist; existing validators and same pinned launcher consume it",
+      "preserved": "No PATH rediscovery, default or fabricated allowlist/config, Tauri authority, config write, token extraction, fake binary or skipped runtime proof; source locator and actual operator values remain explicit required inputs",
+      "owner_mt": "MT-172",
+      "proposed_write_paths": ["src/backend/handshake_core/src/api/model_access.rs", "src/backend/handshake_core/tests/cloud_official_cli_bridge_live_tests.rs"],
+      "runtime_inputs": "NOT_SUPPLIED; no configured path/allowlist or live readiness inferred from contract approval"
+    }
+  },
+  "auth_mapping_r2_adoption_20261011": {
+    "decision_id": "WP012-P2-AUTH-MAPPING-001-R2",
+    "status": "ADOPTED_IMPLEMENTATION_AUTHORIZED",
+    "recorded_at_utc": "2026-10-11T21:06:37.343345+00:00",
+    "operator_decision": {
+      "source_thread_id": "01a12cc3-aea2-77b1-a09d-c20a5a5c6900",
+      "operator_quote": "Approve R2 adoption and implementation",
+      "registry_operator_quote": "Approve this exact registry diff",
+      "registry_diff_sha256": "dbb7531dfd9ff8e04ed25cf176c178748dd6745eb3fd3425f290f157ad2d9e89",
+      "registry_draft_sha256": "3c41121d2c2d17259ad914bfba5dc43937946bdd85f76e1b9a7354596cf02610",
+      "human_actual_diff_approval": true,
+      "signature_invented": false
+    },
+    "atomic_adopted_units": [
+      {
+        "id": "WP012-P2-AUTH-R2-001",
+        "requirement": "NEW capability model_lane.navigation.read; existing ResourceKind::Workspace/ResourceAction::Read; NEW ContextCoordinationPurpose::NavigationRead string navigation_read for ALL eight existing navigation GET routes including recovery projection. GET remains projection-only/nonmutating."
+      },
+      {
+        "id": "WP012-P2-AUTH-R2-002",
+        "requirement": "NEW capability model_lane.recovery.execute; existing Workspace/Update; NEW ContextCoordinationPurpose::RecoveryExecute string recovery_execute for explicit recovery execution whose existing recover_run_after_restart can write orphan receipts. No new ResourceKind/action/general fs.* permission."
+      },
+      {
+        "id": "WP012-P2-AUTH-R2-003",
+        "requirement": "Canonical subject Workspace.external_resource_id equals canonical workspace; actual owner/AccessSpace/resource/grant links; selectors never authenticate. Intersect ALL descendant resource/document/artifact restrictions; workspace grant is not private-child visibility."
+      },
+      {
+        "id": "WP012-P2-AUTH-R2-004",
+        "requirement": "Add both IDs to capabilities.rs CANONICAL_CAPABILITY_IDS and ONLY existing Operator.profile.allowed; no Analyst/Coder/other-profile expansion. Profile eligibility is distinct from delegated session capabilities and exact persisted ResourceGrant(action/capability/resource); no automatic provisioning/wildcards/fake fixtures."
+      },
+      {
+        "id": "WP012-P2-AUTH-R2-005",
+        "requirement": "Propose narrow spec sections11.1 and2.3.13.12 enrichment through copy-first existing publish process, preserve original WPv206 pin and narrow additive adoption; no silent whole v215 substitution. Proposed capability_registry entries use runtime kind, section_ref11.1, required_capabilities[], gov_standard, navigation medium risk/recovery high risk, unique IDs and existing schema. Actual normative extraction/validate/integrity/diff/HUMAN REVIEW/publish required; workflow version is SHA256(draft bytes); preserve previous registry and FR publish event. Proposal authorization does not approve unseen registry diff/spec publication."
+      },
+      {
+        "id": "WP012-P2-AUTH-R2-006",
+        "requirement": "Real native token+channel+origin AuthenticatedContext -> authenticated_session_credentials/authenticate_local_session -> authorize_request/authorize_protected_resource plus profile check -> actual canonical workspace and immutable exact owner/principal/session/Space/workspace -> ONE storage/runtime-owned shared lifecycle registry -> existing canonical store/provider/guarded transaction/receipt. ProductLocalResourceScope env/Extension/compatibility None are not authentication."
+      },
+      {
+        "id": "WP012-P2-AUTH-R2-007",
+        "requirement": "Associate exact five-ID tuple plus protected resource plus grantID/version plus capability/action/purpose. Real session/logout/account disable/Space switch invalidate matching tuple. Single grant expiry/revoke invalidates ONLY associated grant authorization, not unrelated same-tuple grants. Preserve session-registry terminal states; every boundary checks durable expiry/revocation epochs/current policy/version; process registry is never durable authority."
+      },
+      {
+        "id": "WP012-P2-AUTH-R2-008",
+        "requirement": "Capture original authority and recheck INSIDE guarded read/write transaction before commit. Same controller protected result/receipt publication barrier preserves subject/capability/action/policy continuity. Revocation linearized first denies/rolls back/redacts; legitimate operation first retains actual committed receipt and later revocation stops further access without undo/fake STOP. No preflight-only or postcommit-registry-only proof."
+      },
+      {
+        "id": "WP012-P2-AUTH-R2-009",
+        "requirement": "DB commit/network ACK are not atomic. Lost ACK/unknown cancellation retains pending owner/original envelope/stable operationID; actual authenticated canonical operation/receipt reread precedes retry. Do not invent no-commit or success; retain uncertainty. READ/GET nonmutating; recovery write explicit mapped action preserves canonical lease fences/order/idempotency/receipt."
+      },
+      {
+        "id": "WP012-P2-AUTH-R2-010",
+        "requirement": "Original FULL COMPOSED authenticated HTTP: owner200; each valid-auth foreign owner/principal/session/Space/workspace404; missing shared lifecycle503. Invalid credentials/capability/grant denial use canonical auth denial, not historical503. Full canonical before/after rows/recovery metadata/ordered attributed EventLedger+receipts, redaction/ambiguity/GET nonmutation; actual durable session/grant expiry/revoke/disable/Space switch/retained context/inflight denial/ordinary record user/reopen/cancel-retry real ACK. Direct-store manually registered lifecycle tests are component-only, not full HTTP replacement. Original composer/controller/process/lease/manual/HBR acceptance retained0of5."
+      },
+      {
+        "id": "WP012-P2-AUTH-R2-011",
+        "requirement": "Same-session policy: original HTTP blob ac0e44c9d45530846e434e5b7e21a7df7cc2ab65 is git blob, not commit; reviewer opened archive before bytes and recomputed blob SHA1. Original owner exact-tuple positive/all wrong-tuple404/absence503 preK006/full snapshot equality preserved. Current recoverySurreal158-175 reopens same harness.scope.clone: preserve same still-live durable session reopen and immutable old attribution. Deny foreign/new session old tuple under existing exact scope; no source-backed cross-new-session positive found and no invented Operator blocker."
+      },
+      {
+        "id": "WP012-P2-AUTH-R2-012",
+        "requirement": "Proposed amendment recording only; root exact scope/ownership admission after real registry/spec disposition before future auth writes. Disjoint exclusive writers/shared APIs reconciled; combined freeze -> independent affected review -> ONE governed warm compile -> compiled checkpoint backup -> independent canonical runtime. No acceptance waiver or PG/SQLite execution revival."
+      }
+    ],
+    "scope": {
+      "MT-172": [
+        "src/backend/handshake_core/src/api/account_scope.rs",
+        "src/backend/handshake_core/src/api/model_lane_navigation.rs",
+        "src/backend/handshake_core/src/swarm_orchestration/resource_scope.rs",
+        "src/backend/handshake_core/src/swarm_orchestration/model_lane.rs",
+        "src/backend/handshake_core/tests/model_lane_navigation_api_surreal_tests.rs",
+        "src/backend/handshake_core/tests/model_lane_navigation_surreal_tests.rs",
+        "src/backend/handshake_core/tests/model_lane_recovery_scope_api_surreal_tests.rs",
+        "src/backend/handshake_core/tests/model_lane_recovery_surreal_tests.rs"
+      ],
+      "MT-173": [
+        "src/backend/handshake_core/src/storage/surreal.rs",
+        "src/backend/handshake_core/src/storage/surreal/model_lane.rs",
+        "src/backend/handshake_core/src/storage/surreal/model_lane_schema.surql",
+        "src/backend/handshake_core/src/storage/surreal/schema.surql",
+        "src/backend/handshake_core/src/storage/surreal/schema.rs"
+      ],
+      "MT-173_newly_proposed_admission": [
+        "src/backend/handshake_core/src/storage/surreal/local_accounts.rs",
+        "src/backend/handshake_core/src/storage/surreal/resource_authority.rs"
+      ],
+      "MT-174_newly_proposed_admission": [
+        "src/backend/handshake_core/src/api/authority.rs",
+        "src/backend/handshake_core/src/capabilities.rs",
+        "assets/capability_registry.json",
+        "src/backend/handshake_core/src/capability_registry_workflow.rs",
+        "src/backend/handshake_core/src/workflows.rs"
+      ],
+      "MT-174_existing_only_if_required_for_original_full_composer": [
+        "src/backend/handshake_core/src/lib.rs",
+        "src/backend/handshake_core/src/api/mod.rs",
+        "src/backend/handshake_core/src/main.rs"
+      ],
+      "MT-175_reuse_unchanged": [
+        "src/frontend/handshake_native/src/local_account.rs"
+      ],
+      "MT-175_existing_only_if_actual_credential_handoff_requires": [
+        "src/frontend/handshake_native/src/backend_client.rs"
+      ]
+    },
+    "additive_spec_adoption": {
+      "version": "v02.216",
+      "original_wp_spec_pin": "v02.206",
+      "anchors": [
+        "11.1.6.1",
+        "2.3.13.12.9"
+      ],
+      "manifest_path": ".GOV/spec/master-spec-v02.216/indexed-spec-manifest.json",
+      "manifest_sha256": "ce3a6bb87a4d65f2503131d3ff7a97d2f19621d9e22f684df400b75eef0186cb",
+      "unrelated_new_spec_requirements_adopted": false
+    },
+    "execution_constraints": "Root assigns exclusive writers after dependency/interface reconciliation and real registry disposition. No Cargo/tests/Git/process authority is granted by this record. Native local_account reused unchanged; backend_client only if actual credential handoff requires. Frozen proof sequence and independent acceptance retained.",
+    "proof_disposition": "No compiler/runtime/native/acceptance PASS; Phase2 OPEN0/5. Actual extraction/review/publication Flight Recorder events and product registry publication are not fabricated.",
+    "schema_pin_dependency_admission": {
+      "admission_id": "WP012-P2-AUTH-R2-SCHEMA-PIN-DEPENDENCY-001",
+      "recorded_at_utc": "2026-10-11T21:11:56.818229+00:00",
+      "owner_mt": "MT-173",
+      "path": "src/backend/handshake_core/src/storage/surreal/schema.rs",
+      "scope": "Minimum corresponding generated schema hash/lineage update only; no unrelated schema.rs rewrite",
+      "reason": "Approved model_lane_schema.surql/schema.surql auth changes alter the exact generated schema consumed by schema.rs4169 and GENERATED_SURREALQL_SHA256 at3789; bootstrap current-lineage checks5450-5464 compare those pins. Only corresponding generated hash/lineage dependency updates are admitted; retain historical predecessor pins and independent actual INFO/catalog proof.",
+      "authorization_ref": "packet.json#/operator_decisions_20261009/0",
+      "approved_amendment_ref": "packet.json#/auth_mapping_r2_adoption_20261011",
+      "joint_reconciliation_source": "Successor root direct assignment following current diagnosis/dependency finding; schema consumer independently inspected by scoped author",
+      "proof": "Compiler/runtime and schema INFO/catalog/lineage acceptance remain pending; prior evidence and predecessors preserved"
+    },
+    "registry_producer_dependency_admission": {
+      "admission_id": "WP012-P2-AUTH-R2-REGISTRY-PRODUCER-DEPENDENCY-001",
+      "recorded_at_utc": "2026-10-11T21:15:00.371997+00:00",
+      "owner_mt": "MT-174",
+      "paths": [
+        "src/backend/handshake_core/src/capability_registry_workflow.rs",
+        "src/backend/handshake_core/src/workflows.rs"
+      ],
+      "scope": {
+        "capability_registry_workflow.rs": "Existing producer only: exact human-approved draft/diff SHA256 binding, current normative provenance, scoped artifact paths and truthful publication/actual Flight Recorder failure state; retain previous registry and no fabricated events",
+        "workflows.rs": "Existing capability_registry_build protocol branch dispatch plus required caller parameter plumbing only. jobs.rs33-38 persists profile_id=default separately from capability_profile_id; existing workflows.rs11314 profile predicate cannot receive HTTP-created jobs. Preserve server-enforced capability/profile checks and no new profile/Analyst/Coder/model-lane eligibility.",
+        "captured_attribution": "Actual job workspace and immutable five-ID attribution into existing producer/caller Flight Recorder event payload and wsids; preserve RecordUserScope public shape and existing authorized FR scope."
+      },
+      "authorization_ref": "packet.json#/operator_decisions_20261009/0",
+      "approved_amendment_ref": "packet.json#/auth_mapping_r2_adoption_20261011",
+      "verified_source_refs": [
+        "capability_registry_workflow.rs91-100",
+        "capability_registry_workflow.rs543-707",
+        "workflows.rs11314-11355",
+        "jobs.rs33-38",
+        "api/flight_recorder.rs1815-1859"
+      ],
+      "blocker": "Producer regenerates product-root draft/diff/review, cites v02.113, accepts approve/reviewer flags without approved draft/diff hashes, and compares its newly authored review hash. Asset write precedes awaited actual Flight Recorder publish event; publication can therefore be unrecorded on FR failure. Existing exact approved artifacts are not yet bound to actual governed publication.",
+      "predecessor": "Repair existing producer/caller, independently review affected frozen candidate, compile/checkpoint under current authority, then actual governed publication with authentic Flight Recorder evidence before dependent auth writes. Conditional current137 compile freeze remains untouched.",
+      "prohibited": "No sibling script/new CLI; legacy bin/capability_registry_workflow.rs DuckDB recorder is prohibited; no registry/auth write or publication proof manufactured by admission",
+      "acceptance": "Twelve adopted units, original WPv206 pin, prior lineage/proof and OPEN0/5 unchanged",
+      "publication_proof_ref": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json#/auth_mapping_r2_adoption_20261011/registry_publication_proof"
+    },
+    "registry_publication_proof": {
+      "proof_id": "WP012-P2-AUTH-R2-REGISTRY-ACTUAL-PUBLICATION-001",
+      "state": "PENDING_ACTUAL_ADMISSION_AND_EXECUTION",
+      "executor_role": "INDEPENDENT_VALIDATOR",
+      "executor_identity": "NOT_INSPECTED",
+      "acceptance_source": "WP012-P2-AUTH-R2-005; explicit human exact-diff approval; original MasterSpec11.1.6",
+      "prerequisites": [
+        "Independent affected producer/caller review on frozen candidate",
+        "Required app-runtime compiler proof and compiled checkpoint/push",
+        "Actual executable/data/listener/native channel/live authenticated session and persisted grants/policy/reviewer identity admission"
+      ],
+      "runtime_routes": [
+        "Existing composed authenticated POST /jobs using actual capability_registry_build protocol dispatch",
+        "Authenticated GET /jobs/:id for actual job",
+        "Authenticated GET /flight_recorder?wsid=actualworkspace&job_id=actualjob&trace_id=actualtrace&event_type=system"
+      ],
+      "source_verified_event_contract": {
+        "event_type": "system",
+        "actor": "system",
+        "actor_id": "capability_registry_build",
+        "payload_discriminator": {
+          "key": "event",
+          "value": "capability_registry_publish"
+        },
+        "source_refs": [
+          "capability_registry_workflow.rs509-535",
+          "capability_registry_workflow.rs691-703",
+          "api/flight_recorder.rs206-217",
+          "api/flight_recorder.rs1815-1859"
+        ]
+      },
+      "required_observations": [
+        "Exact approved draft SHA256 3c41121d2c2d17259ad914bfba5dc43937946bdd85f76e1b9a7354596cf02610",
+        "Exact human-approved diff SHA256 dbb7531dfd9ff8e04ed25cf176c178748dd6745eb3fd3425f290f157ad2d9e89",
+        "Workflow version SHA256(actual approved draft bytes)",
+        "Actual workflow/job/trace IDs, original immutable owner/principal/session/Space/workspace tuple, policy decision and human approval source bound to actual FR records",
+        "Independent canonical assets/capability_registry.json read/hash equals approved draft, preserves37 originals and exactly2 approved runtime additions",
+        "Truthful failed/pending publication state when actual FR recording fails; no fabricated publish event or success"
+      ],
+      "actual_runtime_inputs": {
+        "executable": "NOT_INSPECTED",
+        "data_root": "NOT_INSPECTED",
+        "listener": "NOT_INSPECTED",
+        "native_channel": "NOT_INSPECTED",
+        "live_authenticated_session": "NOT_INSPECTED",
+        "persisted_grants": "NOT_INSPECTED",
+        "policy_decision": "NOT_INSPECTED",
+        "reviewer_identity": "NOT_INSPECTED",
+        "job_id": "NOT_INSPECTED",
+        "workflow_id": "NOT_INSPECTED",
+        "trace_id": "NOT_INSPECTED",
+        "five_id_tuple": "NOT_INSPECTED"
+      },
+      "limits": "No legacy CLI, synthetic/manual event, manual asset publication, sibling proof script or acceptance waiver; original independent runtime acceptance preserved."
+    }
+  },
   "mt032_execution_split_20260929": {
     "decision_ref": "MT-032.json#execution_split_20260929",
     "children": [
