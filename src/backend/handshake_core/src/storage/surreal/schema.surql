@@ -1533,8 +1533,6 @@ DEFINE INDEX OVERWRITE pk_atelier_intake_item ON TABLE atelier_intake_item FIELD
 DEFINE INDEX OVERWRITE uq_atelier_intake_item_1 ON TABLE atelier_intake_item FIELDS batch_id, source_path UNIQUE;
 
 DEFINE TABLE OVERWRITE atelier_collection SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
-DEFINE INDEX OVERWRITE ux_atelier_collection_scoped_name ON TABLE atelier_collection FIELDS scoped_name_key UNIQUE;
-DEFINE INDEX OVERWRITE idx_atelier_collection_created_by ON TABLE atelier_collection FIELDS created_by;
 DEFINE FIELD OVERWRITE created_by ON TABLE atelier_collection TYPE string DEFAULT 'system' ASSERT string::trim($value) = $value AND $value != '';
 DEFINE FIELD OVERWRITE updated_by ON TABLE atelier_collection TYPE string DEFAULT 'system' ASSERT string::trim($value) = $value AND $value != '';
 DEFINE FIELD OVERWRITE scoped_name_key ON TABLE atelier_collection TYPE string
@@ -1543,6 +1541,8 @@ DEFINE FIELD OVERWRITE scoped_name_key ON TABLE atelier_collection TYPE string
     } ELSE {
         'global|' + $this.name
     };
+DEFINE INDEX OVERWRITE ux_atelier_collection_scoped_name ON TABLE atelier_collection FIELDS scoped_name_key UNIQUE;
+DEFINE INDEX OVERWRITE idx_atelier_collection_created_by ON TABLE atelier_collection FIELDS created_by;
 DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_collection TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE collection_id ON TABLE atelier_collection TYPE uuid ASSERT ($value = record::id($this.id));
 DEFINE FIELD OVERWRITE name ON TABLE atelier_collection TYPE string;
@@ -1557,14 +1557,14 @@ DEFINE INDEX OVERWRITE pk_atelier_collection ON TABLE atelier_collection FIELDS 
 
 
 DEFINE TABLE OVERWRITE atelier_collection_item SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');
-DEFINE INDEX OVERWRITE idx_atelier_collection_item_source_path_ref ON TABLE atelier_collection_item FIELDS source_path_ref;
-DEFINE INDEX OVERWRITE idx_atelier_collection_item_source_url_ref ON TABLE atelier_collection_item FIELDS source_url_ref;
-DEFINE INDEX OVERWRITE idx_atelier_collection_item_linked_by ON TABLE atelier_collection_item FIELDS linked_by;
 DEFINE FIELD OVERWRITE source_path_ref ON TABLE atelier_collection_item TYPE option<string> ASSERT $value = NONE OR (string::trim($value) = $value AND $value != '');
 DEFINE FIELD OVERWRITE source_url_ref ON TABLE atelier_collection_item TYPE option<string> ASSERT $value = NONE OR (string::trim($value) = $value AND $value != '');
 DEFINE FIELD OVERWRITE linked_by ON TABLE atelier_collection_item TYPE string DEFAULT 'system' ASSERT string::trim($value) = $value AND $value != '';
 DEFINE FIELD OVERWRITE updated_by ON TABLE atelier_collection_item TYPE string DEFAULT 'system' ASSERT string::trim($value) = $value AND $value != '';
 DEFINE FIELD OVERWRITE updated_at_utc ON TABLE atelier_collection_item TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE idx_atelier_collection_item_source_path_ref ON TABLE atelier_collection_item FIELDS source_path_ref;
+DEFINE INDEX OVERWRITE idx_atelier_collection_item_source_url_ref ON TABLE atelier_collection_item FIELDS source_url_ref;
+DEFINE INDEX OVERWRITE idx_atelier_collection_item_linked_by ON TABLE atelier_collection_item FIELDS linked_by;
 DEFINE FIELD OVERWRITE owner_account_id ON TABLE atelier_collection_item TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;
 DEFINE FIELD OVERWRITE collection_id ON TABLE atelier_collection_item TYPE record<atelier_collection> ASSERT (record::exists($value)) AND ($value = type::record('atelier_collection', record::id($this.id)[0])) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE asset_id ON TABLE atelier_collection_item TYPE record<atelier_media_asset> ASSERT (record::exists($value)) AND ($value = type::record('atelier_media_asset', record::id($this.id)[1])) REFERENCE ON DELETE CASCADE;

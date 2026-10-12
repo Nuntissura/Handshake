@@ -3651,9 +3651,7 @@ DEFINE FIELD OVERWRITE artifact_binding_event_id ON TABLE assets TYPE option<rec
         "MT173 source delta must occur once"
     );
     source = source.replacen(current, r###""###, 1);
-    let current = r###"DEFINE INDEX OVERWRITE ux_atelier_collection_scoped_name ON TABLE atelier_collection FIELDS scoped_name_key UNIQUE;
-DEFINE INDEX OVERWRITE idx_atelier_collection_created_by ON TABLE atelier_collection FIELDS created_by;
-DEFINE FIELD OVERWRITE created_by ON TABLE atelier_collection TYPE string DEFAULT 'system' ASSERT string::trim($value) = $value AND $value != '';
+    let current = r###"DEFINE FIELD OVERWRITE created_by ON TABLE atelier_collection TYPE string DEFAULT 'system' ASSERT string::trim($value) = $value AND $value != '';
 DEFINE FIELD OVERWRITE updated_by ON TABLE atelier_collection TYPE string DEFAULT 'system' ASSERT string::trim($value) = $value AND $value != '';
 DEFINE FIELD OVERWRITE scoped_name_key ON TABLE atelier_collection TYPE string
     VALUE IF $this.character_internal_id != NONE {
@@ -3661,6 +3659,8 @@ DEFINE FIELD OVERWRITE scoped_name_key ON TABLE atelier_collection TYPE string
     } ELSE {
         'global|' + $this.name
     };
+DEFINE INDEX OVERWRITE ux_atelier_collection_scoped_name ON TABLE atelier_collection FIELDS scoped_name_key UNIQUE;
+DEFINE INDEX OVERWRITE idx_atelier_collection_created_by ON TABLE atelier_collection FIELDS created_by;
 "###;
     assert_eq!(
         source.matches(current).count(),
@@ -3681,14 +3681,14 @@ DEFINE FIELD OVERWRITE scoped_name_key ON TABLE atelier_collection TYPE string
 DEFINE INDEX OVERWRITE uq_atelier_collection_1 ON TABLE atelier_collection FIELDS name UNIQUE;
 
 "###, 1);
-    let current = r###"DEFINE INDEX OVERWRITE idx_atelier_collection_item_source_path_ref ON TABLE atelier_collection_item FIELDS source_path_ref;
-DEFINE INDEX OVERWRITE idx_atelier_collection_item_source_url_ref ON TABLE atelier_collection_item FIELDS source_url_ref;
-DEFINE INDEX OVERWRITE idx_atelier_collection_item_linked_by ON TABLE atelier_collection_item FIELDS linked_by;
-DEFINE FIELD OVERWRITE source_path_ref ON TABLE atelier_collection_item TYPE option<string> ASSERT $value = NONE OR (string::trim($value) = $value AND $value != '');
+    let current = r###"DEFINE FIELD OVERWRITE source_path_ref ON TABLE atelier_collection_item TYPE option<string> ASSERT $value = NONE OR (string::trim($value) = $value AND $value != '');
 DEFINE FIELD OVERWRITE source_url_ref ON TABLE atelier_collection_item TYPE option<string> ASSERT $value = NONE OR (string::trim($value) = $value AND $value != '');
 DEFINE FIELD OVERWRITE linked_by ON TABLE atelier_collection_item TYPE string DEFAULT 'system' ASSERT string::trim($value) = $value AND $value != '';
 DEFINE FIELD OVERWRITE updated_by ON TABLE atelier_collection_item TYPE string DEFAULT 'system' ASSERT string::trim($value) = $value AND $value != '';
 DEFINE FIELD OVERWRITE updated_at_utc ON TABLE atelier_collection_item TYPE datetime DEFAULT time::now();
+DEFINE INDEX OVERWRITE idx_atelier_collection_item_source_path_ref ON TABLE atelier_collection_item FIELDS source_path_ref;
+DEFINE INDEX OVERWRITE idx_atelier_collection_item_source_url_ref ON TABLE atelier_collection_item FIELDS source_url_ref;
+DEFINE INDEX OVERWRITE idx_atelier_collection_item_linked_by ON TABLE atelier_collection_item FIELDS linked_by;
 "###;
     assert_eq!(
         source.matches(current).count(),
@@ -3996,7 +3996,7 @@ const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
 // Existing collection subtype count also drifted (57 observed source nestings, 56 declared).
 // Live INFO, shared/module catalog ownership and compatible reopen lineage remain unmeasured.
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "be1a8bf8f1b3dbeb92b64a309c9f8e2b579b2f8d22f0e258161596c34c7d5f3f";
+    "7daf5f03b36d6792575bbc40e3775f901182d975946a4b5fd14f2912c7979fd8";
 // MT-142 re-pin: catalog identities gained the knowledge_rich_document_title_anchors objects.
 // MT-151 re-pin: catalog identities gained the journal_key field/index and the
 // storage_graph_anchors objects.
@@ -10532,11 +10532,11 @@ mod tests {
             errors.sort_by_key(|(index, _)| *index);
             let first_error = errors.first().map(|(_, error)| error.clone());
             let masked = errors.iter().filter(|(_, error)| matches!(
-                error.query_details(), Some(surrealdb::types::QueryError::NotExecuted)
+                error.query_details(), Some(surrealdb::types::QueryError::NotExecuted | surrealdb::types::QueryError::Cancelled)
             )).count();
             eprintln!("MT139_SCHEMA_STATEMENT_ERROR_COUNTS total={} masked={masked}", errors.len());
             for (index, error) in errors.iter().filter(|(_, error)| !matches!(
-                error.query_details(), Some(surrealdb::types::QueryError::NotExecuted)
+                error.query_details(), Some(surrealdb::types::QueryError::NotExecuted | surrealdb::types::QueryError::Cancelled)
             )) {
                 eprintln!("MT139_SCHEMA_STATEMENT_ERROR index={index} error={error:?}");
             }
