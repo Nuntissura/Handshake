@@ -1,4 +1,18 @@
 {
+  "replacement_validator_assignment_20261012": {
+    "id": "WP012-P2-REPLACEMENT-VALIDATOR-20261012",
+    "operator_instruction": "then start a new validator team with sub agents in a new chat... seems an obvious thing to do",
+    "thread_id": "01a1315e-b3ac-7aa2-a6bd-a725f17c65d5",
+    "role": "INTEGRATION_VALIDATOR",
+    "status": "ASSIGNED_READ_ONLY_ADMISSION_RUNTIME_RELEASE_PENDING",
+    "product_commit": "e17eb7a5851e1a35fa914b842c898fc93df83e01",
+    "product_tree": "19dcb82ab7a32c54a7edeecf85aa1a4c9e62db0f",
+    "bounded_authority": "Replacement independent coordinator with read-only source and evidence subagents; sole runtime owner executes original exact predecessor after pushed assignment, source admission and fresh gameplan/resource/freeze release. No source edits, budget resets, parallel compilers or new target/cache.",
+    "proof_target": "storage::surreal::schema::tests::mt139_exact_predecessor_upgrade_preserves_data_and_restarts_current",
+    "prior_proofs": "Retain Round47 catalog and actual production disk fresh/reopen GREEN when affected inputs remain unchanged; broad core remains Delivery after focused GREEN.",
+    "historical_failures_preserved": true,
+    "native_acceptance": "0/5_NOT_EVALUATED; original deployment root and genuine authenticated context still missing"
+  },
   "unattended_blocked_handoff_20261012": {
     "id": "WP012-P2-UNATTENDED-BLOCKED-HANDOFF-20261012",
     "status": "BLOCKED_EXTERNAL_TRANSPORT_AND_GENUINE_RUNTIME_INPUTS",
@@ -5565,7 +5579,7 @@
   "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
   "claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
   "completed_by": null,
-  "next_actor": "Restore existing Review thread execution transport, then exact original predecessor proof on e17eb7a5851e1a35fa914b842c898fc93df83e01 after fresh admission; required final broad core after focused GREEN; native deployment needs intended original root and genuine authority context."
+  "next_actor": "Replacement INTEGRATION_VALIDATOR chat 01a1315e-b3ac-7aa2-a6bd-a725f17c65d5: source admission then sole owned exact predecessor proof on e17eb7a5851e1a35fa914b842c898fc93df83e01 after fresh gates and root freeze release; Delivery broad core after focused GREEN; native deployment still needs original root and genuine authenticated context."
 },
   "scope": {
     "summary": "Reconcile shared core/bootstrap/manifests import paths",
