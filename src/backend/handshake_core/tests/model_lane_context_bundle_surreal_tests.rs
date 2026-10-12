@@ -11,7 +11,7 @@ use handshake_core::swarm_orchestration::model_lane::{
     model_lane_context_bundle_id_for_handoff, ModelLaneAuthority, ModelLaneCrdtHandoffMetadata,
     ModelLaneHandoffSelectionState, ModelLaneHandoffSourceKind, ModelLaneLoomHandoffRef,
     ModelLaneMemoryPackHandoffRef, ModelLaneStore, NewModelLaneContextBundleArtifactBinding,
-    NewModelLaneContextBundleHandoff, ModelLaneMessageKind,
+    NewModelLaneContextBundleHandoff, ModelLaneMessageKind, ModelLaneError,
 };
 use handshake_core::swarm_orchestration::resource_scope::{
     AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef, OwnerAccountId, ResourceScope,
@@ -244,15 +244,16 @@ async fn model_lane_context_bundle_persists_selection_state_and_replays() {
     context_bundle_assertions::selection_assert!(equal, kernel_context.context_hash, consumed.context_hash);
     let coordinator = context_bundle_coordinator(harness.reader_store.clone());
     let adapter = handshake_core::kernel::DummyEchoModelAdapter::new("dummy-echo-mt005");
-    let output = harness.workspace_read.run(coordinator.invoke_downstream_context_bundle(
+    let output = harness.workspace_read.run(async { Ok::<_, ModelLaneError>(coordinator.invoke_downstream_context_bundle(
         &posture.run_id, &context_bundle_id, &downstream, &adapter,
         handshake_core::kernel::KernelActor::ModelAdapter(downstream.clone()),
-    )).await.expect("actual coordinator passes the canonical ContextBundle into DummyEcho");
+    ).await) }).await.expect("authorize actual coordinator ContextBundle invocation")
+        .expect("actual coordinator passes the canonical ContextBundle into DummyEcho");
     context_bundle_assertions::selection_assert!(equal, output.context_bundle_id, kernel_context.context_bundle_id);
     context_bundle_assertions::selection_assert!(condition, output.response_text.contains(&kernel_context.context_hash));
-    let wrong = harness.workspace_read.run(coordinator.context_bundle_for_downstream_lane(
+    let wrong = harness.workspace_read.run(async { Ok::<_, ModelLaneError>(coordinator.context_bundle_for_downstream_lane(
         &posture.run_id, &context_bundle_id, "lane-missing",
-    )).await.unwrap_err();
+    ).await) }).await.expect("authorize wrong-downstream coordinator probe").unwrap_err();
     context_bundle_assertions::selection_assert!(condition, wrong.to_string().contains("downstream_lane_id"), "wrong downstream identity is explicit: {wrong}");
     let schemas = harness.workspace_read.run(harness.reader_store.schema_registry_rows()).await.unwrap();
     for schema_id in ["hsk.model_lane_context_bundle_artifact@1", "hsk.model_lane_context_bundle_handoff@1"] {
@@ -920,12 +921,20 @@ async fn model_lane_context_bundle_crdt_state_vector_and_loom_refs_are_replayabl
         context_bundle_assertions::crdt_assert!(equal, before[0].values["document_id"], posture.document_id);
         let mutator = harness.storage.test_mutator();
         let attempt = if snapshot {
-            harness.document_update.run(mutator.attempt_record_user_crdt_snapshot_mutation(identity)).await
-        } else { harness.document_update.run(mutator.attempt_record_user_crdt_update_mutation(identity)).await };
+            harness.document_update.run(async { Ok::<_, ModelLaneError>(mutator.attempt_record_user_crdt_snapshot_mutation(identity).await) })
+                .await.expect("authorize immutable snapshot mutation probe")
+        } else {
+            harness.document_update.run(async { Ok::<_, ModelLaneError>(mutator.attempt_record_user_crdt_update_mutation(identity).await) })
+                .await.expect("authorize immutable update mutation probe")
+        };
         match attempt {
-            Ok(changed) => context_bundle_assertions::crdt_assert!(condition, !changed, "immutable source cannot mutate under actual Document Update"),
-            Err(error) => context_bundle_assertions::crdt_assert!(condition, error.to_string().contains("permission") || error.to_string().contains("append-only"),
-                "the actual immutability boundary must reject the mutation: {error}"),
+            Ok(changed) => {
+                context_bundle_assertions::crdt_assert!(condition, !changed, "immutable source cannot mutate under actual Document Update");
+            }
+            Err(error) => {
+                context_bundle_assertions::crdt_assert!(condition, error.to_string().contains("permission") || error.to_string().contains("append-only"),
+                    "the actual immutability boundary must reject the mutation: {error}");
+            }
         }
         let after = inspector.project(&table, &selectors, filter()).await.unwrap();
         context_bundle_assertions::crdt_assert!(equal, after[0].values, before[0].values, "independent canonical reread preserves complete source bytes and identity");
@@ -1475,12 +1484,14 @@ async fn context_bundle_consumer_blocks_on_run_before_acquiring_downstream_lane(
     let busy = tokio::time::timeout(std::time::Duration::from_secs(10), observations.recv()).await.unwrap().unwrap();
     assert_eq!(busy.domain_kind, "lane"); assert_eq!(busy.domain_id, downstream);
     cancelled_reader.abort(); assert!(cancelled_reader.await.unwrap_err().is_cancelled());
-    harness.workspace_read.run(lane_blocker.release()).await.unwrap();
+    harness.workspace_read.run(async { Ok::<_, ModelLaneError>(lane_blocker.release().await) })
+        .await.expect("authorize lane blocker release").unwrap();
     let verify_store = independent_store();
     let mut released_run = tokio::time::timeout(std::time::Duration::from_secs(10),
         harness.workspace_read.run(verify_store.hold_context_bundle_fence_for_test(&posture.run_id, None)))
         .await.expect("cancelled lane acquisition supervisor releases its actually acquired run").unwrap();
-    harness.workspace_read.run(released_run.release()).await.unwrap();
+    harness.workspace_read.run(async { Ok::<_, ModelLaneError>(released_run.release().await) })
+        .await.expect("authorize cancelled-acquisition run release").unwrap();
     drop(released_run); drop(lane_blocker); drop(lane_blocker_store); drop(verify_store);
 
     // Drop the caller after the real authenticated worker has observed commit,
@@ -1498,7 +1509,8 @@ async fn context_bundle_consumer_blocks_on_run_before_acquiring_downstream_lane(
     let mut final_run = tokio::time::timeout(std::time::Duration::from_secs(10),
         harness.workspace_read.run(verified.hold_context_bundle_fence_for_test(&posture.run_id, None)))
         .await.expect("observed committed ownership is released despite caller drop").unwrap();
-    harness.workspace_read.run(final_run.release()).await.unwrap();
+    harness.workspace_read.run(async { Ok::<_, ModelLaneError>(final_run.release().await) })
+        .await.expect("authorize committed run release").unwrap();
     assert_eq!(harness.workspace_read.run(harness.reader_store.replay_context_bundle_handoffs(&posture.run_id, &bundle_id)).await.unwrap(), replay);
     drop(final_run); drop(verified);
     // The real acquisition transaction has written its candidate but has not
@@ -1515,7 +1527,8 @@ async fn context_bundle_consumer_blocks_on_run_before_acquiring_downstream_lane(
     let mut settled_run = tokio::time::timeout(std::time::Duration::from_secs(10),
         harness.workspace_read.run(verified.hold_context_bundle_fence_for_test(&posture.run_id, None)))
         .await.expect("pending acquisition settles before its real acquired guard is released").unwrap();
-    harness.workspace_read.run(settled_run.release()).await.unwrap();
+    harness.workspace_read.run(async { Ok::<_, ModelLaneError>(settled_run.release().await) })
+        .await.expect("authorize settled-acquisition run release").unwrap();
     drop(settled_run); drop(verified);
     // Run acquisition commits, then lane acquisition remains in its actual
     // controller callback until the unchanged publication deadline rolls it back.
@@ -1536,10 +1549,12 @@ async fn context_bundle_consumer_blocks_on_run_before_acquiring_downstream_lane(
     let verified = independent_store();
     let mut released_run = harness.workspace_read.run(verified.hold_context_bundle_fence_for_test(&posture.run_id, None))
         .await.expect("observed deadline rollback releases committed run using separate finalization budget");
-    harness.workspace_read.run(released_run.release()).await.unwrap();
+    harness.workspace_read.run(async { Ok::<_, ModelLaneError>(released_run.release().await) })
+        .await.expect("authorize deadline-rollback run release").unwrap();
     let mut released_lane = harness.workspace_read.run(verified.hold_context_bundle_fence_for_test(&posture.run_id, Some(&downstream)))
         .await.expect("rolled-back lane acquisition leaves no held generation");
-    harness.workspace_read.run(released_lane.release()).await.unwrap();
+    harness.workspace_read.run(async { Ok::<_, ModelLaneError>(released_lane.release().await) })
+        .await.expect("authorize deadline-rollback lane release").unwrap();
     assert_eq!(harness.workspace_read.run(harness.reader_store.replay_context_bundle_handoffs(&posture.run_id, &bundle_id)).await.unwrap(), replay);
     drop(released_run); drop(released_lane); drop(verified); drop(completion);
     drop(run_holder); drop(lane_holder); drop(run_store); drop(lane_store);
@@ -1670,7 +1685,7 @@ async fn record_cloud_source_lane(harness: &Harness, posture: &SurrealAdmissible
         locus.model_session_id = lane.model_session_id.clone();
         locus.locus_binding_ref = format!("locus://wp1/mt005/{}", lane.lane_id);
     }
-    let (projection, consent) = harness.workspace_create.run(model_lane_cloud_support::seed_cloud_lane_authority(&harness.store,
+    let (projection, consent) = harness.workspace_create.run(async { Ok::<_, ModelLaneError>(model_lane_cloud_support::seed_cloud_lane_authority(&harness.store,
         model_lane_cloud_support::CloudLaneAuthoritySpec {
             run_id: &lane.run_id, lane_id: &lane.lane_id, model_session_id: &lane.model_session_id,
             provider_kind: lane.provider_kind.as_str(), requested_model_id: lane.model_id.as_deref().unwrap(),
@@ -1679,7 +1694,7 @@ async fn record_cloud_source_lane(harness: &Harness, posture: &SurrealAdmissible
             event_ledger_stream_id: &lane.event_ledger_stream_id,
             work_packet_id: lane.work_packet_id.as_deref().unwrap(), micro_task_id: "MT-005",
             task_board_id: lane.task_board_id.as_deref().unwrap(), owner_session: &lane.owner_session,
-        })).await;
+        }).await) }).await.expect("authorize canonical cloud-lane authority seed");
     assert_cloud_canonical_receipt(harness, "projection_plan", &projection.projection_plan_id,
         &projection.event_ledger_event_id, projection.event_ledger_seq, &serde_json::to_value(&projection).unwrap()).await;
     assert_cloud_canonical_receipt(harness, "consent_receipt", &consent.consent_receipt_id,
