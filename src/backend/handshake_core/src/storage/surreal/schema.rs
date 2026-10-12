@@ -3283,6 +3283,15 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_receipt($row: object, $write: boo
 // fresh/post-module reopen lineage remain independently unmeasured.
 #[cfg(test)]
 fn restore_pre_navigation_provider_schema(mut source: String) -> String {
+    // Reverse only the new registry witness branch before exact historical
+    // function-body restoration; no predecessor pin or assertion changes.
+    let registry_start = SCHEMA.find("    IF $event = 'FLIGHT_RECORDER_MIRROR_RECORDED' AND $source = 'capability_registry_workflow' AND $aggregate = 'capability_registry_publication' {")
+        .expect("current registry receipt branch");
+    let registry_end = registry_start + SCHEMA[registry_start..]
+        .find("    IF $event = 'MODEL_RUNTIME_SELECTION_RECORDED' AND $source = 'model_runtime_registry' AND $aggregate = 'model_runtime_registry'")
+        .expect("unchanged following API receipt branch");
+    source = source.replacen(&SCHEMA[registry_start..registry_end], "", 1);
+
     const DELTAS: &[(&str, &str)] = &[
         (r####"        ELSE IF $row.aggregate_type = 'context_artifact' { 'hsk.model_lane_context_bundle_artifact@1' }
         ELSE IF $row.aggregate_type = 'diagnostic_tier' { 'hsk.model_lane_diagnostic_tier@1' }
@@ -3982,12 +3991,12 @@ const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
 // MT-170 re-pin: loom_edges projection branch admits standalone same-workspace targets (previous
 // value 8452a3f9bfdff502dafbb1ed7d6e7df60ce70ae47f3557edb13c391bf7b38513); sha256 of schema.surql.
 // MT-168 CURRENT generated pin; schema-info awaits independent measurement.
-// MT-173 navigation candidate: exact LF source hash; original source pin already drifted.
+// MT-173 navigation and registry publication witness: exact LF source hash; original source pin already drifted.
 // Added 43 authored closed fields, one function and one collection subtype.
 // Existing collection subtype count also drifted (57 observed source nestings, 56 declared).
 // Live INFO, shared/module catalog ownership and compatible reopen lineage remain unmeasured.
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "30257a8bc4cfce289713e980124aa4c709edb69f05981303a3f6a281ac068c72";
+    "8019bfd40173c9b9b07fc6878bb74780e064b2f3c93193db98c6e59082513147";
 // MT-142 re-pin: catalog identities gained the knowledge_rich_document_title_anchors objects.
 // MT-151 re-pin: catalog identities gained the journal_key field/index and the
 // storage_graph_anchors objects.

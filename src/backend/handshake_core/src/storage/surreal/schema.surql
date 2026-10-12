@@ -6436,6 +6436,54 @@ DEFINE FUNCTION OVERWRITE fn::wp012_api_receipt($resource: option<record<protect
         OR $session != $auth.id OR $actor_kind != $auth.principal_id.actor_kind OR $actor_id != $auth.principal_id.actor_id
         OR $resource = NONE OR $resource.resource_kind != 'workspace' OR $resource.external_resource_id != $wsids[0]
         OR $resource.owner_account_id != $auth.account_id OR $resource.access_space_id != $auth.access_space_id { RETURN false; };
+    IF $event = 'FLIGHT_RECORDER_MIRROR_RECORDED' AND $source = 'capability_registry_workflow' AND $aggregate = 'capability_registry_publication' {
+        IF array::sort(object::keys($payload)) != ['access_space_id', 'actor_principal_id', 'authenticated_session_id', 'binding', 'envelope', 'envelope_sha256', 'fr_event_id', 'operation_id', 'owner_account_id', 'receipt_kind', 'schema', 'workspace_id']
+            OR array::sort(object::keys($payload.binding)) != ['approval_sha256', 'baseline_sha256', 'configuration_sha256', 'diff_sha256', 'draft_sha256', 'job_id', 'normative_sha256', 'path_sha256', 'trace_id', 'workflow_id']
+            OR array::sort(object::keys($payload.envelope)) != ['access_space_id', 'action', 'actions', 'actor_id', 'actor_kind', 'actor_principal_id', 'authenticated_session_id', 'capability_id', 'capability_ids', 'capability_profile_id', 'delegation_chain', 'grant_expires_at', 'grant_id', 'grant_version', 'owner_account_id', 'policy_versions', 'principal_capabilities', 'resource_id', 'revocation_epochs', 'session_capabilities', 'session_expires_at', 'workspace_id']
+            OR $payload.schema != 'capability_registry_publication@1'
+            OR $payload.receipt_kind != 'capability_registry_publication_committed'
+            OR $aggregate_id != $payload.operation_id OR !type::is_string($payload.operation_id) OR string::len($payload.operation_id) != 36
+            OR !type::is_string($payload.fr_event_id) OR string::len($payload.fr_event_id) != 36
+            OR $capability != 'fs.write' OR $action NOT IN ['create', 'update']
+            OR $auth.principal_id.capability_profile_id != 'Operator'
+            OR $payload.envelope.capability_profile_id != 'Operator'
+            OR $payload.envelope.resource_id != record::id($resource)
+            OR $payload.envelope.capability_id != $capability OR $payload.envelope.action != $action
+            OR $payload.envelope.owner_account_id != $payload.owner_account_id
+            OR $payload.envelope.actor_principal_id != $payload.actor_principal_id
+            OR $payload.envelope.actor_kind != $actor_kind OR $payload.envelope.actor_id != $actor_id
+            OR $payload.envelope.authenticated_session_id != $payload.authenticated_session_id
+            OR $payload.envelope.access_space_id != $payload.access_space_id
+            OR $payload.envelope.workspace_id != $payload.workspace_id
+            OR crypto::sha256(encoding::json::encode($payload.envelope)) != $payload.envelope_sha256 { RETURN false; };
+        FOR $key IN ['approval_sha256', 'baseline_sha256', 'configuration_sha256', 'diff_sha256', 'draft_sha256', 'normative_sha256', 'path_sha256'] {
+            IF !type::is_string($payload.binding[$key]) OR string::len($payload.binding[$key]) != 64 { RETURN false; };
+        };
+        IF !type::is_string($payload.binding.job_id) OR string::len($payload.binding.job_id) != 36
+            OR !type::is_string($payload.binding.trace_id) OR string::len($payload.binding.trace_id) != 36
+            OR !type::is_string($payload.binding.workflow_id) OR string::len($payload.binding.workflow_id) != 36
+            OR !type::is_string($payload.envelope.grant_id) OR string::trim($payload.envelope.grant_id) = '' { RETURN false; };
+        LET $grants = SELECT * FROM resource_grants WHERE id = type::record('resource_grants', $payload.envelope.grant_id);
+        IF array::len($grants) != 1 { RETURN false; };
+        LET $grant = $grants[0];
+        RETURN $grant.account_id = $auth.account_id AND $grant.principal_id = $auth.principal_id
+            AND $grant.access_space_id = $auth.access_space_id AND $grant.resource_id = $resource
+            AND $resource.created_by_principal_id.status = 'enabled'
+            AND ($auth.principal_id.delegated_capabilities CONTAINS '*' OR $auth.principal_id.delegated_capabilities CONTAINS $capability)
+            AND $grant.status = 'active' AND $grant.revoked_at = NONE AND ($grant.expires_at = NONE OR $grant.expires_at > time::now())
+            AND $grant.grant_version = $payload.envelope.grant_version
+            AND $grant.actions = $payload.envelope.actions AND $grant.capability_ids = $payload.envelope.capability_ids
+            AND $grant.actions CONTAINS $action AND $grant.capability_ids CONTAINS $capability
+            AND $grant.delegation_chain = $payload.envelope.delegation_chain AND $grant.delegation_chain = $auth.delegation_chain
+            AND $auth.id.delegated_capabilities = $payload.envelope.session_capabilities
+            AND $auth.principal_id.delegated_capabilities = $payload.envelope.principal_capabilities
+            AND $payload.envelope.policy_versions = [$grant.policy_version, $resource.policy_version, $auth.account_id.policy_version, $auth.principal_id.policy_version, $auth.access_space_id.policy_version, $auth.id.policy_version]
+            AND $payload.envelope.revocation_epochs = [$auth.account_id.revocation_epoch, $auth.principal_id.revocation_epoch, $auth.access_space_id.revocation_epoch, $auth.id.account_revocation_epoch, $auth.id.principal_revocation_epoch, $auth.id.space_revocation_epoch]
+            AND $resource.policy_version <= $grant.policy_version AND $grant.policy_version <= $auth.policy_version
+            AND ($grant.expires_at = NONE AND $payload.envelope.grant_expires_at = NULL OR $grant.expires_at != NONE AND $grant.expires_at = type::datetime($payload.envelope.grant_expires_at))
+            AND $auth.id.expires_at = type::datetime($payload.envelope.session_expires_at)
+            AND fn::mt109_ledger_access($resource, $session, $capability, $action);
+    };
     IF $event = 'MODEL_RUNTIME_SELECTION_RECORDED' AND $source = 'model_runtime_registry' AND $aggregate = 'model_runtime_registry'
         AND $aggregate_id = $payload.registry_row_id AND $payload.selection_revision = 1
         AND $payload.action = 'model_runtime_selection_recorded' AND string::len($payload.artifact_sha256) = 64

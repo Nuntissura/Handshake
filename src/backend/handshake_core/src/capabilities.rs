@@ -430,7 +430,9 @@ impl CapabilityRegistry {
             return self.profile_by_id("CalendarSync");
         }
 
-        if job_kind == "workflow_run" && protocol_id == GOVERNANCE_PACK_EXPORT_PROTOCOL_ID {
+        if job_kind == "workflow_run"
+            && (protocol_id == GOVERNANCE_PACK_EXPORT_PROTOCOL_ID
+                || protocol_id == "capability_registry_build") {
             return self.profile_by_id("Operator");
         }
 

@@ -26,8 +26,8 @@ use crate::{
     bundles::{BundleScope, DebugBundleRequest, DefaultDebugBundleExporter, RedactionMode},
     capabilities::{RegistryError, GOVERNANCE_PACK_EXPORT_PROTOCOL_ID},
     capability_registry_workflow::{
-        repo_root_from_manifest_dir, run_capability_registry_workflow,
-        CapabilityRegistryWorkflowParams,
+        repo_root_from_manifest_dir, run_approved_capability_registry_workflow,
+        ApprovedRegistryInput, CapabilityRegistryWorkflowParams,
     },
     flight_recorder::{
         canonical_json_sha256_hex, model_run_activity_span_id, model_session_span_id, EventFilter,
@@ -11311,7 +11311,7 @@ async fn run_job(
             });
         }
 
-        if job.profile_id == "capability_registry_build" {
+        if job.protocol_id == "capability_registry_build" {
             let inputs = parse_inputs(job.job_inputs.as_ref());
             let policy_decision_id = inputs
                 .get("policy_decision_id")
@@ -11331,6 +11331,47 @@ async fn run_job(
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string());
 
+            // Existing job/profile enforcement remains in force. Publication uses
+            // the authenticated job's workspace and immutable native identity;
+            // user-supplied IDs or approval flags cannot supply those proofs.
+            if job.capability_profile_id != "Operator" {
+                return Err(WorkflowError::Terminal("HSK-403-PROTECTED-RESOURCE".into()));
+            }
+            let scope = crate::storage::surreal::current_record_user_scope()
+                .ok_or_else(|| WorkflowError::Terminal("HSK-403-PROTECTED-RESOURCE".into()))?;
+            let workspace_id = scope.workspace_id.as_deref()
+                .ok_or_else(|| WorkflowError::Terminal("HSK-403-PROTECTED-RESOURCE".into()))?;
+            let workspaces: Vec<_> = job.entity_refs.iter()
+                .filter(|reference| reference.entity_kind == "workspace").collect();
+            if workspaces.len() != 1 || workspaces[0].entity_id != workspace_id || scope.grant_id.is_none()
+                || scope.capability_id != "fs.write"
+                || !matches!(scope.action, crate::storage::surreal::resource_authority::ResourceAction::Create
+                    | crate::storage::surreal::resource_authority::ResourceAction::Update) {
+                return Err(WorkflowError::Terminal("HSK-403-PROTECTED-RESOURCE".into()));
+            }
+            let channel = scope.channel_binding_hash.as_deref()
+                .ok_or_else(|| WorkflowError::Terminal("HSK-403-PROTECTED-RESOURCE".into()))?;
+            let session = state.surreal.authenticate_local_session(&scope.session_token, channel)
+                .await.map_err(|_| WorkflowError::Terminal("HSK-403-PROTECTED-RESOURCE".into()))?;
+            if session.session_id != scope.session_id {
+                return Err(WorkflowError::Terminal("HSK-403-PROTECTED-RESOURCE".into()));
+            }
+            let approved_input = ApprovedRegistryInput::from_server_configuration(
+                state.surreal.clone(),
+                json!({
+                    "account_id": session.identity.account_id,
+                    "principal_id": session.identity.principal_id,
+                    "session_id": session.session_id,
+                    "access_space_id": session.identity.access_space_id,
+                    "workspace_id": workspace_id,
+                    "resource_id": scope.resource_id,
+                    "grant_id": scope.grant_id,
+                    "capability_id": scope.capability_id,
+                    "action": scope.action,
+                }),
+                job.job_id,
+                state.flight_recorder.clone(),
+            ).map_err(|error| WorkflowError::Terminal(error.to_string()))?;
             let repo_root = repo_root_from_manifest_dir()
                 .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
             let params = CapabilityRegistryWorkflowParams {
@@ -11343,11 +11384,12 @@ async fn run_job(
                 workflow_id: Some(workflow_run_id),
             };
 
-            let artifacts = run_capability_registry_workflow(
+            let artifacts = run_approved_capability_registry_workflow(
                 &repo_root,
                 state.capability_registry.as_ref(),
                 state.flight_recorder.as_ref(),
                 params,
+                approved_input,
             )
             .await
             .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
@@ -11361,14 +11403,16 @@ async fn run_job(
                 "draft_sha256": artifacts.draft_sha256,
                 "diff_sha256": artifacts.diff_sha256,
                 "capability_registry_version": artifacts.capability_registry_version,
+                "published": artifacts.published,
+                "publication_receipt_confirmed": artifacts.publication_receipt_confirmed,
             });
             state
                 .storage
                 .set_job_outputs(&job.job_id.to_string(), Some(payload.clone()))
                 .await?;
             return Ok(RunJobOutcome {
-                state: JobState::Completed,
-                status_reason: "completed".to_string(),
+                state: if artifacts.publication_receipt_confirmed { JobState::Completed } else { JobState::AwaitingValidation },
+                status_reason: if artifacts.publication_receipt_confirmed { "published_receipt_confirmed" } else { "prepared_not_published" }.to_string(),
                 output: Some(payload),
                 error_message: None,
             });

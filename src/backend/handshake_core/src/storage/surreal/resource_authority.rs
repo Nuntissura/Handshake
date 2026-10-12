@@ -12,6 +12,56 @@ use uuid::Uuid;
 
 use super::{SurrealStorage, SurrealStorageError};
 
+// One owning canonical grant predicate shared by public authorization and the
+// private publication fence; the latter uses a canonical located resource ID.
+// Resource table permission already enforces its creator; ordinary queries never
+// re-read the hidden external locator through mt109_has_grant.
+macro_rules! canonical_grant_query {
+    ($projection:literal, $extra:literal, $limit:literal) => {
+        concat!($projection, " FROM (SELECT * FROM resource_grants WHERE account_id = $auth.account_id AND principal_id = $auth.principal_id AND access_space_id = $auth.access_space_id AND resource_id = $resource) WHERE status = 'active' AND revoked_at = NONE AND (expires_at = NONE OR expires_at > time::now()) AND resource_id.lifecycle_state = 'active' AND resource_id.owner_account_id = $auth.account_id AND resource_id.access_space_id = $auth.access_space_id AND actions CONTAINS $action AND capability_ids CONTAINS $capability AND ($auth.delegated_capabilities CONTAINS '*' OR $auth.delegated_capabilities CONTAINS $capability) AND delegation_chain = $auth.delegation_chain AND ($kind != 'reconciliation_queue' OR (principal_id.principal_kind = 'service_identity' AND principal_id.capability_profile_id = 'MT109Reconciler'))", $extra, " LIMIT ", $limit, ";")
+    };
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, SurrealValue)]
+struct RegistryPublicationAuthority {
+    grant_id: RecordId,
+    resource_id: RecordId,
+    account_id: RecordId,
+    principal_id: RecordId,
+    actor_kind: String,
+    actor_id: String,
+    session_id: RecordId,
+    access_space_id: RecordId,
+    grant_version: i64,
+    policy_versions: Vec<i64>,
+    revocation_epochs: Vec<i64>,
+    actions: Vec<String>,
+    capability_ids: Vec<String>,
+    delegation_chain: Vec<String>,
+    session_capabilities: Vec<String>,
+    principal_capabilities: Vec<String>,
+    capability_profile_id: String,
+    statuses: Vec<String>,
+    resource_kind: String,
+    grant_expires_at: Option<Datetime>,
+    session_expires_at: Datetime,
+}
+
+#[derive(Clone, SurrealValue)]
+struct RegistryPublicationBindings {
+    resource: RecordId,
+    original_grant: RecordId,
+    kind: String,
+    action: String,
+    capability: String,
+}
+
+const REGISTRY_PUBLICATION_AUTHORITY: &str = canonical_grant_query!(
+    "SELECT id AS grant_id, resource_id, account_id, principal_id, principal_id.actor_kind AS actor_kind, principal_id.actor_id AS actor_id, $auth.id AS session_id, access_space_id, grant_version, [policy_version, resource_id.policy_version, account_id.policy_version, principal_id.policy_version, access_space_id.policy_version, $auth.id.policy_version] AS policy_versions, [account_id.revocation_epoch, principal_id.revocation_epoch, access_space_id.revocation_epoch, $auth.id.account_revocation_epoch, $auth.id.principal_revocation_epoch, $auth.id.space_revocation_epoch] AS revocation_epochs, actions, capability_ids, delegation_chain, $auth.id.delegated_capabilities AS session_capabilities, principal_id.delegated_capabilities AS principal_capabilities, principal_id.capability_profile_id AS capability_profile_id, [status, resource_id.lifecycle_state, account_id.status, principal_id.status, access_space_id.status] AS statuses, resource_id.resource_kind AS resource_kind, expires_at AS grant_expires_at, $auth.id.expires_at AS session_expires_at",
+    " AND id = $original_grant AND fn::mt109_live_session() AND resource_id != NONE AND resource_id.resource_kind = $kind AND resource_id.policy_version <= policy_version AND policy_version <= $auth.policy_version AND ($auth.principal_id.delegated_capabilities CONTAINS '*' OR $auth.principal_id.delegated_capabilities CONTAINS $capability) AND $auth.id.revoked_at = NONE AND $auth.id.expires_at > time::now()",
+    "2"
+);
+
 pub const AUTHORITY_ACCESS_METHOD: &str = "authenticated_session";
 pub const RECONCILIATION_QUEUE_ID: &str = "mt109-protected-reconciliation";
 pub const RECONCILIATION_PROFILE_ID: &str = "MT109Reconciler";
@@ -1143,6 +1193,102 @@ impl SurrealStorage {
         }
     }
 
+    /// Holds the publication result through exact authority checks and the
+    /// existing authenticated transaction's observed commit.
+    /// Restore only after terminal rejection/cancellation; unknown settlement keeps
+    /// effects for canonical resolution. Later revocation cannot undo committed work.
+    pub(crate) async fn with_registry_publication_authority<T, E, F, Fut>(
+        &self, operation_id: Uuid, cancellation: std::sync::Arc<super::ContextOperationCancellation>, operation: F,
+    ) -> Result<T, E>
+    where
+        T: Send + 'static,
+        E: From<SurrealStorageError> + From<ResourceAuthorityError> + Send + 'static,
+        F: FnOnce(serde_json::Value) -> Fut + Send + 'static,
+        Fut: std::future::Future<Output = Result<T, E>> + Send + 'static,
+    {
+        let scope = super::current_record_user_scope()
+            .ok_or_else(|| E::from(SurrealStorageError::TransactionAuthorityRequired))?;
+        let workspace = scope.workspace_id.clone()
+            .ok_or_else(|| E::from(SurrealStorageError::TransactionAuthorityRequired))?;
+        if scope.capability_id != "fs.write"
+            || !matches!(scope.action, ResourceAction::Create | ResourceAction::Update) {
+            return Err(E::from(SurrealStorageError::TransactionAuthorityRequired));
+        }
+        let decision = self.authorize_protected_resource(AuthorizationRequest {
+            session_token: scope.session_token.clone(),
+            channel_binding_hash: scope.channel_binding_hash.clone(),
+            capability_id: scope.capability_id.clone(), resource_kind: ResourceKind::Workspace,
+            external_resource_id: workspace.clone(), action: scope.action,
+        }).await.map_err(E::from)?;
+        if Some(decision.grant_id.as_str()) != scope.grant_id.as_deref()
+            || decision.resource_id != scope.resource_id || decision.session_id != scope.session_id
+            || decision.capability_profile_id != "Operator" {
+            return Err(E::from(SurrealStorageError::TransactionAuthorityRequired));
+        }
+        let bindings = RegistryPublicationBindings {
+            resource: RecordId::new("protected_resources", decision.resource_id.clone()),
+            original_grant: RecordId::new("resource_grants", decision.grant_id.clone()),
+            kind: ResourceKind::Workspace.as_str().to_owned(),
+            action: scope.action.as_str().to_owned(), capability: scope.capability_id,
+        };
+        let transaction_bindings = bindings;
+        let account_authority = super::event_ledger::capture_account_authority();
+        let receipt_storage = self.clone();
+        let value = self.with_owned_authenticated_transaction(operation_id, cancellation, move |transaction| {
+            Box::pin(async move {
+                let before: Vec<RegistryPublicationAuthority> = transaction.query_values_at(
+                    REGISTRY_PUBLICATION_AUTHORITY, transaction_bindings.clone(), 0).await.map_err(E::from)?;
+                if before.len() != 1 {
+                    return Err(E::from(SurrealStorageError::TransactionAuthorityRequired));
+                }
+                let captured = before.into_iter().next().ok_or_else(|| E::from(SurrealStorageError::TransactionAuthorityRequired))?;
+                if captured.resource_id != transaction_bindings.resource
+                    || captured.grant_id != transaction_bindings.original_grant
+                    || captured.account_id != RecordId::new("local_accounts", decision.account_id)
+                    || captured.principal_id != RecordId::new("principals", decision.principal_id)
+                    || captured.session_id != RecordId::new("authenticated_sessions", decision.session_id)
+                    || captured.access_space_id != RecordId::new("access_spaces", decision.access_space_id)
+                    || captured.capability_profile_id != decision.capability_profile_id
+                    || captured.delegation_chain != decision.delegation_chain {
+                    return Err(E::from(SurrealStorageError::TransactionAuthorityRequired));
+                }
+                let envelope = serde_json::json!({
+                    "owner_account_id": record_key(captured.account_id.clone()).map_err(E::from)?,
+                    "actor_principal_id": record_key(captured.principal_id.clone()).map_err(E::from)?,
+                    "actor_kind": captured.actor_kind,
+                    "actor_id": captured.actor_id,
+                    "authenticated_session_id": record_key(captured.session_id.clone()).map_err(E::from)?,
+                    "access_space_id": record_key(captured.access_space_id.clone()).map_err(E::from)?,
+                    "workspace_id": workspace,
+                    "resource_id": record_key(captured.resource_id.clone()).map_err(E::from)?,
+                    "grant_id": record_key(captured.grant_id.clone()).map_err(E::from)?,
+                    "grant_version": captured.grant_version,
+                    "policy_versions": captured.policy_versions,
+                    "revocation_epochs": captured.revocation_epochs,
+                    "delegation_chain": captured.delegation_chain,
+                    "actions": captured.actions,
+                    "capability_ids": captured.capability_ids,
+                    "session_capabilities": captured.session_capabilities,
+                    "principal_capabilities": captured.principal_capabilities,
+                    "capability_profile_id": captured.capability_profile_id,
+                    "grant_expires_at": captured.grant_expires_at.as_ref().map(|value| value.clone().into_inner().to_rfc3339()),
+                    "session_expires_at": captured.session_expires_at.clone().into_inner().to_rfc3339(),
+                    "capability_id": transaction_bindings.capability,
+                    "action": transaction_bindings.action,
+                });
+                let value = super::event_ledger::with_captured_account_authority(
+                    &receipt_storage, account_authority, operation(envelope)).await?;
+                let after: Vec<RegistryPublicationAuthority> = transaction.query_values_at(
+                    REGISTRY_PUBLICATION_AUTHORITY, transaction_bindings, 0).await.map_err(E::from)?;
+                if after.as_slice() != std::slice::from_ref(&captured) {
+                    return Err(E::from(SurrealStorageError::TransactionAuthorityRequired));
+                }
+                Ok(value)
+            })
+        }).await?;
+        Ok(value)
+    }
+
     pub async fn authorize_protected_resource(
         &self,
         request: AuthorizationRequest,
@@ -1205,7 +1351,7 @@ impl SurrealStorage {
                     let session = session_rows.into_iter().next();
                     let mut response = handshake_storage_support::diagnostics::observe_result("authority_grant_query", authority
                         .query(
-                            "SELECT id AS grant_id, resource_id, account_id, principal_id, $auth.id AS session_id, access_space_id, principal_id.actor_kind AS actor_kind, principal_id.actor_id AS actor_id, principal_id.capability_profile_id AS capability_profile_id, $auth.delegation_chain AS delegation_chain, math::max([policy_version, resource_id.policy_version, account_id.policy_version, principal_id.policy_version, access_space_id.policy_version]) AS policy_version FROM (SELECT * FROM resource_grants WHERE account_id = $auth.account_id AND principal_id = $auth.principal_id AND access_space_id = $auth.access_space_id AND resource_id = $resource) WHERE status = 'active' AND revoked_at = NONE AND (expires_at = NONE OR expires_at > time::now()) AND resource_id.lifecycle_state = 'active' AND resource_id.owner_account_id = $auth.account_id AND resource_id.access_space_id = $auth.access_space_id AND actions CONTAINS $action AND capability_ids CONTAINS $capability AND ($auth.delegated_capabilities CONTAINS '*' OR $auth.delegated_capabilities CONTAINS $capability) AND delegation_chain = $auth.delegation_chain AND ($kind != 'reconciliation_queue' OR (principal_id.principal_kind = 'service_identity' AND principal_id.capability_profile_id = 'MT109Reconciler')) LIMIT 1;",
+                            canonical_grant_query!("SELECT id AS grant_id, resource_id, account_id, principal_id, $auth.id AS session_id, access_space_id, principal_id.actor_kind AS actor_kind, principal_id.actor_id AS actor_id, principal_id.capability_profile_id AS capability_profile_id, $auth.delegation_chain AS delegation_chain, math::max([policy_version, resource_id.policy_version, account_id.policy_version, principal_id.policy_version, access_space_id.policy_version]) AS policy_version", "", "1"),
                         )
                         .bind(("resource", resource))
                         .bind(("kind", kind))

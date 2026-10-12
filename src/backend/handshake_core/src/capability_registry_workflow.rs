@@ -1,5 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fs;
+use std::io::{Read, Seek, SeekFrom, Write};
+use fs2::FileExt;
 use std::path::{Path, PathBuf};
 
 use jsonschema::{Draft, JSONSchema};
@@ -72,6 +74,28 @@ pub enum CapabilityRegistryWorkflowError {
     ReviewerIdRequired,
     #[error("CAP_REG_PUBLISH_DIFF_SHA_MISMATCH")]
     PublishDiffShaMismatch,
+    #[error(transparent)]
+    Storage(#[from] crate::storage::surreal::SurrealStorageError),
+    #[error(transparent)]
+    Authority(#[from] crate::storage::surreal::resource_authority::ResourceAuthorityError),
+    #[error("CAP_REG_SERVER_APPROVAL_CONFIGURATION_REQUIRED")]
+    ServerApprovalConfigurationRequired,
+    #[error("CAP_REG_APPROVED_INPUT_REQUIRED")]
+    ApprovedInputRequired,
+    #[error("CAP_REG_APPROVED_INPUT_MISMATCH: {category}")]
+    ApprovedInputMismatch { category: &'static str },
+    #[error("CAP_REG_PUBLICATION_RECONCILIATION_REQUIRED: original_operation_id={operation_id}, reason={reason}")]
+    PublicationReconciliationRequired { operation_id: Uuid, reason: &'static str },
+    #[error("CAP_REG_PUBLICATION_UNCONFIRMED: previous_asset_restored={previous_asset_restored}, receipt_outcome={receipt_outcome}, operation_id={operation_id}, settlement_pending={settlement_pending}, observed_asset_sha256={observed_asset_sha256:?}, cause={cause}")]
+    PublicationUnconfirmed {
+        previous_asset_restored: bool,
+        receipt_outcome: &'static str,
+        operation_id: Uuid,
+        settlement_pending: bool,
+        observed_asset_sha256: Option<String>,
+        #[source]
+        cause: Box<CapabilityRegistryWorkflowError>,
+    },
     #[error("CAP_REG_USAGE: {usage}")]
     Usage { usage: String },
     #[error("CAP_REG_UNSUPPORTED_COMMAND: {command}")]
@@ -107,6 +131,131 @@ pub struct CapabilityRegistryWorkflowArtifacts {
     pub draft_sha256: String,
     pub diff_sha256: String,
     pub capability_registry_version: String,
+    pub published: bool,
+    pub publication_receipt_confirmed: bool,
+}
+
+#[derive(Deserialize)]
+struct ApprovedRegistryDependency {
+    path: String,
+    sha256: String,
+}
+
+#[derive(Deserialize)]
+struct ApprovedRegistryBaseline {
+    registry_path: String,
+    sha256: String,
+    entry_count: usize,
+}
+
+#[derive(Deserialize)]
+struct ApprovedRegistryDraft {
+    path: String,
+    sha256: String,
+    entry_count: usize,
+}
+
+#[derive(Deserialize)]
+struct ApprovedRegistryDiff {
+    schema: String,
+    baseline: ApprovedRegistryBaseline,
+    draft: ApprovedRegistryDraft,
+    mechanical_engines: ApprovedRegistryDependency,
+    registry_schema: ApprovedRegistryDependency,
+    added: Vec<CapabilityRegistryEntry>,
+    removed: Vec<Value>,
+    changed: Vec<Value>,
+}
+
+// Supplied only by the authenticated owning workflow; the retained CLI cannot
+// publish with an approve flag. These paths select inputs, never confer approval.
+#[derive(Clone)]
+pub(crate) struct ApprovedRegistryInput {
+    pub(crate) governance_root: PathBuf,
+    pub(crate) proposal_directory: PathBuf,
+    pub(crate) output_directory: PathBuf,
+    pub(crate) approval_record_path: PathBuf,
+    pub(crate) approval_record_pointer: String,
+    pub(crate) approval_record_sha256: String,
+    pub(crate) expected_draft_sha256: String,
+    pub(crate) expected_diff_sha256: String,
+    pub(crate) attribution: Value,
+    pub(crate) storage: crate::storage::surreal::SurrealStorage,
+    pub(crate) flight_recorder: std::sync::Arc<dyn FlightRecorder>,
+    server_configuration_path: PathBuf,
+    server_configuration_sha256: String,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ServerRegistryApprovalConfiguration {
+    proposal_directory: PathBuf,
+    output_directory: PathBuf,
+    approval_record_path: PathBuf,
+    approval_record_pointer: String,
+    approval_record_sha256: String,
+    expected_draft_sha256: String,
+    expected_diff_sha256: String,
+}
+
+impl ApprovedRegistryInput {
+    pub(crate) fn from_server_configuration(
+        storage: crate::storage::surreal::SurrealStorage,
+        attribution: Value,
+        job_id: Uuid,
+        flight_recorder: std::sync::Arc<dyn FlightRecorder>,
+    ) -> CapabilityRegistryWorkflowResult<Self> {
+        let required = || CapabilityRegistryWorkflowError::ServerApprovalConfigurationRequired;
+        // These are host configuration, not job parameters. No copied product
+        // .GOV discovery or default witness is permitted; absence is fail closed.
+        let root = std::env::var_os("HANDSHAKE_GOV_ROOT").ok_or_else(required)?;
+        let selected = PathBuf::from(root);
+        if !selected.is_absolute() { return Err(required()); }
+        let governance_root = fs::canonicalize(selected).map_err(|_| required())?;
+        if !governance_root.join(".GOV/codex/Handshake_Codex_v1.4.md").is_file()
+            || !governance_root.join(".GOV/spec/SPEC_CURRENT.md").is_file() {
+            return Err(required());
+        }
+        let selected = PathBuf::from(std::env::var_os("HANDSHAKE_CAPABILITY_REGISTRY_APPROVAL_CONFIG")
+            .ok_or_else(required)?);
+        if !selected.is_absolute() { return Err(required()); }
+        let server_configuration_path = fs::canonicalize(selected).map_err(|_| required())?;
+        if !server_configuration_path.starts_with(&governance_root) { return Err(required()); }
+        let bytes = fs::read(&server_configuration_path).map_err(|source|
+            CapabilityRegistryWorkflowError::ReadFile { path: server_configuration_path.clone(), source })?;
+        let configuration: ServerRegistryApprovalConfiguration = serde_json::from_slice(&bytes)
+            .map_err(|source| CapabilityRegistryWorkflowError::JsonParse { path: server_configuration_path.clone(), source })?;
+        let approval_record_path = if configuration.approval_record_path.is_absolute() {
+            configuration.approval_record_path
+        } else { governance_root.join(configuration.approval_record_path) };
+        let approval_record_path = fs::canonicalize(approval_record_path).map_err(|_| required())?;
+        if !approval_record_path.starts_with(&governance_root) { return Err(required()); }
+        Ok(Self {
+            governance_root, proposal_directory: configuration.proposal_directory,
+            output_directory: configuration.output_directory.join(job_id.to_string()),
+            approval_record_path, approval_record_pointer: configuration.approval_record_pointer,
+            approval_record_sha256: configuration.approval_record_sha256,
+            expected_draft_sha256: configuration.expected_draft_sha256,
+            expected_diff_sha256: configuration.expected_diff_sha256,
+            attribution, storage, flight_recorder, server_configuration_path,
+            server_configuration_sha256: sha256_hex(&bytes),
+        })
+    }
+}
+
+tokio::task_local! {
+    static APPROVED_REGISTRY_INPUT: ApprovedRegistryInput;
+}
+
+pub(crate) async fn run_approved_capability_registry_workflow(
+    repo_root: &Path,
+    registry: &CapabilityRegistry,
+    flight_recorder: &dyn FlightRecorder,
+    params: CapabilityRegistryWorkflowParams,
+    input: ApprovedRegistryInput,
+) -> CapabilityRegistryWorkflowResult<CapabilityRegistryWorkflowArtifacts> {
+    APPROVED_REGISTRY_INPUT.scope(input,
+        run_capability_registry_workflow(repo_root, registry, flight_recorder, params)).await
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -508,19 +657,131 @@ fn write_struct_file<T: Serialize>(
     write_json_file(path, &json)
 }
 
+// A canonical-path OS lock serializes processes; the synced journal retains
+// ownership after process loss or ambiguous settlement. It is never grant proof.
+// Missing/invisible committed receipts require reconciliation, not a timeout,
+// rollback assumption or automatic retry; failures expose the original UUID.
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct RegistryPublicationAttempt {
+    operation_id: Uuid,
+    fr_event_id: Uuid,
+    receipt: Value,
+    previous_bytes: Vec<u8>,
+}
+
+struct RegistryPublicationJournal {
+    file: fs::File,
+    path: PathBuf,
+    attempt: Option<RegistryPublicationAttempt>,
+}
+
+impl RegistryPublicationJournal {
+    fn acquire(asset: &Path) -> CapabilityRegistryWorkflowResult<Self> {
+        let path = asset.with_extension("json.publication-owner");
+        let mut file = fs::OpenOptions::new().read(true).write(true).create(true).open(&path)
+            .map_err(|source| CapabilityRegistryWorkflowError::WriteFile { path: path.clone(), source })?;
+        file.try_lock_exclusive().map_err(|_| CapabilityRegistryWorkflowError::ApprovedInputMismatch {
+            category: "canonical_publication_path_owned",
+        })?;
+        let mut bytes = Vec::new();
+        (&mut file).take(1024 * 1024 + 1).read_to_end(&mut bytes)
+            .map_err(|source| CapabilityRegistryWorkflowError::ReadFile { path: path.clone(), source })?;
+        if bytes.len() > 1024 * 1024 {
+            return Err(CapabilityRegistryWorkflowError::ApprovedInputMismatch { category: "publication_journal_size" });
+        }
+        let attempt = if bytes.is_empty() { None } else {
+            Some(serde_json::from_slice(&bytes).map_err(|source|
+                CapabilityRegistryWorkflowError::JsonParse { path: path.clone(), source })?)
+        };
+        Ok(Self { file, path, attempt })
+    }
+
+    fn retain(&mut self, attempt: RegistryPublicationAttempt) -> CapabilityRegistryWorkflowResult<()> {
+        // Write once before mutation. Never truncate an existing pending owner
+        // while trying to mark terminal state: a crash could erase its identity.
+        if self.attempt.is_some() {
+            return Err(CapabilityRegistryWorkflowError::ApprovedInputMismatch { category: "publication_owner_already_retained" });
+        }
+        let bytes = serde_json::to_vec(&attempt)
+            .map_err(|source| CapabilityRegistryWorkflowError::JsonSerialize { source })?;
+        if bytes.len() > 1024 * 1024 {
+            return Err(CapabilityRegistryWorkflowError::ApprovedInputMismatch { category: "publication_journal_size" });
+        }
+        self.file.seek(SeekFrom::Start(0)).and_then(|_| self.file.set_len(0))
+            .and_then(|_| self.file.write_all(&bytes)).and_then(|_| self.file.sync_all())
+            .map_err(|source| CapabilityRegistryWorkflowError::WriteFile { path: self.path.clone(), source })?;
+        self.attempt = Some(attempt);
+        Ok(())
+    }
+}
+
+fn registry_receipt_key(operation_id: Uuid) -> String {
+    format!("capability-registry-publication:{operation_id}")
+}
+
+async fn observe_registry_commit(
+    storage: &crate::storage::surreal::SurrealStorage,
+    attempt: &RegistryPublicationAttempt,
+) -> CapabilityRegistryWorkflowResult<()> {
+    use crate::kernel::KernelEventType;
+    let event = crate::storage::surreal::event_ledger::get_by_idempotency(
+        storage, &registry_receipt_key(attempt.operation_id)).await
+        .map_err(|_| CapabilityRegistryWorkflowError::PublicationReconciliationRequired {
+            operation_id: attempt.operation_id, reason: "authenticated_receipt_unavailable",
+        })?
+        .ok_or(CapabilityRegistryWorkflowError::PublicationReconciliationRequired {
+            operation_id: attempt.operation_id, reason: "receipt_absence_does_not_prove_rollback",
+        })?;
+    // Registry payload has no preference-event normalization branch. Compare the
+    // complete decoded payload and its original whole canonical hash, never a subset.
+    if event.event_type != KernelEventType::FlightRecorderMirrorRecorded
+        || event.source_component != "capability_registry_workflow"
+        || event.aggregate_type != "capability_registry_publication"
+        || event.aggregate_id != attempt.operation_id.to_string()
+        || event.event_version != "kernel_event_v1"
+        || event.idempotency_key != registry_receipt_key(attempt.operation_id)
+        || Some(event.kernel_task_run_id.as_str()) != attempt.receipt["binding"]["job_id"].as_str()
+        || Some(event.session_run_id.as_str()) != attempt.receipt["envelope"]["authenticated_session_id"].as_str()
+        || event.correlation_id.as_deref() != attempt.receipt["binding"]["trace_id"].as_str()
+        || Some(event.actor.actor_kind()) != attempt.receipt["envelope"]["actor_kind"].as_str()
+        || Some(event.actor.actor_id()) != attempt.receipt["envelope"]["actor_id"].as_str()
+        || event.payload != attempt.receipt
+        || event.payload_hash != sha256_hex(&crate::kernel::context_bundle::canonical_json_bytes(&attempt.receipt)) {
+        return Err(CapabilityRegistryWorkflowError::ApprovedInputMismatch { category: "publication_receipt_binding" });
+    }
+    Ok(())
+}
+
 async fn record_build_event(
     flight_recorder: &dyn FlightRecorder,
     params: &CapabilityRegistryWorkflowParams,
-    payload: Value,
+    mut payload: Value,
     model_id: Option<&str>,
 ) -> CapabilityRegistryWorkflowResult<()> {
+    let input = APPROVED_REGISTRY_INPUT.try_with(Clone::clone)
+        .map_err(|_| CapabilityRegistryWorkflowError::ApprovedInputRequired)?;
+    payload["attribution"] = input.attribution.clone();
+    for (target, source) in [("owner_account_id", "account_id"), ("actor_principal_id", "principal_id"),
+        ("authenticated_session_id", "session_id"), ("access_space_id", "access_space_id"), ("workspace_id", "workspace_id")] {
+        payload[target] = input.attribution[source].clone();
+    }
+    let stable_event_id = payload["publication"]["fr_event_id"].as_str()
+        .map(Uuid::parse_str).transpose()
+        .map_err(|_| CapabilityRegistryWorkflowError::ApprovedInputMismatch { category: "publication_fr_identity" })?;
+
+    let workspace_id = input.attribution["workspace_id"].as_str()
+        .ok_or(CapabilityRegistryWorkflowError::ApprovedInputRequired)?;
     let mut event = FlightRecorderEvent::new(
         FlightRecorderEventType::System,
         FlightRecorderActor::System,
         params.trace_id,
         payload,
     )
-    .with_actor_id(REGISTRY_WORKFLOW_ACTOR_ID);
+    .with_actor_id(REGISTRY_WORKFLOW_ACTOR_ID)
+    .with_wsids(vec![workspace_id.to_owned()]);
+
+    if let Some(event_id) = stable_event_id { event.event_id = event_id; }
 
     if let Some(job_id) = params.job_id {
         event = event.with_job_id(job_id.to_string());
@@ -550,158 +811,371 @@ pub async fn run_capability_registry_workflow(
         return Err(CapabilityRegistryWorkflowError::PolicyDecisionIdRequired);
     }
 
-    let schema = load_schema()?;
-
-    // Extract
-    let doc = build_registry_document(registry, repo_root)?;
-    let draft_path = repo_root.join("capability_registry_draft.json");
-    let draft_bytes = write_struct_file(&draft_path, &doc)?;
-    let draft_sha256 = sha256_hex(&draft_bytes);
-
-    let prompt = "TASK: Extract CapabilityRegistry entries into JSON matching capability_registry.schema.json.\nINPUTS: spec=Handshake_Master_Spec_v02.113.md, mechanical_engines.json, prior_registry=assets/capability_registry.json.\nOUTPUT: JSON object with 'entries' only.";
-    let prompt_hashes = vec![sha256_hex(prompt.as_bytes())];
-
-    record_build_event(
-        flight_recorder,
-        &params,
-        json!({
-            "event": "capability_registry_extract",
-            "draft_path": draft_path.to_string_lossy(),
-            "draft_sha256": draft_sha256,
-            "model_id": params.model_id.as_str(),
-            "policy_decision_id": params.policy_decision_id.as_str(),
-            "prompt_hashes": prompt_hashes,
-        }),
-        Some(params.model_id.as_str()),
-    )
-    .await?;
-
-    // Validate (schema + integrity)
-    let instance = serde_json::to_value(&doc)
-        .map_err(|source| CapabilityRegistryWorkflowError::JsonSerialize { source })?;
-    validate_schema(&schema, &instance)?;
-    validate_integrity(&doc)?;
-    record_build_event(
-        flight_recorder,
-        &params,
-        json!({
-            "event": "capability_registry_validate",
-            "draft_sha256": draft_sha256,
-            "schema": "src/backend/handshake_core/schemas/capability_registry.schema.json",
-        }),
-        None,
-    )
-    .await?;
-
-    // Diff against previous published registry (optional)
-    let published_path = repo_root.join("assets/capability_registry.json");
-    let previous = load_optional_registry(&published_path)?;
-    let previous_sha = match previous.as_ref() {
-        Some(prev) => {
-            let bytes = serde_json::to_vec_pretty(prev)
-                .map_err(|source| CapabilityRegistryWorkflowError::JsonSerialize { source })?;
-            Some(sha256_hex(&bytes))
+    let input = APPROVED_REGISTRY_INPUT.try_with(Clone::clone)
+        .map_err(|_| CapabilityRegistryWorkflowError::ApprovedInputRequired)?;
+    let mismatch = |category| CapabilityRegistryWorkflowError::ApprovedInputMismatch { category };
+    let read = |path: &Path| fs::read(path).map_err(|source|
+        CapabilityRegistryWorkflowError::ReadFile { path: path.to_owned(), source });
+    let parse = |path: &Path, bytes: &[u8]| serde_json::from_slice::<Value>(bytes)
+        .map_err(|source| CapabilityRegistryWorkflowError::JsonParse { path: path.to_owned(), source });
+    for path in [&input.governance_root, &input.proposal_directory, &input.output_directory] {
+        if !path.is_absolute() { return Err(mismatch("absolute_input_paths")); }
+    }
+    if params.job_id.is_none() || params.workflow_id.is_none()
+        || ["account_id", "principal_id", "session_id", "access_space_id", "workspace_id"]
+            .iter().any(|key| input.attribution[*key].as_str().map_or(true, str::is_empty)) {
+        return Err(mismatch("actual_job_and_native_attribution"));
+    }
+    let draft_sha = input.expected_draft_sha256.as_str();
+    let diff_sha = input.expected_diff_sha256.as_str();
+    for hash in [draft_sha, diff_sha, input.approval_record_sha256.as_str()] {
+        if hash.len() != 64 || !hash.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+            return Err(mismatch("expected_sha256"));
         }
-        None => None,
+    }
+    let draft_path = input.proposal_directory.join("capability_registry_draft.json");
+    let diff_path = input.proposal_directory.join("capability_registry_diff.json");
+    let draft_bytes = read(&draft_path)?;
+    let diff_bytes = read(&diff_path)?;
+    if sha256_hex(&draft_bytes) != draft_sha || sha256_hex(&diff_bytes) != diff_sha {
+        return Err(mismatch("approved_artifact_bytes"));
+    }
+    if !input.approval_record_path.is_absolute()
+        || !input.approval_record_path.starts_with(&input.governance_root)
+        || !input.approval_record_pointer.starts_with('/') {
+        return Err(mismatch("approval_record_selector"));
+    }
+    let approval_bytes = read(&input.approval_record_path)?;
+    if sha256_hex(&approval_bytes) != input.approval_record_sha256 {
+        return Err(mismatch("approval_record_bytes"));
+    }
+    let approval_record = parse(&input.approval_record_path, &approval_bytes)?;
+    let approval = approval_record.pointer(&input.approval_record_pointer)
+        .ok_or_else(|| mismatch("approval_record_pointer"))?;
+    // The governed invocation selects an existing human decision and its raw
+    // binding. An approve execution flag or newly authored review is not authority.
+    if approval["human_actual_diff_approval"] != true
+        || approval["signature_invented"] != false
+        || approval["registry_operator_quote"].as_str().map_or(true, str::is_empty)
+        || approval["source_thread_id"].as_str().map_or(true, str::is_empty)
+        || approval["registry_draft_sha256"] != draft_sha
+        || approval["registry_diff_sha256"] != diff_sha {
+        return Err(mismatch("recorded_human_approval"));
+    }
+    let diff: ApprovedRegistryDiff = serde_json::from_slice(&diff_bytes)
+        .map_err(|source| CapabilityRegistryWorkflowError::JsonParse { path: diff_path.clone(), source })?;
+    if diff.schema != "wp012.auth_mapping_registry_proposal_diff@1"
+        || diff.baseline.registry_path != "assets/capability_registry.json"
+        || diff.draft.path != "capability_registry_draft.json" || diff.draft.sha256 != draft_sha
+        || !diff.removed.is_empty() || !diff.changed.is_empty()  {
+        return Err(mismatch("approved_diff_contract"));
+    }
+    let published_path = fs::canonicalize(repo_root.join("assets/capability_registry.json"))
+        .map_err(|source| CapabilityRegistryWorkflowError::ReadFile {
+            path: repo_root.join("assets/capability_registry.json"), source,
+        })?;
+    // Acquire before any baseline observation, not just before mutation.
+    let journal = if params.approve {
+        Some(std::sync::Arc::new(std::sync::Mutex::new(RegistryPublicationJournal::acquire(&published_path)?)))
+    } else { None };
+    let retained = journal.as_ref().and_then(|journal|
+        journal.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).attempt.clone());
+    let previous_bytes = match &retained {
+        Some(attempt) => attempt.previous_bytes.clone(),
+        None => read(&published_path)?,
     };
-    let diff = build_diff(previous.as_ref(), &doc, &draft_bytes, previous_sha.clone());
-    let diff_path = repo_root.join("capability_registry_diff.json");
-    let diff_bytes = write_struct_file(&diff_path, &diff)?;
-    let diff_sha256 = sha256_hex(&diff_bytes);
-    record_build_event(
-        flight_recorder,
-        &params,
-        json!({
-            "event": "capability_registry_diff",
-            "diff_path": diff_path.to_string_lossy(),
-            "diff_sha256": diff_sha256,
-            "previous_registry_sha256": previous_sha,
-            "next_registry_sha256": diff.next_registry_sha256,
-        }),
-        None,
-    )
-    .await?;
-
-    // Review gate
-    let capability_registry_version = sha256_hex(&draft_bytes);
-    let review = CapabilityRegistryReview {
-        approved: params.approve,
-        reviewer_id: params.reviewer_id.clone(),
-        diff_sha256: diff_sha256.clone(),
-        capability_registry_version: capability_registry_version.clone(),
+    if sha256_hex(&previous_bytes) != diff.baseline.sha256.as_str() {
+        return Err(mismatch("baseline_bytes"));
+    }
+    let previous = parse(&published_path, &previous_bytes)?;
+    let instance = parse(&draft_path, &draft_bytes)?;
+    let doc: CapabilityRegistryDocument = serde_json::from_value(instance.clone())
+        .map_err(|source| CapabilityRegistryWorkflowError::JsonParse { path: draft_path.clone(), source })?;
+    validate_schema(&load_schema()?, &instance)?;
+    validate_integrity(&doc)?;
+    let baseline = previous["entries"].as_array().ok_or_else(|| mismatch("baseline_entries"))?;
+    let next = instance["entries"].as_array().ok_or_else(|| mismatch("draft_entries"))?;
+    if baseline.len() != diff.baseline.entry_count || next.len() != diff.draft.entry_count || baseline.iter().any(|entry| !next.contains(entry)) {
+        return Err(mismatch("baseline_preservation"));
+    }
+    let previous_doc: CapabilityRegistryDocument = serde_json::from_value(previous.clone())
+        .map_err(|source| CapabilityRegistryWorkflowError::JsonParse { path: published_path.clone(), source })?;
+    let additions: Vec<_> = doc.entries.iter().filter(|entry| !previous_doc.entries.contains(entry)).collect();
+    if additions.len() != diff.added.len() || diff.added.iter().any(|entry| !additions.contains(&entry)) {
+        return Err(mismatch("approved_additions"));
+    }
+    let mut dependencies = BTreeMap::new();
+    for dependency in [&diff.mechanical_engines, &diff.registry_schema] {
+        let relative = dependency.path.as_str();
+        let bytes = read(&repo_root.join(relative))?;
+        let hash = sha256_hex(&bytes);
+        if hash != dependency.sha256 { return Err(mismatch("normative_dependency_drift")); }
+        dependencies.insert(relative.to_owned(), hash);
+    }
+    // Resolve today's normative bundle, not the obsolete v02.113 extraction prompt.
+    // Capture every manifest module hash; this is provenance, not runtime acceptance.
+    let pointer_path = input.governance_root.join(".GOV/spec/SPEC_CURRENT.md");
+    let pointer_bytes = read(&pointer_path)?;
+    let pointer = parse(&pointer_path, &pointer_bytes)?;
+    let relative = pointer["current_spec"]["entrypoint_path"].as_str().ok_or_else(|| mismatch("spec_pointer"))?;
+    let manifest_path = input.governance_root.join(relative);
+    let manifest_bytes = read(&manifest_path)?;
+    let manifest = parse(&manifest_path, &manifest_bytes)?;
+    dependencies.insert(".GOV/spec/SPEC_CURRENT.md".into(), sha256_hex(&pointer_bytes));
+    dependencies.insert(relative.into(), sha256_hex(&manifest_bytes));
+    for module in manifest["modules"].as_array().ok_or_else(|| mismatch("spec_modules"))? {
+        let relative = module["path"].as_str().ok_or_else(|| mismatch("spec_module_path"))?;
+        let path = manifest_path.parent().ok_or_else(|| mismatch("spec_manifest_parent"))?.join(relative);
+        let hash = sha256_hex(&read(&path)?);
+        if Some(hash.as_str()) != module["sha256"].as_str() { return Err(mismatch("spec_module_drift")); }
+        dependencies.insert(path.to_string_lossy().into_owned(), hash);
+    }
+    dependencies.insert(input.approval_record_path.to_string_lossy().into_owned(), sha256_hex(&approval_bytes));
+    dependencies.insert(input.server_configuration_path.to_string_lossy().into_owned(), input.server_configuration_sha256.clone());
+    if input.output_directory.starts_with(repo_root)
+        || input.output_directory == input.proposal_directory {
+        return Err(mismatch("external_scoped_output_directory"));
+    }
+    let review_path = input.output_directory.join("capability_registry_review.json");
+    fs::create_dir_all(&input.output_directory).map_err(|source|
+        CapabilityRegistryWorkflowError::CreateDir { path: input.output_directory.clone(), source })?;
+    write_json_file(&review_path, &json!({
+        "approval": approval, "draft_sha256": draft_sha, "diff_sha256": diff_sha,
+        "normative_dependencies": dependencies, "publication_requested": params.approve,
+        "publication_confirmed": false, "attribution": input.attribution,
+    }))?;
+    record_build_event(flight_recorder, &params, json!({
+        "event": "capability_registry_review", "approval": approval,
+        "draft_sha256": draft_sha, "diff_sha256": diff_sha,
+        "normative_dependencies": dependencies, "publication_requested": params.approve,
+        "publication_confirmed": false,
+    }), None).await?;
+    let mut artifacts = CapabilityRegistryWorkflowArtifacts {
+        draft_path, diff_path, review_path, published_path: published_path.clone(),
+        draft_sha256: draft_sha.into(), diff_sha256: diff_sha.into(),
+        capability_registry_version: draft_sha.into(), published: false,
+        publication_receipt_confirmed: false,
     };
-    let review_path = repo_root.join("capability_registry_review.json");
-    write_struct_file(&review_path, &review)?;
-    record_build_event(
-        flight_recorder,
-        &params,
-        json!({
-            "event": "capability_registry_review",
-            "review_path": review_path.to_string_lossy(),
-            "approved": params.approve,
-            "reviewer_id": params.reviewer_id,
-            "diff_sha256": diff_sha256,
-        }),
-        None,
-    )
-    .await?;
-
-    let artifacts = CapabilityRegistryWorkflowArtifacts {
-        draft_path,
-        diff_path: diff_path.clone(),
-        review_path,
-        published_path: published_path.clone(),
-        draft_sha256,
-        diff_sha256: diff_sha256.clone(),
-        capability_registry_version: capability_registry_version.clone(),
-    };
-
-    if !review.approved {
+    if !params.approve { return Ok(artifacts); }
+    let journal = journal.ok_or_else(|| mismatch("publication_path_owner_missing"))?;
+    let publication_binding = json!({
+        "path_sha256": sha256_hex(published_path.to_string_lossy().as_bytes()),
+        "baseline_sha256": diff.baseline.sha256,
+        "draft_sha256": draft_sha, "diff_sha256": diff_sha,
+        "approval_sha256": input.approval_record_sha256,
+        "configuration_sha256": input.server_configuration_sha256,
+        "normative_sha256": sha256_hex(&crate::kernel::context_bundle::canonical_json_bytes(&json!(dependencies))),
+        "job_id": params.job_id, "workflow_id": params.workflow_id, "trace_id": params.trace_id,
+    });
+    if let Some(attempt) = retained {
+        let storage = input.storage.clone();
+        let read_storage = storage.clone();
+        let expected_binding = publication_binding.clone();
+        let retained_path = published_path.clone();
+        let original_operation_id = attempt.operation_id;
+        let unresolved_path = published_path.clone();
+        // A read-only reconciliation transaction is not a new publication UUID.
+        // Receipt absence/invisibility never authorizes restoration or a retry.
+        storage.with_registry_publication_authority(Uuid::now_v7(),
+            crate::storage::surreal::ContextOperationCancellation::new(), move |envelope| async move {
+                if attempt.receipt["binding"] != expected_binding
+                    || attempt.receipt["envelope"] != envelope
+                    || attempt.receipt["operation_id"] != attempt.operation_id.to_string()
+                    || attempt.receipt["fr_event_id"] != attempt.fr_event_id.to_string() {
+                    return Err(CapabilityRegistryWorkflowError::ApprovedInputMismatch { category: "original_publication_envelope" });
+                }
+                observe_registry_commit(&read_storage, &attempt).await?;
+                let bytes = fs::read(&retained_path).map_err(|source|
+                    CapabilityRegistryWorkflowError::ReadFile { path: retained_path.clone(), source })?;
+                if sha256_hex(&bytes) != expected_binding["draft_sha256"].as_str().unwrap_or("") {
+                    return Err(CapabilityRegistryWorkflowError::ApprovedInputMismatch { category: "committed_publication_asset_drift" });
+                }
+                Ok::<_, CapabilityRegistryWorkflowError>(())
+            }).await.map_err(|cause| CapabilityRegistryWorkflowError::PublicationUnconfirmed {
+                previous_asset_restored: false, operation_id: original_operation_id,
+                settlement_pending: true, receipt_outcome: "reconciliation_not_confirmed",
+                observed_asset_sha256: fs::read(&unresolved_path).ok().map(|bytes| sha256_hex(&bytes)),
+                cause: Box::new(cause),
+            })?;
+        artifacts.published = true;
+        artifacts.publication_receipt_confirmed = true;
         return Ok(artifacts);
     }
-    let reviewer_id = review.reviewer_id.as_deref().unwrap_or("");
-    if reviewer_id.trim().is_empty() {
-        return Err(CapabilityRegistryWorkflowError::ReviewerIdRequired);
+    // Recheck captured input bytes immediately before the file mutation. File and
+    // recorder writes are separate; a failed receipt can have an unknown outcome.
+    for (path, expected) in [(&artifacts.draft_path, draft_sha), (&artifacts.diff_path, diff_sha),
+        (&published_path, diff.baseline.sha256.as_str())] {
+        if sha256_hex(&read(path)?) != expected { return Err(mismatch("prepublication_input_drift")); }
     }
-
-    // Publish (requires review approval + diff hash match)
-    let current_diff_bytes =
-        fs::read(&diff_path).map_err(|source| CapabilityRegistryWorkflowError::ReadFile {
-            path: diff_path.clone(),
-            source,
-        })?;
-    if review.diff_sha256 != sha256_hex(&current_diff_bytes) {
-        return Err(CapabilityRegistryWorkflowError::PublishDiffShaMismatch);
+    for (relative, expected) in &dependencies {
+        let selected = Path::new(relative);
+        let path = if selected.is_absolute() { selected.to_owned() }
+            else if relative.starts_with(".GOV/") { input.governance_root.join(selected) }
+            else { repo_root.join(selected) };
+        if sha256_hex(&read(&path)?) != *expected { return Err(mismatch("prepublication_normative_drift")); }
     }
+    let operation_id = Uuid::now_v7();
+    let cancellation = crate::storage::surreal::ContextOperationCancellation::new();
+    struct CallerLifetime(std::sync::Arc<crate::storage::surreal::ContextOperationCancellation>);
+    impl Drop for CallerLifetime { fn drop(&mut self) { self.0.cancel(); } }
+    let caller = CallerLifetime(cancellation.clone());
+    let completion_storage = input.storage.clone();
+    let authority_storage = completion_storage.clone();
+    let completion_authority = crate::storage::surreal::event_ledger::capture_account_authority();
+    let completion_input = input.clone();
+    let publication_path = published_path.clone();
+    let publication_input = input.clone();
+    let publication_params = params.clone();
+    let publication_approval = approval.clone();
+    let publication_dependencies = dependencies.clone();
+    let publication_draft_path = artifacts.draft_path.clone();
+    let publication_diff_path = artifacts.diff_path.clone();
+    let publication_baseline_sha = diff.baseline.sha256.clone();
+    let publication_draft_sha = draft_sha.to_owned();
+    let publication_diff_sha = diff_sha.to_owned();
+    let publication_root = repo_root.to_owned();
+    // The callback must own the recorder handle across the authenticated worker.
+    // The workflow supplies the same process-owned Arc; no secondary recorder exists.
+    let recorder = input.flight_recorder.clone();
+    let completion_published_path = published_path.clone();
+    let completion_journal = journal.clone();
+    let worker_journal = journal.clone();
+    let publication_binding = publication_binding.clone();
+    let receipt_storage = input.storage.clone();
+    let fr_event_id = Uuid::now_v7();
 
-    let assets_dir = repo_root.join("assets");
-    fs::create_dir_all(&assets_dir).map_err(|source| {
-        CapabilityRegistryWorkflowError::CreateDir {
-            path: assets_dir.clone(),
-            source,
+    let completion = tokio::spawn(async move {
+        let work = async move {
+            let write_attempted = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+            let receipt_attempted = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+            let receipt_recorded = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+            let publication_previous_bytes = previous_bytes.clone();
+            let worker_write_attempted = write_attempted.clone();
+            let worker_receipt_attempted = receipt_attempted.clone();
+            let worker_receipt_recorded = receipt_recorded.clone();
+            let result: CapabilityRegistryWorkflowResult<()> = authority_storage
+                .with_registry_publication_authority(operation_id, cancellation, move |envelope| async move {
+                    APPROVED_REGISTRY_INPUT.scope(publication_input.clone(), async move {
+                        let mismatch = |category| CapabilityRegistryWorkflowError::ApprovedInputMismatch { category };
+                        for (path, expected) in [(&publication_draft_path, &publication_draft_sha),
+                            (&publication_diff_path, &publication_diff_sha), (&publication_path, &publication_baseline_sha)] {
+                            let bytes = fs::read(path).map_err(|source|
+                                CapabilityRegistryWorkflowError::ReadFile { path: path.clone(), source })?;
+                            if sha256_hex(&bytes) != *expected { return Err(mismatch("publication_input_drift")); }
+                        }
+                        for (relative, expected) in &publication_dependencies {
+                            let selected = Path::new(relative);
+                            let path = if selected.is_absolute() { selected.to_owned() }
+                                else if relative.starts_with(".GOV/") { publication_input.governance_root.join(selected) }
+                                else { publication_root.join(selected) };
+                            let bytes = fs::read(&path).map_err(|source|
+                                CapabilityRegistryWorkflowError::ReadFile { path: path.clone(), source })?;
+                            if sha256_hex(&bytes) != *expected { return Err(mismatch("publication_normative_drift")); }
+                        }
+                        if fs::canonicalize(publication_root.join("assets/capability_registry.json")).ok().as_ref() != Some(&publication_path)
+                            || fs::canonicalize(&publication_path).ok().as_ref() != Some(&publication_path) {
+                            return Err(mismatch("canonical_publication_path_drift"));
+                        }
+                        let receipt = json!({
+                            "schema": "capability_registry_publication@1",
+                            "receipt_kind": "capability_registry_publication_committed",
+                            "operation_id": operation_id, "fr_event_id": fr_event_id,
+                            "workspace_id": envelope["workspace_id"],
+                            "owner_account_id": envelope["owner_account_id"],
+                            "actor_principal_id": envelope["actor_principal_id"],
+                            "authenticated_session_id": envelope["authenticated_session_id"],
+                            "access_space_id": envelope["access_space_id"],
+                            "binding": publication_binding,
+                            "envelope_sha256": sha256_hex(&crate::kernel::context_bundle::canonical_json_bytes(&envelope)),
+                            "envelope": envelope,
+                        });
+                        worker_journal.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).retain(
+                            RegistryPublicationAttempt { operation_id, fr_event_id, receipt: receipt.clone(),
+                                previous_bytes: publication_previous_bytes })?;
+                        worker_write_attempted.store(true, std::sync::atomic::Ordering::SeqCst);
+                        fs::write(&publication_path, &draft_bytes).map_err(|source|
+                            CapabilityRegistryWorkflowError::WriteFile { path: publication_path.clone(), source })?;
+                        let observed = fs::read(&publication_path).map_err(|source|
+                            CapabilityRegistryWorkflowError::ReadFile { path: publication_path.clone(), source })?;
+                        if observed != draft_bytes { return Err(mismatch("asset_write_not_observed")); }
+                        worker_receipt_attempted.store(true, std::sync::atomic::Ordering::SeqCst);
+                        record_build_event(recorder.as_ref(), &publication_params, json!({
+                            "event": "capability_registry_publish", "published_path": publication_path,
+                            "capability_registry_version": publication_draft_sha, "diff_sha256": publication_diff_sha,
+                            "approval": publication_approval, "normative_dependencies": publication_dependencies,
+                            "asset_write_observed": true, "publication": receipt,
+                        }), None).await?;
+                        use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
+                        let actor_id = receipt["envelope"]["actor_id"].as_str()
+                            .ok_or_else(|| mismatch("publication_actor"))?.to_owned();
+                        let actor = match receipt["envelope"]["actor_kind"].as_str() {
+                            Some("operator") => KernelActor::Operator(actor_id),
+                            Some("system") => KernelActor::System(actor_id),
+                            Some("session_broker") => KernelActor::SessionBroker(actor_id),
+                            Some("model_adapter") => KernelActor::ModelAdapter(actor_id),
+                            Some("toolgate") => KernelActor::ToolGate(actor_id),
+                            Some("validation_runner") => KernelActor::ValidationRunner(actor_id),
+                            Some("promotion_gate") => KernelActor::PromotionGate(actor_id),
+                            _ => return Err(mismatch("publication_actor")),
+                        };
+                        let event = NewKernelEvent::builder(publication_params.job_id.unwrap().to_string(),
+                            receipt["envelope"]["authenticated_session_id"].as_str().unwrap().to_owned(),
+                            KernelEventType::FlightRecorderMirrorRecorded,
+                            actor)
+                            .aggregate("capability_registry_publication", operation_id.to_string())
+                            .idempotency_key(registry_receipt_key(operation_id))
+                            .source_component("capability_registry_workflow")
+                            .correlation_id(publication_params.trace_id.to_string())
+                            .payload(receipt).build()
+                            .map_err(|_| mismatch("publication_commit_witness"))?;
+                        crate::storage::surreal::event_ledger::append(&receipt_storage, event).await
+                            .map_err(|_| mismatch("publication_commit_witness"))?;
+                        worker_receipt_recorded.store(true, std::sync::atomic::Ordering::SeqCst);
+                        Ok(())
+                    }).await
+                }).await;
+            if let Err(cause) = result {
+                if !write_attempted.load(std::sync::atomic::Ordering::SeqCst) { return Err(cause); }
+                // Callback/cancellation/failed commit cannot confirm publication. Once the
+                // owner observes commit, later revocation stops access without undo.
+                let settlement_pending = authority_storage.transaction_settlement_pending(operation_id);
+                // Ambiguous commit/cancel observation cannot certify rejection. Leave the
+                // asset and actual receipt intact for canonical resolution, never undo it.
+                let owner = completion_journal.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+                let matching_owner = owner.attempt.as_ref().is_some_and(|attempt| attempt.operation_id == operation_id);
+                let owned_asset = fs::read(&completion_published_path).ok().map(|bytes| sha256_hex(&bytes));
+                let expected_draft = owner.attempt.as_ref().and_then(|attempt| attempt.receipt["binding"]["draft_sha256"].as_str());
+                let restored = !settlement_pending && matching_owner
+                    && fs::canonicalize(&completion_published_path).ok().as_ref() == Some(&completion_published_path)
+                    && owned_asset.as_deref() == expected_draft
+                    && fs::write(&completion_published_path, &previous_bytes).is_ok()
+                    && fs::read(&completion_published_path).ok().as_deref() == Some(previous_bytes.as_slice());
+                return Err(CapabilityRegistryWorkflowError::PublicationUnconfirmed {
+                    previous_asset_restored: restored,
+                    operation_id, settlement_pending,
+                    receipt_outcome: if receipt_recorded.load(std::sync::atomic::Ordering::SeqCst) { "record_call_succeeded" }
+                        else if receipt_attempted.load(std::sync::atomic::Ordering::SeqCst) { "unknown" }
+                        else { "not_attempted" },
+                    observed_asset_sha256: fs::read(&completion_published_path).ok().map(|bytes| sha256_hex(&bytes)),
+                    cause: Box::new(cause),
+                });
+            }
+            Ok::<_, CapabilityRegistryWorkflowError>(())
+        };
+        let outcome = crate::storage::surreal::event_ledger::with_captured_account_authority(
+            &completion_storage, completion_authority,
+            APPROVED_REGISTRY_INPUT.scope(completion_input, work)).await;
+        if let Err(error) = &outcome {
+            tracing::error!(%operation_id, error = %error, "registry publication completion rejected or retained for canonical settlement");
         }
-    })?;
-    fs::write(&published_path, &draft_bytes).map_err(|source| {
-        CapabilityRegistryWorkflowError::WriteFile {
-            path: published_path.clone(),
-            source,
-        }
-    })?;
-
-    record_build_event(
-        flight_recorder,
-        &params,
-        json!({
-            "event": "capability_registry_publish",
-            "published_path": published_path.to_string_lossy(),
-            "capability_registry_version": capability_registry_version,
-            "diff_sha256": review.diff_sha256,
-            "reviewer_id": review.reviewer_id,
-        }),
-        None,
-    )
-    .await?;
-
+        outcome
+    });
+    let outcome = completion.await.map_err(|error| CapabilityRegistryWorkflowError::Storage(
+        crate::storage::surreal::SurrealStorageError::TransactionWorker(error.to_string())));
+    drop(caller);
+    outcome??;
+    artifacts.published = true;
+    artifacts.publication_receipt_confirmed = true;
     Ok(artifacts)
 }
 
