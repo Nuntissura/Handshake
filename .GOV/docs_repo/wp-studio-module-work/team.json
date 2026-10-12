@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-12T07:26:27Z",
+ "updated_at": "2026-10-12T07:27:45Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -2490,6 +2490,42 @@
    ],
    "launched": "2026-10-12T07:05:49Z",
    "status": "done (R20: 24 PASS, 0 FAIL; kernel ee4af6dc)"
+  },
+  {
+   "name": "builder-press-struct-failclosed",
+   "agent_id": "afb09841e28e37b46",
+   "model": "sonnet",
+   "role": "SMB-PRESS-STRUCT-FAILCLOSED (PLR-094 fail closed, PLR-093 doc, PLR-091 test)",
+   "owns": [
+    "crates/hsk-studio-press/**",
+    "builders/lanes/hsk-studio-press-struct-failclosed.json"
+   ],
+   "launched": "2026-10-12T07:27:45Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-psd-desc-cap",
+   "agent_id": "ae921e3bdfb04c965",
+   "model": "sonnet",
+   "role": "SMB-INTEROP-PSD-DESC-CAP (PLR-095)",
+   "owns": [
+    "crates/hsk-studio-interop-psd/**",
+    "builders/lanes/hsk-studio-interop-psd-desc-cap.json"
+   ],
+   "launched": "2026-10-12T07:27:45Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-reel-pts-tests",
+   "agent_id": "a3bcd592042f0c9c3",
+   "model": "sonnet",
+   "role": "SMB-REEL-PTS-TESTS (PLR-092)",
+   "owns": [
+    "crates/hsk-studio-reel/**",
+    "builders/lanes/hsk-studio-reel-pts-tests.json"
+   ],
+   "launched": "2026-10-12T07:27:45Z",
+   "status": "running"
   }
  ]
 }
