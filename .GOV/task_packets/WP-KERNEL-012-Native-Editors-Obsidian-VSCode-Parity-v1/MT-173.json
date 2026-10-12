@@ -1,4 +1,32 @@
 {
+
+  "round40_actual_core_20261012": {
+    "proof_ref": "MT-174.json#/round40_actual_core_20261012",
+    "covers": [
+      "MT-171",
+      "MT-172",
+      "MT-173",
+      "MT-174"
+    ],
+    "runtime_acceptance": "NOT_RUN",
+    "accepted_mts": "0/5"
+  },
+  "round40_prior_lifecycle_20261012": {
+    "status": "BLOCKED",
+    "blocked_on": "Current shared core Round39 FAILED101;38actual failed launches. Exact result/unchanged-input evidence at MT-174.json#/round39_actual_result_20261012. Sole remaining NewLoomEdge Serialize owner repair frozen for scoped review; required compiler/runtime/native/independent acceptance remain unproven0/5.",
+    "depends_on": [
+      "MT-171",
+      "MT-172"
+    ],
+    "blocks": [],
+    "active": true,
+    "validator_verdict": null,
+    "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
+    "claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
+    "completed_by": null,
+    "next_actor": "Scoped review of frozen one-line owning Serialize repair, stable pushed candidate and fresh Delivery admission then one required core check; runtime proof remains independent; retain original scope/assertions/grants"
+  }
+,
   "round39_current_compile_reconciliation_20261012": {
   "at_utc": "2026-10-12T10:28:08.054409+00:00",
   "compile_ref": "MT-174.json#/round39_actual_result_20261012",
@@ -761,20 +789,20 @@
     "generator": null
   },
   "lifecycle": {
-    "status": "BLOCKED",
-    "blocked_on": "Current shared core Round39 FAILED101;38actual failed launches. Exact result/unchanged-input evidence at MT-174.json#/round39_actual_result_20261012. Sole remaining NewLoomEdge Serialize owner repair frozen for scoped review; required compiler/runtime/native/independent acceptance remain unproven0/5.",
-    "depends_on": [
-      "MT-171",
-      "MT-172"
-    ],
-    "blocks": [],
-    "active": true,
-    "validator_verdict": null,
-    "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
-    "claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
-    "completed_by": null,
-    "next_actor": "Scoped review of frozen one-line owning Serialize repair, stable pushed candidate and fresh Delivery admission then one required core check; runtime proof remains independent; retain original scope/assertions/grants"
-  },
+  "status": "BLOCKED",
+  "blocked_on": "Core Round40 GREEN on880dda; runtime remains blocked on independently measured BASE/FINAL pins and fresh/reopen proof, prohibited live .GOV registry input coupling, genuine native authorization/publication and consumed runtime/native independent acceptance; accepted0/5.",
+  "depends_on": [
+    "MT-171",
+    "MT-172"
+  ],
+  "blocks": [],
+  "active": true,
+  "validator_verdict": null,
+  "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
+  "claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
+  "completed_by": null,
+  "next_actor": "Independent Review executes existing MT139 measured catalog target after fresh admission; sole coder reconciles measured pins and original registry external input seam; preserve original authority/assertions; no unchanged core rerun"
+},
   "scope": {
     "summary": "Reconcile shared storage/schema/migration import paths",
     "allowed_paths": [
