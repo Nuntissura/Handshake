@@ -4005,6 +4005,7 @@ impl SwarmCoordinator {
             .into_iter()
             .map(|(claim, launch)| {
                 let origin_claim = claim.clone();
+                let execution_run_id = execution.run_id.clone();
                 async move {
                     let result = async {
             if claim.dispatch_target == ModelLaneRoutingDispatchTarget::CoordinatorJoin {
@@ -4069,7 +4070,7 @@ impl SwarmCoordinator {
                 let model_lane_store = self.inner.model_lane_store.as_ref().ok_or_else(|| {
                     SwarmError::LedgerFailed("routing authority dispatch requires ModelLaneStore".into())
                 })?;
-                let projection = match model_lane_store.routing_source_replay(&execution.run_id).await {
+                let projection = match model_lane_store.routing_source_replay(&execution_run_id).await {
                     Ok(projection) => projection,
                     Err(err) => {
                         let detail = format!("routing authority lane lookup failed: {err}");
