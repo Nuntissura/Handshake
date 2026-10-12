@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 649
+generation: 650
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -547,3 +547,4 @@ steps:
 - {id: GP-526, role: integration_validator, at: before_round, do: verify all-masked diagnostic emits final COMMIT error row and preserves original first returned error, check: {type: confirm}, source: 'failure: typed NotExecuted filter hid descriptive Cannot COMMIT row; first masked fallback was insufficient', state: active}
 - {id: GP-527, role: integration_validator, at: before_round, do: verify predecessor transaction emits parent index once and preserves exact later declaration, check: {type: confirm}, source: 'failure: duplicate index overwrite retires builder state newer than parent snapshot; COMMIT Resource busy', state: active}
 - {id: GP-528, role: integration_validator, at: before_round, do: 'verify complete predecessor declaration identities, dependency order, removals and unique emission before runtime', check: {type: confirm}, source: 'Round50: expected306 actual294 missing12; tables-only selector omits dependent declarations', state: active}
+- {id: GP-529, role: builder, at: before_round, do: verify authored governance text uses direct file patches rather than executable shell payloads, check: {type: confirm}, source: 'infra: successor packet text write matched costly-action token and exceeded hook budget before body', state: active}
