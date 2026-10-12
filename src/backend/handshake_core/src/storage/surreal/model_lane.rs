@@ -9,7 +9,7 @@ use serde_json::Value;
 use surrealdb::types::SurrealValue;
 
 const SCHEMA: &str = include_str!("model_lane_schema.surql");
-const SCHEMA_STATE: &str = "\
+pub(super) const SCHEMA_STATE: &str = "\
 DEFINE TABLE IF NOT EXISTS model_lane_schema_state SCHEMAFULL;\
 DEFINE FIELD IF NOT EXISTS schema_version ON model_lane_schema_state TYPE string;\
 DEFINE FIELD IF NOT EXISTS schema_revision ON model_lane_schema_state TYPE int;\
@@ -2455,6 +2455,24 @@ struct SchemaSessionScope { owner_account_id: String, actor_principal_id: String
 struct SchemaWorkspaceBindings { owner_account_id: String, access_space_id: String }
 #[derive(SurrealValue)]
 struct SchemaWorkspace { workspace_id: String }
+
+// FINAL catalog reuse requires the owning durable receipt; this never installs DDL.
+pub(super) async fn verify_schema_receipt(
+    database: &super::SurrealAdminContext<'_>,
+) -> Result<(), SurrealStorageError> {
+    let mut response = database.query(format!("SELECT * FROM ONLY {SCHEMA_STATE_ID};")).await?;
+    let state: Option<ModelLaneSchemaState> = response.take(0)?;
+    if !state.as_ref().is_some_and(|state| {
+        state.schema_version == SCHEMA_VERSION
+            && state.schema_revision == SCHEMA_REVISION
+            && state.apply_state == "complete"
+    }) {
+        return Err(SurrealStorageError::InvalidModelLaneRecord {
+            reason: "model-lane schema receipt missing or version/revision/state mismatch",
+        });
+    }
+    Ok(())
+}
 
 pub(crate) async fn bootstrap_model_lane_schema(
     storage: &SurrealStorage,

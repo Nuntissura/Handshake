@@ -6205,6 +6205,212 @@ async fn definitions_committed_without_receipt(
     Ok(rows.is_empty())
 }
 
+// Only an independently observed whole engine catalog can populate this pin.
+// Source/catalog digests below are provenance, never substitutes for INFO.
+const EXPECTED_PRODUCTION_SCHEMA_PIN: Option<(&str, usize, usize)> = None;
+
+fn production_schema_sources() -> Vec<(&'static str, &'static str)> {
+    vec![
+        ("shared", SCHEMA),
+        ("model_registry", include_str!("model_registry_schema.surql")),
+        ("loom_search", include_str!("loom_search_schema.surql")),
+        ("model_lane_state", super::model_lane::SCHEMA_STATE),
+        ("model_lane", include_str!("model_lane_schema.surql")),
+        ("cloud_model_lane_state", super::cloud_model_lane::SCHEMA_STATE),
+        ("cloud_model_lane", include_str!("cloud_model_lane_schema.surql")),
+        ("process_ledger", include_str!("process_ledger_schema.surql")),
+        ("palmistry_state", super::palmistry::SCHEMA_STATE),
+        ("palmistry", include_str!("palmistry_schema.surql")),
+        ("swarm_outbox_state", super::swarm_outbox::SCHEMA_STATE),
+        ("swarm_outbox", include_str!("swarm_outbox_schema.surql")),
+        ("user_manual_knowledge", include_str!("user_manual_knowledge_schema.surql")),
+        ("workspace_settings_state", super::workspace_settings::SCHEMA_STATE),
+        ("workspace_settings", include_str!("workspace_settings_schema.surql")),
+    ]
+}
+
+fn production_generated_sha256() -> String {
+    sha256_hex(serde_json::to_string(&production_schema_sources())
+        .expect("ordered static schema sources serialize").as_bytes())
+}
+
+fn production_source_sha256() -> String {
+    let manifest = production_schema_sources().into_iter()
+        .map(|(name, source)| (name, sha256_hex(source.as_bytes()))).collect::<Vec<_>>();
+    sha256_hex(serde_json::to_string(&(SCHEMA_VERSION, SCHEMA_REVISION, SCHEMA_LINEAGE_SHA256, manifest))
+        .expect("compiled schema lineage serializes").as_bytes())
+}
+
+// Extend the owning declaration inventory with the same token identities. Later
+// OVERWRITE replaces an identity; IF NOT EXISTS preserves it. The whole INFO pin
+// still verifies definitions, implicit engine fields and every catalog category.
+fn production_catalog_entries() -> Result<Vec<String>, String> {
+    let mut entries = compiled_schema_catalog_entries()?.into_iter().collect::<BTreeSet<_>>();
+    for (_, source) in production_schema_sources().into_iter().skip(1) {
+        for raw in source.replace(";DEFINE", ";\nDEFINE").lines() {
+            let tokens = raw.trim().split_whitespace().collect::<Vec<_>>();
+            if tokens.first() != Some(&"DEFINE") { continue; }
+            let kind = tokens.get(1).ok_or("missing DEFINE kind")?;
+            let mut rest = &tokens[2..];
+            if rest.starts_with(&["OVERWRITE"]) { rest = &rest[1..]; }
+            else if rest.starts_with(&["IF", "NOT", "EXISTS"]) { rest = &rest[3..]; }
+            let name = rest.first().ok_or("missing DEFINE name")?.trim_end_matches(';');
+            let identity = match *kind {
+                "TABLE" => format!("table:{name}"),
+                "FIELD" | "INDEX" | "EVENT" => {
+                    if rest.get(1) != Some(&"ON") { return Err(format!("invalid catalog declaration: {raw}")); }
+                    let table = if rest.get(2) == Some(&"TABLE") { rest.get(3) } else { rest.get(2) }
+                        .ok_or("missing declaration table")?.trim_end_matches(';');
+                    format!("{}:{table}:{name}", kind.to_ascii_lowercase())
+                }
+                "FUNCTION" => format!("function:{}", declarative_function_name(name)?),
+                "SEQUENCE" | "ACCESS" | "ANALYZER" | "PARAM" => format!("{}:{name}", kind.to_ascii_lowercase()),
+                _ => return Err(format!("unsupported production catalog declaration: {raw}")),
+            };
+            entries.insert(identity);
+        }
+    }
+    Ok(entries.into_iter().collect())
+}
+
+fn production_catalog_sha256() -> Result<String, SurrealStorageError> {
+    production_catalog_entries().map(|entries| compute_catalog_hash(&entries))
+        .map_err(SurrealStorageError::TransactionWorker)
+}
+
+fn has_production_identity(state: &SchemaState) -> bool {
+    state.version == SCHEMA_VERSION && state.revision == SCHEMA_REVISION
+        && state.target_revision == SCHEMA_REVISION
+        && state.namespace == DEFAULT_NAMESPACE && state.database == DEFAULT_DATABASE
+        && state.source_manifest_sha256 == production_source_sha256()
+}
+
+pub(super) fn is_production_report(report: &SchemaBootstrapReport) -> bool {
+    report.source_manifest_sha256 == production_source_sha256()
+}
+
+async fn inspect_production_schema(database: &SurrealAdminContext<'_>) -> Result<ObservedSchema, SurrealStorageError> {
+    let observed = read_schema_catalog(database).await?;
+    let entries = production_catalog_entries().map_err(SurrealStorageError::TransactionWorker)?;
+    let expected_tables = entries.iter().filter_map(|entry| entry.strip_prefix("table:").map(str::to_owned)).collect::<Vec<_>>();
+    if observed.table_names != expected_tables {
+        return fail_closed(database, format!("HANDSHAKE_SURREAL_PRODUCTION_TABLE_SET_MISMATCH: expected={expected_tables:?}; observed={:?}", observed.table_names)).await;
+    }
+    let Some((expected_info, expected_fields, expected_indexes)) = EXPECTED_PRODUCTION_SCHEMA_PIN else {
+        return fail_closed(database, format!("HANDSHAKE_SURREAL_PRODUCTION_INFO_UNMEASURED: observed={}; fields={}; indexes={}; source={}; inventory={}", observed.info_fingerprint_sha256, observed.fields_defined, observed.indexes_defined, production_source_sha256(), production_catalog_sha256()?)).await;
+    };
+    if observed.info_fingerprint_sha256 != expected_info || observed.fields_defined != expected_fields || observed.indexes_defined != expected_indexes {
+        return fail_closed(database, format!("HANDSHAKE_SURREAL_PRODUCTION_CATALOG_MISMATCH: expected={expected_info}; observed={}; fields={}; indexes={}", observed.info_fingerprint_sha256, observed.fields_defined, observed.indexes_defined)).await;
+    }
+    Ok(observed)
+}
+
+async fn verify_production_module_receipts(database: &SurrealAdminContext<'_>) -> Result<(), SurrealStorageError> {
+    super::model_lane::verify_schema_receipt(database).await?;
+    super::cloud_model_lane::verify_schema_receipt(database).await?;
+    super::palmistry::verify_schema_receipt(database).await?;
+    super::swarm_outbox::verify_schema_receipt(database).await?;
+    super::workspace_settings::verify_schema_receipt(database).await?;
+    Ok(())
+}
+
+// Called before any reopen DDL: unknown/partial composed catalogs cannot be
+// repaired or enrolled by running OVERWRITE installers first.
+async fn production_reopen_report(storage: &SurrealStorage) -> Result<Option<SchemaBootstrapReport>, SurrealStorageError> {
+    storage.with_admin_operation(|database| Box::pin(async move {
+        let observed = read_schema_catalog(&database).await?;
+        if !observed.table_names.iter().any(|name| name == BOOTSTRAP_STATE_TABLE) { return Ok(None); }
+        let mut response = database.query(format!("SELECT * FROM ONLY {BOOTSTRAP_STATE_ID};")).await?;
+        let state: Option<SchemaState> = response.take(0)?;
+        let Some(mut state) = state else { return Ok(None); };
+        if !has_production_identity(&state) { return Ok(None); }
+        let observed = inspect_production_schema(&database).await?;
+        verify_production_module_receipts(&database).await?;
+        // Resume only an already complete, independently pinned FINAL catalog.
+        // A partial installation cannot reach this CAS; no DDL is replayed.
+        if state.generated_surql_sha256 == production_generated_sha256()
+            && state.apply_state == "schema_applied" && state.info_fingerprint_sha256 == PENDING_SCHEMA_INFO_SHA256 {
+            finalize_schema_state_bound(&database, FinalizeBindings {
+                schema_version: state.version.clone(), schema_revision: state.revision,
+                namespace: state.namespace.clone(), database: state.database.clone(),
+                source_manifest_sha256: state.source_manifest_sha256.clone(), generated_surql_sha256: state.generated_surql_sha256.clone(),
+                pending_info_fingerprint_sha256: PENDING_SCHEMA_INFO_SHA256.to_owned(), info_fingerprint_sha256: observed.info_fingerprint_sha256.clone(),
+            }).await?;
+            state = read_context_and_state(&database).await?
+                .ok_or_else(|| SurrealStorageError::TransactionWorker("production finalized receipt missing".to_owned()))?;
+        }
+        if !has_production_identity(&state) || state.generated_surql_sha256 != production_generated_sha256() || state.apply_state != "complete"
+            || state.info_fingerprint_sha256 != observed.info_fingerprint_sha256 {
+            return fail_closed(&database, "HANDSHAKE_SURREAL_PRODUCTION_RECEIPT_MISMATCH".to_owned()).await;
+        }
+        Ok(Some(build_schema_report(state, observed, SchemaBootstrapOutcome::ReusedExactCurrent, 10)))
+    })).await
+}
+
+pub(super) async fn begin_production_schema(storage: &SurrealStorage) -> Result<(), SurrealStorageError> {
+    storage.with_admin_operation(|database| Box::pin(async move {
+        let state = read_context_and_state(&database).await?;
+        if !state.as_ref().is_some_and(SchemaState::is_exact_current) {
+            return fail_closed(&database, "HANDSHAKE_SURREAL_PRODUCTION_BASE_RECEIPT_MISMATCH".to_owned()).await;
+        }
+        let observed = inspect_schema(&database).await?;
+        verify_expected_info_fingerprint(&database, &observed).await?;
+        database.query_bound(r#"
+BEGIN TRANSACTION;
+LET $current = SELECT * FROM ONLY handshake_schema_state:primary;
+IF $current.version != $schema_version OR $current.revision != $schema_revision
+ OR $current.target_revision != $schema_revision OR $current.namespace != $namespace OR $current.database != $database
+ OR $current.source_manifest_sha256 != $base_source OR $current.generated_surql_sha256 != $base_generated
+ OR $current.info_fingerprint_sha256 != $base_info OR $current.apply_state != 'complete'
+{ THROW 'HANDSHAKE_SURREAL_PRODUCTION_BASE_CHANGED'; };
+UPDATE ONLY handshake_schema_state:primary SET source_manifest_sha256 = $source,
+ generated_surql_sha256 = $catalog, info_fingerprint_sha256 = $pending, apply_state = 'schema_applied', updated_at = time::now();
+COMMIT TRANSACTION;
+"#, ProductionBeginBindings {
+            schema_version: SCHEMA_VERSION.to_owned(), schema_revision: SCHEMA_REVISION,
+            namespace: DEFAULT_NAMESPACE.to_owned(), database: DEFAULT_DATABASE.to_owned(),
+            base_source: SCHEMA_LINEAGE_SHA256.to_owned(), base_generated: GENERATED_SURREALQL_SHA256.to_owned(),
+            base_info: EXPECTED_SCHEMA_INFO_SHA256.to_owned(), source: production_source_sha256(),
+            catalog: production_generated_sha256(), pending: PENDING_SCHEMA_INFO_SHA256.to_owned(),
+        }).await?;
+        Ok(())
+    })).await
+}
+
+#[derive(SurrealValue)]
+struct ProductionBeginBindings {
+    schema_version: String, schema_revision: i64, namespace: String, database: String,
+    base_source: String, base_generated: String, base_info: String,
+    source: String, catalog: String, pending: String,
+}
+
+pub(super) async fn finish_production_schema(storage: &SurrealStorage, outcome: SchemaBootstrapOutcome) -> Result<SchemaBootstrapReport, SurrealStorageError> {
+    storage.with_admin_operation(move |database| Box::pin(async move {
+        let state = read_context_and_state(&database).await?
+            .ok_or_else(|| SurrealStorageError::TransactionWorker("production receipt missing".to_owned()))?;
+        if !has_production_identity(&state) || state.generated_surql_sha256 != production_generated_sha256()
+            || state.apply_state != "schema_applied" || state.info_fingerprint_sha256 != PENDING_SCHEMA_INFO_SHA256 {
+            return fail_closed(&database, "HANDSHAKE_SURREAL_PRODUCTION_PENDING_RECEIPT_MISMATCH".to_owned()).await;
+        }
+        let observed = inspect_production_schema(&database).await?;
+        verify_production_module_receipts(&database).await?;
+        finalize_schema_state_bound(&database, FinalizeBindings {
+            schema_version: state.version.clone(), schema_revision: state.revision,
+            namespace: state.namespace.clone(), database: state.database.clone(),
+            source_manifest_sha256: state.source_manifest_sha256.clone(), generated_surql_sha256: state.generated_surql_sha256.clone(),
+            pending_info_fingerprint_sha256: PENDING_SCHEMA_INFO_SHA256.to_owned(), info_fingerprint_sha256: observed.info_fingerprint_sha256.clone(),
+        }).await?;
+        let complete = read_context_and_state(&database).await?
+            .ok_or_else(|| SurrealStorageError::TransactionWorker("production finalized receipt missing".to_owned()))?;
+        if complete.apply_state != "complete" || !has_production_identity(&complete)
+            || complete.generated_surql_sha256 != state.generated_surql_sha256
+            || complete.info_fingerprint_sha256 != observed.info_fingerprint_sha256 {
+            return fail_closed(&database, "HANDSHAKE_SURREAL_PRODUCTION_FINALIZED_RECEIPT_MISMATCH".to_owned()).await;
+        }
+        Ok(build_schema_report(complete, observed, outcome, 10))
+    })).await
+}
+
 /// Installs the sole declarative Surreal schema or verifies an exact-current schema.
 ///
 /// V1 fails closed for every lower, divergent, or unknown lineage. One exact allowlisted
@@ -6225,15 +6431,18 @@ async fn definitions_committed_without_receipt(
 pub async fn bootstrap_schema(
     storage: &SurrealStorage,
 ) -> Result<SchemaBootstrapReport, SurrealStorageError> {
-    bounded_bootstrap(BOOTSTRAP_WATCHDOG, bootstrap_schema_unbounded(storage)).await
+    bounded_bootstrap(BOOTSTRAP_WATCHDOG, async {
+        if let Some(report) = production_reopen_report(storage).await? { return Ok(report); }
+        bootstrap_schema_unbounded(storage).await
+    }).await
 }
 
 /// Generous on purpose: the fresh bootstrap is ~4,500 statements, and too-tight engine deadlines
 /// already broke it on loaded disks (storage/surreal.rs, DEFAULT_ENGINE_QUERY_TIMEOUT notes). A
 /// healthy bootstrap finishes far below this bound; only a stalled one reaches it.
-const BOOTSTRAP_WATCHDOG: std::time::Duration = std::time::Duration::from_secs(900);
+pub(super) const BOOTSTRAP_WATCHDOG: std::time::Duration = std::time::Duration::from_secs(900);
 
-async fn bounded_bootstrap<T>(
+pub(super) async fn bounded_bootstrap<T>(
     limit: std::time::Duration,
     bootstrap: impl std::future::Future<Output = Result<T, SurrealStorageError>>,
 ) -> Result<T, SurrealStorageError> {
@@ -8710,6 +8919,19 @@ async fn finalize_schema_state(
         )
         .await;
     }
+    finalize_schema_state_bound(database, FinalizeBindings {
+                schema_version: SCHEMA_VERSION.to_owned(),
+                schema_revision: SCHEMA_REVISION,
+                namespace: DEFAULT_NAMESPACE.to_owned(),
+                database: DEFAULT_DATABASE.to_owned(),
+                source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
+                generated_surql_sha256: GENERATED_SURREALQL_SHA256.to_owned(),
+                pending_info_fingerprint_sha256: PENDING_SCHEMA_INFO_SHA256.to_owned(),
+                info_fingerprint_sha256: info_fingerprint_sha256.to_owned(),
+            }).await
+}
+
+async fn finalize_schema_state_bound(database: &SurrealAdminContext<'_>, bindings: FinalizeBindings) -> Result<(), SurrealStorageError> {
     database
         .query_bound(
             r#"
@@ -8734,16 +8956,7 @@ UPDATE ONLY handshake_schema_state:primary SET
     updated_at = time::now();
 COMMIT TRANSACTION;
 "#,
-            FinalizeBindings {
-                schema_version: SCHEMA_VERSION.to_owned(),
-                schema_revision: SCHEMA_REVISION,
-                namespace: DEFAULT_NAMESPACE.to_owned(),
-                database: DEFAULT_DATABASE.to_owned(),
-                source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
-                generated_surql_sha256: GENERATED_SURREALQL_SHA256.to_owned(),
-                pending_info_fingerprint_sha256: PENDING_SCHEMA_INFO_SHA256.to_owned(),
-                info_fingerprint_sha256: info_fingerprint_sha256.to_owned(),
-            },
+            bindings,
         )
         .await?;
     Ok(())
@@ -8776,11 +8989,15 @@ async fn report_from_observed(
         .await;
     }
 
-    Ok(SchemaBootstrapReport {
+    Ok(build_schema_report(state, observed, outcome, 1))
+}
+
+fn build_schema_report(state: SchemaState, observed: ObservedSchema, outcome: SchemaBootstrapOutcome, declarative_schema_files: usize) -> SchemaBootstrapReport {
+    SchemaBootstrapReport {
         schema_version: state.version,
         namespace: state.namespace,
         database: state.database,
-        declarative_schema_files: 1,
+        declarative_schema_files,
         source_manifest_sha256: state.source_manifest_sha256,
         generated_surql_sha256: state.generated_surql_sha256,
         info_fingerprint_sha256: state.info_fingerprint_sha256,
@@ -8790,7 +9007,7 @@ async fn report_from_observed(
         table_names: observed.table_names,
         outcome,
         reused_existing_schema: outcome.reused_existing_schema(),
-    })
+    }
 }
 
 async fn verify_expected_info_fingerprint(
@@ -8863,6 +9080,12 @@ async fn read_schema_catalog(
     };
     table_names.sort();
 
+    if table_names.is_empty() {
+        return Ok(ObservedSchema {
+            info_fingerprint_sha256: canonical_catalog_fingerprint(db_info, BTreeMap::new()),
+            tables_defined: 0, fields_defined: 0, indexes_defined: 0, table_names,
+        });
+    }
     let mut fields_defined = 0usize;
     let mut indexes_defined = 0usize;
     let mut table_info_by_name = BTreeMap::new();
@@ -10306,6 +10529,17 @@ mod tests {
             "MT139_CURRENT_SCHEMA_INFO_SHA256={}",
             observed.info_fingerprint_sha256
         );
+        let storage = super::super::SurrealStorage::for_schema_measurement(client.clone())
+            .expect("adopt the same Mem client for production module measurement");
+        super::super::install_production_module_schemas(&storage).await
+            .expect("apply the exact ordered production module body");
+        storage.with_admin_operation(|database| Box::pin(async move {
+            let observed = read_schema_catalog(&database).await?;
+            eprintln!("MT139_PRODUCTION_SCHEMA_INFO_SHA256={}; fields={}; indexes={}; source={}; inventory={}",
+                observed.info_fingerprint_sha256, observed.fields_defined, observed.indexes_defined,
+                production_source_sha256(), production_catalog_sha256()?);
+            Ok::<_, SurrealStorageError>(())
+        })).await.expect("observe the whole production catalog without enrolling a pin");
         assert_eq!(
             observed.info_fingerprint_sha256,
             EXPECTED_SCHEMA_INFO_SHA256

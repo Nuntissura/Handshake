@@ -4,7 +4,7 @@ use std::fmt;
 use surrealdb::types::SurrealValue;
 
 const SCHEMA: &str = include_str!("cloud_model_lane_schema.surql");
-const SCHEMA_STATE: &str = "\
+pub(super) const SCHEMA_STATE: &str = "\
 DEFINE TABLE OVERWRITE model_lane_cloud_schema_state SCHEMAFULL PERMISSIONS FOR select WHERE record::id($this.id) = 'primary' AND schema_version = 'mt006-cloud-authority-v1' AND schema_revision = 1 AND apply_state = 'complete' AND fn::wp012_cloud_schema_access() FOR create, update, delete NONE;\
 DEFINE FIELD IF NOT EXISTS schema_version ON model_lane_cloud_schema_state TYPE string;\
 DEFINE FIELD IF NOT EXISTS schema_revision ON model_lane_cloud_schema_state TYPE int;\
@@ -128,6 +128,24 @@ impl From<StoredRowValue> for CloudModelLaneStoredRow {
             event_payload_json: value.event_payload_json,
         }
     }
+}
+
+// FINAL catalog reuse requires the owning durable receipt; this never installs DDL.
+pub(super) async fn verify_schema_receipt(
+    database: &super::SurrealAdminContext<'_>,
+) -> Result<(), SurrealStorageError> {
+    let mut response = database.query(format!("SELECT * FROM ONLY {SCHEMA_STATE_ID};")).await?;
+    let state: Option<CloudModelLaneSchemaState> = response.take(0)?;
+    if !state.as_ref().is_some_and(|state| {
+        state.schema_version == SCHEMA_VERSION
+            && state.schema_revision == SCHEMA_REVISION
+            && state.apply_state == "complete"
+    }) {
+        return Err(SurrealStorageError::InvalidCloudModelLaneRecord {
+            reason: "cloud authority schema receipt missing or version/revision/state mismatch",
+        });
+    }
+    Ok(())
 }
 
 pub(crate) async fn bootstrap_cloud_model_lane_schema(

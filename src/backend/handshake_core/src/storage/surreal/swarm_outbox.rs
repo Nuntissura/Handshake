@@ -9,7 +9,7 @@ use super::{SurrealStorage, SurrealStorageError};
 use crate::swarm_orchestration::resource_scope::{ExactResourceScopeAttribution, ResourceScope};
 
 const SCHEMA: &str = include_str!("swarm_outbox_schema.surql");
-const SCHEMA_STATE: &str = "\
+pub(super) const SCHEMA_STATE: &str = "\
 DEFINE TABLE IF NOT EXISTS swarm_outbox_schema_state SCHEMAFULL;\
 DEFINE FIELD IF NOT EXISTS schema_version ON swarm_outbox_schema_state TYPE string;\
 DEFINE FIELD IF NOT EXISTS schema_revision ON swarm_outbox_schema_state TYPE int;\
@@ -191,10 +191,33 @@ struct PendingRow {
     event_json: String,
 }
 
+// FINAL catalog reuse requires the owning durable receipt; this never installs DDL.
+pub(super) async fn verify_schema_receipt(
+    database: &super::SurrealAdminContext<'_>,
+) -> Result<(), SurrealStorageError> {
+    let mut response = database.query("SELECT * FROM ONLY swarm_outbox_schema_state:primary;").await?;
+    let state: Option<SchemaState> = response.take(0)?;
+    if !state.as_ref().is_some_and(|state| {
+        state.schema_version == SCHEMA_VERSION
+            && state.schema_revision == SCHEMA_REVISION
+            && state.apply_state == "complete"
+    }) {
+        return Err(SurrealStorageError::InvalidModelLaneRecord {
+            reason: "swarm outbox schema receipt missing or version/revision/state mismatch",
+        });
+    }
+    Ok(())
+}
+
 pub async fn bootstrap_swarm_outbox_schema(
     storage: &SurrealStorage,
 ) -> Result<(), SurrealStorageError> {
     super::bootstrap_schema(storage).await?;
+    install_swarm_outbox_schema(storage).await
+}
+
+// Production composition calls this only after its verified shared prerequisite.
+pub(super) async fn install_swarm_outbox_schema(storage: &SurrealStorage) -> Result<(), SurrealStorageError> {
     storage
         .with_admin_operation(|database| {
             Box::pin(async move {

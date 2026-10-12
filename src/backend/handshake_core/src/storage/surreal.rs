@@ -151,17 +151,29 @@ pub use workspace_settings::{
 pub async fn bootstrap_production_schemas(
     storage: &SurrealStorage,
 ) -> Result<SchemaBootstrapReport, SurrealStorageError> {
-    let report = schema::bootstrap_schema(storage).await?;
+    static COMPOSITION_MUTEX: Mutex<()> = Mutex::const_new(());
+    schema::bounded_bootstrap(schema::BOOTSTRAP_WATCHDOG, async {
+        let _composition_guard = COMPOSITION_MUTEX.lock().await;
+        let report = schema::bootstrap_schema(storage).await?;
+        if schema::is_production_report(&report) { return Ok(report); }
+        schema::begin_production_schema(storage).await?;
+        install_production_module_schemas(storage).await?;
+        schema::finish_production_schema(storage, report.outcome).await
+    }).await
+}
+
+// One ordered installation body for production and the existing direct Mem proof.
+async fn install_production_module_schemas(storage: &SurrealStorage) -> Result<(), SurrealStorageError> {
     model_registry::bootstrap_model_registry_schema(storage).await?;
     loom_search::bootstrap_loom_search_schema(storage).await?;
     model_lane::bootstrap_model_lane_schema(storage).await?;
     cloud_model_lane::bootstrap_cloud_model_lane_schema(storage).await?;
     process_ledger::bootstrap_process_ledger_schema(storage).await?;
-    palmistry::bootstrap_palmistry_schema(storage).await?;
-    swarm_outbox::bootstrap_swarm_outbox_schema(storage).await?;
+    palmistry::install_palmistry_schema(storage).await?;
+    swarm_outbox::install_swarm_outbox_schema(storage).await?;
     user_manual_knowledge::bootstrap_user_manual_knowledge_schema(storage).await?;
-    workspace_settings::bootstrap_workspace_settings_schema(storage).await?;
-    Ok(report)
+    workspace_settings::install_workspace_settings_schema(storage).await?;
+    Ok(())
 }
 
 #[cfg(feature = "surreal-test-support")]
@@ -1490,7 +1502,11 @@ impl SurrealStorage {
 
         }
 
-        Ok(Self {
+        Ok(Self::from_open_client(config, guard, client))
+    }
+
+    fn from_open_client(config: SurrealStorageConfig, guard: Arc<dyn StorageGuard>, client: SurrealClient) -> Self {
+        Self {
             inner: Arc::new(SurrealStorageInner {
                 resource_access_lifecycle: crate::swarm_orchestration::resource_scope::ResourceAccessLifecycleRegistry::new(),
                 config,
@@ -1506,7 +1522,13 @@ impl SurrealStorage {
                 leases_in_flight: AtomicUsize::new(0),
                 lease_high_water: AtomicUsize::new(0),
             }),
-        })
+        }
+    }
+
+    #[cfg(test)]
+    fn for_schema_measurement(client: SurrealClient) -> Result<Self, SurrealStorageError> {
+        let config = SurrealStorageConfig::with_path(std::env::temp_dir().join("handshake-schema-measurement"))?;
+        Ok(Self::from_open_client(config, Arc::new(DefaultStorageGuard), client))
     }
 
     pub async fn open_default() -> Result<Self, SurrealStorageError> {
