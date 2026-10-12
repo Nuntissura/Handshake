@@ -1,0 +1,200 @@
+{
+ "kind": "pre-review",
+ "scope": "narrow fcda5f6..bcc0688",
+ "head": "bcc0688b579bff9de43f15e404dd7915e53b67ab",
+ "head_note": "git fetch done at 2026-10-12T02:27:24Z; origin/codex/handshake-studio-assets == local codex/handshake-studio-assets == bcc0688b579bff9de43f15e404dd7915e53b67ab; nothing after bcc0688 on any ref touches any crate. Paths are relative to handshake-studio-assets/ in repo wt-studio-assets at bcc0688 unless marked kernel; every code read is a committed blob (git show bcc0688:path, copies under the reviewer's scratchpad folder R18-prereview-press-narrow).",
+ "rule": "V4-13 (lane with 2 failed verdicts) + V4-14/V4-18: a pre-review stands only while the crate is unchanged since it; hsk-studio-press changed by six commits after the R17 narrow pre-review basis fcda5f6",
+ "base": "fcda5f6f1d549ca3c399a6b51a68aecf5d133ab1",
+ "reviewer": "independent read-only PRE-REVIEWER (V4-13), fresh context, wrote none of this code. No cargo, no sub-agents, no edit except this file. Builder-reported results (press 141/141, clippy, red proofs, mutants Ma-Mt) were NOT re-run; every statement that depends on a test passing is read from the test and the code it exercises only. V4-21: git fetch only, no other outbound request, no personal data in this file.",
+ "severity_rule": "CONFIRMED = file:line read at bcc0688 and the behaviour follows from the code read (code paths reasoned, not executed; viewer behaviour for a crafted document is stated where it is an external fact not read); PLAUSIBLE = reasoning only, an untested sub-case, or an external fact not read; INFO = observation, no action required",
+ "recommendation_standard": "FIX_FIRST = a CONFIRMED finding in the claim that is the lane's deliverable ('silent only when a kept page draws it'), reachable by a validator who reads the diff and the register item, changing what the shipped claim says about a redaction outcome (same standard as R17-P1)",
+ "method": "Kernel reads: validation/R17-prereview-press-psd-narrow.json (R17-P1..P4), validation/round-R17.json (adversarial_review.validator_notes V-1, V-2, deferred_fix_first), START_LOG lead decisions 2026-10-12T01:05:36Z (press R16 pre-review P-1) and 2026-10-12T02:06:32Z (press R17 remediation 20510c5), builders/lanes/notes-batch-1.json (notes.remediation_R17pre incl. r17b, r17c, red_proofs, v4_06, residuals), builders/DISPATCH_TEMPLATES.md topic v4-rules. Product repo: git diff fcda5f6..bcc0688 over the crate (4 files); flatten_purge.rs read in full at bcc0688 (1064 lines); syntax.rs Object accessors, Dict parser and parse_name; content.rs parse_strict and check_op; filters.rs decode_chain; show_text.rs content_streams_of, content_role_streams, run_unreached; sanitized_save.rs region_flattened, region_reasons, redact_and_save order and the two doc hunks; tests/flatten_r13.rs lines 398-1109 (helpers and every R16/R17 painted-source test). Scripted (python -I, scratchpad R18-prereview-press-narrow): DESCRIPTOR parsed at both revisions and diffed key by key (desc.py), scan of all 563 added lines for drive-letter-like strings and never/always/guarantee/prove words (scan.py), V4-06 regex re-run with git grep at bcc0688 and a92310f.",
+ "started_at": "2026-10-12T02:27:24Z",
+ "started_at_note": "first clock reading, taken after git fetch and the range check",
+ "completed_at": "2026-10-12T02:47:09Z",
+ "status": "COMPLETE",
+ "lanes": [
+  {
+   "lane": "SMB-PRESS",
+   "crate": "hsk-studio-press",
+   "sibling_lanes_sharing_the_crate": [
+    "SMB-PRESS-DIFFERENCES",
+    "SMB-NOTES-BATCH-1 (press part)"
+   ],
+   "verdicts_so_far": "R5 FAIL_V1, R6 FAIL_V2, R13 PASS_V3 (ledger); R17 deferred_fix_first on R17-P1; the READY commit bcc0688 reopens the lane",
+   "commits_checked": [
+    "20510c5ada85746b223a2853711073afc4e6aa66 (R17 pre-review P1/P2 + validator V-1: src/flatten_purge.rs, lib.rs DESCRIPTOR, sanitized_save.rs docs, tests/flatten_r13.rs)",
+    "51f3e7206512a244907b2f209e04d75b8f501e9b (R17b: /AS state selection and /F bits 1, 2, 6)",
+    "a92310f37dd758905b03dcdeeb084d93afe12988 (R17b docs and DESCRIPTOR text; flatten_purge.rs hunk is comment-only, verified: no non-comment changed line)",
+    "35be3740520974915c813b63ffa67e1b64fc172d (R17c: /OC fail-closed, marked-content stack)",
+    "d39bd282c2cd08390767676005f15e363b56bf3f (one doc comment, V4-07; comment-only, verified)",
+    "bcc0688b579bff9de43f15e404dd7915e53b67ab (test: nested marked-content case; 1 line in tests/flatten_r13.rs)"
+   ],
+   "prior_items_closed": [
+    {
+     "item": "R17-P1 site 1: a /Resources value (page, drawn form) was certain by position",
+     "status": "CLOSED as decided for the container; same class OPEN for names resolved through it (R18-N1)",
+     "code": "flatten_purge.rs:665-682 (mark(r.num, false), certain parameter gone), :708",
+     "test": "tests/flatten_r13.rs:780-793 painted_source_placed_as_a_resources_value_is_reported (image as page two's /Resources value; image as the /Resources value of a drawn form) with the annotation-appearance control (:756-775); at fcda5f6 mark(.., certain) kept 10 certain, painted_sources_kept [] != [10]: fails if reverted",
+     "mutant": "Ma (lane notes.remediation_R17pre.red_proofs): FAIL"
+    },
+    {
+     "item": "R17-P1 site 2: the Ref value of a gated key (/XObject 10 0 R, /ExtGState 10 0 R)",
+     "status": "CLOSED as decided for the container; same class OPEN for names resolved through it (R18-N1)",
+     "code": "flatten_purge.rs:672-675 (mark(r.num, false))",
+     "test": "tests/flatten_r13.rs:798-807 painted_source_placed_as_a_gated_sub_dictionary_is_reported (/XObject and /ExtGState values, content '' so no Do or gs goes through the container); fails at fcda5f6",
+     "mutant": "Mb: FAIL"
+    },
+    {
+     "item": "R17-P1 site 3: appearance values pushed certain with no type check",
+     "status": "CLOSED (stronger than the pre-review asked: certain only for a form XObject that a viewer draws)",
+     "code": "flatten_purge.rs:854-875 (shown && form(..)), :929-931 (u.push(ap, form))",
+     "test": "tests/flatten_r13.rs:812-846 (image as /AP /N state value, as the /N stream, as an /AP /D state value; a shading as a state value); fails at fcda5f6",
+     "mutant": "Mc and Mg (weaker 'unless an image' wording) FAIL"
+    },
+    {
+     "item": "R17-P1 kind rule (lead addition): a draw is certain only for the kind the operator draws",
+     "status": "CLOSED for the Do/sh/scn/gs/Tf targets and for image masks, pattern shading and soft-mask group; residual R18-N2 (kind of the stream READ as content) and R18-N3 (Kind::Plain conflates ExtGState and Type 3 font)",
+     "code": "flatten_purge.rs:554-626 (Kind, kind_of, draws, rendered_with), :788",
+     "test": "tests/flatten_r13.rs:973-1022 painted_source_named_where_it_is_not_drawn_is_reported (Tf/gs/sh/scn naming the image, /SMask /G is the image, pattern /Shading is the image, image /SMask is a form); fails at fcda5f6",
+     "mutant": "Md, Mf: FAIL"
+    },
+    {
+     "item": "R17-P2: DESCRIPTOR draw list narrower than the code",
+     "status": "CLOSED (lib.rs:95 purge now lists Do, sh, scn/SCN, gs, Tf, the nested content of forms, patterns, soft-mask groups and Type 3 glyph procedures, the kind per operator, the appearance rule, the image /SMask /Mask, pattern /Shading, soft-mask /G; the draw-side test is cited)",
+     "code": "src/lib.rs:95; DESCRIPTOR JSON parsed at fcda5f6 and bcc0688: 15 top-level keys each, only redaction.flatten.painted_over and redaction.flatten.purge differ",
+     "test": "tests/flatten_r13.rs:1062-1109 descriptor_names_the_painted_source_kept_by_reference_case (needles :1064-1085 incl. the draw list :1070, 12 cited tests checked to exist :1089-1103)",
+     "mutant": "pin test fails if a needle is reverted (lane red proof)"
+    },
+    {
+     "item": "V-1 (validator note): a name defined in a nearer and a farther dictionary of the chain made BOTH targets certain",
+     "status": "CLOSED (the nearest entry is certain, the others are followed plain); model assumption in O-2",
+     "code": "flatten_purge.rs:733-737 (lookup returns all, nearest first), :781 enumerate(), :788 nearest == 0",
+     "test": "tests/flatten_r13.rs:1032-1057 painted_source_shadowed_by_a_nearer_resource_entry_is_reported (two-branch tree, node 21 lists /Im1 as the region image, page two's own /Im1 shadows it; control /Ib silent); fails at fcda5f6",
+     "mutant": "Me: FAIL"
+    },
+    {
+     "item": "R17b /AS: state dictionaries drew every state",
+     "status": "CLOSED (only the state the annotation's /AS names; none when /AS is missing or names no state)",
+     "code": "flatten_purge.rs:862, :867-869",
+     "test": "tests/flatten_r13.rs:855-892 painted_source_in_an_appearance_a_viewer_does_not_draw_is_reported (unselected N/R/D state, no /AS, /AS naming no state reported; selected N and R state silent)",
+     "mutant": "Mh, Mi: FAIL"
+    },
+    {
+     "item": "R17b /F: Invisible, Hidden and NoView annotations drew",
+     "status": "CLOSED (mask 0b10_0011 = bits 1, 2, 6; as_int accepts an integral real, so /F 2.0 reads as Hidden: syntax.rs:76-82)",
+     "code": "flatten_purge.rs:861",
+     "test": "same test: /F 1, 2, 32, 6 and 'Hidden over a selected state' reported; /F 4 and /F 4 with a selected state silent",
+     "mutant": "Mj, Mk, Ml, Mm: FAIL"
+    },
+    {
+     "item": "R17c /OC: optional content counts as possibly hidden (fail-closed, no evaluation)",
+     "status": "CLOSED for the routes named (annotation /OC, object /OC, BDC /OC marked content with nesting across streams); checked beyond the test: the tag is the decoded first operand (syntax.rs:324-337 decodes #xx in names, content.rs:413 and :466 force BDC = exactly a name plus a name or dictionary, so a stray operand fails the strict parse and the scope is all-used, plain); the stack is declared once per scope outside the stream loop (:749) so it carries across streams; a form drawn inside BDC /OC is read plain, a form with its own Resources becomes a plain scope (:790-791 follow); an unbalanced BDC fails closed, an extra EMC pops nothing",
+     "code": "flatten_purge.rs:577-579, :749, :763-771, :788, :861",
+     "test": "tests/flatten_r13.rs:902-966 painted_source_under_optional_content_is_reported (8 reported, 7 silent cases incl. /O#43, nested BMC closed before the draw, BDC and EMC in different streams); fails at fcda5f6",
+     "mutant": "Mn, Mo, Mp, Mq, Mr, Ms, Mt: FAIL"
+    }
+   ],
+   "new_findings": [
+    {
+     "id": "R18-N1",
+     "severity": "CONFIRMED",
+     "kind": "shipped claim wider than the code (V4-07 class; R17-P1 class 'a position is not a draw'; lead decision 2026-10-12T02:06:32Z 'the nearest resource entry'): a STREAM is accepted wherever a dictionary is read, so a painted source named by a key of a stream that sits where a resource dictionary, a category sub-dictionary, an /SMask dictionary or /CharProcs belongs is made certain by the name lookup. The R17 closures mark such a container reached (plain) but still resolve names THROUGH it.",
+     "file_line": "src/flatten_purge.rs:669 (Usage::resources: res(..).as_dict()? returns the dictionary of a Stream), :735-737 (Usage::lookup: d.get(cat).map(res).and_then(Object::as_dict) then get_key(name)), :724 (all_used), :550-552 (smask_group: the /SMask value), :709-711 and :806-811 (the /CharProcs value); src/syntax.rs:99-105 (Object::as_dict returns Stream.dict); consumers :781-790 (drawn -> push(.., true)) and :990 (reported = painted AND live AND NOT certain). Claims contradicted: flatten_purge.rs:78-81 ('a position is not a draw ... an image placed as a kept page's /Resources value, as a gated sub-dictionary such as /XObject 10 0 R ... is reached, not certain'), :64-67 (the name resolves to the nearest entry of its category in the scope's resource chain), lib.rs:95 DESCRIPTOR redaction.flatten.purge ('a name resolves to the nearest entry of its category in the resource chain', 'an object used as a /Resources value, as a gated sub-dictionary') and painted_over.",
+     "evidence": "Reasoned from the code at bcc0688, not executed. Document = the shape of the lane's own painted_doc_with('inherited', ..): page one draws image 10 as /Im1 and is flattened, so 10 is a source. Crafted: the dictionary of image 10 also holds the key '/Im1 10 0 R' (or a decoy stream 20 holds '/Im1 10 0 R'); kept page two has '/Resources << /Font << /F1 6 0 R >> /XObject 10 0 R >>' (decoy: '/XObject 20 0 R') and content 'q 10 0 0 10 400 100 cm /Im1 Do Q'. Page scope (drop_painted_sources :924-945): resources() :665 marks the Resources dictionary; the gated key /XObject has a Ref value, so :674 mark(10, false) (reached, plain: this is the R17 closure). read_scope :772-780 maps Do to ('XObject', /Im1); lookup :735-737 takes d.get('XObject') = Ref 10, res() resolves it to the Stream, as_dict() (syntax.rs:99-105) returns the stream's dictionary and get_key('Im1') returns Ref 10; nearest == 0, kind_of(10) = Kind::Image (:574-598), draws('XObject', Image) true (:602-609), marked empty, scope certain => drawn :788 => push(10, true) :790 => 10 is in certain. 10 is live (page two /Resources -> /XObject -> 10) and certain, so :990 does not report it: painted_sources_kept stays empty, region_flattened() (sanitized_save.rs:1400-1407, unchanged) reads true, the image bytes stay in the file. Same through the other as_dict reads: a page /Resources value that is a stream holding '/XObject << /Im1 10 0 R >>' (:669); a gs whose /SMask value is a stream holding '/G 10 0 R' with 10 a form (smask_group :550-552 -> rendered_with :623 -> push :797); a /CharProcs value that is a stream. A viewer reads these four from dictionary objects; a stream there is no resource dictionary (viewer behaviour for a stream in that position UNVERIFIED in this session: pdf.js and poppler are expected to ignore it, mupdf may read the stream's dictionary; the text proof's own Do resolution accepts the same stream-as-dictionary, show_text.rs:766-775, which is the safe direction for reading text (it reads more) and the unsafe direction for 'certain'), and the lane's own rule is that a position is not a draw and that fail-open residuals are not accepted. The R17 tests put the image itself in the container and issue no Do or gs through it: tests/flatten_r13.rs:780-807 pass content '' (:782, :804) or a form whose content only paints a rectangle (:783), so a mutant that restores the stream-as-dictionary read in lookup survives every test read. The V4-06 regex (notes.remediation_R17pre) cannot list these sites (Object::as_dict reads are not among its tokens), so the 41 recount does not cover the class.",
+     "remediation": "Accept only Object::Dict (never Object::Stream) in Usage::resources, Usage::lookup, Usage::all_used, smask_group and the two /CharProcs reads (one helper plain_dict(o) = match Object::Dict); a stream placed there stays marked reached (plain) as today. Tests: the three R17 tests re-run with one more key and one draw: image 10 carries '/Im1 10 0 R' and page two draws /Im1 (page '/Resources 10 0 R' with an /XObject key in 10, '/XObject 10 0 R', a decoy stream 20 as /XObject value, a gs through a stream /SMask value); expected painted_sources_kept == [10], PaintedSourceKept among the reasons, bytes stay; control: the same draw by an annotation appearance form stays silent. Add the dictionary reads to the V4-06 class regex and re-list."
+    },
+    {
+     "id": "R18-N2",
+     "severity": "CONFIRMED",
+     "kind": "shipped claim wider than the code (V4-07 class; V4-06 class 'a draw whose target is not the kind that draw needs', applied to the stream that is READ as content): any stream with /Resources becomes a content scope, whatever it is, and a scope seeded by a drawn object is certain; the bytes of an image, mesh-shading or mask stream are therefore parsed as a content stream and their Do/sh/scn/gs/Tf targets are made certain, though no viewer executes image data",
+     "file_line": "src/flatten_purge.rs:700 (own_scope = (stream || type3) && d.get('Resources').is_some(): no kind check, no image exclusion), :707-717 (Scope { streams: [n], chain: [rd], certain } with the certain flag of the push), :759-762 (read_scope decodes the stream with decode_stream and parses it with parse_strict), :788-790 (its draws are pushed certain); objects of kind Image or Shading reach it via :790 (Do image, sh) and :797 (rendered_with image masks, shading); src/filters.rs:119-163 (no /Filter: the raw bytes are returned); src/content.rs:130-136. Claims contradicted: flatten_purge.rs:64-68 and lib.rs:95 purge ('the content of what it draws in turn (forms, patterns, soft-mask groups, Type 3 glyph procedures)'), the crate's own content-role rule src/show_text.rs:1042-1057 ('any other non-image stream that carries /Resources': an image with /Resources is NOT content), V4-06 row ':715 draw, derived (the scope of a stream or Type 3 font is certain only when the object itself was drawn)' in notes.remediation_R17pre (classed without a check of what the stream is). Not covered by any test: no test image, shading or mask carries /Resources (read tests/flatten_r13.rs).",
+     "evidence": "Reasoned from the code at bcc0688, not executed. Kept page two: '/Resources << /Font << /F1 6 0 R >> /XObject << /Im2 20 0 R >> >>', content 'q 10 0 0 10 400 100 cm /Im2 Do Q BT /F1 12 Tf 72 700 Td (Page two) Tj ET'; 20 = '<< /Type /XObject /Subtype /Image /Width 6 /Height 1 /ColorSpace /DeviceGray /BitsPerComponent 8 /Resources << /XObject << /A 10 0 R >> >> >>' with the 6 data bytes '/A Do ' (a 6x1 grey image to every viewer); 10 = the region image of flattened page one. read_scope :788-790 push(20, true) (image, nearest, no /OC, certain scope); drain traverse(20, true) :687: stream = true, own_scope = true (:700), resources(rv) :708 returns the direct dictionary, Scope { streams: [20], chain: [that dictionary], certain: true } :715. drain :838-842 read_scope([20], .., true): decode_stream returns the raw bytes (no /Filter), parse_strict accepts '/A Do' (content.rs:403 Do = one name operand), lookup('XObject', 'A') = Ref 10 (the direct sub-dictionary of 20's /Resources), kind Image, drawn = true, push(10, true) :790 => certain. 10 is live through 20's /Resources and certain, so :990 does not report it; region_flattened() reads true; the bytes of 10 stay. Variants with the same seed: a mesh shading stream (ShadingType 4-7, Kind::Shading) drawn by sh with /Resources; the /SMask or /Mask image of a drawn image carrying /Resources (rendered_with :621 -> push :797 certain). The proof pipeline reads such an image as a stray stream that tokenizes (show_text.rs:551-575), which adds no NotProven reason for a content of only 'Do'. The soft-mask group read at :802-805 is NOT counted here: pdf.js draws any stream behind /SMask /G (show_text.rs:1076-1077).",
+     "remediation": "In traverse, make the scope certain flag true only for the three content roles of show_text.rs:1047-1105: a form XObject (/Subtype /Form), a tiling pattern (/PatternType 1) and a Type 3 font (its /CharProcs); any other stream with /Resources (image, mesh shading, mask, unknown) gets no scope or a scope with certain = false (mirror show_text.rs:1057 'own.is_some() && !image'). Cheapest fail-closed form: Scope { certain: certain && content_role }. Tests: page two draws image 20 above and a mesh-shading stream 22 via sh, each with a /Resources naming 10 (expected painted_sources_kept == [10]); control: a real form 21 with the same /Resources stays silent. Re-list V4-06 :715 as 'fixed' with the kind check."
+    },
+    {
+     "id": "R18-N3",
+     "severity": "CONFIRMED",
+     "kind": "shipped claim wider than the code (lead decision 2026-10-12T02:06:32Z 'an executed draw of the right kind'): operators that only SELECT (Tf, scn/SCN, gs) count as draws, and every glyph procedure of a selected Type 3 font is read as drawn although no text-showing operator runs; this is the Type 3 edge R17-P3 recorded as an untested INFO. Decision-dependent: if the lead keeps selection as a draw it must be stated as a residual",
+     "file_line": "src/flatten_purge.rs:772-779 (Tf, scn/SCN, gs mapped to draw targets; read_scope tracks no text-showing or painting operator), :788-790 (drawn -> push(.., true)), :806-811 (Type 3 font without /Resources: every /CharProcs entry becomes inner content read with drawn), :700 and :709-717 (Type 3 font with /Resources: a scope over every /CharProcs entry, certain = the push flag), :796-799 (gs: the /SMask /G form pushed certain), :602-609 (draws(): both gs and Tf accept Kind::Plain, so a Type 3 font dictionary is a certain draw target of gs under /ExtGState and an ExtGState dictionary of Tf under /Font). Claims contradicted: flatten_purge.rs:31-33 and :64-68, sanitized_save.rs:186-207, lib.rs:95 painted_over ('unless a kept page ... draws them'). tests/flatten_r13.rs has no Type 3 case and no SCN spelling (R17-P3 still open).",
+     "evidence": "Reasoned from the code at bcc0688, not executed. Kept page two '/Resources << /Font << /F1 6 0 R /F3 50 0 R >> >>', content 'BT /F3 12 Tf ET' (no Tj or TJ); 50 = '<< /Type /Font /Subtype /Type3 /FontBBox [0 0 1 1] /FontMatrix [1 0 0 1 0 0] /CharProcs << /a 51 0 R >> /Encoding << /Type /Encoding /Differences [97 /a] >> /FirstChar 97 /LastChar 97 /Widths [1] /Resources << /XObject << /Im1 10 0 R >> >> >>'; 51 = stream '1 0 d0 q 1 0 0 1 0 0 cm /Im1 Do Q'. Tf (:776) -> lookup Font /F3 = 50, kind_of Plain (not a stream, no OC), draws('Font', Plain) true, drawn => push(50, true) :790; traverse(50, true): type3 && Resources => Scope { streams: [51], certain: true } :715; read_scope reads 51: Do /Im1 => lookup => 10, drawn, push(10, true). 10 is certain and live (through 50's /Resources), not reported, region_flattened() true. No text is shown, so no viewer runs glyph procedure 51; the same holds for every glyph code that no show operator uses, because /CharProcs lists every glyph of the font. Also: gs naming that dictionary under /ExtGState (kind Plain is accepted by draws('ExtGState')) runs the same scope; scn/SCN naming a tiling pattern that nothing then paints and gs setting a soft mask that nothing then paints are treated as draws (rendered_with :796-799 pushes the soft-mask group certain). The lead's rule is an executed draw; selection is not one (for text: the show operators), exactly as the lead closed the unselected /AS states in R17b. R17-P3 recorded this edge as INFO because it looked consistent; it is a fail-open route, not only a coverage gap.",
+     "remediation": "Either (a) fail closed: read Type 3 glyph procedures (:709-717, :806-811) with certain = false unless the scope shows text after the Tf (a text-showing operator before the next Tf or ET), and treat scn/SCN and gs as draws only when a painting operator follows (over-reporting a Type 3 font that draws an XObject is acceptable per the lead); or (b) if the lead keeps selection as a draw, state it in flatten_purge.rs:64-68, sanitized_save.rs:186-207 and lib.rs:95 as a stated residual ('a Type 3 font selected by Tf counts as drawing every glyph procedure, shown or not'). In both: draws('ExtGState') must refuse a dictionary with /Subtype /Type3 and draws('Font') must refuse a dictionary with /Type /ExtGState (Kind::Plain conflates them). Tests: the Tf-only trace above (reported), the same with a Tj after the Tf (silent), gs naming a Type 3 dictionary (reported), the SCN spelling (closes R17-P3)."
+    }
+   ],
+   "observations": [
+    {
+     "id": "R18-O1",
+     "severity": "PLAUSIBLE",
+     "kind": "annotation appearances a viewer may not draw, outside the three lead rules",
+     "file_line": "src/flatten_purge.rs:854-875",
+     "evidence": "/AP /R and /AP /D streams count as drawn although a viewer shows them only on interaction (accepted by the lead in R17b and tested at tests/flatten_r13.rs:625-647); annotation subtypes whose /AP a viewer does not draw (Popup; Link in some viewers) are certain when a kept page lists them and none of /F bits 1, 2, 6, /AS, /OC applies. Viewer behaviour UNVERIFIED in this session; not counted.",
+     "remediation": "Lead decision whether the subtype matters; fail-closed option: certain only for /N."
+    },
+    {
+     "id": "R18-O2",
+     "severity": "INFO",
+     "kind": "resource-chain model assumption",
+     "file_line": "src/flatten_purge.rs:733-737, :932-942; DESCRIPTOR purge residual ('pdf.js merges ancestor resources, ISO 32000 does not')",
+     "evidence": "A name found only in an ancestor's category sub-dictionary is drawn (certain) even when the kept page's own /Resources holds that category without the name; ISO does not inherit when the page has /Resources, and pdf.js is believed to merge at the top-level key (UNVERIFIED), so a name only an ancestor lists may draw nothing. Same two-branch shape as the V-1 test; documented model, not counted.",
+     "remediation": "None required; optional: treat a name as resolved only through the first dictionary of the chain that has the category."
+    },
+    {
+     "id": "R18-O3",
+     "severity": "INFO",
+     "kind": "false alarms (fail-closed, not counted)",
+     "file_line": "src/flatten_purge.rs:751-753 (the per-scope seen set), :781-791",
+     "evidence": "A form without /Resources drawn first inside BDC /OC (read plain) and then outside it is not re-read as certain (the per-scope seen set), so what it draws is reported although it is drawn; a form without /Subtype /Form, a gs /Font selection, a shading pattern /ExtGState, widget /MK icons, page /Thumb, image /Alternates and form /PieceInfo are reported by design (lane residuals (2), (3)). Nothing is dropped from the file by these.",
+     "remediation": "None."
+    },
+    {
+     "id": "R18-O4",
+     "severity": "INFO",
+     "kind": "lane-note drift (kernel notes, not product)",
+     "file_line": "builders/lanes/notes-batch-1.json notes.remediation_R17pre (press.docs, r17b.v4_06, r17c.v4_06)",
+     "evidence": "r17b and r17c list sanitized_save.rs:866 as 'unchanged'; the site is :869 at a92310f and :871 at bcc0688 (git grep per commit); press.docs says the pin test checks 'all nine cited tests', it checks 12 at bcc0688. The 41 count and the per-class line numbers of flatten_purge.rs are exact.",
+     "remediation": "Correct the two numbers when the notes are next edited."
+    },
+    {
+     "id": "R18-O5",
+     "severity": "INFO",
+     "kind": "shared edit tree is not clean outside the press crate",
+     "file_line": "wt-studio-assets: crates/hsk-studio-score (9 files), Cargo.lock (16 changed lines, third-party version bumps)",
+     "evidence": "git status shows uncommitted edits in another lane's crate and in Cargo.lock; none in hsk-studio-press (git diff HEAD over the crate is empty). A round must build the committed export, not this tree.",
+     "remediation": "None for this lane."
+    }
+   ],
+   "checks": {
+    "a_range": "git fetch done (only origin/codex/handpick moved: c6c993d..0871701, no commit of it touches any crate). git log fcda5f6..HEAD = exactly the six press commits; git diff --name-only fcda5f6 bcc0688 = four press files (src/flatten_purge.rs, src/lib.rs, src/sanitized_save.rs, tests/flatten_r13.rs, +563/-54), no Cargo.toml, Cargo.lock, .config or other-crate file; HEAD == local == origin/codex/handshake-studio-assets == bcc0688; git log --all --not bcc0688 -- handshake-studio-assets/crates is empty (nothing after bcc0688 on any ref touches any crate).",
+    "c_reached_and_pruning_unchanged": "YES by reading the flatten_purge.rs delta (202 lines changed, code and docs): resources() and read_scope() only change the certain flag of what they mark or push (mark(.., false) still inserts into reached; a non-drawn target is follow()ed, which pushes it plain, so the same references are reached; plain_done keyed by dictionary only removes a duplicate traversal); appearance_streams() returns the same objects with a drawn flag; drop_painted_sources computes gone (:966) from reached, prune_gated (:995-1028) and everything after are outside the diff. certain only shrinks against fcda5f6, so painted_sources_kept can only grow (fail-closed).",
+    "c_flatten_invariant_and_region_flattened": "UNCHANGED. sanitized_save.rs diff = two doc-comment hunks (:186-207, :1319-1340); region_flattened() :1400-1407 and region_reasons() :1372-1390 are untouched; flatten.rs, render_bounds.rs, canon.rs, redaction.rs, writer.rs are not in the diff; the redact_and_save order (:1489-1500) is unchanged.",
+    "c_docs_and_descriptor": "DESCRIPTOR JSON parsed at fcda5f6 and bcc0688 (desc.py): 15 top-level keys each, only redaction.flatten.painted_over and redaction.flatten.purge differ. The new text matches the code for the lead's R17b/R17c rules (/AS, /F bits, /OC, BDC /OC through its EMC across streams, nearest entry, kind per operator, image /SMask /Mask, pattern /Shading, soft-mask /G form), and every one of the 12 cited tests exists as a fn in tests/flatten_r13.rs (:488, :553, :579, :606, :673, :780, :798, :812, :855, :902, :973, :1032) and is asserted by the pin test (:1089-1103). The headline claim 'silent only when a kept page DRAWS it' (flatten_purge.rs:31-33, sanitized_save.rs:186-207, lib.rs:95) is wider than the code for R18-N1, R18-N2, R18-N3. V4-07: the changed keys hold the same counts of never, always, guarantee, prove as at fcda5f6 (0, 0, 0 and 1 in both, the 1 being NotProven in an identifier); no added src or test line carries the words (the one scan hit is the rewritten one-line DESCRIPTOR constant, whose other keys are unchanged).",
+    "c_v4_06_recount": "git grep -n -E over crates/hsk-studio-press/src at bcc0688 with the lane's regex (u.push(, self.push(, self.mark((n|r.num),, .follow(, .resources(, Scope {, certain: true, trailer_roots(, rendered_with(, kind_of(, draws(, appearance_streams() plus the tokens marked. and marked: = 41 hits (canon.rs 1, flatten_purge.rs 35, redaction.rs 1, sanitized_save.rs 1, text_fields.rs 1, writer.rs 2); 37 without the two marked tokens, also 37 at a92310f. Every flatten_purge.rs line the lane lists (16 fixed, 5 draw, 8 plain, 3 mechanism, 3 liveness there, 9 liveness in all) is a real hit and the classes sum to 41. The count is exact, but the class regex cannot see the dictionary reads of R18-N1 and the classification of :715 ('draw, derived') rests on the unchecked premise of R18-N2 (the R17-P1 failure mode again: a 'not applicable' or 'derived' row whose object-type premise is not checked).",
+    "c_drive_letters": "0 of 563 added lines (press.diff, scan.py) contain a letter followed by a colon and a backslash or slash.",
+    "d_tests_fail_if_reverted": "Read each R17 test against the fcda5f6 code: all seven behavioural tests (resources value, gated sub-dictionary, appearance state, named where not drawn, shadowed, appearance not drawn, optional content) expect painted_sources_kept == [10] (or [11], [13]) where the old code left it empty, and the DESCRIPTOR pin fails without the new needles; the lane's red proofs C4/C7 and mutants Ma-Mg, Mh-Mm, Mn-Mt agree with that reading. Not covered by any test or mutant: Type 3 or SCN or gs-without-painting (R18-N3), image or shading streams with /Resources (R18-N2), names resolved through a stream (R18-N1).",
+    "b_adversarial_routes_checked": {
+     "other_appearance_keys_and_MK": "only /AP /N /R /D is read (:863); /MK, /IF, /Popup, /AF, /Parent are reached by follow() (plain): reported, not certain (false alarm direction)",
+     "widget_parent_field_appearances": "a field's /AP is not read (appearance_streams uses the listed annotation's own /AP); the field is reached plain: reported",
+     "type3_charprocs_drawing_an_image": "FINDING R18-N3 (every glyph procedure is read as drawn once Tf selects the font, no show operator needed)",
+     "group_of_a_drawn_form": "the /Group dictionary is not a stream and is followed plain: not certain",
+     "smask_in_extgstate_drawn_via_a_form": "a drawn form with /Resources is a scope with certain = true, its gs pushes the /SMask /G form certain only if it is a Form (:623, :796-799); under BDC /OC drawn = false so the group is followed plain; OK except R18-N1 (stream /SMask value) and R18-N3 (gs without painting)",
+     "inline_images": "canonicalize turns inline images into image XObjects before drop_painted_sources (content.rs docs, canon.rs); an inline image names no XObject; no route",
+     "do_inside_a_pattern_cell": "tiling pattern with /Resources is a scope with certain = flag of the scn push (:700-717); without /Resources it is read in the caller's chain with drawn (:800-801, :820); OK except R18-N2 (kind of the stream) and R18-N3 (scn without painting)",
+     "shading_in_a_pattern_drawn_under_OC": "rendered_with runs only when drawn (:795-799); under BDC /OC the pattern is followed plain and its /Shading is reached through traverse follow(): reported. OK",
+     "marked_content_nesting_across_streams": "stack declared outside the stream loop (:749); BMC pushes false, BDC pushes tag == OC, EMC pops (:763-771); a form read via inner or as a scope starts its own stack; OK",
+     "bdc_oc_via_properties_name": "only the first operand (the tag) decides; the property list or name is ignored, so /OC /MC0 BDC and /OC << .. >> BDC are both hidden; OK",
+     "escaped_names": "Lexer::parse_name decodes #xx in operand names and in dictionary keys (syntax.rs:324-337); duplicate keys are merged last-wins at parse (syntax.rs:294-316); resource names, /Subtype and the BDC tag compare decoded bytes; OK",
+     "annotation_flag_forms": "/F read through res() and as_int, which accepts an integral real (syntax.rs:76-82): /F 2.0 is Hidden; a non-integral real is shown (viewer behaviour for that case UNVERIFIED); OK"
+    }
+   },
+   "wip_after_ready": "NONE for the press crate. All six commits are in notes-batch-1.json commits[]; lane status READY_FOR_VALIDATION, updated_at 2026-10-12T02:26:11Z is after bcc0688 (committed 2026-10-12T02:22:12Z); origin == local == bcc0688 with nothing after on any ref; git diff HEAD over crates/hsk-studio-press is empty. Uncommitted edits exist only in hsk-studio-score and Cargo.lock (another lane; R18-O5).",
+   "recommendation": "FIX_FIRST",
+   "recommendation_note": "The six commits close R17-P1 (three sites and the kind rule), R17-P2, V-1, /AS, /F and /OC exactly as decided, each with a test that fails on the old code, with reached/pruning, the flatten invariant and region_flattened() unchanged and the 41 V4-06 recount exact. What remains is the same failure class one level up: the rule 'silent only when a kept page draws it' still has three type-blind exceptions in the code the diff touches or leaves around it, all reachable by a crafted document and all leaving a region image silent with region_flattened() true: names resolved through a stream used as a dictionary (R18-N1), the bytes of an image or shading stream read as content (R18-N2, the least viewer-dependent), and select-only operators (Tf of a Type 3 font) read as draws (R18-N3, decision-dependent). R18-N2 contradicts the crate's own content-role rule (show_text.rs:1057). Each fix is small and fail-closed (plain dictionaries only; scope certainty only for form, tiling pattern, Type 3; Type 3 plain unless text is shown). If the lead prefers to judge as is, R18-N1 and R18-N3 can be stated as residuals in the docs and DESCRIPTOR, but R18-N2 should be fixed because no viewer runs image data as content."
+  }
+ ],
+ "process_notes": [
+  "V4-18: this file supersedes the SMB-PRESS section of validation/R17-prereview-press-psd-narrow.json (delta fcda5f6..bcc0688); the interop-psd section of that file is unaffected (no commit to that crate in the range). A fix commit for R18-N1/N2/N3 counts as a press push (V4-14: list it in the lane).",
+  "Candidate-binding: press changed after its last PASS; the round must rebuild it (CX-VAL-009).",
+  "Helper scripts and file extracts are under the reviewer's scratchpad folder R18-prereview-press-narrow (desc.py, scan.py, build_r18.py, press.diff, *_bcc0688.rs), written and run by this reviewer only (V4-12).",
+  "No cargo, no build, no test run, no process stopped, no edit outside this file."
+ ]
+}

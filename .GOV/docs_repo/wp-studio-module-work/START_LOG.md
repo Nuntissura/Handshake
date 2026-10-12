@@ -316,6 +316,8 @@ Workflow v3 amendments (2026-10-11T02:12:42Z, source workflow/workflow-review-ti
 
 - Lead decision 2026-10-12T02:06:32Z (press R17 remediation 20510c5): certainty requires an executed draw of the right kind from the nearest resource entry; annotation appearance states are certain only for the state the viewer draws (/AS-selected; none when /AS is absent or names a missing state) and never for hidden/invisible/noview annotations (/F bits 1, 2, 6). Fail-open residuals are not accepted.
 
+- Lead decision 2026-10-12T02:48:02Z (press R18 narrow pre-review N1-N3 after R16/R17 rounds of edge cases in the 'certain' computation): MINIMAL DRAW SET. A surviving painted region source is silent ONLY when it is an image XObject drawn by `Do` directly in a kept page's own content stream(s) (not inside a form, pattern, Type 3 glyph, annotation or shading), resolved through that page's own nearest /Resources /XObject entry where every container on the path is a dictionary (never a stream), and outside any optional content (no /OC on the image, no enclosing BDC /OC). Every other surviving painted region source is reported NotProven::PaintedSourceKept. Over-reporting is accepted; it keeps the common case (an image also shown on a kept page) silent while removing the certainty attack surface. reached/pruning, the flatten invariant and region_flattened() unchanged.
+
 Open Operator decisions (not adopted; recorded for the Operator):
 - D1: explicit confirmation that builder focused tests override CX-EXEC-014 for this WP (lead adopted on the basis of Operator instructions; Operator may reverse).
 - D2: waive CX-984-002 one-build-per-disk for D: (would let validator rounds and builders build in parallel on separate targets).
