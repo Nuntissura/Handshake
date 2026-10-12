@@ -314,6 +314,8 @@ Workflow v3 amendments (2026-10-11T02:12:42Z, source workflow/workflow-review-ti
 
 - Lead decision 2026-10-12T01:05:36Z (press R16 pre-review P-1): a painted region source that survives in a redaction output is 'certain' only when a kept page actually draws it (executed content); every other surviving reference (undrawn kept-page /Resources entry, plain key of a drawn object, catalog /AF /Names /Dests, trailer roots) is reported NotProven::PaintedSourceKept or pruned; docs state exactly that.
 
+- Lead decision 2026-10-12T02:06:32Z (press R17 remediation 20510c5): certainty requires an executed draw of the right kind from the nearest resource entry; annotation appearance states are certain only for the state the viewer draws (/AS-selected; none when /AS is absent or names a missing state) and never for hidden/invisible/noview annotations (/F bits 1, 2, 6). Fail-open residuals are not accepted.
+
 Open Operator decisions (not adopted; recorded for the Operator):
 - D1: explicit confirmation that builder focused tests override CX-EXEC-014 for this WP (lead adopted on the basis of Operator instructions; Operator may reverse).
 - D2: waive CX-984-002 one-build-per-disk for D: (would let validator rounds and builders build in parallel on separate targets).
