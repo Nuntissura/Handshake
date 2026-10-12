@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-12T01:26:01Z",
+ "updated_at": "2026-10-12T01:26:36Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3251,9 +3251,9 @@
   "at": "2026-10-11T19:13:24Z",
   "for_takeover": "read START_LOG.md (operator-instructions, repo-rules, cargo-tooling, lead decisions, D1-D27), builders/DISPATCH_TEMPLATES.md (builder/validator/v4-rules incl. V4-21), this ledger (lanes, round_R11 latest), team.json, validation/ (rounds + pre-reviews)",
   "steps": [
-   "1. In flight: SMB-PIGMENT-NOTES and SMB-NOTES-BATCH-1 (Sonnet).",
-   "2. After both land: one narrow Sonnet V4-13 pre-review covering the touched two-FAIL-history crates (press, web, reel-native, interop-psd), then steward sync + canary + round R16 (validator + Sonnet reviewer), then refresh HANDOFF.md + a new snapshot.",
-   "3. Remaining after R16: PLR-077 (reel video.rs Forward partial end_pts; AV1-ROUTE area -> narrow pre-review), PLR-082 (render-gpu caller limits, after D20), PLR-063 (psd Folio ceiling), SMB-PRESS-GEOMETRY, SMB-FMT-SWEEP, STUDIO_MODULES.json status refresh (stale), app UI + Handshake integration (not started).",
+   "1. In flight: narrow pre-review of press f0be2ba + psd fcda5f6 (validation/R17-prereview-press-psd-narrow.json) and steward R17 sync + canary C22.",
+   "2. If SAFE: round R17 (validator only; review input = the pre-review) judging SMB-NOTES-BATCH-1, SMB-PRESS, SMB-PRESS-DIFFERENCES and reopens; then refresh HANDOFF.md + new snapshot.",
+   "3. Remaining after R17: PLR-077 (reel video.rs Forward), PLR-082 (render-gpu caller limits, after D20), PLR-063 (psd Folio ceiling), notes-batch residuals (config-OBU tag, exact-64 FRAME test, press prune, psd group-own-lfx2/zero-tile), SMB-PRESS-GEOMETRY, SMB-FMT-SWEEP, STUDIO_MODULES.json status refresh, app UI + Handshake integration (not started).",
    "4. Blocked on Operator: D20, D22-D26, D9, D17, D5, D13/STU-CON-044, repo-local 3.8 GB target, empty folder x at the C: root."
   ]
  },

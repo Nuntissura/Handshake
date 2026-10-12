@@ -1561,7 +1561,7 @@
     "builders/lanes/workspace-steward.json"
    ],
    "launched": "2026-10-11T11:58:46Z",
-   "status": "idle 2026-10-12T00:52:32Z (R16 candidate 5606d16; C21 exit 73 59/59)"
+   "status": "running 2026-10-12T01:26:36Z (R17 sync + canary C22)"
   },
   {
    "name": "research-reel-eng",
@@ -2318,6 +2318,17 @@
    ],
    "launched": "2026-10-12T01:05:36Z",
    "status": "done 2026-10-12T01:26:01Z (f0be2ba, fcda5f6)"
+  },
+  {
+   "name": "prereview-r17-press-psd",
+   "agent_id": "ab39068ff726f19a3",
+   "model": "sonnet",
+   "role": "narrow V4-13 pre-review press f0be2ba + psd fcda5f6",
+   "owns": [
+    "validation/R17-prereview-press-psd-narrow.json"
+   ],
+   "launched": "2026-10-12T01:26:36Z",
+   "status": "running"
   }
  ]
 }
