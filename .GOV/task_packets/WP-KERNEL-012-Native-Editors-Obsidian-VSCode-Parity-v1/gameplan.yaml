@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 627
+generation: 630
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -525,3 +525,6 @@ steps:
 - {id: GP-504, role: any, at: before_merge, do: 'confirm kernel publication preserves both histories, disjoint path trees and dirty bytes; product clean and pushed', check: {type: confirm}, source: 'infra: remote advanced during checkpoint commit; preserved two-parent reconciliation replaces FF-only GP501', state: retired}
 - {id: GP-505, role: any, at: before_merge, do: confirm kernel publication claims no product runtime; product integration requires current test and verdict proof, check: {type: confirm}, source: 'CX-GP003/007: scope GP502 from FF to preserved disjoint kernel publication', state: active}
 - {id: GP-506, role: any, at: before_merge, do: 'confirm kernel preserves histories, disjoint trees and dirty bytes; product merge requires clean pushed product', check: {type: confirm}, source: 'infra: kernel remote advanced; preserve owned product edits; prior add rejected120char limit before mutation', state: active}
+- {id: GP-507, role: builder, at: before_dispatch, do: verify all nine Round36 failed targets have stable root source release and renewed connected input bindings, check: {type: confirm}, source: Round36 FAILED101 126errors9targets; complete connected source repair reviewed and pushed b3e563f8, state: active}
+- {id: GP-508, role: builder, at: before_dispatch, do: record only actual launcher output PID and receipt identity after launch, check: {type: confirm}, source: Round36 message emitted tentative26264 before actual25224 output; retracted; never repeat tentative identity, state: active}
+- {id: GP-509, role: builder, at: before_round, do: verify routing consumers use authorized canonical records; preserve public navigation redaction, check: {type: confirm}, source: 'failure: Round37 canonical routing consumers used redacted DTO and resource error conversion missed storage adapter', state: active}
