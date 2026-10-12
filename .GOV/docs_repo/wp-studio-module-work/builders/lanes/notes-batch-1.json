@@ -631,6 +631,24 @@
         "idempotency_key": "STUDIO-R18:SMB-NOTES-BATCH-1:bfa1bbfce421:PASS_V1",
         "recorded_at": "2026-10-12T05:08:19Z",
         "by": "wp_validator STUDIO-R18"
+      },
+      {
+        "round": "STUDIO-R19",
+        "lane": "SMB-NOTES-BATCH-1",
+        "candidate": "fdc01f1b7ecb41496c3aa6473eba548f4248c9a7",
+        "tree": "578e7c41f9da2d7387d8bee1e0007ff6bf7a79be",
+        "decision": "passed",
+        "verdict": "PASS_V2",
+        "failures": [],
+        "remediation": null,
+        "status_after": "PASS_V2",
+        "review": "press: validation/R21-prereview-narrow.json lanes[0] SMB-PRESS-DOCS SAFE_TO_JUDGE at fdc01f1 (R21-P1 CONFIRMED doc-only = PLR-087; R21-P2/P3 INFO); interop-psd: validation/R21-prereview-narrow.json lanes[2] SMB-INTEROP-PSD-FOLIO-CEILING SAFE_TO_JUDGE at fdc01f1 (R21-S1 lead-accepted rule; R21-S2/S3 INFO = PLR-089); reel-native dependency diff (reel): validation/R21-prereview-narrow.json lanes[1] SMB-REEL-PARTIAL-PTS SAFE_TO_JUDGE at fdc01f1 (R21-R1 test-name note + R21-R2 INFO = PLR-088); web/reel-native crates: R16-prereview-notes-narrow SAFE (V4-18, unchanged since)",
+        "proof_reuse": "CX-VAL-002: web part = STUDIO-R16 union run @5606d16 (results/R16, web 138/138); proof commit 5606d16, candidate fdc01f1; web closure and root inputs unchanged",
+        "round_ref": "validation/round-R19.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R19",
+        "idempotency_key": "STUDIO-R19:SMB-NOTES-BATCH-1:fdc01f1b7ecb:PASS_V2",
+        "recorded_at": "2026-10-12T06:14:19Z",
+        "by": "wp_validator STUDIO-R19"
       }
     ]
   }

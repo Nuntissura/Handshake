@@ -62,6 +62,25 @@
   "residuals": [
    "R20-O3 (INFO, not in scope): DESCRIPTOR proof.region_cleared still says 'no painted source of an old page kept unread, painted_sources_kept empty'",
    "PLR-083 second half stays a residual: the control still pins the unbalanced BDC /OC inside a form as silent; viewers other than pdf.js are UNVERIFIED (no outbound research in this lane, V4-21)"
+  ],
+  "verdicts": [
+   {
+    "round": "STUDIO-R19",
+    "lane": "SMB-PRESS-DOCS",
+    "candidate": "fdc01f1b7ecb41496c3aa6473eba548f4248c9a7",
+    "tree": "578e7c41f9da2d7387d8bee1e0007ff6bf7a79be",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V1",
+    "review": "validation/R21-prereview-narrow.json lanes[0] SMB-PRESS-DOCS SAFE_TO_JUDGE at fdc01f1 (R21-P1 CONFIRMED doc-only = PLR-087; R21-P2/P3 INFO)",
+    "round_ref": "validation/round-R19.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R19",
+    "idempotency_key": "STUDIO-R19:SMB-PRESS-DOCS:fdc01f1b7ecb:PASS_V1",
+    "recorded_at": "2026-10-12T06:14:19Z",
+    "by": "wp_validator STUDIO-R19"
+   }
   ]
  }
 }

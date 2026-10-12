@@ -1304,6 +1304,24 @@
     "idempotency_key": "STUDIO-R17:SMB-FX-OPS-ADOPT:fcda5f6f1d54:PASS_V8",
     "recorded_at": "2026-10-12T01:48:53Z",
     "by": "wp_validator STUDIO-R17"
+   },
+   {
+    "round": "STUDIO-R19",
+    "lane": "SMB-FX-OPS-ADOPT",
+    "candidate": "fdc01f1b7ecb41496c3aa6473eba548f4248c9a7",
+    "tree": "578e7c41f9da2d7387d8bee1e0007ff6bf7a79be",
+    "decision": "passed",
+    "verdict": "PASS_V9",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V9",
+    "review": "NOT_REVIEWED as a lane; interop-psd diff: validation/R21-prereview-narrow.json lanes[2] SMB-INTEROP-PSD-FOLIO-CEILING SAFE_TO_JUDGE at fdc01f1 (R21-S1 lead-accepted rule; R21-S2/S3 INFO = PLR-089)",
+    "proof_reuse": "CX-VAL-002: composite, render-cpu, render-gpu parts = STUDIO-R16 union run @5606d16 (results/R16); proof commit 5606d16, candidate fdc01f1",
+    "round_ref": "validation/round-R19.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R19",
+    "idempotency_key": "STUDIO-R19:SMB-FX-OPS-ADOPT:fdc01f1b7ecb:PASS_V9",
+    "recorded_at": "2026-10-12T06:14:19Z",
+    "by": "wp_validator STUDIO-R19"
    }
   ],
   "r3_remediation": {

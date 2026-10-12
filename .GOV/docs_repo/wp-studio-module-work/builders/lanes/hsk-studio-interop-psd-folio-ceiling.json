@@ -283,6 +283,25 @@
   ],
   "not_done": [
    "no prefix-of-switched-off-instances variant (keeping as many switched-off instances as fit): dropping all of them matches the R10 decision and the stack renders the same"
+  ],
+  "verdicts": [
+   {
+    "round": "STUDIO-R19",
+    "lane": "SMB-INTEROP-PSD-FOLIO-CEILING",
+    "candidate": "fdc01f1b7ecb41496c3aa6473eba548f4248c9a7",
+    "tree": "578e7c41f9da2d7387d8bee1e0007ff6bf7a79be",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V1",
+    "review": "validation/R21-prereview-narrow.json lanes[2] SMB-INTEROP-PSD-FOLIO-CEILING SAFE_TO_JUDGE at fdc01f1 (R21-S1 lead-accepted rule; R21-S2/S3 INFO = PLR-089)",
+    "round_ref": "validation/round-R19.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R19",
+    "idempotency_key": "STUDIO-R19:SMB-INTEROP-PSD-FOLIO-CEILING:fdc01f1b7ecb:PASS_V1",
+    "recorded_at": "2026-10-12T06:14:19Z",
+    "by": "wp_validator STUDIO-R19"
+   }
   ]
  }
 }

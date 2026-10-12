@@ -111,6 +111,25 @@
   },
   "gameplan_route": "no retry-guard hit and no gameplan step added; the red-proof run exited 100 by design (a deliberate red on a scratch tree with its own owner, a product failure not an infrastructure cause) and was a different tree and command from every green run; every cargo call started with cd and defined variables after it (the launch-form cause recorded in the SMB-REEL-RECEIPTS lane)",
   "trust_routing_untouched": "git diff bfa1bbf..0c34342 -- crates/hsk-studio-reel lists exactly src/lib.rs (DESCRIPTOR text), src/video.rs and tests/video_route.rs; registry.rs, cache.rs, matroska.rs, isobmff.rs, model.rs and av1/* are not in it; in video.rs choose(), VideoRoute, Chosen, SourceTrust, VideoTrack, planes_match_format, within_declared_size, packed_len, Pump and every pre-existing error path are unchanged: the diff adds the field Forward::delivered_end, the fn picture_end, one three-line update after the sink call in Forward::accept and the assignment of actual.end_pts in the Partial branch",
-  "dependents": "no public item of hsk-studio-reel changed (the additions are a private field, a private fn and test code); hsk-studio-reel-native was not rebuilt in this lane; grep for end_pts and actual. over its src finds no read of a receipt span, so it cannot depend on the changed value"
+  "dependents": "no public item of hsk-studio-reel changed (the additions are a private field, a private fn and test code); hsk-studio-reel-native was not rebuilt in this lane; grep for end_pts and actual. over its src finds no read of a receipt span, so it cannot depend on the changed value",
+  "verdicts": [
+   {
+    "round": "STUDIO-R19",
+    "lane": "SMB-REEL-PARTIAL-PTS",
+    "candidate": "fdc01f1b7ecb41496c3aa6473eba548f4248c9a7",
+    "tree": "578e7c41f9da2d7387d8bee1e0007ff6bf7a79be",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V1",
+    "review": "validation/R21-prereview-narrow.json lanes[1] SMB-REEL-PARTIAL-PTS SAFE_TO_JUDGE at fdc01f1 (R21-R1 test-name note + R21-R2 INFO = PLR-088)",
+    "round_ref": "validation/round-R19.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R19",
+    "idempotency_key": "STUDIO-R19:SMB-REEL-PARTIAL-PTS:fdc01f1b7ecb:PASS_V1",
+    "recorded_at": "2026-10-12T06:14:19Z",
+    "by": "wp_validator STUDIO-R19"
+   }
+  ]
  }
 }

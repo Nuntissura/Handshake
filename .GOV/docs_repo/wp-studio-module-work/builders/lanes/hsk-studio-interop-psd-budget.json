@@ -660,6 +660,23 @@
     "idempotency_key": "STUDIO-R17:SMB-INTEROP-PSD-BUDGET:fcda5f6f1d54:PASS_V7",
     "recorded_at": "2026-10-12T01:48:53Z",
     "by": "wp_validator STUDIO-R17"
+   },
+   {
+    "round": "STUDIO-R19",
+    "lane": "SMB-INTEROP-PSD-BUDGET",
+    "candidate": "fdc01f1b7ecb41496c3aa6473eba548f4248c9a7",
+    "tree": "578e7c41f9da2d7387d8bee1e0007ff6bf7a79be",
+    "decision": "passed",
+    "verdict": "PASS_V8",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V8",
+    "review": "validation/R21-prereview-narrow.json lanes[2] SMB-INTEROP-PSD-FOLIO-CEILING SAFE_TO_JUDGE at fdc01f1 (R21-S1 lead-accepted rule; R21-S2/S3 INFO = PLR-089); two-FAIL lane (FAIL_V1 R9, FAIL_V2 R10): V4-13 met by the R21 narrow pre-review of the same diff",
+    "round_ref": "validation/round-R19.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R19",
+    "idempotency_key": "STUDIO-R19:SMB-INTEROP-PSD-BUDGET:fdc01f1b7ecb:PASS_V8",
+    "recorded_at": "2026-10-12T06:14:19Z",
+    "by": "wp_validator STUDIO-R19"
    }
   ],
   "remediation_R10": {

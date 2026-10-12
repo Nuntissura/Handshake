@@ -1,0 +1,806 @@
+{
+ "round": 19,
+ "round_id": "STUDIO-R19",
+ "round_opened": true,
+ "rule_refs": [
+  "CX-VAL-001",
+  "CX-VAL-002",
+  "CX-VAL-003",
+  "CX-VAL-004",
+  "CX-VAL-005",
+  "CX-VAL-006",
+  "CX-VAL-007",
+  "CX-VAL-008",
+  "CX-VAL-009",
+  "CX-VAL-010",
+  "CX-STATUS-001",
+  "CX-STATUS-002",
+  "CX-STATUS-003",
+  "CX-EXEC-015",
+  "CX-VERIFY-002",
+  "V4-03 NOT_PROVEN",
+  "V4-04",
+  "V4-06",
+  "V4-07",
+  "V4-13",
+  "V4-14",
+  "V4-18",
+  "V4-19"
+ ],
+ "candidate": "fdc01f1b7ecb41496c3aa6473eba548f4248c9a7",
+ "tree": "578e7c41f9da2d7387d8bee1e0007ff6bf7a79be",
+ "candidate_note": "named by lead (ledger round_R19, opened 05:56:39Z); steward-5 in sync since 9ffe946 (no lock input changed); origin tip == edit HEAD == fdc01f1 (git ls-remote 05:58:05Z; refs/remotes/origin == HEAD; no fetch by this validator); bfa1bbf..fdc01f1 = five commits: d868da0 (press), 0c34342 (reel), ceb9d33, 03d7ff8, fdc01f1 (interop-psd); 12 files, all under crates/hsk-studio-press (5), hsk-studio-reel (3), hsk-studio-interop-psd (4); Cargo.toml, Cargo.lock, tools/, .config/, rust-toolchain.toml unchanged (git diff empty)",
+ "round_identity_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/ROUND_IDENTITY.json",
+ "export": {
+  "file_count": 892,
+  "manifest_sha256": "f130da14abdcde46a6343bf549fae079aecee5f7b8ed5f179413956f4c05eabc",
+  "git_blob_equal": true,
+  "refresh": "kernel tools/export-refresh.sh in place 2026-10-12T05:59:37Z: 0 added, 12 changed, 880 unchanged, 0 deleted, blob_mismatch 0 (from bfa1bbf; exactly the 12 files of bfa1bbf..fdc01f1); manifest equals steward canary C24 export (f130da14); round.json export_manifest_sha256 equal"
+ },
+ "started_at": "2026-10-12T06:01:51Z",
+ "completed_at": "2026-10-12T06:14:19Z",
+ "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R19",
+ "running_record": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/RUNNING-R19.jsonl (opened + running 06:01:51Z, process_identity and completed 06:05:30Z, verdicts_accepted 06:08:46Z before the state write, verdicts_recorded after it)",
+ "gameplan": ".GOV/task_packets/WP-KERNEL-STUDIO/gameplans/STUDIO-MODULE-ROUND.yaml (pointer studio-round/.gameplan-active) before_round PASS 12/12 @edit HEAD fdc01f1 (GP-001 origin == HEAD; GP-003 lock audit 06:00:28Z held none, queue 0, no cargo process, only an idle sccache server pid 361100 not started by this session; GP-005 LongPathsEnabled=1; GP-009 changed crates read no env var; GP-013 entrypoint + config unchanged since the green R18 and canary C24-fdc01f1 exit 73 = NOT_PROVEN interop-fig only, 59/59 units green; GP-004/GP-012 machine checks passed)",
+ "canary": {
+  "reused": true,
+  "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/steward-export/results/C24-fdc01f1",
+  "round_json_sha256": "a2edf08a49d2363d68359aa7c705bf68136772bd48a400055462d43dc38ad776",
+  "sha": "fdc01f1b7ecb41496c3aa6473eba548f4248c9a7",
+  "export_manifest_sha256": "f130da14abdcde46a6343bf549fae079aecee5f7b8ed5f179413956f4c05eabc",
+  "summary": "steward canary via the same entrypoint on the same SHA and identical export manifest: exit 73 (only NOT_PROVEN interop-fig actual_fig_instance_variable_prototype_edit_reopen, D17), 59 units build 0/run 0, absent 0, timed_out 0, step 0 clean; canary profile runs one test per package (34 run), so the union run below is still required for the judged crates",
+  "reuse_basis": "CX-VERIFY-002 + lead dispatch (GP-013); canary exit 73 accepted because its only non-zero cause is NOT_PROVEN accounting (R10-R18 precedent)"
+ },
+ "union": {
+  "selection": [
+   "hsk-studio-press",
+   "hsk-studio-reel",
+   "hsk-studio-reel-native",
+   "hsk-studio-interop-psd"
+  ],
+  "selection_rule": "crates changed bfa1bbf..fdc01f1 (press, reel, interop-psd) + workspace members whose dependency closure contains them (tomllib over the 35 crates/*/Cargo.toml at fdc01f1 incl. dev/build/target dependencies: only hsk-studio-reel-native, closure accord/observe/reel); root inputs unchanged; web (SMB-NOTES-BATCH-1 part) and composite/render-cpu/render-gpu (SMB-FX-OPS-ADOPT parts) unchanged with their closures since their R16 proofs (proof reuse)",
+  "argv": "bash tools/[round entry script] --results <studio-round>/results/R19 --target-dir <studio-round>/target hsk-studio-press hsk-studio-reel hsk-studio-reel-native hsk-studio-interop-psd (cwd export; absolute D: paths; no caller env)",
+  "target_dir": "Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/target (warm from R18; every selected crate and its closure recompiled: export mtimes refreshed)",
+  "started_at": "2026-10-12T06:02:17Z",
+  "ended_at": "2026-10-12T06:03:55Z",
+  "build_exit": 0,
+  "run_exit": 0,
+  "exit": 0,
+  "summary": "default 277/277 passed (press 149, reel 71, interop-psd 57); reel+av1 78/78; reel-native+av1-worker 5/5; reel-native+av1-worker+test-faults 24/24; 7 doctest units exit 0 (reel 2, reel+av1 2, the others none); 11 units; absent [] timed_out []; NOT_PROVEN 0 -> exit 0",
+  "units": 11,
+  "not_proven_count": 0,
+  "hashes": {
+   "round.json": "df8d83f482ea5aa7a2d43805f0931a34f1b029823ca6080456a75442caae3c90",
+   "tests.json": "80ebbf81d3507c2eadab74be3715d5024818bf7f4b86041ccdb192aede951581",
+   "junit.xml": "9b9461f3bb76ab78dffe30e4bf21b1c2504f7be99ec3450cf7bdaa4533d1b069",
+   "run.stderr.txt": "4a0330817425cf1d023aa02c991989d25ce8f1b56470fb1db3bde9b1d296b2a4",
+   "build.stderr.txt": "52ae410e2817f28a9d48d847c8eb542aeedae5a2f4f4312b66f3dfe3ca3a1f97",
+   "units.tsv": "c0186bb0adfee6bafb29e5b2abd858fc428396c1970be5caa772f43a3727658a",
+   "oracle-corpus.manifest.txt": "d5a1e2ce3a2a1e8f6cf303f38dc9269ab2ba3f190fbd8cc99d4daf88ea20422c",
+   "step0.policy.json": "885a9bd86e044ba4ac436012c10c37d4eb74403ee292111c1f3b4325c8e3877b",
+   "features/hsk-studio-reel+av1/junit.xml": "efd2cddcb5231ec221e873c622243c3905d90ee2fb2001fcc482cb31a68684e9",
+   "features/hsk-studio-reel-native+av1-worker/junit.xml": "739e6d0b072b128ff8c1cb398a7dbd8d3fae8e8c70bdad014ddf16a65671ddfc",
+   "features/hsk-studio-reel-native+av1-worker+test-faults/junit.xml": "88cdb74ab91d11b8118b5e677f99d657e29503195686a87b00b9724f863496c6"
+  },
+  "per_crate_default": {
+   "press": 149,
+   "reel": 71,
+   "interop-psd": 57
+  },
+  "test_set_check": "vs prior tests.json (unit + crate + features + binary + name): press R18 147 -> 149 (+2 flatten_r13 by d868da0), reel R13 149 -> 153 over default/av1/doctest units (+2 video_route tests in default and in av1 by 0c34342), interop-psd R17 53 -> 57 (+4 effects_budget by ceb9d33), reel-native R16 29 -> 29; 0 missing, 0 failed, 0 skipped, 0 NOT_PROVEN",
+  "step0": "cargo metadata --locked --offline ok; registry-sync check clean; machine-path violations 0 (13 files with pinned hits, pins_dropped {}), duplicate new_sites none; step0.policy.json byte-identical to R18 (885a9bd8); lock_sha256 86547db9 = R18",
+  "oracle_corpus": {
+   "file_count": 33,
+   "manifest_sha256": "d5a1e2ce3a2a1e8f6cf303f38dc9269ab2ba3f190fbd8cc99d4daf88ea20422c",
+   "note": "33 files (R18: 32; equals the canary C24 manifest d5a1e2ce, which placed the score-plugin clap-gain fixture record for fdc01f1); no selected crate uses an oracle fixture (fixtures [])"
+  },
+  "fixtures": [],
+  "disk_lock": "schema @2 class round: holds 1, yields 0 (slice 300 s), waited 1 s, broke_stale none, 06:02:24Z..06:03:55Z",
+  "env": {
+   "set_by_entrypoint": [
+    "CARGO_TARGET_DIR",
+    "TMP",
+    "TEMP",
+    "TMPDIR",
+    "CARGO_PROFILE_DEV_DEBUG",
+    "CARGO_PROFILE_TEST_DEBUG",
+    "CARGO_TERM_COLOR"
+   ],
+   "env_added_by_caller": "none (CX-VAL-007)",
+   "rustc_wrapper": "",
+   "tools": {
+    "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+    "cargo": "cargo 1.97.1 (c980f4866 2026-06-30)",
+    "test_runner": "cargo-nextest 0.9.148 (cd1d6d546 2026-10-07)"
+   }
+  }
+ },
+ "junit_success_output_checks": [
+  "tests.json status passed for every new test: press silent_painted_source_visibility_is_not_checked, descriptor_states_that_painted_source_silence_is_syntactic; reel partial_video_receipt_ends_at_the_last_delivered_picture and fully_delivered_video_receipt_end_is_the_packet_end (default and av1); interop-psd folios_per_stack_ceiling_cuts_only_the_switched_off_instances_of_a_stack_with_counted_instances, a_counted_instance_after_more_switched_off_ones_than_the_ceiling_is_still_kept, the_live_bound_still_cuts_a_stack_whatever_its_switched_off_instances, descriptor_states_the_folio_ceiling_rule; carried claim tests painted_source_referenced_by_a_kept_catalog_structure_is_reported (PLR-076), export_refuses_partial_video_decode (both sets), a_stack_past_folios_ceiling_is_a_typed_loss_not_a_rejected_import, descriptor_states_the_importers_over_counts passed"
+ ],
+ "not_proven": [],
+ "not_proven_note": "V4-03: no NOT_PROVEN line in this union (the canary's only NOT_PROVEN is interop-fig D17, outside the selection)",
+ "adversarial_review": {
+  "refs": {
+   "validation/R21-prereview-narrow.json": "COMPLETE 2026-10-12T05:45:06Z (bfa1bbf..fdc01f1; three lanes SAFE_TO_JUDGE: press R21-P1 doc-only, R21-P2/P3 INFO; reel R21-R1 test-name note, R21-R2 INFO; psd R21-S1 decision point, R21-S2/S3 INFO)",
+   "validation/R16-prereview-notes-narrow.json": "COMPLETE (b8b31c7..5606d16; reel-native SMB-REEL-NATIVE-AV1-WORKER SAFE_TO_JUDGE; crate unchanged since, V4-18)"
+  },
+  "coverage": "V4-13: two-FAIL lanes SMB-PRESS, SMB-REEL-AV1-ROUTE, SMB-INTEROP-PSD-BUDGET are covered by R21 (same diff, SAFE at the candidate); SMB-REEL-NATIVE-AV1-WORKER (FAIL_V1 R5, FAIL_V2 R7) is reopened only through its dependency: its crate is unchanged since the R16 SAFE pre-review (V4-18) and the reel diff is R21 SAFE. Validator's own read at the fdc01f1 export: the three per-crate diffs bfa1bbf..fdc01f1 in full; press flatten_purge.rs:12-31, tests/flatten_r13.rs:400-432, :690-731, :1525-1575; reel video.rs:325-412, :470-562; psd effects.rs:150-222, :540-659, proposal.rs Fit match :581-593; DESCRIPTORs of all three crates parsed as JSON at both revisions and diffed leaf by leaf; V4-06 regexes of the three lanes re-run with git grep at fdc01f1 (press 7, reel 40, psd 49 = lane counts)",
+  "fold_rule": "R12-R18 convention: every CONFIRMED finding re-read at the cited file:line in the export; a CONFIRMED product defect in a judged lane's claimed scope drives a FAIL on the lane that owns it; CONFIRMED doc-only items are notes + PLR (lead fold convention); PLAUSIBLE/INFO items are notes; PLR-085, PLR-086, PLR-087, PLR-088, PLR-089 are registered and not charged",
+  "fold_decisions": [
+   {
+    "finding": "R21-P1 (CONFIRMED doc-only)",
+    "owner": "SMB-PRESS-DOCS",
+    "decision": "note, not charged (PLR-087 registered)",
+    "why": "re-read flatten.rs:12-23 vs flatten_purge.rs:16-27: the overview's 'names or references' condition does not fit annotations (removed even when referenced) or structure elements (neutralized, not dropped); code removes more than the sentence says (safe direction); no outcome changes"
+   },
+   {
+    "finding": "R21-P2, R21-P3 (INFO)",
+    "owner": "SMB-PRESS-DOCS",
+    "decision": "notes",
+    "why": "lane-note precision and test slicing robustness only"
+   },
+   {
+    "finding": "R21-R1 (CONFIRMED test-naming note), R21-R2 (INFO)",
+    "owner": "SMB-REEL-PARTIAL-PTS",
+    "decision": "note, not charged (PLR-088 registered)",
+    "why": "the DropPicture(1) row inside fully_delivered_... is a decoder-drop case and passes with the right value; max over delivered ends is order-independent by code (video.rs:385); no behaviour hidden"
+   },
+   {
+    "finding": "R21-S1 (decision point)",
+    "owner": "SMB-INTEROP-PSD-FOLIO-CEILING",
+    "decision": "judged against the lead decision 2026-10-12T05:49:17Z (accepted as built)",
+    "why": "effects.rs:638-646 drops all switched-off instances of an over-ceiling visible stack with one typed loss; a stack at or under the ceiling keeps them (test rows 1+1023, 64+960 Kept(1024))"
+   },
+   {
+    "finding": "R21-S2, R21-S3 (INFO)",
+    "owner": "SMB-INTEROP-PSD-FOLIO-CEILING",
+    "decision": "notes (PLR-089 registered)",
+    "why": "one loss entry per cut stack (same convention as R10); notes of unkept instances over-report in the safe direction, bounded by descriptor caps"
+   }
+  ],
+  "not_reviewed": [
+   "web part of SMB-NOTES-BATCH-1 and composite/render-cpu/render-gpu parts of SMB-FX-OPS-ADOPT were not re-read (byte-unchanged with their closures since the R16 runs that proved them)",
+   "AV1 tracks whose presentation order differs from decode order through these demuxers (R21-R2 sub-case): UNVERIFIED, no outbound read"
+  ],
+  "validator_disagreements": [],
+  "validator_notes": [
+   {
+    "id": "V-1",
+    "severity": "INFO (process)",
+    "crate": "hsk-studio-reel-native",
+    "file_line": "ledger.json lanes SMB-REEL-NATIVE-AV1-WORKER verdicts (STUDIO-R5 FAIL_V1, STUDIO-R7 FAIL_V2)",
+    "finding": "the dispatch named three two-FAIL lanes; a fourth, SMB-REEL-NATIVE-AV1-WORKER, is reopened by this round only through its dependency on hsk-studio-reel",
+    "evidence": "V4-13 is met here by V4-18 (crate unchanged since the R16 SAFE pre-review at 5606d16; git log 5606d16..fdc01f1 over the crate empty) plus R21 SAFE on the reel diff",
+    "remediation": "lead: list dependency-reopened two-FAIL lanes in round dispatches with their V4-13/V4-18 basis"
+   },
+   {
+    "id": "V-2",
+    "severity": "INFO",
+    "crate": "hsk-studio-interop-psd",
+    "file_line": "src/effects.rs:615-619, :638-641",
+    "finding": "a visible, master-on stack whose instances are all switched off is scanned to the end of its descriptor after the ceiling before it is refused (effects_over_budget), while a hidden or master-off stack is refused at the first instance past the ceiling",
+    "evidence": "code read; the extra work maps already-parsed objects only (nothing kept past 1024; descriptor caps 512 per list, 8192 per descriptor bound it); outcome identical (stack not mapped, typed loss)",
+    "remediation": "optional: refuse at once when counted == 0 and the scan has no counted instance left to find; no change required"
+   }
+  ],
+  "lead_decisions_applied": [
+   "ledger round_R19 (ready SMB-PRESS-DOCS, SMB-REEL-PARTIAL-PTS, SMB-INTEROP-PSD-FOLIO-CEILING; CX-VAL-009 reopen of press, reel, interop-psd lanes + dependents; two-FAIL rechecks R21 SAFE; excluded render-gpu lanes + SMB-ROUND-ENTRYPOINT + SMB-RENDER-GPU-ADJ/PROBE (D20), interop-media (D9))",
+   "START_LOG D27 (Operator 2026-10-11T17:59:47Z 'Flatten + narrow') and 2026-10-12T02:48:02Z MINIMAL DRAW SET (silence grant unchanged in this range)",
+   "START_LOG 2026-10-12T05:10:24Z (PLR-084 DOC: silence is syntactic, visibility not checked; judged SMB-PRESS-DOCS against it)",
+   "START_LOG 2026-10-11T14:41:47Z, 15:29:19Z, 15:43:55Z (PSD budget: uncounted cap, two-sided tally, visible stack keeps live instances and drops switched-off ones)",
+   "START_LOG 2026-10-12T05:49:17Z (R21-S1 accepted: a visible stack over the 1024 ceiling drops all its switched-off instances with one typed loss; PLR-087..089 registered)",
+   "lead fold convention: CONFIRMED doc-only finding -> note + PLR; PLR-085..089 already registered, not charged"
+  ]
+ },
+ "proof_reuse": {
+  "basis": "CX-VAL-002: crate source + workspace-dep closure + root inputs unchanged from each proof commit to fdc01f1 (bfa1bbf..fdc01f1 touches only press, reel and interop-psd; only reel-native depends on any of them); the round-R18 proof_reuse list (96) minus the 15 lanes reopened here; reused verdicts name both commits (proof commit in each entry, candidate fdc01f1); no new verdict",
+  "lanes": [
+   "SMB-TYPE (PASS_V5 @404ff3a)",
+   "SMB-LAYOUT (PASS_V5 @f6e5a49)",
+   "SMB-DEVELOP (PASS_V9 @5606d16)",
+   "SMB-COMPONENTS (PASS_V5 @f6e5a49)",
+   "SMB-PULSE (PASS_V5 @f6e5a49)",
+   "SMB-SCORE (PASS_V4 @f6e5a49)",
+   "SMB-MOTION (PASS_V1 @404ff3a)",
+   "SMB-COMPOSITE (PASS_V9 @5606d16)",
+   "SMB-RENDER-CPU (PASS_V9 @5606d16)",
+   "SMB-PACKAGE (PASS_V5 @f6e5a49)",
+   "SMB-INTEROP-VECTOR (PASS_V6 @3d795a5)",
+   "SMB-INTEROP-FIG (PASS_V3 @3d795a5)",
+   "SMB-INTEROP-LAYOUT (PASS_V5 @3d795a5)",
+   "SMB-CONTROLS (PASS_V3 @bd8533f)",
+   "SMB-SESSION (PASS_V5 @f6e5a49)",
+   "SMB-HARNESS (PASS_V3 @f6e5a49)",
+   "SMB-KERNEL-BINDINGS (PASS_V3 @f6e5a49)",
+   "SMB-WEB (PASS_V5 @5606d16)",
+   "SMB-SCORE-DEVICE (PASS_V3 @f6e5a49)",
+   "SMB-SCORE-PLUGIN (PASS_V4 @4d80e50)",
+   "SMB-INTEROP-LRCAT (PASS_V2 @bd8533f)",
+   "SMB-MOTION-JS (PASS_V3 @dff7ef5)",
+   "SMB-PRISM-ENG-1 (PASS_V4 @dff7ef5)",
+   "SMB-TYPE-ENG-1 (PASS_V1 @1d404f8)",
+   "SMB-PULSE-ENG-1 (PASS_V3 @f6e5a49)",
+   "SMB-PRISM-ENG-2 (PASS_V4 @dff7ef5)",
+   "SMB-PRISM-ENG-3 (PASS_V3 @dff7ef5)",
+   "SMB-PRISM-ENG-4 (PASS_V4 @dff7ef5)",
+   "SMB-PRISM-ENG-5 (PASS_V3 @dff7ef5)",
+   "SMB-TYPE-DOCTEST (PASS_V1 @1d404f8)",
+   "SMB-FOLIO-ENG-1 (PASS_V5 @f6e5a49)",
+   "SMB-PIGMENT-ENG-1 (PASS_V9 @5606d16)",
+   "SMB-TYPE-ENV (PASS_V1 @404ff3a)",
+   "SMB-ACCORD-ENG-1 (PASS_V1 @404ff3a)",
+   "SMB-TYPE-FONTS (PASS_V1 @404ff3a)",
+   "SMB-TYPE-FIXTURES (PASS_V1 @404ff3a)",
+   "SMB-FOLIO-ENG-2 (PASS_V5 @f6e5a49)",
+   "SMB-NIB-ENG-1 (PASS_V2 @1d404f8)",
+   "SMB-FOLIO-ENG-3 (PASS_V5 @f6e5a49)",
+   "SMB-ACCORD-ENG-2 (PASS_V1 @404ff3a)",
+   "SMB-RENDER-CPU-CLIP (PASS_V9 @5606d16)",
+   "SMB-MOTION-JS-WORKER (PASS_V2 @dff7ef5)",
+   "SMB-COMPOSITE-CLIP-ALIGN (PASS_V9 @5606d16)",
+   "SMB-LAYOUT-FOLIO-MIGRATE (PASS_V4 @f6e5a49)",
+   "SMB-FOLIO-ENG-4 (PASS_V4 @f6e5a49)",
+   "SMB-DEVELOP-WIDE (PASS_V6 @5606d16)",
+   "SMB-PACKAGE-STREAM-SAVE (PASS_V4 @f6e5a49)",
+   "SMB-PRISM-ENG-6 (PASS_V2 @dff7ef5)",
+   "SMB-COMPONENTS-FOLIO-MIGRATE (PASS_V4 @f6e5a49)",
+   "SMB-INTEROP-VECTOR-FOLIO-MIGRATE (PASS_V5 @3d795a5)",
+   "SMB-PIGMENT-ENG-2 (PASS_V7 @5606d16)",
+   "SMB-MOTION-JS-SANDBOX-2 (PASS_V1 @dff7ef5)",
+   "SMB-PRISM-ENG-7 (PASS_V1 @dff7ef5)",
+   "SMB-COMPOSITE-ADJ (PASS_V6 @5606d16)",
+   "SMB-RENDER-CPU-ADJ (PASS_V6 @5606d16)",
+   "SMB-EFFECTS-WAVE-1 (PASS_V6 @5606d16)",
+   "SMB-EFFECTS-WAVE-2 (PASS_V6 @5606d16)",
+   "SMB-FOLIO-ENG-6 (PASS_V2 @f6e5a49)",
+   "SMB-FOLIO-ENG-7 (PASS_V2 @f6e5a49)",
+   "SMB-CHRONICLE-TABLE (PASS_V2 @f6e5a49)",
+   "SMB-PIGMENT-WINDOW (PASS_V6 @5606d16)",
+   "SMB-RENDER-CPU-WINDOW (PASS_V6 @5606d16)",
+   "SMB-INTEROP-VECTOR-RECORDS (PASS_V3 @3d795a5)",
+   "SMB-WEB-DIFFTEST (PASS_V2 @5606d16)",
+   "SMB-RENDER-CPU-FX2 (PASS_V6 @5606d16)",
+   "SMB-PRISM-ENG-8 (PASS_V1 @dff7ef5)",
+   "SMB-DEVELOP-JOBS (PASS_V6 @5606d16)",
+   "SMB-PIGMENT-BLENDIF-CLIP (PASS_V6 @5606d16)",
+   "SMB-BLENDIF-CLIP-ADOPT (PASS_V6 @5606d16)",
+   "SMB-PIGMENT-PLANLIMITS (PASS_V3 @5606d16)",
+   "SMB-REFUSAL-KEYS (PASS_V5 @5606d16)",
+   "SMB-SCORE-GUARDS (PASS_V1 @f6e5a49)",
+   "SMB-COMPONENTS-FOOTPRINT (PASS_V1 @f6e5a49)",
+   "SMB-FOLIO-UNIQUENESS (PASS_V1 @f6e5a49)",
+   "SMB-PIGMENT-FX-OPS (PASS_V5 @5606d16)",
+   "SMB-PIGMENT-ADMIT-PARITY (PASS_V5 @5606d16)",
+   "SMB-SCORE-PLUGIN-RATE (PASS_V1 @4d80e50)",
+   "SMB-PARITY-FOLLOWUP (PASS_V4 @5606d16)",
+   "SMB-WEB-PARITY (PASS_V2 @5606d16)",
+   "SMB-PIGMENT-FOLLOWUPS (PASS_V2 @5606d16)",
+   "SMB-PIGMENT-NOTES (PASS_V1 @5606d16)"
+  ],
+  "count": 81
+ },
+ "excluded": [
+  {
+   "lane": "SMB-RENDER-GPU",
+   "reason": "not_judged: CX-EXEC-015(1) fix_budget_exhausted, Operator decision D20 pending (render-gpu not in the union; crate unchanged since R16)"
+  },
+  {
+   "lane": "SMB-RENDER-GPU-ADJ",
+   "reason": "not_judged: render-gpu lanes excluded (D20); BLOCKED; not proof-reused"
+  },
+  {
+   "lane": "SMB-RENDER-GPU-PROBE",
+   "reason": "not_judged: no READY claim; render-gpu D20"
+  },
+  {
+   "lane": "SMB-ROUND-ENTRYPOINT",
+   "reason": "not_judged: CX-EXEC-015(1) fix_budget_exhausted, Operator decision D20 pending (entrypoint used for this round as infrastructure)"
+  },
+  {
+   "lane": "SMB-INTEROP-MEDIA, SMB-INTEROP-MEDIA-PULSE",
+   "reason": "not_judged: BLOCKED on Operator D9 (crate and lock closure unchanged)"
+  },
+  {
+   "lane": "queued/no-claim lanes (SMB-REEL-NATIVE, SMB-REEL-NATIVE-ENG-1, SMB-PRESS-GEOMETRY, SMB-REEL-ENG-2, SMB-FMT-SWEEP)",
+   "reason": "not_judged: no READY claim in fdc01f1 (REEL-ENG-2 / REEL-NATIVE-ENG-1 BLOCKED on Operator D22-D26)"
+  }
+ ],
+ "deferred_fix_first": [],
+ "scope_rule": "READY SMB-PRESS-DOCS, SMB-REEL-PARTIAL-PTS, SMB-INTEROP-PSD-FOLIO-CEILING; PASS lanes returned to READY by CX-VAL-009: press (SMB-PRESS, SMB-PRESS-DIFFERENCES, SMB-NOTES-BATCH-1), reel (SMB-REEL, -ENG-1, -ENG-3, -AV1-ROUTE, -RECEIPTS), dependant reel-native (SMB-REEL-NATIVE-AV1-WORKER, -FAULTS, -FAULTS-2), interop-psd (SMB-INTEROP-PSD, -WIDE, -ADJ, -RECEIPT, -CLIP-ROLES, -BUDGET, SMB-FX-OPS-ADOPT); two-FAIL lanes on V4-13 R21 SAFE (+ V4-18 for reel-native); render-gpu lanes and SMB-ROUND-ENTRYPOINT excluded (D20), interop-media (D9); everything else proof_reuse",
+ "included_count": 21,
+ "verdict_counts": {
+  "PASS_V1": 3,
+  "PASS_V2": 2,
+  "PASS_V3": 2,
+  "PASS_V5": 2,
+  "PASS_V7": 1,
+  "PASS_V8": 1,
+  "PASS_V9": 3,
+  "PASS_V10": 4,
+  "PASS_V11": 2,
+  "PASS_V13": 1
+ },
+ "verdict_numbering": "Vn = 1 + highest prior PASS_V/FAIL_V number of the lane (BLOCKED, NOT_PROVEN and inconclusive do not count), computed once from the ledger before the state write (ledger sha256 4f3faab1, kernel d92a1c89) and frozen in the verdicts_accepted event; asserted again by the state writer against the same ledger bytes",
+ "not_proven_rule": "V4-03: a test printing NOT_PROVEN is never PASS; a lane whose acceptance depends on it is not PASS. R19: no NOT_PROVEN line in the union",
+ "counters": [
+  {
+   "lane": "SMB-PRESS, SMB-REEL-AV1-ROUTE, SMB-REEL-NATIVE-AV1-WORKER, SMB-INTEROP-PSD-BUDGET",
+   "counter": "CX-EXEC-015(1) fix budget (failed verdicts 2, limit 3)",
+   "outcome": "passed; no counter acts"
+  },
+  {
+   "lane": "other 17 judged lanes",
+   "counter": "CX-EXEC-015(1) fix budget (failed verdicts 0 or 1, limit 3)",
+   "outcome": "passed; no counter acts"
+  },
+  {
+   "lane": "round",
+   "counter": "CX-EXEC-015(4) same infrastructure failure_class in two rounds",
+   "outcome": "none (no infrastructure failure)"
+  }
+ ],
+ "fix_budget_events": "none (no FAIL this round; no lane reached CX-EXEC-015(1); no NEEDS_NEW_APPROACH)",
+ "plr_candidates": [
+  "V-1 (process): round dispatches should list two-FAIL lanes reopened only through a dependency (here SMB-REEL-NATIVE-AV1-WORKER) with their V4-13/V4-18 basis",
+  "V-2 (INFO, interop-psd effects.rs:615-641): an all-switched-off visible stack is scanned to its end before refusal past the ceiling; bounded, outcome unchanged; optional early refusal"
+ ],
+ "lanes": [
+  {
+   "lane": "SMB-PRESS-DOCS",
+   "crate": "hsk-studio-press",
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "tests": "press 149/149 default at fdc01f1 (R18 147-test set all present; +2 by d868da0: silent_painted_source_visibility_is_not_checked, descriptor_states_that_painted_source_silence_is_syntactic); doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "claim d868da0 (docs and tests only): PLR-083 wording + control comment, PLR-084 residual stated, PLR-076 shown by an existing test. Validator read at the fdc01f1 export: press diff bfa1bbf..fdc01f1 = 5 files; every changed source line outside the DESCRIPTOR string is a doc or code comment (flatten.rs:12-23, flatten_purge.rs:91-95 and the drop_painted_sources doc line :846, sanitized_save.rs docs of NotProven::PaintedSourceKept and RedactedOutput::painted_sources_kept + the call-site comment :1529-1530). DESCRIPTOR parsed as JSON at both revisions (202 -> 203 leaves): only redaction.flatten.painted_over and redaction.flatten.purge changed ('and no kept object references them' + the PLR-084 residual) and proof.limitations[16] was added; none of never/always/guarantee in the new text (prove 1 -> 1, pre-existing). New tests are real: silent_painted_source_visibility_is_not_checked gives page two its own /Resources naming image 10 and draws it four invisible ways (0 0 0 0 0 0 cm, 0 0 0 0 re W n, gs /ca 0 /CA 0, an opaque rect over it) through silent_drawn_image (tests/flatten_r13.rs:719-731: nothing reported, region_flattened true, bytes stay), with the same draw inside BDC /OC reported through reported_kept_image_too (:698-716); descriptor_states_that_painted_source_silence_is_syntactic pins the sentence once in each of three keys. The residual matches the lead decision 2026-10-12T05:10:24Z (PLR-084 DOC, D27 narrow, no visibility analysis). V4-06 regex re-run at fdc01f1: 7 line hits (lane 10 -> 7). V4-14: no press commit after d868da0. R21-P1 re-read (flatten.rs:12-23 vs flatten_purge.rs:16-27: annotations are removed even when a kept object referenced them; structure elements stay neutralized, not dropped) is CONFIRMED doc-only in the safe direction: PLR-087, not charged (fold convention).",
+   "review": "validation/R21-prereview-narrow.json lanes[0] SMB-PRESS-DOCS SAFE_TO_JUDGE at fdc01f1 (R21-P1 CONFIRMED doc-only = PLR-087; R21-P2/P3 INFO)",
+   "included_by": "READY_FOR_VALIDATION (lane file builders/lanes/hsk-studio-press-docs.json, commit d868da0; crate holds two-FAIL SMB-PRESS: V4-13 R21 SAFE_TO_JUDGE)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R19",
+   "idempotency_key": "STUDIO-R19:SMB-PRESS-DOCS:fdc01f1b7ecb:PASS_V1",
+   "recorded_at": "2026-10-12T06:14:19Z"
+  },
+  {
+   "lane": "SMB-REEL-PARTIAL-PTS",
+   "crate": "hsk-studio-reel",
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "tests": "reel 71/71 default and reel+av1 78/78 at fdc01f1, doctests 2 + 2 exit 0 (R13 69/76 set all present; +2 by 0c34342 in both units: partial_video_receipt_ends_at_the_last_delivered_picture, fully_delivered_video_receipt_end_is_the_packet_end)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "claim 0c34342 (PLR-077): a video-route Partial receipt (the decoder dropped a picture) ends at the latest pts + duration of a picture handed to the sink, an empty span at its start when none was; a complete decode is unchanged. Validator read at fdc01f1: video.rs:280-296 (Forward.delivered_end; picture_end: i64::try_from + checked_add -> LimitExceeded tick-range, u64::try_from -> Unsupported negative-presentation-time), :381-385 (after the sink accepted the picture; pre-roll pictures return at :343-345 before it; max over delivered pictures, release-order independent), :541-560 (Partial branch only; an Export shortfall still returns Incomplete at :544-549 before the receipt is touched; end clamped to the start). choose(), routing, plane and declared-size checks and the pump are untouched (diff = video.rs +28, lib.rs DESCRIPTOR export.rule + export.tests[13..14] parsed, tests/video_route.rs). Tests are real: ground truth from the container's own packet timing (a ChunkSink over OutputMode::Packets) plus hand-pinned mp4 spans; 7 Partial cases per container (drops at end, middle, start, tail, everything, and two pre-roll requests) and complete decodes compared field by field with the packet receipt of the same request. V4-01: video.rs keeps deny(clippy::arithmetic_side_effects); V4-06 regex re-run: 40 lines = lane list. Residuals not charged: PLR-085 (start_pts), PLR-088 (R21-R1 test name wider than content; R21-R2 max-vs-last-arrival not pinned by a reordering case).",
+   "review": "validation/R21-prereview-narrow.json lanes[1] SMB-REEL-PARTIAL-PTS SAFE_TO_JUDGE at fdc01f1 (R21-R1 test-name note + R21-R2 INFO = PLR-088)",
+   "included_by": "READY_FOR_VALIDATION (lane file builders/lanes/hsk-studio-reel-partial-pts.json, commit 0c34342; crate holds two-FAIL SMB-REEL-AV1-ROUTE: V4-13 R21 SAFE_TO_JUDGE)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R19",
+   "idempotency_key": "STUDIO-R19:SMB-REEL-PARTIAL-PTS:fdc01f1b7ecb:PASS_V1",
+   "recorded_at": "2026-10-12T06:14:19Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-FOLIO-CEILING",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "tests": "interop-psd 57/57 default at fdc01f1 (R17 53-test set all present; +4 by ceb9d33: folios_per_stack_ceiling_cuts_only_the_switched_off_instances_of_a_stack_with_counted_instances, a_counted_instance_after_more_switched_off_ones_than_the_ceiling_is_still_kept, the_live_bound_still_cuts_a_stack_whatever_its_switched_off_instances, descriptor_states_the_folio_ceiling_rule); doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "claim ceb9d33 + 03d7ff8 (test layout) + fdc01f1 (comments), PLR-063: Folio's 1024 per-stack ceiling cuts only the switched-off instances of a visible stack with counted instances (Transformed loss effects_unrendered_dropped_over_stack_ceiling); a stack with no counted instances past 1024 and a stack over 64 counted are still not mapped (effects_over_budget). Validator read at fdc01f1: effects.rs:132-134 counts() is the one category predicate (StackShape::of :123-126, map_stack :605); map_stack :601-630 (counted > 64 -> Err at once :608-611; switched-off kept while kept-off < 1024 :613; past it a stack that can count sets off_dropped and keeps scanning :615-619, one that cannot is refused at once :620-624), :638-650 (over_stack; counted == 0 -> Err; retain enabled; Fit::Whole -> CountedOnlyOverStack); EffectTally admit/charge :179-207 unchanged, so a cut stack is charged its counted instances only and does not close the uncounted side; proposal.rs:584-593 exhaustive Fit match, one Transformed entry per cut stack. The record never exceeds 1024 instances; transient hold 64 + 1024. DESCRIPTOR parsed (59 -> 60 leaves): effect_limits clauses + capabilities[24] only, V4-07 words unchanged (never 2 -> 2, pre-existing). Tests are real (synthetic lfx2 fixtures through the importer; fate per layer, kept totals, ordinals, write_psd byte-exact, assert_record_need_is_exact; five cut stacks leave the whole 4096 uncounted bound to hidden stacks). V4-06 regex re-run: 49 sites = lane list. R21-S1 (all switched-off instances of an over-ceiling visible stack are dropped, one typed loss) is the rule the lead accepted (START_LOG 2026-10-12T05:49:17Z), consistent with the R10 two-sided budget decision; PLR-086 (512-entry list cap) and PLR-089 (R21-S2/S3 loss granularity, notes of unkept instances) are registered, not charged.",
+   "review": "validation/R21-prereview-narrow.json lanes[2] SMB-INTEROP-PSD-FOLIO-CEILING SAFE_TO_JUDGE at fdc01f1 (R21-S1 lead-accepted rule; R21-S2/S3 INFO = PLR-089)",
+   "included_by": "READY_FOR_VALIDATION (lane file builders/lanes/hsk-studio-interop-psd-folio-ceiling.json, commits ceb9d33, 03d7ff8, fdc01f1; crate holds two-FAIL SMB-INTEROP-PSD-BUDGET: V4-13 R21 SAFE_TO_JUDGE)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R19",
+   "idempotency_key": "STUDIO-R19:SMB-INTEROP-PSD-FOLIO-CEILING:fdc01f1b7ecb:PASS_V1",
+   "recorded_at": "2026-10-12T06:14:19Z"
+  },
+  {
+   "lane": "SMB-PRESS",
+   "crate": "hsk-studio-press",
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "tests": "press 149/149 default at fdc01f1 (R18 147-test set all present; +2 by d868da0: silent_painted_source_visibility_is_not_checked, descriptor_states_that_painted_source_silence_is_syntactic); doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 2,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "claim since PASS_V4 @bfa1bbf: hsk-studio-press changed only by SMB-PRESS-DOCS d868da0 (docs, comments, DESCRIPTOR keys painted_over/purge + proof.limitations[16], two tests); no non-comment code line changed in flatten.rs, flatten_purge.rs or sanitized_save.rs, so the MINIMAL DRAW SET silence grant, the purge and the report list are byte-unchanged in behaviour. The D27 narrowed claim now states the PLR-084 residual as the lead decided. Every press test green at fdc01f1, none of the R18 set missing. No claim broken by reading.",
+   "review": "validation/R21-prereview-narrow.json lanes[0] SMB-PRESS-DOCS SAFE_TO_JUDGE at fdc01f1 (R21-P1 CONFIRMED doc-only = PLR-087; R21-P2/P3 INFO); two-FAIL lane (FAIL_V1 R5, FAIL_V2 R6): V4-13 met by the R21 narrow pre-review of the same diff",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-press changed bfa1bbf..fdc01f1 by d868da0, docs/tests/DESCRIPTOR only; no workspace dependant); two-FAIL lane (FAIL_V1 R5, FAIL_V2 R6): V4-13 R21 SAFE_TO_JUDGE for hsk-studio-press at fdc01f1",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R19",
+   "idempotency_key": "STUDIO-R19:SMB-PRESS:fdc01f1b7ecb:PASS_V5",
+   "recorded_at": "2026-10-12T06:14:19Z"
+  },
+  {
+   "lane": "SMB-PRESS-DIFFERENCES",
+   "crate": "hsk-studio-press",
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "tests": "press 149/149 default at fdc01f1 (R18 147-test set all present; +2 by d868da0: silent_painted_source_visibility_is_not_checked, descriptor_states_that_painted_source_silence_is_syntactic); doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "/Differences claim untouched since PASS_V2 @bfa1bbf: d868da0 changes no encoding, font, show_text or canon source; DESCRIPTOR keys other than redaction.flatten.painted_over/purge and proof.limitations byte-equal (parsed). Every press test green at fdc01f1. No claim broken by reading.",
+   "review": "crate-level: validation/R21-prereview-narrow.json lanes[0] SMB-PRESS-DOCS SAFE_TO_JUDGE at fdc01f1 (R21-P1 CONFIRMED doc-only = PLR-087; R21-P2/P3 INFO); no finding on /Differences",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-press changed bfa1bbf..fdc01f1 by d868da0, docs/tests/DESCRIPTOR only; no workspace dependant)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R19",
+   "idempotency_key": "STUDIO-R19:SMB-PRESS-DIFFERENCES:fdc01f1b7ecb:PASS_V3",
+   "recorded_at": "2026-10-12T06:14:19Z"
+  },
+  {
+   "lane": "SMB-NOTES-BATCH-1",
+   "crate": "hsk-studio-press + hsk-studio-web + hsk-studio-reel-native + hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "tests": "press 149/149 default at fdc01f1 (R18 147-test set all present; +2 by d868da0: silent_painted_source_visibility_is_not_checked, descriptor_states_that_painted_source_silence_is_syntactic); doctest unit exit 0 (no doctests); reel-native +av1-worker 5/5 and +av1-worker+test-faults 24/24 at fdc01f1 (= R16 set, none missing), rebuilt against the changed hsk-studio-reel; default 0 tests; 3 doctest units exit 0 (no doctests); interop-psd 57/57 default at fdc01f1 (R17 53-test set all present; +4 by ceb9d33: folios_per_stack_ceiling_cuts_only_the_switched_off_instances_of_a_stack_with_counted_instances, a_counted_instance_after_more_switched_off_ones_than_the_ceiling_is_still_kept, the_live_bound_still_cuts_a_stack_whatever_its_switched_off_instances, descriptor_states_the_folio_ceiling_rule); doctest unit exit 0 (no doctests); web 138/138 reused from STUDIO-R16 @5606d16 under CX-VAL-002",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "claim = PLR-076 (press), PLR-071 (web), PLR-078 (reel-native), PLR-064/065 (interop-psd), PASS_V1 @bfa1bbf. Press part: d868da0 is docs/tests only (see SMB-PRESS-DOCS); PLR-076 is shown by painted_source_referenced_by_a_kept_catalog_structure_is_reported, green. Reel-native part: crate byte-unchanged since 5606d16, rebuilt against the changed reel and green (5/5, 24/24). Interop-psd part: descriptor_states_the_importers_over_counts and the_importer_counts_layers_without_pixels_and_clipped_layers_on_hidden_or_empty_bases green at fdc01f1; ceb9d33 narrows only the Folio-ceiling clause. Web part: byte-unchanged with its closure (accord, observe) and the root inputs since 5606d16 (git diff 5606d16..fdc01f1 = press, reel, interop-psd only), so the R16 run binds. V4-14: nothing pushed to web or reel-native after 5606d16, to press after d868da0, to interop-psd after fdc01f1 (= candidate).",
+   "review": "press: validation/R21-prereview-narrow.json lanes[0] SMB-PRESS-DOCS SAFE_TO_JUDGE at fdc01f1 (R21-P1 CONFIRMED doc-only = PLR-087; R21-P2/P3 INFO); interop-psd: validation/R21-prereview-narrow.json lanes[2] SMB-INTEROP-PSD-FOLIO-CEILING SAFE_TO_JUDGE at fdc01f1 (R21-S1 lead-accepted rule; R21-S2/S3 INFO = PLR-089); reel-native dependency diff (reel): validation/R21-prereview-narrow.json lanes[1] SMB-REEL-PARTIAL-PTS SAFE_TO_JUDGE at fdc01f1 (R21-R1 test-name note + R21-R2 INFO = PLR-088); web/reel-native crates: R16-prereview-notes-narrow SAFE (V4-18, unchanged since)",
+   "included_by": "CX-VAL-009 (PASS_V1 @bfa1bbf returned to READY: press and interop-psd changed, reel-native's closure changed)",
+   "proof_reuse": "CX-VAL-002: web part = STUDIO-R16 union run @5606d16 (results/R16, web 138/138); proof commit 5606d16, candidate fdc01f1; web closure and root inputs unchanged",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R19",
+   "idempotency_key": "STUDIO-R19:SMB-NOTES-BATCH-1:fdc01f1b7ecb:PASS_V2",
+   "recorded_at": "2026-10-12T06:14:19Z"
+  },
+  {
+   "lane": "SMB-REEL",
+   "crate": "hsk-studio-reel",
+   "decision": "passed",
+   "verdict": "PASS_V11",
+   "status_change": "PASS_V11",
+   "tests": "reel 71/71 default and reel+av1 78/78 at fdc01f1, doctests 2 + 2 exit 0 (R13 69/76 set all present; +2 by 0c34342 in both units: partial_video_receipt_ends_at_the_last_delivered_picture, fully_delivered_video_receipt_end_is_the_packet_end)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "reel providers, registry and receipts: 0c34342 changes only the video route's Partial receipt end (video.rs Forward + Partial branch), the DESCRIPTOR export.rule/tests and tests/video_route.rs; isobmff, matroska, mxf, wav, y4m, registry, cache and av1 sources are not in the diff. Every reel test green at fdc01f1 in the default and av1 sets, none of the R13 set missing. No claim broken by reading.",
+   "review": "validation/R21-prereview-narrow.json lanes[1] SMB-REEL-PARTIAL-PTS SAFE_TO_JUDGE at fdc01f1 (R21-R1 test-name note + R21-R2 INFO = PLR-088)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-reel changed bfa1bbf..fdc01f1 by 0c34342: video.rs Forward + Partial branch, DESCRIPTOR export.rule/tests, tests)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R19",
+   "idempotency_key": "STUDIO-R19:SMB-REEL:fdc01f1b7ecb:PASS_V11",
+   "recorded_at": "2026-10-12T06:14:19Z"
+  },
+  {
+   "lane": "SMB-REEL-ENG-1",
+   "crate": "hsk-studio-reel",
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "tests": "reel 71/71 default and reel+av1 78/78 at fdc01f1, doctests 2 + 2 exit 0 (R13 69/76 set all present; +2 by 0c34342 in both units: partial_video_receipt_ends_at_the_last_delivered_picture, fully_delivered_video_receipt_end_is_the_packet_end)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "export claim (exact or an error; Preview Partial with the true count; Export Incomplete before the first read) unchanged: the new Partial-end assignment runs only after the Export shortfall returned Incomplete (video.rs:544-549); export_refuses_partial_video_decode and the export pre-check tests green in both feature sets. isobmff/edit-list sources untouched. No claim broken by reading.",
+   "review": "validation/R21-prereview-narrow.json lanes[1] SMB-REEL-PARTIAL-PTS SAFE_TO_JUDGE at fdc01f1 (R21-R1 test-name note + R21-R2 INFO = PLR-088)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-reel changed bfa1bbf..fdc01f1 by 0c34342: video.rs Forward + Partial branch, DESCRIPTOR export.rule/tests, tests)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R19",
+   "idempotency_key": "STUDIO-R19:SMB-REEL-ENG-1:fdc01f1b7ecb:PASS_V5",
+   "recorded_at": "2026-10-12T06:14:19Z"
+  },
+  {
+   "lane": "SMB-REEL-ENG-3",
+   "crate": "hsk-studio-reel",
+   "decision": "passed",
+   "verdict": "PASS_V9",
+   "status_change": "PASS_V9",
+   "tests": "reel 71/71 default and reel+av1 78/78 at fdc01f1, doctests 2 + 2 exit 0 (R13 69/76 set all present; +2 by 0c34342 in both units: partial_video_receipt_ends_at_the_last_delivered_picture, fully_delivered_video_receipt_end_is_the_packet_end)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "AV1 decode contract (rav1d adapter, pixel limits, deterministic output) untouched: av1/* and av1_config.rs are not in the diff; the Forward change adds a receipt-end computation after the sink and leaves the plane/declared-size checks and format handling as they were. reel+av1 78/78 at fdc01f1. No claim broken by reading.",
+   "review": "validation/R21-prereview-narrow.json lanes[1] SMB-REEL-PARTIAL-PTS SAFE_TO_JUDGE at fdc01f1 (R21-R1 test-name note + R21-R2 INFO = PLR-088)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-reel changed bfa1bbf..fdc01f1 by 0c34342: video.rs Forward + Partial branch, DESCRIPTOR export.rule/tests, tests)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R19",
+   "idempotency_key": "STUDIO-R19:SMB-REEL-ENG-3:fdc01f1b7ecb:PASS_V9",
+   "recorded_at": "2026-10-12T06:14:19Z"
+  },
+  {
+   "lane": "SMB-REEL-AV1-ROUTE",
+   "crate": "hsk-studio-reel",
+   "decision": "passed",
+   "verdict": "PASS_V9",
+   "status_change": "PASS_V9",
+   "tests": "reel 71/71 default and reel+av1 78/78 at fdc01f1, doctests 2 + 2 exit 0 (R13 69/76 set all present; +2 by 0c34342 in both units: partial_video_receipt_ends_at_the_last_delivered_picture, fully_delivered_video_receipt_end_is_the_packet_end)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 2,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "routing claim (untrusted AV1 -> worker or CodecUnavailable; proxies keep their own trust; decoded pictures checked against the declared size, PLR-032) unchanged: choose(), VideoRoute, Chosen, SourceTrust, planes_match_format and within_declared_size are byte-unchanged; Forward gains one field and a checked end computation after the sink accepted the picture. Every reel test green at fdc01f1 in both sets. No claim broken by reading.",
+   "review": "validation/R21-prereview-narrow.json lanes[1] SMB-REEL-PARTIAL-PTS SAFE_TO_JUDGE at fdc01f1 (R21-R1 test-name note + R21-R2 INFO = PLR-088); two-FAIL lane (FAIL_V1 R5, FAIL_V2 R7): V4-13 met by the R21 narrow pre-review of the same diff",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-reel changed bfa1bbf..fdc01f1 by 0c34342: video.rs Forward + Partial branch, DESCRIPTOR export.rule/tests, tests); two-FAIL lane (FAIL_V1 R5, FAIL_V2 R7): V4-13 R21 SAFE_TO_JUDGE for hsk-studio-reel at fdc01f1",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R19",
+   "idempotency_key": "STUDIO-R19:SMB-REEL-AV1-ROUTE:fdc01f1b7ecb:PASS_V9",
+   "recorded_at": "2026-10-12T06:14:19Z"
+  },
+  {
+   "lane": "SMB-REEL-RECEIPTS",
+   "crate": "hsk-studio-reel",
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "tests": "reel 71/71 default and reel+av1 78/78 at fdc01f1, doctests 2 + 2 exit 0 (R13 69/76 set all present; +2 by 0c34342 in both units: partial_video_receipt_ends_at_the_last_delivered_picture, fully_delivered_video_receipt_end_is_the_packet_end)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "claim (receipts take units, completeness and the actual end from what was delivered, PLR-066..068) is extended, not changed: the video route's Partial receipt now also ends at the last delivered picture (PLR-077); the wav, y4m, PCM, mxf and packet-loop receipt sites are not in the diff and their delivery_tests stay green. No claim broken by reading.",
+   "review": "validation/R21-prereview-narrow.json lanes[1] SMB-REEL-PARTIAL-PTS SAFE_TO_JUDGE at fdc01f1 (R21-R1 test-name note + R21-R2 INFO = PLR-088)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-reel changed bfa1bbf..fdc01f1 by 0c34342: video.rs Forward + Partial branch, DESCRIPTOR export.rule/tests, tests)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R19",
+   "idempotency_key": "STUDIO-R19:SMB-REEL-RECEIPTS:fdc01f1b7ecb:PASS_V2",
+   "recorded_at": "2026-10-12T06:14:19Z"
+  },
+  {
+   "lane": "SMB-REEL-NATIVE-AV1-WORKER",
+   "crate": "hsk-studio-reel-native",
+   "decision": "passed",
+   "verdict": "PASS_V10",
+   "status_change": "PASS_V10",
+   "tests": "reel-native +av1-worker 5/5 and +av1-worker+test-faults 24/24 at fdc01f1 (= R16 set, none missing), rebuilt against the changed hsk-studio-reel; default 0 tests; 3 doctest units exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 2,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "worker-isolated AV1 decode claim: crate hsk-studio-reel-native byte-unchanged since its PASS_V9 proof @5606d16; it consumes hsk-studio-reel, whose change is private to video.rs (a private field and fn) plus DESCRIPTOR text; no reel public item changed and reel-native reads no receipt end (its tests read actual.start_pts only). Rebuilt and green in both feature sets. No claim broken by reading.",
+   "review": "crate: R16-prereview-notes-narrow SAFE_TO_JUDGE at 5606d16 stands (V4-18, crate unchanged since); dependency diff: validation/R21-prereview-narrow.json lanes[1] SMB-REEL-PARTIAL-PTS SAFE_TO_JUDGE at fdc01f1 (R21-R1 test-name note + R21-R2 INFO = PLR-088)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: hsk-studio-reel-native unchanged since 5606d16, but its dependency closure (accord, observe, reel) contains hsk-studio-reel, changed by 0c34342); two-FAIL lane (FAIL_V1 R5, FAIL_V2 R7): V4-13 covered by the R16 pre-review of the crate (unchanged since, V4-18) and the R21 SAFE pre-review of the reel diff",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R19",
+   "idempotency_key": "STUDIO-R19:SMB-REEL-NATIVE-AV1-WORKER:fdc01f1b7ecb:PASS_V10",
+   "recorded_at": "2026-10-12T06:14:19Z"
+  },
+  {
+   "lane": "SMB-REEL-NATIVE-FAULTS",
+   "crate": "hsk-studio-reel-native",
+   "decision": "passed",
+   "verdict": "PASS_V7",
+   "status_change": "PASS_V7",
+   "tests": "reel-native +av1-worker 5/5 and +av1-worker+test-faults 24/24 at fdc01f1 (= R16 set, none missing), rebuilt against the changed hsk-studio-reel; default 0 tests; 3 doctest units exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "worker protocol-fault claim (PLR-055: oversize/undersize picture, FRAME on OPEN -> counted Protocol fault) unchanged: crate byte-unchanged since 5606d16; rebuilt against the changed reel; +test-faults 24/24. No claim broken by reading.",
+   "review": "crate: R16 pre-review SAFE stands (V4-18); dependency diff: validation/R21-prereview-narrow.json lanes[1] SMB-REEL-PARTIAL-PTS SAFE_TO_JUDGE at fdc01f1 (R21-R1 test-name note + R21-R2 INFO = PLR-088)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: hsk-studio-reel-native unchanged since 5606d16, but its dependency closure (accord, observe, reel) contains hsk-studio-reel, changed by 0c34342)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R19",
+   "idempotency_key": "STUDIO-R19:SMB-REEL-NATIVE-FAULTS:fdc01f1b7ecb:PASS_V7",
+   "recorded_at": "2026-10-12T06:14:19Z"
+  },
+  {
+   "lane": "SMB-REEL-NATIVE-FAULTS-2",
+   "crate": "hsk-studio-reel-native",
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "tests": "reel-native +av1-worker 5/5 and +av1-worker+test-faults 24/24 at fdc01f1 (= R16 set, none missing), rebuilt against the changed hsk-studio-reel; default 0 tests; 3 doctest units exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "claim (PLR-059..061: unknown-tag FRAME and malformed HELLO are protocol faults) unchanged: crate byte-unchanged since 5606d16; rebuilt against the changed reel; +test-faults 24/24. No claim broken by reading.",
+   "review": "crate: R16 pre-review SAFE stands (V4-18); dependency diff: validation/R21-prereview-narrow.json lanes[1] SMB-REEL-PARTIAL-PTS SAFE_TO_JUDGE at fdc01f1 (R21-R1 test-name note + R21-R2 INFO = PLR-088)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: hsk-studio-reel-native unchanged since 5606d16, but its dependency closure (accord, observe, reel) contains hsk-studio-reel, changed by 0c34342)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R19",
+   "idempotency_key": "STUDIO-R19:SMB-REEL-NATIVE-FAULTS-2:fdc01f1b7ecb:PASS_V3",
+   "recorded_at": "2026-10-12T06:14:19Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V13",
+   "status_change": "PASS_V13",
+   "tests": "interop-psd 57/57 default at fdc01f1 (R17 53-test set all present; +4 by ceb9d33: folios_per_stack_ceiling_cuts_only_the_switched_off_instances_of_a_stack_with_counted_instances, a_counted_instance_after_more_switched_off_ones_than_the_ceiling_is_still_kept, the_live_bound_still_cuts_a_stack_whatever_its_switched_off_instances, descriptor_states_the_folio_ceiling_rule); doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "importer claim unchanged outside the effect-stack mapping: the diff touches effects.rs (map_stack, counts, Fit::CountedOnlyOverStack, a loss code), proposal.rs (the Fit match in collect_records), DESCRIPTOR effect_limits/capabilities and tests/effects_budget.rs; parsing, layers, blend, display conversion and raster records are untouched. Every interop-psd test green at fdc01f1, none of the R17 set missing. No claim broken by reading.",
+   "review": "validation/R21-prereview-narrow.json lanes[2] SMB-INTEROP-PSD-FOLIO-CEILING SAFE_TO_JUDGE at fdc01f1 (R21-S1 lead-accepted rule; R21-S2/S3 INFO = PLR-089)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-interop-psd changed bfa1bbf..fdc01f1 by ceb9d33, 03d7ff8, fdc01f1; no workspace dependant)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R19",
+   "idempotency_key": "STUDIO-R19:SMB-INTEROP-PSD:fdc01f1b7ecb:PASS_V13",
+   "recorded_at": "2026-10-12T06:14:19Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-WIDE",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V11",
+   "status_change": "PASS_V11",
+   "tests": "interop-psd 57/57 default at fdc01f1 (R17 53-test set all present; +4 by ceb9d33: folios_per_stack_ceiling_cuts_only_the_switched_off_instances_of_a_stack_with_counted_instances, a_counted_instance_after_more_switched_off_ones_than_the_ceiling_is_still_kept, the_live_bound_still_cuts_a_stack_whatever_its_switched_off_instances, descriptor_states_the_folio_ceiling_rule); doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "wide display-conversion claim untouched (display conversion and prism routing not in the diff); every interop-psd test green at fdc01f1. No claim broken by reading.",
+   "review": "validation/R21-prereview-narrow.json lanes[2] SMB-INTEROP-PSD-FOLIO-CEILING SAFE_TO_JUDGE at fdc01f1 (R21-S1 lead-accepted rule; R21-S2/S3 INFO = PLR-089)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-interop-psd changed bfa1bbf..fdc01f1 by ceb9d33, 03d7ff8, fdc01f1; no workspace dependant)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R19",
+   "idempotency_key": "STUDIO-R19:SMB-INTEROP-PSD-WIDE:fdc01f1b7ecb:PASS_V11",
+   "recorded_at": "2026-10-12T06:14:19Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-ADJ",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V10",
+   "status_change": "PASS_V10",
+   "tests": "interop-psd 57/57 default at fdc01f1 (R17 53-test set all present; +4 by ceb9d33: folios_per_stack_ceiling_cuts_only_the_switched_off_instances_of_a_stack_with_counted_instances, a_counted_instance_after_more_switched_off_ones_than_the_ceiling_is_still_kept, the_live_bound_still_cuts_a_stack_whatever_its_switched_off_instances, descriptor_states_the_folio_ceiling_rule); doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "adjustment-layer claim untouched (adjust.rs not in the diff; effects.rs descriptor number handling unchanged); every interop-psd test green at fdc01f1. No claim broken by reading.",
+   "review": "validation/R21-prereview-narrow.json lanes[2] SMB-INTEROP-PSD-FOLIO-CEILING SAFE_TO_JUDGE at fdc01f1 (R21-S1 lead-accepted rule; R21-S2/S3 INFO = PLR-089)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-interop-psd changed bfa1bbf..fdc01f1 by ceb9d33, 03d7ff8, fdc01f1; no workspace dependant)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R19",
+   "idempotency_key": "STUDIO-R19:SMB-INTEROP-PSD-ADJ:fdc01f1b7ecb:PASS_V10",
+   "recorded_at": "2026-10-12T06:14:19Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-RECEIPT",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V10",
+   "status_change": "PASS_V10",
+   "tests": "interop-psd 57/57 default at fdc01f1 (R17 53-test set all present; +4 by ceb9d33: folios_per_stack_ceiling_cuts_only_the_switched_off_instances_of_a_stack_with_counted_instances, a_counted_instance_after_more_switched_off_ones_than_the_ceiling_is_still_kept, the_live_bound_still_cuts_a_stack_whatever_its_switched_off_instances, descriptor_states_the_folio_ceiling_rule); doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "display receipt claim (prism absolute report, BPC outcome, engine identity carried) untouched; every interop-psd test green at fdc01f1. No claim broken by reading.",
+   "review": "validation/R21-prereview-narrow.json lanes[2] SMB-INTEROP-PSD-FOLIO-CEILING SAFE_TO_JUDGE at fdc01f1 (R21-S1 lead-accepted rule; R21-S2/S3 INFO = PLR-089)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-interop-psd changed bfa1bbf..fdc01f1 by ceb9d33, 03d7ff8, fdc01f1; no workspace dependant)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R19",
+   "idempotency_key": "STUDIO-R19:SMB-INTEROP-PSD-RECEIPT:fdc01f1b7ecb:PASS_V10",
+   "recorded_at": "2026-10-12T06:14:19Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-CLIP-ROLES",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V10",
+   "status_change": "PASS_V10",
+   "tests": "interop-psd 57/57 default at fdc01f1 (R17 53-test set all present; +4 by ceb9d33: folios_per_stack_ceiling_cuts_only_the_switched_off_instances_of_a_stack_with_counted_instances, a_counted_instance_after_more_switched_off_ones_than_the_ceiling_is_still_kept, the_live_bound_still_cuts_a_stack_whatever_its_switched_off_instances, descriptor_states_the_folio_ceiling_rule); doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "Blend-If clip-role loss claim untouched; every interop-psd test green at fdc01f1. No claim broken by reading.",
+   "review": "validation/R21-prereview-narrow.json lanes[2] SMB-INTEROP-PSD-FOLIO-CEILING SAFE_TO_JUDGE at fdc01f1 (R21-S1 lead-accepted rule; R21-S2/S3 INFO = PLR-089)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-interop-psd changed bfa1bbf..fdc01f1 by ceb9d33, 03d7ff8, fdc01f1; no workspace dependant)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R19",
+   "idempotency_key": "STUDIO-R19:SMB-INTEROP-PSD-CLIP-ROLES:fdc01f1b7ecb:PASS_V10",
+   "recorded_at": "2026-10-12T06:14:19Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-BUDGET",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V8",
+   "status_change": "PASS_V8",
+   "tests": "interop-psd 57/57 default at fdc01f1 (R17 53-test set all present; +4 by ceb9d33: folios_per_stack_ceiling_cuts_only_the_switched_off_instances_of_a_stack_with_counted_instances, a_counted_instance_after_more_switched_off_ones_than_the_ceiling_is_still_kept, the_live_bound_still_cuts_a_stack_whatever_its_switched_off_instances, descriptor_states_the_folio_ceiling_rule); doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 2,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "claim (effect stacks beyond the bounds are typed per-layer losses, never a whole-import rejection; each bound cuts only its own category) is extended to Folio's per-stack ceiling by ceb9d33 (PLR-063, see SMB-INTEROP-PSD-FOLIO-CEILING): EffectTally admit/charge unchanged; the uncounted bound is not charged for ceiling-dropped instances; the R10/R11 budget tests (effects_over_the_document_cap_..., instances_no_plan_counts_are_bounded_too_..., the_unrendered_bound_never_costs_..., the_counted_bound_never_costs_...) green at fdc01f1. No claim broken by reading.",
+   "review": "validation/R21-prereview-narrow.json lanes[2] SMB-INTEROP-PSD-FOLIO-CEILING SAFE_TO_JUDGE at fdc01f1 (R21-S1 lead-accepted rule; R21-S2/S3 INFO = PLR-089); two-FAIL lane (FAIL_V1 R9, FAIL_V2 R10): V4-13 met by the R21 narrow pre-review of the same diff",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-interop-psd changed bfa1bbf..fdc01f1 by ceb9d33, 03d7ff8, fdc01f1; no workspace dependant); two-FAIL lane (FAIL_V1 R9, FAIL_V2 R10): V4-13 R21 SAFE_TO_JUDGE for hsk-studio-interop-psd at fdc01f1",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R19",
+   "idempotency_key": "STUDIO-R19:SMB-INTEROP-PSD-BUDGET:fdc01f1b7ecb:PASS_V8",
+   "recorded_at": "2026-10-12T06:14:19Z"
+  },
+  {
+   "lane": "SMB-FX-OPS-ADOPT",
+   "crate": "hsk-studio-composite + hsk-studio-render-cpu + hsk-studio-render-gpu + hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V9",
+   "status_change": "PASS_V9",
+   "tests": "interop-psd 57/57 default at fdc01f1 (R17 53-test set all present; +4 by ceb9d33: folios_per_stack_ceiling_cuts_only_the_switched_off_instances_of_a_stack_with_counted_instances, a_counted_instance_after_more_switched_off_ones_than_the_ceiling_is_still_kept, the_live_bound_still_cuts_a_stack_whatever_its_switched_off_instances, descriptor_states_the_folio_ceiling_rule); doctest unit exit 0 (no doctests); composite 28/28, render-cpu 38/38 and render-gpu (information, D20) reused from STUDIO-R16 @5606d16 under CX-VAL-002",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "interop-psd part re-proven here (its FX-OPS typed losses effects_with_blend_if and mask_on_pass_through are outside the diff; see SMB-INTEROP-PSD); composite, render-cpu and render-gpu and their closures (accord, folio, nib, observe, pigment, prism) are byte-unchanged 5606d16..fdc01f1 and none depends on interop-psd, so their R16 results bind (proof commit 5606d16, candidate fdc01f1). No claim broken by reading.",
+   "review": "NOT_REVIEWED as a lane; interop-psd diff: validation/R21-prereview-narrow.json lanes[2] SMB-INTEROP-PSD-FOLIO-CEILING SAFE_TO_JUDGE at fdc01f1 (R21-S1 lead-accepted rule; R21-S2/S3 INFO = PLR-089)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-interop-psd changed bfa1bbf..fdc01f1 by ceb9d33, 03d7ff8, fdc01f1; no workspace dependant)",
+   "proof_reuse": "CX-VAL-002: composite, render-cpu, render-gpu parts = STUDIO-R16 union run @5606d16 (results/R16); proof commit 5606d16, candidate fdc01f1",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R19",
+   "idempotency_key": "STUDIO-R19:SMB-FX-OPS-ADOPT:fdc01f1b7ecb:PASS_V9",
+   "recorded_at": "2026-10-12T06:14:19Z"
+  }
+ ],
+ "infrastructure": [
+  "No infrastructure failure: step 0 clean, all 11 units built and ran, no fixture selected, disk lock @2 waited 1 s, no stale breaks",
+  "Exit 0: the union selection has no NOT_PROVEN test; round.json complete true, absent [] timed_out []",
+  "Gated-word hook: no command blocked; gameplan confirm notes kept within 120 chars (one confirm batch rejected for note length before any confirmation was written, then re-run)",
+  "An idle sccache server (pid 361100) was present and not started by this session (left running)",
+  "Gameplan confirmations written beside the kernel gameplan (.GOV/task_packets/WP-KERNEL-STUDIO/STUDIO-MODULE-ROUND.confirmations.yaml, git-excluded), not committed",
+  "Known Operator item unchanged: repo-local wt-studio-assets/handshake-studio-assets/target (3.8 GB, newest 2026-10-11T10:21:51Z) reported by the lock audit, not written by this round",
+  "Edit tree holds uncommitted edits outside the judged crates (Cargo.lock, 9 hsk-studio-score files); the round built the committed export only",
+  "No git write in the edit tree (origin tip read with git ls-remote; no fetch); kernel files committed and pushed with tools/lead-kernel-push.sh (lead dispatch)",
+  "Round outputs not cleaned (studio-round/target kept warm at the same stable path; deletion is the lead call)",
+  "No outbound request other than git ls-remote/fetch/push to the project remotes (V4-21)"
+ ],
+ "by": "wp_validator STUDIO-R19 (Opus, fresh context, not implementer)"
+}

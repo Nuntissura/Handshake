@@ -518,6 +518,40 @@
     "idempotency_key": "STUDIO-R18:SMB-PRESS-DIFFERENCES:bfa1bbfce421:PASS_V2",
     "recorded_at": "2026-10-12T05:08:19Z",
     "by": "wp_validator STUDIO-R18"
+   },
+   {
+    "round": "STUDIO-R19",
+    "lane": "SMB-PRESS",
+    "candidate": "fdc01f1b7ecb41496c3aa6473eba548f4248c9a7",
+    "tree": "578e7c41f9da2d7387d8bee1e0007ff6bf7a79be",
+    "decision": "passed",
+    "verdict": "PASS_V5",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V5",
+    "review": "validation/R21-prereview-narrow.json lanes[0] SMB-PRESS-DOCS SAFE_TO_JUDGE at fdc01f1 (R21-P1 CONFIRMED doc-only = PLR-087; R21-P2/P3 INFO); two-FAIL lane (FAIL_V1 R5, FAIL_V2 R6): V4-13 met by the R21 narrow pre-review of the same diff",
+    "round_ref": "validation/round-R19.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R19",
+    "idempotency_key": "STUDIO-R19:SMB-PRESS:fdc01f1b7ecb:PASS_V5",
+    "recorded_at": "2026-10-12T06:14:19Z",
+    "by": "wp_validator STUDIO-R19"
+   },
+   {
+    "round": "STUDIO-R19",
+    "lane": "SMB-PRESS-DIFFERENCES",
+    "candidate": "fdc01f1b7ecb41496c3aa6473eba548f4248c9a7",
+    "tree": "578e7c41f9da2d7387d8bee1e0007ff6bf7a79be",
+    "decision": "passed",
+    "verdict": "PASS_V3",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V3",
+    "review": "crate-level: validation/R21-prereview-narrow.json lanes[0] SMB-PRESS-DOCS SAFE_TO_JUDGE at fdc01f1 (R21-P1 CONFIRMED doc-only = PLR-087; R21-P2/P3 INFO); no finding on /Differences",
+    "round_ref": "validation/round-R19.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R19",
+    "idempotency_key": "STUDIO-R19:SMB-PRESS-DIFFERENCES:fdc01f1b7ecb:PASS_V3",
+    "recorded_at": "2026-10-12T06:14:19Z",
+    "by": "wp_validator STUDIO-R19"
    }
   ],
   "unit_test_names": [
