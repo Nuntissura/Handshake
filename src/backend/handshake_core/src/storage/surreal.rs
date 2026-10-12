@@ -1300,7 +1300,36 @@ impl SurrealAdminContext<'_> {
         &self,
         statement: impl Into<String> + Send,
     ) -> Result<surrealdb::IndexedResults, SurrealStorageError> {
-        Ok(self.client.query(statement.into()).await?.check()?)
+        #[cfg(not(test))]
+        {
+            Ok(self.client.query(statement.into()).await?.check()?)
+        }
+        #[cfg(test)]
+        {
+            let mut response = self.client.query(statement.into()).await?;
+            let mut errors = response.take_errors().into_iter().collect::<Vec<_>>();
+            errors.sort_by_key(|(index, _)| *index);
+            let first_error = errors.first().map(|(_, error)| error.clone());
+            let masked = errors.iter().filter(|(_, error)| matches!(
+                error.query_details(), Some(surrealdb::types::QueryError::NotExecuted | surrealdb::types::QueryError::Cancelled)
+            )).count();
+            if !errors.is_empty() {
+                eprintln!("SURREAL_ADMIN_STATEMENT_ERROR_COUNTS total={} masked={masked}", errors.len());
+                for (index, error) in errors.iter().filter(|(_, error)| !matches!(
+                    error.query_details(), Some(surrealdb::types::QueryError::NotExecuted | surrealdb::types::QueryError::Cancelled)
+                )) {
+                    eprintln!("SURREAL_ADMIN_STATEMENT_ERROR index={index} error={error:?}");
+                }
+                if masked == errors.len() {
+                    if let Some((index, error)) = errors.first() {
+                        eprintln!("SURREAL_ADMIN_FIRST_MASKED_ERROR index={index} error={error:?}");
+                    }
+                }
+            }
+            // take_errors removes failures; preserve check's original first error.
+            if let Some(error) = first_error { return Err(error.into()); }
+            Ok(response.check()?)
+        }
     }
 
     async fn query_bound<B>(
@@ -1311,12 +1340,44 @@ impl SurrealAdminContext<'_> {
     where
         B: surrealdb::types::SurrealValue + Send,
     {
-        Ok(self
-            .client
-            .query(statement.into())
-            .bind(surrealdb::types::SurrealValue::into_value(bindings))
-            .await?
-            .check()?)
+        #[cfg(not(test))]
+        {
+            Ok(self
+                .client
+                .query(statement.into())
+                .bind(surrealdb::types::SurrealValue::into_value(bindings))
+                .await?
+                .check()?)
+        }
+        #[cfg(test)]
+        {
+            let mut response = self.client
+                .query(statement.into())
+                .bind(surrealdb::types::SurrealValue::into_value(bindings))
+                .await?;
+            let mut errors = response.take_errors().into_iter().collect::<Vec<_>>();
+            errors.sort_by_key(|(index, _)| *index);
+            let first_error = errors.first().map(|(_, error)| error.clone());
+            let masked = errors.iter().filter(|(_, error)| matches!(
+                error.query_details(), Some(surrealdb::types::QueryError::NotExecuted | surrealdb::types::QueryError::Cancelled)
+            )).count();
+            if !errors.is_empty() {
+                eprintln!("SURREAL_ADMIN_STATEMENT_ERROR_COUNTS total={} masked={masked}", errors.len());
+                for (index, error) in errors.iter().filter(|(_, error)| !matches!(
+                    error.query_details(), Some(surrealdb::types::QueryError::NotExecuted | surrealdb::types::QueryError::Cancelled)
+                )) {
+                    eprintln!("SURREAL_ADMIN_STATEMENT_ERROR index={index} error={error:?}");
+                }
+                if masked == errors.len() {
+                    if let Some((index, error)) = errors.first() {
+                        eprintln!("SURREAL_ADMIN_FIRST_MASKED_ERROR index={index} error={error:?}");
+                    }
+                }
+            }
+            // take_errors removes failures; preserve check's original first error.
+            if let Some(error) = first_error { return Err(error.into()); }
+            Ok(response.check()?)
+        }
     }
 }
 
