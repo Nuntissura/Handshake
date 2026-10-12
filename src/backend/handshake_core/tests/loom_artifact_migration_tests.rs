@@ -1,6 +1,6 @@
 //! MT-068: real embedded catalog and on-disk migration/retry boundaries.
 
-#[path = "knowledge_ingestion_support.rs"]
+#[path = "knowledge_ingestion_support/mod.rs"]
 mod embedded_knowledge_support;
 
 use embedded_knowledge_support::EmbeddedKnowledgeStore;
