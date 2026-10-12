@@ -2254,6 +2254,34 @@
    ],
    "launched": "2026-10-11T23:35:29Z",
    "status": "done 2026-10-12T00:05:24Z (R15 COMPLETE: 31 PASS / 0 FAIL)"
+  },
+  {
+   "name": "builder-pigment-notes",
+   "agent_id": "aad5324ed664b2274",
+   "model": "sonnet",
+   "role": "SMB-PIGMENT-NOTES (PLR-079..081)",
+   "owns": [
+    "crates/hsk-studio-pigment/**",
+    "crates/hsk-studio-render-cpu/**",
+    "builders/lanes/hsk-studio-pigment-notes.json"
+   ],
+   "launched": "2026-10-12T00:06:29Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-notes-batch-1",
+   "agent_id": "ae2b76887edc29d1e",
+   "model": "sonnet",
+   "role": "SMB-NOTES-BATCH-1 (PLR-076, 071, 078, 064, 065)",
+   "owns": [
+    "crates/hsk-studio-press/**",
+    "crates/hsk-studio-web/**",
+    "crates/hsk-studio-reel-native/**",
+    "crates/hsk-studio-interop-psd/**",
+    "builders/lanes/notes-batch-1.json"
+   ],
+   "launched": "2026-10-12T00:06:29Z",
+   "status": "running"
   }
  ]
 }

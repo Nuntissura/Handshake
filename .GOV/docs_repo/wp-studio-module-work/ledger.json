@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-12T00:05:24Z",
+ "updated_at": "2026-10-12T00:06:29Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -2923,6 +2923,30 @@
    ],
    "candidate": "b8b31c7",
    "note": "PLR-069: PlanExtensions::validate structure on every entry, operators/effect blend modes only from reachable groups; render-cpu ExtPrep::build reachable-only. PLR-070: Renderer::with_plan_limits/plan_limits; both execute paths use admit_with_limits/admit_extended_with_limits; above-maximum -> InvalidConfig. PLR-072: depth limit for every plan shape. PLR-073: regexes + 76 classified sites + source tripwire. PLR-074: docs/DESCRIPTOR exact with citation test. PLR-075: clip run validation linear (65536 layers 33 s -> 0.45 s). pigment 79 + render-cpu 37, dependants 106/106, render-gpu check + 24 tests green (untouched); red proofs + 11 mutants. Residuals: knockout/unsupported adjustment/effect features stay typed errors on unreachable entries (lead: keep, structural validity); render-gpu caller limits wait D20; effect budgets constants; composite effect_modes() all-entries (agree for root-lowered plans)"
+  },
+  {
+   "lane_id": "SMB-PIGMENT-NOTES",
+   "crate": "hsk-studio-pigment + hsk-studio-render-cpu",
+   "origin": "plausible register",
+   "scope": "PLR-079..081 (+ PLAN-R15-5 note)",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-pigment-notes",
+   "lane_file": "builders/lanes/hsk-studio-pigment-notes.json",
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-NOTES-BATCH-1",
+   "crate": "hsk-studio-press + hsk-studio-web + hsk-studio-reel-native + hsk-studio-interop-psd",
+   "origin": "plausible register",
+   "scope": "PLR-076 (press), PLR-071 (web), PLR-078 (reel-native), PLR-064/065 (psd)",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-notes-batch-1",
+   "lane_file": "builders/lanes/notes-batch-1.json",
+   "commits": [],
+   "verdicts": []
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
@@ -3149,12 +3173,10 @@
   "at": "2026-10-11T19:13:24Z",
   "for_takeover": "read START_LOG.md (operator-instructions, repo-rules, cargo-tooling, lead decisions, D1-D27), builders/DISPATCH_TEMPLATES.md (builder/validator/v4-rules incl. V4-21), this ledger (lanes, round_R11 latest), team.json, validation/ (rounds + pre-reviews)",
   "steps": [
-   "1. In flight: steward-5 pinning press deps (dep-requests 58-59: hayro-interpret 0.7.0, kurbo 0.13.1) + canary C17; rem-web-r12 (web load-context fixes, sonnet).",
-   "2. After the pin: V4-13 pre-review SMB-PRESS (+DIFFERENCES) at the flatten head (d079292 + sync) against Operator D27 (flatten + narrow).",
-   "3. After rem-web-r12: V4-13 pre-review SMB-WEB; if FIX_FIRST again -> escalate a web assurance-level decision to the Operator (lead rule in START_LOG web R12 decision).",
-   "4. Round R12 (1 validator + 1 reviewer; steward sync + canary first): press and web if their pre-reviews are SAFE.",
-   "5. Queued follow-ups: PLR-058 (pigment validate capability vs structure), PLR-059..061 (reel-native), PLR-063..065 (psd budget), PLR-066..068 (reel), SMB-PRESS-GEOMETRY (Type3/vertical geometry, partly superseded by flatten), SMB-PIGMENT-PLANLIMITS, SMB-FMT-SWEEP, module-map status refresh (STUDIO_MODULES.json shows PLANNED_NOT_IMPLEMENTED for all 35 crates; stale).",
-   "6. Blocked on Operator: D20 (render-gpu, round entrypoint, render-gpu probe), D22-D26 (ProRes/codecs/DNx/ISO 14496-15), D9 (interop-media), D17 (Figma fixtures), D5 (Photoshop oracle), D13/STU-CON-044, repo-local target 3.8 GB, empty folder x at the C: root."
+   "1. In flight: SMB-PIGMENT-NOTES and SMB-NOTES-BATCH-1 (Sonnet).",
+   "2. After both land: one narrow Sonnet V4-13 pre-review covering the touched two-FAIL-history crates (press, web, reel-native, interop-psd), then steward sync + canary + round R16 (validator + Sonnet reviewer), then refresh HANDOFF.md + a new snapshot.",
+   "3. Remaining after R16: PLR-077 (reel video.rs Forward partial end_pts; AV1-ROUTE area -> narrow pre-review), PLR-082 (render-gpu caller limits, after D20), PLR-063 (psd Folio ceiling), SMB-PRESS-GEOMETRY, SMB-FMT-SWEEP, STUDIO_MODULES.json status refresh (stale), app UI + Handshake integration (not started).",
+   "4. Blocked on Operator: D20, D22-D26, D9, D17, D5, D13/STU-CON-044, repo-local 3.8 GB target, empty folder x at the C: root."
   ]
  },
  "r8_plan": {

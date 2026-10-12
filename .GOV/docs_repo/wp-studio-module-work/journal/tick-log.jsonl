@@ -219,3 +219,4 @@
 {"t": "2026-10-11T23:35:29Z", "event": "R15 opened on b8b31c7 (C20 59/59): validator (opus) + reviewer (sonnet) for pigment follow-ups + reopens", "progress": "no direct progress (round dispatch)"}
 {"t": "2026-10-11T23:59:29Z", "event": "R15 review A COMPLETE (pigment follow-ups PASS_WITH_NOTES, 5 CONFIRMED notes none verdict-changing; sweep NO_BREAK_FOUND); PLR-079..082", "progress": "no direct progress (review routing)"}
 {"t": "2026-10-12T00:05:24Z", "event": "R15 COMPLETE on b8b31c7: 31 PASS / 0 FAIL; SMB-RENDER-GPU-ADJ -> BLOCKED (D20, PASS no longer binds); counts {\"PASS\": 97, \"IN_WORK\": 1, \"BLOCKED\": 7, \"QUEUED\": 4}", "lanes_moved": ["31 PASS", "SMB-RENDER-GPU-ADJ BLOCKED"], "progress": "direct: external verdicts advanced (R15)"}
+{"t": "2026-10-12T00:06:29Z", "event": "dispatched builder-pigment-notes + builder-notes-batch-1 (sonnet); resume_plan updated for R16; weekly 89%", "progress": "no direct progress (dispatch)"}
