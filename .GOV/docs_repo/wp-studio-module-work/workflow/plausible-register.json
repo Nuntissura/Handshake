@@ -1656,7 +1656,7 @@
    "status": "OPEN",
    "verified_at": "0c1be05",
    "disposition": "DOC",
-   "disposition_note": "align in next interop-psd touch"
+   "disposition_note": "align in next interop-psd touch; 2026-10-12T10:09:31Z fix submitted SMB-INTEROP-PSD-DOCS c4c31cd"
   },
   {
    "id": "PLR-097",
@@ -1703,7 +1703,7 @@
    "status": "OPEN",
    "verified_at": "54c60f9",
    "disposition": "DOC",
-   "disposition_note": "fold with PLR-096"
+   "disposition_note": "fold with PLR-096; 2026-10-12T10:09:31Z fix submitted SMB-INTEROP-PSD-DOCS c4c31cd"
   },
   {
    "id": "PLR-100",
@@ -1734,7 +1734,7 @@
    "status": "OPEN",
    "verified_at": "2dde832",
    "disposition": "FIX_LANE",
-   "disposition_note": "lead 2026-10-12T09:04:25Z: accepted for now (fail-closed over-report; crate tests green); scope the rule to saves that flatten a region in a later press lane; /MarkInfo-alone handling accepted"
+   "disposition_note": "lead 2026-10-12T09:04:25Z: accepted for now (fail-closed over-report; crate tests green); scope the rule to saves that flatten a region in a later press lane; /MarkInfo-alone handling accepted; 2026-10-12T10:26:38Z fix submitted SMB-PRESS-STRUCT-ORPHANS 0cb7103..1da2453"
   },
   {
    "id": "PLR-102",
@@ -1750,7 +1750,22 @@
    "status": "OPEN",
    "verified_at": "2dde832",
    "disposition": "FIX_LANE",
-   "disposition_note": "next press lane: fail closed when any surviving dictionary has struct-element shape (/Type /StructElem, or /S with /P and a struct text key) or an outline /SE remains; decide together with D28 (strip tree) and PLR-101"
+   "disposition_note": "next press lane: fail closed when any surviving dictionary has struct-element shape (/Type /StructElem, or /S with /P and a struct text key) or an outline /SE remains; decide together with D28 (strip tree) and PLR-101; 2026-10-12T10:26:38Z fix submitted SMB-PRESS-STRUCT-ORPHANS 0cb7103..1da2453"
+  },
+  {
+   "id": "PLR-103",
+   "lane": "SMB-PRESS-STRUCT-ORPHANS",
+   "file_line": "crates/hsk-studio-press/src/flatten_purge.rs (structure shape rule)",
+   "finding": "residual: a dictionary with /S plus a struct text key but no /P and no /Type is not read as a structure element (pinned by a test row); its text survives unreported when nothing else marks the save",
+   "first_seen": "builder report 1da2453",
+   "seen_in": [
+    "builder report 1da2453"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "1da2453",
+   "disposition": "FIX_LANE",
+   "disposition_note": "pre-review R25 assesses; decide with D28"
   }
  ],
  "process_items": [

@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-12T09:57:55Z",
+ "updated_at": "2026-10-12T10:27:14Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3344,23 +3344,31 @@
    "lane_id": "SMB-PRESS-STRUCT-ORPHANS",
    "crate": "hsk-studio-press",
    "origin": "PLR-102, PLR-101",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-press-struct-orphans",
-   "candidate": null,
-   "commits": [],
-   "verdicts": []
+   "candidate": "1da2453",
+   "commits": [
+    "0cb7103",
+    "dce563e",
+    "1da2453"
+   ],
+   "verdicts": [],
+   "note": "claim 0cb7103+dce563e+1da2453: PLR-102 shape rule (/Type /StructElem|/StructTreeRoot, /S+/P+struct text key, /SE; names decoded, refs followed; kept object-stream members; unreadable counts) shares one +1 with tree/StructParents; PLR-101 rules only when a region is flattened; R24 J1/J2b/K1 reported; 3 new tests, 3 changed; 14 mutants killed in one batch; press 164/164; V4-06 201 hits classified"
   },
   {
    "lane_id": "SMB-INTEROP-PSD-DOCS",
    "crate": "hsk-studio-interop-psd",
    "origin": "PLR-096, PLR-099",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-psd-docs",
-   "candidate": null,
-   "commits": [],
-   "verdicts": []
+   "candidate": "c4c31cd",
+   "commits": [
+    "c4c31cd"
+   ],
+   "verdicts": [],
+   "note": "docs only: PLR-096 MAPPED switched-off wording (effects.rs, proposal.rs, DESCRIPTOR clause + needle); PLR-099 8192-item scoping in source docs; V4-06 section (A 27, B 39+3); no code token changed outside DESCRIPTOR literal + needle; crate 62/62; effects_budget.rs:464 assertion message left (code token)"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
@@ -3477,7 +3485,9 @@
   "SMB-INTEROP-PSD-LOSS-DETAIL",
   "SMB-REEL-PTS-TESTS",
   "SMB-INTEROP-PSD-DESC-CAP",
-  "SMB-PRESS-STRUCT-FAILCLOSED"
+  "SMB-PRESS-STRUCT-FAILCLOSED",
+  "SMB-INTEROP-PSD-DOCS",
+  "SMB-PRESS-STRUCT-ORPHANS"
  ],
  "round_R6": {
   "candidate": "bd8533f",
@@ -3597,7 +3607,7 @@
  "resume_plan": {
   "at": "2026-10-12T09:56:43Z",
   "steps": [
-   "1. R21 COMPLETE (27 PASS, 0 FAIL). In flight (Sonnet builders, dispatched 2026-10-12T09:57:55Z): SMB-PRESS-STRUCT-ORPHANS (PLR-102, PLR-101), SMB-INTEROP-PSD-DOCS (PLR-096, PLR-099). Then V4-13 narrow pre-review (two-FAIL lanes SMB-PRESS, SMB-INTEROP-PSD-BUDGET), then round R22. On takeover: if team.json shows them running but no agent exists, read their lane files and re-dispatch with the same scope.",
+   "1. Two lanes READY at 1da2453 (SMB-PRESS-STRUCT-ORPHANS 0cb7103+dce563e+1da2453; SMB-INTEROP-PSD-DOCS c4c31cd). In flight: V4-13 narrow pre-review 2dde832..1da2453 -> validation/R25-prereview-narrow.json. If SAFE: steward sync + canary C27 + round R22 (1 validator; two-FAIL lanes SMB-PRESS, SMB-INTEROP-PSD-BUDGET). If FIX_FIRST: fresh builder on the same lane.",
    "2. Then SMB-PRESS-GEOMETRY, SMB-FMT-SWEEP, notes residuals (config-OBU tag, exact-64 FRAME test, psd group-own-lfx2/zero-tile), PLR-097 (rewrite indirect /K arrays), PLR-100 (reel-native finish() test).",
    "3. Keep pushing gov_kernel after every commit.",
    "4. Blocked on Operator: D28 (strip structure tree on redaction save), D20, D22-D26, D9, D17, D5, D13/STU-CON-044, D21, repo-local target 3.8 GB, empty folder x at the C: root, scratch/probe trees cleanup (list in START_LOG); STUDIO_MODULES.json status vocabulary undefined."
