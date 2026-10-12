@@ -975,7 +975,7 @@ DEFINE FUNCTION OVERWRITE fn::wp012_navigation_receipt_semantics($row: object) {
         base_state_vector: $row.payload.base_state_vector,
         decided_by: $row.payload.decided_by,
         base_update_seq: $row.payload.base_update_seq,
-        application_evidence: IF $row.payload.application_evidence = NONE { NONE } ELSE {
+        application_evidence: IF $row.payload.application_evidence = NONE { NONE } ELSE { {
             schema_id: $row.payload.application_evidence.schema_id,
             operation: $row.payload.application_evidence.operation,
             proposal_id: $row.payload.application_evidence.proposal_id,
@@ -998,7 +998,7 @@ DEFINE FUNCTION OVERWRITE fn::wp012_navigation_receipt_semantics($row: object) {
             approval_event_sequence: $row.payload.application_evidence.approval_event_sequence,
             update_event_sequence: $row.payload.application_evidence.update_event_sequence,
             path: $row.payload.application_evidence.path
-        }
+        } }
     };
     RETURN object::from_entries(array::filter(object::entries($input), |$entry| { $entry[0] IN $keys AND $entry[1] != NONE AND $entry[1] != NULL }));
 };

@@ -748,6 +748,41 @@ pub(crate) async fn with_model_lane_operation<T>(
     MODEL_LANE_OPERATION_PURPOSE.scope(purpose, operation).await
 }
 
+// Detached callers preserve absence as well as the actual original authority.
+#[derive(Clone)]
+pub(crate) struct CapturedModelLaneOperation {
+    account: Option<event_ledger::CapturedAccountAuthority>,
+    subject: Option<ModelLaneOperationSubject>,
+    purpose: Option<model_lane::ContextCoordinationPurpose>,
+}
+
+pub(crate) fn capture_model_lane_operation() -> CapturedModelLaneOperation {
+    CapturedModelLaneOperation {
+        account: event_ledger::capture_account_authority(),
+        subject: current_model_lane_subject(),
+        purpose: MODEL_LANE_OPERATION_PURPOSE.try_with(Clone::clone).ok(),
+    }
+}
+
+pub(crate) async fn with_captured_model_lane_operation<T>(
+    storage: &SurrealStorage,
+    captured: CapturedModelLaneOperation,
+    operation: impl Future<Output = T>,
+) -> T {
+    let CapturedModelLaneOperation { account, subject, purpose } = captured;
+    let work = async move {
+        let work = async move {
+            if let Some(purpose) = purpose {
+                with_model_lane_operation(purpose, operation).await
+            } else { operation.await }
+        };
+        if let Some(subject) = subject {
+            with_model_lane_subject(subject, work).await
+        } else { work.await }
+    };
+    event_ledger::with_captured_account_authority(storage, account, work).await
+}
+
 fn original_operation_bindings(mut bindings: surrealdb::types::Value) -> surrealdb::types::Value {
     if let Some(scope) = current_record_user_scope() {
         if matches!(bindings, surrealdb::types::Value::None) {

@@ -171,7 +171,9 @@ struct ApprovedRegistryDiff {
 // publish with an approve flag. These paths select inputs, never confer approval.
 #[derive(Clone)]
 pub(crate) struct ApprovedRegistryInput {
-    pub(crate) governance_root: PathBuf,
+    normative_sources: BTreeMap<String, ApprovedRegistryExport>,
+    source_exports_path: PathBuf,
+    source_exports_sha256: String,
     pub(crate) proposal_directory: PathBuf,
     pub(crate) output_directory: PathBuf,
     pub(crate) approval_record_path: PathBuf,
@@ -191,11 +193,46 @@ pub(crate) struct ApprovedRegistryInput {
 struct ServerRegistryApprovalConfiguration {
     proposal_directory: PathBuf,
     output_directory: PathBuf,
-    approval_record_path: PathBuf,
+    source_exports_path: PathBuf,
+    source_exports_sha256: String,
+    approval_source_id: String,
     approval_record_pointer: String,
     approval_record_sha256: String,
     expected_draft_sha256: String,
     expected_diff_sha256: String,
+}
+
+// Exported original bytes are read-only data. Source IDs are provenance keys,
+// never filesystem paths or a second issuer of human approval.
+#[derive(Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ApprovedRegistryExport {
+    path: PathBuf,
+    sha256: String,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RegistrySourceExports {
+    source_authority: String,
+    normative_sources: BTreeMap<String, ApprovedRegistryExport>,
+    approval_record_pointer: String,
+    approval_record_sha256: String,
+}
+
+fn registry_external_path(parent: &Path, selected: &Path) -> CapabilityRegistryWorkflowResult<PathBuf> {
+    let required = || CapabilityRegistryWorkflowError::ServerApprovalConfigurationRequired;
+    let forbidden = |path: &Path| path.components().any(|component|
+        component.as_os_str().to_string_lossy().eq_ignore_ascii_case(".GOV"));
+    if selected.as_os_str().is_empty() || forbidden(selected)
+        || (!selected.is_absolute() && (selected.has_root()
+            || selected.components().any(|component| matches!(component, std::path::Component::Prefix(_))))) {
+        return Err(required());
+    }
+    let path = fs::canonicalize(if selected.is_absolute() { selected.to_owned() }
+        else { parent.join(selected) }).map_err(|_| required())?;
+    if !path.is_absolute() || forbidden(&path) { return Err(required()); }
+    Ok(path)
 }
 
 impl ApprovedRegistryInput {
@@ -206,33 +243,43 @@ impl ApprovedRegistryInput {
         flight_recorder: std::sync::Arc<dyn FlightRecorder>,
     ) -> CapabilityRegistryWorkflowResult<Self> {
         let required = || CapabilityRegistryWorkflowError::ServerApprovalConfigurationRequired;
-        // These are host configuration, not job parameters. No copied product
-        // .GOV discovery or default witness is permitted; absence is fail closed.
-        let root = std::env::var_os("HANDSHAKE_GOV_ROOT").ok_or_else(required)?;
-        let selected = PathBuf::from(root);
-        if !selected.is_absolute() { return Err(required()); }
-        let governance_root = fs::canonicalize(selected).map_err(|_| required())?;
-        if !governance_root.join(".GOV/codex/Handshake_Codex_v1.4.md").is_file()
-            || !governance_root.join(".GOV/spec/SPEC_CURRENT.md").is_file() {
-            return Err(required());
-        }
+        // Only server configuration selects immutable external inputs. Jobs cannot
+        // select approval authority, and runtime never opens live .GOV or aliases.
         let selected = PathBuf::from(std::env::var_os("HANDSHAKE_CAPABILITY_REGISTRY_APPROVAL_CONFIG")
             .ok_or_else(required)?);
         if !selected.is_absolute() { return Err(required()); }
-        let server_configuration_path = fs::canonicalize(selected).map_err(|_| required())?;
-        if !server_configuration_path.starts_with(&governance_root) { return Err(required()); }
+        let server_configuration_path = registry_external_path(Path::new(""), &selected)?;
+        let parent = server_configuration_path.parent().ok_or_else(required)?;
         let bytes = fs::read(&server_configuration_path).map_err(|source|
             CapabilityRegistryWorkflowError::ReadFile { path: server_configuration_path.clone(), source })?;
         let configuration: ServerRegistryApprovalConfiguration = serde_json::from_slice(&bytes)
             .map_err(|source| CapabilityRegistryWorkflowError::JsonParse { path: server_configuration_path.clone(), source })?;
-        let approval_record_path = if configuration.approval_record_path.is_absolute() {
-            configuration.approval_record_path
-        } else { governance_root.join(configuration.approval_record_path) };
-        let approval_record_path = fs::canonicalize(approval_record_path).map_err(|_| required())?;
-        if !approval_record_path.starts_with(&governance_root) { return Err(required()); }
+        let source_exports_path = registry_external_path(parent, &configuration.source_exports_path)?;
+        let export_bytes = fs::read(&source_exports_path).map_err(|source|
+            CapabilityRegistryWorkflowError::ReadFile { path: source_exports_path.clone(), source })?;
+        if sha256_hex(&export_bytes) != configuration.source_exports_sha256 { return Err(required()); }
+        let mut exports: RegistrySourceExports = serde_json::from_slice(&export_bytes)
+            .map_err(|source| CapabilityRegistryWorkflowError::JsonParse { path: source_exports_path.clone(), source })?;
+        if exports.source_authority.trim().is_empty() || exports.normative_sources.is_empty()
+            || exports.approval_record_pointer != configuration.approval_record_pointer
+            || exports.approval_record_sha256 != configuration.approval_record_sha256 {
+            return Err(required());
+        }
+        let export_parent = source_exports_path.parent().ok_or_else(required)?;
+        for (identity, source) in &mut exports.normative_sources {
+            if identity.is_empty() || source.sha256.len() != 64
+                || !source.sha256.bytes().all(|byte| byte.is_ascii_hexdigit()) { return Err(required()); }
+            source.path = registry_external_path(export_parent, &source.path)?;
+        }
+        let approval = exports.normative_sources.get(&configuration.approval_source_id).ok_or_else(required)?;
+        if approval.sha256 != configuration.approval_record_sha256 { return Err(required()); }
+        let approval_record_path = approval.path.clone();
+        let proposal_directory = registry_external_path(parent, &configuration.proposal_directory)?;
+        let output_directory = registry_external_path(parent, &configuration.output_directory)?.join(job_id.to_string());
         Ok(Self {
-            governance_root, proposal_directory: configuration.proposal_directory,
-            output_directory: configuration.output_directory.join(job_id.to_string()),
+            normative_sources: exports.normative_sources, source_exports_path,
+            source_exports_sha256: configuration.source_exports_sha256,
+            proposal_directory, output_directory,
             approval_record_path, approval_record_pointer: configuration.approval_record_pointer,
             approval_record_sha256: configuration.approval_record_sha256,
             expected_draft_sha256: configuration.expected_draft_sha256,
@@ -814,11 +861,14 @@ pub async fn run_capability_registry_workflow(
     let input = APPROVED_REGISTRY_INPUT.try_with(Clone::clone)
         .map_err(|_| CapabilityRegistryWorkflowError::ApprovedInputRequired)?;
     let mismatch = |category| CapabilityRegistryWorkflowError::ApprovedInputMismatch { category };
-    let read = |path: &Path| fs::read(path).map_err(|source|
-        CapabilityRegistryWorkflowError::ReadFile { path: path.to_owned(), source });
+    let read = |path: &Path| -> CapabilityRegistryWorkflowResult<Vec<u8>> {
+        let resolved = registry_external_path(repo_root, path)?;
+        fs::read(&resolved).map_err(|source|
+            CapabilityRegistryWorkflowError::ReadFile { path: resolved, source })
+    };
     let parse = |path: &Path, bytes: &[u8]| serde_json::from_slice::<Value>(bytes)
         .map_err(|source| CapabilityRegistryWorkflowError::JsonParse { path: path.to_owned(), source });
-    for path in [&input.governance_root, &input.proposal_directory, &input.output_directory] {
+    for path in [&input.proposal_directory, &input.output_directory] {
         if !path.is_absolute() { return Err(mismatch("absolute_input_paths")); }
     }
     if params.job_id.is_none() || params.workflow_id.is_none()
@@ -841,7 +891,6 @@ pub async fn run_capability_registry_workflow(
         return Err(mismatch("approved_artifact_bytes"));
     }
     if !input.approval_record_path.is_absolute()
-        || !input.approval_record_path.starts_with(&input.governance_root)
         || !input.approval_record_pointer.starts_with('/') {
         return Err(mismatch("approval_record_selector"));
     }
@@ -905,31 +954,55 @@ pub async fn run_capability_registry_workflow(
         return Err(mismatch("approved_additions"));
     }
     let mut dependencies = BTreeMap::new();
+    let mut dependency_paths = BTreeMap::new();
     for dependency in [&diff.mechanical_engines, &diff.registry_schema] {
         let relative = dependency.path.as_str();
         let bytes = read(&repo_root.join(relative))?;
         let hash = sha256_hex(&bytes);
         if hash != dependency.sha256 { return Err(mismatch("normative_dependency_drift")); }
+        dependency_paths.insert(relative.to_owned(), registry_external_path(repo_root, Path::new(relative))?);
         dependencies.insert(relative.to_owned(), hash);
     }
-    // Resolve today's normative bundle, not the obsolete v02.113 extraction prompt.
-    // Capture every manifest module hash; this is provenance, not runtime acceptance.
-    let pointer_path = input.governance_root.join(".GOV/spec/SPEC_CURRENT.md");
-    let pointer_bytes = read(&pointer_path)?;
+    // Original source identities resolve only through the pinned external map.
+    let exported = |identity: &str| -> CapabilityRegistryWorkflowResult<(PathBuf, Vec<u8>)> {
+        let source = input.normative_sources.get(identity).ok_or_else(|| mismatch("exported_source_missing"))?;
+        if registry_external_path(Path::new(""), &source.path)? != source.path {
+            return Err(mismatch("exported_source_alias_drift"));
+        }
+        let bytes = read(&source.path)?;
+        if sha256_hex(&bytes) != source.sha256 { return Err(mismatch("exported_source_drift")); }
+        Ok((source.path.clone(), bytes))
+    };
+    let pointer_id = ".GOV/spec/SPEC_CURRENT.md";
+    let (pointer_path, pointer_bytes) = exported(pointer_id)?;
     let pointer = parse(&pointer_path, &pointer_bytes)?;
-    let relative = pointer["current_spec"]["entrypoint_path"].as_str().ok_or_else(|| mismatch("spec_pointer"))?;
-    let manifest_path = input.governance_root.join(relative);
-    let manifest_bytes = read(&manifest_path)?;
+    let manifest_id = pointer["current_spec"]["entrypoint_path"].as_str().ok_or_else(|| mismatch("spec_pointer"))?;
+    let (manifest_path, manifest_bytes) = exported(manifest_id)?;
     let manifest = parse(&manifest_path, &manifest_bytes)?;
-    dependencies.insert(".GOV/spec/SPEC_CURRENT.md".into(), sha256_hex(&pointer_bytes));
-    dependencies.insert(relative.into(), sha256_hex(&manifest_bytes));
+    dependency_paths.insert(pointer_id.to_owned(), pointer_path);
+    dependencies.insert(pointer_id.to_owned(), sha256_hex(&pointer_bytes));
+    dependency_paths.insert(manifest_id.to_owned(), manifest_path);
+    dependencies.insert(manifest_id.to_owned(), sha256_hex(&manifest_bytes));
+    let manifest_parent = manifest_id.rsplit_once('/').ok_or_else(|| mismatch("spec_manifest_parent"))?.0;
     for module in manifest["modules"].as_array().ok_or_else(|| mismatch("spec_modules"))? {
         let relative = module["path"].as_str().ok_or_else(|| mismatch("spec_module_path"))?;
-        let path = manifest_path.parent().ok_or_else(|| mismatch("spec_manifest_parent"))?.join(relative);
-        let hash = sha256_hex(&read(&path)?);
+        let identity = format!("{manifest_parent}/{relative}");
+        let (path, bytes) = exported(&identity)?;
+        let hash = sha256_hex(&bytes);
         if Some(hash.as_str()) != module["sha256"].as_str() { return Err(mismatch("spec_module_drift")); }
-        dependencies.insert(path.to_string_lossy().into_owned(), hash);
+        if dependency_paths.insert(identity.clone(), path).is_some() { return Err(mismatch("spec_module_duplicate")); }
+        dependencies.insert(identity, hash);
     }
+    // Recheck every supplied export, including the original human approval record.
+    for identity in input.normative_sources.keys() {
+        let (path, bytes) = exported(identity)?;
+        dependency_paths.insert(identity.clone(), path);
+        dependencies.insert(identity.clone(), sha256_hex(&bytes));
+    }
+    dependency_paths.insert(input.source_exports_path.to_string_lossy().into_owned(), input.source_exports_path.clone());
+    dependencies.insert(input.source_exports_path.to_string_lossy().into_owned(), input.source_exports_sha256.clone());
+    dependency_paths.insert(input.approval_record_path.to_string_lossy().into_owned(), input.approval_record_path.clone());
+    dependency_paths.insert(input.server_configuration_path.to_string_lossy().into_owned(), input.server_configuration_path.clone());
     dependencies.insert(input.approval_record_path.to_string_lossy().into_owned(), sha256_hex(&approval_bytes));
     dependencies.insert(input.server_configuration_path.to_string_lossy().into_owned(), input.server_configuration_sha256.clone());
     if input.output_directory.starts_with(repo_root)
@@ -937,6 +1010,14 @@ pub async fn run_capability_registry_workflow(
         return Err(mismatch("external_scoped_output_directory"));
     }
     let review_path = input.output_directory.join("capability_registry_review.json");
+    let output_parent = input.output_directory.parent().ok_or_else(|| mismatch("output_parent_missing"))?;
+    if registry_external_path(Path::new(""), output_parent)? != output_parent {
+        return Err(mismatch("output_parent_alias_drift"));
+    }
+    if input.output_directory.exists()
+        && registry_external_path(Path::new(""), &input.output_directory)? != input.output_directory {
+        return Err(mismatch("output_alias_drift"));
+    }
     fs::create_dir_all(&input.output_directory).map_err(|source|
         CapabilityRegistryWorkflowError::CreateDir { path: input.output_directory.clone(), source })?;
     write_json_file(&review_path, &json!({
@@ -1008,11 +1089,9 @@ pub async fn run_capability_registry_workflow(
         if sha256_hex(&read(path)?) != expected { return Err(mismatch("prepublication_input_drift")); }
     }
     for (relative, expected) in &dependencies {
-        let selected = Path::new(relative);
-        let path = if selected.is_absolute() { selected.to_owned() }
-            else if relative.starts_with(".GOV/") { input.governance_root.join(selected) }
-            else { repo_root.join(selected) };
-        if sha256_hex(&read(&path)?) != *expected { return Err(mismatch("prepublication_normative_drift")); }
+        let path = dependency_paths.get(relative).ok_or_else(|| mismatch("normative_source_path_missing"))?;
+        if registry_external_path(Path::new(""), path)? != *path
+            || sha256_hex(&read(path)?) != *expected { return Err(mismatch("prepublication_normative_drift")); }
     }
     let operation_id = Uuid::now_v7();
     let cancellation = crate::storage::surreal::ContextOperationCancellation::new();
@@ -1028,6 +1107,7 @@ pub async fn run_capability_registry_workflow(
     let publication_params = params.clone();
     let publication_approval = approval.clone();
     let publication_dependencies = dependencies.clone();
+    let publication_dependency_paths = dependency_paths;
     let publication_draft_path = artifacts.draft_path.clone();
     let publication_diff_path = artifacts.diff_path.clone();
     let publication_baseline_sha = diff.baseline.sha256.clone();
@@ -1059,16 +1139,15 @@ pub async fn run_capability_registry_workflow(
                         let mismatch = |category| CapabilityRegistryWorkflowError::ApprovedInputMismatch { category };
                         for (path, expected) in [(&publication_draft_path, &publication_draft_sha),
                             (&publication_diff_path, &publication_diff_sha), (&publication_path, &publication_baseline_sha)] {
-                            let bytes = fs::read(path).map_err(|source|
-                                CapabilityRegistryWorkflowError::ReadFile { path: path.clone(), source })?;
+                            let resolved = registry_external_path(Path::new(""), path)?;
+                            let bytes = fs::read(&resolved).map_err(|source|
+                                CapabilityRegistryWorkflowError::ReadFile { path: resolved, source })?;
                             if sha256_hex(&bytes) != *expected { return Err(mismatch("publication_input_drift")); }
                         }
                         for (relative, expected) in &publication_dependencies {
-                            let selected = Path::new(relative);
-                            let path = if selected.is_absolute() { selected.to_owned() }
-                                else if relative.starts_with(".GOV/") { publication_input.governance_root.join(selected) }
-                                else { publication_root.join(selected) };
-                            let bytes = fs::read(&path).map_err(|source|
+                            let path = publication_dependency_paths.get(relative).ok_or_else(|| mismatch("normative_source_path_missing"))?;
+                            if registry_external_path(Path::new(""), path)? != *path { return Err(mismatch("publication_source_alias_drift")); }
+                            let bytes = fs::read(path).map_err(|source|
                                 CapabilityRegistryWorkflowError::ReadFile { path: path.clone(), source })?;
                             if sha256_hex(&bytes) != *expected { return Err(mismatch("publication_normative_drift")); }
                         }

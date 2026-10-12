@@ -4313,11 +4313,15 @@ impl SwarmCoordinator {
                     Ok(()) | Err(SwarmError::UnknownInstance(_)) => {}
                     Err(err) => return Err(err),
                 }
+                let heartbeat_storage = model_lane_store.surreal_storage().clone();
+                let heartbeat_authority = crate::storage::surreal::capture_model_lane_operation();
                 let heartbeat_store = (*execution_store).clone();
                 let heartbeat_claim = claim.clone();
                 let heartbeat_lane_id = authority_lane_id.clone();
                 let heartbeat_request_message_ref = request_message.message_id.clone();
                 tokio::spawn(async move {
+                    crate::storage::surreal::with_captured_model_lane_operation(
+                        &heartbeat_storage, heartbeat_authority, async move {
                     let mut heartbeat =
                         tokio::time::interval(std::time::Duration::from_secs(10));
                     heartbeat.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
@@ -4337,6 +4341,7 @@ impl SwarmCoordinator {
                             break;
                         }
                     }
+                    }).await;
                 });
                 return Ok(ModelLaneRoutingStageDispatch {
                     stage_id: claim.stage_id,

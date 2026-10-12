@@ -3397,7 +3397,7 @@ DEFINE FUNCTION OVERWRITE fn::wp012_navigation_receipt_semantics($row: object) {
         base_state_vector: $row.payload.base_state_vector,
         decided_by: $row.payload.decided_by,
         base_update_seq: $row.payload.base_update_seq,
-        application_evidence: IF $row.payload.application_evidence = NONE { NONE } ELSE {
+        application_evidence: IF $row.payload.application_evidence = NONE { NONE } ELSE { {
             schema_id: $row.payload.application_evidence.schema_id,
             operation: $row.payload.application_evidence.operation,
             proposal_id: $row.payload.application_evidence.proposal_id,
@@ -3420,7 +3420,7 @@ DEFINE FUNCTION OVERWRITE fn::wp012_navigation_receipt_semantics($row: object) {
             approval_event_sequence: $row.payload.application_evidence.approval_event_sequence,
             update_event_sequence: $row.payload.application_evidence.update_event_sequence,
             path: $row.payload.application_evidence.path
-        }
+        } }
     };
     RETURN object::from_entries(array::filter(object::entries($input), |$entry| { $entry[0] IN $keys AND $entry[1] != NONE AND $entry[1] != NULL }));
 };
@@ -3996,7 +3996,7 @@ const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
 // Existing collection subtype count also drifted (57 observed source nestings, 56 declared).
 // Live INFO, shared/module catalog ownership and compatible reopen lineage remain unmeasured.
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "8019bfd40173c9b9b07fc6878bb74780e064b2f3c93193db98c6e59082513147";
+    "5adf07f534a3678d9932978336134d8f522aa535e96bc396c0814c6a90177d87";
 // MT-142 re-pin: catalog identities gained the knowledge_rich_document_title_anchors objects.
 // MT-151 re-pin: catalog identities gained the journal_key field/index and the
 // storage_graph_anchors objects.
