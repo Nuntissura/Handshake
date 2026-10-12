@@ -1653,10 +1653,12 @@
     "builder report 0c1be05"
    ],
    "rounds_carried": 0,
-   "status": "OPEN",
+   "status": "CLOSED",
    "verified_at": "0c1be05",
    "disposition": "DOC",
-   "disposition_note": "align in next interop-psd touch; 2026-10-12T10:09:31Z fix submitted SMB-INTEROP-PSD-DOCS c4c31cd"
+   "disposition_note": "align in next interop-psd touch; 2026-10-12T10:09:31Z fix submitted SMB-INTEROP-PSD-DOCS c4c31cd",
+   "closed_by": "round-R22 PASS at 1da2453 (SMB-INTEROP-PSD-DOCS)",
+   "closed_at": "2026-10-12T11:22:02Z"
   },
   {
    "id": "PLR-097",
@@ -1700,10 +1702,12 @@
     "R23-prereview-narrow"
    ],
    "rounds_carried": 0,
-   "status": "OPEN",
+   "status": "CLOSED",
    "verified_at": "54c60f9",
    "disposition": "DOC",
-   "disposition_note": "fold with PLR-096; 2026-10-12T10:09:31Z fix submitted SMB-INTEROP-PSD-DOCS c4c31cd"
+   "disposition_note": "fold with PLR-096; 2026-10-12T10:09:31Z fix submitted SMB-INTEROP-PSD-DOCS c4c31cd",
+   "closed_by": "round-R22 PASS at 1da2453 (SMB-INTEROP-PSD-DOCS)",
+   "closed_at": "2026-10-12T11:22:02Z"
   },
   {
    "id": "PLR-100",
@@ -1731,10 +1735,12 @@
     "round-R21 V-2 (lane claim wording: 'adds 1 and ResidualInRegion')"
    ],
    "rounds_carried": 0,
-   "status": "OPEN",
+   "status": "CLOSED",
    "verified_at": "2dde832",
    "disposition": "FIX_LANE",
-   "disposition_note": "lead 2026-10-12T09:04:25Z: accepted for now (fail-closed over-report; crate tests green); scope the rule to saves that flatten a region in a later press lane; /MarkInfo-alone handling accepted; 2026-10-12T10:26:38Z fix submitted SMB-PRESS-STRUCT-ORPHANS 0cb7103..1da2453"
+   "disposition_note": "lead 2026-10-12T09:04:25Z: accepted for now (fail-closed over-report; crate tests green); scope the rule to saves that flatten a region in a later press lane; /MarkInfo-alone handling accepted; 2026-10-12T10:26:38Z fix submitted SMB-PRESS-STRUCT-ORPHANS 0cb7103..1da2453",
+   "closed_by": "round-R22 PASS at 1da2453 (SMB-PRESS-STRUCT-ORPHANS)",
+   "closed_at": "2026-10-12T11:22:02Z"
   },
   {
    "id": "PLR-102",
@@ -1747,10 +1753,12 @@
     "round-R21 V-1 (outside the narrowed claim; a D28 strip must drop every structure element still reachable)"
    ],
    "rounds_carried": 0,
-   "status": "OPEN",
+   "status": "CLOSED",
    "verified_at": "2dde832",
    "disposition": "FIX_LANE",
-   "disposition_note": "next press lane: fail closed when any surviving dictionary has struct-element shape (/Type /StructElem, or /S with /P and a struct text key) or an outline /SE remains; decide together with D28 (strip tree) and PLR-101; 2026-10-12T10:26:38Z fix submitted SMB-PRESS-STRUCT-ORPHANS 0cb7103..1da2453"
+   "disposition_note": "next press lane: fail closed when any surviving dictionary has struct-element shape (/Type /StructElem, or /S with /P and a struct text key) or an outline /SE remains; decide together with D28 (strip tree) and PLR-101; 2026-10-12T10:26:38Z fix submitted SMB-PRESS-STRUCT-ORPHANS 0cb7103..1da2453",
+   "closed_by": "round-R22 PASS at 1da2453 (SMB-PRESS-STRUCT-ORPHANS)",
+   "closed_at": "2026-10-12T11:22:02Z"
   },
   {
    "id": "PLR-103",
@@ -1775,13 +1783,14 @@
    "finding": "PRE-EXISTING, inside the proven (untagged) claim: a marked-content /Alt or /ActualText of the flattened page survives in shared or inherited /Properties resources and the save still reads proven (R25-P7)",
    "first_seen": "R25-prereview-narrow",
    "seen_in": [
-    "R25-prereview-narrow"
+    "R25-prereview-narrow",
+    "round-R22 V-2: inside SMB-PRESS untagged scope (drop_painted_sources does not purge /Properties); until fixed the DESCRIPTOR sentence 'the redaction proof covers untagged documents' claims more than the code proves"
    ],
    "rounds_carried": 0,
    "status": "OPEN",
    "verified_at": "1da2453",
    "disposition": "FIX_LANE",
-   "disposition_note": "PRIORITY next press lane: reproduce; purge or fail closed (lead stance: fail closed if purge is not exact)"
+   "disposition_note": "PRIORITY 1 for the next session: press lane SMB-PRESS-PROPERTIES (purge marked-content /Alt//ActualText from shared/inherited /Properties of flattened pages, or fail closed) + PLR-105; until then the untagged claim is over-broad for that case"
   },
   {
    "id": "PLR-105",
@@ -1812,6 +1821,21 @@
    "verified_at": "1da2453",
    "disposition": "DOC",
    "disposition_note": "next interop-psd touch"
+  },
+  {
+   "id": "PLR-107",
+   "lane": "SMB-PRESS-STRUCT-FAILCLOSED",
+   "file_line": "builders/lanes/hsk-studio-press-struct-failclosed.json (claim text)",
+   "finding": "kernel claim text of SMB-PRESS-STRUCT-FAILCLOSED should say the structure rules apply to saves that flatten at least one region (PLR-101, R22 V-1)",
+   "first_seen": "round-R22 V-1",
+   "seen_in": [
+    "round-R22"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "1da2453",
+   "disposition": "DOC",
+   "disposition_note": "lead: reword the lane claim text in the next press lane record"
   }
  ],
  "process_items": [

@@ -46,7 +46,7 @@ Message 2:
 
 <topic id="snapshot" status="active" summary="Repo and work state at session start">
 
-Latest handoff: `HANDOFF.md` (projection) and machine-readable snapshot `snapshots/SNAPSHOT-20261012T095644Z.json` (latest). The section below is the session-start snapshot (2026-10-11T00:37Z), kept as history.
+Latest handoff: `HANDOFF.md` (projection) and machine-readable snapshot `snapshots/SNAPSHOT-20261012T112202Z.json` (latest). The section below is the session-start snapshot (2026-10-11T00:37Z), kept as history.
 
 
 ## Snapshot (2026-10-11T00:37Z)
@@ -368,3 +368,4 @@ Open Operator decisions (not adopted; recorded for the Operator):
 - OPERATOR ITEM housekeeping update 2026-10-12T09:27:17Z: scratch/probe trees under Handshake_Artifacts/WP-KERNEL-STUDIO waiting for deletion approval now also include r23-prereview-probe, r24-prereview-probe, press-struct-treenp-redproof, press-struct-failclosed-redproof, smb-reel-pts-tests-redproof, smb-psd-loss-detail-red.
 - Lead record 2026-10-12T09:56:43Z: round R21 COMPLETE at 2dde832: 27 PASS, 0 FAIL (SMB-PRESS-STRUCT-FAILCLOSED, SMB-REEL-PTS-TESTS, SMB-INTEROP-PSD-DESC-CAP PASS_V1; all reopened press/reel/reel-native/interop-psd lanes PASS incl. the four two-FAIL lanes). PLR-091/092/093/094/095/098 closed. Press redaction proof now: untagged documents proven; tagged documents neutralized best-effort and reported NotProven (Operator item D28 open). Weekly usage 99%.
 - Lead decisions 2026-10-12T10:26:38Z (SMB-PRESS-STRUCT-ORPHANS 1da2453, builder questions): accepted as built — /Type /StructTreeRoot counts as a structure shape; /SE counts whatever it names; tree, /StructParents and shape share one +1 (keeps the R21 'residual exactly 1' assertions). Residual (/S + text key without /P and /Type not read) registered as PLR-103 for the pre-review.
+- Lead record 2026-10-12T11:22:02Z: round R22 COMPLETE at 1da2453: 18 PASS, 0 FAIL (SMB-PRESS-STRUCT-ORPHANS, SMB-INTEROP-PSD-DOCS PASS_V1; reopened press + interop-psd lanes PASS incl. two-FAIL SMB-PRESS and SMB-INTEROP-PSD-BUDGET). PLR-096/099/101/102 closed. WEEKLY LIMIT REACHED (all-models 100%, resets 2026-10-13T11:00Z): no further agents dispatched. Known gap inside the proven claim: PLR-104 (untagged documents, marked-content /Properties text) = priority 1 for the next session.

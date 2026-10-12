@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-12T10:58:34Z",
+ "updated_at": "2026-10-12T11:22:02Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3637,12 +3637,13 @@
   "record": "validation/round-R7.json"
  },
  "resume_plan": {
-  "at": "2026-10-12T09:56:43Z",
+  "at": "2026-10-12T11:22:02Z",
   "steps": [
-   "1. In flight: round R22 validator at 1da2453 (canary C27) judging SMB-PRESS-STRUCT-ORPHANS, SMB-INTEROP-PSD-DOCS + CX-VAL-009 reopens; then handoff + snapshot; PRIORITY next press lane PLR-104 (+ PLR-105).",
-   "2. Then SMB-PRESS-GEOMETRY, SMB-FMT-SWEEP, notes residuals (config-OBU tag, exact-64 FRAME test, psd group-own-lfx2/zero-tile), PLR-097 (rewrite indirect /K arrays), PLR-100 (reel-native finish() test).",
-   "3. Keep pushing gov_kernel after every commit.",
-   "4. Blocked on Operator: D28 (strip structure tree on redaction save), D20, D22-D26, D9, D17, D5, D13/STU-CON-044, D21, repo-local target 3.8 GB, empty folder x at the C: root, scratch/probe trees cleanup (list in START_LOG); STUDIO_MODULES.json status vocabulary undefined."
+   "1. Weekly limit reached at 2026-10-12T11:22:02Z (resets 2026-10-13T11:00Z). Nothing is running. Product HEAD == origin == 1da2453 (all lanes judged through R22).",
+   "2. PRIORITY 1: press lane SMB-PRESS-PROPERTIES (new id): PLR-104 \u2014 marked-content /Alt or /ActualText of a flattened page in shared or inherited /Properties survives in an UNTAGGED document while the save reads proven (inside the claim; flatten_purge.rs:53-56, sanitized_save drop_painted_sources). Purge exactly or fail closed (lead stance). Fold PLR-105 (fail-closed gaps: 15+ alias chains for shape, malformed object streams, trailer /ID) and PLR-107 (claim text). SMB-PRESS has 2 failed verdicts -> V4-13 narrow pre-review, then a round.",
+   "3. Then: SMB-PRESS-GEOMETRY, SMB-FMT-SWEEP, notes residuals (config-OBU tag, exact-64 FRAME test, psd group-own-lfx2/zero-tile), PLR-097, PLR-100, PLR-103, PLR-106.",
+   "4. Procedure per round: Sonnet builders -> Opus narrow pre-review (two-FAIL lanes, PROC-R19-V1) -> steward-5 (or a fresh steward) sync + canary -> 1 Opus validator; templates in builders/DISPATCH_TEMPLATES.md; push gov_kernel after every commit with tools/lead-kernel-push.sh.",
+   "5. Blocked on Operator: D28 (strip structure tree on redaction save), D20, D22-D26, D9, D17, D5, D13/STU-CON-044, D21, repo-local target 3.8 GB, empty folder x at the C: root, scratch/probe trees cleanup (list in START_LOG); STUDIO_MODULES.json status vocabulary undefined."
   ]
  },
  "r8_plan": {
@@ -3898,8 +3899,8 @@
  },
  "handoff": {
   "file": "HANDOFF.md",
-  "snapshot": "snapshots/SNAPSHOT-20261012T095644Z.json",
-  "at": "2026-10-12T09:56:44Z"
+  "snapshot": "snapshots/SNAPSHOT-20261012T112202Z.json",
+  "at": "2026-10-12T11:22:02Z"
  },
  "round_R13": {
   "candidate": "4b76604",
