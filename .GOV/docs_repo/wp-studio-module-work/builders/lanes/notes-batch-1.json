@@ -1,0 +1,259 @@
+{
+  "crate": "hsk-studio-press,hsk-studio-web,hsk-studio-reel-native,hsk-studio-interop-psd",
+  "lane": "SMB-NOTES-BATCH-1",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "complete: PLR-076, PLR-071, PLR-078, PLR-064, PLR-065 landed one crate per commit, pushed, green; red proofs and mutants recorded",
+  "commits": [
+    {
+      "sha": "27a9a81",
+      "subject": "press (SMB-NOTES-BATCH-1, PLR-076): a painted region source that a kept catalog structure only references (/AF, /Names, /Dests) is reported (NotProven::PaintedSourceKept), not silently kept; DESCRIPTOR exact"
+    },
+    {
+      "sha": "9088884",
+      "subject": "web (SMB-NOTES-BATCH-1, PLR-071): decide_all doc says what is meant and cites tests that cover it; cancellation test reaches past the first iteration; the wall-clock bound is an operation-count bound"
+    },
+    {
+      "sha": "ab273d3",
+      "subject": "reel-native (SMB-NOTES-BATCH-1, PLR-078): HELLO docs and DESCRIPTOR state the enforced rule exactly; the three reply-grammar rules get host-level tests"
+    },
+    {
+      "sha": "5606d16",
+      "subject": "interop-psd (SMB-NOTES-BATCH-1, PLR-064/065): both deliberate over-counts are stated in the shipped docs and DESCRIPTOR with test citations; nested hidden groups are tested"
+    }
+  ],
+  "capabilities_done": [
+    "PLR-076 press: fail-closed report instead of silent keep for a painted source only referenced by a kept catalog structure",
+    "PLR-071 web: decide_all doc sentence and citations; mid-loop cancellation tests in both loops; operation-count bound replaces the 20 s assertion",
+    "PLR-078 reel-native: HELLO/greeting docs exact in wire.rs, host.rs and DESCRIPTOR; host-level tests for BATCH_END count, OPENED answering PACKET and FINISH, more than 64 FRAMEs, and the cut-short greeting boundary",
+    "PLR-064 interop-psd: both over-counts disclosed in effects.rs, proposal.rs, ProposalConfig::budget and DESCRIPTOR effect_limits with test citations",
+    "PLR-065 interop-psd: test helper nests groups and clipped layers; nested hidden groups test"
+  ],
+  "tests": {
+    "argv": "per crate, studio-env.sh with STUDIO_OWNER unset (shared edit tree): cargo nextest run -p <crate> [feature sets of .config/round-features.toml] --no-fail-fast; cargo test --doc -p <crate> [same sets]; cargo clippy -p <crate> --tests [sets]; cargo fmt -p <crate> --check (web, reel-native)",
+    "exit": 0,
+    "sha": "5606d16",
+    "passed": 346,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": 5,
+  "bg_pids": [],
+  "next": "none for the builder. Lead: judge the four crates (press/web/reel-native/interop-psd each carry two failed verdicts in their lane history) after the V4-13 narrow pre-review of 7410f29..5606d16 per crate; update register items PLR-064, 065, 071, 076, 078 (see notes.not_done for what was deliberately left).",
+  "updated_at": "2026-10-12T00:43:39Z",
+  "notes": {
+    "scope": "Each crate: only the register item(s), nothing else. No product logic changed in web, reel-native (host decode), or interop-psd; press changes one seed of the usage analysis. Commits are pathspec commits (-- crates/<crate>), pushed after each crate; HEAD == origin == 5606d16 at the end. No amend, no rebase, no force.",
+    "scratch": {
+      "tree": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-notes-batch-1-red/src/handshake-studio-assets: git archive of origin b8b31c7 with a private git history (one commit per variant, so every run has its own HEAD), STUDIO_OWNER=smb-notes-batch-1-red with its own target and tmp; the shared edit tree was never reverted or mutated (V4-11). Helper scripts: <scratchpad>/SMB-NOTES-BATCH-1/ (mut.py, edit_native_descriptor.py, edit_psd_descriptor.py, commit message files).",
+      "histories": "C0 origin; C1 press tests on origin; C2 press fix; C3 mutant M1; C4 web fix; C5 reel-native fix; C6 psd tests on origin; C7 psd fix; mutants and restores follow each base"
+    },
+    "gameplan_route": "No retry-guard hit. One infrastructure block: a scratch command that began with a variable assignment instead of a leading cd made the hook resolve the WP-KERNEL-012 gameplan (confirm_binding target missing); fixed by starting every gated command with the leading cd to the Studio tree (no bypass, no gameplan edit). One transient LNK1104 (link.exe) in a scratch mutant run; the identical mutant was rerun after a new commit and linked.",
+    "press": {
+      "plr": "PLR-076 (R14-P1)",
+      "commit": "27a9a81",
+      "decision": "fail-closed REPORT, not prune: pruning would mean editing /AF arrays, name-tree leaves or any other plain reference of the kept document, which cannot be proven safe in general. flatten_purge.rs: the trailer roots are pushed with certain=false (reached, not certain); certain now means drawn by a kept page scope or by the appearance stream (/AP /N /R /D, state dictionaries included) of an annotation a kept page lists in its own /Annots (new fn appearance_streams, seeded certain). A painted source reached only by plain reference stays in the file, is listed in RedactedOutput::painted_sources_kept, NotProven::PaintedSourceKept is the only reason, region_flattened and is_proven read false.",
+      "docs": "flatten_purge.rs module docs (painted sources and usage analysis), sanitized_save.rs docs (NotProven::PaintedSourceKept, painted_sources_kept, region_flattened), DESCRIPTOR redaction.flatten.painted_over ('unless a kept page, or an annotation appearance a kept page lists, draws them; a source that stays without being drawn because a kept object only references it (a catalog /AF, a /Names or /Dests name tree, any plain reference) is not pruned and is reported ...') and redaction.flatten.purge.",
+      "tests_added": [
+        "painted_source_referenced_by_a_kept_catalog_structure_is_reported (catalog /AF, /Names /EmbeddedFiles tree, /Names /Dests tree: painted_sources_kept == [10], not_proven_reasons == [PaintedSourceKept], region_flattened/is_proven false, image bytes stay, the unreferenced form is dropped, page two unchanged)",
+        "painted_sources_drawn_by_kept_pages_or_annotation_appearances_are_not_reported (page draws + /AF lists; annotation appearance stream draws; state-dictionary appearance draws + /AF lists: not reported, region_flattened true, image stays)",
+        "descriptor_names_the_painted_source_kept_by_reference_case (DESCRIPTOR sentence and the cited test exist; the uncorrected sentence is gone)"
+      ],
+      "tests": "cargo nextest run -p hsk-studio-press: 131/131 (128 + 3 new; unit 41, pdf_delivery 70, flatten_redaction 9, flatten_r13 11); doctests 0; clippy --tests clean (only the two pre-existing observe warnings); no existing test changed",
+      "red_proofs": {
+        "R0 origin b8b31c7 source + new tests (scratch C1)": "11 tests, 2 FAIL: painted_source_referenced_by_a_kept_catalog_structure_is_reported (all 3 cases: painted_sources_kept [] instead of [10], not-proven reasons [], region_flattened true and is_proven true), descriptor_names_the_painted_source_kept_by_reference_case ('DESCRIPTOR lacks R14-P1'); the drawn/appearance test PASSES at origin (it guards the fix, see M1)",
+        "M1 fix with the appearance seeds removed (C3)": "painted_sources_drawn_by_kept_pages_or_annotation_appearances_are_not_reported FAIL ('annotation appearance draws it: reported kept [10]', 'state-dictionary appearance draws it, /AF lists it: reported kept [10]'), the other 10 PASS"
+      },
+      "v4_06": {
+        "class": "a painted source made certain (silently kept, not reported) by a seed that is not a draw",
+        "regex": "u\\.push\\(|certain: true|trailer_roots\\(",
+        "scope": "crates/hsk-studio-press/src at 27a9a81",
+        "count": 13,
+        "sites": [
+          {
+            "file_line": "flatten_purge.rs:761",
+            "verdict": "fixed (trailer roots loop header)"
+          },
+          {
+            "file_line": "flatten_purge.rs:762",
+            "verdict": "fixed (u.push(r, false): reached, not certain)"
+          },
+          {
+            "file_line": "flatten_purge.rs:769",
+            "verdict": "new seed, drawn content (annotation appearance streams of kept pages, certain)"
+          },
+          {
+            "file_line": "flatten_purge.rs:783",
+            "verdict": "not applicable (page scope: kept page content draws)"
+          },
+          {
+            "file_line": "flatten_purge.rs:223",
+            "verdict": "not applicable (liveness: reachable())"
+          },
+          {
+            "file_line": "flatten_purge.rs:802",
+            "verdict": "not applicable (liveness)"
+          },
+          {
+            "file_line": "flatten_purge.rs:828",
+            "verdict": "not applicable (liveness for the final report filter)"
+          },
+          {
+            "file_line": "canon.rs:289",
+            "verdict": "not applicable (liveness)"
+          },
+          {
+            "file_line": "redaction.rs:1168",
+            "verdict": "not applicable (liveness)"
+          },
+          {
+            "file_line": "sanitized_save.rs:855",
+            "verdict": "not applicable (liveness)"
+          },
+          {
+            "file_line": "text_fields.rs:1541",
+            "verdict": "not applicable (liveness)"
+          },
+          {
+            "file_line": "writer.rs:123",
+            "verdict": "not applicable (definition of trailer_roots)"
+          },
+          {
+            "file_line": "writer.rs:142",
+            "verdict": "not applicable (liveness)"
+          }
+        ],
+        "recount": "13 = 2 fixed + 1 new seed + 10 not applicable"
+      },
+      "v4_01_v4_02_v4_08": "flatten_purge.rs keeps deny(clippy::arithmetic_side_effects); the new code has no arithmetic and no new decoder or parser (it reads the existing parsed objects); fixtures in the new tests are hostile-format-free."
+    },
+    "web": {
+      "plr": "PLR-071 (R14-N1, R14-O2)",
+      "commit": "9088884",
+      "items": [
+        "datauri.rs decide_all doc: 'The collector hands this function no empty set: carriers::link_loads falls back to a document (test link_keywords_choose_the_load_contexts) and animated_loads returns at least one context for every target shape (test animated_loads_returns_a_context_for_every_target_shape)'",
+        "cancellation test reaches past the first iteration: cfg(test) hook only (assets.rs: MAP_VISITS, CANCEL_AFTER, tick; V4-04), test animated_loads_cancellation_recurs_every_1024_iterations_in_both_loops cancels the token from inside each loop after its 1st and 1025th iteration and pins the stop at iteration 1024 and 2048 for the id-map loop and the target walk (nothing memoised, no partial map)",
+        "wall-clock bound replaced: the 20 s assertion, the Instant and the eprintln are removed from r13_f1_many_animations_sharing_ids_finish_within_the_bound (the 45 s bounded_case deadline of the file stays); the operation-count bound is the unit test animated_loads_stays_within_the_operation_bound_at_the_gate_scale (same 20000 x 20000 document, 2 names x sharing elements target evaluations, the token is armed to cancel one iteration past the bound so a broken memo ends Canceled within a stride)",
+        "DESCRIPTOR assets.load_contexts.proof and assets.proof lists name the three new tests"
+      ],
+      "tests_added": [
+        "animated_loads_cancellation_recurs_every_1024_iterations_in_both_loops",
+        "animated_loads_stays_within_the_operation_bound_at_the_gate_scale",
+        "animated_loads_returns_a_context_for_every_target_shape"
+      ],
+      "tests": "cargo nextest run -p hsk-studio-web: 138/138 (135 + 3 new), doctests 0, clippy --tests clean, cargo fmt --check clean (the new test code was formatted; the rest of the crate was already clean)",
+      "red_proofs": "The code under test is already right, so the proofs are stated mutants on the green base (scratch 6587ea7); the new tests need the cfg(test) hook, so they do not compile on bare origin. W1 walk-loop check only at i == 0: animated_loads_cancellation_recurs_every_1024_iterations_in_both_loops FAIL, the old animated_loads_checks_cancellation_inside_its_loops PASSES (the mutant survived the old test). W2 id-map loop check only at id == 0: new FAIL, old PASS (survived). W3 walk-loop stride 0x1ff: new FAIL, old PASS (survived). W4 memo not written: 3 FAIL (the gate-scale operation-bound test fails in 0.5 s as Canceled instead of running for minutes, the 2000 count test, the old cancellation test). W5 animated_loads returns Loads::EMPTY for a fragment that names no element: animated_loads_returns_a_context_for_every_target_shape FAIL.",
+      "v4_06": [
+        {
+          "class": "cancellation check inside a loop whose stride is proven only by a cancel before the call",
+          "regex": "0x3ff|cancel\\.check\\(\\)",
+          "scope": "crates/hsk-studio-web/src minus tests.rs at 9088884",
+          "count": 22,
+          "sites": "assets.rs:696-697 and :722-723 fixed (id_loads map loop and target walk, PLR-071); assets.rs:507-508, :1250-1251, css.rs:186, dom.rs:388, :659-660, preview.rs:306, :318-319, :429, :489-490, refresh.rs:169-170, responsive.rs:259-260 = 18 lines not applicable (outside the animated-target walk of PLR-071; lane rule: no refactor, their tests stay as they are)",
+          "recount": "22 = 4 fixed + 18 not applicable"
+        },
+        {
+          "class": "wall-clock assertion in a test",
+          "regex": "Instant::now|elapsed|Duration::from_secs",
+          "scope": "crates/hsk-studio-web before 9088884: 7 lines; after: 4",
+          "sites": "css_url_gate.rs Instant::now, elapsed, Duration::from_secs(20) assertion = 3 fixed (removed); css_url_gate.rs:28, html_parity.rs:28, source_dom_patch.rs:29, html5ever_differential/main.rs:65 = 4 not applicable (the per-case recv_timeout deadline convention of bounded_case, not an assertion on a measured duration)",
+          "recount": "7 = 3 fixed + 4 not applicable"
+        }
+      ],
+      "v4_01_v4_02": "assets.rs keeps deny(clippy::arithmetic_side_effects); the cfg(test) hook uses saturating_add and no arithmetic otherwise; no new decoder."
+    },
+    "reel_native": {
+      "plr": "PLR-078 (R15 narrow pre-review: CONFIRMED doc precision, PLAUSIBLE claim coverage)",
+      "commit": "ab273d3",
+      "decision": "docs made exact (the code cannot be made to match with a one-line change: telling 'no byte' from 'fewer than four bytes' needs new plumbing in read_frame/Waited, and the existing rule is pinned by tests). Enforced rule now stated in wire.rs, host.rs (module doc, Failure::Protocol and Failure::SpawnFailed docs, the handshake comment) and the DESCRIPTOR isolation.bounds entry: the first four bytes of a greeting read as a length; above HELLO_CAP (an oversize frame, or bytes that are no frame such as a text banner) or an undecodable frame within the cap is a protocol fault; a worker that closes its output with nothing, fewer than four bytes or fewer bytes than the length it announced written is a spawn failure (as is silence past spawn_timeout). host.rs decode logic and wire.rs decoding are unchanged.",
+      "tests_added": [
+        "batch_end_count_differing_from_the_frames_received_is_a_protocol_fault (worker fault BatchEndCount)",
+        "opened_reply_to_a_packet_is_a_protocol_fault (OpenedOnPacket)",
+        "opened_reply_to_finish_is_a_protocol_fault (OpenedOnFinish; the PACKETs before it are served normally, up to 3 pictures reach the sink)",
+        "more_frames_than_a_batch_may_hold_is_a_protocol_fault (ManyFrames: 65 legal FRAMEs with the sent tag and a BATCH_END that counts them, so only the cap can refuse; at most 1 picture reaches the sink)",
+        "a_greeting_cut_short_is_a_spawn_failure_not_a_protocol_fault (ShortHello: 3 bytes then exit; CutHello: length prefix 64 and 10 bytes then exit; typed worker_spawn_failed, spawn_failed counted, no protocol fault; reel CodecUnavailable behind the registry route)"
+      ],
+      "infrastructure": "test_fault.rs (6 variants), worker.rs (Faults::on_finish, bytes_then_exit, on_packet tag) and wire.rs (encode_tiny_frame(id, tag), SHORT_HELLO, cut_hello) exist only with av1-worker + test-faults (V4-04); the shared protocol-fault helper in tests/av1_worker.rs takes the number of pictures that may reach the sink first (0 for all pre-existing callers). Each of the three reply-grammar tests runs the same three legs as frame_reply_to_open_is_a_protocol_fault (decode_av1 on mp4 and mkv, then reel's registry route: counted once per call, worker killed and not pooled, nothing counted as spawn failure, oversize kill or crash).",
+      "tests": "default 0 tests (--no-tests=pass), --features av1-worker 5/5, --features av1-worker,test-faults 24/24 (19 + 5 new); doctests 0 for the three sets; clippy --tests exit 0 for default, av1, av1-worker, av1-worker+test-faults, av1+test-faults; cargo fmt --check clean (the two new blocks were formatted)",
+      "red_proofs": "The reply-grammar rules are already enforced by host.rs (verified by reading in the R15 pre-review), and the fault variants do not exist at origin, so the proofs are stated mutants on the green base (scratch 1c1e947, 24/24): N1 FRAME cap removed (frames > usize::MAX): more_frames_than_a_batch_may_hold_is_a_protocol_fault FAIL (the other 23 PASS; first attempt hit a transient link.exe LNK1104 and was rerun on a new commit). N2 BATCH_END count not compared: batch_end_count_differing_from_the_frames_received_is_a_protocol_fault FAIL. N3 OPENED accepted for any request: opened_reply_to_a_packet_is_a_protocol_fault and opened_reply_to_finish_is_a_protocol_fault FAIL. N4 a closed output before the greeting classified as protocol fault: a_worker_that_never_greets_is_a_spawn_failure_not_a_protocol_fault and a_greeting_cut_short_is_a_spawn_failure_not_a_protocol_fault FAIL.",
+      "v4_06": [
+        {
+          "class": "doc or DESCRIPTOR claim about a greeting that is broader than the enforced first-four-bytes rule",
+          "regex": "no frame|closes its output|never greet",
+          "scope": "crates/hsk-studio-reel-native at ab273d3 (14 lines) plus host.rs Failure::Protocol and Failure::SpawnFailed docs, which matched before the edit (2 more sites, fixed)",
+          "sites": "fixed: host.rs:40, :45, Failure::Protocol doc, Failure::SpawnFailed doc, lib.rs:45 (DESCRIPTOR), wire.rs:26, :30, tests/av1_worker.rs:827; exact already or new and exact (not applicable): host.rs:658, test_fault.rs:37, :43, wire.rs:510, worker.rs:192, tests/av1_worker.rs:833, :847, :928",
+          "recount": "14 lines at ab273d3 = 6 reworded (host.rs:40, :45, lib.rs:45, wire.rs:26, :30, av1_worker.rs:827) + 8 not applicable; plus 2 reworded sites that no longer match (Failure docs) = 8 fixed in all"
+        },
+        {
+          "class": "reply arm of Pool::exchange without a host-level test",
+          "regex": "Reply::(Frame|Opened|BatchEnd|Error)|Want::",
+          "scope": "crates/hsk-studio-reel-native/src/host.rs at ab273d3",
+          "sites": "host.rs:784 Frame arm (cap: new more_frames test; declared size: oversize_picture_under_the_reply_cap; sent tag: frame_with_an_unsent_tag), :801 Opened arm (new opened_reply_* tests; OPEN side: worker_decode_is_bit_exact), :802-803 BatchEnd arm (new batch_end_count test), :807 Error arm (hostile_aborting_mutations_end_as_typed_errors_and_the_host_survives), :918, :933, :1129 Want values at the call sites (not applicable); wire.rs decode sites are covered by the wire unit tests (not applicable)",
+          "recount": "all host.rs reply arms have a host-level test; the id-echo rule keeps its decode-level unit test only (wire_roundtrip_and_bounds), as in the pre-review"
+        }
+      ],
+      "v4_01_v4_02": "wire.rs, host.rs and worker.rs keep deny(clippy::arithmetic_side_effects); the new code uses saturating_add, try_from and fixed-size literals; no new decoder (the cut and short HELLO bytes exercise the existing read_frame bounds)."
+    },
+    "interop_psd": {
+      "plr": "PLR-064 and PLR-065 (R11 pre-review PSD-R11-2 and PSD-R11-3)",
+      "commit": "5606d16",
+      "plr_064": "The importer counts effect instances by visibility alone (layer.visible() && no hidden group, proposal.rs collect_records), so it counts (a) a visible layer with no pixels (composite builds no node for a source without tiles) and (b) a visible clipped layer whose clip base is hidden or empty (composite drops it with its base). Stated in effects.rs (header paragraph and StackShape doc), proposal.rs (collect_records doc and ProposalConfig::budget doc), the DESCRIPTOR effect_limits entry and the effects_budget.rs header, all citing the test the_importer_counts_layers_without_pixels_and_clipped_layers_on_hidden_or_empty_bases. No counting change (the register item asks for disclosure; the optional zero-tile reclassification was not done).",
+      "plr_065": "tests/effects_budget.rs: Node::Nested { hidden, children: Vec<Node> } and file_layers() build nested groups, Fx::clipped() builds clipped layers (the existing Node::Group and every existing test are unchanged). Test nested_hidden_groups_hide_every_descendant_until_the_outermost_closes: hidden outer { hidden inner { L }, L, visible mid { L } } then a visible layer, with the counted total at the plan limit (layers after the inner group and inside the visible group stay uncounted and are kept; the first layer after the outermost group counts and is lost with effects_over_document_budget); and visible outer { hidden inner { L }, L } (the layer after the inner group counts).",
+      "tests_added": [
+        "nested_hidden_groups_hide_every_descendant_until_the_outermost_closes",
+        "the_importer_counts_layers_without_pixels_and_clipped_layers_on_hidden_or_empty_bases (asserts p.tiles is empty; per-document loss, per-layer loss, hidden base and empty visible base)",
+        "descriptor_states_the_importers_over_counts"
+      ],
+      "tests": "cargo nextest run -p hsk-studio-interop-psd: 53/53 (50 + 3 new; effects_budget 12), doctests 0, clippy --tests clean. The crate is not rustfmt-clean at baseline (src and tests, unrelated to this lane), so cargo fmt was not run; that belongs to SMB-FMT-SWEEP.",
+      "red_proofs": {
+        "R0 origin b8b31c7 source + new tests (scratch C6)": "12 tests, 1 FAIL: descriptor_states_the_importers_over_counts ('effect_limits does not state the_importer_counts_by_visibility_alone'); the other two new tests PASS at origin because they pin existing behaviour (stated mutants below)",
+        "P1 boolean-like hidden_groups (reset to 0 when a hidden group closes)": "only nested_hidden_groups_hide_every_descendant_until_the_outermost_closes FAILS, all 11 other tests PASS (the register's claim that a boolean passed everything is reproduced and closed)",
+        "P2 hidden_groups never decremented": "4 FAIL: nested_hidden_groups..., the_counted_bound_never_costs_a_stack_without_counted_instances_its_record, the_unrendered_bound_never_costs_a_stack_with_counted_instances_its_rendered_effects, hidden_layers_and_disabled_effects_do_not_count_toward_the_document_cap",
+        "P3 plan-accurate rule for pixels (layer.rect.width() > 0 required to count)": "9 FAIL including the_importer_counts_layers_without_pixels_and_clipped_layers_on_hidden_or_empty_bases (every existing fixture is a layer without pixels)",
+        "P4 clipped layers uncounted (layer.clipping != 1 required to count)": "only the_importer_counts_layers_without_pixels_and_clipped_layers_on_hidden_or_empty_bases FAILS, 11 PASS"
+      },
+      "v4_06": {
+        "class": "counted/uncounted classification of a layer by group nesting or visibility (and the docs that say 'counted = the plan's')",
+        "regex": "hidden_groups|let visible",
+        "scope": "crates/hsk-studio-interop-psd/src at 5606d16",
+        "count": 6,
+        "sites": [
+          {
+            "file_line": "proposal.rs:485",
+            "verdict": "not applicable (field declaration)"
+          },
+          {
+            "file_line": "proposal.rs:569",
+            "verdict": "documented (the visibility-alone rule; over-counts disclosed in the doc above it and pinned by the_importer_counts_layers_without_pixels_and_clipped_layers_on_hidden_or_empty_bases)"
+          },
+          {
+            "file_line": "proposal.rs:891",
+            "verdict": "pinned by nested_hidden_groups_hide_every_descendant_until_the_outermost_closes (increment)"
+          },
+          {
+            "file_line": "proposal.rs:895",
+            "verdict": "pinned by the same test (decrement; mutants P1, P2)"
+          },
+          {
+            "file_line": "proposal.rs:1193",
+            "verdict": "not applicable (let visible = alpha > 0.0, a mask tile test, unrelated)"
+          },
+          {
+            "file_line": "proposal.rs:1630",
+            "verdict": "not applicable (initialiser)"
+          }
+        ],
+        "recount": "6 = 1 documented + 2 pinned + 3 not applicable; the docs that said the importer counts 'what a plan counts' were reworded in effects.rs (header, StackShape), proposal.rs (collect_records, budget) and the effects_budget.rs header"
+      },
+      "v4_01_v4_02": "effects.rs and proposal.rs keep deny(clippy::arithmetic_side_effects); only comments, the DESCRIPTOR string and tests changed in src."
+    },
+    "not_done": [
+      "PLR-078 'config-OBU tag u64::MAX' (reel Av1Decoder::open feeds av1C configuration OBUs with tag u64::MAX; a picture from them would now be an unsent tag): left as the R15 pre-review noted it, UNVERIFIED in practice (whether AV1-ISOBMFF forbids frame OBUs in configOBUs was not read); no code change.",
+      "PLR-078 cap exactness: only 65 FRAMEs (cap + 1) are tested; a mutant 'frames >= MAX_FRAMES_PER_BATCH' (refuses a legal batch of exactly 64) is not killed by a test.",
+      "press PLR-076: the pruning alternative (editing the kept /AF, name-tree or other plain reference) was not implemented; the report keeps the source in the file by design (test asserts the bytes stay).",
+      "web R14-O1 (URL-only meta refresh over-report vs current Gecko, kept fail-closed), R14-O3 (file-system aliases of the document): untouched, outside PLR-071.",
+      "interop-psd: PSD-R11-1 (Folio per-stack ceiling cuts a visible mixed stack) and the optional test of a group's own lfx2 stack (PSD-R11-3 remediation) are not part of PLR-064/065 and were not done; the optional zero-tile reclassification in leaf() was not done (disclosure only, as the register item says).",
+      "press and interop-psd are not rustfmt-clean at baseline (SMB-FMT-SWEEP); cargo fmt was not run on them. web and reel-native are rustfmt-clean at 9088884 and ab273d3."
+    ],
+    "tests_total": "press 131 + web 138 + reel-native 24 (av1-worker,test-faults; 5 more at av1-worker) + interop-psd 53 = 346 passed, 0 failed; doctests 0 in all four crates",
+    "register_after": "PLR-064, PLR-065, PLR-071, PLR-076, PLR-078 are addressed by 5606d16..27a9a81 except the items in not_done; the lead updates workflow/plausible-register.json (not touched by this lane)"
+  }
+}

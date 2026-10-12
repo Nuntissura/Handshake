@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-12T00:37:57Z",
+ "updated_at": "2026-10-12T00:44:33Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -2281,7 +2281,7 @@
     "builders/lanes/notes-batch-1.json"
    ],
    "launched": "2026-10-12T00:06:29Z",
-   "status": "running"
+   "status": "done 2026-10-12T00:44:33Z (SMB-NOTES-BATCH-1 READY at 5606d16)"
   }
  ]
 }

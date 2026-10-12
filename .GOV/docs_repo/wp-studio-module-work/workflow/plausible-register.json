@@ -1141,7 +1141,7 @@
    "status": "OPEN",
    "verified_at": "85532ad",
    "disposition": "FIX_LANE",
-   "disposition_note": "after R11"
+   "disposition_note": "fix claimed in SMB-NOTES-BATCH-1 (27a9a81/9088884/ab273d3/5606d16); reviewer confirms in R16"
   },
   {
    "id": "PLR-065",
@@ -1156,7 +1156,7 @@
    "status": "OPEN",
    "verified_at": "85532ad",
    "disposition": "FIX_LANE",
-   "disposition_note": "after R11"
+   "disposition_note": "fix claimed in SMB-NOTES-BATCH-1 (27a9a81/9088884/ab273d3/5606d16); reviewer confirms in R16"
   },
   {
    "id": "PLR-066",
@@ -1246,7 +1246,7 @@
    "status": "OPEN",
    "verified_at": "3d795a5",
    "disposition": "FIX_LANE",
-   "disposition_note": "next web lane; not reopening the crate before the round"
+   "disposition_note": "fix claimed in SMB-NOTES-BATCH-1 (27a9a81/9088884/ab273d3/5606d16); reviewer confirms in R16"
   },
   {
    "id": "PLR-072",
@@ -1321,7 +1321,7 @@
    "status": "OPEN",
    "verified_at": "7410f29",
    "disposition": "FIX_LANE",
-   "disposition_note": "next press lane: scope 'certain' to draw-reachability or report NotProven::PaintedSourceKept; document meanwhile | R13 validator: DESCRIPTOR line 'dropped from the file unless a kept page draws them' must name this exception"
+   "disposition_note": "fix claimed in SMB-NOTES-BATCH-1 (27a9a81/9088884/ab273d3/5606d16); reviewer confirms in R16"
   },
   {
    "id": "PLR-077",
@@ -1351,7 +1351,7 @@
    "status": "OPEN",
    "verified_at": "4b76604",
    "disposition": "FIX_LANE",
-   "disposition_note": "doc rewording + tests in the next reel-native lane"
+   "disposition_note": "fix claimed in SMB-NOTES-BATCH-1 (27a9a81/9088884/ab273d3/5606d16); reviewer confirms in R16"
   },
   {
    "id": "PLR-079",
