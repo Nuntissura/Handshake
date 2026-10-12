@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 640
+generation: 641
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -538,3 +538,4 @@ steps:
 - {id: GP-517, role: any, at: before_round, do: verify CRDT legacy identity IF arm is explicit boolean expression; forbid LET assignment substitution, check: {type: confirm}, source: 'failure: MT139 SQL4171 bare  equality parsed as deprecated declaration before BASE and FINAL', state: active}
 - {id: GP-518, role: integration_validator, at: before_round, do: verify MT139 indexed primary errors preserve original first error and unchanged schema transaction, check: {type: confirm}, source: 'failure: Round42 transaction cancellation masked primary statement error before BASE and FINAL', state: active}
 - {id: GP-519, role: integration_validator, at: before_round, do: verify shared confirmations bind current test-only candidate before measurement wrapper admission, check: {type: confirm}, source: 'infra: Round43 prelaunch held because shared confirm steps remained bound to previous product HEAD', state: active}
+- {id: GP-520, role: integration_validator, at: before_round, do: verify approved schema indexes follow required field definitions in generated SQL and historical reversal, check: {type: confirm}, source: 'failure: MT139 statement1124 scoped_name_key missing; pinned schemafull index checks fields before creation', state: active}

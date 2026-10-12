@@ -1,4 +1,132 @@
 {
+  "round44_independent_focused_release_20261012": {
+    "id": "WP012-P2-ROUND44-INDEPENDENT-RELEASE-20261012",
+    "status": "SOURCE_CLEAR",
+    "review_thread": "01a129ca-8eea-7f53-aa9d-7f81f6f08319",
+    "candidate": "7153798d76311272958281ca768132d5e1f8bd32",
+    "source_checkpoint_ref": "MT-174.json#/round44_ordering_repair_checkpoint_20261012",
+    "checks": "Independent exact raw inverse,432 assertions,40candidate5forward-before0after inventory;two affected reversal fragments once and unchanged predecessor RHS; pinned engine field prerequisite",
+    "executor_role": "INTEGRATION_VALIDATOR",
+    "run_scope": "One same existing exact MT139 library test after fresh currentHEAD applicable confirmations, GP520, numerical gate and resources; same warm target/profile/toolchain/j1/180GB cap",
+    "proof_mapping": "Focused owning LibTest measures unresolved catalog predecessor; broad required core after stable measured-pin batch",
+    "runtime_acceptance": "NOT_EVALUATED"
+  }
+,
+  "round44_ordering_repair_checkpoint_20261012": {
+    "id": "WP012-P2-ROUND44-ORDERING-CHECKPOINT-20261012",
+    "status": "SOURCE_CLEAR_PUSHED_PENDING_FOCUSED_MEASUREMENT",
+    "product_commit": "7153798d76311272958281ca768132d5e1f8bd32",
+    "product_tree": "807ff61e6ec4b6e3ab451900a8a9aa45b65d537e",
+    "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round43-schema-definition-order-repair",
+    "binding_sha256": "24b03fd965d3078c3eb204d16cc7c22021c798cbdd0d7ca5657c6c9c4e742c6a",
+    "diff_sha256": "34355e777431698ef2e23b84cd6b5f675662f971464c72688ca0e2414ee20751",
+    "generated_sql_sha256": "7daf5f03b36d6792575bbc40e3775f901182d975946a4b5fd14f2912c7979fd8",
+    "schema_rs_sha256": "c63f949cc22082a6f40dcb8e113a690c7e216862c4c054b2b88db91214b57f76",
+    "root_cause": "Pinned SCHEMAFULL index definition requires already defined fields; five original MT173-added indexes preceded fields",
+    "repair": "Move only same five index statements after original field fragments in SQL and historical reversal; original definitions and 432 assertions preserved",
+    "proof_mapping": "Existing focused MT139 compiles owning LibTest and measures genuine schema. Required broad core after measured-pin batch stabilizes; no duplicate broad run before missing primary measurement",
+    "gameplan_cause": "GP-520",
+    "historical_pins": "UNCHANGED",
+    "catalog_pins": "UNMEASURED",
+    "runtime_acceptance": "NOT_EVALUATED",
+    "failure_ref": "MT-174.json#/round43_independent_catalog_actual_result_20261012"
+  }
+,
+  "round43_independent_catalog_actual_result_20261012": {
+    "id": "WP012-P2-ROUND43-MT139-ACTUAL-20261012",
+    "status": "SCHEMA_PRIMARY_ERROR_IDENTIFIED",
+    "product_commit": "75c42c63a22a512477e9545041644ffd5969f47c",
+    "actual_result": {
+      "attempt_id": "6968aee4ee174ad1a07f8c26fb1c0510",
+      "started_utc": "2026-10-12T13:40:00.2762951Z",
+      "status": "TEST_FAILED",
+      "exit_code": 101,
+      "runtime_acceptance": "NOT_EVALUATED",
+      "cap_bytes": 180000000000,
+      "gameplan_exit": 0,
+      "resources": {
+        "utc": "2026-10-12T13:40:21.5531224Z",
+        "available_mb": 5857,
+        "commit_reserve": 45416882176,
+        "pages_input": 34,
+        "page_reads": 7,
+        "free_bytes": 388688347136
+      },
+      "target_bytes_before": 30396225184.0,
+      "max_target_bytes": 31695071821,
+      "argv": [
+        "test",
+        "--locked",
+        "--manifest-path",
+        "src/backend/handshake_core/Cargo.toml",
+        "--features",
+        "app-runtime,surreal-test-support,test-utils",
+        "-j",
+        "1",
+        "--lib",
+        "storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog",
+        "--",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cargo_pid": 13596,
+      "cargo_identity": {
+        "ProcessId": 13596,
+        "CreationDate": "2026-10-12T15:40:23.584212+02:00",
+        "CommandLine": "\"C:\\Users\\iljas\\.cargo\\bin\\cargo.exe\" test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils -j 1 --lib storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog -- --exact --nocapture --test-threads=1",
+        "ExecutablePath": "C:\\Users\\iljas\\.cargo\\bin\\cargo.exe"
+      },
+      "post_binding_exit": 0,
+      "inputs_unchanged": true,
+      "stdout_sha256": "2009c1995804ce55931da49cff414f2d843e48367b6933101be5ef2f2de59d7a",
+      "stderr_sha256": "0b5365902bdf288da47e6cdc867b651e13ece552ac88f5cd12bb5257df244635",
+      "completed_utc": "2026-10-12T13:48:33.1241778Z"
+    },
+    "post_binding": {
+      "matched": true,
+      "binding_equal": {
+        "head": true,
+        "tree": true,
+        "status": true,
+        "files": true,
+        "authority": true,
+        "profile_sha256": true,
+        "toolchain": true,
+        "launcher_sha256": true,
+        "external_inputs": true
+      },
+      "files": 7416
+    },
+    "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round43-mt139-catalog-measurement",
+    "artifact_sha256": {
+      "measurement-result.json": "69470ffd4cb0ccb92a29d3b5c7cc40715be92138e2c00a3619fcd49d07587255",
+      "post-binding.json": "9fd1f0edf84de597d3e3539b2e2e05928124e0ababc2fde42ac5ddac59f1fb69",
+      "test.stdout.log": "2009c1995804ce55931da49cff414f2d843e48367b6933101be5ef2f2de59d7a",
+      "test.stderr.log": "0b5365902bdf288da47e6cdc867b651e13ece552ac88f5cd12bb5257df244635"
+    },
+    "primary_error": {
+      "statement_index": 1124,
+      "code": -32000,
+      "message": "The field 'scoped_name_key' does not exist",
+      "details": "Internal",
+      "cause": null
+    },
+    "diagnostic_counts": {
+      "all_errors": 5042,
+      "NotExecuted": 1124,
+      "Cancelled": 3917,
+      "primary": 1
+    },
+    "source_observation": "schema.surql1536 index uses scoped_name_key before DEFINE FIELD1540; mapping/engine causal requirement under source inspection",
+    "base_pin": "NOT_MEASURED",
+    "production_pin": "NOT_MEASURED",
+    "original_pin_assertion": "NOT_REACHED",
+    "runtime_acceptance": "NOT_EVALUATED",
+    "failed_core_launches_retained": 38,
+    "next": "Verify pinned engine requirement and repair exact existing MT173 source ordering; independent review before focused retry"
+  }
+,
   "round43_prelaunch_scope_reconciliation_20261012": {
     "id": "WP012-P2-ROUND43-ADMISSION-20261012",
     "status": "PRELAUNCH_HELD_NO_CARGO",
