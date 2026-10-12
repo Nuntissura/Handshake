@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-12T06:34:34Z",
+ "updated_at": "2026-10-12T06:35:13Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -2443,7 +2443,7 @@
     "builders/lanes/hsk-studio-reel-partial-pts-2.json"
    ],
    "launched": "2026-10-12T06:18:09Z",
-   "status": "done 2026-10-12T06:32:00Z (SMB-REEL-PARTIAL-PTS-2 READY at 2fb17a8)"
+   "status": "done (READY)"
   },
   {
    "name": "builder-psd-loss-detail",
@@ -2455,7 +2455,7 @@
     "builders/lanes/hsk-studio-interop-psd-loss-detail.json"
    ],
    "launched": "2026-10-12T06:18:09Z",
-   "status": "done 2026-10-12T06:34:34Z (SMB-INTEROP-PSD-LOSS-DETAIL READY at 3930a7c)"
+   "status": "done (READY)"
   },
   {
    "name": "builder-press-docs-2",
@@ -2467,7 +2467,18 @@
     "builders/lanes/hsk-studio-press-docs-2.json"
    ],
    "launched": "2026-10-12T06:18:09Z",
-   "status": "done 2026-10-12T06:27:30Z (SMB-PRESS-DOCS-2 READY at 0f87710)"
+   "status": "done (READY)"
+  },
+  {
+   "name": "prereview-r22",
+   "agent_id": "ace12d67afe3c96d4",
+   "model": "opus",
+   "role": "V4-13 narrow pre-review fdc01f1..3930a7c (press-docs-2, reel-partial-pts-2, psd-loss-detail)",
+   "owns": [
+    "validation/R22-prereview-narrow.json"
+   ],
+   "launched": "2026-10-12T06:35:13Z",
+   "status": "running"
   }
  ]
 }
