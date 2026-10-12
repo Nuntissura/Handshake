@@ -2352,6 +2352,17 @@
    ],
    "launched": "2026-10-12T02:26:42Z",
    "status": "done 2026-10-12T02:26:42Z (bcc0688)"
+  },
+  {
+   "name": "prereview-r18-press-narrow",
+   "agent_id": "pending-see-next-commit",
+   "model": "sonnet",
+   "role": "narrow V4-13 pre-review press fcda5f6..bcc0688",
+   "owns": [
+    "validation/R18-prereview-press-narrow.json"
+   ],
+   "launched": "2026-10-12T02:27:13Z",
+   "status": "running"
   }
  ]
 }

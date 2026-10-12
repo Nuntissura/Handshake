@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-12T02:26:42Z",
+ "updated_at": "2026-10-12T02:27:13Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3264,10 +3264,11 @@
   "at": "2026-10-11T19:13:24Z",
   "for_takeover": "read START_LOG.md (operator-instructions, repo-rules, cargo-tooling, lead decisions, D1-D27), builders/DISPATCH_TEMPLATES.md (builder/validator/v4-rules incl. V4-21), this ledger (lanes, round_R11 latest), team.json, validation/ (rounds + pre-reviews)",
   "steps": [
-   "1. In flight: narrow pre-review of press f0be2ba + psd fcda5f6 (validation/R17-prereview-press-psd-narrow.json) and steward R17 sync + canary C22.",
-   "2. If SAFE: round R17 (validator only; review input = the pre-review) judging SMB-NOTES-BATCH-1, SMB-PRESS, SMB-PRESS-DIFFERENCES and reopens; then refresh HANDOFF.md + new snapshot.",
-   "3. Remaining after R17: PLR-077 (reel video.rs Forward), PLR-082 (render-gpu caller limits, after D20), PLR-063 (psd Folio ceiling), notes-batch residuals (config-OBU tag, exact-64 FRAME test, press prune, psd group-own-lfx2/zero-tile), SMB-PRESS-GEOMETRY, SMB-FMT-SWEEP, STUDIO_MODULES.json status refresh, app UI + Handshake integration (not started).",
-   "4. Blocked on Operator: D20, D22-D26, D9, D17, D5, D13/STU-CON-044, repo-local 3.8 GB target, empty folder x at the C: root."
+   "1. In flight: narrow pre-review of press fcda5f6..bcc0688 -> validation/R18-prereview-press-narrow.json (agent may need re-dispatch from DISPATCH_TEMPLATES if absent).",
+   "2. If SAFE_TO_JUDGE: steward sync + canary (candidate = origin HEAD, expected bcc0688), then round R18 with 1 validator (review input = the pre-review) judging SMB-NOTES-BATCH-1, SMB-PRESS, SMB-PRESS-DIFFERENCES (+ CX-VAL-009 reopens of press). If FIX_FIRST: small fail-closed fix in the same lane, then repeat.",
+   "3. Then refresh HANDOFF.md and write a new snapshots/SNAPSHOT-<UTC>.json (same shape as SNAPSHOT-20261011T214451Z.json); push gov_kernel with tools/lead-kernel-push.sh.",
+   "4. Remaining after that: PLR-077 (reel video.rs Forward), PLR-082 (render-gpu caller limits, after D20), PLR-063 (psd Folio ceiling), notes-batch residuals (config-OBU tag, exact-64 FRAME test, psd group-own-lfx2/zero-tile), SMB-PRESS-GEOMETRY, SMB-FMT-SWEEP, STUDIO_MODULES.json status refresh, app UI + Handshake integration (not started).",
+   "5. Blocked on Operator: D20, D22-D26, D9, D17, D5, D13/STU-CON-044, repo-local 3.8 GB target, empty folder x at the C: root."
   ]
  },
  "r8_plan": {
