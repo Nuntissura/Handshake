@@ -1,4 +1,50 @@
 {
+  "round38_closure_source_release_20261012": {
+  "at_utc": "2026-10-12T10:07:07.013889+00:00",
+  "product_commit": "9e85102e562996f30ae53125da870d9a359a3bc6",
+  "product_tree": "f6a6f313b21a17b3c0902e4bbf1638472548e30f",
+  "pushed": true,
+  "source_review": "SOURCE_CLEAR",
+  "review_thread": "01a129ca-8eea-7f53-aa9d-7f81f6f08319",
+  "coordinator_sha256": "6553014958b42368c26ed3c21da9edceb61a7f7a3a7df059bad48ebc1fed65f8",
+  "bindings_sha256": "4db8d04a11c34d7d5aa46070f19225c48edede21e82f5df014a0a2f635e4892d",
+  "diff_sha256": "c3e16fca506e3bbdf3a59f284db048149376bcd7f461c4211c2b17d6e4ec7ccc",
+  "repair": "Clone exact immutable run ID per future before async move; no authority/selector value change; unchanged source review reused",
+  "failed_core_launches": 37,
+  "next_actor": "Delivery fresh numeric gate/resource admission and one required changed candidate core check; original command/profile/cap and keep-going retained",
+  "runtime_acceptance": "NOT_RUN;0/5"
+},
+  "round38_prior_lifecycle_20261012": {
+  "blocked_on": "Latest actual core Round37 FAILED101 onb3e563f8795ac8802ac1fb18afbe34dadd49b1d9;98errors49eachlib/libtest,36actualfailedlaunches,source/config unchanged. Only resource_authority error conversion and coordinator/routing_execution canonical-record vs redacted-navigation DTO consumers failed. Connected source repair underway; no unchanged retry. Registry publication, measured BASE/FINAL INFO/fresh-reopen, native/auth runtime and independent acceptance still unproven0/5.",
+  "next_actor": "Sole phase02_coder connected Round37 source repair after exact diagnosis/dependency mapping; preserve public navigation redaction, original internal authority/payload/hash semantics and assertions. Independent affected source review then changed stable pushed candidate fresh gameplan/resources and sole Delivery required core check."
+},
+  "round38_actual_result_20261012": {
+  "at_utc": "2026-10-12T10:04:53.841123+00:00",
+  "status": "FAILED",
+  "exit_code": 101,
+  "attempt_id": "3f8801c73c344e5d90b3047d7e49b6f9",
+  "product_commit": "db2e511fc9026b3bd0ec5c4f83b63e748cf6ee37",
+  "product_tree": "08d50351bec98dedd796456cbd4a002b4cde3529",
+  "terminal_utc": "2026-10-12T10:02:22.0072243Z",
+  "failed_core_launches": 37,
+  "raw_errors": 2,
+  "diagnostic_groups": 1,
+  "root_cause": "E0507 coordinator.rs4008 repeated FnMut async move captures execution.run_id String for canonical source read4072",
+  "remediation": "Clone immutable execution.run_id per future before async move; use that exact owned clone for existing canonical reader",
+  "input_digest": "7b662992260bfd08c394265f04d3156bce41cefcc395ca56d30e47d3579dd9a5",
+  "source_files": 7416,
+  "drift": [],
+  "authority_drift": [],
+  "errors_artifact": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round38-canonical-routing/compile-errors.json",
+  "errors_sha256": "ad3a53bc822c83420bde25d23eae62a9f3f1b3cc2bd791932a0fae20d5d90016",
+  "result_sha256": "2c045e4a5262129b037a8c2e6bc118682799c963368d788cacc1d27557cd1598",
+  "stdout_sha256": "456d5e80a44b866758420e01ba1b30b5b86531da6c9df522e824dadcc6943830",
+  "peak_target_bytes": 11830821775,
+  "owned_processes_gone_observed_utc": "2026-10-12T10:03:44Z",
+  "accepted_mts": 0,
+  "runtime": "NOT_RUN",
+  "next_actor": "Sole coder two-line coordinator ownership repair, scoped source review, stable pushed changed candidate, fresh gate/resources then one required core check; no unchanged retry"
+},
   "round37_canonical_routing_source_release_20261012": {
   "at_utc": "2026-10-12T09:48:58.553835+00:00",
   "product_commit": "db2e511fc9026b3bd0ec5c4f83b63e748cf6ee37",
@@ -3570,7 +3616,7 @@
   },
   "lifecycle": {
     "status": "BLOCKED",
-    "blocked_on": "Latest actual core Round37 FAILED101 onb3e563f8795ac8802ac1fb18afbe34dadd49b1d9;98errors49eachlib/libtest,36actualfailedlaunches,source/config unchanged. Only resource_authority error conversion and coordinator/routing_execution canonical-record vs redacted-navigation DTO consumers failed. Connected source repair underway; no unchanged retry. Registry publication, measured BASE/FINAL INFO/fresh-reopen, native/auth runtime and independent acceptance still unproven0/5.",
+    "blocked_on": "Latest actual core Round38 FAILED101 on db2e511fc;37 actual failed launches,all captured inputs unchanged. One E0507 repeated async closure moves execution.run_id; minimal two-line clone repair frozen for affected source review. Actual BASE/FINAL measurement/fresh-reopen, registry publication, consumed routing native authority and independent acceptance unproven0/5.",
     "depends_on": [
       "MT-173"
     ],
@@ -3580,7 +3626,7 @@
     "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
     "claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
     "completed_by": null,
-    "next_actor": "Sole phase02_coder connected Round37 source repair after exact diagnosis/dependency mapping; preserve public navigation redaction, original internal authority/payload/hash semantics and assertions. Independent affected source review then changed stable pushed candidate fresh gameplan/resources and sole Delivery required core check."
+    "next_actor": "Review exact two-line ownership repair; root stable changed candidate commit/push and Delivery fresh numeric gameplan/resources then one required core check; no unchanged retry. Existing independent MT139 measurement only after actual coreGREEN."
   },
   "scope": {
     "summary": "Reconcile shared core/bootstrap/manifests import paths",
