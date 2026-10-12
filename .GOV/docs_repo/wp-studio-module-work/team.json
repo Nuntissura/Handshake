@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-12T07:54:54Z",
+ "updated_at": "2026-10-12T07:55:28Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -2526,6 +2526,18 @@
    ],
    "launched": "2026-10-12T07:27:45Z",
    "status": "done (READY)"
+  },
+  {
+   "name": "builder-press-struct-failclosed-2",
+   "agent_id": "ac214653485c7ee50",
+   "model": "sonnet",
+   "role": "SMB-PRESS-STRUCT-FAILCLOSED continuation: V4-06 sibling (indirect-array /K) fail closed, option 2",
+   "owns": [
+    "crates/hsk-studio-press/**",
+    "builders/lanes/hsk-studio-press-struct-failclosed.json"
+   ],
+   "launched": "2026-10-12T07:55:28Z",
+   "status": "running"
   }
  ]
 }

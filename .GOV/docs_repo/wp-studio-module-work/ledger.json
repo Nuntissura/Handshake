@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-12T07:54:54Z",
+ "updated_at": "2026-10-12T07:55:28Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3510,7 +3510,7 @@
  "resume_plan": {
   "at": "2026-10-12T07:26:27Z",
   "steps": [
-   "1. R20 COMPLETE (24 PASS, 0 FAIL). In flight (Sonnet builders, dispatched 2026-10-12T07:27:45Z): SMB-PRESS-STRUCT-FAILCLOSED (PLR-094/093/091), SMB-INTEROP-PSD-DESC-CAP (PLR-095), SMB-REEL-PTS-TESTS (PLR-092). Then V4-13 narrow pre-review (two-FAIL lanes SMB-PRESS, SMB-INTEROP-PSD-BUDGET, SMB-REEL-AV1-ROUTE, SMB-REEL-NATIVE-AV1-WORKER via reel), then round R21. On takeover: if team.json shows them running but no agent exists, read their lane files and re-dispatch with the same scope.",
+   "1. READY: SMB-REEL-PTS-TESTS 172952f, SMB-INTEROP-PSD-DESC-CAP 0c1be05. In flight: SMB-PRESS-STRUCT-FAILCLOSED continuation (fresh Sonnet builder; fail-closed for the indirect-array /K sibling, lead decision). Then V4-13 narrow pre-review 3930a7c..<press head> (two-FAIL lanes SMB-PRESS, SMB-INTEROP-PSD-BUDGET, SMB-REEL-AV1-ROUTE, SMB-REEL-NATIVE-AV1-WORKER via reel), then round R21.",
    "2. Then SMB-PRESS-GEOMETRY, SMB-FMT-SWEEP, notes residuals (config-OBU tag, exact-64 FRAME test, psd group-own-lfx2/zero-tile).",
    "3. Round R21: steward sync + canary + 1 validator (list all two-FAIL lanes, PROC-R19-V1).",
    "4. Keep pushing gov_kernel after every commit (weekly >= 85%).",
