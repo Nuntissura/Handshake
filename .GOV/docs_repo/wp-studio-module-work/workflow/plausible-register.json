@@ -1631,7 +1631,22 @@
    "status": "OPEN",
    "verified_at": "3930a7c",
    "disposition": "DOC",
-   "disposition_note": "next interop-psd lane: state the cap; measure items per effect instance"
+   "disposition_note": "next interop-psd lane: state the cap; measure items per effect instance; 2026-10-12T07:45:14Z fix submitted SMB-INTEROP-PSD-DESC-CAP 0c1be05"
+  },
+  {
+   "id": "PLR-096",
+   "lane": "SMB-INTEROP-PSD-DESC-CAP",
+   "file_line": "crates/hsk-studio-interop-psd/src/effects.rs:~75, ~145; one DESCRIPTOR clause pinned by an existing needle test",
+   "finding": "doc-only: the dropped-count phrase still says 'switched-off instances' where the count is of MAPPED switched-off instances (proposal.rs fixed in 0c1be05)",
+   "first_seen": "builder report 0c1be05",
+   "seen_in": [
+    "builder report 0c1be05"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "0c1be05",
+   "disposition": "DOC",
+   "disposition_note": "align in next interop-psd touch"
   }
  ],
  "process_items": [

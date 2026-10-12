@@ -1,0 +1,52 @@
+{
+ "crate": "hsk-studio-interop-psd",
+ "lane": "SMB-INTEROP-PSD-DESC-CAP",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "PLR-095 done and pushed (0c1be05): DESCRIPTOR effect_limits states the descriptor reader's 8192-item cap with the per-kind item costs measured by a new test; proposal.rs doc says the dropped count is of MAPPED switched-off instances; no behaviour change, no cap change; clippy clean for this crate, effects_budget focused 5/5, crate 62/62",
+ "commits": [
+  {
+   "sha": "0c1be05d44b47f00bb7fba690382aa3973245fd5",
+   "subject": "interop-psd (SMB-INTEROP-PSD-DESC-CAP, PLR-095): DESCRIPTOR states the reader's 8192-item cap with measured per-kind item costs; dropped-count doc says mapped instances"
+  }
+ ],
+ "capabilities_done": [
+  "PLR-095 step 1 (R22-S1) [0c1be05]: src/proposal.rs doc of collect_records says the dropped=<count> is the number of MAPPED switched-off instances the record does not hold (a switched-off instance the importer does not map reports itself, is not in the record and is not counted); doc only",
+  "PLR-095 step 2 (R22-S2) [0c1be05]: new test tests/effects_budget.rs the_descriptor_readers_8192_item_cap_is_measured_per_effect_kind_and_stated_in_the_descriptor measures through the importer (to_proposal on a one-layer PSD with an lfx2 block; the observable is the descriptor_item_limit loss at layer[0]/tagged/lfx2): the cap itself (largest bare filler that parses = 8192); items per effect instance (list entry or slot key included) for each of the 8 mapped kinds (drop shadow, inner shadow, outer glow, inner glow, bevel, colour overlay, satin, stroke), each instance first checked to MAP (Kept(1), no Unsupported loss); the most instances one descriptor holds (lists of 512, boundary checked from both sides); the per-instance cost from which 8192 items no longer hold the smallest stack each other cap would decide (boundary checked from both sides); the loss code on either side; and that the shipped DESCRIPTOR effect_limits contains every measured figure (needles built from the measured numbers) and cites the test",
+  "PLR-095 step 2 [0c1be05]: src/lib.rs DESCRIPTOR effect_limits gains one clause (8 sentences, inserted after the PLR-086 clause, nothing removed or reworded): the 8192-item cap counts every object item and list entry at every depth, category blind, checked as each item is read; a descriptor over it refuses the descriptor (Unsupported descriptor_item_limit) and the stack is lost before any instance is mapped; measured items per instance; contour point cost; instances one descriptor holds; the costs from which 1025 instances / a full 512-entry list / 65 counted instances do not fit; the consequence for the ceiling loss and effects_over_budget"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-interop-psd --no-fail-fast",
+  "exit": 0,
+  "sha": "0c1be05d44b47f00bb7fba690382aa3973245fd5",
+  "passed": 62,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 6,
+ "bg_pids": [],
+ "next": "Independent validator: crates/hsk-studio-interop-psd at 0c1be05 (diff vs 3930a7c: src/lib.rs DESCRIPTOR string, src/proposal.rs doc comment, tests/effects_budget.rs +535). Nothing else pushed to the crate after the READY commit (V4-14).",
+ "updated_at": "2026-10-12T07:44:32Z",
+ "notes": {
+  "plr": "PLR-095 (R22-S1 doc precision, R22-S2 8192-item aggregate cap not stated); new lane id per V4-15; the SMB-INTEROP-PSD-BUDGET (2 failed verdicts, PASS_V8 at R19), SMB-INTEROP-PSD-FOLIO-CEILING and SMB-INTEROP-PSD-LOSS-DETAIL lane files and verdict histories untouched",
+  "v4_13": "crate holds the two-FAIL lane SMB-INTEROP-PSD-BUDGET; no src behaviour changed (src diff is one doc comment and one DESCRIPTOR string; charge, admit, the tally, the caps 64/4096/1024/512/8192 and the max_layers + 8192 node bound are unchanged)",
+  "measured": {
+   "cap": "8192 descriptor items (largest bare filler that parses; 8193 is refused with descriptor_item_limit)",
+   "items_per_instance_required_items_only": "list entry or slot key + Md + required kind items + enab: drop_shadow 3, inner_shadow 3, outer_glow 4, inner_glow 5, bevel 16, colour_overlay 3, satin 3, stroke 5",
+   "items_per_instance_every_key_the_importer_reads_and_a_2_point_contour": "drop_shadow 28, inner_shadow 27, outer_glow 29, inner_glow 30, bevel 46, colour_overlay 24, satin 27, stroke 28",
+   "contour": "a contour point costs 4 items (list entry, Hrzn, Vrtc, Cnty); Folio holds up to 256 points, so a drop shadow with a 256-point contour costs 28 + 4 x 254 = 1044 items",
+   "most_instances_one_descriptor_holds_in_lists_of_512": "required items only: drop_shadow 2728, inner_shadow 2728, colour_overlay 2728, stroke 1637; every key with a 2-point contour: drop_shadow 292, inner_shadow 303, colour_overlay 341, stroke 292; drop shadow with a 256-point contour: 7. Outer glow, inner glow, bevel and satin have no multi list (one per slot unless a key is repeated), so only their cost is stated",
+   "thresholds": "1 live + 1024 switched off (1025 instances, the smallest stack Folio's ceiling cuts) does not fit 8192 items from 8 items per instance; a full 512-entry list from 16 items per instance; 65 live instances (smallest stack over the 64 per-layer limit) from 127 items per instance",
+   "which_cap_fires_first": "required-items-only instances (3 to 5 items; bevel 16 sits in a single slot) stay under 8, so the ceiling cut (1024) and the 512-entry list cap are reached before the 8192 cap, and the 64 per-layer limit before it as well; instances with every key the importer reads (24 to 46 items) are past 8 and 16, so for them the 8192 cap fires first: before the ceiling (a stack holds 292 to 341 instances, not 1025) and before a full 512-entry list; the 64 per-layer limit is reached first for them (292 > 64) unless the instance costs 127 or more items (a drop shadow with a contour of 27 points or more: 28 + 4 x 25 = 128), then the stack is lost with descriptor_item_limit instead of effects_over_budget (pinned at 126/127 items by the test). Photoshop-authored items per instance are UNVERIFIED (no Photoshop-authored fixture, no outbound read); the figures cover the keys the importer reads, a real instance may carry more unread keys and cost more"
+  },
+  "existing_descriptor_wording": "checked against the measurement: no existing sentence is false, one is incomplete. The sentence that a stack over 64 counted instances is lost with effects_over_budget (and the ceiling-cut sentence) hold for a descriptor that parses; a descriptor over 8192 items is refused first (65 live instances at 127 or more items each, 1025 instances at 8 or more items each). Fixed by an ADDITIVE scoping sentence in the new clause ('every cap and loss code stated above applies to a stack whose descriptor fits 8192 items'); no existing word was changed or removed",
+  "step_3_not_done": "caps unchanged as instructed; a category-aware or streaming parse that would keep the counted instances of a descriptor over 8192 items is not done (trade-off V4-02; the loss is typed, fail-closed, block byte-exact, import continues)",
+  "repeated_keys": "the reader and the importer accept a repeated root key (each repetition is a separate slot or list, 512 root items per object), so a stack can hold more instances than distinct slot keys allow; the test uses repeated multi-list keys for lists of 512, which costs what distinct list keys cost; for the four single-slot-only kinds the cost per instance is stated and no instance count is claimed",
+  "red_proof": "DOC lane, no behaviour change. Red: the first run of the new test at the unchanged source failed exactly at the first DESCRIPTOR needle (effect_limits does not state the_descriptor_readers_cap_of_8192_items_per_descriptor...) after every measurement assertion had passed against the unchanged reader (the measurement half needs no red: it asserts the reader's current behaviour at both sides of each boundary, so a changed cap or cost fails it). Green after the lib.rs clause. No scratch mutant tree was built (no behaviour to mutate, V4-11 avoided)",
+  "retry_guard_route": "(c) command form: the first gated nextest launch was blocked by the hook because the command did not start with the cd of the exact cargo form (the hook resolved another gameplan); rerun with the exact form from the dispatch template, no flag or filter change, no gameplan edit. First test run (before any commit) failed at 16 s: the test had measured instance counts by bisection with up to 4000 mapped instances per probe (16 s, over half of the 30 s case deadline); the instance counts are now boundary-checked from both sides (1.0 s), a product-test fix before any commit, background runs record no failure",
+  "v4_07": "added src lines (DESCRIPTOR clause, proposal.rs doc) contain none of never/always/guarantee/prove/cannot/exact; the clause cites its test (test_the_descriptor_readers_8192_item_cap_is_measured_per_effect_kind_and_stated_in_the_descriptor) and the test pins the sentences, the numbers and the existence of the cited test. Test comments use 'exactly' twice for arithmetic facts the test asserts",
+  "sibling_sites_of_the_r22_s1_phrase": "NOT changed (scope was proposal.rs:527-528 only): src/effects.rs header comment (about lines 74-76) and the Fit doc (about lines 145-146) say 'the count of the instances the record does not hold' / 'the number of switched-off instances the record does not hold', and the DESCRIPTOR clause 'naming_the_count_of_the_switched_off_instances_the_record_does_not_hold' (pinned by descriptor_states_the_loss_detail_and_the_list_cap_rules) carries the same shorter phrase; the DESCRIPTOR's next clause 'a_switched_off_instance_that_was_mapped_and_left_out_of_the_record' states the mapped rule. Lead decision whether to align them in a later doc-only commit",
+  "formatting": "the new test region was formatted with rustfmt 1.97.1 (edition 2024) on a scratch copy and spliced back; older hunks of the file were not reformatted",
+  "scratch": "<scratchpad>/SMB-INTEROP-PSD-DESC-CAP/ holds only logs, the rustfmt scratch copy and the commit message file; no script was run from the shared scratchpad besides rustfmt on my own copy (V4-12)",
+  "v4_21": "no outbound request made"
+ }
+}

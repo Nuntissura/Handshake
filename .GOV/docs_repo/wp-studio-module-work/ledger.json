@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-12T07:44:52Z",
+ "updated_at": "2026-10-12T07:45:14Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3249,12 +3249,15 @@
    "lane_id": "SMB-INTEROP-PSD-DESC-CAP",
    "crate": "hsk-studio-interop-psd",
    "origin": "PLR-095",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-psd-desc-cap",
-   "candidate": null,
-   "commits": [],
-   "verdicts": []
+   "candidate": "0c1be05",
+   "commits": [
+    "0c1be05"
+   ],
+   "verdicts": [],
+   "note": "PLR-095: DESCRIPTOR states 8192-item cap with measured per-kind costs (required-only 3-16 items; all keys read 24-46; contour point 4) and which cap fires first (all-keys instances hit 8192 at 292-341 per descriptor before 1024/512); proposal.rs:527-528 says MAPPED; no behaviour change; crate 62/62; Photoshop-authored item counts UNVERIFIED"
   },
   {
    "lane_id": "SMB-REEL-PTS-TESTS",
@@ -3383,7 +3386,8 @@
   "SMB-PRESS-DOCS-2",
   "SMB-REEL-PARTIAL-PTS-2",
   "SMB-INTEROP-PSD-LOSS-DETAIL",
-  "SMB-REEL-PTS-TESTS"
+  "SMB-REEL-PTS-TESTS",
+  "SMB-INTEROP-PSD-DESC-CAP"
  ],
  "round_R6": {
   "candidate": "bd8533f",
