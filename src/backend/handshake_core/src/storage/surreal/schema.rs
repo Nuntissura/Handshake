@@ -3279,10 +3279,207 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_receipt($row: object, $write: boo
     source
 }
 
+// Exact source-only reversal of the navigation-provider delta. Live INFO and
+// fresh/post-module reopen lineage remain independently unmeasured.
+#[cfg(test)]
+fn restore_pre_navigation_provider_schema(mut source: String) -> String {
+    const DELTAS: &[(&str, &str)] = &[
+        (r####"        ELSE IF $row.aggregate_type = 'context_artifact' { 'hsk.model_lane_context_bundle_artifact@1' }
+        ELSE IF $row.aggregate_type = 'diagnostic_tier' { 'hsk.model_lane_diagnostic_tier@1' }
+        ELSE IF $row.aggregate_type = 'recovery_checkpoint' { 'hsk.model_lane_recovery_checkpoint@1' } ELSE { 'hsk.model_lane_context_bundle_handoff@1' };
+    RETURN ($payload.schema_id = $schema OR ($wp012_original_purpose IN ['diagnostic_record', 'recovery_checkpoint_record'] AND $row.aggregate_type = 'run' AND $payload.schema_id = 'hsk.model_lane_run_extension@1')) AND $payload.dexterity_kernel = 'Dexterity'
+        AND $payload.owner_account_id = $row.owner_account_id AND $payload.actor_principal_id = $row.actor_principal_id
+"####, r####"        ELSE IF $row.aggregate_type = 'context_artifact' { 'hsk.model_lane_context_bundle_artifact@1' }
+        ELSE { 'hsk.model_lane_context_bundle_handoff@1' };
+    RETURN $payload.schema_id = $schema AND $payload.dexterity_kernel = 'Dexterity'
+        AND $payload.owner_account_id = $row.owner_account_id AND $payload.actor_principal_id = $row.actor_principal_id
+"####),
+        (r####"        ELSE IF $row.aggregate_type = 'context_artifact' { $record.artifact_binding_id }
+        ELSE IF $row.aggregate_type = 'diagnostic_tier' { $record.diagnostic_status_id }
+        ELSE IF $row.aggregate_type = 'recovery_checkpoint' { $record.checkpoint_id } ELSE { $record.handoff_id };
+    LET $schema = IF $row.aggregate_type = 'run' { 'hsk.model_lane_run@1' }
+"####, r####"        ELSE IF $row.aggregate_type = 'context_artifact' { $record.artifact_binding_id }
+        ELSE { $record.handoff_id };
+    LET $schema = IF $row.aggregate_type = 'run' { 'hsk.model_lane_run@1' }
+"####),
+        (r####"        OR !($row.event_type = 'MODEL_LANE_AUTHORITY_RECORDED'
+            OR ($row.aggregate_type = 'message' AND $row.event_type = 'MODEL_LANE_MESSAGE_RECORDED')
+            OR ($wp012_original_purpose = 'recovery_checkpoint_record' AND $row.aggregate_type = 'recovery_checkpoint' AND $row.event_type = 'MODEL_LANE_RECOVERY_CHECKPOINT_RECORDED'))
+        OR !(fn::wp012_model_lane_source_kind($row.aggregate_type) OR fn::wp012_model_lane_recording_kind($row.aggregate_type))
+        OR $row.aggregate_type != $row.payload.record_kind OR $row.kernel_task_run_id != $row.payload.run_id
+"####, r####"        OR !($row.event_type = 'MODEL_LANE_AUTHORITY_RECORDED'
+            OR ($row.aggregate_type = 'message' AND $row.event_type = 'MODEL_LANE_MESSAGE_RECORDED'))
+        OR !fn::wp012_model_lane_source_kind($row.aggregate_type)
+        OR $row.aggregate_type != $row.payload.record_kind OR $row.kernel_task_run_id != $row.payload.run_id
+"####),
+        (r####"        OR ($row.source_component = 'knowledge_crdt_ai_edit_proposal' AND $row.aggregate_type = 'knowledge_ai_edit_promotion') { RETURN fn::wp012_model_lane_crdt_receipt($row, $write); };
+    -- Read-only navigation resolves the immutable source/receipt identity before
+    -- field reduction. The ordinary producer and receipt branches remain unchanged.
+    IF !$write AND $wp012_original_purpose = 'navigation_read' {
+        IF $row.source_component != 'model_lane' OR $row.event_id != record::id($row.id)
+            OR $row.idempotency_key != $row.event_id OR $row.event_version != 'kernel_event_v1'
+            OR $row.actor_kind != 'principal' OR $row.actor_id != $row.actor_principal_id
+            OR $row.authority_session_id != $auth.id OR array::len($row.wsids) != 1
+            OR $row.wsids[0] != $row.workspace_id { RETURN false; };
+        LET $candidate = object::extend($row, { record_kind: $row.aggregate_type,
+            run_id: $row.kernel_task_run_id,
+            record_json: encoding::json::encode(encoding::json::decode($row.payload.event_payload_json).record) });
+        RETURN fn::wp012_model_lane_source_access($candidate, false);
+    };
+    IF !$write AND $wp012_original_purpose = 'recovery_checkpoint_record'
+        AND $row.kernel_task_run_id = $run_id AND $row.session_run_id = $event_ledger_stream_id {
+        LET $sources = SELECT * FROM model_lane_authority WHERE event_id = $row.event_id
+            AND record_kind = $row.aggregate_type AND aggregate_id = $row.aggregate_id AND run_id = $row.kernel_task_run_id
+            AND owner_account_id = $row.owner_account_id AND actor_principal_id = $row.actor_principal_id
+            AND authenticated_session_id = $row.authenticated_session_id AND access_space_id = $row.access_space_id
+            AND workspace_id = $row.workspace_id;
+        RETURN fn::wp012_model_lane_original_operation($row) AND $wp012_original_action = 'create'
+            AND array::len($sources) = 1 AND $sources[0].event_ledger_event_id = $row.id
+            AND fn::wp012_model_lane_canonical_record_identity($sources[0]);
+    };
+    IF $row.source_component != 'model_lane'
+"####, r####"        OR ($row.source_component = 'knowledge_crdt_ai_edit_proposal' AND $row.aggregate_type = 'knowledge_ai_edit_promotion') { RETURN fn::wp012_model_lane_crdt_receipt($row, $write); };
+    IF $row.source_component != 'model_lane'
+"####),
+        (r####"DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_crdt_receipt($row: object, $write: bool) {
+    IF !$write AND $wp012_original_purpose = 'navigation_read' { RETURN fn::wp012_model_lane_navigation_crdt_receipt($row); };
+    IF $row.aggregate_type IN ['knowledge_crdt_ai_edit_proposal', 'knowledge_ai_edit_promotion'] { RETURN fn::wp012_model_lane_proposal_receipt($row, $write); };
+"####, r####"DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_crdt_receipt($row: object, $write: bool) {
+    IF $row.aggregate_type IN ['knowledge_crdt_ai_edit_proposal', 'knowledge_ai_edit_promotion'] { RETURN fn::wp012_model_lane_proposal_receipt($row, $write); };
+"####),
+        (r####"DEFINE FIELD OVERWRITE payload.* ON TABLE kernel_event_ledger TYPE any;
+-- MT173_NAVIGATION_RECEIPT_INPUT_BEGIN
+-- A distinct closed semantic input, never a redacted payload or a replacement hash.
+DEFINE FUNCTION OVERWRITE fn::wp012_navigation_receipt_semantics($row: object) {
+    IF $row.aggregate_type NOT IN ['knowledge_crdt_ai_edit_proposal', 'knowledge_ai_edit_promotion']
+        OR $row.event_type NOT IN ['AI_EDIT_PROPOSAL_RECORDED', 'AI_EDIT_PROPOSAL_DECIDED', 'PROMOTION_REQUESTED', 'PROMOTION_ACCEPTED']
+        OR ($row.aggregate_type = 'knowledge_crdt_ai_edit_proposal' AND ($row.source_component != 'model_lane_crdt' OR $row.event_type NOT IN ['AI_EDIT_PROPOSAL_RECORDED', 'AI_EDIT_PROPOSAL_DECIDED']))
+        OR ($row.aggregate_type = 'knowledge_ai_edit_promotion' AND ($row.source_component != 'knowledge_crdt_ai_edit_proposal' OR $row.event_type NOT IN ['PROMOTION_REQUESTED', 'PROMOTION_ACCEPTED'])) { RETURN NONE; };
+    LET $keys = IF $row.event_type = 'AI_EDIT_PROPOSAL_RECORDED' {
+        ['schema_id', 'proposal_id', 'diff_sha256']
+    } ELSE IF $row.event_type = 'PROMOTION_REQUESTED' {
+        ['schema_id', 'proposal_id', 'diff_sha256', 'base_update_seq', 'base_state_vector', 'decided_by']
+    } ELSE IF $row.event_type = 'PROMOTION_ACCEPTED' {
+        ['schema_id', 'proposal_id', 'review_state', 'decided_by', 'diff_sha256', 'applied_update_id', 'applied_update_sha256']
+    } ELSE IF $row.payload.application_evidence != NONE AND $row.payload.application_evidence != NULL {
+        ['schema_id', 'proposal_id', 'applied_update_id', 'applied_update_sha256', 'approved_diff_sha256', 'application_evidence']
+    } ELSE {
+        ['schema_id', 'document_id', 'crdt_document_id', 'recorded_event_id', 'reviewer_principal_id',
+        'reviewer_authenticated_session_id', 'reviewer_action', 'reviewer_capability_id', 'reviewer_resource_id',
+        'reviewer_grant_id', 'proposal_id', 'review_state']
+    };
+    LET $input = {
+        schema_id: 'hsk.model_lane_navigation_receipt_input@1',
+        proposal_id: $row.payload.proposal_id,
+        diff_sha256: $row.payload.diff_sha256,
+        document_id: $row.payload.document_id,
+        crdt_document_id: $row.payload.crdt_document_id,
+        recorded_event_id: $row.payload.recorded_event_id,
+        reviewer_principal_id: $row.payload.reviewer_principal_id,
+        reviewer_authenticated_session_id: $row.payload.reviewer_authenticated_session_id,
+        reviewer_action: $row.payload.reviewer_action,
+        reviewer_capability_id: $row.payload.reviewer_capability_id,
+        reviewer_resource_id: $row.payload.reviewer_resource_id,
+        reviewer_grant_id: $row.payload.reviewer_grant_id,
+        review_state: $row.payload.review_state,
+        applied_update_id: $row.payload.applied_update_id,
+        applied_update_sha256: $row.payload.applied_update_sha256,
+        approved_diff_sha256: $row.payload.approved_diff_sha256,
+        base_state_vector: $row.payload.base_state_vector,
+        decided_by: $row.payload.decided_by,
+        base_update_seq: $row.payload.base_update_seq,
+        application_evidence: IF $row.payload.application_evidence = NONE { NONE } ELSE {
+            schema_id: $row.payload.application_evidence.schema_id,
+            operation: $row.payload.application_evidence.operation,
+            proposal_id: $row.payload.application_evidence.proposal_id,
+            document_id: $row.payload.application_evidence.document_id,
+            crdt_document_id: $row.payload.application_evidence.crdt_document_id,
+            recorded_event_id: $row.payload.application_evidence.recorded_event_id,
+            approval_event_id: $row.payload.application_evidence.approval_event_id,
+            base_update_id: $row.payload.application_evidence.base_update_id,
+            base_snapshot_id: $row.payload.application_evidence.base_snapshot_id,
+            base_snapshot_event_id: $row.payload.application_evidence.base_snapshot_event_id,
+            base_update_event_id: $row.payload.application_evidence.base_update_event_id,
+            update_id: $row.payload.application_evidence.update_id,
+            update_event_id: $row.payload.application_evidence.update_event_id,
+            approved_diff_sha256: $row.payload.application_evidence.approved_diff_sha256,
+            yjs_update_sha256: $row.payload.application_evidence.yjs_update_sha256,
+            canonical_base_materialization_sha256: $row.payload.application_evidence.canonical_base_materialization_sha256,
+            canonical_post_materialization_sha256: $row.payload.application_evidence.canonical_post_materialization_sha256,
+            base_update_seq: $row.payload.application_evidence.base_update_seq,
+            update_seq: $row.payload.application_evidence.update_seq,
+            approval_event_sequence: $row.payload.application_evidence.approval_event_sequence,
+            update_event_sequence: $row.payload.application_evidence.update_event_sequence,
+            path: $row.payload.application_evidence.path
+        }
+    };
+    RETURN object::from_entries(array::filter(object::entries($input), |$entry| { $entry[0] IN $keys AND $entry[1] != NONE AND $entry[1] != NULL }));
+};
+DEFINE FIELD OVERWRITE navigation_semantic_input ON TABLE kernel_event_ledger TYPE option<object>
+    VALUE fn::wp012_navigation_receipt_semantics($this)
+    ASSERT $value = fn::wp012_navigation_receipt_semantics($this)
+    PERMISSIONS FOR select WHERE $wp012_original_purpose = 'navigation_read'
+        AND fn::wp012_model_lane_navigation_receipt_input_access($this);
+DEFINE FIELD OVERWRITE navigation_semantic_input.schema_id ON TABLE kernel_event_ledger TYPE string;
+DEFINE FIELD OVERWRITE navigation_semantic_input.proposal_id ON TABLE kernel_event_ledger TYPE option<string>;
+DEFINE FIELD OVERWRITE navigation_semantic_input.diff_sha256 ON TABLE kernel_event_ledger TYPE option<string>;
+DEFINE FIELD OVERWRITE navigation_semantic_input.document_id ON TABLE kernel_event_ledger TYPE option<string>;
+DEFINE FIELD OVERWRITE navigation_semantic_input.crdt_document_id ON TABLE kernel_event_ledger TYPE option<string>;
+DEFINE FIELD OVERWRITE navigation_semantic_input.recorded_event_id ON TABLE kernel_event_ledger TYPE option<string>;
+DEFINE FIELD OVERWRITE navigation_semantic_input.reviewer_principal_id ON TABLE kernel_event_ledger TYPE option<string>;
+DEFINE FIELD OVERWRITE navigation_semantic_input.reviewer_authenticated_session_id ON TABLE kernel_event_ledger TYPE option<string>;
+DEFINE FIELD OVERWRITE navigation_semantic_input.reviewer_action ON TABLE kernel_event_ledger TYPE option<string>;
+DEFINE FIELD OVERWRITE navigation_semantic_input.reviewer_capability_id ON TABLE kernel_event_ledger TYPE option<string>;
+DEFINE FIELD OVERWRITE navigation_semantic_input.reviewer_resource_id ON TABLE kernel_event_ledger TYPE option<string>;
+DEFINE FIELD OVERWRITE navigation_semantic_input.reviewer_grant_id ON TABLE kernel_event_ledger TYPE option<string>;
+DEFINE FIELD OVERWRITE navigation_semantic_input.review_state ON TABLE kernel_event_ledger TYPE option<string>;
+DEFINE FIELD OVERWRITE navigation_semantic_input.applied_update_id ON TABLE kernel_event_ledger TYPE option<string>;
+DEFINE FIELD OVERWRITE navigation_semantic_input.applied_update_sha256 ON TABLE kernel_event_ledger TYPE option<string>;
+DEFINE FIELD OVERWRITE navigation_semantic_input.approved_diff_sha256 ON TABLE kernel_event_ledger TYPE option<string>;
+DEFINE FIELD OVERWRITE navigation_semantic_input.base_state_vector ON TABLE kernel_event_ledger TYPE option<string>;
+DEFINE FIELD OVERWRITE navigation_semantic_input.decided_by ON TABLE kernel_event_ledger TYPE option<string>;
+DEFINE FIELD OVERWRITE navigation_semantic_input.base_update_seq ON TABLE kernel_event_ledger TYPE option<int>;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence ON TABLE kernel_event_ledger TYPE option<object>;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.schema_id ON TABLE kernel_event_ledger TYPE string;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.operation ON TABLE kernel_event_ledger TYPE string;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.proposal_id ON TABLE kernel_event_ledger TYPE string;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.document_id ON TABLE kernel_event_ledger TYPE string;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.crdt_document_id ON TABLE kernel_event_ledger TYPE string;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.recorded_event_id ON TABLE kernel_event_ledger TYPE string;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.approval_event_id ON TABLE kernel_event_ledger TYPE string;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.base_update_id ON TABLE kernel_event_ledger TYPE string;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.base_snapshot_id ON TABLE kernel_event_ledger TYPE string;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.base_snapshot_event_id ON TABLE kernel_event_ledger TYPE string;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.base_update_event_id ON TABLE kernel_event_ledger TYPE string;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.update_id ON TABLE kernel_event_ledger TYPE string;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.update_event_id ON TABLE kernel_event_ledger TYPE string;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.approved_diff_sha256 ON TABLE kernel_event_ledger TYPE string;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.yjs_update_sha256 ON TABLE kernel_event_ledger TYPE string;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.canonical_base_materialization_sha256 ON TABLE kernel_event_ledger TYPE string;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.canonical_post_materialization_sha256 ON TABLE kernel_event_ledger TYPE string;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.base_update_seq ON TABLE kernel_event_ledger TYPE int;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.update_seq ON TABLE kernel_event_ledger TYPE int;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.approval_event_sequence ON TABLE kernel_event_ledger TYPE int;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.update_event_sequence ON TABLE kernel_event_ledger TYPE int;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.path ON TABLE kernel_event_ledger TYPE array<string>;
+-- MT173_NAVIGATION_RECEIPT_INPUT_END
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE kernel_event_ledger TYPE option<string> ASSERT $value = NONE OR string::trim($value) != '';
+"####, r####"DEFINE FIELD OVERWRITE payload.* ON TABLE kernel_event_ledger TYPE any;
+DEFINE FIELD OVERWRITE owner_account_id ON TABLE kernel_event_ledger TYPE option<string> ASSERT $value = NONE OR string::trim($value) != '';
+"####),
+    ];
+    for (current, previous) in DELTAS {
+        assert_eq!(source.matches(current).count(), 1, "navigation historical restoration delta must occur exactly once");
+        source = source.replacen(current, previous, 1);
+    }
+    source
+}
+
 // Exact pinned WP012 revision164 restoration for retained predecessor fixtures.
 // Test-only: current revision/INFO upgrade proof remains pending.
 #[cfg(test)]
 fn restore_pre_mt173_import_schema(mut source: String) -> String {
+    source = restore_pre_navigation_provider_schema(source);
     source = restore_round08_context_schema(source);
     let connected_delta_2 = r###"    RETURN record::id($block.source_rich_document_id) = record::id($block)
         AND fn::mt120_document_access(record::id($block), $workspace, $action, $capability);
@@ -3785,9 +3982,12 @@ const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
 // MT-170 re-pin: loom_edges projection branch admits standalone same-workspace targets (previous
 // value 8452a3f9bfdff502dafbb1ed7d6e7df60ce70ae47f3557edb13c391bf7b38513); sha256 of schema.surql.
 // MT-168 CURRENT generated pin; schema-info awaits independent measurement.
-// MT-173 static candidate: exact LF bytes; INFO pins/revision/predecessor still require independent proof.
+// MT-173 navigation candidate: exact LF source hash; original source pin already drifted.
+// Added 43 authored closed fields, one function and one collection subtype.
+// Existing collection subtype count also drifted (57 observed source nestings, 56 declared).
+// Live INFO, shared/module catalog ownership and compatible reopen lineage remain unmeasured.
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "992f9cb7065caeb462484f5981b899c7d6823b83be16b20143495a35143825e9";
+    "30257a8bc4cfce289713e980124aa4c709edb69f05981303a3f6a281ac068c72";
 // MT-142 re-pin: catalog identities gained the knowledge_rich_document_title_anchors objects.
 // MT-151 re-pin: catalog identities gained the journal_key field/index and the
 // storage_graph_anchors objects.
@@ -3815,7 +4015,7 @@ pub const GENERATED_SURREALQL_SHA256: &str =
 // (previous 50d3244b292a63e7928a04ce9fc9f7c575580531f20167441b6e802cdfc27a8e); statically derived
 // with the compiled_schema_catalog_entries algorithm (reproduces the previous pin on the unchanged source).
 pub const DECLARATIVE_SCHEMA_CATALOG_SHA256: &str =
-    "ccb12e58adf9e440f0db93f503edb757861721654e3e50a34371353690e67626";
+    "df6e8ffaf451c5b6583483c3e6067c616d7a8e7ffcf30eb20b8879ff883fbff4";
 // MT-142 re-pin: the seed gained the rich_document_title_anchors registry row (63 rows).
 pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
     "64d0711c5273c6eb103c3d574b2f7ee98d9d0ebfd46e9c25ad65908b46573b75";
@@ -4290,7 +4490,7 @@ const TABLE_DEFINITION_COUNT: usize = 306;
 // applied_update_sha256); pin_order and the quick-switcher kind unions changed in place.
 // MT-158 re-pin: +2 fields (mt_iterations.owner_account_id, dependencies.owner_account_id; D-154-3
 // extension).
-const SOURCE_FIELD_DEFINITION_COUNT: usize = 3526;
+const SOURCE_FIELD_DEFINITION_COUNT: usize = 3569;
 const FLEXIBLE_WILDCARD_FIELD_DEFINITION_COUNT: usize = 251;
 const FLEXIBLE_FIELD_DEFINITION_COUNT: usize = 181;
 const INTENTIONAL_UNION_ANY_FIELD_DEFINITIONS: [&str; 2] = [
@@ -4303,7 +4503,7 @@ const AUTHORED_FIELD_DEFINITION_COUNT: usize =
 // level. Structured INFO reads the full persisted field catalog, so these engine-generated
 // definitions are part of the exact live schema even though they are not authored DEFINE lines.
 // Connected admission: engine-derived count and INFO/Atelier/Loom pins remain pending independent measurement.
-const ENGINE_GENERATED_COLLECTION_SUBTYPE_FIELD_COUNT: usize = 56;
+const ENGINE_GENERATED_COLLECTION_SUBTYPE_FIELD_COUNT: usize = 58;
 const FIELD_DEFINITION_COUNT: usize =
     AUTHORED_FIELD_DEFINITION_COUNT + ENGINE_GENERATED_COLLECTION_SUBTYPE_FIELD_COUNT;
 // MT-168: +1 index (protected_resources_parent_idx).
@@ -4315,7 +4515,7 @@ const ACCESS_DEFINITION_COUNT: usize = 1;
 // MT-158 re-pin: +1 function (fn::mt158_dependency_graph_scope).
 // MT-159: +2 functions (fn::mt159_locus_key_id, fn::mt159_locus_key_is_own).
 // MT-166: +1 function (fn::mt166_resource_select_grant).
-const FUNCTION_DEFINITION_COUNT: usize = 64;
+const FUNCTION_DEFINITION_COUNT: usize = 65;
 const SOURCE_TABLE_COUNT: usize = 303;
 const SOURCE_VIEW_COUNT: usize = 2;
 const SOURCE_NAMED_INDEX_COUNT: usize = 581;
