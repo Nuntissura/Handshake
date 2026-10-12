@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 621
+generation: 625
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -519,6 +519,8 @@ steps:
 - {id: GP-498, role: builder, at: before_dispatch, do: verify reviewed eleven heterogeneous wrapper adapters and two braced macro arms bind current source hash, check: {type: confirm}, source: Round35 FAILED101 ModelLaneError bound rejected original results and macro expression semicolons, state: active}
 - {id: GP-499, role: builder, at: before_dispatch, do: verify reviewed P2 runner failure receipts and released collector config metadata source and binary pins, check: {type: confirm}, source: P2 held admission preceded receipt try and failure returned0; corrected held probe exited2 before Cargo, state: active}
 - {id: GP-500, role: builder, at: before_dispatch, do: verify native joined paths normalize before Python string interpolation without carriage return escapes, check: {type: confirm}, source: Round36 preflight OSError22 capture config path contained interpreted backslash r; Cargo never launched, state: active}
-- {id: GP-501, role: any, at: before_merge, do: 'confirm kernel FF preserves ancestor, empty index and disjoint dirty bytes; product merge clean and pushed', check: {type: confirm}, source: 'infra: kernel push rejected remote ahead; GP013/414 lacked preserved governance FF case', state: active}
-- {id: GP-502, role: any, at: before_merge, do: confirm kernel FF claims no product runtime; product integration requires current test and verdict proof, check: {type: confirm}, source: 'CX-GP003/007: GP015 product proof requirement inapplicable to disjoint kernel publication', state: active}
+- {id: GP-501, role: any, at: before_merge, do: 'confirm kernel FF preserves ancestor, empty index and disjoint dirty bytes; product merge clean and pushed', check: {type: confirm}, source: 'infra: kernel push rejected remote ahead; GP013/414 lacked preserved governance FF case', state: retired}
+- {id: GP-502, role: any, at: before_merge, do: confirm kernel FF claims no product runtime; product integration requires current test and verdict proof, check: {type: confirm}, source: 'CX-GP003/007: GP015 product proof requirement inapplicable to disjoint kernel publication', state: retired}
 - {id: GP-503, role: builder, at: before_merge, do: verify read-only checks use supported inert argv; forbid embedded subprocess in cmd check, check: {type: confirm}, source: 'infra: controller refused read-only Git check embedded in Python subprocess before mutation', state: active}
+- {id: GP-504, role: any, at: before_merge, do: 'confirm kernel publication preserves both histories, disjoint path trees and dirty bytes; product clean and pushed', check: {type: confirm}, source: 'infra: remote advanced during checkpoint commit; preserved two-parent reconciliation replaces FF-only GP501', state: active}
+- {id: GP-505, role: any, at: before_merge, do: confirm kernel publication claims no product runtime; product integration requires current test and verdict proof, check: {type: confirm}, source: 'CX-GP003/007: scope GP502 from FF to preserved disjoint kernel publication', state: active}
