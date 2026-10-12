@@ -1567,10 +1567,12 @@
     "builder report 0f87710"
    ],
    "rounds_carried": 0,
-   "status": "OPEN",
+   "status": "CLOSED",
    "verified_at": "0f87710",
    "disposition": "FIX_LANE",
-   "disposition_note": "pin with a test (fail-closed is acceptable); decide later whether /P to a flattened page should be rewritten; 2026-10-12T07:54:54Z fix submitted SMB-PRESS-STRUCT-FAILCLOSED d26d2fd/2566f1b (lane on hold for the V4-06 sibling)"
+   "disposition_note": "pin with a test (fail-closed is acceptable); decide later whether /P to a flattened page should be rewritten; 2026-10-12T07:54:54Z fix submitted SMB-PRESS-STRUCT-FAILCLOSED d26d2fd/2566f1b (lane on hold for the V4-06 sibling)",
+   "closed_by": "round-R21 PASS at 2dde832 (SMB-PRESS-STRUCT-FAILCLOSED)",
+   "closed_at": "2026-10-12T09:56:43Z"
   },
   {
    "id": "PLR-092",
@@ -1582,10 +1584,12 @@
     "builder report 2fb17a8"
    ],
    "rounds_carried": 0,
-   "status": "OPEN",
+   "status": "CLOSED",
    "verified_at": "2fb17a8",
    "disposition": "TEST",
-   "disposition_note": "next reel lane: add a finish()-holding fake plan; prove or remove the unreachable refusal; 2026-10-12T07:44:52Z fix submitted SMB-REEL-PTS-TESTS 172952f"
+   "disposition_note": "next reel lane: add a finish()-holding fake plan; prove or remove the unreachable refusal; 2026-10-12T07:44:52Z fix submitted SMB-REEL-PTS-TESTS 172952f",
+   "closed_by": "round-R21 PASS at 2dde832 (SMB-REEL-PTS-TESTS)",
+   "closed_at": "2026-10-12T09:56:43Z"
   },
   {
    "id": "PLR-093",
@@ -1597,10 +1601,12 @@
     "R22-prereview-narrow"
    ],
    "rounds_carried": 0,
-   "status": "OPEN",
+   "status": "CLOSED",
    "verified_at": "3930a7c",
    "disposition": "DOC",
-   "disposition_note": "next press doc touch; 2026-10-12T07:54:54Z fix submitted SMB-PRESS-STRUCT-FAILCLOSED d26d2fd/2566f1b (lane on hold for the V4-06 sibling)"
+   "disposition_note": "next press doc touch; 2026-10-12T07:54:54Z fix submitted SMB-PRESS-STRUCT-FAILCLOSED d26d2fd/2566f1b (lane on hold for the V4-06 sibling)",
+   "closed_by": "round-R21 PASS at 2dde832 (SMB-PRESS-STRUCT-FAILCLOSED)",
+   "closed_at": "2026-10-12T09:56:43Z"
   },
   {
    "id": "PLR-094",
@@ -1613,10 +1619,12 @@
     "round-R20 (not a FAIL: declared residual 'is not edited'; detection claimed only for /Pg-naming elements; case unexecuted)"
    ],
    "rounds_carried": 0,
-   "status": "OPEN",
+   "status": "CLOSED",
    "verified_at": "3930a7c",
    "disposition": "FIX_LANE",
-   "disposition_note": "lead decision 2026-10-12T07:26:27Z: FAIL CLOSED - when the catalog's /StructTreeRoot is left unedited (direct root) and it holds any structure element without /Pg (or any element the purge cannot place), region_flattened must read false and the save reports NotProven (no silent /Alt/ActualText/E survival); test with a probe fixture; DESCRIPTOR states it. Next press lane SMB-PRESS-STRUCT-FAILCLOSED.; 2026-10-12T07:54:54Z fix submitted SMB-PRESS-STRUCT-FAILCLOSED d26d2fd/2566f1b (lane on hold for the V4-06 sibling); 2026-10-12T09:04:25Z remediation submitted 2dde832 (STRUCTURE TREE = NOT PROVEN)"
+   "disposition_note": "lead decision 2026-10-12T07:26:27Z: FAIL CLOSED - when the catalog's /StructTreeRoot is left unedited (direct root) and it holds any structure element without /Pg (or any element the purge cannot place), region_flattened must read false and the save reports NotProven (no silent /Alt/ActualText/E survival); test with a probe fixture; DESCRIPTOR states it. Next press lane SMB-PRESS-STRUCT-FAILCLOSED.; 2026-10-12T07:54:54Z fix submitted SMB-PRESS-STRUCT-FAILCLOSED d26d2fd/2566f1b (lane on hold for the V4-06 sibling); 2026-10-12T09:04:25Z remediation submitted 2dde832 (STRUCTURE TREE = NOT PROVEN)",
+   "closed_by": "round-R21 PASS at 2dde832 (SMB-PRESS-STRUCT-FAILCLOSED (STRUCTURE TREE = NOT PROVEN))",
+   "closed_at": "2026-10-12T09:56:43Z"
   },
   {
    "id": "PLR-095",
@@ -1628,10 +1636,12 @@
     "R22-prereview-narrow"
    ],
    "rounds_carried": 0,
-   "status": "OPEN",
+   "status": "CLOSED",
    "verified_at": "3930a7c",
    "disposition": "DOC",
-   "disposition_note": "next interop-psd lane: state the cap; measure items per effect instance; 2026-10-12T07:45:14Z fix submitted SMB-INTEROP-PSD-DESC-CAP 0c1be05"
+   "disposition_note": "next interop-psd lane: state the cap; measure items per effect instance; 2026-10-12T07:45:14Z fix submitted SMB-INTEROP-PSD-DESC-CAP 0c1be05",
+   "closed_by": "round-R21 PASS at 2dde832 (SMB-INTEROP-PSD-DESC-CAP)",
+   "closed_at": "2026-10-12T09:56:43Z"
   },
   {
    "id": "PLR-096",
@@ -1673,10 +1683,12 @@
     "builder report 54c60f9"
    ],
    "rounds_carried": 0,
-   "status": "OPEN",
+   "status": "CLOSED",
    "verified_at": "54c60f9",
    "disposition": "FIX_LANE",
-   "disposition_note": "over-reports accepted; the parent-tree/id-tree-only part is checked by the R23 pre-review; R23 confirmed parent-tree/id-tree-only part is fail-open (R23-P2) -> superseded by lead decision STRUCTURE TREE = NOT PROVEN; 2026-10-12T09:04:25Z remediation submitted 2dde832 (STRUCTURE TREE = NOT PROVEN)"
+   "disposition_note": "over-reports accepted; the parent-tree/id-tree-only part is checked by the R23 pre-review; R23 confirmed parent-tree/id-tree-only part is fail-open (R23-P2) -> superseded by lead decision STRUCTURE TREE = NOT PROVEN; 2026-10-12T09:04:25Z remediation submitted 2dde832 (STRUCTURE TREE = NOT PROVEN)",
+   "closed_by": "round-R21 PASS at 2dde832 (SMB-PRESS-STRUCT-FAILCLOSED (superseded by STRUCTURE TREE = NOT PROVEN))",
+   "closed_at": "2026-10-12T09:56:43Z"
   },
   {
    "id": "PLR-099",
@@ -1715,7 +1727,8 @@
    "finding": "the STRUCTURE TREE = NOT PROVEN rule is unconditional: a tagged document saved with no redaction region also reads NotProven (is_proven false); /MarkInfo alone is not treated as a tree",
    "first_seen": "builder report 2dde832",
    "seen_in": [
-    "builder report 2dde832"
+    "builder report 2dde832",
+    "round-R21 V-2 (lane claim wording: 'adds 1 and ResidualInRegion')"
    ],
    "rounds_carried": 0,
    "status": "OPEN",
@@ -1730,7 +1743,8 @@
    "finding": "structure-element text that no catalog tree names survives while the save reads proven: element reachable only from a private catalog key (J1), an outline /SE into a stripped tree (J2b), an inert object stream the catalog references (K1); hayro sees no tree in any (R24-P2, observed in a run). Also R24-P4 PLAUSIBLE: a reader that rebuilds the xref might read text planted in copied objects",
    "first_seen": "R24-prereview-press-narrow",
    "seen_in": [
-    "R24-prereview-press-narrow"
+    "R24-prereview-press-narrow",
+    "round-R21 V-1 (outside the narrowed claim; a D28 strip must drop every structure element still reachable)"
    ],
    "rounds_carried": 0,
    "status": "OPEN",

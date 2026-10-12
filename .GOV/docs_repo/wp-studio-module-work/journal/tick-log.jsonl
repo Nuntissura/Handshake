@@ -251,3 +251,4 @@
 {"t": "2026-10-12T08:16:32Z", "event": "SMB-PRESS-STRUCT-FAILCLOSED READY_FOR_VALIDATION 54c60f9 (builder-press-struct-failclosed-2)", "lanes_moved": ["SMB-PRESS-STRUCT-FAILCLOSED READY"], "commits": ["54c60f9"], "progress": "direct: product commit"}
 {"t": "2026-10-12T09:04:25Z", "event": "SMB-PRESS-STRUCT-FAILCLOSED READY_FOR_VALIDATION 2dde832 (rem-press-struct-r23)", "lanes_moved": ["SMB-PRESS-STRUCT-FAILCLOSED READY"], "commits": ["2dde832"], "progress": "direct: product commit"}
 {"t": "2026-10-12T09:35:55Z", "event": "R21 opened at 2dde832: canary C26 exit 73 59/59; validator-r21 launched (opus); weekly 98%", "progress": "no direct progress (dispatch)"}
+{"t": "2026-10-12T09:56:43Z", "event": "R21 COMPLETE at 2dde832: 27 PASS 0 FAIL; PLR-091..095/098 closed; weekly 99%", "progress": "validator verdicts advanced (27 PASS)"}

@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-12T09:35:55Z",
+ "updated_at": "2026-10-12T09:56:43Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -2582,7 +2582,7 @@
     "validation/round-R21.json"
    ],
    "launched": "2026-10-12T09:35:55Z",
-   "status": "running"
+   "status": "done (R21: 27 PASS, 0 FAIL; kernel a8712586)"
   }
  ]
 }

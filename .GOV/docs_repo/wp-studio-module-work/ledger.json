@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-12T09:35:15Z",
+ "updated_at": "2026-10-12T09:56:43Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3573,13 +3573,12 @@
   "record": "validation/round-R7.json"
  },
  "resume_plan": {
-  "at": "2026-10-12T07:26:27Z",
+  "at": "2026-10-12T09:56:43Z",
   "steps": [
-   "1. In flight: round R21 validator at 2dde832 (canary C26) judging SMB-PRESS-STRUCT-FAILCLOSED, SMB-REEL-PTS-TESTS, SMB-INTEROP-PSD-DESC-CAP + CX-VAL-009 reopens; then handoff + snapshot; next press lane PLR-102 + PLR-101 (decide with D28).",
-   "2. Then SMB-PRESS-GEOMETRY, SMB-FMT-SWEEP, notes residuals (config-OBU tag, exact-64 FRAME test, psd group-own-lfx2/zero-tile).",
-   "3. Round R21: steward sync + canary + 1 validator (list all two-FAIL lanes, PROC-R19-V1).",
-   "4. Keep pushing gov_kernel after every commit (weekly >= 85%).",
-   "5. Blocked on Operator: D20, D22-D26, D9, D17, D5, D13/STU-CON-044, D21, repo-local target 3.8 GB, empty folder x at the C: root, red-proof scratch trees cleanup; STUDIO_MODULES.json status vocabulary undefined."
+   "1. R21 COMPLETE (27 PASS, 0 FAIL). Next lanes (Sonnet, new ids): SMB-PRESS-STRUCT-ORPHANS (PLR-102: fail closed when any surviving dictionary has struct-element shape or an outline /SE remains; PLR-101: scope the structure-tree rule to saves that flatten a region; R21 V-2 lane wording), SMB-INTEROP-PSD-DOCS (PLR-096 + PLR-099 doc alignment, lane V4-06 section). Press and interop-psd changes reopen two-FAIL lanes SMB-PRESS and SMB-INTEROP-PSD-BUDGET -> V4-13 narrow pre-review, then round R22.",
+   "2. Then SMB-PRESS-GEOMETRY, SMB-FMT-SWEEP, notes residuals (config-OBU tag, exact-64 FRAME test, psd group-own-lfx2/zero-tile), PLR-097 (rewrite indirect /K arrays), PLR-100 (reel-native finish() test).",
+   "3. Keep pushing gov_kernel after every commit.",
+   "4. Blocked on Operator: D28 (strip structure tree on redaction save), D20, D22-D26, D9, D17, D5, D13/STU-CON-044, D21, repo-local target 3.8 GB, empty folder x at the C: root, scratch/probe trees cleanup (list in START_LOG); STUDIO_MODULES.json status vocabulary undefined."
   ]
  },
  "r8_plan": {
@@ -3835,7 +3834,8 @@
  },
  "handoff": {
   "file": "HANDOFF.md",
-  "snapshot": "snapshots/SNAPSHOT-20261012T090508Z.json"
+  "snapshot": "snapshots/SNAPSHOT-20261012T095644Z.json",
+  "at": "2026-10-12T09:56:44Z"
  },
  "round_R13": {
   "candidate": "4b76604",
