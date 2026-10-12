@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-12T06:18:09Z",
+ "updated_at": "2026-10-12T06:27:30Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3173,12 +3173,15 @@
    "lane_id": "SMB-PRESS-DOCS-2",
    "crate": "hsk-studio-press",
    "origin": "PLR-087",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-press-docs-2",
-   "candidate": null,
-   "commits": [],
-   "verdicts": []
+   "candidate": "0f87710",
+   "commits": [
+    "0f87710"
+   ],
+   "verdicts": [],
+   "note": "docs/DESCRIPTOR/tests only: PLR-087 overview (annotations dropped incl. referenced, except own /Annots; structure elements stay with text removed); purge openings fixed (16 sites, 3 fixed); R20-O3 clause corrected (region_cleared = painted_sources_kept empty); no code token changed (cmp of DESCRIPTOR literal); press 151/151"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
@@ -3289,7 +3292,8 @@
   "SMB-NOTES-BATCH-1",
   "SMB-PRESS-DOCS",
   "SMB-REEL-PARTIAL-PTS",
-  "SMB-INTEROP-PSD-FOLIO-CEILING"
+  "SMB-INTEROP-PSD-FOLIO-CEILING",
+  "SMB-PRESS-DOCS-2"
  ],
  "round_R6": {
   "candidate": "bd8533f",

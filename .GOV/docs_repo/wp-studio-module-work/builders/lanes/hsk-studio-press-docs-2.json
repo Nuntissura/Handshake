@@ -1,0 +1,82 @@
+{
+ "crate": "hsk-studio-press",
+ "lane": "SMB-PRESS-DOCS-2",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "complete: PLR-087 overview exact, R20-O3 clause corrected, same-class sites fixed; docs, DESCRIPTOR text and tests only, no code token changed",
+ "commits": [
+  {
+   "sha": "0f87710",
+   "subject": "press (SMB-PRESS-DOCS-2, PLR-087, R20-O3): flatten overview matches the purge code; region_cleared names the operative painted-source condition"
+  }
+ ],
+ "capabilities_done": [
+  "PLR-087 (R21-P1): src/flatten.rs overview (lines 17-26) restated per category from the code (page_annotations/remove_annotations/neutralize_structure/drop_painted_sources, sanitized_save.rs:1522-1531): annotations and widgets of a flattened page are dropped from the file even when a kept object references them and those references are removed (AcroForm /Fields and /CO entries included), except an annotation a kept page lists in its own /Annots, which stays; the structure elements that point at the page are NOT dropped, they stay in the structure tree with text, attributes and page content items removed; the painted sources (images, forms, patterns, shadings) and the graphics states and fonts it reached are dropped when no kept content names them and no kept object references them (the old text omitted graphics states and fonts)",
+  "PLR-087 same class, 2 more sites fixed: flatten_purge.rs:1-7 module opening ('drops everything that described or drew the OLD page' -> purges, with annotations/widgets/painted sources dropped and structure elements staying with their text removed) and DESCRIPTOR redaction.flatten.purge opening ('is dropped from the file' -> 'is purged by category'; the per-category sentences that follow in the same key were already exact)",
+  "R20-O3: DESCRIPTOR proof.region_cleared clause 'no painted source of an old page kept unread,' removed; 'painted_sources_kept empty, R13-F6' stays (see notes.r20_o3 for why the clause did not match the code)",
+  "New tests (tests/flatten_r13.rs): flattened_page_annotations_leave_and_structure_elements_stay (shows each overview sentence on one document: kept catalog key and array reference to a flattened-page annotation removed and its appearance text gone; annotation listed by a kept page's own /Annots stays; flattened-page structure element stays without /Alt, kept-page element keeps its text, 2 /StructElem in the saved file, neutralized == 1, annotations removed == 1, region_flattened true) and descriptor_states_the_painted_source_condition_and_the_purge_categories (the two new phrases occur exactly once, 'kept unread' and the old purge opening are absent)"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-press --tests --no-fail-fast",
+  "exit": 0,
+  "sha": "0f87710",
+  "passed": 151,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 6,
+ "bg_pids": [],
+ "next": "Validator: judge SMB-PRESS-DOCS-2 at 0f87710 (docs, DESCRIPTOR text and tests only; press 151/151 incl. 2 new tests). Only the DESCRIPTOR string literal is a non-comment source line that changed; notes.no_code_token_changed has the proof. Optional INFO R21-P3 (parse the DESCRIPTOR as JSON in the silence test) not done.",
+ "updated_at": "2026-10-12T06:26:55Z",
+ "notes": {
+  "scope_files": [
+   "crates/hsk-studio-press/src/flatten.rs (module doc comment only)",
+   "crates/hsk-studio-press/src/flatten_purge.rs (module doc comment only)",
+   "crates/hsk-studio-press/src/lib.rs (DESCRIPTOR only)",
+   "crates/hsk-studio-press/tests/flatten_r13.rs (2 new tests)"
+  ],
+  "base": "fdc01f1",
+  "diff": "4 files, +99 -8 (git show --stat 0f87710); no Cargo.toml, no other crate, no .GOV file other than this lane file",
+  "no_code_token_changed": {
+   "method": "git diff -U0 fdc01f1 0f87710 -- crates/hsk-studio-press/src, keep +/- lines, drop file headers, drop lines whose first non-blank characters are //",
+   "result": "exactly 2 lines remain: the old and the new text of the DESCRIPTOR line (src/lib.rs:95); every changed line of src/flatten.rs and src/flatten_purge.rs starts with //!",
+   "descriptor_line": "line 95 of fdc01f1 with two sed replacements applied equals line 95 of 0f87710 byte for byte (cmp): (1) 'redaction.flatten.region_clearing; no painted source of an old page kept unread, painted_sources_kept empty, R13-F6)' -> 'redaction.flatten.region_clearing; painted_sources_kept empty, R13-F6)'; (2) '\"purge\":\"what described or drew the old page is dropped from the file (flatten_purge.rs): R13-F2' -> '\"purge\":\"what described or drew the old page is purged by category (flatten_purge.rs): R13-F2'. Length 63757 -> 63708 bytes",
+   "tests_dir": "tests/flatten_r13.rs: +85 lines, the two new tests only"
+  },
+  "r20_o3": {
+   "question": "does 'no painted source of an old page kept unread, painted_sources_kept empty' (proof.region_cleared) match the code",
+   "answer": "No for the first clause, so it was corrected. The code decides region_cleared by painted_sources_kept alone (RedactedOutput::region_flattened requires it empty, sanitized_save.rs painted_sources_kept; drop_painted_sources returns every live painted source not in the silent set, flatten_purge.rs:963-964). 'Read' is not a code concept: a source a kept form or an annotation appearance reads is reported anyway (R18, R19), a source only referenced by a kept object is reached but not read and is reported, and a silent image is read (its Do is parsed) and not reported. The conjunction was exact only because of its second clause; the first clause described a condition the code never evaluates. Fix: first clause removed, second kept (the R20-O3 and R21 repair direction). Pinned by descriptor_states_the_painted_source_condition_and_the_purge_categories"
+  },
+  "v4_06": {
+   "class": "R21-P1 / PLR-087: a doc or DESCRIPTOR sentence that summarises what the flatten purge does to the old page's annotations, structure elements and painted sources as one operation ('dropped from the file', 'drops everything that described or drew'), which lists structure elements among the things dropped, or which states the annotation drop with a condition narrower than the code (a kept object's reference does not keep an annotation; only a kept page's own /Annots does)",
+   "regex": "structure elements? (that|which|describ|pointing)|describ(ed|es) (or drew|it)|described or drew|dropped from the file|leave the file|annotations and widgets|annotations? .{0,40}(dropped|removed)  (git grep -n -i -E over crates/hsk-studio-press src tests examples)",
+   "scope": "fdc01f1: 18 line hits = 16 sites (flatten.rs 18-19 and sanitized_save.rs 1520-1521 are 2-line sites); 0f87710: 24 line hits (the rewritten sites still use the same words, plus 4 lines of the new tests); sites listed below, none unlisted",
+   "sites": [
+    "FIXED (3): src/flatten.rs:17-26 overview (PLR-087 itself); src/flatten_purge.rs:3 module opening ('drops everything that described or drew the OLD page'); src/lib.rs:95 redaction.flatten.purge opening ('what described or drew the old page is dropped from the file')",
+    "NOT APPLICABLE, already exact (13): src/flatten_purge.rs:16 annotations bullet (states 'unless a kept page lists the annotation in its own /Annots', field entries, every other direct reference); :22 structure bullet (states 'loses its text and attributes'); :279 STRUCT_TEXT_KEYS doc; :446 neutralize_structure doc ('Neutralizes'); src/redaction.rs:10 (the older redact_region selector path: annotations whose /Rect touches the region, a different mechanism, module doc of the selector); src/sanitized_save.rs:1311 (outline/annotation text slots); :1328 (structure_elements_neutralized doc: 'lost their text, attributes and the content items'); :1520-1521 (comment that enumerates what is handled, no drop claim); src/text_fields.rs:39 (structure elements that are direct dictionaries, a different topic); tests/flatten_r13.rs:197 (assert message); :1414 (doc of a_font_or_graphics_state_that_stays_is_not_a_painted_source: fonts and graphics states of an unnamed document leave the file, asserted); :1520 (stale needle, asserts the DESCRIPTOR does NOT say it); tests/pdf_delivery.rs:1723 (a placed image and its resource entry leave the file, asserted)"
+   ],
+   "recount": "16 sites = 3 fixed + 13 not applicable; the DESCRIPTOR purge key's per-category sentences (annotations leave the file unless a kept page lists them in its own /Annots; structure elements lose text and attributes, child elements on other pages stay) were already exact and are unchanged"
+  },
+  "wording_vs_code": {
+   "annotations": "page_annotations (flatten_purge.rs:149-177): the viewer annotations of a flattened page (own /Annots, else the nearest ancestor's: flatten.rs viewer_annotations), annotations whose /P is a flattened page, their popups, minus the refs in a kept page's own /Annots; remove_annotations (:226-277): AcroForm /Fields purged, /CO entries removed, scrub_references drops every other direct reference (dictionary key removed, array element nulled), then RedactionIncomplete when one stays reachable; the writer (writer.rs write_document) writes reachable objects only",
+   "structure": "neutralize_structure (:447-524) removes STRUCT_TEXT_KEYS, /Pg of a flattened page and the content items on flattened pages from the element dictionary and keeps the element in its parent's /K (element refs with /S are pushed to the worklist and kept); the parent-tree entries of the flattened pages and removed annotations are nulled. No object is removed by this function",
+   "painted_sources_gs_fonts": "isolate (flatten.rs) collects every object the page's resources, contents and group reach into Flat::sources; drop_painted_sources drops the ones not reached (gone) and reports only images, forms, patterns, shadings; graphics states and fonts follow the same drop rule (flatten_purge.rs module bullet 'Painted sources'; test a_font_or_graphics_state_that_stays_is_not_a_painted_source asserts both leave the file when nothing keeps them)",
+   "observation_not_changed": "a kept annotation (listed by a kept page) whose /P names a flattened page makes check_document count it as residual (flatten_purge.rs:1029, on('P') with /Subtype) and region_flattened false; the new test uses /P of the kept page so it does not exercise that case. Not a doc claim of this lane; recorded for the lead"
+  },
+  "v4_07": "no never/always/guarantee/proves in any added line of flatten.rs, flatten_purge.rs or the tests (checked with grep -w on the added lines); the DESCRIPTOR keeps its 1 always and 8 never from before (same counts at fdc01f1 and 0f87710, none in changed text); the new overview sentences cite flattened_page_annotations_leave_and_structure_elements_stay",
+  "v4_11": "no file restored or reverted; edited in place and built; no scratch copy",
+  "v4_12": "helper text only under <scratchpad>/SMB-PRESS-DOCS-2/ (commit message, old95/new95 line extracts)",
+  "v4_14": "this lane's single commit 0f87710 is the only push to hsk-studio-press after fdc01f1; nothing was pushed after the READY commit",
+  "v4_21": "no outbound request other than git fetch and git push to origin; no personal data in any request",
+  "retry_guard": "no gameplan block in this lane; every cargo command used the cd-first studio-env.sh form; no step added",
+  "checks": {
+   "cargo_check": "cargo check -p hsk-studio-press --tests: exit 0 (studio-env.sh form)",
+   "clippy": "cargo clippy -p hsk-studio-press --tests: exit 0, no warning from hsk-studio-press (the 2 too_many_arguments warnings come from the dependency hsk-studio-observe, pre-existing)",
+   "focused_nextest": "cargo nextest run -p hsk-studio-press --tests --no-fail-fast -E 'test(flattened_page_annotations_leave_and_structure_elements_stay) | test(descriptor_) | test(structure_and_widgets_of_flattened_pages_are_removed)': 7 run, 7 passed (the 5 tests whose name contains descriptor_: descriptor_names_the_painted_source_kept_by_reference_case, descriptor_states_that_painted_source_silence_is_syntactic, descriptor_states_the_narrowed_claim_and_its_limitations, widths_without_a_descriptor_are_bounded and the new descriptor_states_the_painted_source_condition_and_the_purge_categories; plus the new annotation test and the existing structure_and_widgets_of_flattened_pages_are_removed)",
+   "full_crate_nextest": "cargo nextest run -p hsk-studio-press --tests --no-fail-fast: 151 run, 151 passed (149 at fdc01f1 + 2 new); run on the working tree whose content is commit 0f87710 (no edit between the run and the commit)"
+  },
+  "residuals": [
+   "R21-P3 (INFO, optional, not done): descriptor_states_that_painted_source_silence_is_syntactic slices the DESCRIPTOR by first occurrence of key names instead of parsing it as JSON",
+   "The new annotation test is a pin of existing behaviour read from the code; no red proof on a scratch copy was run (docs-only lane, no behaviour changed)"
+  ]
+ }
+}

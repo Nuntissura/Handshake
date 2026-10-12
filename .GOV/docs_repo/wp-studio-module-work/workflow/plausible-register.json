@@ -1498,7 +1498,7 @@
    "status": "OPEN",
    "verified_at": "fdc01f1",
    "disposition": "DOC",
-   "disposition_note": "fold into next press doc touch (SMB-PRESS-GEOMETRY or fmt sweep)"
+   "disposition_note": "fold into next press doc touch (SMB-PRESS-GEOMETRY or fmt sweep); 2026-10-12T06:27:30Z fix submitted SMB-PRESS-DOCS-2 0f87710"
   },
   {
    "id": "PLR-088",
@@ -1544,6 +1544,21 @@
    "verified_at": "fdc01f1",
    "disposition": "FIX_LANE",
    "disposition_note": "optional; fold into next interop-psd lane"
+  },
+  {
+   "id": "PLR-091",
+   "lane": "SMB-PRESS-DOCS-2",
+   "file_line": "crates/hsk-studio-press (check_document residual for kept annotation /P)",
+   "finding": "a kept annotation whose /P names a flattened page is counted as residual by check_document and makes region_flattened false (fail-closed over-report; untested)",
+   "first_seen": "builder report 0f87710",
+   "seen_in": [
+    "builder report 0f87710"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "0f87710",
+   "disposition": "FIX_LANE",
+   "disposition_note": "pin with a test (fail-closed is acceptable); decide later whether /P to a flattened page should be rewritten"
   }
  ],
  "process_items": [

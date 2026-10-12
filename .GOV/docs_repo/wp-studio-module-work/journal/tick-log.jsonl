@@ -240,3 +240,4 @@
 {"t": "2026-10-12T05:57:27Z", "event": "R19 opened at fdc01f1: canary C24 exit 73 59/59; validator-r19 launched (opus)", "progress": "no direct progress (dispatch)"}
 {"t": "2026-10-12T06:16:47Z", "event": "R19 COMPLETE at fdc01f1: 21 PASS 0 FAIL (3 new lanes PASS_V1; press, reel, reel-native, interop-psd reopened lanes PASS); PLR-063/076/077/083/084 closed; PLR-086 DOC; PLR-090; PROC-R19-V1; usage weekly 95%", "progress": "validator verdicts advanced (21 PASS)"}
 {"t": "2026-10-12T06:18:09Z", "event": "dispatched 3 Sonnet builders: SMB-REEL-PARTIAL-PTS-2, SMB-INTEROP-PSD-LOSS-DETAIL, SMB-PRESS-DOCS-2; usage weekly 95%", "progress": "no direct progress (dispatch)"}
+{"t": "2026-10-12T06:27:30Z", "event": "SMB-PRESS-DOCS-2 READY_FOR_VALIDATION 0f87710 (builder-press-docs-2)", "lanes_moved": ["SMB-PRESS-DOCS-2 READY"], "commits": ["0f87710"], "progress": "direct: product commit"}

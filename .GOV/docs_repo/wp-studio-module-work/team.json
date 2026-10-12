@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-12T06:18:09Z",
+ "updated_at": "2026-10-12T06:27:30Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -2467,7 +2467,7 @@
     "builders/lanes/hsk-studio-press-docs-2.json"
    ],
    "launched": "2026-10-12T06:18:09Z",
-   "status": "running"
+   "status": "done 2026-10-12T06:27:30Z (SMB-PRESS-DOCS-2 READY at 0f87710)"
   }
  ]
 }
