@@ -11468,6 +11468,23 @@ mod tests {
                 assert_eq!(report.indexes_defined, INDEX_DEFINITION_COUNT);
                 assert_eq!(report.table_names.len(), TABLE_DEFINITION_COUNT);
             }
+            let production = super::super::bootstrap_production_schemas(&storage)
+                .await
+                .expect("compose the actual production schemas");
+            let (expected_info, expected_fields, expected_indexes) =
+                EXPECTED_PRODUCTION_SCHEMA_PIN.expect("measured production catalog pin");
+            assert_eq!(production.info_fingerprint_sha256, expected_info);
+            assert_eq!(production.fields_defined, expected_fields);
+            assert_eq!(production.indexes_defined, expected_indexes);
+            assert_eq!(production.source_manifest_sha256, production_source_sha256());
+            assert_eq!(production.generated_surql_sha256, production_generated_sha256());
+            let expected_tables = production_catalog_entries()
+                .expect("production declaration inventory")
+                .into_iter()
+                .filter_map(|entry| entry.strip_prefix("table:").map(str::to_owned))
+                .collect::<Vec<_>>();
+            assert_eq!(production.table_names, expected_tables);
+            assert_eq!(production.tables_defined, expected_tables.len());
             let before_restart = index_names(&storage, "kernel_event_ledger")
                 .await
                 .expect("pre-restart INFO");
@@ -11485,6 +11502,21 @@ mod tests {
                     .await
                     .expect("post-restart INFO")
             );
+            let production_restarted = super::super::bootstrap_production_schemas(&reopened)
+                .await
+                .expect("reuse the exact production catalog and module receipts");
+            assert!(production_restarted.reused_existing_schema);
+            assert_eq!(production_restarted.schema_version, production.schema_version);
+            assert_eq!(production_restarted.namespace, production.namespace);
+            assert_eq!(production_restarted.database, production.database);
+            assert_eq!(production_restarted.declarative_schema_files, production.declarative_schema_files);
+            assert_eq!(production_restarted.info_fingerprint_sha256, production.info_fingerprint_sha256);
+            assert_eq!(production_restarted.fields_defined, production.fields_defined);
+            assert_eq!(production_restarted.indexes_defined, production.indexes_defined);
+            assert_eq!(production_restarted.source_manifest_sha256, production.source_manifest_sha256);
+            assert_eq!(production_restarted.generated_surql_sha256, production.generated_surql_sha256);
+            assert_eq!(production_restarted.table_names, production.table_names);
+            assert_eq!(production_restarted.tables_defined, production.tables_defined);
             reopened.shutdown().await.expect("close reopened store");
         }))
         .await;
