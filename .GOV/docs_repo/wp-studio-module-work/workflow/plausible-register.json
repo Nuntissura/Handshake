@@ -1444,6 +1444,12 @@
    "source": "R8-review-b",
    "item": "SMB-SCORE-GUARDS and SMB-FOLIO-UNIQUENESS lane notes do not use the V4-20 notes.v4_06_sites format; SCORE-GUARDS self-reported a V4-11 breach (red proof in the shared tree)",
    "action": "next agent on those crates converts the list; V4-11 reminder in its dispatch"
+  },
+  {
+   "at": "2026-10-12T04:23:35Z",
+   "source": "rem bfa1bbf report",
+   "item": "red-proof scratch runs that are expected to fail were run with the exit code echoed (command exit 0) to avoid the retry guard keyed on the shared tree HEAD; the hook still gated them, but the posthook recorded no failure",
+   "action": "workflow agent: give scratch red-proof trees their own gameplan pointer/role so expected failures are recorded against the scratch candidate instead of masked; until then builders must log such runs in lane notes (they did)"
   }
  ],
  "closed_since_review": [
