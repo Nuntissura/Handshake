@@ -1,4 +1,139 @@
 {
+  "round41_actual_core_20261012": {
+  "id": "WP012-P2-ROUND41-ACTUAL-CORE-20261012",
+  "status": "CORE_CHECK_GREEN",
+  "executor_role": "KERNEL_BUILDER_DELIVERY",
+  "executor_thread": "01a129ca-9bd2-7823-bc0d-746a6065835f",
+  "at_utc": "2026-10-12T12:29:05.462479+00:00",
+  "product_commit": "de66b452230dbc139cadb567aded30c96d98e6a8",
+  "product_tree": "7a6114b0d7f8820c17477d84e247e3e8e3d2f110",
+  "covers": [
+    "MT-171",
+    "MT-172",
+    "MT-173",
+    "MT-174"
+  ],
+  "exit_code": 0,
+  "terminal_utc": "2026-10-12T12:25:49.0326684Z",
+  "attempt_id": "2a9f33384a4845d5bbc561d173dd0d20",
+  "command": [
+    "check",
+    "--locked",
+    "--manifest-path",
+    "src/backend/handshake_core/Cargo.toml",
+    "--lib",
+    "--tests",
+    "--features",
+    "app-runtime,surreal-test-support,test-utils",
+    "-j",
+    "1",
+    "--keep-going",
+    "--message-format=json"
+  ],
+  "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round41-measurement-input-context",
+  "artifact_sha256": {
+    "compile-result.json": "50dbf3950101b340ab46f232509ac79614ad7c5f16882999971cb42cb31152b9",
+    "compile-evidence.json": "12638253f3846e3263015d82164c39b0c43700a1a84dd6ea5abca7d9b6ef77be",
+    "compile.stdout.log": "2f31ad68d84cd81130e4efc6fe1059347d1be122ae5975edb9f85bef29bdede3",
+    "compile.stderr.log": "85efb33a9909ca4a4762a88a6587603dff9a30e28a8372ca802d5a7396e5db7f",
+    "compile-post-binding.json": "8dba7777f688a4c4e061bc0a0e0544adb7ba3a10c72f40700108608415d886dc",
+    "compile-post-candidate.json": "0c9dde34c31a50d3a4c486303961b0550e69c611f2d74f817bae4ef09a5094f9",
+    "compile-authority-after.json": "d173ea947ee363411207f8bd76c58db152b6a99a05595c943cc221ad042c348c"
+  },
+  "expected_targets": 485,
+  "observed_target_states": 485,
+  "diagnostics": {
+    "lines": 3022,
+    "noise": 0,
+    "unknown": 0,
+    "malformed": 0,
+    "errors": 0,
+    "dropped_groups": 0,
+    "unexpected_artifacts": 833,
+    "oversized_records": 0
+  },
+  "blockers": [],
+  "post_binding_files": 7416,
+  "scalar_bindings_match": {
+    "head": true,
+    "tree": true,
+    "config_sha256": true,
+    "launcher_sha256": true,
+    "source_review_binding_sha256": true,
+    "tracked_diff_sha256": true,
+    "collector_sha256": true,
+    "collector_commit": true,
+    "caller_config_sha256": true,
+    "metadata_sha256": true,
+    "cargo_argv": true,
+    "toolchain": true,
+    "effective_profile_env": true,
+    "praxidike_root": true,
+    "selected_package_id": true,
+    "resolved_selected_features": true,
+    "expected_target_ids": true,
+    "actual_toolchain_binary_hashes": true,
+    "observed_toolchain_identity": true
+  },
+  "independent_authority_matched": true,
+  "owned_target_peak_bytes": 30386404508,
+  "owned_target_cap_bytes": 180000000000,
+  "original_failures_retained": 38,
+  "runtime_acceptance": "NOT_RUN; accepted0/5",
+  "source_review_ref": "MT-174.json#/round41_reviewed_source_release_20261012",
+  "remaining": "Actual BASE/FINAL catalog observations, exact measured pins and fresh/reopen; genuine native authorization/publication and consumed runtime acceptance",
+  "prior_lifecycle": {
+    "status": "BLOCKED",
+    "blocked_on": "Reviewed source repair pushed de66b4522; required compiler proof on changed inputs pending. Independent BASE/FINAL catalog observations and fresh/reopen, genuine native authorization/publication and consumed runtime acceptance remain unproven; accepted0/5.",
+    "depends_on": [
+      "MT-173"
+    ],
+    "blocks": [],
+    "active": true,
+    "validator_verdict": null,
+    "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
+    "claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
+    "completed_by": null,
+    "next_actor": "Delivery fresh admission then one existing core command; Review exact existing MT139 observation after successful compiler result; no unchanged retries"
+  }
+},
+
+  "round41_independent_catalog_assignment_20261012": {
+  "id": "WP012-P2-MT139-INDEPENDENT-CATALOG-REPAIRED-CANDIDATE-20261012",
+  "assigned_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
+  "operator_authority": "Live operator: all approved deploy, commit and push; finish without me",
+  "executor_thread": "01a129ca-8eea-7f53-aa9d-7f81f6f08319",
+  "executor_role": "INTEGRATION_VALIDATOR",
+  "workflow": "KERNEL_BUILDER_FOLDED_NO_ACP / DIRECT_REVIEW_V1",
+  "scope": "Bounded independent diagnostic catalog observation only; no product writes, acceptance verdict or MT completion",
+  "candidate": "de66b452230dbc139cadb567aded30c96d98e6a8",
+  "core_proof_ref": "MT-174.json#/round41_actual_core_20261012",
+  "command": [
+    "cargo",
+    "test",
+    "--locked",
+    "--manifest-path",
+    "src/backend/handshake_core/Cargo.toml",
+    "--features",
+    "app-runtime,surreal-test-support,test-utils",
+    "-j",
+    "1",
+    "--lib",
+    "storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog",
+    "--",
+    "--exact",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "resource_allocation": "Explicit sequential reuse of existing MT174 Delivery target; same pinned toolchain/profile and 180000000000 byte cap under existing WP012 grant; Delivery releases sole execution ownership to assigned Review thread for this observation",
+  "release_conditions": "Root pushed checkpoint; fresh actual role-scoped numeric gameplan/resources; unchanged original source/assertions; actual stdout/stderr/numeric exit and post-binding",
+  "outputs": "Actual BASE and FINAL printed SHA256, inventory/source fields, executed test count and original assertion outcome",
+  "next": "Measured pin reconciliation plus original registry external-input seam; independent fresh/reopen proof still mandatory",
+  "status": "RELEASED_AFTER_PUSHED_CHECKPOINT_FRESH_ADMISSION_REQUIRED",
+  "prior_actual_failure_ref": "MT-174.json#/round40_independent_catalog_actual_result_20261012",
+  "required_gameplan_step": "GP-516"
+},
+
   "round41_reviewed_source_release_20261012": {
   "id": "WP012-P2-ROUND41-REVIEWED-SOURCE-20261012",
   "at_utc": "2026-10-12T12:07:32.787230+00:00",
@@ -4110,7 +4245,7 @@
   },
   "lifecycle": {
   "status": "BLOCKED",
-  "blocked_on": "Reviewed source repair pushed de66b4522; required compiler proof on changed inputs pending. Independent BASE/FINAL catalog observations and fresh/reopen, genuine native authorization/publication and consumed runtime acceptance remain unproven; accepted0/5.",
+  "blocked_on": "Core Round41 GREEN on de66b4522; independently measured BASE/FINAL pins and fresh/reopen, genuine native authorization/publication and consumed runtime/native independent acceptance remain unproven; accepted0/5.",
   "depends_on": [
     "MT-173"
   ],
@@ -4120,7 +4255,7 @@
   "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
   "claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
   "completed_by": null,
-  "next_actor": "Delivery fresh admission then one existing core command; Review exact existing MT139 observation after successful compiler result; no unchanged retries"
+  "next_actor": "Independent Review existing MT139 catalog observation on de66b after fresh admission; measured pin reconciliation then exact original fresh/reopen proof; no unchanged core rerun"
 },
   "scope": {
     "summary": "Reconcile shared core/bootstrap/manifests import paths",

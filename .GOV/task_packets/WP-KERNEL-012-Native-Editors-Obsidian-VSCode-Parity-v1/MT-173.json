@@ -1,4 +1,26 @@
 {
+  "round41_actual_core_20261012": {
+  "ref": "MT-174.json#/round41_actual_core_20261012",
+  "product_commit": "de66b452230dbc139cadb567aded30c96d98e6a8",
+  "status": "CORE_CHECK_GREEN",
+  "accepted_mts": "0/5",
+  "prior_lifecycle": {
+    "status": "BLOCKED",
+    "blocked_on": "Reviewed source repair pushed de66b4522; required compiler proof on changed inputs pending. Independent BASE/FINAL catalog observations and fresh/reopen, genuine native authorization/publication and consumed runtime acceptance remain unproven; accepted0/5.",
+    "depends_on": [
+      "MT-171",
+      "MT-172"
+    ],
+    "blocks": [],
+    "active": true,
+    "validator_verdict": null,
+    "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
+    "claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
+    "completed_by": null,
+    "next_actor": "Delivery fresh admission then one existing core command; Review exact existing MT139 observation after successful compiler result; no unchanged retries"
+  }
+},
+
   "round41_reviewed_source_release_20261012": {
   "ref": "MT-174.json#/round41_reviewed_source_release_20261012",
   "product_commit": "de66b452230dbc139cadb567aded30c96d98e6a8",
@@ -812,7 +834,7 @@
   },
   "lifecycle": {
   "status": "BLOCKED",
-  "blocked_on": "Reviewed source repair pushed de66b4522; required compiler proof on changed inputs pending. Independent BASE/FINAL catalog observations and fresh/reopen, genuine native authorization/publication and consumed runtime acceptance remain unproven; accepted0/5.",
+  "blocked_on": "Core Round41 GREEN on de66b4522; independently measured BASE/FINAL pins and fresh/reopen, genuine native authorization/publication and consumed runtime/native independent acceptance remain unproven; accepted0/5.",
   "depends_on": [
     "MT-171",
     "MT-172"
@@ -823,7 +845,7 @@
   "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
   "claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
   "completed_by": null,
-  "next_actor": "Delivery fresh admission then one existing core command; Review exact existing MT139 observation after successful compiler result; no unchanged retries"
+  "next_actor": "Independent Review existing MT139 catalog observation on de66b after fresh admission; measured pin reconciliation then exact original fresh/reopen proof; no unchanged core rerun"
 },
   "scope": {
     "summary": "Reconcile shared storage/schema/migration import paths",
