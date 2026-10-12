@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-12T06:56:40Z",
+ "updated_at": "2026-10-12T07:05:10Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3439,7 +3439,7 @@
  "resume_plan": {
   "at": "2026-10-12T06:16:47Z",
   "steps": [
-   "1. R22 narrow pre-review: all 3 lanes SAFE_TO_JUDGE at 3930a7c. In flight: steward sync + canary C25; then round R20 (1 validator; review input R22; two-FAIL lanes SMB-PRESS, SMB-REEL-AV1-ROUTE, SMB-REEL-NATIVE-AV1-WORKER (via reel), SMB-INTEROP-PSD-BUDGET) judging SMB-PRESS-DOCS-2, SMB-REEL-PARTIAL-PTS-2, SMB-INTEROP-PSD-LOSS-DETAIL + CX-VAL-009 reopens; then handoff + snapshot; next press lane PLR-094 (possible /Alt leak) first.",
+   "1. In flight: round R20 validator at 3930a7c (canary C25) judging SMB-PRESS-DOCS-2, SMB-REEL-PARTIAL-PTS-2, SMB-INTEROP-PSD-LOSS-DETAIL + CX-VAL-009 reopens; then handoff + snapshot; next: press PLR-094 (possible /Alt leak, priority) + PLR-093 doc, psd PLR-095, reel PLR-092.",
    "2. Then SMB-PRESS-GEOMETRY, SMB-FMT-SWEEP, notes residuals (config-OBU tag, exact-64 FRAME test, psd group-own-lfx2/zero-tile).",
    "3. Round R20: steward sync + canary + 1 validator (list two-FAIL dependants, PROC-R19-V1).",
    "4. Keep pushing gov_kernel after every commit (weekly >= 85%).",
@@ -3949,5 +3949,25 @@
   ],
   "not_judged": "render-gpu lanes + SMB-ROUND-ENTRYPOINT + SMB-RENDER-GPU-ADJ/PROBE (D20); interop-media (D9); no-claim lanes",
   "notes": "union press 149, reel 71 + av1 78, reel-native 5 + 24, interop-psd 57, exit 0 at fdc01f1; 81 lanes proof_reuse; R21 notes are PLR-087..089 (not charged); V-1 process: SMB-REEL-NATIVE-AV1-WORKER is a fourth two-FAIL lane reopened via its reel dependency (V4-13 via V4-18 + R21); V-2 INFO psd all-off visible stack scanned to the end before refusal (bounded)"
+ },
+ "round_R20": {
+  "candidate": "3930a7c",
+  "candidate_full": "3930a7ce891c2f16ad17f8d96f6a9f0590f03a49",
+  "opened_at": "2026-10-12T07:05:10Z",
+  "sync": "already in sync since 9ffe946 (fdc01f1..3930a7c = press, reel, interop-psd commits only); licence gate OK; probes 46/46",
+  "canary": "C25 exit 73, 59/59 build 0/run 0, step 0 clean; NOT_PROVEN only interop-fig D17 (results studio-team-dev/steward-export/results/C25-3930a7c)",
+  "ready": [
+   "SMB-PRESS-DOCS-2 (0f87710)",
+   "SMB-REEL-PARTIAL-PTS-2 (2fb17a8)",
+   "SMB-INTEROP-PSD-LOSS-DETAIL (3930a7c)"
+  ],
+  "two_fail_rechecks": "validation/R22-prereview-narrow.json SAFE_TO_JUDGE (SMB-PRESS, SMB-REEL-AV1-ROUTE, SMB-REEL-NATIVE-AV1-WORKER via reel, SMB-INTEROP-PSD-BUDGET)",
+  "reopen": "press, reel, reel-native (dependent), interop-psd lanes",
+  "excluded": [
+   "render-gpu lanes + SMB-ROUND-ENTRYPOINT + SMB-RENDER-GPU-ADJ/PROBE (D20)",
+   "interop-media (D9)"
+  ],
+  "team": "1 validator (opus); review input = R22 narrow pre-review",
+  "status": "OPEN"
  }
 }
