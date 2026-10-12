@@ -1,5 +1,42 @@
 {
 
+  "round40_independent_catalog_actual_result_20261012": {
+    "id": "WP012-P2-MT139-ACTUAL-PARSE-FAILURE-20261012",
+    "executor_role": "INTEGRATION_VALIDATOR",
+    "executor_thread": "01a129ca-8eea-7f53-aa9d-7f81f6f08319",
+    "status": "TEST_FAILED",
+    "exit_code": 101,
+    "wrapper_exit_code": 1,
+    "attempt_id": "a41bcf7ed45f48f0b194781772479f6b",
+    "terminal_utc": "2026-10-12T11:50:42.3340511Z",
+    "candidate": "880dda6d7fea02e230598d4c6215545ec35510fd",
+    "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round40-mt139-catalog-measurement",
+    "result_sha256": "9668843c967496f083b3173eb8a4f771be8021b9b39c31afe978243f2935e6cb",
+    "post_binding_sha256": "9da25ada5a72186e08b3dc44a90631872100d4cb4c68f64f0efae66d5bc94497",
+    "stdout_sha256": "1d4eb8d714faac0ded5df82a054f50e2aea6d0c450a13a69091e962901ed4f5b",
+    "stderr_sha256": "a24246df5b2f177501ab02239c7b29a22339847374b92eaa10a5c08d59fad278",
+    "test_result": {
+      "passed": 0,
+      "failed": 1,
+      "filtered": 2545
+    },
+    "source_bindings_matched": 7416,
+    "authority_profile_toolchain_capture_matched": true,
+    "actual_BASE": null,
+    "actual_FINAL": null,
+    "original_pin_assertion": "NOT_REACHED",
+    "production_module_install": "NOT_REACHED",
+    "blocker": "SurrealDB parse error -32000 generated schema.surql979:24; IF/ELSE application_evidence object fields parsed as record-id syntax, unexpected parameter",
+    "remediation": "Explicit correct object expression in existing Rust emitter and generated SQL; preserve fields/permission/function semantics and historical pins; update only actual generated-byte hash; no invented BASE/FINAL",
+    "actual_core_failed_launches_retained": 38,
+    "core_round40": "GREEN unchanged historical compiler proof; SQL runtime failure separate",
+    "accepted_mts": "0/5",
+    "next_actor": "Sole coder frozen existing-owner syntax/external-input/optional-context batch; scoped independent source review; pushed changed candidate and required compile then exact existing independent measurement",
+    "exports_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/registry-approved-inputs/source-exports.json",
+    "exports_sha256": "60917003b7d42db847942450dea8d7954b6e093fa11872de221c8e148a768955"
+  }
+,
+
   "round40_independent_catalog_measurement_assignment_20261012": {
     "id": "WP012-P2-MT139-INDEPENDENT-CATALOG-MEASUREMENT-20261012",
     "assigned_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
