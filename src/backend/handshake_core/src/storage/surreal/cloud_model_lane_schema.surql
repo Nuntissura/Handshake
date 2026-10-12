@@ -189,7 +189,7 @@ DEFINE FUNCTION OVERWRITE fn::wp012_cloud_authority_read($row: object) {
         AND $ledger.workspace_id = $row.workspace_id;
 };
 
-DEFINE FIELD OVERWRITE allocation ON model_lane_cloud_event_ledger FLEXIBLE TYPE object VALUE {
+DEFINE FIELD OVERWRITE allocation ON model_lane_cloud_event_ledger TYPE object FLEXIBLE VALUE {
     IF $input != NONE { THROW 'HSK-CLOUD-CALLER-ALLOCATION-DENIED'; };
     LET $prepared = encoding::json::decode($this.payload_json);
     LET $record = $prepared.record;
