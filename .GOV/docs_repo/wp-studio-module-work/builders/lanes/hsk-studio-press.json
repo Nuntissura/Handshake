@@ -2,7 +2,7 @@
  "crate": "hsk-studio-press",
  "lane": "MT-35557 press: V4 hardening slice + remediation R6 + redaction gaps (slice 6) + remediation R7 pre-review B (N1-N7, lead PLR-039/PLR-040)",
  "status": "READY_FOR_VALIDATION",
- "phase": "R13 pre-review remediation (validation/R13-prereview-press.json F1-F7, V1, P1; lead decision 2026-10-11T20:26:55Z) by rem-press-r13 for SMB-PRESS and SMB-PRESS-DIFFERENCES: flattened pages explicit and minimal (/Annots []), detached from /Pages inheritance, XFA stripped, annotations/widgets and structure text of flattened pages removed, painted sources no kept page draws dropped, /OCProperties in the renderer copy, nesting/construction-chain/image bounds before hayro, render thread with a 256 MiB stack, DESCRIPTOR colour limitation and corrected claims; claim d079292..7410f29 (pushed); 128/128 nextest, doctests 0, clippy --tests --examples clean; 9 new regression tests red on a d079292 copy (8 FAIL + 1 ABORT stack overflow)",
+ "phase": "R18 judging at bfa1bbf (press commits since 7410f29 landed via SMB-NOTES-BATCH-1; R16-R20 narrow pre-reviews; R20 SAFE_TO_JUDGE)",
  "commits": [
   {
    "sha": "70b4c74",
@@ -274,8 +274,8 @@
  "blockers": [],
  "lock_wait_s": 294,
  "bg_pids": [],
- "next": "Lead: V4-13 (narrow) pre-review of d079292..7410f29 for SMB-PRESS and SMB-PRESS-DIFFERENCES (both share the claim; SMB-PRESS has 2 failed verdicts), then judge. Residuals listed in notes.remediation_R13pre.residuals.",
- "updated_at": "2026-10-11T21:40:54Z",
+ "next": "Validator round R18: judge SMB-PRESS and SMB-PRESS-DIFFERENCES at bfa1bbf (CX-VAL-009 reopen); review input validation/R16..R20 narrow pre-reviews; PLR-083 doc note folds",
+ "updated_at": "2026-10-12T04:43:21Z",
  "notes": {
   "test_names": [
    "pdf_object_edit_save_independent_reopen",
