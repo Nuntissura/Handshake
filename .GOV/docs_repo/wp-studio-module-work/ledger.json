@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-12T11:22:02Z",
+ "updated_at": "2026-10-12T11:23:29Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3639,6 +3639,7 @@
  "resume_plan": {
   "at": "2026-10-12T11:22:02Z",
   "steps": [
+   "0. On resume after the weekly reset: the workflow agent (workflow-2, idle since 2026-10-11T10:18:58Z) is stale (>24 h) -> replace it with a fresh Opus workflow agent that reads workflow/ (workflow.json, workflow-review-ticks.md, plausible-register.json) and runs the next workflow tick; recreate the two session-only ticks (LEAD TICK 15 min at :04/:19/:34/:49, WORKFLOW OFFSET TICK at :11/:26/:41/:56) if the new session uses them.",
    "1. Weekly limit reached at 2026-10-12T11:22:02Z (resets 2026-10-13T11:00Z). Nothing is running. Product HEAD == origin == 1da2453 (all lanes judged through R22).",
    "2. PRIORITY 1: press lane SMB-PRESS-PROPERTIES (new id): PLR-104 \u2014 marked-content /Alt or /ActualText of a flattened page in shared or inherited /Properties survives in an UNTAGGED document while the save reads proven (inside the claim; flatten_purge.rs:53-56, sanitized_save drop_painted_sources). Purge exactly or fail closed (lead stance). Fold PLR-105 (fail-closed gaps: 15+ alias chains for shape, malformed object streams, trailer /ID) and PLR-107 (claim text). SMB-PRESS has 2 failed verdicts -> V4-13 narrow pre-review, then a round.",
    "3. Then: SMB-PRESS-GEOMETRY, SMB-FMT-SWEEP, notes residuals (config-OBU tag, exact-64 FRAME test, psd group-own-lfx2/zero-tile), PLR-097, PLR-100, PLR-103, PLR-106.",
