@@ -1123,10 +1123,12 @@
     "R11-prereview-psd-budget"
    ],
    "rounds_carried": 0,
-   "status": "OPEN",
+   "status": "CLOSED",
    "verified_at": "85532ad",
    "disposition": "FIX_LANE",
-   "disposition_note": "after R11 (crate frozen for the pre-review); 2026-10-12T05:30:06Z fix submitted SMB-INTEROP-PSD-FOLIO-CEILING ceb9d33..fdc01f1"
+   "disposition_note": "after R11 (crate frozen for the pre-review); 2026-10-12T05:30:06Z fix submitted SMB-INTEROP-PSD-FOLIO-CEILING ceb9d33..fdc01f1",
+   "closed_by": "round-R19 PASS at fdc01f1 (SMB-INTEROP-PSD-FOLIO-CEILING)",
+   "closed_at": "2026-10-12T06:16:47Z"
   },
   {
    "id": "PLR-064",
@@ -1318,10 +1320,12 @@
     "R14-prereview-press"
    ],
    "rounds_carried": 0,
-   "status": "OPEN",
+   "status": "CLOSED",
    "verified_at": "7410f29",
    "disposition": "FIX_LANE",
-   "disposition_note": "fix claimed in SMB-NOTES-BATCH-1 (27a9a81/9088884/ab273d3/5606d16); reviewer confirms in R16; 2026-10-12T05:21:38Z SMB-PRESS-DOCS d868da0: covered by existing test painted_source_referenced_by_a_kept_catalog_structure_is_reported (tests/flatten_r13.rs:488, /AF, /Names /EmbeddedFiles, /Names /Dests) under MINIMAL DRAW SET; close on next press PASS"
+   "disposition_note": "fix claimed in SMB-NOTES-BATCH-1 (27a9a81/9088884/ab273d3/5606d16); reviewer confirms in R16; 2026-10-12T05:21:38Z SMB-PRESS-DOCS d868da0: covered by existing test painted_source_referenced_by_a_kept_catalog_structure_is_reported (tests/flatten_r13.rs:488, /AF, /Names /EmbeddedFiles, /Names /Dests) under MINIMAL DRAW SET; close on next press PASS",
+   "closed_by": "round-R19 PASS at fdc01f1 (SMB-PRESS-DOCS)",
+   "closed_at": "2026-10-12T06:16:47Z"
   },
   {
    "id": "PLR-077",
@@ -1333,10 +1337,12 @@
     "lane notes residual"
    ],
    "rounds_carried": 0,
-   "status": "OPEN",
+   "status": "CLOSED",
    "verified_at": "b8b276d",
    "disposition": "FIX_LANE",
-   "disposition_note": "touches Forward in video.rs (AV1-ROUTE 2-FAIL area): needs a narrow pre-review; later reel lane; 2026-10-12T05:24:32Z fix submitted SMB-REEL-PARTIAL-PTS 0c34342"
+   "disposition_note": "touches Forward in video.rs (AV1-ROUTE 2-FAIL area): needs a narrow pre-review; later reel lane; 2026-10-12T05:24:32Z fix submitted SMB-REEL-PARTIAL-PTS 0c34342",
+   "closed_by": "round-R19 PASS at fdc01f1 (SMB-REEL-PARTIAL-PTS)",
+   "closed_at": "2026-10-12T06:16:47Z"
   },
   {
    "id": "PLR-078",
@@ -1424,11 +1430,13 @@
     "round-R18 (validator V-2, R20-N1 same item, not charged)"
    ],
    "rounds_carried": 1,
-   "status": "OPEN",
+   "status": "CLOSED",
    "verified_at": "bfa1bbf",
    "disposition": "FIX_LANE",
    "disposition_note": "doc fix + fail-closed review of unbalanced BDC in the next press lane; 2026-10-12T05:21:38Z fix submitted SMB-PRESS-DOCS d868da0 (docs/tests only)",
-   "evidence": "R18 V-2: pdf.js master closes marked content left open by a form when the form stream ends, matching the code's fresh stack per form; R19-O1 part narrowed to other viewers (UNVERIFIED)"
+   "evidence": "R18 V-2: pdf.js master closes marked content left open by a form when the form stream ends, matching the code's fresh stack per form; R19-O1 part narrowed to other viewers (UNVERIFIED)",
+   "closed_by": "round-R19 PASS at fdc01f1 (SMB-PRESS-DOCS)",
+   "closed_at": "2026-10-12T06:16:47Z"
   },
   {
    "id": "PLR-084",
@@ -1440,10 +1448,12 @@
     "round-R18"
    ],
    "rounds_carried": 0,
-   "status": "OPEN",
+   "status": "CLOSED",
    "verified_at": "bfa1bbf",
    "disposition": "DOC",
-   "disposition_note": "lead decision 2026-10-12T05:10:24Z: state as residual in the press DESCRIPTOR + flatten docs (silence = a kept page draws it directly; visibility of that draw is not checked); no visibility analysis (D27 narrow; avoids reopening the certainty loop); fold with PLR-083 doc fix; 2026-10-12T05:21:38Z fix submitted SMB-PRESS-DOCS d868da0 (docs/tests only)"
+   "disposition_note": "lead decision 2026-10-12T05:10:24Z: state as residual in the press DESCRIPTOR + flatten docs (silence = a kept page draws it directly; visibility of that draw is not checked); no visibility analysis (D27 narrow; avoids reopening the certainty loop); fold with PLR-083 doc fix; 2026-10-12T05:21:38Z fix submitted SMB-PRESS-DOCS d868da0 (docs/tests only)",
+   "closed_by": "round-R19 PASS at fdc01f1 (SMB-PRESS-DOCS)",
+   "closed_at": "2026-10-12T06:16:47Z"
   },
   {
    "id": "PLR-085",
@@ -1472,8 +1482,8 @@
    "rounds_carried": 0,
    "status": "OPEN",
    "verified_at": "fdc01f1",
-   "disposition": "FIX_LANE",
-   "disposition_note": "needs a lead decision: raise/partition the list cap for effect lists or report the typed loss per category"
+   "disposition": "DOC",
+   "disposition_note": "lead decision 2026-10-12T06:16:47Z: the 512-entry list cap is a parse-level hostile-size bound (V4-02) and stays category-blind; state it as a residual in the interop-psd DESCRIPTOR (a list over 512 entries refuses the descriptor with descriptor_item_limit, losing that stack); revisit only if a real Photoshop file needs more (Photoshop's per-type instance limit UNVERIFIED)"
   },
   {
    "id": "PLR-087",
@@ -1519,6 +1529,21 @@
    "verified_at": "fdc01f1",
    "disposition": "FIX_LANE",
    "disposition_note": "next interop-psd lane (with PLR-086)"
+  },
+  {
+   "id": "PLR-090",
+   "lane": "SMB-INTEROP-PSD-FOLIO-CEILING",
+   "file_line": "crates/hsk-studio-interop-psd/src/effects.rs:615-641",
+   "finding": "a visible stack whose instances are all switched off is scanned to the end before being refused past the 1024 ceiling (bounded work, same outcome; earlier refusal optional)",
+   "first_seen": "round-R19 V-2 (INFO)",
+   "seen_in": [
+    "round-R19"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "fdc01f1",
+   "disposition": "FIX_LANE",
+   "disposition_note": "optional; fold into next interop-psd lane"
   }
  ],
  "process_items": [
@@ -1557,6 +1582,12 @@
    "source": "rem bfa1bbf report",
    "item": "red-proof scratch runs that are expected to fail were run with the exit code echoed (command exit 0) to avoid the retry guard keyed on the shared tree HEAD; the hook still gated them, but the posthook recorded no failure",
    "action": "workflow agent: give scratch red-proof trees their own gameplan pointer/role so expected failures are recorded against the scratch candidate instead of masked; until then builders must log such runs in lane notes (they did)"
+  },
+  {
+   "id": "PROC-R19-V1",
+   "at": "2026-10-12T06:16:47Z",
+   "item": "two-FAIL dependant lanes: dispatches must list every lane with 2 failed verdicts that a CX-VAL-009 reopen pulls in through a dependency (R19: SMB-REEL-NATIVE-AV1-WORKER reopened via reel was not named; V4-13 held via V4-18 + R21)",
+   "owner": "lead"
   }
  ],
  "closed_since_review": [

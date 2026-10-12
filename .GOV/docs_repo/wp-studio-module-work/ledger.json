@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-12T05:56:39Z",
+ "updated_at": "2026-10-12T06:16:47Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3374,13 +3374,13 @@
   "record": "validation/round-R7.json"
  },
  "resume_plan": {
-  "at": "2026-10-12T05:10:24Z",
+  "at": "2026-10-12T06:16:47Z",
   "steps": [
-   "1. In flight: round R19 validator at fdc01f1 (canary C24) judging SMB-PRESS-DOCS, SMB-REEL-PARTIAL-PTS, SMB-INTEROP-PSD-FOLIO-CEILING + CX-VAL-009 reopens; then refresh HANDOFF + snapshot; then next lanes (PLR-085/088 reel, PLR-086/089 psd, PLR-087 press doc, SMB-PRESS-GEOMETRY, SMB-FMT-SWEEP).",
-   "2. Then SMB-PRESS-GEOMETRY (queued), SMB-FMT-SWEEP (rustfmt after verdicts), notes residuals (config-OBU tag, exact-64 FRAME test, psd group-own-lfx2/zero-tile).",
-   "3. Round R19 when the new lanes are READY: steward sync + canary + 1 validator.",
-   "4. Keep pushing gov_kernel after every commit (weekly usage >= 85%).",
-   "5. Blocked on Operator: D20 (render-gpu, round entrypoint, SMB-RENDER-GPU-ADJ/PROBE, PLR-082), D22-D26, D9, D17, D5, D13/STU-CON-044, D21, repo-local target 3.8 GB, empty folder x at the C: root; STUDIO_MODULES.json status vocabulary undefined (only PLANNED_NOT_IMPLEMENTED exists; ledger is live)."
+   "1. R19 COMPLETE (21 PASS, 0 FAIL). Next lanes (Sonnet, new ids): SMB-REEL-PARTIAL-PTS-2 (PLR-085 start_pts + PLR-088 max-vs-last test + test rename), SMB-INTEROP-PSD-LOSS-DETAIL (PLR-089 per-instance loss/over-report + PLR-090 early refusal + PLR-086 DESCRIPTOR residual), SMB-PRESS-DOCS-2 (PLR-087 doc). Reel and interop-psd changes reopen two-FAIL lanes SMB-REEL-AV1-ROUTE, SMB-REEL-NATIVE-AV1-WORKER (via reel), SMB-INTEROP-PSD-BUDGET -> V4-13 narrow pre-review before the round.",
+   "2. Then SMB-PRESS-GEOMETRY, SMB-FMT-SWEEP, notes residuals (config-OBU tag, exact-64 FRAME test, psd group-own-lfx2/zero-tile).",
+   "3. Round R20: steward sync + canary + 1 validator (list two-FAIL dependants, PROC-R19-V1).",
+   "4. Keep pushing gov_kernel after every commit (weekly >= 85%).",
+   "5. Blocked on Operator: D20 (render-gpu, round entrypoint, SMB-RENDER-GPU-ADJ/PROBE, PLR-082), D22-D26, D9, D17, D5, D13/STU-CON-044, D21, repo-local target 3.8 GB, empty folder x at the C: root; STUDIO_MODULES.json status vocabulary undefined."
   ]
  },
  "r8_plan": {
@@ -3636,8 +3636,8 @@
  },
  "handoff": {
   "file": "HANDOFF.md",
-  "snapshot": "snapshots/SNAPSHOT-20261012T051110Z.json",
-  "at": "2026-10-12T05:11:10Z"
+  "snapshot": "snapshots/SNAPSHOT-20261012T061647Z.json",
+  "at": "2026-10-12T06:16:47Z"
  },
  "round_R13": {
   "candidate": "4b76604",
