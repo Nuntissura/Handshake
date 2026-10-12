@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-12T10:26:38Z",
+ "updated_at": "2026-10-12T10:27:14Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3607,7 +3607,7 @@
  "resume_plan": {
   "at": "2026-10-12T09:56:43Z",
   "steps": [
-   "1. R21 COMPLETE (27 PASS, 0 FAIL). In flight (Sonnet builders, dispatched 2026-10-12T09:57:55Z): SMB-PRESS-STRUCT-ORPHANS (PLR-102, PLR-101), SMB-INTEROP-PSD-DOCS (PLR-096, PLR-099). Then V4-13 narrow pre-review (two-FAIL lanes SMB-PRESS, SMB-INTEROP-PSD-BUDGET), then round R22. On takeover: if team.json shows them running but no agent exists, read their lane files and re-dispatch with the same scope.",
+   "1. Two lanes READY at 1da2453 (SMB-PRESS-STRUCT-ORPHANS 0cb7103+dce563e+1da2453; SMB-INTEROP-PSD-DOCS c4c31cd). In flight: V4-13 narrow pre-review 2dde832..1da2453 -> validation/R25-prereview-narrow.json. If SAFE: steward sync + canary C27 + round R22 (1 validator; two-FAIL lanes SMB-PRESS, SMB-INTEROP-PSD-BUDGET). If FIX_FIRST: fresh builder on the same lane.",
    "2. Then SMB-PRESS-GEOMETRY, SMB-FMT-SWEEP, notes residuals (config-OBU tag, exact-64 FRAME test, psd group-own-lfx2/zero-tile), PLR-097 (rewrite indirect /K arrays), PLR-100 (reel-native finish() test).",
    "3. Keep pushing gov_kernel after every commit.",
    "4. Blocked on Operator: D28 (strip structure tree on redaction save), D20, D22-D26, D9, D17, D5, D13/STU-CON-044, D21, repo-local target 3.8 GB, empty folder x at the C: root, scratch/probe trees cleanup (list in START_LOG); STUDIO_MODULES.json status vocabulary undefined."

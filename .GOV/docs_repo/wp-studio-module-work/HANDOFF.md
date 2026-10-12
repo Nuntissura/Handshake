@@ -28,7 +28,7 @@ authority: ledger.json, team.json, workflow/plausible-register.json, validation/
 | What | Repo / branch | Local worktree | State at handoff |
 |---|---|---|---|
 | Governance (this folder) | `Nuntissura/Handshake` / `gov_kernel` | `wt-gov-kernel` | pushed after every commit; other WPs (WP-KERNEL-012) also push here — integrate, never branch, never force |
-| Product (35 Studio crates) | `Nuntissura/assets` / `codex/handshake-studio-assets`, subfolder `handshake-studio-assets` | `wt-studio-assets` | HEAD == origin == 2dde832; uncommitted on purpose: local Cargo.lock patch bumps (not steward-reviewed) and stat-only score files |
+| Product (35 Studio crates) | `Nuntissura/assets` / `codex/handshake-studio-assets`, subfolder `handshake-studio-assets` | `wt-studio-assets` | HEAD == origin == 1da2453; uncommitted on purpose: local Cargo.lock patch bumps (not steward-reviewed) and stat-only score files |
 | Build artifacts | `Handshake_Artifacts/WP-KERNEL-STUDIO/` (sibling of the worktrees) | — | cargo targets, round exports, canary + round results, red-proof scratch trees; never build on C: |
 
 Push helper for governance: `tools/lead-kernel-push.sh <message-file> <paths...>` (commits the paths, merges `origin/gov_kernel` only when no path overlaps, pushes; never branches/forces). The kernel root `.gameplan-active` belongs to WP-KERNEL-012; run gated git/cargo commands with a leading `cd .GOV/docs_repo/wp-studio-module-work` (local Studio pointer) or from the product tree. Snapshot generator used for this handoff: rebuild from `ledger.json` + `team.json` + `workflow/plausible-register.json` (fields as in the snapshot file).
@@ -52,7 +52,7 @@ Push helper for governance: `tools/lead-kernel-push.sh <message-file> <paths...>
 
 ## In flight at handoff
 
-- Dispatched 2026-10-12T09:57:55Z (Sonnet builders): SMB-PRESS-STRUCT-ORPHANS, SMB-INTEROP-PSD-DOCS; lane files `builders/lanes/hsk-studio-press-struct-orphans.json`, `hsk-studio-interop-psd-docs.json` are the handoff. Weekly usage was 99% at dispatch: if the limit stopped them, re-dispatch with the same scope (`ledger.json` resume_plan step 1).
+- 2026-10-12T10:27:14Z: two lanes READY at 1da2453 (SMB-PRESS-STRUCT-ORPHANS, SMB-INTEROP-PSD-DOCS). Running: Opus narrow pre-review 2dde832..1da2453 (output `validation/R25-prereview-narrow.json`). If missing on takeover, re-dispatch it modelled on `validation/R24-prereview-press-narrow.json`; then round R22 per `ledger.json` resume_plan. Weekly usage 99%.
 
 </topic>
 

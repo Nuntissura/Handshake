@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-12T10:26:38Z",
+ "updated_at": "2026-10-12T10:27:14Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -2594,7 +2594,7 @@
     "builders/lanes/hsk-studio-press-struct-orphans.json"
    ],
    "launched": "2026-10-12T09:57:55Z",
-   "status": "done 2026-10-12T10:26:38Z (SMB-PRESS-STRUCT-ORPHANS READY at 1da2453)"
+   "status": "done (READY)"
   },
   {
    "name": "builder-psd-docs",
@@ -2606,7 +2606,18 @@
     "builders/lanes/hsk-studio-interop-psd-docs.json"
    ],
    "launched": "2026-10-12T09:57:55Z",
-   "status": "done 2026-10-12T10:09:31Z (SMB-INTEROP-PSD-DOCS READY at c4c31cd)"
+   "status": "done (READY)"
+  },
+  {
+   "name": "prereview-r25",
+   "agent_id": "a480b354dcae5ab75",
+   "model": "opus",
+   "role": "V4-13 narrow pre-review 2dde832..1da2453 (press-struct-orphans, psd-docs)",
+   "owns": [
+    "validation/R25-prereview-narrow.json"
+   ],
+   "launched": "2026-10-12T10:27:14Z",
+   "status": "running"
   }
  ]
 }
