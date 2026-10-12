@@ -1,0 +1,116 @@
+{
+ "crate": "hsk-studio-reel",
+ "lane": "SMB-REEL-PARTIAL-PTS",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "SMB-REEL-PARTIAL-PTS (new lane, V4-15: PLR-077, the open residual R1 of SMB-REEL-RECEIPTS) complete on 0c34342: a video-route Partial receipt (the decoder dropped a picture) ends where the last DELIVERED picture ends (pts + duration in ticks, checked), an empty span at its start when no picture was delivered, never where the packets end; a complete decode is unchanged; base bfa1bbf (no other commit touched crates/hsk-studio-reel between bfa1bbf and 0c34342, verified by git diff)",
+ "commits": [
+  {
+   "sha": "0c34342",
+   "subject": "reel (SMB-REEL-PARTIAL-PTS, wip, lane status null): a video-route Partial receipt ends at the end of the last delivered picture, not at the packet end (PLR-077)"
+  }
+ ],
+ "capabilities_done": [
+  "PLR-077 video.rs Forward tracks delivered_end (the latest pts + duration of a picture handed to the sink, computed by the new picture_end() with checked i64/u64 arithmetic after the sink took the picture, so the error order is the packet loop's own); decode_video_track_with sets receipt.actual.end_pts from it in the Partial branch only (delivered < req.count, Preview; an Export still returns Incomplete before that), to receipt.actual.start_pts when no picture was delivered (the empty-span convention of the packet loop, y4m and wav), and never before the start",
+  "test partial_video_receipt_ends_at_the_last_delivered_picture (tests/video_route.rs, mp4 and mkv, ground truth from the container's own packet timing and hand-pinned mp4 values): drop at the packet end (red before), in the middle, at the start, of the whole tail, of everything (empty span at the start), and a pre-roll request with a drop at its end and with a drop of everything",
+  "test fully_delivered_video_receipt_end_is_the_packet_end: whole clip (Preview and Export), a pre-roll range and the last frame (Preview and Export) have an actual span, requested span and disposition equal to the packet receipt of the same request; a Partial caused by the packets (repeating edit list) keeps the delivered-packet end (40 units) and ends at the last delivered picture (20 units) when the decoder also dropped one",
+  "DESCRIPTOR export.rule states the new rule and cites both tests (V4-07); both test names are in export.tests",
+  "fake-decoder plan DropFrom(n) (tests/video_route.rs only): releases no picture of packet tag n or higher"
+ ],
+ "tests": {
+  "argv": "studio-env.sh (shared tree, default STUDIO_OWNER) cargo nextest run -p hsk-studio-reel --no-fail-fast (default: 71) / --features av1 (78); cargo test --doc -p hsk-studio-reel (2 doctests, 1 compile_fail + 1 pass); cargo clippy -p hsk-studio-reel --tests (default and --features av1): no warning in hsk-studio-reel (2 pre-existing too_many_arguments warnings in hsk-studio-observe/src/lib.rs, not this crate); cargo fmt -p hsk-studio-reel --check clean; focused: cargo nextest run -p hsk-studio-reel --test video_route (10 tests)",
+  "exit": 0,
+  "sha": "0c34342",
+  "passed": 78,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 30,
+ "bg_pids": [],
+ "next": "Validator round on 0c34342 (default and --features av1; doctests). Claim = 0c34342 on base bfa1bbf: 3 files (src/video.rs +28, src/lib.rs DESCRIPTOR text, tests/video_route.rs +241 incl. the fake-decoder plan DropFrom). AV1-ROUTE (2 failed verdicts) area: the diff is limited to Forward (one field, one helper fn, one line after the sink call) and the Partial branch of decode_video_track_with; choose(), VideoRoute, Chosen, SourceTrust, the declared-size and plane checks, the pump and every error path are unchanged (see notes.trust_routing_untouched). Residuals for the lead: R1-R3 in notes.residuals.",
+ "updated_at": "2026-10-12T05:24:01Z",
+ "notes": {
+  "base": "bfa1bbf (shared tree HEAD when the lane started); the lane's commit 0c34342 sits on d868da0 (a press-only commit pushed while the lane ran); git diff bfa1bbf..0c34342 -- crates/hsk-studio-reel is exactly the 3 files of the lane, and git diff 0c34342..origin head is empty for crates/hsk-studio-reel at the time of writing",
+  "source": "workflow/plausible-register.json PLR-077 (disposition FIX_LANE) = SMB-REEL-RECEIPTS lane notes residual R1",
+  "decisions": [
+   "D1 end of a Partial video receipt = max over delivered pictures of (meta.pts + meta.duration), the same pts + duration the packet loop uses for a non-preroll chunk (a picture carries the metadata of the packet it came from), so a complete decode would compute the identical value and a dropped last picture shortens the span; max (not the last arrival) because a decoder may release pictures out of presentation order",
+   "D2 no picture delivered -> end = actual.start_pts: the empty-span convention of this crate (isobmff deliver_packets starts delivered_end at start_actual; y4m start + 0 frames; wav and PCM cursor == start); no new convention. The result is also clamped so it is never before the start (end.max(start))",
+   "D3 only the Partial branch changes (delivered < req.count): when every picture arrived, the packet receipt is already right and is not touched, so (b) holds by construction and is also pinned by a test; an Export with a shortfall still returns Incomplete before the receipt is read",
+   "D4 picture_end() errors are the packet loop's own: overflow -> LimitExceeded tick-range, an end before presentation zero -> Unsupported negative-presentation-time; it runs after the sink accepted the picture, as the packet loop's chunk_end does after the Pump returns, and the packet loop validated the same pts + duration for every non-preroll chunk, so it adds no new failure order on any reachable input",
+   "D5 actual.start_pts is NOT changed: when the FIRST picture is dropped the span still starts at the first requested packet's pts (its start is the requested start the packets began at); the task is the end only. Noted as R1 below",
+   "D6 the new tests are added to the existing tests/video_route.rs (its Fake decoder, fixtures and request helpers), not a new file, so there is no second copy of the fake; the only change to the existing code of that file is the DropFrom plan variant and its match arm"
+  ],
+  "residuals": [
+   "R1 actual.start_pts of a Partial video receipt stays the pts of the first requested packet even when the decoder dropped that packet's picture (the span then starts before the first delivered picture); the lead's task named the end only, and a start that follows the first delivered picture would also need the requested-vs-actual start semantics (Approximate vs Exact disposition) decided; candidate PLR for the lead",
+   "R2 a reordering decoder that releases a picture with a later tag before earlier ones drains the earlier pending packets in Forward::accept (existing behaviour, untouched): their pictures count as dropped; not changed here",
+   "R3 scratch to remove when the lead agrees: Handshake_Artifacts/WP-KERNEL-STUDIO/smb-reel-partial-pts-redproof (src = git archive of bfa1bbf plus the new tests/video_route.rs only, own target and tmp); scratchpad SMB-REEL-PARTIAL-PTS holds the logs and the commit message file"
+  ],
+  "red_proofs": {
+   "tree": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-reel-partial-pts-redproof (own STUDIO_OWNER smb-reel-partial-pts-redproof, own target; src = git archive of bfa1bbf with only tests/video_route.rs copied in from the lane (cp without -p, then touch: current mtime, V4-11); video.rs is the unfixed bfa1bbf; no file of the shared tree was reverted or restored); log scratchpad SMB-REEL-PARTIAL-PTS/red-head-plus-tests.log",
+   "result": "cargo nextest run -p hsk-studio-reel --test video_route: 10 tests, 8 passed, 2 FAILED, exit 100: partial_video_receipt_ends_at_the_last_delivered_picture (mp4 case 0, DropPicture(2): actual.end_pts is the packet end, left 31752000000 vs the end of the last delivered picture 21168000000) and fully_delivered_video_receipt_end_is_the_packet_end (repeating edit list with the picture of packet 1 dropped: left 16934400000 = the packet end, right 8467200000 = the end of the delivered picture); the 8 other tests, including the existing export_refuses_partial_video_decode, pass on the unfixed tree",
+   "green": "same 10 tests plus the whole crate on the shared tree with the fix: 10/10 (green1.log), default 71/71, --features av1 78/78; control cases of the new tests (Works, Export, pre-roll) pass in both trees, so the red cases fail on the fix's absence only"
+  },
+  "v4_06": {
+   "class": "a receipt's actual span end (or its units, completeness, disposition) taken from the packet receipt, the request or a constant instead of from what was delivered to the sink (receipt end taken from packet instead of delivered pictures)",
+   "regex": "end_pts\\s*[:=]|actual\\.(units|end_pts|start_pts)\\s*=|actual:\\s*Span|receipt\\.[a-z_]+\\s*=[^=]|Disposition::Partial   (over crates/hsk-studio-reel/src and examples, as grep -rnE; src/lib.rs holds the DESCRIPTOR text and has no match of this regex)",
+   "count": "40 matching lines: 38 in src/examples and 2 in src/delivery_tests.rs (test code); 1 fixed, 39 not applicable",
+   "sites": [
+    {"site": "src/video.rs:556", "status": "FIXED: receipt.actual.end_pts followed the packet receipt; now the end of the last delivered picture (this lane)"},
+    {"site": "src/video.rs:540", "status": "not applicable: actual.units is already pump.fwd.delivered (pictures, not packets)"},
+    {"site": "src/video.rs:550", "status": "not applicable: Disposition::Partial under delivered < req.count, the pictures count"},
+    {"site": "src/video.rs:551", "status": "not applicable: complete = false under the same pictures-count condition"},
+    {"site": "src/video.rs:537", "status": "not applicable: decoder_id is the identity of the decoder that ran"},
+    {"site": "src/video.rs:538", "status": "not applicable: decoder_version, same"},
+    {"site": "src/video.rs:539", "status": "not applicable: video layout is the first delivered picture's format"},
+    {"site": "src/isobmff.rs:2167", "status": "not applicable: actual end_pts = end_actual = delivered_end of the chunks the loop delivered (PLR-067)"},
+    {"site": "src/isobmff.rs:2157", "status": "not applicable: requested end_pts names the request's own end by definition"},
+    {"site": "src/isobmff.rs:2165", "status": "not applicable: actual: Span literal head of the delivered-chunks receipt (2167 above)"},
+    {"site": "src/isobmff.rs:2047", "status": "not applicable: doc comment"},
+    {"site": "src/isobmff.rs:1827", "status": "not applicable: receipt.bytes_read adds the index bytes, not an end or count"},
+    {"site": "src/isobmff/pcm.rs:566", "status": "not applicable: actual end_pts = actual_end = the loop cursor (PLR-066)"},
+    {"site": "src/isobmff/pcm.rs:556", "status": "not applicable: requested end_pts"},
+    {"site": "src/isobmff/pcm.rs:564", "status": "not applicable: actual: Span literal head (566 above)"},
+    {"site": "src/wav.rs:402", "status": "not applicable: actual end_pts = tick_span(cursor) (PLR-066)"},
+    {"site": "src/wav.rs:391", "status": "not applicable: requested end_pts"},
+    {"site": "src/wav.rs:399", "status": "not applicable: actual: Span literal head (402 above)"},
+    {"site": "src/y4m.rs:418", "status": "not applicable: actual end_pts = tick_span(delivered_end), start + frames counted (PLR-066)"},
+    {"site": "src/y4m.rs:407", "status": "not applicable: requested end_pts"},
+    {"site": "src/y4m.rs:415", "status": "not applicable: actual: Span literal head (418 above)"},
+    {"site": "src/mxf/provider.rs:285", "status": "not applicable: actual end_pts = delivered_end_ticks, start + delivered units (PLR-066)"},
+    {"site": "src/mxf/provider.rs:280", "status": "not applicable: requested end_pts"},
+    {"site": "src/mxf/provider.rs:283", "status": "not applicable: actual: Span literal head (285 above)"},
+    {"site": "src/mxf/provider.rs:411", "status": "not applicable: receipt.bytes_read adds the index bytes"},
+    {"site": "src/matroska.rs:1687", "status": "not applicable: receipt.bytes_read adds the index bytes; matroska packets and PCM deliver through isobmff deliver_packets / deliver_pcm_stream (their receipts are the sites above)"},
+    {"site": "src/model.rs:261", "status": "not applicable: Span.end_pts field definition"},
+    {"site": "src/model.rs:269", "status": "not applicable: SegmentReceipt.actual field definition"},
+    {"site": "src/model.rs:503", "status": "not applicable: delivery_disposition maps complete (computed from delivered units, model::delivery_complete) to Partial"},
+    {"site": "src/model.rs:626", "status": "not applicable: unit test of delivery_disposition"},
+    {"site": "src/model.rs:627", "status": "not applicable: unit test of delivery_disposition"},
+    {"site": "src/registry.rs:277", "status": "not applicable: receipt.source = Proxy (proxy provenance, not a span)"},
+    {"site": "src/registry.rs:278", "status": "not applicable: proxy_note"},
+    {"site": "src/registry.rs:279", "status": "not applicable: original_id"},
+    {"site": "src/registry.rs:280", "status": "not applicable: proxy_id"},
+    {"site": "src/registry.rs:291", "status": "not applicable: proxy_note"},
+    {"site": "src/registry.rs:292", "status": "not applicable: proxy_id"},
+    {"site": "src/report.rs:13", "status": "not applicable: reads receipt.complete to choose the outcome, builds no receipt"},
+    {"site": "src/delivery_tests.rs:16", "status": "not applicable: test code (doc of the call-site tests)"},
+    {"site": "src/delivery_tests.rs:172", "status": "not applicable: test code (asserts Disposition::Partial)"}
+   ]
+  },
+  "v4_compliance": {
+   "V4-01": "video.rs already carries deny(clippy::arithmetic_side_effects); the new picture_end() uses i64::try_from, checked_add and u64::try_from with typed errors (LimitExceeded tick-range, Unsupported negative-presentation-time); the Partial branch uses map_or and max (no arithmetic); clippy clean",
+   "V4-02": "no allocation, no loop and no size input added; one Option<u64> field in Forward",
+   "V4-03": "no machine path in the tests (fixtures by include_bytes and the synthetic mp4_bytes builder); no NOT_PROVEN prints",
+   "V4-04": "no fault hook added; the DropFrom variant is a test-file enum arm of the fake decoder",
+   "V4-06": "see v4_06: class, regex, 40 lines, 1 fixed, 39 not applicable, all listed",
+   "V4-07": "the DESCRIPTOR sentence cites partial_video_receipt_ends_at_the_last_delivered_picture and fully_delivered_video_receipt_end_is_the_packet_end; the picture_end() and Partial-branch comments make no never/always claim",
+   "V4-09": "commit via git commit -F <file> with the pathspec crates/hsk-studio-reel; no amend, no rebase; text written with the Write and Edit tools",
+   "V4-11": "red proof only on the scratch tree with its own STUDIO_OWNER; no file of the shared tree was reverted or restored",
+   "V4-12": "helper files and logs under scratchpad/SMB-REEL-PARTIAL-PTS/ with lane-specific names; no script of another lane was run",
+   "V4-15": "new lane id; the AV1-ROUTE lane was not stacked on",
+   "V4-21": "no outbound request was made in this lane"
+  },
+  "gameplan_route": "no retry-guard hit and no gameplan step added; the red-proof run exited 100 by design (a deliberate red on a scratch tree with its own owner, a product failure not an infrastructure cause) and was a different tree and command from every green run; every cargo call started with cd and defined variables after it (the launch-form cause recorded in the SMB-REEL-RECEIPTS lane)",
+  "trust_routing_untouched": "git diff bfa1bbf..0c34342 -- crates/hsk-studio-reel lists exactly src/lib.rs (DESCRIPTOR text), src/video.rs and tests/video_route.rs; registry.rs, cache.rs, matroska.rs, isobmff.rs, model.rs and av1/* are not in it; in video.rs choose(), VideoRoute, Chosen, SourceTrust, VideoTrack, planes_match_format, within_declared_size, packed_len, Pump and every pre-existing error path are unchanged: the diff adds the field Forward::delivered_end, the fn picture_end, one three-line update after the sink call in Forward::accept and the assignment of actual.end_pts in the Partial branch",
+  "dependents": "no public item of hsk-studio-reel changed (the additions are a private field, a private fn and test code); hsk-studio-reel-native was not rebuilt in this lane; grep for end_pts and actual. over its src finds no read of a receipt span, so it cannot depend on the changed value"
+ }
+}
