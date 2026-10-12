@@ -210,7 +210,8 @@
     "successor_closure_observation_20261013": {
       "mt183": "PASS_V1; independent original focused predecessor proof exit0, 1 passed, all ten input binding categories equal; exact evidence and AC mapping in MT-183.json#/independent_acceptance_20261013",
       "candidate": "37f452a6b3b07c0ffd91ab49c3f99632c4104bb8",
-      "next_outcome": "MT184 final core compilation; preparation only until independently reviewed bindings and fresh builder admission",
+      "mt184": "PASS_V1; independent actual core exit0, all485 proof-selected states and matched7416 input/configuration bindings; evidence in MT-184.json#/independent_acceptance_20261013",
+      "next_outcome": "MT186 original native compiler configuration and genuine deployment/authenticated-context admission; compiler proof supplies no runtime context",
       "parent_acceptance": "UNCHANGED; MT171-175 and whole-WP acceptance remain required",
       "new_attempt_allowance": false
     },

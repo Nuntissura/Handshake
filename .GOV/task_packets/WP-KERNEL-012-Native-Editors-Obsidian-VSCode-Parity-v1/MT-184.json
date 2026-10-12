@@ -141,16 +141,16 @@
     "generator": null
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "PASS_V1",
     "depends_on": [
       "MT-183"
     ],
     "blocks": [],
-    "active": true,
-    "validator_verdict": "PENDING",
+    "active": false,
+    "validator_verdict": "PASS_V1",
     "claimed_by": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
-    "completed_by": null,
-    "next_actor": "Assigned folded KERNEL_BUILDER prepares reviewed exact core compilation bindings after MT183 PASS; no source writes or launch before admission"
+    "completed_by": "01a1323e-c183-77e3-b8ba-b286507e5617",
+    "next_actor": "MT186 reconcile original native compiler configuration and genuine deployment/authenticated-context admission"
   },
   "scope": {
     "summary": "Final core compilation on frozen reconciled candidate",
@@ -293,5 +293,30 @@
     "kind": "Operator-authorized preservation-first execution decomposition",
     "parent_ref": "MT-174.json#/spec_basis",
     "new_product_requirements": false
+  },
+  "independent_acceptance_20261013": {
+    "verdict": "PASS_V1",
+    "validator_session": "01a1323e-c183-77e3-b8ba-b286507e5617",
+    "candidate_commit": "37f452a6b3b07c0ffd91ab49c3f99632c4104bb8",
+    "candidate_tree": "e22db7bd603b56caac2fec5cef9afc2e8b38733f",
+    "proof_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt184-core-preparation",
+    "attempt_id": "25ce6792dc7c4649b18c0a3199eca9a7",
+    "actual_exit": 0,
+    "terminal": "Single final build-finished success=true; CHECK_SUCCEEDED; zero compiler errors",
+    "proof_selected_target_states": 485,
+    "missing_proof_selected_targets": 0,
+    "artifacts_outside_proof_selection": {"dependency": 832, "selected_package_custom_build": 1},
+    "bindings": "7416 source hashes and all before/after configuration categories equal; fresh independent source, ten authority, 22 metadata input and tool hashes match",
+    "evidence_sha256": "8c876bbbf15add063c7a4f58cee08680e96ddf1540bcb226c363b60762e2e2b7",
+    "stdout_sha256": "7e656b6f5666fb2629b52b2263df767a8d2865b7b850542b185fffe9a7f0ef08",
+    "stderr_sha256": "c36f715ff3a9da9de231efceaa2abf22226eb5c0ce51b81aed3ff4f360c73b53",
+    "ac1": "Exit0, all485 original expected lib/test states, terminal and unchanged configuration observed",
+    "ac2": "Inherited scope/pins/history/budgets retained; actual independent binding and corrected raw artifact reconciliation",
+    "coordinator_canonical_reread": "Opened actual compile-result.json, compile-post-binding.json and compile-evidence.json; observed exit0, zero errors, 485 states and matched bindings",
+    "shared_batch": "Covers matching MT173/174 compile obligations through existing proof/shared_batch_refs; no duplicate run",
+    "runtime_acceptance": "NOT_RUN",
+    "parent_acceptance": "UNCHANGED; independent residual original parent/WP requirements remain required",
+    "historical_failed_core_launches_retained": 38,
+    "new_allowance": false
   }
 }
