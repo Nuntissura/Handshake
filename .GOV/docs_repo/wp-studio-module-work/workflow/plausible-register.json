@@ -1126,7 +1126,7 @@
    "status": "OPEN",
    "verified_at": "85532ad",
    "disposition": "FIX_LANE",
-   "disposition_note": "after R11 (crate frozen for the pre-review)"
+   "disposition_note": "after R11 (crate frozen for the pre-review); 2026-10-12T05:30:06Z fix submitted SMB-INTEROP-PSD-FOLIO-CEILING ceb9d33..fdc01f1"
   },
   {
    "id": "PLR-064",
@@ -1459,6 +1459,21 @@
    "verified_at": "0c34342",
    "disposition": "FIX_LANE",
    "disposition_note": "next reel lane (AV1-ROUTE 2-FAIL area: narrow pre-review)"
+  },
+  {
+   "id": "PLR-086",
+   "lane": "SMB-INTEROP-PSD-FOLIO-CEILING",
+   "file_line": "crates/hsk-studio-interop-psd (descriptor reader 512-entry list cap)",
+   "finding": "the descriptor reader's 512-entry cap per list refuses a stack of 1 live + 512 off effects in one list with descriptor_item_limit (parse-level bound, category-blind), so the visible stack is still lost at that size",
+   "first_seen": "builder report fdc01f1 (measured)",
+   "seen_in": [
+    "builder report fdc01f1"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "fdc01f1",
+   "disposition": "FIX_LANE",
+   "disposition_note": "needs a lead decision: raise/partition the list cap for effect lists or report the typed loss per category"
   }
  ],
  "process_items": [

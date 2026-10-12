@@ -1,0 +1,288 @@
+{
+ "crate": "hsk-studio-interop-psd",
+ "lane": "SMB-INTEROP-PSD-FOLIO-CEILING",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "PLR-063 fixed and pushed (ceb9d33; fdc01f1 is the READY commit): Folio's 1024-instance ceiling cuts only the switched-off category; red 4 of 4 new tests on a scratch copy of bfa1bbf, green at fdc01f1 (effects_budget 16/16, crate 57/57, doctests 0, clippy clean for this crate)",
+ "commits": [
+  {
+   "sha": "ceb9d33",
+   "subject": "interop-psd (SMB-INTEROP-PSD-FOLIO-CEILING, PLR-063): Folio's per-stack ceiling cuts only the switched-off instances; a visible stack with counted instances survives"
+  },
+  {
+   "sha": "03d7ff8",
+   "subject": "interop-psd (SMB-INTEROP-PSD-FOLIO-CEILING): rustfmt layout of the four new effects_budget tests (formatting only, no behaviour change)"
+  },
+  {
+   "sha": "fdc01f1",
+   "subject": "interop-psd (SMB-INTEROP-PSD-FOLIO-CEILING): doc comments of the Folio ceiling cite the tests that prove them (V4-07); comment-only"
+  }
+ ],
+ "capabilities_done": [
+  "PLR-063 verified present at bfa1bbf (effects.rs:563-564 `if effects.len() >= MAX_EFFECTS { return Err(EFFECTS_OVER_BUDGET); }`, the 552-554 of the register moved with later comment edits) and fixed [ceb9d33]: map_stack classifies each instance as it is mapped through one predicate counts(stack_enabled, visible, instance_enabled); counted instances are bounded by the per-layer limit (64) alone, switched-off ones by Folio's ceiling (MAX_EFFECTS 1024) alone",
+  "a visible stack with counted instances whose counted + switched-off instances exceed 1024 is mapped with ALL its counted instances (stack order, source ordinals kept) and without its switched-off ones; typed loss effects_unrendered_dropped_over_stack_ceiling (kind Transformed, names the layer) via Fit::CountedOnlyOverStack; before: the whole stack was lost with effects_over_budget (1 live + 1024 off = 1025 mapped)",
+  "a stack with NO counted instances (switched-off only, hidden layer or group, master-off) past 1024 instances is still not mapped (effects_over_budget, as before); a stack with more than 64 counted instances is still not mapped whatever its switched-off instances (effects_over_budget, as before)",
+  "the instances dropped for the ceiling are not kept, so they are not charged to the document's uncounted bound (4096) and do not close it; kept instances stay <= 8192 and the record-validation node need stays <= max_layers + 8192 (unchanged, asserted exact by assert_record_need_is_exact)",
+  "the loop stays bounded by itself: at most 64 counted + 1024 switched-off instances are held (before: 1024 in all); the scan continues past the ceiling so a counted instance after more than 1024 switched-off ones is kept",
+  "tests/effects_budget.rs: 4 new tests (16 in the file): folios_per_stack_ceiling_cuts_only_the_switched_off_instances_of_a_stack_with_counted_instances, a_counted_instance_after_more_switched_off_ones_than_the_ceiling_is_still_kept, the_live_bound_still_cuts_a_stack_whatever_its_switched_off_instances, descriptor_states_the_folio_ceiling_rule; Fate::CountedOnlyStack and DROPPED_STACK added to the file's helpers",
+  "DESCRIPTOR effect_limits and capabilities, effects.rs header and item docs, proposal.rs ProposalConfig.budget and collect_records docs state the rule and cite the tests (V4-07)"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-interop-psd --no-fail-fast",
+  "exit": 0,
+  "sha": "fdc01f1",
+  "passed": 57,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 20,
+ "bg_pids": [],
+ "next": "Independent validator: crates/hsk-studio-interop-psd at fdc01f1 (ceb9d33 source + tests, 03d7ff8 test formatting, fdc01f1 comments; only this crate). notes.residual lists what stays open.",
+ "updated_at": "2026-10-12T05:29:27Z",
+ "notes": {
+  "plr": "PLR-063 (R11 pre-review PSD-R11-1, lane SMB-INTEROP-PSD-BUDGET, PLAUSIBLE at 85532ad); new lane id per V4-15 (the SMB-INTEROP-PSD-BUDGET lane file and its verdict history are untouched)",
+  "defect_verification": {
+   "base": "bfa1bbf (HEAD of codex/handshake-studio-assets at dispatch; origin == HEAD)",
+   "finding": "STILL PRESENT. crates/hsk-studio-interop-psd/src/effects.rs:563-564 at bfa1bbf (`if effects.len() >= MAX_EFFECTS { return Err(EFFECTS_OVER_BUDGET); }` inside the per-instance loop of map_stack, before the shape is known) counted live and switched-off instances together. Register line 552-554 had moved (later comment edits)",
+   "evidence": "red proof below: the new test's first assertion fails on bfa1bbf source with `layer L0: left Lost(effects_over_budget), right CountedOnlyStack(1)` (1 live + 1024 off)"
+  },
+  "design": [
+   "category of an instance = counts(stack master switch, layer visible with all groups, instance enabled), the same rule StackShape::of uses (one predicate, effects.rs)",
+   "loop: counted instance -> counted += 1, > MAX_EFFECTS_PER_LAYER (64) -> Err(effects_over_budget) at once (admit judges the same number), else kept; switched-off instance -> kept while kept switched-off < MAX_EFFECTS (1024), else dropped; a stack that cannot count (hidden, master-off) refuses at the first dropped one (as before: effects_over_budget before any more of the descriptor is mapped), a stack that can count flags off_dropped and keeps scanning (a counted instance may follow); ordinals come from a separate `mapped` counter so kept instances keep their source ordinal",
+   "after the loop: over_stack = off_dropped || kept > 1024; counted == 0 -> Err(effects_over_budget) (a stack of switched-off instances only: the ceiling cuts exactly the category it holds); counted > 0 -> retain the enabled (= counted) instances; admit then judges the shape of what the record holds (uncounted 0), and the Fit becomes CountedOnlyOverStack",
+   "proposal.rs: Fit match -> loss note (document bound: effects_unrendered_dropped_over_document_budget, ceiling: effects_unrendered_dropped_over_stack_ceiling, both Transformed, path layer[i]/tagged/lfx2(layer_id=...)); a distinct code because the cause is Folio's per-record ceiling, not a document budget",
+   "choice: all switched-off instances of the stack are dropped (not a prefix that would fit), consistent with the R10 lead decision for the uncounted bound (visible stack keeps its live instances, drops its switched-off ones) and with CountedOnly; rendered output is unchanged either way, a switched-off instance renders nothing"
+  ],
+  "behaviour_changes": [
+   "vs bfa1bbf: a stack with counted instances (<= 64) and counted + switched-off > 1024 imports with its counted instances and a Transformed loss; it was lost whole (Unsupported effects_over_budget). Every other case is unchanged: stacks <= 1024 (whole), > 64 counted (lost), no counted instances > 1024 (lost), document bounds (R10 tally)",
+   "new loss code effects_unrendered_dropped_over_stack_ceiling and DESCRIPTOR capability/clause strings (a host reading the loss report sees one new Transformed code)",
+   "transient memory while mapping one stack: up to 64 counted + 1024 switched-off instances (was 1024 in all); still one stack at a time and dropped before the next layer; the document-level bound (max_layers + 8192 node need) is unchanged"
+  ],
+  "red_proof": {
+   "tree": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-psd-folio-ceiling-red/src/handshake-studio-assets: git archive bfa1bbf (tree eb7cdf643e3d62ceaf5b3324eddecbbe24535af6) with own STUDIO_OWNER=smb-psd-folio-ceiling-red (own target and tmp) and its .gameplan-active pointer next to src/. Only difference to bfa1bbf: tests/effects_budget.rs = the committed file at ceb9d33 (md5 40cdfa77666247cd4fab63d822411e59; the formatting-only 03d7ff8 changes layout only)",
+   "argv": "cargo nextest run -p hsk-studio-interop-psd --test effects_budget --no-fail-fast",
+   "result": "4 of 4 NEW tests FAIL, the 12 older effects_budget tests PASS (red1.log, 16 run: 12 passed, 4 failed): folios_per_stack_ceiling_... `layer L0: left Lost(effects_over_budget), right CountedOnlyStack(1)`; a_counted_instance_after_... `layer L0: Lost(effects_over_budget) vs CountedOnlyStack(3)`; the_live_bound_still_cuts_... `layer L3: Lost(effects_over_budget) vs CountedOnlyStack(64)` (L0-L2, the live-bound cases, match pre-fix: that bound already held; the assertion stops at L3); descriptor_states_the_folio_ceiling_rule fails (the new clauses are not in the pre-fix DESCRIPTOR)",
+   "green": "same argv in the same scratch tree after refreshing in place the three src files to the ceb9d33 blobs (md5 equal, current mtimes, V4-11): 16 passed (green-scratch1.log). Shared tree (working tree == commit for this crate) `cargo nextest run -p hsk-studio-interop-psd --no-fail-fast`: 57 passed at ceb9d33 content (nextest1.log), at 03d7ff8 content (nextest2.log) and at fdc01f1 content (nextest3.log)",
+   "logs": "<scratchpad>/SMB-INTEROP-PSD-FOLIO-CEILING/ red1.log, green-scratch1.log, nextest1..3.log, clippy1..3.log, check1.log, doc1.log, probe1.log"
+  },
+  "v4_01": "effects.rs keeps #![deny(clippy::arithmetic_side_effects)]; the new arithmetic is saturating_add / saturating_sub only (mapped, counted, effects.len() - counted); clippy clean for this crate (the two too_many_arguments warnings are in hsk-studio-observe, pre-existing)",
+  "v4_02": "aggregate_over_budget-style: the ceiling is asserted at its exact boundary in both categories (1+1023 and 64+960 whole, 1+1024 and 64+961 cut) and the uncounted aggregate is asserted untouched (5 x 1024 dropped leave 64 hidden stacks x 64 = 4096 kept, the next lost with effects_unrendered_over_document_budget); dims_u32_max-style: not applicable, no new decoder and no size-driven allocation (the descriptor reader is unchanged and its u32::MAX count tests stay green)",
+  "v4_03": "all fixtures are in-memory synthetic bytes; no machine-local path; no NOT_PROVEN line; no #[ignore]",
+  "v4_04": "no fault-injection hook added",
+  "v4_05": "no frozen duplicate (ZIP/deflate/CRC, worker supervision, timecode) touched or added",
+  "v4_06": {
+   "class": "ceiling counted across categories: a limit, ceiling or bound on effect instances that counts the counted (live, rendered by a plan) and the uncounted (switched-off, hidden, master-off) category together, or that refuses or drops a stack or instances of one category because of the other category's count",
+   "regex": "MAX_EFFECTS|MAX_UNCOUNTED_EFFECTS_PER_DOCUMENT|effects\\.len\\(\\)|\\.counted\\b|\\.uncounted\\b|StackShape|EffectTally|\\.kept\\(\\)|Fit::|MAX_ITEMS_PER_CONTAINER|MAX_TOTAL_ITEMS|max_layers|psd_layer_limit over crates/hsk-studio-interop-psd/src/**/*.rs, comment lines excluded (git grep -nP '<regex>' fdc01f1 -- crates/hsk-studio-interop-psd/src | grep -vP ':\\d+:\\s*//'), measured at fdc01f1 (source equal to ceb9d33 apart from comments); 45 matches at bfa1bbf",
+   "count": 49,
+   "sites": [
+    {
+     "file_line": "src/descriptor.rs:19",
+     "verdict": "NOT_APPLICABLE: constant (512 entries per container); see notes.residual[0]"
+    },
+    {
+     "file_line": "src/descriptor.rs:21",
+     "verdict": "NOT_APPLICABLE: constant (8192 items per descriptor); see notes.residual[0]"
+    },
+    {
+     "file_line": "src/descriptor.rs:178",
+     "verdict": "NOT_APPLICABLE: parse-level hostile-size cap of the generic descriptor reader (V4-02), checked before any entry is read, so it cannot know a category; refuses the descriptor as unreadable with the typed loss descriptor_item_limit (Unsupported, names the layer), not a mapped-instance ceiling; measured consequence for one multi list in notes.residual[0] (object item count)"
+    },
+    {
+     "file_line": "src/descriptor.rs:200",
+     "verdict": "NOT_APPLICABLE: parse-level hostile-size cap of the generic descriptor reader (V4-02), checked before any entry is read, so it cannot know a category; refuses the descriptor as unreadable with the typed loss descriptor_item_limit (Unsupported, names the layer), not a mapped-instance ceiling; measured consequence for one multi list in notes.residual[0] (list entry count)"
+    },
+    {
+     "file_line": "src/descriptor.rs:244",
+     "verdict": "NOT_APPLICABLE: aggregate item counter start (8192), same mechanism as :178"
+    },
+    {
+     "file_line": "src/document.rs:349",
+     "verdict": "NOT_APPLICABLE: layer-record count against Limits::max_layers; counts every record alike (no counted/switched-off categories), a whole-input hostile-size reject with the typed error psd_layer_limit (V4-01/02), not an effect ceiling"
+    },
+    {
+     "file_line": "src/effects.rs:25",
+     "verdict": "NOT_APPLICABLE: import of Folio's MAX_EFFECTS (used at :104, :613, :638)"
+    },
+    {
+     "file_line": "src/effects.rs:29",
+     "verdict": "NOT_APPLICABLE: pigment's counted limits re-exported from their owner"
+    },
+    {
+     "file_line": "src/effects.rs:103",
+     "verdict": "NOT_APPLICABLE: constant, bounds the uncounted category only (R10); unchanged"
+    },
+    {
+     "file_line": "src/effects.rs:104",
+     "verdict": "NOT_APPLICABLE: compile-time guard that the counted per-layer limit (64) is inside Folio's ceiling (1024); it is what lets the ceiling cut only the switched-off category (test folios_per_stack_ceiling_cuts_only_the_switched_off_instances_of_a_stack_with_counted_instances)"
+    },
+    {
+     "file_line": "src/effects.rs:116",
+     "verdict": "NOT_APPLICABLE: StackShape type, counted/uncounted split"
+    },
+    {
+     "file_line": "src/effects.rs:121",
+     "verdict": "NOT_APPLICABLE: impl StackShape"
+    },
+    {
+     "file_line": "src/effects.rs:125",
+     "verdict": "FIXED: the split now comes from the single counts() predicate that map_stack also uses for the ceiling (same rule as before: stack enabled, layer visible, instance enabled)"
+    },
+    {
+     "file_line": "src/effects.rs:170",
+     "verdict": "NOT_APPLICABLE: EffectTally, two independent sides (R10); unchanged"
+    },
+    {
+     "file_line": "src/effects.rs:177",
+     "verdict": "NOT_APPLICABLE: impl EffectTally"
+    },
+    {
+     "file_line": "src/effects.rs:179",
+     "verdict": "NOT_APPLICABLE: admit signature; Fit now has the variant CountedOnlyOverStack, which admit never returns (map_stack derives it)"
+    },
+    {
+     "file_line": "src/effects.rs:180",
+     "verdict": "NOT_APPLICABLE: empty stack, Whole"
+    },
+    {
+     "file_line": "src/effects.rs:181",
+     "verdict": "NOT_APPLICABLE: Whole"
+    },
+    {
+     "file_line": "src/effects.rs:183",
+     "verdict": "NOT_APPLICABLE: per-layer limit on COUNTED instances only (own category; test the_per_layer_limit_counts_live_instances_of_visible_layers)"
+    },
+    {
+     "file_line": "src/effects.rs:187",
+     "verdict": "NOT_APPLICABLE: uncounted bound over the uncounted category only (R10 fixed class, tests the_unrendered_bound_never_costs_a_stack_with_counted_instances_its_rendered_effects)"
+    },
+    {
+     "file_line": "src/effects.rs:188",
+     "verdict": "NOT_APPLICABLE: stack without counted instances is judged by the uncounted bound alone (R10)"
+    },
+    {
+     "file_line": "src/effects.rs:190",
+     "verdict": "NOT_APPLICABLE: uncounted refusal for a stack without counted instances only (R10)"
+    },
+    {
+     "file_line": "src/effects.rs:194",
+     "verdict": "NOT_APPLICABLE: counted side over the counted category only (R10, test the_counted_bound_never_costs_a_stack_without_counted_instances_its_record)"
+    },
+    {
+     "file_line": "src/effects.rs:197",
+     "verdict": "NOT_APPLICABLE: uncounted bound only decides Whole vs CountedOnly for a stack with counted instances (R10)"
+    },
+    {
+     "file_line": "src/effects.rs:201",
+     "verdict": "NOT_APPLICABLE: charge adds counted and uncounted separately; a stack cut by the Folio ceiling is charged its counted instances only"
+    },
+    {
+     "file_line": "src/effects.rs:202",
+     "verdict": "NOT_APPLICABLE: counted total, saturating"
+    },
+    {
+     "file_line": "src/effects.rs:203",
+     "verdict": "NOT_APPLICABLE: uncounted total, saturating; the instances dropped for the ceiling are not in the shape that is charged (second half of the PLR-063 test)"
+    },
+    {
+     "file_line": "src/effects.rs:204",
+     "verdict": "NOT_APPLICABLE: only the document-bound CountedOnly closes the uncounted side; the new CountedOnlyOverStack does not (second half of the PLR-063 test: five such stacks leave the whole 4096 to hidden stacks)"
+    },
+    {
+     "file_line": "src/effects.rs:220",
+     "verdict": "NOT_APPLICABLE: kept() sums both categories for the record-validation node need (a sizing, not a cut; exact at the boundary via assert_record_need_is_exact in every effects_budget test that imports kept stacks)"
+    },
+    {
+     "file_line": "src/effects.rs:542",
+     "verdict": "NOT_APPLICABLE: tally parameter of effect_stack"
+    },
+    {
+     "file_line": "src/effects.rs:553",
+     "verdict": "NOT_APPLICABLE: tally parameter of map_stack"
+    },
+    {
+     "file_line": "src/effects.rs:609",
+     "verdict": "FIXED: new in-loop check of the counted category against the per-layer limit (the same number admit judges), so the loop holds at most 64 counted instances and the stack is refused where the live bound is crossed (test the_live_bound_still_cuts_a_stack_whatever_its_switched_off_instances)"
+    },
+    {
+     "file_line": "src/effects.rs:613",
+     "verdict": "FIXED: the Folio ceiling in the loop counted effects.len() >= MAX_EFFECTS across both categories (bfa1bbf effects.rs:563); it now counts the kept switched-off instances only (effects.len() - counted), and a switched-off instance past the ceiling is dropped (a stack that can count keeps scanning) or, for a stack that cannot count, refuses the stack as before"
+    },
+    {
+     "file_line": "src/effects.rs:638",
+     "verdict": "FIXED: after the loop the ceiling is judged on counted + kept switched-off instances together; over it, a stack with counted instances keeps all of them (retain enabled), a stack with none is refused (effects_over_budget)"
+    },
+    {
+     "file_line": "src/effects.rs:647",
+     "verdict": "NOT_APPLICABLE: admit on the shape of what the record will hold (after the ceiling cut, so the dropped instances are not judged by the uncounted bound)"
+    },
+    {
+     "file_line": "src/effects.rs:648",
+     "verdict": "FIXED: Fit::CountedOnlyOverStack, the typed Transformed loss effects_unrendered_dropped_over_stack_ceiling is reported from it (proposal.rs:588)"
+    },
+    {
+     "file_line": "src/effects.rs:651",
+     "verdict": "NOT_APPLICABLE: retain for the document-bound CountedOnly, unchanged"
+    },
+    {
+     "file_line": "src/error.rs:55",
+     "verdict": "NOT_APPLICABLE: stable code string psd_layer_limit"
+    },
+    {
+     "file_line": "src/lib.rs:67",
+     "verdict": "NOT_APPLICABLE: DESCRIPTOR limits (max_layers) text, unchanged"
+    },
+    {
+     "file_line": "src/lib.rs:82",
+     "verdict": "FIXED: DESCRIPTOR effect_limits: clause 3 narrowed to counted > 64 or no counted instances past the ceiling; new clause for the ceiling cutting only the switched-off ones with the loss code and the citing test; each_bound_cuts_only_its_own_category now true for the ceiling (test descriptor_states_the_folio_ceiling_rule); the capabilities list names the new loss entry"
+    },
+    {
+     "file_line": "src/limits.rs:8",
+     "verdict": "NOT_APPLICABLE: Limits::max_layers field"
+    },
+    {
+     "file_line": "src/limits.rs:27",
+     "verdict": "NOT_APPLICABLE: Limits::max_layers default"
+    },
+    {
+     "file_line": "src/proposal.rs:485",
+     "verdict": "NOT_APPLICABLE: Builder.effect_tally field"
+    },
+    {
+     "file_line": "src/proposal.rs:582",
+     "verdict": "NOT_APPLICABLE: charges the shape of what the record holds (after any cut)"
+    },
+    {
+     "file_line": "src/proposal.rs:586",
+     "verdict": "NOT_APPLICABLE: Fit::Whole, no loss entry"
+    },
+    {
+     "file_line": "src/proposal.rs:587",
+     "verdict": "NOT_APPLICABLE: document-bound CountedOnly, loss effects_unrendered_dropped_over_document_budget, unchanged"
+    },
+    {
+     "file_line": "src/proposal.rs:588",
+     "verdict": "FIXED: ceiling-cut stack reports the Transformed loss effects_unrendered_dropped_over_stack_ceiling naming the layer"
+    },
+    {
+     "file_line": "src/proposal.rs:1642",
+     "verdict": "NOT_APPLICABLE: tally initialised empty"
+    },
+    {
+     "file_line": "src/proposal.rs:1812",
+     "verdict": "NOT_APPLICABLE: node need = records + kept instances of both categories, checked_add -> Overflow; a sizing, not a cut (max_layers + 8192 unchanged)"
+    }
+   ]
+  },
+  "v4_07": "claims with never/always/only/cannot: DESCRIPTOR effect_limits ('cuts_only_the_switched_off_ones', 'each_bound_cuts_only_its_own_category') cites test folios_per_stack_ceiling_cuts_only_the_switched_off_instances_of_a_stack_with_counted_instances and is pinned by descriptor_states_the_folio_ceiling_rule; effects.rs header, EFFECTS_OVER_BUDGET, Fit::CountedOnlyOverStack, effect_stack and map_stack comments name the tests (the_live_bound_still_cuts_..., a_counted_instance_after_..., a_stack_past_folios_ceiling_...); proposal.rs ProposalConfig.budget and collect_records name the PLR-063 test; the former 'never costs' wording of the ceiling in map_stack was weakened to 'is not cut'",
+  "lock_wait_note": "lock_wait_s 20 = the two waits printed by the disk build lock (3 s for check1, 17 s for clippy1); the other gated runs printed no wait line",
+  "retry_guard": "no gated run was blocked by the retry guard and none failed on a product cause in the shared tree. The red run failed on the scratch tree by design (product fix then absent there); the green run in the same scratch tree used the same argv after the source refresh and was not blocked. All gated runs were launched in the dispatch form (leading cd, then for scratch trees `export STUDIO_OWNER=...`, then source studio-env.sh); no gameplan step added",
+  "process": "shared worktree HEAD bfa1bbf at start, 0c34342 and later moved by other lanes (none touched this crate, its dependency crates accord/folio/pigment/prism/observe or the root Cargo.toml/Cargo.lock: git log bfa1bbf..fdc01f1 over those paths lists only the three commits of this lane); three pathspec commits with -F message files under <scratchpad>/SMB-INTEROP-PSD-FOLIO-CEILING/, no amend, no rebase, no add of untracked files; pushed after each; the uncommitted changes of other crates in the shared tree (hsk-studio-score, Cargo.lock) were not touched. rustfmt (workspace toolchain, edition 2024) on a scratch copy with `mod common;` commented out: the four new tests have no diff; the six pre-existing hunks of older tests and the pre-existing src style were not reformatted. Scratch files only under <scratchpad>/SMB-INTEROP-PSD-FOLIO-CEILING/ and the scratch tree smb-psd-folio-ceiling-red (tmp/fmt, tests/probe_cap.rs there is scratch-only and never committed)",
+  "residual": [
+   "MEASURED (probe in the scratch tree, probe1.log): the descriptor reader's per-container cap (descriptor.rs MAX_ITEMS_PER_CONTAINER 512) counts raw entries of one list before any entry is read: a single multi list with 1 live + 511 off imports (512 kept), 1 live + 512 off (513 entries), 0 live + 513 off and 513 live all lose the stack with the typed loss descriptor_item_limit (Unsupported, the lfx2 block stays byte-exact). The same shape as PLR-063 one layer lower (a visible stack lost to the count of its switched-off entries) but a different mechanism: a generic parse-level hostile-size bound that cannot know the category; not changed here (outside the Folio mapped-instance ceiling the lane names; would need a category-aware streaming parse). The 8192 total-items cap (descriptor.rs MAX_TOTAL_ITEMS) is the same kind and, for effects with many items each, is reached before 1024 instances; frequency in Photoshop-authored files UNVERIFIED (D5). Fixtures spread the instances over three lists for this reason",
+   "the claim that a plan of an imported document cannot exceed 4096 effects stays reasoned, not test-proven here (R9 note, unchanged; no composite dependency)",
+   "the two deliberate over-counts (no-pixel layers, clipped layers on a hidden or empty base) are unchanged and disclosed (PLR-064)"
+  ],
+  "not_done": [
+   "no prefix-of-switched-off-instances variant (keeping as many switched-off instances as fit): dropping all of them matches the R10 decision and the stack renders the same"
+  ]
+ }
+}
