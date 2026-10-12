@@ -1,4 +1,293 @@
 {
+  "round41_reviewed_source_release_20261012": {
+  "id": "WP012-P2-ROUND41-REVIEWED-SOURCE-20261012",
+  "at_utc": "2026-10-12T12:07:32.787230+00:00",
+  "status": "SOURCE_CLEAR_PUSHED_COMPILE_PENDING",
+  "product_commit": "de66b452230dbc139cadb567aded30c96d98e6a8",
+  "product_tree": "7a6114b0d7f8820c17477d84e247e3e8e3d2f110",
+  "parent": "880dda6d7fea02e230598d4c6215545ec35510fd",
+  "covers": [
+    "MT-171",
+    "MT-172",
+    "MT-173",
+    "MT-174"
+  ],
+  "files": [
+    {
+      "path": "src/backend/handshake_core/src/capability_registry_workflow.rs",
+      "before_sha256": "549b98d0ae7606b2260f18f10d92bb84471ccb1d62581fda0367ee4261492385",
+      "after_sha256": "9e35a7b4e26bd04c4a8d2772d179866cc73e936ed337689fe77b4af7f270a004",
+      "original_assertion_lines_preserved": 0,
+      "changes": [
+        {
+          "before_start": 174,
+          "before_count": 1,
+          "after_start": 174,
+          "after_count": 3
+        },
+        {
+          "before_start": 194,
+          "before_count": 1,
+          "after_start": 196,
+          "after_count": 3
+        },
+        {
+          "before_start": 199,
+          "before_count": 0,
+          "after_start": 203,
+          "after_count": 33
+        },
+        {
+          "before_start": 209,
+          "before_count": 10,
+          "after_start": 246,
+          "after_count": 2
+        },
+        {
+          "before_start": 222,
+          "before_count": 2,
+          "after_start": 251,
+          "after_count": 2
+        },
+        {
+          "before_start": 228,
+          "before_count": 5,
+          "after_start": 257,
+          "after_count": 22
+        },
+        {
+          "before_start": 234,
+          "before_count": 2,
+          "after_start": 280,
+          "after_count": 3
+        },
+        {
+          "before_start": 817,
+          "before_count": 2,
+          "after_start": 864,
+          "after_count": 5
+        },
+        {
+          "before_start": 821,
+          "before_count": 1,
+          "after_start": 871,
+          "after_count": 1
+        },
+        {
+          "before_start": 844,
+          "before_count": 1,
+          "after_start": 894,
+          "after_count": 0
+        },
+        {
+          "before_start": 908,
+          "before_count": 0,
+          "after_start": 957,
+          "after_count": 1
+        },
+        {
+          "before_start": 913,
+          "before_count": 0,
+          "after_start": 963,
+          "after_count": 1
+        },
+        {
+          "before_start": 915,
+          "before_count": 4,
+          "after_start": 966,
+          "after_count": 12
+        },
+        {
+          "before_start": 920,
+          "before_count": 3,
+          "after_start": 979,
+          "after_count": 2
+        },
+        {
+          "before_start": 924,
+          "before_count": 2,
+          "after_start": 982,
+          "after_count": 5
+        },
+        {
+          "before_start": 928,
+          "before_count": 2,
+          "after_start": 989,
+          "after_count": 3
+        },
+        {
+          "before_start": 931,
+          "before_count": 1,
+          "after_start": 993,
+          "after_count": 2
+        },
+        {
+          "before_start": 933,
+          "before_count": 0,
+          "after_start": 996,
+          "after_count": 10
+        },
+        {
+          "before_start": 940,
+          "before_count": 0,
+          "after_start": 1013,
+          "after_count": 8
+        },
+        {
+          "before_start": 1011,
+          "before_count": 5,
+          "after_start": 1092,
+          "after_count": 3
+        },
+        {
+          "before_start": 1031,
+          "before_count": 0,
+          "after_start": 1110,
+          "after_count": 1
+        },
+        {
+          "before_start": 1062,
+          "before_count": 2,
+          "after_start": 1142,
+          "after_count": 3
+        },
+        {
+          "before_start": 1067,
+          "before_count": 5,
+          "after_start": 1148,
+          "after_count": 3
+        }
+      ]
+    },
+    {
+      "path": "src/backend/handshake_core/src/storage/surreal.rs",
+      "before_sha256": "cb4d0a6e2dc981fc7e045a57467a22b2491f2d266c4896dcd554169e397145b9",
+      "after_sha256": "e8ab25b663dd522e0ebd98f8161191d504057f7f8446db4d22b246f30a3a5595",
+      "original_assertion_lines_preserved": 24,
+      "changes": [
+        {
+          "before_start": 749,
+          "before_count": 0,
+          "after_start": 749,
+          "after_count": 35
+        }
+      ]
+    },
+    {
+      "path": "src/backend/handshake_core/src/swarm_orchestration/coordinator.rs",
+      "before_sha256": "6553014958b42368c26ed3c21da9edceb61a7f7a3a7df059bad48ebc1fed65f8",
+      "after_sha256": "185aacdec50fae221f6fe6f1f74e9778516052290e546c3187ef12033d412a42",
+      "original_assertion_lines_preserved": 0,
+      "changes": [
+        {
+          "before_start": 4316,
+          "before_count": 0,
+          "after_start": 4316,
+          "after_count": 2
+        },
+        {
+          "before_start": 4321,
+          "before_count": 0,
+          "after_start": 4323,
+          "after_count": 2
+        },
+        {
+          "before_start": 4340,
+          "before_count": 0,
+          "after_start": 4344,
+          "after_count": 1
+        }
+      ]
+    },
+    {
+      "path": "src/backend/handshake_core/src/storage/surreal/schema.rs",
+      "before_sha256": "625535be5d93feb3aca27c2d651ea45d195f137f0ba9ecebdff9bd2a5b0e332b",
+      "after_sha256": "cd07ee7450a3c3989ad174ec26aa76dea378ff454a3124ddff926ea2e5fa740d",
+      "original_assertion_lines_preserved": 432,
+      "changes": [
+        {
+          "before_start": 3400,
+          "before_count": 1,
+          "after_start": 3400,
+          "after_count": 1
+        },
+        {
+          "before_start": 3423,
+          "before_count": 1,
+          "after_start": 3423,
+          "after_count": 1
+        },
+        {
+          "before_start": 3999,
+          "before_count": 1,
+          "after_start": 3999,
+          "after_count": 1
+        }
+      ]
+    },
+    {
+      "path": "src/backend/handshake_core/src/storage/surreal/schema.surql",
+      "before_sha256": "8019bfd40173c9b9b07fc6878bb74780e064b2f3c93193db98c6e59082513147",
+      "after_sha256": "5adf07f534a3678d9932978336134d8f522aa535e96bc396c0814c6a90177d87",
+      "original_assertion_lines_preserved": 0,
+      "changes": [
+        {
+          "before_start": 978,
+          "before_count": 1,
+          "after_start": 978,
+          "after_count": 1
+        },
+        {
+          "before_start": 1001,
+          "before_count": 1,
+          "after_start": 1001,
+          "after_count": 1
+        }
+      ]
+    }
+  ],
+  "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round40-measurement-input-context-repair",
+  "bindings_sha256": "b449f2693ffd7a82a4acbd12f29ee2c1ac7f34f21a7b9f8bab083daaa78ddc72",
+  "diff_sha256": "ef90dea7a9ddeef20eb2b7a765925de93a7132f405d4c85efdafe2cd495aad5d",
+  "independent_review": {
+    "thread": "01a129ca-8eea-7f53-aa9d-7f81f6f08319",
+    "verdict": "SOURCE_CLEAR",
+    "finding": "Existing job-output alias equality missing",
+    "disposition": "Canonical resolved existing job directory must equal selected external path before write",
+    "remaining_findings": 0,
+    "limits": "Source only; not runtime acceptance"
+  },
+  "actual_failure_ref": "MT-174.json#/round40_independent_catalog_actual_result_20261012",
+  "source_semantics": "Explicit nested object in conditional preserves fields/filter; original optional account/subject/purpose carried into detached heartbeat; server config pins original external export bytes, no runtime live.GOV filesystem coupling",
+  "preserved": "Original assertions, historical pins, native grants/leases/journal/commit/FR behavior, workflow/event_ledger bytes and official CLI config",
+  "runtime_config": {
+    "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/registry-approved-inputs/registry-server-config.json",
+    "sha256": "71700f65e37ccc0db1b6465035a033d3228ea441b295aada1b38b274f070ac17",
+    "exports_sha256": "60917003b7d42db847942450dea8d7954b6e093fa11872de221c8e148a768955",
+    "original_exports_byte_exact": 19,
+    "approval_sha256": "e8c13358c9381011c40a9719d0eeb48a944df68c83c4eb9b36d7c87a503456e2"
+  },
+  "prior_core": "Round40 GREEN historical only; changed-input proof pending; 38 actual failures retained",
+  "BASE": null,
+  "FINAL": null,
+  "accepted_mts": "0/5",
+  "next_actor": "Delivery fresh admission then one existing core command; Review exact existing MT139 observation after successful compiler result; no unchanged retries",
+  "prior_lifecycle": {
+    "status": "BLOCKED",
+    "blocked_on": "Core Round40 GREEN on880dda; runtime remains blocked on independently measured BASE/FINAL pins and fresh/reopen proof, prohibited live .GOV registry input coupling, genuine native authorization/publication and consumed runtime/native independent acceptance; accepted0/5.",
+    "depends_on": [
+      "MT-173"
+    ],
+    "blocks": [],
+    "active": true,
+    "validator_verdict": null,
+    "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
+    "claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
+    "completed_by": null,
+    "next_actor": "Independent Review executes existing MT139 measured catalog target after fresh admission; sole coder reconciles measured pins and original registry external input seam; preserve original authority/assertions; no unchanged core rerun"
+  }
+},
+
 
   "round40_independent_catalog_actual_result_20261012": {
     "id": "WP012-P2-MT139-ACTUAL-PARSE-FAILURE-20261012",
@@ -3821,7 +4110,7 @@
   },
   "lifecycle": {
   "status": "BLOCKED",
-  "blocked_on": "Core Round40 GREEN on880dda; runtime remains blocked on independently measured BASE/FINAL pins and fresh/reopen proof, prohibited live .GOV registry input coupling, genuine native authorization/publication and consumed runtime/native independent acceptance; accepted0/5.",
+  "blocked_on": "Reviewed source repair pushed de66b4522; required compiler proof on changed inputs pending. Independent BASE/FINAL catalog observations and fresh/reopen, genuine native authorization/publication and consumed runtime acceptance remain unproven; accepted0/5.",
   "depends_on": [
     "MT-173"
   ],
@@ -3831,7 +4120,7 @@
   "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
   "claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
   "completed_by": null,
-  "next_actor": "Independent Review executes existing MT139 measured catalog target after fresh admission; sole coder reconciles measured pins and original registry external input seam; preserve original authority/assertions; no unchanged core rerun"
+  "next_actor": "Delivery fresh admission then one existing core command; Review exact existing MT139 observation after successful compiler result; no unchanged retries"
 },
   "scope": {
     "summary": "Reconcile shared core/bootstrap/manifests import paths",
