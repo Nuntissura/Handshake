@@ -231,3 +231,4 @@
 {"t": "2026-10-12T02:06:32Z", "event": "press R17 fix 20510c5 landed (position->draw certainty, nearest entry, kind checks); /AS + /F closure requested in the same lane before re-review", "commits": ["20510c5"], "progress": "direct: product commit"}
 {"t": "2026-10-12T02:15:54Z", "event": "press /AS + /F closed (51f3e72, a92310f; 140/140; mutants Mh-Mm killed); /OC edge: conservative fail-closed rule requested in the same lane", "commits": ["51f3e72", "a92310f"], "progress": "direct: product commits"}
 {"t": "2026-10-12T02:26:42Z", "event": "press R17 remediation complete at bcc0688 (/OC fail-closed, 141/141); SMB-NOTES-BATCH-1 READY; narrow pre-review next", "commits": ["35be374", "d39bd28", "bcc0688"], "progress": "direct: product commits"}
+{"t": "2026-10-12T04:50:37Z", "event": "R18 opened at bfa1bbf: steward-5 already in sync, canary C23 exit 73 59/59; validator-r18 launched (opus); usage 5h 10% / weekly 93%", "progress": "no direct progress (dispatch)"}
