@@ -10517,20 +10517,40 @@ mod tests {
             .await
             .expect("select memory context");
         let database = SurrealAdminContext { client: &client };
-        database
-            .query_bound(
-                SCHEMA,
-                BootstrapBindings {
+        let schema_result: Result<(), SurrealStorageError> = async {
+            let mut response = database.client.query(SCHEMA)
+                .bind(SurrealValue::into_value(BootstrapBindings {
                     schema_version: SCHEMA_VERSION.to_owned(),
                     schema_revision: SCHEMA_REVISION,
                     namespace: DEFAULT_NAMESPACE.to_owned(),
                     database: DEFAULT_DATABASE.to_owned(),
                     source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
                     generated_surql_sha256: GENERATED_SURREALQL_SHA256.to_owned(),
-                },
-            )
-            .await
-            .expect("apply current schema in memory");
+                }))
+                .await?;
+            let mut errors = response.take_errors().into_iter().collect::<Vec<_>>();
+            errors.sort_by_key(|(index, _)| *index);
+            let first_error = errors.first().map(|(_, error)| error.clone());
+            let masked = errors.iter().filter(|(_, error)| matches!(
+                error.query_details(), Some(surrealdb::types::QueryError::NotExecuted)
+            )).count();
+            eprintln!("MT139_SCHEMA_STATEMENT_ERROR_COUNTS total={} masked={masked}", errors.len());
+            for (index, error) in errors.iter().filter(|(_, error)| !matches!(
+                error.query_details(), Some(surrealdb::types::QueryError::NotExecuted)
+            )) {
+                eprintln!("MT139_SCHEMA_STATEMENT_ERROR index={index} error={error:?}");
+            }
+            if masked == errors.len() {
+                if let Some((index, error)) = errors.first() {
+                    eprintln!("MT139_SCHEMA_FIRST_MASKED_ERROR index={index} error={error:?}");
+                }
+            }
+            // take_errors removes failures; retain the original first-error outcome.
+            if let Some(error) = first_error { return Err(error.into()); }
+            response.check()?;
+            Ok(())
+        }.await;
+        schema_result.expect("apply current schema in memory");
         let observed = inspect_schema(&database)
             .await
             .expect("inspect current memory schema");
