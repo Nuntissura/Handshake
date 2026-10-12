@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-12T08:17:20Z",
+ "updated_at": "2026-10-12T08:41:40Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -2548,7 +2548,7 @@
     "validation/R23-prereview-narrow.json"
    ],
    "launched": "2026-10-12T08:17:20Z",
-   "status": "running"
+   "status": "done (R23: press FIX_FIRST, reel + psd SAFE)"
   }
  ]
 }

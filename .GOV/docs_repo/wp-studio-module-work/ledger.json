@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-12T08:17:20Z",
+ "updated_at": "2026-10-12T08:41:40Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3239,7 +3239,7 @@
    "crate": "hsk-studio-press",
    "origin": "PLR-094, PLR-093, PLR-091",
    "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "status": null,
    "owner": "builder-press-struct-failclosed",
    "candidate": "54c60f9",
    "commits": [
@@ -3248,7 +3248,20 @@
     "54c60f9"
    ],
    "verdicts": [],
-   "note": "claim d26d2fd+2566f1b+54c60f9: PLR-094 fail closed (unedited direct root: unplaced elements -> ResidualInRegion); sibling: edited trees walked through indirect /K arrays (and nested arrays) -> off-page struct text counted; PLR-093 docs; PLR-091 test; V4-06 115 hits, 0 open; 5 mutants killed; press 158/158"
+   "note": "claim d26d2fd+2566f1b+54c60f9: PLR-094 fail closed (unedited direct root: unplaced elements -> ResidualInRegion); sibling: edited trees walked through indirect /K arrays (and nested arrays) -> off-page struct text counted; PLR-093 docs; PLR-091 test; V4-06 115 hits, 0 open; 5 mutants killed; press 158/158",
+   "r23_prereview": {
+    "ref": "validation/R23-prereview-narrow.json",
+    "recommendation": "FIX_FIRST",
+    "head": "54c60f9",
+    "at": "2026-10-12T08:41:40Z"
+   },
+   "blockers": [
+    {
+     "error": "V4-19: R23 narrow pre-review FIX_FIRST (R23-P1 alias objects, R23-P2 IDTree/foreign ParentTree-only elements of an edited tree, R23-P3 depth > 64, R23-P4 ordinary tagged files leak /IDTree keys, ClassMap attribute text, /Table /Alt); lead decision 2026-10-12T08:41:40Z: structure tree = NOT PROVEN for any tagged document",
+     "file_line": "crates/hsk-studio-press/src/flatten_purge.rs:319,328,342,359,407,502,541,1109,1148-1161,1189",
+     "attempts": 0
+    }
+   ]
   },
   {
    "lane_id": "SMB-INTEROP-PSD-DESC-CAP",
@@ -3262,7 +3275,13 @@
     "0c1be05"
    ],
    "verdicts": [],
-   "note": "PLR-095: DESCRIPTOR states 8192-item cap with measured per-kind costs (required-only 3-16 items; all keys read 24-46; contour point 4) and which cap fires first (all-keys instances hit 8192 at 292-341 per descriptor before 1024/512); proposal.rs:527-528 says MAPPED; no behaviour change; crate 62/62; Photoshop-authored item counts UNVERIFIED"
+   "note": "PLR-095: DESCRIPTOR states 8192-item cap with measured per-kind costs (required-only 3-16 items; all keys read 24-46; contour point 4) and which cap fires first (all-keys instances hit 8192 at 292-341 per descriptor before 1024/512); proposal.rs:527-528 says MAPPED; no behaviour change; crate 62/62; Photoshop-authored item counts UNVERIFIED",
+   "r23_prereview": {
+    "ref": "validation/R23-prereview-narrow.json",
+    "recommendation": "SAFE_TO_JUDGE",
+    "head": "54c60f9",
+    "at": "2026-10-12T08:41:40Z"
+   }
   },
   {
    "lane_id": "SMB-REEL-PTS-TESTS",
@@ -3276,7 +3295,13 @@
     "172952f"
    ],
    "verdicts": [],
-   "note": "PLR-092: Fake::holding() finish()-holding plan, 3 held-decoder tests + boundary test + unit test; negative-pts refusal proven unreachable (isobmff.rs:2087 chain in notes.reachability), dead sign check removed, i64 end bound kept; 5 mutants red; reel 78/78 default, 85/85 av1"
+   "note": "PLR-092: Fake::holding() finish()-holding plan, 3 held-decoder tests + boundary test + unit test; negative-pts refusal proven unreachable (isobmff.rs:2087 chain in notes.reachability), dead sign check removed, i64 end bound kept; 5 mutants red; reel 78/78 default, 85/85 av1",
+   "r23_prereview": {
+    "ref": "validation/R23-prereview-narrow.json",
+    "recommendation": "SAFE_TO_JUDGE",
+    "head": "54c60f9",
+    "at": "2026-10-12T08:41:40Z"
+   }
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
@@ -3513,7 +3538,7 @@
  "resume_plan": {
   "at": "2026-10-12T07:26:27Z",
   "steps": [
-   "1. Three lanes READY at 54c60f9 (SMB-PRESS-STRUCT-FAILCLOSED d26d2fd+2566f1b+54c60f9, SMB-REEL-PTS-TESTS 172952f, SMB-INTEROP-PSD-DESC-CAP 0c1be05). In flight: V4-13 narrow pre-review 3930a7c..54c60f9 -> validation/R23-prereview-narrow.json. If SAFE: steward sync + canary C26 + round R21 (1 validator; two-FAIL lanes SMB-PRESS, SMB-REEL-AV1-ROUTE, SMB-REEL-NATIVE-AV1-WORKER via reel, SMB-INTEROP-PSD-BUDGET). If FIX_FIRST: fresh builder on the same lane.",
+   "1. R23: SMB-REEL-PTS-TESTS + SMB-INTEROP-PSD-DESC-CAP SAFE_TO_JUDGE; SMB-PRESS-STRUCT-FAILCLOSED FIX_FIRST -> remediation running (lead decision STRUCTURE TREE = NOT PROVEN). Then narrow pre-review of the press remediation only, then steward sync + canary + round R21 judging all three (+ reopens; two-FAIL lanes SMB-PRESS, SMB-REEL-AV1-ROUTE, SMB-REEL-NATIVE-AV1-WORKER via reel, SMB-INTEROP-PSD-BUDGET). Operator item D28 (strip structure tree on redaction save?).",
    "2. Then SMB-PRESS-GEOMETRY, SMB-FMT-SWEEP, notes residuals (config-OBU tag, exact-64 FRAME test, psd group-own-lfx2/zero-tile).",
    "3. Round R21: steward sync + canary + 1 validator (list all two-FAIL lanes, PROC-R19-V1).",
    "4. Keep pushing gov_kernel after every commit (weekly >= 85%).",

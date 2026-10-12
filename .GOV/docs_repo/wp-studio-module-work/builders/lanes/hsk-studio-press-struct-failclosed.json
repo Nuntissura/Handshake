@@ -1,8 +1,8 @@
 {
  "crate": "hsk-studio-press",
  "lane": "SMB-PRESS-STRUCT-FAILCLOSED",
- "status": "READY_FOR_VALIDATION",
- "phase": "READY_FOR_VALIDATION at 54c60f9 (claim = d26d2fd + 2566f1b + 54c60f9, all pushed, nothing pushed to hsk-studio-press after 54c60f9, V4-14). 54c60f9 fixes the V4-06 open sibling (indirect-array /K) with option (2) fail closed per the lead hold 2026-10-12T07:54:54Z; option (1) is PLR-097.",
+ "status": null,
+ "phase": "FIX_FIRST (R23) -> remediation per lead decision 'STRUCTURE TREE = NOT PROVEN'",
  "commits": [
   {
    "sha": "d26d2fd",
@@ -33,11 +33,17 @@
   "passed": 158,
   "failed": 0
  },
- "blockers": [],
+ "blockers": [
+  {
+   "error": "V4-19: R23 narrow pre-review FIX_FIRST (R23-P1 alias objects, R23-P2 IDTree/foreign ParentTree-only elements of an edited tree, R23-P3 depth > 64, R23-P4 ordinary tagged files leak /IDTree keys, ClassMap attribute text, /Table /Alt); lead decision 2026-10-12T08:41:40Z: structure tree = NOT PROVEN for any tagged document",
+   "file_line": "crates/hsk-studio-press/src/flatten_purge.rs:319,328,342,359,407,502,541,1109,1148-1161,1189",
+   "attempts": 0
+  }
+ ],
  "lock_wait_s": 0,
  "bg_pids": [],
  "next": "Validator: judge SMB-PRESS-STRUCT-FAILCLOSED as the claim d26d2fd + 2566f1b + 54c60f9 (READY commit 54c60f9). Later improvement, not part of this claim: PLR-097 (neutralize_structure walks and rewrites a /K that is a reference to an array so the text is removed instead of reported).",
- "updated_at": "2026-10-12T08:15:51Z",
+ "updated_at": "2026-10-12T08:41:40Z",
  "notes": {
   "scope_files": [
    "crates/hsk-studio-press/src/flatten_purge.rs (code: edited_structure_root, tree_elements, children, unplaced_structure_elements, check_document tail; docs)",
