@@ -499,7 +499,7 @@ pub struct LoomEdge {
     pub event_ledger_event_id: Option<String>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct NewLoomEdge {
     pub edge_id: Option<String>,
     pub workspace_id: String,
