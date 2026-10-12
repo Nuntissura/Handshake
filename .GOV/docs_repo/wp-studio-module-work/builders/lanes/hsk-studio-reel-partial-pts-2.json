@@ -1,0 +1,127 @@
+{
+ "crate": "hsk-studio-reel",
+ "lane": "SMB-REEL-PARTIAL-PTS-2",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "SMB-REEL-PARTIAL-PTS-2 (new lane id, V4-15; PLR-085 and PLR-088 from validation/R21-prereview-narrow.json R21-R1/R21-R2 and the PLR-085 residual R1 of SMB-REEL-PARTIAL-PTS) complete on 2fb17a8: a Partial video receipt spans the DELIVERED pictures (start = earliest pts over delivered pictures, end = latest pts + duration over delivered pictures, whatever order the decoder released them in; empty span at the packet start when none was delivered); a fully delivered decode is unchanged; base fdc01f1 (the only commit that touched crates/hsk-studio-reel between fdc01f1 and 2fb17a8 is 2fb17a8, verified by git log fdc01f1..HEAD -- crates/hsk-studio-reel)",
+ "commits": [
+  {
+   "sha": "2fb17a8",
+   "subject": "reel (SMB-REEL-PARTIAL-PTS-2, PLR-085, PLR-088): a Partial video receipt spans the delivered pictures, from the earliest start to the latest end"
+  }
+ ],
+ "capabilities_done": [
+  "PLR-085 src/video.rs: Forward::delivered_end becomes Forward::delivered_span: Option<(u64, u64)> = (earliest pts, latest pts + duration) over the pictures handed to the sink, computed in Forward::accept after the sink took the picture by the checked picture_span() (i64::try_from, checked_add, u64::try_from; typed LimitExceeded tick-range / Unsupported negative-presentation-time, the packet receipt's own variants); the Partial branch of decode_video_track_with (delivered < req.count, Preview; an Export still returns Incomplete first) sets actual.start_pts and actual.end_pts from it, and with no delivered picture keeps the empty-span convention (end = start = the packet start); a fully delivered decode skips the branch, so its receipt is the packet receipt",
+  "PLR-088 test partial_video_receipt_follows_pictures_released_out_of_order (tests/video_route.rs): B-frame style clip built with the existing mp4_bytes/Mp4Spec (decode order I P B = tags 0,1,2; ctts offsets [40,60,20] + edit (60,40) = presentation I 0, B 20, P 40 units), rows Works / DropPicture(0..2) / DropFrom(1); the arrival order and presentation times are pinned per row, so the P picture (ends latest, tag 1) is not the last arrival (B, tag 2) in the DropPicture(0) row: last-arrival-for-end and first-arrival-for-start both fail it (see red_proofs); Works row equals the packet receipt",
+  "PLR-085 tests: partial_video_receipt_ends_at_the_last_delivered_picture renamed partial_video_receipt_spans_the_delivered_pictures and its table gained the expected START per row (first picture dropped -> start at the first delivered picture; pre-roll with the first requested picture dropped; pre-roll with the only requested picture dropped = empty span); new partial_video_receipt_over_a_packet_short_range_follows_the_delivered_pictures",
+  "R21-R1 test naming: the decoder-drop row of fully_delivered_video_receipt_end_is_the_packet_end (repeating edit list, DropPicture(1)) is split out into partial_video_receipt_over_a_packet_short_range_follows_the_delivered_pictures (rows DropPicture(1), DropPicture(0), DropFrom(0)); fully_delivered_... now holds only rows where the decoder delivered everything the packets offered, and its repeating-list row is the Works row",
+  "DESCRIPTOR export.rule states the new rule (earliest start to latest end, whatever release order, empty span at the packet start) and cites the four tests; export.tests lists them (V4-07); the old name partial_video_receipt_ends_at_the_last_delivered_picture no longer appears in the crate (grep)"
+ ],
+ "tests": {
+  "argv": "studio-env.sh (shared tree, default STUDIO_OWNER), launched in the background: cargo nextest run -p hsk-studio-reel --test video_route --no-fail-fast (12 passed); cargo nextest run -p hsk-studio-reel --no-fail-fast (default: 73 passed); cargo nextest run -p hsk-studio-reel --features av1 --no-fail-fast (80 passed); cargo test --doc -p hsk-studio-reel (2 doctests: 1 compile_fail + 1 pass); cargo check -p hsk-studio-reel --tests; cargo clippy -p hsk-studio-reel --tests (default and --features av1): no warning in hsk-studio-reel (the 2 pre-existing too_many_arguments warnings are in hsk-studio-observe/src/lib.rs); cargo fmt -p hsk-studio-reel --check clean",
+  "exit": 0,
+  "sha": "2fb17a8",
+  "passed": 80,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 13,
+ "bg_pids": [],
+ "next": "Validator round on 2fb17a8 (default and --features av1; doctests). Claim = 2fb17a8 on base fdc01f1: 3 files (src/video.rs +31 -19, src/lib.rs DESCRIPTOR text 1 line, tests/video_route.rs +174 -43). AV1-ROUTE (2 failed verdicts) area: the diff is limited to Forward (one field replaced, picture_end -> picture_span, three lines in accept) and the Partial branch of decode_video_track_with; choose(), VideoRoute, Chosen, SourceTrust, the declared-size and plane checks, the pump and every pre-existing error path are unchanged. Residuals for the lead: R1-R3 in notes.residuals.",
+ "updated_at": "2026-10-12T06:31:31Z",
+ "notes": {
+  "base": "fdc01f1 (the last validated candidate of R19 for this crate); the shared tree HEAD moved to 0f87710 (a press-only commit) before 2fb17a8, so 2fb17a8 sits on 0f87710; git diff fdc01f1..2fb17a8 -- crates/hsk-studio-reel is exactly the 3 files of the lane (git log fdc01f1..HEAD -- crates/hsk-studio-reel lists only 2fb17a8)",
+  "source": "validation/R21-prereview-narrow.json R21-R1 (test naming) and R21-R2 (test strength: max vs last arrival), workflow/plausible-register.json PLR-085 and PLR-088, SMB-REEL-PARTIAL-PTS lane notes residual R1",
+  "decisions": [
+   "D1 start of a Partial video receipt = min over delivered pictures of meta.pts (the pts of the packet the picture came from, the same pts the packet loop gives that chunk), end = max over delivered pictures of meta.pts + meta.duration; both are order-independent (min/max), so a decoder that releases pictures out of presentation order (B-frames) is covered; both live in one Option<(u64, u64)> so start and end cannot disagree about whether a picture was delivered",
+   "D2 no picture delivered -> start stays the packet start and end = start (the empty-span convention of this crate, unchanged from SMB-REEL-PARTIAL-PTS); the span can never be reversed because every picture has end >= start (duration is a u64 converted checked into i64) and min of starts <= max of ends",
+   "D3 only the Partial branch changes: when every picture arrived the packet receipt is not touched (also pinned by fully_delivered_video_receipt_end_is_the_packet_end and by the Works rows of the other tests); requested span, disposition (Partial), complete=false and units are as before; an Export with a shortfall still returns Incomplete before the span is patched",
+   "D4 picture_span() adds one conversion over the old picture_end(): u64::try_from(pts) with the packet receipt's variant (Unsupported negative-presentation-time), run after the sink took the picture and after the end check. By reading isobmff.rs build_presentation (presented entries in non-decreasing presentation time, each edit starts at or after the previous end) and deliver_packets (start_actual = to_ticks(wanted[0].pts)? already refuses a negative first pts) every delivered picture's pts is >= wanted[0].pts >= 0, so the new refusal is unreachable through the demuxers; no test builds a negative non-first entry (code reading, not executed)",
+   "D5 PLR-088 fixture reuses the crate's mp4_bytes/Mp4Spec (ctts offsets + edit list, the same technique as tests/foundation_contract.rs gop_spec and tests/engine_video.rs frag_spec); a small av01_clip() helper in the test file replaces the inline spec of the old repeating-list test (also used by it), no new fixture file and no second copy of the fake decoder",
+   "D6 test names: the table test is renamed (its content changed: start and end per row), the fully-delivered test keeps its name (its content now matches it), two names are new; DESCRIPTOR rule and tests list updated in the same commit"
+  ],
+  "residuals": [
+   "R1 a reordering decoder that releases a picture with a later TAG before earlier ones still drains the earlier pending packets in Forward::accept (existing behaviour, untouched, residual R2 of SMB-REEL-PARTIAL-PTS): their pictures count as dropped; the out-of-order test releases pictures in tag order and varies PRESENTATION order, which is what the span depends on",
+   "R2 the fake decoder releases each picture synchronously inside send() and nothing in finish(); a decoder that holds pictures until finish() (R21-R2 second half) is not exercised by a new fake plan; by code Forward::accept also runs from session.finish() (video.rs:542-544) before the Partial branch (video.rs:549), so the span includes them",
+   "R3 scratch to remove when the lead agrees: Handshake_Artifacts/WP-KERNEL-STUDIO/smb-reel-partial-pts-2-redproof (own STUDIO_OWNER and target; src = git archive of fdc01f1 with tests/video_route.rs and src/lib.rs copied from the lane; its src/video.rs currently holds the M2 mutant, not product code); scratchpad SMB-REEL-PARTIAL-PTS-2 holds the logs, the commit message file and the helper scripts"
+  ],
+  "red_proofs": {
+   "tree": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-reel-partial-pts-2-redproof (own STUDIO_OWNER smb-reel-partial-pts-2-redproof, own target; src = git archive of fdc01f1; tests/video_route.rs and src/lib.rs copied from the lane with cp (no -p) then touch (V4-11); no file of the shared tree was reverted or restored). Logs in scratchpad SMB-REEL-PARTIAL-PTS-2/",
+   "A_unfixed_video_rs": "src/video.rs = unfixed fdc01f1, new tests: cargo nextest run -p hsk-studio-reel --test video_route: 12 tests, 9 passed, 3 FAILED, exit 100 (red-A-unfixed-video.log): partial_video_receipt_spans_the_delivered_pictures (mp4 case 2, DropPicture(0): actual.start_pts left 0 = the packet start, right 10584000000 = the first delivered picture), partial_video_receipt_over_a_packet_short_range_follows_the_delivered_pictures (tags [1] delivered: start left 0, right 8467200000 = 20 units) and partial_video_receipt_follows_pictures_released_out_of_order (case 1, DropPicture(0): start left 0, right 8467200000 = 20 units); fully_delivered_video_receipt_end_is_the_packet_end and the 8 other tests pass on the unfixed tree",
+   "control_fixed": "same scratch tree with the committed 2fb17a8 video.rs (cmp identical to the shared tree): 12/12 passed (green-scratch-fixed.log), so the three reds above fail on the fix's absence only",
+   "M1_end_is_last_arrival": "PLR-088 mutant: fixed video.rs with the end taken from the last arriving picture instead of the max (`(first.min(start), end)`, video.rs:392 of the scratch copy): 12 tests, 11 passed, 1 FAILED, exit 100 (red-M1-end-last-arrival.log): partial_video_receipt_follows_pictures_released_out_of_order case 1 (DropPicture(0)): actual.end_pts left 16934400000 = 40 units (the end of B, the last arrival), right 25401600000 = 60 units (the end of P, the latest end)",
+   "M2_start_is_first_arrival": "mutant: the start taken from the first arriving picture instead of the min (`(first, last.max(end))`): 12 tests, 11 passed, 1 FAILED, exit 100 (red-M2-start-first-arrival.log): the same test, case 1: actual.start_pts left 16934400000 = 40 units (P, the first arrival), right 8467200000 = 20 units (B, the earliest start)",
+   "green": "shared tree at 2fb17a8: video_route 12/12 (green-focused.log), default 73/73 (green-full-default.log), --features av1 80/80 (green-full-av1.log), doctests 2 (green-doc.log)"
+  },
+  "v4_06": {
+   "class": "the START of a receipt's actual span taken from the packet receipt, the request or the first requested unit instead of from the first unit actually delivered to the sink (receipt start taken from packet instead of delivered pictures); the END of the same class was closed by SMB-REEL-PARTIAL-PTS",
+   "regex": "Span\\s*\\{|\\.actual\\b|actual:|start_actual|actual_start|start_pts\\s*[:=]   (run in crates/hsk-studio-reel as grep -rnE over src and examples)",
+   "count": "45 matching lines (40 in src, 6 of them test code in src/delivery_tests.rs, and 5 in examples/reel-consumer.rs): 1 fixed, 44 not applicable, all 45 listed in sites",
+   "sites": [
+    {"site": "src/video.rs:567", "status": "FIXED: receipt.actual.start_pts followed the packet receipt (the first requested packet); now the start of the earliest delivered picture (this lane)"},
+    {"site": "src/video.rs:568", "status": "not applicable here: actual.end_pts, closed by SMB-REEL-PARTIAL-PTS (PLR-077); now read from the same delivered_span in the same match arm"},
+    {"site": "src/video.rs:570", "status": "not applicable: no picture delivered -> end = packet start, the empty-span convention (test partial_video_receipt_spans_the_delivered_pictures rows DropFrom(0), DropFrom(1) first 1, DropPicture(1) count 1)"},
+    {"site": "src/video.rs:548", "status": "not applicable: actual.units = pump.fwd.delivered counts delivered pictures, not packets"},
+    {"site": "src/isobmff.rs:2087", "status": "not applicable: packet receipt start_actual = to_ticks(wanted[0].pts); the sample of wanted[0] is delivered at that pts and is the first presented entry, so a packet-level shortfall (repeating edit list) drops only later duplicate entries, never the start; a sink error aborts the call"},
+    {"site": "src/isobmff.rs:2098", "status": "not applicable: requested length computed from start_actual and range_end"},
+    {"site": "src/isobmff.rs:2104", "status": "not applicable: delivered_end starts at start_actual = the empty-span convention of the packet loop"},
+    {"site": "src/isobmff.rs:2155", "status": "not applicable: requested: Span literal head"},
+    {"site": "src/isobmff.rs:2156", "status": "not applicable: requested start_pts names the request's own start by definition"},
+    {"site": "src/isobmff.rs:2165", "status": "not applicable: actual: Span literal head of the packet receipt (see 2087)"},
+    {"site": "src/isobmff.rs:2166", "status": "not applicable: actual start_pts = start_actual (see 2087); Matroska packets and the video route both call this loop"},
+    {"site": "src/isobmff.rs:444", "status": "not applicable: seek computation (decode start pts of a sync sample), builds no receipt"},
+    {"site": "src/isobmff/pcm.rs:546", "status": "not applicable: actual_start = tick_at(start): the PCM loop reads sequentially from start, the first delivered frame is at start; a shortfall is a short tail (cursor)"},
+    {"site": "src/isobmff/pcm.rs:554", "status": "not applicable: requested: Span literal head"},
+    {"site": "src/isobmff/pcm.rs:555", "status": "not applicable: requested start_pts"},
+    {"site": "src/isobmff/pcm.rs:564", "status": "not applicable: actual: Span literal head (546)"},
+    {"site": "src/isobmff/pcm.rs:565", "status": "not applicable: actual start_pts = actual_start (546)"},
+    {"site": "src/wav.rs:389", "status": "not applicable: requested: Span literal head"},
+    {"site": "src/wav.rs:390", "status": "not applicable: requested start_pts"},
+    {"site": "src/wav.rs:399", "status": "not applicable: actual: Span literal head"},
+    {"site": "src/wav.rs:400", "status": "not applicable: actual start = tick_span(start, tps): sequential read from start, delivered = cursor - start (PLR-066)"},
+    {"site": "src/y4m.rs:405", "status": "not applicable: requested: Span literal head"},
+    {"site": "src/y4m.rs:406", "status": "not applicable: requested start_pts"},
+    {"site": "src/y4m.rs:415", "status": "not applicable: actual: Span literal head"},
+    {"site": "src/y4m.rs:416", "status": "not applicable: actual start = tick_span(start, tpf): frames are read in order from start, delivered = counted frames (PLR-066)"},
+    {"site": "src/mxf/provider.rs:278", "status": "not applicable: requested: Span literal head"},
+    {"site": "src/mxf/provider.rs:279", "status": "not applicable: requested start_pts"},
+    {"site": "src/mxf/provider.rs:283", "status": "not applicable: actual: Span literal head"},
+    {"site": "src/mxf/provider.rs:284", "status": "not applicable: actual start = units_to_ticks(start): edit units are delivered sequentially from start, each requested display position once or the call is refused (PLR-066)"},
+    {"site": "src/model.rs:140", "status": "not applicable: SegmentRequest.start_pts field definition"},
+    {"site": "src/model.rs:259", "status": "not applicable: Span struct definition"},
+    {"site": "src/model.rs:260", "status": "not applicable: Span.start_pts field definition"},
+    {"site": "src/model.rs:269", "status": "not applicable: SegmentReceipt.actual field definition"},
+    {"site": "src/model.rs:582", "status": "not applicable: unit-test request builder"},
+    {"site": "src/delivery_tests.rs:80", "status": "not applicable: test code, request start_pts"},
+    {"site": "src/delivery_tests.rs:125", "status": "not applicable: test code, asserts actual.units"},
+    {"site": "src/delivery_tests.rs:127", "status": "not applicable: test code, asserts actual.end_pts"},
+    {"site": "src/delivery_tests.rs:164", "status": "not applicable: test code, asserts actual.units"},
+    {"site": "src/delivery_tests.rs:174", "status": "not applicable: test code, asserts actual.end_pts"},
+    {"site": "src/delivery_tests.rs:178", "status": "not applicable: test code, asserts actual.start_pts == the request start for the sequential providers"},
+    {"site": "examples/reel-consumer.rs:88", "status": "not applicable: prints receipt.actual.start_pts, builds none"},
+    {"site": "examples/reel-consumer.rs:89", "status": "not applicable: prints receipt.actual.end_pts"},
+    {"site": "examples/reel-consumer.rs:90", "status": "not applicable: prints receipt.actual.units"},
+    {"site": "examples/reel-consumer.rs:177", "status": "not applicable: request start_pts"},
+    {"site": "examples/reel-consumer.rs:211", "status": "not applicable: request start_pts"}
+   ],
+   "dependents_read": "grep over crates other than hsk-studio-reel for actual.start_pts/end_pts/units: the only reader of a receipt span is hsk-studio-reel-native/tests/av1_worker.rs:203 (asserts actual.start_pts == pts[2] for a COMPLETE decode of the last frame, branch not entered); hsk-studio-reel-native was not rebuilt in this lane (no public item of hsk-studio-reel changed: a private field, a private fn and test code)"
+  },
+  "v4_compliance": {
+   "V4-01": "video.rs keeps #![deny(clippy::arithmetic_side_effects)]; picture_span uses i64::try_from, checked_add and u64::try_from with typed errors (LimitExceeded tick-range, Unsupported negative-presentation-time); the span update uses min/max only; clippy clean in both feature sets",
+   "V4-02": "no allocation, no loop and no size input added; one Option<(u64, u64)> replaces one Option<u64> in Forward",
+   "V4-03": "no machine path in the tests (fixtures by include_bytes and the synthetic mp4_bytes builder); no NOT_PROVEN prints; no ignored test",
+   "V4-04": "no fault hook added; the DropFrom plan variant was already a test-file enum arm",
+   "V4-05": "no frozen-duplicate fingerprint touched (no ZIP/deflate/CRC, worker supervision or timecode code)",
+   "V4-06": "see v4_06: class, regex, 45 lines, 1 fixed, 44 not applicable, all listed",
+   "V4-07": "the DESCRIPTOR sentence cites the four tests (partial_video_receipt_spans_the_delivered_pictures, partial_video_receipt_over_a_packet_short_range_follows_the_delivered_pictures, partial_video_receipt_follows_pictures_released_out_of_order, fully_delivered_video_receipt_end_is_the_packet_end), all exist as fn; the new DESCRIPTOR text holds none of never/always/guarantee/prove; the code comment 'never reversed' in the Partial branch is backed by the structural fact (end >= start per picture, min of starts <= max of ends) and the Works/Partial rows of the new tests",
+   "V4-09": "commit via git commit -F <file> with the pathspec crates/hsk-studio-reel; no amend, no rebase; text written with the Write and Edit tools and small helper scripts under the lane scratch folder",
+   "V4-11": "red proofs and mutants only on the scratch tree with its own STUDIO_OWNER; edited scratch files were touched before each build; no file of the shared tree was reverted or restored",
+   "V4-12": "helper files and logs under scratchpad/SMB-REEL-PARTIAL-PTS-2/ with lane-specific names (tail.rs, splice.py, descriptor.py, alias.py, commit-1.txt, *.log); no script of another lane was run",
+   "V4-14": "nothing is pushed to crates/hsk-studio-reel after the READY commit 2fb17a8",
+   "V4-15": "new lane id; the AV1-ROUTE lane was not stacked on",
+   "V4-21": "no outbound request was made in this lane (git push to the product remote only)"
+  },
+  "gameplan_route": "no retry-guard hit and no gameplan step added. One launch-form slip: the first nextest call began with a variable assignment before cd, so the hook resolved the kernel gameplan and blocked it (GP-016.. unconfirmed steps of another assignment); I did not confirm those steps, re-launched with a leading cd to the product workspace (the launch-form cause already recorded in the SMB-REEL-RECEIPTS lane) and it passed the Studio gameplan. All nextest runs (green, red A, control, M1, M2) were launched with run_in_background, so none was recorded as a failure by the retry guard; the three red runs exited 100 by design on a scratch tree with its own owner (product reds, not an infrastructure cause) and each ran a different source state",
+  "trust_routing_untouched": "git diff fdc01f1..2fb17a8 -- crates/hsk-studio-reel lists exactly src/lib.rs (DESCRIPTOR text), src/video.rs and tests/video_route.rs; in video.rs choose(), VideoRoute, Chosen, SourceTrust, VideoTrack, planes_match_format, within_declared_size, packed_len, Pump and every pre-existing error path are unchanged: the diff replaces the field Forward::delivered_end by delivered_span, picture_end by picture_span, updates the three lines after the sink call in Forward::accept and rewrites the Partial branch",
+  "verdicts": []
+ }
+}

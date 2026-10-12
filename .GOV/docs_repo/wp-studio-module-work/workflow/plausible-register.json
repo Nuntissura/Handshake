@@ -1468,7 +1468,7 @@
    "status": "OPEN",
    "verified_at": "0c34342",
    "disposition": "FIX_LANE",
-   "disposition_note": "next reel lane (AV1-ROUTE 2-FAIL area: narrow pre-review)"
+   "disposition_note": "next reel lane (AV1-ROUTE 2-FAIL area: narrow pre-review); 2026-10-12T06:32:00Z fix submitted SMB-REEL-PARTIAL-PTS-2 2fb17a8"
   },
   {
    "id": "PLR-086",
@@ -1513,7 +1513,7 @@
    "status": "OPEN",
    "verified_at": "fdc01f1",
    "disposition": "TEST",
-   "disposition_note": "next reel lane (with PLR-085)"
+   "disposition_note": "next reel lane (with PLR-085); 2026-10-12T06:32:00Z fix submitted SMB-REEL-PARTIAL-PTS-2 2fb17a8"
   },
   {
    "id": "PLR-089",
@@ -1559,6 +1559,21 @@
    "verified_at": "0f87710",
    "disposition": "FIX_LANE",
    "disposition_note": "pin with a test (fail-closed is acceptable); decide later whether /P to a flattened page should be rewritten"
+  },
+  {
+   "id": "PLR-092",
+   "lane": "SMB-REEL-PARTIAL-PTS-2",
+   "file_line": "crates/hsk-studio-reel/src/video.rs (Partial span; negative pts refusal)",
+   "finding": "new refusal for a negative pts on a non-first delivered picture is unreachable by code reading and untested; no fake decoder plan holds pictures until finish()",
+   "first_seen": "builder report 2fb17a8",
+   "seen_in": [
+    "builder report 2fb17a8"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "2fb17a8",
+   "disposition": "TEST",
+   "disposition_note": "next reel lane: add a finish()-holding fake plan; prove or remove the unreachable refusal"
   }
  ],
  "process_items": [

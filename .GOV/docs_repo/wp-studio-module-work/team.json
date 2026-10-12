@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-12T06:27:30Z",
+ "updated_at": "2026-10-12T06:32:00Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -2443,7 +2443,7 @@
     "builders/lanes/hsk-studio-reel-partial-pts-2.json"
    ],
    "launched": "2026-10-12T06:18:09Z",
-   "status": "running"
+   "status": "done 2026-10-12T06:32:00Z (SMB-REEL-PARTIAL-PTS-2 READY at 2fb17a8)"
   },
   {
    "name": "builder-psd-loss-detail",

@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-12T06:27:30Z",
+ "updated_at": "2026-10-12T06:32:00Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3151,12 +3151,15 @@
    "lane_id": "SMB-REEL-PARTIAL-PTS-2",
    "crate": "hsk-studio-reel",
    "origin": "PLR-085, PLR-088",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-reel-partial-pts-2",
-   "candidate": null,
-   "commits": [],
-   "verdicts": []
+   "candidate": "2fb17a8",
+   "commits": [
+    "2fb17a8"
+   ],
+   "verdicts": [],
+   "note": "PLR-085 start = earliest delivered pts, end = latest pts+dur (checked); PLR-088 out-of-order test + renames/split; V4-06 45 sites (1 fixed); red 3/12 on scratch, mutants end=last-arrival and start=first-arrival both caught; reel 73/73 default, 80/80 av1"
   },
   {
    "lane_id": "SMB-INTEROP-PSD-LOSS-DETAIL",
@@ -3293,7 +3296,8 @@
   "SMB-PRESS-DOCS",
   "SMB-REEL-PARTIAL-PTS",
   "SMB-INTEROP-PSD-FOLIO-CEILING",
-  "SMB-PRESS-DOCS-2"
+  "SMB-PRESS-DOCS-2",
+  "SMB-REEL-PARTIAL-PTS-2"
  ],
  "round_R6": {
   "candidate": "bd8533f",
