@@ -1,0 +1,231 @@
+{
+ "kind": "pre-review",
+ "scope": "narrow",
+ "rule": "V4-13 (four lanes with 2 failed verdicts in history) + V4-14/V4-18 (a pre-review stands only while the crate is unchanged since it; all four crates changed)",
+ "round": "R16 pre-review, lane SMB-NOTES-BATCH-1 (press 27a9a81, web 9088884, reel-native ab273d3, interop-psd 5606d16) + advisory on SMB-PIGMENT-NOTES (pigment 9cb44c2, 8980d04; render-cpu fe035ce)",
+ "head": "5606d162549db9f3959d4ecaee85dbb1592d18e3",
+ "head_note": "git fetch done; origin/codex/handshake-studio-assets == local codex/handshake-studio-assets == 5606d16; the only ref that moved is origin/codex/handpick (451f7c1), 5606d16 is not its ancestor and git log 5606d16..<every remote ref> over the four crates is empty. Paths below are relative to handshake-studio-assets/ at 5606d16 unless marked. The shared tree has uncommitted edits (Cargo.lock, hsk-studio-score); git status over the four crates is empty; every read is a committed blob (git show / git diff / git grep).",
+ "base": "b8b31c7c50daadbb2b582cfd7e9c4fefd1aff564",
+ "reviewer": "independent read-only PRE-REVIEWER (V4-13), fresh context, wrote none of this code. No cargo, no sub-agents, no edit except this file. Builder-reported results (press 131, web 138, reel-native 24 + 5, interop-psd 53; clippy; red proofs; mutants) were NOT re-run; every statement that depends on a test passing is read from the test and the code it exercises only. V4-21: git fetch only, no other outbound request, no personal data anywhere.",
+ "severity_rule": "CONFIRMED = file:line read at 5606d16 and the behaviour follows from the code read (code paths reasoned, not executed); PLAUSIBLE = reasoning only, an untested sub-case, or an external fact not read; INFO = observation, no action required",
+ "recommendation_standard": "FIX_FIRST = a CONFIRMED finding in the claim that is the lane's deliverable, reachable by a validator who reads only the diff and the register item, changing what the shipped claim says about a redaction/correctness outcome. A CONFIRMED doc-only imprecision outside the register item's own claim (a magnitude remark, a count in kernel notes) = SAFE_TO_JUDGE with an optional rider (precedent: R14-N1 web, R15 reel-native).",
+ "method": "Kernel reads: HANDOFF.md, builders/lanes/notes-batch-1.json, workflow/plausible-register.json PLR-064/065/071/076/078, validation/R14-prereview-press.json, R14-prereview-web-narrow.json, R15-prereview-reel-narrow.json, R11-prereview-psd-budget.json, builders/DISPATCH_TEMPLATES.md topic v4-rules, ledger.json lane entries. Product repo: git log b8b31c7..HEAD and <prior pre-review basis>..HEAD per crate; git diff -U6/-U10 b8b31c7..5606d16 per crate (every src hunk and every test hunk read in full); line-numbered reads at 5606d16 of press flatten_purge.rs (470-870), sanitized_save.rs (1335-1514), writer.rs trailer_roots, error.rs Limits; web assets.rs (560-750), carriers.rs (95-175, 505-555), datauri.rs; reel-native host.rs (740-850), wire.rs (1-130); interop-psd effects.rs (44-66); composite lower_render_plan.rs (520-560, 668-770) and pigment extensions.rs refusal sites for the over-count claims; reel video.rs Forward (tag/pending). Scripted (python -I, scratchpad R16-prereview-notes/): DESCRIPTOR JSON parsed at b8b31c7 and 5606d16 and diffed key by key (desc_diff.py); comment-stripped source diff of every changed src file (code_only_diff.py); cited-test resolution against fn names (cite_check.py); scan of all 1914 added lines for drive-letter-like strings. V4-06 regexes re-run with git grep at 5606d16 (and b8b31c7 for the web wall-clock class).",
+ "started_at": "2026-10-12T00:45:07Z",
+ "started_at_note": "first clock reading of the session (taken with the first git fetch, after the first inputs were read)",
+ "completed_at": "2026-10-12T01:04:22Z",
+ "status": "COMPLETE",
+ "summary": {
+  "SMB-PRESS": {"recommendation": "FIX_FIRST", "CONFIRMED": 1, "PLAUSIBLE": 1, "INFO": 1, "note": "behaviour change is the intended fail-closed one and the flatten invariant is untouched, but the shipped 'any plain reference ... is reported' claim is false for plain references from a kept page's own non-gated resource entries and from objects a kept page draws; docs-only fix suffices"},
+  "SMB-WEB": {"recommendation": "SAFE_TO_JUDGE", "CONFIRMED": 1, "PLAUSIBLE": 0, "INFO": 1, "note": "no product behaviour change (cfg(test) hook + docs); the one CONFIRMED item is a V4-06 count in kernel lane notes (7 stated, 9 mechanical)"},
+  "SMB-REEL-NATIVE-AV1-WORKER": {"recommendation": "SAFE_TO_JUDGE", "CONFIRMED": 0, "PLAUSIBLE": 0, "INFO": 2, "note": "host.rs has 0 non-comment changed lines; docs match read_frame/Pool::spawn/exchange; five new host-level tests; PLR-078 keeps two disclosed residuals"},
+  "SMB-INTEROP-PSD-BUDGET": {"recommendation": "SAFE_TO_JUDGE", "CONFIRMED": 1, "PLAUSIBLE": 0, "INFO": 2, "note": "no logic change (comments + one DESCRIPTOR string + tests); one CONFIRMED docs imprecision (the 'only past 4096' clause is contradicted by the lane's own per-layer pin); optional one-clause rider"}
+ },
+ "range_check": {
+  "git_fetch": "done; no new product commit",
+  "commits_since_b8b31c7_touching_each_crate": {
+   "hsk-studio-press": ["27a9a81da042e1d3db65029c7beff7e103a87376"],
+   "hsk-studio-web": ["9088884678069373ceef8b7ad3eaeaec75e57fa1"],
+   "hsk-studio-reel-native": ["ab273d3002f0ea212d019905306a67dccdcab2ad"],
+   "hsk-studio-interop-psd": ["5606d162549db9f3959d4ecaee85dbb1592d18e3"]
+  },
+  "other_commits_in_range": "9cb44c2 (pigment), fe035ce (render-cpu), 8980d04 (pigment) = SMB-PIGMENT-NOTES; git diff --name-only b8b31c7..5606d16 outside those six crates is empty (no Cargo.toml, Cargo.lock, .config or tools change in the range)",
+  "since_prior_pre_review_basis": "git log <basis>..5606d16 per crate: press 7410f29 -> only 27a9a81; web 3d795a5 -> only 9088884; reel-native 4b76604 -> only ab273d3; interop-psd 85532ad -> only 5606d16; diffstat basis..5606d16 equals b8b31c7..5606d16 for each crate (press 4 files +184/-14, web 5 files +239/-20, reel-native 6 files +255/-35, interop-psd 4 files +218/-21), so each earlier SAFE_TO_JUDGE section plus this delta covers the whole history since that pre-review",
+  "commits_after_5606d16": "none on any remote ref for the four crates (origin, origin/codex/handpick, origin/codex/handshake-studio-assets)"
+ },
+ "lanes": [
+  {
+   "lane": "SMB-PRESS",
+   "sibling_lanes_sharing_the_crate": ["SMB-PRESS-DIFFERENCES"],
+   "crate": "hsk-studio-press",
+   "verdicts_so_far": "R5 FAIL_V1, R6 FAIL_V2, R13 PASS_V3 (ledger); the READY commit here reopens the lane for judging",
+   "commits_checked": ["27a9a81da042e1d3db65029c7beff7e103a87376 (src/flatten_purge.rs 45 changed lines, src/lib.rs DESCRIPTOR 2 lines, src/sanitized_save.rs 15 changed doc lines, tests/flatten_r13.rs 136 changed lines; 4 files +184/-14)"],
+   "register_item": "PLR-076: a painted region source also reachable by a non-drawing plain reference from a kept catalog structure (/AF, /Names, /Dests) was marked reached+certain: neither pruned nor reported while region_flattened() read true",
+   "behaviour_change": "YES, intended and fail-closed only. Comment-stripped diff (code_only_diff.py) of flatten_purge.rs = exactly two code hunks: src/flatten_purge.rs:761-762 trailer roots pushed with certain=false (was true) and :703-718 + :768-770 new fn appearance_streams (annotation /AP /N /R /D streams, state dictionaries included, of the annotations a kept page lists in its own /Annots) seeded certain=true. sanitized_save.rs: 0 non-comment changed lines. lib.rs: DESCRIPTOR only (redaction.flatten.painted_over, redaction.flatten.purge). Effect on the sets: `reached` is the same plain-reference closure under either flag, so `gone` (flatten_purge.rs:805) and therefore every pruning is unchanged; only `certain` shrinks, so painted_sources_kept (:829 = painted AND live AND NOT certain) can only grow. appearance_streams only re-adds certainty for the one drawing route (annotation appearances) that the trailer-root certainty used to cover.",
+   "checks": {
+    "a_exactly_the_register_item": "Yes for the catalog structures named in PLR-076. Test painted_source_referenced_by_a_kept_catalog_structure_is_reported (tests/flatten_r13.rs:488) covers catalog /AF, /Names /EmbeddedFiles tree and /Names /Dests tree (reads painted_sources_kept == [10], not_proven_reasons == [PaintedSourceKept], region_flattened/is_proven false, image bytes stay, unreferenced form 11 dropped, page two ops unchanged); I traced case one by hand through traverse/follow/resources/read_scope and get [10]. Counterpart painted_sources_drawn_by_kept_pages_or_annotation_appearances_are_not_reported (:530) covers page draw + /AF, annotation /AP /N stream, state-dictionary appearance + /AF (the /R and /D arms of appearance_streams are not exercised, see P-3). Not exact for the general claim: see P-1.",
+    "b_flatten_invariant_and_region_flattened": "UNCHANGED. flatten.rs, render_bounds.rs, raster.rs, paint.rs, canon.rs, redaction.rs are not in the diff; sanitized_save.rs has doc-comment changes only (:186-190, :1303-1308, :1365); region_flattened() (:1369-1376) and region_reasons() (:1349-1351, PaintedSourceKept pushed iff painted_sources_kept is non-empty) are byte-identical in code. Order in redact_and_save is unchanged (flatten :1458, strip_xfa :1461, remove_annotations :1464, canonicalize :1467, drop_painted_sources :1469), so appearance_streams never sees the /Annots of a flattened page (flatten writes /Annots [] and remove_annotations has run). PaintedSourceKept is therefore reported for /AF, /Names and /Dests references (the lane's three cases) and for no other new reason.",
+    "f_v4_07": "New doc/DESCRIPTOR text uses none of never/always/guarantees/proves (scan of all added lines); the one citation added (painted_source_referenced_by_a_kept_catalog_structure_is_reported) and the old one resolve to existing fns (cite_check.py). The absolute-sounding claim 'any plain reference ... is reported' has no test beyond the three catalog cases and is wider than the code, see P-1.",
+    "f_v4_06": "Mechanical recount git grep -n -E 'u\\.push\\(|certain: true|trailer_roots\\(' 5606d16 -- crates/hsk-studio-press/src = 13 hits (canon.rs 1, flatten_purge.rs 7, redaction.rs 1, sanitized_save.rs 1, text_fields.rs 1, writer.rs 2) = the lane's 13, identical file:line set. The count is exact, the class list is not complete: the regex does not match the other places that make a source certain without a draw, see P-1.",
+    "f_drive_letters": "0 of 1914 added lines (all four lane crates plus the three PIGMENT-NOTES crates) contain a letter + colon + backslash or slash string (python scan over the diff; 'file:///' and 'https://' do not match because the letter is preceded by a letter).",
+    "v4_01_v4_02": "flatten_purge.rs keeps #![deny(clippy::arithmetic_side_effects)] (:35 of the file); appearance_streams has no arithmetic and no decoder; its output is bounded by the annotation count of kept pages (input size)."
+   },
+   "new_findings": [
+    {
+     "id": "P-1",
+     "severity": "CONFIRMED",
+     "kind": "shipped claim wider than the code (V4-07 class) + V4-06 class list incomplete: a painted region source referenced by a plain reference from a kept page's own non-gated /Resources entry, or from a plain dictionary key of an object a kept page draws, is still certain: silently kept, not reported, region_flattened() true (same recoverability class as PLR-076, not a drawn-region leak)",
+     "file_line": "src/lib.rs:95 (DESCRIPTOR redaction.flatten.painted_over: 'a source that stays without being drawn because a kept object only references it (a catalog /AF, a /Names or /Dests name tree, any plain reference) is not pruned and is reported'; redaction.flatten.purge: 'or because a kept object only references it'); src/flatten_purge.rs:31-33 and src/sanitized_save.rs:187-188 ('any plain reference'), sanitized_save.rs:1304-1306 ('a kept object only references them'); the accurate counterpart is flatten_purge.rs:44-46 (only what is reached from the trailer roots by plain references ALONE is not certain); code: src/flatten_purge.rs:775-776 (page scope seed `u.resources(rv, true)`), :549-557 (Usage::resources follows every NON-gated entry of a resource dictionary with the scope's certainty, :556 `self.follow(v, certain)`), :578-583 (traverse follows every dictionary key of a certain-traversed object with certain, :582), :646 (`self.follow(target, certain)` for a drawn target), :805 (gone = not reached), :829 (reported = painted AND live AND NOT certain); sanitized_save.rs:1374; test coverage stops at tests/flatten_r13.rs:488-527",
+     "evidence": "Trace: kept page P2 has /Resources << /Properties << /X 10 0 R >> >> (or /ColorSpace, /ProcSet, any unknown key) and object 10 is an image of a flattened page. Page scope: u.resources(rv, true) (:776) -> resources() visits /Properties, which is not in GATED (:480), so :556 follow(v, true) -> push(10, true) -> mark(10, true): reached AND certain. 10 is not in `gone` (:805), so it is not pruned; it is live; it is certain, so :829 does not report it; painted_sources_kept stays empty and region_flattened() (sanitized_save.rs:1374) reads true while the unredacted image bytes stay in the file. The same holds for a plain key of a form, pattern, soft-mask group, Type 3 font or image that a kept page draws (traverse :582, e.g. an image /Alternates entry, a form /PieceInfo) and for plain keys of an annotation appearance stream (appearance_streams seeds them certain, :769). The DESCRIPTOR sentence says a source kept without being drawn because a kept object only references it, by any plain reference, is reported: false for these. The lane's V4-06 class ('a painted source made certain by a seed that is not a draw') lists 13 sites by the regex u\\.push\\(|certain: true|trailer_roots\\(, which matches neither u.resources(rv, true) (:776) nor the follow(.., certain) propagation (:556, :582, :646), so the list is count-exact but class-incomplete. Needs an unusual document (a region image also referenced from a kept page's non-drawing resource entry or from a drawn object's extra key); R14-P1 rated the catalog variant PLAUSIBLE/non-blocking for the same reason. Reasoned from code paths, not executed.",
+     "remediation": "Cheapest, docs only, zero behaviour risk: narrow the three places to what the code does: a plain reference from a structure reachable from the trailer roots that no kept page draws through (catalog /AF, /Names, /Dests, ...) is reported; a plain reference from the non-gated /Resources entries of a kept page or from a dictionary key of an object a kept page draws counts as drawn (stated residual). Or code: follow non-gated resource entries (Usage::resources :556) and the non-content dictionary keys of certain objects (traverse :582) with certain=false (only names resolved from decoded content and the appearance seeds are certain) + one test with the image under a kept page's /Properties (expected painted_sources_kept == [10]) + add `resources\\(|follow\\(` to the V4-06 regex and re-list. Either way a docs-or-code commit is a new push under V4-14: list it in the lane."
+    },
+    {
+     "id": "P-2",
+     "severity": "PLAUSIBLE",
+     "kind": "limit consumption doubles for objects reachable both from the catalog and from a drawing route; exhaustion is fail-closed",
+     "file_line": "src/flatten_purge.rs:564-566 (traversed is keyed (object, certain)), :591-593 (scoped keyed (object, certain)), :626-630 and :685-689 (steps > Limits::max_objects -> incomplete), error.rs:66 (max_objects 200_000), :799-804 (incomplete: nothing dropped, every live painted source reported)",
+     "evidence": "Before: the whole catalog closure was traversed once with certain=true. Now it is traversed with false from the trailer roots (:761-762) and again with true for everything the page scopes and appearance seeds reach (:768-770, :783). An annotation appearance stream with its own /Resources becomes two scopes ((n,false) from /Annots, (n,true) from the seed) and is decoded and parsed twice against `budget` (max_decoded_total). A document near 100k reached objects or near half the decode budget can therefore end `incomplete` (report everything, drop nothing) where it did not before. No test near the limits. Not demonstrated, reasoned.",
+     "remediation": "None required for judging (direction is fail-closed). Optional: key traversed/scoped by object alone and upgrade certain in place, or note the doubling in the lane. If the lead wants proof: one test with a large /Annots appearance count near max_objects/2."
+    },
+    {
+     "id": "P-3",
+     "severity": "INFO",
+     "kind": "appearance_streams reads no /F flags and its /R and /D arms are untested",
+     "file_line": "src/flatten_purge.rs:703-718 (loop over [\"N\", \"R\", \"D\"], no /F read); tests/flatten_r13.rs:530-580 (only /AP /N, stream and state-dictionary)",
+     "evidence": "The appearance of a Hidden or NoView annotation of a kept page is certain (silently kept) although a viewer does not draw it; narrower than before (everything under the catalog was certain), DESCRIPTOR says 'an annotation appearance a kept page lists, draws them'. A mutant that drops the \"R\" and \"D\" arms is not killed by any test.",
+     "remediation": "Optional: skip Hidden/NoView annotations (their sources then report, fail-closed) or say 'lists' only; add one /AP /D case."
+    }
+   ],
+   "wip_after_ready": "NONE. 27a9a81 is the only press commit after b8b31c7 and after the 7410f29 pre-review basis; it is listed in notes-batch-1.json commits[]; lane updated_at 2026-10-12T00:43:39Z is after the last commit (5606d16 committed 00:41:26Z); no later commit on any remote ref.",
+   "recommendation": "FIX_FIRST",
+   "recommendation_note": "The mechanism is right and narrow (two code hunks, fail-closed, flatten invariant and region_flattened() untouched, the three register cases pinned by a test that I traced by hand), but the sentence the lane wrote to satisfy PLR-076 ('any plain reference ... is reported') is false in a code-verified sub-case and the V4-06 class list is incomplete (P-1). A docs-only commit fixes it. If the lead prefers to judge as is, the residual is a recoverability residual of the same class R14-P1 treated as non-blocking, not a viewer-draws-region leak."
+  },
+  {
+   "lane": "SMB-WEB",
+   "sibling_lanes_sharing_the_crate": ["SMB-WEB-PARITY", "SMB-WEB-DIFFTEST"],
+   "crate": "hsk-studio-web",
+   "verdicts_so_far": "R5 FAIL_V1, R6 FAIL_V2, R7 PASS_V3, R12 PASS_V4 @3d795a5 (ledger); the READY commit here reopens the lane",
+   "commits_checked": ["9088884678069373ceef8b7ad3eaeaec75e57fa1 (src/assets.rs 29 changed lines, src/assets/tests.rs 204, src/datauri.rs 5 doc lines, src/lib.rs DESCRIPTOR 2 lists, tests/css_url_gate.rs 19 (wall-clock assertion removed); 5 files +239/-20)"],
+   "register_item": "PLR-071: decide_all doc sentence said the collector produces an empty set and cited a test that does not cover animated_loads (R14-N1); R14-O2 cancellation test covers the first iteration only and a 20 s wall-clock assertion adds flake surface; R14-O1 (URL-only meta refresh over-report) kept fail-closed",
+   "behaviour_change": "NO. Comment-stripped diff: datauri.rs 0 lines; assets.rs 22 added lines, every one under #[cfg(test)] (thread_local MAP_VISITS and CANCEL_AFTER, fn tick, `#[cfg(test)] tick(true);` in the id-map loop at :699-700, `#[cfg(test)] tick(false);` at :725-726 replacing the old TARGET_VISITS line). A default build and every integration test (tests/*.rs compile the lib without cfg(test)) see none of it. carriers.rs, css.rs, cssurl.rs, dom.rs, charref.rs, entity*.rs are not in the diff, so URL decisions (decide() order assets.rs:735-751), load contexts and rows, the CARRIERS inventory, the tokenizer and the data: policy (datauri::decide, MAX_DATA_NESTING) are untouched. lib.rs: DESCRIPTOR only (two proof lists gained the three new test names; JSON parsed at both revisions, 80 keys each, only those two lists differ).",
+   "checks": {
+    "a_exactly_the_register_item": "Yes. (1) datauri.rs:611-614 now says the collector hands decide_all no empty set and cites link_keywords_choose_the_load_contexts for link_loads and animated_loads_returns_a_context_for_every_target_shape for animated_loads. True by construction: Loads::EMPTY is built only as accumulators (assets.rs:720, carriers.rs:525), link_loads falls back to Load::Document (carriers.rs:535-537), id_loads entries hold at least one node (assets.rs:708 pushes before any entry exists) and target_loads is non-empty for every shape (assets.rs:617-624), animated_loads returns strict/target_loads/entry union/unwrap_or(strict) (assets.rs:662-687); rows use Loads::of. The new test (assets/tests.rs, 5 strict shapes asserted equal to Script+Resource, 8 found/parent shapes asserted non-empty) matches the claim; the 'link' shapes assert non-emptiness only. (2) animated_loads_cancellation_recurs_every_1024_iterations_in_both_loops cancels from inside each loop after iteration 1 and 1025; I traced the order (check at i&0x3ff==0, then tick) and the expectations hold: stops at exactly 1024 and 2048 iterations, ids stay None after a cancelled map build, no memo after a cancelled walk. (3) animated_loads_stays_within_the_operation_bound_at_the_gate_scale replaces the wall-clock bound (armed to cancel one iteration past 2 x targets, asserts visits == bound and found.len() == 2 x count). (4) css_url_gate.rs: Instant::now, the eprintln, elapsed and the 20 s assertion are removed; the 45 s bounded_case recv_timeout stays. R14-O1 untouched by design (register says kept).",
+    "c_unchanged_surfaces": "See behaviour_change. Nothing in src outside assets.rs/datauri.rs changed.",
+    "f_v4_07": "Added lines contain only 'never'/'proves' in a test-helper comment ('0 = never'), a test doc that cites its own test, and an assert message; every new claim cites an existing fn (cite_check.py: 85 of 88 identifiers resolve; the 3 others are DESCRIPTOR key names).",
+    "f_v4_06_cancel_class": "git grep -n -E '0x3ff|cancel\\.check\\(\\)' 5606d16 over crates/hsk-studio-web/src minus */tests.rs = 22 lines = the lane's 22 (assets.rs 8, css.rs 1, dom.rs 3, preview.rs 6, refresh.rs 2, responsive.rs 2), identical sites; 4 fixed + 18 not applicable. See W-2.",
+    "f_v4_06_wall_clock_class": "MISMATCH: see W-1.",
+    "f_drive_letters": "0 hits (scan of all added lines).",
+    "v4_01_v4_04": "assets.rs keeps deny(clippy::arithmetic_side_effects) (tick uses saturating_add; the comparison is not arithmetic); the hook exists only under cfg(test) (V4-04)."
+   },
+   "new_findings": [
+    {
+     "id": "W-1",
+     "severity": "CONFIRMED",
+     "kind": "V4-06 count in the kernel lane notes does not reproduce (process; product unaffected)",
+     "file_line": ".GOV/docs_repo/wp-studio-module-work/builders/lanes/notes-batch-1.json:153-159 (notes.web.v4_06[1]: 'before 9088884: 7 lines; after: 4', '3 fixed + 4 not applicable = 7')",
+     "evidence": "git grep -n -E 'Instant::now|elapsed|Duration::from_secs' b8b31c7 -- crates/hsk-studio-web = 9 lines: tests/css_url_gate.rs:28 (recv_timeout, not applicable), :1987, :1993, :1995, :1998, :1999 (five assertion-related lines, all removed), tests/html5ever_differential/main.rs:65, tests/html_parity.rs:28, tests/source_dom_patch.rs:29 (recv_timeout, not applicable). At 5606d16 the same grep gives the 4 not-applicable lines. So 9 = 5 fixed + 4 not applicable; the notes count patterns (Instant::now, elapsed, from_secs(20) = 3), not lines. Every site is handled; V4-06 says a count mismatch blocks READY.",
+     "remediation": "Correct the lane notes in the kernel (list the five lines; recount 9 = 5 + 4). No product commit, so V4-14 and this pre-review are unaffected."
+    }
+   ],
+   "observations": [
+    {
+     "id": "W-2",
+     "severity": "INFO",
+     "kind": "the 18 'not applicable' cancel-stride sites are excluded by scope, not shown to be outside the class",
+     "file_line": "src/assets.rs:507-508, :1250-1251; css.rs:186; dom.rs:388, :659-660; preview.rs:306, :318-319, :429, :489-490; refresh.rs:169-170; responsive.rs:259-260",
+     "evidence": "The notes say 'outside the animated-target walk of PLR-071; lane rule: no refactor, their tests stay as they are'. PLR-071/R14-O2 names only the id-map and target loops, and R14-O2 was INFO (test strength), so this is acceptable; a validator applying V4-06 literally may read 'not applicable' as a misclassification.",
+     "remediation": "None; optionally say 'out of PLR-071 scope' instead of 'not applicable'."
+    }
+   ],
+   "wip_after_ready": "NONE. 9088884 is the only web commit after b8b31c7 and after the 3d795a5 basis; listed in the lane commits[]; before READY; nothing later on any remote ref.",
+   "recommendation": "SAFE_TO_JUDGE",
+   "recommendation_note": "Product code is behaviour-identical (doc + cfg(test) only), the three register points are done with tests I traced, the doc sentence is now true by construction and cited. W-1 is a kernel-notes count to correct before the lead records the lane; it does not touch the crate."
+  },
+  {
+   "lane": "SMB-REEL-NATIVE-AV1-WORKER",
+   "crate": "hsk-studio-reel-native",
+   "verdicts_so_far": "R5 FAIL_V1, R7 FAIL_V2, R8 PASS_V3 .. R14 PASS_V8 @4b76604 (ledger); the READY commit here reopens the lane",
+   "commits_checked": ["ab273d3002f0ea212d019905306a67dccdcab2ad (src/host.rs 40 changed doc/comment lines, src/wire.rs 46 (docs + test-faults helpers), src/worker.rs 47 and src/test_fault.rs 26 (test-faults hooks), src/lib.rs DESCRIPTOR 2 lines, tests/av1_worker.rs 129; 6 files +255/-35)"],
+   "register_item": "PLR-078: docs say 'bytes that are no frame' before HELLO is a protocol fault, true only when the first four bytes read as a length above 1024 (a short banner then EOF stays spawn_failed); three reply-grammar rules (BATCH_END count, OPENED answering PACKET/FINISH, >64 FRAMEs) have no host-level test; config-OBU tag u64::MAX case unverified",
+   "behaviour_change": "NO host or wire behaviour change. Comment-stripped diff: host.rs 0 lines (host decode and every Failure mapping unchanged: host.rs:771-809 exchange arms and :653-661 Pool::spawn arms are context); wire.rs only items gated cfg(all(feature = \"av1-worker\", feature = \"test-faults\")) (encode_tiny_frame gains a tag parameter with its callers in worker.rs; SHORT_HELLO; cut_hello), decode_frame/decode_reply/decode_hello/read_frame untouched; worker.rs hooks are cfg(feature = \"test-faults\") (impl Faults, on_finish, bytes_then_exit, the serve hook, the new arms of on_packet); test_fault.rs is a module compiled only under cfg(all(feature = \"av1\", feature = \"test-faults\")) (lib.rs:27-28, :40-41). A product worker (av1-worker without test-faults) has none of it (V4-04). lib.rs: DESCRIPTOR only (17 keys each; only isolation.bounds differs).",
+   "checks": {
+    "a_exactly_the_register_item": "Doc precision: yes. Rule as stated now (wire.rs:25-34, host.rs:38-48, Failure::Protocol/SpawnFailed docs, DESCRIPTOR isolation.bounds): first four bytes read as a length; above HELLO_CAP (an oversize frame, or bytes that are no frame such as a text banner) or a frame within the cap that cannot be decoded = protocol fault; a worker that closes its output with nothing, fewer than four bytes or fewer bytes than the length it announced written = spawn failure; silence past spawn_timeout = spawn failure. Verified against wire.rs:100-119 read_frame (read_exact of 4 bytes -> Closed; length > cap -> TooLarge without reading; short payload -> Closed) and host.rs:653-661. Claim coverage: five new integration tests (tests/av1_worker.rs:786, :792, :799, :808, :933) run a real worker process through decode_av1 on mp4 and mkv and through reel's registry route, and assert the typed Worker(Protocol)/worker_protocol, protocol_faults counted once per call, no spawn_failed/killed_oversize/crashed/alive, and for the cut greeting SpawnFailed, (spawned, spawn_failed, protocol_faults, crashed, alive) = (1,1,0,0,0) then (2,2,0) and MEDIA_CODEC_UNAVAILABLE. Mechanism claims I checked: the 65 legal FRAMEs carry the PACKET's sent tag and a matching BATCH_END, so only host.rs:786 can refuse them, and reel's Forward drops the 2nd..65th as repeats (video.rs:323-327: position in pending, drain(..=at)), which is why at most one picture reaches the sink; the OPENED-on-FINISH worker serves the earlier PACKETs normally (worker.rs on_finish only answers FINISH).",
+    "d_host_level_and_unchanged": "Yes: tests drive the real provider and worker process, not the wire unit tests; the shared helper assert_protocol_fault_counted_once_per_call keeps `pictures = 0` (identical strictness, `len() <= 0`) for its existing callers.",
+    "f_v4_07": "Added text with never: 'never completed a greeting' (host.rs comment and test doc; both cite a_worker_that_never_greets_ and a_greeting_cut_short_), 'was never sent' (worker comment). All cited tests resolve (22 of 24 identifiers are fns; the others are the bounded_case label a_greeting_cut_short and a field name).",
+    "f_v4_06": "git grep -n -E 'no frame|closes its output|never greet' 5606d16 -- crates/hsk-studio-reel-native = 14 hits (host.rs 3, lib.rs 1, test_fault.rs 2, wire.rs 3, worker.rs 1, tests/av1_worker.rs 4) = the lane's 14, identical sites (the lane's two extra sites, the Failure::Protocol and Failure::SpawnFailed docs, matched the earlier wording and are reworded: the Failure doc comments in the host.rs diff). Second class (reply arms of Pool::exchange without a host-level test): the three named rules now have one; Frame arm: cap, declared size and unsent tag each have a test; Opened, BatchEnd and Error arms are covered.",
+    "f_drive_letters": "0 hits.",
+    "v4_01_v4_02": "wire.rs, host.rs, worker.rs keep deny(clippy::arithmetic_side_effects); new code uses saturating_add and try_from (worker.rs ManyFrames arm); no new decoder (the short and cut greetings exercise the existing read_frame bounds)."
+   },
+   "new_findings": [],
+   "observations": [
+    {
+     "id": "R-1",
+     "severity": "INFO",
+     "kind": "PLR-078 is not fully closed: two disclosed residuals remain",
+     "file_line": "notes-batch-1.json notes.not_done[0], [1]; src/host.rs:786 (`frames > wire::MAX_FRAMES_PER_BATCH`); reel src/av1/mod.rs:162 (config OBUs fed with tag u64::MAX)",
+     "evidence": "(a) the config-OBU tag u64::MAX case stays UNVERIFIED (whether AV1-ISOBMFF allows frame OBUs in configOBUs was not read by the lane, nor by me; no code or doc change); (b) only the 65th FRAME is tested, so a `>=` mutant that refuses a legal batch of exactly 64 survives (lane discloses it).",
+     "remediation": "Lead: keep PLR-078 open (or split) for (a) and (b) when updating the register; neither blocks judging."
+    },
+    {
+     "id": "R-2",
+     "severity": "INFO",
+     "kind": "two adjacent unchanged grammar claims still have no host-level test",
+     "file_line": "src/wire.rs:10-11 ('so is a BATCH_END' answering OPEN), :22-23 (id echo cites the unit test wire_roundtrip_and_bounds)",
+     "evidence": "Both are enforced by the catch-all arm host.rs:808 and the Malformed mapping :774-776, and the second cites a decode-level unit test honestly; neither is a V4-07 trigger-word claim and neither is part of PLR-078's three rules.",
+     "remediation": "None."
+    }
+   ],
+   "wip_after_ready": "NONE. ab273d3 is the only reel-native commit after b8b31c7 and after the 4b76604 basis; listed in the lane commits[]; before READY; nothing later on any remote ref.",
+   "recommendation": "SAFE_TO_JUDGE",
+   "recommendation_note": "Host decode is byte-for-byte unchanged, the docs now equal the enforced rule (checked clause by clause against read_frame and Pool::spawn/exchange), and the three reply-grammar rules and the cut-greeting boundary have host-level tests whose mutants (lane N1-N4) match what the code would do. Round must run [av1-worker] and [av1-worker,test-faults] (.config/round-features.toml); the lane's 24/24 and 5/5 were not re-run here."
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-BUDGET",
+   "crate": "hsk-studio-interop-psd",
+   "verdicts_so_far": "R9 FAIL_V1 @4d80e50, R10 FAIL_V2 @62d8983, R11 PASS_V3, R12 PASS_V4, R15 PASS_V5 @b8b31c7 (ledger); the READY commit here reopens the lane",
+   "commits_checked": ["5606d162549db9f3959d4ecaee85dbb1592d18e3 (src/effects.rs 14 changed comment lines, src/proposal.rs 10 doc lines, src/lib.rs DESCRIPTOR effect_limits, tests/effects_budget.rs 213 changed lines; 4 files +218/-21)"],
+   "register_item": "PLR-064: the two deliberate over-counts (no-pixel layers, clipped layers on a hidden/empty base) are disclosed only in kernel lane notes; PLR-065: nested hidden groups untested (a boolean in place of the hidden_groups counter would pass)",
+   "behaviour_change": "NO. Comment-stripped diff: effects.rs 0 lines, proposal.rs 0 lines (every src hunk is a // or /// line); lib.rs is the DESCRIPTOR string only (26 keys each; only effect_limits differs: one inserted clause). Counting code is context: proposal.rs:569 `layer.visible() && self.hidden_groups == 0`, :891 saturating_add, :895 saturating_sub are unchanged.",
+   "checks": {
+    "a_exactly_the_register_item": "Yes. PLR-064: the over-counts are stated in effects.rs:48-56, proposal.rs:143-147 (budget) and :508-512 (collect_records), the effects_budget.rs header and DESCRIPTOR effect_limits, each citing the_importer_counts_layers_without_pixels_and_clipped_layers_on_hidden_or_empty_bases. I re-read the composite claims at 5606d16 (composite is unchanged since 85532ad): a source with no tile adds no node (lower_render_plan.rs:682-683 `[] => {}`, Slot::Empty :738-745, no LayerFeatures :746-753) and a clipped layer on a hidden or empty base is not reachable (:523-556, `base_live = step.visible() && !is_ready_and_empty()` :556, module doc :15-18). The test asserts p.tiles is empty and pins: 64 x 64 live stacks then a 1-instance layer = Lost(OVER_DOCUMENT) and a 65-instance layer = Lost(OVER_LAYER); a clipped layer above a hidden base and above an empty visible base is counted (Lost after the full cap, base Kept(1)); a clipped layer with no base is still counted. PLR-065: Node::Nested and file_layers nest groups; nested_hidden_groups_hide_every_descendant_until_the_outermost_closes: hidden outer {hidden inner {L}, L, visible mid {L}} then a visible layer with the counted total at 4096 -> three layers kept uncounted, the next layer Lost(OVER_DOCUMENT), kept_total = 4096 + 3 x 64; and visible outer {hidden inner {L}, L} -> the layer after the inner group counts. I traced naming order (panel order, first = 64) and the hidden_groups arithmetic at both documents: the boolean mutant (reset on close) fails the first document, the never-decremented mutant fails the second (lane P1, P2).",
+    "e_docs_exact": "One clause is not exact: I-1.",
+    "f_v4_07": "No never/always/guarantee/prove wording added. Pre-existing 'never' wording (effects.rs:57-58 'passing one never costs a stack the other category', DESCRIPTOR each_bound_cuts_only_its_own_category / an_effect_count_never_fails_the_import) is untouched; see carried PSD-R11-1.",
+    "f_v4_06": "git grep -n -E 'hidden_groups|let visible' 5606d16 -- crates/hsk-studio-interop-psd/src = 6 hits (proposal.rs:485, :569, :891, :895, :1193, :1630) = the lane's 6, identical sites and verdicts.",
+    "f_drive_letters": "0 hits.",
+    "v4_01_v4_02": "effects.rs and proposal.rs keep deny(clippy::arithmetic_side_effects); no arithmetic changed."
+   },
+   "new_findings": [
+    {
+     "id": "I-1",
+     "severity": "CONFIRMED",
+     "kind": "docs not exact (low; no behaviour): the 'only past 4096' clause is contradicted by the per-layer case the same docs and the lane's own test pin",
+     "file_line": "src/effects.rs:52-54 ('a counted stack can be lost whole (`effects_over_document_budget`, or `effects_over_budget` for one layer) although the plan's own count fits; that takes more than 4096 apparent counted instances'); src/lib.rs:82 DESCRIPTOR effect_limits (...a_counted_stack_can_be_lost_although_the_plan_count_fits_only_past_4096_apparent_counted_instances_test_...); versus tests/effects_budget.rs:1198-1200 and :1213 (a visible layer with no pixels and 65 live instances in an otherwise empty document is Lost(OVER_LAYER); same for a clipped layer on a hidden or empty base)",
+     "evidence": "The per-layer cap (effects.rs, counted > 64 -> effects_over_budget) applies to a layer the plan never renders (no node), so the stack is lost although the plan's own count (0) fits, with a total of 65 apparent instances, not 4096. The ProposalConfig::budget doc (proposal.rs:143-145) states only the document variant ('when more than 4096 such apparent instances come first') and is exact. The DESCRIPTOR clause is unqualified ('only past 4096') and is the shipped one; effects.rs:52-54 is internally inconsistent (names the per-layer code, then 4096).",
+     "remediation": "Optional rider, one clause: 'past 4096 apparent counted instances for the document cap, or past 64 on one layer the plan never renders (effects_over_budget)' in lib.rs:82 and effects.rs:53-54 (the test already pins both). A docs-only push is a new commit under V4-14."
+    }
+   ],
+   "observations": [
+    {
+     "id": "I-2",
+     "severity": "INFO",
+     "kind": "'two cases' reads exhaustive; R11 listed two further moot divergences",
+     "file_line": "src/effects.rs:48 ('OVER-COUNTS against a plan in two cases'); R11-prereview-psd-budget.json answer_b deviations_over_count_only; pigment src/render_plan/extensions.rs:362 (EffectPassThrough), :365 (EffectClipRun)",
+     "evidence": "The importer also counts live effects on a pass-through group and on a clip base or clipped layer by visibility; pigment refuses those plans outright (typed), so they do not change what a rendered plan counts. Not wrong for the two cases the register item names; the wording could be read as 'only these'.",
+     "remediation": "Optional: 'at least these two'."
+    },
+    {
+     "id": "I-3",
+     "severity": "INFO",
+     "kind": "no test pins a group's own lfx2 stack or the Folio per-stack ceiling cross-category cut (carried, not part of PLR-064/065)",
+     "file_line": "src/effects.rs:552-554 area (Folio ceiling), effects.rs:57-58, lib.rs:82 each_bound_cuts_only_its_own_category",
+     "evidence": "R11 PSD-R11-1 (PLAUSIBLE: a visible mixed stack with > 1024 mapped instances is lost whole) and the optional group-lfx2 test are not registered under PLR-064/065 and were deliberately not done (notes.not_done[4]); the lane carries them forward unchanged.",
+     "remediation": "Lead: register or park explicitly; PLR-063 in resume_plan item 3 may already cover the Folio ceiling."
+    }
+   ],
+   "wip_after_ready": "NONE. 5606d16 is the only interop-psd commit after b8b31c7 and after the 85532ad basis; it is the head of every ref and precedes the lane's READY update.",
+   "recommendation": "SAFE_TO_JUDGE",
+   "recommendation_note": "No product logic changed; both register items are done and pinned by tests that I traced (nested hidden groups, per-document and per-layer over-count, hidden and empty clip base); the composite claims in the new docs are true at 5606d16. I-1 is a one-clause docs imprecision outside the register item's own claim (both over-counts are disclosed and cited); the cheapest fix is the optional rider, ideally bundled if the press builder pass happens anyway."
+  }
+ ],
+ "advisory": {
+  "pigment_notes_docs_tests_only": true,
+  "scope": "SMB-PIGMENT-NOTES: 9cb44c2 and 8980d04 (pigment), fe035ce (render-cpu), range b8b31c7..5606d16",
+  "evidence": {
+   "diffstat": "git diff --stat b8b31c7..5606d16 over the two crates = 7 files, +1018/-123: pigment src/render_plan/extensions.rs (9 changed lines), tests/effects_ops.rs (53), tests/plan_followups.rs (447), tests/reader_scan/mod.rs (533); render-cpu src/plan_sink.rs (11), src/plan_sink/extended.rs (7), tests/cpu_envelope_reach.rs (81). Nothing else (no Cargo.toml, no feature, no other src file).",
+   "comment_stripped_diff": "code_only_diff.py (all lines whose first non-blank characters are // removed, old vs new): pigment extensions.rs 0 changed lines, render-cpu plan_sink.rs 0, plan_sink/extended.rs 0 = every src hunk is a doc/comment line; the rest is under tests/.",
+   "doc_claims_spot_checked": "render-cpu `reachable` doc says both callers run after shared admission: callers plan_sink.rs:1433 (admit_with_limits) -> prepare :1507 -> reachable :484, and :1469 (admit_extended_with_limits) -> reachable :1480. The pigment doc states the render-gpu behaviour 'by reading plan_sink.rs prepare: no GPU test' (labelled as read, not tested). Not re-run: the new tests (cargo not run).",
+   "commit_message_check": "fe035ce's 'invalid plan indexes are refused before the reachable sweep (test)' is a test (tests/cpu_envelope_reach.rs) plus the doc hunk; no src code changed."
+  }
+ },
+ "carried_not_new": [
+  "PLR-078 residuals (R-1) and PSD-R11-1 / group-lfx2 test (I-3): disclosed in the lane's not_done, unchanged by this batch.",
+  "web R14-O1 (URL-only meta refresh over-report, kept fail-closed) and R14-O3 (file-system aliases of the document): untouched, outside PLR-071.",
+  "press and interop-psd are not rustfmt-clean at baseline (SMB-FMT-SWEEP); web and reel-native are (lane claim, not re-run)."
+ ],
+ "process_notes": [
+  "V4-18: this file replaces the R14 press, R14 web-narrow, R15 reel-narrow and R11 psd-budget pre-reviews for the delta only; each earlier SAFE_TO_JUDGE plus this delta covers the history since that pre-review (see range_check.since_prior_pre_review_basis). Anything pushed to the four crates after 5606d16 invalidates the matching section; a docs-only fix for P-1 or I-1 counts as such a push (V4-14: list it in the lane).",
+  "Candidate-binding: every lane here changed after its last PASS, so the old PASS no longer binds (CX-VAL-009); the round must rebuild the four crates and (advisory) pigment and render-cpu.",
+  "Round feature sets: web default; reel-native default, [av1-worker], [av1-worker,test-faults] per .config/round-features.toml; press and interop-psd default.",
+  "Helper scripts and the added-lines extract are under <scratchpad>/R16-prereview-notes/ (desc_diff.py, code_only_diff.py, cite_check.py, added.txt), written and run by this reviewer only (V4-12).",
+  "No cargo, no build, no test run, no process stopped, no edit outside this file."
+ ]
+}

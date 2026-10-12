@@ -2292,7 +2292,7 @@
     "validation/R16-prereview-notes-narrow.json"
    ],
    "launched": "2026-10-12T00:45:10Z",
-   "status": "running"
+   "status": "done 2026-10-12T01:05:03Z (press FIX_FIRST P-1; web/reel-native/psd SAFE)"
   },
   {
    "name": "validator-r16",

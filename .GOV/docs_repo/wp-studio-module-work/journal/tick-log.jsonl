@@ -223,3 +223,4 @@
 {"t": "2026-10-12T00:37:57Z", "event": "SMB-PIGMENT-NOTES READY_FOR_VALIDATION 8980d04 (builder-pigment-notes)", "lanes_moved": ["SMB-PIGMENT-NOTES READY"], "commits": ["8980d04"], "progress": "direct: product commit"}
 {"t": "2026-10-12T00:44:33Z", "event": "SMB-NOTES-BATCH-1 READY_FOR_VALIDATION 5606d16 (builder-notes-batch-1)", "lanes_moved": ["SMB-NOTES-BATCH-1 READY"], "commits": ["5606d16"], "progress": "direct: product commit"}
 {"t": "2026-10-12T00:45:10Z", "event": "R16 prep: narrow pre-review of notes batch + steward sync/canary C21 in parallel; weekly 90%", "progress": "no direct progress (dispatch)"}
+{"t": "2026-10-12T01:05:03Z", "event": "R16 narrow pre-review: press FIX_FIRST (P-1 silent keep via kept /Resources and plain keys), web/reel-native/psd SAFE; notes batch withdrawn from R16 before verdicts; press remediation next", "progress": "no direct progress (pre-review routing)"}

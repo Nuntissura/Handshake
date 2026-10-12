@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-12T00:52:32Z",
+ "updated_at": "2026-10-12T01:05:03Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -784,6 +784,11 @@
     "recommendation": "SAFE_TO_JUDGE",
     "head": "7410f29",
     "at": "2026-10-11T22:04:43Z"
+   },
+   "r16_prereview": {
+    "ref": "validation/R16-prereview-notes-narrow.json",
+    "recommendation": "FIX_FIRST",
+    "at": "2026-10-12T01:05:03Z"
    }
   },
   {
@@ -2652,6 +2657,11 @@
     "recommendation": "SAFE_TO_JUDGE",
     "head": "7410f29",
     "at": "2026-10-11T22:04:43Z"
+   },
+   "r16_prereview": {
+    "ref": "validation/R16-prereview-notes-narrow.json",
+    "recommendation": "FIX_FIRST",
+    "at": "2026-10-12T01:05:03Z"
    }
   },
   {
@@ -2947,8 +2957,8 @@
    "crate": "hsk-studio-press + hsk-studio-web + hsk-studio-reel-native + hsk-studio-interop-psd",
    "origin": "plausible register",
    "scope": "PLR-076 (press), PLR-071 (web), PLR-078 (reel-native), PLR-064/065 (psd)",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "FIX_FIRST (press part, R16 narrow pre-review P-1); withdrawn from R16 before verdicts",
+   "status": null,
    "owner": "builder-notes-batch-1",
    "lane_file": "builders/lanes/notes-batch-1.json",
    "commits": [
@@ -2959,7 +2969,19 @@
    ],
    "verdicts": [],
    "candidate": "5606d16",
-   "note": "press 27a9a81 PLR-076: painted region source kept only via /AF, /Names or /Dests -> NotProven::PaintedSourceKept, DESCRIPTOR exact (131 tests); web 9088884 PLR-071: doc + citation fixed, cancellation test past the first iteration, wall-clock bound -> operation-count bound (138); reel-native ab273d3 PLR-078: docs/DESCRIPTOR match code, host-level tests for BATCH_END miscount, OPENED answering PACKET/FINISH, 65 FRAMEs, cut-short greeting (24 with av1-worker+test-faults); interop-psd 5606d16 PLR-064/065: over-counts documented with citations, helper nests groups, nested hidden groups test (53); 346 tests pass; red on origin (press, psd) or stated mutants (web W1-W5, reel-native N1-N4, psd P1-P4). Not done: config-OBU tag case, exact-64-FRAME acceptance test, press prune, psd group-own-lfx2 + zero-tile"
+   "note": "press 27a9a81 PLR-076: painted region source kept only via /AF, /Names or /Dests -> NotProven::PaintedSourceKept, DESCRIPTOR exact (131 tests); web 9088884 PLR-071: doc + citation fixed, cancellation test past the first iteration, wall-clock bound -> operation-count bound (138); reel-native ab273d3 PLR-078: docs/DESCRIPTOR match code, host-level tests for BATCH_END miscount, OPENED answering PACKET/FINISH, 65 FRAMEs, cut-short greeting (24 with av1-worker+test-faults); interop-psd 5606d16 PLR-064/065: over-counts documented with citations, helper nests groups, nested hidden groups test (53); 346 tests pass; red on origin (press, psd) or stated mutants (web W1-W5, reel-native N1-N4, psd P1-P4). Not done: config-OBU tag case, exact-64-FRAME acceptance test, press prune, psd group-own-lfx2 + zero-tile",
+   "blockers": [
+    {
+     "kind": "V4-13 narrow pre-review FIX_FIRST (press)",
+     "ref": "validation/R16-prereview-notes-narrow.json",
+     "items": [
+      "P-1 press doc claim vs kept /Resources and plain-key references",
+      "I-1 psd 'only past 4096' wording vs per-layer 65 cap (doc rider)",
+      "W-1 kernel lane note wall-clock site count 7 vs 9"
+     ],
+     "recorded_at": "2026-10-12T01:05:03Z"
+    }
+   ]
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
@@ -3567,7 +3589,8 @@
   "reopen": "press, web, reel-native, interop-psd, pigment, render-cpu and dependants (CX-VAL-009)",
   "excluded": [
    "render-gpu lanes (D20)",
-   "interop-media (D9)"
+   "interop-media (D9)",
+   "SMB-PRESS + SMB-PRESS-DIFFERENCES (deferred: R16 pre-review FIX_FIRST) and SMB-NOTES-BATCH-1 (withdrawn by lead before verdicts)"
   ],
   "team": "1 validator (opus); review input = R16 narrow pre-review (+ validator's own read of the tests/docs-only pigment lane)"
  }
