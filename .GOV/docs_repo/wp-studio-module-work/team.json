@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-12T06:56:40Z",
+ "updated_at": "2026-10-12T07:05:49Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -1561,7 +1561,7 @@
     "builders/lanes/workspace-steward.json"
    ],
    "launched": "2026-10-11T11:58:46Z",
-   "status": "idle (R19 sync: already in sync; canary C24 exit 73 59/59)"
+   "status": "idle (R20 sync: already in sync; canary C25 exit 73 59/59)"
   },
   {
    "name": "research-reel-eng",
@@ -2479,6 +2479,17 @@
    ],
    "launched": "2026-10-12T06:35:13Z",
    "status": "done (R22: 3 SAFE_TO_JUDGE)"
+  },
+  {
+   "name": "validator-r20",
+   "agent_id": "a693011350f1f54b8",
+   "model": "opus",
+   "role": "wp_validator STUDIO-R20 at 3930a7c (press-docs-2, reel-partial-pts-2, psd-loss-detail + CX-VAL-009 reopens)",
+   "owns": [
+    "validation/round-R20.json"
+   ],
+   "launched": "2026-10-12T07:05:49Z",
+   "status": "running"
   }
  ]
 }

@@ -52,7 +52,7 @@ Push helper for governance: `tools/lead-kernel-push.sh <message-file> <paths...>
 
 ## In flight at handoff
 
-- 2026-10-12T06:35:13Z: the three Sonnet lanes are READY at 3930a7c (SMB-PRESS-DOCS-2 0f87710, SMB-REEL-PARTIAL-PTS-2 2fb17a8, SMB-INTEROP-PSD-LOSS-DETAIL 3930a7c). Running: Opus narrow pre-review fdc01f1..3930a7c (output `validation/R22-prereview-narrow.json`). If missing on takeover, re-dispatch it modelled on `validation/R21-prereview-narrow.json`; then round R20 per `ledger.json` resume_plan.
+- 2026-10-12T07:05:49Z: R22 narrow pre-review SAFE for SMB-PRESS-DOCS-2, SMB-REEL-PARTIAL-PTS-2, SMB-INTEROP-PSD-LOSS-DETAIL. Running: Opus validator round R20 at 3930a7c (canary C25 exit 73, 59/59; output `validation/round-R20.json`). If missing on takeover, re-dispatch from the validator template with `ledger.json` round_R20. Next press lane: PLR-094 first (possible /Alt leak with a catalog-direct /StructTreeRoot).
 
 </topic>
 
