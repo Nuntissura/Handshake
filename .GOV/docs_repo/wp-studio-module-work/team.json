@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-12T09:05:08Z",
+ "updated_at": "2026-10-12T09:27:17Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -2571,7 +2571,7 @@
     "validation/R24-prereview-press-narrow.json"
    ],
    "launched": "2026-10-12T09:05:08Z",
-   "status": "running"
+   "status": "done (R24: SAFE_TO_JUDGE)"
   }
  ]
 }
