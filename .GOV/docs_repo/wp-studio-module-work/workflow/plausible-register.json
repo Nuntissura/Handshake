@@ -1722,6 +1722,21 @@
    "verified_at": "2dde832",
    "disposition": "FIX_LANE",
    "disposition_note": "lead 2026-10-12T09:04:25Z: accepted for now (fail-closed over-report; crate tests green); scope the rule to saves that flatten a region in a later press lane; /MarkInfo-alone handling accepted"
+  },
+  {
+   "id": "PLR-102",
+   "lane": "SMB-PRESS",
+   "file_line": "crates/hsk-studio-press/src/flatten_purge.rs (check_document), sanitized_save.rs",
+   "finding": "structure-element text that no catalog tree names survives while the save reads proven: element reachable only from a private catalog key (J1), an outline /SE into a stripped tree (J2b), an inert object stream the catalog references (K1); hayro sees no tree in any (R24-P2, observed in a run). Also R24-P4 PLAUSIBLE: a reader that rebuilds the xref might read text planted in copied objects",
+   "first_seen": "R24-prereview-press-narrow",
+   "seen_in": [
+    "R24-prereview-press-narrow"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "2dde832",
+   "disposition": "FIX_LANE",
+   "disposition_note": "next press lane: fail closed when any surviving dictionary has struct-element shape (/Type /StructElem, or /S with /P and a struct text key) or an outline /SE remains; decide together with D28 (strip tree) and PLR-101"
   }
  ],
  "process_items": [
