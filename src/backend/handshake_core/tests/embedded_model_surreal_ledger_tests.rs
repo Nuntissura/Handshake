@@ -434,6 +434,21 @@ struct ClaimProbe {
     reclaim_generation: Option<i64>,
 }
 
+fn decode_first_row<R: SurrealValue>(
+    values: Vec<surrealdb::types::Value>,
+) -> Result<Option<R>, handshake_core::storage::surreal::SurrealStorageError> {
+    if matches!(values.as_slice(), [surrealdb::types::Value::None]) {
+        return Ok(None);
+    }
+    let rows = values
+        .into_iter()
+        .map(|value| {
+            R::from_value(value).map_err(|error| surrealdb::Error::internal(error.to_string()))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(rows.into_iter().next())
+}
+
 const READ_EXACT_CLAIM_STATE: &str = r#"
 SELECT stopped_at, stop_reason, reclaim_claimant_uuid, reclaim_generation
 FROM ONLY $record
@@ -454,8 +469,9 @@ async fn claim_state(
         .with_data_operation(|database| {
             Box::pin(async move {
                 database
-                    .query_first::<ClaimProbe, _>(READ_EXACT_CLAIM_STATE, bindings)
+                    .query_values::<surrealdb::types::Value, _>(READ_EXACT_CLAIM_STATE, bindings)
                     .await
+                    .and_then(decode_first_row::<ClaimProbe>)
             })
         })
         .await
@@ -886,7 +902,7 @@ impl ExactSeedBindings {
 }
 
 const CREATE_AND_VERIFY_EXACT_RECORD: &str = r#"
-BEGIN TRANSACTION;
+IF true {
 CREATE $record CONTENT $content;
 LET $verified = array::len(SELECT VALUE id FROM ONLY $record
     WHERE owner_account_id = $owner_account_id
@@ -897,8 +913,8 @@ LET $verified = array::len(SELECT VALUE id FROM ONLY $record
 IF $verified != 1 {
     THROW 'MT013_RESTART_SEED_SCOPE_MISMATCH';
 };
-RETURN $verified;
-COMMIT TRANSACTION;
+RETURN [$verified];
+};
 "#;
 
 async fn create_exact_record(
@@ -912,7 +928,7 @@ async fn create_exact_record(
         .with_data_operation(|database| {
             Box::pin(async move {
                 database
-                    .query_values_at::<i64, _>(CREATE_AND_VERIFY_EXACT_RECORD, bindings, 4)
+                    .query_values::<i64, _>(CREATE_AND_VERIFY_EXACT_RECORD, bindings)
                     .await
             })
         })
@@ -1036,8 +1052,9 @@ async fn restart_resume_replays_canonical_events_on_the_same_exact_scope_storage
             };
             Box::pin(async move {
                 database
-                    .query_first::<QueueStateProbe, _>(READ_EXACT_QUEUE_STATE, bindings)
+                    .query_values::<surrealdb::types::Value, _>(READ_EXACT_QUEUE_STATE, bindings)
                     .await
+                    .and_then(decode_first_row::<QueueStateProbe>)
             })
         })
         .await

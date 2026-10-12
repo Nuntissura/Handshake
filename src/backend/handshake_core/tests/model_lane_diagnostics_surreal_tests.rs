@@ -116,9 +116,25 @@ async fn assert_original_lane_anchor(
         event_payload_json: String,
         event_sequence: i64,
     }
-    let rows = storage.query_values::<Row,_>(
-        "SELECT record_json, event_id, event_seq, event_ledger_event_id.payload.event_payload_json AS event_payload_json, event_ledger_event_id.event_sequence AS event_sequence FROM model_lane_authority WHERE record_kind = 'lane' AND aggregate_id = $lane_id AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id;",
-        ReadScope { lane_id: lane_id.into(), owner_account_id: exact.owner_account_id.to_string(), actor_principal_id: exact.actor_principal_id.to_string(), authenticated_session_id: exact.authenticated_session_id.to_string(), access_space_id: exact.access_space_id.to_string(), workspace_id: exact.workspace_id.to_string() }).await.unwrap();
+    let bindings = ReadScope {
+        lane_id: lane_id.into(),
+        owner_account_id: exact.owner_account_id.to_string(),
+        actor_principal_id: exact.actor_principal_id.to_string(),
+        authenticated_session_id: exact.authenticated_session_id.to_string(),
+        access_space_id: exact.access_space_id.to_string(),
+        workspace_id: exact.workspace_id.to_string(),
+    };
+    let rows = storage
+        .with_data_operation(|database| {
+            Box::pin(async move {
+                database.query_values::<Row, _>(
+                    "SELECT record_json, event_id, event_seq, event_ledger_event_id.payload.event_payload_json AS event_payload_json, event_ledger_event_id.event_sequence AS event_sequence FROM model_lane_authority WHERE record_kind = 'lane' AND aggregate_id = $lane_id AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id;",
+                    bindings,
+                ).await
+            })
+        })
+        .await
+        .unwrap();
     assert_eq!(rows.len(), 1);
     let row = &rows[0];
     assert!(!row.event_id.is_empty());
