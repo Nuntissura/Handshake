@@ -1,5 +1,7 @@
 //! WP-1 MT-003: SurrealDB cloud launch authority and scoped CRDT proof.
 
+mod account_session_support;
+
 use std::collections::HashMap;
 use std::sync::{
     Arc,
@@ -19,13 +21,15 @@ use handshake_core::model_runtime::{
 use handshake_core::process_ledger::{
     LedgerBatcher, LedgerBatcherConfig, NoopOverflowSink,
 };
-use handshake_core::storage::surreal::{SurrealStorage, SurrealStorageConfig};
+use handshake_core::storage::surreal::{bootstrap_production_schemas, SurrealStorage, SurrealStorageConfig};
+use handshake_core::storage::surreal::resource_authority::{AuthorizationRequest, ResourceAction, ResourceKind};
+use handshake_core::test_harness::crdt_workspace::AuthenticatedModelLaneTestOperation;
 use handshake_core::swarm_orchestration::model_lane::{
     DexterityLaunchAdapterKind, DexterityLaunchAdapterRegistry, DexterityLaunchAdapterRequest,
     DexterityLaunchContract, DexterityNormalizedLaunch, ModelLaneCloudConsentReceiptStatus,
     ModelLaneCloudConsentScope, ModelLaneCloudExportPosture, ModelLaneCloudProjectionPlanStatus,
     ModelLaneCloudRetentionPolicy,
-    ModelLaneStatus, ModelLaneStore, NewModelLaneCloudConsentReceipt,
+    ModelLaneStatus, ModelLaneStore, ModelLaneError, NewModelLaneCloudConsentReceipt,
     NewModelLaneCloudProjectionPlan, dexterity_spawn_model_session_id,
 };
 use handshake_core::swarm_orchestration::production_factory::{
@@ -34,7 +38,8 @@ use handshake_core::swarm_orchestration::production_factory::{
 };
 use handshake_core::swarm_orchestration::resource_scope::{
     AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef, ExactResourceScopeAttribution,
-    OwnerAccountId, ResourceScope, WorkspaceScopeRef,
+    OwnerAccountId, ResourceScope, WorkspaceScopeRef, ResourceAccessContext,
+    ResourceAccessLifecycleRegistry,
 };
 use handshake_core::swarm_orchestration::{
     ByokCloudProvider, LiveSession, ModelInstanceId, ModelSessionFactory, RecordingSwarmSink,
@@ -54,20 +59,35 @@ async fn model_lane_cloud_launch_is_no_egress_and_fail_closed_without_authority(
     let storage = SurrealStorage::open(surreal_config.clone())
         .await
         .expect("open isolated MT-003 embedded SurrealDB");
+    bootstrap_production_schemas(&storage).await.expect("bootstrap canonical launch schemas");
+    let account = account_session_support::AccountFixture::install(&storage).await;
+    let recorder = Arc::new(handshake_core::flight_recorder::duckdb::DuckDbFlightRecorder::new_in_memory(7)
+        .expect("create bounded launch recorder"));
+    let state = handshake_core::AppState {
+        storage: Arc::new(handshake_core::storage::surreal::SurrealDatabase::new(storage.clone())),
+        surreal: storage.clone(), flight_recorder: recorder.clone(), diagnostics: recorder,
+        llm_client: Arc::new(handshake_core::llm::InMemoryLlmClient::new("model-lane-launch".into())),
+        capability_registry: Arc::new(handshake_core::capabilities::CapabilityRegistry::new()),
+        session_registry: Arc::new(handshake_core::workflows::SessionRegistry::new_from_env()),
+    };
+    let workspace_id = account.create_workspace(&state).await;
+    drop(state);
     let exact_scope = ExactResourceScopeAttribution {
-        owner_account_id: OwnerAccountId::mint(),
-        actor_principal_id: ActorPrincipalId::mint(),
-        authenticated_session_id: AuthenticatedSessionRef::mint(),
-        access_space_id: AccessSpaceRef::mint(),
-        workspace_id: WorkspaceScopeRef::new("workspace-mt003-cloud-no-egress")
-            .expect("nonblank launch workspace"),
+        owner_account_id: OwnerAccountId::from_uuid(uuid::Uuid::parse_str(&account.account_id).expect("actual account UUID")),
+        actor_principal_id: ActorPrincipalId::from_uuid(uuid::Uuid::parse_str(&account.principal_id).expect("actual principal UUID")),
+        authenticated_session_id: AuthenticatedSessionRef::from_uuid(uuid::Uuid::parse_str(&account.session_id).expect("actual session UUID")),
+        access_space_id: AccessSpaceRef::from_uuid(uuid::Uuid::parse_str(&account.access_space_id).expect("actual Space UUID")),
+        workspace_id: WorkspaceScopeRef::new(workspace_id).expect("canonical launch workspace"),
     };
     let launch_scope =
         ResourceScope::new(exact_scope.owner_account_id, exact_scope.actor_principal_id)
             .with_session(exact_scope.authenticated_session_id)
             .with_access_space(exact_scope.access_space_id)
             .with_workspace(exact_scope.workspace_id.clone());
-    let store = ModelLaneStore::new_surreal_scoped(storage.clone(), launch_scope.clone())
+    let lifecycle = ResourceAccessLifecycleRegistry::default();
+    lifecycle.register_active(exact_scope.clone()).expect("register actual launch lifecycle");
+    let store = ModelLaneStore::new_surreal_cloud_authority_only(
+        ResourceAccessContext::for_account_with_lifecycle(launch_scope.clone(), lifecycle.clone()), storage.clone())
         .await
         .expect("bootstrap MT-003 embedded SurrealDB ModelLane authority");
     let (ledger, _drain) = LedgerBatcher::manual_for_tests(
@@ -119,9 +139,10 @@ async fn model_lane_cloud_launch_is_no_egress_and_fail_closed_without_authority(
         test_idx,
         spawn_contract_from_normalized(&missing_normalized),
     );
-    let missing_error = coordinator
-        .spawn_session(missing_spawn)
+    let missing_error = launch_operation(&storage, &account, &exact_scope, ResourceAction::Create).await
+        .run(async { Ok::<_, ModelLaneError>(coordinator.spawn_session(missing_spawn).await) })
         .await
+        .expect("authorize missing-authority launch")
         .expect_err("cloud launch without ProjectionPlan/ConsentReceipt must fail closed");
     assert!(
         missing_error.to_string().contains("CX-MM-007"),
@@ -143,16 +164,19 @@ async fn model_lane_cloud_launch_is_no_egress_and_fail_closed_without_authority(
         test_idx + 1,
         spawn_contract_from_normalized(&valid_normalized),
     );
-    seed_cloud_launch_authority(
-        &store,
-        &valid_spawn,
-        &DexterityLaunchAdapterKind::ByokCloudOpenAi,
-        test_idx + 1,
-    )
-    .await;
+    launch_operation(&storage, &account, &exact_scope, ResourceAction::Create).await.run(async {
+        seed_cloud_launch_authority(
+            &store,
+            &valid_spawn,
+            &DexterityLaunchAdapterKind::ByokCloudOpenAi,
+            test_idx + 1,
+        )
+        .await;
+        Ok(())
+    }).await.expect("authorize launch authority seed");
     let expected_model_session = dexterity_spawn_model_session_id(&valid_spawn);
-    let seeded_authority = store
-        .replay_cloud_consent_authority(&valid_spawn.dexterity_launch.as_ref().unwrap().run_id)
+    let seeded_authority = launch_operation(&storage, &account, &exact_scope, ResourceAction::Read).await
+        .run(store.replay_cloud_consent_authority(&valid_spawn.dexterity_launch.as_ref().unwrap().run_id))
         .await
         .expect("replay focused cloud authority");
     assert_eq!(seeded_authority.projection_plans.len(), 1);
@@ -167,9 +191,10 @@ async fn model_lane_cloud_launch_is_no_egress_and_fail_closed_without_authority(
         .expect("valid launch retains Dexterity contract")
         .run_id
         .clone();
-    coordinator
-        .spawn_session(valid_spawn)
+    launch_operation(&storage, &account, &exact_scope, ResourceAction::Create).await
+        .run(async { Ok::<_, ModelLaneError>(coordinator.spawn_session(valid_spawn).await) })
         .await
+        .expect("authorize valid cloud launch")
         .expect("valid inert-vault cloud launch uses the Rust registry");
     prove_live_production_generation(
         &coordinator,
@@ -189,12 +214,14 @@ async fn model_lane_cloud_launch_is_no_egress_and_fail_closed_without_authority(
     let reopened_storage = SurrealStorage::open(surreal_config)
         .await
         .expect("reopen MT-003 embedded SurrealDB after component restart");
+    bootstrap_production_schemas(&reopened_storage).await.expect("reconcile canonical launch schemas after restart");
     let reopened_store =
-        ModelLaneStore::new_surreal_scoped(reopened_storage.clone(), launch_scope)
+        ModelLaneStore::new_surreal_cloud_authority_only(
+            ResourceAccessContext::for_account_with_lifecycle(launch_scope, lifecycle), reopened_storage.clone())
             .await
             .expect("rebind MT-003 ModelLane authority after restart");
-    let replay_after_restart = reopened_store
-        .replay_cloud_consent_authority(&valid_run_id)
+    let replay_after_restart = launch_operation(&reopened_storage, &account, &exact_scope, ResourceAction::Read).await
+        .run(reopened_store.replay_cloud_consent_authority(&valid_run_id))
         .await
         .expect("replay durable MT-003 authority after restart");
     assert_eq!(replay_after_restart.projection_plans.len(), 1);
@@ -211,6 +238,23 @@ async fn model_lane_cloud_launch_is_no_egress_and_fail_closed_without_authority(
         .await
         .expect("close reopened MT-003 embedded SurrealDB");
     std::fs::remove_dir_all(&surreal_root).expect("remove isolated MT-003 SurrealDB root");
+}
+
+async fn launch_operation(
+    storage: &SurrealStorage,
+    account: &account_session_support::AccountFixture,
+    exact: &ExactResourceScopeAttribution,
+    action: ResourceAction,
+) -> AuthenticatedModelLaneTestOperation {
+    use sha2::{Digest, Sha256};
+    AuthenticatedModelLaneTestOperation::authorize(storage.clone(), AuthorizationRequest {
+        session_token: account.session_token.clone(),
+        channel_binding_hash: Some(hex::encode(Sha256::digest(account.channel_binding_token.as_bytes()))),
+        capability_id: if matches!(action, ResourceAction::Read) { "fs.read" } else { "fs.write" }.into(),
+        resource_kind: ResourceKind::Workspace,
+        external_resource_id: exact.workspace_id.as_str().to_owned(),
+        action,
+    }, exact.clone()).await.expect("authorize original persisted launch tuple")
 }
 
 async fn seed_cloud_launch_authority(
