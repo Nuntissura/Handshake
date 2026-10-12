@@ -1324,6 +1324,9 @@ impl SurrealAdminContext<'_> {
                     if let Some((index, error)) = errors.first() {
                         eprintln!("SURREAL_ADMIN_FIRST_MASKED_ERROR index={index} error={error:?}");
                     }
+                    if let Some((index, error)) = errors.last() {
+                        eprintln!("SURREAL_ADMIN_LAST_MASKED_ERROR index={index} error={error:?}");
+                    }
                 }
             }
             // take_errors removes failures; preserve check's original first error.
@@ -1371,6 +1374,9 @@ impl SurrealAdminContext<'_> {
                 if masked == errors.len() {
                     if let Some((index, error)) = errors.first() {
                         eprintln!("SURREAL_ADMIN_FIRST_MASKED_ERROR index={index} error={error:?}");
+                    }
+                    if let Some((index, error)) = errors.last() {
+                        eprintln!("SURREAL_ADMIN_LAST_MASKED_ERROR index={index} error={error:?}");
                     }
                 }
             }
