@@ -1,0 +1,920 @@
+{
+ "crate": "hsk-studio-pigment + hsk-studio-render-cpu",
+ "lane": "SMB-PIGMENT-NOTES",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "R15 review notes PLAN-R15-1 (PLR-079: forward-input guard pinned on a reachable node), PLAN-R15-2 (PLR-080: source tripwire scans every file, spelling and fn form), PLAN-R15-3 (PLR-081: three never/guarantees sentences cite their tests), PLAN-R15-5 (composite note corrected); tests and docs only, no product behaviour change; pigment 82, render-cpu 38, dependants 106 green, clippy clean",
+ "commits": [
+  {
+   "sha": "9cb44c2",
+   "subject": "pigment (SMB-PIGMENT-NOTES): forward-input guard pinned on a reachable node (PLR-079); plan-reader tripwire scans every file, spelling and fn form (PLR-080); validate doc cites its tests (PLR-081)"
+  },
+  {
+   "sha": "fe035ce",
+   "subject": "render-cpu (SMB-PIGMENT-NOTES): reachable() and ExtPrep::build docs cite their tests (PLR-081); invalid plan indexes are refused before the reachable sweep (test)"
+  },
+  {
+   "sha": "8980d04",
+   "subject": "pigment (SMB-PIGMENT-NOTES): reader_scan docs cite the cases that prove them (V4-07)"
+  }
+ ],
+ "capabilities_done": [
+  "PLR-079 (PLAN-R15-1): pigment tests/effects_ops.rs effects_nested_ignores_an_input_that_is_not_an_earlier_node_of_a_reachable_group roots its hostile plans at the node under test (a forward input and a self reference, both with entries that count) so deleting the guard layer.input.0 < node, or relaxing it to <=, changes the result; a precondition asserts the entry counts when rooted there and asks nothing under the default root; a backward-input control stays nested. The existing hostile case of effects_nested_is_reported_when_the_content_holds_effects is kept unchanged, its comment now says it does not pin the guard",
+  "PLR-080 (PLAN-R15-2): tripwire admission_readers_of_nodes_and_entries_are_classified (tests/plan_followups.rs, name and location kept) now scans every .rs file under src/ recursively through tests/reader_scan/mod.rs: a read is .nodes or .layers after any receiver (self, plan, render, extensions, g) or the field shorthand of a struct pattern; fns are found by keyword (const, unsafe, pub(in ..), async, extern, nested); only the #[cfg(test)] item is skipped, comments and string/char literals are blanked; an admit* fn may not read nodes or entries or call effect_modes(); a classification row that matches no reader fails (stale); from_layers, a constructor the wider scan sees, is classified Every. the_reader_scan_flags_a_new_unclassified_reader feeds it 13 mutants of the real sources (each of the four escapes of PLAN-R15-2, a reader in a new file two directories down, a struct pattern, a reader after a cfg(test) item, an unsafe pub(in) fn, a nested fn, a reader after comment-like literals, a lost reachable gate, two effect_modes calls in admission, a stale row) and the_reader_scan_does_not_count_text_that_is_not_code checks that comments, strings, ranges, test items and trait declarations are not counted",
+  "PLR-081 (PLAN-R15-3): the three uncited sentences are rewritten. pigment PlanExtensions::validate doc cites render-cpu cpu_envelope_reach unreachable_envelope_entries_are_neither_admitted_nor_prepared for render-cpu and says render-gpu is by reading only (no GPU test puts an entry on an unreachable group); render-cpu reachable() doc names RenderPlan::validate and cites the new test cpu_envelope_reach invalid_plan_indexes_are_refused_before_the_reachable_sweep (root out of range, input out of range, later node, the node itself: each the typed InvalidPlan on the v1 path and the envelope path, no sink call, no panic); ExtPrep::build doc drops 'never looked up' and cites the test for what it proves (pixel and peak_working_bytes equal the plain plan's). The reader_scan module docs cite their cases too (commit 8980d04)",
+  "PLAN-R15-5: the earlier lane note that names composite evaluate_static.rs:485 is corrected in notes.follow_ups below (only lower_render_plan.rs:372 asks pigment's PlanExtensions::effect_modes() over every entry); the earlier lane file is not edited"
+ ],
+ "tests": {
+  "argv": [
+   "cargo",
+   "nextest",
+   "run",
+   "-p",
+   "hsk-studio-pigment",
+   "-p",
+   "hsk-studio-render-cpu",
+   "--no-fail-fast"
+  ],
+  "exit": 0,
+  "sha": "8980d04",
+  "passed": 120,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 63,
+ "bg_pids": [],
+ "next": "Independent validator round on the three commits (pigment and render-cpu only; tests and docs, no product behaviour change; nothing is claimed on SMB-RENDER-GPU, which is untouched and stays BLOCKED/D20). Open for the lead: PLAN-R15-4/PLR-082 (render-gpu limits after D20, envelope effect budgets) and the R15 PLAUSIBLE notes -6..-11 are not in this lane (notes.plausible_not_addressed).",
+ "updated_at": "2026-10-12T00:37:10Z",
+ "notes": {
+  "origin": "validation/R15-review-a.json PLAN-R15-1, -2, -3, -5 (file:line at b8b31c7); workflow/plausible-register.json PLR-079, PLR-080, PLR-081 (FIX_LANE); lane brief of the lead (new lane id SMB-PIGMENT-NOTES, V4-15: remediation of the passed lane SMB-PIGMENT-FOLLOWUPS goes on a new id)",
+  "scope_as_assigned": "crates/hsk-studio-pigment/** and crates/hsk-studio-render-cpu/** only; render-gpu not touched (D20); composite, develop, interop-psd are dependants and unchanged; the earlier lane file, ledger, team, START_LOG are not edited",
+  "behaviour_changes": [],
+  "api_added": [],
+  "files": [
+   "crates/hsk-studio-pigment/tests/effects_ops.rs",
+   "crates/hsk-studio-pigment/tests/plan_followups.rs",
+   "crates/hsk-studio-pigment/tests/reader_scan/mod.rs (new)",
+   "crates/hsk-studio-pigment/src/render_plan/extensions.rs (rustdoc of PlanExtensions::validate only)",
+   "crates/hsk-studio-render-cpu/tests/cpu_envelope_reach.rs",
+   "crates/hsk-studio-render-cpu/src/plan_sink.rs (rustdoc of reachable() only)",
+   "crates/hsk-studio-render-cpu/src/plan_sink/extended.rs (rustdoc of ExtPrep::build only)"
+  ],
+  "tests_added": [
+   "pigment tests/effects_ops.rs effects_nested_ignores_an_input_that_is_not_an_earlier_node_of_a_reachable_group (PLR-079)",
+   "pigment tests/plan_followups.rs the_reader_scan_flags_a_new_unclassified_reader (PLR-080: 13 mutants of the real sources plus a stale row) and the_reader_scan_does_not_count_text_that_is_not_code (decoys: comments, doc comments, nested block comments, strings with escapes, raw strings, byte strings, char literals, lifetimes, ranges, struct definitions, trait declarations, a cfg(test) mod and a cfg(test) enum variant)",
+   "render-cpu tests/cpu_envelope_reach.rs invalid_plan_indexes_are_refused_before_the_reachable_sweep (PLR-081: four hostile plans x v1 path and envelope path)"
+  ],
+  "tests_changed": {
+   "pigment tests/plan_followups.rs admission_readers_of_nodes_and_entries_are_classified": "same name and file; scans src/ recursively through tests/reader_scan/mod.rs instead of two include_str! files and three spellings; the table is keyed by file and fn name, gains from_layers and fails on a stale row",
+   "pigment tests/effects_ops.rs effects_nested_is_reported_when_the_content_holds_effects": "assertions unchanged; one comment explains that the hostile case's default root leaves node 1 unreachable"
+  },
+  "red_proofs": {
+   "tree": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pigment-notes-redproof (STUDIO_OWNER=smb-pigment-notes-redproof, own target; git archive of b8b31c7, src unchanged except one mutant at a time, the lane's test files copied in, the earlier effects_ops.rs / plan_followups.rs kept as extra test targets effects_ops_b8b31c7 / plan_followups_b8b31c7; every restore writes fresh mtimes, V4-11); nothing from it is in a commit",
+   "why_mutants": "the product code is right at b8b31c7 (R15: NO CONFIRMED DEFECT), so a test that strengthens a guard or a scan cannot be red on the origin source; each is red on a mutant of the code (or of the scan) it guards while the earlier test of the same name or target stays green on that mutant",
+   "baseline_b8b31c7_sources": {
+    "argv": [
+     "cargo",
+     "nextest",
+     "run",
+     "-p",
+     "hsk-studio-pigment",
+     "-p",
+     "hsk-studio-render-cpu",
+     "--test",
+     "plan_followups",
+     "--test",
+     "plan_followups_b8b31c7",
+     "--test",
+     "effects_ops",
+     "--test",
+     "effects_ops_b8b31c7",
+     "--test",
+     "cpu_envelope_reach",
+     "--no-fail-fast"
+    ],
+    "run": 38,
+    "passed": 38,
+    "exit": 0
+   },
+   "product_mutants": [
+    {
+     "name": "guard_removed",
+     "what": "extensions.rs: delete the guard `layer.input.0 < node &&` (PLR-079; the earlier effects_ops.rs target effects_ops_b8b31c7 stays green = the gap)",
+     "exit": 100,
+     "failed": [
+      "pigment::effects_ops effects_nested_ignores_an_input_that_is_not_an_earlier_node_of_a_reachable_group"
+     ],
+     "summary": {
+      "run": 35,
+      "passed": 34,
+      "failed": 1
+     },
+     "earlier_tests_still_green": true
+    },
+    {
+     "name": "guard_le",
+     "what": "extensions.rs: `layer.input.0 <= node` (PLR-079; earlier effects_ops stays green)",
+     "exit": 100,
+     "failed": [
+      "pigment::effects_ops effects_nested_ignores_an_input_that_is_not_an_earlier_node_of_a_reachable_group"
+     ],
+     "summary": {
+      "run": 35,
+      "passed": 34,
+      "failed": 1
+     },
+     "earlier_tests_still_green": true
+    },
+    {
+     "name": "t1_extensions_layers_in_admission",
+     "what": "extensions.rs: `let _n = extensions.layers.len();` inside admit_extended_with_limits (PLR-080 escape a; the earlier tripwire plan_followups_b8b31c7 stays green)",
+     "exit": 100,
+     "failed": [
+      "pigment::plan_followups admission_readers_of_nodes_and_entries_are_classified"
+     ],
+     "summary": {
+      "run": 35,
+      "passed": 34,
+      "failed": 1
+     },
+     "earlier_tests_still_green": true
+    },
+    {
+     "name": "t2_other_parameter_name",
+     "what": "render_plan.rs: `pub fn leak_len(render: &RenderPlan<V>) -> usize { render.nodes.len() }` (escape b)",
+     "exit": 100,
+     "failed": [
+      "pigment::plan_followups admission_readers_of_nodes_and_entries_are_classified"
+     ],
+     "summary": {
+      "run": 35,
+      "passed": 34,
+      "failed": 1
+     },
+     "earlier_tests_still_green": true
+    },
+    {
+     "name": "t3_const_fn",
+     "what": "extensions.rs: `pub const fn all_len(&self) -> usize { self.layers.len() }` (escape c)",
+     "exit": 100,
+     "failed": [
+      "pigment::plan_followups admission_readers_of_nodes_and_entries_are_classified"
+     ],
+     "summary": {
+      "run": 35,
+      "passed": 34,
+      "failed": 1
+     },
+     "earlier_tests_still_green": true
+    },
+    {
+     "name": "t4_new_file",
+     "what": "a new src/render_plan/leak.rs reading p.nodes plus `mod leak;` (escape d)",
+     "exit": 100,
+     "failed": [
+      "pigment::plan_followups admission_readers_of_nodes_and_entries_are_classified"
+     ],
+     "summary": {
+      "run": 35,
+      "passed": 34,
+      "failed": 1
+     },
+     "earlier_tests_still_green": true
+    },
+    {
+     "name": "r1_cpu_sweep_before_admission_envelope",
+     "what": "render-cpu plan_sink.rs: execute_extended_detailed runs reachable(plan) before admit_extended_with_limits (PLR-081 support: panics index out of bounds at plan_sink.rs:454)",
+     "exit": 100,
+     "failed": [
+      "render-cpu::cpu_envelope_reach invalid_plan_indexes_are_refused_before_the_reachable_sweep"
+     ],
+     "summary": {
+      "run": 3,
+      "passed": 2,
+      "failed": 1
+     }
+    },
+    {
+     "name": "r2_cpu_sweep_before_admission_v1",
+     "what": "render-cpu plan_sink.rs: execute_detailed runs reachable(plan) before admit_with_limits",
+     "exit": 100,
+     "failed": [
+      "render-cpu::cpu_envelope_reach invalid_plan_indexes_are_refused_before_the_reachable_sweep"
+     ],
+     "summary": {
+      "run": 3,
+      "passed": 2,
+      "failed": 1
+     }
+    }
+   ],
+   "scan_engine_mutants": {
+    "note": "mutants of tests/reader_scan/mod.rs that bring back one of the earlier limits; each is caught by the_reader_scan_flags_a_new_unclassified_reader and/or the_reader_scan_does_not_count_text_that_is_not_code or the real-source test",
+    "mutants": [
+     {
+      "name": "e1_receiver_spelling_only",
+      "what": "the scan accepts only `self.` and `plan.` receivers (the earlier spellings)",
+      "exit": 100,
+      "failed": [
+       "pigment::plan_followups the_reader_scan_does_not_count_text_that_is_not_code",
+       "pigment::plan_followups the_reader_scan_flags_a_new_unclassified_reader"
+      ],
+      "summary": {
+       "run": 12,
+       "passed": 10,
+       "failed": 2
+      }
+     },
+     {
+      "name": "e2_truncate_at_first_cfg_test",
+      "what": "the scan drops the rest of the file at the first #[cfg(test)] (the earlier split)",
+      "exit": 100,
+      "failed": [
+       "pigment::plan_followups the_reader_scan_does_not_count_text_that_is_not_code",
+       "pigment::plan_followups the_reader_scan_flags_a_new_unclassified_reader"
+      ],
+      "summary": {
+       "run": 12,
+       "passed": 10,
+       "failed": 2
+      }
+     },
+     {
+      "name": "e3_no_recursion",
+      "what": "the directory walk does not descend into sub-directories",
+      "exit": 100,
+      "failed": [
+       "pigment::plan_followups admission_readers_of_nodes_and_entries_are_classified",
+       "pigment::plan_followups the_reader_scan_flags_a_new_unclassified_reader"
+      ],
+      "summary": {
+       "run": 12,
+       "passed": 10,
+       "failed": 2
+      }
+     },
+     {
+      "name": "e5_no_shorthand",
+      "what": "the field shorthand of a struct pattern is not read",
+      "exit": 100,
+      "failed": [
+       "pigment::plan_followups admission_readers_of_nodes_and_entries_are_classified",
+       "pigment::plan_followups the_reader_scan_flags_a_new_unclassified_reader"
+      ],
+      "summary": {
+       "run": 12,
+       "passed": 10,
+       "failed": 2
+      }
+     },
+     {
+      "name": "e6_comments_not_blanked",
+      "what": "line comments are not blanked",
+      "exit": 100,
+      "failed": [
+       "pigment::plan_followups the_reader_scan_does_not_count_text_that_is_not_code"
+      ],
+      "summary": {
+       "run": 12,
+       "passed": 11,
+       "failed": 1
+      }
+     },
+     {
+      "name": "e7_no_stale_row_check",
+      "what": "a table row that matches no reader is not reported",
+      "exit": 100,
+      "failed": [
+       "pigment::plan_followups the_reader_scan_flags_a_new_unclassified_reader"
+      ],
+      "summary": {
+       "run": 12,
+       "passed": 11,
+       "failed": 1
+      }
+     },
+     {
+      "name": "e8_admit_may_read",
+      "what": "an admit* function may read nodes or entries",
+      "exit": 100,
+      "failed": [
+       "pigment::plan_followups the_reader_scan_flags_a_new_unclassified_reader"
+      ],
+      "summary": {
+       "run": 12,
+       "passed": 11,
+       "failed": 1
+      }
+     },
+     {
+      "name": "e9_no_effect_modes_check",
+      "what": "an admit* function may call effect_modes()",
+      "exit": 100,
+      "failed": [
+       "pigment::plan_followups the_reader_scan_flags_a_new_unclassified_reader"
+      ],
+      "summary": {
+       "run": 12,
+       "passed": 11,
+       "failed": 1
+      }
+     },
+     {
+      "name": "e10_needles_ignored",
+      "what": "a capability reader's needles are not checked",
+      "exit": 100,
+      "failed": [
+       "pigment::plan_followups the_reader_scan_flags_a_new_unclassified_reader"
+      ],
+      "summary": {
+       "run": 12,
+       "passed": 11,
+       "failed": 1
+      }
+     }
+    ]
+   }
+  },
+  "v4_06": {
+   "classes": {
+    "P": "PLR-079: a hostile-plan test case (a plan that RenderPlan::validate refuses, or an index outside the plan) whose subject node may not be reachable from the plan's root, so the case passes vacuously under the reachable-only rule",
+    "A": "PLR-080: pigment or render-cpu code that reads the nodes of a plan or the entries of an envelope (the class A of SMB-PIGMENT-FOLLOWUPS), which the pigment source tripwire must classify",
+    "D": "PLR-081 (V4-07): a doc comment or DESCRIPTOR clause using never / always / guarantee(s) / prove(s) that was added or changed since 4b76604 (the start of the R15 window) in the files of the window, without the test that proves it"
+   },
+   "regex": {
+    "P": "(?i)hostile|forward|out of range|out_of_range|cyclic|unvalidated|RootOutOfRange|ForwardReference",
+    "A": "\\.(nodes|layers)\\b",
+    "D": "(?i)\\b(never|always|guarantee[sd]?|proves?|proven)\\b"
+   },
+   "scope": {
+    "P": "every line of crates/hsk-studio-pigment/tests/**/*.rs, crates/hsk-studio-render-cpu/tests/**/*.rs and crates/hsk-studio-render-cpu/src/plan_sink/refusal_keys.rs at the final commit",
+    "A": "crates/hsk-studio-pigment/src/**/*.rs and crates/hsk-studio-render-cpu/src/**/*.rs: lines that do not start with // and lie before the inline cfg(test) module; plan_sink/refusal_keys.rs skipped (the scope of SMB-PIGMENT-FOLLOWUPS; reproduced exactly: its 76-site list equals this scan's at b8b31c7)",
+    "D": "doc comment lines and DESCRIPTOR clauses (split at '; ') of render_plan.rs, render_plan/extensions.rs, render-cpu plan_sink.rs, plan_sink/extended.rs and lib.rs that differ from 4b76604; v4_07_scan.py BASE FINAL"
+   },
+   "matched_at_final": {
+    "A": 55,
+    "P": 39,
+    "D": 3
+   },
+   "matched_at_b8b31c7": {
+    "A": 55,
+    "D": 6
+   },
+   "origin_sites_fixed_by_this_lane": [
+    {
+     "file_line": "pigment/src/render_plan/extensions.rs:286 (at b8b31c7)",
+     "verdict": "FIXED (PLR-081, was PLAN-R15-3): rewritten without 'never'; render-cpu half cites cpu_envelope_reach unreachable_envelope_entries_are_neither_admitted_nor_prepared, render-gpu half says by reading only (no GPU test puts an entry on an unreachable group)"
+    },
+    {
+     "file_line": "render-cpu/src/plan_sink.rs:448 (at b8b31c7)",
+     "verdict": "FIXED (PLR-081, was PLAN-R15-3): 'guarantees' replaced by what validate refuses, and the new test cpu_envelope_reach invalid_plan_indexes_are_refused_before_the_reachable_sweep is cited"
+    },
+    {
+     "file_line": "render-cpu/src/plan_sink/extended.rs:194 (at b8b31c7)",
+     "verdict": "FIXED (PLR-081, was PLAN-R15-3): 'never looked up' dropped; the claim that remains (renders nothing, charges nothing) cites cpu_envelope_reach unreachable_envelope_entries_are_neither_admitted_nor_prepared"
+    }
+   ],
+   "counts": {
+    "P": 39,
+    "A": 55,
+    "D": 3
+   },
+   "unclassified": 0,
+   "scripts": "per-lane scratch scripts v4_06_scan.py, v4_07_scan.py, build_lane.py under <scratchpad>/SMB-PIGMENT-NOTES/ (not committed); the A scan reproduces the 76 sites of SMB-PIGMENT-FOLLOWUPS at b8b31c7 exactly (class B and C of that lane are not this lane's classes)"
+  },
+  "v4_06_sites": [
+   {
+    "class": "A",
+    "file_line": "pigment/src/render_plan.rs:176",
+    "verdict": "COVERED (PLR-080): in fn clip_role, a READERS row of the source tripwire (tests/plan_followups.rs); earlier verdict: NOT_APPLICABLE: the layers of one group, by index"
+   },
+   {
+    "class": "A",
+    "file_line": "pigment/src/render_plan.rs:179",
+    "verdict": "COVERED (PLR-080): in fn clip_role, a READERS row of the source tripwire (tests/plan_followups.rs); earlier verdict: NOT_APPLICABLE: the layers of one group, by index"
+   },
+   {
+    "class": "A",
+    "file_line": "pigment/src/render_plan.rs:486",
+    "verdict": "COVERED (PLR-080): in fn validate, a READERS row of the source tripwire (tests/plan_followups.rs); earlier verdict: NOT_APPLICABLE: structure of every node by design (counts, indexes, ranges, modes, clip-run rules, depth); the capability filter is the reachable set applied after the loop (PLR-058, unchanged); PLR-072 adds the depth comparison per node"
+   },
+   {
+    "class": "A",
+    "file_line": "pigment/src/render_plan.rs:489",
+    "verdict": "COVERED (PLR-080): in fn validate, a READERS row of the source tripwire (tests/plan_followups.rs); earlier verdict: NOT_APPLICABLE: structure of every node by design (counts, indexes, ranges, modes, clip-run rules, depth); the capability filter is the reachable set applied after the loop (PLR-058, unchanged); PLR-072 adds the depth comparison per node"
+   },
+   {
+    "class": "A",
+    "file_line": "pigment/src/render_plan.rs:492",
+    "verdict": "COVERED (PLR-080): in fn validate, a READERS row of the source tripwire (tests/plan_followups.rs); earlier verdict: NOT_APPLICABLE: structure of every node by design (counts, indexes, ranges, modes, clip-run rules, depth); the capability filter is the reachable set applied after the loop (PLR-058, unchanged); PLR-072 adds the depth comparison per node"
+   },
+   {
+    "class": "A",
+    "file_line": "pigment/src/render_plan.rs:501",
+    "verdict": "COVERED (PLR-080): in fn validate, a READERS row of the source tripwire (tests/plan_followups.rs); earlier verdict: NOT_APPLICABLE: structure of every node by design (counts, indexes, ranges, modes, clip-run rules, depth); the capability filter is the reachable set applied after the loop (PLR-058, unchanged); PLR-072 adds the depth comparison per node"
+   },
+   {
+    "class": "A",
+    "file_line": "pigment/src/render_plan.rs:503",
+    "verdict": "COVERED (PLR-080): in fn validate, a READERS row of the source tripwire (tests/plan_followups.rs); earlier verdict: NOT_APPLICABLE: structure of every node by design (counts, indexes, ranges, modes, clip-run rules, depth); the capability filter is the reachable set applied after the loop (PLR-058, unchanged); PLR-072 adds the depth comparison per node"
+   },
+   {
+    "class": "A",
+    "file_line": "pigment/src/render_plan.rs:528",
+    "verdict": "COVERED (PLR-080): in fn validate, a READERS row of the source tripwire (tests/plan_followups.rs); earlier verdict: NOT_APPLICABLE: structure of every node by design (counts, indexes, ranges, modes, clip-run rules, depth); the capability filter is the reachable set applied after the loop (PLR-058, unchanged); PLR-072 adds the depth comparison per node"
+   },
+   {
+    "class": "A",
+    "file_line": "pigment/src/render_plan.rs:538",
+    "verdict": "COVERED (PLR-080): in fn validate, a READERS row of the source tripwire (tests/plan_followups.rs); earlier verdict: NOT_APPLICABLE: structure of every node by design (counts, indexes, ranges, modes, clip-run rules, depth); the capability filter is the reachable set applied after the loop (PLR-058, unchanged); PLR-072 adds the depth comparison per node"
+   },
+   {
+    "class": "A",
+    "file_line": "pigment/src/render_plan.rs:557",
+    "verdict": "COVERED (PLR-080): in fn validate, a READERS row of the source tripwire (tests/plan_followups.rs); earlier verdict: NOT_APPLICABLE: structure of every node by design (counts, indexes, ranges, modes, clip-run rules, depth); the capability filter is the reachable set applied after the loop (PLR-058, unchanged); PLR-072 adds the depth comparison per node"
+   },
+   {
+    "class": "A",
+    "file_line": "pigment/src/render_plan.rs:611",
+    "verdict": "COVERED (PLR-080): in fn validate, a READERS row of the source tripwire (tests/plan_followups.rs); earlier verdict: NOT_APPLICABLE: structure of every node by design (counts, indexes, ranges, modes, clip-run rules, depth); the capability filter is the reachable set applied after the loop (PLR-058, unchanged); PLR-072 adds the depth comparison per node"
+   },
+   {
+    "class": "A",
+    "file_line": "pigment/src/render_plan.rs:665",
+    "verdict": "COVERED (PLR-080): in fn has_pass_through_fill, a READERS row of the source tripwire (tests/plan_followups.rs); earlier verdict: ALREADY_FIXED (SMB-PARITY-FOLLOWUP 1c80811): reachable groups only"
+   },
+   {
+    "class": "A",
+    "file_line": "pigment/src/render_plan.rs:667",
+    "verdict": "COVERED (PLR-080): in fn has_pass_through_fill, a READERS row of the source tripwire (tests/plan_followups.rs); earlier verdict: ALREADY_FIXED (SMB-PARITY-FOLLOWUP 1c80811): reachable groups only"
+   },
+   {
+    "class": "A",
+    "file_line": "pigment/src/render_plan.rs:686",
+    "verdict": "COVERED (PLR-080): in fn reachable_nodes, a READERS row of the source tripwire (tests/plan_followups.rs); earlier verdict: NOT_APPLICABLE: the reachable-set helper itself (hostile indexes ignored)"
+   },
+   {
+    "class": "A",
+    "file_line": "pigment/src/render_plan.rs:693",
+    "verdict": "COVERED (PLR-080): in fn reachable_nodes, a READERS row of the source tripwire (tests/plan_followups.rs); earlier verdict: NOT_APPLICABLE: the reachable-set helper itself (hostile indexes ignored)"
+   },
+   {
+    "class": "A",
+    "file_line": "pigment/src/render_plan.rs:694",
+    "verdict": "COVERED (PLR-080): in fn reachable_nodes, a READERS row of the source tripwire (tests/plan_followups.rs); earlier verdict: NOT_APPLICABLE: the reachable-set helper itself (hostile indexes ignored)"
+   },
+   {
+    "class": "A",
+    "file_line": "pigment/src/render_plan.rs:714",
+    "verdict": "COVERED (PLR-080): in fn has_pass_through_mask, a READERS row of the source tripwire (tests/plan_followups.rs); earlier verdict: ALREADY_FIXED (SMB-PARITY-FOLLOWUP a873234): reachable groups only"
+   },
+   {
+    "class": "A",
+    "file_line": "pigment/src/render_plan.rs:715",
+    "verdict": "COVERED (PLR-080): in fn has_pass_through_mask, a READERS row of the source tripwire (tests/plan_followups.rs); earlier verdict: ALREADY_FIXED (SMB-PARITY-FOLLOWUP a873234): reachable groups only"
+   },
+   {
+    "class": "A",
+    "file_line": "pigment/src/render_plan.rs:734",
+    "verdict": "COVERED (PLR-080): in fn uses_premultiplied_alpha, a READERS row of the source tripwire (tests/plan_followups.rs); earlier verdict: ALREADY_FIXED (SMB-PARITY-FOLLOWUP a873234): target always, tiles when reachable"
+   },
+   {
+    "class": "A",
+    "file_line": "pigment/src/render_plan.rs:744",
+    "verdict": "COVERED (PLR-080): in fn has_leaf_root, a READERS row of the source tripwire (tests/plan_followups.rs); earlier verdict: NOT_APPLICABLE: reads the root node only"
+   },
+   {
+    "class": "A",
+    "file_line": "pigment/src/render_plan.rs:1096",
+    "verdict": "COVERED (PLR-080): in fn has_solid_outside_unit, a READERS row of the source tripwire (tests/plan_followups.rs); earlier verdict: ALREADY_FIXED (SMB-PARITY-FOLLOWUP 1c80811): reachable solids only"
+   },
+   {
+    "class": "A",
+    "file_line": "pigment/src/render_plan.rs:1108",
+    "verdict": "COVERED (PLR-080): in fn has_mask_density, a READERS row of the source tripwire (tests/plan_followups.rs); earlier verdict: ALREADY_FIXED (SMB-PARITY-FOLLOWUP 1c80811): reachable groups only"
+   },
+   {
+    "class": "A",
+    "file_line": "pigment/src/render_plan.rs:1109",
+    "verdict": "COVERED (PLR-080): in fn has_mask_density, a READERS row of the source tripwire (tests/plan_followups.rs); earlier verdict: ALREADY_FIXED (SMB-PARITY-FOLLOWUP 1c80811): reachable groups only"
+   },
+   {
+    "class": "A",
+    "file_line": "pigment/src/render_plan/extensions.rs:234",
+    "verdict": "COVERED (PLR-080): in fn is_empty, a READERS row of the source tripwire (tests/plan_followups.rs); earlier verdict: NOT_APPLICABLE: emptiness of the envelope"
+   },
+   {
+    "class": "A",
+    "file_line": "pigment/src/render_plan/extensions.rs:238",
+    "verdict": "COVERED (PLR-080): in fn extension, a READERS row of the source tripwire (tests/plan_followups.rs); earlier verdict: NOT_APPLICABLE: lookup of one entry by (group, layer) for a caller; no capability decision"
+   },
+   {
+    "class": "A",
+    "file_line": "pigment/src/render_plan/extensions.rs:252",
+    "verdict": "COVERED (PLR-080): in fn nodes_holding_effects, a READERS row of the source tripwire (tests/plan_followups.rs); earlier verdict: FIXED (PLR-069): only entries on reachable groups count, via the reachable set passed in; the forward pass over plan.nodes only combines flags of a node's inputs, which are reachable when the node is"
+   },
+   {
+    "class": "A",
+    "file_line": "pigment/src/render_plan/extensions.rs:262",
+    "verdict": "COVERED (PLR-080): in fn nodes_holding_effects, a READERS row of the source tripwire (tests/plan_followups.rs); earlier verdict: NOT_APPLICABLE: forward pass over plan.nodes combining the flags of a node's inputs; a reachable group's inputs are reachable, and the entries counted are filtered at the line above"
+   },
+   {
+    "class": "A",
+    "file_line": "pigment/src/render_plan/extensions.rs:263",
+    "verdict": "COVERED (PLR-080): in fn nodes_holding_effects, a READERS row of the source tripwire (tests/plan_followups.rs); earlier verdict: NOT_APPLICABLE: forward pass over plan.nodes combining the flags of a node's inputs; a reachable group's inputs are reachable, and the entries counted are filtered at the line above"
+   },
+   {
+    "class": "A",
+    "file_line": "pigment/src/render_plan/extensions.rs:265",
+    "verdict": "COVERED (PLR-080): in fn nodes_holding_effects, a READERS row of the source tripwire (tests/plan_followups.rs); earlier verdict: NOT_APPLICABLE: forward pass over plan.nodes combining the flags of a node's inputs; a reachable group's inputs are reachable, and the entries counted are filtered at the line above"
+   },
+   {
+    "class": "A",
+    "file_line": "pigment/src/render_plan/extensions.rs:302",
+    "verdict": "COVERED (PLR-080): in fn validate, a READERS row of the source tripwire (tests/plan_followups.rs); earlier verdict: FIXED (PLR-069): one pass over every entry; structure is checked on all of them, the operators of an entry count only when its group is reachable (counts)"
+   },
+   {
+    "class": "A",
+    "file_line": "pigment/src/render_plan/extensions.rs:312",
+    "verdict": "COVERED (PLR-080): in fn validate, a READERS row of the source tripwire (tests/plan_followups.rs); earlier verdict: NOT_APPLICABLE: structure of an entry (target group and layer lookup, adjustment input, clip-run neighbour); checked on every entry by design (test envelope_structure_stays_checked_on_unreachable_entries)"
+   },
+   {
+    "class": "A",
+    "file_line": "pigment/src/render_plan/extensions.rs:315",
+    "verdict": "COVERED (PLR-080): in fn validate, a READERS row of the source tripwire (tests/plan_followups.rs); earlier verdict: NOT_APPLICABLE: structure of an entry (target group and layer lookup, adjustment input, clip-run neighbour); checked on every entry by design (test envelope_structure_stays_checked_on_unreachable_entries)"
+   },
+   {
+    "class": "A",
+    "file_line": "pigment/src/render_plan/extensions.rs:328",
+    "verdict": "COVERED (PLR-080): in fn validate, a READERS row of the source tripwire (tests/plan_followups.rs); earlier verdict: NOT_APPLICABLE: structure of an entry (target group and layer lookup, adjustment input, clip-run neighbour); checked on every entry by design (test envelope_structure_stays_checked_on_unreachable_entries)"
+   },
+   {
+    "class": "A",
+    "file_line": "pigment/src/render_plan/extensions.rs:350",
+    "verdict": "COVERED (PLR-080): in fn validate, a READERS row of the source tripwire (tests/plan_followups.rs); earlier verdict: NOT_APPLICABLE: structure of an entry (target group and layer lookup, adjustment input, clip-run neighbour); checked on every entry by design (test envelope_structure_stays_checked_on_unreachable_entries)"
+   },
+   {
+    "class": "A",
+    "file_line": "pigment/src/render_plan/extensions.rs:364",
+    "verdict": "COVERED (PLR-080): in fn validate, a READERS row of the source tripwire (tests/plan_followups.rs); earlier verdict: NOT_APPLICABLE: structure of an entry (target group and layer lookup, adjustment input, clip-run neighbour); checked on every entry by design (test envelope_structure_stays_checked_on_unreachable_entries)"
+   },
+   {
+    "class": "A",
+    "file_line": "pigment/src/render_plan/extensions.rs:459",
+    "verdict": "COVERED (PLR-080): in fn effect_modes, a READERS row of the source tripwire (tests/plan_followups.rs); earlier verdict: BY_DESIGN: the documented all-entries helper, kept as public API (composite lower_render_plan.rs and evaluate_static.rs call it, outside this lane); admission uses effect_modes_in (tripwire test admission_readers_of_nodes_and_entries_are_classified)"
+   },
+   {
+    "class": "A",
+    "file_line": "pigment/src/render_plan/extensions.rs:470",
+    "verdict": "COVERED (PLR-080): in fn effect_modes_in, a READERS row of the source tripwire (tests/plan_followups.rs); earlier verdict: FIXED (PLR-069): the effect blend modes admission asks the backend about come from entries on reachable groups only (case effect blend mode)"
+   },
+   {
+    "class": "A",
+    "file_line": "render-cpu/src/plan_sink.rs:455",
+    "verdict": "OUTSIDE the pigment tripwire (render-cpu code; pinned by tests/cpu_envelope_reach.rs and cpu_plan_limits.rs); earlier verdict: NOT_APPLICABLE: the reachable-set helper itself (moved out of prepare unchanged, now shared with the envelope preparation)"
+   },
+   {
+    "class": "A",
+    "file_line": "render-cpu/src/plan_sink.rs:460",
+    "verdict": "OUTSIDE the pigment tripwire (render-cpu code; pinned by tests/cpu_envelope_reach.rs and cpu_plan_limits.rs); earlier verdict: NOT_APPLICABLE: the reachable-set helper itself (moved out of prepare unchanged, now shared with the envelope preparation)"
+   },
+   {
+    "class": "A",
+    "file_line": "render-cpu/src/plan_sink.rs:462",
+    "verdict": "OUTSIDE the pigment tripwire (render-cpu code; pinned by tests/cpu_envelope_reach.rs and cpu_plan_limits.rs); earlier verdict: NOT_APPLICABLE: the reachable-set helper itself (moved out of prepare unchanged, now shared with the envelope preparation)"
+   },
+   {
+    "class": "A",
+    "file_line": "render-cpu/src/plan_sink.rs:482",
+    "verdict": "OUTSIDE the pigment tripwire (render-cpu code; pinned by tests/cpu_envelope_reach.rs and cpu_plan_limits.rs); earlier verdict: NOT_APPLICABLE: walks every node but skips an unreachable one before any check (reach from reachable())"
+   },
+   {
+    "class": "A",
+    "file_line": "render-cpu/src/plan_sink.rs:490",
+    "verdict": "OUTSIDE the pigment tripwire (render-cpu code; pinned by tests/cpu_envelope_reach.rs and cpu_plan_limits.rs); earlier verdict: NOT_APPLICABLE: walks every node but skips an unreachable one before any check (reach from reachable())"
+   },
+   {
+    "class": "A",
+    "file_line": "render-cpu/src/plan_sink.rs:537",
+    "verdict": "OUTSIDE the pigment tripwire (render-cpu code; pinned by tests/cpu_envelope_reach.rs and cpu_plan_limits.rs); earlier verdict: NOT_APPLICABLE: walks every node but skips an unreachable one before any check (reach from reachable())"
+   },
+   {
+    "class": "A",
+    "file_line": "render-cpu/src/plan_sink.rs:544",
+    "verdict": "OUTSIDE the pigment tripwire (render-cpu code; pinned by tests/cpu_envelope_reach.rs and cpu_plan_limits.rs); earlier verdict: NOT_APPLICABLE: walks every node but skips an unreachable one before any check (reach from reachable())"
+   },
+   {
+    "class": "A",
+    "file_line": "render-cpu/src/plan_sink.rs:546",
+    "verdict": "OUTSIDE the pigment tripwire (render-cpu code; pinned by tests/cpu_envelope_reach.rs and cpu_plan_limits.rs); earlier verdict: NOT_APPLICABLE: walks every node but skips an unreachable one before any check (reach from reachable())"
+   },
+   {
+    "class": "A",
+    "file_line": "render-cpu/src/plan_sink.rs:550",
+    "verdict": "OUTSIDE the pigment tripwire (render-cpu code; pinned by tests/cpu_envelope_reach.rs and cpu_plan_limits.rs); earlier verdict: NOT_APPLICABLE: walks every node but skips an unreachable one before any check (reach from reachable())"
+   },
+   {
+    "class": "A",
+    "file_line": "render-cpu/src/plan_sink.rs:754",
+    "verdict": "OUTSIDE the pigment tripwire (render-cpu code; pinned by tests/cpu_envelope_reach.rs and cpu_plan_limits.rs); earlier verdict: NOT_APPLICABLE: evaluation of a prepared reachable group"
+   },
+   {
+    "class": "A",
+    "file_line": "render-cpu/src/plan_sink.rs:834",
+    "verdict": "OUTSIDE the pigment tripwire (render-cpu code; pinned by tests/cpu_envelope_reach.rs and cpu_plan_limits.rs); earlier verdict: NOT_APPLICABLE: evaluation of a prepared reachable layer input"
+   },
+   {
+    "class": "A",
+    "file_line": "render-cpu/src/plan_sink.rs:883",
+    "verdict": "OUTSIDE the pigment tripwire (render-cpu code; pinned by tests/cpu_envelope_reach.rs and cpu_plan_limits.rs); earlier verdict: NOT_APPLICABLE: evaluation of a prepared reachable layer input"
+   },
+   {
+    "class": "A",
+    "file_line": "render-cpu/src/plan_sink.rs:989",
+    "verdict": "OUTSIDE the pigment tripwire (render-cpu code; pinned by tests/cpu_envelope_reach.rs and cpu_plan_limits.rs); earlier verdict: NOT_APPLICABLE: evaluation of a prepared reachable layer input"
+   },
+   {
+    "class": "A",
+    "file_line": "render-cpu/src/plan_sink.rs:1229",
+    "verdict": "OUTSIDE the pigment tripwire (render-cpu code; pinned by tests/cpu_envelope_reach.rs and cpu_plan_limits.rs); earlier verdict: NOT_APPLICABLE: root of the prepared plan"
+   },
+   {
+    "class": "A",
+    "file_line": "render-cpu/src/plan_sink/effects.rs:254",
+    "verdict": "OUTSIDE the pigment tripwire (render-cpu code; pinned by tests/cpu_envelope_reach.rs and cpu_plan_limits.rs); earlier verdict: NOT_APPLICABLE: evaluation of the prepared reachable input of an effect layer"
+   },
+   {
+    "class": "A",
+    "file_line": "render-cpu/src/plan_sink/extended.rs:209",
+    "verdict": "OUTSIDE the pigment tripwire (render-cpu code; pinned by tests/cpu_envelope_reach.rs and cpu_plan_limits.rs); earlier verdict: FIXED (PLR-069): entries on groups outside the reachable set are skipped before anything is charged or prepared"
+   },
+   {
+    "class": "A",
+    "file_line": "render-cpu/src/plan_sink/extended.rs:287",
+    "verdict": "OUTSIDE the pigment tripwire (render-cpu code; pinned by tests/cpu_envelope_reach.rs and cpu_plan_limits.rs); earlier verdict: NOT_APPLICABLE: table of the prepared reachable entries, keyed by (group, layer)"
+   },
+   {
+    "class": "A",
+    "file_line": "render-cpu/src/plan_sink/extended.rs:295",
+    "verdict": "OUTSIDE the pigment tripwire (render-cpu code; pinned by tests/cpu_envelope_reach.rs and cpu_plan_limits.rs); earlier verdict: NOT_APPLICABLE: keyed lookup of a prepared entry (default for none); only reachable groups are looked up by prepare"
+   },
+   {
+    "class": "P",
+    "file_line": "pigment/tests/admit_parity.rs:634",
+    "verdict": "NOT_VACUOUS: bad_root (root 7) and bad_input (input 9) pin that the reachability predicates ignore an index outside the plan without a panic and that admission answers RootOutOfRange; the subject is the index, not an entry on a node"
+   },
+   {
+    "class": "P",
+    "file_line": "pigment/tests/admit_parity.rs:644",
+    "verdict": "NOT_VACUOUS: bad_root (root 7) and bad_input (input 9) pin that the reachability predicates ignore an index outside the plan without a panic and that admission answers RootOutOfRange; the subject is the index, not an entry on a node"
+   },
+   {
+    "class": "P",
+    "file_line": "pigment/tests/effect_window.rs:2",
+    "verdict": "NOT_APPLICABLE: hostile plane sizes or window geometry, not a plan index"
+   },
+   {
+    "class": "P",
+    "file_line": "pigment/tests/effect_window.rs:677",
+    "verdict": "NOT_APPLICABLE: hostile plane sizes or window geometry, not a plan index"
+   },
+   {
+    "class": "P",
+    "file_line": "pigment/tests/effect_window.rs:680",
+    "verdict": "NOT_APPLICABLE: hostile plane sizes or window geometry, not a plan index"
+   },
+   {
+    "class": "P",
+    "file_line": "pigment/tests/effects.rs:453",
+    "verdict": "NOT_APPLICABLE: hostile plane sizes or window geometry, not a plan index"
+   },
+   {
+    "class": "P",
+    "file_line": "pigment/tests/effects.rs:606",
+    "verdict": "NOT_APPLICABLE: hostile plane sizes or window geometry, not a plan index"
+   },
+   {
+    "class": "P",
+    "file_line": "pigment/tests/effects_ops.rs:346",
+    "verdict": "KEPT (assertions unchanged, comment now says so): the plan's default root is node 2, which reaches node 0 only, so node 1 is unreachable and this case does not pin the guard; the guard on a REACHABLE node is pinned by the new test (PLR-079)"
+   },
+   {
+    "class": "P",
+    "file_line": "pigment/tests/effects_ops.rs:348",
+    "verdict": "KEPT (assertions unchanged, comment now says so): the plan's default root is node 2, which reaches node 0 only, so node 1 is unreachable and this case does not pin the guard; the guard on a REACHABLE node is pinned by the new test (PLR-079)"
+   },
+   {
+    "class": "P",
+    "file_line": "pigment/tests/effects_ops.rs:354",
+    "verdict": "FIXED (PLR-079): effects_nested_ignores_an_input_that_is_not_an_earlier_node_of_a_reachable_group roots the hostile plan at the node under test; red on mutants guard_removed and guard_le"
+   },
+   {
+    "class": "P",
+    "file_line": "pigment/tests/effects_ops.rs:363",
+    "verdict": "FIXED (PLR-079): effects_nested_ignores_an_input_that_is_not_an_earlier_node_of_a_reachable_group roots the hostile plan at the node under test; red on mutants guard_removed and guard_le"
+   },
+   {
+    "class": "P",
+    "file_line": "pigment/tests/effects_ops.rs:365",
+    "verdict": "FIXED (PLR-079): effects_nested_ignores_an_input_that_is_not_an_earlier_node_of_a_reachable_group roots the hostile plan at the node under test; red on mutants guard_removed and guard_le"
+   },
+   {
+    "class": "P",
+    "file_line": "pigment/tests/effects_ops.rs:366",
+    "verdict": "FIXED (PLR-079): effects_nested_ignores_an_input_that_is_not_an_earlier_node_of_a_reachable_group roots the hostile plan at the node under test; red on mutants guard_removed and guard_le"
+   },
+   {
+    "class": "P",
+    "file_line": "pigment/tests/effects_ops.rs:370",
+    "verdict": "FIXED (PLR-079): effects_nested_ignores_an_input_that_is_not_an_earlier_node_of_a_reachable_group roots the hostile plan at the node under test; red on mutants guard_removed and guard_le"
+   },
+   {
+    "class": "P",
+    "file_line": "pigment/tests/effects_ops.rs:371",
+    "verdict": "FIXED (PLR-079): effects_nested_ignores_an_input_that_is_not_an_earlier_node_of_a_reachable_group roots the hostile plan at the node under test; red on mutants guard_removed and guard_le"
+   },
+   {
+    "class": "P",
+    "file_line": "pigment/tests/plan_followups.rs:555",
+    "verdict": "NOT_VACUOUS: 'layer index out of range' is an envelope entry whose layer does not exist; ExtensionTarget is the expected error ON an unreachable group (envelope_structure_stays_checked_on_unreachable_entries), the opposite of a vacuous pass"
+   },
+   {
+    "class": "P",
+    "file_line": "pigment/tests/plan_reachability.rs:317",
+    "verdict": "NOT_VACUOUS: the case asserts a typed structure error ON an unreachable extra node (structure stays checked); it fails if validate skips unreachable nodes"
+   },
+   {
+    "class": "P",
+    "file_line": "pigment/tests/plan_reachability.rs:318",
+    "verdict": "NOT_VACUOUS: the case asserts a typed structure error ON an unreachable extra node (structure stays checked); it fails if validate skips unreachable nodes"
+   },
+   {
+    "class": "P",
+    "file_line": "pigment/tests/plan_reachability.rs:331",
+    "verdict": "NOT_VACUOUS: the case asserts a typed structure error ON an unreachable extra node (structure stays checked); it fails if validate skips unreachable nodes"
+   },
+   {
+    "class": "P",
+    "file_line": "pigment/tests/plan_reachability.rs:333",
+    "verdict": "NOT_VACUOUS: the case asserts a typed structure error ON an unreachable extra node (structure stays checked); it fails if validate skips unreachable nodes"
+   },
+   {
+    "class": "P",
+    "file_line": "pigment/tests/plan_reachability.rs:338",
+    "verdict": "NOT_VACUOUS: the case asserts a typed structure error ON an unreachable extra node (structure stays checked); it fails if validate skips unreachable nodes"
+   },
+   {
+    "class": "P",
+    "file_line": "pigment/tests/plan_reachability.rs:343",
+    "verdict": "NOT_VACUOUS: the case asserts a typed structure error ON an unreachable extra node (structure stays checked); it fails if validate skips unreachable nodes"
+   },
+   {
+    "class": "P",
+    "file_line": "pigment/tests/plan_reachability.rs:427",
+    "verdict": "NOT_VACUOUS: the cyclic plan's self-referencing node 3 is reached by the root layer (plan_with reach = true); the case pins that the predicates terminate and do not panic"
+   },
+   {
+    "class": "P",
+    "file_line": "pigment/tests/plan_reachability.rs:428",
+    "verdict": "NOT_VACUOUS: the cyclic plan's self-referencing node 3 is reached by the root layer (plan_with reach = true); the case pins that the predicates terminate and do not panic"
+   },
+   {
+    "class": "P",
+    "file_line": "pigment/tests/plan_reachability.rs:432",
+    "verdict": "NOT_VACUOUS: the cyclic plan's self-referencing node 3 is reached by the root layer (plan_with reach = true); the case pins that the predicates terminate and do not panic"
+   },
+   {
+    "class": "P",
+    "file_line": "pigment/tests/render_plan.rs:121",
+    "verdict": "NOT_APPLICABLE: RenderPlan::validate on the root-reachable node; no envelope entry and no reachability question"
+   },
+   {
+    "class": "P",
+    "file_line": "pigment/tests/render_plan.rs:160",
+    "verdict": "NOT_APPLICABLE: RenderPlan::validate on the root-reachable node; no envelope entry and no reachability question"
+   },
+   {
+    "class": "P",
+    "file_line": "render-cpu/tests/cpu_envelope_reach.rs:208",
+    "verdict": "NEW (PLR-081 support): hostile plans are refused by shared admission before any node is reached; red on mutants r1 and r2 (the reachable sweep before admission)"
+   },
+   {
+    "class": "P",
+    "file_line": "render-cpu/tests/cpu_envelope_reach.rs:209",
+    "verdict": "NEW (PLR-081 support): hostile plans are refused by shared admission before any node is reached; red on mutants r1 and r2 (the reachable sweep before admission)"
+   },
+   {
+    "class": "P",
+    "file_line": "render-cpu/tests/cpu_envelope_reach.rs:236",
+    "verdict": "NEW (PLR-081 support): hostile plans are refused by shared admission before any node is reached; red on mutants r1 and r2 (the reachable sweep before admission)"
+   },
+   {
+    "class": "P",
+    "file_line": "render-cpu/tests/cpu_envelope_reach.rs:238",
+    "verdict": "NEW (PLR-081 support): hostile plans are refused by shared admission before any node is reached; red on mutants r1 and r2 (the reachable sweep before admission)"
+   },
+   {
+    "class": "P",
+    "file_line": "render-cpu/tests/cpu_envelope_reach.rs:240",
+    "verdict": "NEW (PLR-081 support): hostile plans are refused by shared admission before any node is reached; red on mutants r1 and r2 (the reachable sweep before admission)"
+   },
+   {
+    "class": "P",
+    "file_line": "render-cpu/tests/cpu_envelope_reach.rs:245",
+    "verdict": "NEW (PLR-081 support): hostile plans are refused by shared admission before any node is reached; red on mutants r1 and r2 (the reachable sweep before admission)"
+   },
+   {
+    "class": "P",
+    "file_line": "render-cpu/tests/cpu_envelope_reach.rs:250",
+    "verdict": "NEW (PLR-081 support): hostile plans are refused by shared admission before any node is reached; red on mutants r1 and r2 (the reachable sweep before admission)"
+   },
+   {
+    "class": "P",
+    "file_line": "render-cpu/tests/cpu_envelope_reach.rs:255",
+    "verdict": "NEW (PLR-081 support): hostile plans are refused by shared admission before any node is reached; red on mutants r1 and r2 (the reachable sweep before admission)"
+   },
+   {
+    "class": "P",
+    "file_line": "render-cpu/tests/cpu_envelope_reach.rs:258",
+    "verdict": "NEW (PLR-081 support): hostile plans are refused by shared admission before any node is reached; red on mutants r1 and r2 (the reachable sweep before admission)"
+   },
+   {
+    "class": "P",
+    "file_line": "render-cpu/tests/cpu_envelope_reach.rs:273",
+    "verdict": "NEW (PLR-081 support): hostile plans are refused by shared admission before any node is reached; red on mutants r1 and r2 (the reachable sweep before admission)"
+   },
+   {
+    "class": "P",
+    "file_line": "render-cpu/tests/cpu_window.rs:425",
+    "verdict": "NOT_APPLICABLE: hostile plane sizes or window geometry, not a plan index"
+   },
+   {
+    "class": "P",
+    "file_line": "render-cpu/tests/cpu_window.rs:428",
+    "verdict": "NOT_APPLICABLE: hostile plane sizes or window geometry, not a plan index"
+   },
+   {
+    "class": "D",
+    "file_line": "pigment/src/render_plan.rs:952",
+    "verdict": "CITED: the trait default execute_extended doc cites tests/plan_extensions.rs envelope_admission_and_default_route in the same paragraph (R15 review: cited)"
+   },
+   {
+    "class": "D",
+    "file_line": "render-cpu/src/plan_sink.rs:1357",
+    "verdict": "CITED: the with_plan_limits doc cites tests/cpu_plan_limits.rs tightened_plan_limits_refuse_before_any_sink_call (above-maximum values incl. usize::MAX are InvalidConfig) and default_plan_limits_are_unchanged"
+   },
+   {
+    "class": "D",
+    "file_line": "render-cpu/src/lib.rs (DESCRIPTOR/plan_limits)",
+    "verdict": "CITED: the plan_limits topic of the render-cpu DESCRIPTOR cites cpu_plan_limits tightened_plan_limits_refuse_before_any_sink_call and default_plan_limits_are_unchanged"
+   }
+  ],
+  "v4_01_v4_02": "the new test code reads checked-in sources of this crate (CARGO_MANIFEST_DIR/src) and decodes no untrusted bytes, so no hostile-size decoder is added; the render-cpu test file keeps deny(clippy::arithmetic_side_effects) and adds only the constant 1 << 20 budget it already uses",
+  "v4_03": "no machine path: the scan reads CARGO_MANIFEST_DIR/src; the machine-path gate pattern ((?<![A-Za-z0-9])[A-Za-z]:[/\\\\] and Users separators) has 0 hits in the changed test files (checked by a script over tests/reader_scan/mod.rs, plan_followups.rs, effects_ops.rs, cpu_envelope_reach.rs)",
+  "v4_08": "tests/reader_scan lexes Rust source text of this crate; adversarial cases in the two scan tests: escapes (\\\" inside a string, '\\'' and '\\\\' char literals), comment and decoy (a string holding /*, nested block comments, raw strings, a char literal holding {), case and whitespace (reads split over lines, needles matched on joined tokens)",
+  "v4_07": "claims with never, always or guarantees in the added or changed docs cite their test or were weakened: class D list (3 remaining, all CITED; 3 FIXED); the 3 sentences of the reader_scan docs that said cannot / never / never were rewritten to name their cases (commit 8980d04)",
+  "check_clippy": "cargo clippy -p hsk-studio-pigment -p hsk-studio-render-cpu --tests --examples --no-deps: exit 0, no warning, at the final tree (log gate3_clippy.log); rustfmt --check on the seven changed test and src files (tests/reader_scan/mod.rs, plan_followups.rs, effects_ops.rs, cpu_envelope_reach.rs, extensions.rs, plan_sink.rs, plan_sink/extended.rs): clean (the pre-existing hunks of pigment render_plan.rs are untouched, SMB-FMT-SWEEP unchanged); cargo test --doc -p hsk-studio-pigment -p hsk-studio-render-cpu: exit 0 (0 doctests)",
+  "dependants": {
+   "argv": [
+    "cargo",
+    "nextest",
+    "run",
+    "-p",
+    "hsk-studio-composite",
+    "-p",
+    "hsk-studio-develop",
+    "-p",
+    "hsk-studio-interop-psd",
+    "--no-fail-fast"
+   ],
+   "exit": 0,
+   "sha": "fe035ce",
+   "passed": 106,
+   "failed": 0,
+   "skipped": 1,
+   "per_crate_passed": {
+    "hsk-studio-develop": 28,
+    "hsk-studio-composite": 28,
+    "hsk-studio-interop-psd": 50
+   },
+   "note": "run on the tree of commit fe035ce; 8980d04 changes one test-module doc comment of pigment only; the skipped test is develop real_dng.rs, #[ignore] (needs the CC0 sample corpus), pre-existing"
+  },
+  "per_crate_passed": {
+   "hsk-studio-pigment": 82,
+   "hsk-studio-render-cpu": 38
+  },
+  "gameplan_and_retry_guard": "the shared Studio gameplan (STUDIO-MODULE-BUILD) was used unchanged through the cargo form; no step added. One gated command was blocked before it started because it began with `export STUDIO_OWNER=...` instead of the leading cd, so the hook resolved the kernel root pointer of WP-KERNEL-012 (confirm_binding target missing): an infrastructure cause (command shape), nothing about the product; re-issued as cd first, then export, then source studio-env.sh. All other cargo commands began with the cd. No identical rerun of a failed gated command was made in the foreground; reruns after a fix or a mutant were background launches (not recorded by the retry guard), so no route (a)/(b) was needed",
+  "scratch": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pigment-notes-redproof (own STUDIO_OWNER); helper scripts, logs and commit message files under <scratchpad>/SMB-PIGMENT-NOTES/ (redproof.py, v4_06_scan.py, v4_07_scan.py, build_lane.py, machine_paths_check.py, rp_*.log, gate*_*.log)",
+  "git": "pathspec commits only (git commit -F <file> -- crates/<crate>), one per crate plus one follow-up for the pigment test-module docs; no amend, no rebase, no force; pushed to origin codex/handshake-studio-assets. The working copy of render-cpu src/plan_sink.rs and the files rewritten by the scratch scripts had CRLF line ends (index LF, text=auto eol=lf); the edited files were normalised to LF in the working copy so the diffs show only the real changes",
+  "follow_ups": [
+   "composite: only lower_render_plan.rs:372 (extensions.effect_modes() on pigment's PlanExtensions, over every entry) mixes with the reachable-only validate of :322 and :362; composite plans are lowered from the root, so every emitted group is reachable and the lists agree. Moving it to effect_modes_in(&render) is a one-line composite change for a composite lane (R15 PLAN-R15-10). CORRECTION of SMB-PIGMENT-FOLLOWUPS notes.follow_ups[2] (PLAN-R15-5): evaluate_static.rs:485 is `features.effect_modes()` on composite's own LayerFeatures (lower_extensions.rs:741 pub(crate) fn effect_modes, built from self.effect_ops()), a per-evaluated-step list that does not call pigment's helper, so the pigment change cannot affect it. Verified by reading the three sites at the final tree",
+   "render-cpu has no source tripwire for its own readers of nodes and entries (its reachable() copy, PLAN-R15-6); tests/reader_scan could be reused there or one RenderPlan::reachable() exported from pigment",
+   "render-gpu adoption of caller limits and the envelope effect budgets (PLR-082, D20) are unchanged"
+  ],
+  "plausible_not_addressed": [
+   "PLAN-R15-4 (= PLR-082, render-gpu limits behind D20)",
+   "PLAN-R15-6 (the reachable set exists three times), -7 (trait default execute_extended on an envelope that asks nothing), -8 (with_plan_limits replaces), -9 (timing bound and reference alphabet), -10 (composite ledger mixes validate and effect_modes), -11 (effect budgets over unreachable entries not pinned): not in this lane's assignment"
+  ],
+  "date": "2026-10-12T00:37:10Z",
+  "verdicts": []
+ }
+}

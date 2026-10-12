@@ -1366,7 +1366,7 @@
    "status": "OPEN",
    "verified_at": "b8b31c7",
    "disposition": "FIX_LANE",
-   "disposition_note": "next pigment lane (PLR-082 render-gpu part after D20)"
+   "disposition_note": "fix claimed 9cb44c2/fe035ce/8980d04 (SMB-PIGMENT-NOTES); reviewer confirms in R16"
   },
   {
    "id": "PLR-080",
@@ -1381,7 +1381,7 @@
    "status": "OPEN",
    "verified_at": "b8b31c7",
    "disposition": "FIX_LANE",
-   "disposition_note": "next pigment lane (PLR-082 render-gpu part after D20)"
+   "disposition_note": "fix claimed 9cb44c2/fe035ce/8980d04 (SMB-PIGMENT-NOTES); reviewer confirms in R16"
   },
   {
    "id": "PLR-081",
@@ -1396,7 +1396,7 @@
    "status": "OPEN",
    "verified_at": "b8b31c7",
    "disposition": "FIX_LANE",
-   "disposition_note": "next pigment lane (PLR-082 render-gpu part after D20)"
+   "disposition_note": "fix claimed 9cb44c2/fe035ce/8980d04 (SMB-PIGMENT-NOTES); reviewer confirms in R16"
   },
   {
    "id": "PLR-082",

@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-12T00:06:29Z",
+ "updated_at": "2026-10-12T00:37:57Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -2929,12 +2929,18 @@
    "crate": "hsk-studio-pigment + hsk-studio-render-cpu",
    "origin": "plausible register",
    "scope": "PLR-079..081 (+ PLAN-R15-5 note)",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-pigment-notes",
    "lane_file": "builders/lanes/hsk-studio-pigment-notes.json",
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "9cb44c2",
+    "fe035ce",
+    "8980d04"
+   ],
+   "verdicts": [],
+   "candidate": "8980d04",
+   "note": "PLR-079: reachable-root hostile test pins the forward-input guard (old assertions unchanged); PLR-080: tripwire scans every src .rs, any receiver, const fn, struct patterns, stale rows; 13 mutated-source self-tests; PLR-081: three sentences rewritten, new render-cpu test invalid_plan_indexes_are_refused_before_the_reachable_sweep; PLAN-R15-5 corrected in lane file; tests/rustdoc only, no behaviour change; pigment+render-cpu 120/120, dependants 106/106; red on mutants"
   },
   {
    "lane_id": "SMB-NOTES-BATCH-1",
@@ -3052,7 +3058,8 @@
   "SMB-PIGMENT-PLANLIMITS",
   "SMB-REEL-RECEIPTS",
   "SMB-REEL-NATIVE-FAULTS-2",
-  "SMB-PIGMENT-FOLLOWUPS"
+  "SMB-PIGMENT-FOLLOWUPS",
+  "SMB-PIGMENT-NOTES"
  ],
  "round_R6": {
   "candidate": "bd8533f",

@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-11T23:27:24Z",
+ "updated_at": "2026-10-12T00:37:57Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -2266,7 +2266,7 @@
     "builders/lanes/hsk-studio-pigment-notes.json"
    ],
    "launched": "2026-10-12T00:06:29Z",
-   "status": "running"
+   "status": "done 2026-10-12T00:37:57Z (SMB-PIGMENT-NOTES READY at 8980d04)"
   },
   {
    "name": "builder-notes-batch-1",
