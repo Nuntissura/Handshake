@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-12T05:30:57Z",
+ "updated_at": "2026-10-12T05:49:17Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3075,7 +3075,13 @@
     "d868da0"
    ],
    "verdicts": [],
-   "note": "docs/tests only (+78 -8, 5 press files): PLR-083 wording + flatten_r13 BDC note, PLR-084 residual in DESCRIPTOR/docs + 2 tests, PLR-076 covered by existing test flatten_r13.rs:488; press 149/149"
+   "note": "docs/tests only (+78 -8, 5 press files): PLR-083 wording + flatten_r13 BDC note, PLR-084 residual in DESCRIPTOR/docs + 2 tests, PLR-076 covered by existing test flatten_r13.rs:488; press 149/149",
+   "r21_prereview": {
+    "ref": "validation/R21-prereview-narrow.json",
+    "recommendation": "SAFE_TO_JUDGE",
+    "head": "fdc01f1",
+    "at": "2026-10-12T05:49:17Z"
+   }
   },
   {
    "lane_id": "SMB-REEL-PARTIAL-PTS",
@@ -3089,7 +3095,13 @@
     "0c34342"
    ],
    "verdicts": [],
-   "note": "PLR-077 fix video.rs Forward picture_end (checked), Partial end_pts = end of last delivered picture, none -> start_pts; V4-06 40 sites (1 fixed); red 2/10 on scratch, green 10/10; reel 71/71 default, 78/78 av1; commit subject says wip/status null (written before tests), READY set at the same SHA after tests"
+   "note": "PLR-077 fix video.rs Forward picture_end (checked), Partial end_pts = end of last delivered picture, none -> start_pts; V4-06 40 sites (1 fixed); red 2/10 on scratch, green 10/10; reel 71/71 default, 78/78 av1; commit subject says wip/status null (written before tests), READY set at the same SHA after tests",
+   "r21_prereview": {
+    "ref": "validation/R21-prereview-narrow.json",
+    "recommendation": "SAFE_TO_JUDGE",
+    "head": "fdc01f1",
+    "at": "2026-10-12T05:49:17Z"
+   }
   },
   {
    "lane_id": "SMB-INTEROP-PSD-FOLIO-CEILING",
@@ -3103,7 +3115,13 @@
     "fdc01f1"
    ],
    "verdicts": [],
-   "note": "PLR-063 fix ceb9d33 (+03d7ff8 fmt, fdc01f1 comments): per-stack ceiling classifies live/off once; live bounded by 64/layer; off over ceiling dropped with typed loss effects_unrendered_dropped_over_stack_ceiling; V4-06 49 sites (6 fixed); red 4 new on scratch; effects_budget 16/16, crate 57/57; residual: descriptor reader 512-entry cap per list refuses 1 live + 512 off"
+   "note": "PLR-063 fix ceb9d33 (+03d7ff8 fmt, fdc01f1 comments): per-stack ceiling classifies live/off once; live bounded by 64/layer; off over ceiling dropped with typed loss effects_unrendered_dropped_over_stack_ceiling; V4-06 49 sites (6 fixed); red 4 new on scratch; effects_budget 16/16, crate 57/57; residual: descriptor reader 512-entry cap per list refuses 1 live + 512 off",
+   "r21_prereview": {
+    "ref": "validation/R21-prereview-narrow.json",
+    "recommendation": "SAFE_TO_JUDGE",
+    "head": "fdc01f1",
+    "at": "2026-10-12T05:49:17Z"
+   }
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
@@ -3334,7 +3352,7 @@
  "resume_plan": {
   "at": "2026-10-12T05:10:24Z",
   "steps": [
-   "1. Three lanes READY at fdc01f1 (SMB-PRESS-DOCS d868da0, SMB-REEL-PARTIAL-PTS 0c34342, SMB-INTEROP-PSD-FOLIO-CEILING fdc01f1). In flight: V4-13 narrow pre-review bfa1bbf..fdc01f1 -> validation/R21-prereview-narrow.json. If SAFE: steward sync + canary + round R19 (1 validator) judging the 3 lanes + CX-VAL-009 reopens of press, reel, interop-psd lanes (and dependents). If FIX_FIRST: route to a fresh builder on the same lane.",
+   "1. R21 narrow pre-review: all 3 lanes SAFE_TO_JUDGE at fdc01f1. In flight: steward sync + canary C24; then round R19 (1 validator; review input R21 pre-review) judging SMB-PRESS-DOCS, SMB-REEL-PARTIAL-PTS, SMB-INTEROP-PSD-FOLIO-CEILING + CX-VAL-009 reopens (press, reel, interop-psd lanes and dependents); then refresh HANDOFF + snapshot.",
    "2. Then SMB-PRESS-GEOMETRY (queued), SMB-FMT-SWEEP (rustfmt after verdicts), notes residuals (config-OBU tag, exact-64 FRAME test, psd group-own-lfx2/zero-tile).",
    "3. Round R19 when the new lanes are READY: steward sync + canary + 1 validator.",
    "4. Keep pushing gov_kernel after every commit (weekly usage >= 85%).",

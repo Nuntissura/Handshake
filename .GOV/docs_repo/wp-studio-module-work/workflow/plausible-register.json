@@ -1474,6 +1474,51 @@
    "verified_at": "fdc01f1",
    "disposition": "FIX_LANE",
    "disposition_note": "needs a lead decision: raise/partition the list cap for effect lists or report the typed loss per category"
+  },
+  {
+   "id": "PLR-087",
+   "lane": "SMB-PRESS-DOCS",
+   "file_line": "crates/hsk-studio-press/src/flatten.rs:17-21 vs flatten_purge.rs:16-27",
+   "finding": "overview wording not exact: annotations are dropped even when kept objects reference them (references removed); structure elements are listed as dropped but stay with their text removed (pre-existing)",
+   "first_seen": "R21-prereview-narrow",
+   "seen_in": [
+    "R21-prereview-narrow"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "fdc01f1",
+   "disposition": "DOC",
+   "disposition_note": "fold into next press doc touch (SMB-PRESS-GEOMETRY or fmt sweep)"
+  },
+  {
+   "id": "PLR-088",
+   "lane": "SMB-REEL-PARTIAL-PTS",
+   "file_line": "crates/hsk-studio-reel/src/video.rs:385; tests/video_route.rs:1259,1320",
+   "finding": "no test where the latest-ending picture differs from the last-arriving one (max vs last-arrival not pinned); test name fully_delivered_video_receipt_end_is_the_packet_end contains a decoder-drop row",
+   "first_seen": "R21-prereview-narrow",
+   "seen_in": [
+    "R21-prereview-narrow"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "fdc01f1",
+   "disposition": "TEST",
+   "disposition_note": "next reel lane (with PLR-085)"
+  },
+  {
+   "id": "PLR-089",
+   "lane": "SMB-INTEROP-PSD-FOLIO-CEILING",
+   "file_line": "crates/hsk-studio-interop-psd/src/proposal.rs:583-593",
+   "finding": "one typed loss per stack, not per dropped instance; instances left out of the record still add loss notes (bounded over-report)",
+   "first_seen": "R21-prereview-narrow",
+   "seen_in": [
+    "R21-prereview-narrow"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "fdc01f1",
+   "disposition": "FIX_LANE",
+   "disposition_note": "next interop-psd lane (with PLR-086)"
   }
  ],
  "process_items": [
