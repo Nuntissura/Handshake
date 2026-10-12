@@ -1,7 +1,7 @@
 {
   "operator_workflow_restructure_20261013": {
     "decision_id": "WP012-WORKFLOW-RESTRUCTURE-20261013",
-    "updated_at_utc": "2026-10-12T22:15:27.486745+00:00",
+    "updated_at_utc": "2026-10-12T22:28:21.871823+00:00",
     "operator_authority": {
       "kind": "EXPLICIT_DELEGATION_TO_DELIBERATE_DECIDE_DOCUMENT_AND_RESTART",
       "quotes": [
@@ -67,6 +67,30 @@
       {
         "id": "WP012-WF-014",
         "requirement": "Real deployment/authentication, actual registry publication, Flight Recorder and all original consumed-source proofs remain distinct required outcomes; compiler evidence is compilation only."
+      },
+      {
+        "id": "WP012-WF-015",
+        "requirement": "Review cross-WP dependencies and gaps against Master Spec, WP-CKC, WP-1 Multi-Model Orchestration and WP-KERNEL-012 together; current contracts and pinned imports are distinct inputs, not interchangeable."
+      },
+      {
+        "id": "WP012-WF-016",
+        "requirement": "Map each source requirement/acceptance pointer through its module, producer/consumer, prerequisites, bounded MT or justified bundle and independent proof; unknown consumption or missing mapping remains open, never silently dropped."
+      },
+      {
+        "id": "WP012-WF-017",
+        "requirement": "Each new execution MT owns one concrete outcome, exact module/files, explicit prerequisites and a sufficient proof. Split independently meaningful work; bundle only with recorded shared invariant/atomic migration/compatible proof rationale."
+      },
+      {
+        "id": "WP012-WF-018",
+        "requirement": "Audit dependency direction and cycles across build/features, storage/schema, authorization/context, runtime/process lifecycle, publication and native consumers; shared-file/resource dependencies retain one serial owner."
+      },
+      {
+        "id": "WP012-WF-019",
+        "requirement": "Record every inspected gap with evidence, owner, effect, remediation, smallest task/bundle and required proof. Mark uninspected areas honestly; do not claim all possible gaps closed from contract screening."
+      },
+      {
+        "id": "WP012-WF-020",
+        "requirement": "Existing required gaps must be resolved and independently proven before their acceptance. Any genuinely new product requirement or unsettled spec conflict follows existing spec/contract authority; preserve source-WP unfinished/unconsumed work and other-device edits."
       }
     ],
     "chosen_shape": {
@@ -1703,6 +1727,162 @@
       "execution": "/root/plan_execution: corrected execution/resource/budget/launch binding review passed",
       "source_lens": "/root/phase02_coder: source repair plan retains originals; release/manual refinements applied",
       "product_runtime_verdict": false
+    },
+    "cross_wp_dependency_gap_plan": {
+      "plan_id": "WP012-CROSS-WP-DEPENDENCY-GAP-20261013",
+      "operator_quotes": [
+        "make sure they also check dependencies and base on both master spec and wp ckc and wp 1 multi model orchestration as wp kernel 012 , i want to also close all possible gaps? and make sure we split up the work more in bitesize piece or bundle logical .",
+        "make sure the dependencies, gaps and smaller MT plan are all in the handoff. commit and push gov kernel first, then start the fresh devlead and team chats so they can continue without losing any requirements."
+      ],
+      "sources": [
+        {
+          "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+          "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+          "sha256_at_inspection": null
+        },
+        {
+          "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+          "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json",
+          "sha256_at_inspection": "d050a2f82e34f8a9fc89b2c0163eb5ec90622fe3c463e5690c4a67978a4f79dd"
+        },
+        {
+          "wp_id": "WP-CKC-posekit-overhaul",
+          "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/packet.json",
+          "sha256_at_inspection": "1b078f814f1b66390c63545e09dd8cda0318b84f7bd77da893707714e81d4ae4"
+        },
+        {
+          "wp_id": "WP-CKC-posekit-overhaul",
+          "path": ".GOV/task_packets/WP-CKC-posekit-overhaul/refinement.json",
+          "sha256_at_inspection": "4e7d5ebf55c5900b1be17b4ccc501fa69b8cc6c9e12b73d14e865e1a0c7af2ad"
+        },
+        {
+          "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+          "path": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json",
+          "sha256_at_inspection": "0c686d4b6c157c24750ff1fc7fd132c6ba74bdd0544126b9d3eea945f9c29532"
+        },
+        {
+          "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+          "path": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/refinement.json",
+          "sha256_at_inspection": "85fc8784a0e30857f5704098af7aad2a1dfee9fe369314710d30a1eb4331619f"
+        }
+      ],
+      "master_spec": {
+        "entrypoint": ".GOV/spec/SPEC_CURRENT.md",
+        "manifest": ".GOV/spec/master-spec-v02.216/indexed-spec-manifest.json",
+        "resolver": ".GOV/spec/master-spec-v02.216/INDEX.json",
+        "policy": "Read current relevant spec clauses; retain original WP/source pins and approved narrow adoptions. Resolve conflicts explicitly, no blanket latest repin."
+      },
+      "preservation_inputs": [
+        "WP-KERNEL-012-phase-01-source-reconciliation-v1.json#/original_contract_records",
+        "WP-KERNEL-012-phase-01-source-reconciliation-v1.json#/source_pins",
+        "WP-KERNEL-012-phase-01-source-reconciliation-v1.json#/combined_acceptance_binding",
+        "WP-KERNEL-012-phase-01-consolidation-contract-v1.json#/microtask_plan_drafts"
+      ],
+      "coverage_basis": {
+        "source_records": 268,
+        "mapped_requirement_acceptance_items": 3173,
+        "current_wp012_authored_at_screening": 175,
+        "reserved_drafts": 7,
+        "consumed_source_mt_contracts": 92,
+        "screening_is_not_complete_implementation_or_runtime_audit": true
+      },
+      "required_mapping_fields": [
+        "requirement_id/spec_anchor",
+        "source_wp/mt and exact JSON pointer",
+        "pinned source revision and current implementation consumer",
+        "owning module/producer/host adapter",
+        "hard predecessor outcome and proof versus scheduling-only dependency",
+        "bounded existing/new MT or explicit parent residual",
+        "bundle rationale if any",
+        "original acceptance/check/independent verdict owner",
+        "gap disposition/evidence/remediation",
+        "remaining failure-budget lineage"
+      ],
+      "team_owners": {
+        "dependency": "Complete cross-WP source/host/build/runtime/auth/publication/native graph; inspect cycles and source/pin mismatches",
+        "spec_gap": "Master Spec and all three WPs requirement-conservation and missing implementation/proof/ownership review",
+        "failure_diagnostic": "Actual recorded failures/root causes and smallest complete repair; no broad run as diagnosis substitute",
+        "coder": "Bounded one-outcome execution contracts and disjoint source ownership; shared-file changes serial",
+        "independent_validation": "Original acceptance and negative/recovery/persistence boundaries; unchanged-input reuse only"
+      },
+      "smaller_mt_policy": {
+        "new_ids_start": "MT-187 after183\u2013186 allocation;176\u2013182 reserved",
+        "immediate_units": [
+          "MT183 complete schema repair + original focused proof",
+          "MT184 final stable core compilation",
+          "MT186 genuine native deployment/context admission, original native compiler prerequisite separate",
+          "MT185 actual registry publication after real admission"
+        ],
+        "further_candidates_ref": "packet.json#/operator_workflow_restructure_20261013/review_census",
+        "candidate_hydration": "Before each remaining mixed parent executes, isolate outstanding exact AC/source/proof rows, inspect actual coupled dependencies, then hydrate additional V1 children only where useful. Retain parent union and all residuals. Historical PASS does not authorize reopening.",
+        "bundles": "Cohesive transaction/authorization/rollback; atomic rename+all consumers; shared source/pin changes; compatible stable compile/proof observation. No one-MT-per-file/route/table or default giant core bundle."
+      },
+      "gaps_and_dependencies": [
+        {
+          "id": "WP012-GAP-001",
+          "state": "OPEN_EVIDENCED_FAILURE",
+          "basis": "MT174 Round50 original predecessor expected306 actual294 missing12",
+          "owner": "MT183 coder + independent validator",
+          "dependency": "Blocks final core proof MT184; does not require real native credentials",
+          "remediation": "Full declaration/dependency/replacement/removal/uniqueness reconciliation and minimum complete schema repair",
+          "proof": "Original independent exact predecessor assertions, immutable inputs; no weakened catalog/data/restart proof"
+        },
+        {
+          "id": "WP012-GAP-002",
+          "state": "NOT_INSPECTED_REAL_RESOURCE_ADMISSION",
+          "basis": "MT186 and original actual registry publication contract",
+          "owner": "Dependency leader/MT186 independent admission",
+          "dependency": "Original deployed executable/store/native channel/genuine authenticated session/persisted grant/policy/reviewer needed by MT185; no blocker for local183/184",
+          "remediation": "Locate and verify original actual resources via approved selectors; report exact externally missing input if unavailable",
+          "proof": "Independent canonical admission; channel token not account proof, no new store/Owner/grant"
+        },
+        {
+          "id": "WP012-GAP-003",
+          "state": "OPEN_ORIGINAL_ACCEPTANCE",
+          "basis": "Source reconciliation268 records/3173 mapped items; original171\u2013175 accepted0/5",
+          "owner": "Spec-gap/dependency leaders and original consumed proof owners",
+          "dependency": "Imported source/compile does not complete native/runtime/source acceptance",
+          "remediation": "Map every consumed original requirement/check to owner/evidence or explicit unresolved residual; preserve unfinished unconsumed source-WP work",
+          "proof": "Independent original consumed boundary verdict or justified unchanged-input reuse, then whole-WP verdict"
+        },
+        {
+          "id": "WP012-GAP-004",
+          "state": "OPEN_MAPPING_RECONCILIATION",
+          "basis": "Dependency reviewed empty convenience maps CKC044/056/058\u2013067 and WP012128/130\u2013134; original acceptance is retained elsewhere",
+          "owner": "Spec-gap leader",
+          "dependency": "Blocks acceptance claims for unmapped consumption, not source preservation",
+          "remediation": "Recover exact original contract pointers; CKC044 already045\u2013055 split,056 findings tracker; do not duplicate/drop obligations",
+          "proof": "Complete original requirement/source/consumer/proof conservation mapping"
+        },
+        {
+          "id": "WP012-GAP-005",
+          "state": "RESERVED_DRAFT_HYDRATION_GAP",
+          "basis": "MT179 backend-owned draft uses native proof command;177\u2013182 actual standalone destinations not all materialized",
+          "owner": "Dependency/spec-gap and future module coder owners",
+          "dependency": "Must resolve before those reserved module writes/buildability claims",
+          "remediation": "Reuse existing document/support/diag/Palmistry packages; actual canonical standalone interface/manifest then distinct pinned host-adoption proof",
+          "proof": "Actual package dependency direction and standalone source proof plus original host integration; no folder-only speed claim"
+        },
+        {
+          "id": "WP012-GAP-006",
+          "state": "LEGACY_TOPOLOGY_METADATA_RECONCILIATION",
+          "basis": "Current CKC/WP1 packet legacy worktree paths differ from actual git worktree list/current approved source-map paths",
+          "owner": "Dependency leader/fresh devlead",
+          "dependency": "No command/write dispatch may use unverified legacy path or stale source revision",
+          "remediation": "Resolve actual current worktrees/branches and compare approved consolidation pins; retain both provenance and current observations, no automatic pin substitution/topology changes",
+          "proof": "Fresh actual branch/head/tree/dirty observations, appropriate authority selectors"
+        },
+        {
+          "id": "WP012-GAP-007",
+          "state": "NOT_INSPECTED_FULL_REQUIREMENT_SOURCE_COVERAGE",
+          "basis": "All MT contract scopes screened; selected code/spec inspected, no exhaustive runtime/current-source verdict",
+          "owner": "Fresh spec-gap/dependency teams with helpers",
+          "dependency": "Before affected child hydration/acceptance, inspect its exact current spec/source/proof; no universal second census/build ritual for unrelated green inputs",
+          "remediation": "Cross-WP dependency and gap review per actual requirement/producer/consumer/negative path; create bounded remedies for evidenced existing gaps",
+          "proof": "Record inspected scope, evidence and independent original acceptance; no claim zero possible defects"
+        }
+      ],
+      "scope_and_authority": "Gap review covers all three WPs/consumed contracts. Existing required remediation may be sequenced in bite-sized units; broader new product requirements/spec amendments require existing authority resolution. Source-WP writes remain with its assigned owner/worktree; do not auto-import changing other-device source or expand WP012 arbitrarily."
     }
   },
   "operator_core_unblock_amendments_20261012": {
