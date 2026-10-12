@@ -6914,7 +6914,10 @@ fn resource_authority_upgrade_statements() -> String {
 fn post_mt109_upgrade_statements() -> String {
     format!(
         "{}\n{}\n{}\n{}\n{}\n{}",
-        resource_authority_upgrade_statements(),
+        // The later schema delta owns this index; a duplicate OVERWRITE can
+        // conflict with the provisional index builder inside this transaction.
+        resource_authority_upgrade_statements()
+            .replacen(MT168_PROTECTED_RESOURCES_PARENT_INDEX, "", 1),
         MT150_LOOM_EDGE_RECEIPT_UPGRADE_STATEMENTS,
         mt141_upgrade_statements(),
         mt120_document_upgrade_statements(),
