@@ -1,9 +1,10 @@
 ---
 file_id: WP-STUDIO-MODULE-WORK-HANDOFF
 file_kind: handoff
-updated_at: 2026-10-12T01:50:14Z
+updated_at: 2026-10-12T05:11:10Z
 wp: WP-KERNEL-STUDIO
-latest_snapshot: snapshots/SNAPSHOT-20261011T214451Z.json
+latest_snapshot: snapshots/SNAPSHOT-20261012T051110Z.json
+previous_snapshots: snapshots/SNAPSHOT-20261011T214451Z.json
 authority: ledger.json, team.json, workflow/plausible-register.json, validation/*, START_LOG.md (this file is a projection; they win on conflict)
 ---
 
@@ -12,10 +13,10 @@ authority: ledger.json, team.json, workflow/plausible-register.json, validation/
 ## Read first (any provider, no chat history needed)
 
 1. `START_LOG.md` — Operator instructions, repo rules, cargo rules, every lead decision, Operator items D1-D27.
-2. `builders/DISPATCH_TEMPLATES.md` — builder, validator and pre-review templates; workflow rules V4-01..V4-21 (V4-21: never put personal data in any request or header).
-3. `ledger.json` — every lane (status, commits, verdicts, blockers, claims); `resume_plan` = ordered next steps; `round_R*` = round history.
-4. `team.json` — agents and what they owned (status `running` = in flight when this was written).
-5. `snapshots/SNAPSHOT-20261011T214451Z.json` — machine-readable point-in-time copy of all of the above plus repo heads.
+2. `builders/DISPATCH_TEMPLATES.md` — builder, validator and pre-review templates; workflow rules V4-01..V4-21 (V4-21: never put personal data in any request or header). Validator runs take build/test settings only from the checked-in round entry script (CX-VAL-007).
+3. `ledger.json` — every lane (status, commits, verdicts, blockers, claims); `resume_plan` = ordered next steps; `round_R*` = round history (latest `round_R18`).
+4. `team.json` — agents and what they owned (no agent is running at this handoff).
+5. `snapshots/SNAPSHOT-20261012T051110Z.json` — machine-readable point-in-time copy of all of the above plus repo heads.
 6. `validation/` — every round result (`round-R*.json`), review (`R*-review-*.json`) and pre-review (`R*-prereview-*.json`).
 
 </topic>
@@ -27,10 +28,10 @@ authority: ledger.json, team.json, workflow/plausible-register.json, validation/
 | What | Repo / branch | Local worktree | State at handoff |
 |---|---|---|---|
 | Governance (this folder) | `Nuntissura/Handshake` / `gov_kernel` | `wt-gov-kernel` | pushed after every commit; other WPs (WP-KERNEL-012) also push here — integrate, never branch, never force |
-| Product (35 Studio crates) | `Nuntissura/assets` / `codex/handshake-studio-assets`, subfolder `handshake-studio-assets` | `wt-studio-assets` | HEAD == origin (7410f29); uncommitted on purpose: local Cargo.lock patch bumps (not steward-reviewed) and stat-only score files |
-| Build artifacts | `Handshake_Artifacts/WP-KERNEL-STUDIO/` (sibling of the worktrees) | — | cargo targets, round exports, red-proof scratch trees; never build on C: |
+| Product (35 Studio crates) | `Nuntissura/assets` / `codex/handshake-studio-assets`, subfolder `handshake-studio-assets` | `wt-studio-assets` | HEAD == origin == bfa1bbf; uncommitted on purpose: local Cargo.lock patch bumps (not steward-reviewed) and stat-only score files |
+| Build artifacts | `Handshake_Artifacts/WP-KERNEL-STUDIO/` (sibling of the worktrees) | — | cargo targets, round exports, canary + round results, red-proof scratch trees; never build on C: |
 
-Push helper for governance: `tools/lead-kernel-push.sh <message-file> <paths...>` (commits the paths, merges `origin/gov_kernel` only when no path overlaps, pushes; never branches/forces). The kernel root `.gameplan-active` belongs to WP-KERNEL-012; run gated git/cargo commands with a leading `cd .GOV/docs_repo/wp-studio-module-work` (local Studio pointer) or from the product tree.
+Push helper for governance: `tools/lead-kernel-push.sh <message-file> <paths...>` (commits the paths, merges `origin/gov_kernel` only when no path overlaps, pushes; never branches/forces). The kernel root `.gameplan-active` belongs to WP-KERNEL-012; run gated git/cargo commands with a leading `cd .GOV/docs_repo/wp-studio-module-work` (local Studio pointer) or from the product tree. Snapshot generator used for this handoff: rebuild from `ledger.json` + `team.json` + `workflow/plausible-register.json` (fields as in the snapshot file).
 
 </topic>
 
@@ -38,11 +39,12 @@ Push helper for governance: `tools/lead-kernel-push.sh <message-file> <paths...>
 
 ## Done
 
-- 35 Rust crates exist as a standalone multi-crate module (not wired into Handshake), ~108k lines incl. tests; every crate builds and tests green on each canary (59/59 units).
-- 111 work lanes: 7 BLOCKED, 4 IN_WORK, 96 PASS, 4 QUEUED (snapshot predates R12-R17).
-- Validation rounds R5-R17 complete (R4 abandoned): R12 = 45 PASS (web); R13 = press PASS (D27); R14 = 8 PASS reel/reel-native; R15 = 31 PASS (pigment follow-ups); R16 = 38 PASS; R17 = 7 PASS (interop-psd incl. budget). Press lanes + SMB-NOTES-BATCH-1 not yet re-validated: R17 narrow pre-review found R17-P1 (certainty by position) — small fix running.
-- Fully passed crates (27 of 35, every lane PASS): accord, chronicle, components, composite, controls, develop, folio, harness, interop-fig, interop-layout, interop-lrcat, interop-psd, interop-vector, kernel-bindings, layout, motion, motion-js, nib, package, prism, pulse, render-cpu, score, score-device, score-plugin, session, type. Not fully passed: interop-media, observe (no lane yet), pigment (plan-limits lane in R12), press, reel, reel-native, render-gpu, web (snapshot `crates`).
-- Strongest areas: Photoshop-style layer document, compositing (CPU + GPU), adjustments/effects/Blend-If, colour management, PSD import; raw develop; video indexing/AV1 worker/exact export; audio engine.
+- 35 Rust crates exist as a standalone multi-crate module (not wired into Handshake); every crate builds and tests green on each canary (C23 at bfa1bbf: 59/59 units, only NOT_PROVEN = interop-fig D17).
+- 111 lanes: 99 PASS, 7 BLOCKED (Operator decisions), 4 queued/held, 1 done (steward).
+- Validation rounds R5-R18 complete (R4 abandoned). Latest: R18 at bfa1bbf = 3 PASS, 0 FAIL — SMB-PRESS PASS_V4, SMB-PRESS-DIFFERENCES PASS_V2, SMB-NOTES-BATCH-1 PASS_V1; press 147/147 tests. Press redaction proof closed via D27 "flatten + narrow" plus the MINIMAL DRAW SET rule (START_LOG).
+- Fully passed crates (29; every lane PASS): accord, chronicle, components, composite, controls, develop, folio, harness, interop-fig, interop-layout, interop-lrcat, interop-psd, interop-vector, kernel-bindings, layout, motion, motion-js, nib, package, pigment, prism, pulse, render-cpu, score, score-device, score-plugin, session, type, web.
+- Not fully passed: press (only SMB-PRESS-GEOMETRY queued), reel + reel-native (codec lanes blocked on D22-D26), render-gpu (D20), interop-media (D9); observe has no lane yet.
+- Strongest areas: Photoshop-style layer document, compositing (CPU + GPU), adjustments/effects/Blend-If, colour management, PSD import; raw develop; PDF read/edit/redact with own strict renderer; web export with spec-exact CSS tokenizer; video indexing/AV1 worker/exact export; audio engine.
 
 </topic>
 
@@ -50,7 +52,7 @@ Push helper for governance: `tools/lead-kernel-push.sh <message-file> <paths...>
 
 ## In flight at handoff
 
-- If either is missing on takeover: re-dispatch from `builders/DISPATCH_TEMPLATES.md` (validator / pre-review) with the candidate in `ledger.json` `round_R12` and lane `SMB-PRESS` `candidate`.
+- Nothing running. Next lanes (below) are not yet dispatched unless `team.json` shows them `running`.
 
 </topic>
 
@@ -58,11 +60,13 @@ Push helper for governance: `tools/lead-kernel-push.sh <message-file> <paths...>
 
 ## Not done
 
-- press follow-up PLR-076 (painted source reachable from a non-drawing catalog structure is kept without a report; DESCRIPTOR must say so or code must report it); SMB-PRESS-GEOMETRY partly superseded by flatten.
-- Blocked on Operator: render-gpu + round entrypoint (D20), interop-media (D9), ProRes/DNx/H.264 and Windows hardware decode (D22-D26).
-- Follow-ups registered (75 open items in `workflow/plausible-register.json`): notably PLR-069/070 (envelope reachability + backend adoption of caller plan limits), PLR-072..075 (pigment), PLR-063..068 (psd/reel), PLR-071 (web doc), SMB-PRESS-GEOMETRY, SMB-FMT-SWEEP (rustfmt pass after verdicts).
+- Press follow-ups: PLR-083 (flatten.rs:17-19 wording; unbalanced BDC /OC in a form — pdf.js closes it per form, other viewers UNVERIFIED), PLR-084 (DOC: say MINIMAL DRAW SET silence does not check visibility of the direct draw), PLR-076 (painted source reachable from a non-drawing catalog structure); SMB-PRESS-GEOMETRY.
+- Reel PLR-077 (video-route Partial receipt keeps packet end_pts; AV1-ROUTE is a 2-FAIL area -> narrow pre-review before judging). interop-psd PLR-063 (Folio 1024 mapped-instance ceiling counts both categories).
+- Notes residuals: config-OBU tag, exact-64 FRAME test, psd group-own-lfx2/zero-tile. SMB-FMT-SWEEP (rustfmt pass).
+- Blocked on Operator: render-gpu + round entrypoint + SMB-RENDER-GPU-ADJ/PROBE + PLR-082 (D20), interop-media (D9), ProRes/DNx/H.264 and Windows hardware decode (D22-D26).
+- 80 open items in `workflow/plausible-register.json`.
 - No app UI yet and no Handshake integration (kernel_bindings is an in-memory adapter only). Spec-catalogue coverage is not measured.
-- `.GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json` still says PLANNED_NOT_IMPLEMENTED for all 35 crates (stale; ledger is live).
+- `.GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json` still says PLANNED_NOT_IMPLEMENTED for all 35 crates; no other status value is defined anywhere checked, so it was not changed (ledger is live).
 
 </topic>
 
@@ -71,10 +75,11 @@ Push helper for governance: `tools/lead-kernel-push.sh <message-file> <paths...>
 ## Next steps
 
 Follow `ledger.json` `resume_plan` (authoritative). Short form:
-1. R12 is recorded (45 PASS). Narrow pre-reviews needed before the next round for SMB-REEL-AV1-ROUTE / SMB-REEL-NATIVE-AV1-WORKER once the reel/reel-native follow-up lanes land (both 2-FAIL lanes).
-2. Press passed in R13. Next press work: PLR-076, then SMB-PRESS-GEOMETRY / fmt sweep.
-3. Then the queued follow-ups (pigment PLR-069/070/072-075; reel PLR-066-068; psd PLR-063-065; reel-native PLR-059-061), fmt sweep, module-map status refresh.
-4. Keep pushing `gov_kernel` after every commit while weekly usage is high.
+1. Dispatch (Sonnet builders, new lane ids per V4-15): SMB-PRESS-DOCS (PLR-083 + PLR-084 + PLR-076), SMB-REEL-PARTIAL-PTS (PLR-077), SMB-INTEROP-PSD-FOLIO-CEILING (PLR-063).
+2. Narrow pre-review for the reel lane (2-FAIL area) and for press (SMB-PRESS has 2 failed verdicts) before the round.
+3. Round R19: steward sync + canary + 1 Opus validator.
+4. Then SMB-PRESS-GEOMETRY, SMB-FMT-SWEEP, notes residuals.
+5. Keep pushing `gov_kernel` after every commit while weekly usage is high.
 
 </topic>
 
@@ -82,6 +87,6 @@ Follow `ledger.json` `resume_plan` (authoritative). Short form:
 
 ## Waiting on the Operator
 
-D20 (allow a 4th verdict for render-gpu and the round entrypoint — lead recommends yes), D22-D26 (codecs/licensing/spec conflict/downloads), D9, D17 (Figma fixtures), D5 (Photoshop oracle session), D13/STU-CON-044, the repo-local 3.8 GB `handshake-studio-assets/target`, the empty `x` folder at the C: root, D21 (optional AGL download). Details: `START_LOG.md`.
+D20 (allow a 4th verdict for render-gpu and the round entrypoint — lead recommends yes), D22-D26 (codecs/licensing/spec conflict/downloads), D9, D17 (Figma fixtures), D5 (Photoshop oracle session), D13/STU-CON-044, the repo-local 3.8 GB `handshake-studio-assets/target`, the empty `x` folder at the C: root, D21 (optional AGL download), status vocabulary for `STUDIO_MODULES.json`. Details: `START_LOG.md`.
 
 </topic>

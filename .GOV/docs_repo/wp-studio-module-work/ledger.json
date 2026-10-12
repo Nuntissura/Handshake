@@ -3549,9 +3549,8 @@
  },
  "handoff": {
   "file": "HANDOFF.md",
-  "snapshot": "snapshots/SNAPSHOT-20261011T214451Z.json",
-  "push_helper": "tools/lead-kernel-push.sh",
-  "updated_at": "2026-10-11T21:45:45Z"
+  "snapshot": "snapshots/SNAPSHOT-20261012T051110Z.json",
+  "at": "2026-10-12T05:11:10Z"
  },
  "round_R13": {
   "candidate": "4b76604",

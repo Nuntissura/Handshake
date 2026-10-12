@@ -46,7 +46,7 @@ Message 2:
 
 <topic id="snapshot" status="active" summary="Repo and work state at session start">
 
-Latest handoff: `HANDOFF.md` (projection) and machine-readable snapshot `snapshots/SNAPSHOT-20261011T214451Z.json` (2026-10-11T21:45:45Z). The section below is the session-start snapshot (2026-10-11T00:37Z), kept as history.
+Latest handoff: `HANDOFF.md` (projection) and machine-readable snapshot `snapshots/SNAPSHOT-20261012T051110Z.json` (2026-10-11T21:45:45Z). The section below is the session-start snapshot (2026-10-11T00:37Z), kept as history.
 
 
 ## Snapshot (2026-10-11T00:37Z)
