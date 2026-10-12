@@ -1570,7 +1570,7 @@
    "status": "OPEN",
    "verified_at": "0f87710",
    "disposition": "FIX_LANE",
-   "disposition_note": "pin with a test (fail-closed is acceptable); decide later whether /P to a flattened page should be rewritten"
+   "disposition_note": "pin with a test (fail-closed is acceptable); decide later whether /P to a flattened page should be rewritten; 2026-10-12T07:54:54Z fix submitted SMB-PRESS-STRUCT-FAILCLOSED d26d2fd/2566f1b (lane on hold for the V4-06 sibling)"
   },
   {
    "id": "PLR-092",
@@ -1600,7 +1600,7 @@
    "status": "OPEN",
    "verified_at": "3930a7c",
    "disposition": "DOC",
-   "disposition_note": "next press doc touch"
+   "disposition_note": "next press doc touch; 2026-10-12T07:54:54Z fix submitted SMB-PRESS-STRUCT-FAILCLOSED d26d2fd/2566f1b (lane on hold for the V4-06 sibling)"
   },
   {
    "id": "PLR-094",
@@ -1616,7 +1616,7 @@
    "status": "OPEN",
    "verified_at": "3930a7c",
    "disposition": "FIX_LANE",
-   "disposition_note": "lead decision 2026-10-12T07:26:27Z: FAIL CLOSED - when the catalog's /StructTreeRoot is left unedited (direct root) and it holds any structure element without /Pg (or any element the purge cannot place), region_flattened must read false and the save reports NotProven (no silent /Alt/ActualText/E survival); test with a probe fixture; DESCRIPTOR states it. Next press lane SMB-PRESS-STRUCT-FAILCLOSED."
+   "disposition_note": "lead decision 2026-10-12T07:26:27Z: FAIL CLOSED - when the catalog's /StructTreeRoot is left unedited (direct root) and it holds any structure element without /Pg (or any element the purge cannot place), region_flattened must read false and the save reports NotProven (no silent /Alt/ActualText/E survival); test with a probe fixture; DESCRIPTOR states it. Next press lane SMB-PRESS-STRUCT-FAILCLOSED.; 2026-10-12T07:54:54Z fix submitted SMB-PRESS-STRUCT-FAILCLOSED d26d2fd/2566f1b (lane on hold for the V4-06 sibling)"
   },
   {
    "id": "PLR-095",
@@ -1647,6 +1647,21 @@
    "verified_at": "0c1be05",
    "disposition": "DOC",
    "disposition_note": "align in next interop-psd touch"
+  },
+  {
+   "id": "PLR-097",
+   "lane": "SMB-PRESS",
+   "file_line": "crates/hsk-studio-press/src/flatten_purge.rs:322, :485",
+   "finding": "neutralize_structure does not walk a /K that is an indirect reference to an array; after the fail-closed backstop the text is reported, but it is not removed",
+   "first_seen": "SMB-PRESS-STRUCT-FAILCLOSED V4-06 sweep",
+   "seen_in": [
+    "builder lane notes open_sibling"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "2566f1b",
+   "disposition": "FIX_LANE",
+   "disposition_note": "improvement: walk indirect-array /K and write it back direct so the text is removed (option 1); after the fail-closed lane passes"
   }
  ],
  "process_items": [

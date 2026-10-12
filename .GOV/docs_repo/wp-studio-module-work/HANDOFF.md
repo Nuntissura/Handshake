@@ -52,7 +52,7 @@ Push helper for governance: `tools/lead-kernel-push.sh <message-file> <paths...>
 
 ## In flight at handoff
 
-- Dispatched 2026-10-12T07:27:45Z (Sonnet builders): SMB-PRESS-STRUCT-FAILCLOSED, SMB-INTEROP-PSD-DESC-CAP, SMB-REEL-PTS-TESTS; lane files `builders/lanes/hsk-studio-press-struct-failclosed.json`, `hsk-studio-interop-psd-desc-cap.json`, `hsk-studio-reel-pts-tests.json` are the handoff. If no agent is alive on takeover, re-dispatch with the same scope (`ledger.json` resume_plan step 1).
+- 2026-10-12T07:55:28Z: READY: SMB-REEL-PTS-TESTS (172952f), SMB-INTEROP-PSD-DESC-CAP (0c1be05). Running: fresh Sonnet builder finishing SMB-PRESS-STRUCT-FAILCLOSED (d26d2fd, 2566f1b + the fail-closed fix for the indirect-array /K sibling; lane file `builders/lanes/hsk-studio-press-struct-failclosed.json` is the handoff). Then narrow pre-review + round R21 (`ledger.json` resume_plan step 1).
 
 </topic>
 

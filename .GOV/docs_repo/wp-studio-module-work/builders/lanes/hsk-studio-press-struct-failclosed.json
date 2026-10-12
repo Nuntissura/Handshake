@@ -1,0 +1,116 @@
+{
+ "crate": "hsk-studio-press",
+ "lane": "SMB-PRESS-STRUCT-FAILCLOSED",
+ "status": null,
+ "phase": "lead hold 2026-10-12T07:54:54Z: V4-06 open sibling site (indirect-array /K not walked, flatten_purge.rs:322/:485) is the same failure class and verified fail-open -> must be fixed in this lane before READY (V4-06 count rule; PLR-094 lead decision fail closed). Lead choice: option (2) fail closed. Fresh builder (V4-16: previous builder ~400k tokens).",
+ "commits": [
+  {
+   "sha": "d26d2fd",
+   "subject": "press (SMB-PRESS-STRUCT-FAILCLOSED, PLR-094, PLR-093, PLR-091): an unedited structure tree with elements off the kept pages is reported, not read as flattened"
+  },
+  {
+   "sha": "2566f1b",
+   "subject": "press (SMB-PRESS-STRUCT-FAILCLOSED, V4-07): two doc comments of flatten_purge.rs made exact (comment lines only)"
+  }
+ ],
+ "capabilities_done": [
+  "PLR-094 (lead decision 2026-10-12T07:26:27Z, FAIL CLOSED): flatten_purge.rs check_document now also calls unplaced_structure_elements. For a structure tree root the purge does not edit (edited_structure_root is None: a dictionary written directly into the catalog, or reached through a chain of references) every element that is not on a kept page adds 1 to residual_in_region, so region_flattened reads false and NotProven::ResidualInRegion is reported. An element is on a kept page when its own /Pg, else the nearest ancestor element's, is a page of the saved file that is not a flattened page. Elements are reached from the root's /K (page inherited down the tree, /K arrays direct or indirect), then from /ParentTree and /IDTree (no page inherited). A walk that exceeds Limits::max_objects steps or depth_cap levels counts 1 more. The tree is not edited. 0 for an indirect root, for no tree, and when no page was flattened. Existing variant ResidualInRegion used (its doc: independent checks of the saved bytes found a mismatch, check_document); no new NotProven variant",
+  "edited_structure_root(doc, catalog): the one definition of which root the purge edits; neutralize_structure uses it in place of its inline lookup (same two conditions: Ref, then dict), check_document's new check uses the same function",
+  "PLR-093 (R22-P1, R22-P2, doc only): flatten_purge.rs module opening restated per category (annotations and widgets of a flattened page that no kept page lists are dropped; painted sources it reached that no kept content names and no kept object references are dropped, one a kept object references stays and is reported; in an indirect-root tree the elements that point at it stay with their text removed, any other root is not edited and its off-page elements are reported); flatten_purge.rs structure bullet and flatten.rs overview state the condition (indirect root) and the exception with the cited tests; sanitized_save.rs residual_in_region and region_flattened docs name the new clause; DESCRIPTOR redaction.flatten.purge residual and redaction.flatten.region_clearing state the fail-closed rule (needle test)",
+  "PLR-091 (test only): kept_annotation_with_a_flattened_p_is_reported pins that an annotation a kept page lists whose /P names a flattened page stays in the file and makes residual_in_region 1, region_flattened false, reasons == [ResidualInRegion]; fails on a mutant without the /P clause of check_document (notes.red_proof.plr_091_mutant)",
+  "New tests (tests/flatten_r13.rs, 4): direct_structure_tree_elements_off_the_kept_pages_are_reported (12 cases), direct_structure_tree_on_kept_pages_stays_flattened, kept_annotation_with_a_flattened_p_is_reported, descriptor_states_the_unedited_structure_tree_rule"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-press --tests --no-fail-fast",
+  "exit": 0,
+  "sha": "2566f1b",
+  "passed": 155,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 10,
+ "bg_pids": [],
+ "next": "Fix open_sibling with option (2): unplaced_structure_elements also walks edited trees through indirect-array /K and counts elements off the kept pages that still hold a STRUCT_TEXT_KEYS key -> region_flattened false + NotProven::ResidualInRegion; commit the scratch probe case A as a test; then READY.",
+ "updated_at": "2026-10-12T07:54:54Z",
+ "notes": {
+  "scope_files": [
+   "crates/hsk-studio-press/src/flatten_purge.rs (code: edited_structure_root, tree_elements, children, unplaced_structure_elements, check_document tail; docs)",
+   "crates/hsk-studio-press/src/flatten.rs (module doc comment only)",
+   "crates/hsk-studio-press/src/sanitized_save.rs (doc comments only)",
+   "crates/hsk-studio-press/src/lib.rs (DESCRIPTOR only: 2 keys)",
+   "crates/hsk-studio-press/tests/flatten_r13.rs (4 new tests + 1 fixture fn, +177 lines)"
+  ],
+  "base": "0c1be05 (product HEAD moved 3930a7c -> 0c1be05 during the lane through the reel and interop-psd lanes; git diff 3930a7c 0c1be05 -- crates/hsk-studio-press is empty)",
+  "diff": "5 files, +339 -16 (git diff --stat 0c1be05 2566f1b -- crates/hsk-studio-press); non-comment changed src lines: flatten.rs 0, sanitized_save.rs 0, lib.rs 2 (the DESCRIPTOR line), flatten_purge.rs 108 (105 added, 3 removed: the use line, the inline StructTreeRoot lookup now edited_structure_root, the old tail `bad`); 2566f1b changes comment lines only (0 non-comment lines)",
+  "probe_before_fix": {
+   "tree": "Handshake_Artifacts/WP-KERNEL-STUDIO/press-struct-failclosed-redproof/src (git archive of 3930a7c product tree, STUDIO_OWNER=press-struct-failclosed-redproof, own target; press src files byte-identical to 3930a7c: flatten_purge.rs, lib.rs, flatten.rs, sanitized_save.rs checked with diff)",
+   "fixture": "tests/flatten_r13.rs direct_tree_output: catalog /StructTreeRoot in a spelling the purge does not edit, page 0 (region, StructParents 0) flattened, page 1 kept; the element carries /Alt (ALT-DIRECT-SECRET) /ActualText (ACTUAL-DIRECT-SECRET) /E (EXPANSION-DIRECT-SECRET)",
+   "result": "11 of 12 cases: region_flattened true, residual_in_region 0, not_proven_reasons [], and all three texts still in the saved bytes (independent zlib scan) = the defect. The 12th case (the element names the flattened page as /Pg) was already reported by check_document (the old detection). Cases: no /Pg; /Pg 99 0 R (no object); /Pg 6 0 R (a font); /Pg 3 0 R (flattened, reported before); /Pg only in a comment; lower-case /pg; /S spelled /#53; element only in /ParentTree; element only in /IDTree; direct dictionary in /K; child whose own /Pg overrides the parent's; root reached through a chain of references (80 0 obj 84 0 R)",
+   "nextest": "cargo nextest run -p hsk-studio-press --test flatten_r13 -E (4 new tests) on 3930a7c source: direct_structure_tree_elements_off_the_kept_pages_are_reported FAIL (11 messages 'region_flattened true while the structure text survives (residual 0)'), descriptor_states_the_unedited_structure_tree_rule FAIL (DESCRIPTOR lacks the rule), kept_annotation_with_a_flattened_p_is_reported PASS and direct_structure_tree_on_kept_pages_stays_flattened PASS (pins of current behaviour). Logs: press-struct-failclosed-redproof/red-final-2.log"
+  },
+  "green": "shared tree at d26d2fd and 2566f1b: the 4 new tests pass; full crate 155 run, 155 passed (151 at 0c1be05 + 4); doctests 0 (cargo test --doc exit 0); cargo check -p hsk-studio-press --tests exit 0; cargo clippy -p hsk-studio-press --tests (and --examples) exit 0, no warning from hsk-studio-press (the 2 too_many_arguments warnings come from hsk-studio-observe, pre-existing). Full-crate log: press-struct-failclosed-redproof/full-crate-3.log (run at 2566f1b, a pushed commit)",
+  "red_proof": {
+   "method": "scratch tree outside the shared tree (V4-11), own STUDIO_OWNER and target; source files restored with cp + touch before every later build",
+   "plr_094": "see probe_before_fix (same run, final tests, 3930a7c source)",
+   "plr_091_mutant": "scratch copy of 3930a7c with `if on(\"Pg\") || (on(\"P\") && d.get(\"Subtype\").is_some())` reduced to `if on(\"Pg\")` (flatten_purge.rs:1029 before the lane's insertions): kept_annotation_with_a_flattened_p_is_reported FAIL ('residual_in_region 0, expected 1', 'region_flattened true reasons []'); restored from a saved copy and touched. Log: press-struct-failclosed-redproof/red-mutant-p.log"
+  },
+  "design": {
+   "why_ResidualInRegion": "NotProven::ResidualInRegion is documented as the independent checks of the saved bytes (flatten::check_flattened, flatten_purge::check_document) finding a mismatch; the new rule is such a check on the saved bytes. PaintedSourceKept is painted-source specific, RegionIncomplete is selector specific. No new variant was needed",
+   "why_saved_file": "the check reads the SAVED document (like the /Pg scan), so it sees exactly what a viewer gets and cannot disagree with the writer",
+   "rule": "lead decision: any element the purge cannot place on a kept page counts (no /Pg, or a /Pg not resolvable to a kept page). Over-reporting accepted: a Document element without /Pg of a direct-root tree counts",
+   "no_edit": "the tree is not edited (lead: fail closed only); the text stays in the file and is reported"
+  },
+  "residuals": [
+   "Over-reporting (accepted by the lead decision): in a direct or chain-reached tree every element without a kept /Pg on its path counts, text-bearing or not",
+   "An element whose own /Pg names a kept page is accepted even if the flattened page's parent-tree entry also names it (contradictory input). By reading, not probed: the saved flattened page does not keep /StructParents, so check_document has no key to look up",
+   "An element dictionary is a dictionary with /S (the criterion neutralize_structure uses); a dictionary with /Type /StructElem and no /S is not walked as an element (not probed)",
+   "A trailer /Root reached through a chain of references makes edited_structure_root None (dict_of(catalog) is None) so the tree is walked by the new check; covered by construction, no test",
+   "A /StructTreeRoot that is a reference to a non-dictionary has no tree to walk (0)"
+  ],
+  "open_sibling": {
+   "summary": "V4-06 sweep found a second site of the class that is fail-open and is NOT fixed here: StructPass::element (flatten_purge.rs:322) and the root /K collection (:485) do not expand a /K that is an indirect reference to an array (`Some(other) => vec![other.clone()]`, then `Object::Ref` whose target is an array is skipped as a non-element). In an INDIRECT-root tree, children under such an array are not walked.",
+   "probe": "scratch test scratch_probe_indirect_array_k (scratch tree only, not committed, 3930a7c source; the path is unchanged by this lane), indirect root, parent-tree /Nums []: A parent with own /Pg of the flattened page whose /K is an indirect array holding a child with /Alt and MCID content: the parent is neutralized (neutralized 1), the child keeps its /Alt, region_flattened TRUE, reasons [] (text survives unreported). B root /K indirect array holding an element with own flattened /Pg: reported (residual 1) because the /Pg stays. C root /K indirect array holding a /Pg-less element that the parent tree maps to the flattened page: neutralized, text gone. D same as A with direct arrays: both elements neutralized, text gone",
+   "condition": "needs malformed input: MCID content on the flattened page that the flattened page's parent-tree entry does not map (a conforming tagged file maps it, case C)",
+   "why_not_fixed": "outside the PLR-094 decision (names the catalog-direct root) and the 'minimal diff, no refactor' instruction for a lane with 2 failed verdicts; V4-15: new features start on a new lane",
+   "options": [
+    "(1) neutralize_structure walks a /K that is a reference to an array (element() and the root collection; K is written back as a direct array, the old array object leaves the file); case A then reads like D",
+    "(2) fail closed: in unplaced_structure_elements also walk an edited tree and count elements under an indirect-array /K that are off the kept pages and still hold a STRUCT_TEXT_KEYS key"
+   ]
+  },
+  "v4_06": {
+   "class": "structure-tree text surviving a redaction save without a report: a structure element's text or attributes (/Alt /ActualText /E /T /Lang /A /C /ID /Ref /AF /Phoneme /PhoneticAlphabet) stays in the saved file and neither the purge edits it nor residual_in_region / painted_sources_kept / a NotProven reason reports it (PLR-094; R22-P3)",
+   "regex": "StructTreeRoot|StructElem|STRUCT_TEXT_KEYS|neutralize_structure|edited_structure_root|unplaced_structure_elements|check_document|structure_elements_neutralized|\"Pg\"|\"ParentTree\"|\"IDTree\"|\"StructParents?\"|structure_text|get\\(\"K\"\\)|set\\(\"K\"|remove\\(\"K\"\\)  (git grep -n -E over crates/hsk-studio-press/src tests examples)",
+   "counts": "0c1be05: 52 line hits (flatten_purge.rs 20, lib.rs 1, sanitized_save.rs 8, text_fields.rs 4, tests/flatten_r13.rs 13, tests/pdf_delivery.rs 6). 2566f1b: 91 line hits (flatten_purge.rs 37, lib.rs 1, sanitized_save.rs 8, text_fields.rs 4, tests/flatten_r13.rs 35, tests/pdf_delivery.rs 6) = 38 src code lines + 11 src comment lines + 1 DESCRIPTOR line + 41 test lines. The sites below account for all 91",
+   "src_code_lines_38": {
+    "FIXED_or_added_11": "flatten_purge.rs:462,463 (edited_structure_root: the unedited-root decision that used to be the silent `return Ok(0)` at :450-451), :470 (neutralize_structure uses it); unplaced_structure_elements :1078,:1083,:1086,:1090,:1097,:1124,:1131; check_document call :1173",
+    "NOT_APPLICABLE_16": "flatten_purge.rs:293 (STRUCT_TEXT_KEYS definition); :310, :319 (/Pg reads that classify an element of an EDITED tree); :357, :361 (the removals themselves); :367, :369, :370 (an element's /K written back); :432, :438 (parent-tree scrub of the edited root's copy); :468 (neutralize_structure signature); :473, :475 (flattened page and removed annotation parent-tree keys); :503 (root /K written back); :1142 (check_document signature); :1164 (the existing scan: any dictionary whose /Pg or annotation /P is a flattened page, unchanged and still counts)",
+    "OPEN_2": "flatten_purge.rs:322 (element() /K read) and :485 (root /K read): the verified fail-open sibling in notes.open_sibling",
+    "NOT_APPLICABLE_plumbing_5": "sanitized_save.rs:76 (import), :1334 (structure_elements_neutralized field), :1529 (neutralize_structure call), :1560 (check_document call), :1571 (field init)",
+    "NOT_APPLICABLE_other_mechanism_4": "text_fields.rs:90, :119, :1025, :1032 (structure_text: redacts structure /Alt /ActualText /E /T that match the strings the selector removed; matches are reported as TextFieldOutcome Replaced/Removed/KeptByPolicy/Unverifiable, TextFieldsKept, and the payload proof's hits; not page based, a different mechanism)"
+   },
+   "src_comment_lines_11": "FIXED or new text (10): flatten_purge.rs:27, :33, :37 (structure bullet and module opening continuation), :459, :461 (edited_structure_root doc), :1025 (tree_elements doc), :1068 (unplaced_structure_elements doc), :1141 (check_document doc); sanitized_save.rs:1308 (residual_in_region), :1430 (region_flattened). NOT_APPLICABLE (1): sanitized_save.rs:160 (NotProven::ResidualInRegion doc: 'independent checks of the saved bytes', exact for the new check)",
+   "descriptor_1_line": "lib.rs:95: redaction.flatten.region_clearing FIXED, redaction.flatten.purge residual FIXED; text_fields slot structure_text NOT_APPLICABLE; the JSON parsed at 0c1be05 and 2566f1b: 203 leaves each, exactly 2 changed (the two keys above)",
+   "tests_41": "flatten_r13.rs 35 lines = 13 existing (NOT_APPLICABLE: the fixtures and assertions of structure_and_widgets_of_flattened_pages_are_removed and flattened_page_annotations_leave_and_structure_elements_stay, both with an indirect root 80 0 R) + 22 new lines of this lane's tests; pdf_delivery.rs 6 NOT_APPLICABLE (all in the one test form_labels_structure_text_info_and_xmp_redacted: text_fields structure text redaction, indirect root 50 0 R, not the flatten purge)",
+   "recount": "11 fixed/added + 16 not applicable + 2 open + 5 plumbing + 4 other mechanism = 38 code lines; 10 + 1 = 11 comment lines; 1 DESCRIPTOR line; 41 test lines; total 91. The 2 OPEN lines are matched only because the regex includes get(\"K\"); they hold the sibling in open_sibling"
+  },
+  "plr_093": {
+   "sites_fixed": [
+    "flatten_purge.rs:1-11 module opening (R22-P1): states the per-category condition; the painted-source half no longer says 'nothing kept still draws' (code: a source a kept object only references is reached and kept, reported; flatten_purge.rs drop_painted_sources reached/gone/reported)",
+    "flatten.rs:20-27 overview (R22-P2): structure sentence now conditional on an indirect root, exception and cited tests",
+    "flatten_purge.rs:27-37 structure bullet: exception for a root the purge does not edit",
+    "lib.rs DESCRIPTOR redaction.flatten.purge residual and region_clearing"
+   ],
+   "needle_test": "descriptor_states_the_unedited_structure_tree_rule: the rule sentence occurs once, the old residual sentence is absent, the rule uses none of never/always/guarantee/proves, it cites two tests that exist as fn in tests/flatten_r13.rs"
+  },
+  "v4_07": "added doc/DESCRIPTOR text uses none of never/always/guarantee/proves (git diff 0c1be05 2566f1b added lines scanned with grep -w: only the pre-existing DESCRIPTOR line and the needle test's word list match; the one doc 'never read' was reworded in 2566f1b); DESCRIPTOR counts of never 8 and always 1 are unchanged at 0c1be05 and 2566f1b",
+  "v4_08": "the page and the element test read the PARSED dictionary (names decoded, comments skipped by the crate's parser), never raw text; adversarial cases in the 12: comment decoy (/Pg only in a comment), key case (/pg), name escape (/#53 for /S); the negative test spells /Pg as /P#67 with the reference spread over a newline and a tab and must still be accepted",
+  "v4_01_02": "flatten_purge.rs already carries #![deny(clippy::arithmetic_side_effects)]; the new code uses saturating_add only; the walk is bounded by Limits::max_objects steps and depth_cap, over the bound it counts 1 (fail closed); no new test of the bound itself (no fixture with 200000 elements, not run)",
+  "v4_11": "no file of the shared tree was reverted or restored; the red proofs ran in the scratch tree press-struct-failclosed-redproof with its own STUDIO_OWNER; scratch sources were restored with cp and touch",
+  "v4_12": "helper text only under <scratchpad>/SMB-PRESS-STRUCT-FAILCLOSED/ (commit messages); scratch test files and logs under Handshake_Artifacts/WP-KERNEL-STUDIO/press-struct-failclosed-redproof/",
+  "v4_14": "d26d2fd is the first push; 2566f1b follows it as a comment-only commit (0 non-comment lines) and is the READY commit; nothing was pushed to hsk-studio-press after 2566f1b",
+  "v4_21": "no outbound request other than git fetch and git push to origin; no personal data in any request",
+  "retry_guard": "3 gameplan blocks, none bypassed: (1) two cargo commands that did not start with the cd-first form resolved the wrong gameplan (the kernel's other WP gameplan): rerun with the cd-first studio-env.sh form, no gameplan edit; (2) the red-proof run of the mutant and a focused rerun were blocked as identical retries of the intended red run (normalized `-E test`, same product HEAD d26d2fd): route (a), a product commit (2566f1b) changed HEAD, then the mutant run was made; no flag or filter was changed to dodge the guard; no gameplan step added",
+  "git": "commits by explicit pathspec (crates/hsk-studio-press) with git commit -F files; one remote error on the first push (server could not rename a temporary pack file), the same push succeeded 8 s later; shared-tree changes of other lanes (score, others) were never staged",
+  "branch_state": "origin/codex/handshake-studio-assets == 2566f1bcafe0fc083a0e6d64e633da059d8496c1 (d26d2fdcff5b99351d4e35feec32501c42460cb1 is its parent)"
+ }
+}
