@@ -6520,7 +6520,7 @@
     "kernel_commit": "b10602490f2915fc3dffa8c2181af595f28fd4c1",
     "globals_commit": "123dbbe18b0ffc59e3b88c92f4063222f1ba827b",
     "praxidike_local_commit": "3ef3aea56cc9e4b3a8e231a89a1ca70533d8da96",
-    "praxidike_push": "No configured remote destination; no invented remote",
+    "praxidike_push": "PUSHED_PRIVATE https://github.com/Nuntissura/praxidike codex/praxidike exact3ef3aea56cc9e4b3a8e231a89a1ca70533d8da96",
     "deployment": "NOT_PROVEN; original independent product acceptance remains required"
   }
 }
