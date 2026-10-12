@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 634
+generation: 635
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -532,3 +532,4 @@ steps:
 - {id: GP-511, role: builder, at: before_round, do: verify retained Loom edge serialization consumes its owning Serialize derive; preserve original fields and test, check: {type: confirm}, source: 'failure: Round39 E0277 NewLoomEdge lacked Serialize required by retained loom_search_v2_tests', state: active}
 - {id: GP-512, role: builder, at: before_dispatch, do: verify owned wrapper receives pinned PRAXIDIKE_ROOT in process environment, check: {type: confirm}, source: 'infra: Round40 admission lacked PRAXIDIKE_ROOT; Cargo never launched', state: active}
 - {id: GP-513, role: builder, at: before_merge, do: verify scoped kernel publication uses explicit builder gate before mutation, check: {type: confirm}, source: 'infra: combined metadata record and merge command selected all roles; body blocked before mutation', state: active}
+- {id: GP-514, role: integration_validator, at: before_round, do: verify owned measurement target disk free >= 53687091200 bytes via numeric DriveInfo, check: {type: confirm}, source: 'infra: MT139 prelaunch Get-Volume returned null free bytes; no Cargo launched', state: active}
