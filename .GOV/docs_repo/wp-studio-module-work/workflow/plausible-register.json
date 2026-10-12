@@ -1662,6 +1662,21 @@
    "verified_at": "2566f1b",
    "disposition": "FIX_LANE",
    "disposition_note": "improvement: walk indirect-array /K and write it back direct so the text is removed (option 1); after the fail-closed lane passes"
+  },
+  {
+   "id": "PLR-098",
+   "lane": "SMB-PRESS-STRUCT-FAILCLOSED",
+   "file_line": "crates/hsk-studio-press/src/flatten_purge.rs (unplaced_structure_elements, children)",
+   "finding": "residuals of the fail-closed walk: over-reports elements with no kept /Pg holding /Lang, /A, /C, /ID or /T under indirect /K arrays; trees deeper than 32 levels or larger than max_objects read false; parent-tree-only and id-tree-only elements of an EDITED tree are not read (fail-open status UNVERIFIED -> pre-review checks)",
+   "first_seen": "builder report 54c60f9",
+   "seen_in": [
+    "builder report 54c60f9"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "54c60f9",
+   "disposition": "FIX_LANE",
+   "disposition_note": "over-reports accepted; the parent-tree/id-tree-only part is checked by the R23 pre-review"
   }
  ],
  "process_items": [

@@ -52,7 +52,7 @@ Push helper for governance: `tools/lead-kernel-push.sh <message-file> <paths...>
 
 ## In flight at handoff
 
-- 2026-10-12T07:55:28Z: READY: SMB-REEL-PTS-TESTS (172952f), SMB-INTEROP-PSD-DESC-CAP (0c1be05). Running: fresh Sonnet builder finishing SMB-PRESS-STRUCT-FAILCLOSED (d26d2fd, 2566f1b + the fail-closed fix for the indirect-array /K sibling; lane file `builders/lanes/hsk-studio-press-struct-failclosed.json` is the handoff). Then narrow pre-review + round R21 (`ledger.json` resume_plan step 1).
+- 2026-10-12T08:17:20Z: three lanes READY at 54c60f9 (SMB-PRESS-STRUCT-FAILCLOSED, SMB-REEL-PTS-TESTS, SMB-INTEROP-PSD-DESC-CAP). Running: Opus narrow pre-review 3930a7c..54c60f9 (output `validation/R23-prereview-narrow.json`). If missing on takeover, re-dispatch it modelled on `validation/R22-prereview-narrow.json`; then round R21 per `ledger.json` resume_plan. Weekly usage 97% at this point.
 
 </topic>
 
