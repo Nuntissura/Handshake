@@ -1574,6 +1574,51 @@
    "verified_at": "2fb17a8",
    "disposition": "TEST",
    "disposition_note": "next reel lane: add a finish()-holding fake plan; prove or remove the unreachable refusal"
+  },
+  {
+   "id": "PLR-093",
+   "lane": "SMB-PRESS-DOCS-2",
+   "file_line": "crates/hsk-studio-press/src/flatten_purge.rs:3-5; src/flatten.rs:20-22 (vs :450, :887-893, :941, :965)",
+   "finding": "doc-only: purge module opening still says painted sources nothing kept draws are dropped (code keeps+reports referenced ones); flatten overview structure-element sentence is unconditional but a /StructTreeRoot written directly in the catalog is not edited",
+   "first_seen": "R22-prereview-narrow",
+   "seen_in": [
+    "R22-prereview-narrow"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "3930a7c",
+   "disposition": "DOC",
+   "disposition_note": "next press doc touch"
+  },
+  {
+   "id": "PLR-094",
+   "lane": "SMB-PRESS",
+   "file_line": "crates/hsk-studio-press/src/flatten.rs:450, :1029",
+   "finding": "PLAUSIBLE (pre-existing): with a /StructTreeRoot written directly in the catalog, a structure element without /Pg can keep its /Alt (possibly redacted text) while region_flattened reads true",
+   "first_seen": "R22-prereview-narrow",
+   "seen_in": [
+    "R22-prereview-narrow"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "3930a7c",
+   "disposition": "FIX_LANE",
+   "disposition_note": "PRIORITY next press lane: reproduce with a test; if confirmed, fail closed (strip or report NotProven) - redaction leak class"
+  },
+  {
+   "id": "PLR-095",
+   "lane": "SMB-INTEROP-PSD-LOSS-DETAIL",
+   "file_line": "crates/hsk-studio-interop-psd/src/proposal.rs:527-528; src/descriptor.rs:21,128,183,205",
+   "finding": "doc-only: count is of mapped switched-off instances; DESCRIPTOR does not state the 8192-item per-descriptor cap, which may decide Photoshop-sized stacks before the 1024 ceiling (per-instance item count UNVERIFIED)",
+   "first_seen": "R22-prereview-narrow",
+   "seen_in": [
+    "R22-prereview-narrow"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "3930a7c",
+   "disposition": "DOC",
+   "disposition_note": "next interop-psd lane: state the cap; measure items per effect instance"
   }
  ],
  "process_items": [
