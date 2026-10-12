@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 647
+generation: 648
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -545,3 +545,4 @@ steps:
 - {id: GP-524, role: integration_validator, at: before_round, do: verify retained fresh and reopen test calls actual production bootstrap with exact composed catalog assertions, check: {type: confirm}, source: 'proof gap: original restart test covered shared bootstrap only; approved production state amendment needs real reopen', state: active}
 - {id: GP-525, role: integration_validator, at: before_round, do: verify predecessor diagnostic exposes indexed primary error and preserves original first error and SQL transaction, check: {type: confirm}, source: 'failure: retained predecessor upgrade returned masked NotExecuted; original migration primary error not emitted', state: active}
 - {id: GP-526, role: integration_validator, at: before_round, do: verify all-masked diagnostic emits final COMMIT error row and preserves original first returned error, check: {type: confirm}, source: 'failure: typed NotExecuted filter hid descriptive Cannot COMMIT row; first masked fallback was insufficient', state: active}
+- {id: GP-527, role: integration_validator, at: before_round, do: verify predecessor transaction emits parent index once and preserves exact later declaration, check: {type: confirm}, source: 'failure: duplicate index overwrite retires builder state newer than parent snapshot; COMMIT Resource busy', state: active}

@@ -1,4 +1,126 @@
 {
+  "round50_predecessor_duplicate_index_source_release_20261012": {
+    "id": "WP012-P2-ROUND50-DUPLICATE-REPAIR-20261012",
+    "status": "SOURCE_CLEAR_PUSHED_PREDECESSOR_REPROOF_PENDING",
+    "product_commit": "e17eb7a5851e1a35fa914b842c898fc93df83e01",
+    "product_tree": "19dcb82ab7a32c54a7edeecf85aa1a4c9e62db0f",
+    "source_sha256": "9de91a2ba97d6ecd2b4abeac3348df8cd38f65296378c8db55e92b99086bbf6f",
+    "source_review": {
+      "thread": "01a129ca-9bd2-7823-bc0d-746a6065835f",
+      "verdict": "SOURCE_CLEAR",
+      "binding_sha256": "aafbdb98730ab1e74e235b8cb14718463fdb37c6d7a7dd247a4154e3e4dfcd0d",
+      "diff_sha256": "b2e219159435f2e2fb89abd5c81cea37e7cbbc309b1328b916ee29db1ee2cc78",
+      "actual_assertion_macro_lines_preserved": 451
+    },
+    "source_established_mechanism": "Combined post_mt109 emits identical parent-resource index twice. First builder commits durable state in a separate engine transaction; second overwrite stages deletion of this provisional state in the older parent snapshot. RocksDB commit conflict detection rejects keys written after its snapshot.",
+    "runtime_attribution_limit": "Actual Round49 COMMIT ResourceBusy observed; exact conflicting runtime key was not emitted. GREEN required before claiming fix.",
+    "scope": "Omit earlier identical parent-index statement only in combined resource-authority argument; retain later canonical declaration/order, standalone authority output, canonicalSQL, historicalpins, originaltransactionguards/allassertions; no retry/split/enginechange",
+    "runtime_proof": "Original exact predecessor test required; fresh current-HEAD gates/resources and unchanged warm owner/profile/toolchain/j1/cap before execution",
+    "transport_blocker": {
+      "thread": "01a129ca-8eea-7f53-aa9d-7f81f6f08319",
+      "observed_status": "idle completed prior turn",
+      "failed_dispatches": 4,
+      "variants": [
+        "three default routing requests",
+        "explicit hostId local request"
+      ],
+      "error": "Cannot steer conversation without an active turn id",
+      "alternate_execution_authority": "Delivery checking existing assigned contract scope; no role expansion or execution assumed"
+    },
+    "prior_green_proofs": "Round47 catalog and production disk fresh/reopen retained; change maps to predecessor composition only",
+    "broad_core": "Required after focused predecessor GREEN",
+    "failed_core_launches_retained": 38,
+    "native_acceptance": "0/5_NOT_EVALUATED",
+    "native_deployment": "BLOCKED_UNRESOLVED_ORIGINAL_DEPLOYMENT_ROOT_AND_GENUINE_AUTH_CONTEXT"
+  },
+  "round49_independent_predecessor_actual_result_20261012": {
+    "id": "WP012-P2-ROUND49-ACTUAL-20261012",
+    "status": "PREDECESSOR_COMMIT_TRANSACTION_CONFLICT_OBSERVED",
+    "actual": {
+      "attempt_id": "a319817f4c944fe8b1ae86811815adcf",
+      "started_utc": "2026-10-12T15:46:55.3726166Z",
+      "status": "TEST_FAILED",
+      "exit_code": 101,
+      "runtime_acceptance": "NOT_EVALUATED",
+      "cap_bytes": 180000000000,
+      "gameplan_exit": 0,
+      "resources": {
+        "utc": "2026-10-12T15:47:23.5070831Z",
+        "available_mb": 5614,
+        "commit_reserve": 44763197440,
+        "pages_input": 0,
+        "page_reads": 0,
+        "free_bytes": 389046870016
+      },
+      "target_bytes_before": 30396275360.0,
+      "max_target_bytes": 31696718711,
+      "argv": [
+        "test",
+        "--locked",
+        "--manifest-path",
+        "src/backend/handshake_core/Cargo.toml",
+        "--features",
+        "app-runtime,surreal-test-support,test-utils",
+        "-j",
+        "1",
+        "--lib",
+        "storage::surreal::schema::tests::mt139_exact_predecessor_upgrade_preserves_data_and_restarts_current",
+        "--",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cargo_pid": 23472,
+      "cargo_identity": {
+        "ProcessId": 23472,
+        "CreationDate": "2026-10-12T17:47:25.681764+02:00",
+        "CommandLine": "\"C:\\Users\\iljas\\.cargo\\bin\\cargo.exe\" test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils -j 1 --lib storage::surreal::schema::tests::mt139_exact_predecessor_upgrade_preserves_data_and_restarts_current -- --exact --nocapture --test-threads=1",
+        "ExecutablePath": "C:\\Users\\iljas\\.cargo\\bin\\cargo.exe"
+      },
+      "post_binding_exit": 0,
+      "inputs_unchanged": true,
+      "stdout_sha256": "7f5ddd54500e9c43042bc659d9c0d4406ab81bdb4ec266fc41a7f5dc32716c71",
+      "stderr_sha256": "ba4e33407dd7c1ce1959cd44ea21d998949a3ac1f0bb6e52c9eaedfdcc27fdc9",
+      "completed_utc": "2026-10-12T15:56:10.4266589Z"
+    },
+    "post_binding": {
+      "matched": true,
+      "binding_equal": {
+        "head": true,
+        "tree": true,
+        "status": true,
+        "files": true,
+        "authority": true,
+        "profile_sha256": true,
+        "toolchain": true,
+        "launcher_sha256": true,
+        "external_inputs": true
+      },
+      "files": 7416
+    },
+    "artifact_root": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round49-exact-predecessor-upgrade",
+    "artifact_sha256": {
+      "measurement-result.json": "7d53d980218b859d5459372c06ca4d0c0c5c5117093b8bacdc57717f71b7cce6",
+      "post-binding.json": "9fd1f0edf84de597d3e3539b2e2e05928124e0ababc2fde42ac5ddac59f1fb69",
+      "test.stdout.log": "7f5ddd54500e9c43042bc659d9c0d4406ab81bdb4ec266fc41a7f5dc32716c71",
+      "test.stderr.log": "ba4e33407dd7c1ce1959cd44ea21d998949a3ac1f0bb6e52c9eaedfdcc27fdc9"
+    },
+    "terminal_error": {
+      "index": 802,
+      "code": -32003,
+      "message": "Cannot COMMIT: Transaction conflict: Resource busy. This transaction can be retried",
+      "typed": "NotExecuted",
+      "cause": null
+    },
+    "total_errors": 802,
+    "typed_masked_errors": 802,
+    "first_error_preserved": "index1 generic NotExecuted",
+    "root_cause": "COMMIT conflict observed; precise conflicting write mechanism NOT_DIAGNOSED",
+    "next_action": "Bounded read-only existing predecessor/storage/pinned-engine conflict investigation before minimal source repair; no blind retry or SQL/pin guesses",
+    "failed_core_launches_retained": 38,
+    "native_acceptance": "0/5_NOT_EVALUATED",
+    "broad_core": "Required after focused predecessor GREEN"
+  },
   "round49_terminal_error_diagnostic_release_20261012": {
     "id": "WP012-P2-ROUND49-TERMINAL-DIAGNOSTIC-RELEASE-20261012",
     "status": "SOURCE_CLEAR_PUSHED_TERMINAL_DETAIL_PENDING",
