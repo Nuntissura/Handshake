@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 631
+generation: 632
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -529,3 +529,4 @@ steps:
 - {id: GP-508, role: builder, at: before_dispatch, do: record only actual launcher output PID and receipt identity after launch, check: {type: confirm}, source: Round36 message emitted tentative26264 before actual25224 output; retracted; never repeat tentative identity, state: active}
 - {id: GP-509, role: builder, at: before_round, do: verify routing consumers use authorized canonical records; preserve public navigation redaction, check: {type: confirm}, source: 'failure: Round37 canonical routing consumers used redacted DTO and resource error conversion missed storage adapter', state: active}
 - {id: GP-510, role: builder, at: before_round, do: verify repeated async routing closures own a per-future run ID; preserve exact canonical selectors, check: {type: confirm}, source: 'failure: Round38 E0507 moved execution.run_id into repeated FnMut async closure', state: active}
+- {id: GP-511, role: builder, at: before_round, do: verify retained Loom edge serialization consumes its owning Serialize derive; preserve original fields and test, check: {type: confirm}, source: 'failure: Round39 E0277 NewLoomEdge lacked Serialize required by retained loom_search_v2_tests', state: active}
