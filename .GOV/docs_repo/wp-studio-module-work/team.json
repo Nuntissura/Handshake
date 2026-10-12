@@ -1561,7 +1561,7 @@
     "builders/lanes/workspace-steward.json"
    ],
    "launched": "2026-10-11T11:58:46Z",
-   "status": "running 2026-10-12T01:26:36Z (R17 sync + canary C22)"
+   "status": "idle 2026-10-12T01:33:29Z (R17 candidate fcda5f6; C22 exit 73 59/59)"
   },
   {
    "name": "research-reel-eng",

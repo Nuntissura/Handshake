@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-12T01:26:36Z",
+ "updated_at": "2026-10-12T01:33:29Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3655,5 +3655,22 @@
    "SMB-DEVELOP PASS (V4-18)"
   ],
   "not_judged": "SMB-NOTES-BATCH-1 withdrawn; SMB-PRESS + DIFFERENCES deferred (FIX_FIRST P-1); render-gpu (D20); interop-media (D9)"
+ },
+ "round_R17": {
+  "candidate": "fcda5f6",
+  "candidate_full": "fcda5f6f1d549ca3c399a6b51a68aecf5d133ab1",
+  "opened_at": "2026-10-12T01:33:29Z",
+  "sync": "already in sync since 9ffe946",
+  "canary": "C22 exit 73, 59/59, step 0 clean; NOT_PROVEN only interop-fig D17",
+  "ready": [
+   "SMB-NOTES-BATCH-1 (27a9a81, 9088884, ab273d3, 5606d16, f0be2ba, fcda5f6)"
+  ],
+  "two_fail_rechecks": "validation/R17-prereview-press-psd-narrow.json (press, interop-psd) \u2014 pending at opening; web + reel-native unchanged since R16-prereview SAFE",
+  "reopen": "press (SMB-PRESS, SMB-PRESS-DIFFERENCES) and interop-psd lanes",
+  "excluded": [
+   "render-gpu lanes (D20)",
+   "interop-media (D9)"
+  ],
+  "team": "1 validator (opus); review input = R17 narrow pre-review"
  }
 }
