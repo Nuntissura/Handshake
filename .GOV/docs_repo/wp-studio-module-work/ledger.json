@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-12T07:45:14Z",
+ "updated_at": "2026-10-12T07:54:54Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3238,11 +3238,14 @@
    "lane_id": "SMB-PRESS-STRUCT-FAILCLOSED",
    "crate": "hsk-studio-press",
    "origin": "PLR-094, PLR-093, PLR-091",
-   "phase": "build",
+   "phase": "build (lead hold: V4-06 open sibling, option 2 fail closed)",
    "status": null,
    "owner": "builder-press-struct-failclosed",
    "candidate": null,
-   "commits": [],
+   "commits": [
+    "d26d2fd",
+    "2566f1b"
+   ],
    "verdicts": []
   },
   {

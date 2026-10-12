@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-12T07:45:14Z",
+ "updated_at": "2026-10-12T07:54:54Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -2501,7 +2501,7 @@
     "builders/lanes/hsk-studio-press-struct-failclosed.json"
    ],
    "launched": "2026-10-12T07:27:45Z",
-   "status": "running"
+   "status": "retired (V4-16 ~400k tokens; d26d2fd/2566f1b; sibling handed to fresh builder)"
   },
   {
    "name": "builder-psd-desc-cap",
@@ -2513,7 +2513,7 @@
     "builders/lanes/hsk-studio-interop-psd-desc-cap.json"
    ],
    "launched": "2026-10-12T07:27:45Z",
-   "status": "done 2026-10-12T07:45:14Z (SMB-INTEROP-PSD-DESC-CAP READY at 0c1be05)"
+   "status": "done (READY)"
   },
   {
    "name": "builder-reel-pts-tests",
@@ -2525,7 +2525,7 @@
     "builders/lanes/hsk-studio-reel-pts-tests.json"
    ],
    "launched": "2026-10-12T07:27:45Z",
-   "status": "done 2026-10-12T07:44:52Z (SMB-REEL-PTS-TESTS READY at 172952f)"
+   "status": "done (READY)"
   }
  ]
 }
