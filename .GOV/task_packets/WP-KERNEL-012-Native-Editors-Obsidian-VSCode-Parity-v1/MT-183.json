@@ -151,8 +151,8 @@
     "validator_verdict": "PENDING",
     "claimed_by": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
     "completed_by": null,
-    "next_actor": "Assigned sole coder performs MT183 complete reconciliation/minimum repair; coordinator records source freeze; independent validator owns original focused proof",
-    "blocked_on": "Complete schema.rs reconciliation and repair; independent source clearance and pushed candidate before runtime"
+    "next_actor": "Independent validator prepares exact successor bindings; coordinator reviews bindings/admission before original focused proof lease",
+    "blocked_on": "Independent original focused predecessor proof; source-only checkpoint is not runtime acceptance"
   },
   "scope": {
     "summary": "Complete predecessor schema reconciliation and minimum repair",
@@ -316,5 +316,20 @@
     "proof_reuse": "Round47 only if actual affected behavior and relevant inputs unchanged; never substitutes repaired predecessor proof",
     "admitted_source_checkpoint": "e17eb7a5851e1a35fa914b842c898fc93df83e01; MT171/172 imported source refs preserved, no dependence on parent aggregate PASS"
   },
-  "source_lease_ref": "WP-KERNEL-012-phase02-successor-handoff-v4.json#/teams/new/source_lease"
+  "source_lease_ref": "WP-KERNEL-012-phase02-successor-handoff-v4.json#/teams/new/source_lease",
+  "successor_source_checkpoint_20261013": {
+    "status": "SOURCE_CLEAR_SOURCE_ONLY_RUNTIME_NOT_RUN",
+    "candidate_commit": "37f452a6b3b07c0ffd91ab49c3f99632c4104bb8",
+    "candidate_tree": "e22db7bd603b56caac2fec5cef9afc2e8b38733f",
+    "source_path": "src/backend/handshake_core/src/storage/surreal/schema.rs",
+    "source_sha256": "b00a42d073cf6ac2a1ec5e0338195ab2db8e90f120201e0c1b135c4e06f8cf00",
+    "independent_source_review_sessions": ["01a1323e-8219-7f01-b326-bbd802d1ba9a", "01a1323e-c183-77e3-b8ba-b286507e5617"],
+    "review_result": "Complete emitted composition source reconciliation cleared after adding both UserManual origin replacement selectors; historical pins, original guards/assertions and delta regression preserved",
+    "canonical_remote_observation": "Root git -C ../wtc-WP-KERNEL-012 ls-remote origin refs/heads/feat/WP-KERNEL-012 returned exact candidate commit",
+    "source_frozen": true,
+    "compiler_verdict": "NOT_RUN",
+    "runtime_verdict": "NOT_RUN",
+    "original_parent_acceptance_unchanged": true,
+    "new_attempt_allowance_created": false
+  }
 }
