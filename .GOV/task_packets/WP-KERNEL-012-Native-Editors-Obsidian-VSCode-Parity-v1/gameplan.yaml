@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 625
+generation: 627
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -522,5 +522,6 @@ steps:
 - {id: GP-501, role: any, at: before_merge, do: 'confirm kernel FF preserves ancestor, empty index and disjoint dirty bytes; product merge clean and pushed', check: {type: confirm}, source: 'infra: kernel push rejected remote ahead; GP013/414 lacked preserved governance FF case', state: retired}
 - {id: GP-502, role: any, at: before_merge, do: confirm kernel FF claims no product runtime; product integration requires current test and verdict proof, check: {type: confirm}, source: 'CX-GP003/007: GP015 product proof requirement inapplicable to disjoint kernel publication', state: retired}
 - {id: GP-503, role: builder, at: before_merge, do: verify read-only checks use supported inert argv; forbid embedded subprocess in cmd check, check: {type: confirm}, source: 'infra: controller refused read-only Git check embedded in Python subprocess before mutation', state: active}
-- {id: GP-504, role: any, at: before_merge, do: 'confirm kernel publication preserves both histories, disjoint path trees and dirty bytes; product clean and pushed', check: {type: confirm}, source: 'infra: remote advanced during checkpoint commit; preserved two-parent reconciliation replaces FF-only GP501', state: active}
+- {id: GP-504, role: any, at: before_merge, do: 'confirm kernel publication preserves both histories, disjoint path trees and dirty bytes; product clean and pushed', check: {type: confirm}, source: 'infra: remote advanced during checkpoint commit; preserved two-parent reconciliation replaces FF-only GP501', state: retired}
 - {id: GP-505, role: any, at: before_merge, do: confirm kernel publication claims no product runtime; product integration requires current test and verdict proof, check: {type: confirm}, source: 'CX-GP003/007: scope GP502 from FF to preserved disjoint kernel publication', state: active}
+- {id: GP-506, role: any, at: before_merge, do: 'confirm kernel preserves histories, disjoint trees and dirty bytes; product merge requires clean pushed product', check: {type: confirm}, source: 'infra: kernel remote advanced; preserve owned product edits; prior add rejected120char limit before mutation', state: active}
