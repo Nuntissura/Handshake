@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-12T10:27:14Z",
+ "updated_at": "2026-10-12T10:58:34Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3354,7 +3354,13 @@
     "1da2453"
    ],
    "verdicts": [],
-   "note": "claim 0cb7103+dce563e+1da2453: PLR-102 shape rule (/Type /StructElem|/StructTreeRoot, /S+/P+struct text key, /SE; names decoded, refs followed; kept object-stream members; unreadable counts) shares one +1 with tree/StructParents; PLR-101 rules only when a region is flattened; R24 J1/J2b/K1 reported; 3 new tests, 3 changed; 14 mutants killed in one batch; press 164/164; V4-06 201 hits classified"
+   "note": "claim 0cb7103+dce563e+1da2453: PLR-102 shape rule (/Type /StructElem|/StructTreeRoot, /S+/P+struct text key, /SE; names decoded, refs followed; kept object-stream members; unreadable counts) shares one +1 with tree/StructParents; PLR-101 rules only when a region is flattened; R24 J1/J2b/K1 reported; 3 new tests, 3 changed; 14 mutants killed in one batch; press 164/164; V4-06 201 hits classified",
+   "r25_prereview": {
+    "ref": "validation/R25-prereview-narrow.json",
+    "recommendation": "SAFE_TO_JUDGE",
+    "head": "1da2453",
+    "at": "2026-10-12T10:50:53Z"
+   }
   },
   {
    "lane_id": "SMB-INTEROP-PSD-DOCS",
@@ -3368,7 +3374,13 @@
     "c4c31cd"
    ],
    "verdicts": [],
-   "note": "docs only: PLR-096 MAPPED switched-off wording (effects.rs, proposal.rs, DESCRIPTOR clause + needle); PLR-099 8192-item scoping in source docs; V4-06 section (A 27, B 39+3); no code token changed outside DESCRIPTOR literal + needle; crate 62/62; effects_budget.rs:464 assertion message left (code token)"
+   "note": "docs only: PLR-096 MAPPED switched-off wording (effects.rs, proposal.rs, DESCRIPTOR clause + needle); PLR-099 8192-item scoping in source docs; V4-06 section (A 27, B 39+3); no code token changed outside DESCRIPTOR literal + needle; crate 62/62; effects_budget.rs:464 assertion message left (code token)",
+   "r25_prereview": {
+    "ref": "validation/R25-prereview-narrow.json",
+    "recommendation": "SAFE_TO_JUDGE",
+    "head": "1da2453",
+    "at": "2026-10-12T10:50:53Z"
+   }
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
@@ -3607,7 +3619,7 @@
  "resume_plan": {
   "at": "2026-10-12T09:56:43Z",
   "steps": [
-   "1. Two lanes READY at 1da2453 (SMB-PRESS-STRUCT-ORPHANS 0cb7103+dce563e+1da2453; SMB-INTEROP-PSD-DOCS c4c31cd). In flight: V4-13 narrow pre-review 2dde832..1da2453 -> validation/R25-prereview-narrow.json. If SAFE: steward sync + canary C27 + round R22 (1 validator; two-FAIL lanes SMB-PRESS, SMB-INTEROP-PSD-BUDGET). If FIX_FIRST: fresh builder on the same lane.",
+   "1. In flight: round R22 validator at 1da2453 (canary C27) judging SMB-PRESS-STRUCT-ORPHANS, SMB-INTEROP-PSD-DOCS + CX-VAL-009 reopens; then handoff + snapshot; PRIORITY next press lane PLR-104 (+ PLR-105).",
    "2. Then SMB-PRESS-GEOMETRY, SMB-FMT-SWEEP, notes residuals (config-OBU tag, exact-64 FRAME test, psd group-own-lfx2/zero-tile), PLR-097 (rewrite indirect /K arrays), PLR-100 (reel-native finish() test).",
    "3. Keep pushing gov_kernel after every commit.",
    "4. Blocked on Operator: D28 (strip structure tree on redaction save), D20, D22-D26, D9, D17, D5, D13/STU-CON-044, D21, repo-local target 3.8 GB, empty folder x at the C: root, scratch/probe trees cleanup (list in START_LOG); STUDIO_MODULES.json status vocabulary undefined."
@@ -4188,5 +4200,24 @@
   ],
   "not_judged": "render-gpu lanes + SMB-ROUND-ENTRYPOINT + SMB-RENDER-GPU-ADJ/PROBE (D20); interop-media (D9); no-claim lanes",
   "notes": "union press 161, reel 78 + av1 85, reel-native 5 + 24, interop-psd 62, exit 0 at 2dde832; 81 lanes proof_reuse; press judged against STRUCTURE TREE = NOT PROVEN (the two tagged-fixture assertions narrowed, text assertions unchanged); PLR-096..102 not charged; V-1 PLR-102 outside the narrowed claim (lane claim sentence on caller-stripped trees covers unreferenced tree objects only; D28 strip must reach every /StructElem); V-2 R24-P6 kernel claim wording"
+ },
+ "round_R22": {
+  "candidate": "1da2453",
+  "candidate_full": "1da2453344edad12cf4bcf796a87c29a7fa594b5",
+  "opened_at": "2026-10-12T10:58:34Z",
+  "sync": "already in sync since 9ffe946 (2dde832..1da2453 = interop-psd, press commits only); licence gate OK; probes 46/46",
+  "canary": "C27 exit 73, 59/59 build 0/run 0, step 0 clean; NOT_PROVEN only interop-fig D17 (results studio-team-dev/steward-export/results/C27-1da2453)",
+  "ready": [
+   "SMB-PRESS-STRUCT-ORPHANS (0cb7103, dce563e, 1da2453)",
+   "SMB-INTEROP-PSD-DOCS (c4c31cd)"
+  ],
+  "two_fail_rechecks": "validation/R25-prereview-narrow.json SAFE_TO_JUDGE (SMB-PRESS, SMB-INTEROP-PSD-BUDGET)",
+  "reopen": "press, interop-psd lanes (no dependents)",
+  "excluded": [
+   "render-gpu lanes + SMB-ROUND-ENTRYPOINT + SMB-RENDER-GPU-ADJ/PROBE (D20)",
+   "interop-media (D9)"
+  ],
+  "team": "1 validator (opus); review input = R25 pre-review",
+  "status": "OPEN"
  }
 }

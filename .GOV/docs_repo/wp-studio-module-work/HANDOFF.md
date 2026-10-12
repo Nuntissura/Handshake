@@ -52,7 +52,7 @@ Push helper for governance: `tools/lead-kernel-push.sh <message-file> <paths...>
 
 ## In flight at handoff
 
-- 2026-10-12T10:27:14Z: two lanes READY at 1da2453 (SMB-PRESS-STRUCT-ORPHANS, SMB-INTEROP-PSD-DOCS). Running: Opus narrow pre-review 2dde832..1da2453 (output `validation/R25-prereview-narrow.json`). If missing on takeover, re-dispatch it modelled on `validation/R24-prereview-press-narrow.json`; then round R22 per `ledger.json` resume_plan. Weekly usage 99%.
+- 2026-10-12T10:59:15Z: R25 narrow pre-review SAFE for SMB-PRESS-STRUCT-ORPHANS and SMB-INTEROP-PSD-DOCS. Running: Opus validator round R22 at 1da2453 (canary C27 exit 73, 59/59; output `validation/round-R22.json`). If missing on takeover, re-dispatch from the validator template with `ledger.json` round_R22. PRIORITY next press lane: PLR-104 (untagged documents: marked-content /Alt or /ActualText in shared/inherited /Properties survives while the save reads proven) + PLR-105. Weekly usage 99%.
 
 </topic>
 
