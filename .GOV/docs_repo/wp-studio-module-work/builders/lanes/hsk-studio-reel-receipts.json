@@ -498,6 +498,23 @@
     "idempotency_key": "STUDIO-R19:SMB-REEL-RECEIPTS:fdc01f1b7ecb:PASS_V2",
     "recorded_at": "2026-10-12T06:14:19Z",
     "by": "wp_validator STUDIO-R19"
+   },
+   {
+    "round": "STUDIO-R20",
+    "lane": "SMB-REEL-RECEIPTS",
+    "candidate": "3930a7ce891c2f16ad17f8d96f6a9f0590f03a49",
+    "tree": "aeb83ebfbcecff72f88bb42e8f8520a8b0077d73",
+    "decision": "passed",
+    "verdict": "PASS_V3",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V3",
+    "review": "validation/R22-prereview-narrow.json lanes[1] SMB-REEL-PARTIAL-PTS-2 SAFE_TO_JUDGE at 3930a7c (R22-R1 INFO = PLR-092)",
+    "round_ref": "validation/round-R20.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R20",
+    "idempotency_key": "STUDIO-R20:SMB-REEL-RECEIPTS:3930a7ce891c:PASS_V3",
+    "recorded_at": "2026-10-12T07:24:27Z",
+    "by": "wp_validator STUDIO-R20"
    }
   ]
  }

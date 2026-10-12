@@ -77,6 +77,25 @@
   "residuals": [
    "R21-P3 (INFO, optional, not done): descriptor_states_that_painted_source_silence_is_syntactic slices the DESCRIPTOR by first occurrence of key names instead of parsing it as JSON",
    "The new annotation test is a pin of existing behaviour read from the code; no red proof on a scratch copy was run (docs-only lane, no behaviour changed)"
+  ],
+  "verdicts": [
+   {
+    "round": "STUDIO-R20",
+    "lane": "SMB-PRESS-DOCS-2",
+    "candidate": "3930a7ce891c2f16ad17f8d96f6a9f0590f03a49",
+    "tree": "aeb83ebfbcecff72f88bb42e8f8520a8b0077d73",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V1",
+    "review": "validation/R22-prereview-narrow.json lanes[0] SMB-PRESS-DOCS-2 SAFE_TO_JUDGE at 3930a7c (R22-P1/P2 CONFIRMED doc-only = PLR-093; R22-P3 PLAUSIBLE out of delta = PLR-094; R22-P4 INFO)",
+    "round_ref": "validation/round-R20.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R20",
+    "idempotency_key": "STUDIO-R20:SMB-PRESS-DOCS-2:3930a7ce891c:PASS_V1",
+    "recorded_at": "2026-10-12T07:24:27Z",
+    "by": "wp_validator STUDIO-R20"
+   }
   ]
  }
 }

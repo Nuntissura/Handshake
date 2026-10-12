@@ -122,6 +122,24 @@
   },
   "gameplan_route": "no retry-guard hit and no gameplan step added. One launch-form slip: the first nextest call began with a variable assignment before cd, so the hook resolved the kernel gameplan and blocked it (GP-016.. unconfirmed steps of another assignment); I did not confirm those steps, re-launched with a leading cd to the product workspace (the launch-form cause already recorded in the SMB-REEL-RECEIPTS lane) and it passed the Studio gameplan. All nextest runs (green, red A, control, M1, M2) were launched with run_in_background, so none was recorded as a failure by the retry guard; the three red runs exited 100 by design on a scratch tree with its own owner (product reds, not an infrastructure cause) and each ran a different source state",
   "trust_routing_untouched": "git diff fdc01f1..2fb17a8 -- crates/hsk-studio-reel lists exactly src/lib.rs (DESCRIPTOR text), src/video.rs and tests/video_route.rs; in video.rs choose(), VideoRoute, Chosen, SourceTrust, VideoTrack, planes_match_format, within_declared_size, packed_len, Pump and every pre-existing error path are unchanged: the diff replaces the field Forward::delivered_end by delivered_span, picture_end by picture_span, updates the three lines after the sink call in Forward::accept and rewrites the Partial branch",
-  "verdicts": []
+  "verdicts": [
+   {
+    "round": "STUDIO-R20",
+    "lane": "SMB-REEL-PARTIAL-PTS-2",
+    "candidate": "3930a7ce891c2f16ad17f8d96f6a9f0590f03a49",
+    "tree": "aeb83ebfbcecff72f88bb42e8f8520a8b0077d73",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V1",
+    "review": "validation/R22-prereview-narrow.json lanes[1] SMB-REEL-PARTIAL-PTS-2 SAFE_TO_JUDGE at 3930a7c (R22-R1 INFO = PLR-092)",
+    "round_ref": "validation/round-R20.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R20",
+    "idempotency_key": "STUDIO-R20:SMB-REEL-PARTIAL-PTS-2:3930a7ce891c:PASS_V1",
+    "recorded_at": "2026-10-12T07:24:27Z",
+    "by": "wp_validator STUDIO-R20"
+   }
+  ]
  }
 }
