@@ -1189,7 +1189,7 @@ impl SurrealStorage {
         match rows.len() {
             0 => Ok(None),
             1 => Ok(rows.into_iter().next()),
-            _ => Err(surrealdb::Error::internal("protected resource lookup was not canonical".to_owned()).into()),
+            _ => Err(SurrealStorageError::from(surrealdb::Error::internal("protected resource lookup was not canonical".to_owned())).into()),
         }
     }
 

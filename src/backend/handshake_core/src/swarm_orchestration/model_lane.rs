@@ -4574,6 +4574,70 @@ impl ModelLaneStore {
         Ok(())
     }
 
+    fn require_routing_source_read(&self) -> ModelLaneResult<SurrealModelLaneScope> {
+        use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
+        let scope = self.surreal_read_scope("routing canonical source read")?;
+        let original = crate::storage::surreal::current_record_user_scope()
+            .ok_or(crate::storage::surreal::SurrealStorageError::TransactionAuthorityRequired)?;
+        let subject = crate::storage::surreal::current_model_lane_subject()
+            .ok_or(crate::storage::surreal::SurrealStorageError::TransactionAuthorityRequired)?;
+        if !((original.action == ResourceAction::Read && original.capability_id == "fs.read")
+            || (original.action == ResourceAction::Create && original.capability_id == "fs.write"))
+            || original.grant_id.is_none() || original.session_id != scope.authenticated_session_id
+            || original.workspace_id.as_deref() != Some(scope.workspace_id.as_str())
+            || subject.kind != ResourceKind::Workspace || subject.external_id != scope.workspace_id {
+            return Err(crate::storage::surreal::SurrealStorageError::TransactionAuthorityRequired.into());
+        }
+        Ok(scope)
+    }
+
+    pub(crate) async fn routing_source_replay(&self, run_id: &str) -> ModelLaneResult<ModelLaneReplay> {
+        require_token("run_id", run_id)?;
+        self.require_routing_source_read()?;
+        let store = self.clone();
+        let run_id = run_id.to_owned();
+        let read = self.storage.with_authenticated_transaction(uuid::Uuid::now_v7(), move |_| Box::pin(async move {
+            store.require_routing_source_read()?;
+            let replay = store.replay_run_source(&run_id).await?;
+            store.require_routing_source_read()?;
+            Ok(replay)
+        }));
+        if crate::storage::surreal::current_record_user_scope()
+            .is_some_and(|scope| scope.action == crate::storage::surreal::resource_authority::ResourceAction::Read) {
+            crate::storage::surreal::with_model_lane_operation(
+                crate::storage::surreal::ContextCoordinationPurpose::SourceRead, read).await
+        } else {
+            // Create retains its actual producer purpose and its closed dependency rules.
+            read.await
+        }
+    }
+
+    pub(crate) async fn routing_artifact_by_ref(
+        &self, run_id: &str, artifact_ref: &str,
+    ) -> ModelLaneResult<Option<ModelLaneContextBundleArtifactBindingRecord>> {
+        require_token("run_id", run_id)?;
+        require_token("artifact_ref", artifact_ref)?;
+        let scope = self.require_routing_source_read()?;
+        let provider = self.provider().await?.clone();
+        let store = self.clone();
+        let run_id = run_id.to_owned();
+        let artifact_ref = artifact_ref.to_owned();
+        let read = self.storage.with_authenticated_transaction(uuid::Uuid::now_v7(), move |_| Box::pin(async move {
+            store.require_routing_source_read()?;
+            let artifact = store.context_bundle_artifact_by_ref_surreal(
+                &provider, &scope, &run_id, &artifact_ref).await?;
+            store.require_routing_source_read()?;
+            Ok(artifact)
+        }));
+        if crate::storage::surreal::current_record_user_scope()
+            .is_some_and(|scope| scope.action == crate::storage::surreal::resource_authority::ResourceAction::Read) {
+            crate::storage::surreal::with_model_lane_operation(
+                crate::storage::surreal::ContextCoordinationPurpose::SourceRead, read).await
+        } else {
+            read.await
+        }
+    }
+
     async fn context_bundle_artifact_by_ref_surreal(
         &self,
         provider: &SurrealModelLaneStore,

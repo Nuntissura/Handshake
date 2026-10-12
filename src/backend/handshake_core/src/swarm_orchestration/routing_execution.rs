@@ -461,7 +461,7 @@ impl ModelLaneRoutingExecutionStore {
             .ok_or("initial input is not a message")?;
         let p = self
             .model_lane_store
-            .navigation_by_message(id)
+            .routing_source_replay(&c.run_id)
             .await
             .map_err(|e| e.to_string())?;
         let m = p
@@ -469,10 +469,9 @@ impl ModelLaneRoutingExecutionStore {
             .iter()
             .find(|v| v.message_id == id)
             .ok_or("initial message missing")?;
-        let a = p
-            .artifacts
-            .iter()
-            .find(|v| v.artifact_ref == m.payload_ref)
+        let a = self.model_lane_store
+            .routing_artifact_by_ref(&c.run_id, &m.payload_ref)
+            .await.map_err(|e| e.to_string())?
             .ok_or("initial artifact missing")?;
         if m.run_id != c.run_id
             || m.payload_sha256 != c.initial_input_sha256
@@ -762,14 +761,10 @@ impl ModelLaneRoutingExecutionStore {
                     "predecessor {dependency} has no artifact reference"
                 ));
             };
-            let projection = model_lane_store
-                .navigation_by_artifact_or_context(Some(output_ref), None, Some(&execution.run_id))
+            let artifact = model_lane_store
+                .routing_artifact_by_ref(&execution.run_id, output_ref)
                 .await
-                .map_err(|err| err.to_string())?;
-            let artifact = projection
-                .artifacts
-                .iter()
-                .find(|artifact| artifact.artifact_ref == output_ref)
+                .map_err(|err| err.to_string())?
                 .ok_or_else(|| format!("predecessor artifact {output_ref} is missing"))?;
             if stage.output_sha256.as_deref() != Some(artifact.artifact_sha256.as_str())
                 || canonical_sha256(&artifact.payload_json)? != artifact.artifact_sha256
@@ -795,7 +790,7 @@ impl ModelLaneRoutingExecutionStore {
                 "execution initial input is not a ModelLaneMessage reference".to_string()
             })?;
         let initial_projection = model_lane_store
-            .navigation_by_message(initial_message_id)
+            .routing_source_replay(&execution.run_id)
             .await
             .map_err(|err| err.to_string())?;
         let initial_message = initial_projection
@@ -803,10 +798,10 @@ impl ModelLaneRoutingExecutionStore {
             .iter()
             .find(|message| message.message_id == initial_message_id)
             .ok_or_else(|| format!("initial message {initial_message_id} is missing"))?;
-        let initial_artifact = initial_projection
-            .artifacts
-            .iter()
-            .find(|artifact| artifact.artifact_ref == initial_message.payload_ref)
+        let initial_artifact = model_lane_store
+            .routing_artifact_by_ref(&execution.run_id, &initial_message.payload_ref)
+            .await
+            .map_err(|err| err.to_string())?
             .ok_or_else(|| {
                 format!("initial message {initial_message_id} has no payload artifact")
             })?;
@@ -926,18 +921,15 @@ impl ModelLaneRoutingExecutionStore {
                 format!("routing output {stage_id} has no canonical source ModelLane")
             })?;
         let model_lane_store = &self.model_lane_store;
-        let source_projection = model_lane_store
-            .navigation_by_lane(&source_lane_id)
-            .await
-            .map_err(|err| err.to_string())?;
-        let source_lane = source_projection
-            .lanes
-            .first()
-            .ok_or_else(|| format!("routing output source lane {source_lane_id} missing"))?;
         let replay = model_lane_store
-            .replay_run(&snapshot.run_id)
+            .routing_source_replay(&snapshot.run_id)
             .await
             .map_err(|err| err.to_string())?;
+        let source_lane = replay
+            .lanes
+            .iter()
+            .find(|lane| lane.lane_id == source_lane_id)
+            .ok_or_else(|| format!("routing output source lane {source_lane_id} missing"))?;
         let mut linked_span_contexts = Vec::new();
         for input_ref in &stage.input_refs {
             let message = if let Some(message_id) = input_ref.strip_prefix("model-lane-message://")

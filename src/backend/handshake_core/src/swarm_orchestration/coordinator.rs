@@ -4069,7 +4069,7 @@ impl SwarmCoordinator {
                 let model_lane_store = self.inner.model_lane_store.as_ref().ok_or_else(|| {
                     SwarmError::LedgerFailed("routing authority dispatch requires ModelLaneStore".into())
                 })?;
-                let projection = match model_lane_store.navigation_by_lane(&authority_lane_id).await {
+                let projection = match model_lane_store.routing_source_replay(&execution.run_id).await {
                     Ok(projection) => projection,
                     Err(err) => {
                         let detail = format!("routing authority lane lookup failed: {err}");
@@ -4091,7 +4091,7 @@ impl SwarmCoordinator {
                     ModelLaneRoutingDispatchTarget::Operator => super::model_lane::ModelLaneKind::HumanOperator,
                     _ => unreachable!(),
                 };
-                if projection.lanes.first().map(|lane| &lane.kind) != Some(&expected_kind) {
+                if projection.lanes.iter().find(|lane| lane.lane_id == authority_lane_id).map(|lane| &lane.kind) != Some(&expected_kind) {
                     let detail = format!("authority lane {authority_lane_id} does not match {:?}", claim.dispatch_target);
                     execution_store
                         .record_transition(&claim, ModelLaneRoutingStageStateKind::Failed, None, Some(detail.clone()))
@@ -4127,10 +4127,10 @@ impl SwarmCoordinator {
                     )))?;
                 let source_lane_id = source_stage.lane_id.clone().expect("checked source lane");
                 let source_projection = model_lane_store
-                    .navigation_by_lane(&source_lane_id)
+                    .routing_source_replay(&current_execution.run_id)
                     .await
                     .map_err(|err| SwarmError::LedgerFailed(format!("authority source lane lookup failed: {err}")))?;
-                let source_lane = source_projection.lanes.first().ok_or_else(|| {
+                let source_lane = source_projection.lanes.iter().find(|lane| lane.lane_id == source_lane_id).ok_or_else(|| {
                     SwarmError::LedgerFailed(format!("authority source lane {source_lane_id} missing"))
                 })?;
                 let source_message_ref = source_stage.output_message_ref.as_deref().ok_or_else(|| {
@@ -4140,12 +4140,12 @@ impl SwarmCoordinator {
                     ))
                 })?;
                 let source_message_projection = model_lane_store
-                    .navigation_by_message(source_message_ref)
+                    .routing_source_replay(&current_execution.run_id)
                     .await
                     .map_err(|err| SwarmError::LedgerFailed(format!(
                         "authority source message {source_message_ref} lookup failed: {err}"
                     )))?;
-                let source_message = source_message_projection.messages.first().ok_or_else(|| {
+                let source_message = source_message_projection.messages.iter().find(|message| message.message_id == source_message_ref).ok_or_else(|| {
                     SwarmError::LedgerFailed(format!(
                         "authority source message {source_message_ref} missing"
                     ))
@@ -5251,7 +5251,7 @@ impl SwarmCoordinator {
             .get(stage_id)
             .ok_or_else(|| SwarmError::LedgerFailed(format!("unknown routing stage {stage_id}")))?;
         let projection = model_lane_store
-            .navigation_by_message(message_id)
+            .routing_source_replay(&execution.run_id)
             .await
             .map_err(|err| {
                 SwarmError::LedgerFailed(format!("authority message lookup failed: {err}"))
@@ -5320,10 +5320,10 @@ impl SwarmCoordinator {
                 "ModelLaneMessage {message_id} does not satisfy stage authority"
             )));
         }
-        let artifact = projection
-            .artifacts
-            .iter()
-            .find(|artifact| artifact.artifact_ref == message.payload_ref)
+        let artifact = model_lane_store
+            .routing_artifact_by_ref(&execution.run_id, &message.payload_ref)
+            .await
+            .map_err(|err| SwarmError::LedgerFailed(format!("authority artifact lookup failed: {err}")))?
             .ok_or_else(|| {
                 SwarmError::LedgerFailed(format!(
                     "authority message {message_id} has no durable payload binding"
