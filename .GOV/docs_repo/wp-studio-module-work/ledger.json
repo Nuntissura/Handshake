@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-12T08:41:40Z",
+ "updated_at": "2026-10-12T09:04:25Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3239,23 +3239,24 @@
    "crate": "hsk-studio-press",
    "origin": "PLR-094, PLR-093, PLR-091",
    "phase": "validation",
-   "status": null,
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-press-struct-failclosed",
-   "candidate": "54c60f9",
+   "candidate": "2dde832",
    "commits": [
     "d26d2fd",
     "2566f1b",
-    "54c60f9"
+    "54c60f9",
+    "2dde832"
    ],
    "verdicts": [],
-   "note": "claim d26d2fd+2566f1b+54c60f9: PLR-094 fail closed (unedited direct root: unplaced elements -> ResidualInRegion); sibling: edited trees walked through indirect /K arrays (and nested arrays) -> off-page struct text counted; PLR-093 docs; PLR-091 test; V4-06 115 hits, 0 open; 5 mutants killed; press 158/158",
+   "note": "R23 FIX_FIRST -> STRUCTURE TREE = NOT PROVEN: residual +1 once when the saved document has a /StructTreeRoot (alias chain <=16 hops) or any /StructParents//StructParent; per-element walk removed; neutralization unchanged; claim narrowed (DESCRIPTOR/docs); 4 new tests (all R23 probes + controls + V4-08 rows); changed assertions listed; red 9/11; press 161/161; V4-06 152 hits classified; mutants m2-m4 not run (retry guard key drops -E filter)",
    "r23_prereview": {
     "ref": "validation/R23-prereview-narrow.json",
     "recommendation": "FIX_FIRST",
     "head": "54c60f9",
     "at": "2026-10-12T08:41:40Z"
    },
-   "blockers": [
+   "blockers_closed": [
     {
      "error": "V4-19: R23 narrow pre-review FIX_FIRST (R23-P1 alias objects, R23-P2 IDTree/foreign ParentTree-only elements of an edited tree, R23-P3 depth > 64, R23-P4 ordinary tagged files leak /IDTree keys, ClassMap attribute text, /Table /Alt); lead decision 2026-10-12T08:41:40Z: structure tree = NOT PROVEN for any tagged document",
      "file_line": "crates/hsk-studio-press/src/flatten_purge.rs:319,328,342,359,407,502,541,1109,1148-1161,1189",
@@ -3538,7 +3539,7 @@
  "resume_plan": {
   "at": "2026-10-12T07:26:27Z",
   "steps": [
-   "1. R23: SMB-REEL-PTS-TESTS + SMB-INTEROP-PSD-DESC-CAP SAFE_TO_JUDGE; SMB-PRESS-STRUCT-FAILCLOSED FIX_FIRST -> remediation running (lead decision STRUCTURE TREE = NOT PROVEN). Then narrow pre-review of the press remediation only, then steward sync + canary + round R21 judging all three (+ reopens; two-FAIL lanes SMB-PRESS, SMB-REEL-AV1-ROUTE, SMB-REEL-NATIVE-AV1-WORKER via reel, SMB-INTEROP-PSD-BUDGET). Operator item D28 (strip structure tree on redaction save?).",
+   "1. All three lanes READY at 2dde832 (SMB-PRESS-STRUCT-FAILCLOSED claim d26d2fd+2566f1b+54c60f9+2dde832; SMB-REEL-PTS-TESTS 172952f SAFE; SMB-INTEROP-PSD-DESC-CAP 0c1be05 SAFE). In flight: narrow pre-review of press 54c60f9..2dde832 -> validation/R24-prereview-press-narrow.json. If SAFE: steward sync + canary C26 + round R21 judging all three + reopens (two-FAIL lanes SMB-PRESS, SMB-REEL-AV1-ROUTE, SMB-REEL-NATIVE-AV1-WORKER via reel, SMB-INTEROP-PSD-BUDGET).",
    "2. Then SMB-PRESS-GEOMETRY, SMB-FMT-SWEEP, notes residuals (config-OBU tag, exact-64 FRAME test, psd group-own-lfx2/zero-tile).",
    "3. Round R21: steward sync + canary + 1 validator (list all two-FAIL lanes, PROC-R19-V1).",
    "4. Keep pushing gov_kernel after every commit (weekly >= 85%).",

@@ -1616,7 +1616,7 @@
    "status": "OPEN",
    "verified_at": "3930a7c",
    "disposition": "FIX_LANE",
-   "disposition_note": "lead decision 2026-10-12T07:26:27Z: FAIL CLOSED - when the catalog's /StructTreeRoot is left unedited (direct root) and it holds any structure element without /Pg (or any element the purge cannot place), region_flattened must read false and the save reports NotProven (no silent /Alt/ActualText/E survival); test with a probe fixture; DESCRIPTOR states it. Next press lane SMB-PRESS-STRUCT-FAILCLOSED.; 2026-10-12T07:54:54Z fix submitted SMB-PRESS-STRUCT-FAILCLOSED d26d2fd/2566f1b (lane on hold for the V4-06 sibling)"
+   "disposition_note": "lead decision 2026-10-12T07:26:27Z: FAIL CLOSED - when the catalog's /StructTreeRoot is left unedited (direct root) and it holds any structure element without /Pg (or any element the purge cannot place), region_flattened must read false and the save reports NotProven (no silent /Alt/ActualText/E survival); test with a probe fixture; DESCRIPTOR states it. Next press lane SMB-PRESS-STRUCT-FAILCLOSED.; 2026-10-12T07:54:54Z fix submitted SMB-PRESS-STRUCT-FAILCLOSED d26d2fd/2566f1b (lane on hold for the V4-06 sibling); 2026-10-12T09:04:25Z remediation submitted 2dde832 (STRUCTURE TREE = NOT PROVEN)"
   },
   {
    "id": "PLR-095",
@@ -1676,7 +1676,7 @@
    "status": "OPEN",
    "verified_at": "54c60f9",
    "disposition": "FIX_LANE",
-   "disposition_note": "over-reports accepted; the parent-tree/id-tree-only part is checked by the R23 pre-review; R23 confirmed parent-tree/id-tree-only part is fail-open (R23-P2) -> superseded by lead decision STRUCTURE TREE = NOT PROVEN"
+   "disposition_note": "over-reports accepted; the parent-tree/id-tree-only part is checked by the R23 pre-review; R23 confirmed parent-tree/id-tree-only part is fail-open (R23-P2) -> superseded by lead decision STRUCTURE TREE = NOT PROVEN; 2026-10-12T09:04:25Z remediation submitted 2dde832 (STRUCTURE TREE = NOT PROVEN)"
   },
   {
    "id": "PLR-099",
@@ -1707,6 +1707,21 @@
    "verified_at": "54c60f9",
    "disposition": "TEST",
    "disposition_note": "optional reel-native test"
+  },
+  {
+   "id": "PLR-101",
+   "lane": "SMB-PRESS-STRUCT-FAILCLOSED",
+   "file_line": "crates/hsk-studio-press/src/flatten_purge.rs (check_document structure-tree rule)",
+   "finding": "the STRUCTURE TREE = NOT PROVEN rule is unconditional: a tagged document saved with no redaction region also reads NotProven (is_proven false); /MarkInfo alone is not treated as a tree",
+   "first_seen": "builder report 2dde832",
+   "seen_in": [
+    "builder report 2dde832"
+   ],
+   "rounds_carried": 0,
+   "status": "OPEN",
+   "verified_at": "2dde832",
+   "disposition": "FIX_LANE",
+   "disposition_note": "lead 2026-10-12T09:04:25Z: accepted for now (fail-closed over-report; crate tests green); scope the rule to saves that flatten a region in a later press lane; /MarkInfo-alone handling accepted"
   }
  ],
  "process_items": [
@@ -1758,6 +1773,13 @@
    "item": "builders repeatedly start gated commands with `date`/variable assignments before the `cd`, so the gameplan hook resolves the kernel-root (WP-KERNEL-012) gameplan and blocks; DISPATCH_TEMPLATES builder CARGO section now says the leading `cd` must be the first token",
    "owner": "lead",
    "status": "applied"
+  },
+  {
+   "id": "PROC-RETRY-FILTER",
+   "at": "2026-10-12T09:04:25Z",
+   "item": "gameplan retry guard keys a run without its -E test filter, so a second failing scratch mutant run at the same HEAD is blocked (red-proof mutants m2-m4 of 2dde832 not run); extend the existing scratch red-proof retry-guard process item: key must include the filter, or mutants run as one batch command",
+   "owner": "lead",
+   "status": "open"
   }
  ],
  "closed_since_review": [

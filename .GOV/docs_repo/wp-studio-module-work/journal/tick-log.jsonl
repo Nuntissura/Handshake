@@ -249,3 +249,4 @@
 {"t": "2026-10-12T07:44:52Z", "event": "SMB-REEL-PTS-TESTS READY_FOR_VALIDATION 172952f (builder-reel-pts-tests)", "lanes_moved": ["SMB-REEL-PTS-TESTS READY"], "commits": ["172952f"], "progress": "direct: product commit"}
 {"t": "2026-10-12T07:45:14Z", "event": "SMB-INTEROP-PSD-DESC-CAP READY_FOR_VALIDATION 0c1be05 (builder-psd-desc-cap)", "lanes_moved": ["SMB-INTEROP-PSD-DESC-CAP READY"], "commits": ["0c1be05"], "progress": "direct: product commit"}
 {"t": "2026-10-12T08:16:32Z", "event": "SMB-PRESS-STRUCT-FAILCLOSED READY_FOR_VALIDATION 54c60f9 (builder-press-struct-failclosed-2)", "lanes_moved": ["SMB-PRESS-STRUCT-FAILCLOSED READY"], "commits": ["54c60f9"], "progress": "direct: product commit"}
+{"t": "2026-10-12T09:04:25Z", "event": "SMB-PRESS-STRUCT-FAILCLOSED READY_FOR_VALIDATION 2dde832 (rem-press-struct-r23)", "lanes_moved": ["SMB-PRESS-STRUCT-FAILCLOSED READY"], "commits": ["2dde832"], "progress": "direct: product commit"}
