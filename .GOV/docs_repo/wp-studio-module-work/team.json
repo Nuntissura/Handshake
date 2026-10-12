@@ -2328,7 +2328,7 @@
     "validation/R17-prereview-press-psd-narrow.json"
    ],
    "launched": "2026-10-12T01:26:36Z",
-   "status": "running"
+   "status": "done 2026-10-12T01:43:13Z (press FIX_FIRST R17-P1/P2; psd SAFE)"
   },
   {
    "name": "validator-r17",
