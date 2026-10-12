@@ -52,7 +52,7 @@ Push helper for governance: `tools/lead-kernel-push.sh <message-file> <paths...>
 
 ## In flight at handoff
 
-- Nothing running at 2026-10-12T06:16:47Z. Next lanes per `ledger.json` resume_plan step 1 (not yet dispatched unless `team.json` shows them running).
+- Dispatched 2026-10-12T06:18:09Z (Sonnet builders): SMB-REEL-PARTIAL-PTS-2, SMB-INTEROP-PSD-LOSS-DETAIL, SMB-PRESS-DOCS-2; lane files `builders/lanes/hsk-studio-reel-partial-pts-2.json`, `hsk-studio-interop-psd-loss-detail.json`, `hsk-studio-press-docs-2.json` are the handoff. If no agent is alive on takeover, re-dispatch with the same scope (`ledger.json` resume_plan step 1).
 
 </topic>
 

@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-12T06:16:47Z",
+ "updated_at": "2026-10-12T06:18:09Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -2432,6 +2432,42 @@
    ],
    "launched": "2026-10-12T05:57:27Z",
    "status": "done (R19: 21 PASS, 0 FAIL; kernel aed13356)"
+  },
+  {
+   "name": "builder-reel-partial-pts-2",
+   "agent_id": "a66b98e67e8871973",
+   "model": "sonnet",
+   "role": "SMB-REEL-PARTIAL-PTS-2 (PLR-085, PLR-088)",
+   "owns": [
+    "crates/hsk-studio-reel/**",
+    "builders/lanes/hsk-studio-reel-partial-pts-2.json"
+   ],
+   "launched": "2026-10-12T06:18:09Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-psd-loss-detail",
+   "agent_id": "a8202779ddcdcefbe",
+   "model": "sonnet",
+   "role": "SMB-INTEROP-PSD-LOSS-DETAIL (PLR-089, PLR-090, PLR-086 doc)",
+   "owns": [
+    "crates/hsk-studio-interop-psd/**",
+    "builders/lanes/hsk-studio-interop-psd-loss-detail.json"
+   ],
+   "launched": "2026-10-12T06:18:09Z",
+   "status": "running"
+  },
+  {
+   "name": "builder-press-docs-2",
+   "agent_id": "adb8ddec7ee03f5f3",
+   "model": "sonnet",
+   "role": "SMB-PRESS-DOCS-2 (PLR-087, R20-O3 check)",
+   "owns": [
+    "crates/hsk-studio-press/**",
+    "builders/lanes/hsk-studio-press-docs-2.json"
+   ],
+   "launched": "2026-10-12T06:18:09Z",
+   "status": "running"
   }
  ]
 }

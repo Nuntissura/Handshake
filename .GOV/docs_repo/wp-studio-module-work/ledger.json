@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-12T06:16:47Z",
+ "updated_at": "2026-10-12T06:18:09Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3146,6 +3146,39 @@
     "head": "fdc01f1",
     "at": "2026-10-12T05:49:17Z"
    }
+  },
+  {
+   "lane_id": "SMB-REEL-PARTIAL-PTS-2",
+   "crate": "hsk-studio-reel",
+   "origin": "PLR-085, PLR-088",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-reel-partial-pts-2",
+   "candidate": null,
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-INTEROP-PSD-LOSS-DETAIL",
+   "crate": "hsk-studio-interop-psd",
+   "origin": "PLR-089, PLR-090, PLR-086",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-psd-loss-detail",
+   "candidate": null,
+   "commits": [],
+   "verdicts": []
+  },
+  {
+   "lane_id": "SMB-PRESS-DOCS-2",
+   "crate": "hsk-studio-press",
+   "origin": "PLR-087",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-press-docs-2",
+   "candidate": null,
+   "commits": [],
+   "verdicts": []
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
@@ -3376,7 +3409,7 @@
  "resume_plan": {
   "at": "2026-10-12T06:16:47Z",
   "steps": [
-   "1. R19 COMPLETE (21 PASS, 0 FAIL). Next lanes (Sonnet, new ids): SMB-REEL-PARTIAL-PTS-2 (PLR-085 start_pts + PLR-088 max-vs-last test + test rename), SMB-INTEROP-PSD-LOSS-DETAIL (PLR-089 per-instance loss/over-report + PLR-090 early refusal + PLR-086 DESCRIPTOR residual), SMB-PRESS-DOCS-2 (PLR-087 doc). Reel and interop-psd changes reopen two-FAIL lanes SMB-REEL-AV1-ROUTE, SMB-REEL-NATIVE-AV1-WORKER (via reel), SMB-INTEROP-PSD-BUDGET -> V4-13 narrow pre-review before the round.",
+   "1. R19 COMPLETE (21 PASS, 0 FAIL). In flight (Sonnet builders, dispatched 2026-10-12T06:18:09Z): SMB-REEL-PARTIAL-PTS-2 (PLR-085/088), SMB-INTEROP-PSD-LOSS-DETAIL (PLR-089/090/086 doc), SMB-PRESS-DOCS-2 (PLR-087). Then V4-13 narrow pre-review (two-FAIL lanes reopened: SMB-PRESS, SMB-REEL-AV1-ROUTE, SMB-REEL-NATIVE-AV1-WORKER via reel, SMB-INTEROP-PSD-BUDGET), then round R20. On takeover: if team.json shows them running but no agent exists, read their lane files and re-dispatch with the same scope.",
    "2. Then SMB-PRESS-GEOMETRY, SMB-FMT-SWEEP, notes residuals (config-OBU tag, exact-64 FRAME test, psd group-own-lfx2/zero-tile).",
    "3. Round R20: steward sync + canary + 1 validator (list two-FAIL dependants, PROC-R19-V1).",
    "4. Keep pushing gov_kernel after every commit (weekly >= 85%).",
