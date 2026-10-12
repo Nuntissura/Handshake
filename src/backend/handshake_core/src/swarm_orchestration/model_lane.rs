@@ -3125,32 +3125,48 @@ impl ModelLaneStore {
     }
 
     async fn validate_surreal_stored_crdt_binding(
-        &self,
-        message: &ModelLaneMessageRecord,
-        scope: &SurrealModelLaneScope,
+        &self, message: &ModelLaneMessageRecord, scope: &SurrealModelLaneScope,
     ) -> ModelLaneResult<()> {
-        let has_crdt = model_lane_message_has_crdt_authority(&message.inner);
-        let Some(binding) = message.crdt_authority_binding.as_ref() else {
-            if has_crdt {
-                return Err(crdt_authority_denied(format!(
-                    "stored message {} has CRDT metadata without durable authority binding",
-                    message.message_id
-                )));
-            }
-            return Ok(());
+        use crate::storage::surreal::{NavigationMessageInput, NavigationLaneInput};
+        let input = NavigationMessageInput {
+            source_kind: "message".into(), message_id: message.message_id.clone(), source_event_id: None, source_event_seq: None, run_id: message.run_id.clone(),
+            from_lane_id: message.from_lane_id.clone(), to_lane: message.to_lane.clone(), source_lane: None, kind: message.kind.as_str().into(),
+            crdt_update_ref: message.crdt_update_ref.clone(), crdt_base_snapshot_ref: message.crdt_base_snapshot_ref.clone(),
+            crdt_state_vector: message.crdt_state_vector.clone(), crdt_proposal_ref: message.crdt_proposal_ref.clone(),
+            crdt_stale_base_ref: message.crdt_stale_base_ref.clone(), binding: message.crdt_authority_binding.clone(),
         };
-        if !has_crdt || binding.workspace_id != scope.workspace_id {
-            return Err(crdt_authority_denied(format!(
-                "stored message {} has a CRDT binding outside its exact scoped metadata",
-                message.message_id
-            )));
-        }
+        if !model_lane_message_has_crdt_authority(&message.inner) && input.binding.is_none() { return Ok(()); }
         let provider = self.provider().await?;
-        let lane = provider
-            .get(SurrealRecordKind::Lane, &message.from_lane_id, scope)
-            .await?
+        let lane = provider.get(SurrealRecordKind::Lane, &message.from_lane_id, scope).await?
             .ok_or_else(|| crdt_authority_denied("stored CRDT source lane is unavailable"))
             .and_then(surreal_lane_record)?;
+        let lane = NavigationLaneInput { source_kind: "lane".into(), lane_id: lane.lane_id.clone(),
+            run_id: lane.run_id.clone(), session_id: lane.session_id.clone(), model_session_id: lane.model_session_id.clone(),
+            trace_id: lane.trace_id.clone(), kind: lane.kind.as_str().into() };
+        self.validate_stored_crdt_inputs(&input, &lane, scope).await
+    }
+
+    // Both ordinary canonical records and the restricted NavigationRead acquisition
+    // feed this one owning validator. Neither caller manufactures a canonical record.
+    async fn validate_stored_crdt_inputs(
+        &self, message: &crate::storage::surreal::NavigationMessageInput,
+        lane: &crate::storage::surreal::NavigationLaneInput, scope: &SurrealModelLaneScope,
+    ) -> ModelLaneResult<()> {
+        let has_crdt = message.crdt_update_ref.is_some() || message.crdt_base_snapshot_ref.is_some()
+            || message.crdt_state_vector.is_some() || message.crdt_proposal_ref.is_some() || message.crdt_stale_base_ref.is_some();
+        let Some(binding) = message.binding.as_ref() else {
+            return if has_crdt { Err(crdt_authority_denied("stored message has CRDT metadata without durable authority binding")) } else { Ok(()) };
+        };
+        if !has_crdt || message.source_kind != "message" || lane.source_kind != "lane"
+            || message.run_id != lane.run_id || message.from_lane_id != lane.lane_id
+            || binding.workspace_id != scope.workspace_id
+            || message.crdt_update_ref.as_deref() != Some(binding.update_bytes_ref.as_str())
+            || message.crdt_base_snapshot_ref.as_deref() != Some(binding.base_snapshot_ref.as_str())
+            || message.crdt_state_vector.as_deref() != Some(binding.state_vector.as_str())
+            || message.crdt_proposal_ref != binding.crdt_proposal_ref || message.crdt_stale_base_ref.is_some() {
+            return Err(crdt_authority_denied("stored CRDT source metadata differs from its canonical binding"));
+        }
+        let provider = self.provider().await?;
         let update = provider
             .crdt_update_by_ref(&binding.update_bytes_ref, scope)
             .await?
@@ -3163,7 +3179,7 @@ impl ModelLaneStore {
                 crdt_authority_denied("stored CRDT snapshot authority is unavailable")
             })?;
         validate_surreal_crdt_snapshot_row(&snapshot, scope)?;
-        let expected_actor_kind = expected_crdt_actor_kind_for_lane(&lane.kind);
+        let expected_actor_kind = expected_crdt_actor_kind_for_lane(&serde_json::from_value::<ModelLaneKind>(json!(lane.kind))?);
         if binding.run_id != message.run_id
             || binding.lane_id != lane.lane_id
             || binding.lane_session_id != lane.session_id
@@ -3192,6 +3208,24 @@ impl ModelLaneStore {
                 "stored message {} CRDT binding does not equal embedded SurrealDB authority",
                 message.message_id
             )));
+        }
+        let chain = provider.crdt_update_chain(&update.document_id, &update.crdt_document_id,
+            snapshot.covered_update_seq, update.update_seq, scope).await?;
+        let count = update.update_seq.checked_sub(snapshot.covered_update_seq)
+            .and_then(|value| usize::try_from(value).ok())
+            .ok_or_else(|| crdt_authority_denied("invalid stored CRDT replay bounds"))?;
+        if snapshot.covered_update_seq >= update.update_seq || chain.len() != count {
+            return Err(crdt_authority_denied("stored CRDT replay chain is not contiguous"));
+        }
+        let seen = provider.crdt_seen_update_ids(&update.document_id, &update.crdt_document_id,
+            snapshot.covered_update_seq, scope).await?.into_iter().collect();
+        let materialized = materialize_canonical_crdt_records(&snapshot, &chain, &update, scope, seen, None)?;
+        let vector = base64::engine::general_purpose::STANDARD
+            .encode(materialized.transact().state_vector().encode_v1());
+        let projection = materialized.transact().encode_state_as_update_v1(&StateVector::default());
+        if vector != binding.yjs_state_vector_b64
+            || dexterity_sha256_hex(&projection) != binding.materialized_projection_hash {
+            return Err(crdt_authority_denied("stored CRDT binding differs from fresh canonical Yjs realization"));
         }
         let lease = provider
             .crdt_lease_history(
@@ -5137,12 +5171,8 @@ impl ModelLaneStore {
         })
     }
 
-    pub async fn navigation_by_run(
-        &self,
-        run_id: &str,
-    ) -> ModelLaneResult<ModelLaneNavigationProjection> {
-        self.navigation_projection_for_run("model_lane.navigation.run", "run", run_id, run_id)
-            .await
+    pub async fn navigation_by_run(&self, run_id: &str) -> ModelLaneResult<ModelLaneNavigationProjection> {
+        self.navigation_selected("model_lane.navigation.run", navigation_selector("run_id", run_id)).await
     }
 
     #[cfg(feature = "test-utils")]
@@ -5186,783 +5216,186 @@ impl ModelLaneStore {
         ))
     }
 
-    pub async fn navigation_by_lane(
-        &self,
-        lane_id: &str,
-    ) -> ModelLaneResult<ModelLaneNavigationProjection> {
-        require_token("lane_id", lane_id)?;
-        let scope = self.surreal_read_scope("navigate ModelLane by lane")?;
-        let provider = self.provider().await?;
-        let row = provider
-            .get(SurrealRecordKind::Lane, lane_id, &scope)
-            .await?
-            .ok_or_else(|| ModelLaneError::NotFound(format!("lane_id {lane_id}")))?;
-        provider
-            .validate_event_link(SurrealRecordKind::Lane, &row, &scope)
-            .await?;
-        let lane = surreal_lane_record(row)?;
-        let mut projection = self
-            .navigation_projection_for_run(
-                "model_lane.navigation.lane",
-                "lane",
-                lane_id,
-                &lane.run_id,
-            )
-            .await?;
-        projection.lanes.retain(|row| row.lane_id == lane_id);
-        projection
-            .messages
-            .retain(|row| message_mentions_lane(row, lane_id));
-        projection
-            .recovery_checkpoints
-            .retain(|row| row.lane_id.as_deref() == Some(lane_id));
-        projection
-            .recovery_events
-            .retain(|row| row.lane_id.as_deref() == Some(lane_id));
-        projection
-            .leases
-            .retain(|row| row.lane_id.as_deref() == Some(lane_id));
-        projection.rebuild_navigation_evidence();
-        Ok(projection)
+    pub async fn navigation_by_lane(&self, lane_id: &str) -> ModelLaneResult<ModelLaneNavigationProjection> {
+        self.navigation_selected("model_lane.navigation.lane", navigation_selector("lane_id", lane_id)).await
     }
-
-    pub async fn navigation_by_message(
-        &self,
-        message_id: &str,
-    ) -> ModelLaneResult<ModelLaneNavigationProjection> {
-        require_token("message_id", message_id)?;
-        let scope = self.surreal_read_scope("navigate ModelLane by message")?;
-        let provider = self.provider().await?;
-        let row = provider
-            .get(SurrealRecordKind::Message, message_id, &scope)
-            .await?
-            .ok_or_else(|| ModelLaneError::NotFound(format!("message_id {message_id}")))?;
-        provider
-            .validate_event_link(SurrealRecordKind::Message, &row, &scope)
-            .await?;
-        let message = surreal_message_record(row)?;
-        self.validate_surreal_stored_crdt_binding(&message, &scope)
-            .await?;
-        let mut projection = self
-            .navigation_projection_for_run(
-                "model_lane.navigation.message",
-                "message",
-                message_id,
-                &message.run_id,
-            )
-            .await?;
-        projection
-            .messages
-            .retain(|row| row.message_id == message_id);
-        projection
-            .lanes
-            .retain(|row| message_mentions_lane(&message, &row.lane_id));
-        projection.artifacts.retain(|row| {
-            row.artifact_ref == message.payload_ref
-                || row.artifact_payload_ref == message.payload_ref
-                || row.artifact_sha256 == message.payload_sha256
-                || row.content_hash == message.payload_sha256
-        });
-        projection
-            .context_handoffs
-            .retain(|row| row.source_message_id == message_id);
-        projection.rebuild_navigation_evidence();
-        Ok(projection)
+    pub async fn navigation_by_message(&self, message_id: &str) -> ModelLaneResult<ModelLaneNavigationProjection> {
+        self.navigation_selected("model_lane.navigation.message", navigation_selector("message_id", message_id)).await
     }
-
-    pub async fn navigation_by_artifact_or_context(
-        &self,
-        artifact_ref: Option<&str>,
-        context_bundle_id: Option<&str>,
-        run_id: Option<&str>,
-    ) -> ModelLaneResult<ModelLaneNavigationProjection> {
-        if artifact_ref.is_none() && context_bundle_id.is_none() {
-            return Err(ModelLaneError::InvalidInput(
-                "artifact_ref or context_bundle_id is required".into(),
-            ));
-        }
-        if let Some(value) = artifact_ref {
-            require_token("artifact_ref", value)?;
-        }
-        if let Some(value) = context_bundle_id {
-            require_token("context_bundle_id", value)?;
-        }
-        if let Some(value) = run_id {
-            require_token("run_id", value)?;
-        }
-
-        let artifacts = match artifact_ref {
-            Some(value) => self.context_artifacts_by_ref(value).await?,
-            None => Vec::new(),
+    pub async fn navigation_by_artifact_or_context(&self, artifact_ref: Option<&str>, context_bundle_id: Option<&str>, run_id: Option<&str>) -> ModelLaneResult<ModelLaneNavigationProjection> {
+        let (kind, value) = match (artifact_ref, context_bundle_id) {
+            (Some(value), _) => ("artifact_ref", value), (None, Some(value)) => ("context_bundle_id", value),
+            _ => return Err(ModelLaneError::InvalidInput("artifact_ref or context_bundle_id is required".into())),
         };
-        let mut handoffs = match context_bundle_id {
-            Some(value) => self.context_handoffs_by_context(value).await?,
-            None => Vec::new(),
-        };
-        if let Some(value) = artifact_ref {
-            handoffs.extend(self.context_handoffs_by_artifact_ref(value).await?);
+        let mut selector = navigation_selector(kind, value);
+        selector.artifact_ref = artifact_ref.map(str::to_owned); selector.context_bundle_id = context_bundle_id.map(str::to_owned);
+        selector.run_id = run_id.map(str::to_owned);
+        self.navigation_selected("model_lane.navigation.artifact_context", selector).await
+    }
+    pub async fn navigation_by_trace(&self, trace_id: &str, span_id: Option<&str>) -> ModelLaneResult<ModelLaneNavigationProjection> {
+        let mut selector = navigation_selector("trace_id", trace_id); selector.span_id = span_id.map(str::to_owned);
+        self.navigation_selected("model_lane.navigation.trace_span", selector).await
+    }
+    pub async fn navigation_by_diagnostics(&self, run_id: &str, behavior_id: Option<&str>, tier: Option<&str>, mt_id: Option<&str>) -> ModelLaneResult<ModelLaneNavigationProjection> {
+        let mut selector = navigation_selector("diagnostic_tier", run_id);
+        selector.behavior_id = behavior_id.map(str::to_owned); selector.tier = tier.map(str::to_owned); selector.micro_task_id = mt_id.map(str::to_owned);
+        self.navigation_selected("model_lane.navigation.diagnostic_tier", selector).await
+    }
+    pub async fn navigation_by_recovery(&self, run_id: &str) -> ModelLaneResult<ModelLaneNavigationProjection> {
+        self.navigation_selected("model_lane.navigation.recovery", navigation_selector("recovery", run_id)).await
+    }
+    pub async fn navigation_by_lookup(&self, lookup: ModelLaneNavigationLookup) -> ModelLaneResult<ModelLaneNavigationProjection> {
+        let (kind, value) = lookup.requested()?;
+        self.navigation_selected("model_lane.navigation.lookup", navigation_selector(&kind, &value)).await
+    }
+    async fn navigation_selected(&self, route_id: &str, selector: crate::storage::surreal::NavigationReadSelector) -> ModelLaneResult<ModelLaneNavigationProjection> {
+        let scope = self.surreal_read_scope("navigate ModelLane")?;
+        let provider = self.provider().await?.clone();
+        let store = self.clone(); let route_id = route_id.to_owned(); let selected = selector.clone();
+        provider.with_navigation_read_transaction(scope.clone(), selector, move || async move {
+            store.navigation_selected_source(&route_id, &selected, &scope).await
+        }).await
+    }
+    async fn validate_navigation_message_input(&self, input: &crate::storage::surreal::NavigationMessageInput,
+        scope: &SurrealModelLaneScope) -> ModelLaneResult<()> {
+        if input.source_kind != "message" || input.source_event_id.as_ref().is_none_or(|id| id.trim().is_empty())
+            || input.source_event_seq.is_none_or(|seq| seq < 1) {
+            return Err(crdt_authority_denied("navigation source receipt identity is invalid"));
         }
-        dedupe_context_handoffs(&mut handoffs);
-        let context_run = if let Some(value) = context_bundle_id {
-            self.run_id_by_context_bundle_id(value).await?
-        } else {
-            None
-        };
-
-        let derived_run_id = if let Some(value) = run_id {
-            value.to_owned()
-        } else {
-            let mut run_ids = artifacts
-                .iter()
-                .map(|row| row.run_id.clone())
-                .collect::<Vec<_>>();
-            run_ids.extend(handoffs.iter().map(|row| row.run_id.clone()));
-            if let Some(run_id) = context_run.as_ref() {
-                run_ids.push(run_id.clone());
+        let crdt = input.crdt_update_ref.is_some() || input.crdt_base_snapshot_ref.is_some()
+            || input.crdt_state_vector.is_some() || input.crdt_proposal_ref.is_some()
+            || input.crdt_stale_base_ref.is_some() || input.binding.is_some();
+        if crdt {
+            let sender = input.source_lane.as_ref()
+                .ok_or_else(|| crdt_authority_denied("navigation canonical sender lane input unavailable"))?;
+            if sender.event_id.trim().is_empty() || sender.event_seq < 1 || sender.ordering_seq.is_some_and(|seq| seq < 1) {
+                return Err(crdt_authority_denied("navigation sender receipt identity is invalid"));
             }
-            unique_run_id_for_lookup(
-                "artifact_context",
-                artifact_ref
-                    .or(context_bundle_id)
-                    .unwrap_or("artifact_context"),
-                run_ids,
-            )?
-            .ok_or_else(|| {
-                ModelLaneError::NotFound(format!(
-                    "artifact_ref {:?} context_bundle_id {:?}",
-                    artifact_ref, context_bundle_id
-                ))
-            })?
-        };
-        let mut projection = self
-            .navigation_projection_for_run(
-                "model_lane.navigation.artifact_context",
-                "artifact_context",
-                artifact_ref
-                    .or(context_bundle_id)
-                    .unwrap_or("artifact_context"),
-                &derived_run_id,
-            )
-            .await?;
-        if let Some(value) = artifact_ref {
-            projection
-                .artifacts
-                .retain(|row| artifact_matches(row, value));
-            projection.context_handoffs.retain(|row| {
-                row.artifact_ref == value
-                    || row.artifact_sha256 == value
-                    || row.content_hash == value
-            });
-            let artifact_message_refs: BTreeSet<String> = projection
-                .artifacts
-                .iter()
-                .flat_map(|artifact| {
-                    [
-                        artifact.artifact_ref.as_str(),
-                        artifact.artifact_manifest_ref.as_str(),
-                        artifact.artifact_payload_ref.as_str(),
-                        artifact.artifact_sha256.as_str(),
-                        artifact.content_hash.as_str(),
-                    ]
-                })
-                .filter(|value| !value.is_empty())
-                .map(str::to_owned)
-                .collect();
-            projection.messages.retain(|row| {
-                artifact_message_refs.contains(&row.payload_ref)
-                    || artifact_message_refs.contains(&row.payload_sha256)
-                    || row.payload_ref == value
-                    || row.payload_sha256 == value
-            });
+            self.validate_stored_crdt_inputs(input, &sender.lane, scope).await?;
         }
-        if let Some(value) = context_bundle_id {
-            projection
-                .context_handoffs
-                .retain(|row| row.context_bundle_id == value);
-        }
-        let artifact_matched = artifact_ref.is_none()
-            || !projection.artifacts.is_empty()
-            || !projection.context_handoffs.is_empty()
-            || !projection.messages.is_empty();
-        let context_matched = context_bundle_id.is_none()
-            || context_bundle_id.is_some_and(|value| {
-                projection
-                    .run
-                    .as_ref()
-                    .is_some_and(|row| row.context_bundle_id == value)
-            })
-            || !projection.context_handoffs.is_empty();
-        if !artifact_matched || !context_matched {
-            return Err(ModelLaneError::NotFound(format!(
-                "artifact_ref {:?} context_bundle_id {:?} run_id {:?}",
-                artifact_ref, context_bundle_id, run_id
-            )));
-        }
-        projection.rebuild_navigation_evidence();
-        Ok(projection)
+        Ok(())
     }
-
-    pub async fn navigation_by_trace(
-        &self,
-        trace_id: &str,
-        span_id: Option<&str>,
-    ) -> ModelLaneResult<ModelLaneNavigationProjection> {
-        require_token("trace_id", trace_id)?;
-        if let Some(value) = span_id {
-            require_token("span_id", value)?;
-        }
-        let run_id = self
-            .run_id_by_trace_id(trace_id)
-            .await?
-            .ok_or_else(|| ModelLaneError::NotFound(format!("trace_id {trace_id}")))?;
-        let mut projection = self
-            .navigation_projection_for_run(
-                "model_lane.navigation.trace_span",
-                "trace_span",
-                span_id.unwrap_or(trace_id),
-                &run_id,
-            )
-            .await?;
-        projection.run = projection
-            .run
-            .filter(|row| row.trace_id == trace_id && span_matches(span_id, &row.run_span_id));
-        projection
-            .lanes
-            .retain(|row| row.trace_id == trace_id && span_matches(span_id, &row.lane_span_id));
-        projection.messages.retain(|row| {
-            row.trace_id == trace_id
-                && (span_matches(span_id, &row.message_span_id)
-                    || row.parent_span_id.as_deref() == span_id
-                    || row
-                        .linked_span_contexts
-                        .iter()
-                        .any(|linked| Some(linked.as_str()) == span_id))
-        });
-        projection
-            .context_handoffs
-            .retain(|row| row.trace_id == trace_id && span_matches(span_id, &row.handoff_span_id));
-        projection
-            .recovery_events
-            .retain(|row| row.trace_id == trace_id && span_matches(span_id, &row.span_id));
-        projection.rebuild_navigation_evidence();
-        Ok(projection)
-    }
-
-    pub async fn navigation_by_diagnostics(
-        &self,
-        run_id: &str,
-        behavior_id: Option<&str>,
-        tier: Option<&str>,
-        mt_id: Option<&str>,
-    ) -> ModelLaneResult<ModelLaneNavigationProjection> {
-        require_token("run_id", run_id)?;
-        let mut projection = self
-            .navigation_projection_for_run(
-                "model_lane.navigation.diagnostic_tier",
-                "diagnostic_tier",
-                behavior_id.or(tier).or(mt_id).unwrap_or(run_id),
-                run_id,
-            )
-            .await?;
-        if let Some(value) = behavior_id {
-            projection
-                .diagnostic_tiers
-                .retain(|row| row.behavior_id == value);
-        }
-        if let Some(value) = tier {
-            projection
-                .diagnostic_tiers
-                .retain(|row| row.tier.as_str() == value);
-        }
-        if let Some(value) = mt_id {
-            projection
-                .mt_runtime_statuses
-                .retain(|row| row.micro_task_id == value);
-        }
-        projection.rebuild_navigation_evidence();
-        Ok(projection)
-    }
-
-    pub async fn navigation_by_recovery(
-        &self,
-        run_id: &str,
-    ) -> ModelLaneResult<ModelLaneNavigationProjection> {
-        self.navigation_projection_for_run(
-            "model_lane.navigation.recovery",
-            "recovery",
-            run_id,
-            run_id,
-        )
-        .await
-    }
-
-    pub async fn navigation_by_lookup(
-        &self,
-        lookup: ModelLaneNavigationLookup,
-    ) -> ModelLaneResult<ModelLaneNavigationProjection> {
-        let (lookup_kind, lookup_ref, run_id) = self.resolve_navigation_lookup(lookup).await?;
-        self.navigation_projection_for_run(
-            "model_lane.navigation.lookup",
-            &lookup_kind,
-            &lookup_ref,
-            &run_id,
-        )
-        .await
-    }
-
-    async fn resolve_navigation_lookup(
-        &self,
-        lookup: ModelLaneNavigationLookup,
-    ) -> ModelLaneResult<(String, String, String)> {
-        let requested = lookup.requested()?;
-        let (lookup_kind, lookup_ref) = requested;
-        let run_id = match lookup_kind.as_str() {
-            "run_id" => lookup_ref.clone(),
-            "lane_id" => self
-                .run_id_by_scoped_aggregate(SurrealRecordKind::Lane, &lookup_ref)
-                .await?
-                .ok_or_else(|| ModelLaneError::NotFound(format!("lane_id {lookup_ref}")))?,
-            "message_id" => self
-                .run_id_by_scoped_aggregate(SurrealRecordKind::Message, &lookup_ref)
-                .await?
-                .ok_or_else(|| ModelLaneError::NotFound(format!("message_id {lookup_ref}")))?,
-            "model_session_id" => self
-                .run_id_by_model_session_id(&lookup_ref)
-                .await?
-                .ok_or_else(|| {
-                    ModelLaneError::NotFound(format!("model_session_id {lookup_ref}"))
-                })?,
-            "session_id" => self
-                .run_id_by_session_id(&lookup_ref)
-                .await?
-                .ok_or_else(|| ModelLaneError::NotFound(format!("session_id {lookup_ref}")))?,
-            "wp_id" | "work_packet_id" => self
-                .run_id_by_work_packet_id(&lookup_ref)
-                .await?
-                .ok_or_else(|| ModelLaneError::NotFound(format!("wp_id {lookup_ref}")))?,
-            "mt_id" | "micro_task_id" => self
-                .run_id_by_micro_task_id(&lookup_ref)
-                .await?
-                .ok_or_else(|| ModelLaneError::NotFound(format!("mt_id {lookup_ref}")))?,
-            "task_board_id" => self
-                .run_id_by_task_board_id(&lookup_ref)
-                .await?
-                .ok_or_else(|| ModelLaneError::NotFound(format!("task_board_id {lookup_ref}")))?,
-            "artifact_ref" => self
-                .run_id_by_artifact_ref(&lookup_ref)
-                .await?
-                .ok_or_else(|| ModelLaneError::NotFound(format!("artifact_ref {lookup_ref}")))?,
-            "context_bundle_id" => self
-                .run_id_by_context_bundle_id(&lookup_ref)
-                .await?
-                .ok_or_else(|| {
-                    ModelLaneError::NotFound(format!("context_bundle_id {lookup_ref}"))
-                })?,
-            "locus_ref" | "locus_binding_ref" => self
-                .run_id_by_locus_ref(&lookup_ref)
-                .await?
-                .ok_or_else(|| ModelLaneError::NotFound(format!("locus_ref {lookup_ref}")))?,
-            "loom_ref" => self
-                .run_id_by_diagnostic_payload_ref(&lookup_ref, &["loom_ref", "loom_block_id"])
-                .await?
-                .ok_or_else(|| ModelLaneError::NotFound(format!("loom_ref {lookup_ref}")))?,
-            "loom_block_id" => self
-                .run_id_by_loom_block_id(&lookup_ref)
-                .await?
-                .ok_or_else(|| ModelLaneError::NotFound(format!("loom_block_id {lookup_ref}")))?,
-            "fems_ref" => self
-                .run_id_by_diagnostic_payload_ref(&lookup_ref, &["fems_ref", "memory_pack_ref"])
-                .await?
-                .ok_or_else(|| ModelLaneError::NotFound(format!("fems_ref {lookup_ref}")))?,
-            "memory_pack_ref" => self
-                .run_id_by_memory_pack_ref(&lookup_ref)
-                .await?
-                .ok_or_else(|| ModelLaneError::NotFound(format!("memory_pack_ref {lookup_ref}")))?,
-            "memory_pack_hash" => self
-                .run_id_by_memory_pack_hash(&lookup_ref)
-                .await?
-                .ok_or_else(|| {
-                    ModelLaneError::NotFound(format!("memory_pack_hash {lookup_ref}"))
-                })?,
-            "event_ledger_event_id" => self
-                .run_id_by_event_ledger_event_id(&lookup_ref)
-                .await?
-                .ok_or_else(|| {
-                    ModelLaneError::NotFound(format!("event_ledger_event_id {lookup_ref}"))
-                })?,
-            "event_ledger_seq" => {
-                let seq = lookup_ref.parse::<i64>().map_err(|err| {
-                    ModelLaneError::InvalidInput(format!("event_ledger_seq must be i64: {err}"))
-                })?;
-                self.run_id_by_event_ledger_seq(seq).await?.ok_or_else(|| {
-                    ModelLaneError::NotFound(format!("event_ledger_seq {lookup_ref}"))
-                })?
-            }
-            "trace_id" => self
-                .run_id_by_trace_id(&lookup_ref)
-                .await?
-                .ok_or_else(|| ModelLaneError::NotFound(format!("trace_id {lookup_ref}")))?,
-            "span_id" => self
-                .run_id_by_span_id(&lookup_ref)
-                .await?
-                .ok_or_else(|| ModelLaneError::NotFound(format!("span_id {lookup_ref}")))?,
-            "error_code" => self
-                .run_id_by_error_code(&lookup_ref)
-                .await?
-                .ok_or_else(|| ModelLaneError::NotFound(format!("error_code {lookup_ref}")))?,
-            other => {
-                return Err(ModelLaneError::InvalidInput(format!(
-                    "unsupported ModelLane navigation lookup kind {other}"
-                )));
-            }
-        };
-        Ok((lookup_kind, lookup_ref, run_id))
-    }
-
-    async fn run_id_by_scoped_aggregate(
-        &self,
-        kind: SurrealRecordKind,
-        aggregate_id: &str,
-    ) -> ModelLaneResult<Option<String>> {
-        let scope = self.surreal_read_scope("resolve ModelLane navigation aggregate")?;
+    async fn navigation_selected_source(&self, route_id: &str, selector: &crate::storage::surreal::NavigationReadSelector, scope: &SurrealModelLaneScope) -> ModelLaneResult<ModelLaneNavigationProjection> {
         let provider = self.provider().await?;
-        let Some(row) = provider.get(kind, aggregate_id, &scope).await? else {
-            return Ok(None);
-        };
-        provider.validate_event_link(kind, &row, &scope).await?;
-        Ok(Some(row.run_id))
-    }
-
-    async fn run_id_by_scoped_fields(
-        &self,
-        value: &str,
-        fields: &[&str],
-    ) -> ModelLaneResult<Option<String>> {
-        let scope = self.surreal_read_scope("resolve ModelLane navigation field")?;
-        let provider = self.provider().await?;
-        let mut run_ids = BTreeSet::new();
+        let mut rows = Vec::new();
         for kind in MODEL_LANE_NAVIGATION_RECORD_KINDS {
-            for row in provider.list_kind(*kind, &scope).await? {
-                provider.validate_event_link(*kind, &row, &scope).await?;
-                let record: Value = serde_json::from_str(&row.record_json)?;
-                if json_named_value_matches(&record, fields, value) {
-                    run_ids.insert(row.run_id);
+            rows.extend(provider.navigation_scalar_rows(scope, *kind, selector.run_id.as_deref()).await?);
+        }
+        let mut document_witnesses = BTreeSet::new();
+        let mut omitted_messages = BTreeSet::new();
+        for row in rows.iter().filter(|row| row.record_kind == "message") {
+            let Some(input) = provider.navigation_message_input(scope, row).await? else {
+                omitted_messages.insert(row.aggregate_id.clone()); continue;
+            };
+            if input.source_kind != "message" || input.message_id != row.aggregate_id || input.run_id != row.run_id {
+                return Err(crdt_authority_denied("navigation source input differs from canonical message identity"));
+            }
+            if selector.lookup_kind == "lane_id" && input.from_lane_id != selector.lookup_ref
+                && !matches!(&input.to_lane, ModelLaneTarget::Lane(id) if id == &selector.lookup_ref) {
+                return Err(crdt_authority_denied("navigation message differs from selected sender/recipient lane"));
+            }
+            match self.validate_navigation_message_input(&input, scope).await {
+                Ok(()) => {
+                    if input.binding.as_ref().is_some_and(|binding| binding.document_id == selector.lookup_ref) {
+                        document_witnesses.insert((row.record_kind.clone(), row.aggregate_id.clone()));
+                    }
+                },
+                Err(ModelLaneError::AuthorityDenied(_)) => { omitted_messages.insert(row.aggregate_id.clone()); },
+                Err(error) => return Err(error),
+            }
+        }
+        let mut omitted_children = BTreeSet::new();
+        for row in rows.iter().filter(|row| matches!(row.record_kind.as_str(), "context_handoff" | "context_artifact")) {
+            let Some(context) = provider.navigation_context_inputs(scope, row).await? else {
+                omitted_children.insert((row.record_kind.clone(), row.aggregate_id.clone())); continue;
+            };
+            if context.source_kind != "context_sources" || context.run_id != row.run_id || context.kind != row.record_kind
+                || context.inputs.is_empty() {
+                omitted_children.insert((row.record_kind.clone(), row.aggregate_id.clone())); continue;
+            }
+            let mut receipts = BTreeSet::new();
+            let mut document_matched = false;
+            let mut unresolved = false;
+            for source in context.inputs {
+                if source.context_event_id.trim().is_empty() || source.context_event_seq < 1
+                    || !receipts.insert(source.context_event_id) {
+                    unresolved = true; break;
+                }
+                let Some(input) = source.input else { unresolved = true; break; };
+                if input.run_id != row.run_id || input.binding.is_none() || omitted_messages.contains(&input.message_id) {
+                    unresolved = true; break;
+                }
+                match self.validate_navigation_message_input(&input, scope).await {
+                    Ok(()) => {
+                        document_matched |= input.binding.as_ref().is_some_and(|binding| binding.document_id == selector.lookup_ref);
+                    },
+                    Err(ModelLaneError::AuthorityDenied(_)) => { unresolved = true; break; },
+                    Err(error) => return Err(error),
                 }
             }
+            if unresolved { omitted_children.insert((row.record_kind.clone(), row.aggregate_id.clone())); }
+            else if document_matched { document_witnesses.insert((row.record_kind.clone(), row.aggregate_id.clone())); }
         }
-        if run_ids.len() > 1 {
-            return Err(ModelLaneError::AmbiguousLookup(format!(
-                "navigation value {value} resolves to multiple exact-scope runs"
-            )));
+        // No unresolved message or child can supply references or derived evidence.
+        rows.retain(|row| (row.record_kind != "message" || !omitted_messages.contains(&row.aggregate_id))
+            && !omitted_children.contains(&(row.record_kind.clone(), row.aggregate_id.clone())));
+        if selector.lookup_kind == "message_id" && !rows.iter().any(|row| row.record_kind == "message" && row.aggregate_id == selector.lookup_ref) {
+            return Err(ModelLaneError::NotFound("navigation target".into()));
         }
-        Ok(run_ids.into_iter().next())
-    }
-
-    async fn run_id_by_model_session_id(&self, value: &str) -> ModelLaneResult<Option<String>> {
-        self.run_id_by_scoped_fields(value, &["model_session_id"])
-            .await
-    }
-
-    async fn run_id_by_session_id(&self, value: &str) -> ModelLaneResult<Option<String>> {
-        self.run_id_by_scoped_fields(value, &["session_id", "coordinator_session_id"])
-            .await
-    }
-
-    async fn run_id_by_work_packet_id(&self, value: &str) -> ModelLaneResult<Option<String>> {
-        self.run_id_by_scoped_fields(value, &["work_packet_id", "wp_id"])
-            .await
-    }
-
-    async fn run_id_by_micro_task_id(&self, value: &str) -> ModelLaneResult<Option<String>> {
-        self.run_id_by_scoped_fields(value, &["micro_task_id", "mt_id"])
-            .await
-    }
-
-    async fn run_id_by_task_board_id(&self, value: &str) -> ModelLaneResult<Option<String>> {
-        self.run_id_by_scoped_fields(value, &["task_board_id"])
-            .await
-    }
-
-    async fn run_id_by_artifact_ref(&self, value: &str) -> ModelLaneResult<Option<String>> {
-        self.run_id_by_scoped_fields(
-            value,
-            &[
-                "artifact_ref",
-                "artifact_refs",
-                "payload_ref",
-                "payload_refs",
-                "open_payload_refs",
-            ],
-        )
-        .await
-    }
-
-    async fn run_id_by_context_bundle_id(&self, value: &str) -> ModelLaneResult<Option<String>> {
-        self.run_id_by_scoped_fields(value, &["context_bundle_id"])
-            .await
-    }
-
-    async fn run_id_by_memory_pack_ref(&self, value: &str) -> ModelLaneResult<Option<String>> {
-        self.run_id_by_scoped_fields(value, &["memory_pack_ref", "fems_ref"])
-            .await
-    }
-
-    async fn run_id_by_memory_pack_hash(&self, value: &str) -> ModelLaneResult<Option<String>> {
-        self.run_id_by_scoped_fields(value, &["memory_pack_hash"])
-            .await
-    }
-
-    async fn run_id_by_trace_id(&self, value: &str) -> ModelLaneResult<Option<String>> {
-        self.run_id_by_scoped_fields(value, &["trace_id"]).await
-    }
-
-    async fn run_id_by_span_id(&self, value: &str) -> ModelLaneResult<Option<String>> {
-        self.run_id_by_scoped_fields(
-            value,
-            &[
-                "span_id",
-                "run_span_id",
-                "lane_span_id",
-                "message_span_id",
-                "handoff_span_id",
-                "parent_span_id",
-                "linked_span_contexts",
-            ],
-        )
-        .await
-    }
-
-    async fn run_id_by_error_code(&self, value: &str) -> ModelLaneResult<Option<String>> {
-        self.run_id_by_scoped_fields(value, &["error_code", "reason_code"])
-            .await
-    }
-
-    async fn run_id_by_locus_ref(&self, value: &str) -> ModelLaneResult<Option<String>> {
-        self.run_id_by_scoped_fields(value, &["locus_ref", "locus_binding_ref"])
-            .await
-    }
-
-    async fn run_id_by_loom_block_id(&self, value: &str) -> ModelLaneResult<Option<String>> {
-        self.run_id_by_scoped_fields(value, &["loom_block_id", "loom_ref"])
-            .await
-    }
-
-    async fn run_id_by_diagnostic_payload_ref(
-        &self,
-        value: &str,
-        keys: &[&str],
-    ) -> ModelLaneResult<Option<String>> {
-        self.run_id_by_scoped_fields(value, keys).await
-    }
-
-    async fn run_id_by_event_ledger_event_id(
-        &self,
-        value: &str,
-    ) -> ModelLaneResult<Option<String>> {
-        let scope = self.surreal_read_scope("resolve ModelLane EventLedger event id")?;
-        let provider = self.provider().await?;
-        let mut run_ids = BTreeSet::new();
-        for kind in MODEL_LANE_NAVIGATION_RECORD_KINDS {
-            for row in provider.list_kind(*kind, &scope).await? {
-                if row.event_id == value {
-                    provider.validate_event_link(*kind, &row, &scope).await?;
-                    run_ids.insert(row.run_id);
-                }
+        let mut visible = Vec::new();
+        for row in rows {
+            if let Some(receipt) = provider.navigation_visible_receipt(scope, &row).await? {
+                visible.push((row, receipt));
             }
         }
-        one_navigation_run_id(value, run_ids)
-    }
-
-    async fn run_id_by_event_ledger_seq(&self, value: i64) -> ModelLaneResult<Option<String>> {
-        let scope = self.surreal_read_scope("resolve ModelLane EventLedger sequence")?;
-        let provider = self.provider().await?;
-        let mut run_ids = BTreeSet::new();
-        for kind in MODEL_LANE_NAVIGATION_RECORD_KINDS {
-            for row in provider.list_kind(*kind, &scope).await? {
-                if row.event_seq == value {
-                    provider.validate_event_link(*kind, &row, &scope).await?;
-                    run_ids.insert(row.run_id);
-                }
+        // Exact-child success and ambiguity come only from surviving canonical
+        // witnesses, after owning CRDT validation and actual receipt visibility.
+        let exact_child = matches!(selector.lookup_kind.as_str(), "document_id" | "context_bundle_id" | "artifact_ref");
+        let runs = visible.iter().filter(|(row, _)| {
+            if selector.lookup_kind == "document_id" {
+                document_witnesses.contains(&(row.record_kind.clone(), row.aggregate_id.clone()))
+            } else if exact_child {
+                matches!(row.record_kind.as_str(), "context_handoff" | "context_artifact")
+            } else { true }
+        }).map(|(row, _)| row.run_id.clone()).collect();
+        let run_id = one_navigation_run_id(&selector.lookup_ref, runs)?
+            .ok_or_else(|| ModelLaneError::NotFound("navigation target".into()))?;
+        let mut projection = ModelLaneNavigationProjection::empty(route_id, selector);
+        for (row, receipt) in visible.into_iter().filter(|(row, _)| row.run_id == run_id) {
+            let scalar = ModelLaneNavigationScalar { aggregate_id: row.aggregate_id.clone(), run_id: row.run_id.clone(),
+                event_ledger_event_id: receipt.event_id, event_ledger_seq: receipt.event_seq, ordering_seq: row.ordering_seq };
+            match row.record_kind.as_str() {
+                "run" => projection.run = Some(ModelLaneNavigationRun { run_id: scalar.run_id.clone(), source: scalar }),
+                "lane" => projection.lanes.push(ModelLaneNavigationLane { lane_id: scalar.aggregate_id.clone(), source: scalar }),
+                "message" if selector.lookup_kind != "message_id" || row.aggregate_id == selector.lookup_ref => projection.messages.push(ModelLaneNavigationMessage { message_id: scalar.aggregate_id.clone(), source: scalar }),
+                "context_artifact" => projection.artifacts.push(scalar), "context_handoff" => projection.context_handoffs.push(scalar),
+                "recovery_checkpoint" => projection.recovery_checkpoints.push(scalar), "recovery_event" => projection.recovery_events.push(scalar),
+                "lease" => projection.leases.push(scalar), "diagnostic_tier" => projection.diagnostic_tiers.push(scalar),
+                "mt_runtime_status" => projection.mt_runtime_statuses.push(scalar), _ => {},
             }
         }
-        one_navigation_run_id(&value.to_string(), run_ids)
-    }
-
-    async fn validated_surreal_rows_for_run(
-        &self,
-        kind: SurrealRecordKind,
-        run_id: &str,
-    ) -> ModelLaneResult<Vec<SurrealModelLaneRecord>> {
-        let scope = self.surreal_read_scope("read ModelLane navigation rows")?;
-        let provider = self.provider().await?;
-        let rows = provider.list_run(kind, run_id, &scope).await?;
-        for row in &rows {
-            provider.validate_event_link(kind, row, &scope).await?;
+        if projection.run.as_ref().is_some_and(|run| run.run_id != run_id)
+            || (projection.run.is_none() && !(selector.lookup_kind == "trace_id" && selector.span_id.is_some()))
+            || (selector.lookup_kind == "message_id" && projection.messages.is_empty())
+            || (selector.lookup_kind == "lane_id" && !projection.lanes.iter().any(|lane| lane.lane_id == selector.lookup_ref))
+            || (matches!(selector.lookup_kind.as_str(), "context_bundle_id" | "artifact_ref")
+                && projection.context_handoffs.is_empty() && projection.artifacts.is_empty()) {
+            return Err(ModelLaneError::NotFound("navigation target".into()));
         }
-        Ok(rows)
-    }
-
-    async fn navigation_projection_for_run(
-        &self,
-        route_id: &str,
-        lookup_kind: &str,
-        lookup_ref: &str,
-        run_id: &str,
-    ) -> ModelLaneResult<ModelLaneNavigationProjection> {
-        let replay = self.replay_run(run_id).await?;
-        let artifacts = self
-            .validated_surreal_rows_for_run(SurrealRecordKind::ContextArtifact, run_id)
-            .await?
-            .into_iter()
-            .map(surreal_context_bundle_artifact_record)
-            .collect::<ModelLaneResult<Vec<_>>>()?;
-        let context_handoffs = self
-            .validated_surreal_rows_for_run(SurrealRecordKind::ContextHandoff, run_id)
-            .await?
-            .into_iter()
-            .map(surreal_context_bundle_handoff_record)
-            .collect::<ModelLaneResult<Vec<_>>>()?;
-        let recovery_checkpoints = self
-            .validated_surreal_rows_for_run(SurrealRecordKind::RecoveryCheckpoint, run_id)
-            .await?
-            .into_iter()
-            .map(surreal_recovery_checkpoint_record)
-            .collect::<ModelLaneResult<Vec<_>>>()?;
-        let recovery_events = self
-            .validated_surreal_rows_for_run(SurrealRecordKind::RecoveryEvent, run_id)
-            .await?
-            .into_iter()
-            .map(surreal_recovery_event_record)
-            .collect::<ModelLaneResult<Vec<_>>>()?;
-        let leases = self
-            .validated_surreal_rows_for_run(SurrealRecordKind::Lease, run_id)
-            .await?
-            .into_iter()
-            .map(surreal_lease_record)
-            .collect::<ModelLaneResult<Vec<_>>>()?;
-        let diagnostic_tiers = self
-            .validated_surreal_rows_for_run(SurrealRecordKind::DiagnosticTier, run_id)
-            .await?
-            .into_iter()
-            .map(surreal_diagnostic_tier_record)
-            .collect::<ModelLaneResult<Vec<_>>>()?;
-        let mt_runtime_statuses = self
-            .validated_surreal_rows_for_run(SurrealRecordKind::MtRuntimeStatus, run_id)
-            .await?
-            .into_iter()
-            .map(surreal_mt_runtime_status_record)
-            .collect::<ModelLaneResult<Vec<_>>>()?;
-        let mut projection = ModelLaneNavigationProjection {
-            schema_id: "hsk.model_lane_navigation@1".into(),
-            surface_contract_id: "native_swarm_lane_diagnostics".into(),
-            route_id: route_id.into(),
-            lookup_kind: lookup_kind.into(),
-            lookup_ref: lookup_ref.into(),
-            input_schema_ref: "hsk.model_lane_navigation_request@1".into(),
-            output_schema_ref: "hsk.model_lane_navigation@1".into(),
-            manual_refs: vec![
-                "usermanual://model-lane-navigation".into(),
-                "usermanual://model-lane-diagnostics".into(),
-                "usermanual://model-lane-recovery".into(),
-                "usermanual://model-lane-validation-harness".into(),
-            ],
-            run: Some(replay.run),
-            lanes: replay.lanes,
-            messages: replay.messages,
-            artifacts,
-            context_handoffs,
-            recovery_checkpoints,
-            recovery_events,
-            leases,
-            diagnostic_tiers,
-            mt_runtime_statuses,
-            event_ledger_refs: Vec::new(),
-            flight_recorder_refs: Vec::new(),
-            error_codes: Vec::new(),
-            recovery_routes: vec![
-                "GET /swarm/model-lanes/navigation/recovery/{run_id}".into(),
-                "GET /swarm/model-lanes/diagnostics/{run_id}".into(),
-                "ModelLaneStore::recover_run_after_restart".into(),
-                "ModelLaneStore::replay_run".into(),
-            ],
-        };
-        projection.rebuild_navigation_evidence();
-        Ok(projection)
-    }
-
-    async fn context_artifacts_by_ref(
-        &self,
-        value: &str,
-    ) -> ModelLaneResult<Vec<ModelLaneContextBundleArtifactBindingRecord>> {
-        let scope = self.surreal_read_scope("read ModelLane context artifacts by ref")?;
-        let provider = self.provider().await?;
-        let rows = provider
-            .find_by_term(
-                SurrealRecordKind::ContextArtifact,
-                &format!("artifact_ref={value}"),
-                &scope,
-            )
-            .await?;
-        let mut records = Vec::with_capacity(rows.len());
-        for row in rows {
-            provider
-                .validate_event_link(SurrealRecordKind::ContextArtifact, &row, &scope)
-                .await?;
-            records.push(surreal_context_bundle_artifact_record(row)?);
-        }
-        Ok(records)
-    }
-
-    async fn context_handoffs_by_context(
-        &self,
-        context_bundle_id: &str,
-    ) -> ModelLaneResult<Vec<ModelLaneContextBundleHandoffRecord>> {
-        let scope = self.surreal_read_scope("read ModelLane handoffs by ContextBundle")?;
-        let provider = self.provider().await?;
-        let rows = provider
-            .find_by_term(
-                SurrealRecordKind::ContextHandoff,
-                &format!("context_bundle_id={context_bundle_id}"),
-                &scope,
-            )
-            .await?;
-        let mut records = Vec::with_capacity(rows.len());
-        for row in rows {
-            provider
-                .validate_event_link(SurrealRecordKind::ContextHandoff, &row, &scope)
-                .await?;
-            records.push(surreal_context_bundle_handoff_record(row)?);
-        }
-        Ok(records)
-    }
-
-    async fn context_handoffs_by_artifact_ref(
-        &self,
-        value: &str,
-    ) -> ModelLaneResult<Vec<ModelLaneContextBundleHandoffRecord>> {
-        let scope = self.surreal_read_scope("read ModelLane handoffs by artifact ref")?;
-        let provider = self.provider().await?;
-        let rows = provider
-            .find_by_term(
-                SurrealRecordKind::ContextHandoff,
-                &format!("artifact_ref={value}"),
-                &scope,
-            )
-            .await?;
-        let mut records = Vec::with_capacity(rows.len());
-        for row in rows {
-            provider
-                .validate_event_link(SurrealRecordKind::ContextHandoff, &row, &scope)
-                .await?;
-            records.push(surreal_context_bundle_handoff_record(row)?);
-        }
-        Ok(records)
+        projection.rebuild_navigation_evidence(); Ok(projection)
     }
 
     pub async fn record_recovery_checkpoint(
         &self,
         input: NewModelLaneRecoveryCheckpoint,
     ) -> ModelLaneResult<ModelLaneRecoveryCheckpointRecord> {
+        crate::storage::surreal::with_model_lane_operation(
+            crate::storage::surreal::ContextCoordinationPurpose::RecoveryCheckpointRecord,
+            self.record_recovery_checkpoint_source(input),
+        ).await
+    }
+
+    async fn record_recovery_checkpoint_source(&self, input: NewModelLaneRecoveryCheckpoint) -> ModelLaneResult<ModelLaneRecoveryCheckpointRecord> {
         validate_recovery_checkpoint(&input)?;
         let scope = self.surreal_write_scope("record ModelLane recovery checkpoint")?;
         let provider = self.provider().await?;
@@ -6253,6 +5686,13 @@ impl ModelLaneStore {
         &self,
         input: NewModelLaneDiagnosticTierStatus,
     ) -> ModelLaneResult<ModelLaneDiagnosticTierStatusRecord> {
+        crate::storage::surreal::with_model_lane_operation(
+            crate::storage::surreal::ContextCoordinationPurpose::DiagnosticRecord,
+            self.record_diagnostic_tier_status_source(input),
+        ).await
+    }
+
+    async fn record_diagnostic_tier_status_source(&self, input: NewModelLaneDiagnosticTierStatus) -> ModelLaneResult<ModelLaneDiagnosticTierStatusRecord> {
         validate_diagnostic_tier_status(&input)?;
         let scope = self.surreal_write_scope("record ModelLane diagnostic tier")?;
         let provider = self.provider().await?;
@@ -12060,20 +11500,42 @@ pub struct ModelLaneNavigationProjection {
     pub input_schema_ref: String,
     pub output_schema_ref: String,
     pub manual_refs: Vec<String>,
-    pub run: Option<ModelLaneRunRecord>,
-    pub lanes: Vec<ModelLaneRecord>,
-    pub messages: Vec<ModelLaneMessageRecord>,
-    pub artifacts: Vec<ModelLaneContextBundleArtifactBindingRecord>,
-    pub context_handoffs: Vec<ModelLaneContextBundleHandoffRecord>,
-    pub recovery_checkpoints: Vec<ModelLaneRecoveryCheckpointRecord>,
-    pub recovery_events: Vec<ModelLaneRecoveryEventRecord>,
-    pub leases: Vec<ModelLaneLeaseRecord>,
-    pub diagnostic_tiers: Vec<ModelLaneDiagnosticTierStatusRecord>,
-    pub mt_runtime_statuses: Vec<ModelLaneMtRuntimeStatusRecord>,
+    pub run: Option<ModelLaneNavigationRun>,
+    pub lanes: Vec<ModelLaneNavigationLane>,
+    pub messages: Vec<ModelLaneNavigationMessage>,
+    pub artifacts: Vec<ModelLaneNavigationScalar>,
+    pub context_handoffs: Vec<ModelLaneNavigationScalar>,
+    pub recovery_checkpoints: Vec<ModelLaneNavigationScalar>,
+    pub recovery_events: Vec<ModelLaneNavigationScalar>,
+    pub leases: Vec<ModelLaneNavigationScalar>,
+    pub diagnostic_tiers: Vec<ModelLaneNavigationScalar>,
+    pub mt_runtime_statuses: Vec<ModelLaneNavigationScalar>,
     pub event_ledger_refs: Vec<String>,
     pub flight_recorder_refs: Vec<String>,
     pub error_codes: Vec<String>,
     pub recovery_routes: Vec<String>,
+}
+
+/// Source identifiers from permission-reduced rows. This DTO is not a canonical
+/// record and contains neither a rewritten hash nor hidden payload/reference data.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ModelLaneNavigationScalar {
+    pub aggregate_id: String,
+    pub run_id: String,
+    pub event_ledger_event_id: String,
+    pub event_ledger_seq: i64,
+    pub ordering_seq: Option<i64>,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ModelLaneNavigationRun { pub run_id: String, pub source: ModelLaneNavigationScalar }
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ModelLaneNavigationLane { pub lane_id: String, pub source: ModelLaneNavigationScalar }
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ModelLaneNavigationMessage { pub message_id: String, pub source: ModelLaneNavigationScalar }
+
+fn navigation_selector(kind: &str, value: &str) -> crate::storage::surreal::NavigationReadSelector {
+    crate::storage::surreal::NavigationReadSelector { lookup_kind: kind.into(), lookup_ref: value.into(),
+        run_id: None, span_id: None, behavior_id: None, tier: None, micro_task_id: None, artifact_ref: None, context_bundle_id: None }
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -12161,179 +11623,33 @@ impl ModelLaneNavigationLookup {
 }
 
 impl ModelLaneNavigationProjection {
+    fn empty(route_id: &str, selector: &crate::storage::surreal::NavigationReadSelector) -> Self {
+        Self { schema_id: "hsk.model_lane_navigation@2".into(), surface_contract_id: "native_swarm_lane_diagnostics".into(),
+            route_id: route_id.into(), lookup_kind: selector.lookup_kind.clone(), lookup_ref: selector.lookup_ref.clone(),
+            input_schema_ref: "hsk.model_lane_navigation_request@1".into(), output_schema_ref: "hsk.model_lane_navigation@2".into(),
+            manual_refs: vec!["usermanual://model-lane-navigation".into(), "usermanual://model-lane-diagnostics".into(),
+                "usermanual://model-lane-recovery".into(), "usermanual://model-lane-validation-harness".into()],
+            run: None, lanes: Vec::new(), messages: Vec::new(), artifacts: Vec::new(), context_handoffs: Vec::new(),
+            recovery_checkpoints: Vec::new(), recovery_events: Vec::new(), leases: Vec::new(), diagnostic_tiers: Vec::new(),
+            mt_runtime_statuses: Vec::new(), event_ledger_refs: Vec::new(), flight_recorder_refs: Vec::new(), error_codes: Vec::new(),
+            recovery_routes: vec!["GET /swarm/model-lanes/navigation/recovery/{run_id}".into(),
+                "GET /swarm/model-lanes/diagnostics/{run_id}".into()] }
+    }
     fn rebuild_navigation_evidence(&mut self) {
-        let mut event_ledger_refs = BTreeSet::new();
-        let mut flight_recorder_refs = BTreeSet::new();
-        let mut error_codes = BTreeSet::new();
-
-        if let Some(run) = &self.run {
-            push_event_ref(&mut event_ledger_refs, &run.event_ledger_event_id);
-            push_event_seq_ref(&mut event_ledger_refs, run.event_ledger_seq);
-            push_optional_string(&mut flight_recorder_refs, run.recovery_hint_ref.as_deref());
-            push_optional_string(&mut flight_recorder_refs, Some(&run.memory_pack_ref));
-            push_optional_string(&mut error_codes, run.failstate_code.as_deref());
+        let mut refs = BTreeSet::new();
+        let sources = self.run.iter().map(|row| &row.source)
+            .chain(self.lanes.iter().map(|row| &row.source))
+            .chain(self.messages.iter().map(|row| &row.source))
+            .chain(self.artifacts.iter()).chain(self.context_handoffs.iter())
+            .chain(self.recovery_checkpoints.iter()).chain(self.recovery_events.iter())
+            .chain(self.leases.iter()).chain(self.diagnostic_tiers.iter()).chain(self.mt_runtime_statuses.iter());
+        for source in sources {
+            push_event_ref(&mut refs, &source.event_ledger_event_id);
+            push_event_seq_ref(&mut refs, source.event_ledger_seq);
         }
-        for lane in &self.lanes {
-            push_event_ref(&mut event_ledger_refs, &lane.event_ledger_event_id);
-            push_event_seq_ref(&mut event_ledger_refs, lane.event_ledger_seq);
-            push_optional_string(
-                &mut flight_recorder_refs,
-                lane.process_ownership_ref.as_deref(),
-            );
-            push_optional_string(
-                &mut flight_recorder_refs,
-                lane.last_runtime_status_ref.as_deref(),
-            );
-            push_optional_string(
-                &mut flight_recorder_refs,
-                lane.last_recovery_event_ref.as_deref(),
-            );
-            push_optional_string(&mut flight_recorder_refs, lane.recovery_hint_ref.as_deref());
-            push_optional_string(&mut error_codes, lane.failstate_code.as_deref());
-        }
-        for message in &self.messages {
-            push_event_ref(&mut event_ledger_refs, &message.event_ledger_event_id);
-            push_event_seq_ref(&mut event_ledger_refs, message.event_ledger_seq);
-            push_optional_string(&mut flight_recorder_refs, Some(&message.payload_ref));
-            push_optional_string(
-                &mut flight_recorder_refs,
-                message.recovery_hint_ref.as_deref(),
-            );
-            push_optional_string(&mut flight_recorder_refs, message.proposal_ref.as_deref());
-            push_optional_string(
-                &mut flight_recorder_refs,
-                message.crdt_update_ref.as_deref(),
-            );
-            push_optional_string(&mut error_codes, message.failstate_code.as_deref());
-            push_optional_json_string(
-                &mut flight_recorder_refs,
-                &message.diagnostic_payload,
-                "flight_recorder",
-            );
-            push_optional_json_string(
-                &mut flight_recorder_refs,
-                &message.diagnostic_payload,
-                "internal_diagnostics",
-            );
-            push_optional_json_string(
-                &mut flight_recorder_refs,
-                &message.diagnostic_payload,
-                "palmistry",
-            );
-            push_optional_json_string(
-                &mut flight_recorder_refs,
-                &message.diagnostic_payload,
-                "locus_ref",
-            );
-            push_optional_json_string(
-                &mut flight_recorder_refs,
-                &message.diagnostic_payload,
-                "loom_ref",
-            );
-            push_optional_json_string(
-                &mut flight_recorder_refs,
-                &message.diagnostic_payload,
-                "fems_ref",
-            );
-        }
-        for artifact in &self.artifacts {
-            push_event_ref(&mut event_ledger_refs, &artifact.event_ledger_event_id);
-            push_event_seq_ref(&mut event_ledger_refs, artifact.event_ledger_seq);
-            push_optional_string(&mut flight_recorder_refs, Some(&artifact.artifact_ref));
-            push_optional_string(
-                &mut flight_recorder_refs,
-                Some(&artifact.artifact_manifest_ref),
-            );
-            push_optional_string(
-                &mut flight_recorder_refs,
-                Some(&artifact.artifact_payload_ref),
-            );
-        }
-        for handoff in &self.context_handoffs {
-            push_event_ref(&mut event_ledger_refs, &handoff.event_ledger_event_id);
-            push_event_seq_ref(&mut event_ledger_refs, handoff.event_ledger_seq);
-            push_optional_string(&mut flight_recorder_refs, Some(&handoff.context_bundle_id));
-            push_optional_string(&mut flight_recorder_refs, Some(&handoff.artifact_ref));
-            push_optional_json_string(
-                &mut flight_recorder_refs,
-                &handoff.diagnostic_payload,
-                "flight_recorder",
-            );
-            push_optional_json_string(
-                &mut flight_recorder_refs,
-                &handoff.diagnostic_payload,
-                "internal_diagnostics",
-            );
-            push_optional_json_string(
-                &mut flight_recorder_refs,
-                &handoff.diagnostic_payload,
-                "palmistry",
-            );
-            push_optional_string(&mut error_codes, Some(&handoff.reason_code));
-        }
-        for checkpoint in &self.recovery_checkpoints {
-            push_event_ref(&mut event_ledger_refs, &checkpoint.event_ledger_event_id);
-            push_event_seq_ref(&mut event_ledger_refs, checkpoint.event_ledger_seq);
-            push_optional_string(
-                &mut flight_recorder_refs,
-                checkpoint.recovery_hint_ref.as_deref(),
-            );
-            push_optional_string(
-                &mut flight_recorder_refs,
-                checkpoint.recovery_event_ref.as_deref(),
-            );
-        }
-        for event in &self.recovery_events {
-            push_event_ref(&mut event_ledger_refs, &event.event_ledger_event_id);
-            push_event_seq_ref(&mut event_ledger_refs, event.event_ledger_seq);
-            push_optional_string(
-                &mut flight_recorder_refs,
-                event.recovery_hint_ref.as_deref(),
-            );
-            push_optional_string(&mut error_codes, event.error_code.as_deref());
-            push_optional_string(
-                &mut error_codes,
-                event
-                    .failure_kind
-                    .as_ref()
-                    .map(ModelLaneRecoveryFailureKind::code),
-            );
-        }
-        for lease in &self.leases {
-            push_event_ref(&mut event_ledger_refs, &lease.event_ledger_event_id);
-            push_event_seq_ref(&mut event_ledger_refs, lease.event_ledger_seq);
-            push_optional_string(
-                &mut flight_recorder_refs,
-                lease.recovery_hint_ref.as_deref(),
-            );
-        }
-        for tier in &self.diagnostic_tiers {
-            push_event_ref(&mut event_ledger_refs, &tier.event_ledger_event_id);
-            push_event_seq_ref(&mut event_ledger_refs, tier.event_ledger_seq);
-            push_optional_string(&mut flight_recorder_refs, Some(&tier.evidence_ref));
-            push_optional_string(&mut flight_recorder_refs, tier.follow_up_ref.as_deref());
-        }
-        for status in &self.mt_runtime_statuses {
-            push_event_ref(&mut event_ledger_refs, &status.event_ledger_event_id);
-            push_event_seq_ref(&mut event_ledger_refs, status.event_ledger_seq);
-            push_optional_string(
-                &mut flight_recorder_refs,
-                status.proof_status_ref.as_deref(),
-            );
-            push_optional_string(&mut flight_recorder_refs, status.hbr_status_ref.as_deref());
-            push_optional_string(
-                &mut flight_recorder_refs,
-                status.last_recovery_event_ref.as_deref(),
-            );
-            push_optional_string(
-                &mut flight_recorder_refs,
-                status.last_runtime_status_ref.as_deref(),
-            );
-        }
-
-        self.event_ledger_refs = event_ledger_refs.into_iter().collect();
-        self.flight_recorder_refs = flight_recorder_refs.into_iter().collect();
-        self.error_codes = error_codes.into_iter().collect();
+        self.event_ledger_refs = refs.into_iter().collect();
+        // Opaque reference-derived diagnostics are intentionally absent from @2.
+        self.flight_recorder_refs.clear(); self.error_codes.clear();
     }
 }
 

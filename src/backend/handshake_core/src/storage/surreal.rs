@@ -106,7 +106,9 @@ pub use loom_search::{
 #[cfg(feature = "test-utils")]
 pub use model_lane::{ContextCompletionTestControl, ContextCoordinationBusy, ContextCoordinationTestHolder, ContextAdmissionTestControl, ContextAdmissionTestObservation, observe_context_coordination_busy_for_test};
 pub(crate) use model_lane::{
-    bootstrap_model_lane_schema, ContextCoordinationPurpose, ModelLaneRecordKind, ModelLaneScope, SurrealCrdtLeaseClaimOutcome,
+    bootstrap_model_lane_schema, ContextCoordinationPurpose, ModelLaneRecordKind, ModelLaneScope,
+    NavigationReadSelector, NavigationMessageInput, NavigationLaneInput,
+    SurrealModelLaneNavigationRow, SurrealModelLaneNavigationReceipt, SurrealCrdtLeaseClaimOutcome,
     SurrealCrdtUpdateAppendOutcome, SurrealModelLaneCrdtEventWrite, SurrealModelLaneCrdtGuard,
     SurrealModelLaneCrdtLease, SurrealModelLaneCrdtLeaseHistory, SurrealModelLaneCrdtLeaseWrite,
     SurrealModelLaneCrdtProposal, SurrealModelLaneCrdtProposalRecord,

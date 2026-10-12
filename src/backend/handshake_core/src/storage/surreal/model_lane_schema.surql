@@ -616,6 +616,22 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_context_sources($scope
         })) = 1;
     });
 };
+DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_artifact_alias($row: object, $context: object, $value: string) {
+    LET $artifacts = SELECT * FROM model_lane_authority WHERE record_kind = 'context_artifact'
+        AND run_id = $row.run_id AND owner_account_id = $row.owner_account_id
+        AND actor_principal_id = $row.actor_principal_id AND authenticated_session_id = $row.authenticated_session_id
+        AND access_space_id = $row.access_space_id AND workspace_id = $row.workspace_id
+        AND fn::wp012_model_lane_navigation_identity($this);
+    LET $canonical = array::filter($artifacts, |$artifact| {
+        LET $body = encoding::json::decode($artifact.record_json);
+        RETURN $body.artifact_ref = $context.artifact_ref AND $body.artifact_sha256 = $context.artifact_sha256
+            AND $body.content_hash = $context.content_hash;
+    });
+    IF array::len($canonical) != 1 { RETURN false; };
+    LET $artifact = encoding::json::decode($canonical[0].record_json);
+    RETURN $value IN [$artifact.artifact_ref, $artifact.artifact_binding_id, $artifact.artifact_manifest_ref,
+        $artifact.artifact_payload_ref, $artifact.artifact_sha256, $artifact.content_hash];
+};
 DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_child_match($row: object, $selection: object) {
     IF $selection.lookup_kind = 'document_id' AND $row.record_kind NOT IN ['context_artifact', 'context_handoff'] {
         LET $messages = SELECT * FROM model_lane_authority WHERE record_kind = 'message'
@@ -642,10 +658,10 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_child_match($row: obje
                 OR $body.artifact_sha256 != $context.artifact_sha256 OR $body.content_hash != $context.content_hash))
             OR ($row.record_kind = 'message' AND $body.inner.message_id != $context.source_message_id)
             OR ($row.record_kind = 'lane' AND $body.lane_id NOT IN [$context.source_lane_id, $context.downstream_lane_id]) { RETURN false; };
-        IF ($selection.artifact_ref != NONE AND $context.artifact_ref != $selection.artifact_ref)
+        IF ($selection.artifact_ref != NONE AND !fn::wp012_model_lane_navigation_artifact_alias($row, $context, $selection.artifact_ref))
             OR ($selection.context_bundle_id != NONE AND $context.context_bundle_id != $selection.context_bundle_id) { RETURN false; };
         IF $selection.lookup_kind = 'context_bundle_id' { RETURN $context.context_bundle_id = $selection.lookup_ref; };
-        IF $selection.lookup_kind = 'artifact_ref' { RETURN $context.artifact_ref = $selection.lookup_ref; };
+        IF $selection.lookup_kind = 'artifact_ref' { RETURN fn::wp012_model_lane_navigation_artifact_alias($row, $context, $selection.lookup_ref); };
         RETURN $selection.lookup_kind = 'document_id' AND $context.crdt_payload.document_id = $selection.lookup_ref;
     })) > 0;
 };
@@ -743,19 +759,51 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_selector($row: object,
         };
         IF $row.record_kind = 'message' { RETURN $row.aggregate_id = $selection.lookup_ref; };
         IF $row.record_kind = 'context_handoff' { RETURN $body.source_message_id = $selection.lookup_ref; };
+        IF $row.record_kind = 'context_artifact' {
+            LET $messages = SELECT * FROM model_lane_authority WHERE record_kind = 'message'
+                AND aggregate_id = $selection.lookup_ref AND run_id = $row.run_id
+                AND owner_account_id = $row.owner_account_id AND actor_principal_id = $row.actor_principal_id
+                AND authenticated_session_id = $row.authenticated_session_id AND access_space_id = $row.access_space_id
+                AND workspace_id = $row.workspace_id AND fn::wp012_model_lane_navigation_identity($this);
+            IF array::len($messages) != 1 { RETURN false; };
+            LET $message = encoding::json::decode($messages[0].record_json).inner;
+            RETURN $body.artifact_ref = $message.payload_ref OR $body.artifact_payload_ref = $message.payload_ref
+                OR $body.artifact_sha256 = $message.payload_sha256 OR $body.content_hash = $message.payload_sha256;
+        };
     };
     RETURN true;
 };
 
 -- Narrow internal inputs are derived from immutable canonical JSON, not a
 -- second authority. They are not navigation response DTOs or source hashes.
-DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_source_input($row: object) {
+DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_sender_lane($row: object) {
+    IF $row.record_kind != 'message' { RETURN NONE; };
+    LET $message = encoding::json::decode($row.record_json);
+    IF $message.crdt_authority_binding = NONE OR $message.crdt_authority_binding = NULL { RETURN NONE; };
+    LET $lanes = SELECT * FROM model_lane_authority WHERE record_kind = 'lane'
+        AND aggregate_id = $message.inner.from_lane_id AND run_id = $row.run_id
+        AND owner_account_id = $row.owner_account_id AND actor_principal_id = $row.actor_principal_id
+        AND authenticated_session_id = $row.authenticated_session_id AND access_space_id = $row.access_space_id
+        AND workspace_id = $row.workspace_id;
+    IF array::len($lanes) != 1 { RETURN NONE; };
+    RETURN $lanes[0];
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_message_lane_input($row: object) {
     IF $row.record_kind NOT IN ['message', 'lane'] { RETURN NONE; };
     LET $record = encoding::json::decode($row.record_json);
     LET $body = IF $row.record_kind = 'message' { $record.inner } ELSE { $record };
+    LET $sender = fn::wp012_model_lane_navigation_sender_lane($row);
+    LET $lane = IF $sender = NONE { NONE } ELSE { encoding::json::decode($sender.record_json) };
+    LET $sender_input = IF $lane = NONE { NONE } ELSE {
+        { lane: { source_kind: 'lane', lane_id: $lane.lane_id, run_id: $lane.run_id,
+            session_id: $lane.session_id, model_session_id: $lane.model_session_id,
+            trace_id: $lane.trace_id, kind: $lane.kind },
+          event_id: $sender.event_id, event_seq: $sender.event_seq, ordering_seq: $sender.ordering_seq }
+    };
     LET $input = IF $row.record_kind = 'message' {
         { source_kind: 'message', message_id: $body.message_id, run_id: $body.run_id,
-          from_lane_id: $body.from_lane_id, kind: $body.kind,
+          source_event_id: $row.event_id, source_event_seq: $row.event_seq,
+          from_lane_id: $body.from_lane_id, to_lane: $body.to_lane, source_lane: $sender_input, kind: $body.kind,
           crdt_update_ref: $body.crdt_update_ref, crdt_base_snapshot_ref: $body.crdt_base_snapshot_ref,
           crdt_state_vector: $body.crdt_state_vector, crdt_proposal_ref: $body.crdt_proposal_ref,
           crdt_stale_base_ref: $body.crdt_stale_base_ref, binding: $record.crdt_authority_binding }
@@ -766,10 +814,59 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_source_input($row: obj
     };
     RETURN object::from_entries(array::filter(object::entries($input), |$entry| { $entry[1] != NONE AND $entry[1] != NULL }));
 };
+-- Derivation is independent of caller authorization so startup can backfill it.
+-- Visibility separately requires every candidate's actual canonical child chain.
+DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_context_candidates($row: object) {
+    IF $row.record_kind NOT IN ['context_handoff', 'context_artifact'] { RETURN []; };
+    LET $body = encoding::json::decode($row.record_json);
+    LET $handoffs = SELECT * FROM model_lane_authority WHERE record_kind = 'context_handoff'
+        AND run_id = $row.run_id AND owner_account_id = $row.owner_account_id
+        AND actor_principal_id = $row.actor_principal_id AND authenticated_session_id = $row.authenticated_session_id
+        AND access_space_id = $row.access_space_id AND workspace_id = $row.workspace_id ORDER BY event_id ASC;
+    RETURN array::filter($handoffs, |$handoff| {
+        LET $context = encoding::json::decode($handoff.record_json);
+        RETURN IF $row.record_kind = 'context_handoff' { $handoff.id = $row.id } ELSE {
+            $context.artifact_ref = $body.artifact_ref AND $context.artifact_sha256 = $body.artifact_sha256
+                AND $context.content_hash = $body.content_hash
+        };
+    });
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_context_message($row: object, $context: object) {
+    LET $body = encoding::json::decode($context.record_json);
+    LET $messages = SELECT * FROM model_lane_authority WHERE record_kind = 'message'
+        AND aggregate_id = $body.source_message_id AND run_id = $row.run_id
+        AND owner_account_id = $row.owner_account_id AND actor_principal_id = $row.actor_principal_id
+        AND authenticated_session_id = $row.authenticated_session_id AND access_space_id = $row.access_space_id
+        AND workspace_id = $row.workspace_id;
+    IF array::len($messages) != 1 { RETURN NONE; };
+    RETURN $messages[0];
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_source_input($row: object) {
+    IF $row.record_kind IN ['message', 'lane'] { RETURN fn::wp012_model_lane_navigation_message_lane_input($row); };
+    IF $row.record_kind NOT IN ['context_handoff', 'context_artifact'] { RETURN NONE; };
+    LET $contexts = fn::wp012_model_lane_navigation_context_candidates($row);
+    RETURN { source_kind: 'context_sources', run_id: $row.run_id, kind: $row.record_kind,
+        inputs: array::map($contexts, |$context| {
+            LET $message = fn::wp012_model_lane_navigation_context_message($row, $context);
+            RETURN { context_event_id: $context.event_id, context_event_seq: $context.event_seq,
+                input: IF $message = NONE { NONE } ELSE { fn::wp012_model_lane_navigation_message_lane_input($message) } };
+        }) };
+};
 DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_source_input_access($row: object) {
     IF $row.navigation_source_input != fn::wp012_model_lane_navigation_source_input($row)
         OR !fn::wp012_model_lane_navigation_selector($row, $navigation_selection) { RETURN false; };
     IF $row.record_kind = 'lane' { RETURN true; };
+    IF $row.record_kind IN ['context_handoff', 'context_artifact'] {
+        LET $candidates = fn::wp012_model_lane_navigation_context_candidates($row);
+        LET $authorized = fn::wp012_model_lane_navigation_context_sources($row);
+        RETURN array::len($candidates) > 0 AND array::len(array::filter($candidates, |$context| {
+            LET $message = fn::wp012_model_lane_navigation_context_message($row, $context);
+            IF $message = NONE OR !fn::wp012_model_lane_navigation_identity($message) { RETURN false; };
+            LET $sender = fn::wp012_model_lane_navigation_sender_lane($message);
+            RETURN array::len(array::filter($authorized, |$item| { $item.id = $context.id; })) = 1
+                AND $sender != NONE AND fn::wp012_model_lane_navigation_identity($sender);
+        })) = array::len($candidates);
+    };
     LET $record = encoding::json::decode($row.record_json);
     LET $body = $record.inner;
     LET $has_crdt = ($body.crdt_update_ref != NONE AND $body.crdt_update_ref != NULL)
@@ -779,8 +876,10 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_source_input_access($r
         OR ($body.crdt_stale_base_ref != NONE AND $body.crdt_stale_base_ref != NULL);
     LET $binding = $record.crdt_authority_binding;
     RETURN IF !$has_crdt { $binding = NONE OR $binding = NULL } ELSE {
-        $binding != NONE AND $binding != NULL AND $binding.workspace_id = $row.workspace_id
-            AND fn::wp012_model_lane_navigation_document_read($row, $binding.document_id)
+        LET $sender = fn::wp012_model_lane_navigation_sender_lane($row);
+        RETURN $binding != NONE AND $binding != NULL AND $binding.workspace_id = $row.workspace_id
+            AND $sender != NONE AND fn::wp012_model_lane_navigation_identity($sender)
+            AND fn::wp012_model_lane_navigation_document_read($row, $binding.document_id);
     };
 };
 DEFINE FIELD OVERWRITE navigation_source_input ON model_lane_authority TYPE option<object>
@@ -791,8 +890,25 @@ DEFINE FIELD OVERWRITE navigation_source_input ON model_lane_authority TYPE opti
 DEFINE FIELD OVERWRITE navigation_source_input.source_kind ON model_lane_authority TYPE string;
 DEFINE FIELD OVERWRITE navigation_source_input.run_id ON model_lane_authority TYPE string;
 DEFINE FIELD OVERWRITE navigation_source_input.kind ON model_lane_authority TYPE string;
+DEFINE FIELD OVERWRITE navigation_source_input.source_event_id ON model_lane_authority TYPE option<string>;
+DEFINE FIELD OVERWRITE navigation_source_input.source_event_seq ON model_lane_authority TYPE option<int>;
 DEFINE FIELD OVERWRITE navigation_source_input.message_id ON model_lane_authority TYPE option<string>;
 DEFINE FIELD OVERWRITE navigation_source_input.from_lane_id ON model_lane_authority TYPE option<string>;
+DEFINE FIELD OVERWRITE navigation_source_input.to_lane ON model_lane_authority TYPE option<object>;
+DEFINE FIELD OVERWRITE navigation_source_input.to_lane.target_kind ON model_lane_authority TYPE 'lane' | 'broadcast' | 'coordinator';
+DEFINE FIELD OVERWRITE navigation_source_input.to_lane.target_id ON model_lane_authority TYPE option<string>;
+DEFINE FIELD OVERWRITE navigation_source_input.source_lane ON model_lane_authority TYPE option<object>;
+DEFINE FIELD OVERWRITE navigation_source_input.source_lane.event_id ON model_lane_authority TYPE string;
+DEFINE FIELD OVERWRITE navigation_source_input.source_lane.event_seq ON model_lane_authority TYPE int;
+DEFINE FIELD OVERWRITE navigation_source_input.source_lane.ordering_seq ON model_lane_authority TYPE option<int>;
+DEFINE FIELD OVERWRITE navigation_source_input.source_lane.lane ON model_lane_authority TYPE object;
+DEFINE FIELD OVERWRITE navigation_source_input.source_lane.lane.source_kind ON model_lane_authority TYPE 'lane';
+DEFINE FIELD OVERWRITE navigation_source_input.source_lane.lane.lane_id ON model_lane_authority TYPE string;
+DEFINE FIELD OVERWRITE navigation_source_input.source_lane.lane.run_id ON model_lane_authority TYPE string;
+DEFINE FIELD OVERWRITE navigation_source_input.source_lane.lane.session_id ON model_lane_authority TYPE string;
+DEFINE FIELD OVERWRITE navigation_source_input.source_lane.lane.model_session_id ON model_lane_authority TYPE string;
+DEFINE FIELD OVERWRITE navigation_source_input.source_lane.lane.trace_id ON model_lane_authority TYPE string;
+DEFINE FIELD OVERWRITE navigation_source_input.source_lane.lane.kind ON model_lane_authority TYPE string;
 DEFINE FIELD OVERWRITE navigation_source_input.lane_id ON model_lane_authority TYPE option<string>;
 DEFINE FIELD OVERWRITE navigation_source_input.session_id ON model_lane_authority TYPE option<string>;
 DEFINE FIELD OVERWRITE navigation_source_input.model_session_id ON model_lane_authority TYPE option<string>;
@@ -805,16 +921,63 @@ DEFINE FIELD OVERWRITE navigation_source_input.crdt_stale_base_ref ON model_lane
 -- Only the existing complete canonical binding is carried; its owning strict
 -- serde decoder is reused under a bounded internal reader, not duplicated here.
 DEFINE FIELD OVERWRITE navigation_source_input.binding ON model_lane_authority TYPE option<object> FLEXIBLE;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs ON model_lane_authority TYPE option<array<object>>;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.context_event_id ON model_lane_authority TYPE string;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.context_event_seq ON model_lane_authority TYPE int;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input ON model_lane_authority TYPE option<object>;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_kind ON model_lane_authority TYPE string;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.run_id ON model_lane_authority TYPE string;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.kind ON model_lane_authority TYPE string;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_event_id ON model_lane_authority TYPE option<string>;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_event_seq ON model_lane_authority TYPE option<int>;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.message_id ON model_lane_authority TYPE option<string>;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.from_lane_id ON model_lane_authority TYPE option<string>;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.to_lane ON model_lane_authority TYPE option<object>;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.to_lane.target_kind ON model_lane_authority TYPE 'lane' | 'broadcast' | 'coordinator';
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.to_lane.target_id ON model_lane_authority TYPE option<string>;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_lane ON model_lane_authority TYPE option<object>;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_lane.event_id ON model_lane_authority TYPE string;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_lane.event_seq ON model_lane_authority TYPE int;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_lane.ordering_seq ON model_lane_authority TYPE option<int>;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_lane.lane ON model_lane_authority TYPE object;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_lane.lane.source_kind ON model_lane_authority TYPE 'lane';
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_lane.lane.lane_id ON model_lane_authority TYPE string;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_lane.lane.run_id ON model_lane_authority TYPE string;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_lane.lane.session_id ON model_lane_authority TYPE string;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_lane.lane.model_session_id ON model_lane_authority TYPE string;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_lane.lane.trace_id ON model_lane_authority TYPE string;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_lane.lane.kind ON model_lane_authority TYPE string;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.lane_id ON model_lane_authority TYPE option<string>;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.session_id ON model_lane_authority TYPE option<string>;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.model_session_id ON model_lane_authority TYPE option<string>;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.trace_id ON model_lane_authority TYPE option<string>;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.crdt_update_ref ON model_lane_authority TYPE option<string>;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.crdt_base_snapshot_ref ON model_lane_authority TYPE option<string>;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.crdt_state_vector ON model_lane_authority TYPE option<string>;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.crdt_proposal_ref ON model_lane_authority TYPE option<string>;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.crdt_stale_base_ref ON model_lane_authority TYPE option<string>;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.binding ON model_lane_authority TYPE option<object> FLEXIBLE;
 
 -- Canonical selected messages determine the dependency set; query-local IDs
 -- never supply provenance or expand the original workspace navigation envelope.
 DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_dependency_sources($scope: object) {
     IF !fn::wp012_model_lane_original_operation($scope) OR $wp012_original_purpose != 'navigation_read'
         OR $navigation_selection = NONE { RETURN []; };
-    RETURN SELECT * FROM model_lane_authority WHERE record_kind = 'message'
+    LET $selected = SELECT * FROM model_lane_authority WHERE record_kind IN ['message', 'context_handoff', 'context_artifact']
         AND owner_account_id = $scope.owner_account_id AND actor_principal_id = $scope.actor_principal_id
         AND authenticated_session_id = $scope.authenticated_session_id AND access_space_id = $scope.access_space_id
-        AND workspace_id = $scope.workspace_id AND fn::wp012_model_lane_navigation_selector($this, $navigation_selection);
+        AND workspace_id = $scope.workspace_id AND fn::wp012_model_lane_navigation_selector($this, $navigation_selection)
+        ORDER BY event_id ASC;
+    RETURN array::flatten(array::map($selected, |$row| {
+        IF $row.record_kind = 'message' { RETURN [$row]; };
+        LET $contexts = fn::wp012_model_lane_navigation_context_sources($row);
+        LET $candidates = fn::wp012_model_lane_navigation_context_candidates($row);
+        RETURN array::filter(array::map($candidates, |$context| {
+            IF array::len(array::filter($contexts, |$authorized| { $authorized.id = $context.id; })) != 1 { RETURN NONE; };
+            LET $message = fn::wp012_model_lane_navigation_context_message($row, $context);
+            RETURN IF $message != NONE AND fn::wp012_model_lane_navigation_identity($message) { $message } ELSE { NONE };
+        }), |$message| { $message != NONE; });
+    }));
 };
 DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_document_read($scope: object, $document: string) {
     LET $canonical = type::record('knowledge_rich_documents', $document);

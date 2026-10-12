@@ -1803,6 +1803,7 @@ struct NavigationDependencyReceipt {
 }
 
 const NAVIGATION_RECEIPT_SNAPSHOT: &str = "SELECT event_id, event_sequence, event_version, aggregate_type, aggregate_id, event_type, source_component FROM kernel_event_ledger WHERE owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id ORDER BY event_id ASC;";
+const NAVIGATION_INPUT_SNAPSHOT: &str = "SELECT navigation_source_input AS input FROM model_lane_authority WHERE navigation_source_input != NONE AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id ORDER BY event_id ASC;";
 const NAVIGATION_SOURCE_SNAPSHOT: &str = "SELECT record_kind, aggregate_id, run_id, event_id, event_seq, ordering_seq FROM model_lane_authority WHERE owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id ORDER BY event_id ASC;";
 
 #[derive(PartialEq, Eq, SurrealValue)]
@@ -2037,7 +2038,7 @@ struct CrdtProposalReceiptRow {
 
 // Internal canonical inputs only; callers must run the owning byte/site/Yjs
 // validator before publishing any CRDT-derived navigation evidence.
-#[derive(SurrealValue)]
+#[derive(PartialEq, SurrealValue)]
 struct NavigationSourceInputRow {
     input: Value,
 }
@@ -2047,8 +2048,12 @@ struct NavigationSourceInputRow {
 pub(crate) struct NavigationMessageInput {
     pub(crate) source_kind: String,
     pub(crate) message_id: String,
+    pub(crate) source_event_id: Option<String>,
+    pub(crate) source_event_seq: Option<i64>,
     pub(crate) run_id: String,
     pub(crate) from_lane_id: String,
+    pub(crate) to_lane: crate::swarm_orchestration::model_lane::ModelLaneTarget,
+    pub(crate) source_lane: Option<NavigationSenderLaneInput>,
     pub(crate) kind: String,
     pub(crate) crdt_update_ref: Option<String>,
     pub(crate) crdt_base_snapshot_ref: Option<String>,
@@ -2056,6 +2061,31 @@ pub(crate) struct NavigationMessageInput {
     pub(crate) crdt_proposal_ref: Option<String>,
     pub(crate) crdt_stale_base_ref: Option<String>,
     pub(crate) binding: Option<crate::swarm_orchestration::model_lane::ModelLaneCrdtAuthorityBinding>,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct NavigationContextInputs {
+    pub(crate) source_kind: String,
+    pub(crate) run_id: String,
+    pub(crate) kind: String,
+    pub(crate) inputs: Vec<NavigationContextSource>,
+}
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct NavigationContextSource {
+    pub(crate) context_event_id: String,
+    pub(crate) context_event_seq: i64,
+    pub(crate) input: Option<NavigationMessageInput>,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct NavigationSenderLaneInput {
+    pub(crate) lane: NavigationLaneInput,
+    pub(crate) event_id: String,
+    pub(crate) event_seq: i64,
+    pub(crate) ordering_seq: Option<i64>,
 }
 
 #[derive(serde::Deserialize)]
@@ -3625,6 +3655,11 @@ impl SurrealModelLaneStore {
                 let before_receipts = transaction.query_values_at::<NavigationDependencyReceipt, _>(
                     NAVIGATION_RECEIPT_SNAPSHOT, bindings.clone(), 0,
                 ).await.map_err(E::from)?;
+                // Includes actual sender lane/receipt identity even when the route
+                // hides that lane from the public scalar collection.
+                let before_inputs = transaction.query_values_at::<NavigationSourceInputRow, _>(
+                    NAVIGATION_INPUT_SNAPSHOT, bindings.clone(), 0,
+                ).await.map_err(E::from)?;
                 let value = NAVIGATION_READ_SELECTOR.scope(selector, operation()).await?;
                 let after = transaction.query_first::<NavigationAuthoritySnapshot, _>(
                     NAVIGATION_AUTHORITY_SNAPSHOT, bindings.clone(),
@@ -3635,11 +3670,15 @@ impl SurrealModelLaneStore {
                 let after_sources = transaction.query_values_at::<SurrealModelLaneNavigationRow, _>(
                     NAVIGATION_SOURCE_SNAPSHOT, bindings.clone(), 0,
                 ).await.map_err(E::from)?;
+                let after_inputs = transaction.query_values_at::<NavigationSourceInputRow, _>(
+                    NAVIGATION_INPUT_SNAPSHOT, bindings.clone(), 0,
+                ).await.map_err(E::from)?;
                 let after_receipts = transaction.query_values_at::<NavigationDependencyReceipt, _>(
                     NAVIGATION_RECEIPT_SNAPSHOT, bindings, 0,
                 ).await.map_err(E::from)?;
                 if before != after || before_grants != after_grants
-                    || before_sources != after_sources || before_receipts != after_receipts {
+                    || before_sources != after_sources || before_receipts != after_receipts
+                    || before_inputs != after_inputs {
                     return Err(E::from(SurrealStorageError::TransactionAuthorityRequired));
                 }
                 Ok(value)
@@ -3699,6 +3738,15 @@ impl SurrealModelLaneStore {
         &self, scope: &ModelLaneScope, row: &SurrealModelLaneNavigationRow,
     ) -> Result<Option<NavigationMessageInput>, SurrealStorageError> {
         if row.record_kind != "message" { return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "navigation message input requires message kind" }); }
+        self.navigation_source_input(scope, row).await
+    }
+
+    pub(crate) async fn navigation_context_inputs(
+        &self, scope: &ModelLaneScope, row: &SurrealModelLaneNavigationRow,
+    ) -> Result<Option<NavigationContextInputs>, SurrealStorageError> {
+        if !matches!(row.record_kind.as_str(), "context_handoff" | "context_artifact") {
+            return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "navigation context source kind differs" });
+        }
         self.navigation_source_input(scope, row).await
     }
 

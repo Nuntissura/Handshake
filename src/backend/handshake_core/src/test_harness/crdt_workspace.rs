@@ -950,7 +950,7 @@ pub async fn build_surreal_admissible_crdt_posture_with_model(
     label: &str,
     model_id: &str,
 ) -> ModelLaneResult<SurrealAdmissibleCrdtPosture> {
-    build_surreal_admissible_crdt_posture_with_operations(store, workspace_id, label, model_id, None, None, None).await
+    build_surreal_admissible_crdt_posture_with_operations(store, workspace_id, label, model_id, None, None, None, None).await
 }
 
 /// Uses separately authorized original workspace creation and document editing operations.
@@ -962,7 +962,20 @@ pub async fn build_surreal_admissible_crdt_posture_authenticated(
     document_update: &AuthenticatedModelLaneTestOperation,
 ) -> ModelLaneResult<SurrealAdmissibleCrdtPosture> {
     build_surreal_admissible_crdt_posture_with_operations(store, workspace_id, label, model_id,
-        Some(document_id), Some((workspace_create, document_update)), None).await
+        Some(document_id), Some((workspace_create, document_update)), None, None).await
+}
+
+/// Initializes the canonical run with the independently computed handoff identity;
+/// all document/lease/proposal/update producers remain the common authenticated chain.
+#[cfg(feature = "test-utils")]
+#[allow(clippy::too_many_arguments)]
+pub async fn build_surreal_admissible_crdt_posture_authenticated_with_context(
+    store: &ModelLaneStore, workspace_id: &str, label: &str, model_id: &str, document_id: &str,
+    workspace_create: &AuthenticatedModelLaneTestOperation,
+    document_update: &AuthenticatedModelLaneTestOperation, context_bundle_id: &str,
+) -> ModelLaneResult<SurrealAdmissibleCrdtPosture> {
+    build_surreal_admissible_crdt_posture_with_operations(store, workspace_id, label, model_id,
+        Some(document_id), Some((workspace_create, document_update)), None, Some(context_bundle_id)).await
 }
 
 #[cfg(feature = "test-utils")]
@@ -978,7 +991,7 @@ pub async fn build_surreal_crdt_realization_counterfactual_authenticated(
     counterfactual: CrdtProposalRealizationCounterfactual,
 ) -> ModelLaneResult<SurrealAdmissibleCrdtPosture> {
     build_surreal_admissible_crdt_posture_with_operations(store, workspace_id, label, model_id,
-        Some(document_id), Some((workspace_create, document_update)), Some(counterfactual)).await
+        Some(document_id), Some((workspace_create, document_update)), Some(counterfactual), None).await
 }
 
 #[cfg(feature = "test-utils")]
@@ -995,6 +1008,7 @@ async fn build_surreal_admissible_crdt_posture_with_operations(
     authenticated_document_id: Option<&str>,
     operations: Option<(&AuthenticatedModelLaneTestOperation, &AuthenticatedModelLaneTestOperation)>,
     realization_counterfactual: Option<CrdtProposalRealizationCounterfactual>,
+    context_bundle_id: Option<&str>,
 ) -> ModelLaneResult<SurrealAdmissibleCrdtPosture> {
     let bound_workspace_id = store
         .write_scope()
@@ -1037,7 +1051,7 @@ async fn build_surreal_admissible_crdt_posture_with_operations(
             run_span_id: format!("run-span-mt018-{label}"),
             coordinator_session_id: coordinator_session_id.clone(),
             routing_policy: "local_first".into(),
-            context_bundle_id: format!("context-bundle-mt018-{label}"),
+            context_bundle_id: context_bundle_id.map(str::to_owned).unwrap_or_else(|| format!("context-bundle-mt018-{label}")),
             lane_ids: vec![lane_id.clone()],
             event_ledger_stream_id: stream_id.clone(),
             artifact_namespace: format!("artifact://mt018/{label}"),
