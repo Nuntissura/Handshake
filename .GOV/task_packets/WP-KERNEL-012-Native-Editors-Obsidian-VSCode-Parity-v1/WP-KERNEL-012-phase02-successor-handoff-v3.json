@@ -1,20 +1,21 @@
 {
   "round36_current_repair_checkpoint_20261012": {
     "id": "WP012-P2-ROUND36-CURRENT-REPAIR-20261012",
-    "latest_compile": "FAILED101 on336ddaca1;126 errors across9 targets;35 actual failed same-core launches",
-    "run_ref": "MT-174.json#/remediation_record/round36_actual_result_20261012",
-    "current_checkpoint": "b75e5e83fb2aa62be45eba686a292c283d88a645",
+    "latest_compile": "Round37 FAILED101 onb3e563f8;98errors49eachlib/libtest;36actualfailedlaunches",
+    "run_ref": "MT-174.json#/round37_actual_result_20261012",
+    "current_checkpoint": "b3e563f8795ac8802ac1fb18afbe34dadd49b1d9",
     "remote_verified": true,
-    "checkpoint_ref": "MT-174.json#/round36_bootstrap_receipt_review_result_20261012",
-    "next_source_repair": "Sole coder inspects exact durable canonical path claim and same-protected-transaction commit witness for supplemental registry ownership/reconciliation P1s. Root admits verified forced dependency only; independent review follows frozen candidate. Sole Delivery core check only after stable source-clear batch, fresh gameplan and resources; no unchanged retry.",
+    "checkpoint_ref": "MT-174.json#/round36_stable_source_release_20261012",
+    "next_source_repair": "Sole phase02_coder connected Round37 source repair after exact diagnosis/dependency mapping; preserve public navigation redaction, original internal authority/payload/hash semantics and assertions. Independent affected source review then changed stable pushed candidate fresh gameplan/resources and sole Delivery required core check.",
     "bootstrap_amendment_ref": "MT-174.json#/round36_bootstrap_catalog_reconciliation_20261012",
     "collector": "Real run exercised pinned Praxidike; BLOCKED due64 diagnostic-group bound and9 unobserved targets; raw log preserved all126 errors; no collector-only rerun",
-    "remaining": "Bootstrap seven source-clear files committed/pushed b75e5e83f; final engine pin unmeasured None. Registry NOT_SOURCE_CLEAR: failed restoration can undo another committed job; unknown original operation lacks authenticated canonical reconciliation. Latest actual Round36 exit101 126 errors9targets35failed launches retained. Core/native/runtime accepted0/5.",
+    "remaining": "Latest actual core Round37 FAILED101 onb3e563f8795ac8802ac1fb18afbe34dadd49b1d9;98errors49eachlib/libtest,36actualfailedlaunches,source/config unchanged. Only resource_authority error conversion and coordinator/routing_execution canonical-record vs redacted-navigation DTO consumers failed. Connected source repair underway; no unchanged retry. Registry publication, measured BASE/FINAL INFO/fresh-reopen, native/auth runtime and independent acceptance still unproven0/5.",
     "runtime_native_acceptance": "NOT_RUN; accepted0/5 unchanged",
     "official_cli_config_ref": "MT-174.json#/round36_official_cli_config_source_review_20261012",
     "bootstrap_review_ref": "MT-174.json#/round36_bootstrap_receipt_review_result_20261012",
     "registry_config_ref": "MT-174.json#/round36_registry_server_config_source_review_20261012",
-    "registry_supplemental_review_ref": "MT-174.json#/round36_registry_supplemental_review_20261012"
+    "registry_supplemental_review_ref": "MT-174.json#/round36_registry_supplemental_review_20261012",
+    "registry_review_ref": "MT-174.json#/round36_stable_source_release_20261012"
   },
   "praxidike_adoption_20261012": {
     "id": "WP012-P2-PRAXIDIKE-HANDOFF-20261012",
@@ -3402,6 +3403,47 @@
         "official_cli_config_ref": "MT-174.json#/round36_official_cli_config_source_review_20261012",
         "bootstrap_review_ref": "MT-174.json#/round36_bootstrap_source_review_20261012",
         "registry_config_ref": "MT-174.json#/round36_registry_server_config_source_review_20261012"
+      }
+    },
+    {
+      "state": "PRE_STABLE_SOURCE_RELEASE",
+      "prior_current_repair": {
+        "id": "WP012-P2-ROUND36-CURRENT-REPAIR-20261012",
+        "latest_compile": "FAILED101 on336ddaca1;126 errors across9 targets;35 actual failed same-core launches",
+        "run_ref": "MT-174.json#/remediation_record/round36_actual_result_20261012",
+        "current_checkpoint": "b75e5e83fb2aa62be45eba686a292c283d88a645",
+        "remote_verified": true,
+        "checkpoint_ref": "MT-174.json#/round36_bootstrap_receipt_review_result_20261012",
+        "next_source_repair": "Sole coder inspects exact durable canonical path claim and same-protected-transaction commit witness for supplemental registry ownership/reconciliation P1s. Root admits verified forced dependency only; independent review follows frozen candidate. Sole Delivery core check only after stable source-clear batch, fresh gameplan and resources; no unchanged retry.",
+        "bootstrap_amendment_ref": "MT-174.json#/round36_bootstrap_catalog_reconciliation_20261012",
+        "collector": "Real run exercised pinned Praxidike; BLOCKED due64 diagnostic-group bound and9 unobserved targets; raw log preserved all126 errors; no collector-only rerun",
+        "remaining": "Bootstrap seven source-clear files committed/pushed b75e5e83f; final engine pin unmeasured None. Registry NOT_SOURCE_CLEAR: failed restoration can undo another committed job; unknown original operation lacks authenticated canonical reconciliation. Latest actual Round36 exit101 126 errors9targets35failed launches retained. Core/native/runtime accepted0/5.",
+        "runtime_native_acceptance": "NOT_RUN; accepted0/5 unchanged",
+        "official_cli_config_ref": "MT-174.json#/round36_official_cli_config_source_review_20261012",
+        "bootstrap_review_ref": "MT-174.json#/round36_bootstrap_receipt_review_result_20261012",
+        "registry_config_ref": "MT-174.json#/round36_registry_server_config_source_review_20261012",
+        "registry_supplemental_review_ref": "MT-174.json#/round36_registry_supplemental_review_20261012"
+      }
+    },
+    {
+      "state": "PRE_ROUND37_TERMINAL",
+      "prior_current_repair": {
+        "id": "WP012-P2-ROUND36-CURRENT-REPAIR-20261012",
+        "latest_compile": "FAILED101 on336ddaca1;126 errors across9 targets;35 actual failed same-core launches",
+        "run_ref": "MT-174.json#/remediation_record/round36_actual_result_20261012",
+        "current_checkpoint": "b3e563f8795ac8802ac1fb18afbe34dadd49b1d9",
+        "remote_verified": true,
+        "checkpoint_ref": "MT-174.json#/round36_stable_source_release_20261012",
+        "next_source_repair": "Sole Delivery fresh numeric gameplan/resource/binding admission then one original changed-candidate core check on clean pushed b3e563f8795ac8802ac1fb18afbe34dadd49b1d9. All source writes released; root retains steering. No unchanged retries or acceptance substitution.",
+        "bootstrap_amendment_ref": "MT-174.json#/round36_bootstrap_catalog_reconciliation_20261012",
+        "collector": "Real run exercised pinned Praxidike; BLOCKED due64 diagnostic-group bound and9 unobserved targets; raw log preserved all126 errors; no collector-only rerun",
+        "remaining": "Latest actual core Round36 FAILED101 on336ddaca1,126errors9targets35failedlaunches retained. Full source repair candidate b3e563f8795ac8802ac1fb18afbe34dadd49b1d9 independently SOURCE_CLEAR and pushed; current compiler proof pending sole Delivery fresh preparation/resources. Actual registry publication, BASE/FINAL measured INFO pins and fresh/reopen, native/authenticated runtime and independent acceptance remain unproven0/5.",
+        "runtime_native_acceptance": "NOT_RUN; accepted0/5 unchanged",
+        "official_cli_config_ref": "MT-174.json#/round36_official_cli_config_source_review_20261012",
+        "bootstrap_review_ref": "MT-174.json#/round36_bootstrap_receipt_review_result_20261012",
+        "registry_config_ref": "MT-174.json#/round36_registry_server_config_source_review_20261012",
+        "registry_supplemental_review_ref": "MT-174.json#/round36_registry_supplemental_review_20261012",
+        "registry_review_ref": "MT-174.json#/round36_stable_source_release_20261012"
       }
     }
   ],
