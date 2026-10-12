@@ -312,6 +312,8 @@ Workflow v3 amendments (2026-10-11T02:12:42Z, source workflow/workflow-review-ti
 
 - Lead decision 2026-10-11T23:27:25Z (pigment follow-ups b8b31c7): knockout, unsupported adjustment kinds and unsupported effect features remain typed errors on unreachable envelope entries (structural validity of the plan, not a backend capability); render-gpu admission follows the shared pigment change without a render-gpu code change (lane blocked on D20).
 
+- Lead decision 2026-10-12T01:05:36Z (press R16 pre-review P-1): a painted region source that survives in a redaction output is 'certain' only when a kept page actually draws it (executed content); every other surviving reference (undrawn kept-page /Resources entry, plain key of a drawn object, catalog /AF /Names /Dests, trailer roots) is reported NotProven::PaintedSourceKept or pruned; docs state exactly that.
+
 Open Operator decisions (not adopted; recorded for the Operator):
 - D1: explicit confirmation that builder focused tests override CX-EXEC-014 for this WP (lead adopted on the basis of Operator instructions; Operator may reverse).
 - D2: waive CX-984-002 one-build-per-disk for D: (would let validator rounds and builders build in parallel on separate targets).

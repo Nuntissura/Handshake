@@ -2305,6 +2305,19 @@
    ],
    "launched": "2026-10-12T00:52:48Z",
    "status": "running"
+  },
+  {
+   "name": "rem-notes-batch-1-r16",
+   "agent_id": "aa299e0c405604f18",
+   "model": "sonnet",
+   "role": "press P-1 fail-closed report + psd I-1 doc rider + W-1 note",
+   "owns": [
+    "crates/hsk-studio-press/**",
+    "crates/hsk-studio-interop-psd/**",
+    "builders/lanes/notes-batch-1.json"
+   ],
+   "launched": "2026-10-12T01:05:36Z",
+   "status": "running"
   }
  ]
 }
