@@ -320,6 +320,23 @@
     "idempotency_key": "STUDIO-R21:SMB-PRESS-STRUCT-FAILCLOSED:2dde8324d111:PASS_V1",
     "recorded_at": "2026-10-12T09:54:57Z",
     "by": "wp_validator STUDIO-R21"
+   },
+   {
+    "round": "STUDIO-R22",
+    "lane": "SMB-PRESS-STRUCT-FAILCLOSED",
+    "candidate": "1da2453344edad12cf4bcf796a87c29a7fa594b5",
+    "tree": "8e2766ff0936ed171039fd40a1d531b6f2a82caa",
+    "decision": "passed",
+    "verdict": "PASS_V2",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V2",
+    "review": "validation/R25-prereview-narrow.json lanes[0] SMB-PRESS-STRUCT-ORPHANS SAFE_TO_JUDGE at 1da2453 (R25-P1 INFO item 1 settled; R25-P2 PLAUSIBLE = PLR-103; R25-P3/P4/P5 INFO = PLR-105; R25-P6 INFO; R25-P7 INFO = PLR-104 pre-existing; R25-P8 INFO process); R23 (FIX_FIRST -> 08:41:40Z) and R24 (SAFE at 2dde832) stand for the lane's own range (V4-18)",
+    "round_ref": "validation/round-R22.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R22",
+    "idempotency_key": "STUDIO-R22:SMB-PRESS-STRUCT-FAILCLOSED:1da2453344ed:PASS_V2",
+    "recorded_at": "2026-10-12T11:20:19Z",
+    "by": "wp_validator STUDIO-R22"
    }
   ]
  }

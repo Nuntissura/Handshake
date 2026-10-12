@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-12T10:59:15Z",
+ "updated_at": "2026-10-12T11:22:02Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -2628,7 +2628,7 @@
     "validation/round-R22.json"
    ],
    "launched": "2026-10-12T10:59:15Z",
-   "status": "running"
+   "status": "done (R22: 18 PASS, 0 FAIL; kernel 900c2401)"
   }
  ]
 }

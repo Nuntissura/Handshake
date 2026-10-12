@@ -1,0 +1,772 @@
+{
+ "round": 22,
+ "round_id": "STUDIO-R22",
+ "round_opened": true,
+ "rule_refs": [
+  "CX-VAL-001",
+  "CX-VAL-002",
+  "CX-VAL-003",
+  "CX-VAL-004",
+  "CX-VAL-005",
+  "CX-VAL-006",
+  "CX-VAL-007",
+  "CX-VAL-008",
+  "CX-VAL-009",
+  "CX-VAL-010",
+  "CX-STATUS-001",
+  "CX-STATUS-002",
+  "CX-STATUS-003",
+  "CX-EXEC-015",
+  "CX-VERIFY-002",
+  "V4-03 NOT_PROVEN",
+  "V4-04",
+  "V4-06",
+  "V4-07",
+  "V4-13",
+  "V4-14",
+  "V4-18",
+  "V4-19"
+ ],
+ "candidate": "1da2453344edad12cf4bcf796a87c29a7fa594b5",
+ "tree": "8e2766ff0936ed171039fd40a1d531b6f2a82caa",
+ "candidate_note": "named by lead (ledger round_R22, opened 10:58:34Z); steward-5 in sync since 9ffe946 (no lock input changed); origin tip == edit HEAD == 1da2453 (git ls-remote 11:00:44Z; refs/remotes/origin == HEAD; no fetch by this validator); 2dde832..1da2453 = four commits: c4c31cd (interop-psd), 0cb7103, dce563e, 1da2453 (press); 9 files, all under crates/hsk-studio-interop-psd (4) and hsk-studio-press (5); Cargo.toml, Cargo.lock, tools/, .config/, rust-toolchain.toml unchanged (git diff empty)",
+ "round_identity_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/ROUND_IDENTITY.json",
+ "export": {
+  "file_count": 892,
+  "manifest_sha256": "9e3ae7db60813ba651f72fedf42752d48cdb1bd58998eedc365ee743f9882457",
+  "git_blob_equal": true,
+  "refresh": "kernel tools/export-refresh.sh in place 2026-10-12T11:01:28Z: 0 added, 9 changed, 883 unchanged, 0 deleted, blob_mismatch 0 (from 2dde832; exactly the 9 files of 2dde832..1da2453); manifest equals steward canary C27 export (9e3ae7db); round.json export_manifest_sha256 equal"
+ },
+ "started_at": "2026-10-12T11:03:36Z",
+ "completed_at": "2026-10-12T11:20:19Z",
+ "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R22",
+ "running_record": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/RUNNING-R22.jsonl (opened + running 11:03:36Z, completed 11:05:03Z, verdicts_accepted 11:12:24Z before the state write, verdicts_recorded after it)",
+ "gameplan": ".GOV/task_packets/WP-KERNEL-STUDIO/gameplans/STUDIO-MODULE-ROUND.yaml (pointer studio-round/.gameplan-active) before_round PASS 12/12 @edit HEAD 1da2453 (GP-001 origin == HEAD; GP-003 lock audit 11:02:27Z held none, queue 0, no cargo or rustc process, only an idle sccache server pid 355856 not started by this session; GP-005 LongPathsEnabled=1; GP-009 the diff adds no env, config or file read; GP-010 export identity 1da2453 / 9e3ae7db; GP-013 entrypoint + config unchanged since the green R21 and canary C27-1da2453 exit 73 = NOT_PROVEN interop-fig only, 59 units green; GP-004/GP-012 machine checks passed)",
+ "canary": {
+  "reused": true,
+  "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/steward-export/results/C27-1da2453",
+  "round_json_sha256": "6c91eb942e3457972239095b17e68912a40bac255ddd0a5ca9bd6775db7999ce",
+  "sha": "1da2453344edad12cf4bcf796a87c29a7fa594b5",
+  "export_manifest_sha256": "9e3ae7db60813ba651f72fedf42752d48cdb1bd58998eedc365ee743f9882457",
+  "summary": "steward canary via the same entrypoint on the same SHA and identical export manifest: exit 73 (only NOT_PROVEN interop-fig actual_fig_instance_variable_prototype_edit_reopen, D17), 59 units build 0/run 0, absent 0, timed_out 0 (log studio-team-dev/steward/C27-1da2453.log); canary profile runs one test per package (34 run), so the union run below is still required for the judged crates",
+  "reuse_basis": "CX-VERIFY-002 + lead dispatch (GP-013); canary exit 73 accepted because its only non-zero cause is NOT_PROVEN accounting (R10-R21 precedent)"
+ },
+ "union": {
+  "selection": [
+   "hsk-studio-press",
+   "hsk-studio-interop-psd"
+  ],
+  "selection_rule": "crates changed 2dde832..1da2453 (press, interop-psd) + workspace members whose dependency closure contains them (tomllib over the 35 crates/*/Cargo.toml at 1da2453 incl. dev/build/target dependencies, cross-checked against Cargo.lock: none; git grep finds neither crate named in any member manifest); root inputs unchanged; reel and reel-native (judged R21 at 2dde832) and every other crate unchanged with their closures (proof reuse)",
+  "argv": "bash tools/[round entry script] --results <studio-round>/results/R22 --target-dir <studio-round>/target hsk-studio-press hsk-studio-interop-psd (cwd export; absolute D: paths; no caller env)",
+  "target_dir": "Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/target (warm from R21; the selected crates recompiled where the export mtimes changed)",
+  "started_at": "2026-10-12T11:04:03Z",
+  "ended_at": "2026-10-12T11:04:54Z",
+  "build_exit": 0,
+  "run_exit": 0,
+  "exit": 0,
+  "summary": "default 226/226 passed (press 164, interop-psd 62); 2 doctest units exit 0 (no doctests); 3 units; absent [] timed_out []; NOT_PROVEN 0 -> exit 0",
+  "units": 3,
+  "not_proven_count": 0,
+  "hashes": {
+   "round.json": "379b7f90b047ad3be50fd8c0236809921c452e0b95dd81aa18cb4b20e72d1ba4",
+   "tests.json": "859bbc561058caa24174243e4c575eac18365aea47cf699e14bb87b3565c715a",
+   "junit.xml": "2e5b8cf510e33f6e10229c15f576c4902cea0462bbe691fb9f708637f07990d4",
+   "run.stderr.txt": "9b58dc4c3b9faa9a2a9ebd5ae0df31b506d31009694d177a1657c69f29a39409",
+   "build.stderr.txt": "b40bc920e40e86df09ba0bc9ffd314b0c145188e0657827f339164c53980a947",
+   "units.tsv": "d7c9a9a31e250a2054dca83ba430fc882ab637a281ab3d787eefee71162971fa",
+   "oracle-corpus.manifest.txt": "6250f625a57f343bae3392dab23cd334507ee195638c3444f1da784b38ac426b",
+   "step0.policy.json": "885a9bd86e044ba4ac436012c10c37d4eb74403ee292111c1f3b4325c8e3877b"
+  },
+  "per_crate_default": {
+   "press": 164,
+   "interop-psd": 62
+  },
+  "test_set_check": "vs R21 tests.json (unit + crate + binary + name) for the selected crates: 223 -> 226; press 161 -> 164 (+3 by the SMB-PRESS-STRUCT-ORPHANS claim), interop-psd 62 -> 62; missing 0; 226 passed, 0 failed, 0 skipped, 0 NOT_PROVEN",
+  "step0": "cargo metadata --locked --offline ok; machine-path violations 0 (13 files with pinned hits, pins_dropped {}); step0.policy.json byte-identical to R21 (885a9bd8); lock_sha256 86547db9 = R21",
+  "oracle_corpus": {
+   "file_count": 36,
+   "manifest_sha256": "6250f625a57f343bae3392dab23cd334507ee195638c3444f1da784b38ac426b",
+   "note": "36 files (R21: 35; the corpus is outside the export and changed between rounds, not by this validator); no selected crate uses an oracle fixture (fixtures [])"
+  },
+  "fixtures": [],
+  "disk_lock": "schema @2 class round: holds 1, yields 0 (slice 300 s), waited 0 s, broke_stale none, 11:04:10Z..11:04:54Z",
+  "env": {
+   "set_by_entrypoint": [
+    "CARGO_TARGET_DIR",
+    "TMP",
+    "TEMP",
+    "TMPDIR",
+    "CARGO_PROFILE_DEV_DEBUG",
+    "CARGO_PROFILE_TEST_DEBUG",
+    "CARGO_TERM_COLOR"
+   ],
+   "env_added_by_caller": "none (CX-VAL-007)",
+   "rustc_wrapper": "",
+   "tools": {
+    "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+    "cargo": "cargo 1.97.1 (c980f4866 2026-06-30)",
+    "test_runner": "cargo-nextest 0.9.148 (cd1d6d546 2026-10-07)"
+   }
+  }
+ },
+ "junit_success_output_checks": [
+  "tests.json status passed for every new test: press detached_structure_elements_are_reported, structure_shape_is_read_from_the_parsed_dictionary, structure_rules_apply_only_when_a_region_is_flattened; changed tests structure_parents_left_in_the_file_are_reported, structure_tree_keys_are_read_as_names_not_text, descriptor_states_the_structure_tree_rule, descriptor_states_the_loss_detail_and_the_list_cap_rules passed; carried claim tests tagged_documents_read_not_proven_whatever_the_tree_looks_like, untagged_documents_and_stripped_trees_still_read_flattened, kept_annotation_with_a_flattened_p_is_reported, structure_and_widgets_of_flattened_pages_are_removed, flattened_page_annotations_leave_and_structure_elements_stay, silent_painted_source_visibility_is_not_checked, descriptor_states_that_painted_source_silence_is_syntactic, painted_source_referenced_by_a_kept_catalog_structure_is_reported, descriptor_states_the_painted_source_condition_and_the_purge_categories, descriptor_states_the_importers_over_counts, the_importer_counts_layers_without_pixels_and_clipped_layers_on_hidden_or_empty_bases, the_descriptor_readers_8192_item_cap_is_measured_per_effect_kind_and_stated_in_the_descriptor, the_ceiling_loss_names_the_count_of_the_instances_it_dropped_and_adds_no_note_for_them, folios_per_stack_ceiling_cuts_only_the_switched_off_instances_of_a_stack_with_counted_instances, a_stack_past_folios_ceiling_is_a_typed_loss_not_a_rejected_import, blend_if_on_a_clip_base_or_a_clipped_layer_keeps_the_ranges_and_reports_the_refusal, effects_with_blend_if_on_one_layer_is_a_typed_loss_and_both_stay_in_the_record, mask_on_a_pass_through_group_is_a_typed_loss_and_the_mask_stays_in_the_document passed"
+ ],
+ "not_proven": [],
+ "not_proven_note": "V4-03: no NOT_PROVEN line in this union (the canary's only NOT_PROVEN is interop-fig D17, outside the selection)",
+ "adversarial_review": {
+  "refs": {
+   "validation/R25-prereview-narrow.json": "COMPLETE 2026-10-12T10:50:19Z (2dde832..1da2453; press SAFE_TO_JUDGE: R25-P1 INFO, R25-P2 PLAUSIBLE = PLR-103, R25-P3/P4/P5 INFO = PLR-105, R25-P6 INFO, R25-P7 INFO = PLR-104, R25-P8 INFO; psd SAFE_TO_JUDGE: R25-S1 INFO, R25-S2 CONFIRMED doc nit = PLR-106; two_fail_lanes_reopened SMB-PRESS, SMB-INTEROP-PSD-BUDGET; no dependent crate)",
+   "validation/R23-prereview-narrow.json + validation/R24-prereview-press-narrow.json": "stand for 3930a7c..2dde832 (V4-18)",
+   "validation/R16-prereview-notes-narrow.json": "COMPLETE (web, reel-native crates; unchanged since, V4-18)"
+  },
+  "coverage": "V4-13: two-FAIL lanes SMB-PRESS and SMB-INTEROP-PSD-BUDGET covered by R25 SAFE_TO_JUDGE at 1da2453 (same diff). Validator's own read at the 1da2453 export: the press src diff 2dde832..1da2453 in full (flatten.rs, flatten_purge.rs, sanitized_save.rs; lib.rs via the parsed DESCRIPTOR), flatten_purge.rs:1059-1207, sanitized_save.rs:1393-1590 (is_proven, region_reasons, region_flattened, region_cleared, redact_and_save_with), flatten.rs:578-586, syntax.rs:475-480; tests/flatten_r13.rs diff in full; interop-psd diff -U0 non-comment lines, effects.rs:575-710 (map_stack, drop_switched_off), descriptor.rs:21/:128/:176-201; DESCRIPTORs of both crates parsed as JSON at both revisions and diffed leaf by leaf (press 203 -> 203, psd 60 -> 60); V4-06 regexes of both lanes re-run with git grep at both revisions (press 201/156, psd A 27, B 39 + 3 = lanes); workspace dependency closure recomputed from the manifests and Cargo.lock; no validator probe beyond the union (CX-VERIFY-001): R25's 32-input probe stands as recorded",
+  "fold_rule": "R12-R21 convention: every CONFIRMED finding re-read at the cited file:line in the export; a CONFIRMED product defect in a judged lane's claimed scope that this delta caused or claims to cover drives a FAIL on the lane that owns it; CONFIRMED doc-only items are notes + PLR (lead fold convention); PLAUSIBLE/INFO items are notes; PLR-097, PLR-100, PLR-103, PLR-104, PLR-105, PLR-106 are registered and not charged (dispatch)",
+  "fold_decisions": [
+   {
+    "finding": "R25-P1 (INFO, item 1 settled)",
+    "owner": "SMB-PRESS-STRUCT-ORPHANS",
+    "decision": "note",
+    "why": "the check reads the saved bytes (sanitized_save.rs:1546, :1548, :1569, :1571); every shape the claim names is reported wherever the saved file holds it"
+   },
+   {
+    "finding": "R25-P2 (PLAUSIBLE) = PLR-103",
+    "owner": "SMB-PRESS-STRUCT-ORPHANS",
+    "decision": "note, not charged",
+    "why": "the claim and the DESCRIPTOR state the residual (/S and a text key but no /P and no /Type not read as an element); a conforming element carries /P (third-party reference read by R25, ISO text not read)"
+   },
+   {
+    "finding": "R25-P3, R25-P4, R25-P5 (INFO) = PLR-105",
+    "owner": "SMB-PRESS-STRUCT-ORPHANS",
+    "decision": "notes, not charged",
+    "why": "outside the claim as written: values past the DESCRIPTOR's documented 16-hop reader bound read null crate-wide; bytes that the stream's own header does not make members (or a stream without /Type /ObjStm) are not object-stream members; the trailer /ID is not a catalog-reachable dictionary"
+   },
+   {
+    "finding": "R25-P6 (INFO)",
+    "owner": "SMB-PRESS-STRUCT-ORPHANS",
+    "decision": "note",
+    "why": "check_document is pub(crate) with one call site; flattens is derived from the flatten output; a non-empty region list always flattens or errors"
+   },
+   {
+    "finding": "R25-P7 (INFO, pre-existing) = PLR-104",
+    "owner": "SMB-PRESS",
+    "decision": "note, not charged (dispatch; validator note V-2)",
+    "why": "no hunk of 2dde832..1da2453 touches drop_painted_sources or resource handling; a marked-content property list has no structure-element shape, so the delta neither caused nor claims to cover it"
+   },
+   {
+    "finding": "R25-P8 (INFO process)",
+    "owner": "SMB-PRESS-STRUCT-ORPHANS",
+    "decision": "note",
+    "why": "mutants m1-m14 not rerun; killing rows exist and assert the opposite by reading"
+   },
+   {
+    "finding": "R25-S1 (INFO)",
+    "owner": "SMB-INTEROP-PSD-DOCS",
+    "decision": "note",
+    "why": "no code token changed; wording matches map_stack and descriptor.rs"
+   },
+   {
+    "finding": "R25-S2 (CONFIRMED doc nit) = PLR-106",
+    "owner": "SMB-INTEROP-PSD-DOCS",
+    "decision": "note, not charged (fold convention)",
+    "why": "proposal.rs:531-532 omits the instance composition; the sentence stays arithmetically true and cites the measuring test"
+   }
+  ],
+  "not_reviewed": [
+   "web part of SMB-NOTES-BATCH-1 and composite/render-cpu/render-gpu parts of SMB-FX-OPS-ADOPT were not re-read (byte-unchanged with their closures since the R16 runs that proved them); reel-native part of SMB-NOTES-BATCH-1 not re-read (unchanged since R21)",
+   "no validator probe of the press shape rule beyond the union (CX-VERIFY-001): R25's 32-input probe and the lane's red/mutant record stand as recorded",
+   "PLR-104 not re-run by the validator: R25-P7 run evidence and the validator's reading of flatten_purge.rs:53-56 only"
+  ],
+  "validator_disagreements": [],
+  "validator_notes": [
+   {
+    "id": "V-1",
+    "severity": "INFO (judgement record)",
+    "crate": "hsk-studio-press",
+    "file_line": "src/sanitized_save.rs:1569; src/flatten_purge.rs:1179-1207; kernel builders/lanes/hsk-studio-press-struct-failclosed.json notes.claim.text",
+    "finding": "PLR-101 narrows the R21 SMB-PRESS-STRUCT-FAILCLOSED claim ('a saved redaction output whose document has a structure tree ... reads region_flattened false ...') to saves that flatten at least one region: a tagged document saved with no region now reads proven with empty reports. Authorized by the PLR-101 lead disposition 2026-10-12T09:04:25Z (register) and accepted as built 10:26:38Z; judged against the narrowed claim",
+    "evidence": "code read at 1da2453; structure_rules_apply_only_when_a_region_is_flattened green; sanitized_save.rs:1497-1505 (no region: no reports, no needles)",
+    "remediation": "lead: reword the STRUCT-FAILCLOSED kernel claim text to 'a redaction save that flattened at least one region'"
+   },
+   {
+    "id": "V-2",
+    "severity": "INFO (judgement record)",
+    "crate": "hsk-studio-press",
+    "file_line": "src/flatten_purge.rs:53-56 (drop_painted_sources gates /XObject /Pattern /Shading /ExtGState /Font); DESCRIPTOR redaction.flatten.purge 'the redaction proof covers untagged documents'",
+    "finding": "PLR-104 (R25-P7: marked-content /Alt or /ActualText of a flattened page kept in shared or inherited /Properties of an untagged document while the save reads proven) lies inside SMB-PRESS's untagged-document scope, as its register entry says; it predates 2dde832..1da2453 and is registered FIX_LANE PRIORITY, so it is not charged (dispatch). Until it lands the DESCRIPTOR sentence 'the redaction proof covers untagged documents' (unchanged since R21) over-states for that class",
+    "evidence": "R25-P7 run X2a/X2b (not re-run); validator reading of the gate; git diff 2dde832..1da2453 has no hunk in drop_painted_sources",
+    "remediation": "next press lane (PLR-104): purge or fail closed; until then name the class as a residual next to the untagged-document sentence"
+   }
+  ],
+  "lead_decisions_applied": [
+   "ledger round_R22 (ready SMB-PRESS-STRUCT-ORPHANS, SMB-INTEROP-PSD-DOCS; CX-VAL-009 reopen of press and interop-psd lanes, no dependants; two-FAIL rechecks R25 SAFE; excluded render-gpu lanes + SMB-ROUND-ENTRYPOINT + SMB-RENDER-GPU-ADJ/PROBE (D20), interop-media (D9))",
+   "START_LOG 2026-10-12T08:41:40Z STRUCTURE TREE = NOT PROVEN; 2026-10-12T10:26:38Z SMB-PRESS-STRUCT-ORPHANS accepted as built (StructTreeRoot shape, /SE, one shared +1, PLR-103 residual); register PLR-101 lead disposition 2026-10-12T09:04:25Z (scope to saves that flatten a region); D28 Operator item open",
+   "START_LOG D27 (Operator 2026-10-11T17:59:47Z 'Flatten + narrow') and 2026-10-12T02:48:02Z MINIMAL DRAW SET (unchanged in this range)",
+   "START_LOG 2026-10-12T05:10:24Z (PLR-084 DOC: silence is syntactic; residual byte-equal in this range)",
+   "START_LOG 2026-10-11T14:41:47Z, 15:29:19Z, 15:43:55Z (PSD budget: uncounted cap, two-sided tally, visible stack keeps live instances)",
+   "START_LOG 2026-10-12T05:49:17Z (R21-S1: a visible stack over the 1024 ceiling drops all its switched-off instances with one typed loss; unchanged by c4c31cd)",
+   "START_LOG 2026-10-12T06:16:47Z (PLR-086 DOC: the 512-entry list cap is a category-blind parse bound; the 8192-item scoping in the source docs judged against the same stance)",
+   "lead fold convention: CONFIRMED doc-only finding -> note + PLR; PLR-097, PLR-100, PLR-103, PLR-104, PLR-105, PLR-106 registered, not charged"
+  ]
+ },
+ "proof_reuse": {
+  "basis": "CX-VAL-002: crate source + workspace-dep closure + root inputs unchanged from each proof commit to 1da2453 (2dde832..1da2453 touches only press and interop-psd; no member depends on either); the round-R21 proof_reuse list (81) and the 11 reel / reel-native lanes judged at R21 @2dde832 unchanged; reused verdicts name both commits (proof commit in each entry, candidate 1da2453); no new verdict",
+  "lanes": [
+   "SMB-TYPE (PASS_V5 @404ff3a)",
+   "SMB-LAYOUT (PASS_V5 @f6e5a49)",
+   "SMB-DEVELOP (PASS_V9 @5606d16)",
+   "SMB-COMPONENTS (PASS_V5 @f6e5a49)",
+   "SMB-PULSE (PASS_V5 @f6e5a49)",
+   "SMB-SCORE (PASS_V4 @f6e5a49)",
+   "SMB-REEL (PASS_V13 @2dde832)",
+   "SMB-MOTION (PASS_V1 @404ff3a)",
+   "SMB-COMPOSITE (PASS_V9 @5606d16)",
+   "SMB-RENDER-CPU (PASS_V9 @5606d16)",
+   "SMB-PACKAGE (PASS_V5 @f6e5a49)",
+   "SMB-INTEROP-VECTOR (PASS_V6 @3d795a5)",
+   "SMB-INTEROP-FIG (PASS_V3 @3d795a5)",
+   "SMB-INTEROP-LAYOUT (PASS_V5 @3d795a5)",
+   "SMB-CONTROLS (PASS_V3 @bd8533f)",
+   "SMB-SESSION (PASS_V5 @f6e5a49)",
+   "SMB-HARNESS (PASS_V3 @f6e5a49)",
+   "SMB-KERNEL-BINDINGS (PASS_V3 @f6e5a49)",
+   "SMB-WEB (PASS_V5 @5606d16)",
+   "SMB-SCORE-DEVICE (PASS_V3 @f6e5a49)",
+   "SMB-SCORE-PLUGIN (PASS_V4 @4d80e50)",
+   "SMB-INTEROP-LRCAT (PASS_V2 @bd8533f)",
+   "SMB-MOTION-JS (PASS_V3 @dff7ef5)",
+   "SMB-PRISM-ENG-1 (PASS_V4 @dff7ef5)",
+   "SMB-TYPE-ENG-1 (PASS_V1 @1d404f8)",
+   "SMB-REEL-ENG-1 (PASS_V7 @2dde832)",
+   "SMB-REEL-ENG-3 (PASS_V11 @2dde832)",
+   "SMB-PULSE-ENG-1 (PASS_V3 @f6e5a49)",
+   "SMB-PRISM-ENG-2 (PASS_V4 @dff7ef5)",
+   "SMB-PRISM-ENG-3 (PASS_V3 @dff7ef5)",
+   "SMB-PRISM-ENG-4 (PASS_V4 @dff7ef5)",
+   "SMB-PRISM-ENG-5 (PASS_V3 @dff7ef5)",
+   "SMB-TYPE-DOCTEST (PASS_V1 @1d404f8)",
+   "SMB-FOLIO-ENG-1 (PASS_V5 @f6e5a49)",
+   "SMB-PIGMENT-ENG-1 (PASS_V9 @5606d16)",
+   "SMB-TYPE-ENV (PASS_V1 @404ff3a)",
+   "SMB-ACCORD-ENG-1 (PASS_V1 @404ff3a)",
+   "SMB-TYPE-FONTS (PASS_V1 @404ff3a)",
+   "SMB-TYPE-FIXTURES (PASS_V1 @404ff3a)",
+   "SMB-FOLIO-ENG-2 (PASS_V5 @f6e5a49)",
+   "SMB-NIB-ENG-1 (PASS_V2 @1d404f8)",
+   "SMB-FOLIO-ENG-3 (PASS_V5 @f6e5a49)",
+   "SMB-ACCORD-ENG-2 (PASS_V1 @404ff3a)",
+   "SMB-RENDER-CPU-CLIP (PASS_V9 @5606d16)",
+   "SMB-MOTION-JS-WORKER (PASS_V2 @dff7ef5)",
+   "SMB-COMPOSITE-CLIP-ALIGN (PASS_V9 @5606d16)",
+   "SMB-LAYOUT-FOLIO-MIGRATE (PASS_V4 @f6e5a49)",
+   "SMB-FOLIO-ENG-4 (PASS_V4 @f6e5a49)",
+   "SMB-DEVELOP-WIDE (PASS_V6 @5606d16)",
+   "SMB-PACKAGE-STREAM-SAVE (PASS_V4 @f6e5a49)",
+   "SMB-PRISM-ENG-6 (PASS_V2 @dff7ef5)",
+   "SMB-COMPONENTS-FOLIO-MIGRATE (PASS_V4 @f6e5a49)",
+   "SMB-INTEROP-VECTOR-FOLIO-MIGRATE (PASS_V5 @3d795a5)",
+   "SMB-REEL-NATIVE-AV1-WORKER (PASS_V12 @2dde832)",
+   "SMB-REEL-AV1-ROUTE (PASS_V11 @2dde832)",
+   "SMB-PIGMENT-ENG-2 (PASS_V7 @5606d16)",
+   "SMB-MOTION-JS-SANDBOX-2 (PASS_V1 @dff7ef5)",
+   "SMB-PRISM-ENG-7 (PASS_V1 @dff7ef5)",
+   "SMB-COMPOSITE-ADJ (PASS_V6 @5606d16)",
+   "SMB-RENDER-CPU-ADJ (PASS_V6 @5606d16)",
+   "SMB-EFFECTS-WAVE-1 (PASS_V6 @5606d16)",
+   "SMB-EFFECTS-WAVE-2 (PASS_V6 @5606d16)",
+   "SMB-FOLIO-ENG-6 (PASS_V2 @f6e5a49)",
+   "SMB-FOLIO-ENG-7 (PASS_V2 @f6e5a49)",
+   "SMB-CHRONICLE-TABLE (PASS_V2 @f6e5a49)",
+   "SMB-PIGMENT-WINDOW (PASS_V6 @5606d16)",
+   "SMB-RENDER-CPU-WINDOW (PASS_V6 @5606d16)",
+   "SMB-INTEROP-VECTOR-RECORDS (PASS_V3 @3d795a5)",
+   "SMB-WEB-DIFFTEST (PASS_V2 @5606d16)",
+   "SMB-RENDER-CPU-FX2 (PASS_V6 @5606d16)",
+   "SMB-PRISM-ENG-8 (PASS_V1 @dff7ef5)",
+   "SMB-DEVELOP-JOBS (PASS_V6 @5606d16)",
+   "SMB-PIGMENT-BLENDIF-CLIP (PASS_V6 @5606d16)",
+   "SMB-BLENDIF-CLIP-ADOPT (PASS_V6 @5606d16)",
+   "SMB-PIGMENT-PLANLIMITS (PASS_V3 @5606d16)",
+   "SMB-REFUSAL-KEYS (PASS_V5 @5606d16)",
+   "SMB-SCORE-GUARDS (PASS_V1 @f6e5a49)",
+   "SMB-COMPONENTS-FOOTPRINT (PASS_V1 @f6e5a49)",
+   "SMB-FOLIO-UNIQUENESS (PASS_V1 @f6e5a49)",
+   "SMB-PIGMENT-FX-OPS (PASS_V5 @5606d16)",
+   "SMB-PIGMENT-ADMIT-PARITY (PASS_V5 @5606d16)",
+   "SMB-SCORE-PLUGIN-RATE (PASS_V1 @4d80e50)",
+   "SMB-PARITY-FOLLOWUP (PASS_V4 @5606d16)",
+   "SMB-REEL-NATIVE-FAULTS (PASS_V9 @2dde832)",
+   "SMB-WEB-PARITY (PASS_V2 @5606d16)",
+   "SMB-REEL-RECEIPTS (PASS_V4 @2dde832)",
+   "SMB-REEL-NATIVE-FAULTS-2 (PASS_V5 @2dde832)",
+   "SMB-PIGMENT-FOLLOWUPS (PASS_V2 @5606d16)",
+   "SMB-PIGMENT-NOTES (PASS_V1 @5606d16)",
+   "SMB-REEL-PARTIAL-PTS (PASS_V3 @2dde832)",
+   "SMB-REEL-PARTIAL-PTS-2 (PASS_V2 @2dde832)",
+   "SMB-REEL-PTS-TESTS (PASS_V1 @2dde832)"
+  ],
+  "count": 92
+ },
+ "excluded": [
+  {
+   "lane": "SMB-RENDER-GPU",
+   "reason": "not_judged: CX-EXEC-015(1) fix_budget_exhausted, Operator decision D20 pending (render-gpu not in the union; crate unchanged since R16)"
+  },
+  {
+   "lane": "SMB-RENDER-GPU-ADJ",
+   "reason": "not_judged: render-gpu lanes excluded (D20); BLOCKED; not proof-reused"
+  },
+  {
+   "lane": "SMB-RENDER-GPU-PROBE",
+   "reason": "not_judged: no READY claim; render-gpu D20"
+  },
+  {
+   "lane": "SMB-ROUND-ENTRYPOINT",
+   "reason": "not_judged: CX-EXEC-015(1) fix_budget_exhausted, Operator decision D20 pending (entrypoint used for this round as infrastructure)"
+  },
+  {
+   "lane": "SMB-INTEROP-MEDIA, SMB-INTEROP-MEDIA-PULSE",
+   "reason": "not_judged: BLOCKED on Operator D9 (crate and lock closure unchanged)"
+  },
+  {
+   "lane": "queued/no-claim lanes (SMB-REEL-NATIVE, SMB-REEL-NATIVE-ENG-1, SMB-PRESS-GEOMETRY, SMB-REEL-ENG-2, SMB-FMT-SWEEP)",
+   "reason": "not_judged: no READY claim in 1da2453 (REEL-ENG-2 / REEL-NATIVE-ENG-1 BLOCKED on Operator D22-D26)"
+  }
+ ],
+ "deferred_fix_first": [],
+ "scope_rule": "READY SMB-PRESS-STRUCT-ORPHANS, SMB-INTEROP-PSD-DOCS; PASS lanes returned to READY by CX-VAL-009: press (SMB-PRESS, SMB-PRESS-DIFFERENCES, SMB-PRESS-DOCS, SMB-PRESS-DOCS-2, SMB-PRESS-STRUCT-FAILCLOSED, SMB-NOTES-BATCH-1), interop-psd (SMB-INTEROP-PSD, -WIDE, -ADJ, -RECEIPT, -CLIP-ROLES, -BUDGET, -FOLIO-CEILING, -LOSS-DETAIL, -DESC-CAP, SMB-FX-OPS-ADOPT); two-FAIL lanes on V4-13 R25 SAFE; render-gpu lanes and SMB-ROUND-ENTRYPOINT excluded (D20), interop-media (D9); everything else proof_reuse",
+ "included_count": 18,
+ "verdict_counts": {
+  "PASS_V1": 2,
+  "PASS_V2": 2,
+  "PASS_V3": 2,
+  "PASS_V4": 2,
+  "PASS_V5": 1,
+  "PASS_V6": 1,
+  "PASS_V8": 1,
+  "PASS_V11": 1,
+  "PASS_V12": 1,
+  "PASS_V13": 3,
+  "PASS_V14": 1,
+  "PASS_V16": 1
+ },
+ "verdict_numbering": "Vn = 1 + highest prior PASS_V/FAIL_V number of the lane (BLOCKED, NOT_PROVEN and inconclusive do not count), computed once from the ledger before the state write (ledger sha256 a02f63a4, kernel 5ef049c5) and frozen in the verdicts_accepted event; asserted again by the state writer against the same ledger bytes",
+ "not_proven_rule": "V4-03: a test printing NOT_PROVEN is never PASS; a lane whose acceptance depends on it is not PASS. R22: no NOT_PROVEN line in the union",
+ "counters": [
+  {
+   "lane": "SMB-PRESS, SMB-INTEROP-PSD-BUDGET",
+   "counter": "CX-EXEC-015(1) fix budget (failed verdicts 2, limit 3)",
+   "outcome": "passed; no counter acts"
+  },
+  {
+   "lane": "other 16 judged lanes",
+   "counter": "CX-EXEC-015(1) fix budget (failed verdicts 0 or 1, limit 3)",
+   "outcome": "passed; no counter acts"
+  },
+  {
+   "lane": "round",
+   "counter": "CX-EXEC-015(4) same infrastructure failure_class in two rounds",
+   "outcome": "none (no infrastructure failure)"
+  }
+ ],
+ "fix_budget_events": "none (no FAIL this round; no lane reached CX-EXEC-015(1); no NEEDS_NEW_APPROACH)",
+ "plr_candidates": [
+  "V-1 (kernel wording): SMB-PRESS-STRUCT-FAILCLOSED notes.claim.text 'a saved redaction output whose document has a structure tree' -> 'a redaction save that flattened at least one region' (PLR-101 narrowing)",
+  "V-2 (DOC until PLR-104 lands): the press DESCRIPTOR sentence 'the redaction proof covers untagged documents' over-states for marked-content property-list text kept in shared or inherited /Properties; name the class as a residual or fix PLR-104 first"
+ ],
+ "lanes": [
+  {
+   "lane": "SMB-PRESS-STRUCT-ORPHANS",
+   "crate": "hsk-studio-press",
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "tests": "press 164/164 default at 1da2453 (R21 161-test set all present; +3 by the SMB-PRESS-STRUCT-ORPHANS claim: detached_structure_elements_are_reported, structure_shape_is_read_from_the_parsed_dictionary, structure_rules_apply_only_when_a_region_is_flattened); doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "claim 0cb7103 + dce563e + 1da2453 (PLR-102, PLR-101) judged against the START_LOG lead decisions 2026-10-12T08:41:40Z STRUCTURE TREE = NOT PROVEN and 2026-10-12T10:26:38Z (accepted as built: /Type /StructTreeRoot is a shape, /SE counts whatever it names, tree + /StructParents + shape share one +1; residual = PLR-103) and the PLR-101 lead disposition 2026-10-12T09:04:25Z (structure rules only for saves that flatten a region). Validator read at the 1da2453 export: flatten_purge.rs:1068-1076 structure_shaped (/Type resolved and exactly StructElem or StructTreeRoot; or /S a resolved name AND /P held AND any of the 12 STRUCT_TEXT_KEYS (:305) held; or /SE held; held = present and not null); :1093-1120 Scan::value (the old walk, /Pg and /P+/Subtype checks and depth_cap unchanged; with structure_rules the one flag ORs /StructParents, /StructParent and the shape); :1123-1165 Scan::object_stream (decoded against the shared max_decoded_total budget; /N and /First non-negative integers; one header pair and member at a time; checked offset and bound; parse_standalone with the shared node meter; cumulative parsed bytes bounded by the decoded size; any failure sets the flag, fail closed); :1179-1207 check_document (structure = flattens && catalog_names_structure_tree; object streams scanned when flattens and the resolved /Type is /ObjStm; returns bad + u32::from(structure)); sanitized_save.rs:1569 is the only call (pub(crate)) with flattens = !flattened.is_empty(), and flatten.rs:578-586 flattens every region's page or fails NoSuchPage, so any non-empty region list applies the rules; :1546-1571 the checked bytes are the returned bytes. V4-01 deny kept (flatten_purge.rs:121), new arithmetic checked or saturating. DESCRIPTOR parsed (203 -> 203 leaves): only redaction.flatten.purge and redaction.flatten.region_clearing changed; MINIMAL DRAW SET, the painted-source clauses and the PLR-084 silence residual byte-equal (purge prefix 5254 and suffix 1057 chars unchanged); V4-07 word counts unchanged (never 8, always 1, proven 3, cannot 16, proves 0, guarantee 0). Tests are real: detached_structure_elements_are_reported (R24 J1, J2a, J2b, K1 plain and ASCIIHex, a /Type-less element, a detached root with /ClassMap text, the texts asserted to survive so the rule and not removal reports them; 8 unreadable-object-stream rows incl. /N and /First 4294967295; SECRET-ALPHA gone in every row), structure_shape_is_read_from_the_parsed_dictionary (V4-08: escapes in key and value, references to names, white space, nested direct values and an object-stream member reported; comment, string, other-case keys, nulls, action / border style / page label decoys, the PLR-103 boundary row and an inert object stream read flattened), structure_rules_apply_only_when_a_region_is_flattened (tagged, J1, J2b, K1 reported with a region; with no region nothing flattened, residual 0, no reason, kept text kept). Changed assertions (lane tests_changed, diff read): the no-region block of structure_parents_left_in_the_file_are_reported moved, reversed, to the PLR-101 test (authorized by the PLR-101 disposition); one row of structure_tree_keys_are_read_as_names_not_text flips flattened -> reported (fail-closed direction) with a plain-dictionary control keeping the key-case decoy pinned as flattened; descriptor_states_the_structure_tree_rule gains needles and stale-sentence checks; pages_output_with split into pages_pdf + save (no behaviour change). V4-06 lane regex re-run with git grep: 201 at 1da2453 (flatten_purge.rs 67, sanitized_save.rs 12, flatten_r13.rs 104, others as the lane), 156 at 2dde832 = lane. V4-14: no press commit after 1da2453 (= candidate). R25-P2 = PLR-103 (no /P and no /Type; residual stated in the DESCRIPTOR and the claim), R25-P3/P4/P5 = PLR-105 (aliases past the documented 16-hop reader bound, bytes no header makes members, trailer /ID), R25-P7 = PLR-104 (pre-existing, not a structure-element shape): registered, not charged. No stub: every claimed rule is exercised by a green row and read from the saved bytes.",
+   "review": "validation/R25-prereview-narrow.json lanes[0] SMB-PRESS-STRUCT-ORPHANS SAFE_TO_JUDGE at 1da2453 (R25-P1 INFO item 1 settled; R25-P2 PLAUSIBLE = PLR-103; R25-P3/P4/P5 INFO = PLR-105; R25-P6 INFO; R25-P7 INFO = PLR-104 pre-existing; R25-P8 INFO process)",
+   "included_by": "READY_FOR_VALIDATION (lane file builders/lanes/hsk-studio-press-struct-orphans.json, claim 0cb7103 + dce563e + 1da2453, READY commit 1da2453; crate holds two-FAIL SMB-PRESS: V4-13 R25 SAFE_TO_JUDGE at 1da2453)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R22",
+   "idempotency_key": "STUDIO-R22:SMB-PRESS-STRUCT-ORPHANS:1da2453344ed:PASS_V1",
+   "recorded_at": "2026-10-12T11:20:19Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-DOCS",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "tests": "interop-psd 62/62 default at 1da2453 (= R21 62-test set, none missing, none added); doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "claim c4c31cd (PLR-096, PLR-099, R23-S2): docs only. Validator read: c4c31cd changes no code token (git diff -U0 non-comment lines = the 'mapped_' insertion in the DESCRIPTOR literal, lib.rs:82, and the same insertion in its needle; every other changed line a // or /// comment); crate unchanged c4c31cd..1da2453. DESCRIPTOR parsed (60 -> 60 leaves): only effect_limits, by 'mapped_' alone (prefix 1526 and suffix 3089 chars byte-equal); V4-07 counts unchanged. Wording vs code: MAPPED = map_stack's dropped count (effects.rs:653 off_dropped counts instances map_effect returned Ok for; :680/:705 drop_switched_off removes entries of effects, which holds mapped instances only; an Err instance reports itself at :661); the 8192 scoping sentences (effects.rs:83-89, proposal.rs:133-135, :528-533) match descriptor.rs:21 MAX_TOTAL_ITEMS charged per item (:128) and map_stack parsing the descriptor (:582) before any instance is mapped. V4-06 regexes re-run with git grep: A 24 -> 27, B comment lines 27 -> 39, B lib.rs 3 -> 3 = lane. 62/62 at 1da2453 incl. the changed needle. R25-S2 = PLR-106 (proposal.rs:531-532 omits the '(1 live + 1024 switched off)' composition; the sentence stays true) note, not charged (fold convention). V4-14: no interop-psd commit after c4c31cd. PLR-096 and PLR-099 addressed (closure is the lead's).",
+   "review": "validation/R25-prereview-narrow.json lanes[1] SMB-INTEROP-PSD-DOCS SAFE_TO_JUDGE at 1da2453 (R25-S1 INFO; R25-S2 CONFIRMED doc nit = PLR-106)",
+   "included_by": "READY_FOR_VALIDATION (lane file builders/lanes/hsk-studio-interop-psd-docs.json, commit c4c31cd; crate holds two-FAIL SMB-INTEROP-PSD-BUDGET: V4-13 R25 SAFE_TO_JUDGE at 1da2453)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R22",
+   "idempotency_key": "STUDIO-R22:SMB-INTEROP-PSD-DOCS:1da2453344ed:PASS_V1",
+   "recorded_at": "2026-10-12T11:20:19Z"
+  },
+  {
+   "lane": "SMB-PRESS",
+   "crate": "hsk-studio-press",
+   "decision": "passed",
+   "verdict": "PASS_V8",
+   "status_change": "PASS_V8",
+   "tests": "press 164/164 default at 1da2453 (R21 161-test set all present; +3 by the SMB-PRESS-STRUCT-ORPHANS claim: detached_structure_elements_are_reported, structure_shape_is_read_from_the_parsed_dictionary, structure_rules_apply_only_when_a_region_is_flattened); doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 2,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "claim since PASS_V7 @2dde832: hsk-studio-press changed only by the SMB-PRESS-STRUCT-ORPHANS claim (0cb7103, dce563e, 1da2453). Judged against the narrowed claim (D27 'Flatten + narrow', STRUCTURE TREE = NOT PROVEN 08:41:40Z, 10:26:38Z, PLR-101 disposition 09:04:25Z): with a flattened region the shape rule only joins the existing single structure +1 (fail closed: it can turn a proven save into NotProven, never the reverse); with no region the structure rules no longer apply, and such a save has empty reports and no needles (sanitized_save.rs:1497-1505), so a proven reading claims nothing about any region (R25-P6). No flatten, raster, canon, show_text, encoding, painted-source or neutralization code changed (flatten.rs and sanitized_save.rs: comment lines and the one call argument at :1569; flatten_purge.rs hunks only at the module docs, the import line and :1062-1207). The three tests changed in 0cb7103 belong to the SMB-PRESS-STRUCT-FAILCLOSED claim and are narrowings consistent with the decisions; every press test of the R21 set green at 1da2453, none missing. PLR-104 (R25-P7) lies inside this lane's untagged-document scope per its register entry; pre-existing (no hunk of the range touches drop_painted_sources; flatten_purge.rs:53-56 gates five categories, not /Properties) and registered FIX_LANE PRIORITY: not charged per dispatch (validator note V-2). PLR-097 registered, not charged. No claim broken by this delta.",
+   "review": "validation/R25-prereview-narrow.json lanes[0] SMB-PRESS-STRUCT-ORPHANS SAFE_TO_JUDGE at 1da2453 (R25-P1 INFO item 1 settled; R25-P2 PLAUSIBLE = PLR-103; R25-P3/P4/P5 INFO = PLR-105; R25-P6 INFO; R25-P7 INFO = PLR-104 pre-existing; R25-P8 INFO process); two-FAIL lane (FAIL_V1 R5, FAIL_V2 R6): V4-13 met by R25 (2dde832..1da2453); R23 + R24 stand for 3930a7c..2dde832 (V4-18)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-press changed 2dde832..1da2453 by 0cb7103, dce563e, 1da2453; no workspace dependant); two-FAIL lane (FAIL_V1 R5, FAIL_V2 R6): V4-13 R25 SAFE_TO_JUDGE for hsk-studio-press at 1da2453",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R22",
+   "idempotency_key": "STUDIO-R22:SMB-PRESS:1da2453344ed:PASS_V8",
+   "recorded_at": "2026-10-12T11:20:19Z"
+  },
+  {
+   "lane": "SMB-PRESS-DIFFERENCES",
+   "crate": "hsk-studio-press",
+   "decision": "passed",
+   "verdict": "PASS_V6",
+   "status_change": "PASS_V6",
+   "tests": "press 164/164 default at 1da2453 (R21 161-test set all present; +3 by the SMB-PRESS-STRUCT-ORPHANS claim: detached_structure_elements_are_reported, structure_shape_is_read_from_the_parsed_dictionary, structure_rules_apply_only_when_a_region_is_flattened); doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "/Differences claim untouched: 2dde832..1da2453 changes no encoding, font, show_text or canon source (press non-comment src changes: flatten_purge.rs structure_shaped, Scan, check_document and the import line; sanitized_save.rs:1569 the call argument; lib.rs the DESCRIPTOR line); DESCRIPTOR leaves other than redaction.flatten.purge and redaction.flatten.region_clearing byte-equal (parsed, 203 -> 203). Every press test green at 1da2453. No claim broken by reading.",
+   "review": "crate-level: validation/R25-prereview-narrow.json lanes[0] SMB-PRESS-STRUCT-ORPHANS SAFE_TO_JUDGE at 1da2453 (R25-P1 INFO item 1 settled; R25-P2 PLAUSIBLE = PLR-103; R25-P3/P4/P5 INFO = PLR-105; R25-P6 INFO; R25-P7 INFO = PLR-104 pre-existing; R25-P8 INFO process); no finding on /Differences",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-press changed 2dde832..1da2453 by 0cb7103, dce563e, 1da2453; no workspace dependant)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R22",
+   "idempotency_key": "STUDIO-R22:SMB-PRESS-DIFFERENCES:1da2453344ed:PASS_V6",
+   "recorded_at": "2026-10-12T11:20:19Z"
+  },
+  {
+   "lane": "SMB-PRESS-DOCS",
+   "crate": "hsk-studio-press",
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "tests": "press 164/164 default at 1da2453 (R21 161-test set all present; +3 by the SMB-PRESS-STRUCT-ORPHANS claim: detached_structure_elements_are_reported, structure_shape_is_read_from_the_parsed_dictionary, structure_rules_apply_only_when_a_region_is_flattened); doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "claim d868da0 (PLR-083 wording, PLR-084 residual, PLR-076 shown by test) untouched: the PLR-084 silence-is-syntactic residual and the painted-source clauses of redaction.flatten.purge are byte-equal (unchanged prefix and suffix of the leaf; the change replaces the structure-rule sentence and the stripped-document parenthesis only); silent_painted_source_visibility_is_not_checked, descriptor_states_that_painted_source_silence_is_syntactic and painted_source_referenced_by_a_kept_catalog_structure_is_reported green at 1da2453. No claim broken by reading.",
+   "review": "validation/R25-prereview-narrow.json lanes[0] SMB-PRESS-STRUCT-ORPHANS SAFE_TO_JUDGE at 1da2453 (R25-P1 INFO item 1 settled; R25-P2 PLAUSIBLE = PLR-103; R25-P3/P4/P5 INFO = PLR-105; R25-P6 INFO; R25-P7 INFO = PLR-104 pre-existing; R25-P8 INFO process)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-press changed 2dde832..1da2453 by 0cb7103, dce563e, 1da2453; no workspace dependant)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R22",
+   "idempotency_key": "STUDIO-R22:SMB-PRESS-DOCS:1da2453344ed:PASS_V4",
+   "recorded_at": "2026-10-12T11:20:19Z"
+  },
+  {
+   "lane": "SMB-PRESS-DOCS-2",
+   "crate": "hsk-studio-press",
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "tests": "press 164/164 default at 1da2453 (R21 161-test set all present; +3 by the SMB-PRESS-STRUCT-ORPHANS claim: detached_structure_elements_are_reported, structure_shape_is_read_from_the_parsed_dictionary, structure_rules_apply_only_when_a_region_is_flattened); doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "claim 0f87710 (PLR-087 overview per category, R20-O3 region_cleared clause, same-class sites) kept: proof.region_cleared byte-equal (not among the changed leaves); the purge clause still opens 'is purged by category'; the flatten.rs overview keeps the annotation half word for word and adds the region condition and the shape rule to the structure half (comment only); descriptor_states_the_painted_source_condition_and_the_purge_categories and flattened_page_annotations_leave_and_structure_elements_stay (unchanged in this range) green. No claim broken by reading.",
+   "review": "validation/R25-prereview-narrow.json lanes[0] SMB-PRESS-STRUCT-ORPHANS SAFE_TO_JUDGE at 1da2453 (R25-P1 INFO item 1 settled; R25-P2 PLAUSIBLE = PLR-103; R25-P3/P4/P5 INFO = PLR-105; R25-P6 INFO; R25-P7 INFO = PLR-104 pre-existing; R25-P8 INFO process)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-press changed 2dde832..1da2453 by 0cb7103, dce563e, 1da2453; no workspace dependant)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R22",
+   "idempotency_key": "STUDIO-R22:SMB-PRESS-DOCS-2:1da2453344ed:PASS_V3",
+   "recorded_at": "2026-10-12T11:20:19Z"
+  },
+  {
+   "lane": "SMB-PRESS-STRUCT-FAILCLOSED",
+   "crate": "hsk-studio-press",
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "tests": "press 164/164 default at 1da2453 (R21 161-test set all present; +3 by the SMB-PRESS-STRUCT-ORPHANS claim: detached_structure_elements_are_reported, structure_shape_is_read_from_the_parsed_dictionary, structure_rules_apply_only_when_a_region_is_flattened); doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "claim d26d2fd + 2566f1b + 54c60f9 + 2dde832 (STRUCTURE TREE = NOT PROVEN) kept for every save that flattens a region: catalog_names_structure_tree, /StructParents and /StructParent are unchanged and now form the one structure count together with the shape rule (+1 once, 10:26:38Z), so a tagged save still reads region_flattened, region_cleared and is_proven false with ResidualInRegion. With no region the rules do not apply (PLR-101 disposition 09:04:25Z, decision 10:26:38Z): the lane claim 'a saved redaction output whose document has a structure tree ...' now reads 'a redaction save that flattened at least one region ...' (validator note V-1). Its tests: structure_parents_left_in_the_file_are_reported lost only its no-region block (moved, reversed, to structure_rules_apply_only_when_a_region_is_flattened; the region rows unchanged); structure_tree_keys_are_read_as_names_not_text one row flattened -> reported (wrong-case keys that reach a real tree root and element: the PLR-102 class) plus a plain-dictionary control keeping the key-case decoy pinned as flattened; descriptor_states_the_structure_tree_rule needles updated with stale-sentence checks; tagged_documents_read_not_proven_whatever_the_tree_looks_like, untagged_documents_and_stripped_trees_still_read_flattened and kept_annotation_with_a_flattened_p_is_reported unchanged and green. neutralize_structure, edited_structure_root and the annotation /P scan unchanged. No claim broken beyond the authorized PLR-101 narrowing.",
+   "review": "validation/R25-prereview-narrow.json lanes[0] SMB-PRESS-STRUCT-ORPHANS SAFE_TO_JUDGE at 1da2453 (R25-P1 INFO item 1 settled; R25-P2 PLAUSIBLE = PLR-103; R25-P3/P4/P5 INFO = PLR-105; R25-P6 INFO; R25-P7 INFO = PLR-104 pre-existing; R25-P8 INFO process); R23 (FIX_FIRST -> 08:41:40Z) and R24 (SAFE at 2dde832) stand for the lane's own range (V4-18)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-press changed 2dde832..1da2453 by 0cb7103, dce563e, 1da2453; no workspace dependant)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R22",
+   "idempotency_key": "STUDIO-R22:SMB-PRESS-STRUCT-FAILCLOSED:1da2453344ed:PASS_V2",
+   "recorded_at": "2026-10-12T11:20:19Z"
+  },
+  {
+   "lane": "SMB-NOTES-BATCH-1",
+   "crate": "hsk-studio-press + hsk-studio-web + hsk-studio-reel-native + hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "tests": "press 164/164 default at 1da2453 (R21 161-test set all present; +3 by the SMB-PRESS-STRUCT-ORPHANS claim: detached_structure_elements_are_reported, structure_shape_is_read_from_the_parsed_dictionary, structure_rules_apply_only_when_a_region_is_flattened); doctest unit exit 0 (no doctests); interop-psd 62/62 default at 1da2453 (= R21 62-test set, none missing, none added); doctest unit exit 0 (no doctests); reel-native +av1-worker 5/5 and +av1-worker+test-faults 24/24 reused from STUDIO-R21 @2dde832 and web 138/138 reused from STUDIO-R16 @5606d16 under CX-VAL-002",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "claim = PLR-076 (press), PLR-071 (web), PLR-078 (reel-native), PLR-064/065 (interop-psd), PASS_V4 @2dde832. Press part: painted_source_referenced_by_a_kept_catalog_structure_is_reported green at 1da2453 (a save with a region: the structure rules can only add a reason). Interop-psd part: descriptor_states_the_importers_over_counts and the_importer_counts_layers_without_pixels_and_clipped_layers_on_hidden_or_empty_bases green; c4c31cd changes no code token (git diff -U0 non-comment lines = the 'mapped_' insertion in the DESCRIPTOR literal, lib.rs:82, and the same insertion in its needle; every other changed line a // or /// comment). Reel-native part: crate and closure (accord, observe, reel) byte-unchanged 2dde832..1da2453, so the R21 run binds. Web part: byte-unchanged with its closure since 5606d16, so the R16 run binds. V4-14: nothing pushed to press after 1da2453, interop-psd after c4c31cd, web or reel-native after 5606d16.",
+   "review": "press: validation/R25-prereview-narrow.json lanes[0] SMB-PRESS-STRUCT-ORPHANS SAFE_TO_JUDGE at 1da2453 (R25-P1 INFO item 1 settled; R25-P2 PLAUSIBLE = PLR-103; R25-P3/P4/P5 INFO = PLR-105; R25-P6 INFO; R25-P7 INFO = PLR-104 pre-existing; R25-P8 INFO process); interop-psd: validation/R25-prereview-narrow.json lanes[1] SMB-INTEROP-PSD-DOCS SAFE_TO_JUDGE at 1da2453 (R25-S1 INFO; R25-S2 CONFIRMED doc nit = PLR-106); web/reel-native crates: R16-prereview-notes-narrow SAFE (V4-18, unchanged since)",
+   "included_by": "CX-VAL-009 (PASS_V4 @2dde832 returned to READY: press and interop-psd changed; reel-native and web closures unchanged)",
+   "proof_reuse": "CX-VAL-002: reel-native part = STUDIO-R21 union run @2dde832 (results/R21, 5/5 and 24/24; proof commit 2dde832); web part = STUDIO-R16 union run @5606d16 (results/R16, 138/138; proof commit 5606d16); candidate 1da2453; closures and root inputs unchanged",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R22",
+   "idempotency_key": "STUDIO-R22:SMB-NOTES-BATCH-1:1da2453344ed:PASS_V5",
+   "recorded_at": "2026-10-12T11:20:19Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V16",
+   "status_change": "PASS_V16",
+   "tests": "interop-psd 62/62 default at 1da2453 (= R21 62-test set, none missing, none added); doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "importer claim unchanged: c4c31cd changes no code token (git diff -U0 non-comment lines = the 'mapped_' insertion in the DESCRIPTOR literal, lib.rs:82, and the same insertion in its needle; every other changed line a // or /// comment); parsing, layers, blend, display conversion, raster records and the effect-stack caps unchanged. Every interop-psd test green at 1da2453, none of the R21 set missing. No claim broken by reading.",
+   "review": "validation/R25-prereview-narrow.json lanes[1] SMB-INTEROP-PSD-DOCS SAFE_TO_JUDGE at 1da2453 (R25-S1 INFO; R25-S2 CONFIRMED doc nit = PLR-106)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-interop-psd changed 2dde832..1da2453 by c4c31cd: comments, one DESCRIPTOR literal insertion and its needle; no workspace dependant)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R22",
+   "idempotency_key": "STUDIO-R22:SMB-INTEROP-PSD:1da2453344ed:PASS_V16",
+   "recorded_at": "2026-10-12T11:20:19Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-WIDE",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V14",
+   "status_change": "PASS_V14",
+   "tests": "interop-psd 62/62 default at 1da2453 (= R21 62-test set, none missing, none added); doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "wide display-conversion claim untouched (no code token changed in the crate); every interop-psd test green at 1da2453. No claim broken by reading.",
+   "review": "validation/R25-prereview-narrow.json lanes[1] SMB-INTEROP-PSD-DOCS SAFE_TO_JUDGE at 1da2453 (R25-S1 INFO; R25-S2 CONFIRMED doc nit = PLR-106)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-interop-psd changed 2dde832..1da2453 by c4c31cd: comments, one DESCRIPTOR literal insertion and its needle; no workspace dependant)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R22",
+   "idempotency_key": "STUDIO-R22:SMB-INTEROP-PSD-WIDE:1da2453344ed:PASS_V14",
+   "recorded_at": "2026-10-12T11:20:19Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-ADJ",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V13",
+   "status_change": "PASS_V13",
+   "tests": "interop-psd 62/62 default at 1da2453 (= R21 62-test set, none missing, none added); doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "adjustment-layer claim untouched (adjust.rs and the descriptor reader unchanged; no code token changed); every interop-psd test green at 1da2453. No claim broken by reading.",
+   "review": "validation/R25-prereview-narrow.json lanes[1] SMB-INTEROP-PSD-DOCS SAFE_TO_JUDGE at 1da2453 (R25-S1 INFO; R25-S2 CONFIRMED doc nit = PLR-106)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-interop-psd changed 2dde832..1da2453 by c4c31cd: comments, one DESCRIPTOR literal insertion and its needle; no workspace dependant)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R22",
+   "idempotency_key": "STUDIO-R22:SMB-INTEROP-PSD-ADJ:1da2453344ed:PASS_V13",
+   "recorded_at": "2026-10-12T11:20:19Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-RECEIPT",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V13",
+   "status_change": "PASS_V13",
+   "tests": "interop-psd 62/62 default at 1da2453 (= R21 62-test set, none missing, none added); doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "display receipt claim (prism absolute report, BPC outcome, engine identity carried) untouched (no code token changed); every interop-psd test green at 1da2453. No claim broken by reading.",
+   "review": "validation/R25-prereview-narrow.json lanes[1] SMB-INTEROP-PSD-DOCS SAFE_TO_JUDGE at 1da2453 (R25-S1 INFO; R25-S2 CONFIRMED doc nit = PLR-106)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-interop-psd changed 2dde832..1da2453 by c4c31cd: comments, one DESCRIPTOR literal insertion and its needle; no workspace dependant)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R22",
+   "idempotency_key": "STUDIO-R22:SMB-INTEROP-PSD-RECEIPT:1da2453344ed:PASS_V13",
+   "recorded_at": "2026-10-12T11:20:19Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-CLIP-ROLES",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V13",
+   "status_change": "PASS_V13",
+   "tests": "interop-psd 62/62 default at 1da2453 (= R21 62-test set, none missing, none added); doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "Blend-If clip-role loss claim untouched (no code token changed); blend_if_on_a_clip_base_or_a_clipped_layer_keeps_the_ranges_and_reports_the_refusal and every other interop-psd test green at 1da2453. No claim broken by reading.",
+   "review": "validation/R25-prereview-narrow.json lanes[1] SMB-INTEROP-PSD-DOCS SAFE_TO_JUDGE at 1da2453 (R25-S1 INFO; R25-S2 CONFIRMED doc nit = PLR-106)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-interop-psd changed 2dde832..1da2453 by c4c31cd: comments, one DESCRIPTOR literal insertion and its needle; no workspace dependant)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R22",
+   "idempotency_key": "STUDIO-R22:SMB-INTEROP-PSD-CLIP-ROLES:1da2453344ed:PASS_V13",
+   "recorded_at": "2026-10-12T11:20:19Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-BUDGET",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V11",
+   "status_change": "PASS_V11",
+   "tests": "interop-psd 62/62 default at 1da2453 (= R21 62-test set, none missing, none added); doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 2,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "claim (effect stacks beyond the bounds are typed per-layer losses, never a whole-import rejection; each bound cuts only its own category) unchanged: admit, charge, refused, the two-sided tally and the caps 64/4096/1024/512/8192 byte-unchanged (no code token changed by c4c31cd). The new source-doc sentences scope the per-category caps to a descriptor that fits the reader's 8192 items, the category-blind parse-bound stance already in the DESCRIPTOR (PLR-086 DOC, 06:16:47Z; R21 judgement); the 14:41:47Z, 15:29:19Z and 15:43:55Z budget decisions and R21-S1 (05:49:17Z) unchanged; the R10/R11 budget tests green at 1da2453. No claim broken by reading.",
+   "review": "validation/R25-prereview-narrow.json lanes[1] SMB-INTEROP-PSD-DOCS SAFE_TO_JUDGE at 1da2453 (R25-S1 INFO; R25-S2 CONFIRMED doc nit = PLR-106); two-FAIL lane (FAIL_V1 R9, FAIL_V2 R10): V4-13 met by the R25 narrow pre-review of the same diff",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-interop-psd changed 2dde832..1da2453 by c4c31cd: comments, one DESCRIPTOR literal insertion and its needle; no workspace dependant); two-FAIL lane (FAIL_V1 R9, FAIL_V2 R10): V4-13 R25 SAFE_TO_JUDGE for hsk-studio-interop-psd at 1da2453",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R22",
+   "idempotency_key": "STUDIO-R22:SMB-INTEROP-PSD-BUDGET:1da2453344ed:PASS_V11",
+   "recorded_at": "2026-10-12T11:20:19Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-FOLIO-CEILING",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "tests": "interop-psd 62/62 default at 1da2453 (= R21 62-test set, none missing, none added); doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "claim (PLR-063: Folio's 1024 ceiling cuts only the switched-off instances of a visible stack with counted instances) unchanged in code; the R21-S1 all-or-nothing rule (05:49:17Z) unchanged; the source docs now state, as the DESCRIPTOR already did, that the ceiling cut applies to a descriptor that fits 8192 items (1 live + 1024 switched-off instances of 8 or more items are refused whole with descriptor_item_limit first); folios_per_stack_ceiling_cuts_only_the_switched_off_instances_of_a_stack_with_counted_instances and the other ceiling tests green. No claim broken by reading.",
+   "review": "validation/R25-prereview-narrow.json lanes[1] SMB-INTEROP-PSD-DOCS SAFE_TO_JUDGE at 1da2453 (R25-S1 INFO; R25-S2 CONFIRMED doc nit = PLR-106)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-interop-psd changed 2dde832..1da2453 by c4c31cd: comments, one DESCRIPTOR literal insertion and its needle; no workspace dependant)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R22",
+   "idempotency_key": "STUDIO-R22:SMB-INTEROP-PSD-FOLIO-CEILING:1da2453344ed:PASS_V4",
+   "recorded_at": "2026-10-12T11:20:19Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-LOSS-DETAIL",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "tests": "interop-psd 62/62 default at 1da2453 (= R21 62-test set, none missing, none added); doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "claim 3930a7c (PLR-089 loss detail: one Transformed entry per stack with dropped=<count>, the dropped instances' notes leave with them; PLR-086 DOC list-cap clause) unchanged in code; the DESCRIPTOR loss-detail clause now names the count of the MAPPED switched-off instances (PLR-096), as map_stack counts (effects.rs:653, :680); the needle of descriptor_states_the_loss_detail_and_the_list_cap_rules follows the same insertion (a pin on the corrected text, not a weakening); the_ceiling_loss_names_the_count_of_the_instances_it_dropped_and_adds_no_note_for_them and the other LOSS-DETAIL tests green. No claim broken by reading.",
+   "review": "validation/R25-prereview-narrow.json lanes[1] SMB-INTEROP-PSD-DOCS SAFE_TO_JUDGE at 1da2453 (R25-S1 INFO; R25-S2 CONFIRMED doc nit = PLR-106)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-interop-psd changed 2dde832..1da2453 by c4c31cd: comments, one DESCRIPTOR literal insertion and its needle; no workspace dependant)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R22",
+   "idempotency_key": "STUDIO-R22:SMB-INTEROP-PSD-LOSS-DETAIL:1da2453344ed:PASS_V3",
+   "recorded_at": "2026-10-12T11:20:19Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-DESC-CAP",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "tests": "interop-psd 62/62 default at 1da2453 (= R21 62-test set, none missing, none added); doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "claim 0c1be05 (PLR-095: the reader's 8192-item cap measured per effect kind and stated in the DESCRIPTOR) unchanged: the effect_limits 8192 clause byte-equal (the only effect_limits change is 'mapped_' in the loss-detail sentence); c4c31cd brings the source docs in line (PLR-099, R23-S1) and adds the V4-06 section to the lane file (R23-S2); the_descriptor_readers_8192_item_cap_is_measured_per_effect_kind_and_stated_in_the_descriptor green. No claim broken by reading.",
+   "review": "validation/R25-prereview-narrow.json lanes[1] SMB-INTEROP-PSD-DOCS SAFE_TO_JUDGE at 1da2453 (R25-S1 INFO; R25-S2 CONFIRMED doc nit = PLR-106)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-interop-psd changed 2dde832..1da2453 by c4c31cd: comments, one DESCRIPTOR literal insertion and its needle; no workspace dependant)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R22",
+   "idempotency_key": "STUDIO-R22:SMB-INTEROP-PSD-DESC-CAP:1da2453344ed:PASS_V2",
+   "recorded_at": "2026-10-12T11:20:19Z"
+  },
+  {
+   "lane": "SMB-FX-OPS-ADOPT",
+   "crate": "hsk-studio-composite + hsk-studio-render-cpu + hsk-studio-render-gpu + hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V12",
+   "status_change": "PASS_V12",
+   "tests": "interop-psd 62/62 default at 1da2453 (= R21 62-test set, none missing, none added); doctest unit exit 0 (no doctests); composite 28/28, render-cpu 38/38 and render-gpu (information, D20) reused from STUDIO-R16 @5606d16 under CX-VAL-002",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "interop-psd part re-proven here (effects_with_blend_if_on_one_layer_is_a_typed_loss_and_both_stay_in_the_record and mask_on_a_pass_through_group_is_a_typed_loss_and_the_mask_stays_in_the_document green; c4c31cd changes no code token (git diff -U0 non-comment lines = the 'mapped_' insertion in the DESCRIPTOR literal, lib.rs:82, and the same insertion in its needle; every other changed line a // or /// comment)); composite, render-cpu and render-gpu and their closures are byte-unchanged 5606d16..1da2453 and none depends on interop-psd, so their R16 results bind (proof commit 5606d16, candidate 1da2453). No claim broken by reading.",
+   "review": "NOT_REVIEWED as a lane; interop-psd diff: validation/R25-prereview-narrow.json lanes[1] SMB-INTEROP-PSD-DOCS SAFE_TO_JUDGE at 1da2453 (R25-S1 INFO; R25-S2 CONFIRMED doc nit = PLR-106)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-interop-psd changed 2dde832..1da2453 by c4c31cd: comments, one DESCRIPTOR literal insertion and its needle; no workspace dependant)",
+   "proof_reuse": "CX-VAL-002: composite, render-cpu, render-gpu parts = STUDIO-R16 union run @5606d16 (results/R16); proof commit 5606d16, candidate 1da2453",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R22",
+   "idempotency_key": "STUDIO-R22:SMB-FX-OPS-ADOPT:1da2453344ed:PASS_V12",
+   "recorded_at": "2026-10-12T11:20:19Z"
+  }
+ ],
+ "infrastructure": [
+  "No infrastructure failure: step 0 clean, all 3 units built and ran, no fixture selected, disk lock @2 waited 0 s, no stale breaks",
+  "Exit 0: the union selection has no NOT_PROVEN test; round.json complete true, absent [] timed_out []",
+  "Gated-word hook: two commands blocked before running, neither a build nor a test: a read-only grep whose text named the runner config and the round entry script, and a gameplan confirm batch whose notes named the test runner (resolved the round gameplan, steps unconfirmed at that moment); re-run with the Grep tool and with notes without the words (V4-09, D3)",
+  "An idle sccache server (pid 355856) was present and not started by this session (left running)",
+  "Gameplan confirmations written beside the kernel gameplan (.GOV/task_packets/WP-KERNEL-STUDIO/STUDIO-MODULE-ROUND.confirmations.yaml, git-excluded), not committed",
+  "Known Operator item unchanged: repo-local wt-studio-assets/handshake-studio-assets/target (3.8 GB, newest 2026-10-11T10:21:51Z) reported by the lock audit, not written by this round; red-proof and pre-review scratch trees (incl. r25-prereview-probe) untouched",
+  "Edit tree holds uncommitted edits outside the judged crates (Cargo.lock, hsk-studio-score files); the round built the committed export only",
+  "No git write in the edit tree (origin tip read with git ls-remote; no fetch); kernel files committed and pushed with tools/lead-kernel-push.sh (lead dispatch)",
+  "Round outputs not cleaned (studio-round/target kept warm at the same stable path; deletion is the lead call)",
+  "No outbound request other than git ls-remote/fetch/push to the project remotes (V4-21); no personal data in any request"
+ ],
+ "by": "wp_validator STUDIO-R22"
+}
