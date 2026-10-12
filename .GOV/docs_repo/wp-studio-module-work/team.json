@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-12T08:41:40Z",
+ "updated_at": "2026-10-12T08:42:18Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -2549,6 +2549,18 @@
    ],
    "launched": "2026-10-12T08:17:20Z",
    "status": "done (R23: press FIX_FIRST, reel + psd SAFE)"
+  },
+  {
+   "name": "rem-press-struct-r23",
+   "agent_id": "a0f33c0bf4aab5407",
+   "model": "sonnet",
+   "role": "SMB-PRESS-STRUCT-FAILCLOSED R23 FIX_FIRST remediation: STRUCTURE TREE = NOT PROVEN",
+   "owns": [
+    "crates/hsk-studio-press/**",
+    "builders/lanes/hsk-studio-press-struct-failclosed.json"
+   ],
+   "launched": "2026-10-12T08:42:18Z",
+   "status": "running"
   }
  ]
 }

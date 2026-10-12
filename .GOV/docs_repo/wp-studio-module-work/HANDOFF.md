@@ -52,7 +52,7 @@ Push helper for governance: `tools/lead-kernel-push.sh <message-file> <paths...>
 
 ## In flight at handoff
 
-- 2026-10-12T08:17:20Z: three lanes READY at 54c60f9 (SMB-PRESS-STRUCT-FAILCLOSED, SMB-REEL-PTS-TESTS, SMB-INTEROP-PSD-DESC-CAP). Running: Opus narrow pre-review 3930a7c..54c60f9 (output `validation/R23-prereview-narrow.json`). If missing on takeover, re-dispatch it modelled on `validation/R22-prereview-narrow.json`; then round R21 per `ledger.json` resume_plan. Weekly usage 97% at this point.
+- 2026-10-12T08:42:18Z: R23 narrow pre-review: SMB-REEL-PTS-TESTS + SMB-INTEROP-PSD-DESC-CAP SAFE_TO_JUDGE; SMB-PRESS-STRUCT-FAILCLOSED FIX_FIRST (structure-tree text leaks). Lead decision STRUCTURE TREE = NOT PROVEN (START_LOG); running: Sonnet remediation rem-press-struct-r23 (lane file `builders/lanes/hsk-studio-press-struct-failclosed.json` is the handoff). Then narrow pre-review of the press remediation, then round R21 (`ledger.json` resume_plan step 1). New Operator item D28.
 
 </topic>
 
@@ -86,6 +86,6 @@ Follow `ledger.json` `resume_plan` (authoritative). Short form:
 
 ## Waiting on the Operator
 
-D20 (allow a 4th verdict for render-gpu and the round entrypoint — lead recommends yes), D22-D26 (codecs/licensing/spec conflict/downloads), D9, D17 (Figma fixtures), D5 (Photoshop oracle session), D13/STU-CON-044, the repo-local 3.8 GB `handshake-studio-assets/target`, the empty `x` folder at the C: root, D21 (optional AGL download), status vocabulary for `STUDIO_MODULES.json`. Details: `START_LOG.md`.
+D20 (allow a 4th verdict for render-gpu and the round entrypoint — lead recommends yes), D22-D26 (codecs/licensing/spec conflict/downloads), D9, D17 (Figma fixtures), D5 (Photoshop oracle session), D13/STU-CON-044, the repo-local 3.8 GB `handshake-studio-assets/target`, the empty `x` folder at the C: root, D21 (optional AGL download), D28 (strip the PDF structure tree on a redaction save so tagged documents can be proven, at the cost of accessibility tags — or keep NotProven), status vocabulary for `STUDIO_MODULES.json`. Details: `START_LOG.md`.
 
 </topic>
