@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 653
+generation: 654
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -551,3 +551,4 @@ steps:
 - {id: GP-530, role: integration_validator, at: before_round, do: verify confirmation notes <=120 chars and command result/session identity retained, check: {type: confirm}, source: 'infra: R51 GP150 note too long; confirmation batch session result not retained', state: active}
 - {id: GP-531, role: builder, at: before_round, do: verify inventory count reads aggregate property collections and bound output, check: {type: confirm}, source: 'infra: R51 root property Count unrolled thousands of scalar rows during binding read', state: active}
 - {id: GP-532, role: builder, at: before_round, do: verify scoped authority patch input encoding before editor use; preserve unrelated original bytes, check: {type: confirm}, source: 'infra: MT174 pre-existing invalid UTF8 at453706 blocked optional parent proof-link patch; no write', state: active}
+- {id: GP-533, role: builder, at: before_round, do: verify every selected confirmation has an explicit applicable or nonselected evidence note, check: {type: confirm}, source: 'infra: MT184 confirmation prevalidation stopped on unmapped export-only GP177/179 before writes', state: active}
