@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-12T09:04:25Z",
+ "updated_at": "2026-10-12T09:05:08Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -2561,6 +2561,17 @@
    ],
    "launched": "2026-10-12T08:42:18Z",
    "status": "done (READY 2dde832)"
+  },
+  {
+   "name": "prereview-r24-press",
+   "agent_id": "a651f1e99c1450d33",
+   "model": "opus",
+   "role": "V4-13 narrow pre-review press 54c60f9..2dde832 (STRUCTURE TREE = NOT PROVEN remediation)",
+   "owns": [
+    "validation/R24-prereview-press-narrow.json"
+   ],
+   "launched": "2026-10-12T09:05:08Z",
+   "status": "running"
   }
  ]
 }

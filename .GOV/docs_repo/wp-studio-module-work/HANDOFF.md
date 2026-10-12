@@ -1,10 +1,10 @@
 ---
 file_id: WP-STUDIO-MODULE-WORK-HANDOFF
 file_kind: handoff
-updated_at: 2026-10-12T07:26:27Z
+updated_at: 2026-10-12T09:05:08Z
 wp: WP-KERNEL-STUDIO
-latest_snapshot: snapshots/SNAPSHOT-20261012T072627Z.json
-previous_snapshots: snapshots/SNAPSHOT-20261012T061647Z.json, snapshots/SNAPSHOT-20261012T051110Z.json, snapshots/SNAPSHOT-20261011T214451Z.json
+latest_snapshot: snapshots/SNAPSHOT-20261012T090508Z.json
+previous_snapshots: snapshots/SNAPSHOT-20261012T072627Z.json, snapshots/SNAPSHOT-20261012T061647Z.json, snapshots/SNAPSHOT-20261012T051110Z.json, snapshots/SNAPSHOT-20261011T214451Z.json
 authority: ledger.json, team.json, workflow/plausible-register.json, validation/*, START_LOG.md (this file is a projection; they win on conflict)
 ---
 
@@ -16,7 +16,7 @@ authority: ledger.json, team.json, workflow/plausible-register.json, validation/
 2. `builders/DISPATCH_TEMPLATES.md` — builder, validator and pre-review templates; workflow rules V4-01..V4-21 (V4-21: never put personal data in any request or header). Validator runs take build/test settings only from the checked-in round entry script (CX-VAL-007).
 3. `ledger.json` — every lane (status, commits, verdicts, blockers, claims); `resume_plan` = ordered next steps; `round_R*` = round history (latest `round_R20`).
 4. `team.json` — agents and what they owned (no agent is running at this handoff).
-5. `snapshots/SNAPSHOT-20261012T072627Z.json` — machine-readable point-in-time copy of all of the above plus repo heads.
+5. `snapshots/SNAPSHOT-20261012T090508Z.json` — machine-readable point-in-time copy of all of the above plus repo heads.
 6. `validation/` — every round result (`round-R*.json`), review (`R*-review-*.json`) and pre-review (`R*-prereview-*.json`).
 
 </topic>
@@ -28,7 +28,7 @@ authority: ledger.json, team.json, workflow/plausible-register.json, validation/
 | What | Repo / branch | Local worktree | State at handoff |
 |---|---|---|---|
 | Governance (this folder) | `Nuntissura/Handshake` / `gov_kernel` | `wt-gov-kernel` | pushed after every commit; other WPs (WP-KERNEL-012) also push here — integrate, never branch, never force |
-| Product (35 Studio crates) | `Nuntissura/assets` / `codex/handshake-studio-assets`, subfolder `handshake-studio-assets` | `wt-studio-assets` | HEAD == origin == 3930a7c; uncommitted on purpose: local Cargo.lock patch bumps (not steward-reviewed) and stat-only score files |
+| Product (35 Studio crates) | `Nuntissura/assets` / `codex/handshake-studio-assets`, subfolder `handshake-studio-assets` | `wt-studio-assets` | HEAD == origin == 2dde832; uncommitted on purpose: local Cargo.lock patch bumps (not steward-reviewed) and stat-only score files |
 | Build artifacts | `Handshake_Artifacts/WP-KERNEL-STUDIO/` (sibling of the worktrees) | — | cargo targets, round exports, canary + round results, red-proof scratch trees; never build on C: |
 
 Push helper for governance: `tools/lead-kernel-push.sh <message-file> <paths...>` (commits the paths, merges `origin/gov_kernel` only when no path overlaps, pushes; never branches/forces). The kernel root `.gameplan-active` belongs to WP-KERNEL-012; run gated git/cargo commands with a leading `cd .GOV/docs_repo/wp-studio-module-work` (local Studio pointer) or from the product tree. Snapshot generator used for this handoff: rebuild from `ledger.json` + `team.json` + `workflow/plausible-register.json` (fields as in the snapshot file).
@@ -52,7 +52,7 @@ Push helper for governance: `tools/lead-kernel-push.sh <message-file> <paths...>
 
 ## In flight at handoff
 
-- 2026-10-12T08:42:18Z: R23 narrow pre-review: SMB-REEL-PTS-TESTS + SMB-INTEROP-PSD-DESC-CAP SAFE_TO_JUDGE; SMB-PRESS-STRUCT-FAILCLOSED FIX_FIRST (structure-tree text leaks). Lead decision STRUCTURE TREE = NOT PROVEN (START_LOG); running: Sonnet remediation rem-press-struct-r23 (lane file `builders/lanes/hsk-studio-press-struct-failclosed.json` is the handoff). Then narrow pre-review of the press remediation, then round R21 (`ledger.json` resume_plan step 1). New Operator item D28.
+- 2026-10-12T09:05:08Z: all three lanes READY at 2dde832 (SMB-PRESS-STRUCT-FAILCLOSED claim d26d2fd+2566f1b+54c60f9+2dde832 = STRUCTURE TREE = NOT PROVEN; SMB-REEL-PTS-TESTS 172952f and SMB-INTEROP-PSD-DESC-CAP 0c1be05 SAFE in R23). Running: Opus narrow pre-review of press 54c60f9..2dde832 (output `validation/R24-prereview-press-narrow.json`). Then steward sync + canary C26 + round R21 (`ledger.json` resume_plan step 1). Weekly usage 98% at this point: if the limit hits, resume exactly there.
 
 </topic>
 

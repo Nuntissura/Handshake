@@ -3799,8 +3799,7 @@
  },
  "handoff": {
   "file": "HANDOFF.md",
-  "snapshot": "snapshots/SNAPSHOT-20261012T072627Z.json",
-  "at": "2026-10-12T07:26:27Z"
+  "snapshot": "snapshots/SNAPSHOT-20261012T090508Z.json"
  },
  "round_R13": {
   "candidate": "4b76604",
