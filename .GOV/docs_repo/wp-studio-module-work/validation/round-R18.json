@@ -1,0 +1,435 @@
+{
+ "round": 18,
+ "round_id": "STUDIO-R18",
+ "round_opened": true,
+ "rule_refs": [
+  "CX-VAL-001",
+  "CX-VAL-002",
+  "CX-VAL-003",
+  "CX-VAL-004",
+  "CX-VAL-005",
+  "CX-VAL-006",
+  "CX-VAL-007",
+  "CX-VAL-008",
+  "CX-VAL-009",
+  "CX-VAL-010",
+  "CX-STATUS-001",
+  "CX-STATUS-002",
+  "CX-STATUS-003",
+  "CX-EXEC-015",
+  "CX-VERIFY-002",
+  "V4-03 NOT_PROVEN",
+  "V4-04",
+  "V4-06",
+  "V4-07",
+  "V4-13",
+  "V4-14",
+  "V4-18",
+  "V4-19"
+ ],
+ "candidate": "bfa1bbfce421f28e55bf7fd44213af087e00c11e",
+ "tree": "eb7cdf643e3d62ceaf5b3324eddecbbe24535af6",
+ "candidate_note": "named by lead (ledger round_R18, opened 04:49:47Z); steward-5 in sync since 9ffe946 (no lock input changed); origin tip == edit HEAD == bfa1bbf (git ls-remote 04:52:23Z; refs/remotes/origin == HEAD; no fetch by this validator); fcda5f6..bfa1bbf = ten press commits (20510c5, 51f3e72, a92310f, 35be374, d39bd28, bcc0688, c09196f, 8edd93b, 12c9317, bfa1bbf), 5 files all under crates/hsk-studio-press; Cargo.toml, Cargo.lock, tools/, .config/, rust-toolchain.toml unchanged (git diff empty)",
+ "round_identity_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/ROUND_IDENTITY.json",
+ "export": {
+  "file_count": 892,
+  "manifest_sha256": "ec80b0387de6a9579188ab6a27a400c3c17f8aa22bd81b6b30187ba92f5c6c0a",
+  "git_blob_equal": true,
+  "refresh": "kernel tools/export-refresh.sh in place 2026-10-12T04:54:05Z: 0 added, 5 changed, 887 unchanged, 0 deleted, blob_mismatch 0 (from fcda5f6; exactly the 5 press files of fcda5f6..bfa1bbf); manifest equals steward canary C23 export (ec80b038); round.json export_manifest_sha256 equal"
+ },
+ "started_at": "2026-10-12T04:57:00Z",
+ "completed_at": "2026-10-12T05:08:19Z",
+ "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R18",
+ "running_record": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/RUNNING-R18.jsonl (opened + running 04:57:00Z, process_identity 04:57:50Z, completed 04:59:04Z, verdicts_accepted 05:05:57Z before the state write, verdicts_recorded after it)",
+ "gameplan": ".GOV/task_packets/WP-KERNEL-STUDIO/gameplans/STUDIO-MODULE-ROUND.yaml (pointer studio-round/.gameplan-active) before_round PASS 12/12 @edit HEAD bfa1bbf (GP-001 origin == HEAD; GP-003 lock audit 04:55:10Z held none, queue 0, no cargo/rustc process, only an idle sccache server pid 338212 not started by this session; GP-005 LongPathsEnabled=1; GP-013 cites canary C23-bfa1bbf exit 73 = NOT_PROVEN interop-fig only, 59/59 units green; GP-004/GP-012 machine checks passed)",
+ "canary": {
+  "reused": true,
+  "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/steward-export/results/C23-bfa1bbf",
+  "round_json_sha256": "763bb55d8dbfae17e93cf4401906ec5a5d9c15a0a7e2c2442fd376a05c617da7",
+  "sha": "bfa1bbfce421f28e55bf7fd44213af087e00c11e",
+  "export_manifest_sha256": "ec80b0387de6a9579188ab6a27a400c3c17f8aa22bd81b6b30187ba92f5c6c0a",
+  "summary": "steward canary via the same entrypoint on the same SHA and identical export manifest: exit 73 (only NOT_PROVEN interop-fig actual_fig_instance_variable_prototype_edit_reopen, D17), 59 units build 0/run 0, absent 0, timed_out 0, step 0 clean; canary profile runs one test per package (34 run), so the union run below is still required for the judged crate",
+  "reuse_basis": "CX-VERIFY-002 + lead dispatch (GP-013); canary exit 73 accepted because its only non-zero cause is NOT_PROVEN accounting (R10-R17 precedent)"
+ },
+ "union": {
+  "selection": [
+   "hsk-studio-press"
+  ],
+  "selection_rule": "crates changed fcda5f6..bfa1bbf (press only) + workspace members whose dependency closure contains them (tomllib over crates/*/Cargo.toml at bfa1bbf incl. dev/build/target dependencies, 35 members: none depends on press); root inputs unchanged; web, reel-native and interop-psd (SMB-NOTES-BATCH-1 parts) unchanged since their R16/R17 proofs (proof reuse)",
+  "argv": "bash tools/[round entry script] --results <studio-round>/results/R18 --target-dir <studio-round>/target hsk-studio-press (cwd export; absolute D: paths; no caller env)",
+  "target_dir": "Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/target (warm from R17)",
+  "started_at": "2026-10-12T04:57:14Z",
+  "ended_at": "2026-10-12T04:57:53Z",
+  "build_exit": 0,
+  "run_exit": 0,
+  "exit": 0,
+  "summary": "default 147/147 passed (press); 1 doctest unit exit 0 (no doctests); 2 units; absent [] timed_out []; NOT_PROVEN 0 -> exit 0",
+  "units": 2,
+  "not_proven_count": 0,
+  "hashes": {
+   "round.json": "b6a5ff39312cf89cd57f6239e5482f6396e2bf302dff444eb1f28c057696b54e",
+   "tests.json": "edd38d9dfbaf4f9a53e3224bb847fc2c25bcbf9f297b94eeb6aa55a286ab4d01",
+   "junit.xml": "1eaa3dcf492999d56996ae75bd6c59cd152f74d5ec70bf401872526eb50af473",
+   "run.stderr.txt": "0510d9ee67e3e75e709bcfb311a535a955fffb905b712e34dd8b71eede382f51",
+   "build.stderr.txt": "647a955c6d69cdb2a1373c4b3cf8412e99300c31dc98cf3c88bd78f0e89b380b",
+   "units.tsv": "463ecac78654a98d02b5dd00e5361e5b490fe650150b9e20317873ca30342c28",
+   "oracle-corpus.manifest.txt": "1374eb719f1c0ab3122818a5af330113e432e66fe99cb6f83185600b668d086b",
+   "step0.policy.json": "885a9bd86e044ba4ac436012c10c37d4eb74403ee292111c1f3b4325c8e3877b"
+  },
+  "per_crate_default": {
+   "press": 147
+  },
+  "test_set_check": "vs R17 tests.json (default unit, crate+binary+name): press 134 -> 147; missing 2 = flatten_r13 painted_sources_drawn_by_kept_pages_or_annotation_appearances_are_not_reported and painted_sources_rendered_with_a_drawn_object_are_not_reported, replaced by c09196f with painted_source_drawn_directly_by_a_kept_page_is_not_reported and painted_sources_rendered_with_a_drawn_image_are_reported (MINIMAL DRAW SET turned their silent expectations into reported ones; R19 pre-review b_tests_old_vs_new); added 15 flatten_r13 tests (20510c5..bfa1bbf); 147 passed, 0 failed, 0 skipped",
+  "step0": "cargo metadata --locked --offline ok; registry-sync check clean; machine-path violations 0 (13 files with pinned hits, pins_dropped {}), duplicate new_sites none; step0.policy.json byte-identical to R17 (885a9bd8); lock_sha256 86547db9 = R17",
+  "oracle_corpus": {
+   "file_count": 32,
+   "manifest_sha256": "1374eb719f1c0ab3122818a5af330113e432e66fe99cb6f83185600b668d086b",
+   "note": "32 files (R17: 31; the C23 canary placed the score-plugin clap-gain fixture library for bfa1bbf, content-addressed); press uses no oracle fixture (fixtures [])"
+  },
+  "fixtures": [],
+  "disk_lock": "schema @2 class round: holds 1, yields 0 (slice 300 s), waited 1 s, broke_stale none, 04:57:23Z..04:57:53Z",
+  "env": {
+   "set_by_entrypoint": [
+    "CARGO_TARGET_DIR",
+    "TMP",
+    "TEMP",
+    "TMPDIR",
+    "CARGO_PROFILE_DEV_DEBUG",
+    "CARGO_PROFILE_TEST_DEBUG",
+    "CARGO_TERM_COLOR"
+   ],
+   "env_added_by_caller": "none (CX-VAL-007; the dispatch's CARGO_INCREMENTAL=0 was not added: CX-VAL-007 forbids caller-added environment and the entrypoint does not set it; R17 precedent)",
+   "rustc_wrapper": "",
+   "tools": {
+    "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+    "cargo": "cargo 1.97.1 (c980f4866 2026-06-30)",
+    "test_runner": "cargo-nextest 0.9.148 (cd1d6d546 2026-10-07)"
+   }
+  }
+ },
+ "junit_success_output_checks": [
+  "press default: the five REPORTED documents and three SILENT controls of painted_source_is_reported_when_a_content_stream_of_the_page_is_named_elsewhere (R19-N1 fix), a_font_or_graphics_state_that_stays_is_not_a_painted_source (R19-N2), descriptor_names_the_painted_source_kept_by_reference_case (DESCRIPTOR pin) and painted_source_drawn_directly_by_a_kept_page_is_not_reported passed; flatten_r13 27, flatten_redaction 9, pdf_delivery 70, unit 41"
+ ],
+ "not_proven": [],
+ "not_proven_note": "V4-03: no NOT_PROVEN line in this union (the canary's only NOT_PROVEN is interop-fig D17, outside the selection)",
+ "adversarial_review": {
+  "refs": {
+   "validation/R16-prereview-notes-narrow.json": "COMPLETE 2026-10-12T01:04:22Z (b8b31c7..5606d16; press FIX_FIRST P-1; web, reel-native, psd-budget SAFE)",
+   "validation/R17-prereview-press-psd-narrow.json": "COMPLETE 2026-10-12T01:42:35Z (5606d16..fcda5f6; press FIX_FIRST R17-P1/P2; psd SAFE)",
+   "validation/R18-prereview-press-narrow.json": "COMPLETE 2026-10-12T02:47:09Z (fcda5f6..bcc0688; press FIX_FIRST R18-N1..N3)",
+   "validation/R19-prereview-press-narrow.json": "COMPLETE 2026-10-12T04:00:36Z (bcc0688..12c9317; press FIX_FIRST R19-N1, R19-N2 doc)",
+   "validation/R20-prereview-press-narrow.json": "sha256 944ba4c0 COMPLETE 2026-10-12T04:40:25Z (12c9317..bfa1bbf; press SAFE_TO_JUDGE)"
+  },
+  "coverage": "V4-13: the five narrow pre-reviews chain 4b76604's successor range b8b31c7..bfa1bbf for press (no press commit 4b76604..b8b31c7); R20 SAFE_TO_JUDGE at the candidate. Validator's own read at the bfa1bbf export: flatten_purge.rs 1-120 (module docs) and 520-1033 (painted sources: ResDict, Scope, plain_image, named_once, Usage, read_scope, drain, drop_painted_sources, prune_gated), flatten.rs:12-22 and refs_in :275-286, show_text.rs content_streams_of :967-979, sanitized_save.rs:1420-1431 (region_flattened) and :1518-1526 (call order), DESCRIPTOR parsed (proof.claim, proof.supported_profile, proof.region_cleared, proof.limitations, redaction.flatten.purge, redaction.flatten.painted_over; diff vs 4b76604: only purge and painted_over changed), tests/flatten_r13.rs:400-740 and :1340-1454, crate Cargo.toml renderer pins vs Cargo.lock.",
+  "fold_rule": "R12-R17 convention: every CONFIRMED finding re-read at the cited file:line in the export; a CONFIRMED product defect in a judged lane's claimed scope drives a FAIL on the lane that owns it; CONFIRMED doc-only items (wording that misdescribes correct, fail-closed code) are notes + PLR (lead fold convention); PLAUSIBLE/INFO items are notes; PLR-083 is registered and not charged again",
+  "fold_decisions": [
+   {
+    "finding": "R16 P-1, R17-P1, R17-P2, R17 validator V-1, R18-N1..N3",
+    "owner": "SMB-NOTES-BATCH-1 (press part)",
+    "decision": "closed: the certain/draw-kind machinery they targeted was deleted by c09196f (MINIMAL DRAW SET); one silence site remains (flatten_purge.rs:782-790)",
+    "why": "R19 pre-review checks.a_one_grant and the validator's read of read_scope/drop_painted_sources at bfa1bbf"
+   },
+   {
+    "finding": "R19-N1 (CONFIRMED: a skipped stream fed no BDC /OC to the page stack), R19-N2 (doc-only)",
+    "owner": "SMB-NOTES-BATCH-1 (press part)",
+    "decision": "closed by bfa1bbf",
+    "why": "named_once :593-611 makes page == true only when every content stream is named by one reference (:895-912); seen-skip :745 cannot fire for such a scope (R20 a_n1_closed, validator agrees); five reported documents + three silent controls pass in this run; docs say 'painted source' (R20 b_n2_docs)"
+   },
+   {
+    "finding": "R20-N1 (CONFIRMED doc-only: flatten.rs:17-19 says undrawn painted sources are dropped; referenced ones stay and are reported)",
+    "owner": "SMB-PRESS / SMB-NOTES-BATCH-1",
+    "decision": "note, not charged (PLR-083 registered)",
+    "why": "re-read flatten.rs:17-19: wording over-states removal; code keeps and reports (flatten_purge.rs:881-887, :935, :959); safe direction"
+   },
+   {
+    "finding": "R20-O1 = R19-O1 (PLAUSIBLE: unbalanced BDC /OC in a form; control pinned silent at tests/flatten_r13.rs:1401-1404)",
+    "owner": "SMB-PRESS",
+    "decision": "note (PLR-083); checked for a content leak: none shown",
+    "why": "validator note V-2: pdf.js closes marked content a form leaves open at the end of that form's operator list, so the page's later Do is outside the sequence there too, matching the code's fresh stack per form (flatten_purge.rs:740, :814); malformed input; other viewers UNVERIFIED"
+   },
+   {
+    "finding": "R20-O2..O6 (INFO)",
+    "owner": "press",
+    "decision": "notes",
+    "why": "INFO (test strength, DESCRIPTOR wording, internal docs, carried R19-O2..O7)"
+   }
+  ],
+  "not_reviewed": [
+   "web, reel-native and interop-psd parts of SMB-NOTES-BATCH-1 were not re-read by this validator (byte-unchanged since the R16/R17 runs that proved them; R16/R17 pre-reviews SAFE)",
+   "viewer behaviour other than pdf.js (Acrobat, PDFium, MuPDF) for the R19-O1 and R19-O2 cases: UNVERIFIED"
+  ],
+  "validator_disagreements": [],
+  "validator_reads": [
+   "single grant: git grep at bfa1bbf export: silent.insert only at flatten_purge.rs:790; Scope.page set only at :912-913 (doc.pages), false at :697 and :814",
+   "named_once :593-611 over objs.values() + trailer entries with refs_in (no de-duplication), saturating count, once == exactly 1; content_streams_of show_text.rs:967-979 keeps duplicates and does not follow aliases (non-stream member -> read_scope Err -> all_used, fail closed)",
+   "MINIMAL DRAW SET clauses each map to a guard (see SMB-PRESS note); nothing else inserts into silent; report list :959 = painted && live && !silent",
+   "D27: DESCRIPTOR proof.claim 'NARROWED (Operator decision D27) ... verified against Studio's own strict PDF reading'; region clearing rests on the raster (redaction.flatten.region_clearing); crate Cargo.toml hayro-interpret =0.7.0, kurbo =0.13.1 = Cargo.lock 0.7.0 / 0.13.1",
+   "range: git diff --name-only fcda5f6 bfa1bbf = 5 press files; 4b76604..bfa1bbf src = flatten_purge.rs code + lib.rs DESCRIPTOR (2 keys) + sanitized_save.rs comments only; workspace dependants of press: none (35 manifests)"
+  ],
+  "validator_notes": [
+   {
+    "id": "V-1",
+    "severity": "INFO",
+    "crate": "hsk-studio-press",
+    "file_line": "src/flatten_purge.rs:757-773 (read_scope reads only BMC/BDC/EMC and Do/sh/gs/Tf/scn/SCN), :782-790 (the grant)",
+    "finding": "decision scope, code CONFIRMED by reading: the minimal draw set is syntactic; a direct Do of a region image that no viewer shows (degenerate cm such as 0 0 0 0 0 0 cm, an empty clip 0 0 0 0 re W n, placement outside the crop box, gs /ca 0 or a soft mask, an opaque overpaint) still grants silence, so the image stays in the file unreported with region_flattened true",
+    "evidence": "code read at bfa1bbf (no cm, W, gs-alpha or geometry handling in read_scope); not executed; the decision text (START_LOG 2026-10-12T02:48:02Z) names only optional content as possibly hidden and the docs/DESCRIPTOR state the same syntactic rule, so the code matches its claim (no FAIL)",
+    "remediation": "lead decision: state 'a direct Do is silent whatever its geometry, clip, alpha or overpaint' as a residual, or narrow silence further"
+   },
+   {
+    "id": "V-2",
+    "severity": "INFO",
+    "crate": "hsk-studio-press",
+    "file_line": "src/flatten_purge.rs:740, :814; tests/flatten_r13.rs:1401-1404 (PLR-083, R19-O1/R20-O1)",
+    "finding": "evidence for PLR-083's R19-O1 half: pdf.js closes marked content that a form's own stream leaves open when that stream ends, so an unbalanced BDC /OC in a form does not enclose the page's later Do there, matching the code's fresh stack per form",
+    "evidence": "mozilla/pdf.js master fetched 2026-10-12 (raw.githubusercontent.com, no personal data, V4-21): src/core/evaluator.js buildFormXObject parses the form with its own getOperatorList({stream: xobj, operatorList: newOpList, ...}); getOperatorList ends with closePendingMarkedContentOPS() ('Close marked content and graphics states left open by this stream'), one endMarkedContent per open level; src/display/canvas.js beginMarkedContentProps pushes, endMarkedContent pops one shared markedContentStack. Read through a summarising fetch (quoted code, line numbers not recorded); Acrobat/PDFium/MuPDF UNVERIFIED",
+    "remediation": "lead: PLR-083's R19-O1 half may be narrowed to non-pdf.js viewers; no product change required"
+   }
+  ],
+  "lead_decisions_applied": [
+   "ledger round_R18 (ready SMB-NOTES-BATCH-1; CX-VAL-009 reopen SMB-PRESS, SMB-PRESS-DIFFERENCES; two-FAIL recheck R20-prereview-press-narrow SAFE_TO_JUDGE; excluded render-gpu lanes + SMB-ROUND-ENTRYPOINT + SMB-RENDER-GPU-ADJ (D20), interop-media (D9))",
+   "START_LOG D27 (Operator 2026-10-11T17:59:47Z 'Flatten + narrow'; acknowledgement 19:08:49Z hayro-interpret 0.7.0 + kurbo 0.13.1)",
+   "START_LOG 2026-10-12T02:48:02Z MINIMAL DRAW SET (judged against its text)",
+   "lead fold convention: CONFIRMED doc-only finding -> note + PLR; PLR-083 already registered, not charged"
+  ]
+ },
+ "proof_reuse": {
+  "basis": "CX-VAL-002: crate source + workspace-dep closure + root inputs unchanged from each proof commit to bfa1bbf (fcda5f6..bfa1bbf touches only hsk-studio-press; no workspace member depends on press); the round-R17 proof_reuse list (89) plus the 7 lanes judged in R17 (proof commit fcda5f6); reused verdicts name both commits (proof commit in each entry, candidate bfa1bbf); no new verdict",
+  "lanes": [
+   "SMB-TYPE (PASS_V5 @404ff3a)",
+   "SMB-LAYOUT (PASS_V5 @f6e5a49)",
+   "SMB-COMPONENTS (PASS_V5 @f6e5a49)",
+   "SMB-PULSE (PASS_V5 @f6e5a49)",
+   "SMB-SCORE (PASS_V4 @f6e5a49)",
+   "SMB-REEL (PASS_V10 @4b76604)",
+   "SMB-MOTION (PASS_V1 @404ff3a)",
+   "SMB-PACKAGE (PASS_V5 @f6e5a49)",
+   "SMB-INTEROP-VECTOR (PASS_V6 @3d795a5)",
+   "SMB-INTEROP-FIG (PASS_V3 @3d795a5)",
+   "SMB-INTEROP-LAYOUT (PASS_V5 @3d795a5)",
+   "SMB-CONTROLS (PASS_V3 @bd8533f)",
+   "SMB-SESSION (PASS_V5 @f6e5a49)",
+   "SMB-HARNESS (PASS_V3 @f6e5a49)",
+   "SMB-KERNEL-BINDINGS (PASS_V3 @f6e5a49)",
+   "SMB-SCORE-DEVICE (PASS_V3 @f6e5a49)",
+   "SMB-SCORE-PLUGIN (PASS_V4 @4d80e50)",
+   "SMB-INTEROP-LRCAT (PASS_V2 @bd8533f)",
+   "SMB-MOTION-JS (PASS_V3 @dff7ef5)",
+   "SMB-PRISM-ENG-1 (PASS_V4 @dff7ef5)",
+   "SMB-TYPE-ENG-1 (PASS_V1 @1d404f8)",
+   "SMB-REEL-ENG-1 (PASS_V4 @4b76604)",
+   "SMB-REEL-ENG-3 (PASS_V8 @4b76604)",
+   "SMB-PULSE-ENG-1 (PASS_V3 @f6e5a49)",
+   "SMB-PRISM-ENG-2 (PASS_V4 @dff7ef5)",
+   "SMB-PRISM-ENG-3 (PASS_V3 @dff7ef5)",
+   "SMB-PRISM-ENG-4 (PASS_V4 @dff7ef5)",
+   "SMB-PRISM-ENG-5 (PASS_V3 @dff7ef5)",
+   "SMB-TYPE-DOCTEST (PASS_V1 @1d404f8)",
+   "SMB-FOLIO-ENG-1 (PASS_V5 @f6e5a49)",
+   "SMB-TYPE-ENV (PASS_V1 @404ff3a)",
+   "SMB-ACCORD-ENG-1 (PASS_V1 @404ff3a)",
+   "SMB-TYPE-FONTS (PASS_V1 @404ff3a)",
+   "SMB-TYPE-FIXTURES (PASS_V1 @404ff3a)",
+   "SMB-FOLIO-ENG-2 (PASS_V5 @f6e5a49)",
+   "SMB-NIB-ENG-1 (PASS_V2 @1d404f8)",
+   "SMB-FOLIO-ENG-3 (PASS_V5 @f6e5a49)",
+   "SMB-ACCORD-ENG-2 (PASS_V1 @404ff3a)",
+   "SMB-MOTION-JS-WORKER (PASS_V2 @dff7ef5)",
+   "SMB-LAYOUT-FOLIO-MIGRATE (PASS_V4 @f6e5a49)",
+   "SMB-FOLIO-ENG-4 (PASS_V4 @f6e5a49)",
+   "SMB-PACKAGE-STREAM-SAVE (PASS_V4 @f6e5a49)",
+   "SMB-PRISM-ENG-6 (PASS_V2 @dff7ef5)",
+   "SMB-COMPONENTS-FOLIO-MIGRATE (PASS_V4 @f6e5a49)",
+   "SMB-INTEROP-VECTOR-FOLIO-MIGRATE (PASS_V5 @3d795a5)",
+   "SMB-REEL-AV1-ROUTE (PASS_V8 @4b76604)",
+   "SMB-MOTION-JS-SANDBOX-2 (PASS_V1 @dff7ef5)",
+   "SMB-PRISM-ENG-7 (PASS_V1 @dff7ef5)",
+   "SMB-FOLIO-ENG-6 (PASS_V2 @f6e5a49)",
+   "SMB-FOLIO-ENG-7 (PASS_V2 @f6e5a49)",
+   "SMB-CHRONICLE-TABLE (PASS_V2 @f6e5a49)",
+   "SMB-INTEROP-VECTOR-RECORDS (PASS_V3 @3d795a5)",
+   "SMB-PRISM-ENG-8 (PASS_V1 @dff7ef5)",
+   "SMB-SCORE-GUARDS (PASS_V1 @f6e5a49)",
+   "SMB-COMPONENTS-FOOTPRINT (PASS_V1 @f6e5a49)",
+   "SMB-FOLIO-UNIQUENESS (PASS_V1 @f6e5a49)",
+   "SMB-SCORE-PLUGIN-RATE (PASS_V1 @4d80e50)",
+   "SMB-REEL-RECEIPTS (PASS_V1 @4b76604)",
+   "SMB-PIGMENT-NOTES (PASS_V1 @5606d16)",
+   "SMB-WEB (PASS_V5 @5606d16)",
+   "SMB-WEB-DIFFTEST (PASS_V2 @5606d16)",
+   "SMB-WEB-PARITY (PASS_V2 @5606d16)",
+   "SMB-REEL-NATIVE-AV1-WORKER (PASS_V9 @5606d16)",
+   "SMB-REEL-NATIVE-FAULTS (PASS_V6 @5606d16)",
+   "SMB-REEL-NATIVE-FAULTS-2 (PASS_V2 @5606d16)",
+   "SMB-DEVELOP (PASS_V9 @5606d16)",
+   "SMB-COMPOSITE (PASS_V9 @5606d16)",
+   "SMB-RENDER-CPU (PASS_V9 @5606d16)",
+   "SMB-PIGMENT-ENG-1 (PASS_V9 @5606d16)",
+   "SMB-RENDER-CPU-CLIP (PASS_V9 @5606d16)",
+   "SMB-COMPOSITE-CLIP-ALIGN (PASS_V9 @5606d16)",
+   "SMB-DEVELOP-WIDE (PASS_V6 @5606d16)",
+   "SMB-PIGMENT-ENG-2 (PASS_V7 @5606d16)",
+   "SMB-COMPOSITE-ADJ (PASS_V6 @5606d16)",
+   "SMB-RENDER-CPU-ADJ (PASS_V6 @5606d16)",
+   "SMB-EFFECTS-WAVE-1 (PASS_V6 @5606d16)",
+   "SMB-EFFECTS-WAVE-2 (PASS_V6 @5606d16)",
+   "SMB-PIGMENT-WINDOW (PASS_V6 @5606d16)",
+   "SMB-RENDER-CPU-WINDOW (PASS_V6 @5606d16)",
+   "SMB-RENDER-CPU-FX2 (PASS_V6 @5606d16)",
+   "SMB-DEVELOP-JOBS (PASS_V6 @5606d16)",
+   "SMB-PIGMENT-BLENDIF-CLIP (PASS_V6 @5606d16)",
+   "SMB-BLENDIF-CLIP-ADOPT (PASS_V6 @5606d16)",
+   "SMB-PIGMENT-PLANLIMITS (PASS_V3 @5606d16)",
+   "SMB-REFUSAL-KEYS (PASS_V5 @5606d16)",
+   "SMB-PIGMENT-FX-OPS (PASS_V5 @5606d16)",
+   "SMB-PIGMENT-ADMIT-PARITY (PASS_V5 @5606d16)",
+   "SMB-PARITY-FOLLOWUP (PASS_V4 @5606d16)",
+   "SMB-PIGMENT-FOLLOWUPS (PASS_V2 @5606d16)",
+   "SMB-INTEROP-PSD (PASS_V12 @fcda5f6)",
+   "SMB-INTEROP-PSD-WIDE (PASS_V10 @fcda5f6)",
+   "SMB-INTEROP-PSD-ADJ (PASS_V9 @fcda5f6)",
+   "SMB-INTEROP-PSD-RECEIPT (PASS_V9 @fcda5f6)",
+   "SMB-INTEROP-PSD-CLIP-ROLES (PASS_V9 @fcda5f6)",
+   "SMB-FX-OPS-ADOPT (PASS_V8 @fcda5f6)",
+   "SMB-INTEROP-PSD-BUDGET (PASS_V7 @fcda5f6)"
+  ],
+  "count": 96
+ },
+ "excluded": [
+  {
+   "lane": "SMB-RENDER-GPU",
+   "reason": "not_judged: CX-EXEC-015(1) fix_budget_exhausted, Operator decision D20 pending (render-gpu not in the union; crate unchanged since R16)"
+  },
+  {
+   "lane": "SMB-RENDER-GPU-ADJ",
+   "reason": "not_judged: render-gpu lanes excluded (D20); BLOCKED; not proof-reused"
+  },
+  {
+   "lane": "SMB-RENDER-GPU-PROBE",
+   "reason": "not_judged: no READY claim; render-gpu D20"
+  },
+  {
+   "lane": "SMB-ROUND-ENTRYPOINT",
+   "reason": "not_judged: CX-EXEC-015(1) fix_budget_exhausted, Operator decision D20 pending (entrypoint used for this round as infrastructure)"
+  },
+  {
+   "lane": "SMB-INTEROP-MEDIA, SMB-INTEROP-MEDIA-PULSE",
+   "reason": "not_judged: BLOCKED on Operator D9 (crate and lock closure unchanged)"
+  },
+  {
+   "lane": "queued/no-claim lanes (SMB-REEL-NATIVE, SMB-REEL-NATIVE-ENG-1, SMB-PRESS-GEOMETRY, SMB-REEL-ENG-2, SMB-FMT-SWEEP)",
+   "reason": "not_judged: no READY claim in bfa1bbf (REEL-ENG-2 / REEL-NATIVE-ENG-1 BLOCKED on Operator D22-D26)"
+  }
+ ],
+ "deferred_fix_first": [],
+ "scope_rule": "READY SMB-NOTES-BATCH-1; PASS lanes returned to READY by CX-VAL-009 (crate press changed fcda5f6..bfa1bbf, no dependants): SMB-PRESS and SMB-PRESS-DIFFERENCES; two-FAIL SMB-PRESS judged on V4-13 R20 SAFE_TO_JUDGE; render-gpu lanes and SMB-ROUND-ENTRYPOINT excluded (D20), interop-media (D9); everything else proof_reuse",
+ "included_count": 3,
+ "verdict_counts": {
+  "PASS_V1": 1,
+  "PASS_V2": 1,
+  "PASS_V4": 1
+ },
+ "verdict_numbering": "Vn = 1 + highest prior PASS_V/FAIL_V number of the lane (BLOCKED, NOT_PROVEN and inconclusive do not count), computed once from the ledger before the state write (ledger sha256 a4f18c8a, kernel e023c33b) and frozen in the verdicts_accepted event: SMB-PRESS V3 -> V4, SMB-PRESS-DIFFERENCES V1 -> V2, SMB-NOTES-BATCH-1 none -> V1",
+ "not_proven_rule": "V4-03: a test printing NOT_PROVEN is never PASS; a lane whose acceptance depends on it is not PASS. R18: no NOT_PROVEN line in the union",
+ "counters": [
+  {
+   "lane": "SMB-PRESS",
+   "counter": "CX-EXEC-015(1) fix budget (failed verdicts 2, limit 3)",
+   "outcome": "PASS_V4; no counter acts"
+  },
+  {
+   "lane": "SMB-PRESS-DIFFERENCES, SMB-NOTES-BATCH-1",
+   "counter": "CX-EXEC-015(1) fix budget (failed verdicts 0, limit 3)",
+   "outcome": "passed; no counter acts"
+  },
+  {
+   "lane": "round",
+   "counter": "CX-EXEC-015(4) same infrastructure failure_class in two rounds",
+   "outcome": "none (no infrastructure failure)"
+  }
+ ],
+ "fix_budget_events": "none (no FAIL this round; no lane reached CX-EXEC-015(1); no NEEDS_NEW_APPROACH)",
+ "plr_candidates": [
+  "V-1: press minimal draw set is syntactic; a direct Do that no viewer shows (degenerate cm, empty clip, off-crop placement, gs alpha 0 or soft mask, overpaint) is silent; lead decides residual wording or narrower rule",
+  "V-2: evidence for PLR-083 (R19-O1 half): pdf.js closes a form's open marked content at the form's end; narrow PLR-083 to non-pdf.js viewers"
+ ],
+ "lanes": [
+  {
+   "lane": "SMB-PRESS",
+   "crate": "hsk-studio-press",
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "tests": "press 147/147 default at bfa1bbf (R17 134-test set: 132 unchanged + 2 renamed by c09196f to their reporting forms painted_source_drawn_directly_by_a_kept_page_is_not_reported and painted_sources_rendered_with_a_drawn_image_are_reported; 15 added by 20510c5..bfa1bbf; unit 41, pdf_delivery 70, flatten_r13 27, flatten_redaction 9); doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 2,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "claim since PASS_V3 @4b76604: hsk-studio-press changed only by SMB-NOTES-BATCH-1 commits (27a9a81, f0be2ba, 20510c5, 51f3e72, a92310f, 35be374, d39bd28, bcc0688, c09196f, 8edd93b, 12c9317, bfa1bbf); git diff 4b76604..bfa1bbf over src = flatten_purge.rs (code), lib.rs DESCRIPTOR keys redaction.flatten.purge and painted_over only (parsed, key by key), sanitized_save.rs comments only (0 non-comment lines). Validator read at the bfa1bbf export against the MINIMAL DRAW SET text (START_LOG 2026-10-12T02:48:02Z): one silence grant flatten_purge.rs:782-790, guards page (true only for doc.pages scopes :912-913, nested reads false :814, traverse scopes false :697), cat XObject from Do (:767, :783), nearest == 0 (:775, :784; lookup :718-726), dictionary path (ResDict.plain :663, :902-910, category value :723), no open BDC /OC (:740, :759-762, :786), image without /OC (plain_image :581-584); R19 exclusivity named_once :593-611 counts every Ref occurrence of every object and the trailer (refs_in flatten.rs:275-286, no de-duplication); report = painted && live && !silent (:959), incomplete analysis reports every live painted source (:929-934). Docs flatten_purge.rs:72-90 and both DESCRIPTOR keys state that rule; proof.claim states the D27 narrowing ('verified against Studio's own strict PDF reading'); renderer pins hayro-interpret =0.7.0, kurbo =0.13.1 (crate Cargo.toml:13-14 = Cargo.lock). Tests are real (crafted PDFs through PdfDoc::open + redact_and_save, asserting painted_sources_kept, not_proven_reasons, region_flattened and byte presence; read tests/flatten_r13.rs:402-731, :1344-1454): no stub. R20-N1 (flatten.rs:17-19 'dropped' wording) is PLR-083 (doc-only, not charged); R19-O1/R20-O1 checked for a leak: none shown (validator note V-2: pdf.js closes a form's open marked content at the form's end, as the code does).",
+   "review": "validation/R16-prereview-notes-narrow.json (FIX_FIRST P-1), R17-prereview-press-psd-narrow.json (FIX_FIRST R17-P1/P2), R18-prereview-press-narrow.json (FIX_FIRST R18-N1..N3 -> lead MINIMAL DRAW SET), R19-prereview-press-narrow.json (FIX_FIRST R19-N1, R19-N2 doc), R20-prereview-press-narrow.json (SAFE_TO_JUDGE at bfa1bbf; R20-N1 doc-only = PLR-083; O1-O6 INFO/PLAUSIBLE)",
+   "included_by": "CX-VAL-009 (PASS_V3 @4b76604 returned to READY: crate hsk-studio-press changed 4b76604..bfa1bbf; fcda5f6..bfa1bbf = ten press commits) + two-FAIL lane (FAIL_V1 R5, FAIL_V2 R6): V4-13 R20-prereview-press-narrow SAFE_TO_JUDGE at bfa1bbf",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R18",
+   "idempotency_key": "STUDIO-R18:SMB-PRESS:bfa1bbfce421:PASS_V4",
+   "recorded_at": "2026-10-12T05:08:19Z"
+  },
+  {
+   "lane": "SMB-PRESS-DIFFERENCES",
+   "crate": "hsk-studio-press",
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "tests": "press 147/147 default at bfa1bbf (R17 134-test set: 132 unchanged + 2 renamed by c09196f to their reporting forms painted_source_drawn_directly_by_a_kept_page_is_not_reported and painted_sources_rendered_with_a_drawn_image_are_reported; 15 added by 20510c5..bfa1bbf; unit 41, pdf_delivery 70, flatten_r13 27, flatten_redaction 9); doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "claim (/Differences, Type3 and encoding-less simple fonts decoded via base encodings + /Differences + AGL or ToUnicode, else OpaqueText NotProven) is untouched since PASS_V1 @4b76604: the only src code change 4b76604..bfa1bbf is flatten_purge.rs (painted-source report); encoding, font, show_text and canon sources unchanged; DESCRIPTOR keys other than redaction.flatten.purge/painted_over byte-equal (parsed). Every press test green at bfa1bbf, none of the R13 set removed except the two flatten_r13 renames of SMB-NOTES-BATCH-1. No claim broken by reading.",
+   "review": "crate-level: validation/R16-prereview-notes-narrow.json (FIX_FIRST P-1), R17-prereview-press-psd-narrow.json (FIX_FIRST R17-P1/P2), R18-prereview-press-narrow.json (FIX_FIRST R18-N1..N3 -> lead MINIMAL DRAW SET), R19-prereview-press-narrow.json (FIX_FIRST R19-N1, R19-N2 doc), R20-prereview-press-narrow.json (SAFE_TO_JUDGE at bfa1bbf; R20-N1 doc-only = PLR-083; O1-O6 INFO/PLAUSIBLE); none of the five reviews has a finding on the /Differences claim",
+   "included_by": "CX-VAL-009 (PASS_V1 @4b76604 returned to READY: crate hsk-studio-press changed 4b76604..bfa1bbf)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R18",
+   "idempotency_key": "STUDIO-R18:SMB-PRESS-DIFFERENCES:bfa1bbfce421:PASS_V2",
+   "recorded_at": "2026-10-12T05:08:19Z"
+  },
+  {
+   "lane": "SMB-NOTES-BATCH-1",
+   "crate": "hsk-studio-press + hsk-studio-web + hsk-studio-reel-native + hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "tests": "press 147/147 default at bfa1bbf (R17 134-test set: 132 unchanged + 2 renamed by c09196f to their reporting forms painted_source_drawn_directly_by_a_kept_page_is_not_reported and painted_sources_rendered_with_a_drawn_image_are_reported; 15 added by 20510c5..bfa1bbf; unit 41, pdf_delivery 70, flatten_r13 27, flatten_redaction 9); doctest unit exit 0 (no doctests); web 138/138 and reel-native [av1-worker] 5/5 + [av1-worker,test-faults] 24/24 reused from STUDIO-R16 @5606d16 and interop-psd 53/53 reused from STUDIO-R17 @fcda5f6 under CX-VAL-002 (git diff 5606d16..bfa1bbf = press 5 files + interop-psd 3 files (fcda5f6, inside the R17 proof); web closure accord/observe, reel-native closure accord/observe/reel, interop-psd closure accord/folio/observe/pigment/prism and the root inputs Cargo.toml, Cargo.lock, tools/, .config/, rust-toolchain.toml unchanged; proof commits 5606d16 and fcda5f6, candidate bfa1bbf)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "claim = PLR-076 (press 27a9a81 + the R16-R19 remediations through bfa1bbf), PLR-071 (web 9088884), PLR-078 (reel-native ab273d3), PLR-064/065 (interop-psd 5606d16, rider fcda5f6); disclosed not_done items (lane notes.not_done) are not claimed. Press part: see SMB-PRESS (same validator read, same 147 tests). Web, reel-native, interop-psd parts: byte-unchanged since their green R16/R17 runs; R16 pre-review SAFE_TO_JUDGE for web (W-1 lane-note count corrected, ledger note) and reel-native, R17 pre-review SAFE_TO_JUDGE for interop-psd (R16 I-1 closed by fcda5f6). V4-14: commits[] ends with bfa1bbf = origin tip; nothing pushed to any of the four crates after it.",
+   "review": "validation/R16-prereview-notes-narrow.json (FIX_FIRST P-1), R17-prereview-press-psd-narrow.json (FIX_FIRST R17-P1/P2), R18-prereview-press-narrow.json (FIX_FIRST R18-N1..N3 -> lead MINIMAL DRAW SET), R19-prereview-press-narrow.json (FIX_FIRST R19-N1, R19-N2 doc), R20-prereview-press-narrow.json (SAFE_TO_JUDGE at bfa1bbf; R20-N1 doc-only = PLR-083; O1-O6 INFO/PLAUSIBLE); web/reel-native: R16-prereview-notes-narrow.json lanes SMB-WEB, SMB-REEL-NATIVE-AV1-WORKER SAFE_TO_JUDGE; interop-psd: R16 (I-1) and R17-prereview-press-psd-narrow.json lanes[1] SAFE_TO_JUDGE",
+   "included_by": "READY_FOR_VALIDATION (lane file builders/lanes/notes-batch-1.json, commits 27a9a81..bfa1bbf); press part on V4-13 R20 SAFE_TO_JUDGE",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R18",
+   "idempotency_key": "STUDIO-R18:SMB-NOTES-BATCH-1:bfa1bbfce421:PASS_V1",
+   "recorded_at": "2026-10-12T05:08:19Z"
+  }
+ ],
+ "infrastructure": [
+  "No infrastructure failure: step 0 clean, both units built and ran, no fixture selected, disk lock @2 waited 1 s, no stale breaks",
+  "Exit 0: the union selection has no NOT_PROVEN test; round.json complete true, absent [] timed_out []",
+  "Dispatch asked for CARGO_INCREMENTAL=0; not added (CX-VAL-007: agents add no environment variables at run time; the entrypoint does not set it; R17 ran the same way)",
+  "Gated-word hook (D3 class): one PowerShell read and one Bash read whose text named the per-test runner were blocked before the gameplan passed (the PowerShell one resolved WP-KERNEL-012's gameplan from the kernel root); redone with a leading cd into studio-round and Grep/Read; gameplan confirm notes were rewritten without gated words; no gameplan edit, no bypass",
+  "An idle sccache server (pid 338212, started 04:41:02Z by the steward canary) was present and not started by this session (left running)",
+  "Gameplan confirmations written beside the kernel gameplan (.GOV/task_packets/WP-KERNEL-STUDIO/STUDIO-MODULE-ROUND.confirmations.yaml, git-excluded), not committed",
+  "Known Operator item unchanged: repo-local wt-studio-assets/handshake-studio-assets/target (3.8 GB, newest 2026-10-11T10:21:51Z) reported by the lock audit, not written by this round",
+  "Edit tree holds uncommitted edits outside press (Cargo.lock, 9 hsk-studio-score files; R19-O6/R20-O6); the round built the committed export only",
+  "No git write in the edit tree (origin tip read with git ls-remote; no fetch); kernel files committed and pushed with tools/lead-kernel-push.sh (lead dispatch)",
+  "Round outputs not cleaned (studio-round/target kept warm at the same stable path; deletion is the lead call)",
+  "External read for V-2: two raw.githubusercontent.com fetches of mozilla/pdf.js master source files (no personal data; V4-21)"
+ ],
+ "by": "wp_validator STUDIO-R18 (Opus, fresh context, not implementer)"
+}

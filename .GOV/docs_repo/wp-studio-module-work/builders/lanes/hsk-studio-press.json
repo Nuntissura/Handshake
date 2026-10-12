@@ -484,6 +484,40 @@
     "idempotency_key": "STUDIO-R13:SMB-PRESS-DIFFERENCES:4b766047fb5c:PASS_V1",
     "recorded_at": "2026-10-11T22:28:14Z",
     "by": "wp_validator STUDIO-R13"
+   },
+   {
+    "round": "STUDIO-R18",
+    "lane": "SMB-PRESS",
+    "candidate": "bfa1bbfce421f28e55bf7fd44213af087e00c11e",
+    "tree": "eb7cdf643e3d62ceaf5b3324eddecbbe24535af6",
+    "decision": "passed",
+    "verdict": "PASS_V4",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V4",
+    "review": "validation/R20-prereview-press-narrow.json (bfa1bbf, SAFE_TO_JUDGE; R20-N1 doc-only = PLR-083), chain R16-R20",
+    "round_ref": "validation/round-R18.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R18",
+    "idempotency_key": "STUDIO-R18:SMB-PRESS:bfa1bbfce421:PASS_V4",
+    "recorded_at": "2026-10-12T05:08:19Z",
+    "by": "wp_validator STUDIO-R18"
+   },
+   {
+    "round": "STUDIO-R18",
+    "lane": "SMB-PRESS-DIFFERENCES",
+    "candidate": "bfa1bbfce421f28e55bf7fd44213af087e00c11e",
+    "tree": "eb7cdf643e3d62ceaf5b3324eddecbbe24535af6",
+    "decision": "passed",
+    "verdict": "PASS_V2",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V2",
+    "review": "crate-level: validation/R20-prereview-press-narrow.json (bfa1bbf, SAFE_TO_JUDGE), chain R16-R20; no finding on /Differences",
+    "round_ref": "validation/round-R18.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R18",
+    "idempotency_key": "STUDIO-R18:SMB-PRESS-DIFFERENCES:bfa1bbfce421:PASS_V2",
+    "recorded_at": "2026-10-12T05:08:19Z",
+    "by": "wp_validator STUDIO-R18"
    }
   ],
   "unit_test_names": [

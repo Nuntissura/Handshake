@@ -613,6 +613,25 @@
       "v4_03_v4_21": "no letter, colon, slash or backslash string in the 222 added lines (scan19.py); no outbound request, no personal data",
       "residuals": "(1) The rule is a static over-approximation of 'read elsewhere': a content stream named by a second reference of any kind (including a stream two kept pages share, test case 5, or a form that closes its BDC /OC, case 4) grants no silence for that page; accepted (over-reporting), stated in the docs. (2) R19-O1 (an unbalanced BDC /OC inside a form the page draws leaves the page's own stack unchanged, PLAUSIBLE, malformed input) is unchanged. (3) R19-O2 (resource-chain model), O3 (generation numbers), O4 (partial silence before a failing stream of a page scope, safe direction), O5 (lane-note wording: the /Ib control of painted_source_shadowed_by_a_nearer_resource_entry_is_reported lists the name in page two's own /XObject, the ancestor-only silent draw is covered by the inherited-layout cases), O6 (shared edit tree holds uncommitted score edits, none in press), O7 (byte identity near Limits::max_objects) are unchanged or informational. (4) Residuals (1)-(6) of notes.remediation_R18pre.press.residuals stand.",
       "gameplan_route": "route (a): the first scratch command (RED, normalized `cargo nextest run -p hsk-studio-press --no-fail-fast`) was blocked by the retry guard: a failed identical run at 12c9317 was recorded at 2026-10-12T03:33:26Z with the same product HEAD and gameplan digest. The product fix was committed (HEAD 12c9317 -> bfa1bbf), then every run proceeded; no flag or filter was changed to look different, no gameplan step added. Earlier runs in the shared tree (clippy, `--test flatten_r13` twice with piped output) were not blocked."
-    }
+    },
+    "verdicts": [
+      {
+        "round": "STUDIO-R18",
+        "lane": "SMB-NOTES-BATCH-1",
+        "candidate": "bfa1bbfce421f28e55bf7fd44213af087e00c11e",
+        "tree": "eb7cdf643e3d62ceaf5b3324eddecbbe24535af6",
+        "decision": "passed",
+        "verdict": "PASS_V1",
+        "failures": [],
+        "remediation": null,
+        "status_after": "PASS_V1",
+        "review": "press: validation/R20-prereview-press-narrow.json SAFE_TO_JUDGE (chain R16-R20); web/reel-native: R16 SAFE; interop-psd: R17 SAFE",
+        "round_ref": "validation/round-R18.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R18",
+        "idempotency_key": "STUDIO-R18:SMB-NOTES-BATCH-1:bfa1bbfce421:PASS_V1",
+        "recorded_at": "2026-10-12T05:08:19Z",
+        "by": "wp_validator STUDIO-R18"
+      }
+    ]
   }
 }

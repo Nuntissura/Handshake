@@ -718,7 +718,7 @@
    "crate": "hsk-studio-press",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-press",
    "phase": "validation (R20 narrow pre-review SAFE at bfa1bbf; round R18 next)",
-   "status": "READY_FOR_VALIDATION",
+   "status": "PASS_V4",
    "owner": "builder-press",
    "brief": null,
    "commits": [
@@ -764,7 +764,8 @@
    "verdicts": [
     "STUDIO-R5 FAIL_V1 @1d404f8 (newer submission e75bd5a pending)",
     "STUDIO-R6 FAIL_V2 @bd8533f (newer submission dd1df63 pending)",
-    "STUDIO-R13 PASS_V3 @4b76604"
+    "STUDIO-R13 PASS_V3 @4b76604",
+    "STUDIO-R18 PASS_V4 @bfa1bbf"
    ],
    "candidate": "bfa1bbf",
    "note": "hardening 023c817 (V4-01 on filters/reader/syntax/writer, 107 sites; per-stage + aggregate decode budget, max_filters 8, depth clamp 256, ref chains 16 hops, /W /Size /Index /Length bounds), R6 c520095 (kept-text exemption only for page-tree-reachable contents/forms; hidden zlib behind raster filters; ASCII85 tail), V4-02 tests 007f8bc (red-proved on scratch copy; nesting overflowed stack on old code), redaction gaps a1c9747 (other name trees, Submit/ResetForm /Fields, attachments); 31 green; pre-review B N1-N7 fixed with sound-by-construction backstop (diagnostics/press-proof-soundness.md): every output byte scanned, raw matches excused only inside bytes a decoder read and confirmed, TrailingData/UnreadableContent NotProven, single content walker with q/Q/gs/Tf/Do + inherited resources, kept text = drawn only; PLR-040 codec-structure check; 38 green; red on 0e48167 copy (40 sub-cases proven -> not proven). Needs V4-13 pre-review before judging (2 FAILs).; R8 pre-review FIX_FIRST (excluded from R8, V4-19); remediation dispatched with lead decision fail-closed (START_LOG).; R8 pre-review remediation (fail-closed) e8b464b/a85b85f/49731a5: whole object table read (F1), joined TJ needles (F2/D2), UnreadableRemovedText NotProven (F3/D3), Type3/vertical -> RedactionClass Type3Text/VerticalText (F4/D4), drawn-reading exemption (P1), only /.notdef blank (D1), V4-06 211 sites (F5/D5); 6 new tests red on 607d47c; 57/57; residual: crate not rustfmt-clean (pre-existing).; R9 positive-determination rewrite cc3eaae: show_text::Walker single determination pass (font via Tf/gs/q-Q/form inheritance, writing mode from closed ISO 32000-2 Table 116 lists + embedded WMode/usecmap, Type3/geometry, reading); is_proven/region_cleared from the record; joined/spaced per-stream matching; normalisation (ESC..ESC, invisible chars, NFKC table Latin scope, Unicode 16); 13 new tests red on 49731a5; 73/73; V4-06 381. Residuals: any undetermined text blocks every redaction of that file; NFKC Latin scope only; clause refs via secondary sources.; R10 canonical rewrite 054037c/47f1588/b8ce934: src/canon.rs rebuilds every live content-role stream from the strict parse (exact operand counts, one escaped form, no comments; inline images -> image XObjects with /Length; unparseable stream -> refused, NotProven); proof requires canonical content (NotProven::NonCanonicalContent); F1-F7, D1, P1/P2/P4 fixed with tests; round-trip property test (3000 generated op lists); 12 new tests red on cc3eaae; 99/99; V4-06 639. Residual: verify_payload_absent on files the crate did not write is protected by strict parsing only.; R13 remediation 0668d35..7410f29: flattened pages explicit + detached from inheritance (/Pages nodes emptied after push-down, check walks /Parent chain); XFA stripped; /OCProperties in renderer copy; render_bounds.rs (tokenizer depth cap, colour-space/function cycle+depth, image bounds incl. abbreviations/codec headers/pixels/max_render_image_bytes 1 GiB/data-length) before hayro; renderer thread 256 MiB stack, panic -> RendererPanicked; painted sources reachable only from flattened pages removed (else NotProven::PaintedSourceKept); structure/widgets of flattened pages removed; DESCRIPTOR colour limitation + citations; 9 new tests red on d079292 (F4 aborts with stack overflow there); 128/128; V4-06 82",
@@ -2657,7 +2658,7 @@
    "origin": "press 1c3fd8c residual",
    "scope": "/Differences + Type3 + encoding-less fonts decoded via AGL or opaque (NotProven)",
    "phase": "validation (R20 narrow pre-review SAFE at bfa1bbf; round R18 next)",
-   "status": "READY_FOR_VALIDATION",
+   "status": "PASS_V2",
    "owner": "builder-press-differences",
    "commits": [
     "607d47c",
@@ -2688,7 +2689,8 @@
     "7410f29"
    ],
    "verdicts": [
-    "STUDIO-R13 PASS_V1 @4b76604"
+    "STUDIO-R13 PASS_V1 @4b76604",
+    "STUDIO-R18 PASS_V2 @bfa1bbf"
    ],
    "candidate": "bfa1bbf",
    "note": "simple fonts decoded via base encodings + /Differences + AGL (BSD-3, 4089 entries embedded with notice; PUA names left unmappable), ToUnicode completion, else OpaqueText NotProven; Type3 names from /Differences only; encoding reads charged; 51 green; 4 new tests red on 1c3fd8c; residual: Type3 /Widths /1000 in region selector (pre-review checks); R8 pre-review FIX_FIRST (excluded from R8, V4-19); remediation dispatched with lead decision fail-closed (START_LOG).; R8 pre-review remediation (fail-closed) e8b464b/a85b85f/49731a5: whole object table read (F1), joined TJ needles (F2/D2), UnreadableRemovedText NotProven (F3/D3), Type3/vertical -> RedactionClass Type3Text/VerticalText (F4/D4), drawn-reading exemption (P1), only /.notdef blank (D1), V4-06 211 sites (F5/D5); 6 new tests red on 607d47c; 57/57; residual: crate not rustfmt-clean (pre-existing).; R9 positive-determination rewrite cc3eaae: show_text::Walker single determination pass (font via Tf/gs/q-Q/form inheritance, writing mode from closed ISO 32000-2 Table 116 lists + embedded WMode/usecmap, Type3/geometry, reading); is_proven/region_cleared from the record; joined/spaced per-stream matching; normalisation (ESC..ESC, invisible chars, NFKC table Latin scope, Unicode 16); 13 new tests red on 49731a5; 73/73; V4-06 381. Residuals: any undetermined text blocks every redaction of that file; NFKC Latin scope only; clause refs via secondary sources.; R10 canonical rewrite 054037c/47f1588/b8ce934: src/canon.rs rebuilds every live content-role stream from the strict parse (exact operand counts, one escaped form, no comments; inline images -> image XObjects with /Length; unparseable stream -> refused, NotProven); proof requires canonical content (NotProven::NonCanonicalContent); F1-F7, D1, P1/P2/P4 fixed with tests; round-trip property test (3000 generated op lists); 12 new tests red on cc3eaae; 99/99; V4-06 639. Residual: verify_payload_absent on files the crate did not write is protected by strict parsing only.; R13 remediation 0668d35..7410f29: flattened pages explicit + detached from inheritance (/Pages nodes emptied after push-down, check walks /Parent chain); XFA stripped; /OCProperties in renderer copy; render_bounds.rs (tokenizer depth cap, colour-space/function cycle+depth, image bounds incl. abbreviations/codec headers/pixels/max_render_image_bytes 1 GiB/data-length) before hayro; renderer thread 256 MiB stack, panic -> RendererPanicked; painted sources reachable only from flattened pages removed (else NotProven::PaintedSourceKept); structure/widgets of flattened pages removed; DESCRIPTOR colour limitation + citations; 9 new tests red on d079292 (F4 aborts with stack overflow there); 128/128; V4-06 82",
@@ -3028,7 +3030,7 @@
    "origin": "plausible register",
    "scope": "PLR-076 (press), PLR-071 (web), PLR-078 (reel-native), PLR-064/065 (psd)",
    "phase": "validation (narrow pre-review of press 12c9317..bfa1bbf)",
-   "status": "READY_FOR_VALIDATION",
+   "status": "PASS_V1",
    "owner": "builder-notes-batch-1",
    "lane_file": "builders/lanes/notes-batch-1.json",
    "commits": [
@@ -3049,7 +3051,9 @@
     "12c9317",
     "bfa1bbf"
    ],
-   "verdicts": [],
+   "verdicts": [
+    "STUDIO-R18 PASS_V1 @bfa1bbf"
+   ],
    "candidate": "bfa1bbf",
    "note": "press 27a9a81 PLR-076: painted region source kept only via /AF, /Names or /Dests -> NotProven::PaintedSourceKept, DESCRIPTOR exact (131 tests); web 9088884 PLR-071: doc + citation fixed, cancellation test past the first iteration, wall-clock bound -> operation-count bound (138); reel-native ab273d3 PLR-078: docs/DESCRIPTOR match code, host-level tests for BATCH_END miscount, OPENED answering PACKET/FINISH, 65 FRAMEs, cut-short greeting (24 with av1-worker+test-faults); interop-psd 5606d16 PLR-064/065: over-counts documented with citations, helper nests groups, nested hidden groups test (53); 346 tests pass; red on origin (press, psd) or stated mutants (web W1-W5, reel-native N1-N4, psd P1-P4). Not done: config-OBU tag case, exact-64-FRAME acceptance test, press prune, psd group-own-lfx2 + zero-tile; R16 pre-review remediation f0be2ba (press: a surviving painted source is silent only when a kept page draws it \u2014 Do/sh/scn/gs/Tf targets, /AP /N /R /D, image /SMask /Mask, pattern /Shading, gs /SMask /G; every other reference reported PaintedSourceKept; reached/pruning unchanged; docs exact; 134/134; red on 5606d16 + mutants M1a-c, M2, M3) + fcda5f6 (psd doc rider: both caps apply); W-1 note count corrected; R17 pre-review remediation: certainty only from an executed draw of the right kind from the nearest resource entry (20510c5); appearance states only when /AS-selected and never for /F hidden/invisible/noview (51f3e72, a92310f); optional content never certain (annotation /OC, object /OC, Do/sh/scn/gs/Tf inside BDC /OC incl. escaped names, per-operator marked-content stack across streams) (35be374, d39bd28, bcc0688); press 141/141; mutants killed; MINIMAL DRAW SET c09196f/8edd93b/12c9317: silence only for an image stream without /OC drawn by Do directly in a kept page's own /Contents outside BDC /OC, resolved through nearest dictionary-only entries; certain flag and draw-kind machinery deleted; one silence site; reached/pruning byte-identical on 317 documents; 145/145; 18 mutants killed",
    "r20_prereview": {
@@ -3743,6 +3747,23 @@
    "interop-media (D9)"
   ],
   "team": "1 validator (opus); review input = R16-R20 narrow pre-reviews",
-  "status": "OPEN"
+  "completed_at": "2026-10-12T05:08:19Z",
+  "status": "COMPLETE",
+  "round_ref": "validation/round-R18.json",
+  "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R18",
+  "union_exit": 0,
+  "not_proven": [],
+  "verdicts": {
+   "PASS": 3,
+   "FAIL": 0
+  },
+  "fails": [],
+  "milestones": [
+   "SMB-PRESS PASS_V4 (first PASS at the D27 flatten + MINIMAL DRAW SET design)",
+   "SMB-PRESS-DIFFERENCES PASS_V2",
+   "SMB-NOTES-BATCH-1 PASS_V1"
+  ],
+  "not_judged": "render-gpu lanes + SMB-ROUND-ENTRYPOINT + SMB-RENDER-GPU-ADJ (D20); interop-media (D9); no-claim lanes",
+  "notes": "union press 147/147 exit 0 at bfa1bbf; 96 lanes proof_reuse; validator V-1 (INFO, decision scope): minimal draw set is syntactic, an invisible direct Do (degenerate cm, empty clip, alpha 0, overpaint) stays silent -> PLR candidate; V-2: pdf.js closes a form's open marked content at the form's end (evidence for narrowing PLR-083's R19-O1 half); PLR-083 not charged"
  }
 }
