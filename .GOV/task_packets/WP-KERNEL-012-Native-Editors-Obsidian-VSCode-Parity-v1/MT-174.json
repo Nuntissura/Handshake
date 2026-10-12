@@ -1,4 +1,107 @@
 {
+  "round46_independent_focused_release_20261012": {
+    "id": "WP012-P2-ROUND46-CLOUD-GRAMMAR-RELEASE-20261012",
+    "status": "SOURCE_CLEAR_PUSHED_PENDING_FOCUSED_MEASUREMENT",
+    "product_commit": "f2d4fab1209d06deb4c317e9c5d4294b8acc1937",
+    "product_tree": "5c21ea0edd24bf2a8c3cfc29465f33012f0badd6",
+    "review_thread": "01a129ca-8eea-7f53-aa9d-7f81f6f08319",
+    "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round45-cloud-field-grammar-repair",
+    "binding_sha256": "8890de71ffe9083d60c85ff212ce0e8871070f10701cd8b8cac0e858026e80bc",
+    "diff_sha256": "2f6935df4afdb15392d8892276b9fb5f4efaba82bb073e9edb3f33cb8a979289",
+    "module_sha256": "ec417603c3520794a829b2f95e03b570f371db8b2b743ddbb7c61146dfb69b77",
+    "repair": "Only cloud allocation field192 grammar TYPE object FLEXIBLE VALUE; complete VALUE/permissions/native guards exact",
+    "owner": "MT-173 both scope lists verified",
+    "prior_failure_ref": "MT-174.json#/round45_independent_catalog_actual_result_20261012",
+    "gameplan_cause": "GP-522",
+    "independent_role": "INTEGRATION_VALIDATOR",
+    "run_scope": "Same exact existing MT139 owningLibTest, warmownedtarget/profile/toolchain/j1/180GBcap after fresh currentHEAD confirmations and numeric admission",
+    "proof_mapping": "Focused genuine FINAL measurement missing; broad mandatory core after stable measured-pin batch",
+    "runtime_acceptance": "NOT_EVALUATED"
+  }
+,
+  "round45_independent_catalog_actual_result_20261012": {
+    "id": "WP012-P2-ROUND45-MT139-ACTUAL-20261012",
+    "status": "BASE_REPRODUCED_CLOUD_MODULE_GRAMMAR_FAILED",
+    "product_commit": "234ce50da83fc0ebe6e054ed19b6c0627c768325",
+    "actual_result": {
+      "attempt_id": "db998dc7d8e34c758b5ec317e7251f7d",
+      "started_utc": "2026-10-12T14:26:02.0296753Z",
+      "status": "TEST_FAILED",
+      "exit_code": 101,
+      "runtime_acceptance": "NOT_EVALUATED",
+      "cap_bytes": 180000000000,
+      "gameplan_exit": 0,
+      "resources": {
+        "utc": "2026-10-12T14:26:25.5730788Z",
+        "available_mb": 6118,
+        "commit_reserve": 45235167232,
+        "pages_input": 188,
+        "page_reads": 41,
+        "free_bytes": 389175123968
+      },
+      "target_bytes_before": 30396256416.0,
+      "max_target_bytes": 31695103043,
+      "argv": [
+        "test",
+        "--locked",
+        "--manifest-path",
+        "src/backend/handshake_core/Cargo.toml",
+        "--features",
+        "app-runtime,surreal-test-support,test-utils",
+        "-j",
+        "1",
+        "--lib",
+        "storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog",
+        "--",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cargo_pid": 28684,
+      "cargo_identity": {
+        "ProcessId": 28684,
+        "CreationDate": "2026-10-12T16:26:27.690793+02:00",
+        "CommandLine": "\"C:\\Users\\iljas\\.cargo\\bin\\cargo.exe\" test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils -j 1 --lib storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog -- --exact --nocapture --test-threads=1",
+        "ExecutablePath": "C:\\Users\\iljas\\.cargo\\bin\\cargo.exe"
+      },
+      "post_binding_exit": 0,
+      "inputs_unchanged": true,
+      "stdout_sha256": "1d2d393e8bc0687001cb1ab85326c352f626290e689f4d327499450fe56c027c",
+      "stderr_sha256": "40e12088a34fe5b400bda784a222e77c96015ae5508ae0c7509dc558cc4f45f7",
+      "completed_utc": "2026-10-12T14:34:51.6360241Z"
+    },
+    "post_binding": {
+      "matched": true,
+      "binding_equal": {
+        "head": true,
+        "tree": true,
+        "status": true,
+        "files": true,
+        "authority": true,
+        "profile_sha256": true,
+        "toolchain": true,
+        "launcher_sha256": true,
+        "external_inputs": true
+      },
+      "files": 7416
+    },
+    "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round45-mt139-catalog-measurement",
+    "artifact_sha256": {
+      "measurement-result.json": "2ea781681702cc6c5aca85e1c39c7757332543475192911a03b8c6872d760a85",
+      "post-binding.json": "9fd1f0edf84de597d3e3539b2e2e05928124e0ababc2fde42ac5ddac59f1fb69",
+      "test.stdout.log": "1d2d393e8bc0687001cb1ab85326c352f626290e689f4d327499450fe56c027c",
+      "test.stderr.log": "40e12088a34fe5b400bda784a222e77c96015ae5508ae0c7509dc558cc4f45f7"
+    },
+    "base_info_sha256": "332526eb4d84ff4eb2cc1d1ed2e2ce3b334008c9a5c77335d7e355637fb6f994",
+    "shared_schema_statement_errors": 0,
+    "failure": "cloud_model_lane_schema.surql192 FLEXIBLE must follow TYPE; original allocation field declared FLEXIBLE TYPE object VALUE",
+    "production_pin": "NOT_MEASURED",
+    "original_pin_assertion": "NOT_REACHED",
+    "runtime_acceptance": "NOT_EVALUATED",
+    "failed_core_launches_retained": 38,
+    "next": "Exact approved cloudfield grammar reorder preserving all semantics; independent review and focused existing measurement"
+  }
+,
   "round45_independent_focused_release_20261012": {
     "id": "WP012-P2-ROUND45-MODULE-BOOLEAN-RELEASE-20261012",
     "status": "SOURCE_CLEAR_PUSHED_PENDING_FOCUSED_MEASUREMENT",

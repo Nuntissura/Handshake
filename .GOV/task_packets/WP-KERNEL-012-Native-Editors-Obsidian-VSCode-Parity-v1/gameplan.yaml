@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 642
+generation: 643
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -540,3 +540,4 @@ steps:
 - {id: GP-519, role: integration_validator, at: before_round, do: verify shared confirmations bind current test-only candidate before measurement wrapper admission, check: {type: confirm}, source: 'infra: Round43 prelaunch held because shared confirm steps remained bound to previous product HEAD', state: active}
 - {id: GP-520, role: integration_validator, at: before_round, do: verify approved schema indexes follow required field definitions in generated SQL and historical reversal, check: {type: confirm}, source: 'failure: MT139 statement1124 scoped_name_key missing; pinned schemafull index checks fields before creation', state: active}
 - {id: GP-521, role: integration_validator, at: before_round, do: verify ordered module Boolean IF arms use covered equality expressions and preserve original truth conditions, check: {type: confirm}, source: 'failure: MT139 production model_lane_schema1344 bare parameter equality parsed as declaration after BASE', state: active}
+- {id: GP-522, role: integration_validator, at: before_round, do: verify cloud allocation field places FLEXIBLE after TYPE and preserves original VALUE expression, check: {type: confirm}, source: 'failure: MT139 cloud_model_lane_schema192 FLEXIBLE before TYPE rejected after reproduced BASE', state: active}
