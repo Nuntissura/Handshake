@@ -1,4 +1,26 @@
 {
+  "round42_actual_core_20261012": {
+  "ref": "MT-174.json#/round42_actual_core_20261012",
+  "prior_checkpoint": {
+    "id": "WP012-P2-ROUND36-CURRENT-REPAIR-20261012",
+    "latest_compile": "Round41 GREEN historical de66b; changed f776f SQL source required proof pending; 38 actual core failures retained",
+    "run_ref": "MT-174.json#/round41_actual_core_20261012",
+    "current_checkpoint": "f776f494e2b12b4ab59cac856964472ab7d34800",
+    "remote_verified": true,
+    "checkpoint_ref": "MT-174.json#/round42_parameter_equality_source_release_20261012",
+    "next_source_repair": "Delivery one existing changed-input core command after fresh admission; Review exact MT139 afterward; measured pins then original fresh/reopen proofs",
+    "bootstrap_amendment_ref": "MT-174.json#/round36_bootstrap_catalog_reconciliation_20261012",
+    "collector": "Complete success; missing/errors/dropped0;7416files+19bindings unchanged",
+    "remaining": "Reviewed two-file SQL identity-expression repair pushed f776f494e; changed-input compiler proof pending. BASE/FINAL catalog observations, exact pins and fresh/reopen, genuine native authorization/publication and consumed runtime acceptance remain unproven; accepted0/5.",
+    "runtime_native_acceptance": "NOT_RUN; accepted0/5 unchanged",
+    "official_cli_config_ref": "MT-174.json#/round36_official_cli_config_source_review_20261012",
+    "bootstrap_review_ref": "MT-174.json#/round36_bootstrap_receipt_review_result_20261012",
+    "registry_config_ref": "MT-174.json#/round41_reviewed_source_release_20261012/runtime_config",
+    "registry_supplemental_review_ref": "MT-174.json#/round36_registry_supplemental_review_20261012",
+    "registry_review_ref": "MT-174.json#/round36_stable_source_release_20261012"
+  }
+},
+
   "round42_parameter_equality_source_release_20261012": {
   "ref": "MT-174.json#/round42_parameter_equality_source_release_20261012",
   "prior_checkpoint": {
@@ -67,15 +89,15 @@
 
   "round36_current_repair_checkpoint_20261012": {
   "id": "WP012-P2-ROUND36-CURRENT-REPAIR-20261012",
-  "latest_compile": "Round41 GREEN historical de66b; changed f776f SQL source required proof pending; 38 actual core failures retained",
-  "run_ref": "MT-174.json#/round41_actual_core_20261012",
+  "latest_compile": "Round42 CORE_CHECK_GREEN exit0 on f776f494e; all485 expected states; 38 historical core failures retained",
+  "run_ref": "MT-174.json#/round42_actual_core_20261012",
   "current_checkpoint": "f776f494e2b12b4ab59cac856964472ab7d34800",
   "remote_verified": true,
   "checkpoint_ref": "MT-174.json#/round42_parameter_equality_source_release_20261012",
-  "next_source_repair": "Delivery one existing changed-input core command after fresh admission; Review exact MT139 afterward; measured pins then original fresh/reopen proofs",
+  "next_source_repair": "Independent Review exact MT139 on f776f after fresh admission; measured pins then exact fresh/reopen",
   "bootstrap_amendment_ref": "MT-174.json#/round36_bootstrap_catalog_reconciliation_20261012",
   "collector": "Complete success; missing/errors/dropped0;7416files+19bindings unchanged",
-  "remaining": "Reviewed two-file SQL identity-expression repair pushed f776f494e; changed-input compiler proof pending. BASE/FINAL catalog observations, exact pins and fresh/reopen, genuine native authorization/publication and consumed runtime acceptance remain unproven; accepted0/5.",
+  "remaining": "Core Round42 GREEN on f776f494e; independently measured BASE/FINAL pins and fresh/reopen, genuine native authorization/publication and consumed runtime/native independent acceptance remain unproven; accepted0/5.",
   "runtime_native_acceptance": "NOT_RUN; accepted0/5 unchanged",
   "official_cli_config_ref": "MT-174.json#/round36_official_cli_config_source_review_20261012",
   "bootstrap_review_ref": "MT-174.json#/round36_bootstrap_receipt_review_result_20261012",
