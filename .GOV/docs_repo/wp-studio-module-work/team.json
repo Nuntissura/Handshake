@@ -1561,7 +1561,7 @@
     "builders/lanes/workspace-steward.json"
    ],
    "launched": "2026-10-11T11:58:46Z",
-   "status": "idle 2026-10-11T23:35:11Z (R15 candidate b8b31c7; C20 exit 73 59/59)"
+   "status": "running 2026-10-12T00:45:10Z (R16 sync + canary C21)"
   },
   {
    "name": "research-reel-eng",
@@ -2282,6 +2282,17 @@
    ],
    "launched": "2026-10-12T00:06:29Z",
    "status": "done 2026-10-12T00:44:33Z (SMB-NOTES-BATCH-1 READY at 5606d16)"
+  },
+  {
+   "name": "prereview-r16-notes",
+   "agent_id": "a9237aeb7ea7fd3d3",
+   "model": "sonnet",
+   "role": "narrow V4-13 pre-review press/web/reel-native/interop-psd notes batch",
+   "owns": [
+    "validation/R16-prereview-notes-narrow.json"
+   ],
+   "launched": "2026-10-12T00:45:10Z",
+   "status": "running"
   }
  ]
 }
