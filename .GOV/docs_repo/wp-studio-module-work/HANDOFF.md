@@ -52,7 +52,7 @@ Push helper for governance: `tools/lead-kernel-push.sh <message-file> <paths...>
 
 ## In flight at handoff
 
-- 2026-10-12T09:05:08Z: all three lanes READY at 2dde832 (SMB-PRESS-STRUCT-FAILCLOSED claim d26d2fd+2566f1b+54c60f9+2dde832 = STRUCTURE TREE = NOT PROVEN; SMB-REEL-PTS-TESTS 172952f and SMB-INTEROP-PSD-DESC-CAP 0c1be05 SAFE in R23). Running: Opus narrow pre-review of press 54c60f9..2dde832 (output `validation/R24-prereview-press-narrow.json`). Then steward sync + canary C26 + round R21 (`ledger.json` resume_plan step 1). Weekly usage 98% at this point: if the limit hits, resume exactly there.
+- 2026-10-12T09:35:55Z: all three lanes SAFE_TO_JUDGE at 2dde832 (press R24, reel + psd R23). Running: Opus validator round R21 at 2dde832 (canary C26 exit 73, 59/59; output `validation/round-R21.json`). If missing on takeover, re-dispatch from the validator template with `ledger.json` round_R21. Next press lane after R21: PLR-102 (struct-element text outside any catalog tree) + PLR-101, decided together with Operator item D28.
 
 </topic>
 
