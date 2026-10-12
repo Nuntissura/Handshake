@@ -669,8 +669,9 @@ async fn seed_lane(
         .with_data_operation(|database| {
             Box::pin(async move {
                 database
-                    .execute_returning(CREATE_LANE_AUTHORITY, bindings)
+                    .query_values::<surrealdb::types::Value, _>(CREATE_LANE_AUTHORITY, bindings)
                     .await
+                    .map(|rows| rows.len())
             })
         })
         .await
@@ -716,8 +717,9 @@ async fn remove_one_scope_field(
         .with_data_operation(|database| {
             Box::pin(async move {
                 database
-                    .execute_returning(REMOVE_ACCESS_SPACE, bindings)
+                    .query_values::<surrealdb::types::Value, _>(REMOVE_ACCESS_SPACE, bindings)
                     .await
+                    .map(|rows| rows.len())
             })
         })
         .await

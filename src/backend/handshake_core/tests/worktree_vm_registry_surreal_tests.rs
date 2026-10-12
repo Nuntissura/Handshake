@@ -771,7 +771,7 @@ async fn missing_or_foreign_event_receipt_fails_closed_without_vm_mutation() {
                 Box::pin(async move {
                     if foreign_scope {
                         database
-                            .execute_returning(
+                            .query_values::<surrealdb::types::Value, _>(
                                 r#"
                                 UPDATE type::record('kernel_event_ledger', $event_id)
                                 SET owner_account_id = $foreign_owner_account_id
@@ -785,9 +785,10 @@ async fn missing_or_foreign_event_receipt_fails_closed_without_vm_mutation() {
                                 bindings,
                             )
                             .await
+                            .map(|rows| rows.len())
                     } else {
                         database
-                            .execute_returning(
+                            .query_values::<surrealdb::types::Value, _>(
                                 r#"
                                 DELETE type::record('kernel_event_ledger', $event_id)
                                 WHERE owner_account_id = $owner_account_id
@@ -800,6 +801,7 @@ async fn missing_or_foreign_event_receipt_fails_closed_without_vm_mutation() {
                                 bindings,
                             )
                             .await
+                            .map(|rows| rows.len())
                     }
                 })
             })
@@ -870,7 +872,7 @@ async fn tampered_or_wrong_receipt_linkage_fails_closed_after_restart() {
                 Box::pin(async move {
                     if wrong_link {
                         database
-                            .execute_returning(
+                            .query_values::<surrealdb::types::Value, _>(
                                 r#"
                                 UPDATE worktree_vm_bindings
                                 SET event_ledger_event_id = type::record('kernel_event_ledger', $replacement_event_id)
@@ -885,9 +887,10 @@ async fn tampered_or_wrong_receipt_linkage_fails_closed_after_restart() {
                                 bindings,
                             )
                             .await
+                            .map(|rows| rows.len())
                     } else {
                         database
-                            .execute_returning(
+                            .query_values::<surrealdb::types::Value, _>(
                                 r#"
                                 UPDATE type::record('kernel_event_ledger', $event_id)
                                 SET payload.binding_state = 'terminated'
@@ -901,6 +904,7 @@ async fn tampered_or_wrong_receipt_linkage_fails_closed_after_restart() {
                                 bindings,
                             )
                             .await
+                            .map(|rows| rows.len())
                     }
                 })
             })
@@ -963,7 +967,7 @@ async fn duplicate_receipt_identity_is_rejected_without_linkage_mutation() {
         .with_data_operation(|database| {
             Box::pin(async move {
                 database
-                    .execute_returning(
+                    .query_values::<surrealdb::types::Value, _>(
                         r#"
                         UPDATE type::record('kernel_event_ledger', $event_id)
                         SET idempotency_key = $replacement_event_id
@@ -977,6 +981,7 @@ async fn duplicate_receipt_identity_is_rejected_without_linkage_mutation() {
                         bindings,
                     )
                     .await
+                    .map(|rows| rows.len())
             })
         })
         .await;
