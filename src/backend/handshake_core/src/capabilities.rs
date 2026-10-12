@@ -10,6 +10,8 @@ const MD_COOKIE_IMPORT_PROTOCOL_ID_V0: &str = "hsk.media_downloader.cookie_impor
 
 /// Canonical capability identifiers from Master Spec §11.1 (Capabilities & Consent Model).
 const CANONICAL_CAPABILITY_IDS: &[&str] = &[
+    "model_lane.navigation.read",
+    "model_lane.recovery.execute",
     "calendar.sync.read",
     "calendar.sync.write",
     "CALENDAR_READ_BASIC",
@@ -220,6 +222,8 @@ impl CapabilityRegistry {
             CapabilityProfile {
                 id: "Operator".to_string(),
                 allowed: vec![
+                    "model_lane.navigation.read".to_string(),
+                    "model_lane.recovery.execute".to_string(),
                     "fs.read".to_string(),
                     "fs.write".to_string(),
                     "export.governance_pack".to_string(),

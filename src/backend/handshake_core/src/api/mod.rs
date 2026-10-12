@@ -57,10 +57,12 @@ impl ApiRouteRuntime {
 pub fn routes_with_process_reclaim_runtime(
     state: AppState,
     process_runtime: crate::process_ledger::ProcessReclaimRuntime,
-    _product_scope: ProductLocalResourceScope,
+    product_scope: ProductLocalResourceScope,
 ) -> ApiRoutes {
     ApiRoutes {
-        router: routes(state),
+        router: routes(state.clone())
+            .layer(axum::Extension(product_scope))
+            .layer(axum::Extension(state.surreal.resource_access_lifecycle())),
         runtime: ApiRouteRuntime {
             shared_process_runtime: Some(process_runtime),
             operator_chat_process_ledger: None,
@@ -105,6 +107,7 @@ pub mod logs;
 pub mod loom;
 pub mod memory;
 pub mod model_access;
+pub mod model_lane_navigation;
 pub mod model_runtime_registry;
 pub mod operator_chat;
 pub mod paths;
@@ -117,6 +120,7 @@ pub mod workspaces;
 
 pub fn routes(state: AppState) -> Router {
     let authority_routes = authority::routes(state.clone());
+    let navigation_routes = model_lane_navigation::routes(state.clone());
     let workspace_routes = workspaces::routes(state.clone());
     let preferences_routes = preferences::routes(state.clone());
     let calendar_routes = calendar::routes(state.clone());
@@ -153,6 +157,7 @@ pub fn routes(state: AppState) -> Router {
         .with_state(state.clone());
 
     authority_routes
+        .merge(navigation_routes)
         .merge(workspace_routes)
         .merge(preferences_routes)
         .merge(calendar_routes)

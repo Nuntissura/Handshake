@@ -306,6 +306,8 @@ pub enum SurrealStorageError {
     TransactionCancel(surrealdb::Error),
     #[error("protected transaction requires an authenticated record-user envelope")]
     TransactionAuthorityRequired,
+    #[error("resource authority infrastructure is unavailable")]
+    ResourceAuthorityUnavailable,
     #[error("protected transaction {operation_id} has an unresolved settlement; retry is forbidden")]
     TransactionSettlementPending { operation_id: uuid::Uuid },
     #[error("embedded transaction caller was cancelled")]
@@ -633,6 +635,7 @@ pub(crate) type SurrealTransactionOperation<'a, T, E> =
     Pin<Box<dyn Future<Output = Result<T, E>> + Send + 'a>>;
 
 tokio::task_local! {
+    pub(crate) static RESOURCE_ACCESS_AUTHORIZATION: crate::swarm_orchestration::resource_scope::ResourceAccessGrantAssociation;
     static INSIDE_SURREAL_OPERATION: ();
     static RECORD_USER_SCOPE: resource_authority::RecordUserScope;
     static PROTECTED_TRANSACTION: ProtectedTransaction;
@@ -1310,6 +1313,7 @@ pub struct ShutdownReport {
 }
 
 struct SurrealStorageInner {
+    resource_access_lifecycle: crate::swarm_orchestration::resource_scope::ResourceAccessLifecycleRegistry,
     config: SurrealStorageConfig,
     client: RwLock<Option<SurrealClient>>,
     guard: Arc<dyn StorageGuard>,
@@ -1488,6 +1492,7 @@ impl SurrealStorage {
 
         Ok(Self {
             inner: Arc::new(SurrealStorageInner {
+                resource_access_lifecycle: crate::swarm_orchestration::resource_scope::ResourceAccessLifecycleRegistry::new(),
                 config,
                 client: RwLock::new(Some(client)),
                 guard,
@@ -1506,6 +1511,11 @@ impl SurrealStorage {
 
     pub async fn open_default() -> Result<Self, SurrealStorageError> {
         Self::open(SurrealStorageConfig::from_env()?).await
+    }
+
+    /// One initially empty authentication lifecycle shared by all storage clones.
+    pub fn resource_access_lifecycle(&self) -> crate::swarm_orchestration::resource_scope::ResourceAccessLifecycleRegistry {
+        self.inner.resource_access_lifecycle.clone()
     }
 
     pub fn config(&self) -> &SurrealStorageConfig {

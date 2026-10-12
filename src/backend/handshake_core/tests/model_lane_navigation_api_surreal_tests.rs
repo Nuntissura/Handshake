@@ -357,7 +357,7 @@ impl NavigationFixture {
             .with_access_space(AccessSpaceRef::from_uuid(uuid::Uuid::parse_str(&account.access_space_id).expect("actual Space")))
             .with_workspace(WorkspaceScopeRef::new(workspace_id.clone()).expect("actual workspace"));
         let exact = handshake_core::swarm_orchestration::resource_scope::ExactResourceScopeAttribution::try_from_resource_scope(&scope).expect("actual exact tuple");
-        let lifecycle = ResourceAccessLifecycleRegistry::default(); lifecycle.register_active(exact.clone()).expect("register actual fixture lifecycle");
+        let lifecycle = storage.resource_access_lifecycle(); lifecycle.register_active(exact.clone()).expect("register actual fixture lifecycle");
         let request = navigation_request(&account, ResourceKind::Workspace, &workspace_id, ResourceAction::Read, "fs.read");
         let actual = storage.authorize_protected_resource(request).await.expect("resolve canonical owning workspace grant");
         storage.grant_resource(&account.account_id, &account.access_space_id, ResourceGrantSpec {

@@ -273,6 +273,14 @@ struct SessionIssueRow {
 }
 
 #[derive(SurrealValue)]
+pub(crate) struct CanonicalResourceLocator {
+    pub id: RecordId,
+    pub external_resource_id: String,
+    pub owner_account_id: RecordId,
+    pub access_space_id: RecordId,
+}
+
+#[derive(SurrealValue)]
 struct AuthorizationRow {
     grant_id: RecordId,
     resource_id: RecordId,
@@ -1111,6 +1119,30 @@ impl SurrealStorage {
         })
     }
 
+    /// Canonical identity locator only; ordinary grant and guarded authority checks remain required.
+    pub(crate) async fn canonical_resource_locator(
+        &self, kind: ResourceKind, external: &str,
+    ) -> Result<Option<CanonicalResourceLocator>, ResourceAuthorityError> {
+        let namespace = self.config().namespace().to_owned();
+        let database = self.config().database().to_owned();
+        let kind = kind.as_str().to_owned();
+        let external = external.to_owned();
+        let rows = self.with_lease(move |client| Box::pin(async move {
+            let authority = client.clone();
+            authority.use_ns(namespace).use_db(database).await?;
+            let mut response = handshake_storage_support::diagnostics::observe_result("authority_resource_query", authority.query(
+                "SELECT id, external_resource_id, owner_account_id, access_space_id FROM protected_resources WHERE resource_kind = $kind AND external_resource_id = $external LIMIT 2;",
+            ).bind(("kind", kind)).bind(("external", external))).await?.check()?;
+            let rows: Vec<CanonicalResourceLocator> = response.take(0)?;
+            Ok(rows)
+        })).await?;
+        match rows.len() {
+            0 => Ok(None),
+            1 => Ok(rows.into_iter().next()),
+            _ => Err(surrealdb::Error::internal("protected resource lookup was not canonical".to_owned()).into()),
+        }
+    }
+
     pub async fn authorize_protected_resource(
         &self,
         request: AuthorizationRequest,
@@ -1134,7 +1166,7 @@ impl SurrealStorage {
         let channel_binding_hash = request.channel_binding_hash.clone();
         let capability = request.capability_id.clone();
         let kind = request.resource_kind.as_str().to_owned();
-        let external = request.external_resource_id.clone();
+        let resource = self.canonical_resource_locator(request.resource_kind, &request.external_resource_id).await?.map(|row| row.id);
         let action = request.action.as_str().to_owned();
 
         let row = self
@@ -1145,25 +1177,6 @@ impl SurrealStorage {
                         .use_ns(namespace.clone())
                         .use_db(database.clone()))
                         .await?;
-                    let mut resource_response = handshake_storage_support::diagnostics::observe_result("authority_resource_query", authority
-                        .query(
-                            "SELECT VALUE id FROM protected_resources WHERE resource_kind = $kind AND external_resource_id = $external LIMIT 2;",
-                        )
-                        .bind(("kind", kind.clone()))
-                        .bind(("external", external)))
-                        .await?
-                        .check()?;
-                    let resource_rows: Vec<RecordId> = handshake_storage_support::diagnostics::observe_result("authority_response_decode", async { resource_response.take(0) }).await?;
-                    let resource = match resource_rows.as_slice() {
-                        [] => None,
-                        [resource] => Some(resource.clone()),
-                        _ => {
-                            return Err(surrealdb::Error::internal(
-                                "protected resource lookup was not canonical".to_owned(),
-                            )
-                            .into())
-                        }
-                    };
                     if handshake_storage_support::diagnostics::observe_result("authority_signin", authority
                         .signin(RecordSignin {
                             namespace,
@@ -1330,7 +1343,9 @@ impl SurrealStorage {
             session_id,
             "UPDATE $record SET revoked_at = time::now();",
         )
-        .await
+        .await?;
+        self.resource_access_lifecycle().invalidate_session(session_id)
+            .map_err(|_| ResourceAuthorityError::InvalidInput("lifecycle authority unavailable"))
     }
 
     pub async fn revoke_grant(&self, grant_id: &str) -> Result<(), ResourceAuthorityError> {
@@ -1339,7 +1354,9 @@ impl SurrealStorage {
             grant_id,
             "UPDATE $record SET status = 'revoked', revoked_at = time::now(), grant_version += 1, policy_version += 1, updated_at = time::now();",
         )
-        .await
+        .await?;
+        self.resource_access_lifecycle().invalidate_grant(grant_id)
+            .map_err(|_| ResourceAuthorityError::InvalidInput("lifecycle authority unavailable"))
     }
 
     pub async fn disable_account(&self, account_id: &str) -> Result<(), ResourceAuthorityError> {
@@ -1348,7 +1365,9 @@ impl SurrealStorage {
             account_id,
             "UPDATE $record SET status = 'disabled', revocation_epoch += 1, policy_version += 1, updated_at = time::now();",
         )
-        .await
+        .await?;
+        self.resource_access_lifecycle().invalidate_account(account_id)
+            .map_err(|_| ResourceAuthorityError::InvalidInput("lifecycle authority unavailable"))
     }
 
     pub async fn switch_session_access_space(
@@ -1419,6 +1438,8 @@ impl SurrealStorage {
             })
         })
         .await?;
+        self.resource_access_lifecycle().invalidate_session(session_id)
+            .map_err(|_| ResourceAuthorityError::InvalidInput("lifecycle authority unavailable"))?;
         Ok(())
     }
 

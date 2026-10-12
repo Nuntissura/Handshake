@@ -3638,6 +3638,8 @@ impl SurrealModelLaneStore {
             authenticated_session_id: scope.authenticated_session_id,
             access_space_id: scope.access_space_id, workspace_id: scope.workspace_id,
         };
+        let association = super::RESOURCE_ACCESS_AUTHORIZATION.try_with(Clone::clone).ok();
+        let lifecycle = self.storage.resource_access_lifecycle();
         super::with_model_lane_operation(ContextCoordinationPurpose::NavigationRead,
             self.storage.with_authenticated_transaction(uuid::Uuid::now_v7(), move |transaction| Box::pin(async move {
                 let before = transaction.query_first::<NavigationAuthoritySnapshot, _>(
@@ -3648,6 +3650,27 @@ impl SurrealModelLaneStore {
                 ).await.map_err(E::from)?;
                 if !before_grants.iter().any(|grant| grant.grant_id == expected_grant_id) {
                     return Err(E::from(SurrealStorageError::TransactionAuthorityRequired));
+                }
+                if let Some(association) = &association {
+                    match lifecycle.authorize_association(association) {
+                        Ok(()) => {},
+                        Err(crate::swarm_orchestration::resource_scope::ScopeDenied::LifecycleAuthorityUnavailable) => return Err(E::from(SurrealStorageError::ResourceAuthorityUnavailable)),
+                        Err(_) => return Err(E::from(SurrealStorageError::TransactionAuthorityRequired)),
+                    }
+                    if association.grant_id != expected_grant_id || association.resource_id != original.resource_id
+                        || association.exact.owner_account_id.to_string() != bindings.owner_account_id
+                        || association.exact.actor_principal_id.to_string() != bindings.actor_principal_id
+                        || association.exact.authenticated_session_id.to_string() != bindings.authenticated_session_id
+                        || association.exact.access_space_id.to_string() != bindings.access_space_id
+                        || association.exact.workspace_id.as_str() != bindings.workspace_id
+                        || association.capability_id != original.capability_id || association.action != "read"
+                        || association.purpose != "navigation_read"
+                        || !before_grants.iter().any(|grant| grant.grant_id == association.grant_id
+                            && grant.resource_id == association.resource_id && grant.grant_version == association.grant_version
+                            && grant.grant_policy_version == association.policy_version)
+                        {
+                        return Err(E::from(SurrealStorageError::TransactionAuthorityRequired));
+                    }
                 }
                 let before_sources = transaction.query_values_at::<SurrealModelLaneNavigationRow, _>(
                     NAVIGATION_SOURCE_SNAPSHOT, bindings.clone(), 0,
@@ -3680,6 +3703,13 @@ impl SurrealModelLaneStore {
                     || before_sources != after_sources || before_receipts != after_receipts
                     || before_inputs != after_inputs {
                     return Err(E::from(SurrealStorageError::TransactionAuthorityRequired));
+                }
+                if let Some(association) = &association {
+                    match lifecycle.authorize_association(association) {
+                        Ok(()) => {},
+                        Err(crate::swarm_orchestration::resource_scope::ScopeDenied::LifecycleAuthorityUnavailable) => return Err(E::from(SurrealStorageError::ResourceAuthorityUnavailable)),
+                        Err(_) => return Err(E::from(SurrealStorageError::TransactionAuthorityRequired)),
+                    }
                 }
                 Ok(value)
             })),

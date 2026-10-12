@@ -228,6 +228,8 @@ impl SurrealStorage {
                 .bind(("account_session", account_session)).bind(("event", event)).await?.check()?;
             Ok(())
         })).await?;
+        self.resource_access_lifecycle().invalidate_session(&context.session_id)
+            .map_err(|_| ResourceAuthorityError::InvalidInput("lifecycle authority unavailable"))?;
         Ok(())
     }
     pub(crate) async fn authorized_document_workspace(

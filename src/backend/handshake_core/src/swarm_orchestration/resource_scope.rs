@@ -657,9 +657,23 @@ struct ResourceAccessLifecycleEntry {
     transition_sequence: u64,
 }
 
+/// Captured canonical grant association; registration is never durable authority.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct ResourceAccessGrantAssociation {
+    pub exact: ExactResourceScopeAttribution,
+    pub resource_id: String,
+    pub grant_id: String,
+    pub grant_version: i64,
+    pub policy_version: i64,
+    pub capability_id: String,
+    pub action: String,
+    pub purpose: String,
+}
+
 #[derive(Debug, Default)]
 struct ResourceAccessLifecycleRegistryState {
     entries: BTreeMap<ExactResourceScopeAttribution, ResourceAccessLifecycleEntry>,
+    grants: BTreeMap<ResourceAccessGrantAssociation, bool>,
     next_transition_sequence: u64,
 }
 
@@ -730,6 +744,82 @@ impl ResourceAccessLifecycleRegistry {
             state: entry.state,
             transition_sequence: entry.transition_sequence,
         })
+    }
+
+    pub(crate) fn register_authorization(
+        &self, association: ResourceAccessGrantAssociation,
+    ) -> Result<(), ResourceAccessLifecycleTransitionError> {
+        let mut state = self.state.write().map_err(|_| ResourceAccessLifecycleTransitionError::AuthorityUnavailable)?;
+        if matches!(state.entries.get(&association.exact), Some(entry) if entry.state != ResourceAccessLifecycleState::Active)
+            || state.grants.get(&association) == Some(&false) {
+            return Err(ResourceAccessLifecycleTransitionError::TerminalContext);
+        }
+        if !state.entries.contains_key(&association.exact) {
+            state.next_transition_sequence = state.next_transition_sequence.saturating_add(1);
+            let sequence = state.next_transition_sequence;
+            state.entries.insert(association.exact.clone(), ResourceAccessLifecycleEntry {
+                state: ResourceAccessLifecycleState::Active, transition_sequence: sequence,
+            });
+        }
+        state.grants.insert(association, true);
+        Ok(())
+    }
+
+    pub(crate) fn authorize_association(&self, association: &ResourceAccessGrantAssociation) -> Result<(), ScopeDenied> {
+        let state = self.state.read().map_err(|_| ScopeDenied::LifecycleAuthorityUnavailable)?;
+        if matches!(state.entries.get(&association.exact), Some(entry) if entry.state == ResourceAccessLifecycleState::Active)
+            && state.grants.get(association) == Some(&true) { Ok(()) } else { Err(ScopeDenied::LifecycleRevoked) }
+    }
+
+    pub(crate) fn capture_grants(
+        &self, exact: &ExactResourceScopeAttribution, purpose: &str,
+    ) -> Result<Vec<ResourceAccessGrantAssociation>, ResourceAccessLifecycleTransitionError> {
+        let state = self.state.read().map_err(|_| ResourceAccessLifecycleTransitionError::AuthorityUnavailable)?;
+        Ok(state.grants.keys().filter(|association| &association.exact == exact && association.purpose == purpose).cloned().collect())
+    }
+
+    /// Apply canonical absence only to associations captured before that query.
+    /// Later registration and terminal callbacks cannot be overwritten by a stale read.
+    pub(crate) fn observe_grants(
+        &self, captured: &[ResourceAccessGrantAssociation], eligible: &[(String, i64, i64)],
+    ) -> Result<(), ResourceAccessLifecycleTransitionError> {
+        let mut state = self.state.write().map_err(|_| ResourceAccessLifecycleTransitionError::AuthorityUnavailable)?;
+        for association in captured {
+            if !eligible.iter().any(|(id, version, policy)| id == &association.grant_id
+                && *version == association.grant_version && *policy == association.policy_version) {
+                if let Some(active) = state.grants.get_mut(association) { *active = false; }
+            }
+        }
+        Ok(())
+    }
+
+    pub(crate) fn invalidate_grant(&self, grant_id: &str) -> Result<(), ResourceAccessLifecycleTransitionError> {
+        let mut state = self.state.write().map_err(|_| ResourceAccessLifecycleTransitionError::AuthorityUnavailable)?;
+        for (association, active) in state.grants.iter_mut() {
+            if association.grant_id == grant_id { *active = false; }
+        }
+        Ok(())
+    }
+
+    pub(crate) fn invalidate_session(&self, session_id: &str) -> Result<(), ResourceAccessLifecycleTransitionError> {
+        self.invalidate_matching(|exact| exact.authenticated_session_id.to_string() == session_id)
+    }
+
+    pub(crate) fn invalidate_account(&self, account_id: &str) -> Result<(), ResourceAccessLifecycleTransitionError> {
+        self.invalidate_matching(|exact| exact.owner_account_id.to_string() == account_id)
+    }
+
+    fn invalidate_matching(&self, matches: impl Fn(&ExactResourceScopeAttribution) -> bool) -> Result<(), ResourceAccessLifecycleTransitionError> {
+        let mut state = self.state.write().map_err(|_| ResourceAccessLifecycleTransitionError::AuthorityUnavailable)?;
+        let exacts: Vec<_> = state.entries.keys().filter(|exact| matches(exact)).cloned().collect();
+        for exact in exacts {
+            state.next_transition_sequence = state.next_transition_sequence.saturating_add(1);
+            let sequence = state.next_transition_sequence;
+            state.entries.insert(exact, ResourceAccessLifecycleEntry {
+                state: ResourceAccessLifecycleState::Revoked, transition_sequence: sequence,
+            });
+        }
+        Ok(())
     }
 
     pub fn mark_stale(
