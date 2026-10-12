@@ -23,10 +23,10 @@ use handshake_core::{
         acquire_embedded_runtime_instance_lease, drain_and_join_ledger_writer, LedgerBatcher,
         LedgerBatcherConfig, LedgerDrainJoinOutcome, LedgerEvent, NoopOverflowSink,
         ProcessEngineKind, ProcessLedgerError, ProcessLedgerStore, ProcessRuntimeOwner,
-        ProcessStart, ProcessStop, ReclaimProcessStore, ReclaimResourceScope, StaleSessionSource,
-        SurrealModelLaneStaleSessionSource, SurrealProcessLedgerStore,
+        ProcessStart, ProcessStop, ScopedReclaimProcessStore, ReclaimResourceScope, StaleSessionSource,
+        SurrealModelLaneStaleSessionSource,
     },
-    storage::surreal::SurrealStorage,
+    storage::surreal::{SurrealStorage, SurrealProcessLedgerStore},
 };
 use process_ledger_surreal_support::{scope_metadata, ProcessLedgerSurrealHarness};
 use serde_json::{json, Value};
@@ -613,7 +613,7 @@ async fn concurrent_exact_scope_claimants_never_receive_the_same_process() {
     for process in first.iter().chain(second.iter()) {
         harness
             .store()
-            .release_reclaim_claim(process.process_uuid, &process.reclaim_claim)
+            .release_reclaim_claim(process, &process.reclaim_claim)
             .await
             .expect("release exact concurrency claim");
     }
@@ -840,12 +840,12 @@ async fn stale_claim_cannot_release_or_advance_the_current_exact_scope_claim() {
     stale.generation = stale.generation.saturating_sub(1);
     harness
         .store()
-        .release_reclaim_claim(process_uuid, &stale)
+        .release_reclaim_claim(&current, &stale)
         .await
         .expect_err("stale claimant cannot release current claim");
     harness
         .store()
-        .mark_reclaim_kill_started(process_uuid, &stale)
+        .mark_reclaim_kill_started(&current, &stale)
         .await
         .expect_err("stale claimant cannot advance current claim");
     let state = claim_state(&harness.storage(), harness.resource_scope(), process_uuid)
@@ -862,7 +862,7 @@ async fn stale_claim_cannot_release_or_advance_the_current_exact_scope_claim() {
     );
     harness
         .store()
-        .release_reclaim_claim(process_uuid, &current.reclaim_claim)
+        .release_reclaim_claim(&current, &current.reclaim_claim)
         .await
         .expect("current claimant releases its own claim");
     assert_eq!(harness.process_event_count().await, 1);

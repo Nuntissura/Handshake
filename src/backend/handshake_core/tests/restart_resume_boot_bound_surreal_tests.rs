@@ -135,17 +135,6 @@ async fn restart_resume_boot_pass_is_hard_bounded_and_persists_incomplete_marker
             BoundedRestartResumeOutcome::Completed(_) => panic!("zero-bound fault completed"),
         }
     }
-    struct BlockingCleanup(std::sync::Arc<std::sync::atomic::AtomicBool>);
-    #[async_trait::async_trait]
-    impl handshake_core::process_ledger::restart_resume::StartupProcessCleanup for BlockingCleanup {
-        async fn cleanup(
-            &self,
-            _: &handshake_core::process_ledger::ReclaimableProcess,
-        ) -> Result<(), String> {
-            self.0.store(true, std::sync::atomic::Ordering::Release);
-            std::future::pending().await
-        }
-    }
     #[derive(SurrealValue)]
     struct BlockedBindings {
         session: String,
@@ -161,28 +150,31 @@ async fn restart_resume_boot_pass_is_hard_bounded_and_persists_incomplete_marker
         let bindings = BlockedBindings { session: candidate.clone(), owner: origin.account_uuid.to_string(), actor: origin.actor_uuid.to_string(), authenticated: origin.session_uuid.to_string(), space: origin.access_space_uuid.to_string(), workspace: origin.workspace_id.clone() };
         Box::pin(async move { database.query_values::<surrealdb::types::Value, _>("CREATE type::record('kernel_session_queue', $session) SET session_run_id=$session, kernel_task_run_id='bounded-cleanup-fixture', adapter_id='bounded-cleanup-fixture', state='RUNNING', owner_account_id=$owner, actor_principal_id=$actor, authenticated_session_id=$authenticated, access_space_id=$space, workspace_id=$workspace;", bindings).await.map(|rows| rows.len()) })
     }).await.expect("seed exact-scope blocking-cleanup candidate");
+    let old_lease = handshake_core::process_ledger::acquire_embedded_runtime_instance_lease(
+        uuid::Uuid::now_v7(), harness.restart_host_scope())
+        .expect("acquire prior runtime lease before fixture START");
     let process = handshake_core::process_ledger::ProcessStart::new(
-        handshake_core::process_ledger::ProcessEngineKind::HelperSubprocess,
+        handshake_core::process_ledger::ProcessEngineKind::Candle,
         "bounded-cleanup-fixture",
         None,
     )
     .with_parent_session_id(candidate)
-    .with_os_pid(13799);
+    .with_sandbox_adapter_id(handshake_core::sandbox::HANDSHAKE_NATIVE_SANDBOX_ADAPTER_ID)
+    .with_runtime_owner(old_lease.descriptor().process_runtime_owner())
+    .with_metadata_jsonb(harness.metadata());
     let process_uuid = process.process_uuid;
+    let process = process.with_sandbox_internal_id(process_uuid.to_string());
     harness
         .write_batch(vec![handshake_core::process_ledger::LedgerEvent::Start(
             process,
         )])
         .await
         .expect("seed owned fixture process");
+    drop(old_lease);
     let entered = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-    let reclaimer = std::sync::Arc::new(
-        handshake_core::process_ledger::restart_resume::SurrealRestartOrphanReclaimer::new(
-            harness.store(),
-            std::sync::Arc::new(BlockingCleanup(entered.clone())),
-        ),
-    );
-    let blocked_runner = SurrealRestartResumeRunner::new(storage.clone(), origin, reclaimer);
+    let fault = std::sync::Arc::new(process_ledger_surreal_support::BlockingScopedKill::new(
+        origin, process_uuid, entered.clone()));
+    let blocked_runner = harness.restart_runner_with_fault(Some(fault)).await;
     let began = Instant::now();
     let outcome = blocked_runner
         .run_with_bound(Duration::from_millis(100))

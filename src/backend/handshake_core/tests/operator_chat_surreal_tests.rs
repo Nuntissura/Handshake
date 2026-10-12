@@ -26,9 +26,9 @@ use handshake_core::model_runtime::{
 };
 use handshake_core::process_ledger::{
     LedgerBatcher, LedgerBatcherConfig, NoopOverflowSink, ProcessEngineKind,
-    ProcessOwnershipRecordId, ProcessStart, ReclaimResourceScope, SurrealProcessLedgerStore,
+    ProcessOwnershipRecordId, ProcessStart, ReclaimResourceScope,
 };
-use handshake_core::storage::surreal::{RowFilter, ScalarValue, SurrealStorage};
+use handshake_core::storage::surreal::{RowFilter, ScalarValue, SurrealStorage, SurrealProcessLedgerStore};
 use handshake_core::storage::{ModelSession, ModelSessionState};
 use handshake_core::swarm_orchestration::model_lane::{
     LaunchAuthority, ModelLaneError, ModelLaneKind, ModelLaneProviderKind, ModelLaneRunRecord,
