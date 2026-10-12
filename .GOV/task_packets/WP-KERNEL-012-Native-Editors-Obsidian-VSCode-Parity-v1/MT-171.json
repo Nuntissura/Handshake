@@ -1,4 +1,29 @@
 {
+
+  "round40_actual_core_20261012": {
+    "proof_ref": "MT-174.json#/round40_actual_core_20261012",
+    "covers": [
+      "MT-171",
+      "MT-172",
+      "MT-173",
+      "MT-174"
+    ],
+    "runtime_acceptance": "NOT_RUN",
+    "accepted_mts": "0/5"
+  },
+  "round40_prior_lifecycle_20261012": {
+    "status": "BLOCKED",
+    "blocked_on": "Target MT170/wpv/target has no recorded Phase2 builder transfer; Shared schema/catalog/manifests/locks/host dependency closure unresolved; CKC route registration requires existing WP012 account adapter; helper visibility cannot revive header-spoof actor authority",
+    "depends_on": [],
+    "blocks": [],
+    "active": true,
+    "validator_verdict": null,
+    "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
+    "claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
+    "completed_by": null,
+    "next_actor": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER after exact resource/auth/schema blocker disposition"
+  }
+,
   "schema_id": "hsk.microtask_contract@1",
   "schema_version": "microtask_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
@@ -1019,17 +1044,17 @@
     "generator": null
   },
   "lifecycle": {
-    "status": "BLOCKED",
-    "blocked_on": "Target MT170/wpv/target has no recorded Phase2 builder transfer; Shared schema/catalog/manifests/locks/host dependency closure unresolved; CKC route registration requires existing WP012 account adapter; helper visibility cannot revive header-spoof actor authority",
-    "depends_on": [],
-    "blocks": [],
-    "active": true,
-    "validator_verdict": null,
-    "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
-    "claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
-    "completed_by": null,
-    "next_actor": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER after exact resource/auth/schema blocker disposition"
-  },
+  "status": "BLOCKED",
+  "blocked_on": "Core Round40 GREEN on880dda; runtime remains blocked on independently measured BASE/FINAL pins and fresh/reopen proof, prohibited live .GOV registry input coupling, genuine native authorization/publication and consumed runtime/native independent acceptance; accepted0/5.",
+  "depends_on": [],
+  "blocks": [],
+  "active": true,
+  "validator_verdict": null,
+  "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
+  "claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
+  "completed_by": null,
+  "next_actor": "Independent Review executes existing MT139 measured catalog target after fresh admission; sole coder reconciles measured pins and original registry external input seam; preserve original authority/assertions; no unchanged core rerun"
+},
   "scope": {
     "summary": "Reconcile CKC-owned core import paths",
     "allowed_paths": [

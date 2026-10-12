@@ -1,4 +1,114 @@
 {
+
+  "round40_independent_catalog_measurement_assignment_20261012": {
+    "id": "WP012-P2-MT139-INDEPENDENT-CATALOG-MEASUREMENT-20261012",
+    "assigned_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
+    "operator_authority": "Live operator: all approved deploy, commit and push; finish without me",
+    "executor_thread": "01a129ca-8eea-7f53-aa9d-7f81f6f08319",
+    "executor_role": "INTEGRATION_VALIDATOR",
+    "workflow": "KERNEL_BUILDER_FOLDED_NO_ACP / DIRECT_REVIEW_V1",
+    "scope": "Bounded independent diagnostic catalog observation only; no product writes, acceptance verdict or MT completion",
+    "candidate": "880dda6d7fea02e230598d4c6215545ec35510fd",
+    "core_proof_ref": "MT-174.json#/round40_actual_core_20261012",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--manifest-path",
+      "src/backend/handshake_core/Cargo.toml",
+      "--features",
+      "app-runtime,surreal-test-support,test-utils",
+      "-j",
+      "1",
+      "--lib",
+      "storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog",
+      "--",
+      "--exact",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "resource_allocation": "Explicit sequential reuse of existing MT174 Delivery target; same pinned toolchain/profile and 180000000000 byte cap under existing WP012 grant; Delivery releases sole execution ownership to assigned Review thread for this observation",
+    "release_conditions": "Root pushed checkpoint; fresh actual role-scoped numeric gameplan/resources; unchanged original source/assertions; actual stdout/stderr/numeric exit and post-binding",
+    "outputs": "Actual BASE and FINAL printed SHA256, inventory/source fields, executed test count and original assertion outcome",
+    "next": "Measured pin reconciliation plus original registry external-input seam; independent fresh/reopen proof still mandatory",
+    "status": "ASSIGNED_PENDING_RELEASE"
+  }
+,
+
+  "round40_actual_core_20261012": {
+    "id": "WP012-P2-ROUND40-ACTUAL-CORE-20261012",
+    "at_utc": "2026-10-12T10:58:51.715503+00:00",
+    "status": "CORE_CHECK_GREEN",
+    "executor_role": "KERNEL_BUILDER_DELIVERY",
+    "acceptance_verdict": null,
+    "command": [
+      "check",
+      "--locked",
+      "--manifest-path",
+      "src/backend/handshake_core/Cargo.toml",
+      "--lib",
+      "--tests",
+      "--features",
+      "app-runtime,surreal-test-support,test-utils",
+      "-j",
+      "1",
+      "--keep-going",
+      "--message-format=json"
+    ],
+    "product_commit": "880dda6d7fea02e230598d4c6215545ec35510fd",
+    "product_tree": "2766caac12a97a96d82f89848249bed08ed3e84b",
+    "covers": [
+      "MT-171",
+      "MT-172",
+      "MT-173",
+      "MT-174"
+    ],
+    "exit_code": 0,
+    "terminal_utc": "2026-10-12T10:50:28.8335108Z",
+    "attempt_id": "2c94e83346ff4fa583cd974edfa240c8",
+    "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round40-loom-edge-serialization",
+    "result_sha256": "363eb5f829fff2d458130163f3eee6ec37ccae0a3a9c4da2aa9a9a1a93cade39",
+    "evidence_sha256": "dbb01aabeeba39b89438d89030ebacf60ea487a4cd0d55c6da564f9c09f24acf",
+    "raw_log_sha256": {
+      "stdout_sha256": "b0c0e11761ea08a046710377551b10789bf2062fc91d1754087e3a50955ff20a",
+      "stderr_sha256": "e218fabcbe8bcddb6fb2c2cc7c948fd8dce403e7104f17c52d9c705b03520e58",
+      "cargo_pid": 8448,
+      "wrapper_pid": 17328,
+      "collector_commit": "3ef3aea56cc9e4b3a8e231a89a1ca70533d8da96",
+      "collector_sha256": "8bd50b47e7a88abd24864ea49ebc9ae883bcdc3cbcb47fcea8f780cb63eaec4f",
+      "caller_config_sha256": "74d4e4c2493db4f8ee8838886122b292e80e849109c268de921f330e96d3a59d",
+      "metadata_sha256": "2d8aadeb3d228bac309f0ea5d7b35ee4380baf992240cb9807a1f7837c177d53",
+      "numeric_exit": 0
+    },
+    "expected_targets_observed": 485,
+    "inputs_unchanged": true,
+    "captured_files": 7416,
+    "scalar_bindings": 19,
+    "source_drift": [],
+    "authority_drift": [],
+    "owned_processes_gone": true,
+    "actual_failed_core_launches_retained": 38,
+    "held_admission_attempt": "2081755f4a4941559171c252ff22bef3",
+    "held_admission_cargo_launched": false,
+    "runtime_acceptance": "NOT_RUN",
+    "accepted_mts": "0/5",
+    "next": "Independent existing MT139 BASE/FINAL measurement; measured pin reconciliation and original fresh/reopen proof; external original registry inputs, genuine native authorization/publication and independent acceptance"
+  },
+  "round40_prior_lifecycle_20261012": {
+    "status": "BLOCKED",
+    "blocked_on": "Latest actual core Round39 FAILED101 on9e85102e;38 actual failed launches;all captured source/authority unchanged. Only NewLoomEdge Serialize contract absent at retained loom_search_v2_tests100. One-line owner repair pending review. Actual coreGREEN/catalog measurements/fresh-reopen, native authentication/registry publication and independent acceptance remain unproven0/5.",
+    "depends_on": [
+      "MT-173"
+    ],
+    "blocks": [],
+    "active": true,
+    "validator_verdict": null,
+    "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
+    "claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
+    "completed_by": null,
+    "next_actor": "Sole coder one-line owning type Serialize repair, scoped review and stable pushed changed candidate, fresh gates/resources then required core check; no unchanged retry"
+  }
+,
   "round39_loom_edge_source_release_20261012": {
   "at_utc": "2026-10-12T10:29:11.931098+00:00",
   "product_commit": "880dda6d7fea02e230598d4c6215545ec35510fd",
@@ -3673,19 +3783,19 @@
     "generator": null
   },
   "lifecycle": {
-    "status": "BLOCKED",
-    "blocked_on": "Latest actual core Round39 FAILED101 on9e85102e;38 actual failed launches;all captured source/authority unchanged. Only NewLoomEdge Serialize contract absent at retained loom_search_v2_tests100. One-line owner repair pending review. Actual coreGREEN/catalog measurements/fresh-reopen, native authentication/registry publication and independent acceptance remain unproven0/5.",
-    "depends_on": [
-      "MT-173"
-    ],
-    "blocks": [],
-    "active": true,
-    "validator_verdict": null,
-    "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
-    "claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
-    "completed_by": null,
-    "next_actor": "Sole coder one-line owning type Serialize repair, scoped review and stable pushed changed candidate, fresh gates/resources then required core check; no unchanged retry"
-  },
+  "status": "BLOCKED",
+  "blocked_on": "Core Round40 GREEN on880dda; runtime remains blocked on independently measured BASE/FINAL pins and fresh/reopen proof, prohibited live .GOV registry input coupling, genuine native authorization/publication and consumed runtime/native independent acceptance; accepted0/5.",
+  "depends_on": [
+    "MT-173"
+  ],
+  "blocks": [],
+  "active": true,
+  "validator_verdict": null,
+  "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
+  "claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
+  "completed_by": null,
+  "next_actor": "Independent Review executes existing MT139 measured catalog target after fresh admission; sole coder reconciles measured pins and original registry external input seam; preserve original authority/assertions; no unchanged core rerun"
+},
   "scope": {
     "summary": "Reconcile shared core/bootstrap/manifests import paths",
     "allowed_paths": [
