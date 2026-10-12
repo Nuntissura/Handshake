@@ -1,0 +1,457 @@
+{
+ "crate": "hsk-studio-interop-psd",
+ "lane": "SMB-INTEROP-PSD-DOCS",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "docs-only remediation pushed (c4c31cd): PLR-096 dropped-count wording says MAPPED switched-off instances (effects.rs, proposal.rs, the one DESCRIPTOR clause and its needle); PLR-099/R23-S1 8192-item descriptor scoping in effects.rs and proposal.rs docs; V4-06 section below; no code token changed; check + clippy clean, effects_budget 21/21, crate 62/62",
+ "commits": [
+  {
+   "sha": "c4c31cd7940198ac8805c32122cc6f16ce81b089",
+   "subject": "interop-psd (SMB-INTEROP-PSD-DOCS, PLR-096/PLR-099): doc wording aligned with the dropped-count and 8192-item-cap behaviour; comments and one DESCRIPTOR literal only"
+  }
+ ],
+ "capabilities_done": [
+  "PLR-096 [c4c31cd]: the dropped=<count> phrase says MAPPED switched-off instances at every site of the class (V4-06 class A below): src/effects.rs header (~:75), the two dropped-loss constant docs, the Fit doc (~:145), the effect_stack doc, the map_stack comment; src/proposal.rs collect_records comment; the one DESCRIPTOR clause (naming_the_count_of_the_mapped_switched_off_instances_the_record_does_not_hold) and the needle in descriptor_states_the_loss_detail_and_the_list_cap_rules; test comments",
+  "PLR-099 / R23-S1 [c4c31cd]: src/effects.rs limits header (new paragraph :83-89), the five loss-code constant docs, src/proposal.rs ProposalConfig and collect_records docs state that the limits and loss codes apply to a stack whose lfx2 descriptor fits the descriptor reader's 8192 items and that a larger descriptor is refused whole with descriptor_item_limit before any instance is mapped; numbers (8192, 1025 = 1 live + 1024 off at 8+ items, 65 live at 127+ items) are the ones the existing test the_descriptor_readers_8192_item_cap_is_measured_per_effect_kind_and_stated_in_the_descriptor asserts and the DESCRIPTOR already states",
+  "R23-S2 [this file]: notes.v4_06 below"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-interop-psd --no-fail-fast",
+  "exit": 0,
+  "sha": "c4c31cd7940198ac8805c32122cc6f16ce81b089",
+  "passed": 62,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "Independent validator: crates/hsk-studio-interop-psd at c4c31cd (diff vs 2dde832: comments in src/effects.rs, src/proposal.rs, tests/effects_budget.rs; one DESCRIPTOR literal in src/lib.rs plus its needle). Nothing else pushed to the crate after the READY commit (V4-14). Lead: PLR-096 and PLR-099 can close on a PASS.",
+ "updated_at": "2026-10-12T10:09:02Z",
+ "notes": {
+  "plr": "PLR-096 (dropped-count phrase), PLR-099 (R23-S1 source docs lack the 8192 scoping; R23-S2 no V4-06 section in the desc-cap lane file). New lane id per V4-15; the verdict histories of SMB-INTEROP-PSD-BUDGET (2 failed verdicts), SMB-INTEROP-PSD-DESC-CAP and the other interop-psd lane files are untouched. No code token of SMB-INTEROP-PSD-BUDGET changed (docs only)",
+  "v4_13": "crate holds the two-FAIL lane SMB-INTEROP-PSD-BUDGET; the delta since the last validated candidate is comments plus one DESCRIPTOR literal (see no_code_token_changed)",
+  "no_code_token_changed": {
+   "claim": "the diff 2dde832..c4c31cd over crates/hsk-studio-interop-psd changes no non-comment line except (1) the DESCRIPTOR literal line src/lib.rs:82, where the substring 'mapped_' is inserted (the clause naming_the_count_of_the_mapped_switched_off_instances_the_record_does_not_hold) and (2) its needle literal tests/effects_budget.rs:1839 (same insertion); src/effects.rs and src/proposal.rs have 0 changed non-comment lines",
+   "command_1": "git diff -U0 2dde832 c4c31cd -- crates/hsk-studio-interop-psd | grep -E '^[+-]' | grep -vE '^(\\+\\+\\+|---)' | grep -vE '^[+-]\\s*//'  ->  4 lines: -/+ src/lib.rs:82 and -/+ tests/effects_budget.rs:1839",
+   "command_2": "python -I <scratchpad>/SMB-INTEROP-PSD-DOCS/psd_docs_proof.py <product-workspace> 2dde832 (full-line '//' comment lines removed from old and new text, remaining lines compared one by one): effects.rs code_lines 506 -> 506, 0 changed; proposal.rs 1551 -> 1551, 0 changed; lib.rs 84 -> 84, 1 changed (insertion 'mapped_', line_len 4645 -> 4652); tests/effects_budget.rs 2085 -> 2085, 1 changed (insertion 'mapped_', line_len 144 -> 151)",
+   "files_changed": "git diff --name-only 2dde832 c4c31cd = src/effects.rs, src/lib.rs, src/proposal.rs, tests/effects_budget.rs (4 files, 51 insertions, 27 deletions)"
+  },
+  "v4_06": {
+   "class": "doc wording out of step with the dropped-count / 8192-item-cap behaviour: (A) the dropped=<count> of the two Transformed dropped-instances losses described as a count of switched-off instances without saying MAPPED (PLR-096, R22-S1 family); (B) a doc or DESCRIPTOR sentence that states a cap, the Folio ceiling cut or an effect loss code of an lfx2 stack without the 8192-item descriptor scoping (PLR-099, R23-S1 family)",
+   "search": {
+    "regex_A": "does not hold|does_not_hold|count of the (dropped|instances|mapped|switched)|how many (mapped )?(switched.off )?instances|number of (the )?(mapped )?switched.off|dropped=<count>",
+    "regex_A_scope": "git grep -n -i -E '<regex_A>' <rev> -- src tests examples (every line, comments and code)",
+    "regex_B": "effects_over_budget|effects_over_document_budget|effects_unrendered_(over|dropped)_[a-z_]*|over_stack_ceiling|Folio's (own|per-stack)|MAX_TOTAL_ITEMS|descriptor_item_limit|8192|EFFECTS_(UNRENDERED_)?(OVER|DROPPED)_[A-Z_]*",
+    "regex_B_scope": "git grep -n -i -E '<regex_B>' <rev> -- src, keeping lines that start with '//' (doc and plain comments); plus the lib.rs DESCRIPTOR lines matched by the same regex without the comment filter",
+    "run_from": "crates/hsk-studio-interop-psd"
+   },
+   "counts": {
+    "regex_A": {
+     "at_2dde832": 24,
+     "at_c4c31cd": 27
+    },
+    "regex_B_comment_lines": {
+     "at_2dde832": 27,
+     "at_c4c31cd": 39
+    },
+    "regex_B_lib_rs_lines": {
+     "at_c4c31cd": 3
+    },
+    "difference_explained": "regex_A rises 24 -> 27 and regex_B 27 -> 39 because the fixes add matching words in the new sentences (MAPPED sentence wraps, the 8192 scope sentences); every added matching line is listed as ADDED or FIXED below",
+    "listed_equals_found": true
+   },
+   "sites_A": [
+    {
+     "file": "src/effects.rs",
+     "lines": [
+      75
+     ],
+     "disposition": "FIXED",
+     "note": "limits header: 'the count of the MAPPED switched-off instances the record does not hold (an instance the importer does not map reports itself and is not counted)'"
+    },
+    {
+     "file": "src/effects.rs",
+     "lines": [
+      110,
+      111
+     ],
+     "disposition": "FIXED",
+     "note": "EFFECTS_UNRENDERED_DROPPED_OVER_DOCUMENT_BUDGET doc: 'count of the dropped MAPPED switched-off instances'"
+    },
+    {
+     "file": "src/effects.rs",
+     "lines": [
+      117,
+      118
+     ],
+     "disposition": "FIXED",
+     "note": "EFFECTS_UNRENDERED_DROPPED_OVER_STACK_CEILING doc: same wording"
+    },
+    {
+     "file": "src/effects.rs",
+     "lines": [
+      158,
+      159
+     ],
+     "disposition": "FIXED",
+     "note": "Fit doc (PLR-096 site ~:145): 'the number of MAPPED switched-off instances the record does not hold'"
+    },
+    {
+     "file": "src/effects.rs",
+     "lines": [
+      558
+     ],
+     "disposition": "FIXED",
+     "note": "effect_stack doc: 'the number of MAPPED switched-off instances the record does not hold'"
+    },
+    {
+     "file": "src/effects.rs",
+     "lines": [
+      602
+     ],
+     "disposition": "NOT_APPLICABLE",
+     "note": "map_stack comment about notes ('the loss report names no instance the record does not hold'); states no count"
+    },
+    {
+     "file": "src/effects.rs",
+     "lines": [
+      683
+     ],
+     "disposition": "FIXED",
+     "note": "map_stack comment: 'reports exactly the MAPPED switched-off instances the record does not hold' (wording pre-existing, cites the test on the next line)"
+    },
+    {
+     "file": "src/effects.rs",
+     "lines": [
+      703
+     ],
+     "disposition": "NOT_APPLICABLE",
+     "note": "drop_switched_off doc 'Returns how many instances left the record': counts entries removed from the effects vec, which holds mapped instances only; states no report rule"
+    },
+    {
+     "file": "src/lib.rs",
+     "lines": [
+      82
+     ],
+     "disposition": "FIXED",
+     "note": "DESCRIPTOR effect_limits: the one clause naming_the_count_of_the_switched_off_instances_the_record_does_not_hold is now naming_the_count_of_the_mapped_switched_off_instances_the_record_does_not_hold (mapped_ inserted; nothing else in the literal changed)"
+    },
+    {
+     "file": "src/proposal.rs",
+     "lines": [
+      508
+     ],
+     "disposition": "NOT_APPLICABLE",
+     "note": "collect_records doc 'what a record does not hold is reported through the notes of the mapping': unrecorded source data, not the dropped count"
+    },
+    {
+     "file": "src/proposal.rs",
+     "lines": [
+      534
+     ],
+     "disposition": "NOT_APPLICABLE",
+     "note": "path format '(layer_id=<id>,dropped=<count>)'; the definition of <count> follows on :535"
+    },
+    {
+     "file": "src/proposal.rs",
+     "lines": [
+      535
+     ],
+     "disposition": "ALREADY_ALIGNED",
+     "note": "'the number of MAPPED switched-off instances the record does not hold' (0c1be05, PLR-095)"
+    },
+    {
+     "file": "src/proposal.rs",
+     "lines": [
+      599
+     ],
+     "disposition": "FIXED",
+     "note": "Builder comment: 'names how many MAPPED switched-off instances the record does not hold' (MAPPED ends :598)"
+    },
+    {
+     "file": "tests/effects_budget.rs",
+     "lines": [
+      19,
+      20
+     ],
+     "disposition": "FIXED",
+     "note": "test module doc (comment only)"
+    },
+    {
+     "file": "tests/effects_budget.rs",
+     "lines": [
+      427
+     ],
+     "disposition": "FIXED",
+     "note": "lfx2_loss_tail doc (comment only)"
+    },
+    {
+     "file": "tests/effects_budget.rs",
+     "lines": [
+      437
+     ],
+     "disposition": "NOT_APPLICABLE",
+     "note": "names the field dropped=<count> of a helper; no definition of the count"
+    },
+    {
+     "file": "tests/effects_budget.rs",
+     "lines": [
+      464
+     ],
+     "disposition": "NOT_CHANGED_BY_DESIGN",
+     "note": "assert failure message string literal 'a dropped-instances entry names how many instances the record does not hold' is a code token; left so the diff of non-comment lines stays limited to the DESCRIPTOR literal and its needle; the message only prints on failure"
+    },
+    {
+     "file": "tests/effects_budget.rs",
+     "lines": [
+      1587
+     ],
+     "disposition": "FIXED",
+     "note": "test doc (comment only)"
+    },
+    {
+     "file": "tests/effects_budget.rs",
+     "lines": [
+      1639
+     ],
+     "disposition": "FIXED",
+     "note": "inline comment (comment only)"
+    },
+    {
+     "file": "tests/effects_budget.rs",
+     "lines": [
+      1704,
+      1705
+     ],
+     "disposition": "FIXED",
+     "note": "test doc (comment only)"
+    },
+    {
+     "file": "tests/effects_budget.rs",
+     "lines": [
+      1822
+     ],
+     "disposition": "FIXED",
+     "note": "doc of the needle test (comment only)"
+    },
+    {
+     "file": "tests/effects_budget.rs",
+     "lines": [
+      1839
+     ],
+     "disposition": "FIXED",
+     "note": "the needle of descriptor_states_the_loss_detail_and_the_list_cap_rules, updated with the DESCRIPTOR clause (the one allowed non-comment test change)"
+    }
+   ],
+   "sites_B": [
+    {
+     "file": "src/effects.rs",
+     "lines": [
+      53
+     ],
+     "disposition": "NOT_APPLICABLE",
+     "note": "over-count paragraph: says when the two codes arise for apparent counts, claims no exclusivity; covered by the scope paragraph :83-89"
+    },
+    {
+     "file": "src/effects.rs",
+     "lines": [
+      60,
+      64,
+      65
+     ],
+     "disposition": "FIXED_BY_SCOPE_PARAGRAPH",
+     "note": "R23-S1 site effects.rs:59-66 (Folio ceiling cut / effects_over_budget); the 8192 scoping is the paragraph appended to the same header at :83-89"
+    },
+    {
+     "file": "src/effects.rs",
+     "lines": [
+      84,
+      85,
+      89
+     ],
+     "disposition": "ADDED",
+     "note": "the scope paragraph :83-89: every limit and loss code named in the file applies to a stack whose lfx2 descriptor fits 8192 items; a larger one is refused whole with descriptor_item_limit before any instance is mapped; 1025 (1 live + 1024 off) at 8+ items and 65 live at 127+ items do not fit; cites the measuring test"
+    },
+    {
+     "file": "src/effects.rs",
+     "lines": [
+      92,
+      94,
+      96
+     ],
+     "disposition": "FIXED",
+     "note": "EFFECTS_OVER_BUDGET doc: sentence added at :95-96 ('Reported only for a stack whose descriptor fits the reader's 8192 items')"
+    },
+    {
+     "file": "src/effects.rs",
+     "lines": [
+      100
+     ],
+     "disposition": "FIXED",
+     "note": "EFFECTS_OVER_DOCUMENT_BUDGET doc: same sentence"
+    },
+    {
+     "file": "src/effects.rs",
+     "lines": [
+      105,
+      106
+     ],
+     "disposition": "FIXED",
+     "note": "EFFECTS_UNRENDERED_OVER_DOCUMENT_BUDGET doc: same sentence"
+    },
+    {
+     "file": "src/effects.rs",
+     "lines": [
+      111
+     ],
+     "disposition": "FIXED",
+     "note": "EFFECTS_UNRENDERED_DROPPED_OVER_DOCUMENT_BUDGET doc: same sentence (:111-112)"
+    },
+    {
+     "file": "src/effects.rs",
+     "lines": [
+      116,
+      119
+     ],
+     "disposition": "FIXED",
+     "note": "EFFECTS_UNRENDERED_DROPPED_OVER_STACK_CEILING doc: same sentence (:118-119)"
+    },
+    {
+     "file": "src/effects.rs",
+     "lines": [
+      168
+     ],
+     "disposition": "NOT_APPLICABLE",
+     "note": "Fit::CountedOnlyOverStack variant doc: a Fit value exists only for a stack whose descriptor parsed"
+    },
+    {
+     "file": "src/effects.rs",
+     "lines": [
+      179,
+      182,
+      189
+     ],
+     "disposition": "NOT_APPLICABLE",
+     "note": "EffectTally doc: the tally is consulted by map_stack after descriptor::parse_versioned, so it sees only stacks that parsed; :189 is a test name"
+    },
+    {
+     "file": "src/effects.rs",
+     "lines": [
+      552,
+      553,
+      554,
+      557
+     ],
+     "disposition": "NOT_APPLICABLE",
+     "note": "effect_stack doc: begins 'Err when the descriptor cannot be read or the stack does not fit', i.e. the read failure comes first"
+    },
+    {
+     "file": "src/effects.rs",
+     "lines": [
+      591,
+      668
+     ],
+     "disposition": "NOT_APPLICABLE",
+     "note": "comments inside map_stack, after the descriptor parsed"
+    },
+    {
+     "file": "src/proposal.rs",
+     "lines": [
+      132,
+      134
+     ],
+     "disposition": "FIXED",
+     "note": "ProposalConfig doc: sentence added at :133-135 ('These bounds apply to a stack whose lfx2 descriptor fits the descriptor reader's 8192 items; a larger one is refused whole with descriptor_item_limit (a typed loss, not an error)')"
+    },
+    {
+     "file": "src/proposal.rs",
+     "lines": [
+      138,
+      542
+     ],
+     "disposition": "NOT_APPLICABLE",
+     "note": "test-name citations (effects_over_the_document_cap_become_typed_losses_from_the_crossing_stack_on)"
+    },
+    {
+     "file": "src/proposal.rs",
+     "lines": [
+      517,
+      519,
+      523,
+      526,
+      528
+     ],
+     "disposition": "FIXED_BY_SCOPE_SENTENCE",
+     "note": "R23-S1 site proposal.rs:515-527 (collect_records doc): the 8192 scoping is the sentence added at :529-533"
+    },
+    {
+     "file": "src/proposal.rs",
+     "lines": [
+      529,
+      530,
+      533
+     ],
+     "disposition": "ADDED",
+     "note": "the scope sentence in the collect_records doc (same facts and cited test as the effects.rs paragraph)"
+    },
+    {
+     "file": "src/proposal.rs",
+     "lines": [
+      1620
+     ],
+     "disposition": "NOT_APPLICABLE",
+     "note": "'Folio's own validator': unrelated"
+    }
+   ],
+   "sites_B_descriptor_lib_rs": [
+    {
+     "file": "src/lib.rs",
+     "lines": [
+      67
+     ],
+     "disposition": "NOT_APPLICABLE",
+     "note": "limits.max_layers 8192: unrelated limit"
+    },
+    {
+     "file": "src/lib.rs",
+     "lines": [
+      80
+     ],
+     "disposition": "NOT_APPLICABLE",
+     "note": "capability identifier strings; they state no cap, and effect_limits carries the scoping"
+    },
+    {
+     "file": "src/lib.rs",
+     "lines": [
+      82
+     ],
+     "disposition": "ALREADY_SCOPED",
+     "note": "effect_limits has the 8192 scoping sentence since 0c1be05 (R23 pre-review: no DESCRIPTOR defect)"
+    }
+   ],
+   "outside_the_class_code": "descriptor.rs:21,128,176,179,198,201,244 and limits.rs:27 are the reader's behaviour and an unrelated limit (code, not doc wording); the regex matches them in src but they are not comment lines",
+   "disposition_totals": {
+    "A": {
+     "ALREADY_ALIGNED": 1,
+     "FIXED": 20,
+     "NOT_APPLICABLE": 5,
+     "NOT_CHANGED_BY_DESIGN": 1
+    },
+    "B": {
+     "ADDED": 6,
+     "FIXED": 11,
+     "FIXED_BY_SCOPE_PARAGRAPH": 3,
+     "FIXED_BY_SCOPE_SENTENCE": 5,
+     "NOT_APPLICABLE": 14
+    }
+   }
+  },
+  "v4_07": "added comment lines use none of never/always/guarantee/prove/cannot; two re-touched comment lines keep the existing word 'exactly'/'exact' next to the test they cite (src/effects.rs:683 cites the_ceiling_loss_names_the_count_of_the_instances_it_dropped_and_adds_no_note_for_them; src/proposal.rs:599 cites it and the document-budget twin; tests/effects_budget.rs:1639 is an assertion comment in that test). DESCRIPTOR literal word counts (never 3, always 0, guarantee 0, prove 2, cannot 0, exact 3) are the same at 2dde832 and c4c31cd. The new 8192 sentences state the cap as the reader's, cite descriptor_item_limit, and cite the_descriptor_readers_8192_item_cap_is_measured_per_effect_kind_and_stated_in_the_descriptor, whose assertions pin 8192, the 1025-instance threshold of 8 items and the 65-instance threshold of 127 items",
+  "scope_note": "the lead named effects.rs ~:75/~:145, proposal.rs:515-527/effects.rs:59-66 and the one DESCRIPTOR clause; V4-06 widened the sites to every matching doc: the five loss-code constant docs and the ProposalConfig doc in the 8192 class, and test comments in the dropped-count class (comments only). Nothing outside crates/hsk-studio-interop-psd and this lane file was touched",
+  "retry_guard_route": "none needed: no gameplan block, no rerun of an identical failing command; every gated command used the exact cargo form with the leading cd; commands run: cargo check -p hsk-studio-interop-psd --tests (exit 0), cargo clippy -p hsk-studio-interop-psd --tests (exit 0; the 2 too_many_arguments warnings are in the dependency hsk-studio-observe src/lib.rs:919 and :1019, none in this crate), cargo nextest run -p hsk-studio-interop-psd --test effects_budget --no-fail-fast (21/21 incl. descriptor_states_the_loss_detail_and_the_list_cap_rules and the_descriptor_readers_8192_item_cap_is_measured_per_effect_kind_and_stated_in_the_descriptor), cargo nextest run -p hsk-studio-interop-psd --no-fail-fast (62/62)",
+  "commit_route": "git commit -F <scratchpad>/SMB-INTEROP-PSD-DOCS/commit-msg.txt -- crates/hsk-studio-interop-psd (pathspec, V4-09); the shared tree's uncommitted edits (hsk-studio-score, Cargo.lock) were left alone; git push origin codex/handshake-studio-assets 2dde832..c4c31cd; git ls-remote shows c4c31cd",
+  "v4_11": "no temporary revert or restore of any file; no scratch tree",
+  "v4_12": "helper scripts psd_docs_proof.py and make_lane.py and commit-msg.txt live under <scratchpad>/SMB-INTEROP-PSD-DOCS/ and were written and run by this lane only",
+  "v4_21": "no outbound request other than git fetch/push to the product remote; no personal data sent",
+  "behaviour": "no src behaviour change: caps 64/4096/1024/512/8192, the codes, the tally and the DESCRIPTOR text other than the inserted 'mapped_' are unchanged"
+ }
+}

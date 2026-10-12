@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-12T09:57:55Z",
+ "updated_at": "2026-10-12T10:09:31Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -2606,7 +2606,7 @@
     "builders/lanes/hsk-studio-interop-psd-docs.json"
    ],
    "launched": "2026-10-12T09:57:55Z",
-   "status": "running"
+   "status": "done 2026-10-12T10:09:31Z (SMB-INTEROP-PSD-DOCS READY at c4c31cd)"
   }
  ]
 }

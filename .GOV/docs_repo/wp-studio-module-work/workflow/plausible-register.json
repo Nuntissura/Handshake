@@ -1656,7 +1656,7 @@
    "status": "OPEN",
    "verified_at": "0c1be05",
    "disposition": "DOC",
-   "disposition_note": "align in next interop-psd touch"
+   "disposition_note": "align in next interop-psd touch; 2026-10-12T10:09:31Z fix submitted SMB-INTEROP-PSD-DOCS c4c31cd"
   },
   {
    "id": "PLR-097",
@@ -1703,7 +1703,7 @@
    "status": "OPEN",
    "verified_at": "54c60f9",
    "disposition": "DOC",
-   "disposition_note": "fold with PLR-096"
+   "disposition_note": "fold with PLR-096; 2026-10-12T10:09:31Z fix submitted SMB-INTEROP-PSD-DOCS c4c31cd"
   },
   {
    "id": "PLR-100",
