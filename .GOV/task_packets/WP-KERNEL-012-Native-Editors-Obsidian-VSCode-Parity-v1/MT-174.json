@@ -1,4 +1,116 @@
 {
+  "round47_measured_pins_and_production_reopen_release_20261012": {
+    "id": "WP012-P2-ROUND47-RELEASE-20261012",
+    "status": "SOURCE_CLEAR_PUSHED_FOCUSED_PROOF_PENDING",
+    "product_commit": "64cbf0b022c1cdeb981583bfb29a387e9251c441",
+    "product_tree": "62480b61fe3c0cffd42776c992a1e385c803b4e7",
+    "schema_rs_sha256": "552c39b9195921a8ff72fb4dc3ca99631ffdd594f3a467d8b16fd3cdf487438a",
+    "pin_commit": "2f789e5d54cb12077cc1e9383204530a6da8dae4",
+    "source_review": {
+      "thread": "01a129ca-8eea-7f53-aa9d-7f81f6f08319",
+      "verdict": "SOURCE_CLEAR",
+      "pin_binding_sha256": "b39c977b1ccbb75eac35ad351aba2002d709e1a8b7bcdadb23e0066a7592562c",
+      "extension_binding_sha256": "15d7330b2eecbaef9be472e879ae2c49fd693b68086cd842488e1b23b0a7e42d",
+      "extension_diff_sha256": "be832c66c25c74688a3334971e16be1b19b062fa96ae4acef00c9402ac2a2a2c",
+      "original_assertions_preserved": 432
+    },
+    "scope": "Exact two independently measured current catalog pins; existing retained disk restart test invokes real composed production bootstrap fresh and reopened. Historical pins and every original assertion retained.",
+    "proof_sequence": [
+      "Original exact MT139 catalog test",
+      "Existing bootstrap_is_concurrent_restart_safe_and_receipt_is_live",
+      "Original mt139_exact_predecessor_upgrade_preserves_data_and_restarts_current",
+      "Required final broad core check after focused predecessor GREEN"
+    ],
+    "admission": "Fresh current-HEAD confirmations and numeric gameplan/resource gates before each costly command; original warm target/profile/toolchain/j1/180GB cap; freeze all relevant source/authority/config inputs",
+    "runtime_acceptance": "NOT_EVALUATED",
+    "native_publication": "BLOCKED_ORIGINAL_DEPLOYMENT_ROOT_AND_GENUINE_AUTH_INPUTS_UNRESOLVED",
+    "failed_core_launches_retained": 38
+  },
+  "round46_independent_catalog_actual_result_20261012": {
+    "id": "WP012-P2-ROUND46-MT139-ACTUAL-20261012",
+    "status": "BASE_AND_PRODUCTION_CATALOG_MEASURED_ORIGINAL_BASE_PIN_MISMATCH",
+    "product_commit": "f2d4fab1209d06deb4c317e9c5d4294b8acc1937",
+    "actual_result": {
+      "attempt_id": "fcb2b81c096e467d91dbdf0d1f065073",
+      "started_utc": "2026-10-12T14:41:22.7769119Z",
+      "status": "TEST_FAILED",
+      "exit_code": 101,
+      "runtime_acceptance": "NOT_EVALUATED",
+      "cap_bytes": 180000000000,
+      "gameplan_exit": 0,
+      "resources": {
+        "utc": "2026-10-12T14:41:47.7020692Z",
+        "available_mb": 5670,
+        "commit_reserve": 44716453888,
+        "pages_input": 824,
+        "page_reads": 178,
+        "free_bytes": 389157851136
+      },
+      "target_bytes_before": 30396256416.0,
+      "max_target_bytes": 31695103043,
+      "argv": [
+        "test",
+        "--locked",
+        "--manifest-path",
+        "src/backend/handshake_core/Cargo.toml",
+        "--features",
+        "app-runtime,surreal-test-support,test-utils",
+        "-j",
+        "1",
+        "--lib",
+        "storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog",
+        "--",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cargo_pid": 27176,
+      "cargo_identity": {
+        "ProcessId": 27176,
+        "CreationDate": "2026-10-12T16:41:49.945108+02:00",
+        "CommandLine": "\"C:\\Users\\iljas\\.cargo\\bin\\cargo.exe\" test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils -j 1 --lib storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog -- --exact --nocapture --test-threads=1",
+        "ExecutablePath": "C:\\Users\\iljas\\.cargo\\bin\\cargo.exe"
+      },
+      "post_binding_exit": 0,
+      "inputs_unchanged": true,
+      "stdout_sha256": "3fd32b27891c705dcf3125de5e44e8e1a9127ae14cec1fc60d67ead5bd226f21",
+      "stderr_sha256": "ffa2e5082eb061f0af45ac516da435fd3c8926326c03f55d25702aac9bc345e6",
+      "completed_utc": "2026-10-12T14:50:19.9096939Z"
+    },
+    "post_binding": {
+      "matched": true,
+      "binding_equal": {
+        "head": true,
+        "tree": true,
+        "status": true,
+        "files": true,
+        "authority": true,
+        "profile_sha256": true,
+        "toolchain": true,
+        "launcher_sha256": true,
+        "external_inputs": true
+      },
+      "files": 7416
+    },
+    "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round46-mt139-catalog-measurement",
+    "artifact_sha256": {
+      "measurement-result.json": "8cb706a0c02deeb7628bc0fd0becce15edfc6dc32bf5b96e9e1d31882a4896fd",
+      "post-binding.json": "9fd1f0edf84de597d3e3539b2e2e05928124e0ababc2fde42ac5ddac59f1fb69",
+      "test.stdout.log": "3fd32b27891c705dcf3125de5e44e8e1a9127ae14cec1fc60d67ead5bd226f21",
+      "test.stderr.log": "ffa2e5082eb061f0af45ac516da435fd3c8926326c03f55d25702aac9bc345e6"
+    },
+    "observed_base_info_sha256": "332526eb4d84ff4eb2cc1d1ed2e2ce3b334008c9a5c77335d7e355637fb6f994",
+    "observed_production_info_sha256": "207c9f797ea2f6003f9b803a800f4f06ba3fac4558cb45bca1787c304a4f1e8a",
+    "observed_production_fields": 4357,
+    "observed_production_indexes": 923,
+    "observed_production_source_sha256": "e76f494462a191a86c9a8df9597bdda6cdbf77f808a87d42f6b125cf2039eb47",
+    "observed_production_inventory_sha256": "7f79f7fe6e3da1c4284b2c18e8908c6fb685b030d1822a114ebc1e2f88e827ff",
+    "original_assertion": "REACHED_FAILED_stale_BASE_pin_3d761f8df95c2869e5bb8a3b656f5f96a02a5cb863b2bb1f1d30306beff98ff7",
+    "runtime_acceptance": "NOT_EVALUATED",
+    "failed_core_launches_retained": 38,
+    "next": "Only exact independently measured BASE/FINAL pins; preserve historicalpins/assertions; source review then stable requiredcore and independent fresh/reopen"
+  }
+,
   "round46_independent_focused_release_20261012": {
     "id": "WP012-P2-ROUND46-CLOUD-GRAMMAR-RELEASE-20261012",
     "status": "SOURCE_CLEAR_PUSHED_PENDING_FOCUSED_MEASUREMENT",
