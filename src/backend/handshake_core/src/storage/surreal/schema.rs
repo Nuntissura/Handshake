@@ -2938,6 +2938,106 @@ fn schema_function_definition(name: &str) -> &'static str {
     &SCHEMA[start..end]
 }
 
+// Imported declarations are shared by every supported predecessor, including
+// the newer lineages which do not consume the revision-160 delta emitter.
+// Select their current canonical statements, never historical reconstruction
+// literals or the entire schema transaction.
+fn imported_schema_upgrade_spans() -> BTreeMap<usize, usize> {
+    let mut spans = BTreeMap::new();
+    for name in [
+        "wp012_navigation_receipt_semantics", "wp012_exact_loom_scope",
+        "wp012_search_contributors", "wp012_api_receipt", "wp012_search_evidence",
+        "wp012_model_lane_crdt_lease_receipt", "wp012_model_lane_proposal_receipt",
+        "wp012_model_lane_crdt_receipt", "wp012_model_lane_receipt",
+    ] {
+        assert!(schema_statements_enclosing(
+            &format!("DEFINE FUNCTION OVERWRITE fn::{name}("), &mut spans,
+        ) > 0, "imported function must exist: {name}");
+    }
+    for table in ["kernel_event_ledger", "knowledge_retrieval_traces"] {
+        assert!(schema_statements_enclosing(
+            &format!("DEFINE TABLE OVERWRITE {table} "), &mut spans,
+        ) > 0, "imported table replacement must exist: {table}");
+    }
+    for (table, fields) in [
+        ("assets", &[
+            "artifact_id", "artifact_binding_state", "artifact_retention_ttl_days",
+            "artifact_binding_event_id",
+        ][..]),
+        ("atelier_collection", &["created_by", "updated_by", "scoped_name_key"][..]),
+        ("atelier_collection_item", &[
+            "source_path_ref", "source_url_ref", "linked_by", "updated_by", "updated_at_utc",
+        ][..]),
+        ("atelier_media_source_provenance_ref", &["run_ref", "updated_by"][..]),
+        ("atelier_action_receipt", &["thread_id", "lease_claim_id"][..]),
+        ("kernel_event_ledger", &[
+            "owner_account_id", "actor_principal_id", "authenticated_session_id",
+            "access_space_id", "workspace_id", "authority_grant_id",
+        ][..]),
+        ("knowledge_crdt_ai_edit_proposals", &[
+            "proposal_id", "proposal_identity_key", "applied_update_id", "applied_update_sha256",
+        ][..]),
+        ("knowledge_retrieval_traces", &["contributor_manifest", "contributor_manifest.*.*"][..]),
+        ("user_manual_tool_entries", &["origin"][..]),
+        ("user_manual_feature_entries", &["origin"][..]),
+    ] {
+        for field in fields {
+            assert!(schema_statements_enclosing(
+                &format!("DEFINE FIELD OVERWRITE {field} ON TABLE {table} "), &mut spans,
+            ) > 0, "imported field must exist: {table}.{field}");
+        }
+    }
+    for (table, indexes) in [
+        ("atelier_collection", &["ux_atelier_collection_scoped_name", "idx_atelier_collection_created_by"][..]),
+        ("atelier_collection_item", &[
+            "idx_atelier_collection_item_source_path_ref", "idx_atelier_collection_item_source_url_ref",
+            "idx_atelier_collection_item_linked_by",
+        ][..]),
+        ("knowledge_crdt_ai_edit_proposals", &["pk_knowledge_crdt_ai_edit_proposals"][..]),
+    ] {
+        for index in indexes {
+            assert!(schema_statements_enclosing(
+                &format!("DEFINE INDEX OVERWRITE {index} ON TABLE {table} "), &mut spans,
+            ) > 0, "imported index must exist: {table}.{index}");
+        }
+    }
+    for line in SCHEMA.lines().filter(|line| {
+        line.starts_with("DEFINE FIELD OVERWRITE navigation_semantic_input")
+    }) {
+        assert!(schema_statements_enclosing(line, &mut spans) > 0);
+    }
+    let start = SCHEMA.find("-- CKC 0337_atelier_ckc_search_tag_notes (MT-011). pg_trgm, pgvector and the")
+        .expect("canonical imported Atelier block must exist");
+    let end = start + SCHEMA[start..].find("COMMIT TRANSACTION;")
+        .expect("canonical imported Atelier block must terminate");
+    for line in SCHEMA[start..end].lines().filter(|line| line.starts_with("DEFINE ")) {
+        assert!(schema_statements_enclosing(line, &mut spans) > 0);
+    }
+    spans
+}
+
+// Apply the imported closure last, within the original guarded transaction.
+// Retire the old global collection key outside the DEFINE-only delta emitter.
+fn complete_imported_schema_upgrade(mut upgrade: String) -> String {
+    let mut imported = String::from(
+        "REMOVE INDEX IF EXISTS uq_atelier_collection_1 ON TABLE atelier_collection;\n",
+    );
+    for (start, end) in imported_schema_upgrade_spans() {
+        let statement = &SCHEMA[start..end];
+        if statement.starts_with("DEFINE INDEX OVERWRITE ") {
+            // The closure owns the last canonical index build. An identical
+            // earlier build must not race it inside the same engine transaction.
+            upgrade = upgrade.replace(statement, "");
+        }
+        imported.push_str(statement);
+        imported.push('\n');
+    }
+    const STATE_UPDATE: &str = "UPDATE ONLY handshake_schema_state:primary SET";
+    assert_eq!(upgrade.matches(STATE_UPDATE).count(), 1,
+        "supported upgrade must have one guarded final state update");
+    upgrade.replacen(STATE_UPDATE, &format!("{imported}{STATE_UPDATE}"), 1)
+}
+
 /// The MT-164 revision-162 delta: every indexed grant/access function re-emitted verbatim from
 /// [`SCHEMA`], in schema order, so fresh and upgraded stores carry identical definitions.
 fn indexed_grant_upgrade_statements() -> String {
@@ -7204,7 +7304,7 @@ async fn upgrade_supported_predecessor(
 
     database
         .query_bound(
-            r#"
+            complete_imported_schema_upgrade(r#"
 BEGIN TRANSACTION;
 LET $current = SELECT * FROM ONLY handshake_schema_state:primary;
 IF $current = NONE
@@ -7258,7 +7358,7 @@ UPDATE ONLY handshake_schema_state:primary SET
     apply_state = 'schema_applied',
     updated_at = time::now();
 COMMIT TRANSACTION;
-"#.replace("UPDATE ONLY handshake_schema_state:primary SET", &format!("{}\nUPDATE ONLY handshake_schema_state:primary SET", post_mt109_upgrade_statements())).as_str(),
+"#.replace("UPDATE ONLY handshake_schema_state:primary SET", &format!("{}\nUPDATE ONLY handshake_schema_state:primary SET", post_mt109_upgrade_statements()))).as_str(),
             PredecessorUpgradeBindings {
                 schema_version: SCHEMA_VERSION.to_owned(),
                 schema_revision: SCHEMA_REVISION,
@@ -7558,6 +7658,7 @@ UPDATE ONLY handshake_schema_state:primary SET\n\
     updated_at = time::now();\n\
 COMMIT TRANSACTION;\n"
     );
+    let upgrade = complete_imported_schema_upgrade(upgrade);
     database
         .query_bound(
             upgrade.as_str(),
@@ -7674,6 +7775,7 @@ UPDATE ONLY handshake_schema_state:primary SET\n\
     updated_at = time::now();\n\
 COMMIT TRANSACTION;\n"
     );
+    let upgrade = complete_imported_schema_upgrade(upgrade);
     database
         .query_bound(
             upgrade.as_str(),
@@ -7782,6 +7884,7 @@ UPDATE ONLY handshake_schema_state:primary SET\n\
     updated_at = time::now();\n\
 COMMIT TRANSACTION;\n"
     );
+    let upgrade = complete_imported_schema_upgrade(upgrade);
     database
         .query_bound(
             upgrade.as_str(),
@@ -7885,6 +7988,7 @@ UPDATE ONLY handshake_schema_state:primary SET\n\
     updated_at = time::now();\n\
 COMMIT TRANSACTION;\n"
     );
+    let upgrade = complete_imported_schema_upgrade(upgrade);
     database
         .query_bound(
             upgrade.as_str(),
@@ -7987,6 +8091,7 @@ UPDATE ONLY handshake_schema_state:primary SET\n\
     updated_at = time::now();\n\
 COMMIT TRANSACTION;\n"
     );
+    let upgrade = complete_imported_schema_upgrade(upgrade);
     database
         .query_bound(
             upgrade.as_str(),
@@ -8102,6 +8207,7 @@ UPDATE ONLY handshake_schema_state:primary SET\n\
     updated_at = time::now();\n\
 COMMIT TRANSACTION;\n"
     );
+    let upgrade = complete_imported_schema_upgrade(upgrade);
     database
         .query_bound(
             upgrade.as_str(),
@@ -8211,6 +8317,7 @@ UPDATE ONLY handshake_schema_state:primary SET\n\
     updated_at = time::now();\n\
 COMMIT TRANSACTION;\n"
     );
+    let upgrade = complete_imported_schema_upgrade(upgrade);
     database
         .query_bound(
             upgrade.as_str(),
@@ -8320,6 +8427,7 @@ UPDATE ONLY handshake_schema_state:primary SET\n\
     updated_at = time::now();\n\
 COMMIT TRANSACTION;\n"
     );
+    let upgrade = complete_imported_schema_upgrade(upgrade);
     database
         .query_bound(
             upgrade.as_str(),
@@ -8429,6 +8537,7 @@ UPDATE ONLY handshake_schema_state:primary SET\n\
     updated_at = time::now();\n\
 COMMIT TRANSACTION;\n"
     );
+    let upgrade = complete_imported_schema_upgrade(upgrade);
     database
         .query_bound(
             upgrade.as_str(),
@@ -8541,6 +8650,7 @@ UPDATE ONLY handshake_schema_state:primary SET\n\
     updated_at = time::now();\n\
 COMMIT TRANSACTION;\n"
     );
+    let upgrade = complete_imported_schema_upgrade(upgrade);
     database
         .query_bound(
             upgrade.as_str(),
@@ -8659,6 +8769,7 @@ UPDATE ONLY handshake_schema_state:primary SET\n\
     updated_at = time::now();\n\
 COMMIT TRANSACTION;\n"
     );
+    let upgrade = complete_imported_schema_upgrade(upgrade);
     database
         .query_bound(
             upgrade.as_str(),
@@ -8759,6 +8870,7 @@ UPDATE ONLY handshake_schema_state:primary SET\n\
     updated_at = time::now();\n\
 COMMIT TRANSACTION;\n"
     );
+    let upgrade = complete_imported_schema_upgrade(upgrade);
     database
         .query_bound(
             upgrade.as_str(),
@@ -8838,7 +8950,7 @@ fn mt109_authority_upgrade_bindings() -> PredecessorUpgradeBindings {
 
 fn mt109_authority_upgrade_query() -> String {
     let authority_delta = post_mt109_upgrade_statements();
-    format!(
+    complete_imported_schema_upgrade(format!(
         r#"
 BEGIN TRANSACTION;
 LET $current = SELECT * FROM ONLY handshake_schema_state:primary;
@@ -8864,7 +8976,7 @@ UPDATE ONLY handshake_schema_state:primary SET
     updated_at = time::now();
 COMMIT TRANSACTION;
 "#
-    )
+    ))
 }
 
 async fn upgrade_pre_mt109_current(
