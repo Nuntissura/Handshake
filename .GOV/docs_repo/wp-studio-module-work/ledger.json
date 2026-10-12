@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-12T08:16:32Z",
+ "updated_at": "2026-10-12T08:17:20Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3513,7 +3513,7 @@
  "resume_plan": {
   "at": "2026-10-12T07:26:27Z",
   "steps": [
-   "1. READY: SMB-REEL-PTS-TESTS 172952f, SMB-INTEROP-PSD-DESC-CAP 0c1be05. In flight: SMB-PRESS-STRUCT-FAILCLOSED continuation (fresh Sonnet builder; fail-closed for the indirect-array /K sibling, lead decision). Then V4-13 narrow pre-review 3930a7c..<press head> (two-FAIL lanes SMB-PRESS, SMB-INTEROP-PSD-BUDGET, SMB-REEL-AV1-ROUTE, SMB-REEL-NATIVE-AV1-WORKER via reel), then round R21.",
+   "1. Three lanes READY at 54c60f9 (SMB-PRESS-STRUCT-FAILCLOSED d26d2fd+2566f1b+54c60f9, SMB-REEL-PTS-TESTS 172952f, SMB-INTEROP-PSD-DESC-CAP 0c1be05). In flight: V4-13 narrow pre-review 3930a7c..54c60f9 -> validation/R23-prereview-narrow.json. If SAFE: steward sync + canary C26 + round R21 (1 validator; two-FAIL lanes SMB-PRESS, SMB-REEL-AV1-ROUTE, SMB-REEL-NATIVE-AV1-WORKER via reel, SMB-INTEROP-PSD-BUDGET). If FIX_FIRST: fresh builder on the same lane.",
    "2. Then SMB-PRESS-GEOMETRY, SMB-FMT-SWEEP, notes residuals (config-OBU tag, exact-64 FRAME test, psd group-own-lfx2/zero-tile).",
    "3. Round R21: steward sync + canary + 1 validator (list all two-FAIL lanes, PROC-R19-V1).",
    "4. Keep pushing gov_kernel after every commit (weekly >= 85%).",

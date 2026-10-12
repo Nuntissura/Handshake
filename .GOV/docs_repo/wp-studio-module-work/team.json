@@ -1,6 +1,6 @@
 {
  "schema": "hsk.studio_module_team@1",
- "updated_at": "2026-10-12T08:16:32Z",
+ "updated_at": "2026-10-12T08:17:20Z",
  "lead": "kernel builder session (main)",
  "members": [
   {
@@ -2537,7 +2537,18 @@
     "builders/lanes/hsk-studio-press-struct-failclosed.json"
    ],
    "launched": "2026-10-12T07:55:28Z",
-   "status": "done 2026-10-12T08:16:32Z (SMB-PRESS-STRUCT-FAILCLOSED READY at 54c60f9)"
+   "status": "done (READY 54c60f9)"
+  },
+  {
+   "name": "prereview-r23",
+   "agent_id": "af4baa79644bb39b4",
+   "model": "opus",
+   "role": "V4-13 narrow pre-review 3930a7c..54c60f9 (press-struct-failclosed, reel-pts-tests, psd-desc-cap)",
+   "owns": [
+    "validation/R23-prereview-narrow.json"
+   ],
+   "launched": "2026-10-12T08:17:20Z",
+   "status": "running"
   }
  ]
 }
