@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 637
+generation: 638
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -535,3 +535,4 @@ steps:
 - {id: GP-514, role: integration_validator, at: before_round, do: verify owned measurement target disk free >= 53687091200 bytes via numeric DriveInfo, check: {type: confirm}, source: 'infra: MT139 prelaunch Get-Volume returned null free bytes; no Cargo launched', state: active}
 - {id: GP-515, role: builder, at: before_round, do: verify SurrealQL conditional object branches yield explicit objects without escaping owning functions, check: {type: confirm}, source: 'failure: actual MT139 schema979 object field parsed as record-id; BASE and FINAL never reached', state: active}
 - {id: GP-516, role: integration_validator, at: before_round, do: verify MT139 conditional object syntax matches reviewed nested object and unchanged original pin assertion, check: {type: confirm}, source: 'failure: actual MT139 schema979 object parsed as record-id before BASE and FINAL; repaired source de66b', state: active}
+- {id: GP-517, role: any, at: before_round, do: verify CRDT legacy identity IF arm is explicit boolean expression; forbid LET assignment substitution, check: {type: confirm}, source: 'failure: MT139 SQL4171 bare  equality parsed as deprecated declaration before BASE and FINAL', state: active}
