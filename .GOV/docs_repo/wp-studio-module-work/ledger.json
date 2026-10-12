@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-12T04:43:21Z",
+ "updated_at": "2026-10-12T04:49:47Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3286,7 +3286,7 @@
   "at": "2026-10-11T19:13:24Z",
   "for_takeover": "read START_LOG.md (operator-instructions, repo-rules, cargo-tooling, lead decisions, D1-D27), builders/DISPATCH_TEMPLATES.md (builder/validator/v4-rules incl. V4-21), this ledger (lanes, round_R11 latest), team.json, validation/ (rounds + pre-reviews)",
   "steps": [
-   "1. Press SAFE_TO_JUDGE at bfa1bbf (R20 narrow pre-review). In flight: steward sync + canary C23; then round R18 (1 validator; review input = R16/R17/R18/R19/R20 narrow pre-reviews) judging SMB-NOTES-BATCH-1, SMB-PRESS, SMB-PRESS-DIFFERENCES (+ CX-VAL-009 reopens); then refresh HANDOFF.md + new snapshot.",
+   "1. In flight: round R18 validator at bfa1bbf (canary C23 reused if export manifest equal) judging SMB-NOTES-BATCH-1, SMB-PRESS, SMB-PRESS-DIFFERENCES (+ CX-VAL-009 reopens); then refresh HANDOFF.md + new snapshot.",
    "2. If SAFE_TO_JUDGE: steward sync + canary (candidate = origin HEAD, expected bcc0688), then round R18 with 1 validator (review input = the pre-review) judging SMB-NOTES-BATCH-1, SMB-PRESS, SMB-PRESS-DIFFERENCES (+ CX-VAL-009 reopens of press). If FIX_FIRST: small fail-closed fix in the same lane, then repeat.",
    "3. Then refresh HANDOFF.md and write a new snapshots/SNAPSHOT-<UTC>.json (same shape as SNAPSHOT-20261011T214451Z.json); push gov_kernel with tools/lead-kernel-push.sh.",
    "4. Remaining after that: PLR-077 (reel video.rs Forward), PLR-082 (render-gpu caller limits, after D20), PLR-063 (psd Folio ceiling), notes-batch residuals (config-OBU tag, exact-64 FRAME test, psd group-own-lfx2/zero-tile), SMB-PRESS-GEOMETRY, SMB-FMT-SWEEP, STUDIO_MODULES.json status refresh, app UI + Handshake integration (not started).",
@@ -3725,5 +3725,24 @@
   ],
   "not_judged": "SMB-PRESS, SMB-PRESS-DIFFERENCES, SMB-NOTES-BATCH-1 (R17 pre-review FIX_FIRST; no charge); render-gpu (D20); interop-media (D9)",
   "notes": "validator V-1 (PLAUSIBLE, same class as R17-P1): shadowed ancestor resource entries marked certain -> added to press fix"
+ },
+ "round_R18": {
+  "candidate": "bfa1bbf",
+  "candidate_full": "bfa1bbfce421f28e55bf7fd44213af087e00c11e",
+  "opened_at": "2026-10-12T04:49:47Z",
+  "sync": "already in sync since 9ffe946 (fcda5f6..bfa1bbf = ten press commits; no lock input changed); licence gate OK; probes 46/46",
+  "canary": "C23 exit 73, 59/59 build 0/run 0, step 0 clean; NOT_PROVEN only interop-fig D17 (log studio-team-dev/steward/C23-bfa1bbf.log)",
+  "ready": [
+   "SMB-NOTES-BATCH-1 (through bfa1bbf)",
+   "SMB-PRESS (CX-VAL-009 reopen)",
+   "SMB-PRESS-DIFFERENCES (CX-VAL-009 reopen)"
+  ],
+  "two_fail_rechecks": "validation/R20-prereview-press-narrow.json SAFE_TO_JUDGE (chain R16-R20 narrow pre-reviews)",
+  "excluded": [
+   "render-gpu lanes + SMB-ROUND-ENTRYPOINT + SMB-RENDER-GPU-ADJ (D20)",
+   "interop-media (D9)"
+  ],
+  "team": "1 validator (opus); review input = R16-R20 narrow pre-reviews",
+  "status": "OPEN"
  }
 }
