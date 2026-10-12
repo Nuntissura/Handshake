@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-12T02:48:02Z",
+ "updated_at": "2026-10-12T03:40:30Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3015,8 +3015,8 @@
    "crate": "hsk-studio-press + hsk-studio-web + hsk-studio-reel-native + hsk-studio-interop-psd",
    "origin": "plausible register",
    "scope": "PLR-076 (press), PLR-071 (web), PLR-078 (reel-native), PLR-064/065 (psd)",
-   "phase": "FIX_FIRST (R18 narrow pre-review N1-N3) -> minimal draw set",
-   "status": null,
+   "phase": "validation (narrow pre-review of press bcc0688..12c9317)",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-notes-batch-1",
    "lane_file": "builders/lanes/notes-batch-1.json",
    "commits": [
@@ -3031,18 +3031,14 @@
     "a92310f",
     "35be374",
     "d39bd28",
-    "bcc0688"
+    "bcc0688",
+    "c09196f",
+    "8edd93b",
+    "12c9317"
    ],
    "verdicts": [],
-   "candidate": "bcc0688",
-   "note": "press 27a9a81 PLR-076: painted region source kept only via /AF, /Names or /Dests -> NotProven::PaintedSourceKept, DESCRIPTOR exact (131 tests); web 9088884 PLR-071: doc + citation fixed, cancellation test past the first iteration, wall-clock bound -> operation-count bound (138); reel-native ab273d3 PLR-078: docs/DESCRIPTOR match code, host-level tests for BATCH_END miscount, OPENED answering PACKET/FINISH, 65 FRAMEs, cut-short greeting (24 with av1-worker+test-faults); interop-psd 5606d16 PLR-064/065: over-counts documented with citations, helper nests groups, nested hidden groups test (53); 346 tests pass; red on origin (press, psd) or stated mutants (web W1-W5, reel-native N1-N4, psd P1-P4). Not done: config-OBU tag case, exact-64-FRAME acceptance test, press prune, psd group-own-lfx2 + zero-tile; R16 pre-review remediation f0be2ba (press: a surviving painted source is silent only when a kept page draws it \u2014 Do/sh/scn/gs/Tf targets, /AP /N /R /D, image /SMask /Mask, pattern /Shading, gs /SMask /G; every other reference reported PaintedSourceKept; reached/pruning unchanged; docs exact; 134/134; red on 5606d16 + mutants M1a-c, M2, M3) + fcda5f6 (psd doc rider: both caps apply); W-1 note count corrected; R17 pre-review remediation: certainty only from an executed draw of the right kind from the nearest resource entry (20510c5); appearance states only when /AS-selected and never for /F hidden/invisible/noview (51f3e72, a92310f); optional content never certain (annotation /OC, object /OC, Do/sh/scn/gs/Tf inside BDC /OC incl. escaped names, per-operator marked-content stack across streams) (35be374, d39bd28, bcc0688); press 141/141; mutants killed",
-   "blockers": [
-    {
-     "kind": "V4-13 narrow pre-review FIX_FIRST (press)",
-     "ref": "validation/R18-prereview-press-narrow.json",
-     "recorded_at": "2026-10-12T02:48:02Z"
-    }
-   ]
+   "candidate": "12c9317",
+   "note": "press 27a9a81 PLR-076: painted region source kept only via /AF, /Names or /Dests -> NotProven::PaintedSourceKept, DESCRIPTOR exact (131 tests); web 9088884 PLR-071: doc + citation fixed, cancellation test past the first iteration, wall-clock bound -> operation-count bound (138); reel-native ab273d3 PLR-078: docs/DESCRIPTOR match code, host-level tests for BATCH_END miscount, OPENED answering PACKET/FINISH, 65 FRAMEs, cut-short greeting (24 with av1-worker+test-faults); interop-psd 5606d16 PLR-064/065: over-counts documented with citations, helper nests groups, nested hidden groups test (53); 346 tests pass; red on origin (press, psd) or stated mutants (web W1-W5, reel-native N1-N4, psd P1-P4). Not done: config-OBU tag case, exact-64-FRAME acceptance test, press prune, psd group-own-lfx2 + zero-tile; R16 pre-review remediation f0be2ba (press: a surviving painted source is silent only when a kept page draws it \u2014 Do/sh/scn/gs/Tf targets, /AP /N /R /D, image /SMask /Mask, pattern /Shading, gs /SMask /G; every other reference reported PaintedSourceKept; reached/pruning unchanged; docs exact; 134/134; red on 5606d16 + mutants M1a-c, M2, M3) + fcda5f6 (psd doc rider: both caps apply); W-1 note count corrected; R17 pre-review remediation: certainty only from an executed draw of the right kind from the nearest resource entry (20510c5); appearance states only when /AS-selected and never for /F hidden/invisible/noview (51f3e72, a92310f); optional content never certain (annotation /OC, object /OC, Do/sh/scn/gs/Tf inside BDC /OC incl. escaped names, per-operator marked-content stack across streams) (35be374, d39bd28, bcc0688); press 141/141; mutants killed; MINIMAL DRAW SET c09196f/8edd93b/12c9317: silence only for an image stream without /OC drawn by Do directly in a kept page's own /Contents outside BDC /OC, resolved through nearest dictionary-only entries; certain flag and draw-kind machinery deleted; one silence site; reached/pruning byte-identical on 317 documents; 145/145; 18 mutants killed"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
@@ -3271,7 +3267,7 @@
   "at": "2026-10-11T19:13:24Z",
   "for_takeover": "read START_LOG.md (operator-instructions, repo-rules, cargo-tooling, lead decisions, D1-D27), builders/DISPATCH_TEMPLATES.md (builder/validator/v4-rules incl. V4-21), this ledger (lanes, round_R11 latest), team.json, validation/ (rounds + pre-reviews)",
   "steps": [
-   "1. In flight: press MINIMAL DRAW SET simplification (START_LOG decision) in lane SMB-NOTES-BATCH-1; then a narrow pre-review (validation/R19-prereview-press-narrow.json).",
+   "1. In flight: narrow pre-review of press bcc0688..12c9317 (validation/R19-prereview-press-narrow.json); if SAFE: steward sync + canary, then round R18 judging SMB-NOTES-BATCH-1, SMB-PRESS, SMB-PRESS-DIFFERENCES.",
    "2. If SAFE_TO_JUDGE: steward sync + canary (candidate = origin HEAD, expected bcc0688), then round R18 with 1 validator (review input = the pre-review) judging SMB-NOTES-BATCH-1, SMB-PRESS, SMB-PRESS-DIFFERENCES (+ CX-VAL-009 reopens of press). If FIX_FIRST: small fail-closed fix in the same lane, then repeat.",
    "3. Then refresh HANDOFF.md and write a new snapshots/SNAPSHOT-<UTC>.json (same shape as SNAPSHOT-20261011T214451Z.json); push gov_kernel with tools/lead-kernel-push.sh.",
    "4. Remaining after that: PLR-077 (reel video.rs Forward), PLR-082 (render-gpu caller limits, after D20), PLR-063 (psd Folio ceiling), notes-batch residuals (config-OBU tag, exact-64 FRAME test, psd group-own-lfx2/zero-tile), SMB-PRESS-GEOMETRY, SMB-FMT-SWEEP, STUDIO_MODULES.json status refresh, app UI + Handshake integration (not started).",
