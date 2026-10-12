@@ -52,7 +52,7 @@ Push helper for governance: `tools/lead-kernel-push.sh <message-file> <paths...>
 
 ## In flight at handoff
 
-- 2026-10-12T05:30:57Z: the three Sonnet lanes are READY at fdc01f1 (SMB-PRESS-DOCS d868da0, SMB-REEL-PARTIAL-PTS 0c34342, SMB-INTEROP-PSD-FOLIO-CEILING ceb9d33..fdc01f1). Running: Opus narrow pre-review bfa1bbf..fdc01f1 (output `validation/R21-prereview-narrow.json`). If it is missing on takeover, re-dispatch it from the R20 pre-review structure; then round R19 per `ledger.json` resume_plan.
+- 2026-10-12T05:57:27Z: R21 narrow pre-review SAFE for SMB-PRESS-DOCS, SMB-REEL-PARTIAL-PTS, SMB-INTEROP-PSD-FOLIO-CEILING. Running: Opus validator round R19 at fdc01f1 (canary C24 exit 73, 59/59; output `validation/round-R19.json`). If it is missing on takeover, re-dispatch from `builders/DISPATCH_TEMPLATES.md` validator prompt with `ledger.json` round_R19.
 
 </topic>
 

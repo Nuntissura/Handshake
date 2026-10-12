@@ -237,3 +237,4 @@
 {"t": "2026-10-12T05:21:38Z", "event": "SMB-PRESS-DOCS READY_FOR_VALIDATION d868da0 (builder-press-docs)", "lanes_moved": ["SMB-PRESS-DOCS READY"], "commits": ["d868da0"], "progress": "direct: product commit"}
 {"t": "2026-10-12T05:24:32Z", "event": "SMB-REEL-PARTIAL-PTS READY_FOR_VALIDATION 0c34342 (builder-reel-partial-pts)", "lanes_moved": ["SMB-REEL-PARTIAL-PTS READY"], "commits": ["0c34342"], "progress": "direct: product commit"}
 {"t": "2026-10-12T05:30:06Z", "event": "SMB-INTEROP-PSD-FOLIO-CEILING READY_FOR_VALIDATION fdc01f1 (builder-psd-folio-ceiling)", "lanes_moved": ["SMB-INTEROP-PSD-FOLIO-CEILING READY"], "commits": ["fdc01f1"], "progress": "direct: product commit"}
+{"t": "2026-10-12T05:57:27Z", "event": "R19 opened at fdc01f1: canary C24 exit 73 59/59; validator-r19 launched (opus)", "progress": "no direct progress (dispatch)"}
