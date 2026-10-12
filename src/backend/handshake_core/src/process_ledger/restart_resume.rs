@@ -625,11 +625,13 @@ impl SurrealRestartResumeRunner {
 
         for candidate in candidates {
             let processes_reclaimed = self.reclaim_orphans(&candidate).await?;
-            report.orphan_reclaims.push(OrphanReclaimInfo {
-                session_id: candidate.session_id,
-                processes_reclaimed,
-                reclaimed_at_utc: Utc::now(),
-            });
+            if processes_reclaimed > 0 {
+                report.orphan_reclaims.push(OrphanReclaimInfo {
+                    session_id: candidate.session_id,
+                    processes_reclaimed,
+                    reclaimed_at_utc: Utc::now(),
+                });
+            }
 
             let Some(checkpoint) = candidate.checkpoint.clone() else {
                 self.record_failure(&mut report, &candidate, ResumeError::NoCheckpoint)
