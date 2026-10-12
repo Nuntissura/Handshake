@@ -1,0 +1,315 @@
+{
+ "crate": "hsk-studio-interop-psd",
+ "lane": "SMB-INTEROP-PSD-LOSS-DETAIL",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "PLR-089 and PLR-086 fixed and pushed (3930a7c); PLR-090 closed without a code change (reason in notes.plr090). Red 7 of 20 effects_budget tests on a scratch copy of fdc01f1 (3 new + 4 older through the fate() helper; the PLR-086 behaviour test passes pre-fix by design, DOC); green 20/20 at 3930a7c; crate 61/61, doctests 0, clippy clean for this crate",
+ "commits": [
+  {
+   "sha": "3930a7ce891c2f16ad17f8d96f6a9f0590f03a49",
+   "subject": "interop-psd (SMB-INTEROP-PSD-LOSS-DETAIL, PLR-089/PLR-086): dropped-instances losses name the count and add no notes for dropped instances; DESCRIPTOR states the 512-entry list cap"
+  }
+ ],
+ "capabilities_done": [
+  "PLR-089 [3930a7c]: the two Transformed dropped-instances losses (effects_unrendered_dropped_over_stack_ceiling, effects_unrendered_dropped_over_document_budget) stay ONE entry per stack (bounded output, V4-02) and their path now ends (layer_id=<id>,dropped=<count>): the exact number of switched-off instances the record does not hold (Fit::CountedOnly(n) / CountedOnlyOverStack(n); n counted from the actual removal: instances dropped in the scan + instances removed with the stack's other switched-off ones). The loss model (LossEntry {path, kind, code}) has no count field and its paths already carry (key=value,...) detail, so the count goes into the path; no new loss family, no per-instance entries",
+  "PLR-089 [3930a7c]: a switched-off instance that was mapped and left out of the record adds no loss note: notes of an instance dropped as it is scanned are truncated, notes of kept switched-off instances are registered (off_notes) and taken out with the instance when the stack is cut; notes of kept instances stay; an instance that cannot be mapped keeps its own note and is not counted as dropped",
+  "PLR-086 [3930a7c] (lead decision DOC): DESCRIPTOR effect_limits states that the descriptor reader's cap of 512 entries per list is a category-blind parse bound checked before any entry is read, that a list over 512 entries refuses the descriptor (Unsupported descriptor_item_limit) and that stack is lost, and cites the behaviour test; needle test for the sentences",
+  "PLR-090: closed without a code change, reason and pinning tests in notes.plr090",
+  "tests/effects_budget.rs: 4 new tests (20 in the file) the_ceiling_loss_names_the_count_of_the_instances_it_dropped_and_adds_no_note_for_them, the_document_budget_loss_names_the_count_of_the_instances_it_dropped_and_adds_no_note_for_them, a_list_over_the_descriptor_readers_512_entry_cap_loses_the_stack_whatever_the_categories_of_its_entries, descriptor_states_the_loss_detail_and_the_list_cap_rules; the fate() helper now also requires dropped=<count> (> 0) on every Transformed budget entry and none on an Unsupported one"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-interop-psd --no-fail-fast",
+  "exit": 0,
+  "sha": "3930a7ce891c2f16ad17f8d96f6a9f0590f03a49",
+  "passed": 61,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 4,
+ "bg_pids": [],
+ "next": "Independent validator: crates/hsk-studio-interop-psd at 3930a7c (only this crate; src/effects.rs, src/lib.rs DESCRIPTOR string, src/proposal.rs, tests/effects_budget.rs). notes.residual lists what stays open.",
+ "updated_at": "2026-10-12T06:34:08Z",
+ "notes": {
+  "plr": "PLR-089 (R21-S2/S3, FIX_LANE), PLR-090 (round-R19 V-2 INFO, optional), PLR-086 (lead decision 2026-10-12T06:16:47Z, DOC); new lane id per V4-15 (SMB-INTEROP-PSD-BUDGET and SMB-INTEROP-PSD-FOLIO-CEILING lane files and verdict histories untouched)",
+  "v4_13": "crate holds the two-FAIL lane SMB-INTEROP-PSD-BUDGET; the memory bound max_layers + 8192 and the two-sided tally are unchanged (charge and admit untouched, the tally is charged the shape of what the record holds as before); the ceiling and R21-S1 decision (all switched-off instances of an over-ceiling visible stack are dropped) are unchanged",
+  "design": [
+   "loss model read first: crates/hsk-studio-interop-psd/src/loss.rs LossEntry {path, kind, code: &'static str}, no count field; proposal.rs already puts detail into the path as (layer_id=..,base_layer_id=..); so the count is dropped=<count> after layer_id, one entry per stack (per-instance entries would grow with the descriptor, up to 8192 items per layer times max_layers)",
+   "dropped count = instances mapped and not recorded: ceiling cut = off_dropped (scan) + instances retained out; document-bound cut = instances retained out; both from the measured removal, admit's shape.uncounted is asserted equal (debug_assert_eq)",
+   "notes: map_effect adds at most one note on success (an unreadable optional contour, effect_contour_unmapped); map_stack records its range for kept switched-off instances (off_notes) and truncates it for instances dropped in the scan; drop_switched_off drains the ranges last to first with the retain",
+   "scope: the document-bound cut (CountedOnly, R10) is the same class (a loss entry without a count, notes of instances not in the record), so it is fixed in the same code path rather than left as a known sibling site"
+  ],
+  "behaviour_changes": [
+   "vs fdc01f1: the path of the two Transformed dropped-instances entries gains ,dropped=<count> before the closing parenthesis (was (layer_id=<id>)); a host matching the exact old path no longer matches (no other crate of the workspace reads these codes: git grep over the workspace outside this crate finds none)",
+   "vs fdc01f1: the loss report no longer lists contour notes (effect_contour_unmapped, the only note a successfully mapped instance adds) for switched-off instances the record does not hold; before: 1025 notes for 1 live + 1024 switched-off noisy instances, 1500 for 1 live + 1500 noisy switched-off; after: only the notes of the instances the record holds",
+   "unchanged: every outcome (which stacks are kept, cut or lost), every other code and kind, the record content, ordinals, SEFX id minting, the file bytes (write_psd round trip asserted), the memory bound"
+  ],
+  "plr090": {
+   "finding": "a visible stack whose instances are all switched off is scanned to its end before being refused past the 1024 ceiling (src/effects.rs, the scan loop of map_stack)",
+   "disposition": "NOT_CHANGED: refusal is already immediate wherever it is provably identical: a stack that cannot count (hidden layer or group, master switch off) is refused at the first instance past the ceiling. For a visible enabled stack a later instance can still be live, and then the outcome differs: the same 1025 switched-off instances are refused when nothing follows and mapped (CountedOnlyStack(1), dropped=1025) when one live instance follows. Stopping the scan would need knowledge of the instances not yet scanned (an enabled flag alone is not enough: the instance must also map). Work stays bounded by the descriptor reader caps (512 entries per list, 8192 items per descriptor)",
+   "pinned_by": "tests the_ceiling_loss_names_the_count_of_the_instances_it_dropped_and_adds_no_note_for_them (layers 5 and 6: 1025 switched-off refused, the same plus one live instance kept), a_counted_instance_after_more_switched_off_ones_than_the_ceiling_is_still_kept, a_stack_past_folios_ceiling_is_a_typed_loss_not_a_rejected_import; comment in effects.rs (scan loop and header)"
+  },
+  "red_proof": {
+   "tree": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-psd-loss-detail-red/src/handshake-studio-assets: git archive fdc01f1 (tree 578e7c41f9da2d7387d8bee1e0007ff6bf7a79be) with own STUDIO_OWNER=smb-psd-loss-detail-red (own target and tmp) and its .gameplan-active pointer next to src/. Only difference to fdc01f1: tests/effects_budget.rs = the committed file at 3930a7c (md5 e716e0675f974069ad91e1d2f64e78b2, equal to the shared tree's); src md5 equal to fdc01f1 (effects.rs 300b7fb9d4bbc76c53b08306de13a41b, lib.rs 52511d7ae6aa8d6d736c041b7478a2bc, proposal.rs 7615afc8a8862cbb6c380aa56fac157c)",
+   "argv": "cargo nextest run -p hsk-studio-interop-psd --test effects_budget --no-fail-fast",
+   "result": "red1.log: 20 run, 13 passed, 7 FAILED: the_ceiling_loss_names_the_count_of_the_instances_it_dropped_and_adds_no_note_for_them, the_document_budget_loss_names_the_count_of_the_instances_it_dropped_and_adds_no_note_for_them (both at the fate() assertion 'a dropped-instances entry names how many instances the record does not hold: layer[..]/tagged/lfx2(layer_id=SLYR-..)' effects_budget.rs:460), descriptor_states_the_loss_detail_and_the_list_cap_rules ('effect_limits does not state are_one_entry_per_stack_with_the_path_ending_layer_id_dropped_...'), and four older tests that read Transformed entries through fate(): the_live_bound_still_cuts_a_stack_whatever_its_switched_off_instances, folios_per_stack_ceiling_cuts_only_the_switched_off_instances_of_a_stack_with_counted_instances, a_counted_instance_after_more_switched_off_ones_than_the_ceiling_is_still_kept, the_unrendered_bound_never_costs_a_stack_with_counted_instances_its_rendered_effects. a_list_over_the_descriptor_readers_512_entry_cap_... PASSES pre-fix by design: PLR-086 is a DOC decision, the behaviour it documents exists (the test pins it)",
+   "notes_class_red": "the count assertion stops the new tests before the notes assertions, so the notes class is shown separately by a scratch-only probe test appended to the scratch copy (never committed): red2.log, pre-fix, 1 live + 1024 noisy switched-off instances: contour_notes=1025 and the entry path lfx2(layer_id=SLYR-019abcde-0000-7000-8000-000000000004) without a count; 1 live (clean) + 1500 noisy switched-off: contour_notes=1500 (the record holds none of the 1500) and no count. After the fix the same shapes give 1 and 0 notes and dropped=1024 / dropped=1500 (the committed test asserts it)",
+   "green": "green-scratch1.log: same argv in the same scratch tree after refreshing in place the four files to the 3930a7c blobs (md5 equal to the shared tree, touched, V4-11): 20 passed. Shared tree (working tree == commit for this crate): cargo nextest run -p hsk-studio-interop-psd --test effects_budget --no-fail-fast 20 passed; full crate 61 passed; cargo test --doc 0 tests",
+   "logs": "<scratchpad>/SMB-INTEROP-PSD-LOSS-DETAIL/ red1.log, red2.log, green-scratch1.log"
+  },
+  "v4_01": "effects.rs keeps #![deny(clippy::arithmetic_side_effects)]; the new arithmetic is saturating_add / saturating_sub only (off_dropped, dropped, drop_switched_off); proposal.rs adds a match and a format! only; clippy -p hsk-studio-interop-psd --tests clean (the two too_many_arguments warnings are in hsk-studio-observe, pre-existing)",
+  "v4_02": "aggregate_over_budget-style: output stays one entry per stack (ceiling test: 5 cut stacks, 5689 dropped instances, exactly 5 effects_unrendered_dropped_over_stack_ceiling entries) and the notes of dropped instances are not reported at all; memory: off_notes holds at most one range per kept switched-off instance (<= MAX_EFFECTS = 1024 ranges of two usize), the loop still holds at most 64 counted + 1024 switched-off instances; the document-level bound (node need <= max_layers + 8192, assert_record_need_is_exact in both loss tests) and the two-sided tally are unchanged. dims_u32_max-style: not applicable, no new decoder and no size-driven allocation (the descriptor reader is unchanged; its u32::MAX count tests stay green)",
+  "v4_03": "all fixtures are in-memory synthetic bytes; no machine-local path; no NOT_PROVEN line; no #[ignore]",
+  "v4_04": "no fault-injection hook added",
+  "v4_05": "no frozen duplicate (ZIP/deflate/CRC, worker supervision, timecode) touched or added",
+  "v4_06": {
+   "class": "loss count not equal to dropped instances: a loss entry or note about effect instances that names no count or a count different from the number of instances left out of the record, or that reports an instance the record does not hold (also: a removal of instances from a stack that is not counted at the loss site)",
+   "regex": "git grep -nP over crates/hsk-studio-interop-psd/src, comment lines excluded (| grep -vP ':\\d+:\\s*//'), at 3930a7c: \\bFit\\b|off_dropped|off_notes|drop_switched_off|EFFECTS_UNRENDERED_DROPPED|effects_unrendered_dropped|\\beffects\\.(retain|push|truncate|drain)\\(|(?<![.\\w])notes\\.(truncate|drain)\\(|\\bnotes\\.push\\(\\(LossKind::\\w+, (code|\"effect_[a-z_]+\")\\)\\)|dropped=|map_effect\\(|\\b(effect_stack|map_stack)\\(|\\.kept\\(\\)|StackShape|tally\\.(charge|admit|refused)\\(|fn (admit|refused)\\(|pub\\(crate\\) fn charge\\( ; 45 matches at fdc01f1, 57 at 3930a7c (the new matches are the fix itself: off_dropped/off_notes/drop_switched_off/dropped=)",
+   "count": 57,
+   "sites": [
+    {
+     "file_line": "src/effects.rs:101",
+     "verdict": "NOT_APPLICABLE: loss code constant; its doc now states that the entry's path names the count of the dropped instances"
+    },
+    {
+     "file_line": "src/effects.rs:102",
+     "verdict": "NOT_APPLICABLE: loss code constant; its doc now states that the entry's path names the count of the dropped instances"
+    },
+    {
+     "file_line": "src/effects.rs:107",
+     "verdict": "NOT_APPLICABLE: loss code constant; its doc now states that the entry's path names the count of the dropped instances"
+    },
+    {
+     "file_line": "src/effects.rs:125",
+     "verdict": "NOT_APPLICABLE: StackShape type, the counted/uncounted shape of what a record holds (after any cut)"
+    },
+    {
+     "file_line": "src/effects.rs:130",
+     "verdict": "NOT_APPLICABLE: impl StackShape"
+    },
+    {
+     "file_line": "src/effects.rs:149",
+     "verdict": "FIXED: enum Fit, the cut variants CountedOnly(usize) and CountedOnlyOverStack(usize) carry the count of switched-off instances the record does not hold"
+    },
+    {
+     "file_line": "src/effects.rs:190",
+     "verdict": "NOT_APPLICABLE: admit signature, the tally verdict; the count in its CountedOnly is replaced by the measured removal in map_stack (debug_assert_eq ties them)"
+    },
+    {
+     "file_line": "src/effects.rs:192",
+     "verdict": "NOT_APPLICABLE: empty stack, Whole, nothing dropped"
+    },
+    {
+     "file_line": "src/effects.rs:201",
+     "verdict": "NOT_APPLICABLE: a stack without counted instances is Whole or refused whole (Unsupported entry), never partially dropped"
+    },
+    {
+     "file_line": "src/effects.rs:208",
+     "verdict": "FIXED: CountedOnly(shape.uncounted), the number the retain then removes"
+    },
+    {
+     "file_line": "src/effects.rs:212",
+     "verdict": "NOT_APPLICABLE: charge, charges the shape of what the record holds (after the cut)"
+    },
+    {
+     "file_line": "src/effects.rs:215",
+     "verdict": "NOT_APPLICABLE: closes the uncounted side only for the document-bound cut; the pattern follows the new payload"
+    },
+    {
+     "file_line": "src/effects.rs:221",
+     "verdict": "NOT_APPLICABLE: refused, closes a side for a stack lost whole; no instance is dropped from a held record"
+    },
+    {
+     "file_line": "src/effects.rs:411",
+     "verdict": "NOT_APPLICABLE: map_effect signature; it adds the contour note of ONE instance, whether the note stays is decided by map_stack (sites :639, :695, :696)"
+    },
+    {
+     "file_line": "src/effects.rs:433",
+     "verdict": "FIXED: the contour note of an instance that is dropped or removed leaves with the instance (truncate at :639, drain at :696); the note of a kept instance stays (ceiling test layer 4: 1024 kept instances, 1024 notes)"
+    },
+    {
+     "file_line": "src/effects.rs:551",
+     "verdict": "NOT_APPLICABLE: effect_stack, wrapper"
+    },
+    {
+     "file_line": "src/effects.rs:557",
+     "verdict": "NOT_APPLICABLE: return type carries Fit"
+    },
+    {
+     "file_line": "src/effects.rs:559",
+     "verdict": "NOT_APPLICABLE: map_stack call"
+    },
+    {
+     "file_line": "src/effects.rs:562",
+     "verdict": "NOT_APPLICABLE: map_stack signature"
+    },
+    {
+     "file_line": "src/effects.rs:568",
+     "verdict": "NOT_APPLICABLE: return type carries Fit"
+    },
+    {
+     "file_line": "src/effects.rs:587",
+     "verdict": "FIXED: off_dropped is a count (was a bool): the switched-off instances past the ceiling dropped as they were mapped"
+    },
+    {
+     "file_line": "src/effects.rs:590",
+     "verdict": "FIXED: off_notes, the note ranges of kept switched-off instances, so they can leave with the instance"
+    },
+    {
+     "file_line": "src/effects.rs:607",
+     "verdict": "NOT_APPLICABLE: effect_slot_malformed, a slot entry that is not an instance (nothing mapped, nothing dropped by a bound)"
+    },
+    {
+     "file_line": "src/effects.rs:612",
+     "verdict": "NOT_APPLICABLE: effect_slot_malformed, a slot value that is neither object nor list"
+    },
+    {
+     "file_line": "src/effects.rs:618",
+     "verdict": "NOT_APPLICABLE: map_effect call; notes_from (:617) marks the notes of this instance"
+    },
+    {
+     "file_line": "src/effects.rs:628",
+     "verdict": "NOT_APPLICABLE: counted instance pushed, never dropped by these bounds (at most 64, refused beyond)"
+    },
+    {
+     "file_line": "src/effects.rs:631",
+     "verdict": "FIXED: registers the note range of a kept switched-off instance"
+    },
+    {
+     "file_line": "src/effects.rs:633",
+     "verdict": "NOT_APPLICABLE: kept switched-off instance pushed (its removal is counted at :694)"
+    },
+    {
+     "file_line": "src/effects.rs:639",
+     "verdict": "FIXED: a switched-off instance dropped past the ceiling takes its notes with it"
+    },
+    {
+     "file_line": "src/effects.rs:640",
+     "verdict": "FIXED: counts the dropped instance"
+    },
+    {
+     "file_line": "src/effects.rs:648",
+     "verdict": "NOT_APPLICABLE: an instance that cannot be mapped is not in the record for its own reason, keeps its own note and is not counted as dropped (ceiling test layer 3: 3 unmapped instances, 3 notes; document-budget test layer 1)"
+    },
+    {
+     "file_line": "src/effects.rs:653",
+     "verdict": "NOT_APPLICABLE: stack-level note (single and multi slots merged)"
+    },
+    {
+     "file_line": "src/effects.rs:659",
+     "verdict": "FIXED: over_stack from the dropped count (was the bool)"
+    },
+    {
+     "file_line": "src/effects.rs:660",
+     "verdict": "FIXED: dropped starts from the instances dropped in the loop"
+    },
+    {
+     "file_line": "src/effects.rs:667",
+     "verdict": "FIXED: dropped = loop drops + instances removed with the stack's other switched-off instances (counted from the actual removal)"
+    },
+    {
+     "file_line": "src/effects.rs:672",
+     "verdict": "NOT_APPLICABLE: admit call on the shape of what the record holds"
+    },
+    {
+     "file_line": "src/effects.rs:673",
+     "verdict": "FIXED: CountedOnlyOverStack(dropped)"
+    },
+    {
+     "file_line": "src/effects.rs:674",
+     "verdict": "FIXED: CountedOnly(expected) is cut to the switched-off instances"
+    },
+    {
+     "file_line": "src/effects.rs:677",
+     "verdict": "FIXED: removal of the switched-off instances and of their notes, returns how many left"
+    },
+    {
+     "file_line": "src/effects.rs:679",
+     "verdict": "FIXED: CountedOnly(removed), the measured count"
+    },
+    {
+     "file_line": "src/effects.rs:683",
+     "verdict": "NOT_APPLICABLE: stack-level note (colour profile unassigned)"
+    },
+    {
+     "file_line": "src/effects.rs:692",
+     "verdict": "FIXED: drop_switched_off, the one removal of switched-off instances and their notes"
+    },
+    {
+     "file_line": "src/effects.rs:694",
+     "verdict": "FIXED: the one retain of the record's instances; the removed number is returned"
+    },
+    {
+     "file_line": "src/effects.rs:695",
+     "verdict": "FIXED: spent note ranges, taken out last to first so earlier ranges stay valid; a second call removes nothing"
+    },
+    {
+     "file_line": "src/effects.rs:696",
+     "verdict": "FIXED: the notes of the removed instances"
+    },
+    {
+     "file_line": "src/lib.rs:80",
+     "verdict": "NOT_APPLICABLE: capabilities list names the loss code; makes no claim about the count (unchanged)"
+    },
+    {
+     "file_line": "src/lib.rs:82",
+     "verdict": "FIXED: DESCRIPTOR effect_limits states one entry per stack naming the count in the path, that a mapped instance left out of the record adds no loss entry of its own, and the descriptor reader's 512-entry list cap (PLR-086); cites the tests (descriptor_states_the_loss_detail_and_the_list_cap_rules)"
+    },
+    {
+     "file_line": "src/proposal.rs:585",
+     "verdict": "NOT_APPLICABLE: effect_stack call"
+    },
+    {
+     "file_line": "src/proposal.rs:587",
+     "verdict": "NOT_APPLICABLE: charges the shape of what the record holds (after any cut)"
+    },
+    {
+     "file_line": "src/proposal.rs:595",
+     "verdict": "NOT_APPLICABLE: Fit::Whole, no loss entry"
+    },
+    {
+     "file_line": "src/proposal.rs:596",
+     "verdict": "FIXED: Fit::CountedOnly(count) reports the document-bound cut with its count"
+    },
+    {
+     "file_line": "src/proposal.rs:597",
+     "verdict": "FIXED: loss code and count of the document-bound cut"
+    },
+    {
+     "file_line": "src/proposal.rs:599",
+     "verdict": "FIXED: Fit::CountedOnlyOverStack(count) reports the ceiling cut with its count"
+    },
+    {
+     "file_line": "src/proposal.rs:600",
+     "verdict": "FIXED: loss code and count of the ceiling cut"
+    },
+    {
+     "file_line": "src/proposal.rs:604",
+     "verdict": "FIXED: one Transformed entry per stack whose path ends (layer_id=<id>,dropped=<count>)"
+    },
+    {
+     "file_line": "src/proposal.rs:610",
+     "verdict": "NOT_APPLICABLE: refused tally for a stack lost whole"
+    },
+    {
+     "file_line": "src/proposal.rs:1825",
+     "verdict": "NOT_APPLICABLE: node need = records + kept instances, a sizing (max_layers + 8192 unchanged)"
+    }
+   ]
+  },
+  "v4_07": "claims with never/always/only/cannot/guarantee/proves: none added. New text (DESCRIPTOR effect_limits clauses, effects.rs header and item docs, proposal.rs collect_records doc, Fit doc) uses 'exactly' for the count and cites the tests that pin it (the_ceiling_loss_names_..., the_document_budget_loss_names_..., a_list_over_the_descriptor_readers_512_entry_cap_...); pinned by descriptor_states_the_loss_detail_and_the_list_cap_rules which also checks that the cited tests exist as fn",
+  "lock_wait_note": "lock_wait_s 4 = the one wait line visible in the printed output of the shared-tree gated runs (4 s before the first focused nextest); the shared runs were printed through tail, so earlier wait lines of check or clippy runs may not be shown; the scratch-tree runs (logs kept) printed no wait line",
+  "retry_guard": "no gated run was blocked by the retry guard and none failed on a product cause in the shared tree. The red runs failed in the scratch tree by design (product fix absent there); red2 used the same test target with --no-capture after appending a scratch-only probe; the green run in the scratch tree used the same argv as red1 after the source refresh and was not blocked. All gated runs were launched in the dispatch form (leading cd, for scratch `export STUDIO_OWNER=...`, then source studio-env.sh); no gameplan step added",
+  "process": "shared worktree HEAD fdc01f1 at start; other lanes pushed press and reel commits meanwhile (git log over crates/hsk-studio-interop-psd lists only this lane's 3930a7c after fdc01f1); one pathspec commit with -F message file under <scratchpad>/SMB-INTEROP-PSD-LOSS-DETAIL/, no amend, no rebase, no add of untracked files; pushed (2fb17a8..3930a7c); the uncommitted changes of other crates in the shared tree (hsk-studio-score, Cargo.lock) were not touched. The rustfmt layout of the new test region was applied from rustfmt (workspace toolchain 1.97.1, edition 2024) run on a scratch copy; only the region after the PLR-089 marker was spliced in, the pre-existing older hunks were not reformatted. Scratch files only under <scratchpad>/SMB-INTEROP-PSD-LOSS-DETAIL/ and the scratch tree smb-psd-loss-detail-red (its appended probe is scratch-only and was removed by the green refresh)",
+  "residual": [
+   "the path of the two Transformed dropped-instances entries changed shape (',dropped=<count>' appended); a host that matched the exact old path must match the prefix (no such host in this workspace)",
+   "an instance that cannot be mapped but sits past the ceiling still adds its own note (effect_*): it is not in the record for its own reason, not for the bound; tests show one note per unmapped instance and it is not in the dropped count",
+   "PLR-086 is a DOC: the descriptor reader's 512-entry list cap and the 8192-item total cap stay category-blind parse bounds (a category-aware streaming parse is not done); frequency in Photoshop-authored files UNVERIFIED (D5)",
+   "PLR-090 not changed, reason in notes.plr090",
+   "the claim that a plan of an imported document cannot exceed 4096 effects stays reasoned, not test-proven here (R9 note, unchanged)"
+  ],
+  "not_done": [
+   "no per-instance loss entries (would grow with the descriptor; one entry per stack is the bounded form)",
+   "no prefix-of-switched-off-instances variant (R21-S1 lead decision: all switched-off instances of an over-ceiling visible stack are dropped)"
+  ],
+  "verdicts": []
+ }
+}

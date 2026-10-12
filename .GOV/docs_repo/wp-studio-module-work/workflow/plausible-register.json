@@ -1483,7 +1483,7 @@
    "status": "OPEN",
    "verified_at": "fdc01f1",
    "disposition": "DOC",
-   "disposition_note": "lead decision 2026-10-12T06:16:47Z: the 512-entry list cap is a parse-level hostile-size bound (V4-02) and stays category-blind; state it as a residual in the interop-psd DESCRIPTOR (a list over 512 entries refuses the descriptor with descriptor_item_limit, losing that stack); revisit only if a real Photoshop file needs more (Photoshop's per-type instance limit UNVERIFIED)"
+   "disposition_note": "lead decision 2026-10-12T06:16:47Z: the 512-entry list cap is a parse-level hostile-size bound (V4-02) and stays category-blind; state it as a residual in the interop-psd DESCRIPTOR (a list over 512 entries refuses the descriptor with descriptor_item_limit, losing that stack); revisit only if a real Photoshop file needs more (Photoshop's per-type instance limit UNVERIFIED); 2026-10-12T06:34:34Z fix submitted SMB-INTEROP-PSD-LOSS-DETAIL 3930a7c"
   },
   {
    "id": "PLR-087",
@@ -1528,7 +1528,7 @@
    "status": "OPEN",
    "verified_at": "fdc01f1",
    "disposition": "FIX_LANE",
-   "disposition_note": "next interop-psd lane (with PLR-086)"
+   "disposition_note": "next interop-psd lane (with PLR-086); 2026-10-12T06:34:34Z fix submitted SMB-INTEROP-PSD-LOSS-DETAIL 3930a7c"
   },
   {
    "id": "PLR-090",
@@ -1543,7 +1543,7 @@
    "status": "OPEN",
    "verified_at": "fdc01f1",
    "disposition": "FIX_LANE",
-   "disposition_note": "optional; fold into next interop-psd lane"
+   "disposition_note": "optional; fold into next interop-psd lane; 2026-10-12T06:34:34Z SMB-INTEROP-PSD-LOSS-DETAIL 3930a7c: no change - a later live instance changes the outcome (1025 off refused alone, kept with one live after them); pinned by tests; close on PASS"
   },
   {
    "id": "PLR-091",

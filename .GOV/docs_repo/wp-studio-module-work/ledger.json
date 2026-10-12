@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-12T06:32:00Z",
+ "updated_at": "2026-10-12T06:34:34Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3165,12 +3165,15 @@
    "lane_id": "SMB-INTEROP-PSD-LOSS-DETAIL",
    "crate": "hsk-studio-interop-psd",
    "origin": "PLR-089, PLR-090, PLR-086",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-psd-loss-detail",
-   "candidate": null,
-   "commits": [],
-   "verdicts": []
+   "candidate": "3930a7c",
+   "commits": [
+    "3930a7c"
+   ],
+   "verdicts": [],
+   "note": "PLR-089: both Transformed dropped-instance losses carry (layer_id,dropped=count) in the path; left-out off instances add no notes (doc-budget cut fixed too); PLR-090 no change (early stop would change outcome; pinned by tests); PLR-086 DESCRIPTOR residual + 2 tests; V4-06 57 sites; red 7/20 on scratch; crate 61/61"
   },
   {
    "lane_id": "SMB-PRESS-DOCS-2",
@@ -3297,7 +3300,8 @@
   "SMB-REEL-PARTIAL-PTS",
   "SMB-INTEROP-PSD-FOLIO-CEILING",
   "SMB-PRESS-DOCS-2",
-  "SMB-REEL-PARTIAL-PTS-2"
+  "SMB-REEL-PARTIAL-PTS-2",
+  "SMB-INTEROP-PSD-LOSS-DETAIL"
  ],
  "round_R6": {
   "candidate": "bd8533f",
