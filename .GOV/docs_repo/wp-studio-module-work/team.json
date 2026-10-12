@@ -2341,6 +2341,17 @@
    ],
    "launched": "2026-10-12T01:33:45Z",
    "status": "done 2026-10-12T01:50:14Z (R17 COMPLETE: 7 PASS / 0 FAIL; press deferred)"
+  },
+  {
+   "name": "rem-press-r17",
+   "agent_id": "a310741e8811e6a05",
+   "model": "sonnet",
+   "role": "press R17-P1/P2 + V-1 + /AS/F + /OC fail-closed",
+   "owns": [
+    "crates/hsk-studio-press/**"
+   ],
+   "launched": "2026-10-12T02:26:42Z",
+   "status": "done 2026-10-12T02:26:42Z (bcc0688)"
   }
  ]
 }
