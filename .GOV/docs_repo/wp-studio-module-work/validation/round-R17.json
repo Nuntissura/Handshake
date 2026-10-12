@@ -1,0 +1,536 @@
+{
+ "round": 17,
+ "round_id": "STUDIO-R17",
+ "round_opened": true,
+ "rule_refs": [
+  "CX-VAL-001",
+  "CX-VAL-002",
+  "CX-VAL-003",
+  "CX-VAL-004",
+  "CX-VAL-005",
+  "CX-VAL-006",
+  "CX-VAL-007",
+  "CX-VAL-008",
+  "CX-VAL-009",
+  "CX-VAL-010",
+  "CX-STATUS-001",
+  "CX-STATUS-002",
+  "CX-STATUS-003",
+  "CX-EXEC-015",
+  "CX-VERIFY-002",
+  "V4-03 NOT_PROVEN",
+  "V4-04",
+  "V4-06",
+  "V4-07",
+  "V4-13",
+  "V4-14",
+  "V4-18",
+  "V4-19"
+ ],
+ "candidate": "fcda5f6f1d549ca3c399a6b51a68aecf5d133ab1",
+ "tree": "aece0fb94a46e7114f51fb02c2a4d2f493b1f885",
+ "candidate_note": "named by lead (ledger round_R17, opened 01:33:29Z); steward-5 in sync since 9ffe946 (no derivation input changed); origin tip == edit HEAD == fcda5f6 (git ls-remote 01:35:25Z; no fetch by this validator); 5606d16..fcda5f6 = f0be2ba (press) + fcda5f6 (interop-psd), 7 files; Cargo.toml, Cargo.lock, tools/, .config/, rust-toolchain.toml unchanged (git diff empty)",
+ "round_identity_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/ROUND_IDENTITY.json",
+ "export": {
+  "file_count": 892,
+  "manifest_sha256": "75e7fa73aa3c9dc9ec4f3d1020a11d111b47220a5e458a46ed20a71bac4b5b88",
+  "git_blob_equal": true,
+  "refresh": "kernel tools/export-refresh.sh in place 2026-10-12T01:35:36Z: 0 added, 7 changed, 885 unchanged, 0 deleted, blob_mismatch 0 (from 5606d16; exactly the 7 files of 5606d16..fcda5f6); manifest equals steward canary C22 export (75e7fa73); round.json export_manifest_sha256 equal"
+ },
+ "started_at": "2026-10-12T01:38:07Z",
+ "completed_at": "2026-10-12T01:48:53Z",
+ "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R17",
+ "running_record": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/RUNNING-R17.jsonl (opened + running 01:38:07Z, process_identity (+ one correction of its recorded_at), completed 01:40:20Z, verdicts_accepted before the state write, verdicts_recorded after it)",
+ "gameplan": ".GOV/task_packets/WP-KERNEL-STUDIO/gameplans/STUDIO-MODULE-ROUND.yaml (pointer studio-round/.gameplan-active) before_round PASS 12/12 @edit HEAD fcda5f6 (GP-001 origin == HEAD; GP-003 lock audit 01:35:59Z held none, queue 0, no cargo.exe, only an idle sccache server pid 371300 not started by this session; GP-005 LongPathsEnabled=1; GP-013 cites canary C22-fcda5f6 exit 73 = NOT_PROVEN interop-fig only, 59/59 units green; GP-004/GP-012 machine checks passed)",
+ "canary": {
+  "reused": true,
+  "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/steward-export/results/C22-fcda5f6",
+  "round_json_sha256": "ca22ebcdd427f4a7b60285376480515d8cdd2fc0dc919c8f746a49f020935ebf",
+  "sha": "fcda5f6f1d549ca3c399a6b51a68aecf5d133ab1",
+  "export_manifest_sha256": "75e7fa73aa3c9dc9ec4f3d1020a11d111b47220a5e458a46ed20a71bac4b5b88",
+  "summary": "steward canary via the same entrypoint on the same SHA and identical export manifest: exit 73 (only NOT_PROVEN interop-fig actual_fig_instance_variable_prototype_edit_reopen, D17), 59 units build 0/run 0, absent 0, timed_out 0, step 0 clean",
+  "reuse_basis": "CX-VERIFY-002 + lead dispatch (GP-013); canary exit 73 accepted because its only non-zero cause is NOT_PROVEN accounting (R10-R16 precedent)"
+ },
+ "union": {
+  "selection": [
+   "hsk-studio-interop-psd",
+   "hsk-studio-press"
+  ],
+  "selection_rule": "crates changed 5606d16..fcda5f6 (press f0be2ba, interop-psd fcda5f6) + workspace members whose dependency closure contains them (tomllib over crates/*/Cargo.toml incl. dev/build/target dependencies: none depends on press or interop-psd); root inputs unchanged; web and reel-native unchanged since R16 (proof reuse); press ran because its crate changed (its result is information: press lanes deferred_fix_first)",
+  "argv": "bash tools/[round entry script] --results <studio-round>/results/R17 --target-dir <studio-round>/target hsk-studio-interop-psd hsk-studio-press (cwd export; absolute D: paths; no caller env)",
+  "target_dir": "Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/target (warm from R16)",
+  "started_at": "2026-10-12T01:38:20Z",
+  "ended_at": "2026-10-12T01:39:11Z",
+  "build_exit": 0,
+  "run_exit": 0,
+  "exit": 0,
+  "summary": "default 187/187 passed (press 134, interop-psd 53); 2 doctest units exit 0 (no doctests); 3 units; absent [] timed_out []; NOT_PROVEN 0 -> exit 0",
+  "units": 3,
+  "not_proven_count": 0,
+  "hashes": {
+   "round.json": "964393670746fd21bd3e1f91b06d4a8693b35c81c012ad2071ab3f7d5e60c093",
+   "tests.json": "0ede36d83e53e6641cff3a4f99eaeb4780b378a449c9673ac942249f0ae6d036",
+   "junit.xml": "dd2f450ed407c382132f4894d10084c457674c4d876fc147e9c4e7d189fa7b7c",
+   "run.stderr.txt": "0da6771540cc49b7a5ec76f242af8613879b7c462d6710b1a42394199c195c55",
+   "build.stderr.txt": "bda9916d034ff0d5ef52f6ee80474d054eafd59e1b4a23948db20222854af21f",
+   "units.tsv": "ab6fe0277ab7f8d54264026c78f0fc1de3a37bbb5e7510677ffe1db2ed612a9a",
+   "oracle-corpus.manifest.txt": "bc721e63ff18f67bc8536ca6395762eacf0467384ed3e3a0e68ae261bcd9698a",
+   "step0.policy.json": "885a9bd86e044ba4ac436012c10c37d4eb74403ee292111c1f3b4325c8e3877b"
+  },
+  "per_crate_default": {
+   "interop-psd": 53,
+   "press": 134
+  },
+  "test_set_check": "no test missing vs R16 for either crate (tests.json default unit, crate+binary+name): interop-psd 53 = R16 53; press 131 -> 134, the 3 added tests are exactly f0be2ba's flatten_r13 tests (painted_source_referenced_but_not_drawn_by_a_kept_page_is_reported, painted_source_referenced_by_a_key_of_a_drawn_object_is_reported, painted_sources_rendered_with_a_drawn_object_are_not_reported); 187 passed, 0 failed, 0 skipped",
+  "step0": "cargo metadata --locked --offline ok; registry-sync check clean (manifest_changed false, probe_changed false); machine-path violations 0 (13 files with pinned hits, pins_dropped {}), duplicate new_sites none; step0.policy.json byte-identical to R16 (885a9bd8); lock_sha256 86547db9 = R16",
+  "oracle_corpus": {
+   "file_count": 31,
+   "manifest_sha256": "bc721e63ff18f67bc8536ca6395762eacf0467384ed3e3a0e68ae261bcd9698a",
+   "note": "31 files (R16: 30; the C22 canary placed a score-plugin clap-gain fixture library, content-addressed sha256/32a46d63...); no selected crate uses an oracle fixture (fixtures [])"
+  },
+  "fixtures": [],
+  "disk_lock": "schema @2 class round: holds 1, yields 0 (slice 300 s), waited 1 s, broke_stale none, 01:38:25Z..01:39:11Z",
+  "env": {
+   "set_by_entrypoint": [
+    "CARGO_TARGET_DIR",
+    "TMP",
+    "TEMP",
+    "TMPDIR",
+    "CARGO_PROFILE_DEV_DEBUG",
+    "CARGO_PROFILE_TEST_DEBUG",
+    "CARGO_TERM_COLOR"
+   ],
+   "env_added_by_caller": "none (CX-VAL-007; caller env had no CARGO_/RUST/HSK_/SCCACHE_/STUDIO_/NEXT/GAMEPLAN variables; the harness shell TEMP/TMP (C:) are overwritten by the entrypoint)",
+   "rustc_wrapper": "",
+   "tools": {
+    "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+    "cargo": "cargo 1.97.1 (c980f4866 2026-06-30)",
+    "test_runner": "cargo-nextest 0.9.148 (cd1d6d546 2026-10-07)"
+   }
+  }
+ },
+ "junit_success_output_checks": [
+  "interop-psd default: descriptor_states_the_importers_over_counts (new needle both_caps_apply_...) passed 0.49 s; the_importer_counts_layers_without_pixels_and_clipped_layers_on_hidden_or_empty_bases and nested_hidden_groups_hide_every_descendant_until_the_outermost_closes passed",
+  "press default (information, lanes deferred): the 3 new flatten_r13 tests and descriptor_names_the_painted_source_kept_by_reference_case passed; flatten_r13 14, flatten_redaction 9, pdf_delivery 70, unit 41"
+ ],
+ "not_proven": [],
+ "not_proven_note": "V4-03: no NOT_PROVEN line in this union (the canary's only NOT_PROVEN is interop-fig D17, outside the selection)",
+ "adversarial_review": {
+  "refs": {
+   "validation/R17-prereview-press-psd-narrow.json": "sha256 240fa368 (COMPLETE, completed_at 2026-10-12T01:43:00Z; committed by the lead in dfd3b9f3)"
+  },
+  "coverage": "V4-13 narrow pre-review (read-only, fresh context) of 5606d16..fcda5f6 for the two two-FAIL lanes whose crates changed: SMB-PRESS FIX_FIRST (R17-P1 CONFIRMED, R17-P2 CONFIRMED doc-only, R17-P3 and R17-P4 INFO), SMB-INTEROP-PSD-BUDGET SAFE_TO_JUDGE (no new finding; R17-I1 INFO). Web and reel-native: no commit since R16 (R16 pre-review SAFE stands, V4-18). Validator's own read: the 7-file diff 5606d16..fcda5f6 (flatten_purge.rs in full from :440, sanitized_save.rs and both DESCRIPTOR hunks; interop-psd effects.rs :44-178 and tests/effects_budget.rs :1180-1254).",
+  "fold_rule": "R12-R16 convention: every CONFIRMED finding re-read at the cited file:line in the export; a CONFIRMED product defect in a judged lane's claimed scope drives a FAIL on the lane that owns it by blame and claim; CONFIRMED process/doc-only items and predating behaviour that breaks no bound or claimed receipt are notes; PLAUSIBLE/INFO items are notes; a lane routed FIX_FIRST by V4-13 is not judged (no charge)",
+  "fold_decisions": [
+   {
+    "finding": "R17-P1 (CONFIRMED, press: certain by object position, not by draw, at flatten_purge.rs:583, :590 and the appearance-state pushes :755-756/:814)",
+    "owner": "SMB-NOTES-BATCH-1 (f0be2ba wrote the 'certain only when a kept page draws it' claim and the V4-06 'not applicable' rows for :583, :590); SMB-PRESS gated by it (V4-13)",
+    "decision": "not folded: SMB-PRESS and SMB-PRESS-DIFFERENCES deferred_fix_first; SMB-NOTES-BATCH-1 not judged (its claim includes the press commit); no FAIL, no charge",
+    "why": "dispatch rule (press judged only on SAFE_TO_JUDGE); lead set SMB-NOTES-BATCH-1 status null with the R17 FIX_FIRST blocker (ledger 01:43:13Z, kernel dfd3b9f3)"
+   },
+   {
+    "finding": "R17-P2 (CONFIRMED, doc-only: DESCRIPTOR purge draw list omits Tf, SCN and nested content)",
+    "owner": "SMB-NOTES-BATCH-1 (f0be2ba)",
+    "decision": "not folded (press not judged); rides with the R17-P1 remediation",
+    "why": "doc-only, safe direction (the code is silent where the source is drawn)"
+   },
+   {
+    "finding": "R17-P3, R17-P4 (INFO, press)",
+    "owner": "press remediation",
+    "decision": "notes",
+    "why": "INFO"
+   },
+   {
+    "finding": "R17-I1 (INFO, interop-psd: proposal.rs:141-146 document variant as a sufficient condition; R16 I-2/I-3 carried)",
+    "owner": "SMB-INTEROP-PSD-BUDGET",
+    "decision": "note",
+    "why": "INFO, no contradiction (no 'only')"
+   }
+  ],
+  "not_reviewed": [
+   "the interop-psd PASS lanes other than SMB-INTEROP-PSD-BUDGET are covered by the validator's read of the 3-file interop-psd diff (comment, DESCRIPTOR string, test needle), not by a lane review"
+  ],
+  "validator_disagreements": [],
+  "validator_reads": [
+   "R17-P1 re-read at the fcda5f6 export: Usage::resources flatten_purge.rs:581-598 marks the /Resources value (:583) and a gated key's reference value (:589-591) with the scope's certain flag without checking that the object is a dictionary; Object::as_dict returns a Stream's dictionary (syntax.rs:99-104), so an image placed as a kept page's /Resources or /XObject value is reached and certain; appearance_streams :747-762 returns every reference under /AP /N /R /D (stream or state-dictionary value) and :813-815 pushes each certain with no type check; :874 reports painted AND live AND NOT certain only: agrees (the validator's own read reached the :583/:590 trace before the pre-review file was available)",
+   "R17-P2 re-read: DESCRIPTOR redaction.flatten.purge draw list vs read_scope :675-681 (Do, sh, gs, Tf, scn, SCN) and :698-719 (nested form/pattern/soft-mask/Type 3 content read in the caller's scope): agrees (narrower than the code, safe direction)",
+   "interop-psd: git diff 5606d16..fcda5f6 = effects.rs 5 comment lines, lib.rs one DESCRIPTOR string (only effect_limits differs), tests/effects_budget.rs +1 needle; wording checked against EffectTally::admit :149-168 and tests :1191-1213: agrees with the pre-review (exact, doc-only)",
+   "range: git diff --name-only 5606d16 fcda5f6 = 7 files (press 4, interop-psd 3), no root input; workspace dependants of press and interop-psd: none (tomllib over crates/*/Cargo.toml incl. dev/build/target dependencies); git diff over composite, render-cpu, render-gpu empty (SMB-FX-OPS-ADOPT reuse)"
+  ],
+  "validator_notes": [
+   {
+    "id": "V-1",
+    "severity": "PLAUSIBLE",
+    "crate": "hsk-studio-press (not judged; for the R17-P1 remediation)",
+    "file_line": "src/flatten_purge.rs:650-652 (lookup returns the entry of EVERY dictionary of the chain that has the name), :684-690 (each target pushed certain in a scope a kept page draws), :816-828 (a page scope's chain = own /Resources + every ancestor's)",
+    "finding": "same class as R17-P1 (certain without a draw): a name defined both in a kept page's own /Resources and in an ancestor /Pages node's /Resources makes BOTH targets certain, while a viewer resolves the name once (nearest wins). Construction: kept page two under a /Pages node P2 that is not on the flattened page's /Parent chain (flatten detach strips only that chain), P2 /Resources /XObject /Im1 -> image 10 (the flattened page's painted source), page two's own /Resources /XObject /Im1 -> another image, page two draws /Im1: 10 is certain, not reported, region_flattened true while 10 stays in the file",
+    "evidence": "reasoned from the code at fcda5f6, not executed; viewer name resolution (ISO 32000 /Resources inherited only when the page omits it; nearest-first merge in the module doc's pdf.js model) is UNVERIFIED in this session",
+    "remediation": "certain only for the first (nearest) match of a name in the chain; later matches followed plain (reached, reported if painted); test with the P2 construction"
+   },
+   {
+    "id": "V-2",
+    "severity": "INFO",
+    "crate": "hsk-studio-press",
+    "file_line": "src/flatten_purge.rs:52-58 (docs: annotation flags are not read), :752-757 (every state of an /AP state dictionary)",
+    "finding": "carried and documented: appearance streams of Hidden/NoView annotations and the non-selected /AS states of a state dictionary are certain although a viewer does not draw them without interaction; the docs state it; whether that meets the 01:05:36Z rule ('a kept page actually draws it') is a lead decision",
+    "evidence": "code read",
+    "remediation": "lead decision (state it as a residual, or read /F and /AS)"
+   }
+  ],
+  "lead_decisions_applied": [
+   "ledger round_R17 (ready SMB-NOTES-BATCH-1; two-FAIL rechecks via the R17 pre-review; reopen press and interop-psd lanes; excluded render-gpu D20, interop-media D9)",
+   "validator dispatch: judge SMB-PRESS / SMB-PRESS-DIFFERENCES only if the R17 pre-review says SAFE_TO_JUDGE for press, else not_judged with no charge and SMB-NOTES-BATCH-1 not_judged too; SMB-INTEROP-PSD-BUDGET only if SAFE for interop-psd; web and reel-native proof reuse",
+   "ledger SMB-NOTES-BATCH-1 status null + blocker 'V4-13 narrow pre-review FIX_FIRST (press)' (kernel dfd3b9f3, 01:43:13Z)",
+   "START_LOG 2026-10-12T01:05:36Z (press P-1 rule: certain only when a kept page actually draws it): basis of R17-P1 and V-1"
+  ]
+ },
+ "proof_reuse": {
+  "basis": "CX-VAL-002: crate source + workspace-dep closure unchanged from each proof commit to fcda5f6 (5606d16..fcda5f6 touches only press and interop-psd; nothing depends on either); the round-R16 proof_reuse list plus every R16-judged lane not judged here (web, reel-native, pigment, render-cpu, composite, develop lanes; proof commit 5606d16); reused verdicts name both commits; no new verdict",
+  "lanes": [
+   "SMB-TYPE (PASS_V5 @404ff3a)",
+   "SMB-LAYOUT (PASS_V5 @f6e5a49)",
+   "SMB-COMPONENTS (PASS_V5 @f6e5a49)",
+   "SMB-PULSE (PASS_V5 @f6e5a49)",
+   "SMB-SCORE (PASS_V4 @f6e5a49)",
+   "SMB-REEL (PASS_V10 @4b76604)",
+   "SMB-MOTION (PASS_V1 @404ff3a)",
+   "SMB-PACKAGE (PASS_V5 @f6e5a49)",
+   "SMB-INTEROP-VECTOR (PASS_V6 @3d795a5)",
+   "SMB-INTEROP-FIG (PASS_V3 @3d795a5)",
+   "SMB-INTEROP-LAYOUT (PASS_V5 @3d795a5)",
+   "SMB-CONTROLS (PASS_V3 @bd8533f)",
+   "SMB-SESSION (PASS_V5 @f6e5a49)",
+   "SMB-HARNESS (PASS_V3 @f6e5a49)",
+   "SMB-KERNEL-BINDINGS (PASS_V3 @f6e5a49)",
+   "SMB-SCORE-DEVICE (PASS_V3 @f6e5a49)",
+   "SMB-SCORE-PLUGIN (PASS_V4 @4d80e50)",
+   "SMB-INTEROP-LRCAT (PASS_V2 @bd8533f)",
+   "SMB-MOTION-JS (PASS_V3 @dff7ef5)",
+   "SMB-PRISM-ENG-1 (PASS_V4 @dff7ef5)",
+   "SMB-TYPE-ENG-1 (PASS_V1 @1d404f8)",
+   "SMB-REEL-ENG-1 (PASS_V4 @4b76604)",
+   "SMB-REEL-ENG-3 (PASS_V8 @4b76604)",
+   "SMB-PULSE-ENG-1 (PASS_V3 @f6e5a49)",
+   "SMB-PRISM-ENG-2 (PASS_V4 @dff7ef5)",
+   "SMB-PRISM-ENG-3 (PASS_V3 @dff7ef5)",
+   "SMB-PRISM-ENG-4 (PASS_V4 @dff7ef5)",
+   "SMB-PRISM-ENG-5 (PASS_V3 @dff7ef5)",
+   "SMB-TYPE-DOCTEST (PASS_V1 @1d404f8)",
+   "SMB-FOLIO-ENG-1 (PASS_V5 @f6e5a49)",
+   "SMB-TYPE-ENV (PASS_V1 @404ff3a)",
+   "SMB-ACCORD-ENG-1 (PASS_V1 @404ff3a)",
+   "SMB-TYPE-FONTS (PASS_V1 @404ff3a)",
+   "SMB-TYPE-FIXTURES (PASS_V1 @404ff3a)",
+   "SMB-FOLIO-ENG-2 (PASS_V5 @f6e5a49)",
+   "SMB-NIB-ENG-1 (PASS_V2 @1d404f8)",
+   "SMB-FOLIO-ENG-3 (PASS_V5 @f6e5a49)",
+   "SMB-ACCORD-ENG-2 (PASS_V1 @404ff3a)",
+   "SMB-MOTION-JS-WORKER (PASS_V2 @dff7ef5)",
+   "SMB-LAYOUT-FOLIO-MIGRATE (PASS_V4 @f6e5a49)",
+   "SMB-FOLIO-ENG-4 (PASS_V4 @f6e5a49)",
+   "SMB-PACKAGE-STREAM-SAVE (PASS_V4 @f6e5a49)",
+   "SMB-PRISM-ENG-6 (PASS_V2 @dff7ef5)",
+   "SMB-COMPONENTS-FOLIO-MIGRATE (PASS_V4 @f6e5a49)",
+   "SMB-INTEROP-VECTOR-FOLIO-MIGRATE (PASS_V5 @3d795a5)",
+   "SMB-REEL-AV1-ROUTE (PASS_V8 @4b76604)",
+   "SMB-MOTION-JS-SANDBOX-2 (PASS_V1 @dff7ef5)",
+   "SMB-PRISM-ENG-7 (PASS_V1 @dff7ef5)",
+   "SMB-FOLIO-ENG-6 (PASS_V2 @f6e5a49)",
+   "SMB-FOLIO-ENG-7 (PASS_V2 @f6e5a49)",
+   "SMB-CHRONICLE-TABLE (PASS_V2 @f6e5a49)",
+   "SMB-INTEROP-VECTOR-RECORDS (PASS_V3 @3d795a5)",
+   "SMB-PRISM-ENG-8 (PASS_V1 @dff7ef5)",
+   "SMB-SCORE-GUARDS (PASS_V1 @f6e5a49)",
+   "SMB-COMPONENTS-FOOTPRINT (PASS_V1 @f6e5a49)",
+   "SMB-FOLIO-UNIQUENESS (PASS_V1 @f6e5a49)",
+   "SMB-SCORE-PLUGIN-RATE (PASS_V1 @4d80e50)",
+   "SMB-REEL-RECEIPTS (PASS_V1 @4b76604)",
+   "SMB-PIGMENT-NOTES (PASS_V1 @5606d16)",
+   "SMB-WEB (PASS_V5 @5606d16)",
+   "SMB-WEB-DIFFTEST (PASS_V2 @5606d16)",
+   "SMB-WEB-PARITY (PASS_V2 @5606d16)",
+   "SMB-REEL-NATIVE-AV1-WORKER (PASS_V9 @5606d16)",
+   "SMB-REEL-NATIVE-FAULTS (PASS_V6 @5606d16)",
+   "SMB-REEL-NATIVE-FAULTS-2 (PASS_V2 @5606d16)",
+   "SMB-DEVELOP (PASS_V9 @5606d16)",
+   "SMB-COMPOSITE (PASS_V9 @5606d16)",
+   "SMB-RENDER-CPU (PASS_V9 @5606d16)",
+   "SMB-PIGMENT-ENG-1 (PASS_V9 @5606d16)",
+   "SMB-RENDER-CPU-CLIP (PASS_V9 @5606d16)",
+   "SMB-COMPOSITE-CLIP-ALIGN (PASS_V9 @5606d16)",
+   "SMB-DEVELOP-WIDE (PASS_V6 @5606d16)",
+   "SMB-PIGMENT-ENG-2 (PASS_V7 @5606d16)",
+   "SMB-COMPOSITE-ADJ (PASS_V6 @5606d16)",
+   "SMB-RENDER-CPU-ADJ (PASS_V6 @5606d16)",
+   "SMB-EFFECTS-WAVE-1 (PASS_V6 @5606d16)",
+   "SMB-EFFECTS-WAVE-2 (PASS_V6 @5606d16)",
+   "SMB-PIGMENT-WINDOW (PASS_V6 @5606d16)",
+   "SMB-RENDER-CPU-WINDOW (PASS_V6 @5606d16)",
+   "SMB-RENDER-CPU-FX2 (PASS_V6 @5606d16)",
+   "SMB-DEVELOP-JOBS (PASS_V6 @5606d16)",
+   "SMB-PIGMENT-BLENDIF-CLIP (PASS_V6 @5606d16)",
+   "SMB-BLENDIF-CLIP-ADOPT (PASS_V6 @5606d16)",
+   "SMB-PIGMENT-PLANLIMITS (PASS_V3 @5606d16)",
+   "SMB-REFUSAL-KEYS (PASS_V5 @5606d16)",
+   "SMB-PIGMENT-FX-OPS (PASS_V5 @5606d16)",
+   "SMB-PIGMENT-ADMIT-PARITY (PASS_V5 @5606d16)",
+   "SMB-PARITY-FOLLOWUP (PASS_V4 @5606d16)",
+   "SMB-PIGMENT-FOLLOWUPS (PASS_V2 @5606d16)"
+  ],
+  "count": 89
+ },
+ "excluded": [
+  {
+   "lane": "SMB-NOTES-BATCH-1",
+   "reason": "not_judged: deferred_fix_first (claim includes press f0be2ba; R17 pre-review SMB-PRESS FIX_FIRST, R17-P1/P2); lead set status null with that blocker; no charge. Its web (9088884) and reel-native (ab273d3) parts are unchanged since R16 (green there); its interop-psd part fcda5f6 is green here (53/53)"
+  },
+  {
+   "lane": "SMB-PRESS",
+   "reason": "not_judged: deferred_fix_first (V4-13 R17-prereview-press-psd-narrow FIX_FIRST, R17-P1); no FAIL, no charge; its PASS_V3 @4b76604 does not bind to fcda5f6 (crate changed by 27a9a81, f0be2ba); status left null (lead, V4-19); press 134/134 green in this run for information"
+  },
+  {
+   "lane": "SMB-PRESS-DIFFERENCES",
+   "reason": "not_judged: deferred with the press crate (FIX_FIRST); no FAIL, no charge; its PASS_V1 @4b76604 does not bind to fcda5f6; status left null"
+  },
+  {
+   "lane": "SMB-RENDER-GPU",
+   "reason": "not_judged: CX-EXEC-015(1) fix_budget_exhausted, Operator decision D20 pending (render-gpu not in the union; crate unchanged since R16)"
+  },
+  {
+   "lane": "SMB-RENDER-GPU-ADJ",
+   "reason": "not_judged: render-gpu lanes excluded (D20); BLOCKED by the lead after R15; not proof-reused"
+  },
+  {
+   "lane": "SMB-RENDER-GPU-PROBE",
+   "reason": "not_judged: no READY claim; render-gpu D20"
+  },
+  {
+   "lane": "SMB-ROUND-ENTRYPOINT",
+   "reason": "not_judged: CX-EXEC-015(1) fix_budget_exhausted, Operator decision D20 pending (entrypoint used for this round as infrastructure)"
+  },
+  {
+   "lane": "SMB-INTEROP-MEDIA, SMB-INTEROP-MEDIA-PULSE",
+   "reason": "not_judged: BLOCKED on Operator D9 (crate and lock closure unchanged)"
+  },
+  {
+   "lane": "queued/no-claim lanes (SMB-REEL-NATIVE, SMB-REEL-NATIVE-ENG-1, SMB-PRESS-GEOMETRY, SMB-REEL-ENG-2, SMB-FMT-SWEEP)",
+   "reason": "not_judged: no READY claim in fcda5f6 (REEL-ENG-2 / REEL-NATIVE-ENG-1 BLOCKED on Operator D22-D26)"
+  }
+ ],
+ "deferred_fix_first": [
+  {
+   "lane": "SMB-PRESS",
+   "pre_review": "validation/R17-prereview-press-psd-narrow.json lanes[0]",
+   "finding": "R17-P1 CONFIRMED (flatten_purge.rs:583, :590, :755-756/:814 certain by position, no type check) + R17-P2 CONFIRMED doc-only",
+   "route": "remediation dispatched by the lead (kernel dfd3b9f3); a new press push reopens the press lanes (V4-14); validator note V-1 (lookup shadowing, same class) for the same remediation"
+  },
+  {
+   "lane": "SMB-PRESS-DIFFERENCES",
+   "pre_review": "same (crate-level deferral)",
+   "finding": "none on its claim (/Differences decoding); deferred with the crate",
+   "route": "judged with the press remediation round"
+  },
+  {
+   "lane": "SMB-NOTES-BATCH-1",
+   "pre_review": "same",
+   "finding": "press part FIX_FIRST",
+   "route": "judged after the press remediation (its web, reel-native and interop-psd parts are green and unchanged)"
+  }
+ ],
+ "deferred_note": "the union run started before the pre-review was COMPLETE (dispatch: wait for it like a review); verdicts were taken only after it was COMPLETE (01:43:00Z) and after the lead's commit dfd3b9f3 routing SMB-NOTES-BATCH-1 to FIX_FIRST",
+ "scope_rule": "PASS lanes returned to READY by CX-VAL-009 (crate interop-psd changed 5606d16..fcda5f6: the six interop-psd lanes incl. SMB-FX-OPS-ADOPT); two-FAIL SMB-INTEROP-PSD-BUDGET judged on SAFE_TO_JUDGE; press lanes and SMB-NOTES-BATCH-1 deferred (FIX_FIRST); render-gpu lanes and SMB-ROUND-ENTRYPOINT excluded (D20), interop-media (D9); everything else proof_reuse",
+ "included_count": 7,
+ "verdict_counts": {
+  "PASS_V7": 1,
+  "PASS_V8": 1,
+  "PASS_V9": 3,
+  "PASS_V10": 1,
+  "PASS_V12": 1
+ },
+ "verdict_numbering": "Vn = 1 + highest prior PASS_V/FAIL_V number of the lane (BLOCKED, NOT_PROVEN and inconclusive do not count), computed once from the ledger before the state write (ledger sha256 5dbbabc1, after the lead's dfd3b9f3 commit) and frozen in the verdicts_accepted event: SMB-INTEROP-PSD V11 -> V12, SMB-INTEROP-PSD-WIDE V9 -> V10, SMB-INTEROP-PSD-ADJ / -RECEIPT / -CLIP-ROLES V8 -> V9, SMB-FX-OPS-ADOPT V7 -> V8, SMB-INTEROP-PSD-BUDGET V6 -> V7",
+ "not_proven_rule": "V4-03: a test printing NOT_PROVEN is never PASS; a lane whose acceptance depends on it is not PASS. R17: no NOT_PROVEN line in the union",
+ "counters": [
+  {
+   "lane": "SMB-INTEROP-PSD-BUDGET",
+   "counter": "CX-EXEC-015(1) fix budget (failed verdicts 2, limit 3)",
+   "outcome": "PASS_V7; no counter acts"
+  },
+  {
+   "lane": "SMB-PRESS",
+   "counter": "CX-EXEC-015(1) fix budget (failed verdicts 2, limit 3)",
+   "outcome": "not judged (deferred_fix_first); no verdict, no charge"
+  },
+  {
+   "lane": "other judged lanes",
+   "counter": "CX-EXEC-015(1) fix budget (failed verdicts 0-1, limit 3)",
+   "outcome": "passed; no counter acts"
+  },
+  {
+   "lane": "round",
+   "counter": "CX-EXEC-015(4) same infrastructure failure_class in two rounds",
+   "outcome": "none (no infrastructure failure)"
+  }
+ ],
+ "fix_budget_events": "none (no FAIL this round; no lane reached CX-EXEC-015(1); no NEEDS_NEW_APPROACH)",
+ "lanes": [
+  {
+   "lane": "SMB-INTEROP-PSD",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V12",
+   "status_change": "PASS_V12",
+   "tests": "interop-psd 53/53 default (= R16 set; no R16 test missing), doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "interop-psd src change by fcda5f6 is a comment (effects.rs:51-56) and the DESCRIPTOR effect_limits clause (lib.rs, one string); tests/effects_budget.rs +1 needle (:1241); no code token changed (validator read of the 3-file diff; R17 pre-review lanes[1] checks.b_doc_only agrees). Every R16 interop-psd test green at fcda5f6; no claim broken by reading. Closure unchanged (5606d16..fcda5f6 touches only press and interop-psd; no dependency of interop-psd changed).",
+   "review": "NOT_REVIEWED as a lane (validator read of the interop-psd diff 5606d16..fcda5f6: comment, DESCRIPTOR string, test needle only; R17 pre-review lanes[1] read the same diff: doc-only)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-interop-psd changed 5606d16..fcda5f6 by fcda5f6 (comment, DESCRIPTOR effect_limits, test needle); workspace-dep closure unchanged)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R17",
+   "idempotency_key": "STUDIO-R17:SMB-INTEROP-PSD:fcda5f6f1d54:PASS_V12",
+   "recorded_at": "2026-10-12T01:48:53Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-WIDE",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V10",
+   "status_change": "PASS_V10",
+   "tests": "interop-psd 53/53 default (= R16 set; no R16 test missing), doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "interop-psd src change by fcda5f6 is a comment (effects.rs:51-56) and the DESCRIPTOR effect_limits clause (lib.rs, one string); tests/effects_budget.rs +1 needle (:1241); no code token changed (validator read of the 3-file diff; R17 pre-review lanes[1] checks.b_doc_only agrees). Every R16 interop-psd test green at fcda5f6; no claim broken by reading. Closure unchanged (5606d16..fcda5f6 touches only press and interop-psd; no dependency of interop-psd changed).",
+   "review": "NOT_REVIEWED as a lane (validator read of the interop-psd diff 5606d16..fcda5f6: comment, DESCRIPTOR string, test needle only; R17 pre-review lanes[1] read the same diff: doc-only)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-interop-psd changed 5606d16..fcda5f6 by fcda5f6 (comment, DESCRIPTOR effect_limits, test needle); workspace-dep closure unchanged)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R17",
+   "idempotency_key": "STUDIO-R17:SMB-INTEROP-PSD-WIDE:fcda5f6f1d54:PASS_V10",
+   "recorded_at": "2026-10-12T01:48:53Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-ADJ",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V9",
+   "status_change": "PASS_V9",
+   "tests": "interop-psd 53/53 default (= R16 set; no R16 test missing), doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 1,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "interop-psd src change by fcda5f6 is a comment (effects.rs:51-56) and the DESCRIPTOR effect_limits clause (lib.rs, one string); tests/effects_budget.rs +1 needle (:1241); no code token changed (validator read of the 3-file diff; R17 pre-review lanes[1] checks.b_doc_only agrees). Every R16 interop-psd test green at fcda5f6; no claim broken by reading. Closure unchanged (5606d16..fcda5f6 touches only press and interop-psd; no dependency of interop-psd changed).",
+   "review": "NOT_REVIEWED as a lane (validator read of the interop-psd diff 5606d16..fcda5f6: comment, DESCRIPTOR string, test needle only; R17 pre-review lanes[1] read the same diff: doc-only)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-interop-psd changed 5606d16..fcda5f6 by fcda5f6 (comment, DESCRIPTOR effect_limits, test needle); workspace-dep closure unchanged)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R17",
+   "idempotency_key": "STUDIO-R17:SMB-INTEROP-PSD-ADJ:fcda5f6f1d54:PASS_V9",
+   "recorded_at": "2026-10-12T01:48:53Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-RECEIPT",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V9",
+   "status_change": "PASS_V9",
+   "tests": "interop-psd 53/53 default (= R16 set; no R16 test missing), doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "interop-psd src change by fcda5f6 is a comment (effects.rs:51-56) and the DESCRIPTOR effect_limits clause (lib.rs, one string); tests/effects_budget.rs +1 needle (:1241); no code token changed (validator read of the 3-file diff; R17 pre-review lanes[1] checks.b_doc_only agrees). Every R16 interop-psd test green at fcda5f6; no claim broken by reading. Closure unchanged (5606d16..fcda5f6 touches only press and interop-psd; no dependency of interop-psd changed).",
+   "review": "NOT_REVIEWED as a lane (validator read of the interop-psd diff 5606d16..fcda5f6: comment, DESCRIPTOR string, test needle only; R17 pre-review lanes[1] read the same diff: doc-only)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-interop-psd changed 5606d16..fcda5f6 by fcda5f6 (comment, DESCRIPTOR effect_limits, test needle); workspace-dep closure unchanged)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R17",
+   "idempotency_key": "STUDIO-R17:SMB-INTEROP-PSD-RECEIPT:fcda5f6f1d54:PASS_V9",
+   "recorded_at": "2026-10-12T01:48:53Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-CLIP-ROLES",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V9",
+   "status_change": "PASS_V9",
+   "tests": "interop-psd 53/53 default (= R16 set; no R16 test missing), doctest unit exit 0 (no doctests)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "interop-psd src change by fcda5f6 is a comment (effects.rs:51-56) and the DESCRIPTOR effect_limits clause (lib.rs, one string); tests/effects_budget.rs +1 needle (:1241); no code token changed (validator read of the 3-file diff; R17 pre-review lanes[1] checks.b_doc_only agrees). Every R16 interop-psd test green at fcda5f6; no claim broken by reading. Closure unchanged (5606d16..fcda5f6 touches only press and interop-psd; no dependency of interop-psd changed).",
+   "review": "NOT_REVIEWED as a lane (validator read of the interop-psd diff 5606d16..fcda5f6: comment, DESCRIPTOR string, test needle only; R17 pre-review lanes[1] read the same diff: doc-only)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-interop-psd changed 5606d16..fcda5f6 by fcda5f6 (comment, DESCRIPTOR effect_limits, test needle); workspace-dep closure unchanged)",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R17",
+   "idempotency_key": "STUDIO-R17:SMB-INTEROP-PSD-CLIP-ROLES:fcda5f6f1d54:PASS_V9",
+   "recorded_at": "2026-10-12T01:48:53Z"
+  },
+  {
+   "lane": "SMB-FX-OPS-ADOPT",
+   "crate": "hsk-studio-composite + hsk-studio-render-cpu + hsk-studio-render-gpu + hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V8",
+   "status_change": "PASS_V8",
+   "tests": "interop-psd 53/53 default at fcda5f6 (this round, = R16 set), doctest unit exit 0; composite 28/28, render-cpu 38/38 and render-gpu (information, D20) reused from STUDIO-R16 @5606d16 under CX-VAL-002 (git diff 5606d16..fcda5f6 over composite, render-cpu, render-gpu and their workspace-dep closure is empty: the range touches only press and interop-psd, and none of the three depends on interop-psd)",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 0,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "interop-psd part re-proven here (doc-only change by fcda5f6, see SMB-INTEROP-PSD); the other three crates and their closure are byte-unchanged since the R16 proof, so their R16 results bind under CX-VAL-002 (proof commit 5606d16, candidate fcda5f6). No claim broken by reading.",
+   "review": "NOT_REVIEWED as a lane (validator read of the interop-psd diff 5606d16..fcda5f6: comment, DESCRIPTOR string, test needle only; R17 pre-review lanes[1] read the same diff: doc-only)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-interop-psd changed 5606d16..fcda5f6 by fcda5f6 (comment, DESCRIPTOR effect_limits, test needle))",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R17",
+   "idempotency_key": "STUDIO-R17:SMB-FX-OPS-ADOPT:fcda5f6f1d54:PASS_V8",
+   "recorded_at": "2026-10-12T01:48:53Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-BUDGET",
+   "crate": "hsk-studio-interop-psd",
+   "decision": "passed",
+   "verdict": "PASS_V7",
+   "status_change": "PASS_V7",
+   "tests": "interop-psd 53/53 default (= R16 set; no R16 test missing), doctest unit exit 0 (no doctests); descriptor_states_the_importers_over_counts (new needle), the_importer_counts_layers_without_pixels_and_clipped_layers_on_hidden_or_empty_bases and nested_hidden_groups_hide_every_descendant_until_the_outermost_closes passed",
+   "failures": [],
+   "remediation": null,
+   "counters": {
+    "failed_verdicts": 2,
+    "limit": 3,
+    "outcome": "passed; no counter at limit"
+   },
+   "note": "fcda5f6 remediates R16 I-1 (doc-only): effects.rs:51-56 and the DESCRIPTOR effect_limits clause now say both caps apply (document cap past 4096 apparent counted instances, per-layer cap past 64 on one such layer). Validator read against EffectTally::admit effects.rs:149-168 (:153 shape.counted > MAX_EFFECTS_PER_LAYER -> effects_over_budget independent of the running total; :164 counted total past MAX_EFFECTS_PER_PLAN -> effects_over_document_budget) and tests/effects_budget.rs:1191-1213 (document variant :1197, :1209; per-layer :1198-1200, :1211-1213): exact. descriptor_states_the_importers_over_counts (:1229-1250) asserts the new clause and that the cited fn exists. R16 I-1 closed. Carried INFO notes: R17-I1 = R16 I-2/I-3 (proposal.rs:141-146 names the document variant as a sufficient condition only; group lfx2 stack and the Folio per-stack ceiling cross-category cut untested).",
+   "review": "validation/R17-prereview-press-psd-narrow.json lanes[1] SMB-INTEROP-PSD-BUDGET: SAFE_TO_JUDGE (no new finding; R17-I1 INFO)",
+   "included_by": "CX-VAL-009 (PASS returned to READY at freeze: crate hsk-studio-interop-psd changed 5606d16..fcda5f6 by fcda5f6 (comment, DESCRIPTOR effect_limits, test needle); workspace-dep closure unchanged); two-FAIL lane (FAIL_V1 R9, FAIL_V2 R10): V4-13 R17-prereview-press-psd-narrow SAFE_TO_JUDGE for hsk-studio-interop-psd at fcda5f6",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R17",
+   "idempotency_key": "STUDIO-R17:SMB-INTEROP-PSD-BUDGET:fcda5f6f1d54:PASS_V7",
+   "recorded_at": "2026-10-12T01:48:53Z"
+  }
+ ],
+ "infrastructure": [
+  "No infrastructure failure: step 0 clean, all 3 units built and ran, no fixture selected, disk lock @2 waited 1 s, no stale breaks",
+  "Exit 0: the union selection has no NOT_PROVEN test; round.json complete true, absent [] timed_out []",
+  "Running record: the process_identity line carried an estimated recorded_at (01:38:40Z, ahead of the clock); a correction record (01:38:44Z) states the actual 01:38:35Z (same class as R16)",
+  "Gameplan tool refused one multi-id confirm call (a note over 120 chars) after GP-003/005/007 were confirmed; the rest re-issued with shorter notes (no gameplan edit). The hook gated one read-only Bash read whose text named the round entry script before the gameplan passed (D3 class); the reads were redone with Read/Grep. A PowerShell read from the kernel root resolved WP-KERNEL-012's gameplan (confirm binding target missing) and was redone in Bash with a leading cd (no bypass)",
+  "An idle sccache server (pid 371300) was present and not started by this session (left running)",
+  "Gameplan confirmations written beside the kernel gameplan (.GOV/task_packets/WP-KERNEL-STUDIO/STUDIO-MODULE-ROUND.confirmations.yaml, git-excluded), not committed",
+  "Known Operator item unchanged: repo-local wt-studio-assets/handshake-studio-assets/target (3.8 GB, newest 2026-10-11T10:21:51Z) reported by the lock audit, not written by this round",
+  "No git write in the edit tree (no fetch: origin tip read with git ls-remote); kernel files written, not committed (lead commits)",
+  "Round outputs not cleaned (studio-round/target kept warm at the same stable path; deletion is the lead call)"
+ ],
+ "by": "wp_validator STUDIO-R17 (Opus, fresh context, not implementer)"
+}

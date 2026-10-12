@@ -1287,6 +1287,23 @@
     "idempotency_key": "STUDIO-R16:SMB-FX-OPS-ADOPT:5606d162549d:PASS_V7",
     "recorded_at": "2026-10-12T01:11:16Z",
     "by": "wp_validator STUDIO-R16"
+   },
+   {
+    "round": "STUDIO-R17",
+    "lane": "SMB-FX-OPS-ADOPT",
+    "candidate": "fcda5f6f1d549ca3c399a6b51a68aecf5d133ab1",
+    "tree": "aece0fb94a46e7114f51fb02c2a4d2f493b1f885",
+    "decision": "passed",
+    "verdict": "PASS_V8",
+    "failures": [],
+    "remediation": null,
+    "status_after": "PASS_V8",
+    "review": "NOT_REVIEWED as a lane (validator read of the interop-psd diff 5606d16..fcda5f6: comment, DESCRIPTOR string, test needle only; R17 pre-review lanes[1] read the same diff: doc-only)",
+    "round_ref": "validation/round-R17.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R17",
+    "idempotency_key": "STUDIO-R17:SMB-FX-OPS-ADOPT:fcda5f6f1d54:PASS_V8",
+    "recorded_at": "2026-10-12T01:48:53Z",
+    "by": "wp_validator STUDIO-R17"
    }
   ],
   "r3_remediation": {

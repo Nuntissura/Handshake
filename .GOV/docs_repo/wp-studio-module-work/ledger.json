@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-12T01:43:13Z",
+ "updated_at": "2026-10-12T01:50:14Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -444,7 +444,7 @@
    "crate": "hsk-studio-interop-psd",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-interop-psd",
    "phase": "validation",
-   "status": "PASS_V11",
+   "status": "PASS_V12",
    "owner": "builder-interop-psd",
    "brief": "builders/briefs/hsk-studio-interop-psd.md",
    "commits": [
@@ -468,7 +468,8 @@
     "STUDIO-R11 PASS_V8 @6956d3f",
     "STUDIO-R12 PASS_V9 @3d795a5",
     "STUDIO-R15 PASS_V10 @b8b31c7",
-    "STUDIO-R16 PASS_V11 @5606d16"
+    "STUDIO-R16 PASS_V11 @5606d16",
+    "STUDIO-R17 PASS_V12 @fcda5f6"
    ],
    "lane_file": "builders/lanes/hsk-studio-interop-psd.json",
    "candidate": "eb7080d",
@@ -1638,7 +1639,7 @@
    "origin": "prism ENG lanes landed",
    "scope": "CMYK/Lab/gray display via prism WideEngine; clamp recorded; original channels preserved",
    "phase": "validation",
-   "status": "PASS_V9",
+   "status": "PASS_V10",
    "owner": "fresh builder",
    "commits": [
     "213b30a",
@@ -1653,7 +1654,8 @@
     "STUDIO-R11 PASS_V6 @6956d3f",
     "STUDIO-R12 PASS_V7 @3d795a5",
     "STUDIO-R15 PASS_V8 @b8b31c7",
-    "STUDIO-R16 PASS_V9 @5606d16"
+    "STUDIO-R16 PASS_V9 @5606d16",
+    "STUDIO-R17 PASS_V10 @fcda5f6"
    ],
    "candidate": "6e7198a",
    "note": "R5 remediation: BPC routed to prism for every source kind (prism gray BPC fixed upstream); TRC(0) shortcut removed; same class on RGB: legacy path hard-coded relcol no BPC -> wide path, legacy-only converters record not_applied loss; regression red-first",
@@ -2103,7 +2105,7 @@
    "origin": "architect SMB-PIGMENT-ENG-2 (diagnostics/adjustments-advanced-blending.md)",
    "scope": "brief builders/briefs/lane-interop-psd-adjustments.md",
    "phase": "validation",
-   "status": "PASS_V8",
+   "status": "PASS_V9",
    "owner": "rem-psd (queued after R5 fix)",
    "commits": [
     "eb7080d",
@@ -2118,7 +2120,8 @@
     "STUDIO-R11 PASS_V5 @6956d3f",
     "STUDIO-R12 PASS_V6 @3d795a5",
     "STUDIO-R15 PASS_V7 @b8b31c7",
-    "STUDIO-R16 PASS_V8 @5606d16"
+    "STUDIO-R16 PASS_V8 @5606d16",
+    "STUDIO-R17 PASS_V9 @fcda5f6"
    ],
    "candidate": "2fa2202",
    "note": "R7 FAIL fix (2fa2202): descriptor numbers only via finite_number() (NaN/inf -> None); CgEd Brgh/Cntr + legacy brit checked finite and STU-RAS-151 soft range; out-of-range -> typed unsupported layer brightness_contrast_range, import continues; effects reads via finite_number(); adjacent fix: duplicate channel ids in blend ranges -> typed loss blend_ranges_duplicate_channel instead of whole-import failure; V4-06 37 sites; 39 green; both new tests red on dff7ef5 scratch copy"
@@ -2393,7 +2396,7 @@
    "origin": "prism R6 plausibles e26f623",
    "scope": "carry prism AbsoluteReport (media_white_rule, divergence) into psd receipts/losses; sweep other dropped receipt fields",
    "phase": "validation",
-   "status": "PASS_V8",
+   "status": "PASS_V9",
    "owner": "builder-psd-receipt",
    "commits": [
     "1a088a9"
@@ -2406,7 +2409,8 @@
     "STUDIO-R11 PASS_V5 @6956d3f",
     "STUDIO-R12 PASS_V6 @3d795a5",
     "STUDIO-R15 PASS_V7 @b8b31c7",
-    "STUDIO-R16 PASS_V8 @5606d16"
+    "STUDIO-R16 PASS_V8 @5606d16",
+    "STUDIO-R17 PASS_V9 @fcda5f6"
    ],
    "candidate": "1a088a9",
    "note": "prism absolute report carried to DisplayConversion.converter_absolute; divergence -> Transformed loss DIV-ABS-V2-DISPLAY-WTPT-001; BPC outcome + engine identity/options carried; absolute+BPC requested -> black_point_compensation_ignored_for_absolute_colorimetric; V4-06 22 receipt fields dispositioned; 37 of 37 green"
@@ -2482,7 +2486,7 @@
    "origin": "pigment 0d28c03 Blend-If clip refusals",
    "scope": "typed losses blend_if_clip_base / blend_if_clipped_layer / clbl=0 not modelled",
    "phase": "validation",
-   "status": "PASS_V8",
+   "status": "PASS_V9",
    "candidate": "29501d7",
    "owner": "builder-psd-receipt",
    "commits": [
@@ -2496,7 +2500,8 @@
     "STUDIO-R11 PASS_V5 @6956d3f",
     "STUDIO-R12 PASS_V6 @3d795a5",
     "STUDIO-R15 PASS_V7 @b8b31c7",
-    "STUDIO-R16 PASS_V8 @5606d16"
+    "STUDIO-R16 PASS_V8 @5606d16",
+    "STUDIO-R17 PASS_V9 @fcda5f6"
    ]
   },
   {
@@ -2743,7 +2748,7 @@
    "origin": "pigment FX-OPS (d3ce607) consumer impact + same-class open items",
    "scope": "adopt FX-OPS + ADMIT-PARITY keys in one pass (after ADMIT-PARITY lands); fixes render-gpu nesting test regression at HEAD",
    "phase": "validation",
-   "status": "PASS_V7",
+   "status": "PASS_V8",
    "owner": "builder-fx-ops-adopt",
    "commits": [
     "f6e5a49"
@@ -2755,7 +2760,8 @@
     "STUDIO-R11 PASS_V4 @6956d3f",
     "STUDIO-R12 PASS_V5 @3d795a5",
     "STUDIO-R15 PASS_V6 @b8b31c7",
-    "STUDIO-R16 PASS_V7 @5606d16"
+    "STUDIO-R16 PASS_V7 @5606d16",
+    "STUDIO-R17 PASS_V8 @fcda5f6"
    ],
    "candidate": "f6e5a49",
    "note": "adoption of pigment FX-OPS + admission parity: render-gpu cdd0644 (EffectsNested supported Approximate, AlphaPremultiplied Unsupported, pigment keys; nesting parity test green again on RTX; 24 default / 27 test-faults), render-cpu e8f5f98 (EffectsNested + AlphaPremultiplied Unsupported, pigment keys; 32), composite 7011298 (ledgers match pigment validate for EffectsWithBlendIf/EffectsNested; mask_on_pass_through Unavailable; 27), interop-psd f6e5a49 (typed losses effects_with_blend_if, mask_on_pass_through with pigment codes; 41); tests compare against pigment answers"
@@ -2818,7 +2824,7 @@
    "origin": "PLR-053 (R8-review-b)",
    "scope": "PSDs whose effect count exceeds folio's default node budget import with typed per-layer losses (or an input-sized budget within a documented hard cap), never whole-import raster_records_rejected",
    "phase": "validation (pre-review SAFE; crate frozen until R11)",
-   "status": "PASS_V6",
+   "status": "PASS_V7",
    "owner": "builder-psd-budget",
    "commits": [
     "a5eff01",
@@ -2832,7 +2838,8 @@
     "STUDIO-R11 PASS_V3 @6956d3f",
     "STUDIO-R12 PASS_V4 @3d795a5",
     "STUDIO-R15 PASS_V5 @b8b31c7",
-    "STUDIO-R16 PASS_V6 @5606d16"
+    "STUDIO-R16 PASS_V6 @5606d16",
+    "STUDIO-R17 PASS_V7 @fcda5f6"
    ],
    "candidate": "85532ad",
    "note": "R10 FAIL_V2 remediation 85532ad: EffectTally two independent sides (counted: 64/layer + 4096/document cut only stacks with counted instances; uncounted: 4096 cuts only stacks without counted instances), each a prefix of panel order; a visible stack with live instances is never refused for the uncounted cap (its switched-off instances past the cap are dropped with Transformed loss effects_unrendered_dropped_over_document_budget \u2014 lead accepts); reverse direction fixed too (hidden stacks no longer lost under the counted code); memory bound max_layers + 8192 kept; docs/DESCRIPTOR agree; 2 new tests + corrected test, 3/9 red on scratch 62d8983; 50/50; V4-06 79 = 79",
@@ -3682,6 +3689,23 @@
    "render-gpu lanes (D20)",
    "interop-media (D9)"
   ],
-  "team": "1 validator (opus); review input = R17 narrow pre-review"
+  "team": "1 validator (opus); review input = R17 narrow pre-review",
+  "completed_at": "2026-10-12T01:50:14Z",
+  "status": "COMPLETE",
+  "round_ref": "validation/round-R17.json",
+  "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R17",
+  "union_exit": 0,
+  "not_proven": [],
+  "verdicts": {
+   "PASS": 7,
+   "FAIL": 0
+  },
+  "fails": [],
+  "milestones": [
+   "SMB-INTEROP-PSD-BUDGET PASS_V7 (R16 I-1 closed)",
+   "interop-psd lanes PASS"
+  ],
+  "not_judged": "SMB-PRESS, SMB-PRESS-DIFFERENCES, SMB-NOTES-BATCH-1 (R17 pre-review FIX_FIRST; no charge); render-gpu (D20); interop-media (D9)",
+  "notes": "validator V-1 (PLAUSIBLE, same class as R17-P1): shadowed ancestor resource entries marked certain -> added to press fix"
  }
 }
