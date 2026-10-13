@@ -1,4 +1,32 @@
 {
+  "native_recheck_result_20261013": {
+    "status": "FAIL101_FEATURE_GATED_STORAGE_HELPER",
+    "attempt_id": "859b32c70bd04b90a7a627433316947f",
+    "approval_ref": "/native_retry_proposal_20261013",
+    "candidate_commit": "c00c1de6d93bdf93b4da36ee3efbdaa4ed5490c5",
+    "candidate_tree": "a8d3bdcd52a91d7e2dfd75cd79ab03e98bdf7902",
+    "authority_kernel_commit": "be8ba91aa54b03c7a355e75533197fd3ec336f97",
+    "artifact_lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-lock-recheck",
+    "actual_numeric_exit": 101,
+    "wrapper_pid": 39168,
+    "cargo_pid": 42756,
+    "completed_at_utc": "2026-10-13T01:16:23.6859226Z",
+    "parent_observation": "Root directly inspected retained commandExecution exec-85010c92-0e95-4c6d-ac39-3205d186430e: exitCode101, closed wrapper39168 numeric_exit101 at 01:16:23.8499832Z, complete untruncated output.",
+    "diagnosis": "One E0599 at storage/tests.rs466: unconditional with_test_sync_from_env call, method gated any(test,surreal-test-support), native core dev dependency enables runtime-full,test-utils without surreal-test-support. Lock admission passed. No runtime verdict.",
+    "result_sha256": "d30c0b91c20851cc83190df462bd5fbb99443f31cc6d4dc391d7e3885ee7ffc2",
+    "evidence_sha256": "be99086e8f755f1f423de90c97ca6e5e7b5706be92895450eab09c0330168788",
+    "post_binding_sha256": "34c142d05528bbb6a68ee6e92404605707c72b54e42cc1cca64786493b2bece6",
+    "post_candidate_sha256": "f21117274a802f1cd7e4765c93db3b3d4a2c99827438377b2a1b80a4913ee4ba",
+    "stderr_sha256": "46395a4422a9309f11f8e28a6d1e10881320884a811ae2725bcb7443625b3082",
+    "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "binding_observation": "All7416 source inputs,23 manifest/config inputs,10 raw authorities,tools/profile and20 before/after categories unchanged. Maximum target35816963187 bytes within existing180GB cap.",
+    "independent_reviewer": "01a1323e-c183-77e3-b8ba-b286507e5617",
+    "independent_verdict": "Compiler-only FAIL101; actual closed artifacts and fresh canonical source/config/authority inputs independently inspected",
+    "grant_disposition": "Second exact-one native compiler approval consumed. Both native attempts retained; no third compiler run granted.",
+    "runtime_acceptance": "NOT_RUN",
+    "repair_ref": "MT-173.json#/bounded_native_feature_repair_20261013",
+    "preparation_cause_ref": "gameplan.yaml#/GP-536"
+  },
   "schema_id": "hsk.microtask_contract@1",
   "schema_version": "microtask_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
@@ -152,8 +180,8 @@
     "validator_verdict": "PENDING",
     "claimed_by": null,
     "completed_by": null,
-    "next_actor": "KERNEL_BUILDER prepares and runs the approved one native recheck; original deployment owner supplies genuine deployment/context bindings",
-    "blocked_on": "Original native check failed101; lock repaired and independently reviewed/pushed, approved one recheck pending. Original deployed executable/data root and existing authenticated context remain unbound."
+    "next_actor": "Assigned MT173 writer repairs the exact feature-gated storage helper, independent reviewer inspects the source diff, then root records checkpoint and requests one further scoped compiler decision; original deployment owner supplies genuine deployment/context bindings",
+    "blocked_on": "Approved native recheck failed101 at storage/tests.rs466 due to mismatched method feature gate. Both exact-one approvals spent. Source-only repair released under MT173; fresh compiler proof ungranted. Original deployed executable/data root and existing authenticated context remain unbound."
   },
   "scope": {
     "summary": "Genuine native deployment and authenticated-context admission",

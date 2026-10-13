@@ -1,4 +1,11 @@
 {
+  "native_feature_recheck_20261013": {
+    "result_ref": "MT-186.json#/native_recheck_result_20261013",
+    "status": "FAIL101_FEATURE_GATED_STORAGE_HELPER",
+    "repair_owner_ref": "MT-173.json#/bounded_native_feature_repair_20261013",
+    "runtime_acceptance": "NOT_RUN",
+    "limits": "Both exact-one native checks consumed; source repair belongs to MT173, not an expansion of MT175 write scope. No aggregate native acceptance or new compiler allowance."
+  },
   "execution_restructure_20261013": {
     "decision_ref": "packet.json#/operator_workflow_restructure_20261013",
     "child_refs": [

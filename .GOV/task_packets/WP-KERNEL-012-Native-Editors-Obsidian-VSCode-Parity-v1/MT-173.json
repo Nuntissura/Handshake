@@ -1,4 +1,16 @@
 {
+  "bounded_native_feature_repair_20261013": {
+    "state": "SOURCE_ONLY_LEASE_RELEASED",
+    "failure_ref": "MT-186.json#/native_recheck_result_20261013",
+    "authority_ref": "packet.json#/operator_workflow_restructure_20261013",
+    "owner": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+    "candidate_commit": "c00c1de6d93bdf93b4da36ee3efbdaa4ed5490c5",
+    "allowed_write_paths": ["src/backend/handshake_core/src/storage/tests.rs"],
+    "repair": "End existing config construction with ?; and guard the subsequent config shadowing call with cfg(any(test, feature = surreal-test-support)), matching the unchanged method gate. Preserve existing sync controls, durability, engine opening, migrations and cleanup.",
+    "limits": "Source-only recorded compile remediation in existing MT173 ownership. No manifest, lock, method gate, exported module, schema, historical pin, argv, runtime, metadata or compiler change. No branch/worktree creation or budget reset. Independent diff review before product checkpoint; root sole kernel writer.",
+    "validation": "Fresh original native compiler proof remains required after source repair; exact-two prior native attempts retained and spent. No further compiler lease is released. Existing core test-support evidence requires relevant-input assessment after this source change.",
+    "preparation_cause_ref": "gameplan.yaml#/GP-536"
+  },
   "execution_restructure_20261013": {
     "decision_ref": "packet.json#/operator_workflow_restructure_20261013",
     "child_refs": [
