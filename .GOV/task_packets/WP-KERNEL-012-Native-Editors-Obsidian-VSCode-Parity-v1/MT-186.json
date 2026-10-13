@@ -152,8 +152,8 @@
     "validator_verdict": "PENDING",
     "claimed_by": null,
     "completed_by": null,
-    "next_actor": "Operator supplies explicit native dispatch adoption and original genuine deployment/context bindings",
-    "blocked_on": "Native exact command/profile/target adoption not authorized; original deployed executable/data root and existing authenticated context unbound"
+    "next_actor": "KERNEL_BUILDER prepares the approved exact native compiler dispatch; original deployment owner supplies genuine deployment/context bindings",
+    "blocked_on": "Original deployed executable/data root and existing authenticated context remain unbound after documented metadata discovery; approved native compiler prerequisite is pending"
   },
   "scope": {
     "summary": "Genuine native deployment and authenticated-context admission",
@@ -325,8 +325,13 @@
   },
   "native_dispatch_proposal_20261013": {
     "decision_id": "WP012-NATIVE-DISPATCH-PROPOSAL-20261013",
-    "state": "PROPOSED_NOT_AUTHORIZED",
-    "authority_blocker": "KERNEL_BUILDER_PROTOCOL.md KB-OUT-008 requires named disk/directory; MT186 requires native command configuration reconciliation. Existing core dispatch does not automatically authorize native configuration.",
+    "state": "APPROVED_EXACT_ONE_NATIVE_COMPILER_ADOPTION",
+    "authority_blocker": null,
+    "operator_authorization": {
+      "quote": "Approve native dispatch adoption",
+      "source": "Live Operator reply to exact native dispatch adoption question on 2026-10-13",
+      "scope": "Exactly one original native compiler check on the named C: target using the existing MT174 builder profile and aggregate 180 GB cap; compiler evidence only"
+    },
     "proposed_action": "Explicitly adopt existing MT174 owning host/profile/target/cap for exactly one sequential original MT175 native check; no new target/profile or hardware changes",
     "command": "cargo check --locked --manifest-path src/frontend/handshake_native/Cargo.toml --tests -j 1",
     "cwd": "C:/Projects/LLM Projects/handshake-desktop/wtc-WP-KERNEL-012",

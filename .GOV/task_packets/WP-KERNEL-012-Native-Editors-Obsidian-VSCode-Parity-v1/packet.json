@@ -235,7 +235,10 @@
       },
       "186": {
         "ref": "MT-175.json#/proof/checks/0",
-        "scope": "Native owner compiler prerequisite/configuration plus genuine original deployment/auth admission; core target/profile is not automatically native configuration. Reconcile actual original dispatch."
+        "scope": "Native owner compiler prerequisite/configuration plus genuine original deployment/auth admission; live Operator explicitly adopted the existing MT174 profile, C: target and aggregate cap for exactly one original native check on 2026-10-13.",
+        "authorization_ref": "MT-186.json#/native_dispatch_proposal_20261013/operator_authorization",
+        "command": "cargo check --locked --manifest-path src/frontend/handshake_native/Cargo.toml --tests -j 1",
+        "limits": "One sequential native compiler dispatch only; no new target/profile/cap, counter reset, runtime provisioning or process disruption"
       }
     },
     "acceptance_preservation": {
