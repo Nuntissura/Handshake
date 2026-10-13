@@ -1,4 +1,19 @@
 {
+  "bounded_native_ack_producer_repair_20261013": {
+    "state": "SOURCE_ONLY_ACK_LEASE_RELEASED",
+    "owner": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+    "failure_ref": "MT-186.json#/native_feature_recheck_result_20261013",
+    "candidate_commit": "5e4133679c3bbba904c6d17cfd46cadab93dc97b",
+    "allowed_write_paths": ["src/frontend/handshake_native/src/mcp/argus.rs", "src/frontend/handshake_native/src/mcp/action.rs", "src/frontend/handshake_native/src/app.rs"],
+    "source_closure": "Restore pinned exact handler acknowledgment through the existing ActionChannel owner. No parallel legacy receipt tracker. Preserve stronger explicit value/click causal tokens first, current queue/FIFO/revalidation/operator priority and current consumers.",
+    "dispatch_binding": "After successful current revalidation and before AccessKit emission, reserve a bounded exact channel/receipt/target/author/action ticket in the actual live context. Actual raw_input.viewport_id is authoritative; hook ctx.viewport_id before begin_pass is not. Immediate root bridge admits ROOT only; nonroot cannot drain through root publication. Unknown/nonroot stays fail closed under existing expiration, never manufactured context state.",
+    "production_fence": "Exact handler context identity, viewport, author, target, action and live ticket are required. Handler ACK is nonterminal. Require completed live frame counter strictly greater than dispatch counter and actual production update ctx handed solely from update into the postrender adapter. Isolated refresh capture counters, frame_ctx inference, timestamps, fingerprints, navigation/debug capture and same-frame multipasses cannot supply this fence. Preserve snapshot-to-channel lock/publication ordering; existing pending repaint schedules later frame.",
+    "cleanup": "Release tickets and handler signals on every terminal receipt, expiration, rejection, trim, session teardown and channel drop. Busy targets retain queue without emission; terminal receipts cannot resurrect or accept stale/cross-channel acknowledgment. No ACK alone proves backend business completion.",
+    "original_assertions": "Reconcile pinned handler exactness, drift/removal denial, unrelated parallel ACK, same-target serialization, timeout/late acknowledgment and cleanup assertions into existing owning modules without a duplicate harness. Preserve current stronger-token regression assertions.",
+    "limits": "Same sole coder writer; source only, narrow app raw-input and production publication hooks. No session/server/mod write, consumer removal, whole-file replacement, compiler/tests/metadata/runtime, provisioning, new identity/auth/store/grant, process disruption, kernel write or branch change. Root and independent actual full diff review precede checkpoint.",
+    "acceptance_preserved": "Original multiwindow/child production publication and durable Applied/after_revision/evidence_ref acceptance remain OPEN and unchanged. Root-only source bridge is not original acceptance PASS. Existing canonical receipt persistence/authenticated provenance integration remains outstanding; no substitute tracker or synthetic proof.",
+    "evidence_basis": "Diagnostic leader directly inspected current app/action and installed egui0.33.3 Context::run/identity/counters plus cached eframe raw_input_hook-before-run ordering. Child viewport callback differs from root app.update; no child publication proof established. Current three compiler failures retained and approvals spent."
+  },
   "bounded_native_client_producer_repair_20261013": {
     "state": "SOURCE_ONLY_CLIENT_LEASE_RELEASED",
     "failure_ref": "MT-186.json#/native_feature_recheck_result_20261013",
