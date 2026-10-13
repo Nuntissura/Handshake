@@ -8693,6 +8693,8 @@ impl HandshakeApp {
     }
 
     fn shutdown_mcp_server(&mut self) {
+        self.mcp_action_channel.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+            .cancel_pending_actions();
         let Some(mut server) = self.mcp_server.take() else {
             return;
         };
@@ -12948,6 +12950,10 @@ impl HandshakeApp {
     /// snapshot. [`crate::accessibility::project_open_popup`] carries the live context's single
     /// open-popup entry across, which covers every memory-backed popup surface through one mechanism.
     fn refresh_mcp_snapshot(&mut self) {
+        self.refresh_mcp_snapshot_with_production_context(None);
+    }
+
+    fn refresh_mcp_snapshot_with_production_context(&mut self, production_ctx: Option<&egui::Context>) {
         let (viewport_rect, declared_viewport) = self.snapshot_viewport();
         let ctx = egui::Context::default();
         ctx.enable_accesskit();
@@ -13040,7 +13046,7 @@ impl HandshakeApp {
                 .mcp_action_channel
                 .lock()
                 .unwrap_or_else(|poisoned| poisoned.into_inner());
-            channel.acknowledge_after_render(&snapshot);
+            channel.acknowledge_after_live_render(&snapshot, production_ctx);
             *slot = snapshot;
             drop(channel);
             drop(slot);
@@ -40000,7 +40006,7 @@ impl eframe::App for HandshakeApp {
     /// BEFORE egui processes the frame, so a connected out-of-process client steers the running shell.
     /// `raw_input_hook` is eframe's supported pre-frame seam; pushing `AccessKitActionRequest` / `Text`
     /// events here is exactly the path the in-process steering test proves.
-    fn raw_input_hook(&mut self, _ctx: &egui::Context, raw_input: &mut egui::RawInput) {
+    fn raw_input_hook(&mut self, ctx: &egui::Context, raw_input: &mut egui::RawInput) {
         let operator_mutation_in_frame = raw_input_contains_operator_mutation(raw_input);
         let fresh_snapshot = match self.mcp_snapshot.lock() {
             Ok(snapshot) => snapshot.clone(),
@@ -40012,7 +40018,7 @@ impl eframe::App for HandshakeApp {
                     chan.reject_queued_for_operator_input();
                     Vec::new()
                 } else {
-                    chan.drain_revalidated_into_events(&fresh_snapshot)
+                    chan.drain_revalidated_into_live_events(&fresh_snapshot, ctx, raw_input.viewport_id)
                 }
             }
             Err(poisoned) => {
@@ -40021,7 +40027,7 @@ impl eframe::App for HandshakeApp {
                     chan.reject_queued_for_operator_input();
                     Vec::new()
                 } else {
-                    chan.drain_revalidated_into_events(&fresh_snapshot)
+                    chan.drain_revalidated_into_live_events(&fresh_snapshot, ctx, raw_input.viewport_id)
                 }
             }
         };
@@ -40116,7 +40122,7 @@ impl eframe::App for HandshakeApp {
         // runs a side-effect-free capture pass (guarded by `capturing_snapshot`) and requests a repaint
         // so queued model actions are drained promptly even when the UI is otherwise idle.
         if self.mcp_server.is_some() {
-            self.refresh_mcp_snapshot();
+            self.refresh_mcp_snapshot_with_production_context(Some(ctx));
             let has_pending = self
                 .mcp_action_channel
                 .lock()

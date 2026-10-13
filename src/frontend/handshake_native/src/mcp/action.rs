@@ -940,6 +940,7 @@ pub struct ActionChannel {
     receipts: VecDeque<ActionReceipt>,
     capacity: usize,
     next_receipt_id: u64,
+    handler_tickets: std::collections::HashMap<u64, std::sync::Arc<super::argus::ActionEffectTicket>>,
 }
 
 #[derive(Debug, Clone)]
@@ -1018,6 +1019,7 @@ impl ActionChannel {
             receipts: VecDeque::new(),
             capacity: capacity.max(1),
             next_receipt_id: 1,
+            handler_tickets: std::collections::HashMap::new(),
         }
     }
 
@@ -1184,6 +1186,27 @@ impl ActionChannel {
         &mut self,
         fresh_snapshot: &UiTreeSnapshot,
     ) -> Vec<egui::Event> {
+        self.drain_revalidated_with_context(fresh_snapshot, None)
+    }
+
+    pub(crate) fn drain_revalidated_into_live_events(
+        &mut self,
+        fresh_snapshot: &UiTreeSnapshot,
+        ctx: &egui::Context,
+        viewport: egui::ViewportId,
+    ) -> Vec<egui::Event> {
+        self.expire_stale_actions();
+        if viewport != egui::ViewportId::ROOT {
+            return Vec::new();
+        }
+        self.drain_revalidated_with_context(fresh_snapshot, Some((ctx, viewport)))
+    }
+
+    fn drain_revalidated_with_context(
+        &mut self,
+        fresh_snapshot: &UiTreeSnapshot,
+        production: Option<(&egui::Context, egui::ViewportId)>,
+    ) -> Vec<egui::Event> {
         self.expire_stale_actions();
         let mut events = Vec::new();
         let take = self.queue.len().min(MAX_ACTIONS_PER_BURST);
@@ -1191,6 +1214,11 @@ impl ActionChannel {
             let Some(mut pending) = self.queue.pop_front() else {
                 break;
             };
+            if !self.receipts.iter().any(|receipt| receipt.receipt_id == pending.outcome.receipt_id
+                && receipt.status == ActionReceiptStatus::Queued)
+            {
+                continue;
+            }
             if let Err(reason) = revalidate_pending(&mut pending, fresh_snapshot) {
                 self.update_receipt(
                     pending.outcome.receipt_id,
@@ -1199,6 +1227,18 @@ impl ActionChannel {
                     Some(reason),
                 );
                 continue;
+            }
+            if let Some((ctx, viewport)) = production {
+                let Some(ticket) = super::argus::register_action_effect(
+                    ctx, viewport, pending.outcome.receipt_id, &pending.author_id,
+                    &pending.outcome.request, pending.enqueued_at + ACTION_LEASE_TIMEOUT,
+                ) else {
+                    // A different channel still owns this live target. Keep FIFO and its lease;
+                    // an unsuccessful reservation never emits input.
+                    self.queue.push_front(pending);
+                    break;
+                };
+                self.handler_tickets.insert(pending.outcome.receipt_id, ticket);
             }
             // A timestamp/generation refresh is normal between frame drains. The fresh tree above is
             // authoritative for dispatch after identity, role, enabled state, and action capability
@@ -1253,9 +1293,33 @@ impl ActionChannel {
     /// the same target is recorded as terminal `Indeterminate` because the tree has no causal mutation
     /// token; target/action drift is rejected.
     pub fn acknowledge_after_render(&mut self, fresh_snapshot: &UiTreeSnapshot) {
+        self.acknowledge_with_context(fresh_snapshot, None);
+    }
+
+    pub(crate) fn acknowledge_after_live_render(
+        &mut self,
+        fresh_snapshot: &UiTreeSnapshot,
+        production_ctx: Option<&egui::Context>,
+    ) {
+        self.acknowledge_with_context(fresh_snapshot, production_ctx);
+    }
+
+    fn acknowledge_with_context(
+        &mut self,
+        fresh_snapshot: &UiTreeSnapshot,
+        production_ctx: Option<&egui::Context>,
+    ) {
         self.expire_stale_actions();
         let in_flight = std::mem::take(&mut self.in_flight);
         for pending in in_flight {
+            if !self.receipts.iter().any(|receipt| receipt.receipt_id == pending.outcome.receipt_id
+                && receipt.status == ActionReceiptStatus::Dispatched)
+            {
+                if let Some(ticket) = self.handler_tickets.remove(&pending.outcome.receipt_id) {
+                    ticket.release();
+                }
+                continue;
+            }
             if matches!(pending.action, UiAction::SetValue { .. })
                 && pending.set_value_completion.is_some()
             {
@@ -1307,6 +1371,30 @@ impl ActionChannel {
                 continue;
             }
             let node = fresh_snapshot.find_unique_by_author_id(&pending.author_id);
+            if is_effect_activation(&pending.action)
+                && self.handler_tickets.contains_key(&pending.outcome.receipt_id)
+            {
+                // Stronger value/click completion tokens above always win. Capture-only passes
+                // never finish a handler ticket, even if they replay a matching widget.
+                let acknowledged = production_ctx.is_some_and(|ctx| {
+                    self.handler_tickets.get(&pending.outcome.receipt_id).is_some_and(|ticket| {
+                        ticket.acknowledged_after_frame(ctx, pending.outcome.receipt_id)
+                    })
+                });
+                if production_ctx.is_none() {
+                    self.in_flight.push(pending);
+                } else if node.is_none_or(|node| !post_render_target_identity_matches(&pending, node)) {
+                    self.update_receipt(pending.outcome.receipt_id, ActionReceiptStatus::Rejected,
+                        node.and_then(|node| node.value.clone()),
+                        Some("handler target disappeared or changed before acknowledgement".to_owned()));
+                } else if acknowledged {
+                    self.update_receipt(pending.outcome.receipt_id, ActionReceiptStatus::Applied,
+                        node.and_then(|node| node.value.clone()), None);
+                } else {
+                    self.in_flight.push(pending);
+                }
+                continue;
+            }
             match (&pending.action, node) {
                 (UiAction::SetValue { text }, Some(node))
                     if post_render_target_identity_matches(&pending, node)
@@ -1455,6 +1543,20 @@ impl ActionChannel {
         self.receipts.iter().cloned().collect()
     }
 
+    pub(crate) fn cancel_pending_actions(&mut self) {
+        let ids: Vec<_> = self.queue.iter().chain(self.in_flight.iter())
+            .map(|pending| pending.outcome.receipt_id).collect();
+        for id in ids {
+            self.update_receipt(id, ActionReceiptStatus::Indeterminate, None,
+                Some("action channel session ended before acknowledgement".to_owned()));
+        }
+        self.queue.clear();
+        self.in_flight.clear();
+        for (_, ticket) in self.handler_tickets.drain() {
+            ticket.release();
+        }
+    }
+
     fn update_receipt(
         &mut self,
         receipt_id: u64,
@@ -1462,11 +1564,20 @@ impl ActionChannel {
         observed_value: Option<String>,
         rejection: Option<String>,
     ) {
+        let terminal = !matches!(status, ActionReceiptStatus::Queued | ActionReceiptStatus::Dispatched);
+        if terminal {
+            if let Some(ticket) = self.handler_tickets.remove(&receipt_id) {
+                ticket.release();
+            }
+        }
         if let Some(receipt) = self
             .receipts
             .iter_mut()
             .find(|receipt| receipt.receipt_id == receipt_id)
         {
+            if !matches!(receipt.status, ActionReceiptStatus::Queued | ActionReceiptStatus::Dispatched) {
+                return;
+            }
             receipt.status = status;
             receipt.observed_value = observed_value;
             receipt.rejection = rejection;
@@ -1494,7 +1605,11 @@ impl ActionChannel {
             }) {
                 break;
             }
-            self.receipts.pop_front();
+            if let Some(receipt) = self.receipts.pop_front() {
+                if let Some(ticket) = self.handler_tickets.remove(&receipt.receipt_id) {
+                    ticket.release();
+                }
+            }
         }
     }
 
@@ -1524,6 +1639,14 @@ impl ActionChannel {
                 None,
                 Some("action acknowledgement deadline elapsed; target lease released".to_owned()),
             );
+        }
+    }
+}
+
+impl Drop for ActionChannel {
+    fn drop(&mut self) {
+        for ticket in self.handler_tickets.values() {
+            ticket.release();
         }
     }
 }
@@ -2191,6 +2314,138 @@ fn observed_value_matches(author_id: &str, observed: &Option<String>, requested:
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn handler_ack_requires_exact_live_context_and_later_completed_frame() {
+        let mut snapshot = fixture_snapshot();
+        snapshot.root.children[0].actions.push("ShowContextMenu".to_owned());
+        for action in [UiAction::Click, UiAction::ShowContextMenu] {
+        let ctx = egui::Context::default();
+        let mut channel = ActionChannel::new();
+        channel.enqueue(&snapshot, "btn", action).unwrap();
+        let events = channel.drain_revalidated_into_live_events(&snapshot, &ctx, egui::ViewportId::ROOT);
+        let mut input = egui::RawInput::default();
+        input.events = events;
+        let _ = ctx.run(input, |ctx| {
+            super::super::argus::acknowledge_action_effect(ctx, "btn");
+            channel.acknowledge_after_live_render(&snapshot, Some(ctx));
+            assert_eq!(channel.receipts()[0].status, ActionReceiptStatus::Dispatched);
+        });
+        let capture = egui::Context::default();
+        let mut capture_input = egui::RawInput::default();
+        capture_input.events.push(egui::Event::AccessKitActionRequest(channel.in_flight[0].outcome.request.clone()));
+        let _ = capture.run(capture_input, |ctx| {
+            super::super::argus::acknowledge_action_effect(ctx, "btn");
+            channel.acknowledge_after_live_render(&snapshot, Some(ctx));
+            assert_eq!(channel.receipts()[0].status, ActionReceiptStatus::Dispatched);
+        });
+        channel.acknowledge_after_render(&snapshot);
+        assert_eq!(channel.receipts()[0].status, ActionReceiptStatus::Dispatched);
+        let _ = ctx.run(egui::RawInput::default(), |ctx| {
+            channel.acknowledge_after_live_render(&snapshot, Some(ctx));
+        });
+        assert_eq!(channel.receipts()[0].status, ActionReceiptStatus::Applied);
+        assert!(channel.handler_tickets.is_empty());
+        }
+    }
+
+    #[test]
+    fn unrelated_handler_ack_and_no_ack_never_complete_or_release_target() {
+        let snapshot = fixture_snapshot();
+        let ctx = egui::Context::default();
+        let mut channel = ActionChannel::new();
+        channel.enqueue(&snapshot, "btn", UiAction::Click).unwrap();
+        channel.enqueue(&snapshot, "field", UiAction::Click).unwrap();
+        let mut input = egui::RawInput::default();
+        input.events = channel.drain_revalidated_into_live_events(&snapshot, &ctx, egui::ViewportId::ROOT);
+        for event in &mut input.events {
+            if let egui::Event::AccessKitActionRequest(request) = event {
+                if request.target == accesskit::NodeId(10) {
+                    request.data = Some(accesskit::ActionData::CustomAction(7));
+                }
+            }
+        }
+        let _ = ctx.run(input, |ctx| {
+            super::super::argus::acknowledge_action_effect(ctx, "btn");
+            super::super::argus::acknowledge_action_effect(ctx, "field");
+            super::super::argus::acknowledge_action_effect(ctx, "unrelated");
+        });
+        let mut replay = egui::RawInput::default();
+        replay.events.push(egui::Event::AccessKitActionRequest(channel.in_flight[0].outcome.request.clone()));
+        let _ = ctx.run(replay, |ctx| {
+            super::super::argus::acknowledge_action_effect(ctx, "btn");
+            channel.acknowledge_after_live_render(&snapshot, Some(ctx));
+        });
+        assert_eq!(channel.receipts()[0].status, ActionReceiptStatus::Dispatched);
+        assert_eq!(channel.receipts()[1].status, ActionReceiptStatus::Applied);
+        assert!(matches!(channel.enqueue(&snapshot, "btn", UiAction::Click), Err(ActionError::TargetBusy { .. })));
+        let mut other = ActionChannel::new();
+        other.enqueue(&snapshot, "btn", UiAction::Click).unwrap();
+        assert!(other.drain_revalidated_into_live_events(&snapshot, &ctx, egui::ViewportId::ROOT).is_empty());
+        assert_eq!(other.receipts()[0].status, ActionReceiptStatus::Queued);
+        drop(channel);
+        // Both earlier ctx.run calls completed; this aged reservation releases immediately.
+        assert_eq!(other.drain_revalidated_into_live_events(&snapshot, &ctx, egui::ViewportId::ROOT).len(), 1);
+    }
+
+    #[test]
+    fn handler_ack_cannot_resurrect_expired_receipt_or_accept_removed_target() {
+        let snapshot = fixture_snapshot();
+        for scenario in ["removed", "drifted", "expired"] {
+            let ctx = egui::Context::default();
+            let mut channel = ActionChannel::new();
+            channel.enqueue(&snapshot, "btn", UiAction::Click).unwrap();
+            let mut input = egui::RawInput::default();
+            input.events = channel.drain_revalidated_into_live_events(&snapshot, &ctx, egui::ViewportId::ROOT);
+            let _ = ctx.run(input, |ctx| super::super::argus::acknowledge_action_effect(ctx, "btn"));
+            let mut after = snapshot.clone();
+            if scenario == "removed" {
+                after.root.children.retain(|node| node.author_id.as_deref() != Some("btn"));
+            } else if scenario == "drifted" {
+                after.root.children[0].node_id += 1;
+            }
+            if scenario == "expired" {
+                channel.in_flight[0].enqueued_at = Instant::now() - ACTION_LEASE_TIMEOUT;
+            }
+            let _ = ctx.run(egui::RawInput::default(), |ctx| channel.acknowledge_after_live_render(&after, Some(ctx)));
+            let terminal = channel.receipts()[0].status.clone();
+            assert_eq!(terminal, if scenario == "expired" { ActionReceiptStatus::Indeterminate } else { ActionReceiptStatus::Rejected });
+            assert!(channel.handler_tickets.is_empty());
+            channel.update_receipt(1, ActionReceiptStatus::Dispatched, None, None);
+            assert_eq!(channel.receipts()[0].status, terminal);
+        }
+    }
+
+    #[test]
+    fn child_viewport_does_not_drain_root_queue_and_session_teardown_clears_ack() {
+        let snapshot = fixture_snapshot();
+        let ctx = egui::Context::default();
+        let mut channel = ActionChannel::new();
+        channel.enqueue(&snapshot, "btn", UiAction::Click).unwrap();
+        assert!(channel.drain_revalidated_into_live_events(&snapshot, &ctx, egui::ViewportId::from_hash_of("child")).is_empty());
+        assert_eq!(channel.receipts()[0].status, ActionReceiptStatus::Queued);
+        let events = channel.drain_revalidated_into_live_events(&snapshot, &ctx, egui::ViewportId::ROOT);
+        assert_eq!(events.len(), 1);
+        channel.cancel_pending_actions();
+        assert_eq!(channel.pending(), 0);
+        assert!(channel.handler_tickets.is_empty());
+        assert_eq!(channel.receipts()[0].status, ActionReceiptStatus::Indeterminate);
+        let mut other = ActionChannel::new();
+        other.enqueue(&snapshot, "btn", UiAction::Click).unwrap();
+        assert!(other.drain_revalidated_into_live_events(&snapshot, &ctx, egui::ViewportId::ROOT).is_empty(),
+            "same-frame re-admission is denied while the old identical input may still exist");
+        let mut late_input = egui::RawInput::default();
+        late_input.events = events;
+        let _ = ctx.run(late_input, |ctx| super::super::argus::acknowledge_action_effect(ctx, "btn"));
+        assert_eq!(channel.receipts()[0].status, ActionReceiptStatus::Indeterminate);
+        assert_eq!(other.drain_revalidated_into_live_events(&snapshot, &ctx, egui::ViewportId::ROOT).len(), 1);
+        let _ = ctx.run(egui::RawInput::default(), |ctx| {
+            super::super::argus::acknowledge_action_effect(ctx, "btn");
+            other.acknowledge_after_live_render(&snapshot, Some(ctx));
+        });
+        assert_eq!(other.receipts()[0].status, ActionReceiptStatus::Dispatched,
+            "a subsequent same-target transaction never inherits the released signal");
+    }
     use crate::accessibility::{UiNodeBounds, UiTreeNode, UiTreeSnapshot};
 
     /// Build a tiny snapshot with a clickable button, a focusable text input, and a disabled button —
