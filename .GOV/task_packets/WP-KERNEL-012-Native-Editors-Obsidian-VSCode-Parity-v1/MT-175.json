@@ -1,4 +1,15 @@
 {
+  "native_import_producer_failure_20261013": {
+    "result_ref": "MT-186.json#/native_feature_recheck_result_20261013",
+    "status": "FAIL101_NATIVE_IMPORTED_PRODUCER_CLOSURE",
+    "owned_paths": ["src/frontend/handshake_native/src/backend_client.rs", "src/frontend/handshake_native/src/mcp/argus.rs"],
+    "source_pins": {
+      "ckc_backend_client_blob": "c6e624664412f3413401be92914164b6909d720a",
+      "wp1_backend_client_blob": "c2d4e2c7bf8500e91d787bff25ff6b80b38becaf",
+      "wp1_argus_blob": "443f1a9bc0db3a005aaa488dd952c8ec12b46e1b"
+    },
+    "disposition": "Focused read-only producer reconciliation underway; no source lease yet. Restore required pinned behavior with current owner adaptations, preserve current clients/authentication/ACK behavior and original consumers. No stubs, blanket whole-file replacement, runtime claim or compiler grant."
+  },
   "native_feature_recheck_20261013": {
     "result_ref": "MT-186.json#/native_recheck_result_20261013",
     "status": "FAIL101_FEATURE_GATED_STORAGE_HELPER",

@@ -1,4 +1,31 @@
 {
+  "native_feature_recheck_result_20261013": {
+    "status": "FAIL101_NATIVE_IMPORTED_PRODUCER_CLOSURE",
+    "attempt_id": "fec4fea57a8f4f90b4d3538eef59b3ba",
+    "approval_ref": "/native_feature_repair_recheck_proposal_20261013",
+    "candidate_commit": "5e4133679c3bbba904c6d17cfd46cadab93dc97b",
+    "candidate_tree": "5179ab7947d14e71bdcc5b9b8ee7d91b4a5265d2",
+    "authority_kernel_commit": "f3153e7ead57f417b3a042a22f86cfadc6f9378c",
+    "artifact_lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-feature-recheck",
+    "actual_numeric_exit": 101,
+    "wrapper_pid": 42300,
+    "cargo_pid": 39688,
+    "completed_at_utc": "2026-10-13T01:47:12.7836053Z",
+    "parent_terminal_sha256": "acb5cc26d7834464735c43171b9962b82c4363bd64b9f67ed0d5e9e980d615e3",
+    "diagnosis": "Native lib28errors:2E0432 missing backend_client Atelier exports and OperatorChatClient;26E0425 missing ActorRequestSpec,AtelierIntakeClassificationRow and mcp::argus::acknowledge_action_effect. Prior coreE0599 absent. Exact producer reconciliation remains required; no stubs or consumer removal.",
+    "result_sha256": "c5090a32c61da1ab844290f3f57ab1cbbccef9e6c297781c9c01a1585f5adb23",
+    "evidence_sha256": "a9e8d7fec07f49005e2156127fa2bca42315df1f59645052f938d9c7eaa985e8",
+    "post_binding_sha256": "34c142d05528bbb6a68ee6e92404605707c72b54e42cc1cca64786493b2bece6",
+    "post_candidate_sha256": "81fe503a188b0d5b591b49dd9537244e891f266956a19a200ac8f03db1bcd0bc",
+    "stderr_sha256": "fa87660ebdc37b527bc9db00c22ead76a4551dd56c374276c164173419817750",
+    "binding_observation": "All7416 source inputs,23 configuration inputs,10 authorities,3 tools/profile and20 before/after categories unchanged. Max target36011901401 bytes below existing180GB cap. Owned compiler/wrapper exited.",
+    "independent_reviewer": "01a1323e-c183-77e3-b8ba-b286507e5617",
+    "independent_verdict": "Compiler-only FAIL101; direct original parent tool numeric101, closed artifacts and fresh canonical inputs independently inspected; capture freeze closed",
+    "grant_disposition": "Third exact-one native compiler approval consumed. All three failures retained; no fourth run granted.",
+    "runtime_acceptance": "NOT_RUN",
+    "repair_owner": "MT-175",
+    "preparation_cause_ref": "gameplan.yaml#/GP-537"
+  },
   "native_feature_repair_recheck_proposal_20261013": {
     "state": "APPROVED_EXACT_ONE_REPAIRED_NATIVE_RECHECK",
     "operator_authorization": {
@@ -197,8 +224,8 @@
     "validator_verdict": "PENDING",
     "claimed_by": null,
     "completed_by": null,
-    "next_actor": "KERNEL_BUILDER prepares and runs the approved one repaired-native recheck after fresh binding, gameplan, resource admission and independent runner review; original deployment owner supplies genuine deployment/context bindings",
-    "blocked_on": "Approved native recheck failed101 at storage/tests.rs466; exact source repair independently reviewed and pushed in 5e4133679. Both prior approvals spent; one newly approved check remains pending. Original deployed executable/data root and existing authenticated context remain unbound."
+    "next_actor": "KERNEL_BUILDER reconciles exact missing native producers under MT175 ownership; independent review precedes a source checkpoint and any new scoped compiler decision; original deployment owner supplies genuine deployment/context bindings",
+    "blocked_on": "Third approved check failed101 with28 native import/symbol errors after core feature repair. All three native approvals spent. Producer source reconciliation is pending and no new compiler run is granted. Original deployed executable/data root and existing authenticated context remain unbound."
   },
   "scope": {
     "summary": "Genuine native deployment and authenticated-context admission",

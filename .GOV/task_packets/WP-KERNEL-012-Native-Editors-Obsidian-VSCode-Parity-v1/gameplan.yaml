@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 657
+generation: 658
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -555,3 +555,4 @@ steps:
 - {id: GP-534, role: builder, at: before_round, do: verify JSON reads project only requested pointers before serialization, check: {type: confirm}, source: 'infra: root MT175 proof read serialized all consumed commands instead of selected check', state: active}
 - {id: GP-535, role: builder, at: before_round, do: verify native lock reconciles current path dependencies before another locked native check, check: {type: confirm}, source: 'fail: MT186 native check101 needs Cargo.lock update after core and Palmistry manifest changes', state: active}
 - {id: GP-536, role: builder, at: before_round, do: verify storage helper calls share the method feature gate under native dependency builds, check: {type: confirm}, source: 'fail: MT186 recheck E0599 unconditional test sync call without surreal-test-support', state: active}
+- {id: GP-537, role: builder, at: before_round, do: verify native imported consumers retain their exact pinned backend-client and Argus producers, check: {type: confirm}, source: 'fail: MT186 repaired native check28 missing imported client and action-effect acknowledgment symbols', state: active}
