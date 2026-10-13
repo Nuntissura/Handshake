@@ -35,6 +35,7 @@ pub mod local_account;
 // AND (b) the MT-081 shared-memory ring Palmistry (Tier 3) maps with zero cooperation. Installed +
 // proven LIVE in `HandshakeApp::new` (one startup-marker call site — the anti-dead-code gate).
 pub mod diagnostics;
+pub mod internal_diagnostics;
 pub mod drawer;
 // WP-KERNEL-012 MT-079 (E11 host-mount): the session-threaded editor pane factories that mount the REAL
 // native code + rich-text editors into the running HandshakeApp shell (replacing the PlaceholderPaneFactory
