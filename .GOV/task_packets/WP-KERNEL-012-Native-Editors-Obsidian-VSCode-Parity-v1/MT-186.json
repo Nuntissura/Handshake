@@ -152,8 +152,8 @@
     "validator_verdict": "PENDING",
     "claimed_by": null,
     "completed_by": null,
-    "next_actor": "Operator authorizes one further exact native compiler check on the independently reviewed lock checkpoint; original deployment owner supplies genuine deployment/context bindings",
-    "blocked_on": "Original native check failed101; lock repaired and independently reviewed/pushed, compiler after repair not run because exact-one grant is spent. Original deployed executable/data root and existing authenticated context remain unbound."
+    "next_actor": "KERNEL_BUILDER prepares and runs the approved one native recheck; original deployment owner supplies genuine deployment/context bindings",
+    "blocked_on": "Original native check failed101; lock repaired and independently reviewed/pushed, approved one recheck pending. Original deployed executable/data root and existing authenticated context remain unbound."
   },
   "scope": {
     "summary": "Genuine native deployment and authenticated-context admission",
@@ -377,7 +377,12 @@
     }
   },
   "native_retry_proposal_20261013": {
-    "state": "PROPOSED_NOT_AUTHORIZED",
+    "state": "APPROVED_EXACT_ONE_NATIVE_RECHECK",
+    "operator_authorization": {
+      "quote": "Approve one native recheck",
+      "source": "Live Operator reply on 2026-10-13 to exact repaired-candidate native check question",
+      "scope": "One further sequential original native compiler check on c00c1de6d using the same existing MT174 profile, C: target and aggregate180GB cap; compiler evidence only"
+    },
     "repair_ref": "MT-175.json#/bounded_native_lock_repair_20261013/result",
     "candidate_commit": "c00c1de6d93bdf93b4da36ee3efbdaa4ed5490c5",
     "candidate_tree": "a8d3bdcd52a91d7e2dfd75cd79ab03e98bdf7902",
