@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 658
+generation: 661
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -556,3 +556,6 @@ steps:
 - {id: GP-535, role: builder, at: before_round, do: verify native lock reconciles current path dependencies before another locked native check, check: {type: confirm}, source: 'fail: MT186 native check101 needs Cargo.lock update after core and Palmistry manifest changes', state: active}
 - {id: GP-536, role: builder, at: before_round, do: verify storage helper calls share the method feature gate under native dependency builds, check: {type: confirm}, source: 'fail: MT186 recheck E0599 unconditional test sync call without surreal-test-support', state: active}
 - {id: GP-537, role: builder, at: before_round, do: verify native imported consumers retain their exact pinned backend-client and Argus producers, check: {type: confirm}, source: 'fail: MT186 repaired native check28 missing imported client and action-effect acknowledgment symbols', state: active}
+- {id: GP-538, role: builder, at: before_round, do: verify handler ACK binds full request and dispatch frame; terminal proof uses later production frame, check: {type: confirm}, source: 'review: native ACK ignored payload and allowed later-frame identical-event attribution', state: active}
+- {id: GP-539, role: builder, at: before_round, do: verify same-frame target release and readmission cannot inherit an old handler event, check: {type: confirm}, source: 'review: released weak ACK reservation allowed same-frame identical-event reassignment', state: active}
+- {id: GP-540, role: builder, at: before_round, do: verify ACK source assertions trace actual completed-frame counts before admission expectations, check: {type: confirm}, source: 'review: aged Drop case incorrectly expected same-frame denial after two completed frames', state: active}

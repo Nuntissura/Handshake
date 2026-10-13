@@ -1,6 +1,21 @@
 {
+  "native_producer_repair_checkpoint_20261013": {
+    "state": "CLOSED_SOURCE_ONLY_CHECKPOINT_PUSH_VERIFIED",
+    "commit": "1d170964bfff8a189bc68425e76c86bce0e53178",
+    "tree": "d7a978492840e46572b0ea3b73bfc2c5ab541bc2",
+    "parent": "5e4133679c3bbba904c6d17cfd46cadab93dc97b",
+    "independent_reviewer": "01a1323e-c183-77e3-b8ba-b286507e5617",
+    "verdict": "SOURCE_CLEAR only; exact pinned client inverses, full7416 independent reread, current authentication, production frame fence, same-frame re-admission guard, terminal cleanup and assertion correction inspected",
+    "artifact_lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt175-ack-source-repair",
+    "checkpoint_result_sha256": "84d9213e53047c68f0712e9602fa30a533db32979d43007d7c24a6549bfd85aa",
+    "joint_diff_sha256": "041c26de897f837d215d9da2f08adda52a60d951ca66681f3ceb5bb04e451f6d",
+    "reconciliation_sha256": "b0b3729ae9b877df6e4bb74e250ceda76be65516fb0aa716a536656314ad9368",
+    "root_reread": "Clean assigned product worktree, exact HEAD/tree, four committed paths and final hashes, matching GitHub branch SHA independently observed after push",
+    "findings_repaired": ["OperatorChat transport error redaction", "whole request payload equality", "handler dispatch epoch", "same-frame released-ticket re-admission alias", "aged Drop assertion frame-count contradiction"],
+    "limits": "Compiler/tests/runtime NOT_RUN on new checkpoint. Three exact-one compiler approvals spent, all FAIL101 retained. Original durable and multiwindow acceptance OPEN unchanged; genuine deployment/auth admission UNBOUND. No parent PASS or MT completion."
+  },
   "bounded_native_ack_producer_repair_20261013": {
-    "state": "SOURCE_ONLY_ACK_LEASE_RELEASED",
+    "state": "CLOSED_SOURCE_ONLY_CHECKPOINT_PUSH_VERIFIED",
     "owner": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
     "failure_ref": "MT-186.json#/native_feature_recheck_result_20261013",
     "candidate_commit": "5e4133679c3bbba904c6d17cfd46cadab93dc97b",
@@ -15,7 +30,7 @@
     "evidence_basis": "Diagnostic leader directly inspected current app/action and installed egui0.33.3 Context::run/identity/counters plus cached eframe raw_input_hook-before-run ordering. Child viewport callback differs from root app.update; no child publication proof established. Current three compiler failures retained and approvals spent."
   },
   "bounded_native_client_producer_repair_20261013": {
-    "state": "SOURCE_ONLY_CLIENT_LEASE_RELEASED",
+    "state": "CLOSED_SOURCE_ONLY_CHECKPOINT_PUSH_VERIFIED",
     "failure_ref": "MT-186.json#/native_feature_recheck_result_20261013",
     "owner": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
     "candidate_commit": "5e4133679c3bbba904c6d17cfd46cadab93dc97b",

@@ -1,4 +1,16 @@
 {
+  "native_producer_repair_recheck_proposal_20261013": {
+    "state": "AWAITING_EXACT_ONE_OPERATOR_APPROVAL",
+    "repair_ref": "MT-175.json#/native_producer_repair_checkpoint_20261013",
+    "candidate_commit": "1d170964bfff8a189bc68425e76c86bce0e53178",
+    "candidate_tree": "d7a978492840e46572b0ea3b73bfc2c5ab541bc2",
+    "command": "cargo check --locked --manifest-path src/frontend/handshake_native/Cargo.toml --tests -j 1",
+    "target": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/target",
+    "profile_sha256": "df7068d5f93a49d17f48f7404a7c4251e2be8f17abc1d2fd5bb04068ee727081",
+    "aggregate_existing_target_cap_bytes": 180000000000,
+    "scope": "Exactly one further sequential native compiler check on independently reviewed and pushed producer repair; all three previous exact-one approvals spent and FAIL101 retained",
+    "limits": "No execution until Operator approval plus fresh bindings/resource/gameplan admission and independent runner review. Same profile, C: target and aggregate cap. No metadata, tests execution, runtime provisioning, process disruption, auth/deployment manufacture, budget reset or acceptance narrowing. Compiler evidence only."
+  },
   "native_feature_recheck_result_20261013": {
     "status": "FAIL101_NATIVE_IMPORTED_PRODUCER_CLOSURE",
     "attempt_id": "fec4fea57a8f4f90b4d3538eef59b3ba",
