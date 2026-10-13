@@ -5611,7 +5611,7 @@
   },
   "bounded_native_lock_repair_20261013": {
     "lease_id": "WP012-MT175-NATIVE-LOCK-20261013",
-    "state": "ACTIVE_LOCK_ONLY_SOURCE_LEASE",
+    "state": "CLOSED_SOURCE_ONLY_CHECKPOINT_PUSH_VERIFIED",
     "owner": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
     "authority_refs": ["scope/allowed_paths", "execution/allowed_write_paths", "implementation_record/native_lock_resolver", "execution_restructure_20261013/residual_disposition"],
     "recorded_failure_ref": "MT-186.json#/native_compiler_result_20261013",
@@ -5625,6 +5625,23 @@
     "configuration": "Existing MT174 profile/toolchain/owned CARGO_HOME and TMP; no new target, profile or aggregate cap",
     "diagnosis": "Current Palmistry manifest declares ed25519-dalek and zeroize, while the current native lock Palmistry dependency entry omits both. Actual exact locked native compiler failed101; full resolver delta remains unobserved until this run.",
     "controls": "Capture closed logs/numeric exit and full before/after source/config/tool/authority bindings; permit only the named lockfile drift. Independently inspect package identity/checksum/dependency delta before lock-only checkpoint/push.",
-    "limits": "No manifest, other lockfile or product source changes; no compiler, metadata run, runtime provisioning, secrets or process disruption. Native failed attempt retained; no retry grant or counter reset."
+    "limits": "No manifest, other lockfile or product source changes; no compiler, metadata run, runtime provisioning, secrets or process disruption. Native failed attempt retained; no retry grant or counter reset.",
+    "result": {
+      "resolver_numeric_exit": 0,
+      "artifact_lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt175-native-lock-repair",
+      "result_sha256": "d2ec850a15e4c8c5171bf5920a6bc3d2f090d82e0ddb37716e4402ac4ac13ead",
+      "delta_sha256": "02afa4edd5e5f09e972f2ea40d66b5d36670e2e40b540841f287fb3900cfdd15",
+      "delta": "Five already-declared dependency edges only: handshake_core adds handshake-diag-ring/interprocess; Palmistry adds ed25519-dalek3.0.0/libc/zeroize. No package additions/removals/version/identity/checksum changes.",
+      "after_lock_sha256": "8599c3473c81c2a23b1e5b2cd634966206c374d633fd481fb118a2f47f931088",
+      "all_other_inputs": "All7415 other source files,22 other manifest/config inputs,10 raw authorities,tools/profile/argv/script unchanged during resolver; same7416 file set.",
+      "independent_reviewer": "01a1323e-c183-77e3-b8ba-b286507e5617",
+      "independent_verdict": "SOURCE_LOCK_RECONCILIATION_CLEAR; exact actual diff and package fields independently inspected, not compiler/native/runtime PASS",
+      "checkpoint_commit": "c00c1de6d93bdf93b4da36ee3efbdaa4ed5490c5",
+      "checkpoint_tree": "a8d3bdcd52a91d7e2dfd75cd79ab03e98bdf7902",
+      "remote_sha": "c00c1de6d93bdf93b4da36ee3efbdaa4ed5490c5",
+      "root_independent_reread": "Actual clean product HEAD/tree, current lock hash and matching GitHub branch SHA observed after checkpoint",
+      "compiler_after_repair": "NOT_RUN; new exact native compiler approval required because previous exact-one grant was consumed",
+      "proof_reuse": "MT183/184 historical independent proof remains valid for its unchanged backend/core inputs; native Cargo.lock is not an input to their exact core commands. No claim of current native compiler acceptance."
+    }
   }
 }

@@ -152,8 +152,8 @@
     "validator_verdict": "PENDING",
     "claimed_by": null,
     "completed_by": null,
-    "next_actor": "KERNEL_BUILDER prepares bounded existing MT175 native lock remediation; original deployment owner supplies genuine deployment/context bindings",
-    "blocked_on": "Native compiler prerequisite failed101 because current path dependencies require native Cargo.lock reconciliation; exact-one grant spent. Original deployed executable/data root and existing authenticated context remain unbound."
+    "next_actor": "Operator authorizes one further exact native compiler check on the independently reviewed lock checkpoint; original deployment owner supplies genuine deployment/context bindings",
+    "blocked_on": "Original native check failed101; lock repaired and independently reviewed/pushed, compiler after repair not run because exact-one grant is spent. Original deployed executable/data root and existing authenticated context remain unbound."
   },
   "scope": {
     "summary": "Genuine native deployment and authenticated-context admission",
@@ -375,6 +375,18 @@
       "scope_limit": "Known documented selectors only; no claim that relocated or renamed deployments exist nowhere. No secret read, DB opener, authentication call, provisioning, launch or process disruption.",
       "required_external_binding": "Original existing launcher/executable and provenance, effective original data root/listener/native binding, genuine current authenticated context holder plus canonical workspace/grant/policy/reviewer observation. Channel binding and four-ID session projection alone do not establish full admission."
     }
+  },
+  "native_retry_proposal_20261013": {
+    "state": "PROPOSED_NOT_AUTHORIZED",
+    "repair_ref": "MT-175.json#/bounded_native_lock_repair_20261013/result",
+    "candidate_commit": "c00c1de6d93bdf93b4da36ee3efbdaa4ed5490c5",
+    "candidate_tree": "a8d3bdcd52a91d7e2dfd75cd79ab03e98bdf7902",
+    "command": "cargo check --locked --manifest-path src/frontend/handshake_native/Cargo.toml --tests -j 1",
+    "output_owner": "WP-KERNEL-012/MT-174/kb-phase02",
+    "target": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/target",
+    "profile_sha256": "df7068d5f93a49d17f48f7404a7c4251e2be8f17abc1d2fd5bb04068ee727081",
+    "aggregate_existing_target_cap_bytes": 180000000000,
+    "limits": "Exactly one further sequential original native compiler check; same profile/target/cap, fresh current bindings/gameplan/resources and independent reviewed capture. No metadata run, runtime provisioning, process disruption or counter reset. Previous FAIL101 remains retained."
   },
   "native_compiler_result_20261013": {
     "status": "FAIL101_LOCK_ADMISSION",
