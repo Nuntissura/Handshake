@@ -1,4 +1,30 @@
 {
+  "native_producer_recheck_result_20261013": {
+    "status": "FAIL101_NATIVE_LIBRARY_PRODUCER_EXPORT",
+    "attempt_id": "fa31f38fcb1f491a92a7301485375c35",
+    "approval_ref": "/native_producer_repair_recheck_proposal_20261013",
+    "approval_consumed": true,
+    "candidate_commit": "1d170964bfff8a189bc68425e76c86bce0e53178",
+    "candidate_tree": "d7a978492840e46572b0ea3b73bfc2c5ab541bc2",
+    "authority_kernel_commit": "99ce6c1e2ba7721014da929995499101ec261a1f",
+    "cargo_numeric_exit": 101,
+    "parent_tool_exit": 1,
+    "parent_command_id": "exec-fff1e1d0-ca11-4b57-9d44-efb1d6f59a5c",
+    "parent_exit_disposition": "Retain outer PowerShell1 separately from actual owned Cargo/wrapper101; no rerun to change evidence",
+    "completed_utc": "2026-10-13T19:49:38.0309434Z",
+    "failure": "Exactly one E0433 at backend_client.rs14846:39: crate::internal_diagnostics::emit_behavior_observation_open unavailable in current library root; existing internal_diagnostics.rs implementation directly inspected",
+    "artifact_lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-producer-recheck",
+    "result_sha256": "aa419449eb7ebba4aadec66aa430e2ed475ffb58dae2e67722ea36836d618dcd",
+    "evidence_sha256": "32d7a54285be53af2ebd437062d1510713b92989529dfcc93acb292caf08b01d",
+    "stderr_sha256": "c295f724f22765a7d84061b1f255a9544393ec54f0ed07c77e6c217d6d1593f0",
+    "post_candidate_sha256": "3ab7aedb7037bac38c78b65be87481e945bc9dfdff2987df0fc529d40a91e46c",
+    "post_binding_sha256": "34c142d05528bbb6a68ee6e92404605707c72b54e42cc1cca64786493b2bece6",
+    "input_binding": "Independent fresh7416 exact inventory/bytes,23configs10rawauthorities3toolbinaries, all20 binding categories true and zero drift; clean current1d170964",
+    "resource": "Max36012014851bytes below180000000000cap/175000000000stop; original cache4820 untouched; wrapper19732/Cargo30160 independently absent",
+    "independent_reviewer": "01a1323e-c183-77e3-b8ba-b286507e5617",
+    "freeze": "CLOSED_TERMINAL_INDEPENDENT_FAIL101",
+    "limits": "All four exact-one approvals spent and FAIL101 retained. Compiler prerequisite remains false; no runtime provisioning/metadata/test execution, no durable/multiwindow/parent acceptance PASS, no retry grant."
+  },
   "native_producer_repair_recheck_proposal_20261013": {
     "state": "APPROVED_EXACT_ONE_PRODUCER_REPAIR_NATIVE_RECHECK",
     "operator_authorization": {

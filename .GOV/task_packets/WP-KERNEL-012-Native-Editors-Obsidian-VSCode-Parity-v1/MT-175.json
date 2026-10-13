@@ -1,4 +1,15 @@
 {
+  "bounded_native_diagnostics_export_repair_20261013": {
+    "state": "SOURCE_ONLY_LIBRARY_EXPORT_LEASE_RELEASED",
+    "owner": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+    "failure_ref": "MT-186.json#/native_producer_recheck_result_20261013",
+    "candidate_commit": "1d170964bfff8a189bc68425e76c86bce0e53178",
+    "only_write_path": "src/frontend/handshake_native/src/lib.rs",
+    "change": "Add pub mod internal_diagnostics; adjacent to the existing diagnostics export, exposing the already present real emit_behavior_observation_open producer",
+    "source_basis": "Actual E0433 consumer at backend_client14846; existing internal_diagnostics.rs producer370-377, provenance350-367 and pane_registry import33; current library root lacks declaration, main consumes library diagnostics; existing manifest dependencies present",
+    "limits": "Sole coder writer, one line source-only. Preserve client and producer bytes, current diagnostics facade and module declarations. No alias/stub/cfg deletion/consumer removal, duplicate runtime diagnostics startup, provenance manufacture, manifest/lock write, compiler/tests/metadata/runtime/process disruption, kernel write, branch/worktree change. Root and independent actual diff review precede checkpoint/push.",
+    "runtime_residual": "Existing InternalDiagnostics::start is not wired in current native src; export alone cannot establish active signing provenance. Genuine deployment/auth and original durable/multiwindow acceptance remain OPEN unchanged. All four compiler failures retained; no next compiler approval."
+  },
   "native_producer_repair_checkpoint_20261013": {
     "state": "CLOSED_SOURCE_ONLY_CHECKPOINT_PUSH_VERIFIED",
     "commit": "1d170964bfff8a189bc68425e76c86bce0e53178",

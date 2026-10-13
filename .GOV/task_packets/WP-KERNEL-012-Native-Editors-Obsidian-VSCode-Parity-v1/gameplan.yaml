@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 663
+generation: 665
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -561,3 +561,5 @@ steps:
 - {id: GP-540, role: builder, at: before_round, do: verify ACK source assertions trace actual completed-frame counts before admission expectations, check: {type: confirm}, source: 'review: aged Drop case incorrectly expected same-frame denial after two completed frames', state: active}
 - {id: GP-541, role: builder, at: before_round, do: verify refreshed binding closure counts and retained-failure budget match current rows, check: {type: confirm}, source: 'prep: inherited binding labels retained old162 rows and two failures after new163 rows and third failure', state: active}
 - {id: GP-542, role: builder, at: before_round, do: 'verify current confirmation notes name actual candidate tree, source deltas and closure rows', check: {type: confirm}, source: 'prep: carried current notes kept old tree and7415 unchanged counts despite four producer changes', state: active}
+- {id: GP-543, role: builder, at: before_round, do: verify restored native producers are exported by the library crate root before compiler dispatch, check: {type: confirm}, source: 'fail: native E0433 restored client diagnostics producer exists but library module is not exported', state: active}
+- {id: GP-544, role: builder, at: before_round, do: verify parent launch forwards the owned wrapper numeric exit without outer-shell remapping, check: {type: confirm}, source: 'infra: parent PowerShell invocation mapped owned Cargo101 to outertool1 without explicit exit forwarding', state: active}
