@@ -1,6 +1,11 @@
 {
   "native_producer_repair_recheck_proposal_20261013": {
-    "state": "AWAITING_EXACT_ONE_OPERATOR_APPROVAL",
+    "state": "APPROVED_EXACT_ONE_PRODUCER_REPAIR_NATIVE_RECHECK",
+    "operator_authorization": {
+      "quote": "appoved",
+      "source": "Live Operator reply to the pending exact-one producer-repair recheck proposal on 2026-10-13",
+      "scope": "One original native compiler check on 1d170964 under the same MT174 profile, C: target and aggregate180GB cap; compiler evidence only"
+    },
     "repair_ref": "MT-175.json#/native_producer_repair_checkpoint_20261013",
     "candidate_commit": "1d170964bfff8a189bc68425e76c86bce0e53178",
     "candidate_tree": "d7a978492840e46572b0ea3b73bfc2c5ab541bc2",
