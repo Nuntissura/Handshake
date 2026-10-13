@@ -1,6 +1,11 @@
 {
   "native_feature_repair_recheck_proposal_20261013": {
-    "state": "PENDING_EXACT_ONE_COMPILER_APPROVAL",
+    "state": "APPROVED_EXACT_ONE_REPAIRED_NATIVE_RECHECK",
+    "operator_authorization": {
+      "quote": "Approve one repaired-native recheck",
+      "source": "Live Operator reply on 2026-10-13 to exact source-repaired-candidate native check question",
+      "scope": "One sequential original native compiler check on 5e4133679 using the same MT174 builder profile, C: target and existing aggregate180GB cap; compiler evidence only"
+    },
     "repair_ref": "MT-173.json#/bounded_native_feature_repair_20261013/result",
     "candidate_commit": "5e4133679c3bbba904c6d17cfd46cadab93dc97b",
     "candidate_tree": "5179ab7947d14e71bdcc5b9b8ee7d91b4a5265d2",
@@ -192,8 +197,8 @@
     "validator_verdict": "PENDING",
     "claimed_by": null,
     "completed_by": null,
-    "next_actor": "Operator decides one further exact native compiler check on independently reviewed and pushed 5e4133679; original deployment owner supplies genuine deployment/context bindings",
-    "blocked_on": "Approved native recheck failed101 at storage/tests.rs466; exact source repair independently reviewed and pushed in 5e4133679. Both prior approvals spent and new candidate compiler proof NOT_RUN. Original deployed executable/data root and existing authenticated context remain unbound."
+    "next_actor": "KERNEL_BUILDER prepares and runs the approved one repaired-native recheck after fresh binding, gameplan, resource admission and independent runner review; original deployment owner supplies genuine deployment/context bindings",
+    "blocked_on": "Approved native recheck failed101 at storage/tests.rs466; exact source repair independently reviewed and pushed in 5e4133679. Both prior approvals spent; one newly approved check remains pending. Original deployed executable/data root and existing authenticated context remain unbound."
   },
   "scope": {
     "summary": "Genuine native deployment and authenticated-context admission",
