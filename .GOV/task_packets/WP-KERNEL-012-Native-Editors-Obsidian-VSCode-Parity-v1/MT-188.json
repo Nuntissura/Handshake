@@ -1,0 +1,455 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-188",
+  "created_at_utc": "2026-10-13T00:23:19.329053+00:00",
+  "updated_at_utc": "2026-10-13T00:23:19.329053+00:00",
+  "identity": {
+    "mt_id": "MT-188",
+    "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+    "title": "Consume swarm drain failure in production shutdown",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "closure_unit": {
+    "outcome": "Production shutdown consumes the existing swarm drain failure result without reporting a clean lifecycle.",
+    "requirement_refs": [
+      "packet.json#/operator_workflow_restructure_20261013",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-020.json#/scope/acceptance_criteria/6",
+      "MT-174.json#/scope/allowed_paths",
+      "WP-KERNEL-012-phase-01-source-reconciliation-v1.json#/original_contract_records/263"
+    ],
+    "acceptance_refs": [
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-020.json#/scope/acceptance_criteria/6"
+    ],
+    "materialized_acceptance": [
+      {
+        "id": "WP012-MT-188-AC1",
+        "requirement": "When ApiRouteRuntimeDrainReport.swarm_events_flushed is false, production main follows its existing failure exit path and cannot return clean shutdown success. Preserve every existing connection, runtime, reclaim, ledger and lease safeguard; the all-success path retains its existing behavior."
+      },
+      {
+        "id": "WP012-MT-188-AC2",
+        "requirement": "The existing shutdown failure diagnostic records the actual swarm_events_flushed result without introducing account, session, workspace, grant or sensitive resource metadata."
+      },
+      {
+        "id": "WP012-MT-188-AC3",
+        "requirement": "Independent proof exercises the actual production-main success and swarm-drain failure exit boundary on a frozen pushed candidate. Component drain results, source inspection, compilation and zero-match tests do not substitute."
+      },
+      {
+        "id": "WP012-MT-188-AC4",
+        "requirement": "Preserve original source pins, parent residuals, assertions, historical verdicts and cumulative budgets. This child does not close original MT020 AC8, the remaining AC7 bridge obligations, AC10 union proof, MT174 or whole-WP acceptance."
+      }
+    ]
+  },
+  "model_routing": {
+    "model_tier": null,
+    "tier_reason": "Configured role defaults; bounded existing consumer remediation.",
+    "sized_for_declared_tier": false,
+    "escalate_to_tier_on_blocker": null
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 2,
+    "attempts_counted_per_failing_check_not_per_hypothesis": true,
+    "written_diagnosis_required_before_further_attempts": true,
+    "post_diagnosis_runs": {
+      "probe": 1,
+      "confirm": 1
+    },
+    "exhausted_budget_outcome": "blocked_with_diagnosis",
+    "lineage_refs": [
+      "MT-174.json#/attempt_budget",
+      "packet.json#/operator_workflow_restructure_20261013/budget_binding",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-020.json"
+    ],
+    "new_counter_or_allowance_created": false,
+    "authority_precedence": "Numeric fields retain parent policy only. Original per-check histories and explicit scoped grants determine allowance; child identity creates none.",
+    "remaining_allowance_source_ref": "packet.json#/operator_workflow_restructure_20261013/budget_binding",
+    "remaining_allowance_status": "UNVERIFIED",
+    "historical_failed_core_launches_retained": 38
+  },
+  "execution": {
+    "lane": "KERNEL_BUILDER_FOLDED_NO_ACP",
+    "foreground_or_interactive_tools_forbidden": true,
+    "depends_on": [],
+    "module_ref": "src/backend/handshake_core/src",
+    "allowed_write_paths": [
+      "src/backend/handshake_core/src/main.rs"
+    ],
+    "forbidden_write_paths": [
+      ".GOV/**",
+      "src/backend/handshake_core/src/api/mod.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/events.rs",
+      "src/backend/handshake_core/tests/**",
+      "src/frontend/**",
+      "manifests and lockfiles",
+      "schema sources and historical migration literals",
+      "all other product paths"
+    ],
+    "stop_conditions": [
+      "No explicit MT188 source lease",
+      "Overlapping main.rs writer or captured authority conflict",
+      "Candidate, source pin, configuration or resource binding drift",
+      "Applicable retained attempt allowance absent or exhausted",
+      "Remedy requires broader source, API, schema or product authority",
+      "Runtime proof method remains unresolved",
+      "Proof requires an unauthorized harness, fixture, launch, store or process action"
+    ],
+    "write_authority": "Contract materialization alone grants no implementation or execution lease."
+  },
+  "proof": {
+    "parent_proof_refs": [
+      "MT-174.json#/proof",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-020.json#/scope/proof_commands",
+      "WP-KERNEL-012-phase-01-source-reconciliation-v1.json#/combined_acceptance_binding"
+    ],
+    "checks": [
+      {
+        "check_id": "WP012-MT-188-COMPILE",
+        "claim_refs": [
+          "WP012-MT-188-AC1",
+          "WP012-MT-188-AC2"
+        ],
+        "executor_role": "KERNEL_BUILDER",
+        "command_or_method": "cargo check --locked --manifest-path src/backend/handshake_core/Cargo.toml --lib --tests --features app-runtime,surreal-test-support,test-utils -j 1 --keep-going --message-format=json",
+        "expected": "Affected required compilation succeeds with unchanged input digest. Compilation is not shutdown runtime acceptance.",
+        "timeout_seconds": null,
+        "on_timeout": "Retain actual result and owned-resource observations; no foreign process action or whole-run timeout.",
+        "evidence_required": [
+          "Frozen pushed candidate commit and tree",
+          "Relevant source input digest before and after",
+          "Original command, features, target, profile and toolchain",
+          "Actual terminal exit and complete bound compiler evidence",
+          "Applicable inherited allowance or justified valid proof reuse"
+        ],
+        "configuration_binding_ref": "MT-174.json#/operator_decision_20261010_phase02_builder_output_grant",
+        "run_authority": "UNRELEASED; no new compiler allowance. Reuse valid relevant-input proof or obtain the existing owner's permitted affected check."
+      },
+      {
+        "check_id": "WP012-MT-188-PRODUCTION-SHUTDOWN",
+        "claim_refs": [
+          "WP012-MT-188-AC1",
+          "WP012-MT-188-AC2",
+          "WP012-MT-188-AC3"
+        ],
+        "executor_role": "INTEGRATION_VALIDATOR",
+        "command_or_method": "UNRESOLVED_EXISTING_PRODUCTION_MAIN_NEGATIVE_EXIT_SELECTOR",
+        "expected": "Actual production main with otherwise-successful connection/runtime/reclaim/ledger drains and swarm_events_flushed=false exits 1 without clean lifecycle success; all successful drains preserve the existing successful exit. Failure diagnostics contain the actual drain result.",
+        "timeout_seconds": null,
+        "on_timeout": "No result inferred from timeout or liveness; preserve original process authority and evidence.",
+        "evidence_required": [
+          "Authorized exact executable method and configuration recorded before execution",
+          "Frozen pushed candidate commit and tree",
+          "Actual executable identity and owned process identity",
+          "Observed swarm drain failure and remaining shutdown outcomes",
+          "Actual numeric exit and scoped diagnostic evidence",
+          "Independent positive and negative boundary observation",
+          "Retained per-check history and applicable allowance"
+        ],
+        "selector_status": "UNRESOLVED",
+        "execution_authorized": false,
+        "blocker": "No inspected existing selector exercises the actual production-main negative exit. Resolve an existing approved method or separately authorize a bounded proof entrypoint before readiness; this contract grants neither."
+      }
+    ],
+    "independent_review_required": true,
+    "duplicate_parent_proof_forbidden": true,
+    "configuration_binding_ref": "MT-174.json#/operator_decision_20261010_phase02_builder_output_grant",
+    "proof_reuse": "Reuse only independently valid observations whose relevant source, dependencies, configuration and asserted behavior remain unchanged. MT183/184 PASS does not automatically prove changed main.rs.",
+    "supporting_existing_evidence": {
+      "owner_mt": "MT-172",
+      "source_path": "src/backend/handshake_core/tests/swarm_outbox_surreal_tests.rs",
+      "required_features": [
+        "test-utils",
+        "surreal-test-support"
+      ],
+      "inspected_cases": [
+        "bridge_terminal_events_are_acknowledged_ordered_and_drained_without_loss",
+        "pending_terminal_event_recovers_through_new_store_and_healthy_shutdown_drain",
+        "closed_storage_rejection_fences_terminal_producer_and_fails_shutdown_ack",
+        "shutdown_timeout_is_negative_then_recovers_without_terminal_loss",
+        "bounded_non_terminal_capacity_reports_drop_and_preserves_accepted_order",
+        "each_scope_mismatch_and_incomplete_scope_fail_closed_without_mutation",
+        "identical_retry_is_stable_conflict_and_capacity_preserve_order_and_receipts"
+      ],
+      "new_execution_authorized": false,
+      "limitations": [
+        "These cases do not invoke production main's exit decision.",
+        "The inspected recovery cases construct new outbox wrappers over the same open storage clone; they do not establish actual embedded-store close/reopen.",
+        "Original MT020 proof_commands/7 names a lib-test filter absent from inspected events.rs. Preserve that history and reconcile routing in its existing owner; never credit zero matching tests.",
+        "process_ledger_writer_tests.rs production_process_ledger_writers_are_retained_until_shutdown inspects API/factory source and does not prove production-main exit."
+      ]
+    }
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-188.json",
+    "microtask_projection": null,
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": null,
+    "status": "ON_DEMAND_ONLY",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "BLOCKED",
+    "depends_on": [],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": null,
+    "claimed_by": null,
+    "completed_by": null,
+    "blocked_on": [
+      "Explicit MT188 main.rs-only implementation lease is unreleased.",
+      "Independent actual production-main positive/negative exit proof selector and configuration are unresolved.",
+      "Applicable remaining per-check allowance is unverified."
+    ],
+    "next_actor": "Coordinator materializes after captured native authority closes; resolve exact source/proof ownership and retained allowance before releasing execution."
+  },
+  "scope": {
+    "summary": "Repair only the existing production shutdown consumer of swarm_events_flushed and its truthful failure diagnostic.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/main.rs"
+    ],
+    "forbidden_paths": [
+      "All product paths outside main.rs",
+      "New tests, harnesses, scripts or launchers",
+      "New stores, identities, grants or startup envelopes",
+      "Schema, manifest, dependency or source-pin changes",
+      "Kernel governance writes by the product implementer"
+    ],
+    "acceptance_criteria": [
+      {
+        "id": "WP012-MT-188-AC1",
+        "requirement": "Consume false swarm_events_flushed through the existing production shutdown failure path; preserve every existing guard and successful path."
+      },
+      {
+        "id": "WP012-MT-188-AC2",
+        "requirement": "Include the actual swarm_events_flushed result in the existing failure diagnostic without sensitive metadata."
+      },
+      {
+        "id": "WP012-MT-188-AC3",
+        "requirement": "Independent actual production-main positive and negative exit proof is required; the currently unresolved selector prevents readiness."
+      },
+      {
+        "id": "WP012-MT-188-AC4",
+        "requirement": "Preserve original requirements, source pins, residuals, historical verdicts and cumulative budgets; no parent or whole-WP acceptance transfer."
+      }
+    ],
+    "proof_targets": [
+      "WP012-MT-188-COMPILE",
+      "WP012-MT-188-PRODUCTION-SHUTDOWN"
+    ],
+    "non_goals": [
+      "Implement or re-prove all DurableSwarmFrDrain internals",
+      "Close original MT020 AC8 embedded-store restart acceptance",
+      "Close original MT020 AC10 union acceptance",
+      "Change native deployment or authenticated admission",
+      "Create a proof harness or substitute fixture",
+      "Grant compiler or runtime attempts"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": [
+      "Existing truthful shutdown failure diagnostic"
+    ],
+    "not_applicable_reason": "This child changes an existing backend shutdown predicate and diagnostic, not a GUI surface. Original parent GUI obligations remain required.",
+    "inherited_parent_obligation_ref": "MT-174.json#/gui_obligation"
+  },
+  "user_manual_obligation": {
+    "required": false,
+    "same_change_update_required": false,
+    "manual_version_bump_required": false,
+    "target_entries": [],
+    "expected_evidence": [],
+    "not_applicable_reason": "Restores an original shutdown invariant without introducing a new workflow. Original parent manual obligations remain required; any wider behavior change exceeds this write scope.",
+    "inherited_parent_obligation_ref": "MT-174.json#/user_manual_obligation"
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": false,
+    "resources_touched": [
+      "Existing shutdown drain outcome"
+    ],
+    "identity_and_scope_contexts": [
+      "Original immutable exact-scope authority remains unchanged"
+    ],
+    "enforcement_boundaries": [
+      "Existing process/runtime/ledger shutdown guards"
+    ],
+    "same_project_private_resource_cases": [],
+    "cross_account_negative_cases": [],
+    "derived_resource_non_widening_cases": [],
+    "revocation_and_context_switch_cases": [],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": [
+      "Diagnostic adds only the existing boolean drain outcome"
+    ],
+    "expected_evidence": [
+      "Scoped diff contains no new identity, grant or sensitive resource diagnostic fields"
+    ],
+    "not_applicable_reason": "The bounded boolean consumer repair changes no authorization, resource visibility or scope semantics. Original MT020 and MT174 privacy obligations remain required.",
+    "inherited_parent_obligation_ref": "MT-174.json#/resource_privacy_obligation"
+  },
+  "hbr_obligations": [
+    "Retain MT174 and original MT020 applicable pinned HBR obligations without blanket reassessment or repin.",
+    "This child delegates only the existing AC7 production shutdown consumer and diagnostic."
+  ],
+  "hbr_int_009_tier_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "model_reports": [
+      "observations",
+      "blockers",
+      "attempt_diagnoses",
+      "operator_decision_requests",
+      "residual_risks",
+      "proposed_followups"
+    ],
+    "worker_final_status": "ready_for_validation_or_blocked",
+    "parent_handoff_ref": "MT-174.json#/handoff"
+  },
+  "red_team": {
+    "required": false,
+    "profile": "RECORDED_REMEDIATION",
+    "risks": [
+      "Component drain proof is credited as actual production-main exit proof.",
+      "New child identity resets attempt history.",
+      "Shutdown repair silently weakens another guard or closes unrelated restart acceptance."
+    ],
+    "minimum_controls": [
+      "Actual production-main proof selector must be resolved before readiness.",
+      "Retain parent/source budgets and explicit execution leases.",
+      "Main.rs-only write scope and unchanged original guards.",
+      "AC8 and aggregate acceptance remain explicit residuals."
+    ],
+    "not_applicable_reason": "Recorded existing consumer remediation; no new refinement, research or separate red-team gate is introduced."
+  },
+  "obligation_binding": {
+    "parent_ref": "MT-174.json",
+    "required_original_obligations_unchanged": true,
+    "change_to_proof_mapping": "Bind changed main.rs behavior to affected compiler evidence and independent production-main exit proof. Reuse unchanged original evidence only with valid relevant-input reconciliation.",
+    "source_obligation_ref": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-020.json#/scope/acceptance_criteria/6",
+    "distinct_residuals": [
+      {
+        "source_ref": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-020.json#/scope/acceptance_criteria/7",
+        "disposition": "AC8 remains required in original source/consuming parent ownership: actual same embedded-store close/reopen, pending-once delivery, canonical receipt retention and foreign-scope isolation. MT188 does not close it."
+      },
+      {
+        "source_ref": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-020.json#/scope/acceptance_criteria/6",
+        "disposition": "All AC7 bridge admission, queue, outbox retry, bounded join, timeout, persistence, fencing and drop obligations remain with their original owners; this child repairs only the production-main consumer."
+      },
+      {
+        "source_ref": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-020.json#/scope/acceptance_criteria/9",
+        "disposition": "AC10 original frozen union proof remains required; this child supplies no aggregate PASS."
+      }
+    ]
+  },
+  "parent_binding": {
+    "parent_mt": "MT-174",
+    "authority_ref": "packet.json#/operator_workflow_restructure_20261013",
+    "delegates_only_current_outcome": true,
+    "original_residual_scope_remains_parent": true,
+    "parent_is_not_execution_predecessor": true
+  },
+  "spec_basis": {
+    "kind": "Operator-authorized bounded remediation of preserved original acceptance",
+    "new_product_requirements": false,
+    "original_requirement_ref": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-020.json#/scope/acceptance_criteria/6",
+    "retained_source_spec_refs": [
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json#/scope/spec_anchors",
+      ".GOV/spec/master-spec-v02.197/spec-modules/04-llm-infrastructure.md#4.3.9",
+      ".GOV/spec/master-spec-v02.197/spec-modules/04-llm-infrastructure.md#4.6"
+    ],
+    "current_context_ref": ".GOV/spec/master-spec-v02.216/spec-modules/04-llm-infrastructure.md",
+    "current_context_observed_lines": [
+      1628,
+      1638
+    ],
+    "pin_policy": "Retain WP012 v02.206 plus only its explicitly adopted amendments and original source-contract pins. Current recovery/replay clauses are context, not a blanket repin or new shutdown requirement."
+  },
+  "source_binding": {
+    "source_wp": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+    "source_revision": "98efa4d019c4f670186cd3ec1f048ece3adf0dcd",
+    "source_path": "src/backend/handshake_core/src/main.rs",
+    "source_blob": "b42ca1b206bf434b78af67f83fdb5b81bd961510",
+    "source_map_ref": "WP-KERNEL-012-phase-01-source-reconciliation-v1.json#/import_path_ownership/1/entries/216",
+    "source_contract_record_ref": "WP-KERNEL-012-phase-01-source-reconciliation-v1.json#/original_contract_records/263",
+    "product_worktree": "../wtc-WP-KERNEL-012",
+    "product_branch": "feat/WP-KERNEL-012",
+    "inspected_candidate": "37f452a6b3b07c0ffd91ab49c3f99632c4104bb8",
+    "finding": "Pinned source consumes !api_drain_report.swarm_events_flushed; inspected candidate main.rs failure predicate omits it.",
+    "read_only_dependencies": [
+      {
+        "path": "src/backend/handshake_core/src/api/mod.rs",
+        "observed_lines": [
+          25,
+          45
+        ],
+        "role": "Produces ApiRouteRuntimeDrainReport.swarm_events_flushed."
+      },
+      {
+        "path": "src/backend/handshake_core/src/swarm_orchestration/events.rs",
+        "observed_lines": [
+          543,
+          560
+        ],
+        "owner_mt": "MT-172",
+        "source_map_ref": "WP-KERNEL-012-phase-01-source-reconciliation-v1.json#/import_path_ownership/1/entries/361",
+        "role": "Produces bounded drain result; no writes authorized here."
+      }
+    ]
+  },
+  "authoring_authority": {
+    "recorded_ref": "packet.json#/operator_workflow_restructure_20261013/operator_authority",
+    "operator_quote": "you can create extra mt, you can create extra chats with extra tams to explore code, mt, master spec  etc., you can change workflow",
+    "preservation_rule_refs": [
+      "WP012-WF-002",
+      "WP012-WF-003",
+      "WP012-WF-016",
+      "WP012-WF-017",
+      "WP012-WF-020"
+    ],
+    "delegating_coordinator": "01a1323d-2a04-78f1-9430-1589c9cd54ea",
+    "latest_delegation_quote": "Root will materialize after native capturedauthority closes; no implementationlease.",
+    "proposal_only": false,
+    "implementation_lease_granted": false,
+    "proof_execution_granted": false,
+    "new_attempt_allowance_granted": false
+  },
+  "source_lease_ref": null,
+  "contract_materialization": {
+    "authority_ref": "packet.json#/operator_workflow_restructure_20261013/operator_authority",
+    "proposal_sha256": "711f05250474932e8fce1b1c980d129987dfa970eaddf9890c5cf213ee61e7a5",
+    "materialized_by": "01a1323d-2a04-78f1-9430-1589c9cd54ea",
+    "implementation_lease_granted": false,
+    "proof_execution_granted": false,
+    "new_attempt_allowance_granted": false
+  }
+}

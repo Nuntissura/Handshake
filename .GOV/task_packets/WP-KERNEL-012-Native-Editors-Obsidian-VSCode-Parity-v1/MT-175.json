@@ -5608,5 +5608,23 @@
         "verified": "All135 actual hashes/absences, single-ID inverse and134unchanged; valid launch/capture/native closure reused. No compiler/runtime/acceptance proof."
       }
     }
+  },
+  "bounded_native_lock_repair_20261013": {
+    "lease_id": "WP012-MT175-NATIVE-LOCK-20261013",
+    "state": "ACTIVE_LOCK_ONLY_SOURCE_LEASE",
+    "owner": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+    "authority_refs": ["scope/allowed_paths", "execution/allowed_write_paths", "implementation_record/native_lock_resolver", "execution_restructure_20261013/residual_disposition"],
+    "recorded_failure_ref": "MT-186.json#/native_compiler_result_20261013",
+    "candidate_commit": "37f452a6b3b07c0ffd91ab49c3f99632c4104bb8",
+    "candidate_tree": "e22db7bd603b56caac2fec5cef9afc2e8b38733f",
+    "only_write_path": "src/frontend/handshake_native/Cargo.lock",
+    "before_sha256": "0ea248f2cbac6bc578296381bedef6641bc6897312715f3f47c16e1f28165b24",
+    "command": "cargo +1.97.1 update --workspace --offline --manifest-path src/frontend/handshake_native/Cargo.toml",
+    "cwd": "../wtc-WP-KERNEL-012",
+    "resolver_invocations_authorized": 1,
+    "configuration": "Existing MT174 profile/toolchain/owned CARGO_HOME and TMP; no new target, profile or aggregate cap",
+    "diagnosis": "Current Palmistry manifest declares ed25519-dalek and zeroize, while the current native lock Palmistry dependency entry omits both. Actual exact locked native compiler failed101; full resolver delta remains unobserved until this run.",
+    "controls": "Capture closed logs/numeric exit and full before/after source/config/tool/authority bindings; permit only the named lockfile drift. Independently inspect package identity/checksum/dependency delta before lock-only checkpoint/push.",
+    "limits": "No manifest, other lockfile or product source changes; no compiler, metadata run, runtime provisioning, secrets or process disruption. Native failed attempt retained; no retry grant or counter reset."
   }
 }

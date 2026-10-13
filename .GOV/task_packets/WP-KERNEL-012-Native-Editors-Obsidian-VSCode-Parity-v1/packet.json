@@ -82,7 +82,7 @@
     "rules": [
       {
         "id": "WP012-WF-001",
-        "requirement": "Review every authored WP012 MT, reserved draft176\u2013182 and consumed source MT for scope, dependencies, acceptance and useful decomposition; record uninspected call-graph gaps."
+        "requirement": "Review every authored WP012 MT, reserved draft176–182 and consumed source MT for scope, dependencies, acceptance and useful decomposition; record uninspected call-graph gaps."
       },
       {
         "id": "WP012-WF-002",
@@ -166,7 +166,9 @@
         "MT-183",
         "MT-184",
         "MT-185",
-        "MT-186"
+        "MT-186",
+        "MT-187",
+        "MT-188"
       ],
       "original_parents": [
         "MT-173",
@@ -182,7 +184,7 @@
         "MT-181",
         "MT-182"
       ],
-      "next_unallocated_id": "MT-187",
+      "next_unallocated_id": "MT-189",
       "rationale": "Schema repair and original focused proof stay together; final core compilation, genuine native deployment admission and actual registry publication have distinct canonical outcomes/owners. Original runtime/native acceptance remains in parents.",
       "alternatives": "Teams proposed three children or bounded units inside existing parents. Four avoid bundling registry publication with all native acceptance; no paperwork-only child."
     },
@@ -238,11 +240,13 @@
         "scope": "Native owner compiler prerequisite/configuration plus genuine original deployment/auth admission; live Operator explicitly adopted the existing MT174 profile, C: target and aggregate cap for exactly one original native check on 2026-10-13.",
         "authorization_ref": "MT-186.json#/native_dispatch_proposal_20261013/operator_authorization",
         "command": "cargo check --locked --manifest-path src/frontend/handshake_native/Cargo.toml --tests -j 1",
-        "limits": "One sequential native compiler dispatch only; no new target/profile/cap, counter reset, runtime provisioning or process disruption"
+        "limits": "One sequential native compiler dispatch only; no new target/profile/cap, counter reset, runtime provisioning or process disruption",
+        "execution_result_ref": "MT-186.json#/native_compiler_result_20261013",
+        "remaining_approved_native_runs": 0
       }
     },
     "acceptance_preservation": {
-      "unassigned_original_obligations": "Remain required in MT171\u2013175/source-reconciliation; no omission by child split",
+      "unassigned_original_obligations": "Remain required in MT171–175/source-reconciliation; no omission by child split",
       "parent_completion": "Original AC1/AC2 and every consumed source obligation require independent proof; children insufficient",
       "spec": "Original v02.206 activation pin plus only approved adoptions; active v02.216 is navigation, not blanket repin"
     },
@@ -1706,7 +1710,7 @@
             "MT-065",
             "MT-068"
           ],
-          "other_mt_ids": "MT001\u2013060,063,066\u2013067 retain original owners;044 existing045\u2013055 split,056 findings tracker"
+          "other_mt_ids": "MT001–060,063,066–067 retain original owners;044 existing045–055 split,056 findings tracker"
         },
         "wp1": {
           "mt_count": 24,
@@ -1717,9 +1721,9 @@
             "MT-017",
             "MT-020"
           ],
-          "other_mt_ids": "MT001\u2013002,004\u2013013,015\u2013016,018\u2013019,021\u2013024 retain original owners"
+          "other_mt_ids": "MT001–002,004–013,015–016,018–019,021–024 retain original owners"
         },
-        "missing_convenience_fields": "Empty map/scope fields are not absent acceptance: Dependency opened original CKC044/056/058\u2013067. Source records retain268 originals/3173 mapped items; WP012128/130\u2013134 mapping gaps must be reconciled before claiming consumed acceptance.",
+        "missing_convenience_fields": "Empty map/scope fields are not absent acceptance: Dependency opened original CKC044/056/058–067. Source records retain268 originals/3173 mapped items; WP012128/130–134 mapping gaps must be reconciled before claiming consumed acceptance.",
         "split_gate": "Candidate is not implementation clearance. Recover exact original AC/source pointers, inspect current call graph, map outstanding inputs/proof and retain aggregate before authoring any further child."
       },
       "inspection_limits": [
@@ -1755,7 +1759,7 @@
       ],
       "observed": "Document uses Surreal types and storage-support, not full embedded engine; support/diag are light boundaries. Native dev tests may still pull core runtime graph. No root workspace assumed.",
       "do_now": "Complete existing bootstrap repair using current owner and proof; no large-crate rework on that critical path. Use real existing narrow package/module proof when it establishes affected behavior.",
-      "future": "Hydrate reserved176\u2013182 canonical standalone source contracts and distinct pinned host adoption; inspect actual dependency/feature graph and API before package extraction.",
+      "future": "Hydrate reserved176–182 canonical standalone source contracts and distinct pinned host adoption; inspect actual dependency/feature graph and API before package extraction.",
       "preserve": "Default/full feature graph, final485 targets, original host/runtime/native proof, serial shared schema/manifests/auth owners",
       "draft_corrections": [
         "MT179 backend scope currently carries native proof command; hydration must correct actual owner/package and retain separate host integration",
@@ -1789,9 +1793,9 @@
       }
     ],
     "root_helper_deliberation": {
-      "plan_correctness": "001\u2013090 individually screened; preserve historical/cohesive scopes and source-mapping gates",
-      "plan_execution": "091\u2013170 individually screened; bound mixed outcomes, preserve atomic migrations/counters",
-      "phase02_coder": "171\u2013182 source/manifests inspected; full schema repair first, smaller pure mechanics before pinned host adoption"
+      "plan_correctness": "001–090 individually screened; preserve historical/cohesive scopes and source-mapping gates",
+      "plan_execution": "091–170 individually screened; bound mixed outcomes, preserve atomic migrations/counters",
+      "phase02_coder": "171–182 source/manifests inspected; full schema repair first, smaller pure mechanics before pinned host adoption"
     },
     "source_preservation": {
       "source_reconciliation_ref": "WP-KERNEL-012-phase-01-source-reconciliation-v1.json",
@@ -1885,7 +1889,7 @@
         "independent_validation": "Original acceptance and negative/recovery/persistence boundaries; unchanged-input reuse only"
       },
       "smaller_mt_policy": {
-        "new_ids_start": "MT-187 after183\u2013186 allocation;176\u2013182 reserved",
+        "new_ids_start": "MT-187 after183–186 allocation;176–182 reserved",
         "immediate_units": [
           "MT183 complete schema repair + original focused proof",
           "MT184 final stable core compilation",
@@ -1918,7 +1922,7 @@
         {
           "id": "WP012-GAP-003",
           "state": "OPEN_ORIGINAL_ACCEPTANCE",
-          "basis": "Source reconciliation268 records/3173 mapped items; original171\u2013175 accepted0/5",
+          "basis": "Source reconciliation268 records/3173 mapped items; original171–175 accepted0/5",
           "owner": "Spec-gap/dependency leaders and original consumed proof owners",
           "dependency": "Imported source/compile does not complete native/runtime/source acceptance",
           "remediation": "Map every consumed original requirement/check to owner/evidence or explicit unresolved residual; preserve unfinished unconsumed source-WP work",
@@ -1927,16 +1931,16 @@
         {
           "id": "WP012-GAP-004",
           "state": "OPEN_MAPPING_RECONCILIATION",
-          "basis": "Dependency reviewed empty convenience maps CKC044/056/058\u2013067 and WP012128/130\u2013134; original acceptance is retained elsewhere",
+          "basis": "Dependency reviewed empty convenience maps CKC044/056/058–067 and WP012128/130–134; original acceptance is retained elsewhere",
           "owner": "Spec-gap leader",
           "dependency": "Blocks acceptance claims for unmapped consumption, not source preservation",
-          "remediation": "Recover exact original contract pointers; CKC044 already045\u2013055 split,056 findings tracker; do not duplicate/drop obligations",
+          "remediation": "Recover exact original contract pointers; CKC044 already045–055 split,056 findings tracker; do not duplicate/drop obligations",
           "proof": "Complete original requirement/source/consumer/proof conservation mapping"
         },
         {
           "id": "WP012-GAP-005",
           "state": "RESERVED_DRAFT_HYDRATION_GAP",
-          "basis": "MT179 backend-owned draft uses native proof command;177\u2013182 actual standalone destinations not all materialized",
+          "basis": "MT179 backend-owned draft uses native proof command;177–182 actual standalone destinations not all materialized",
           "owner": "Dependency/spec-gap and future module coder owners",
           "dependency": "Must resolve before those reserved module writes/buildability claims",
           "remediation": "Reuse existing document/support/diag/Palmistry packages; actual canonical standalone interface/manifest then distinct pinned host-adoption proof",
@@ -1962,26 +1966,78 @@
         }
       ],
       "scope_and_authority": "Gap review covers all three WPs/consumed contracts. Existing required remediation may be sequenced in bite-sized units; broader new product requirements/spec amendments require existing authority resolution. Source-WP writes remain with its assigned owner/worktree; do not auto-import changing other-device source or expand WP012 arbitrarily."
+    },
+    "bounded_child_materialization_20261013": {
+      "MT-187": {
+        "contract_ref": "MT-187.json",
+        "outcome": "Existing explicit ModelLane recovery execution authorization",
+        "status": "BLOCKED",
+        "hard_predecessors": [
+          "MT-183",
+          "MT-185"
+        ],
+        "original_residuals_preserved": true
+      },
+      "MT-188": {
+        "contract_ref": "MT-188.json",
+        "outcome": "Existing production shutdown consumer of swarm drain failure",
+        "status": "BLOCKED",
+        "proof_blocker": "Actual production-main positive/negative exit selector and retained allowance unresolved",
+        "original_MT020_AC8_residual_preserved": true
+      },
+      "implementation_or_proof_leases_granted": false,
+      "new_attempt_allowance_granted": false
     }
   },
   "operator_core_unblock_amendments_20261012": {
     "decision_id": "WP012-P2-CORE-UNBLOCK-AMENDMENTS-20261012",
     "state": "APPROVED_SOURCE_PREPARATION_ONLY_RUNTIME_PREDECESSORS_PRESERVED",
-    "bootstrap_catalog_reconciliation": {"id": "WP012-P2-EXACT-BOOTSTRAP-CATALOG-20261012", "operator_quote": "Approve exact bootstrap reconciliation", "scope": "Existing bootstrap/catalog owner verifies exact shared base installation and exact composed production state, accounts for every module table/field/index/function override and preserves historical migration pins", "paths": ["src/backend/handshake_core/src/storage/surreal/schema.rs", "src/backend/handshake_core/src/storage/surreal.rs"], "forced_dependency_ref": "MT-174.json#/round36_bootstrap_catalog_reconciliation_20261012/forced_palmistry_dependency", "constraints": "No ignored objects, relaxed counts, caller-selected bypass, fabricated INFO/source proof, parallel checker or blind persisted-pin overwrite; exact deterministic stage/ownership/state contract and independent complete production fresh/reopen proof", "owner_mt": "MT-174", "implementation_ref": "MT-174.json#/round36_bootstrap_catalog_reconciliation_20261012", "ordering": "Serial sole writer after current provider, consumers and composer source; original compiler/source review/resource/gameplan and runtime publication prerequisites preserved"},
+    "bootstrap_catalog_reconciliation": {
+      "id": "WP012-P2-EXACT-BOOTSTRAP-CATALOG-20261012",
+      "operator_quote": "Approve exact bootstrap reconciliation",
+      "scope": "Existing bootstrap/catalog owner verifies exact shared base installation and exact composed production state, accounts for every module table/field/index/function override and preserves historical migration pins",
+      "paths": [
+        "src/backend/handshake_core/src/storage/surreal/schema.rs",
+        "src/backend/handshake_core/src/storage/surreal.rs"
+      ],
+      "forced_dependency_ref": "MT-174.json#/round36_bootstrap_catalog_reconciliation_20261012/forced_palmistry_dependency",
+      "constraints": "No ignored objects, relaxed counts, caller-selected bypass, fabricated INFO/source proof, parallel checker or blind persisted-pin overwrite; exact deterministic stage/ownership/state contract and independent complete production fresh/reopen proof",
+      "owner_mt": "MT-174",
+      "implementation_ref": "MT-174.json#/round36_bootstrap_catalog_reconciliation_20261012",
+      "ordering": "Serial sole writer after current provider, consumers and composer source; original compiler/source review/resource/gameplan and runtime publication prerequisites preserved"
+    },
     "navigation": {
       "id": "WP012-P2-NAVIGATION-PREPUBLICATION-SOURCE-001",
       "operator_quote": "Approve source preparation amendment",
-      "bounded_recording_purpose_amendment": {"id": "WP012-P2-BOUNDED-RECORDING-PURPOSES-20261012", "operator_quote": "Approve bounded recording purposes", "scope": "Two bounded diagnostic and recovery-checkpoint recording purposes retain existing original Workspace/Create operation and actual capability/grant; exact run/lane/receipt dependencies only", "preserved": "Ordinary recording only; RecoveryExecute, registry publication and independent runtime acceptance remain separate; original immutable records/hashes, atomic checkpoint high-watermark and all assertions retained", "implementation_ref": "MT-173.json#/round36_navigation_provider_preparation_20261012/recording_purpose_amendment_20261012", "owner_mts": ["MT-172", "MT-173"]},
+      "bounded_recording_purpose_amendment": {
+        "id": "WP012-P2-BOUNDED-RECORDING-PURPOSES-20261012",
+        "operator_quote": "Approve bounded recording purposes",
+        "scope": "Two bounded diagnostic and recovery-checkpoint recording purposes retain existing original Workspace/Create operation and actual capability/grant; exact run/lane/receipt dependencies only",
+        "preserved": "Ordinary recording only; RecoveryExecute, registry publication and independent runtime acceptance remain separate; original immutable records/hashes, atomic checkpoint high-watermark and all assertions retained",
+        "implementation_ref": "MT-173.json#/round36_navigation_provider_preparation_20261012/recording_purpose_amendment_20261012",
+        "owner_mts": [
+          "MT-172",
+          "MT-173"
+        ]
+      },
       "descendant_contract_amendment": {
         "id": "WP012-P2-NAVIGATION-TYPED-PROVENANCE-REDACTION-001",
         "operator_quote": "Approve typed provenance and redaction",
         "scope": "Typed canonical descendant provenance and versioned redacted navigation projection; omit denied or unresolved child payloads/references and their derived evidence; return non-disclosing404 for exact denied/unresolved child selectors",
         "preserved": "Stored records/hashes, actual canonical authority, authorized owner results and every original assertion; no invented resource/grant or reference-prefix authorization, new ResourceKind or runtime gate waiver",
-        "owner_mts": ["MT-172", "MT-173", "MT-174"]
+        "owner_mts": [
+          "MT-172",
+          "MT-173",
+          "MT-174"
+        ]
       },
       "amendment": "Permit exclusive writer assignment, preparation and independent source review of already-approved R2 navigation source before actual registry publication; narrowly supersedes that source-assignment ordering condition",
       "preserved": "Actual canonical registry publication and authentic Flight Recorder proof remain hard predecessors for registry-dependent runtime authorization and acceptance; all12 R2 units, original scope/pins/descendant restrictions and acceptance0/5 retained",
-      "owner_mts": ["MT-172", "MT-173", "MT-174"],
+      "owner_mts": [
+        "MT-172",
+        "MT-173",
+        "MT-174"
+      ],
       "assignment": "Serial sole coder; existing allowed paths; no blanket scope expansion or publication/grant fabrication"
     },
     "official_cli": {
@@ -1990,7 +2046,10 @@
       "amendment": "Authorize a versioned backend read-only explicit-path configuration contract carrying executable path, argv, output format, environment, working directory, timeout, provider and real nonempty operator model allowlist; existing validators and same pinned launcher consume it",
       "preserved": "No PATH rediscovery, default or fabricated allowlist/config, Tauri authority, config write, token extraction, fake binary or skipped runtime proof; source locator and actual operator values remain explicit required inputs",
       "owner_mt": "MT-172",
-      "proposed_write_paths": ["src/backend/handshake_core/src/api/model_access.rs", "src/backend/handshake_core/tests/cloud_official_cli_bridge_live_tests.rs"],
+      "proposed_write_paths": [
+        "src/backend/handshake_core/src/api/model_access.rs",
+        "src/backend/handshake_core/tests/cloud_official_cli_bridge_live_tests.rs"
+      ],
       "runtime_inputs": "NOT_SUPPLIED; no configured path/allowlist or live readiness inferred from contract approval"
     }
   },
@@ -3271,7 +3330,7 @@
     },
     "kernel_builder_sequence_note": "KERNEL_BUILDER re-sequence 2026-06-24: the E8 proof capstones MT-044 (parity suite, depends_on 001-043+047-062), MT-045 (perf proof), MT-046 (interconnection proof) are DEFERRED to the END of the WP - they prove the whole editor set + most of their proofs require live WP-scoped embedded SurrealDB/EventLedger (NEEDS_MANAGED_RESOURCE_PROOF). Build the remaining FEATURE MTs first in numeric order: E1-deepening 047-054, E2-deepening 055-059, E3-deepening 060-062, E9 063-065, E10 066-068+074, E11 host-mount 069-071 (the convergence point that mounts the editors live + clears the carry-forwards), E12 072-073, E13 i18n 075-078. THEN run the 044-046 capstones last for a truthful comprehensive parity manifest.",
     "wp_status": "IN_PROGRESS_OPEN_REPAIR",
-    "diagnostic_expansion_note": "WP SCOPE ADJUSTMENT (operator 2026-06-27): MT-081..MT-096 added to THIS WP build the three-tier diagnostic tools decoupled from the Flight Recorder (Master Spec v02.196 \u00a75.8 internal_diagnostics + \u00a76.13 Palmistry): internal_diagnostics (in-app native-egui self-diagnostics: shm ring, panic hook, heartbeat, frame-time, CPU/RSS/GPU, open diagnostic-event API, in-app panel, backend-down freeze fix) + Palmistry (external out-of-process watcher: ring reader, freeze/crash detection, minidump, survivor store, FR-forward). FR kept as-is. Same ultracode per-MT pipeline as the editor MTs. MT-081=ring substrate; 082-088=internal_diagnostics; 089-094=Palmistry; 095=HBR-INT-009 gate; 096=end-to-end freeze+crash proof. The retrofit of already-built features = WP-KERNEL-016 stub (future).",
+    "diagnostic_expansion_note": "WP SCOPE ADJUSTMENT (operator 2026-06-27): MT-081..MT-096 added to THIS WP build the three-tier diagnostic tools decoupled from the Flight Recorder (Master Spec v02.196 §5.8 internal_diagnostics + §6.13 Palmistry): internal_diagnostics (in-app native-egui self-diagnostics: shm ring, panic hook, heartbeat, frame-time, CPU/RSS/GPU, open diagnostic-event API, in-app panel, backend-down freeze fix) + Palmistry (external out-of-process watcher: ring reader, freeze/crash detection, minidump, survivor store, FR-forward). FR kept as-is. Same ultracode per-MT pipeline as the editor MTs. MT-081=ring substrate; 082-088=internal_diagnostics; 089-094=Palmistry; 095=HBR-INT-009 gate; 096=end-to-end freeze+crash proof. The retrofit of already-built features = WP-KERNEL-016 stub (future).",
     "usability_expansion_note": "WP SCOPE EXPANSION #2 (operator 2026-06-27): MT-097..MT-104 = make Handshake actually USABLE as the product - a work surface with a chatbox beside it (like Obsidian + VS Code/Cursor/Antigravity; Handshake goes deeper later with more tools/workflows). Operator currently CANNOT use notes in the running GUI. MT-097 notes-ONLY default worksurface (strip/hide all non-notes feature panes for now - add+rewire per-feature later); MT-098 chatbox panel beside the worksurface (the editor+chat core layout); MT-099 end-to-end notes usability (open->edit->save a document in the running app, proven live); MT-100 terminal-session launch inside a repo folder with the correct wrapper; MT-101 local/cloud MODEL launch inside a repo folder with the correct wrapper; MT-102 visual debugger inspects operator worksurfaces/window-structure/tooling; MT-103 foreground-SAFE front-end navigation (drive+test the GUI WITHOUT stealing operator mouse/keyboard) - patch+expand so models can test inside Handshake; MT-104 internal manual updated for notes/editors + terminal/model launch + visual debugger. ORDER: built AFTER the diagnostic MTs 081-096. The VS Code/Obsidian clone is a main selling ticket - inaccessible = broken. DIAGNOSTICS PLACEMENT (operator 2026-06-27): the in-app diagnostics panel (MT-087) lives in the OPTIONS/SETTINGS window (Settings->Diagnostics), NOT as a worksurface feature pane - so MT-097 notes-only worksurface excludes it and MT-104 manual documents it under Settings.",
     "preexisting_suite_failures": "As of MT-085 full-suite: (1) test_menu_wireup::file_save (MT-069/020 FILE>Save dispatch) -> notes-save broken, pinned MT-099; (2) test_quick_switcher nav/focus kittest flakiness (MT-017/030) -> open-file nav, check in MT-097/099; (3) test_perf_large_code::perf_lc07_minimap (MT-045) -> -j2 concurrency flake, passes isolated. All baseline-proven pre-existing (NOT diagnostic-build regressions).",
     "diagnostic_gate_policy": "DIAGNOSTIC MT GATE (from MT-086 on): a diagnostic MT (081-096) is gated on (a) its OWN feature tests GREEN + (b) NO NEW full-suite regression vs the feat/WP-KERNEL-012 baseline (proven by baseline-stash isolation), NOT on a fully-green -j2 suite. The pre-existing editor-MT flakes are a documented carve-out (WP-level test-stabilization debt): test_menu_wireup::file_save (MT-069/020, FILE>Save - real bug, pinned MT-099), test_quick_switcher (MT-017/030, non-deterministic kittest timing), test_settings_dialog::reset_panes (kittest timing), test_perf_large_code::perf_lc07 (MT-045, -j2 concurrency flake, passes isolated). These are owned by their editor MTs + the usability cluster (097-099) / WP validation to stabilize.",
@@ -3330,7 +3389,7 @@
       "contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-167.json",
       "authored_by": "KERNEL_BUILDER-LANE-B-20260930",
       "authored_at_utc": "2026-09-30T21:30:00Z",
-      "summary": "Narrow MT for the code-nav index cost (0 ms batch Ok(None) -> ~24 s per-file fallback) against Master Spec \u00a72.3.14.17.3; owning module bound from AC-167-1 evidence before any product edit.",
+      "summary": "Narrow MT for the code-nav index cost (0 ms batch Ok(None) -> ~24 s per-file fallback) against Master Spec §2.3.14.17.3; owning module bound from AC-167-1 evidence before any product edit.",
       "blocks": [
         "MT-008",
         "MT-064",
@@ -3357,7 +3416,7 @@
     "authoring_status": "AUTHORED",
     "authored_at_utc": "2026-06-21T00:00:00Z",
     "authored_count": 179,
-    "authored_via": "46 base via workflow wf_3d7b88d0-301 (2026-06-19); +28 expansion MT-047..MT-074 via workflow wf_01ae2073-72e (2026-06-21); +4 i18n MT-075..MT-078 (E13) authored directly by KERNEL_BUILDER 2026-06-22 (operator-ordered scope expansion, based on the existing MT template). All reviewed by KERNEL_BUILDER. ; +47 MT-079..MT-127 authored across the V2/V3/V4 remediation waves; +1 MT-128 authored 2026-08-13 by KERNEL_BUILDER-20260812-113007 (MT-043 live-child wall-clock budget, isolated while re-proving AC-120-3). Count corrected from 81 to 128 by direct file census of the contract glob, which is the authority - the stale number was never load-bearing because discovery is glob-based, but a wrong count invites a wrong completeness claim. ; +5 MT-129..MT-133 authored 2026-08-13 from root-caused MT-108 sweep failures and the MT-117 contract conflict. ; +2 MT-140..MT-141 authored 2026-08-18 by KERNEL_BUILDER-20260818-130753 under the Operator SurrealDB-only directive: MT-140 owns the frontend test-suite PostgreSQL-language purge and the broken run_fixture_sql call sites the fixture conversion left behind; MT-141 owns the backend test-suite port off sqlx (~190 files), which MT-137's notes had flagged as needing its own microtask. Count 141 by direct file census of the contract glob. ; +1 MT-142 authored 2026-08-23 by an Operator-requested governance subagent for SurrealDB-only parallel swarm concurrency/load hardening, bounded retry with jitter, coarse-lock replacement, lifecycle stress, structured metrics and two-lens adversarial validation. Count 142 by direct file census of the contract glob. ; +1 MT-142 authored 2026-08-23 (Operator-requested SurrealDB swarm concurrency/load MT). Count 142 by direct file census of the contract glob on 2026-09-02; MT-136-candidate-boundary.json is a non-contract sidecar and is excluded. ; +5 MT-153..MT-157 operator scope expansion 2026-09-23 (authority migration + security residuals): MT-153 Loom routes account-session authority (IN_PROGRESS, KERNEL_BUILDER-C3), MT-154 non-Loom routes account-session authority + residuals (create-note drain, root-written receipts, revision-158/159 predecessor checksums, workspace-delete residue), MT-155 authenticate /kernel/product_screenshot_capture/execute, MT-156 debug bundle export/download authority, MT-157 durable debugger breakpoints under account session. Authored by an Orchestrator governance subagent on Operator direction. authored_count incremented by 5 as instructed; note the direct file census of the contract glob is 157 MT-*.json contracts (MT-001..MT-157; MT-136-candidate-boundary.json excluded), so the pre-existing count (144) was already stale by 8. ; +4 MT-160..MT-163 authored 2026-09-29 on Operator-approved preservation-first MT-032 split. Exact numeric MT contract census159 before/163 after; correct stale149, exclude MT-136-candidate-boundary.json. ; +1 MT-167 authored 2026-09-30 by KERNEL_BUILDER-LANE-B-20260930 on Operator decision WP012-OPERATOR-DECISIONS-20260930-C (code-nav index cost vs spec \u00a72.3.14.17.3; MT-164 precedent shape).",
+    "authored_via": "46 base via workflow wf_3d7b88d0-301 (2026-06-19); +28 expansion MT-047..MT-074 via workflow wf_01ae2073-72e (2026-06-21); +4 i18n MT-075..MT-078 (E13) authored directly by KERNEL_BUILDER 2026-06-22 (operator-ordered scope expansion, based on the existing MT template). All reviewed by KERNEL_BUILDER. ; +47 MT-079..MT-127 authored across the V2/V3/V4 remediation waves; +1 MT-128 authored 2026-08-13 by KERNEL_BUILDER-20260812-113007 (MT-043 live-child wall-clock budget, isolated while re-proving AC-120-3). Count corrected from 81 to 128 by direct file census of the contract glob, which is the authority - the stale number was never load-bearing because discovery is glob-based, but a wrong count invites a wrong completeness claim. ; +5 MT-129..MT-133 authored 2026-08-13 from root-caused MT-108 sweep failures and the MT-117 contract conflict. ; +2 MT-140..MT-141 authored 2026-08-18 by KERNEL_BUILDER-20260818-130753 under the Operator SurrealDB-only directive: MT-140 owns the frontend test-suite PostgreSQL-language purge and the broken run_fixture_sql call sites the fixture conversion left behind; MT-141 owns the backend test-suite port off sqlx (~190 files), which MT-137's notes had flagged as needing its own microtask. Count 141 by direct file census of the contract glob. ; +1 MT-142 authored 2026-08-23 by an Operator-requested governance subagent for SurrealDB-only parallel swarm concurrency/load hardening, bounded retry with jitter, coarse-lock replacement, lifecycle stress, structured metrics and two-lens adversarial validation. Count 142 by direct file census of the contract glob. ; +1 MT-142 authored 2026-08-23 (Operator-requested SurrealDB swarm concurrency/load MT). Count 142 by direct file census of the contract glob on 2026-09-02; MT-136-candidate-boundary.json is a non-contract sidecar and is excluded. ; +5 MT-153..MT-157 operator scope expansion 2026-09-23 (authority migration + security residuals): MT-153 Loom routes account-session authority (IN_PROGRESS, KERNEL_BUILDER-C3), MT-154 non-Loom routes account-session authority + residuals (create-note drain, root-written receipts, revision-158/159 predecessor checksums, workspace-delete residue), MT-155 authenticate /kernel/product_screenshot_capture/execute, MT-156 debug bundle export/download authority, MT-157 durable debugger breakpoints under account session. Authored by an Orchestrator governance subagent on Operator direction. authored_count incremented by 5 as instructed; note the direct file census of the contract glob is 157 MT-*.json contracts (MT-001..MT-157; MT-136-candidate-boundary.json excluded), so the pre-existing count (144) was already stale by 8. ; +4 MT-160..MT-163 authored 2026-09-29 on Operator-approved preservation-first MT-032 split. Exact numeric MT contract census159 before/163 after; correct stale149, exclude MT-136-candidate-boundary.json. ; +1 MT-167 authored 2026-09-30 by KERNEL_BUILDER-LANE-B-20260930 on Operator decision WP012-OPERATOR-DECISIONS-20260930-C (code-nav index cost vs spec §2.3.14.17.3; MT-164 precedent shape).",
     "reserved_draft_count": 7,
     "execution_restructure_ref": "packet.json#/operator_workflow_restructure_20261013"
   },

@@ -152,8 +152,8 @@
     "validator_verdict": "PENDING",
     "claimed_by": null,
     "completed_by": null,
-    "next_actor": "KERNEL_BUILDER prepares the approved exact native compiler dispatch; original deployment owner supplies genuine deployment/context bindings",
-    "blocked_on": "Original deployed executable/data root and existing authenticated context remain unbound after documented metadata discovery; approved native compiler prerequisite is pending"
+    "next_actor": "KERNEL_BUILDER prepares bounded existing MT175 native lock remediation; original deployment owner supplies genuine deployment/context bindings",
+    "blocked_on": "Native compiler prerequisite failed101 because current path dependencies require native Cargo.lock reconciliation; exact-one grant spent. Original deployed executable/data root and existing authenticated context remain unbound."
   },
   "scope": {
     "summary": "Genuine native deployment and authenticated-context admission",
@@ -365,6 +365,41 @@
     "original_deployment_executable_and_data_root": "UNBOUND; approved selectors only, no claim about renamed/unbound deployments",
     "existing_session_grant_policy_reviewer": "UNBOUND; no authcall/DBquery/secret read/provisioning",
     "canonical_outcome": "NOT_ACQUIRED",
-    "native_compiler_proof": "NOT_RUN; retained955-node metadata is resolution only"
+    "native_compiler_proof": "FAIL101; see native_compiler_result_20261013. Retained955-node metadata has invalidated inputs and is historical only.",
+    "broader_documented_discovery": {
+      "operator_quote": "deliberate with you teams, explore and decide for youself and continue",
+      "observers": ["01a1323e-a014-7252-ab58-8cb5a256b792", "01a1323e-d84e-7793-a23f-a1ac8626ceb7", "01a1323e-8219-7f01-b326-bbd802d1ba9a"],
+      "disposition": "ORIGINAL_DEPLOYMENT_UNBOUND / NOT_ADMITTED",
+      "scoped_observations": "Documented installer directory and registry marker, both documented Start Menu shortcuts, six current/historical executable selectors, default binding/store/listener and named source process selectors absent. Five documented environment selectors absent at Process/User/Machine; product-local scope is removed after startup, so current absence alone does not disprove loaded authority.",
+      "source_refs": ["installer/windows/handshake_native.wxs:39", "src/frontend/handshake_native/scripts/build_installer.ps1:60", "src/backend/handshake_core/src/main.rs:59", "src/backend/handshake_core/src/main.rs:512", "src/backend/handshake_core/src/storage/surreal/mod.rs:434", "src/frontend/handshake_native/src/mcp/binding.rs:431", "src/frontend/handshake_native/src/manual_content_editors.rs:418"],
+      "scope_limit": "Known documented selectors only; no claim that relocated or renamed deployments exist nowhere. No secret read, DB opener, authentication call, provisioning, launch or process disruption.",
+      "required_external_binding": "Original existing launcher/executable and provenance, effective original data root/listener/native binding, genuine current authenticated context holder plus canonical workspace/grant/policy/reviewer observation. Channel binding and four-ID session projection alone do not establish full admission."
+    }
+  },
+  "native_compiler_result_20261013": {
+    "status": "FAIL101_LOCK_ADMISSION",
+    "attempt_id": "fd6e9cbdb0a74d5194a34b268f796d74",
+    "command": "cargo check --locked --manifest-path src/frontend/handshake_native/Cargo.toml --tests -j 1",
+    "candidate_commit": "37f452a6b3b07c0ffd91ab49c3f99632c4104bb8",
+    "candidate_tree": "e22db7bd603b56caac2fec5cef9afc2e8b38733f",
+    "authority_kernel_commit": "555fb579c64448928ef3f851bd11e5113ecc05f0",
+    "artifact_lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-preparation",
+    "actual_numeric_exit": 101,
+    "wrapper_pid": 39896,
+    "cargo_pid": 39560,
+    "completed_at_utc": "2026-10-13T00:20:51.7370158Z",
+    "diagnosis": "Actual closed stderr: cannot update native Cargo.lock because --locked prevents it. Dependency-lock admission failure; no source compiler or runtime verdict.",
+    "result_sha256": "bf96956cbe51110c3564046f24c41d5b0dbc0675a4cfa80ed75ae4cf7aedeb84",
+    "evidence_sha256": "ad9be85365421eacc58e2f7b80b2514b6c9b16b02ad34c351fd94a024691ccee",
+    "post_binding_sha256": "34c142d05528bbb6a68ee6e92404605707c72b54e42cc1cca64786493b2bece6",
+    "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderr_sha256": "abe8fae6272606102f203a9d3ecaa70419fe9c81afbf5521137a217966aacb28",
+    "binding_observation": "All7416 source inputs,23 manifest/config inputs,10 raw authorities and20 before/after binding categories equal; source and locks unchanged. Both owned processes exited. Target30396593422 bytes within existing180GB cap.",
+    "independent_reviewer": "01a1323e-c183-77e3-b8ba-b286507e5617",
+    "independent_verdict": "FAIL101; actual artifacts opened and canonical current inputs independently rehashed",
+    "grant_disposition": "Exactly one approved compiler attempt consumed; no second run, metadata execution, lock mutation or acceptance narrowing granted by this result.",
+    "runtime_acceptance": "NOT_RUN",
+    "preparation_cause_ref": "gameplan.yaml#/GP-535",
+    "preserved_proofs": ["MT-183.json#/independent_acceptance_20261013", "MT-184.json#/independent_acceptance_20261013"]
   }
 }
