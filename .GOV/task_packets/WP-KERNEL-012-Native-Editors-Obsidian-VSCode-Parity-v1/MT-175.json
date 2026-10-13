@@ -1,6 +1,6 @@
 {
   "bounded_native_diagnostics_export_repair_20261013": {
-    "state": "SOURCE_ONLY_LIBRARY_EXPORT_LEASE_RELEASED",
+    "state": "CLOSED_SOURCE_ONLY_LIBRARY_EXPORT_CHECKPOINT_PUSH_VERIFIED",
     "owner": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
     "failure_ref": "MT-186.json#/native_producer_recheck_result_20261013",
     "candidate_commit": "1d170964bfff8a189bc68425e76c86bce0e53178",
@@ -5713,5 +5713,22 @@
       "compiler_after_repair": "NOT_RUN; new exact native compiler approval required because previous exact-one grant was consumed",
       "proof_reuse": "MT183/184 historical independent proof remains valid for its unchanged backend/core inputs; native Cargo.lock is not an input to their exact core commands. No claim of current native compiler acceptance."
     }
+  },
+  "native_diagnostics_export_repair_checkpoint_20261013": {
+    "state": "CLOSED_SOURCE_ONLY_CHECKPOINT_PUSH_VERIFIED",
+    "lease_ref": "/bounded_native_diagnostics_export_repair_20261013",
+    "commit": "73368c07fe7ab713e1110c85004a0a18882351b5",
+    "tree": "0ba903d5ffdf2a19025eb5f0d16498b4327e5b50",
+    "parent": "1d170964bfff8a189bc68425e76c86bce0e53178",
+    "only_changed_path": "src/frontend/handshake_native/src/lib.rs",
+    "source_sha256": "89984e6c8f1c3781b916744c0cf9b027b80148e9438679090ababd56b8c9cf89",
+    "reviewed_diff_sha256": "6b0e08dd8e510eb387fbf56e54a94341ce3f446e5f74e37b6fd95f6bf57026e3",
+    "comparison_sha256": "53dea0ec2ac99538d8922e778aeee3418ad64ea38197bee1f4cf93d1317cae13",
+    "artifact_lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt175-diagnostics-export-repair",
+    "checkpoint_result_sha256": "b08cfe690d222f0e44670fde7ff48bb77198e5b2bdbf34f33947bbc4c1ca1f4a",
+    "independent_reviewer": "01a1323e-c183-77e3-b8ba-b286507e5617",
+    "verdict": "SOURCE_CLEAR only; independent postcheckpoint canonical remote, clean status, sole lib export diff and all7416 reviewed input bytes exact",
+    "root_reread": "Actual HEAD/tree/parent, live GitHub branch SHA, clean assigned worktree, committed one-line diff and source/checkpoint hashes independently verified",
+    "limits": "No compiler/tests/metadata/runtime run on this checkpoint. Four FAIL101 exact-one approvals spent. InternalDiagnostics startup wiring, genuine deployment/auth admission, durable and multiwindow acceptance remain OPEN unchanged; no PASS or MT completion."
   }
 }

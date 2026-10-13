@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 665
+generation: 667
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -563,3 +563,5 @@ steps:
 - {id: GP-542, role: builder, at: before_round, do: 'verify current confirmation notes name actual candidate tree, source deltas and closure rows', check: {type: confirm}, source: 'prep: carried current notes kept old tree and7415 unchanged counts despite four producer changes', state: active}
 - {id: GP-543, role: builder, at: before_round, do: verify restored native producers are exported by the library crate root before compiler dispatch, check: {type: confirm}, source: 'fail: native E0433 restored client diagnostics producer exists but library module is not exported', state: active}
 - {id: GP-544, role: builder, at: before_round, do: verify parent launch forwards the owned wrapper numeric exit without outer-shell remapping, check: {type: confirm}, source: 'infra: parent PowerShell invocation mapped owned Cargo101 to outertool1 without explicit exit forwarding', state: active}
+- {id: GP-545, role: builder, at: before_round, do: verify patch anchor newline against actual owned-file bytes before source assertions, check: {type: confirm}, source: 'infra: lib.rs anchor assumed CRLF but actual LF; assertion failed before mutation', state: active}
+- {id: GP-546, role: builder, at: before_round, do: verify Git path-list guards parse stdout separately from retained stderr diagnostics, check: {type: confirm}, source: 'infra: Git LF warning merged into diff stdout made exact path assertion fail before checkpoint', state: active}

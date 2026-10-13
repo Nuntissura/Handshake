@@ -533,5 +533,17 @@
     "runtime_acceptance": "NOT_RUN",
     "preparation_cause_ref": "gameplan.yaml#/GP-535",
     "preserved_proofs": ["MT-183.json#/independent_acceptance_20261013", "MT-184.json#/independent_acceptance_20261013"]
+  },
+  "native_diagnostics_export_recheck_proposal_20261013": {
+    "state": "PENDING_OPERATOR_EXACT_ONE_NATIVE_EXPORT_RECHECK",
+    "repair_ref": "MT-175.json#/native_diagnostics_export_repair_checkpoint_20261013",
+    "candidate_commit": "73368c07fe7ab713e1110c85004a0a18882351b5",
+    "candidate_tree": "0ba903d5ffdf2a19025eb5f0d16498b4327e5b50",
+    "command": "cargo check --locked --manifest-path src/frontend/handshake_native/Cargo.toml --tests -j 1",
+    "target": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/target",
+    "profile_sha256": "df7068d5f93a49d17f48f7404a7c4251e2be8f17abc1d2fd5bb04068ee727081",
+    "aggregate_existing_target_cap_bytes": 180000000000,
+    "scope": "Exactly one further original native compiler check after independent source review and pushed one-line library export repair. All four prior approvals spent and FAIL101 retained.",
+    "limits": "No dispatch before new Operator approval, fresh current input/resource/gameplan admission and independent runner review. Same MT174 profile, C: target and aggregate cap; no metadata, test execution, runtime provisioning, process disruption, auth/deployment manufacture, budget reset or acceptance narrowing. Compiler evidence only."
   }
 }
