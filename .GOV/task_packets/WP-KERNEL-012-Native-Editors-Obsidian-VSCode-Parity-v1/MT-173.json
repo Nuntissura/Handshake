@@ -1,6 +1,23 @@
 {
   "bounded_native_feature_repair_20261013": {
-    "state": "SOURCE_ONLY_LEASE_RELEASED",
+    "state": "CLOSED_SOURCE_ONLY_CHECKPOINT_PUSH_VERIFIED",
+    "result": {
+      "commit": "5e4133679c3bbba904c6d17cfd46cadab93dc97b",
+      "tree": "5179ab7947d14e71bdcc5b9b8ee7d91b4a5265d2",
+      "parent": "c00c1de6d93bdf93b4da36ee3efbdaa4ed5490c5",
+      "source_sha256": "9765d43d7c3ccb63fde4ec1da6bfc1a3b307c80913c108616be8db91e53f6d52",
+      "diff_sha256": "bf925c1172c972a585aed70f8643372866bb4cfb06677f61a0e5e944ac9ff7d0",
+      "artifact_lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt173-native-feature-repair",
+      "checkpoint_result_sha256": "c3205f610f34d73a13bfc1dd650f490ca447b350e1cec6b9f1963fffdeddadf4",
+      "independent_reviewer": "01a1323e-c183-77e3-b8ba-b286507e5617",
+      "independent_verdict": "SOURCE_CLEAR; exact byte inverse, unchanged other7415 inputs, enabled sync/durability semantics preserved; committed one-file diff, remote exactHEAD and clean worktree independently verified",
+      "source_observation": "Fresh7416 canonical inputs equal reviewed source-after; only storage/tests.rs changed from native failed candidate",
+      "remote_ref": "refs/heads/feat/WP-KERNEL-012",
+      "remote_commit": "5e4133679c3bbba904c6d17cfd46cadab93dc97b",
+      "native_current_candidate": "NOT_RUN; prior FAIL101 preserved",
+      "core_proof_disposition": "Historical enabled test-support behavior evidence retained; changed candidate raw binding NOT_PROVEN. No new candidate/core/runtime PASS.",
+      "compiler_tests_metadata_runtime": "NOT_RUN"
+    },
     "failure_ref": "MT-186.json#/native_recheck_result_20261013",
     "authority_ref": "packet.json#/operator_workflow_restructure_20261013",
     "owner": "01a1323e-8bb0-7770-9420-07af9d1f22ec",

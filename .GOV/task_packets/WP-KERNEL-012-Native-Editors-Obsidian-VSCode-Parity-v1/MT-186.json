@@ -1,4 +1,16 @@
 {
+  "native_feature_repair_recheck_proposal_20261013": {
+    "state": "PENDING_EXACT_ONE_COMPILER_APPROVAL",
+    "repair_ref": "MT-173.json#/bounded_native_feature_repair_20261013/result",
+    "candidate_commit": "5e4133679c3bbba904c6d17cfd46cadab93dc97b",
+    "candidate_tree": "5179ab7947d14e71bdcc5b9b8ee7d91b4a5265d2",
+    "command": "cargo check --locked --manifest-path src/frontend/handshake_native/Cargo.toml --tests -j 1",
+    "output_owner": "WP-KERNEL-012/MT-174/kb-phase02",
+    "target": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/target",
+    "profile_sha256": "df7068d5f93a49d17f48f7404a7c4251e2be8f17abc1d2fd5bb04068ee727081",
+    "aggregate_existing_target_cap_bytes": 180000000000,
+    "limits": "One proposed further original native check after independently reviewed and pushed one-file feature-gate repair. Both previous failures remain retained. No dispatch before Operator approval, fresh current bindings and resource/gameplan admission, independent runner review. No metadata, runtime provisioning, process disruption, profile/target/cap change or counter reset."
+  },
   "native_recheck_result_20261013": {
     "status": "FAIL101_FEATURE_GATED_STORAGE_HELPER",
     "attempt_id": "859b32c70bd04b90a7a627433316947f",
@@ -180,8 +192,8 @@
     "validator_verdict": "PENDING",
     "claimed_by": null,
     "completed_by": null,
-    "next_actor": "Assigned MT173 writer repairs the exact feature-gated storage helper, independent reviewer inspects the source diff, then root records checkpoint and requests one further scoped compiler decision; original deployment owner supplies genuine deployment/context bindings",
-    "blocked_on": "Approved native recheck failed101 at storage/tests.rs466 due to mismatched method feature gate. Both exact-one approvals spent. Source-only repair released under MT173; fresh compiler proof ungranted. Original deployed executable/data root and existing authenticated context remain unbound."
+    "next_actor": "Operator decides one further exact native compiler check on independently reviewed and pushed 5e4133679; original deployment owner supplies genuine deployment/context bindings",
+    "blocked_on": "Approved native recheck failed101 at storage/tests.rs466; exact source repair independently reviewed and pushed in 5e4133679. Both prior approvals spent and new candidate compiler proof NOT_RUN. Original deployed executable/data root and existing authenticated context remain unbound."
   },
   "scope": {
     "summary": "Genuine native deployment and authenticated-context admission",
