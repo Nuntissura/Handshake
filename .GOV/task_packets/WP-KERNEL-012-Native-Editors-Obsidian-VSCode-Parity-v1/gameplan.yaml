@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 661
+generation: 662
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -559,3 +559,4 @@ steps:
 - {id: GP-538, role: builder, at: before_round, do: verify handler ACK binds full request and dispatch frame; terminal proof uses later production frame, check: {type: confirm}, source: 'review: native ACK ignored payload and allowed later-frame identical-event attribution', state: active}
 - {id: GP-539, role: builder, at: before_round, do: verify same-frame target release and readmission cannot inherit an old handler event, check: {type: confirm}, source: 'review: released weak ACK reservation allowed same-frame identical-event reassignment', state: active}
 - {id: GP-540, role: builder, at: before_round, do: verify ACK source assertions trace actual completed-frame counts before admission expectations, check: {type: confirm}, source: 'review: aged Drop case incorrectly expected same-frame denial after two completed frames', state: active}
+- {id: GP-541, role: builder, at: before_round, do: verify refreshed binding closure counts and retained-failure budget match current rows, check: {type: confirm}, source: 'prep: inherited binding labels retained old162 rows and two failures after new163 rows and third failure', state: active}
