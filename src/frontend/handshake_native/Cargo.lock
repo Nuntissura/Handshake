@@ -3265,6 +3265,7 @@ dependencies = [
  "getrandom 0.2.17",
  "globset",
  "half",
+ "handshake-diag-ring",
  "handshake_document",
  "handshake_storage_support",
  "hex",
@@ -3272,6 +3273,7 @@ dependencies = [
  "icalendar",
  "idna",
  "image",
+ "interprocess",
  "jsonschema",
  "lopdf",
  "once_cell",
@@ -5420,8 +5422,10 @@ dependencies = [
  "chrono",
  "crash-handler",
  "dirs",
+ "ed25519-dalek 3.0.0",
  "handshake-diag-ring",
  "interprocess",
+ "libc",
  "minidump-writer",
  "minidumper",
  "reqwest 0.12.28",
@@ -5431,6 +5435,7 @@ dependencies = [
  "tracing-subscriber",
  "uuid",
  "windows-sys 0.61.2",
+ "zeroize",
 ]
 
 [[package]]
