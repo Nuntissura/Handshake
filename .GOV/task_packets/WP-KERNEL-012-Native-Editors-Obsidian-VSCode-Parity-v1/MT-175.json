@@ -1,4 +1,15 @@
 {
+  "bounded_native_client_producer_repair_20261013": {
+    "state": "SOURCE_ONLY_CLIENT_LEASE_RELEASED",
+    "failure_ref": "MT-186.json#/native_feature_recheck_result_20261013",
+    "owner": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+    "candidate_commit": "5e4133679c3bbba904c6d17cfd46cadab93dc97b",
+    "allowed_write_paths": ["src/frontend/handshake_native/src/backend_client.rs"],
+    "source_closure": "Reconcile missing CKC supplement from pinned c6e624664412f3413401be92914164b6909d720a lines13713-20043 and WP1 OperatorChatClient closure from c2d4e2c7bf8500e91d787bff25ff6b80b38becaf lines473-980. Preserve DTOs, complete model-operation context, byte length/SHA checks, original consumers and required client methods.",
+    "current_owner_adaptations": "Consume current bounded shared HTTP client, AccountContext, AuthenticatedRequest and body/logout guards. Adapt old get/post/put/bytes calls to current authenticated transport; deduplicate existing helpers. Minimum actor constructor/model-lease/session-header bridge must not make actor headers an authentication fallback or manufacture identity/context/grants. Keep all current prefix edits except directly required reviewed merge sites.",
+    "limits": "One product writer, one file, source-only original import remediation. No blind whole-file replacement, stubs, consumer removal, new auth authority, provisioning, runtime, metadata, compiler, schema, manifest/lock, branch/worktree or kernel writes. Argus ACK integration remains separately held pending exact existing-owner closure plan. No checkpoint until root and independent actual diff review.",
+    "validation": "Complete native compiler proof remains required only after both client and ACK producer closures are reviewed and checkpointed. All three previous compiler failures remain retained; no further run is granted. Source comparison and original/current behavior reconciliation precede checkpoint."
+  },
   "native_import_producer_failure_20261013": {
     "result_ref": "MT-186.json#/native_feature_recheck_result_20261013",
     "status": "FAIL101_NATIVE_IMPORTED_PRODUCER_CLOSURE",
