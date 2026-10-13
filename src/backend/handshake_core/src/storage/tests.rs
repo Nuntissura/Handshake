@@ -462,8 +462,9 @@ async fn open_embedded_test_backend(
         ))
     })?;
     let config = SurrealStorageConfig::for_data_dir(&data_dir)
-        .map_err(|error| cleanup_unopened_test_store(&data_dir, error))?
-        .with_test_sync_from_env();
+        .map_err(|error| cleanup_unopened_test_store(&data_dir, error))?;
+    #[cfg(any(test, feature = "surreal-test-support"))]
+    let config = config.with_test_sync_from_env();
     let storage = open_test_storage_on_engine_runtime(config)
         .await
         .map_err(|error| cleanup_unopened_test_store(&data_dir, error))?;
