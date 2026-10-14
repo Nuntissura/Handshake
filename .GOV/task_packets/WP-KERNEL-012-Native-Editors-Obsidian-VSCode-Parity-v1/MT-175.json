@@ -1,4 +1,60 @@
 {
+  "four_group_connected_batch_repair_20261014": {
+    "decision_id": "WP012-NATIVE-FOUR-GROUP-BATCH-20261014",
+    "status": "CONNECTED_SOURCE_BATCH_RELEASED",
+    "updated_at_utc": "2026-10-14T03:59:57.623799+00:00",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "scope_expansion_quote": "i allow scope expantion if this directly fixes a failure or blocker",
+    "failure_ref": "MT-186.json#/delegated_stage01_check2_result_20261014",
+    "base_candidate": "7930cb914332836ec22724468c949f88c6182b66",
+    "primary_integrator": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+    "exact_write_paths": [
+      "src/frontend/handshake_native/src/backend_client.rs",
+      "src/frontend/handshake_native/src/atelier_side_panel.rs",
+      "src/frontend/handshake_native/src/atelier_panel.rs",
+      "src/frontend/handshake_native/src/visual_debugger/mod.rs",
+      "src/frontend/handshake_native/tests/test_ckc_embed.rs"
+    ],
+    "added_scope": [
+      "src/frontend/handshake_native/src/atelier_side_panel.rs",
+      "src/frontend/handshake_native/src/visual_debugger/mod.rs",
+      "src/frontend/handshake_native/tests/test_ckc_embed.rs"
+    ],
+    "ownership": "Primary owns backend_client/sidepanel/panel and affected existing tests as one response-generation/auth interface. Primary may assign one named worker exclusively visual_debugger/mod.rs, sameWP worktree, no worker commit/build/kernel/sourceotherwrites. Record helper identity before edits; primary assembles checkpoint after one scoped IV review.",
+    "repairs": [
+      {
+        "group": "ATELIER_KIND_PROJECTION_EXHAUSTIVENESS",
+        "change": "Explicitly reject four unsupported canonical Loom projection kinds using existing typed AppError path; retain original Media/file, Character/ckc_character, Moodboard/ckc_moodboard mappings and ID/source/account checks. Preserve all rich reference-chip behavior; no wildcard/alias/version-erasing CharacterSheet mapping.",
+        "open_residual": "No existing canonical four-kind projection producer verified; retain as OPEN if original consumed scope requires it, not new canvas support or acceptance."
+      },
+      {
+        "group": "ATELIER_LOOM_RELATION_PARSE",
+        "change": "Both existing parser initializers carry actual optional backend loom_block_id; preserve required fields/UUID/duplicate and canonical relation checks; reject malformed present values rather than fabricated None."
+      },
+      {
+        "group": "ATELIER_FULL_BATCH_COUNTS_PRODUCER",
+        "change": "Existing FIFO authenticated fetch_items/AtelierItemsCell carries existing AtelierBatchItemsProjection counts+strict items from SAME one HTTP response. Reuse existing typed lane counts; avoid permissive filter_map, second request, counting capped preview or fake zero counts.",
+        "sidepanel": "Accept rows+canonical full-batch counts atomically under same current generation/batch/auth context; getter returns existing typed counts. Clear/invalidate on collapse/switch/rebind/loadstart/retry/error/stale response. Missing counts unavailable, not zero.",
+        "ui": "Caller formats six existing lane counts+total; preserve stable author IDs, label/hover, original preview APIs where practical. No invented summary.value authority DTO.",
+        "tests": "Adapt existing test_ckc_embed items consumer without dropping original assertions; validate actual backend canonical counts. Add focused cases in existing owning inline targets only where needed: malformed/missing/out-of-range counts, total overflow, full counts larger than preview, same generation/batch delivery and stale/error/reset paths. No tests/runtime executed by source worker."
+      },
+      {
+        "group": "DEBUGGER_PANE_EXHAUSTIVENESS",
+        "change": "Three explicit existing variant keys SwarmLaneDiagnostics/OperatorChatLaunch/Wp1OrchestrationConsole following current pane_type_key naming; no wildcard or registry rename"
+      }
+    ],
+    "risks_controls": [
+      "Strict pre/post-body authenticated context and resource checks unchanged; no authorization fallback",
+      "Canonical counts and items from one payload, no generation/session mixing; clear both on all invalidation paths",
+      "No false canvas projection for unsupported richer kinds; optional real relation preserved",
+      "Structured numeric parsing fails closed and view aggregate cannot silently fabricate overflowing total",
+      "Disjoint worker modifies only owned debugger path and cannot commit an incomplete shared batch",
+      "All observed groups repaired before one assembled originalcheck; unchanged proof reused, source-only review not runtime acceptance"
+    ],
+    "proof": "One independent affected-interface/actualdiff review after coherent batch; source checkpoint/push then current bindings and originalnativecheck3. Existing original authenticated live proof and negative/persistence/GUI acceptance remain separate required results.",
+    "budget": "Stage2of3 consumed, six native failures retained. Final initialstage candidate remaining; after any limit root records new evidenced decision under delegation, no history reset or identical blindretry.",
+    "limits": "No backend/schema/manifest/lock/other product path edits, no metadata/test/compiler/runtime/secret/provision/foreign process action by source workers; additional actual caller path requires evidenced root scope amendment before writes."
+  },
   "windows_feature_checkpoint_20261014": {
     "commit": "7930cb914332836ec22724468c949f88c6182b66",
     "tree": "b5cdce641bdba2af14288dd6b5289df2f956aeb4",

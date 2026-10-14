@@ -4,8 +4,8 @@
   "file_kind": "handoff",
   "version": 6,
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
-  "updated_at_utc": "2026-10-14T02:53:56.422451+00:00",
-  "status": "WORKFLOW_ACTIVE_WINDOWS_FEATURE_CHECKPOINT_PUSHED_NATIVE_CHECK2_PREPARATION",
+  "updated_at_utc": "2026-10-14T03:59:57.623799+00:00",
+  "status": "WORKFLOW_ACTIVE_NATIVE_CHECK2_FAILED_FOUR_GROUP_PARALLEL_REPAIR",
   "operator_request": "ok update handoff, apply repo changes. commit and push gov kernel, then wp kernel 012 with dirt. then restart work, give all teams the updated workflow and changes to repo governance before restarting.. i will also hand off every descicion to you.",
   "document_authorization": "Operator authorizes handoff/repo changes, kernel then product checkpoint/push and restart, all team briefing first, delegates technical decisions and direct-blocker scope expansion",
   "plain_language_summary": "The schema repair and core compiler proof passed. Native application compilation has failed four times for different defects. The latest missing library declaration has been repaired, independently reviewed and pushed, but has not been compiled. Runtime startup, authenticated-session admission, durable action results and original WP acceptance remain unproven. The proposal uses three core roles and temporary specialists, with approvals for bounded stages instead of every compiler attempt.",
@@ -75,7 +75,7 @@
       "mt_id": "MT-186",
       "record": "MT-186.json",
       "observed_status": "BLOCKED",
-      "current_blocker": "Nativecompile remainsunproven after5FAIL101; oneWindowsfeature repair independentlyreviewed/pushed7930cb91, delegatedcheck2preparationactive stage1/3. Runtime/auth/publication remainunbound.",
+      "current_blocker": "Check2FAIL101 five diagnostics/four native assembly causes; six cumulativefailures, stage2/3. All groups traced and connected source/test scope expanded directly; nextoneassembledcheck after batch.",
       "latest_failure_ref": "MT-186.json#/native_producer_recheck_result_20261013",
       "next_decision_ref": "MT-186.json#/delegated_native_stage_20261014"
     },
@@ -169,7 +169,7 @@
     "spec_cross_wp_gap": "01a1323e-d84e-7793-a23f-a1ac8626ceb7",
     "helper_history": "Reuse v4 teams.new.helper_ownership_reported as historical assignment context, not a live liveness snapshot",
     "live_status": "NOT_INSPECTED in this documentation turn; do not infer active process/session state from chat existence",
-    "source_lease": "Manifestsourcecheckpointdone; no productwritersleased duringcurrentnativepreparation/capture",
+    "source_lease": "Primary nativeclient/sidepanel/panel/test batch plus optional named disjoint debugger worker, exact MT175 scope. Compile capture terminalclosed; no compiler while writersactive.",
     "preserve_existing_chats": true
   },
   "proposed_adaptive_team": {
@@ -376,13 +376,13 @@
   "scope_expansion_authority": "Delivery lead may authorize the smallest evidenced source/configuration/proof-method expansion that directly repairs a recorded failure or removes an exact blocker. Before writes, record failure, necessary paths, owner, risks/control and original proof. Preserve previous work and return to original outcome; no unrelated feature, invented authentication/grants/provenance or acceptance weakening.",
   "restart_execution_state": {
     "native_preparation_ref": "MT-186.json#/stage01_preparation_and_resource_blocker_20261014",
-    "source_repair_ref": "MT-175.json#/connected_windows_feature_repair_20261014",
-    "next_action": "Refresh changedmanifest/candidate/config/authority bindings andfreshadmission; reuse unchangedsource evidence and group officialconfirmations bysame actualproof. OneIVdelta review then originalnativecheck2.",
+    "source_repair_ref": "MT-175.json#/four_group_connected_batch_repair_20261014",
+    "next_action": "Primary assigns disjoint debugger worker, implements all4 observed groups with canonical single-response counts/generation/auth controls and existing tests; one IV affected-interface review, checkpoint/push, then originalnativecheck3 under retainedstage.",
     "runtime_blocker_refs": [
       "MT-186.json original deployment/auth admission",
       "Single-owned diagnostics signing/current watcher adoption and native durable receipt consumer missing; diagnostic/dependency reports provide exact paths for laterroot scope assignment"
     ],
-    "last_result_ref": "MT-186.json#/delegated_stage01_check1_result_20261014"
+    "last_result_ref": "MT-186.json#/delegated_stage01_check2_result_20261014"
   },
   "memory_policy_ref": "packet.json#/operator_memory_reserve_removal_20261014",
   "latest_shutdown_checkpoint_ref": "MT-188.json#/source_only_checkpoint_20261014",

@@ -1,4 +1,56 @@
 {
+  "delegated_stage01_check2_result_20261014": {
+    "status": "INDEPENDENT_FAIL101_FOUR_NATIVE_ASSEMBLY_GROUPS",
+    "stage_decision_ref": "/delegated_native_stage_20261014",
+    "attempt_id": "5885529797454617b76e019109306c6e",
+    "candidate": "7930cb914332836ec22724468c949f88c6182b66",
+    "kernel_capture": "59137b2da7b531aa6051e3b1e0c2b48c68c66e4f",
+    "completed_utc": "2026-10-14T03:26:32.2366138Z",
+    "cargo_numeric_exit": 101,
+    "wrapper_numeric_exit": 101,
+    "parent_tool_numeric_exit": 101,
+    "parent_command_id": "exec-f8ef6569-9d47-416c-a81a-6b113e9b57b3",
+    "diagnostics": 5,
+    "root_cause_groups": [
+      {
+        "id": "ATELIER_KIND_PROJECTION_EXHAUSTIVENESS",
+        "source": "backend_client.rs4172",
+        "failure": "E0004 four additional item kinds not handled; no verified canonical Loom content type/producer for these rich references"
+      },
+      {
+        "id": "ATELIER_LOOM_RELATION_PARSE",
+        "source": "backend_client.rs16089/16120",
+        "failure": "Two E0063 initializers omit actual optional loom_block_id"
+      },
+      {
+        "id": "ATELIER_FULL_BATCH_COUNTS_PRODUCER",
+        "source": "atelier_panel.rs16272/16826",
+        "failure": "E0599 missing expanded_batch_summary; canonical backend lane_counts discarded by Vec-only cell/sidepanel path"
+      },
+      {
+        "id": "DEBUGGER_PANE_EXHAUSTIVENESS",
+        "source": "visual_debugger/mod.rs643",
+        "failure": "E0004 mapping omits three existing pane variants"
+      }
+    ],
+    "result_sha256": "1e155b10a36cdd38ce68c2bcee66fb11d06c84e50b289993e1376876b33dabef",
+    "evidence_sha256": "6603826af774b36611c2e339f39d62cf869a789295be9d5437569b308dffafb5",
+    "stderr_sha256": "52a6381349a7053a88f4827026518596c3839668d420e5bb3dd75a318093a2b1",
+    "post_candidate_sha256": "b712390d41e9185fcfd457900aa22cc068f78a73253f387ec06b406dc806f111",
+    "artifact_lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-stage01-check02",
+    "independent_reviewer": "01a1323e-c183-77e3-b8ba-b286507e5617",
+    "binding": "Fresh all7416 inventory/bytes and20pre/postcategories,23configs11authorities3tools exactclean7930; owned36732/50376 absent",
+    "max_target_bytes": 36364905991,
+    "freeze": "CLOSED_TERMINAL_INDEPENDENT_FAIL101",
+    "stage_checks_consumed": 2,
+    "stage_failed_checks": 2,
+    "pre_stage_historical_failures": 4,
+    "cumulative_native_failed_checks": 6,
+    "not_reached": "Later native/test targets after failed library; backendmain not selected",
+    "resolved_previous_failure": "ProcessStatus feature E0432 absent",
+    "runtime_acceptance": "NOT_RUN; no parent ACCEPTANCE",
+    "next_repair_ref": "MT-175.json#/four_group_connected_batch_repair_20261014"
+  },
   "stage_check2_preparation_method_20261014": {
     "status": "APPROVED_CURRENT_CHANGED_CANDIDATE_PREPARATION",
     "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
@@ -83,7 +135,7 @@
     "target": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/target",
     "cap_bytes": 180000000000,
     "initial_additional_candidate_limit": 3,
-    "stage_terminal_checks": 1,
+    "stage_terminal_checks": 2,
     "historical_native_failed_checks": 4,
     "history_reset": false,
     "counter_disposition": "Explicit delegated continuation decision for reviewed export repair after four spent grants; preserve existing per-failure records. Same failed fix cannot repeat without changed relevant inputs and an evidenced changed approach. At limit delivery lead records next decision before further run.",
