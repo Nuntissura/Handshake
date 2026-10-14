@@ -1101,6 +1101,63 @@
         "terminal_budget_policy": "Metadata1of1 consumed; native compiler remains1of3 stage04, core0of2 stage06, all prior counters retained"
       }
     },
-    "specific_supersession": "Only stage04 limits prohibition on metadata is superseded for this exact one locked resolver capture; stage04 next diagnostic selector is superseded by original7argv. All other conditions, budgets and scope remain unchanged."
+    "specific_supersession": "Only stage04 limits prohibition on metadata is superseded for this exact one locked resolver capture; stage04 next diagnostic selector is superseded by original7argv. All other conditions, budgets and scope remain unchanged.",
+    "native_caller_preparation_repair_20261014": {
+      "decision_id": "WP012-NATIVE-CALLER-PREPARATION-20261014-14",
+      "status": "PREPARATION_RELEASED_INVOCATION_HELD",
+      "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+      "diagnostic_owner_chat": "01a13ad0-112c-7c51-9dac-b19da4d01c76",
+      "compiler_owner_chat": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+      "independent_validator_chat": "01a139f6-ce6a-7b50-a058-dff3732ea4a2",
+      "failure_basis": "Durable09 lost host settlement with scheduler3221225786/missing historical wrapper and host numerics. Its actual Cargo0 and matched postbinding are independently verified separately. Exact termination cause remains UNKNOWN; change the pipe/nested-supervisor dependency without claiming a proved historical cause.",
+      "allowed_preparation_paths": [
+        "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-original7-filehost01/native-check-owner.py",
+        "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-original7-filehost01/launch-config.json",
+        "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-original7-filehost01/launch-bindings.json"
+      ],
+      "method": "Adapt the actual native-stage04 capture/scheduling/cache/collector boundary. One Python3.12 Popen of the original Cargo argv list with shellFalse/CREATE_NO_WINDOW/direct exclusive binary file handles, retained native process handle and GetProcessTimes100ns birth. Persist actual Cargo numeric CreateNew/flush/fsync immediately after wait, before postcapture; close and hash real logs. Primary independently retains the Python owner handle and actual numeric exit.",
+      "before_batch_source_commit": "575997886285ede0442cc8b93bb69eed57d94e08",
+      "before_batch_source_tree": "d09d95190432025bcafd5a8593c74eec7dbd401a",
+      "source_binding_policy": "Retain f626 as the before-batch source proof. Invocation must bind the final coherent pushed candidate after GUI15 and any other admitted related changes, with exact changed-source allowance and fresh full before/after bindings; do not launch stale575 ahead of consolidation.",
+      "original_argv": [
+        "check",
+        "--locked",
+        "--manifest-path",
+        "src/frontend/handshake_native/Cargo.toml",
+        "--tests",
+        "-j",
+        "1"
+      ],
+      "profile_sha256": "916767bbbac5a853b9b8dbd5688d2262cc91bff0d9173fc2431f4dad0bc6b776",
+      "retained_metadata_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt188-swarm-core-check01/native-metadata-result.json",
+      "metadata_sha256": "204cd9f60b1d7e4f8ea75f515a388881abd28a7bbb157f0a60a5dec34f4b5db7",
+      "stage_ref": "MT-186.json#/delegated_native_stage04_20261014",
+      "stage_terminal_checks_unchanged": 1,
+      "stage_limit_unchanged": 3,
+      "historical_native_failures_unchanged": 13,
+      "controls": [
+        "Only the three preparation paths are released; primary delegates one diagnostics filewriter. No product/kernel/old09 artifact edits, duplicate direct01 lane, invocation, probe or metadata execution under this preparation lease.",
+        "Retain original native preflight, actual scheduling32/5/2, warm target/cache/j1, profile916,180GBcap175stop50GiBfloor and numeric resource admission; memory remains observational.",
+        "Use original seven argv without JSON or extra flags. Declared955 packages/205 targets are metadata facts, not observed target coverage; record target accounting NOT_ASSESSED where plaintext cannot prove it.",
+        "Preserve capture-command numerics and error outputs separately; do not infer drift from an unretained LASTEXITCODE or self-author a host-success numeric.",
+        "Native invocation remains conditional on final integrated source, affected SAME-IV caller/binding review, original gates, sole physical-slot ownership and original remaining stage allowance. No new compiler slots or historical counter reset.",
+        "Lint and dependency preflight follow packet swarm coordination rules before expensive compile; reuse valid unchanged resolver and relevant backend CORE12 evidence.",
+        "Retain original full native/runtime/auth/GUI/reopen/recovery/shutdown/CKC/WP1/HBR independent acceptance; do not claim interruption survival from this method."
+      ],
+      "allowed_execution_outputs_after_separate_release": [
+        "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-original7-filehost01/caller-identity.json",
+        "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-original7-filehost01/cargo-identity.json",
+        "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-original7-filehost01/cargo-exit.json",
+        "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-original7-filehost01/caller-result.json",
+        "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-original7-filehost01/compile.stdout.log",
+        "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-original7-filehost01/compile.stderr.log",
+        "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-original7-filehost01/compile-observations.jsonl",
+        "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-original7-filehost01/compile-candidate.json",
+        "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-original7-filehost01/compile-post-candidate.json",
+        "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-original7-filehost01/compile-post-binding.json",
+        "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-original7-filehost01/compile-evidence.json"
+      ],
+      "recorded_at_utc": "2026-10-14T22:12:57.689895+00:00"
+    }
   }
 }

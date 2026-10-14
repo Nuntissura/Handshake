@@ -1024,7 +1024,7 @@
       },
       "retained_compiler_evidence_reconciliation_20261014": {
         "decision_id": "WP012-RETAINED-CORE-EVIDENCE-20261014-12",
-        "status": "ONE_NON_CARGO_EVIDENCE_ACQUISITION_ADMITTED",
+        "status": "ACQUIRED_AND_INDEPENDENTLY_VERIFIED_COMPILER_ONLY",
         "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
         "owner_chat": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
         "independent_owner_chat": "01a139f6-ce6a-7b50-a058-dff3732ea4a2",
@@ -1040,8 +1040,30 @@
           "ONE acquisition after held adaptation/bindings are inspected; independent affected evidence reconciliation, no new source audit or Cargo/metadata/probe/test/runtime"
         ],
         "limit": 1,
-        "consumed": 0,
-        "result": null,
+        "consumed": 1,
+        "result": {
+          "recorded_at_utc": "2026-10-14T21:25:37Z",
+          "acquisition_exit_code": 0,
+          "outer_exit_code": 0,
+          "evidence_sha256": "1e1d577dfc32204255faf2e839e62555c6b25830ec1009fd7ad73de32f4370c0",
+          "collector_status": "CHECK_SUCCEEDED",
+          "independent_disposition": "VERIFIED_ORIGINAL_CORE_CHECK_RETAINED_EVIDENCE",
+          "independent_owner_chat": "01a139f6-ce6a-7b50-a058-dff3732ea4a2",
+          "original_cargo_exit_code": 0,
+          "original_source_commit": "575997886285ede0442cc8b93bb69eed57d94e08",
+          "expected_targets": 485,
+          "observed_targets": 485,
+          "missing_targets": 0,
+          "json_records": 3028,
+          "errors": 0,
+          "malformed_records": 0,
+          "original_bound_inputs_unchanged": 20,
+          "collector_script_sha256": "ce99038d4d264c68a55cf110bb88baf89b92bd04e0a8dfd53ece26e77925fb29",
+          "collector_bindings_sha256": "79bcf17b6b551362f39eb15dbc3f66ba7b916c0c025d35d1ad1ef3d6fed6a190",
+          "preserved_historical_disposition": "Durable09 remains TERMINAL_FREEZE_CLOSED_DURABLE_HOST_FAILED; canonical scheduler3221225786 and missing historical host/wrapper numerics remain unchanged. No Cargo repetition or original artifact writes.",
+          "runtime_acceptance": "NOT_RUN",
+          "wp_acceptance": "NOT_ASSESSED"
+        },
         "acceptance_limit": "Recovered compiler-only evidence cannot supply missing historical host/wrapper exits, repair durable09 or waive original native/runtime/WP acceptance. Original durable09 and earlier budgets stay consumed."
       }
     }

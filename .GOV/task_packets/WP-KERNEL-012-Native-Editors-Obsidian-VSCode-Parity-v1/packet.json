@@ -6889,7 +6889,117 @@
       "product_dev_lead_integrator_compiler": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
       "kernel_writer": "01a13ab5-bfe4-74b1-8fc3-64e691a76827",
       "worker_policy": "Teamleaders choose useful disjoint coderworkers/waves, manage theirown followups; mediator consolidates interteam implementation interfaces/findings/readiness to primary. No mandatoryfanout or newapprovalgate. Actual tool limits stated, no leaderfixedthree-worker ceiling.",
-      "checkpoint_policy": "Commit/push meaningful coherent MT/unit progress through sole primaryproductGit owner; governance explicitpaths through kernelowner. Bundle required tests/checks on stable inputs and reuse same approved warmtarget/cache, no perworkerCargo."
+      "checkpoint_policy": "Commit/push meaningful coherent MT/unit progress through sole primaryproductGit owner; governance explicitpaths through kernelowner. Bundle required tests/checks on stable inputs and reuse same approved warmtarget/cache, no perworkerCargo.",
+      "operator_swarm_workflow_20261014": {
+        "decision_id": "WP012-OPERATOR-SWARM-COORDINATION-20261014",
+        "status": "APPROVED_ACTIVE",
+        "recorded_at_utc": "2026-10-14T22:12:57.689895+00:00",
+        "buddy": "/root/coordination_buddy",
+        "coding_direction_owner": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+        "diagnostic_owner": "01a13ad0-112c-7c51-9dac-b19da4d01c76",
+        "automation_id": "wp012-delivery-coordination",
+        "interval_minutes": 10,
+        "rules": [
+          {
+            "id": "WP012-SWARM-COORD-001",
+            "requirement": "Root consults its coordination_buddy and receives a recommendation before taking an action batch or messaging other teams."
+          },
+          {
+            "id": "WP012-SWARM-COORD-002",
+            "requirement": "Root routes coding instructions only through the central code dev leader; Root helpers advise Root rather than directly dispatching external coder teams."
+          },
+          {
+            "id": "WP012-SWARM-COORD-003",
+            "requirement": "The central dev leader and team leaders organize their own useful helpers, disjoint ownership and direct peer collaboration; Root does not micromanage workers."
+          },
+          {
+            "id": "WP012-SWARM-COORD-004",
+            "requirement": "Coding leaders use the diagnostic team for actual technical failure investigation and coordinate with relevant specialized teams instead of duplicating investigations."
+          },
+          {
+            "id": "WP012-SWARM-COORD-005",
+            "requirement": "Every coder team names dependency-checking responsibility for its affected implementation."
+          },
+          {
+            "id": "WP012-SWARM-COORD-006",
+            "requirement": "Leaders use a dependency-checker agent or other useful helpers when they can prevent failures in expensive Cargo builds, checks or tests; useful helper roles and counts remain leader-selected."
+          },
+          {
+            "id": "WP012-SWARM-COORD-007",
+            "requirement": "Run appropriate affected lint/static and dependency preflight before compilation, covering changed APIs, imports, features, manifests, locks, initialization and test callers; reuse valid unchanged resolver proof and do not start worker Cargo."
+          },
+          {
+            "id": "WP012-SWARM-COORD-008",
+            "requirement": "Implement related admitted changes in parallel, consolidate and normally push a meaningful coherent source batch through the sole primary integrator, then run one necessary strategic compiler boundary on stable inputs."
+          },
+          {
+            "id": "WP012-SWARM-COORD-009",
+            "requirement": "Record all actual emitted failures and unreached targets, distribute evidenced disjoint repairs to useful teams, integrate the batch and repeat with changed inputs or method and preserved history."
+          },
+          {
+            "id": "WP012-SWARM-COORD-010",
+            "requirement": "An active Cargo run freezes only its affected captured inputs through actual numeric exit, postbinding and owned closure; permitted independent disjoint work continues."
+          },
+          {
+            "id": "WP012-SWARM-COORD-011",
+            "requirement": "Every ten-minute tick consults the buddy, checks every leader and actual owned Cargo/slot state, and uses the central leader to resolve idle admitted work or exact blockers."
+          },
+          {
+            "id": "WP012-SWARM-COORD-012",
+            "requirement": "Each tick verifies actual assigned and active worker/helper tasks, disjoint source work, concrete code or checker results and peer/specialist communication; chat activity or agent count alone does not prove swarm implementation."
+          },
+          {
+            "id": "WP012-SWARM-COORD-013",
+            "requirement": "Keep the entire retained WP012 microtask, source, test and runtime backlog in scope; assigned-file completion, the current source batch or one green compile never proves full implementation or original independent acceptance."
+          },
+          {
+            "id": "WP012-SWARM-COORD-014",
+            "requirement": "Do not create new branches, worktrees or backup files; preserve existing work and original acceptance, authority, budgets and history."
+          },
+          {
+            "id": "WP012-SWARM-COORD-015",
+            "requirement": "Existing CODER_MEDIATOR01a13acf-a8bf-7ae1-92f3-9c5fffc5d385 manages assignment, ownership, peer coordination and milestone reporting for ten coding teams under master devleader01a139f5-dc34-7af3-a3ed-e486ec461fb9."
+          },
+          {
+            "id": "WP012-SWARM-COORD-016",
+            "requirement": "The mediator selects useful management helpers to compare actual work with the existing handoff and remaining MT obligations."
+          },
+          {
+            "id": "WP012-SWARM-COORD-017",
+            "requirement": "Team leaders maintain useful working helpers and named working dependency-checking responsibility; use a checker agent when useful."
+          },
+          {
+            "id": "WP012-SWARM-COORD-018",
+            "requirement": "Relevant peers and specialists deliberate directly over actual interfaces and failures within existing exclusive ownership and admissions."
+          },
+          {
+            "id": "WP012-SWARM-COORD-019",
+            "requirement": "Run bounded changed-behavior adversarial checks before compile handoff and resolve findings; do not repeat unchanged reviews or audit loops."
+          },
+          {
+            "id": "WP012-SWARM-COORD-020",
+            "requirement": "Reassign idle or completed helpers to concrete remaining permitted work; escalate exact no-permitted-action blockers through master devleader and never fabricate work."
+          },
+          {
+            "id": "WP012-SWARM-COORD-021",
+            "requirement": "Every ten-minute check observes actual source/helper/checker work, process PID plus birth identity, numeric outcomes and closure; parallel admitted source and disjoint work continue outside active capture freeze."
+          },
+          {
+            "id": "WP012-SWARM-COORD-022",
+            "requirement": "Report operational milestones A ready interfaces/release, B coherent source plus lint/dependencies and bounded handoff, C primary original compile, D independent original acceptance to master devleader. Preserve original whole-WP milestones; A-D add no gate."
+          }
+        ],
+        "authority": "Latest live Operator corrections govern execution coordination and precompile preparation; original scope, permissions, proof, budgets and independent verdicts retained.",
+        "management_roster": {
+          "automation_id": "wp012-coding-teams-and-milestones",
+          "helpers": [
+            "team_dispatch_manager",
+            "milestone_contract_manager",
+            "activation_interface"
+          ],
+          "authority": "Roster only; no new authority role or permission."
+        }
+      }
     },
     "failure_basis": [
       "Argus API18key receipt absent from current existing schema predicate",
