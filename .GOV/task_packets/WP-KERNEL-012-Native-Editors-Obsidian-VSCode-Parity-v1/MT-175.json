@@ -1,4 +1,18 @@
 {
+  "pane_registry_checkpoint_20261014": {
+    "status": "INDEPENDENT_CONNECTED_THREE_PATH_SOURCE_CLEAR_PUSH_VERIFIED",
+    "repair_ref": "/pane_factory_setter_repair_20261014",
+    "commit": "e63eef6594f70ee47a31fbebec070bf79220047c",
+    "tree": "6dd041f88270fbb1f8b46771d35dd562a1cc6468",
+    "parent": "d57f6707359d39f0ad652f8d5a7ab475f7dbebb4",
+    "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt175-pane-factory-restoration",
+    "diff_sha256": "30bdfb66aa1d58b95a5332064f1bdc7d192903600b3bcd3c36205fff63298d43",
+    "source_comparison_sha256": "33e5e3e019f163190ec0241ea26c65132f54a2fee8ed0de0204b693af25eb1cf",
+    "review": "Independent exactpinnedsetter/sameinnerArcMutexregistrygetter/typed7canonicalfields+sort/serverauthenticatedwireenvelope/actualtestcallers+3rawinverses/7413unchanged. Root opened actualentire3filediff/checkpoint and freshHEAD/tree/clean/liveorigin/all3actualhashes; IVcheckpointclosed. No otherpaths/tests/manifests changed. Source/syntaxonly, no globaltypeclaim.",
+    "compiler_tests_runtime": "NOT_RUN_ADDITIONAL",
+    "outer_payload_prerequisite": "MT186#/outer_launch_payload_repair_20261014 actualqueuedpayload generation/freeze/identity/assertion/explicitexit required before nextcompiler; oldactualouter1 preserved.",
+    "residuals": "Original backendmount/legacytestauth/windowGUI/durableHMAC/genuineauth/runtime/fullacceptance OPEN."
+  },
   "pane_factory_setter_repair_20261014": {
     "decision_id": "WP012-PANE-FACTORY-SETTER-REPAIR-20261014",
     "status": "SOURCE_REPAIR_AUTHORIZED",
