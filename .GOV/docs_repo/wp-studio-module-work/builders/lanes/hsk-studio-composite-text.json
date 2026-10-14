@@ -1,0 +1,69 @@
+{
+  "crate": "hsk-studio-composite",
+  "lane": "SMB-COMPOSITE-TEXT",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation (composite side); renderer execution blocked (B1)",
+  "commits": [
+    {
+      "sha": "eddc6b13e1bd2ca5669a3417058a6edfa935ec48",
+      "subject": "composite (SMB-COMPOSITE-TEXT slice 1): text layers lower to Solid + coverage_u8 mask from Type"
+    },
+    {
+      "sha": "f9f66f335c7a61d8529162e172731dd5212af16a",
+      "subject": "composite (SMB-COMPOSITE-TEXT): text lowering tests and caller-side shaping double"
+    },
+    {
+      "sha": "6182ebaa552797aafdbdc82ce543784adcb003e4",
+      "subject": "composite (SMB-COMPOSITE-TEXT): pin the lowered text plan digest"
+    }
+  ],
+  "capabilities_done": [
+    "src/text.rs: TextRun{Type Run, FontBytes, origin_px}, TextLayerInput{layer_id, runs, fill_rgba}, TextResolution{px_per_pt (at_ppi), Type OutlineLimits/RasterLimits, max_layer_pixels}; prepare_text -> PreparedText (Type glyph_outlines + rasterize_run per run, runs of a layer unioned with saturation into one coverage_u8 plane, SHA-256 via prism::profile_hash, sorted unique layer ids); TextPlane::mask -> pigment Mask",
+    "evaluate_with_text: a text step with a prepared plane is Ready with the plane as extent (inkless = Ready, empty) and records Solid + Mask(coverage_u8); a text layer missing from the prepared set is Unavailable text_layer_not_prepared; evaluate/evaluate_extended unchanged (text_to_image_conversion)",
+    "lower_to_render_plan_with_text -> TextRenderLowering{lowering, text_masks}: text layer -> isolated Group [Layer{Solid(plane rect, fill), Normal, opacity 1, MaskInput{CoverageU8, plane rect, plane sha256, density 1}}]; the referencing/root-wrapper layer carries the authored appearance (opacity, blend mode, layer mask) as for rasters; text_mask(key, text) serves the plane to a PlanSources",
+    "typed refusals: Type codes as Unavailable <layer>:<code> (type_UnsupportedProfile for colour/bitmap/SVG/CFF2 faces, variable_outline_unsupported, glyph_outline_unavailable, outline_over_limit, raster_over_limit), <layer>:text_fill, layer plane over max_layer_pixels raster_over_limit before allocation, UnsupportedDescriptor text_resolution / duplicate_text_layer, Canceled",
+    "static path unchanged: lower_to_render_plan / evaluate signatures and outputs untouched (internal text: None); test proves equality with the text entry points on a raster-only document",
+    "edges composite -> type, prism added (both in the root allowed list; dep-requests.jsonl lines appended); static_plan closure test allowed list + descriptor text/static_closure/unsupported updated"
+  ],
+  "tests": {
+    "argv": "cargo nextest run -p hsk-studio-composite --test text_lowering --test static_plan --no-fail-fast --no-capture",
+    "exit": 0,
+    "sha": "6182ebaa552797aafdbdc82ce543784adcb003e4",
+    "passed": 10,
+    "failed": 0
+  },
+  "blockers": [
+    {
+      "error": "B1: CPU/GPU execution of the lowered text plan cannot be tested: no crate may depend on hsk-studio-composite AND hsk-studio-render-cpu/render-gpu (root allowed lists; composite's closure test bans render-* even as dev-deps). Lead decision needed: (a) allow render-cpu and render-gpu a dev-dependency on composite for parity tests, or (b) a steward-owned tool/test crate allowed to depend on composite + both renderers, or (c) grant this lane render-cpu/render-gpu test files to rebuild the same plan shape from hsk-studio-type (both renderers may depend on type) and compare CPU vs GPU within TOL_PER_LAYER. Renderers need no product change: Solid (Exact) and Mask(coverage_u8) are existing routes with parity tests in render-gpu tests/gpu_plan.rs.",
+      "file_line": "Cargo.toml [workspace.metadata.studio.dependencies.*]; crates/hsk-studio-composite/tests/static_plan.rs static_closure_no_temporal_provider",
+      "attempts": 0
+    },
+    {
+      "error": "G1 (Folio gap, not composite): a text source cannot feed a group composite: Folio requires source.value_type == target.value_type and a group input is image while a text source outputs text (folio src/lib.rs ~887). So 'text over another layer with blend' is not authorable; text renders as its own graph output (root). Owner decision: Folio text->image conversion operation or image-typed text sources.",
+      "file_line": "crates/hsk-studio-folio/src/lib.rs:887",
+      "attempts": 0
+    }
+  ],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "Lead: decide B1 (renderer parity route) and G1 (Folio edge typing for text). Then: CPU digest via render-cpu + GPU parity within TOL_PER_LAYER; text inside groups; paragraph text from layout line boxes (one TextRun per placed line already supported); extended (records) entry point with text.",
+  "updated_at": "2026-10-14T20:32:47Z",
+  "notes": {
+    "proof": "cargo clippy -p hsk-studio-composite --tests: exit 0, no composite warnings (at eddc6b1 and again with tests before f9f66f3). One clippy over composite + render-cpu + render-gpu at 6182eba: exit 101, all 8 errors in crates/hsk-studio-render-cpu/src/plan_sink/effects.rs from UNCOMMITTED changes of another lane in the shared tree (effects.rs, extended.rs modified, not this lane's; committed render-cpu HEAD fe035ce not rebuilt separately); composite and render-gpu sources are untouched by this lane; render-gpu not separately re-run. Focused tests 10/10 at 6182eba (text_lowering 5, static_plan 5).",
+    "determinism": "Hi (Inter, 12 pt, 192 ppi = 32 px/em, origin 10.25,40): composite plane sha256 2b66ea52...bc47ac == Type's glyph_render digest (pass-through proven); lowered RenderPlan::digest b0cce052d6eb290bfdc42185a76eaa9bb00984e8bf7036e5d46f7190efb9ddbd pinned; second preparation and lowering byte-identical",
+    "scope_mapping": {
+      "point_text_lowering": "done (text root)",
+      "paragraph_text": "accepted as runs: caller passes one TextRun per placed line (layout owns line breaking); no composite line breaking",
+      "colour_from_story_fill": "caller-resolved fill_rgba: Folio stores no story fill or STYS style record (SPEC GAP); no fill invented",
+      "typed_refusals_colour_fonts_variable_axes": "done (test hostile_text_refused_typed: synthetic COLR tag, Inter variable wght 700)",
+      "static_path_byte_identical": "done (test static_path_unchanged_without_text)",
+      "render_cpu_and_gpu": "NOT_PROVEN, blocker B1; test prints NOT_PROVEN",
+      "text_plus_opacity_blend": "done for the text root (wrapper layer carries Multiply 0.5); over another layer not authorable (G1)",
+      "hostile_sizes": "done (px_per_pt 1e12, max_layer_pixels, nonfinite resolution, fill out of range, cancel)"
+    },
+    "files_touched": "crates/hsk-studio-composite/{Cargo.toml, src/text.rs (new), src/lib.rs (mod/pub use + descriptor), src/evaluate_static.rs (text arm + text param on internal evaluate_with), src/lower_render_plan.rs (text param on internal lower_inner, Emitter::text, text_masks), tests/static_plan.rs (closure allowed list), tests/text_lowering.rs (new), tests/common/text_shaping.rs (new)}; src/temporal/* untouched",
+    "regression_scope": "render_plan_lowering and temporal suites NOT re-run (focused-test rule); existing paths pass text = None and the new code is gated on Some",
+    "fixtures": "fonts read from crates/hsk-studio-type/tests/fixtures (hash-pinned OFL, relative to CARGO_MANIFEST_DIR); Cargo.lock modified locally, uncommitted",
+    "retry_guard": "one failing run (Folio refused the first fixture: text cannot be a group input); route (a): committed the fixture fix f9f66f3 locally, reran; no gameplan step"
+  }
+}

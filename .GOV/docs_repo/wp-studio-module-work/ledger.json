@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-14T20:33:08Z",
+ "updated_at": "2026-10-14T20:34:33Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3999,12 +3999,17 @@
   {
    "lane_id": "SMB-COMPOSITE-TEXT",
    "crate": "hsk-studio-composite",
-   "phase": "build",
-   "status": null,
+   "phase": "validation (composite part); B1 renderer proofs and G1 folio text->image typing follow",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-type-20261014",
-   "commits": [],
+   "commits": [
+    "eddc6b1",
+    "f9f66f3",
+    "6182eba"
+   ],
    "verdicts": [],
-   "note": "composite lowers point/paragraph text layers to Solid + coverage_u8 mask from type GlyphCoverage; text renders in raster/vector/layout/motion"
+   "note": "composite lowers point/paragraph text layers to Solid + coverage_u8 mask from type GlyphCoverage; text renders in raster/vector/layout/motion",
+   "lane_file": "builders/lanes/hsk-studio-composite-text.json"
   },
   {
    "lane_id": "SMB-FOLIO-PAINT-BLUR-STYLE",
