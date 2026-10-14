@@ -4,8 +4,8 @@
   "file_kind": "handoff",
   "version": 6,
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
-  "updated_at_utc": "2026-10-14T02:21:25.963309+00:00",
-  "status": "WORKFLOW_ACTIVE_NATIVE_ADMISSION_BLOCKED_SHUTDOWN_SOURCE_REPAIR_RELEASED",
+  "updated_at_utc": "2026-10-14T02:27:33.394842+00:00",
+  "status": "WORKFLOW_ACTIVE_SHUTDOWN_CHECKPOINT_PUSHED_MEMORY_RESERVE_REMOVED_NATIVE_REFRESH",
   "operator_request": "ok update handoff, apply repo changes. commit and push gov kernel, then wp kernel 012 with dirt. then restart work, give all teams the updated workflow and changes to repo governance before restarting.. i will also hand off every descicion to you.",
   "document_authorization": "Operator authorizes handoff/repo changes, kernel then product checkpoint/push and restart, all team briefing first, delegates technical decisions and direct-blocker scope expansion",
   "plain_language_summary": "The schema repair and core compiler proof passed. Native application compilation has failed four times for different defects. The latest missing library declaration has been repaired, independently reviewed and pushed, but has not been compiled. Runtime startup, authenticated-session admission, durable action results and original WP acceptance remain unproven. The proposal uses three core roles and temporary specialists, with approvals for bounded stages instead of every compiler attempt.",
@@ -35,11 +35,11 @@
     "product": {
       "worktree": "../wtc-WP-KERNEL-012",
       "branch": "feat/WP-KERNEL-012",
-      "head": "73368c07fe7ab713e1110c85004a0a18882351b5",
-      "tree": "0ba903d5ffdf2a19025eb5f0d16498b4327e5b50",
-      "parent": "1d170964bfff8a189bc68425e76c86bce0e53178",
+      "head": "cc6b5b356e244734f290355c159695e33dbbd4d2",
+      "tree": "5d7b211dcfc7bbe61b96ad6c5799d361c448feca",
+      "parent": "73368c07fe7ab713e1110c85004a0a18882351b5",
       "observed_clean": true,
-      "live_remote_observed": "refs/heads/feat/WP-KERNEL-012 matched 73368c07fe7ab713e1110c85004a0a18882351b5",
+      "live_remote_observed": "refs/heads/feat/WP-KERNEL-012 matched cc6b5b356e244734f290355c159695e33dbbd4d2 after sourcecheckpoint",
       "restart_rule": "Re-read branch, HEAD, dirty state and live remote before mutation; retain direct HANDSHAKE_GOV_ROOT access. No new branch/worktree, merge, reset or governance copy is authorized here.",
       "dirt_at_activation": "NONE observed; do not fabricate a product commit. Push existing branch after kernel preservation."
     }
@@ -75,7 +75,7 @@
       "mt_id": "MT-186",
       "record": "MT-186.json",
       "observed_status": "BLOCKED",
-      "current_blocker": "Native compiler unproven; prepared stage01 source/config independently clear but10GB commitreserve admission false. No stage check consumed. Genuine runtime/auth remain unbound.",
+      "current_blocker": "Nativecheck not yetrun on latestcc6b5b35; previous8GBreserve refusal superseded by explicit memorygate removal. Refresh currentassembly/profile/authority then originalcheck. Genuine runtime/auth remain unbound.",
       "latest_failure_ref": "MT-186.json#/native_producer_recheck_result_20261013",
       "next_decision_ref": "MT-186.json#/delegated_native_stage_20261014"
     },
@@ -95,7 +95,7 @@
       "mt_id": "MT-188",
       "record": "MT-188.json",
       "observed_status": "BLOCKED",
-      "current_blocker": "Exact main.rs source-only shutdown repair released under delegated direct-blocker authority; production proof selector/allowance and runtime acceptance remain unresolved."
+      "current_blocker": "Two-line sourcecheckpoint pushed and independently verified; backendmain compiler and original positive/negative runtime proof NOT_RUN, selector/allowance unresolved."
     }
   ],
   "state_discrepancies": [
@@ -169,7 +169,7 @@
     "spec_cross_wp_gap": "01a1323e-d84e-7793-a23f-a1ac8626ceb7",
     "helper_history": "Reuse v4 teams.new.helper_ownership_reported as historical assignment context, not a live liveness snapshot",
     "live_status": "NOT_INSPECTED in this documentation turn; do not infer active process/session state from chat existence",
-    "source_lease": "MT188 main.rs-only source repair to primary integrator; MT175 native source unchanged. Native compiler HELD for memory admission and refreshed whole-input assembly.",
+    "source_lease": "MT188sourcecheckpointdone; allsourcewritersquiet whileintegratorrefreshes currentnativecapture. No further sourcechanges without named assignment.",
     "preserve_existing_chats": true
   },
   "proposed_adaptive_team": {
@@ -288,10 +288,10 @@
     "existing_pending_ref": "MT-186.json#/native_diagnostics_export_recheck_proposal_20261013",
     "alternative_proposal_id": "WP012-V5-PROPOSAL-BOUNDED-COMPILE-STAGE",
     "alternative_approval_state": "APPROVED_ACTIVE",
-    "alternative_scope": "One bounded compilation stage covering the current reviewed73368c07 candidate and at most two further repaired candidates, each with changed relevant inputs, scoped ownership, independent review and mandatory admission",
+    "alternative_scope": "Three additional terminal nativechecks on currentassembledcandidate and changedrepairs under rootdelegation; currentcc6b5b35, fourhistoricalfailures retained, fixedmemoryreservegate removed by explicitOperator.",
     "original_command": "cargo check --locked --manifest-path src/frontend/handshake_native/Cargo.toml --tests -j 1",
     "existing_profile": "../gov-runtime/host-profile-wp012-phase02-builder.json",
-    "profile_sha256": "df7068d5f93a49d17f48f7404a7c4251e2be8f17abc1d2fd5bb04068ee727081",
+    "profile_sha256": "916767bbbac5a853b9b8dbd5688d2262cc91bff0d9173fc2431f4dad0bc6b776",
     "target": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/target",
     "aggregate_cap_bytes": 180000000000,
     "counter_policy": "Keep historical failures and original counters. Repeated failure demands changed method; at an allowance threshold delivery lead makes and records an evidenced continuation, changed approach or exact blocker decision under Operator delegation, rather than resetting history or requesting routine technical approval",
@@ -362,7 +362,7 @@
     "Read current authority and packet delegated decision; root kernel ownership unchanged",
     "Verify actual branch/dirty/remote and existing role gameplan; use current record references rather than old approval counts",
     "Brief all five existing leaders with pushed kernel amendment before execution release",
-    "Primary integrator prepares approved73368c07 native capture and parent exit forwarding; one independent affected-connection/runner review, then root releases original check after fresh admission",
+    "Refresh current cc6b5b35, new observational-memory profile and authority captures; one changed-runner delta review, then root release originalcheck. Never reinstate historical10GBmemory admission.",
     "Record all diagnostics/root causes/NOT_REACHED components, repair groups together with explicitly scoped parallel workers, assemble/freeze and recheck under stage; root changes method/records decisions at thresholds",
     "Preserve genuine runtime/auth/publication/durability/multiwindow/shutdown and all original parent/source acceptance obligations"
   ],
@@ -377,10 +377,12 @@
   "restart_execution_state": {
     "native_preparation_ref": "MT-186.json#/stage01_preparation_and_resource_blocker_20261014",
     "source_repair_ref": "MT-188.json#/delegated_source_only_shutdown_repair_20261014",
-    "next_action": "Primary integrator repairs recorded two-line shutdown consumer, independent targetedreview, checkpoint/push; refresh candidate and proof input binding before any subsequent compile whenresourcefloor passes",
+    "next_action": "Primary integrator refreshes currentcc6b5b35 source/authority/profile and removes memoryfloorrefusal from active runner/probe; one delta IV review then rootreleases originalnativecheck. Keep actual memory/paging observation, diskcap and solecompiler checks.",
     "runtime_blocker_refs": [
       "MT-186.json original deployment/auth admission",
       "Single-owned diagnostics signing/current watcher adoption and native durable receipt consumer missing; diagnostic/dependency reports provide exact paths for laterroot scope assignment"
     ]
-  }
+  },
+  "memory_policy_ref": "packet.json#/operator_memory_reserve_removal_20261014",
+  "latest_shutdown_checkpoint_ref": "MT-188.json#/source_only_checkpoint_20261014"
 }

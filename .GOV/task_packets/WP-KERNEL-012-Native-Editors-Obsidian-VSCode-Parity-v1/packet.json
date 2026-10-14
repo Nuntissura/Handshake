@@ -1,4 +1,26 @@
 {
+  "operator_memory_reserve_removal_20261014": {
+    "decision_id": "WP012-MEMORY-RESERVE-REMOVAL-20261014",
+    "status": "APPROVED_ACTIVE",
+    "updated_at_utc": "2026-10-14T02:27:33.394842+00:00",
+    "operator_quote": "remove the memory reserve; where does it even come from",
+    "scope": "Current WP012 development/compiler workflow: remove fixed memory/commit-reserve admission and refusal/stop thresholds; memory/paging observations remain telemetry only",
+    "origin": "Inherited local profile COMMIT_ADMISSION_RESERVE_BYTES10000000000 plus gameplanGP353 legacy10GBpolicy. MT168 resource override20261009 removed refusal only for that MT. No fixed10GBfloor in current shared Codex; original authoring instruction for the number not verified in this turn.",
+    "profile": "../gov-runtime/host-profile-wp012-phase02-builder.json",
+    "before_sha256": "df7068d5f93a49d17f48f7404a7c4251e2be8f17abc1d2fd5bb04068ee727081",
+    "after_sha256": "916767bbbac5a853b9b8dbd5688d2262cc91bff0d9173fc2431f4dad0bc6b776",
+    "exact_profile_delta": "Replace COMMIT_ADMISSION_RESERVE_BYTES10000000000 with MEMORY_OBSERVATION_ONLY true; every other profile byte/env/target/toolchain/cap/scheduling retained",
+    "before_snapshot": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-stage01/profile-before-memory-reserve-removal.json",
+    "gameplan": "GP353/483/547 retired via officialcontroller; GP548 observes memory only and preserves cap/solecompiler. Remaining host-admission confirmations do not reinstate removed memory floor.",
+    "runner_change": "Primary integrator removes reserve-refusal branch from current active scheduling probe and compiler runner, sets observational memory telemetry and refreshes expectedprofile literal/config/currentcandidate/authority bindings. Preserve old preparedbytes in immutablehistory; no oldfloor fallback.",
+    "preserved": [
+      "180GB aggregate target cap and disk checks",
+      "One compiler job/sharedtarget ownership and normal scheduling",
+      "Actual numeric exit/log/input binding",
+      "Process protection and original independent acceptance"
+    ],
+    "history": "Previous admissionfailure retained as fact; it is no longer a current refusal after this explicit Operator override. No compiler check consumed by earlier blocked preparation."
+  },
   "operator_adaptive_delivery_delegation_20261014": {
     "decision_id": "WP012-ADAPTIVE-DELIVERY-DELEGATION-20261014",
     "status": "APPROVED_ACTIVE",

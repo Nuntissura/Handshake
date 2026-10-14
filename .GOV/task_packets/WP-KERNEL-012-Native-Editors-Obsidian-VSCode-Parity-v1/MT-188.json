@@ -1,4 +1,23 @@
 {
+  "source_only_checkpoint_20261014": {
+    "status": "SOURCE_CHECKPOINT_PUSH_VERIFIED",
+    "decision_ref": "/delegated_source_only_shutdown_repair_20261014",
+    "commit": "cc6b5b356e244734f290355c159695e33dbbd4d2",
+    "tree": "5d7b211dcfc7bbe61b96ad6c5799d361c448feca",
+    "parent": "73368c07fe7ab713e1110c85004a0a18882351b5",
+    "only_changed_path": "src/backend/handshake_core/src/main.rs",
+    "source_sha256": "d055e9d7cd30eda6b71b157c780c1d06c3f7b3610ed992c99e276c0f7d18b7a1",
+    "diff_sha256": "aa0094d01dc670944117e6fc6fbde85b3ce64316e7394f38066ca0553424eff4",
+    "comparison_sha256": "24381dac7198c50d42a6c6783261433bc61eecaff7c1f171b02ece2d57fb8be5",
+    "checkpoint_sha256": "12214cad8a6e1ed59db3792f3b70bd108d93595b2b75da2689521c89a28a7843",
+    "independent_reviewer": "01a1323e-c183-77e3-b8ba-b286507e5617",
+    "independent_verification": "SOURCE_CLEAR twoinsertions/byteinverse; actual bool producer and retained-owner exit1 inspected; fresh live remote/clean/solecommittedpath/all7416 reviewed inputs exact after checkpoint",
+    "root_verification": "Actualdiff/currenthash/dirtysolepath opened beforecommit; postcheckpoint canonicalHEAD/tree/remote independently verified",
+    "compiler": "NOT_RUN",
+    "runtime": "NOT_RUN; actualproductionpositive/negativeproof unresolved; no AC3/PASS/parent acceptance",
+    "artifact_lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-188/shutdown-source-repair",
+    "proof_reuse": "Main source changed; old MT184 full485-target proof remains historical and cannot substitute for current MT188 main compilation. Nativecheck is not proof of backendmain."
+  },
   "delegated_source_only_shutdown_repair_20261014": {
     "decision_id": "WP012-MT188-SOURCE-REPAIR-20261014",
     "status": "SOURCE_ONLY_LEASE_RELEASED",
