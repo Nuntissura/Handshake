@@ -1,0 +1,22 @@
+{
+  "crate": "hsk-studio-interop-fig",
+  "lane": "SMB-INTEROP-FIG-NODES",
+  "status": null,
+  "phase": "slice 1 pushed (generic Kiwi value decoder); slice 2 typed node tree in progress",
+  "commits": [
+    {"sha": "a55c345", "subject": "interop-fig (SMB-INTEROP-FIG-NODES): generic schema-driven Kiwi value decoder"}
+  ],
+  "capabilities_done": [
+    "decode_kiwi / decode_message_tree: bounded schema-driven KiwiValue tree from the file's own schema (depth, max_array_len, max_string_bytes, max_tree_values; duplicate wire field + trailing bytes refused)"
+  ],
+  "tests": {"argv": null, "exit": null, "sha": null, "passed": 0, "failed": 0},
+  "blockers": [],
+  "lock_wait_s": 41,
+  "bg_pids": [],
+  "next": "typed node tree (parent/position, common props, per-kind payloads, paints, effects, path + vector-network blobs, text runs), then SYMBOL/INSTANCE, VARIABLE, prototypeInteractions; fixture tests",
+  "updated_at": "2026-10-14T18:28:16Z",
+  "notes": {
+    "wire_sources": "evanw/kiwi js/bb.ts (MIT) readVarUint64/readVarFloat; fig2sketch (MIT) vector_network.py blob layout and images/<hex(hash)>; open-pencil + OpenFig-org/openfig-core (MIT) path command codes 0 close,1 move,2 line,4 cubic; code 3 quad (4 floats) inferred and proven by exact blob consumption on the fixtures",
+    "gameplan_route": "no hook block"
+  }
+}

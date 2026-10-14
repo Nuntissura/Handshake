@@ -2,7 +2,7 @@
  "crate": "hsk-studio-press",
  "lane": "SMB-PRESS-STRUCT-STRIP",
  "status": "READY_FOR_VALIDATION",
- "phase": "READY after R26 remediation: strip by structure-tree role and reachability (R26-S1), /SD targets and GoTo /SD (R26-S2), typeless root under a private key (R26-S3), no loss for /MarkInfo alone (R26-S4) (READY commit 13534f8)",
+ "phase": "READY after R27 remediation, changed approach DIAG-PRESS-R27: unlink only, no object deleted; the save's unreachable-object drop leaves the tree out (R27-S1, R27-S2); loss only for a resolvable root or link entry (R27-S3) (READY commit 297c309; full suite 175/175 at 8b11939)",
  "commits": [
   {
    "sha": "ade85a0",
@@ -11,6 +11,10 @@
   {
    "sha": "13534f8",
    "subject": "press (SMB-PRESS-STRUCT-STRIP, R26-S1 S2 S3 S4): the D28 strip removes structure-tree objects identified by role and reachability (root, /K /ParentTree /IDTree /ClassMap /RoleMap closure, /SE and GoTo /SD targets, /P children of tree objects), not by shape, so kept-page multimedia (/S /MR, /S /MCD) stays; GoTo /SD removed; accessibility_tags_removed only when a tree or structure entry was removed, not for /MarkInfo alone"
+  },
+  {
+   "sha": "297c309",
+   "subject": "press (SMB-PRESS-STRUCT-STRIP, R27-S1 S2 S3, DIAG-PRESS-R27): the D28 strip unlinks only (catalog /StructTreeRoot and /MarkInfo, /StructParents, /StructParent, /SE, GoTo /SD) and deletes no object; the save's unreachable-object drop leaves the tree out, kept /AcroForm, annotations, actions and OCGs stay; accessibility_tags_removed only for a resolvable root or link entry"
   }
  ],
  "capabilities_done": [
@@ -20,46 +24,46 @@
   "check_document unchanged in role: runs after the strip for both policies, so anything the strip cannot reach stays reported (fail closed).",
   "Claim text (V4-07): DESCRIPTOR api (+redact_and_save_opts, RedactedOutput::losses), redaction.output, redaction.flatten.purge (D28 sentence before the residuals), redaction.flatten.region_clearing; flatten_purge.rs/flatten.rs module docs; RedactedOutput::residual_in_region, ::losses and ::region_flattened docs: the redaction proof covers untagged documents and tagged documents saved with the default strip; opt-out tagged = NOT PROVEN.",
   "Tests (tests/flatten_r13.rs): NEW default_redaction_strips_the_structure_tree (tagged indirect root with /ParentTree /IDTree key text /RoleMap /ClassMap text, elements on both pages, /StructParents, a kept annotation /StructParent and OBJR, /MarkInfo; a root written into the catalog; R24 J1 private-key root; R24 J2b outline /SE (item kept); an element nested directly in a private dictionary: read flattened, losses [AccessibilityTagsRemoved], every structure text gone, kept page keeps BDC..EMC and text, no structure key written; controls: opt-out reads NOT PROVEN with no loss, no-region save strips nothing, untagged reports no loss), NEW structure_strip_reports_what_it_cannot_remove (R24 K1 object-stream member, an element behind an alias object: text survives, reported); CHANGED pages_output_with (structure fixture family now reads the opt-out via redact_keeping_tags), structure_and_widgets_of_flattened_pages_are_removed and flattened_page_annotations_leave_and_structure_elements_stay (opt-out), descriptor_states_the_structure_tree_rule (D28 needles, new citations, the old 'covers untagged documents;' sentence listed as stale).",
-  "R26 (flatten_purge.rs strip_structure, structure_objects, link_targets, element_like, content_item, strip_target): the strip no longer deletes by the check_document shape predicate. Deleted = the objects of the structure tree by role and reachability: seeds the catalog /StructTreeRoot value (read before removal, alias objects pass the role), every /Type StructTreeRoot|StructElem object, the /SE targets and the first element of every GoTo /SD; closure root /K /ParentTree (nodes, /Nums arrays, element arrays) /IDTree (nodes, /Names arrays) /ClassMap (map + attribute objects with /O) /RoleMap, element /K /A /Ref, content items /Type MCR|OBJR, and every element (/S name, /Type absent or StructElem) whose /P is a tree object; an object the tree names where an element belongs is taken only when element_like/content_item (a /Type MediaClip|Rendition is not). /Pg /Obj /Stm /AF not followed. Direct nested dicts removed only when /Type StructElem|StructTreeRoot or element_like with /P in the tree. strip_links also removes /SD from GoTo actions (/D stays). check_document unchanged: the shape rule still detects/counts (kept multimedia reads NOT PROVEN, the pre-D28 over-report). Loss accessibility_tags_removed: catalog /StructTreeRoot non-null removed, a live link key removed, a live nested or tree object removed; /MarkInfo removal alone does not count."
+  "R26 (flatten_purge.rs strip_structure, structure_objects, link_targets, element_like, content_item, strip_target): the strip no longer deletes by the check_document shape predicate. Deleted = the objects of the structure tree by role and reachability: seeds the catalog /StructTreeRoot value (read before removal, alias objects pass the role), every /Type StructTreeRoot|StructElem object, the /SE targets and the first element of every GoTo /SD; closure root /K /ParentTree (nodes, /Nums arrays, element arrays) /IDTree (nodes, /Names arrays) /ClassMap (map + attribute objects with /O) /RoleMap, element /K /A /Ref, content items /Type MCR|OBJR, and every element (/S name, /Type absent or StructElem) whose /P is a tree object; an object the tree names where an element belongs is taken only when element_like/content_item (a /Type MediaClip|Rendition is not). /Pg /Obj /Stm /AF not followed. Direct nested dicts removed only when /Type StructElem|StructTreeRoot or element_like with /P in the tree. strip_links also removes /SD from GoTo actions (/D stays). check_document unchanged: the shape rule still detects/counts (kept multimedia reads NOT PROVEN, the pre-D28 over-report). Loss accessibility_tags_removed: catalog /StructTreeRoot non-null removed, a live link key removed, a live nested or tree object removed; /MarkInfo removal alone does not count.",
+  "DIAG-PRESS-R27 (297c309): strip_structure removes the catalog /StructTreeRoot and /MarkInfo and, via strip_links, every /StructParents /StructParent /SE and GoTo /SD; it deletes no object (structure_objects, element_like, typed_structure, content_item, strip_target, nested_shape, strip_nested_shapes, link_targets and the tree scrub_references removed). Unreachable-drop mechanism: writer::write_document writes only writer::reachable(objects, trailer_roots) (/Root, /Info), so the unlinked tree is not written; verified by default_redaction_strips_the_structure_tree (tree texts gone) and structure_strip_unlinks_structure_destinations. Loss: catalog /StructTreeRoot resolving to a root-shaped dictionary (root_shaped) or a non-null link value in a live object. check_document's structure_shaped also reads STRUCT_ROOT_KEYS (/ParentTree /IDTree /ClassMap /RoleMap /ParentTreeNextKey)."
  ],
  "tests": {
-  "argv": "cargo nextest run -p hsk-studio-press --tests --no-fail-fast",
+  "argv": "cargo nextest run -p hsk-studio-press --no-fail-fast",
   "exit": 0,
-  "sha": "13534f8",
-  "passed": 173,
+  "sha": "8b11939",
+  "passed": 175,
   "failed": 0
  },
  "blockers": [],
  "lock_wait_s": 0,
  "bg_pids": [],
- "next": "Validator: judge SMB-PRESS-STRUCT-STRIP as the claim ade85a0 + 13534f8 (READY commit 13534f8; builds on SMB-PRESS-PROPERTIES up to 5ad0c68, judged as its own claim). V4-13: SMB-PRESS is a two-FAIL lane; narrow pre-review of ade85a0..13534f8 expected. Lead follow-ups: PLR-103 remainder (see notes.remediation_R26), D19 spec wording for D28.",
- "updated_at": "2026-10-14T16:37:11Z",
+ "next": "Validator: judge SMB-PRESS-STRUCT-STRIP as the claim ade85a0 + 13534f8 + 297c309 (READY commit 297c309). Later press commits ad73e0c and 8b11939 belong to SMB-PRESS-PROPERTIES (own claim); the full press suite 175/175 ran at 8b11939. V4-13: SMB-PRESS is a two-FAIL lane; narrow pre-review of 13534f8..297c309 expected.",
+ "updated_at": "2026-10-14T18:32:18Z",
  "notes": {
   "source": "lead dispatch 2026-10-14; START_LOG 'OPERATOR DECISIONS 2026-10-14' D28 DECIDED (strip by default, typed loss accessibility_tags_removed, keep MCID-only marked content, explicit opt-out keeps NotProven, no per-MCID tree pruning)",
   "claim": {
    "commits": [
     "ade85a0",
-    "13534f8"
+    "13534f8",
+    "297c309"
    ],
-   "ready_commit": "13534f8",
-   "text": "redact_and_save / redact_and_save_with / redact_and_save_opts with the default StructureTreePolicy::Strip: when at least one region is flattened, the saved file holds no /StructTreeRoot, /MarkInfo, /StructParents, /StructParent or /SE entry, no /SD in a GoTo action whose /S is the name GoTo, and none of the structure-tree objects the strip identifies by role and reachability (the catalog root and every /Type StructTreeRoot object, their /K /ParentTree /IDTree /ClassMap /RoleMap closure, every /Type StructElem object, the elements /SE and GoTo /SD name, elements whose /P is in the tree, attribute objects and MCR/OBJR content items) that the strip can reach, nor a /Type StructElem|StructTreeRoot dictionary written directly in another object; a dictionary is not removed for its shape alone (R26-S1: kept-page media renditions and clips stay; check_document still reads their shape and reports NOT PROVEN). RedactedOutput::losses is [AccessibilityTagsRemoved] when a structure tree or structure entry the saved file would otherwise have held was removed (not for /MarkInfo alone, R26-S4), and a tagged document can read region_flattened / region_cleared / is_proven. Content streams are unchanged (marked-content operators with /MCID stay). What the strip cannot reach (an element member of an object stream kept as a stream, an element an alias object keeps reachable) is reported by check_document (region_flattened false, NotProven::ResidualInRegion). StructureTreePolicy::KeepNotProven keeps the pre-D28 behaviour. A save with no region strips nothing."
+   "ready_commit": "297c309",
+   "text": "redact_and_save / redact_and_save_with / redact_and_save_opts with the default StructureTreePolicy::Strip: when at least one region is flattened, the strip UNLINKS only (lead diagnosis DIAG-PRESS-R27): it removes the catalog's /StructTreeRoot and /MarkInfo, every /StructParents, /StructParent and /SE entry of every dictionary and the /SD of every GoTo action (/S the name GoTo), and deletes no object. The save writes only the objects reachable from the trailer /Root and /Info (writer::write_document over writer::reachable), so structure-tree objects that only these entries reached are not in the saved file. An object anything kept still reaches (an /AcroForm, an annotation, an optional-content group, an action, an outline item, a private catalog key, an object stream or alias kept as such) stays unchanged, structure-shaped or not; structure that stays is reported by check_document (region_flattened false, NotProven::ResidualInRegion), which also reads a dictionary holding /ParentTree /IDTree /ClassMap /RoleMap or /ParentTreeNextKey as structure. RedactedOutput::losses is [AccessibilityTagsRemoved] only when a structure entry was unlinked from an object the saved file holds and its value resolves: the catalog's /StructTreeRoot resolving to a dictionary with /Type StructTreeRoot, or without /Type holding /K or a root key; or a /StructParents, /StructParent, /SE or /SD whose value is not null (a reference to no object reads as null). Not for /MarkInfo alone (R26-S4), not for a /StructTreeRoot naming no object or a non-root dictionary (R27-S3). A tagged document whose tree only those entries reached reads region_flattened / region_cleared / is_proven. Content streams are unchanged (marked-content operators with /MCID stay). StructureTreePolicy::KeepNotProven keeps the pre-D28 behaviour. A save with no region strips nothing."
   },
   "typed_loss_pattern": "press has no prior typed-loss struct; RedactionLoss follows the crate's existing typed enum + code() pattern (NotProven::code, FlattenNote::as_str, FlattenCause::as_str) and is carried on RedactedOutput like xfa_removed / flattened notes; no receipt mechanism added",
   "design_choices": [
    "strip only when a region is flattened (PLR-101 scope: the structure rules apply only then; a no-region save keeps tags)",
-   "/SE removed as a key (the outline item stays), elements removed as objects (references scrubbed), direct element dictionaries removed where they sit",
-   "neutralize_structure still runs after the strip (no tree left: 0 neutralized)",
-   "loss reported only when a structure tree or structure entry the saved file would hold was removed; /MarkInfo is removed but alone does not count (R26-S4, replaces the earlier '/MarkInfo alone counts as tags removed')",
-   "R26-S1: deletion by role/reachability, detection by shape (check_document unchanged); a kept-page multimedia object with the structure shape is kept and over-reported, never deleted",
-   "/SD removed only where the action's /S is the direct name GoTo (GoToR/GoToE /SD name a remote document's structure); its first-element target is collected with /S resolved"
+   "DIAG-PRESS-R27: unlink only; deletion is left to the writer's reachability drop, so no kept object can be removed by the strip",
+   "/SE removed as a key (the outline item stays); GoTo /SD removed as a key (the action keeps /D)",
+   "neutralize_structure still runs after the strip (it finds no catalog root after the unlink)"
   ],
   "residuals_fail_closed": [
-   "an element member of an object stream kept as a stream (R24 K1): not edited, reported by check_document",
-   "an element reachable through an alias object (top-level reference object): the alias is not a dictionary, the element stays reachable, reported by check_document"
+   "structure that anything kept still reaches is not removed and is reported by check_document: R24 J1 (root under a private catalog key), an element written inside a kept/private dictionary, the R26-S3 S2 input (typeless root also under a private key), an element member of an object stream kept as a stream (R24 K1), an element reachable through an alias object (test structure_strip_reports_what_it_cannot_remove)",
+   "behaviour change vs 13534f8: J1, the inline element and R26-S3 S2 read NOT PROVEN now (13534f8 deleted them by role and read proven)"
   ],
   "residuals_not_counted": [
-   "PLR-103 remainder: a dictionary with /S and a text key but no /P and no /Type that neither the tree reaches, nor an /SE or GoTo /SD names, nor whose /P is in the tree, is neither stripped nor counted (unchanged boundary, structure_shape_is_read_from_the_parsed_dictionary)",
-   "an object the tree names where an element belongs but whose /Type is neither StructElem, MCR nor OBJR is not removed (R26-S1 guard); if it stays reachable elsewhere it is counted only when check_document's shape rule reads it"
+   "PLR-103 remainder: a dictionary with /S and a text key but no /P and no /Type that a kept object still reaches (not via the unlinked entries) is neither stripped nor counted (unchanged boundary, structure_shape_is_read_from_the_parsed_dictionary)",
+   "root key list STRUCT_ROOT_KEYS taken from ISO 32000-1 Table 322 as the R24-R27 inputs use it; the standard's text not re-read (UNVERIFIED)"
   ],
   "v4_06_sites": [
    {
@@ -116,6 +120,74 @@
    "red_proof": "Red run on the shared tree at ade85a0 sources (press HEAD, before any src edit; 2026-10-14T16:13Z): the 4 new tests FAILED (inherited_property_lists_...: MC0/MC2 texts survive for node-shared, node-object-properties, node-inline-properties; structure_strip_keeps_multimedia_...: M1/M2 media removed + losses [AccessibilityTagsRemoved]; structure_strip_follows_...: FAIL; structure_strip_reports_no_loss_...: FAIL). Green after the fixes: focused runs 4/4 (P1 set) and 6/6 (strip set), then full suite 173/173 at 13534f8."
   },
   "v4_06_regex_r26": "structure_shaped\\(|strip_nested_shapes\\(|nested_shape\\( (git grep at 13534f8: structure_shaped used only by Scan::value; nested_shape/strip_nested_shapes take the tree set)",
-  "v4_07": "New doc/DESCRIPTOR text (strip_structure, structure_objects, element_like docs; sanitized_save StructureTreePolicy::Strip and RedactedOutput::losses docs; lib.rs DESCRIPTOR D28 sentence) uses no never/always/guarantee/proves; the DESCRIPTOR rule sentence cites structure_strip_follows_the_tree_and_structure_destinations, structure_strip_keeps_multimedia_of_kept_pages, structure_strip_reports_no_loss_without_structure (all exist; descriptor_states_the_structure_tree_rule green)."
+  "v4_07": "New doc/DESCRIPTOR text (strip_structure, structure_objects, element_like docs; sanitized_save StructureTreePolicy::Strip and RedactedOutput::losses docs; lib.rs DESCRIPTOR D28 sentence) uses no never/always/guarantee/proves; the DESCRIPTOR rule sentence cites structure_strip_follows_the_tree_and_structure_destinations, structure_strip_keeps_multimedia_of_kept_pages, structure_strip_reports_no_loss_without_structure (all exist; descriptor_states_the_structure_tree_rule green).",
+  "remediation_R27": {
+   "source": "validation/R27-prereview-press-narrow.json (FIX_FIRST) and START_LOG lead diagnosis DIAG-PRESS-R27 2026-10-14 (changed approach, CX-EXEC-003)",
+   "findings": [
+    {
+     "finding": "R27-S1",
+     "commit": "297c309",
+     "test": "structure_strip_unlinks_and_keeps_what_anything_kept_reaches (X1 /AcroForm, X2 text annotation, X7 OCG)",
+     "disposition": "fixed: unlink only, kept objects stay, losses []"
+    },
+    {
+     "finding": "R27-S2",
+     "commit": "297c309",
+     "test": "structure_strip_unlinks_and_keeps_what_anything_kept_reaches (X3 URI action of a kept link)",
+     "disposition": "fixed: the action stays, loss reported for the real tree"
+    },
+    {
+     "finding": "R27-S3",
+     "commit": "297c309",
+     "test": "structure_strip_unlinks_and_keeps_what_anything_kept_reaches (X6 /StructTreeRoot 99 0 R, no object)",
+     "disposition": "fixed: losses []"
+    },
+    {
+     "finding": "R26-S1 inputs (must stay fixed)",
+     "commit": "297c309",
+     "test": "structure_strip_keeps_multimedia_of_kept_pages (M1, M2)",
+     "disposition": "green"
+    },
+    {
+     "finding": "R26-S2 input S1",
+     "commit": "297c309",
+     "test": "structure_strip_unlinks_structure_destinations (a) (renamed from structure_strip_follows_the_tree_and_structure_destinations)",
+     "disposition": "green: /SD unlinked, element not written"
+    },
+    {
+     "finding": "R26-S3 inputs S2 / S3",
+     "commit": "297c309",
+     "test": "structure_strip_reports_what_it_cannot_remove (S2: reported NOT PROVEN, text kept by the private key) / structure_strip_unlinks_structure_destinations (b) (S3 control: gone, proven)",
+     "disposition": "S2 fail closed (no silent leak); S3 green"
+    },
+    {
+     "finding": "R26-S4 input",
+     "commit": "297c309",
+     "test": "structure_strip_reports_no_loss_without_structure",
+     "disposition": "green"
+    }
+   ],
+   "unreachable_drop_mechanism": "verified existing, not reimplemented: writer.rs write_document (`let live = reachable(objects, &trailer_roots(trailer))`, only `live` objects are written) via PdfDoc::save_full (pdf_edit.rs:436); unlinked tree objects are therefore not written",
+   "red_proof": "Run (scratch export of 13534f8 at Handshake_Artifacts/WP-KERNEL-STUDIO/smb-press-r27-red: git archive 13534f8 plus tests/flatten_r13.rs from 8b11939; STUDIO_OWNER=smb-press-r27-red, own target on D:): the press nextest run of flattened_r13 filtered to the 4 new or changed tests gave 0 passed, 4 failed (exit 100; log red.log in that folder). structure_strip_unlinks_and_keeps_what_anything_kept_reaches: X1 /AcroForm and /Fields removed, X2 ANNOT-KEEP removed, X3 uri-keep removed, X7 OCG-KEEP removed, X1 X2 X6 X7 losses [AccessibilityTagsRemoved]. structure_strip_reports_what_it_cannot_remove: J1, the inline element and R26-S3 S2 read proven with their text deleted; the /IDTree-only root under a private key read proven with IDTREE-SECRET kept. property_lists_a_kept_page_reaches_are_counted: node-inline-lists (P8), own-inline-lists (P9), null-own (P7b) and the shared layouts read proven. inherited_property_lists_shared_with_a_kept_pages_own_resources_are_counted: the R26 P1-P3 layouts read proven. Green at 8b11939 (full press suite 175/175). Scratch export left for the lead to remove."
+  },
+  "v4_06_sites_r27": {
+   "class": "R27-S1/S2: the strip deletes an object identified as structure (by shape or role) that something kept still reaches",
+   "regex": "scrub_references\\(|structure_objects|element_like|strip_nested_shapes|typed_structure|content_item\\(|link_targets",
+   "command": "git grep -n -E '<regex>' 8b11939 -- crates/hsk-studio-press/src",
+   "count": 2,
+   "sites": [
+    {
+     "file_line": "crates/hsk-studio-press/src/flatten_purge.rs:232",
+     "verdict": "not applicable: fn scrub_references definition, used only by remove_annotations (annotations of flattened pages, not structure)"
+    },
+    {
+     "file_line": "crates/hsk-studio-press/src/flatten_purge.rs:323",
+     "verdict": "not applicable: remove_annotations call (R13-P1 annotation purge; RedactionIncomplete if a removed annotation stays reachable)"
+    }
+   ],
+   "removed_sites_at_13534f8": "structure_objects, element_like (:659), typed_structure, content_item, strip_target, nested_shape, strip_nested_shapes, link_targets and the strip's scrub_references call (:950) are deleted by 297c309 (fixed: unlink only)"
+  },
+  "v4_07_r27": "New doc/DESCRIPTOR text (strip_structure, root_shaped, link_values, STRUCT_ROOT_KEYS, structure_shaped docs; sanitized_save StructureTreePolicy::Strip; lib.rs DESCRIPTOR D28 sentence) uses no never/always/guarantee/proves (descriptor_states_the_structure_tree_rule checks the rule sentence); the rule sentence cites default_redaction_strips_the_structure_tree, structure_strip_unlinks_and_keeps_what_anything_kept_reaches, structure_strip_keeps_multimedia_of_kept_pages, structure_strip_reports_what_it_cannot_remove, structure_strip_reports_no_loss_without_structure (each exists; the test asserts the cited names exist) and no longer says 'removes the whole structure tree' or 'identified by its role and reachability' (asserted stale).",
+  "retry_guard_r27": "no gameplan block met; no product test failure during the remediation"
  }
 }
