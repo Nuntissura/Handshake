@@ -1051,7 +1051,7 @@
     "original_command": "cargo check --locked --manifest-path src/frontend/handshake_native/Cargo.toml --tests -j 1",
     "history": "Retain13 historical native failures and all earlier stage counters. Diagnostic0 on previous source did not prove original7argv; new current source requires actual exact7argv numeric0 plus postbinding/owned closure and independent confirmation. This amendment creates no new native compiler slots.",
     "metadata_preparation": {
-      "status": "EXACT_ONCE_PREPARATION_RELEASED_AFTER_SOURCE_QUIESCENCE",
+      "status": "CONSUMED_ONE_LOCKED_RESOLVER_SUCCEEDED",
       "argv": [
         "metadata",
         "--locked",
@@ -1063,11 +1063,33 @@
       ],
       "cwd": "../wtc-WP-KERNEL-012",
       "additional_capture_limit": 1,
-      "captures_consumed": 0,
+      "captures_consumed": 1,
       "output_root": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02",
       "reason": "Native manifest now has normal+dev core dependency; retained955-package/205-target metadata is expressly historical invalidated and not current. Renew real normal/dev graph/resolved features/required-feature exclusions.",
       "constraints": "Original root configuration/toolchain/default resolution; no all-features,no no-deps,no platform/feature/profile override,no lock/source mutation,no build/test/runtime. Capture genuine resolver stdout/stderr/numeric exit and current before/after source/config/tool bindings. --locked refusal is an exact blocker, never implicit lock-write permission. Official gate/resource/tool ownership applies.",
-      "source_review_order": "Metadata preparation may run on stable quiescent pushed source while same IV source delta review proceeds; compiler waits for both review and actual admission."
+      "source_review_order": "Metadata preparation may run on stable quiescent pushed source while same IV source delta review proceeds; compiler waits for both review and actual admission.",
+      "result": {
+        "numeric_exit": 0,
+        "original_outer_session": 56445,
+        "cargo_pid": 53580,
+        "completed_utc": "2026-10-14T16:33:30.034910+00:00",
+        "before_after_equal": true,
+        "source_inputs": 7416,
+        "metadata_inputs": 23,
+        "locks_unchanged": true,
+        "stdout_sha256": "204cd9f60b1d7e4f8ea75f515a388881abd28a7bbb157f0a60a5dec34f4b5db7",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "packages": 955,
+        "declared_native_targets": 205,
+        "resolved_native_features": [
+          "bundled-fonts",
+          "default"
+        ],
+        "current_candidate_commit": "575997886285ede0442cc8b93bb69eed57d94e08",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt188-swarm-core-check01/native-metadata-result.json",
+        "scope": "Resolver only, no compiler/runtime acceptance or observed205-target claim",
+        "terminal_budget_policy": "Metadata1of1 consumed; native compiler remains1of3 stage04, core0of2 stage06, all prior counters retained"
+      }
     },
     "specific_supersession": "Only stage04 limits prohibition on metadata is superseded for this exact one locked resolver capture; stage04 next diagnostic selector is superseded by original7argv. All other conditions, budgets and scope remain unchanged."
   }
