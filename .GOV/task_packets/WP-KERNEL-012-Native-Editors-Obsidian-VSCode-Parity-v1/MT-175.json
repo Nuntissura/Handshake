@@ -1,4 +1,19 @@
 {
+  "palmistry_export_checkpoint_20261014": {
+    "status": "INDEPENDENT_SOURCE_CLEAR_PUSH_VERIFIED",
+    "source_repair_ref": "/palmistry_export_repair_20261014",
+    "commit": "ebb7c666360ae1a389fe2725d2590e06ee55313d",
+    "tree": "a0a92e0adf835edcbb829da995d5561fdd0a69bd",
+    "parent": "8088c79c8de982a6bb3c38565f71d9ce6ff23979",
+    "remote_verified": "origin/feat/WP-KERNEL-012 matches commit; actual product worktree clean",
+    "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt175-palmistry-export-repair",
+    "lib_sha256": "9839649e8a76fe590009a81348f52d12d3896db710141361d9a1133d3f4c7029",
+    "manifest_sha256": "7845d4620efdf3daf5388840400b770a83afcad4002357a053d33e661db7eda2",
+    "source_comparison_sha256": "0f6e4a3cade3c1c7e964df1b8c78f4bb99f1714ef6f2c57414a041882d3bbce0",
+    "dependency_census_sha256": "fa9b77122063ec81c6b806860d2368139319ad9d4f1919c3019d9dca8cd9386b",
+    "review": "Independent actual coupled diff/raw inverse/selected SDK and fingerprint closure; three insertions in two files,7414 unaffected input hashes match. Root opened diff/census/checkpoint and verified live GitHEAD/tree/remote/clean state. Lock unchanged.",
+    "compiler_tests_runtime": "NOT_RUN"
+  },
   "palmistry_export_repair_20261014": {
     "decision_id": "WP012-PALMISTRY-EXPORT-REPAIR-20261014",
     "status": "SOURCE_REPAIR_AUTHORIZED",
