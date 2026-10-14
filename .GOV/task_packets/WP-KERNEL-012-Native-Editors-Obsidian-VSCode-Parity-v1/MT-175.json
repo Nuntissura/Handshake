@@ -20,6 +20,7 @@
       "src/frontend/handshake_native/src/visual_debugger/mod.rs",
       "src/frontend/handshake_native/tests/test_ckc_embed.rs"
     ],
+    "debugger_worker_assignment": {"primary_chat": "01a1323e-8bb0-7770-9420-07af9d1f22ec", "helper_task": "/root/declaration_inventory", "only_path": "src/frontend/handshake_native/src/visual_debugger/mod.rs", "base_candidate": "7930cb914332836ec22724468c949f88c6182b66", "limits": "No commits/builds/tests/kernel/other paths; not alone and do not revert other workers; primary integrator owns assembly and checkpoint", "identity_reported_before_edits": true},
     "ownership": "Primary owns backend_client/sidepanel/panel and affected existing tests as one response-generation/auth interface. Primary may assign one named worker exclusively visual_debugger/mod.rs, sameWP worktree, no worker commit/build/kernel/sourceotherwrites. Record helper identity before edits; primary assembles checkpoint after one scoped IV review.",
     "repairs": [
       {
