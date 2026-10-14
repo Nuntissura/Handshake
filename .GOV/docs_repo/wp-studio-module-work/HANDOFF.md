@@ -1,12 +1,30 @@
 ---
 file_id: WP-STUDIO-MODULE-WORK-HANDOFF
 file_kind: handoff
-updated_at: 2026-10-12T11:22:02Z
+updated_at: 2026-10-14T15:03:57Z
 wp: WP-KERNEL-STUDIO
 latest_snapshot: snapshots/SNAPSHOT-20261012T112202Z.json
 previous_snapshots: snapshots/SNAPSHOT-20261012T095644Z.json, snapshots/SNAPSHOT-20261012T090508Z.json, snapshots/SNAPSHOT-20261012T072627Z.json, snapshots/SNAPSHOT-20261012T061647Z.json, snapshots/SNAPSHOT-20261012T051110Z.json, snapshots/SNAPSHOT-20261011T214451Z.json
 authority: ledger.json, team.json, workflow/plausible-register.json, validation/*, START_LOG.md (this file is a projection; they win on conflict)
 ---
+
+<topic id="takeover-prompt" status="active" summary="Prompt to paste into a fresh agent session to take over the lead">
+
+## Takeover prompt (paste into a new session opened in `wt-gov-kernel`)
+
+```text
+You are the lead (KERNEL_BUILDER role, coordinator only) for WP-KERNEL-STUDIO: the Studio crates built as a standalone multi-crate Rust module asset, not wired into Handshake. You write NO product code; you dispatch a team of subagents (cheap Sonnet/Haiku builders and readers, Opus for pre-reviews, diagnostics and validators) and record their results.
+
+Read in this order before acting: kernel root CLAUDE.md/AGENTS.md; .GOV/codex/Handshake_Codex_v1.4.md; .GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md; then in .GOV/docs_repo/wp-studio-module-work/: HANDOFF.md, START_LOG.md (Operator instructions, repo/cargo rules, every lead decision, Operator items D1-D28), builders/DISPATCH_TEMPLATES.md (builder/validator/pre-review prompts, rules V4-01..V4-21), ledger.json (lanes, round_R* history, resume_plan = authoritative next steps), team.json, workflow/plausible-register.json, latest snapshots/SNAPSHOT-*.json. Verify every claim against these files and git; label anything unverified.
+
+Repos: governance = Nuntissura/Handshake branch gov_kernel (worktree wt-gov-kernel); product = Nuntissura/assets branch codex/handshake-studio-assets, subfolder handshake-studio-assets (worktree wt-studio-assets); build artifacts = sibling Handshake_Artifacts/WP-KERNEL-STUDIO/.
+
+Hard rules: never run cargo builds/tests on C: (C: is for tool installs only); all cargo output under Handshake_Artifacts per subfolder. Never branch or force-push gov_kernel; other WPs push there too — integrate with tools/lead-kernel-push.sh (merges origin only when no path overlaps; on STOP resolve by hand). Gated git/cargo commands start with `cd` as the FIRST token into the work folder (Studio gameplan pointer; recreate .gameplan-active if missing, see HANDOFF repos topic); never bypass the gameplan hook. Only validators record verdicts; one Opus validator per round; lanes with 2 failed verdicts need a narrow Opus pre-review first (list every such lane reopened through a dependency). Never stop processes you did not start; never delete non-temp paths without Operator approval; never put the Operator's email or personal data in any request or header (V4-21). Rewrite Adobe concepts in Rust; Adobe apps are case studies only; never decompile Adobe binaries. Research online, do not guess. Commit and push gov_kernel after every progress event; refresh HANDOFF.md + a new snapshot (python tools/lead-snapshot.py) after every round.
+
+State at handoff: all lanes judged through round R22 at product commit 1da2453 (110 PASS, 7 BLOCKED on Operator decisions, 4 queued). Start at ledger.json resume_plan step 0: replace the stale workflow agent; then PRIORITY 1 press lane SMB-PRESS-PROPERTIES (PLR-104: in an untagged PDF, marked-content /Alt or /ActualText of a flattened page in shared or inherited /Properties survives while the save reads proven — purge exactly or fail closed; fold PLR-105, PLR-107); then Opus narrow pre-review; then steward sync + canary + validator round R23. Do not decide Operator items (D5, D9, D13, D17, D20-D26, D28, cleanup approvals); list them when reporting. Check weekly usage before each dispatch and pace work to it.
+```
+
+</topic>
 
 <topic id="read-first" status="active" summary="What to read before acting">
 
@@ -31,7 +49,7 @@ authority: ledger.json, team.json, workflow/plausible-register.json, validation/
 | Product (35 Studio crates) | `Nuntissura/assets` / `codex/handshake-studio-assets`, subfolder `handshake-studio-assets` | `wt-studio-assets` | HEAD == origin == 1da2453 (all lanes judged through R22); uncommitted on purpose: local Cargo.lock patch bumps (not steward-reviewed) and stat-only score files |
 | Build artifacts | `Handshake_Artifacts/WP-KERNEL-STUDIO/` (sibling of the worktrees) | — | cargo targets, round exports, canary + round results, red-proof scratch trees; never build on C: |
 
-Push helper for governance: `tools/lead-kernel-push.sh <message-file> <paths...>` (commits the paths, merges `origin/gov_kernel` only when no path overlaps, pushes; never branches/forces). The kernel root `.gameplan-active` belongs to WP-KERNEL-012; run gated git/cargo commands with a leading `cd .GOV/docs_repo/wp-studio-module-work` (local Studio pointer) or from the product tree. Snapshot generator used for this handoff: rebuild from `ledger.json` + `team.json` + `workflow/plausible-register.json` (fields as in the snapshot file).
+Push helper for governance: `tools/lead-kernel-push.sh <message-file> <paths...>` (commits the paths, merges `origin/gov_kernel` only when no path overlaps, pushes; never branches/forces). The kernel root `.gameplan-active` belongs to WP-KERNEL-012; run gated git/cargo commands with a leading `cd .GOV/docs_repo/wp-studio-module-work` (local Studio pointer) or from the product tree. Lead helpers (relative paths): `python tools/lead-lane-ready.py <utc-now> <LANE_ID> <team-member> <commit> "<note>"` marks a lane READY in ledger/team/journal; `python tools/lead-snapshot.py "<usage note>"` writes `snapshots/SNAPSHOT-<UTC>.json`. The Studio gameplan pointer `.gameplan-active` in this folder is local and git-excluded: if missing, recreate it with the single line `../tmp/studio-modular-authoring-gameplan.yaml` and add it to `.git/info/exclude`.
 
 </topic>
 
