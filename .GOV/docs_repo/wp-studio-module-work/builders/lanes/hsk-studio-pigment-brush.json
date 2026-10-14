@@ -1,0 +1,24 @@
+{
+ "crate": "hsk-studio-pigment",
+ "lane": "SMB-PIGMENT-BRUSH",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slice 1 pushed on 1a72a40: clippy clean, 4 brush tests green, check of pigment+composite+render-cpu+render-gpu+develop exit 0",
+ "commits": [
+  {"sha": "9179368", "subject": "Pigment brush engine slice 1: parametric tip, pressure dynamics, dab placement, stroke coverage, paint and erase helpers, erase-to-mask route"},
+  {"sha": "1a72a40", "subject": "Pigment brush: exact dab positions (multiply before divide)"}
+ ],
+ "capabilities_done": ["BrushTip/BrushDynamics/Dab serde (STU-RAW-121 dab list)", "place_dabs with spacing >100 percent and remainder carry", "pen_pressure on size/opacity/flow", "stroke_coverage (hardness smoothstep, flow build-up, opacity cap)", "paint_replacement/erase_replacement for masked_replace", "route_erase (erase_routed_to_mask, STU-RAS-170)", "paint_mask/clip_to_selection via selection::combine", "crop_to", "brush::DESCRIPTOR"],
+ "tests": {"argv": "nextest run -p hsk-studio-pigment --test brush --no-fail-fast", "exit": 0, "sha": "1a72a40", "passed": 4, "failed": 0},
+ "blockers": [],
+ "lock_wait_s": 20,
+ "bg_pids": [],
+ "next": "slice 2: tilt/velocity/fade, response curves, seeded jitter, blend modes",
+ "updated_at": "2026-10-14T20:10:56Z",
+ "notes": {
+  "route": "no gameplan blocks; product failures fixed by commit then rerun",
+  "api_names": "paint_replacement and erase_replacement build the replacement planes; the caller assembles masked_replace Request (needs actor, ports); test 4 drives the real masked_replace through SerializedOwner",
+  "readings": "stroke opacity = max dab opacity (stroke-level cap); dab diameter floored at 1 px after dynamics; Approximate, D5 pending",
+  "tests_count": "4 tests (hostile and selection clip folded into the brief's five); crate-level DESCRIPTOR unchanged",
+  "selection_lane": "d48bc30 selection module consumed unchanged"
+ }
+}
