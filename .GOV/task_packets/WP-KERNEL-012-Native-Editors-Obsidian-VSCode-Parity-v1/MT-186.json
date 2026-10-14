@@ -1,4 +1,18 @@
 {
+  "keep_going_diagnostic_collection_20261014": {
+    "decision_id": "WP012-KEEP-GOING-DIAGNOSTIC-COLLECTION-20261014",
+    "status": "APPROVED_LAST_STAGE03_DIAGNOSTIC_ONLY",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "direct_blocker": "Default Cargo stops scheduling independent test/crate targets after first failure; repeated native runs exposed one test interface at a time. Operator requested compiling then collecting every failure for parallel batch repair. Twelve failures/history retained; scope changes directly improve exactfailure collection without weakening original acceptance.",
+    "research_source": "https://doc.rust-lang.org/cargo/commands/cargo-check.html#miscellaneous-options; checked2026-10-14, --keep-going continues independent dependency-graph crates when earlier crate fails, -j1 preserved; failed dependencies can still leave dependenttargets unreached.",
+    "candidate_commit": "e63eef6594f70ee47a31fbebec070bf79220047c",
+    "command": "cargo check --locked --manifest-path src/frontend/handshake_native/Cargo.toml --tests -j 1 --keep-going",
+    "argv": ["check", "--locked", "--manifest-path", "src/frontend/handshake_native/Cargo.toml", "--tests", "-j", "1", "--keep-going"],
+    "stage_binding": "Uses remaining stage03 check3 allowance; preserve two consumed originalchecks and all12priorCargoFAIL101. On terminal stage03 becomes3/3; record actualdiagnosticexit and everyactual target/errorgroup/reached-unreached dependency state. No historyreset or automatic additional dispatch.",
+    "proof_floor": "Diagnostic run cannot replace original exact seven-argv command or claim its gate passed even if diagnosticexit0. Original cargo check --locked --manifest-path src/frontend/handshake_native/Cargo.toml --tests -j1 remains explicit independent acceptance surface to run after diagnosticbatchclean under nextrecorded bounded decision. Runtime/auth/durability/GUI/wholeWP acceptance unchangedOPEN.",
+    "preconditions": "Verify installed frozenCargohelp supportsflag using source/toolinspection only, no toolchaininstall. Refresh only changed command/config/runner/currentauthority bindings and relevantcondition notes; validunchanged source/body/syntax/conditionproof reused. One affected independent argv/preflight/actualouterpayload review, officialnumeric-zero gates, exactrelease-only inverse then conditionalprimary launch. Actualqueuedouterpayload explicitexit and samevariableassert mandatory. No extraOperatorapproval.",
+    "limits": "Same MT174profile916767/target/disk50GiBfloor175GBstop180GBcap/j1/normal/memoryobservationonly and sourcefreeze/ownedPID/originalparentexit closure. No newfeatures/manifest/source/test/runtimetestexecution/metadata/provision/foreignprocess disruption. Neverrepresentkeepgoingasrunningtests or asalltargetsreachedwhen dependenciesfailed."
+  },
   "outer_launch_payload_repair_20261014": {
     "status": "EXACT_ACTUAL_PAYLOAD_FORWARDING_REPAIR_AUTHORIZED",
     "failure_ref": "/delegated_stage03_check2_result_20261014",
@@ -69,6 +83,7 @@
     "candidate_tree": "6dd041f88270fbb1f8b46771d35dd562a1cc6468",
     "source_checkpoint_ref": "MT-175.json#/pane_registry_checkpoint_20261014",
     "actual_outer_payload_prerequisite_ref": "/outer_launch_payload_repair_20261014",
+    "next_check_override_ref": "/keep_going_diagnostic_collection_20261014",
     "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
     "predecessor_stage_ref": "/delegated_native_stage02_20261014",
     "predecessor_terminal_checks": 3,
