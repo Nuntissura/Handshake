@@ -771,7 +771,7 @@
   "swarm_source_admission_ref": "packet.json#/swarm_production_20261014",
   "swarm_changed_source_compile_admission_20261014": {
     "decision_id": "WP012-SWARM-CHANGED-SOURCE-COMPILER-20261014-06",
-    "status": "PREPARATION_RELEASED_LAUNCH_CONDITIONAL",
+    "status": "PRE_CARGO_WRAPPER_FAILED_CLOSED_SCOPED_CALLER_REPAIR_ADMITTED",
     "recorded_at_utc": "2026-10-14T15:45:07.325853+00:00",
     "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
     "decision_owner_chat": "01a13ab5-bfe4-74b1-8fc3-64e691a76827",
@@ -807,7 +807,7 @@
       "--message-format=json"
     ],
     "additional_terminal_limit": 2,
-    "checks_consumed": 0,
+    "checks_consumed": 1,
     "counter_policy": "At most one current-source probe and one confirmation only after relevant inputs or evidenced method change. Preserve old40 core failures, spent2of2 stage and successful changed-host retry1of1; no history reset/automatic renewal. Root records evidenced continuation or exact blocker at threshold.",
     "profile_ref": "../gov-runtime/host-profile-wp012-phase02-builder.json",
     "profile_sha256": "916767bbbac5a853b9b8dbd5688d2262cc91bff0d9173fc2431f4dad0bc6b776",
@@ -819,6 +819,58 @@
       "fresh_retained_input_observation": "Of23 retained manifest/config inputs only nativeCargo.toml differs; native manifest is absent from actual719-package core graph. Preserve original locked root/features/selected targets and independently verify all relevant graph/tool/config bytes before reuse. No automatic core metadata invocation.",
       "current_native_manifest_sha256": "2a5a78042a744a0e6a91e54adcd3ea47278c8dd194ced04e59a08dc8cd4b2b51"
     },
-    "prior_proof_ref": "MT-188.json#/swarm_core_retry_success_20261014"
+    "prior_proof_ref": "MT-188.json#/swarm_core_retry_success_20261014",
+    "compiler_invocations_observed": 0,
+    "terminal_counting_disposition": "Root conservative explicit disposition under WP012-ADAPT-001/006/007: this released original wrapper terminal consumes1of2 stage06 terminal checks, while original CORE command invocations remain0. Exactly one changed-caller confirmation remains; no history reset or automatic renewal.",
+    "pre_cargo_wrapper_failure_20261014": {
+      "decision_id": "WP012-SWARM-CALLER-LINEAGE-REPAIR-20261014-07",
+      "recorded_at_utc": "2026-10-14T17:54:23.118422+00:00",
+      "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+      "original_attempt_id": "8787790b1b434a69a38eb86c5d97d50d",
+      "original_outer_session": 63937,
+      "original_outer_numeric_exit": 2,
+      "wrapper_pid": 42600,
+      "wrapper_creation_date": "2026-10-14T19:45:23.654181+02:00",
+      "result_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt188-swarm-core-check01/compile-result.json",
+      "result_sha256": "cbc37995e3910b23fb34a9f4736635d94081744e314f66451c5a2f0417ed3f6e",
+      "cargo_pid": null,
+      "cargo_exit": null,
+      "expected485_targets": "NOT_OBSERVED_BY_THIS_ATTEMPT",
+      "independent_closure": {
+        "owner_chat": "01a139f6-ce6a-7b50-a058-dff3732ea4a2",
+        "disposition": "TERMINAL_FREEZE_CLOSED_FAILED_PRE_CARGO",
+        "terminal_command_execution_id": "exec-2d72a60a-802b-49b0-a1a1-7e7f7f9dfbca",
+        "canonical_source_inputs": 7416,
+        "raw_authority_inputs": 11,
+        "manifest_config_inputs": 23,
+        "tool_inputs": 3,
+        "drift": 0,
+        "owned_wrapper_and_direct_children": "ABSENT_BY_FRESH_CIM",
+        "persistent_cache_pid_retained": 4820,
+        "product_head": "575997886285ede0442cc8b93bb69eed57d94e08",
+        "kernel_head_at_run": "8c3f6999e66d7c9bef8f7c0f68af239c79ba0827",
+        "scope": "Fresh independent canonical reread; no invented wrapper postbinding or Cargo result"
+      },
+      "exact_failure": "Runner line193 hashes null registryToc.producer_freeze because current prior_freeze adds retained mt188-core-changed-host-retry01 node before inherited fixed-depth lineage. Ten explicit absent rows are unrelated.",
+      "repair_scope": {
+        "owner_chat": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+        "new_artifact_root": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt188-swarm-core-check02",
+        "allowed_changes": [
+          "One additional verified prior_freeze hop after inherited line162; preserve all original lineage hashes and producer/API/foundation assertions",
+          "Only necessary fresh local authority/caller/config/output bindings, original numeric capture and actual outer payload binding for the distinct repair attempt"
+        ],
+        "product_source_changes": false,
+        "forbidden": [
+          "Null skipping or deleting history/hash assertions",
+          "Changing original command/features/targets/profile/toolchain/cache/resource controls",
+          "Metadata rerun, worker compiler or duplicate unchanged proof",
+          "Runtime/auth/store/grant/START manufacture",
+          "Overwrite/delete prior attempt artifacts or automatically renew a stage"
+        ],
+        "read_only_repair_evidence": "All16 retained lineage edges and all12 correctly aligned coder/foundation references independently hash-equal after exactly one extra hop"
+      },
+      "next_release": "One affected SAME-IV review of exact changed external runner/config/caller with unchanged575 source; actual official gates/resource admission and new frozen output namespace before one remaining stage06 terminal confirmation. No fresh Operator approval required within this delegated scope.",
+      "history_preserved": "All40 old core failures, spent original2of2 and changed-host1of1 retained; native13/stage04 1of3 and metadata1of1 unchanged. Original full independent WP acceptance remains open."
+    }
   }
 }
