@@ -20,7 +20,18 @@
     "runtime": "NOT_AUTHORIZED_BY_THIS_DECISION; original MT188 production-main positive/negative selector remains unresolved",
     "candidate_commit": "eba6c403773524e498629153e9c725f64b72a9bd",
     "candidate_tree": "6edf1f190e308efb4eaac0d5af2ad27199a6d668",
-    "source_checkpoint_ref": "MT-175.json#/successor_connected_batch_checkpoint_20261014"
+    "source_checkpoint_ref": "MT-175.json#/successor_connected_batch_checkpoint_20261014",
+    "caller_conditions": {
+      "tool": "Existing previously accepted pinned Praxidike collector only; runtime root supplied by existing machine-local caller config, no new installation",
+      "tool_env": {
+        "PYTHONDONTWRITEBYTECODE": "1"
+      },
+      "tool_env_scope": "Only existing Python collector, avoids out-of-artifact bytecode; no product runtime env or host profile mutation",
+      "runner_delta": "Old df7068 profile/10GB reserve replaced by current916767 observational-memory policy; original core argv/target/normal scheduling/exit/input/postbinding/owned closure retained",
+      "core_metadata_reuse": "Original core metadata719packages/rootcore; only retained-input mismatches are native root Cargo.toml/Cargo.lock absent from actual core package graph, while core and20otherretainedinputs unchanged. Validate current actual719 manifests/rootfeatures/selectedtargets before reuse; retain original bytes/hash and exact irrelevant-input disposition. Original485 target/feature/assertion scope unchanged",
+      "no_automatic_metadata_run": true,
+      "original_native_metadata": "Distinct invalidated native graph; no current native graph/census implied by core metadata reuse"
+    }
   },
   "source_only_checkpoint_20261014": {
     "status": "SOURCE_CHECKPOINT_PUSH_VERIFIED",
