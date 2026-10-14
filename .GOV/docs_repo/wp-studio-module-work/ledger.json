@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-14T23:04:30Z",
+ "updated_at": "2026-10-14T23:20:33Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -4746,12 +4746,20 @@
   {
    "lane_id": "SMB-INTEROP-FIG-LAYER-GRAPH",
    "crate": "hsk-studio-interop-fig",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-fig-graph-20261015",
-   "commits": [],
+   "commits": [
+    "55606ee",
+    "e90ad7b",
+    "3a0cebc",
+    "e3b89c4",
+    "5db9339",
+    "0c1ae4d"
+   ],
    "verdicts": [],
-   "note": "interop-fig writes an empty folio layer graph, so .fig documents cannot be composited; write graph sources/edges/outputs so imported Figma files render"
+   "note": "interop-fig writes an empty folio layer graph, so .fig documents cannot be composited; write graph sources/edges/outputs so imported Figma files render",
+   "lane_file": "builders/lanes/hsk-studio-interop-fig-layer-graph.json"
   },
   {
    "lane_id": "SMB-FOLIO-VECTOR-IMAGE-PORT",
@@ -4851,6 +4859,16 @@
    "verdicts": [],
    "note": "map folio parent_page_records onto layout ParentSet; page-local items record gap",
    "lane_file": "builders/lanes/hsk-studio-layout-parent-adapter.json"
+  },
+  {
+   "lane_id": "SMB-INTEROP-FIG-INSTANCES-FRAMES",
+   "crate": "hsk-studio-interop-fig",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "expand component instances (with overrides) into composited layers; artboard/frame fills as background layers; text outputs with font resolution so Figma text renders"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",

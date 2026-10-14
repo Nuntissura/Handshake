@@ -1,0 +1,42 @@
+{
+  "crate": "hsk-studio-interop-fig",
+  "lane": "SMB-INTEROP-FIG-LAYER-GRAPH",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slices 1-3 pushed and green at 0c1ae4d",
+  "commits": [
+    {"sha": "55606ee", "subject": "interop-fig (SMB-INTEROP-FIG-LAYER-GRAPH slice 1): folio layer graph for imported Figma documents"},
+    {"sha": "e90ad7b", "subject": "interop-fig (SMB-INTEROP-FIG-LAYER-GRAPH slice 2): boolean groups compose Normal; composite render harness (dev edges); drop scratch dump"},
+    {"sha": "5db9339", "subject": "interop-fig (SMB-INTEROP-FIG-LAYER-GRAPH slice 3): composite-vs-PNG proofs and pinned graph shape and losses"},
+    {"sha": "0c1ae4d", "subject": "interop-fig (SMB-INTEROP-FIG-LAYER-GRAPH): clippy clean composite test (final; f5f3220..09455a6 are test-harness fix-ups)"}
+  ],
+  "capabilities_done": [
+    "src/graph.rs (new, deny arithmetic_side_effects): to_native now writes a real hsk.studio.layer_graph@1 instead of an empty one. Vector layer with paths -> source op (vector out) listed as a graph output; boolean group (has a StudioBooleanGroup record) -> mix op with no inputs (composite draws it as one leaf; operand layers get no op); text layer -> source op with image-typed out (Folio G1); a group holding only image-typed content (text sources, boolean leaves, such groups) -> mix op with ordered edges (ordinal 0 bottom-most); any other group is flattened (children listed as outputs in paint order); artboards are not graph nodes (children stand in canvas order); only the first visible page (CANVAS) is listed in graph.outputs, other pages keep their operations",
+    "boolean result groups now get an explicit Normal/Isolated appearance (a boolean result is one shape; the default Pass Through made pigment refuse the leaf: plan_pass_through_on_isolated)",
+    "typed losses under native.graph: group_flattened_vector_not_group_input (vector typed sources cannot feed image group inputs), group_appearance_flattened (flattened group with an authored appearance; 0 on the fixtures), layer_kind_not_composited (component instances and unmapped kinds), vector_without_paths_not_composited, nesting_too_deep_not_composited, page_outside_outputs",
+    "document identity and package round trip unchanged: the graph is part of the Folio document, fig_native::real_native_package_round_trip (identical document, records, id_map) still passes"
+  ],
+  "tests": {
+    "argv": "cargo nextest run -p hsk-studio-interop-fig --test fig_composite --test fig_native --test fig_geometry --test fig_folio_kinds --no-fail-fast",
+    "exit": 0,
+    "sha": "0c1ae4d",
+    "passed": 18,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "when composite/render accept an image-typed vector source (Folio SMB-FOLIO-VECTOR-IMAGE-PORT landed in 6e2ec80; composite evaluate_static still only handles SourceValue::Vector for Payload::Vector, line 565), declare vector sources image-typed so vector layers feed groups and the flattening (group_flattened_vector_not_group_input) and its appearance loss disappear; instance expansion (3 layer_kind_not_composited in components-autolayout) and frame fills (artboards carry none) are the other gaps to a full composite",
+  "updated_at": "2026-10-14T23:19:59Z",
+  "notes": {
+    "spec_basis": "Folio graph typing (STU-CMP-092 stack order = input_ordinal; validate(): source ports raster=image, vector=vector, text=text|image(G1); group inputs image; edges require equal value types); composite document root (SMB-COMPOSITE-NEW-KINDS slice 5) lists vector outputs; not re-quoted from the module text (grepped via folio validate and composite DESCRIPTOR)",
+    "dev_edges_requested": "STEWARD: root Cargo.toml [workspace.metadata.studio.dependencies.hsk-studio-interop-fig] needs dev-allowed = [hsk-studio-composite, hsk-studio-render-cpu, hsk-studio-pigment, hsk-studio-prism] (like B1; four dep-requests.jsonl lines kind=dev at 2026-10-14T22:5x). They are in crates/hsk-studio-interop-fig/Cargo.toml [dev-dependencies] only; normal deps unchanged; acyclic (none depends on interop-fig); Cargo.lock left uncommitted",
+    "graph_pins": "operations/edges/outputs: basic-shapes 12/0/12, components-autolayout 9/5/1, prototype-pages 27/17/9. native.graph losses: basic-shapes group_flattened 3; components-autolayout group_flattened 1 + layer_kind_not_composited 3 (the three INSTANCE layers); prototype-pages group_flattened 4 + page_outside_outputs 1 (the scrolling page overlays the flow page at the same canvas coordinates)",
+    "render_proof": "tests/fig_composite.rs: Folio snapshot of the proposal reopened with profiles assigned and everything resolvable; prepare_vectors (proposal paths, design and vector records) -> lower -> evaluate_with_inputs (vectors + raster records) -> outputs probed by evaluation (text, strokes, gradient and image fills are composite refusals and stay out of the document root, counted by reason) -> with_document_root -> lower_with_inputs -> render-cpu execute_extended on a 1400x900 extent, Encoded blend space",
+    "png_results": "basic-shapes (artboard at 100,100, PNG 900x640): rendered star-half-opacity, boolean-union, group-background, multiply-overlay, layer-blur, (mask-ellipse hidden source, absent); refused by composite: vector_stroke_not_rendered 3, paint_gradient 1, image_paint_unresolved 1, text_to_image_conversion 1. Probe colours at node boxes within 1/255 of the PNG (asserted <= 4); nothing composited just outside the union and star boxes; >= 97 % of opaque pixels outside the multiply region within 8/255 (measured 95.9 % including the multiply region, which differs by the frame fill, see below). prototype-pages: the three animated-orb ellipses render at exact PNG positions (frame origins 140/540/940,170): centre colour <= 4/255, left/right edge pixels empty 3 px outside and painted 3 px inside, in the render and in the PNGs. components-autolayout: nothing drawable (instances not composited, text-only groups need prepared text): rendered 0, reason pinned",
+    "residual_diffs": "multiply-overlay beyond group-background: PNG = overlay colour x frame fill (245,247,252) (Figma multiplies with the frame fill); Folio artboards carry no fill and composite draws none, so our pixel is the plain overlay colour; test asserts the multiplied expectation within 2/255. layer-blur renders only because the raster records are passed (without them the blur is skipped silently by composite, so the harness passes them)",
+    "unverified": "Figma group Pass Through vs flattened order for blend modes (multiply group), first-visible-page-only outputs as the document canvas, text as image-typed source (needs prepared text to render; no fonts in this proof)",
+    "retry_guard": "retry-guard blocks on identical reruns after a compile/test failure: route (a), committed the fix (new HEAD) then reran, six times (all test-harness fix-ups in tests/fig_composite.rs). One external stall: gameplan step GP-029 (truepeak confirm, another lane) blocked every gated command at my HEAD until the Score lane confirmed; I did not confirm it",
+    "deps": "no normal dependency change; Cargo.lock uncommitted",
+    "scratch": "an accidental scratch test tests/zz_dump.rs was committed in 55606ee and removed in e90ad7b"
+  }
+}

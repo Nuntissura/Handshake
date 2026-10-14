@@ -427,3 +427,4 @@ Open Operator decisions (not adopted; recorded for the Operator):
 - Lead 2026-10-15: accepted composition id prefix SCOM (spec gives none; SCMP is components) and steward probe table limit 512->1024 (accesskit Linux closure).
 - R32 pre-review 2026-10-15: SMB-PRESS SAFE_TO_JUDGE (no regressions of its own claims; INFO: harness depends on press proposal since fcd53b8, so press changes re-open harness lanes under CX-VAL-009).
 - Lead 2026-10-15: retired shared gameplan GP-029 (a builder's own true-peak test tolerance added as an active confirm step for role any, which blocks every builder's gated commands); shared builder preamble now forbids builder edits to the shared gameplan.
+- Lead 2026-10-15: interop-fig dev edges (tests only) to composite, render-cpu, pigment, prism approved (as B1) for the Figma render proof; Operator fixtures render through Studio within stated tolerances (fig_composite.rs).
