@@ -1386,6 +1386,7 @@ fn spawn_agent(
 #[serde(tag = "kind")]
 enum ProcessUiAction {
     Click,
+    ShowContextMenu,
     ClickWithPayload { payload: String },
     Focus,
     SetValue { text: String },
@@ -1421,6 +1422,7 @@ impl From<&UiAction> for ProcessUiAction {
     fn from(value: &UiAction) -> Self {
         match value {
             UiAction::Click => Self::Click,
+            UiAction::ShowContextMenu => Self::ShowContextMenu,
             UiAction::ClickWithPayload { payload } => Self::ClickWithPayload {
                 payload: payload.clone(),
             },
@@ -1440,6 +1442,7 @@ impl From<ProcessUiAction> for UiAction {
     fn from(value: ProcessUiAction) -> Self {
         match value {
             ProcessUiAction::Click => Self::Click,
+            ProcessUiAction::ShowContextMenu => Self::ShowContextMenu,
             ProcessUiAction::ClickWithPayload { payload } => Self::ClickWithPayload { payload },
             ProcessUiAction::Focus => Self::Focus,
             ProcessUiAction::SetValue { text } => Self::SetValue { text },
@@ -1685,6 +1688,7 @@ fn dispatch_from_spawned_agent<S>(
 
     let (action, payload) = match &received.action {
         UiAction::Click => ("Click", None),
+        UiAction::ShowContextMenu => ("ShowContextMenu", None),
         UiAction::ClickWithPayload { payload } => ("ClickWithPayload", Some(payload.as_str())),
         UiAction::Focus => ("Focus", None),
         UiAction::SetValue { text } => ("SetValue", Some(text.as_str())),
@@ -2805,6 +2809,7 @@ fn run_swarm_edit_live_conflict_merge_search_and_receipts() {
         assert_eq!(request.author_id, expected.author_id);
         let (action_name, payload) = match &request.action {
             UiAction::Click => ("Click", None),
+            UiAction::ShowContextMenu => ("ShowContextMenu", None),
             UiAction::ClickWithPayload { payload } => ("ClickWithPayload", Some(payload.as_str())),
             UiAction::Focus => ("Focus", None),
             UiAction::SetValue { text } | UiAction::NativeSetValue { text } => {

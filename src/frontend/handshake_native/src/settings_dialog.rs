@@ -91,6 +91,14 @@ pub const CALENDAR_TIMEZONE_AUTHOR_ID: &str = "settings.calendar-timezone";
 pub const CALENDAR_TIMEZONE_APPLY_AUTHOR_ID: &str = "settings.calendar-timezone.apply";
 /// Stable author_id for the Swarm board default-open checkbox.
 pub const SWARM_BOARD_CHECKBOX_AUTHOR_ID: &str = "settings.swarm-board-default-open";
+pub const SWARM_MODEL_SESSIONS_COMBO_AUTHOR_ID: &str =
+    "settings.swarm-model-sessions-max-concurrent";
+pub const SWARM_MODEL_SESSIONS_STATUS_AUTHOR_ID: &str =
+    "settings.swarm-model-sessions-max-concurrent.status";
+
+pub fn swarm_model_session_option_author_id(value: usize) -> String {
+    format!("{SWARM_MODEL_SESSIONS_COMBO_AUTHOR_ID}.option.{value}")
+}
 /// Stable author_id for the Reset panes & drawers button.
 pub const RESET_LAYOUT_AUTHOR_ID: &str = "settings.reset-layout";
 /// Stable author_id for the Settings -> Model Session action that opens the real launch dialog.
