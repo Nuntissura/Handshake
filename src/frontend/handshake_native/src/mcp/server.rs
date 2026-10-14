@@ -523,7 +523,7 @@ async fn dispatch_with_session(
             return McpResponse::error(request.id.clone(), McpError::general(ERR_UNAUTHORIZED, "Unauthorized"));
         }
         if ArgusMethod::from_wire_name(&request.method) == Some(ArgusMethod::ListWindows) {
-            return McpResponse::ok_value(request.id.clone(), windows.list());
+            return McpResponse::ok_value(request.id.clone(), serde_json::json!({"windows": windows.list()}));
         }
         if let Some(selector) = request.params.get("window_id") {
             let Some(window_id) = selector.as_str().filter(|id| !id.is_empty()) else {

@@ -200,6 +200,17 @@ pub struct ArgusWindowDescriptor {
     pub title: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct ArgusWindowListing {
+    pub window_id: String,
+    pub viewport_id: String,
+    pub title: String,
+    pub epoch: u64,
+    pub revision: u64,
+    pub snapshot_available: bool,
+    pub closing: bool,
+}
+
 #[derive(Clone)]
 pub(crate) struct RegisteredWindow {
     pub descriptor: ArgusWindowDescriptor,
@@ -283,15 +294,19 @@ impl WindowSnapshotRegistry {
         self.inner.lock().unwrap_or_else(|e| e.into_inner()).windows.values().find(|w| w.descriptor.viewport_id == viewport).cloned()
     }
 
-    pub fn list(&self) -> serde_json::Value {
+    pub fn list(&self) -> Vec<ArgusWindowListing> {
         let state = self.inner.lock().unwrap_or_else(|e| e.into_inner());
-        let mut windows: Vec<_> = state.windows.values().map(|w| serde_json::json!({
-            "window_id": w.descriptor.window_id, "viewport_id": format!("{:?}", w.descriptor.viewport_id),
-            "title": w.descriptor.title, "epoch": w.epoch, "revision": w.revision(),
-            "snapshot_available": w.published.load(Ordering::Acquire), "closing": w.closing.load(Ordering::Acquire),
-        })).collect();
-        windows.sort_by(|a,b| a["window_id"].as_str().cmp(&b["window_id"].as_str()));
-        serde_json::json!({"windows": windows})
+        let mut windows: Vec<_> = state.windows.values().map(|w| ArgusWindowListing {
+            window_id: w.descriptor.window_id.clone(),
+            viewport_id: format!("{:?}", w.descriptor.viewport_id),
+            title: w.descriptor.title.clone(),
+            epoch: w.epoch,
+            revision: w.revision(),
+            snapshot_available: w.published.load(Ordering::Acquire),
+            closing: w.closing.load(Ordering::Acquire),
+        }).collect();
+        windows.sort_by(|a, b| a.window_id.cmp(&b.window_id));
+        windows
     }
 
     pub fn install_output_plugin(&self, ctx: &egui::Context) {

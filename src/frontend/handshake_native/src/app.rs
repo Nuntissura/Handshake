@@ -13695,6 +13695,10 @@ impl HandshakeApp {
         self.worksurface_inspector_last_dump.as_deref()
     }
 
+    pub fn mcp_window_registry(&self) -> crate::mcp::WindowSnapshotRegistry {
+        self.mcp_windows.lock().unwrap_or_else(|p| p.into_inner()).clone()
+    }
+
     /// The per-session MCP token (MT-027) gating every request.
     pub fn mcp_token(&self) -> crate::mcp::SessionToken {
         self.mcp_token.clone()
@@ -13714,6 +13718,14 @@ impl HandshakeApp {
     /// feature panes were removed only from the default seed, not from registration.
     pub fn pane_factory_registered(&self, pane_type: &PaneType) -> bool {
         self.factories.contains_key(pane_type)
+    }
+
+    pub fn set_pane_factory(
+        &mut self,
+        pane_type: PaneType,
+        factory: Box<dyn crate::pane_registry::PaneFactory>,
+    ) {
+        self.factories.insert(pane_type, factory);
     }
 
     /// Active base theme (for tests / future settings binding).
