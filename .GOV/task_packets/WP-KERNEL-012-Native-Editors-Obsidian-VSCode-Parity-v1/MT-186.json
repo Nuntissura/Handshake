@@ -1,7 +1,10 @@
 {
   "delegated_native_stage03_20261014": {
     "decision_id": "WP012-NATIVE-STAGE-20261014-03",
-    "status": "APPROVED_IMPORT_REPAIR_THEN_REFRESH",
+    "status": "APPROVED_REFRESH_REVIEWED_PUSHED_IMPORT_CANDIDATE",
+    "candidate_commit": "db339b9772ff848321de30600f60213e81b47789",
+    "candidate_tree": "8f76e189f71f394ffec64ad0333cc7e4dc440d48",
+    "source_checkpoint_ref": "MT-175.json#/cloud_dto_import_checkpoint_20261014",
     "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
     "predecessor_stage_ref": "/delegated_native_stage02_20261014",
     "predecessor_terminal_checks": 3,

@@ -1,4 +1,18 @@
 {
+  "cloud_dto_import_checkpoint_20261014": {
+    "status": "INDEPENDENT_IMPORT_SOURCE_REPROOF_PUSH_VERIFIED",
+    "repair_ref": "/cloud_dto_import_repair_20261014",
+    "commit": "db339b9772ff848321de30600f60213e81b47789",
+    "tree": "8f76e189f71f394ffec64ad0333cc7e4dc440d48",
+    "parent": "25e1491c742049e3fbf433045b10813c81f8eb90",
+    "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt175-cloud-dto-import-repair",
+    "client_sha256": "0fa538ac2355c15a37d55e441ea620f46a73b78718d560ea182f443222480271",
+    "source_comparison_sha256": "a83cc6d20334f1796b4864c1fc76d017bb8383cc33420bfd97027527ff4931a0",
+    "diff_sha256": "3542cc16be13a4af12110324e1ea010b03a4ca41f7359b94d6d71508b7e6459b",
+    "review": "Independent exact3line unconditional5DTO moduleimport and actual presentpublicsettings producers/clientuses/census reproof. All7416inventory/7415unchanged/rawinverse and lock reviewed. Root openedactualdiff/checkpoint; fresh canonicalHEAD/tree/clean/liveorigin and actualclienthash exact. Prior behaviorreviews reused only unchangedscope.",
+    "compiler_tests_runtime": "NOT_RUN",
+    "residuals": "Backendmount/legacytestauth/windowdriver/durableHMAC/genuineauth/runtime and originalfullacceptance remainOPEN; source import reproof is not compiler evidence."
+  },
   "cloud_dto_import_repair_20261014": {
     "decision_id": "WP012-CLOUD-DTO-IMPORT-REPAIR-20261014",
     "status": "SOURCE_REPAIR_AUTHORIZED",
