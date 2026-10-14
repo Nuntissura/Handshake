@@ -1,0 +1,23 @@
+{
+ "crate": "hsk-studio-develop",
+ "lane": "SMB-DEVELOP-TIFF-CONSOLIDATE",
+ "status": "BLOCKED",
+ "phase": "steps 0 and 1 pushed at a7048ef; step 2 blocked: interop-tiff has no IFD-level API",
+ "commits": [{"sha": "a7048ef", "subject": "develop (SMB-DEVELOP-TIFF-CONSOLIDATE): corpus fix + container identity record"}],
+ "capabilities_done": [
+  "corpus: raw.pixls.us id 1022 (CC0, Adobe DNG Converter Canon 5D3, CFA 5920x3950, 16-bit, Compression 1, sha256 95dc76a2...e981b2e1 equals listing) installed as oracle-corpus/dng/adobe-dng-converter-canon-eos-5d3-16bit-uncompressed.dng; provenance.json marks samsung id 3839 not_a_dng; real_dng facts + fetch-corpus.sh updated; real_dng passes on all entries",
+  "tests/container_identity.rs: pinned IDENT (CFA + developed sha256, or typed outcome) for 4 DNG + 10 vendor files at pre-switch HEAD; passes"
+ ],
+ "tests": {"argv": "cargo nextest run -p hsk-studio-develop --test container_identity --test real_dng --run-ignored all", "exit": 0, "sha": "a7048ef", "passed": 3, "failed": 0},
+ "blockers": [{"error": "hsk-studio-interop-tiff public API is decode/encode of image pages only; no IFD/tag/SubIFD/strip-range access", "file_line": "crates/hsk-studio-interop-tiff/src/lib.rs:21-35 (scan.rs Entry/read_ifd are pub(crate))", "attempts": 0}],
+ "lock_wait_s": 73,
+ "bg_pids": [],
+ "next": "after interop-tiff exposes a container API: add path dep + allowed edge, switch tiff.rs/tiffep.rs callers (dng.rs, cr2.rs, nef.rs, arw.rs), rerun container_identity (pins must match), delete tiff.rs",
+ "updated_at": "2026-10-14T18:20:00Z",
+ "notes": {
+  "missing_api": "classic TIFF + BigTIFF header and byte order; IFD walk with next-pointer and SubIFD (tag 330) recursion plus cycle/count bounds; per-entry (tag,type,count) with raw value bytes and typed accessors (u32s, f64s with RATIONAL division and zero-denominator/non-finite refusal, ascii, bytes); region(offset,len) over the file bytes for strip/tile payloads; no pixel decode (tiff::decode refuses CFA/LinearRaw/JPEG-in-tile DNG pages, develop keeps its own codecs).",
+  "digests": "PINNED in tests/container_identity.rs",
+  "cargo_lock": "not committed",
+  "tiffep": "tiffep.rs is not a duplicate container parser: it layers CFA selection, geometry and strip unpack on tiff.rs and moves onto the new API unchanged"
+ }
+}
