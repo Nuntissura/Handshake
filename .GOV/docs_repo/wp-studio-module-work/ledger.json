@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-14T18:43:04Z",
+ "updated_at": "2026-10-14T18:52:04Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3519,7 +3519,7 @@
   {
    "lane_id": "SMB-PRESS-PROPERTIES",
    "crate": "hsk-studio-press",
-   "phase": "pre-review R28 (V4-13) then validation",
+   "phase": "validation (R28 SAFE_TO_JUDGE; V4-06 count note R28-N1 to fix in lane notes)",
    "status": "READY_FOR_VALIDATION",
    "owner": "builder-press-20261014",
    "commits": [
@@ -3538,8 +3538,8 @@
   {
    "lane_id": "SMB-PRESS-STRUCT-STRIP",
    "crate": "hsk-studio-press",
-   "phase": "pre-review R28 (V4-13) then validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "remediation R28 FIX_FIRST (R28-S1, S2): DIAG-PRESS-R28 closed-set rule",
+   "status": null,
    "owner": "builder-press-20261014",
    "commits": [
     "ade85a0",
