@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 700
+generation: 701
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -594,3 +594,4 @@ steps:
 - {id: GP-573, role: builder, at: before_dispatch, do: verify retained retry parent is hash-bound before original producer API and foundation lineage traversal, check: {type: confirm}, source: 'infra: extra prior_freeze parent shifted fixed-depth walk; registryToc lacked producer_freeze and LiteralPath was null', state: active}
 - {id: GP-574, role: builder, at: before_dispatch, do: verify admitted owned caller persists actual numeric exit and settlement independently of the chat handle; missing terminal remains inconclusive, check: {type: confirm}, source: 'infra: check02 outer4458 became unknown with484of485 targets and no build-finished/result; owned closure proved but termination cause UNVERIFIED', state: active}
 - {id: GP-575, role: builder, at: before_dispatch, do: verify scope-path validation returned0 and committed owned blobs match the validated intended change; stop dependent Git actions after any failing predecessor, check: {type: confirm}, source: 'infra: annotated native_probe path failed validation but prior staged scope committed; exact16 paths corrected and pushedc6', state: active}
+- {id: GP-576, role: builder, at: before_dispatch, do: verify PowerShell observers use task-specific variable names and never overwrite reserved Host or HOME state, check: {type: confirm}, source: 'infra: readonly probe status used reserved $Host and failed1 beforewrite; corrected $probeHostExit returned0, no probe rerun', state: active}
