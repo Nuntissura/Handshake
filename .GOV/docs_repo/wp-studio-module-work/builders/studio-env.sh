@@ -1,9 +1,20 @@
 # Studio module team build environment (WP-KERNEL-STUDIO). Source AFTER the leading `cd` so the gameplan hook
 # resolves the Studio pointer:  cd "<dir>" && source "<this file>" && cargo ...
 # Operator 2026-10-11: no cargo builds/tests/checks on C:; all build output, TMP and TEMP under Handshake_Artifacts/<WP>/<owner>.
+# Operator grant 2026-10-14 (CX-984-014, START_LOG): the shared builder edit-tree target (owner studio-team-dev only)
+# lives on the C: SSD at C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target (cap 150 GB, cleaned at WP close)
+# with its own per-disk lock C:/HandshakeBuild/.disk-build-lock; every other owner (exports, sync-export, canary,
+# probes, red-proof trees) and all TMP/TEMP stay under Handshake_Artifacts on D:. Validator rounds are unchanged.
 _studio_art="D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO"
+_studio_ssd="C:/HandshakeBuild"
 _studio_owner="${STUDIO_OWNER:-studio-team-dev}"
-export CARGO_TARGET_DIR="${_studio_art}/${_studio_owner}/target"
+if [ "${_studio_owner}" = "studio-team-dev" ]; then
+  export CARGO_TARGET_DIR="${_studio_ssd}/WP-KERNEL-STUDIO/${_studio_owner}/target"
+  _studio_lock_default="${_studio_ssd}/.disk-build-lock"
+else
+  export CARGO_TARGET_DIR="${_studio_art}/${_studio_owner}/target"
+  _studio_lock_default="${_studio_art}/.disk-build-lock"
+fi
 export TMP="${_studio_art}/${_studio_owner}/tmp"
 export TEMP="${TMP}"
 export TMPDIR="${TMP}"
@@ -41,7 +52,12 @@ fi
 # (status 75). A build may wait for a validator round unit: run builds in the background.
 # `studio_disk_lock_run LABEL CMD...` locks any other build (e.g. a direct rustc).
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")/../tools" && pwd)/disk-build-lock.sh"
-export STUDIO_DISK_BUILD_LOCK_DIR="${STUDIO_DISK_BUILD_LOCK_DIR:-${_studio_art}/.disk-build-lock}"
+# An explicit caller override wins; a value this file derived on an earlier sourcing (possibly for another owner and
+# disk) is recomputed, so re-sourcing with a different STUDIO_OWNER never keeps the other disk's lock.
+if [ -z "${STUDIO_DISK_BUILD_LOCK_DIR:-}" ] || [ "${STUDIO_DISK_BUILD_LOCK_DIR}" = "${_STUDIO_ENV_LOCK_DERIVED:-}" ]; then
+  export STUDIO_DISK_BUILD_LOCK_DIR="${_studio_lock_default}"
+  export _STUDIO_ENV_LOCK_DERIVED="${_studio_lock_default}"
+fi
 studio_disk_lock_run() {
   local label=$1 child=""
   shift
