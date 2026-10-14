@@ -1,0 +1,23 @@
+{
+ "crate": "hsk-studio-harness",
+ "lane": "SMB-HARNESS-UI-3",
+ "status": null,
+ "phase": "slice 1a pushed (chronicle placement + session structural publish); slice 1b (harness layer management, tile creation) in progress",
+ "commits": [
+  {"sha": "63af66e", "subject": "chronicle + session (SMB-HARNESS-UI-3 slice 1a): layer placement property - create, delete, reorder, group, ungroup as transactions"}
+ ],
+ "capabilities_done": [
+  "chronicle Property::Placement: stack parent + index of a layer (absent = no layer); create (LayerCreate record + operation), delete (inverse re-creates the record), move/reorder/group/ungroup; writes apply in order, inverse in reverse; mask_property removes the layer for lineage; never-seen layer at revision 0",
+  "session: a proposal may add a placement vector entry for a created layer; publish merges new seeds after structural edits and keeps deleted layers' entries"
+ ],
+ "tests": {"argv": "cargo nextest run -p hsk-studio-chronicle --no-fail-fast -E 'binary(structure)'", "exit": 0, "sha": "63af66e", "passed": 3, "failed": 0},
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "slice 1b: harness Run/Viewer layer ops (new raster, duplicate, delete, reorder, rename, group/ungroup) + painting creates tiles",
+ "updated_at": "2026-10-14T22:37:30Z",
+ "notes": {
+  "edges_requested": "hsk-studio-harness -> hsk-studio-type (optional, feature viewer) for slice 4; approved by the coordinator 2026-10-14 (steward adds it)",
+  "found_bug_ui2_history": "UI-2 undo history replays stored inverses with the revisions captured when each step was made; after an undo of a later step on the same address the earlier inverse's revision is stale (RevisionConflict) - e.g. two opacity edits then two undos. Fix planned in slice 1b: refresh inverse read revisions from the session vector (values still guard)."
+ }
+}

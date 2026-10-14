@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-14T22:37:42Z",
+ "updated_at": "2026-10-14T22:41:33Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -4633,11 +4633,17 @@
   {
    "lane_id": "SMB-PIGMENT-RETOUCH",
    "crate": "hsk-studio-pigment",
-   "status": null,
-   "commits": [],
+   "status": "READY_FOR_VALIDATION",
+   "commits": [
+    "9650626",
+    "78ff77d",
+    "e8c4f18",
+    "edc1e0b"
+   ],
    "verdicts": [],
    "note": "clone stamp, healing/spot healing, crop/canvas/trim, core filters (unsharp, high pass, median, noise)",
-   "phase": "build (parity wave 2, brief builders/briefs/wave-parity-2-common.md)"
+   "phase": "validation",
+   "lane_file": "builders/lanes/hsk-studio-pigment-retouch.json"
   },
   {
    "lane_id": "SMB-DEVELOP-CONTROLS",
@@ -4759,6 +4765,26 @@
    "commits": [],
    "verdicts": [],
    "note": "use ITU-R BS.1770-4 Annex 2 example 4x oversampling coefficients for true peak (own Kaiser design reads -0.108 dBTP at 0.45 fs); EBU Tech 3341/3342 test vectors NOT_PROVEN (tech.ebu.ch 403) - Operator may download manually"
+  },
+  {
+   "lane_id": "SMB-RENDER-FILTERS",
+   "crate": "hsk-studio-render-cpu",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-render-filters-20261015",
+   "commits": [],
+   "verdicts": [],
+   "note": "execute pigment filter plan operators (gaussian, unsharp, high pass, median, seeded noise) in render-cpu (bit-identical to pigment reference) and render-gpu (within tolerance)"
+  },
+  {
+   "lane_id": "SMB-PIGMENT-CONTENT-AWARE",
+   "crate": "hsk-studio-pigment",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "STU-RAS-143 MUST: native content-aware fill/move/patch (PatchMatch-style inpainting), deterministic, bounded"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
