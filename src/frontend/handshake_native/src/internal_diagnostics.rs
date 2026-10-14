@@ -61,6 +61,93 @@ const OFFSET_SESSION_ID: usize = 56;
 const OFFSET_LAUNCH_NONCE: usize = 72;
 
 static ACTIVE_DIAGNOSTICS: OnceLock<Mutex<Weak<SharedDiagnostics>>> = OnceLock::new();
+static ADOPTED_PROVENANCE: OnceLock<Mutex<Weak<AdoptedProvenanceState>>> = OnceLock::new();
+
+fn adopted_provenance() -> Option<Arc<AdoptedProvenanceState>> {
+    lock_unpoisoned(ADOPTED_PROVENANCE.get_or_init(|| Mutex::new(Weak::new()))).upgrade()
+}
+
+#[derive(Clone)]
+pub struct AdoptedDiagnosticProvenance {
+    state: Arc<AdoptedProvenanceState>,
+}
+
+struct AdoptedProvenanceState {
+    session_id: Uuid,
+    launch_nonce: Uuid,
+    transport_secret: Zeroizing<[u8; 32]>,
+    signing_secret: Mutex<Option<Zeroizing<[u8; 32]>>>,
+    active: AtomicBool,
+}
+
+impl AdoptedDiagnosticProvenance {
+    pub fn for_current_owner(session_id: Uuid, launch_nonce: [u8; 16]) -> Result<Self, String> {
+        if session_id.is_nil() || launch_nonce == [0; 16] {
+            return Err("Current diagnostics owner identity is unavailable".to_owned());
+        }
+        let slot = ADOPTED_PROVENANCE.get_or_init(|| Mutex::new(Weak::new()));
+        let mut current = lock_unpoisoned(slot);
+        if current.upgrade().is_some() {
+            return Err("Current diagnostics provenance already has an owner".to_owned());
+        }
+        let state = Arc::new(AdoptedProvenanceState {
+            session_id,
+            launch_nonce: Uuid::from_bytes(launch_nonce),
+            transport_secret: Zeroizing::new(rand::random::<[u8; 32]>()),
+            signing_secret: Mutex::new(None),
+            active: AtomicBool::new(false),
+        });
+        *current = Arc::downgrade(&state);
+        Ok(Self { state })
+    }
+
+    pub fn session_id(&self) -> Uuid { self.state.session_id }
+    pub fn launch_nonce(&self) -> [u8; 16] { *self.state.launch_nonce.as_bytes() }
+    pub fn transport_public_key(&self) -> [u8; 32] {
+        *MontgomeryPoint::mul_base_clamped(*self.state.transport_secret).as_bytes()
+    }
+
+    pub fn accept_adoption(
+        &self,
+        ready: &crate::diagnostics::palmistry_launch::SignedWatcherReady,
+        receipt: &PalmistryLaunchReceipt,
+    ) -> Result<(), String> {
+        if ready.identity.session_id != self.state.session_id
+            || ready.identity.launch_nonce != self.launch_nonce()
+            || ready.transport_public_key != self.transport_public_key()
+            || receipt.session_id != self.state.session_id
+            || receipt.process_uuid != ready.identity.process_instance_id
+            || receipt.os_pid != ready.identity.watcher_pid
+            || receipt.os_creation_time_100ns == 0
+            || !receipt.ledger_start_durable
+            || receipt.sandbox_adapter_id != "palmistry_watcher"
+        {
+            return Err("Current-child adoption receipt identity/durability mismatch".to_owned());
+        }
+        let secret = open_transport_signing_secret(
+            &receipt.argus_signing_secret_envelope, &self.state.transport_secret,
+            self.state.session_id, self.state.launch_nonce,
+        )?;
+        *lock_unpoisoned(&self.state.signing_secret) = Some(secret);
+        self.state.active.store(true, Ordering::Release);
+        Ok(())
+    }
+
+    pub fn invalidate(&self) {
+        self.state.active.store(false, Ordering::Release);
+        *lock_unpoisoned(&self.state.signing_secret) = None;
+    }
+
+    pub fn argus_signing_secret_provider(&self) -> Arc<dyn Fn() -> Option<Zeroizing<[u8; 32]>> + Send + Sync> {
+        let weak = Arc::downgrade(&self.state);
+        Arc::new(move || {
+            let state = weak.upgrade()?;
+            if !state.active.load(Ordering::Acquire) { return None; }
+            let secret = lock_unpoisoned(&state.signing_secret).as_ref().cloned();
+            secret
+        })
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -354,6 +441,13 @@ pub struct DiagnosticObservationProvenance {
 }
 
 pub fn active_observation_provenance() -> Option<DiagnosticObservationProvenance> {
+    if let Some(state) = adopted_provenance() {
+        if !state.active.load(Ordering::Acquire) { return None; }
+        let heartbeat_counter = crate::diagnostics::recorder::current_heartbeat_counter();
+        if heartbeat_counter == 0 { return None; }
+        let signing_secret = lock_unpoisoned(&state.signing_secret).as_ref().cloned()?;
+        return Some(DiagnosticObservationProvenance { session_id: state.session_id, signing_secret, heartbeat_counter });
+    }
     let shared =
         lock_unpoisoned(ACTIVE_DIAGNOSTICS.get_or_init(|| Mutex::new(Weak::new()))).upgrade()?;
     let heartbeat_counter = lock_unpoisoned(&shared.state).heartbeat_counter;
@@ -372,6 +466,17 @@ pub fn emit_behavior_observation_open(
     run_id: &str,
     lane_id: &str,
 ) -> Option<DiagnosticObservationProvenance> {
+    if let Some(state) = adopted_provenance() {
+        let provenance = active_observation_provenance()?;
+        let observed_at_unix_ms = unix_ms();
+        let digest = behavior_observation_hmac(behavior_id, run_id, lane_id,
+            provenance.heartbeat_counter, observed_at_unix_ms, provenance.signing_secret.as_ref());
+        let digest: [u8; 32] = hex::decode(digest).ok()?.try_into().ok()?;
+        if !crate::diagnostics::recorder::publish_behavior_observation(
+            provenance.heartbeat_counter, observed_at_unix_ms, *state.launch_nonce.as_bytes(), digest,
+        ) { return None; }
+        return Some(provenance);
+    }
     let shared =
         lock_unpoisoned(ACTIVE_DIAGNOSTICS.get_or_init(|| Mutex::new(Weak::new()))).upgrade()?;
     InternalDiagnostics { shared }.emit_behavior_observation(behavior_id, run_id, lane_id)

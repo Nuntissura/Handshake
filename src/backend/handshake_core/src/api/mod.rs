@@ -58,9 +58,19 @@ pub fn routes_with_process_reclaim_runtime(
     state: AppState,
     process_runtime: crate::process_ledger::ProcessReclaimRuntime,
     product_scope: ProductLocalResourceScope,
+    model_access_state: model_access::ModelAccessState,
 ) -> ApiRoutes {
+    let palmistry_state = palmistry::PalmistryLaunchState::new(
+        process_runtime.ledger().ledger(),
+        state.flight_recorder.clone(),
+        state.surreal.clone(),
+        product_scope.exact().clone(),
+        process_runtime.reclaim(),
+    ).with_capability_registry(state.capability_registry.clone());
     ApiRoutes {
         router: routes(state.clone())
+            .merge(model_access::authenticated_routes(model_access_state, state.clone()))
+            .merge(palmistry::receipt_routes(palmistry_state))
             .layer(axum::Extension(product_scope))
             .layer(axum::Extension(state.surreal.resource_access_lifecycle())),
         runtime: ApiRouteRuntime {
@@ -110,6 +120,7 @@ pub mod model_access;
 pub mod model_lane_navigation;
 pub mod model_runtime_registry;
 pub mod operator_chat;
+pub mod palmistry;
 pub mod paths;
 pub mod preferences;
 pub mod role_mailbox;

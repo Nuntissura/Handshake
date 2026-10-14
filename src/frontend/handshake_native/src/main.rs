@@ -446,7 +446,8 @@ fn main() -> eframe::Result<()> {
     // the SAME id (`diagnostics::process_session_id()`) and a watcher correlates the crash file to the
     // ring. The crash dir resolves via `dirs` to a PORTABLE per-user path (NOT a hardcoded absolute path
     // — GLOBAL-PORTABILITY); if no local-data dir exists (rare), fall back to a still-portable temp dir.
-    let process_session_id = uuid::Uuid::new_v4().to_string();
+    let process_session_uuid = uuid::Uuid::new_v4();
+    let process_session_id = process_session_uuid.to_string();
     let crash_dir = diagnostics::default_crash_dir()
         .unwrap_or_else(|| std::env::temp_dir().join("handshake").join("crash"));
     diagnostics::install_panic_hook(crash_dir, &process_session_id);
@@ -476,29 +477,50 @@ fn main() -> eframe::Result<()> {
     // tests/test_focus_audit_quiet.rs (the shell makes no Win32 foreground/input-injection call).
     focus_guard::assert_quiet_mode_installed();
 
-    // WP-KERNEL-012 MT-094 (§6.13.3 "launched WITH Handshake at startup"): create the MT-081 diagnostics
-    // ring and LAUNCH the external Palmistry watcher HERE — in `main()`, BEFORE `eframe::run_native` — so
-    // the watcher is up before the app can freeze. The ring is created here (not in `HandshakeApp::new`)
-    // for two reasons: (1) we need the ring/session to hand to Palmistry BEFORE the event-loop closure
-    // runs, and (2) the whole egui_kittest suite builds `HandshakeApp::new` directly and must NOT each
-    // spawn + leak a palmistry child (the MT-094 anti-leak rule). `HandshakeApp::new` REUSES this
-    // already-created ring via the process-global preinstalled-session slot. The launch is QUIET
-    // (CREATE_NO_WINDOW, no focus steal), BOUNDED (a slow/absent watcher never blocks startup), preserves
-    // the not-kill-on-job-close survives-parent-death inversion, and DEGRADES GRACEFULLY: a missing
-    // palmistry.exe or a failed spawn leaves `palmistry = None` and Handshake starts anyway (§5.8.6).
-    let palmistry = match HandshakeApp::create_and_install_diag_ring() {
-        Some(session) => {
-            let control_socket = diagnostics::control_socket_name(&session.session_id);
-            // Make `HandshakeApp::new` reuse THIS ring instead of creating a second one.
-            diagnostics::set_preinstalled_diag_session(session.clone());
-            diagnostics::launch_palmistry_or_degrade(&session, &control_socket)
+    // The panic hook, ring and watcher share the process-start session. Only backend adoption of
+    // this signed child can activate receipt signing; startup never creates an account or grant.
+    let launch_nonce = *uuid::Uuid::new_v4().as_bytes();
+    let startup = (|| -> std::io::Result<_> {
+        let ring_path = handshake_diag_ring::default_backing_path(&process_session_id);
+        let writer = handshake_diag_ring::ring::DiagRingWriterV2::create(
+            &ring_path,
+            handshake_diag_ring::DEFAULT_CAPACITY,
+            launch_nonce,
+        )?;
+        if !diagnostics::recorder::install_v2(writer) {
+            return Err(std::io::Error::other("diagnostics recorder already initialized"));
         }
-        None => {
-            tracing::warn!(
-                "internal_diagnostics ring unavailable at startup; Palmistry not launched this session \
-                 (diagnostics are in-process-only — graceful degradation)"
-            );
-            None
+        let session = diagnostics::DiagSession {
+            session_id: process_session_id.clone(),
+            ring_path,
+        };
+        diagnostics::set_preinstalled_diag_session(session.clone());
+        let provenance =
+            handshake_native::internal_diagnostics::AdoptedDiagnosticProvenance::for_current_owner(
+                process_session_uuid,
+                launch_nonce,
+            )
+            .map_err(std::io::Error::other)?;
+        let control_socket = diagnostics::control_socket_name(&session.session_id);
+        let executable = diagnostics::resolve_palmistry_exe()?;
+        let signing_seed = zeroize::Zeroizing::new(rand::random::<[u8; 32]>());
+        let handle = diagnostics::palmistry_launch::launch_palmistry_signed_at(
+            &executable,
+            &session,
+            &session.ring_path,
+            &control_socket,
+            uuid::Uuid::new_v4(),
+            launch_nonce,
+            zeroize::Zeroizing::new(signing_seed.to_vec()),
+            provenance.transport_public_key(),
+        )?;
+        Ok((handle, provenance))
+    })();
+    let (palmistry, diagnostic_provenance) = match startup {
+        Ok((handle, provenance)) => (Some(handle), Some(provenance)),
+        Err(error) => {
+            tracing::warn!(%error, "signed Palmistry startup unavailable; receipt signing remains disabled");
+            (None, None)
         }
     };
 
@@ -533,7 +555,7 @@ fn main() -> eframe::Result<()> {
         "handshake-native",
         native_options,
         Box::new(move |cc| {
-            let mut app = HandshakeApp::new(cc);
+            let mut app = HandshakeApp::new_with_diagnostic_provenance(cc, diagnostic_provenance);
             // Hand the running shell the Palmistry handle so a clean exit (`HandshakeApp::on_exit`) sends
             // the explicit Shutdown control message (§6.13.3). `None` when the watcher was not launched
             // (graceful degradation) — the app simply runs without it.

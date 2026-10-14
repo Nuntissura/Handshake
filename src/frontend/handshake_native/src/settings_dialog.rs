@@ -673,6 +673,7 @@ pub enum SettingsOutcome {
     KeybindingReset { action_id: String },
     /// The Swarm board default-open checkbox was toggled. WIRED.
     SwarmBoardDefaultOpenChanged(bool),
+    SwarmModelSessionsMaxConcurrentChanged(usize),
     /// The Reset panes & drawers button was clicked (same action as VIEW > Reset Layout). WIRED.
     ResetLayout,
     /// Settings -> Model Session requested the same launch dialog as Run / command palette. WIRED.
@@ -708,10 +709,18 @@ pub struct SettingsFrame {
     pub query: String,
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct SwarmModelSessionsSettingsState {
+    pub snapshot: Option<crate::backend_client::SwarmConcurrencySnapshot>,
+    pub updating: bool,
+    pub error: Option<String>,
+}
+
 /// Read-only inputs the dialog renders from (the live settings + the open generation). The dialog never
 /// borrows `&mut HandshakeApp`; the shell applies the returned [`SettingsOutcome`].
 pub struct SettingsView<'a> {
     pub cloud: &'a mut CloudModelsSettingsState,
+    pub swarm_model_sessions: &'a SwarmModelSessionsSettingsState,
     /// Monotonic open generation; a new value resets the dialog's transient state.
     pub open_count: u64,
     /// The live workspace settings (theme, keybindings, view mode, swarm board flag, MT-072 editor
@@ -815,6 +824,7 @@ impl DialogState {
             keybindings,
             view_mode: live.view_mode,
             swarm_board_default_open: live.swarm_board_default_open,
+            swarm_model_sessions_max_concurrent: live.swarm_model_sessions_max_concurrent,
             calendar_view_tzid: live.calendar_view_tzid.clone(),
             // MT-072: this snapshot is used ONLY for APP-level keybinding conflict detection; the
             // editor settings ride along unchanged from the live state so the snapshot stays a faithful
@@ -1397,8 +1407,13 @@ fn render_sections(
     }
 
     // ── [3] Swarm (wired checkbox + not-yet-wired interval rows) ───────────────────────────────────
-    let show_swarm =
-        setting_matches_query(query, &["swarm", "board", "reconcile", "resource", "poll"]);
+    let show_swarm = setting_matches_query(
+        query,
+        &[
+            "swarm", "board", "reconcile", "resource", "poll", "model", "sessions",
+            "concurrency", "concurrent",
+        ],
+    );
     if show_swarm {
         let swarm_header = egui::CollapsingHeader::new("Swarm")
             .default_open(true)
@@ -1422,6 +1437,94 @@ fn render_sections(
                     set_author_id(ui, cb.id, SWARM_BOARD_CHECKBOX_AUTHOR_ID);
                     if cb.changed() && outcome == SettingsOutcome::None {
                         outcome = SettingsOutcome::SwarmBoardDefaultOpenChanged(checked);
+                    }
+                });
+                ui.horizontal(|ui| {
+                    let swarm = view.swarm_model_sessions;
+                    ui.vertical(|ui| {
+                        ui.label("Model sessions max concurrent");
+                        ui.add(
+                            egui::Label::new(
+                                egui::RichText::new(
+                                    "Coordinator budget for running model sessions. Lowering applies cooperatively as live sessions finish.",
+                                )
+                                .small()
+                                .weak(),
+                            )
+                            .wrap(),
+                        );
+                        let status_text = match (&swarm.snapshot, &swarm.error) {
+                            (Some(snapshot), error) => format!(
+                                "Requested: {} · In force: {} · Fully applied: {} · Live sessions: {}{}{}",
+                                snapshot.requested,
+                                snapshot.max_concurrent,
+                                snapshot.fully_applied,
+                                snapshot.live_sessions,
+                                if swarm.updating { " · Applying…" } else { "" },
+                                error
+                                    .as_ref()
+                                    .map(|message| format!(" · Update failed: {message}"))
+                                    .unwrap_or_default(),
+                            ),
+                            (None, Some(error)) => format!("Coordinator status unavailable: {error}"),
+                            (None, None) if swarm.updating => {
+                                "Coordinator status: applying request…".to_owned()
+                            }
+                            (None, None) => "Coordinator status: loading…".to_owned(),
+                        };
+                        let status = ui.label(egui::RichText::new(&status_text).small().weak());
+                        set_author_id_and_label(
+                            ui,
+                            status.id,
+                            SWARM_MODEL_SESSIONS_STATUS_AUTHOR_ID,
+                            &status_text,
+                        );
+                    });
+                    let current = settings
+                        .swarm_model_sessions_max_concurrent
+                        .or_else(|| swarm.snapshot.as_ref().map(|snapshot| snapshot.requested))
+                        .unwrap_or(1)
+                        .max(1);
+                    let mut selected = current;
+                    let mut options = vec![1usize, 2, 4, 8, 16, 32, 64, current];
+                    options.sort_unstable();
+                    options.dedup();
+                    ui.add_enabled_ui(!swarm.updating, |ui| {
+                        let combo = egui::ComboBox::from_id_salt(
+                            "settings.swarm-model-sessions-max-concurrent.combo",
+                        )
+                        .selected_text(current.to_string())
+                        .show_ui(ui, |ui| {
+                            for option in options {
+                                let response = ui.selectable_value(
+                                    &mut selected,
+                                    option,
+                                    option.to_string(),
+                                );
+                                let author_id = swarm_model_session_option_author_id(option);
+                                set_author_id(ui, response.id, &author_id);
+                                if response.clicked() {
+                                    crate::mcp::argus::acknowledge_action_effect(
+                                        ui.ctx(),
+                                        &author_id,
+                                    );
+                                }
+                            }
+                        });
+                        set_author_id(
+                            ui,
+                            combo.response.id,
+                            SWARM_MODEL_SESSIONS_COMBO_AUTHOR_ID,
+                        );
+                        if combo.response.clicked() {
+                            crate::mcp::argus::acknowledge_action_effect(
+                                ui.ctx(),
+                                SWARM_MODEL_SESSIONS_COMBO_AUTHOR_ID,
+                            );
+                        }
+                    });
+                    if selected != current && outcome == SettingsOutcome::None {
+                        outcome = SettingsOutcome::SwarmModelSessionsMaxConcurrentChanged(selected);
                     }
                 });
             });

@@ -623,6 +623,9 @@ pub struct WorkspaceSettingsState {
     pub view_mode: SettingsViewMode,
     /// Whether the Swarm Board opens on launch (wired).
     pub swarm_board_default_open: bool,
+    /// Desired model-session cap; `None` leaves the live coordinator cap unchanged.
+    /// A persisted choice is not proof of the cap currently in force.
+    pub swarm_model_sessions_max_concurrent: Option<usize>,
     /// IANA tzdb identifier used to project Calendar local-date views.
     pub calendar_view_tzid: String,
     /// MT-072 editor text preferences (font size, tab size, tabs-vs-spaces, word wrap, whitespace).
@@ -729,6 +732,7 @@ impl WorkspaceSettingsState {
             "settings": {
                 "view_mode": self.view_mode.as_str(),
                 "swarm_board_default_open": self.swarm_board_default_open,
+                "swarm_model_sessions_max_concurrent": self.swarm_model_sessions_max_concurrent,
                 "calendar_view_tzid": self.calendar_view_tzid,
             },
             // MT-072 NEW top-level keys (the backend stores settings_state as an opaque JSON object and
@@ -756,6 +760,7 @@ pub fn default_workspace_settings_state() -> WorkspaceSettingsState {
             .collect(),
         view_mode: SettingsViewMode::Nsfw,
         swarm_board_default_open: false,
+        swarm_model_sessions_max_concurrent: None,
         calendar_view_tzid: default_calendar_view_tzid(),
         // MT-072 editor settings default to the built-in editor prefs + Standard syntax palette + no
         // editor keybinding overrides (every editor action keeps its built-in default chord).
@@ -977,6 +982,12 @@ pub fn normalize_workspace_settings_state(
         .and_then(|m| m.get("swarm_board_default_open"))
         .and_then(Value::as_bool)
         .unwrap_or(fallback.swarm_board_default_open);
+    let swarm_model_sessions_max_concurrent = raw_settings
+        .and_then(|m| m.get("swarm_model_sessions_max_concurrent"))
+        .and_then(Value::as_u64)
+        .and_then(|value| usize::try_from(value).ok())
+        .map(|value| value.max(1))
+        .or(fallback.swarm_model_sessions_max_concurrent);
     let calendar_view_tzid = raw_settings
         .and_then(|m| m.get("calendar_view_tzid"))
         .and_then(Value::as_str)
@@ -1012,6 +1023,7 @@ pub fn normalize_workspace_settings_state(
         keybindings,
         view_mode,
         swarm_board_default_open,
+        swarm_model_sessions_max_concurrent,
         calendar_view_tzid,
         editor_prefs,
         syntax_palette,

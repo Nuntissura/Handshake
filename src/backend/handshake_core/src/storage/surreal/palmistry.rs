@@ -33,6 +33,8 @@ pub enum SurrealPalmistryError {
     CorruptAuthority,
     #[error("Palmistry source retirement requires durable STOP")]
     StopRequired,
+    #[error("authenticated Palmistry receipt permission denied; no canonical receipt was produced")]
+    PermissionDenied,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -177,6 +179,11 @@ struct KernelEventBindings {
     authenticated_session_id: String,
     access_space_id: String,
     workspace_id: String,
+    authority_resource_id: String,
+    authority_grant_id: String,
+    authority_session_id: String,
+    authority_capability_id: String,
+    authority_action: String,
 }
 
 #[derive(Debug, SurrealValue)]
@@ -444,11 +451,22 @@ impl SurrealPalmistryStore {
         }
     }
 
-    pub async fn append_kernel_event(
+    pub(crate) async fn append_kernel_event(
         &self,
         event: NewKernelEvent,
+        authority: super::resource_authority::RecordUserScope,
+        operation_id: Uuid,
     ) -> Result<String, SurrealPalmistryError> {
         self.ensure_initialized().await?;
+        if operation_id.is_nil()
+            || authority.workspace_id.as_deref() != Some(self.scope.workspace_id.as_str())
+            || authority.session_id != self.scope.authenticated_session_id.to_string()
+            || authority.capability_id != "fr.ingest.native_editor"
+            || authority.action != super::resource_authority::ResourceAction::Create
+            || authority.grant_id.as_ref().is_none_or(String::is_empty)
+        {
+            return Err(SurrealPalmistryError::PermissionDenied);
+        }
         event
             .validate()
             .map_err(|_| SurrealPalmistryError::InvalidInput)?;
@@ -477,19 +495,27 @@ impl SurrealPalmistryStore {
             authenticated_session_id: scope.authenticated_session_id,
             access_space_id: scope.access_space_id,
             workspace_id: scope.workspace_id,
+            authority_resource_id: authority.resource_id.clone(),
+            authority_grant_id: authority.grant_id.clone().ok_or(SurrealPalmistryError::PermissionDenied)?,
+            authority_session_id: authority.session_id.clone(),
+            authority_capability_id: authority.capability_id.clone(),
+            authority_action: authority.action.as_str().to_owned(),
         };
-        let rows = self.storage.with_data_operation(|database| Box::pin(async move {
-            database.query_values_at::<EventIdResult, _>(
-                "BEGIN TRANSACTION;\
+        let rows = self.storage.with_record_user_scope(authority,
+            self.storage.with_authenticated_transaction::<Vec<EventIdResult>, SurrealPalmistryError, _>(operation_id, move |transaction| Box::pin(async move {
+            transaction.query_values_at::<EventIdResult, _>(
+                "LET $resource = type::record('protected_resources', $authority_resource_id);\
+                 IF !fn::mt109_ledger_access($resource, type::record('authenticated_sessions', $authority_session_id), $authority_capability_id, $authority_action) { THROW 'HSK-403-PROTECTED-RESOURCE'; };\
+                 LET $grant = (SELECT * FROM type::record('resource_grants', $authority_grant_id) WHERE account_id = $auth.account_id AND principal_id = $auth.principal_id AND access_space_id = $auth.access_space_id AND resource_id = $resource AND status = 'active' AND revoked_at = NONE AND (expires_at = NONE OR expires_at > time::now()) AND actions CONTAINS $authority_action AND capability_ids CONTAINS $authority_capability_id AND delegation_chain = $auth.delegation_chain);\
+                 IF array::len($grant) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };\
                  LET $prior = (SELECT event_id, payload_hash, aggregate_type, aggregate_id, event_type, source_component FROM type::record('kernel_event_ledger', $ledger_record_id) WHERE idempotency_key = $idempotency_key AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id LIMIT 2);\
-                 IF array::len($prior) > 1 { THROW 'Palmistry EventLedger authority is ambiguous'; } ELSE IF array::len($prior) = 1 { IF $prior[0].payload_hash != $payload_hash OR $prior[0].aggregate_type != $aggregate_type OR $prior[0].aggregate_id != $aggregate_id OR $prior[0].event_type != $event_type OR $prior[0].source_component != $source_component { THROW 'Palmistry EventLedger idempotency conflict'; }; RETURN $prior; } ELSE { RETURN CREATE type::record('kernel_event_ledger', $ledger_record_id) CONTENT { event_id: $event_id, event_version: $event_version, kernel_task_run_id: $kernel_task_run_id, session_run_id: $session_run_id, aggregate_type: $aggregate_type, aggregate_id: $aggregate_id, idempotency_key: $idempotency_key, event_type: $event_type, actor_kind: $actor_kind, actor_id: $actor_id, causation_id: $causation_id, correlation_id: $correlation_id, payload_hash: $payload_hash, source_component: $source_component, payload: $payload, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id, created_at: time::now() }; };\
-                 COMMIT TRANSACTION;",
+                 IF array::len($prior) > 1 { THROW 'Palmistry EventLedger authority is ambiguous'; } ELSE IF array::len($prior) = 1 { IF $prior[0].payload_hash != $payload_hash OR $prior[0].aggregate_type != $aggregate_type OR $prior[0].aggregate_id != $aggregate_id OR $prior[0].event_type != $event_type OR $prior[0].source_component != $source_component { THROW 'Palmistry EventLedger idempotency conflict'; }; RETURN $prior; } ELSE { RETURN CREATE type::record('kernel_event_ledger', $ledger_record_id) CONTENT { event_id: $event_id, event_version: $event_version, kernel_task_run_id: $kernel_task_run_id, session_run_id: $session_run_id, aggregate_type: $aggregate_type, aggregate_id: $aggregate_id, idempotency_key: $idempotency_key, event_type: $event_type, actor_kind: $actor_kind, actor_id: $actor_id, causation_id: $causation_id, correlation_id: $correlation_id, payload_hash: $payload_hash, source_component: $source_component, payload: $payload, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id, wsids: [$workspace_id], authority_resource_id: $resource, authority_grant_id: type::record('resource_grants', $authority_grant_id), authority_session_id: type::record('authenticated_sessions', $authority_session_id), authority_capability_id: $authority_capability_id, authority_action: $authority_action, created_at: time::now() }; };",
                 bindings,
-                2,
-            ).await
-        })).await?;
+                5,
+            ).await.map_err(SurrealPalmistryError::from)
+        }))).await?;
         let [row] = rows.as_slice() else {
-            return Err(SurrealPalmistryError::CorruptAuthority);
+            return Err(SurrealPalmistryError::PermissionDenied);
         };
         Ok(row.event_id.clone())
     }

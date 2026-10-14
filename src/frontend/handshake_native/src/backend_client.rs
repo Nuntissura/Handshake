@@ -25,6 +25,332 @@ use std::time::Duration;
 pub const BACKEND_BASE_URL: &str = "http://127.0.0.1:37501";
 
 #[derive(Clone)]
+pub struct SwarmLaneDiagnosticsClient {
+    client: reqwest::Client,
+    base_url: String,
+    runtime: tokio::runtime::Handle,
+    authenticated_context: AccountContext,
+}
+
+impl SwarmLaneDiagnosticsClient {
+    pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
+        Self {
+            client: shared_http_client(),
+            base_url: base_url.into().trim_end_matches('/').to_owned(),
+            runtime,
+            authenticated_context: None,
+        }
+    }
+
+    pub fn production(runtime: tokio::runtime::Handle) -> Self {
+        Self::new(BACKEND_BASE_URL, runtime)
+    }
+
+    pub fn with_authenticated_context(mut self, context: AccountContext) -> Self {
+        self.authenticated_context = context;
+        self
+    }
+
+    pub fn latest_request(&self) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Get,
+            url: format!("{}/swarm/model-lanes/diagnostics/latest", self.base_url),
+            body: None,
+        }
+    }
+
+    pub fn run_request(&self, run_id: &str) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Get,
+            url: format!("{}/swarm/model-lanes/diagnostics/{}", self.base_url, run_id),
+            body: None,
+        }
+    }
+
+    fn fetch(&self, spec: RequestSpec, cell: crate::swarm_lane_diagnostics::SwarmLaneDiagnosticsCell) {
+        let client = self.client.clone();
+        let account = self.authenticated_context.clone();
+        self.runtime.spawn(async move {
+            let result = get_json(&client, account, &spec.url, &[])
+                .await
+                .and_then(|value| {
+                    let projection = serde_json::from_value::<
+                        crate::swarm_lane_diagnostics::SwarmLaneDiagnosticsProjection,
+                    >(value)
+                    .map_err(|error| AppError::Parse(error.to_string()))?;
+                    crate::swarm_lane_diagnostics::validate_projection_for_native_surface(&projection)
+                        .map_err(AppError::Parse)?;
+                    Ok(projection)
+                })
+                .map_err(|error| error.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+}
+
+impl crate::swarm_lane_diagnostics::SwarmLaneDiagnosticsTransport for SwarmLaneDiagnosticsClient {
+    fn fetch_latest(&self, cell: crate::swarm_lane_diagnostics::SwarmLaneDiagnosticsCell) {
+        self.fetch(self.latest_request(), cell);
+    }
+
+    fn fetch_run(&self, run_id: &str, cell: crate::swarm_lane_diagnostics::SwarmLaneDiagnosticsCell) {
+        self.fetch(self.run_request(run_id), cell);
+    }
+}
+
+/// Retained unchanged across an unknown POST outcome and its canonical reconciliation.
+#[derive(Clone, serde::Serialize)]
+pub struct ArgusActionReceiptEnvelope {
+    pub diagnostics_session_id: uuid::Uuid,
+    pub action_id: String,
+    pub action: String,
+    pub connection_id: String,
+    pub agent_id: String,
+    pub agent_label: String,
+    pub window_id: String,
+    pub author_id: String,
+    pub before_revision: u64,
+    pub after_revision: Option<u64>,
+    pub status: String,
+    pub proof: String,
+}
+
+impl ArgusActionReceiptEnvelope {
+    pub fn sign(&mut self, key: &[u8; 32]) -> Result<(), AppError> {
+        use hmac::{Hmac, Mac};
+        use sha2::Sha256;
+
+        self.validate()?;
+        let mut mac = <Hmac<Sha256> as Mac>::new_from_slice(key)
+            .map_err(|_| AppError::Parse("Invalid Argus signing key".to_owned()))?;
+        for value in [
+            self.diagnostics_session_id.to_string(),
+            self.action_id.clone(),
+            self.action.clone(),
+            self.connection_id.clone(),
+            self.agent_id.clone(),
+            self.agent_label.clone(),
+            self.window_id.clone(),
+            self.author_id.clone(),
+            self.before_revision.to_string(),
+            self.after_revision.map(|value| value.to_string()).unwrap_or_default(),
+            self.status.clone(),
+        ] {
+            mac.update(&(value.len() as u64).to_le_bytes());
+            mac.update(value.as_bytes());
+        }
+        self.proof = hex::encode(mac.finalize().into_bytes());
+        Ok(())
+    }
+
+    fn action_uuid(&self) -> Result<uuid::Uuid, AppError> {
+        self.action_id
+            .strip_prefix("argus-action-")
+            .and_then(|value| uuid::Uuid::parse_str(value).ok())
+            .ok_or_else(|| AppError::Parse("Invalid Argus action UUID".to_owned()))
+    }
+
+    fn validate(&self) -> Result<(), AppError> {
+        let identifier = |value: &str, max: usize| {
+            !value.is_empty() && value.len() <= max && value.bytes().all(|byte| {
+                byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-' | b':')
+            })
+        };
+        let graphic = |value: &str, max: usize| {
+            !value.is_empty() && value.len() <= max && value.bytes().all(|byte| byte.is_ascii_graphic())
+        };
+        if self.diagnostics_session_id.is_nil()
+            || !identifier(&self.action_id, 96)
+            || !identifier(&self.connection_id, 96)
+            || !identifier(&self.agent_id, 96)
+            || !graphic(&self.agent_label, 96)
+            || !graphic(&self.window_id, 96)
+            || !graphic(&self.author_id, 256)
+            || !matches!(self.action.as_str(), "argus.click" | "argus.set_value" | "argus.show_context_menu")
+            || !matches!(self.status.as_str(), "applied" | "failed")
+            || (self.status == "applied" && !self.after_revision.is_some_and(|after| after > self.before_revision))
+            || self.after_revision.is_some_and(|after| after < self.before_revision)
+        {
+            return Err(AppError::Parse("Invalid sanitized Argus action receipt".to_owned()));
+        }
+        self.action_uuid()?;
+        Ok(())
+    }
+
+    fn canonical_payload(&self) -> Value {
+        serde_json::json!({
+            "kind": "argus_action_receipt",
+            "action_id": self.action_id,
+            "action": self.action,
+            "connection_id": self.connection_id,
+            "agent_id": self.agent_id,
+            "agent_label": self.agent_label,
+            "diagnostics_session_id": self.diagnostics_session_id,
+            "window_id": self.window_id,
+            "author_id": self.author_id,
+            "before_revision": self.before_revision,
+            "after_revision": self.after_revision,
+            "status": self.status,
+            "authority_source": "embedded_surrealdb_kernel_event_ledger",
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ArgusActionDurabilityRecord {
+    pub event_ledger_event_id: String,
+    pub flight_recorder_event_id: Option<uuid::Uuid>,
+    pub flight_recorder_mirrored: Option<bool>,
+    pub durable: bool,
+    pub reconciled: bool,
+}
+
+#[derive(serde::Deserialize)]
+struct ArgusActionDurabilityAck {
+    event_ledger_event_id: String,
+    flight_recorder_event_id: Option<uuid::Uuid>,
+    flight_recorder_mirrored: bool,
+    durable: bool,
+}
+
+#[derive(Clone)]
+pub struct ArgusActionReceiptClient {
+    client: reqwest::Client,
+    base_url: String,
+    authenticated_context: AccountContext,
+    workspace_id: Option<String>,
+}
+
+impl ArgusActionReceiptClient {
+    pub fn new(base_url: impl Into<String>) -> Self {
+        Self {
+            client: shared_http_client(),
+            base_url: base_url.into().trim_end_matches('/').to_owned(),
+            authenticated_context: None,
+            workspace_id: None,
+        }
+    }
+
+    pub fn with_authenticated_context(mut self, context: AccountContext) -> Self {
+        self.authenticated_context = context;
+        self
+    }
+
+    pub fn with_workspace_id(mut self, workspace_id: &str) -> Self {
+        self.workspace_id = Some(workspace_id.to_owned());
+        self
+    }
+
+    pub fn has_same_active_authority(&self, other: &Self) -> bool {
+        self.base_url == other.base_url && self.workspace_id == other.workspace_id
+            && self.authenticated_context.as_ref().zip(other.authenticated_context.as_ref())
+                .is_some_and(|(left, right)| left.is_active() && right.is_active() && Arc::ptr_eq(left, right))
+    }
+
+    /// One POST only. An error may be an unknown outcome; retain the envelope and reconcile it.
+    pub async fn persist(&self, envelope: &ArgusActionReceiptEnvelope) -> Result<ArgusActionDurabilityRecord, AppError> {
+        envelope.validate()?;
+        self.canonical_payload(envelope)?;
+        if envelope.proof.len() != 64 || !envelope.proof.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+            return Err(AppError::Parse("Invalid Argus receipt proof".to_owned()));
+        }
+        let value = authenticated_json_expect_success(
+            &self.client,
+            self.authenticated_context.clone(),
+            "POST",
+            self.client.post(format!("{}/internal-diagnostics/argus/action-receipt", self.base_url))
+                .timeout(Duration::from_secs(5)).json(envelope),
+        ).await?;
+        let ack: ArgusActionDurabilityAck = serde_json::from_value(value)
+            .map_err(|_| AppError::Parse("Invalid Argus durability acknowledgement".to_owned()))?;
+        if !ack.durable || ack.event_ledger_event_id.is_empty()
+            || ack.flight_recorder_mirrored != ack.flight_recorder_event_id.is_some()
+            || ack.flight_recorder_event_id.is_some_and(|id| Some(id) != envelope.action_uuid().ok())
+        {
+            return Err(AppError::Parse("Inconsistent Argus durability acknowledgement".to_owned()));
+        }
+        let canonical = self.reconcile(envelope).await?
+            .ok_or_else(|| AppError::Parse("Argus acknowledgement has no canonical receipt".to_owned()))?;
+        if canonical.event_ledger_event_id != ack.event_ledger_event_id {
+            return Err(AppError::Parse("Argus acknowledgement event ID mismatch".to_owned()));
+        }
+        Ok(ArgusActionDurabilityRecord {
+            event_ledger_event_id: ack.event_ledger_event_id,
+            flight_recorder_event_id: ack.flight_recorder_event_id,
+            flight_recorder_mirrored: Some(ack.flight_recorder_mirrored),
+            durable: ack.durable,
+            reconciled: false,
+        })
+    }
+
+    /// Read the exact authenticated aggregate before considering a retry; never re-enqueue the action.
+    pub async fn reconcile(&self, envelope: &ArgusActionReceiptEnvelope) -> Result<Option<ArgusActionDurabilityRecord>, AppError> {
+        envelope.validate()?;
+        let expected = self.canonical_payload(envelope)?;
+        let value = get_json(
+            &self.client,
+            self.authenticated_context.clone(),
+            &format!("{}/kernel/events/aggregates/argus_action/{}", self.base_url, envelope.action_id),
+            &[],
+        ).await?;
+        let rows = value.as_array()
+            .ok_or_else(|| AppError::Parse("Invalid Argus aggregate response".to_owned()))?;
+        let key = format!("argus-action-receipt:{}:{}", envelope.diagnostics_session_id, envelope.action_id);
+        let mut matched = None;
+        for row in rows {
+            if row["aggregate_type"] != "argus_action" || row["aggregate_id"] != envelope.action_id {
+                return Err(AppError::Parse("Argus aggregate identity mismatch".to_owned()));
+            }
+            if matched.is_some() || row["source_component"] != "handshake_native_argus"
+                || row["correlation_id"] != envelope.action_id || row["payload"] != expected
+                || row["idempotency_key"] != key
+                || row["event_type"] != "TOOL_RESULT_RECORDED"
+                || !canonical_argus_actor(&row["actor"])
+                || row["kernel_task_run_id"] != format!("argus:{}", envelope.connection_id)
+                || row["session_run_id"] != format!("argus:{}", envelope.connection_id)
+            {
+                return Err(AppError::Parse("Argus canonical receipt conflict".to_owned()));
+            }
+            let event_id = row["event_id"].as_str().filter(|id| !id.is_empty())
+                .ok_or_else(|| AppError::Parse("Argus canonical event ID missing".to_owned()))?;
+            matched = Some(ArgusActionDurabilityRecord {
+                event_ledger_event_id: event_id.to_owned(),
+                flight_recorder_event_id: None,
+                flight_recorder_mirrored: None,
+                durable: true,
+                reconciled: true,
+            });
+        }
+        Ok(matched)
+    }
+
+    fn canonical_payload(&self, envelope: &ArgusActionReceiptEnvelope) -> Result<Value, AppError> {
+        let account = self.authenticated_context.as_ref()
+            .filter(|account| account.is_active())
+            .ok_or_else(|| AppError::Http("Active account login required".to_owned()))?;
+        let workspace = self.workspace_id.as_deref().filter(|workspace| !workspace.is_empty())
+            .ok_or_else(|| AppError::Parse("Argus receipt workspace is not bound".to_owned()))?;
+        let mut payload = envelope.canonical_payload();
+        payload["owner_account_id"] = Value::String(account.account_id.clone());
+        payload["actor_principal_id"] = Value::String(account.principal_id.clone());
+        payload["authenticated_session_id"] = Value::String(account.session_id.clone());
+        payload["access_space_id"] = Value::String(account.access_space_id.clone());
+        payload["workspace_id"] = Value::String(workspace.to_owned());
+        Ok(payload)
+    }
+}
+
+fn canonical_argus_actor(actor: &Value) -> bool {
+    actor.as_object().is_some_and(|object| {
+        object.len() == 2
+            && matches!(actor["kind"].as_str(), Some("operator" | "tool_gate"))
+            && actor["id"].as_str().is_some_and(|id| !id.is_empty())
+    })
+}
+
+#[derive(Clone)]
 pub struct UserManualClient {
     client: reqwest::Client,
     base_url: String,

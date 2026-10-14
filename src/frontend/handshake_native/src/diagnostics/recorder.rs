@@ -70,6 +70,9 @@ pub struct DiagnosticsRecorder {
     /// The MT-081 shared-memory ring writer. `None` until [`install`]; a headless/test shell that
     /// created no ring leaves it `None` and records in-process only (graceful degradation).
     writer: Option<DiagRingWriter>,
+    writer_v2: Option<handshake_diag_ring::ring::DiagRingWriterV2>,
+    heartbeat_counter: AtomicU64,
+    observation_sequence: AtomicU64,
     /// The bounded in-process last-N buffer the Diagnostics Panel reads. Drop-oldest on overflow.
     buffer: Mutex<VecDeque<DiagEvent>>,
     /// Count of events shed because the buffer was at cap (never grows the buffer; just accounts).
@@ -81,6 +84,9 @@ impl DiagnosticsRecorder {
     fn new(writer: Option<DiagRingWriter>) -> Self {
         Self {
             writer,
+            writer_v2: None,
+            heartbeat_counter: AtomicU64::new(0),
+            observation_sequence: AtomicU64::new(1),
             buffer: Mutex::new(VecDeque::with_capacity(BUFFER_CAP)),
             dropped: AtomicU64::new(0),
         }
@@ -138,6 +144,9 @@ impl DiagnosticsRecorder {
         if let Some(writer) = &self.writer {
             writer.write(event);
         }
+        if let (Some(writer), Some(event)) = (&self.writer_v2, handshake_diag_ring::schema::DiagEventV2::ordinary(event)) {
+            writer.write(event);
+        }
         drop(guard);
     }
 
@@ -156,8 +165,12 @@ impl DiagnosticsRecorder {
     /// change; the staleness math in Palmistry compares this value; RISK-004-2 / AC-004-2).
     #[inline]
     pub fn heartbeat(&self, counter: u64, timestamp_nanos: u64) {
+        self.heartbeat_counter.store(counter, Ordering::Release);
         // No buffer lock, no allocation, no format!: just the wait-free ring header seqlock store.
         if let Some(writer) = &self.writer {
+            writer.write_heartbeat(counter, timestamp_nanos);
+        }
+        if let Some(writer) = &self.writer_v2 {
             writer.write_heartbeat(counter, timestamp_nanos);
         }
     }
@@ -202,6 +215,38 @@ fn global() -> &'static DiagnosticsRecorder {
 /// app degrades to in-process-only diagnostics for the session (it never panics or aborts startup).
 pub fn install(writer: DiagRingWriter) -> bool {
     RECORDER.set(DiagnosticsRecorder::new(Some(writer))).is_ok()
+}
+
+pub fn install_v2(writer: handshake_diag_ring::ring::DiagRingWriterV2) -> bool {
+    let mut recorder = DiagnosticsRecorder::new(None);
+    recorder.writer_v2 = Some(writer);
+    RECORDER.set(recorder).is_ok()
+}
+
+pub fn current_heartbeat_counter() -> u64 {
+    global().heartbeat_counter.load(Ordering::Acquire)
+}
+
+pub fn publish_behavior_observation(
+    heartbeat_counter: u64,
+    observed_at_unix_ms: u64,
+    launch_nonce: [u8; 16],
+    correlation_hmac: [u8; 32],
+) -> bool {
+    let recorder = global();
+    let Some(writer) = &recorder.writer_v2 else { return false };
+    if heartbeat_counter == 0 || heartbeat_counter != recorder.heartbeat_counter.load(Ordering::Acquire) {
+        return false;
+    }
+    let mut buffer = recorder.buffer.lock().unwrap_or_else(|error| error.into_inner());
+    let event = handshake_diag_ring::schema::DiagEventV2::behavior_observation(
+        recorder.observation_sequence.fetch_add(1, Ordering::Relaxed),
+        heartbeat_counter, observed_at_unix_ms, launch_nonce, correlation_hmac,
+    );
+    if !writer.write(event) { return false; }
+    if buffer.len() == BUFFER_CAP { buffer.pop_front(); }
+    buffer.push_back(event.event);
+    true
 }
 
 /// THE open public API (§5.8.2). Record a pre-built typed [`DiagEvent`] from ANY module without a

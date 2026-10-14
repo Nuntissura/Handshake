@@ -52,6 +52,47 @@ use crate::mcp::tools::{
     McpRequest, McpResponse, SessionToken, ERR_INVALID_PARAMS, ERR_RATE_LIMITED,
 };
 
+fn durability_binding_is_current(state: &ServerState, binding: &ArgusDurabilityBinding) -> bool {
+    state.durability.lock().unwrap_or_else(|e| e.into_inner()).as_ref()
+        .is_some_and(|current| current.generation == binding.generation && current.diagnostics_session_id == binding.diagnostics_session_id)
+}
+
+fn set_durability_error(value: &mut serde_json::Value, error: &str) {
+    if let Some(object) = value.as_object_mut() {
+        object.insert("durability_error".to_owned(), serde_json::Value::String(error.to_owned()));
+    }
+}
+
+fn durability_authority_is_current(state: &ServerState, binding: &ArgusDurabilityBinding) -> bool {
+    state.durability.lock().unwrap_or_else(|e| e.into_inner()).as_ref()
+        .is_some_and(|current| current.diagnostics_session_id == binding.diagnostics_session_id
+            && current.client.has_same_active_authority(&binding.client))
+}
+
+fn apply_durable_record(value: &mut serde_json::Value, record: &crate::backend_client::ArgusActionDurabilityRecord) {
+    if let Some(object) = value.as_object_mut() {
+        object.insert("evidence_ref".to_owned(), serde_json::Value::String(format!("eventledger://{}", record.event_ledger_event_id)));
+        object.insert("durability_error".to_owned(), serde_json::Value::Null);
+    }
+}
+
+#[derive(Clone)]
+pub struct ArgusDurabilityBinding {
+    pub generation: u64,
+    pub diagnostics_session_id: uuid::Uuid,
+    pub client: crate::backend_client::ArgusActionReceiptClient,
+    pub signing_secret: Arc<dyn Fn() -> Option<zeroize::Zeroizing<[u8; 32]>> + Send + Sync>,
+}
+
+pub type SharedArgusDurabilityBinding = Arc<Mutex<Option<ArgusDurabilityBinding>>>;
+
+struct PendingDurableReceipt {
+    envelope: crate::backend_client::ArgusActionReceiptEnvelope,
+    binding: ArgusDurabilityBinding,
+    receipt_value: serde_json::Value,
+    reservation: Option<tokio::sync::OwnedSemaphorePermit>,
+}
+
 /// Max JSON-RPC requests one connection may issue per second before the server replies `-32003`
 /// (`Rate limited`). 100/sec is generous for multi-step steering yet bounds an adversarial flood.
 pub const MAX_REQUESTS_PER_SEC: u32 = 100;
@@ -91,6 +132,9 @@ struct ServerState {
     capture: Arc<dyn Fn() -> Result<ScreenshotResult, ScreenshotError> + Send + Sync>,
     connection_counter: Arc<std::sync::atomic::AtomicU64>,
     attribute_each_connection: bool,
+    durability: SharedArgusDurabilityBinding,
+    pending_receipts: Arc<Mutex<std::collections::HashMap<String, PendingDurableReceipt>>>,
+    receipt_slots: Arc<tokio::sync::Semaphore>,
 }
 
 impl SwarmMcpServer {
@@ -101,9 +145,20 @@ impl SwarmMcpServer {
         capture: Arc<dyn Fn() -> Result<ScreenshotResult, ScreenshotError> + Send + Sync>,
         windows: Arc<Mutex<super::argus::WindowSnapshotRegistry>>,
     ) -> std::io::Result<Self> {
+        Self::bind_with_windows_and_durability(token, snapshot, channel, capture, windows, Arc::new(Mutex::new(None))).await
+    }
+
+    pub async fn bind_with_windows_and_durability(
+        token: SessionToken,
+        snapshot: Arc<Mutex<UiTreeSnapshot>>,
+        channel: Arc<Mutex<ActionChannel>>,
+        capture: Arc<dyn Fn() -> Result<ScreenshotResult, ScreenshotError> + Send + Sync>,
+        windows: Arc<Mutex<super::argus::WindowSnapshotRegistry>>,
+        durability: SharedArgusDurabilityBinding,
+    ) -> std::io::Result<Self> {
         let mut safety = SwarmSafetyState::new(token, snapshot, channel);
         safety.windows = Some(windows.lock().unwrap_or_else(|e| e.into_inner()).clone());
-        Self::bind_with_safety_mode(safety, capture, true).await
+        Self::bind_with_safety_and_durability(safety, capture, true, durability).await
     }
     /// Bind the TCP listener (and, on Windows, the named pipe), write the owner-only discovery file, and
     /// spawn the accept loops on the CURRENT tokio runtime. Returns the server handle.
@@ -139,6 +194,15 @@ impl SwarmMcpServer {
         capture: Arc<dyn Fn() -> Result<ScreenshotResult, ScreenshotError> + Send + Sync>,
         attribute_each_connection: bool,
     ) -> std::io::Result<Self> {
+        Self::bind_with_safety_and_durability(safety, capture, attribute_each_connection, Arc::new(Mutex::new(None))).await
+    }
+
+    async fn bind_with_safety_and_durability(
+        safety: SwarmSafetyState,
+        capture: Arc<dyn Fn() -> Result<ScreenshotResult, ScreenshotError> + Send + Sync>,
+        attribute_each_connection: bool,
+        durability: SharedArgusDurabilityBinding,
+    ) -> std::io::Result<Self> {
         let listener = TcpListener::bind(("127.0.0.1", 0)).await?;
         let tcp_addr = listener.local_addr()?.to_string();
         let (shutdown_tx, _) = watch::channel(false);
@@ -148,6 +212,9 @@ impl SwarmMcpServer {
             capture,
             connection_counter: Arc::new(std::sync::atomic::AtomicU64::new(1)),
             attribute_each_connection,
+            durability,
+            pending_receipts: Arc::new(Mutex::new(std::collections::HashMap::new())),
+            receipt_slots: Arc::new(tokio::sync::Semaphore::new(super::action::DEFAULT_ACTION_CAPACITY)),
         };
 
         // Reserve every advertised endpoint before publication, but do not spawn any detached accept
@@ -516,6 +583,14 @@ async fn dispatch_with_session(
     session: &McpSession,
     state: &ServerState,
 ) -> McpResponse {
+    {
+        let mut pending = state.pending_receipts.lock().unwrap_or_else(|e| e.into_inner());
+        for receipt in pending.values_mut() {
+            if !durability_binding_is_current(state, &receipt.binding) {
+                receipt.reservation.take();
+            }
+        }
+    }
     if let Some(windows) = &state.safety.windows {
         use super::argus::{ArgusMethod, MAIN_WINDOW_ID};
         use super::tools::{McpError, ERR_INVALID_PARAMS, ERR_UNAUTHORIZED};
@@ -529,10 +604,38 @@ async fn dispatch_with_session(
             let Some(window_id) = selector.as_str().filter(|id| !id.is_empty()) else {
                 return McpResponse::error(request.id.clone(), McpError::general(ERR_INVALID_PARAMS, "window_id must be a nonempty string"));
             };
+            if let Some(action_id) = request.params.get("action_id") {
+                let Some(action_id) = action_id.as_str() else {
+                    return McpResponse::error(request.id.clone(), McpError::general(ERR_INVALID_PARAMS, "action_id must reference an original pending action"));
+                };
+                let pending = state.pending_receipts.lock().unwrap_or_else(|e| e.into_inner())
+                    .get(action_id).map(|pending| (pending.envelope.clone(), pending.binding.clone(), pending.receipt_value.clone()));
+                let Some((envelope, binding, mut value)) = pending else {
+                    return McpResponse::error(request.id.clone(), McpError::general(ERR_INVALID_PARAMS, "Original pending action is unavailable; no mutation dispatched"));
+                };
+                if envelope.window_id != window_id || envelope.agent_id != session.agent_id()
+                    || envelope.action != request.method
+                    || request.params.get("target").and_then(|v| v.as_str()) != Some(envelope.author_id.as_str())
+                    || request.params.get("expected_revision").and_then(|v| v.as_u64()) != Some(envelope.before_revision)
+                    || !durability_authority_is_current(state, &binding)
+                {
+                    return McpResponse::error(request.id.clone(), McpError::general(ERR_INVALID_PARAMS, "Original action/context does not match; no mutation dispatched"));
+                }
+                match binding.client.reconcile(&envelope).await {
+                    Ok(Some(record)) if durability_authority_is_current(state, &binding) => {
+                        apply_durable_record(&mut value, &record);
+                        state.pending_receipts.lock().unwrap_or_else(|e| e.into_inner()).remove(action_id);
+                    }
+                    Ok(_) => set_durability_error(&mut value, "Original action has no currently visible canonical durability receipt"),
+                    Err(error) => set_durability_error(&mut value, &error.to_string()),
+                }
+                return McpResponse::ok_value(request.id.clone(), value);
+            }
             let window = match windows.get(window_id) {
                 Ok(window) => window,
                 Err(error) => return McpResponse::error(request.id.clone(), McpError::general(ERR_INVALID_PARAMS, error)),
             };
+            let scoped = session.for_window(window.clone());
             let Some(expected) = request.params.get("expected_revision").and_then(|v| v.as_u64()) else {
                 return McpResponse::error(request.id.clone(), McpError::general(ERR_INVALID_PARAMS, "expected_revision is required"));
             };
@@ -545,7 +648,16 @@ async fn dispatch_with_session(
                     return McpResponse::error(request.id.clone(), McpError::general(ERR_INVALID_PARAMS, "Argus window epoch is stale"));
                 }
             }
-            let scoped = session.for_window(window.clone());
+            let mut reservation = if ArgusMethod::from_wire_name(&request.method).is_some_and(|m| m.is_mutating()) {
+                if state.pending_receipts.lock().unwrap_or_else(|e| e.into_inner()).len() >= super::attribution::ACTION_LOG_CAPACITY {
+                    return McpResponse::error(request.id.clone(), McpError::general(ERR_RATE_LIMITED, "Unresolved original receipt retention is full; reconcile original actions"));
+                }
+                match state.receipt_slots.clone().try_acquire_owned() {
+                    Ok(reservation) => Some(reservation),
+                    Err(_) => return McpResponse::error(request.id.clone(), McpError::general(ERR_RATE_LIMITED, "Original durable receipt capacity is occupied")),
+                }
+            } else { None };
+            let original_binding = state.durability.lock().unwrap_or_else(|e| e.into_inner()).clone();
             let capture = state.capture.clone();
             let target = window.descriptor.clone();
             let capture_live = window.live.clone();
@@ -574,12 +686,46 @@ async fn dispatch_with_session(
                         match receipt {
                             Some(receipt) if !matches!(receipt.status, super::action::ActionReceiptStatus::Queued | super::action::ActionReceiptStatus::Dispatched) => {
                                 published_revision = receipt_revision;
-                                let mut value = serde_json::to_value(receipt).unwrap_or(serde_json::Value::Null);
+                                let mut value = serde_json::to_value(&receipt).unwrap_or(serde_json::Value::Null);
                                 if let Some(object) = value.as_object_mut() {
                                     object.insert("before_revision".to_owned(), serde_json::Value::from(expected));
                                     object.insert("after_revision".to_owned(), serde_json::Value::from(receipt_revision));
                                     object.insert("agent_id".to_owned(), serde_json::Value::String(scoped.agent_id().to_owned()));
                                     object.insert("durability_error".to_owned(), serde_json::Value::String("Authenticated durable Argus receipt persistence is not bound".to_owned()));
+                                }
+                                if let Some(binding) = original_binding.as_ref().filter(|binding| durability_binding_is_current(state, binding)) {
+                                    if let (Some(secret), Some(reservation)) = ((binding.signing_secret)(), reservation.take()) {
+                                        let mut envelope = crate::backend_client::ArgusActionReceiptEnvelope {
+                                            diagnostics_session_id: binding.diagnostics_session_id,
+                                            action_id: receipt.action_id.clone(),
+                                            action: request.method.clone(),
+                                            connection_id: session.agent_id().to_owned(),
+                                            agent_id: scoped.agent_id().to_owned(),
+                                            agent_label: scoped.agent_id().to_owned(),
+                                            window_id: window_id.to_owned(),
+                                            author_id: receipt.target.clone(),
+                                            before_revision: expected,
+                                            after_revision: Some(receipt_revision),
+                                            status: if receipt.status == super::action::ActionReceiptStatus::Applied { "applied" } else { "failed" }.to_owned(),
+                                            proof: String::new(),
+                                        };
+                                        match envelope.sign(&secret) {
+                                            Ok(()) => {
+                                                state.pending_receipts.lock().unwrap_or_else(|e| e.into_inner()).insert(receipt.action_id.clone(), PendingDurableReceipt {
+                                                    envelope: envelope.clone(), binding: binding.clone(), receipt_value: value.clone(), reservation: Some(reservation),
+                                                });
+                                                match binding.client.persist(&envelope).await {
+                                                    Ok(record) if durability_binding_is_current(state, binding) => {
+                                                        apply_durable_record(&mut value, &record);
+                                                        state.pending_receipts.lock().unwrap_or_else(|e| e.into_inner()).remove(&receipt.action_id);
+                                                    }
+                                                    Ok(_) => set_durability_error(&mut value, "Authenticated action context changed during persistence"),
+                                                    Err(error) => set_durability_error(&mut value, &error.to_string()),
+                                                }
+                                            }
+                                            Err(error) => set_durability_error(&mut value, &error.to_string()),
+                                        }
+                                    }
                                 }
                                 result = McpResponse::ok_value(request.id.clone(), value);
                                 break;
@@ -743,6 +889,9 @@ mod tests {
             capture: Arc::new(|| Ok(crate::mcp::screenshot::screenshot_from_png(b"foobar", 4, 3))),
             connection_counter: Arc::new(std::sync::atomic::AtomicU64::new(1)),
             attribute_each_connection: true,
+            durability: Arc::new(Mutex::new(None)),
+            pending_receipts: Arc::new(Mutex::new(std::collections::HashMap::new())),
+            receipt_slots: Arc::new(tokio::sync::Semaphore::new(super::action::DEFAULT_ACTION_CAPACITY)),
         }
     }
 

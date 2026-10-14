@@ -211,6 +211,37 @@ impl PopOutState {
     }
 }
 
+/// The host supplies registration, input, capture and close readiness for each actual child viewport.
+/// Only `Prepare` and `CloseReady` consume the callback result.
+pub enum PopOutLifecycle<'a> {
+    Prepare {
+        pane_id: &'a PaneId,
+        viewport_id: egui::ViewportId,
+        title: &'a str,
+        open: bool,
+    },
+    BeforeRender {
+        pane_id: &'a PaneId,
+        ctx: &'a egui::Context,
+        class: egui::ViewportClass,
+        open: bool,
+        close_requested: bool,
+    },
+    AfterRender {
+        pane_id: &'a PaneId,
+        ctx: &'a egui::Context,
+        title: &'a str,
+    },
+    CloseReady {
+        pane_id: &'a PaneId,
+        viewport_id: egui::ViewportId,
+    },
+    Removed {
+        pane_id: &'a PaneId,
+        viewport_id: egui::ViewportId,
+    },
+}
+
 /// Owns every active pop-out. Keyed by `PaneId` so a pane has at most one detached window, which is
 /// also what makes `show_viewport_deferred` idempotent (one call per open pop-out per frame).
 #[derive(Debug, Default)]
@@ -344,33 +375,44 @@ impl PopOutManager {
     /// applies ONCE at restore time against the full virtual-desktop / monitor extent — not the
     /// primary content rect — and only when a saved position is provably outside all monitors. While a
     /// pop-out is live its geometry is left exactly as set.
-    pub fn show_all<R, T>(
+    pub fn show_all<R, T, L>(
         &mut self,
         ctx: &egui::Context,
         title_for: T,
         mut render_content: R,
+        mut lifecycle: L,
     ) -> Vec<PaneId>
     where
         R: FnMut(&egui::Context, egui::ViewportClass, &PaneId),
         T: Fn(&PaneId) -> String,
+        L: FnMut(PopOutLifecycle<'_>) -> bool,
     {
-        // Show each OPEN pop-out exactly once. We iterate a cloned key list so the immediate callback
+        // Retain closing children until the host settles their pending action acknowledgments.
+        // We iterate a cloned key list so the immediate callback
         // can borrow `render_content` (and through it the host's registry/factories/tab state) without
         // also holding a borrow of `self.pop_outs`.
-        let open_ids: Vec<PaneId> = self
-            .pop_outs
-            .iter()
-            .filter(|(_, s)| s.open)
-            .map(|(id, _)| id.clone())
-            .collect();
+        let window_ids: Vec<PaneId> = self.pop_outs.keys().cloned().collect();
 
-        for pane_id in &open_ids {
+        for pane_id in &window_ids {
             // Geometry is used as-is (NOT clamped against the primary content rect — see method doc:
             // that would snap a second-monitor window back every frame).
-            let (viewport_id, title, geometry) = {
+            let (viewport_id, title, geometry, open) = {
                 let state = &self.pop_outs[pane_id];
-                (state.viewport_id, title_for(pane_id), state.geometry)
+                (
+                    state.viewport_id,
+                    title_for(pane_id),
+                    state.geometry,
+                    state.open,
+                )
             };
+            if !lifecycle(PopOutLifecycle::Prepare {
+                pane_id,
+                viewport_id,
+                title: &title,
+                open,
+            }) {
+                continue;
+            }
 
             let builder = egui::ViewportBuilder::default()
                 .with_title(title.clone())
@@ -391,6 +433,13 @@ impl PopOutManager {
                 if ctx.input(|i| i.viewport().close_requested()) {
                     close_requested = true;
                 }
+                lifecycle(PopOutLifecycle::BeforeRender {
+                    pane_id,
+                    ctx,
+                    class,
+                    open,
+                    close_requested,
+                });
                 // Root accessibility node for the detached window so a model can find the window by
                 // `popout-window-{pane_id}` out-of-process. Emitted via a zero-interaction
                 // `egui::Area` (a floating layer) and NOT a `CentralPanel`, because a CentralPanel
@@ -419,6 +468,11 @@ impl PopOutManager {
                 // detached viewport, so the body gets the full central rect. Runs on BOTH the embedded
                 // (headless) and the native (real-window) path, so the detached window is never blank.
                 render_content(ctx, class, pane_id);
+                lifecycle(PopOutLifecycle::AfterRender {
+                    pane_id,
+                    ctx,
+                    title: &title,
+                });
             });
 
             if close_requested {
@@ -435,11 +489,22 @@ impl PopOutManager {
         let to_remove: Vec<PaneId> = self
             .pop_outs
             .iter()
-            .filter(|(_, s)| !s.open)
+            .filter(|(id, s)| {
+                !s.open
+                    && lifecycle(PopOutLifecycle::CloseReady {
+                        pane_id: id,
+                        viewport_id: s.viewport_id,
+                    })
+            })
             .map(|(id, _)| id.clone())
             .collect();
         for id in &to_remove {
-            self.pop_outs.remove(id);
+            if let Some(state) = self.pop_outs.remove(id) {
+                lifecycle(PopOutLifecycle::Removed {
+                    pane_id: id,
+                    viewport_id: state.viewport_id,
+                });
+            }
         }
         to_remove
     }
@@ -678,6 +743,7 @@ mod tests {
                     ctx,
                     |p| popout_title_for(p.as_ref()),
                     |_ctx, _class, _pane| {},
+                    |_event| true,
                 );
             });
         }
@@ -727,6 +793,7 @@ mod tests {
                     ctx,
                     |p| popout_title_for(p.as_ref()),
                     |_ctx, _class, _pane| {},
+                    |_event| true,
                 );
             });
             let geo = mgr.get(&a).expect("pop-out still open").geometry;

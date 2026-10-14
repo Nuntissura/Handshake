@@ -191,6 +191,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         Duration::from_secs(30),
     )
     .await?;
+    let model_access_state = model_access_state(&process_runtime, &product_local_scope)?;
     let model_registry_authority = ScopedModelRegistryAuthority::new(
         ModelRegistryStore::new(control_plane.surreal.clone()),
         product_local_scope.exact().clone(),
@@ -297,7 +298,9 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let janitor_handle = janitor.clone().spawn_background();
 
     let api::ApiRoutes { router: api_routes, runtime: api_runtime } =
-        api::routes_with_process_reclaim_runtime(state.clone(), process_runtime, product_local_scope);
+        api::routes_with_process_reclaim_runtime(
+            state.clone(), process_runtime, product_local_scope, model_access_state,
+        );
 
     let app = Router::new()
         .route("/health", get(health))
@@ -672,6 +675,53 @@ async fn init_llm_client(
         runtime_instance,
     )
     .await
+}
+
+fn model_access_state(
+    runtime: &ProcessReclaimRuntime,
+    scope: &api::account_scope::ProductLocalResourceScope,
+) -> Result<api::model_access::ModelAccessState, Box<dyn std::error::Error>> {
+    use handshake_core::model_runtime::cloud::{
+        CliBridgeProvider, LiveCliSpawner, ProductionCliBridgeAuthStatusProbe,
+    };
+    use handshake_core::model_runtime::cloud::official_cli_bridge::CliSubprocessSpawner;
+    let spawner = Arc::new(LiveCliSpawner::new(
+        Arc::new(runtime.ledger().ledger()), runtime.sandbox_registry(),
+    ).with_reclaim(runtime.reclaim(), ReclaimResourceScope::from_exact(scope.exact())?));
+    let mut launches = Vec::new();
+    match std::env::var_os(api::model_access::HANDSHAKE_OFFICIAL_CLI_CONFIG_PATH) {
+        Some(path) => {
+            let path = PathBuf::from(path);
+            let config = match api::model_access::load_official_cli_config_from_path(
+                &path, CliBridgeProvider::Codex,
+            ) {
+                Ok(config) => (CliBridgeProvider::Codex, config),
+                Err(api::model_access::OfficialCliConfigError::Contract("provider")) => (
+                    CliBridgeProvider::ClaudeCode,
+                    api::model_access::load_official_cli_config_from_path(
+                        &path, CliBridgeProvider::ClaudeCode,
+                    )?,
+                ),
+                Err(error) => return Err(error.into()),
+            };
+            let (launch, _) = config.1.into_parts();
+            spawner.pin_config(&launch).map_err(|_| io::Error::new(
+                io::ErrorKind::InvalidInput, "official CLI launch graph rejected",
+            ))?;
+            launches.push((config.0, launch));
+        }
+        None => tracing::warn!(
+            target: "handshake_core::model_access",
+            code = "official_cli_configuration_unavailable",
+            "CLI access remains unavailable without the explicit configuration record",
+        ),
+    }
+    let probe = Arc::new(ProductionCliBridgeAuthStatusProbe::from_canonical_launches(
+        spawner, launches,
+    ));
+    Ok(api::model_access::ModelAccessState::production_for_owner(
+        scope.exact().clone(), probe.clone(), probe,
+    ))
 }
 
 async fn health(State(state): State<AppState>) -> Json<HealthResponse> {

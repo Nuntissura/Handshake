@@ -820,6 +820,7 @@ pub enum ActionReceiptStatus {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ActionReceipt {
     pub receipt_id: u64,
+    pub action_id: String,
     pub target: String,
     pub expected_node_id: u64,
     pub expected_role: String,
@@ -1205,6 +1206,7 @@ impl ActionChannel {
         let expected_action = format!("{:?}", action.accesskit_action());
         self.receipts.push_back(ActionReceipt {
             receipt_id,
+            action_id: format!("argus-action-{}", uuid::Uuid::new_v4()),
             target: author_id.to_owned(),
             expected_node_id: node.node_id,
             expected_role: node.role.clone(),

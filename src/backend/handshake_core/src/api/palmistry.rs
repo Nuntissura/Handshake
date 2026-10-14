@@ -34,8 +34,8 @@ use crate::{
     },
     kernel::{KernelActor, KernelEventType, NewKernelEvent},
     process_ledger::{
-        ActiveProcessLifecycle, LedgerBatcher, ProcessEngineKind, ProcessStart, Reclaim,
-        ReclaimTrigger, StopRecordOutcome,
+        ActiveProcessLifecycle, LedgerBatcher, ProcessEngineKind, ProcessStart, ScopedReclaim,
+        ScopedReclaimTrigger, StopRecordOutcome,
     },
     sandbox::palmistry_watcher::{
         PalmistrySpawnSpec, PalmistryWatcherAdapter, SpawnedPalmistry, PALMISTRY_WATCHER_ADAPTER_ID,
@@ -286,11 +286,14 @@ impl fmt::Debug for WatcherSigningSecret {
 
 #[derive(Clone)]
 pub struct PalmistryLaunchState {
+    receipt_storage: SurrealStorage,
+    receipt_scope: crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+    receipt_capability_registry: Option<Arc<crate::capabilities::CapabilityRegistry>>,
     ledger: LedgerBatcher,
     recorder: Arc<dyn FlightRecorder>,
     model_lane_store: ModelLaneStore,
     palmistry_store: SurrealPalmistryStore,
-    reclaim: Arc<Reclaim>,
+    reclaim: Arc<ScopedReclaim>,
     /// Exact five-field scope every reclaim issued by this launcher runs under.
     reclaim_scope: crate::process_ledger::ReclaimResourceScope,
     active: Arc<Mutex<HashMap<Uuid, LaunchSlot>>>,
@@ -398,7 +401,7 @@ impl PalmistryLaunchState {
         recorder: Arc<dyn FlightRecorder>,
         surreal_storage: SurrealStorage,
         exact_scope: crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
-        reclaim: Arc<Reclaim>,
+        reclaim: Arc<ScopedReclaim>,
     ) -> Self {
         let reclaim_scope = crate::process_ledger::ReclaimResourceScope::from_exact(&exact_scope)
             .expect("exact five-field ResourceScope converts to a reclaim scope");
@@ -410,6 +413,9 @@ impl PalmistryLaunchState {
         .with_access_space(exact_scope.access_space_id)
         .with_workspace(exact_scope.workspace_id.clone());
         Self {
+            receipt_storage: surreal_storage.clone(),
+            receipt_scope: exact_scope.clone(),
+            receipt_capability_registry: None,
             ledger,
             recorder,
             model_lane_store: ModelLaneStore::new_scoped(surreal_storage.clone(), resource_scope),
@@ -418,6 +424,11 @@ impl PalmistryLaunchState {
             reclaim_scope,
             active: Arc::new(Mutex::new(HashMap::new())),
         }
+    }
+
+    pub fn with_capability_registry(mut self, registry: Arc<crate::capabilities::CapabilityRegistry>) -> Self {
+        self.receipt_capability_registry = Some(registry);
+        self
     }
 
     pub async fn active_count(&self) -> usize {
@@ -573,6 +584,13 @@ impl std::fmt::Display for PalmistryLaunchError {
 }
 
 impl PalmistryLaunchError {
+    fn receipt_authentication_required() -> Self {
+        Self { status: StatusCode::UNAUTHORIZED, code: "HSK-401-FR-SESSION", detail: "authenticated Argus session required".to_owned() }
+    }
+
+    fn receipt_permission_denied() -> Self {
+        Self { status: StatusCode::FORBIDDEN, code: "HSK-403-PROTECTED-RESOURCE", detail: "Argus receipt permission denied".to_owned() }
+    }
     fn bad_request(detail: impl Into<String>) -> Self {
         Self {
             status: StatusCode::BAD_REQUEST,
@@ -1426,7 +1444,7 @@ async fn shutdown_recovered_source(
             &state.reclaim_scope,
             &request.summary.source_session_id.to_string(),
             process_uuid,
-            ReclaimTrigger::Restart,
+            ScopedReclaimTrigger::Restart,
         )
         .await
     {
@@ -2795,9 +2813,44 @@ fn is_symlink_or_reparse(path: &Path) -> std::io::Result<bool> {
 
 async fn record_argus_receipt(
     State(state): State<PalmistryLaunchState>,
+    headers: axum::http::HeaderMap,
     Json(request): Json<ArgusActionReceiptRequest>,
 ) -> Result<Json<ArgusActionDurabilityReceipt>, PalmistryLaunchError> {
     validate_argus_receipt(&request)?;
+    let channel = crate::api::stage::capture_channel_binding(&headers)
+        .map_err(|_| PalmistryLaunchError::receipt_authentication_required())?;
+    let token = headers.get("x-hsk-session-token").and_then(|value| value.to_str().ok())
+        .filter(|value| value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit()))
+        .ok_or_else(PalmistryLaunchError::receipt_authentication_required)?;
+    let context = state.receipt_storage.authenticate_local_session(token, &channel.binding_hash)
+        .await.map_err(|_| PalmistryLaunchError::receipt_authentication_required())?;
+    let scope = &state.receipt_scope;
+    if context.identity.account_id != scope.owner_account_id.to_string()
+        || context.identity.principal_id != scope.actor_principal_id.to_string()
+        || context.identity.access_space_id != scope.access_space_id.to_string()
+        || context.session_id != scope.authenticated_session_id.to_string()
+    {
+        return Err(PalmistryLaunchError::receipt_permission_denied());
+    }
+    if !context.delegated_capabilities.iter().any(|capability| capability == "fr.ingest.native_editor") {
+        return Err(PalmistryLaunchError::receipt_permission_denied());
+    }
+    use crate::storage::surreal::resource_authority::{AuthorizationRequest, RecordUserScope, ResourceAction, ResourceKind};
+    let decision = state.receipt_storage.authorize_protected_resource(AuthorizationRequest {
+        session_token: token.to_owned(), channel_binding_hash: Some(channel.binding_hash.clone()),
+        capability_id: "fr.ingest.native_editor".to_owned(), resource_kind: ResourceKind::FlightRecorder,
+        external_resource_id: scope.workspace_id.to_string(), action: ResourceAction::Create,
+    }).await.map_err(|_| PalmistryLaunchError::receipt_permission_denied())?;
+    if !state.receipt_capability_registry.as_ref().is_some_and(|registry|
+        registry.profile_can(&decision.capability_profile_id, "fr.ingest.native_editor").unwrap_or(false)) {
+        return Err(PalmistryLaunchError::receipt_permission_denied());
+    }
+    let authority = RecordUserScope {
+        grant_id: Some(decision.grant_id), workspace_id: Some(scope.workspace_id.to_string()),
+        session_token: token.to_owned(), channel_binding_hash: Some(channel.binding_hash),
+        resource_id: decision.resource_id, session_id: decision.session_id,
+        capability_id: "fr.ingest.native_editor".to_owned(), action: ResourceAction::Create,
+    };
     let flight_recorder_event_id = argus_action_uuid(&request.action_id)?;
     let signing_secret = {
         let active = state
@@ -2814,7 +2867,7 @@ async fn record_argus_receipt(
         signing_secret.clone()
     };
     verify_argus_proof(&request, signing_secret.as_bytes())?;
-    let payload = json!({
+    let mut payload = json!({
         "kind": "argus_action_receipt",
         "action_id": request.action_id,
         "action": request.action,
@@ -2829,11 +2882,17 @@ async fn record_argus_receipt(
         "status": request.status,
         "authority_source": "embedded_surrealdb_kernel_event_ledger",
     });
+    scope.stamp_json_object(&mut payload)
+        .map_err(|_| PalmistryLaunchError::bad_request("Argus receipt scope is invalid"))?;
     let kernel_event = NewKernelEvent::builder(
         format!("argus:{}", request.connection_id),
         format!("argus:{}", request.connection_id),
         KernelEventType::ToolResultRecorded,
-        KernelActor::ToolGate(request.agent_id.clone()),
+        match context.actor_kind.as_str() {
+            "operator" => KernelActor::Operator(context.actor_id.clone()),
+            "toolgate" => KernelActor::ToolGate(context.actor_id.clone()),
+            _ => return Err(PalmistryLaunchError::bad_request("Argus receipt actor is unsupported")),
+        },
     )
     .aggregate("argus_action", request.action_id.clone())
     .idempotency_key(format!(
@@ -2847,7 +2906,7 @@ async fn record_argus_receipt(
     .map_err(|error| PalmistryLaunchError::bad_request(error.to_string()))?;
     let event_ledger_event_id = state
         .palmistry_store
-        .append_kernel_event(kernel_event)
+        .append_kernel_event(kernel_event, authority, flight_recorder_event_id)
         .await
         .map_err(|error| {
             PalmistryLaunchError::unavailable(format!(
@@ -3220,6 +3279,12 @@ fn current_unix_ms() -> u64 {
 fn timestamp_is_fresh(now_unix_ms: u64, observed_at_unix_ms: u64) -> bool {
     observed_at_unix_ms <= now_unix_ms.saturating_add(OBSERVATION_MAX_FUTURE_SKEW_MS)
         && now_unix_ms.saturating_sub(observed_at_unix_ms) <= OBSERVATION_MAX_AGE_MS
+}
+
+pub fn receipt_routes(state: PalmistryLaunchState) -> Router {
+    Router::new()
+        .route("/internal-diagnostics/argus/action-receipt", post(record_argus_receipt))
+        .with_state(state)
 }
 
 pub fn routes(state: PalmistryLaunchState) -> Router {

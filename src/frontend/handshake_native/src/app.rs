@@ -5851,6 +5851,7 @@ pub struct HandshakeApp {
     /// Dropping the handle reaps the child (best-effort Shutdown then a kill backstop), so even an
     /// `on_exit`-less teardown never orphans the watcher.
     palmistry: Option<crate::diagnostics::PalmistryHandle>,
+    diagnostic_provenance: Option<crate::internal_diagnostics::AdoptedDiagnosticProvenance>,
     /// WP-KERNEL-012 MT-084 (D2 — internal_diagnostics, Tier 2 UI-thread heartbeat, §5.8.2). The
     /// monotonic frame-loop counter bumped at the TOP of every [`eframe::App::update`] call on the UI
     /// thread and published into the MT-081 ring heartbeat slot. A stalled UI thread stops advancing
@@ -6053,6 +6054,7 @@ pub struct HandshakeApp {
     /// `pane_registry` (single source of truth); this only tracks which panes render into a detached
     /// viewport and where that window sits. Serialized into the layout snapshot by MT-009.
     popout_manager: PopOutManager,
+    popout_argus_epochs: HashMap<PaneId, u64>,
     /// A pop-out was requested this frame (e.g. by a future MT-019 pane-header "Pop Out" action, or
     /// by a test / out-of-process driver via [`HandshakeApp::request_pop_out`]). Applied at the top
     /// of the next `ui()` so the detached viewport is created cleanly before the frame renders.
@@ -6271,6 +6273,11 @@ pub struct HandshakeApp {
     pending_backlink_open_retry: VecDeque<String>,
     /// Whether the settings overlay is requested open (MT-015 HELP menu sets this; UI is MT-018).
     settings_open: bool,
+    swarm_model_sessions: crate::settings_dialog::SwarmModelSessionsSettingsState,
+    swarm_concurrency_epoch: u64,
+    swarm_concurrency_pending: Option<(u64, String, Arc<crate::local_account::AuthenticatedContext>, crate::backend_client::SwarmConcurrencyCell)>,
+    swarm_concurrency_refresh_pending: bool,
+    swarm_concurrency_poll_after: Option<std::time::Instant>,
     cloud_models: crate::settings_dialog::CloudModelsSettingsState,
     cloud_access_client: Option<crate::backend_client::CloudAccessClient>,
     cloud_access_cell: crate::backend_client::CloudAccessCell,
@@ -6605,6 +6612,8 @@ pub struct HandshakeApp {
     /// pipe), bound at startup on the app runtime. `None` in the headless/test shell and until bind
     /// completes. Dropping it on app exit removes the discovery binding file.
     mcp_server: Option<crate::mcp::SwarmMcpServer>,
+    mcp_durability: crate::mcp::server::SharedArgusDurabilityBinding,
+    mcp_durability_generation: u64,
     /// MT-027: the bounded action queue the MCP server ENQUEUES resolved AccessKit actions into and the
     /// egui frame loop DRAINS each frame (via [`mcp_drain_into_events`](Self::mcp_drain_into_events))
     /// to steer the live shell. Shared (`Arc<Mutex<_>>`) because the server tasks run on tokio threads
@@ -8076,13 +8085,32 @@ impl HandshakeApp {
     }
 
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        Self::new_with_diagnostics(cc, None, false)
+    }
+
+    pub fn new_with_diagnostic_provenance(
+        cc: &eframe::CreationContext<'_>,
+        provenance: Option<crate::internal_diagnostics::AdoptedDiagnosticProvenance>,
+    ) -> Self {
+        Self::new_with_diagnostics(cc, provenance, true)
+    }
+
+    fn new_with_diagnostics(
+        cc: &eframe::CreationContext<'_>,
+        provenance: Option<crate::internal_diagnostics::AdoptedDiagnosticProvenance>,
+        preinstalled_only: bool,
+    ) -> Self {
         Self::install_fonts(&cc.egui_ctx);
         let rt = tokio::runtime::Builder::new_multi_thread()
             .worker_threads(1)
             .enable_all()
             .build()
             .expect("build tokio runtime");
-        let diag_session = Self::install_diagnostics_ring();
+        let diag_session = if preinstalled_only {
+            crate::diagnostics::take_preinstalled_diag_session()
+        } else {
+            Self::install_diagnostics_ring()
+        };
         crate::diagnostics::start_global_operation_watchdog();
         let gpu_info = crate::diagnostics::GpuInfo::capture(cc);
         let mut app = Self::fresh_production_shell(
@@ -8091,6 +8119,7 @@ impl HandshakeApp {
             gpu_info,
             backend_client::BACKEND_BASE_URL,
         );
+        app.diagnostic_provenance = provenance;
         app.spawn_mcp_server();
         app.attach_lsp_for_mounted_code_pane();
         Self::record_startup_marker();
@@ -8172,6 +8201,7 @@ impl HandshakeApp {
             // (NOT here in `new`) so the kittest suite never spawns a child; `main()`'s eframe closure
             // installs the handle via `set_palmistry_handle` after constructing the app.
             palmistry: None,
+            diagnostic_provenance: None,
             // MT-084: the UI-thread heartbeat counter starts at 0 (first frame publishes 1) and the
             // monotonic clock starts now (process start), so the heartbeat timestamp is elapsed-since-
             // construction nanos — strictly increasing, never affected by a wall-clock change.
@@ -8238,6 +8268,7 @@ impl HandshakeApp {
             active_pane: None,
             tab_bar_states: default_tab_bar_states(),
             popout_manager: PopOutManager::new(),
+            popout_argus_epochs: HashMap::new(),
             pop_out_request: None,
             active_project_id: DEFAULT_PROJECT_ID.to_owned(),
             layout_manager,
@@ -8295,6 +8326,11 @@ impl HandshakeApp {
             nav_pending_label: None,
             pending_backlink_open_retry: VecDeque::new(),
             settings_open: false,
+            swarm_model_sessions: crate::settings_dialog::SwarmModelSessionsSettingsState::default(),
+            swarm_concurrency_epoch: 0,
+            swarm_concurrency_pending: None,
+            swarm_concurrency_refresh_pending: false,
+            swarm_concurrency_poll_after: None,
             cloud_models: crate::settings_dialog::CloudModelsSettingsState::default(),
             cloud_access_client: Some(crate::backend_client::CloudAccessClient::production()),
             cloud_access_cell: Arc::new(Mutex::new(Vec::new())),
@@ -8428,6 +8464,8 @@ impl HandshakeApp {
             // runtime. A bind failure is logged + degrades to "no MCP server" rather than blocking the
             // window from opening (the shell must always start).
             mcp_server: None,
+            mcp_durability: Arc::new(Mutex::new(None)),
+            mcp_durability_generation: 0,
             mcp_action_channel,
             mcp_snapshot,
             mcp_windows,
@@ -8768,9 +8806,10 @@ impl HandshakeApp {
         let channel = self.mcp_action_channel.clone();
         let capture = crate::mcp::SwarmMcpServer::os_window_capture();
         let windows = self.mcp_windows.clone();
+        let durability = self.mcp_durability.clone();
         let result = self.runtime().block_on(async move {
-            crate::mcp::SwarmMcpServer::bind_with_windows(
-                token, snapshot, channel, capture, windows,
+            crate::mcp::SwarmMcpServer::bind_with_windows_and_durability(
+                token, snapshot, channel, capture, windows, durability,
             )
             .await
         });
@@ -13218,6 +13257,7 @@ impl HandshakeApp {
             // WP-KERNEL-012 MT-094: the headless/test shell never launches the external watcher (the
             // launch lives in `main()`, which this constructor bypasses).
             palmistry: None,
+            diagnostic_provenance: None,
             // MT-084: the heartbeat still bumps every frame in the headless shell; with no ring writer
             // installed the publish is a silent no-op (AC-004-5), but the in-app frame_counter advances
             // exactly as in production, and the monotonic clock starts at construction.
@@ -13285,6 +13325,7 @@ impl HandshakeApp {
             active_pane: None,
             tab_bar_states: default_tab_bar_states(),
             popout_manager: PopOutManager::new(),
+            popout_argus_epochs: HashMap::new(),
             pop_out_request: None,
             active_project_id: DEFAULT_PROJECT_ID.to_owned(),
             layout_manager,
@@ -13348,6 +13389,11 @@ impl HandshakeApp {
             pending_backlink_open_retry: VecDeque::new(),
             settings_open: false,
             cloud_models: crate::settings_dialog::CloudModelsSettingsState::default(),
+            swarm_model_sessions: crate::settings_dialog::SwarmModelSessionsSettingsState::default(),
+            swarm_concurrency_epoch: 0,
+            swarm_concurrency_pending: None,
+            swarm_concurrency_refresh_pending: false,
+            swarm_concurrency_poll_after: None,
             cloud_access_client: None,
             cloud_access_cell: Arc::new(Mutex::new(Vec::new())),
             cloud_access_refresh_pending: false,
@@ -13477,6 +13523,8 @@ impl HandshakeApp {
             // dispatch + frame-drain steering loop in-process; the over-the-wire test binds its OWN
             // `SwarmMcpServer` on a `#[tokio::test]` runtime.
             mcp_server: None,
+            mcp_durability: Arc::new(Mutex::new(None)),
+            mcp_durability_generation: 0,
             mcp_action_channel,
             mcp_snapshot,
             mcp_windows,
@@ -20130,7 +20178,34 @@ impl HandshakeApp {
         self.bind_backend_clients(base_url, handle);
     }
 
+    fn refresh_mcp_durability_binding(&mut self, base_url: &str) {
+        self.mcp_durability_generation = self.mcp_durability_generation.wrapping_add(1);
+        let binding = self.diagnostic_provenance.as_ref().zip(self.local_account.context.as_ref())
+            .filter(|(_, account)| account.is_active())
+            .map(|(provenance, account)| crate::mcp::server::ArgusDurabilityBinding {
+                generation: self.mcp_durability_generation,
+                diagnostics_session_id: provenance.session_id(),
+                client: crate::backend_client::ArgusActionReceiptClient::new(base_url)
+                    .with_authenticated_context(Some(account.clone()))
+                    .with_workspace_id(&self.active_project_id),
+                signing_secret: provenance.argus_signing_secret_provider(),
+            });
+        *self.mcp_durability.lock().unwrap_or_else(|e| e.into_inner()) = binding;
+    }
+
     fn bind_backend_clients(&mut self, base_url: &str, handle: tokio::runtime::Handle) {
+        self.refresh_mcp_durability_binding(base_url);
+        self.swarm_concurrency_epoch = self.swarm_concurrency_epoch.wrapping_add(1);
+        self.swarm_concurrency_pending = None;
+        self.swarm_model_sessions = crate::settings_dialog::SwarmModelSessionsSettingsState::default();
+        self.swarm_concurrency_poll_after = None;
+        self.swarm_concurrency_refresh_pending = self.settings_open;
+        self.factories.insert(PaneType::SwarmLaneDiagnostics, Box::new(
+            crate::swarm_lane_diagnostics::SwarmLaneDiagnosticsPaneFactory::with_transport(Arc::new(
+                crate::backend_client::SwarmLaneDiagnosticsClient::new(base_url, handle.clone())
+                    .with_authenticated_context(self.local_account.context.clone()),
+            )),
+        ));
         self.retain_unconfirmed_cloud_login();
         self.cloud_cli_start_in_flight = false;
         self.clear_cloud_edit_state();
@@ -21487,6 +21562,7 @@ impl HandshakeApp {
             self.clear_cloud_edit_state();
             self.cloud_access_refresh_pending = true;
             self.settings_open = true;
+            self.swarm_concurrency_refresh_pending = true;
             self.settings_diagnostics_force_open = self.backend_is_down();
             self.settings_open_count = self.settings_open_count.wrapping_add(1);
             self.settings_snapshot_query.clear();
@@ -21946,6 +22022,82 @@ impl HandshakeApp {
             }
         });
         true
+    }
+
+    fn request_swarm_concurrency(&mut self, desired: Option<usize>) {
+        self.swarm_concurrency_poll_after = None;
+        self.swarm_concurrency_refresh_pending = false;
+        self.swarm_concurrency_epoch = self.swarm_concurrency_epoch.wrapping_add(1);
+        self.swarm_concurrency_pending = None;
+        let Some(account) = self.local_account.context.clone().filter(|account| account.is_active()) else {
+            self.swarm_model_sessions.snapshot = None;
+            self.swarm_model_sessions.updating = false;
+            self.swarm_model_sessions.error = Some("Account login required".to_owned());
+            return;
+        };
+        let Some(handle) = self.runtime_handle.clone() else {
+            self.swarm_model_sessions.updating = false;
+            self.swarm_model_sessions.error = Some("Backend unavailable".to_owned());
+            return;
+        };
+        let cell = Arc::new(Mutex::new(Vec::new()));
+        let client = crate::backend_client::OperatorChatClient::new(&self.rich_doc_base_url, handle)
+            .with_authenticated_context(Some(account.clone()));
+        self.swarm_model_sessions.updating = true;
+        self.swarm_model_sessions.error = None;
+        if let Some(desired) = desired {
+            client.set_swarm_concurrency(desired.max(1), cell.clone());
+        } else {
+            client.fetch_swarm_concurrency(cell.clone());
+        }
+        self.swarm_concurrency_pending = Some((self.swarm_concurrency_epoch, self.active_project_id.clone(), account, cell));
+    }
+
+    fn pump_swarm_concurrency(&mut self, ctx: &egui::Context) {
+        if let Some((epoch, workspace, account, cell)) = self.swarm_concurrency_pending.as_ref() {
+            let current = *epoch == self.swarm_concurrency_epoch
+                && workspace == &self.active_project_id
+                && account.is_active()
+                && self.local_account.context.as_ref().is_some_and(|current| Arc::ptr_eq(current, account));
+            if !current {
+                self.swarm_concurrency_pending = None;
+                self.swarm_model_sessions = crate::settings_dialog::SwarmModelSessionsSettingsState::default();
+                self.swarm_concurrency_refresh_pending = true;
+            } else {
+                ctx.request_repaint_after(std::time::Duration::from_millis(50));
+                let delivered = cell.try_lock().ok().and_then(|mut queue| queue.pop());
+                if let Some(result) = delivered {
+                    self.swarm_concurrency_pending = None;
+                    self.swarm_model_sessions.updating = false;
+                    match result {
+                        Ok(snapshot) => {
+                            self.swarm_concurrency_poll_after = (!snapshot.fully_applied)
+                                .then(|| std::time::Instant::now() + std::time::Duration::from_millis(500));
+                            self.swarm_model_sessions.snapshot = Some(snapshot);
+                            self.swarm_model_sessions.error = None;
+                        }
+                        Err(error) => self.swarm_model_sessions.error = Some(error),
+                    }
+                    ctx.request_repaint();
+                }
+            }
+        }
+        if self.settings_open && self.swarm_concurrency_refresh_pending
+            && self.swarm_concurrency_pending.is_none()
+            && !self.settings_load_pending
+            && !self.settings_io_in_flight.load(std::sync::atomic::Ordering::Acquire)
+        {
+            self.request_swarm_concurrency(self.workspace_settings.swarm_model_sessions_max_concurrent);
+        } else if self.settings_open && self.swarm_concurrency_pending.is_none() {
+            if let Some(after) = self.swarm_concurrency_poll_after {
+                let now = std::time::Instant::now();
+                if now >= after {
+                    self.request_swarm_concurrency(None);
+                } else {
+                    ctx.request_repaint_after(after - now);
+                }
+            }
+        }
     }
 
     fn pump_cloud_access(&mut self, ctx: &egui::Context) {
@@ -22653,6 +22805,13 @@ impl HandshakeApp {
         use crate::settings_dialog::SettingsOutcome as O;
         match outcome {
             O::None => false,
+            O::SwarmModelSessionsMaxConcurrentChanged(value) => {
+                let desired = value.max(1);
+                self.workspace_settings.swarm_model_sessions_max_concurrent = Some(desired);
+                self.schedule_settings_save();
+                self.request_swarm_concurrency(Some(desired));
+                true
+            }
             O::PopOut => self.detach_settings(),
             O::Redock => self.redock_settings(),
             O::CloudByokKeySaveRequested { provider } => {
@@ -22966,12 +23125,18 @@ impl HandshakeApp {
         {
             self.settings_workspace_generation = self.settings_workspace_generation.wrapping_add(1);
             self.settings_loaded_project_id = Some(active_workspace.clone());
+            let base = self.rich_doc_base_url.clone();
+            self.refresh_mcp_durability_binding(&base);
             self.workspace_settings = self
                 .settings_unsaved_by_workspace
                 .get(&active_workspace)
                 .cloned()
                 .unwrap_or_else(crate::workspace_settings::default_workspace_settings_state);
             self.settings_load_pending = true;
+            self.swarm_concurrency_epoch = self.swarm_concurrency_epoch.wrapping_add(1);
+            self.swarm_concurrency_pending = None;
+            self.swarm_model_sessions = crate::settings_dialog::SwarmModelSessionsSettingsState::default();
+            self.swarm_concurrency_refresh_pending = true;
             if let Some((operation, message)) =
                 self.settings_failures.get(&active_workspace).cloned()
             {
@@ -23044,6 +23209,7 @@ impl HandshakeApp {
                                     .insert(delivery.workspace_id.clone(), merged.clone());
                             }
                             self.workspace_settings = merged;
+                            self.swarm_concurrency_refresh_pending = true;
                             // Back the in-memory flags from the loaded settings (apply theme next frame).
                             self.pending_theme_change =
                                 Some(self.workspace_settings.theme.to_hs_theme());
@@ -23207,6 +23373,9 @@ impl HandshakeApp {
             ctx.request_repaint();
         }
 
+        if !self.capturing_snapshot {
+            self.pump_swarm_concurrency(ctx);
+        }
         // 5. Render the dialog + apply the outcome only while requested. Steps 1-4 deliberately run
         //    while closed so a close-during-GET/PUT cannot strand the deferred save.
         if !self.settings_open {
@@ -23348,6 +23517,7 @@ impl HandshakeApp {
         };
         let mut view = crate::settings_dialog::SettingsView {
             open_count: self.settings_open_count,
+            swarm_model_sessions: &self.swarm_model_sessions,
             cloud,
             settings: &self.workspace_settings,
             persist_error: self.settings_persist_error.as_deref(),
@@ -36986,6 +37156,12 @@ impl HandshakeApp {
     }
 
     fn reset_account_workspace(&mut self, ctx: &egui::Context) {
+        {
+            let windows = self.mcp_windows.lock().unwrap_or_else(|e| e.into_inner()).clone();
+            for pane_id in self.popout_argus_epochs.keys() {
+                windows.unregister(&crate::popout_window::argus_window_id(pane_id));
+            }
+        }
         self.retain_unconfirmed_cloud_login();
         crate::settings_dialog::clear_cloud_key_state(ctx, &mut self.cloud_models);
         self.mcp_windows.lock().unwrap_or_else(|p| p.into_inner()).unregister(
@@ -37015,6 +37191,8 @@ impl HandshakeApp {
         fresh.local_account = std::mem::take(&mut self.local_account);
         fresh.account_has_private_state = fresh.local_account.context.is_some();
         fresh.mcp_server = self.mcp_server.take();
+        fresh.mcp_durability = self.mcp_durability.clone();
+        fresh.mcp_durability_generation = self.mcp_durability_generation;
         fresh.mcp_token = self.mcp_token.clone();
         fresh.mcp_snapshot = self.mcp_snapshot.clone();
         fresh.mcp_windows = self.mcp_windows.clone();
@@ -37022,6 +37200,10 @@ impl HandshakeApp {
         fresh.cloud_uncertain_login_owners = std::mem::take(&mut self.cloud_uncertain_login_owners);
         fresh.mcp_action_channel = self.mcp_action_channel.clone();
         fresh.palmistry = self.palmistry.take();
+        fresh.diagnostic_provenance = self.diagnostic_provenance.take();
+        if let Some(provenance) = &fresh.diagnostic_provenance {
+            provenance.invalidate();
+        }
         fresh.frame_counter = self.frame_counter;
         fresh.heartbeat_clock = self.heartbeat_clock;
         fresh.current_theme = self.current_theme;
@@ -37105,6 +37287,12 @@ impl HandshakeApp {
                 .as_ref()
                 .is_some_and(|context| context.is_active())
         {
+            if let Some(provenance) = &self.diagnostic_provenance {
+                provenance.invalidate();
+            }
+            *self.mcp_durability.lock().unwrap_or_else(|e| e.into_inner()) = None;
+            self.swarm_concurrency_pending = None;
+            self.swarm_model_sessions = crate::settings_dialog::SwarmModelSessionsSettingsState::default();
             self.retain_unconfirmed_cloud_login();
             self.cloud_cli_start_in_flight = false;
             crate::settings_dialog::clear_cloud_key_state(ctx, &mut self.cloud_models);
@@ -38089,6 +38277,10 @@ impl HandshakeApp {
             .collect();
         let mut popout_lock_requests: Vec<PaneId> = Vec::new();
         let mut popout_tab_close_requests: Vec<TabCloseRequest> = Vec::new();
+        let windows = self.mcp_windows.lock().unwrap_or_else(|e| e.into_inner()).clone();
+        let epochs = &mut self.popout_argus_epochs;
+        let capturing_snapshot = self.capturing_snapshot;
+        let mut descriptors: HashMap<PaneId, crate::mcp::ArgusWindowDescriptor> = HashMap::new();
         let _merged_back = self
             .popout_manager
             .show_all(ctx, title_for, |ctx, _class, pane_id| {
@@ -38107,6 +38299,62 @@ impl HandshakeApp {
                     &mut popout_lock_requests,
                     &mut popout_tab_close_requests,
                 );
+            }, |event| {
+                use crate::popout_window::PopOutLifecycle;
+                if capturing_snapshot { return false; }
+                match event {
+                    PopOutLifecycle::Prepare { pane_id, viewport_id, title, open } => {
+                        let window_id = crate::popout_window::argus_window_id(pane_id);
+                        if !open {
+                            return epochs.get(pane_id).is_some_and(|epoch| windows.get(&window_id).is_ok_and(|window| window.epoch == *epoch));
+                        }
+                        descriptors.insert(pane_id.clone(), crate::mcp::ArgusWindowDescriptor { window_id, viewport_id, title: title.to_owned() });
+                        true
+                    }
+                    PopOutLifecycle::BeforeRender { pane_id, ctx, class, open, close_requested } => {
+                        let window_id = crate::popout_window::argus_window_id(pane_id);
+                        if class == egui::ViewportClass::Embedded { return true; }
+                        if open {
+                            let Some(descriptor) = descriptors.get(pane_id).filter(|descriptor| descriptor.viewport_id == ctx.viewport_id()) else { return true; };
+                            if let Ok(epoch) = windows.register(descriptor.clone()) { epochs.insert(pane_id.clone(), epoch); }
+                        }
+                        if !open || close_requested {
+                            windows.begin_close(&window_id);
+                            ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+                        }
+                        if windows.pump_viewport_input(ctx, &window_id, open && !close_requested).unwrap_or(false) {
+                            ctx.request_repaint();
+                        }
+                        true
+                    }
+                    PopOutLifecycle::AfterRender { pane_id, ctx, title } => {
+                        if let Some(epoch) = epochs.get(pane_id) {
+                            let window_id = crate::popout_window::argus_window_id(pane_id);
+                            let rect = ctx.input(|input| input.viewport().outer_rect).map(|rect| {
+                                let scale = ctx.pixels_per_point();
+                                ((rect.min.x * scale).round() as i32, (rect.min.y * scale).round() as i32,
+                                 (rect.max.x * scale).round() as i32, (rect.max.y * scale).round() as i32)
+                            });
+                            crate::mcp::screenshot::record_viewport_window_handle(&windows, &window_id, *epoch, ctx, title, rect);
+                        }
+                        true
+                    }
+                    PopOutLifecycle::CloseReady { pane_id, .. } => {
+                        let window_id = crate::popout_window::argus_window_id(pane_id);
+                        windows.begin_close(&window_id);
+                        epochs.get(pane_id).is_none_or(|epoch| windows.get(&window_id)
+                            .is_ok_and(|window| window.epoch == *epoch && windows.is_close_ready(&window_id)))
+                    }
+                    PopOutLifecycle::Removed { pane_id, .. } => {
+                        let window_id = crate::popout_window::argus_window_id(pane_id);
+                        if let Some(epoch) = epochs.remove(pane_id) {
+                            if windows.get(&window_id).is_ok_and(|window| window.epoch == epoch) {
+                                windows.unregister(&window_id);
+                            }
+                        }
+                        true
+                    }
+                }
             });
         if !popout_lock_requests.is_empty() {
             let mut registry = self
