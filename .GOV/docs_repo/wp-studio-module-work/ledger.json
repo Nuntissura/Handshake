@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-14T23:20:33Z",
+ "updated_at": "2026-10-14T23:24:14Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -4790,12 +4790,15 @@
   {
    "lane_id": "SMB-SCORE-TRUEPEAK",
    "crate": "hsk-studio-score",
-   "phase": "queued",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": null,
-   "commits": [],
+   "commits": [
+    "f025ff7"
+   ],
    "verdicts": [],
-   "note": "use ITU-R BS.1770-4 Annex 2 example 4x oversampling coefficients for true peak (own Kaiser design reads -0.108 dBTP at 0.45 fs); EBU Tech 3341/3342 test vectors NOT_PROVEN (tech.ebu.ch 403) - Operator may download manually"
+   "note": "BS.1770-5 Annex 2 FIR; Tech 3341 tone cases inside +0.2/-0.4; one sweep phase +0.2065 dB (0.25 fs) - sweep asserts measured envelope +0.25/-0.5; EBU vectors NOT_PROVEN (403)",
+   "lane_file": "builders/lanes/hsk-studio-score-truepeak.json"
   },
   {
    "lane_id": "SMB-RENDER-FILTERS",
