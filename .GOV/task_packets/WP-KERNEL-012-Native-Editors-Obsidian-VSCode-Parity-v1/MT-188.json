@@ -768,5 +768,57 @@
     "runtime_acceptance": "NOT_RUN",
     "whole_wp_acceptance": "NOT_ASSESSED"
   },
-  "swarm_source_admission_ref": "packet.json#/swarm_production_20261014"
+  "swarm_source_admission_ref": "packet.json#/swarm_production_20261014",
+  "swarm_changed_source_compile_admission_20261014": {
+    "decision_id": "WP012-SWARM-CHANGED-SOURCE-COMPILER-20261014-06",
+    "status": "PREPARATION_RELEASED_LAUNCH_CONDITIONAL",
+    "recorded_at_utc": "2026-10-14T15:45:07.325853+00:00",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "decision_owner_chat": "01a13ab5-bfe4-74b1-8fc3-64e691a76827",
+    "compiler_owner_chat": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+    "independent_validator_chat": "01a139f6-ce6a-7b50-a058-dff3732ea4a2",
+    "candidate_commit": "575997886285ede0442cc8b93bb69eed57d94e08",
+    "candidate_tree": "d09d95190432025bcafd5a8593c74eec7dbd401a",
+    "source_checkpoint_ref": "MT-174.json#/swarm_p1_source_checkpoint_20261014",
+    "changed_input": "Coherent pushed swarm integration aaadc plus exact10-file remediation57599788; prior core139e compiler proof is invalid for changed source. Native normal core dependency invalidates native graph; no runtime outcome is inferred.",
+    "source_review": "SAME independent validator reviews only actual10-file remediation delta against its original three P1 findings; source review must have no blocking finding before compiler. No second broad review or team-vote gate.",
+    "conditions": [
+      "Stable pushed product candidate and all owners quiescent; captured full product source/config/tool/current kernel authority freeze through terminal postbinding and owned process closure",
+      "Current actual selected graph/features/targets, tool hashes and source bindings; original exit and whole-target diagnostic/missing-target accounting",
+      "Official builder gameplan and numeric resource admission; same profile916767bb, warm target,180GBcap175GBstop50GiBfloor,j1,Normal scheduling,memory observation only",
+      "One affected independent review of changed runner/config/reuse/caller release and exact frozen outer payload; no fresh Operator approval inside recorded finite scope",
+      "One serial shared-target compiler owner; core affected predecessor before native; batch all actual related failure groups before changed confirmation"
+    ],
+    "kernel_publication": "Canonical local typed contracts and captured raw authority are valid; no mandatory remote equality predecessor verified. Separate non-force kernel publication/reconciliation protection remains; pending Git question grants no merge/reset/force authority. Do not change captured kernel inputs or HEAD during a run.",
+    "runtime": "NOT_AUTHORIZED; original full runtime/auth/persistence/GUI/recovery/shutdown/CKC/WP1/interconnection/HBR and independent acceptance remain open; protected ADOPT mapping remains held pending explicit spec approval.",
+    "command": "cargo check --locked --manifest-path src/backend/handshake_core/Cargo.toml --lib --tests --features app-runtime,surreal-test-support,test-utils -j 1 --keep-going --message-format=json",
+    "cargo_argv": [
+      "check",
+      "--locked",
+      "--manifest-path",
+      "src/backend/handshake_core/Cargo.toml",
+      "--lib",
+      "--tests",
+      "--features",
+      "app-runtime,surreal-test-support,test-utils",
+      "-j",
+      "1",
+      "--keep-going",
+      "--message-format=json"
+    ],
+    "additional_terminal_limit": 2,
+    "checks_consumed": 0,
+    "counter_policy": "At most one current-source probe and one confirmation only after relevant inputs or evidenced method change. Preserve old40 core failures, spent2of2 stage and successful changed-host retry1of1; no history reset/automatic renewal. Root records evidenced continuation or exact blocker at threshold.",
+    "profile_ref": "../gov-runtime/host-profile-wp012-phase02-builder.json",
+    "profile_sha256": "916767bbbac5a853b9b8dbd5688d2262cc91bff0d9173fc2431f4dad0bc6b776",
+    "target": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/target",
+    "metadata_reuse": {
+      "original_sha256": "2d8aadeb3d228bac309f0ea5d7b35ee4380baf992240cb9807a1f7837c177d53",
+      "packages": 719,
+      "original_expected_targets": 485,
+      "fresh_retained_input_observation": "Of23 retained manifest/config inputs only nativeCargo.toml differs; native manifest is absent from actual719-package core graph. Preserve original locked root/features/selected targets and independently verify all relevant graph/tool/config bytes before reuse. No automatic core metadata invocation.",
+      "current_native_manifest_sha256": "2a5a78042a744a0e6a91e54adcd3ea47278c8dd194ced04e59a08dc8cd4b2b51"
+    },
+    "prior_proof_ref": "MT-188.json#/swarm_core_retry_success_20261014"
+  }
 }
