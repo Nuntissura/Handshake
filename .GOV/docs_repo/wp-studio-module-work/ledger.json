@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-14T21:29:07Z",
+ "updated_at": "2026-10-14T21:41:19Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3712,7 +3712,7 @@
   {
    "lane_id": "SMB-PRESS-STRUCT-STRIP",
    "crate": "hsk-studio-press",
-   "phase": "FINAL pre-review R31 (Operator: if R31 finds another in-claim leak, narrow to tagged=always NotProven)",
+   "phase": "validation (R31 SAFE_TO_JUDGE)",
    "status": "READY_FOR_VALIDATION",
    "owner": "builder-press-20261014",
    "commits": [
@@ -4341,6 +4341,16 @@
    "commits": [],
    "verdicts": [],
    "note": "R25 FAIL_V5 SMB-ROUND-ENTRYPOINT: tools/run-round.sh:732 aggregator maps junit test-timeout failures to failed; timed_out_tests stays [] (CX-EXEC-005). Fix prepared by steward; re-judging needs Operator decision (fix_budget_exhausted)"
+  },
+  {
+   "lane_id": "SMB-PRESS-PG-HARDEN",
+   "crate": "hsk-studio-press",
+   "phase": "queued (after STRUCT-STRIP judged)",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "R31-P1 PLAUSIBLE: element /Pg pointing at a non-page dict with text kept via private catalog key reads flattened; harden: follow /Pg too (real pages excluded by object number)"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
