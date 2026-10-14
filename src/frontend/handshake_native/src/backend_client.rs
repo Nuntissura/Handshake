@@ -4173,6 +4173,18 @@ async fn verify_atelier_projection_response(
         crate::interop::AtelierItemKind::Media => "file",
         crate::interop::AtelierItemKind::Character => "ckc_character",
         crate::interop::AtelierItemKind::Moodboard => "ckc_moodboard",
+        crate::interop::AtelierItemKind::MediaAlbum => {
+            return Err(AppError::Parse("canonical Loom projection unavailable for MediaAlbum".to_owned()));
+        }
+        crate::interop::AtelierItemKind::Folder => {
+            return Err(AppError::Parse("canonical Loom projection unavailable for Folder".to_owned()));
+        }
+        crate::interop::AtelierItemKind::SourceUrl => {
+            return Err(AppError::Parse("canonical Loom projection unavailable for SourceUrl".to_owned()));
+        }
+        crate::interop::AtelierItemKind::CharacterSheet => {
+            return Err(AppError::Parse("canonical Loom projection unavailable for CharacterSheet".to_owned()));
+        }
     };
     if actual_id != expected_block_id || content_type != expected_content_type || !has_source {
         return Err(AppError::Parse(format!(
@@ -11354,7 +11366,7 @@ pub type AtelierSidePanelCell =
 /// FIFO deliveries for off-thread per-batch item loads, keyed by generation + batch id so reordered
 /// completions are all observed and stale ones discarded without overwriting a newer result.
 pub type AtelierItemsCell =
-    Arc<Mutex<std::collections::VecDeque<(u64, String, Result<Vec<AtelierItemRow>, String>)>>>;
+    Arc<Mutex<std::collections::VecDeque<(u64, String, Result<AtelierBatchItemsProjection, String>)>>>;
 
 /// REST client for the VERIFIED atelier read surface the MT-033 AtelierSidePanel consumes.
 #[derive(Clone)]
@@ -11602,13 +11614,14 @@ struct AtelierItemWire {
     loom_block_id: Option<String>,
 }
 
-/// `GET {url}` and parse the `IntakeBatchItemsResponse.items[]` into [`AtelierItemRow`]s.
+/// `GET {url}` once for canonical full-batch counts and strict preview rows.
 async fn fetch_atelier_items(
     client: &reqwest::Client,
     account: AccountContext,
     url: &str,
-) -> Result<Vec<AtelierItemRow>, AppError> {
-    parse_atelier_items(get_json(client, account, url, &[]).await?)
+) -> Result<AtelierBatchItemsProjection, AppError> {
+    let value = get_json(client, account, url, &[]).await?;
+    parse_atelier_batch_items_projection(&value)
 }
 
 fn parse_atelier_items(value: serde_json::Value) -> Result<Vec<AtelierItemRow>, AppError> {
@@ -11634,14 +11647,17 @@ fn parse_atelier_items(value: serde_json::Value) -> Result<Vec<AtelierItemRow>, 
                     "atelier batch-items row[{index}] has invalid item_id: {error}"
                 ))
             })?;
+            if row.loom_block_id.as_ref().is_some_and(|id| id.trim().is_empty()) {
+                return Err(AppError::Parse(format!(
+                    "atelier batch-items row[{index}] has an empty loom_block_id"
+                )));
+            }
             Ok(AtelierItemRow {
                 item_id: row.item_id,
                 file_name: row.file_name,
                 source_path: row.source_path,
                 lane: row.lane,
-                loom_block_id: row
-                    .loom_block_id
-                    .filter(|block_id| !block_id.trim().is_empty()),
+                loom_block_id: row.loom_block_id,
             })
         })
         .collect::<Result<_, _>>()?;
@@ -11703,6 +11719,90 @@ mod tests {
         .expect("a later valid response must recover independently");
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].file_name, "recovered.png");
+    }
+
+    fn batch_items_payload() -> serde_json::Value {
+        serde_json::json!({
+            "lane_counts": {
+                "pending": 20, "accepted": 2, "rejected": 1,
+                "deferred": 1, "skipped": 1, "failed": 1
+            },
+            "items": [{
+                "item_id": "01900000-0000-7000-8000-000000000033",
+                "file_name": "preview.png", "source_path": "/atelier/preview.png",
+                "lane": "pending", "loom_block_id": "canonical-block"
+            }]
+        })
+    }
+
+    #[test]
+    fn atelier_batch_projection_keeps_full_counts_and_real_optional_relation() {
+        let mut value = batch_items_payload();
+        let projection = parse_atelier_batch_items_projection(&value).unwrap();
+        assert_eq!(projection.items.len(), 1);
+        assert_eq!(projection.lane_counts.total(), Some(26));
+        assert_eq!(projection.items[0].loom_block_id.as_deref(), Some("canonical-block"));
+        assert_eq!(parse_atelier_intake_item_row(&value["items"][0]).unwrap().loom_block_id,
+            projection.items[0].loom_block_id);
+        value["items"][0].as_object_mut().unwrap().remove("loom_block_id");
+        assert!(parse_atelier_batch_items_projection(&value).unwrap().items[0].loom_block_id.is_none());
+        value["items"][0]["loom_block_id"] = serde_json::Value::Null;
+        assert!(parse_atelier_batch_items_projection(&value).unwrap().items[0].loom_block_id.is_none());
+        for malformed in [serde_json::json!(" "), serde_json::json!(12), serde_json::json!({})] {
+            value["items"][0]["loom_block_id"] = malformed;
+            assert!(parse_atelier_batch_items_projection(&value).is_err());
+            assert!(parse_atelier_intake_item_row(&value["items"][0]).is_none());
+        }
+    }
+
+    #[test]
+    fn atelier_batch_projection_rejects_missing_malformed_and_overflowing_counts() {
+        for field in ["pending", "accepted", "rejected", "deferred", "skipped", "failed"] {
+            let mut value = batch_items_payload();
+            value["lane_counts"].as_object_mut().unwrap().remove(field);
+            assert!(parse_atelier_batch_items_projection(&value).is_err(), "missing {field}");
+            for malformed in [serde_json::json!(-1), serde_json::json!(1.5),
+                serde_json::json!("1"), serde_json::json!(null), serde_json::json!(1e30)] {
+                value["lane_counts"][field] = malformed;
+                assert!(parse_atelier_batch_items_projection(&value).is_err(), "malformed {field}");
+            }
+        }
+        let mut value = batch_items_payload();
+        value.as_object_mut().unwrap().remove("lane_counts");
+        assert!(parse_atelier_batch_items_projection(&value).is_err());
+        value["lane_counts"] = serde_json::json!({
+            "pending": usize::MAX, "accepted": 1, "rejected": 0,
+            "deferred": 0, "skipped": 0, "failed": 0
+        });
+        assert!(parse_atelier_batch_items_projection(&value).is_err());
+        assert_eq!(AtelierLaneCounts { pending: usize::MAX, accepted: 1,
+            ..Default::default() }.total(), None);
+        if usize::BITS < 64 {
+            value["lane_counts"]["pending"] = serde_json::json!(u64::MAX);
+            assert!(parse_atelier_batch_items_projection(&value).is_err());
+        }
+    }
+
+    #[test]
+    fn atelier_batch_projection_rejects_invalid_preview_without_partial_rows() {
+        let valid = batch_items_payload();
+        for field in ["item_id", "file_name", "source_path", "lane"] {
+            let mut value = valid.clone();
+            value["items"][0].as_object_mut().unwrap().remove(field);
+            assert!(parse_atelier_batch_items_projection(&value).is_err());
+            value["items"][0][field] = serde_json::json!(" ");
+            assert!(parse_atelier_batch_items_projection(&value).is_err());
+        }
+        let mut value = valid.clone();
+        value["items"][0]["item_id"] = serde_json::json!("invalid-uuid");
+        assert!(parse_atelier_batch_items_projection(&value).is_err());
+        value = valid.clone();
+        let duplicate = value["items"][0].clone();
+        value["items"].as_array_mut().unwrap().push(duplicate);
+        assert!(parse_atelier_batch_items_projection(&value).is_err());
+        value = valid;
+        value.as_object_mut().unwrap().remove("items");
+        assert!(parse_atelier_batch_items_projection(&value).is_err());
     }
 
     #[test]
@@ -15217,13 +15317,13 @@ pub struct AtelierLaneCounts {
 }
 
 impl AtelierLaneCounts {
-    pub fn total(&self) -> usize {
+    pub fn total(&self) -> Option<usize> {
         self.pending
-            .saturating_add(self.accepted)
-            .saturating_add(self.rejected)
-            .saturating_add(self.deferred)
-            .saturating_add(self.skipped)
-            .saturating_add(self.failed)
+            .checked_add(self.accepted)?
+            .checked_add(self.rejected)?
+            .checked_add(self.deferred)?
+            .checked_add(self.skipped)?
+            .checked_add(self.failed)
     }
 }
 
@@ -16060,56 +16160,26 @@ fn parse_atelier_lane_counts(value: &serde_json::Value) -> Result<AtelierLaneCou
     let counts = value
         .get("lane_counts")
         .ok_or_else(|| AppError::Parse("missing intake items lane_counts".to_owned()))?;
-    Ok(AtelierLaneCounts {
+    let counts = AtelierLaneCounts {
         pending: parse_atelier_lane_count(counts, "pending")?,
         accepted: parse_atelier_lane_count(counts, "accepted")?,
         rejected: parse_atelier_lane_count(counts, "rejected")?,
         deferred: parse_atelier_lane_count(counts, "deferred")?,
         skipped: parse_atelier_lane_count(counts, "skipped")?,
         failed: parse_atelier_lane_count(counts, "failed")?,
-    })
+    };
+    counts.total().ok_or_else(|| {
+        AppError::Parse("intake lane_counts total exceeds usize".to_owned())
+    })?;
+    Ok(counts)
 }
 
 fn parse_atelier_batch_items_projection(
     v: &serde_json::Value,
 ) -> Result<AtelierBatchItemsProjection, AppError> {
     let lane_counts = parse_atelier_lane_counts(v)?;
-    let items = v
-        .get("items")
-        .and_then(|x| x.as_array())
-        .cloned()
-        .unwrap_or_default();
-    let rows = items
-        .iter()
-        .filter_map(|row| {
-            let item_id = row.get("item_id").and_then(|x| x.as_str())?.to_owned();
-            if item_id.is_empty() {
-                return None;
-            }
-            Some(AtelierItemRow {
-                item_id,
-                file_name: row
-                    .get("file_name")
-                    .and_then(|x| x.as_str())
-                    .unwrap_or("(unnamed item)")
-                    .to_owned(),
-                source_path: row
-                    .get("source_path")
-                    .and_then(|x| x.as_str())
-                    .unwrap_or("")
-                    .to_owned(),
-                lane: row
-                    .get("lane")
-                    .and_then(|x| x.as_str())
-                    .unwrap_or("")
-                    .to_owned(),
-            })
-        })
-        .collect();
-    Ok(AtelierBatchItemsProjection {
-        lane_counts,
-        items: rows,
-    })
+    let items = parse_atelier_items(v.clone())?;
+    Ok(AtelierBatchItemsProjection { lane_counts, items })
 }
 
 fn parse_atelier_intake_item_row(row: &serde_json::Value) -> Option<AtelierItemRow> {
@@ -16117,7 +16187,13 @@ fn parse_atelier_intake_item_row(row: &serde_json::Value) -> Option<AtelierItemR
     if item_id.is_empty() {
         return None;
     }
+    let loom_block_id = match row.get("loom_block_id") {
+        None | Some(serde_json::Value::Null) => None,
+        Some(serde_json::Value::String(id)) if !id.trim().is_empty() => Some(id.clone()),
+        Some(_) => return None,
+    };
     Some(AtelierItemRow {
+        loom_block_id,
         item_id,
         file_name: row
             .get("file_name")

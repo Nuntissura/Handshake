@@ -2484,10 +2484,16 @@ fn ac5_atelier_side_panel_loads_from_live_backend() {
             })
             .expect("live backend items fetch within 5s");
         assert_eq!((items.0, items.1.as_str()), (generation, batch_id.as_str()));
+        let projection = items.2.expect("live backend items fetch ok");
+        assert_eq!(projection.lane_counts.pending, 1, "fresh batch has one canonical pending item");
+        assert_eq!(projection.lane_counts.accepted, 0);
+        assert_eq!(projection.lane_counts.rejected, 0);
+        assert_eq!(projection.lane_counts.deferred, 0);
+        assert_eq!(projection.lane_counts.skipped, 0);
+        assert_eq!(projection.lane_counts.failed, 0);
+        assert_eq!(projection.lane_counts.total(), Some(1));
         assert!(
-            items
-                .2
-                .expect("live backend items fetch ok")
+            projection.items
                 .iter()
                 .any(|row| row.item_id == item_id),
             "AC-5 live: self-seeded item is returned through a fresh production client"

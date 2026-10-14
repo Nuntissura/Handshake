@@ -35,7 +35,8 @@ use std::sync::{Arc, Mutex};
 use egui::accesskit;
 
 use crate::backend_client::{
-    AtelierClient, AtelierCorpusRow, AtelierItemRow, AtelierItemsCell, AtelierSidePanelCell,
+    AtelierClient, AtelierCorpusRow, AtelierItemRow, AtelierItemsCell, AtelierLaneCounts,
+    AtelierSidePanelCell,
 };
 use crate::interop::{AtelierItemKind, AtelierRef, DragPayload};
 use crate::theme::HsPalette;
@@ -123,6 +124,7 @@ pub struct AtelierSidePanel {
     /// The currently-expanded batch id + its loaded item rows (one batch expanded at a time, keeping the
     /// panel compact). `None` => no batch expanded.
     expanded: Option<(String, Vec<AtelierItemRow>)>,
+    expanded_counts: Option<(String, AtelierLaneCounts)>,
     /// The side-panel load state (drives the spinner/error/rows — no perpetual spinner).
     state: LoadState,
     /// The per-batch items-load state for the currently-expanding batch (a spinner while in flight).
@@ -158,6 +160,7 @@ impl AtelierSidePanel {
             batches: Vec::new(),
             corpus: Vec::new(),
             expanded: None,
+            expanded_counts: None,
             state: LoadState::Idle,
             items_loading: None,
             error: None,
@@ -195,6 +198,7 @@ impl AtelierSidePanel {
         corpus: Vec<AtelierCorpusRow>,
         expanded: Option<(String, Vec<AtelierItemRow>)>,
     ) {
+        self.invalidate_items();
         self.batches = batches;
         self.corpus = corpus;
         self.expanded = expanded;
@@ -210,6 +214,7 @@ impl AtelierSidePanel {
         self.batches.clear();
         self.corpus.clear();
         self.expanded = None;
+        self.expanded_counts = None;
         self.state = LoadState::Idle;
         self.items_loading = None;
         self.error = None;
@@ -227,7 +232,9 @@ impl AtelierSidePanel {
     /// Trigger a side-panel load (batches + corpus) if a client is present. Sets [`LoadState::Loading`]
     /// so the spinner shows ONLY while the fetch is genuinely in flight.
     pub fn request_load(&mut self) {
-        if let Some(client) = &self.client {
+        if let Some(client) = self.client.clone() {
+            self.invalidate_items();
+            self.expanded = None;
             self.load_generation = self.load_generation.wrapping_add(1);
             self.state = LoadState::Loading;
             self.error = None;
@@ -235,19 +242,26 @@ impl AtelierSidePanel {
         }
     }
 
+    fn invalidate_items(&mut self) {
+        self.items_generation = self.items_generation.wrapping_add(1);
+        self.expanded_counts = None;
+        if let Some((_, items)) = &mut self.expanded {
+            items.clear();
+        }
+        self.items_loading = None;
+        self.items_error = None;
+    }
+
     /// Expand a batch: collapse any other, then trigger its items load (or no-op in the headless path).
     fn expand_batch(&mut self, batch_id: &str) {
-        // Toggle: clicking the expanded batch collapses it.
-        if self.expanded.as_ref().map(|(id, _)| id.as_str()) == Some(batch_id) {
+        let collapse = self.expanded.as_ref().map(|(id, _)| id.as_str()) == Some(batch_id);
+        self.invalidate_items();
+        if collapse {
             self.expanded = None;
-            self.items_loading = None;
-            self.items_error = None;
             return;
         }
         self.expanded = Some((batch_id.to_owned(), Vec::new()));
-        self.items_error = None;
         if let Some(client) = &self.client {
-            self.items_generation = self.items_generation.wrapping_add(1);
             self.items_loading = Some(batch_id.to_owned());
             client.fetch_items(
                 self.items_generation,
@@ -272,6 +286,11 @@ impl AtelierSidePanel {
                         Err(msg) => {
                             self.state = LoadState::Failed;
                             self.error = Some(msg);
+                            self.expanded = None;
+                            self.expanded_counts = None;
+                            self.items_generation = self.items_generation.wrapping_add(1);
+                            self.items_loading = None;
+                            self.items_error = None;
                         }
                     }
                 }
@@ -285,11 +304,14 @@ impl AtelierSidePanel {
                     if self.expanded.as_ref().map(|(id, _)| id.as_str()) == Some(batch_id.as_str())
                     {
                         match result {
-                            Ok(items) => {
-                                self.expanded = Some((batch_id.clone(), items));
+                            Ok(projection) => {
+                                self.expanded = Some((batch_id.clone(), projection.items));
+                                self.expanded_counts = Some((batch_id.clone(), projection.lane_counts));
                                 self.items_error = None;
                             }
                             Err(msg) => {
+                                self.expanded_counts = None;
+                                self.expanded = Some((batch_id.clone(), Vec::new()));
                                 self.items_error = Some((batch_id.clone(), msg));
                             }
                         }
@@ -310,6 +332,13 @@ impl AtelierSidePanel {
     /// The currently-expanded batch id + its item rows (test/peek accessor).
     pub fn expanded(&self) -> Option<&(String, Vec<AtelierItemRow>)> {
         self.expanded.as_ref()
+    }
+
+    pub fn expanded_batch_summary(&self) -> Option<AtelierLaneCounts> {
+        let (batch_id, _) = self.expanded.as_ref()?;
+        let (counts_batch, counts) = self.expanded_counts.as_ref()?;
+        (counts_batch == batch_id && self.items_loading.is_none() && self.items_error.is_none())
+            .then(|| counts.clone())
     }
 
     /// Drain stable executable actions emitted by item-row buttons. Drag remains available for humans;
@@ -527,8 +556,10 @@ impl AtelierSidePanel {
     }
 
     fn retry_items(&mut self, batch_id: &str) {
-        self.items_error = None;
-        self.items_generation = self.items_generation.wrapping_add(1);
+        if self.expanded.as_ref().map(|(id, _)| id.as_str()) != Some(batch_id) {
+            return;
+        }
+        self.invalidate_items();
         self.items_loading = Some(batch_id.to_owned());
         if let Some(client) = &self.client {
             client.fetch_items(
@@ -727,7 +758,7 @@ fn emit_button_node(ui: &egui::Ui, id: egui::Id, author_id: &str, label: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::backend_client::AtelierBatchRow;
+    use crate::backend_client::{AtelierBatchItemsProjection, AtelierBatchRow};
     use egui_kittest::kittest::{NodeT, Queryable};
     use egui_kittest::Harness;
 
@@ -738,6 +769,13 @@ mod tests {
             source_path: format!("/intake/{name}"),
             lane: "accept".to_owned(),
             loom_block_id: None,
+        }
+    }
+
+    fn projection(items: Vec<AtelierItemRow>, pending: usize) -> AtelierBatchItemsProjection {
+        AtelierBatchItemsProjection {
+            items,
+            lane_counts: AtelierLaneCounts { pending, ..Default::default() },
         }
     }
 
@@ -831,23 +869,24 @@ mod tests {
             queue.push_back((
                 4,
                 "batch-new".to_owned(),
-                Ok(vec![item(
+                Ok(projection(vec![item(
                     "01900000-0000-7000-8000-000000000004",
                     "new.png",
-                )]),
+                )], 7)),
             ));
             queue.push_back((
                 3,
                 "batch-new".to_owned(),
-                Ok(vec![item(
+                Ok(projection(vec![item(
                     "01900000-0000-7000-8000-000000000003",
                     "old.png",
-                )]),
+                )], 2)),
             ));
         }
         panel.drain_cells();
         let (_, rows) = panel.expanded().expect("new batch stays expanded");
         assert_eq!(rows[0].file_name, "new.png");
+        assert_eq!(panel.expanded_batch_summary().unwrap().pending, 7);
         assert!(panel.items_loading.is_none());
     }
 
@@ -882,14 +921,21 @@ mod tests {
         panel.items_cell.lock().unwrap().push_back((
             2,
             batch_id.to_owned(),
-            Ok(vec![item(
+            Ok(projection(vec![item(
                 "01900000-0000-7000-8000-000000000034",
                 "recovered.png",
-            )]),
+            )], 9)),
         ));
         panel.drain_cells();
         assert!(panel.items_error.is_none());
         assert_eq!(panel.expanded().unwrap().1[0].file_name, "recovered.png");
+        assert_eq!(panel.expanded_batch_summary().unwrap().pending, 9);
+        panel.items_cell.lock().unwrap().push_back((
+            2, batch_id.to_owned(), Err("current delivery failure".to_owned()),
+        ));
+        panel.drain_cells();
+        assert!(panel.expanded_batch_summary().is_none());
+        assert!(panel.expanded().unwrap().1.is_empty());
     }
 
     #[test]
@@ -937,6 +983,85 @@ mod tests {
                 == Some("(no items in this batch)")),
             "transport failure must not render the valid empty-state"
         );
+    }
+
+    fn deliver(panel: &mut AtelierSidePanel, batch_id: &str, pending: usize) {
+        panel.items_cell.lock().unwrap().push_back((
+            panel.items_generation, batch_id.to_owned(),
+            Ok(projection(vec![item("i-1", "preview.png")], pending)),
+        ));
+        panel.drain_cells();
+    }
+
+    #[test]
+    fn batch_switch_collapse_retry_and_seed_invalidate_rows_and_counts() {
+        let mut panel = AtelierSidePanel::with_client(None);
+        panel.expand_batch("a");
+        deliver(&mut panel, "a", 12);
+        assert_eq!(panel.expanded().unwrap().1.len(), 1);
+        assert_eq!(panel.expanded_batch_summary().unwrap().total(), Some(12));
+        let stale_generation = panel.items_generation;
+        panel.expand_batch("a");
+        assert!(panel.expanded().is_none());
+        assert!(panel.expanded_batch_summary().is_none());
+        panel.expand_batch("a");
+        panel.items_cell.lock().unwrap().push_back((
+            stale_generation, "a".to_owned(), Ok(projection(vec![item("old", "old.png")], 99)),
+        ));
+        panel.drain_cells();
+        assert!(panel.expanded().unwrap().1.is_empty());
+        assert!(panel.expanded_batch_summary().is_none());
+        deliver(&mut panel, "a", 12);
+        panel.expand_batch("b");
+        assert!(panel.expanded().unwrap().1.is_empty());
+        assert!(panel.expanded_batch_summary().is_none());
+        deliver(&mut panel, "a", 99);
+        assert!(panel.expanded().unwrap().1.is_empty(), "same generation, wrong batch is discarded");
+        deliver(&mut panel, "b", 13);
+        assert_eq!(panel.expanded_batch_summary().unwrap().pending, 13);
+        panel.retry_items("b");
+        assert!(panel.expanded().unwrap().1.is_empty());
+        assert!(panel.expanded_batch_summary().is_none());
+        deliver(&mut panel, "b", 14);
+        panel.seed_rows(vec![], vec![], Some(("b".to_owned(), vec![item("seed", "seed.png")])));
+        assert!(panel.expanded_batch_summary().is_none(), "preview seed cannot invent canonical counts");
+    }
+
+    #[test]
+    fn refresh_failure_and_rebind_discard_old_rows_and_counts() {
+        let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+        let client = AtelierClient::new("http://test.local:1234".to_owned(), runtime.handle().clone());
+        let mut panel = AtelierSidePanel::with_client(Some(client.clone()));
+        panel.expand_batch("a");
+        deliver(&mut panel, "a", 12);
+        let old_generation = panel.items_generation;
+        panel.request_load();
+        assert!(panel.expanded().is_none());
+        assert!(panel.expanded_batch_summary().is_none());
+        panel.items_cell.lock().unwrap().push_back((
+            old_generation, "a".to_owned(), Ok(projection(vec![item("old", "old.png")], 99)),
+        ));
+        panel.drain_cells();
+        assert!(panel.expanded().is_none());
+        panel.expand_batch("b");
+        deliver(&mut panel, "b", 13);
+        panel.panel_cell.lock().unwrap().push_back((panel.load_generation, Err("refresh failed".to_owned())));
+        panel.drain_cells();
+        assert!(panel.expanded().is_none());
+        assert!(panel.expanded_batch_summary().is_none());
+        panel.expand_batch("c");
+        deliver(&mut panel, "c", 14);
+        let old_generation = panel.items_generation;
+        panel.bind_client(client);
+        panel.expand_batch("c");
+        panel.items_cell.lock().unwrap().push_back((
+            old_generation, "c".to_owned(), Ok(projection(vec![item("old", "old.png")], 99)),
+        ));
+        panel.drain_cells();
+        assert!(panel.expanded().unwrap().1.is_empty());
+        assert!(panel.expanded_batch_summary().is_none());
+        deliver(&mut panel, "c", 15);
+        assert_eq!(panel.expanded_batch_summary().unwrap().pending, 15);
     }
 
     /// `request_load` on a no-client panel is a benign no-op (stays Loaded, no panic).

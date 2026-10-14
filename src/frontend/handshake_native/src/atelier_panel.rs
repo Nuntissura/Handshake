@@ -16825,7 +16825,11 @@ impl AtelierPanel {
         );
         let batch_summary = expanded_batch_summary
             .as_ref()
-            .map(|summary| summary.value.clone())
+            .and_then(|counts| counts.total().map(|total| format!(
+                "Pending {} | Accepted {} | Rejected {} | Deferred {} | Skipped {} | Failed {} | Total {}",
+                counts.pending, counts.accepted, counts.rejected, counts.deferred,
+                counts.skipped, counts.failed, total
+            )))
             .unwrap_or_else(|| "No expanded intake batch summary.".to_owned());
         let summary_visible = compact_visual_cell(&batch_summary, 96);
         let summary = ui

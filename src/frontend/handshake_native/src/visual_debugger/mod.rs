@@ -651,6 +651,7 @@ fn pane_type_key(pane_type: &PaneType) -> String {
         PaneType::InferenceLab => "InferenceLab",
         PaneType::ModelRuntime => "ModelRuntime",
         PaneType::Swarm => "Swarm",
+        PaneType::SwarmLaneDiagnostics => "SwarmLaneDiagnostics",
         PaneType::Problems => "Problems",
         PaneType::Jobs => "Jobs",
         PaneType::Timeline => "Timeline",
@@ -664,6 +665,8 @@ fn pane_type_key(pane_type: &PaneType) -> String {
         PaneType::LoomSearchV2 => "LoomSearchV2",
         PaneType::FindInFiles => "FindInFiles",
         PaneType::RuntimeChat => "RuntimeChat",
+        PaneType::OperatorChatLaunch => "OperatorChatLaunch",
+        PaneType::Wp1OrchestrationConsole => "Wp1OrchestrationConsole",
         PaneType::Placeholder(name) => return format!("Placeholder:{name}"),
     }
     .to_owned()
