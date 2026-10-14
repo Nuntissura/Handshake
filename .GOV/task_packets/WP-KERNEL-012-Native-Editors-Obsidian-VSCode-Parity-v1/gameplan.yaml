@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 667
+generation: 668
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -565,3 +565,4 @@ steps:
 - {id: GP-544, role: builder, at: before_round, do: verify parent launch forwards the owned wrapper numeric exit without outer-shell remapping, check: {type: confirm}, source: 'infra: parent PowerShell invocation mapped owned Cargo101 to outertool1 without explicit exit forwarding', state: active}
 - {id: GP-545, role: builder, at: before_round, do: verify patch anchor newline against actual owned-file bytes before source assertions, check: {type: confirm}, source: 'infra: lib.rs anchor assumed CRLF but actual LF; assertion failed before mutation', state: active}
 - {id: GP-546, role: builder, at: before_round, do: verify Git path-list guards parse stdout separately from retained stderr diagnostics, check: {type: confirm}, source: 'infra: Git LF warning merged into diff stdout made exact path assertion fail before checkpoint', state: active}
+- {id: GP-547, role: builder, at: before_round, do: verify current commit reserve meets profile floor before releasing the native compiler, check: {type: confirm}, source: 'infra: stage01 scheduling admission failed commit reserve8GB below required10GB before Cargo launch', state: active}

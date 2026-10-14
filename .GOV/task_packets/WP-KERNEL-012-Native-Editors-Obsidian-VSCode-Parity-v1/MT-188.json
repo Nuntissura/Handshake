@@ -1,4 +1,26 @@
 {
+  "delegated_source_only_shutdown_repair_20261014": {
+    "decision_id": "WP012-MT188-SOURCE-REPAIR-20261014",
+    "status": "SOURCE_ONLY_LEASE_RELEASED",
+    "updated_at_utc": "2026-10-14T02:21:25.963309+00:00",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "decision_owner": "01a1323d-2a04-78f1-9430-1589c9cd54ea",
+    "source_owner": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+    "base_candidate": "73368c07fe7ab713e1110c85004a0a18882351b5",
+    "only_write_path": "src/backend/handshake_core/src/main.rs",
+    "recorded_failure": "MT188 AC1/AC2: actualmain shutdown predicate411-415 omits ApiRouteRuntimeDrainReport.swarm_events_flushed; failure diagnostic423-429 omits this result. Realreportfield exists; existingexit1 and owner-retention path preserved.",
+    "remedy": "Add false swarm_events_flushed to existing combined shutdown failure condition and actual boolean to existing structured failure diagnostic only; preserve all other bytes/guards/owner/drop/lease behavior",
+    "source_only_exception": "Under explicit Operator delegation and direct-blocker expansion, root admits this exact original-contract source repair while production-main proof selector/allowance remain unresolved. These unresolved conditions continue to block proof/readiness/acceptance, but no longer block this source-only lease. No test, compiler, runtime, fixture/harness or process grant supplied.",
+    "risk_controls": [
+      "All-success path unchanged when swarm flag true",
+      "Failure follows existing retained-owner exit1; no new lifecycle owner or shutdown order",
+      "Diagnostic boolean only, no account/session/workspace/secret metadata",
+      "One source owner, native compiler not running; allcaptured writers frozen before latercheck"
+    ],
+    "review": "One independent scoped diff/predicate/diagnostic review, then source checkpoint+nonforcepush; compiler and original production positive/negative proof NOT_RUN",
+    "original_proof": "MT188 proof checks and original MT020 AC7/AC8/AC10 residuals unchanged; source checkpoint cannot become PASS",
+    "stop": "Anything outside two named adaptations, main.rs ownership conflict or changed source basis returns to root for an evidenced direct-blocker decision"
+  },
   "schema_id": "hsk.microtask_contract@1",
   "schema_version": "microtask_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE",

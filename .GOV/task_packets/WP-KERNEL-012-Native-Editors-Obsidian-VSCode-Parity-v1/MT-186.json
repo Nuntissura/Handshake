@@ -1,4 +1,32 @@
 {
+  "stage01_preparation_and_resource_blocker_20261014": {
+    "status": "SOURCE_CONFIG_CLEAR_ADMISSION_BLOCKED",
+    "updated_at_utc": "2026-10-14T02:21:25.963309+00:00",
+    "authority_ref": "/delegated_native_stage_20261014",
+    "candidate": "73368c07fe7ab713e1110c85004a0a18882351b5",
+    "runner_sha256": "1995f06aee7cc44c2fc69e4677b6e512e3364acd223afad022382ef293c10c7a",
+    "config_sha256": "f3a28de217768129b271623d9f870cc34be2e934944a816082e73d75bdbff6e2",
+    "bindings_sha256": "d25cce1eab474e4a0823fefbe84bd47355f819a898de266e92571925c581b18e",
+    "next_launch_sha256": "a7ad8bc463a7946d34056f7f394b009ab690f703f34722b60e9938a18ab1c7e9",
+    "input_digest": "198018af2215093e89aa9f46ae68dbbb87512ed558149dcbe1661883e58513b8",
+    "independent_reviewer": "01a1323e-c183-77e3-b8ba-b286507e5617",
+    "independent_finding": "Scoped assembled connection and adapted runner/config cleared, old runner byteinverse exact, whole7416/164rows/23configs/10authorities/3tools current at985551a7. Runtime provenance remains OPEN. No repeated unchanged review required.",
+    "resource_observation": {
+      "utc": "2026-10-14T02:15:01.6446109Z",
+      "committed_bytes": 58038480896,
+      "commit_limit_bytes": 66044293120,
+      "reserve_bytes": 8005812224,
+      "required_reserve_bytes": 10000000000,
+      "available_mb": 995,
+      "pages_input_per_sec": 75506
+    },
+    "root_followup": "Fresh root CIM observed58454495232 committed/66044293120 limit,546MB available; reserve still below10GB. Largest observed processes are not session-owned; no process disruption authorized/performed.",
+    "artifact_lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-stage01",
+    "compiler_invocations": 0,
+    "stage_checks_consumed": 0,
+    "decision": "Do not lower profile floor or force compiler under current paging/headroom. Continue separately approved source repair before new assembled freeze. Refresh candidate/authority bindings after that checkpoint or resource recovery; held preparation history retained.",
+    "preparation_cause_ref": "gameplan.yaml#/GP-547"
+  },
   "delegated_native_stage_20261014": {
     "decision_id": "WP012-NATIVE-STAGE-20261014-01",
     "status": "APPROVED_PREPARATION_REQUIRED",
