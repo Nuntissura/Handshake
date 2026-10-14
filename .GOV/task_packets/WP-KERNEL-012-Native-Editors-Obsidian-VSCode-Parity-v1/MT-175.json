@@ -1,4 +1,19 @@
 {
+  "console_test_seam_checkpoint_20261014": {
+    "status": "INDEPENDENT_SOURCE_CLEAR_PUSH_VERIFIED",
+    "repair_ref": "/console_test_seam_repair_20261014",
+    "commit": "141ea593a278bb5f01ea804d2f5f6820da9b10be",
+    "tree": "255efaf708ca1513b378141c31538e89bc438a3a",
+    "parent": "952d6bbe61d9162e5b98b843c73cc7e871aa23c0",
+    "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt175-app-test-seam-repair",
+    "app_sha256": "c499f20c6d8cb773f826c3ba3c247544a8eba833ef89a31be2ace3a839e3bef6",
+    "source_comparison_sha256": "5f3b8006c346fe7fb89aa941bcedcfcbd36b1db407e41db812f97dfb5281fdbd",
+    "diff_sha256": "47fe8384791ac65d9e7847b3ee8a93880206727314a3ce19c830ca8cfd16bc5f",
+    "review": "Independent exact three pinned method bodies/actual existing factory constructors and current test callers; raw inverse and7415 unaffected inputs verified. Root opened actual diff and checkpoint, fresh GitHEAD/tree/clean/liveorigin exact. App.rs only41 insertions.",
+    "compiler_tests_runtime": "NOT_RUN",
+    "next_compiler": "HELD pending directly evidenced cloud production dependency closure/explicit root assignment and final coherent candidate binding; this checkpoint alone is not release.",
+    "residuals": "Cloud production restoration, console liveSSE and original fullGUI/runtime acceptance OPEN."
+  },
   "console_test_seam_repair_20261014": {
     "decision_id": "WP012-CONSOLE-TEST-SEAM-REPAIR-20261014",
     "status": "SOURCE_REPAIR_AUTHORIZED",
