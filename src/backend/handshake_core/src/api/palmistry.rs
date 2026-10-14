@@ -3923,7 +3923,7 @@ mod adoption_wire_tests {
             .is_err());
         }
         let mut changed = reply.clone();
-        changed["identity"]["launch_nonce"] = json!([99; 16]);
+        changed["identity"]["launch_nonce"] = json!(vec![99u8; 16]);
         assert!(verify_current_watcher_ready(
             &serde_json::to_vec(&changed).unwrap(),
             &identity,
