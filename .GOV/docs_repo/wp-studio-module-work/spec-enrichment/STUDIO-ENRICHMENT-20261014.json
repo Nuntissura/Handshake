@@ -1,0 +1,320 @@
+{
+  "schema": "handshake.studio.spec_enrichment_delta@1",
+  "delta_id": "STUDIO-ENRICHMENT-20261014",
+  "status": "STAGED_NOT_APPLIED",
+  "purpose": "Operator-approved Studio Master Spec enrichment staged as a delta while the Master Spec is being refactored elsewhere; builders cite this file as spec_basis until the spec owner applies it in a new versioned bundle (KB-SPEC-001).",
+  "base_spec": {
+    "version": "v02.216",
+    "spec_current": ".GOV/spec/SPEC_CURRENT.md",
+    "module": ".GOV/spec/master-spec-v02.216/spec-modules/14-studio-creative-suite.md",
+    "module_sha256": "9ffaff4d0c31ce49c6e1cabd3d617c130e13c6b811a52b2cb518772b7a7d0ec1",
+    "line_count": 33322
+  },
+  "approval_ref": {
+    "source": ".GOV/docs_repo/wp-studio-module-work/START_LOG.md",
+    "block": "OPERATOR DECISIONS 2026-10-14",
+    "commit": "7f4feadb",
+    "operator_quote": "i will follow your recommendation"
+  },
+  "code_basis": "wt-studio-assets/handshake-studio-assets @ 1da2453",
+  "decisions_covered": [
+    "D13",
+    "D19 (a)-(j)",
+    "D23",
+    "D24",
+    "D28"
+  ],
+  "apply_rules": [
+    "Apply against the base module bytes named above; each current_text occurs exactly once there (checked when this file was generated).",
+    "replace: substitute current_text with replacement_text. insert_after: keep current_text and insert a blank line plus inserted_text right after it.",
+    "Line numbers are 1-based in the base module and are informational; match on current_text.",
+    "Existing clause IDs are preserved; new IDs: STU-PDF-001a, STU-RAS-180, STU-VEC-200.",
+    "D19 adopts provisional representations only; Photoshop/Adobe parity stays open under D5."
+  ],
+  "open_items_for_spec_owner": [
+    "STU-RAS-156 per-kind minimum capacity 10 vs the 64-instances-per-layer render bound adopted by D19 (f) (see D19-1 notes).",
+    "Microtask totals pinned by STU-RAS-179 (350) and STU-VEC-199 may change with the new clauses STU-RAS-180 and STU-VEC-200.",
+    "Line 22602 (STU-CON-045 area) also says 'compute chunks<=64pixels'; D13 covers STU-CON-044 only, so that text is left unchanged; check it reads consistently with D13-1 when applying."
+  ],
+  "edits": [
+    {
+      "edit_id": "D13-1",
+      "decision": "D13",
+      "target_module_file": ".GOV/spec/master-spec-v02.216/spec-modules/14-studio-creative-suite.md",
+      "clause_id": "STU-CON-044",
+      "operation": "replace",
+      "current_text_lines": "22592",
+      "current_text": "Use the admitted Prism transform in bounded chunks of at most64pixels, relative-colorimetric/depth32/BPCfalse, with actual profile/engine/options receipts and accounted lifetime.",
+      "replacement_text": "Use the admitted Prism transform, relative-colorimetric/depth32/BPCfalse, with actual profile/engine/options receipts. Admitted transforms and job bands of any size execute internally in chunks of at most 64 pixels (`ADMITTED_CHUNK_PIXELS`), each chunk beginning with its own cancellation check; receipts record the chunk account (chunk count, pixels, largest chunk, staging bytes); lifetime is accounted by the admitted lease charged at prepare. One admitted call per 64 pixels is not required.",
+      "basis": [
+        "START_LOG lead decision 2026-10-11T07:19:59Z (STU-CON-044 reading; prism d7027c3; output bit-identical; 24 MP 100->102 ms; literal per-64-pixel admitted call ~1.9 s per 24 MP rejected)",
+        "wt-studio-assets/handshake-studio-assets @ 1da2453: crates/hsk-studio-prism/src/wide.rs:44 `pub const ADMITTED_CHUNK_PIXELS: usize = 64;` and `WideChunkAccount { bound_pixels, chunks, pixels, max_chunk_pixels, scratch_bytes }` reported as `WideReceipt::chunks`; crates/hsk-studio-develop/src/convert.rs:25-52"
+      ],
+      "approval_ref": {
+        "source": ".GOV/docs_repo/wp-studio-module-work/START_LOG.md",
+        "block": "OPERATOR DECISIONS 2026-10-14",
+        "commit": "7f4feadb",
+        "operator_quote": "i will follow your recommendation"
+      },
+      "notes": [
+        "Line 22592 is one long paragraph; only the quoted sentence changes. The current text's missing spaces ('at most64pixels') are reproduced exactly so the match is byte-exact."
+      ]
+    },
+    {
+      "edit_id": "D23-1",
+      "decision": "D23",
+      "target_module_file": ".GOV/spec/master-spec-v02.216/spec-modules/14-studio-creative-suite.md",
+      "clause_id": "STU-VID-051",
+      "operation": "replace",
+      "current_text_lines": "24565-24568",
+      "current_text": "1. Studio's own crates own the timeline, the compositor and the parameter surfaces. Codec\n   implementation is NOT reimplemented natively; it is reached through a declared adapter with a\n   typed capability descriptor stating which containers, codecs, bit depths, chroma subsamplings\n   and colour transfer functions it can decode and encode.",
+      "replacement_text": "1. Studio's own crates own the timeline, the compositor and the parameter surfaces. Codec\n   implementation is reached only through a declared adapter with a typed capability descriptor\n   stating which containers, codecs, bit depths, chroma subsamplings and colour transfer functions\n   it can decode and encode. An adapter MAY be a Studio-owned adapter implemented in Rust or an\n   external/OS-provided codec; both sit behind the same declared-adapter, capability-descriptor,\n   runtime-enumeration (item 2) and typed `MEDIA_CODEC_UNAVAILABLE` (item 3) contract. Every\n   adapter descriptor additionally carries its decoder id, its licence and its certification\n   status (certified by the format owner or not certified).",
+      "basis": [
+        "START_LOG OPERATOR DECISIONS 2026-10-14, D23 option (a)"
+      ],
+      "approval_ref": {
+        "source": ".GOV/docs_repo/wp-studio-module-work/START_LOG.md",
+        "block": "OPERATOR DECISIONS 2026-10-14",
+        "commit": "7f4feadb",
+        "operator_quote": "i will follow your recommendation"
+      }
+    },
+    {
+      "edit_id": "D24-1",
+      "decision": "D24",
+      "target_module_file": ".GOV/spec/master-spec-v02.216/spec-modules/14-studio-creative-suite.md",
+      "clause_id": "STU-VID-084",
+      "operation": "replace",
+      "current_text_lines": "25469-25471",
+      "current_text": "**[STU-VID-084] GAP -- codec adapter selection.** [STU-VID-051] specifies the descriptor, the\nenumeration and the failure contract but NOT which codecs Studio ships. That is a licensing and\ndependency decision requiring a named operator decision.",
+      "replacement_text": "**[STU-VID-084] DECIDED -- codec adapter selection (named Operator decision D24, 2026-10-14).**\nWithin the contract of [STU-VID-051], Studio v1 ships: AV1 decode through `rav1d` in an isolated\nworker; PCM, WAV and Y4M; pure-Rust DNx decode. ProRes decode is opt-in behind a default-off feature\nwhose user-facing name is exactly \"ProRes (RDD 36 decoder, not Apple-certified)\"; it MUST NOT be\nnamed \"Apple ProRes\". H.264 decode is available only through the OS-provided Windows Media\nFoundation decoder hosted in the isolated reel-native worker; where that decoder is absent the\ncodec yields the typed `MEDIA_CODEC_UNAVAILABLE` result. No openh264 is built from source, and v1\nships no H.264 encode. Each shipped adapter's descriptor carries its decoder id, licence and\ncertification status ([STU-VID-051] item 1).",
+      "basis": [
+        "START_LOG OPERATOR DECISIONS 2026-10-14, D24 (STU-VID-084)"
+      ],
+      "approval_ref": {
+        "source": ".GOV/docs_repo/wp-studio-module-work/START_LOG.md",
+        "block": "OPERATOR DECISIONS 2026-10-14",
+        "commit": "7f4feadb",
+        "operator_quote": "i will follow your recommendation"
+      },
+      "notes": [
+        "Operator actions D22 (ProRes@apple.com licensing email before ProRes ships), D25 (SMPTE ST 2019-1 research copies) and D26 (clean-room avcC parser) are process/provenance decisions, not spec text; they are not written into the clause."
+      ]
+    },
+    {
+      "edit_id": "D24-2",
+      "decision": "D24",
+      "target_module_file": ".GOV/spec/master-spec-v02.216/spec-modules/14-studio-creative-suite.md",
+      "clause_id": "STU-VID-084 (consequential, gap list in 14.25)",
+      "operation": "replace",
+      "current_text_lines": "25616-25617",
+      "current_text": "[STU-VID-083] (178\nfacet-less identifiers), [STU-VID-084] (codec adapter selection), [STU-VID-085] (caption formats)",
+      "replacement_text": "[STU-VID-083] (178\nfacet-less identifiers), [STU-VID-085] (caption formats)",
+      "basis": [
+        "STU-VID-084 is no longer an open decision after D24"
+      ],
+      "approval_ref": {
+        "source": ".GOV/docs_repo/wp-studio-module-work/START_LOG.md",
+        "block": "OPERATOR DECISIONS 2026-10-14",
+        "commit": "7f4feadb",
+        "operator_quote": "i will follow your recommendation"
+      },
+      "notes": [
+        "Removes STU-VID-084 from the list of clauses 'carrying a declared gap or open decision'; the rest of the sentence is unchanged."
+      ]
+    },
+    {
+      "edit_id": "D28-1",
+      "decision": "D28",
+      "target_module_file": ".GOV/spec/master-spec-v02.216/spec-modules/14-studio-creative-suite.md",
+      "clause_id": "STU-PDF-001a (new; next to STU-PDF-001)",
+      "operation": "insert_after",
+      "current_text_lines": "241",
+      "current_text": "Full reachable-object rewrite and exclusion of prior revisions/source preservation payloads MUST be independently checked against text, graphics, metadata, attachments and decompressible bytes; exporter self-verification is insufficient.",
+      "inserted_text": "[STU-PDF-001a] REDACTION SAVE AND THE STRUCTURE TREE (extends [STU-PDF-001] removed-content scope). By default a redaction save MUST strip the whole logical structure: `/StructTreeRoot`, `/MarkInfo`, every `/StructParents` and `/StructParent` entry, every structure-shaped dictionary, and `/ParentTree`, `/IDTree`, `/RoleMap` and `/ClassMap`; MCID-only marked-content operators in kept content streams are kept. The save MUST report the typed loss `accessibility_tags_removed`. No per-MCID structure-tree pruning is performed. An explicit opt-out keeps the structure tree; for a tagged document the redaction result is then `NotProven`. Redaction saves are the one exception to format-matrix row 27 (Tagged / accessible PDF: structure tags, reading order, alt text preserved), which otherwise applies unchanged.",
+      "basis": [
+        "START_LOG OPERATOR DECISIONS 2026-10-14, D28 (lane SMB-PRESS-STRUCT-STRIP)"
+      ],
+      "approval_ref": {
+        "source": ".GOV/docs_repo/wp-studio-module-work/START_LOG.md",
+        "block": "OPERATOR DECISIONS 2026-10-14",
+        "commit": "7f4feadb",
+        "operator_quote": "i will follow your recommendation"
+      },
+      "insert_rule": "insert a blank line and inserted_text immediately after current_text (current_text unchanged)",
+      "notes": [
+        "Inserted as its own paragraph between STU-PDF-001 (line 241) and STU-PDF-002. Matrix row 27 (line of '| 27 | Tagged / accessible PDF |') is NOT edited.",
+        "The default-strip behaviour is decided, not yet implemented (new lane SMB-PRESS-STRUCT-STRIP); today's press behaviour is the opt-out behaviour (NotProven for tagged files)."
+      ]
+    },
+    {
+      "edit_id": "D19-1",
+      "decision": "D19 (a)(b)(c)(d)(e)(f)(g)(h)",
+      "target_module_file": ".GOV/spec/master-spec-v02.216/spec-modules/14-studio-creative-suite.md",
+      "clause_id": "STU-RAS-180 (new; placed directly after the STU-RAS-158 paragraph)",
+      "operation": "insert_after",
+      "current_text_lines": "1777-1778",
+      "current_text": "every effect whose `use_global_light` is true; changing it MUST update every subscribing effect in one\nhistory entry.",
+      "inserted_text": "**[STU-RAS-180] PROVISIONAL LAYER-EFFECT AND ADVANCED-BLENDING REPRESENTATIONS (Operator decision D19,\n2026-10-14).** Until the D5 Adobe oracle session decides Photoshop parity, Studio uses these\nrepresentations; each is the one the implementation carries, and each Photoshop-parity question\nnamed below stays open under D5:\n\n- (a) Knockout. The layer knockout state is the four-member enumeration of [STU-VEC-153]\n  (`unknown`, `disabled`, `enabled`, `inherited`); Photoshop's shallow/deep knockout depth has no\n  Studio field. PSD import maps `knko` 0 or absent to `disabled`, 1 to `enabled`, 2 to `enabled`\n  with typed loss `knockout_depth_not_represented`, and any other value to `unknown` with typed loss\n  `knockout_value_unknown`. `enabled` (and `inherited` resolving to `enabled`) lowers to a shallow\n  knockout, which the renderer refuses with the typed error `plan_knockout_unsupported`; deep\n  knockout is never emitted. Which PSD value means shallow or deep is open under D5.\n- (b) Global Light storage. The document-level Global Light of [STU-RAS-158] is stored in the\n  per-document sidecar record `hsk.studio.raster_records@1` (field `global_light`, absent by default;\n  when present `angle` in -180..180 degrees and `altitude` in 0..90 degrees, both required, no\n  default), because `StudioDocument` gains no fields. An effect with `use_global_light = true`\n  takes the Global Light angle; if none is recorded the effect is refused with\n  `effect_global_light_unresolved`. Only drop shadow and inner shadow currently read it; Global\n  Light altitude is stored but not yet read by any effect.\n- (c) Adjustment record identity. `hsk.studio.adjustment@1` has no record ID prefix of its own; an\n  adjustment record is keyed by the `SLYR` id of the `adjustment` layer that hosts it (the layer's\n  `PrimitiveReference` payload names `hsk.studio.adjustment@1` and its own layer id), one record\n  per hosting layer in both directions.\n- (d) Spread and choke unit. `spread` (drop shadow, outer glow) and `choke` (inner shadow, inner\n  glow) are stored as a percent 0..100 of the effect `size`, as Photoshop stores them, and the\n  renderer takes the fraction percent/100. This replaces the `pixels` unit that [STU-RAS-157]\n  states for these fields. Drop-shadow spread model: the matte is grown hard by spread x size\n  pixels, then blurred by size - spread x size, then offset by distance at the shadow angle.\n- (e) Multi-instance order. Render order is list order within each placement class: drop shadow\n  and outer glow render behind the layer content, every other effect kind over it; bottom to top\n  the order is every behind-content instance in list order, then the content, then every\n  over-content instance in list order. PSD single-instance slots and multi-instance lists merge in\n  descriptor order with typed loss `effect_single_and_multi_slots_merged`.\n- (f) Engineering maxima. The renderer accepts effect `size` up to 1000 px, shadow `distance` up to\n  30000 px, at most 64 effect instances per layer and at most 4096 per render plan; beyond these it\n  refuses with the typed limit errors (`effect_size_out_of_range`, `effect_distance_out_of_range`,\n  `plan_effect_limit`/`effect_limit`; PSD import `effects_over_budget`). The stored effect stack\n  admits at most 1024 instances. These are engineering bounds, not Photoshop limits.\n- (g) Effect matte. The effect matte is derived from the layer's shape alpha: content alpha after\n  the layer mask, before fill opacity; effects fade with effect opacity x layer opacity.\n- (h) Clipping to an adjustment layer. An `adjustment` layer is not a clipping base: a layer whose\n  clip base would be an adjustment layer is refused (`AdjustmentClipBase`; renderer\n  `plan_adjustment_clip_base`). PSD import unclips such a layer and records the typed loss\n  `clip_to_adjustment_not_supported`. Photoshop allows this clipping; parity is open under D5.",
+      "basis": [
+        "START_LOG D19 entry (line beginning '- D19 (2026-10-11T05:57:08Z'), items (a)-(h)",
+        "START_LOG lead decision 2026-10-11T06:29:43Z (spread/choke percent lowered as fraction percent/100)",
+        "START_LOG lead decision 2026-10-11T23:27:25Z (knockout and unsupported effect features stay typed errors)",
+        "wt-studio-assets/handshake-studio-assets @ 1da2453: (a) pigment render_plan/extensions.rs:32-42,321-326; render_plan.rs:368,429; folio raster.rs:231-246,265; composite lower_extensions.rs:328-353; interop-psd adjust.rs:430-445",
+        "wt-studio-assets/handshake-studio-assets @ 1da2453: (b) folio raster.rs:51,288-296,543-558,1007-1016; composite lower_extensions.rs:62,394-400,454,468",
+        "wt-studio-assets/handshake-studio-assets @ 1da2453: (c) accord lib.rs:20,199-236; folio raster.rs:11-13,1024-1072; folio lib.rs:808-819",
+        "wt-studio-assets/handshake-studio-assets @ 1da2453: (d) pigment effect_math.rs:251-261,678-704; composite lower_extensions.rs:102-105,403-413; interop-psd effects.rs:313-318",
+        "wt-studio-assets/handshake-studio-assets @ 1da2453: (e) pigment effect_math.rs:15-18,213-219,551-563; interop-psd effects.rs:11-13,666",
+        "wt-studio-assets/handshake-studio-assets @ 1da2453: (f) pigment effect_math.rs:45-53; render_plan/extensions.rs:367-374; composite lower_extensions.rs:75,556-585; folio raster.rs:61; interop-psd effects.rs:97",
+        "wt-studio-assets/handshake-studio-assets @ 1da2453: (g) pigment effect_math.rs:20-22; effect_math/window.rs:111-119",
+        "wt-studio-assets/handshake-studio-assets @ 1da2453: (h) folio lib.rs:420-425, raster.rs:952-988; pigment render_plan.rs:376,433; interop-psd proposal.rs:710-738"
+      ],
+      "approval_ref": {
+        "source": ".GOV/docs_repo/wp-studio-module-work/START_LOG.md",
+        "block": "OPERATOR DECISIONS 2026-10-14",
+        "commit": "7f4feadb",
+        "operator_quote": "i will follow your recommendation"
+      },
+      "insert_rule": "insert a blank line and inserted_text immediately after current_text (current_text unchanged)",
+      "notes": [
+        "Inserted as a new paragraph block after the STU-RAS-158 paragraph (before STU-RAS-041).",
+        "(g): the code states this matte in the pigment module doc; where a backend multiplies the mask into content before the matte was not traced.",
+        "OPEN CONFLICT for the spec owner (not resolved here): STU-RAS-156 requires a per-kind minimum capacity of 10 and forbids a hard maximum below 10; the 64-per-layer render bound of (f) refuses a layer carrying more than 64 instances in total (e.g. 10 of each of 7+ kinds). D19 adopts the bound as recorded; reconcile with STU-RAS-156.",
+        "Adding STU-RAS-180 may change the module microtask total pinned by STU-RAS-179 (350); the spec owner must reconcile that count when applying.",
+        "Photoshop parity remains open under the D5 Operator-attended Adobe oracle session."
+      ]
+    },
+    {
+      "edit_id": "D19-2",
+      "decision": "D19 (e)",
+      "target_module_file": ".GOV/spec/master-spec-v02.216/spec-modules/14-studio-creative-suite.md",
+      "clause_id": "STU-RAS-156",
+      "operation": "replace",
+      "current_text_lines": "1720-1721",
+      "current_text": "- `StudioEffectStack.effects` is an ordered list of `StudioEffect` instances. Order is authoritative\n  and MUST be preserved; render order follows list order.",
+      "replacement_text": "- `StudioEffectStack.effects` is an ordered list of `StudioEffect` instances. Order is authoritative\n  and MUST be preserved; render order follows list order within each placement class ([STU-RAS-180] (e)).",
+      "basis": [
+        "D19 (e); see D19-1 basis"
+      ],
+      "approval_ref": {
+        "source": ".GOV/docs_repo/wp-studio-module-work/START_LOG.md",
+        "block": "OPERATOR DECISIONS 2026-10-14",
+        "commit": "7f4feadb",
+        "operator_quote": "i will follow your recommendation"
+      }
+    },
+    {
+      "edit_id": "D19-3",
+      "decision": "D19 (f)",
+      "target_module_file": ".GOV/spec/master-spec-v02.216/spec-modules/14-studio-creative-suite.md",
+      "clause_id": "STU-RAS-156",
+      "operation": "replace",
+      "current_text_lines": "1724-1725",
+      "current_text": "- The minimum instance capacity per kind that Studio MUST support is 10; the hard maximum is `unknown`\n  and MUST NOT be enforced below 10.",
+      "replacement_text": "- The minimum instance capacity per kind that Studio MUST support is 10; the hard maximum is `unknown`\n  and MUST NOT be enforced below 10. Provisional engineering bounds are in [STU-RAS-180] (f).",
+      "basis": [
+        "D19 (f); see D19-1 basis"
+      ],
+      "approval_ref": {
+        "source": ".GOV/docs_repo/wp-studio-module-work/START_LOG.md",
+        "block": "OPERATOR DECISIONS 2026-10-14",
+        "commit": "7f4feadb",
+        "operator_quote": "i will follow your recommendation"
+      },
+      "notes": [
+        "See the OPEN CONFLICT note on D19-1."
+      ]
+    },
+    {
+      "edit_id": "D19-4",
+      "decision": "D19 (d)",
+      "target_module_file": ".GOV/spec/master-spec-v02.216/spec-modules/14-studio-creative-suite.md",
+      "clause_id": "STU-RAS-157",
+      "operation": "insert_after",
+      "current_text_lines": "1768",
+      "current_text": "| `drop_shadow` | `distance`, `spread`, `size`, `layer_knocks_out` | pixels | all `unknown` | distance 0.0..60.0 px, spread 0.0..100.0 px, size 0.0..65.0 px |",
+      "inserted_text": "The `pixels` unit stated above for `spread` and `choke` (drop shadow, outer glow, inner shadow, inner\nglow) is superseded by [STU-RAS-180] (d): they are a percent 0..100 of `size`.",
+      "basis": [
+        "D19 (d); see D19-1 basis"
+      ],
+      "approval_ref": {
+        "source": ".GOV/docs_repo/wp-studio-module-work/START_LOG.md",
+        "block": "OPERATOR DECISIONS 2026-10-14",
+        "commit": "7f4feadb",
+        "operator_quote": "i will follow your recommendation"
+      },
+      "insert_rule": "insert a blank line and inserted_text immediately after current_text (current_text unchanged)",
+      "notes": [
+        "Table rows stay unchanged (their 'observed' columns are captured evidence); the note follows the kind-block table."
+      ]
+    },
+    {
+      "edit_id": "D19-5",
+      "decision": "D19 (i)",
+      "target_module_file": ".GOV/spec/master-spec-v02.216/spec-modules/14-studio-creative-suite.md",
+      "clause_id": "STU-VEC-200 (new; after STU-VEC-053)",
+      "operation": "insert_after",
+      "current_text_lines": "4130-4132",
+      "current_text": "`{mask.alpha = ALPHA, mask.vector = VECTOR, mask.luminance = LUMINANCE}` and Studio MUST use those\ntokens. Masking MUST be a shared Studio capability ([STU-DOC-004]) using the canonical `StudioMask`\nprimitive, not a vector-only reimplementation.",
+      "inserted_text": "**[STU-VEC-200] PROVISIONAL CLIP, MASK AND PATTERN-PAINT REPRESENTATIONS (Operator decision D19 (i),\n2026-10-14).** [STU-VEC-053] is carried by the per-document sidecar record set\n`hsk.studio.vector_records@1` (patterns, pattern paints, clips, masks, attachments; `StudioDocument`\nand `StudioPaint` gain nothing) with these representations, each the one the implementation\ncarries; Adobe-application parity of each stays open under the D5 oracle session:\n\n- Clip rule: `NONZERO` or `EVENODD` (the [STU-VEC-110] tokens); `NONE` is not a clip rule.\n- Clip region: the vector geometry of the clip's source layer, which MUST carry a vector or group\n  payload. A mask MAY carry a rectangular `region` outside which it is fully transparent.\n- Units: every length is in the document unit; any other unit is refused. There is no\n  object-bounding-box unit mode.\n- Mask mode: the tokens `ALPHA`, `VECTOR`, `LUMINANCE` are stored with `mask_clip` and\n  `invert_mask` (both default `false`); their computed semantics are not yet specified and nothing\n  is computed from them. The use-as-mask marker is not stored: an attachment names each clipped or\n  masked layer explicitly.\n- Identity: pattern, clip and mask ids are set-local keys (ASCII alphanumerics, `_`, `-`, at most\n  128 bytes) inside the record set; Accord defines no prefix for `hsk.studio.pattern@1` or for clips,\n  and `SMSK` stays reserved for the raster `StudioMask`. Layer references are `SLYR`, style\n  references `SSTY`.\n- `overlap_order`: an opaque label; its members are not enumerated.\n- Pattern placement: either the parametric transform of [STU-COL-196] or, as a Folio addition, an\n  affine `matrix` `[a, b, c, d, e, f]` (point = [a c e; b d f] x [x y 1], pattern space to the\n  filled object's space) that MUST be finite and invertible.\n- PAINT-row binding: a pattern paint binds to a PAINT style by `(style_id, row)` where `row` is the\n  index into the style's rows (fill or stroke); at most one binding per pair; the row MUST exist.\n  Rows carry no id, so reordering rows MUST rewrite the bindings.\n- Reference cycles are refused.",
+      "basis": [
+        "START_LOG D19 entry item (i) (2026-10-11T07:26:25Z, folio ENG-7 vector records)",
+        "wt-studio-assets/handshake-studio-assets @ 1da2453: folio vector.rs:16-58,80,149-151,184-262,279-281,303-340,369-395,422-424,460-465,586,645-663,710-718"
+      ],
+      "approval_ref": {
+        "source": ".GOV/docs_repo/wp-studio-module-work/START_LOG.md",
+        "block": "OPERATOR DECISIONS 2026-10-14",
+        "commit": "7f4feadb",
+        "operator_quote": "i will follow your recommendation"
+      },
+      "insert_rule": "insert a blank line and inserted_text immediately after current_text (current_text unchanged)",
+      "notes": [
+        "Adding STU-VEC-200 may change the microtask count pinned by STU-VEC-199; the spec owner must reconcile it when applying."
+      ]
+    },
+    {
+      "edit_id": "D19-6",
+      "decision": "D19 (i)",
+      "target_module_file": ".GOV/spec/master-spec-v02.216/spec-modules/14-studio-creative-suite.md",
+      "clause_id": "STU-COL-196",
+      "operation": "replace",
+      "current_text_lines": "10560-10561",
+      "current_text": "choice of transforming the pattern with it or leaving the pattern fixed. Every one of these eight\nfields defaults to a neutral value (0.0 or `false`).",
+      "replacement_text": "choice of transforming the pattern with it or leaving the pattern fixed. Every one of these eight\nfields defaults to a neutral value (0.0 or `false`), except `scale_factor`, which is a percent that\nMUST be finite and positive with identity `100` (a 0.0 scale is not invertible) ([STU-VEC-200]).",
+      "basis": [
+        "START_LOG D19 item (i) ('STU-COL-196 default scale 0.0 not invertible')",
+        "wt-studio-assets/handshake-studio-assets @ 1da2453: folio vector.rs:56-58,186-200,460-465"
+      ],
+      "approval_ref": {
+        "source": ".GOV/docs_repo/wp-studio-module-work/START_LOG.md",
+        "block": "OPERATOR DECISIONS 2026-10-14",
+        "commit": "7f4feadb",
+        "operator_quote": "i will follow your recommendation"
+      }
+    },
+    {
+      "edit_id": "D19-7",
+      "decision": "D19 (j)",
+      "target_module_file": ".GOV/spec/master-spec-v02.216/spec-modules/14-studio-creative-suite.md",
+      "clause_id": "STU-LAY-120",
+      "operation": "insert_after",
+      "current_text_lines": "5800-5801",
+      "current_text": "The identical six-member enumeration governs a footnote container's first baseline and a table\ncell's first baseline; Studio MUST use ONE enumeration in all three places ([STU-SECTION-003]).",
+      "inserted_text": "Reference edge (provisional, Operator decision D19 (j), 2026-10-14): `minimum_first_baseline_offset`\nis a non-negative `pt` length measured from the frame's outer top edge (the top of the frame bounds),\nnot from the inner edge after the top inset; a fixed first baseline above the top inset is refused\nas invalid geometry. Import of a non-fixed member that layout cannot yet compose maps it to\n`first_baseline.fixed` at inset top + max(`minimum_first_baseline_offset`, the member's metric) with\nthe note `first_baseline_mapped_to_fixed`. InDesign parity of the reference edge and of that\nmapping stays open under the D5 oracle session.",
+      "basis": [
+        "START_LOG D19 item (j) (2026-10-11T10:18:58Z, PLR-044)",
+        "wt-studio-assets/handshake-studio-assets @ 1da2453: folio layout.rs:100-108,146-149,364-368; layout folio_input.rs:42-43,98-100,197-232; layout threaded_reflow.rs:61,161; interop-layout reflow.rs:17-22,170-181"
+      ],
+      "approval_ref": {
+        "source": ".GOV/docs_repo/wp-studio-module-work/START_LOG.md",
+        "block": "OPERATOR DECISIONS 2026-10-14",
+        "commit": "7f4feadb",
+        "operator_quote": "i will follow your recommendation"
+      },
+      "insert_rule": "insert a blank line and inserted_text immediately after current_text (current_text unchanged)",
+      "notes": [
+        "Layout currently composes only `first_baseline.fixed` and refuses the other members (UnsupportedComposition); that is implementation scope, not written as spec law."
+      ]
+    }
+  ]
+}
