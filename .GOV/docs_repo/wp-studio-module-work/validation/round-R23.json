@@ -1,0 +1,164 @@
+{
+ "round": 23,
+ "round_id": "STUDIO-R23",
+ "round_opened": false,
+ "decision_basis": "CX-VAL-005 + CX-VAL-010: the canary failed at step 0 (exit 71) -> recorded as infrastructure; no round opened; no union build or test run; no MT verdict",
+ "rule_refs": [
+  "CX-VAL-001",
+  "CX-VAL-004",
+  "CX-VAL-005",
+  "CX-VAL-006",
+  "CX-VAL-007",
+  "CX-VAL-009",
+  "CX-VAL-010",
+  "CX-STATUS-001",
+  "CX-STATUS-003",
+  "CX-EXEC-015",
+  "V4-05",
+  "V4-13",
+  "V4-14"
+ ],
+ "candidate": "2694b5270a6d0197cc9cb647faf6d5ad289e9f69",
+ "tree": "b4fcce458248e1f731ac756c43aac489e86585e3",
+ "candidate_note": "frozen 2026-10-14T16:00:49Z after git fetch (origin/codex/handshake-studio-assets == edit HEAD == 2694b52); later pushes 799ba57 (develop CR2), a7c2fa1, 241df1f queue for the next round (CX-VAL-001); 1da2453..2694b52 = 24 commits, 60 files: crates interop-fig, interop-layout, interop-media, interop-tiff (new), interop-vector, motion-js, package, press, reel, reel-native, render-gpu (tests only), score-plugin, worker (new); root Cargo.toml (members + metadata), Cargo.lock (edges of changed crates only), .config/duplicate-fingerprints.toml (D18), tools/workspace-probe.rs",
+ "round_identity_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/ROUND_IDENTITY.json",
+ "export": {
+  "file_count": 904,
+  "manifest_sha256": "3a34a7896d164235d0edf9a2ad2d09b0c0381c45931554172cb3bcc81861f153",
+  "git_blob_equal": true,
+  "refresh": "kernel tools/export-refresh.sh in place 2026-10-14T16:03:09Z: 14 added, 46 changed, 844 unchanged, 2 deleted, blob_mismatch 0 (from 1da2453)"
+ },
+ "started_at": "2026-10-14T16:00:49Z",
+ "completed_at": "2026-10-14T16:13:20Z",
+ "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R23-canary",
+ "running_record": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/RUNNING-R23.jsonl (canary running 16:08:38Z; process identity pid 25588 start 2026-10-14T18:09:32+02:00; canary completed exit 71; not_opened)",
+ "gameplan": ".GOV/task_packets/WP-KERNEL-STUDIO/gameplans/STUDIO-MODULE-ROUND.yaml (pointer studio-round/.gameplan-active) before_round PASS 12/12 at edit HEAD 241df1f (re-confirmed after HEAD moved); GP-001 fetch, origin == HEAD; GP-003 builders active under disk lock @2, no unlocked cargo process (lock audit 16:06Z, 16:08Z); GP-005 LongPathsEnabled=1; GP-010 export 2694b52 / 3a34a789; GP-012 cargo metadata --locked --offline exit 0; GP-013 entry script unchanged since green R22, .config/duplicate-fingerprints.toml changed (D18) -> this launch was the canary",
+ "canary": {
+  "reused": false,
+  "steward_canary_at_candidate": "none (latest steward canary C27-1da2453)",
+  "argv": "bash tools/[round entry script] --results <studio-round>/results/R23-canary --target-dir <studio-round>/target --canary --all (cwd export; absolute D: paths; no caller env)",
+  "started_at": "2026-10-14T16:09:35Z",
+  "ended_at": "2026-10-14T16:09:40Z",
+  "exit": 71,
+  "complete": false,
+  "reason": "step0 policy: V4-05 new frozen-duplicate site: D16 crates/hsk-studio-package/src/bounded_zip.rs:19-23 (SIG_LOCAL, SIG_CENTRAL, SIG_EOCD, SIG_EOCD64, SIG_LOCATOR64 = 0x0403/0201/0605/0606/0706_4b50)",
+  "step0": "machine-path violations 0 (13 files with pinned hits, pins_dropped {}); registry step clean (approved_added [], unrequested [], spec_defects []); D18 new_sites {} (only crates/hsk-studio-worker/src/supervisor.rs); TIMECODE new_sites {} (interop-media/src/time.rs + pulse/src/time.rs, both allowed); D16 sites: interop-fig/src/container.rs (SIG_LOCAL magic sniff :198, :325), interop-layout/src/container.rs (IDML writer :16-18), package/src/zip.rs, package/src/bounded_zip.rs (NEW, not allowed); allowed_without_match interop-vector/src/gzip.rs",
+  "hashes": {
+   "round.json": "1858add61674ccb8fbd14b91070592a0fa2181ea7182f58d3ed59a4af9e72128",
+   "step0.policy.json": "6e5d2637eab80ecb25b860bb02b74dceca01306a39c6fe288df373b95a69bbdc",
+   "step0.policy.txt": "4d10163b8c96d69848f2dd7684d261aefe75310813bac97cf5232baa0aa68b06",
+   "step0.registry.txt": "159f6c0b046bf6ca4ba64fe4e71d8bb225452b5e550ccbb7222b18a4aee8acba",
+   "console": "8d17421f51a7acb01894a30278a4b2e3551d586a68d12891afc349fac54c69e9"
+  },
+  "failure_kind": "infrastructure",
+  "failure_class": "dup-fingerprint-allowed-list-stale-after-d16",
+  "classification_evidence": "Operator D16(a) makes hsk-studio-package the single owner of the bounded ZIP reader (START_LOG OPERATOR DECISIONS 2026-10-14); .config/duplicate-fingerprints.toml D16 still reads owner 'open' and allows only the pre-D16 sites (D18 was updated in the same window, D16 was not); the policy file is the round entrypoint's version-controlled config (lead decision, steward edit), not product code",
+  "remediation": {
+   "owner": "workspace steward (allowed-list change is a lead decision per the config header)",
+   "file_line": "handshake-studio-assets/.config/duplicate-fingerprints.toml:8-23 (D16 owner + allowed)",
+   "repair_direction": "D16 owner = hsk-studio-package (D16 a); allowed += package/src/bounded_zip.rs; drop vector gzip.rs; re-canary",
+   "note": "lead to decide whether interop-fig container.rs (ZIP magic sniff) and interop-layout container.rs (IDML ZIP writer using package crc32_of) stay allowed sites"
+  }
+ },
+ "union": null,
+ "lanes": [],
+ "verdict_counts": {},
+ "not_judged": [
+  {
+   "lane": "SMB-RENDER-GPU, SMB-RENDER-GPU-ADJ, SMB-RENDER-GPU-PROBE",
+   "reason": "canary infrastructure failure: no round (D20 4th verdict still owed at the current render-gpu tree; status READY unchanged)"
+  },
+  {
+   "lane": "SMB-ROUND-ENTRYPOINT",
+   "reason": "canary infrastructure failure: no round; score-plugin fixture unit not reached, binding_intact not exercised (D20 condition unmet; status READY unchanged); concurrent two-run check not attempted"
+  },
+  {
+   "lane": "SMB-INTEROP-MEDIA, SMB-INTEROP-MEDIA-PULSE",
+   "reason": "canary infrastructure failure: no round (status READY unchanged)"
+  },
+  {
+   "lane": "SMB-ZIP-CONSOLIDATE",
+   "reason": "canary infrastructure failure: no round; the step 0 hit is this lane's new package file, but the allowed list is entrypoint config, not lane code (status READY unchanged)"
+  },
+  {
+   "lane": "SMB-WORKER-CRATE",
+   "reason": "canary infrastructure failure: no round (status READY unchanged)"
+  },
+  {
+   "lane": "SMB-PRESS-PROPERTIES, SMB-PRESS-STRUCT-STRIP; reel/develop/interop-tiff/harness in-flight lanes",
+   "reason": "not in this round by dispatch (press R26 pre-review FIX_FIRST; others building)"
+  }
+ ],
+ "cx_val_009": {
+  "rule": "PASS lanes whose crate or workspace-dependency closure changed 1da2453..2694b52 return to READY_FOR_VALIDATION (CX-VAL-010 order: before the canary); closure by tomllib over crates/*/Cargo.toml (deps, dev, build, target) at 2694b52: changed crates + dependents session (-> package), harness and kernel-bindings (-> session); multi-crate lanes reopen when any listed crate changed (render-gpu: tests/gpu_plan.rs by e659533); root Cargo.toml change = members + [workspace.metadata.studio] only and Cargo.lock change = edge lines of changed crates only, so no reopen beyond the closure (R12 convention)",
+  "reopened": [
+   "SMB-REEL",
+   "SMB-REEL-ENG-1",
+   "SMB-REEL-ENG-3",
+   "SMB-REEL-AV1-ROUTE",
+   "SMB-REEL-RECEIPTS",
+   "SMB-REEL-PARTIAL-PTS",
+   "SMB-REEL-PARTIAL-PTS-2",
+   "SMB-REEL-PTS-TESTS",
+   "SMB-REEL-NATIVE-AV1-WORKER",
+   "SMB-REEL-NATIVE-FAULTS",
+   "SMB-REEL-NATIVE-FAULTS-2",
+   "SMB-PACKAGE",
+   "SMB-PACKAGE-STREAM-SAVE",
+   "SMB-INTEROP-VECTOR",
+   "SMB-INTEROP-VECTOR-FOLIO-MIGRATE",
+   "SMB-INTEROP-VECTOR-RECORDS",
+   "SMB-INTEROP-FIG",
+   "SMB-INTEROP-LAYOUT",
+   "SMB-SESSION",
+   "SMB-CHRONICLE-TABLE",
+   "SMB-HARNESS",
+   "SMB-KERNEL-BINDINGS",
+   "SMB-PRESS",
+   "SMB-PRESS-DIFFERENCES",
+   "SMB-PRESS-DOCS",
+   "SMB-PRESS-DOCS-2",
+   "SMB-PRESS-STRUCT-FAILCLOSED",
+   "SMB-PRESS-STRUCT-ORPHANS",
+   "SMB-NOTES-BATCH-1",
+   "SMB-SCORE-PLUGIN",
+   "SMB-SCORE-PLUGIN-RATE",
+   "SMB-MOTION-JS",
+   "SMB-MOTION-JS-WORKER",
+   "SMB-MOTION-JS-SANDBOX-2",
+   "SMB-BLENDIF-CLIP-ADOPT",
+   "SMB-REFUSAL-KEYS",
+   "SMB-FX-OPS-ADOPT"
+  ],
+  "count": 37,
+  "judge_next_round_notes": "press lanes: crate holds R26 FIX_FIRST commits (V4-13, V4-14); reel lanes: crate holds WIP 6c52e18 (SMB-REEL-ENG-2, not READY; V4-14)"
+ },
+ "proof_reuse": "none applied (no round opened); every PASS lane outside cx_val_009.reopened keeps its recorded verdict and proof commit",
+ "adversarial_review": "not performed as a verdict input (no round); validator observations from the step 0 read only: interop-fig/src/container.rs:198 keeps SIG_LOCAL for magic sniff; interop-layout/src/container.rs:16-18 keeps an IDML ZIP writer (CRC via package crc32_of :9, :111)",
+ "observations_for_next_round": [
+  "round-features.toml declares no hsk-studio-worker set: tests/supervision.rs (5 tests, required-features test-faults) never runs in the union; SMB-WORKER-CRATE claims 7 tests, the union proves 2 unless the steward adds a worker set (e.g. test-faults, job-caps+test-faults)",
+  ".config/duplicate-fingerprints.toml TIMECODE owner text still says the interop-media copy is frozen pending D9 (D9 decided; interop-media/src/time.rs now delegates; its public fn names keep it a site)"
+ ],
+ "counters": [
+  {
+   "lane": "round",
+   "counter": "CX-EXEC-015(4) same infrastructure failure_class in two rounds",
+   "outcome": "first occurrence of dup-fingerprint-allowed-list-stale-after-d16; no further canary on an unchanged config: the fix is a pushed commit to .config/duplicate-fingerprints.toml"
+  },
+  {
+   "lane": "judged lanes",
+   "counter": "CX-EXEC-015(1)",
+   "outcome": "unchanged (no verdict); SMB-RENDER-GPU and SMB-ROUND-ENTRYPOINT keep the D20 4th-verdict allowance"
+  }
+ ],
+ "infrastructure": [
+  "Canary exit 71 at step 0 (5 s): V4-05 D16 new site package/src/bounded_zip.rs; no build, no test, no fixture placement, no disk lock taken",
+  "No steward canary existed at 2694b52; the validator ran the canary through the checked-in entry script only (CX-VAL-007), no added env, flags or wrappers",
+  "Edit HEAD moved 3 times during preparation (799ba57, a7c2fa1, 241df1f); one launch was blocked by the gameplan hook (confirmations bound to the old HEAD; GP-001 local ahead of origin); re-fetched and re-confirmed, not a run",
+  "Builders active on the disk throughout (disk lock @2 holders class builder: interop-psd clippy, develop real_raw, reel vc3 queued); not stopped by this validator",
+  "Gameplan confirmations written beside the kernel gameplan (STUDIO-MODULE-ROUND.confirmations.yaml, git-excluded), not committed",
+  "studio-round/target untouched (step 0 refused before any build); export refreshed in place to 2694b52 and left there",
+  "No git write in the edit tree other than git fetch of origin/codex/handshake-studio-assets; no other outbound request (V4-21)"
+ ],
+ "by": "wp_validator STUDIO-R23"
+}

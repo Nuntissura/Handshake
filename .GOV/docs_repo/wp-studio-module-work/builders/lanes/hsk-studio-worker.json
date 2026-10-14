@@ -1,0 +1,47 @@
+{
+ "crate": "hsk-studio-worker",
+ "lane": "SMB-WORKER-CRATE",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "D18 option (a): worker-process supervision moved into hsk-studio-worker; motion-js, reel-native and score-plugin switched; consumer files no longer hold supervision code",
+ "commits": [
+  {"sha": "c34e17f", "subject": "worker: supervision API (Supervisor, Session, RespawnGate, program lookup beside the executable, Job Object caps behind job-caps, typed Classified, heartbeat) with 7 tests"},
+  {"sha": "9b10ac6", "subject": "motion-js: supervision, Job Object caps and program lookup moved to the worker crate; windows-sys dropped; WorkerConfig::with_worker_program"},
+  {"sha": "502c208", "subject": "reel-native: supervision, respawn gate, program lookup and HELLO wait moved to the worker crate"},
+  {"sha": "5c664dd", "subject": "score-plugin: supervisor.rs removed, host.rs uses the worker crate Supervisor/Session"}
+ ],
+ "capabilities_done": [
+  "hsk-studio-worker: Supervisor/SupervisorConfig/StartRequest (spawn: env_clear + explicit env, null stderr, piped stdio, CREATE_NO_WINDOW), Session (wait with cancel/deadline/CPU-cap polling, send_request, exchange, heartbeat, terminate idempotent, fail -> Classified{Canceled,Deadline,Crashed{exit_code},Protocol(E)}), admission Permit (worker + byte budget), ledger, counters, RespawnGate, resolve_program/find_beside/discover_program (beside the running executable only), optional Windows Job Object caps (feature job-caps, unsafe confined to src/job.rs) and harden_worker_process, overflow-safe deadline arithmetic (after, 24 h clamp)",
+  "motion-js: WorkerEngine keeps the QuickJS wire protocol, pool, counters and EngineFailure mapping; OsLimits re-exported from the worker crate; crate is forbid(unsafe_code) in every build; windows-sys removed",
+  "reel-native: Pool keeps the AV1 protocol, counters and Av1WorkerFault mapping; reply channel bounded to 1 (reply_buffer) as before; alive stat = Supervisor workers_live",
+  "score-plugin: host.rs imports the worker crate API; supervisor.rs deleted"
+ ],
+ "tests": {
+  "argv": [
+   "cargo check -p hsk-studio-worker -p hsk-studio-motion-js -p hsk-studio-reel-native -p hsk-studio-score-plugin --tests (features motion-js quickjs+test-faults, reel-native av1-worker+test-faults, score-plugin test-faults, worker test-faults)",
+   "cargo clippy same set: no warning in the four crates (only hsk-studio-observe too_many_arguments, not ours)",
+   "cargo nextest run -p hsk-studio-worker --features job-caps,test-faults",
+   "cargo nextest run -p hsk-studio-motion-js --features quickjs,test-faults -E 5 focused",
+   "cargo nextest run -p hsk-studio-reel-native --features av1-worker,test-faults -E 5 focused",
+   "cargo nextest run -p hsk-studio-score-plugin --features test-faults -E 5 focused"
+  ],
+  "exit": 0,
+  "sha": "5c664dd",
+  "passed": 22,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 25,
+ "bg_pids": [],
+ "next": "validator round; steward: drop the three consumer files from fingerprint D18 allowed, registry pin windows-sys for hsk-studio-worker (job-caps), drop windows-sys pin for motion-js, lock record",
+ "updated_at": "2026-10-14T16:00:00Z",
+ "notes": {
+  "cargo_lock": "Cargo.lock changed (worker deps, motion-js/reel-native/score-plugin edges) and is left uncommitted for the steward",
+  "d18_fingerprint": "grep of '\\bCommand::new\\s*\\(' and '\\.creation_flags\\s*\\(' over crates/*/src: only crates/hsk-studio-worker/src/supervisor.rs matches; allowed list can drop quickjs_worker.rs, host.rs, supervisor.rs",
+  "tests_by_crate": "worker 7 (2 unit: deadline_arithmetic_never_overflows, worker_is_found_only_beside_the_running_executable; 5 integration in tests/supervision.rs against src/bin/hsk-worker-testbin.rs, feature test-faults only); motion-js 5 (quickjs_worker x3, os_caps x2); reel-native 5 (av1_worker); score-plugin 5 (foundation_contract x4, fault_injection x1)",
+  "moved_tests": "motion-js, reel-native and score-plugin unit tests worker_is_found_only_beside_the_running_executable and deadline_arithmetic_never_overflows now live once in the worker crate; integration tests default_discovery_does_not_look_in_the_parent_of_the_executable_directory etc. stay in the consumers",
+  "behaviour_differences": "(1) deadline arithmetic is clamped to 24 h for motion-js and reel-native waits (they previously fell back to 24 h only on Instant overflow); (2) none else known; hello-failure handling, counters, terminate patience and drain order were kept per consumer",
+  "heartbeat": "no consumer had a wire heartbeat; Session::heartbeat is a non-blocking process liveness probe (try_wait), used by is_alive",
+  "v4": "V4-01 deny(clippy::arithmetic_side_effects) in every new worker module and kept in the touched consumer modules; V4-04 the worker crate has no fault hook, its helper bin and integration tests need the non-default test-faults feature; V4-05 no new duplicate fingerprint site",
+  "not_proven": "absence of a console window (CREATE_NO_WINDOW) is not tested; Job Object behaviour is proven only through motion-js tests/os_caps.rs"
+ }
+}

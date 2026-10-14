@@ -1,0 +1,135 @@
+{
+ "kind": "pre-review",
+ "scope": "narrow 1da2453..ade85a0, crate hsk-studio-press only (two lanes: SMB-PRESS-PROPERTIES 9dd0fc7 32d4df3 45a3792 950fd85, READY 950fd85; SMB-PRESS-STRUCT-STRIP ade85a0, READY ade85a0)",
+ "head": "ade85a00d08fbb39229df305ec71a31534b00431",
+ "base": "1da2453344edad12cf4bcf796a87c29a7fa594b5",
+ "head_note": "git fetch done; origin/codex/handshake-studio-assets = 5c664dd (later commits touch worker, reel, reel-native, motion-js, score-plugin, interop-tiff only). git log --all --not ade85a0 -- crates/hsk-studio-press is empty (V4-14 holds for both lanes); git status of crates/hsk-studio-press in the shared tree is clean. Press commits in range: 9dd0fc7, 32d4df3, 45a3792, 950fd85 (SMB-PRESS-PROPERTIES), ade85a0 (SMB-PRESS-STRUCT-STRIP). Press diff 1da2453..ade85a0: flatten.rs 20/7, flatten_purge.rs 497/24, lib.rs 4/3, sanitized_save.rs 84/9, tests/flatten_r13.rs 372/11.",
+ "rule": "V4-13: hsk-studio-press holds SMB-PRESS (2 failed verdicts). 1da2453 was pre-reviewed in R25 and passed round R22; this file covers only 1da2453..ade85a0, judged against START_LOG 'OPERATOR DECISIONS 2026-10-14' (D28 DECIDED; PLR-104 plan confirmed, folds PLR-105 + PLR-107), the lead decisions D27 (flatten + narrow), MINIMAL DRAW SET and STRUCTURE TREE = NOT PROVEN (2026-10-12T08:41:40Z). R23, R24, R25 stand for what they covered (V4-18).",
+ "two_fail_lanes_reopened": [
+  {"lane": "SMB-PRESS", "verdicts": "FAIL_V1 R5, FAIL_V2 R6 (PASS at R21, R22)", "reopened_by": "hsk-studio-press changed by 9dd0fc7, 32d4df3, 45a3792, 950fd85, ade85a0", "covered_by": "lanes[0] and lanes[1] below; no dependent crate (R24/R25 grep; not re-run)"}
+ ],
+ "reviewer": "independent read-only PRE-REVIEWER (V4-13), fresh context, wrote none of this code. No product file edited, nothing committed, no process stopped, no sub-agents. Runs only on a scratch export with its own owner (V4-11): Handshake_Artifacts/WP-KERNEL-STUDIO/r26-prereview-probe (src = git archive ade85a0 handshake-studio-assets, tree db6e119d6b2f039491daacd00f3f6a6385555bad, 878 files; press crate diff -rq equal to the shared tree; STUDIO_OWNER=r26-prereview-probe, own target and tmp; cargo only through builders/studio-env.sh with the leading cd first; Studio gameplan STUDIO-MODULE-BUILD check --at before_round PASS 2/2 before the run). One probe test file added to the scratch copy only: crates/hsk-studio-press/tests/r26_probe.rs (16 printed cases; asserts nothing; every saved file also opened with hayro-syntax 0.7.2, the independent parser the crate's tests use). Log: r26-prereview-probe/probe-1.log. V4-21: git fetch only, no web request.",
+ "severity_rule": "CONFIRMED = file:line read at ade85a0 and the behaviour follows from the code (reasoned), or observed in a run where marked (run); PLAUSIBLE = reasoning only, an untested sub-case, or an external fact not read; INFO = observation, no action required",
+ "recommendation_standard": "FIX_FIRST only for a product defect with concrete evidence (file:line plus a failing input or test); a CONFIRMED doc-only or process mismatch is a note (round-R17 fold_rule); UNVERIFIED suspicions are PLAUSIBLE",
+ "method": "Kernel reads: builders/DISPATCH_TEMPLATES.md (v4-rules), validation/R24-prereview-press-narrow.json and R25-prereview-narrow.json (format, R24-P2, R25-P2..P7), START_LOG D27, MINIMAL DRAW SET, STRUCTURE TREE = NOT PROVEN, OPERATOR DECISIONS 2026-10-14 (D28, PLR-104), workflow/plausible-register.json PLR-103..107, lane files builders/lanes/hsk-studio-press-properties.json and hsk-studio-press-struct-strip.json, builders/studio-env.sh. Product (ade85a0): git diff 1da2453..ade85a0 of press src (all hunks) and the new/changed tests; flatten_purge.rs:1-160 (module docs), :223-266 (scrub_references), :577-720 (strip_links, nested_shape, strip_nested_shapes, strip_structure), :725-1080 (GATED/PROPERTIES, Usage: resources, traverse, all_used, use_property, read_scope BDC/DP), :1088-1215 (drop_painted_sources), :1228-1412 (ResAt, reached_resources, plan_properties, apply_properties), :1451-1681 (catalog rule, past_hop_bound, structure_shaped, Scan, check_document); sanitized_save.rs diff (StructureTreePolicy, RedactionLoss, RedactOptions, redact_and_save_opts :1607 strip guard, :1617 purge, :1635 property residual, :1656 losses); flatten.rs:386-410 (isolate: inherited /Resources resolved), :676-735 (detach_from_page_tree, heirs); pdf_edit.rs:289-299 (inherited); syntax.rs:99-105 (as_dict covers streams); tests/flatten_r13.rs:1720-1764, :2843-3162. Scripted: git grep of the PROPERTIES lane V4-06 regex at 1da2453, 950fd85, ade85a0; word scan of added lines for V4-07 words. Run (scratch export, own owner): cargo nextest run -p hsk-studio-press --test r26_probe --no-capture (exit 0; 1 passed, 16 printed cases). Full suite not re-run (builder: 169/169 at ade85a0; not needed to confirm the findings).",
+ "first_clock_reading": "2026-10-14T15:55:10Z",
+ "first_clock_reading_note": "first `date -u` reading, taken after the git fetch and the kernel reads, before reading product code",
+ "completed_at": "2026-10-14T16:06:35Z",
+ "status": "COMPLETE",
+ "lanes": [
+  {
+   "lane": "SMB-PRESS-PROPERTIES",
+   "crate": "hsk-studio-press",
+   "two_fail_lane_in_crate": "SMB-PRESS (R5 FAIL_V1, R6 FAIL_V2)",
+   "commits_checked": ["9dd0fc7", "32d4df3", "45a3792", "950fd85"],
+   "recommendation": "FIX_FIRST",
+   "recommendation_note": "R26-P1: the R25-P7 class (marked-content property-list text of the flattened page kept in an inherited /Properties) still survives with the save read proven when the flattened page INHERITS its /Resources from a /Pages node and a kept page that does not inherit (it has its own /Resources) names the same resources object or the same /Properties object. Untagged input, inside the proven claim. The heir path (both pages inherit) and the shared-own path work (controls P4, P5). PLR-105 parts read as claimed (tests exist; R25-P3/P4/P5 inputs encoded).",
+   "findings": [
+    {
+     "id": "R26-P1",
+     "severity": "CONFIRMED (run; product defect inside the untagged proven claim; FIX_FIRST)",
+     "file_line": "src/flatten_purge.rs:1272-1306 reached_resources (only f.old's OWN /Resources :1280-1288, Flat::heirs :1289-1293, and stream/Type 3 sources :1295-1304); src/flatten.rs:676-735 detach_from_page_tree (heirs = only pages that inherited /Resources, :719); src/flatten.rs:392 (the old page's inherited /Resources is resolved for rendering, not recorded for the purge)",
+     "input": "Untagged, page one (flattened, no own /Resources) inherits /Resources from node 2; page one draws '/Span /MC0 BDC (SECRET-ALPHA) Tj EMC'; page two (kept) has its OWN /Resources and draws '/Span /MC1 BDC .. EMC'. /MC0 = << /Alt (INH-ALT-SECRET) /ActualText (INH-ACTUAL-SECRET) >>. P1: node /Resources 9 0 R and page two /Resources 9 0 R (same object, inline /Properties). P2: node /Resources 9 0 R -> /Properties 21 0 R; page two inline /Resources -> /Properties 21 0 R. P3: node inline /Resources -> /Properties 21 0 R; page two inline /Resources -> /Properties 21 0 R.",
+     "expected": "/MC0 purged (no kept BDC/DP names it) or counted in residual_in_region (region_flattened false, NotProven::ResidualInRegion), as for the heir and shared layouts",
+     "observed": "probe-1.log P1, P2, P3: flattened=true cleared=true proven=true residual=0 reasons=[] losses=[]; SECRET-ALPHA gone, INH-ALT-SECRET and INH-ACTUAL-SECRET PRESENT. Controls: P4 (both pages inherit 9, heir path) and P5 (both pages own /Resources 9) purge /MC0 and keep KEPT-PROP-TEXT. Cause: node 2's /Resources value is neither the old page's own /Resources nor a value detach_from_page_tree copied to an heir (page two did not inherit), so no ResAt names 9 or 21 and the purge never plans that /Properties dictionary; page two keeps it reachable.",
+     "repair_direction": "Record the old page's INHERITED /Resources value (node ref, or /Properties ref in a node's inline dict) as a ResAt; purge/count it."
+    },
+    {
+     "id": "R26-P2",
+     "severity": "CONFIRMED (process; V4-06 count mismatch, lane notes only)",
+     "file_line": "kernel builders/lanes/hsk-studio-press-properties.json notes.v4_06_sites (5 sites) vs notes.v4_06_regex",
+     "input": "git grep -n -E 'GATED|\"Properties\"|b\"BDC\"|b\"DP\"' 950fd85 -- crates/hsk-studio-press/src",
+     "expected": "every hit listed with fixed / not-applicable (V4-06)",
+     "observed": "13 hits at 950fd85: flatten_purge.rs 8 (:577 GATED const, :578 doc, :580 PROPERTIES const, :722, :774, :847, :854, :1282), canon.rs 3 (:182, :653, :665), content.rs 2 (:174, :413); the lane lists 5 semantic sites (no file:line, none of canon.rs/content.rs). Same counts at ade85a0 (line numbers shifted by the strip insert).",
+     "repair_direction": "List all 13 hits as file:line with fixed/not-applicable (canon/content: operator arity tables, not resource usage)."
+    },
+    {
+     "id": "R26-P3",
+     "severity": "INFO (CONFIRMED by reading; outside the claim's enumerated dictionaries, adversarial)",
+     "file_line": "src/flatten_purge.rs:1272-1306 (annotation appearance streams of the flattened page are not in Flat::sources)",
+     "input": "A flattened-page annotation whose appearance form's /Resources is an object a kept page also uses, with a /Properties entry only that appearance names (reasoned, not run)",
+     "expected": "n/a",
+     "observed": "That /Properties dictionary is not a reached_resources entry, so its unnamed entry stays uncounted. Property lists in appearance streams are rare; the claim enumerates page resources, inherited-to-heir resources, and stream/Type 3 sources only.",
+     "repair_direction": "None for this lane; fold into the R26-P1 fix if the inherited path gets a generic 'old page reached' set."
+    }
+   ],
+   "checks": {
+    "plr_104_controls": "Run: P4 (heir) and P5 (shared own object) purge /MC0 text and keep KEPT-PROP-TEXT with the save read flattened, matching the builder's marked_content_property_lists_of_flattened_pages_are_purged layouts.",
+    "plr_105": "Read: structure_shaped counts past_hop_bound for /Type and /S (:1501-1503); check_document reads any stream with /N and /First as an object stream (:1669-1674) and counts non-member bytes (:1601-1626); trailer values scanned (:1677-1679). Encoded by unreadable_structure_shapes_are_counted (R25-P3 S9/S10, K4/K5/K6/K11, X1). Over-report direction only.",
+    "plr_107": "Claim text reworded in the lane file notes.plr_107_claim_text (kernel only); product docs already state the region-only scope (PLR-101).",
+    "behaviour_change": "45a3792 row change (undrawn form under an unnamed /Properties entry now pruned, not reported) follows from /Properties being gated; reading confirms Usage::resources marks only the gated sub-dictionary ref (:870-873), so the form is reached only when kept content names the entry.",
+    "v4_01": "flatten_purge.rs:139, flatten.rs:90, sanitized_save.rs:70 carry deny(clippy::arithmetic_side_effects); new arithmetic uses saturating_add / & masks.",
+    "v4_07": "Added prose: no new never/always/guarantee/proves outside pre-existing DESCRIPTOR clauses; new claims cite tests that exist (marked_content_property_lists_of_flattened_pages_are_purged, property_lists_the_purge_cannot_clear_are_counted, unreadable_structure_shapes_are_counted). The DESCRIPTOR's 'every /Properties dictionary the old page reached (its own /Resources object, ...)' sentence is broader than the code for the R26-P1 inputs."
+   }
+  },
+  {
+   "lane": "SMB-PRESS-STRUCT-STRIP",
+   "crate": "hsk-studio-press",
+   "two_fail_lane_in_crate": "SMB-PRESS (R5 FAIL_V1, R6 FAIL_V2)",
+   "commits_checked": ["ade85a0"],
+   "recommendation": "FIX_FIRST",
+   "recommendation_note": "R26-S1: the strip reuses check_document's fail-closed shape predicate as a DELETION predicate. On an untagged document, ISO 32000 multimedia dictionaries on a KEPT page (a media rendition /S /MR with /C and /P; a media clip /S /MCD with /P and /Alt) match '/S name + /P + text key' and are deleted (references scrubbed), the save reports accessibility_tags_removed and reads proven; before D28 (and with the opt-out) the same input was kept and over-reported. Silent, mislabeled data loss on kept content. The strip itself otherwise does what D28 asks: no /StructTreeRoot, /MarkInfo, /StructParents or /StructParent left, hayro-syntax opens every saved file, losses appears once, the opt-out path equals 950fd85 by reading.",
+   "findings": [
+    {
+     "id": "R26-S1",
+     "severity": "CONFIRMED (run; product defect: data loss on kept pages with a false typed loss; FIX_FIRST)",
+     "file_line": "src/flatten_purge.rs:696-718 strip_structure (top-level shaped objects :700, nested shapes :702-706, scrub_references :715-718); :1498-1510 structure_shaped (the '/S name AND /P AND any STRUCT_TEXT_KEYS' branch :1506-1508, STRUCT_TEXT_KEYS :323 includes C and Alt); src/sanitized_save.rs:1607, :1656",
+     "input": "Untagged two-page file; page two (kept) /Annots [71 0 R], 71 = Screen annotation /A 72 0 R, 72 = << /S /Rendition /OP 0 /AN 71 0 R /R 73 0 R >>, 73 = << /Type /Rendition /S /MR /N (MEDIA-NAME-KEEP) /C 74 0 R /P << /Type /MediaPlayParams .. >> >>, 74 = << /Type /MediaClip /S /MCD /CT (video/mp4) /D << /Type /Filespec /F (MEDIA-FILE-KEEP.mp4) >> /P << /TF (TEMPACCESS) >> /Alt [() (MEDIA-ALT-KEEP)] >>. Region on page one (M1). M2: the rendition written inline as the action's /R.",
+     "expected": "Kept-page multimedia untouched, losses [] for an untagged file (the strip removes structure, not renditions); at most an over-report as before D28",
+     "observed": "probe-1.log M1 and M2 default Strip: flattened=true proven=true losses=[AccessibilityTagsRemoved]; MEDIA-NAME-KEEP, MEDIA-ALT-KEEP, MEDIA-FILE-KEEP and /MediaClip gone (rendition and clip deleted, the action loses /R; the Screen annotation stays: MEDIA-TITLE-KEEP present). Opt-out KeepNotProven: all kept, reported NOT PROVEN (the pre-existing over-report). Control M3 (no region): nothing stripped. Spec mapping of these keys (ISO 32000-1 13.2.3 media rendition C/P, 13.2.4.2 media clip data P/Alt) is from reviewer knowledge, ISO text not read (UNVERIFIED); the deletion itself is observed.",
+     "repair_direction": "Delete only /Type StructElem|StructTreeRoot or tree-reachable/P-chain elements; leave other shapes to check_document (report, never delete)."
+    },
+    {
+     "id": "R26-S2",
+     "severity": "PLAUSIBLE (PLR-103 exposure widened by D28; survival CONFIRMED by run; needs a non-conforming element)",
+     "file_line": "src/flatten_purge.rs:1506-1508 (an element with /S and text but no /P and no /Type is not a shape), :669-720 (the strip removes the catalog tree and every /StructParents, the facts the tree rule used to report)",
+     "input": "S1: TAGGED file (catalog /StructTreeRoot, /StructParents on both pages); a kept-page link's GoTo action carries /SD [81 0 R /Fit], 81 = << /S /Figure /Alt (SD-ALT-SECRET) /K 0 >> (no /P, no /Type)",
+     "expected": "Reported (as with the opt-out) or removed",
+     "observed": "Default Strip: flattened=true proven=true losses=[AccessibilityTagsRemoved], SD-ALT-SECRET PRESENT, /SD [81 0 R /Fit] written. Opt-out: reported (residual 1). Before D28 a tagged file covered this through the tree rule; R25-P2 required the caller to strip the tree, now the strip does it for every tagged file. Still requires an element without the required /P (R25-P2: no producer found).",
+     "repair_direction": "For the lead (PLR-103): in strip mode also remove/report dicts with /S name + struct text key referenced from the old tree or /SD."
+    },
+    {
+     "id": "R26-S3",
+     "severity": "INFO (CONFIRMED by run; adversarial input; text outside structure-element dictionaries)",
+     "file_line": "src/flatten_purge.rs:700 (a structure tree root without /Type is not a shape; /Type is optional on a root)",
+     "input": "S2: catalog /StructTreeRoot 80 0 R and a private key /HskTree 80 0 R; 80 = root without /Type holding /IDTree << /Names [(IDTREE-SECRET) 82 0 R] >> and /ClassMap UserProperties text CLASSMAP-SECRET; 82 = /Type /StructElem",
+     "expected": "n/a",
+     "observed": "Default Strip: proven=true, element 82 removed (ref nulled), CLASSMAP-SECRET and IDTREE-SECRET PRESENT via the private key. S3 control (catalog only): both gone (root unreachable after the strip), as the DESCRIPTOR says ('what only the tree reached ... is not written').",
+     "repair_direction": "Optional: treat a dict holding /ParentTree, /IDTree or /ClassMap with /K as a root shape in strip and check."
+    },
+    {
+     "id": "R26-S4",
+     "severity": "CONFIRMED (run; typed-loss accuracy note)",
+     "file_line": "src/flatten_purge.rs:679 (/MarkInfo removal alone sets removed), src/sanitized_save.rs:1656",
+     "input": "S4: untagged file whose catalog holds only /MarkInfo << /Marked false >>",
+     "expected": "losses [] (no tags existed); the lane notes say '/MarkInfo alone counts as tags removed' (a stated design choice)",
+     "observed": "losses=[AccessibilityTagsRemoved] on a document that had no tags; the DESCRIPTOR says the loss is reported when a structure tree was removed.",
+     "repair_direction": "Optional: count /MarkInfo toward the loss only when /Marked is true or other tree parts were removed."
+    }
+   ],
+   "checks": {
+    "d28_rule_vs_code": "Operator D28: strip /StructTreeRoot, /MarkInfo, every /StructParents|/StructParent, structure-shaped dicts, /ParentTree /IDTree /RoleMap /ClassMap; typed loss accessibility_tags_removed; keep MCID marked content; explicit opt-out keeps NotProven. Code: strip_structure (:669-720) removes the catalog keys (:679), every /StructParents /StructParent /SE (strip_links :588-611, to depth_cap), shaped objects and nested shaped dicts; tree-only objects become unreachable and are not written; content streams untouched (S1/S3 'Page two' and BDC kept, as in the builder test). Runs only when a region is flattened (sanitized_save.rs:1607).",
+    "dangling_references": "No /StructParents or /StructParent survives in any default-strip output (S1-S4 bytes); hayro-syntax opened every saved file (2 pages). /SD of S1 keeps naming the unshaped element (R26-S2), not a dangling reference. Elements removed by scrub_references leave null array slots or removed dict entries (e.g. /SD [null /Fit] for a conforming element) - not run, reasoned from :223-266.",
+    "fail_closed_after_strip": "check_document still runs after the strip (unchanged role): object-stream members kept as a stream, alias objects (top-level Ref objects are not scrubbed), refs deeper than scrub's 64 levels and trailer /ID dicts stay and are reported by the same predicate (builder test structure_strip_reports_what_it_cannot_remove; reasoned for the depth and trailer rows).",
+    "opt_out": "StructureTreePolicy::KeepNotProven skips strip_structure only (sanitized_save.rs:1607); every other step of redact_and_save_opts equals 950fd85's redact_and_save_with (diff read), losses []. Run: M1/M2/S1 opt-out report NOT PROVEN as before. pages_output_with fixtures moved to the opt-out, so the pre-D28 tests still assert the old semantics.",
+    "typed_loss_once": "losses is vec![AccessibilityTagsRemoved] or empty (sanitized_save.rs:1656): exactly once whatever was removed; code() == 'accessibility_tags_removed' asserted in the builder test.",
+    "v4_01_v4_02": "flatten_purge.rs:139 deny(arithmetic_side_effects) covers the new code (saturating_add, & 1023 masks); no new decoder or allocation from untrusted sizes (strip clones existing parsed objects only).",
+    "v4_07": "New docs/DESCRIPTOR sentences cite default_redaction_strips_the_structure_tree and structure_strip_reports_what_it_cannot_remove (both exist; descriptor_states_the_structure_tree_rule needles them). The claim 'every dictionary with the shape of a structure element' is accurate to the code but the shape predicate is wider than structure elements (R26-S1)."
+   }
+  }
+ ],
+ "prior_findings_rechecked": [
+  "R24-P2 (elements referenced from outside the tree): /SE removed and shaped elements deleted by the strip (builder J2b row); the unshaped-element remainder is R26-S2.",
+  "R25-P2 / PLR-103: still open; exposure widened by D28 (R26-S2).",
+  "R25-P3, R25-P4, R25-P5 / PLR-105: closed in code by 32d4df3 (read; tests encode the R25 inputs).",
+  "R25-P7 / PLR-104: closed for own/shared/heir layouts (run P4, P5); open for the inherited-but-not-heir layouts (R26-P1)."
+ ],
+ "process_notes": [
+  "V4-18: this file covers 1da2453..ade85a0 only; R25-prereview-narrow.json stands for 2dde832..1da2453.",
+  "Gameplan: Studio gameplan STUDIO-MODULE-BUILD check --at before_round PASS 2/2 before the one cargo command; the command had the leading cd first and sourced studio-env.sh with STUDIO_OWNER=r26-prereview-probe; no hook block, no retry-guard record. One plain 'sleep' wait was refused by the harness before it ran; nothing executed.",
+  "Scratch export left for the lead to remove: Handshake_Artifacts/WP-KERNEL-STUDIO/r26-prereview-probe (src, target, tmp, probe-1.log; probe test only in the scratch copy: src/handshake-studio-assets/crates/hsk-studio-press/tests/r26_probe.rs).",
+  "Helper output under the reviewer's scratchpad folder R26 (press.diff), written by this reviewer only (V4-12).",
+  "PLAUSIBLE items (R26-S2, and R26-P3/R26-S3 if the lead wants them tracked) go to workflow/plausible-register.json only via the lead.",
+  "No product file edited, nothing committed, no process stopped; this file is not committed (the lead commits)."
+ ]
+}

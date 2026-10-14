@@ -1,0 +1,37 @@
+{
+ "crate": "hsk-studio-reel",
+ "lane": "SMB-REEL-ENG-2",
+ "status": null,
+ "phase": "slice B landed (VC-3 decoder, 8-bit oracle-green, 10-bit NOT_PROVEN); diagnosing the 10-bit delta, then ProRes behind feature prores",
+ "commits": [
+  {"sha": "6c52e18", "subject": "reel (SMB-REEL-ENG-2, wip, lane status null): D23 codec adapter contract; VideoCodec::ProRes/Dnx; MOV routing; feature prores (default off)"},
+  {"sha": "c9d0c0e", "subject": "reel (SMB-REEL-ENG-2, wip, lane status null): in-process VC-3 (DNxHD/DNxHR) decoder from ST 2019-1:2016 + Amd1 (default build); 8-bit within 1 LSB of ffmpeg, 10-bit NOT_PROVEN"}
+ ],
+ "capabilities_done": [
+  "D23 descriptor contract: CodecDescriptor gains name, decoder_id, licence, certification (Certification enum); all 7 descriptor sites; to_json carries them",
+  "VideoCodec::ProRes, VideoCodec::Dnx; Registry::video_codec_descriptors(); ProRes name exactly 'ProRes (RDD 36 decoder, not Apple-certified)', can_decode only with feature prores",
+  "isobmff routing: apco apcs apcn apch ap4h ap4x -> ProRes, AVdn AVdh -> Dnx, aprn aprh -> Unsupported prores-raw",
+  "VC-3 decoder (src/vc3, default build, D24): header per 7.2 (bit positions cross-checked on ffmpeg bytes), all 20 CIDs of Annex C known; decodes progressive frame-encoded YCbCr 4:2:2/4:2:0 at 8/10 bit without alpha; typed Unsupported: interlaced/field, 1260 adaptive MB, alpha (incl. HVN 4), 4:4:4, RGB, 12-bit, unknown HVN/CID; Corrupt for forbidden values, EOF signature mismatch (CRCF=0), scan indices, payload aggregate",
+  "Annex D/E tables generated from the PDF text (src/vc3/tables.rs; generator tests/fixtures/dnx/gen_vc3_tables.py validates lengths, prefix-freeness, Kraft = 1, symbol counts)",
+  "shared crate-level reference IDCT src/idct8.rs (f64, const basis, fixed order) and checked bit reader src/bitreader.rs (for VC-3 and ProRes)",
+  "route: Chosen::BuiltIn for VC-3 (and ProRes with feature) for any SourceTrust; receipts carry decoder_id vc3-st2019-1 version 1"
+ ],
+ "tests": {"argv": "cargo nextest run -p hsk-studio-reel --test vc3_decode --no-fail-fast --no-capture (+ --lib unit tests idct8/bitreader/vc3::entropy)", "exit": 0, "sha": "c9d0c0e", "passed": 4, "failed": 0},
+ "blockers": [
+  {"error": "10-bit (CID 1271 dnxhr_hqx) decode differs from ffmpeg's decode by up to 4 LSB (14% of samples; luma only, chroma exact) and is further from the encoder source (MSE 0.19 vs ffmpeg 0.05); 8-bit CIDs 1274/1272 are within 1 LSB and closer to source than ffmpeg", "file_line": "crates/hsk-studio-reel/src/vc3/entropy.rs dequantize / src/vc3/mod.rs decode_frame", "attempts": 0}
+ ],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "diagnose the 10-bit delta (ruled out by experiment: p=8 for 1271, 4x coefficient precision, transposed weights, dropping the +p/2 term); then ProRes slice behind feature prores",
+ "updated_at": "2026-10-14T16:13:46Z",
+ "notes": {
+  "spec_basis": "staged delta spec-enrichment/STUDIO-ENRICHMENT-20261014.json D23-1 (STU-VID-051 item 1) and D24-1 (STU-VID-084); START_LOG OPERATOR DECISIONS 2026-10-14",
+  "standards": "ST 2019-1:2016 pdf sha256 cf99fe4459665ac782facdfeca37f530d3f744cf3a1ff4f19f6a12ec29d59449; Amd1:2023 pdf sha256 ef984802a8cad5bda1bf2a6fa75581bef26f7671a613d87a458cafae1b1cf693 (extracted to session scratch smb-reel-eng-2/st2019, not into the corpus dir)",
+  "oracle_tool": "existing ffmpeg 8.1.1 gyan.dev full build already installed via winget and used for earlier reel fixtures (ffmpeg.exe sha256 09948d4c...0f73); reused as black-box generator/oracle, not re-downloaded; run non-interactive (-nostdin); never a product or test dependency (CX-DIAG-TOOL-001). Generation dir Handshake_Artifacts/WP-KERNEL-STUDIO/engine-video-oracle/smb-reel-eng-2/dnx",
+  "samples": "no third-party sample downloaded; fixtures are synthetic ffmpeg-encoded DNxHR (committed under tests/fixtures/dnx, provenance.json)",
+  "studio_decisions": "IDCT output rounding nearest ties-up then + 2^(b-1) then clamp [0, 2^b-1] (ST 2019-1 states no rounding or clamp); an EOB is required after coefficient 63 (7.3.1.1 prose over informative Figure 47); scan index offsets relative to header end; CRC (CRCF=1) not verified because V4-05 forbids a second CRC-32 copy",
+  "licence_field": "Studio-owned adapters report licence 'studio-owned' (workspace declares no SPDX licence); rav1d BSD-2-Clause",
+  "trust": "built-in pure-Rust decoders run for any SourceTrust (safe Rust, typed refusals, hostile tests); brief said lead may instead require worker isolation",
+  "cargo_lock": "unchanged (no new dependency)"
+ }
+}
