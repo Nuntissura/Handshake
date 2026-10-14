@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 672
+generation: 673
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -567,3 +567,4 @@ steps:
 - {id: GP-546, role: builder, at: before_round, do: verify Git path-list guards parse stdout separately from retained stderr diagnostics, check: {type: confirm}, source: 'infra: Git LF warning merged into diff stdout made exact path assertion fail before checkpoint', state: active}
 - {id: GP-547, role: builder, at: before_round, do: verify current commit reserve meets profile floor before releasing the native compiler, check: {type: confirm}, source: 'infra: stage01 scheduling admission failed commit reserve8GB below required10GB before Cargo launch', state: retired}
 - {id: GP-548, role: builder, at: before_dispatch, do: verify memory observations are telemetry only; disk cap and sole compiler ownership remain enforced, check: {type: confirm}, source: 'Operator20261014: remove memory reserve; legacy10GB admission and refusal superseded', state: active}
+- {id: GP-549, role: builder, at: before_dispatch, do: verify preparation assertions consume current canonical stage fields rather than copied status labels, check: {type: confirm}, source: 'infra: transient stage prep expected old approved status after explicit memory policy amendment', state: active}
