@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-14T23:40:42Z",
+ "updated_at": "2026-10-14T23:41:19Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -5109,9 +5109,9 @@
   {
    "lane_id": "SMB-RENDER-GPU-PIPELINE-FAULT",
    "crate": "hsk-studio-render-gpu",
-   "phase": "queued",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-gpu-fault-20261015",
    "commits": [],
    "verdicts": [],
    "note": "wgpu panics at pipeline creation on shader compile failure (FXC dynamic component indexing) instead of a typed pipeline failure; surfaces as device_fault at first dispatch. Catch via push_error_scope/pop_error_scope + typed PipelineCreate refusal; test with a deliberately invalid WGSL kernel"
