@@ -7,7 +7,8 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use async_trait::async_trait;
-use serde_json::Value;
+use serde_json::{json, Value};
+use std::collections::BTreeSet;
 use uuid::Uuid;
 
 use handshake_core::flight_recorder::{
@@ -15,19 +16,30 @@ use handshake_core::flight_recorder::{
 };
 use handshake_core::model_runtime::catalog::ModelCatalog;
 use handshake_core::model_runtime::cloud::{
-    CliBridgeConfig, CliInvocationContext, CliKind, CliOutputFormat, CliSubprocessSpawner,
-    LiveCliSpawner,
+    AllowlistedCliBridgeConfig, CliBridgeConfig, CliInvocationContext, CliInvocationReceipt,
+    CliKind, CliModelAllowlist, CliOutputFormat, CliSubprocessSpawner, CloudLaneObservability,
+    LiveCliSpawner, OfficialCliBridgeError,
 };
+use handshake_core::model_runtime::ModelId;
 use handshake_core::process_ledger::{
     drain_and_join_ledger_writer, LedgerBatcher, LedgerBatcherConfig, LedgerDrainJoinOutcome,
     LedgerEvent, NoopOverflowSink, ProcessLedgerError, ProcessLedgerStore, ReclaimResourceScope,
 };
+use handshake_core::storage::surreal::{RowFilter, ScalarValue};
+use handshake_core::swarm_orchestration::model_lane::{
+    LaunchAuthority, ModelLaneDiagnosticTier, ModelLaneDiagnosticTierState, ModelLaneKind,
+    ModelLaneMessageKind, ModelLaneProviderKind, ModelLaneStore, RuntimeBinding,
+};
 use handshake_core::swarm_orchestration::operator_chat::{
     OperatorChatLaneKind, OperatorChatLaunchService, OperatorChatSelection,
+    OPERATOR_CHAT_CLI_ADAPTER,
+};
+use handshake_core::swarm_orchestration::resource_scope::{
+    ExactResourceScopeAttribution, ResourceAccessLifecycleRegistry,
 };
 use handshake_core::swarm_orchestration::{
-    LiveSession, ModelSessionFactory, RecordingSwarmSink, RunBudget, SpawnRequest, SwarmConfig,
-    SwarmCoordinator, SwarmError,
+    CloudLaneFactoryConfig, LiveSession, ModelSessionFactory, ProductionModelSessionFactory,
+    RecordingSwarmSink, RunBudget, SpawnRequest, SwarmConfig, SwarmCoordinator, SwarmError,
 };
 use process_ledger_surreal_support::{scope_metadata, ProcessLedgerSurrealHarness};
 
@@ -394,3 +406,440 @@ async fn operator_chat_cli_lane_runs_in_operator_selected_cwd() {
     let _ = std::fs::remove_dir_all(&selected);
 }
 
+struct LoopbackCliSpawner {
+    chunks: Vec<Vec<u8>>,
+}
+
+impl LoopbackCliSpawner {
+    fn from_lines(lines: &[String]) -> Self {
+        Self {
+            chunks: lines
+                .iter()
+                .map(|l| format!("{l}\n").into_bytes())
+                .collect(),
+        }
+    }
+}
+
+impl CliSubprocessSpawner for LoopbackCliSpawner {
+    fn spawn(
+        &self,
+        _config: &CliBridgeConfig,
+        _invocation: &CliInvocationContext,
+        _model_name: &str,
+        _prompt: &str,
+    ) -> Result<CliInvocationReceipt, OfficialCliBridgeError> {
+        let stdout = self
+            .chunks
+            .iter()
+            .map(|c| String::from_utf8_lossy(c).into_owned())
+            .collect::<String>();
+        Ok(CliInvocationReceipt {
+            model_id: ModelId::new_v7(),
+            stdout,
+            pid: Some(4242),
+            exit_code: Some(0),
+            cancelled: false,
+        })
+    }
+
+    fn spawn_streaming(
+        &self,
+        _config: &CliBridgeConfig,
+        _invocation: &CliInvocationContext,
+        _model_name: &str,
+        _prompt: &str,
+        chunk_sender: &tokio::sync::mpsc::Sender<Vec<u8>>,
+    ) -> Result<CliInvocationReceipt, OfficialCliBridgeError> {
+        let mut full = Vec::new();
+        for chunk in &self.chunks {
+            chunk_sender.try_send(chunk.clone()).map_err(|failure| {
+                OfficialCliBridgeError::SpawnFailed {
+                    reason: failure.to_string(),
+                    exit_code: None,
+                }
+            })?;
+            full.extend_from_slice(chunk);
+        }
+        Ok(CliInvocationReceipt {
+            model_id: ModelId::new_v7(),
+            stdout: String::from_utf8_lossy(&full).into_owned(),
+            pid: Some(4242),
+            exit_code: Some(0),
+            cancelled: false,
+        })
+    }
+}
+
+fn codex_cli_selection(working_dir: &str, prompt: &str, owner: &str) -> OperatorChatSelection {
+    OperatorChatSelection {
+        model_id: "gpt-5-codex".into(),
+        cli_provider: Some("codex".into()),
+        ..cli_selection(working_dir, prompt, owner)
+    }
+}
+
+fn codex_stream_lines() -> Vec<String> {
+    vec![
+        json!({"type":"thread.started","thread_id":"t1"}).to_string(),
+        json!({"type":"item.updated","item":{"id":"r1","type":"reasoning","text":"let me"}})
+            .to_string(),
+        json!({"type":"item.completed","item":{"id":"r1","type":"reasoning","text":"let me think about the repo layout"}}).to_string(),
+        json!({"type":"item.updated","item":{"id":"c1","type":"command_execution","command":"ls -la","status":"running"}}).to_string(),
+        json!({"type":"item.completed","item":{"id":"c1","type":"command_execution","command":"ls -la","status":"completed"}}).to_string(),
+        json!({"type":"item.updated","item":{"id":"m1","type":"agent_message","text":"the ans"}})
+            .to_string(),
+        json!({"type":"item.completed","item":{"id":"m1","type":"agent_message","text":"the answer is 42"}}).to_string(),
+        json!({"type":"turn.completed","usage":{"input_tokens":10}}).to_string(),
+    ]
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn operator_chat_launch_drives_runtime_and_captures_one_message_per_completed_block() {
+    let recorder = Arc::new(CapturingRecorder::default());
+    let process_ledger =
+        ProcessLedgerSurrealHarness::open_with_scope(operator_chat_process_scope()).await;
+    let storage = process_ledger.storage();
+    let scope = process_ledger.model_resource_scope();
+    let exact = ExactResourceScopeAttribution::try_from_resource_scope(&scope)
+        .expect("capture proof supplies all five scope dimensions");
+    let lifecycle = ResourceAccessLifecycleRegistry::new();
+    lifecycle
+        .register_active(exact)
+        .expect("activate capture scope");
+    let store = ModelLaneStore::new_scoped_with_lifecycle(storage.clone(), scope, lifecycle);
+    eprintln!("MT017_OPERATOR_CHAT_STAGE=ledger_migration:complete");
+    let (ledger, ledger_writer) = LedgerBatcher::spawn(
+        process_ledger.store(),
+        Arc::new(NoopOverflowSink),
+        LedgerBatcherConfig::default(),
+    );
+    let spawner: Arc<dyn CliSubprocessSpawner> =
+        Arc::new(LoopbackCliSpawner::from_lines(&codex_stream_lines()));
+    let observability = Some(Arc::new(CloudLaneObservability {
+        flight_recorder: recorder.clone(),
+        consent: None,
+    }));
+    let cloud = CloudLaneFactoryConfig::unconfigured().with_official_cli_provider_replay_captured(
+        "codex",
+        spawner,
+        AllowlistedCliBridgeConfig::new(
+            loopback_cli_config(),
+            CliModelAllowlist::new(vec!["gpt-5-codex".to_string()])
+                .expect("operator-chat loopback allowlist"),
+        ),
+        observability,
+    );
+    let coordinator = Arc::new(SwarmCoordinator::new_with_model_lane_store(
+        SwarmConfig::new(RunBudget::defaulted(8)),
+        Arc::new(ProductionModelSessionFactory::new(
+            ledger.clone(),
+            cloud,
+            None,
+        )),
+        Arc::new(RecordingSwarmSink::new()),
+        ledger.clone(),
+        store.clone(),
+    ));
+    let service =
+        OperatorChatLaunchService::new(coordinator, None::<Arc<ModelCatalog>>, recorder.clone());
+
+    // launch() spawns through spawn_session AND drives the launched runtime,
+    // capturing its real stdout in ONE call.
+    eprintln!("MT017_OPERATOR_CHAT_STAGE=launch:start");
+    let launched = service
+        .launch(&codex_cli_selection(
+            existing_working_dir(),
+            "audit the repo",
+            "operator-1",
+        ))
+        .await
+        .expect("operator-chat CLI lane launches + captures through spawn_session");
+    eprintln!("MT017_OPERATOR_CHAT_STAGE=launch:complete");
+
+    // F1/F2: launch() itself persisted one message per completed block (F5).
+    assert_eq!(
+        launched.captured_message_count, 3,
+        "launch() captured one ModelLaneMessage per completed activity block"
+    );
+
+    // Persisted under the run and replayable.
+    let replay = store
+        .replay_run(&launched.run_id)
+        .await
+        .expect("launched run is replayable");
+    eprintln!("MT017_OPERATOR_CHAT_STAGE=replay:complete");
+    assert_eq!(
+        replay.lanes.len(),
+        2,
+        "the launched run persists the CLI lane plus the HUMAN_OPERATOR prompt lane"
+    );
+    assert!(
+        replay
+            .lanes
+            .iter()
+            .any(|lane| lane.kind == ModelLaneKind::HumanOperator),
+        "the launched run carries a HUMAN_OPERATOR lane"
+    );
+    let stream_id = replay.run.event_ledger_stream_id.clone();
+    let messages = replay.messages;
+    assert_eq!(
+        messages.len(),
+        4,
+        "one durable operator prompt plus one ModelLaneMessage per completed activity block"
+    );
+    let operator_messages = messages
+        .iter()
+        .filter(|msg| msg.diagnostic_payload["turn_role"] == json!("operator"))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        operator_messages.len(),
+        1,
+        "launch() persists the operator prompt as a HUMAN_OPERATOR message"
+    );
+
+    // F1 message-kind mapping + activity_kind discriminator (order preserved).
+    let model_messages = messages
+        .iter()
+        .filter(|msg| msg.diagnostic_payload["turn_role"] != json!("operator"))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        model_messages.len(),
+        3,
+        "one ModelLaneMessage per completed activity block, not per delta line"
+    );
+    assert_eq!(model_messages[0].kind, ModelLaneMessageKind::Status);
+    assert_eq!(
+        model_messages[0].diagnostic_payload["activity_kind"],
+        json!("thinking"),
+        "exposed thought is a labelled Status, never an unlabelled one"
+    );
+    assert_eq!(model_messages[1].kind, ModelLaneMessageKind::ToolRequest);
+    assert_eq!(
+        model_messages[1].diagnostic_payload["activity_kind"],
+        json!("tool_call")
+    );
+    assert!(
+        !model_messages[1].tool_gate_decision_refs.is_empty(),
+        "tool messages carry a tool-gate decision ref"
+    );
+    assert_eq!(model_messages[2].kind, ModelLaneMessageKind::Status);
+    assert_eq!(
+        model_messages[2].diagnostic_payload["activity_kind"],
+        json!("text")
+    );
+
+    // Flight Recorder evidence: one FR-EVT-AGENT-* for the operator prompt plus
+    // one per captured model activity, so Flight Recorder and EventLedger can
+    // prove the full conversation timeline.
+    let events = recorder.events.lock().expect("events lock").clone();
+    let agent_events = events
+        .iter()
+        .filter(|event| {
+            event
+                .payload
+                .get("event_id")
+                .and_then(|value| value.as_str())
+                .is_some_and(|event_id| event_id.starts_with("FR-EVT-AGENT-"))
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        agent_events.len(),
+        4,
+        "capture/replay is the sole FR lifecycle producer: one operator prompt plus three model activities"
+    );
+    assert!(
+        agent_events.iter().all(|event| {
+            event.payload.get("adapter").and_then(|value| value.as_str())
+                == Some(OPERATOR_CHAT_CLI_ADAPTER)
+        }),
+        "every FR-EVT-AGENT event must come from the operator-chat capture adapter; runtime-level duplicates are scoped out: {agent_events:?}"
+    );
+    let unique_agent_lifecycle_keys = agent_events
+        .iter()
+        .map(|event| {
+            format!(
+                "{}:{}:{}",
+                event.payload["request_id"],
+                event.payload["ordered_index"],
+                event.payload["adapter"]
+            )
+        })
+        .collect::<BTreeSet<_>>();
+    assert_eq!(
+        unique_agent_lifecycle_keys.len(),
+        4,
+        "each captured lifecycle event has a unique request/index/adapter key"
+    );
+    let infer_events = events
+        .iter()
+        .filter(|event| {
+            event
+                .payload
+                .get("event_id")
+                .and_then(|value| value.as_str())
+                .is_some_and(|event_id| event_id.starts_with("FR-EVT-LLM-INFER-"))
+        })
+        .count();
+    assert_eq!(
+        infer_events, 2,
+        "the shared runtime recorder remains live for infer START/END while only agent activity is suppressed"
+    );
+
+    let inspector = storage.test_inspector();
+    let ledger_table = inspector
+        .table_selector("kernel_event_ledger")
+        .await
+        .expect("select canonical EventLedger");
+    let ledger_fields = ["session_run_id", "aggregate_type"]
+        .map(|name| ledger_table.field(name).expect("EventLedger field"));
+    let ledger_rows = inspector
+        .project(
+            &ledger_table,
+            &ledger_fields,
+            RowFilter::FieldEquals {
+                field: ledger_table.field("session_run_id").expect("stream field"),
+                value: ScalarValue::from(stream_id.as_str()),
+            },
+        )
+        .await
+        .expect("read message EventLedger authority");
+    assert_eq!(
+        ledger_rows
+            .iter()
+            .filter(|row| row.values["aggregate_type"] == json!("message"))
+            .count(),
+        4,
+        "operator prompt + each captured message appends EventLedger authority"
+    );
+    let authority_table = inspector
+        .table_selector("model_lane_authority")
+        .await
+        .expect("select canonical ModelLane authority");
+    let authority_fields = ["record_kind", "record_json"]
+        .map(|name| authority_table.field(name).expect("ModelLane field"));
+    let authority_rows = inspector
+        .project(
+            &authority_table,
+            &authority_fields,
+            RowFilter::FieldEquals {
+                field: authority_table.field("run_id").expect("run field"),
+                value: ScalarValue::from(launched.run_id.as_str()),
+            },
+        )
+        .await
+        .expect("read canonical run artifacts");
+    let artifact_records = authority_rows
+        .iter()
+        .filter(|row| row.values["record_kind"] == json!("context_artifact"))
+        .map(|row| {
+            serde_json::from_str::<Value>(
+                row.values["record_json"].as_str().expect("artifact JSON"),
+            )
+            .expect("decode artifact binding")
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        artifact_records.len(),
+        4,
+        "every operator/model message gets an ArtifactStore payload binding"
+    );
+    for msg in &messages {
+        let matches = artifact_records
+            .iter()
+            .filter(|artifact| {
+                artifact["diagnostic_payload"]["message_id"] == json!(msg.message_id)
+                    && (artifact["artifact_ref"] == json!(msg.payload_ref)
+                        || artifact["artifact_payload_ref"] == json!(msg.payload_ref))
+                    && artifact["artifact_sha256"] == json!(msg.payload_sha256)
+                    && artifact["content_hash"] == json!(msg.payload_sha256)
+            })
+            .count();
+        assert_eq!(matches, 1,
+            "message {} payload_ref {} / sha {} must have exactly one matching ArtifactStore binding; artifacts={artifact_records:?}",
+            msg.message_id, msg.payload_ref, msg.payload_sha256);
+    }
+    let posture = store
+        .diagnostic_tier_posture(&launched.run_id, "HBR-INT-009")
+        .await
+        .expect("read HBR-INT-009 tier posture");
+    for (tier, state) in [
+        (
+            ModelLaneDiagnosticTier::FlightRecorder,
+            ModelLaneDiagnosticTierState::Wired,
+        ),
+        (
+            ModelLaneDiagnosticTier::InternalDiagnostics,
+            ModelLaneDiagnosticTierState::DeferredWithReason,
+        ),
+        (
+            ModelLaneDiagnosticTier::Palmistry,
+            ModelLaneDiagnosticTierState::DeferredWithReason,
+        ),
+    ] {
+        assert_eq!(
+            posture
+                .tiers
+                .iter()
+                .filter(|record| record.tier == tier && record.state == state)
+                .count(),
+            1,
+            "HBR-INT-009 tier row {tier:?}/{state:?} is recorded"
+        );
+    }
+
+    let ledger_outcome =
+        drain_and_join_ledger_writer(&ledger, ledger_writer, Duration::from_secs(10)).await;
+    assert!(
+        matches!(ledger_outcome, LedgerDrainJoinOutcome::Flushed),
+        "the production process-ledger writer must flush START/STOP before assertions"
+    );
+    eprintln!("MT017_OPERATOR_CHAT_STAGE=ledger_drain:complete");
+
+    let model_lane = replay
+        .lanes
+        .iter()
+        .find(|lane| lane.kind == ModelLaneKind::CliModel)
+        .expect("CLI lane is durable");
+    assert_eq!(model_lane.runtime_binding, RuntimeBinding::CliBridge);
+    assert_eq!(model_lane.launch_authority, LaunchAuthority::CliBridge);
+    assert_eq!(model_lane.provider_kind, ModelLaneProviderKind::OfficialCli);
+    assert!(
+        model_lane.no_os_process_reason_ref.is_none(),
+        "process-backed operator-chat lanes must not carry no-OS reasons"
+    );
+    assert!(
+        messages.iter().any(
+            |msg| msg.diagnostic_payload["turn_role"] == json!("operator")
+                && msg.from_lane_id != model_lane.lane_id
+        ),
+        "operator prompt is stored on a distinct HUMAN_OPERATOR lane"
+    );
+    assert_eq!(
+        messages
+            .iter()
+            .filter(|msg| msg.from_lane_id == model_lane.lane_id)
+            .count(),
+        3,
+        "captured output is attributed to the selected model lane"
+    );
+    let process_uuid = model_lane
+        .process_ownership_ref
+        .as_deref()
+        .and_then(|reference| reference.strip_prefix("process-ledger://"))
+        .and_then(|id| Uuid::parse_str(id).ok())
+        .expect("CLI lane carries a process-ledger UUID");
+    let process_row = process_ledger
+        .lifecycle(process_uuid)
+        .await
+        .expect("lane process reference resolves under exact ProcessLedger scope");
+    assert_eq!(process_row.engine_kind, "official_cli_bridge");
+    assert!(process_row.stopped_at.is_some());
+    assert!(process_row.os_pid.is_some());
+    assert_eq!(process_row.stop_reason.as_deref(), Some("completed"));
+    drop(service);
+    drop(store);
+    drop(storage);
+    process_ledger.close().await;
+    eprintln!("MT017_OPERATOR_CHAT_STAGE=proof:complete");
+}

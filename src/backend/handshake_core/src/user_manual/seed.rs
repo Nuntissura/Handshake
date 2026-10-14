@@ -5224,11 +5224,12 @@ fn page_model_lane_promotion() -> NewUserManualPage {
                 "run_commands",
                 "Proof commands",
                 "Exact MT-004 proof commands: \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test user_manual_api_tests model_lane_promotion_user_manual_entry_is_current -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target\\mt004-operator-proof --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests model_lane_promotion_appends_eventledger_and_replays_decision -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target\\mt004-operator-proof --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests model_lane_promotion_rejects_stale_base_schema_mismatch_and_direct_mutation -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target\\mt004-operator-proof --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests model_lane_promotion_reordered_inputs_keep_same_decision_hash -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target\\mt004-operator-proof --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests model_lane_promotion_preserves_exact_scope_and_denies_foreign_or_mixed_sources -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target\\mt004-operator-proof --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests user_manual_names_only_surfaces_that_exist_in_compiled_product_code -- --exact`. \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target\\mt004-operator-proof --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test user_manual_behavior_coverage_tests user_manual_names_only_surfaces_that_exist_in_compiled_product_code -- --exact`. \
                  These exercise real embedded SurrealDB, EventLedger append/replay, schema registry \
                  rows, DB-derived CRDT base/state-vector guards, exact promotion decision and \
                  artifact binding, phantom input-ref denial, direct authority mutation rejection, \
@@ -5518,11 +5519,12 @@ fn page_model_lane_context_bundle_handoff() -> NewUserManualPage {
                 "run_commands",
                 "Proof commands",
                 "Exact MT-005 proof commands: \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test user_manual_api_tests model_lane_context_bundle_user_manual_entry_is_current -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target\\mt005-operator-proof --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests model_lane_context_bundle_persists_selection_state_and_replays -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target\\mt005-operator-proof --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests model_lane_context_bundle_missing_artifact_ref_fails_closed -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target\\mt005-operator-proof --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests model_lane_context_bundle_crdt_state_vector_and_loom_refs_are_replayable -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target\\mt005-operator-proof --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests model_lane_context_bundle_consume_preserves_exact_scope_and_denies_foreign_or_mixed_sources -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target\\mt005-operator-proof --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests user_manual_names_only_surfaces_that_exist_in_compiled_product_code -- --exact`. \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target\\mt005-operator-proof --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test user_manual_behavior_coverage_tests user_manual_names_only_surfaces_that_exist_in_compiled_product_code -- --exact`. \
                  These exercise real embedded SurrealDB, EventLedger append/replay, schema registry rows, \
                  selected/rejected/unresolved/superseded replay, artifact binding authority, \
                  downstream-only consumption, coordinator adapter invocation, kernel \
@@ -5983,7 +5985,7 @@ fn page_model_lane_recovery() -> NewUserManualPage {
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests model_lane_recovery_rejects_post_checkpoint_payload_and_crdt_repairs -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests model_lane_recovery_preserves_exact_scope_and_denies_foreign_stale_replay -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test worktree_model_lane_live_surreal_tests recovery_route_is_exact_scoped_and_revoked_authority_is_absent_shaped -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests user_manual_names_only_surfaces_that_exist_in_compiled_product_code -- --exact`.",
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test user_manual_behavior_coverage_tests user_manual_names_only_surfaces_that_exist_in_compiled_product_code -- --exact`.",
             ),
         ],
         anchors: vec![
@@ -6202,9 +6204,11 @@ fn page_model_lane_diagnostics() -> NewUserManualPage {
             section(
                 "run_commands",
                 "Proof commands",
-                "Exact MT-008 proof commands: \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests swarm_lane_diagnostics_backend_projection_matches_eventledger -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests swarm_lane_diagnostics_rejects_flight_recorder_only_hbr_posture -- --exact`; \
+                "The backend posture test checks canonical run/tier/latest projection and rejects \
+                 FlightRecorder-only posture; the route test checks persisted session, capability, \
+                 and workspace-grant admission. These are commands to run, not recorded verdicts: \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_diagnostics_surreal_tests diagnostics_require_complete_hbr_posture_and_project_canonical_receipts -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_diagnostics_surreal_tests diagnostics_route_requires_persisted_session_capability_and_workspace_grant -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_swarm_lane_diagnostics_argus swarm_lane_diagnostics_argus_lists_filters_and_drills_down -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_swarm_lane_diagnostics_argus swarm_lane_diagnostics_argus_rejects_missing_author_id_and_count_mismatch -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_top_menu_bar run_menu_opens_swarm_lane_diagnostics -- --exact`; \
@@ -6337,8 +6341,15 @@ fn page_model_lane_navigation() -> NewUserManualPage {
             section(
                 "run_commands",
                 "Proof commands",
-                "Exact MT-010 proof commands: \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests user_manual_names_only_surfaces_that_exist_in_compiled_product_code -- --exact`.",
+                "The restored original selectors \
+                 `model_lane_navigation_routes_return_run_lane_message_artifact_trace_and_recovery` \
+                 and `model_lane_navigation_user_manual_registry_rows_match_runtime_routes` are \
+                 retained source/provenance, not runnable proof instructions here. Reconciliation \
+                 remains blocked on their legacy @1 projection and Flight Recorder/error payload \
+                 expectations against the current @2 privacy projection. No passing verdict or \
+                 substitution by the current commands is claimed. Current commands: \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test user_manual_api_tests model_lane_navigation_user_manual_entries_are_current -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test user_manual_behavior_coverage_tests user_manual_names_only_surfaces_that_exist_in_compiled_product_code -- --exact`.",
             ),
         ],
         vec![
@@ -8318,16 +8329,16 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
                 "GET /swarm/model-lanes/diagnostics/latest",
                 "GET /swarm/model-lanes/diagnostics/{run_id}"
             ],
-            "cli_flag": "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests",
+            "cli_flag": "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test user_manual_behavior_coverage_tests",
             "exact_commands": [
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests swarm_lane_diagnostics_backend_projection_matches_eventledger -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests swarm_lane_diagnostics_rejects_flight_recorder_only_hbr_posture -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_diagnostics_surreal_tests diagnostics_require_complete_hbr_posture_and_project_canonical_receipts -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_diagnostics_surreal_tests diagnostics_route_requires_persisted_session_capability_and_workspace_grant -- --exact",
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_swarm_lane_diagnostics_argus swarm_lane_diagnostics_argus_lists_filters_and_drills_down -- --exact",
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_swarm_lane_diagnostics_argus swarm_lane_diagnostics_argus_rejects_missing_author_id_and_count_mismatch -- --exact",
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_top_menu_bar run_menu_opens_swarm_lane_diagnostics -- --exact",
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_command_palette typing_diagnostics_filters_to_swarm_lane_diagnostics_and_runs -- --exact",
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_settings_dialog swarm_lane_diagnostics_setting_persists -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests user_manual_names_only_surfaces_that_exist_in_compiled_product_code -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test user_manual_behavior_coverage_tests user_manual_names_only_surfaces_that_exist_in_compiled_product_code -- --exact",
                 "$env:HANDSHAKE_ARGUS_LIVE_BACKEND_READY='1'; $env:HANDSHAKE_DIAGNOSTICS_DIR='<absolute-shared-diagnostics-dir>'; $env:HANDSHAKE_PROOF_ARTIFACT_DIR='<absolute-proof-root>'; $env:HANDSHAKE_MT008_ARGUS_PROOF_NONCE='<fresh-single-use-nonce>'; cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_argus_production_socket_live mt008_production_socket_diagnostics_scope_and_detached_capture -- --ignored --exact --test-threads=1"
             ],
             "manual_version": USER_MANUAL_VERSION,
@@ -8342,7 +8353,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
         ipc_channel: None,
         tauri_command: None,
         cli_flag: Some(
-            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests".into(),
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test user_manual_behavior_coverage_tests".into(),
         ),
         http_route: Some("/swarm/model-lanes/diagnostics/latest".into()),
         http_method: "GET".into(),
@@ -8418,7 +8429,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "If lane/message counts disagree, replay ModelLaneStore::replay_run(run_id) and compare model_lanes.message_count with model_lane_messages rows.".into(),
             "If author IDs are missing, repair the native Rust pane row/drilldown construction before relying on Argus inspection.".into(),
             "If EventLedger or FlightRecorder refs are missing, repair the model lane event linkage instead of treating UI rows as authority.".into(),
-            "If HBR posture is suspected to be FlightRecorder-only, run swarm_lane_diagnostics_rejects_flight_recorder_only_hbr_posture before trusting the diagnostics pane.".into(),
+            "If HBR posture is suspected to be FlightRecorder-only, run cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_diagnostics_surreal_tests diagnostics_require_complete_hbr_posture_and_project_canonical_receipts -- --exact before trusting the diagnostics pane; this test explicitly rejects FlightRecorder-only posture. This instruction is not a recorded passing verdict.".into(),
             "internal_diagnostics is WIRED through the native producer and Problems projection. Palmistry is WIRED through the authenticated watcher and survivor recovery importer; do not silently skip HBR-INT-009.".into(),
             "The HBR-INT-009 envelope is emitted once per ModelLaneRun (run-level, coverage posture RUN_LEVEL_WIRED, proven by verify_model_lane_behavior_evidence against the run's durable records), not per behavior; a tier that is genuinely unavailable is recorded as NOT_APPLICABLE-with-reason or DEFERRED-with-reason with a follow_up_ref, never fabricated per behavior.".into(),
             "If the production-socket proof cannot start, first verify the embedded-SurrealDB-backed handshake_core is listening on 127.0.0.1:37501, Palmistry readiness is present, and HANDSHAKE_DIAGNOSTICS_DIR names the same absolute directory used by the backend and native child; do not replace this with a mock backend.".into(),
@@ -8431,6 +8442,86 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
         manual_version: USER_MANUAL_VERSION.into(),
     });
 
+
+    let model_lane_navigation_commands = [
+        "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_navigation_surreal_tests all_eight_navigation_surfaces_replay_after_same_namespace_restart -- --exact",
+        "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test model_lane_navigation_api_surreal_tests real_axum_navigation_and_recovery_are_exact_scoped_absent_shaped_and_non_mutating -- --exact",
+        "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils,surreal-test-support --test user_manual_api_tests model_lane_navigation_user_manual_entries_are_current -- --exact",
+    ];
+    let model_lane_navigation_tool_hash = sha256_hex(
+        &serde_json::to_string(&json!({
+            "id": "model_lane_navigation_api_tests",
+            "name": "Dexterity ModelLane Backend Navigation",
+            "status": "wired",
+            "http_route": "/swarm/model-lanes/navigation/lookup",
+            "http_method": "GET",
+            "exact_commands": model_lane_navigation_commands,
+            "manual_version": USER_MANUAL_VERSION,
+        }))
+        .expect("model lane navigation tool serializes"),
+    );
+    tools.push(UserManualToolEntry {
+        tool_id: "model_lane_navigation_api_tests".into(),
+        page_id: None,
+        name: "Dexterity ModelLane Backend Navigation".into(),
+        status: "wired".into(),
+        ipc_channel: None,
+        tauri_command: None,
+        cli_flag: Some(model_lane_navigation_commands.join("\n")),
+        http_route: Some("/swarm/model-lanes/navigation/lookup".into()),
+        http_method: "GET".into(),
+        description: "Read-only lookup of ModelLane runs, lanes, messages, artifact/context bindings, traces/spans, diagnostic tiers, and recovery through the existing authenticated routes. Wired describes the callable surface; listed commands are unrun instructions, not passing verdicts.".into(),
+        expected_input: "An authenticated account session and workspace read grant, one supported lookup selector, and the existing test-utils,surreal-test-support features for the listed proof commands.".into(),
+        expected_output: "ModelLaneNavigationProjection from canonical embedded SurrealDB/EventLedger authority. Flight Recorder, internal_diagnostics, and Palmistry labels describe related diagnostic context. The current privacy projection omits opaque Flight Recorder refs and error-code output; their presence is not promised. Locus, Loom, FEMS, ContextBundle, and MemoryPack identify related context, not replacement authority.".into(),
+        schema_fields: vec![
+            "ModelLaneNavigationProjection".into(),
+            "ModelLaneNavigationLookup".into(),
+            "ModelLaneStore::navigation_by_run".into(),
+            "ModelLaneStore::navigation_by_lane".into(),
+            "ModelLaneStore::navigation_by_message".into(),
+            "ModelLaneStore::navigation_by_artifact_or_context".into(),
+            "ModelLaneStore::navigation_by_trace".into(),
+            "ModelLaneStore::navigation_by_diagnostics".into(),
+            "ModelLaneStore::navigation_by_recovery".into(),
+            "ModelLaneStore::navigation_by_lookup".into(),
+            "GET /swarm/model-lanes/navigation/runs/{run_id}".into(),
+            "GET /swarm/model-lanes/navigation/lanes/{lane_id}".into(),
+            "GET /swarm/model-lanes/navigation/messages/{message_id}".into(),
+            "GET /swarm/model-lanes/navigation/artifacts".into(),
+            "GET /swarm/model-lanes/navigation/traces/{trace_id}".into(),
+            "GET /swarm/model-lanes/navigation/diagnostics/{run_id}".into(),
+            "GET /swarm/model-lanes/navigation/recovery/{run_id}".into(),
+            "GET /swarm/model-lanes/navigation/lookup".into(),
+            "model_lane.navigation.lookup".into(),
+            "event_ledger_event_id".into(),
+            "event_ledger_seq".into(),
+            "trace_id".into(),
+            "span_id".into(),
+            "error_code".into(),
+            "Flight Recorder".into(),
+            "EventLedger".into(),
+            "internal_diagnostics".into(),
+            "Palmistry".into(),
+            "Locus".into(),
+            "Loom".into(),
+            "FEMS".into(),
+            "ContextBundle".into(),
+            "MemoryPack".into(),
+        ],
+        common_errors: vec![
+            "missing authenticated session or workspace read grant".into(),
+            "absent row or mismatched exact resource scope".into(),
+            "missing server workspace scope".into(),
+        ],
+        recovery_steps: vec![
+            "Use the narrowest supported lookup selector and the current authenticated workspace context.".into(),
+            "Compare returned canonical receipts with the source run before trusting a derived projection; navigation does not mutate authority.".into(),
+            "Run the listed storage/restart, HTTP scope/denial, and UserManual commands separately; command metadata is not execution evidence.".into(),
+        ],
+        origin: "wp1_model_lane".into(),
+        content_hash: model_lane_navigation_tool_hash,
+        manual_version: USER_MANUAL_VERSION.into(),
+    });
 
     let mixed_model_lane_validation_tool_hash = sha256_hex(
         &serde_json::to_string(&json!({
