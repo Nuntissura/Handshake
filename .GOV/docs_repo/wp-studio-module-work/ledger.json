@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-14T18:16:49Z",
+ "updated_at": "2026-10-14T18:27:01Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3648,26 +3648,29 @@
   {
    "lane_id": "SMB-DEVELOP-TIFF-CONSOLIDATE",
    "crate": "hsk-studio-develop",
-   "phase": "blocked_on SMB-INTEROP-TIFF-CONTAINER-API (public IFD/entry/region API); corpus replaced + identity pins at a7048ef",
-   "status": "BLOCKED",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-develop-tiff-20261014",
    "commits": [
-    "a7048ef"
+    "a7048ef",
+    "2b90bcc"
    ],
    "verdicts": [],
    "note": "TIFF brief slice 3: develop consumes hsk-studio-interop-tiff (edge develop->interop-tiff), delete develop/src/tiff.rs; DNG output byte-identical on the corpus",
-   "lane_file": "builders/lanes/hsk-studio-develop-tiff-consolidate.json",
-   "blocked_on": "SMB-INTEROP-TIFF-CONTAINER-API"
+   "lane_file": "builders/lanes/hsk-studio-develop-tiff-consolidate.json"
   },
   {
    "lane_id": "SMB-INTEROP-TIFF-CONTAINER-API",
    "crate": "hsk-studio-interop-tiff",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-develop-tiff-20261014",
-   "commits": [],
+   "commits": [
+    "579c117"
+   ],
    "verdicts": [],
-   "note": "public container API for develop: classic+BigTIFF header/byte order; IFD walk incl. next-pointers and SubIFD 330 with cycle/count bounds; per-entry tag/type/count/raw bytes; typed accessors u32s/f64s/ascii/bytes; region(offset,len); no pixel decode"
+   "note": "public container API for develop: classic+BigTIFF header/byte order; IFD walk incl. next-pointers and SubIFD 330 with cycle/count bounds; per-entry tag/type/count/raw bytes; typed accessors u32s/f64s/ascii/bytes; region(offset,len); no pixel decode",
+   "lane_file": "builders/lanes/hsk-studio-interop-tiff-container-api.json"
   },
   {
    "lane_id": "SMB-INTEROP-FIG-NODES",
