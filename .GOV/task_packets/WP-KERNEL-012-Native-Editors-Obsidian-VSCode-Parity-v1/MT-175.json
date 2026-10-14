@@ -1,4 +1,22 @@
 {
+  "cloud_window_assembled_review_repair_20261014": {
+    "decision_id": "WP012-CLOUD-WINDOW-ASSEMBLED-REVIEW-REPAIR-20261014",
+    "status": "FIVE_FINDINGS_REPAIR_AUTHORIZED_SOURCE_CLEAR_WITHHELD",
+    "reviewer": "01a1323e-c183-77e3-b8ba-b286507e5617",
+    "owner": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+    "scope_refs": ["/cloud_connected_restoration_20261014", "/detached_settings_connected_action_repair_20261014"],
+    "reviewed_frozen_diff_sha256": "3ce67fbd0270732b5e3aa894372637472689551c58c512eb93b382015ed916cc",
+    "scope": "Existing exact10 source paths only; no new permission/paths/tests/runtime or compiler grant. One bounded repair batch then affected independent recheck, unchanged reviewed connections reused.",
+    "findings": [
+      {"id": "CW-001", "paths": ["app.rs", "backend_client.rs"], "failure": "Settings host generation gated only CLI deliveries; old BYOK/enumeration survives close/reopen.", "repair": "Distinct host generation on every delivery, advance open/close/detach/redock; preserve exact account/provider/backendCLI/session owner. Old response cannot update newUI; cleanup uses captured authorized owner only, retains uncertainty if cleanup denied, never newaccountcredentials or fabricatedCancelled."},
+      {"id": "CW-002", "paths": ["mcp/action.rs", "mcp/tools.rs"], "failure": "enqueue clones secret into PendingAction but original returned ActionOutcome has no zeroizing Drop; dropped original leaves secret duplicate.", "repair": "Bound every owned secret request/outcome clone with wiping on every return/drop; inspect all current field-move/consumer sites affected by Drop semantics before finalparse. Preserve private exactmutation witness/generic floors and no public value/length/hash; no unsupported public leak claim."},
+      {"id": "CW-003", "paths": ["mcp/argus.rs", "mcp/server.rs"], "failure": "Childoutput terminalizes receipt/snapshot then dropschannel before revision advance; reader can observe Applied with old/equal after_revision.", "repair": "Publish terminalreceipt and actual successor revision atomically under existing snapshot-then-channel ownership, reader sees coherent samepublication. Never manufacture a newer revision or use timestamp as frame proof."},
+      {"id": "CW-004", "paths": ["mcp/server.rs", "mcp/session.rs"], "failure": "Inspect validates expectedrevision before awaited SharedRead lease, then clones snapshot without registeredwindow revalidation.", "repair": "Revalidate exact current epoch/live/revision at actual snapshot acquisition boundary after await; stale expected revision denies rather than returning newer unbound snapshot. Preserve auth/lease ownership and lock ordering."},
+      {"id": "CW-005", "paths": ["mcp/screenshot.rs", "app.rs"], "failure": "Handle registry keyed onlywindowID stores HWND/title without epoch/ViewportId; lateold callback can repopulate afterunregister; optionalgeometry allows PID/title-only resolution.", "repair": "Record/capture with exact current registered epoch+actualViewportId and actual viewport-handle evidence; stale/unregistered callbacks reject, no PID/title-only fallback. Close/recreate cannot retarget old handles. Runtime wrongcapture not claimed. Primary/root exact source inspection and independent review confirmed identity binding gap."}
+    ],
+    "validation": "Refresh only changed actual source/diff/inverse/parse bindings after batch, exact10path/fulluntouched inventory; one existing independent reviewer closes concrete5findings and affected connections, no general re-audit/reviewchain/helpers. Syntax is not type/compiler/runtime evidence; laststage02check remains HELD until reviewedpushedcandidate binding.",
+    "history": "Nine cumulativeFAIL101; stage02two/3 used. No source acceptance/runtime claim until original proof; no compiler check consumed by review or syntax."
+  },
   "detached_settings_connected_action_repair_20261014": {
     "decision_id": "WP012-DETACHED-SETTINGS-CONNECTED-ACTION-20261014",
     "status": "SOURCE_REPAIR_AUTHORIZED",
