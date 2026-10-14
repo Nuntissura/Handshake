@@ -1,0 +1,101 @@
+{
+ "crate": "hsk-studio-develop",
+ "lane": "SMB-DEVELOP-RAW-VENDOR",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slices 1 (CR2) and 2 (NEF uncompressed) READY on 241df1f; remaining vendors blocked under R1 (see blockers)",
+ "commits": [
+  {
+   "sha": "799ba57b4042ce8b78bfe63928d27fbf54c4806a",
+   "subject": "develop (SMB-DEVELOP-RAW-VENDOR slice 1): clean-room Canon CR2 decode"
+  },
+  {
+   "sha": "241df1fdb028f472f18e57a3fbba22a373e270e1",
+   "subject": "develop (SMB-DEVELOP-RAW-VENDOR slice 2): uncompressed Nikon NEF decode"
+  }
+ ],
+ "capabilities_done": [
+  "decode_container routes TIFF+CR\\x02 to cr2::decode (CR 2.0, raw IFD from header offset, Compression 6, one lossless-JPEG strip via ljpeg.rs, RawImageSegmentation 0xC640 column-slice reassembly, checked arithmetic)",
+  "CR2 frame -> DngRaw (stored CFA frame incl. masked borders, no colour; unapplied: cr2_black_level_unread, cr2_white_level_unread, cr2_sensor_borders_unread, cr2_cfa_pattern_unverified); missing colour -> missing_colour_data; caller DngColor -> develop works",
+  "NEF (IFD0 Make NIKON, no DNGVersion) uncompressed: shared tiffep module (TIFF/EP CFA SubIFD selection, CFARepeatPatternDim/CFAPattern, strips 8/16-bit file order or big-endian MSB-first packed 9-15-bit); Nikon compressions 34713/32769 -> unsupported_compression; unapplied: nef_black_level_unread, nef_white_level_unread, nef_makernote_curve_unread",
+  "ORF/RW2/RAF/CR3 recognised by magic: DevelopError::DecoderUnavailable(&'static str) naming the family (code decoder_unavailable, Display decoder_unavailable:<family>); unknown bytes -> decoder_unavailable:unknown",
+  "V4-01 deny(arithmetic_side_effects) in cr2.rs, tiffep.rs, nef.rs; V4-02 dims_u32_max + aggregate_over_budget tests per decoder",
+  "DESCRIPTOR scope/pending updated (CR2, NEF, unread facts, blocked compressions)"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-develop --test develop_cr2 --no-fail-fast ; cargo nextest run -p hsk-studio-develop --test develop_nef --no-fail-fast ; cargo nextest run -p hsk-studio-develop --test real_raw --run-ignored ignored-only --no-capture --no-fail-fast",
+  "exit": 0,
+  "sha": "241df1fdb028f472f18e57a3fbba22a373e270e1",
+  "passed": 12,
+  "failed": 0
+ },
+ "blockers": [
+  {
+   "error": "NEF Nikon Huffman compression 34713 (D70s lossy type 1, Z6 12-bit compressed): no public documentation of the Huffman trees or the MakerNote 0x8C/0x96 curve layout found (libopenraw formats/nef and Bill Claff NEF_Compression describe only the scheme; both point to dcraw source, which R1 forbids)",
+   "file_line": "crates/hsk-studio-develop/src/nef.rs decode (compression != 1 -> UnsupportedCompression)",
+   "attempts": 1
+  },
+  {
+   "error": "ARW2 cRAW (Sony compression 32767, ILCE-7S): public descriptions (Dietz EI2016 slides, MIT FLIF sony_arw README) give the scheme (16-pixel groups, 11-bit max/min, positions, 7-bit deltas, 5-segment curve 0x7010) but not the exact bit layout/shift rule; the README tool is GPLv3 (dcraw-derived). Needs a lead decision: may the builder read rawkit (MIT/Apache, brief R1 a/b names it as permissive reference) or must ARW wait for R1 (c) dnglab oracle-driven black-box derivation?",
+   "file_line": "crates/hsk-studio-develop/src/lib.rs decode_container (ARW -> unsupported_container)",
+   "attempts": 1
+  },
+  {
+   "error": "ORF C5060WZ (only ORF sample): IIRS-magic TIFF-like, IFD0 2608x1949 12-bit Compression 1, but strips are not TIFF-conformant (RowsPerStrip 16 = 62592 bytes, yet several strips declare 58680 bytes = 15 rows with 59904-byte spacing); the layout is not publicly documented, so a decode would be a guess. Also tiff.rs (read-only for this lane) refuses non-42 magic, so ORF needs a patched-header copy or the interop-tiff owner.",
+   "file_line": "crates/hsk-studio-develop/src/lib.rs recognise (ORF -> decoder_unavailable:orf)",
+   "attempts": 1
+  },
+  {
+   "error": "RW2 LX7: Panasonic compression (tag 0x0b = 34316, ~9.2 bits/pixel); no public format documentation of the codec found",
+   "file_line": "crates/hsk-studio-develop/src/lib.rs recognise (RW2 -> decoder_unavailable:rw2)",
+   "attempts": 1
+  },
+  {
+   "error": "RAF: container documented (libopenraw formats/raf: header, offset directory, meta records 0x100/0x110/0x111/0x121/0x130/0x131), but S5000 is SuperCCD (diagonal sensor; stored 16-bit grid 2160x1472 is not a Bayer/X-Trans CfaPattern; remap undocumented) and X-S10 is Fuji-compressed X-Trans (codec undocumented publicly). A container-only parser would still end in a typed refusal; not built.",
+   "file_line": "crates/hsk-studio-develop/src/lib.rs recognise (RAF -> decoder_unavailable:raf)",
+   "attempts": 1
+  },
+  {
+   "error": "CR3/CRX: brief schedules it last and requires Operator re-evaluation against R1 (c) before building (CRX wavelet codec has no public spec); not started",
+   "file_line": "crates/hsk-studio-develop/src/lib.rs recognise (CR3 -> decoder_unavailable:cr3)",
+   "attempts": 0
+  }
+ ],
+ "lock_wait_s": 131,
+ "bg_pids": [],
+ "next": "lead decisions: (1) ARW route (rawkit as reference, or dnglab black-box derivation by a different builder); (2) independent DNG oracle run (dnglab convert or Adobe DNG Converter, by validator/Operator) for the CR2 350D and NEF D1H CFA samples + pattern; (3) DNG 5D3 LJPEG-shape finding to the SMB-DEVELOP lane; (4) CR3 per brief with the Operator",
+ "updated_at": "2026-10-14T16:15:24Z",
+ "notes": {
+  "brief": "builders/briefs/lane-smb-develop-raw-vendor.md",
+  "clean_room": "R1: only public documentation and black-box byte inspection of the CC0 samples (own python dump script under scratchpad/smb-develop-raw-vendor/); no LGPL/GPL decoder source read (no rawler, rawloader, quickraw, LibRaw, dcraw, RawSpeed, libcraw2 code)",
+  "doc_sources": [
+   "https://libopenraw.pages.freedesktop.org/formats/cr2",
+   "https://www.swetake.com/photo/cr2/cr2-2_en.html",
+   "https://swetake.com/photo/cr2/cr2-6_en.html (RawImageSegmentation 0xC640 = A slices of width B + one of width C)",
+   "https://swetake.com/photo/cr2/cr2-7_en.html",
+   "https://swetake.com/photo/cr2/cr2-8_en.html (SOF3: X * Nf = sensor width)",
+   "https://swetake.com/photo/cr2/cr2-9_en.html (slice reordering; masked pixels)",
+   "https://raw.pixls.us/getfile.php/1230/exif/IMG_8728.CR2.exif.txt (350D output 3456x2304, Model)",
+   "https://libopenraw.pages.freedesktop.org/formats/nef",
+   "https://www.photonstophotos.net/NikonInfo/NEF_Compression.htm",
+   "TIFF 6.0 (strips, BitsPerSample packing) and TIFF/EP CFA tags 33421/33422 (as restated in the Adobe DNG specification)",
+   "ITU-T T.81 (lossless JPEG, existing ljpeg.rs)",
+   "https://aggregate.org/DIT/EI2016/ei2016ARW.pdf and https://stuff.mit.edu/afs/sipb/user/kenta/software/FLIF/raw-tools/sony_arw/README (ARW scheme only; README tool code NOT read)"
+  ],
+  "sample_facts_by_byte_inspection": {
+   "canon-eos-350d-raw.cr2": "raw IFD Compression 6, 1 strip at 714759 len 6742127, 0xC640 = [1,1758,1758], SOF3 P=12 Y=2328 X=1758 Nf=2 -> 3516x2328",
+   "nikon-d1h-12bit-uncompressed.nef": "MM, raw SubIFD 2012x1324 12-bit Compression 1, 67 strips x 20 rows (3018 bytes/row), CFAPattern 2,1,1,0; MSB-first packing (same-colour step 162 vs 632 LSB-first)",
+   "nikon-d70s / z6": "IFD0 Make NIKON CORPORATION; raw compression expected 34713 (corpus routing test asserts unsupported_compression)",
+   "sony-ilce-7s.arw": "raw SubIFD 2816x1872 bits 14 Compression 32767, 1 byte/pixel, tone curve 0x7010 = 8000,10400,12900,14100",
+   "olympus-c5060wz.orf": "IIRS magic, IFD0 2608x1949 12-bit Compression 1 Photometric 2, 122 strips x 16 rows, 3912 bytes/row, MSB-first packed (step 51.7 vs 542 LSB-first), no CFA tag",
+   "panasonic-dmc-lx7.rw2": "IIU magic, panasonic tags 1904x1276, compression tag 0x0b = 34316, ~9.2 bits/pixel (compressed)"
+  },
+  "real_dng_corpus_result": "RAN 2026-10-14 at 799ba57 (cargo nextest run -p hsk-studio-develop --test real_dng --run-ignored ignored-only): FAIL real_dng_decode_and_develop: canon-eos-5d3-mlv-14bit-lossless.dng decode refused invalid_container (tests/real_dng.rs:155). Cause (byte inspection): its lossless-JPEG strip declares SOF3 P=14, 409 lines x 3840 samples x 1 component for a 1920x818 strip (two raster rows per JPEG row); dng.rs:495 requires JPEG width*components == block width and JPEG height == block height. The other two DNGs were not reached (the test stops at the first file). fetch_script_default_matches_test_default (not ignored) unaffected. Owner: DNG reader lane (SMB-DEVELOP); not changed here (out of this lane's scope; whether DNG allows that JPEG shape needs the DNG spec text).",
+  "unchanged_dependencies": "no new crate, no new edge; tiff.rs and ljpeg.rs untouched (read-only reuse)",
+  "focused_runs": "develop_cr2 5/5 PASS at 799ba57 tree; develop_nef 4/4 PASS; real_raw 3/3 PASS (cr2 350d 3516x2328 12-bit samples_sha256 29f02044...5756, decode ~0.8 s debug; nef d1h 2012x1324 samples_sha256 25c44149...dbba; vendor routing) with NOT_PROVEN lines for the independent-DNG CFA oracle (no approved converter run)",
+  "api_change": "DevelopError::DecoderUnavailable is now DecoderUnavailable(&'static str); in-crate tests updated (develop_dng.rs, develop_recipe.rs); no other crate uses it (grep)",
+  "v4_06_like_sites": "cr2.rs/tiffep.rs/nef.rs carry deny(clippy::arithmetic_side_effects); clippy -p hsk-studio-develop --tests clean",
+  "provenance_exposure": "While searching for public ARW2 documentation (2026-10-14T16:14Z) a web-search summary relayed cRAW header bit offsets attributed to a dcraw-style decoder excerpt (so-fo.de); no decoder code page was opened and no ARW code was written. For strict clean-room separation, give ARW to a different builder.",
+  "not_run_by_builder": "dnglab not downloaded/executed by this builder (downloads/executables need direct Operator approval in chat); independent CFA oracle left to the validator/Operator per brief acceptance 5",
+  "existing_tests_touched": "tests/develop_dng.rs (one refuse(...) arg) and tests/develop_recipe.rs (two DecoderUnavailable args) compile under clippy --tests; not re-run separately in the focused budget (validator round covers them)"
+ }
+}
