@@ -1,4 +1,19 @@
 {
+  "cloud_window_connected_checkpoint_20261014": {
+    "status": "INDEPENDENT_ASSEMBLED_SOURCE_CLEAR_EXACT_TEN_PATH_PUSH_VERIFIED",
+    "repair_refs": ["/cloud_connected_restoration_20261014", "/detached_settings_connected_action_repair_20261014", "/cloud_window_assembled_review_repair_20261014"],
+    "commit": "25e1491c742049e3fbf433045b10813c81f8eb90",
+    "tree": "b0adb052982ea7994de58e759251795bd0e614f4",
+    "parent": "141ea593a278bb5f01ea804d2f5f6820da9b10be",
+    "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt175-cloud-connected-restoration",
+    "checkpoint_sha256": "872ed41c66dfed705a77be263ac5d37852a06d906ea38e235506dbe588a29152",
+    "source_comparison_sha256": "7a25ec5b0dcc8efb1cba77290db41556dec0823f465ca886fc197c1f4e9e6998",
+    "diff_sha256": "ea1605a2990e9a064792d39ee14093aab4badce2e35333bdf486440e2a910890",
+    "independent_reviewer": "01a1323e-c183-77e3-b8ba-b286507e5617",
+    "review": "Single assembled10path review and affected finding rechecks closedCW001-CW005, prior unaffected evidence reused. All7416 input inventory with7406 untouched/rawinverses exact; nonmutating source syntax0 or unchanged validreuse. Root opened actual assembled capture/server and finalpredicate/conditionalclear/callers, checkpoint and fresh actual GitHEAD/tree/clean/liveorigin/exact10committedpaths/rawafterhashes verified. No manifests/tests/governance product writes.",
+    "compiler_tests_runtime": "NOT_RUN",
+    "residuals": ["Backend model_access route mounting OPEN", "Legacy zeroizing client test auth expectation migration before runtime proof OPEN", "Actual windowRPC/GUI/capture/isolation/lifecycle/accountrevocation proof OPEN", "Authenticated durable Argus HMAC receipt persistence unbound; truthfuldurability_error remains OPEN", "Genuine first-run/authenticated session/canonical store/grants/runtime and original wholeWP acceptance OPEN"]
+  },
   "cloud_window_assembled_review_repair_20261014": {
     "decision_id": "WP012-CLOUD-WINDOW-ASSEMBLED-REVIEW-REPAIR-20261014",
     "status": "FIVE_FINDINGS_REPAIR_AUTHORIZED_SOURCE_CLEAR_WITHHELD",
