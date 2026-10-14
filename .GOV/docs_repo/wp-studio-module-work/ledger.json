@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-14T18:06:45Z",
+ "updated_at": "2026-10-14T18:12:43Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3602,12 +3602,15 @@
   {
    "lane_id": "SMB-SESSION-IMPORT-ENTRIES",
    "crate": "hsk-studio-session",
-   "phase": "queued",
-   "status": null,
-   "owner": null,
-   "commits": [],
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
+   "owner": "builder-session-20261014",
+   "commits": [
+    "306f894"
+   ],
    "verdicts": [],
-   "note": "session reports package import entries as opaque loss notes; checkpoint re-read compares quarantined counts; teach session the import entries (SMB-CONVERT-NATIVE C2)"
+   "note": "session reports package import entries as opaque loss notes; checkpoint re-read compares quarantined counts; teach session the import entries (SMB-CONVERT-NATIVE C2)",
+   "lane_file": "builders/lanes/hsk-studio-session-import-entries.json"
   },
   {
    "lane_id": "SMB-CONVERT-COLOUR",
