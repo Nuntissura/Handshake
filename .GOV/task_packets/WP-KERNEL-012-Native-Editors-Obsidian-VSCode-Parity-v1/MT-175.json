@@ -6,6 +6,17 @@
     "blocker_ref": "/cloud_connected_restoration_20261014/detached_settings_dependency",
     "owner": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
     "additional_allowed_write_paths": ["src/frontend/handshake_native/src/mcp/argus.rs", "src/frontend/handshake_native/src/mcp/action.rs", "src/frontend/handshake_native/src/mcp/server.rs", "src/frontend/handshake_native/src/mcp/session.rs", "src/frontend/handshake_native/src/mcp/tools.rs", "src/frontend/handshake_native/src/mcp/screenshot.rs", "src/frontend/handshake_native/src/mcp/mod.rs"],
+    "named_disjoint_worker_assignment": {
+      "assignment_id": "WP012-DETACHED-MCP-WORKER-20261014",
+      "status": "AUTHORIZED_BEFORE_WRITES",
+      "worker_chat": "01a1323e-8219-7f01-b326-bbd802d1ba9a",
+      "worker_role_for_assignment": "Bounded coder worker under primary integrator; existing diagnostics actor reused",
+      "primary_integrator": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+      "owned_write_paths_ref": "/detached_settings_connected_action_repair_20261014/additional_allowed_write_paths",
+      "exclusive_split": "Worker owns exact7MCP files ONLY; primary owns app.rs/settings_dialog.rs/backend_client.rs ONLY until worker hands back. Neither reverts other's changes. Shared codebase; agree concrete host/registry/input-output/capture/lifecycle API with primary before integration. Primary assembles and commits complete10path batch.",
+      "prohibitions": "No worker app/cloud3path/kernel/manifest/test/other source writes, helpers/new agents, Git commit/push/topology changes, compiler/tests/runtime/window/CLI/provision. Source-only parse allowed only nonmutating exactowned files to external artifact root, actual exit retained.",
+      "review": "One independent assembled10path affected connection review; no perworker acceptance claims. Original source/compile/runtime distinctions and current causal/ownership constraints remain binding."
+    },
     "existing_allowed_write_paths_ref": "/cloud_connected_restoration_20261014/allowed_write_paths",
     "diagnosis": "Read-only diagnostics specialist verified current single root snapshot/channel listener/tools, author-only lease selection, root-only EffectTicket/raw-input ACK and main-title capture; current detached host has no registered child routing/publication. Root opened actual server/tools/EffectTicket source. Genuine original detached Argus acceptance requires connected exact-window routing rather than guard removal.",
     "source_basis": "Pinned98efa app registration/input and Argus bounded descriptors/registry/actual paired viewport output hook plus targeted capture patterns; adapt installed current APIs/current ActionEffectTicket/ACK bridge. Do not restore pinned replacement ActionReceiptTracker or overwrite current action framework.",
