@@ -1,8 +1,8 @@
 {
  "crate": "hsk-studio-interop-psd + hsk-studio-package + hsk-studio-harness",
  "lane": "SMB-CONVERT-NATIVE",
- "status": "FAIL_V1",
- "phase": "CN-1, CN-2, CN-3 (PSD + DNG) pushed; claim = a7c2fa1, fe2f537, 013b24c, 6863190 (6863190 changes only ignored corpus tests)",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "remediation R24 (pdf-carry-receipt-missing) pushed at fcd53b8; claim = a7c2fa1, fe2f537, 013b24c, 6863190 + fcd53b8",
  "commits": [
   {
    "sha": "a7c2fa1",
@@ -19,6 +19,10 @@
   {
    "sha": "6863190",
    "subject": "harness (SMB-CONVERT-NATIVE CN-3): DNG corpus test on a real DNG, 6 sweep shards"
+  },
+  {
+   "sha": "fcd53b8",
+   "subject": "harness (SMB-CONVERT-NATIVE remediation R24, pdf-carry-receipt-missing): PDF is carried, not imported"
   }
  ],
  "capabilities_done": [
@@ -27,26 +31,23 @@
   "CN-2 package: ImportEntry{role Records|Receipt|Original} as opaque entries under reserved names import/<role>.<sha256hex>; grammar (manifest_invalid), name digest (hash_mismatch) and records/receipt <= max_manifest_bytes (entry_too_large) enforced in both writers and in manifest validation before decode; Opened::imports (typed refs) + import_bytes/import; bytes stay in Opened::quarantined so every existing re-save path (incl. session checkpoint) re-emits them; no loss note",
   "CN-3 harness: import::sniff (8BPS v1/v2, II*/MM*/BigTIFF, CR2 at byte 8, ftypcrx, IIRO/IIRS, IIU, FUJIFILMCCD-RAW, %PDF-); ImportError format_unrecognised | format_unavailable{format,feature,reason} | importer code passthrough | package code | canceled",
   "CN-3 harness: features import-psd (PSD/PSB via to_proposal) and import-raw (develop decode_container -> default window -> own colour solution, linear sRGB primaries -> raster_proposal); convert_to_native writes document + digest-keyed tiles + records/receipt/original; plain TIFF and PDF are typed format_unavailable (importer_not_implemented), no fake success",
-  "CN-3 harness: Run::open_import (one record, one Observe frame, unaddressed typed refusal before a session exists); CLI `import SOURCE [--references] [--save OUT [--overwrite]] [--cancel]` (save or checkpoint, reopen, verify; --save == SOURCE is exit 2; >512 MiB source refused before reading); manual + DESCRIPTOR + quiet-source scan include import.rs"
+  "CN-3 harness: Run::open_import (one record, one Observe frame, unaddressed typed refusal before a session exists); CLI `import SOURCE [--references] [--save OUT [--overwrite]] [--cancel]` (save or checkpoint, reopen, verify; --save == SOURCE is exit 2; >512 MiB source refused before reading); manual + DESCRIPTOR + quiet-source scan include import.rs",
+  "R24 remediation: feature import-pdf (optional edge harness -> hsk-studio-press): %PDF- -> press PdfDoc::open + proposal -> package with an empty native document (no artboards/layers), the original PDF as the original import entry and a receipt (source_format pdf, pdf.status carried_not_imported, page_count, per-page media_box/rotate/content_streams/annotations, version, encrypted) with one typed loss page[n] pdf_pages_not_imported (preserved_opaque) per page; press refusals pass through as importer codes; without import-pdf a PDF is format_unavailable feature_not_enabled; DESCRIPTOR import-pdf 'PDF: carried, not imported', manual updated"
  ],
  "tests": {
-  "argv": "cargo nextest run -p hsk-studio-harness -p hsk-studio-package --features hsk-studio-harness/import-psd,hsk-studio-harness/import-raw --test import_psd --test import_entries --test harness_headless (013b24c); cargo nextest run -p hsk-studio-interop-psd --test raster_source --test adjustment_graph_source --test foundation_contract (a7c2fa1); ignored: cargo nextest run -p hsk-studio-harness --features import-psd,import-raw --test import_psd --run-ignored ignored-only",
+  "argv": "cargo nextest run -p hsk-studio-harness --features import-psd,import-raw,import-tiff,import-pdf --test import_pdf --test import_psd --test harness_headless --no-fail-fast -E 'binary(import_pdf) | test(unknown_and_not_yet_importable_formats_are_typed_refusals) | test(quiet_sources_use_no_process_network_or_environment_api)'",
   "exit": 0,
-  "sha": "6863190",
-  "passed": 23,
+  "sha": "fcd53b8",
+  "passed": 3,
   "failed": 0,
-  "ignored_runs": {
-   "psd_tools_sweep": "315 PSD/PSB files (psd-tools psd_files, recursive): 314 ok, 1 typed refusal psd_layer_rect, 0 panics (run at 013b24c with 4 shards; 6863190 only re-partitions to 6 shards)",
-   "dng": "canon-eos-5d3-mlv-14bit-lossless.dng (sha256 1d77dcc6...) -> 1 raster layer, 32 tiles, package 35125279 B, session open + checkpoint + re-read: PASS 22.9 s at 6863190",
-   "raw_refusals": "CR3 and RAF: develop's typed refusal passed through unchanged: PASS"
-  },
-  "clippy": "cargo clippy -p hsk-studio-harness -p hsk-studio-package -p hsk-studio-interop-psd --features hsk-studio-harness/import-psd,hsk-studio-harness/import-raw --tests --examples: clean (only pre-existing observe too_many_arguments); harness default features: clean"
+  "extra": "cargo nextest run -p hsk-studio-harness --features import-psd --test import_psd -E 'test(unknown_and_not_yet_importable_formats_are_typed_refusals)': 1 passed (no-import-pdf branch: format_unavailable feature_not_enabled)",
+  "clippy": "cargo clippy -p hsk-studio-harness --tests --examples with features import-pdf and import-psd,import-raw,import-tiff,import-pdf, plus --tests with import-psd and default: clean (only pre-existing hsk-studio-observe too_many_arguments)"
  },
  "blockers": [],
  "lock_wait_s": 900,
  "bg_pids": [],
  "next": "Follow-ups outside this lane's paths: session to classify import/* entries (no LossReason::Opaque note); harness colour converter needs a prism edge (lead); TIFF entry after interop-tiff slice 1; PDF after P1/P2; CN-4 export back (native -> PSD from the original entry).",
- "updated_at": "2026-10-14T16:46:58Z",
+ "updated_at": "2026-10-14T18:44:42Z",
  "notes": {
   "decision_c2": "Brief option (a) (new EntryKind) would break hsk-studio-session (exhaustive match on EntryKind, session/src/source.rs:153; not an owned path). Implemented with typed reserved names import/<role>.<sha256hex> on opaque entries: no manifest schema change, dependents compile unchanged and keep the entries verbatim.",
   "session_follow_up": "hsk-studio-session still reports import/* entries as LossReason::Opaque loss notes on open (load_parts); a session lane should classify them via hsk_studio_package::IMPORT_PREFIX. Session checkpoint verification compares quarantined counts with package::read_package, which is why import entries stay in Opened::quarantined.",
@@ -97,6 +98,24 @@
     "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R24",
     "recorded_at": "2026-10-14T18:31:51Z"
    }
-  ]
+  ],
+  "remediation_R24": {
+   "failure_class": "pdf-carry-receipt-missing (round-R24 FAIL_V1)",
+   "search_regex": "SourceFormat::Pdf|importer_not_implemented|not_implemented\\(",
+   "sites": [
+    "src/import.rs import(): SourceFormat::Pdf => not_implemented -> pdf_route (fixed)",
+    "src/import.rs fn not_implemented: removed, no remaining caller (fixed)",
+    "tests/import_psd.rs refusal test: reason importer_not_implemented -> feature_not_enabled, press passthrough with import-pdf (fixed)",
+    "src/lib.rs DESCRIPTOR format_unavailable [pdf] and not_proven pdf_import -> import-pdf carried, pdf_page_import (fixed)",
+    "src/manual.rs import summary 'PDF is typed format_unavailable' (fixed)"
+   ],
+   "commit": "fcd53b8",
+   "fix_budget": "1 of 3",
+   "new_test": "tests/import_pdf.rs pdf_is_carried_with_its_original_and_a_pages_not_imported_receipt (hand-assembled 2-page PDF with computed xref; inherited and own MediaBox; original byte-exact in the package; receipt stored == reported; opens in a session with 0 layers)",
+   "shared_tree": "proof ran with uncommitted additive hsk-studio-prism WIP of lane SMB-CONVERT-FOLLOWUPS in the edit tree (new module working.rs + re-export; not used by the harness at fcd53b8)",
+   "cargo_lock": "Cargo.lock not committed (new optional edge harness -> press)",
+   "deps": "no crates.io dependency; harness -> press is in the allowed list"
+  },
+  "later_commits": "After fcd53b8 the harness got SMB-CONVERT-FOLLOWUPS commits e0c3473, 57df315, 2e5f5fb, b57fc21 (separate lane). 57df315 also gates the folio import fcd53b8 left unused in an import-tiff-only build (warning only). Judge this lane at fcd53b8 or with those listed."
  }
 }

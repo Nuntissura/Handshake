@@ -2,7 +2,7 @@
  "crate": "hsk-studio-press",
  "lane": "SMB-PRESS-STRUCT-STRIP",
  "status": "READY_FOR_VALIDATION",
- "phase": "READY after R27 remediation, changed approach DIAG-PRESS-R27: unlink only, no object deleted; the save's unreachable-object drop leaves the tree out (R27-S1, R27-S2); loss only for a resolvable root or link entry (R27-S3) (READY commit 297c309; full suite 175/175 at 8b11939)",
+ "phase": "READY after R28 remediation (lead diagnosis DIAG-PRESS-R28, closed-set rule): objects the original /StructTreeRoot reaches through structure-tree keys that the save still writes are counted NotProven whatever their shape (R28-S1); GoTo /SD unlinked when /S resolves to GoTo (R28-S2) (READY commit 18ebacf; full suite 178/178 at 18ebacf)",
  "commits": [
   {
    "sha": "ade85a0",
@@ -15,6 +15,14 @@
   {
    "sha": "297c309",
    "subject": "press (SMB-PRESS-STRUCT-STRIP, R27-S1 S2 S3, DIAG-PRESS-R27): the D28 strip unlinks only (catalog /StructTreeRoot and /MarkInfo, /StructParents, /StructParent, /SE, GoTo /SD) and deletes no object; the save's unreachable-object drop leaves the tree out, kept /AcroForm, annotations, actions and OCGs stay; accessibility_tags_removed only for a resolvable root or link entry"
+  },
+  {
+   "sha": "9a2c840",
+   "subject": "press (SMB-PRESS-STRUCT-STRIP, R28-S1 R28-S2, DIAG-PRESS-R28): closed-set rule for the D28 strip (objects the original /StructTreeRoot reaches through structure-tree keys that the save still writes are counted NotProven, whatever their shape; GoTo /SD unlinked also when /S is a reference to the name GoTo)"
+  },
+  {
+   "sha": "18ebacf",
+   "subject": "press (SMB-PRESS-PROPERTIES R28-P1, SMB-PRESS-STRUCT-STRIP V4-07, DIAG-PRESS-R28): ancestor /Resources property lists counted; closed-set claims"
   }
  ],
  "capabilities_done": [
@@ -30,25 +38,28 @@
  "tests": {
   "argv": "cargo nextest run -p hsk-studio-press --no-fail-fast",
   "exit": 0,
-  "sha": "8b11939",
-  "passed": 175,
+  "sha": "18ebacf",
+  "passed": 178,
   "failed": 0
  },
  "blockers": [],
  "lock_wait_s": 0,
  "bg_pids": [],
- "next": "Validator: judge SMB-PRESS-STRUCT-STRIP as the claim ade85a0 + 13534f8 + 297c309 (READY commit 297c309). Later press commits ad73e0c and 8b11939 belong to SMB-PRESS-PROPERTIES (own claim); the full press suite 175/175 ran at 8b11939. V4-13: SMB-PRESS is a two-FAIL lane; narrow pre-review of 13534f8..297c309 expected.",
- "updated_at": "2026-10-14T18:32:18Z",
+ "next": "validator round (or lead pre-review) over 297c309..18ebacf",
+ "updated_at": "2026-10-14T19:11:17Z",
  "notes": {
   "source": "lead dispatch 2026-10-14; START_LOG 'OPERATOR DECISIONS 2026-10-14' D28 DECIDED (strip by default, typed loss accessibility_tags_removed, keep MCID-only marked content, explicit opt-out keeps NotProven, no per-MCID tree pruning)",
   "claim": {
    "commits": [
     "ade85a0",
     "13534f8",
-    "297c309"
+    "297c309",
+    "9a2c840",
+    "18ebacf"
    ],
-   "ready_commit": "297c309",
-   "text": "redact_and_save / redact_and_save_with / redact_and_save_opts with the default StructureTreePolicy::Strip: when at least one region is flattened, the strip UNLINKS only (lead diagnosis DIAG-PRESS-R27): it removes the catalog's /StructTreeRoot and /MarkInfo, every /StructParents, /StructParent and /SE entry of every dictionary and the /SD of every GoTo action (/S the name GoTo), and deletes no object. The save writes only the objects reachable from the trailer /Root and /Info (writer::write_document over writer::reachable), so structure-tree objects that only these entries reached are not in the saved file. An object anything kept still reaches (an /AcroForm, an annotation, an optional-content group, an action, an outline item, a private catalog key, an object stream or alias kept as such) stays unchanged, structure-shaped or not; structure that stays is reported by check_document (region_flattened false, NotProven::ResidualInRegion), which also reads a dictionary holding /ParentTree /IDTree /ClassMap /RoleMap or /ParentTreeNextKey as structure. RedactedOutput::losses is [AccessibilityTagsRemoved] only when a structure entry was unlinked from an object the saved file holds and its value resolves: the catalog's /StructTreeRoot resolving to a dictionary with /Type StructTreeRoot, or without /Type holding /K or a root key; or a /StructParents, /StructParent, /SE or /SD whose value is not null (a reference to no object reads as null). Not for /MarkInfo alone (R26-S4), not for a /StructTreeRoot naming no object or a non-root dictionary (R27-S3). A tagged document whose tree only those entries reached reads region_flattened / region_cleared / is_proven. Content streams are unchanged (marked-content operators with /MCID stay). StructureTreePolicy::KeepNotProven keeps the pre-D28 behaviour. A save with no region strips nothing."
+   "ready_commit": "18ebacf",
+   "text": "redact_and_save / redact_and_save_with / redact_and_save_opts with the default StructureTreePolicy::Strip: when at least one region is flattened, the strip UNLINKS only (lead diagnosis DIAG-PRESS-R27): it removes the catalog's /StructTreeRoot and /MarkInfo, every /StructParents, /StructParent and /SE entry of every dictionary and the /SD of every GoTo action (/S the name GoTo, written directly or as a reference that resolves to it, through alias objects too; R28-S2), and deletes no object. The save writes only the objects reachable from the trailer /Root and /Info (writer::write_document over writer::reachable), so structure-tree objects that only these entries reached are not in the saved file. An object anything kept still reaches (an /AcroForm, an annotation, an optional-content group, an action, an outline item, a private catalog key, an object stream or alias kept as such) stays unchanged, structure-shaped or not; structure objects still written after the strip are reported NotProven (closed set from the original tree; lead diagnosis DIAG-PRESS-R28): before the unlink the strip records every object reachable from the original catalog /StructTreeRoot through structure-tree keys (the root when it has the keys of a root; /K kids that are elements, MCR or OBJR dictionaries; /P, /Ref; /ParentTree and /IDTree nodes and values; /ClassMap, /RoleMap, /Namespaces; attribute objects /A and the class map's values and what they name; alias objects and text objects the tree's values name; pages, annotations, XObjects, content streams, the catalog and other outside objects reached through /Pg, /Obj, /Stm, /StmOwn or /AF are excluded by role), and check_document counts it (region_flattened false, NotProven::ResidualInRegion) when the saved file still holds any of them, as an object or as a member of an object stream it holds as a stream, whatever its shape; the shape rules of check_document stay as an additional net (a dictionary holding /ParentTree /IDTree /ClassMap /RoleMap or /ParentTreeNextKey, an element or root shape). Residual (accepted, PLR-103 remainder): an element-like dictionary without /Type, /P and /K that the tree does not reach is neither in the closed set nor shape-counted. RedactedOutput::losses is [AccessibilityTagsRemoved] only when a structure entry was unlinked from an object the saved file holds and its value resolves: the catalog's /StructTreeRoot resolving to a dictionary with /Type StructTreeRoot, or without /Type holding /K or a root key; or a /StructParents, /StructParent, /SE or /SD whose value is not null (a reference to no object reads as null). Not for /MarkInfo alone (R26-S4), not for a /StructTreeRoot naming no object or a non-root dictionary (R27-S3). A tagged document whose tree only those entries reached reads region_flattened / region_cleared / is_proven. Content streams are unchanged (marked-content operators with /MCID stay). StructureTreePolicy::KeepNotProven keeps the pre-D28 behaviour. A save with no region strips nothing.",
+   "later_crate_commits_listed": "ad73e0c, 8b11939 (SMB-PRESS-PROPERTIES code, pre-reviewed in R28); 18ebacf also carries the PROPERTIES R28-P1 change (flatten.rs, plan_properties) - listed per V4-14"
   },
   "typed_loss_pattern": "press has no prior typed-loss struct; RedactionLoss follows the crate's existing typed enum + code() pattern (NotProven::code, FlattenNote::as_str, FlattenCause::as_str) and is carried on RedactedOutput like xfa_removed / flattened notes; no receipt mechanism added",
   "design_choices": [
@@ -188,6 +199,94 @@
    "removed_sites_at_13534f8": "structure_objects, element_like (:659), typed_structure, content_item, strip_target, nested_shape, strip_nested_shapes, link_targets and the strip's scrub_references call (:950) are deleted by 297c309 (fixed: unlink only)"
   },
   "v4_07_r27": "New doc/DESCRIPTOR text (strip_structure, root_shaped, link_values, STRUCT_ROOT_KEYS, structure_shaped docs; sanitized_save StructureTreePolicy::Strip; lib.rs DESCRIPTOR D28 sentence) uses no never/always/guarantee/proves (descriptor_states_the_structure_tree_rule checks the rule sentence); the rule sentence cites default_redaction_strips_the_structure_tree, structure_strip_unlinks_and_keeps_what_anything_kept_reaches, structure_strip_keeps_multimedia_of_kept_pages, structure_strip_reports_what_it_cannot_remove, structure_strip_reports_no_loss_without_structure (each exists; the test asserts the cited names exist) and no longer says 'removes the whole structure tree' or 'identified by its role and reachability' (asserted stale).",
-  "retry_guard_r27": "no gameplan block met; no product test failure during the remediation"
+  "retry_guard_r27": "no gameplan block met; no product test failure during the remediation",
+  "remediation_R28": {
+   "source": "validation/R28-prereview-press-narrow.json (STRUCT-STRIP FIX_FIRST) and START_LOG lead diagnosis DIAG-PRESS-R28 2026-10-14 (closed-set rule)",
+   "findings": [
+    {
+     "finding": "R28-S1",
+     "commit": "9a2c840",
+     "test": "structure_objects_still_written_after_the_strip_are_reported (A1 /ClassMap object under /HskCM, A2 attribute object under /HskAttr, A2b attribute object in /HskArr; control A0)",
+     "disposition": "fixed: strip_structure records the closed set (structure_tree_objects) before the unlink; check_document counts any member still written (A1, A2, A2b NOT PROVEN, text kept by the private key); A0 reads flattened with the text gone and the loss"
+    },
+    {
+     "finding": "R28-S2",
+     "commit": "9a2c840",
+     "test": "structure_destinations_of_goto_actions_named_through_references_are_unlinked (A3 /S 90 0 R = /GoTo; A3b through an alias object)",
+     "disposition": "fixed: is_goto resolves /S through the set of objects that resolve to the name GoTo; /SD unlinked, element not written, link and /D kept, read flattened with the loss"
+    },
+    {
+     "finding": "R28-S3",
+     "commit": "-",
+     "test": "-",
+     "disposition": "INFO, no action (pre-review: none required)"
+    },
+    {
+     "finding": "R26/R27 inputs (must stay fixed)",
+     "commit": "18ebacf",
+     "test": "default_redaction_strips_the_structure_tree, structure_strip_reports_what_it_cannot_remove, structure_strip_keeps_multimedia_of_kept_pages, structure_strip_unlinks_and_keeps_what_anything_kept_reaches (X1 X2 X3 X6 X7), structure_strip_unlinks_structure_destinations, structure_strip_reports_no_loss_without_structure",
+     "disposition": "green unchanged (inputs and assertions not edited); X1/X2/X7 stay out of the closed set because a catalog /StructTreeRoot that is not root-shaped admits nothing; X3's URI action (/S name, no /P, no /K) is not element-like so it stays out"
+    },
+    {
+     "finding": "V4-07 claim",
+     "commit": "18ebacf",
+     "test": "descriptor_states_the_structure_tree_rule (now also checks that the rule sentence cites the two new tests and that they exist)",
+     "disposition": "DESCRIPTOR D28 sentence and flatten_purge.rs module/strip_structure/check_document docs: 'structure objects still written after the strip are reported NotProven (closed set from the original tree)'"
+    }
+   ],
+   "design": "flatten_purge.rs: Stripped {removed, tree}; TreeRole (Root, Element, Kid, NumTree, NameTree, ClassMap, Owned, Leaf), tree_child (key -> role; /Pg /Obj /Stm /StmOwn /AF not followed), tree_admits (no stream, no outside_tree dictionary; Root needs root_shaped; Element/Kid need element_like (/Type StructElem, or no /Type with /S name and /P or /K) or MCR/OBJR; Leaf admits no dictionary), structure_tree_objects (iterative, each object once, depth_cap, cancel every 1024 steps, catalog and pages excluded by number). check_document(saved, flat_pages, flattens, tree): structure |= any tree member in saved.objects; Scan::object_stream counts a header member number in the tree. Object numbers are preserved by the writer (writer.rs write_document writes each live object under its own number) and canon/flatten allocate above the highest existing number, so a written member number is the same object.",
+   "red_proof": "Red-first in the shared edit tree (tests added before any source change, HEAD 8b11939 source): cargo nextest run -p hsk-studio-press --test flatten_r13 filtered to the 3 new tests: 0 passed, 3 failed (log <scratchpad>/SMB-PRESS-STRUCT-STRIP/red.log): A1, A2, A2b read 'region_flattened true residual 0 reasons [] losses [AccessibilityTagsRemoved]'; A3, A3b '/SD or SD-ALT-SECRET still written'; B1, B1c, B1b 'region_flattened true residual 0'. Controls A0 and B1-control passed in that run. After 9a2c840: flatten_r13 57/58 (only the R28-P1 test red); after 18ebacf: full press suite 178/178 (exit 0).",
+   "retry_guard_r28": "no gameplan block met; the only product test failure was the red-first run (expected)"
+  },
+  "v4_06_sites_r28": {
+   "class": "R28-S1/S2: structure detection by shape (or a GoTo action read without resolving /S) misses tree objects a kept path keeps",
+   "regex": "structure_shaped\\(|is_goto\\(|catalog_names_structure_tree\\(|root_shaped\\(",
+   "command": "git grep -n -E '<regex>' 18ebacf -- crates/hsk-studio-press/src",
+   "count": 10,
+   "sites": [
+    {
+     "file_line": "crates/hsk-studio-press/src/flatten_purge.rs:605",
+     "verdict": "fixed (9a2c840): is_goto definition resolves an indirect /S through the gotos set (R28-S2)"
+    },
+    {
+     "file_line": "crates/hsk-studio-press/src/flatten_purge.rs:628",
+     "verdict": "fixed (9a2c840): strip_links call passes gotos"
+    },
+    {
+     "file_line": "crates/hsk-studio-press/src/flatten_purge.rs:652",
+     "verdict": "fixed (9a2c840): link_values call passes gotos (loss rule sees the same /SD)"
+    },
+    {
+     "file_line": "crates/hsk-studio-press/src/flatten_purge.rs:671",
+     "verdict": "not applicable: root_shaped definition (unchanged; typed loss and closed-set root gate)"
+    },
+    {
+     "file_line": "crates/hsk-studio-press/src/flatten_purge.rs:714",
+     "verdict": "not applicable: typed loss for the catalog root (unchanged)"
+    },
+    {
+     "file_line": "crates/hsk-studio-press/src/flatten_purge.rs:809",
+     "verdict": "fixed (9a2c840): tree_admits Root role uses root_shaped, so a catalog /StructTreeRoot naming a kept non-root object (R27 X1 X2 X7) adds nothing to the closed set"
+    },
+    {
+     "file_line": "crates/hsk-studio-press/src/flatten_purge.rs:1692",
+     "verdict": "not applicable: catalog_names_structure_tree definition (unchanged catalog rule)"
+    },
+    {
+     "file_line": "crates/hsk-studio-press/src/flatten_purge.rs:1736",
+     "verdict": "not applicable: structure_shaped definition, kept as the additional net (lead diagnosis DIAG-PRESS-R28)"
+    },
+    {
+     "file_line": "crates/hsk-studio-press/src/flatten_purge.rs:1786",
+     "verdict": "not applicable: Scan::value shape net (unchanged)"
+    },
+    {
+     "file_line": "crates/hsk-studio-press/src/flatten_purge.rs:1905",
+     "verdict": "fixed (9a2c840): check_document counts a closed-set member still written (and Scan::object_stream a member number in the set)"
+    }
+   ],
+   "count_note": "10 git grep lines, 10 rows"
+  },
+  "v4_07_r28": "New doc/DESCRIPTOR text (lib.rs D28 sentence, flatten_purge.rs module docs, strip_structure, Stripped, TreeRole, tree_admits, tree_child, structure_tree_objects, check_document docs) uses no never/always/guarantee/proves (descriptor_states_the_structure_tree_rule checks the rule sentence); the claim 'structure objects still written after the strip are reported NotProven (closed set from the original tree)' cites structure_objects_still_written_after_the_strip_are_reported and structure_destinations_of_goto_actions_named_through_references_are_unlinked (the descriptor test asserts both are cited and exist)."
  }
 }

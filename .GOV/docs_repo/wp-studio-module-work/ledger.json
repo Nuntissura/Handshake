@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-14T18:52:04Z",
+ "updated_at": "2026-10-14T19:52:57Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -1194,12 +1194,20 @@
    "crate": "hsk-studio-reel-native",
    "origin": "research/engine-video.md",
    "scope": "subprocess-isolated native codec provider: Media Foundation hardware MFTs via windows crate with mandatory software fallback; shared-memory frame ring, heartbeat, replay from last sync sample",
-   "phase": "BLOCKED: D18/D14 (supervisor crate, worker packaging) still with Operator; D24/D26 decided 2026-10-14",
-   "status": "BLOCKED",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": null,
-   "commits": [],
+   "commits": [
+    "09bba20",
+    "ab60802",
+    "250beca",
+    "f128347",
+    "6abc0cb",
+    "9ff2844"
+   ],
    "verdicts": [],
-   "brief": "builders/briefs/lane-reel-native-eng-1.md"
+   "brief": "builders/briefs/lane-reel-native-eng-1.md",
+   "lane_file": "builders/lanes/hsk-studio-reel-native-eng-1.json"
   },
   {
    "lane_id": "SMB-PRISM-ENG-2",
@@ -3519,7 +3527,7 @@
   {
    "lane_id": "SMB-PRESS-PROPERTIES",
    "crate": "hsk-studio-press",
-   "phase": "validation (R28 SAFE_TO_JUDGE; V4-06 count note R28-N1 to fix in lane notes)",
+   "phase": "pre-review R29 (V4-13) then validation",
    "status": "READY_FOR_VALIDATION",
    "owner": "builder-press-20261014",
    "commits": [
@@ -3529,7 +3537,8 @@
     "950fd85",
     "5ad0c68",
     "ad73e0c",
-    "8b11939"
+    "8b11939",
+    "18ebacf"
    ],
    "verdicts": [],
    "note": "PLR-104 exact /Properties purge or fail closed; folds PLR-105, PLR-107",
@@ -3538,13 +3547,14 @@
   {
    "lane_id": "SMB-PRESS-STRUCT-STRIP",
    "crate": "hsk-studio-press",
-   "phase": "remediation R28 FIX_FIRST (R28-S1, S2): DIAG-PRESS-R28 closed-set rule",
-   "status": null,
+   "phase": "pre-review R29 (V4-13) then validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-press-20261014",
    "commits": [
     "ade85a0",
     "13534f8",
-    "297c309"
+    "297c309",
+    "9a2c840"
    ],
    "verdicts": [],
    "note": "D28: strip structure tree by default on redaction save, typed loss accessibility_tags_removed, opt-out keeps NotProven",
@@ -3661,14 +3671,15 @@
    "verdicts": [
     "STUDIO-R24 FAIL_V1 @f07f447 (pdf-carry-receipt-missing; %PDF- -> package: original asset + typed pdf_pages_not_imported receipt; DESCRIPTOR 'PDF: carried, not imported') NOT_PROVEN: harness dng_converts_to_one_developed_raster_layer_and_opens_in_a_session, proprietary_raw_refusals_pass_through_develop_unchanged, psd_tool"
    ],
-   "status": "FAIL_V1",
-   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
+   "phase": "validation (remediation R24 fcd53b8)",
    "lane_file": "builders/lanes/hsk-studio-convert-native.json",
    "commits": [
     "a7c2fa1",
     "fe2f537",
     "013b24c",
-    "6863190"
+    "6863190",
+    "fcd53b8"
    ],
    "remediation": {
     "failed_acceptance_refs": [
@@ -3793,22 +3804,144 @@
   {
    "lane_id": "SMB-CONVERT-FOLLOWUPS",
    "crate": "hsk-studio-harness",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-convert-followups-20261014",
-   "commits": [],
+   "commits": [
+    "e0c3473",
+    "57df315",
+    "2e5f5fb",
+    "b57fc21"
+   ],
    "verdicts": [],
-   "note": "(1) prism exposes a working-profile constant (linear sRGB) and harness drops its private CC0 profile copy (CX-CAP-001); (2) harness detects DNG/TIFF-raw via interop-tiff Container (DNGVersion 50706, NewSubfileType) so raw never falls through to plain TIFF IFD0; (3) interop-psd public ImageSourceData/layer-record parser and harness imports layered Photoshop TIFF (37724) as layers"
+   "note": "(1) prism exposes a working-profile constant (linear sRGB) and harness drops its private CC0 profile copy (CX-CAP-001); (2) harness detects DNG/TIFF-raw via interop-tiff Container (DNGVersion 50706, NewSubfileType) so raw never falls through to plain TIFF IFD0; (3) interop-psd public ImageSourceData/layer-record parser and harness imports layered Photoshop TIFF (37724) as layers",
+   "lane_file": "builders/lanes/hsk-studio-convert-followups.json"
   },
   {
    "lane_id": "SMB-INTEROP-FIG-NATIVE",
    "crate": "hsk-studio-interop-fig",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-fig-nodes-20261014",
+   "commits": [
+    "aab554e",
+    "1f9b30b",
+    "574f5b3",
+    "bc78302"
+   ],
+   "verdicts": [],
+   "note": "map decoded Figma node tree into folio StudioDocument (pages/artboards, layer graph, paints/strokes/paths, text stories, components/overrides, autolayout, reactions, variables), images byte-exact, unmapped fields -> loss receipts; edit/reopen round trip; harness import-fig route",
+   "lane_file": "builders/lanes/hsk-studio-interop-fig-native.json"
+  },
+  {
+   "lane_id": "SMB-HARNESS-UI",
+   "crate": "hsk-studio-harness",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
    "commits": [],
    "verdicts": [],
-   "note": "map decoded Figma node tree into folio StudioDocument (pages/artboards, layer graph, paints/strokes/paths, text stories, components/overrides, autolayout, reactions, variables), images byte-exact, unmapped fields -> loss receipts; edit/reopen round trip; harness import-fig route"
+   "note": "Operator D11 2026-10-14: eframe 0.33.3 (wgpu backend) allowed for hsk-studio-harness ONLY; first visible desktop app: open file (convert flow), show composite render (render-gpu texture, wgpu 27.0.1 shared), layer panel via controls; plus re-shard psd_tools sweep shard_3 (120 s cap)"
+  },
+  {
+   "lane_id": "SMB-IO-RASTER-COMMON",
+   "crate": "hsk-studio-interop-raster",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "brief lane-smb-io-raster-common.md; lead R-OWN: new folio-free crate hsk-studio-interop-raster approved (sub-module per Operator 2026-10-14); J1: JPEG export = own clean-room baseline encoder from ITU T.81 (no jpeg-encoder: licence AND IJG)"
+  },
+  {
+   "lane_id": "SMB-TYPE-GLYPH-RENDER",
+   "crate": "hsk-studio-type",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "brief lane-smb-type-glyph-render.md"
+  },
+  {
+   "lane_id": "SMB-PIGMENT-SELECTION",
+   "crate": "hsk-studio-pigment",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "brief lane-smb-pigment-selection.md"
+  },
+  {
+   "lane_id": "SMB-PIGMENT-BRUSH",
+   "crate": "hsk-studio-pigment",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "brief lane-smb-pigment-brush.md; after SMB-PIGMENT-SELECTION (same crate)"
+  },
+  {
+   "lane_id": "SMB-LAYOUT-PDF-EXPORT",
+   "crate": "hsk-studio-press",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "brief lane-smb-layout-pdf-export.md; lead L1: edge interop-layout->press approved for slice 2; start after press lanes are judged (V4-14)"
+  },
+  {
+   "lane_id": "SMB-COMPOSITE-TEMPORAL",
+   "crate": "hsk-studio-composite",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "brief lane-smb-composite-temporal.md; lead T1: optional edge composite->motion behind feature motion approved"
+  },
+  {
+   "lane_id": "SMB-INTEROP-FIG-GEOMETRY",
+   "crate": "hsk-studio-interop-fig",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "interop-fig -> nib edge (lead approved): write vector geometry/transforms/effects/image paints/masks into folio vector records; reduce native.* losses"
+  },
+  {
+   "lane_id": "SMB-REEL-BFRAME-ORDER",
+   "crate": "hsk-studio-reel",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "reel video::Forward matches pictures in decode order; H.264 B-frames (presentation order from MF) refused mf-reorder-needs-packet-timing: match by sample time / PTS"
+  },
+  {
+   "lane_id": "SMB-INTEROP-PSD-LE-LAYERS",
+   "crate": "hsk-studio-interop-psd",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "little-endian MIB8 layer records in TIFF ImageSourceData (oracle-corpus/tiff-layered Pillow sample) refused; byte-order-aware readers"
+  },
+  {
+   "lane_id": "SMB-DEVELOP-CORPUS-PATH",
+   "crate": "hsk-studio-develop",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "real_dng.rs:196 hard-codes ../../../../Handshake_Artifacts instead of .config/oracle-corpus.toml; panics in every export"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",

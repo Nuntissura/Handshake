@@ -2,7 +2,7 @@
  "crate": "hsk-studio-press",
  "lane": "SMB-PRESS-PROPERTIES",
  "status": "READY_FOR_VALIDATION",
- "phase": "READY after R27 remediation, changed approach DIAG-PRESS-R27: exact purge only for /Properties dictionaries no kept page reaches; text-bearing lists a kept page reaches counted (R27-P1); /Resources null inherits (R27-P2) (READY commit 8b11939; full suite 175/175 at 8b11939)",
+ "phase": "READY after R28 remediation: R28-P1 (fail closed) an ancestor /Pages /Resources beyond the one the flattened page read whose /Properties holds a text-bearing property list is counted; R28-N1 V4-06 count corrected to 33 (READY commit 18ebacf; full suite 178/178 at 18ebacf)",
  "commits": [
   {
    "sha": "9dd0fc7",
@@ -31,6 +31,10 @@
   {
    "sha": "8b11939",
    "subject": "press (SMB-PRESS-PROPERTIES, R27-P1, DIAG-PRESS-R27): exact property-list purge only for /Properties dictionaries no kept page reaches; a text-bearing list a kept page reaches (inline or referenced, own or inherited) that no kept content names is counted (NotProven); objects named by the old page's inline /Properties are candidates too"
+  },
+  {
+   "sha": "18ebacf",
+   "subject": "press (SMB-PRESS-PROPERTIES R28-P1, SMB-PRESS-STRUCT-STRIP V4-07, DIAG-PRESS-R28): ancestor /Resources property lists counted; closed-set claims"
   }
  ],
  "capabilities_done": [
@@ -45,15 +49,15 @@
  "tests": {
   "argv": "cargo nextest run -p hsk-studio-press --no-fail-fast",
   "exit": 0,
-  "sha": "8b11939",
-  "passed": 175,
+  "sha": "18ebacf",
+  "passed": 178,
   "failed": 0
  },
  "blockers": [],
  "lock_wait_s": 16,
  "bg_pids": [],
  "next": "Validator: judge SMB-PRESS-PROPERTIES as the claim 9dd0fc7 + 32d4df3 + 45a3792 + 950fd85 + 5ad0c68 + ad73e0c + 8b11939 (READY commit 8b11939). 297c309 (between 5ad0c68 and ad73e0c) belongs to SMB-PRESS-STRUCT-STRIP (its own claim); the full press suite 175/175 ran at 8b11939, which contains all of them. V4-13: SMB-PRESS is a two-FAIL lane; narrow pre-review of 13534f8..8b11939 expected.",
- "updated_at": "2026-10-14T18:32:18Z",
+ "updated_at": "2026-10-14T19:11:17Z",
  "notes": {
   "source": "lead dispatch 2026-10-14 (Operator decisions 2026-10-14: PLR-104 plan confirmed, folds PLR-105 + PLR-107); register workflow/plausible-register.json PLR-104, PLR-105, PLR-107; evidence validation/R25-prereview-narrow.json R25-P3, P4, P5, P7",
   "not_inspected_resolved": "Usage::drain did NOT record BDC/DP operand names at 1da2453 (read_scope matched only Do sh gs Tf scn SCN; Usage::resources followed /Properties entries as plain references).",
@@ -65,10 +69,12 @@
     "950fd85",
     "5ad0c68",
     "ad73e0c",
-    "8b11939"
+    "8b11939",
+    "18ebacf"
    ],
-   "ready_commit": "8b11939",
-   "text": "A redaction save that flattens a region reads every /Properties dictionary the flattened page reached (its own /Resources, inline or as an object, a /Properties object it named, the /Resources it inherited from a /Pages node, also when its own /Resources resolves to null (R27-P2: PdfDoc::inherited, the renderer and the purge read a null-resolving inherited entry as absent), the /Resources a kept page received from its /Parent chain, the /Resources of every stream and Type 3 font it reached). Lead diagnosis DIAG-PRESS-R27: a dictionary no kept page reaches (its holder object is not reachable from any kept page) is purged exactly, every entry no BDC or DP operator of the content the usage analysis reads names is removed (inline dictionaries and references); a dictionary a kept page reaches (own or inherited, inline or as an object) is not edited. residual_in_region adds 1 (NotProven::ResidualInRegion, region_flattened false) for: an entry of a kept-page-reached dictionary that no kept content names whose inline property list holds /Alt /ActualText /E /T or /Lang; each property-list object that an unnamed entry of any reached dictionary names (one written inline in the replaced page or the emptied /Pages node included, R27-P1) and that the saved file still holds with one of those keys while no kept content names it; a reached dictionary whose usage is undetermined (unreadable scope content, incomplete analysis); a reached dictionary the purge cannot edit (stream or alias spelling) with an unnamed entry whose property list holds such text. Entries kept content names stay with their text. With a flattened region, check_document also counts a /Type or /S past the reader's 16-hop bound, a stream with /N and /First read as an object stream whatever its /Type, object-stream bytes that are not white space, comments, header pairs or members, and structure shapes in the saved trailer."
+   "ready_commit": "18ebacf",
+   "text": "A redaction save that flattens a region reads every /Properties dictionary the flattened page reached (its own /Resources, inline or as an object, a /Properties object it named, the /Resources it inherited from a /Pages node, also when its own /Resources resolves to null (R27-P2: PdfDoc::inherited, the renderer and the purge read a null-resolving inherited entry as absent), the /Resources a kept page received from its /Parent chain, the /Resources of every stream and Type 3 font it reached). Lead diagnosis DIAG-PRESS-R27: a dictionary no kept page reaches (its holder object is not reachable from any kept page) is purged exactly, every entry no BDC or DP operator of the content the usage analysis reads names is removed (inline dictionaries and references); a dictionary a kept page reaches (own or inherited, inline or as an object) is not edited. residual_in_region adds 1 (NotProven::ResidualInRegion, region_flattened false) for: an entry of a kept-page-reached dictionary that no kept content names whose inline property list holds /Alt /ActualText /E /T or /Lang; each property-list object that an unnamed entry of any reached dictionary names (one written inline in the replaced page or the emptied /Pages node included, R27-P1) and that the saved file still holds with one of those keys while no kept content names it; a reached dictionary whose usage is undetermined (unreadable scope content, incomplete analysis); a reached dictionary the purge cannot edit (stream or alias spelling) with an unnamed entry whose property list holds such text.; and (R28-P1, lead diagnosis DIAG-PRESS-R28, fail closed) each /Resources of a /Pages node of the flattened page's /Parent chain beyond the one it read (every node's when the page has its own /Resources; every node's after the nearest one with /Resources when it inherited) whose /Properties holds a property list with /Alt /ActualText /E /T or /Lang, named or not (a viewer that merges ancestor /Resources resolves the old page's names there; ISO 32000 nearest-only reading UNVERIFIED). Entries kept content names stay with their text (the R28-P1 ancestor rule counts regardless). With a flattened region, check_document also counts a /Type or /S past the reader's 16-hop bound, a stream with /N and /First read as an object stream whatever its /Type, object-stream bytes that are not white space, comments, header pairs or members, and structure shapes in the saved trailer.",
+   "later_crate_commits_listed": "297c309 and 9a2c840 (SMB-PRESS-STRUCT-STRIP code: strip_structure, check_document; no property-list change); 18ebacf carries R28-P1 (flatten.rs Flat::ancestor_resources, flatten_purge.rs plan_properties) and the STRUCT-STRIP V4-07 doc text - listed per V4-14"
   },
   "plr_107_claim_text": "Reworded claim of SMB-PRESS-STRUCT-FAILCLOSED (PLR-107, R22 V-1; lead: reword in the next press lane record): 'A redaction save that flattens at least one region and whose saved document still has a structure tree (a /StructTreeRoot the catalog holds, directly or through a chain of references, or any /StructParents or /StructParent entry left in the file) reads region_flattened false and reports NotProven::ResidualInRegion, residual_in_region + 1 once; a save with no region applies none of these rules (PLR-101). The redaction proof covers untagged documents; for tagged documents the structure tree is neutralized best effort and reported.' (The SMB-PRESS-STRUCT-FAILCLOSED lane file itself is not edited: not owned by this lane.)",
   "behaviour_change": "painted_source_referenced_by_a_key_of_a_drawn_object_is_reported, row 'an undrawn form (/Properties) whose content draws it': before, the /Properties entry was a plain reference, the image stayed and was reported (PaintedSourceKept); now /Properties is gated, the entry is reached only when kept content names it, so the image is dropped (its entry in the form's /XObject pruned like any unused source) and nothing is reported (SCAN-PIXELS-SECRET gone, region_flattened true). The direct case (painted_source_referenced_but_not_drawn_by_a_kept_page_is_reported: page two's own /Properties names the image) is unchanged: the unnamed entry is not in a reached dictionary, its reference keeps the image live, reported.",
@@ -230,7 +236,7 @@
    "class": "R27-P1/P2: a property-list dictionary or object the old page reached is not read (inline /Properties of a page or node dictionary that left the file; a null-valued inherited /Resources) so a live text-bearing list is not counted",
    "regex": "PROPERTIES|ResAt::Old|old_resources\\(|inherited_resources|inherited_raw\\(|\\.inherited\\(",
    "command": "git grep -n -E '<regex>' 8b11939 -- crates/hsk-studio-press/src",
-   "count": 28,
+   "count": 33,
    "sites": [
     {
      "file_line": "crates/hsk-studio-press/src/canon.rs:457",
@@ -341,17 +347,120 @@
      "verdict": "not applicable: apply_properties edit of an inline /Resources (only dictionaries no kept page reaches)"
     },
     {
-     "file_line": "crates/hsk-studio-press/src/pdf_edit.rs:494, :495, redaction.rs:1024",
-     "verdict": "fixed via PdfDoc::inherited (ad73e0c): page info MediaBox/Rotate and select_region /Resources read null as absent"
+     "file_line": "crates/hsk-studio-press/src/pdf_edit.rs:494",
+     "verdict": "fixed via PdfDoc::inherited (ad73e0c): page info MediaBox reads null as absent"
     },
     {
-     "file_line": "crates/hsk-studio-press/src/show_text.rs:951, :992, :1024",
+     "file_line": "crates/hsk-studio-press/src/pdf_edit.rs:495",
+     "verdict": "fixed via PdfDoc::inherited (ad73e0c): page info Rotate reads null as absent"
+    },
+    {
+     "file_line": "crates/hsk-studio-press/src/redaction.rs:1024",
+     "verdict": "fixed via PdfDoc::inherited (ad73e0c): select_region /Resources reads null as absent"
+    },
+    {
+     "file_line": "crates/hsk-studio-press/src/show_text.rs:951",
+     "verdict": "not applicable: show_text::inherited_resources skips a /Resources that does not resolve to a dictionary (null already absent)"
+    },
+    {
+     "file_line": "crates/hsk-studio-press/src/show_text.rs:992",
+     "verdict": "not applicable: show_text::inherited_resources skips a /Resources that does not resolve to a dictionary (null already absent)"
+    },
+    {
+     "file_line": "crates/hsk-studio-press/src/show_text.rs:1024",
      "verdict": "not applicable: show_text::inherited_resources skips a /Resources that does not resolve to a dictionary (null already absent)"
     }
    ],
-   "count_note": "28 git grep lines; the last two rows group 3 lines each (pdf_edit.rs:494, :495, redaction.rs:1024; show_text.rs:951, :992, :1024), so 24 rows cover 28 hits"
+   "count_note": "R28-N1 corrected: git grep -n at 8b11939 gives 33 lines (canon.rs 1, flatten.rs 9, flatten_purge.rs 17, pdf_edit.rs 2, redaction.rs 1, show_text.rs 3); 33 rows, one per line (the two grouped rows of 3 are split). Line numbers are those at 8b11939 (the command's commit)."
   },
   "v4_07_r27": "New doc/DESCRIPTOR text (flatten_purge.rs module docs and plan_properties, sanitized_save residual_in_region doc, lib.rs PLR-104 sentence, pdf_edit inherited, flatten present/inherited_raw) uses no never/always/guarantee/proves; descriptor_states_the_structure_tree_rule checks the PLR-104 sentence for those words and that it cites marked_content_property_lists_of_flattened_pages_are_purged, property_lists_the_purge_cannot_clear_are_counted, property_lists_a_kept_page_reaches_are_counted, inherited_property_lists_shared_with_a_kept_pages_own_resources_are_counted (each exists).",
-  "retry_guard_r27": "no gameplan block met; no product test failure during the remediation"
+  "retry_guard_r27": "no gameplan block met; no product test failure during the remediation",
+  "remediation_R28": {
+   "source": "validation/R28-prereview-press-narrow.json (PROPERTIES SAFE_TO_JUDGE; R28-P1 PLAUSIBLE routed by the lead as a fix; R28-N1 note) and START_LOG lead diagnosis DIAG-PRESS-R28",
+   "findings": [
+    {
+     "finding": "R28-P1",
+     "commit": "18ebacf",
+     "test": "ancestor_property_lists_of_a_flattened_page_are_counted (B1 own /Resources + node /Resources 9; B1c node /Resources inline; B1b three levels, page inherits a mid node's, root node holds /Resources 9; B1-control own /Properties)",
+     "disposition": "fixed (fail closed): flatten.rs records Flat::ancestor_resources (ancestor_values over the /Parent chain, the nearest dropped when it is the inherited one) before detach_from_page_tree; plan_properties counts each whose /Properties holds a text-bearing list; the incomplete-analysis path counts plan.counted too; B1, B1b, B1c read NOT PROVEN, B1-control unchanged (counted)"
+    },
+    {
+     "finding": "R28-N1",
+     "commit": "-",
+     "test": "-",
+     "disposition": "fixed in lane notes: v4_06_sites_r27.count 33, 33 rows (grouped rows split)"
+    },
+    {
+     "finding": "R26/R27 inputs (must stay fixed)",
+     "commit": "18ebacf",
+     "test": "marked_content_property_lists_of_flattened_pages_are_purged, property_lists_a_kept_page_reaches_are_counted, inherited_property_lists_shared_with_a_kept_pages_own_resources_are_counted, property_lists_the_purge_cannot_clear_are_counted",
+     "disposition": "green unchanged; the purge layouts own/own-held have no node /Resources, so R28-P1 adds no count there"
+    }
+   ],
+   "red_proof": "Red-first in the shared edit tree (tests added before any source change, HEAD 8b11939 source): cargo nextest run -p hsk-studio-press --test flatten_r13 filtered to the 3 new tests: 0 passed, 3 failed (log <scratchpad>/SMB-PRESS-STRUCT-STRIP/red.log): A1, A2, A2b read 'region_flattened true residual 0 reasons [] losses [AccessibilityTagsRemoved]'; A3, A3b '/SD or SD-ALT-SECRET still written'; B1, B1c, B1b 'region_flattened true residual 0'. Controls A0 and B1-control passed in that run. After 9a2c840: flatten_r13 57/58 (only the R28-P1 test red); after 18ebacf: full press suite 178/178 (exit 0).",
+   "retry_guard_r28": "no gameplan block met"
+  },
+  "v4_06_sites_r28": {
+   "class": "R28-P1: a /Resources of an ancestor /Pages node beyond the one the old page read is not read by the property-list purge",
+   "regex": "inherited_raw\\(|ancestor_resources|ancestor_values\\(|old_resources\\(",
+   "command": "git grep -n -E '<regex>' 18ebacf -- crates/hsk-studio-press/src",
+   "count": 13,
+   "sites": [
+    {
+     "file_line": "crates/hsk-studio-press/src/flatten.rs:242",
+     "verdict": "fixed (18ebacf): Flat::ancestor_resources field"
+    },
+    {
+     "file_line": "crates/hsk-studio-press/src/flatten.rs:253",
+     "verdict": "not applicable: inherited_raw definition (nearest node, unchanged)"
+    },
+    {
+     "file_line": "crates/hsk-studio-press/src/flatten.rs:267",
+     "verdict": "fixed (18ebacf): ancestor_values definition (every node's present value, nearest first, depth_cap bound)"
+    },
+    {
+     "file_line": "crates/hsk-studio-press/src/flatten.rs:643",
+     "verdict": "not applicable: inherited_resources (unchanged)"
+    },
+    {
+     "file_line": "crates/hsk-studio-press/src/flatten.rs:645",
+     "verdict": "fixed (18ebacf): ancestor_resources recorded before detach_from_page_tree"
+    },
+    {
+     "file_line": "crates/hsk-studio-press/src/flatten.rs:646",
+     "verdict": "fixed (18ebacf): the nearest is dropped when it is the inherited one (already read)"
+    },
+    {
+     "file_line": "crates/hsk-studio-press/src/flatten.rs:647",
+     "verdict": "fixed (18ebacf): same"
+    },
+    {
+     "file_line": "crates/hsk-studio-press/src/flatten.rs:701",
+     "verdict": "fixed (18ebacf): Flat construction carries ancestor_resources"
+    },
+    {
+     "file_line": "crates/hsk-studio-press/src/flatten_purge.rs:114",
+     "verdict": "doc: module docs R28-P1 sentence"
+    },
+    {
+     "file_line": "crates/hsk-studio-press/src/flatten_purge.rs:1473",
+     "verdict": "not applicable: old_resources definition (unchanged)"
+    },
+    {
+     "file_line": "crates/hsk-studio-press/src/flatten_purge.rs:1490",
+     "verdict": "not applicable: reached_resources reads old_resources (unchanged)"
+    },
+    {
+     "file_line": "crates/hsk-studio-press/src/flatten_purge.rs:1597",
+     "verdict": "doc: plan_properties R28-P1 comment"
+    },
+    {
+     "file_line": "crates/hsk-studio-press/src/flatten_purge.rs:1601",
+     "verdict": "fixed (18ebacf): plan_properties counts an ancestor /Resources whose /Properties holds a text-bearing list"
+    }
+   ],
+   "count_note": "13 git grep lines, 13 rows (plan_properties' ResAt::Old read uses `.and_then(old_resources)` without a call parenthesis, so the regex does not match it; unchanged)"
+  },
+  "v4_07_r28": "New doc/DESCRIPTOR text (lib.rs PLR-104 sentence R28-P1 clause, flatten_purge.rs module docs and plan_properties comment, flatten.rs Flat::ancestor_resources and ancestor_values docs) uses no never/always/guarantee/proves (descriptor_states_the_structure_tree_rule checks the PLR-104 sentence); the clause cites ancestor_property_lists_of_a_flattened_page_are_counted (asserted cited and existing)."
  }
 }

@@ -1,0 +1,62 @@
+{
+ "crate": "hsk-studio-harness",
+ "lane": "SMB-CONVERT-FOLLOWUPS",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slices 1-3 pushed; claim = e0c3473 (slice 1), 57df315 (slice 2), 2e5f5fb + b57fc21 (slice 3)",
+ "commits": [
+  {
+   "sha": "e0c3473",
+   "subject": "prism + harness (SMB-CONVERT-FOLLOWUPS slice 1): Prism owns the linear sRGB working profile"
+  },
+  {
+   "sha": "57df315",
+   "subject": "harness (SMB-CONVERT-FOLLOWUPS slice 2): a TIFF-based camera raw never imports as plain TIFF"
+  },
+  {
+   "sha": "2e5f5fb",
+   "subject": "interop-psd + harness (SMB-CONVERT-FOLLOWUPS slice 3): Photoshop layered TIFF (tag 37724) imports as layers"
+  },
+  {
+   "sha": "b57fc21",
+   "subject": "harness (SMB-CONVERT-FOLLOWUPS slice 3): real Photoshop layered TIFF corpus case"
+  }
+ ],
+ "capabilities_done": [
+  "slice 1 prism (additive): pub WORKING_PROFILE_LINEAR_SRGB (480-byte CC0 ICC v4 = tests/profiles/sRGB-linear-v4.icc via include_bytes, no second copy), WORKING_PROFILE_LINEAR_SRGB_SHA256_HEX (4813c25a...), const fn working_profile_linear_srgb(); harness colour route uses it as destination, private copy src/import/profiles/* deleted (CX-CAP-001); bytes identical, so converted output unchanged",
+  "slice 2 harness: tiff::camera_raw_marker walks the interop-tiff Container (IFD chain + SubIFD 330, bounded; IFD0 alone if the walk fails) for DNGVersion 50706 or Photometric CFA 32803 / LinearRaw 34892; tiff_family runs it before the plain TIFF route: without import-raw a marked file is format_unavailable{format camera_raw, feature import-raw, reason feature_not_enabled}; with import-raw develop's unsupported_container falls through only when unmarked (else develop's refusal stands); receipt camera_raw_check = container_markers_absent | develop_unsupported_container; DESCRIPTOR updated (not_proven camera_raw_marker_coverage)",
+  "slice 3 interop-psd (additive): pub ImageSourceCanvas {width,height,depth,colour_mode,icc} + pub fn image_source_document(tagged, canvas, &Limits, &CancellationToken) -> Result<PsdDocument>: the ImageSourceData block run (signature-first) goes through the crate's own parse_tagged_blocks (global 4-byte padding) and read_layer_info/read_record/read_channel_data (made pub(crate); no second parser); Layr/Lr16/Lr32 = layer info (LayerInfoLocation::Tagged), LMsk = global mask, other blocks stay global tagged blocks (tagged_block_opaque loss); 8BIM and 8B64 (PSB-style wide lengths) parse; MIB8/46B8 refused UnsupportedMode(image_source_little_endian); checks input budget, signature, depth 8/16/32, mode RGB/gray/CMYK/Lab, dims (30000/300000), max_pixels; ImageResources::with_icc_profile (pub(crate)) shared with raster_proposal",
+  "slice 3 harness: layered TIFF -> interop-tiff image_source_data envelope -> signature re-prefixed -> image_source_document over the page canvas (depth from samples, mode from photometric, page ICC) -> to_proposal with the Prism converter (layer tree, blend keys, opacity, masks and their typed losses); composite page = loss page[0] tiff_composite_not_imported (bytes in the original entry); header-only codes merged_image_oracle_unknown/image_data_missing dropped (as raster_proposal does); any envelope/canvas/parse/mapping failure (incl. little-endian records) falls back to the composite with page[0]/tag/37724 tiff_photoshop_layers_not_imported and receipt tiff.image_source_data.parse_error; receipt image_source_data {envelope, byte_order, wide_sizes, block_bytes, layers imported|not_imported, layer_records}; DESCRIPTOR + manual updated"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-interop-psd -p hsk-studio-harness --features hsk-studio-harness/import-tiff --no-fail-fast -E '(package(hsk-studio-interop-psd) & binary(image_source)) | (package(hsk-studio-harness) & test(/^photoshop_tiff_imports/))'",
+  "exit": 0,
+  "sha": "2e5f5fb",
+  "passed": 4,
+  "failed": 0,
+  "rerun_b57fc21": "cargo nextest run -p hsk-studio-harness --features import-tiff --test import_tiff --no-fail-fast --no-capture -E 'test(photoshop_tiff_imports_its_layers_through_interop_psd)': 1 passed, prints NOT_PROVEN: tiff_layered_photoshop_parity (little-endian records)",
+  "regression": "import_colour embedded_profiles_convert_through_prism_into_the_working_space (raster_proposal ICC refactor): 1 passed",
+  "clippy": "ONE invocation at the slice-3 tree (2e5f5fb content): cargo clippy -p hsk-studio-prism -p hsk-studio-harness -p hsk-studio-interop-psd -p hsk-studio-develop -p hsk-studio-pigment -p hsk-studio-composite -p hsk-studio-render-cpu -p hsk-studio-render-gpu --features hsk-studio-harness/import-psd,hsk-studio-harness/import-raw,hsk-studio-harness/import-tiff,hsk-studio-harness/import-pdf --tests --examples: exit 0, only pre-existing hsk-studio-observe too_many_arguments. b57fc21 (test-only) re-checked with --features import-psd,import-raw,import-tiff --tests: clean (import-pdf build blocked by another lane's uncommitted hsk-studio-press WIP, see notes.shared_tree)",
+  "slice_tests": {
+   "slice1": "e0c3473: 4 passed (prism working_profile + harness import_colour x2 + layered composite test)",
+   "slice2": "57df315: import_tiff 3 passed with import-tiff and with import-raw,import-tiff",
+   "slice3": "2e5f5fb/b57fc21: 4 passed + regression 1"
+  }
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "LE (MIB8/46B8) Photoshop layer records: real Photoshop Windows layered TIFFs are little-endian (proven by the Pillow Photoshop CS sample); needs a byte-order-aware interop-psd Reader through layer records, channel data (RLE counts, 16/32-bit samples), layer tagged blocks (luni, lsct, lyid) and descriptors; new lane",
+ "updated_at": "2026-10-14T19:03:53Z",
+ "notes": {
+  "cargo_lock": "Cargo.lock not committed",
+  "deps": "no new dependency",
+  "interrupt": "SMB-CONVERT-NATIVE R24 remediation fcd53b8 (PDF carried) was done first on its own lane, separate commit",
+  "warning_fix": "57df315 also gates `use hsk_studio_folio as folio` to import-psd|import-raw: fcd53b8 (R24) left it unused in an import-tiff-only build (warning only)",
+  "corpus": "NEW oracle-corpus/tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif (Pillow Tests/images/tiff_adobe_deflate.tif, Photoshop CS Windows, 313740 B, sha256 3ec98981...efade, repo-level MIT-CMU, per-file provenance UNVERIFIED; provenance.json beside it). Its 37724 starts MIB8ryaL (little-endian).",
+  "not_proven": "real-Photoshop layered TIFF layer parity: the only public permissive sample found is little-endian, which is refused (typed fallback); a big-endian Photoshop-written layered TIFF needs the D5 session",
+  "format_basis": "ImageSourceData layout: Adobe Photoshop TIFF Technical Notes (2002) via psdtags (BSD-3, cgohlke) TiffImageSourceData.read: signature then additional-layer-information blocks, psdformat signature 8BIM/MIB8/8B64/46B8, keys byte-reversed in LE, blocks padded to 4. Source read for facts only; no code copied.",
+  "fixture_note": "the convert builder's hand-built 37724 fixture (MIB8 key + 8BIMLr16) is an envelope-only fixture: it now hits the LE refusal and keeps asserting the typed fallback (+ parse_error image_source_little_endian); a new big-endian 2-layer fixture proves layer import against interop-psd's PSD route (same names and tile digests)",
+  "shared_tree": "at 19:02Z the edit tree held another lane's uncommitted hsk-studio-press WIP (flatten_purge.rs, tests/flatten_r13.rs) with E0308 at crates/hsk-studio-press/src/sanitized_save.rs:1612; harness builds with import-pdf fail until that lane commits; not touched",
+  "v4_01": "new decoding module crates/hsk-studio-interop-psd/src/image_source.rs and harness src/import/tiff.rs carry #![deny(clippy::arithmetic_side_effects)]; V4-02 dims_u32_max/aggregate: image_source_refusals_are_typed covers u32::MAX dims, max_pixels and input budget"
+ }
+}
