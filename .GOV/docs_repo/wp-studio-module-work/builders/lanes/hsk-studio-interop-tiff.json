@@ -1,8 +1,8 @@
 {
  "crate": "hsk-studio-interop-tiff",
  "lane": "SMB-INTEROP-TIFF",
- "status": null,
- "phase": "slices 1 and 2 pushed; awaiting final clippy result on 242cfeb (cargo lock wait) before READY_FOR_VALIDATION",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slices 1 and 2 pushed at 242cfeb; check, clippy and 7 tests green",
  "commits": [
   {"sha": "0824103", "subject": "interop-tiff slice 1: bounded TIFF decode + encode with typed refusals"},
   {"sha": "242cfeb", "subject": "interop-tiff slice 2: palette expansion, CIELab as stored, ImageSourceData envelope, DESCRIPTOR"}
@@ -23,8 +23,8 @@
  "blockers": [],
  "lock_wait_s": 0,
  "bg_pids": [],
- "next": "clippy confirmation on 242cfeb, then set READY_FOR_VALIDATION; slice 3 (develop consolidation) is not in this dispatch",
- "updated_at": "2026-10-14T16:50:00Z",
+ "next": "slice 3 (develop consolidation) not in this dispatch",
+ "updated_at": "2026-10-14T16:35:14Z",
  "notes": {
   "dependencies": "tiff =0.11.3 (steward-pinned). dev-dependency sha2 =0.10.9 force-soft added in 0824103 WITHOUT a dep-requests line (process error; lead filed the line). No other dependency added.",
   "cargo_lock": "Cargo.lock not committed by this lane.",

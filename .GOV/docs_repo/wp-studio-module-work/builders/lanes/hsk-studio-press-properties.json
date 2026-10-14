@@ -2,33 +2,62 @@
  "crate": "hsk-studio-press",
  "lane": "SMB-PRESS-PROPERTIES",
  "status": "READY_FOR_VALIDATION",
- "phase": "READY: PLR-104 property-list purge + fail-closed counts, PLR-105 fail-closed structure-scan rows, PLR-107 claim text (READY commit 950fd85)",
+ "phase": "READY after R26 remediation: R26-P1 inherited /Resources read by the PLR-104 purge; R26-P2 V4-06 site table complete (READY commit 5ad0c68; full suite green at 13534f8)",
  "commits": [
-  {"sha": "9dd0fc7", "subject": "press (SMB-PRESS-PROPERTIES, PLR-104): /Properties is a gated resource category; property lists the flattened pages reached that no kept BDC/DP names are purged (inline and referenced), undeterminable or uneditable ones are counted in residual_in_region"},
-  {"sha": "32d4df3", "subject": "press (SMB-PRESS-PROPERTIES, PLR-104, PLR-105, PLR-107): property lists named only by an old page's own inline /Resources are purged too; structure-shape scan counts /Type or /S past the hop bound, object-stream bytes that are not members and the saved trailer; docs and DESCRIPTOR cite the tests"},
-  {"sha": "45a3792", "subject": "press (SMB-PRESS-PROPERTIES, PLR-104): an undrawn form listed in an unnamed /Properties entry no longer keeps the image it would draw (gated category); R16 test row and module docs follow"},
-  {"sha": "950fd85", "subject": "press (SMB-PRESS-PROPERTIES, PLR-104, V4-08): property-list names are read from the parsed operators: name-escape and DP rows keep the entry, comment and case decoys do not"}
+  {
+   "sha": "9dd0fc7",
+   "subject": "press (SMB-PRESS-PROPERTIES, PLR-104): /Properties is a gated resource category; property lists the flattened pages reached that no kept BDC/DP names are purged (inline and referenced), undeterminable or uneditable ones are counted in residual_in_region"
+  },
+  {
+   "sha": "32d4df3",
+   "subject": "press (SMB-PRESS-PROPERTIES, PLR-104, PLR-105, PLR-107): property lists named only by an old page's own inline /Resources are purged too; structure-shape scan counts /Type or /S past the hop bound, object-stream bytes that are not members and the saved trailer; docs and DESCRIPTOR cite the tests"
+  },
+  {
+   "sha": "45a3792",
+   "subject": "press (SMB-PRESS-PROPERTIES, PLR-104): an undrawn form listed in an unnamed /Properties entry no longer keeps the image it would draw (gated category); R16 test row and module docs follow"
+  },
+  {
+   "sha": "950fd85",
+   "subject": "press (SMB-PRESS-PROPERTIES, PLR-104, V4-08): property-list names are read from the parsed operators: name-escape and DP rows keep the entry, comment and case decoys do not"
+  },
+  {
+   "sha": "5ad0c68",
+   "subject": "press (SMB-PRESS-PROPERTIES, R26-P1): the /Resources a flattened page inherited from a /Pages node is read by the PLR-104 property-list purge, also when a kept page names that resources or /Properties object from its own /Resources (test inherited_property_lists_shared_with_a_kept_pages_own_resources_are_purged)"
+  }
  ],
  "capabilities_done": [
   "PLR-104 (flatten_purge.rs): /Properties is a gated resource category. Usage::read_scope records the property-list operand of BDC and DP (Usage::use_property: every entry of that name in the scope's chain, shadowed ones included, is used and reached); Usage::resources no longer follows /Properties entries as plain references; Usage::all_used (content that cannot be read) keeps every entry and marks the dictionary undetermined. plan_properties/apply_properties purge, in every /Properties dictionary the old page reached (its own /Resources object, a /Properties object its own inline /Resources named, the /Resources a kept page received from a node of its /Parent chain - detach_from_page_tree now returns those heirs, Flat::heirs - and the /Resources of every stream and Type 3 font in Flat::sources), every entry no BDC/DP of the content read names, inline dictionaries and references alike.",
   "PLR-104 fail closed (residual_in_region, NotProven::ResidualInRegion, region_flattened false): a reached /Properties dictionary whose usage is undetermined (scope content unreadable, or the usage analysis incomplete), one the purge cannot edit (a /Resources or /Properties value that is a stream or an alias object) holding an unnamed entry whose property list has /Alt /ActualText /E /T or /Lang, and a property list of a removed or unedited entry still live (another object references it) with such a key while no kept content names it.",
   "PLR-105 (check_document): structure_shaped counts a /Type or /S value that PdfDoc::resolve reads as null because of the 16-hop bound (past_hop_bound; R25-P3); a stream with /N and /First is read as an object stream whatever its /Type (R25-P4 K4); object-stream bytes that are not white space, comments, header pairs or members count (K5 /N too small, K6 bytes between header and /First, K11 /N 0 with data); the saved trailer's values are scanned (R25-P5 X1, /ID copied by the writer).",
   "PLR-107 / V4-07: module docs (flatten_purge.rs), RedactedOutput::residual_in_region doc, DESCRIPTOR redaction.flatten.purge (PLR-104 sentence, PLR-105 sentence, usage-analysis operator list) and region_clearing (property-list count) state exactly what is implemented and cite the tests; descriptor_states_the_structure_tree_rule asserts the citations exist and the sentences carry no never/always/guarantee/proves.",
-  "Tests (tests/flatten_r13.rs): NEW marked_content_property_lists_of_flattened_pages_are_purged (layouts shared, inherited, inherited-object, properties-object, lists-as-objects; V4-08 rows: name escape /MC#30 kept, DP kept, comment decoy purged, case /mc0 purged), property_lists_the_purge_cannot_clear_are_counted (catalog keeps the list object, alias /Properties, unreadable kept content), unreadable_structure_shapes_are_counted (S9/S10 15 aliases, 14-alias control, K4, K5, K6, K11, covered-objstm control, X1 trailer /ID); CHANGED descriptor_states_the_structure_tree_rule (new citations), painted_source_referenced_by_a_key_of_a_drawn_object_is_reported (the /Properties row: see notes.behaviour_change)."
+  "Tests (tests/flatten_r13.rs): NEW marked_content_property_lists_of_flattened_pages_are_purged (layouts shared, inherited, inherited-object, properties-object, lists-as-objects; V4-08 rows: name escape /MC#30 kept, DP kept, comment decoy purged, case /mc0 purged), property_lists_the_purge_cannot_clear_are_counted (catalog keeps the list object, alias /Properties, unreadable kept content), unreadable_structure_shapes_are_counted (S9/S10 15 aliases, 14-alias control, K4, K5, K6, K11, covered-objstm control, X1 trailer /ID); CHANGED descriptor_states_the_structure_tree_rule (new citations), painted_source_referenced_by_a_key_of_a_drawn_object_is_reported (the /Properties row: see notes.behaviour_change).",
+  "R26-P1 (flatten.rs Flat::inherited_resources + inherited_raw; flatten_purge.rs old_resources, reached_resources, plan_properties ResAt::Old): the old page's inherited /Resources value (nearest /Pages node, as written: a reference -> ResAt::Object, an inline dict -> ResAt::Old reading its /Properties reference) is a dictionary the purge reads, so a kept page that names the same resources object or /Properties object from its OWN /Resources (not an heir) no longer keeps the flattened page's unnamed property lists. Test inherited_property_lists_shared_with_a_kept_pages_own_resources_are_purged (layouts node-shared, node-object-properties, node-inline-properties = R26 inputs P1, P2, P3); controls P4/P5 = existing layouts inherited-object and shared of marked_content_property_lists_of_flattened_pages_are_purged (green)."
  ],
- "tests": {"argv": "cargo nextest run -p hsk-studio-press --tests --no-fail-fast", "exit": 0, "sha": "45a3792", "passed": 167, "failed": 0},
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-press --tests --no-fail-fast",
+  "exit": 0,
+  "sha": "13534f8",
+  "passed": 173,
+  "failed": 0
+ },
  "blockers": [],
  "lock_wait_s": 16,
  "bg_pids": [],
- "next": "Validator: judge SMB-PRESS-PROPERTIES as the claim 9dd0fc7 + 32d4df3 + 45a3792 + 950fd85 (READY commit 950fd85). Later hsk-studio-press commit ade85a0 belongs to lane SMB-PRESS-STRUCT-STRIP (separate claim, its own lane file); at ade85a0 this lane's tests are unchanged except that the shared structure fixture pages_output_with now reads the D28 opt-out (the PLR-105 rows keep today's semantics) and the full press suite is 169/169. V4-13: SMB-PRESS is a two-FAIL lane; narrow pre-review of 1da2453..950fd85 expected before the round.",
- "updated_at": "2026-10-14T15:44:06Z",
+ "next": "Validator: judge SMB-PRESS-PROPERTIES as the claim 9dd0fc7 + 32d4df3 + 45a3792 + 950fd85 + 5ad0c68 (READY commit 5ad0c68). Later press commit 13534f8 belongs to SMB-PRESS-STRUCT-STRIP (its own claim); the full press suite (173/173) was run at 13534f8, which contains 5ad0c68. V4-13: SMB-PRESS is a two-FAIL lane; narrow pre-review of 950fd85..5ad0c68 expected.",
+ "updated_at": "2026-10-14T16:37:11Z",
  "notes": {
   "source": "lead dispatch 2026-10-14 (Operator decisions 2026-10-14: PLR-104 plan confirmed, folds PLR-105 + PLR-107); register workflow/plausible-register.json PLR-104, PLR-105, PLR-107; evidence validation/R25-prereview-narrow.json R25-P3, P4, P5, P7",
   "not_inspected_resolved": "Usage::drain did NOT record BDC/DP operand names at 1da2453 (read_scope matched only Do sh gs Tf scn SCN; Usage::resources followed /Properties entries as plain references).",
   "claim": {
-   "commits": ["9dd0fc7", "32d4df3", "45a3792", "950fd85"],
-   "ready_commit": "950fd85",
-   "text": "A redaction save that flattens a region purges, from every /Properties dictionary the flattened page reached (its own /Resources object, a /Properties object its own /Resources named, the /Resources a kept page received from its /Parent chain, the /Resources of every stream and Type 3 font it reached), every entry that no BDC or DP operator of the content the usage analysis reads names (inline dictionaries and references), and keeps the entries kept content names with their text. residual_in_region adds 1 (NotProven::ResidualInRegion, region_flattened false) for: a reached /Properties dictionary whose usage is undetermined (unreadable scope content, incomplete analysis), a reached dictionary the purge cannot edit (stream or alias spelling) with an unnamed entry whose property list holds /Alt /ActualText /E /T or /Lang, and each such property list of the old page left live (another object references it) that no kept content names. With a flattened region, check_document also counts a /Type or /S past the reader's 16-hop bound, a stream with /N and /First read as an object stream whatever its /Type, object-stream bytes that are not white space, comments, header pairs or members, and structure shapes in the saved trailer."
+   "commits": [
+    "9dd0fc7",
+    "32d4df3",
+    "45a3792",
+    "950fd85",
+    "5ad0c68"
+   ],
+   "ready_commit": "5ad0c68",
+   "text": "A redaction save that flattens a region purges, from every /Properties dictionary the flattened page reached (its own /Resources object, a /Properties object its own /Resources named, the /Resources object or /Properties object it inherited from a /Pages node also when a kept page names that object from its own /Resources (R26-P1), the /Resources a kept page received from its /Parent chain, the /Resources of every stream and Type 3 font it reached), every entry that no BDC or DP operator of the content the usage analysis reads names (inline dictionaries and references), and keeps the entries kept content names with their text. residual_in_region adds 1 (NotProven::ResidualInRegion, region_flattened false) for: a reached /Properties dictionary whose usage is undetermined (unreadable scope content, incomplete analysis), a reached dictionary the purge cannot edit (stream or alias spelling) with an unnamed entry whose property list holds /Alt /ActualText /E /T or /Lang, and each such property list of the old page left live (another object references it) that no kept content names. With a flattened region, check_document also counts a /Type or /S past the reader's 16-hop bound, a stream with /N and /First read as an object stream whatever its /Type, object-stream bytes that are not white space, comments, header pairs or members, and structure shapes in the saved trailer."
   },
   "plr_107_claim_text": "Reworded claim of SMB-PRESS-STRUCT-FAILCLOSED (PLR-107, R22 V-1; lead: reword in the next press lane record): 'A redaction save that flattens at least one region and whose saved document still has a structure tree (a /StructTreeRoot the catalog holds, directly or through a chain of references, or any /StructParents or /StructParent entry left in the file) reads region_flattened false and reports NotProven::ResidualInRegion, residual_in_region + 1 once; a save with no region applies none of these rules (PLR-101). The redaction proof covers untagged documents; for tagged documents the structure tree is neutralized best effort and reported.' (The SMB-PRESS-STRUCT-FAILCLOSED lane file itself is not edited: not owned by this lane.)",
   "behaviour_change": "painted_source_referenced_by_a_key_of_a_drawn_object_is_reported, row 'an undrawn form (/Properties) whose content draws it': before, the /Properties entry was a plain reference, the image stayed and was reported (PaintedSourceKept); now /Properties is gated, the entry is reached only when kept content names it, so the image is dropped (its entry in the form's /XObject pruned like any unused source) and nothing is reported (SCAN-PIXELS-SECRET gone, region_flattened true). The direct case (painted_source_referenced_but_not_drawn_by_a_kept_page_is_reported: page two's own /Properties names the image) is unchanged: the unnamed entry is not in a reached dictionary, its reference keeps the image live, reported.",
@@ -44,14 +73,114 @@
    "an entry named by kept content keeps its text (kept content invokes it), also when the flattened page named it too"
   ],
   "v4_06_sites": [
-   {"file_line": "crates/hsk-studio-press/src/flatten_purge.rs Usage::resources (GATED chain)", "verdict": "fixed: /Properties gated"},
-   {"file_line": "crates/hsk-studio-press/src/flatten_purge.rs Usage::all_used (GATED chain)", "verdict": "fixed: /Properties kept + undetermined"},
-   {"file_line": "crates/hsk-studio-press/src/flatten_purge.rs Usage::read_scope (operator to category map)", "verdict": "fixed: BDC/DP property-list operand"},
-   {"file_line": "crates/hsk-studio-press/src/flatten_purge.rs prune_gated (GATED)", "verdict": "not applicable: property entries are removed by name in apply_properties, not by gone object"},
-   {"file_line": "crates/hsk-studio-press/src/flatten_purge.rs drop_painted_sources incomplete branch", "verdict": "fixed: property residual counted"}
+   {
+    "file_line": "crates/hsk-studio-press/src/flatten_purge.rs Usage::resources (GATED chain)",
+    "verdict": "fixed: /Properties gated"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/flatten_purge.rs Usage::all_used (GATED chain)",
+    "verdict": "fixed: /Properties kept + undetermined"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/flatten_purge.rs Usage::read_scope (operator to category map)",
+    "verdict": "fixed: BDC/DP property-list operand"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/flatten_purge.rs prune_gated (GATED)",
+    "verdict": "not applicable: property entries are removed by name in apply_properties, not by gone object"
+   },
+   {
+    "file_line": "crates/hsk-studio-press/src/flatten_purge.rs drop_painted_sources incomplete branch",
+    "verdict": "fixed: property residual counted"
+   }
   ],
   "v4_06_regex": "GATED|\"Properties\"|b\"BDC\"|b\"DP\"",
   "red_proof": "NOT rerun in a scratch tree (cost: cold build). Red evidence at 1da2453 is R25-P7 (validation/R25-prereview-narrow.json: X2a shared and X2b inherited read proven with R25-PROP-SECRET surviving) and R25-P3/P4/P5 (S9/S10, K4/K5/K6/K11, X1 read proven); the new tests encode those inputs.",
-  "retry_guard": "no gameplan block met; one product test failure (painted_source_referenced_by_a_key_of_a_drawn_object_is_reported) fixed by commit 45a3792 (route a)"
+  "retry_guard": "no gameplan block met; one product test failure (painted_source_referenced_by_a_key_of_a_drawn_object_is_reported) fixed by commit 45a3792 (route a)",
+  "remediation_R26": {
+   "source": "validation/R26-prereview-press-narrow.json (FIX_FIRST) and lead dispatch 2026-10-14",
+   "findings": [
+    {
+     "finding": "R26-P1",
+     "commit": "5ad0c68",
+     "test": "inherited_property_lists_shared_with_a_kept_pages_own_resources_are_purged",
+     "disposition": "fixed"
+    },
+    {
+     "finding": "R26-P2",
+     "commit": "none (lane notes)",
+     "test": "n/a",
+     "disposition": "fixed: notes.v4_06_sites_r26 lists all 13 regex hits with file:line at 13534f8 (same 13 as 950fd85: 8 flatten_purge.rs, 3 canon.rs, 2 content.rs); count matches git grep -c at 5ad0c68 and 13534f8"
+    },
+    {
+     "finding": "R26-P3",
+     "commit": "none",
+     "test": "n/a",
+     "disposition": "INFO, not fixed (outside the claim's enumerated dictionaries): a /Properties dictionary only an annotation appearance of the flattened page reached is not a reached_resources entry; annotation appearances are not in Flat::sources. Recorded as residual; lead may register it (PLR)."
+    }
+   ],
+   "red_proof": "Red run on the shared tree at ade85a0 sources (press HEAD, before any src edit; 2026-10-14T16:13Z): the 4 new tests FAILED (inherited_property_lists_...: MC0/MC2 texts survive for node-shared, node-object-properties, node-inline-properties; structure_strip_keeps_multimedia_...: M1/M2 media removed + losses [AccessibilityTagsRemoved]; structure_strip_follows_...: FAIL; structure_strip_reports_no_loss_...: FAIL). Green after the fixes: focused runs 4/4 (P1 set) and 6/6 (strip set), then full suite 173/173 at 13534f8.",
+   "commit_split": "the shared test file was written with all R26 tests first; for the pathspec-only P1 commit the strip tests were held out of the file (copy in the builder scratchpad, restored by a fresh write + touch, V4-11) and committed with 13534f8"
+  },
+  "v4_06_sites_r26": {
+   "command": "git grep -n -E 'GATED|\"Properties\"|b\"BDC\"|b\"DP\"' 13534f8 -- crates/hsk-studio-press/src",
+   "count": 13,
+   "sites": [
+    {
+     "file_line": "crates/hsk-studio-press/src/canon.rs:182",
+     "verdict": "not applicable: uses_named_resource (canonical rewrite: whether an operator names a resource; BDC/DP with a name operand does, consistent with the purge)"
+    },
+    {
+     "file_line": "crates/hsk-studio-press/src/canon.rs:653",
+     "verdict": "not applicable: cfg(test) random operator generator (BDC row)"
+    },
+    {
+     "file_line": "crates/hsk-studio-press/src/canon.rs:665",
+     "verdict": "not applicable: cfg(test) generator filter (BDC operand shape)"
+    },
+    {
+     "file_line": "crates/hsk-studio-press/src/content.rs:174",
+     "verdict": "not applicable: inline-image key abbreviation DP = DecodeParms, not the DP operator"
+    },
+    {
+     "file_line": "crates/hsk-studio-press/src/content.rs:413",
+     "verdict": "not applicable: operand arity table (DP/BDC take a name and a property list); the purge reads the parsed operand at flatten_purge.rs:1235"
+    },
+    {
+     "file_line": "crates/hsk-studio-press/src/flatten_purge.rs:958",
+     "verdict": "not applicable: GATED const definition (five painted categories)"
+    },
+    {
+     "file_line": "crates/hsk-studio-press/src/flatten_purge.rs:959",
+     "verdict": "not applicable: doc comment of PROPERTIES"
+    },
+    {
+     "file_line": "crates/hsk-studio-press/src/flatten_purge.rs:961",
+     "verdict": "fixed (9dd0fc7): PROPERTIES const, /Properties gated"
+    },
+    {
+     "file_line": "crates/hsk-studio-press/src/flatten_purge.rs:1103",
+     "verdict": "fixed (9dd0fc7): Usage::resources marks only the gated sub-dictionary reference, /Properties entries are not followed as plain references"
+    },
+    {
+     "file_line": "crates/hsk-studio-press/src/flatten_purge.rs:1155",
+     "verdict": "fixed (9dd0fc7): Usage::all_used keeps every /Properties entry and marks the dictionary undetermined"
+    },
+    {
+     "file_line": "crates/hsk-studio-press/src/flatten_purge.rs:1228",
+     "verdict": "not applicable: BDC /OC optional-content nesting for silence (R17), unchanged"
+    },
+    {
+     "file_line": "crates/hsk-studio-press/src/flatten_purge.rs:1235",
+     "verdict": "fixed (9dd0fc7, 950fd85): BDC/DP property-list operand read from the parsed operators -> use_property"
+    },
+    {
+     "file_line": "crates/hsk-studio-press/src/flatten_purge.rs:1672",
+     "verdict": "not applicable: prune_gated removes gone objects from the five painted categories; /Properties entries are removed by name in apply_properties"
+    }
+   ],
+   "class_sites_beyond_regex": "reached_resources / plan_properties (where the purge looks for /Properties): fixed in 5ad0c68 for the inherited /Resources (R26-P1); annotation appearance /Resources of the flattened page not read (R26-P3, INFO)"
+  },
+  "v4_07": "New doc/DESCRIPTOR text (flatten.rs Flat::inherited_resources, flatten_purge.rs module docs, ResAt::Old, reached_resources, lib.rs DESCRIPTOR PLR-104 sentence) uses no never/always/guarantee/proves; the DESCRIPTOR sentence cites inherited_property_lists_shared_with_a_kept_pages_own_resources_are_purged (exists)."
  }
 }

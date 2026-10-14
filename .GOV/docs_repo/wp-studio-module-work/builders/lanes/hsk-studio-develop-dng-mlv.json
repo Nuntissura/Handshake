@@ -1,0 +1,35 @@
+{
+ "crate": "hsk-studio-develop",
+ "lane": "SMB-DEVELOP-DNG-MLV",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "real_dng corpus green (2 DNGs decode + develop; the Samsung download is a JFIF rendering: typed refusal + NOT_PROVEN)",
+ "commits": [
+  {"sha": "7e5da46ecb2bef5e7a52ec0486c8f652e0641a04", "subject": "develop (SMB-DEVELOP-DNG-MLV): lossless-JPEG blocks may split block rows differently"},
+  {"sha": "20b5845", "subject": "develop (SMB-DEVELOP-DNG-MLV): real_dng D80 facts take the file's CalibrationIlluminant 17/21"}
+ ],
+ "capabilities_done": [
+  "dng.rs: a lossless-JPEG block whose SOF3 frame splits the block's raster samples differently (MLV App 1920x818 strip = 3840 x 409 x 1) is accepted when the decoded sample count equals the block's exactly and JPEG rows and block rows tile in whole rows; anything else stays invalid_container (no reshaping)",
+  "red test tests/develop_dng.rs dng_lossless_jpeg_frame_may_split_block_rows_differently (MLV shape 1 and 2 components, half-width rows, tile shapes 16x1/8x2/2x8; ragged 6-wide block as 4-sample rows and short frame refused)",
+  "decode_container names JPEG bytes decoder_unavailable:jpeg (corpus samsung-sm-g973u-16bit-uncompressed.dng, raw.pixls.us id 3839, sha256 = listing, is a baseline JFIF 4016x1892x3 rendering whose Exif APP1 holds the DNG IFD0 tags but no raw strips)",
+  "tests/real_dng.rs: per-file clamp budget (5D3 dark MLV frame: 11.3% below authored black 2145, decoded min 2052 p5 2104 p50 2459; budget 15%, others 1%), same-colour row-assembly check (vertical vs horizontal step) for every decoded file, expected typed refusal + NOT_PROVEN for the Samsung download, D80 illuminants corrected to the file's 17/21"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-develop --test real_dng --run-ignored all --no-capture --no-fail-fast ; cargo nextest run -p hsk-studio-develop --test develop_dng --test real_dng --run-ignored all --no-capture --no-fail-fast -E 'test(dng_lossless_jpeg) | test(real_dng_decode_and_develop) | test(container_damage)'",
+  "exit": 0,
+  "sha": "20b5845",
+  "passed": 5,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "replacement Samsung (or other uncompressed 16-bit) DNG sample for the corpus (fetch-corpus.sh / provenance) so the uncompressed-strip DNG path is proven on a real file",
+ "updated_at": "2026-10-14T16:36:48Z",
+ "notes": {
+  "red": "the corpus failure itself is the red run: real_dng at 799ba57 FAILED with 'canon-eos-5d3-mlv-14bit-lossless.dng: decode refused: invalid_container' (recorded in hsk-studio-develop-raw-vendor.json); the synthetic red test mirrors that shape and was not separately run against the pre-fix dng.rs (V4-11: no revert of shared files)",
+  "real_dng_result_20b5845": "real_dng_decode_and_develop PASS: 5D3 1920x818 14-bit RGGB comp 7, window 1920x818, clamped_below 176919, cct 4088, mean 0.0638; D80 3900x2611 16-bit GBRG comp 7, window 3872x2592, clamped_above 57267 (<1%), cct 4316, mean 0.1315; Samsung refused decoder_unavailable:jpeg with NOT_PROVEN line; fetch_script_default_matches_test_default PASS",
+  "run_tree": "the 20b5845 run's working tree also held uncommitted SMB-DEVELOP-RAW-ARW edits (VendorFrame white_level in dng.rs, cr2.rs/nef.rs callers; arw.rs not yet wired) that do not touch the DNG decode path; the validator round re-runs on the pushed export",
+  "spec_basis": "lead statement (DNG spec + ITU-T T.81 process 14: the sample count must match, the width x component split may differ); the exact DNG spec sentence was not re-read by this builder (UNVERIFIED wording)",
+  "sample_inspection": "5D3 LJPEG: SOF3 P=14 Y=409 X=3840 Nf=1, single strip 1536981 bytes, no restart markers; Samsung file: JFIF APP0, Exif APP1 21824 bytes (IFD0 4032x1908 16-bit Photometric 32803, 1908 strip entries pointing inside the Exif), SOF0 4016x1892x3, ends FFD9; D80 IFD0 0xC65A=17, 0xC65B=21"
+ }
+}

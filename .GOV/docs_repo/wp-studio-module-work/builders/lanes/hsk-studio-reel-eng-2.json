@@ -1,11 +1,25 @@
 {
  "crate": "hsk-studio-reel",
  "lane": "SMB-REEL-ENG-2",
- "status": null,
- "phase": "slice B landed (VC-3 decoder, 8-bit oracle-green, 10-bit NOT_PROVEN); diagnosing the 10-bit delta, then ProRes behind feature prores",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slices A (D23 contract), B (VC-3 default build) and C (ProRes, feature prores) pushed; claim = 6c52e18 + c9d0c0e + d5b521d + 5959e88",
  "commits": [
-  {"sha": "6c52e18", "subject": "reel (SMB-REEL-ENG-2, wip, lane status null): D23 codec adapter contract; VideoCodec::ProRes/Dnx; MOV routing; feature prores (default off)"},
-  {"sha": "c9d0c0e", "subject": "reel (SMB-REEL-ENG-2, wip, lane status null): in-process VC-3 (DNxHD/DNxHR) decoder from ST 2019-1:2016 + Amd1 (default build); 8-bit within 1 LSB of ffmpeg, 10-bit NOT_PROVEN"}
+  {
+   "sha": "6c52e18",
+   "subject": "reel (SMB-REEL-ENG-2, wip, lane status null): D23 codec adapter contract; VideoCodec::ProRes/Dnx; MOV routing; feature prores (default off)"
+  },
+  {
+   "sha": "c9d0c0e",
+   "subject": "reel (SMB-REEL-ENG-2, wip, lane status null): in-process VC-3 (DNxHD/DNxHR) decoder from ST 2019-1:2016 + Amd1 (default build); 8-bit within 1 LSB of ffmpeg, 10-bit NOT_PROVEN"
+  },
+  {
+   "sha": "d5b521d",
+   "subject": "reel (SMB-REEL-ENG-2, wip, lane status null): VC-3 oracle gains the encoder source as second oracle; CID 1271 10-bit NOT_PROVEN with measured cause"
+  },
+  {
+   "sha": "5959e88",
+   "subject": "reel (SMB-REEL-ENG-2, wip, lane status null): ProRes decoder from SMPTE RDD 36:2022 behind non-default feature prores; DESCRIPTOR codec_adapters"
+  }
  ],
  "capabilities_done": [
   "D23 descriptor contract: CodecDescriptor gains name, decoder_id, licence, certification (Certification enum); all 7 descriptor sites; to_json carries them",
@@ -14,16 +28,30 @@
   "VC-3 decoder (src/vc3, default build, D24): header per 7.2 (bit positions cross-checked on ffmpeg bytes), all 20 CIDs of Annex C known; decodes progressive frame-encoded YCbCr 4:2:2/4:2:0 at 8/10 bit without alpha; typed Unsupported: interlaced/field, 1260 adaptive MB, alpha (incl. HVN 4), 4:4:4, RGB, 12-bit, unknown HVN/CID; Corrupt for forbidden values, EOF signature mismatch (CRCF=0), scan indices, payload aggregate",
   "Annex D/E tables generated from the PDF text (src/vc3/tables.rs; generator tests/fixtures/dnx/gen_vc3_tables.py validates lengths, prefix-freeness, Kraft = 1, symbol counts)",
   "shared crate-level reference IDCT src/idct8.rs (f64, const basis, fixed order) and checked bit reader src/bitreader.rs (for VC-3 and ProRes)",
-  "route: Chosen::BuiltIn for VC-3 (and ProRes with feature) for any SourceTrust; receipts carry decoder_id vc3-st2019-1 version 1"
+  "route: Chosen::BuiltIn for VC-3 (and ProRes with feature) for any SourceTrust; receipts carry decoder_id vc3-st2019-1 version 1",
+  "ProRes decoder (src/prores, feature prores, default off, D24): frame header 5.1.1 (version 0/1; >= 2 Unsupported; version-0 constraint), picture header and slice table with running size checks (picture inside frame, every slice inside picture), slice header (quantization_index 1..=224, Table 15 qScale), Golomb combination codes and Tables 8-11 adaptation, endOfData, inverse slice/block scan (Figures 4, 5), F = QF*W*qScale/8 exact in f64, reference IDCT, s = clamp(floor(2^b (v+256)/512 + 0.5)); 4:2:2 -> 10-bit Yuv422, 4:4:4 -> 12-bit Yuv444 (Figure 8 column-major chroma); progressive and interlaced (TFF/BFF field placement 7.5.3); encoded alpha Unsupported prores-alpha (no alpha plane in the model); default and container colour mapping",
+  "ProRes oracle: 5 ffmpeg-written fixtures (HQ, Proxy 1-MB slices, LT TFF, Standard BFF, 4444) within 1 LSB of ffmpeg's decode (same differing-sample counts as the brief's Python cross-check: 150, 171, 183, 132), MSE vs encoder source equal to or below ffmpeg's; mutation control 198..212 of 256 flips caught",
+  "default build: ProRes typed MEDIA_CODEC_UNAVAILABLE (fourcc), descriptor can_decode false; aprn/aprh MEDIA_UNSUPPORTED prores-raw in every build; frame header wins over the sample entry code",
+  "SOURCE_PROVENANCE.json (RDD 36 sha256, no third-party codec source consulted); fixtures provenance.json for dnx and prores; DESCRIPTOR gains codec_adapters"
  ],
- "tests": {"argv": "cargo nextest run -p hsk-studio-reel --test vc3_decode --no-fail-fast --no-capture (+ --lib unit tests idct8/bitreader/vc3::entropy)", "exit": 0, "sha": "c9d0c0e", "passed": 4, "failed": 0},
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-reel --features prores --no-fail-fast (94 passed) and cargo nextest run -p hsk-studio-reel --no-fail-fast (88 passed); cargo clippy -p hsk-studio-reel --tests (default) and --features prores clean; cargo check -p hsk-studio-reel-native --tests clean",
+  "exit": 0,
+  "sha": "5959e88",
+  "passed": 94,
+  "failed": 0
+ },
  "blockers": [
-  {"error": "10-bit (CID 1271 dnxhr_hqx) decode differs from ffmpeg's decode by up to 4 LSB (14% of samples; luma only, chroma exact) and is further from the encoder source (MSE 0.19 vs ffmpeg 0.05); 8-bit CIDs 1274/1272 are within 1 LSB and closer to source than ffmpeg", "file_line": "crates/hsk-studio-reel/src/vc3/entropy.rs dequantize / src/vc3/mod.rs decode_frame", "attempts": 0}
+  {
+   "error": "CID 1271 (dnxhr_hqx, 10-bit): decode follows ST 2019-1 Table C.2 (weights Table D.1); the ffmpeg-written fixture decodes up to 4 LSB away from ffmpeg and further from the encoder source (MSE 0.19 vs 0.05). With Table D.4 weights the same bytes land within 2 LSB of ffmpeg and closer to the source (MSE 0.045), so ffmpeg uses D.4-like luma weights for 1271. Studio keeps the standard; 10-bit agreement with ffmpeg is NOT_PROVEN. Lead decision needed: keep D.1 (standard) or follow the observed weights; an Avid/Adobe-written 1271 file would settle it (UNVERIFIED).",
+   "file_line": "crates/hsk-studio-reel/src/vc3/header.rs CIDS entry 1271",
+   "attempts": 0
+  }
  ],
  "lock_wait_s": 0,
  "bg_pids": [],
- "next": "diagnose the 10-bit delta (ruled out by experiment: p=8 for 1271, 4x coefficient precision, transposed weights, dropping the +p/2 term); then ProRes slice behind feature prores",
- "updated_at": "2026-10-14T16:13:46Z",
+ "next": "validator round on 5959e88 (default and --features prores). Open: lead decision on CID 1271 weights (blocker entry); later slices: VC-3 interlaced/field encoding, 12-bit, 4:4:4/RGB, alpha (VC-3 and ProRes need an alpha plane in VideoFormat, a coordinated reel-native wire change), CRC check via the single CRC-32 owner, fixed-point/parallel IDCT with Annex A qualification",
+ "updated_at": "2026-10-14T16:49:13Z",
  "notes": {
   "spec_basis": "staged delta spec-enrichment/STUDIO-ENRICHMENT-20261014.json D23-1 (STU-VID-051 item 1) and D24-1 (STU-VID-084); START_LOG OPERATOR DECISIONS 2026-10-14",
   "standards": "ST 2019-1:2016 pdf sha256 cf99fe4459665ac782facdfeca37f530d3f744cf3a1ff4f19f6a12ec29d59449; Amd1:2023 pdf sha256 ef984802a8cad5bda1bf2a6fa75581bef26f7671a613d87a458cafae1b1cf693 (extracted to session scratch smb-reel-eng-2/st2019, not into the corpus dir)",
@@ -32,6 +60,12 @@
   "studio_decisions": "IDCT output rounding nearest ties-up then + 2^(b-1) then clamp [0, 2^b-1] (ST 2019-1 states no rounding or clamp); an EOB is required after coefficient 63 (7.3.1.1 prose over informative Figure 47); scan index offsets relative to header end; CRC (CRCF=1) not verified because V4-05 forbids a second CRC-32 copy",
   "licence_field": "Studio-owned adapters report licence 'studio-owned' (workspace declares no SPDX licence); rav1d BSD-2-Clause",
   "trust": "built-in pure-Rust decoders run for any SourceTrust (safe Rust, typed refusals, hostile tests); brief said lead may instead require worker isolation",
-  "cargo_lock": "unchanged (no new dependency)"
+  "cargo_lock": "not changed by this lane (no new dependency); Cargo.lock was already modified in the shared tree by others and is not committed by this lane",
+  "experiments_10bit": "ruled out by measurement: p=8 for 1271 (MSE 634), 4x coefficient precision (no change), transposed weights (8-bit worse), dropping the +p/2 term (worse); weight table D.4 fits ffmpeg",
+  "new_lane_files": "crates/hsk-studio-reel/src/{codec_adapters.rs, bitreader.rs, idct8.rs, vc3/*, prores/*}, tests/{vc3_decode.rs, prores_decode.rs}, tests/fixtures/{dnx,prores}",
+  "test_counts_new": "vc3_decode 4, prores_decode 4 with feature + 1 without; unit tests idct8 2, bitreader 1, vc3::entropy 2, prores::golomb 1, prores 2",
+  "trust_independence": "built-in VC-3/ProRes decoders run for any SourceTrust (safe Rust, typed refusals, hostile tests incl. every truncation and single-bit flip with an allocation bound); lead may require worker isolation instead",
+  "retry_guard": "no gameplan hook block on any cargo command; one hook block on a lane-file python heredoc (gate words in text) -> switched to Write tool + file input (V4-09), no gameplan step added",
+  "decoder_id_per_frame": "decoder id and version are in SegmentReceipt.decoder_id/decoder_version (one receipt per segment); no per-Chunk field added (public type change would need a lead decision)"
  }
 }

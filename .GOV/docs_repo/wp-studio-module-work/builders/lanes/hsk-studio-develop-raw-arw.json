@@ -1,0 +1,46 @@
+{
+ "crate": "hsk-studio-develop",
+ "lane": "SMB-DEVELOP-RAW-ARW",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "Sony ARW (cRAW + uncompressed) done; compressed NEF and RW2 searched, no permissive source or public bit-level docs: typed decoder_unavailable",
+ "commits": [
+  {"sha": "be73666b7686c8f0ed36e6f760a0e2b9dd99964e", "subject": "develop (SMB-DEVELOP-RAW-ARW): Sony ARW decode (cRAW + uncompressed), adapted from rawkit"},
+  {"sha": "d62e84063e23b6dc5eaae95371e73a7c1a2a6e12", "subject": "develop (SMB-DEVELOP-RAW-ARW): Nikon compressed NEF is decoder_unavailable:nef_compressed"}
+ ],
+ "capabilities_done": [
+  "src/arw.rs: IFD0 Make SONY without DNGVersion -> ARW; Compression 32767 cRAW (one byte per pixel, 16-byte blocks: 11-bit max/min, 4-bit positions, 14 x 7-bit deltas shifted by block range; 32-column spans even then odd columns; 11-bit codes through the SonyToneCurve 0x7010 table, rawkit's >>2<<2), Compression 1 strips via tiffep; ARW1/other compressions unsupported_compression; width must be a multiple of 32; white = curve maximum (17204 for the sample); unapplied arw_black_level_unread, arw_white_level_unread",
+  "VendorFrame carries an explicit white_level (VendorFrame::full_scale for CR2/NEF)",
+  "crate NOTICE with rawkit attribution (MIT terms reproduced; licence verified in the crates.io archive)",
+  "NEF Compression 34713/32769 -> decoder_unavailable:nef_compressed (was unsupported_compression); RW2 stays decoder_unavailable:rw2; DESCRIPTOR updated",
+  "V4-01 deny(arithmetic_side_effects) in arw.rs; V4-02 tests arw_dims_u32_max_refused_before_allocation, arw_aggregate_over_budget_refused_before_allocation"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-develop --test develop_arw --test develop_cr2 --test develop_nef --no-fail-fast (pre-commit tree: develop_arw 4/4 and develop_cr2 5/5 PASS; develop_nef routing test failed on the Sony make, fixed to Pentax before be73666) ; cargo nextest run -p hsk-studio-develop --test develop_nef --test real_raw --run-ignored all --no-fail-fast (be73666 tree: 8/8 PASS; d62e840 tree: 8/8 PASS)",
+  "exit": 0,
+  "sha": "d62e84063e23b6dc5eaae95371e73a7c1a2a6e12",
+  "passed": 17,
+  "failed": 0
+ },
+ "blockers": [
+  {"error": "NEF Nikon compression 34713/32769 (D70s, Z6 samples): no permissive (MIT/Apache/BSD/Zlib/ISC) decoder source and no public bit-level documentation (Huffman trees); typed decoder_unavailable:nef_compressed", "file_line": "crates/hsk-studio-develop/src/nef.rs decode", "attempts": 1},
+  {"error": "RW2 Panasonic compression (LX7 sample, tag 0x0b = 34316): no permissive decoder source or public bit-level documentation; typed decoder_unavailable:rw2", "file_line": "crates/hsk-studio-develop/src/lib.rs recognise", "attempts": 1}
+ ],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "independent DNG oracle for ARW 7S/CR2/NEF CFA samples (validator/Operator converter run); ARW black level (SR2Private is encrypted; rawkit hard-codes 512 as TODO) needs a source; ORF/RAF/CR3 unchanged (see hsk-studio-develop-raw-vendor.json blockers)",
+ "updated_at": "2026-10-14T16:46:06Z",
+ "notes": {
+  "permissive_source": "rawkit 0.1.0 crates.io archive (https://static.crates.io/crates/rawkit/rawkit-0.1.0.crate, sha256 e397e78b5ebb24f7f20579ae91404b6556747e2192713d5d68e13fb333df41fb), Cargo.toml license = \"MIT OR Apache-2.0\", authors Graphite Authors, LICENSE-MIT + LICENSE-APACHE present; files read: src/decoder/arw2.rs, src/decoder/uncompressed.rs, src/tiff/values.rs (CurveLookupTable), src/tiff/types.rs (TypeSonyToneCurve), src/tiff/mod.rs (tag ids), src/lib.rs (dispatch), README.md. Lead decision START_LOG 2026-10-14 (R1 refinement). Attribution: crates/hsk-studio-develop/NOTICE and src/arw.rs header.",
+  "adaptations": "asserts replaced by typed refusals; bits-per-sample not forced to 12 (the 7S tag is 14 and rawkit would assert); width multiple of 32 required (rawkit leaves a ragged tail unset); white = curve max instead of 16383; black not hard-coded (unapplied)",
+  "corpus_result": "real_raw arw_7s_craw_decodes_deterministically PASS: 2816x1872 bits 14 RGGB white 17204 model ILCE-7S samples_sha256 3fd53781275f0e7c114ed54873071d49cc6f7677090445dc0e92fbd9feebe8a2, same-colour steps hstep 15322608 vs vstep 17235340 (consistent), NOT_PROVEN independent-DNG oracle; vendor routing: D70s/Z6 -> decoder_unavailable:nef_compressed, CR3/RAF/ORF/RW2 -> decoder_unavailable:<family>",
+  "searched_for_nef_rw2": [
+   "https://libopenraw.pages.freedesktop.org/formats/nef (scheme only; points to dcraw)",
+   "https://www.photonstophotos.net/NikonInfo/NEF_Compression.htm and NEF_Compression.doc (scheme + table sizes; no trees, no 0x96 layout)",
+   "http://lclevy.free.fr/nef/ (0x96 table layout and version bytes; trees only in a linked commented dcraw excerpt, not followed; NOTE the page itself embeds a dcraw white-balance decryption excerpt, which was seen while reading the page; nothing from it was used)",
+   "https://users.rust-lang.org/t/decoding-of-nikon-raw-format-nef/48261 (help request; no source)",
+   "web searches for MIT/BSD/Apache NEF and RW2 decoders: only rawloader/rawler (LGPL), zenraw (AGPL-3.0), RawSpeed (LGPL-2), LibRaw (LGPL/CDDL), dcraw (own restricted licence), MIT wrappers without decoders (NDCRaw, NRawTherapee), rawparser (MIT Go, preview extraction only)",
+   "Panasonic LUMIX RAW Codec (proprietary plug-in)"
+  ],
+  "nef_test_change": "tests/develop_nef.rs routing refusal now uses Make PENTAX (a Sony Make is decoded as ARW since be73666) and adds compression 7 -> unsupported_compression"
+ }
+}
