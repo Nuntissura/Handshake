@@ -1,4 +1,18 @@
 {
+  "three_interface_checkpoint_20261014": {
+    "status": "INDEPENDENT_SOURCE_CLEAR_PUSH_VERIFIED",
+    "repair_ref": "/three_interface_repair_20261014",
+    "commit": "952d6bbe61d9162e5b98b843c73cc7e871aa23c0",
+    "tree": "957b27b927d3fdf2de3d0e4d28855ef8e54e5023",
+    "parent": "ebb7c666360ae1a389fe2725d2590e06ee55313d",
+    "remote_verified": "Live origin/feat/WP-KERNEL-012 matches actual clean productHEAD",
+    "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt175-three-interface-repair",
+    "source_comparison_sha256": "e2364a51a5ae336a9deb310dbad69253310465f72647d222ad89c77ed03939fd",
+    "diff_sha256": "fa2d51ac9fef55d531527ba33d0216ae4e697d856b4087e16382f3a6f18495be",
+    "review": "Independent actual four-file diff, pinned source, route/DTO/cell/authenticated HTTP boundary, sensitivity export and timeout/ACK connection review. Four exact changed inputs/7412 unchanged; raw inverses and unchangedlock. Root opened actual complete diff/checkpoint and verified cleanHEAD/tree/remote.",
+    "compiler_tests_runtime": "NOT_RUN",
+    "residuals": "Manual host mount, full canonical receipt/durability integration and original runtime/full acceptance OPEN."
+  },
   "three_interface_repair_20261014": {
     "decision_id": "WP012-THREE-INTERFACE-REPAIR-20261014",
     "status": "SOURCE_REPAIR_AUTHORIZED",

@@ -24,9 +24,9 @@
   "delegated_native_stage02_20261014": {
     "decision_id": "WP012-NATIVE-STAGE-20261014-02",
     "status": "APPROVED_REFRESH_REVIEWED_PUSHED_CANDIDATE",
-    "candidate_commit": "ebb7c666360ae1a389fe2725d2590e06ee55313d",
-    "candidate_tree": "a0a92e0adf835edcbb829da995d5561fdd0a69bd",
-    "source_checkpoint_ref": "MT-175.json#/palmistry_export_checkpoint_20261014",
+    "candidate_commit": "952d6bbe61d9162e5b98b843c73cc7e871aa23c0",
+    "candidate_tree": "957b27b927d3fdf2de3d0e4d28855ef8e54e5023",
+    "source_checkpoint_ref": "MT-175.json#/three_interface_checkpoint_20261014",
     "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
     "predecessor_stage_ref": "/delegated_native_stage_20261014",
     "predecessor_terminal_checks": 3,
