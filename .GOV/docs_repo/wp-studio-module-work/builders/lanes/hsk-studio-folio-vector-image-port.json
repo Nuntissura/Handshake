@@ -1,0 +1,23 @@
+{
+  "crate": "hsk-studio-folio",
+  "lane": "SMB-FOLIO-VECTOR-IMAGE-PORT",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "pushed at 6e2ec80 (branch codex/handshake-studio-assets)",
+  "commits": [
+    {"sha": "6e2ec80", "subject": "folio (SMB-FOLIO-VECTOR-IMAGE-PORT, SMB-FOLIO-PARENT-PAGES): image-typed vector source port; hsk.studio.parent_page_records@1"}
+  ],
+  "capabilities_done": [
+    "lib.rs source-op arm: a vector layer's source operation may declare its single `out` port value_type image (rasterisable vector) so it can feed a group's image `inputs` (mirrors G1 for text); vector-typed form, text form, all other kinds and existing documents unchanged; other value types on a vector source still InvalidPort; edges still require equal value types"
+  ],
+  "tests": {"argv": "cargo nextest run -p hsk-studio-folio --test vector_image_port_contract --test parent_pages_contract --test paint_blur_style_contract --no-fail-fast", "exit": 0, "sha": "6e2ec80", "passed": 9, "failed": 0},
+  "blockers": [],
+  "bg_pids": [],
+  "next": "composite follow-up",
+  "updated_at": "2026-10-14T23:00:00Z",
+  "notes": {
+    "test": "tests/vector_image_port_contract.rs vector_source_image_port_feeds_group: stack order by ordinal, snapshot bytes reopen identically, vector-typed into image inputs = InvalidEdge, unlinked vector-typed validates, text-typed vector source = InvalidPort",
+    "edit_to_existing_test": "tests/paint_blur_style_contract.rs: removed the assertion that a vector source declared image is InvalidPort (valid by this lane)",
+    "composite_follow_up": "composite must evaluate/lower an image-typed vector source inside its group via the existing vector plane path (analogue of G1 slice 4 for text); until then it should refuse the image form with a typed refusal.",
+    "proof": "cargo check --tests over folio exit 0; dependents (chronicle components composite harness interop-fig interop-layout interop-media interop-psd interop-vector layout package pigment pulse session) --keep-going Finished clean; one earlier run showed E0432/E0308 in interop-fig tests/fig_composite.rs against pigment/composite items (another lane's in-flight shared-tree edits, not folio). clippy -p hsk-studio-folio --tests: no warnings outside hsk-studio-type."
+  }
+}
