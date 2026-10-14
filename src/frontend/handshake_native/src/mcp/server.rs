@@ -568,7 +568,7 @@ async fn dispatch_with_session(
                     loop {
                         let (receipt, receipt_revision) = {
                             let _snapshot = window.snapshot.lock().unwrap_or_else(|e| e.into_inner());
-                            let channel = window.channel.lock().unwrap_or_else(|e| e.into_inner());
+                            let mut channel = window.channel.lock().unwrap_or_else(|e| e.into_inner());
                             (channel.receipts().into_iter().find(|r| r.receipt_id == receipt_id), window.revision())
                         };
                         match receipt {
