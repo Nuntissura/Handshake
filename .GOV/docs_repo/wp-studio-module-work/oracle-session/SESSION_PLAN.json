@@ -1,0 +1,1173 @@
+{
+ "schema": "hsk.oracle.session.plan@1",
+ "wp": "WP-KERNEL-STUDIO",
+ "decision": "START_LOG D5 (OPERATOR DECISIONS 2026-10-14): one Operator-attended batched session, one launch per app, dialogs off, gamma Color Setting read and restored by the scripts",
+ "prepared": "2026-10-14",
+ "output_root": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session",
+ "naming": "<case_id>__<variant>.<ext> (non [A-Za-z0-9_.+-] characters become underscores); every app writes manifest.json (app version, locale, entries with bits/profile/params, errors, state before/after) and errors.log; Photoshop also writes inputs/ (the generated fixtures)",
+ "order": [
+  "photoshop",
+  "illustrator",
+  "indesign",
+  "aftereffects"
+ ],
+ "apps": [
+  {
+   "app": "photoshop",
+   "installed_under": "C:/Program Files/Adobe/Adobe Photoshop 2026",
+   "script_file": "oracle-session/hsk_oracle_photoshop.jsx",
+   "one_launch": true,
+   "dialogs_off": "app.displayDialogs = DialogModes.NO (set at start, restored in finally); executeAction calls pass DialogModes.NO",
+   "operator_launch": {
+    "menu": "File > Scripts > Browse... then pick the file",
+    "command_line": "PowerShell COM (UNVERIFIED for 2026): $ps = New-Object -ComObject Photoshop.Application; $ps.DoJavaScriptFile('<full path to hsk_oracle_photoshop.jsx>')  (ProgID Photoshop.Application is registered on this host)"
+   },
+   "preconditions": [
+    "No Photoshop document open (script aborts otherwise).",
+    "Edit > Color Settings: the active setting must be a NAMED preset (not 'Custom'); a second preset named HSK-gamma-1.0 (More Options > Blend RGB Colors Using Gamma, 1.00) must exist, else only PS-G01 is skipped.",
+    "Dismiss first-launch prompts before running."
+   ],
+   "global_settings_touched": [
+    "app.displayDialogs",
+    "app.preferences.rulerUnits",
+    "app.colorSettings (name only; Blend RGB Colors Using Gamma has no verified scripting path)"
+   ],
+   "restore_steps": [
+    "Script reads app.displayDialogs, app.preferences.rulerUnits and app.colorSettings (name) before touching anything.",
+    "Gamma pass (PS-G01) sets app.colorSettings = 'HSK-gamma-1.0' (a preset the Operator saved), runs 29 exports, then the finally block re-applies the saved name and writes manifest state.colorSettings_after and state.restore_checked.",
+    "finally also restores rulerUnits and displayDialogs and closes every document the script opened (fixtures included)."
+   ],
+   "output_dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/photoshop",
+   "control_files": "control/ps_only.txt (one case id per line = run only those)",
+   "cases": [
+    {
+     "case_id": "PS-C01",
+     "source_item_ref": "diagnostics/adjustments-advanced-blending.md topic oracle-d5 and later topics / D5 case 1",
+     "title": "Adjustment layer over semi-transparent backdrop in a Normal group (alpha preserved? Normal vs Multiply adjustment mode)",
+     "input_fixture_spec": [
+      "F_GRAY_RAMP_256x64: 256x64 sRGB, pixel (x,y)=(x,x,x), x=0..255, drawn in-script (256 one-pixel fills), saved to photoshop/inputs/F_GRAY_RAMP_256x64.tif; ramp layer at layer opacity 50 inside a Normal group on transparent; Invert adjustment layer above it"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/photoshop",
+      "file_pattern": "PS-C01__<variant>.tif",
+      "format": "TIFF, uncompressed, interleaved, IBM byte order, embedded ICC, extra transparency alpha channel",
+      "bit_depth": "8 bit",
+      "colour_profile": "sRGB IEC61966-2.1",
+      "files": 3
+     },
+     "script": "hsk_oracle_photoshop.jsx",
+     "scriptable": "yes",
+     "api_status": "DOM verified for documents/layers/blend/save; Action Manager (executeAction) keys UNVERIFIED",
+     "notes": "alpha export to measure alpha"
+    },
+    {
+     "case_id": "PS-C02",
+     "source_item_ref": "diagnostics/adjustments-advanced-blending.md topic oracle-d5 and later topics / D5 case 2",
+     "title": "Levels: composite vs red record order; gamma ramp at 8 and 16 bit; DOM adjustLevels reference",
+     "input_fixture_spec": [
+      "F_GRAY_RAMP_256x64: 256x64 sRGB, pixel (x,y)=(x,x,x), x=0..255, drawn in-script (256 one-pixel fills), saved to photoshop/inputs/F_GRAY_RAMP_256x64.tif"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/photoshop",
+      "file_pattern": "PS-C02__<variant>.tif",
+      "format": "TIFF, uncompressed, interleaved, IBM byte order, embedded ICC, no alpha",
+      "bit_depth": "8 bit (7 files) and 16 bit (4 files)",
+      "colour_profile": "sRGB IEC61966-2.1",
+      "files": 11
+     },
+     "script": "hsk_oracle_photoshop.jsx",
+     "scriptable": "yes",
+     "api_status": "DOM verified for documents/layers/blend/save; Action Manager (executeAction) keys UNVERIFIED; ArtLayer.adjustLevels is DOM verified",
+     "notes": ""
+    },
+    {
+     "case_id": "PS-C03",
+     "source_item_ref": "diagnostics/adjustments-advanced-blending.md topic oracle-d5 and later topics / D5 case 3",
+     "title": "Curves: Strong Contrast (RGB).acv master curve (read at run time from the installed preset, read-only), 3-point overshoot curve, Negative, identity",
+     "input_fixture_spec": [
+      "F_GRAY_RAMP_256x64: 256x64 sRGB, pixel (x,y)=(x,x,x), x=0..255, drawn in-script (256 one-pixel fills), saved to photoshop/inputs/F_GRAY_RAMP_256x64.tif"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/photoshop",
+      "file_pattern": "PS-C03__<variant>.tif",
+      "format": "TIFF, uncompressed, interleaved, IBM byte order, embedded ICC, no alpha",
+      "bit_depth": "8 bit",
+      "colour_profile": "sRGB IEC61966-2.1",
+      "files": 4
+     },
+     "script": "hsk_oracle_photoshop.jsx",
+     "scriptable": "yes",
+     "api_status": "DOM verified for documents/layers/blend/save; Action Manager (executeAction) keys UNVERIFIED",
+     "notes": "ACV points are written to manifest.json state.acv_points; nothing is copied into assets"
+    },
+    {
+     "case_id": "PS-C04",
+     "source_item_ref": "diagnostics/adjustments-advanced-blending.md topic oracle-d5 and later topics / D5 case 4",
+     "title": "Hue/Saturation master: hue +60, sat +/-50, lightness +/-50, colorize, identity, on the 17^3 lattice",
+     "input_fixture_spec": [
+      "F_RGB_LATTICE17_289x17: pixel (x=ri*17+gi, y=bi)=(v(ri),v(gi),v(bi)), v(k)=round(k*255/16), k=0..16 (4913 patches)"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/photoshop",
+      "file_pattern": "PS-C04__<variant>.tif",
+      "format": "TIFF, uncompressed, interleaved, IBM byte order, embedded ICC, no alpha",
+      "bit_depth": "8 bit",
+      "colour_profile": "sRGB IEC61966-2.1",
+      "files": 7
+     },
+     "script": "hsk_oracle_photoshop.jsx",
+     "scriptable": "yes",
+     "api_status": "DOM verified for documents/layers/blend/save; Action Manager (executeAction) keys UNVERIFIED",
+     "notes": ""
+    },
+    {
+     "case_id": "PS-C05",
+     "source_item_ref": "diagnostics/adjustments-advanced-blending.md topic oracle-d5 and later topics / D5 case 5",
+     "title": "Brightness/Contrast modern (4) and legacy (7, incl. +/-100 corners from the W3C-relayed Photoshop statement)",
+     "input_fixture_spec": [
+      "F_GRAY_RAMP_256x64: 256x64 sRGB, pixel (x,y)=(x,x,x), x=0..255, drawn in-script (256 one-pixel fills), saved to photoshop/inputs/F_GRAY_RAMP_256x64.tif"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/photoshop",
+      "file_pattern": "PS-C05__<variant>.tif",
+      "format": "TIFF, uncompressed, interleaved, IBM byte order, embedded ICC, no alpha",
+      "bit_depth": "8 bit",
+      "colour_profile": "sRGB IEC61966-2.1",
+      "files": 11
+     },
+     "script": "hsk_oracle_photoshop.jsx",
+     "scriptable": "yes",
+     "api_status": "DOM verified for documents/layers/blend/save; Action Manager (executeAction) keys UNVERIFIED",
+     "notes": ""
+    },
+    {
+     "case_id": "PS-C06",
+     "source_item_ref": "diagnostics/adjustments-advanced-blending.md topic oracle-d5 and later topics / D5 case 6",
+     "title": "Exposure +1 EV / offset 0.1 / gamma 1.5 (and each alone, identity) at 8 bit and 32 bit",
+     "input_fixture_spec": [
+      "F_GRAY_RAMP_256x64: 256x64 sRGB, pixel (x,y)=(x,x,x), x=0..255, drawn in-script (256 one-pixel fills), saved to photoshop/inputs/F_GRAY_RAMP_256x64.tif pasted into 8-bit and 32-bit float documents (Photoshop converts)"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/photoshop",
+      "file_pattern": "PS-C06__<variant>.tif",
+      "format": "TIFF, uncompressed, interleaved, IBM byte order, embedded ICC, no alpha",
+      "bit_depth": "8 bit (5) and 32 bit float (5, linear light)",
+      "colour_profile": "sRGB IEC61966-2.1",
+      "files": 10
+     },
+     "script": "hsk_oracle_photoshop.jsx",
+     "scriptable": "yes",
+     "api_status": "DOM verified for documents/layers/blend/save; Action Manager (executeAction) keys UNVERIFIED",
+     "notes": "Studio side must record whether Photoshop linearised the pasted sRGB ramp in the 32-bit documents"
+    },
+    {
+     "case_id": "PS-C07",
+     "source_item_ref": "diagnostics/adjustments-advanced-blending.md topic oracle-d5 and later topics / D5 case 7",
+     "title": "Threshold 128 on lattice; ramp boundary at 127/128/129; DOM threshold reference",
+     "input_fixture_spec": [
+      "F_RGB_LATTICE17_289x17: pixel (x=ri*17+gi, y=bi)=(v(ri),v(gi),v(bi)), v(k)=round(k*255/16), k=0..16 (4913 patches)",
+      "F_GRAY_RAMP_256x64: 256x64 sRGB, pixel (x,y)=(x,x,x), x=0..255, drawn in-script (256 one-pixel fills), saved to photoshop/inputs/F_GRAY_RAMP_256x64.tif"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/photoshop",
+      "file_pattern": "PS-C07__<variant>.tif",
+      "format": "TIFF, uncompressed, interleaved, IBM byte order, embedded ICC, no alpha",
+      "bit_depth": "8 bit",
+      "colour_profile": "sRGB IEC61966-2.1",
+      "files": 5
+     },
+     "script": "hsk_oracle_photoshop.jsx",
+     "scriptable": "yes",
+     "api_status": "DOM verified for documents/layers/blend/save; Action Manager (executeAction) keys UNVERIFIED; ArtLayer.threshold is DOM verified",
+     "notes": ""
+    },
+    {
+     "case_id": "PS-C08",
+     "source_item_ref": "diagnostics/adjustments-advanced-blending.md topic oracle-d5 and later topics / D5 case 8",
+     "title": "Posterize 2, 4, 255 on the ramp, adjustment layer and DOM posterize",
+     "input_fixture_spec": [
+      "F_GRAY_RAMP_256x64: 256x64 sRGB, pixel (x,y)=(x,x,x), x=0..255, drawn in-script (256 one-pixel fills), saved to photoshop/inputs/F_GRAY_RAMP_256x64.tif"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/photoshop",
+      "file_pattern": "PS-C08__<variant>.tif",
+      "format": "TIFF, uncompressed, interleaved, IBM byte order, embedded ICC, no alpha",
+      "bit_depth": "8 bit",
+      "colour_profile": "sRGB IEC61966-2.1",
+      "files": 6
+     },
+     "script": "hsk_oracle_photoshop.jsx",
+     "scriptable": "yes",
+     "api_status": "DOM verified for documents/layers/blend/save; Action Manager (executeAction) keys UNVERIFIED; ArtLayer.posterize is DOM verified",
+     "notes": ""
+    },
+    {
+     "case_id": "PS-C09",
+     "source_item_ref": "diagnostics/adjustments-advanced-blending.md topic oracle-d5 and later topics / D5 case 9",
+     "title": "Blend-If split sliders: This Layer / Underlying, gray and red, hard and split",
+     "input_fixture_spec": [
+      "F_RGBCMY_BANDS_256x48: six 8-row bands; band k ramps channel set {R,G,B,C,M,Y} with value x, other channels 0 over F_GRAY_RAMP_256x64: 256x64 sRGB, pixel (x,y)=(x,x,x), x=0..255, drawn in-script (256 one-pixel fills), saved to photoshop/inputs/F_GRAY_RAMP_256x64.tif (backdrop)"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/photoshop",
+      "file_pattern": "PS-C09__<variant>.tif",
+      "format": "TIFF, uncompressed, interleaved, IBM byte order, embedded ICC, no alpha",
+      "bit_depth": "8 bit",
+      "colour_profile": "sRGB IEC61966-2.1",
+      "files": 6
+     },
+     "script": "hsk_oracle_photoshop.jsx",
+     "scriptable": "yes",
+     "api_status": "DOM verified for documents/layers/blend/save; Action Manager (executeAction) keys UNVERIFIED",
+     "notes": ""
+    },
+    {
+     "case_id": "PS-C10",
+     "source_item_ref": "diagnostics/adjustments-advanced-blending.md topic oracle-d5 and later topics / D5 case 10",
+     "title": "Mask density 50 % and feather 0/2/10/50 px on a hard-edged mask",
+     "input_fixture_spec": [
+      "white layer over black backdrop, 256x64; layer mask: left half white (revealed), right half black"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/photoshop",
+      "file_pattern": "PS-C10__<variant>.tif",
+      "format": "TIFF, uncompressed, interleaved, IBM byte order, embedded ICC, no alpha",
+      "bit_depth": "8 bit",
+      "colour_profile": "sRGB IEC61966-2.1",
+      "files": 6
+     },
+     "script": "hsk_oracle_photoshop.jsx",
+     "scriptable": "yes",
+     "api_status": "DOM verified for documents/layers/blend/save; Action Manager (executeAction) keys UNVERIFIED",
+     "notes": ""
+    },
+    {
+     "case_id": "PS-C11",
+     "source_item_ref": "diagnostics/adjustments-advanced-blending.md topic oracle-d5 and later topics / D5 case 11",
+     "title": "Knockout none/shallow/deep in nested groups",
+     "input_fixture_spec": [
+      "F_GRAY_RAMP_256x64: 256x64 sRGB, pixel (x,y)=(x,x,x), x=0..255, drawn in-script (256 one-pixel fills), saved to photoshop/inputs/F_GRAY_RAMP_256x64.tif base; outer group red (x<160); inner group yellow (x 64..192) at fill 50"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/photoshop",
+      "file_pattern": "PS-C11__<variant>.tif",
+      "format": "TIFF, uncompressed, interleaved, IBM byte order, embedded ICC, no alpha",
+      "bit_depth": "8 bit",
+      "colour_profile": "sRGB IEC61966-2.1",
+      "files": 3
+     },
+     "script": "hsk_oracle_photoshop.jsx",
+     "scriptable": "yes",
+     "api_status": "DOM verified for documents/layers/blend/save; Action Manager (executeAction) keys UNVERIFIED",
+     "notes": "knockout key UNVERIFIED; best effort"
+    },
+    {
+     "case_id": "PS-C12",
+     "source_item_ref": "builders/briefs/lane-effects-wave-1.md; pigment-effects lane d5_additions.12",
+     "title": "Drop shadow: shapes x size 2/10/40 x spread 0/50/100 x angle 120/-60/0/90/180, distance 5; fractional 2.5 at 30; soft layer fill 100/50/0 with layer-knocks-out-shadow on/off",
+     "input_fixture_spec": [
+      "128x128 transparent canvas, white layer: square 32..96, circle centre 64,64 r=32 (96-gon anti-aliased), soft = square with 4 px feather",
+      "shadow colour 000000, mode Normal, opacity 100, noise 0, contour linear, global light off"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/photoshop",
+      "file_pattern": "PS-C12__<variant>.tif",
+      "format": "TIFF, uncompressed, interleaved, IBM byte order, embedded ICC, extra transparency alpha channel",
+      "bit_depth": "8 bit",
+      "colour_profile": "sRGB IEC61966-2.1",
+      "files": 98
+     },
+     "script": "hsk_oracle_photoshop.jsx",
+     "scriptable": "yes",
+     "api_status": "DOM verified for documents/layers/blend/save; Action Manager (executeAction) keys UNVERIFIED",
+     "notes": ""
+    },
+    {
+     "case_id": "PS-C13",
+     "source_item_ref": "pigment-effects lane d5_additions.13",
+     "title": "Solid stroke outside/inside/center x size 1/2/5/50 on square, circle, soft; overlay+stroke order and stroke opacity",
+     "input_fixture_spec": [
+      "128x128 transparent canvas, white layer: square 32..96, circle centre 64,64 r=32 (96-gon anti-aliased), soft = square with 4 px feather",
+      "stroke colour FF0000"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/photoshop",
+      "file_pattern": "PS-C13__<variant>.tif",
+      "format": "TIFF, uncompressed, interleaved, IBM byte order, embedded ICC, extra transparency alpha channel",
+      "bit_depth": "8 bit",
+      "colour_profile": "sRGB IEC61966-2.1",
+      "files": 37
+     },
+     "script": "hsk_oracle_photoshop.jsx",
+     "scriptable": "yes",
+     "api_status": "DOM verified for documents/layers/blend/save; Action Manager (executeAction) keys UNVERIFIED",
+     "notes": ""
+    },
+    {
+     "case_id": "PS-C14",
+     "source_item_ref": "pigment-effects lane d5_additions.14",
+     "title": "Effect stack interplay: fill 100/50/0, opacity 50, blend interior on/off, layer mask hides effects on/off, Multiply shadow over gradient, two strokes instance order",
+     "input_fixture_spec": [
+      "128x128 transparent canvas, white layer: square 32..96, circle centre 64,64 r=32 (96-gon anti-aliased), soft = square with 4 px feather square on 200,200,200 backdrop; stack = drop shadow + red colour overlay + blue outside stroke"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/photoshop",
+      "file_pattern": "PS-C14__<variant>.tif",
+      "format": "TIFF, uncompressed, interleaved, IBM byte order, embedded ICC, no alpha",
+      "bit_depth": "8 bit",
+      "colour_profile": "sRGB IEC61966-2.1",
+      "files": 10
+     },
+     "script": "hsk_oracle_photoshop.jsx",
+     "scriptable": "yes",
+     "api_status": "DOM verified for documents/layers/blend/save; Action Manager (executeAction) keys UNVERIFIED; frameFXMulti and layerMaskAsGlobalMask are the least certain keys",
+     "notes": ""
+    },
+    {
+     "case_id": "PS-C15",
+     "source_item_ref": "ledger.json ~l.2235 (effects wave 2); pigment-effects lane d5_additions.15",
+     "title": "Inner shadow: shapes x size x choke x angle at distance 5; distance 0 set; soft edge; distance larger than shape; fill 0",
+     "input_fixture_spec": [
+      "128x128 transparent canvas, white layer: square 32..96, circle centre 64,64 r=32 (96-gon anti-aliased), soft = square with 4 px feather"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/photoshop",
+      "file_pattern": "PS-C15__<variant>.tif",
+      "format": "TIFF, uncompressed, interleaved, IBM byte order, embedded ICC, extra transparency alpha channel",
+      "bit_depth": "8 bit",
+      "colour_profile": "sRGB IEC61966-2.1",
+      "files": 111
+     },
+     "script": "hsk_oracle_photoshop.jsx",
+     "scriptable": "yes",
+     "api_status": "DOM verified for documents/layers/blend/save; Action Manager (executeAction) keys UNVERIFIED",
+     "notes": ""
+    },
+    {
+     "case_id": "PS-C16",
+     "source_item_ref": "ledger.json ~l.2235; pigment-effects lane d5_additions.16",
+     "title": "Outer glow: shapes x size x spread x Softer/Precise; range 100/50/25; jitter 0/50; fill 0 soft layer",
+     "input_fixture_spec": [
+      "128x128 transparent canvas, white layer: square 32..96, circle centre 64,64 r=32 (96-gon anti-aliased), soft = square with 4 px feather",
+      "glow colour FFFFBE, mode Screen"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/photoshop",
+      "file_pattern": "PS-C16__<variant>.tif",
+      "format": "TIFF, uncompressed, interleaved, IBM byte order, embedded ICC, extra transparency alpha channel",
+      "bit_depth": "8 bit",
+      "colour_profile": "sRGB IEC61966-2.1",
+      "files": 42
+     },
+     "script": "hsk_oracle_photoshop.jsx",
+     "scriptable": "yes",
+     "api_status": "DOM verified for documents/layers/blend/save; Action Manager (executeAction) keys UNVERIFIED",
+     "notes": ""
+    },
+    {
+     "case_id": "PS-C17",
+     "source_item_ref": "ledger.json ~l.2235; pigment-effects lane d5_additions.17",
+     "title": "Inner glow: source edge/centre x size x choke x Softer/Precise x square/circle; thin shape; soft edge",
+     "input_fixture_spec": [
+      "128x128 transparent canvas, white layer: square 32..96, circle centre 64,64 r=32 (96-gon anti-aliased), soft = square with 4 px feather"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/photoshop",
+      "file_pattern": "PS-C17__<variant>.tif",
+      "format": "TIFF, uncompressed, interleaved, IBM byte order, embedded ICC, extra transparency alpha channel",
+      "bit_depth": "8 bit",
+      "colour_profile": "sRGB IEC61966-2.1",
+      "files": 74
+     },
+     "script": "hsk_oracle_photoshop.jsx",
+     "scriptable": "yes",
+     "api_status": "DOM verified for documents/layers/blend/save; Action Manager (executeAction) keys UNVERIFIED",
+     "notes": ""
+    },
+    {
+     "case_id": "PS-C18",
+     "source_item_ref": "diagnostics/adjustments-advanced-blending.md topic oracle-d5 and later topics / D5 case 18",
+     "title": "Clip base with Blend-If This Layer over gradient backdrop, one Multiply clipped layer, Blend Clipped Layers as Group on/off",
+     "input_fixture_spec": [
+      "F_GRAY_RAMP_256x64: 256x64 sRGB, pixel (x,y)=(x,x,x), x=0..255, drawn in-script (256 one-pixel fills), saved to photoshop/inputs/F_GRAY_RAMP_256x64.tif backdrop and base; clipped solid (200,160,120) Multiply"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/photoshop",
+      "file_pattern": "PS-C18__<variant>.tif",
+      "format": "TIFF, uncompressed, interleaved, IBM byte order, embedded ICC, no alpha",
+      "bit_depth": "8 bit",
+      "colour_profile": "sRGB IEC61966-2.1",
+      "files": 3
+     },
+     "script": "hsk_oracle_photoshop.jsx",
+     "scriptable": "yes",
+     "api_status": "DOM verified for documents/layers/blend/save; Action Manager (executeAction) keys UNVERIFIED",
+     "notes": ""
+    },
+    {
+     "case_id": "PS-C19",
+     "source_item_ref": "diagnostics/adjustments-advanced-blending.md topic oracle-d5 and later topics / D5 case 19",
+     "title": "Clip base with Blend-If Underlying Layer; bright reversed ramp below the base",
+     "input_fixture_spec": [
+      "F_GRAY_RAMP_256x64: 256x64 sRGB, pixel (x,y)=(x,x,x), x=0..255, drawn in-script (256 one-pixel fills), saved to photoshop/inputs/F_GRAY_RAMP_256x64.tif",
+      "F_GRAY_RAMP_REV_256x64: pixel (x,y)=(255-x) gray"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/photoshop",
+      "file_pattern": "PS-C19__<variant>.tif",
+      "format": "TIFF, uncompressed, interleaved, IBM byte order, embedded ICC, no alpha",
+      "bit_depth": "8 bit",
+      "colour_profile": "sRGB IEC61966-2.1",
+      "files": 2
+     },
+     "script": "hsk_oracle_photoshop.jsx",
+     "scriptable": "yes",
+     "api_status": "DOM verified for documents/layers/blend/save; Action Manager (executeAction) keys UNVERIFIED",
+     "notes": ""
+    },
+    {
+     "case_id": "PS-C20",
+     "source_item_ref": "diagnostics/adjustments-advanced-blending.md topic oracle-d5 and later topics / D5 case 20",
+     "title": "Clipped layer (Normal ramp) with This Layer ranges, base = anti-aliased circle (alpha shape)",
+     "input_fixture_spec": [
+      "F_GRAY_RAMP_256x64: 256x64 sRGB, pixel (x,y)=(x,x,x), x=0..255, drawn in-script (256 one-pixel fills), saved to photoshop/inputs/F_GRAY_RAMP_256x64.tif"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/photoshop",
+      "file_pattern": "PS-C20__<variant>.tif",
+      "format": "TIFF, uncompressed, interleaved, IBM byte order, embedded ICC, extra transparency alpha channel",
+      "bit_depth": "8 bit",
+      "colour_profile": "sRGB IEC61966-2.1",
+      "files": 2
+     },
+     "script": "hsk_oracle_photoshop.jsx",
+     "scriptable": "yes",
+     "api_status": "DOM verified for documents/layers/blend/save; Action Manager (executeAction) keys UNVERIFIED",
+     "notes": "alpha export"
+    },
+    {
+     "case_id": "PS-C21",
+     "source_item_ref": "diagnostics/adjustments-advanced-blending.md topic oracle-d5 and later topics / D5 case 21",
+     "title": "Clipped layer with Underlying Layer ranges, with and without a bright layer below the base",
+     "input_fixture_spec": [
+      "F_GRAY_RAMP_256x64: 256x64 sRGB, pixel (x,y)=(x,x,x), x=0..255, drawn in-script (256 one-pixel fills), saved to photoshop/inputs/F_GRAY_RAMP_256x64.tif",
+      "F_GRAY_RAMP_REV_256x64: pixel (x,y)=(255-x) gray"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/photoshop",
+      "file_pattern": "PS-C21__<variant>.tif",
+      "format": "TIFF, uncompressed, interleaved, IBM byte order, embedded ICC, no alpha",
+      "bit_depth": "8 bit",
+      "colour_profile": "sRGB IEC61966-2.1",
+      "files": 2
+     },
+     "script": "hsk_oracle_photoshop.jsx",
+     "scriptable": "yes",
+     "api_status": "DOM verified for documents/layers/blend/save; Action Manager (executeAction) keys UNVERIFIED",
+     "notes": ""
+    },
+    {
+     "case_id": "PS-C22",
+     "source_item_ref": "diagnostics/adjustments-advanced-blending.md topic oracle-d5 and later topics / D5 case 22",
+     "title": "Clipped Invert adjustment layer with This Layer ranges",
+     "input_fixture_spec": [
+      "F_GRAY_RAMP_256x64: 256x64 sRGB, pixel (x,y)=(x,x,x), x=0..255, drawn in-script (256 one-pixel fills), saved to photoshop/inputs/F_GRAY_RAMP_256x64.tif"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/photoshop",
+      "file_pattern": "PS-C22__<variant>.tif",
+      "format": "TIFF, uncompressed, interleaved, IBM byte order, embedded ICC, no alpha",
+      "bit_depth": "8 bit",
+      "colour_profile": "sRGB IEC61966-2.1",
+      "files": 2
+     },
+     "script": "hsk_oracle_photoshop.jsx",
+     "scriptable": "yes",
+     "api_status": "DOM verified for documents/layers/blend/save; Action Manager (executeAction) keys UNVERIFIED",
+     "notes": ""
+    },
+    {
+     "case_id": "PS-C23",
+     "source_item_ref": "diagnostics/adjustments-advanced-blending.md topic oracle-d5 and later topics / D5 case 23",
+     "title": "Reproduce the reported bug (Underlying ranges stop working when a layer is clipped to the group), clip on/off",
+     "input_fixture_spec": [
+      "F_GRAY_RAMP_256x64: 256x64 sRGB, pixel (x,y)=(x,x,x), x=0..255, drawn in-script (256 one-pixel fills), saved to photoshop/inputs/F_GRAY_RAMP_256x64.tif",
+      "F_GRAY_RAMP_REV_256x64: pixel (x,y)=(255-x) gray"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/photoshop",
+      "file_pattern": "PS-C23__<variant>.tif",
+      "format": "TIFF, uncompressed, interleaved, IBM byte order, embedded ICC, no alpha",
+      "bit_depth": "8 bit",
+      "colour_profile": "sRGB IEC61966-2.1",
+      "files": 2
+     },
+     "script": "hsk_oracle_photoshop.jsx",
+     "scriptable": "yes",
+     "api_status": "DOM verified for documents/layers/blend/save; Action Manager (executeAction) keys UNVERIFIED",
+     "notes": "Comparison with a second validation Photoshop build is analysis on the Studio side; rerun there with control/ps_only.txt = PS-C23"
+    },
+    {
+     "case_id": "PS-C24",
+     "source_item_ref": "diagnostics/adjustments-advanced-blending.md topic oracle-d5 and later topics / D5 case 24",
+     "title": "Drop shadow + Blend-If This Layer (gray 50/100 split): none, ranges, fill 0, Transparency Shapes Layer off",
+     "input_fixture_spec": [
+      "128x128: horizontal gray ramp 0..254 step 2, white square layer"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/photoshop",
+      "file_pattern": "PS-C24__<variant>.tif",
+      "format": "TIFF, uncompressed, interleaved, IBM byte order, embedded ICC, extra transparency alpha channel",
+      "bit_depth": "8 bit",
+      "colour_profile": "sRGB IEC61966-2.1",
+      "files": 4
+     },
+     "script": "hsk_oracle_photoshop.jsx",
+     "scriptable": "yes",
+     "api_status": "DOM verified for documents/layers/blend/save; Action Manager (executeAction) keys UNVERIFIED; transparencyShape key UNVERIFIED",
+     "notes": ""
+    },
+    {
+     "case_id": "PS-C25",
+     "source_item_ref": "diagnostics/adjustments-advanced-blending.md topic oracle-d5 and later topics / D5 case 25",
+     "title": "Same with Underlying Layer ranges (fill 100 and 0)",
+     "input_fixture_spec": [
+      "as PS-C24"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/photoshop",
+      "file_pattern": "PS-C25__<variant>.tif",
+      "format": "TIFF, uncompressed, interleaved, IBM byte order, embedded ICC, extra transparency alpha channel",
+      "bit_depth": "8 bit",
+      "colour_profile": "sRGB IEC61966-2.1",
+      "files": 2
+     },
+     "script": "hsk_oracle_photoshop.jsx",
+     "scriptable": "yes",
+     "api_status": "DOM verified for documents/layers/blend/save; Action Manager (executeAction) keys UNVERIFIED",
+     "notes": ""
+    },
+    {
+     "case_id": "PS-C26",
+     "source_item_ref": "diagnostics/adjustments-advanced-blending.md topic oracle-d5 and later topics / D5 case 26",
+     "title": "Inner shadow + colour overlay with Blend-If, Blend Interior Effects as Group on/off",
+     "input_fixture_spec": [
+      "as PS-C24"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/photoshop",
+      "file_pattern": "PS-C26__<variant>.tif",
+      "format": "TIFF, uncompressed, interleaved, IBM byte order, embedded ICC, extra transparency alpha channel",
+      "bit_depth": "8 bit",
+      "colour_profile": "sRGB IEC61966-2.1",
+      "files": 3
+     },
+     "script": "hsk_oracle_photoshop.jsx",
+     "scriptable": "yes",
+     "api_status": "DOM verified for documents/layers/blend/save; Action Manager (executeAction) keys UNVERIFIED",
+     "notes": ""
+    },
+    {
+     "case_id": "PS-C27",
+     "source_item_ref": "diagnostics/adjustments-advanced-blending.md topic oracle-d5 and later topics / D5 case 27",
+     "title": "Group with a drop shadow whose child has its own drop shadow (child only / group only / both)",
+     "input_fixture_spec": [
+      "128x128 transparent canvas, white layer: square 32..96, circle centre 64,64 r=32 (96-gon anti-aliased), soft = square with 4 px feather square in a Normal group"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/photoshop",
+      "file_pattern": "PS-C27__<variant>.tif",
+      "format": "TIFF, uncompressed, interleaved, IBM byte order, embedded ICC, extra transparency alpha channel",
+      "bit_depth": "8 bit",
+      "colour_profile": "sRGB IEC61966-2.1",
+      "files": 3
+     },
+     "script": "hsk_oracle_photoshop.jsx",
+     "scriptable": "yes",
+     "api_status": "DOM verified for documents/layers/blend/save; Action Manager (executeAction) keys UNVERIFIED",
+     "notes": ""
+    },
+    {
+     "case_id": "PS-C28",
+     "source_item_ref": "diagnostics/adjustments-advanced-blending.md topic oracle-d5 and later topics / D5 case 28",
+     "title": "Pass Through group (Levels adjustment + Multiply pixel layer) with a layer mask on the group over a gradient backdrop: no mask, mask, mask + group opacity 50, mask density 50, opacity 50 without mask",
+     "input_fixture_spec": [
+      "F_GRAY_RAMP_256x64: 256x64 sRGB, pixel (x,y)=(x,x,x), x=0..255, drawn in-script (256 one-pixel fills), saved to photoshop/inputs/F_GRAY_RAMP_256x64.tif backdrop; group mask: left half black, right half white"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/photoshop",
+      "file_pattern": "PS-C28__<variant>.tif",
+      "format": "TIFF, uncompressed, interleaved, IBM byte order, embedded ICC, no alpha",
+      "bit_depth": "8 bit",
+      "colour_profile": "sRGB IEC61966-2.1",
+      "files": 5
+     },
+     "script": "hsk_oracle_photoshop.jsx",
+     "scriptable": "yes",
+     "api_status": "DOM verified for documents/layers/blend/save; Action Manager (executeAction) keys UNVERIFIED; inverted-mask variant NOT scripted (no verified path), recorded as not_scripted in the manifest",
+     "notes": ""
+    },
+    {
+     "case_id": "PS-C29",
+     "source_item_ref": "diagnostics/adjustments-advanced-blending.md topic oracle-d5 and later topics / D5 case 29",
+     "title": "Same Pass Through group with Fill 100 / 50 (does Photoshop honour group fill)",
+     "input_fixture_spec": [
+      "as PS-C28 without mask"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/photoshop",
+      "file_pattern": "PS-C29__<variant>.tif",
+      "format": "TIFF, uncompressed, interleaved, IBM byte order, embedded ICC, no alpha",
+      "bit_depth": "8 bit",
+      "colour_profile": "sRGB IEC61966-2.1",
+      "files": 2
+     },
+     "script": "hsk_oracle_photoshop.jsx",
+     "scriptable": "yes",
+     "api_status": "DOM verified for documents/layers/blend/save; Action Manager (executeAction) keys UNVERIFIED; group fillOpacity key UNVERIFIED",
+     "notes": ""
+    },
+    {
+     "case_id": "PS-B01",
+     "source_item_ref": "research/adobe-behavior.md section 8 (P1) and section 2 (soft light divergence, Photoshop-only modes)",
+     "title": "Blend-mode grids: 27 modes, backdrop x gray vs source y gray; 8 bit opacity/fill 100, 16 bit, opacity 50, fill 50",
+     "input_fixture_spec": [
+      "F_GRID_HRAMP_256 (backdrop, value=x) and F_GRID_VRAMP_256 (source, value=y), both 256x256"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/photoshop",
+      "file_pattern": "PS-B01__<variant>.tif",
+      "format": "TIFF, uncompressed, interleaved, IBM byte order, embedded ICC, no alpha",
+      "bit_depth": "8 bit (81) and 16 bit (27)",
+      "colour_profile": "sRGB IEC61966-2.1",
+      "files": 108
+     },
+     "script": "hsk_oracle_photoshop.jsx",
+     "scriptable": "yes",
+     "api_status": "DOM verified (BlendMode enum, opacity, fillOpacity); includes soft light and dissolve",
+     "notes": ""
+    },
+    {
+     "case_id": "PS-G01",
+     "source_item_ref": "research/adobe-behavior.md section 2 (Blend space) and section 8 (P4); START_LOG D5",
+     "title": "Gamma 1.00 blending: the 8-bit blend grids and the Pass Through masked group (PS-C28 'mask' and 'nomask') under the Operator-saved Color Settings preset HSK-gamma-1.0",
+     "input_fixture_spec": [
+      "F_GRID_HRAMP_256 (backdrop, value=x) and F_GRID_VRAMP_256 (source, value=y), both 256x256"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/photoshop",
+      "file_pattern": "PS-G01__<variant>.tif",
+      "format": "TIFF, uncompressed, interleaved, IBM byte order, embedded ICC, no alpha",
+      "bit_depth": "8 bit",
+      "colour_profile": "sRGB IEC61966-2.1",
+      "files": 29
+     },
+     "script": "hsk_oracle_photoshop.jsx",
+     "scriptable": "yes",
+     "api_status": "DOM: app.colorSettings is a verified read/write name property; that assigning a saved custom preset by name applies the 'Blend RGB Colors Using Gamma' flag is UNVERIFIED. The script never writes the flag itself.",
+     "notes": "Skipped (logged) if the current Color Settings name is 'Custom' or the preset cannot be applied; the original name is re-applied in the finally block and checked in manifest state.restore_checked"
+    },
+    {
+     "case_id": "PS-L01",
+     "source_item_ref": "START_LOG line ~220 (prism ENG-6 acknowledgement 2)",
+     "title": "Prism provisional item: Lab-indexed output CLUT interpolation (trilinear vs tetrahedral): 512 off-node Lab patches promoted to 16 bit, converted to U.S. Web Coated (SWOP) v2 (relative colorimetric and perceptual), CMYK 16 bit",
+     "input_fixture_spec": [
+      "F_LAB_OFFNODE_512x1: x=a*64+b*8+c, L=(s+0.5)*100/32, a and b=-128+(s+0.5)*255/32, s in {3,7,11,15,19,23,27,31}; saved to photoshop/inputs as 8-bit source"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/photoshop",
+      "file_pattern": "PS-L01__<variant>.tif",
+      "format": "TIFF, uncompressed, interleaved, IBM byte order, embedded ICC, no alpha",
+      "bit_depth": "16 bit CMYK",
+      "colour_profile": "U.S. Web Coated (SWOP) v2 (embedded)",
+      "files": 2
+     },
+     "script": "hsk_oracle_photoshop.jsx",
+     "scriptable": "yes",
+     "api_status": "DOM verified (changeMode, convertProfile); the profile NAME is UNVERIFIED for this build, doc.colorProfileName after conversion is recorded in the manifest",
+     "notes": "TIFF CMYK 16 bit; destination profile embedded"
+    },
+    {
+     "case_id": "PS-L02",
+     "source_item_ref": "workflow/plausible-register.json PLR-016 (interop-psd lab_channels_assumed_icc_encoding)",
+     "title": "PLR-016: Photoshop-authored 16-bit Lab fixture (neutral a=b=0, L=0..100 step 10): which integer does Photoshop store for neutral a/b (0x8080 ICC legacy vs other)",
+     "input_fixture_spec": [
+      "11 px Lab patches, 8-bit fill promoted to 16 bit; also saved as PSD in photoshop/inputs/"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/photoshop",
+      "file_pattern": "PS-L02__<variant>.tif",
+      "format": "TIFF, uncompressed, interleaved, IBM byte order, embedded ICC, no alpha",
+      "bit_depth": "16 bit Lab",
+      "colour_profile": "Lab (no ICC)",
+      "files": 1
+     },
+     "script": "hsk_oracle_photoshop.jsx",
+     "scriptable": "yes",
+     "api_status": "DOM verified (NewDocumentMode.LAB, SolidColor.lab, PhotoshopSaveOptions)",
+     "notes": "TIFF Lab 16 bit plus inputs/PS-L02__lab16_neutral_ramp.psd"
+    }
+   ],
+   "scripted_cases": [
+    "PS-C01",
+    "PS-C02",
+    "PS-C03",
+    "PS-C04",
+    "PS-C05",
+    "PS-C06",
+    "PS-C07",
+    "PS-C08",
+    "PS-C09",
+    "PS-C10",
+    "PS-C11",
+    "PS-C12",
+    "PS-C13",
+    "PS-C14",
+    "PS-C15",
+    "PS-C16",
+    "PS-C17",
+    "PS-C18",
+    "PS-C19",
+    "PS-C20",
+    "PS-C21",
+    "PS-C22",
+    "PS-C23",
+    "PS-C24",
+    "PS-C25",
+    "PS-C26",
+    "PS-C27",
+    "PS-C28",
+    "PS-C29",
+    "PS-B01",
+    "PS-G01",
+    "PS-L01",
+    "PS-L02"
+   ],
+   "not_scriptable_cases": [],
+   "expected_file_count": 616
+  },
+  {
+   "app": "illustrator",
+   "installed_under": "C:/Program Files/Adobe/Adobe Illustrator 2026",
+   "script_file": "oracle-session/hsk_oracle_illustrator.jsx",
+   "one_launch": true,
+   "dialogs_off": "app.userInteractionLevel = UserInteractionLevel.DONTDISPLAYALERTS (restored)",
+   "operator_launch": {
+    "menu": "File > Scripts > Other Script... (Ctrl+F12)",
+    "command_line": "PowerShell COM (UNVERIFIED): $ai = New-Object -ComObject Illustrator.Application; $ai.DoJavaScriptFile('<full path>')"
+   },
+   "preconditions": [
+    "No Illustrator document open."
+   ],
+   "global_settings_touched": [
+    "app.userInteractionLevel",
+    "app.coordinateSystem"
+   ],
+   "restore_steps": [
+    "app.userInteractionLevel and app.coordinateSystem are restored in finally; every document the script created is closed without saving."
+   ],
+   "output_dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/illustrator",
+   "control_files": "control/ai_only.txt",
+   "cases": [
+    {
+     "case_id": "AI-01",
+     "source_item_ref": "research/adobe-behavior.md section 8 (Illustrator bullet)",
+     "title": "Stroke cap x join x miter limit (butt/round/projecting x miter/round/bevel x 1/4/10) on an open zig-zag and a closed triangle, 14 pt stroke",
+     "input_fixture_spec": [
+      "256x128 pt RGB document, white background rectangle, black strokes; page space origin bottom-left"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/illustrator",
+      "file_pattern": "AI-01__cap_<c>_join_<j>_miter<m>.tif (+ one _aa_none)",
+      "format": "TIFF 8-bit RGB, 72 dpi, uncompressed, ICC embedded",
+      "bit_depth": "8 bit",
+      "colour_profile": "document profile (recorded in manifest)"
+     },
+     "script": "hsk_oracle_illustrator.jsx",
+     "scriptable": "yes",
+     "api_status": "All classes, properties and enums verified in the installed omv.xml",
+     "notes": "",
+     "expected_files": 28
+    },
+    {
+     "case_id": "AI-02",
+     "source_item_ref": "research/adobe-behavior.md section 8",
+     "title": "Dash arrays and offsets on a line; even-odd vs non-zero on a pentagram",
+     "input_fixture_spec": [
+      "256x64 pt and 128x128 pt white RGB documents"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/illustrator",
+      "file_pattern": "AI-02__dash_<id>.tif, AI-02__fill_<rule>.tif",
+      "format": "TIFF 8-bit RGB, 72 dpi, uncompressed, ICC embedded",
+      "bit_depth": "8 bit",
+      "colour_profile": "document profile (recorded in manifest)"
+     },
+     "script": "hsk_oracle_illustrator.jsx",
+     "scriptable": "yes",
+     "api_status": "verified in omv.xml",
+     "notes": "",
+     "expected_files": 6
+    },
+    {
+     "case_id": "AI-03",
+     "source_item_ref": "research/adobe-behavior.md section 8",
+     "title": "Gradient midpoint 25/50/75, stop opacity, radial",
+     "input_fixture_spec": [
+      "256x64 pt linear black->white; radial 128x128"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/illustrator",
+      "file_pattern": "AI-03__<id>.tif",
+      "format": "TIFF 8-bit RGB, 72 dpi, uncompressed, ICC embedded",
+      "bit_depth": "8 bit",
+      "colour_profile": "document profile (recorded in manifest)"
+     },
+     "script": "hsk_oracle_illustrator.jsx",
+     "scriptable": "yes",
+     "api_status": "verified in omv.xml (GradientStop.midPoint/rampPoint/opacity, GradientColor)",
+     "notes": "",
+     "expected_files": 5
+    },
+    {
+     "case_id": "AI-04",
+     "source_item_ref": "research/adobe-behavior.md sections 2 and 8 (Illustrator blend set = 16 PDF modes)",
+     "title": "16 blend modes at opacity 100 and 50 over a black->white gradient with four solid source bands",
+     "input_fixture_spec": [
+      "256x64 pt: gradient backdrop; four 16 pt bands (200,80,40),(40,160,220),(128,128,128),(20,200,90)"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/illustrator",
+      "file_pattern": "AI-04__<MODE>_o<opacity>.tif",
+      "format": "TIFF 8-bit RGB, 72 dpi, uncompressed, ICC embedded",
+      "bit_depth": "8 bit",
+      "colour_profile": "document profile (recorded in manifest)"
+     },
+     "script": "hsk_oracle_illustrator.jsx",
+     "scriptable": "yes",
+     "api_status": "verified in omv.xml (BlendModes members)",
+     "notes": "",
+     "expected_files": 32
+    },
+    {
+     "case_id": "AI-05",
+     "source_item_ref": "research/adobe-behavior.md section 2 (OMV isIsolated / artworkKnockout)",
+     "title": "Group isolate-blending and knockout (KnockoutState DISABLED/ENABLED) with two overlapping 50 % Multiply squares",
+     "input_fixture_spec": [
+      "128x128 pt, yellow backdrop, red and blue 60 pt squares in a group"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/illustrator",
+      "file_pattern": "AI-05__<id>.tif",
+      "format": "TIFF 8-bit RGB, 72 dpi, uncompressed, ICC embedded",
+      "bit_depth": "8 bit",
+      "colour_profile": "document profile (recorded in manifest)"
+     },
+     "script": "hsk_oracle_illustrator.jsx",
+     "scriptable": "yes",
+     "api_status": "verified in omv.xml (PageItem.isIsolated, artworkKnockout, KnockoutState)",
+     "notes": "",
+     "expected_files": 4
+    },
+    {
+     "case_id": "AI-NS1",
+     "source_item_ref": "research/adobe-behavior.md section 8",
+     "title": "Multi-fill appearance stacks (several fills/strokes per object)",
+     "input_fixture_spec": [],
+     "expected_export": {},
+     "script": null,
+     "scriptable": "no",
+     "api_status": "NOT SCRIPTABLE with the documented DOM: omv.xml exposes one fill and one stroke per PathItem; appearance stacks need Actions/Graphic Styles (UNVERIFIED path)",
+     "notes": "Deferred; needs a hand-authored .ai fixture",
+     "expected_files": 0
+    }
+   ],
+   "scripted_cases": [
+    "AI-01",
+    "AI-02",
+    "AI-03",
+    "AI-04",
+    "AI-05"
+   ],
+   "not_scriptable_cases": [
+    "AI-NS1"
+   ],
+   "expected_file_count": 75
+  },
+  {
+   "app": "indesign",
+   "installed_under": "C:/Program Files/Adobe/Adobe InDesign 2026",
+   "script_file": "oracle-session/hsk_oracle_indesign.jsx",
+   "one_launch": true,
+   "dialogs_off": "app.scriptPreferences.userInteractionLevel = UserInteractionLevels.NEVER_INTERACT (restored); documents are created with showingWindow=false",
+   "operator_launch": {
+    "menu": "Window > Utilities > Scripts; in the Scripts panel right-click 'User' > Reveal in Explorer, copy the .jsx there, double-click it in the panel",
+    "command_line": "PowerShell COM (UNVERIFIED): $id = New-Object -ComObject InDesign.Application.2026; $id.DoScript('<full path>', 1246973031)  (1246973031 = ScriptLanguage.JAVASCRIPT in the typings; ProgID InDesign.Application.2026 is registered). The COM bridge is known to wedge after a handful of calls (research/adobe-behavior.md section 8): one DoScript call only."
+   },
+   "preconditions": [
+    "No InDesign document open.",
+    "Arial installed (Windows) or Minion Pro; the chosen font and file are recorded in manifest state.font."
+   ],
+   "global_settings_touched": [
+    "app.scriptPreferences.userInteractionLevel",
+    "app.scriptPreferences.measurementUnit"
+   ],
+   "restore_steps": [
+    "scriptPreferences.userInteractionLevel (NEVER_INTERACT during the run) and measurementUnit (POINTS during the run) are restored in finally; documents are closed without saving."
+   ],
+   "output_dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/indesign",
+   "control_files": "control/id_only.txt",
+   "cases": [
+    {
+     "case_id": "ID-01",
+     "source_item_ref": "research/adobe-behavior.md sections 5 and 8 (InDesign bullet)",
+     "title": "Paragraph vs Single-line composer x hyphenation x justification x 10 frame widths (150..420 pt): line-break indices and per-character x",
+     "input_fixture_spec": [
+      "one fixed ASCII paragraph (TEXT constant in hsk_oracle_indesign.jsx), Arial 12/14.4 pt (fallback Minion Pro), insets 0, 500x800 pt page"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/indesign",
+      "file_pattern": "ID-01__<composer>_<hyph>_<just>_w<width>.json",
+      "format": "JSON: lines[start,count,x0,x1,text], char_x_pt[[index,x]] in points",
+      "bit_depth": "n/a",
+      "colour_profile": "n/a"
+     },
+     "script": "hsk_oracle_indesign.jsx",
+     "scriptable": "yes",
+     "api_status": "DOM names verified in typings; composer string values UNVERIFIED (default string recorded in manifest)",
+     "notes": "",
+     "expected_files": 80
+    },
+    {
+     "case_id": "ID-02",
+     "source_item_ref": "research/adobe-behavior.md section 8",
+     "title": "Spacing-limit sweep (word/letter/glyph scaling min/desired/max) at width 240, both composers",
+     "input_fixture_spec": [
+      "same paragraph, frame 240 pt, fully justified, hyphenation on"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/indesign",
+      "file_pattern": "ID-02__<composer>_<set>.json",
+      "format": "JSON: lines[start,count,x0,x1,text], char_x_pt[[index,x]] in points",
+      "bit_depth": "n/a",
+      "colour_profile": "n/a"
+     },
+     "script": "hsk_oracle_indesign.jsx",
+     "scriptable": "yes",
+     "api_status": "DOM names verified in typings",
+     "notes": "",
+     "expected_files": 12
+    },
+    {
+     "case_id": "ID-03",
+     "source_item_ref": "research/adobe-behavior.md section 8",
+     "title": "PDF + IDML export of three configurations (Studio parses them with its own parser)",
+     "input_fixture_spec": [
+      "same paragraph, width 240"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/indesign",
+      "file_pattern": "ID-03__<id>.pdf, .idml, .json",
+      "format": "PDF (preset [High Quality Print] else preset 0), IDML, JSON",
+      "bit_depth": "n/a",
+      "colour_profile": "per preset"
+     },
+     "script": "hsk_oracle_indesign.jsx",
+     "scriptable": "yes",
+     "api_status": "ExportFormat.PDF_TYPE / INDESIGN_MARKUP verified in typings; PDF preset names UNVERIFIED",
+     "notes": "",
+     "expected_files": 9
+    },
+    {
+     "case_id": "ID-04",
+     "source_item_ref": "research/adobe-behavior.md section 8",
+     "title": "Threaded frames and overset detection",
+     "input_fixture_spec": [
+      "two linked frames 200x120 pt"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/indesign",
+      "file_pattern": "ID-04__two_linked_small_frames.json",
+      "format": "JSON",
+      "bit_depth": "n/a",
+      "colour_profile": "n/a"
+     },
+     "script": "hsk_oracle_indesign.jsx",
+     "scriptable": "yes",
+     "api_status": "nextTextFrame / overflows verified in typings",
+     "notes": "",
+     "expected_files": 1
+    },
+    {
+     "case_id": "ID-NS1",
+     "source_item_ref": "research/adobe-behavior.md section 5",
+     "title": "Adobe's internal composer weights and any Knuth-Plass equivalence; inline-object text wrap forcing single-line",
+     "input_fixture_spec": [],
+     "expected_export": {},
+     "script": null,
+     "scriptable": "no",
+     "api_status": "NOT SCRIPTABLE: internals are not exposed by the DOM; only outputs (line breaks, x positions) are measured by ID-01..03",
+     "notes": "Studio infers the model from ID-01/02 data",
+     "expected_files": 0
+    }
+   ],
+   "scripted_cases": [
+    "ID-01",
+    "ID-02",
+    "ID-03",
+    "ID-04"
+   ],
+   "not_scriptable_cases": [
+    "ID-NS1"
+   ],
+   "expected_file_count": 102
+  },
+  {
+   "app": "aftereffects",
+   "installed_under": "C:/Program Files/Adobe/Adobe After Effects 2026",
+   "script_file": "oracle-session/hsk_oracle_aftereffects.jsx",
+   "one_launch": true,
+   "dialogs_off": "app.beginSuppressDialogs() (ended in finally)",
+   "operator_launch": {
+    "menu": "File > Scripts > Run Script File...",
+    "command_line": "\"C:\\Program Files\\Adobe\\Adobe After Effects 2026\\Support Files\\AfterFX.exe\" -r \"<full path>\"  (-r is the run-script switch; UNVERIFIED on 2026)"
+   },
+   "preconditions": [
+    "Empty project (script aborts otherwise).",
+    "Edit > Preferences > Scripting & Expressions > 'Allow Scripts to Write Files and Access Network' ON (the script alerts once and stops if writing fails)."
+   ],
+   "global_settings_touched": [
+    "none (scratch project only)"
+   ],
+   "restore_steps": [
+    "app.beginSuppressDialogs() / endSuppressDialogs(false); the scratch project is closed with DO_NOT_SAVE_CHANGES. First launch writes per-user preferences/templates (side effect, announced in RUN.md)."
+   ],
+   "output_dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/aftereffects",
+   "control_files": "control/ae_only.txt",
+   "cases": [
+    {
+     "case_id": "AE-01",
+     "source_item_ref": "builders/lanes/hsk-studio-motion.json (next: AE valueAtTime black-box oracle); research/adobe-behavior.md sections 4 and 8",
+     "title": "valueAtTime dense sampling: bezier grid s0,i0,s1,i1 in {0,100,-100}x{16.67,33.33,75} x dt{1,3} x dv{90,-90} (324 segments x 101 samples)",
+     "input_fixture_spec": [
+      "comp 320x240 24 fps 10 s, Null layer Rotation, keys at 0 and dt"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/aftereffects",
+      "file_pattern": "AE-01__bezier_grid.jsonl",
+      "format": "JSON lines (header + one object per segment)",
+      "bit_depth": "n/a",
+      "colour_profile": "n/a"
+     },
+     "script": "hsk_oracle_aftereffects.jsx",
+     "scriptable": "yes",
+     "api_status": "valueAtTime / setTemporalEaseAtKey / KeyframeEase verified (ae-scripting.docsforadobe.dev, typings)",
+     "notes": "",
+     "expected_files": 1
+    },
+    {
+     "case_id": "AE-01b",
+     "source_item_ref": "same as AE-01",
+     "title": "Mixed interpolation (LINEAR/BEZIER/HOLD pairs), 3-key chains with temporal auto-bezier / continuous",
+     "input_fixture_spec": [
+      "as AE-01"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/aftereffects",
+      "file_pattern": "AE-01b__mixed_types.json",
+      "format": "JSON",
+      "bit_depth": "n/a",
+      "colour_profile": "n/a"
+     },
+     "script": "hsk_oracle_aftereffects.jsx",
+     "scriptable": "yes",
+     "api_status": "verified in typings",
+     "notes": "",
+     "expected_files": 1
+    },
+    {
+     "case_id": "AE-02",
+     "source_item_ref": "research/adobe-behavior.md section 4 (STU-MOT-033 'per component' check)",
+     "title": "2-D Position: ease array length (one spatial ease or per component), default vs set spatial tangents, roving middle key",
+     "input_fixture_spec": [
+      "comp as AE-01, Null Position"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/aftereffects",
+      "file_pattern": "AE-02__spatial.json",
+      "format": "JSON",
+      "bit_depth": "n/a",
+      "colour_profile": "n/a"
+     },
+     "script": "hsk_oracle_aftereffects.jsx",
+     "scriptable": "yes",
+     "api_status": "verified in typings; speed units of spatial eases UNVERIFIED",
+     "notes": "",
+     "expected_files": 1
+    },
+    {
+     "case_id": "AE-03",
+     "source_item_ref": "research/adobe-behavior.md section 4",
+     "title": "Expression on: valueAtTime(t,true) vs (t,false)",
+     "input_fixture_spec": [
+      "Rotation with linear keys and three expressions"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/aftereffects",
+      "file_pattern": "AE-03__expressions.json",
+      "format": "JSON",
+      "bit_depth": "n/a",
+      "colour_profile": "n/a"
+     },
+     "script": "hsk_oracle_aftereffects.jsx",
+     "scriptable": "yes",
+     "api_status": "verified in typings",
+     "notes": "",
+     "expected_files": 1
+    },
+    {
+     "case_id": "AE-NS1",
+     "source_item_ref": "research/adobe-behavior.md section 8 (After Effects bullet)",
+     "title": "Render probes (blend modes on solids, precomp collapse, time remap) via aerender",
+     "input_fixture_spec": [],
+     "expected_export": {},
+     "script": null,
+     "scriptable": "no",
+     "api_status": "NOT SCRIPTED in this session: needs a saved .aep, a render queue and an output module template; aerender.exe exists on this host but invocation and templates are UNVERIFIED",
+     "notes": "Deferred to a separate packet",
+     "expected_files": 0
+    }
+   ],
+   "scripted_cases": [
+    "AE-01",
+    "AE-01b",
+    "AE-02",
+    "AE-03"
+   ],
+   "not_scriptable_cases": [
+    "AE-NS1"
+   ],
+   "expected_file_count": 4
+  }
+ ],
+ "summary": {
+  "cases_scripted": 46,
+  "cases_not_scriptable": 3,
+  "expected_files": 797,
+  "d5_numbered_cases_1_29": "all 29 are scripted as PS-C01..PS-C29; every Action-Manager-built one is API UNVERIFIED (the first run is also the verification run; failed variants are logged and re-run with control/ps_only.txt); one sub-variant (inverted group mask in PS-C28) is not scripted",
+  "unverified_notes": [
+   "Photoshop Action Manager keys (adjustment layers, layer styles, Blend-If, mask density/feather, knockout, blendClipped/blendInterior, group fillOpacity, frameFXMulti, layerMaskAsGlobalMask, transparencyShape): written from ScriptingListener conventions, no Adobe document lists them",
+   "Photoshop 'Blend RGB Colors Using Gamma': no DOM property; only preset-name switching is used",
+   "Command-line / COM launch forms for all four apps (the menu route is primary)",
+   "InDesign composer string values and PDF preset names; After Effects spatial ease speed units",
+   "Photoshop 2026 DOM is checked against 2015.5-era typings and a reference mirror: newer additions are not covered"
+  ],
+  "verification_sources": [
+   "Photoshop DOM: github.com/pravdomil/types-for-adobe Photoshop/2015.5 (generated from Adobe's dictionary) + theiviaxx.github.io/photoshop-docs",
+   "Illustrator: installed omv.xml (Scripting Dictionaries CC/Illustrator 2026)",
+   "InDesign: github.com/pravdomil/types-for-adobe InDesign/2023",
+   "After Effects: ae-scripting.docsforadobe.dev (Property page fetched) + types-for-adobe AfterEffects/26.0",
+   "Syntax of all four scripts checked with node --check (#target line stripped). No script was executed and no Adobe application was launched."
+  ]
+ }
+}
