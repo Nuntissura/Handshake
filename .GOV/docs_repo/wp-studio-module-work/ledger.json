@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-14T23:02:38Z",
+ "updated_at": "2026-10-14T23:04:30Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -4665,11 +4665,20 @@
   {
    "lane_id": "SMB-NIB-VECTOR-RENDER",
    "crate": "hsk-studio-nib",
-   "status": null,
-   "commits": [],
+   "status": "READY_FOR_VALIDATION",
+   "commits": [
+    "5e550e2",
+    "9e5c438",
+    "c6a636f",
+    "fd8a271",
+    "a1fc75f",
+    "201dca0",
+    "baf8ffc"
+   ],
    "verdicts": [],
    "note": "robust path booleans, stroke-to-path, coverage rasterisation + gradients/patterns, path editing primitives",
-   "phase": "build (parity wave 2, brief builders/briefs/wave-parity-2-common.md)"
+   "phase": "validation",
+   "lane_file": "builders/lanes/hsk-studio-nib-vector-render.json"
   },
   {
    "lane_id": "SMB-LAYOUT-TYPESET",
@@ -4828,7 +4837,7 @@
    "owner": null,
    "commits": [],
    "verdicts": [],
-   "note": "composite evaluates image-typed vector sources inside groups (folio 6e2ec80); after SMB-COMPOSITE-COMPOSITION-ADAPTER"
+   "note": "after SMB-COMPOSITE-COMPOSITION-ADAPTER: image-typed vector sources in groups (folio 6e2ec80) + lower strokes (nib::stroke::outline_stroke), exact coverage (nib::raster::rasterize), gradients/patterns (nib::raster::paint_coverage), live boolean outlines (nib::boolean); CPU/GPU parity"
   },
   {
    "lane_id": "SMB-LAYOUT-PARENT-ADAPTER",

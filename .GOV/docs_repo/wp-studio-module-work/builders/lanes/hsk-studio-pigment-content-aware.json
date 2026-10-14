@@ -1,0 +1,17 @@
+{
+ "crate": "hsk-studio-pigment",
+ "lane": "SMB-PIGMENT-CONTENT-AWARE",
+ "status": null,
+ "phase": "slice 1 code pushed (5c2288e, compiles, clippy -p hsk-studio-pigment --tests clean); tests in progress",
+ "commits": [
+  {"sha": "5c2288e", "subject": "pigment (SMB-PIGMENT-CONTENT-AWARE slice 1): native content-aware fill (STU-RAS-143)"}
+ ],
+ "capabilities_done": [],
+ "tests": {"argv": null, "exit": null, "sha": null, "passed": 0, "failed": 0},
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "slice 1 tests (stripes/checker/noise/edge/threads/hostile), slice 2 patch + move, slice 3 receipt proof",
+ "updated_at": "2026-10-14T23:03:11Z",
+ "notes": {}
+}
