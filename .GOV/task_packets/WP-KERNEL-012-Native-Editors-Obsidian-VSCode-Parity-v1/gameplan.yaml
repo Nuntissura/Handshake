@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 698
+generation: 699
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -592,3 +592,4 @@ steps:
 - {id: GP-571, role: builder, at: before_round, do: verify compile-only schema165 remains unmeasured failclosed; retain164 history and required realINFO pin confirmation, check: {type: confirm}, source: 'GLOBAL-GAMEPLAN005: stage06 admits compile before165 measurement; never claim unknown catalog measured', state: active}
 - {id: GP-572, role: builder, at: before_dispatch, do: verify validation stdout is nonempty structured JSON and retain full status before parsing or invoking outer, check: {type: confirm}, source: 'infra: read exit0 emptystdout JSON.parse failed before outer; underlying cause UNVERIFIED, no slot consumed', state: active}
 - {id: GP-573, role: builder, at: before_dispatch, do: verify retained retry parent is hash-bound before original producer API and foundation lineage traversal, check: {type: confirm}, source: 'infra: extra prior_freeze parent shifted fixed-depth walk; registryToc lacked producer_freeze and LiteralPath was null', state: active}
+- {id: GP-574, role: builder, at: before_dispatch, do: verify admitted owned caller persists actual numeric exit and settlement independently of the chat handle; missing terminal remains inconclusive, check: {type: confirm}, source: 'infra: check02 outer4458 became unknown with484of485 targets and no build-finished/result; owned closure proved but termination cause UNVERIFIED', state: active}

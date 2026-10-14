@@ -771,7 +771,7 @@
   "swarm_source_admission_ref": "packet.json#/swarm_production_20261014",
   "swarm_changed_source_compile_admission_20261014": {
     "decision_id": "WP012-SWARM-CHANGED-SOURCE-COMPILER-20261014-06",
-    "status": "PRE_CARGO_WRAPPER_FAILED_CLOSED_SCOPED_CALLER_REPAIR_ADMITTED",
+    "status": "CORE_LOST_OWNED_CALLER_FREEZE_CLOSED_STAGE06_EXHAUSTED",
     "recorded_at_utc": "2026-10-14T15:45:07.325853+00:00",
     "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
     "decision_owner_chat": "01a13ab5-bfe4-74b1-8fc3-64e691a76827",
@@ -807,7 +807,7 @@
       "--message-format=json"
     ],
     "additional_terminal_limit": 2,
-    "checks_consumed": 1,
+    "checks_consumed": 2,
     "counter_policy": "At most one current-source probe and one confirmation only after relevant inputs or evidenced method change. Preserve old40 core failures, spent2of2 stage and successful changed-host retry1of1; no history reset/automatic renewal. Root records evidenced continuation or exact blocker at threshold.",
     "profile_ref": "../gov-runtime/host-profile-wp012-phase02-builder.json",
     "profile_sha256": "916767bbbac5a853b9b8dbd5688d2262cc91bff0d9173fc2431f4dad0bc6b776",
@@ -820,8 +820,8 @@
       "current_native_manifest_sha256": "2a5a78042a744a0e6a91e54adcd3ea47278c8dd194ced04e59a08dc8cd4b2b51"
     },
     "prior_proof_ref": "MT-188.json#/swarm_core_retry_success_20261014",
-    "compiler_invocations_observed": 0,
-    "terminal_counting_disposition": "Root conservative explicit disposition under WP012-ADAPT-001/006/007: this released original wrapper terminal consumes1of2 stage06 terminal checks, while original CORE command invocations remain0. Exactly one changed-caller confirmation remains; no history reset or automatic renewal.",
+    "compiler_invocations_observed": 1,
+    "terminal_counting_disposition": "Root explicit disposition under WP012-ADAPT-001/006/007: check01 pre-Cargo failure plus check02 lost owned caller consume2of2 stage06 checks. One actual original CORE invocation was observed; its numeric terminal is UNKNOWN. No remaining stage06 confirmation, history reset or automatic renewal; a recorded evidenced changed-method decision is required before another run.",
     "pre_cargo_wrapper_failure_20261014": {
       "decision_id": "WP012-SWARM-CALLER-LINEAGE-REPAIR-20261014-07",
       "recorded_at_utc": "2026-10-14T17:54:23.118422+00:00",
@@ -871,6 +871,55 @@
       },
       "next_release": "One affected SAME-IV review of exact changed external runner/config/caller with unchanged575 source; actual official gates/resource admission and new frozen output namespace before one remaining stage06 terminal confirmation. No fresh Operator approval required within this delegated scope.",
       "history_preserved": "All40 old core failures, spent original2of2 and changed-host1of1 retained; native13/stage04 1of3 and metadata1of1 unchanged. Original full independent WP acceptance remains open."
+    },
+    "lost_owned_caller_20261014": {
+      "decision_id": "WP012-SWARM-LOST-OWNED-CALLER-20261014-08",
+      "recorded_at_utc": "2026-10-14T18:43:00Z",
+      "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+      "attempt_id": "6dfbb38bdf3f42af9dec7490b32f699f",
+      "artifact_root": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt188-swarm-core-check02",
+      "original_outer_session": 4458,
+      "original_outer_numeric_exit": null,
+      "original_cargo_numeric_exit": null,
+      "original_session_recovery": "Primary actual write_stdin returned Unknown process id4458; independent retained peer tool-history inspection recovered no numeric terminal for this attempt",
+      "underlying_termination_cause": "UNVERIFIED",
+      "original_state_file": "RUNNING with null exit is stale; retain original bytes",
+      "missing_original_outputs": ["compile-result", "post-candidate", "post-binding", "compile-evidence", "build-finished"],
+      "partial_compiler_observation": {
+        "valid_json_records": 3018,
+        "malformed_records": 0,
+        "error_records": 0,
+        "warning_records": 1629,
+        "observed_expected_targets": 484,
+        "expected_targets": 485,
+        "missing_target": "handshake_core lib with profile_test=true",
+        "stdout_bytes": 4530004,
+        "stdout_sha256": "7295efe2e53cf134ef15877f044d2d1e5a81dde8d54c0004a1967521e5af25a4",
+        "stderr_bytes": 125,
+        "stderr_sha256": "2716375e5bec0c781ccaeb1b1b98349f74df2ff7fb39b75ee6004416890eb833",
+        "compiler_acceptance": "NOT_ESTABLISHED; partial zero-error output is neither PASS nor evidence of a source compiler failure"
+      },
+      "independent_closure": {
+        "owner_chat": "01a139f6-ce6a-7b50-a058-dff3732ea4a2",
+        "disposition": "INCONCLUSIVE_LOST_OWNED_CALLER",
+        "canonical_source_inputs": 7416,
+        "manifest_config_inputs": 23,
+        "raw_authority_inputs": 11,
+        "tool_inputs": 3,
+        "drift": 0,
+        "canonical_source_digest": "b5f49807c287c6b8722688625dee0787b308c6baa87a70ab7ba797b38edc0627",
+        "ephemeral_owned_identities": 16,
+        "owned_process_closure": "Fresh exact PID and birth CIM proves all16 scheduled ephemeral identities and wrapper/Cargo direct children absent; no reused IDs",
+        "persistent_cache_pid_retained": 4820,
+        "product_head": "575997886285ede0442cc8b93bb69eed57d94e08",
+        "kernel_head_at_run": "a7efd6439514d4c7866bfd0ceb050dbb749cab65",
+        "runner_sha256": "387510d9c885e8361ddb96ecac52f14683d8760dd38fdd5b433a755fbb9d159c",
+        "config_sha256": "5782fdaae9ffb47ef6b4ea74d38d76d36c019ab25cb0ee2ebe30100244159400",
+        "candidate_sha256": "6bc31ef97a39f48adf3dcc2b7dcc443f5c775734d9981731bcd5f44dbf00d6de",
+        "scope": "Independent canonical freeze and owned-process closure; no invented wrapper postbinding, numeric exit, compiler PASS or host-OOM claim"
+      },
+      "next_action": "Primary inspects retained owning command and proposes the smallest durable owned caller/exit-capture method. Root records exact finite changed-method admission before external caller writes or another invocation; one affected SAME-IV caller review and original official preparation/resource gates remain required.",
+      "preserved": "Both stage06 attempts, old40 source failures, spent original2of2 and hostretry1of1, native13/stage04 1of3, metadata1of1 and original full independent WP acceptance; no dependent native/runtime permission"
     }
   }
 }
