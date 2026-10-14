@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-14T20:02:12Z",
+ "updated_at": "2026-10-14T20:08:05Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3921,12 +3921,15 @@
   {
    "lane_id": "SMB-REEL-BFRAME-ORDER",
    "crate": "hsk-studio-reel",
-   "phase": "queued",
-   "status": null,
-   "owner": null,
-   "commits": [],
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
+   "owner": "builder-reel-bframe-20261014",
+   "commits": [
+    "4653498"
+   ],
    "verdicts": [],
-   "note": "reel video::Forward matches pictures in decode order; H.264 B-frames (presentation order from MF) refused mf-reorder-needs-packet-timing: match by sample time / PTS"
+   "note": "reel video::Forward matches pictures in decode order; H.264 B-frames (presentation order from MF) refused mf-reorder-needs-packet-timing: match by sample time / PTS",
+   "lane_file": "builders/lanes/hsk-studio-reel-bframe-order.json"
   },
   {
    "lane_id": "SMB-INTEROP-PSD-LE-LAYERS",
