@@ -605,7 +605,24 @@
       "boundaries": "No source/governance writes, branch/worktree creation, build/test/runtime launch or acceptance changes; report inspected evidence to root and mediator before exact implementation admission"
     },
     "build_rule_ref": {"path": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json", "rule_id": "HBR-MODULE-LIFECYCLE-008"},
-    "current_evidence_limits": "Exact component source inspected and host seams mapped; no missing shared-logic defect yet proven, actual GUI pixels NOT_INSPECTED, no component or Handshake adoption edits performed.",
+    "inspection_outcome": {
+      "status": "READ_ONLY_MAPPING_COMPLETE",
+      "actual_helpers_selected_by_leader": 3,
+      "current_host_binding": "MT175 owns native implementation; existing WP1 pin98efa is not a Kumihimo source pin. No existing Kumihimo adoption MT or native Cargo/lock/source reference was inspected.",
+      "microtask_groups": {
+        "WP-KERNEL-011": ["MT-003 theme", "MT-005 registry", "MT-006 split", "MT-007 tabs", "MT-008 detached windows", "MT-009 persistence", "MT-010 rails", "MT-011 project tabs", "MT-013 headers", "MT-020 context actions"],
+        "WP-KERNEL-012": ["MT-079 primary payload factories", "MT-080 secondary payload factories", "MT-097 defaults", "MT-098 runtime chat", "MT-102 visual diagnostics", "MT-103 model navigation", "MT-121 viewport/accessibility", "MT-126 actual GPU capture"],
+        "indirect_originals": "WP011025/026 AccessKit,027/028 Argus,029/030 audits; WP012035/036 undo+FR,041/042 editor/graph accessibility,084/085/087 frame/performance diagnostics"
+      },
+      "shared_source_gaps": [
+        {"id": "WP012-KUM-GAP-001", "source": "Kumihimo/product/kumihimo-egui/src/window_slots.rs:152 and src/native.rs:26-47", "finding": "WindowSlots commit is pub(crate) and Ready is privately minted after genuine capture. An external eframe host lacks a public genuine readiness/commit boundary.", "required_order": "Original asset safe public embedding boundary first, preserving nonce/root/identity/generation/epoch/HWND/size/scale/byte validation and genuine readiness; standalone proof/publish/independent remote reread, then distinct pinned host adoption. Never expose an unvalidated receipt constructor or copy the state machine into Handshake."},
+        {"id": "WP012-KUM-GAP-002", "source": "Kumihimo/product/kumihimo-egui/src/input.rs:1011,1047,1222 and src/navigation.rs:469", "finding": "Shared preview/divider/rail colors use fixed values. Original semantic theme and dark/light obligations require shared theme-token hooks.", "required_order": "Original reusable theme hook first with affected source proof, then host semantic palette adaptation and actual opened dark/light pixel proof."}
+      ],
+      "conditional_shared_work": "Native-session outer geometry representation/validation only if the selected adapter requires it; host monitor discovery/authenticated storage remains host. Configurable demo runner title/size only if separately admitted runner replacement is selected; replacement is not implicit.",
+      "host_responsibilities": "Pane/tab identity and dirty/pin/close policy, content factories, actual native viewport allocation/title/payload, Argus/auth/diagnostics, undo/FR, authenticated workspace persistence/LKG/restart and stable accessibility. Current split is custom SplitWeights; retain original clamping, geometry and actions rather than infer an egui_tiles tree.",
+      "proof": "Existing standalone WP-KUM-012 A001-A013 and affected original asset/native/UIA/pixel/remote proof precede distinct host proof. Original WP012/WP011 live storage/restart, Argus, quiet lifecycle and dark/light pixels remain. Asset egui0.33.3 versus host0.33-family compatibility NOT_PROVED."
+    },
+    "current_evidence_limits": "Exact original source gaps inspected; actual GUI pixels NOT_INSPECTED, no component or Handshake adoption edits performed. Root must admit canonical component work and distinct host adoption through existing contracts before writes; original core lost-result recovery remains separate.",
     "normal_startup_ref": "MT-186.json#/normal_startup_coordination_correction_20261014"
   }
 }
