@@ -454,7 +454,7 @@ fn production_socket_user_manual_navigation_search_and_pixels() {
         "artifact_root": proof_dir,
         "embedded_data_dir": data_dir,
         "child_pid": app.child_pid,
-        "authenticated_agent_id": app.authenticated_agent_id,
+        "authenticated_agent_id": app.client.observed_participant_id(),
         "foreground_pid_before": foreground_before,
         "foreground_pid_after": foreground_after,
         "navigation": ["menu-run", "menu.run.user-manual"],

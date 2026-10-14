@@ -928,6 +928,26 @@ fn current_owned_v2_child_private_seed_signs_exact_identity_and_keeps_control() 
             code: palmistry::control::ControlErrorCode::SigningIdentityMismatch
         }
     ));
+    for attempt in 0..64 {
+        let mut rejected = serde_json::to_value(&request).unwrap();
+        if attempt % 2 == 0 {
+            rejected["identity"]
+                .as_object_mut()
+                .unwrap()
+                .remove("parent_os_creation_time_100ns");
+        } else {
+            rejected["identity"]["unknown_signed_field"] = serde_json::json!(1);
+        }
+        assert!(
+            send_v2_control_with_complete_deadline(
+                &socket,
+                &serde_json::to_string(&rejected).unwrap(),
+                Duration::from_secs(3),
+            )
+            .is_err(),
+            "rejected signed frame {attempt} must close without a reply"
+        );
+    }
     assert!(send_v2_control_with_complete_deadline(
         &socket,
         r#"{"type":"Ping"}"#,

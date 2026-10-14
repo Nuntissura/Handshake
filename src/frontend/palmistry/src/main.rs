@@ -989,7 +989,15 @@ pub fn run_watcher(config: PalmistryConfig, options: RunOptions) -> std::io::Res
                     }
                     Ok(())
                 };
-            server.serve_connection_with_signer(&mut on_msg, signing_bootstrap.as_ref())
+            match server.serve_connection_with_signer(&mut on_msg, signing_bootstrap.as_ref()) {
+                Ok(outcome) => Ok(outcome),
+                Err(control::ControlConnectionError::Listener(error)) => Err(error),
+                Err(control::ControlConnectionError::Peer(error)) => {
+                    tracing::warn!(%error, "rejected signed control peer; listener remains available");
+                    std::thread::sleep(CONTROL_ERROR_BACKOFF);
+                    Ok(ControlOutcome::Continue)
+                }
+            }
         };
         run_control_loop(
             &mut serve_once,

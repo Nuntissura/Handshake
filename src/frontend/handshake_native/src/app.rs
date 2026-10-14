@@ -5828,6 +5828,7 @@ struct PendingRichCodeBlockSave {
 struct WorkspaceActivationRequest {
     operation_id: uuid::Uuid,
     generation: u64,
+    backend_readiness_lost: bool,
     workspace_id: String,
     account: Arc<crate::local_account::AuthenticatedContext>,
     handle: Option<tokio::task::JoinHandle<Result<
@@ -35314,6 +35315,10 @@ impl HandshakeApp {
             // permits a second POST, even for a different workspace.
             return false;
         }
+        if self.backend_down {
+            self.workspace_activation.error = Some("Backend unavailable. Workspace activation remains locked.".to_owned());
+            return false;
+        }
         let Some(account) = self.local_account.context.clone().filter(|account| account.is_active()) else {
             self.workspace_activation.error = Some("Log in before activating a workspace.".to_owned());
             return false;
@@ -35344,6 +35349,7 @@ impl HandshakeApp {
         });
         self.workspace_activation.requests.push(WorkspaceActivationRequest {
             operation_id, generation: self.workspace_activation.generation,
+            backend_readiness_lost: false,
             workspace_id: selected, account, handle: Some(handle),
         });
         true
@@ -35360,6 +35366,12 @@ impl HandshakeApp {
             let mut request = self.workspace_activation.requests.remove(index);
             let Some(handle) = request.handle.take() else { continue; };
             let result = self.runtime().block_on(handle);
+            if request.backend_readiness_lost {
+                self.workspace_activation.error = Some("Backend readiness changed before activation settled. The original operation requires canonical reconciliation.".to_owned());
+                self.workspace_activation.requests.insert(index, request);
+                index += 1;
+                continue;
+            }
             let current = request.generation == self.workspace_activation.generation
                 && request.account.is_active()
                 && self.local_account.context.as_ref().is_some_and(|account| Arc::ptr_eq(account, &request.account));
@@ -36496,6 +36508,13 @@ impl HandshakeApp {
         } else if !reachable && !was_down {
             // Down edge: reachable -> unreachable.
             self.backend_down = true;
+            self.workspace_activation.generation = self.workspace_activation.generation.wrapping_add(1);
+            self.workspace_activation.admitted = None;
+            for request in &mut self.workspace_activation.requests {
+                request.backend_readiness_lost = true;
+            }
+            self.mcp_durability_generation = self.mcp_durability_generation.wrapping_add(1);
+            *self.mcp_durability.lock().unwrap_or_else(|e| e.into_inner()) = None;
             self.record_backend_event(true);
             tracing::warn!(
                 "backend unreachable (BackendUnreachable emitted; surfaces degrade, frame loop stays \
@@ -37322,6 +37341,12 @@ impl HandshakeApp {
                 }
             }
         }
+        if self.health_handle.is_none() {
+            if let (Some(at), Some(ctx)) = (self.health_next_poll_at, self.frame_ctx.as_ref()) {
+                let delay = at.saturating_duration_since(std::time::Instant::now());
+                ctx.request_repaint_after(delay.max(std::time::Duration::from_millis(50)));
+            }
+        }
     }
 
     /// Render the shell. Split from eframe::App::update so egui_kittest can drive it without a Frame.
@@ -37505,6 +37530,7 @@ impl HandshakeApp {
 
         if !self.capturing_snapshot {
             self.frame_ctx.get_or_insert_with(|| ctx.clone());
+            self.poll_health();
             self.poll_workspace_activation();
             self.poll_workspaces();
         }
@@ -37547,7 +37573,6 @@ impl HandshakeApp {
             }
             self.ensure_rich_document_workspace();
         }
-        self.poll_health();
         self.poll_workspaces();
         // Keep the shared interaction substrate bound to the active workspace before any mounted pane
         // publishes focus/selection this frame. Registration is regular shell startup/frame wiring, not
@@ -38701,18 +38726,6 @@ impl HandshakeApp {
         // `Harness::run`'s bounded step budget and regressed every `Harness::run`-based pane test
         // (`max_steps`). The MT-084 heartbeat still guarantees a ~250ms idle tick, so even if a worker's
         // wake were ever lost the result is still drained within ~250ms; no busy-loop, no repaint storm.
-        //
-        // A `/health` re-probe that is merely SCHEDULED (none in flight yet — no worker exists to wake the
-        // UI) still needs a one-shot scheduled wake when it comes due, so recovery is observed on an
-        // otherwise-idle app (AC-008-6). This is a single bounded `request_repaint_after`, not a per-frame
-        // poll: it schedules ONE wake at the due time (HBR-QUIET: no focus steal, no input grab).
-        if self.health_handle.is_none() {
-            if let Some(at) = self.health_next_poll_at {
-                let now = std::time::Instant::now();
-                let delay = at.saturating_duration_since(now);
-                ctx.request_repaint_after(delay.max(std::time::Duration::from_millis(50)));
-            }
-        }
     }
 
     /// Render a popped-out pane's body (tab bar + factory content) inside its detached viewport's

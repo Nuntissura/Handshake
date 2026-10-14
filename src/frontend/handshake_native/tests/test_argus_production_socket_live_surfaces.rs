@@ -68,6 +68,436 @@ use live_socket::{
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId};
 
+#[test]
+#[ignore = "LIVE production socket proof: requires the current core and an interactive desktop"]
+fn production_socket_user_manual_search_navigation_resync_and_detached_window() {
+    use handshake_native::user_manual_pane::{
+        ERROR_AUTHOR_ID, LOADING_AUTHOR_ID, NAVIGATION_AUTHOR_ID, PAGE_AUTHOR_ID,
+        READ_RECEIPT_AUTHOR_ID, RETRY_AUTHOR_ID, SEARCH_ACTION_AUTHOR_ID, SEARCH_INPUT_AUTHOR_ID,
+        SEARCH_RESULTS_AUTHOR_ID, SEARCH_STATUS_AUTHOR_ID, SURFACE_AUTHOR_ID,
+    };
+
+    let foreground_window_before = unsafe { GetForegroundWindow() };
+    let foreground_before = foreground_process_id();
+    let proxy = live_socket::LoopbackHttpFaultProxy::start();
+    let mut app = LiveApp::start_with_http_proxy("mt017_user_manual_resync", &proxy.url());
+    proxy.hold();
+    app.client
+        .mutation_on_live_surface("argus.click", "main", "menu-run", None);
+    wait_for_author_id(
+        &mut app.client,
+        "main",
+        "menu.run.user-manual",
+        SURFACE_TIMEOUT,
+    );
+    let open_receipt =
+        app.client
+            .mutation_on_live_surface("argus.click", "main", "menu.run.user-manual", None);
+    let participant = app.client.observed_participant_id().to_owned();
+    let surface = wait_for_author_id_between(
+        &mut app.client,
+        "main",
+        "",
+        SURFACE_AUTHOR_ID,
+        SURFACE_TIMEOUT,
+    );
+    let prefix = surface
+        .strip_suffix(SURFACE_AUTHOR_ID)
+        .expect("UserManual surface suffix")
+        .to_owned();
+    let scoped = |id: &str| format!("{prefix}{id}");
+    let loading = wait_for_author_id(
+        &mut app.client,
+        "main",
+        &scoped(LOADING_AUTHOR_ID),
+        SURFACE_TIMEOUT,
+    );
+    assert!(node_text(require_node(
+        &loading["snapshot"]["root"],
+        &scoped(LOADING_AUTHOR_ID)
+    ))
+    .contains("Loading UserManual"));
+    assert!(
+        proxy.held_request_count() > 0,
+        "loading requires an actual held HTTP request"
+    );
+    proxy.fail();
+    let failed = wait_for_author_id(
+        &mut app.client,
+        "main",
+        &scoped(ERROR_AUTHOR_ID),
+        SURFACE_TIMEOUT,
+    );
+    let error = node_text(require_node(
+        &failed["snapshot"]["root"],
+        &scoped(ERROR_AUTHOR_ID),
+    ));
+    assert!(
+        error.contains("503") || error.contains("Service Unavailable"),
+        "actual socket failure was not rendered: {error}"
+    );
+    assert!(proxy.failed_request_count() > 0);
+    proxy.forward();
+    let recovery_receipt =
+        app.client
+            .mutation_on_live_surface("argus.click", "main", &scoped(RETRY_AUTHOR_ID), None);
+    wait_for_author_id(
+        &mut app.client,
+        "main",
+        &scoped(NAVIGATION_AUTHOR_ID),
+        SURFACE_TIMEOUT,
+    );
+    let settled = wait_for_author_id(
+        &mut app.client,
+        "main",
+        &scoped(READ_RECEIPT_AUTHOR_ID),
+        SURFACE_TIMEOUT,
+    );
+    assert!(proxy.forwarded_request_count() > 0);
+    assert!(node_text(require_node(
+        &settled["snapshot"]["root"],
+        &scoped(READ_RECEIPT_AUTHOR_ID)
+    ))
+    .contains("Read receipt:"));
+    let pane_id = pane_id_hosting(&settled["snapshot"]["root"], "UserManual");
+
+    let search_input = scoped(SEARCH_INPUT_AUTHOR_ID);
+    let search_action = scoped(SEARCH_ACTION_AUTHOR_ID);
+    let search_status = scoped(SEARCH_STATUS_AUTHOR_ID);
+    let search_results = scoped(SEARCH_RESULTS_AUTHOR_ID);
+    let wait_search = |client: &mut live_socket::ArgusClient, requested_query: &str| {
+        let deadline = std::time::Instant::now() + SURFACE_TIMEOUT;
+        let expected_query = format!("for '{requested_query}'");
+        loop {
+            let snapshot = client.poll_inspect("main");
+            let root = &snapshot["snapshot"]["root"];
+            if node_by_author_id(root, &search_status)
+                .is_some_and(|node| node_text(node).contains(&expected_query))
+                && contains_author_id(root, &search_results)
+                && !contains_author_id(root, &scoped(LOADING_AUTHOR_ID))
+            {
+                break snapshot;
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "search never settled to the actual requested query: {requested_query}"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(25));
+        }
+    };
+    let query = "backlinks";
+    app.client.mutation_on_live_surface(
+        "argus.set_value",
+        "main",
+        &search_input,
+        Some(("value", serde_json::json!(query))),
+    );
+    let search_receipt =
+        app.client
+            .mutation_on_live_surface("argus.click", "main", &search_action, None);
+    let searched = wait_search(&mut app.client, query);
+    assert!(node_text(require_node(&searched["snapshot"]["root"], &search_status)).contains(query));
+    require_node(&searched["snapshot"]["root"], &search_results);
+    let hit = wait_for_author_id_between(
+        &mut app.client,
+        "main",
+        &format!("{prefix}user-manual.search.result."),
+        "",
+        SURFACE_TIMEOUT,
+    );
+    let navigation_receipt = app
+        .client
+        .mutation_on_live_surface("argus.click", "main", &hit, None);
+    wait_for_author_id(
+        &mut app.client,
+        "main",
+        &scoped(READ_RECEIPT_AUTHOR_ID),
+        SURFACE_TIMEOUT,
+    );
+    assert_eq!(app.client.observed_participant_id(), participant);
+
+    let before_disconnect = app.client.inspect("main");
+    let client_session_id = app.client.client_session_id().to_owned();
+    let page_before = node_text(require_node(
+        &before_disconnect["snapshot"]["root"],
+        &scoped(PAGE_AUTHOR_ID),
+    ));
+    let interrupted = app
+        .client
+        .interrupt_inspect_transport("main")
+        .expect_err("interrupted real TCP read must not produce a successful snapshot");
+    assert_eq!(
+        app.client
+            .try_call("argus.list_windows", serde_json::json!({}))
+            .expect_err("transport remains disconnected")
+            .kind(),
+        std::io::ErrorKind::NotConnected,
+    );
+    app.client
+        .reconnect_transport()
+        .expect("reconnect to the same production binding");
+    assert_eq!(app.client.client_session_id(), client_session_id);
+    let synchronized = app.client.inspect("main");
+    assert_eq!(
+        synchronized["window_epoch"], before_disconnect["window_epoch"],
+        "transport reconnect must not manufacture a window incarnation"
+    );
+    assert!(
+        synchronized["revision"].as_u64().expect("fresh revision")
+            >= before_disconnect["revision"]
+                .as_u64()
+                .expect("prior revision")
+    );
+    assert_eq!(
+        node_text(require_node(
+            &synchronized["snapshot"]["root"],
+            &scoped(PAGE_AUTHOR_ID)
+        )),
+        page_before
+    );
+    let revision = synchronized["revision"].as_u64().expect("main revision");
+    let epoch = synchronized["window_epoch"].as_u64().expect("main epoch");
+    assert!(revision > 0);
+    let stale = app
+        .client
+        .try_call(
+            "argus.set_value",
+            serde_json::json!({
+                "window_id": "main", "target": search_input, "expected_revision": revision - 1,
+                "window_epoch": epoch, "value": "stale-must-not-apply",
+            }),
+        )
+        .expect("stale request reaches actual protocol");
+    assert!(
+        stale["error"]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("revision") && message.contains("stale")),
+        "wrong stale denial: {stale}"
+    );
+    let deny_epoch =
+        |client: &mut live_socket::ArgusClient,
+         window_id: &str,
+         rejected_epoch: u64,
+         value: &str| {
+            let deadline = std::time::Instant::now() + SURFACE_TIMEOUT;
+            loop {
+                let current = client.inspect(window_id);
+                let response = client.try_call("argus.set_value", serde_json::json!({
+                "window_id": window_id, "target": search_input,
+                "expected_revision": current["revision"], "window_epoch": rejected_epoch,
+                "value": value,
+            })).expect("epoch request reaches actual protocol");
+                let revision_conflict =
+                    response["error"]["message"]
+                        .as_str()
+                        .is_some_and(|message| {
+                            message.contains("revision") && message.contains("stale")
+                        });
+                if !revision_conflict {
+                    break response;
+                }
+                assert!(
+                    std::time::Instant::now() < deadline,
+                    "revision changes prevented the actual epoch guard from being reached"
+                );
+            }
+        };
+    let wrong_epoch = deny_epoch(
+        &mut app.client,
+        "main",
+        epoch.checked_add(1).expect("next epoch"),
+        "epoch-must-not-apply",
+    );
+    assert!(
+        wrong_epoch["error"]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("epoch") && message.contains("stale")),
+        "wrong epoch denial: {wrong_epoch}"
+    );
+    let malformed = app
+        .client
+        .try_call(
+            "argus.set_value",
+            serde_json::json!({
+                "window_id": "main", "target": search_input, "expected_revision": "invalid",
+                "window_epoch": epoch, "value": "malformed-must-not-apply",
+            }),
+        )
+        .expect("malformed request reaches actual protocol");
+    assert!(
+        malformed["error"]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("expected_revision")),
+        "malformed revision did not reach the expected validation: {malformed}"
+    );
+    let unchanged = app.client.inspect("main");
+    assert_eq!(
+        live_socket::node_value(require_node(&unchanged["snapshot"]["root"], &search_input)),
+        query,
+        "denied actions changed the query"
+    );
+    let resumed_receipt =
+        app.client
+            .mutation_on_live_surface("argus.click", "main", &search_action, None);
+    assert_eq!(app.client.observed_participant_id(), participant);
+
+    let no_hit_query = format!("q{}", uuid::Uuid::new_v4().simple());
+    app.client.mutation_on_live_surface(
+        "argus.set_value",
+        "main",
+        &search_input,
+        Some(("value", serde_json::json!(no_hit_query))),
+    );
+    app.client
+        .mutation_on_live_surface("argus.click", "main", &search_action, None);
+    let empty = wait_search(&mut app.client, &no_hit_query);
+    assert!(
+        node_text(require_node(&empty["snapshot"]["root"], &search_status))
+            .starts_with("0 UserManual result(s)"),
+        "genuine no-match search must render its empty result count"
+    );
+    app.client.mutation_on_live_surface(
+        "argus.set_value",
+        "main",
+        &search_input,
+        Some(("value", serde_json::json!(query))),
+    );
+    app.client
+        .mutation_on_live_surface("argus.click", "main", &search_action, None);
+    wait_search(&mut app.client, query);
+    wait_for_author_id_between(
+        &mut app.client,
+        "main",
+        &format!("{prefix}user-manual.search.result."),
+        "",
+        SURFACE_TIMEOUT,
+    );
+    let docked = app.client.inspect("main");
+    let docked_page = node_text(require_node(
+        &docked["snapshot"]["root"],
+        &scoped(PAGE_AUTHOR_ID),
+    ));
+    let main_capture = app.client.screenshot("main");
+    let main_png = decode_verified_capture(
+        &main_capture,
+        "main",
+        app.child_pid,
+        "UserManual docked pixels",
+    );
+    let detached_id = app.pop_out_pane(&pane_id);
+    let detached = wait_for_author_id(&mut app.client, &detached_id, &surface, SURFACE_TIMEOUT);
+    assert_eq!(
+        node_text(require_node(
+            &detached["snapshot"]["root"],
+            &scoped(PAGE_AUTHOR_ID)
+        )),
+        docked_page
+    );
+    assert_eq!(
+        live_socket::node_value(require_node(&detached["snapshot"]["root"], &search_input)),
+        query
+    );
+    require_node(&detached["snapshot"]["root"], &search_results);
+    require_node(
+        &detached["snapshot"]["root"],
+        &popout_window_author_id(&pane_id),
+    );
+    let main_detached = app.client.inspect("main");
+    assert!(
+        !contains_author_id(&main_detached["snapshot"]["root"], &surface),
+        "detached manual has a duplicate main-window rendering"
+    );
+    let detached_capture = app.client.screenshot(&detached_id);
+    assert!(
+        detached_capture["result"]["title"]
+            .as_str()
+            .is_some_and(|title| !title.is_empty()),
+        "detached capture omitted the actual OS title"
+    );
+    let detached_png = decode_verified_capture(
+        &detached_capture,
+        &detached_id,
+        app.child_pid,
+        "UserManual detached pixels",
+    );
+    let detached_receipt =
+        app.client
+            .mutation_on_live_surface("argus.click", &detached_id, &search_action, None);
+    assert_eq!(app.client.observed_participant_id(), participant);
+    let detached_epoch = detached["window_epoch"].as_u64().expect("detached epoch");
+    app.merge_back_pane(&pane_id);
+    wait_for_window(&mut app.client, &detached_id, false);
+    let remerged = wait_for_author_id(&mut app.client, "main", &surface, SURFACE_TIMEOUT);
+    assert_eq!(
+        live_socket::node_value(require_node(&remerged["snapshot"]["root"], &search_input)),
+        query
+    );
+    assert_eq!(app.pop_out_pane(&pane_id), detached_id);
+    let recreated = wait_for_author_id(&mut app.client, &detached_id, &surface, SURFACE_TIMEOUT);
+    assert_ne!(
+        recreated["window_epoch"].as_u64().expect("recreated epoch"),
+        detached_epoch
+    );
+    let old_incarnation = deny_epoch(
+        &mut app.client,
+        &detached_id,
+        detached_epoch,
+        "old-incarnation-must-not-apply",
+    );
+    assert!(
+        old_incarnation["error"]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("epoch") && message.contains("stale")),
+        "old incarnation was not rejected: {old_incarnation}"
+    );
+    let recreated_unchanged = app.client.inspect(&detached_id);
+    assert_eq!(
+        live_socket::node_value(require_node(
+            &recreated_unchanged["snapshot"]["root"],
+            &search_input
+        )),
+        query,
+        "old-incarnation action changed the recreated pane"
+    );
+    let recreated_capture = app.client.screenshot(&detached_id);
+    let recreated_png = decode_verified_capture(
+        &recreated_capture,
+        &detached_id,
+        app.child_pid,
+        "UserManual recreated pixels",
+    );
+    app.merge_back_pane(&pane_id);
+    wait_for_window(&mut app.client, &detached_id, false);
+    assert_ne!(foreground_before, 0);
+    let foreground_after = foreground_process_id();
+    assert_eq!(
+        foreground_after, foreground_before,
+        "manual socket/detached work stole foreground"
+    );
+    assert_eq!(
+        unsafe { GetForegroundWindow() },
+        foreground_window_before,
+        "manual socket/detached work changed the foreground HWND"
+    );
+    assert_ne!(foreground_after, app.child_pid);
+    let transcript = app.client.assert_transcript_is_secret_free(&[]);
+    app.write_proof_artifact("user_manual_resync_main.png", &main_png);
+    app.write_proof_artifact("user_manual_resync_detached.png", &detached_png);
+    app.write_proof_artifact("user_manual_resync_recreated.png", &recreated_png);
+    app.write_proof_artifact("user_manual_resync_transcript.json", &transcript);
+    app.write_proof_artifact("user_manual_resync_provenance.json", &serde_json::to_vec_pretty(&serde_json::json!({
+        "schema_id": "handshake.argus.user_manual_resync@1", "child_pid": app.child_pid,
+        "observed_participant_id": participant, "interrupted_read_error_kind": format!("{:?}", interrupted.kind()),
+        "before_disconnect": before_disconnect, "fresh_after_reconnect": synchronized,
+        "stale_denial": stale, "epoch_denial": wrong_epoch, "malformed_denial": malformed,
+        "old_incarnation_denial": old_incarnation,
+        "receipts": [open_receipt, recovery_receipt, search_receipt, navigation_receipt, resumed_receipt, detached_receipt],
+        "foreground_pid_before": foreground_before, "foreground_pid_after": foreground_after,
+        "account_denial_and_revocation": "NOT_PROVEN_REQUIRES_GENUINE_ACCOUNT_CONTROLS",
+    })).expect("serialize actual UserManual proof observations"));
+    app.shutdown();
+}
+
 /// Every status string the production ModelRuntime panel can render. A live proof must recognise the
 /// state it observed instead of accepting any text, so a blank/placeholder status fails.
 const HONEST_REGISTRY_STATUS: &[&str] = &[
@@ -567,7 +997,7 @@ fn production_socket_model_runtime_rows_refresh_receipt_negative_states_and_deta
         "schema_id": "handshake.argus.production_socket_model_runtime_provenance@1",
         "mt_id": "MT-014",
         "child_pid": app.child_pid,
-        "authenticated_agent_id": app.authenticated_agent_id,
+        "authenticated_agent_id": app.client.observed_participant_id(),
         "navigation": ["menu-models", "menu.models.model-runtime"],
         "pane_id": pane_id,
         "docked_row_artifacts": docked_artifacts,
@@ -916,7 +1346,7 @@ fn operator_chat_live_argus_docked_and_detached_launch_transcript() {
         "schema_id": "handshake.argus.production_socket_operator_chat_provenance@1",
         "mt_id": "MT-012",
         "child_pid": app.child_pid,
-        "authenticated_agent_id": app.authenticated_agent_id,
+        "authenticated_agent_id": app.client.observed_participant_id(),
         "navigation": ["menu-models", "menu.models.operator-chat"],
         "pane_id": pane_id,
         "foreground_pid_before": foreground_before,
@@ -1193,7 +1623,7 @@ fn production_socket_settings_cloud_access_login_states_and_no_secret_disclosure
         "schema_id": "handshake.argus.production_socket_settings_cloud_provenance@1",
         "mt_id": "MT-015",
         "child_pid": app.child_pid,
-        "authenticated_agent_id": app.authenticated_agent_id,
+        "authenticated_agent_id": app.client.observed_participant_id(),
         "navigation": ["menu-models", "menu.models.settings"],
         "settings_revision_before_refused_write": settings_revision,
         "no_secret_disclosure": {
@@ -1601,7 +2031,7 @@ fn mt021_production_settings_consent_concurrency_and_console_main_detached() {
         "schema_id": "handshake.argus.mt021_production_provenance@1",
         "mt_id": "MT-021",
         "child_pid": app.child_pid,
-        "authenticated_agent_id": app.authenticated_agent_id,
+        "authenticated_agent_id": app.client.observed_participant_id(),
         "cold_optional_flight_recorder": {
             "measurement": "first operator navigation with two applied durable Argus receipts",
             "round_trip_ms": cold_navigation_receipt_round_trip_ms,

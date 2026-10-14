@@ -187,6 +187,12 @@ pub struct ControlServer {
     socket_name: String,
 }
 
+#[derive(Debug)]
+pub enum ControlConnectionError {
+    Listener(io::Error),
+    Peer(io::Error),
+}
+
 impl ControlServer {
     /// Bind the control socket at `socket_name`. Fails if the name is taken / invalid — the caller
     /// treats a bind failure as a fatal startup error (a watcher with no control channel can never be
@@ -211,11 +217,13 @@ impl ControlServer {
         &self,
         on_message: &mut dyn FnMut(&ControlMessage) -> Result<(), ControlErrorCode>,
         signer: Option<&WatcherSigningBootstrap>,
-    ) -> io::Result<ControlOutcome> {
+    ) -> Result<ControlOutcome, ControlConnectionError> {
         use interprocess::local_socket::traits::Stream as _;
         use std::io::Read;
         let Some(signer) = signer else {
-            return self.serve_connection(on_message);
+            return self
+                .serve_connection(on_message)
+                .map_err(ControlConnectionError::Listener);
         };
         struct OwnedConnection(interprocess::local_socket::Stream);
         impl Drop for OwnedConnection {
@@ -226,61 +234,69 @@ impl ControlServer {
                 }
             }
         }
-        let mut conn = OwnedConnection(self.listener.accept()?);
-        conn.0.set_nonblocking(true)?;
-        let mut frame = Vec::with_capacity(1024);
-        loop {
-            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(1);
-            frame.clear();
+        let mut conn = OwnedConnection(
+            self.listener
+                .accept()
+                .map_err(ControlConnectionError::Listener)?,
+        );
+        let mut serve_peer = || -> io::Result<ControlOutcome> {
+            conn.0.set_nonblocking(true)?;
+            let mut frame = Vec::with_capacity(1024);
             loop {
-                if std::time::Instant::now() >= deadline {
-                    return Err(io::Error::new(
-                        io::ErrorKind::TimedOut,
-                        "signed control frame deadline",
-                    ));
-                }
-                let mut byte = [0u8; 1];
-                match conn.0.read(&mut byte) {
-                    Ok(0) if frame.is_empty() => return Ok(ControlOutcome::Continue),
-                    Ok(0) => {
+                let deadline = std::time::Instant::now() + std::time::Duration::from_secs(1);
+                frame.clear();
+                loop {
+                    if std::time::Instant::now() >= deadline {
                         return Err(io::Error::new(
-                            io::ErrorKind::UnexpectedEof,
-                            "partial signed control frame",
-                        ))
+                            io::ErrorKind::TimedOut,
+                            "signed control frame deadline",
+                        ));
                     }
-                    Ok(_) if byte[0] == b'\n' => break,
-                    Ok(_) => {
-                        frame.push(byte[0]);
-                        if frame.len() > 16384 {
+                    let mut byte = [0u8; 1];
+                    match conn.0.read(&mut byte) {
+                        Ok(0) if frame.is_empty() => return Ok(ControlOutcome::Continue),
+                        Ok(0) => {
                             return Err(io::Error::new(
-                                io::ErrorKind::InvalidData,
-                                "signed control frame too large",
+                                io::ErrorKind::UnexpectedEof,
+                                "partial signed control frame",
+                            ))
+                        }
+                        Ok(_) if byte[0] == b'\n' => break,
+                        Ok(_) => {
+                            frame.push(byte[0]);
+                            if frame.len() > 16384 {
+                                return Err(io::Error::new(
+                                    io::ErrorKind::InvalidData,
+                                    "signed control frame too large",
+                                ));
+                            }
+                        }
+                        Err(error)
+                            if matches!(
+                                error.kind(),
+                                io::ErrorKind::WouldBlock | io::ErrorKind::Interrupted
+                            ) =>
+                        {
+                            std::thread::sleep(std::time::Duration::from_millis(2).min(
+                                deadline.saturating_duration_since(std::time::Instant::now()),
                             ));
                         }
+                        Err(error) => return Err(error),
                     }
-                    Err(error)
-                        if matches!(
-                            error.kind(),
-                            io::ErrorKind::WouldBlock | io::ErrorKind::Interrupted
-                        ) =>
-                    {
-                        std::thread::sleep(
-                            std::time::Duration::from_millis(2)
-                                .min(deadline.saturating_duration_since(std::time::Instant::now())),
-                        );
-                    }
-                    Err(error) => return Err(error),
                 }
-            }
-            let msg: ControlMessage = serde_json::from_slice(&frame).map_err(io::Error::other)?;
-            let (reply, outcome) = match &msg {
-                ControlMessage::ProvenanceChallengeV1 {
-                    identity,
-                    challenge,
-                    transport_public_key,
-                } => {
-                    let reply =
-                        match signer.sign_challenge(identity, *challenge, *transport_public_key) {
+                let msg: ControlMessage =
+                    serde_json::from_slice(&frame).map_err(io::Error::other)?;
+                let (reply, outcome) = match &msg {
+                    ControlMessage::ProvenanceChallengeV1 {
+                        identity,
+                        challenge,
+                        transport_public_key,
+                    } => {
+                        let reply = match signer.sign_challenge(
+                            identity,
+                            *challenge,
+                            *transport_public_key,
+                        ) {
                             Ok(signature) => ControlReply::ProvenanceReadyV1 {
                                 identity: signer.identity().clone(),
                                 challenge: *challenge,
@@ -292,56 +308,57 @@ impl ControlServer {
                                 code: ControlErrorCode::SigningIdentityMismatch,
                             },
                         };
-                    (reply, ControlOutcome::Continue)
-                }
-                _ => {
-                    let (reply, outcome) = handle_message(&msg);
-                    (
-                        match on_message(&msg) {
-                            Ok(()) => reply,
-                            Err(code) => ControlReply::Error { code },
-                        },
-                        outcome,
-                    )
-                }
-            };
-            let mut output = serde_json::to_vec(&reply).map_err(io::Error::other)?;
-            output.push(b'\n');
-            let mut written = 0;
-            while written < output.len() {
-                if std::time::Instant::now() >= deadline {
-                    return Err(io::Error::new(
-                        io::ErrorKind::TimedOut,
-                        "signed control reply deadline",
-                    ));
-                }
-                match conn.0.write(&output[written..]) {
-                    Ok(0) => {
+                        (reply, ControlOutcome::Continue)
+                    }
+                    _ => {
+                        let (reply, outcome) = handle_message(&msg);
+                        (
+                            match on_message(&msg) {
+                                Ok(()) => reply,
+                                Err(code) => ControlReply::Error { code },
+                            },
+                            outcome,
+                        )
+                    }
+                };
+                let mut output = serde_json::to_vec(&reply).map_err(io::Error::other)?;
+                output.push(b'\n');
+                let mut written = 0;
+                while written < output.len() {
+                    if std::time::Instant::now() >= deadline {
                         return Err(io::Error::new(
-                            io::ErrorKind::WriteZero,
-                            "signed control reply closed",
-                        ))
+                            io::ErrorKind::TimedOut,
+                            "signed control reply deadline",
+                        ));
                     }
-                    Ok(count) => written += count,
-                    Err(error)
-                        if matches!(
-                            error.kind(),
-                            io::ErrorKind::WouldBlock | io::ErrorKind::Interrupted
-                        ) =>
-                    {
-                        std::thread::sleep(
-                            std::time::Duration::from_millis(2)
-                                .min(deadline.saturating_duration_since(std::time::Instant::now())),
-                        );
+                    match conn.0.write(&output[written..]) {
+                        Ok(0) => {
+                            return Err(io::Error::new(
+                                io::ErrorKind::WriteZero,
+                                "signed control reply closed",
+                            ))
+                        }
+                        Ok(count) => written += count,
+                        Err(error)
+                            if matches!(
+                                error.kind(),
+                                io::ErrorKind::WouldBlock | io::ErrorKind::Interrupted
+                            ) =>
+                        {
+                            std::thread::sleep(std::time::Duration::from_millis(2).min(
+                                deadline.saturating_duration_since(std::time::Instant::now()),
+                            ));
+                        }
+                        Err(error) => return Err(error),
                     }
-                    Err(error) => return Err(error),
+                }
+                // The resolved Stream's flush is a no-op; release is owned, including Windows no-limbo drop.
+                if outcome == ControlOutcome::Shutdown {
+                    return Ok(outcome);
                 }
             }
-            // The resolved Stream's flush is a no-op; release is owned, including Windows no-limbo drop.
-            if outcome == ControlOutcome::Shutdown {
-                return Ok(outcome);
-            }
-        }
+        };
+        serve_peer().map_err(ControlConnectionError::Peer)
     }
 
     /// Accept exactly ONE connection, then read newline-delimited [`ControlMessage`]s from it until the

@@ -34,10 +34,9 @@ use handshake_native::swarm_lane_diagnostics::{
     lane_author_id, message_author_id, message_payload_author_id, message_promotion_author_id,
     scoped_author_id, selected_message_author_id, EMPTY_MESSAGES_AUTHOR_ID, FRESHNESS_AUTHOR_ID,
     LANE_FILTER_AUTHOR_ID, MESSAGE_FILTER_AUTHOR_ID, PRIVACY_ACCESS_SPACE_AUTHOR_ID,
-    PRIVACY_DENIAL_AUTHOR_ID,
-    PRIVACY_OWNER_AUTHOR_ID, PRIVACY_PRINCIPAL_AUTHOR_ID, PRIVACY_SESSION_AUTHOR_ID,
-    PRIVACY_VISIBILITY_AUTHOR_ID, PRIVACY_WORKSPACE_AUTHOR_ID, REFRESH_AUTHOR_ID,
-    RUN_FILTER_AUTHOR_ID, SURFACE_AUTHOR_ID,
+    PRIVACY_DENIAL_AUTHOR_ID, PRIVACY_OWNER_AUTHOR_ID, PRIVACY_PRINCIPAL_AUTHOR_ID,
+    PRIVACY_SESSION_AUTHOR_ID, PRIVACY_VISIBILITY_AUTHOR_ID, PRIVACY_WORKSPACE_AUTHOR_ID,
+    REFRESH_AUTHOR_ID, RUN_FILTER_AUTHOR_ID, SURFACE_AUTHOR_ID,
 };
 
 #[path = "argus_socket_support/live_socket.rs"]
@@ -1286,7 +1285,7 @@ fn mt008_production_socket_diagnostics_scope_and_detached_capture() {
         "mt_id": "MT-008",
         "proof_nonce_sha256": nonce_hash,
         "child_pid": app.child_pid,
-        "authenticated_agent_id_sha256": sha256_hex(app.authenticated_agent_id.as_bytes()),
+        "authenticated_agent_id_sha256": sha256_hex(app.client.observed_participant_id().as_bytes()),
         "resource_scope_sha256": scope_hash,
         "navigation": ["menu-models", "menu.models.swarm-lane-diagnostics"],
         "pane_id": pane_id,
@@ -1448,16 +1447,12 @@ fn production_binary_argus_socket_inspect_click_set_screenshot_receipts_and_popo
         child_pid,
         Instant::now() + Duration::from_secs(30),
     );
-    let mut client = ArgusClient {
-        addr: binding.tcp_addr,
-        token: binding.token,
-        next_id: 1,
-        agent_token: None,
-        agent_id: None,
-        transcript: Vec::new(),
-    };
-    let authenticated_agent_id = client.authenticate_agent();
-    assert!(!authenticated_agent_id.is_empty());
+    let mut client = ArgusClient::new(
+        binding.tcp_addr,
+        binding.token,
+        uuid::Uuid::new_v4().to_string(),
+    )
+    .expect("connect the production Argus transport");
 
     let windows = client.call("argus.list_windows", serde_json::json!({}));
     assert_success(&windows, "argus.list_windows");
@@ -1548,8 +1543,9 @@ fn production_binary_argus_socket_inspect_click_set_screenshot_receipts_and_popo
         "argus.set_value",
         serde_json::json!({
             "window_id": "main",
-            "author_id": "settings.cloud.byok.openai.key",
-            "expected_snapshot_revision": settings_revision,
+            "target": "settings.cloud.byok.openai.key",
+            "expected_revision": settings_revision,
+            "window_epoch": settings["window_epoch"],
             "value": secret_canary
         }),
     );
@@ -1734,18 +1730,24 @@ fn production_binary_argus_socket_inspect_click_set_screenshot_receipts_and_popo
         wrong_window.get("error").is_some(),
         "unknown window was accepted"
     );
-    let current_revision = client.inspect("main")["revision"]
-        .as_u64()
-        .expect("current main revision");
+    let current = client.inspect("main");
+    let current_revision = current["revision"].as_u64().expect("current main revision");
     let stale = client.call(
         "argus.click",
         serde_json::json!({
             "window_id": "main",
-            "author_id": "shell.chrome.theme-toggle",
-            "expected_snapshot_revision": current_revision.saturating_sub(1)
+            "target": "shell.chrome.theme-toggle",
+            "expected_revision": current_revision.saturating_sub(1),
+            "window_epoch": current["window_epoch"]
         }),
     );
     assert!(stale.get("error").is_some(), "stale revision was accepted");
+    assert!(
+        stale["error"]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("revision") && message.contains("stale")),
+        "stale revision request failed for a different reason: {stale}"
+    );
 
     let proof_dir = proof_dir();
     std::fs::create_dir_all(&proof_dir).expect("create external proof directory");
@@ -1768,12 +1770,6 @@ fn production_binary_argus_socket_inspect_click_set_screenshot_receipts_and_popo
         "proof transcript retained the live session token"
     );
     assert!(
-        client.agent_token.as_deref().is_none_or(|agent_token| {
-            !String::from_utf8_lossy(&transcript).contains(agent_token)
-        }),
-        "proof transcript retained the broker-minted agent token"
-    );
-    assert!(
         !String::from_utf8_lossy(&transcript).contains(secret_canary),
         "proof transcript retained the sensitive-value canary"
     );
@@ -1785,7 +1781,7 @@ fn production_binary_argus_socket_inspect_click_set_screenshot_receipts_and_popo
     let provenance = serde_json::json!({
         "schema_id": "handshake.argus.production_socket_provenance@1",
         "child_pid": child_pid,
-        "authenticated_agent_id": authenticated_agent_id,
+        "authenticated_agent_id": client.observed_participant_id(),
         "transcript": "argus_production_socket_transcript.json",
         "captures": [
             {
@@ -1826,7 +1822,6 @@ fn production_binary_argus_socket_inspect_click_set_screenshot_receipts_and_popo
         ],
         "redaction": {
             "session_token_absent_from_transcript": true,
-            "agent_token_absent_from_transcript": true,
             "sensitive_canary_absent_from_transcript_and_settings_capture": true,
         }
     });
@@ -1835,10 +1830,6 @@ fn production_binary_argus_socket_inspect_click_set_screenshot_receipts_and_popo
     let provenance_text = String::from_utf8_lossy(&provenance);
     assert!(
         !provenance_text.contains(client.token.as_str())
-            && client
-                .agent_token
-                .as_deref()
-                .is_none_or(|agent_token| !provenance_text.contains(agent_token))
             && !provenance_text.contains(secret_canary),
         "production proof provenance retained a secret"
     );

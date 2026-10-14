@@ -13,7 +13,7 @@
 #![allow(dead_code)] // each live test binary consumes a subset of this shared surface.
 
 use std::io::{BufRead, BufReader, Read, Write};
-use std::net::{TcpListener, TcpStream};
+use std::net::{Shutdown, TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command};
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicU8, Ordering};
@@ -318,12 +318,188 @@ pub struct ArgusClient {
     pub addr: String,
     pub token: String,
     pub next_id: u64,
-    pub agent_token: Option<String>,
-    pub agent_id: Option<String>,
+    client_session_id: String,
+    transport: Option<BufReader<TcpStream>>,
+    observed_participant_id: Option<String>,
     pub transcript: Vec<serde_json::Value>,
 }
 
 impl ArgusClient {
+    pub fn new(addr: String, token: String, client_session_id: String) -> std::io::Result<Self> {
+        if client_session_id.is_empty()
+            || client_session_id.len() > 64
+            || !client_session_id
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.'))
+        {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "invalid Argus participant identifier",
+            ));
+        }
+        let mut client = Self {
+            addr,
+            token,
+            next_id: 1,
+            client_session_id,
+            transport: None,
+            observed_participant_id: None,
+            transcript: Vec::new(),
+        };
+        client.reconnect_transport()?;
+        Ok(client)
+    }
+
+    pub fn client_session_id(&self) -> &str {
+        &self.client_session_id
+    }
+
+    pub fn observed_participant_id(&self) -> &str {
+        self.observed_participant_id
+            .as_deref()
+            .filter(|id| !id.is_empty())
+            .expect("participant identity requires an actual durable attributed action receipt")
+    }
+
+    pub fn disconnect_transport(&mut self) -> std::io::Result<()> {
+        let transport = self.transport.take().ok_or_else(|| {
+            std::io::Error::new(
+                std::io::ErrorKind::NotConnected,
+                "Argus transport is disconnected",
+            )
+        })?;
+        transport.get_ref().shutdown(Shutdown::Both)
+    }
+
+    pub fn reconnect_transport(&mut self) -> std::io::Result<()> {
+        if self.transport.is_some() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::AlreadyExists,
+                "Argus transport is already connected",
+            ));
+        }
+        let address = self.addr.parse().map_err(|_| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "invalid Argus socket address",
+            )
+        })?;
+        let timeout = handshake_native::mcp::ACTION_RECEIPT_TRANSPORT_TIMEOUT;
+        let stream = TcpStream::connect_timeout(&address, timeout)?;
+        stream.set_read_timeout(Some(timeout))?;
+        stream.set_write_timeout(Some(timeout))?;
+        self.transport = Some(BufReader::new(stream));
+        Ok(())
+    }
+
+    pub fn try_call(
+        &mut self,
+        method: &str,
+        params: serde_json::Value,
+    ) -> std::io::Result<serde_json::Value> {
+        let token = self.token.clone();
+        self.try_send(method, params, &token, AGENT_LABEL, true)
+    }
+
+    pub fn interrupt_inspect_transport(
+        &mut self,
+        window_id: &str,
+    ) -> std::io::Result<serde_json::Value> {
+        let params = self.registered_window_params(window_id, true)?;
+        let token = self.token.clone();
+        let request = self.request("argus.inspect", params, &token, AGENT_LABEL);
+        let result = (|| {
+            let mut transport = self.transport.take().ok_or_else(|| {
+                std::io::Error::new(
+                    std::io::ErrorKind::NotConnected,
+                    "Argus transport is disconnected",
+                )
+            })?;
+            write_rpc_frame(transport.get_mut(), &request)?;
+            transport.get_ref().shutdown(Shutdown::Both)?;
+            read_rpc_frame(&mut transport, &request)
+        })();
+        self.record_exchange(&request, &result);
+        result
+    }
+
+    fn registered_window_params(
+        &mut self,
+        window_id: &str,
+        record_in_transcript: bool,
+    ) -> std::io::Result<serde_json::Value> {
+        let token = self.token.clone();
+        let response = self.try_send(
+            "argus.list_windows",
+            serde_json::json!({}),
+            &token,
+            AGENT_LABEL,
+            record_in_transcript,
+        )?;
+        if response.get("error").is_some() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::PermissionDenied,
+                "Argus registration query was refused",
+            ));
+        }
+        let window = response["result"]["windows"]
+            .as_array()
+            .ok_or_else(|| {
+                std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "registered windows must be an array",
+                )
+            })?
+            .iter()
+            .find(|window| window["window_id"].as_str() == Some(window_id))
+            .ok_or_else(|| {
+                std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    "addressed window is not registered",
+                )
+            })?;
+        let revision = window["revision"].as_u64().ok_or_else(|| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "registered revision is not numeric",
+            )
+        })?;
+        let epoch = window["epoch"].as_u64().ok_or_else(|| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "registered epoch is not numeric",
+            )
+        })?;
+        Ok(serde_json::json!({
+            "window_id": window_id,
+            "expected_revision": revision,
+            "window_epoch": epoch,
+        }))
+    }
+
+    fn read_window(
+        &mut self,
+        method: &str,
+        window_id: &str,
+        record_in_transcript: bool,
+    ) -> serde_json::Value {
+        let deadline = Instant::now() + Duration::from_secs(30);
+        loop {
+            let params = self
+                .registered_window_params(window_id, record_in_transcript)
+                .unwrap_or_else(|error| panic!("{method} registration failed: {:?}", error.kind()));
+            let token = self.token.clone();
+            let response = self.send(method, params, &token, AGENT_LABEL, record_in_transcript);
+            let stale =
+                response["error"]["message"].as_str() == Some("Argus window revision is stale");
+            if !stale || Instant::now() >= deadline {
+                assert_success(&response, method);
+                return response;
+            }
+            std::thread::sleep(Duration::from_millis(150));
+        }
+    }
+
     pub fn call(&mut self, method: &str, params: serde_json::Value) -> serde_json::Value {
         let token = self.token.clone();
         self.call_with_credentials(method, params, &token, AGENT_LABEL)
@@ -347,25 +523,73 @@ impl ArgusClient {
         agent_label: &str,
         record_in_transcript: bool,
     ) -> serde_json::Value {
+        self.try_send(method, params, token, agent_label, record_in_transcript)
+            .unwrap_or_else(|error| panic!("{method} transport failed: {:?}", error.kind()))
+    }
+
+    fn request(
+        &mut self,
+        method: &str,
+        params: serde_json::Value,
+        token: &str,
+        agent_label: &str,
+    ) -> serde_json::Value {
         let request = serde_json::json!({
             "jsonrpc": "2.0",
             "id": self.next_id,
             "method": method,
             "params": params,
             "session_token": token,
-            "agent_token": self.agent_token.as_deref(),
+            "client_session_id": self.client_session_id,
             "agent_label": agent_label,
         });
         self.next_id += 1;
-        let response = rpc(&self.addr, &request)
-            .unwrap_or_else(|error| panic!("{method} transport failed: {error}"));
-        if record_in_transcript {
-            self.transcript.push(serde_json::json!({
-                "request": redact_request_for_proof(&request),
-                "response": redact_response_for_proof(&response),
-            }));
+        request
+    }
+
+    fn try_send(
+        &mut self,
+        method: &str,
+        params: serde_json::Value,
+        token: &str,
+        agent_label: &str,
+        record_in_transcript: bool,
+    ) -> std::io::Result<serde_json::Value> {
+        let request = self.request(method, params, token, agent_label);
+        let result = (|| {
+            let transport = self.transport.as_mut().ok_or_else(|| {
+                std::io::Error::new(
+                    std::io::ErrorKind::NotConnected,
+                    "Argus transport is disconnected",
+                )
+            })?;
+            write_rpc_frame(transport.get_mut(), &request)?;
+            read_rpc_frame(transport, &request)
+        })();
+        if result.is_err() {
+            self.transport.take();
         }
-        response
+        if record_in_transcript {
+            self.record_exchange(&request, &result);
+        }
+        result
+    }
+
+    fn record_exchange(
+        &mut self,
+        request: &serde_json::Value,
+        result: &std::io::Result<serde_json::Value>,
+    ) {
+        match result {
+            Ok(response) => self.transcript.push(serde_json::json!({
+                "request": redact_request_for_proof(request),
+                "response": redact_response_for_proof(response),
+            })),
+            Err(error) => self.transcript.push(serde_json::json!({
+                "request": redact_request_for_proof(request),
+                "transport_error_kind": format!("{:?}", error.kind()),
+            })),
+        }
     }
 
     /// Read-only poll over the SAME live socket that deliberately stays out of the proof
@@ -373,62 +597,23 @@ impl ArgusClient {
     /// artifact with megabytes of duplicate trees without adding any evidence. Every decisive
     /// read a proof asserts on still goes through [`ArgusClient::inspect`].
     pub fn poll_inspect(&mut self, window_id: &str) -> serde_json::Value {
-        let token = self.token.clone();
-        let response = self.send(
-            "argus.inspect",
-            serde_json::json!({"window_id": window_id}),
-            &token,
-            AGENT_LABEL,
-            false,
-        );
-        assert_success(&response, "argus.inspect");
+        let response = self.read_window("argus.inspect", window_id, false);
         response["result"].clone()
     }
 
-    pub fn authenticate_agent(&mut self) -> String {
-        let session_token = self.token.clone();
-        let response = self.call_with_credentials(
-            "argus.authenticate_agent",
-            serde_json::json!({}),
-            &session_token,
-            AGENT_LABEL,
-        );
-        assert_success(&response, "argus.authenticate_agent");
-        let agent_id = response["result"]["agent_id"]
-            .as_str()
-            .expect("broker returned agent_id")
-            .to_owned();
-        self.agent_token = Some(
-            response["result"]["agent_token"]
-                .as_str()
-                .expect("broker returned agent_token")
-                .to_owned(),
-        );
-        self.agent_id = Some(agent_id.clone());
-        agent_id
-    }
-
     pub fn inspect(&mut self, window_id: &str) -> serde_json::Value {
-        let response = self.call("argus.inspect", serde_json::json!({"window_id": window_id}));
-        assert_success(&response, "argus.inspect");
+        let response = self.read_window("argus.inspect", window_id, true);
         response["result"].clone()
     }
 
     /// Inspect through an explicit method name so a proof can exercise BOTH the canonical
     /// `argus.inspect` and its `list_widgets` compatibility alias over the same live socket.
     pub fn inspect_via(&mut self, method: &str, window_id: &str) -> serde_json::Value {
-        let response = self.call(method, serde_json::json!({"window_id": window_id}));
-        assert_success(&response, method);
-        response
+        self.read_window(method, window_id, true)
     }
 
     pub fn screenshot(&mut self, window_id: &str) -> serde_json::Value {
-        let response = self.call(
-            "argus.screenshot",
-            serde_json::json!({"window_id": window_id}),
-        );
-        assert_success(&response, "argus.screenshot");
-        response
+        self.read_window("argus.screenshot", window_id, true)
     }
 
     pub fn mutation(
@@ -448,24 +633,21 @@ impl ArgusClient {
                 serde_json::Value::String(window_id.to_owned()),
             ),
             (
-                "author_id".to_owned(),
+                "target".to_owned(),
                 serde_json::Value::String(author_id.to_owned()),
             ),
             (
-                "expected_snapshot_revision".to_owned(),
+                "expected_revision".to_owned(),
                 serde_json::Value::from(revision),
             ),
+            ("window_epoch".to_owned(), before["window_epoch"].clone()),
         ]);
         if let Some((key, value)) = extra {
             params.insert(key.to_owned(), value);
         }
         let response = self.call(method, serde_json::Value::Object(params));
         assert_applied_durable(&response, revision, method);
-        assert_eq!(
-            response["result"]["agent_id"].as_str(),
-            self.agent_id.as_deref(),
-            "{method} receipt was not attributed to the broker-authenticated principal"
-        );
+        self.observe_participant(&response, method);
         assert_eq!(
             response["result"]["agent_label"], AGENT_LABEL,
             "{method} receipt lost its distinct caller-controlled display label"
@@ -499,13 +681,14 @@ impl ArgusClient {
                     serde_json::Value::String(window_id.to_owned()),
                 ),
                 (
-                    "author_id".to_owned(),
+                    "target".to_owned(),
                     serde_json::Value::String(author_id.to_owned()),
                 ),
                 (
-                    "expected_snapshot_revision".to_owned(),
+                    "expected_revision".to_owned(),
                     serde_json::Value::from(revision),
                 ),
+                ("window_epoch".to_owned(), before["window_epoch"].clone()),
             ]);
             if let Some((key, value)) = extra.clone() {
                 params.insert(key.to_owned(), value);
@@ -513,7 +696,7 @@ impl ArgusClient {
             let response = self.call(method, serde_json::Value::Object(params));
             let lost_cas_race = response["error"]["message"]
                 .as_str()
-                .is_some_and(|message| message.contains("stale Argus snapshot"));
+                .is_some_and(|message| message == "Argus window revision is stale");
             if !lost_cas_race || Instant::now() >= deadline {
                 return (revision, response);
             }
@@ -532,16 +715,27 @@ impl ArgusClient {
     ) -> serde_json::Value {
         let (revision, response) = self.attempt_mutation(method, window_id, author_id, extra);
         assert_applied_durable(&response, revision, method);
-        assert_eq!(
-            response["result"]["agent_id"].as_str(),
-            self.agent_id.as_deref(),
-            "{method} receipt was not attributed to the broker-authenticated principal"
-        );
+        self.observe_participant(&response, method);
         assert_eq!(
             response["result"]["agent_label"], AGENT_LABEL,
             "{method} receipt lost its distinct caller-controlled display label"
         );
         response
+    }
+
+    fn observe_participant(&mut self, response: &serde_json::Value, operation: &str) {
+        let participant = response["result"]["agent_id"]
+            .as_str()
+            .filter(|id| !id.is_empty())
+            .expect("durable action receipt lacks participant attribution");
+        if let Some(original) = &self.observed_participant_id {
+            assert_eq!(
+                participant, original,
+                "{operation} changed participant attribution"
+            );
+        } else {
+            self.observed_participant_id = Some(participant.to_owned());
+        }
     }
 
     /// Assert the redacted transcript never retained a live credential or the given canaries.
@@ -552,12 +746,6 @@ impl ArgusClient {
         assert!(
             !text.contains(self.token.as_str()),
             "proof transcript retained the live session token"
-        );
-        assert!(
-            self.agent_token
-                .as_deref()
-                .is_none_or(|agent_token| !text.contains(agent_token)),
-            "proof transcript retained the broker-minted agent token"
         );
         for canary in canaries {
             assert!(
@@ -589,7 +777,8 @@ pub fn redact_request_for_proof(request: &serde_json::Value) -> serde_json::Valu
             .and_then(serde_json::Value::as_object_mut)
         {
             let sensitive = params
-                .get("author_id")
+                .get("target")
+                .or_else(|| params.get("author_id"))
                 .and_then(serde_json::Value::as_str)
                 .is_some_and(handshake_native::accessibility::is_sensitive_author_id);
             if sensitive && params.contains_key("value") {
@@ -649,16 +838,39 @@ pub fn rpc(addr: &str, request: &serde_json::Value) -> std::io::Result<serde_jso
     stream.set_read_timeout(Some(
         handshake_native::mcp::ACTION_RECEIPT_TRANSPORT_TIMEOUT,
     ))?;
-    let mut writer = stream.try_clone()?;
-    serde_json::to_writer(&mut writer, request)
-        .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))?;
-    writer.write_all(b"\n")?;
-    writer.flush()?;
     let mut reader = BufReader::new(stream);
+    write_rpc_frame(reader.get_mut(), request)?;
+    read_rpc_frame(&mut reader, request)
+}
+
+fn write_rpc_frame(stream: &mut TcpStream, request: &serde_json::Value) -> std::io::Result<()> {
+    serde_json::to_writer(&mut *stream, request)
+        .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))?;
+    stream.write_all(b"\n")?;
+    stream.flush()
+}
+
+fn read_rpc_frame(
+    reader: &mut BufReader<TcpStream>,
+    request: &serde_json::Value,
+) -> std::io::Result<serde_json::Value> {
     let mut line = String::new();
-    reader.read_line(&mut line)?;
-    serde_json::from_str(line.trim())
-        .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))
+    if reader.read_line(&mut line)? == 0 {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::UnexpectedEof,
+            "Argus transport closed without a response",
+        ));
+    }
+    let response: serde_json::Value = serde_json::from_str(line.trim()).map_err(|_| {
+        std::io::Error::new(std::io::ErrorKind::InvalidData, "invalid Argus response")
+    })?;
+    if response.get("id") != request.get("id") {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "Argus response request ID mismatch",
+        ));
+    }
+    Ok(response)
 }
 
 pub fn assert_success(response: &serde_json::Value, operation: &str) {
@@ -1129,14 +1341,17 @@ pub fn assert_bytes_exclude(bytes: &[u8], canary: &str, context: &str) {
 pub struct LiveApp {
     pub client: ArgusClient,
     pub child_pid: u32,
-    pub authenticated_agent_id: String,
     pub binding_path: PathBuf,
     tmp: PathBuf,
     child: ChildGuard,
 }
 
 impl LiveApp {
-    /// Spawn the production binary, discover its owned binding, and authenticate an agent.
+    pub fn observed_participant_id(&self) -> &str {
+        self.client.observed_participant_id()
+    }
+
+    /// Spawn the production binary and connect its discovered binding with a stable participant ID.
     pub fn start(scope: &str) -> Self {
         Self::start_with_child_proxy(scope, None)
     }
@@ -1181,19 +1396,12 @@ impl LiveApp {
             child_pid,
             Instant::now() + Duration::from_secs(30),
         );
-        let mut client = ArgusClient {
-            addr: binding.tcp_addr,
-            token: binding.token,
-            next_id: 1,
-            agent_token: None,
-            agent_id: None,
-            transcript: Vec::new(),
-        };
-        let authenticated_agent_id = client.authenticate_agent();
-        assert!(
-            !authenticated_agent_id.is_empty(),
-            "broker returned an empty agent id"
-        );
+        let mut client = ArgusClient::new(
+            binding.tcp_addr,
+            binding.token,
+            uuid::Uuid::new_v4().to_string(),
+        )
+        .expect("connect discovered production Argus transport");
         // The binding is published from the tokio runtime, so the first main-window snapshot can
         // still be a frame away. Wait for it (bounded, then fail) instead of racing the very first
         // publish; every later assertion needs a real rendered tree anyway.
@@ -1201,7 +1409,6 @@ impl LiveApp {
         Self {
             client,
             child_pid,
-            authenticated_agent_id,
             binding_path,
             tmp,
             child,
