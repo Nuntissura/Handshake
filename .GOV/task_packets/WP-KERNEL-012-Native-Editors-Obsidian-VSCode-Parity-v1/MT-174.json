@@ -3159,7 +3159,8 @@
       "src/backend/handshake_core/src/workflows.rs",
       "tests/live_pg/seed_fixture.sh"
     ,
-      "src/backend/handshake_core/src/api/model_access.rs"],
+      "src/backend/handshake_core/src/api/model_access.rs",
+      "src/backend/handshake_core/src/storage/surreal/palmistry.rs"],
     "forbidden_write_paths": [
       ".GOV/**",
       "app/src/**",
@@ -5647,7 +5648,8 @@
       "src/backend/handshake_core/src/workflows.rs",
       "tests/live_pg/seed_fixture.sh"
     ,
-      "src/backend/handshake_core/src/api/model_access.rs"],
+      "src/backend/handshake_core/src/api/model_access.rs",
+      "src/backend/handshake_core/src/storage/surreal/palmistry.rs"],
     "forbidden_paths": [
       ".GOV/**",
       "app/src/**",

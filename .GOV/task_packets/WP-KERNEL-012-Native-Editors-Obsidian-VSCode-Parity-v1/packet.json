@@ -6602,7 +6602,8 @@
           "src/frontend/handshake_native/src/diagnostics/palmistry_launch.rs",
           "src/frontend/handshake_native/src/internal_diagnostics.rs",
           "src/backend/handshake_core/src/api/palmistry.rs"
-        ],
+        ,
+          "src/backend/handshake_core/src/storage/surreal/palmistry.rs"],
         "deliverable": "Connected existing V2 ring/current-child readiness and weak adopted provenance bridge; canonical account-scoped durable receipt/adoption producer using genuine existing verification mechanics",
         "next_integration": "Coordinate exact same session/nonce/V2 recorder/current-child signed-ready interfaces with native startup/client/action/server; no raw seed or manufactured witness"
       },
@@ -6619,6 +6620,17 @@
         "deliverable": "Existing full-router cloud mount and real shared production CLI probe/launcher factory; authenticated exact account/Principal/session/Space/workspace checks and per-account credentials/per-session login ownership, no global fallback",
         "next_integration": "Full protected router and retained process/shutdown owner; never claim production() unavailable CLI fallback functional",
         "controls": "Current main shutdown predicate/ownership unchanged; broad first-run bootstrap held. Config producer is existing explicit official CLI config record path, no credential scraping, no unavailable default counted as functional. Genuine account-scoped vault and authorization retain original policy/grants and deny before side effects; source unavailable boundary honest."
+      },
+      {
+        "id": "WP012-SUCCESSOR-POPOUT",
+        "owner_chat": "01a139f6-8cf0-7571-bab2-960a33d7cafa",
+        "worker": "/root/native_windows_worker",
+        "mt": "MT-175",
+        "paths": [
+          "src/frontend/handshake_native/src/popout_window.rs"
+        ],
+        "deliverable": "Extend existing show_all with actual lifecycle callback Prepare/BeforeRender/AfterRender/CloseReady/Removed; preserve one render path/quiet geometry/merge and retain closing child until real pending ACK settlement; migrate only same-file unit callers",
+        "next_integration": "Primary app sole production callback registers same viewport/epoch, pumps exact channel, captures real handle, settles close and unregisters same epoch; no fake embedded/native window proof"
       }
     ],
     "supersession": "Supersede WP012-WF-009/current reuse-existing-team restriction only for this explicit human successor team; preserve other rules and histories",
@@ -6659,6 +6671,18 @@
       "proof": "Original MT015 independent real auth/foreign-account/session/revocation/quiet/cloud main-detached assertions remain; no held-permit or race-free claim until runtime proof",
       "source_owner": "01a139f6-2aa7-7b93-bc12-28f207a6909f /root/startup_authority",
       "unresolved": "Existing first-run/deployment binding and same account-scoped runtime BYOK consumer remain open; do not substitute authenticated channel/HMAC for authorization"
+    },
+    "affected_review_remediation": {
+      "id": "WP012-SUCCESSOR-IV-REMEDIATION-001",
+      "finding_source": "Independent validator01a139f6-ce6a-7b50-a058-dff3732ea4a2 affected-batch review",
+      "findings": [
+        "Generation-retired pending receipts must not consume active permits or silently lose original recoverable operation identity",
+        "Cooperative Swarm lowering requires bounded canonical GET refresh, never repeated PUT",
+        "Argus route authorization/profile must remain carried through actual canonical record-user append rather than discarded before root append",
+        "Cloud write/delete/input/cancel must check actual principal capability profile for intended mutation, not merely read profile"
+      ],
+      "scope": "Existing native app/server and cloud leases remain; runtime diagnostics worker additionally storage/surreal/palmistry.rs for minimal existing record-user transactional append. Preserve exact original tuple/grants/profile, idempotency/HMAC/EventLedger and originals. No broad storage/schema change or new capability/grant",
+      "proof": "Same ONE affected batch review consumes only changed remediation delta; original independent real revocation/foreign-scope/lost-ACK/Applied-newer-evidence/null-error proof unchanged"
     }
   }
 }
