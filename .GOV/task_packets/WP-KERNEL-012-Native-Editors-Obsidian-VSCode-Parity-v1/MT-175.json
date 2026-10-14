@@ -1,4 +1,16 @@
 {
+  "three_interface_repair_20261014": {
+    "decision_id": "WP012-THREE-INTERFACE-REPAIR-20261014",
+    "status": "SOURCE_REPAIR_AUTHORIZED",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "failure_ref": "MT-186.json#/delegated_stage02_check1_result_20261014",
+    "owner": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+    "allowed_write_paths": ["src/frontend/handshake_native/src/backend_client.rs", "src/frontend/handshake_native/src/accessibility/mod.rs", "src/frontend/handshake_native/src/mcp/argus.rs", "src/frontend/handshake_native/src/mcp/mod.rs"],
+    "source_basis": "Existing MT175.source_import_binding WP1 pin98efa4d019c4f670186cd3ec1f048ece3adf0dcd contains genuine UserManualClient/routes/transport and Argus transport policy/reexports. Current accessibility/snapshot.rs345 already implements actual sensitivity predicate. Root opened actual pinned client/timeout policy and current consumers/exports.",
+    "repairs": ["Restore genuine UserManualClient request builders and UserManualTransport over existing bounded shared HTTP pool/current get_json boundary, explicit AccountContext/with_authenticated_context and captured context in every future; missing context fails before socket, no anonymous fallback. Reuse current user_manual DTO/cell semantics.", "Reexport existing snapshot::is_sensitive_author_id without changing BYOK or secret classification.", "Restore pinned20second ACTION_RECEIPT_TRANSPORT_TIMEOUT policy and public reexport; preserve pinned budget relationships and current actual action lease/ACK behavior. No shorter test timeout, dummy declaration presented as production receipt adoption, server replacement or unassigned implementation change."],
+    "controls": "One coupled four-file repair, source provenance and whole affected caller/producer/auth/timeout connection review, explicit-path checkpoint/push. Report additional directly evidenced paths before writes. Original stage02 retains1/3 consumed and eight cumulative failures. No test execution/runtime granted by source repair; next original compiler only on reviewed pushed candidate with fresh bindings and conditional release.",
+    "residuals": "Current app lacks manual-client/factory live mounting; restored source producer is not live host proof. Current server queued-response path lacks pinned full receipt/durability integration; restoring20second transport policy does not close that runtime gap. Original canonical Argus/auth/durable/negative/GUI/multiwindow and whole-WP acceptance remain OPEN."
+  },
   "palmistry_export_checkpoint_20261014": {
     "status": "INDEPENDENT_SOURCE_CLEAR_PUSH_VERIFIED",
     "source_repair_ref": "/palmistry_export_repair_20261014",
