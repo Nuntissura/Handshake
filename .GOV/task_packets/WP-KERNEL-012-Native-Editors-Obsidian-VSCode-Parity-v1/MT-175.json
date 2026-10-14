@@ -1,4 +1,16 @@
 {
+  "receipt_guard_mutability_repair_20261014": {
+    "decision_id": "WP012-RECEIPT-GUARD-MUTABILITY-REPAIR-20261014",
+    "status": "SOURCE_REPAIR_AUTHORIZED",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "failure_ref": "MT-186.json#/delegated_stage03_check1_result_20261014",
+    "owner": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+    "allowed_write_paths": ["src/frontend/handshake_native/src/mcp/server.rs"],
+    "repair": "Make actual receipt observation channel guard mutable at existing server571/572 because current ActionChannel::receipts(&mutself) expires stale actions. Preserve getter signature/expiration effects, existing snapshot-then-channel atomic receipt/revision boundary, auth/epoch/causal guards and all unrelated bodies. Root opened actual error/caller/getter; all prior DTOimporterrors absent.",
+    "census": "Read-only same-cause receipts getter/guard caller mutability census before one affected receiver reproof, no whole behavior audit or unrelated warning cleanup. Report additional exact directlyrequired paths before writes.",
+    "review_correction": "IV explicitly acknowledged CW003 source review missed getter receiver mutability; exact receiver closure invalid until repair/reproof. Unchanged atomicpublication design and other scopedbehavior review reused, no type/runtime claim.",
+    "control": "Singlefile exactone-line patch, one independent mutablecaller/getter/lockordering reproof, explicitpathcheckpointpush. Stage03one/3,total11 retained; next compiler only after actualreviewedpushedcandidate binding/freshpreflight, no tests/metadata/runtime or extra source paths."
+  },
   "cloud_dto_import_checkpoint_20261014": {
     "status": "INDEPENDENT_IMPORT_SOURCE_REPROOF_PUSH_VERIFIED",
     "repair_ref": "/cloud_dto_import_repair_20261014",
