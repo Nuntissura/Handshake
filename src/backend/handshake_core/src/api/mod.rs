@@ -58,17 +58,6 @@ impl ApiRouteRuntime {
             Some(drain) => drain.drain_and_join(timeout).await,
             None => true,
         };
-        if !swarm_events_flushed {
-            return ApiRouteRuntimeDrainReport {
-                operator_chat_process_ledger: None,
-                process_reclaim_quiesced: false,
-                swarm_events_flushed,
-                coordinator_quiesced: true,
-                coordinator_error: None,
-                lease_released: false,
-                lease_retained_reason: Some("Swarm event durability is unproven; process drain was not run".to_owned()),
-            };
-        }
         if let Some(runtime) = &self.shared_process_runtime {
             let report = runtime.shutdown_and_drain(timeout).await;
             return ApiRouteRuntimeDrainReport {

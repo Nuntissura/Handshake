@@ -444,11 +444,16 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
             "operator-chat process ledger drain-and-join at shutdown"
         );
 
-        let operator_chat_ledger_flushed = matches!(
-            &api_drain_report.operator_chat_process_ledger,
-            Some(handshake_core::process_ledger::LedgerDrainJoinOutcome::Flushed
-                | handshake_core::process_ledger::LedgerDrainJoinOutcome::AlreadyDrained)
-        );
+        let operator_chat_ledger_flushed = api_drain_report
+            .operator_chat_process_ledger
+            .as_ref()
+            .map(|outcome| {
+                matches!(
+                    outcome,
+                    handshake_core::process_ledger::LedgerDrainJoinOutcome::Flushed
+                        | handshake_core::process_ledger::LedgerDrainJoinOutcome::AlreadyDrained
+                )
+            });
 
         if connection_drain_timed_out
             || runtime_shutdown.is_err()
@@ -457,7 +462,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
             || api_drain_report.lease_retained_reason.is_some()
             || !api_drain_report.process_reclaim_quiesced
             || !api_drain_report.swarm_events_flushed
-            || !operator_chat_ledger_flushed
+            || operator_chat_ledger_flushed != Some(true)
         {
             if let Err(err) = &runtime_shutdown {
                 tracing::error!(
@@ -475,7 +480,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
                 lease_retained_reason = ?api_drain_report.lease_retained_reason,
                 process_reclaim_quiesced = api_drain_report.process_reclaim_quiesced,
                 swarm_events_flushed = api_drain_report.swarm_events_flushed,
-                operator_chat_ledger_flushed,
+                operator_chat_ledger_flushed = ?operator_chat_ledger_flushed,
                 "shutdown durability was not fully proven; exiting with failure after preserving truthful process-ledger state"
             );
             // Do not unwind `state_owner` or release the lease while a worker may

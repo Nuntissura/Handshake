@@ -426,7 +426,7 @@ COMMIT TRANSACTION;
                 .bind(("fr", RecordId::new("protected_resources", Uuid::now_v7().to_string())))
                 .bind(("workspace_grant", RecordId::new("resource_grants", Uuid::now_v7().to_string())))
                 .bind(("fr_grant", RecordId::new("resource_grants", Uuid::now_v7().to_string())))
-                .bind(("capabilities", vec!["fs.read", "fs.write", "fr.read", "fr.ingest.runtime_chat", "fr.ingest.native_editor", "memory.read", "memory.propose", "memory.review", "memory.commit"]))
+                .bind(("capabilities", vec!["fs.read", "fs.write", "model_lane.navigation.read", "fr.read", "fr.ingest.runtime_chat", "fr.ingest.native_editor", "memory.read", "memory.propose", "memory.review", "memory.commit"]))
                 // MT-109 C2: the workspace owner's memory surfaces (Master Spec 02:2776 record-user
                 // permissions), provisioned with the workspace instead of only by test fixtures.
                 .bind(("memory_surfaces", ["memory_pack", "memory_proposal", "memory_commit_report", "memory_item", "memory_item_count"]
