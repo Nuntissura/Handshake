@@ -1,0 +1,43 @@
+{
+ "crate": "hsk-studio-composite",
+ "lane": "SMB-COMPOSITE-TEMPORAL",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slice 1 done on 4ad3405 (pushed): temporal port + lower_frame(tick) + motion adapter behind feature motion; check/clippy clean with and without motion; composite 33/33 with --features motion",
+ "commits": [
+  {
+   "sha": "cf0bc33",
+   "subject": "composite (SMB-COMPOSITE-TEMPORAL slice 1): temporal port and lower_frame(tick) with layer in/out windows, opacity scale and integer translation applied after the static lowering (tiles and linked masks); resampling transforms refused transform_requires_resampling; motion adapter behind the non-default feature motion (decision T1)"
+  },
+  {
+   "sha": "4ad3405",
+   "subject": "composite (SMB-COMPOSITE-TEMPORAL slice 1 tests): tests/temporal.rs (5 tests); static_plan closure test admits motion only as an optional dependency (T1) and scans src sub-directories"
+  }
+ ],
+ "capabilities_done": [
+  "composite::temporal port: LayerFrameState {visible, opacity_scale, translate_px, scale, rotation_deg}, TemporalSource, NoTemporalSource, LayerTiming [in_tick, out_tick)",
+  "lower_frame(&FrameRequest, &dyn TemporalSource, tick, cancel) -> FrameLowering {lowering: RenderLowering, tick, applied, hidden}: windows + source visibility hide layers, opacity_scale multiplies authored opacity, frame document re-validated by folio::validate_document, unchanged static lower -> evaluate -> lower_to_render_plan (unchanged frame = caller snapshot as is, plan identical to static), integer translation applied after lowering to TileInputs of the layer and to its MaskInput only when StudioMask.linked, RenderPlan::validate again",
+  "typed refusals: TemporalError::Unsupported transform_requires_resampling (fractional translation, scale != 1, rotation != 0; never rounded), translate_non_raster_layer (group), InvalidState (nonfinite / opacity outside 0..=1), InvalidTiming (in >= out), DuplicateTiming, Composite(BudgetExceeded) timings > Limits.max_steps before work, Composite(DanglingInput) unknown layer, Composite(Overflow) checked i64 add / f64 outside i64, StaleRevision, Canceled; frame_outcome maps resampling to Failure(Unsupported)",
+  "feature motion (T1): temporal::motion::MotionTemporalSource + LayerProperties {opacity %, position px, scale %, rotation deg} sampled with motion Property::sample(EvalTick::new(tick))",
+  "DESCRIPTOR: temporal entry; unsupported 'time' narrowed to the non-representable parts; static_closure states motion only behind non-default feature motion"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-composite --features motion --no-fail-fast (also default features: temporal 5/5)",
+  "exit": 0,
+  "sha": "4ad3405",
+  "passed": 33,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 2,
+ "bg_pids": [],
+ "next": "validator round; follow-ups: pigment Transform{affine, filter} plan operator + render-cpu (pigment owner, new lane), then composite lowers position/scale/rotation/anchor/parent chain to it; folio StudioComposition record (hsk.studio.composition@1, layer in/out ticks + keyframe streams) so composite reads timings from Folio instead of the LayerTiming argument",
+ "updated_at": "2026-10-14T20:09:30Z",
+ "notes": {
+  "proof_commands": "check -p hsk-studio-composite --tests (default) exit 0; clippy -p hsk-studio-composite --tests --features motion clean (before and after tests); clippy -p hsk-studio-composite --tests (default) clean; check -p hsk-studio-render-cpu -p hsk-studio-render-gpu --tests exit 0; nextest default 32/33 before the static_plan fix (static_closure_no_temporal_provider: read_to_string on the new src/temporal/ directory), 33/33 with --features motion after it",
+  "outside_brief_owned_paths": "tests/static_plan.rs static_closure_no_temporal_provider edited (inside the crate, outside the brief's owned_paths): (1) the manifest parser now admits hsk-studio-motion only when its line says optional = true and asserts default = [] (encodes decision T1; otherwise the optional dependency line fails the test), (2) the CX-CAP-001 blend-owner scan recurses into src sub-directories instead of panicking on src/temporal/. Lead waiver requested (GLOBAL-SCOPE-005).",
+  "brief_deviations": "lower_frame takes a FrameRequest struct (snapshot, revision, blend space, Limits, folio Budget + Resolver for the re-validation, root, OutputTarget, TileInfoSource, timings) instead of a long argument list; returns TemporalError (wraps CompositeError) instead of CompositeError, so CompositeError gains no variant; resampling refusal is a whole-frame error, so FrameLowering has no refused list; LayerFrameState gained scale and rotation_deg so the resampling refusal is reachable through the port; acceptance test 2 checks Layer.opacity in the plan (no evaluate_stack pixel oracle: lead capped tests at 5 with a different list)",
+  "probe": "optional edge composite -> motion (dep:hsk-studio-motion) added in Cargo.toml; steward probe acceptance UNVERIFIED (steward handles per dispatch)",
+  "cargo_lock": "Cargo.lock modified by the optional dependency, left uncommitted per dispatch",
+  "limits": "translation of a group layer refused (members' tiles not addressed by the group id); evaluate's per-step extents are the untranslated ones (FrameLowering exposes the plan only); After Effects parity NOT_PROVEN"
+ }
+}

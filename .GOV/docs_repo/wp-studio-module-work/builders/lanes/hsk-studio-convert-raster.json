@@ -1,0 +1,30 @@
+{
+  "crate": "hsk-studio-harness",
+  "lane": "SMB-CONVERT-RASTER",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slices 1-2 pushed; claim = the two commits below (harness tree at 864a255)",
+  "commits": [
+    {"sha": "bf5d703", "subject": "harness (SMB-CONVERT-RASTER slice 1): import-raster route - PNG/JPEG to native through interop-raster + raster_proposal"},
+    {"sha": "864a255", "subject": "harness (SMB-CONVERT-RASTER slice 2): export the composite as PNG/JPEG (CLI export + viewer buttons)"}
+  ],
+  "capabilities_done": [
+    "feature import-raster: SourceFormat Png/Jpeg/Webp sniffed before TIFF; PNG/JPEG -> interop-raster decode -> interop-psd raster_proposal -> native package (tiles, receipt key raster, original); WebP refused webp_decoder_unavailable; CMYK in PSD ink convention (non-Adobe CMYK inverted + loss jpeg_cmyk_inverted_to_psd_convention); losses raster_orientation_not_applied, png_animation_not_imported, jpeg_exif_unreadable",
+    "view::export: rendered composite (view::render, render-cpu in CLI) -> interop-raster encoders: PNG 8-bit RGB (opaque) / RGBA, untagged sRGB; JPEG baseline quality 1..100 (default 90), 4:4:4 at >= 90 else 4:2:0, transparency flattened on white; decode-back check; atomic write",
+    "CLI: export SOURCE (--png | --jpeg [--quality N]) OUT [--overwrite] (feature viewer; without it error feature_unavailable); usage errors exit 2 (no/both formats, quality on PNG or out of range, OUT == SOURCE); open failure exit 1 open_failed; manual + FLAGS updated",
+    "viewer: Export PNG / Export JPEG toolbar buttons (widget ids export.png, export.jpeg), path = save field with .png/.jpg extension, refuses the opened source without overwrite; viewer feature now includes import-raster so PNG/JPEG open in the viewer"
+  ],
+  "tests": {"argv": "cargo nextest run -p hsk-studio-harness --features viewer -E 'binary(viewer_export) | binary(viewer_headless) | binary(import_raster) | test(manual) | test(quiet_sources)'", "exit": 0, "sha": "864a255", "passed": 9, "failed": 0},
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "lead/validator; possible follow-ups: 16-bit PNG export (render frame is 8-bit only), sRGB/ICC tagging of exports, export quality/subsampling controls in the viewer, R-EXPORT owner decision (export lives in harness view for now)",
+  "updated_at": "2026-10-14T21:02:23Z",
+  "notes": {
+    "proof": "at 864a255 (HEAD beedf31 includes other lanes): clippy -p hsk-studio-harness --tests clean for default, --features import-tiff, --features import-raster, --features viewer (only warnings are in hsk-studio-type and hsk-studio-observe, not this lane); nextest above 9/9 incl. existing viewer_headless (3) and manual/quiet-source tests. New tests: tests/import_raster.rs png_imports_as_one_raster_layer_with_receipt_and_original, jpeg_with_exif_orientation_6_records_raster_orientation_not_applied; tests/viewer_export.rs viewer_exports_the_composite_as_png_and_jpeg, cli_export_writes_png_and_jpeg_and_refuses_bad_requests.",
+    "measured": "PNG export of an imported RGBA PNG (sRGB -> linear working space -> render-cpu -> sRGB 8-bit): max abs diff 0 vs source where alpha > 0 (bound 1). JPEG q95 export vs the source flattened on white: PSNR 47.02 dB (bound 38).",
+    "design": "export reuses view::render::render (the composite the viewer shows), so it needs feature viewer (egui/render-gpu compile but the CLI uses Prefer::Cpu and creates no GPU device, no window). No new public feature; CX-CAP-001: encoders stay in interop-raster.",
+    "edges": "harness Cargo.toml depends on hsk-studio-interop-raster (edge in root allowed list). The root workspace.metadata.studio.dependencies.hsk-studio-harness allowed list at beedf31 does NOT yet list composite/pigment/render-cpu/render-gpu used by the pre-existing viewer feature (coordinator: steward syncing viewer edges) - workspace-probe may refuse until that sync lands.",
+    "unverified": ["desktop window not launched (Operator-attended, RUN-UI.md); the buttons are proven only by a headless egui frame drawing their ids and by Viewer::export", "exports are untagged sRGB (no encoded-sRGB ICC in Prism; PNG sRGB chunk not written by interop-raster)", "16-bit / wide-gamut export not offered (render frame is 8-bit sRGB)", "binary help text (src/bin/studio-harness.rs) still lists formats without PNG/JPEG (not edited to avoid a desktop build)"],
+    "retry_guard": "no hook blocks in this lane"
+  }
+}

@@ -1,0 +1,69 @@
+{
+ "crate": "hsk-studio-harness",
+ "lane": "SMB-HARNESS-UI",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "UI slice 1 pushed and green (af69bcf + 7ca6648) on top of the sweep re-shard (c4c6d4d); claim = c4c6d4d, af69bcf, 7ca6648",
+ "commits": [
+  {
+   "sha": "c4c6d4d",
+   "subject": "harness tests: size-balanced psd-tools sweep, 16 shards (per-test cap 120 s)"
+  },
+  {
+   "sha": "af69bcf",
+   "subject": "harness (SMB-HARNESS-UI slice 1): desktop viewer behind features viewer/desktop"
+  },
+  {
+   "sha": "7ca6648",
+   "subject": "harness (SMB-HARNESS-UI): clippy clean with --features desktop (view geometry without operator overloads under deny(arithmetic_side_effects), then_some, is_multiple_of)"
+  }
+ ],
+ "capabilities_done": [
+  "c4c6d4d psd-tools sweep re-shard: SHARDS 6 -> 16, partition by weight (file length + header-declared composite bytes) longest-first onto the lightest shard (deterministic ties); every file in exactly one shard (same 315-file coverage); tests sweep_partition_covers_every_file_once_and_balances_by_weight and sweep_shard_count_matches_the_declared_shard_tests; each shard prints corpus_files, files, weight, elapsed_ms",
+  "feature viewer (window-free): view::Viewer = whole app state; open(path): sniffed source -> Run::open_import_detailed (import::convert_to_native: PSD/PSB, TIFF, camera raw, PDF carried) else native package -> Run::open_bytes; tile bytes from hsk_studio_package::read_package(package).assets; receipt from the import or the package's import/receipt entry; source size bounded by import::MAX_SOURCE_BYTES",
+  "view::render::render: snapshot -> view-only copy (isolated normal 100% root group VIEW_ROOT_LAYER over all graph outputs; blending_space bound to working_space_rgb when unassigned; both recorded in Frame.notes; nothing committed) -> composite lower/evaluate/lower_to_render_plan (BlendSpace::LinearLight, target = first artboard, ColourTag = prism WORKING_PROFILE_LINEAR_SRGB hash) -> render-gpu GpuBackend::execute_detailed, fallback render-cpu Renderer (no adapter / refusal / not created; note gpu_fallback) -> canvas sink -> 8-bit sRGB straight RGBA; canvas cap 64 Mpx; tile planes hashed with prism::profile_hash",
+  "layer tree (top-first, nested by parent) with visibility checkboxes committing via Run::panel_set(layer, layer.visible) (controls descriptor parse + chronicle submit, new revision, re-render); properties panel = hsk-studio-controls egui_adapter::show_panel_and_apply over panel::build (name/visible commit, appearance read-only with reason no_chronicle_property); import receipt panel (source format, layers, colour status, loss grid, not_proven); save via Run::save_to, opened source refused unless overwrite; fit / 1:1 / zoom slider / wheel zoom / drag pan; checkerboard; status log",
+  "model navigation: stable egui ids view::widget (hsk-studio-ui + name; layer rows layer.<id>.visible/select; controls keep their own hsk-studio-control ids); Viewer::drawn() lists the ids drawn by the last frame; Viewer::state_json() structured state incl. run ops",
+  "feature desktop: eframe 0.33.3 (wgpu renderer) host, binary studio-harness [--cpu] [FILE] (required-features desktop); RUN-UI.md documents the manual Operator launch: cargo run -p hsk-studio-harness --features desktop --bin studio-harness -- <file>",
+  "Run::snapshot(), Run::ops(), Run::open_import_detailed (open_import is its bool wrapper); DESCRIPTOR mode headless_default + desktop_window text + proven_by viewer tests + not_proven (viewer masks/effects, render-gpu shared device, accesskit, desktop window visual check); stale LE-TIFF not_proven replaced (16/32-bit only)"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-harness --features desktop --no-fail-fast -E 'binary(viewer_headless) | test(quiet_sources_use_no_process_network_or_environment_api) | test(json_output_is_stable_and_manual_comes_from_the_descriptors)'",
+  "exit": 0,
+  "sha": "7ca6648",
+  "passed": 5,
+  "failed": 0,
+  "names": [
+   "viewer_opens_renders_toggles_a_layer_and_saves",
+   "gpu_unavailable_falls_back_to_render_cpu",
+   "one_ui_frame_draws_the_stable_widget_ids_without_a_window",
+   "quiet_sources_use_no_process_network_or_environment_api",
+   "json_output_is_stable_and_manual_comes_from_the_descriptors"
+  ],
+  "earlier_af69bcf": "cargo nextest run -p hsk-studio-harness --features desktop --test viewer_headless --test harness_headless --no-fail-fast: 10 passed",
+  "check": "cargo check -p hsk-studio-harness --features desktop --tests --bins: clean (harness)",
+  "clippy": "cargo clippy -p hsk-studio-harness --features desktop --tests --bins --examples at 7ca6648 content: no harness warnings; cargo clippy -p hsk-studio-harness --tests --examples (default features): no harness warnings. Default build closure has no eframe/winit/wgpu (cargo tree: only egui via controls)",
+  "sweep_c4c6d4d": "cargo nextest run -p hsk-studio-harness --features import-psd,import-raw --test import_psd --run-ignored only --no-fail-fast --no-capture -E 'test(psd_tools_sweep)' at c4c6d4d: 16 passed (4 slow), 406 s total, serial (--no-capture). Per shard: shard_0 99.0 s (1 file: cmyk-alpha-spot.psd, 5100x3300 CMYK 6 channels, header weight 103266497), shards 1-15 6.5-37.5 s (21-23 files each, shard_1 = 1 file 6.5 s). 315 files: 314 ok, 1 typed refusal, 0 panics.",
+  "import_c4c6d4d": "cargo nextest run -p hsk-studio-harness --features import-psd,import-tiff --test import_tiff --test import_psd --no-fail-fast: 9 passed"
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "Validator: judge SMB-HARNESS-UI on c4c6d4d + af69bcf + 7ca6648 (steward first: add edges harness -> composite, pigment, render-cpu, render-gpu; pin egui + eframe for harness). Next slice candidates: masks + raster records (extended lowering) in the viewer, async render, chronicle appearance (opacity) once chronicle has the property, render-gpu shared device/texture target.",
+ "updated_at": "2026-10-14T20:44:21Z",
+ "notes": {
+  "sweep_residual_risk": "cmyk-alpha-spot.psd alone takes 99 s in the unoptimized test profile when run serially; one file cannot be split across shards, so under parallel round load shard_0 may still approach the 120 s cap. Remedies outside this crate (lead/steward): a nextest override for test(psd_tools_sweep_shard_0) in .config/nextest.toml, or opt-level for the importer crates in the test profile. .config/round-features.toml comment still says 'shards 0-5' (not an owned path).",
+  "retry_guard": "no gameplan block in this lane so far",
+  "edges_requested": "harness -> hsk-studio-composite, hsk-studio-pigment, hsk-studio-render-cpu, hsk-studio-render-gpu (optional, feature viewer) are NOT in root workspace.metadata.studio.dependencies.hsk-studio-harness.allowed; the lead dispatch names render-gpu/render-cpu/composite as consumed APIs; steward: steward-sync.sh --add-edge hsk-studio-harness=hsk-studio-composite (and =hsk-studio-pigment, =hsk-studio-render-cpu, =hsk-studio-render-gpu)",
+  "deps": "eframe 0.33.3 (wgpu, default_fonts; optional, feature desktop) = steward pre-approval line (dep-requests.jsonl, D11); egui 0.33.3 (default_fonts; optional, feature viewer) requested by a new line 2026-10-14 (SMB-HARNESS-UI). Cargo.lock uncommitted.",
+  "missing_apis": [
+   "render-gpu: no way to pass an external wgpu Device/Queue (egui-wgpu's) or render into a caller texture; output is read back through TileSink and uploaded as an egui texture (lead: render-gpu API request)",
+   "composite: no document-root lowering for several graph outputs (lower_to_render_plan takes one root NodeAddr); the viewer wraps the outputs in a view-only root group",
+   "imported documents carry blending_space null; lower_to_render_plan refuses unbound profiles; the viewer binds working_space_rgb for display only (importer or composite decision needed)",
+   "chronicle: no opacity/appearance property; opacity is shown read-only (no transaction path)",
+   "session: no public tile-bytes accessor; the viewer decodes the package bytes once with hsk_studio_package::read_package",
+   "eframe accesskit feature not in the D11 approval (accesskit_* crates are in the local registry); AccessKit not enabled"
+  ],
+  "proof_scope": "Pixels asserted on a synthetic 2x2 PSD (8-bit values round-trip within 1 through linear light); the window itself was not launched (CX-SAFE-002); GPU path proven only as fallback (BackendChoice::None), no GPU render was executed in tests",
+  "v4": "V4-01: render.rs (output chunks from render workers into the canvas) and view/mod.rs carry deny(clippy::arithmetic_side_effects); V4-03: no silent green (pixel assertions; GPU success path not claimed); V4-09 commit -F; V4-12 helper files under scratchpad/smb-harness-ui/"
+ }
+}

@@ -44,6 +44,23 @@
         "round_ref": "validation/round-R24.json",
         "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R24",
         "recorded_at": "2026-10-14T18:31:51Z"
+      },
+      {
+        "decision": "passed",
+        "verdict": "PASS_V2",
+        "failures": [],
+        "remediation": null,
+        "blocker": null,
+        "not_proven": [],
+        "note": "reopened (CX-VAL-009: crate or dependency closure changed f07f447..d48bc30); crate units green in R25",
+        "idempotency_key": "STUDIO-R25:SMB-RENDER-GPU-PROBE:d48bc301bff0:PASS_V2",
+        "round": "STUDIO-R25",
+        "lane": "SMB-RENDER-GPU-PROBE",
+        "candidate": "d48bc301bff07a25da20a6cf6b11d84b8fbf197f",
+        "tree": "0a55d878183b3ba377d42f6547d1ca50a20228b2",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R25",
+        "started_at": "2026-10-14T20:12:28Z",
+        "completed_at": "2026-10-14T20:53:21Z"
       }
     ]
   }

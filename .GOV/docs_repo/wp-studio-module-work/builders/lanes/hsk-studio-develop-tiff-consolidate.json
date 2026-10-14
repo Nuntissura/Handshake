@@ -4,19 +4,56 @@
  "status": "READY_FOR_VALIDATION",
  "phase": "develop consumes interop-tiff Container at 2b90bcc; src/tiff.rs deleted; identity pins match",
  "commits": [
-  {"sha": "a7048ef", "subject": "develop (SMB-DEVELOP-TIFF-CONSOLIDATE): corpus fix + container identity record"},
-  {"sha": "2b90bcc", "subject": "develop (SMB-DEVELOP-TIFF-CONSOLIDATE): TIFF container parsing moves to interop-tiff"}
+  {
+   "sha": "a7048ef",
+   "subject": "develop (SMB-DEVELOP-TIFF-CONSOLIDATE): corpus fix + container identity record"
+  },
+  {
+   "sha": "2b90bcc",
+   "subject": "develop (SMB-DEVELOP-TIFF-CONSOLIDATE): TIFF container parsing moves to interop-tiff"
+  }
  ],
  "capabilities_done": [
   "corpus: raw.pixls.us id 1022 (CC0, uncompressed 16-bit CFA DNG, sha256 95dc76a2...e981b2e1 = listing) replaces the Samsung JFIF; provenance marks id 3839 not_a_dng; real_dng facts + fetch-corpus.sh updated",
   "tests/container_identity.rs: PINNED digests of decoded CFA + developed window (or typed outcome) for 4 DNG + 10 vendor files, recorded at a7048ef before the switch",
   "Cargo.toml: path dep hsk-studio-interop-tiff; src/tiff.rs deleted (V4-05); tiffep.rs holds a thin Tiff adapter (error mapping, u32 narrowing, 1024-entry / 64-IFD budgets) over interop_tiff::Container; dng, cr2, nef, arw import it from tiffep"
  ],
- "tests": {"argv": "cargo nextest run -p hsk-studio-develop --run-ignored all --no-fail-fast", "exit": 0, "sha": "2b90bcc", "passed": 48, "failed": 0},
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-develop --run-ignored all --no-fail-fast",
+  "exit": 0,
+  "sha": "2b90bcc",
+  "passed": 48,
+  "failed": 0
+ },
  "blockers": [],
  "lock_wait_s": 0,
  "bg_pids": [],
  "next": "none",
  "updated_at": "2026-10-14T19:00:00Z",
- "notes": {"cargo_lock": "not committed", "clippy": "cargo clippy -p hsk-studio-develop --tests clean for develop before the commit (one collapsible_if in the new test fixed after)", "error_mapping": "BigTIFF -> unsupported_container; zero denominator and other container faults -> invalid_container; non-finite float -> non_finite"}
+ "notes": {
+  "cargo_lock": "not committed",
+  "clippy": "cargo clippy -p hsk-studio-develop --tests clean for develop before the commit (one collapsible_if in the new test fixed after)",
+  "error_mapping": "BigTIFF -> unsupported_container; zero denominator and other container faults -> invalid_container; non-finite float -> non_finite",
+  "verdicts": [
+   {
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "blocker": null,
+    "not_proven": [
+     "develop real_dng samsung-sm-g973u listed download is a JFIF rendering (expected typed refusal decoder_unavailable:jpeg; 3 real DNGs decoded)"
+    ],
+    "note": "a7048ef, 2b90bcc: develop default 41/41; ignored unit ran: container_identity 14 IDENT lines (4 DNG + 10 vendor) equal to PINNED, real_dng 3 real DNGs decoded; src/tiff.rs gone, step 0 V4-05 clean",
+    "idempotency_key": "STUDIO-R25:SMB-DEVELOP-TIFF-CONSOLIDATE:d48bc301bff0:PASS_V1",
+    "round": "STUDIO-R25",
+    "lane": "SMB-DEVELOP-TIFF-CONSOLIDATE",
+    "candidate": "d48bc301bff07a25da20a6cf6b11d84b8fbf197f",
+    "tree": "0a55d878183b3ba377d42f6547d1ca50a20228b2",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R25",
+    "started_at": "2026-10-14T20:12:28Z",
+    "completed_at": "2026-10-14T20:53:21Z"
+   }
+  ]
+ }
 }

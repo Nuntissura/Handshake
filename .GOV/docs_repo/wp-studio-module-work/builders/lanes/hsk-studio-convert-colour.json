@@ -4,7 +4,10 @@
  "status": "READY_FOR_VALIDATION",
  "phase": "Prism colour conversion on import pushed; claim = 3a496bb (on top of SMB-CONVERT-TIFF 8398c7a)",
  "commits": [
-  {"sha": "3a496bb", "subject": "harness (SMB-CONVERT-COLOUR): embedded ICC profiles convert through Prism into the working space on import"}
+  {
+   "sha": "3a496bb",
+   "subject": "harness (SMB-CONVERT-COLOUR): embedded ICC profiles convert through Prism into the working space on import"
+  }
  ],
  "capabilities_done": [
   "edge harness -> hsk-studio-prism (optional; enabled by import-psd, import-raw and import-tiff): new module src/import/colour.rs builds interop-psd's PrismConverter (Prism::new(default_actor, 4), PrismRoute with SCPF/SDOC ids from reserved SourceMint counters, a counting SinkPort) and every importer passes it to to_proposal / raster_proposal; colour math stays in interop-psd + prism (CX-CAP-001), the harness adds none",
@@ -32,6 +35,27 @@
   "lead_requests": "Prism exposes no built-in working-space profile; the harness ships the CC0 linear sRGB v4 profile as the conversion destination (a Prism-owned working-profile constant would be the lower owner, CX-CAP-001). Colour oracle parity (LittleCMS/Photoshop) of converted import pixels is NOT_PROVEN.",
   "identity": "Profile/resource ids come from SourceMint::reserved (tail ffff<k>), outside the document id counter, deterministic per source digest.",
   "cargo_lock": "Cargo.lock not committed (new optional edge harness -> prism).",
-  "deps": "no crates.io dependency; harness -> prism is in the allowed list (steward)."
+  "deps": "no crates.io dependency; harness -> prism is in the allowed list (steward).",
+  "verdicts": [
+   {
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "blocker": null,
+    "not_proven": [
+     "colour oracle parity (LittleCMS/Photoshop) NOT_PROVEN (lane notes)"
+    ],
+    "note": "3a496bb: import_colour embedded_profiles_convert_through_prism_into_the_working_space + missing_or_unusable_profiles_are_typed_losses pass (import-tiff unit); psd_converts route passes (import-psd units). Observation: psd sweep shard 3 TIMEOUT unattributed",
+    "idempotency_key": "STUDIO-R25:SMB-CONVERT-COLOUR:d48bc301bff0:PASS_V1",
+    "round": "STUDIO-R25",
+    "lane": "SMB-CONVERT-COLOUR",
+    "candidate": "d48bc301bff07a25da20a6cf6b11d84b8fbf197f",
+    "tree": "0a55d878183b3ba377d42f6547d1ca50a20228b2",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R25",
+    "started_at": "2026-10-14T20:12:28Z",
+    "completed_at": "2026-10-14T20:53:21Z"
+   }
+  ]
  }
 }

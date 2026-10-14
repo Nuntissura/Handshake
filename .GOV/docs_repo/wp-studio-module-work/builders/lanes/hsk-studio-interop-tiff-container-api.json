@@ -3,17 +3,51 @@
  "lane": "SMB-INTEROP-TIFF-CONTAINER-API",
  "status": "READY_FOR_VALIDATION",
  "phase": "container facade pushed at 579c117; clippy clean; 14 tests green incl. ignored corpus test",
- "commits": [{"sha": "579c117", "subject": "interop-tiff (SMB-INTEROP-TIFF-CONTAINER-API): bounded container facade"}],
+ "commits": [
+  {
+   "sha": "579c117",
+   "subject": "interop-tiff (SMB-INTEROP-TIFF-CONTAINER-API): bounded container facade"
+  }
+ ],
  "capabilities_done": [
   "Container::parse (classic + BigTIFF, both byte orders, input budget), walk (next-pointers + SubIFD 330, depth 3, cycle and max_pages), ifd(offset), region(offset,len)",
   "IfdEntry (tag, field_type, count, value_offset, value_len); bytes/ascii/uints/f64s with tag-byte budget, RATIONAL division, zero_denominator and non_finite refusals; unknown field types kept and refused on access",
   "scan.rs reuse: read_ifd(keep_unknown), Cur, header, type_size now pub(crate); decode path unchanged"
  ],
- "tests": {"argv": "cargo nextest run -p hsk-studio-interop-tiff --run-ignored all --no-fail-fast", "exit": 0, "sha": "579c117", "passed": 14, "failed": 0},
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-interop-tiff --run-ignored all --no-fail-fast",
+  "exit": 0,
+  "sha": "579c117",
+  "passed": 14,
+  "failed": 0
+ },
  "blockers": [],
  "lock_wait_s": 0,
  "bg_pids": [],
  "next": "none",
  "updated_at": "2026-10-14T19:00:00Z",
- "notes": {"tests_new": "tests/container_api.rs: walk+SubIFD+typed values, big-endian/signed, zero denominator/non-finite, cycle/page budget/entry count, count overflow + tag budget + region bounds, header/input budget/BigTIFF, unknown types", "cargo_lock": "not committed", "deps": "no new dependency"}
+ "notes": {
+  "tests_new": "tests/container_api.rs: walk+SubIFD+typed values, big-endian/signed, zero denominator/non-finite, cycle/page budget/entry count, count overflow + tag budget + region bounds, header/input budget/BigTIFF, unknown types",
+  "cargo_lock": "not committed",
+  "deps": "no new dependency",
+  "verdicts": [
+   {
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "blocker": null,
+    "not_proven": [],
+    "note": "579c117: container_api 7/7 + tiff_codec 6/6 default; real_tiff corpus test ran in ignored unit and passed",
+    "idempotency_key": "STUDIO-R25:SMB-INTEROP-TIFF-CONTAINER-API:d48bc301bff0:PASS_V1",
+    "round": "STUDIO-R25",
+    "lane": "SMB-INTEROP-TIFF-CONTAINER-API",
+    "candidate": "d48bc301bff07a25da20a6cf6b11d84b8fbf197f",
+    "tree": "0a55d878183b3ba377d42f6547d1ca50a20228b2",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R25",
+    "started_at": "2026-10-14T20:12:28Z",
+    "completed_at": "2026-10-14T20:53:21Z"
+   }
+  ]
+ }
 }

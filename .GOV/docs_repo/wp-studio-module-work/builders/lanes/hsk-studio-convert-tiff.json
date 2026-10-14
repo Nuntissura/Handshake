@@ -36,6 +36,27 @@
   "shared_tree": "At 18:16Z the shared edit tree held another lane's uncommitted interop-tiff WIP (lib.rs declared mod container before container.rs existed; E0583), which failed the first test run. Retry-guard route (b): added gameplan step GP-026 (machine check: every mod declared in interop-tiff lib.rs has its file). The green proof ran against the edit tree while that WIP (container.rs, scan.rs, lib.rs) was still uncommitted; harness uses only interop-tiff decode/image_source_data/Limits/model types.",
   "cargo_lock": "Cargo.lock not committed (new optional edge harness -> interop-tiff).",
   "deps": "no crates.io dependency added; workspace edge harness -> interop-tiff is in the allowed list.",
-  "later_commits": "3a496bb (SMB-CONVERT-COLOUR, separate lane) touches src/import/tiff.rs after this claim (passes the Prism converter, adds receipt key colour); import_tiff tests rerun green at 3a496bb (2026-10-14T18:28:22Z). Judge this lane at 8398c7a or include 3a496bb with SMB-CONVERT-COLOUR."
+  "later_commits": "3a496bb (SMB-CONVERT-COLOUR, separate lane) touches src/import/tiff.rs after this claim (passes the Prism converter, adds receipt key colour); import_tiff tests rerun green at 3a496bb (2026-10-14T18:28:22Z). Judge this lane at 8398c7a or include 3a496bb with SMB-CONVERT-COLOUR.",
+  "verdicts": [
+   {
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "blocker": null,
+    "not_proven": [
+     "harness import_tiff photoshop_tiff_imports_its_layers_through_interop_psd: real-Photoshop layered TIFF parity NOT_PROVEN (corpus sample little-endian, typed fallback)"
+    ],
+    "note": "8398c7a (+3a496bb, 2e5f5fb later in tiff.rs): import_tiff 4/4 in import-tiff unit incl. tiff_corpus (4 sha-pinned files) and composite-exact; refusal test both builds; diff read: real decode route, no stub",
+    "idempotency_key": "STUDIO-R25:SMB-CONVERT-TIFF:d48bc301bff0:PASS_V1",
+    "round": "STUDIO-R25",
+    "lane": "SMB-CONVERT-TIFF",
+    "candidate": "d48bc301bff07a25da20a6cf6b11d84b8fbf197f",
+    "tree": "0a55d878183b3ba377d42f6547d1ca50a20228b2",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R25",
+    "started_at": "2026-10-14T20:12:28Z",
+    "completed_at": "2026-10-14T20:53:21Z"
+   }
+  ]
  }
 }

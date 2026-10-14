@@ -1,0 +1,98 @@
+{
+  "crate": "hsk-studio-reel-native",
+  "lane": "SMB-REEL-NATIVE-ENG-1",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "P1 + slices 1-4 pushed; claim = 09bba20 + ab60802 + 250beca + f128347 + 6abc0cb + 9ff2844 (head 9ff2844); crate untouched after 9ff2844 (V4-14)",
+  "commits": [
+    {
+      "sha": "09bba20",
+      "subject": "reel (SMB-REEL-NATIVE-ENG-1 P1): VideoCodec::H264, clean-room avcC parser, Annex B conversion, avc1/avc3 routing"
+    },
+    {
+      "sha": "ab60802",
+      "subject": "reel-native (SMB-REEL-NATIVE-ENG-1 slice 1): H.264 decode through the OS Media Foundation decoder in an isolated worker"
+    },
+    {
+      "sha": "250beca",
+      "subject": "reel-native (SMB-REEL-NATIVE-ENG-1 slice 1b): spike S1 names its result in the refusal"
+    },
+    {
+      "sha": "f128347",
+      "subject": "reel-native (SMB-REEL-NATIVE-ENG-1 slice 2): DXVA path with software fallback and byte-parity test"
+    },
+    {
+      "sha": "6abc0cb",
+      "subject": "reel-native (SMB-REEL-NATIVE-ENG-1 slice 3): heartbeat watch and bounded replay for the MF worker"
+    },
+    {
+      "sha": "9ff2844",
+      "subject": "reel-native (SMB-REEL-NATIVE-ENG-1 slice 4): Main/High exactness on both paths; ring decision measured"
+    }
+  ],
+  "capabilities_done": [
+    "P1 reel: VideoCodec::H264 (never in process, D24); h264_config.rs clean-room avcC parser (layout facts from Chromium box_definitions.cc and FFmpeg h264_parse.c ff_h264_decode_extradata; no code copied; ISO/IEC 14496-15 not opened, D26), optional high-profile chroma/bit-depth extension, sample_to_annex_b with NAL length and running output budget checks, h264_descriptor (decoder mf-h264, licence 'Windows Media Foundation H.264 decoder, OS-licensed', decode only)",
+    "P2 routing (dispatch scope): avc1/avc3 ISO BMFF sample entries route to the registered external decoder; MEDIA_CODEC_UNAVAILABLE without one (unchanged answer for existing avc1 tests); avcC captured from the sample entry; avc1 requires SPS+PPS; empty avcC -> Corrupt avcc-missing",
+    "slice 0 in place: host.rs pool core generalized (WorkerSpec, Pool::new, Pool::stats, open_worker, OpenPlan, PacketPrep); AV1 public API and AV1 wire error indices unchanged; one supervision core over hsk-studio-worker (no Command::new/creation_flags outside the worker crate)",
+    "slice 1 host (feature mf, pure Rust): WorkerMfProvider (reel ExternalVideoDecoder for H264), pre-spawn refusals, ISO BMFF -> Annex B with SPS/PPS before first and IDR packets, decode-order guard",
+    "slice 1 worker (feature mf-worker, Windows): reel-native-mf-worker; CoInitializeEx + MFStartup(LITE); MFTEnumEx SYNC|ASYNC|HARDWARE|SORTANDFILTER {Video,H264}; first synchronous non-hardware MFT (this host: Microsoft H264 Video Decoder MFT {62CE7E72-4C71-4D20-B15D-452831A87D9D}); NV12 output, stream-change renegotiation once before first picture; drain on FINISH; NV12 -> tight 4:2:0 via pure checked nv12.rs; unsafe only in src/mf/ffi.rs with SAFETY lines; MF absent -> HELLO 'unavailable|...' and CodecUnavailable h264",
+    "identity: receipt decoder_id mf-h264, decoder_version 'Microsoft_H264_Video_Decoder_MFT|{62CE7E72-4C71-4D20-B15D-452831A87D9D}|dxva=0|os-licensed' (MFT name, CLSID, path, licence); WorkerMfProvider::descriptor() carries licence and certification NotApplicable",
+    "slice 2 DXVA: MfPath Software (default) | Hardware | Auto; worker --dxva creates a headless D3D11 device (VIDEO_SUPPORT, multithread protected) + DXGI device manager -> MFT_MESSAGE_SET_D3D_MANAGER; MF_E_UNSUPPORTED_D3D_TYPE or no device -> Unsupported mf-dxva-unavailable (HELLO dxva=unavailable-<hresult>); every picture of a DXVA segment must be an IMFDXGIBuffer surface (no dxva=1 receipt for a software decode); Auto falls back to the software pool; receipt names dxva=1/dxva=0 of the pool that served the segment; DXVA pool gets SystemRoot (D3D11CreateDevice fails with DXGI_ERROR_UNSUPPORTED 0x887A0004 in an empty environment, measured)",
+    "slice 3: HEARTBEAT wire kind (u64 counter, strictly increasing, <= 65536 per request, only from heartbeat pools); MF worker advances it at every decoder call, reports at most every 100 ms; host kills on no progress for heartbeat_timeout (default 2 s; stat killed_heartbeat); bounded replay once per segment from the last IDR (replay_bytes default 64 MiB; stats replays/replay_failed), delivered pictures dropped",
+    "slice 4: Main and High (no B-frames) fixtures exact on software and DXVA; frame ring NOT built per the threshold written before measuring (fastest path >= 30 fps at 2160p): release, RTX 3090, 30-frame corpus clips, both paths exact vs ffmpeg: 1080p software 124.1 fps / DXVA 74.8 fps; 2160p software 32.1 fps (399.8 MB/s) / DXVA 27.5 fps (342.4 MB/s)"
+  ],
+  "tests": {
+    "argv": "per-test runner: -p hsk-studio-reel-native --features mf-worker,test-faults --no-fail-fast (13: 7 lib + 6 mf_worker); -p hsk-studio-reel-native --features av1-worker,test-faults (23, at 6abc0cb; host.rs unchanged after); -p hsk-studio-reel --lib --test foundation_contract -E 'test(h264_config) | binary(foundation_contract)' (9, at 09bba20)",
+    "exit": 0,
+    "sha": "9ff2844",
+    "passed": 45,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": 7,
+  "bg_pids": [],
+  "next": "Validator round on 9ff2844 (claim 09bba20..9ff2844) with round-features: hsk-studio-reel default; hsk-studio-reel-native [mf-worker,test-faults] on Windows with Media Foundation (DXVA parity NOT_PROVEN without a D3D11 video device) plus unchanged AV1 sets [av1-worker], [av1-worker,test-faults] (host.rs/wire.rs/test_fault.rs/worker.rs touched in place: re-include AV1 lanes, CX-VAL-009). Steward: windows 0.62.2 dep request (7 features, native-ffi, reel-native owner) and Cargo.lock edge reel-native -> windows 0.62.2 (uncommitted). Reel owner (P2 family, outside this lane): presentation-order matching in video::Forward to lift the B-frame refusal (spike S1 = strategy A).",
+  "updated_at": "2026-10-14T19:40:00Z",
+  "notes": {
+    "spec_basis": "staged delta spec-enrichment/STUDIO-ENRICHMENT-20261014.json D23 (codec adapters in Rust behind descriptor/MEDIA_CODEC_UNAVAILABLE) and D24 (H.264 decode only through the OS Media Foundation decoder in the isolated reel-native worker; no openh264, no encode); START_LOG OPERATOR DECISIONS 2026-10-14 (D18 worker crate, D26 clean-room avcC)",
+    "avcc_provenance": "Clean room (D26). Sources read for layout facts only on 2026-10-14: Chromium media/formats/mp4/box_definitions.cc AVCDecoderConfigurationRecord::ParseInternal (BSD-3-Clause; version must be 1, lengthSizeMinusOne & 3 with 3 rejected, numOfSPS & 0x1f, SPS non-empty, PPS count unmasked, u16 BE lengths, extension for profiles 100/110/122/144 only when >= 4 bytes remain: chroma_format & 3, bit depths & 7 <= 4, ignored when invalid) and FFmpeg libavcodec/h264_parse.c ff_h264_decode_extradata (LGPL; first byte 1 = avcC, minimum 7 bytes, NAL length size = (byte4 & 3) + 1, SPS count byte5 & 0x1f, entries u16 BE + bytes bounds-checked). No code copied or translated; mp4parse-rust not needed. Studio choices: SPS/PPS NAL type checked (7/8), empty PPS refused, zero SPS/PPS allowed in the record (avc3) but required for avc1.",
+    "oracle_tool": "ffmpeg 8.1.1-full_build-www.gyan.dev, ffmpeg.exe sha256 09948d4cdd0650da6ff5a87577469f2a218dc2615ae379f8f734d24c49de0f73 (already installed, used by the reel builders); black-box generator/oracle only, never a test dependency",
+    "fixtures": "crates/hsk-studio-reel-native/tests/fixtures/h264/: baseline, high-bf2, high422-10bit (brief, sha256 verified), main-nob 3b6e750b..709456, high-nob 036cb023..37947e (generated by this lane), framehash oracles, provenance.json",
+    "accuracy_vs_ffmpeg": "EXACT (no tolerance): baseline 24/24, main 24/24, high 24/24 on software and DXVA; 1080p and 2160p Main 30/30 on both paths (probe); PTS exactly n * 8,475,667,200 ticks; random-access spans exact",
+    "spike_s1": "Measured 2026-10-14 on this host (Microsoft H264 Video Decoder MFT, software, High bf2 fixture, sample time = packet tag): strategy A - output pictures carry the INPUT sample time of their packet and leave in presentation order. Reel's pump (video::Forward::accept drains pending packets up to the matched tag) needs decode order, so B-frame streams are refused typed (Unsupported mf-reorder-needs-packet-timing, printed NOT_PROVEN) instead of losing pictures. Unblock = reel-owner change (P2 family): Forward matches a picture to its packet and drops only pending packets whose pts precede the picture (presentation-order rule), then the worker drops its decode-order check; outside this lane's reel authority (P1 only).",
+    "v4": "V4-01 deny(clippy::arithmetic_side_effects) on h264_config.rs, mf/nv12.rs, mf/worker.rs, mf/ffi.rs, mf_host.rs (host.rs, wire.rs already); V4-02 dims_u32_max (h264-declared-dimensions before spawn; nv12 u32::MAX dims) and aggregate_over_budget (h264-frame-bytes before spawn; nv12 budget exact/one-less; Annex B running budget); V4-03 MF-absent paths print NOT_PROVEN and assert CodecUnavailable; B-frame spike prints NOT_PROVEN; V4-04 fault hooks only under test-faults (ExitOnOpen, ExitOnPacket, HangOnPacket, GarbageReply reused from WorkerTestFault); V4-05 no new Command::new/creation_flags site; V4-09 commit messages via -F files",
+    "hostile_tests": "reel h264_config: avcc_hostile_records_are_typed (every truncation, version, length size 3, u16::MAX SPS length, wrong NAL types, empty PPS, avc1 rule), hostile_samples_are_typed_and_bounded (cut length field, zero length, past end, u32::MAX length, budget before append incl. parameter sets); reel-native: nv12 hostile_layouts_are_refused_before_reading, mf_declared_limits_and_unsupported_streams, mf_worker_fault_matrix (crash on OPEN/packet -> Crashed, hang -> Deadline at 2 s, garbage -> Protocol, alive 0 after each; 51-point single-byte mutation sweep of mdat: 48 Ok, 3 typed errors, host alive, exact decode afterwards)",
+    "test_counts": "reel: 4 new unit tests (h264_config) + foundation_contract 5 regression; reel-native: mf_worker 4, nv12 2 unit, mf_host 1 unit (idr detection; not run separately), AV1 regression 23/23 pass unchanged",
+    "not_done_yet": "PROBE request listing all decoder MFTs (HELLO names the chosen one); interlaced-stream pre-spawn refusal (needs SPS frame_mbs_only_flag parse); Matroska V_MPEG4/ISO/AVC routing; VUI colour (container colr or untagged only); B-frame presentation-order delivery (needs reel Forward change, see spike_s1)",
+    "cargo_lock": "Cargo.lock gains edge hsk-studio-reel-native -> windows 0.62.2 (no new package); left uncommitted for the steward",
+    "retry_guard": "no gameplan hook block occurred; no product compile failure needed a gameplan step",
+    "dxva_parity": "RTX 3090 (Windows 11 26200): DXVA output byte-identical to the ffmpeg oracle on all 24 baseline frames (test mf_dxva_parity_with_software) and on 1080p (1088 coded, cropped) and 2160p Main 30-frame corpus clips (slice 4 probe, both paths exact). B-frame parity NOT_PROVEN (reorder refusal on both paths). Device loss mid-segment (TestDevice) not handled: a lost device surfaces as a typed decode error or deadline, then replay on a fresh worker.",
+    "heartbeat_replay_tests": "mf_heartbeat_and_replay: first worker exits at packet 9 -> replay from IDR 0 on worker 2, 24/24 exact, indices 0..23 once each, stats (spawned 2, crashed 1, replays 1, replay_failed 0); ExitOnPacket every worker -> Crashed (replays 1, replay_failed 1, alive 0); HangOnPacket with batch 30 s, heartbeat 1 s, replay off -> Deadline in < 10 s, killed_heartbeat 1; RepeatHeartbeat -> Protocol, protocol_faults 1. New WorkerTestFault::RepeatHeartbeat (AV1 worker ignores it); first-worker-only fault passed as a worker argument (test-faults only).",
+    "ring_decision": "Threshold written before measuring (scratchpad ring-threshold.txt, ~19:37Z): build the shared-memory ring only if the fastest path delivers 2160p 4:2:0 8-bit through the pipe at < 30 fps AND the pipe is shown to be the limit. Measured (release build; a first debug-build run measured the test's own debug SHA-256, ~13 MB/s, discarded): 2160p software 32.1 fps -> threshold not met -> no ring. Finding: all four runs sit near 340-400 MB/s regardless of resolution and path, which suggests the pipe plus copies bound throughput; 2160p60 (746 MB/s) would need the ring (later lane). Probe source kept outside the repo (scratchpad zz_probe_throughput.rs.kept); corpus clips + provenance.json in Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/reel-h264/.",
+    "verdicts": [
+      {
+        "decision": "inconclusive",
+        "verdict": null,
+        "failures": [],
+        "remediation": null,
+        "blocker": {
+          "kind": "round_config_gap",
+          "exact": "round-features.toml [crates] hsk-studio-reel-native lacks [\"mf-worker\",\"test-faults\"]",
+          "unblock": "steward adds the mf-worker,test-faults set (Windows round host)"
+        },
+        "not_proven": [
+          "reel-native mf_worker/nv12/mf_host tests not built (no mf-worker unit)",
+          "B-frame parity (lane notes; SMB-REEL-BFRAME-ORDER after candidate)"
+        ],
+        "note": "P1 reel h264_config 4 unit tests pass in default/av1/prores units; slices 1-4 (MF worker, DXVA, heartbeat/replay, Main/High exactness) are proven only by tests/mf_worker.rs (required-features mf-worker,test-faults) and mf/nv12 unit tests (feature mf/mf-worker); round config declares no reel-native mf-worker set, so none built",
+        "idempotency_key": "STUDIO-R25:SMB-REEL-NATIVE-ENG-1:d48bc301bff0:INCONCLUSIVE",
+        "round": "STUDIO-R25",
+        "lane": "SMB-REEL-NATIVE-ENG-1",
+        "candidate": "d48bc301bff07a25da20a6cf6b11d84b8fbf197f",
+        "tree": "0a55d878183b3ba377d42f6547d1ca50a20228b2",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R25",
+        "started_at": "2026-10-14T20:12:28Z",
+        "completed_at": "2026-10-14T20:53:21Z"
+      }
+    ]
+  }
+}
