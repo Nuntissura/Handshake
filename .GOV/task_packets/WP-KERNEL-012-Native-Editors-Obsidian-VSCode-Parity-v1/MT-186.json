@@ -1,4 +1,35 @@
 {
+  "delegated_native_stage_20261014": {
+    "decision_id": "WP012-NATIVE-STAGE-20261014-01",
+    "status": "APPROVED_PREPARATION_REQUIRED",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "candidate_commit": "73368c07fe7ab713e1110c85004a0a18882351b5",
+    "candidate_tree": "0ba903d5ffdf2a19025eb5f0d16498b4327e5b50",
+    "compiler_owner": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+    "independent_reviewer": "01a1323e-c183-77e3-b8ba-b286507e5617",
+    "command": "cargo check --locked --manifest-path src/frontend/handshake_native/Cargo.toml --tests -j 1",
+    "profile": "../gov-runtime/host-profile-wp012-phase02-builder.json",
+    "profile_sha256": "df7068d5f93a49d17f48f7404a7c4251e2be8f17abc1d2fd5bb04068ee727081",
+    "target": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/target",
+    "cap_bytes": 180000000000,
+    "initial_additional_candidate_limit": 3,
+    "stage_terminal_checks": 0,
+    "historical_native_failed_checks": 4,
+    "history_reset": false,
+    "counter_disposition": "Explicit delegated continuation decision for reviewed export repair after four spent grants; preserve existing per-failure records. Same failed fix cannot repeat without changed relevant inputs and an evidenced changed approach. At limit delivery lead records next decision before further run.",
+    "source_repair_owner_ref": "MT-175.json#/adaptive_connected_repair_execution_20261014",
+    "preconditions": [
+      "Whole affected caller/producer/export/features/runtime-init connections reviewed; source-clear is not runtime PASS",
+      "Fresh full source/config/tool/authority bindings and relevant role gameplan/resource admission",
+      "Independent runner/admission review, exact numeric exit forwarding and whole captured source freeze"
+    ],
+    "stop_conditions": [
+      "Original native check exit0: proceed to genuine runtime admission, no parent PASS",
+      "Stage limit or repeated failure: root records changed method/continuation/blocker decision before another check",
+      "Input drift/resource conflict or need excluded side effects: repair exact blocker within authorized scope before rerun"
+    ],
+    "limits": "Compiler/static evidence only; no metadata or test execution under this compiler release, no runtime/auth/provenance manufacture, no foreign process disruption, no profile/cap/topology change. Runtime/provision scope remains separately reconciled and assigned by delivery lead under actual original contracts."
+  },
   "native_producer_recheck_result_20261013": {
     "status": "FAIL101_NATIVE_LIBRARY_PRODUCER_EXPORT",
     "attempt_id": "fa31f38fcb1f491a92a7301485375c35",
@@ -267,8 +298,8 @@
     "validator_verdict": "PENDING",
     "claimed_by": null,
     "completed_by": null,
-    "next_actor": "KERNEL_BUILDER reconciles exact missing native producers under MT175 ownership; independent review precedes a source checkpoint and any new scoped compiler decision; original deployment owner supplies genuine deployment/context bindings",
-    "blocked_on": "Third approved check failed101 with28 native import/symbol errors after core feature repair. All three native approvals spent. Producer source reconciliation is pending and no new compiler run is granted. Original deployed executable/data root and existing authenticated context remain unbound."
+    "next_actor": "Primary integrator prepares approved delegated native stage on73368c07; independent validator checks assembled connections/runner, root releases after admission; genuine runtime/auth remains unbound",
+    "blocked_on": "Native compiler prerequisite unproven after four FAIL101 checks; reviewed73368c07 export repair is pushed and stage execution approved subject to fresh admission. Original deployed executable/data root/authenticated context remain unbound."
   },
   "scope": {
     "summary": "Genuine native deployment and authenticated-context admission",
@@ -535,7 +566,7 @@
     "preserved_proofs": ["MT-183.json#/independent_acceptance_20261013", "MT-184.json#/independent_acceptance_20261013"]
   },
   "native_diagnostics_export_recheck_proposal_20261013": {
-    "state": "PENDING_OPERATOR_EXACT_ONE_NATIVE_EXPORT_RECHECK",
+    "state": "SUPERSEDED_BY_APPROVED_DELEGATED_NATIVE_STAGE_20261014",
     "repair_ref": "MT-175.json#/native_diagnostics_export_repair_checkpoint_20261013",
     "candidate_commit": "73368c07fe7ab713e1110c85004a0a18882351b5",
     "candidate_tree": "0ba903d5ffdf2a19025eb5f0d16498b4327e5b50",

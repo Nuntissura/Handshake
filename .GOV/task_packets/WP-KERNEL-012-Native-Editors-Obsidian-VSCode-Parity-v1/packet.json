@@ -1,4 +1,75 @@
 {
+  "operator_adaptive_delivery_delegation_20261014": {
+    "decision_id": "WP012-ADAPTIVE-DELIVERY-DELEGATION-20261014",
+    "status": "APPROVED_ACTIVE",
+    "updated_at_utc": "2026-10-14T02:09:54.670807+00:00",
+    "operator_quote": "ok update handoff, apply repo changes. commit and push gov kernel, then wp kernel 012 with dirt. then restart work, give all teams the updated workflow and changes to repo governance before restarting.. i will also hand off every descicion to you.",
+    "scope_expansion_quote": "i allow scope expantion if this directly fixes a failure or blocker",
+    "authority": "Operator explicitly activates the reconciled adaptive workflow and delegates routine technical and execution decisions to current delivery lead for WP012. Existing role-independent acceptance/merge authority, process protection and original product scope/pins remain preserved.",
+    "scope_expansion": "Delivery lead may authorize the smallest evidenced source/configuration/proof-method expansion that directly repairs a recorded failure or removes an exact blocker. Before writes, record failure, necessary paths, owner, risks/control and original proof. Preserve previous work and return to original outcome; no unrelated feature, invented authentication/grants/provenance or acceptance weakening.",
+    "core_team": {
+      "delivery_lead": "01a1323d-2a04-78f1-9430-1589c9cd54ea",
+      "primary_developer_integrator": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+      "independent_validator": "01a1323e-c183-77e3-b8ba-b286507e5617"
+    },
+    "specialists": {
+      "diagnostic": "01a1323e-8219-7f01-b326-bbd802d1ba9a",
+      "dependency": "01a1323e-a014-7252-ab58-8cb5a256b792",
+      "spec_cross_wp": "01a1323e-d84e-7793-a23f-a1ac8626ceb7"
+    },
+    "rules": [
+      {
+        "id": "WP012-ADAPT-001",
+        "requirement": "Delivery lead owns routine technical choices, task sequencing and evidenced changed-method decisions; no per-patch or per-compiler Operator approval inside an active assigned stage"
+      },
+      {
+        "id": "WP012-ADAPT-002",
+        "requirement": "Primary integrator assigns approved original-contract parts to named workers with exact disjoint paths, base candidate, interfaces, consumer/runtime-init ownership and output. Shared roots/manifests/schema/app/ACK lifecycle and kernel each retain one owner"
+      },
+      {
+        "id": "WP012-ADAPT-003",
+        "requirement": "Batch related implementation and all emitted root-cause groups before stable compile; record all actual diagnostics and NOT_REACHED components. Do not claim all latent failures discovered"
+      },
+      {
+        "id": "WP012-ADAPT-004",
+        "requirement": "Use one scoped changed-connection/high-risk reviewer, direct findings to owner and stop at actionable findings or no blocking source finding. No unanimous team gate, review-of-review, repeated unchanged review or mandatory helper hierarchy"
+      },
+      {
+        "id": "WP012-ADAPT-005",
+        "requirement": "Parallel source work continues during review only outside affected ownership conflicts. Before compiler/acceptance capture, all writers to any captured input finish and freeze for the entire run; current native capture covers all7416 product source inputs"
+      },
+      {
+        "id": "WP012-ADAPT-006",
+        "requirement": "Use current existing MT state for candidate/ownership/failure groups/remaining allowances/open acceptance/next action; handoff references that state. Reconcile stale lifecycle on meaningful transitions; derive hashes/counts from canonical evidence"
+      },
+      {
+        "id": "WP012-ADAPT-007",
+        "requirement": "Keep historical failures and original counters. Repeated failure demands changed method; at an allowance threshold delivery lead makes and records an evidenced continuation, changed approach or exact blocker decision under Operator delegation, rather than resetting history or requesting routine technical approval"
+      },
+      {
+        "id": "WP012-ADAPT-008",
+        "requirement": "Use minimum sufficient original proof and unchanged valid evidence; original runtime, persistence, negative-path and independent WP acceptance remain required. Compilation alone ends only the compile stage"
+      }
+    ],
+    "stage_control": "Initial native stage current73368c07 plus at most two subsequent changed repair candidates, same original command/profile/target/j1/cap. This explicit Operator-adopted decision supplies continuation beyond the four spent exact-one approvals without resetting history. After three further terminal checks, delivery lead must record a new evidenced stage decision before another run; stage renewal is not automatic.",
+    "specific_supersessions": [
+      "WP012-WF-009 fresh-team startup requirement is satisfied; reuse existing team",
+      "WP012-WF-011 obligatory team/helper deliberation replaced by named targeted consultation",
+      "MT186 pending fifth exact-one proposal superseded by active delegated native stage",
+      "Specific per-run Operator escalation replaced by recorded delivery-lead decision within this delegated repair scope; all historical counters remain"
+    ],
+    "preserved": [
+      "Original WP012/CKC/WP1 scope, pins, source conservation and ACs",
+      "Independent validator runtime/verdict/merge boundaries",
+      "Existing180GB cap/profile/target and one job per shared physical disk",
+      "Foreign process and destructive-operation protections",
+      "Genuine authenticated/runtime/registry publication predecessors",
+      "No new branch/worktree or silent compiler selector changes"
+    ],
+    "research_and_review_ref": "WP-KERNEL-012-phase02-successor-handoff-v5.json#/research_basis; five existing leaders review20261014 reconciled by delivery lead",
+    "restart_ref": "WP-KERNEL-012-phase02-successor-handoff-v6.json",
+    "next_action": "Push kernel amendment, checkpoint actual product dirt if any, brief all five team leaders with pushed governance revision, then release current73368c07 native stage preparation and original compiler after fresh admission"
+  },
   "operator_workflow_restructure_20261013": {
     "successor_review_observations": {
       "coordinator_chat": "01a1323d-2a04-78f1-9430-1589c9cd54ea",
@@ -114,7 +185,7 @@
       },
       {
         "id": "WP012-WF-009",
-        "requirement": "Root owns kernel until explicit successor release. Fresh devlead creates fresh failure-diagnostic, coder, dependency and independent-validation leader chats with helper agents; old teams remain read-only references."
+        "requirement": "Root owns kernel until explicit successor release. Reuse current delivery lead, primary integrator and independent validator; diagnostic/dependency/spec specialists join only for named questions. Fresh-team creation is not a restart prerequisite."
       },
       {
         "id": "WP012-WF-010",
@@ -122,7 +193,7 @@
       },
       {
         "id": "WP012-WF-011",
-        "requirement": "Each team deliberates internally before leader reports; devlead reconciles reports with correctness, dependency/build-cost and proof-preservation helper lenses."
+        "requirement": "Named specialist consultation and one scoped changed-interface/high-risk review replace obligatory per-team/helper deliberation. Delivery lead reconciles findings once; source owner repairs, then actual proof decides. No all-team approval or review-of-review chain."
       },
       {
         "id": "WP012-WF-012",

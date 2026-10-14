@@ -1,0 +1,377 @@
+{
+  "schema_id": "hsk.phase_handoff@1",
+  "file_id": "WP012-PHASE02-SUCCESSOR-HANDOFF-V6",
+  "file_kind": "handoff",
+  "version": 6,
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "updated_at_utc": "2026-10-14T02:09:54.670807+00:00",
+  "status": "ADAPTIVE_WORKFLOW_ACTIVE_NATIVE_STAGE_RESTART_PENDING",
+  "operator_request": "ok update handoff, apply repo changes. commit and push gov kernel, then wp kernel 012 with dirt. then restart work, give all teams the updated workflow and changes to repo governance before restarting.. i will also hand off every descicion to you.",
+  "document_authorization": "Operator authorizes handoff/repo changes, kernel then product checkpoint/push and restart, all team briefing first, delegates technical decisions and direct-blocker scope expansion",
+  "plain_language_summary": "The schema repair and core compiler proof passed. Native application compilation has failed four times for different defects. The latest missing library declaration has been repaired, independently reviewed and pushed, but has not been compiled. Runtime startup, authenticated-session admission, durable action results and original WP acceptance remain unproven. The proposal uses three core roles and temporary specialists, with approvals for bounded stages instead of every compiler attempt.",
+  "authority_precedence": [
+    "Live root AGENTS.md/CLAUDE.md and current Handshake Codex, subject to preserved WP pins and explicit Operator amendments",
+    "Kernel Builder protocol, HANDSHAKE_BUILD_RULES.json and governing Master Spec bindings",
+    "packet.json, original source/WP/MT contracts and scoped approved decisions",
+    "Current independent verdicts and exact input-bound proof records",
+    "This handoff provides restart navigation, observed state and a proposal; it grants no execution authority"
+  ],
+  "previous_handoff_ref": "WP-KERNEL-012-phase02-successor-handoff-v5.json",
+  "history_policy": "Retain v1-v4 and their referenced original history. V5 updates the restart position; it does not discard original intent, scope, pins, residual work or evidence.",
+  "lanes": {
+    "Handshake (Product)": "No product changes in this handoff turn; unfinished implementation and acceptance described below",
+    "Repo Governance": "WP-specific adaptive delegation activated in packet and MT175/186; handoff updated. Global/shared product acceptance rules unchanged."
+  },
+  "repository_state": {
+    "kernel": {
+      "worktree": "Discover live kernel from this file's ancestor root",
+      "branch": "gov_kernel",
+      "observed_head_before_handoff": "59815f59b74730f993938155244ce07842d872d2",
+      "owner_chat": "01a1323d-2a04-78f1-9430-1589c9cd54ea",
+      "ownership_transfer": "NONE; another reader does not become writer by reading this handoff",
+      "handoff_commit": "Resolve the commit containing this file through Git history; do not treat the pre-handoff HEAD as its containing commit",
+      "preserved_transient": "gameplan.confirmations.yaml was already dirty; preserve it and exclude it from this handoff commit"
+    },
+    "product": {
+      "worktree": "../wtc-WP-KERNEL-012",
+      "branch": "feat/WP-KERNEL-012",
+      "head": "73368c07fe7ab713e1110c85004a0a18882351b5",
+      "tree": "0ba903d5ffdf2a19025eb5f0d16498b4327e5b50",
+      "parent": "1d170964bfff8a189bc68425e76c86bce0e53178",
+      "observed_clean": true,
+      "live_remote_observed": "refs/heads/feat/WP-KERNEL-012 matched 73368c07fe7ab713e1110c85004a0a18882351b5",
+      "restart_rule": "Re-read branch, HEAD, dirty state and live remote before mutation; retain direct HANDSHAKE_GOV_ROOT access. No new branch/worktree, merge, reset or governance copy is authorized here.",
+      "dirt_at_activation": "NONE observed; do not fabricate a product commit. Push existing branch after kernel preservation."
+    }
+  },
+  "scope_and_pins": {
+    "wp_lifecycle_observed": "In Progress",
+    "governance_activation_pin": "packet.json#/governance_pin: 896f4e15 plus applicable later explicit Operator decisions",
+    "master_spec_current": ".GOV/spec/SPEC_CURRENT.md resolves v02.216",
+    "activation_spec": "Preserve original v02.206 bindings and only approved subsequent enrichments, including R2; current spec navigation does not repin active acceptance",
+    "ckc_source_pin": "4c429a07906a24ff7be8e999e576d8b23fa60336",
+    "wp1_source_pin": "98efa4d019c4f670186cd3ec1f048ece3adf0dcd",
+    "original_residuals": "MT171-175 original AC1/AC2, source-map268 records/3173 items and all imported WP012/CKC/WP1 independent runtime/native/source/HBR requirements remain required",
+    "parent_acceptance": "MT171-175 remain BLOCKED; accepted0/5. Screening and child PASS verdicts do not prove parent acceptance.",
+    "preservation_ref": "packet.json#/operator_workflow_restructure_20261013 and v4 original_parent_residuals/cross_wp_dependencies_gaps_and_smaller_mt_plan",
+    "excluded_changes": "No scope reduction, source substitution, acceptance weakening, database fallback, synthetic authenticated context, new retry budget or pin reset"
+  },
+  "mt_state": [
+    {
+      "mt_id": "MT-183",
+      "record": "MT-183.json",
+      "observed_status": "PASS_V1",
+      "evidence_ref": "MT-183.json#/independent_acceptance_20261013",
+      "outcome": "Schema repair and original independent focused proof accepted"
+    },
+    {
+      "mt_id": "MT-184",
+      "record": "MT-184.json",
+      "observed_status": "PASS_V1",
+      "evidence_ref": "MT-184.json#/independent_acceptance_20261013",
+      "outcome": "Original485-target core compiler proof accepted; not native or runtime acceptance"
+    },
+    {
+      "mt_id": "MT-186",
+      "record": "MT-186.json",
+      "observed_status": "BLOCKED",
+      "current_blocker": "Four native compiler checks failed101. Latest source repair pushed but unchecked; genuine deployment and authenticated-session bindings unbound.",
+      "latest_failure_ref": "MT-186.json#/native_producer_recheck_result_20261013",
+      "next_decision_ref": "MT-186.json#/native_diagnostics_export_recheck_proposal_20261013"
+    },
+    {
+      "mt_id": "MT-185",
+      "record": "MT-185.json",
+      "observed_status": "PENDING",
+      "effective_readiness": "Blocked by MT186; authentic registry producer publication/canonical reread/Flight Recorder proof not established"
+    },
+    {
+      "mt_id": "MT-187",
+      "record": "MT-187.json",
+      "observed_status": "BLOCKED",
+      "current_blocker": "MT185 authentic publication and remaining source/configuration/resource/proof ownership must be bound before R2 execution"
+    },
+    {
+      "mt_id": "MT-188",
+      "record": "MT-188.json",
+      "observed_status": "BLOCKED",
+      "current_blocker": "No main.rs implementation lease; actual production-main positive/negative shutdown proof and remaining allowance unresolved"
+    }
+  ],
+  "state_discrepancies": [
+    {
+      "id": "WP012-V5-STATE-001",
+      "record": "MT-186.json#/lifecycle",
+      "finding": "Lifecycle blocker/next_actor still describe the third check and pending producer repair. Newer explicit fourth-result and MT175 checkpoint records show four spent approvals and the completed export source repair.",
+      "handling": "MT186 stale lifecycle reconciled during this authorized activation; historical results remain immutable. Runtime BLOCKED unchanged."
+    },
+    {
+      "id": "WP012-V5-STATE-002",
+      "record": "MT-174.json",
+      "finding": "Read-only UTF-8 decoding failed on an existing byte0x96; its lifecycle was inspected using cp1252 decoding.",
+      "handling": "No file rewrite or encoding normalization was performed. Preserve bytes; use appropriate read-only decoding when recovering this legacy record."
+    }
+  ],
+  "native_failure_history": [
+    {
+      "run": 1,
+      "candidate": "37f452a6b3b07c0ffd91ab49c3f99632c4104bb8",
+      "exit": 101,
+      "cause": "Native Cargo.lock could not update under --locked",
+      "result_ref": "MT-186.json#/native_compiler_result_20261013",
+      "repair_commit": "c00c1de6d93bdf93b4da36ee3efbdaa4ed5490c5"
+    },
+    {
+      "run": 2,
+      "candidate": "c00c1de6d93bdf93b4da36ee3efbdaa4ed5490c5",
+      "exit": 101,
+      "cause": "Storage helper called a method unavailable under native dependency feature gates",
+      "result_ref": "MT-186.json#/native_recheck_result_20261013",
+      "repair_commit": "5e4133679c3bbba904c6d17cfd46cadab93dc97b"
+    },
+    {
+      "run": 3,
+      "candidate": "5e4133679c3bbba904c6d17cfd46cadab93dc97b",
+      "exit": 101,
+      "cause": "28 unresolved native backend-client and Argus producer errors",
+      "result_ref": "MT-186.json#/native_feature_recheck_result_20261013",
+      "repair_commit": "1d170964bfff8a189bc68425e76c86bce0e53178"
+    },
+    {
+      "run": 4,
+      "candidate": "1d170964bfff8a189bc68425e76c86bce0e53178",
+      "exit": 101,
+      "parent_tool_exit": 1,
+      "cause": "One E0433: crate::internal_diagnostics missing from library root at backend_client.rs14846",
+      "result_ref": "MT-186.json#/native_producer_recheck_result_20261013",
+      "repair_commit": "73368c07fe7ab713e1110c85004a0a18882351b5",
+      "exit_note": "Preserve actual Cargo/wrapper101 separately from outer PowerShell1; no rerun to rewrite history"
+    }
+  ],
+  "latest_source_checkpoint": {
+    "record_ref": "MT-175.json#/native_diagnostics_export_repair_checkpoint_20261013",
+    "change": "Exactly one insertion: pub mod internal_diagnostics; in native src/lib.rs",
+    "independent_verdict": "SOURCE_CLEAR only; postcheckpoint remote/clean/sole-path/all7416 reviewed bytes independently verified",
+    "source_sha256": "89984e6c8f1c3781b916744c0cf9b027b80148e9438679090ababd56b8c9cf89",
+    "checkpoint_result_sha256": "b08cfe690d222f0e44670fde7ff48bb77198e5b2bdbf34f33947bbc4c1ca1f4a",
+    "artifact_lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt175-diagnostics-export-repair",
+    "compiler_on_checkpoint": "NOT_RUN",
+    "runtime_on_checkpoint": "NOT_RUN",
+    "known_residual": "InternalDiagnostics::start is not wired in current native src. Exporting its producer does not establish active signing provenance. Do not add duplicate startup or invent provenance without scoped reconciliation."
+  },
+  "current_authorized_team": {
+    "decision_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "delivery_lead_kernel_owner": "01a1323d-2a04-78f1-9430-1589c9cd54ea",
+    "sole_product_coder": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+    "independent_validator": "01a1323e-c183-77e3-b8ba-b286507e5617",
+    "failure_diagnostic": "01a1323e-8219-7f01-b326-bbd802d1ba9a",
+    "dependency": "01a1323e-a014-7252-ab58-8cb5a256b792",
+    "spec_cross_wp_gap": "01a1323e-d84e-7793-a23f-a1ac8626ceb7",
+    "helper_history": "Reuse v4 teams.new.helper_ownership_reported as historical assignment context, not a live liveness snapshot",
+    "live_status": "NOT_INSPECTED in this documentation turn; do not infer active process/session state from chat existence",
+    "source_lease": "MT175 adaptive connected repair assignment active; compiler preparation under MT186 delegated stage. Exact writer/runner releases still sequenced by root.",
+    "preserve_existing_chats": true
+  },
+  "proposed_adaptive_team": {
+    "id": "WP012-V5-PROPOSAL-TEAM",
+    "approval_state": "APPROVED_ACTIVE",
+    "core_roles": [
+      {
+        "role": "delivery_lead",
+        "reuse_chat": "01a1323d-2a04-78f1-9430-1589c9cd54ea",
+        "owns": "Whole WP outcome, dependency order, scope preservation, exact assignments, resource coordination and plain-language Operator communication",
+        "required_output": "Verified milestone or exact blocker with recommended decision; cannot issue independent acceptance or merge"
+      },
+      {
+        "role": "primary_developer",
+        "reuse_chat": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+        "owns": "Connected implementation under explicit source scope, related repairs, permitted compile/static checks and pushed product checkpoints",
+        "required_output": "Pushed implementation and actual compiler evidence; cannot self-accept runtime behavior"
+      },
+      {
+        "role": "independent_validator",
+        "reuse_chat": "01a1323e-c183-77e3-b8ba-b286507e5617",
+        "owns": "Independent challenge, original runtime/acceptance commands and evidence-based verdicts",
+        "required_output": "Pass/fail evidence with exact findings returned to the developer"
+      }
+    ],
+    "specialists": "Reuse diagnostic, dependency and spec-gap chats for one named question or bounded repair. Bring them into active work only when evidence identifies their need; completion returns them to available status, without deleting chats or disrupting processes.",
+    "assignment_fields": [
+      "blocking question/outcome",
+      "relevant MT and exact files",
+      "current candidate and evidence",
+      "permitted actions",
+      "required answer/commit/verdict",
+      "exit condition"
+    ],
+    "ownership_controls": "One writer per overlapping file set, root-only kernel writes, explicit disjoint scope for any added writer, one compiler job on the shared target. Existing messaging authorization and role limits remain applicable.",
+    "helper_policy": "No automatic helper fan-out or duplicate full review. Use helpers only for distinct evidenced questions within existing Operator/packet delegation authority.",
+    "activation_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014"
+  },
+  "proposed_workflow": {
+    "id": "WP012-V5-PROPOSAL-WORKFLOW",
+    "approval_state": "APPROVED_ACTIVE",
+    "milestones": [
+      {
+        "id": "WP012-V5-STAGE-1",
+        "outcome": "Native application compiles",
+        "method": "Inspect caller, real implementation, library exports, enabled features and dependencies as one affected connection; batch related permitted repairs before a changed-input compiler check",
+        "proof": "Original native command with actual exit0, unchanged relevant input bindings and independent verification",
+        "limits": "Compiler evidence only; no runtime or WP acceptance claim"
+      },
+      {
+        "id": "WP012-V5-STAGE-2",
+        "outcome": "Real application starts with the required authenticated session",
+        "method": "Resolve genuine deployment executable, data root, runtime ownership and authenticated-session binding under explicit authorized scope",
+        "proof": "Independent actual production runtime and original account/session/space/workspace authorization evidence",
+        "limits": "Separate authorization required where current scope does not permit startup/provisioning; no synthetic owner, token, grant or store"
+      },
+      {
+        "id": "WP012-V5-STAGE-3",
+        "outcome": "Required actions execute and their results survive restart",
+        "method": "Implement and independently prove authentic producer publication, canonical reread, Flight Recorder, durable receipts and applicable multiwindow behavior",
+        "proof": "Exact original MT/source-WP runtime and persistence assertions; required negative paths included",
+        "limits": "Fixtures, source inspection and compiler success cannot replace runtime acceptance"
+      },
+      {
+        "id": "WP012-V5-STAGE-4",
+        "outcome": "Original WP acceptance complete",
+        "method": "Run required shared batch/WP boundary proof on stable final inputs, then follow independent integration authority",
+        "proof": "Every required original acceptance/HBR obligation resolved by independent evidence or authorized justified NOT_APPLICABLE",
+        "limits": "All imported scope retained; no merge or completion authority granted to delivery lead"
+      }
+    ],
+    "adaptation_rules": [
+      {
+        "id": "WP012-V5-ADAPT-001",
+        "trigger": "Clear local failure",
+        "action": "Primary developer performs bounded repair; no additional permanent team"
+      },
+      {
+        "id": "WP012-V5-ADAPT-002",
+        "trigger": "Failure crosses component boundaries",
+        "action": "Assign one temporary specialist to trace the complete affected connection before another attempt"
+      },
+      {
+        "id": "WP012-V5-ADAPT-003",
+        "trigger": "Useful independent work with disjoint ownership",
+        "action": "Run in parallel within resource/delegation authority; never start competing shared-target builds or dependent acceptance early"
+      },
+      {
+        "id": "WP012-V5-ADAPT-004",
+        "trigger": "Same repair fails twice",
+        "action": "Require a different evidenced diagnosis and apply existing escalation rules; no blind third retry or budget reset"
+      },
+      {
+        "id": "WP012-V5-ADAPT-005",
+        "trigger": "Two rounds without required output",
+        "action": "Change evidenced approach, assignment or specialist under approved workflow; retain existing NEEDS_NEW_APPROACH and counter precedence"
+      },
+      {
+        "id": "WP012-V5-ADAPT-006",
+        "trigger": "External dependency cannot be resolved within authority",
+        "action": "Report exact dependency, evidence and recommended Operator decision; no substitute deliverable or manufactured runtime binding"
+      }
+    ],
+    "validation_efficiency": "Use the smallest required failing check during repair, then required broad proof at the stable boundary. Reuse valid unchanged evidence; one coherent review can cover unchanged related work. Preserve independent validation and all mandatory gameplan/resource gates.",
+    "operator_updates": [
+      "What now works?",
+      "What still fails?",
+      "What changed in the approach?",
+      "What decision, if any, is genuinely needed from the Operator?"
+    ],
+    "reporting_rule": "Product checkpoints and independent verdicts are reported separately from compiler results and support work; no claims of working behavior from documentation/review volume. Unchanged monitoring remains quiet, subject to required communication cadence.",
+    "activation_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014"
+  },
+  "approval_state_and_proposal": {
+    "current_state": "Four exact-one checks remain spent; pending fifth superseded by delegated native stage20261014. No routine technical approval required inside assigned stage.",
+    "existing_pending_ref": "MT-186.json#/native_diagnostics_export_recheck_proposal_20261013",
+    "alternative_proposal_id": "WP012-V5-PROPOSAL-BOUNDED-COMPILE-STAGE",
+    "alternative_approval_state": "APPROVED_ACTIVE",
+    "alternative_scope": "One bounded compilation stage covering the current reviewed73368c07 candidate and at most two further repaired candidates, each with changed relevant inputs, scoped ownership, independent review and mandatory admission",
+    "original_command": "cargo check --locked --manifest-path src/frontend/handshake_native/Cargo.toml --tests -j 1",
+    "existing_profile": "../gov-runtime/host-profile-wp012-phase02-builder.json",
+    "profile_sha256": "df7068d5f93a49d17f48f7404a7c4251e2be8f17abc1d2fd5bb04068ee727081",
+    "target": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/target",
+    "aggregate_cap_bytes": 180000000000,
+    "counter_policy": "Keep historical failures and original counters. Repeated failure demands changed method; at an allowance threshold delivery lead makes and records an evidenced continuation, changed approach or exact blocker decision under Operator delegation, rather than resetting history or requesting routine technical approval",
+    "excluded_actions": [
+      "metadata run",
+      "runtime provisioning/startup beyond separately approved scope",
+      "foreign process disruption",
+      "target/profile/cap change",
+      "new branch/worktree",
+      "merge",
+      "authentication/provenance manufacture",
+      "acceptance narrowing"
+    ],
+    "activation": "Activated by Operator live instruction20261014; packet amendment is authority. Stage initially permits three further candidates. Root decides and records any continuation/change of method at thresholds under delegated authority, preserving histories."
+  },
+  "remaining_runtime_blockers": {
+    "genuine_deployment_auth": "Approved local selectors previously found no genuine native/backend deployment,37501listener, authenticated binding or default store. This is historical inspected evidence, not a fresh live-environment claim; re-verify relevant selectors before issuing runtime instructions.",
+    "needed_binding": "Actual deployment descriptor/executable and data-root provenance; native authenticated context owner; original accountPrincipal/sessionAccessSpace/workspace, fs.writeCreate|Update grants and policy/reviewer evidence for the exact original targets",
+    "diagnostics": "Library producer export repaired; runtime startup and signing provenance still unproven",
+    "durability": "In-memory action acknowledgments do not satisfy original Applied/newer after_revision/nonempty evidence_ref/null durability_error receipt requirements",
+    "publication": "MT185 genuine registry producer publication, canonical reread and authentic Flight Recorder remain hard predecessors for dependent work",
+    "shutdown": "MT188 real production-main positive/negative proof and source/resource lease remain unresolved"
+  },
+  "risks_controls_and_reuse": [
+    {
+      "id": "WP012-V5-RISK-001",
+      "risk": "Bounded stage becomes endless retries",
+      "control": "Finite candidate allowance plus retained earlier escalation thresholds; no unchanged retry",
+      "verification": "Inspect candidate changes, retained counters and actual result before every further run"
+    },
+    {
+      "id": "WP012-V5-RISK-002",
+      "risk": "Parallel agents overwrite work or compete for resources",
+      "control": "Exact file ownership and serial compiler lease",
+      "verification": "Check dirty state, active lease and competing jobs before edits/launch"
+    },
+    {
+      "id": "WP012-V5-RISK-003",
+      "risk": "Local source review misses assembled behavior",
+      "control": "Review the complete affected connection, then compiler and original production-boundary proof",
+      "verification": "Independent actual outputs, not source assertions alone"
+    },
+    {
+      "id": "WP012-V5-ROI-001",
+      "improvement": "Reuse existing chats, warm owned target, typed records and valid unchanged proof",
+      "reason": "Avoid repeated setup, duplicate review and another reporting system while touching this workflow",
+      "gap_closed": "Coordination and preparation overhead",
+      "verification": "Evidence input validity, ownership and unchanged configuration remain checked"
+    }
+  ],
+  "research_basis": {
+    "checked_on": "2026-10-14",
+    "sources": [
+      "https://developers.openai.com/api/docs/guides/agents/orchestration",
+      "https://www.anthropic.com/engineering/building-effective-agents"
+    ],
+    "patterns": "Central ownership with bounded specialist delegation; dynamic assignment for unpredictable tasks; independent evaluation against explicit criteria; add complexity only for a demonstrated need",
+    "selected_approach": "Three core roles plus temporary specialists, preserving existing writer/resource/independent-validator boundaries",
+    "rejected_approaches": [
+      "Another fresh permanent leadership hierarchy",
+      "All reviewers reconsider every unchanged artifact",
+      "Unlimited repair-until-success permission",
+      "Treat compilation as WP completion"
+    ],
+    "limitation": "External patterns support the proposal but do not prove improved speed or success for this WP; evaluate through actual milestone outcomes and retained failures"
+  },
+  "successor_first_actions": [
+    "Read current authority and packet delegated decision; root kernel ownership unchanged",
+    "Verify actual branch/dirty/remote and existing role gameplan; use current record references rather than old approval counts",
+    "Brief all five existing leaders with pushed kernel amendment before execution release",
+    "Primary integrator prepares approved73368c07 native capture and parent exit forwarding; one independent affected-connection/runner review, then root releases original check after fresh admission",
+    "Record all diagnostics/root causes/NOT_REACHED components, repair groups together with explicitly scoped parallel workers, assemble/freeze and recheck under stage; root changes method/records decisions at thresholds",
+    "Preserve genuine runtime/auth/publication/durability/multiwindow/shutdown and all original parent/source acceptance obligations"
+  ],
+  "verification": {
+    "observed": "Current product HEAD/tree/clean status and live matching remote, MT183-188 states, parent blocked states, latest checkpoint/failure records, active Master Spec pointer and current role/shared rules inspected",
+    "file_checks_required": "Strict duplicate-key JSON parse, reference resolution and scoped diff; no compiler/test/runtime run required for this documentation-only change",
+    "no_execution_or_state_changes": false,
+    "state_changes": "Approved workflow/assignment/approval and stale lifecycle summary updated; no product source or validator-verdict edits in activation."
+  },
+  "authoritative_decision_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+  "scope_expansion_authority": "Delivery lead may authorize the smallest evidenced source/configuration/proof-method expansion that directly repairs a recorded failure or removes an exact blocker. Before writes, record failure, necessary paths, owner, risks/control and original proof. Preserve previous work and return to original outcome; no unrelated feature, invented authentication/grants/provenance or acceptance weakening."
+}

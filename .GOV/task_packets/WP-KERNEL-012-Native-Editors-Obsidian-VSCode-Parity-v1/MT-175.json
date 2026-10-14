@@ -1,4 +1,23 @@
 {
+  "adaptive_connected_repair_execution_20261014": {
+    "status": "ACTIVE_CONNECTED_REPAIR_ASSIGNMENT",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "primary_owner": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+    "candidate": "73368c07fe7ab713e1110c85004a0a18882351b5",
+    "original_paths_ref": "/execution/allowed_write_paths",
+    "original_scope_preserved": true,
+    "assignment": "Primary integrator owns native assembled connection and current reviewed checkpoint. Existing allowed paths supply connected repair envelope; disjoint worker assignments must name exact files and active failure group before edits. Changes outside original paths require root evidenced direct-blocker amendment under delegation before writes.",
+    "shared_owner": "app/lib/manifests/backend_client/action/argus/auth/receipt lifecycle remain primary-integrator-owned unless an exact sequential lease is recorded",
+    "batch_owner": "MT-175",
+    "covered_mts": [
+      "MT-175",
+      "MT-186"
+    ],
+    "compile_stage_ref": "MT-186.json#/delegated_native_stage_20261014",
+    "review": "One named affected-connection reviewer; unchanged accepted source evidence reused. Explicit runtime initialization/signing provenance residual retained.",
+    "next_action": "Prepare reviewed73368c07 native stage; no source mutation until actual observed failure requires connected repair or root assigns a separate admitted original-contract batch",
+    "limits": "No fabricated authentication/grants/provenance, no consumer/assertion removal, no independent acceptance self-verdict. Original parent/consumed-source durability/multiwindow obligations remain OPEN."
+  },
   "bounded_native_diagnostics_export_repair_20261013": {
     "state": "CLOSED_SOURCE_ONLY_LIBRARY_EXPORT_CHECKPOINT_PUSH_VERIFIED",
     "owner": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
