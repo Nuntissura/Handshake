@@ -4,8 +4,8 @@
   "file_kind": "handoff",
   "version": 6,
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
-  "updated_at_utc": "2026-10-14T13:14:59.881297+00:00",
-  "status": "CORE_CHECK02_FAILED; OPERATOR_CHANGED_HOST_RETRY_AUTHORIZED",
+  "updated_at_utc": "2026-10-14T14:38:47.854930+00:00",
+  "status": "CORE_RETRY_INDEPENDENTLY_VERIFIED; SWARM_SOURCE_IMPLEMENTATION_RELEASED",
   "current_diagnostic_method_ref": "MT-186.json#/delegated_native_stage04_20261014",
   "current_source_checkpoint_ref": "MT-188.json#/successor_core_json_macro_checkpoint_20261014",
   "current_product_candidate": "139e4b7db83ffc56bf72f59cec3e8ea7c69fecc3",
@@ -169,13 +169,85 @@
   },
   "current_authorized_team": {
     "decision_ref": "packet.json#/operator_successor_delivery_team_20261014",
-    "delivery_lead_kernel_owner": "01a139f3-b98c-7b61-b541-960ec3e048de",
+    "delivery_lead_kernel_owner": "01a13ab5-bfe4-74b1-8fc3-64e691a76827",
     "sole_product_integrator": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
     "runtime_team": "01a139f6-2aa7-7b93-bc12-28f207a6909f",
     "native_gui_team": "01a139f6-8cf0-7571-bab2-960a33d7cafa",
     "independent_validator": "01a139f6-ce6a-7b50-a058-dff3732ea4a2",
     "source_lease_ref": "MT-175.json#/successor_parallel_connected_batch_20261014",
-    "old_sessions_relinquished": true
+    "old_sessions_relinquished": true,
+    "successor_authorization": "Live Operator explicitly transferred leadership/kernel ownership to this successor; existing team/file/compiler/independent acceptance boundaries preserved",
+    "optional_subagents": "All team leaders, including validation, decide whether additional subagents improve useful task splitting; optional, no fixed three-worker policy or mandatory fan-out",
+    "observed_primary_helper_capacity": {
+      "owner_chat": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+      "source": "Primary live host instructions and fresh collaboration.list_agents report20261014",
+      "active_agent_slots_including_leader": 4,
+      "simultaneous_child_limit": 3,
+      "active_helpers_at_report": 0,
+      "organization": "Each existing team leads its own useful swarm; primary queues additional distinct assignments in successive waves within its native tool limit. Three is a simultaneous primary-chat tool limit, not a delivery-lead staffing policy or total named-worker limit."
+    },
+    "additional_coding_teams": [
+      {
+        "id": "WP012-TEAM-ACCOUNT-20261014",
+        "owner_chat": "01a13acc-56f9-7ee1-a6f9-4920504b7136",
+        "group": "Existing account/startup genuine-context connection",
+        "current_lease": "READ_ONLY_PREPARATION; exact private path release after current terminal/postbinding/owned closure; primary retains shared main/api mod"
+      },
+      {
+        "id": "WP012-TEAM-SCHEMA-20261014",
+        "owner_chat": "01a13acc-64c3-7950-8be9-0ded06a2388a",
+        "group": "Argus receipt/schema successor transition",
+        "current_lease": "READ_ONLY_PREPARATION; schema.surql/schema.rs prospective transfer from runtime helper only after exact owning contract release"
+      },
+      {
+        "id": "WP012-TEAM-NATIVE-WIRE-20261014",
+        "owner_chat": "01a13acc-9793-7341-8255-c68d5eb8a17a",
+        "group": "Native and watcher signed lifetime wire",
+        "current_lease": "READ_ONLY_PREPARATION; native launcher and watcher cli/main/control/test prospective transfer from GUI only after exact owning contract release"
+      }
+    ],
+    "active_source_lease_ref": "packet.json#/swarm_production_20261014",
+    "coder_mediator": "01a13acf-a8bf-7ae1-92f3-9c5fffc5d385",
+    "primary_additional_coder_teams": [
+      {
+        "role": "runtime_composition",
+        "owner_chat": "01a13ad0-0422-7df1-af8b-5741e13d2551"
+      },
+      {
+        "role": "native_context",
+        "owner_chat": "01a13ad0-09c7-7b63-82ca-8146aef24110"
+      },
+      {
+        "role": "diagnostics",
+        "owner_chat": "01a13ad0-112c-7c51-9dac-b19da4d01c76"
+      },
+      {
+        "role": "native_lifetime_consumer",
+        "owner_chat": "01a13ad0-1d9e-76c2-ba80-f97e366be363"
+      }
+    ],
+    "shared_file_owners": {
+      "src/backend/handshake_core/src/storage/surreal/schema.surql": "01a13acc-64c3-7950-8be9-0ded06a2388a",
+      "src/backend/handshake_core/src/storage/surreal/schema.rs": "01a13acc-64c3-7950-8be9-0ded06a2388a",
+      "src/backend/handshake_core/src/api/authority.rs": "01a13acc-56f9-7ee1-a6f9-4920504b7136",
+      "src/backend/handshake_core/src/api/workspaces.rs": "01a13acc-56f9-7ee1-a6f9-4920504b7136",
+      "src/backend/handshake_core/src/lib.rs": "01a13acc-56f9-7ee1-a6f9-4920504b7136",
+      "src/frontend/handshake_native/src/local_account.rs": "01a13acc-56f9-7ee1-a6f9-4920504b7136",
+      "src/backend/handshake_core/src/api/model_access.rs": "01a13ad0-0422-7df1-af8b-5741e13d2551",
+      "src/backend/handshake_core/src/api/operator_chat.rs": "01a13ad0-0422-7df1-af8b-5741e13d2551",
+      "src/backend/handshake_core/src/api/model_lane_navigation.rs": "01a13ad0-09c7-7b63-82ca-8146aef24110",
+      "src/backend/handshake_core/src/main.rs": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+      "src/backend/handshake_core/src/api/mod.rs": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+      "src/frontend/handshake_native/src/diagnostics/palmistry_launch.rs": "01a13acc-9793-7341-8255-c68d5eb8a17a",
+      "src/frontend/handshake_native/tests/test_palmistry_launch.rs": "01a13acc-9793-7341-8255-c68d5eb8a17a",
+      "src/frontend/palmistry/src/cli.rs": "01a13acc-9793-7341-8255-c68d5eb8a17a",
+      "src/frontend/palmistry/src/main.rs": "01a13acc-9793-7341-8255-c68d5eb8a17a",
+      "src/frontend/palmistry/src/control.rs": "01a13acc-9793-7341-8255-c68d5eb8a17a",
+      "src/frontend/palmistry/tests/test_lifecycle.rs": "01a13acc-9793-7341-8255-c68d5eb8a17a",
+      "src/frontend/handshake_native/src/app.rs": "01a13ad0-09c7-7b63-82ca-8146aef24110",
+      "src/frontend/handshake_native/src/main.rs": "01a13ad0-1d9e-76c2-ba80-f97e366be363",
+      "src/backend/handshake_core/src/api/palmistry.rs": "01a13ad0-112c-7c51-9dac-b19da4d01c76"
+    }
   },
   "proposed_adaptive_team": {
     "id": "WP012-V5-PROPOSAL-TEAM",
@@ -286,7 +358,11 @@
       "What decision, if any, is genuinely needed from the Operator?"
     ],
     "reporting_rule": "Product checkpoints and independent verdicts are reported separately from compiler results and support work; no claims of working behavior from documentation/review volume. Unchanged monitoring remains quiet, subject to required communication cadence.",
-    "activation_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014"
+    "activation_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "team_coordination_ref": "WP-KERNEL-012-phase02-successor-handoff-v6.json#/communication_roi_decision_20261014/team_proposals",
+    "repair_loop": "Complete current original run and bind terminal/full diagnostics/target states/postinputs/owned closure; distribute all evidenced groups to useful team-selected swarms on exact admitted disjoint paths; coordinate interfaces, assemble all related fixes, freeze and run one necessary strategic compiler/test batch through existing owners; record every emitted failure and NOT_REACHED/NOT_ASSESSED, then repeat under retained history and evidenced changed-method decisions. Original independent runtime/WP acceptance remains required.",
+    "coder_coordination": "Humanrequested coder mediator organizes implementation communication betweenleaders and reports to primaryproductdevlead. Leaders manage useful actualcoders and followups. Primary progress_gauge and workflow_assist are read-only thermometer/orchestration helpers, not extra sourcewriters. Rootretains kernel/sourceadmission; IV retains independent originalruntime/verdict.",
+    "checkpoint_policy": "Commit/push meaningful coherent MT/unit progress through sole primaryproductGit owner; governance explicitpaths through kernelowner. Bundle required tests/checks on stable inputs and reuse same approved warmtarget/cache, no perworkerCargo."
   },
   "approval_state_and_proposal": {
     "current_state": "Four exact-one checks remain spent; pending fifth superseded by delegated native stage20261014. No routine technical approval required inside assigned stage.",
@@ -373,16 +449,21 @@
     "observed": "Current product HEAD/tree/clean status and live matching remote, MT183-188 states, parent blocked states, latest checkpoint/failure records, active Master Spec pointer and current role/shared rules inspected",
     "file_checks_required": "Strict duplicate-key JSON parse, reference resolution and scoped diff; no compiler/test/runtime run required for this documentation-only change",
     "no_execution_or_state_changes": false,
-    "state_changes": "Approved workflow/assignment/approval and stale lifecycle summary updated; no product source or validator-verdict edits in activation."
+    "state_changes": "Approved workflow/assignment/approval and stale lifecycle summary updated; no product source or validator-verdict edits in activation.",
+    "latest_handoff_change": "All four team proposals reconciled in existing navigation fields; optional helpers for all teams and direct collaboration. No packet/MT/gameplan/source/caller/tool/profile changes or new workflow/acceptance gate. Current compiler continues.",
+    "latest_handoff_change_at_utc": "2026-10-14T14:14:50.466781+00:00",
+    "latest_source_release_ref": "packet.json#/swarm_production_20261014",
+    "encoding_repair": "MT174 one preexisting invalid0x96 in ExactMT171-175 source-scope prose rendered as JSONescaped U2013; all other preexisting bytes retained"
   },
   "authoritative_decision_ref": "packet.json#/operator_successor_delivery_team_20261014",
   "scope_expansion_authority": "Delivery lead may authorize the smallest evidenced source/configuration/proof-method expansion that directly repairs a recorded failure or removes an exact blocker. Before writes, record failure, necessary paths, owner, risks/control and original proof. Preserve previous work and return to original outcome; no unrelated feature, invented authentication/grants/provenance or acceptance weakening.",
   "restart_execution_state": {
     "source_checkpoint_ref": "MT-188.json#/successor_core_json_macro_checkpoint_20261014",
     "last_result_ref": "MT-188.json#/successor_core_check2_result_20261014",
-    "next_action": "Prepare one Operator-authorized changed-host core retry on139e, same original command/profile/target, current bindings and official gates. Native proof and runtime remain dependent/open; do not reset counters.",
+    "next_action": "SOURCE RELEASE EFFECTIVE: sameworkers implement exact ownedfiles now; mediator coordinates interfaces, primary integrates and meaningfulMTcheckpoint/Git; required stablebatch compiler/source review and independent originalruntime remain",
     "continuation_ref": "MT-188.json#/operator_changed_host_retry_20261014",
-    "original_acceptance": "MT171-175 remainBLOCKED/accepted0of5; original scope/pins/source conservation/auth/publication/native/recovery/shutdown/independent proofs retained"
+    "original_acceptance": "MT171-175 remainBLOCKED/accepted0of5; original scope/pins/source conservation/auth/publication/native/recovery/shutdown/independent proofs retained",
+    "source_lease_ref": "packet.json#/swarm_production_20261014"
   },
   "memory_policy_ref": "packet.json#/operator_memory_reserve_removal_20261014",
   "latest_shutdown_checkpoint_ref": "MT-188.json#/source_only_checkpoint_20261014",
@@ -397,17 +478,17 @@
     "finding": "Productsupportslegitimatefirst-runsetup; currentcustomMT186newstore/firstOwner admissionban needs scopedrootdisposition. Startupcurrentlyrequires5IDs beforestorage whileproductsetup/loginneedsrunningbackend. Existingrealaccount API cancreate3IDs/login-sessionfour/authorizedworkspacefive; no manualfakeIDs/grants/fixture substitutes.",
     "next": "Resolve restrictedproductmanagedauthority setup/login startup anddeferredprotectedruntime againstactualsource state/owners beforewrites; preservedefaultdeny/currentcontext/same-heldsessionreopen andoriginalpublication."
   },
-  "current_core_terminal_ref": "MT-188.json#/successor_core_check2_result_20261014",
+  "current_core_terminal_ref": "MT-188.json#/swarm_core_retry_success_20261014",
   "current_core_continuation_ref": "MT-188.json#/operator_changed_host_retry_20261014",
   "communication_roi_decision_20261014": {
     "decision_id": "WP012-COMMUNICATION-ROI-20261014",
-    "operator_request": "Continue work; improve team communication only if it provides a big, significant development speed benefit; record an adopted improvement in the handoff.",
+    "operator_request": "Optional useful additional subagents for every team; each chat leader decides. Improve collaboration with own subagents and between team leaders. Update all teams proposed workflow changes in this handoff, then continue the full WP through swarm production.",
     "observed_examples": [
       "GUI producer/consumer coordination required follow-up after a public wrapper choice was withdrawn and BeforeRender lacked the actual ViewportClass input.",
       "Direct app-server messaging to a native subagent was rejected; the existing runtime-leader to primary-integrator relay delivered exact signatures to the native worker.",
       "A preparer message crossed an already completed preparation result; the integrator reused the result and did not repeat the work."
     ],
-    "decision": "No larger communication redesign is justified. No measured significant speed gain has been established. Reuse existing direct peer coordination; clarify exact interfaces inline where this prevents evidenced cross-file rework.",
+    "decision": "Adopt the four team proposals below within the existing workflow: leaders choose useful helper count/task splitting, manage their own workers and followups, and coordinate interfaces/readiness directly. No fixed three-worker ceiling chosen by the lead; actual host limits must be observed and stated. No mandatory fan-out or measured speed claim.",
     "optional_inline_payload": [
       "producer owner and exact file",
       "existing method signature and required real identity/callback inputs",
@@ -415,9 +496,64 @@
       "close and error semantics",
       "ready or blocked; relinquished ownership when relevant"
     ],
-    "routing": "Leaders communicate directly. The primary integrator relays to its own subagents when the app-server route rejects them. The delivery lead retains scope, resource and proof decisions.",
+    "routing": "Team leaders organize and message peer leaders directly for producer/consumer interfaces, ownership, actionable findings and changed readiness. Each leader assigns and follows up with its own helpers. Relay to the owning leader only when a worker endpoint cannot be addressed. Root handles exact scope/resource/blocker decisions rather than routine messages.",
     "constraints": "No new approval chain, mandatory meeting, reporting system, helper, validator gate or interruption of compiler input freezes. Disjoint edits need no interface exchange.",
-    "speed_claim": "NOT_MEASURED; do not claim a significant speedup."
+    "speed_claim": "NOT_MEASURED; do not claim a significant speedup.",
+    "previous_decision": {
+      "decision_id": "WP012-COMMUNICATION-ROI-20261014",
+      "operator_request": "Continue work; improve team communication only if it provides a big, significant development speed benefit; record an adopted improvement in the handoff.",
+      "observed_examples": [
+        "GUI producer/consumer coordination required follow-up after a public wrapper choice was withdrawn and BeforeRender lacked the actual ViewportClass input.",
+        "Direct app-server messaging to a native subagent was rejected; the existing runtime-leader to primary-integrator relay delivered exact signatures to the native worker.",
+        "A preparer message crossed an already completed preparation result; the integrator reused the result and did not repeat the work."
+      ],
+      "decision": "No larger communication redesign is justified. No measured significant speed gain has been established. Reuse existing direct peer coordination; clarify exact interfaces inline where this prevents evidenced cross-file rework.",
+      "optional_inline_payload": [
+        "producer owner and exact file",
+        "existing method signature and required real identity/callback inputs",
+        "consumer callsite and existing caller migrations",
+        "close and error semantics",
+        "ready or blocked; relinquished ownership when relevant"
+      ],
+      "routing": "Leaders communicate directly. The primary integrator relays to its own subagents when the app-server route rejects them. The delivery lead retains scope, resource and proof decisions.",
+      "constraints": "No new approval chain, mandatory meeting, reporting system, helper, validator gate or interruption of compiler input freezes. Disjoint edits need no interface exchange.",
+      "speed_claim": "NOT_MEASURED; do not claim a significant speedup."
+    },
+    "updated_at_utc": "2026-10-14T14:14:50.466781+00:00",
+    "team_proposals": [
+      {
+        "id": "WP012-TEAM-PRIMARY-PROPOSAL-20261014",
+        "owner_chat": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+        "helper_use": "Optional disjoint producer/consumer repairs, bounded related-symbol census or independent raw-log/target inventory; an isolated defect stays with one owner",
+        "internal_collaboration": "Leader frames all actual failure groups and exact files/signatures/candidate/proof/output ownership; workers return full evidenced issues and unproven gaps; leader aggregates once and gives focused followups to the same group",
+        "peer_collaboration": "Exchange actual APIs, genuine identity fields, consumer migrations, error/close behavior and readiness directly; relay only to own worker when its endpoint is unavailable",
+        "boundaries": "One writer per overlap; primary alone integrates product Git and strategic Cargo; no worker kernel writes/compiler/acceptance"
+      },
+      {
+        "id": "WP012-TEAM-RUNTIME-PROPOSAL-20261014",
+        "owner_chat": "01a139f6-2aa7-7b93-bc12-28f207a6909f",
+        "helper_use": "Reuse diagnostics_receipts and startup_authority for admitted owned work; add helpers for distinct evidenced root-cause groups/disjoint paths or bounded questions that free an active writer; no extra writers on shared schema",
+        "internal_collaboration": "Exact ownership/failure/behavior/interface/proof assignments; workers return paths/results/blockers/consumer signatures; leader reconciles scoped changes and resumes the same helpers for corrections without reverting peers",
+        "peer_collaboration": "Direct identity/lease/request/receipt signatures with primary and GUI; settle consumer contracts and relinquish assembled source ownership before readiness; send decisive admissions to root and evidence facts to independent validator",
+        "boundaries": "Shared manifest/Git/compiler remain primary; root owns kernel/admissions; genuine deployment/auth/config absence remains distinct from source defects; no synthetic START/publication or runtime provisioning"
+      },
+      {
+        "id": "WP012-TEAM-GUI-PROPOSAL-20261014",
+        "owner_chat": "01a139f6-8cf0-7571-bab2-960a33d7cafa",
+        "helper_use": "Reuse native_windows_worker and cloud_gui_specialist for admitted disjoint leaf repairs or distinct interface questions; additional helpers only for actual independent paths/questions, not waiting or repeated scans",
+        "internal_collaboration": "Assignments carry paths/failure/acceptance/interfaces/exclusions; workers return behavior/files/dependencies/missing proof; leader inspects integration-facing changes and gives bounded same-worker followups",
+        "peer_collaboration": "GUI and primary settle app/client/signature ownership; GUI and runtime settle canonical DTO/identity/auth/lease fields; provide candidate/evidence and unresolved runtime cases to validator without directing verdict",
+        "boundaries": "One writer per native file set; primary retains app/client/Git/compiler unless exact authority changes it; runtime owns backend seams; helpers do not close GUI acceptance"
+      },
+      {
+        "id": "WP012-TEAM-VALIDATOR-PROPOSAL-20261014",
+        "owner_chat": "01a139f6-ce6a-7b50-a058-dff3732ea4a2",
+        "helper_use": "Optional independent read-only helpers for distinct changed-risk lenses or evidence bundles on stable inputs; no small-delta/unchanged duplicate audits or review of review",
+        "internal_collaboration": "Leader assigns exact contract/question/artifact range/exclusions; helpers report inspected evidence/findings and NOT_INSPECTED/NOT_REACHED; leader reconciles once, directs findings to owner and reuses helpers for their changed delta",
+        "peer_collaboration": "Coordinate interfaces/freeze readiness/artifact identity/actionable failures directly; resolve ownership overlap before work; actual source logs and artifacts remain proof inputs",
+        "boundaries": "Helpers do not implement reviewed product, write kernel, launch compiler/provision runtime/grant permissions or issue acceptance; independent validator retains original runtime execution and final verdict"
+      }
+    ]
   },
   "historical_restart_execution_state_before_core_20261014": {
     "native_preparation_ref": "MT-186.json#/stage01_preparation_and_resource_blocker_20261014",

@@ -212,5 +212,18 @@
     "research_spec_ref": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase-01-consolidation-contract-v1.json#research_basis",
     "phase_owner": "KERNEL_BUILDER_PHASE01",
     "no_product_permission_in_phase01": true
+  },
+  "swarm_source_repair_20261014": {
+    "decision_id": "WP012-SWARM-SOURCE-BATCH-20261014-01",
+    "packet_ref": "packet.json#/swarm_production_20261014",
+    "kind": "BOUNDED_RECORDED_DEFECT_REMEDIATION",
+    "scope": "Existing account acquisition startupcycle, actual scopedproducer/drain, nativelease/wire and Argus successor predicate; no newproductrequirement or acceptance",
+    "supersedes_exact_source_reuse_constraint": "native local_account reuse-only lifted only for genuine authenticated canonicalworkspace activation; all original R2 authority/proof retained",
+    "spec_basis_refs": [
+      "Pinnedv02.206 \u00a72.3.13.12.6 first-runOwner/password/session",
+      "Pinnedv02.206 \u00a77.13 account/login/logout/lock",
+      "ApprovedR2-006/007/010 shared genuinecontext/grant/policy/lifecycle/revocation"
+    ],
+    "runtime_original_admission_unchanged": true
   }
 }

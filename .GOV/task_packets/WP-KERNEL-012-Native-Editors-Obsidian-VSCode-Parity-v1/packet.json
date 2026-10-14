@@ -6684,5 +6684,246 @@
       "scope": "Existing native app/server and cloud leases remain; runtime diagnostics worker additionally storage/surreal/palmistry.rs for minimal existing record-user transactional append. Preserve exact original tuple/grants/profile, idempotency/HMAC/EventLedger and originals. No broad storage/schema change or new capability/grant",
       "proof": "Same ONE affected batch review consumes only changed remediation delta; original independent real revocation/foreign-scope/lost-ACK/Applied-newer-evidence/null-error proof unchanged"
     }
-  }
+  },
+  "swarm_production_20261014": {
+    "decision_id": "WP012-SWARM-SOURCE-BATCH-20261014-01",
+    "status": "SOURCE_IMPLEMENTATION_RELEASED",
+    "recorded_at_utc": "2026-10-14T14:38:47.854930+00:00",
+    "decision_owner": "01a13ab5-bfe4-74b1-8fc3-64e691a76827",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "operator_direction": "Finish fullWP by actual swarmproduction; additional codingteamchats/workers/directteamcollaboration; primaryHuman additionally specified5extra coderchats via coder mediator, bundled proof/warmCargo/cache and meaningful MTcheckpointcommit/push",
+    "preceding_compile_closure": {
+      "disposition": "TERMINAL_FREEZE_CLOSED_SUCCEEDED",
+      "independent_validator_chat": "01a139f6-ce6a-7b50-a058-dff3732ea4a2",
+      "original_outer_session": 12473,
+      "original_outer_execution": "exec-0498afc6-6e93-474f-b41f-c40d01246cab",
+      "exit_code": 0,
+      "expected_targets": 485,
+      "missing_targets": 0,
+      "compiler_errors": 0,
+      "warnings": 1639,
+      "source_inputs": 7416,
+      "metadata_inputs": 23,
+      "authority_inputs": 11,
+      "tool_inputs": 3,
+      "ephemeral_owned_identities_closed": 18,
+      "persistent_cache_retained": 4820,
+      "candidate_commit": "139e4b7db83ffc56bf72f59cec3e8ea7c69fecc3",
+      "candidate_tree": "5f987622be9587282567858f1ba4b4618659d133",
+      "evidence_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt188-core-changed-host-retry01/compile-evidence.json",
+      "evidence_sha256": "9c1db3c7a723d0a042cc6752d22f2a9cf5b520489b424fa8e240fa1423e9deda",
+      "postbinding_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt188-core-changed-host-retry01/compile-post-binding.json",
+      "runtime_acceptance": "NOT_RUN",
+      "whole_wp_acceptance": "NOT_ASSESSED"
+    },
+    "batch_owner": "MT-174",
+    "covered_mts": [
+      "MT-173",
+      "MT-174",
+      "MT-175",
+      "MT-186",
+      "MT-188"
+    ],
+    "source_base": "139e4b7db83ffc56bf72f59cec3e8ea7c69fecc3",
+    "leases": [
+      {
+        "id": "WP012-SWARM-SCHEMA-001",
+        "mt": "MT-173",
+        "owner_chat": "01a13acc-64c3-7950-8be9-0ded06a2388a",
+        "paths": [
+          "src/backend/handshake_core/src/storage/surreal/schema.surql",
+          "src/backend/handshake_core/src/storage/surreal/schema.rs"
+        ],
+        "deliverable": "Strict existing Argus18-key predicate and narrow current table guards; real successor from164 preserving historical BASE/FINAL164 and legacy branches; canonical CREATE/replay authority and independent fr.read SELECT",
+        "original_proof_refs": [
+          "MT-173.json#/proof",
+          "MT-183.json#/proof"
+        ],
+        "ownership_agreement": "Runtime diagnostics_receipts explicitly relinquished bothfiles; schema accepts",
+        "source_only": true,
+        "state": "SOURCE_IMPLEMENTATION_RELEASED"
+      },
+      {
+        "id": "WP012-SWARM-ACCOUNT-001",
+        "mt": "MT-174",
+        "owner_chat": "01a13acc-56f9-7ee1-a6f9-4920504b7136",
+        "paths": [
+          "src/backend/handshake_core/src/api/authority.rs",
+          "src/backend/handshake_core/src/api/workspaces.rs",
+          "src/backend/handshake_core/src/lib.rs",
+          "src/frontend/handshake_native/src/local_account.rs"
+        ],
+        "deliverable": "Repair proven genuine account acquisition startupcycle using minimal account-only SAME storage/capability state, existing setup/login/session/workspace APIs, authenticated selectedworkspace activation through existing session route; backend derives actual five-tuple/grant/profile from genuine token/channel/canonical workspace, never clientIDs or placeholderLLM; native returns actual activationACK",
+        "original_proof_refs": [
+          "MT-186.json#/proof",
+          "packet.json#/auth_mapping_r2_adoption_20261011"
+        ],
+        "ownership_agreement": "Account owns privatefiles; primary sharedmain/mod and activation nav/app remain separate",
+        "source_only": true,
+        "state": "SOURCE_IMPLEMENTATION_RELEASED"
+      },
+      {
+        "id": "WP012-SWARM-COMPOSITION-001",
+        "mt": "MT-174",
+        "owner_chat": "01a13ad0-0422-7df1-af8b-5741e13d2551",
+        "paths": [
+          "src/backend/handshake_core/src/api/model_access.rs",
+          "src/backend/handshake_core/src/api/operator_chat.rs"
+        ],
+        "deliverable": "Expose genuine same account-owned cloudvault/officialCLI launch configuration and connect existing paired OperatorChatLaunchService/DurableSwarmFrDrain scopedfactory; keep service/drain paired, no dummycatalog/config/bridge",
+        "original_proof_refs": [
+          "MT-174.json#/proof",
+          "MT-188.json#/proof"
+        ],
+        "ownership_agreement": "Runtime and composition mutually ACCEPTED wholemodel_access; primary andcomposition ACCEPTED operator_chat; production_factory remains unchanged/currentpairedproducer",
+        "source_only": true,
+        "state": "SOURCE_IMPLEMENTATION_RELEASED"
+      },
+      {
+        "id": "WP012-SWARM-ACTIVATION-CORE-001",
+        "mt": "MT-174",
+        "owner_chat": "01a13ad0-09c7-7b63-82ca-8146aef24110",
+        "paths": [
+          "src/backend/handshake_core/src/api/model_lane_navigation.rs"
+        ],
+        "deliverable": "Factor existing canonical session/workspace/grant/policy/lifecycle/profile producer for account activation without duplicated authorizationSQL or fabricated versions; coordinate exact publichelper with account",
+        "original_proof_refs": [
+          "packet.json#/auth_mapping_r2_adoption_20261011",
+          "MT-186.json#/proof"
+        ],
+        "ownership_agreement": "Primary currentowner, account and activation mutually ACCEPTED wholefactor-only model_lane_navigation file",
+        "source_only": true,
+        "state": "SOURCE_IMPLEMENTATION_RELEASED"
+      },
+      {
+        "id": "WP012-SWARM-CORE-INTEGRATION-001",
+        "mt": "MT-174",
+        "owner_chat": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+        "paths": [
+          "src/backend/handshake_core/src/main.rs",
+          "src/backend/handshake_core/src/api/mod.rs"
+        ],
+        "deliverable": "Stage only existing channel-checked account APIs + authenticated workspace acquisition until genuine context; then retain exact scopebound registry/reclaim/model/cloud/router owner. Mount actual operatorchatservice and retain actual paired SwarmFrDrain; preserve defaultdeny and actual shutdown",
+        "original_proof_refs": [
+          "MT-186.json#/proof",
+          "MT-188.json#/proof"
+        ],
+        "ownership_agreement": "Primary retains sharedcoreentrypoints, all productGit/compiler and manifests/locks",
+        "source_only": true,
+        "state": "SOURCE_IMPLEMENTATION_RELEASED"
+      },
+      {
+        "id": "WP012-SWARM-NATIVE-WIRE-001",
+        "mt": "MT-175",
+        "owner_chat": "01a13acc-9793-7341-8255-c68d5eb8a17a",
+        "paths": [
+          "src/frontend/handshake_native/src/diagnostics/palmistry_launch.rs",
+          "src/frontend/handshake_native/tests/test_palmistry_launch.rs",
+          "src/frontend/palmistry/src/cli.rs",
+          "src/frontend/palmistry/src/main.rs",
+          "src/frontend/palmistry/src/control.rs",
+          "src/frontend/palmistry/tests/test_lifecycle.rs"
+        ],
+        "deliverable": "Actual borrowed canonical nativelease aftercontrol_socket; coherent seven appended signedfields nativeparent OSgeneration and mirroredwatcherwire; fail missing/mismatched identity, preserve actual childgeneration distinction and all existing assertions",
+        "original_proof_refs": [
+          "MT-175.json#/proof",
+          "MT-186.json#/proof",
+          "MT-188.json#/proof"
+        ],
+        "ownership_agreement": "GUI explicitly relinquished coherent6filewire; runtime/primary consumers separate",
+        "source_only": true,
+        "state": "SOURCE_IMPLEMENTATION_RELEASED"
+      },
+      {
+        "id": "WP012-SWARM-NATIVE-ACTIVATION-001",
+        "mt": "MT-175",
+        "owner_chat": "01a13ad0-09c7-7b63-82ca-8146aef24110",
+        "paths": [
+          "src/frontend/handshake_native/src/app.rs"
+        ],
+        "deliverable": "Consume genuine selectedworkspace activationACK/context and fence stale/foreign/lifecycle deliveries through existing app; accountlocal_account publishes producer; no optimistic activation or clienttupleauthority",
+        "original_proof_refs": [
+          "MT-175.json#/proof",
+          "MT-186.json#/proof"
+        ],
+        "ownership_agreement": "Primary and activation mutually ACCEPTED wholeappfiletransfer; accountlocal_account producer separate",
+        "source_only": true,
+        "state": "SOURCE_IMPLEMENTATION_RELEASED"
+      },
+      {
+        "id": "WP012-SWARM-NATIVE-HOLDER-001",
+        "mt": "MT-175",
+        "owner_chat": "01a13ad0-1d9e-76c2-ba80-f97e366be363",
+        "paths": [
+          "src/frontend/handshake_native/src/main.rs"
+        ],
+        "deliverable": "Acquire actual canonical strict explicit hostscope nativeprocess_session_uuid UDPlease before diagnostics/watcher startup, retain through real eventloop and watcher shutdown/reap; consume exact borrowed launcherinterface preserving panic/crash/earlyfailurecleanup",
+        "original_proof_refs": [
+          "MT-175.json#/proof",
+          "MT-186.json#/proof",
+          "MT-188.json#/proof"
+        ],
+        "ownership_agreement": "Primary and native lifetimeconsumer mutually ACCEPTED wholefiletransfer; no overlappingwriter",
+        "source_only": true,
+        "state": "SOURCE_IMPLEMENTATION_RELEASED"
+      },
+      {
+        "id": "WP012-SWARM-PALMISTRY-001",
+        "mt": "MT-175",
+        "owner_chat": "01a13ad0-112c-7c51-9dac-b19da4d01c76",
+        "paths": [
+          "src/backend/handshake_core/src/api/palmistry.rs"
+        ],
+        "deliverable": "Consume full genuine signednative descriptor; independently verify OSUDP nativeparentPID+generation/hostscope/auth/liveowner; use existing canonical durable START/verifier/ADOPT rather than unconditional unavailable or backendlease substitute; no protectedroute bypass",
+        "original_proof_refs": [
+          "MT-175.json#/proof",
+          "MT-186.json#/proof"
+        ],
+        "ownership_agreement": "Runtime and diagnostics mutually accepted wholeapi/palmistry; storage remains excluded until exact evidenced need",
+        "source_only": true,
+        "state": "SOURCE_IMPLEMENTATION_RELEASED"
+      }
+    ],
+    "coordination": {
+      "mediator_chat": "01a13acf-a8bf-7ae1-92f3-9c5fffc5d385",
+      "product_dev_lead_integrator_compiler": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+      "kernel_writer": "01a13ab5-bfe4-74b1-8fc3-64e691a76827",
+      "worker_policy": "Teamleaders choose useful disjoint coderworkers/waves, manage theirown followups; mediator consolidates interteam implementation interfaces/findings/readiness to primary. No mandatoryfanout or newapprovalgate. Actual tool limits stated, no leaderfixedthree-worker ceiling.",
+      "checkpoint_policy": "Commit/push meaningful coherent MT/unit progress through sole primaryproductGit owner; governance explicitpaths through kernelowner. Bundle required tests/checks on stable inputs and reuse same approved warmtarget/cache, no perworkerCargo."
+    },
+    "failure_basis": [
+      "Argus API18key receipt absent from current existing schema predicate",
+      "Accepted164 real successor transition must retain authentic BASE/FINAL history",
+      "main five-ID-from-env beforestorage/accountserver prevents legitimate existing setup/login/session/workspace flow",
+      "api/mod runtime has SwarmdrainNone and mounts no paired actualoperatorchat producer",
+      "Native signing lacks actual nativeowned lease/parentOSgeneration and canonical durableADOPT/START remains unavailable"
+    ],
+    "scope_exceptions": [
+      "This current bounded source amendment takes precedence over older source-only READ_ONLY/reuse/owner constraints ONLY for exact listed paths; old scope/pins/histories/runtime admission remain intact",
+      "Only exact listedsourcepaths supersede older startupREAD_ONLY/native_local_account reuse-only/producer-path exclusion for these proven repairs; existing historicalauthority preserved",
+      "No schema semantic repair under MT183 historical verdict lease; sourceownerMT173 and affected original predecessor proof revalidated",
+      "Existing /authority/session route may carry minimal authenticated canonicalworkspace activation; no unrelated newendpoint/capability/grant",
+      "No broader .GOV/product scope, sourcepin reset, newbranches/worktrees/dependencies or inventedstore/account/session/provenance"
+    ],
+    "controls": [
+      "One writer per exactfile; offered ownership accepted before firstwrite and oldowner relinquished",
+      "No workerGit/compiler/test/metadata/runtime/provisioning; primary solecompiler/Git, independentvalidator runtime/verdict",
+      "No source-only result claims genuine originaldeployment/auth/publication/runtime/WPcompletion",
+      "ExplicitOwner sourcebehavior is repaired, never accepted as fabricated replacement originaldeployment/newdefaultstore proof",
+      "Historical164 source/catalog/INFO/lineage and all pastverdicts/failurecounters retained; no guessed/fabricated pins",
+      "Actual resolved watcherbinary identity remains independent originalruntime prerequisite",
+      "After completebatch assembly perform one affectedtrust/persistence/concurrency source review; then unchangedstable captured source for strategic originalcore/nativechecks and required independentruntime. No reviewofreview or unchanged duplicated gates"
+    ],
+    "proof_unchanged": true,
+    "excluded_actions": [
+      "runtimeprovisioning/newdefaultstore/firstOwner as originaldeployment substitute",
+      "authentication/grant/provenance manufacture",
+      "foreignprocess disruption",
+      "acceptance narrowing or selfverdict",
+      "newtarget/profile/cap/counterreset",
+      "storage/APIpath expansion beyond exactlistedlease without evidenced rootamendment"
+    ],
+    "next_action": "SOURCE RELEASE EFFECTIVE: sameworkers implement exact ownedfiles now; mediator coordinates interfaces, primary integrates and meaningfulMTcheckpoint/Git; required stablebatch compiler/source review and independent originalruntime remain"
+  },
+  "active_swarm_source_lease_ref": "packet.json#/swarm_production_20261014"
 }

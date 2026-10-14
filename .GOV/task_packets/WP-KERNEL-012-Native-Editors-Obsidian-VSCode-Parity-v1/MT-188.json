@@ -720,7 +720,7 @@
   },
   "operator_changed_host_retry_20261014": {
     "decision_id": "WP012-CORE-CHANGED-HOST-RETRY-20261014",
-    "status": "AUTHORIZED_ONE_TERMINAL_RETRY",
+    "status": "CONSUMED_ONE_TERMINAL_RETRY_SUCCEEDED",
     "operator_quote": "trynagain i closed memory hungry chrome",
     "recorded_at_utc": "2026-10-14T13:14:59.881297+00:00",
     "decision_owner": "01a139f3-b98c-7b61-b541-960ec3e048de",
@@ -734,13 +734,39 @@
     "profile_sha256": "916767bbbac5a853b9b8dbd5688d2262cc91bff0d9173fc2431f4dad0bc6b776",
     "target": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/target",
     "additional_terminal_limit": 1,
-    "checks_consumed": 0,
+    "checks_consumed": 1,
     "prior_core_stage_consumed": 2,
     "prior_core_stage_limit": 2,
     "cumulative_core_failures_before_retry": 40,
     "run_conditions": "Fresh current source/authority/tool/caller/resource bindings; unchanged original485-target metadata/features; official gameplan gates; serial sole primary integrator compiler lease; full actual diagnostics and postbinding/owned closure with independent review",
     "gameplan_cause": "GP-564 records allocator abort/changed-host retry. Controller rejected overlong action and unsupported initial verb before writing; corrected compliant action accepted, no compiler launched by rejected attempts.",
     "preserved": "Same source/argv/profile/target/j1/Normal scheduling/diskcap/floor and all original acceptance. Memory observation only; no new memory floor, profile/pagefile changes, foreign process action, fake auth, runtime provisioning, pin reset or automatic further retry.",
-    "runtime": "NOT_AUTHORIZED_BY_THIS_RETRY; original runtime/auth/GUI/recovery/publication/negative acceptance remains open"
-  }
+    "runtime": "NOT_AUTHORIZED_BY_THIS_RETRY; original runtime/auth/GUI/recovery/publication/negative acceptance remains open",
+    "result_ref": "MT-188.json#/swarm_core_retry_success_20261014"
+  },
+  "swarm_core_retry_success_20261014": {
+    "disposition": "TERMINAL_FREEZE_CLOSED_SUCCEEDED",
+    "independent_validator_chat": "01a139f6-ce6a-7b50-a058-dff3732ea4a2",
+    "original_outer_session": 12473,
+    "original_outer_execution": "exec-0498afc6-6e93-474f-b41f-c40d01246cab",
+    "exit_code": 0,
+    "expected_targets": 485,
+    "missing_targets": 0,
+    "compiler_errors": 0,
+    "warnings": 1639,
+    "source_inputs": 7416,
+    "metadata_inputs": 23,
+    "authority_inputs": 11,
+    "tool_inputs": 3,
+    "ephemeral_owned_identities_closed": 18,
+    "persistent_cache_retained": 4820,
+    "candidate_commit": "139e4b7db83ffc56bf72f59cec3e8ea7c69fecc3",
+    "candidate_tree": "5f987622be9587282567858f1ba4b4618659d133",
+    "evidence_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt188-core-changed-host-retry01/compile-evidence.json",
+    "evidence_sha256": "9c1db3c7a723d0a042cc6752d22f2a9cf5b520489b424fa8e240fa1423e9deda",
+    "postbinding_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt188-core-changed-host-retry01/compile-post-binding.json",
+    "runtime_acceptance": "NOT_RUN",
+    "whole_wp_acceptance": "NOT_ASSESSED"
+  },
+  "swarm_source_admission_ref": "packet.json#/swarm_production_20261014"
 }
