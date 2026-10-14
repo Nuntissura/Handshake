@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-14T21:04:21Z",
+ "updated_at": "2026-10-14T21:25:17Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3712,15 +3712,16 @@
   {
    "lane_id": "SMB-PRESS-STRUCT-STRIP",
    "crate": "hsk-studio-press",
-   "phase": "remediation R30-S1 (Operator decision 2026-10-14: fix + one final review R31; if R31 finds another in-claim leak, tagged documents switch to always NotProven automatically)",
-   "status": null,
+   "phase": "FINAL pre-review R31 (Operator: if R31 finds another in-claim leak, narrow to tagged=always NotProven)",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-press-20261014",
    "commits": [
     "ade85a0",
     "13534f8",
     "297c309",
     "9a2c840",
-    "d43fd4e"
+    "d43fd4e",
+    "2fd94c7"
    ],
    "verdicts": [],
    "note": "D28: strip structure tree by default on redaction save, typed loss accessibility_tags_removed, opt-out keeps NotProven",
