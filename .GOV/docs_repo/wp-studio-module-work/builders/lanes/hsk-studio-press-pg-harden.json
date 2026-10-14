@@ -1,0 +1,30 @@
+{
+ "crate": "hsk-studio-press",
+ "lane": "SMB-PRESS-PG-HARDEN",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "READY: structure closed-set walk follows /Pg (R31-P1 hardening); real pages stay excluded by object number",
+ "commits": [
+  {"sha": "aafcde7", "subject": "press (SMB-PRESS-PG-HARDEN, R31-P1): structure closed set follows /Pg; real pages stay excluded by object number"}
+ ],
+ "capabilities_done": [
+  "flatten_purge.rs: ELEMENT_OUTWARD_KEYS empty, MCR_OUTWARD_KEYS = /Stm /StmOwn, OBJR_OUTWARD_KEYS = /Obj; /Pg is followed (as data, not a structure key); doc comments and the DESCRIPTOR D28 clause reworded (stale old wording asserted absent in descriptor_states_the_structure_tree_rule, new test cited)",
+  "A /Pg naming a non-page dictionary (element, root typed by /S, MCR, OBJR) with text kept by a private catalog key reads NotProven (ResidualInRegion)"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-press --no-fail-fast",
+  "exit": 0,
+  "sha": "aafcde7",
+  "passed": 182,
+  "failed": 0,
+  "red_first": "structure_tree_follows_pg_but_not_the_real_pages red before the source change: G1 G2 G3 G4 read region_flattened true residual 0 (text kept); control G0 (element /Pg to the real pages, Word-like) green; green after (full suite 182/182). Existing N4 and C7 controls unchanged and green."
+ },
+ "blockers": [],
+ "notes": {
+  "source": "validation/R31-prereview-press-narrow.json R31-P1 (PLAUSIBLE), suggested hardening",
+  "spec_basis": "closed-set design DIAG-PRESS-R29/R30; no Studio-module clause changed",
+  "over_count": "fail closed only for a /Pg naming a non-page object; a /Pg naming a page of the page tree is never entered (outside set by object number). A /Pg naming a page not in doc.pages (orphan) would count: UNVERIFIED in practice, fail closed",
+  "unchanged": "/Obj /Stm /StmOwn handling; R31-P3 (MCR /Stm) stays INFO by design",
+  "never_pass": "READY only; no PASS claimed"
+ },
+ "updated_at": "2026-10-15T00:00:00Z"
+}
