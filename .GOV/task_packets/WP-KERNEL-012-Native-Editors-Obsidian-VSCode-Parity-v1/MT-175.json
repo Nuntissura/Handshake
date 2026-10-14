@@ -1,4 +1,15 @@
 {
+  "pane_factory_setter_repair_20261014": {
+    "decision_id": "WP012-PANE-FACTORY-SETTER-REPAIR-20261014",
+    "status": "SOURCE_REPAIR_AUTHORIZED",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "failure_ref": "MT-186.json#/delegated_stage03_check2_result_20261014",
+    "owner": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+    "allowed_write_paths": ["src/frontend/handshake_native/src/app.rs"],
+    "repair": "Restore exact consumed WP1pin98efa public set_pane_factory(&mutself,PaneType,Box<dyncrate::pane_registry::PaneFactory>) inserting into existing realself.factories map. Actual unchanged operatorchat test103/207 calls missing method; root opened actual diagnostics/pinned body/current absentmethod and realfactory map. No shadowstate/dummysetter/testdeletion or livebackend claim.",
+    "changed_method": "Read-only ALL actual current test consumers of absent pinned HandshakeApp methods, including unsuffixed method names rather than only *_for_test. Inspect actualreceiver/call sites to exclude unrelated methods; report further exactdirectlyconsumed missingmethods beforewrites for one batch. No generalbehavioraudit.",
+    "control": "Primary singlefile exactsetter patch/oneaffectedpinnedbody-factoryreceiver review/explicitappcheckpointpush. Priorunchangedbehavior/source proofs reused within scope, originalcomponenttests untouched. Stage03two/3 total12Cargo failures retained; nextchangedcandidate compiler also requires actualouterpayload correction/reproof. No tests/metadata/runtime/extra sourcepaths."
+  },
   "receipt_guard_checkpoint_20261014": {
     "status": "INDEPENDENT_RECEIVER_SOURCE_REPROOF_PUSH_VERIFIED",
     "repair_ref": "/receipt_guard_mutability_repair_20261014",

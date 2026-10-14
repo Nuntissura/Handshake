@@ -1,4 +1,35 @@
 {
+  "outer_launch_payload_repair_20261014": {
+    "status": "EXACT_ACTUAL_PAYLOAD_FORWARDING_REPAIR_AUTHORIZED",
+    "failure_ref": "/delegated_stage03_check2_result_20261014",
+    "diagnosis": "Actual original -Command payload '& next-launch.ps1' omitted outer exit $LASTEXITCODE; nested next-launch and ownedwrapper forwarded101 but originalparent returned1. Primary/IV inspected originalexactpayload/tooloutput; no alternative preference mechanism inferred. Preserve actualouter1/direct101 and do not rerun unchangedcandidate to replace record.",
+    "owner": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+    "repair": "Next changed-candidate actualexec command is '& <exact current next-launch.ps1>; exit $LASTEXITCODE'. Generate/freeze exactqueuedouterpayload as existing external launch artifact, include in affectedpreflight, assert actualsame variable/payload has explicit exit forwarding immediately before tools.exec_command; do not manuallyretype a different invocation. Preserve nested directexit and original commandargv/profile/cap/sourcefreeze. Mechanicalpayload assertion must fail beforelaunch if suffixmissing/mismatched.",
+    "proof": "Original actualparent toolnumericexit compared with Cargo/wrapper terminal result after nextchangedrun; no priorouter1 relabeling, boolean/scriptcontent proxy or numeric0 successclaim. One affectedlaunchpayload/runner/config preflight review; unchangedsource evidence reused, no compilerprobe rerun/test/runtime."
+  },
+  "delegated_stage03_check2_result_20261014": {
+    "status": "CARGO_WRAPPER_FAIL101_TERMINAL_FREEZE_CLOSED_OUTER_FORWARDING_FAIL1",
+    "attempt_id": "6beeae15b6274394bc9415a088dca828",
+    "candidate_commit": "d57f6707359d39f0ad652f8d5a7ab475f7dbebb4",
+    "terminal_utc": "2026-10-14T09:17:03.6978907Z",
+    "cargo_exit": 101,
+    "wrapper_exit": 101,
+    "outer_exit_independently_verified": 1,
+    "original_outer_parent": "exec-e7a5f7e1-8589-48e8-a97d-ca8bfd87145d",
+    "independent_reviewer": "01a1323e-c183-77e3-b8ba-b286507e5617",
+    "outer_transport_verdict": "FAIL_ACTUAL_EXIT_FORWARDING_MISMATCH; notfaithful101, separatefrom actualCargoFAIL101",
+    "stage_terminal_checks": 2,
+    "cumulative_native_failures": 12,
+    "diagnostic": "TwoE0599 unchangedtest_operator_chat_selection_and_transcript_argus.rs103/207 missingHandshakeApp::set_pane_factory. Native library advanced with warnings; priorDTO/guarderrorsgone, lateralltargets/tests/runtimeunproven.",
+    "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-stage03-check02",
+    "result_sha256": "1e65840b0f2979418dc192904f138f534af1d6b090d5e92148d4eba6ccc76afa",
+    "evidence_sha256": "2ef8402f9b16bd6b70c60e830b3e4547e122728fee73c64749bdb3b237b87fdc",
+    "stderr_sha256": "a03c94449d14097e08f201a49e8db5b1166f69328e3a624bd03cfdf46279cf74",
+    "closure": "Fresh7416inventory/bytes/20categories/23configs/11authority/3tools exactclean d57f; ownedwrapper36608/Cargo40104/directchildren absent. Originalfulluntruncatedparent1 preserved; actualcompiler allowanceconsumed independentofbadforwarding.",
+    "max_target_bytes": 36917613677,
+    "runtime_acceptance": "NOT_RUN",
+    "next_repair_ref": "MT-175.json#/pane_factory_setter_repair_20261014"
+  },
   "stage03_check2_resource_observation_incident_20261014": {
     "status": "FIRST_REFUSAL_RETAINED_FRESH_NUMERIC_ADMISSION_PASSED",
     "candidate_commit": "d57f6707359d39f0ad652f8d5a7ab475f7dbebb4",
@@ -33,7 +64,7 @@
   },
   "delegated_native_stage03_20261014": {
     "decision_id": "WP012-NATIVE-STAGE-20261014-03",
-    "status": "APPROVED_REFRESH_REVIEWED_PUSHED_RECEIPT_GUARD_CANDIDATE",
+    "status": "APPROVED_PANE_FACTORY_AND_ACTUAL_OUTER_PAYLOAD_REPAIR_THEN_REFRESH",
     "candidate_commit": "d57f6707359d39f0ad652f8d5a7ab475f7dbebb4",
     "candidate_tree": "808c7b3ccd319daa1948a994c77d12b48dbbdc3c",
     "source_checkpoint_ref": "MT-175.json#/receipt_guard_checkpoint_20261014",
@@ -42,7 +73,7 @@
     "predecessor_terminal_checks": 3,
     "historical_native_failed_checks": 10,
     "history_reset": false,
-    "stage_terminal_checks": 1,
+    "stage_terminal_checks": 2,
     "additional_candidate_limit": 3,
     "source_repair_ref": "MT-175.json#/cloud_dto_import_repair_20261014",
     "changed_method": "Actual restored-type use/import/declaration-scope census and affected independent import closure reproof before compile; parser-only proof does not establish type scope. Repair all actual diagnostic group members together and no unchanged blind retry.",
