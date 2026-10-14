@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 676
+generation: 677
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -571,3 +571,4 @@ steps:
 - {id: GP-550, role: builder, at: before_round, do: verify restored native Windows APIs resolve against enabled locked windows-sys feature modules, check: {type: confirm}, source: 'fail: stagecheck1 E0432 ProcessStatus module gated behind missingWin32_System_ProcessStatus feature', state: active}
 - {id: GP-551, role: builder, at: before_dispatch, do: 'verify grouped-note preflight syntax, selected-step coverage and evidence references before positive gates', check: {type: confirm}, source: 'infra: grouped prep caught syntax typo, omittedGP534 and stale client evidence filename before compiler', state: active}
 - {id: GP-552, role: builder, at: before_round, do: verify native exhaustiveness and canonical rows/counts producers cover the observed four-group batch, check: {type: confirm}, source: 'fail: check2 fiveerrors in kind projection, loomfield, canonicalcounts getter and threepane variants', state: active}
+- {id: GP-553, role: builder, at: before_dispatch, do: verify Git revision expressions containing braces are quoted as one PowerShell argv item, check: {type: confirm}, source: 'infra: read-only unquoted HEAD tree revision expanded before corrected metadata read', state: active}

@@ -1,7 +1,29 @@
 {
+  "four_group_batch_checkpoint_20261014": {
+    "commit": "8088c79c8de982a6bb3c38565f71d9ce6ff23979",
+    "tree": "137394ee441aabab611ac5ebf6ad9a8ff0ead8d0",
+    "parent": "7930cb914332836ec22724468c949f88c6182b66",
+    "repair_ref": "/four_group_connected_batch_repair_20261014",
+    "diff_sha256": "db7f1dae85253771a37b3a5a11329ff5a36a7ab2fedf0a71d5fa80733cbb704a",
+    "metadata_sha256": "3591ec1dafbbb9b8f019b2cc596a318ba3b434962a556ef99abcc1bcd1d3fa96",
+    "artifact_lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt175-four-group-repair",
+    "independent_reviewer": "01a1323e-c183-77e3-b8ba-b286507e5617",
+    "verdict": "SOURCE_CLEAR only; full changedinterface/canonicalresponse/generation/auth/strictcount+relation/explicitkind+pane mapping and existing sourcecases inspected; freshcanonicalremote/clean/exact5paths/all7416bytes matchesreviewed5afterhashes",
+    "after_hashes": {
+      "backend_client.rs": "6c6c62a4ee5839dcd50735edd51b10f22ea3e614024ea53f4ba03af60e1c4c76",
+      "atelier_side_panel.rs": "224d5649ec7bca49297d5ce08b175bea42cb4aeefabbcca0b8b4bab1f9ee591e",
+      "atelier_panel.rs": "7d3cda937c57df6538b409d6cefe1246b5b0f7d2e20fe17aa8807e84d54f3672",
+      "visual_debugger/mod.rs": "d520e499798878d2436607644fa0494ef6db0df45cd60bf0ed5645536660d478",
+      "test_ckc_embed.rs": "8b53a47e80842d5e87e11c6e8f2f9b97ceb61d726be5f90f11b06d8d946ba0d8"
+    },
+    "review_limits": "Source-only; new inline/live tests NOT_RUN; no actualauth/API/GUI/durable acceptance fromsource. Original4richerprojection residualOPEN; main188productionproof separate.",
+    "worker": "Existing declaration_inventory owned only debugger, returnedthreeexactarms and relinquished; primary ownedremaining4paths andassembled5filecheckpoint",
+    "compiler": "NOT_RUN on new8088candidate",
+    "runtime": "NOT_RUN"
+  },
   "four_group_connected_batch_repair_20261014": {
     "decision_id": "WP012-NATIVE-FOUR-GROUP-BATCH-20261014",
-    "status": "CONNECTED_SOURCE_BATCH_RELEASED",
+    "status": "SOURCE_CHECKPOINT_PUSH_VERIFIED",
     "updated_at_utc": "2026-10-14T03:59:57.623799+00:00",
     "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
     "scope_expansion_quote": "i allow scope expantion if this directly fixes a failure or blocker",
