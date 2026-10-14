@@ -120,6 +120,23 @@
     "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R25",
     "started_at": "2026-10-14T20:12:28Z",
     "completed_at": "2026-10-14T20:53:21Z"
+   },
+   {
+    "decision": "passed",
+    "verdict": "PASS_V2",
+    "failures": [],
+    "remediation": null,
+    "blocker": null,
+    "not_proven": [],
+    "note": "R24 remediation fcd53b8 now built: harness+import-pdf pdf_is_carried_with_its_original_and_a_pages_not_imported_receipt passes; ignored harness+import-psd+import-raw 18/18: psd_tools_sweep shards 0-15 all pass (c4c6d4d 16 size-balanced shards; shard_0 100.1 s under its 240 s override, others <= 39.7 s; 0 timeouts), dng_converts_to_one_developed_raster_layer_and_opens_in_a_session and proprietary_raw_refusals_pass_through_develop_unchanged pass; import-psd units incl. sweep partition tests pass. Diff read: real PDF carry (press PdfDoc::open + proposal, empty doc, original + receipt, typed loss per page)",
+    "idempotency_key": "STUDIO-R26:SMB-CONVERT-NATIVE:507aa36d6a58:PASS_V2",
+    "round": "STUDIO-R26",
+    "lane": "SMB-CONVERT-NATIVE",
+    "candidate": "507aa36d6a588f82568f0d2867495b71ce5023ae",
+    "tree": "595bb180eada95cebf57b6cbca509292ac949252",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R26",
+    "started_at": "2026-10-14T21:21:54Z",
+    "completed_at": "2026-10-14T21:51:04Z"
    }
   ],
   "remediation_R24": {

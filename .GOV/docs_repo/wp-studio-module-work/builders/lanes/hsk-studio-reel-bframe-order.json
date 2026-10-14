@@ -40,6 +40,25 @@
     "v4": "V4-01: video.rs, host.rs, mf/worker.rs keep deny(clippy::arithmetic_side_effects) (no new arithmetic); V4-03 no silent green: DXVA branch prints NOT_PROVEN where unavailable (it ran here); V4-07 DESCRIPTOR claims cite the new tests (reel video_routing.picture_matching, reel-native features.mf); V4-09 commit via -F file",
     "fmt": "rustfmt applied to reel tests/video_route.rs and src/video.rs; reel-native files carry pre-existing rustfmt diffs from earlier lanes (host.rs, ffi.rs, lib.rs, h264_config.rs in reel) not reformatted to keep the diff minimal",
     "cargo_lock": "not changed by this lane; left uncommitted",
-    "retry_guard": "no gameplan hook block; no compile or test failure"
+    "retry_guard": "no gameplan hook block; no compile or test failure",
+    "verdicts": [
+      {
+        "decision": "passed",
+        "verdict": "PASS_V1",
+        "failures": [],
+        "remediation": null,
+        "blocker": null,
+        "not_proven": [],
+        "note": "4653498: reel video_route 17/17 incl. pictures_released_in_presentation_order_are_matched_by_tag (default/av1/prores); reel-native mf_worker h264_bframe_streams_decode_exact_in_presentation_order (main-bf3, high-bf3-pyramid vs ffmpeg framehash) + replay of a B-frame segment pass. Diff read: presentation-order rule (remove matched tag, drop only pts < picture pts) gated by reorders_output; decode-order sessions unchanged",
+        "idempotency_key": "STUDIO-R26:SMB-REEL-BFRAME-ORDER:507aa36d6a58:PASS_V1",
+        "round": "STUDIO-R26",
+        "lane": "SMB-REEL-BFRAME-ORDER",
+        "candidate": "507aa36d6a588f82568f0d2867495b71ce5023ae",
+        "tree": "595bb180eada95cebf57b6cbca509292ac949252",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R26",
+        "started_at": "2026-10-14T21:21:54Z",
+        "completed_at": "2026-10-14T21:51:04Z"
+      }
+    ]
   }
 }

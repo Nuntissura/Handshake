@@ -52,6 +52,25 @@
   "cargo_lock": "not touched",
   "spec_basis": "STU-RAS-141 (resampling enumeration, no silent default), STU-MOT-007 (resample_filter bilinear|bicubic); the spec names no cubic: Studio bicubic = Catmull-Rom; Photoshop/After Effects kernels UNVERIFIED -> class approximate",
   "limits_and_followups": "1) no prefilter on minification (point-sampled kernel; aliasing below scale 1, Approximate); 2) render-gpu source window is sized by the largest transformed tile (a big tile with a small budget is BudgetExceeded); 3) refused combinations: transform + effects on one layer, transformed mask + feather, non-tile input; 4) composite: multi-tile raster layers refused transform_multi_tile_layer (per-tile resampling would seam), parenting chain not lowered, MotionTemporalSource declares no filter (motion-driven resampling stays refused until LayerProperties carries resample_filter/anchor); 5) After Effects / Photoshop parity NOT_PROVEN",
-  "v4": "V4-01 deny(arithmetic_side_effects) on transform_math (integer arithmetic checked); V4-02 bounds (|linear|, |inverse| <= 1024, |t| <= 2^24, bounds side <= 2^20) and aggregates (4096 transforms, 2^36 px per envelope, reference output 2^26 px) checked before allocation, tests hostile_matrices_and_combinations_are_refused_typed; V4-03 GPU tests gated; V4-09 commit messages via files"
+  "v4": "V4-01 deny(arithmetic_side_effects) on transform_math (integer arithmetic checked); V4-02 bounds (|linear|, |inverse| <= 1024, |t| <= 2^24, bounds side <= 2^20) and aggregates (4096 transforms, 2^36 px per envelope, reference output 2^26 px) checked before allocation, tests hostile_matrices_and_combinations_are_refused_typed; V4-03 GPU tests gated; V4-09 commit messages via files",
+  "verdicts": [
+   {
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "blocker": null,
+    "not_proven": [],
+    "note": "c4ab1ff..b643ec2: pigment transform 5/5, render-cpu cpu_transform 4/4, render-gpu gpu_transform 4/4 (adapter present), composite temporal_transform 2/2 (default build) pass. Diff read: binary64 Catmull-Rom/bilinear/nearest reference resampler, CPU executes it per pixel, WGSL pass with measured tolerance, composite maps non-integer frame states to LayerExtension.transform",
+    "idempotency_key": "STUDIO-R26:SMB-PIGMENT-TRANSFORM:507aa36d6a58:PASS_V1",
+    "round": "STUDIO-R26",
+    "lane": "SMB-PIGMENT-TRANSFORM",
+    "candidate": "507aa36d6a588f82568f0d2867495b71ce5023ae",
+    "tree": "595bb180eada95cebf57b6cbca509292ac949252",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R26",
+    "started_at": "2026-10-14T21:21:54Z",
+    "completed_at": "2026-10-14T21:51:04Z"
+   }
+  ]
  }
 }

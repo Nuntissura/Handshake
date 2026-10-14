@@ -181,6 +181,25 @@
   "steward_scratch": "studio-team-dev/steward/ (canary logs, storepin-proof.log), sync-export, steward-export; steward-4 helper scripts under the session scratchpad steward-4/; steward-5 logs (sync.log, audit-pre.txt, audit-post.txt) under the session scratchpad steward-5/",
   "canary_export_choice": "steward canaries run in studio-team-dev/steward-export with target steward-export/target (never studio-team-dev/target)",
   "hook_note": "a canary command whose leading cd used a shell variable resolved the WP-KERNEL-012 gameplan (broken confirm binding) and was blocked; a literal leading cd path resolves the Studio pointer (START_LOG cargo-tooling)",
-  "C33_507aa36": "C33 canary --all on 507aa36 (steward-export, D:): exit 0, 85 units, 0 fail, 0 timeout, 0 NOT_PROVEN, 0 absent; new units harness+import-pdf/import-raster/import-tiff+import-raw and reel-native+mf-worker(+test-faults) built and ran; aggregator self-check passed. Results: Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/steward-export/results/C33-507aa36/round.json"
+  "C33_507aa36": "C33 canary --all on 507aa36 (steward-export, D:): exit 0, 85 units, 0 fail, 0 timeout, 0 NOT_PROVEN, 0 absent; new units harness+import-pdf/import-raster/import-tiff+import-raw and reel-native+mf-worker(+test-faults) built and ran; aggregator self-check passed. Results: Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/steward-export/results/C33-507aa36/round.json",
+  "verdicts": [
+   {
+    "decision": "passed",
+    "verdict": "PASS_V6",
+    "failures": [],
+    "remediation": null,
+    "blocker": null,
+    "not_proven": [],
+    "note": "Re-judged once (Operator 2026-10-14). 507aa36 tools/run-round.sh:724-755: case_status maps junit <failure type=\"test timeout\"> (only) to timed_out, other failure/error stays failed; timed_out_tests lists them (:836) and unit/per-crate counts use the status; aggregator self-check on a synthetic junit (pass/fail/timeout/skip) runs every aggregation and exits on mismatch. The mapped form equals the runner's real output (R25 ignored harness junit.xml:114 <failure type=\"test timeout\"/>). R26: complete true, self-check passed (aggregation finished), 0 timeouts in 64 units so timed_out_tests [] (no live timeout this round; mapping proven by the self-check on the runner's exact element), absent 0; new round-features sets (harness import-tiff+import-raw, import-pdf, import-raster; reel-native mf-worker, mf-worker+test-faults) built and ran 0; shard_0 runner override applied (100.1 s < 240 s). D20 condition met: score-plugin selected, fixture clap-gain binding_intact (existing). Repair direction asked for a sleeping fixture test; steward chose the in-aggregator synthetic self-check (accepted: same function, every run)",
+    "idempotency_key": "STUDIO-R26:SMB-ROUND-ENTRYPOINT:507aa36d6a58:PASS_V6",
+    "round": "STUDIO-R26",
+    "lane": "SMB-ROUND-ENTRYPOINT",
+    "candidate": "507aa36d6a588f82568f0d2867495b71ce5023ae",
+    "tree": "595bb180eada95cebf57b6cbca509292ac949252",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R26",
+    "started_at": "2026-10-14T21:21:54Z",
+    "completed_at": "2026-10-14T21:51:04Z"
+   }
+  ]
  }
 }

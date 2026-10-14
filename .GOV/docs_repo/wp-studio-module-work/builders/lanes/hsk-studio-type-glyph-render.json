@@ -46,6 +46,27 @@
     ],
     "retry_guard": "One identical rerun blocked after the first failing run (test expectation max_segments 2 vs 2 stored lines); route (a): committed the test fix bf302f4 (HEAD changed), then reran; no gameplan step added.",
     "new_deps": "none (no dep request)",
-    "composite_lowering": "NOT this lane; next lane SMB-COMPOSITE-TEXT"
+    "composite_lowering": "NOT this lane; next lane SMB-COMPOSITE-TEXT",
+    "verdicts": [
+      {
+        "decision": "passed",
+        "verdict": "PASS_V1",
+        "failures": [],
+        "remediation": null,
+        "blocker": null,
+        "not_proven": [
+          "type glyph_render: cross-host raster identity (STU-TYP-131) needs a second host running this digest"
+        ],
+        "note": "07fee7f, bf302f4: type glyph_render 4/4 (outlines, hand values, run digest, hostile) in default; type+harfrust unit green. Diff read: bounded outline extraction over parse_bounded faces; fixed-point non-zero-winding accumulation rasteriser with checked arithmetic (V4-01), no stub",
+        "idempotency_key": "STUDIO-R26:SMB-TYPE-GLYPH-RENDER:507aa36d6a58:PASS_V1",
+        "round": "STUDIO-R26",
+        "lane": "SMB-TYPE-GLYPH-RENDER",
+        "candidate": "507aa36d6a588f82568f0d2867495b71ce5023ae",
+        "tree": "595bb180eada95cebf57b6cbca509292ac949252",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R26",
+        "started_at": "2026-10-14T21:21:54Z",
+        "completed_at": "2026-10-14T21:51:04Z"
+      }
+    ]
   }
 }

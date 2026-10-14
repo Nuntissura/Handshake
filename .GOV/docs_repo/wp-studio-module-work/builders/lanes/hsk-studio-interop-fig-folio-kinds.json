@@ -26,5 +26,6 @@
     "unverified": "blur radius vs Gaussian sigma; Figma image transform direction and unit-square mapping (inverse written; no render comparison); stand-in row colour is a placeholder; boolean operand order (ascending child position = bottom to top)",
     "gameplan_route": "one retry-guard block after a test failure (stale pin): route (a), committed the pin fix (new HEAD) and reran; no gameplan step added",
     "deps": "no dependency change; Cargo.lock uncommitted"
-  }
+  },
+  "verdicts": [{"decision": "passed", "verdict": "PASS_V1", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "beedf31, f66c9f9: interop-fig fig_folio_kinds 5/5 (blur, image fill as import_original part, boolean group with cached outline, STYS text styles, package round trip) pass. Diff read: real mapping into the new Folio kinds; blur radius/image transform conventions UNVERIFIED and listed in NATIVE_NOT_PROVEN", "idempotency_key": "STUDIO-R26:SMB-INTEROP-FIG-FOLIO-KINDS:507aa36d6a58:PASS_V1", "round": "STUDIO-R26", "lane": "SMB-INTEROP-FIG-FOLIO-KINDS", "candidate": "507aa36d6a588f82568f0d2867495b71ce5023ae", "tree": "595bb180eada95cebf57b6cbca509292ac949252", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R26", "started_at": "2026-10-14T21:21:54Z", "completed_at": "2026-10-14T21:51:04Z"}]
 }

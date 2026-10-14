@@ -37,5 +37,6 @@
     "v4": "V4-01: raster.rs, vector.rs and the new typestyle.rs carry #![deny(clippy::arithmetic_side_effects)]; counts charged through Ctx::nodes, names through Ctx::text, type styles capped at MAX_TYPE_STYLES 4096 before charging. V4-07: no never/always claims added. V4-09: commit messages via -F files.",
     "gameplan_route": "no hook block; one own test bug (JSON pointer to absent keys) fixed in the test before commit",
     "deps": "no dependency change; Cargo.lock uncommitted"
-  }
+  },
+  "verdicts": [{"decision": "passed", "verdict": "PASS_V1", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "5813f4c, d43a697, 48c6975, 83c99bb: folio paint_blur_style_contract 5/5 (text over raster in group validates (G1), blur round trip + bounds, image paint and boolean group round trips + refusals, type styles resolve + refuse) and all folio units green. Record kinds only: the lane states no renderer reads them yet (not claimed as rendering)", "idempotency_key": "STUDIO-R26:SMB-FOLIO-PAINT-BLUR-STYLE:507aa36d6a58:PASS_V1", "round": "STUDIO-R26", "lane": "SMB-FOLIO-PAINT-BLUR-STYLE", "candidate": "507aa36d6a588f82568f0d2867495b71ce5023ae", "tree": "595bb180eada95cebf57b6cbca509292ac949252", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R26", "started_at": "2026-10-14T21:21:54Z", "completed_at": "2026-10-14T21:51:04Z"}]
 }

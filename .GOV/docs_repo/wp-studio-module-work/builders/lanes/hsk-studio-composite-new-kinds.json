@@ -1,0 +1,22 @@
+{
+ "crate": "hsk-studio-composite",
+ "lane": "SMB-COMPOSITE-NEW-KINDS",
+ "status": null,
+ "phase": "slice 5 pushed (3800a14); slice 4 (G1 image-typed text) next, then blur, image paints, boolean groups",
+ "commits": [
+  {"sha": "3800a14", "subject": "composite (SMB-COMPOSITE-NEW-KINDS slice 5): document root over every graph output"}
+ ],
+ "capabilities_done": [
+  "slice 5: LoweredPlan::with_document_root / document_root (DOCUMENT_ROOT_LAYER composite.document_root): one plan-only composite step over every graph output (outputs[0] bottom-most, neutral), lowering equal to an authored isolated normal root group over the outputs; refusals graph_outputs_empty, graph_output_duplicate, DanglingInput, document_root_present; top-level adjustment layers without a graph op refused adjustment_not_in_composition_graph"
+ ],
+ "tests": {"argv": "cargo nextest run -p hsk-studio-composite --test document_root --no-fail-fast", "exit": 0, "sha": "3800a14", "passed": 2, "failed": 0},
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "slice 4 (G1): image-typed text source lowers like a prepared text plane inside groups",
+ "updated_at": "2026-10-14T21:16:17Z",
+ "notes": {
+  "proof": "clippy -p hsk-studio-composite --tests: no composite warnings after a test-only from_ref fix (pre-existing warnings in observe/type)",
+  "deps": "none; Cargo.lock uncommitted"
+ }
+}

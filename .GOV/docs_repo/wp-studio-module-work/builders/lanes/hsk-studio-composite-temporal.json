@@ -38,6 +38,31 @@
   "brief_deviations": "lower_frame takes a FrameRequest struct (snapshot, revision, blend space, Limits, folio Budget + Resolver for the re-validation, root, OutputTarget, TileInfoSource, timings) instead of a long argument list; returns TemporalError (wraps CompositeError) instead of CompositeError, so CompositeError gains no variant; resampling refusal is a whole-frame error, so FrameLowering has no refused list; LayerFrameState gained scale and rotation_deg so the resampling refusal is reachable through the port; acceptance test 2 checks Layer.opacity in the plan (no evaluate_stack pixel oracle: lead capped tests at 5 with a different list)",
   "probe": "optional edge composite -> motion (dep:hsk-studio-motion) added in Cargo.toml; steward probe acceptance UNVERIFIED (steward handles per dispatch)",
   "cargo_lock": "Cargo.lock modified by the optional dependency, left uncommitted per dispatch",
-  "limits": "translation of a group layer refused (members' tiles not addressed by the group id); evaluate's per-step extents are the untranslated ones (FrameLowering exposes the plan only); After Effects parity NOT_PROVEN"
+  "limits": "translation of a group layer refused (members' tiles not addressed by the group id); evaluate's per-step extents are the untranslated ones (FrameLowering exposes the plan only); After Effects parity NOT_PROVEN",
+  "verdicts": [
+   {
+    "decision": "inconclusive",
+    "verdict": null,
+    "failures": [],
+    "remediation": null,
+    "blocker": {
+     "kind": "round_config_gap",
+     "exact": "round-features.toml [crates] declares no hsk-studio-composite [\"motion\"] set; claimed capability T1 MotionTemporalSource (src/temporal/motion.rs) is proven only by the #[cfg(feature = \"motion\")] block in tests/temporal.rs:192",
+     "unblock": "steward adds hsk-studio-composite = [[\"motion\"]] to .config/round-features.toml"
+    },
+    "not_proven": [
+     "composite temporal::motion (feature motion) linear/hold opacity keys: not built (no composite motion unit)"
+    ],
+    "note": "cf0bc33, 4ad3405: default composite temporal 5/5 (windows, opacity scale, integer translation of tiles + linked masks, typed refusals, thread-count identity) pass and the diff is real (lower_frame re-validates the frame document; no rounding of fractional moves). The lane also claims the feature-motion adapter, whose only proof is behind feature motion, never built by the round config",
+    "idempotency_key": "STUDIO-R26:SMB-COMPOSITE-TEMPORAL:507aa36d6a58:INCONCLUSIVE",
+    "round": "STUDIO-R26",
+    "lane": "SMB-COMPOSITE-TEMPORAL",
+    "candidate": "507aa36d6a588f82568f0d2867495b71ce5023ae",
+    "tree": "595bb180eada95cebf57b6cbca509292ac949252",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R26",
+    "started_at": "2026-10-14T21:21:54Z",
+    "completed_at": "2026-10-14T21:51:04Z"
+   }
+  ]
  }
 }

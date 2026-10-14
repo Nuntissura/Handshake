@@ -60,6 +60,23 @@
     "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R25",
     "started_at": "2026-10-14T20:12:28Z",
     "completed_at": "2026-10-14T20:53:21Z"
+   },
+   {
+    "decision": "passed",
+    "verdict": "PASS_V2",
+    "failures": [],
+    "remediation": null,
+    "blocker": null,
+    "not_proven": [],
+    "note": "reopened (pigment changed d48bc30..507aa36: brush, transform); pigment selection 5/5 and all pigment units green in R26",
+    "idempotency_key": "STUDIO-R26:SMB-PIGMENT-SELECTION:507aa36d6a58:PASS_V2",
+    "round": "STUDIO-R26",
+    "lane": "SMB-PIGMENT-SELECTION",
+    "candidate": "507aa36d6a588f82568f0d2867495b71ce5023ae",
+    "tree": "595bb180eada95cebf57b6cbca509292ac949252",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R26",
+    "started_at": "2026-10-14T21:21:54Z",
+    "completed_at": "2026-10-14T21:51:04Z"
    }
   ]
  }

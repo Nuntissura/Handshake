@@ -1,0 +1,44 @@
+{
+ "crate": "hsk-studio-render-gpu",
+ "lane": "SMB-RENDER-GPU-SHARED-DEVICE",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slice 1 pushed: render-gpu shared-device module (9ea8594) + harness viewer on eframe's device (2bc4120); claim = 9ea8594, 2bc4120",
+ "commits": [
+  {"sha": "9ea8594", "subject": "render-gpu (SMB-RENDER-GPU-SHARED-DEVICE slice 1): render a plan into a caller-owned wgpu device/queue/texture"},
+  {"sha": "2bc4120", "subject": "harness (SMB-RENDER-GPU-SHARED-DEVICE slice 1): viewer renders on eframe's wgpu device into the display texture"}
+ ],
+ "capabilities_done": [
+  "render-gpu feature shared-device (default off, so the default public API still names no wgpu type; test no_wgpu_types_in_public_api green): plan_sink::shared::SharedDevice::new(&wgpu::Device, &wgpu::Queue, wgpu::AdapterInfo, DeviceOptions) wraps the caller's device (clones of wgpu handles; GpuContext::from_external installs NO device-lost / uncaptured-error callback because the host owns them); render_to_texture(plan, Option<&PlanExtensions>, request, sources, cancel, &wgpu::Texture) runs the same admission/prepare/budgets/chunk passes and, per finished chunk, one compute pass encodes straight-alpha linear RGBA f32 into an Rgba8Unorm storage texture (sRGB IEC 61966-2-1, gamma-space premultiplied 8-bit = egui texture convention) at the chunk position: no staging copy, no map, no TileSink (GpuStats.bytes_read_back = 0); target refusals (format != Rgba8Unorm, not 2D, multisampled, no STORAGE_BINDING, smaller than the plan extent) = Backend(Sink(Rejected)) before any device work; backend() exposes the same device through the read-back TileSink path; re-exports SharedDevice, TARGET_FORMAT, SHARED_DESCRIPTOR",
+  "harness feature desktop enables render-gpu/shared-device: view::render::GpuDisplay trait + render_to (display first when prefer GPU, note gpu_shared_fallback and read-back path on refusal); view::display::WgpuDisplay over eframe's egui_wgpu::RenderState: texture created/re-created only on size change, registered once with egui's renderer (update_egui_texture_from_wgpu_texture on resize, same TextureId), Frame.backend gpu-shared with Frame.texture and empty rgba8; canvas draws the id with no upload; Viewer::set_display (drops the own render-gpu device), Viewer::status_line; export re-renders display-only frames on the read-back path (render-cpu); state_json frame.display_texture; binary installs WgpuDisplay from CreationContext.wgpu_render_state (status line names the adapter)"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-render-gpu --features shared-device --no-fail-fast -E 'binary(shared_device) | test(no_wgpu_types_in_public_api)' ; cargo nextest run -p hsk-studio-harness --features desktop --no-fail-fast -E 'binary(viewer_shared_display) | binary(viewer_headless) | binary(viewer_export)'",
+  "exit": 0,
+  "sha": "2bc4120",
+  "passed": 9,
+  "failed": 0,
+  "names": [
+   "render-gpu shared_device shared_device_renders_into_the_callers_texture_without_readback (live adapter: max 8-bit diff 0 vs CPU display encoding of the read-back path; 6 chunks; 180 transparent + 60 partial-alpha pixels; bytes_read_back 0)",
+   "render-gpu shared_device shared_target_refusals_happen_before_device_work",
+   "render-gpu gpu_plan no_wgpu_types_in_public_api",
+   "harness viewer_shared_display viewer_renders_on_the_host_device_into_the_display_texture (headless egui-wgpu RenderState on a live adapter)",
+   "harness viewer_headless x3 and viewer_export x2 (regression, unchanged behaviour)"
+  ],
+  "clippy": "clippy -p hsk-studio-render-gpu --tests (default) and --features shared-device --tests: 0 render-gpu warnings; clippy -p hsk-studio-harness --tests --examples (default), --features viewer --tests, --features desktop --tests --bins: 0 harness warnings"
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "Validator: judge on 9ea8594 + 2bc4120. Steward first: .config/round-features.toml must add render-gpu feature set [\"shared-device\"] (or [\"test-faults\",\"shared-device\"]) and harness [\"desktop\"] so tests/shared_device.rs and tests/viewer_shared_display.rs compile in the round (both are #![cfg(feature)] gated and otherwise compile to nothing).",
+ "updated_at": "2026-10-14T21:39:30Z",
+ "notes": {
+  "outside_new_module": "Lead brief allowed only a new module + re-exports in render-gpu. Constructing a GpuContext/GpuBackend over a caller device and replacing the chunk read-back needs private items, so: (1) device.rs: info_of/buffer_cap factored out of acquire_with (same behaviour) and a #[cfg(feature = \"shared-device\")] pub(crate) GpuContext::from_external; (2) plan_sink.rs: the new module is its child (`pub mod shared;` so it can use GpuBackend::with_state/State/execute_inner/overflow), execute_inner and run gain an Option<&TextureOut> parameter (None from every existing caller), and run's chunk loop gains one 7-line early branch writing the chunk to the texture; (3) Cargo.toml feature shared-device = []. No operator/kernel/fx/ext/WGSL file touched. The plan_sink.rs diff was committed alone (no other lane had uncommitted render-gpu edits at commit time). Waiver requested (GLOBAL-SCOPE-005).",
+  "unverified": [
+   "window visual check (CX-SAFE-002: not launched; proof = headless egui-wgpu RenderState + texture read-back)",
+   "loss on a shared device: no callbacks installed; a host device loss surfaces as a wgpu error in the host, render-gpu cannot latch it (documented in SHARED_DESCRIPTOR)",
+   "Vulkan/Metal: only DX12 on this host (RTX 3090 per render-gpu lane notes; adapter name not printed by these tests)"
+  ],
+  "v4": "V4-01 shared.rs deny(arithmetic_side_effects); V4-03 GPU tests follow tests/gpu-proof.toml (no adapter = NOT_PROVEN fail, never green); V4-09 commit -F; V4-12 scratch under scratchpad/smb-shared-ui/",
+  "retry_guard": "no gameplan blocks"
+ }
+}
