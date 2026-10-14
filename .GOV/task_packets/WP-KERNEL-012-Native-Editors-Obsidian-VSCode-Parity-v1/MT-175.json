@@ -6508,11 +6508,13 @@
       "Kumihimo/product/kumihimo-egui/tests/adapter_contracts.rs",
       "Kumihimo/product/kumihimo-egui/tests/native_app_contracts.rs",
       "Kumihimo/product/kumihimo-egui/tests/manual_sample_contracts.rs",
-      "Kumihimo/product/kumihimo-egui/examples/native_probe.rs if required for genuine external-host proof",
+      "Kumihimo/product/kumihimo-egui/examples/native_probe.rs",
       "Kumihimo/README.md",
       "Kumihimo/product/README.md",
       "Kumihimo/product/INTERNAL-MANUAL.md",
-      "Kumihimo/product/Cargo.toml, Cargo.lock and kumihimo-egui/Cargo.toml only for required public-version/dependency binding"
+      "Kumihimo/product/Cargo.toml",
+      "Kumihimo/product/Cargo.lock",
+      "Kumihimo/product/kumihimo-egui/Cargo.toml"
     ],
     "asset_governance": "Team reads original asset authority/session/maintenance contracts, coordinates current component owner01a13753-c445-7060-85bf-3453ec40f581, and authors the bounded standalone_source WP/MT, affected spec/API and proof/state under Kumihimo/repo-governance. Retain existing unrelated work/owner state. No kernel writes by this team.",
     "bounded_source_lease_resolution": "Operator's explicit assignment grants team01a13bc6 the exact source10 API/theme work even when the prior asset-owner chat cannot be reached. Record the failed coordination attempt and bounded lease in the new asset work contract; preserve the original session owner and unrelated active WP ownership/status. Verify current original source/remote base and local path cleanliness before writes, coordinate reachable peers, and reconcile any actual concurrent source drift before publication. Do not claim the old owner stopped, overwrite its whole session or widen this lease.",
@@ -6524,7 +6526,7 @@
       "shared_test_ownership": "Leader allocates each actual test file to one writer; worker test files above are responsibility candidates, never overlapping live leases",
       "independent_evaluation": "Useful separate affected evaluator selected by leader; original source proof/publication gates retained"
     },
-    "minimum_controls": ["Preserve genuine Ready provenance and nonce/root/identity/generation/epoch/HWND/size/scale/bytes checks; no public unvalidated receipt constructor or fake-native readiness", "Expose reusable theme hooks rather than Handshake-specific shared rendering", "One writer per source group; leader owns integration and explicit-path Git; preserve all sibling Assets edited/untracked bytes and concurrent remote work", "Public API compatibility/version and documented host boundary; no automatic runner replacement or conditional geometry expansion without exact evidenced admission"],
+    "minimum_controls": ["Preserve genuine Ready provenance and nonce/root/identity/generation/epoch/HWND/size/scale/bytes checks; no public unvalidated receipt constructor or fake-native readiness", "Expose reusable theme hooks rather than Handshake-specific shared rendering", "One writer per source group; leader owns integration and explicit-path Git; preserve all sibling Assets edited/untracked bytes and concurrent remote work", "Public API compatibility/version and documented host boundary; manifests/lock change only for necessary public-version or dependency binding; no automatic runner replacement or conditional geometry expansion without exact evidenced admission"],
     "proof": "Run affected owning source/contract tests and required genuine quiet native readiness/capture/negative validation against the bounded asset contract; independent affected review and actual opened pixels for changed visual behavior. Resolve actual runnable commands from current asset authority, never historical labels. Preserve original standalone WP-KUM-012 obligations and original host acceptance separately.",
     "shared_compiler_control": "Source work may proceed outside the captured7416 Handshake files. Before any Cargo/build/test reserve sole physical-disk compiler ownership with primary01a139f5-dc34-7af3-a3ed-e486ec461fb9; no simultaneous worker compiler, foreign process stop or competing target/profile. Handshake original CORE proof remains separate.",
     "publication_gate": "Commit only owned Kumihimo source/governance paths, normally push to original Assets codex/handpick, and independently reread GitHub exact immutable revision containing the changes and source proof. Local commit or local receipt alone is insufficient. Preserve remote work; no force/reset/stash or sibling edits in the commit.",
