@@ -1,0 +1,33 @@
+{
+  "crate": "hsk-studio-render-gpu",
+  "lane": "SMB-RENDER-GPU-PROBE",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "probe-capture",
+  "commits": [
+    {
+      "sha": "e659533692933930e9b9c9b9d4b3d4ad6ad9ee94",
+      "subject": "render-gpu probe: capture opt-out NOT_PROVEN line instead of printing it (gate_with)"
+    }
+  ],
+  "capabilities_done": [
+    "regression probe asserts the opt-out NOT_PROVEN line via captured emit (gate_with); gate() prints as before"
+  ],
+  "tests": {
+    "argv": "cargo nextest run -p hsk-studio-render-gpu --test gpu_plan no_adapter_is_not_a_green --no-capture",
+    "exit": 0,
+    "sha": "e659533692933930e9b9c9b9d4b3d4ad6ad9ee94",
+    "passed": 1,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "validator round; no further builder work",
+  "updated_at": "2026-10-14T15:28:01Z",
+  "notes": {
+    "check": "cargo check -p hsk-studio-render-gpu --tests ok; clippy --tests ok for render-gpu (warnings only in hsk-studio-observe)",
+    "strict_gate": "unchanged: strict=true still Err(NOT_PROVEN: no adapter...) asserted in same test",
+    "output": "test run printed no NOT_PROVEN line",
+    "adapter": "probe uses forced no-adapter backend; no real adapter exercised"
+  }
+}

@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-14T15:20:10Z",
+ "updated_at": "2026-10-14T15:28:24Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -362,8 +362,8 @@
    "lane_id": "SMB-RENDER-GPU",
    "crate": "hsk-studio-render-gpu",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-render-gpu",
-   "phase": "D20 4th verdict: judge at current render-gpu tree with SMB-RENDER-GPU-PROBE",
-   "status": null,
+   "phase": "validation (D20 4th verdict at current render-gpu tree incl. a6ac630 2aeeeba ba3e47d cdd0644 e659533)",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-render-gpu",
    "brief": "builders/briefs/hsk-studio-render-gpu.md",
    "commits": [
@@ -2111,8 +2111,8 @@
    "crate": "hsk-studio-render-gpu",
    "origin": "architect SMB-PIGMENT-ENG-2 (diagnostics/adjustments-advanced-blending.md)",
    "scope": "brief builders/briefs/lane-render-gpu-adjustments.md",
-   "phase": "D20 4th verdict: judge at current render-gpu tree with SMB-RENDER-GPU-PROBE",
-   "status": null,
+   "phase": "validation (D20 4th verdict at current render-gpu tree incl. a6ac630 2aeeeba ba3e47d cdd0644 e659533)",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-render-gpu-3",
    "commits": [
     "c5bd9be",
@@ -2772,11 +2772,14 @@
    "crate": "hsk-studio-render-gpu",
    "origin": "R7: SMB-RENDER-GPU's no-adapter regression probe prints NOT_PROVEN while testing the opt-out, so every round including render-gpu exits 73",
    "scope": "probe tests the opt-out path without emitting the round marker (capture/assert instead of print), keeping real NOT_PROVEN reporting unchanged",
-   "phase": "queued (D20 decided 2026-10-14: un-held)",
-   "status": null,
-   "owner": null,
-   "commits": [],
-   "verdicts": []
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
+   "owner": "builder-render-gpu-probe-20261014",
+   "commits": [
+    "e659533"
+   ],
+   "verdicts": [],
+   "lane_file": "builders/lanes/hsk-studio-render-gpu-probe.json"
   },
   {
    "lane_id": "SMB-PIGMENT-ADMIT-PARITY",
