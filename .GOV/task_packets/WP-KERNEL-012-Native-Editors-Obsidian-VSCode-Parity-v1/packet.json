@@ -6646,6 +6646,19 @@
         "requirement": "After stable assembly perform one scoped affected-risk review, remediate batch findings, collect all actual diagnostics and explicit NOT_REACHED/NOT_ASSESSED targets; no review-of-review or unchanged repeated checks"
       }
     ],
-    "remaining_original_acceptance": "MT171-175 accepted0/5; native original7argv, genuine deployment/auth, MT185 real publication/canonical reread/FR, R2 persistence/privacy, GUI/multiwindow/manual/HBR and MT188 actual main positive/negative proof remain OPEN"
+    "remaining_original_acceptance": "MT171-175 accepted0/5; native original7argv, genuine deployment/auth, MT185 real publication/canonical reread/FR, R2 persistence/privacy, GUI/multiwindow/manual/HBR and MT188 actual main positive/negative proof remain OPEN",
+    "cloud_mutation_authority_disposition": {
+      "id": "WP012-SUCCESSOR-CLOUD-AUTH-001",
+      "failure": "Cloud mutations cannot use only workspace read admission",
+      "spec_basis": [
+        "Pinned v02.206 2.3.13.12.3 law2/6/8 exact intended action/live authorization/default deny",
+        "Current api/authority.rs authorize_account_session account-owned surface contract",
+        "Current api/atelier.rs atelier_account maps read fs.read and mutations fs.write preserving intended ResourceAction"
+      ],
+      "decision": "Preserve exact actual current owner five-tuple and canonical workspace admission; add existing account-owned session authority fs.read/Read for providers and login poll, fs.write/Update for key PUT/login start/input/cancel, fs.write/Delete for key DELETE. Recheck genuine durable token/channel/live delegated capability before provider/session lookup and immediately before side effect and publication; account-isolated vault/registry only. No new capability, grant, wildcard, role expansion, global vault fallback or client-supplied owner authority",
+      "proof": "Original MT015 independent real auth/foreign-account/session/revocation/quiet/cloud main-detached assertions remain; no held-permit or race-free claim until runtime proof",
+      "source_owner": "01a139f6-2aa7-7b93-bc12-28f207a6909f /root/startup_authority",
+      "unresolved": "Existing first-run/deployment binding and same account-scoped runtime BYOK consumer remain open; do not substitute authenticated channel/HMAC for authorization"
+    }
   }
 }
