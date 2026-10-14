@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 696
+generation: 697
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -590,3 +590,4 @@ steps:
 - {id: GP-569, role: builder, at: before_dispatch, do: verify machine JSON captures are read and written as explicit UTF8 rather than Windows locale defaults, check: {type: confirm}, source: 'infra: native metadata postparse cp1252 failed on actual UTF8 JSON; same raw bytes reparsed, zero rerun', state: active}
 - {id: GP-570, role: any, at: before_verdict, do: verify current BASE and production catalog pins match independent unchanged engine measurements exactly, check: {type: confirm}, source: 'GLOBAL-GAMEPLAN005: preserve GP523 measured-pin proof at acceptance; stage06 compile precedes165 INFO', state: active}
 - {id: GP-571, role: builder, at: before_round, do: verify compile-only schema165 remains unmeasured failclosed; retain164 history and required realINFO pin confirmation, check: {type: confirm}, source: 'GLOBAL-GAMEPLAN005: stage06 admits compile before165 measurement; never claim unknown catalog measured', state: active}
+- {id: GP-572, role: builder, at: before_dispatch, do: verify validation stdout is nonempty structured JSON and retain full status before parsing or invoking outer, check: {type: confirm}, source: 'infra: read exit0 emptystdout JSON.parse failed before outer; underlying cause UNVERIFIED, no slot consumed', state: active}
