@@ -425,3 +425,4 @@ Open Operator decisions (not adopted; recorded for the Operator):
 - Lead decision 2026-10-15 (SMB-COMPOSITE-NEW-KINDS): edge composite -> nib and composite dep kurbo =0.13.1 [std] (already locked) approved; blur radius->sigma = r/2 convention accepted as Approximate (Photoshop/Figma UNVERIFIED, D5).
 - Lead 2026-10-15: retired STUDIO-MODULE-BUILD GP-027 (product test expectation, not a preparation/infrastructure failure; DISPATCH_TEMPLATES gameplan discipline).
 - Lead 2026-10-15: accepted composition id prefix SCOM (spec gives none; SCMP is components) and steward probe table limit 512->1024 (accesskit Linux closure).
+- R32 pre-review 2026-10-15: SMB-PRESS SAFE_TO_JUDGE (no regressions of its own claims; INFO: harness depends on press proposal since fcd53b8, so press changes re-open harness lanes under CX-VAL-009).

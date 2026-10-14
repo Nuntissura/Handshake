@@ -1,0 +1,74 @@
+{
+ "kind": "pre-review",
+ "scope": "narrow 1da2453..2fd94c7, crate hsk-studio-press only, judged against the claims of SMB-PRESS ITSELF (DESCRIPTOR: open, inspect/proposal, edit_entry, save_full, redact_region, redact_and_save(_with), sanitize_full_rewrite, verify_payload_absent(_unicode), MINIMAL DRAW SET / flattening proofs): regressions outside the scope of the two remediation lanes SMB-PRESS-PROPERTIES (9dd0fc7 32d4df3 45a3792 950fd85 5ad0c68 ad73e0c 8b11939 18ebacf) and SMB-PRESS-STRUCT-STRIP (ade85a0 13534f8 297c309 9a2c840 d43fd4e 2fd94c7)",
+ "head": "2fd94c7",
+ "base": "1da2453",
+ "head_note": "1da2453 = SMB-PRESS last PASS candidate (STUDIO-R22 PASS_V8). Product worktree wt-studio-assets HEAD 63af66e; the press crate is byte-equal between 2fd94c7 and HEAD (git diff --quiet 2fd94c7 HEAD -- handshake-studio-assets/crates/hsk-studio-press, exit 0). 1da2453..2fd94c7 touches only src/flatten.rs, src/flatten_purge.rs, src/lib.rs, src/pdf_edit.rs (one hunk: PdfDoc::inherited), src/sanitized_save.rs, tests/flatten_r13.rs (git diff --stat). Unchanged: writer.rs, reader.rs, syntax.rs, canon.rs, show_text.rs, redaction.rs, text_fields.rs, raster.rs, render_bounds.rs, filters.rs, Cargo.toml, examples/.",
+ "rule": "V4-13: SMB-PRESS has two failed verdicts (FAIL_V1 R5, FAIL_V2 R6) and was re-opened by CX-VAL-009 (STUDIO-R23 @2694b52, was PASS_V8 @1da2453). It may be judged only after a SAFE_TO_JUDGE pre-review of the diff since its last PASS. R26..R31 (validation/R26..R31-prereview-press-narrow.json) stand for what they covered (V4-18): the in-claim behaviour of the PROPERTIES and STRUCT-STRIP lanes; this file covers only effects of that diff on SMB-PRESS's own claims.",
+ "two_fail_lanes_reopened": [
+  {"lane": "SMB-PRESS", "verdicts": "FAIL_V1 R5, FAIL_V2 R6 (PASS_V3..PASS_V8 R13..R22)", "reopened_by": "hsk-studio-press changed 1da2453..2fd94c7 (14 commits of SMB-PRESS-PROPERTIES and SMB-PRESS-STRUCT-STRIP)", "covered_by": "lanes[0] below"}
+ ],
+ "reviewer": "independent read-only PRE-REVIEWER (V4-13), fresh context, wrote none of this code and none of the earlier pre-reviews. No product file edited, nothing committed, no process stopped, no sub-agents, no web request. Runs only on a scratch export with its own owner (V4-11): Handshake_Artifacts/WP-KERNEL-STUDIO/r32-prereview-press-lane (src = git archive 2fd94c7 handshake-studio-assets extracted with fresh mtimes (tar -m), commit tree a83a92746b880be1c55d1fb909cf334df99f5553, subtree 5c00be93232165ee8f869b6c687fda858f9f1195, 1043 files before the probe; STUDIO_OWNER=r32-prereview-press-lane, own target and tmp on D:; cargo only through builders/studio-env.sh with the leading cd first; Studio gameplan STUDIO-MODULE-BUILD check --at before_round PASS 3/3 before the run). One probe test file added to the scratch copy only: crates/hsk-studio-press/tests/r32_probe.rs (asserts nothing; prints 9 cases to r32-prereview-press-lane/probe-1.log; every saved file re-opened with PdfDoc::open). Suite log: r32-prereview-press-lane/suite-1.log.",
+ "severity_rule": "CONFIRMED = file:line read at 2fd94c7 and the behaviour follows from the code (reasoned), or observed in a run where marked (run); PLAUSIBLE = reasoning only, an untested sub-case, or an external fact not read; INFO = observation, no action required",
+ "recommendation_standard": "FIX_FIRST only for a CONFIRMED regression of an SMB-PRESS claim (its own DESCRIPTOR claims and its R22 test set) caused by 1da2453..2fd94c7; behaviour inside the PROPERTIES / STRUCT-STRIP claims is judged by R26..R31 and is not re-judged here",
+ "method": "Kernel reads: ledger.json lanes SMB-PRESS (claim, notes, verdicts, reopened), SMB-PRESS-PROPERTIES, SMB-PRESS-STRUCT-STRIP, SMB-PRESS-PG-HARDEN; builders/lanes/hsk-studio-press.json (capabilities_done, test names); validation/round-R22.json lanes SMB-PRESS (PASS_V8 note: 164/164 at 1da2453); R26..R31 pre-review scopes and findings; START_LOG D27, D28, DIAG-PRESS-R27/R28/R29, lead residual decisions 2026-10-14; builders/DISPATCH_TEMPLATES.md CARGO/TESTS; builders/studio-env.sh. Product: git diff 1da2453..2fd94c7 for the press crate (pdf_edit.rs, sanitized_save.rs, flatten.rs all hunks; tests/flatten_r13.rs every removed line); git grep of PdfDoc::inherited callers at 2fd94c7 (pdf_edit.rs:494-495 proposal, redaction.rs:1024 select_region, flatten.rs:291-292/438/621/672); show_text.rs:951-960 inherited_resources and canon.rs:453-460 resources_of (proof walker and canonical rewrite); sanitized_save.rs:1580-1665 (redact_and_save_opts call order and gates); flatten_purge.rs:1246-1250 (drop_painted_sources early return); test-name comparison 1da2453 vs 2fd94c7 (#[test] fn names: 164 -> 181, 0 removed, 17 added); dependants of the crate at 2fd94c7 (git grep). Run (scratch export, own owner): cargo nextest run -p hsk-studio-press --no-fail-fast, once: 182 tests run, 182 passed (181 product incl. every test of the R22 164-test set + r32_probe), exit 0; the run waited ~5 min on the disk build lock behind a steward run-round.",
+ "first_clock_reading": "2026-10-14T22:41:46Z",
+ "first_clock_reading_note": "first `date -u` reading, at the scratch export, after the kernel reads and the diff read, before the run",
+ "completed_at": "2026-10-14T22:48:19Z",
+ "status": "COMPLETE",
+ "lanes": [
+  {
+   "lane": "SMB-PRESS",
+   "crate": "hsk-studio-press",
+   "two_fail_lane_in_crate": "SMB-PRESS (R5 FAIL_V1, R6 FAIL_V2)",
+   "commits_checked": ["9dd0fc7", "32d4df3", "45a3792", "950fd85", "ade85a0", "5ad0c68", "13534f8", "297c309", "ad73e0c", "8b11939", "9a2c840", "18ebacf", "d43fd4e", "2fd94c7"],
+   "recommendation": "SAFE_TO_JUDGE",
+   "recommendation_note": "No CONFIRMED regression of an SMB-PRESS claim. Non-redaction paths are untouched: open, edit_entry, save_full (writer.rs and its reachability unchanged; the only pdf_edit.rs hunk is PdfDoc::inherited), sanitize_full_rewrite and verify_payload_absent(_unicode) (sanitized_save.rs:780/791/1730, no hunk). Both remediation mechanisms run only inside redact_and_save_opts and only when a page was flattened: strip_structure is gated by StructureTreePolicy::Strip && !flats.is_empty() (sanitized_save.rs:1614), the property-list purge returns at once without sources (flatten_purge.rs:1248), check_document applies structure rules only when flattening (:1651). A tagged document saved without redaction keeps tree, /MarkInfo, property lists and OCGs (run Q5). Every test of the R22 set (164) is present and green at 2fd94c7; the only pre-existing tests whose bodies changed are R21-R23 structure fixtures moved to the explicit opt-out KeepNotProven (same assertions), the descriptor needle test (D28 wording), and one MINIMAL DRAW SET row (R16, see R32-I2). The one cross-cutting change outside the lanes' redaction paths is PdfDoc::inherited reading a null-valued entry as absent (ad73e0c, R32-I1): it changes PdfDoc::proposal and PdfDoc::redact_region on files with null-valued inheritable entries, toward the reading the proof walker already used; no leak, no data loss observed (run Q1..Q4).",
+   "findings": [
+    {
+     "id": "R32-I1",
+     "severity": "INFO (run; behaviour change of SMB-PRESS's own inspect/proposal and redact_region outside the two lanes' redaction scope; no claim broken; ISO 32000 null-entry rule and pdf.js reading not re-read, UNVERIFIED)",
+     "file_line": "src/pdf_edit.rs:291-299 PdfDoc::inherited (ad73e0c, SMB-PRESS-PROPERTIES R27-P2); callers pdf_edit.rs:494-495 (proposal media_box, rotate), redaction.rs:1024 (select_region resources for redact_region), flatten.rs:291-292 (MediaBox/CropBox), :672 (Rotate)",
+     "input": "Q1: /Pages node 2 '/MediaBox [0 0 612 792] /Rotate 90 /Resources << /Font << /F1 6 0 R >> >>', page 3 '/Rotate null /MediaBox null /Resources null'. Q4: page 3 '/Resources null', content 'SECRET-ALPHA' in region R and 'KEPT-ONE' outside; PdfDoc::redact_region then save_full. Q3: region page '/MediaBox null'.",
+     "expected": "At 1da2453 (reasoned from the replaced lines): proposal media_box None and rotate 0 for page 3; redact_region interprets page 3 with no resources (fonts unresolved); flatten of a page with /MediaBox null refuses PageGeometry (rect_of(Some(Null)) = None).",
+     "observed": "probe-1.log Q1: page 0 media_box Some([0,0,612,792]) rotate 90 (inherited from the node). Q4: strings_removed 1, removed [SECRET-ALPHA], SECRET-ALPHA gone, KEPT-ONE kept, page 3 keeps '/Resources null'. Q3: flattened true residual 0, SECRET gone. Q2 (both pages /Resources null) and Q3b (/Resources 99 0 R missing): flattened true, residual 0, kept page 5 gets the node's /Resources explicitly (heir), KEPT-TWO kept. The new PdfDoc::inherited now matches show_text::inherited_resources (show_text.rs:951-960, unchanged, already skips non-dictionary values), so redact_region and the proof walker read the same resources; before, they could disagree (redact_region none, proof walker the node's).",
+     "repair_direction": "None required for SMB-PRESS. Note for the lead: the proposal values feed a dependant crate (hsk-studio-harness src/import/pdf.rs, import receipt media_box/rotate, SMB-CONVERT-NATIVE); R26 recorded 'no dependent crate' from the R24/R25 grep, but harness has depended on press since fcd53b8, so CX-VAL-009 dependant re-opening of harness lanes applies to the round validator (not a press finding)."
+    },
+    {
+     "id": "R32-I2",
+     "severity": "INFO (CONFIRMED by reading + run; MINIMAL DRAW SET claim row changed by 45a3792 in the PROPERTIES lane, toward dropping more; consistent with the DESCRIPTOR as now worded)",
+     "file_line": "tests/flatten_r13.rs painted_source_referenced_by_a_key_of_a_drawn_object_is_reported (R16 row 'undrawn form (/Properties) whose content draws it'); src/flatten_purge.rs PLR-104 gated /Properties category; lib.rs DESCRIPTOR redaction.flatten.purge",
+     "input": "R16 fixture: kept page two '/Resources << /Font << /F1 6 0 R >> /Properties << /P0 42 0 R >> >>', 42 = undrawn form whose content draws region image 10 (SCAN-PIXELS-SECRET), no BDC/DP names /P0.",
+     "expected": "At 1da2453: image 10 stays and is reported in painted_sources_kept (plain reference).",
+     "observed": "At 2fd94c7 the row asserts the image is dropped (its entry in the form's /XObject pruned), nothing reported, region_flattened true; passes in suite-1.log. The sibling row 'page two lists it in /Properties' (image named directly) still stays and is reported. Either way no source a viewer can draw on a kept page is lost and no region payload is kept silently; the DESCRIPTOR states /Properties as a gated category (PLR-104 clause).",
+     "repair_direction": "None required. The validator should read this row as an intended claim change of PLR-104, not a weakened SMB-PRESS assertion."
+    },
+    {
+     "id": "R32-I3",
+     "severity": "INFO (CONFIRMED by reading + run; default behaviour change of redact_and_save / redact_and_save_with by Operator decision D28)",
+     "file_line": "src/sanitized_save.rs:1510 redact_and_save_with -> redact_and_save_opts with StructureTreePolicy::default() = Strip; :1614 strip gate; :1664 losses",
+     "input": "Q6: the Q5 tagged document (StructTreeRoot, /MarkInfo, /StructParents, /Properties with /Alt, OCG), region on page 3.",
+     "expected": "D28: tree unlinked, typed loss accessibility_tags_removed, kept page untouched.",
+     "observed": "probe-1.log Q6: flattened true residual 0 losses [AccessibilityTagsRemoved], SECRET gone, KEPT-TWO kept, page 5 dictionary unchanged apart from the D27 explicit inherited keys. The R21-R23 tagged-document tests (STRUCTURE TREE = NOT PROVEN) now call the explicit opt-out and pass unchanged; the old guarantee holds under KeepNotProven.",
+     "repair_direction": "None (Operator decision)."
+    }
+   ],
+   "checks": {
+    "non_redaction_saves": "save_full: pdf_edit.rs:436 and writer.rs unchanged (diff stat); reachability-only rewrite unchanged; Q5 run: a tagged file with /StructTreeRoot, /MarkInfo, inline property list /Alt and /OCProperties keeps all of them after save_full and re-opens. sanitize_full_rewrite (sanitized_save.rs:1730) and verify_payload_absent(_unicode) (:780, :791): no hunk. edit_entry: no hunk, does not call inherited.",
+    "remediation_gates": "strip_structure only with Strip and at least one flattened page (sanitized_save.rs:1614); a save with no region strips nothing (R22 test structure_rules_apply_only_when_a_region_is_flattened green); drop_painted_sources returns Purged::default() without sources (flatten_purge.rs:1248), property_residual starts the residual (:1643) only in redact_and_save_opts. Unlink-only strip deletes no object (DIAG-PRESS-R27), so the writer's reachability can only drop what nothing kept reaches.",
+    "r22_test_set": "164 #[test] names at 1da2453 all present at 2fd94c7 (0 removed, 17 added); all green in suite-1.log (182/182 incl. probe). Pre-existing bodies changed only in flatten_r13.rs: structure fixtures moved to redact_keeping_tags (KeepNotProven, same assertions), descriptor_states_the_structure_tree_rule needles (D28 wording), R16 /Properties row (R32-I2).",
+    "proof_consistency": "show_text::inherited_resources and canon::resources_of (unchanged) already read a non-dictionary /Resources as absent; PdfDoc::inherited now does the same for null, so the selector and the proof read the same fonts (R32-I1).",
+    "dependants": "hsk-studio-harness (src/import/pdf.rs) uses PdfDoc::open and PdfDoc::proposal (media_box, rotate, content_streams, annotations) - affected only by R32-I1 for null-valued entries; workspace-probe.rs lists the crate. Not an SMB-PRESS claim."
+   }
+  }
+ ],
+ "prior_findings_rechecked": [
+  "R26..R31 findings are not re-judged (V4-18); their product tests are green at 2fd94c7 (run). R31-P1 (PLAUSIBLE, queued as SMB-PRESS-PG-HARDEN) lies inside the STRUCT-STRIP claim exclusion and does not touch an SMB-PRESS claim."
+ ],
+ "process_notes": [
+  "V4-18: this file covers 1da2453..2fd94c7 for SMB-PRESS's own claims only.",
+  "Gameplan: Studio gameplan STUDIO-MODULE-BUILD check --at before_round PASS 3/3 before the one cargo command; leading cd first, studio-env.sh sourced with STUDIO_OWNER=r32-prereview-press-lane; no hook block, no retry-guard record.",
+  "Scratch export left for the lead to remove: Handshake_Artifacts/WP-KERNEL-STUDIO/r32-prereview-press-lane (src, target, tmp, suite-1.log, probe-1.log; probe test only in the scratch copy: src/handshake-studio-assets/crates/hsk-studio-press/tests/r32_probe.rs).",
+  "No product file edited, nothing committed, no process stopped; this file is not committed (the lead commits)."
+ ]
+}
