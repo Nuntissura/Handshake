@@ -183,6 +183,25 @@
     "round_ref": "validation/round-R24.json",
     "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R24",
     "recorded_at": "2026-10-14T18:31:51Z"
+   },
+   {
+    "decision": "passed",
+    "verdict": "PASS_V5",
+    "failures": [],
+    "remediation": null,
+    "blocker": null,
+    "not_proven": [
+     "harness ignored psd_tools_sweep_shard_3 TIMEOUT 120.054 s (per-test cap; shards 0,1,2,4,5 passed 37-71 s; shard 3 = 52 files 11.2 MB incl. CMYK; cause UNVERIFIED)"
+    ],
+    "note": "reopened; harness default 7/7, import-psd 10, import-psd+import-raw 10, import-tiff 13 passed. Sweep shard 3 TIMEOUT belongs to SMB-CONVERT-NATIVE claim",
+    "idempotency_key": "STUDIO-R25:SMB-HARNESS:d48bc301bff0:PASS_V5",
+    "round": "STUDIO-R25",
+    "lane": "SMB-HARNESS",
+    "candidate": "d48bc301bff07a25da20a6cf6b11d84b8fbf197f",
+    "tree": "0a55d878183b3ba377d42f6547d1ca50a20228b2",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R25",
+    "started_at": "2026-10-14T20:12:28Z",
+    "completed_at": "2026-10-14T20:53:21Z"
    }
   ]
  }

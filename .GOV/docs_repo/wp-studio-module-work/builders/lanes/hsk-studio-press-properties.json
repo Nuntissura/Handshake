@@ -461,6 +461,25 @@
    ],
    "count_note": "13 git grep lines, 13 rows (plan_properties' ResAt::Old read uses `.and_then(old_resources)` without a call parenthesis, so the regex does not match it; unchanged)"
   },
-  "v4_07_r28": "New doc/DESCRIPTOR text (lib.rs PLR-104 sentence R28-P1 clause, flatten_purge.rs module docs and plan_properties comment, flatten.rs Flat::ancestor_resources and ancestor_values docs) uses no never/always/guarantee/proves (descriptor_states_the_structure_tree_rule checks the PLR-104 sentence); the clause cites ancestor_property_lists_of_a_flattened_page_are_counted (asserted cited and existing)."
+  "v4_07_r28": "New doc/DESCRIPTOR text (lib.rs PLR-104 sentence R28-P1 clause, flatten_purge.rs module docs and plan_properties comment, flatten.rs Flat::ancestor_resources and ancestor_values docs) uses no never/always/guarantee/proves (descriptor_states_the_structure_tree_rule checks the PLR-104 sentence); the clause cites ancestor_property_lists_of_a_flattened_page_are_counted (asserted cited and existing).",
+  "verdicts": [
+   {
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "blocker": null,
+    "not_proven": [],
+    "note": "R29 SAFE_TO_JUDGE at 18ebacf; press unchanged 18ebacf..d48bc30; press default 178/178 (lib 41, flatten_r13 58, flatten_redaction 9, pdf_delivery 70)",
+    "idempotency_key": "STUDIO-R25:SMB-PRESS-PROPERTIES:d48bc301bff0:PASS_V1",
+    "round": "STUDIO-R25",
+    "lane": "SMB-PRESS-PROPERTIES",
+    "candidate": "d48bc301bff07a25da20a6cf6b11d84b8fbf197f",
+    "tree": "0a55d878183b3ba377d42f6547d1ca50a20228b2",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R25",
+    "started_at": "2026-10-14T20:12:28Z",
+    "completed_at": "2026-10-14T20:53:21Z"
+   }
+  ]
  }
 }

@@ -97,6 +97,29 @@
     "round_ref": "validation/round-R24.json",
     "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R24",
     "recorded_at": "2026-10-14T18:31:51Z"
+   },
+   {
+    "decision": "inconclusive",
+    "verdict": null,
+    "failures": [],
+    "remediation": null,
+    "blocker": {
+     "kind": "round_config_gap",
+     "exact": "round-features.toml [crates] hsk-studio-harness lacks [\"import-pdf\"]; psd_tools_sweep_shard_3 exceeds the 120 s per-test cap",
+     "unblock": "steward adds harness [import-pdf] set; lane re-shards the sweep (tests/import_psd.rs:361 SHARDS=6) or diagnoses the slow file"
+    },
+    "not_proven": [
+     "harness ignored psd_tools_sweep_shard_3 TIMEOUT 120.054 s (per-test cap; shards 0,1,2,4,5 passed 37-71 s; shard 3 = 52 files 11.2 MB incl. CMYK; cause UNVERIFIED)"
+    ],
+    "note": "R24 remediation fcd53b8 (import-pdf: %PDF- carried, empty doc + original + receipt with pdf_pages_not_imported per page) read in diff and is real; its proof tests/import_pdf.rs is #![cfg(feature=\"import-pdf\")] and the round config (.config/round-features.toml) declares no harness import-pdf set, so it never built. Own sweep psd_tools_sweep_shard_3 TIMEOUT (120 s cap)",
+    "idempotency_key": "STUDIO-R25:SMB-CONVERT-NATIVE:d48bc301bff0:INCONCLUSIVE",
+    "round": "STUDIO-R25",
+    "lane": "SMB-CONVERT-NATIVE",
+    "candidate": "d48bc301bff07a25da20a6cf6b11d84b8fbf197f",
+    "tree": "0a55d878183b3ba377d42f6547d1ca50a20228b2",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R25",
+    "started_at": "2026-10-14T20:12:28Z",
+    "completed_at": "2026-10-14T20:53:21Z"
    }
   ],
   "remediation_R24": {

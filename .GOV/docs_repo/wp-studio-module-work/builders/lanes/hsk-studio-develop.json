@@ -912,5 +912,24 @@
   }
  ],
  "next": "after download approval: run real_dng ignored test (+ ExifTool oracle), fix any refusals; open R3 PLAUSIBLE LJPEG items (ljpeg.rs fill bytes / RST sequence + hand KATs; ljpeg.rs and tiff.rs are not under deny(arithmetic_side_effects) yet: V4-01 applies when they are touched); encoded (non-linear) profiles through the same job API (needs a decision on the linear_light tile contract); optional: finish() on aborted jobs (notes.develop_jobs.abort_policy); STU-CON-044: Operator decision whether Prism's 64-pixel chunking inside each band (provisional lead reading 07:19:59Z) is enough or the literal one admitted call per 64 pixels / spec enrichment is required; optional: AVX2/std::arch normalisation (skipped, see notes.simd_decision)",
- "updated_at": "2026-10-11T09:56:43Z"
+ "updated_at": "2026-10-11T09:56:43Z",
+ "verdicts": [
+  {
+   "decision": "passed",
+   "verdict": "PASS_V11",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "reopened (CX-VAL-009: crate or dependency closure changed f07f447..d48bc30); crate units green in R25",
+   "idempotency_key": "STUDIO-R25:SMB-DEVELOP:d48bc301bff0:PASS_V11",
+   "round": "STUDIO-R25",
+   "lane": "SMB-DEVELOP",
+   "candidate": "d48bc301bff07a25da20a6cf6b11d84b8fbf197f",
+   "tree": "0a55d878183b3ba377d42f6547d1ca50a20228b2",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R25",
+   "started_at": "2026-10-14T20:12:28Z",
+   "completed_at": "2026-10-14T20:53:21Z"
+  }
+ ]
 }

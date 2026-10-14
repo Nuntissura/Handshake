@@ -114,6 +114,25 @@
     "round_ref": "validation/round-R24.json",
     "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R24",
     "recorded_at": "2026-10-14T18:31:51Z"
+   },
+   {
+    "decision": "passed",
+    "verdict": "PASS_V2",
+    "failures": [],
+    "remediation": null,
+    "blocker": null,
+    "not_proven": [
+     "develop real_raw nef_d1h / arw_7s / cr2_350d cfa_samples_vs_independent_dng reason=no_approved_converter_run (decode ran, deterministic digests)"
+    ],
+    "note": "reopened; develop default 41/41 + ignored real_raw 4/4 ran",
+    "idempotency_key": "STUDIO-R25:SMB-DEVELOP-RAW-VENDOR:d48bc301bff0:PASS_V2",
+    "round": "STUDIO-R25",
+    "lane": "SMB-DEVELOP-RAW-VENDOR",
+    "candidate": "d48bc301bff07a25da20a6cf6b11d84b8fbf197f",
+    "tree": "0a55d878183b3ba377d42f6547d1ca50a20228b2",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R25",
+    "started_at": "2026-10-14T20:12:28Z",
+    "completed_at": "2026-10-14T20:53:21Z"
    }
   ]
  }

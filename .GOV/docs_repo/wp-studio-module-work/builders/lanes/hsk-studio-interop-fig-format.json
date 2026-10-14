@@ -33,6 +33,27 @@
     "decodes": "Kiwi census only: node type histogram, source ids (session:local), DOCUMENT roots, NodeChange field presence. Real node kinds present: basic-shapes ELLIPSE 4, ROUNDED_RECTANGLE 5, STAR, LINE, VECTOR, BOOLEAN_OPERATION, TEXT, FRAME 3, CANVAS 2; components SYMBOL 2, INSTANCE 3, VARIABLE 3, VARIABLE_SET 1, FRAME 3, TEXT 3; prototype FRAME 13, TEXT 14, ELLIPSE 3, SECTION 1, CANVAS 3 (prototypeInteractions on 3 nodes, prototypeStartingPoint 1). NOT decoded: tree, property values, instance overrides, variable values, prototype actions, blobs/geometry, images. Editable import NOT_PROVEN.",
     "variables": "fixtures have one variable mode only (plan limit); light/dark not representable",
     "fixtures_commit": "fixtures + provenance.json (sha256/size per file) in 8278915; Cargo.lock untouched; no new dependency",
-    "gameplan_route": "no hook block on cargo steps; no retries"
+    "gameplan_route": "no hook block on cargo steps; no retries",
+    "verdicts": [
+      {
+        "decision": "passed",
+        "verdict": "PASS_V1",
+        "failures": [],
+        "remediation": null,
+        "blocker": null,
+        "not_proven": [
+          "interop-fig fig_import actual_fig_instance_variable_prototype_edit_reopen x3 fixtures: editable import NOT_PROVEN (fig editable rows)"
+        ],
+        "note": "8278915: fig_import 8/8 on the 3 Operator .fig fixtures (container facts, 616-field pin, fig-diff unsupported); editable row NOT_PROVEN by design",
+        "idempotency_key": "STUDIO-R25:SMB-INTEROP-FIG-FORMAT:d48bc301bff0:PASS_V1",
+        "round": "STUDIO-R25",
+        "lane": "SMB-INTEROP-FIG-FORMAT",
+        "candidate": "d48bc301bff07a25da20a6cf6b11d84b8fbf197f",
+        "tree": "0a55d878183b3ba377d42f6547d1ca50a20228b2",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R25",
+        "started_at": "2026-10-14T20:12:28Z",
+        "completed_at": "2026-10-14T20:53:21Z"
+      }
+    ]
   }
 }

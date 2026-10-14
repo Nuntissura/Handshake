@@ -64,6 +64,28 @@
   "fixture_note": "the convert builder's hand-built 37724 fixture (MIB8 key + 8BIMLr16) is an envelope-only fixture: it now hits the LE refusal and keeps asserting the typed fallback (+ parse_error image_source_little_endian); a new big-endian 2-layer fixture proves layer import against interop-psd's PSD route (same names and tile digests)",
   "shared_tree": "at 19:02Z the edit tree held another lane's uncommitted hsk-studio-press WIP (flatten_purge.rs, tests/flatten_r13.rs) with E0308 at crates/hsk-studio-press/src/sanitized_save.rs:1612; harness builds with import-pdf fail until that lane commits; not touched",
   "v4_01": "new decoding module crates/hsk-studio-interop-psd/src/image_source.rs and harness src/import/tiff.rs carry #![deny(clippy::arithmetic_side_effects)]; V4-02 dims_u32_max/aggregate: image_source_refusals_are_typed covers u32::MAX dims, max_pixels and input budget",
-  "le_followup": "Coordinator request 2026-10-14: interop-psd parses LE MIB8/46B8 (import-only, 8-bit only; adjustment/fill/effect blocks are typed refusals). At 13588d3 (before 23f7c6d) two harness tests failed: import_tiff.rs:109 parse_error was psd_tagged_block_limit, :314 the Pillow sample imported its layers. The harness DESCRIPTOR not_proven entry tiff_photoshop_layer_records_little_endian is now stale; it is replaced in the next harness commit (SMB-HARNESS-UI)."
+  "le_followup": "Coordinator request 2026-10-14: interop-psd parses LE MIB8/46B8 (import-only, 8-bit only; adjustment/fill/effect blocks are typed refusals). At 13588d3 (before 23f7c6d) two harness tests failed: import_tiff.rs:109 parse_error was psd_tagged_block_limit, :314 the Pillow sample imported its layers. The harness DESCRIPTOR not_proven entry tiff_photoshop_layer_records_little_endian is now stale; it is replaced in the next harness commit (SMB-HARNESS-UI).",
+  "verdicts": [
+   {
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "blocker": null,
+    "not_proven": [
+     "harness import_tiff photoshop_tiff_imports_its_layers_through_interop_psd: real-Photoshop layered TIFF parity NOT_PROVEN (corpus sample little-endian, typed fallback)",
+     "with-import-raw branch of camera_raw_never_plain not built: round config has no harness import-tiff+import-raw unit"
+    ],
+    "note": "e0c3473 prism working_profile 1/1; 57df315 camera_raw_never_imports_as_plain_tiff_without_import_raw pass (synthetic DNGVersion/CFA + 4 sha-pinned corpus raws); 2e5f5fb interop-psd image_source 2/2 + photoshop_tiff_imports_its_layers_through_interop_psd pass; b57fc21 corpus case runs",
+    "idempotency_key": "STUDIO-R25:SMB-CONVERT-FOLLOWUPS:d48bc301bff0:PASS_V1",
+    "round": "STUDIO-R25",
+    "lane": "SMB-CONVERT-FOLLOWUPS",
+    "candidate": "d48bc301bff07a25da20a6cf6b11d84b8fbf197f",
+    "tree": "0a55d878183b3ba377d42f6547d1ca50a20228b2",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R25",
+    "started_at": "2026-10-14T20:12:28Z",
+    "completed_at": "2026-10-14T20:53:21Z"
+   }
+  ]
  }
 }

@@ -67,6 +67,32 @@
     "retry_guard": "no gameplan hook block occurred; no product compile failure needed a gameplan step",
     "dxva_parity": "RTX 3090 (Windows 11 26200): DXVA output byte-identical to the ffmpeg oracle on all 24 baseline frames (test mf_dxva_parity_with_software) and on 1080p (1088 coded, cropped) and 2160p Main 30-frame corpus clips (slice 4 probe, both paths exact). B-frame parity NOT_PROVEN (reorder refusal on both paths). Device loss mid-segment (TestDevice) not handled: a lost device surfaces as a typed decode error or deadline, then replay on a fresh worker.",
     "heartbeat_replay_tests": "mf_heartbeat_and_replay: first worker exits at packet 9 -> replay from IDR 0 on worker 2, 24/24 exact, indices 0..23 once each, stats (spawned 2, crashed 1, replays 1, replay_failed 0); ExitOnPacket every worker -> Crashed (replays 1, replay_failed 1, alive 0); HangOnPacket with batch 30 s, heartbeat 1 s, replay off -> Deadline in < 10 s, killed_heartbeat 1; RepeatHeartbeat -> Protocol, protocol_faults 1. New WorkerTestFault::RepeatHeartbeat (AV1 worker ignores it); first-worker-only fault passed as a worker argument (test-faults only).",
-    "ring_decision": "Threshold written before measuring (scratchpad ring-threshold.txt, ~19:37Z): build the shared-memory ring only if the fastest path delivers 2160p 4:2:0 8-bit through the pipe at < 30 fps AND the pipe is shown to be the limit. Measured (release build; a first debug-build run measured the test's own debug SHA-256, ~13 MB/s, discarded): 2160p software 32.1 fps -> threshold not met -> no ring. Finding: all four runs sit near 340-400 MB/s regardless of resolution and path, which suggests the pipe plus copies bound throughput; 2160p60 (746 MB/s) would need the ring (later lane). Probe source kept outside the repo (scratchpad zz_probe_throughput.rs.kept); corpus clips + provenance.json in Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/reel-h264/."
+    "ring_decision": "Threshold written before measuring (scratchpad ring-threshold.txt, ~19:37Z): build the shared-memory ring only if the fastest path delivers 2160p 4:2:0 8-bit through the pipe at < 30 fps AND the pipe is shown to be the limit. Measured (release build; a first debug-build run measured the test's own debug SHA-256, ~13 MB/s, discarded): 2160p software 32.1 fps -> threshold not met -> no ring. Finding: all four runs sit near 340-400 MB/s regardless of resolution and path, which suggests the pipe plus copies bound throughput; 2160p60 (746 MB/s) would need the ring (later lane). Probe source kept outside the repo (scratchpad zz_probe_throughput.rs.kept); corpus clips + provenance.json in Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/reel-h264/.",
+    "verdicts": [
+      {
+        "decision": "inconclusive",
+        "verdict": null,
+        "failures": [],
+        "remediation": null,
+        "blocker": {
+          "kind": "round_config_gap",
+          "exact": "round-features.toml [crates] hsk-studio-reel-native lacks [\"mf-worker\",\"test-faults\"]",
+          "unblock": "steward adds the mf-worker,test-faults set (Windows round host)"
+        },
+        "not_proven": [
+          "reel-native mf_worker/nv12/mf_host tests not built (no mf-worker unit)",
+          "B-frame parity (lane notes; SMB-REEL-BFRAME-ORDER after candidate)"
+        ],
+        "note": "P1 reel h264_config 4 unit tests pass in default/av1/prores units; slices 1-4 (MF worker, DXVA, heartbeat/replay, Main/High exactness) are proven only by tests/mf_worker.rs (required-features mf-worker,test-faults) and mf/nv12 unit tests (feature mf/mf-worker); round config declares no reel-native mf-worker set, so none built",
+        "idempotency_key": "STUDIO-R25:SMB-REEL-NATIVE-ENG-1:d48bc301bff0:INCONCLUSIVE",
+        "round": "STUDIO-R25",
+        "lane": "SMB-REEL-NATIVE-ENG-1",
+        "candidate": "d48bc301bff07a25da20a6cf6b11d84b8fbf197f",
+        "tree": "0a55d878183b3ba377d42f6547d1ca50a20228b2",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R25",
+        "started_at": "2026-10-14T20:12:28Z",
+        "completed_at": "2026-10-14T20:53:21Z"
+      }
+    ]
   }
 }

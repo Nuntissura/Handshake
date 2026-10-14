@@ -3,17 +3,51 @@
  "lane": "SMB-SESSION-IMPORT-ENTRIES",
  "status": "READY_FOR_VALIDATION",
  "phase": "session recognises package import entries",
- "commits": [{"sha": "306f894", "subject": "session (SMB-SESSION-IMPORT-ENTRIES): typed package import entries carried through open/save/checkpoint without loss notes"}],
+ "commits": [
+  {
+   "sha": "306f894",
+   "subject": "session (SMB-SESSION-IMPORT-ENTRIES): typed package import entries carried through open/save/checkpoint without loss notes"
+  }
+ ],
  "capabilities_done": [
   "load_parts classifies opaque import/<records|receipt|original>.<sha256> entries (grammar and digest checked) as typed ImportRef, no LossReason::Opaque note; unknown opaque and unlisted entries unchanged",
   "Session::imports(); SaveReceipt/Checkpoint gain imports_preserved, quarantined_preserved now excludes imports",
   "export_checkpoint re-read compares imports and the (name, sha256) set of quarantined entries, not just counts"
  ],
- "tests": {"argv": "cargo nextest run -p hsk-studio-session --test session_contract -E 'test(import_entries_round_trip) | test(export_checkpoint_is_verified) | test(lazy_failures_are_typed)'", "exit": 0, "sha": "306f894", "passed": 3, "failed": 0},
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-session --test session_contract -E 'test(import_entries_round_trip) | test(export_checkpoint_is_verified) | test(lazy_failures_are_typed)'",
+  "exit": 0,
+  "sha": "306f894",
+  "passed": 3,
+  "failed": 0
+ },
  "blockers": [],
  "lock_wait_s": 217,
  "bg_pids": [],
  "next": null,
  "updated_at": "2026-10-14T18:12:19Z",
- "notes": {"no_new_entrykind": true, "check_clippy": "check and clippy on hsk-studio-session --tests clean (only pre-existing observe too_many_arguments)", "cargo_lock": "left uncommitted"}
+ "notes": {
+  "no_new_entrykind": true,
+  "check_clippy": "check and clippy on hsk-studio-session --tests clean (only pre-existing observe too_many_arguments)",
+  "cargo_lock": "left uncommitted",
+  "verdicts": [
+   {
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "blocker": null,
+    "not_proven": [],
+    "note": "306f894: session_contract 20/20 incl. import_entries_round_trip_without_loss_notes_and_unknown_entries_still_report and export_checkpoint_is_verified_and_previews_follow_the_revision; diff read: grammar+digest check, imports apart from quarantined",
+    "idempotency_key": "STUDIO-R25:SMB-SESSION-IMPORT-ENTRIES:d48bc301bff0:PASS_V1",
+    "round": "STUDIO-R25",
+    "lane": "SMB-SESSION-IMPORT-ENTRIES",
+    "candidate": "d48bc301bff07a25da20a6cf6b11d84b8fbf197f",
+    "tree": "0a55d878183b3ba377d42f6547d1ca50a20228b2",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R25",
+    "started_at": "2026-10-14T20:12:28Z",
+    "completed_at": "2026-10-14T20:53:21Z"
+   }
+  ]
+ }
 }

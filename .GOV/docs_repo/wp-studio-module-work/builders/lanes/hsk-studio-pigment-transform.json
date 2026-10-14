@@ -1,0 +1,57 @@
+{
+ "crate": "hsk-studio-pigment",
+ "lane": "SMB-PIGMENT-TRANSFORM",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slices 1-4 pushed (c4ab1ff, 5df9d29, 32a7ba3 + cfe49f6, b643ec2): pigment operator + f64 reference, render-cpu execution, render-gpu WGSL resample pass, composite temporal lowering; final clippy over pigment, composite (+motion), render-cpu, render-gpu (+test-faults), develop, interop-psd --tests clean",
+ "commits": [
+  {
+   "sha": "c4ab1ff",
+   "subject": "pigment (SMB-PIGMENT-TRANSFORM slice 1): layer transform operator + binary64 reference resampler"
+  },
+  {
+   "sha": "5df9d29",
+   "subject": "render-cpu (SMB-PIGMENT-TRANSFORM slice 2): execute layer transforms with pigment's reference sampler"
+  },
+  {
+   "sha": "32a7ba3",
+   "subject": "render-gpu (SMB-PIGMENT-TRANSFORM slice 3): WGSL resample pass for layer transforms (also pigment SampleSite)"
+  },
+  {
+   "sha": "cfe49f6",
+   "subject": "render-gpu (SMB-PIGMENT-TRANSFORM slice 3): DESCRIPTOR transform entry with measured parity"
+  },
+  {
+   "sha": "b643ec2",
+   "subject": "composite (SMB-PIGMENT-TRANSFORM slice 4): temporal lowering maps resampling transforms to pigment's Transform operator"
+  }
+ ],
+ "capabilities_done": [
+  "slice 1 pigment transform_math: Affine2 (row-major 2x3 f64, source -> destination plan coords), ResampleFilter nearest_neighbour|bilinear|bicubic (STU-RAS-141 2|3|4; bicubic = Catmull-Rom, Keys a=-0.5), EdgeMode transparent|clamp, LayerTransform, PreparedTransform (validated inverse + destination bounds), sample_rgba / sample_coverage / resample_reference (binary64), SampleSite / sample_site (geometry half for backends); envelope LayerExtension.transform (tile layers only), ExtOperator::Transform(filter) keys transform_nearest_neighbour|transform_bilinear|transform_bicubic class approximate, PlanError TransformTarget|TransformMatrix|TransformLimit|TransformCombination",
+  "slice 2 render-cpu: transformed-tile nodes read per pixel by pigment sample_rgba (bytes = pigment reference for every chunking and thread count), linked mask via sample_coverage, Transform declared with pigment's class, defence-in-depth refusals with pigment PlanError values",
+  "slice 3 render-gpu: host sample sites (pigment sample_site, f64) + tile window upload, resample.wgsl (bilinear / Catmull-Rom weights, premultiplied accumulation, binary32) into the composite source buffer; linked masks resampled on the host by pigment; buffers charged before creation; max deviation vs pigment reference 1.79e-7 (tolerance 2e-6)",
+  "slice 4 composite temporal: fractional translation / scale / rotation / anchor -> FrameLowering.extensions LayerExtension.transform with the After Effects affine (anchor + translate + R S (x - anchor)); filter only when TemporalSource::resample_filter declares it (else transform_requires_resampling as before); anchor TemporalSource::layer_anchor (default tile centre); linked mask transformed; scale 0 hides; integer path unchanged, no envelope"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-pigment --test transform; -p hsk-studio-render-cpu (lib + 8 test binaries incl. cpu_transform); -p hsk-studio-render-gpu --test gpu_transform and --lib --test gpu_plan; -p hsk-studio-composite --features motion --test temporal --test temporal_transform --test static_plan and full default suite",
+  "exit": 0,
+  "sha": "b643ec2",
+  "passed": 15,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 27,
+ "bg_pids": [],
+ "next": "validator round on c4ab1ff..b643ec2 (lane commits listed above); follow-ups below",
+ "updated_at": "2026-10-14T21:00:10Z",
+ "notes": {
+  "transform_tests": "pigment transform 5/5 (c4ab1ff, rerun after 32a7ba3); render-cpu cpu_transform 4/4 (5df9d29, rerun after 32a7ba3) and regression lib+cpu_plan+cpu_extended+cpu_effects+cpu_effects_fx2+cpu_window+cpu_plan_limits+cpu_envelope_reach 42/42 incl. the 4; render-gpu gpu_transform 4/4 and gpu_plan+lib 24/24 on a live adapter (32a7ba3); composite temporal+temporal_transform+static_plan 12/12 with --features motion and full default suite 40/40 (b643ec2). The 15 lane tests = 5 + 4 + 4 + 2.",
+  "parity": "render-cpu = pigment reference bit for bit (to_bits) for every filter x edge across chunk/thread (1,1) (3,1) (5,4) (64,1) (4,8); render-gpu vs reference composited by pigment: max |delta| alpha / premultiplied / straight colour 5.96e-8 nearest, 1.19e-7 bilinear, 1.79e-7 bicubic clamp (worst); identity and integer translation GPU = untransformed GPU plan bit for bit; quarter turn exact texel copy",
+  "gpu_proof": "gate per tests/gpu-proof.toml (require_gpu = true): adapter present on this host (which adapter ran: NOT_INSPECTED in this lane; render-gpu lane notes record NVIDIA GeForce RTX 3090)",
+  "retry_guard_route": "route (a) once: the first gpu_transform run failed (WGSL reserved word filter -> shader_validation, typed pipeline failure caught by the gate); fix committed in 32a7ba3 (HEAD changed), then rerun green",
+  "outside_owned_paths": "composite src/lib.rs DESCRIPTOR (temporal + unsupported strings only), edited after fetch with no uncommitted text-lane changes in it and committed immediately in b643ec2; lead waiver requested (GLOBAL-SCOPE-005). No other path outside the four owned crates; the other lanes' render-cpu/render-gpu Cargo.toml and text_render tests were not touched.",
+  "cargo_lock": "not touched",
+  "spec_basis": "STU-RAS-141 (resampling enumeration, no silent default), STU-MOT-007 (resample_filter bilinear|bicubic); the spec names no cubic: Studio bicubic = Catmull-Rom; Photoshop/After Effects kernels UNVERIFIED -> class approximate",
+  "limits_and_followups": "1) no prefilter on minification (point-sampled kernel; aliasing below scale 1, Approximate); 2) render-gpu source window is sized by the largest transformed tile (a big tile with a small budget is BudgetExceeded); 3) refused combinations: transform + effects on one layer, transformed mask + feather, non-tile input; 4) composite: multi-tile raster layers refused transform_multi_tile_layer (per-tile resampling would seam), parenting chain not lowered, MotionTemporalSource declares no filter (motion-driven resampling stays refused until LayerProperties carries resample_filter/anchor); 5) After Effects / Photoshop parity NOT_PROVEN",
+  "v4": "V4-01 deny(arithmetic_side_effects) on transform_math (integer arithmetic checked); V4-02 bounds (|linear|, |inverse| <= 1024, |t| <= 2^24, bounds side <= 2^20) and aggregates (4096 transforms, 2^36 px per envelope, reference output 2^26 px) checked before allocation, tests hostile_matrices_and_combinations_are_refused_typed; V4-03 GPU tests gated; V4-09 commit messages via files"
+ }
+}
