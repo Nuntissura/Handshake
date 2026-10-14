@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-14T15:34:14Z",
+ "updated_at": "2026-10-14T15:42:16Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3430,22 +3430,29 @@
   {
    "lane_id": "SMB-ZIP-CONSOLIDATE",
    "crate": "hsk-studio-package",
-   "phase": "queued (Operator 2026-10-14)",
-   "status": null,
-   "owner": null,
-   "commits": [],
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
+   "owner": "builder-zip-20261014",
+   "commits": [
+    "d40526a",
+    "c3ca483",
+    "e7de0ae",
+    "6a15f6d"
+   ],
    "verdicts": [],
-   "note": "D16(a): package bounded non-canonical ZIP reader + single CRC-32; interop-layout/interop-fig/interop-vector consume; duplicates removed"
+   "note": "D16(a): package bounded non-canonical ZIP reader + single CRC-32; interop-layout/interop-fig/interop-vector consume; duplicates removed",
+   "lane_file": "builders/lanes/hsk-studio-zip-consolidate.json"
   },
   {
    "lane_id": "SMB-INTEROP-FIG-ZSTD",
    "crate": "hsk-studio-interop-fig",
-   "phase": "queued (Operator 2026-10-14)",
+   "phase": "no-op: zstd message decode already present at e09a491 (dep) / a3808f8 (decode + tests); closed without a claim",
    "status": null,
    "owner": null,
    "commits": [],
    "verdicts": [],
-   "note": "D17: zstd message-chunk inflation (pure Rust); fixtures from Operator pending"
+   "note": "D17: zstd message-chunk inflation (pure Rust); fixtures from Operator pending",
+   "lane_file": "builders/lanes/hsk-studio-interop-fig-zstd.json"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",

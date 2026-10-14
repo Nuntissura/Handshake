@@ -1,0 +1,19 @@
+{
+  "crate": "hsk-studio-interop-fig",
+  "lane": "SMB-INTEROP-FIG-ZSTD",
+  "status": null,
+  "phase": "already present at e09a491/a3808f8; no gap closed",
+  "commits": [],
+  "capabilities_done": [
+    "ruzstd =0.9.0 (std) already in Cargo.toml (not re-added)",
+    "kiwi.rs zstd_decode: magic 28 B5 2F FD detection, DEFLATE fallback, output bounded by max_message_bytes (BudgetExceeded message_bytes), first frame only, trailing bytes refused (a3808f8, deea33c)",
+    "tests/fig_import.rs: synthetic zstd message chunk (canvas_with_message), over-budget message_bytes refusal, zstd_trailing_bytes cases"
+  ],
+  "tests": {"argv": "cargo nextest run -p hsk-studio-interop-fig", "exit": 0, "sha": "e7de0ae", "passed": 5, "failed": 0},
+  "blockers": [],
+  "lock_wait_s": null,
+  "bg_pids": [],
+  "next": "Operator real .fig fixtures (D17)",
+  "updated_at": "2026-10-14T15:41:22Z",
+  "notes": {"already_present": "already present at e09a491 (dependency) / a3808f8 (zstd decode)"}
+}
