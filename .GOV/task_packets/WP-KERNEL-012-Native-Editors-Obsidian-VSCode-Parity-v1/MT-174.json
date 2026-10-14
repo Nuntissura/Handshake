@@ -8361,5 +8361,39 @@
     ],
     "packet_ref": "packet.json#/swarm_production_20261014"
   },
-  "active_swarm_source_lease_ref": "MT-174.json#/swarm_source_batch_20261014"
+  "active_swarm_source_lease_ref": "MT-174.json#/swarm_source_batch_20261014",
+  "swarm_direct_blocker_expansion_20261014": {
+    "decision_id": "WP012-SWARM-DIRECT-BLOCKER-EXPANSION-20261014-02",
+    "status": "SOURCE_IMPLEMENTATION_RELEASED",
+    "recorded_at_utc": "2026-10-14T14:43:07.874862+00:00",
+    "parent_ref": "packet.json#/swarm_production_20261014",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "decision_owner": "01a13ab5-bfe4-74b1-8fc3-64e691a76827",
+    "source_only": true,
+    "runtime_and_independent_acceptance_unchanged": true,
+    "next_action": "Exact owners implement now, publish source interfaces to mediator; primary completes same coherent batch before strategic proof",
+    "leases": [
+      {
+        "id": "WP012-SWARM-LIFECYCLE-PUBLICATION-001",
+        "mt": "MT-174",
+        "owner_chat": "01a13acf-a8bf-7ae1-92f3-9c5fffc5d385",
+        "worker": "/root/activation_interface",
+        "paths": [
+          "src/backend/handshake_core/src/swarm_orchestration/resource_scope.rs"
+        ],
+        "failure": "Existing authorize_association releases lifecycle read guard before primary router and activation ACK publication",
+        "deliverable": "Minimal existing registry with_authorized_association generic synchronous callback retains current active exact scope and original grant association read guard across publication; existing authorize_association delegates to it. No async, blocking, recursive registry access, new authority, or claim that in-memory lock proves canonical DB authorization",
+        "ownership_agreement": "Account and primary agree idle mediator activation_interface sole writer; no other active owner",
+        "controls": [
+          "Account acknowledge_with and primary publication closure consume same guard",
+          "Original durable re-resolve and full R2 revocation/expiry/cancellation/lost ACK proof remain independently required"
+        ],
+        "original_proof_refs": [
+          "packet.json#/auth_mapping_r2_adoption_20261011",
+          "MT-186.json#/proof"
+        ]
+      }
+    ],
+    "packet_ref": "packet.json#/swarm_direct_blocker_expansion_20261014"
+  }
 }

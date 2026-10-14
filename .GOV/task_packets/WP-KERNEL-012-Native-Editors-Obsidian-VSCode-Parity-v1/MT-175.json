@@ -6451,5 +6451,91 @@
     ],
     "packet_ref": "packet.json#/swarm_production_20261014"
   },
-  "active_swarm_source_lease_ref": "MT-175.json#/swarm_source_batch_20261014"
+  "active_swarm_source_lease_ref": "MT-175.json#/swarm_source_batch_20261014",
+  "swarm_direct_blocker_expansion_20261014": {
+    "decision_id": "WP012-SWARM-DIRECT-BLOCKER-EXPANSION-20261014-02",
+    "status": "SOURCE_IMPLEMENTATION_RELEASED",
+    "recorded_at_utc": "2026-10-14T14:43:07.874862+00:00",
+    "parent_ref": "packet.json#/swarm_production_20261014",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "decision_owner": "01a13ab5-bfe4-74b1-8fc3-64e691a76827",
+    "source_only": true,
+    "runtime_and_independent_acceptance_unchanged": true,
+    "next_action": "Exact owners implement now, publish source interfaces to mediator; primary completes same coherent batch before strategic proof",
+    "leases": [
+      {
+        "id": "WP012-SWARM-NATIVE-CORE-EDGE-001",
+        "mt": "MT-175",
+        "owner_chat": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+        "paths": [
+          "src/frontend/handshake_native/Cargo.toml",
+          "src/frontend/handshake_native/Cargo.lock"
+        ],
+        "failure": "Native production main now consumes canonical core lease but manifest has handshake_core only as dev dependency",
+        "deliverable": "Add existing same local core normal dependency default-features false runtime-full; retain dev runtime-full,test-utils. Lock change only if exact affected resolution requires it, no unrelated package/version/feature/source pin change",
+        "controls": [
+          "Primary sole manifest/lock writer and compiler",
+          "Preserve original locked native seven-argument proof and exact host profile/target/cap; no worker metadata/build/test"
+        ],
+        "original_proof_refs": [
+          "MT-175.json#/proof/checks/0",
+          "MT-186.json#/proof/native_compile_prerequisite"
+        ]
+      }
+    ],
+    "packet_ref": "packet.json#/swarm_direct_blocker_expansion_20261014"
+  },
+  "operator_decision_request_adopt_authority_20261014": {
+    "id": "WP012-ADOPT-AUTHORITY-DECISION-20261014",
+    "status": "UNRESOLVED_PRODUCT_AUTHORITY_MAPPING",
+    "recorded_at_utc": "2026-10-14T14:49:36.221378+00:00",
+    "blocked_item": "Protected ADOPT of the genuine native-owned existing watcher and guarded durable START/verifier registration",
+    "observed_authority": [
+      "diagnostics.read is explicitly Read only",
+      "fr.ingest.native_editor maps native editor FlightRecorder/Create receipts, not ProcessStart",
+      "proc.exec already canonical, but Operator profile excludes it and no exact process lifecycle resource/grant/action mapping is defined",
+      "ResourceKind lacks a process lifecycle type; process lifecycle table permissions are NONE; host internal writes do not authorize HTTP adoption"
+    ],
+    "source_refs": [
+      "src/backend/handshake_core/src/capabilities.rs:105",
+      "src/backend/handshake_core/src/capabilities.rs:218",
+      "src/backend/handshake_core/src/storage/surreal/resource_authority.rs:93",
+      "src/backend/handshake_core/src/api/palmistry.rs",
+      "src/backend/handshake_core/src/storage/surreal/schema.surql:1143"
+    ],
+    "spec_refs": [
+      "Pinnedv02.206 \u00a75.7.2 START/STOP duty",
+      "\u00a711.1 capability registry unknown deny",
+      "\u00a75.8.7 request authorization",
+      "ApprovedR2-006/007/008 exact live grant/resource/action and guarded commit/publication"
+    ],
+    "reviewable_proposal": {
+      "kind": "NON_AUTHORITATIVE_PENDING_OPERATOR_SPEC_APPROVAL",
+      "resource_kind": "Proposed PalmistryWatcher; resource ID is the original watcher UUID, parent canonical Workspace, server-derived account/Principal/session/Space/workspace",
+      "action": "Existing Reconcile, adoption of an already-owned watcher only, no spawning or ownership transfer",
+      "capability": "Proposed diagnostics.watcher.adopt_existing; a narrow dedicated permission rather than extending read/recorder ingestion or broad spawn authority",
+      "profile_and_grant": "Explicit eligible profile selected through approved policy; genuine persisted exact watcher grant with Reconcile, expiry/policy/revocation and delegated capability; no automatic grants or Operator profile widening",
+      "commit": "Atomically original five-ID/native-owned START, EventLedger and public verifier in same guarded transaction; live genuine grant/session/profile/policy checks at commit and publication; canonical same-UUID/timestamp reread on uncertain ACK",
+      "existing_mechanics": "Reuse authenticated protected-resource registration/grant APIs only via actual separately authorized user flow; adapt existing owned transaction guard, not unguarded root append",
+      "excluded": "No fake grant, credential, process state, default store, arbitrary proc.exec, unauthenticated legacy route or reduced original runtime proof",
+      "implementation_authority": "Operator explicit spec enrichment and narrow storage/process-ledger source contract admission required before this new mapping is implemented"
+    },
+    "excluded_substitutes": [
+      "diagnostics.read as write",
+      "recorder ingest as ProcessStart",
+      "unauthenticated legacy mount",
+      "synthetic grants/credentials/lifecycle records"
+    ],
+    "other_work": "Continue all other admitted coding and strategic compilation; only this mutation authority remains held",
+    "operator_decision": null,
+    "updated_at_utc": "2026-10-14T14:50:32.774209+00:00",
+    "earlier_proposal": {
+      "capability": "Existing proc.exec, no new capability ID",
+      "protected_resource": "Dedicated canonical account/Principal/session/Space/workspace-bound process lifecycle resource, limited to the already-owned signed native watcher and exact native/watcher OS generation",
+      "intended_actions": "Create initial START+verifier; Update only exact existing adoption reconciliation; no process spawn or arbitrary executable permission",
+      "profile_and_grant": "Explicit eligibility and genuine persisted scoped grant required; no automatic grants, client-supplied owner tuple or fixture authority",
+      "commit_boundary": "Same grant/profile/policy/live owner rechecked inside guarded START/verifier transaction and publication; expiry/revocation/foreign context/replay/lost ACK canonical reread required",
+      "spec_contract_path": "Explicit approved enrichment and exact source lease before implementing new resource/profile semantics; original full runtime assertions retained"
+    }
+  }
 }

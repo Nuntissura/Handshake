@@ -4,7 +4,7 @@
   "file_kind": "handoff",
   "version": 6,
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
-  "updated_at_utc": "2026-10-14T14:38:47.854930+00:00",
+  "updated_at_utc": "2026-10-14T14:43:07.874862+00:00",
   "status": "CORE_RETRY_INDEPENDENTLY_VERIFIED; SWARM_SOURCE_IMPLEMENTATION_RELEASED",
   "current_diagnostic_method_ref": "MT-186.json#/delegated_native_stage04_20261014",
   "current_source_checkpoint_ref": "MT-188.json#/successor_core_json_macro_checkpoint_20261014",
@@ -247,7 +247,8 @@
       "src/frontend/handshake_native/src/app.rs": "01a13ad0-09c7-7b63-82ca-8146aef24110",
       "src/frontend/handshake_native/src/main.rs": "01a13ad0-1d9e-76c2-ba80-f97e366be363",
       "src/backend/handshake_core/src/api/palmistry.rs": "01a13ad0-112c-7c51-9dac-b19da4d01c76"
-    }
+    },
+    "additional_source_lease_ref": "packet.json#/swarm_direct_blocker_expansion_20261014"
   },
   "proposed_adaptive_team": {
     "id": "WP012-V5-PROPOSAL-TEAM",

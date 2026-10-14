@@ -6925,5 +6925,57 @@
     ],
     "next_action": "SOURCE RELEASE EFFECTIVE: sameworkers implement exact ownedfiles now; mediator coordinates interfaces, primary integrates and meaningfulMTcheckpoint/Git; required stablebatch compiler/source review and independent originalruntime remain"
   },
-  "active_swarm_source_lease_ref": "packet.json#/swarm_production_20261014"
+  "active_swarm_source_lease_ref": "packet.json#/swarm_production_20261014",
+  "swarm_direct_blocker_expansion_20261014": {
+    "decision_id": "WP012-SWARM-DIRECT-BLOCKER-EXPANSION-20261014-02",
+    "status": "SOURCE_IMPLEMENTATION_RELEASED",
+    "recorded_at_utc": "2026-10-14T14:43:07.874862+00:00",
+    "parent_ref": "packet.json#/swarm_production_20261014",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "decision_owner": "01a13ab5-bfe4-74b1-8fc3-64e691a76827",
+    "leases": [
+      {
+        "id": "WP012-SWARM-LIFECYCLE-PUBLICATION-001",
+        "mt": "MT-174",
+        "owner_chat": "01a13acf-a8bf-7ae1-92f3-9c5fffc5d385",
+        "worker": "/root/activation_interface",
+        "paths": [
+          "src/backend/handshake_core/src/swarm_orchestration/resource_scope.rs"
+        ],
+        "failure": "Existing authorize_association releases lifecycle read guard before primary router and activation ACK publication",
+        "deliverable": "Minimal existing registry with_authorized_association generic synchronous callback retains current active exact scope and original grant association read guard across publication; existing authorize_association delegates to it. No async, blocking, recursive registry access, new authority, or claim that in-memory lock proves canonical DB authorization",
+        "ownership_agreement": "Account and primary agree idle mediator activation_interface sole writer; no other active owner",
+        "controls": [
+          "Account acknowledge_with and primary publication closure consume same guard",
+          "Original durable re-resolve and full R2 revocation/expiry/cancellation/lost ACK proof remain independently required"
+        ],
+        "original_proof_refs": [
+          "packet.json#/auth_mapping_r2_adoption_20261011",
+          "MT-186.json#/proof"
+        ]
+      },
+      {
+        "id": "WP012-SWARM-NATIVE-CORE-EDGE-001",
+        "mt": "MT-175",
+        "owner_chat": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+        "paths": [
+          "src/frontend/handshake_native/Cargo.toml",
+          "src/frontend/handshake_native/Cargo.lock"
+        ],
+        "failure": "Native production main now consumes canonical core lease but manifest has handshake_core only as dev dependency",
+        "deliverable": "Add existing same local core normal dependency default-features false runtime-full; retain dev runtime-full,test-utils. Lock change only if exact affected resolution requires it, no unrelated package/version/feature/source pin change",
+        "controls": [
+          "Primary sole manifest/lock writer and compiler",
+          "Preserve original locked native seven-argument proof and exact host profile/target/cap; no worker metadata/build/test"
+        ],
+        "original_proof_refs": [
+          "MT-175.json#/proof/checks/0",
+          "MT-186.json#/proof/native_compile_prerequisite"
+        ]
+      }
+    ],
+    "source_only": true,
+    "runtime_and_independent_acceptance_unchanged": true,
+    "next_action": "Exact owners implement now, publish source interfaces to mediator; primary completes same coherent batch before strategic proof"
+  }
 }
