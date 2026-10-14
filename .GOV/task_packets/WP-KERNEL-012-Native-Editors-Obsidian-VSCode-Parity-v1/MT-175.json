@@ -6808,5 +6808,153 @@
       "commit_boundary": "Same grant/profile/policy/live owner rechecked inside guarded START/verifier transaction and publication; expiry/revocation/foreign context/replay/lost ACK canonical reread required",
       "spec_contract_path": "Explicit approved enrichment and exact source lease before implementing new resource/profile semantics; original full runtime assertions retained"
     }
+  },
+  "parallel_runtime_boundary_repairs_20261014": {
+    "decision_id": "WP012-PARALLEL-RUNTIME-BOUNDARY-REPAIRS-20261014-15",
+    "status": "SOURCE_BATCH_RELEASED",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "owner_chat": "01a139f6-8cf0-7571-bab2-960a33d7cafa",
+    "integrator_chat": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+    "product_worktree": "../wtc-WP-KERNEL-012",
+    "source_base": {
+      "commit": "575997886285ede0442cc8b93bb69eed57d94e08",
+      "tree": "d09d95190432025bcafd5a8593c74eec7dbd401a"
+    },
+    "failure_basis": [
+      "Original consumed WP1 MT017 manual/search/navigation/resync/detached case is missing; existing navigation/search/pixels case does not prove the complete original boundary.",
+      "Two raw revision callers and two shared revision fields do not match existing expected_revision plus window_epoch.",
+      "Shared helper needs existing token/client_session_id participant mapping and persistent TCP disconnect/reconnect/fresh-snapshot evidence; argus.authenticate_agent is absent."
+    ],
+    "exclusive_paths": [
+      "src/frontend/handshake_native/tests/test_argus_production_socket_live_surfaces.rs",
+      "src/frontend/handshake_native/tests/test_argus_production_socket_live.rs",
+      "src/frontend/handshake_native/tests/argus_socket_support/live_socket.rs",
+      "src/frontend/handshake_native/tests/test_user_manual_pane_argus.rs"
+    ],
+    "deliverables": [
+      "Implement the missing original manual/search/navigation/recovery/detached production-socket case with genuine window/pixel/quiet assertions preserved.",
+      "Repair two raw revision callers and two shared fields to actual expected_revision plus window_epoch.",
+      "Consume existing native-owned token and validated client_session_id mapping; retain one persistent TCP connection and attributable disconnect/reconnect/freshsnapshot/IO evidence.",
+      "Within the same four paths, migrate all affected constructor, auth, transcript and provenance callers to existing SessionToken and validated client_session_id; preserve actual authority and durable participant continuity.",
+      "Migrate only the evidenced old authenticated_agent_id consumer in test_user_manual_pane_argus.rs to the observed_participant_id accessor; require the actual agent_id from a genuine successful queued-mutation receipt and fail explicitly before such a receipt exists."
+    ],
+    "minimum_controls": [
+      "GUI leader assigns disjoint writers/checker and coordinates existing consumers; preserve peer edits.",
+      "No nonexistent authenticate_agent call, Retry/resync rename, fabricated agent grant, store, session, token authority or successful receipt.",
+      "Participant mapping must match actual native-owned token and validated client_session_id. Unresolved authority mapping holds only that affected write and is routed through diagnostics/account before implementation; other admitted repairs continue.",
+      "Preserve stale revision/window incarnation, denied/malformed/revoked/recovery, detached isolation, original continuity, no-focus-steal and decoded production-pixel assertions.",
+      "Only these four test/helper paths; no backend/server, manifests, locks, schema, source pins, runtime stores or grants changed by this lease.",
+      "No compiler, runtime or test execution granted by this source admission.",
+      "Transport participant identity is distinct from Account five-ID authorization. No compatibility ID registry, participant-as-Account claim, new endpoint or capability.",
+      "No predicted participant ID, empty-string fallback or participant-as-Account substitution in the fourth existing caller; all other scope and authority guards remain unchanged."
+    ],
+    "coordination": {
+      "diagnostics_chat": "01a13ad0-112c-7c51-9dac-b19da4d01c76",
+      "runtime_chat": "01a139f6-2aa7-7b93-bc12-28f207a6909f",
+      "account_authority_chat": "01a13acc-56f9-7ee1-a6f9-4920504b7136",
+      "direction_route": "Root to central devleader; leader/mediator routes implementation and peer coordination."
+    },
+    "delivery_sequence": [
+      "Complete coherent admitted parallel source batch and scoped original-assertion mapping.",
+      "Run affected appropriate lint/static and dependency preflight; reuse unchanged valid locked resolver evidence.",
+      "Primary consolidates and checkpoint-commits/normally pushes the meaningful product batch.",
+      "Bind final candidate/source delta and caller14, then one required original native7 under remaining stage04 allowance/sole physical slot.",
+      "Record all actual failures and unreached targets; distribute disjoint evidenced repairs and consolidate before changed-candidate confirmation."
+    ],
+    "proof_refs": [
+      "MT-175.json#/proof/checks/0",
+      "MT-175.json#/proof/consumed_source_checks",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/scope/proof_commands/14",
+      "MT-186.json#/swarm_changed_source_compile_admission_20261014",
+      "MT-186.json#/delegated_native_stage04_20261014"
+    ],
+    "proof_reuse": "Independently verified CORE12 remains reusable only while relevant backend, dependencies, configuration and asserted behavior stay unchanged; four native test/helper edits require affected native proof, not another unchanged core run.",
+    "preserved": {
+      "lifecycle_unchanged": true,
+      "original_acceptance_and_pins_unchanged": true,
+      "new_compiler_allowance": false,
+      "native_stage04_consumed": 1,
+      "native_stage04_limit": 3,
+      "historical_native_failures": 13,
+      "metadata_capture_consumed": 1,
+      "metadata_capture_limit": 1,
+      "durable_host09_failure_unchanged": true,
+      "runtime_and_independent_acceptance_open": true
+    },
+    "recorded_at_utc": "2026-10-14T22:12:57.689895+00:00"
+  },
+  "signed_watcher_peer_rejection_repairs_20261015": {
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "status": "SOURCE_BATCH_RELEASED",
+    "product_worktree": "../wtc-WP-KERNEL-012",
+    "coordination": "Root releases through central devleader01a139f5-dc34-7af3-a3ed-e486ec461fb9; existing CODER_MEDIATOR01a13acf-a8bf-7ae1-92f3-9c5fffc5d385 allocates exclusive writers and named dependency checking. No worker Cargo or direct Root worker dispatch.",
+    "integrator_chat": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+    "preserved": {
+      "lifecycle_unchanged": true,
+      "original_acceptance_pins_budgets_history_unchanged": true,
+      "new_compiler_allowance": false,
+      "source_only": true,
+      "independent_runtime_proofs_remain_required": true
+    },
+    "decision_id": "WP012-SIGNED-WATCHER-PEER-REJECTION-20261015-16",
+    "owner_chat": "01a13acc-9793-7341-8255-c68d5eb8a17a",
+    "failure_basis": "Accepted-peer protocol rejection currently consumes the genuine listener-accept failure ceiling; repeated rejected peers must not disable valid Ping/Shutdown and child reap.",
+    "exclusive_paths": [
+      "src/frontend/palmistry/src/control.rs",
+      "src/frontend/palmistry/src/main.rs",
+      "src/frontend/palmistry/tests/test_lifecycle.rs"
+    ],
+    "deliverables": [
+      "Separate accepted-peer rejection from genuine listener accept failure counting; retain the genuine accept failure ceiling64.",
+      "Preserve executable repeated-rejection then genuine Ping/Shutdown/reap behavior in the existing lifecycle proof."
+    ],
+    "minimum_controls": [
+      "Preserve signed session and identity validation, one-second bound,16KiB framing, existing backoff and genuine listener failure ceiling64.",
+      "Rejected accepted peers remain denied; no forged success, new auth/session/grant, relaxed readiness, protocol or provenance.",
+      "One owner per source/test path; retain peer edits and original negative/positive lifecycle assertions. Source admission does not run proofs."
+    ],
+    "proof_refs": [
+      "MT-175.json#/proof/checks/0",
+      "MT-175.json#/proof/consumed_source_checks",
+      "MT-186.json#/swarm_changed_source_compile_admission_20261014"
+    ],
+    "next_actor": "Central devleader/mediator releases existing signedwatcher owner and checker; primary integrates coherent source, affected lint/dependencies and original native7 after stable batch and caller admission."
+  },
+  "workspace_activation_backend_down_repairs_20261015": {
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "status": "SOURCE_BATCH_RELEASED",
+    "product_worktree": "../wtc-WP-KERNEL-012",
+    "coordination": "Root releases through central devleader01a139f5-dc34-7af3-a3ed-e486ec461fb9; existing CODER_MEDIATOR01a13acf-a8bf-7ae1-92f3-9c5fffc5d385 allocates exclusive writers and named dependency checking. No worker Cargo or direct Root worker dispatch.",
+    "integrator_chat": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+    "preserved": {
+      "lifecycle_unchanged": true,
+      "original_acceptance_pins_budgets_history_unchanged": true,
+      "new_compiler_allowance": false,
+      "source_only": true,
+      "independent_runtime_proofs_remain_required": true
+    },
+    "decision_id": "WP012-WORKSPACE-ACTIVATION-BACKEND-DOWN-20261015-17",
+    "owner_chat": "01a13ad0-09c7-7b63-82ca-8146aef24110",
+    "failure_basis": "Actual backend-down transition can leave workspace activation generation/admission and MCP durability stale; protected activation early return requires health recheck.",
+    "exclusive_paths": [
+      "src/frontend/handshake_native/src/app.rs"
+    ],
+    "deliverables": [
+      "On actual backend-down edge invalidate workspace activation generation, workspace admission and MCP durability; retain genuine AuthContext and channel.",
+      "Recheck actual health before protected activation early return; preserve original UUID, pending/uncertain operation ownership and unsaved state."
+    ],
+    "minimum_controls": [
+      "Reachability never automatically readmits, logs in or replays an uncertain POST.",
+      "Original UUID survives the fence; do not mint replacement identity, fake success, grant, context or store, and do not clear pending/unsaved data.",
+      "Preserve canonical receipt reread, authority/session/revocation fences and full original durable recovery law; source fix does not close runtime acceptance.",
+      "Existing activation owner alone edits app.rs under central mediator coordination; retain all peer source changes."
+    ],
+    "proof_refs": [
+      "MT-175.json#/proof/checks/0",
+      "MT-175.json#/proof/consumed_source_checks",
+      "packet.json#/auth_mapping_r2_adoption_20261011/atomic_adopted_units",
+      "MT-186.json#/swarm_changed_source_compile_admission_20261014"
+    ],
+    "next_actor": "Central devleader/mediator releases existing activation owner and checker; diagnostics handles exact interface failures, primary integrates then original native7 on stable admitted inputs."
   }
 }

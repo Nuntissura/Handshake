@@ -4,8 +4,8 @@
   "file_kind": "handoff",
   "version": 6,
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
-  "updated_at_utc": "2026-10-14T20:57:38Z",
-  "status": "ORIGINAL_CARGO0_ALL485_ZERO_DRIFT; DURABLE_HOST_FAILED_CLOSED; RETAINED_EVIDENCE12_ADMITTED; ASSETS_KUMIHIMO1C9_PUBLISHED_UNVALIDATED; SERIAL_ASSET_PROOF13_ADMITTED",
+  "updated_at_utc": "2026-10-14T21:25:37Z",
+  "status": "ORIGINAL_CORE_CHECK_INDEPENDENTLY_VERIFIED_VIA_RETAINED12; DURABLE_HOST_FAILED_CLOSED; KERNEL_BOTH_DEVICES_MERGED_PUSHED; ASSETS_KUMIHIMO1C9_PUBLISHED_UNVALIDATED; SERIAL_ASSET_PROOF13_PHASE1_CLEARED",
   "current_diagnostic_method_ref": "MT-188.json#/swarm_changed_source_compile_admission_20261014/durable_caller_repair_admission_20261014",
   "current_source_checkpoint_ref": "MT-174.json#/swarm_p1_source_checkpoint_20261014",
   "current_product_candidate": "575997886285ede0442cc8b93bb69eed57d94e08",
@@ -16,7 +16,7 @@
   "current_stage_history": "Stage01 and02 independently exhausted3/3 each; ten cumulativeFAIL101 retained. Current25e1491c10path cloud/window batch failednative library on omitted5DTOimportgroup; reviewer acknowledged missedimportclosure and exactclaiminvalid pendingreproof. CW001-CW005 unchanged behavior review remains scopedsourceevidence, never compiler/runtime proof. Stage03 explicit0/3 additionalcontinuation with actualrestoredtype/importscopecensus and exactbackendclient importrepair. No resets. Backendmount/authlegacytest/windowGUI/durableHMAC/genuineauth/fullacceptance OPEN. Currentrefs supersede historical preparation prose.",
   "operator_request": "ok update handoff, apply repo changes. commit and push gov kernel, then wp kernel 012 with dirt. then restart work, give all teams the updated workflow and changes to repo governance before restarting.. i will also hand off every descicion to you.",
   "document_authorization": "Operator authorizes handoff/repo changes, kernel then product checkpoint/push and restart, all team briefing first, delegates technical decisions and direct-blocker scope expansion",
-  "plain_language_summary": "Finish original full WP012/CKC/WP1 acceptance. Product575 stays pushed/source-clear with runtime residuals. Original durable09 Cargo actually exited0/all485 targets/zero errors/zero source drift, but supervisor failed and wrapper numeric/Prax finalization are missing; SAMEIV independently closed all owned processes. Retain failed09 and earlier lostcheck02, no repeated green Cargo. Decision12 admits one original-log evidence acquisition only. Kumi source1c9 is normally published in original Assets/Kumihimo and independently read from GitHub; source readiness remains uncompiled/unproven. Decision13 permits primary to reserve its original serial resolver/compile/native/pixel proof batch. Final proven Assets publication precedes distinct Handshake adoption. Native and original full runtime acceptance remain open.",
+  "plain_language_summary": "Finish original full WP012/CKC/WP1 acceptance. Product575 stays pushed/source-clear with runtime residuals. Decision12 executed once0 and independently verifies the original CORE12 check: Cargo0/all485/no errors/unchanged bound inputs. Durable09 failed supervisor and missing historical host/wrapper exits remain preserved; no green Cargo repetition. Both devices gov_kernel histories were merged and normally pushed at4c0218e2d with exact dirty bytes retained and no new branches/worktrees/backup files. Kumi source1c9 is published in original Assets/Kumihimo and independently read from GitHub; source/native readiness remains unproved. Decision13 original serial proof batch is underway; phase1 fetch exited0 and primary independently cleared its narrow lock delta/owned closure. Final proven Assets publication precedes distinct Handshake adoption. Original native7 and full runtime acceptance remain open.",
   "authority_precedence": [
     "Live root AGENTS.md/CLAUDE.md and current Handshake Codex, subject to preserved WP pins and explicit Operator amendments",
     "Kernel Builder protocol, HANDSHAKE_BUILD_RULES.json and governing Master Spec bindings",
@@ -363,7 +363,73 @@
     "team_coordination_ref": "WP-KERNEL-012-phase02-successor-handoff-v6.json#/communication_roi_decision_20261014/team_proposals",
     "repair_loop": "Complete current original run and bind terminal/full diagnostics/target states/postinputs/owned closure; distribute all evidenced groups to useful team-selected swarms on exact admitted disjoint paths; coordinate interfaces, assemble all related fixes, freeze and run one necessary strategic compiler/test batch through existing owners; record every emitted failure and NOT_REACHED/NOT_ASSESSED, then repeat under retained history and evidenced changed-method decisions. Original independent runtime/WP acceptance remains required.",
     "coder_coordination": "Humanrequested coder mediator organizes implementation communication betweenleaders and reports to primaryproductdevlead. Leaders manage useful actualcoders and followups. Primary progress_gauge and workflow_assist are read-only thermometer/orchestration helpers, not extra sourcewriters. Rootretains kernel/sourceadmission; IV retains independent originalruntime/verdict.",
-    "checkpoint_policy": "Commit/push meaningful coherent MT/unit progress through sole primaryproductGit owner; governance explicitpaths through kernelowner. Bundle required tests/checks on stable inputs and reuse same approved warmtarget/cache, no perworkerCargo."
+    "checkpoint_policy": "Commit/push meaningful coherent MT/unit progress through sole primaryproductGit owner; governance explicitpaths through kernelowner. Bundle required tests/checks on stable inputs and reuse same approved warmtarget/cache, no perworkerCargo.",
+    "operator_swarm_workflow_20261014": {
+      "authority_ref": "packet.json#/swarm_production_20261014/coordination/operator_swarm_workflow_20261014",
+      "recorded_at_utc": "2026-10-14T22:12:57.689895+00:00",
+      "buddy": "/root/coordination_buddy",
+      "central_coding_route": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+      "diagnostic_route": "01a13ad0-112c-7c51-9dac-b19da4d01c76",
+      "dependency_checking": "Every coder team names responsibility; leaders use checker agents or useful specialists to prevent expensive failures without mandatory useless fanout.",
+      "swarm_liveness": "Each ten-minute tick verifies actual active/assigned helpers, disjoint tasks, concrete source/checker output and peer/specialist contact; chat activity or counts alone are insufficient.",
+      "implementation_loop": "Parallel admitted code, affected lint/dependency preflight, coherent primary checkpoint/push, one strategic compile, all actual failures/unreached targets retained, disjoint parallel repair, consolidate and repeat.",
+      "root_boundary": "Consult buddy before actions/messages; coding direction only through central leader; helpers advise Root; Root does not investigate code or micromanage workers.",
+      "scope_floor": "Entire retained WP012 MT/source/test/runtime backlog remains required. Current-file completion or one green compile does not complete implementation or independent acceptance.",
+      "source_release_refs": [
+        "MT-175.json#/parallel_runtime_boundary_repairs_20261014",
+        "MT-186.json#/swarm_changed_source_compile_admission_20261014/native_caller_preparation_repair_20261014",
+        "MT-175.json#/signed_watcher_peer_rejection_repairs_20261015",
+        "MT-175.json#/workspace_activation_backend_down_repairs_20261015"
+      ],
+      "freeze": "Only affected captured inputs freeze during Cargo; permitted independent disjoint work continues.",
+      "prohibitions": "No new branches, worktrees or backup files; no fake authority/proof or historical budget reset.",
+      "rules_015_022": {
+        "authority_ref": "packet.json#/swarm_production_20261014/coordination/operator_swarm_workflow_20261014/rules",
+        "rules": [
+          {
+            "id": "WP012-SWARM-COORD-015",
+            "requirement": "Existing CODER_MEDIATOR01a13acf-a8bf-7ae1-92f3-9c5fffc5d385 manages assignment, ownership, peer coordination and milestone reporting for ten coding teams under master devleader01a139f5-dc34-7af3-a3ed-e486ec461fb9."
+          },
+          {
+            "id": "WP012-SWARM-COORD-016",
+            "requirement": "The mediator selects useful management helpers to compare actual work with the existing handoff and remaining MT obligations."
+          },
+          {
+            "id": "WP012-SWARM-COORD-017",
+            "requirement": "Team leaders maintain useful working helpers and named working dependency-checking responsibility; use a checker agent when useful."
+          },
+          {
+            "id": "WP012-SWARM-COORD-018",
+            "requirement": "Relevant peers and specialists deliberate directly over actual interfaces and failures within existing exclusive ownership and admissions."
+          },
+          {
+            "id": "WP012-SWARM-COORD-019",
+            "requirement": "Run bounded changed-behavior adversarial checks before compile handoff and resolve findings; do not repeat unchanged reviews or audit loops."
+          },
+          {
+            "id": "WP012-SWARM-COORD-020",
+            "requirement": "Reassign idle or completed helpers to concrete remaining permitted work; escalate exact no-permitted-action blockers through master devleader and never fabricate work."
+          },
+          {
+            "id": "WP012-SWARM-COORD-021",
+            "requirement": "Every ten-minute check observes actual source/helper/checker work, process PID plus birth identity, numeric outcomes and closure; parallel admitted source and disjoint work continue outside active capture freeze."
+          },
+          {
+            "id": "WP012-SWARM-COORD-022",
+            "requirement": "Report operational milestones A ready interfaces/release, B coherent source plus lint/dependencies and bounded handoff, C primary original compile, D independent original acceptance to master devleader. Preserve original whole-WP milestones; A-D add no gate."
+          }
+        ],
+        "management_roster": {
+          "automation_id": "wp012-coding-teams-and-milestones",
+          "helpers": [
+            "team_dispatch_manager",
+            "milestone_contract_manager",
+            "activation_interface"
+          ],
+          "authority": "Roster only; no new authority role or permission."
+        }
+      }
+    }
   },
   "approval_state_and_proposal": {
     "current_state": "Four exact-one checks remain spent; pending fifth superseded by delegated native stage20261014. No routine technical approval required inside assigned stage.",
@@ -479,7 +545,7 @@
     "finding": "Productsupportslegitimatefirst-runsetup; currentcustomMT186newstore/firstOwner admissionban needs scopedrootdisposition. Startupcurrentlyrequires5IDs beforestorage whileproductsetup/loginneedsrunningbackend. Existingrealaccount API cancreate3IDs/login-sessionfour/authorizedworkspacefive; no manualfakeIDs/grants/fixture substitutes.",
     "next": "Resolve restrictedproductmanagedauthority setup/login startup anddeferredprotectedruntime againstactualsource state/owners beforewrites; preservedefaultdeny/currentcontext/same-heldsessionreopen andoriginalpublication."
   },
-  "current_core_terminal_ref": "MT-188.json#/swarm_core_retry_success_20261014",
+  "current_core_terminal_ref": "MT-188.json#/swarm_changed_source_compile_admission_20261014/durable_caller_repair_admission_20261014/retained_compiler_evidence_reconciliation_20261014/result",
   "current_core_continuation_ref": "MT-188.json#/operator_changed_host_retry_20261014",
   "communication_roi_decision_20261014": {
     "decision_id": "WP012-COMMUNICATION-ROI-20261014",
@@ -572,9 +638,9 @@
     "current_product_commit": "575997886285ede0442cc8b93bb69eed57d94e08",
     "current_product_tree": "d09d95190432025bcafd5a8593c74eec7dbd401a",
     "independent_source_disposition": "SOURCE_CLEAR_WITH_DECLARED_RUNTIME_RESIDUALS",
-    "compiler_runtime_status": "ORIGINAL_CARGO0_ALL485_ZERO_DRIFT; DURABLE09_OVERALL_NOT_ACCEPTED; native/runtime NOT_RUN on575; all original acceptance retained",
-    "next_action": "Preserve consumed09 failed supervisor, real Cargo0 and matched postbinding. Decision12: one distinct CreateNew retained-log Prax acquisition, no compiler repetition or invented missing exits. Independent evidence reconciliation follows. Decision13: primary reserves sole original Assets batch against published1c9/refreshed69 inputs; exact original target/profile/argv/gates, inspect necessary lock delta, actual native/dark/light/negative proof and normal GitHub publication before distinct host adoption. Original native7 and real schema165 INFO/pin confirmation remain required; no metadata rerun or fake auth/grants.",
-    "kernel_git": "Current locald2f2 recorded final original execution authority; normal push rejected a remote advance. Original run independently closed, permitting current exact terminal/evidence12/asset13 checkpoint and later preserved reconciliation. Standing approval permits only verified disjoint .GOV/docs_repo/wp-studio-module-work/ remote changes, fresh verified external bundle before each merge and normal push; no extra branches/worktrees/force/reset/stash. Confirmations remain unstaged. Preserve original captured d2f2/raw/config artifacts and never mutate new in-flight captured inputs.",
+    "compiler_runtime_status": "VERIFIED_ORIGINAL_CORE_CHECK_RETAINED_EVIDENCE on575 via decision12; DURABLE09_OVERALL_NOT_ACCEPTED; native/runtime NOT_RUN on575; all original acceptance retained",
+    "next_action": "Decision12 consumed1/1: retain independent compiler-only verdict/output1e1d577d and failed09 separately; no collector or green Cargo repetition. Decision13: primary independently cleared phase1 fetch0/narrow lock delta/owned closure, then prepares the next exact original Assets phase/current binding and sole slot. Continue actual native/dark/light/negative proof and canonical GitHub publication before distinct host adoption. Original native7 has2 remaining stage04 slots; prepare minimum evidenced changed-caller method/admission before release, preserving exact argv/profile/warm target and existing metadata. Real schema165 INFO/pin confirmation and full original runtime remain required; no fake auth/grants.",
+    "kernel_git": "Both local286746551 and other-device8c6515af1 histories are retained by merged4c0218e2d6ec0fa6eee5166bd77d39d4f57e233c. Verified disjoint4 local/77 remote changed paths, exact merged tree and dirty confirmation bytes; actual gate6/6, merge0, normal push0/fresh remote equality. Latest Operator instruction authorizes preserved gov_kernel reconciliation and forbids new branches/worktrees/backup files, overriding earlier snapshot requirements. Confirmations remain unstaged. Preserve immutable original d2f2/raw/config execution artifacts and all newly captured in-flight inputs.",
     "retained_evidence_ref": "MT-188.json#/swarm_changed_source_compile_admission_20261014/durable_caller_repair_admission_20261014/retained_compiler_evidence_reconciliation_20261014",
     "operator_mapping_question_ref": "MT-175.json#/operator_decision_request_adopt_authority_20261014",
     "source_of_truth": "This handoff is navigation; current typed contracts and actual evidence win."
@@ -630,5 +696,16 @@
     },
     "current_evidence_limits": "Actual original source10/11 implementation1c9e2a00833e52db7d21333fae9096e012d6b39c is normally published under Assets/Kumihimo,73 scoped paths/siblings preserved. Root independently opened GitHub native/Frame/producer source and verified canonical blob/tree identities against committed objects. Published implementation is explicitly UNCOMPILED/native NOT_RUN, not source acceptance. Refreshed69 input record7dea72/aggregate1328bd/prelock01041 binds serial proof13; primary alone grants actual physical slot after fresh asset bindings/resources/original gameplan. Actual changed GUI pixels NOT_INSPECTED. Final compile/native/pixel/independent source proof and canonical proven publication precede distinct host adoption. Newly discovered cross-asset index proposal is separate unapproved scope, not a new original source/publication gate. Original Handshake native/runtime/ADOPT-held/schema165 acceptance remains unchanged.",
     "normal_startup_ref": "MT-186.json#/normal_startup_coordination_correction_20261014"
+  },
+  "parallel_runtime_boundary_repairs_20261015": {
+    "source_admission_refs": [
+      "MT-175.json#/signed_watcher_peer_rejection_repairs_20261015",
+      "MT-175.json#/workspace_activation_backend_down_repairs_20261015"
+    ],
+    "gui15_ref": "MT-175.json#/parallel_runtime_boundary_repairs_20261014",
+    "gui15_scope": "Four exact test/helper paths retained; amendment2dde preserved.",
+    "caller14_ref": "MT-186.json#/swarm_changed_source_compile_admission_20261014/native_caller_preparation_repair_20261014",
+    "caller14_scope": "Three exact preparation paths retained; invocation HELD.",
+    "next_actor": "Central devleader routes admissions16/17 to existing signedwatcher/activation owners and mediator checker assignments; primary consolidates source plus lint/dependencies before original native7. Owning original runtime proofs remain separate."
   }
 }
