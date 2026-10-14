@@ -1,4 +1,23 @@
 {
+  "successor_core_json_macro_checkpoint_20261014": {
+    "status": "SOURCE_CHECKPOINT_PUSH_VERIFIED",
+    "commit": "139e4b7db83ffc56bf72f59cec3e8ea7c69fecc3",
+    "tree": "5f987622be9587282567858f1ba4b4618659d133",
+    "parent": "eba6c403773524e498629153e9c725f64b72a9bd",
+    "only_path": "src/backend/handshake_core/src/api/palmistry.rs",
+    "source_sha256": "bc6461a3d546708042aadbaabbf8dc9b013f71864aeb3848d9556a13cc04d2c0",
+    "checkpoint_sha256": "01362f06f68a95df0c5da2cb61099e791d3c756597b56352065709e6b0afabae",
+    "independent_reviewer": "01a139f6-ce6a-7b50-a058-dff3732ea4a2",
+    "source_review": "One changed macro preserves16JSON99 values and unchanged nonce-negative assertion; unchanged whole15file review reused",
+    "compiler": "NOT_RUN_ON_CHANGED_CANDIDATE",
+    "runtime": "NOT_RUN",
+    "core_stage_consumed": 1,
+    "core_stage_limit": 2,
+    "core_failures_retained": 39,
+    "native_stage_consumed": 1,
+    "native_stage_limit": 3,
+    "original_acceptance": "UNCHANGED_OPEN"
+  },
   "successor_core_json_macro_repair_20261014": {
     "id": "WP012-CORE-LIBTEST-JSON-REPAIR-20261014",
     "status": "SOURCE_REPAIR_RELEASED",
@@ -108,7 +127,7 @@
   },
   "successor_current_core_compile_stage_20261014": {
     "decision_id": "WP012-CURRENT-CORE-COMPILE-STAGE-20261014",
-    "status": "CHECK1_FAILED_REPAIR_CENSUS_REQUIRED",
+    "status": "CHECK1_FAILED_EXACT_REPAIR_PUSHED_CHECK2_CONFIRMATION_PENDING",
     "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
     "decision_owner": "01a139f3-b98c-7b61-b541-960ec3e048de",
     "source_failure": "Current backend main cloud factory and newly exported Palmistry module are changed; old MT184 proof cannot cover these input changes",
@@ -125,8 +144,8 @@
     "collector": "Reuse current installed original structured compiler collector only after validating current selected targets/features against actual manifest/config; missing census is NOT_ASSESSED, never assume old485 all targets from plaintext. Metadata not an automatic prerequisite; request exact necessary method if old graph invalid",
     "preserved": "Memory observation only,180GBcap175GBstop50GiBfloor/j1/Normal scheduling/actual target; original source/runtime/negative acceptance, no linked executable/test/runtime/first-run/auth/grant/provenance/foreign-process/topology action granted",
     "runtime": "NOT_AUTHORIZED_BY_THIS_DECISION; original MT188 production-main positive/negative selector remains unresolved",
-    "candidate_commit": "eba6c403773524e498629153e9c725f64b72a9bd",
-    "candidate_tree": "6edf1f190e308efb4eaac0d5af2ad27199a6d668",
+    "candidate_commit": "139e4b7db83ffc56bf72f59cec3e8ea7c69fecc3",
+    "candidate_tree": "5f987622be9587282567858f1ba4b4618659d133",
     "source_checkpoint_ref": "MT-175.json#/successor_connected_batch_checkpoint_20261014",
     "caller_conditions": {
       "tool": "Existing previously accepted pinned Praxidike collector only; runtime root supplied by existing machine-local caller config, no new installation",
