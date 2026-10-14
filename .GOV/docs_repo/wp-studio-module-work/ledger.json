@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-14T22:41:33Z",
+ "updated_at": "2026-10-14T22:42:32Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -4648,11 +4648,16 @@
   {
    "lane_id": "SMB-DEVELOP-CONTROLS",
    "crate": "hsk-studio-develop",
-   "status": null,
-   "commits": [],
+   "status": "READY_FOR_VALIDATION",
+   "commits": [
+    "d16f10d",
+    "ccc4a7c",
+    "b4f0107"
+   ],
    "verdicts": [],
    "note": "Basic panel controls, HSL/tone curve, local gradient/brush masks, develop-to-output for export",
-   "phase": "build (parity wave 2, brief builders/briefs/wave-parity-2-common.md)"
+   "phase": "validation",
+   "lane_file": "builders/lanes/hsk-studio-develop-controls.json"
   },
   {
    "lane_id": "SMB-NIB-VECTOR-RENDER",
@@ -4785,6 +4790,26 @@
    "commits": [],
    "verdicts": [],
    "note": "STU-RAS-143 MUST: native content-aware fill/move/patch (PatchMatch-style inpainting), deterministic, bounded"
+  },
+  {
+   "lane_id": "SMB-DEVELOP-CONTROLS-2",
+   "crate": "hsk-studio-develop",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-develop-controls-20261015",
+   "commits": [],
+   "verdicts": [],
+   "note": "absolute kelvin WB (STU-RAW-110), point colour, grayscale mix, colour grading (3-way), texture, dehaze, sharpening, luminance/colour noise reduction, range masks (luminance/colour)"
+  },
+  {
+   "lane_id": "SMB-HARNESS-DEVELOP-EXPORT",
+   "crate": "hsk-studio-harness",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "harness: open raw -> develop recipe sliders -> develop_to_output -> JPEG/PNG export (CLI + viewer); after SMB-HARNESS-UI-3"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
