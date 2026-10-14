@@ -705,7 +705,10 @@
       "src/frontend/handshake_native/tests/test_uia_steer_proof.rs",
       "src/frontend/handshake_native/tests/test_user_manual_pane_argus.rs",
       "src/frontend/handshake_native/tests/test_visual_interaction_proof.rs",
-      "src/frontend/handshake_native/tests/test_wp1_console_stream_pane_argus.rs"
+      "src/frontend/handshake_native/tests/test_wp1_console_stream_pane_argus.rs",
+      "src/frontend/handshake_native/src/diagnostics/recorder.rs",
+      "src/frontend/handshake_native/src/diagnostics/palmistry_launch.rs",
+      "src/backend/handshake_core/src/api/palmistry.rs"
     ],
     "forbidden_write_paths": [
       ".GOV/**",
@@ -2825,17 +2828,17 @@
   },
   "lifecycle": {
     "status": "BLOCKED",
-    "blocked_on": "Backend retirement135freeze independently SOURCE_CLEAR source-only; required next wholecore compiler proof pending. Auth R2 adoption/real authenticated lifecycle/full composer/runtime acceptance remains outstanding; latest completed Round28FAILED101 historical, no PASS/accepted0of5.",
+    "blocked_on": "Original exact seven-argument native compiler and genuine authenticated runtime/source acceptance unproven; diagnostic0 source evidence only",
     "depends_on": [
       "MT-174"
     ],
     "blocks": [],
     "active": true,
     "validator_verdict": null,
-    "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
+    "claimed_by": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
     "claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
     "completed_by": null,
-    "next_actor": "Delivery conditional ONE required wholecore after current final-backup/HEAD/input/absence/wrapper/gameplan/resource/profile/process gates; launch unobserved. Native owning predecessor unchanged. R2 concrete adoption question pending, proposal only."
+    "next_actor": "Fresh disjoint teams implement connected source batch; integrator assembles then one affected independent review and stable original native check"
   },
   "scope": {
     "summary": "Reconcile native import paths preserving current native host",
@@ -2949,7 +2952,10 @@
       "src/frontend/handshake_native/tests/test_uia_steer_proof.rs",
       "src/frontend/handshake_native/tests/test_user_manual_pane_argus.rs",
       "src/frontend/handshake_native/tests/test_visual_interaction_proof.rs",
-      "src/frontend/handshake_native/tests/test_wp1_console_stream_pane_argus.rs"
+      "src/frontend/handshake_native/tests/test_wp1_console_stream_pane_argus.rs",
+      "src/frontend/handshake_native/src/diagnostics/recorder.rs",
+      "src/frontend/handshake_native/src/diagnostics/palmistry_launch.rs",
+      "src/backend/handshake_core/src/api/palmistry.rs"
     ],
     "forbidden_paths": [
       ".GOV/**",
@@ -6121,5 +6127,106 @@
     "verdict": "SOURCE_CLEAR only; independent postcheckpoint canonical remote, clean status, sole lib export diff and all7416 reviewed input bytes exact",
     "root_reread": "Actual HEAD/tree/parent, live GitHub branch SHA, clean assigned worktree, committed one-line diff and source/checkpoint hashes independently verified",
     "limits": "No compiler/tests/metadata/runtime run on this checkpoint. Four FAIL101 exact-one approvals spent. InternalDiagnostics startup wiring, genuine deployment/auth admission, durable and multiwindow acceptance remain OPEN unchanged; no PASS or MT completion."
+  },
+  "successor_parallel_connected_batch_20261014": {
+    "decision_ref": "packet.json#/operator_successor_delivery_team_20261014",
+    "status": "SOURCE_BATCH_RELEASED",
+    "base_commit": "f724b8852f79d0ea6e2601ff6151c0522fa1be78",
+    "leases": [
+      {
+        "id": "WP012-SUCCESSOR-INTEGRATOR",
+        "owner_chat": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+        "mt": "MT-175",
+        "paths": [
+          "src/frontend/handshake_native/src/app.rs",
+          "src/frontend/handshake_native/src/mcp/server.rs"
+        ],
+        "deliverable": "Actual authenticated app state/async Swarm outcomes, native diagnostics lifetime consumption and terminal ACK durable receipt integration; assemble every peer diff",
+        "next_integration": "One complete changed-connection review; stable pushed source capture; sole product Git/compiler owner"
+      },
+      {
+        "id": "WP012-SUCCESSOR-CLIENT",
+        "owner_chat": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+        "worker": "/root/native_consumers",
+        "mt": "MT-175",
+        "paths": [
+          "src/frontend/handshake_native/src/backend_client.rs"
+        ],
+        "deliverable": "Real authenticated Swarm diagnostics transport and signed durable Argus POST/canonical GET methods with exact context/generation and response checks",
+        "next_integration": "Publish typed client interfaces to integrator server/app; no fixture/provenance substitution"
+      },
+      {
+        "id": "WP012-SUCCESSOR-ACTION",
+        "owner_chat": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+        "worker": "/root/native_exports",
+        "mt": "MT-175",
+        "paths": [
+          "src/frontend/handshake_native/src/mcp/action.rs"
+        ],
+        "deliverable": "Stable original UUID allocated once before enqueue, retained beside numeric receipt ID through actual terminal ACK and ambiguity",
+        "next_integration": "Integrator server uses original UUID; preserve existing positive/negative ACK invariants"
+      },
+      {
+        "id": "WP012-SUCCESSOR-NATIVE-START",
+        "owner_chat": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+        "worker": "/root/native_startup",
+        "mt": "MT-175",
+        "paths": [
+          "src/frontend/handshake_native/src/main.rs"
+        ],
+        "deliverable": "Consume actual current ring/watcher adoption bridge and app lifetime; retain early panic/SEH/crash socket/shutdown; no duplicate watcher",
+        "next_integration": "Requires runtime worker exact V2/adoption interface before dependent edits"
+      },
+      {
+        "id": "WP012-SUCCESSOR-SETTINGS",
+        "owner_chat": "01a139f6-8cf0-7571-bab2-960a33d7cafa",
+        "worker": "/root/native_windows_worker",
+        "mt": "MT-175",
+        "paths": [
+          "src/frontend/handshake_native/src/settings_dialog.rs"
+        ],
+        "deliverable": "Pinned Swarm typed snapshot/updating/error, real concurrency selector/status and outcome through existing author IDs",
+        "next_integration": "Shared SettingsView borrowed state and outcome consumed by integrator app"
+      },
+      {
+        "id": "WP012-SUCCESSOR-PREFERENCES",
+        "owner_chat": "01a139f6-8cf0-7571-bab2-960a33d7cafa",
+        "worker": "/root/cloud_gui_specialist",
+        "mt": "MT-175",
+        "paths": [
+          "src/frontend/handshake_native/src/workspace_settings.rs"
+        ],
+        "deliverable": "Pinned optional desired concurrency preference default None, serialization/normalization/merge; real backend state remains authority",
+        "next_integration": "Integrator app consumes desired preference separately from actual in-force state"
+      },
+      {
+        "id": "WP012-SUCCESSOR-DIAGNOSTICS",
+        "owner_chat": "01a139f6-2aa7-7b93-bc12-28f207a6909f",
+        "worker": "/root/diagnostics_receipts",
+        "mt": "MT-175",
+        "paths": [
+          "src/frontend/handshake_native/src/diagnostics/recorder.rs",
+          "src/frontend/handshake_native/src/diagnostics/palmistry_launch.rs",
+          "src/frontend/handshake_native/src/internal_diagnostics.rs",
+          "src/backend/handshake_core/src/api/palmistry.rs"
+        ],
+        "deliverable": "Connected existing V2 ring/current-child readiness and weak adopted provenance bridge; canonical account-scoped durable receipt/adoption producer using genuine existing verification mechanics",
+        "next_integration": "Coordinate exact same session/nonce/V2 recorder/current-child signed-ready interfaces with native startup/client/action/server; no raw seed or manufactured witness"
+      }
+    ],
+    "recorded_blockers": [
+      "Missing actual Swarm settings/app consumer and diagnostics production transport",
+      "Active diagnostics signing/observer provenance has no current same-ring/watcher lifecycle consumer",
+      "Argus terminal ACK always durability_error and lacks stable canonical UUID/receipt transport",
+      "Existing cloud route/auth/process ownership is unmounted and original runtime acceptance remains open"
+    ],
+    "controls": "No duplicate ring/watcher; actual signed readiness, same original UUID/account/session/space, no optimistic applied status; one assembled batch review and frozen compiler; unavailable dependencies stay explicit",
+    "original_proof_unchanged": true,
+    "batch_owner": "MT-175",
+    "covered_mts": [
+      "MT-174",
+      "MT-175",
+      "MT-186"
+    ]
   }
 }

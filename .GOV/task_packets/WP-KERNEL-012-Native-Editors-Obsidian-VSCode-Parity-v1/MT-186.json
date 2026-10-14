@@ -1,7 +1,7 @@
 {
   "delegated_native_stage04_20261014": {
     "decision_id": "WP012-NATIVE-STAGE-20261014-04",
-    "status": "APPROVED_REFRESH_REVIEWED_PUSHED_TWO_GROUP_DIAGNOSTIC_CANDIDATE",
+    "status": "CHECK1_DIAGNOSTIC0_CLOSED_CONNECTED_SOURCE_BATCH_ACTIVE",
     "candidate_commit": "f724b8852f79d0ea6e2601ff6151c0522fa1be78",
     "candidate_tree": "b978dd518cff688e38cac67d15d14814f125256f",
     "source_checkpoint_ref": "MT-175.json#/diagnostic_two_group_checkpoint_20261014",
@@ -12,7 +12,7 @@
     "predecessor_terminal_checks": 3,
     "historical_native_failed_checks": 13,
     "history_reset": false,
-    "stage_terminal_checks": 0,
+    "stage_terminal_checks": 1,
     "additional_candidate_limit": 3,
     "source_repair_ref": "MT-175.json#/diagnostic_two_group_batch_repair_20261014",
     "diagnostic_command": "cargo check --locked --manifest-path src/frontend/handshake_native/Cargo.toml --tests -j 1 --keep-going",
@@ -20,7 +20,8 @@
     "method": "After reviewedpushedbatch/currentbinding firstdiagnostic uses8argv keepgoing, records everyactualgroup/namedfailed/reachedtargets; no fulltargetcensus fromplaintext. If failure repairall actualindependentgroups before another changedcandidate diagnostic. Diagnostic0 doesnotproveoriginal command: primary then prepares/runs exact7argv original acceptance check on same reviewedcandidate while slot remains, with relevantbindings/argv/proofscope refresh and validunchangedproof reuse.",
     "proof_floor": "No runtimeadmission/originalcompilerPASS until exact7argv command actualnumeric0 plus independent originalparent/postfreeze/ownedclosure. Diagnosticresults explicitly original_exact_command_provenfalse. At3terminalchecks root records fresh evidence-based continuation/blocker eveniforiginalnotyetrun; no reset or automaticextension.",
     "release": "Same conditional primary release after independently reviewedpushedcandidate, currentactualsource/config/tool/authority/gate/resourcebindings, one affectedrunner/argv/reuse/admission/actualouterpayload review, exactstate+cfgSHA rawinverse and SAMEfrozenouterexecpayload variablefreshassert explicitexit immediatelybeforetools invocation. No extraOperatorapproval onceconditionspass.",
-    "limits": "Sameprofile916767/target/disk50GiBfloor175stop180cap/j1normal/memorytelemetry only; sourcefreeze/fulloriginalactualexit/allgroups/postbinding/ownedPIDclosure. No metadata/testexecution/runtime/provision/foreignprocessstop or unrelated source changes. All13failures/priorstages retained, originalauth/GUI/Swarmcontrols/durable/fullWPacceptance OPEN."
+    "limits": "Sameprofile916767/target/disk50GiBfloor175stop180cap/j1normal/memorytelemetry only; sourcefreeze/fulloriginalactualexit/allgroups/postbinding/ownedPIDclosure. No metadata/testexecution/runtime/provision/foreignprocessstop or unrelated source changes. All13failures/priorstages retained, originalauth/GUI/Swarmcontrols/durable/fullWPacceptance OPEN.",
+    "next_action": "Assemble concurrent related source batch; one affected review; refresh changed source/authority/argv binding and strategic compiler, original exact7argv separately required"
   },
   "delegated_stage03_check3_diagnostic_result_20261014": {
     "status": "DIAGNOSTIC_FAIL101_INDEPENDENT_TERMINAL_FREEZE_CLOSED",
@@ -677,8 +678,8 @@
     "validator_verdict": "PENDING",
     "claimed_by": null,
     "completed_by": null,
-    "next_actor": "Primary integrator prepares approved delegated native stage on73368c07; independent validator checks assembled connections/runner, root releases after admission; genuine runtime/auth remains unbound",
-    "blocked_on": "Native compiler prerequisite unproven after four FAIL101 checks; reviewed73368c07 export repair is pushed and stage execution approved subject to fresh admission. Original deployed executable/data root/authenticated context remain unbound."
+    "next_actor": "Fresh source teams/integrator implement batch; independent validator original compiler/runtime proof after assembly",
+    "blocked_on": "Original native seven-argument command remains unproven after diagnostic0; genuine deployment/auth/grants binding remains unavailable"
   },
   "scope": {
     "summary": "Genuine native deployment and authenticated-context admission",
@@ -955,5 +956,60 @@
     "aggregate_existing_target_cap_bytes": 180000000000,
     "scope": "Exactly one further original native compiler check after independent source review and pushed one-line library export repair. All four prior approvals spent and FAIL101 retained.",
     "limits": "No dispatch before new Operator approval, fresh current input/resource/gameplan admission and independent runner review. Same MT174 profile, C: target and aggregate cap; no metadata, test execution, runtime provisioning, process disruption, auth/deployment manufacture, budget reset or acceptance narrowing. Compiler evidence only."
+  },
+  "delegated_stage04_check1_diagnostic_result_20261014": {
+    "status": "DIAGNOSTIC_SUCCEEDED",
+    "candidate_commit": "f724b8852f79d0ea6e2601ff6151c0522fa1be78",
+    "candidate_tree": "b978dd518cff688e38cac67d15d14814f125256f",
+    "cargo_exit": 0,
+    "outer_exit": 0,
+    "stage_terminal_checks": 1,
+    "stage_limit": 3,
+    "cumulative_fail101": 13,
+    "original_exact_command_proven": false,
+    "artifact_lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-stage04-check01",
+    "terminal_closure_sha256": "509e62ade58438b0e3ad6d6e0c95f331c4e7191725c65172b2c79d2df9b80218",
+    "hashes": {
+      "compile-result.json": "11c95dbd267fb7aec338debbac2c6ce007c8573bd86dc365a78e87bc1b883c2c",
+      "compile-evidence.json": "002ff3a5e2d2e3504461a8d329862f8d008e5082c26362d5dac36abdbe1fcfab",
+      "compile-post-candidate.json": "d2ec192d79c23a2536901c69aa28971073ebc5ffb68b1149dbd2aee13f833b3b",
+      "compile-post-binding.json": "34c142d05528bbb6a68ee6e92404605707c72b54e42cc1cca64786493b2bece6",
+      "compile.stderr.log": "07bae93a5b3d51a91e608d77ca3bfa8f13d40a997f98dc765ae816a8e85d560b",
+      "compile.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "actual-diagnostic-groups.json": "1840b50cb5f3171878138ee491f0b601ca11bea35ad569cf6dd203139e0527e1"
+    },
+    "post_binding": {
+      "matched": true,
+      "checked_files": 7416,
+      "drift_paths": [],
+      "binding_equal": {
+        "worktree": true,
+        "head": true,
+        "tree": true,
+        "status": true,
+        "input_digest": true,
+        "tracked_diff_sha256": true,
+        "config_sha256": true,
+        "launcher_sha256": true,
+        "source_review_binding_sha256": true,
+        "caller_config_sha256": true,
+        "runtime_acceptance": true,
+        "authority_raw_sha256": true,
+        "current_manifest_configuration_inputs": true,
+        "historical_metadata_sha256": true,
+        "historical_metadata_disposition": true,
+        "cargo_argv": true,
+        "toolchain": true,
+        "effective_profile_env": true,
+        "actual_toolchain_binary_hashes": true,
+        "observed_toolchain_identity": true
+      }
+    },
+    "owned_processes_remaining": 0,
+    "error_groups": [],
+    "target_census": "NOT_ASSESSED_FROM_PLAINTEXT; observed NOT_REACHED messages empty does not prove full target set",
+    "root_fresh_canonical_reread": "All7416 product files matched fresh hashes; actual kernelad1/productf724/clean and owned wrapper/Cargo absent",
+    "runtime": "NOT_RUN",
+    "acceptance": "NOT_ASSESSED"
   }
 }

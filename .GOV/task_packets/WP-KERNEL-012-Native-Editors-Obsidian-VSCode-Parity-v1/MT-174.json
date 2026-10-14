@@ -1,4 +1,5 @@
 {
+  "successor_parallel_cloud_source_batch_ref": "packet.json#/operator_successor_delivery_team_20261014",
   "round50_independent_predecessor_actual_result_20261013": {
     "attempt_id": "320afdf6809d42f89f99ea4e05660da3",
     "candidate_head": "e17eb7a5851e1a35fa914b842c898fc93df83e01",
@@ -3157,7 +3158,8 @@
       "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs",
       "src/backend/handshake_core/src/workflows.rs",
       "tests/live_pg/seed_fixture.sh"
-    ],
+    ,
+      "src/backend/handshake_core/src/api/model_access.rs"],
     "forbidden_write_paths": [
       ".GOV/**",
       "app/src/**",
@@ -5644,7 +5646,8 @@
       "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs",
       "src/backend/handshake_core/src/workflows.rs",
       "tests/live_pg/seed_fixture.sh"
-    ],
+    ,
+      "src/backend/handshake_core/src/api/model_access.rs"],
     "forbidden_paths": [
       ".GOV/**",
       "app/src/**",

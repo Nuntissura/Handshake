@@ -30,9 +30,9 @@
     "authority": "Operator explicitly activates the reconciled adaptive workflow and delegates routine technical and execution decisions to current delivery lead for WP012. Existing role-independent acceptance/merge authority, process protection and original product scope/pins remain preserved.",
     "scope_expansion": "Delivery lead may authorize the smallest evidenced source/configuration/proof-method expansion that directly repairs a recorded failure or removes an exact blocker. Before writes, record failure, necessary paths, owner, risks/control and original proof. Preserve previous work and return to original outcome; no unrelated feature, invented authentication/grants/provenance or acceptance weakening.",
     "core_team": {
-      "delivery_lead": "01a1323d-2a04-78f1-9430-1589c9cd54ea",
-      "primary_developer_integrator": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
-      "independent_validator": "01a1323e-c183-77e3-b8ba-b286507e5617"
+      "delivery_lead": "01a139f3-b98c-7b61-b541-960ec3e048de",
+      "primary_developer_integrator": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+      "independent_validator": "01a139f6-ce6a-7b50-a058-dff3732ea4a2"
     },
     "specialists": {
       "diagnostic": "01a1323e-8219-7f01-b326-bbd802d1ba9a",
@@ -90,7 +90,8 @@
     ],
     "research_and_review_ref": "WP-KERNEL-012-phase02-successor-handoff-v5.json#/research_basis; five existing leaders review20261014 reconciled by delivery lead",
     "restart_ref": "WP-KERNEL-012-phase02-successor-handoff-v6.json",
-    "next_action": "Push kernel amendment, checkpoint actual product dirt if any, brief all five team leaders with pushed governance revision, then release current73368c07 native stage preparation and original compiler after fresh admission"
+    "next_action": "Push kernel amendment, checkpoint actual product dirt if any, brief all five team leaders with pushed governance revision, then release current73368c07 native stage preparation and original compiler after fresh admission",
+    "active_successor_ref": "packet.json#/operator_successor_delivery_team_20261014"
   },
   "operator_workflow_restructure_20261013": {
     "successor_review_observations": {
@@ -6506,5 +6507,145 @@
     "research_spec_ref": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase-01-consolidation-contract-v1.json#research_basis",
     "phase_owner": "KERNEL_BUILDER_PHASE01",
     "no_product_permission_in_phase01": true
+  },
+  "operator_successor_delivery_team_20261014": {
+    "decision_id": "WP012-FRESH-SUCCESSOR-DELIVERY-20261014",
+    "status": "APPROVED_ACTIVE",
+    "updated_at_utc": "2026-10-14T10:44:03.617586+00:00",
+    "operator_authorization": "Human explicitly requests fresh delivery lead, fresh team-leader chats, workers and specialists per team, follow-up messaging and routine technical decisions; direct blocker expansion only",
+    "operator_correction": "make sure the new dev team leader and the team leaders in his chats do not make your mistakes and are adaptable and can work in parallel. we already described the new workflow and documented it in the handoff, i feel you just decided to ignore it.",
+    "operator_parallel_expectation": "so i expect a lot more parallel work, larger batches, larger teams, but stratigec cargo builds, tests and checks",
+    "delivery_lead_kernel_writer": "01a139f3-b98c-7b61-b541-960ec3e048de",
+    "previous_core_team": {
+      "delivery_lead": "01a1323d-2a04-78f1-9430-1589c9cd54ea",
+      "primary_developer_integrator": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+      "independent_validator": "01a1323e-c183-77e3-b8ba-b286507e5617"
+    },
+    "independent_validator": "01a139f6-ce6a-7b50-a058-dff3732ea4a2",
+    "source_base_commit": "f724b8852f79d0ea6e2601ff6151c0522fa1be78",
+    "source_base_tree": "b978dd518cff688e38cac67d15d14814f125256f",
+    "handover_closure_ref": "MT-186.json#/delegated_stage04_check1_diagnostic_result_20261014",
+    "leases": [
+      {
+        "id": "WP012-SUCCESSOR-INTEGRATOR",
+        "owner_chat": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+        "mt": "MT-175",
+        "paths": [
+          "src/frontend/handshake_native/src/app.rs",
+          "src/frontend/handshake_native/src/mcp/server.rs"
+        ],
+        "deliverable": "Actual authenticated app state/async Swarm outcomes, native diagnostics lifetime consumption and terminal ACK durable receipt integration; assemble every peer diff",
+        "next_integration": "One complete changed-connection review; stable pushed source capture; sole product Git/compiler owner"
+      },
+      {
+        "id": "WP012-SUCCESSOR-CLIENT",
+        "owner_chat": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+        "worker": "/root/native_consumers",
+        "mt": "MT-175",
+        "paths": [
+          "src/frontend/handshake_native/src/backend_client.rs"
+        ],
+        "deliverable": "Real authenticated Swarm diagnostics transport and signed durable Argus POST/canonical GET methods with exact context/generation and response checks",
+        "next_integration": "Publish typed client interfaces to integrator server/app; no fixture/provenance substitution"
+      },
+      {
+        "id": "WP012-SUCCESSOR-ACTION",
+        "owner_chat": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+        "worker": "/root/native_exports",
+        "mt": "MT-175",
+        "paths": [
+          "src/frontend/handshake_native/src/mcp/action.rs"
+        ],
+        "deliverable": "Stable original UUID allocated once before enqueue, retained beside numeric receipt ID through actual terminal ACK and ambiguity",
+        "next_integration": "Integrator server uses original UUID; preserve existing positive/negative ACK invariants"
+      },
+      {
+        "id": "WP012-SUCCESSOR-NATIVE-START",
+        "owner_chat": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+        "worker": "/root/native_startup",
+        "mt": "MT-175",
+        "paths": [
+          "src/frontend/handshake_native/src/main.rs"
+        ],
+        "deliverable": "Consume actual current ring/watcher adoption bridge and app lifetime; retain early panic/SEH/crash socket/shutdown; no duplicate watcher",
+        "next_integration": "Requires runtime worker exact V2/adoption interface before dependent edits"
+      },
+      {
+        "id": "WP012-SUCCESSOR-SETTINGS",
+        "owner_chat": "01a139f6-8cf0-7571-bab2-960a33d7cafa",
+        "worker": "/root/native_windows_worker",
+        "mt": "MT-175",
+        "paths": [
+          "src/frontend/handshake_native/src/settings_dialog.rs"
+        ],
+        "deliverable": "Pinned Swarm typed snapshot/updating/error, real concurrency selector/status and outcome through existing author IDs",
+        "next_integration": "Shared SettingsView borrowed state and outcome consumed by integrator app"
+      },
+      {
+        "id": "WP012-SUCCESSOR-PREFERENCES",
+        "owner_chat": "01a139f6-8cf0-7571-bab2-960a33d7cafa",
+        "worker": "/root/cloud_gui_specialist",
+        "mt": "MT-175",
+        "paths": [
+          "src/frontend/handshake_native/src/workspace_settings.rs"
+        ],
+        "deliverable": "Pinned optional desired concurrency preference default None, serialization/normalization/merge; real backend state remains authority",
+        "next_integration": "Integrator app consumes desired preference separately from actual in-force state"
+      },
+      {
+        "id": "WP012-SUCCESSOR-DIAGNOSTICS",
+        "owner_chat": "01a139f6-2aa7-7b93-bc12-28f207a6909f",
+        "worker": "/root/diagnostics_receipts",
+        "mt": "MT-175",
+        "paths": [
+          "src/frontend/handshake_native/src/diagnostics/recorder.rs",
+          "src/frontend/handshake_native/src/diagnostics/palmistry_launch.rs",
+          "src/frontend/handshake_native/src/internal_diagnostics.rs",
+          "src/backend/handshake_core/src/api/palmistry.rs"
+        ],
+        "deliverable": "Connected existing V2 ring/current-child readiness and weak adopted provenance bridge; canonical account-scoped durable receipt/adoption producer using genuine existing verification mechanics",
+        "next_integration": "Coordinate exact same session/nonce/V2 recorder/current-child signed-ready interfaces with native startup/client/action/server; no raw seed or manufactured witness"
+      },
+      {
+        "id": "WP012-SUCCESSOR-CLOUD",
+        "owner_chat": "01a139f6-2aa7-7b93-bc12-28f207a6909f",
+        "worker": "LEADER api/mod.rs and main.rs; /root/startup_authority api/model_access.rs",
+        "mt": "MT-174",
+        "paths": [
+          "src/backend/handshake_core/src/api/mod.rs",
+          "src/backend/handshake_core/src/api/model_access.rs",
+          "src/backend/handshake_core/src/main.rs"
+        ],
+        "deliverable": "Existing full-router cloud mount and real shared production CLI probe/launcher factory; authenticated exact account/Principal/session/Space/workspace checks and per-account credentials/per-session login ownership, no global fallback",
+        "next_integration": "Full protected router and retained process/shutdown owner; never claim production() unavailable CLI fallback functional",
+        "controls": "Current main shutdown predicate/ownership unchanged; broad first-run bootstrap held. Config producer is existing explicit official CLI config record path, no credential scraping, no unavailable default counted as functional. Genuine account-scoped vault and authorization retain original policy/grants and deny before side effects; source unavailable boundary honest."
+      }
+    ],
+    "supersession": "Supersede WP012-WF-009/current reuse-existing-team restriction only for this explicit human successor team; preserve other rules and histories",
+    "serial_steps": "Native startup consumes genuine diagnostics bridge; all peer source work otherwise disjoint. One complete affected-risk review after assembly; one stable source/authority freeze and compiler job. Original seven-argument and original runtime acceptance remain independent mandatory proof",
+    "source_expansion": "Exact listed paths amend only this bounded MT174/175 source batch; original packet backend prohibition superseded only for named direct-blocker backend paths. No unrelated source scope, new dependencies, branches/worktrees or runtime provisioning granted",
+    "startup_disposition": "Pinned legitimate first-run setup/login source conflict recorded. Broad bootstrap/activation ingress remains READ_ONLY pending exact existing verified activation interface; no new named endpoint, store/account/grant or original-deployment substitution authorized here",
+    "preserved": [
+      "WP012/CKC/WP1 original scope/pins/ACs/independent verdicts",
+      "Stage04 limit3 and historical13 FAIL101; diagnostic0 never original compiler proof",
+      "180GBcap/175GBstop/50GiBfloor/j1/actualprofile/target; memory observation only",
+      "Foreign process/destructive/topology protections; existing dirty confirmations never staged",
+      "No fake auth/grants/provenance or weaker acceptance"
+    ],
+    "rules": [
+      {
+        "id": "WP012-SUCCESSOR-001",
+        "requirement": "Implement substantial verified related batches concurrently with exact disjoint worker ownership and shared interfaces before strategic Cargo"
+      },
+      {
+        "id": "WP012-SUCCESSOR-002",
+        "requirement": "One primary integrator/Git/compiler owner, one kernel writer and one independent final validator; workers never compile, commit or edit peer files"
+      },
+      {
+        "id": "WP012-SUCCESSOR-003",
+        "requirement": "After stable assembly perform one scoped affected-risk review, remediate batch findings, collect all actual diagnostics and explicit NOT_REACHED/NOT_ASSESSED targets; no review-of-review or unchanged repeated checks"
+      }
+    ],
+    "remaining_original_acceptance": "MT171-175 accepted0/5; native original7argv, genuine deployment/auth, MT185 real publication/canonical reread/FR, R2 persistence/privacy, GUI/multiwindow/manual/HBR and MT188 actual main positive/negative proof remain OPEN"
   }
 }
