@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-14T20:08:05Z",
+ "updated_at": "2026-10-14T20:09:35Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3901,12 +3901,16 @@
   {
    "lane_id": "SMB-COMPOSITE-TEMPORAL",
    "crate": "hsk-studio-composite",
-   "phase": "queued",
-   "status": null,
-   "owner": null,
-   "commits": [],
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
+   "owner": "builder-composite-temporal-20261014",
+   "commits": [
+    "cf0bc33",
+    "4ad3405"
+   ],
    "verdicts": [],
-   "note": "brief lane-smb-composite-temporal.md; lead T1: optional edge composite->motion behind feature motion approved"
+   "note": "brief lane-smb-composite-temporal.md; lead T1: optional edge composite->motion behind feature motion approved | lead waiver 2026-10-14: tests/static_plan.rs edit is inside the composite crate (owned), accepted",
+   "lane_file": "builders/lanes/hsk-studio-composite-temporal.json"
   },
   {
    "lane_id": "SMB-INTEROP-FIG-GEOMETRY",
@@ -3950,6 +3954,26 @@
    "commits": [],
    "verdicts": [],
    "note": "real_dng.rs:196 hard-codes ../../../../Handshake_Artifacts instead of .config/oracle-corpus.toml; panics in every export"
+  },
+  {
+   "lane_id": "SMB-PIGMENT-TRANSFORM",
+   "crate": "hsk-studio-pigment",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "pigment Transform{affine 2x3, filter} plan operator + render-cpu (and render-gpu parity) implementation; composite then lowers position/scale/rotation/anchor/parenting; after SMB-PIGMENT-BRUSH (same crate)"
+  },
+  {
+   "lane_id": "SMB-FOLIO-COMPOSITION",
+   "crate": "hsk-studio-folio",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "folio StudioComposition record (hsk.studio.composition@1: layer in/out ticks, keyframe streams) so composite reads timing from folio"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
