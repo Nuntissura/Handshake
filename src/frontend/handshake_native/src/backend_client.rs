@@ -5,6 +5,10 @@
 
 use crate::error::AppError;
 use crate::layout_persistence::{LayoutError, LayoutTransport};
+use crate::user_manual_pane::{
+    UserManualNavigation, UserManualPageContent, UserManualResultCell,
+    UserManualSearchResponse, UserManualTransport,
+};
 use serde_json::Value;
 use std::collections::VecDeque;
 use std::fmt;
@@ -16,6 +20,119 @@ use std::time::Duration;
 
 /// handshake_core listens here (hardcoded in handshake_core/src/main.rs).
 pub const BACKEND_BASE_URL: &str = "http://127.0.0.1:37501";
+
+#[derive(Clone)]
+pub struct UserManualClient {
+    client: reqwest::Client,
+    base_url: String,
+    runtime: tokio::runtime::Handle,
+    authenticated_context: AccountContext,
+}
+
+impl UserManualClient {
+    pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
+        Self {
+            client: shared_http_client(),
+            base_url: base_url.into().trim_end_matches('/').to_owned(),
+            runtime,
+            authenticated_context: None,
+        }
+    }
+
+    pub fn with_authenticated_context(mut self, context: AccountContext) -> Self {
+        self.authenticated_context = context;
+        self
+    }
+
+    pub fn production(runtime: tokio::runtime::Handle) -> Self {
+        Self::new(BACKEND_BASE_URL, runtime)
+    }
+
+    pub fn navigation_request(&self) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Get,
+            url: format!("{}/usermanual/pages", self.base_url),
+            body: None,
+        }
+    }
+
+    pub fn page_request(&self, slug: &str) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Get,
+            url: format!("{}/usermanual/pages/{}", self.base_url, slug),
+            body: None,
+        }
+    }
+
+    pub fn search_request(&self, query: &str) -> RequestSpec {
+        let mut url = reqwest::Url::parse(&format!("{}/usermanual/search", self.base_url))
+            .expect("invalid UserManual base URL");
+        url.query_pairs_mut()
+            .append_pair("q", query)
+            .append_pair("limit", "50");
+        RequestSpec {
+            method: HttpMethod::Get,
+            url: url.into(),
+            body: None,
+        }
+    }
+}
+
+impl UserManualTransport for UserManualClient {
+    fn fetch_navigation(&self, cell: UserManualResultCell<UserManualNavigation>) {
+        let spec = self.navigation_request();
+        let client = self.client.clone();
+        let account = self.authenticated_context.clone();
+        self.runtime.spawn(async move {
+            let result = get_json(&client, account, &spec.url, &[])
+                .await
+                .and_then(|value| {
+                    serde_json::from_value(value)
+                        .map_err(|error| AppError::Parse(error.to_string()))
+                })
+                .map_err(|error| error.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    fn fetch_page(&self, slug: &str, cell: UserManualResultCell<UserManualPageContent>) {
+        let spec = self.page_request(slug);
+        let client = self.client.clone();
+        let account = self.authenticated_context.clone();
+        self.runtime.spawn(async move {
+            let result = get_json(&client, account, &spec.url, &[])
+                .await
+                .and_then(|value| {
+                    serde_json::from_value(value)
+                        .map_err(|error| AppError::Parse(error.to_string()))
+                })
+                .map_err(|error| error.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    fn fetch_search(&self, query: &str, cell: UserManualResultCell<UserManualSearchResponse>) {
+        let spec = self.search_request(query);
+        let client = self.client.clone();
+        let account = self.authenticated_context.clone();
+        self.runtime.spawn(async move {
+            let result = get_json(&client, account, &spec.url, &[])
+                .await
+                .and_then(|value| {
+                    serde_json::from_value(value)
+                        .map_err(|error| AppError::Parse(error.to_string()))
+                })
+                .map_err(|error| error.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+}
 
 /// The process-wide shared backend [`reqwest::Client`]. `reqwest::Client` owns a connection pool and is
 /// cheaply cloneable (an `Arc` internally), so the whole native app should share ONE pool rather than

@@ -70,6 +70,7 @@ pub use registry::{
 };
 pub use snapshot::{
     collect_tree_snapshot, collect_ui_tree_snapshot, collect_ui_tree_snapshot_with_viewport,
+    is_sensitive_author_id,
     AccessNodeSnapshot, AccessTreeSnapshot, SnapshotViewport, UiNodeBounds, UiTreeNode,
     UiTreeSnapshot, ViewportSource, MAX_SNAPSHOT_NODES, VIEWPORT_CONTAINMENT_EPSILON,
 };

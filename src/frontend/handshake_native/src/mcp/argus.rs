@@ -5,7 +5,12 @@
 //! request once and use the canonical method throughout leasing, dispatch, attribution, and manuals.
 
 use std::sync::{atomic::{AtomicBool, Ordering}, Arc, Weak};
-use std::time::Instant;
+use std::time::{Duration, Instant};
+
+pub const ACTION_RECEIPT_TIMEOUT: Duration = Duration::from_secs(10);
+pub const ACTION_RECEIPT_DURABILITY_TIMEOUT: Duration = Duration::from_secs(5);
+pub const ACTION_RECEIPT_TRANSPORT_MARGIN: Duration = Duration::from_secs(2);
+pub const ACTION_RECEIPT_TRANSPORT_TIMEOUT: Duration = Duration::from_secs(20);
 
 /// A handler signal owned by one existing ActionChannel transaction. Context data stores weak
 /// reservations only; it never owns receipts or terminalizes them.
@@ -179,6 +184,16 @@ impl ArgusMethod {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn receipt_transport_budget_exceeds_wait_and_durability_with_margin() {
+        assert!(
+            ACTION_RECEIPT_TRANSPORT_TIMEOUT
+                > ACTION_RECEIPT_TIMEOUT
+                    + ACTION_RECEIPT_DURABILITY_TIMEOUT
+                    + ACTION_RECEIPT_TRANSPORT_MARGIN
+        );
+    }
 
     #[test]
     fn canonical_and_legacy_names_normalize_to_the_same_operations() {
