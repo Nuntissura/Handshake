@@ -8427,5 +8427,62 @@
     ],
     "source_only": true,
     "next_action": "Same prepared composition worker implements coherent three-file repair now; primary integrates and then required strategic proof"
+  },
+  "swarm_p1_canonical_publication_repair_20261014": {
+    "decision_id": "WP012-SWARM-P1-CANONICAL-PUBLICATION-20261014-04",
+    "status": "SOURCE_IMPLEMENTATION_RELEASED",
+    "recorded_at_utc": "2026-10-14T15:15:14.503172+00:00",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "parent_source_ref": "packet.json#/swarm_production_20261014",
+    "reviewer_chat": "01a139f6-ce6a-7b50-a058-dff3732ea4a2",
+    "reviewed_candidate": "aaadc90652596940246106fe3b028601799b037d",
+    "reviewed_tree": "4a33ee7cde7fe05c7539d71a3cc06d43ebd31536",
+    "review_disposition": "SOURCE_BLOCKED; same three-finding review consumes remediation delta only",
+    "failure": "P1-B DB revocation can commit after canonical query but before memory-guard publication; canonical expiration has no registry writer",
+    "owner_chat": "01a13acc-56f9-7ee1-a6f9-4920504b7136",
+    "worker": "/root/account_backend_contract",
+    "paths": [
+      "src/backend/handshake_core/src/storage/surreal.rs",
+      "src/backend/handshake_core/src/storage/surreal/resource_authority.rs",
+      "src/backend/handshake_core/src/storage/surreal/local_accounts.rs",
+      "src/backend/handshake_core/src/storage/surreal/workspaces.rs",
+      "src/backend/handshake_core/src/api/authority.rs"
+    ],
+    "batch_owner": "MT-174",
+    "covered_mts": [
+      "MT-173",
+      "MT-174",
+      "MT-175",
+      "MT-186",
+      "MT-188"
+    ],
+    "ownership_agreement": "Primary and account agree one backend worker owns coherent controller and authority consumer; mediator expiry helper read-only, no active writer overlap",
+    "deliverable": [
+      "Owned asynchronous authority gate: read before genuine record-user original navigation snapshot through synchronous publication; write through supported session/grant/account/Space/logout/workspace-delete DB commits and lifecycle invalidation",
+      "Reuse actual RegistryPublicationAuthority canonical session/grant expiry, versions, policy/epochs, exact five-ID tuple and delegated profile; check actual min expiry at synchronous publication",
+      "Owned engine mutation settlement retains writer through observed commit/cancellation plus invalidation even if HTTP requester drops; unknown outcome retains real pending UUID fence and denies publication until canonical reconciliation",
+      "Existing standard lifecycle guard stays synchronous only; no await/blocking/recursive registry callback",
+      "Preserve genuine mutation methods, authenticated data context, EventLedger and original errors; no new grant/capability/store/schema"
+    ],
+    "controls": [
+      "Never claim rollback, commit or retry-safe from unknown settlement",
+      "Do not claim in-process serialization covers arbitrary admin/out-of-process DB writers",
+      "Authority/publication gate only, no broad unrelated storage serialization or invented performance claim",
+      "Original R2 negative, expiry, revoke, cancellation, uncertain ACK and restart proofs remain independent and required"
+    ],
+    "other_recorded_findings": [
+      "P1-A same schema owner removes current-reader/origin confusion only from SELECT, preserving strict CREATE and immutable origin",
+      "P1-C primary drains actual mounted coordinator before event bridge/process and carries actual lease retirement into transition/exit, no fake STOP"
+    ],
+    "original_proof_refs": [
+      "packet.json#/auth_mapping_r2_adoption_20261011",
+      "MT-173.json#/proof",
+      "MT-186.json#/proof",
+      "MT-188.json#/proof"
+    ],
+    "source_only": true,
+    "next_action": "Implement prepared controller repair now alongside existing schema/core remediation; preserve checkpoint/history and submit changed delta to same reviewer before strategic compilation",
+    "failed_record_attempt": "Initial path assertion resolved relative parent incorrectly and stopped before any record write; corrected absolute repo-root path check succeeded before this release",
+    "packet_ref": "packet.json#/swarm_p1_canonical_publication_repair_20261014"
   }
 }
