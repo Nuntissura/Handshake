@@ -104,7 +104,7 @@
  "lock_wait_s": 1,
  "bg_pids": [],
  "next": "independent validator re-judges SMB-ROUND-ENTRYPOINT at 507aa36 (the judging round selects score-plugin, D20(b)); canary C33 result in notes.C33_507aa36",
- "updated_at": "2026-10-14T21:18:48Z",
+ "updated_at": "2026-10-14T22:31:41Z",
  "notes": {
   "sync_1da2453": "steward-sync.sh (no overlays) 10:51:22Z..10:51:54Z exit 0: HEAD == origin == 1da2453, export-refresh files=892 blob_mismatch=0, LOCK_DIFF added=[] removed=[] dependency_lists_changed=[], REGISTRY approved_added=[] approved_removed=[] unrequested=[] spec_defects=[], LICENSE_GATE OK, PROBE accepted=46/46 (35 packages, 11 feature sets), 'already in sync at 1da2453344edad12cf4bcf796a87c29a7fa594b5' => SYNC_SHA=1da2453 (no commit; git diff 2dde832..1da2453 touches no derivation input: interop-psd c4c31cd, press 0cb7103/dce563e/1da2453 only); dep-requests.jsonl still 59 lines, none unprocessed; origin still 1da2453 at 10:57:43Z. Log: <scratchpad>/steward-5/sync17.log",
   "C27_1da2453": "steward export canary (export-refresh 1da2453 into steward-export: files=892 changed=9 blob_mismatch=0, manifest 9e3ae7db...2457; gameplan STUDIO-MODULE-BUILD before_round PASS 2/2; leading cd is the first token of every gated command, PROC-CD-FIRST) 10:52:17Z..10:57:08Z: exit 73 = only NOT_PROVEN interop-fig actual_fig_instance_variable_prototype_edit_reopen (D17); 59 units all build 0 / run 0 (fixture run None), absent 0, timed_out 0; step 0 clean (machine paths 0 violations, 13 pinned files, pins_dropped none; D16/D18/TIMECODE new_sites none); lock @2 class round holds 1, yields 0, waited 1 s, broke_stale none, 10:52:27Z..10:57:05Z; fixture clap-gain 8d18665d placed=written intact=True; round.json sha256 6c91eb94...99ce; results Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/steward-export/results/C27-1da2453/round.json; log studio-team-dev/steward/C27-1da2453.log",
@@ -200,6 +200,7 @@
     "started_at": "2026-10-14T21:21:54Z",
     "completed_at": "2026-10-14T21:51:04Z"
    }
-  ]
+  ],
+  "probe_bounds_2026-10-15": "tools/workspace-probe.rs bounds raised (lead accepted 2026-10-15): MAX_REGISTRY_RECORDS 256 -> 512 in f3f863f (harness eframe closure 316 lock records; the lock is platform-agnostic) and the bounded TOML parser's table limit 512 -> 1024 in 3b77bcc (Cargo.lock 536 [[package]] tables after eframe accesskit pulled accesskit_unix/zbus/atspi). Every other owner stays under 128 records."
  }
 }
