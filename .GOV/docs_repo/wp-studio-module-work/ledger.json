@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-14T23:24:14Z",
+ "updated_at": "2026-10-14T23:28:34Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -4823,12 +4823,18 @@
   {
    "lane_id": "SMB-DEVELOP-CONTROLS-2",
    "crate": "hsk-studio-develop",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-develop-controls-20261015",
-   "commits": [],
+   "commits": [
+    "6a636c2",
+    "c809101",
+    "cfd75bf",
+    "31642da"
+   ],
    "verdicts": [],
-   "note": "absolute kelvin WB (STU-RAW-110), point colour, grayscale mix, colour grading (3-way), texture, dehaze, sharpening, luminance/colour noise reduction, range masks (luminance/colour)"
+   "note": "absolute kelvin WB (STU-RAW-110), point colour, grayscale mix, colour grading (3-way), texture, dehaze, sharpening, luminance/colour noise reduction, range masks (luminance/colour)",
+   "lane_file": "builders/lanes/hsk-studio-develop-controls-2.json"
   },
   {
    "lane_id": "SMB-HARNESS-DEVELOP-EXPORT",

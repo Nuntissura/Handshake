@@ -1,0 +1,38 @@
+{
+ "crate": "hsk-studio-composite",
+ "lane": "SMB-COMPOSITE-COMPOSITION-ADAPTER",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slice 1 pushed (791f865, 19a7c19, 13f5bd0): stored composition played per tick (timing windows, opacity, position/scale/rotation keyframes via motion, declared bilinear filter) with CPU/GPU frame proofs; slices 2-4 in progress",
+ "commits": [
+  {"sha": "791f865", "subject": "composite (SMB-COMPOSITE-COMPOSITION-ADAPTER slice 1): play a stored Folio composition"},
+  {"sha": "19a7c19", "subject": "composite (SMB-COMPOSITE-COMPOSITION-ADAPTER slice 1 test fix): fixture keeps the document blending space assigned (static lowering requires it)"},
+  {"sha": "13f5bd0", "subject": "composite + render-cpu + render-gpu (SMB-COMPOSITE-COMPOSITION-ADAPTER slice 1): composition frame proofs and DESCRIPTOR"}
+ ],
+ "capabilities_done": [
+  "slice 1 composite::composition (default build, folio-free, motion-free): SceneComposition/SceneLayer/SceneTile evaluated frame (layers bottom-first, content matrix content-plan -> composition pixels), lower_scene (isolated root group over (0,0,w,h), background Solid, exact integer moves without envelope, other invertible matrices -> pigment LayerExtension.transform with the scene's declared filter, singular matrix / opacity 0 skipped, transform_multi_tile_layer), render_scene (caller RenderBackend -> full-frame straight-alpha surface, bytes charged before allocation, backend refusal TemporalError::Render)",
+  "slice 1 composite::temporal::composition (feature motion): CompositionTemporalSource::new(CompositionInput) validates the records with folio validate_composition_records, reads layer timing windows, authored appearance (blend mode, opacity, fill), position/scale/rotation/opacity keyframe streams as motion Property (motion evaluates), After Effects layer model with default anchor = content centre and default position = identity placement; scene_at(tick), frame_tick(frame), timings(), tile_ref(); declared resample filter bilinear by default (with_filter); TemporalSource impl (lower_frame over a mirroring document graph gives the same matrices)"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-composite --features motion --test composition_adapter --test static_plan; -p hsk-studio-render-cpu --test composition_frames; -p hsk-studio-render-gpu --test composition_frames --no-capture",
+  "exit": 0,
+  "sha": "13f5bd0",
+  "passed": 11,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "slice 2 anchor stream + parent chain + time stretch/start offset source mapping",
+ "updated_at": "2026-10-14T23:26:00Z",
+ "notes": {
+  "spec_basis": "STU-MOT-005 (composition layer kinds: composition = precomposition source, null = parent-only), STU-MOT-006 (common layer properties incl. track_matte, parent), STU-MOT-007 (resample_filter bilinear|bicubic, no default stated), STU-MOT-008 (parent hierarchy; parenting affects the transform group only, not opacity/blend/matte), STU-MOT-009 (stack order bottom-to-top, index 1 topmost), STU-MOT-013/013a (transform group; anchor point is the pivot of rotation and scale), STU-CMP-010 (per-layer render order: source at remapped time, masks, effects, styles, transform incl. parent chain, opacity, track matte, blend), STU-CMP-030 (track matte uses ANOTHER layer's rendered alpha or luminance; matte layer by default does not render on its own)",
+  "slice_1_tests": "composite composition_adapter 4/4 (stored_composition_evaluates_to_the_hand_written_scenes, temporal_source_on_the_document_graph_matches_the_scene, refusals_are_typed_and_nothing_is_dropped, lowering_is_identical_across_threads) + static_plan 5/5 (DESCRIPTOR JSON) with --features motion at 13f5bd0; render-cpu composition_frames 1/1: frames 0/5/10/25 equal the shared oracle bit for bit (max delta 0), golden digests pinned, identical bytes for chunk/thread (64,1) (5,1) (7,4) (4,8) (64,2); render-gpu composition_frames 1/1 on a live adapter: max |delta| vs the same oracle 5.96e-8 / 1.19e-7 / 5.96e-8 / 5.96e-8 (tolerance 2e-6), repeatable digests",
+  "parity_method": "CPU/GPU parity = both backends against ONE shared oracle (tests/support/composition_scenes.rs, included by #[path] from both renderer test files): per pixel pigment PreparedTransform::sample_rgba (binary64 reference) + pigment composite_over bottom-to-top over the background; composite's lowering is not used by the oracle",
+  "conventions": "layer space origin = top-left of the layer's content (raster: union of tile placements); default anchor = content centre (After Effects default, UNVERIFIED for Studio import), default position = content origin + anchor so a layer without streams keeps its authored placement; keyframe times are composition ticks (Folio); a still raster layer's source time does not change its pixels",
+  "outside_owned_paths": "crates/hsk-studio-render-cpu/tests/composition_frames.rs and crates/hsk-studio-render-gpu/tests/composition_frames.rs (new files only; decision B1 puts cross-crate render proofs in renderer test files; no renderer Cargo.toml or source touched). Lead waiver requested (GLOBAL-SCOPE-005).",
+  "retry_guard": "route (a) once: composition_adapter temporal_source test failed on a fixture bug (blending space set to null, static lowering requires it); fixed and committed 19a7c19, then rerun green; no gameplan step added",
+  "v4": "V4-01 deny(arithmetic_side_effects) on src/composition.rs and src/temporal/composition.rs (integer arithmetic checked); V4-02 scene layer count and surface bytes bounded before allocation (tests refusals_are_typed_and_nothing_is_dropped: max_layers 1 -> BudgetExceeded); V4-03 GPU proof gated by gpu-proof.toml; V4-09 commit messages via files; V4-12 helper files under scratchpad/smb-composite-composition-adapter/",
+  "cargo_lock": "not touched",
+  "parity": "After Effects parity NOT_PROVEN (D5 oracle): default anchor, bilinear default, keyframe interpolation equality to AE are Studio readings"
+ }
+}

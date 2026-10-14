@@ -1,0 +1,74 @@
+{
+ "crate": "hsk-studio-develop",
+ "lane": "SMB-DEVELOP-CONTROLS-2",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slices A (colour families + absolute WB), B (detail stages), C (range masks) pushed; Lightroom parity UNVERIFIED (D5)",
+ "commits": [
+  {"sha": "6a636c2", "subject": "slice A: absolute kelvin/tint WB, point colour, grayscale mix, colour grading (READY at this sha)"},
+  {"sha": "c809101", "subject": "slice B: texture, dehaze (dark channel prior), sharpening, luminance/colour noise reduction"},
+  {"sha": "cfd75bf", "subject": "slice B (READY at this sha): fix a lifetime typo in the hostile table of develop_detail (c809101 did not compile its test target)"},
+  {"sha": "3c0fcc6", "subject": "slice C: luminance and colour range masks in the local stack"},
+  {"sha": "31642da", "subject": "slice C (READY at this sha): clippy allow on geometry_at"}
+ ],
+ "capabilities_done": [
+  "A white balance, raw form (STU-RAW-110): DngRaw::recipe_for_white / recipe_for_white_point(colour, xyz_d50_to_profile, profile, baseline, kelvin, tint): kelvin 2000..25000 (Kim Planckian locus), tint -150..150 (uv offset 1/3000 per count along the locus normal, + = greener illuminant = magenta correction); the target white's xy replaces AsShotNeutral in the DNG colour solution (CM/FM interpolation, Bradford as before); recipe carries WbMode::Temperature + Adjustments.absolute_white_balance; mode and request must agree (Temperature without request = unsupported_white_balance, AsShot with a request = invalid_adjustment); kelvin above 25000 is refused (spec soft maximum 50000 NOT reached)",
+  "A point colour (colour.rs, STU-RAW-115): up to 16 points {source encoded RGB, hue shift, saturation, luminance, 3 range sliders}; weight = product of smooth hue / saturation / value falloffs; gated by enable_colour_adjustments",
+  "A grayscale mix: convert flag + 8 hue-band weights (partition-of-unity weights, scaled by saturation so greys are fixed points); gated by enable_grayscale_mix (no longer refused)",
+  "A colour grading (STU-RAW-116): shadows / midtones / highlights / global wheels (hue 0..360, saturation 0..100, luminance -100..100), blending 0..100, balance -100..100; region weights are a partition of unity; gated by enable_colour_adjustments",
+  "A/B/C: Adjustments version 1.1 (ADJUST_VERSION), 1.0 (ADJUST_MIN_VERSION) still read; all new families are identity by default and validated even while their group is off",
+  "B texture: Gaussian detail layer (sigma clamp(0.002*short side,1,8) px), gain 0.6",
+  "B dehaze: dark channel prior (He, Sun, Tang 2009): per-pixel channel minimum, min filter radius max(2, round(0.008*short side)), atmospheric light = brightest pixel among the top 0.1 percent of the dark channel (floor 0.05), transmission 1-0.95*strength*darkchannel(I/A) smoothed by a 3-pass box blur (NOT soft matting or a guided filter), floor 0.1, J=(I-A)/t+A; negative = uniform haze with transmission 1-0.5*|amount|",
+  "B sharpening: unsharp mask on encoded luma with Gaussian sigma = radius (0.5..3.0), amount 0..150, detail 0..100 compresses halos (d/(1+(1-detail)*8|d|)), edge masking 0..100 = smoothstep of blurred-luma gradient over masking*0.08",
+  "B noise reduction: separable bilateral approximation guided by encoded luma; luminance (sigma_s 0.8+1.7l, sigma_r 0.01+0.06l) and colour (channel-minus-luma planes, sigma_s 1+4c, sigma_r 0.05+0.1c)",
+  "B order inside enable_detail: noise reduction, dehaze, texture, clarity (slice 1 of CONTROLS), sharpening; whole-frame, develop_to_image only: the tile API refuses each as unsupported_contribution:<noise_reduction|dehaze|texture|sharpening>_whole_frame",
+  "C range masks: MaskSource::LuminanceRange {lo, hi, feather} (encoded weighted luma window) and MaskSource::ColourRange {1..16 encoded samples, breadth} (radius 0.02+0.6*breadth, full inside half of it); evaluated on the image as it was before any correction ran; combine with gradient and brush masks through the existing add/subtract/inverted/value algebra; brush rasteriser unchanged (no pigment edge)"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-develop --no-fail-fast",
+  "exit": 0,
+  "sha": "3c0fcc6 (31642da only adds a clippy allow)",
+  "passed": 69,
+  "failed": 0,
+  "ignored": 6,
+  "new_targets": {
+   "develop_colour2": "5/5 (absolute WB incl. neutral == D50 white check and monotone kelvin, point colour, grayscale mix, colour grading, version 1.0 read + two corpus digest pins)",
+   "develop_detail": "5/5 (texture + sharpening, dehaze, noise reduction, recipe gating + tile-API refusals + hostile fields, corpus 640x480 crop digest pin)",
+   "develop_range": "4/4 (luminance range, colour range, hostile, corpus digest pin + thread invariance)"
+  },
+  "clippy": "cargo clippy -p hsk-studio-develop -p hsk-studio-harness --tests: clean for develop and harness at 31642da"
+ },
+ "blockers": [],
+ "lock_wait_s": 90,
+ "bg_pids": [],
+ "next": [
+  "D5 oracle for every mapping below",
+  "harness: expose DevelopRecipe.adjust (colour, detail, range masks) in the develop panel; recipe_for_white needs the DngRaw so the host calls it when the user picks a kelvin",
+  "kelvin above 25000 (spec soft maximum 50000) needs a different locus approximation",
+  "detail stages are serial single-thread (the whole-frame stages are not banded); fine for 24 MP, measure before relying on it for larger frames"
+ ],
+ "updated_at": "2026-10-15T00:30:00Z",
+ "notes": {
+  "spec_basis": {
+   "STU-RAW-110": "raw form temperature/tint in kelvin / count (soft 2000..50000, -150..150)",
+   "STU-RAW-111": "texture, dehaze (-100..100, sparse default)",
+   "STU-RAW-114": "sharpen_amount 0..150, sharpen_radius 0.5..3.0, sharpen_detail 0..100, sharpen_edge_masking 0..100, noise reduction 0..100",
+   "STU-RAW-115": "point_colours list, grayscale mixer (8 bands) and convert_to_grayscale",
+   "STU-RAW-116": "colour grading",
+   "STU-RAW-121": "range masks (luminance_range, colour_range) as mask sources; brush unchanged"
+  },
+  "spec_default_divergence": "STU-RAW-114 derives sharpen_amount 40, radius 1.0, detail 25 and colour_noise_reduction 25 as defaults. Here the defaults are the identity (amount 0, colour NR 0) as the lane brief requires, so enable_detail never changes an image by itself; Sharpen::spec_defaults() and NoiseReduction::spec_defaults() give the spec values for a preset. Flagged for the lead / D5.",
+  "unverified_choices_for_D5": [
+   "Planckian (not daylight) locus for kelvin; tint scale 1/3000 uv per count",
+   "point colour range half-widths (hue 1..60 degrees, saturation and value 0.01..0.51), hue shift 30 degrees at +-100",
+   "grayscale mix and colour grading scales (wheel chroma 0.25, luminance 0.2, region crossovers 0.25/0.75 shifted 0.2 by balance, width 0.05+0.3*blending)",
+   "texture sigma and gain, dehaze constants (omega 0.95, floors, haze 0.5, radius 0.8 percent), sharpening gain 2.0 and halo compression 8, mask threshold 0.08, noise reduction sigmas (separable approximation of a bilateral filter)",
+   "range masks: luminance window feather = feather*0.25 of luma, colour breadth radius 0.02+0.6*breadth, encoded-RGB Euclidean distance, no depth range"
+  ],
+  "not_done": "depth range mask (needs a depth source); model-assisted masks; kelvin above 25000",
+  "new_module_edges": "NONE; no new dependency (dep-requests.jsonl untouched); brush rasteriser unchanged, pigment reuse still a lead edge decision",
+  "behaviour_changes": "Adjustments gained absolute_white_balance, point_colours, grayscale, grading, detail (all identity by default); ADJUST_VERSION is now (1,1) and (1,0) is still read; WbMode::Temperature is accepted with a request; enable_grayscale_mix no longer refuses; DngRaw::recipe was refactored onto recipe_from_solution (output unchanged: develop_dng and the digest tests are green)",
+  "incident": "c809101 was pushed with a typo in tests/develop_detail.rs (a dropped apostrophe while fixing a clippy type_complexity warning) so its test target did not compile; cfd75bf fixes it. READY for slice B is therefore cfd75bf, not c809101.",
+  "gameplan_route": "retry guard hit after product test failures: route (a), committed the fix locally (HEAD changed) and reran; GP-029 (score lane) blocked cargo test for a while and cleared without my action; no gameplan step added",
+  "v4_notes": "no untrusted-byte decoder added; hostile numbers and sizes checked (finite, ranges, dimension products, brush budget, sample and point counts); corpus tests print NOT_PROVEN when the corpus is absent"
+ }
+}
