@@ -4,9 +4,18 @@
  "status": "READY_FOR_VALIDATION",
  "phase": "slice 2 pushed (non-composite parts): claim = 6762593, 161683a, 5cda0ae",
  "commits": [
-  {"sha": "6762593", "subject": "chronicle + session (SMB-UI-SUPPORT-APIS slice 2): opacity, blend mode and tiles as transactable layer properties; staged pixel-edit tiles"},
-  {"sha": "161683a", "subject": "chronicle tests (SMB-UI-SUPPORT-APIS slice 2): seed order includes opacity and blend_mode"},
-  {"sha": "5cda0ae", "subject": "harness (SMB-UI-SUPPORT-APIS slice 2): import binds blending_space to the RGB working space"}
+  {
+   "sha": "6762593",
+   "subject": "chronicle + session (SMB-UI-SUPPORT-APIS slice 2): opacity, blend mode and tiles as transactable layer properties; staged pixel-edit tiles"
+  },
+  {
+   "sha": "161683a",
+   "subject": "chronicle tests (SMB-UI-SUPPORT-APIS slice 2): seed order includes opacity and blend_mode"
+  },
+  {
+   "sha": "5cda0ae",
+   "subject": "harness (SMB-UI-SUPPORT-APIS slice 2): import binds blending_space to the RGB working space"
+  }
  ],
  "capabilities_done": [
   "chronicle Property::Opacity (layer opacity percent, PropertyValue::Number = serde_json::Number, compared by numeric value), Property::BlendMode (integer StudioBlendMode discriminant; a group write sets isolation pass_through for 1 else isolated; range/applicability = folio FolioRejected), Property::Tiles (PropertyValue::Tiles(TileList) = a raster layer's complete tile list; seeded only for raster layers, InvalidTarget elsewhere); PROPERTIES = 5; addressable table exhaustive over node kind x property; an appearance equal to the kind identity is stored absent so write + inverse restores the original document bytes; whole stored values invert as integers (blend-mode inverse passes its integer type check); mask_property neutral values for the new properties (session lineage check derives_from works unchanged); decoder admits value arrays up to budget.revisions entries (tile lists); Observe diagnostics keep their closed vocabulary (failures at the new addresses report the code without an address); DESCRIPTOR updated",
@@ -38,7 +47,29 @@
   "retry_guard": "route (a) twice: chronicle test failures (inverse blend-mode integer type; seed order expectation) fixed by commits 6762593 then 161683a, HEAD changed, identical reruns green. No gameplan step added.",
   "spec_basis": "STU-RAS-006 opacity percent, STU-RAS-154/039 blend discriminants (folio appearance.rs owns ranges); Tiles property is a Studio reading: a pixel edit as a whole-tile-list property write (no per-tile address); SPEC GAP: no spec text names a chronicle tiles property.",
   "limits": "a tiles write carries the whole tile list in reads and writes; chronicle input budget 256 KiB bounds it to roughly 350 tiles per layer (BudgetExceeded beyond); observe has no opacity/blend_mode/tiles diagnostic property (would need an observe vocabulary change, not owned)",
-  "unverified": ["Photoshop parity of opacity/blend edits (D5)", "commit-authority (CommitPort) path with staged tiles: the authority receives the document only, the staged bodies are session-local until save (not tested with an authority)"],
+  "unverified": [
+   "Photoshop parity of opacity/blend edits (D5)",
+   "commit-authority (CommitPort) path with staged tiles: the authority receives the document only, the staged bodies are session-local until save (not tested with an authority)"
+  ],
   "v4": "V4-01 chronicle and session keep deny(arithmetic_side_effects) (staged bounds checked_add); V4-02 stage_tile checks per-body and aggregate bounds before insert; V4-09 commit -F"
- }
+ },
+ "verdicts": [
+  {
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "6762593 161683a 5cda0ae: chronicle foundation_contract appearance_properties_transact_and_invert_to_the_original_document + exported_table_is_the_table_prepare_enforces (chronicle 21/21); session session_contract pixel_edits_stage_tiles_commit_undo_save_and_reopen (session 21/21); harness import + viewer units green (blending_space binding on import). Diff read: real Opacity/BlendMode/Tiles properties with typed checks; stage_tile per-body and aggregate bounds via checked_add before insert",
+   "idempotency_key": "STUDIO-R27:SMB-UI-SUPPORT-APIS:e6989645e02c:PASS_V1",
+   "round": "STUDIO-R27",
+   "lane": "SMB-UI-SUPPORT-APIS",
+   "candidate": "e6989645e02ceb7a4bf082788126b56d6dca4991",
+   "tree": "a26c88154f31ecb8f5d8edd0054a49570ca6f028",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R27",
+   "started_at": "2026-10-14T22:06:44Z",
+   "completed_at": "2026-10-14T22:35:40Z"
+  }
+ ]
 }

@@ -157,5 +157,24 @@
    "deps": "no crates.io dependency; harness -> press is in the allowed list"
   },
   "later_commits": "After fcd53b8 the harness got SMB-CONVERT-FOLLOWUPS commits e0c3473, 57df315, 2e5f5fb, b57fc21 (separate lane). 57df315 also gates the folio import fcd53b8 left unused in an import-tiff-only build (warning only). Judge this lane at fcd53b8 or with those listed."
- }
+ },
+ "verdicts": [
+  {
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "reopened (CX-VAL-009: crate or dependency closure changed 507aa36..e698964, or dev-profile opt-level change for prism/interop-psd); units of harness green in R27 (default, feature, ignored, doctest)",
+   "idempotency_key": "STUDIO-R27:SMB-CONVERT-NATIVE:e6989645e02c:PASS_V3",
+   "round": "STUDIO-R27",
+   "lane": "SMB-CONVERT-NATIVE",
+   "candidate": "e6989645e02ceb7a4bf082788126b56d6dca4991",
+   "tree": "a26c88154f31ecb8f5d8edd0054a49570ca6f028",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R27",
+   "started_at": "2026-10-14T22:06:44Z",
+   "completed_at": "2026-10-14T22:35:40Z"
+  }
+ ]
 }

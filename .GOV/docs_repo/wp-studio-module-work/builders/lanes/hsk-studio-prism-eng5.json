@@ -708,5 +708,24 @@
    "touching_this_lanes_own_files_after_65a08c9": "e26f623 edits tests/oracle_t1_lcms2.rs (KNOWN_FINDINGS attribution turned into an assertion of the D50 wtpt reading); the other commits listed do not touch tests/oracle*, tests/oracle_support or tests/wide_support",
    "rule": "V4-14"
   }
- }
+ },
+ "verdicts": [
+  {
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "reopened (CX-VAL-009: crate or dependency closure changed 507aa36..e698964, or dev-profile opt-level change for prism/interop-psd); units of prism green in R27 (default, feature, ignored, doctest)",
+   "idempotency_key": "STUDIO-R27:SMB-PRISM-ENG-5:e6989645e02c:PASS_V5",
+   "round": "STUDIO-R27",
+   "lane": "SMB-PRISM-ENG-5",
+   "candidate": "e6989645e02ceb7a4bf082788126b56d6dca4991",
+   "tree": "a26c88154f31ecb8f5d8edd0054a49570ca6f028",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R27",
+   "started_at": "2026-10-14T22:06:44Z",
+   "completed_at": "2026-10-14T22:35:40Z"
+  }
+ ]
 }

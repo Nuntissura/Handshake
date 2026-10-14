@@ -1,0 +1,54 @@
+{
+ "crate": "hsk-studio-score",
+ "lane": "hsk-studio-score-dsp",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "SMB-SCORE-DSP slices 1-4 pushed (7f76cfd, a036f77, 4e36b3d, 917a7ac); EBU test vectors NOT_PROVEN (download 403)",
+ "commits": [
+  {"sha": "7f76cfddd1c72dbe8a5733d209ca760b17118e44", "subject": "Score (SMB-SCORE-DSP slice 1): compressor/expander/gate (Dynamics) and lookahead limiter with 4x true-peak option"},
+  {"sha": "a036f7793b1351f6840f558a80206f1df28371aa", "subject": "Score (SMB-SCORE-DSP slice 2): BS.1770-4 / R128 loudness meter (momentary, short-term, integrated, LRA, 4x true peak)"},
+  {"sha": "4e36b3d709130d4fca22c531bd93e52675e3b728", "subject": "Score (SMB-SCORE-DSP slice 3): algorithmic reverb (Schroeder-Moorer combs + allpasses, Freeverb tunings, RT60-derived loop gains)"},
+  {"sha": "917a7ac5aa7b013e7bc1954b5c6929408aa76095", "subject": "Score (SMB-SCORE-DSP slice 4): spectral noise reduction (NoiseProfiler, NoiseReducer) + DESCRIPTOR for all four DSP slices"}
+ ],
+ "capabilities_done": [
+  "Dynamics (dynamics.rs): compressor / downward expander / gate; Giannoulis-Massberg-Reiss soft-knee static curve (static_reduction_db is the analytic curve); peak or RMS detector; attack/release one-pole in dB; gate hold; range floor; makeup; stereo link or per-channel; latency 0; block-partition bit-identical",
+  "LookaheadLimiter (dynamics.rs): sliding-min + boxcar + release, ceiling -60..0 dB, lookahead 0.1..20 ms, true_peak option via shared 4x polyphase filter (truepeak.rs); latency = lookahead-1 (+6 true peak) reported; sample clamp with clamp_events",
+  "LoudnessMeter (loudness.rs): BS.1770-4 K-weighting derived per rate (48k equals table values to 1e-10), 400 ms/100 ms gating blocks with exact integer edges at any admitted rate, momentary, short-term, integrated (-70 abs / -10 LU rel), LRA (-70 / -20 LU, p10-p95), per-channel true peak (4x) and sample peak, caller channel weights (5.1 helper), pass-through Processor + lock-free LoudnessReadout for use inside a Chain",
+  "Reverb (reverb.rs): Schroeder-Moorer 8 combs + 4 allpasses per channel, Freeverb tunings scaled by rate, comb gains from rt60, damping, pre-delay <= 200 ms, width, wet/dry, mono/stereo, tail_frames()",
+  "NoiseProfiler / NoiseProfile / NoiseReducer (denoise.rs): STFT sqrt-Hann hop N/4 (256..8192), unit gain reconstructs exactly at latency N-1, Wiener-style subtraction gain with over-subtraction and floor, median frequency smoothing, rise/fall time smoothing, profile digest in identity",
+  "All processors: validated ranges (NaN -> NotFinite, out of range -> OutOfRange, non-divisor rate -> InvalidRate), identity strings, required_sample_rate_hz, reset"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-score --no-fail-fast",
+  "exit": 0,
+  "sha": "917a7ac5aa7b013e7bc1954b5c6929408aa76095",
+  "passed": 52,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 300,
+ "bg_pids": [],
+ "next": "independent validator round; D5 oracle for Adobe parity of curves; EBU Tech 3341/3342 vectors if the Operator supplies the files",
+ "updated_at": "2026-10-14T22:37:00Z",
+ "notes": {
+  "new_tests": {"dynamics": 5, "loudness": 5, "reverb": 4, "denoise": 5},
+  "check_clippy": "clippy -p hsk-studio-score -p hsk-studio-score-device -p hsk-studio-score-plugin --tests --examples: no findings in score crates (2 pre-existing too_many_arguments in hsk-studio-observe); additive API only",
+  "spec_basis": "UNVERIFIED: spec STU-FX-147 is a loudness gap (no standard selected by spec); processors here use authored ranges. Adobe Audition curve/ballistics parity is UNVERIFIED and goes to the D5 oracle session.",
+  "licence_clean_room": "Giannoulis et al. JAES 2012 formulas and Freeverb delay tunings (public domain, Jezar) re-implemented; K-weighting biquads derived from the ITU analogue prototype (parameters as in libebur128, MIT, attribution only for the constants); no copyleft source read or copied",
+  "ebu_vectors": {
+   "status": "NOT_PROVEN",
+   "attempt": "curl https://tech.ebu.ch/docs/testmaterial/ebu-loudness-test-setv05.zip -> HTTP 403 (Cloudflare bot protection); not bypassed",
+   "substitute_evidence": "48 kHz K-weighting coefficients equal BS.1770-4 table values; 997 Hz 0 dBFS mono = -3.01 LKFS at 44.1/48/96 kHz; constructed-level gating and LRA with analytic expectations; true peak Hann-shaped fs/4 tone within +/-0.1 dB",
+   "licence": "none downloaded, nothing stored"
+  },
+  "limitations": [
+   "LoudnessMeter gate thresholds and LRA percentiles are quantised to 0.01 LU by the histograms (power sums exact); a discarded block resets the whole measurement",
+   "True-peak filter is an own 49-tap Kaiser sinc design (not the BS.1770 example coefficients); measured: unshaped hard-onset tone shows +0.10 dB Gibbs overshoot; 0.45 fs tone reads -0.108 dBTP vs true 0 (sample peak equal); accuracy near fs/2 not claimed",
+   "LookaheadLimiter true_peak mode: ceiling bound for the oversampled signal verified only on the fs/4 45-degree tone (within 0.25 dB); not proven for arbitrary signals",
+   "NoiseReducer: no stereo-linked gain, no residual/musical-noise listening test (measured proxy: passing-cell fraction 0.0705 -> 0.0 with smoothing); profile must match channels, rate and FFT size",
+   "Reverb has no modulation or early-reflection model; RT60 accuracy measured T30 within 10 percent on four rate/RT60 pairs"
+  ],
+  "dep_requests": "none (no new dependencies)",
+  "working_tree": "pre-existing stat-only modifications of other score src files were left uncommitted; lib.rs committed with content changes only",
+  "retry_guard": "no gameplan block occurred; no gameplan step added"
+ }
+}

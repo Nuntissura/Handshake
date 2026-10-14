@@ -463,5 +463,24 @@
    "count_note": "23 git grep lines = 3 + 3 + 3 + 1 + 6 + 3 + 4 across the 7 rows; TREE_OUTWARD_KEYS: 3 lines at d43fd4e, 0 at 2fd94c7 (removed)"
   },
   "v4_07_r30": "New doc/DESCRIPTOR text (lib.rs D28 closed-set clause, flatten_purge.rs module doc, strip_structure, TREE_ROOT_KEYS, outward-key consts, TREE_STRUCT_KEYS, outward_keys, names_tree_root, structure_tree_objects, check_document docs, sanitized_save comment) uses no never/always/guarantee/proves; the DESCRIPTOR rule sentence cites structure_tree_outward_keys_are_skipped_only_where_they_point_out (exists, passes; descriptor_states_the_structure_tree_rule asserts the citation and lists 'through every key except the outward pointers /Pg /Obj /Stm /StmOwn' as stale)."
- }
+ },
+ "verdicts": [
+  {
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "ade85a0 13534f8 297c309 9a2c840 d43fd4e 2fd94c7 (R31 pre-review SAFE_TO_JUDGE): press default 181/181 incl. flatten_r13 structure_tree_outward_keys_are_skipped_only_where_they_point_out, closed_set_follows_every_key_without_a_depth_cap, default_redaction_strips_the_structure_tree, unit closed_set_budget_exhaustion_is_counted; doctests green. Diff read 2fd94c7: outward keys skipped only for MCR/OBJR/element dicts reached as structure; data walked on every key (as_data re-expansion); root keys add Namespaces/PronunciationLexicon/AF. Real closed-set logic, no stub",
+   "idempotency_key": "STUDIO-R27:SMB-PRESS-STRUCT-STRIP:e6989645e02c:PASS_V1",
+   "round": "STUDIO-R27",
+   "lane": "SMB-PRESS-STRUCT-STRIP",
+   "candidate": "e6989645e02ceb7a4bf082788126b56d6dca4991",
+   "tree": "a26c88154f31ecb8f5d8edd0054a49570ca6f028",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R27",
+   "started_at": "2026-10-14T22:06:44Z",
+   "completed_at": "2026-10-14T22:35:40Z"
+  }
+ ]
 }

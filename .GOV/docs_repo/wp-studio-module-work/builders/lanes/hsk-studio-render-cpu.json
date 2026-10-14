@@ -1859,5 +1859,41 @@
    ],
    "supersedes_note": "notes.v4_06_sites entry src/plan_sink/effects.rs:128 (NOT_APPLICABLE: backend-owned key 'effects_nested') no longer holds: pigment owns the key since d3ce607; the site is now effects.rs:129 and FIXED above. The earlier note was not edited."
   }
- }
+ },
+ "verdicts": [
+  {
+   "decision": "passed",
+   "verdict": "PASS_V12",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "reopened (CX-VAL-009: crate or dependency closure changed 507aa36..e698964, or dev-profile opt-level change for prism/interop-psd); units of render-cpu green in R27 (default, feature, ignored, doctest)",
+   "idempotency_key": "STUDIO-R27:SMB-RENDER-CPU:e6989645e02c:PASS_V12",
+   "round": "STUDIO-R27",
+   "lane": "SMB-RENDER-CPU",
+   "candidate": "e6989645e02ceb7a4bf082788126b56d6dca4991",
+   "tree": "a26c88154f31ecb8f5d8edd0054a49570ca6f028",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R27",
+   "started_at": "2026-10-14T22:06:44Z",
+   "completed_at": "2026-10-14T22:35:40Z"
+  },
+  {
+   "decision": "passed",
+   "verdict": "PASS_V12",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "reopened (CX-VAL-009: crate or dependency closure changed 507aa36..e698964, or dev-profile opt-level change for prism/interop-psd); units of render-cpu green in R27 (default, feature, ignored, doctest)",
+   "idempotency_key": "STUDIO-R27:SMB-RENDER-CPU-CLIP:e6989645e02c:PASS_V12",
+   "round": "STUDIO-R27",
+   "lane": "SMB-RENDER-CPU-CLIP",
+   "candidate": "e6989645e02ceb7a4bf082788126b56d6dca4991",
+   "tree": "a26c88154f31ecb8f5d8edd0054a49570ca6f028",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R27",
+   "started_at": "2026-10-14T22:06:44Z",
+   "completed_at": "2026-10-14T22:35:40Z"
+  }
+ ]
 }

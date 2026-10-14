@@ -4,25 +4,28 @@
   "status": "READY_FOR_VALIDATION",
   "phase": "slice 1 pushed (flatten + Boolean operations); slices 2-4 in progress",
   "commits": [
-    {"sha": "5e550e2", "subject": "nib (SMB-NIB-VECTOR-RENDER slice 1): path flattening with a proven chord bound and Boolean operations on arbitrary paths"}
+    {"sha": "5e550e2", "subject": "nib (SMB-NIB-VECTOR-RENDER slice 1): path flattening with a proven chord bound and Boolean operations on arbitrary paths"},
+    {"sha": "9e5c438", "subject": "nib manifest: explicit empty features list on the i_overlay pin (WORKSPACE_RULES probe)"},
+    {"sha": "c6a636f", "subject": "nib (SMB-NIB-VECTOR-RENDER slice 2): stroke outlining with width, caps, joins, miter limit, dashes and align"}
   ],
   "capabilities_done": [
     "flatten::flatten(OwnedPath, FlattenOptions) -> Vec<Polyline>: uniform Bernstein subdivision, step count n from |B - chord| <= h^2/8 max|B''| (quad n = ceil(sqrt(|d|/(4 tol))), cubic n = ceil(sqrt(3M/(4 tol)))), tolerance in [1e-6, 1e6], point budget charged before allocation, anchor flags",
     "boolean::boolean(operands bottom-first, BooleanOp, BooleanOptions) -> GeometryResult {path, receipt}: Union/Intersect/Exclude/SubtractFront/SubtractBack (wire tokens uniteCommand/intersectCommand/excludeCommand/backMinusFrontCommand/frontMinusBackCommand) over curved, self-intersecting and open paths; per-operand fill-rule normalisation; one power-of-two integer grid; i_overlay 4.0.7 integer sweep; typed EmptyPathfinderResult; candidate-pair + sweep-step guard before the sweep allocates",
-    "boolean::normalise_path: one path resolved under its own fill rule into simple polygons (outer positive signed area, holes negative, non-zero)"
+    "boolean::normalise_path: one path resolved under its own fill rule into simple polygons (outer positive signed area, holes negative, non-zero)",
+    "stroke::outline_stroke(path, StrokeStyle, StrokeOptions) -> GeometryResult: width, caps butt/round/projecting (wire 1/2/3), joins miter/round/bevel (stroke wire 1/2/3, offset wire 0/1/2), miter limit 1..=500 (ratio 1/cos(turn/2)), dashes (arc-length walk, phase incl. negative, odd lists repeat, zero-length dashes = cap dots, run count bounded first), align CENTER/INSIDE/OUTSIDE (closed paths; open refused); union on the integer grid -> clean outline; arcs by repeated rotation (sqrt only, no platform trig)"
   ],
   "tests": {
-    "argv": "cargo nextest run -p hsk-studio-nib --test vector_boolean --no-fail-fast",
+    "argv": "cargo nextest run -p hsk-studio-nib --test vector_stroke --test vector_boolean --no-fail-fast",
     "exit": 0,
-    "sha": "5e550e2",
-    "passed": 4,
+    "sha": "c6a636f",
+    "passed": 9,
     "failed": 0
   },
   "blockers": [],
-  "lock_wait_s": 172,
+  "lock_wait_s": 281,
   "bg_pids": [],
-  "next": "slice 2 stroke outlining (width, joins, miter limit, caps, dashes, align)",
-  "updated_at": "2026-10-14T22:21:00Z",
+  "next": "slice 3 coverage rasterisation + gradient/pattern paint over coverage",
+  "updated_at": "2026-10-14T22:34:02Z",
   "notes": {
     "spec_basis": [
       "STU-VEC-130: 'The captured operation enumeration has thirteen members; Studio MUST carry all thirteen with these stable identifiers and MUST use the captured token as the wire value' (this lane: the five region operations unite/intersect/exclude/backMinusFront/frontMinusBack; divide/trim/merge/crop/outline/hard/soft/trap not built)",

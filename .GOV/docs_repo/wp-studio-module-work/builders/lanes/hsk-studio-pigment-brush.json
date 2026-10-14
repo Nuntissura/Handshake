@@ -4,11 +4,33 @@
  "status": "READY_FOR_VALIDATION",
  "phase": "slice 1 pushed on 1a72a40: clippy clean, 4 brush tests green, check of pigment+composite+render-cpu+render-gpu+develop exit 0",
  "commits": [
-  {"sha": "9179368", "subject": "Pigment brush engine slice 1: parametric tip, pressure dynamics, dab placement, stroke coverage, paint and erase helpers, erase-to-mask route"},
-  {"sha": "1a72a40", "subject": "Pigment brush: exact dab positions (multiply before divide)"}
+  {
+   "sha": "9179368",
+   "subject": "Pigment brush engine slice 1: parametric tip, pressure dynamics, dab placement, stroke coverage, paint and erase helpers, erase-to-mask route"
+  },
+  {
+   "sha": "1a72a40",
+   "subject": "Pigment brush: exact dab positions (multiply before divide)"
+  }
  ],
- "capabilities_done": ["BrushTip/BrushDynamics/Dab serde (STU-RAW-121 dab list)", "place_dabs with spacing >100 percent and remainder carry", "pen_pressure on size/opacity/flow", "stroke_coverage (hardness smoothstep, flow build-up, opacity cap)", "paint_replacement/erase_replacement for masked_replace", "route_erase (erase_routed_to_mask, STU-RAS-170)", "paint_mask/clip_to_selection via selection::combine", "crop_to", "brush::DESCRIPTOR"],
- "tests": {"argv": "nextest run -p hsk-studio-pigment --test brush --no-fail-fast", "exit": 0, "sha": "1a72a40", "passed": 4, "failed": 0},
+ "capabilities_done": [
+  "BrushTip/BrushDynamics/Dab serde (STU-RAW-121 dab list)",
+  "place_dabs with spacing >100 percent and remainder carry",
+  "pen_pressure on size/opacity/flow",
+  "stroke_coverage (hardness smoothstep, flow build-up, opacity cap)",
+  "paint_replacement/erase_replacement for masked_replace",
+  "route_erase (erase_routed_to_mask, STU-RAS-170)",
+  "paint_mask/clip_to_selection via selection::combine",
+  "crop_to",
+  "brush::DESCRIPTOR"
+ ],
+ "tests": {
+  "argv": "nextest run -p hsk-studio-pigment --test brush --no-fail-fast",
+  "exit": 0,
+  "sha": "1a72a40",
+  "passed": 4,
+  "failed": 0
+ },
  "blockers": [],
  "lock_wait_s": 20,
  "bg_pids": [],
@@ -21,5 +43,40 @@
   "tests_count": "4 tests (hostile and selection clip folded into the brief's five); crate-level DESCRIPTOR unchanged",
   "selection_lane": "d48bc30 selection module consumed unchanged"
  },
- "verdicts": [{"decision": "passed", "verdict": "PASS_V1", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "9179368, 1a72a40: pigment brush 4/4 (exact spacing/pressure, hardness/flow/opacity coverage + selection clip, paint/erase through masked_replace, hostile sizes). Diff read: real dab placement and smoothstep footprint accumulation, budget checked before allocation; opacity cap = max dab opacity (documented)", "idempotency_key": "STUDIO-R26:SMB-PIGMENT-BRUSH:507aa36d6a58:PASS_V1", "round": "STUDIO-R26", "lane": "SMB-PIGMENT-BRUSH", "candidate": "507aa36d6a588f82568f0d2867495b71ce5023ae", "tree": "595bb180eada95cebf57b6cbca509292ac949252", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R26", "started_at": "2026-10-14T21:21:54Z", "completed_at": "2026-10-14T21:51:04Z"}]
+ "verdicts": [
+  {
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "9179368, 1a72a40: pigment brush 4/4 (exact spacing/pressure, hardness/flow/opacity coverage + selection clip, paint/erase through masked_replace, hostile sizes). Diff read: real dab placement and smoothstep footprint accumulation, budget checked before allocation; opacity cap = max dab opacity (documented)",
+   "idempotency_key": "STUDIO-R26:SMB-PIGMENT-BRUSH:507aa36d6a58:PASS_V1",
+   "round": "STUDIO-R26",
+   "lane": "SMB-PIGMENT-BRUSH",
+   "candidate": "507aa36d6a588f82568f0d2867495b71ce5023ae",
+   "tree": "595bb180eada95cebf57b6cbca509292ac949252",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R26",
+   "started_at": "2026-10-14T21:21:54Z",
+   "completed_at": "2026-10-14T21:51:04Z"
+  },
+  {
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "reopened (CX-VAL-009: crate or dependency closure changed 507aa36..e698964, or dev-profile opt-level change for prism/interop-psd); units of pigment green in R27 (default, feature, ignored, doctest)",
+   "idempotency_key": "STUDIO-R27:SMB-PIGMENT-BRUSH:e6989645e02c:PASS_V2",
+   "round": "STUDIO-R27",
+   "lane": "SMB-PIGMENT-BRUSH",
+   "candidate": "e6989645e02ceb7a4bf082788126b56d6dca4991",
+   "tree": "a26c88154f31ecb8f5d8edd0054a49570ca6f028",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R27",
+   "started_at": "2026-10-14T22:06:44Z",
+   "completed_at": "2026-10-14T22:35:40Z"
+  }
+ ]
 }
