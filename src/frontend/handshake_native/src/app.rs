@@ -8660,6 +8660,47 @@ impl HandshakeApp {
             })
     }
 
+    #[doc(hidden)]
+    pub fn set_wp1_console_entries_for_test(
+        &mut self,
+        entries: Vec<crate::console_stream_pane::ConsoleStreamEntry>,
+    ) {
+        self.factories.insert(
+            PaneType::Wp1OrchestrationConsole,
+            Box::new(crate::console_stream_pane::ConsoleStreamPaneFactory::with_entries(entries)),
+        );
+    }
+
+    #[doc(hidden)]
+    pub fn set_swarm_lane_diagnostics_projection_for_test(
+        &mut self,
+        projection: crate::swarm_lane_diagnostics::SwarmLaneDiagnosticsProjection,
+    ) {
+        self.factories.insert(
+            PaneType::SwarmLaneDiagnostics,
+            Box::new(
+                crate::swarm_lane_diagnostics::SwarmLaneDiagnosticsPaneFactory::with_projection(
+                    projection,
+                ),
+            ),
+        );
+    }
+
+    #[doc(hidden)]
+    pub fn set_swarm_lane_diagnostics_transport_for_test(
+        &mut self,
+        transport: Arc<dyn crate::swarm_lane_diagnostics::SwarmLaneDiagnosticsTransport>,
+    ) {
+        self.factories.insert(
+            PaneType::SwarmLaneDiagnostics,
+            Box::new(
+                crate::swarm_lane_diagnostics::SwarmLaneDiagnosticsPaneFactory::with_transport(
+                    transport,
+                ),
+            ),
+        );
+    }
+
     /// WP-KERNEL-012 MT-085 TEST SEAM: inject `micros` of extra synthetic WORK INSIDE `self.ui(ctx)` on
     /// every subsequent frame so a kittest can drive a REAL slow frame from the live frame path
     /// (AC-005-2) and prove the SlowFrame flag fires from production code — NOT by feeding the
