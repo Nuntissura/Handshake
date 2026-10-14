@@ -1,0 +1,28 @@
+{
+ "crate": "hsk-studio-pigment",
+ "lane": "SMB-PIGMENT-RETOUCH",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slices 1-2 pushed (9650626 clone stamp, 78ff77d healing + spot healing); clippy -p hsk-studio-pigment --tests clean; retouch 6/6",
+ "commits": [
+  {"sha": "9650626", "subject": "pigment (SMB-PIGMENT-RETOUCH slice 1): clone stamp over brush dabs with aligned/non-aligned source, rotation and selection clip; content-aware fill typed refusal"},
+  {"sha": "78ff77d", "subject": "pigment (SMB-PIGMENT-RETOUCH slice 2): healing brush (membrane Poisson blend, SOR, receipt) and spot healing (proximity-match source search)"}
+ ],
+ "capabilities_done": [
+  "slice 1 retouch::RgbaPlane (validated straight RGBA f32), RetouchLimits (bytes + work, checked before allocation), CloneSource/CloneOptions (STU-RAS-139 aligned, source_rotation_deg -180..180, sample_scope), begin_stroke anchor rule (aligned = first dab of first stroke, non-aligned = first dab of each stroke), CloneMap sampled through transform_math PreparedTransform::sample_rgba (integer offset = exact copy), clone_stamp painting source-over with stroke coverage (brush::stroke_coverage) intersected with the selection (brush::clip_to_selection), content_aware_fill typed refusal content_aware_unsupported",
+  "slice 2 retouch::heal: gradient-domain (membrane Poisson, Perez/Gangnet/Blake 2003) blend f = g + h, lap(h) = 0 on coverage > 0, h = d - g on the 4-neighbour boundary, Neumann beyond the target; SOR omega 1.9 row-major single-thread (thread-count independent by construction), tolerance 1e-9, iteration cap from max_work and region size; HealReceipt{iterations, converged, residual, source_offset} (no silent partial result); output d + c(f - d) premultiplied. retouch::spot_heal: proximity-match source search over 16 fixed candidates scored by the 2 px ring SSD, then heal; spot_heal_no_source typed refusal; Content-Aware type out of scope (content_aware_unsupported)"
+ ],
+ "tests": {"argv": "cargo nextest run -p hsk-studio-pigment --test retouch --no-fail-fast", "exit": 0, "sha": "78ff77d", "passed": 6, "failed": 0},
+ "blockers": [],
+ "lock_wait_s": 46,
+ "bg_pids": [],
+ "next": "slice 3 crop (optional rotation via transform_math), canvas resize with nine-member anchor, trim",
+ "updated_at": "2026-10-14T22:21:14Z",
+ "notes": {
+  "spec_basis": "STU-RAS-026 (clone stamp: exact pixel copies from a sampled source point, aligned sampling, sample-layer scope, cross-document sources; healing brush; spot heal; patch/content-aware move/inpaint), STU-RAS-139 (clone stamp options aligned default true, sample_scope current_layer|current_and_below|all_layers, source_rotation -180..180 default 0), STU-RAS-143/STU-RAS-030 (content-aware fill native implementation MUST exist: GAP, typed refusal in this lane), STU-RAS-142 (crop/canvas/trim contracts), STU-RAS-141 (nine-member anchor), STU-FX-011 (deterministic effects, seed), STU-FX-015 (add noise seed, colour mode), STU-FX-019 (high pass deduped), 14.9 rows Unsharp Mask, High Pass, Median Blur, Add Noise",
+  "readings": "clone application = source-over of the sampled pixel with alpha * coverage (binary64, one binary32 rounding); anchor rule; bilinear for fractional offsets: Studio readings, Approximate, Photoshop behaviour UNVERIFIED (D5). sample_scope and cross-document sources are resolved by the caller (operator takes the resolved sample plane)",
+  "heal_reading": "Photoshop healing brush algorithm UNVERIFIED (D5); Studio uses the documented membrane Poisson approximation; spot heal candidate search is a Studio proximity-match reading",
+  "unowned_dirty_file": "crates/hsk-studio-pigment/tests/transform.rs shows M in git status with an empty content diff (line-ending/stat only); not touched, not committed by this lane",
+  "cargo_lock": "not touched",
+  "route": "no gameplan blocks on cargo; one kernel-root shell command was blocked by the WP-KERNEL-012 gameplan (hook resolves the kernel pointer from that cwd); switched to the Write tool for lane-file edits, no gameplan touched"
+ }
+}

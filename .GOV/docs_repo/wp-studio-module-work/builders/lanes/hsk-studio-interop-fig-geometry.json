@@ -28,5 +28,6 @@
     "folio_gaps_found": "no image paint kind, no blur effect kind, no STYS style record, no container (group/artboard) geometry, no boolean operation record, no per-layer transform",
     "gameplan_route": "no hook block; one infra slip (python - waiting on stdin in a chained command, killed by PID, no product effect)",
     "deps": "added path dep hsk-studio-nib to crates/hsk-studio-interop-fig/Cargo.toml (root Cargo.toml allowed list edit is the steward's); no crates.io dependency; Cargo.lock uncommitted"
-  }
+  },
+  "verdicts": [{"decision": "passed", "verdict": "PASS_V1", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "b24f18f, 13588d3, 7c190d3: interop-fig fig_geometry 4/4 (losses shrink and pinned, geometry vs PNG positions, rotation/line baked + network fallback, effects/masks/image paints pinned) and fig_native green on the 3 Operator fixtures. Diff read: Nib paths baked from fillGeometry/vector network with composed transforms; conventions listed in NATIVE_NOT_PROVEN, not claimed as Figma parity", "idempotency_key": "STUDIO-R26:SMB-INTEROP-FIG-GEOMETRY:507aa36d6a58:PASS_V1", "round": "STUDIO-R26", "lane": "SMB-INTEROP-FIG-GEOMETRY", "candidate": "507aa36d6a588f82568f0d2867495b71ce5023ae", "tree": "595bb180eada95cebf57b6cbca509292ac949252", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R26", "started_at": "2026-10-14T21:21:54Z", "completed_at": "2026-10-14T21:51:04Z"}]
 }

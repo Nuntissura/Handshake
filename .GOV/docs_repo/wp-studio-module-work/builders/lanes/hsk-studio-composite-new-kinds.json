@@ -1,0 +1,50 @@
+{
+ "crate": "hsk-studio-composite",
+ "lane": "SMB-COMPOSITE-NEW-KINDS",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slices 1-5 pushed and green (last 46f18cd); claim = the 8 commits listed below, all in composite, pigment, render-cpu, render-gpu",
+ "commits": [
+  {"sha": "3800a14", "subject": "composite (SMB-COMPOSITE-NEW-KINDS slice 5): document root over every graph output"},
+  {"sha": "b316ba2", "subject": "composite (SMB-COMPOSITE-NEW-KINDS slice 4): image-typed text sources composite inside groups (G1)"},
+  {"sha": "f1816ef", "subject": "pigment (SMB-COMPOSITE-NEW-KINDS slice 1): layer blur and backdrop blur maths + envelope entry"},
+  {"sha": "7137249", "subject": "render-cpu (SMB-COMPOSITE-NEW-KINDS slice 1): execute layer blur and backdrop blur"},
+  {"sha": "06cff14", "subject": "render-gpu (SMB-COMPOSITE-NEW-KINDS slice 1): layer blur and backdrop blur passes"},
+  {"sha": "c691280", "subject": "composite (SMB-COMPOSITE-NEW-KINDS slice 1): lower Folio blur effects to pigment layer/backdrop blur"},
+  {"sha": "108b67e", "subject": "composite (SMB-COMPOSITE-NEW-KINDS slice 2): vector layers with solid and image paint fills"},
+  {"sha": "46f18cd", "subject": "composite (SMB-COMPOSITE-NEW-KINDS slice 3): live boolean groups proven per operation"}
+ ],
+ "capabilities_done": [
+  "slice 1 blur: pigment blur_math (single owner): LayerBlur{scope Layer|Backdrop, radius_px 0..=1000}; radius -> sigma = radius/2 with coverage_math::feather_kernel taps (the SAME Gaussian as the mask feather and the effect matte blurs; Figma CSS export blur(r/2) and Photoshop radius relation UNVERIFIED -> class Approximate); blur_window = separable premultiplied blur (binary64 per pass, rounded once, unpremultiply; radius 0 = exact copy), bytes/work checked against BlurLimits before allocation; backdrop_mix = premultiplied lerp, k = shape alpha * layer opacity; LayerExtension.blur (absent from digest when None), ExtOperator::Blur keys blur_layer/blur_backdrop, PlanError::BlurCombination (blur with adjustment, effects, Blend-If, pass-through, clip roles; backdrop blur in a non-isolated group)",
+  "slice 1 render-cpu: layer blur on the chunk-level frame (content over window+support, pigment blur_window, composite mode/opacity*fill); backdrop blur re-evaluates the isolated group's layers below over window+support, blurs, mixes inside the shape (pigment backdrop_mix) before the layer composites; bit-identical to the pigment composition for chunk/thread (1,1) (3,1) (5,4) (64,1) (4,8); frame + predicted blur bytes charged before the first sink call; typed refusals blur_work_limit, blur_nested (blur/effects inside a blurred layer or below a backdrop blur)",
+  "slice 1 render-gpu: blur.wgsl (own module + layout; composite/effect layouts unchanged): H premultiplied pass, V pass + unpremultiply, MIX; frame margin grows by support (backdrop: + margin of layers below); blur scratch charged to residency; pass cost bounded like effect passes; measured max |delta| (alpha, premultiplied colour) vs pigment composition 1.19e-7, tolerance 1e-5, live adapter",
+  "slice 1 composite: enabled Folio blur instance (render_scope layer|below) -> LayerExtension.blur; ledgers record blur_layer/blur_backdrop Approximate; typed refusals plan_blur_combination, blur_multiple, blur_parameter (opacity != 100 or mode != normal), effect_noise; disabled instance renders nothing",
+  "slice 2 composite vector module: vector layers and groups with a live boolean record drawn on the host into one coverage_u8 plane (n x n samples, exact kurbo winding of nib paths, fill rule per path, paths united per sample) and lowered through existing pigment routes only: Group[Layer{rows group, Normal, CoverageU8 mask}], one row per visible fill row of the layer's fill_style_id paint style (mode, opacity); solid rows = Solid; StudioImagePaint rows: image resolved through caller VectorAssets, Tile at (0,0,w,h) placed by pigment LayerTransform (bilinear, clamp): CROP = pixel->unit, Folio unit-square transform, unit->geometry bounds; FILL cover / FIT contain centred; TILE copies at scaling_factor (<= 256, each a transformed tile layer); the plane covers placed images (backends' mask-gap rule); entry points prepare_vectors (Folio adapter), prepare_vector_layers (folio-free), evaluate_with_inputs / lower_with_inputs (RenderInputs{records,text,vectors}), vector_layer_render_plan (folio-free, renderer tests); InputsLowering.vector_masks / image_sources key tables",
+  "slice 3 boolean groups: operands combined per sample (UNION any, INTERSECT all, SUBTRACT first and none of the rest, EXCLUDE odd count), cached outline used when present, nested boolean operands recursive (depth 64), group lowered as a leaf with its own paint style; refusals boolean_operand_kind, vector_path_unresolved",
+  "slice 4 (G1): image-typed text source evaluates and lowers like a prepared text plane inside its group (group layer carries the text layer's appearance); without prepared text text_to_image_conversion",
+  "slice 5: LoweredPlan::with_document_root / document_root (DOCUMENT_ROOT_LAYER composite.document_root): one plan-only composite step over every graph output (outputs[0] bottom-most, neutral), lowering equals an authored isolated normal root group over the outputs; refusals graph_outputs_empty, graph_output_duplicate, DanglingInput, document_root_present"
+ ],
+ "tests": {
+  "argv": "cargo nextest run (per crate, focused): -p hsk-studio-pigment --test blur; -p hsk-studio-render-cpu --test cpu_blur --test vector_paint; -p hsk-studio-render-gpu --test gpu_blur --test vector_paint --no-capture; -p hsk-studio-composite --test document_root --test text_in_group --test blur_lowering --test vector_lowering --test boolean_lowering",
+  "exit": 0,
+  "sha": "46f18cd",
+  "passed": 19,
+  "failed": 0,
+  "regression": "composite full default suite 47/47 at 108b67e (after the lower_inner refactor); composite render_plan_lowering + static_plan 28/28 at c691280; pigment plan_extensions + plan_followups 18/18 at f1816ef; render-cpu cpu_effects cpu_window cpu_extended cpu_effects_fx2 cpu_envelope_reach 22/22 at 7137249 content; render-gpu lib + gpu_plan + gpu_transform 28/28 at 06cff14 content"
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "validator round on the commits above (steward first: pin composite -> kurbo =0.13.1 [std] and the composite -> nib path edge from the two dep-request lines of 2026-10-14T22:04:54Z; Cargo.lock left uncommitted)",
+ "updated_at": "2026-10-14T22:26:00Z",
+ "notes": {
+  "proof": "one clippy over composite, pigment, render-cpu, render-gpu --tests with features hsk-studio-composite/motion, hsk-studio-render-gpu/test-faults, hsk-studio-render-gpu/shared-device at 46f18cd: exit 0, no warnings in the four crates (type/observe pre-existing warnings only)",
+  "parity": "blur: CPU = pigment bit for bit (all chunkings/threads), GPU max 1.19e-7 (layer r1/r6, backdrop r1.5/r4); vector fills + SUBTRACT boolean + CROP image multiply 0.4: CPU = pigment bit for bit for (1,1) (5,1) (7,4) (64,1), GPU max 5.96e-8 (paths) and 2.98e-8 (boolean), tolerance 6e-6; GPU tests ran on a live adapter (gpu-proof.toml require_gpu = true)",
+  "conventions": "blur radius r -> Gaussian sigma = r/2, support ceil(3 sigma) (feather_kernel); backdrop blur weight k = shape alpha * layer opacity (Studio reading, Figma UNVERIFIED); vector coverage = round(255 * hits / n^2) with n = VectorResolution.aa_samples (default 4); image paint placement: Folio transform maps unit image square -> unit square of the geometry bounding box; FILL/FIT/TILE require identity transform and rotation 0",
+  "refusals_left": "blur: blur together with effects/Blend-If, two blurs on one layer, blur on clip roles / adjustment / pass-through layer, backdrop blur in a pass-through group (Figma groups imported as pass-through will refuse backdrop blur), blur or effects nested inside a blurred layer or below a backdrop blur on CPU (blur_nested; the GPU has no such limit but admission is shared only for pigment rules); vectors: strokes (vector_stroke_not_rendered), gradients (paint_gradient), image rotation and non-identity FILL/FIT/TILE transforms, TILE over 256 copies, colours in another profile or mid-tone in linear light; Folio types vector sources `vector`, so vector layers cannot be group inputs (they render as graph outputs / document-root inputs; boolean groups render as leaves)",
+  "rgf_candidates": "folio: allow an image-typed vector source port (like G1 for text) so vector layers can composite inside groups; nib now has geometric Boolean operations (5e550e2, SMB-NIB-VECTOR-RENDER): a later composite slice could compute cached outlines with them; interop-fig emits an empty layer graph, so .fig documents need graph synthesis (or the document root over layers) before composite renders them",
+  "outside_owned_paths": "builders/dep-requests.jsonl (two request lines, the documented process); no product path outside the four owned crates",
+  "deps": "composite: hsk-studio-nib (path, allowed edge) and kurbo =0.13.1 [std] (already locked via nib); Cargo.lock uncommitted",
+  "v4": "V4-01: pigment blur_math, render-cpu plan_sink/blur.rs and composite vector.rs carry deny(clippy::arithmetic_side_effects); V4-02: blur_window_cost checked before allocation (tests hostile_radii_sizes_and_budgets_are_refused_before_allocation: dims_u32_max + aggregate exact/minus-one), render-cpu scratch charge exact/minus-one test, vector plane pixels and sample work checked before allocation; V4-03: GPU tests gated by gpu-proof.toml; V4-09: commit messages via -F files; V4-12: helper files under scratchpad/smb-composite-new-kinds/",
+  "retry_guard": "one gameplan retry-guard block on a rerun of a failing composite test (test bug: require_ready over the fixture's unrelated unavailable outputs); route (a): fixed and committed c691280, then rerun green; no gameplan step added"
+ }
+}

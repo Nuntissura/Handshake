@@ -20,5 +20,6 @@
   "readings": "stroke opacity = max dab opacity (stroke-level cap); dab diameter floored at 1 px after dynamics; Approximate, D5 pending",
   "tests_count": "4 tests (hostile and selection clip folded into the brief's five); crate-level DESCRIPTOR unchanged",
   "selection_lane": "d48bc30 selection module consumed unchanged"
- }
+ },
+ "verdicts": [{"decision": "passed", "verdict": "PASS_V1", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "9179368, 1a72a40: pigment brush 4/4 (exact spacing/pressure, hardness/flow/opacity coverage + selection clip, paint/erase through masked_replace, hostile sizes). Diff read: real dab placement and smoothstep footprint accumulation, budget checked before allocation; opacity cap = max dab opacity (documented)", "idempotency_key": "STUDIO-R26:SMB-PIGMENT-BRUSH:507aa36d6a58:PASS_V1", "round": "STUDIO-R26", "lane": "SMB-PIGMENT-BRUSH", "candidate": "507aa36d6a588f82568f0d2867495b71ce5023ae", "tree": "595bb180eada95cebf57b6cbca509292ac949252", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R26", "started_at": "2026-10-14T21:21:54Z", "completed_at": "2026-10-14T21:51:04Z"}]
 }

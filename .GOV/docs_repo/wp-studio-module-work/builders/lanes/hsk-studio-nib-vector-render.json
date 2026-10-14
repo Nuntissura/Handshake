@@ -1,0 +1,38 @@
+{
+  "crate": "hsk-studio-nib",
+  "lane": "SMB-NIB-VECTOR-RENDER",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slice 1 pushed (flatten + Boolean operations); slices 2-4 in progress",
+  "commits": [
+    {"sha": "5e550e2", "subject": "nib (SMB-NIB-VECTOR-RENDER slice 1): path flattening with a proven chord bound and Boolean operations on arbitrary paths"}
+  ],
+  "capabilities_done": [
+    "flatten::flatten(OwnedPath, FlattenOptions) -> Vec<Polyline>: uniform Bernstein subdivision, step count n from |B - chord| <= h^2/8 max|B''| (quad n = ceil(sqrt(|d|/(4 tol))), cubic n = ceil(sqrt(3M/(4 tol)))), tolerance in [1e-6, 1e6], point budget charged before allocation, anchor flags",
+    "boolean::boolean(operands bottom-first, BooleanOp, BooleanOptions) -> GeometryResult {path, receipt}: Union/Intersect/Exclude/SubtractFront/SubtractBack (wire tokens uniteCommand/intersectCommand/excludeCommand/backMinusFrontCommand/frontMinusBackCommand) over curved, self-intersecting and open paths; per-operand fill-rule normalisation; one power-of-two integer grid; i_overlay 4.0.7 integer sweep; typed EmptyPathfinderResult; candidate-pair + sweep-step guard before the sweep allocates",
+    "boolean::normalise_path: one path resolved under its own fill rule into simple polygons (outer positive signed area, holes negative, non-zero)"
+  ],
+  "tests": {
+    "argv": "cargo nextest run -p hsk-studio-nib --test vector_boolean --no-fail-fast",
+    "exit": 0,
+    "sha": "5e550e2",
+    "passed": 4,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": 172,
+  "bg_pids": [],
+  "next": "slice 2 stroke outlining (width, joins, miter limit, caps, dashes, align)",
+  "updated_at": "2026-10-14T22:21:00Z",
+  "notes": {
+    "spec_basis": [
+      "STU-VEC-130: 'The captured operation enumeration has thirteen members; Studio MUST carry all thirteen with these stable identifiers and MUST use the captured token as the wire value' (this lane: the five region operations unite/intersect/exclude/backMinusFront/frontMinusBack; divide/trim/merge/crop/outline/hard/soft/trap not built)",
+      "STU-VEC-049: 'the same operation over the same input geometry, z-order and precision ... MUST produce byte-identical output geometry' (test boolean_overlapping_circles_and_fill_rules compares canonical JSON of repeated runs)",
+      "STU-VEC-048 / STU-VEC-133: empty result fails closed with an explicit empty-result error (Error::EmptyPathfinderResult)",
+      "STU-VEC-179: 'All geometry evaluation named in 14.5 -- tessellation, boolean composition, stroking, offsetting ... MUST be deterministic'"
+    ],
+    "dependency": "i_overlay =4.0.7 (MIT; closure i_float 1.15.0, i_shape 1.14.0, i_tree 0.16.0, i_key_sort 0.6.0, all MIT; libm already locked); dep-requests.jsonl line added 2026-10-14T22:18:44Z; Cargo.lock left uncommitted for the steward; rayon feature off",
+    "precision": "results are polygons: error <= flatten tolerance + grid quantum, plus i_overlay snapping of intersection vertices within a few quanta (radius starts at 1 quantum, doubles per pass; final radius not exposed: UNVERIFIED bound). Adobe pathfinder point placement / curve refit not reproduced (UNVERIFIED, D5).",
+    "kept_unchanged": "the existing exact axis-aligned rectangle provider (provider.rs/proposal.rs prepare/finalize contract and descriptor) is untouched; the general Boolean path is a new pure-function module, not yet wired into the proposal/budget/lease contract (gap)",
+    "lowering_needed_by_composite_or_render_lane": "composite (SMB-COMPOSITE-NEW-KINDS) currently evaluates live booleans per AA sample; it can bake boolean::boolean output as the cached fill_geometry outline or rasterise it directly"
+  }
+}

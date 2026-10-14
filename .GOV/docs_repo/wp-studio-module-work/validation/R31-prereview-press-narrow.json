@@ -1,0 +1,86 @@
+{
+ "kind": "pre-review",
+ "scope": "narrow d43fd4e..2fd94c7, crate hsk-studio-press only: SMB-PRESS-STRUCT-STRIP final remediation 2fd94c7 (R30-S1/S2/S3: outward keys /Pg /Obj /Stm /StmOwn skipped only in element/MCR/OBJR dictionaries reached as structure; class maps, role maps, attribute objects, namespaces walked on every key; a root with only /Namespaces, /PronunciationLexicon or /AF names a tree), plus the claim as now worded (ade85a0 13534f8 297c309 9a2c840 d43fd4e 2fd94c7)",
+ "head": "2fd94c7",
+ "base": "d43fd4e",
+ "head_note": "Shared tree HEAD b316ba2; the press crate is byte-equal between 2fd94c7 and HEAD (git diff --quiet 2fd94c7 HEAD -- handshake-studio-assets/crates/hsk-studio-press, exit 0). In d43fd4e..2fd94c7 the press crate changes only in 2fd94c7 (flatten_purge.rs, lib.rs DESCRIPTOR D28 clause, sanitized_save.rs comment, tests/flatten_r13.rs). V4-14 holds.",
+ "rule": "V4-13: hsk-studio-press holds SMB-PRESS (2 failed verdicts). R30 (validation/R30-prereview-press-narrow.json) returned FIX_FIRST on STRUCT-STRIP (R30-S1). This file covers only the R30 remediation 2fd94c7 and the STRUCT-STRIP claim as now worded; R26-R30 stand for what they covered (V4-18). OPERATOR DECISION 2026-10-14 (press tagged PDFs): R31 is the final narrow pre-review; a CONFIRMED in-claim leak here narrows the lane automatically to 'tagged documents always NotProven'. Lead residual decision (named property lists, R26-P3, PLR-103 remainder) and the lead acceptance of R27 X3 (over-count) applied: not findings. Over-counts are INFO only.",
+ "two_fail_lanes_reopened": [
+  {"lane": "SMB-PRESS", "verdicts": "FAIL_V1 R5, FAIL_V2 R6 (PASS at R21, R22)", "reopened_by": "hsk-studio-press changed by 2fd94c7", "covered_by": "lanes[0] below"}
+ ],
+ "reviewer": "independent read-only PRE-REVIEWER (V4-13), fresh context, wrote none of this code and none of the earlier pre-reviews. No product file edited, nothing committed, no process stopped, no sub-agents. Runs only on a scratch export with its own owner (V4-11): Handshake_Artifacts/WP-KERNEL-STUDIO/r31-prereview-probe (src = git archive 2fd94c7 handshake-studio-assets extracted with fresh mtimes (tar -m), tree a83a92746b880be1c55d1fb909cf334df99f5553, 1043 files before the probe; STUDIO_OWNER=r31-prereview-probe, own target and tmp on D:; cargo only through builders/studio-env.sh with the leading cd first; Studio gameplan STUDIO-MODULE-BUILD check --at before_round PASS 3/3 before the run). One probe test file added to the scratch copy only: crates/hsk-studio-press/tests/r31_probe.rs (helpers copied from the R30 probe; 24 printed cases; asserts nothing; every saved file re-opened with PdfDoc::open). Log: r31-prereview-probe/probe-1.log (exit 0). No web request.",
+ "severity_rule": "CONFIRMED = file:line read at 2fd94c7 and the behaviour follows from the code (reasoned), or observed in a run where marked (run); PLAUSIBLE = reasoning only, an untested sub-case, an accepted-residual intersection, a behaviour outside the claim's own wording, or an external fact not read; INFO = observation, no action required",
+ "recommendation_standard": "FIX_FIRST only for a CONFIRMED (run) in-claim leak with concrete evidence (file:line plus a failing input); PLAUSIBLE/INFO do not trigger the Operator's automatic narrowing; accepted residuals and fail-closed over-counts are not findings",
+ "method": "Kernel reads: R30-prereview-press-narrow.json (all findings, inputs, repair directions), R29..R26 scope lines, START_LOG DIAG-PRESS-R29 (escalation rule), the X3 acceptance (lead 2026-10-14), the OPERATOR DECISION 2026-10-14 (press tagged PDFs), lane file hsk-studio-press-struct-strip.json (notes.remediation_R30, v4_06_sites_r30, v4_07_r30), builders/DISPATCH_TEMPLATES.md CARGO/TESTS rules, builders/studio-env.sh. Product (2fd94c7): git diff d43fd4e..2fd94c7 for the press crate (src all hunks, test diff); flatten_purge.rs:676 TREE_ROOT_KEYS, :681 root_shaped, :715-760 strip_structure (closed set computed before the unlink), :777-779 MCR/OBJR/ELEMENT_OUTWARD_KEYS, :785 TREE_STRUCT_KEYS, :790-801 outward_keys, :806 names_tree_root, :813 type_is, :833-875 structure_tree_objects (structure/data flag per stack entry, as_data re-expansion), :1688 holds, :1873 check_document closed-set count. Scripted: git grep of the v4_06_sites_r30 regex at 2fd94c7 (23 lines = lane count 23; TREE_OUTWARD_KEYS 0 matches); V4-07 word counts of lib.rs d43fd4e -> 2fd94c7. Run (scratch export, own owner): cargo nextest run -p hsk-studio-press --test r31_probe --test flatten_r13 --lib --no-capture --no-fail-fast, once (103/103 passed incl. structure_tree_outward_keys_are_skipped_only_where_they_point_out, structure_tree_closed_set_follows_every_key_without_a_depth_cap, closed_set_budget_exhaustion_is_counted, descriptor_states_the_structure_tree_rule, and the probe; exit 0; the run waited ~8 min on the disk build lock behind a validator round).",
+ "first_clock_reading": "2026-10-14T21:29:12Z",
+ "first_clock_reading_note": "first `date -u` reading, at the scratch export, after the kernel reads and the diff read, before the run",
+ "completed_at": "2026-10-14T21:39:25Z",
+ "status": "COMPLETE",
+ "r30_recheck": {
+  "R30-S1": "FIXED (run): N1o, N1p, N1s, N1w (class named Obj, Pg, Stm, StmOwn; class attribute 87 kept by catalog /HskCM) all region_flattened false, residual 1, [ResidualInRegion]; N1-ctrl (class C1) the same. Product rows N1S, N1r also green.",
+  "R30-S2": "FIXED (run): N2 (/O /XML-1.00 /Obj -> indirect string kept by a private key) NotProven residual 1.",
+  "R30-S3": "FIXED (run): N3ns (root with only /Namespaces) and N3af (root with only /AF) NotProven residual 1, loss AccessibilityTagsRemoved now reported; product row N3pl green.",
+  "R30-S4": "INFO kept (run): N5 (OBJR /Obj -> /S /Alt dict kept by a private key) flattened, text present - outside the claim by design, unchanged.",
+  "R26..R29 inputs": "green (run): every flatten_r13 test passes at 2fd94c7."
+ },
+ "lanes": [
+  {
+   "lane": "SMB-PRESS-STRUCT-STRIP",
+   "crate": "hsk-studio-press",
+   "two_fail_lane_in_crate": "SMB-PRESS (R5 FAIL_V1, R6 FAIL_V2)",
+   "commits_checked": ["2fd94c7 (focus)", "ade85a0, 13534f8, 297c309, 9a2c840, d43fd4e (regression of the claim as worded)"],
+   "recommendation": "SAFE_TO_JUDGE",
+   "recommendation_note": "Every R30 input is fixed (run). The element-classification attack was run in both directions: no dictionary walked as data (class map, role map, attribute object, namespace, private-key value) can have a key skipped - the structure flag is set only through /K /P /Ref /ParentTree /IDTree /Kids /Nums /Names from a structure node, never inherited back from data (flatten_purge.rs:871), and an object reached both ways is re-expanded on every key (:858 as_data), so aliasing an attribute, class map or role map into /K, /P, /Ref or the parent tree, with /S, /Type /OBJR, /Type /MCR or /Type /StructElem on it, never drops /Obj /Stm /StmOwn /Pg (A1a..A8, 10 cases, all NotProven). Keys are skipped only in dictionaries reached solely through structure keys and typed or shaped as element/MCR/OBJR - exactly the claim's wording; the remaining kept-text cases (R31-P1, R31-P2) sit in that by-claim exclusion and are PLAUSIBLE, not in-claim leaks. No CONFIRMED in-claim leak: the Operator's automatic narrowing is not triggered by this review.",
+   "findings": [
+    {
+     "id": "R31-P1",
+     "severity": "PLAUSIBLE (run for the behaviour; inside the claim's explicit exclusion '/Pg of an element', so not an in-claim leak; whether text behind a non-page /Pg target is tree text a viewer exposes is UNVERIFIED and unlikely)",
+     "file_line": "src/flatten_purge.rs:779 ELEMENT_OUTWARD_KEYS, :790-801 outward_keys (no /Type and /S, or /Type /StructElem -> skip /Pg), :838 outside (pages and catalog excluded by number)",
+     "input": "P1: catalog '/StructTreeRoot 80 0 R /MarkInfo << /Marked true >> /HskP 95 0 R', page two '/StructParents 0'; 80 = << /Type /StructTreeRoot /K [82 0 R] >>, 82 = << /Type /StructElem /S /P /P 80 0 R /Pg 95 0 R /K 0 >>, 95 = << /HskT (PG-SECRET) >> (not a page). P2: 80 = << /S /Root /K [82 0 R] /Pg 95 0 R >> (root without /Type but with /S, classified as an element), 82 /Pg 5 0 R, same 95 and private key.",
+     "expected": "By the claim as worded: /Pg of an element reached as structure is skipped, so 95 is outside S (the observed result matches the claim)",
+     "observed": "probe-1.log P1, P2: flattened=true residual 0 losses [AccessibilityTagsRemoved], PG-SECRET PRESENT, saved file re-opens. Control O2 (element /Pg -> real page two) flattened, no over-count.",
+     "repair_direction": "Optional hardening, not required for this verdict: since real pages are already excluded by number (outside, :838), following /Pg of elements too would close P1/P2 without over-count on well-formed files (a /Pg naming a page is never entered); only a /Pg naming a non-page would then count (fail closed)."
+    },
+    {
+     "id": "R31-P3",
+     "severity": "INFO (run; by design: /Stm of an MCR reached as structure points at content; same class as R30-S4)",
+     "file_line": "src/flatten_purge.rs:777 MCR_OUTWARD_KEYS",
+     "input": "P3: 82 = << /Type /StructElem /S /P /P 80 0 R /K [<< /Type /MCR /Pg 5 0 R /Stm 95 0 R /MCID 0 >>] >>, 95 = << /HskT (STM-SECRET) >> kept by catalog /HskP 95 0 R.",
+     "expected": "n/a (an MCR /Stm target is a content stream, outside the claim; content-stream text is the accepted PROPERTIES-lane residual)",
+     "observed": "probe-1.log P3: flattened=true residual 0, STM-SECRET PRESENT.",
+     "repair_direction": "None required."
+    },
+    {
+     "id": "R31-O1",
+     "severity": "INFO (run; fail-closed over-count on a malformed MCR)",
+     "file_line": "src/flatten_purge.rs:790-801 outward_keys (a dictionary without /Type and without /S gets no outward keys)",
+     "input": "O1: 82 = << /Type /StructElem /S /P /P 80 0 R /K [<< /Pg 5 0 R /Stm 7 0 R /MCID 0 >>] >> (MCR without /Type; /Stm names kept page two's content stream).",
+     "expected": "n/a",
+     "observed": "probe-1.log O1: NotProven residual 1 (page two's content stream 7 is in S and still written). ISO 32000 MCR /Type requirement not re-read (UNVERIFIED); conforming writers emit /Type /MCR (product control N4 and Word-like C7 green, no over-count).",
+     "repair_direction": "None required (fail closed)."
+    }
+   ],
+   "checks": {
+    "classification_attack": "Run, all NotProven with the secret kept by a private key (no leak): A1a/A1b attribute << /O /XML-1.00 /S /x /Pg 91 0 R >> reached by /A and aliased into root /K, both stack orders; A2a/A2b attribute typed /Type /OBJR with /Obj, aliased into /K, both orders; A3 attribute typed /Type /MCR with /Stm via /A only; A4 attribute typed /Type /StructElem /S with /Pg via /A only; A5 attribute with /S /Pg in an /A array and also in the element's /Ref; A6 class map dict with classes S and Pg also listed in root /K; A7 class map dict also named as an element's /P; A8 role map with roles S and Pg also a /ParentTree /Nums value. Read: the structure flag is `structure && TREE_STRUCT_KEYS.contains(k)` (:871), so data never turns back into structure; an object first expanded as structure is re-expanded as data when a data path reaches it (:858), and one first expanded as data is not re-expanded as structure (data follows a superset of keys).",
+    "escape_class": "Kept path + not in S + no shape: only dictionaries reached solely through structure keys and typed/shaped element (/Pg), MCR (/Pg /Stm /StmOwn) or OBJR (/Pg /Obj) - the claim's own exclusion (R31-P1 PLAUSIBLE for non-page /Pg targets; R30-S4 and R31-P3 by design); PLR-103 remainder and named property lists (accepted).",
+    "over_count": "INFO: a dictionary at a structure position without /Type and without /S (malformed MCR, O1) has every key followed (fail closed). Real pages never enter S (excluded by number), so element /Pg to a page is no over-count (O2). Product controls N4 (MCR /Stm to the kept page's content stream) and C7 (Word-like file) green.",
+    "closed_set_sound_parts": "Unchanged from R30 and re-read: S computed in strip_structure (:719-722) before the unlink; visited set plus as_data set, iterative, budget only on first insertion (:854-857), exhaustion counted at check_document (:1873); pages and catalog excluded by number.",
+    "root_keys": "TREE_ROOT_KEYS (:676) now feeds names_tree_root and root_shaped (loss reported for a PDF 2.0-only root, N3ns/N3af run); the check_document shape net keeps STRUCT_ROOT_KEYS (unchanged).",
+    "opt_out": "Unchanged: sanitized_save.rs gates strip_structure only (Stripped::default() for the opt-out and saves without a flattened page); the 2fd94c7 hunk there is a comment.",
+    "v4_06": "notes.v4_06_sites_r30: regex gives 23 git grep lines at 2fd94c7 = lane count 23; the removed name TREE_OUTWARD_KEYS has 0 matches in src.",
+    "v4_07": "lib.rs never/always/guarantee/proves counts unchanged d43fd4e -> 2fd94c7 (10, 1, 0, 0). The DESCRIPTOR D28 clause states the per-type outward keys and the data walk, cites structure_tree_outward_keys_are_skipped_only_where_they_point_out (exists, passes); descriptor_states_the_structure_tree_rule lists the R30 wording as stale and passes. Claim vs behaviour: matches (run)."
+   }
+  }
+ ],
+ "prior_findings_rechecked": [
+  "R30-S1: fixed (run, N1o N1p N1s N1w). R30-S2: fixed (run, N2). R30-S3: fixed (run, N3ns N3af). R30-S4: INFO kept (run, N5).",
+  "R26..R29 inputs: green (run, product tests). R26-P3, PLR-103 remainder, named property lists, R27 X3: accepted (not findings)."
+ ],
+ "process_notes": [
+  "V4-18: this file covers d43fd4e..2fd94c7 only; R30-prereview-press-narrow.json stands for 18ebacf..d43fd4e.",
+  "OPERATOR DECISION 2026-10-14 (press tagged PDFs): no CONFIRMED in-claim leak found; the automatic narrowing to 'tagged documents always NotProven' is not triggered by R31. R31-P1 (PLAUSIBLE) goes to workflow/plausible-register.json only via the lead.",
+  "Gameplan: Studio gameplan STUDIO-MODULE-BUILD check --at before_round PASS 3/3 before the one cargo command; leading cd first, studio-env.sh sourced with STUDIO_OWNER=r31-prereview-probe; no hook block, no retry-guard record.",
+  "Scratch export left for the lead to remove: Handshake_Artifacts/WP-KERNEL-STUDIO/r31-prereview-probe (src, target, tmp, probe-1.log; probe test only in the scratch copy: src/handshake-studio-assets/crates/hsk-studio-press/tests/r31_probe.rs).",
+  "No product file edited, nothing committed, no process stopped; this file is not committed (the lead commits)."
+ ]
+}

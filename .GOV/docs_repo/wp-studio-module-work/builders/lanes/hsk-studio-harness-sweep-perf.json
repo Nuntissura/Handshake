@@ -1,0 +1,49 @@
+{
+ "crate": "hsk-studio-harness",
+ "lane": "SMB-HARNESS-SWEEP-PERF",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "READY_FOR_VALIDATION claim 6bac4b9 (workspace steward): root Cargo.toml [profile.dev.package.sha2|hsk-studio-prism|hsk-studio-interop-psd] opt-level = 3 exactly as diagnostics/smb-harness-sweep-perf-1.md topic fix; .config/nextest.toml shard_0 240 s override removed (default 120 s cap). Proof from version-controlled config: steward export of 6bac4b9, round entry script, selection hsk-studio-harness (non-canary), unit ignored:hsk-studio-harness+import-psd+import-raw: 18 passed, 0 failed, 0 timed out; 16/16 psd_tools_sweep shards, shard_0 5.7 s, shards 1-15 0.7-2.5 s. Canary C34 --all on 6bac4b9: exit 0, 85 units. Previous phase: diagnosed and proven with a run-time override; the fix is a root Cargo.toml profile entry (workspace steward owned, outside this lane's paths); no product commit",
+ "commits": [
+  {
+   "sha": "6bac4b9",
+   "subject": "Steward (SMB-HARNESS-SWEEP-PERF): dev-profile opt-level 3 for sha2, prism, interop-psd; retire shard_0 override"
+  }
+ ],
+ "capabilities_done": [
+  "root cause measured: cmyk-alpha-spot.psd (5100x3300 CMYK, 557 KB embedded profile) takes the full pixel path since 3a496bb (260 tiles, 16.83 Mpx Prism wide conversion, ~1.2 GB SHA-256) and the round's test profile builds it at opt-level 0: 99.4 s for that one file (0.55 s / 0 tiles before 3a496bb, when CMYK without converter was unmapped)",
+  "R25 shard 3 explained: this file 99.4 s + other 51 files 52.8 s = ~152 s serial > 120 s cap",
+  "stage split at opt-level 0: convert_wide 47.7 s (per call 36.8 ms = three SHA-256 passes over the profile at 45.7 MB/s; 1.575 us/px), tile loop ~32.9 s, harness asset hashing ~16 s, to_package 2.4 s",
+  "fix proven with opt-level 3 for sha2, hsk-studio-prism, hsk-studio-interop-psd only: file 99.4 s -> 5.5-6.5 s, identical package sha256 784bcc75...61d8b1ef; 16-shard sweep in parallel 16/16 passed, shard_0 6.0 s, shards 1-15 0.6-2.4 s, 0 panics; prism + interop-psd 226/226 passed (pinned determinism digests unchanged)"
+ ],
+ "tests": {
+  "argv": "cargo nextest run --config 'profile.dev.package.sha2.opt-level=3' --config 'profile.dev.package.hsk-studio-prism.opt-level=3' --config 'profile.dev.package.hsk-studio-interop-psd.opt-level=3' -p hsk-studio-harness --features import-psd,import-raw --test import_psd --run-ignored only --no-fail-fast -E 'test(psd_tools_sweep)'",
+  "exit": 0,
+  "sha": "b316ba2",
+  "passed": 16,
+  "failed": 0,
+  "note": "diagnostic proof with run-time --config (not the round form); the round needs the same settings from the root Cargo.toml. Also under the override: cargo nextest run -p hsk-studio-prism -p hsk-studio-interop-psd: 226 passed, 2 skipped, exit 0. Baseline opt-level 0 big-file import 93.1-99.4 s.",
+  "round_form_proof": {
+   "results": "Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/steward-export/results/M2-6bac4b9-harness/round.json",
+   "sha": "6bac4b9",
+   "unit": "ignored:hsk-studio-harness+import-psd+import-raw",
+   "passed": 18,
+   "failed": 0,
+   "timed_out": 0,
+   "shard_0_s": 5.7,
+   "shards_1_15_s": "0.7-2.5"
+  }
+ },
+ "blockers": [],
+ "lock_wait_s": 32,
+ "bg_pids": [],
+ "next": "independent validator judges the sweep under the default cap at 6bac4b9 or later",
+ "updated_at": "2026-10-14T21:53:20Z",
+ "notes": {
+  "diagnostics": "diagnostics/smb-harness-sweep-perf-1.md (cause, evidence with numbers, fix, proof)",
+  "product_tree": "no product file changed or committed; the temporary diagnostic test crates/hsk-studio-harness/tests/sweep_profile_diag.rs was moved out of the tree to scratchpad smb-harness-sweep-perf/ after the runs. Other uncommitted harness viewer files in the edit tree belong to another lane and were not touched.",
+  "rejected": "re-shard (one file is 99 s; cannot split), sampling or skipping the CMYK file (loses coverage), raising caps (forbidden), interop-psd profile-hash cache (saves ~6 s of 99 s; note for the interop-psd owner: PrismConverter hashes the 557 KB source profile twice per call in facts_of and convert_wide, Prism verify hashes it a third time by design)",
+  "fixture": "the clap-gain score-plugin fixture has its own [workspace]; the root profile entry does not change its byte-reproducible library",
+  "logs": "scratchpad smb-harness-sweep-perf/{diag1-baseline.log, diag2.log, diag3-opt.log, proof.log}",
+  "v4": "V4-12 helper files under scratchpad/smb-harness-sweep-perf/; never PASS claimed"
+ }
+}

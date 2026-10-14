@@ -92,6 +92,23 @@
         "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R25",
         "started_at": "2026-10-14T20:12:28Z",
         "completed_at": "2026-10-14T20:53:21Z"
+      },
+      {
+        "decision": "passed",
+        "verdict": "PASS_V1",
+        "failures": [],
+        "remediation": null,
+        "blocker": null,
+        "not_proven": [],
+        "note": "09bba20..9ff2844 now built: features reel-native+mf-worker+test-faults 13/13 (mf_worker 6: baseline exact vs ffmpeg oracle, B-frame streams exact in presentation order, heartbeat+replay, DXVA parity with software, fault matrix, declared limits; mf/nv12/wire/host unit tests) and +mf-worker unit; reel h264_config tests pass in default/av1/prores. Diff read: real MF worker route (Annex B from avcC, isolated worker, typed unavailability), no stub",
+        "idempotency_key": "STUDIO-R26:SMB-REEL-NATIVE-ENG-1:507aa36d6a58:PASS_V1",
+        "round": "STUDIO-R26",
+        "lane": "SMB-REEL-NATIVE-ENG-1",
+        "candidate": "507aa36d6a588f82568f0d2867495b71ce5023ae",
+        "tree": "595bb180eada95cebf57b6cbca509292ac949252",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R26",
+        "started_at": "2026-10-14T21:21:54Z",
+        "completed_at": "2026-10-14T21:51:04Z"
       }
     ]
   }

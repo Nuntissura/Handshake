@@ -1,0 +1,49 @@
+{
+ "crate": "hsk-studio-harness",
+ "lane": "SMB-HARNESS-UI-2",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slice 3 pushed: viewer editing (bff3713); consumes SMB-UI-SUPPORT-APIS (6762593, 161683a, 5cda0ae) and SMB-RENDER-GPU-SHARED-DEVICE (9ea8594, 2bc4120); claim = bff3713",
+ "commits": [
+  {"sha": "bff3713", "subject": "harness (SMB-HARNESS-UI-2 slice 3): viewer editing - opacity/blend, selections, brush, undo/redo, AccessKit"}
+ ],
+ "capabilities_done": [
+  "Run (harness.rs): set_opacity, set_blend_mode, set_tiles, stage_tile, render_assets, undo, redo, history; undo/redo history = chronicle inverses in wire form (Inverse::invocation with fresh command/correlation/actor), one op record per action (undo/redo/nothing_to_undo/nothing_to_redo), a new edit clears redo, undo/redo refresh verify expectations; whole numbers are emitted as JSON integers (chronicle types blend_mode as an integer); check_expectations compares numbers by value",
+  "panel.rs: appearance.opacity -> Route::ChronicleOpacity, appearance.blend_mode -> Route::ChronicleBlendMode (commit through chronicle, undoable); fill_opacity/clipped/isolation stay Route::None(no_chronicle_property); harness_headless tests updated to the new bindings",
+  "view::edit: Tool {View, RectSelect, EllipseSelect, Lasso, Brush, Text}; selections through hsk-studio-pigment selection::rect/ellipse/polygon (even-odd) combined with CombineMode replace/extend/diminish/intersect (selection::combine), canvas = first artboard, marching-ants outline (50 % coverage pixel edges merged into runs, capped 200k segments, animated black/white dashes); brush through pigment brush (BrushTip::round, BrushDynamics with pen pressure on size and opacity channel, place_dabs, stroke_coverage over the layer's tile area, clip_to_selection), per-tile mix = pigment masked_replace's premultiplied lerp (transcribed: masked_replace is port-driven and capped at 4096-pixel rectangles), changed tile bodies staged via Run::stage_tile and committed as chronicle tiles (undoable); set_opacity/set_blend_mode/undo/redo/place_text (typed refusal TEXT_TOOL_GAP); edit_json projection (tool, tools, combine, brush, selection bounds/coverage/ants, history, text_tool availability)",
+  "Viewer UI: tool row (stable ids tool.<key>, select.combine, select.clear, brush.size/hardness/opacity/colour, edit.undo/edit.redo), canvas gestures per tool (rect/ellipse rubber band, lasso/brush polyline preview, tablet touch force as pressure when present), Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y when no text field has focus, repaint pacing for the ants; Frame carries its document origin (x, y) for pointer mapping; assets now come from session render_assets (no own package tile decoding); properties panel commits opacity and blend mode; state_json.receipt.blending_space and state_json.edit",
+  "AccessKit: eframe feature accesskit added to the desktop dependency (dep-requests.jsonl line 2026-10-14T21:58:00Z; lead approval 2026-10-14 SMB-HARNESS-UI); tree asserted headlessly (Context::enable_accesskit, >20 nodes)",
+  "RUN-UI.md updated (tools, shortcuts, model API, limits); DESCRIPTOR api/viewer/controls/proven_by/not_proven updated"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-harness --features desktop --no-fail-fast -E 'binary(viewer_edit) | binary(viewer_headless) | binary(harness_headless) | binary(viewer_export) | binary(viewer_shared_display)' ; cargo nextest run -p hsk-studio-harness --features viewer --no-fail-fast -E 'binary(viewer_edit)'",
+  "exit": 0,
+  "sha": "bff3713",
+  "passed": 19,
+  "failed": 0,
+  "names": [
+   "viewer_edit select_paint_undo_redo_save_reopen_pixels (32x32 white PSD: blending space bound by the import, rect replace + ellipse extend + lasso diminish coverage, hard red stroke across the width clipped to the left half, save + independent reopen red/white, undo white, redo red, undo white, nothing_to_undo, save after undo + reopen white at 3 sample pixels, op log)",
+   "viewer_edit opacity_and_blend_mode_edits_with_undo_redo_survive_save (50 % opacity pixel change, undo restores pixels and opacity 100, redo re-applies, multiply darkens, undo, tool-only blend refused, save + reopen opacity 50 and pixels, text tool refusal)",
+   "viewer_edit one_ui_frame_draws_the_tool_ids (all tool/edit ids drawn, nothing committed, AccessKit tree with feature desktop)",
+   "regression: viewer_headless 3, harness_headless (incl. panel bindings/route refusals now on fill_opacity), viewer_export 2, viewer_shared_display 1"
+  ],
+  "clippy": "clippy -p hsk-studio-harness --tests --examples (default), --features viewer --tests, --features desktop --tests --bins: 0 harness warnings"
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "Validator: judge on bff3713 (with SMB-UI-SUPPORT-APIS and SMB-RENDER-GPU-SHARED-DEVICE). Steward first: pin the Cargo.lock change (accesskit, accesskit_windows/winit/consumer and their closure from eframe feature accesskit; Cargo.lock left uncommitted), run the license gate on the new crates, add harness feature sets [\"viewer\"] and [\"desktop\"] to .config/round-features.toml (viewer_edit/viewer_headless/viewer_shared_display are feature-gated).",
+ "updated_at": "2026-10-14T22:05:00Z",
+ "notes": {
+  "gaps": [
+   "text tool: no transaction creates a layer (chronicle edits properties of existing nodes) and the harness has no type/story/font path (no harness->type edge); composite lower_to_render_plan_with_text exists but needs a text layer + story record + font bytes -> typed refusal TEXT_TOOL_GAP, Text button with the reason as hover text",
+   "painting creates no tiles and no layers: strokes only change the layer's existing tiles",
+   "pixel mix transcribed from pigment masked_patch.rs masked_replace (premultiplied lerp); not executed through masked_replace (ExecutionPort transaction, 4096-pixel rectangle cap); parity with masked_replace not tested",
+   "selection is viewer-local (not a document record: folio has no StudioSelectionSet yet, pigment selection DESCRIPTOR pending list); not saved with the package",
+   "tablet pressure only where winit reports touch force (egui Event::Touch force); no Wintab/Windows Ink pen pressure for mouse-like pen events (UNVERIFIED on the Operator's tablet)",
+   "window not launched (CX-SAFE-002): gestures/overlays are proven only through the Viewer methods they call and a headless UI frame; marching ants, rubber bands and brush preview visuals are NOT_INSPECTED"
+  ],
+  "deps": "eframe accesskit feature (request line appended to dep-requests.jsonl); no new direct package; Cargo.lock uncommitted",
+  "retry_guard": "route (a) once: viewer_edit blend-mode commit failed wrong_type (whole numbers sent as JSON floats); fixed in bff3713 before the rerun (HEAD changed); no gameplan step added",
+  "v4": "V4-01 view module keeps deny(arithmetic_side_effects) (edit.rs uses checked/saturating integer arithmetic); V4-03 GPU parts follow tests/gpu-proof.toml; V4-09 commit -F; V4-12 scratch under scratchpad/smb-shared-ui/"
+ }
+}

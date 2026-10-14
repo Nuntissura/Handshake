@@ -64,6 +64,32 @@
    "eframe accesskit feature not in the D11 approval (accesskit_* crates are in the local registry); AccessKit not enabled"
   ],
   "proof_scope": "Pixels asserted on a synthetic 2x2 PSD (8-bit values round-trip within 1 through linear light); the window itself was not launched (CX-SAFE-002); GPU path proven only as fallback (BackendChoice::None), no GPU render was executed in tests",
-  "v4": "V4-01: render.rs (output chunks from render workers into the canvas) and view/mod.rs carry deny(clippy::arithmetic_side_effects); V4-03: no silent green (pixel assertions; GPU success path not claimed); V4-09 commit -F; V4-12 helper files under scratchpad/smb-harness-ui/"
+  "v4": "V4-01: render.rs (output chunks from render workers into the canvas) and view/mod.rs carry deny(clippy::arithmetic_side_effects); V4-03: no silent green (pixel assertions; GPU success path not claimed); V4-09 commit -F; V4-12 helper files under scratchpad/smb-harness-ui/",
+  "verdicts": [
+   {
+    "decision": "inconclusive",
+    "verdict": null,
+    "failures": [],
+    "remediation": null,
+    "blocker": {
+     "kind": "round_config_gap",
+     "exact": "round-features.toml [crates] hsk-studio-harness declares no [\"viewer\"] set; tests/viewer_headless.rs is #![cfg(feature = \"viewer\")] (3 tests), never built by the round",
+     "unblock": "steward adds a harness [\"viewer\"] set (headless; desktop window stays an Operator-attended check)"
+    },
+    "not_proven": [
+     "harness viewer_headless (feature viewer): not built in R26",
+     "desktop window (feature desktop): not launched (Operator-attended)"
+    ],
+    "note": "c4c6d4d sweep re-shard proven in R26 (16 shards pass, partition + shard-count tests pass, 0 timeouts); the viewer slice af69bcf/7ca6648 (the lane's main capability) is proven only by tests/viewer_headless.rs under feature viewer, which no round unit builds",
+    "idempotency_key": "STUDIO-R26:SMB-HARNESS-UI:507aa36d6a58:INCONCLUSIVE",
+    "round": "STUDIO-R26",
+    "lane": "SMB-HARNESS-UI",
+    "candidate": "507aa36d6a588f82568f0d2867495b71ce5023ae",
+    "tree": "595bb180eada95cebf57b6cbca509292ac949252",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R26",
+    "started_at": "2026-10-14T21:21:54Z",
+    "completed_at": "2026-10-14T21:51:04Z"
+   }
+  ]
  }
 }

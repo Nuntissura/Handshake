@@ -85,6 +85,25 @@
     "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R25",
     "started_at": "2026-10-14T20:12:28Z",
     "completed_at": "2026-10-14T20:53:21Z"
+   },
+   {
+    "decision": "passed",
+    "verdict": "PASS_V2",
+    "failures": [],
+    "remediation": null,
+    "blocker": null,
+    "not_proven": [
+     "harness import_tiff photoshop_tiff_imports_its_layers_through_interop_psd (import-tiff, import-tiff+import-raw): real-Photoshop layered TIFF parity NOT_PROVEN (no independent Photoshop oracle; layers parsed from file bytes)"
+    ],
+    "note": "Reopened by its claim commit 23f7c6d (+ CX-VAL-009, harness changed): import_tiff 4/4 in import-tiff and in the new import-tiff+import-raw unit, incl. photoshop_tiff_imports_its_layers_through_interop_psd (2 LE layer records imported and asserted) and camera_raw_never_imports_as_plain_tiff_without_import_raw with its import-raw branch built (R25 NOT_PROVEN closed); import_colour 2/2. Diff read 23f7c6d: test follows 68cba91 (envelope-only fixture now reads psd_tagged_block_limit; real sample imports its layers), no weakened assertion",
+    "idempotency_key": "STUDIO-R26:SMB-CONVERT-FOLLOWUPS:507aa36d6a58:PASS_V2",
+    "round": "STUDIO-R26",
+    "lane": "SMB-CONVERT-FOLLOWUPS",
+    "candidate": "507aa36d6a588f82568f0d2867495b71ce5023ae",
+    "tree": "595bb180eada95cebf57b6cbca509292ac949252",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R26",
+    "started_at": "2026-10-14T21:21:54Z",
+    "completed_at": "2026-10-14T21:51:04Z"
    }
   ]
  }

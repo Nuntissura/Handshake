@@ -1,0 +1,4023 @@
+{
+ "schema": "handshake.studio.parity_matrix@1",
+ "file_id": "WP-KERNEL-STUDIO-PARITY-MATRIX-20261014B",
+ "updated_at": "2026-10-14",
+ "by": "parity auditor (read-only; no builds run; refresh after R25/R26)",
+ "question": "How much parity do we have with the cloned apps?",
+ "basis": {
+  "product_root": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-assets/handshake-studio-assets (paths below are relative to it)",
+  "validation_state": "ledger.json as read 2026-10-14T21:51:04Z; latest round STUDIO-R26 @ 507aa36 (118 PASS, 0 FAIL, 3 INCONCLUSIVE: SMB-COMPOSITE-TEMPORAL, SMB-HARNESS-UI, SMB-CONVERT-RASTER - their proofs sit behind features the round config never builds); R25 @ d48bc30 (109 PASS, 1 FAIL SMB-ROUND-ENTRYPOINT, 2 INCONCLUSIVE). Product head inspected: 06cff14 (ahead of the R26 candidate; code at head is cited only as UNJUDGED unless a PASS lane covers it)",
+  "spec": ".GOV/spec/master-spec-v02.216/spec-modules/14-studio-creative-suite.md (resolved via SPEC_CURRENT.md); STU-* clauses used as the primary feature catalogue",
+  "method": "per app ~22-35 core professional features derived from the STU clauses of that domain plus the vendor feature page; each classified from crate DESCRIPTORs, source and lane verdicts; the generator refuses VALIDATED without a PASS_* lane; refresh: statuses re-derived from ledger lane statuses + R25/R26 round files; VALIDATED requires a lane currently PASS_Vn; READY_FOR_VALIDATION / INCONCLUSIVE lanes = IMPLEMENTED (or PARTIAL for a stated subset); claims re-checked in crate DESCRIPTORs and source where a status changed"
+ },
+ "status_definitions": {
+  "VALIDATED": "implemented in the engine and covered by at least one lane whose current ledger status is PASS_Vn (independently validated). Says nothing about pixel/numeric parity with the Adobe original, which is NOT_PROVEN almost everywhere (no Adobe oracle; D5 pending).",
+  "IMPLEMENTED": "code exists but no PASS lane covers it (unjudged, FAIL, or foundation code without a lane claim)",
+  "PARTIAL": "a stated subset exists (validated or not); the note says what",
+  "MISSING": "not present in code"
+ },
+ "formula": "engine_parity_pct = 100 * (VALIDATED + 0.5*IMPLEMENTED + 0.25*PARTIAL) / total_features",
+ "formula_caveats": [
+  "features are unweighted: \"selection tools\" counts the same as \"knockout\"; the top_gaps lists carry the user-impact ranking",
+  "feature lists are an auditor selection (~25-35 per app), not the full spec catalogue (the WP has 6204 MT files derived from the spec); spec-catalogue coverage is still unmeasured",
+  "engine parity only: there is still no editing UI; a headless-tested viewer exists but is unjudged (see ui_status)",
+  "a row stays at its status when a lane only improved evidence/lane versions (counted in features_moved with status_unchanged)",
+  "three newly built capabilities are proven only behind features the round config does not build (composite motion, harness viewer x2): they count as IMPLEMENTED/PARTIAL until the steward adds those sets and the lanes are judged"
+ ],
+ "ui_status": {
+  "any_user_facing_ui": true,
+  "validated_ui": false,
+  "ui_parity_pct": 0,
+  "evidence": [
+   "crates/hsk-studio-harness/Cargo.toml features: viewer (window-free egui state + UI, headless-testable) and desktop (eframe 0.33.3 wgpu, Operator D11, harness crate only; binary studio-harness requires desktop)",
+   "crates/hsk-studio-harness/src/view/{mod,render,display,export,edit}.rs: viewer opens a file through the convert flow or a native package, renders the composite on render-gpu (shared eframe wgpu device in the desktop window; render-cpu fallback), fit/zoom/pan, layer tree with visibility toggles, controls-descriptor panel, import receipt and loss panel, save as native package, Export PNG / Export JPEG",
+   "tests/viewer_headless.rs (open/render/toggle/save; gpu unavailable falls back; one UI frame draws stable widget ids), tests/viewer_export.rs, tests/viewer_shared_display.rs: headless, window-free; the desktop window launch is a manual Operator step (RUN-UI.md)",
+   "ledger: SMB-HARNESS-UI READY_FOR_VALIDATION (R26 INCONCLUSIVE: feature viewer never built by the round), SMB-CONVERT-RASTER READY_FOR_VALIDATION (same cause), SMB-UI-SUPPORT-APIS and SMB-RENDER-GPU-SHARED-DEVICE unclaimed (ledger status null), SMB-HARNESS-UI-2 unclaimed (ledger status null)",
+   "crates/hsk-studio-harness/src/view/edit.rs (461 lines, SMB-HARNESS-UI-2 in progress at head): selection producers, brush strokes and appearance edits wired for the viewer but the lane has no verdict, so editing tools in the UI are UNJUDGED; the text tool is a typed refusal"
+  ],
+  "what_exists": "a first desktop viewer (egui + eframe/wgpu, harness crate only): open (PSD/PSB, TIFF incl. layered, raw/DNG, PDF carried, PNG/JPEG route, native package), render composite on GPU, layers panel, per-layer visibility, save native package, export PNG/JPEG; headless-tested, not yet judged by a round. No validated editing tools in the UI (SMB-HARNESS-UI-2 has not passed); no docking, gizmos or panels beyond the above; AccessKit off",
+  "states": {
+   "open": "IMPLEMENTED (unjudged)",
+   "render": "IMPLEMENTED (unjudged)",
+   "layers_panel": "IMPLEMENTED (unjudged)",
+   "save_native": "IMPLEMENTED (unjudged)",
+   "export_png_jpeg": "IMPLEMENTED (unjudged; codecs PASS)",
+   "editing_tools_in_ui": "NOT_VALIDATED (SMB-HARNESS-UI-2 unclaimed; code present at head)"
+  },
+  "previous": false
+ },
+ "cross_app_shared_engines": [
+  {
+   "engine": "hsk-studio-folio (document graph)",
+   "serves": [
+    "photoshop",
+    "illustrator",
+    "indesign",
+    "figma",
+    "premiere_pro",
+    "after_effects",
+    "audition"
+   ],
+   "what": "one StudioDocument: raster/vector/text layers, artboards, page spreads, text stories, design records (components/variables/auto layout/reactions), raster records (adjustments/effects/Blend-If), vector records, timeline (sequences/tracks/clips)",
+   "lanes": "SMB-FOLIO-ENG-1..7 PASS"
+  },
+  {
+   "engine": "hsk-studio-pigment + composite + render-cpu + render-gpu (render plan, blend maths, adjustments, layer effects)",
+   "serves": [
+    "photoshop",
+    "illustrator",
+    "figma",
+    "after_effects",
+    "lightroom_classic (output)"
+   ],
+   "what": "single owner of 35 blend modes, 8 adjustments, 6 layer styles, masks, Blend-If, clip-to-base; NEW: selection producers, round-tip brush engine, affine layer transform with nearest/bilinear/bicubic resampling; same plan on CPU and GPU",
+   "lanes": "SMB-PIGMENT-*, SMB-COMPOSITE-*, SMB-RENDER-CPU-*, SMB-RENDER-GPU-* PASS; SMB-PIGMENT-SELECTION PASS_V2, SMB-PIGMENT-BRUSH PASS_V1, SMB-PIGMENT-TRANSFORM PASS_V1, SMB-COMPOSITE-TEXT PASS_V1; blur (SMB-COMPOSITE-NEW-KINDS) unclaimed"
+  },
+  {
+   "engine": "hsk-studio-prism (colour)",
+   "serves": [
+    "photoshop",
+    "lightroom_classic",
+    "illustrator",
+    "indesign"
+   ],
+   "what": "ICC v2/v4 matrix/TRC and LUT profiles, intents, BPC, admitted chunked conversion",
+   "lanes": "SMB-PRISM-ENG-1..8 PASS"
+  },
+  {
+   "engine": "hsk-studio-type + hsk-studio-layout (text)",
+   "serves": [
+    "indesign",
+    "photoshop",
+    "illustrator",
+    "figma",
+    "after_effects"
+   ],
+   "what": "shaping (Latn/Arab/Hani + bidi, variable axes), Knuth-Plass threaded reflow, and NEW glyph outline extraction + non-zero-winding rasterisation (text renders via composite)",
+   "lanes": "SMB-TYPE PASS_V6, SMB-LAYOUT PASS_V7, SMB-TYPE-GLYPH-RENDER PASS_V1"
+  },
+  {
+   "engine": "hsk-studio-nib (geometry)",
+   "serves": [
+    "illustrator",
+    "figma",
+    "render-cpu vector fill"
+   ],
+   "what": "owned Bezier paths; boolean ops limited to rectangles"
+  },
+  {
+   "engine": "hsk-studio-components",
+   "serves": [
+    "figma",
+    "illustrator (symbols)",
+    "indesign (alternate/liquid layouts: not yet)"
+   ],
+   "what": "components, variants, overrides, variables, auto layout, constraints, prototype flows"
+  },
+  {
+   "engine": "hsk-studio-accord + pulse (time)",
+   "serves": [
+    "premiere_pro",
+    "after_effects",
+    "audition"
+   ],
+   "what": "one integer tick base (254016000000/s) shared by timeline, motion keyframes and audio sample positions"
+  },
+  {
+   "engine": "hsk-studio-reel + reel-native + worker",
+   "serves": [
+    "premiere_pro",
+    "after_effects",
+    "audition"
+   ],
+   "what": "container indexing and decode, isolated codec workers (AV1; NEW: H.264 incl. B-frames via Windows Media Foundation worker; ProRes/DNx in-crate)",
+   "lanes": "SMB-REEL PASS_V16, SMB-REEL-NATIVE-ENG-1 PASS_V1, SMB-REEL-BFRAME-ORDER PASS_V1, SMB-REEL-ENG-2 PASS_V3"
+  },
+  {
+   "engine": "hsk-studio-score (+ device, plugin)",
+   "serves": [
+    "audition",
+    "premiere_pro",
+    "after_effects"
+   ],
+   "what": "audio DSP, SRC, bounce, isolated plugin host"
+  },
+  {
+   "engine": "hsk-studio-session + package + chronicle + controls + observe",
+   "serves": [
+    "all"
+   ],
+   "what": "headless session, native file container, edit-patch proposals, shared control descriptors, diagnostics; NEW: import entries reported and re-read (SMB-SESSION-IMPORT-ENTRIES PASS_V2)"
+  },
+  {
+   "engine": "hsk-studio-interop-raster + interop-tiff + harness convert flow",
+   "serves": [
+    "photoshop",
+    "lightroom_classic",
+    "figma"
+   ],
+   "what": "PNG/JPEG decode, PNG encode, own clean-room baseline JPEG encoder (SMB-IO-RASTER-COMMON PASS_V1); TIFF read/write incl. layered TIFF (SMB-INTEROP-TIFF, SMB-CONVERT-TIFF, SMB-INTEROP-PSD-LE-LAYERS PASS); open-to-native convert flow with ICC colour management (SMB-CONVERT-NATIVE PASS_V2, SMB-CONVERT-COLOUR PASS_V2); JPEG/PNG harness route and export SMB-CONVERT-RASTER READY (unjudged)",
+   "lanes": "see lanes named"
+  },
+  {
+   "engine": "hsk-studio-interop-fig (native mapping)",
+   "serves": [
+    "figma"
+   ],
+   "what": ".fig -> native Folio document incl. geometry, effects, masks, image paints, booleans, text styles, components, variables, prototypes (3 Operator fixtures)",
+   "lanes": "SMB-INTEROP-FIG-FORMAT/NODES/NATIVE/GEOMETRY/FOLIO-KINDS PASS_V1..V2, SMB-FOLIO-PAINT-BLUR-STYLE PASS_V1"
+  }
+ ],
+ "outside_the_8_apps": [
+  {
+   "crate": "hsk-studio-press",
+   "note": "Acrobat-like PDF read/edit/redact/sanitize with own strict reader; remediation lanes PASS in R25/R26 (SMB-PRESS-DIFFERENCES, -DOCS, -DOCS-2, -PROPERTIES, -STRUCT-FAILCLOSED, -STRUCT-ORPHANS, SMB-NOTES-BATCH-1); SMB-PRESS (two prior FAILs, not offered SAFE_TO_JUDGE) and SMB-PRESS-STRUCT-STRIP (final remediation 2fd94c7 after the R26 candidate) are READY_FOR_VALIDATION; SMB-PRESS-PG-HARDEN unclaimed. Not scored"
+  },
+  {
+   "crate": "hsk-studio-web",
+   "note": "Dreamweaver-like HTML source DOM, minimal-diff patches, responsive media queries, asset gating; SMB-WEB PASS_V5, SMB-WEB-PARITY PASS_V2, SMB-WEB-DIFFTEST PASS_V2. Not scored"
+  }
+ ],
+ "apps": {
+  "photoshop": {
+   "app": "Adobe Photoshop",
+   "vendor_feature_sources": [
+    "https://www.adobe.com/products/photoshop/features.html (fetched 2026-10-14; lists only new features, so the core list is derived from spec 14.4)"
+   ],
+   "spec_sections": [
+    "14.4 Raster Imaging & Photo Editing (STU-RAS-*)",
+    "14.8 Colour (STU-COL-*)",
+    "14.9 Effects (STU-FX-*)"
+   ],
+   "features": [
+    {
+     "id": "PS-01",
+     "name": "Layered raster document: layer tree, groups (isolated / pass-through), visibility, opacity, fill opacity",
+     "source": "STU-RAS-006, STU-RAS-010, STU-RAS-115",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-folio/src/appearance.rs:49; crates/hsk-studio-composite/src/lib.rs:34 (lower_to_render_plan); crates/hsk-studio-pigment/src/render_plan.rs:1168 DESCRIPTOR nodes/layer",
+     "lanes": [
+      "SMB-FOLIO-ENG-2 PASS_V7",
+      "SMB-COMPOSITE PASS_V11",
+      "SMB-PIGMENT-ENG-1 PASS_V11",
+      "SMB-RENDER-CPU PASS_V11"
+     ],
+     "ui": false,
+     "note": "pass-through group opacity/fill opacity refused by render-cpu (DESCRIPTOR operators.unsupported)"
+    },
+    {
+     "id": "PS-02",
+     "name": "Full layer-kind set (pixel, adjustment, live filter, fill, mask, placed asset, text)",
+     "source": "STU-RAS-007",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-folio/src/lib.rs:604-808 (payload kinds image/vector/text/adjustment)",
+     "lanes": [
+      "SMB-FOLIO-ENG-6 PASS_V4"
+     ],
+     "ui": false,
+     "note": "pixel, vector, text payload and adjustment layers exist; live_filter, fill and placed_asset layer kinds absent"
+    },
+    {
+     "id": "PS-03",
+     "name": "Blend modes (35-member StudioBlendMode)",
+     "source": "STU-RAS-038, STU-RAS-154",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-pigment/src/blend_math.rs:1; crates/hsk-studio-render-cpu/src/lib.rs:22 DESCRIPTOR blend",
+     "lanes": [
+      "SMB-PIGMENT-ENG-1 PASS_V11",
+      "SMB-RENDER-CPU PASS_V11",
+      "SMB-RENDER-GPU PASS_V6"
+     ],
+     "ui": false,
+     "note": "exactness classes declared; Adobe output parity NOT_PROVEN (DESCRIPTOR blend.parity); dissolve not on GPU"
+    },
+    {
+     "id": "PS-04",
+     "name": "Layer masks: density, feather, invert, enable/disable",
+     "source": "STU-RAS-015, STU-RAS-016, STU-RAS-124",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-pigment/src/coverage_math.rs:54; crates/hsk-studio-render-gpu/src/lib.rs:53 DESCRIPTOR extensions",
+     "lanes": [
+      "SMB-PIGMENT-ENG-2 PASS_V9",
+      "SMB-COMPOSITE-ADJ PASS_V8",
+      "SMB-RENDER-GPU-ADJ PASS_V7"
+     ],
+     "ui": false,
+     "note": "mask on a pass-through group refused (mask_on_pass_through)"
+    },
+    {
+     "id": "PS-05",
+     "name": "Vector masks",
+     "source": "STU-RAS-015",
+     "status": "MISSING",
+     "evidence": "crates/hsk-studio-interop-psd/src/lib.rs:62 DESCRIPTOR pending vector_mask_and_layer_effect_rendering",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "PS-06",
+     "name": "Clipping masks (clip to base)",
+     "source": "STU-RAS-038 (clip run), STU-CMP-010b",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-composite/src/lib.rs:156 DESCRIPTOR model.render_plan_mapping",
+     "lanes": [
+      "SMB-RENDER-CPU-CLIP PASS_V11",
+      "SMB-COMPOSITE-CLIP-ALIGN PASS_V11",
+      "SMB-BLENDIF-CLIP-ADOPT PASS_V9"
+     ],
+     "ui": false,
+     "note": "Approximate; clipped layer with own mask, pass-through or adjustment layer as clip base refused"
+    },
+    {
+     "id": "PS-07",
+     "name": "Adjustment layers: levels, curves, hue/saturation, brightness/contrast, exposure, invert, threshold, posterize",
+     "source": "STU-RAS-151",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-pigment/src/adjust_math.rs:21; crates/hsk-studio-folio/src/raster.rs:134",
+     "lanes": [
+      "SMB-PIGMENT-ENG-2 PASS_V9",
+      "SMB-COMPOSITE-ADJ PASS_V8",
+      "SMB-RENDER-CPU-ADJ PASS_V8",
+      "SMB-RENDER-GPU-ADJ PASS_V7",
+      "SMB-INTEROP-PSD-ADJ PASS_V16"
+     ],
+     "ui": false,
+     "note": "hue/saturation bands and modern (non-legacy) brightness/contrast refused; all Approximate except invert"
+    },
+    {
+     "id": "PS-08",
+     "name": "Remaining adjustments (vibrance, colour balance, black & white, photo filter, channel mixer, gradient map, selective colour, colour lookup, shadows/highlights)",
+     "source": "STU-RAS-151",
+     "status": "MISSING",
+     "evidence": "crates/hsk-studio-pigment/src/adjust_math.rs:21 (AdjustmentKind has 8 members only)",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "PS-09",
+     "name": "Layer styles: drop shadow, inner shadow, outer/inner glow, colour overlay, stroke",
+     "source": "STU-RAS-040, STU-RAS-157",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-pigment/src/effect_math.rs:508",
+     "lanes": [
+      "SMB-EFFECTS-WAVE-1 PASS_V8",
+      "SMB-EFFECTS-WAVE-2 PASS_V8",
+      "SMB-RENDER-CPU-FX2 PASS_V8",
+      "SMB-PIGMENT-WINDOW PASS_V8"
+     ],
+     "ui": false,
+     "note": "Approximate; Photoshop parity NOT_PROVEN (D5 cases 12-17); gradient glow, Precise technique, range<100%, jitter refused"
+    },
+    {
+     "id": "PS-10",
+     "name": "Layer styles: bevel & emboss, satin, gradient overlay, pattern overlay",
+     "source": "STU-RAS-157",
+     "status": "MISSING",
+     "evidence": "crates/hsk-studio-folio/src/raster.rs:308 (records only); crates/hsk-studio-composite/src/lib.rs:156 DESCRIPTOR unsupported",
+     "lanes": [],
+     "ui": false,
+     "note": "records are imported and stored but refused at render (layer_effects_not_rendered)"
+    },
+    {
+     "id": "PS-11",
+     "name": "Blend If (advanced blending ranges)",
+     "source": "STU-RAS-041, STU-RAS-159",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-pigment/src/coverage_math.rs:54; crates/hsk-studio-pigment/src/render_plan.rs:1168 DESCRIPTOR blend_if_clip",
+     "lanes": [
+      "SMB-PIGMENT-ENG-2 PASS_V9",
+      "SMB-PIGMENT-BLENDIF-CLIP PASS_V8",
+      "SMB-RENDER-GPU-ADJ PASS_V7"
+     ],
+     "ui": false,
+     "note": "Blend-If on clip base / clipped layer and Blend-If together with effects refused"
+    },
+    {
+     "id": "PS-12",
+     "name": "Knockout (shallow/deep)",
+     "source": "STU-RAS-041",
+     "status": "MISSING",
+     "evidence": "crates/hsk-studio-render-cpu/src/lib.rs:22 DESCRIPTOR operators.unsupported (knockout shallow/deep)",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "PS-13",
+     "name": "Selection tools (marquee, lasso, magic wand, quick/object/subject select) and StudioSelectionSet",
+     "source": "STU-RAS-017, STU-RAS-018, STU-RAS-019",
+     "status": "PARTIAL",
+     "evidence": "grep StudioSelectionSet/lasso/magic_wand over crates/: no matches; NEW: crates/hsk-studio-pigment/src/selection.rs:408 (rect), :423 (ellipse), :445 (polygon), :507 (feather), :626 (colour_range), :234 (combine); crates/hsk-studio-pigment/tests/selection.rs",
+     "lanes": [
+      "SMB-PIGMENT-SELECTION PASS_V2"
+     ],
+     "ui": false,
+     "note": "rectangle, ellipse, lasso (polygon, even-odd/non-zero), colour range with fuzziness, feather, invert and the four combine modes (replace/extend/diminish/intersect) as coverage planes feeding masked_replace/MaskInput; no magic-wand flood select, quick/object/subject select, modify ops or StudioSelectionSet record (descriptor pending); Photoshop maths NOT_PROVEN (Approximate, D5)"
+    },
+    {
+     "id": "PS-14",
+     "name": "Select and Mask / edge refinement, quick mask, save selection to channel",
+     "source": "STU-RAS-020, STU-RAS-021, STU-RAS-022, STU-RAS-121",
+     "status": "MISSING",
+     "evidence": "no selection primitive in code",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "PS-15",
+     "name": "Brush engine and painting tools",
+     "source": "STU-RAS-023, STU-RAS-024, STU-RAS-125..136",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-pigment/src/masked_patch.rs; crates/hsk-studio-pigment/src/lib.rs:90 DESCRIPTOR (operation masked_replace; pending richer masks/brushes/blends); NEW: crates/hsk-studio-pigment/src/brush.rs:245 (place_dabs), :356 (stroke_coverage), :478 (paint_replacement); crates/hsk-studio-pigment/tests/brush.rs",
+     "lanes": [
+      "SMB-PIGMENT-BRUSH PASS_V1",
+      "SMB-PIGMENT-SELECTION PASS_V2"
+     ],
+     "ui": false,
+     "note": "parametric round tip (diameter/hardness/spacing), pressure-driven size/opacity/flow, arc-length dab placement, stroke coverage with build-up, selection clip, paint through masked_replace; no custom tip images, scatter/texture dynamics (dynamics_control_unsupported), mixer/smudge/clone; Photoshop formulas NOT_PROVEN"
+    },
+    {
+     "id": "PS-16",
+     "name": "Retouching: healing, spot healing, clone stamp, patch, red eye",
+     "source": "STU-RAS-026, STU-RAS-027",
+     "status": "MISSING",
+     "evidence": "grep heal/clone_stamp: no matches",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "PS-17",
+     "name": "Eraser family",
+     "source": "STU-RAS-028, STU-RAS-170",
+     "status": "PARTIAL",
+     "evidence": "no eraser tool in code; NEW: crates/hsk-studio-pigment/src/brush.rs:498 (erase_replacement), :533 (route_erase)",
+     "lanes": [
+      "SMB-PIGMENT-BRUSH PASS_V1"
+     ],
+     "ui": false,
+     "note": "engine-level eraser: erase_replacement / route_erase through masked_replace with the round brush tip; no background/magic eraser, no eraser tool surface"
+    },
+    {
+     "id": "PS-18",
+     "name": "Content-aware fill / move / scale",
+     "source": "STU-RAS-030, STU-RAS-143",
+     "status": "MISSING",
+     "evidence": "grep content_aware: no matches",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "PS-19",
+     "name": "Fill and gradient tools, gradients and patterns on raster",
+     "source": "STU-RAS-025, STU-RAS-160, STU-RAS-161",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-pigment/src/render_plan.rs:1168 DESCRIPTOR nodes (solid); crates/hsk-studio-render-cpu/src/lib.rs:22 DESCRIPTOR pending (gradients, patterns)",
+     "lanes": [
+      "SMB-PIGMENT-ENG-1 PASS_V11"
+     ],
+     "ui": false,
+     "note": "solid-colour node renders; gradients/patterns modelled in folio paint but not rendered; no bucket fill"
+    },
+    {
+     "id": "PS-20",
+     "name": "Transforms: free transform, scale/rotate/skew/distort/perspective/warp/puppet warp, resampling",
+     "source": "STU-RAS-029, STU-RAS-141, STU-RAS-142",
+     "status": "PARTIAL",
+     "evidence": "no image resampling or layer transform code in pigment/composite/render-cpu (grep transform/resample); NEW: crates/hsk-studio-pigment/src/transform_math.rs:1; crates/hsk-studio-render-gpu/tests/gpu_transform.rs; crates/hsk-studio-composite/tests/temporal_transform.rs",
+     "lanes": [
+      "SMB-PIGMENT-TRANSFORM PASS_V1"
+     ],
+     "ui": false,
+     "note": "affine 2x3 layer transform (scale/rotate/skew/translate) with nearest, bilinear and bicubic (Catmull-Rom) resampling, linked masks follow content, CPU reference + GPU WGSL parity (max dev 1.8e-7); single-tile raster layers only; no warp, perspective, distort, puppet warp or on-canvas free-transform tool; Photoshop/AE kernels NOT_PROVEN (Approximate)"
+    },
+    {
+     "id": "PS-21",
+     "name": "Crop, canvas size, image size, trim",
+     "source": "STU-RAS-142",
+     "status": "MISSING",
+     "evidence": "raster crop absent (develop has its own raw crop, see LR)",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "PS-22",
+     "name": "Filters and smart/live filters (blur, sharpen, noise, distort, liquify, camera raw filter)",
+     "source": "STU-RAS-037, 14.9.3",
+     "status": "PARTIAL",
+     "evidence": "no live_filter layer kind; grep gaussian_blur/unsharp/sharpen: no matches; NEW: crates/hsk-studio-folio/src/raster.rs:481 (StudioEffectKind::Blur); crates/hsk-studio-pigment/src/blur_math.rs; crates/hsk-studio-render-gpu/tests/gpu_blur.rs (head, unjudged)",
+     "lanes": [
+      "SMB-FOLIO-PAINT-BLUR-STYLE PASS_V1"
+     ],
+     "ui": false,
+     "note": "Gaussian layer/backdrop blur: folio Blur effect record PASS_V1; pigment blur_math + render-cpu/render-gpu execution exist at product head 06cff14 but lane SMB-COMPOSITE-NEW-KINDS is unclaimed (ledger status null) so rendering is UNJUDGED; no sharpen, noise, distort, liquify, smart/live filter layer kind"
+    },
+    {
+     "id": "PS-23",
+     "name": "Type layers rendered in the image",
+     "source": "STU-RAS-007 (text), 14.7",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-type/src/engine.rs:16; crates/hsk-studio-type/src/descriptor.rs (pending outlines/rasterization); NEW: crates/hsk-studio-type/src/outline.rs:184 (glyph_outlines); crates/hsk-studio-type/src/raster.rs:97 (rasterize_run); crates/hsk-studio-composite/src/text.rs:1; crates/hsk-studio-render-gpu/tests/text_render.rs",
+     "lanes": [
+      "SMB-TYPE-GLYPH-RENDER PASS_V1",
+      "SMB-COMPOSITE-TEXT PASS_V1",
+      "SMB-TYPE PASS_V6",
+      "SMB-FOLIO-ENG-3 PASS_V7"
+     ],
+     "ui": false,
+     "note": "text now renders: Type extracts glyph outlines and rasterises runs (fixed-point non-zero winding, checked arithmetic); composite lowers a text layer to Solid + coverage_u8 mask on CPU and GPU (pinned digests, mixed-script ink). Still PARTIAL: caller must supply shaped runs, font bytes and fill (Folio has no fill/font record: spec gap), text inside groups not claimed (lane blocker routed to folio), cross-host raster identity STU-TYP-131 NOT_PROVEN, no character/paragraph panels or warp text"
+    },
+    {
+     "id": "PS-24",
+     "name": "Smart objects / placed assets (embedded and linked)",
+     "source": "STU-RAS-012, STU-RAS-013, STU-RAS-014",
+     "status": "MISSING",
+     "evidence": "crates/hsk-studio-interop-psd/src/lib.rs:62 DESCRIPTOR pending text_smart_object_editing; composite unsupported precomp",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "PS-25",
+     "name": "Channels panel: alpha and spot channels, channel operations",
+     "source": "STU-RAS-031, STU-RAS-144",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-interop-psd/src/export.rs:1-20",
+     "lanes": [
+      "SMB-INTEROP-PSD PASS_V19"
+     ],
+     "ui": false,
+     "note": "extra/spot channels preserved byte-exact through PSD import/export only; no channel editing"
+    },
+    {
+     "id": "PS-26",
+     "name": "Colour modes and bit depth (RGB/CMYK/Lab/Gray/Indexed/Duotone/Bitmap; 8/16/32-bit)",
+     "source": "STU-RAS-032, STU-RAS-033, STU-RAS-145..149",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-interop-psd/src/lib.rs:62 DESCRIPTOR capabilities (cmyk/lab/gray display conversion 8/16-bit, pigment tiles 8/16/32)",
+     "lanes": [
+      "SMB-INTEROP-PSD-WIDE PASS_V17",
+      "SMB-INTEROP-PSD PASS_V19",
+      "SMB-CONVERT-COLOUR PASS_V2"
+     ],
+     "ui": false,
+     "note": "CMYK/Lab/Gray imported as display projections into a linear f32 RGB working space; embedded ICC profiles are now applied at open/convert (SMB-CONVERT-COLOUR, prism route); no mode-conversion commands; indexed/duotone/bitmap absent"
+    },
+    {
+     "id": "PS-27",
+     "name": "Colour management: ICC v2/v4 profiles, working space, conversions, rendering intents, BPC",
+     "source": "STU-RAS-034, STU-RAS-150, 14.8.4-14.8.5",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-prism/src/wide.rs:825 (WideEngine); crates/hsk-studio-prism/src/lib.rs:633",
+     "lanes": [
+      "SMB-PRISM-ENG-1 PASS_V5",
+      "SMB-PRISM-ENG-5 PASS_V4",
+      "SMB-PRISM-ENG-7 PASS_V2",
+      "SMB-PRISM-ENG-8 PASS_V2",
+      "SMB-INTEROP-PSD-RECEIPT PASS_V16"
+     ],
+     "ui": false,
+     "note": "OCIO, device-link and named-colour profiles out of scope (wide.rs DESCRIPTOR not_in_scope)"
+    },
+    {
+     "id": "PS-28",
+     "name": "Soft proofing and gamut warning",
+     "source": "14.8.15 (STU-COL)",
+     "status": "MISSING",
+     "evidence": "crates/hsk-studio-prism/src/lib.rs:633 DESCRIPTOR pending (softproof, gamut)",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "PS-29",
+     "name": "History panel / undo-redo",
+     "source": "STU-RAS-005, 14.19",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-chronicle/src/lib.rs:1202 DESCRIPTOR scope (no retained history); crates/hsk-studio-controls/src/lib.rs:6 (undo-friendly ChangeEvents)",
+     "lanes": [
+      "SMB-CHRONICLE-TABLE PASS_V5",
+      "SMB-CONTROLS PASS_V3"
+     ],
+     "ui": false,
+     "note": "patch preparation and one-undo-step-per-gesture events exist; no history stack"
+    },
+    {
+     "id": "PS-30",
+     "name": "Histogram, info and colour sampler diagnostics",
+     "source": "STU-RAS-049, STU-RAS-163",
+     "status": "MISSING",
+     "evidence": "no image histogram code (score SpectrumAnalyzer is audio)",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "PS-31",
+     "name": "Actions / macro recording and batch",
+     "source": "STU-RAS-169, 14.14",
+     "status": "MISSING",
+     "evidence": "session has job ports but no macro recorder (hsk-studio-session DESCRIPTOR api)",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "PS-32",
+     "name": "GPU-accelerated compositing",
+     "source": "STU-ARC-002 (GPU types hidden), 14.27.1",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-render-gpu/src/lib.rs:53",
+     "lanes": [
+      "SMB-RENDER-GPU PASS_V6",
+      "SMB-RENDER-GPU-ADJ PASS_V7",
+      "SMB-RENDER-GPU-PROBE PASS_V3"
+     ],
+     "ui": false,
+     "note": "proven on the lane-named backend only (dx12/vulkan RTX 3090); no CPU fallback by design"
+    },
+    {
+     "id": "PS-33",
+     "name": "Generative fill / AI features",
+     "source": "STU-RAS-045, STU-RAS-046, STU-RAS-164",
+     "status": "MISSING",
+     "evidence": "spec makes these an optional adapter lane, not core",
+     "lanes": [],
+     "ui": false,
+     "note": "not core per spec; counted as missing user-facing parity"
+    },
+    {
+     "id": "PS-34",
+     "name": "Native Studio document save/open (atomic, streamed, crash-safe)",
+     "source": "STU-ASSET-004, 14.23",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-package/src/lib.rs:39 (save_atomic, save_atomic_streaming)",
+     "lanes": [
+      "SMB-PACKAGE PASS_V8",
+      "SMB-PACKAGE-STREAM-SAVE PASS_V7",
+      "SMB-SESSION PASS_V8"
+     ],
+     "ui": false
+    },
+    {
+     "id": "PS-35",
+     "name": "Open any supported document as an editable native document with colour management (convert flow: PSD/PSB, TIFF incl. layered, DNG/raw, PDF carried)",
+     "source": "STU-RAS-005, STU-CON-044 (harness convert flow)",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-harness/src/import.rs:193 (convert_to_native); crates/hsk-studio-harness/src/import/tiff.rs; crates/hsk-studio-harness/src/import/colour.rs; crates/hsk-studio-harness/tests/import_psd.rs, import_tiff.rs, import_colour.rs; crates/hsk-studio-interop-psd (layered TIFF 37724, little-endian layer records)",
+     "lanes": [
+      "SMB-CONVERT-NATIVE PASS_V2",
+      "SMB-CONVERT-TIFF PASS_V2",
+      "SMB-CONVERT-COLOUR PASS_V2",
+      "SMB-CONVERT-FOLLOWUPS PASS_V2",
+      "SMB-INTEROP-PSD-LE-LAYERS PASS_V1",
+      "SMB-SESSION-IMPORT-ENTRIES PASS_V2",
+      "SMB-DEVELOP-TIFF-CONSOLIDATE PASS_V2"
+     ],
+     "ui": false,
+     "note": "open -> convert to a native package with import receipt, typed losses and the original bytes retained; session reports import entries as opaque loss notes and re-reads quarantined counts; embedded ICC applied; layered Photoshop TIFF (incl. little-endian layer records) imported through interop-psd; PDF carried not imported; real-Photoshop layered-TIFF parity NOT_PROVEN (no independent oracle); JPEG/PNG open route (SMB-CONVERT-RASTER) unjudged",
+     "new": true
+    },
+    {
+     "id": "PS-36",
+     "name": "Export the composited document to JPEG / PNG (own baseline JPEG encoder, PNG encoder, ICC embed)",
+     "source": "STU-RAS-005",
+     "status": "IMPLEMENTED",
+     "evidence": "crates/hsk-studio-interop-raster/src/jpeg_encode.rs, png.rs; crates/hsk-studio-harness/src/view/export.rs:1; crates/hsk-studio-harness/tests/viewer_export.rs",
+     "lanes": [
+      "SMB-IO-RASTER-COMMON PASS_V1",
+      "SMB-CONVERT-RASTER READY_FOR_VALIDATION"
+     ],
+     "ui": false,
+     "note": "codecs themselves are PASS_V1 (SMB-IO-RASTER-COMMON: PNG/JPEG decode and encode); the composite -> PNG/JPEG export wiring (harness feature viewer, CLI export) is SMB-CONVERT-RASTER READY_FOR_VALIDATION, R26 INCONCLUSIVE (feature not built by the round), so the feature is IMPLEMENTED not VALIDATED; export is untagged sRGB, JPEG flattens transparency on white",
+     "new": true
+    }
+   ],
+   "interop": [
+    {
+     "format": "PSD/PSB",
+     "open": "VALIDATED (layers, groups, masks, adjustments, effect records, 8/16/32-bit, embedded ICC)",
+     "save": "PARTIAL (edited layer properties and tiles written back onto the original; added/removed layers and mask pixel edits are typed losses)",
+     "evidence": "crates/hsk-studio-interop-psd/src/lib.rs:62; crates/hsk-studio-interop-psd/src/export.rs:279",
+     "lanes": [
+      "SMB-INTEROP-PSD PASS_V19",
+      "SMB-INTEROP-PSD-WIDE PASS_V17",
+      "SMB-INTEROP-PSD-ADJ PASS_V16"
+     ]
+    },
+    {
+     "format": "TIFF (incl. BigTIFF, multipage)",
+     "open": "VALIDATED: container decode, harness import into a native document (SMB-CONVERT-TIFF PASS_V2) including Photoshop layered TIFF (tag 37724, big- and little-endian layer records; SMB-INTEROP-PSD-LE-LAYERS PASS_V1); NOT_PROVEN: parity with a real Photoshop-written layered TIFF (no independent oracle)",
+     "save": "VALIDATED container encode (8/16/32-bit, LZW/Deflate/PackBits); no document -> TIFF export path in the harness",
+     "evidence": "crates/hsk-studio-interop-tiff/src/lib.rs:65",
+     "lanes": [
+      "SMB-INTEROP-TIFF PASS_V2",
+      "SMB-CONVERT-TIFF PASS_V2",
+      "SMB-INTEROP-PSD-LE-LAYERS PASS_V1",
+      "SMB-INTEROP-TIFF-CONTAINER-API PASS_V1"
+     ]
+    },
+    {
+     "format": "JPEG / PNG / WebP / GIF",
+     "open": "PARTIAL: PNG (all colour types and depths, Adam7, iCCP) and JPEG (baseline, extended, progressive, Gray/RGB/CMYK/YCCK, ICC, Exif orientation recorded) decode VALIDATED (SMB-IO-RASTER-COMMON PASS_V1, PngSuite + libjpeg-turbo corpus); harness open-as-native route (import-raster) is SMB-CONVERT-RASTER READY_FOR_VALIDATION (unjudged); WebP recognised but refused, GIF absent",
+     "save": "PARTIAL: PNG and own clean-room baseline JPEG encoders VALIDATED as codecs (SMB-IO-RASTER-COMMON PASS_V1); composite export in harness viewer is unjudged (SMB-CONVERT-RASTER); no progressive/arithmetic/16-bit JPEG, no WebP/GIF",
+     "evidence": "crates/hsk-studio-interop-raster/src/lib.rs (DESCRIPTOR); crates/hsk-studio-harness/src/import/raster.rs",
+     "lanes": [
+      "SMB-IO-RASTER-COMMON PASS_V1",
+      "SMB-CONVERT-RASTER READY_FOR_VALIDATION"
+     ]
+    },
+    {
+     "format": "PDF (place/open)",
+     "open": "MISSING page import (PDF is carried with its original bytes and a typed pdf_pages_not_imported receipt; SMB-CONVERT-NATIVE PASS_V2, FAIL_V1 cleared)",
+     "save": "MISSING",
+     "evidence": "crates/hsk-studio-harness/src/lib.rs:21 DESCRIPTOR import.import-pdf",
+     "lanes": [
+      "SMB-CONVERT-NATIVE PASS_V2"
+     ]
+    }
+   ],
+   "counts": {
+    "VALIDATED": 11,
+    "IMPLEMENTED": 1,
+    "PARTIAL": 11,
+    "MISSING": 13,
+    "total": 36
+   },
+   "engine_parity_pct": 39.6,
+   "ui_features": 0,
+   "top_gaps": [
+    "No retouching/healing/clone or content-aware (PS-16, PS-18); selections exist only as engine producers (rect/ellipse/lasso/colour range) - no wand/quick/object select or Select-and-Mask (PS-13/14)",
+    "No crop/canvas size, sharpen/noise/liquify filters or smart/live filter layers; blur render is unjudged (PS-21, PS-22, PS-24)",
+    "No tools surface at all for brush/selection/transform in a validated UI (engine only); brush has one round tip (PS-15)",
+    "Type render needs caller-supplied runs/fonts/fill and is not inside groups (PS-23)",
+    "Remaining adjustments, bevel/emboss/satin/gradient overlay, knockout, vector masks, smart objects (PS-05, PS-08, PS-10, PS-12, PS-24)"
+   ],
+   "ui_note": "no UI feature counted as parity: the viewer is unjudged and the lane that would add editing tools (SMB-HARNESS-UI-2) has not passed",
+   "delta": {
+    "old_pct": 34.6,
+    "new_pct": 39.6,
+    "change_pts": 5.0,
+    "old_counts": {
+     "VALIDATED": 10,
+     "IMPLEMENTED": 0,
+     "PARTIAL": 7,
+     "MISSING": 17,
+     "total": 34
+    },
+    "new_counts": {
+     "VALIDATED": 11,
+     "IMPLEMENTED": 1,
+     "PARTIAL": 11,
+     "MISSING": 13,
+     "total": 36
+    },
+    "features_moved": [
+     {
+      "id": "PS-13",
+      "from": "MISSING",
+      "to": "PARTIAL",
+      "why": "SMB-PIGMENT-SELECTION PASS (R25)"
+     },
+     {
+      "id": "PS-15",
+      "from": "PARTIAL",
+      "to": "PARTIAL",
+      "why": "SMB-PIGMENT-BRUSH PASS_V1 (R26)",
+      "status_unchanged": true
+     },
+     {
+      "id": "PS-17",
+      "from": "MISSING",
+      "to": "PARTIAL",
+      "why": "SMB-PIGMENT-BRUSH PASS_V1 (R26)"
+     },
+     {
+      "id": "PS-20",
+      "from": "MISSING",
+      "to": "PARTIAL",
+      "why": "SMB-PIGMENT-TRANSFORM PASS_V1 (R26)"
+     },
+     {
+      "id": "PS-22",
+      "from": "MISSING",
+      "to": "PARTIAL",
+      "why": "folio Blur record PASS (R26); render code unjudged"
+     },
+     {
+      "id": "PS-23",
+      "from": "PARTIAL",
+      "to": "PARTIAL",
+      "why": "SMB-TYPE-GLYPH-RENDER and SMB-COMPOSITE-TEXT PASS_V1 (R26): shaping-only -> rendered (status kept PARTIAL, see note)",
+      "status_unchanged": true
+     },
+     {
+      "id": "PS-26",
+      "from": "PARTIAL",
+      "to": "PARTIAL",
+      "why": "note only (SMB-CONVERT-COLOUR PASS_V2 applies embedded ICC on import)",
+      "status_unchanged": true
+     }
+    ],
+    "new_rows": [
+     {
+      "id": "PS-35",
+      "status": "VALIDATED",
+      "name": "Open any supported document as an editable native document with colour management (convert flow: PSD/PSB, TIFF incl. layered, DNG/raw, PDF carried)"
+     },
+     {
+      "id": "PS-36",
+      "status": "IMPLEMENTED",
+      "name": "Export the composited document to JPEG / PNG (own baseline JPEG encoder, PNG encoder, ICC embed)"
+     }
+    ]
+   }
+  },
+  "lightroom_classic": {
+   "app": "Adobe Lightroom Classic",
+   "vendor_feature_sources": [
+    "https://helpx.adobe.com/lightroom-classic/desktop/introduction-to-lightroom-classic/faq.html (search-verified 2026-10-14; direct fetch 403)"
+   ],
+   "spec_sections": [
+    "14.12 Camera Raw / Develop Pipeline (STU-RAW-*)",
+    "14.29 Asset Library Binding (STU-ASSET-*)"
+   ],
+   "features": [
+    {
+     "id": "LR-01",
+     "name": "DNG decode (uncompressed and lossless JPEG, strips/tiles)",
+     "source": "STU-RAW-003",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-develop/src/dng.rs:345",
+     "lanes": [
+      "SMB-DEVELOP PASS_V12",
+      "SMB-DEVELOP-DNG-MLV PASS_V3",
+      "SMB-DEVELOP-CORPUS-PATH PASS_V2"
+     ],
+     "ui": false,
+     "note": "deflate and lossy-JPEG DNG refused; MLV-derived lossless-JPEG strip DNG (1920x818 Canon 5D3) now decodes (SMB-DEVELOP-DNG-MLV PASS_V3); real-corpus tests are #[ignore] and round-ignored runs show NOT_PROVEN independent-converter comparison; one corpus file (samsung-sm-g973u) is a JFIF preview, not a DNG (SMB-DNG-CORPUS-REPLACE open)"
+    },
+    {
+     "id": "LR-02",
+     "name": "Proprietary raw decode (CR2, NEF, ARW, CR3, RAF, ORF, RW2 ...)",
+     "source": "STU-RAW-003",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-develop/src/lib.rs:277 DESCRIPTOR scope/pending",
+     "lanes": [
+      "SMB-DEVELOP-RAW-VENDOR PASS_V3",
+      "SMB-DEVELOP-RAW-ARW PASS_V3",
+      "SMB-DEVELOP PASS_V12"
+     ],
+     "ui": false,
+     "note": "CR2 (lossless-JPEG column slices), uncompressed NEF (8/16-bit and packed 9-15-bit) and Sony ARW (cRAW and uncompressed) decode deterministically (PASS_V3); no camera colour (caller supplies matrices), black/white are placeholders named in unapplied; cfa_samples_vs_independent_dng NOT_PROVEN (no approved converter run); compressed NEF, RW2, ORF, RAF, CR3 = decoder_unavailable"
+    },
+    {
+     "id": "LR-03",
+     "name": "Demosaic (Bayer and X-Trans)",
+     "source": "STU-RAW-003",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-develop/src/lib.rs:277 DESCRIPTOR demosaic_algorithm bilinear_reflect_native_v1",
+     "lanes": [
+      "SMB-DEVELOP PASS_V12"
+     ],
+     "ui": false,
+     "note": "Bayer bilinear only; no X-Trans; no quality parity vs Adobe"
+    },
+    {
+     "id": "LR-04",
+     "name": "White balance (as shot, temperature/tint, presets, eyedropper)",
+     "source": "STU-RAW-110",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-develop/src/lib.rs:277 DESCRIPTOR white_balance_modes [\"as_shot\"]",
+     "lanes": [
+      "SMB-DEVELOP PASS_V12"
+     ],
+     "ui": false,
+     "note": "as-shot only"
+    },
+    {
+     "id": "LR-05",
+     "name": "Exposure",
+     "source": "STU-RAW-005, STU-RAW-111",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-develop/src/recipe.rs:194",
+     "lanes": [
+      "SMB-DEVELOP PASS_V12"
+     ],
+     "ui": false
+    },
+    {
+     "id": "LR-06",
+     "name": "Basic tone: contrast, highlights, shadows, whites, blacks",
+     "source": "STU-RAW-111",
+     "status": "MISSING",
+     "evidence": "crates/hsk-studio-develop/src/lib.rs:277 DESCRIPTOR supported_enables [\"enable_tone_curve\"]",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "LR-07",
+     "name": "Presence: texture, clarity, dehaze, vibrance, saturation",
+     "source": "STU-RAW-111",
+     "status": "MISSING",
+     "evidence": "not in recipe or pipeline",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "LR-08",
+     "name": "Point tone curves (composite, R, G, B)",
+     "source": "STU-RAW-113",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-develop/src/curves.rs:10; crates/hsk-studio-develop/src/recipe.rs:82-85",
+     "lanes": [
+      "SMB-DEVELOP PASS_V12"
+     ],
+     "ui": false,
+     "note": "monotone Hermite 2-32 points"
+    },
+    {
+     "id": "LR-09",
+     "name": "Parametric tone curve (region sliders)",
+     "source": "STU-RAW-112",
+     "status": "MISSING",
+     "evidence": "not in recipe",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "LR-10",
+     "name": "Colour mixer / HSL",
+     "source": "STU-RAW-115",
+     "status": "MISSING",
+     "evidence": "crates/hsk-studio-develop/src/recipe.rs:24 (enable flag only, refused)",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "LR-11",
+     "name": "Colour grading wheels",
+     "source": "STU-RAW-116",
+     "status": "MISSING",
+     "evidence": "not in recipe",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "LR-12",
+     "name": "Detail: sharpening and noise reduction",
+     "source": "STU-RAW-114",
+     "status": "MISSING",
+     "evidence": "crates/hsk-studio-develop/src/recipe.rs:25 (enable_detail flag only)",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "LR-13",
+     "name": "Lens corrections: profiles, chromatic aberration, vignetting, defringe",
+     "source": "STU-RAW-117, STU-RAW-127",
+     "status": "MISSING",
+     "evidence": "crates/hsk-studio-develop/src/recipe.rs:28 (flag only)",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "LR-14",
+     "name": "Transform / Upright perspective correction",
+     "source": "STU-RAW-118",
+     "status": "MISSING",
+     "evidence": "crates/hsk-studio-develop/src/recipe.rs:33 (flag only)",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "LR-15",
+     "name": "Effects: grain and post-crop vignette",
+     "source": "STU-RAW-119",
+     "status": "MISSING",
+     "evidence": "crates/hsk-studio-develop/src/recipe.rs:26 (flag only)",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "LR-16",
+     "name": "Calibration panel",
+     "source": "STU-RAW-120",
+     "status": "MISSING",
+     "evidence": "crates/hsk-studio-develop/src/recipe.rs:23 (flag only)",
+     "lanes": [],
+     "ui": false,
+     "note": "process/engine version fields exist (recipe.rs:183-184)"
+    },
+    {
+     "id": "LR-17",
+     "name": "Camera profiles (DNG colour matrices, DCP/Adobe profiles)",
+     "source": "STU-RAW-013, STU-RAW-125",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-develop/src/lib.rs:277 DESCRIPTOR scope (ColorMatrix/ForwardMatrix)",
+     "lanes": [
+      "SMB-DEVELOP PASS_V12"
+     ],
+     "ui": false,
+     "note": "DNG ColorMatrix/ForwardMatrix only; no DCP profiles, no profile picker"
+    },
+    {
+     "id": "LR-18",
+     "name": "Creative profiles / LUT looks",
+     "source": "STU-RAW-126",
+     "status": "MISSING",
+     "evidence": "crates/hsk-studio-prism/src/lib.rs:633 DESCRIPTOR pending (LUT)",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "LR-19",
+     "name": "Presets, snapshots, defaults",
+     "source": "STU-RAW-128",
+     "status": "MISSING",
+     "evidence": "no preset registry",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "LR-20",
+     "name": "Masking and local adjustments (brush, linear/radial gradient, subject/sky/range masks)",
+     "source": "STU-RAW-014a, STU-RAW-014b, STU-RAW-121..123",
+     "status": "MISSING",
+     "evidence": "crates/hsk-studio-develop/src/recipe.rs:29 (flag only)",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "LR-21",
+     "name": "Healing / spot removal / distraction removal",
+     "source": "STU-RAW-124",
+     "status": "MISSING",
+     "evidence": "crates/hsk-studio-develop/src/recipe.rs:31,34 (flags only)",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "LR-22",
+     "name": "Crop and straighten",
+     "source": "STU-RAW-015, STU-RAW-131",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-develop/src/recipe.rs:102-112; DESCRIPTOR output (alpha 1.0 inside crop only)",
+     "lanes": [
+      "SMB-DEVELOP PASS_V12"
+     ],
+     "ui": false,
+     "note": "rectangular crop applied; angle/orientation application UNVERIFIED (no angle use found in pipeline.rs)"
+    },
+    {
+     "id": "LR-23",
+     "name": "HDR / panorama merge, Enhance (AI denoise, super resolution), lens blur",
+     "source": "STU-RAW-129, STU-RAW-130",
+     "status": "MISSING",
+     "evidence": "not present",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "LR-24",
+     "name": "Colour-managed develop output (working to output profile)",
+     "source": "STU-RAW-013, 14.8.13",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-develop/src/lib.rs:277 DESCRIPTOR profile_transform.prism_admitted_wide",
+     "lanes": [
+      "SMB-DEVELOP-WIDE PASS_V9",
+      "SMB-PRISM-ENG-7 PASS_V2"
+     ],
+     "ui": false,
+     "note": "relative colorimetric, BPC off, linear-light profiles only"
+    },
+    {
+     "id": "LR-25",
+     "name": "Deterministic multi-threaded develop and batch jobs",
+     "source": "STU-RAW-106",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-develop/tests/develop_parallel.rs (output_is_identical_for_every_thread_count)",
+     "lanes": [
+      "SMB-DEVELOP-JOBS PASS_V9",
+      "SMB-DEVELOP PASS_V12"
+     ],
+     "ui": false
+    },
+    {
+     "id": "LR-26",
+     "name": "Non-destructive parametric develop recipe, originals immutable",
+     "source": "STU-RAW-001, STU-RAW-002",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-develop/src/recipe.rs:177-198",
+     "lanes": [
+      "SMB-DEVELOP PASS_V12"
+     ],
+     "ui": false,
+     "note": "recipe is a typed input; persistence as authority rows / EventLedger is host work and absent"
+    },
+    {
+     "id": "LR-27",
+     "name": "Library catalog: folders, files, import",
+     "source": "STU-ASSET-004, STU-ASSET-009",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-interop-lrcat/src/extract.rs:93; lib.rs:66 DESCRIPTOR scope",
+     "lanes": [
+      "SMB-INTEROP-LRCAT PASS_V2"
+     ],
+     "ui": false,
+     "note": "read-only extraction from an existing .lrcat; no native catalog in this module (CKC owner, not built); no import of folders"
+    },
+    {
+     "id": "LR-28",
+     "name": "Ratings, picks/flags, colour labels",
+     "source": "STU-ASSET (catalog metadata)",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-interop-lrcat/src/extract.rs:104-107",
+     "lanes": [
+      "SMB-INTEROP-LRCAT PASS_V2"
+     ],
+     "ui": false,
+     "note": "read from lrcat only; cannot set or edit"
+    },
+    {
+     "id": "LR-29",
+     "name": "Keywords and EXIF/IPTC metadata",
+     "source": "STU-ASSET",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-interop-lrcat/src/extract.rs:147-156",
+     "lanes": [
+      "SMB-INTEROP-LRCAT PASS_V2"
+     ],
+     "ui": false,
+     "note": "keywords read from lrcat; no EXIF/IPTC/XMP reader (lrcat next: XMP inflate)"
+    },
+    {
+     "id": "LR-30",
+     "name": "Collections and smart collections",
+     "source": "STU-ASSET",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-interop-lrcat/src/extract.rs:132-145",
+     "lanes": [
+      "SMB-INTEROP-LRCAT PASS_V2"
+     ],
+     "ui": false,
+     "note": "collections read; smart-collection rules UNVERIFIED (lrcat DESCRIPTOR unverified)"
+    },
+    {
+     "id": "LR-31",
+     "name": "Library filter / search",
+     "source": "STU-ASSET",
+     "status": "MISSING",
+     "evidence": "no query API by design (lrcat scope)",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "LR-32",
+     "name": "Import Lightroom develop settings into the develop recipe",
+     "source": "STU-RAW-103",
+     "status": "MISSING",
+     "evidence": "crates/hsk-studio-interop-lrcat/src/extract.rs:118 (settings kept as OpaqueBlob); DESCRIPTOR next",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "LR-33",
+     "name": "Export: JPEG/TIFF/DNG with resize, output sharpening, watermark",
+     "source": "STU-RAW-017, 14.13",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-interop-tiff/src/lib.rs:65 DESCRIPTOR encode; NEW: crates/hsk-studio-interop-raster/src/jpeg_encode.rs; crates/hsk-studio-harness/src/view/export.rs:1 (unjudged); crates/hsk-studio-harness/tests/viewer_export.rs (unjudged)",
+     "lanes": [
+      "SMB-INTEROP-TIFF PASS_V2",
+      "SMB-IO-RASTER-COMMON PASS_V1",
+      "SMB-CONVERT-RASTER READY_FOR_VALIDATION"
+     ],
+     "ui": false,
+     "note": "encoders exist: TIFF (SMB-INTEROP-TIFF PASS), own clean-room baseline JPEG encoder + PNG encoder (SMB-IO-RASTER-COMMON PASS_V1; DQT/DHT equal libjpeg-turbo, PSNR within 0.5 dB) ; harness export of a composited document to PNG/JPEG exists in feature viewer but SMB-CONVERT-RASTER is READY_FOR_VALIDATION (R26 INCONCLUSIVE: viewer feature not built by the round); not wired to the develop output path; no DNG writer, no resize, sharpening or watermark"
+    },
+    {
+     "id": "LR-34",
+     "name": "Open developed raw as an editable layered document (\"Edit in Photoshop\" equivalent)",
+     "source": "STU-RAW-016",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-harness/src/lib.rs:21 DESCRIPTOR import import-raw; NEW: crates/hsk-studio-harness/src/import.rs:193; crates/hsk-studio-harness/tests/import_psd.rs (dng_converts_to_one_developed_raster_layer_and_opens_in_a_session); crates/hsk-studio-harness/tests/import_colour.rs",
+     "lanes": [
+      "SMB-CONVERT-NATIVE PASS_V2",
+      "SMB-CONVERT-COLOUR PASS_V2",
+      "SMB-CONVERT-FOLLOWUPS PASS_V2",
+      "SMB-DEVELOP-RAW-VENDOR PASS_V3"
+     ],
+     "ui": false,
+     "note": "convert-to-native flow opens DNG and raw-neutral TIFF as one developed raster layer in a native package with receipt and original bytes (harness import-raw); embedded/working profiles applied via prism; raw is detected through interop-tiff (DNGVersion), proprietary raw goes through develop; SMB-CONVERT-NATIVE FAIL_V1 (R24) cleared at PASS_V2 (R26). Not an Adobe round-trip (no Photoshop hand-off), single layer only"
+    },
+    {
+     "id": "LR-35",
+     "name": "Map, Book, Slideshow, Print, Web modules; tethered capture; virtual copies",
+     "source": "vendor",
+     "status": "MISSING",
+     "evidence": "not present",
+     "lanes": [],
+     "ui": false
+    }
+   ],
+   "interop": [
+    {
+     "format": "Camera raw (DNG, CR2, NEF-uncompressed, ARW)",
+     "open": "VALIDATED subset (see LR-01/02): DNG incl. MLV lossless-JPEG strips, CR2, uncompressed NEF, ARW; no camera colour for CR2/NEF/ARW",
+     "save": "n/a (raw is read-only)",
+     "evidence": "crates/hsk-studio-develop/src/lib.rs:277",
+     "lanes": [
+      "SMB-DEVELOP PASS_V12",
+      "SMB-DEVELOP-RAW-VENDOR PASS_V3",
+      "SMB-DEVELOP-RAW-ARW PASS_V3",
+      "SMB-DEVELOP-DNG-MLV PASS_V3"
+     ]
+    },
+    {
+     "format": "Lightroom catalog (.lrcat + WAL)",
+     "open": "VALIDATED read-only fixed extraction (photos, folders, collections, keywords, develop blob opaque)",
+     "save": "MISSING (no writable catalog by design)",
+     "evidence": "crates/hsk-studio-interop-lrcat/src/lib.rs:66",
+     "lanes": [
+      "SMB-INTEROP-LRCAT PASS_V2"
+     ],
+     "note": "table/column names UNVERIFIED against a Lightroom-written catalog (DESCRIPTOR unverified)"
+    },
+    {
+     "format": "XMP sidecars",
+     "open": "MISSING",
+     "save": "MISSING",
+     "evidence": "no XMP reader",
+     "lanes": []
+    },
+    {
+     "format": "JPEG / PNG / HEIC",
+     "open": "PARTIAL: JPEG/PNG decode VALIDATED as codec (SMB-IO-RASTER-COMMON PASS_V1) but not wired into develop/ingest; harness open route unjudged (SMB-CONVERT-RASTER); HEIC MISSING",
+     "save": "PARTIAL: JPEG/PNG encoders VALIDATED as codecs; no develop -> JPEG export path; HEIC MISSING",
+     "evidence": "no codec",
+     "lanes": [
+      "SMB-IO-RASTER-COMMON PASS_V1",
+      "SMB-CONVERT-RASTER READY_FOR_VALIDATION"
+     ]
+    },
+    {
+     "format": "TIFF",
+     "open": "VALIDATED container; harness import-tiff into a native document PASS (SMB-CONVERT-TIFF)",
+     "save": "VALIDATED container (not wired to develop export)",
+     "evidence": "crates/hsk-studio-interop-tiff/src/lib.rs:65",
+     "lanes": [
+      "SMB-INTEROP-TIFF PASS_V2",
+      "SMB-CONVERT-TIFF PASS_V2"
+     ]
+    }
+   ],
+   "counts": {
+    "VALIDATED": 6,
+    "IMPLEMENTED": 0,
+    "PARTIAL": 11,
+    "MISSING": 18,
+    "total": 35
+   },
+   "engine_parity_pct": 25.0,
+   "ui_features": 0,
+   "top_gaps": [
+    "Only exposure, as-shot white balance and point curves of the Develop panel exist (LR-04, LR-06..16): no tone sliders, HSL, detail, lens, transform, grain",
+    "No local adjustments/masking or healing (LR-20, LR-21)",
+    "No catalog of its own: read-only lrcat extraction, no rating/keyword editing or filter (LR-27..31)",
+    "No develop -> JPEG export / ingest pipeline: codecs exist (interop-raster) but are not wired to develop (LR-33)",
+    "Compressed NEF, CR3, RAF, ORF, RW2 raw not decodable; no camera colour for CR2/NEF/ARW (LR-02)"
+   ],
+   "ui_note": "no UI feature counted as parity: the viewer is unjudged and the lane that would add editing tools (SMB-HARNESS-UI-2) has not passed",
+   "delta": {
+    "old_pct": 23.6,
+    "new_pct": 25.0,
+    "change_pts": 1.4,
+    "old_counts": {
+     "VALIDATED": 5,
+     "IMPLEMENTED": 1,
+     "PARTIAL": 11,
+     "MISSING": 18,
+     "total": 35
+    },
+    "new_counts": {
+     "VALIDATED": 6,
+     "IMPLEMENTED": 0,
+     "PARTIAL": 11,
+     "MISSING": 18,
+     "total": 35
+    },
+    "features_moved": [
+     {
+      "id": "LR-01",
+      "from": "VALIDATED",
+      "to": "VALIDATED",
+      "why": "note only",
+      "status_unchanged": true
+     },
+     {
+      "id": "LR-02",
+      "from": "PARTIAL",
+      "to": "PARTIAL",
+      "why": "lane versions only (R25/R26)",
+      "status_unchanged": true
+     },
+     {
+      "id": "LR-33",
+      "from": "PARTIAL",
+      "to": "PARTIAL",
+      "why": "JPEG/PNG encoders PASS; export wiring unjudged",
+      "status_unchanged": true
+     },
+     {
+      "id": "LR-34",
+      "from": "IMPLEMENTED",
+      "to": "VALIDATED",
+      "why": "SMB-CONVERT-NATIVE PASS_V2 (R26)"
+     }
+    ],
+    "new_rows": []
+   }
+  },
+  "illustrator": {
+   "app": "Adobe Illustrator",
+   "vendor_feature_sources": [
+    "https://www.adobe.com/products/illustrator/features.html (fetched 2026-10-14)"
+   ],
+   "spec_sections": [
+    "14.5 Vector Graphics & Illustration (STU-VEC-*)"
+   ],
+   "features": [
+    {
+     "id": "AI-01",
+     "name": "Path model: anchors, cubic Bezier segments, handles, open/closed contours",
+     "source": "STU-VEC-001, STU-VEC-002, STU-VEC-003",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-nib/src/owned_path.rs; crates/hsk-studio-interop-vector/src/lib.rs:62 DESCRIPTOR model.paths",
+     "lanes": [
+      "SMB-NIB-ENG-1 PASS_V2",
+      "SMB-INTEROP-VECTOR PASS_V9"
+     ],
+     "ui": false
+    },
+    {
+     "id": "AI-02",
+     "name": "Vector networks",
+     "source": "STU-VEC-108",
+     "status": "MISSING",
+     "evidence": "nib Network is boolean output only (UNVERIFIED as editable network)",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "AI-03",
+     "name": "Fill rule / winding (non-zero, even-odd), path direction",
+     "source": "STU-VEC-004, STU-VEC-110, STU-VEC-043",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-render-cpu/src/lib.rs:22 DESCRIPTOR vector",
+     "lanes": [
+      "SMB-RENDER-CPU PASS_V11",
+      "SMB-INTEROP-VECTOR PASS_V9"
+     ],
+     "ui": false
+    },
+    {
+     "id": "AI-04",
+     "name": "Drawing tools: pen, curvature, pencil, blob brush, shaper",
+     "source": "STU-VEC-007, STU-VEC-118..120",
+     "status": "MISSING",
+     "evidence": "no tools (no UI, no tool commands)",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "AI-05",
+     "name": "Direct selection / anchor editing, scissors, knife, join",
+     "source": "STU-VEC-009, STU-VEC-048",
+     "status": "MISSING",
+     "evidence": "no path-edit commands",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "AI-06",
+     "name": "Parametric (live) shapes: rectangle, ellipse, polygon, star",
+     "source": "STU-VEC-010, STU-VEC-127",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-interop-vector/src/lib.rs:62 DESCRIPTOR model.supported",
+     "lanes": [
+      "SMB-INTEROP-VECTOR PASS_V9"
+     ],
+     "ui": false,
+     "note": "SVG rect/circle/ellipse/polygon import as plain paths; no live shape records"
+    },
+    {
+     "id": "AI-07",
+     "name": "Live corners / per-corner radius",
+     "source": "STU-VEC-005, STU-VEC-066, STU-VEC-112",
+     "status": "MISSING",
+     "evidence": "not present",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "AI-08",
+     "name": "Pathfinder / boolean operations",
+     "source": "STU-VEC-012, STU-VEC-013, STU-VEC-130",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-nib/src/path_contract.rs:85; crates/hsk-studio-nib/src/descriptor.rs:6 scope",
+     "lanes": [],
+     "ui": false,
+     "note": "unite, back-minus-front, front-minus-back on two closed axis-aligned rectangles only (foundation code; no lane claims it); curves unavailable"
+    },
+    {
+     "id": "AI-09",
+     "name": "Offset path, simplify, outline stroke, expand, expand appearance",
+     "source": "STU-VEC-006, STU-VEC-113, STU-VEC-114, STU-VEC-054",
+     "status": "MISSING",
+     "evidence": "grep offset_path: no matches",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "AI-10",
+     "name": "Compound paths",
+     "source": "STU-VEC-014",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-interop-vector/src/lib.rs:62 DESCRIPTOR model.paths (compound SVG paths share layer_id)",
+     "lanes": [
+      "SMB-INTEROP-VECTOR PASS_V9"
+     ],
+     "ui": false,
+     "note": "import/export only"
+    },
+    {
+     "id": "AI-11",
+     "name": "Rendering filled vector art to pixels (anti-aliased)",
+     "source": "STU-VEC-179",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-render-cpu/src/lib.rs:22 DESCRIPTOR vector (exact winding, supersampled coverage)",
+     "lanes": [
+      "SMB-RENDER-CPU PASS_V11"
+     ],
+     "ui": false,
+     "note": "solid fills only; GPU vector coverage pending"
+    },
+    {
+     "id": "AI-12",
+     "name": "Stroke rendering",
+     "source": "STU-VEC-020",
+     "status": "MISSING",
+     "evidence": "crates/hsk-studio-render-cpu/src/lib.rs:22 DESCRIPTOR pending (strokes as vector paint)",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "AI-13",
+     "name": "Stroke attributes: weight, caps, joins, miter, dashes, arrowheads, variable width profiles",
+     "source": "STU-VEC-143..147",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-interop-vector/src/lib.rs:62 DESCRIPTOR model.supported",
+     "lanes": [
+      "SMB-INTEROP-VECTOR PASS_V9"
+     ],
+     "ui": false,
+     "note": "weight/caps/joins/miter/dash stored and round-tripped via SVG; arrowheads and width profiles absent; not rendered"
+    },
+    {
+     "id": "AI-14",
+     "name": "Gradients (linear, radial, freeform) and gradient editing",
+     "source": "STU-VEC-134..137",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-folio/src/paint.rs:81-115",
+     "lanes": [
+      "SMB-INTEROP-VECTOR PASS_V9"
+     ],
+     "ui": false,
+     "note": "linear/radial modelled and round-tripped via SVG; freeform absent; not rendered"
+    },
+    {
+     "id": "AI-15",
+     "name": "Pattern fills",
+     "source": "STU-VEC-017, STU-VEC-138",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-folio/src/vector.rs:167",
+     "lanes": [
+      "SMB-FOLIO-ENG-7 PASS_V4",
+      "SMB-INTEROP-VECTOR-RECORDS PASS_V6"
+     ],
+     "ui": false,
+     "note": "stored from SVG and written back; no pattern editing, not rendered"
+    },
+    {
+     "id": "AI-16",
+     "name": "Clipping masks and opacity masks",
+     "source": "STU-VEC-053, STU-VEC-153",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-interop-vector/src/lib.rs:62 DESCRIPTOR operation (clips, masks records)",
+     "lanes": [
+      "SMB-INTEROP-VECTOR-RECORDS PASS_V6"
+     ],
+     "ui": false,
+     "note": "stored and round-tripped; not rendered"
+    },
+    {
+     "id": "AI-17",
+     "name": "Appearance stack (multiple fills/strokes per object)",
+     "source": "STU-VEC-022",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-folio/src/paint.rs:204",
+     "lanes": [
+      "SMB-FOLIO-ENG-4 PASS_V6",
+      "SMB-INTEROP-VECTOR-FOLIO-MIGRATE PASS_V8"
+     ],
+     "ui": false,
+     "note": "paint rows modelled; not rendered"
+    },
+    {
+     "id": "AI-18",
+     "name": "Object transparency and blend modes",
+     "source": "STU-VEC-025, STU-VEC-151",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-pigment/src/render_plan.rs:1168 DESCRIPTOR layer",
+     "lanes": [
+      "SMB-PIGMENT-ENG-1 PASS_V11"
+     ],
+     "ui": false,
+     "note": "layer-level opacity/blend on vector nodes in the render plan; SVG blend modes are an import loss"
+    },
+    {
+     "id": "AI-19",
+     "name": "Live effects: drop shadow, feather, distort & transform, warp, 3D",
+     "source": "STU-VEC-023, STU-VEC-154..158",
+     "status": "MISSING",
+     "evidence": "SVG filters are an import loss; no vector effect registry",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "AI-20",
+     "name": "Graphic styles",
+     "source": "STU-VEC-024, STU-VEC-161",
+     "status": "MISSING",
+     "evidence": "paint styles exist only as Figma-style design records",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "AI-21",
+     "name": "Brushes: calligraphic, scatter, art, pattern, bristle",
+     "source": "STU-VEC-026, STU-VEC-162",
+     "status": "MISSING",
+     "evidence": "crates/hsk-studio-interop-vector/src/lib.rs:62 DESCRIPTOR next (brushes)",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "AI-22",
+     "name": "Artboards",
+     "source": "STU-VEC-028, STU-VEC-165",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-folio/src/lib.rs:111 (NodeKind::Artboard)",
+     "lanes": [
+      "SMB-FOLIO-ENG-4 PASS_V6"
+     ],
+     "ui": false,
+     "note": "node kind exists; no artboard options/export; interop-vector next lists artboards"
+    },
+    {
+     "id": "AI-23",
+     "name": "Align and distribute",
+     "source": "STU-VEC-029, STU-VEC-166",
+     "status": "MISSING",
+     "evidence": "not present",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "AI-24",
+     "name": "Transform tools: rotate, scale, reflect, shear, transform each",
+     "source": "STU-VEC-030, STU-VEC-157",
+     "status": "MISSING",
+     "evidence": "SVG transforms baked on import only",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "AI-25",
+     "name": "Envelope, warp, liquify, puppet warp, perspective grid",
+     "source": "STU-VEC-168..172",
+     "status": "MISSING",
+     "evidence": "not present",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "AI-26",
+     "name": "Symbols (reusable instances)",
+     "source": "STU-VEC-058, STU-VEC-167",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-components/src/lib.rs:199 DESCRIPTOR operation",
+     "lanes": [
+      "SMB-COMPONENTS PASS_V7"
+     ],
+     "ui": false,
+     "note": "served by the shared components engine (spec routes symbols to 14.10); no symbol import from AI/SVG (symbol/use are losses)"
+    },
+    {
+     "id": "AI-27",
+     "name": "Blend tool, live paint, gradient mesh, image trace, repeat, intertwine",
+     "source": "STU-VEC-031..037",
+     "status": "MISSING",
+     "evidence": "not present",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "AI-28",
+     "name": "Type: point/area type, type on a path",
+     "source": "STU-VEC-038, 14.7",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-type/src/engine.rs:16",
+     "lanes": [
+      "SMB-TYPE PASS_V6",
+      "SMB-TYPE-GLYPH-RENDER PASS_V1",
+      "SMB-COMPOSITE-TEXT PASS_V1"
+     ],
+     "ui": false,
+     "note": "point/paragraph text now shapes and renders via the same Type -> composite path as PS-23 (caller-supplied runs, no Folio fill/font record, not inside groups); no type on a path, no type objects in vector files"
+    },
+    {
+     "id": "AI-29",
+     "name": "Create outlines from text",
+     "source": "STU-VEC-178",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-type/src/descriptor.rs pending (outlines); NEW: crates/hsk-studio-type/src/outline.rs:184 (glyph_outlines; OutlineCommand)",
+     "lanes": [
+      "SMB-TYPE-GLYPH-RENDER PASS_V1"
+     ],
+     "ui": false,
+     "note": "glyph outlines are extracted as quad/cubic outline commands per glyph (bounded, deterministic) but are not converted to editable Nib paths or a vector layer; no 'create outlines' command"
+    },
+    {
+     "id": "AI-30",
+     "name": "Swatches, spot colours, recolour artwork",
+     "source": "STU-VEC-141, STU-VEC-142",
+     "status": "MISSING",
+     "evidence": "no swatch library in code",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "AI-31",
+     "name": "CMYK documents, separations, overprint preview",
+     "source": "14.8.12",
+     "status": "MISSING",
+     "evidence": "prism has no ink/separation path (wide.rs not_in_scope ink limit)",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "AI-32",
+     "name": "Placed / embedded images",
+     "source": "STU-VEC-018, STU-VEC-139",
+     "status": "MISSING",
+     "evidence": "SVG <image> is an import loss",
+     "lanes": [],
+     "ui": false
+    }
+   ],
+   "interop": [
+    {
+     "format": "SVG / SVGZ",
+     "open": "VALIDATED (paths, shapes, gradients, patterns, clips, masks, strokes, CSS style attributes)",
+     "save": "VALIDATED (export_svg / export_proposal)",
+     "evidence": "crates/hsk-studio-interop-vector/src/lib.rs:20-22",
+     "lanes": [
+      "SMB-INTEROP-VECTOR PASS_V9",
+      "SMB-INTEROP-VECTOR-RECORDS PASS_V6"
+     ],
+     "note": "text, symbols/use, images, filters, markers, CSS stylesheets are typed losses"
+    },
+    {
+     "format": "AI (native)",
+     "open": "MISSING (header detection only; NativeEditabilityBlocked, original bytes preserved)",
+     "save": "MISSING",
+     "evidence": "crates/hsk-studio-interop-vector/src/lib.rs:62 DESCRIPTOR native_gap",
+     "lanes": []
+    },
+    {
+     "format": "PDF / EPS",
+     "open": "MISSING for vector import (PdfVectorProvider port has NoPdfProvider)",
+     "save": "MISSING",
+     "evidence": "crates/hsk-studio-interop-vector/src/lib.rs:62 DESCRIPTOR operation",
+     "lanes": []
+    }
+   ],
+   "counts": {
+    "VALIDATED": 3,
+    "IMPLEMENTED": 0,
+    "PARTIAL": 13,
+    "MISSING": 16,
+    "total": 32
+   },
+   "engine_parity_pct": 19.5,
+   "ui_features": 0,
+   "top_gaps": [
+    "No drawing or path-editing tools (AI-04, AI-05)",
+    "Strokes, gradients, patterns, masks are stored but not rendered (AI-12..17)",
+    "Boolean ops limited to two axis-aligned rectangles; no offset/outline (AI-08, AI-09)",
+    "No effects, brushes, type objects on paths or glyph-outline-to-path conversion (AI-19, AI-21, AI-28, AI-29)",
+    "No AI/PDF/EPS read or write (interop)"
+   ],
+   "ui_note": "no UI feature counted as parity: the viewer is unjudged and the lane that would add editing tools (SMB-HARNESS-UI-2) has not passed",
+   "delta": {
+    "old_pct": 18.8,
+    "new_pct": 19.5,
+    "change_pts": 0.7,
+    "old_counts": {
+     "VALIDATED": 3,
+     "IMPLEMENTED": 0,
+     "PARTIAL": 12,
+     "MISSING": 17,
+     "total": 32
+    },
+    "new_counts": {
+     "VALIDATED": 3,
+     "IMPLEMENTED": 0,
+     "PARTIAL": 13,
+     "MISSING": 16,
+     "total": 32
+    },
+    "features_moved": [
+     {
+      "id": "AI-28",
+      "from": "PARTIAL",
+      "to": "PARTIAL",
+      "why": "note only",
+      "status_unchanged": true
+     },
+     {
+      "id": "AI-29",
+      "from": "MISSING",
+      "to": "PARTIAL",
+      "why": "SMB-TYPE-GLYPH-RENDER PASS_V1 (R26)"
+     }
+    ],
+    "new_rows": []
+   }
+  },
+  "indesign": {
+   "app": "Adobe InDesign",
+   "vendor_feature_sources": [
+    "https://www.adobe.com/products/indesign/features.html (fetched 2026-10-14)"
+   ],
+   "spec_sections": [
+    "14.6 Page Layout & Publishing (STU-LAY-*)",
+    "14.7 Typography Engine (STU-TYP-*)"
+   ],
+   "features": [
+    {
+     "id": "ID-01",
+     "name": "Pages and spreads: mixed page sizes, margins, bleed, facing pages",
+     "source": "STU-LAY-001, STU-LAY-002, STU-LAY-003",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-folio/src/layout.rs:82",
+     "lanes": [
+      "SMB-FOLIO-ENG-3 PASS_V7",
+      "SMB-INTEROP-LAYOUT PASS_V8"
+     ],
+     "ui": false
+    },
+    {
+     "id": "ID-02",
+     "name": "Parent (master) pages and overrides",
+     "source": "STU-LAY-006, STU-LAY-007, STU-LAY-008",
+     "status": "MISSING",
+     "evidence": "crates/hsk-studio-interop-layout/src/descriptor.rs:3 next (master spreads)",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "ID-03",
+     "name": "Sections, automatic page numbers, running headers",
+     "source": "STU-LAY-014, STU-LAY-015, STU-LAY-016",
+     "status": "MISSING",
+     "evidence": "not present",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "ID-04",
+     "name": "Text frames: columns, gutter, inset, vertical justification, first baseline, auto-size",
+     "source": "STU-LAY-017",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-folio/src/layout.rs:101-123; crates/hsk-studio-layout/src/lib.rs:109 DESCRIPTOR model.text_flow",
+     "lanes": [
+      "SMB-FOLIO-ENG-3 PASS_V7",
+      "SMB-LAYOUT PASS_V7"
+     ],
+     "ui": false,
+     "note": "attributes are stored; the reflow ignores columns and vertical justification"
+    },
+    {
+     "id": "ID-05",
+     "name": "Story threading with exact overset detection",
+     "source": "STU-LAY-018",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-layout/src/lib.rs:109 DESCRIPTOR operation",
+     "lanes": [
+      "SMB-LAYOUT PASS_V7",
+      "SMB-LAYOUT-FOLIO-MIGRATE PASS_V6"
+     ],
+     "ui": false
+    },
+    {
+     "id": "ID-06",
+     "name": "Paragraph composer (Knuth-Plass) and single-line composer",
+     "source": "14.7.6",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-layout/src/lib.rs:15",
+     "lanes": [
+      "SMB-LAYOUT PASS_V7"
+     ],
+     "ui": false,
+     "note": "Latin left-to-right only; relation to the Adobe Paragraph Composer UNVERIFIED"
+    },
+    {
+     "id": "ID-07",
+     "name": "Justification and H&J settings",
+     "source": "14.7.7",
+     "status": "MISSING",
+     "evidence": "crates/hsk-studio-layout/src/lib.rs:109 DESCRIPTOR model.text_flow (no justification)",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "ID-08",
+     "name": "Hyphenation",
+     "source": "14.7.8",
+     "status": "MISSING",
+     "evidence": "same as ID-07 (no hyphenation)",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "ID-09",
+     "name": "OpenType shaping, complex scripts and bidi",
+     "source": "14.7.5, STU-TYP-008",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-type/src/descriptor.rs selected_profile; crates/hsk-studio-type/src/engine.rs:16",
+     "lanes": [
+      "SMB-TYPE PASS_V6",
+      "SMB-TYPE-ENG-1 PASS_V2"
+     ],
+     "ui": false,
+     "note": "validated profile: Latn, Arab, Hani with Unicode bidi; layout consumes Latin LTR only"
+    },
+    {
+     "id": "ID-10",
+     "name": "Variable fonts and OpenType feature tags",
+     "source": "14.7.11, 14.7.12",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-type/src/descriptor.rs inputs.style (feature/axis tags)",
+     "lanes": [
+      "SMB-TYPE PASS_V6",
+      "SMB-TYPE-FONTS PASS_V2"
+     ],
+     "ui": false,
+     "note": "no host font discovery (caller grants fonts)"
+    },
+    {
+     "id": "ID-11",
+     "name": "Vertical / CJK typography (tate-chu-yoko, mojikumi)",
+     "source": "14.7.10",
+     "status": "MISSING",
+     "evidence": "not present",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "ID-12",
+     "name": "Character and paragraph styles, nested and GREP styles",
+     "source": "STU-LAY-036, STU-LAY-037, STU-LAY-038",
+     "status": "MISSING",
+     "evidence": "crates/hsk-studio-interop-layout/src/descriptor.rs:3 model.folio (style ids unresolved, Resources/Styles.xml preserved opaque)",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "ID-13",
+     "name": "Object styles",
+     "source": "STU-LAY-039",
+     "status": "MISSING",
+     "evidence": "not present",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "ID-14",
+     "name": "Tables",
+     "source": "STU-LAY-035",
+     "status": "MISSING",
+     "evidence": "crates/hsk-studio-interop-layout/src/descriptor.rs:3 loss (tables not interpreted)",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "ID-15",
+     "name": "Footnotes, endnotes",
+     "source": "STU-LAY-046",
+     "status": "MISSING",
+     "evidence": "same descriptor (footnotes not interpreted)",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "ID-16",
+     "name": "Table of contents and index",
+     "source": "STU-LAY-044, STU-LAY-045",
+     "status": "MISSING",
+     "evidence": "not present",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "ID-17",
+     "name": "Cross-references, text variables, conditional text",
+     "source": "STU-LAY-047, STU-LAY-048, STU-LAY-049",
+     "status": "MISSING",
+     "evidence": "not present",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "ID-18",
+     "name": "Books (multi-document publications)",
+     "source": "STU-LAY-042, STU-LAY-043",
+     "status": "MISSING",
+     "evidence": "not present",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "ID-19",
+     "name": "Placed graphics in frames, fitting, links panel",
+     "source": "STU-LAY-028, STU-LAY-029, STU-LAY-030",
+     "status": "MISSING",
+     "evidence": "crates/hsk-studio-interop-layout/src/descriptor.rs:3 loss (graphic_page_item_not_interpreted)",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "ID-20",
+     "name": "Text wrap",
+     "source": "STU-LAY-024, STU-LAY-126",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-layout/src/lib.rs:109 DESCRIPTOR inputs (FrameObstacles)",
+     "lanes": [
+      "SMB-LAYOUT PASS_V7"
+     ],
+     "ui": false,
+     "note": "caller-supplied obstacles accepted by reflow (not stored in Folio); contour wrap absent; obstacle behaviour UNVERIFIED"
+    },
+    {
+     "id": "ID-21",
+     "name": "Anchored objects, text on path",
+     "source": "STU-LAY-023, STU-LAY-025",
+     "status": "MISSING",
+     "evidence": "not present",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "ID-22",
+     "name": "Grids, guides, smart guides, measurement units",
+     "source": "STU-LAY-050..053",
+     "status": "MISSING",
+     "evidence": "not present",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "ID-23",
+     "name": "Liquid / adjust / alternate layouts",
+     "source": "STU-LAY-009, STU-LAY-010, STU-LAY-011",
+     "status": "MISSING",
+     "evidence": "not present",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "ID-24",
+     "name": "Swatches, inks, separations preview, overprint",
+     "source": "STU-LAY-062, STU-LAY-160",
+     "status": "MISSING",
+     "evidence": "not present",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "ID-25",
+     "name": "Live preflight",
+     "source": "STU-LAY-055..057",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-layout/src/lib.rs:109 (overset); crates/hsk-studio-package/src/lib.rs:50 (container preflight)",
+     "lanes": [
+      "SMB-LAYOUT PASS_V7"
+     ],
+     "ui": false,
+     "note": "overset only; no rule profiles"
+    },
+    {
+     "id": "ID-26",
+     "name": "Package (collect fonts and links)",
+     "source": "STU-LAY-058",
+     "status": "MISSING",
+     "evidence": "hsk-studio-package is the native container, not an InDesign-style package",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "ID-27",
+     "name": "PDF export (print, PDF/X) and printing / booklet",
+     "source": "STU-LAY-059, STU-LAY-060, STU-LAY-061",
+     "status": "MISSING",
+     "evidence": "no PDF writer for layouts (press only edits existing PDFs)",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "ID-28",
+     "name": "EPUB / interactive / HTML export",
+     "source": "STU-LAY-065",
+     "status": "MISSING",
+     "evidence": "not present",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "ID-29",
+     "name": "Story editor, find/change, spell check",
+     "source": "STU-LAY-026, STU-LAY-027, 14.7.17",
+     "status": "MISSING",
+     "evidence": "not present",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "ID-30",
+     "name": "Data merge",
+     "source": "vendor",
+     "status": "MISSING",
+     "evidence": "not present",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "ID-31",
+     "name": "Convert / open PDF as a layout document",
+     "source": "vendor",
+     "status": "MISSING",
+     "evidence": "crates/hsk-studio-harness/src/lib.rs:21 DESCRIPTOR import-pdf (carried, not imported)",
+     "lanes": [
+      "SMB-CONVERT-NATIVE PASS_V2"
+     ],
+     "ui": false,
+     "note": "PDF is carried into a native package with the original bytes and a typed pdf_pages_not_imported receipt (SMB-CONVERT-NATIVE PASS_V2, FAIL_V1 cleared in R26); pages are not imported as layout, so still MISSING"
+    }
+   ],
+   "interop": [
+    {
+     "format": "IDML",
+     "open": "VALIDATED (spreads, pages, text frames, stories, threads; styles/graphics/tables preserved opaque)",
+     "save": "VALIDATED (export_idml, replace_content, export_folio)",
+     "evidence": "crates/hsk-studio-interop-layout/src/lib.rs:20-21",
+     "lanes": [
+      "SMB-INTEROP-LAYOUT PASS_V8"
+     ]
+    },
+    {
+     "format": "INDD",
+     "open": "MISSING (identify only; import_indd always Err)",
+     "save": "MISSING",
+     "evidence": "crates/hsk-studio-interop-layout/src/descriptor.rs:3 indd",
+     "lanes": []
+    },
+    {
+     "format": "PDF",
+     "open": "PARTIAL via press: read/inspect/edit entries/redact/sanitize (press remediation lanes PASS through R25/R26; SMB-PRESS and SMB-PRESS-STRUCT-STRIP still READY_FOR_VALIDATION); PDF carried (not imported) by the convert flow; no PDF-to-layout",
+     "save": "MISSING (no PDF export from layout; SMB-LAYOUT-PDF-EXPORT unclaimed)",
+     "evidence": "crates/hsk-studio-press/src/lib.rs:96",
+     "lanes": [
+      "SMB-PRESS READY_FOR_VALIDATION",
+      "SMB-PRESS-STRUCT-STRIP READY_FOR_VALIDATION",
+      "SMB-PRESS-STRUCT-FAILCLOSED PASS_V4",
+      "SMB-PRESS-PROPERTIES PASS_V2",
+      "SMB-CONVERT-NATIVE PASS_V2"
+     ]
+    }
+   ],
+   "counts": {
+    "VALIDATED": 5,
+    "IMPLEMENTED": 0,
+    "PARTIAL": 3,
+    "MISSING": 23,
+    "total": 31
+   },
+   "engine_parity_pct": 18.5,
+   "ui_features": 0,
+   "top_gaps": [
+    "No justification, hyphenation or styles (ID-07, ID-08, ID-12)",
+    "No PDF export or printing (ID-27)",
+    "No master pages, page numbering, placed graphics, tables (ID-02, ID-03, ID-14, ID-19)",
+    "Long-document features absent (TOC, index, footnotes, books) (ID-15..18)",
+    "INDD unreadable; IDML only (interop)"
+   ],
+   "ui_note": "no UI feature counted as parity: the viewer is unjudged and the lane that would add editing tools (SMB-HARNESS-UI-2) has not passed",
+   "delta": {
+    "old_pct": 18.5,
+    "new_pct": 18.5,
+    "change_pts": 0.0,
+    "old_counts": {
+     "VALIDATED": 5,
+     "IMPLEMENTED": 0,
+     "PARTIAL": 3,
+     "MISSING": 23,
+     "total": 31
+    },
+    "new_counts": {
+     "VALIDATED": 5,
+     "IMPLEMENTED": 0,
+     "PARTIAL": 3,
+     "MISSING": 23,
+     "total": 31
+    },
+    "features_moved": [
+     {
+      "id": "ID-31",
+      "from": "MISSING",
+      "to": "MISSING",
+      "why": "note only (carry PASS; pages not imported)",
+      "status_unchanged": true
+     }
+    ],
+    "new_rows": []
+   }
+  },
+  "figma": {
+   "app": "Figma (Design)",
+   "vendor_feature_sources": [
+    "https://help.figma.com/hc/en-us/categories/360002051613-Figma-Design (fetched 2026-10-14; topic index only)"
+   ],
+   "spec_sections": [
+    "14.10 Design Systems, Components & Variables (STU-DS-*)",
+    "14.11 Prototyping (STU-PRO-*)"
+   ],
+   "features": [
+    {
+     "id": "FG-01",
+     "name": "Scene graph: frames, groups, nested layers",
+     "source": "STU-DS (14.10), 14.3",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-folio/src/lib.rs:111",
+     "lanes": [
+      "SMB-FOLIO-ENG-4 PASS_V6",
+      "SMB-COMPONENTS PASS_V7"
+     ],
+     "ui": false
+    },
+    {
+     "id": "FG-02",
+     "name": "Components and component sets (variants), variant conflict detection",
+     "source": "STU-DS-006, STU-DS-007",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-components/src/lib.rs:199 DESCRIPTOR model.variants",
+     "lanes": [
+      "SMB-COMPONENTS PASS_V7",
+      "SMB-COMPONENTS-FOLIO-MIGRATE PASS_V6",
+      "SMB-FOLIO-UNIQUENESS PASS_V3"
+     ],
+     "ui": false
+    },
+    {
+     "id": "FG-03",
+     "name": "Instances with property-granular overrides and precedence",
+     "source": "STU-DS-116",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-components/src/lib.rs:199 DESCRIPTOR model.precedence",
+     "lanes": [
+      "SMB-COMPONENTS PASS_V7",
+      "SMB-COMPONENTS-FOOTPRINT PASS_V3"
+     ],
+     "ui": false
+    },
+    {
+     "id": "FG-04",
+     "name": "Component properties",
+     "source": "STU-DS-110",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-folio/src/components.rs:90",
+     "lanes": [
+      "SMB-COMPONENTS PASS_V7",
+      "SMB-FOLIO-ENG-4 PASS_V6"
+     ],
+     "ui": false,
+     "note": "SLOT refused; instance-swap behaviour UNVERIFIED"
+    },
+    {
+     "id": "FG-05",
+     "name": "Variables: collections, modes, aliases, typed values",
+     "source": "STU-DS-022, STU-DS-026, STU-DS-125",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-components/src/lib.rs:199 DESCRIPTOR model.variables",
+     "lanes": [
+      "SMB-COMPONENTS PASS_V7",
+      "SMB-FOLIO-ENG-4 PASS_V6"
+     ],
+     "ui": false
+    },
+    {
+     "id": "FG-06",
+     "name": "Styles (colour, text, effect, grid)",
+     "source": "STU-DS-034, STU-DS-034a, STU-DS-138",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-folio/src/lib.rs DESCRIPTOR api (validate_paint_style)",
+     "lanes": [
+      "SMB-FOLIO-ENG-4 PASS_V6",
+      "SMB-FOLIO-PAINT-BLUR-STYLE PASS_V1",
+      "SMB-INTEROP-FIG-FOLIO-KINDS PASS_V1"
+     ],
+     "ui": false,
+     "note": "paint styles plus text styles (StudioTypeStyleRecords resolving Figma STYS ids, PASS_V1) and image paints; effect and grid styles absent"
+    },
+    {
+     "id": "FG-07",
+     "name": "Auto layout (direction, wrap, padding, gap, alignment, hug/fill, absolute children)",
+     "source": "STU-DS-041a, STU-DS-042, STU-DS-045, STU-DS-146",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-components/src/lib.rs:23 (solve_auto_layout); crates/hsk-studio-folio/src/autolayout.rs:36",
+     "lanes": [
+      "SMB-COMPONENTS PASS_V7"
+     ],
+     "ui": false,
+     "note": "grid flow (STU-DS-146) coverage UNVERIFIED"
+    },
+    {
+     "id": "FG-08",
+     "name": "Constraints and resizing; min/max clamps",
+     "source": "STU-DS-046, STU-DS-048, STU-DS-149, STU-DS-150",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-components/src/lib.rs:199 DESCRIPTOR operation (apply_constraints, resize_component)",
+     "lanes": [
+      "SMB-COMPONENTS PASS_V7"
+     ],
+     "ui": false
+    },
+    {
+     "id": "FG-09",
+     "name": "Prototyping: triggers, actions, flows, flow validation",
+     "source": "STU-PRO (14.11)",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-folio/src/reactions.rs:60",
+     "lanes": [
+      "SMB-COMPONENTS PASS_V7",
+      "SMB-FOLIO-ENG-4 PASS_V6"
+     ],
+     "ui": false
+    },
+    {
+     "id": "FG-10",
+     "name": "Transitions / smart animate playback",
+     "source": "STU-PRO-120",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-folio/src/reactions.rs:120 (TransitionType)",
+     "lanes": [
+      "SMB-FOLIO-ENG-4 PASS_V6"
+     ],
+     "ui": false,
+     "note": "transition records only; no animation playback"
+    },
+    {
+     "id": "FG-11",
+     "name": "Prototype presentation / player",
+     "source": "STU-PRO-132",
+     "status": "MISSING",
+     "evidence": "no player",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "FG-12",
+     "name": "Vector editing, vector networks, pen tool",
+     "source": "STU-VEC-108",
+     "status": "MISSING",
+     "evidence": "see Illustrator AI-02/AI-04",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "FG-13",
+     "name": "Boolean groups",
+     "source": "STU-VEC-013",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-nib/src/path_contract.rs:85",
+     "lanes": [
+      "SMB-FOLIO-PAINT-BLUR-STYLE PASS_V1",
+      "SMB-INTEROP-FIG-FOLIO-KINDS PASS_V1"
+     ],
+     "ui": false,
+     "note": "StudioBooleanGroup record with cached outline now exists and Figma BOOLEAN_OPERATION maps to it (PASS_V1); evaluating booleans on curves is not implemented (nib booleans: two axis-aligned rectangles only)"
+    },
+    {
+     "id": "FG-14",
+     "name": "Canvas rendering of design nodes: fills (solid/gradient/image), strokes, effects",
+     "source": "STU-DS, 14.27.1",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-render-cpu/src/lib.rs:22 DESCRIPTOR vector/pending",
+     "lanes": [
+      "SMB-RENDER-CPU PASS_V11",
+      "SMB-FOLIO-PAINT-BLUR-STYLE PASS_V1"
+     ],
+     "ui": false,
+     "note": "solid vector fills render; image paints and Blur effect records now exist in Folio and Figma import fills them, but composite/render lowering of image paints, boolean groups and blur is lane SMB-COMPOSITE-NEW-KINDS (unclaimed; blur passes at head 06cff14 unjudged); gradients, strokes and shadows on design nodes do not render"
+    },
+    {
+     "id": "FG-15",
+     "name": "Text in designs",
+     "source": "14.7",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-type/src/engine.rs:16",
+     "lanes": [
+      "SMB-TYPE PASS_V6",
+      "SMB-TYPE-GLYPH-RENDER PASS_V1",
+      "SMB-COMPOSITE-TEXT PASS_V1"
+     ],
+     "ui": false,
+     "note": "text can be drawn (Type outlines -> composite coverage mask) but the design path lacks a font/fill resolver, text in groups is not claimed and there is no text auto-resize/hug integration"
+    },
+    {
+     "id": "FG-16",
+     "name": "Real-time multiplayer and comments",
+     "source": "STU-PAR, STU-SDB",
+     "status": "MISSING",
+     "evidence": "host CRDT/authority not in this module (kernel-bindings in-memory only)",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "FG-17",
+     "name": "Version history",
+     "source": "14.19",
+     "status": "MISSING",
+     "evidence": "crates/hsk-studio-chronicle/src/lib.rs:1202 DESCRIPTOR scope (no retained history)",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "FG-18",
+     "name": "Team libraries (publish / subscribe)",
+     "source": "STU-DS-049",
+     "status": "MISSING",
+     "evidence": "not present",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "FG-19",
+     "name": "Dev Mode / code inspect / design tokens export",
+     "source": "vendor",
+     "status": "MISSING",
+     "evidence": "not present",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "FG-20",
+     "name": "Export frames as PNG/SVG/PDF",
+     "source": "STU-DS, 14.13",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-interop-vector/src/lib.rs:22",
+     "lanes": [
+      "SMB-INTEROP-VECTOR PASS_V9",
+      "SMB-IO-RASTER-COMMON PASS_V1",
+      "SMB-CONVERT-RASTER READY_FOR_VALIDATION"
+     ],
+     "ui": false,
+     "note": "SVG export of vector proposals (validated); PNG/JPEG encoders validated and a composite PNG/JPEG export exists in the harness viewer feature (SMB-CONVERT-RASTER unjudged); no PDF export, no per-frame/slice export settings"
+    },
+    {
+     "id": "FG-21",
+     "name": "Plugins and REST/plugin API",
+     "source": "STU-AUT (14.14)",
+     "status": "MISSING",
+     "evidence": "motion-js sandbox exists but no plugin API",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "FG-22",
+     "name": "Layout grids",
+     "source": "STU-DS (grid styles)",
+     "status": "MISSING",
+     "evidence": "not present",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "FG-23",
+     "name": ".fig file import into an editable native document (pages/artboards, layers, vector geometry, effects, masks, image paints, boolean groups, text styles, components, variables, prototype reactions)",
+     "source": "STU-DS-001 (design import), research/app-inspect-figma.md",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-interop-fig/src/native.rs:57 (to_native); crates/hsk-studio-interop-fig/src/geometry.rs; crates/hsk-studio-interop-fig/tests/fig_native.rs, fig_geometry.rs, fig_folio_kinds.rs, fig_nodes.rs",
+     "lanes": [
+      "SMB-INTEROP-FIG-FORMAT PASS_V2",
+      "SMB-INTEROP-FIG-NODES PASS_V2",
+      "SMB-INTEROP-FIG-NATIVE PASS_V2",
+      "SMB-INTEROP-FIG-GEOMETRY PASS_V1",
+      "SMB-INTEROP-FIG-FOLIO-KINDS PASS_V1",
+      "SMB-FOLIO-PAINT-BLUR-STYLE PASS_V1",
+      "SMB-INTEROP-FIG PASS_V6"
+     ],
+     "ui": false,
+     "note": "proven on the 3 Operator-authored Figma 126.10.7 fixtures only (fig-kiwi v106): geometry matches reference PNG positions, round trip through a native package keeps source ids; zstd message chunks decode; the interop-fig DESCRIPTOR/NOT_PROVEN strings still say geometry/effects/masks are losses (stale, doc-only); Figma editable fidelity (instance/variable/prototype edit-reopen) remains NOT_PROVEN; fig-jam/fig-deck/fig-diff layouts unobserved; render of the mapped image paints/boolean/blur is not done (see FG-14)",
+     "new": true
+    }
+   ],
+   "interop": [
+    {
+     "format": ".fig",
+     "open": "VALIDATED subset: container, Kiwi schema/message (zstd and deflate chunks), census, typed node-tree decode AND mapping into a native Folio document (artboards, layers, baked vector geometry/transforms, effects incl. blur, masks, image paints byte-exact, boolean groups, text styles, components, variables, prototype reactions) with typed losses; proven on 3 Operator fixtures; Figma editable fidelity NOT_PROVEN",
+     "save": "MISSING (no .fig writer)",
+     "evidence": "crates/hsk-studio-interop-fig/src/descriptor.rs:3 status",
+     "lanes": [
+      "SMB-INTEROP-FIG PASS_V6",
+      "SMB-INTEROP-FIG-FORMAT PASS_V2",
+      "SMB-INTEROP-FIG-NODES PASS_V2",
+      "SMB-INTEROP-FIG-NATIVE PASS_V2",
+      "SMB-INTEROP-FIG-GEOMETRY PASS_V1",
+      "SMB-INTEROP-FIG-FOLIO-KINDS PASS_V1"
+     ],
+     "note": "FIG-NODES lane not yet judged; D17 fixtures"
+    },
+    {
+     "format": "SVG",
+     "open": "VALIDATED",
+     "save": "VALIDATED",
+     "evidence": "crates/hsk-studio-interop-vector/src/lib.rs:20-22",
+     "lanes": [
+      "SMB-INTEROP-VECTOR PASS_V9"
+     ]
+    }
+   ],
+   "counts": {
+    "VALIDATED": 9,
+    "IMPLEMENTED": 0,
+    "PARTIAL": 6,
+    "MISSING": 8,
+    "total": 23
+   },
+   "engine_parity_pct": 45.7,
+   "ui_features": 0,
+   "top_gaps": [
+    "No vector editing or vector-network/pen tool; booleans on curves not evaluated (FG-12, FG-13)",
+    "Canvas render covers solid fills only: gradients, strokes, shadows, image paints, boolean results and blur on design nodes are not rendered (FG-14; SMB-COMPOSITE-NEW-KINDS unclaimed)",
+    "No multiplayer, version history or team libraries (FG-16..18)",
+    "No prototype player / animation (FG-10, FG-11)",
+    "No PNG/PDF frame export validated, no dev mode (FG-19, FG-20); .fig import proven only on 3 fixtures and there is no .fig writer"
+   ],
+   "ui_note": "no UI feature counted as parity: the viewer is unjudged and the lane that would add editing tools (SMB-HARNESS-UI-2) has not passed",
+   "delta": {
+    "old_pct": 43.2,
+    "new_pct": 45.7,
+    "change_pts": 2.5,
+    "old_counts": {
+     "VALIDATED": 8,
+     "IMPLEMENTED": 0,
+     "PARTIAL": 6,
+     "MISSING": 8,
+     "total": 22
+    },
+    "new_counts": {
+     "VALIDATED": 9,
+     "IMPLEMENTED": 0,
+     "PARTIAL": 6,
+     "MISSING": 8,
+     "total": 23
+    },
+    "features_moved": [
+     {
+      "id": "FG-06",
+      "from": "PARTIAL",
+      "to": "PARTIAL",
+      "why": "note only",
+      "status_unchanged": true
+     },
+     {
+      "id": "FG-13",
+      "from": "PARTIAL",
+      "to": "PARTIAL",
+      "why": "note only (record + import PASS; evaluation still rectangles only)",
+      "status_unchanged": true
+     },
+     {
+      "id": "FG-14",
+      "from": "PARTIAL",
+      "to": "PARTIAL",
+      "why": "note only",
+      "status_unchanged": true
+     },
+     {
+      "id": "FG-15",
+      "from": "PARTIAL",
+      "to": "PARTIAL",
+      "why": "note only",
+      "status_unchanged": true
+     },
+     {
+      "id": "FG-20",
+      "from": "PARTIAL",
+      "to": "PARTIAL",
+      "why": "note only",
+      "status_unchanged": true
+     }
+    ],
+    "new_rows": [
+     {
+      "id": "FG-23",
+      "status": "VALIDATED",
+      "name": ".fig file import into an editable native document (pages/artboards, layers, vector geometry, effects, masks, image paints, boolean groups, text styles, components, variables, prototype reactions)"
+     }
+    ]
+   }
+  },
+  "premiere_pro": {
+   "app": "Adobe Premiere Pro",
+   "vendor_feature_sources": [
+    "https://www.adobe.com/products/premiere/features.html (fetched 2026-10-14)"
+   ],
+   "spec_sections": [
+    "14.25 Video Editing, Sequences & the Clip Timeline (STU-VID-*)"
+   ],
+   "features": [
+    {
+     "id": "PR-01",
+     "name": "Sequences with integer-tick time base and normative frame-rate table",
+     "source": "STU-VID-011, STU-VID-012, STU-VID-013",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-pulse/src/lib.rs:57 DESCRIPTOR model.time; crates/hsk-studio-folio/src/timeline.rs:68",
+     "lanes": [
+      "SMB-PULSE PASS_V7",
+      "SMB-PULSE-ENG-1 PASS_V5",
+      "SMB-FOLIO-ENG-1 PASS_V7",
+      "SMB-ACCORD-ENG-2 PASS_V1"
+     ],
+     "ui": false,
+     "note": "sequence settings record not stored yet (timeline.rs:8-11)"
+    },
+    {
+     "id": "PR-02",
+     "name": "Tracks and clips (video, audio, caption, submix tracks; speed, reverse)",
+     "source": "STU-VID-020, STU-VID-021",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-folio/src/timeline.rs:47,122,166",
+     "lanes": [
+      "SMB-FOLIO-ENG-1 PASS_V7"
+     ],
+     "ui": false
+    },
+    {
+     "id": "PR-03",
+     "name": "Trim edits: trim in/out, ripple, roll, slip, slide",
+     "source": "STU-VID-026",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-pulse/src/timeline_edit.rs:63-76",
+     "lanes": [
+      "SMB-PULSE PASS_V7"
+     ],
+     "ui": false
+    },
+    {
+     "id": "PR-04",
+     "name": "Razor / add edit",
+     "source": "STU-VID-027",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-pulse/src/timeline_edit.rs:76",
+     "lanes": [
+      "SMB-PULSE PASS_V7"
+     ],
+     "ui": false
+    },
+    {
+     "id": "PR-05",
+     "name": "Lift / extract (clip and range), close gap",
+     "source": "STU-VID-028",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-pulse/src/lib.rs:57 DESCRIPTOR operation",
+     "lanes": [
+      "SMB-PULSE PASS_V7"
+     ],
+     "ui": false
+    },
+    {
+     "id": "PR-06",
+     "name": "Linked clips, sync lock, track lock",
+     "source": "STU-VID-029",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-pulse/src/lib.rs:57 DESCRIPTOR model.timeline",
+     "lanes": [
+      "SMB-PULSE PASS_V7"
+     ],
+     "ui": false
+    },
+    {
+     "id": "PR-07",
+     "name": "Three/four-point editing: insert and overwrite from a source monitor",
+     "source": "STU-VID-023, STU-VID-024",
+     "status": "MISSING",
+     "evidence": "TimelineEdit has no insert/overwrite command (pulse/src/timeline_edit.rs:63-76)",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "PR-08",
+     "name": "Nested sequences",
+     "source": "STU-VID-030",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-folio/src/timeline.rs:108-116 (ClipSource::Sequence, acyclic)",
+     "lanes": [
+      "SMB-FOLIO-ENG-1 PASS_V7"
+     ],
+     "ui": false,
+     "note": "model only; no nest command, no render"
+    },
+    {
+     "id": "PR-09",
+     "name": "Speed / duration, time remapping, optical-flow retiming",
+     "source": "STU-VID-031",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-folio/src/timeline.rs:86 (Speed)",
+     "lanes": [
+      "SMB-FOLIO-ENG-1 PASS_V7"
+     ],
+     "ui": false,
+     "note": "rational speed and sign-reverse stored; no frame interpolation"
+    },
+    {
+     "id": "PR-10",
+     "name": "Multicam",
+     "source": "STU-VID-033",
+     "status": "MISSING",
+     "evidence": "only a doc-comment mention (pulse/src/lib.rs:4)",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "PR-11",
+     "name": "Markers, work area",
+     "source": "STU-VID-034, STU-VID-035",
+     "status": "MISSING",
+     "evidence": "crates/hsk-studio-folio/src/timeline.rs:10-11 (markers, work area not stored)",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "PR-12",
+     "name": "Snapping and timecode (drop-frame / non-drop) display",
+     "source": "STU-VID-035, STU-VID-012a",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-pulse/src/lib.rs:57 DESCRIPTOR operation",
+     "lanes": [
+      "SMB-PULSE PASS_V7",
+      "SMB-PULSE-ENG-1 PASS_V5"
+     ],
+     "ui": false
+    },
+    {
+     "id": "PR-13",
+     "name": "Captions",
+     "source": "STU-VID-037",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-folio/src/timeline.rs:47 (TrackKind::Caption)",
+     "lanes": [
+      "SMB-FOLIO-ENG-1 PASS_V7"
+     ],
+     "ui": false,
+     "note": "track kind only; no caption formats (STU-VID-085 gap)"
+    },
+    {
+     "id": "PR-14",
+     "name": "Proxies, offline media, relink",
+     "source": "STU-VID-038",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-reel/src/lib.rs:105 DESCRIPTOR slice3 (sampled identity + relink), DESCRIPTOR video_routing (ProxySource trust)",
+     "lanes": [
+      "SMB-REEL PASS_V16",
+      "SMB-REEL-AV1-ROUTE PASS_V14"
+     ],
+     "ui": false,
+     "note": "proxy sources and relink with confidence exist; no proxy generation (no encoder)"
+    },
+    {
+     "id": "PR-15",
+     "name": "Media import: MP4/MOV (incl. fragmented), MKV/WebM, MXF; frame-accurate seek; source timecode",
+     "source": "STU-VID-050",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-reel/src/lib.rs:105 DESCRIPTOR providers/slice2-4",
+     "lanes": [
+      "SMB-REEL PASS_V16",
+      "SMB-REEL-ENG-1 PASS_V10",
+      "SMB-REEL-RECEIPTS PASS_V7"
+     ],
+     "ui": false,
+     "note": "MXF essence opaque"
+    },
+    {
+     "id": "PR-16",
+     "name": "Decode H.264 / HEVC",
+     "source": "STU-VID-051, STU-VID-084",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-reel/src/lib.rs:105 DESCRIPTOR not_implemented; NEW: crates/hsk-studio-reel-native/src/lib.rs DESCRIPTOR features.mf / mf-worker; crates/hsk-studio-reel-native/tests/mf_worker.rs (h264_bframe_streams_decode_exact_in_presentation_order); crates/hsk-studio-reel/src/video.rs (reorders_output matching)",
+     "lanes": [
+      "SMB-REEL-NATIVE-ENG-1 PASS_V1",
+      "SMB-REEL-BFRAME-ORDER PASS_V1",
+      "SMB-REEL-NATIVE-FAULTS PASS_V12",
+      "SMB-REEL-NATIVE-FAULTS-2 PASS_V8",
+      "SMB-REEL PASS_V16"
+     ],
+     "ui": false,
+     "note": "H.264 decode (avc1/avc3; Baseline/Main/High, 4:2:0, 8-bit, 48..4096 x 48..2304) through the OS Windows Media Foundation decoder in an isolated worker (software default, DXVA optional), with heartbeat watch and bounded replay; B-frames (Main/High, b-pyramid, edit lists, negative composition offsets) delivered in presentation order, exact per frame vs the ffmpeg oracle (R26); Windows only, behind default-off features mf/mf-worker; HEVC, 10-bit, 4:2:2 and non-Windows hosts are unsupported"
+    },
+    {
+     "id": "PR-17",
+     "name": "Decode professional codecs: ProRes, DNxHD/HR (VC-3), AV1",
+     "source": "STU-VID-051",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-reel/src/lib.rs:105 DESCRIPTOR codec_adapters",
+     "lanes": [
+      "SMB-REEL-ENG-2 PASS_V3",
+      "SMB-REEL-ENG-3 PASS_V14",
+      "SMB-REEL-NATIVE-AV1-WORKER PASS_V15"
+     ],
+     "ui": false,
+     "note": "ProRes (RDD 36) behind default-off feature prores; DNxHD/HR (VC-3) decode; AV1 via isolated worker; R24-R26 lane-accepted NOT_PROVEN: VC-3 CID 1271 10-bit agreement with ffmpeg (max delta 4, ffmpeg weights differ from ST 2019-1 Table D.1); VC-3 interlaced/alpha/4:4:4/12-bit and ProRes alpha/RAW unsupported"
+    },
+    {
+     "id": "PR-18",
+     "name": "Audio decode (PCM; AAC/MP3/AC-3)",
+     "source": "STU-VID-050",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-reel/src/lib.rs:105 DESCRIPTOR slice2/slice4 (PCM in MOV/MKV, WAV)",
+     "lanes": [
+      "SMB-REEL PASS_V16"
+     ],
+     "ui": false,
+     "note": "PCM only"
+    },
+    {
+     "id": "PR-19",
+     "name": "Real-time playback / program and source monitors",
+     "source": "STU-VID-023, STU-VID-039",
+     "status": "MISSING",
+     "evidence": "no player, no GOP cache (reel not_implemented)",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "PR-20",
+     "name": "Video effects and transitions",
+     "source": "14.9.6",
+     "status": "MISSING",
+     "evidence": "crates/hsk-studio-folio/src/timeline.rs:10-11 (effect stack, transitions not stored)",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "PR-21",
+     "name": "Lumetri colour, LUTs, video scopes, legal range",
+     "source": "14.8.7, 14.8.23",
+     "status": "MISSING",
+     "evidence": "crates/hsk-studio-prism/src/lib.rs:633 DESCRIPTOR pending (LUT, OCIO)",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "PR-22",
+     "name": "Titles, text, motion graphics templates",
+     "source": "STU-VID-070",
+     "status": "MISSING",
+     "evidence": "not present",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "PR-23",
+     "name": "Audio mixing in the timeline (track gain/pan, submix, keyframes)",
+     "source": "14.9.7, STU-FX-137",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-score/src/mix.rs:13",
+     "lanes": [
+      "SMB-SCORE PASS_V4"
+     ],
+     "ui": false,
+     "note": "score engine exists but is not wired to timeline tracks"
+    },
+    {
+     "id": "PR-24",
+     "name": "Export / encode (H.264, HEVC, ProRes, DNx) with presets and queue",
+     "source": "STU-VID-060..064",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-reel/src/lib.rs:105 DESCRIPTOR export, not_implemented (encode beyond wav/y4m)",
+     "lanes": [
+      "SMB-REEL PASS_V16",
+      "SMB-REEL-RECEIPTS PASS_V7"
+     ],
+     "ui": false,
+     "note": "exact-range export rules exist; encoders only WAV and Y4M (uncompressed)"
+    },
+    {
+     "id": "PR-25",
+     "name": "Text-based editing, auto reframe, speech to text, AI features",
+     "source": "vendor",
+     "status": "MISSING",
+     "evidence": "not present",
+     "lanes": [],
+     "ui": false
+    }
+   ],
+   "interop": [
+    {
+     "format": "CMX3600 EDL",
+     "open": "VALIDATED",
+     "save": "VALIDATED",
+     "evidence": "crates/hsk-studio-interop-media/src/lib.rs:54",
+     "lanes": [
+      "SMB-INTEROP-MEDIA PASS_V3",
+      "SMB-INTEROP-MEDIA-PULSE PASS_V3"
+     ]
+    },
+    {
+     "format": "PRPROJ",
+     "open": "MISSING (detection only; every entity Missing)",
+     "save": "MISSING",
+     "evidence": "crates/hsk-studio-interop-media/src/lib.rs:54 native_gap",
+     "lanes": []
+    },
+    {
+     "format": "FCP XML / AAF / OTIO",
+     "open": "MISSING",
+     "save": "MISSING",
+     "evidence": "not present",
+     "lanes": []
+    },
+    {
+     "format": "Media containers MP4/MOV/MKV/MXF/WAV/Y4M",
+     "open": "VALIDATED (index + packets; decode: H.264 PARTIAL on Windows via Media Foundation incl. B-frames, ProRes/DNx/AV1 per PR-17, PCM audio per PR-18; HEVC absent)",
+     "save": "PARTIAL (WAV, Y4M only)",
+     "evidence": "crates/hsk-studio-reel/src/lib.rs:105",
+     "lanes": [
+      "SMB-REEL PASS_V16",
+      "SMB-REEL-NATIVE-ENG-1 PASS_V1",
+      "SMB-REEL-BFRAME-ORDER PASS_V1"
+     ]
+    }
+   ],
+   "counts": {
+    "VALIDATED": 9,
+    "IMPLEMENTED": 0,
+    "PARTIAL": 8,
+    "MISSING": 8,
+    "total": 25
+   },
+   "engine_parity_pct": 44.0,
+   "ui_features": 0,
+   "top_gaps": [
+    "No HEVC decode and no compressed encoders (PR-16 partial, PR-24): H.264 opens on Windows only; most deliverables cannot be written",
+    "No playback / monitors (PR-19)",
+    "No effects, transitions, colour, titles (PR-20..22)",
+    "No insert/overwrite three-point editing, markers or multicam (PR-07, PR-10, PR-11)",
+    "Audio engine not wired into the timeline (PR-23)"
+   ],
+   "ui_note": "no UI feature counted as parity: the viewer is unjudged and the lane that would add editing tools (SMB-HARNESS-UI-2) has not passed",
+   "delta": {
+    "old_pct": 43.0,
+    "new_pct": 44.0,
+    "change_pts": 1.0,
+    "old_counts": {
+     "VALIDATED": 9,
+     "IMPLEMENTED": 0,
+     "PARTIAL": 7,
+     "MISSING": 9,
+     "total": 25
+    },
+    "new_counts": {
+     "VALIDATED": 9,
+     "IMPLEMENTED": 0,
+     "PARTIAL": 8,
+     "MISSING": 8,
+     "total": 25
+    },
+    "features_moved": [
+     {
+      "id": "PR-16",
+      "from": "MISSING",
+      "to": "PARTIAL",
+      "why": "SMB-REEL-NATIVE-ENG-1 PASS_V1 and SMB-REEL-BFRAME-ORDER PASS_V1 (R26)"
+     },
+     {
+      "id": "PR-17",
+      "from": "VALIDATED",
+      "to": "VALIDATED",
+      "why": "lane versions only",
+      "status_unchanged": true
+     }
+    ],
+    "new_rows": []
+   }
+  },
+  "after_effects": {
+   "app": "Adobe After Effects",
+   "vendor_feature_sources": [
+    "https://www.adobe.com/products/aftereffects/features.html (fetched 2026-10-14)"
+   ],
+   "spec_sections": [
+    "14.26 Motion Graphics, Property Tree, Keyframing & Expressions (STU-MOT-*)",
+    "14.27 Compositing & Visual Effects (STU-CMP-*)"
+   ],
+   "features": [
+    {
+     "id": "AE-01",
+     "name": "Compositions with settings and time model",
+     "source": "STU-MOT-004, STU-MOT-020",
+     "status": "PARTIAL",
+     "evidence": "no composition record in folio (ClipSource::Primitive only references one, timeline.rs:114); NEW: crates/hsk-studio-composite/src/temporal.rs:1; crates/hsk-studio-composite/src/temporal/motion.rs; crates/hsk-studio-composite/tests/temporal.rs (unjudged)",
+     "lanes": [
+      "SMB-COMPOSITE-TEMPORAL READY_FOR_VALIDATION",
+      "SMB-MOTION PASS_V1"
+     ],
+     "ui": false,
+     "note": "per-layer in/out tick windows and a TemporalSource port (opacity scale, visibility, translate/scale/rotation) evaluate a frame at a tick over the static lowering; motion adapter behind composite feature motion. SMB-COMPOSITE-TEMPORAL is READY_FOR_VALIDATION (R26 INCONCLUSIVE: motion feature not built by the round), so the time model is UNJUDGED; no composition record/settings in Folio (SMB-FOLIO-COMPOSITION unclaimed), no work area, no duration/frame-rate settings"
+    },
+    {
+     "id": "AE-02",
+     "name": "Layer compositing: bottom-up stack, blend modes, opacity, alpha typing",
+     "source": "STU-CMP-010a, STU-CMP-020, STU-CMP-022",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-pigment/src/render_plan.rs:1168; crates/hsk-studio-composite/src/lib.rs:34",
+     "lanes": [
+      "SMB-PIGMENT-ENG-1 PASS_V11",
+      "SMB-COMPOSITE PASS_V11",
+      "SMB-RENDER-CPU PASS_V11",
+      "SMB-RENDER-GPU PASS_V6"
+     ],
+     "ui": false,
+     "note": "static (single-frame) compositing only; premultiplied alpha declared Unsupported on CPU"
+    },
+    {
+     "id": "AE-03",
+     "name": "Layer transform (anchor, position, scale, rotation) and parenting",
+     "source": "STU-MOT-008, STU-MOT-013",
+     "status": "PARTIAL",
+     "evidence": "render plan has no layer transforms; NEW: crates/hsk-studio-composite/src/temporal.rs (item 5 resampling transforms); crates/hsk-studio-composite/tests/temporal_transform.rs; crates/hsk-studio-pigment/src/transform_math.rs",
+     "lanes": [
+      "SMB-PIGMENT-TRANSFORM PASS_V1",
+      "SMB-COMPOSITE-TEMPORAL READY_FOR_VALIDATION"
+     ],
+     "ui": false,
+     "note": "layer anchor, position, scale and rotation lower to the pigment affine operator with declared resample filter (never a silent default); linked masks follow; validated part: operator on CPU/GPU and composite temporal_transform (2 tests, SMB-PIGMENT-TRANSFORM PASS_V1). Single-tile raster layers only; fractional translate of groups refused; parenting is not implemented in the lowering (UNVERIFIED), the frame-state source (temporal) is unjudged"
+    },
+    {
+     "id": "AE-04",
+     "name": "Keyframes: linear, Bezier, hold; independent in/out; ease speed and influence",
+     "source": "STU-MOT-030, STU-MOT-030a, STU-MOT-031, STU-MOT-034",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-motion/src/keyframe.rs:35; receipt.rs:57 DESCRIPTOR model.interpolation",
+     "lanes": [
+      "SMB-MOTION PASS_V1"
+     ],
+     "ui": false,
+     "note": "Adobe numeric equivalence UNVERIFIED pending oracle"
+    },
+    {
+     "id": "AE-05",
+     "name": "Spatial interpolation, roving keyframes, auto/continuous Bezier behaviour",
+     "source": "STU-MOT-035, STU-MOT-036a",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-motion/src/receipt.rs:57 DESCRIPTOR scope (no spatial tangents, roving)",
+     "lanes": [
+      "SMB-MOTION PASS_V1"
+     ],
+     "ui": false,
+     "note": "enum members exist; spatial and roving absent"
+    },
+    {
+     "id": "AE-06",
+     "name": "Property tree with stable property paths",
+     "source": "STU-MOT-010a, STU-MOT-011, STU-MOT-012",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-motion/src/store.rs (PropertyStore)",
+     "lanes": [
+      "SMB-MOTION PASS_V1"
+     ],
+     "ui": false,
+     "note": "keyed property store evaluated per tick; the 13-group tree is not modelled"
+    },
+    {
+     "id": "AE-07",
+     "name": "Expressions (JavaScript, sandboxed, deterministic)",
+     "source": "STU-MOT-076, STU-MOT-079, STU-MOT-083",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-motion-js/src/descriptor.rs:2",
+     "lanes": [
+      "SMB-MOTION-JS PASS_V4",
+      "SMB-MOTION-JS-WORKER PASS_V3",
+      "SMB-MOTION-JS-SANDBOX-2 PASS_V2"
+     ],
+     "ui": false,
+     "note": "QuickJS-NG in an isolated worker behind default-off feature quickjs; AE expression library identifiers (333) not verified"
+    },
+    {
+     "id": "AE-08",
+     "name": "Expression dependency graph and cycle detection",
+     "source": "STU-MOT-077",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-motion/src/depgraph.rs:49",
+     "lanes": [
+      "SMB-MOTION PASS_V1"
+     ],
+     "ui": false
+    },
+    {
+     "id": "AE-09",
+     "name": "Graph editor, keyframe assistants (easy ease), expression editor / pick-whip",
+     "source": "STU-MOT-037, STU-MOT-050..055, STU-MOT-081, STU-MOT-082",
+     "status": "MISSING",
+     "evidence": "no UI surfaces or assistant commands",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "AE-10",
+     "name": "Time remapping, frame blending, time stretch",
+     "source": "STU-MOT-045, STU-MOT-007a",
+     "status": "MISSING",
+     "evidence": "crates/hsk-studio-motion/src/receipt.rs:57 DESCRIPTOR scope (no time remap)",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "AE-11",
+     "name": "Text layers and text animators",
+     "source": "STU-MOT-091, STU-MOT-092",
+     "status": "PARTIAL",
+     "evidence": "not present; NEW: crates/hsk-studio-composite/src/text.rs:1",
+     "lanes": [
+      "SMB-TYPE-GLYPH-RENDER PASS_V1",
+      "SMB-COMPOSITE-TEXT PASS_V1"
+     ],
+     "ui": false,
+     "note": "static text layers render (Type outlines -> composite coverage mask, CPU and GPU); no text animators, range selectors, per-character 3D or source-text keyframes; text not yet inside groups"
+    },
+    {
+     "id": "AE-12",
+     "name": "Shape layers and shape operators (trim paths, repeater, wiggle paths)",
+     "source": "14.26.8",
+     "status": "MISSING",
+     "evidence": "not present",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "AE-13",
+     "name": "Masks: Bezier mask paths, feather, expansion, modes, animated",
+     "source": "STU-CMP-025a, STU-CMP-027",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-pigment/src/coverage_math.rs:54",
+     "lanes": [
+      "SMB-PIGMENT-ENG-2 PASS_V9"
+     ],
+     "ui": false,
+     "note": "raster coverage masks with density/feather/invert; no path masks, modes or animation"
+    },
+    {
+     "id": "AE-14",
+     "name": "Track mattes",
+     "source": "STU-CMP-030a",
+     "status": "MISSING",
+     "evidence": "crates/hsk-studio-composite/src/lib.rs:156 DESCRIPTOR unsupported (matte)",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "AE-15",
+     "name": "Pre-compose / precomps",
+     "source": "STU-CMP-004",
+     "status": "MISSING",
+     "evidence": "composite unsupported: precomp",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "AE-16",
+     "name": "Adjustment layers",
+     "source": "STU-CMP (14.27.1)",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-composite/src/lib.rs:156 DESCRIPTOR extended_lowering",
+     "lanes": [
+      "SMB-COMPOSITE-ADJ PASS_V8",
+      "SMB-RENDER-GPU-ADJ PASS_V7"
+     ],
+     "ui": false,
+     "note": "shared with Photoshop adjustment set"
+    },
+    {
+     "id": "AE-17",
+     "name": "Effects: blur, glow, colour correction, distort, generate",
+     "source": "14.9.3, 14.9.6",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-pigment/src/adjust_math.rs:21",
+     "lanes": [
+      "SMB-PIGMENT-ENG-2 PASS_V9",
+      "SMB-FOLIO-PAINT-BLUR-STYLE PASS_V1"
+     ],
+     "ui": false,
+     "note": "the 8 adjustment kinds and 6 layer styles, plus Gaussian layer/backdrop blur code at head 06cff14 (lane SMB-COMPOSITE-NEW-KINDS unclaimed, UNJUDGED); no filter/effect stack"
+    },
+    {
+     "id": "AE-18",
+     "name": "Keying and matte refinement, rotoscoping (Roto Brush)",
+     "source": "STU-CMP-032a, STU-CMP-033, STU-CMP-034",
+     "status": "MISSING",
+     "evidence": "grep keying: no matches",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "AE-19",
+     "name": "Motion tracking, stabilization, 3D camera tracker",
+     "source": "STU-CMP-065a",
+     "status": "MISSING",
+     "evidence": "not present",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "AE-20",
+     "name": "3D layers, cameras, lights, 3D models",
+     "source": "STU-CMP-035a, STU-CMP-040, STU-CMP-045",
+     "status": "MISSING",
+     "evidence": "composite unsupported: 3d",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "AE-21",
+     "name": "Particles and simulation effects",
+     "source": "STU-CMP-075",
+     "status": "MISSING",
+     "evidence": "not present",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "AE-22",
+     "name": "Render queue / render composition to video",
+     "source": "14.26.10",
+     "status": "MISSING",
+     "evidence": "composite is static; composite unsupported: time; no video encoder",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "AE-23",
+     "name": "Motion presets and scripting",
+     "source": "14.26.9",
+     "status": "MISSING",
+     "evidence": "not present",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "AE-24",
+     "name": "Audio in compositions",
+     "source": "STU-MOT-016",
+     "status": "MISSING",
+     "evidence": "not present",
+     "lanes": [],
+     "ui": false
+    }
+   ],
+   "interop": [
+    {
+     "format": "AEP",
+     "open": "MISSING (detection only)",
+     "save": "MISSING",
+     "evidence": "crates/hsk-studio-interop-media/src/lib.rs:54 native_gap",
+     "lanes": []
+    },
+    {
+     "format": "SVG import into compositions",
+     "open": "PARTIAL (SVG imports to vector records, no composition target)",
+     "save": "n/a",
+     "evidence": "crates/hsk-studio-interop-vector/src/lib.rs:20",
+     "lanes": [
+      "SMB-INTEROP-VECTOR PASS_V9"
+     ]
+    }
+   ],
+   "counts": {
+    "VALIDATED": 5,
+    "IMPLEMENTED": 0,
+    "PARTIAL": 7,
+    "MISSING": 12,
+    "total": 24
+   },
+   "engine_parity_pct": 28.1,
+   "ui_features": 0,
+   "top_gaps": [
+    "No Folio composition record, work area or render over time: temporal compositing exists but is unjudged and not stored (AE-01, AE-22)",
+    "No shape layers, track mattes, precomps (AE-12, AE-14, AE-15)",
+    "No keying, tracking, 3D (AE-18..20)",
+    "No graph editor or keyframe assistants; no text animators (AE-09, AE-11)",
+    "Only the 8 adjustments + 6 layer styles (+ unjudged blur) as effects (AE-17)"
+   ],
+   "ui_note": "no UI feature counted as parity: the viewer is unjudged and the lane that would add editing tools (SMB-HARNESS-UI-2) has not passed",
+   "delta": {
+    "old_pct": 25.0,
+    "new_pct": 28.1,
+    "change_pts": 3.1,
+    "old_counts": {
+     "VALIDATED": 5,
+     "IMPLEMENTED": 0,
+     "PARTIAL": 4,
+     "MISSING": 15,
+     "total": 24
+    },
+    "new_counts": {
+     "VALIDATED": 5,
+     "IMPLEMENTED": 0,
+     "PARTIAL": 7,
+     "MISSING": 12,
+     "total": 24
+    },
+    "features_moved": [
+     {
+      "id": "AE-01",
+      "from": "MISSING",
+      "to": "PARTIAL",
+      "why": "code exists, lane READY (unjudged); subset only"
+     },
+     {
+      "id": "AE-03",
+      "from": "MISSING",
+      "to": "PARTIAL",
+      "why": "SMB-PIGMENT-TRANSFORM PASS_V1 (R26)"
+     },
+     {
+      "id": "AE-11",
+      "from": "MISSING",
+      "to": "PARTIAL",
+      "why": "SMB-COMPOSITE-TEXT PASS_V1 (R26)"
+     },
+     {
+      "id": "AE-17",
+      "from": "PARTIAL",
+      "to": "PARTIAL",
+      "why": "note only",
+      "status_unchanged": true
+     }
+    ],
+    "new_rows": []
+   }
+  },
+  "audition": {
+   "app": "Adobe Audition",
+   "vendor_feature_sources": [
+    "https://helpx.adobe.com/audition/using/noise-reduction-restoration-effects.html (search-verified 2026-10-14; direct fetch not attempted, helpx returns 403 to the fetcher)"
+   ],
+   "spec_sections": [
+    "14.9.7 The audio effect domain (STU-FX-134..147)"
+   ],
+   "features": [
+    {
+     "id": "AU-01",
+     "name": "Audio engine: planar f32 block processing, latency compensation, admission/refusal before write",
+     "source": "STU-FX-134, STU-FX-135",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-score/src/lib.rs:57 DESCRIPTOR",
+     "lanes": [
+      "SMB-SCORE PASS_V4",
+      "SMB-SCORE-GUARDS PASS_V1"
+     ],
+     "ui": false
+    },
+    {
+     "id": "AU-02",
+     "name": "Sample-rate conversion (streaming, bit-identical to whole-clip)",
+     "source": "STU-FX (14.9.7)",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-score/src/stream_resample.rs:48",
+     "lanes": [
+      "SMB-SCORE PASS_V4"
+     ],
+     "ui": false
+    },
+    {
+     "id": "AU-03",
+     "name": "Amplify / gain and linear gain ramps",
+     "source": "STU-FX-134a",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-score/src/dsp.rs:77; ramp.rs",
+     "lanes": [
+      "SMB-SCORE PASS_V4"
+     ],
+     "ui": false
+    },
+    {
+     "id": "AU-04",
+     "name": "Fades with curve shapes (log, cosine, S-curve)",
+     "source": "STU-FX-134a",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-score/src/ramp.rs",
+     "lanes": [
+      "SMB-SCORE PASS_V4"
+     ],
+     "ui": false,
+     "note": "linear ramp only"
+    },
+    {
+     "id": "AU-05",
+     "name": "Pan and channel mixing (mono/stereo, matrix)",
+     "source": "STU-FX-137",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-score/src/dsp.rs:129,206",
+     "lanes": [
+      "SMB-SCORE PASS_V4"
+     ],
+     "ui": false
+    },
+    {
+     "id": "AU-06",
+     "name": "Parametric EQ (peaking, shelves, low/high pass)",
+     "source": "STU-FX-134a",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-score/src/eq.rs:21",
+     "lanes": [
+      "SMB-SCORE PASS_V4",
+      "SMB-SCORE-GUARDS PASS_V1"
+     ],
+     "ui": false
+    },
+    {
+     "id": "AU-07",
+     "name": "Hard limiter",
+     "source": "STU-FX-134a",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-score/src/dsp.rs:369",
+     "lanes": [
+      "SMB-SCORE PASS_V4",
+      "SMB-SCORE-GUARDS PASS_V1"
+     ],
+     "ui": false
+    },
+    {
+     "id": "AU-08",
+     "name": "Dynamics: compressor, expander, noise gate, multiband",
+     "source": "STU-FX-134a",
+     "status": "MISSING",
+     "evidence": "grep compressor/noise_gate in score: no matches",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "AU-09",
+     "name": "Reverb, delay, modulation (chorus/flanger/phaser)",
+     "source": "STU-FX-134a",
+     "status": "MISSING",
+     "evidence": "delay only in the score-plugin reference test worker",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "AU-10",
+     "name": "Noise reduction and restoration (noise print, hiss, click/pop, hum)",
+     "source": "STU-FX-134a",
+     "status": "MISSING",
+     "evidence": "grep denoise/noise_reduction: no matches",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "AU-11",
+     "name": "Spectrum analysis (FFT)",
+     "source": "STU-FX (14.9.7)",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-score/src/spectrum.rs:17",
+     "lanes": [
+      "SMB-SCORE PASS_V4"
+     ],
+     "ui": false
+    },
+    {
+     "id": "AU-12",
+     "name": "Spectral frequency display and spectral editing",
+     "source": "vendor",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-score/src/spectrum.rs:17",
+     "lanes": [
+      "SMB-SCORE PASS_V4"
+     ],
+     "ui": false,
+     "note": "single-block amplitude spectrum only; no time-frequency view or spectral edit"
+    },
+    {
+     "id": "AU-13",
+     "name": "Loudness metering and normalisation (LUFS / ITU BS.1770)",
+     "source": "STU-FX-147 (declared spec gap)",
+     "status": "MISSING",
+     "evidence": "crates/hsk-studio-score/src/lib.rs:57 DESCRIPTOR not_in_scope (loudness standards)",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "AU-14",
+     "name": "Multitrack session: tracks, clips, buses/sends, mixer",
+     "source": "STU-FX-137",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-score/src/mix.rs:13; crates/hsk-studio-folio/src/timeline.rs:47 (Audio/Submix tracks)",
+     "lanes": [
+      "SMB-SCORE PASS_V4",
+      "SMB-FOLIO-ENG-1 PASS_V7"
+     ],
+     "ui": false,
+     "note": "send routing and track model exist separately; no session that plays a multitrack timeline"
+    },
+    {
+     "id": "AU-15",
+     "name": "Mixdown / bounce with receipts (peak, RMS, digest)",
+     "source": "STU-FX (14.9.7)",
+     "status": "VALIDATED",
+     "evidence": "crates/hsk-studio-score/src/bounce.rs:108",
+     "lanes": [
+      "SMB-SCORE PASS_V4"
+     ],
+     "ui": false
+    },
+    {
+     "id": "AU-16",
+     "name": "Track and clip automation (volume/pan envelopes)",
+     "source": "STU-FX-135",
+     "status": "MISSING",
+     "evidence": "crates/hsk-studio-score-plugin/src/lib.rs:63 DESCRIPTOR not_in_scope (parameter automation)",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "AU-17",
+     "name": "Recording from an input device",
+     "source": "vendor",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-score-device/src/lib.rs:15,52",
+     "lanes": [
+      "SMB-SCORE-DEVICE PASS_V3"
+     ],
+     "ui": false,
+     "note": "capture lifecycle proven on the software device; native cpal backend NOT_PROVEN; record-to-file not in scope"
+    },
+    {
+     "id": "AU-18",
+     "name": "Playback to an output device",
+     "source": "vendor",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-score-device/src/lib.rs:52 DESCRIPTOR features",
+     "lanes": [
+      "SMB-SCORE-DEVICE PASS_V3"
+     ],
+     "ui": false,
+     "note": "software device only; no audible native output proven; ASIO not in scope"
+    },
+    {
+     "id": "AU-19",
+     "name": "Plugin hosting (VST3, AU, CLAP)",
+     "source": "STU-ARC-013",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-score-plugin/src/lib.rs:7,63 DESCRIPTOR proof_status",
+     "lanes": [
+      "SMB-SCORE-PLUGIN PASS_V5",
+      "SMB-SCORE-PLUGIN-RATE PASS_V2"
+     ],
+     "ui": false,
+     "note": "process-isolated host proven with a reference worker; CLAP NOT_PROVEN unless fixture present; VST3/AU absent; no editor UI"
+    },
+    {
+     "id": "AU-20",
+     "name": "Waveform editing: cut/copy/paste/trim/delete ranges",
+     "source": "vendor",
+     "status": "PARTIAL",
+     "evidence": "crates/hsk-studio-pulse/src/lib.rs:57 DESCRIPTOR operation",
+     "lanes": [
+      "SMB-PULSE PASS_V7"
+     ],
+     "ui": false,
+     "note": "non-destructive timeline range edits only; no destructive sample editor"
+    },
+    {
+     "id": "AU-21",
+     "name": "Pitch shift and time stretch",
+     "source": "vendor",
+     "status": "MISSING",
+     "evidence": "not present",
+     "lanes": [],
+     "ui": false
+    },
+    {
+     "id": "AU-22",
+     "name": "Batch processing, favourites, effects rack presets",
+     "source": "vendor",
+     "status": "MISSING",
+     "evidence": "not present",
+     "lanes": [],
+     "ui": false
+    }
+   ],
+   "interop": [
+    {
+     "format": "WAV (PCM)",
+     "open": "VALIDATED",
+     "save": "VALIDATED (exact-header encode)",
+     "evidence": "crates/hsk-studio-reel/src/lib.rs:105 providers wav-pcm",
+     "lanes": [
+      "SMB-REEL PASS_V16",
+      "SMB-REEL-RECEIPTS PASS_V7"
+     ]
+    },
+    {
+     "format": "MP3 / AAC / FLAC / Ogg",
+     "open": "MISSING",
+     "save": "MISSING",
+     "evidence": "reel not_implemented (compressed audio)",
+     "lanes": []
+    },
+    {
+     "format": "SESX",
+     "open": "MISSING (detection only)",
+     "save": "MISSING",
+     "evidence": "crates/hsk-studio-interop-media/src/lib.rs:54 native_gap",
+     "lanes": []
+    }
+   ],
+   "counts": {
+    "VALIDATED": 8,
+    "IMPLEMENTED": 0,
+    "PARTIAL": 7,
+    "MISSING": 7,
+    "total": 22
+   },
+   "engine_parity_pct": 44.3,
+   "ui_features": 0,
+   "top_gaps": [
+    "No compressor/gate, reverb/delay, noise reduction (AU-08..10)",
+    "No multitrack session playback, automation or native device I/O proven (AU-14, AU-16..18)",
+    "No loudness metering (AU-13; spec gap STU-FX-147)",
+    "No compressed audio formats (interop)",
+    "VST3/AU plugins not hostable (AU-19)"
+   ],
+   "ui_note": "no UI feature counted as parity: the viewer is unjudged and the lane that would add editing tools (SMB-HARNESS-UI-2) has not passed",
+   "delta": {
+    "old_pct": 44.3,
+    "new_pct": 44.3,
+    "change_pts": 0.0,
+    "old_counts": {
+     "VALIDATED": 8,
+     "IMPLEMENTED": 0,
+     "PARTIAL": 7,
+     "MISSING": 7,
+     "total": 22
+    },
+    "new_counts": {
+     "VALIDATED": 8,
+     "IMPLEMENTED": 0,
+     "PARTIAL": 7,
+     "MISSING": 7,
+     "total": 22
+    },
+    "features_moved": [],
+    "new_rows": []
+   }
+  }
+ },
+ "summary": {
+  "photoshop": {
+   "counts": {
+    "VALIDATED": 11,
+    "IMPLEMENTED": 1,
+    "PARTIAL": 11,
+    "MISSING": 13,
+    "total": 36
+   },
+   "engine_parity_pct": 39.6
+  },
+  "lightroom_classic": {
+   "counts": {
+    "VALIDATED": 6,
+    "IMPLEMENTED": 0,
+    "PARTIAL": 11,
+    "MISSING": 18,
+    "total": 35
+   },
+   "engine_parity_pct": 25.0
+  },
+  "illustrator": {
+   "counts": {
+    "VALIDATED": 3,
+    "IMPLEMENTED": 0,
+    "PARTIAL": 13,
+    "MISSING": 16,
+    "total": 32
+   },
+   "engine_parity_pct": 19.5
+  },
+  "indesign": {
+   "counts": {
+    "VALIDATED": 5,
+    "IMPLEMENTED": 0,
+    "PARTIAL": 3,
+    "MISSING": 23,
+    "total": 31
+   },
+   "engine_parity_pct": 18.5
+  },
+  "figma": {
+   "counts": {
+    "VALIDATED": 9,
+    "IMPLEMENTED": 0,
+    "PARTIAL": 6,
+    "MISSING": 8,
+    "total": 23
+   },
+   "engine_parity_pct": 45.7
+  },
+  "premiere_pro": {
+   "counts": {
+    "VALIDATED": 9,
+    "IMPLEMENTED": 0,
+    "PARTIAL": 8,
+    "MISSING": 8,
+    "total": 25
+   },
+   "engine_parity_pct": 44.0
+  },
+  "after_effects": {
+   "counts": {
+    "VALIDATED": 5,
+    "IMPLEMENTED": 0,
+    "PARTIAL": 7,
+    "MISSING": 12,
+    "total": 24
+   },
+   "engine_parity_pct": 28.1
+  },
+  "audition": {
+   "counts": {
+    "VALIDATED": 8,
+    "IMPLEMENTED": 0,
+    "PARTIAL": 7,
+    "MISSING": 7,
+    "total": 22
+   },
+   "engine_parity_pct": 44.3
+  }
+ },
+ "overall": {
+  "counts": {
+   "VALIDATED": 56,
+   "IMPLEMENTED": 1,
+   "PARTIAL": 66,
+   "MISSING": 105,
+   "total": 228
+  },
+  "engine_parity_pct_unweighted_all_features": 32.0
+ },
+ "supersedes": "research/parity-matrix-20261014.json (R24 basis)",
+ "delta": {
+  "from_file": "research/parity-matrix-20261014.json",
+  "from_basis": "R24 @ f07f447",
+  "to_basis": "R26 @ 507aa36 (ledger 2026-10-14T21:51:04Z)",
+  "overall": {
+   "old_counts": {
+    "VALIDATED": 53,
+    "IMPLEMENTED": 1,
+    "PARTIAL": 57,
+    "MISSING": 114,
+    "total": 225
+   },
+   "new_counts": {
+    "VALIDATED": 56,
+    "IMPLEMENTED": 1,
+    "PARTIAL": 66,
+    "MISSING": 105,
+    "total": 228
+   },
+   "old_pct": 30.1,
+   "new_pct": 32.0
+  },
+  "per_app": {
+   "photoshop": {
+    "old_pct": 34.6,
+    "new_pct": 39.6,
+    "change_pts": 5.0,
+    "old_counts": {
+     "VALIDATED": 10,
+     "IMPLEMENTED": 0,
+     "PARTIAL": 7,
+     "MISSING": 17,
+     "total": 34
+    },
+    "new_counts": {
+     "VALIDATED": 11,
+     "IMPLEMENTED": 1,
+     "PARTIAL": 11,
+     "MISSING": 13,
+     "total": 36
+    },
+    "features_moved": [
+     {
+      "id": "PS-13",
+      "from": "MISSING",
+      "to": "PARTIAL",
+      "why": "SMB-PIGMENT-SELECTION PASS (R25)"
+     },
+     {
+      "id": "PS-15",
+      "from": "PARTIAL",
+      "to": "PARTIAL",
+      "why": "SMB-PIGMENT-BRUSH PASS_V1 (R26)",
+      "status_unchanged": true
+     },
+     {
+      "id": "PS-17",
+      "from": "MISSING",
+      "to": "PARTIAL",
+      "why": "SMB-PIGMENT-BRUSH PASS_V1 (R26)"
+     },
+     {
+      "id": "PS-20",
+      "from": "MISSING",
+      "to": "PARTIAL",
+      "why": "SMB-PIGMENT-TRANSFORM PASS_V1 (R26)"
+     },
+     {
+      "id": "PS-22",
+      "from": "MISSING",
+      "to": "PARTIAL",
+      "why": "folio Blur record PASS (R26); render code unjudged"
+     },
+     {
+      "id": "PS-23",
+      "from": "PARTIAL",
+      "to": "PARTIAL",
+      "why": "SMB-TYPE-GLYPH-RENDER and SMB-COMPOSITE-TEXT PASS_V1 (R26): shaping-only -> rendered (status kept PARTIAL, see note)",
+      "status_unchanged": true
+     },
+     {
+      "id": "PS-26",
+      "from": "PARTIAL",
+      "to": "PARTIAL",
+      "why": "note only (SMB-CONVERT-COLOUR PASS_V2 applies embedded ICC on import)",
+      "status_unchanged": true
+     }
+    ],
+    "new_rows": [
+     {
+      "id": "PS-35",
+      "status": "VALIDATED",
+      "name": "Open any supported document as an editable native document with colour management (convert flow: PSD/PSB, TIFF incl. layered, DNG/raw, PDF carried)"
+     },
+     {
+      "id": "PS-36",
+      "status": "IMPLEMENTED",
+      "name": "Export the composited document to JPEG / PNG (own baseline JPEG encoder, PNG encoder, ICC embed)"
+     }
+    ]
+   },
+   "lightroom_classic": {
+    "old_pct": 23.6,
+    "new_pct": 25.0,
+    "change_pts": 1.4,
+    "old_counts": {
+     "VALIDATED": 5,
+     "IMPLEMENTED": 1,
+     "PARTIAL": 11,
+     "MISSING": 18,
+     "total": 35
+    },
+    "new_counts": {
+     "VALIDATED": 6,
+     "IMPLEMENTED": 0,
+     "PARTIAL": 11,
+     "MISSING": 18,
+     "total": 35
+    },
+    "features_moved": [
+     {
+      "id": "LR-01",
+      "from": "VALIDATED",
+      "to": "VALIDATED",
+      "why": "note only",
+      "status_unchanged": true
+     },
+     {
+      "id": "LR-02",
+      "from": "PARTIAL",
+      "to": "PARTIAL",
+      "why": "lane versions only (R25/R26)",
+      "status_unchanged": true
+     },
+     {
+      "id": "LR-33",
+      "from": "PARTIAL",
+      "to": "PARTIAL",
+      "why": "JPEG/PNG encoders PASS; export wiring unjudged",
+      "status_unchanged": true
+     },
+     {
+      "id": "LR-34",
+      "from": "IMPLEMENTED",
+      "to": "VALIDATED",
+      "why": "SMB-CONVERT-NATIVE PASS_V2 (R26)"
+     }
+    ],
+    "new_rows": []
+   },
+   "illustrator": {
+    "old_pct": 18.8,
+    "new_pct": 19.5,
+    "change_pts": 0.7,
+    "old_counts": {
+     "VALIDATED": 3,
+     "IMPLEMENTED": 0,
+     "PARTIAL": 12,
+     "MISSING": 17,
+     "total": 32
+    },
+    "new_counts": {
+     "VALIDATED": 3,
+     "IMPLEMENTED": 0,
+     "PARTIAL": 13,
+     "MISSING": 16,
+     "total": 32
+    },
+    "features_moved": [
+     {
+      "id": "AI-28",
+      "from": "PARTIAL",
+      "to": "PARTIAL",
+      "why": "note only",
+      "status_unchanged": true
+     },
+     {
+      "id": "AI-29",
+      "from": "MISSING",
+      "to": "PARTIAL",
+      "why": "SMB-TYPE-GLYPH-RENDER PASS_V1 (R26)"
+     }
+    ],
+    "new_rows": []
+   },
+   "indesign": {
+    "old_pct": 18.5,
+    "new_pct": 18.5,
+    "change_pts": 0.0,
+    "old_counts": {
+     "VALIDATED": 5,
+     "IMPLEMENTED": 0,
+     "PARTIAL": 3,
+     "MISSING": 23,
+     "total": 31
+    },
+    "new_counts": {
+     "VALIDATED": 5,
+     "IMPLEMENTED": 0,
+     "PARTIAL": 3,
+     "MISSING": 23,
+     "total": 31
+    },
+    "features_moved": [
+     {
+      "id": "ID-31",
+      "from": "MISSING",
+      "to": "MISSING",
+      "why": "note only (carry PASS; pages not imported)",
+      "status_unchanged": true
+     }
+    ],
+    "new_rows": []
+   },
+   "figma": {
+    "old_pct": 43.2,
+    "new_pct": 45.7,
+    "change_pts": 2.5,
+    "old_counts": {
+     "VALIDATED": 8,
+     "IMPLEMENTED": 0,
+     "PARTIAL": 6,
+     "MISSING": 8,
+     "total": 22
+    },
+    "new_counts": {
+     "VALIDATED": 9,
+     "IMPLEMENTED": 0,
+     "PARTIAL": 6,
+     "MISSING": 8,
+     "total": 23
+    },
+    "features_moved": [
+     {
+      "id": "FG-06",
+      "from": "PARTIAL",
+      "to": "PARTIAL",
+      "why": "note only",
+      "status_unchanged": true
+     },
+     {
+      "id": "FG-13",
+      "from": "PARTIAL",
+      "to": "PARTIAL",
+      "why": "note only (record + import PASS; evaluation still rectangles only)",
+      "status_unchanged": true
+     },
+     {
+      "id": "FG-14",
+      "from": "PARTIAL",
+      "to": "PARTIAL",
+      "why": "note only",
+      "status_unchanged": true
+     },
+     {
+      "id": "FG-15",
+      "from": "PARTIAL",
+      "to": "PARTIAL",
+      "why": "note only",
+      "status_unchanged": true
+     },
+     {
+      "id": "FG-20",
+      "from": "PARTIAL",
+      "to": "PARTIAL",
+      "why": "note only",
+      "status_unchanged": true
+     }
+    ],
+    "new_rows": [
+     {
+      "id": "FG-23",
+      "status": "VALIDATED",
+      "name": ".fig file import into an editable native document (pages/artboards, layers, vector geometry, effects, masks, image paints, boolean groups, text styles, components, variables, prototype reactions)"
+     }
+    ]
+   },
+   "premiere_pro": {
+    "old_pct": 43.0,
+    "new_pct": 44.0,
+    "change_pts": 1.0,
+    "old_counts": {
+     "VALIDATED": 9,
+     "IMPLEMENTED": 0,
+     "PARTIAL": 7,
+     "MISSING": 9,
+     "total": 25
+    },
+    "new_counts": {
+     "VALIDATED": 9,
+     "IMPLEMENTED": 0,
+     "PARTIAL": 8,
+     "MISSING": 8,
+     "total": 25
+    },
+    "features_moved": [
+     {
+      "id": "PR-16",
+      "from": "MISSING",
+      "to": "PARTIAL",
+      "why": "SMB-REEL-NATIVE-ENG-1 PASS_V1 and SMB-REEL-BFRAME-ORDER PASS_V1 (R26)"
+     },
+     {
+      "id": "PR-17",
+      "from": "VALIDATED",
+      "to": "VALIDATED",
+      "why": "lane versions only",
+      "status_unchanged": true
+     }
+    ],
+    "new_rows": []
+   },
+   "after_effects": {
+    "old_pct": 25.0,
+    "new_pct": 28.1,
+    "change_pts": 3.1,
+    "old_counts": {
+     "VALIDATED": 5,
+     "IMPLEMENTED": 0,
+     "PARTIAL": 4,
+     "MISSING": 15,
+     "total": 24
+    },
+    "new_counts": {
+     "VALIDATED": 5,
+     "IMPLEMENTED": 0,
+     "PARTIAL": 7,
+     "MISSING": 12,
+     "total": 24
+    },
+    "features_moved": [
+     {
+      "id": "AE-01",
+      "from": "MISSING",
+      "to": "PARTIAL",
+      "why": "code exists, lane READY (unjudged); subset only"
+     },
+     {
+      "id": "AE-03",
+      "from": "MISSING",
+      "to": "PARTIAL",
+      "why": "SMB-PIGMENT-TRANSFORM PASS_V1 (R26)"
+     },
+     {
+      "id": "AE-11",
+      "from": "MISSING",
+      "to": "PARTIAL",
+      "why": "SMB-COMPOSITE-TEXT PASS_V1 (R26)"
+     },
+     {
+      "id": "AE-17",
+      "from": "PARTIAL",
+      "to": "PARTIAL",
+      "why": "note only",
+      "status_unchanged": true
+     }
+    ],
+    "new_rows": []
+   },
+   "audition": {
+    "old_pct": 44.3,
+    "new_pct": 44.3,
+    "change_pts": 0.0,
+    "old_counts": {
+     "VALIDATED": 8,
+     "IMPLEMENTED": 0,
+     "PARTIAL": 7,
+     "MISSING": 7,
+     "total": 22
+    },
+    "new_counts": {
+     "VALIDATED": 8,
+     "IMPLEMENTED": 0,
+     "PARTIAL": 7,
+     "MISSING": 7,
+     "total": 22
+    },
+    "features_moved": [],
+    "new_rows": []
+   }
+  },
+  "pass_lanes_old_r24": 56,
+  "round_verdicts": {
+   "R25": "109 PASS / 1 FAIL / 2 INCONCLUSIVE",
+   "R26": "118 PASS / 0 FAIL / 3 INCONCLUSIVE"
+  },
+  "note": "progress is mostly engine-level foundations (selection, brush, transform, text render, codecs, import flow, fig mapping, H.264) that move rows from MISSING to PARTIAL; few rows reach VALIDATED because a feature needs the whole user-facing capability, which still has no editing UI"
+ }
+}
