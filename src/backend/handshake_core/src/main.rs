@@ -411,6 +411,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     if connection_drain_timed_out
         || runtime_shutdown.is_err()
         || !api_drain_report.process_reclaim_quiesced
+        || !api_drain_report.swarm_events_flushed
         || !operator_chat_ledger_flushed
     {
         if let Err(err) = &runtime_shutdown {
@@ -424,6 +425,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
             target: "handshake_core::process_ledger",
             connection_drain_timed_out,
             process_reclaim_quiesced = api_drain_report.process_reclaim_quiesced,
+            swarm_events_flushed = api_drain_report.swarm_events_flushed,
             operator_chat_ledger_flushed,
             "shutdown durability was not fully proven; exiting with failure after preserving truthful process-ledger state"
         );
