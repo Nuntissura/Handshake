@@ -1,11 +1,17 @@
 {
  "crate": "hsk-studio-develop",
  "lane": "SMB-DEVELOP-RAW-ARW",
- "status": "READY_FOR_VALIDATION",
+ "status": "PASS_V1",
  "phase": "Sony ARW (cRAW + uncompressed) done; compressed NEF and RW2 searched, no permissive source or public bit-level docs: typed decoder_unavailable",
  "commits": [
-  {"sha": "be73666b7686c8f0ed36e6f760a0e2b9dd99964e", "subject": "develop (SMB-DEVELOP-RAW-ARW): Sony ARW decode (cRAW + uncompressed), adapted from rawkit"},
-  {"sha": "d62e84063e23b6dc5eaae95371e73a7c1a2a6e12", "subject": "develop (SMB-DEVELOP-RAW-ARW): Nikon compressed NEF is decoder_unavailable:nef_compressed"}
+  {
+   "sha": "be73666b7686c8f0ed36e6f760a0e2b9dd99964e",
+   "subject": "develop (SMB-DEVELOP-RAW-ARW): Sony ARW decode (cRAW + uncompressed), adapted from rawkit"
+  },
+  {
+   "sha": "d62e84063e23b6dc5eaae95371e73a7c1a2a6e12",
+   "subject": "develop (SMB-DEVELOP-RAW-ARW): Nikon compressed NEF is decoder_unavailable:nef_compressed"
+  }
  ],
  "capabilities_done": [
   "src/arw.rs: IFD0 Make SONY without DNGVersion -> ARW; Compression 32767 cRAW (one byte per pixel, 16-byte blocks: 11-bit max/min, 4-bit positions, 14 x 7-bit deltas shifted by block range; 32-column spans even then odd columns; 11-bit codes through the SonyToneCurve 0x7010 table, rawkit's >>2<<2), Compression 1 strips via tiffep; ARW1/other compressions unsupported_compression; width must be a multiple of 32; white = curve maximum (17204 for the sample); unapplied arw_black_level_unread, arw_white_level_unread",
@@ -22,8 +28,16 @@
   "failed": 0
  },
  "blockers": [
-  {"error": "NEF Nikon compression 34713/32769 (D70s, Z6 samples): no permissive (MIT/Apache/BSD/Zlib/ISC) decoder source and no public bit-level documentation (Huffman trees); typed decoder_unavailable:nef_compressed", "file_line": "crates/hsk-studio-develop/src/nef.rs decode", "attempts": 1},
-  {"error": "RW2 Panasonic compression (LX7 sample, tag 0x0b = 34316): no permissive decoder source or public bit-level documentation; typed decoder_unavailable:rw2", "file_line": "crates/hsk-studio-develop/src/lib.rs recognise", "attempts": 1}
+  {
+   "error": "NEF Nikon compression 34713/32769 (D70s, Z6 samples): no permissive (MIT/Apache/BSD/Zlib/ISC) decoder source and no public bit-level documentation (Huffman trees); typed decoder_unavailable:nef_compressed",
+   "file_line": "crates/hsk-studio-develop/src/nef.rs decode",
+   "attempts": 1
+  },
+  {
+   "error": "RW2 Panasonic compression (LX7 sample, tag 0x0b = 34316): no permissive decoder source or public bit-level documentation; typed decoder_unavailable:rw2",
+   "file_line": "crates/hsk-studio-develop/src/lib.rs recognise",
+   "attempts": 1
+  }
  ],
  "lock_wait_s": 0,
  "bg_pids": [],
@@ -41,6 +55,25 @@
    "web searches for MIT/BSD/Apache NEF and RW2 decoders: only rawloader/rawler (LGPL), zenraw (AGPL-3.0), RawSpeed (LGPL-2), LibRaw (LGPL/CDDL), dcraw (own restricted licence), MIT wrappers without decoders (NDCRaw, NRawTherapee), rawparser (MIT Go, preview extraction only)",
    "Panasonic LUMIX RAW Codec (proprietary plug-in)"
   ],
-  "nef_test_change": "tests/develop_nef.rs routing refusal now uses Make PENTAX (a Sony Make is decoded as ARW since be73666) and adds compression 7 -> unsupported_compression"
+  "nef_test_change": "tests/develop_nef.rs routing refusal now uses Make PENTAX (a Sony Make is decoded as ARW since be73666) and adds compression 7 -> unsupported_compression",
+  "verdicts": [
+   {
+    "round": "STUDIO-R24",
+    "lane": "SMB-DEVELOP-RAW-ARW",
+    "candidate": "f07f447f50c1350241133433743c04b63da1b92d",
+    "tree": "21147a2c4b4f8d23f21e634fc9541c0815df5e81",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "not_proven": [
+     "develop real_raw arw_7s_craw_decodes_deterministically: ignored corpus tests not run (round config runs no ignored tests): NOT_PROVEN in R24; independent DNG oracle NOT_PROVEN"
+    ],
+    "status_after": "PASS_V1",
+    "round_ref": "validation/round-R24.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R24",
+    "recorded_at": "2026-10-14T18:31:51Z"
+   }
+  ]
  }
 }

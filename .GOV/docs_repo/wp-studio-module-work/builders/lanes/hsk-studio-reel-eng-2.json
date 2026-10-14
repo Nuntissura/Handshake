@@ -1,7 +1,7 @@
 {
  "crate": "hsk-studio-reel",
  "lane": "SMB-REEL-ENG-2",
- "status": "READY_FOR_VALIDATION",
+ "status": "PASS_V1",
  "phase": "slices A (D23 contract), B (VC-3 default build) and C (ProRes, feature prores) pushed; claim = 6c52e18 + c9d0c0e + d5b521d + 5959e88",
  "commits": [
   {
@@ -66,6 +66,25 @@
   "test_counts_new": "vc3_decode 4, prores_decode 4 with feature + 1 without; unit tests idct8 2, bitreader 1, vc3::entropy 2, prores::golomb 1, prores 2",
   "trust_independence": "built-in VC-3/ProRes decoders run for any SourceTrust (safe Rust, typed refusals, hostile tests incl. every truncation and single-bit flip with an allocation bound); lead may require worker isolation instead",
   "retry_guard": "no gameplan hook block on any cargo command; one hook block on a lane-file python heredoc (gate words in text) -> switched to Write tool + file input (V4-09), no gameplan step added",
-  "decoder_id_per_frame": "decoder id and version are in SegmentReceipt.decoder_id/decoder_version (one receipt per segment); no per-Chunk field added (public type change would need a lead decision)"
+  "decoder_id_per_frame": "decoder id and version are in SegmentReceipt.decoder_id/decoder_version (one receipt per segment); no per-Chunk field added (public type change would need a lead decision)",
+  "verdicts": [
+   {
+    "round": "STUDIO-R24",
+    "lane": "SMB-REEL-ENG-2",
+    "candidate": "f07f447f50c1350241133433743c04b63da1b92d",
+    "tree": "21147a2c4b4f8d23f21e634fc9541c0815df5e81",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "not_proven": [
+     "reel vc3_decode_matches_external_oracle_within_tolerance: CID 1271 10-bit agreement with ffmpeg (max delta 4) in units default, av1, prores (lead-accepted)"
+    ],
+    "status_after": "PASS_V1",
+    "round_ref": "validation/round-R24.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R24",
+    "recorded_at": "2026-10-14T18:31:51Z"
+   }
+  ]
  }
 }

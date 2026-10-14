@@ -168,6 +168,21 @@
     "idempotency_key": "STUDIO-R8:SMB-HARNESS:f6e5a490e2ad:PASS_V3",
     "recorded_at": "2026-10-11T12:42:21Z",
     "by": "wp_validator STUDIO-R8"
+   },
+   {
+    "round": "STUDIO-R24",
+    "lane": "SMB-HARNESS",
+    "candidate": "f07f447f50c1350241133433743c04b63da1b92d",
+    "tree": "21147a2c4b4f8d23f21e634fc9541c0815df5e81",
+    "decision": "passed",
+    "verdict": "PASS_V4",
+    "failures": [],
+    "remediation": null,
+    "not_proven": [],
+    "status_after": "PASS_V4",
+    "round_ref": "validation/round-R24.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R24",
+    "recorded_at": "2026-10-14T18:31:51Z"
    }
   ]
  }

@@ -1,7 +1,7 @@
 {
  "crate": "hsk-studio-interop-psd",
  "lane": "SMB-INTEROP-PSD",
- "status": "READY_FOR_VALIDATION",
+ "status": "PASS_V17",
  "phase": "R5 remediation complete (0b9aeeb..6e7198a) + SMB-INTEROP-PSD-ADJ-1 complete (92a7eef..eb7080d: adjustment, Blend-If, mask parameter, knockout and lfx2 records into folio StudioRasterRecords) + SMB-INTEROP-PSD-ADJ-2 complete (cbed946: adjustment layers are folio graph sources with input_ordinal; layer clipped to an adjustment layer imported unclipped with typed loss clip_to_adjustment_not_supported) + SMB-INTEROP-PSD-RECEIPT complete (1a088a9: absolute/bpc/engine receipt fields carried) + SMB-INTEROP-PSD-CLIP-ROLES complete (29501d7: typed losses for Blend-If on clip roles and clbl=0) + remediation_R7 complete (2fa2202: R7 review B CONFIRMED finding, CgEd NaN/inf reached Folio and failed the whole import)",
  "commits": [
   {
@@ -1724,6 +1724,21 @@
     "idempotency_key": "STUDIO-R22:SMB-FX-OPS-ADOPT:1da2453344ed:PASS_V12",
     "recorded_at": "2026-10-12T11:20:19Z",
     "by": "wp_validator STUDIO-R22"
+   },
+   {
+    "round": "STUDIO-R24",
+    "lane": "SMB-INTEROP-PSD",
+    "candidate": "f07f447f50c1350241133433743c04b63da1b92d",
+    "tree": "21147a2c4b4f8d23f21e634fc9541c0815df5e81",
+    "decision": "passed",
+    "verdict": "PASS_V17",
+    "failures": [],
+    "remediation": null,
+    "not_proven": [],
+    "status_after": "PASS_V17",
+    "round_ref": "validation/round-R24.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R24",
+    "recorded_at": "2026-10-14T18:31:51Z"
    }
   ],
   "receipt_absolute": {

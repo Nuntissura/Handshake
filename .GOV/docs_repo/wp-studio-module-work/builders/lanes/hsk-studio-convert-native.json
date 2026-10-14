@@ -1,13 +1,25 @@
 {
  "crate": "hsk-studio-interop-psd + hsk-studio-package + hsk-studio-harness",
  "lane": "SMB-CONVERT-NATIVE",
- "status": "READY_FOR_VALIDATION",
+ "status": "FAIL_V1",
  "phase": "CN-1, CN-2, CN-3 (PSD + DNG) pushed; claim = a7c2fa1, fe2f537, 013b24c, 6863190 (6863190 changes only ignored corpus tests)",
  "commits": [
-  {"sha": "a7c2fa1", "subject": "interop-psd (SMB-CONVERT-NATIVE CN-1): public raster -> layer mapping and layerless PSD import"},
-  {"sha": "fe2f537", "subject": "package (SMB-CONVERT-NATIVE CN-2): typed import entries (records, receipt, original source)"},
-  {"sha": "013b24c", "subject": "harness + package (SMB-CONVERT-NATIVE CN-3): open directly / convert to native for PSD and DNG"},
-  {"sha": "6863190", "subject": "harness (SMB-CONVERT-NATIVE CN-3): DNG corpus test on a real DNG, 6 sweep shards"}
+  {
+   "sha": "a7c2fa1",
+   "subject": "interop-psd (SMB-CONVERT-NATIVE CN-1): public raster -> layer mapping and layerless PSD import"
+  },
+  {
+   "sha": "fe2f537",
+   "subject": "package (SMB-CONVERT-NATIVE CN-2): typed import entries (records, receipt, original source)"
+  },
+  {
+   "sha": "013b24c",
+   "subject": "harness + package (SMB-CONVERT-NATIVE CN-3): open directly / convert to native for PSD and DNG"
+  },
+  {
+   "sha": "6863190",
+   "subject": "harness (SMB-CONVERT-NATIVE CN-3): DNG corpus test on a real DNG, 6 sweep shards"
+  }
  ],
  "capabilities_done": [
   "CN-1 interop-psd: raster_proposal(RasterSource{format,name,width,height,depth,colour_mode,planes,alpha,icc}) -> ImportProposal through the PSD importer's own colour route, tiling and digests (Builder::tiles_from_planes is the single raster->tile path); shape/depth/mode/max_pixels/aggregate max_decoded_bytes checked before use (typed PsdError)",
@@ -44,6 +56,47 @@
   "naming": "Receipt keys (receipt=import, receipt_version=1), layer name 'Background' for layerless PSD and developed raw, feature names import/import-psd/import-raw are provisional (brief names features import-psd/import-tiff/import-raw/import-pdf); no canonical command ids (STU-IO-014) verified.",
   "retry_guard": "One gameplan retry-guard block after the DNG test timed out on the 10 MP Nikon D80 sample; route (a): fixed the test (smaller real DNG, single conversion) and committed 6863190, then reran.",
   "cargo_lock": "Cargo.lock changed by other lanes' manifests (interop-tiff) and by the new optional harness edges; left uncommitted for the steward.",
-  "focused_test_count": "Per slice: CN-1 3 new tests, CN-2 2 new, CN-3 3 new + 3 ignored corpus tests (6 sweep shards). Existing suites of the touched crates were also run once for regressions."
+  "focused_test_count": "Per slice: CN-1 3 new tests, CN-2 2 new, CN-3 3 new + 3 ignored corpus tests (6 sweep shards). Existing suites of the touched crates were also run once for regressions.",
+  "verdicts": [
+   {
+    "round": "STUDIO-R24",
+    "lane": "SMB-CONVERT-NATIVE",
+    "candidate": "f07f447f50c1350241133433743c04b63da1b92d",
+    "tree": "21147a2c4b4f8d23f21e634fc9541c0815df5e81",
+    "decision": "failed",
+    "verdict": "FAIL_V1",
+    "failures": [
+     {
+      "failure_kind": "product",
+      "failure_class": "pdf-carry-receipt-missing",
+      "file_line": "crates/hsk-studio-harness/src/import.rs:193; tests/import_psd.rs:155-195",
+      "evidence": "SourceFormat::Pdf => Err(not_implemented); test asserts format_unavailable for %PDF-; brief CN-3 requires original asset + pdf_pages_not_imported receipt",
+      "acceptance_ref": "builders/briefs/lane-smb-convert-native.md:109 (CN-3), :50 (CN-5), :136",
+      "artifact_ref": "export f07f447 crates/hsk-studio-harness/src/import.rs:193; results/R24 features/hsk-studio-harness+import-psd"
+     }
+    ],
+    "remediation": {
+     "failed_acceptance_refs": [
+      "lane-smb-convert-native.md:109 CN-3 PDF carry"
+     ],
+     "failed_checks": [
+      "no test: %PDF- -> package with original + pdf_pages_not_imported receipt"
+     ],
+     "affected_code_refs": [
+      "crates/hsk-studio-harness/src/import.rs:193",
+      "crates/hsk-studio-harness/tests/import_psd.rs:155-195"
+     ],
+     "repair_direction": "%PDF- -> package: original asset + typed pdf_pages_not_imported receipt; DESCRIPTOR 'PDF: carried, not imported'",
+     "alternative": "lead decision narrowing CN-3 (PDF out of slice) replaces the fix"
+    },
+    "not_proven": [
+     "harness dng_converts_to_one_developed_raster_layer_and_opens_in_a_session, proprietary_raw_refusals_pass_through_develop_unchanged, psd_tools_sweep_shard_0..5: ignored corpus tests not run (round config runs no ignored tests): NOT_PROVEN in R24"
+    ],
+    "status_after": "FAIL_V1",
+    "round_ref": "validation/round-R24.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R24",
+    "recorded_at": "2026-10-14T18:31:51Z"
+   }
+  ]
  }
 }

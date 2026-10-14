@@ -1,7 +1,7 @@
 {
  "crate": "hsk-studio-reel-native",
  "lane": "SMB-REEL-NATIVE-FAULTS-2",
- "status": "READY_FOR_VALIDATION",
+ "status": "PASS_V6",
  "phase": "PLR-059, PLR-060 and PLR-061 fixed at 4b76604 (pushed on origin b8b276d); crate untouched after 4b76604 (V4-14)",
  "commits": [
   {
@@ -341,6 +341,21 @@
     "idempotency_key": "STUDIO-R21:SMB-REEL-NATIVE-FAULTS-2:2dde8324d111:PASS_V5",
     "recorded_at": "2026-10-12T09:54:57Z",
     "by": "wp_validator STUDIO-R21"
+   },
+   {
+    "round": "STUDIO-R24",
+    "lane": "SMB-REEL-NATIVE-FAULTS-2",
+    "candidate": "f07f447f50c1350241133433743c04b63da1b92d",
+    "tree": "21147a2c4b4f8d23f21e634fc9541c0815df5e81",
+    "decision": "passed",
+    "verdict": "PASS_V6",
+    "failures": [],
+    "remediation": null,
+    "not_proven": [],
+    "status_after": "PASS_V6",
+    "round_ref": "validation/round-R24.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R24",
+    "recorded_at": "2026-10-14T18:31:51Z"
    }
   ]
  }

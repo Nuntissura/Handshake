@@ -1,7 +1,7 @@
 {
  "crate": "hsk-studio-develop",
  "lane": "SMB-DEVELOP-RAW-VENDOR",
- "status": "READY_FOR_VALIDATION",
+ "status": "PASS_V1",
  "phase": "slices 1 (CR2) and 2 (NEF uncompressed) READY on 241df1f; remaining vendors blocked under R1 (see blockers)",
  "commits": [
   {
@@ -96,6 +96,25 @@
   "v4_06_like_sites": "cr2.rs/tiffep.rs/nef.rs carry deny(clippy::arithmetic_side_effects); clippy -p hsk-studio-develop --tests clean",
   "provenance_exposure": "While searching for public ARW2 documentation (2026-10-14T16:14Z) a web-search summary relayed cRAW header bit offsets attributed to a dcraw-style decoder excerpt (so-fo.de); no decoder code page was opened and no ARW code was written. For strict clean-room separation, give ARW to a different builder.",
   "not_run_by_builder": "dnglab not downloaded/executed by this builder (downloads/executables need direct Operator approval in chat); independent CFA oracle left to the validator/Operator per brief acceptance 5",
-  "existing_tests_touched": "tests/develop_dng.rs (one refuse(...) arg) and tests/develop_recipe.rs (two DecoderUnavailable args) compile under clippy --tests; not re-run separately in the focused budget (validator round covers them)"
+  "existing_tests_touched": "tests/develop_dng.rs (one refuse(...) arg) and tests/develop_recipe.rs (two DecoderUnavailable args) compile under clippy --tests; not re-run separately in the focused budget (validator round covers them)",
+  "verdicts": [
+   {
+    "round": "STUDIO-R24",
+    "lane": "SMB-DEVELOP-RAW-VENDOR",
+    "candidate": "f07f447f50c1350241133433743c04b63da1b92d",
+    "tree": "21147a2c4b4f8d23f21e634fc9541c0815df5e81",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "not_proven": [
+     "develop real_raw cr2_350d/nef_d1h/vendor routing: ignored corpus tests not run (round config runs no ignored tests): NOT_PROVEN in R24; independent DNG-converter oracle NOT_PROVEN (brief acceptance 5 allows)"
+    ],
+    "status_after": "PASS_V1",
+    "round_ref": "validation/round-R24.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R24",
+    "recorded_at": "2026-10-14T18:31:51Z"
+   }
+  ]
  }
 }

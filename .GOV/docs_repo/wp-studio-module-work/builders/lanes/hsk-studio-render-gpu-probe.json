@@ -1,7 +1,7 @@
 {
   "crate": "hsk-studio-render-gpu",
   "lane": "SMB-RENDER-GPU-PROBE",
-  "status": "READY_FOR_VALIDATION",
+  "status": "PASS_V1",
   "phase": "probe-capture",
   "commits": [
     {
@@ -28,6 +28,23 @@
     "check": "cargo check -p hsk-studio-render-gpu --tests ok; clippy --tests ok for render-gpu (warnings only in hsk-studio-observe)",
     "strict_gate": "unchanged: strict=true still Err(NOT_PROVEN: no adapter...) asserted in same test",
     "output": "test run printed no NOT_PROVEN line",
-    "adapter": "probe uses forced no-adapter backend; no real adapter exercised"
+    "adapter": "probe uses forced no-adapter backend; no real adapter exercised",
+    "verdicts": [
+      {
+        "round": "STUDIO-R24",
+        "lane": "SMB-RENDER-GPU-PROBE",
+        "candidate": "f07f447f50c1350241133433743c04b63da1b92d",
+        "tree": "21147a2c4b4f8d23f21e634fc9541c0815df5e81",
+        "decision": "passed",
+        "verdict": "PASS_V1",
+        "failures": [],
+        "remediation": null,
+        "not_proven": [],
+        "status_after": "PASS_V1",
+        "round_ref": "validation/round-R24.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R24",
+        "recorded_at": "2026-10-14T18:31:51Z"
+      }
+    ]
   }
 }

@@ -1,11 +1,17 @@
 {
  "crate": "hsk-studio-develop",
  "lane": "SMB-DEVELOP-DNG-MLV",
- "status": "READY_FOR_VALIDATION",
+ "status": "PASS_V1",
  "phase": "real_dng corpus green (2 DNGs decode + develop; the Samsung download is a JFIF rendering: typed refusal + NOT_PROVEN)",
  "commits": [
-  {"sha": "7e5da46ecb2bef5e7a52ec0486c8f652e0641a04", "subject": "develop (SMB-DEVELOP-DNG-MLV): lossless-JPEG blocks may split block rows differently"},
-  {"sha": "20b5845", "subject": "develop (SMB-DEVELOP-DNG-MLV): real_dng D80 facts take the file's CalibrationIlluminant 17/21"}
+  {
+   "sha": "7e5da46ecb2bef5e7a52ec0486c8f652e0641a04",
+   "subject": "develop (SMB-DEVELOP-DNG-MLV): lossless-JPEG blocks may split block rows differently"
+  },
+  {
+   "sha": "20b5845",
+   "subject": "develop (SMB-DEVELOP-DNG-MLV): real_dng D80 facts take the file's CalibrationIlluminant 17/21"
+  }
  ],
  "capabilities_done": [
   "dng.rs: a lossless-JPEG block whose SOF3 frame splits the block's raster samples differently (MLV App 1920x818 strip = 3840 x 409 x 1) is accepted when the decoded sample count equals the block's exactly and JPEG rows and block rows tile in whole rows; anything else stays invalid_container (no reshaping)",
@@ -30,6 +36,25 @@
   "real_dng_result_20b5845": "real_dng_decode_and_develop PASS: 5D3 1920x818 14-bit RGGB comp 7, window 1920x818, clamped_below 176919, cct 4088, mean 0.0638; D80 3900x2611 16-bit GBRG comp 7, window 3872x2592, clamped_above 57267 (<1%), cct 4316, mean 0.1315; Samsung refused decoder_unavailable:jpeg with NOT_PROVEN line; fetch_script_default_matches_test_default PASS",
   "run_tree": "the 20b5845 run's working tree also held uncommitted SMB-DEVELOP-RAW-ARW edits (VendorFrame white_level in dng.rs, cr2.rs/nef.rs callers; arw.rs not yet wired) that do not touch the DNG decode path; the validator round re-runs on the pushed export",
   "spec_basis": "lead statement (DNG spec + ITU-T T.81 process 14: the sample count must match, the width x component split may differ); the exact DNG spec sentence was not re-read by this builder (UNVERIFIED wording)",
-  "sample_inspection": "5D3 LJPEG: SOF3 P=14 Y=409 X=3840 Nf=1, single strip 1536981 bytes, no restart markers; Samsung file: JFIF APP0, Exif APP1 21824 bytes (IFD0 4032x1908 16-bit Photometric 32803, 1908 strip entries pointing inside the Exif), SOF0 4016x1892x3, ends FFD9; D80 IFD0 0xC65A=17, 0xC65B=21"
+  "sample_inspection": "5D3 LJPEG: SOF3 P=14 Y=409 X=3840 Nf=1, single strip 1536981 bytes, no restart markers; Samsung file: JFIF APP0, Exif APP1 21824 bytes (IFD0 4032x1908 16-bit Photometric 32803, 1908 strip entries pointing inside the Exif), SOF0 4016x1892x3, ends FFD9; D80 IFD0 0xC65A=17, 0xC65B=21",
+  "verdicts": [
+   {
+    "round": "STUDIO-R24",
+    "lane": "SMB-DEVELOP-DNG-MLV",
+    "candidate": "f07f447f50c1350241133433743c04b63da1b92d",
+    "tree": "21147a2c4b4f8d23f21e634fc9541c0815df5e81",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "not_proven": [
+     "develop real_dng_decode_and_develop (5D3 MLV, D80 illuminants 17/21, Samsung JFIF -> decoder_unavailable:jpeg; jpeg routing has no non-ignored test): ignored corpus tests not run (round config runs no ignored tests): NOT_PROVEN in R24"
+    ],
+    "status_after": "PASS_V1",
+    "round_ref": "validation/round-R24.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R24",
+    "recorded_at": "2026-10-14T18:31:51Z"
+   }
+  ]
  }
 }

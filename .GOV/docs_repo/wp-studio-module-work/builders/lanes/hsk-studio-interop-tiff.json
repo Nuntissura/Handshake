@@ -1,11 +1,17 @@
 {
  "crate": "hsk-studio-interop-tiff",
  "lane": "SMB-INTEROP-TIFF",
- "status": "READY_FOR_VALIDATION",
+ "status": "PASS_V1",
  "phase": "slices 1 and 2 pushed at 242cfeb; check, clippy and 7 tests green",
  "commits": [
-  {"sha": "0824103", "subject": "interop-tiff slice 1: bounded TIFF decode + encode with typed refusals"},
-  {"sha": "242cfeb", "subject": "interop-tiff slice 2: palette expansion, CIELab as stored, ImageSourceData envelope, DESCRIPTOR"}
+  {
+   "sha": "0824103",
+   "subject": "interop-tiff slice 1: bounded TIFF decode + encode with typed refusals"
+  },
+  {
+   "sha": "242cfeb",
+   "subject": "interop-tiff slice 2: palette expansion, CIELab as stored, ImageSourceData envelope, DESCRIPTOR"
+  }
  ],
  "capabilities_done": [
   "decode(): own bounded pre-scan (classic+BigTIFF, IFD count/cycle/entry/range checks, JPEG frame guard, checked dims, aggregate budget) before the tiff codec",
@@ -30,6 +36,25 @@
   "cargo_lock": "Cargo.lock not committed by this lane.",
   "corpus": "30 image-tiff files: 27 decode, 3 typed refusals (int16_zstd compression_unsupported(50000), logluv-3c-16b photometric_logluv, seq-3c-12b bits_unsupported(12)); palette-1c-8b now decodes and equals Pillow RGB output; cross-file lossless pixel equalities pinned; mutation sweep found no panic (no catch_unwind).",
   "codec_findings": "tiff 0.11.3 returns Y/Cb/Cr unconverted for JPEG YCbCr (measured mean diff 62 vs 3.3 after conversion) and drops an Unspecified extra sample (decoder_size_mismatch before the patch); both handled in this crate.",
-  "unverified": "PI Photoshop writes for Lab TIFF; Photoshop-written layered TIFF 37724 (no corpus file; D5)."
+  "unverified": "PI Photoshop writes for Lab TIFF; Photoshop-written layered TIFF 37724 (no corpus file; D5).",
+  "verdicts": [
+   {
+    "round": "STUDIO-R24",
+    "lane": "SMB-INTEROP-TIFF",
+    "candidate": "f07f447f50c1350241133433743c04b63da1b92d",
+    "tree": "21147a2c4b4f8d23f21e634fc9541c0815df5e81",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "not_proven": [
+     "interop-tiff real_tiff corpus_files_decode_or_refuse_as_pinned (ignored; JPEG YCbCr->RGB and Pillow palette equality are corpus-only claims): ignored corpus tests not run (round config runs no ignored tests): NOT_PROVEN in R24"
+    ],
+    "status_after": "PASS_V1",
+    "round_ref": "validation/round-R24.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R24",
+    "recorded_at": "2026-10-14T18:31:51Z"
+   }
+  ]
  }
 }
