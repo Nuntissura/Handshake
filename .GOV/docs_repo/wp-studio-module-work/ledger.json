@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-14T18:33:14Z",
+ "updated_at": "2026-10-14T18:43:04Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3779,12 +3779,16 @@
   {
    "lane_id": "SMB-INTEROP-FIG-NODES",
    "crate": "hsk-studio-interop-fig",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-fig-nodes-20261014",
-   "commits": [],
+   "commits": [
+    "a55c345",
+    "87954e8"
+   ],
    "verdicts": [],
-   "note": "typed node-tree decode from real fixtures (parentIndex/guid tree, geometry blobs, fills/strokes/effects, text, SYMBOL/INSTANCE overrides, VARIABLE values, prototypeInteractions); container facts: fig-kiwi v106, schema DEFLATE, message zstd"
+   "note": "typed node-tree decode from real fixtures (parentIndex/guid tree, geometry blobs, fills/strokes/effects, text, SYMBOL/INSTANCE overrides, VARIABLE values, prototypeInteractions); container facts: fig-kiwi v106, schema DEFLATE, message zstd",
+   "lane_file": "builders/lanes/hsk-studio-interop-fig-nodes.json"
   },
   {
    "lane_id": "SMB-CONVERT-FOLLOWUPS",
@@ -3795,6 +3799,16 @@
    "commits": [],
    "verdicts": [],
    "note": "(1) prism exposes a working-profile constant (linear sRGB) and harness drops its private CC0 profile copy (CX-CAP-001); (2) harness detects DNG/TIFF-raw via interop-tiff Container (DNGVersion 50706, NewSubfileType) so raw never falls through to plain TIFF IFD0; (3) interop-psd public ImageSourceData/layer-record parser and harness imports layered Photoshop TIFF (37724) as layers"
+  },
+  {
+   "lane_id": "SMB-INTEROP-FIG-NATIVE",
+   "crate": "hsk-studio-interop-fig",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-fig-nodes-20261014",
+   "commits": [],
+   "verdicts": [],
+   "note": "map decoded Figma node tree into folio StudioDocument (pages/artboards, layer graph, paints/strokes/paths, text stories, components/overrides, autolayout, reactions, variables), images byte-exact, unmapped fields -> loss receipts; edit/reopen round trip; harness import-fig route"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
