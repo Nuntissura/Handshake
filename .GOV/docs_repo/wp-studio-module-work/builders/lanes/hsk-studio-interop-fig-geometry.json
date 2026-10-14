@@ -1,0 +1,32 @@
+{
+  "crate": "hsk-studio-interop-fig",
+  "lane": "SMB-INTEROP-FIG-GEOMETRY",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slices 1-3 pushed and green at 7c190d3",
+  "commits": [
+    {"sha": "b24f18f", "subject": "interop-fig (SMB-INTEROP-FIG-GEOMETRY slice 1): shape geometry -> Nib vector paths with baked transforms"},
+    {"sha": "13588d3", "subject": "interop-fig (SMB-INTEROP-FIG-GEOMETRY slice 2): shadow effects, masks and image paint bindings as records"},
+    {"sha": "7c190d3", "subject": "interop-fig (SMB-INTEROP-FIG-GEOMETRY slice 3): text fonts and run styles bound as STYS styles"}
+  ],
+  "capabilities_done": [
+    "slice 1: nib path dependency (crate Cargo.toml; root allowed-list edge added by the steward); shape nodes (rect/rounded, ellipse, star, polygon, line, vector) become vector layers listing SVPT ids; paths are Nib OwnedPath in canvas px with the whole node transform chain baked in (Folio layers carry no transform), from fillGeometry blobs (radii, arcs, stars already resolved), else the vector network (regions as closed loops, other segments as chained open paths), else the LINE segment; persisted in the records entry as vector_paths (canonical Nib JSON text, no f64 drift)",
+    "slice 2: DROP_SHADOW/INNER_SHADOW -> StudioEffectStack per layer in StudioRasterRecords (validate_raster_records); mask nodes -> StudioVectorMask (ALPHA) + StudioMaskAttachment on every later sibling, source layer hidden (validate_vector_records); IMAGE paints -> FigImagePaint binding in the records entry plus image part identity (bytes, sha256) in the receipt; records, raster_records, vector_records, image_paints round-trip through the package",
+    "slice 3: every distinct run (family, style, size, solid fill) and paragraph layout set -> one STYS id bound on story ranges/paragraphs; values carried as text_styles in the records entry; unresolved STYS bindings reported (proposal + receipt)"
+  ],
+  "tests": {"argv": "cargo nextest run -p hsk-studio-interop-fig --test fig_geometry --test fig_native --no-fail-fast", "exit": 0, "sha": "7c190d3", "passed": 10, "failed": 0},
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "optional: frame clips (StudioVectorClip), blur effects once Folio has a blur kind, Folio image paint kind (then replace the image binding with an appearance row), boolean result outline home, fig_nodes/fig_import not rerun (unchanged code paths)",
+  "updated_at": "2026-10-14T20:32:00Z",
+  "notes": {
+    "loss_counts_before_after": "native.* mapping losses (count per fixture basic-shapes / components-autolayout / prototype-pages). native.geometry before = nodes with geometry 14/10/17 (code vector_geometry_needs_nib_edge), after 2/8/14 (containers and artboards only, code container_geometry_no_folio_home); native.transform before = every non-artboard node, after 1/6/14 (text, instances, unmapped kinds); native.size after 3/7/12; native.corner_radii after 0/6/1 (frame radii only, code frame_corner_radii_no_folio_home); native.arc, native.star, native.vector_network 0 (were per shape); native.stroke_geometry (new, stroke outline derived from path + stroke row) 3/0/1; native.effects.DROP_SHADOW 1->0; native.mask 1->0; native.effects.FOREGROUND_BLUR stays 1 (Folio has no blur effect kind, code effect_kind_not_in_folio); native.fills.IMAGE stays 1 (code image_paint_not_a_folio_paint: bound and carried, not an appearance row); native.text.* 0 (were font/run_styles/line_height/letter_spacing/align/auto_resize per text node); native.boolean_operation stays 1 (boolean result outline has no home on a group).",
+    "tests_detail": "tests/fig_geometry.rs (new): real_geometry_losses_shrink_and_are_pinned, real_geometry_matches_png_positions (own PNG decoder via miniz_oxide; ellipse/star/line/union bboxes vs painted bbox in fig-basic-shapes.png, exact node boxes 350,190-500,300 and 140,190-310,300 in canvas px with artboard at 100,100), rotation_and_line_baked_and_network_fallback (90 degree rotation bbox, network fallback vs blob bbox within 12 px, line from size), real_effects_masks_image_paints_pinned (shadow distance sqrt(52), angle 123.69, size 10, opacity 25; shadow darker below than above in the PNG; mask-ellipse masks masked-gradient; image part identity), real_text_fonts_bound_as_styles. tests/fig_native.rs updated: round trip now also compares paths, raster/vector records, image paints, text styles; loss test pins new codes.",
+    "float_drift": "serde_json float_roundtrip (steward, workspace-wide) not relied on: geometry persisted as Nib canonical JSON text; computed f64 (effects, baked coordinates, style numbers) kept to 12 significant digits via tidy(); local fix kept until the workspace feature lands.",
+    "unverified": "shadow conventions (size = radius px, offset as distance + Photoshop light angle atan2(dy,-dx), colour alpha as opacity percent, inner-shadow spread as choke percent of radius); mask semantics (later siblings, ALPHA; Figma maskType not decoded); stroke outline geometry assumed derivable from path + stroke row; Folio STYS records are host-resolved, no font files resolved; gradient transform with baked node transforms not re-checked beyond fixtures",
+    "image_paints_assets": "Package assets are tile-referenced (MemoryAssetSource only serves tile digests), so non-tile image blobs have no asset home; the image part stays byte-identical inside the original import entry (ImportRole::Original) and the receipt carries part name, hash, byte length and sha256. A Folio image paint kind (declared gap in paint.rs) would let the binding become an appearance row.",
+    "folio_gaps_found": "no image paint kind, no blur effect kind, no STYS style record, no container (group/artboard) geometry, no boolean operation record, no per-layer transform",
+    "gameplan_route": "no hook block; one infra slip (python - waiting on stdin in a chained command, killed by PID, no product effect)",
+    "deps": "added path dep hsk-studio-nib to crates/hsk-studio-interop-fig/Cargo.toml (root Cargo.toml allowed list edit is the steward's); no crates.io dependency; Cargo.lock uncommitted"
+  }
+}
