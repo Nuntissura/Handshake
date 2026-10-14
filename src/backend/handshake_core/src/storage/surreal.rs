@@ -20,7 +20,7 @@ use surrealdb::{
     Surreal,
 };
 use thiserror::Error;
-use tokio::sync::{oneshot, watch, Mutex, RwLock, RwLockWriteGuard};
+use tokio::sync::{oneshot, watch, Mutex, OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock, RwLockWriteGuard};
 use tokio_util::sync::CancellationToken;
 
 use super::{DefaultStorageGuard, StorageGuard, StorageResult};
@@ -1426,6 +1426,29 @@ pub struct ShutdownReport {
     pub elapsed: Duration,
 }
 
+tokio::task_local! {
+    static AUTHORITY_MUTATION_SUBMITTED: Arc<AtomicU8>;
+}
+
+pub(crate) fn authority_mutation_submitted() {
+    let _ = AUTHORITY_MUTATION_SUBMITTED.try_with(|submitted| submitted.store(1, Ordering::Release));
+}
+
+pub(crate) fn authority_mutation_settled() {
+    let _ = AUTHORITY_MUTATION_SUBMITTED.try_with(|submitted| submitted.store(2, Ordering::Release));
+}
+
+pub(crate) fn authority_mutation_error(error: surrealdb::Error) -> surrealdb::Error {
+    // These engine responses establish rejection of an atomic statement/transaction.
+    // A masked NotExecuted, timeout, or transport error does not establish settlement.
+    if error.is_thrown() || error.not_allowed_details().is_some()
+        || matches!(error.query_details(), Some(surrealdb::types::QueryError::TransactionConflict))
+    {
+        authority_mutation_settled();
+    }
+    error
+}
+
 struct SurrealStorageInner {
     resource_access_lifecycle: crate::swarm_orchestration::resource_scope::ResourceAccessLifecycleRegistry,
     config: SurrealStorageConfig,
@@ -1437,6 +1460,9 @@ struct SurrealStorageInner {
     /// tokens are handed out by [`SurrealStorage::cancellation_token`].
     cancel: StdMutex<CancellationToken>,
     shutdown_report: StdMutex<Option<ShutdownReport>>,
+    authority_publication_gate: Arc<RwLock<()>>,
+    pending_authority_mutations: StdMutex<BTreeMap<uuid::Uuid, OwnedRwLockWriteGuard<()>>>,
+    authority_pending_changed: watch::Sender<Option<uuid::Uuid>>,
     transaction_settlements: StdMutex<BTreeSet<uuid::Uuid>>,
     pending_context_guards: StdMutex<BTreeMap<uuid::Uuid, Vec<model_lane::ContextCoordinationGuard>>>,
     pending_context_acquisitions: StdMutex<BTreeMap<uuid::Uuid, model_lane::PendingContextAcquisition>>,
@@ -1618,6 +1644,9 @@ impl SurrealStorage {
                 shutdown: Mutex::new(ShutdownCoordinatorState::Open),
                 cancel: StdMutex::new(CancellationToken::new()),
                 shutdown_report: StdMutex::new(None),
+                authority_publication_gate: Arc::new(RwLock::new(())),
+                pending_authority_mutations: StdMutex::new(BTreeMap::new()),
+                authority_pending_changed: watch::channel(None).0,
                 transaction_settlements: StdMutex::new(BTreeSet::new()),
                 pending_context_guards: StdMutex::new(BTreeMap::new()),
                 pending_context_acquisitions: StdMutex::new(BTreeMap::new()),
@@ -1631,6 +1660,97 @@ impl SurrealStorage {
     fn for_schema_measurement(client: SurrealClient) -> Result<Self, SurrealStorageError> {
         let config = SurrealStorageConfig::with_path(std::env::temp_dir().join("handshake-schema-measurement"))?;
         Ok(Self::from_open_client(config, Arc::new(DefaultStorageGuard), client))
+    }
+
+    fn pending_authority_mutation(&self) -> Option<uuid::Uuid> {
+        self.inner.pending_authority_mutations.lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()).keys().next().copied()
+    }
+
+    pub(crate) async fn authority_publication_read(&self) -> Result<OwnedRwLockReadGuard<()>, SurrealStorageError> {
+        let mut changed = self.inner.authority_pending_changed.subscribe();
+        if let Some(operation_id) = self.pending_authority_mutation() {
+            return Err(SurrealStorageError::TransactionSettlementPending { operation_id });
+        }
+        let guard = tokio::select! {
+            biased;
+            _ = changed.changed() => {
+                let operation_id = self.pending_authority_mutation()
+                    .ok_or(SurrealStorageError::ResourceAuthorityUnavailable)?;
+                return Err(SurrealStorageError::TransactionSettlementPending { operation_id });
+            }
+            _ = tokio::time::sleep(self.config().statement_timeout()) => {
+                return Err(SurrealStorageError::StatementTimeout { waited_ms: self.config().statement_timeout().as_millis() });
+            }
+            guard = self.inner.authority_publication_gate.clone().read_owned() => guard,
+        };
+        if let Some(operation_id) = self.pending_authority_mutation() {
+            return Err(SurrealStorageError::TransactionSettlementPending { operation_id });
+        }
+        Ok(guard)
+    }
+
+    pub(crate) async fn with_owned_authority_mutation<T, E, F, Fut>(
+        &self, operation: F,
+    ) -> Result<Result<T, E>, SurrealStorageError>
+    where
+        T: Send + 'static,
+        E: Send + 'static,
+        F: FnOnce(SurrealStorage) -> Fut + Send + 'static,
+        Fut: Future<Output = Result<T, E>> + Send + 'static,
+    {
+        use futures::FutureExt;
+        let storage = self.clone();
+        let captured = capture_model_lane_operation();
+        let resource_authorization = RESOURCE_ACCESS_AUTHORIZATION.try_with(Clone::clone).ok();
+        // The worker owns the gate independently of the requesting HTTP future.
+        tokio::spawn(async move {
+            let operation_id = uuid::Uuid::now_v7();
+            let mut changed = storage.inner.authority_pending_changed.subscribe();
+            if let Some(operation_id) = storage.pending_authority_mutation() {
+                return Err(SurrealStorageError::TransactionSettlementPending { operation_id });
+            }
+            let guard = tokio::select! {
+                biased;
+                _ = changed.changed() => {
+                    let operation_id = storage.pending_authority_mutation()
+                        .ok_or(SurrealStorageError::ResourceAuthorityUnavailable)?;
+                    return Err(SurrealStorageError::TransactionSettlementPending { operation_id });
+                }
+                _ = tokio::time::sleep(storage.config().statement_timeout()) => {
+                    return Err(SurrealStorageError::StatementTimeout { waited_ms: storage.config().statement_timeout().as_millis() });
+                }
+                guard = storage.inner.authority_publication_gate.clone().write_owned() => guard,
+            };
+            if let Some(operation_id) = storage.pending_authority_mutation() {
+                return Err(SurrealStorageError::TransactionSettlementPending { operation_id });
+            }
+            let submitted = Arc::new(AtomicU8::new(0));
+            let work = with_captured_model_lane_operation(&storage, captured,
+                AUTHORITY_MUTATION_SUBMITTED.scope(submitted.clone(), operation(storage.clone())));
+            let result = std::panic::AssertUnwindSafe(async {
+                if let Some(authority) = resource_authorization {
+                    RESOURCE_ACCESS_AUTHORIZATION.scope(authority, work).await
+                } else {
+                    work.await
+                }
+            }).catch_unwind().await;
+            let succeeded = matches!(&result, Ok(Ok(_)));
+            if !succeeded && submitted.load(Ordering::Acquire) == 1 {
+                // An engine-bound failure is not proof of rollback. Retain this exact
+                // writer fence until independent canonical settlement reconciliation.
+                storage.inner.pending_authority_mutations.lock()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner()).insert(operation_id, guard);
+                storage.inner.authority_pending_changed.send_replace(Some(operation_id));
+                tracing::error!(%operation_id, "canonical authority mutation requires settlement reconciliation");
+            } else {
+                drop(guard);
+            }
+            match result {
+                Ok(result) => Ok(result),
+                Err(_) => Err(SurrealStorageError::TransactionCallbackPanicked),
+            }
+        }).await.map_err(|error| SurrealStorageError::TransactionWorker(error.to_string()))?
     }
 
     pub async fn open_default() -> Result<Self, SurrealStorageError> {
@@ -1849,7 +1969,8 @@ impl SurrealStorage {
         let operation_subject = MODEL_LANE_OPERATION_SUBJECT.try_with(Clone::clone).ok();
         let (cancel_sender, mut cancelled) = oneshot::channel::<()>();
         let owned_settlement = owned_cancellation.is_some();
-        let mut worker = tokio::spawn(async move {
+        let authority_mutation = AUTHORITY_MUTATION_SUBMITTED.try_with(Clone::clone).ok();
+        let worker_operation = async move {
             let transaction_storage = storage.clone();
             let result = storage
                 .with_lease(move |client| {
@@ -1951,16 +2072,19 @@ impl SurrealStorage {
                                     cancelled.try_recv(),
                                     Err(oneshot::error::TryRecvError::Empty)
                                 ) || budget_expired || owned_cancellation.as_ref().is_some_and(|state| state.is_cancelled()) {
+                                    authority_mutation_submitted();
                                     transaction
                                         .cancel()
                                         .await
                                         .map_err(SurrealStorageError::TransactionCancel)?;
+                                    authority_mutation_settled();
                                     return Ok(Err(E::from(
                                         SurrealStorageError::TransactionCancelled,
                                     )));
                                 }
                                 // Once commit begins, await its outcome; an attached
                                 // external mirror cannot be undone or replayed safely.
+                                authority_mutation_submitted();
                                 transaction
                                     .commit()
                                     .await
@@ -1968,26 +2092,32 @@ impl SurrealStorage {
                                 Ok(Ok(value))
                             }
                             Some(Ok(Err(error))) => {
+                                authority_mutation_submitted();
                                 transaction
                                     .cancel()
                                     .await
                                     .map_err(SurrealStorageError::TransactionCancel)?;
+                                authority_mutation_settled();
                                 Ok(Err(error))
                             }
                             Some(Err(_)) => {
+                                authority_mutation_submitted();
                                 transaction
                                     .cancel()
                                     .await
                                     .map_err(SurrealStorageError::TransactionCancel)?;
+                                authority_mutation_settled();
                                 Ok(Err(E::from(
                                     SurrealStorageError::TransactionCallbackPanicked,
                                 )))
                             }
                             None => {
+                                authority_mutation_submitted();
                                 transaction
                                     .cancel()
                                     .await
                                     .map_err(SurrealStorageError::TransactionCancel)?;
+                                authority_mutation_settled();
                                 let error = if budget_expired {
                                     SurrealStorageError::StatementTimeout {
                                         waited_ms: transaction_storage.config().statement_timeout().as_millis(),
@@ -2014,6 +2144,13 @@ impl SurrealStorage {
                 }
             }
             result.map_err(E::from)?
+        };
+        let mut worker = tokio::spawn(async move {
+            if let Some(marker) = authority_mutation {
+                AUTHORITY_MUTATION_SUBMITTED.scope(marker, worker_operation).await
+            } else {
+                worker_operation.await
+            }
         });
         if owned_settlement {
             // The completion supervisor retains the worker, transaction lease and

@@ -824,6 +824,10 @@ impl ResourceAccessLifecycleRegistry {
         self.invalidate_matching(|exact| exact.owner_account_id.to_string() == account_id)
     }
 
+    pub(crate) fn invalidate_workspace(&self, workspace_id: &str) -> Result<(), ResourceAccessLifecycleTransitionError> {
+        self.invalidate_matching(|exact| exact.workspace_id.as_str() == workspace_id)
+    }
+
     fn invalidate_matching(&self, matches: impl Fn(&ExactResourceScopeAttribution) -> bool) -> Result<(), ResourceAccessLifecycleTransitionError> {
         let mut state = self.state.write().map_err(|_| ResourceAccessLifecycleTransitionError::AuthorityUnavailable)?;
         let exacts: Vec<_> = state.entries.keys().filter(|exact| matches(exact)).cloned().collect();

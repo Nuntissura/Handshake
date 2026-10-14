@@ -12,28 +12,73 @@ pub struct ApiRouteRuntime {
     operator_chat_process_ledger: Option<crate::process_ledger::RetainedLedgerBatcher>,
     process_reclaim_task: Option<crate::process_ledger::ManagedStalenessReclaimTask>,
     swarm_event_drain: Option<crate::swarm_orchestration::events::DurableSwarmFrDrain>,
+    operator_chat_launch_service: Option<Arc<crate::swarm_orchestration::operator_chat::OperatorChatLaunchService>>,
+    coordinator_shutdown: Arc<tokio::sync::OnceCell<Result<(), String>>>,
     _standalone_runtime_lease: Option<Arc<crate::process_ledger::EmbeddedRuntimeInstanceLease>>,
 }
 
 #[derive(Debug)]
 pub struct ApiRouteRuntimeDrainReport {
-    pub operator_chat_process_ledger: crate::process_ledger::LedgerDrainJoinOutcome,
+    pub operator_chat_process_ledger: Option<crate::process_ledger::LedgerDrainJoinOutcome>,
     pub process_reclaim_quiesced: bool,
     pub swarm_events_flushed: bool,
+    pub coordinator_quiesced: bool,
+    pub coordinator_error: Option<String>,
+    pub lease_released: bool,
+    pub lease_retained_reason: Option<String>,
 }
 
 impl ApiRouteRuntime {
+    pub async fn quiesce_swarm(&self, timeout: std::time::Duration) -> Result<(), String> {
+        self.coordinator_shutdown.get_or_init(|| async {
+            match &self.operator_chat_launch_service {
+                Some(service) => match tokio::time::timeout(timeout, service.coordinator().drain_all()).await {
+                    Ok(result) => result.map_err(|error| error.to_string()),
+                    Err(_) => Err("coordinator drain deadline elapsed; retirement is unproven".to_owned()),
+                },
+                None => Ok(()),
+            }
+        }).await.clone()
+    }
+
     pub async fn drain_and_join(&self, timeout: std::time::Duration) -> ApiRouteRuntimeDrainReport {
+        let coordinator_error = self.quiesce_swarm(timeout).await.err();
+        if coordinator_error.is_some() {
+            return ApiRouteRuntimeDrainReport {
+                operator_chat_process_ledger: None,
+                process_reclaim_quiesced: false,
+                swarm_events_flushed: false,
+                coordinator_quiesced: false,
+                coordinator_error,
+                lease_released: false,
+                lease_retained_reason: Some("coordinator retirement is unproven; subsequent drains were not run".to_owned()),
+            };
+        }
         let swarm_events_flushed = match &self.swarm_event_drain {
             Some(drain) => drain.drain_and_join(timeout).await,
             None => true,
         };
+        if !swarm_events_flushed {
+            return ApiRouteRuntimeDrainReport {
+                operator_chat_process_ledger: None,
+                process_reclaim_quiesced: false,
+                swarm_events_flushed,
+                coordinator_quiesced: true,
+                coordinator_error: None,
+                lease_released: false,
+                lease_retained_reason: Some("Swarm event durability is unproven; process drain was not run".to_owned()),
+            };
+        }
         if let Some(runtime) = &self.shared_process_runtime {
             let report = runtime.shutdown_and_drain(timeout).await;
             return ApiRouteRuntimeDrainReport {
                 process_reclaim_quiesced: report.reclaim_task_quiesced,
-                operator_chat_process_ledger: report.ledger,
+                operator_chat_process_ledger: Some(report.ledger),
                 swarm_events_flushed,
+                coordinator_quiesced: true,
+                coordinator_error: None,
+                lease_released: report.lease_released,
+                lease_retained_reason: report.lease_retained_reason,
             };
         }
         let process_reclaim_quiesced = match &self.process_reclaim_task {
@@ -43,13 +88,17 @@ impl ApiRouteRuntime {
         ApiRouteRuntimeDrainReport {
             process_reclaim_quiesced,
             swarm_events_flushed,
-            operator_chat_process_ledger: self
+            coordinator_quiesced: true,
+            coordinator_error: None,
+            lease_released: false,
+            lease_retained_reason: Some("shared runtime lease-release proof is unavailable".to_owned()),
+            operator_chat_process_ledger: Some(self
                 .operator_chat_process_ledger
                 .as_ref()
                 .map(|ledger| ledger.clone())
                 .expect("standalone API runtime must retain its process ledger")
                 .drain_and_join(timeout)
-                .await,
+                .await),
         }
     }
 }
@@ -78,6 +127,8 @@ pub fn routes_with_process_reclaim_runtime(
             operator_chat_process_ledger: None,
             process_reclaim_task: None,
             swarm_event_drain: None,
+            operator_chat_launch_service: None,
+            coordinator_shutdown: Arc::new(tokio::sync::OnceCell::new()),
             _standalone_runtime_lease: None,
         },
     }
@@ -90,6 +141,7 @@ pub fn routes_with_scoped_operator_chat(
     product_scope: ProductLocalResourceScope,
     model_access_state: model_access::ModelAccessState,
     operator_chat_state: operator_chat::OperatorChatState,
+    launch_service: Arc<crate::swarm_orchestration::operator_chat::OperatorChatLaunchService>,
     swarm_event_drain: crate::swarm_orchestration::events::DurableSwarmFrDrain,
 ) -> ApiRoutes {
     let operator_routes = operator_chat::scoped_routes(operator_chat_state)
@@ -100,6 +152,7 @@ pub fn routes_with_scoped_operator_chat(
     );
     routes.router = routes.router.merge(operator_routes);
     routes.runtime.swarm_event_drain = Some(swarm_event_drain);
+    routes.runtime.operator_chat_launch_service = Some(launch_service);
     routes
 }
 

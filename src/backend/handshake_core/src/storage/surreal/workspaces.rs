@@ -292,6 +292,7 @@ impl SurrealDataContext<'_> {
         // delete collide at commit (the pinned engine validates written keys only); the loser's
         // bounded retry re-reads - the insert fails closed on `record::exists`, this delete's
         // cascade now sees the committed row. The removed FEMS process-global mutex used to order the two.
+        super::authority_mutation_submitted();
         let deleted = self
             .query_values_at::<WorkspaceRecord, _>(
                 WORKSPACE_DELETE_TRANSACTION,
@@ -307,7 +308,11 @@ impl SurrealDataContext<'_> {
                 // trusted delete into NotFound("workspace").
                 WORKSPACE_DELETE_BODY.lines().count(),
             )
-            .await?;
+            .await.map_err(|error| match error {
+                SurrealStorageError::Database(error) =>
+                    SurrealStorageError::Database(super::authority_mutation_error(error)),
+                other => other,
+            })?;
         Ok(!deleted.is_empty())
     }
 }
@@ -466,6 +471,18 @@ COMMIT TRANSACTION;
         scope: &super::resource_authority::RecordUserScope,
         workspace_id: &str,
     ) -> Result<(), super::resource_authority::ResourceAuthorityError> {
+        let scope = scope.clone();
+        let workspace_id = workspace_id.to_owned();
+        self.with_owned_authority_mutation(move |storage| async move {
+            storage.delete_account_workspace_unfenced(&scope, &workspace_id).await
+        }).await?
+    }
+
+    async fn delete_account_workspace_unfenced(
+        &self,
+        scope: &super::resource_authority::RecordUserScope,
+        workspace_id: &str,
+    ) -> Result<(), super::resource_authority::ResourceAuthorityError> {
         use super::resource_authority::{ResourceAction, ResourceAuthorityError};
         if scope.action != ResourceAction::Delete
             || scope.capability_id != "fs.write"
@@ -559,6 +576,7 @@ COMMIT TRANSACTION;
 "#.replace("__WORKSPACE_DELETE_BODY__", &delete_body);
             #[cfg(test)]
             let probe_external = external.clone();
+            super::authority_mutation_submitted();
             let mut result = broker.query(query).bind(("account_session", session)).bind(("account", account)).bind(("principal", principal))
                 .bind(("space", space)).bind(("resource", resource)).bind(("workspace", workspace)).bind(("external", external))
                 .bind(("grant", grant)).bind(("anchor", anchor)).await?;
@@ -609,10 +627,15 @@ COMMIT TRANSACTION;
                     };
                     eprintln!("C1_FDELETE_ROUTE_PROBE phase=after-rollback statement_index={statement_index} verdict={verdict}");
                 }
-                return Err(error.into());
+                return Err(super::authority_mutation_error(error).into());
             }
             Ok(())
-        }))).await.map_err(Into::into)
+        }))).await?;
+        super::authority_mutation_submitted();
+        self.resource_access_lifecycle().invalidate_workspace(workspace_id)
+            .map_err(|_| ResourceAuthorityError::InvalidInput("lifecycle authority unavailable"))?;
+        super::authority_mutation_settled();
+        Ok(())
     }
 
     pub async fn list_account_workspaces(
@@ -727,6 +750,14 @@ COMMIT TRANSACTION;
     }
 
     pub async fn delete_workspace(&self, ctx: &WriteContext, id: &str) -> StorageResult<()> {
+        let ctx = ctx.clone();
+        let id = id.to_owned();
+        self.with_owned_authority_mutation(move |storage| async move {
+            storage.delete_workspace_unfenced(&ctx, &id).await
+        }).await.map_err(map_storage_error)?
+    }
+
+    async fn delete_workspace_unfenced(&self, ctx: &WriteContext, id: &str) -> StorageResult<()> {
         self.inner
             .guard
             .validate_write(ctx, id)
@@ -744,6 +775,7 @@ COMMIT TRANSACTION;
         // MT-142 retry: this delete re-runs and cascades the committed insert, or the insert
         // re-runs and fails closed with NotFound. No keyed lock is taken (empty key set): a
         // workspace delete is a rare, heavy teardown and must not serialize ordinary writes.
+        super::authority_mutation_submitted();
         let replay_key = format!("workspace-delete:{id}");
         let mut attempts = 0u32;
         let deleted =
@@ -764,6 +796,10 @@ COMMIT TRANSACTION;
                     }
                 })
                 .await?;
+        super::authority_mutation_submitted();
+        self.resource_access_lifecycle().invalidate_workspace(id)
+            .map_err(|_| map_storage_error(SurrealStorageError::ResourceAuthorityUnavailable))?;
+        super::authority_mutation_settled();
         if !deleted {
             return Err(StorageError::NotFound("workspace"));
         }

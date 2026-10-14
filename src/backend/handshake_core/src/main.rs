@@ -327,13 +327,13 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
                 product_local_scope.exact().clone(), uuid::Uuid::now_v7(),
             );
         let operator_chat_state = api::operator_chat::OperatorChatState::with_production_dependencies(
-            launch_service, catalog, cloud_registry, model_access_state.cli_auth_probe(),
+            launch_service.clone(), catalog, cloud_registry, model_access_state.cli_auth_probe(),
             cli_providers, state.flight_recorder.clone(), state.session_registry.clone(),
         );
         let api::ApiRoutes { router: api_routes, runtime: api_runtime } =
             api::routes_with_scoped_operator_chat(
                 state.clone(), process_runtime, product_local_scope.clone(), model_access_state,
-                operator_chat_state, swarm_drain,
+                operator_chat_state, launch_service, swarm_drain,
             );
 
         let scoped_app = Router::new()
@@ -349,6 +349,9 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
             *publication = Some(scoped_app);
             Ok(())
         }).await;
+        if publication_result.is_err() {
+            *publication = None;
+        }
         drop(publication);
         let mut next_activation = None;
         let (serve_result, connection_drain_timed_out) = if publication_result.is_err() {
@@ -395,6 +398,13 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
             state.llm_client.leave_open_for_reconciliation();
         }
 
+        if let Err(error) = api_runtime.quiesce_swarm(Duration::from_secs(35)).await {
+            state.llm_client.leave_open_for_reconciliation();
+            tracing::error!(target: "handshake_core::swarm_orchestration", error = %error,
+                "actual coordinator did not retire; downstream drains and scope replacement are forbidden");
+            std::process::exit(1);
+        }
+
         // 1) Close runtime admission, cancel active workers, and wait for the
         //    worker-owned quiescence guards. Only a proven idle result may emit the
         //    embedded ProcessOwnershipLedger STOP. On failure the client releases
@@ -436,12 +446,15 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
 
         let operator_chat_ledger_flushed = matches!(
             &api_drain_report.operator_chat_process_ledger,
-            handshake_core::process_ledger::LedgerDrainJoinOutcome::Flushed
-                | handshake_core::process_ledger::LedgerDrainJoinOutcome::AlreadyDrained
+            Some(handshake_core::process_ledger::LedgerDrainJoinOutcome::Flushed
+                | handshake_core::process_ledger::LedgerDrainJoinOutcome::AlreadyDrained)
         );
 
         if connection_drain_timed_out
             || runtime_shutdown.is_err()
+            || !api_drain_report.coordinator_quiesced
+            || !api_drain_report.lease_released
+            || api_drain_report.lease_retained_reason.is_some()
             || !api_drain_report.process_reclaim_quiesced
             || !api_drain_report.swarm_events_flushed
             || !operator_chat_ledger_flushed
@@ -456,6 +469,10 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
             tracing::error!(
                 target: "handshake_core::process_ledger",
                 connection_drain_timed_out,
+                coordinator_quiesced = api_drain_report.coordinator_quiesced,
+                coordinator_error = ?api_drain_report.coordinator_error,
+                lease_released = api_drain_report.lease_released,
+                lease_retained_reason = ?api_drain_report.lease_retained_reason,
                 process_reclaim_quiesced = api_drain_report.process_reclaim_quiesced,
                 swarm_events_flushed = api_drain_report.swarm_events_flushed,
                 operator_chat_ledger_flushed,

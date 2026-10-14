@@ -125,6 +125,7 @@ struct CanvasPlacementIdentityBindings {
     workspace_grant: RecordId,
 }
 
+#[derive(Clone)]
 pub struct LocalSessionContext {
     pub identity: ProvisionedIdentity,
     pub session_id: String,
@@ -208,6 +209,16 @@ impl SurrealStorage {
         &self,
         context: &LocalSessionContext,
     ) -> Result<(), ResourceAuthorityError> {
+        let context = context.clone();
+        self.with_owned_authority_mutation(move |storage| async move {
+            storage.logout_local_account_unfenced(&context).await
+        }).await?
+    }
+
+    async fn logout_local_account_unfenced(
+        &self,
+        context: &LocalSessionContext,
+    ) -> Result<(), ResourceAuthorityError> {
         let event = account_event(
             crate::kernel::KernelEventType::LocalAccountLogout,
             &context.identity,
@@ -224,12 +235,15 @@ impl SurrealStorage {
         self.with_lease(move |client| Box::pin(async move {
             let broker = client.clone();
             broker.use_ns(namespace).use_db(database).await?;
+            super::authority_mutation_submitted();
             broker.query("BEGIN TRANSACTION; IF $account_session.revoked_at != NONE OR $account_session.expires_at <= time::now() { THROW 'HSK-403-PROTECTED-RESOURCE'; }; UPDATE $account_session SET revoked_at = time::now(); INSERT INTO kernel_event_ledger $event; COMMIT TRANSACTION;")
-                .bind(("account_session", account_session)).bind(("event", event)).await?.check()?;
+                .bind(("account_session", account_session)).bind(("event", event)).await?.check().map_err(super::authority_mutation_error)?;
             Ok(())
         })).await?;
+        super::authority_mutation_submitted();
         self.resource_access_lifecycle().invalidate_session(&context.session_id)
             .map_err(|_| ResourceAuthorityError::InvalidInput("lifecycle authority unavailable"))?;
+        super::authority_mutation_settled();
         Ok(())
     }
     pub(crate) async fn authorized_document_workspace(

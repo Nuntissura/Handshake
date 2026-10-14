@@ -47,6 +47,23 @@ struct RegistryPublicationAuthority {
     session_expires_at: Datetime,
 }
 
+pub(crate) struct CanonicalNavigationPublicationAuthority {
+    grant_expires_at: Option<Datetime>,
+    session_expires_at: Datetime,
+}
+
+impl CanonicalNavigationPublicationAuthority {
+    pub(crate) fn require_unexpired(&self) -> Result<(), ResourceAuthorityError> {
+        let now = Utc::now();
+        if self.session_expires_at.clone().into_inner() <= now
+            || self.grant_expires_at.as_ref().is_some_and(|expiry| expiry.clone().into_inner() <= now)
+        {
+            return Err(ResourceAuthorityError::InvalidInput("navigation publication authority expired"));
+        }
+        Ok(())
+    }
+}
+
 #[derive(Clone, SurrealValue)]
 struct RegistryPublicationBindings {
     resource: RecordId,
@@ -1193,6 +1210,77 @@ impl SurrealStorage {
         }
     }
 
+    pub(crate) async fn with_navigation_publication_authority<T, E, F>(
+        &self,
+        scope: RecordUserScope,
+        association: crate::swarm_orchestration::resource_scope::ResourceAccessGrantAssociation,
+        capability_registry: &crate::capabilities::CapabilityRegistry,
+        publication: F,
+    ) -> Result<Result<T, E>, ResourceAuthorityError>
+    where
+        T: Send,
+        E: Send,
+        F: FnOnce(&CanonicalNavigationPublicationAuthority) -> Result<T, E> + Send,
+    {
+        let _gate = self.authority_publication_read().await?;
+        let exact = &association.exact;
+        if scope.capability_id != "model_lane.navigation.read"
+            || scope.action != ResourceAction::Read
+            || association.capability_id != scope.capability_id
+            || association.action != "read" || association.purpose != "navigation_read"
+            || scope.workspace_id.as_deref() != Some(exact.workspace_id.as_str())
+            || scope.session_id != exact.authenticated_session_id.to_string()
+            || scope.resource_id != association.resource_id
+            || scope.grant_id.as_deref() != Some(association.grant_id.as_str())
+        {
+            return Err(ResourceAuthorityError::InvalidInput("navigation publication scope mismatch"));
+        }
+        let locator = self.canonical_resource_locator(ResourceKind::Workspace, exact.workspace_id.as_str()).await?
+            .ok_or(ResourceAuthorityError::InvalidInput("navigation workspace unavailable"))?;
+        if locator.id != RecordId::new("protected_resources", association.resource_id.clone())
+            || locator.external_resource_id != exact.workspace_id.as_str()
+            || locator.owner_account_id != RecordId::new("local_accounts", exact.owner_account_id.to_string())
+            || locator.access_space_id != RecordId::new("access_spaces", exact.access_space_id.to_string())
+        {
+            return Err(ResourceAuthorityError::InvalidInput("navigation workspace authority mismatch"));
+        }
+        let bindings = RegistryPublicationBindings {
+            resource: locator.id,
+            original_grant: RecordId::new("resource_grants", association.grant_id.clone()),
+            kind: ResourceKind::Workspace.as_str().to_owned(),
+            action: "read".to_owned(), capability: "model_lane.navigation.read".to_owned(),
+        };
+        let rows = self.with_record_user_scope(scope, self.with_data_operation(move |database| {
+            Box::pin(async move {
+                database.query_values::<RegistryPublicationAuthority, _>(REGISTRY_PUBLICATION_AUTHORITY, bindings).await
+            })
+        })).await?;
+        let [captured] = rows.as_slice() else {
+            return Err(ResourceAuthorityError::InvalidInput("navigation original grant unavailable"));
+        };
+        if captured.account_id != RecordId::new("local_accounts", exact.owner_account_id.to_string())
+            || captured.principal_id != RecordId::new("principals", exact.actor_principal_id.to_string())
+            || captured.session_id != RecordId::new("authenticated_sessions", exact.authenticated_session_id.to_string())
+            || captured.access_space_id != RecordId::new("access_spaces", exact.access_space_id.to_string())
+            || captured.resource_id != RecordId::new("protected_resources", association.resource_id.clone())
+            || captured.grant_id != RecordId::new("resource_grants", association.grant_id.clone())
+            || captured.grant_version != association.grant_version
+            || captured.policy_versions.first().copied() != Some(association.policy_version)
+            || captured.resource_kind != "workspace"
+            || !captured.statuses.iter().map(String::as_str).eq(["active", "active", "enabled", "enabled", "active"])
+            || !captured.session_capabilities.iter().any(|capability| capability == "model_lane.navigation.read")
+            || !captured.principal_capabilities.iter().any(|capability| capability == "model_lane.navigation.read")
+            || !capability_registry.profile_can(&captured.capability_profile_id, "model_lane.navigation.read").unwrap_or(false)
+        {
+            return Err(ResourceAuthorityError::InvalidInput("navigation original authority changed"));
+        }
+        let authority = CanonicalNavigationPublicationAuthority {
+            grant_expires_at: captured.grant_expires_at.clone(),
+            session_expires_at: captured.session_expires_at.clone(),
+        };
+        Ok(publication(&authority))
+    }
+
     /// Holds the publication result through exact authority checks and the
     /// existing authenticated transaction's observed commit.
     /// Restore only after terminal rejection/cancellation; unknown settlement keeps
@@ -1484,39 +1572,86 @@ impl SurrealStorage {
     }
 
     pub async fn revoke_session(&self, session_id: &str) -> Result<(), ResourceAuthorityError> {
+        validate_uuid(session_id)?;
+        let session_id = session_id.to_owned();
+        self.with_owned_authority_mutation(move |storage| async move {
+            storage.revoke_session_unfenced(&session_id).await
+        }).await?
+    }
+
+    async fn revoke_session_unfenced(&self, session_id: &str) -> Result<(), ResourceAuthorityError> {
         self.update_authority_record(
             "authenticated_sessions",
             session_id,
             "UPDATE $record SET revoked_at = time::now();",
         )
         .await?;
-        self.resource_access_lifecycle().invalidate_session(session_id)
-            .map_err(|_| ResourceAuthorityError::InvalidInput("lifecycle authority unavailable"))
+        super::authority_mutation_submitted();
+        let result = self.resource_access_lifecycle().invalidate_session(session_id)
+            .map_err(|_| ResourceAuthorityError::InvalidInput("lifecycle authority unavailable"));
+        if result.is_ok() { super::authority_mutation_settled(); }
+        result
     }
 
     pub async fn revoke_grant(&self, grant_id: &str) -> Result<(), ResourceAuthorityError> {
+        validate_uuid(grant_id)?;
+        let grant_id = grant_id.to_owned();
+        self.with_owned_authority_mutation(move |storage| async move {
+            storage.revoke_grant_unfenced(&grant_id).await
+        }).await?
+    }
+
+    async fn revoke_grant_unfenced(&self, grant_id: &str) -> Result<(), ResourceAuthorityError> {
         self.update_authority_record(
             "resource_grants",
             grant_id,
             "UPDATE $record SET status = 'revoked', revoked_at = time::now(), grant_version += 1, policy_version += 1, updated_at = time::now();",
         )
         .await?;
-        self.resource_access_lifecycle().invalidate_grant(grant_id)
-            .map_err(|_| ResourceAuthorityError::InvalidInput("lifecycle authority unavailable"))
+        super::authority_mutation_submitted();
+        let result = self.resource_access_lifecycle().invalidate_grant(grant_id)
+            .map_err(|_| ResourceAuthorityError::InvalidInput("lifecycle authority unavailable"));
+        if result.is_ok() { super::authority_mutation_settled(); }
+        result
     }
 
     pub async fn disable_account(&self, account_id: &str) -> Result<(), ResourceAuthorityError> {
+        validate_uuid(account_id)?;
+        let account_id = account_id.to_owned();
+        self.with_owned_authority_mutation(move |storage| async move {
+            storage.disable_account_unfenced(&account_id).await
+        }).await?
+    }
+
+    async fn disable_account_unfenced(&self, account_id: &str) -> Result<(), ResourceAuthorityError> {
         self.update_authority_record(
             "local_accounts",
             account_id,
             "UPDATE $record SET status = 'disabled', revocation_epoch += 1, policy_version += 1, updated_at = time::now();",
         )
         .await?;
-        self.resource_access_lifecycle().invalidate_account(account_id)
-            .map_err(|_| ResourceAuthorityError::InvalidInput("lifecycle authority unavailable"))
+        super::authority_mutation_submitted();
+        let result = self.resource_access_lifecycle().invalidate_account(account_id)
+            .map_err(|_| ResourceAuthorityError::InvalidInput("lifecycle authority unavailable"));
+        if result.is_ok() { super::authority_mutation_settled(); }
+        result
     }
 
     pub async fn switch_session_access_space(
+        &self,
+        session_id: &str,
+        new_access_space_id: &str,
+    ) -> Result<(), ResourceAuthorityError> {
+        validate_uuid(session_id)?;
+        validate_uuid(new_access_space_id)?;
+        let session_id = session_id.to_owned();
+        let new_access_space_id = new_access_space_id.to_owned();
+        self.with_owned_authority_mutation(move |storage| async move {
+            storage.switch_session_access_space_unfenced(&session_id, &new_access_space_id).await
+        }).await?
+    }
+
+    async fn switch_session_access_space_unfenced(
         &self,
         session_id: &str,
         new_access_space_id: &str,
@@ -1570,6 +1705,7 @@ impl SurrealStorage {
                         .into())
                     }
                 };
+                super::authority_mutation_submitted();
                 authority
                     .query(
                         "UPDATE $session_record SET access_space_id = $space, space_revocation_epoch = $space_epoch, policy_version = math::max([policy_version + 1, $space_policy_version]);",
@@ -1579,13 +1715,15 @@ impl SurrealStorage {
                     .bind(("space_epoch", space_row.revocation_epoch))
                     .bind(("space_policy_version", space_row.policy_version))
                     .await?
-                    .check()?;
+                    .check().map_err(super::authority_mutation_error)?;
                 Ok(())
             })
         })
         .await?;
+        super::authority_mutation_submitted();
         self.resource_access_lifecycle().invalidate_session(session_id)
             .map_err(|_| ResourceAuthorityError::InvalidInput("lifecycle authority unavailable"))?;
+        super::authority_mutation_settled();
         Ok(())
     }
 
@@ -1839,11 +1977,12 @@ impl SurrealStorage {
             Box::pin(async move {
                 let authority = client.clone();
                 authority.use_ns(namespace).use_db(database.clone()).await?;
+                super::authority_mutation_submitted();
                 authority
                     .query(statement)
                     .bind(("record", record))
                     .await?
-                    .check()?;
+                    .check().map_err(super::authority_mutation_error)?;
                 Ok(())
             })
         })

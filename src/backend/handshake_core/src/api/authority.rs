@@ -271,10 +271,6 @@ impl WorkspaceActivationRequest {
     where
         F: FnOnce() -> Result<(), (StatusCode, Json<Value>)> + Send,
     {
-        if let Err(error) = self.authorize_for_publication().await {
-            let _ = self.reply.send(Err(error.clone()));
-            return Err(error);
-        }
         let lifecycle = self.state.surreal.resource_access_lifecycle();
         let acknowledgement = WorkspaceActivationAcknowledgement {
             schema_version: "hsk.workspace_activation@1",
@@ -282,16 +278,30 @@ impl WorkspaceActivationRequest {
             scope: self.scope.exact().clone(),
         };
         let mut reply = Some(self.reply);
-        // The callback must be synchronous, nonblocking, and must not re-enter the registry.
-        let result = match lifecycle.with_authorized_association(&self.association, || {
-            publication()?;
-            if let Some(reply) = reply.take() {
-                // A lost HTTP waiter does not undo the completed runtime publication.
-                let _ = reply.send(Ok(acknowledgement));
-            }
-            Ok(())
-        }) {
+        let association = self.association.clone();
+        let result = self.state.surreal.with_navigation_publication_authority(
+            self.original_scope, self.association, &self.state.capability_registry, |authority| {
+                // Canonical read ownership spans this synchronous lifecycle publication.
+                match lifecycle.with_authorized_association(&association, || {
+                    publication()?;
+                    authority.require_unexpired().map_err(|_| constant_denial())?;
+                    if let Some(reply) = reply.take() {
+                        let _ = reply.send(Ok(acknowledgement));
+                    }
+                    Ok(())
+                }) {
+                    Ok(result) => result,
+                    Err(_) => Err(constant_denial()),
+                }
+            },
+        ).await;
+        let result = match result {
             Ok(result) => result,
+            Err(crate::storage::surreal::resource_authority::ResourceAuthorityError::Storage(
+                crate::storage::surreal::SurrealStorageError::Database(error)
+            )) if error.not_allowed_details().is_some() => Err(constant_denial()),
+            Err(crate::storage::surreal::resource_authority::ResourceAuthorityError::Storage(_)) =>
+                Err(activation_unavailable()),
             Err(_) => Err(constant_denial()),
         };
         if let Err(error) = result {
