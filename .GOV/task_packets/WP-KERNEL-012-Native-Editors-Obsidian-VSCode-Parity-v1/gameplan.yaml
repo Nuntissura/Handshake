@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 686
+generation: 687
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -581,3 +581,4 @@ steps:
 - {id: GP-560, role: builder, at: before_submit, do: verify metadata patch hunks follow inspected file order and failed prewrite guards leave files unchanged, check: {type: confirm}, source: 'infra: root handoff patch put timestamp hunk after status; atomic guard rejected before writes', state: active}
 - {id: GP-561, role: builder, at: before_dispatch, do: verify context-menu identity crosses process enum conversions and trace labels and pinned Swarm IDs are exact, check: {type: confirm}, source: 'fail: keep-going diagnostic found three ShowContextMenu gaps and one three-symbol settings import group', state: active}
 - {id: GP-562, role: builder, at: before_round, do: confirm prior source images use actual retained bytes or explicit canonical Git provenance, check: {type: confirm}, source: 'infra: preparation assumed all prior source used LF or CRLF', state: active}
+- {id: GP-563, role: builder, at: before_dispatch, do: confirm newly exported Palmistry test JSON repeat arrays use valid vector syntax and related calls are reconciled, check: {type: confirm}, source: 'fail: core libtest json macro rejects repeat-array syntax at palmistry3926', state: active}

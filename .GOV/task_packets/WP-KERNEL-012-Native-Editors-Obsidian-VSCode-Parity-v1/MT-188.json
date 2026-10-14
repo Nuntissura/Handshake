@@ -1,7 +1,114 @@
 {
+  "successor_core_json_macro_repair_20261014": {
+    "id": "WP012-CORE-LIBTEST-JSON-REPAIR-20261014",
+    "status": "SOURCE_REPAIR_RELEASED",
+    "failure_ref": "MT-188.json#/successor_core_check1_result_20261014",
+    "census_artifact": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt188-successor-core-check01/related-palmistry-census.json",
+    "census_sha256": "b3b96c7575b0e0835db04276fc4acfc7e455cf89d8900cce7c38793bbb53638d",
+    "owner_chat": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+    "worker": "Existing bounded Palmistry census worker under primary integrator",
+    "only_write_path": "src/backend/handshake_core/src/api/palmistry.rs",
+    "base_commit": "eba6c403773524e498629153e9c725f64b72a9bd",
+    "repair": "Replace only json!([99; 16]) with json!(vec![99u8; 16]); same16 JSON integer99 values, invalid nonce case and existing verify_current_watcher_ready(...).is_err assertion unchanged",
+    "scope_reason": "Complete actual core inventory has1error/484observed/1failed libtest; entire newly published Palmistry test-module constructor/cfg/import/serde/signature census found no other source-backed repair. No artificial extra source scope or blind retry",
+    "next": "Scoped syntax/source semantic check using unchanged whole-batch review, explicit source-only checkpoint/push, then remaining authorized original core confirmation on changed frozen input; no native broad check before core success",
+    "gameplan_ref": "gameplan.yaml#GP-563; cause generation687",
+    "preserved": "Original assertions/profile/command/resource/counters/source pins/runtime acceptance and held canonical permission/native owner blockers unchanged"
+  },
+  "successor_core_check1_result_20261014": {
+    "status": "ORIGINAL_CORE_CHECK_FAILED",
+    "candidate_commit": "eba6c403773524e498629153e9c725f64b72a9bd",
+    "candidate_tree": "6edf1f190e308efb4eaac0d5af2ad27199a6d668",
+    "original_outer_session": 77947,
+    "outer_exit": 101,
+    "cargo_exit": 101,
+    "target_states": {
+      "OBSERVED": 484,
+      "NOT_OBSERVED": 1
+    },
+    "failed_or_unobserved_target": "handshake_core lib profile_test=true; other484 observed, not a claim all latent failures found",
+    "errors": [
+      {
+        "target_id": "{\"kind\":[\"lib\"],\"name\":\"handshake_core\",\"package_id\":\"path+file:///C:/Projects/LLM%20Projects/handshake-desktop/wtc-WP-KERNEL-012/src/backend/handshake_core#0.1.0\",\"profile_test\":null,\"src_path\":\"C:\\\\Projects\\\\LLM Projects\\\\handshake-desktop\\\\wtc-WP-KERNEL-012\\\\src\\\\backend\\\\handshake_core\\\\src\\\\lib.rs\"}",
+        "level": "error",
+        "code": null,
+        "message": "no rules expected `99`",
+        "primary_spans": [
+          {
+            "file_name": "src\\api\\palmistry.rs",
+            "line_start": 3926,
+            "column_start": 54,
+            "line_end": 3926,
+            "column_end": 56
+          }
+        ],
+        "repeated_count": 1
+      }
+    ],
+    "complete_raw_record_counts": {
+      "lines": 2804,
+      "noise": 0,
+      "unknown": 0,
+      "malformed": 0,
+      "errors": 1,
+      "dropped_groups": 0,
+      "unexpected_artifacts": 833,
+      "oversized_records": 0
+    },
+    "artifact_lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt188-successor-core-check01",
+    "hashes": {
+      "compile-evidence.json": "45482241ef26db77c78cc6d13918a22ef9856aace4e9c74e6be5b0066744ddc9",
+      "compile.stdout.log": "048b2a322e081fd4bb531392c0898be126f084719eafb3dc02013a4c62d6085b",
+      "compile.stderr.log": "59a99f4a4d803278e5ca493f8cf8f4a1804a6a855e43f469552ee0e694366b7d",
+      "compile-post-binding.json": "9c7ff15cfe4255a80e5fed07b962ba68d019a9f6f7f039e56192cf1c7159bfeb",
+      "owned-closure.json": "8c03b58425804e8f7f394571bc6ddb3420b1f212ef7d3f8f9feb228b144cc03a",
+      "terminal-closure.json": "1fe800715d2c51a394c792d30efacbc5ed03e52ded41b8882928949d6988acab"
+    },
+    "input_proof": {
+      "matched": true,
+      "checked_files": 7416,
+      "drift_paths": [],
+      "binding_equal": {
+        "collector_runtime_env": true,
+        "head": true,
+        "tree": true,
+        "config_sha256": true,
+        "launcher_sha256": true,
+        "source_review_binding_sha256": true,
+        "tracked_diff_sha256": true,
+        "collector_sha256": true,
+        "collector_commit": true,
+        "caller_config_sha256": true,
+        "metadata_sha256": true,
+        "cargo_argv": true,
+        "toolchain": true,
+        "effective_profile_env": true,
+        "praxidike_root": true,
+        "selected_package_id": true,
+        "resolved_selected_features": true,
+        "expected_target_ids": true,
+        "actual_toolchain_binary_hashes": true,
+        "observed_toolchain_identity": true,
+        "authority_raw_sha256": true,
+        "retained_metadata_inputs": true
+      }
+    },
+    "owned_processes_remaining": 0,
+    "independent_reviewer": "01a139f6-ce6a-7b50-a058-dff3732ea4a2",
+    "independent_disposition": "TERMINAL_FREEZE_CLOSED_FOR_FAILED_RUN; original exec-c128bcb7/outer77947 numeric101 independently inspected, no runtime acceptance",
+    "stage_consumed": 1,
+    "stage_limit": 2,
+    "historical_core_failed_launches_before": 38,
+    "cumulative_core_failed_launches": 39,
+    "native_stage04_consumed": 1,
+    "native_stage04_limit": 3,
+    "native_cumulative_fail101": 13,
+    "runtime": "NOT_RUN",
+    "next": "Finish newly exposed libtest constructor/cfg/import/json macro census, repair all available same-cause groups before remaining original core confirmation; no native broad run before core passes"
+  },
   "successor_current_core_compile_stage_20261014": {
     "decision_id": "WP012-CURRENT-CORE-COMPILE-STAGE-20261014",
-    "status": "APPROVED_ON_STABLE_CHANGED_BATCH",
+    "status": "CHECK1_FAILED_REPAIR_CENSUS_REQUIRED",
     "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
     "decision_owner": "01a139f3-b98c-7b61-b541-960ec3e048de",
     "source_failure": "Current backend main cloud factory and newly exported Palmistry module are changed; old MT184 proof cannot cover these input changes",
@@ -11,7 +118,7 @@
     "profile_sha256": "916767bbbac5a853b9b8dbd5688d2262cc91bff0d9173fc2431f4dad0bc6b776",
     "target": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/target",
     "additional_terminal_limit": 2,
-    "checks_consumed": 0,
+    "checks_consumed": 1,
     "counter_policy": "Retain original core38 historical failed launches and all parent per-check histories; this scoped source-change stage adds at most one probe and one changed-input confirmation, no history reset or automatic renewal; root records evidence-based next method/continuation at threshold",
     "run_conditions": "Pushed stable whole source batch/one scoped affected independent review/current actual source-authority-tool-config bindings/official gameplan/current resource admission; one serial shared-target compiler owner; no simultaneous native/core job",
     "ordering": "Core is affected predecessor shared by native. When current core check fails repair all emitted related groups before native broad check. When core passes run native diagnostic/original command strategically on stable same inputs; original native seven-argument check remains required",
