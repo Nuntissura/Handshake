@@ -1,6 +1,22 @@
 {
+  "windows_feature_checkpoint_20261014": {
+    "commit": "7930cb914332836ec22724468c949f88c6182b66",
+    "tree": "b5cdce641bdba2af14288dd6b5289df2f956aeb4",
+    "parent": "cc6b5b356e244734f290355c159695e33dbbd4d2",
+    "only_changed_path": "src/frontend/handshake_native/Cargo.toml",
+    "source_sha256": "2297140f64d545c920a541e90b604bd9e52d918d1a1603f92fb70ba1d1dd3b5f",
+    "diff_sha256": "81c15701b242b1eee59ab15e21a65a5e75ae060ea9038d24c195eb6936d1270b",
+    "comparison_sha256": "1b9f4cade901be263c4a135dd3995b27a1efdb5f22829578285467352df644eb",
+    "checkpoint_sha256": "f1d7ced5c86af6481e732f2c62a4fe683fe12c9e13e438853696fc4bdec1e10a",
+    "lock_sha256": "8599c3473c81c2a23b1e5b2cd634966206c374d633fd481fb118a2f47f931088",
+    "independent_reviewer": "01a1323e-c183-77e3-b8ba-b286507e5617",
+    "verdict": "SOURCE_CLEAR only; cachedactualfeature/module/13symbolimport closure andsoleWindowsfeatureline; strictTOML, byteinverse, freshremote/clean/all7416 reviewedbytes exact. Originallockedcompilerresolution/runtime notyetproven",
+    "artifact_lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt175-windows-feature-repair",
+    "compiler": "NOT_RUN",
+    "runtime": "NOT_RUN"
+  },
   "connected_windows_feature_repair_20261014": {
-    "status": "SOURCE_REPAIR_RELEASED",
+    "status": "SOURCE_CHECKPOINT_PUSH_VERIFIED",
     "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
     "failure_ref": "MT-186.json#/delegated_stage01_check1_result_20261014",
     "failure_group": "NATIVE_DIAGNOSTICS_WINDOWS_PROCESSSTATUS_FEATURE",

@@ -1,4 +1,14 @@
 {
+  "stage_check2_preparation_method_20261014": {
+    "status": "APPROVED_CURRENT_CHANGED_CANDIDATE_PREPARATION",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "candidate": "7930cb914332836ec22724468c949f88c6182b66",
+    "updated_at_utc": "2026-10-14T02:53:56.422451+00:00",
+    "next_check": "Originalnative7argv currentnewprofile916767, memorytelemetryonly, stage1/3 consumed",
+    "reuse": "Current7416 sourcecomparison and independent singleWindowsfeature closure permit reuse of allunchangedsource/runtime-assertion inspection evidence; refresh changedmanifestfeature/config/input/candidate/authority andfreshadmission only",
+    "method_change": "Prior149 confirmations used79controllercalls; group selectedsame-role conditions supportedby SAME inspectedactualproof/observation andnote-grouprefs inexistingconfirmationmap. No blanketall-role confirmation orconditionwaiver. Per-step originalevidence/disposition remains. Machinechecks stillofficialcontroller atrequiredmoments.",
+    "stop": "One changedrunner/binding/currentproof-reuse IV review then release-onlybytes andoriginalcheck underrootconditionalrelease; no extrauserapproval/reviewofreview"
+  },
   "delegated_stage01_check1_result_20261014": {
     "status": "INDEPENDENT_FAIL101_NATIVE_WINDOWS_FEATURE",
     "stage_decision_ref": "/delegated_native_stage_20261014",
@@ -61,10 +71,10 @@
     "decision_id": "WP012-NATIVE-STAGE-20261014-01",
     "status": "APPROVED_REFRESH_CURRENT_ASSEMBLY_MEMORY_TELEMETRY_ONLY",
     "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
-    "candidate_commit": "cc6b5b356e244734f290355c159695e33dbbd4d2",
-    "candidate_tree": "5d7b211dcfc7bbe61b96ad6c5799d361c448feca",
+    "candidate_commit": "7930cb914332836ec22724468c949f88c6182b66",
+    "candidate_tree": "b5cdce641bdba2af14288dd6b5289df2f956aeb4",
     "memory_override_ref": "packet.json#/operator_memory_reserve_removal_20261014",
-    "source_checkpoint_ref": "MT-188.json#/source_only_checkpoint_20261014",
+    "source_checkpoint_ref": "MT-175.json#/windows_feature_checkpoint_20261014",
     "compiler_owner": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
     "independent_reviewer": "01a1323e-c183-77e3-b8ba-b286507e5617",
     "command": "cargo check --locked --manifest-path src/frontend/handshake_native/Cargo.toml --tests -j 1",
