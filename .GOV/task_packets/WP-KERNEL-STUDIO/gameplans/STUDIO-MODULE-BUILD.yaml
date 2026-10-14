@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: batch
 assignment: STUDIO-MODULE-BUILD
 parent: null
-generation: 45
+generation: 47
 confirm_binding:
   repo: ../wt-studio-assets
 expensive_actions: []
@@ -44,3 +44,4 @@ steps:
 - {id: GP-026, role: any, at: before_round, do: verify every mod declared in interop-tiff lib.rs has its source file, check: {type: cmd, argv: [python, -c, 'import re,os,sys;c=[p for p in (''crates/hsk-studio-interop-tiff/src'',''../wt-studio-assets/handshake-studio-assets/crates/hsk-studio-interop-tiff/src'',''handshake-studio-assets/crates/hsk-studio-interop-tiff/src'') if os.path.isdir(p)];d=(c or [''''])[0];s=open(d+''/lib.rs'',encoding=''utf-8'').read() if d else '''';m=[x for x in re.findall(r''^\s*(?:pub(?:\([^)]*\))?\s+)?mod\s+(\w+)\s*;'',s,re.M) if not (os.path.isfile(d+''/''+x+''.rs'') or os.path.isfile(d+''/''+x+''/mod.rs''))];print(''dir'',d or None,''missing'',m);sys.exit(0 if d and not m else 1)'], expect_exit: 0, timeout_seconds: 15}, source: 'wasted run: shared tree WIP declared interop-tiff mod container before its file (E0583), 18:16:27Z', state: active}
 - {id: GP-027, role: any, at: before_round, do: verify layout hyphenation oracle uses ushyphmax com-put-er, check: {type: file, path: ../wt-studio-assets/handshake-studio-assets/crates/hsk-studio-layout/tests/hyphenation.rs, contains: com-put-er, exists: true}, source: 'fail: layout hyphenation oracle expected com-puter', state: retired}
 - {id: GP-028, role: any, at: before_round, do: verify folio test file present, check: {type: file, path: crates/hsk-studio-folio/tests/parent_pages_contract.rs, exists: true}, source: 'rule: GLOBAL-GAMEPLAN-001 focused folio tests only', state: retired}
+- {id: GP-029, role: any, at: before_round, do: confirm truepeak tolerance asserts match measured sweep, check: {type: confirm}, source: 'fail: truepeak sweep over +0.2 dB at 0.25 fs', state: retired}
