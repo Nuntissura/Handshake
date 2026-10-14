@@ -1,4 +1,18 @@
 {
+  "diagnostic_two_group_checkpoint_20261014": {
+    "status": "INDEPENDENT_TWO_GROUP_SOURCE_CLEAR_PUSH_VERIFIED",
+    "repair_ref": "/diagnostic_two_group_batch_repair_20261014",
+    "commit": "f724b8852f79d0ea6e2601ff6151c0522fa1be78",
+    "tree": "b978dd518cff688e38cac67d15d14814f125256f",
+    "parent": "e63eef6594f70ee47a31fbebec070bf79220047c",
+    "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt175-two-group-diagnostic-repair",
+    "diff_sha256": "ca57f4585c9be6e60d62a368aab96bf85266bb2b5ad174f7c40c20b70136eb55",
+    "test_sha256": "5db7714c6f598ab8699140109d3f422c877a1a366800425250e8dea90e2e9be4",
+    "settings_sha256": "3d205ab48860645a3777e0db095c8f69602ea594f86bd92dc33d4e857709e48d",
+    "review": "Independent exactProcessUiAction serdecontextmenu/bothidentityconversions/twotraces/strictsearchunchanged and3pinnedsettingssymbol definitions;2rawinverses/7414othersunchanged. Rootopenedentirediff/checkpoint and freshcanonicalHEAD/tree/clean/liveorigin/bothrawhashes. Exactly2paths13insertions; no weakenedassertions or runtimeclaim.",
+    "compiler_tests_runtime": "NOT_RUN_ADDITIONAL",
+    "residuals": "Actual Swarm settingscontrol/state/render/outcome/backendcooperativelowering proof OPEN; ID/helper staticcompatibility only. Alloriginalruntime/fullWPacceptance OPEN."
+  },
   "diagnostic_two_group_batch_repair_20261014": {
     "decision_id": "WP012-DIAGNOSTIC-TWO-GROUP-BATCH-REPAIR-20261014",
     "status": "SOURCE_REPAIR_AUTHORIZED",

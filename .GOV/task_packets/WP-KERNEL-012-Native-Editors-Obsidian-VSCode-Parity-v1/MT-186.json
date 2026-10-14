@@ -1,7 +1,12 @@
 {
   "delegated_native_stage04_20261014": {
     "decision_id": "WP012-NATIVE-STAGE-20261014-04",
-    "status": "APPROVED_TWO_GROUP_REPAIR_THEN_DIAGNOSTIC_COLLECTION",
+    "status": "APPROVED_REFRESH_REVIEWED_PUSHED_TWO_GROUP_DIAGNOSTIC_CANDIDATE",
+    "candidate_commit": "f724b8852f79d0ea6e2601ff6151c0522fa1be78",
+    "candidate_tree": "b978dd518cff688e38cac67d15d14814f125256f",
+    "source_checkpoint_ref": "MT-175.json#/diagnostic_two_group_checkpoint_20261014",
+    "next_command_mode": "DIAGNOSTIC_KEEP_GOING",
+    "next_argv": ["check", "--locked", "--manifest-path", "src/frontend/handshake_native/Cargo.toml", "--tests", "-j", "1", "--keep-going"],
     "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
     "predecessor_stage_ref": "/delegated_native_stage03_20261014",
     "predecessor_terminal_checks": 3,
