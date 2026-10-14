@@ -1,4 +1,16 @@
 {
+  "diagnostic_two_group_batch_repair_20261014": {
+    "decision_id": "WP012-DIAGNOSTIC-TWO-GROUP-BATCH-REPAIR-20261014",
+    "status": "SOURCE_REPAIR_AUTHORIZED",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "failure_ref": "MT-186.json#/delegated_stage03_check3_diagnostic_result_20261014",
+    "owner": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+    "allowed_write_paths": ["src/frontend/handshake_native/tests/test_e7_swarm_edit_proof.rs", "src/frontend/handshake_native/src/settings_dialog.rs"],
+    "repairs": ["test_e7: explicitly carry real UiAction::ShowContextMenu through separate serde ProcessUiAction variant and both conversion directions; both dispatchtrace projections label ShowContextMenu with no payload. Native action already maps actual AccessKit::ShowContextMenu. Preserve all existing process plans/assertions/old action identity, no wildcard/noop/Click substitution or weakened proof.", "settings: restore exact consumed WP1pin98efa3 public definitions SWARM_MODEL_SESSIONS_COMBO_AUTHOR_ID='settings.swarm-model-sessions-max-concurrent', STATUS same+'.status', swarm_model_session_option_author_id(usize) formats COMBO+'.option.'+value. Actual imports in preserved socket test require them. No fake state/control/status/runtime success or alternate IDs."],
+    "source_basis": "Root opened all three actual failingmatches/conversion context and native canonical ShowContextMenu mapping, actual pinnedsettings definitions/current absent symbols. Primary samecause processenum/conversion/trace and allnative symbolconsumer census confirms only namedgroups. Report additional exact samecausepaths before writes.",
+    "runtime_residual": "Current backend_client has real SwarmConcurrencySnapshot/Cell/GETPUT/fetch/set but settings/app/workspace state/render/outcome wiring absent. Restored publicIDs/helper close staticimport surface only. Original actualSwarmcontrols/backendcooperative concurrency proof remains OPEN; no seededconstants or fakeUI count as runtime proof. Full connected runtime restoration requires separate exactowner/path lease when this actual acceptanceblocker is addressed.",
+    "control": "One2file sourcebatch and affected independent enum/conversion/trace/pinnedidentifier review, explicitpathcheckpointpush, unchangedsource proofs reused. Source test edits permitted for this exactcompilefailure only; no testexecution/newfixtures/disabledtests/metadata/runtime. Nextstage04 diagnosticcollects independenttargets then originalcommand acceptance separately."
+  },
   "pane_registry_checkpoint_20261014": {
     "status": "INDEPENDENT_CONNECTED_THREE_PATH_SOURCE_CLEAR_PUSH_VERIFIED",
     "repair_ref": "/pane_factory_setter_repair_20261014",

@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 684
+generation: 685
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -579,3 +579,4 @@ steps:
 - {id: GP-558, role: builder, at: before_dispatch, do: verify current test calls to pinned app methods include unsuffixed factory setter and actual receiver, check: {type: confirm}, source: 'fail: stage03 check2 missing set_pane_factory at two callers missed suffix-only test-seam census', state: active}
 - {id: GP-559, role: builder, at: before_dispatch, do: verify actual queued outer launch payload mechanically asserts explicit exit forwarding before invocation, check: {type: confirm}, source: 'fail: original outer payload omitted exit forwarding; tool1 versus Cargo and wrapper101', state: active}
 - {id: GP-560, role: builder, at: before_submit, do: verify metadata patch hunks follow inspected file order and failed prewrite guards leave files unchanged, check: {type: confirm}, source: 'infra: root handoff patch put timestamp hunk after status; atomic guard rejected before writes', state: active}
+- {id: GP-561, role: builder, at: before_dispatch, do: verify context-menu identity crosses process enum conversions and trace labels and pinned Swarm IDs are exact, check: {type: confirm}, source: 'fail: keep-going diagnostic found three ShowContextMenu gaps and one three-symbol settings import group', state: active}
