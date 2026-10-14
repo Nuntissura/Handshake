@@ -1,0 +1,476 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-187",
+  "identity": {
+    "mt_id": "MT-187",
+    "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+    "title": "Explicit ModelLane recovery execution authorization",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "parent_binding": {
+    "parent_mt": "MT-174",
+    "authority_ref": "packet.json#/auth_mapping_r2_adoption_20261011",
+    "delegates_only_current_outcome": true,
+    "original_residual_scope_remains_parent": true,
+    "parent_is_not_execution_predecessor": true
+  },
+  "closure_unit": {
+    "outcome": "Existing explicit recover_run_after_restart, including expired-lease orphan receipts, executes only under the original authenticated Workspace/Update model_lane.recovery.execute grant and existing fenced controller; GET recovery remains nonmutating NavigationRead.",
+    "requirement_refs": [
+      "packet.json#/auth_mapping_r2_adoption_20261011/atomic_adopted_units/1",
+      "packet.json#/auth_mapping_r2_adoption_20261011/atomic_adopted_units/6",
+      "packet.json#/auth_mapping_r2_adoption_20261011/atomic_adopted_units/7",
+      "packet.json#/auth_mapping_r2_adoption_20261011/atomic_adopted_units/8",
+      "packet.json#/auth_mapping_r2_adoption_20261011/atomic_adopted_units/9",
+      "WP-KERNEL-012-phase-01-source-reconciliation-v1.json#/original_contract_records/250"
+    ],
+    "acceptance_refs": [
+      "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-007.json#/scope/acceptance_criteria/4",
+      "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-007.json#/scope/acceptance_criteria/6",
+      "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-007.json#/scope/acceptance_criteria/10",
+      "packet.json#/auth_mapping_r2_adoption_20261011/atomic_adopted_units/9"
+    ]
+  },
+  "spec_basis": {
+    "kind": "Existing approved R2 remediation; no new product requirement",
+    "parent_ref": "MT-174.json#/auth_mapping_r2_adoption_20261011",
+    "original_spec_pin": "v02.206",
+    "additive_adoption_ref": "packet.json#/auth_mapping_r2_adoption_20261011/additive_spec_adoption",
+    "anchors": [
+      "master-spec-v02.216/spec-modules/11-shared-dev-platform-and-oss-foundations.md#11.1.6.1 (R2-002)",
+      "master-spec-v02.216/spec-modules/02-system-architecture.md#2.3.13.12.9 (R2-006..010)",
+      "master-spec-v02.206/spec-modules/04-llm-infrastructure.md#4.3.9.2.5"
+    ],
+    "new_product_requirements": false
+  },
+  "execution": {
+    "lane": "KERNEL_BUILDER_FOLDED_NO_ACP",
+    "module_ref": "src/backend/handshake_core",
+    "foreground_or_interactive_tools_forbidden": true,
+    "depends_on": [
+      "MT-183",
+      "MT-185"
+    ],
+    "allowed_write_paths": [
+      "src/backend/handshake_core/src/swarm_orchestration/model_lane.rs",
+      "src/backend/handshake_core/src/storage/surreal/model_lane.rs",
+      "src/backend/handshake_core/src/storage/surreal/model_lane_schema.surql",
+      "src/backend/handshake_core/tests/model_lane_recovery_surreal_tests.rs",
+      "src/backend/handshake_core/tests/model_lane_recovery_scope_api_surreal_tests.rs"
+    ],
+    "forbidden_write_paths": [
+      ".GOV/**",
+      "canonical schema.surql and historical predecessor literals/pins",
+      "Cargo manifests/lockfiles",
+      "new controller/crate/HTTP endpoint/parallel checker",
+      "unrelated cloud/CRDT allowlists and general fs.* permission",
+      "source CKC/WP1 worktrees and excluded Studio/other-device scope"
+    ],
+    "stop_conditions": [
+      "No coordinator-specific exclusive source lease",
+      "MT183 shared schema writer/freeze conflict",
+      "Authentic registry publication predecessor not independently proved under existing R2 producer admission",
+      "Unapproved generated pin or caller dependency",
+      "Missing exact runtime proof/config/resource lease or retained allowance",
+      "New endpoint/controller/capability/resource kind/action or wider source scope required",
+      "Existing genuine deployment/current context unavailable"
+    ],
+    "release_state": "BLOCKED_NO_IMPLEMENTATION_OR_PROOF_LEASE",
+    "source_ownership": {
+      "MT-172": [
+        "src/backend/handshake_core/src/swarm_orchestration/model_lane.rs",
+        "src/backend/handshake_core/tests/model_lane_recovery_surreal_tests.rs",
+        "src/backend/handshake_core/tests/model_lane_recovery_scope_api_surreal_tests.rs"
+      ],
+      "MT-173": [
+        "src/backend/handshake_core/src/storage/surreal/model_lane.rs",
+        "src/backend/handshake_core/src/storage/surreal/model_lane_schema.surql"
+      ]
+    },
+    "conditional_write_admission": {
+      "path": "src/backend/handshake_core/src/storage/surreal/schema.rs",
+      "ref": "packet.json#/auth_mapping_r2_adoption_20261011/schema_pin_dependency_admission",
+      "condition": "Only corresponding generated schema hash/lineage invalidated by this approved schema change; separate MT173 exclusive lease and affected independent INFO/catalog/predecessor proof required. Historical predecessor literals/pins unchanged."
+    }
+  },
+  "scope": {
+    "summary": "Wire existing recovery consumer to existing authenticated run/lane controller and exact schema authorization predicates.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/swarm_orchestration/model_lane.rs",
+      "src/backend/handshake_core/src/storage/surreal/model_lane.rs",
+      "src/backend/handshake_core/src/storage/surreal/model_lane_schema.surql",
+      "src/backend/handshake_core/tests/model_lane_recovery_surreal_tests.rs",
+      "src/backend/handshake_core/tests/model_lane_recovery_scope_api_surreal_tests.rs"
+    ],
+    "acceptance_criteria": [
+      {
+        "id": "WP012-MT-187-AC1",
+        "requirement": "RecoveryExecute/as_str recovery_execute/Rust accepts_original and Surreal operation matrix bind ONLY existing Workspace/Update with exact model_lane.recovery.execute; enforce subject/grant/version/purpose continuity and private-descendant restrictions."
+      },
+      {
+        "id": "WP012-MT-187-AC2",
+        "requirement": "Explicit recovery read dependencies and recovery-event writes run under existing with_context_bundle_transaction -> supervise_context_operation -> execute_context_operation. Recheck original authenticated authority and run/lane token fences inside transaction before commit and protected result/receipt publication. No enum-only fix or parallel controller."
+      },
+      {
+        "id": "WP012-MT-187-AC3",
+        "requirement": "Preserve original checkpoint bound, ordered replay, duplicate idempotency, active/expired/cancelled/crashed/never-started distinctions, post-checkpoint lease/orphan receipts, original immutable attribution and same-still-live-session reopen. Wrong tuple/purpose/action/capability/grant, stale/revoked context and corrupt checkpoint/seqgap/payload/CRDT/consent/cancel/crash/orphan negatives retain original denial/nonmutation assertions."
+      },
+      {
+        "id": "WP012-MT-187-AC4",
+        "requirement": "Unknown cancel/commit/network ACK retains pending owner, original envelope/stable operationID and guards; authenticated canonical operation/receipt reread precedes retry. Revocation first denies/rolls back/redacts; committed operation first retains actual receipt and later revocation blocks further access, without fake STOP/undo."
+      },
+      {
+        "id": "WP012-MT-187-AC5",
+        "requirement": "GET recovery remains NavigationRead projection; canonical before/after rows, recovery metadata and ordered attributed receipts are unchanged. Original composed authentic HTTP proof remains required; manually active direct-store scope tests cannot substitute."
+      }
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "canonical schema.surql and historical predecessor literals/pins",
+      "Cargo manifests/lockfiles",
+      "new controller/crate/HTTP endpoint/parallel checker",
+      "unrelated cloud/CRDT allowlists and general fs.* permission",
+      "source CKC/WP1 worktrees and excluded Studio/other-device scope"
+    ],
+    "proof_targets": [
+      "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-007.json#/scope/proof_targets/0",
+      "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-007.json#/scope/proof_targets/1",
+      "packet.json#/auth_mapping_r2_adoption_20261011/atomic_adopted_units/9"
+    ]
+  },
+  "source_import_binding": {
+    "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-007.json",
+    "source_reconciliation_ref": "WP-KERNEL-012-phase-01-source-reconciliation-v1.json#/original_contract_records/250",
+    "consuming_parent_refs": [
+      "MT-172.json#/source_import_binding/source_acceptance_records",
+      "MT-174.json#/source_import_binding/source_acceptance_records"
+    ],
+    "historical_verdict_transfer": false,
+    "original_residuals_preserved": true,
+    "source_sha256": "020de7601cd0363d242ba6d4ad5d2550214ad9242eda46e90e29e4294eeb2ad8",
+    "preserved_acceptance_pointers": [
+      "/scope/acceptance_criteria/4",
+      "/scope/acceptance_criteria/6",
+      "/scope/acceptance_criteria/10"
+    ],
+    "preserved_proof_pointers": [
+      "/scope/proof_targets/0",
+      "/scope/proof_targets/1"
+    ]
+  },
+  "proof": {
+    "parent_proof_refs": [
+      "MT-172.json#/proof/consumed_source_checks",
+      "MT-174.json#/proof/consumed_source_checks",
+      "packet.json#/auth_mapping_r2_adoption_20261011/atomic_adopted_units/9",
+      "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-007.json#/scope/proof_targets"
+    ],
+    "independent_review_required": true,
+    "duplicate_parent_proof_forbidden": true,
+    "checks": [
+      {
+        "check_id": "WP012-MT-187-COMPILE",
+        "executor_role": "KERNEL_BUILDER",
+        "ref": "MT-174.json#/proof/checks/0",
+        "claim_refs": [
+          "WP012-MT-187-AC1",
+          "WP012-MT-187-AC2"
+        ],
+        "expected": "Existing exact shared core compiler proof on the changed frozen candidate; compile-only. Reuse valid unchanged proof; no duplicate per-parent build.",
+        "execution_status": "BLOCKED_UNTIL_EXACT_LEASE_AND_RETAINED_ALLOWANCE"
+      },
+      {
+        "check_id": "WP012-MT-187-RECOVERY",
+        "executor_role": null,
+        "ref": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-007.json#/scope/proof_targets/0",
+        "command_or_method": "cargo test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_surreal_tests",
+        "claim_refs": [
+          "WP012-MT-187-AC1",
+          "WP012-MT-187-AC2",
+          "WP012-MT-187-AC3",
+          "WP012-MT-187-AC4"
+        ],
+        "expected": "All original assertions plus approved R2 positives/negatives; actual nonzero runtime execution. Historical command retained; effective feature configuration requires explicit reconciliation before dispatch.",
+        "execution_status": "BLOCKED_CONFIGURATION_OWNER_RESOURCE_ALLOWANCE_UNBOUND"
+      },
+      {
+        "check_id": "WP012-MT-187-RECOVERY-SCOPE",
+        "executor_role": null,
+        "ref": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-007.json#/scope/proof_targets/1",
+        "command_or_method": "cargo test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_scope_api_surreal_tests",
+        "claim_refs": [
+          "WP012-MT-187-AC3",
+          "WP012-MT-187-AC5"
+        ],
+        "expected": "Original scope/nonmutation assertions plus approved R2 negatives; actual nonzero runtime execution. Direct-store manually active lifecycle evidence remains component-only.",
+        "execution_status": "BLOCKED_CONFIGURATION_OWNER_RESOURCE_ALLOWANCE_UNBOUND"
+      },
+      {
+        "check_id": "WP012-MT-187-COMPOSED-AUTH",
+        "executor_role": null,
+        "ref": "packet.json#/auth_mapping_r2_adoption_20261011/atomic_adopted_units/9",
+        "command_or_method": null,
+        "claim_refs": [
+          "WP012-MT-187-AC1",
+          "WP012-MT-187-AC2",
+          "WP012-MT-187-AC3",
+          "WP012-MT-187-AC4",
+          "WP012-MT-187-AC5"
+        ],
+        "expected": "Original full composed authenticated HTTP R2-010 boundary with canonical rows/recovery metadata/ordered attributed EventLedger+receipts, original authority/session/grant revocation and expiry, reopen/cancellation/ACK ambiguity and GET nonmutation.",
+        "execution_status": "BLOCKED_EXACT_ORIGINAL_BOUNDARY_COMMAND_AND_GENUINE_CONTEXT_UNBOUND"
+      }
+    ],
+    "configuration_binding_ref": "MT-174.json#/operator_decision_20261010_phase02_builder_output_grant for builder only; original independent recovery/native configuration and exact target lease require reconciliation; MT183 focused LibTest target-sharing exception does NOT transfer",
+    "execution_admission": "Frozen pushed candidate, independent affected source review, actual remaining per-check allowance, fresh role gameplan/resource admission and exact source/target/configuration lease before any command; runtime bindings include genuine authority when required.",
+    "evidence_required": [
+      "Exact candidate/tree and relevant source/config/toolchain/target inputs",
+      "Original source/AC/assertion conservation and current nonzero test results",
+      "Independent original composed R2-010 canonical authority/revocation/cancellation+ACK proof",
+      "Generated schema hash/lineage and affected original INFO/catalog/predecessor proof or justified unchanged-input reuse"
+    ],
+    "runtime_proof_gap": "Current scope-api suite constructs direct stores/manually active lifecycle; not full authentic HTTP acceptance. Original R2-010 supplied requirement/method but no executable full-boundary command identified here; bind approved exact producer/consumer proof before lease/PASS. Do not invent new recoveryPOST or substitute fixture acceptance.",
+    "feature_reconciliation": {
+      "historical": "test-utils",
+      "proposed_effective": "app-runtime,surreal-test-support,test-utils",
+      "reason": "Current recovery suite imports ModelLaneAuthorityTestCorruption behind surreal-test-support; owning storage/swarm APIs require runtime-full. Preserve original targets/assertions.",
+      "approval_status": "UNRESOLVED_CONFIGURATION_BINDING_NO_RUN_GRANTED"
+    },
+    "schema_dependency": {
+      "ref": "packet.json#/auth_mapping_r2_adoption_20261011/schema_pin_dependency_admission",
+      "predecessor_ref": "MT-183.json#/proof",
+      "reuse_rule": "Reuse MT183 independent proof only if none of its inputs/dependencies/configuration/asserted behavior changed; map actual schema/hash/lineage change to affected original independent INFO/catalog/predecessor proof."
+    }
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 2,
+    "attempts_counted_per_failing_check_not_per_hypothesis": true,
+    "written_diagnosis_required_before_further_attempts": true,
+    "post_diagnosis_runs": {
+      "probe": 1,
+      "confirm": 1
+    },
+    "exhausted_budget_outcome": "blocked_with_diagnosis",
+    "lineage_refs": [
+      "MT-172.json#/attempt_budget",
+      "MT-173.json#/attempt_budget",
+      "MT-174.json#/attempt_budget",
+      "packet.json#/operator_workflow_restructure_20261013/budget_binding"
+    ],
+    "new_counter_or_allowance_created": false,
+    "authority_precedence": "Numeric fields inherited policy only. Preserve38failed core launches and all original per-check history. Recovery target remaining allowance UNVERIFIED; feature correction/newID creates no allowance.",
+    "remaining_allowance_source_ref": "packet.json#/operator_workflow_restructure_20261013/budget_binding",
+    "historical_failed_core_launches": 38,
+    "remaining_recovery_target_allowance": null
+  },
+  "obligation_binding": {
+    "parent_ref": "MT-174.json",
+    "required_original_obligations_unchanged": true,
+    "change_to_proof_mapping": "Map actual changed module/schema/controller/test inputs to original proof. Child PASS never closes all original007/172/173/174 or phase02. Inherited UserManual/privacy/HBR/manual/diagnostic obligations reassessed only for changed behavior, never dropped.",
+    "inherited_original_obligation_refs": [
+      "MT-172.json#/hbr_obligations",
+      "MT-173.json#/hbr_obligations",
+      "MT-174.json#/hbr_obligations",
+      "MT-172.json#/hbr_int_009_tier_obligations",
+      "MT-173.json#/hbr_int_009_tier_obligations",
+      "MT-174.json#/hbr_int_009_tier_obligations",
+      "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-007.json#/scope"
+    ]
+  },
+  "created_at_utc": "2026-10-13T00:23:19.329053+00:00",
+  "updated_at_utc": "2026-10-13T00:23:19.329053+00:00",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "model_routing": {
+    "model_tier": null,
+    "tier_reason": "Existing assigned role defaults; no model override or session dispatch authorized",
+    "sized_for_declared_tier": false,
+    "escalate_to_tier_on_blocker": null
+  },
+  "lifecycle": {
+    "status": "BLOCKED",
+    "depends_on": [
+      "MT-183",
+      "MT-185"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING",
+    "claimed_by": null,
+    "completed_by": null,
+    "next_actor": "Coordinator binds missing contract fields after authentic publication predecessor; no implementation lease granted",
+    "blocked_on": "MT185 authentic governed publication unproven; exclusive source ownership, composed boundary method, effective runtime configuration, independent proof owner/resource lease and cumulative remaining allowances unbound"
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-187.json",
+    "microtask_projection": null,
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": null,
+    "status": "ON_DEMAND_ONLY",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": [
+      "Existing recovery state and attributed receipt projections; reassess exact inherited GUI obligations if behavior changes"
+    ],
+    "not_applicable_reason": "No GUI creation in this bounded backend remediation; inherited parent/source obligations remain.",
+    "inherited_parent_obligation_refs": [
+      "MT-172.json#/gui_obligation",
+      "MT-174.json#/gui_obligation"
+    ]
+  },
+  "user_manual_obligation": {
+    "required": false,
+    "same_change_update_required": false,
+    "manual_version_bump_required": false,
+    "target_entries": [],
+    "expected_evidence": [],
+    "not_applicable_reason": "No new operator workflow scoped; reassess inherited requirements for actual behavior change before readiness. A needed manual edit requires exact separate path admission.",
+    "inherited_parent_obligation_refs": [
+      "MT-172.json#/user_manual_obligation",
+      "MT-174.json#/user_manual_obligation"
+    ]
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "Existing Workspace-scoped ModelLane recovery state, checkpoints, leases, EventLedger and receipts"
+    ],
+    "identity_and_scope_contexts": [
+      "owner_account_id",
+      "actor_principal_id",
+      "authenticated_session_id",
+      "access_space_id",
+      "workspace_id",
+      "protected resource",
+      "grant ID/version",
+      "capability/action/purpose"
+    ],
+    "enforcement_boundaries": [
+      "Existing authoritative Surreal transaction predicates",
+      "Existing context controller protected result/receipt publication barrier"
+    ],
+    "same_project_private_resource_cases": [
+      "Private descendants remain default deny"
+    ],
+    "cross_account_negative_cases": [
+      "Valid-auth foreign owner/principal/session/Space/workspace denied as original R2-010"
+    ],
+    "derived_resource_non_widening_cases": [
+      "Recovery receipts retain original immutable attribution and scope"
+    ],
+    "revocation_and_context_switch_cases": [
+      "Durable session/grant expiry, revoke, disable, Space switch and retained-context/inflight denial"
+    ],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": [
+      "Denied rows/receipts redacted; no protected metadata leaks"
+    ],
+    "expected_evidence": [
+      "Original R2-010 full composed canonical observations"
+    ],
+    "not_applicable_reason": null,
+    "inherited_parent_obligation_refs": [
+      "MT-172.json#/resource_privacy_obligation",
+      "MT-174.json#/resource_privacy_obligation"
+    ]
+  },
+  "hbr_obligations": [
+    "Retain exact source MT007 and parent MT172/173/174 HBR obligations under original pins and explicit adoption; no blanket repin"
+  ],
+  "hbr_int_009_tier_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "model_reports": [
+      "observations",
+      "blockers",
+      "attempt_diagnoses",
+      "operator_decision_requests",
+      "residual_risks",
+      "proposed_followups"
+    ],
+    "worker_final_status": "ready_for_validation_or_blocked",
+    "parent_handoff_ref": "MT-174.json#/handoff"
+  },
+  "red_team": {
+    "required": true,
+    "profile": "EXISTING_APPROVED_R2_REMEDIATION",
+    "risks": [
+      "Enum-only authorization without guarded recovery consumer",
+      "Child ID drops original semantics or resets budgets",
+      "Direct-store proof substitutes for authentic HTTP",
+      "Shared schema drift or fabricated publication/session"
+    ],
+    "minimum_controls": [
+      "AC1-AC5 cumulative and original scope retained",
+      "Parent per-check lineage and exact exclusive leases",
+      "Original full composed canonical independent proof",
+      "MT185 hard predecessor and conditional schema ownership"
+    ]
+  },
+  "admission_constraints": {
+    "implementation_authorized_now": false,
+    "proof_authorized_now": false,
+    "hard_predecessor_ref": "packet.json#/auth_mapping_r2_adoption_20261011/registry_producer_dependency_admission/predecessor",
+    "hard_predecessor": "MT185 actual governed publication with authentic Flight Recorder evidence before any dependent auth writes",
+    "native_admission_owner": "MT-186",
+    "native_grant_does_not_transfer": true,
+    "missing_fields_before_release": [
+      "Recorded MT187 split/packet adoption and source owners/exclusive leases",
+      "Fresh frozen candidate commit/tree and exact relevant source/config hashes",
+      "Independent affected source reviewer and runtime proof owner",
+      "MT185 independent actual publication evidence",
+      "Approved effective recovery test feature configuration and exact original composed HTTP command/method",
+      "Original deployment/genuine current session/workspace/grant/policy/reviewer binding required by boundary",
+      "Exact owned target/profile/toolchain/cache/TMP configuration and resource lease",
+      "Cumulative per-check attempts and remaining specific allowance",
+      "Conditional schema.rs lease and affected proof mapping if generated hash/lineage changes",
+      "Materialization timestamps and packet/task status linkage"
+    ],
+    "prohibited_substitutions": [
+      "Fixtures or manually active registry as full HTTP proof",
+      "Synthetic deployment/new Owner/session/grant",
+      "New endpoint/controller/checker",
+      "MT183 or native target exception inherited without explicit admission"
+    ]
+  },
+  "contract_materialization": {
+    "authority_ref": "packet.json#/operator_workflow_restructure_20261013/operator_authority",
+    "proposal_sha256": "2256b8906bc8a8386c5b37b17e53fa2c9afb729bd4c36ac89bfaafb5ac2b1198",
+    "materialized_by": "01a1323d-2a04-78f1-9430-1589c9cd54ea",
+    "implementation_lease_granted": false,
+    "proof_execution_granted": false,
+    "new_attempt_allowance_granted": false
+  }
+}

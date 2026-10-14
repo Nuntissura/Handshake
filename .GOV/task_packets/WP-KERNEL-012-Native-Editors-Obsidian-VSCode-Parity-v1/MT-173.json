@@ -1,4 +1,135 @@
 {
+  "bounded_native_feature_repair_20261013": {
+    "state": "CLOSED_SOURCE_ONLY_CHECKPOINT_PUSH_VERIFIED",
+    "result": {
+      "commit": "5e4133679c3bbba904c6d17cfd46cadab93dc97b",
+      "tree": "5179ab7947d14e71bdcc5b9b8ee7d91b4a5265d2",
+      "parent": "c00c1de6d93bdf93b4da36ee3efbdaa4ed5490c5",
+      "source_sha256": "9765d43d7c3ccb63fde4ec1da6bfc1a3b307c80913c108616be8db91e53f6d52",
+      "diff_sha256": "bf925c1172c972a585aed70f8643372866bb4cfb06677f61a0e5e944ac9ff7d0",
+      "artifact_lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt173-native-feature-repair",
+      "checkpoint_result_sha256": "c3205f610f34d73a13bfc1dd650f490ca447b350e1cec6b9f1963fffdeddadf4",
+      "independent_reviewer": "01a1323e-c183-77e3-b8ba-b286507e5617",
+      "independent_verdict": "SOURCE_CLEAR; exact byte inverse, unchanged other7415 inputs, enabled sync/durability semantics preserved; committed one-file diff, remote exactHEAD and clean worktree independently verified",
+      "source_observation": "Fresh7416 canonical inputs equal reviewed source-after; only storage/tests.rs changed from native failed candidate",
+      "remote_ref": "refs/heads/feat/WP-KERNEL-012",
+      "remote_commit": "5e4133679c3bbba904c6d17cfd46cadab93dc97b",
+      "native_current_candidate": "NOT_RUN; prior FAIL101 preserved",
+      "core_proof_disposition": "Historical enabled test-support behavior evidence retained; changed candidate raw binding NOT_PROVEN. No new candidate/core/runtime PASS.",
+      "compiler_tests_metadata_runtime": "NOT_RUN"
+    },
+    "failure_ref": "MT-186.json#/native_recheck_result_20261013",
+    "authority_ref": "packet.json#/operator_workflow_restructure_20261013",
+    "owner": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+    "candidate_commit": "c00c1de6d93bdf93b4da36ee3efbdaa4ed5490c5",
+    "allowed_write_paths": ["src/backend/handshake_core/src/storage/tests.rs"],
+    "repair": "End existing config construction with ?; and guard the subsequent config shadowing call with cfg(any(test, feature = surreal-test-support)), matching the unchanged method gate. Preserve existing sync controls, durability, engine opening, migrations and cleanup.",
+    "limits": "Source-only recorded compile remediation in existing MT173 ownership. No manifest, lock, method gate, exported module, schema, historical pin, argv, runtime, metadata or compiler change. No branch/worktree creation or budget reset. Independent diff review before product checkpoint; root sole kernel writer.",
+    "validation": "Fresh original native compiler proof remains required after source repair; exact-two prior native attempts retained and spent. No further compiler lease is released. Existing core test-support evidence requires relevant-input assessment after this source change.",
+    "preparation_cause_ref": "gameplan.yaml#/GP-536"
+  },
+  "execution_restructure_20261013": {
+    "decision_ref": "packet.json#/operator_workflow_restructure_20261013",
+    "child_refs": [
+      "MT-183.json"
+    ],
+    "retained_acceptance_refs": [
+      "/closure_unit/materialized_acceptance",
+      "/scope/acceptance_criteria",
+      "/proof/consumed_source_checks",
+      "/spec_basis",
+      "/attempt_budget"
+    ],
+    "residual_disposition": "Every obligation not explicitly closed by a child remains required in its original parent. Historical dependencies/verdicts retained; aggregate parent PASS is not a child predecessor."
+  },
+  "round42_actual_core_20261012": {
+  "ref": "MT-174.json#/round42_actual_core_20261012",
+  "product_commit": "f776f494e2b12b4ab59cac856964472ab7d34800",
+  "status": "CORE_CHECK_GREEN",
+  "accepted_mts": "0/5",
+  "prior_lifecycle": {
+    "status": "BLOCKED",
+    "blocked_on": "Reviewed two-file SQL identity-expression repair pushed f776f494e; changed-input compiler proof pending. BASE/FINAL catalog observations, exact pins and fresh/reopen, genuine native authorization/publication and consumed runtime acceptance remain unproven; accepted0/5.",
+    "depends_on": [
+      "MT-171",
+      "MT-172"
+    ],
+    "blocks": [],
+    "active": true,
+    "validator_verdict": null,
+    "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
+    "claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
+    "completed_by": null,
+    "next_actor": "Delivery one existing changed-input core command after fresh admission; Review exact MT139 afterward; measured pins then original fresh/reopen proofs"
+  }
+},
+
+  "round42_parameter_equality_source_release_20261012": {
+  "ref": "MT-174.json#/round42_parameter_equality_source_release_20261012",
+  "product_commit": "f776f494e2b12b4ab59cac856964472ab7d34800",
+  "status": "SOURCE_CLEAR_PUSHED_COMPILE_PENDING",
+  "accepted_mts": "0/5",
+  "prior_lifecycle": {
+    "status": "BLOCKED",
+    "blocked_on": "Core Round41 GREEN on de66b4522; independently measured BASE/FINAL pins and fresh/reopen, genuine native authorization/publication and consumed runtime/native independent acceptance remain unproven; accepted0/5.",
+    "depends_on": [
+      "MT-171",
+      "MT-172"
+    ],
+    "blocks": [],
+    "active": true,
+    "validator_verdict": null,
+    "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
+    "claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
+    "completed_by": null,
+    "next_actor": "Independent Review existing MT139 catalog observation on de66b after fresh admission; measured pin reconciliation then exact original fresh/reopen proof; no unchanged core rerun"
+  }
+},
+
+  "round41_actual_core_20261012": {
+  "ref": "MT-174.json#/round41_actual_core_20261012",
+  "product_commit": "de66b452230dbc139cadb567aded30c96d98e6a8",
+  "status": "CORE_CHECK_GREEN",
+  "accepted_mts": "0/5",
+  "prior_lifecycle": {
+    "status": "BLOCKED",
+    "blocked_on": "Reviewed source repair pushed de66b4522; required compiler proof on changed inputs pending. Independent BASE/FINAL catalog observations and fresh/reopen, genuine native authorization/publication and consumed runtime acceptance remain unproven; accepted0/5.",
+    "depends_on": [
+      "MT-171",
+      "MT-172"
+    ],
+    "blocks": [],
+    "active": true,
+    "validator_verdict": null,
+    "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
+    "claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
+    "completed_by": null,
+    "next_actor": "Delivery fresh admission then one existing core command; Review exact existing MT139 observation after successful compiler result; no unchanged retries"
+  }
+},
+
+  "round41_reviewed_source_release_20261012": {
+  "ref": "MT-174.json#/round41_reviewed_source_release_20261012",
+  "product_commit": "de66b452230dbc139cadb567aded30c96d98e6a8",
+  "status": "SOURCE_CLEAR_PUSHED_COMPILE_PENDING",
+  "accepted_mts": "0/5",
+  "prior_lifecycle": {
+    "status": "BLOCKED",
+    "blocked_on": "Core Round40 GREEN on880dda; runtime remains blocked on independently measured BASE/FINAL pins and fresh/reopen proof, prohibited live .GOV registry input coupling, genuine native authorization/publication and consumed runtime/native independent acceptance; accepted0/5.",
+    "depends_on": [
+      "MT-171",
+      "MT-172"
+    ],
+    "blocks": [],
+    "active": true,
+    "validator_verdict": null,
+    "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
+    "claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
+    "completed_by": null,
+    "next_actor": "Independent Review executes existing MT139 measured catalog target after fresh admission; sole coder reconciles measured pins and original registry external input seam; preserve original authority/assertions; no unchanged core rerun"
+  }
+},
+
 
   "round40_actual_core_20261012": {
     "proof_ref": "MT-174.json#/round40_actual_core_20261012",
@@ -790,7 +921,7 @@
   },
   "lifecycle": {
   "status": "BLOCKED",
-  "blocked_on": "Core Round40 GREEN on880dda; runtime remains blocked on independently measured BASE/FINAL pins and fresh/reopen proof, prohibited live .GOV registry input coupling, genuine native authorization/publication and consumed runtime/native independent acceptance; accepted0/5.",
+  "blocked_on": "Core Round42 GREEN on f776f494e; independently measured BASE/FINAL pins and fresh/reopen, genuine native authorization/publication and consumed runtime/native independent acceptance remain unproven; accepted0/5.",
   "depends_on": [
     "MT-171",
     "MT-172"
@@ -801,7 +932,7 @@
   "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
   "claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
   "completed_by": null,
-  "next_actor": "Independent Review executes existing MT139 measured catalog target after fresh admission; sole coder reconciles measured pins and original registry external input seam; preserve original authority/assertions; no unchanged core rerun"
+  "next_actor": "Independent Review exact MT139 observation on f776f after fresh admission; measured pins then exact fresh/reopen; no unchanged core rerun"
 },
   "scope": {
     "summary": "Reconcile shared storage/schema/migration import paths",
@@ -3918,5 +4049,107 @@
 "cloud_authority_decision":{"decision_id":"WP012-PHASE02-ROUND08-CLOUD-AUTHORITY-007","decision_source":"Explicit Operator team delegation: you have your team to decide in that; independent review turn 01a12949-e2be-75a2-9c40-b2430bac7bf4","observed_at_utc":"2026-10-11T04:47:12.530Z","binding_sha256":"dc92bef057be29f3f2b3baa0dba503b208988898c6457c56eb77b4d255883250","status":"TEAM_DECIDED_IMPLEMENTATION_AND_INDEPENDENT_PROOF_PENDING","scope":"Required original CLOUD projection/consent and only actual required run/lane producers; administrative schema preparation separate from actual original authorized business operation","requirements":[{"id":"WP012-CA007-001","requirement":"Administrative bootstrap remains schema/catalog-only, before business operations and never a route for projection/consent/run/lane rows. Correct actual existing table permissions with deterministic migration/update rather than IF NOT EXISTS silently leaving old definitions. Verify schema source/version/catalog bindings and bootstrap dependency order. Runtime schema_state SELECT may expose only the exact canonical schema-state ID/version/revision/apply state to a genuinely authenticated authorized cloud operation; global schema metadata need not be stamped with fictitious five-field ownership. CREATE/UPDATE/DELETE state denied to record users; missing/drifted state denies. No runtime data-path schema seeding."},{"id":"WP012-CA007-002","requirement":"Add explicit cloud_projection_plan and cloud_consent_receipt typed purposes to existing original-operation envelope, with actual current original Workspace resource/action/capability/grant/channel and all five fields. Use the original producer Create logical operation already supplied by the owning caller, not physical CREATE\u21d2grant inference. Immutable cloud authority CREATE and SELECT only for these exact kinds; UPDATE/DELETE denied for this continuation. Consumer Read gets required source SELECT under its actual Read authorization; producer validation/readback uses its exact original producer purpose, including consent's necessary SELECT of its canonical projection. No Read\u2192producer conversion or producer\u2192general Read. Catalog/schema calls preserve original purpose through authenticated transaction worker/task-local bindings."},{"id":"WP012-CA007-003","requirement":"Enforce canonical IDs/record kind/run/plan/consent targets and exact source_scope/approver attribution, owner/Principal/session/AccessSpace/workspace, current unrevoked grant/delegation/resource relation and actual source references/hash. Consent binds exact durable projection ID/hash plus run/lane/model/provider/scope/export/target/validity/approval state. All unchanged consent/launch/downstream/cloud Memory limits remain; do not make actual CLOUD pass with Local substitution or external provider session changes. A context supplied with Write=None remains Read-only."},{"id":"WP012-CA007-004","requirement":"Scope cloud stable identity and idempotency by exact five tuple, kind and original immutable identity; fix corresponding indexes/ledger uniqueness consistently. A foreign canonical record hidden by permission must never masquerade as absence and authorize overwriting its ID. Compare complete immutable identity/body/canonical hashes/target/delegation/linked receipt on retry, not projection/consent hash alone. Same exact retry returns existing canonical result and no new event; same key/different body denies. Keep source keys stable and document any necessary existing scoped-record migration within the owned schema/provider; no blanket business data rewrite."},{"id":"WP012-CA007-005","requirement":"Use ONE authenticated transaction/controller and the appropriate existing admission/final-dependency checks for cloud publication plus its source validation. Remove/avoid nested BEGIN when already inside the protected transaction; direct entry must join the same controller, not run an untracked BEGIN through a data operation. Preserve pre-spawn original identity/deadline, authentication before begin, final authorization/fences and pending settlement semantics."},{"id":"WP012-CA007-006","requirement":"Allocate actual durable EventLedger identity/sequence in the authoritative database transaction and install the SAME final metadata into authority record JSON and immutable event payload before publication. Do not accept next_cloud_event_sequence wallclock/AtomicI64 as actual canonical sequence. The existing dedicated cloud ledger is the inspected receipt surface: validate/read its actual record independently by exact ID, kind/aggregate/run/five fields, payload/hash and final sequence rather than trusting copied event_payload_json. Keep its immutable SELECT/CREATE narrowly tied to original producer/consumer predicates; UPDATE/DELETE NONE. If the contract requires canonical kernel EventLedger linkage instead, use only the actual existing cloud event producer/type/stream contract discovered in source/spec and link this dedicated table as an immutable projection; do not invent event names, call the current separate ledger a kernel receipt, or open a generic kernel producer. Whichever existing authoritative receipt surface applies, canonical readback and actual assigned metadata are mandatory; stage-aware CREATE guards must avoid circular authority\u2194ledger existence requirements."},{"id":"WP012-CA007-007","requirement":"Reconcile get/list/replay and producer readback with actual ledger validation, current reader authorization separate from historical producer resource/capability, exact original five and canonical plan/consent links. Invalid/missing/foreign ledger, changed payload/hash, scope drift, revoked session/grant, stale plan/expired consent and wrong target/provider must deny without derivatives. Readonly validation must not append business denial receipts under Read; preserve original denial receipt semantics only under its already authorized producer purpose."},{"id":"WP012-CA007-008","requirement":"Do not open every enum kind or revoke/CAS path. Exact required fixture proves ProjectionPlan+ConsentReceipt. Inspect current original record/launch calls once: source has CloudRun/CloudLane writes at2305\u20132306 when actual cloud launch runs; if that ORIGINAL required path executes, bind those exact run/lane producer intents and dependencies in this SAME correction, not a later one-table loop. No blanket CloudRun/CloudLane/ConsentDenial UPDATE grant or adjacent consent-revocation rewrite. Unused kinds remain denied; required actual denial producer, if present, must use its actual original operation, never Read."},{"id":"WP012-CA007-009","requirement":"Cancellation/retry: atomic authority+receipt and canonical source validation; known rollback may release admission, unknown/pending commit retains ownership and is independently resolved by original immutable identity/receipt read. No blind retry/regenerated event identity or duplicate consent publication. Preserve controller/Atelier behavior and existing run-before-lane/CRDT admission properties."}],"exact_independent_continuation":"Handshake (Product): Exact required cloud path VERIFIED against current code and source pin98efa4d019c4f670186cd3ec1f048ece3adf0dcd (original ContextBundle PG seed_cloud_lane_authority retained). Binding SHA independently confirmed dc92bef057be29f3f2b3baa0dba503b208988898c6457c56eb77b4d255883250. Repo Governance: NONE; no reviewer edits or whole-batch verdict.\n\nRecord additive decision WP012-PHASE02-ROUND08-CLOUD-AUTHORITY-007 in existing MT172/173 implementation_record.round08_context_bundle_remedy_20261011 and existing successor continuation. Preserve 001\u2013006/controller/partial history. The delegated decision permits exact existing original-operation authorization for required cloud projection/consent publication and canonical readback, with administrative schema preparation separate from business authority. No existing cloud-specific ResourceBroker capability selector was found: facade verifies AccountBoundAuthority attribution, not a grant. Bind the ACTUAL previously authorized Workspace producer operation and capability/grant/session from the authenticated fixture/request, never infer fs.write/cloud/memory capability from these method names. No additional Read grant, Workspace fallback from Document, minted capability, or root business seed.\n\nInspected evidence: cloud schema:1/21 and provider SCHEMA_STATE:7 are implicit default-deny; schema_state:181 reads through with_data_operation. bootstrap:135+ uses with_admin_operation and UPSERT metadata, and facade cloud_authority:525 invokes it on access. put_immutable:235\u2013239 owns BEGIN and creates the separate model_lane_cloud_event_ledger plus authority atomically. Facade:6830\u201331/6905\u201306 supplies UUID and next_cloud_event_sequence:13043 wall-clock/AtomicI64; it DOES NOT append kernel EventLedger first. Current cloud validation:13070\u201313149 compares copied authority receipt JSON, not independent actual ledger read. ID helper:386 hashes kind+idempotency without five scope; ledger aggregate unique index lacks five. Do not describe this as canonical kernel EventLedger receipt proof. Current MasterSpec04:1642\u20131644 requires durable SurrealDB/EventLedger plan/consent authority and exact EventLedger ID/sequence. Original real CLOUD path must remain.\n\nONE connected writer continuation:\n1. Administrative bootstrap remains schema/catalog-only, before business operations and never a route for projection/consent/run/lane rows. Correct actual existing table permissions with deterministic migration/update rather than IF NOT EXISTS silently leaving old definitions. Verify schema source/version/catalog bindings and bootstrap dependency order. Runtime schema_state SELECT may expose only the exact canonical schema-state ID/version/revision/apply state to a genuinely authenticated authorized cloud operation; global schema metadata need not be stamped with fictitious five-field ownership. CREATE/UPDATE/DELETE state denied to record users; missing/drifted state denies. No runtime data-path schema seeding.\n\n2. Add explicit cloud_projection_plan and cloud_consent_receipt typed purposes to existing original-operation envelope, with actual current original Workspace resource/action/capability/grant/channel and all five fields. Use the original producer Create logical operation already supplied by the owning caller, not physical CREATE\u21d2grant inference. Immutable cloud authority CREATE and SELECT only for these exact kinds; UPDATE/DELETE denied for this continuation. Consumer Read gets required source SELECT under its actual Read authorization; producer validation/readback uses its exact original producer purpose, including consent's necessary SELECT of its canonical projection. No Read\u2192producer conversion or producer\u2192general Read. Catalog/schema calls preserve original purpose through authenticated transaction worker/task-local bindings.\n\n3. Enforce canonical IDs/record kind/run/plan/consent targets and exact source_scope/approver attribution, owner/Principal/session/AccessSpace/workspace, current unrevoked grant/delegation/resource relation and actual source references/hash. Consent binds exact durable projection ID/hash plus run/lane/model/provider/scope/export/target/validity/approval state. All unchanged consent/launch/downstream/cloud Memory limits remain; do not make actual CLOUD pass with Local substitution or external provider session changes. A context supplied with Write=None remains Read-only.\n\n4. Scope cloud stable identity and idempotency by exact five tuple, kind and original immutable identity; fix corresponding indexes/ledger uniqueness consistently. A foreign canonical record hidden by permission must never masquerade as absence and authorize overwriting its ID. Compare complete immutable identity/body/canonical hashes/target/delegation/linked receipt on retry, not projection/consent hash alone. Same exact retry returns existing canonical result and no new event; same key/different body denies. Keep source keys stable and document any necessary existing scoped-record migration within the owned schema/provider; no blanket business data rewrite.\n\n5. Use ONE authenticated transaction/controller and the appropriate existing admission/final-dependency checks for cloud publication plus its source validation. Remove/avoid nested BEGIN when already inside the protected transaction; direct entry must join the same controller, not run an untracked BEGIN through a data operation. Preserve pre-spawn original identity/deadline, authentication before begin, final authorization/fences and pending settlement semantics.\n\n6. Allocate actual durable EventLedger identity/sequence in the authoritative database transaction and install the SAME final metadata into authority record JSON and immutable event payload before publication. Do not accept next_cloud_event_sequence wallclock/AtomicI64 as actual canonical sequence. The existing dedicated cloud ledger is the inspected receipt surface: validate/read its actual record independently by exact ID, kind/aggregate/run/five fields, payload/hash and final sequence rather than trusting copied event_payload_json. Keep its immutable SELECT/CREATE narrowly tied to original producer/consumer predicates; UPDATE/DELETE NONE. If the contract requires canonical kernel EventLedger linkage instead, use only the actual existing cloud event producer/type/stream contract discovered in source/spec and link this dedicated table as an immutable projection; do not invent event names, call the current separate ledger a kernel receipt, or open a generic kernel producer. Whichever existing authoritative receipt surface applies, canonical readback and actual assigned metadata are mandatory; stage-aware CREATE guards must avoid circular authority\u2194ledger existence requirements.\n\n7. Reconcile get/list/replay and producer readback with actual ledger validation, current reader authorization separate from historical producer resource/capability, exact original five and canonical plan/consent links. Invalid/missing/foreign ledger, changed payload/hash, scope drift, revoked session/grant, stale plan/expired consent and wrong target/provider must deny without derivatives. Readonly validation must not append business denial receipts under Read; preserve original denial receipt semantics only under its already authorized producer purpose.\n\n8. Do not open every enum kind or revoke/CAS path. Exact required fixture proves ProjectionPlan+ConsentReceipt. Inspect current original record/launch calls once: source has CloudRun/CloudLane writes at2305\u20132306 when actual cloud launch runs; if that ORIGINAL required path executes, bind those exact run/lane producer intents and dependencies in this SAME correction, not a later one-table loop. No blanket CloudRun/CloudLane/ConsentDenial UPDATE grant or adjacent consent-revocation rewrite. Unused kinds remain denied; required actual denial producer, if present, must use its actual original operation, never Read.\n\n9. Cancellation/retry: atomic authority+receipt and canonical source validation; known rollback may release admission, unknown/pending commit retains ownership and is independently resolved by original immutable identity/receipt read. No blind retry/regenerated event identity or duplicate consent publication. Preserve controller/Atelier behavior and existing run-before-lane/CRDT admission properties.\n\nOwners: MT173 already owns cloud_model_lane.rs/cloud_model_lane_schema.surql plus provider/controller/shared schema; MT172 facade, model_lane_cloud_support and canonical conformance fixture/tests. Capture both newly touched cloud files' raw baseline SHA before changes: provider9f1626b26e0c7602a06a10e7d5eaec99e128df6334c7aed225fc032e04b84819, schema b1d76d8019c293953890dc28b5d7ceeb6a4c63cf1171901dbc2de9f36b8d42d2 (binding source values; independently rehash before writing). Extend complete connected source/dependency/inverse evidence, not a second parallel baseline authority. No unowned API/Atelier/new packet/broad audit/adjacent cleanup.\n\nComplete original eight obligations and full A\u2013H including real cloud seed: twelve actual producer/consumer rounds; durable run\u2192lane busy/free/release; forged scope/receipt/idempotency zero derivatives; mixed-source/foreign/nondisclosure exact tuples; four ordered source selections/exactly one handoff and actual finalized metadata; all cloud/consent/provider/session/URI/ref/hash/limits negatives; full real Yjs/proposal approved realization from006, full covering leases/admission/expiry-history/release/ambiguity/reopen/immutability/receipt/dependency negatives; plausible unpersisted source denial. No counterfactual omission or duplicate test targets.\n\nWhole batch remains incomplete. Finish complete raw before/after/LF/inverse/dependency hash/eight-obligation+A\u2013H map and full freeze; independent affected-source review, gameplan/same whole cargo check, actual per-MT compiled checkpoint/push, independent authenticated schema catalog/engine/runtime/HBR verdict. No acceptance or source-clear follows from this decision or partial006 bytes.","proof_floor":"PARTIAL_SOURCE_BLOCKED_NOT_READY; whole freeze false; parser only; no type SQL runtime SOURCE_CLEAR compiler PASS acceptance or unblock"},
 "frozen_connected_independent_review_001":{"review_id":"WP012-PHASE02-ROUND08-FROZEN-REVIEW-001","reviewer_thread_id":"01a127a3-af37-7763-856d-f04963632721","reviewer_turn_id":"01a129a5-91fa-78d2-b615-227aef951eb4","candidate_binding_sha256":"1ed47cc4d255a05a38bd7517f258898c6a471294a9cbcaddf952b43b9eb1d194","verdict":"NOT_SOURCE_CLEAR","findings":[{"id":"WP012-R08-F1","finding_and_remediation":"Wrong concrete proposal projection at swarm_orchestration/model_lane.rs:2968 and :3159: crdt_proposal returns SurrealModelLaneCrdtProposal, whereas canonical_proposal_realization(:1829) requires SurrealModelLaneCrdtProposalRecord. Use crdt_proposal_record and retain full canonical receipt validation; minimal projection lacks realization evidence fields. Source type incompatibility observed, not a compiler diagnostic."},{"id":"WP012-R08-F2","finding_and_remediation":"Historical promoted proposals are rejected: facade derive_crdt_proposal_application_evidence(:14699) permits only approved; provider validate_crdt_proposal_receipts(:4486) also revalidates applied/promoted proposals. Permit authenticated approved/promoted historical realization with complete existing promotion receipts, while initial application remains approved-only. Prove applied\u2192promoted\u2192reopen/replay, and malformed/missing promotion witness denial."},{"id":"WP012-R08-F3","finding_and_remediation":"Coordination cleanup depends on caller survival: provider with_context_bundle_transaction(:3030) acquires committed run before awaiting lanes; ContextCoordinationGuard(:1032) has no owned finalizer. Execution release exists only in caller (:3083/:3092). Controller surreal.rs:1600\u20131797 settles in detached worker but cannot release guards when caller drops; returned final guards can be lost after commit. Move acquisition through execution, observed settlement, and release into an owned completion supervisor retaining original five-part scope/resource/grant/purpose/subject. Cover cancellation during lane acquisition and after worker commit; release only after known settlement and preserve ownership/reconciliation for unknown settlement. Do not convert cancellation into false success or broadly loosen existing Atelier behavior."},{"id":"WP012-R08-F4","finding_and_remediation":"Cloud direct CREATE allows caller-picked receipt sequence/metadata: cloud_model_lane_schema.surql:23,89,122\u2013129 checks positive event_seq and payload equality but has no DB-owned allocator/sealed allocation witness, nor event_stream_version/transaction_seq equality. cloud provider :261 allocation does not constrain direct authenticated CREATE. Enforce canonical engine-owned allocation at authenticated database admission and complete record/payload metadata equality. Prove authentic held-token raw record-user forged sequence/metadata denial and final immutable record/ledger equality with actual independently read sequence."},{"id":"WP012-R08-F5","finding_and_remediation":"Cloud target_bindings_hash is unchecked: schema :126\u2013129 and :132\u2013141 explicitly exclude it from body hash, then check only projection_plan_hash/consent_receipt_hash. Recompute target_bindings_hash with the canonical consent_scope/target_bindings algorithm at direct admission; retain exact scoped plan/consent dependency checks. Prove false derived hash denial under genuine authenticated CREATE even with correctly recomputed outer body/payload hash."}],"exact_independent_review":"Handshake (Product): frozen connected independent source review NOT SOURCE_CLEAR. Repo Governance: NONE. Reviewed binding SHA 1ed47cc4d255a05a38bd7517f258898c6a471294a9cbcaddf952b43b9eb1d194 (writer turn 01a1294c-fda5-73d2-9577-7c7b59e5daff); assigned frozen/live hashes matched. Five consolidated actionable findings; request ONE full same-writer repair, then a new frozen affected-source review. This is source evidence only, no compiler/SQL/runtime/PASS claim.\n\n1. Wrong concrete proposal projection at swarm_orchestration/model_lane.rs:2968 and :3159: crdt_proposal returns SurrealModelLaneCrdtProposal, whereas canonical_proposal_realization(:1829) requires SurrealModelLaneCrdtProposalRecord. Use crdt_proposal_record and retain full canonical receipt validation; minimal projection lacks realization evidence fields. Source type incompatibility observed, not a compiler diagnostic.\n2. Historical promoted proposals are rejected: facade derive_crdt_proposal_application_evidence(:14699) permits only approved; provider validate_crdt_proposal_receipts(:4486) also revalidates applied/promoted proposals. Permit authenticated approved/promoted historical realization with complete existing promotion receipts, while initial application remains approved-only. Prove applied\u2192promoted\u2192reopen/replay, and malformed/missing promotion witness denial.\n3. Coordination cleanup depends on caller survival: provider with_context_bundle_transaction(:3030) acquires committed run before awaiting lanes; ContextCoordinationGuard(:1032) has no owned finalizer. Execution release exists only in caller (:3083/:3092). Controller surreal.rs:1600\u20131797 settles in detached worker but cannot release guards when caller drops; returned final guards can be lost after commit. Move acquisition through execution, observed settlement, and release into an owned completion supervisor retaining original five-part scope/resource/grant/purpose/subject. Cover cancellation during lane acquisition and after worker commit; release only after known settlement and preserve ownership/reconciliation for unknown settlement. Do not convert cancellation into false success or broadly loosen existing Atelier behavior.\n4. Cloud direct CREATE allows caller-picked receipt sequence/metadata: cloud_model_lane_schema.surql:23,89,122\u2013129 checks positive event_seq and payload equality but has no DB-owned allocator/sealed allocation witness, nor event_stream_version/transaction_seq equality. cloud provider :261 allocation does not constrain direct authenticated CREATE. Enforce canonical engine-owned allocation at authenticated database admission and complete record/payload metadata equality. Prove authentic held-token raw record-user forged sequence/metadata denial and final immutable record/ledger equality with actual independently read sequence.\n5. Cloud target_bindings_hash is unchecked: schema :126\u2013129 and :132\u2013141 explicitly exclude it from body hash, then check only projection_plan_hash/consent_receipt_hash. Recompute target_bindings_hash with the canonical consent_scope/target_bindings algorithm at direct admission; retain exact scoped plan/consent dependency checks. Prove false derived hash denial under genuine authenticated CREATE even with correctly recomputed outer body/payload hash.\n\nPreserve the complete original eight scenarios A\u2013H and decisions 001\u2013007, existing actual cloud fixture, full proposal/Yjs realization counterfactuals, wrong scope/source/receipt denials, current-vs-historical authority separation, all covering lease mutation semantics, unchanged Atelier, and immutable retries. Parent inspection found actual per-case assertions behind the generic PG assertion wrappers; mapping comments alone were not accepted as proof. No additional source finding in full-root/format/embed counterfactual handling or admission-time expiry.\n\nTwo preliminary concerns were retracted after locked-engine inspection: hidden token visibility and source/receipt permission recursion are not failures in internal permission/event evaluation (surrealdb-core 3.2 doc/check.rs:438\u2013464, dbs/options.rs:195\u2013205, doc/event.rs:52,80 disable nested permissions there). Do not repair these nonexistent issues. Repair only the five evidenced defects, preserve original scope and proof sequence: freeze\u2192independent affected-source review\u2192gameplan-backed whole check\u2192per-MT compiled checkpoint/push\u2192independent engine/catalog runtime HBR.","status":"ONE_SAME_WRITER_REPAIR_DISPATCHED_RELAY_CONFIRMATION_PENDING","proof_floor":"Source-only findings; no compiler/SQL/runtime/PASS/MT acceptance; original full scope and source freeze retained as history"},
 "promotion_authorization_decision":{"decision_id":"WP012-PHASE02-ROUND08-PROMOTION-AUTHORIZATION-008","review_id":"WP012-PHASE02-ROUND08-FROZEN-REVIEW-002","reviewer_thread_id":"01a127a3-af37-7763-856d-f04963632721","reviewer_turn_id":"01a129c0-f5cf-7153-9360-462fc481df18","authorization_source":"Explicit Operator: you have your team to decide in that; verified existing original required promotion producer and pinned tests/spec","candidate_binding_sha256":"5ebc5b121152cd7e1858810fa1b559a49478703905ccf5640934a6279ab531d1","verdict":"NOT_SOURCE_CLEAR","status":"BOUNDED_TEAM_MAPPING_AND_ONE_FULL_REPAIR_CONTINUATION_SUPPLIED","requirements":[{"id":"WP012-PA008-001","requirement":"Extend only existing ProposalDecide/document Update/fs.write mapping to verified original closed promotion transition. Real current eligible authenticated operator identity/session, immutable model creator provenance and canonical document resource retained. No new capability grant public purpose general UPDATE or selfpromotion."},{"id":"WP012-PA008-002","requirement":"Complete F2 closed approved-applied to promoted schema/provider/facade receipt branch: immutable approval/application realization, atomic existing requested-accepted pair exact causation/idempotency/actual sequence/current freshness; exact historical replay/reopen and retry; forged stale foreign missing ineligible denied."},{"id":"WP012-PA008-003","requirement":"Complete F3 supervisor owns pending acquisition through observed settlement or retains complete original envelope/token/operation for canonical reconciliation; unknown never releases/retries as rollback. Separately bounded finalization deadline under unchanged original authority without extending publication deadline, canonical generation checks and unknown ownership retained."},{"id":"WP012-PA008-004","requirement":"Restore actual original-envelope local attribution SQL binding in cloud producer and typed counterfactual probe; actual held-token negatives reach intended markers and zero partial rows, engine-owned allocated full metadata preserved."},{"id":"WP012-PA008-005","requirement":"Retain source-verified canonical target-bindings None policy; earlier recomputation recommendation retracted, no invented hash algorithm. F1 source fix confirmed only; all proof pending."},{"id":"WP012-PA008-006","requirement":"Preserve original eight A-H/001-007/controller/all five findings/history/partial raw inverses; full re-freeze then independent affected review then gameplan whole owning Cargo/perMT compiled checkpoint matching push then independent canonical engine/runtime/HBR proof."}],"exact_independent_continuation":"Handshake (Product): ONE consolidated continuation after independent five-finding-repair review. Repo Governance: NONE. Binding full SHA independently verified: 5ebc5b121152cd7e1858810fa1b559a49478703905ccf5640934a6279ab531d1. All 15 raw before/after hashes match declarations; scoped helpers additionally matched live assigned files. Candidate remains NOT SOURCE_CLEAR; no Cargo/SQL/runtime/verdict. Same writer must complete all F1\u2013F5, original 8 A\u2013H, decisions001\u2013007 and controller proof, then freeze for independent affected-source review.\n\nTEAM DECISION\u2014bounded promotion mapping is justified by verified existing original producer, rather than a distinct invented feature predecessor. At source pin98efa4d019c4f670186cd3ec1f048ece3adf0dcd, facade decide_crdt_proposal(Promoted) already implements approved+applied\u2192atomic requested/accepted receipts. Pinned/current knowledge_crdt_proposal_surreal_tests.rs:117,157,403 explicitly require positive atomic promotion, exact retry, same-scope reopen, and broken accepted causation denial. Master Spec current02-system-architecture.md:2674/2676 requires explicit eligible, freshness-checked, idempotent, replayable promotion. This satisfies decision005's condition of inspecting the actual required producer. Extend only the existing ProposalDecide/document Update/fs.write mapping to that closed promotion transition; no new capability/grant/general UPDATE/root business fixture/new public purpose/new approval semantics. Existing strings promotion-gate-mt018 and promotion-session-mt018 are historical fixture labels, never eligibility proof. Real current authenticated eligible operator identity/session from AuthorizationDecision must replace them. Preserve original model creator five-part provenance and actual canonical document resource separately from authenticated operator receipt provenance. No model self-promotion, fake write box, broad event access or authority fallback.\n\nF2 COMPLETE RECIPE: preserve currently repaired approved/promoted historical realization and approved-only initial application, plus canonical exact promoted retry. Remove only the explicit denial of lawful Promoted in facade1590/provider2878 through the existing eligible original-document-operation branch. Keep original approval receipt unchanged; append both existing requested/accepted promotion receipts atomically with correct original scope/resource/grant/session/action/capability/purpose, authenticated operator actor/session, canonical proposal/doc/CRDT/base/applied realization refs, original source_component knowledge_crdt_ai_edit_proposal and aggregate knowledge_ai_edit_promotion, event version/hash/idempotency, requested\u2192accepted distinct IDs/causation and actual sequence ordering. Under the same workspace covering fence, verify current canonical applied-update/head/state freshness and realization; deny stale/malformed/unapproved/unapplied/foreign or ineligible transitions non-mutating. Schema model_lane_schema:817/835 currently rejects historical promoted identity; :916/:922 excludes promotion refs/transitions. Add a closed approved-applied\u2192promoted identity/transition branch that validates retained recorded+approved+applied receipts first, then full promotion pair and last_transition=accepted; do not overwrite approval or application evidence or allow arbitrary UPDATE. Shared schema proposal receipt:7944 currently excludes original promotion source/aggregate/event kinds and read membership7959 excludes promotion refs. Add only the exact authenticated promotion pair CREATE/SELECT dependency branch, retained immutable UPDATE/DELETE denial, precise original subject, matching canonical proposal, eligible operator, fenced generation and complete canonical pair/source/hash/scope checks; not a generic event-type widening. Cover actual authenticated applied\u2192promoted\u2192reopen/replay, exact no-extra-row retry and malformed/missing/causation/foreign/ineligible/stale denials in the affected canonical scenario using actual producer. Do not touch unrelated legacy tests as a shortcut.\n\nF3 REMAINING TWO DEFECTS: (a) supervisor3103 awaits acquisition, but acquisition3335 still uses non-owned with_authenticated_transaction. Controller1845\u20131855 may return SettlementPending while detached acquisition worker later commits; supervisor3105 releases earlier guards and drops pending acquisition token3314/operationID3316. Make acquisition supervisor-owned through observed settlement, or retain complete pending original envelope/token for canonical resolution; never release/retry an unknown acquisition as if rolled back. (b) release stays under publication deadline3126\u20133128; after actual deadline cancellation+observed rollback, release1284 hits controller1626 zero-budget rejection and only retains guards3142. Give finalization a separately bounded settlement/release deadline under captured unchanged original authority/subject/purpose, preserving publication deadline and current canonical holder/generation checks. Unknown outcome remains owned for reconciliation. Extend actual cancellation proof to unknown acquisition settlement and observed deadline rollback/release, in addition to existing lane-wait/commit-delivery cases. No global timeout/Atelier behavior change. Effective deadline reconstruction is correctly clamped, not a defect.\n\nF4/F5 REMAINING SHARED CLOUD DEFECT: cloud provider264/269 and typed counterfactual probe323/328 use undeclared $attribution after repair removed its LET; no binding supplies it. Restore explicit actual original-envelope local attribution in BOTH producer and typed-probe SQL. Otherwise admission may fail on unbound variable and counterfactuals don't reach intended guards. Preserve engine-owned allocation and final immutable record/payload event_seq/event_stream_version/transaction_seq equality; exact authenticated held-token counterfactual denial+zero partial rows must reach precise markers. F5 CORRECTION: canonical pinned/current cloud_consent_target_bindings_hash14543\u201314547 actually returns None, omitted by serde12472/12573. Repaired NONE-policy rejecting any supplied hash is correct; our earlier generic recomputation recommendation was incorrect and is retracted. Do not invent a new hash algorithm.\n\nF1 SOURCE FIX CONFIRMED: callers2985/3180 now load full crdt_proposal_record. F2 realization state correction confirmed but production/admission proof still predecessor above. F4 DB-field allocation and F5 NONE-policy are source-aligned but cannot clear until attribution fix and later real engine proof. Preserve all existing assertion families and real cloud/proposal/Yjs counterfactuals. One complete same-writer continuation; fresh freeze\u2192independent affected-source review\u2192gameplan whole check\u2192per-MT compiled checkpoint/push\u2192independent engine/catalog runtime HBR. No acceptance waiver or partial SOURCE_CLEAR.","proof_floor":"Partial five-finding repair remains NOT_SOURCE_CLEAR; no compiler SQL runtime PASS acceptance or unblock"}}
-}
+},
+  "swarm_source_batch_20261014": {
+    "decision_id": "WP012-SWARM-SOURCE-BATCH-20261014-01",
+    "status": "SOURCE_IMPLEMENTATION_RELEASED",
+    "recorded_at_utc": "2026-10-14T14:38:47.854930+00:00",
+    "decision_owner": "01a13ab5-bfe4-74b1-8fc3-64e691a76827",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "operator_direction": "Finish fullWP by actual swarmproduction; additional codingteamchats/workers/directteamcollaboration; primaryHuman additionally specified5extra coderchats via coder mediator, bundled proof/warmCargo/cache and meaningful MTcheckpointcommit/push",
+    "preceding_compile_closure": {
+      "disposition": "TERMINAL_FREEZE_CLOSED_SUCCEEDED",
+      "independent_validator_chat": "01a139f6-ce6a-7b50-a058-dff3732ea4a2",
+      "original_outer_session": 12473,
+      "original_outer_execution": "exec-0498afc6-6e93-474f-b41f-c40d01246cab",
+      "exit_code": 0,
+      "expected_targets": 485,
+      "missing_targets": 0,
+      "compiler_errors": 0,
+      "warnings": 1639,
+      "source_inputs": 7416,
+      "metadata_inputs": 23,
+      "authority_inputs": 11,
+      "tool_inputs": 3,
+      "ephemeral_owned_identities_closed": 18,
+      "persistent_cache_retained": 4820,
+      "candidate_commit": "139e4b7db83ffc56bf72f59cec3e8ea7c69fecc3",
+      "candidate_tree": "5f987622be9587282567858f1ba4b4618659d133",
+      "evidence_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt188-core-changed-host-retry01/compile-evidence.json",
+      "evidence_sha256": "9c1db3c7a723d0a042cc6752d22f2a9cf5b520489b424fa8e240fa1423e9deda",
+      "postbinding_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt188-core-changed-host-retry01/compile-post-binding.json",
+      "runtime_acceptance": "NOT_RUN",
+      "whole_wp_acceptance": "NOT_ASSESSED"
+    },
+    "batch_owner": "MT-174",
+    "covered_mts": [
+      "MT-173",
+      "MT-174",
+      "MT-175",
+      "MT-186",
+      "MT-188"
+    ],
+    "source_base": "139e4b7db83ffc56bf72f59cec3e8ea7c69fecc3",
+    "coordination": {
+      "mediator_chat": "01a13acf-a8bf-7ae1-92f3-9c5fffc5d385",
+      "product_dev_lead_integrator_compiler": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+      "kernel_writer": "01a13ab5-bfe4-74b1-8fc3-64e691a76827",
+      "worker_policy": "Teamleaders choose useful disjoint coderworkers/waves, manage theirown followups; mediator consolidates interteam implementation interfaces/findings/readiness to primary. No mandatoryfanout or newapprovalgate. Actual tool limits stated, no leaderfixedthree-worker ceiling.",
+      "checkpoint_policy": "Commit/push meaningful coherent MT/unit progress through sole primaryproductGit owner; governance explicitpaths through kernelowner. Bundle required tests/checks on stable inputs and reuse same approved warmtarget/cache, no perworkerCargo."
+    },
+    "failure_basis": [
+      "Argus API18key receipt absent from current existing schema predicate",
+      "Accepted164 real successor transition must retain authentic BASE/FINAL history",
+      "main five-ID-from-env beforestorage/accountserver prevents legitimate existing setup/login/session/workspace flow",
+      "api/mod runtime has SwarmdrainNone and mounts no paired actualoperatorchat producer",
+      "Native signing lacks actual nativeowned lease/parentOSgeneration and canonical durableADOPT/START remains unavailable"
+    ],
+    "scope_exceptions": [
+      "This current bounded source amendment takes precedence over older source-only READ_ONLY/reuse/owner constraints ONLY for exact listed paths; old scope/pins/histories/runtime admission remain intact",
+      "Only exact listedsourcepaths supersede older startupREAD_ONLY/native_local_account reuse-only/producer-path exclusion for these proven repairs; existing historicalauthority preserved",
+      "No schema semantic repair under MT183 historical verdict lease; sourceownerMT173 and affected original predecessor proof revalidated",
+      "Existing /authority/session route may carry minimal authenticated canonicalworkspace activation; no unrelated newendpoint/capability/grant",
+      "No broader .GOV/product scope, sourcepin reset, newbranches/worktrees/dependencies or inventedstore/account/session/provenance"
+    ],
+    "controls": [
+      "One writer per exactfile; offered ownership accepted before firstwrite and oldowner relinquished",
+      "No workerGit/compiler/test/metadata/runtime/provisioning; primary solecompiler/Git, independentvalidator runtime/verdict",
+      "No source-only result claims genuine originaldeployment/auth/publication/runtime/WPcompletion",
+      "ExplicitOwner sourcebehavior is repaired, never accepted as fabricated replacement originaldeployment/newdefaultstore proof",
+      "Historical164 source/catalog/INFO/lineage and all pastverdicts/failurecounters retained; no guessed/fabricated pins",
+      "Actual resolved watcherbinary identity remains independent originalruntime prerequisite",
+      "After completebatch assembly perform one affectedtrust/persistence/concurrency source review; then unchangedstable captured source for strategic originalcore/nativechecks and required independentruntime. No reviewofreview or unchanged duplicated gates"
+    ],
+    "proof_unchanged": true,
+    "excluded_actions": [
+      "runtimeprovisioning/newdefaultstore/firstOwner as originaldeployment substitute",
+      "authentication/grant/provenance manufacture",
+      "foreignprocess disruption",
+      "acceptance narrowing or selfverdict",
+      "newtarget/profile/cap/counterreset",
+      "storage/APIpath expansion beyond exactlistedlease without evidenced rootamendment"
+    ],
+    "next_action": "SOURCE RELEASE EFFECTIVE: sameworkers implement exact ownedfiles now; mediator coordinates interfaces, primary integrates and meaningfulMTcheckpoint/Git; required stablebatch compiler/source review and independent originalruntime remain",
+    "leases": [
+      {
+        "id": "WP012-SWARM-SCHEMA-001",
+        "mt": "MT-173",
+        "owner_chat": "01a13acc-64c3-7950-8be9-0ded06a2388a",
+        "paths": [
+          "src/backend/handshake_core/src/storage/surreal/schema.surql",
+          "src/backend/handshake_core/src/storage/surreal/schema.rs"
+        ],
+        "deliverable": "Strict existing Argus18-key predicate and narrow current table guards; real successor from164 preserving historical BASE/FINAL164 and legacy branches; canonical CREATE/replay authority and independent fr.read SELECT",
+        "original_proof_refs": [
+          "MT-173.json#/proof",
+          "MT-183.json#/proof"
+        ],
+        "ownership_agreement": "Runtime diagnostics_receipts explicitly relinquished bothfiles; schema accepts",
+        "source_only": true,
+        "state": "SOURCE_IMPLEMENTATION_RELEASED"
+      }
+    ],
+    "packet_ref": "packet.json#/swarm_production_20261014"
+  },
+  "active_swarm_source_lease_ref": "MT-173.json#/swarm_source_batch_20261014"
 }

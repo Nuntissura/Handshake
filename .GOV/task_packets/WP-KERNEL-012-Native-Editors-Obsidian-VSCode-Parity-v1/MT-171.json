@@ -1,4 +1,80 @@
 {
+  "round42_actual_core_20261012": {
+  "ref": "MT-174.json#/round42_actual_core_20261012",
+  "product_commit": "f776f494e2b12b4ab59cac856964472ab7d34800",
+  "status": "CORE_CHECK_GREEN",
+  "accepted_mts": "0/5",
+  "prior_lifecycle": {
+    "status": "BLOCKED",
+    "blocked_on": "Reviewed two-file SQL identity-expression repair pushed f776f494e; changed-input compiler proof pending. BASE/FINAL catalog observations, exact pins and fresh/reopen, genuine native authorization/publication and consumed runtime acceptance remain unproven; accepted0/5.",
+    "depends_on": [],
+    "blocks": [],
+    "active": true,
+    "validator_verdict": null,
+    "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
+    "claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
+    "completed_by": null,
+    "next_actor": "Delivery one existing changed-input core command after fresh admission; Review exact MT139 afterward; measured pins then original fresh/reopen proofs"
+  }
+},
+
+  "round42_parameter_equality_source_release_20261012": {
+  "ref": "MT-174.json#/round42_parameter_equality_source_release_20261012",
+  "product_commit": "f776f494e2b12b4ab59cac856964472ab7d34800",
+  "status": "SOURCE_CLEAR_PUSHED_COMPILE_PENDING",
+  "accepted_mts": "0/5",
+  "prior_lifecycle": {
+    "status": "BLOCKED",
+    "blocked_on": "Core Round41 GREEN on de66b4522; independently measured BASE/FINAL pins and fresh/reopen, genuine native authorization/publication and consumed runtime/native independent acceptance remain unproven; accepted0/5.",
+    "depends_on": [],
+    "blocks": [],
+    "active": true,
+    "validator_verdict": null,
+    "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
+    "claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
+    "completed_by": null,
+    "next_actor": "Independent Review existing MT139 catalog observation on de66b after fresh admission; measured pin reconciliation then exact original fresh/reopen proof; no unchanged core rerun"
+  }
+},
+
+  "round41_actual_core_20261012": {
+  "ref": "MT-174.json#/round41_actual_core_20261012",
+  "product_commit": "de66b452230dbc139cadb567aded30c96d98e6a8",
+  "status": "CORE_CHECK_GREEN",
+  "accepted_mts": "0/5",
+  "prior_lifecycle": {
+    "status": "BLOCKED",
+    "blocked_on": "Reviewed source repair pushed de66b4522; required compiler proof on changed inputs pending. Independent BASE/FINAL catalog observations and fresh/reopen, genuine native authorization/publication and consumed runtime acceptance remain unproven; accepted0/5.",
+    "depends_on": [],
+    "blocks": [],
+    "active": true,
+    "validator_verdict": null,
+    "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
+    "claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
+    "completed_by": null,
+    "next_actor": "Delivery fresh admission then one existing core command; Review exact existing MT139 observation after successful compiler result; no unchanged retries"
+  }
+},
+
+  "round41_reviewed_source_release_20261012": {
+  "ref": "MT-174.json#/round41_reviewed_source_release_20261012",
+  "product_commit": "de66b452230dbc139cadb567aded30c96d98e6a8",
+  "status": "SOURCE_CLEAR_PUSHED_COMPILE_PENDING",
+  "accepted_mts": "0/5",
+  "prior_lifecycle": {
+    "status": "BLOCKED",
+    "blocked_on": "Core Round40 GREEN on880dda; runtime remains blocked on independently measured BASE/FINAL pins and fresh/reopen proof, prohibited live .GOV registry input coupling, genuine native authorization/publication and consumed runtime/native independent acceptance; accepted0/5.",
+    "depends_on": [],
+    "blocks": [],
+    "active": true,
+    "validator_verdict": null,
+    "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
+    "claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
+    "completed_by": null,
+    "next_actor": "Independent Review executes existing MT139 measured catalog target after fresh admission; sole coder reconciles measured pins and original registry external input seam; preserve original authority/assertions; no unchanged core rerun"
+  }
+},
+
 
   "round40_actual_core_20261012": {
     "proof_ref": "MT-174.json#/round40_actual_core_20261012",
@@ -1045,7 +1121,7 @@
   },
   "lifecycle": {
   "status": "BLOCKED",
-  "blocked_on": "Core Round40 GREEN on880dda; runtime remains blocked on independently measured BASE/FINAL pins and fresh/reopen proof, prohibited live .GOV registry input coupling, genuine native authorization/publication and consumed runtime/native independent acceptance; accepted0/5.",
+  "blocked_on": "Core Round42 GREEN on f776f494e; independently measured BASE/FINAL pins and fresh/reopen, genuine native authorization/publication and consumed runtime/native independent acceptance remain unproven; accepted0/5.",
   "depends_on": [],
   "blocks": [],
   "active": true,
@@ -1053,7 +1129,7 @@
   "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
   "claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
   "completed_by": null,
-  "next_actor": "Independent Review executes existing MT139 measured catalog target after fresh admission; sole coder reconciles measured pins and original registry external input seam; preserve original authority/assertions; no unchanged core rerun"
+  "next_actor": "Independent Review exact MT139 observation on f776f after fresh admission; measured pins then exact fresh/reopen; no unchanged core rerun"
 },
   "scope": {
     "summary": "Reconcile CKC-owned core import paths",

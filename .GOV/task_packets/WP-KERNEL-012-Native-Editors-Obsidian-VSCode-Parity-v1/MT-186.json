@@ -1,0 +1,1015 @@
+{
+  "delegated_native_stage04_20261014": {
+    "decision_id": "WP012-NATIVE-STAGE-20261014-04",
+    "status": "CHECK1_DIAGNOSTIC0_CLOSED_SOURCE_BATCH_PUSHED_CURRENT_CORE_PREDECESSOR_PENDING",
+    "candidate_commit": "eba6c403773524e498629153e9c725f64b72a9bd",
+    "candidate_tree": "6edf1f190e308efb4eaac0d5af2ad27199a6d668",
+    "source_checkpoint_ref": "MT-175.json#/successor_connected_batch_checkpoint_20261014",
+    "next_command_mode": "DIAGNOSTIC_KEEP_GOING",
+    "next_argv": ["check", "--locked", "--manifest-path", "src/frontend/handshake_native/Cargo.toml", "--tests", "-j", "1", "--keep-going"],
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "predecessor_stage_ref": "/delegated_native_stage03_20261014",
+    "predecessor_terminal_checks": 3,
+    "historical_native_failed_checks": 13,
+    "history_reset": false,
+    "stage_terminal_checks": 1,
+    "additional_candidate_limit": 3,
+    "source_repair_ref": "MT-175.json#/diagnostic_two_group_batch_repair_20261014",
+    "diagnostic_command": "cargo check --locked --manifest-path src/frontend/handshake_native/Cargo.toml --tests -j 1 --keep-going",
+    "original_acceptance_command": "cargo check --locked --manifest-path src/frontend/handshake_native/Cargo.toml --tests -j 1",
+    "method": "After reviewedpushedbatch/currentbinding firstdiagnostic uses8argv keepgoing, records everyactualgroup/namedfailed/reachedtargets; no fulltargetcensus fromplaintext. If failure repairall actualindependentgroups before another changedcandidate diagnostic. Diagnostic0 doesnotproveoriginal command: primary then prepares/runs exact7argv original acceptance check on same reviewedcandidate while slot remains, with relevantbindings/argv/proofscope refresh and validunchangedproof reuse.",
+    "proof_floor": "No runtimeadmission/originalcompilerPASS until exact7argv command actualnumeric0 plus independent originalparent/postfreeze/ownedclosure. Diagnosticresults explicitly original_exact_command_provenfalse. At3terminalchecks root records fresh evidence-based continuation/blocker eveniforiginalnotyetrun; no reset or automaticextension.",
+    "release": "Same conditional primary release after independently reviewedpushedcandidate, currentactualsource/config/tool/authority/gate/resourcebindings, one affectedrunner/argv/reuse/admission/actualouterpayload review, exactstate+cfgSHA rawinverse and SAMEfrozenouterexecpayload variablefreshassert explicitexit immediatelybeforetools invocation. No extraOperatorapproval onceconditionspass.",
+    "limits": "Sameprofile916767/target/disk50GiBfloor175stop180cap/j1normal/memorytelemetry only; sourcefreeze/fulloriginalactualexit/allgroups/postbinding/ownedPIDclosure. No metadata/testexecution/runtime/provision/foreignprocessstop or unrelated source changes. All13failures/priorstages retained, originalauth/GUI/Swarmcontrols/durable/fullWPacceptance OPEN.",
+    "next_action": "Assemble concurrent related source batch; one affected review; refresh changed source/authority/argv binding and strategic compiler, original exact7argv separately required"
+  },
+  "delegated_stage03_check3_diagnostic_result_20261014": {
+    "status": "DIAGNOSTIC_FAIL101_INDEPENDENT_TERMINAL_FREEZE_CLOSED",
+    "attempt_id": "b7d9e25e538047ba8f6baf63265f1cbd",
+    "candidate_commit": "e63eef6594f70ee47a31fbebec070bf79220047c",
+    "terminal_utc": "2026-10-14T09:48:49.9374426Z",
+    "cargo_exit": 101,
+    "wrapper_exit": 101,
+    "outer_exit_independently_verified": 101,
+    "original_outer_parent": "exec-d4033710-6ba2-4442-bac0-f8d2b07e3be5",
+    "independent_reviewer": "01a1323e-c183-77e3-b8ba-b286507e5617",
+    "actual_outer_forwarding": "PASS_THIS_DIAGNOSTIC_RUN; exactsamefrozenpayload explicitexit/currentoriginalparent101. Earlierouter1 unchangedhistory.",
+    "stage_terminal_checks": 3,
+    "cumulative_native_failures": 13,
+    "diagnostic_groups": ["3E0004 UiAction::ShowContextMenu unhandled tests/test_e7_swarm_edit_proof1422/1686/2806", "1E0432 threeabsentsettingssymbols in test_argus_production_socket_live_surfaces54-57"],
+    "reached_scope": "Actualraw native(lib)/(libtest)labels reached withwarnings and2namedtargetsfailed; no fulltargetcensus/unreachedcount/allPASS inferredfromplaintext.",
+    "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-stage03-check03",
+    "result_sha256": "2771b84ae1585150d7d8b68a5d7d064ff3422ee594a76093a641b4f58835d51a",
+    "evidence_sha256": "1b3c51f6e5cc044f472451ac40ccb1c607c0e2b8a72c2f189c042f6c8376f6d3",
+    "stderr_sha256": "88394c7d5dbb5295404b67861f887a5e479d45a3a3a50ecd69a4e31d49a63fc9",
+    "closure": "Fresh7416inventory/bytes/all20categories/23cfg11authority3tools exactclean e63; ownedCargo348/wrapper53620/directchildren absent, originalfulluntruncatedparent101 independentlyverified.",
+    "max_target_bytes": 36918317134,
+    "original_exact_command_proven": false,
+    "runtime_acceptance": "NOT_RUN",
+    "next_repair_ref": "MT-175.json#/diagnostic_two_group_batch_repair_20261014"
+  },
+  "keep_going_diagnostic_collection_20261014": {
+    "decision_id": "WP012-KEEP-GOING-DIAGNOSTIC-COLLECTION-20261014",
+    "status": "APPROVED_LAST_STAGE03_DIAGNOSTIC_ONLY",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "direct_blocker": "Default Cargo stops scheduling independent test/crate targets after first failure; repeated native runs exposed one test interface at a time. Operator requested compiling then collecting every failure for parallel batch repair. Twelve failures/history retained; scope changes directly improve exactfailure collection without weakening original acceptance.",
+    "research_source": "https://doc.rust-lang.org/cargo/commands/cargo-check.html#miscellaneous-options; checked2026-10-14, --keep-going continues independent dependency-graph crates when earlier crate fails, -j1 preserved; failed dependencies can still leave dependenttargets unreached.",
+    "candidate_commit": "e63eef6594f70ee47a31fbebec070bf79220047c",
+    "command": "cargo check --locked --manifest-path src/frontend/handshake_native/Cargo.toml --tests -j 1 --keep-going",
+    "argv": ["check", "--locked", "--manifest-path", "src/frontend/handshake_native/Cargo.toml", "--tests", "-j", "1", "--keep-going"],
+    "stage_binding": "Uses remaining stage03 check3 allowance; preserve two consumed originalchecks and all12priorCargoFAIL101. On terminal stage03 becomes3/3; record actualdiagnosticexit and everyactual target/errorgroup/reached-unreached dependency state. No historyreset or automatic additional dispatch.",
+    "proof_floor": "Diagnostic run cannot replace original exact seven-argv command or claim its gate passed even if diagnosticexit0. Original cargo check --locked --manifest-path src/frontend/handshake_native/Cargo.toml --tests -j1 remains explicit independent acceptance surface to run after diagnosticbatchclean under nextrecorded bounded decision. Runtime/auth/durability/GUI/wholeWP acceptance unchangedOPEN.",
+    "preconditions": "Verify installed frozenCargohelp supportsflag using source/toolinspection only, no toolchaininstall. Refresh only changed command/config/runner/currentauthority bindings and relevantcondition notes; validunchanged source/body/syntax/conditionproof reused. One affected independent argv/preflight/actualouterpayload review, officialnumeric-zero gates, exactrelease-only inverse then conditionalprimary launch. Actualqueuedouterpayload explicitexit and samevariableassert mandatory. No extraOperatorapproval.",
+    "limits": "Same MT174profile916767/target/disk50GiBfloor175GBstop180GBcap/j1/normal/memoryobservationonly and sourcefreeze/ownedPID/originalparentexit closure. No newfeatures/manifest/source/test/runtimetestexecution/metadata/provision/foreignprocess disruption. Neverrepresentkeepgoingasrunningtests or asalltargetsreachedwhen dependenciesfailed."
+  },
+  "outer_launch_payload_repair_20261014": {
+    "status": "EXACT_ACTUAL_PAYLOAD_FORWARDING_REPAIR_AUTHORIZED",
+    "failure_ref": "/delegated_stage03_check2_result_20261014",
+    "diagnosis": "Actual original -Command payload '& next-launch.ps1' omitted outer exit $LASTEXITCODE; nested next-launch and ownedwrapper forwarded101 but originalparent returned1. Primary/IV inspected originalexactpayload/tooloutput; no alternative preference mechanism inferred. Preserve actualouter1/direct101 and do not rerun unchangedcandidate to replace record.",
+    "owner": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+    "repair": "Next changed-candidate actualexec command is '& <exact current next-launch.ps1>; exit $LASTEXITCODE'. Generate/freeze exactqueuedouterpayload as existing external launch artifact, include in affectedpreflight, assert actualsame variable/payload has explicit exit forwarding immediately before tools.exec_command; do not manuallyretype a different invocation. Preserve nested directexit and original commandargv/profile/cap/sourcefreeze. Mechanicalpayload assertion must fail beforelaunch if suffixmissing/mismatched.",
+    "proof": "Original actualparent toolnumericexit compared with Cargo/wrapper terminal result after nextchangedrun; no priorouter1 relabeling, boolean/scriptcontent proxy or numeric0 successclaim. One affectedlaunchpayload/runner/config preflight review; unchangedsource evidence reused, no compilerprobe rerun/test/runtime."
+  },
+  "delegated_stage03_check2_result_20261014": {
+    "status": "CARGO_WRAPPER_FAIL101_TERMINAL_FREEZE_CLOSED_OUTER_FORWARDING_FAIL1",
+    "attempt_id": "6beeae15b6274394bc9415a088dca828",
+    "candidate_commit": "d57f6707359d39f0ad652f8d5a7ab475f7dbebb4",
+    "terminal_utc": "2026-10-14T09:17:03.6978907Z",
+    "cargo_exit": 101,
+    "wrapper_exit": 101,
+    "outer_exit_independently_verified": 1,
+    "original_outer_parent": "exec-e7a5f7e1-8589-48e8-a97d-ca8bfd87145d",
+    "independent_reviewer": "01a1323e-c183-77e3-b8ba-b286507e5617",
+    "outer_transport_verdict": "FAIL_ACTUAL_EXIT_FORWARDING_MISMATCH; notfaithful101, separatefrom actualCargoFAIL101",
+    "stage_terminal_checks": 2,
+    "cumulative_native_failures": 12,
+    "diagnostic": "TwoE0599 unchangedtest_operator_chat_selection_and_transcript_argus.rs103/207 missingHandshakeApp::set_pane_factory. Native library advanced with warnings; priorDTO/guarderrorsgone, lateralltargets/tests/runtimeunproven.",
+    "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-stage03-check02",
+    "result_sha256": "1e65840b0f2979418dc192904f138f534af1d6b090d5e92148d4eba6ccc76afa",
+    "evidence_sha256": "2ef8402f9b16bd6b70c60e830b3e4547e122728fee73c64749bdb3b237b87fdc",
+    "stderr_sha256": "a03c94449d14097e08f201a49e8db5b1166f69328e3a624bd03cfdf46279cf74",
+    "closure": "Fresh7416inventory/bytes/20categories/23configs/11authority/3tools exactclean d57f; ownedwrapper36608/Cargo40104/directchildren absent. Originalfulluntruncatedparent1 preserved; actualcompiler allowanceconsumed independentofbadforwarding.",
+    "max_target_bytes": 36917613677,
+    "runtime_acceptance": "NOT_RUN",
+    "next_repair_ref": "MT-175.json#/pane_factory_setter_repair_20261014"
+  },
+  "stage03_check2_resource_observation_incident_20261014": {
+    "status": "FIRST_REFUSAL_RETAINED_FRESH_NUMERIC_ADMISSION_PASSED",
+    "candidate_commit": "d57f6707359d39f0ad652f8d5a7ab475f7dbebb4",
+    "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-stage03-check02",
+    "reported_refusal": "inspect-resources.ps1 DISK_HEADROOM_BELOW_50GIB before Cargo; no resource-preparation.json written because guard threw before receipt. Earlier claim of opened resource file corrected.",
+    "first_failure_cause": "UNVERIFIED: first GetVolume/free-space observation not retained; do not infer actual disk shortage or a fixed root cause.",
+    "fresh_observations": "Root independentDriveInfo C available370243956736; primary freshconfiguredtarget GetVolume C370243956736 and instrumented immediate/pre-floor C370243944448, physicaldisk0. All exceed unchanged53687091200floor. Fresh09:03:59Z resourceadmission target36917154366, competing0/cache4820normal32/5/2. No deletion/processstop/profilerenewal.",
+    "bounded_remedy": "Existing external probe captures exacttarget/volume count/type/numeric free-space/physicaldisk and independentDriveInfo before refusal; missing/non-numeric observations stop explicitly unavailable rather than null-as-zero. Preserve same50GiBfloor/175stop180cap/profile/j1/normal/memorytelemetry. Retain originalhelperbytes/failedattempt and changedprobe delta for affected independent preflight review, not a fullaudit or newhelper.",
+    "counter_disposition": "No compiler launched or allowance consumed; stage03one/3 cumulative11 unchanged. Fresh exactbinding after currentkernel update required before conditionalrelease."
+  },
+  "delegated_stage03_check1_result_20261014": {
+    "status": "FAIL101_INDEPENDENT_TERMINAL_FREEZE_CLOSED",
+    "attempt_id": "2ea802f0ecba42ea9e7604977444375f",
+    "candidate_commit": "db339b9772ff848321de30600f60213e81b47789",
+    "terminal_utc": "2026-10-14T08:52:08.9648575Z",
+    "cargo_exit": 101,
+    "wrapper_exit": 101,
+    "outer_exit_independently_verified": 101,
+    "original_outer_parent": "exec-cf08960e-150a-4781-8b8b-3fc57f6dff7a",
+    "independent_reviewer": "01a1323e-c183-77e3-b8ba-b286507e5617",
+    "stage_terminal_checks": 1,
+    "cumulative_native_failures": 11,
+    "diagnostic": "SoleE0596 mcp/server.rs572 channel.receipts() requires mutable guard at571; current receipts(&mutself) expires stale actions. Native library failed, old5DTOerrors absent; later targets/tests/runtime unproven. Reviewer acknowledged receiver closure miss; exactscope requiresrepair/reproof.",
+    "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-stage03-check01",
+    "result_sha256": "57c15bdd429984a81d5593b1464a7b594780b75bf32fea5e148e5f4ad3176008",
+    "evidence_sha256": "f80432524c0a976523cf73c952c7d4ad985f5eb350645aea98bf83f931e9cdd1",
+    "stderr_sha256": "787430b7be9a65cee8d57e239dc320d10523595059a0918ad0a9dab94955f3d9",
+    "closure": "Fresh7416inventory/bytes/20categories/23configs/11authority/3tools exact clean db339; ownedwrapper33044/Cargo12740/directchildren absent; untruncatedouter101verified.",
+    "max_target_bytes": 36917165380,
+    "runtime_acceptance": "NOT_RUN",
+    "next_repair_ref": "MT-175.json#/receipt_guard_mutability_repair_20261014"
+  },
+  "delegated_native_stage03_20261014": {
+    "decision_id": "WP012-NATIVE-STAGE-20261014-03",
+    "status": "EXHAUSTED_THREE_TERMINAL_CHECKS_CONTINUATION_RECORDED_STAGE04",
+    "candidate_commit": "e63eef6594f70ee47a31fbebec070bf79220047c",
+    "candidate_tree": "6dd041f88270fbb1f8b46771d35dd562a1cc6468",
+    "source_checkpoint_ref": "MT-175.json#/pane_registry_checkpoint_20261014",
+    "actual_outer_payload_prerequisite_ref": "/outer_launch_payload_repair_20261014",
+    "next_check_override_ref": "/keep_going_diagnostic_collection_20261014",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "predecessor_stage_ref": "/delegated_native_stage02_20261014",
+    "predecessor_terminal_checks": 3,
+    "historical_native_failed_checks": 10,
+    "history_reset": false,
+    "stage_terminal_checks": 3,
+    "additional_candidate_limit": 3,
+    "source_repair_ref": "MT-175.json#/cloud_dto_import_repair_20261014",
+    "changed_method": "Actual restored-type use/import/declaration-scope census and affected independent import closure reproof before compile; parser-only proof does not establish type scope. Repair all actual diagnostic group members together and no unchanged blind retry.",
+    "command": "cargo check --locked --manifest-path src/frontend/handshake_native/Cargo.toml --tests -j 1",
+    "execution_conditions_ref": "/delegated_native_stage_20261014",
+    "release": "Same conditional primary launch after independently reviewed pushed repaired candidate, fresh actual source/config/tool/authority bindings and numeric-zero official gates, one affected runner/config/reuse/admission review and exact release-only byte inverse. Explicit original outer exit/full diagnostics/postfreeze/ownedclosure. No extra root/Operator approval when conditions pass.",
+    "limits": "Same MT174 profile916767/target/aggregate180GBcap175GBstop/j1/normal/memory observation only. Compiler/static evidence only; no metadata/test execution/runtime/provision or foreign process disruption. At limit root records fresh evidence-based continuation/method/blocker decision. All10failures and exhausted priorstage counts retained; original independent runtime/fullacceptance remains OPEN."
+  },
+  "delegated_stage02_check3_result_20261014": {
+    "status": "FAIL101_INDEPENDENT_TERMINAL_FREEZE_CLOSED",
+    "attempt_id": "d384a18dbe1d40c6b14011d105de55c8",
+    "candidate_commit": "25e1491c742049e3fbf433045b10813c81f8eb90",
+    "terminal_utc": "2026-10-14T08:17:17.2702596Z",
+    "cargo_exit": 101,
+    "wrapper_exit": 101,
+    "outer_exit_independently_verified": 101,
+    "original_outer_parent": "exec-32a70732-e359-4fb8-b453-052c09eedef3",
+    "independent_reviewer": "01a1323e-c183-77e3-b8ba-b286507e5617",
+    "stage_terminal_checks": 3,
+    "cumulative_native_failures": 10,
+    "diagnostic": "Ten E0422/E0425/E0433 native library errors from one absent settings DTO import group in backend_client scope: CloudAccessSnapshot,CloudCliLoginState,CloudByokRow,CloudCliAuthStatus,CloudCliRow; actual settings public types exist. Later targets/test execution/runtime unproven. Reviewer acknowledged import-closure miss; exact scoped claim invalid until repair/reproof.",
+    "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-stage02-check03",
+    "result_sha256": "dcc0e2ebf08605575385768471450f8e2f62de44c48edc50fa3db9110bcc2df2",
+    "evidence_sha256": "79a6e6ac718adb716c153e2ffc43a795d79b687399ecbbaaaa547c3bac13b45c",
+    "stderr_sha256": "e0b47307728fd37145acd63133b8f71d6273ce0b73a607682c0cc9af227e1237",
+    "closure": "Freshcanonical7416inventory/bytes/20categories/23configs/11authorities/3tools exact clean25e; owned wrapper47624/Cargo49456/directchildren absent; originaluntruncated outer101 verified.",
+    "max_target_bytes": 36917156085,
+    "runtime_acceptance": "NOT_RUN",
+    "next_repair_ref": "MT-175.json#/cloud_dto_import_repair_20261014"
+  },
+  "delegated_stage02_check2_result_20261014": {
+    "status": "FAIL101_INDEPENDENT_TERMINAL_FREEZE_CLOSED",
+    "attempt_id": "0ee5a270dba64b2599017ad6b4220f37",
+    "candidate_commit": "952d6bbe61d9162e5b98b843c73cc7e871aa23c0",
+    "terminal_utc": "2026-10-14T06:08:51.4424829Z",
+    "cargo_exit": 101,
+    "wrapper_exit": 101,
+    "outer_exit_independently_verified": 101,
+    "original_outer_parent": "exec-1a2584d5-f445-4c60-8b40-dd0e14527681",
+    "independent_reviewer": "01a1323e-c183-77e3-b8ba-b286507e5617",
+    "stage_terminal_checks": 2,
+    "cumulative_native_failures": 9,
+    "diagnostic": "SoleE0599 test_wp1_console_stream_pane_argus.rs44 missing HandshakeApp::set_wp1_console_entries_for_test; previous three-interface/Palmistry/four-group errors absent. Later targets/test execution/runtime not proven.",
+    "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-stage02-check02",
+    "result_sha256": "f5b6d1a88a2527fd6258edda752001661625d4b979ef4103bafb05868c14ca15",
+    "evidence_sha256": "dabb0701753a814970b0b9535d54723689b3af4b970ba97f0c9510ceb1c95ff1",
+    "stderr_sha256": "ecb71e21dc1160b7954d10e5fac5bfdac04ee82c7102385ed4ca2e6b696a85ea",
+    "closure": "Original untruncated outer101, all7416 inventory/bytes/20categories/23configs/11authorities/3tools unchanged; fresh canonicalclean952d and owned wrapper/Cargo/directchildren absent.",
+    "max_target_bytes": 36917115711,
+    "runtime_acceptance": "NOT_RUN",
+    "next_repair_ref": "MT-175.json#/console_test_seam_repair_20261014"
+  },
+  "delegated_stage02_check1_result_20261014": {
+    "status": "FAIL101_INDEPENDENT_TERMINAL_FREEZE_CLOSED",
+    "attempt_id": "43a5aabc153e42799049b9f8f9584aba",
+    "candidate_commit": "ebb7c666360ae1a389fe2725d2590e06ee55313d",
+    "terminal_utc": "2026-10-14T05:20:37.7551284Z",
+    "cargo_exit": 101,
+    "wrapper_exit": 101,
+    "outer_exit_independently_verified": 101,
+    "original_outer_parent": "exec-59776d96-ea41-4265-b0c5-31e23d2220bd",
+    "independent_reviewer": "01a1323e-c183-77e3-b8ba-b286507e5617",
+    "stage_terminal_checks": 1,
+    "cumulative_native_failures": 8,
+    "diagnostics": ["E0432 test_user_manual_pane_argus.rs13 missing backend_client::UserManualClient", "E0425 tests/argus_socket_support/live_socket.rs594 missing accessibility::is_sensitive_author_id", "E0425 same live_socket.rs650 missing mcp::ACTION_RECEIPT_TRANSPORT_TIMEOUT"],
+    "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-stage02-check01",
+    "result_sha256": "58075ea73d3b0e66249d2bff1957afe968d6531c973b27d9d5a55d61b3a8e1be",
+    "evidence_sha256": "b2ef39917b4e3e2316f5c02e3e6e7459c87f26e8a5c6b6af093a6f51585bce0d",
+    "stderr_sha256": "50c40f58686cabed25aaef221d0a5c1fec5962cfe34031fec38f10e157c18f9e",
+    "closure": "Fresh7416 inventory/bytes and20categories/23configs/11authorities/3tools exact; clean ebb7; owned38716/44488/29884/52572 absent. Prior Palmistry/four-group diagnostics absent. Remaining targets, tests and runtime not proven.",
+    "max_target_bytes": 36818090352,
+    "runtime_acceptance": "NOT_RUN",
+    "next_action": "Primary read-only grouped actual missing-interface producer/consumer and pinned provenance census; root records exact source assignment before writes, no blind compile retry. Two stage02 checks remain."
+  },
+  "delegated_native_stage02_20261014": {
+    "decision_id": "WP012-NATIVE-STAGE-20261014-02",
+    "status": "EXHAUSTED_THREE_TERMINAL_CHECKS_CONTINUATION_RECORDED_STAGE03",
+    "candidate_commit": "25e1491c742049e3fbf433045b10813c81f8eb90",
+    "candidate_tree": "b0adb052982ea7994de58e759251795bd0e614f4",
+    "source_checkpoint_ref": "MT-175.json#/cloud_window_connected_checkpoint_20261014",
+    "current_release_hold": "Connected frontend cloud/window source predecessor SOURCE_CLEAR and checkpoint verified. Fresh original compiler preparation/affectedrunner review/release-only inverse required under existing conditionalrelease. Backend route, genuine authentication, legacy runtime auth test/windowdriver and durableHMAC remain separate OPEN runtime residuals; no static compiler acceptance substitution.",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "predecessor_stage_ref": "/delegated_native_stage_20261014",
+    "predecessor_terminal_checks": 3,
+    "historical_native_failed_checks": 7,
+    "history_reset": false,
+    "stage_terminal_checks": 3,
+    "additional_candidate_limit": 3,
+    "changed_method": "Before the next compiler, inspect every currently declared binary's library-module references against actual exports and producer dependencies; assemble all directly evidenced missing-export repairs as one batch. Review only changed connections. Preserve each actual diagnostic group and change relevant inputs before any retry.",
+    "source_repair_ref": "MT-175.json#/palmistry_export_repair_20261014",
+    "command": "cargo check --locked --manifest-path src/frontend/handshake_native/Cargo.toml --tests -j 1",
+    "execution_conditions_ref": "/delegated_native_stage_20261014",
+    "release": "Primary may launch after independently reviewed and pushed source checkpoint, fresh bindings, numeric-zero official gates, one affected runner/config/admission review and exact release-only inverse. No additional root or Operator approval. Preserve original outer exit and owned-process terminal closure.",
+    "limits": "Same MT174 profile916767bb, target, aggregate180GBcap/175GBstop, one job, normal scheduling and memory observation only. Compiler evidence only; no metadata/test execution/runtime or foreign process disruption. At this stage limit root records a fresh evidence-based method/continuation/blocker decision. No counters or prior failures reset. Original runtime and independent acceptance remain OPEN."
+  },
+  "delegated_stage01_check3_result_20261014": {
+    "status": "FAIL101_INDEPENDENT_TERMINAL_FREEZE_CLOSED",
+    "independent_reviewer": "01a1323e-c183-77e3-b8ba-b286507e5617",
+    "original_outer_parent": "exec-7babc822-ced1-4dae-9113-92556a3e1a14",
+    "outer_exit_independently_verified": 101,
+    "result_sha256": "3e14a921f0434732cde3ce2b3707cd5889aa2eec4575282a6f5a3e709931134f",
+    "independent_closure": "Original untruncated parent101, Cargo/wrapper101, fresh all7416 inventory/bytes and pre/post20categories/23configs/11authority/3tools exact, clean8088 and owned18016/50848 absent. Review completed after terminal; kernel continuation decision followed closed run. No runtime or acceptance PASS.",
+    "attempt_id": "23b6b5255f3e48bc99b9415fd42863b0",
+    "candidate_commit": "8088c79c8de982a6bb3c38565f71d9ce6ff23979",
+    "terminal_utc": "2026-10-14T04:40:06.9252787Z",
+    "wrapper_exit": 101,
+    "cargo_exit": 101,
+    "outer_exit_reported": 101,
+    "stage_terminal_checks": 3,
+    "cumulative_native_failures": 7,
+    "diagnostic": "E0433 src/frontend/handshake_native/src/bin/palmistry.rs:2 cannot find palmistry in handshake_native; existing src/palmistry.rs has public run_from_env but lib.rs does not export its module. Prior four error groups absent from inspected full stderr; later targets/test execution/runtime not proven.",
+    "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-stage01-check03",
+    "evidence_sha256": "a9ea30fc1391b683d2e81d8493b415506147f399feb7ea2c97653dbc33d0eb99",
+    "stderr_sha256": "eda581c3d20acf82172f5ffea6fe4779688c1f736e6bde278163e1dd0abd6f52",
+    "inputs_unchanged": true,
+    "max_target_bytes": 36364938128,
+    "runtime_acceptance": "NOT_RUN"
+  },
+  "delegated_stage01_check2_result_20261014": {
+    "status": "INDEPENDENT_FAIL101_FOUR_NATIVE_ASSEMBLY_GROUPS",
+    "stage_decision_ref": "/delegated_native_stage_20261014",
+    "attempt_id": "5885529797454617b76e019109306c6e",
+    "candidate": "7930cb914332836ec22724468c949f88c6182b66",
+    "kernel_capture": "59137b2da7b531aa6051e3b1e0c2b48c68c66e4f",
+    "completed_utc": "2026-10-14T03:26:32.2366138Z",
+    "cargo_numeric_exit": 101,
+    "wrapper_numeric_exit": 101,
+    "parent_tool_numeric_exit": 101,
+    "parent_command_id": "exec-f8ef6569-9d47-416c-a81a-6b113e9b57b3",
+    "diagnostics": 5,
+    "root_cause_groups": [
+      {
+        "id": "ATELIER_KIND_PROJECTION_EXHAUSTIVENESS",
+        "source": "backend_client.rs4172",
+        "failure": "E0004 four additional item kinds not handled; no verified canonical Loom content type/producer for these rich references"
+      },
+      {
+        "id": "ATELIER_LOOM_RELATION_PARSE",
+        "source": "backend_client.rs16089/16120",
+        "failure": "Two E0063 initializers omit actual optional loom_block_id"
+      },
+      {
+        "id": "ATELIER_FULL_BATCH_COUNTS_PRODUCER",
+        "source": "atelier_panel.rs16272/16826",
+        "failure": "E0599 missing expanded_batch_summary; canonical backend lane_counts discarded by Vec-only cell/sidepanel path"
+      },
+      {
+        "id": "DEBUGGER_PANE_EXHAUSTIVENESS",
+        "source": "visual_debugger/mod.rs643",
+        "failure": "E0004 mapping omits three existing pane variants"
+      }
+    ],
+    "result_sha256": "1e155b10a36cdd38ce68c2bcee66fb11d06c84e50b289993e1376876b33dabef",
+    "evidence_sha256": "6603826af774b36611c2e339f39d62cf869a789295be9d5437569b308dffafb5",
+    "stderr_sha256": "52a6381349a7053a88f4827026518596c3839668d420e5bb3dd75a318093a2b1",
+    "post_candidate_sha256": "b712390d41e9185fcfd457900aa22cc068f78a73253f387ec06b406dc806f111",
+    "artifact_lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-stage01-check02",
+    "independent_reviewer": "01a1323e-c183-77e3-b8ba-b286507e5617",
+    "binding": "Fresh all7416 inventory/bytes and20pre/postcategories,23configs11authorities3tools exactclean7930; owned36732/50376 absent",
+    "max_target_bytes": 36364905991,
+    "freeze": "CLOSED_TERMINAL_INDEPENDENT_FAIL101",
+    "stage_checks_consumed": 2,
+    "stage_failed_checks": 2,
+    "pre_stage_historical_failures": 4,
+    "cumulative_native_failed_checks": 6,
+    "not_reached": "Later native/test targets after failed library; backendmain not selected",
+    "resolved_previous_failure": "ProcessStatus feature E0432 absent",
+    "runtime_acceptance": "NOT_RUN; no parent ACCEPTANCE",
+    "next_repair_ref": "MT-175.json#/four_group_connected_batch_repair_20261014"
+  },
+  "stage_check2_preparation_method_20261014": {
+    "status": "APPROVED_CURRENT_CHANGED_CANDIDATE_PREPARATION",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "candidate": "7930cb914332836ec22724468c949f88c6182b66",
+    "updated_at_utc": "2026-10-14T02:53:56.422451+00:00",
+    "next_check": "Originalnative7argv currentnewprofile916767, memorytelemetryonly, stage1/3 consumed",
+    "reuse": "Current7416 sourcecomparison and independent singleWindowsfeature closure permit reuse of allunchangedsource/runtime-assertion inspection evidence; refresh changedmanifestfeature/config/input/candidate/authority andfreshadmission only",
+    "method_change": "Prior149 confirmations used79controllercalls; group selectedsame-role conditions supportedby SAME inspectedactualproof/observation andnote-grouprefs inexistingconfirmationmap. No blanketall-role confirmation orconditionwaiver. Per-step originalevidence/disposition remains. Machinechecks stillofficialcontroller atrequiredmoments.",
+    "stop": "One changedrunner/binding/currentproof-reuse IV review then release-onlybytes andoriginalcheck underrootconditionalrelease; no extrauserapproval/reviewofreview"
+  },
+  "delegated_stage01_check1_result_20261014": {
+    "status": "INDEPENDENT_FAIL101_NATIVE_WINDOWS_FEATURE",
+    "stage_decision_ref": "/delegated_native_stage_20261014",
+    "attempt_id": "4d19093db6f54193afb64369cf61c59f",
+    "candidate": "cc6b5b356e244734f290355c159695e33dbbd4d2",
+    "kernel_capture": "96501279991f98576aa5f0ab205045faadcd7270",
+    "completed_utc": "2026-10-14T02:43:20.0199003Z",
+    "cargo_numeric_exit": 101,
+    "wrapper_numeric_exit": 101,
+    "parent_tool_numeric_exit": 101,
+    "parent_command_id": "exec-dcdb19ff-7ce0-4678-9beb-76724520ed82",
+    "failure_group": "NATIVE_DIAGNOSTICS_WINDOWS_PROCESSSTATUS_FEATURE",
+    "failure": "One E0432 internal_diagnostics.rs1476; existing windows-sys0.61.2 ProcessStatus APIs gated behind missing Win32_System_ProcessStatus. Libraryexport defect absent. Later native targets NOT_REACHED; backendmain not selected.",
+    "result_sha256": "cdf4d311443039ae3af1f9af101314ef2f37cd6e2b210f2cc261a64521dfc14a",
+    "evidence_sha256": "9b58ef9b25ecb4588ca383bba931882fa6f23a2c483020a37eaea47aa5a0b62a",
+    "stderr_sha256": "d2771f0eeac42215b7601babc2c8bfd63e1c860b5131133799b9c8bed85641e5",
+    "post_candidate_sha256": "1a0791a62bc638d5d68f804c33fc08ac15090041941d5579a378321c7bf25a05",
+    "artifact_lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-stage01-current",
+    "independent_reviewer": "01a1323e-c183-77e3-b8ba-b286507e5617",
+    "binding": "All7416 canonical input inventory/bytes,23configs11authorities3tools and20 before/post categories unchanged; fresh livecleancc6 and all ownedPIDs absent",
+    "freeze": "CLOSED_TERMINAL_INDEPENDENT_FAIL101",
+    "memory_policy": "Observations retained, no memory reserve refusal; original numericexit forwarding now correct",
+    "max_target_bytes": 36011904229,
+    "stage_checks_consumed": 1,
+    "stage_failed_checks": 1,
+    "pre_stage_historical_failures": 4,
+    "cumulative_native_failed_checks": 5,
+    "runtime_acceptance": "NOT_RUN; genuine auth/publication/durable/multiwindow/shutdownAC3 remainOPEN",
+    "next_repair_ref": "MT-175.json#/connected_windows_feature_repair_20261014"
+  },
+  "stage01_preparation_and_resource_blocker_20261014": {
+    "status": "SOURCE_CONFIG_CLEAR_ADMISSION_BLOCKED",
+    "updated_at_utc": "2026-10-14T02:21:25.963309+00:00",
+    "authority_ref": "/delegated_native_stage_20261014",
+    "candidate": "73368c07fe7ab713e1110c85004a0a18882351b5",
+    "runner_sha256": "1995f06aee7cc44c2fc69e4677b6e512e3364acd223afad022382ef293c10c7a",
+    "config_sha256": "f3a28de217768129b271623d9f870cc34be2e934944a816082e73d75bdbff6e2",
+    "bindings_sha256": "d25cce1eab474e4a0823fefbe84bd47355f819a898de266e92571925c581b18e",
+    "next_launch_sha256": "a7ad8bc463a7946d34056f7f394b009ab690f703f34722b60e9938a18ab1c7e9",
+    "input_digest": "198018af2215093e89aa9f46ae68dbbb87512ed558149dcbe1661883e58513b8",
+    "independent_reviewer": "01a1323e-c183-77e3-b8ba-b286507e5617",
+    "independent_finding": "Scoped assembled connection and adapted runner/config cleared, old runner byteinverse exact, whole7416/164rows/23configs/10authorities/3tools current at985551a7. Runtime provenance remains OPEN. No repeated unchanged review required.",
+    "resource_observation": {
+      "utc": "2026-10-14T02:15:01.6446109Z",
+      "committed_bytes": 58038480896,
+      "commit_limit_bytes": 66044293120,
+      "reserve_bytes": 8005812224,
+      "required_reserve_bytes": 10000000000,
+      "available_mb": 995,
+      "pages_input_per_sec": 75506
+    },
+    "root_followup": "Fresh root CIM observed58454495232 committed/66044293120 limit,546MB available; reserve still below10GB. Largest observed processes are not session-owned; no process disruption authorized/performed.",
+    "artifact_lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-stage01",
+    "compiler_invocations": 0,
+    "stage_checks_consumed": 0,
+    "decision": "Do not lower profile floor or force compiler under current paging/headroom. Continue separately approved source repair before new assembled freeze. Refresh candidate/authority bindings after that checkpoint or resource recovery; held preparation history retained.",
+    "preparation_cause_ref": "gameplan.yaml#/GP-547"
+  },
+  "delegated_native_stage_20261014": {
+    "decision_id": "WP012-NATIVE-STAGE-20261014-01",
+    "status": "APPROVED_REFRESH_CURRENT_ASSEMBLY_MEMORY_TELEMETRY_ONLY",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "candidate_commit": "8088c79c8de982a6bb3c38565f71d9ce6ff23979",
+    "candidate_tree": "137394ee441aabab611ac5ebf6ad9a8ff0ead8d0",
+    "memory_override_ref": "packet.json#/operator_memory_reserve_removal_20261014",
+    "source_checkpoint_ref": "MT-175.json#/four_group_batch_checkpoint_20261014",
+    "compiler_owner": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+    "independent_reviewer": "01a1323e-c183-77e3-b8ba-b286507e5617",
+    "command": "cargo check --locked --manifest-path src/frontend/handshake_native/Cargo.toml --tests -j 1",
+    "profile": "../gov-runtime/host-profile-wp012-phase02-builder.json",
+    "profile_sha256": "916767bbbac5a853b9b8dbd5688d2262cc91bff0d9173fc2431f4dad0bc6b776",
+    "target": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/target",
+    "cap_bytes": 180000000000,
+    "initial_additional_candidate_limit": 3,
+    "stage_terminal_checks": 3,
+    "historical_native_failed_checks": 4,
+    "history_reset": false,
+    "counter_disposition": "Explicit delegated continuation decision for reviewed export repair after four spent grants; preserve existing per-failure records. Same failed fix cannot repeat without changed relevant inputs and an evidenced changed approach. At limit delivery lead records next decision before further run.",
+    "source_repair_owner_ref": "MT-175.json#/adaptive_connected_repair_execution_20261014",
+    "preconditions": [
+      "Whole affected caller/producer/export/features/runtime-init connections reviewed; source-clear is not runtime PASS",
+      "Fresh full source/config/tool/authority bindings and relevant role gameplan/resource admission",
+      "Independent runner/admission review, exact numeric exit forwarding and whole captured source freeze"
+    ],
+    "stop_conditions": [
+      "Original native check exit0: proceed to genuine runtime admission, no parent PASS",
+      "Stage limit or repeated failure: root records changed method/continuation/blocker decision before another check",
+      "Input drift/resource conflict or need excluded side effects: repair exact blocker within authorized scope before rerun"
+    ],
+    "limits": "Compiler/static evidence only; no metadata or test execution under this compiler release, no runtime/auth/provenance manufacture, no foreign process disruption, no profile/cap/topology change. Runtime/provision scope remains separately reconciled and assigned by delivery lead under actual original contracts."
+  },
+  "native_producer_recheck_result_20261013": {
+    "status": "FAIL101_NATIVE_LIBRARY_PRODUCER_EXPORT",
+    "attempt_id": "fa31f38fcb1f491a92a7301485375c35",
+    "approval_ref": "/native_producer_repair_recheck_proposal_20261013",
+    "approval_consumed": true,
+    "candidate_commit": "1d170964bfff8a189bc68425e76c86bce0e53178",
+    "candidate_tree": "d7a978492840e46572b0ea3b73bfc2c5ab541bc2",
+    "authority_kernel_commit": "99ce6c1e2ba7721014da929995499101ec261a1f",
+    "cargo_numeric_exit": 101,
+    "parent_tool_exit": 1,
+    "parent_command_id": "exec-fff1e1d0-ca11-4b57-9d44-efb1d6f59a5c",
+    "parent_exit_disposition": "Retain outer PowerShell1 separately from actual owned Cargo/wrapper101; no rerun to change evidence",
+    "completed_utc": "2026-10-13T19:49:38.0309434Z",
+    "failure": "Exactly one E0433 at backend_client.rs14846:39: crate::internal_diagnostics::emit_behavior_observation_open unavailable in current library root; existing internal_diagnostics.rs implementation directly inspected",
+    "artifact_lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-producer-recheck",
+    "result_sha256": "aa419449eb7ebba4aadec66aa430e2ed475ffb58dae2e67722ea36836d618dcd",
+    "evidence_sha256": "32d7a54285be53af2ebd437062d1510713b92989529dfcc93acb292caf08b01d",
+    "stderr_sha256": "c295f724f22765a7d84061b1f255a9544393ec54f0ed07c77e6c217d6d1593f0",
+    "post_candidate_sha256": "3ab7aedb7037bac38c78b65be87481e945bc9dfdff2987df0fc529d40a91e46c",
+    "post_binding_sha256": "34c142d05528bbb6a68ee6e92404605707c72b54e42cc1cca64786493b2bece6",
+    "input_binding": "Independent fresh7416 exact inventory/bytes,23configs10rawauthorities3toolbinaries, all20 binding categories true and zero drift; clean current1d170964",
+    "resource": "Max36012014851bytes below180000000000cap/175000000000stop; original cache4820 untouched; wrapper19732/Cargo30160 independently absent",
+    "independent_reviewer": "01a1323e-c183-77e3-b8ba-b286507e5617",
+    "freeze": "CLOSED_TERMINAL_INDEPENDENT_FAIL101",
+    "limits": "All four exact-one approvals spent and FAIL101 retained. Compiler prerequisite remains false; no runtime provisioning/metadata/test execution, no durable/multiwindow/parent acceptance PASS, no retry grant."
+  },
+  "native_producer_repair_recheck_proposal_20261013": {
+    "state": "APPROVED_EXACT_ONE_PRODUCER_REPAIR_NATIVE_RECHECK",
+    "operator_authorization": {
+      "quote": "appoved",
+      "source": "Live Operator reply to the pending exact-one producer-repair recheck proposal on 2026-10-13",
+      "scope": "One original native compiler check on 1d170964 under the same MT174 profile, C: target and aggregate180GB cap; compiler evidence only"
+    },
+    "repair_ref": "MT-175.json#/native_producer_repair_checkpoint_20261013",
+    "candidate_commit": "1d170964bfff8a189bc68425e76c86bce0e53178",
+    "candidate_tree": "d7a978492840e46572b0ea3b73bfc2c5ab541bc2",
+    "command": "cargo check --locked --manifest-path src/frontend/handshake_native/Cargo.toml --tests -j 1",
+    "target": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/target",
+    "profile_sha256": "df7068d5f93a49d17f48f7404a7c4251e2be8f17abc1d2fd5bb04068ee727081",
+    "aggregate_existing_target_cap_bytes": 180000000000,
+    "scope": "Exactly one further sequential native compiler check on independently reviewed and pushed producer repair; all three previous exact-one approvals spent and FAIL101 retained",
+    "limits": "No execution until Operator approval plus fresh bindings/resource/gameplan admission and independent runner review. Same profile, C: target and aggregate cap. No metadata, tests execution, runtime provisioning, process disruption, auth/deployment manufacture, budget reset or acceptance narrowing. Compiler evidence only."
+  },
+  "native_feature_recheck_result_20261013": {
+    "status": "FAIL101_NATIVE_IMPORTED_PRODUCER_CLOSURE",
+    "attempt_id": "fec4fea57a8f4f90b4d3538eef59b3ba",
+    "approval_ref": "/native_feature_repair_recheck_proposal_20261013",
+    "candidate_commit": "5e4133679c3bbba904c6d17cfd46cadab93dc97b",
+    "candidate_tree": "5179ab7947d14e71bdcc5b9b8ee7d91b4a5265d2",
+    "authority_kernel_commit": "f3153e7ead57f417b3a042a22f86cfadc6f9378c",
+    "artifact_lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-feature-recheck",
+    "actual_numeric_exit": 101,
+    "wrapper_pid": 42300,
+    "cargo_pid": 39688,
+    "completed_at_utc": "2026-10-13T01:47:12.7836053Z",
+    "parent_terminal_sha256": "acb5cc26d7834464735c43171b9962b82c4363bd64b9f67ed0d5e9e980d615e3",
+    "diagnosis": "Native lib28errors:2E0432 missing backend_client Atelier exports and OperatorChatClient;26E0425 missing ActorRequestSpec,AtelierIntakeClassificationRow and mcp::argus::acknowledge_action_effect. Prior coreE0599 absent. Exact producer reconciliation remains required; no stubs or consumer removal.",
+    "result_sha256": "c5090a32c61da1ab844290f3f57ab1cbbccef9e6c297781c9c01a1585f5adb23",
+    "evidence_sha256": "a9e8d7fec07f49005e2156127fa2bca42315df1f59645052f938d9c7eaa985e8",
+    "post_binding_sha256": "34c142d05528bbb6a68ee6e92404605707c72b54e42cc1cca64786493b2bece6",
+    "post_candidate_sha256": "81fe503a188b0d5b591b49dd9537244e891f266956a19a200ac8f03db1bcd0bc",
+    "stderr_sha256": "fa87660ebdc37b527bc9db00c22ead76a4551dd56c374276c164173419817750",
+    "binding_observation": "All7416 source inputs,23 configuration inputs,10 authorities,3 tools/profile and20 before/after categories unchanged. Max target36011901401 bytes below existing180GB cap. Owned compiler/wrapper exited.",
+    "independent_reviewer": "01a1323e-c183-77e3-b8ba-b286507e5617",
+    "independent_verdict": "Compiler-only FAIL101; direct original parent tool numeric101, closed artifacts and fresh canonical inputs independently inspected; capture freeze closed",
+    "grant_disposition": "Third exact-one native compiler approval consumed. All three failures retained; no fourth run granted.",
+    "runtime_acceptance": "NOT_RUN",
+    "repair_owner": "MT-175",
+    "preparation_cause_ref": "gameplan.yaml#/GP-537"
+  },
+  "native_feature_repair_recheck_proposal_20261013": {
+    "state": "APPROVED_EXACT_ONE_REPAIRED_NATIVE_RECHECK",
+    "operator_authorization": {
+      "quote": "Approve one repaired-native recheck",
+      "source": "Live Operator reply on 2026-10-13 to exact source-repaired-candidate native check question",
+      "scope": "One sequential original native compiler check on 5e4133679 using the same MT174 builder profile, C: target and existing aggregate180GB cap; compiler evidence only"
+    },
+    "repair_ref": "MT-173.json#/bounded_native_feature_repair_20261013/result",
+    "candidate_commit": "5e4133679c3bbba904c6d17cfd46cadab93dc97b",
+    "candidate_tree": "5179ab7947d14e71bdcc5b9b8ee7d91b4a5265d2",
+    "command": "cargo check --locked --manifest-path src/frontend/handshake_native/Cargo.toml --tests -j 1",
+    "output_owner": "WP-KERNEL-012/MT-174/kb-phase02",
+    "target": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/target",
+    "profile_sha256": "df7068d5f93a49d17f48f7404a7c4251e2be8f17abc1d2fd5bb04068ee727081",
+    "aggregate_existing_target_cap_bytes": 180000000000,
+    "limits": "One proposed further original native check after independently reviewed and pushed one-file feature-gate repair. Both previous failures remain retained. No dispatch before Operator approval, fresh current bindings and resource/gameplan admission, independent runner review. No metadata, runtime provisioning, process disruption, profile/target/cap change or counter reset."
+  },
+  "native_recheck_result_20261013": {
+    "status": "FAIL101_FEATURE_GATED_STORAGE_HELPER",
+    "attempt_id": "859b32c70bd04b90a7a627433316947f",
+    "approval_ref": "/native_retry_proposal_20261013",
+    "candidate_commit": "c00c1de6d93bdf93b4da36ee3efbdaa4ed5490c5",
+    "candidate_tree": "a8d3bdcd52a91d7e2dfd75cd79ab03e98bdf7902",
+    "authority_kernel_commit": "be8ba91aa54b03c7a355e75533197fd3ec336f97",
+    "artifact_lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-lock-recheck",
+    "actual_numeric_exit": 101,
+    "wrapper_pid": 39168,
+    "cargo_pid": 42756,
+    "completed_at_utc": "2026-10-13T01:16:23.6859226Z",
+    "parent_observation": "Root directly inspected retained commandExecution exec-85010c92-0e95-4c6d-ac39-3205d186430e: exitCode101, closed wrapper39168 numeric_exit101 at 01:16:23.8499832Z, complete untruncated output.",
+    "diagnosis": "One E0599 at storage/tests.rs466: unconditional with_test_sync_from_env call, method gated any(test,surreal-test-support), native core dev dependency enables runtime-full,test-utils without surreal-test-support. Lock admission passed. No runtime verdict.",
+    "result_sha256": "d30c0b91c20851cc83190df462bd5fbb99443f31cc6d4dc391d7e3885ee7ffc2",
+    "evidence_sha256": "be99086e8f755f1f423de90c97ca6e5e7b5706be92895450eab09c0330168788",
+    "post_binding_sha256": "34c142d05528bbb6a68ee6e92404605707c72b54e42cc1cca64786493b2bece6",
+    "post_candidate_sha256": "f21117274a802f1cd7e4765c93db3b3d4a2c99827438377b2a1b80a4913ee4ba",
+    "stderr_sha256": "46395a4422a9309f11f8e28a6d1e10881320884a811ae2725bcb7443625b3082",
+    "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "binding_observation": "All7416 source inputs,23 manifest/config inputs,10 raw authorities,tools/profile and20 before/after categories unchanged. Maximum target35816963187 bytes within existing180GB cap.",
+    "independent_reviewer": "01a1323e-c183-77e3-b8ba-b286507e5617",
+    "independent_verdict": "Compiler-only FAIL101; actual closed artifacts and fresh canonical source/config/authority inputs independently inspected",
+    "grant_disposition": "Second exact-one native compiler approval consumed. Both native attempts retained; no third compiler run granted.",
+    "runtime_acceptance": "NOT_RUN",
+    "repair_ref": "MT-173.json#/bounded_native_feature_repair_20261013",
+    "preparation_cause_ref": "gameplan.yaml#/GP-536"
+  },
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-186",
+  "created_at_utc": "2026-10-12T22:15:27.486745+00:00",
+  "updated_at_utc": "2026-10-12T22:15:27.486745+00:00",
+  "identity": {
+    "mt_id": "MT-186",
+    "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+    "title": "Genuine native deployment and authenticated-context admission",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "closure_unit": {
+    "outcome": "Genuine native deployment and authenticated-context admission",
+    "requirement_refs": [
+      "packet.json#/operator_workflow_restructure_20261013",
+      "MT-175.json#/closure_unit",
+      "MT-175.json#/spec_basis"
+    ],
+    "acceptance_refs": [
+      "MT-175.json#/scope/acceptance_criteria"
+    ],
+    "materialized_acceptance": [
+      {
+        "id": "WP012-MT-186-AC1",
+        "requirement": "Original deployment identity and live authenticated context independently observed; native compiler prerequisite retained. Admission is not all native acceptance."
+      },
+      {
+        "id": "WP012-MT-186-AC2",
+        "requirement": "Preserve inherited scope/pins/proof/budgets; independent owner binds exact inputs and actual verdict. Parent and whole-WP acceptance remain separate."
+      }
+    ]
+  },
+  "model_routing": {
+    "model_tier": null,
+    "tier_reason": "Configured role defaults, no override; bounded successor outcome with parent acceptance retained",
+    "sized_for_declared_tier": false,
+    "escalate_to_tier_on_blocker": null
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 2,
+    "attempts_counted_per_failing_check_not_per_hypothesis": true,
+    "written_diagnosis_required_before_further_attempts": true,
+    "post_diagnosis_runs": {
+      "probe": 1,
+      "confirm": 1
+    },
+    "exhausted_budget_outcome": "blocked_with_diagnosis",
+    "lineage_refs": [
+      "MT-175.json#/attempt_budget",
+      "MT-174.json#/round50_independent_predecessor_actual_result_20261013",
+      "packet.json#/operator_workflow_restructure_20261013/budget_binding"
+    ],
+    "new_counter_or_allowance_created": false,
+    "authority_precedence": "Numeric fields are inherited policy ONLY. Parent cumulative per-check history and specific existing grants determine remaining allowance. Child-local counters/new allowances forbidden.",
+    "remaining_allowance_source_ref": "packet.json#/operator_workflow_restructure_20261013/budget_binding"
+  },
+  "execution": {
+    "lane": "KERNEL_BUILDER_FOLDED_NO_ACP",
+    "foreground_or_interactive_tools_forbidden": true,
+    "depends_on": [
+      "MT-184"
+    ],
+    "allowed_write_paths": [],
+    "forbidden_write_paths": [
+      ".GOV/**",
+      "canonical schema.surql and historical migration literals/pins",
+      "manifests/lockfiles",
+      "product paths outside exact assigned source scope"
+    ],
+    "stop_conditions": [
+      "Source/config/tree drift",
+      "Applicable attempt allowance absent/exhausted",
+      "Shared-target or overlapping-writer conflict",
+      "Need wider source/API/spec authority",
+      "Genuine deployment/authentication input unavailable"
+    ],
+    "module_ref": "src/frontend/handshake_native"
+  },
+  "proof": {
+    "parent_proof_refs": [
+      "MT-175.json#/proof",
+      "packet.json#/operator_workflow_restructure_20261013",
+      "WP-KERNEL-012-phase-01-source-reconciliation-v1.json#/combined_acceptance_binding"
+    ],
+    "checks": [
+      {
+        "check_id": "WP012-MT-186-CLOSURE",
+        "claim_refs": [
+          "WP012-MT-186-AC1"
+        ],
+        "executor_role": "INTEGRATION_VALIDATOR",
+        "command_or_method": "Independent canonical observation of original deployment identity and real native authenticated session/grants/policy/reviewer; retain account/Principal/session/AccessSpace and exact five-ID context. Use original approved selectors only.",
+        "expected": "Original deployment identity and live authenticated context independently observed; native compiler prerequisite retained. Admission is not all native acceptance.",
+        "timeout_seconds": null,
+        "on_timeout": "Observe owned process/resources; actual exit required; no foreign process action",
+        "evidence_required": [
+          "Exact candidate/tree/source/configuration bindings",
+          "Actual canonical outcome or exit and terminal evidence",
+          "Independent review/runtime observation where required",
+          "Inherited failure history and applicable allowance"
+        ]
+      }
+    ],
+    "independent_review_required": true,
+    "duplicate_parent_proof_forbidden": true,
+    "configuration_binding_ref": "packet.json#/operator_workflow_restructure_20261013/resource_grant_extension/186",
+    "native_compile_prerequisite": {
+      "ref": "MT-175.json#/proof/checks/0",
+      "executor_role": "KERNEL_BUILDER",
+      "command_or_method": "cargo check --locked --manifest-path src/frontend/handshake_native/Cargo.toml --tests -j 1",
+      "configuration": "Reconcile existing native owner dispatch/target/profile before execution; core compiler/focused runtime configuration is not a native target grant. Reuse valid unchanged native compiler proof if available."
+    }
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-186.json",
+    "microtask_projection": null,
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": null,
+    "status": "ON_DEMAND_ONLY",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "BLOCKED",
+    "depends_on": [
+      "MT-184"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING",
+    "claimed_by": null,
+    "completed_by": null,
+    "next_actor": "Fresh source teams/integrator implement batch; independent validator original compiler/runtime proof after assembly",
+    "blocked_on": "Original native seven-argument command remains unproven after diagnostic0; genuine deployment/auth/grants binding remains unavailable"
+  },
+  "scope": {
+    "summary": "Genuine native deployment and authenticated-context admission",
+    "allowed_paths": [],
+    "forbidden_paths": [
+      ".GOV/**",
+      "canonical schema.surql and historical migration literals/pins",
+      "manifests/lockfiles",
+      "product paths outside exact assigned source scope"
+    ],
+    "acceptance_criteria": [
+      {
+        "id": "WP012-MT-186-AC1",
+        "requirement": "Original deployment identity and live authenticated context independently observed; native compiler prerequisite retained. Admission is not all native acceptance."
+      },
+      {
+        "id": "WP012-MT-186-AC2",
+        "requirement": "Preserve inherited scope/pins/proof/budgets; independent owner binds exact inputs and actual verdict. Parent and whole-WP acceptance remain separate."
+      }
+    ],
+    "proof_targets": [
+      "Independent canonical observation of original deployment identity and real native authenticated session/grants/policy/reviewer; retain account/Principal/session/AccessSpace and exact five-ID context. Use original approved selectors only.",
+      "MT-175.json#/proof/checks/0"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": true,
+    "gui_creation_required": false,
+    "argus_required": true,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "Existing native surfaces for changed owning module"
+    ],
+    "argus_targets": [
+      "Retain original MT exact stable IDs; no replacement name inferred"
+    ],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": false,
+    "same_change_update_required": false,
+    "manual_version_bump_required": false,
+    "target_entries": [],
+    "expected_evidence": [],
+    "not_applicable_reason": "Bounded internal repair/compile/admission/publication introduces no new user-facing workflow. Original parent manual requirements retained; reassess if repair changes behavior.",
+    "inherited_parent_obligation_ref": "MT-175.json#/user_manual_obligation"
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "Mapped original owning-module resources"
+    ],
+    "identity_and_scope_contexts": [
+      "account",
+      "Principal",
+      "session",
+      "AccessSpace",
+      "resource grant"
+    ],
+    "enforcement_boundaries": [
+      "Host record-user/ResourceBroker and adapter admission"
+    ],
+    "same_project_private_resource_cases": [
+      "Private metadata and content default deny across actors"
+    ],
+    "cross_account_negative_cases": [],
+    "derived_resource_non_widening_cases": [
+      "Mixed-scope outputs retain narrowest contributing scope"
+    ],
+    "revocation_and_context_switch_cases": [
+      "Pinned original context; invalidate revoked caches/handles"
+    ],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": [],
+    "expected_evidence": [
+      "stable_resource_owner_scope_linkage",
+      "default_deny_negative_test",
+      "same_project_cross_account_isolation_test_when_applicable",
+      "derived_resource_scope_non_widening_test_when_applicable",
+      "actor_owner_access_space_attribution",
+      "revocation_or_context_switch_test_when_applicable",
+      "remote_delegation_sync_scope_test_when_applicable",
+      "argus_or_typed_privacy_state_inspection_when_operator_visible"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-COMPART-001",
+    "HBR-COMPART-002",
+    "HBR-INT-009",
+    "HBR-MAN-001..004",
+    "HBR-PRIV-001..008",
+    "Retained source-MT exact HBR rows; pin adoption assessed before activation"
+  ],
+  "hbr_int_009_tier_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "model_reports": [
+      "observations",
+      "blockers",
+      "attempt_diagnoses",
+      "operator_decision_requests",
+      "residual_risks",
+      "proposed_followups"
+    ],
+    "worker_final_status": "ready_for_validation_or_blocked",
+    "parent_handoff_ref": "MT-175.json#/handoff"
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Incomplete declaration closure",
+      "New ID resets attempts/orphans acceptance",
+      "Compile mistaken for runtime proof",
+      "Synthetic deployment/authentication"
+    ],
+    "minimum_controls": [
+      "Complete source reconciliation before costly proof",
+      "Retained parent map/history and immutable bindings",
+      "Sole writer/build owner",
+      "Canonical independent observation with original assertions"
+    ]
+  },
+  "obligation_binding": {
+    "parent_ref": "MT-175.json",
+    "required_original_obligations_unchanged": true,
+    "change_to_proof_mapping": "Only affected behavior invokes new proof/manual updates; reuse valid unchanged input evidence, never waive original acceptance."
+  },
+  "parent_binding": {
+    "parent_mt": "MT-175",
+    "authority_ref": "packet.json#/operator_workflow_restructure_20261013",
+    "delegates_only_current_outcome": true,
+    "original_residual_scope_remains_parent": true,
+    "parent_is_not_execution_predecessor": true
+  },
+  "spec_basis": {
+    "kind": "Operator-authorized preservation-first execution decomposition",
+    "parent_ref": "MT-175.json#/spec_basis",
+    "new_product_requirements": false
+  },
+  "admission_constraints": {
+    "status": "NOT_INSPECTED",
+    "inputs": [
+      "original deployment executable/data root/listener",
+      "native channel",
+      "real account/Principal/session/AccessSpace",
+      "persisted grant/policy/reviewer and five-ID tuple"
+    ],
+    "forbidden": [
+      "new default store/first Owner",
+      "synthetic grant/account/session",
+      "secret scraping",
+      "channel token as account proof",
+      "competing direct RocksDB opener"
+    ],
+    "after_admission": "MT185 actual publication; full native/source acceptance stays MT175/original consumed owners."
+  },
+  "native_dispatch_proposal_20261013": {
+    "decision_id": "WP012-NATIVE-DISPATCH-PROPOSAL-20261013",
+    "state": "APPROVED_EXACT_ONE_NATIVE_COMPILER_ADOPTION",
+    "authority_blocker": null,
+    "operator_authorization": {
+      "quote": "Approve native dispatch adoption",
+      "source": "Live Operator reply to exact native dispatch adoption question on 2026-10-13",
+      "scope": "Exactly one original native compiler check on the named C: target using the existing MT174 builder profile and aggregate 180 GB cap; compiler evidence only"
+    },
+    "proposed_action": "Explicitly adopt existing MT174 owning host/profile/target/cap for exactly one sequential original MT175 native check; no new target/profile or hardware changes",
+    "command": "cargo check --locked --manifest-path src/frontend/handshake_native/Cargo.toml --tests -j 1",
+    "cwd": "C:/Projects/LLM Projects/handshake-desktop/wtc-WP-KERNEL-012",
+    "candidate_commit": "37f452a6b3b07c0ffd91ab49c3f99632c4104bb8",
+    "candidate_tree": "e22db7bd603b56caac2fec5cef9afc2e8b38733f",
+    "compiler_owner": "KERNEL_BUILDER",
+    "output_owner": "WP-KERNEL-012/MT-174/kb-phase02",
+    "covered_mts": ["MT-175", "MT-186"],
+    "disk": "C:; physical disk0, reverify before launch",
+    "target": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/target",
+    "profile": "../gov-runtime/host-profile-wp012-phase02-builder.json",
+    "profile_sha256": "df7068d5f93a49d17f48f7404a7c4251e2be8f17abc1d2fd5bb04068ee727081",
+    "aggregate_existing_target_cap_bytes": 180000000000,
+    "configuration": "Exact existing profile/toolchain/j1/incremental0/dev+test line-tables-only and owned cache/TMP paths, explicitly adopted for native; default native features; root .cargo config applies, crate-local crt-static is not discovered from root by manifest-path",
+    "preconditions": ["Explicit operator native dispatch adoption and retained allowance reconciliation", "Independent exact configuration review", "Fresh scoped gameplan/source/config/tool/digest binding", "No competing build and sequential sole target owner", "Fresh disk/commit reserve/target cap and scheduling admission"],
+    "proof": "Actual numeric exit, closed original logs and unchanged source/config/tool/authority bindings; independent compile-only verdict, never deployment/runtime proof",
+    "limits": "One original native check only; no additional cap, new profile/target, counter reset, runtime provisioning or process disruption",
+    "risk_controls": "Explicit owned target overrides absent unscoped default; serialize one physical-disk job; monitor existing cap; preserve original command/root config and per-check history"
+  },
+  "genuine_admission_observation_20261013": {
+    "observer": "01a1323e-a014-7252-ab58-8cb5a256b792",
+    "approved_binding_selector": "%LOCALAPPDATA%/handshake/swarm_mcp_binding.json",
+    "binding_present": false,
+    "named_native_process_count": 0,
+    "named_core_process_count": 0,
+    "default_listener_port": 37501,
+    "listener_count": 0,
+    "default_store_selector": "%LOCALAPPDATA%/handshake/handshake-surreal",
+    "default_store_present": false,
+    "configured_backend_or_data_env": "HANDSHAKE_BACKEND_LISTEN_ADDR, HANDSHAKE_BACKEND_LISTEN_REPORT_FILE and HANDSHAKE_DATA_DIR unset at Process/User/Machine",
+    "original_deployment_executable_and_data_root": "UNBOUND; approved selectors only, no claim about renamed/unbound deployments",
+    "existing_session_grant_policy_reviewer": "UNBOUND; no authcall/DBquery/secret read/provisioning",
+    "canonical_outcome": "NOT_ACQUIRED",
+    "native_compiler_proof": "FAIL101; see native_compiler_result_20261013. Retained955-node metadata has invalidated inputs and is historical only.",
+    "broader_documented_discovery": {
+      "operator_quote": "deliberate with you teams, explore and decide for youself and continue",
+      "observers": ["01a1323e-a014-7252-ab58-8cb5a256b792", "01a1323e-d84e-7793-a23f-a1ac8626ceb7", "01a1323e-8219-7f01-b326-bbd802d1ba9a"],
+      "disposition": "ORIGINAL_DEPLOYMENT_UNBOUND / NOT_ADMITTED",
+      "scoped_observations": "Documented installer directory and registry marker, both documented Start Menu shortcuts, six current/historical executable selectors, default binding/store/listener and named source process selectors absent. Five documented environment selectors absent at Process/User/Machine; product-local scope is removed after startup, so current absence alone does not disprove loaded authority.",
+      "source_refs": ["installer/windows/handshake_native.wxs:39", "src/frontend/handshake_native/scripts/build_installer.ps1:60", "src/backend/handshake_core/src/main.rs:59", "src/backend/handshake_core/src/main.rs:512", "src/backend/handshake_core/src/storage/surreal/mod.rs:434", "src/frontend/handshake_native/src/mcp/binding.rs:431", "src/frontend/handshake_native/src/manual_content_editors.rs:418"],
+      "scope_limit": "Known documented selectors only; no claim that relocated or renamed deployments exist nowhere. No secret read, DB opener, authentication call, provisioning, launch or process disruption.",
+      "required_external_binding": "Original existing launcher/executable and provenance, effective original data root/listener/native binding, genuine current authenticated context holder plus canonical workspace/grant/policy/reviewer observation. Channel binding and four-ID session projection alone do not establish full admission."
+    }
+  },
+  "native_retry_proposal_20261013": {
+    "state": "APPROVED_EXACT_ONE_NATIVE_RECHECK",
+    "operator_authorization": {
+      "quote": "Approve one native recheck",
+      "source": "Live Operator reply on 2026-10-13 to exact repaired-candidate native check question",
+      "scope": "One further sequential original native compiler check on c00c1de6d using the same existing MT174 profile, C: target and aggregate180GB cap; compiler evidence only"
+    },
+    "repair_ref": "MT-175.json#/bounded_native_lock_repair_20261013/result",
+    "candidate_commit": "c00c1de6d93bdf93b4da36ee3efbdaa4ed5490c5",
+    "candidate_tree": "a8d3bdcd52a91d7e2dfd75cd79ab03e98bdf7902",
+    "command": "cargo check --locked --manifest-path src/frontend/handshake_native/Cargo.toml --tests -j 1",
+    "output_owner": "WP-KERNEL-012/MT-174/kb-phase02",
+    "target": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/target",
+    "profile_sha256": "df7068d5f93a49d17f48f7404a7c4251e2be8f17abc1d2fd5bb04068ee727081",
+    "aggregate_existing_target_cap_bytes": 180000000000,
+    "limits": "Exactly one further sequential original native compiler check; same profile/target/cap, fresh current bindings/gameplan/resources and independent reviewed capture. No metadata run, runtime provisioning, process disruption or counter reset. Previous FAIL101 remains retained."
+  },
+  "native_compiler_result_20261013": {
+    "status": "FAIL101_LOCK_ADMISSION",
+    "attempt_id": "fd6e9cbdb0a74d5194a34b268f796d74",
+    "command": "cargo check --locked --manifest-path src/frontend/handshake_native/Cargo.toml --tests -j 1",
+    "candidate_commit": "37f452a6b3b07c0ffd91ab49c3f99632c4104bb8",
+    "candidate_tree": "e22db7bd603b56caac2fec5cef9afc2e8b38733f",
+    "authority_kernel_commit": "555fb579c64448928ef3f851bd11e5113ecc05f0",
+    "artifact_lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-preparation",
+    "actual_numeric_exit": 101,
+    "wrapper_pid": 39896,
+    "cargo_pid": 39560,
+    "completed_at_utc": "2026-10-13T00:20:51.7370158Z",
+    "diagnosis": "Actual closed stderr: cannot update native Cargo.lock because --locked prevents it. Dependency-lock admission failure; no source compiler or runtime verdict.",
+    "result_sha256": "bf96956cbe51110c3564046f24c41d5b0dbc0675a4cfa80ed75ae4cf7aedeb84",
+    "evidence_sha256": "ad9be85365421eacc58e2f7b80b2514b6c9b16b02ad34c351fd94a024691ccee",
+    "post_binding_sha256": "34c142d05528bbb6a68ee6e92404605707c72b54e42cc1cca64786493b2bece6",
+    "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderr_sha256": "abe8fae6272606102f203a9d3ecaa70419fe9c81afbf5521137a217966aacb28",
+    "binding_observation": "All7416 source inputs,23 manifest/config inputs,10 raw authorities and20 before/after binding categories equal; source and locks unchanged. Both owned processes exited. Target30396593422 bytes within existing180GB cap.",
+    "independent_reviewer": "01a1323e-c183-77e3-b8ba-b286507e5617",
+    "independent_verdict": "FAIL101; actual artifacts opened and canonical current inputs independently rehashed",
+    "grant_disposition": "Exactly one approved compiler attempt consumed; no second run, metadata execution, lock mutation or acceptance narrowing granted by this result.",
+    "runtime_acceptance": "NOT_RUN",
+    "preparation_cause_ref": "gameplan.yaml#/GP-535",
+    "preserved_proofs": ["MT-183.json#/independent_acceptance_20261013", "MT-184.json#/independent_acceptance_20261013"]
+  },
+  "native_diagnostics_export_recheck_proposal_20261013": {
+    "state": "SUPERSEDED_BY_APPROVED_DELEGATED_NATIVE_STAGE_20261014",
+    "repair_ref": "MT-175.json#/native_diagnostics_export_repair_checkpoint_20261013",
+    "candidate_commit": "73368c07fe7ab713e1110c85004a0a18882351b5",
+    "candidate_tree": "0ba903d5ffdf2a19025eb5f0d16498b4327e5b50",
+    "command": "cargo check --locked --manifest-path src/frontend/handshake_native/Cargo.toml --tests -j 1",
+    "target": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/target",
+    "profile_sha256": "df7068d5f93a49d17f48f7404a7c4251e2be8f17abc1d2fd5bb04068ee727081",
+    "aggregate_existing_target_cap_bytes": 180000000000,
+    "scope": "Exactly one further original native compiler check after independent source review and pushed one-line library export repair. All four prior approvals spent and FAIL101 retained.",
+    "limits": "No dispatch before new Operator approval, fresh current input/resource/gameplan admission and independent runner review. Same MT174 profile, C: target and aggregate cap; no metadata, test execution, runtime provisioning, process disruption, auth/deployment manufacture, budget reset or acceptance narrowing. Compiler evidence only."
+  },
+  "delegated_stage04_check1_diagnostic_result_20261014": {
+    "status": "DIAGNOSTIC_SUCCEEDED",
+    "candidate_commit": "f724b8852f79d0ea6e2601ff6151c0522fa1be78",
+    "candidate_tree": "b978dd518cff688e38cac67d15d14814f125256f",
+    "cargo_exit": 0,
+    "outer_exit": 0,
+    "stage_terminal_checks": 1,
+    "stage_limit": 3,
+    "cumulative_fail101": 13,
+    "original_exact_command_proven": false,
+    "artifact_lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-stage04-check01",
+    "terminal_closure_sha256": "509e62ade58438b0e3ad6d6e0c95f331c4e7191725c65172b2c79d2df9b80218",
+    "hashes": {
+      "compile-result.json": "11c95dbd267fb7aec338debbac2c6ce007c8573bd86dc365a78e87bc1b883c2c",
+      "compile-evidence.json": "002ff3a5e2d2e3504461a8d329862f8d008e5082c26362d5dac36abdbe1fcfab",
+      "compile-post-candidate.json": "d2ec192d79c23a2536901c69aa28971073ebc5ffb68b1149dbd2aee13f833b3b",
+      "compile-post-binding.json": "34c142d05528bbb6a68ee6e92404605707c72b54e42cc1cca64786493b2bece6",
+      "compile.stderr.log": "07bae93a5b3d51a91e608d77ca3bfa8f13d40a997f98dc765ae816a8e85d560b",
+      "compile.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "actual-diagnostic-groups.json": "1840b50cb5f3171878138ee491f0b601ca11bea35ad569cf6dd203139e0527e1"
+    },
+    "post_binding": {
+      "matched": true,
+      "checked_files": 7416,
+      "drift_paths": [],
+      "binding_equal": {
+        "worktree": true,
+        "head": true,
+        "tree": true,
+        "status": true,
+        "input_digest": true,
+        "tracked_diff_sha256": true,
+        "config_sha256": true,
+        "launcher_sha256": true,
+        "source_review_binding_sha256": true,
+        "caller_config_sha256": true,
+        "runtime_acceptance": true,
+        "authority_raw_sha256": true,
+        "current_manifest_configuration_inputs": true,
+        "historical_metadata_sha256": true,
+        "historical_metadata_disposition": true,
+        "cargo_argv": true,
+        "toolchain": true,
+        "effective_profile_env": true,
+        "actual_toolchain_binary_hashes": true,
+        "observed_toolchain_identity": true
+      }
+    },
+    "owned_processes_remaining": 0,
+    "error_groups": [],
+    "target_census": "NOT_ASSESSED_FROM_PLAINTEXT; observed NOT_REACHED messages empty does not prove full target set",
+    "root_fresh_canonical_reread": "All7416 product files matched fresh hashes; actual kernelad1/productf724/clean and owned wrapper/Cargo absent",
+    "runtime": "NOT_RUN",
+    "acceptance": "NOT_ASSESSED"
+  }
+}

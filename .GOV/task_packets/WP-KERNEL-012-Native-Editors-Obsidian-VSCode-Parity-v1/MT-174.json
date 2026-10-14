@@ -1,4 +1,1829 @@
 {
+  "successor_parallel_cloud_source_batch_ref": "packet.json#/operator_successor_delivery_team_20261014",
+  "round50_independent_predecessor_actual_result_20261013": {
+    "attempt_id": "320afdf6809d42f89f99ea4e05660da3",
+    "candidate_head": "e17eb7a5851e1a35fa914b842c898fc93df83e01",
+    "candidate_tree": "19dcb82ab7a32c54a7edeecf85aa1a4c9e62db0f",
+    "result": "TEST_FAILED",
+    "exit_code": 101,
+    "failure": "TABLE_SET_MISMATCH expected306 actual294 missing12 extra0",
+    "tests": {
+      "passed": 0,
+      "failed": 1,
+      "filtered_out": 2545
+    },
+    "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round50-replacement-exact-predecessor-upgrade",
+    "measurement_sha256": "b155c3c762c59701c6add31259f461ac28fd6745792a20cdd71ff6bd4c287cd9",
+    "post_binding_sha256": "9fd1f0edf84de597d3e3539b2e2e05928124e0ababc2fde42ac5ddac59f1fb69",
+    "input_files": 7416,
+    "inputs_unchanged": true,
+    "runtime_acceptance": "NOT_EVALUATED",
+    "accepted_phase02_import_mts": "0/5",
+    "completed_utc": "2026-10-12T18:42:37.1178806Z",
+    "next_action": "MT183 complete reconciliation and minimum repair; no unchanged rerun",
+    "old_history_retained": true
+  },
+  "execution_restructure_20261013": {
+    "decision_ref": "packet.json#/operator_workflow_restructure_20261013",
+    "child_refs": [
+      "MT-183.json",
+      "MT-184.json",
+      "MT-185.json"
+    ],
+    "retained_acceptance_refs": [
+      "/closure_unit/materialized_acceptance",
+      "/scope/acceptance_criteria",
+      "/proof/consumed_source_checks",
+      "/spec_basis",
+      "/attempt_budget"
+    ],
+    "residual_disposition": "Every obligation not explicitly closed by a child remains required in its original parent. Historical dependencies/verdicts retained; aggregate parent PASS is not a child predecessor."
+  },
+  "replacement_validator_assignment_20261012": {
+    "id": "WP012-P2-REPLACEMENT-VALIDATOR-20261012",
+    "operator_instruction": "then start a new validator team with sub agents in a new chat... seems an obvious thing to do",
+    "thread_id": "01a1315e-b3ac-7aa2-a6bd-a725f17c65d5",
+    "role": "INTEGRATION_VALIDATOR",
+    "status": "ASSIGNED_READ_ONLY_ADMISSION_RUNTIME_RELEASE_PENDING",
+    "product_commit": "e17eb7a5851e1a35fa914b842c898fc93df83e01",
+    "product_tree": "19dcb82ab7a32c54a7edeecf85aa1a4c9e62db0f",
+    "bounded_authority": "Replacement independent coordinator with read-only source and evidence subagents; sole runtime owner executes original exact predecessor after pushed assignment, source admission and fresh gameplan/resource/freeze release. No source edits, budget resets, parallel compilers or new target/cache.",
+    "proof_target": "storage::surreal::schema::tests::mt139_exact_predecessor_upgrade_preserves_data_and_restarts_current",
+    "prior_proofs": "Retain Round47 catalog and actual production disk fresh/reopen GREEN when affected inputs remain unchanged; broad core remains Delivery after focused GREEN.",
+    "historical_failures_preserved": true,
+    "native_acceptance": "0/5_NOT_EVALUATED; original deployment root and genuine authenticated context still missing"
+  },
+  "unattended_blocked_handoff_20261012": {
+    "id": "WP012-P2-UNATTENDED-BLOCKED-HANDOFF-20261012",
+    "status": "BLOCKED_EXTERNAL_TRANSPORT_AND_GENUINE_RUNTIME_INPUTS",
+    "product_commit": "e17eb7a5851e1a35fa914b842c898fc93df83e01",
+    "product_tree": "19dcb82ab7a32c54a7edeecf85aa1a4c9e62db0f",
+    "remote_product_head_verified": true,
+    "reviewed_source": "SOURCE_CLEAR Delivery exact duplicate-index patch; runtime fix NOT_PROVEN",
+    "proofs_retained": [
+      "Round47 original catalog GREEN",
+      "Round47 actual composed production disk fresh/reopen GREEN"
+    ],
+    "failed_proof": "Round49 exact predecessor COMMIT ResourceBusy; source self-conflict repair pending runtime proof",
+    "transport": "Assigned Review send_message_to_thread failed four times including explicit local host; current idle status confirmed. No active turn id error.",
+    "alternate_authority": "Delivery independently inspected MT174 and confirmed its assignment permits original broad compile only; no focused runtime reassignment. Existing role authority preserved.",
+    "next_action": "Resume original Review transport for exact focused predecessor; broad core only after focused GREEN. No unmodified retries, role bypass, synthetic auth or deployment substitute.",
+    "deployment_missing": [
+      "intended original deployed executable/data root",
+      "genuine operator native authenticated context and original grants"
+    ],
+    "praxidike": "Standalone private GitHub repository codex/praxidike commit3ef3aea56cc9e4b3a8e231a89a1ca70533d8da96; optional mirrored gameplan docs .globals123dbbe18b0ffc59e3b88c92f4063222f1ba827b; already published",
+    "business_native_acceptance": "0/5_NOT_EVALUATED",
+    "failed_core_launches_retained": 38,
+    "no_completion_or_deployment_claim": true
+  },
+  "round50_predecessor_duplicate_index_source_release_20261012": {
+    "id": "WP012-P2-ROUND50-DUPLICATE-REPAIR-20261012",
+    "status": "SOURCE_CLEAR_PUSHED_PREDECESSOR_REPROOF_PENDING",
+    "product_commit": "e17eb7a5851e1a35fa914b842c898fc93df83e01",
+    "product_tree": "19dcb82ab7a32c54a7edeecf85aa1a4c9e62db0f",
+    "source_sha256": "9de91a2ba97d6ecd2b4abeac3348df8cd38f65296378c8db55e92b99086bbf6f",
+    "source_review": {
+      "thread": "01a129ca-9bd2-7823-bc0d-746a6065835f",
+      "verdict": "SOURCE_CLEAR",
+      "binding_sha256": "aafbdb98730ab1e74e235b8cb14718463fdb37c6d7a7dd247a4154e3e4dfcd0d",
+      "diff_sha256": "b2e219159435f2e2fb89abd5c81cea37e7cbbc309b1328b916ee29db1ee2cc78",
+      "actual_assertion_macro_lines_preserved": 451
+    },
+    "source_established_mechanism": "Combined post_mt109 emits identical parent-resource index twice. First builder commits durable state in a separate engine transaction; second overwrite stages deletion of this provisional state in the older parent snapshot. RocksDB commit conflict detection rejects keys written after its snapshot.",
+    "runtime_attribution_limit": "Actual Round49 COMMIT ResourceBusy observed; exact conflicting runtime key was not emitted. GREEN required before claiming fix.",
+    "scope": "Omit earlier identical parent-index statement only in combined resource-authority argument; retain later canonical declaration/order, standalone authority output, canonicalSQL, historicalpins, originaltransactionguards/allassertions; no retry/split/enginechange",
+    "runtime_proof": "Original exact predecessor test required; fresh current-HEAD gates/resources and unchanged warm owner/profile/toolchain/j1/cap before execution",
+    "transport_blocker": {
+      "thread": "01a129ca-8eea-7f53-aa9d-7f81f6f08319",
+      "observed_status": "idle completed prior turn",
+      "failed_dispatches": 4,
+      "variants": [
+        "three default routing requests",
+        "explicit hostId local request"
+      ],
+      "error": "Cannot steer conversation without an active turn id",
+      "alternate_execution_authority": "Delivery checking existing assigned contract scope; no role expansion or execution assumed"
+    },
+    "prior_green_proofs": "Round47 catalog and production disk fresh/reopen retained; change maps to predecessor composition only",
+    "broad_core": "Required after focused predecessor GREEN",
+    "failed_core_launches_retained": 38,
+    "native_acceptance": "0/5_NOT_EVALUATED",
+    "native_deployment": "BLOCKED_UNRESOLVED_ORIGINAL_DEPLOYMENT_ROOT_AND_GENUINE_AUTH_CONTEXT"
+  },
+  "round49_independent_predecessor_actual_result_20261012": {
+    "id": "WP012-P2-ROUND49-ACTUAL-20261012",
+    "status": "PREDECESSOR_COMMIT_TRANSACTION_CONFLICT_OBSERVED",
+    "actual": {
+      "attempt_id": "a319817f4c944fe8b1ae86811815adcf",
+      "started_utc": "2026-10-12T15:46:55.3726166Z",
+      "status": "TEST_FAILED",
+      "exit_code": 101,
+      "runtime_acceptance": "NOT_EVALUATED",
+      "cap_bytes": 180000000000,
+      "gameplan_exit": 0,
+      "resources": {
+        "utc": "2026-10-12T15:47:23.5070831Z",
+        "available_mb": 5614,
+        "commit_reserve": 44763197440,
+        "pages_input": 0,
+        "page_reads": 0,
+        "free_bytes": 389046870016
+      },
+      "target_bytes_before": 30396275360.0,
+      "max_target_bytes": 31696718711,
+      "argv": [
+        "test",
+        "--locked",
+        "--manifest-path",
+        "src/backend/handshake_core/Cargo.toml",
+        "--features",
+        "app-runtime,surreal-test-support,test-utils",
+        "-j",
+        "1",
+        "--lib",
+        "storage::surreal::schema::tests::mt139_exact_predecessor_upgrade_preserves_data_and_restarts_current",
+        "--",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cargo_pid": 23472,
+      "cargo_identity": {
+        "ProcessId": 23472,
+        "CreationDate": "2026-10-12T17:47:25.681764+02:00",
+        "CommandLine": "\"C:\\Users\\iljas\\.cargo\\bin\\cargo.exe\" test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils -j 1 --lib storage::surreal::schema::tests::mt139_exact_predecessor_upgrade_preserves_data_and_restarts_current -- --exact --nocapture --test-threads=1",
+        "ExecutablePath": "C:\\Users\\iljas\\.cargo\\bin\\cargo.exe"
+      },
+      "post_binding_exit": 0,
+      "inputs_unchanged": true,
+      "stdout_sha256": "7f5ddd54500e9c43042bc659d9c0d4406ab81bdb4ec266fc41a7f5dc32716c71",
+      "stderr_sha256": "ba4e33407dd7c1ce1959cd44ea21d998949a3ac1f0bb6e52c9eaedfdcc27fdc9",
+      "completed_utc": "2026-10-12T15:56:10.4266589Z"
+    },
+    "post_binding": {
+      "matched": true,
+      "binding_equal": {
+        "head": true,
+        "tree": true,
+        "status": true,
+        "files": true,
+        "authority": true,
+        "profile_sha256": true,
+        "toolchain": true,
+        "launcher_sha256": true,
+        "external_inputs": true
+      },
+      "files": 7416
+    },
+    "artifact_root": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round49-exact-predecessor-upgrade",
+    "artifact_sha256": {
+      "measurement-result.json": "7d53d980218b859d5459372c06ca4d0c0c5c5117093b8bacdc57717f71b7cce6",
+      "post-binding.json": "9fd1f0edf84de597d3e3539b2e2e05928124e0ababc2fde42ac5ddac59f1fb69",
+      "test.stdout.log": "7f5ddd54500e9c43042bc659d9c0d4406ab81bdb4ec266fc41a7f5dc32716c71",
+      "test.stderr.log": "ba4e33407dd7c1ce1959cd44ea21d998949a3ac1f0bb6e52c9eaedfdcc27fdc9"
+    },
+    "terminal_error": {
+      "index": 802,
+      "code": -32003,
+      "message": "Cannot COMMIT: Transaction conflict: Resource busy. This transaction can be retried",
+      "typed": "NotExecuted",
+      "cause": null
+    },
+    "total_errors": 802,
+    "typed_masked_errors": 802,
+    "first_error_preserved": "index1 generic NotExecuted",
+    "root_cause": "COMMIT conflict observed; precise conflicting write mechanism NOT_DIAGNOSED",
+    "next_action": "Bounded read-only existing predecessor/storage/pinned-engine conflict investigation before minimal source repair; no blind retry or SQL/pin guesses",
+    "failed_core_launches_retained": 38,
+    "native_acceptance": "0/5_NOT_EVALUATED",
+    "broad_core": "Required after focused predecessor GREEN"
+  },
+  "round49_terminal_error_diagnostic_release_20261012": {
+    "id": "WP012-P2-ROUND49-TERMINAL-DIAGNOSTIC-RELEASE-20261012",
+    "status": "SOURCE_CLEAR_PUSHED_TERMINAL_DETAIL_PENDING",
+    "product_commit": "d7528b6086b154a2d5a7c8bb070684f6aae08ba3",
+    "product_tree": "c0fe1050e90a90eda0b79c7f1b64641a203f2ab3",
+    "source_sha256": "c4675c4d556b76f0218004f0c66f0e5b55003000725b3db19734c6313fef3e72",
+    "source_review": {
+      "thread": "01a129ca-8eea-7f53-aa9d-7f81f6f08319",
+      "verdict": "SOURCE_CLEAR",
+      "binding_sha256": "97ea0af405b9ce13454108b076f1e8bbbb791e82bf1203009b9197e3e0d45f7e",
+      "diff_sha256": "7761090ac8fe011fdeec76a658f4625eaf36ef8b3d16cb70e115a7004d0c1f76"
+    },
+    "scope": "Six cfgtest lines emit final masked indexed error alongside first; same response/SQL/first returned error/non-test expressions/assertions",
+    "selected_proof": "Original exact predecessor test only after fresh current-HEAD gameplan and resource admission, unchanged owner/warm target/profile/toolchain/j1/180GB cap and full input freeze/capture",
+    "prior_green_proofs": "Retained Round47 catalog and composed production disk fresh/reopen; no automatic repeat",
+    "actual_cause": "NOT_EMITTED_NOT_DIAGNOSED",
+    "broad_core": "Required after focused predecessor GREEN",
+    "failed_core_launches_retained": 38,
+    "native_acceptance": "NOT_EVALUATED"
+  },
+  "round48_independent_predecessor_actual_result_20261012": {
+    "id": "WP012-P2-ROUND48-ACTUAL-20261012",
+    "status": "PREDECESSOR_FAILED_ALL_TYPED_MASKED_TERMINAL_COMMIT_ROW_NOT_EMITTED",
+    "actual": {
+      "attempt_id": "e124855c5a6d4b32aff7cee6aad3b89f",
+      "started_utc": "2026-10-12T15:32:49.0592364Z",
+      "status": "TEST_FAILED",
+      "exit_code": 101,
+      "runtime_acceptance": "NOT_EVALUATED",
+      "cap_bytes": 180000000000,
+      "gameplan_exit": 0,
+      "resources": {
+        "utc": "2026-10-12T15:33:16.3119367Z",
+        "available_mb": 5468,
+        "commit_reserve": 45102583808,
+        "pages_input": 0,
+        "page_reads": 0,
+        "free_bytes": 389083766784
+      },
+      "target_bytes_before": 30396276384.0,
+      "max_target_bytes": 31697836615,
+      "argv": [
+        "test",
+        "--locked",
+        "--manifest-path",
+        "src/backend/handshake_core/Cargo.toml",
+        "--features",
+        "app-runtime,surreal-test-support,test-utils",
+        "-j",
+        "1",
+        "--lib",
+        "storage::surreal::schema::tests::mt139_exact_predecessor_upgrade_preserves_data_and_restarts_current",
+        "--",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cargo_pid": 29504,
+      "cargo_identity": {
+        "ProcessId": 29504,
+        "CreationDate": "2026-10-12T17:33:18.502776+02:00",
+        "CommandLine": "\"C:\\Users\\iljas\\.cargo\\bin\\cargo.exe\" test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils -j 1 --lib storage::surreal::schema::tests::mt139_exact_predecessor_upgrade_preserves_data_and_restarts_current -- --exact --nocapture --test-threads=1",
+        "ExecutablePath": "C:\\Users\\iljas\\.cargo\\bin\\cargo.exe"
+      },
+      "post_binding_exit": 0,
+      "inputs_unchanged": true,
+      "stdout_sha256": "528b3ddc92c0a856f485194baf0c5d5f4c5f9f2e029e660f38bef4a9f0da7f8e",
+      "stderr_sha256": "f88964bd2a88d04949f816835f367df1c5bec02d3f48d80f6594e164e24c49e0",
+      "completed_utc": "2026-10-12T15:41:53.9224449Z"
+    },
+    "post_binding": {
+      "matched": true,
+      "binding_equal": {
+        "head": true,
+        "tree": true,
+        "status": true,
+        "files": true,
+        "authority": true,
+        "profile_sha256": true,
+        "toolchain": true,
+        "launcher_sha256": true,
+        "external_inputs": true
+      },
+      "files": 7416
+    },
+    "artifact_root": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round48-exact-predecessor-upgrade",
+    "artifact_sha256": {
+      "measurement-result.json": "50b7c6ad8d8a89fa8a07f02c3052fb4d70899866eec39e9f0f32dda8dfba7497",
+      "post-binding.json": "9fd1f0edf84de597d3e3539b2e2e05928124e0ababc2fde42ac5ddac59f1fb69",
+      "test.stdout.log": "528b3ddc92c0a856f485194baf0c5d5f4c5f9f2e029e660f38bef4a9f0da7f8e",
+      "test.stderr.log": "f88964bd2a88d04949f816835f367df1c5bec02d3f48d80f6594e164e24c49e0"
+    },
+    "observed_error_counts": {
+      "total": 802,
+      "typed_masked": 802,
+      "first_index": 1,
+      "first": "NotExecuted -32003 causeNone"
+    },
+    "correction": "All typed masked does not establish primary absence from SDK. Pinned executor.rs1474-1492 emits descriptive final Cannot COMMIT error also typed NotExecuted; current diagnostic filters it and prints first only. Actual terminal cause remains NOT_EMITTED/NOT_DIAGNOSED.",
+    "next_action": "Minimal cfgtest diagnostic emits final masked row from same response; preserve original first error, SQL and all assertions; review/push/fresh admission before exact predecessor only",
+    "failed_core_launches_retained": 38,
+    "native_acceptance": "0/5_NOT_EVALUATED",
+    "broad_core": "Required after focused predecessor GREEN"
+  },
+  "round48_test_only_predecessor_diagnostic_release_20261012": {
+    "id": "WP012-P2-ROUND48-DIAGNOSTIC-RELEASE-20261012",
+    "status": "SOURCE_CLEAR_PUSHED_PRIMARY_DIAGNOSTIC_PENDING",
+    "product_commit": "b87ebc063c7b9d684d6027339bad45f1e6f7d3a7",
+    "product_tree": "02f62c526764c98226772c0be51370a39a3f64fd",
+    "source_review": {
+      "thread": "01a129ca-8eea-7f53-aa9d-7f81f6f08319",
+      "verdict": "SOURCE_CLEAR",
+      "binding_sha256": "00d1a3cb16ecabb1d2d4916c3640ef7ea77a8a1cc8891b2c08b8997c354bd1b3",
+      "diff_sha256": "8f61acf75eea32ec1e5a844e642e9da1210145644597f7c29dbd6fbbab78cc47",
+      "surreal_rs_after": "a9101cc6b224cfa092ac088d3d70dd32e5fff491466e02a42a721f5fc16f8e1e"
+    },
+    "scope": "cfg(test) indexed errors in existing admin query helpers; original first error, SQL/bindings and non-test expressions preserved; no underlying SQL correction guessed",
+    "selected_proof": "Original exact mt139_exact_predecessor_upgrade_preserves_data_and_restarts_current; unchanged assertions/profile/toolchain/owned warm target/j1/cap",
+    "prior_two_focused_proofs": "Retained Round47 catalog and production disk fresh/reopen; no automatic repeat for equivalent cfgtest diagnostic",
+    "cause": "Round47 actual101 NotExecuted masked primary transaction failure",
+    "admission": "Fresh currentHEAD selected/shared confirmations, numeric gameplan/resources, frozen reviewed pushed source/authority/config and full pre/post bindings",
+    "broad_core": "Required after focused failure removed",
+    "failed_core_launches_retained": 38,
+    "native_acceptance": "NOT_EVALUATED"
+  },
+  "round47_independent_focused_actual_results_20261012": {
+    "id": "WP012-P2-ROUND47-ACTUAL-20261012",
+    "status": "CATALOG_AND_PRODUCTION_REOPEN_GREEN_PREDECESSOR_UPGRADE_FAILED",
+    "product_commit": "64cbf0b022c1cdeb981583bfb29a387e9251c441",
+    "product_tree": "62480b61fe3c0cffd42776c992a1e385c803b4e7",
+    "proofs": [
+      {
+        "artifact_root": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round47-mt139-catalog-measurement",
+        "actual": {
+          "attempt_id": "0a30d1d66d6043cdb6fc932f866df45a",
+          "started_utc": "2026-10-12T15:07:30.4711906Z",
+          "status": "TEST_PASSED",
+          "exit_code": 0,
+          "runtime_acceptance": "NOT_EVALUATED",
+          "cap_bytes": 180000000000,
+          "gameplan_exit": 0,
+          "resources": {
+            "utc": "2026-10-12T15:07:56.4636549Z",
+            "available_mb": 5529,
+            "commit_reserve": 44866142208,
+            "pages_input": 455,
+            "page_reads": 100,
+            "free_bytes": 389132869632
+          },
+          "target_bytes_before": 30396256416.0,
+          "max_target_bytes": 31694715314,
+          "argv": [
+            "test",
+            "--locked",
+            "--manifest-path",
+            "src/backend/handshake_core/Cargo.toml",
+            "--features",
+            "app-runtime,surreal-test-support,test-utils",
+            "-j",
+            "1",
+            "--lib",
+            "storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog",
+            "--",
+            "--exact",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "cargo_pid": 30004,
+          "cargo_identity": {
+            "ProcessId": 30004,
+            "CreationDate": "2026-10-12T17:07:58.635004+02:00",
+            "CommandLine": "\"C:\\Users\\iljas\\.cargo\\bin\\cargo.exe\" test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils -j 1 --lib storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog -- --exact --nocapture --test-threads=1",
+            "ExecutablePath": "C:\\Users\\iljas\\.cargo\\bin\\cargo.exe"
+          },
+          "post_binding_exit": 0,
+          "inputs_unchanged": true,
+          "stdout_sha256": "688e76b1bea6190ccadcbc05124aa8b19db05ba3e49b11eaef482880521e0810",
+          "stderr_sha256": "82fd070fed2b10da126a9352e5149ad361d5d9930f72e24e7282d673f1602955",
+          "completed_utc": "2026-10-12T15:16:23.3320254Z"
+        },
+        "post_binding": {
+          "matched": true,
+          "binding_equal": {
+            "head": true,
+            "tree": true,
+            "status": true,
+            "files": true,
+            "authority": true,
+            "profile_sha256": true,
+            "toolchain": true,
+            "launcher_sha256": true,
+            "external_inputs": true
+          },
+          "files": 7416
+        },
+        "artifact_sha256": {
+          "measurement-result.json": "f96b9c4508d8f56f19a3e8074c2cdaf260e76f4200d576321cd8cc6318f7c19a",
+          "post-binding.json": "9fd1f0edf84de597d3e3539b2e2e05928124e0ababc2fde42ac5ddac59f1fb69",
+          "test.stdout.log": "688e76b1bea6190ccadcbc05124aa8b19db05ba3e49b11eaef482880521e0810",
+          "test.stderr.log": "82fd070fed2b10da126a9352e5149ad361d5d9930f72e24e7282d673f1602955"
+        }
+      },
+      {
+        "artifact_root": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round47-production-fresh-reopen",
+        "actual": {
+          "attempt_id": "8adb395eada944e982b6eb1798374b5e",
+          "started_utc": "2026-10-12T15:19:13.1709882Z",
+          "status": "TEST_PASSED",
+          "exit_code": 0,
+          "runtime_acceptance": "NOT_EVALUATED",
+          "cap_bytes": 180000000000,
+          "gameplan_exit": 0,
+          "resources": {
+            "utc": "2026-10-12T15:19:39.1255239Z",
+            "available_mb": 6540,
+            "commit_reserve": 45429805056,
+            "pages_input": 83,
+            "page_reads": 19,
+            "free_bytes": 389105639424
+          },
+          "target_bytes_before": 30396276384.0,
+          "max_target_bytes": 30396276384,
+          "argv": [
+            "test",
+            "--locked",
+            "--manifest-path",
+            "src/backend/handshake_core/Cargo.toml",
+            "--features",
+            "app-runtime,surreal-test-support,test-utils",
+            "-j",
+            "1",
+            "--lib",
+            "storage::surreal::schema::tests::bootstrap_is_concurrent_restart_safe_and_receipt_is_live",
+            "--",
+            "--exact",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "cargo_pid": 17232,
+          "cargo_identity": {
+            "ProcessId": 17232,
+            "CreationDate": "2026-10-12T17:19:41.269181+02:00",
+            "CommandLine": "\"C:\\Users\\iljas\\.cargo\\bin\\cargo.exe\" test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils -j 1 --lib storage::surreal::schema::tests::bootstrap_is_concurrent_restart_safe_and_receipt_is_live -- --exact --nocapture --test-threads=1",
+            "ExecutablePath": "C:\\Users\\iljas\\.cargo\\bin\\cargo.exe"
+          },
+          "post_binding_exit": 0,
+          "inputs_unchanged": true,
+          "stdout_sha256": "858fc8edbc21459e4208c178b68b5ba2e91419f13ba9f6f7c85bb65b4eda8122",
+          "stderr_sha256": "95fd68809918971ea381664a269ccdc71b0497a54df5e80b0205b83f206d9f7d",
+          "completed_utc": "2026-10-12T15:20:07.5136675Z"
+        },
+        "post_binding": {
+          "matched": true,
+          "binding_equal": {
+            "head": true,
+            "tree": true,
+            "status": true,
+            "files": true,
+            "authority": true,
+            "profile_sha256": true,
+            "toolchain": true,
+            "launcher_sha256": true,
+            "external_inputs": true
+          },
+          "files": 7416
+        },
+        "artifact_sha256": {
+          "measurement-result.json": "4ad63f74fe0eae9574ee6ed5b3d011b0d68664569430ba010a2a18484444b97e",
+          "post-binding.json": "9fd1f0edf84de597d3e3539b2e2e05928124e0ababc2fde42ac5ddac59f1fb69",
+          "test.stdout.log": "858fc8edbc21459e4208c178b68b5ba2e91419f13ba9f6f7c85bb65b4eda8122",
+          "test.stderr.log": "95fd68809918971ea381664a269ccdc71b0497a54df5e80b0205b83f206d9f7d"
+        }
+      },
+      {
+        "artifact_root": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round47-exact-predecessor-upgrade",
+        "actual": {
+          "attempt_id": "70f3f9383c1e454fb4df5d2b16126609",
+          "started_utc": "2026-10-12T15:22:47.5578031Z",
+          "status": "TEST_FAILED",
+          "exit_code": 101,
+          "runtime_acceptance": "NOT_EVALUATED",
+          "cap_bytes": 180000000000,
+          "gameplan_exit": 0,
+          "resources": {
+            "utc": "2026-10-12T15:23:13.7805708Z",
+            "available_mb": 6029,
+            "commit_reserve": 45106278400,
+            "pages_input": 0,
+            "page_reads": 0,
+            "free_bytes": 389091180544
+          },
+          "target_bytes_before": 30396276384.0,
+          "max_target_bytes": 30396276384.0,
+          "argv": [
+            "test",
+            "--locked",
+            "--manifest-path",
+            "src/backend/handshake_core/Cargo.toml",
+            "--features",
+            "app-runtime,surreal-test-support,test-utils",
+            "-j",
+            "1",
+            "--lib",
+            "storage::surreal::schema::tests::mt139_exact_predecessor_upgrade_preserves_data_and_restarts_current",
+            "--",
+            "--exact",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "cargo_pid": 8248,
+          "cargo_identity": {
+            "ProcessId": 8248,
+            "CreationDate": "2026-10-12T17:23:15.942296+02:00",
+            "CommandLine": "\"C:\\Users\\iljas\\.cargo\\bin\\cargo.exe\" test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils -j 1 --lib storage::surreal::schema::tests::mt139_exact_predecessor_upgrade_preserves_data_and_restarts_current -- --exact --nocapture --test-threads=1",
+            "ExecutablePath": "C:\\Users\\iljas\\.cargo\\bin\\cargo.exe"
+          },
+          "post_binding_exit": 0,
+          "inputs_unchanged": true,
+          "stdout_sha256": "c7f44e8e1213ce54db21af49c1e5d60329f2caa5da262fe698a7c889b5f7c125",
+          "stderr_sha256": "166caeeb788d8db05aebf6bef52c1ab8776878b74c225c044709eb2f27f5d127",
+          "completed_utc": "2026-10-12T15:23:31.1624822Z"
+        },
+        "post_binding": {
+          "matched": true,
+          "binding_equal": {
+            "head": true,
+            "tree": true,
+            "status": true,
+            "files": true,
+            "authority": true,
+            "profile_sha256": true,
+            "toolchain": true,
+            "launcher_sha256": true,
+            "external_inputs": true
+          },
+          "files": 7416
+        },
+        "artifact_sha256": {
+          "measurement-result.json": "f65d7b41d1020d77a4a08a00771ceff1bcbe799d1c209cd9650c3c6e0195707e",
+          "post-binding.json": "9fd1f0edf84de597d3e3539b2e2e05928124e0ababc2fde42ac5ddac59f1fb69",
+          "test.stdout.log": "c7f44e8e1213ce54db21af49c1e5d60329f2caa5da262fe698a7c889b5f7c125",
+          "test.stderr.log": "166caeeb788d8db05aebf6bef52c1ab8776878b74c225c044709eb2f27f5d127"
+        }
+      }
+    ],
+    "failed_core_launches_retained": 38,
+    "business_native_acceptance": "0/5_NOT_EVALUATED",
+    "next_action": "Expose indexed original predecessor transaction error with cfg(test)-only diagnostic; no retry or broad check before source review and fresh admission",
+    "broad_core": "REQUIRED_AFTER_FOCUSED_PREDECESSOR_GREEN",
+    "native_publication": "BLOCKED_UNRESOLVED_ORIGINAL_DEPLOYMENT_ROOT_AND_GENUINE_AUTH_CONTEXT"
+  },
+  "round47_measured_pins_and_production_reopen_release_20261012": {
+    "id": "WP012-P2-ROUND47-RELEASE-20261012",
+    "status": "SOURCE_CLEAR_PUSHED_FOCUSED_PROOF_PENDING",
+    "product_commit": "64cbf0b022c1cdeb981583bfb29a387e9251c441",
+    "product_tree": "62480b61fe3c0cffd42776c992a1e385c803b4e7",
+    "schema_rs_sha256": "552c39b9195921a8ff72fb4dc3ca99631ffdd594f3a467d8b16fd3cdf487438a",
+    "pin_commit": "2f789e5d54cb12077cc1e9383204530a6da8dae4",
+    "source_review": {
+      "thread": "01a129ca-8eea-7f53-aa9d-7f81f6f08319",
+      "verdict": "SOURCE_CLEAR",
+      "pin_binding_sha256": "b39c977b1ccbb75eac35ad351aba2002d709e1a8b7bcdadb23e0066a7592562c",
+      "extension_binding_sha256": "15d7330b2eecbaef9be472e879ae2c49fd693b68086cd842488e1b23b0a7e42d",
+      "extension_diff_sha256": "be832c66c25c74688a3334971e16be1b19b062fa96ae4acef00c9402ac2a2a2c",
+      "original_assertions_preserved": 432
+    },
+    "scope": "Exact two independently measured current catalog pins; existing retained disk restart test invokes real composed production bootstrap fresh and reopened. Historical pins and every original assertion retained.",
+    "proof_sequence": [
+      "Original exact MT139 catalog test",
+      "Existing bootstrap_is_concurrent_restart_safe_and_receipt_is_live",
+      "Original mt139_exact_predecessor_upgrade_preserves_data_and_restarts_current",
+      "Required final broad core check after focused predecessor GREEN"
+    ],
+    "admission": "Fresh current-HEAD confirmations and numeric gameplan/resource gates before each costly command; original warm target/profile/toolchain/j1/180GB cap; freeze all relevant source/authority/config inputs",
+    "runtime_acceptance": "NOT_EVALUATED",
+    "native_publication": "BLOCKED_ORIGINAL_DEPLOYMENT_ROOT_AND_GENUINE_AUTH_INPUTS_UNRESOLVED",
+    "failed_core_launches_retained": 38
+  },
+  "round46_independent_catalog_actual_result_20261012": {
+    "id": "WP012-P2-ROUND46-MT139-ACTUAL-20261012",
+    "status": "BASE_AND_PRODUCTION_CATALOG_MEASURED_ORIGINAL_BASE_PIN_MISMATCH",
+    "product_commit": "f2d4fab1209d06deb4c317e9c5d4294b8acc1937",
+    "actual_result": {
+      "attempt_id": "fcb2b81c096e467d91dbdf0d1f065073",
+      "started_utc": "2026-10-12T14:41:22.7769119Z",
+      "status": "TEST_FAILED",
+      "exit_code": 101,
+      "runtime_acceptance": "NOT_EVALUATED",
+      "cap_bytes": 180000000000,
+      "gameplan_exit": 0,
+      "resources": {
+        "utc": "2026-10-12T14:41:47.7020692Z",
+        "available_mb": 5670,
+        "commit_reserve": 44716453888,
+        "pages_input": 824,
+        "page_reads": 178,
+        "free_bytes": 389157851136
+      },
+      "target_bytes_before": 30396256416.0,
+      "max_target_bytes": 31695103043,
+      "argv": [
+        "test",
+        "--locked",
+        "--manifest-path",
+        "src/backend/handshake_core/Cargo.toml",
+        "--features",
+        "app-runtime,surreal-test-support,test-utils",
+        "-j",
+        "1",
+        "--lib",
+        "storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog",
+        "--",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cargo_pid": 27176,
+      "cargo_identity": {
+        "ProcessId": 27176,
+        "CreationDate": "2026-10-12T16:41:49.945108+02:00",
+        "CommandLine": "\"C:\\Users\\iljas\\.cargo\\bin\\cargo.exe\" test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils -j 1 --lib storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog -- --exact --nocapture --test-threads=1",
+        "ExecutablePath": "C:\\Users\\iljas\\.cargo\\bin\\cargo.exe"
+      },
+      "post_binding_exit": 0,
+      "inputs_unchanged": true,
+      "stdout_sha256": "3fd32b27891c705dcf3125de5e44e8e1a9127ae14cec1fc60d67ead5bd226f21",
+      "stderr_sha256": "ffa2e5082eb061f0af45ac516da435fd3c8926326c03f55d25702aac9bc345e6",
+      "completed_utc": "2026-10-12T14:50:19.9096939Z"
+    },
+    "post_binding": {
+      "matched": true,
+      "binding_equal": {
+        "head": true,
+        "tree": true,
+        "status": true,
+        "files": true,
+        "authority": true,
+        "profile_sha256": true,
+        "toolchain": true,
+        "launcher_sha256": true,
+        "external_inputs": true
+      },
+      "files": 7416
+    },
+    "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round46-mt139-catalog-measurement",
+    "artifact_sha256": {
+      "measurement-result.json": "8cb706a0c02deeb7628bc0fd0becce15edfc6dc32bf5b96e9e1d31882a4896fd",
+      "post-binding.json": "9fd1f0edf84de597d3e3539b2e2e05928124e0ababc2fde42ac5ddac59f1fb69",
+      "test.stdout.log": "3fd32b27891c705dcf3125de5e44e8e1a9127ae14cec1fc60d67ead5bd226f21",
+      "test.stderr.log": "ffa2e5082eb061f0af45ac516da435fd3c8926326c03f55d25702aac9bc345e6"
+    },
+    "observed_base_info_sha256": "332526eb4d84ff4eb2cc1d1ed2e2ce3b334008c9a5c77335d7e355637fb6f994",
+    "observed_production_info_sha256": "207c9f797ea2f6003f9b803a800f4f06ba3fac4558cb45bca1787c304a4f1e8a",
+    "observed_production_fields": 4357,
+    "observed_production_indexes": 923,
+    "observed_production_source_sha256": "e76f494462a191a86c9a8df9597bdda6cdbf77f808a87d42f6b125cf2039eb47",
+    "observed_production_inventory_sha256": "7f79f7fe6e3da1c4284b2c18e8908c6fb685b030d1822a114ebc1e2f88e827ff",
+    "original_assertion": "REACHED_FAILED_stale_BASE_pin_3d761f8df95c2869e5bb8a3b656f5f96a02a5cb863b2bb1f1d30306beff98ff7",
+    "runtime_acceptance": "NOT_EVALUATED",
+    "failed_core_launches_retained": 38,
+    "next": "Only exact independently measured BASE/FINAL pins; preserve historicalpins/assertions; source review then stable requiredcore and independent fresh/reopen"
+  }
+,
+  "round46_independent_focused_release_20261012": {
+    "id": "WP012-P2-ROUND46-CLOUD-GRAMMAR-RELEASE-20261012",
+    "status": "SOURCE_CLEAR_PUSHED_PENDING_FOCUSED_MEASUREMENT",
+    "product_commit": "f2d4fab1209d06deb4c317e9c5d4294b8acc1937",
+    "product_tree": "5c21ea0edd24bf2a8c3cfc29465f33012f0badd6",
+    "review_thread": "01a129ca-8eea-7f53-aa9d-7f81f6f08319",
+    "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round45-cloud-field-grammar-repair",
+    "binding_sha256": "8890de71ffe9083d60c85ff212ce0e8871070f10701cd8b8cac0e858026e80bc",
+    "diff_sha256": "2f6935df4afdb15392d8892276b9fb5f4efaba82bb073e9edb3f33cb8a979289",
+    "module_sha256": "ec417603c3520794a829b2f95e03b570f371db8b2b743ddbb7c61146dfb69b77",
+    "repair": "Only cloud allocation field192 grammar TYPE object FLEXIBLE VALUE; complete VALUE/permissions/native guards exact",
+    "owner": "MT-173 both scope lists verified",
+    "prior_failure_ref": "MT-174.json#/round45_independent_catalog_actual_result_20261012",
+    "gameplan_cause": "GP-522",
+    "independent_role": "INTEGRATION_VALIDATOR",
+    "run_scope": "Same exact existing MT139 owningLibTest, warmownedtarget/profile/toolchain/j1/180GBcap after fresh currentHEAD confirmations and numeric admission",
+    "proof_mapping": "Focused genuine FINAL measurement missing; broad mandatory core after stable measured-pin batch",
+    "runtime_acceptance": "NOT_EVALUATED"
+  }
+,
+  "round45_independent_catalog_actual_result_20261012": {
+    "id": "WP012-P2-ROUND45-MT139-ACTUAL-20261012",
+    "status": "BASE_REPRODUCED_CLOUD_MODULE_GRAMMAR_FAILED",
+    "product_commit": "234ce50da83fc0ebe6e054ed19b6c0627c768325",
+    "actual_result": {
+      "attempt_id": "db998dc7d8e34c758b5ec317e7251f7d",
+      "started_utc": "2026-10-12T14:26:02.0296753Z",
+      "status": "TEST_FAILED",
+      "exit_code": 101,
+      "runtime_acceptance": "NOT_EVALUATED",
+      "cap_bytes": 180000000000,
+      "gameplan_exit": 0,
+      "resources": {
+        "utc": "2026-10-12T14:26:25.5730788Z",
+        "available_mb": 6118,
+        "commit_reserve": 45235167232,
+        "pages_input": 188,
+        "page_reads": 41,
+        "free_bytes": 389175123968
+      },
+      "target_bytes_before": 30396256416.0,
+      "max_target_bytes": 31695103043,
+      "argv": [
+        "test",
+        "--locked",
+        "--manifest-path",
+        "src/backend/handshake_core/Cargo.toml",
+        "--features",
+        "app-runtime,surreal-test-support,test-utils",
+        "-j",
+        "1",
+        "--lib",
+        "storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog",
+        "--",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cargo_pid": 28684,
+      "cargo_identity": {
+        "ProcessId": 28684,
+        "CreationDate": "2026-10-12T16:26:27.690793+02:00",
+        "CommandLine": "\"C:\\Users\\iljas\\.cargo\\bin\\cargo.exe\" test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils -j 1 --lib storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog -- --exact --nocapture --test-threads=1",
+        "ExecutablePath": "C:\\Users\\iljas\\.cargo\\bin\\cargo.exe"
+      },
+      "post_binding_exit": 0,
+      "inputs_unchanged": true,
+      "stdout_sha256": "1d2d393e8bc0687001cb1ab85326c352f626290e689f4d327499450fe56c027c",
+      "stderr_sha256": "40e12088a34fe5b400bda784a222e77c96015ae5508ae0c7509dc558cc4f45f7",
+      "completed_utc": "2026-10-12T14:34:51.6360241Z"
+    },
+    "post_binding": {
+      "matched": true,
+      "binding_equal": {
+        "head": true,
+        "tree": true,
+        "status": true,
+        "files": true,
+        "authority": true,
+        "profile_sha256": true,
+        "toolchain": true,
+        "launcher_sha256": true,
+        "external_inputs": true
+      },
+      "files": 7416
+    },
+    "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round45-mt139-catalog-measurement",
+    "artifact_sha256": {
+      "measurement-result.json": "2ea781681702cc6c5aca85e1c39c7757332543475192911a03b8c6872d760a85",
+      "post-binding.json": "9fd1f0edf84de597d3e3539b2e2e05928124e0ababc2fde42ac5ddac59f1fb69",
+      "test.stdout.log": "1d2d393e8bc0687001cb1ab85326c352f626290e689f4d327499450fe56c027c",
+      "test.stderr.log": "40e12088a34fe5b400bda784a222e77c96015ae5508ae0c7509dc558cc4f45f7"
+    },
+    "base_info_sha256": "332526eb4d84ff4eb2cc1d1ed2e2ce3b334008c9a5c77335d7e355637fb6f994",
+    "shared_schema_statement_errors": 0,
+    "failure": "cloud_model_lane_schema.surql192 FLEXIBLE must follow TYPE; original allocation field declared FLEXIBLE TYPE object VALUE",
+    "production_pin": "NOT_MEASURED",
+    "original_pin_assertion": "NOT_REACHED",
+    "runtime_acceptance": "NOT_EVALUATED",
+    "failed_core_launches_retained": 38,
+    "next": "Exact approved cloudfield grammar reorder preserving all semantics; independent review and focused existing measurement"
+  }
+,
+  "round45_independent_focused_release_20261012": {
+    "id": "WP012-P2-ROUND45-MODULE-BOOLEAN-RELEASE-20261012",
+    "status": "SOURCE_CLEAR_PUSHED_PENDING_FOCUSED_MEASUREMENT",
+    "product_commit": "234ce50da83fc0ebe6e054ed19b6c0627c768325",
+    "product_tree": "2979183d743767dd3707a030efe8bb5edc7dcd94",
+    "review_thread": "01a129ca-8eea-7f53-aa9d-7f81f6f08319",
+    "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round44-module-boolean-repair",
+    "binding_sha256": "213fbe8689a246b93ad53c266f19400aa99a3d1fc5ed1c36f6b8f86ecbab6af5",
+    "diff_sha256": "439885e4146727ba56ec54da51b6b4de5aa4a2bef6176782185c6dca0924b460",
+    "module_sha256": "bb5125bd05cdf768169fa44812a721c6c96298ee9878e82d99bd9021790c90f8",
+    "repair": "Only existing model_lane_schema1344 covered function-left string equality; all5identityguards/nativeELSE exact;878OR expression unchanged",
+    "scope_owner": "MT-173 both write lists verified",
+    "prior_failure_ref": "MT-174.json#/round44_independent_catalog_actual_result_20261012",
+    "base_info_sha256": "332526eb4d84ff4eb2cc1d1ed2e2ce3b334008c9a5c77335d7e355637fb6f994",
+    "production_pin": "NOT_MEASURED",
+    "independent_role": "INTEGRATION_VALIDATOR",
+    "gameplan_cause": "GP-521",
+    "proof_mapping": "One existing exact MT139 focused owningLibTest for missing FINAL; broad core after stabilized measured-pin batch",
+    "run_scope": "Same existing exact MT139 command/warmownedtarget/profile/toolchain/j1/180GBcap; fresh applicable currentHEAD confirmations and numerical admission mandatory",
+    "runtime_acceptance": "NOT_EVALUATED"
+  }
+,
+  "round44_independent_catalog_actual_result_20261012": {
+    "id": "WP012-P2-ROUND44-MT139-ACTUAL-20261012",
+    "status": "BASE_MEASURED_PRODUCTION_MODULE_PARSE_FAILED",
+    "product_commit": "7153798d76311272958281ca768132d5e1f8bd32",
+    "actual_result": {
+      "attempt_id": "ba713263810a4af4a47ea8cd79fc3c32",
+      "started_utc": "2026-10-12T14:06:06.1956805Z",
+      "status": "TEST_FAILED",
+      "exit_code": 101,
+      "runtime_acceptance": "NOT_EVALUATED",
+      "cap_bytes": 180000000000,
+      "gameplan_exit": 0,
+      "resources": {
+        "utc": "2026-10-12T14:06:28.2647469Z",
+        "available_mb": 5914,
+        "commit_reserve": 45229719552,
+        "pages_input": 378,
+        "page_reads": 79,
+        "free_bytes": 388661932032
+      },
+      "target_bytes_before": 30396256416.0,
+      "max_target_bytes": 32007779709,
+      "argv": [
+        "test",
+        "--locked",
+        "--manifest-path",
+        "src/backend/handshake_core/Cargo.toml",
+        "--features",
+        "app-runtime,surreal-test-support,test-utils",
+        "-j",
+        "1",
+        "--lib",
+        "storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog",
+        "--",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cargo_pid": 29836,
+      "cargo_identity": {
+        "ProcessId": 29836,
+        "CreationDate": "2026-10-12T16:06:30.515621+02:00",
+        "CommandLine": "\"C:\\Users\\iljas\\.cargo\\bin\\cargo.exe\" test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils -j 1 --lib storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog -- --exact --nocapture --test-threads=1",
+        "ExecutablePath": "C:\\Users\\iljas\\.cargo\\bin\\cargo.exe"
+      },
+      "post_binding_exit": 0,
+      "inputs_unchanged": true,
+      "stdout_sha256": "98832bfb25e12102e2330d6dd284a416192ab7a90456f5f6e5ad9a9a501138e3",
+      "stderr_sha256": "fabc5f7d604303ec851e3d9f15cba18bbdeaca754dedc74eba2be4a2cc773a11",
+      "completed_utc": "2026-10-12T14:14:44.6427192Z"
+    },
+    "post_binding": {
+      "matched": true,
+      "binding_equal": {
+        "head": true,
+        "tree": true,
+        "status": true,
+        "files": true,
+        "authority": true,
+        "profile_sha256": true,
+        "toolchain": true,
+        "launcher_sha256": true,
+        "external_inputs": true
+      },
+      "files": 7416
+    },
+    "artifact_sha256": {
+      "measurement-result.json": "3c166729bd304fe52a3e978acc54c263d8e3636c623fc04f8208474a5d745517",
+      "post-binding.json": "9fd1f0edf84de597d3e3539b2e2e05928124e0ababc2fde42ac5ddac59f1fb69",
+      "test.stdout.log": "98832bfb25e12102e2330d6dd284a416192ab7a90456f5f6e5ad9a9a501138e3",
+      "test.stderr.log": "fabc5f7d604303ec851e3d9f15cba18bbdeaca754dedc74eba2be4a2cc773a11"
+    },
+    "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round44-mt139-catalog-measurement",
+    "base_info_sha256": "332526eb4d84ff4eb2cc1d1ed2e2ce3b334008c9a5c77335d7e355637fb6f994",
+    "shared_schema_statement_errors": 0,
+    "production_pin": "NOT_MEASURED",
+    "primary_failure": "Ordered production model_lane_schema.surql1344 bare parameter equality IF arm parsed as deprecated declaration",
+    "original_pin_assertion": "NOT_REACHED",
+    "runtime_acceptance": "NOT_EVALUATED",
+    "failed_core_launches_retained": 38,
+    "next": "Same owning-module Boolean repair and same-cause source batch; source review then focused measurement"
+  }
+,
+  "round44_independent_focused_release_20261012": {
+    "id": "WP012-P2-ROUND44-INDEPENDENT-RELEASE-20261012",
+    "status": "SOURCE_CLEAR",
+    "review_thread": "01a129ca-8eea-7f53-aa9d-7f81f6f08319",
+    "candidate": "7153798d76311272958281ca768132d5e1f8bd32",
+    "source_checkpoint_ref": "MT-174.json#/round44_ordering_repair_checkpoint_20261012",
+    "checks": "Independent exact raw inverse,432 assertions,40candidate5forward-before0after inventory;two affected reversal fragments once and unchanged predecessor RHS; pinned engine field prerequisite",
+    "executor_role": "INTEGRATION_VALIDATOR",
+    "run_scope": "One same existing exact MT139 library test after fresh currentHEAD applicable confirmations, GP520, numerical gate and resources; same warm target/profile/toolchain/j1/180GB cap",
+    "proof_mapping": "Focused owning LibTest measures unresolved catalog predecessor; broad required core after stable measured-pin batch",
+    "runtime_acceptance": "NOT_EVALUATED"
+  }
+,
+  "round44_ordering_repair_checkpoint_20261012": {
+    "id": "WP012-P2-ROUND44-ORDERING-CHECKPOINT-20261012",
+    "status": "SOURCE_CLEAR_PUSHED_PENDING_FOCUSED_MEASUREMENT",
+    "product_commit": "7153798d76311272958281ca768132d5e1f8bd32",
+    "product_tree": "807ff61e6ec4b6e3ab451900a8a9aa45b65d537e",
+    "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round43-schema-definition-order-repair",
+    "binding_sha256": "24b03fd965d3078c3eb204d16cc7c22021c798cbdd0d7ca5657c6c9c4e742c6a",
+    "diff_sha256": "34355e777431698ef2e23b84cd6b5f675662f971464c72688ca0e2414ee20751",
+    "generated_sql_sha256": "7daf5f03b36d6792575bbc40e3775f901182d975946a4b5fd14f2912c7979fd8",
+    "schema_rs_sha256": "c63f949cc22082a6f40dcb8e113a690c7e216862c4c054b2b88db91214b57f76",
+    "root_cause": "Pinned SCHEMAFULL index definition requires already defined fields; five original MT173-added indexes preceded fields",
+    "repair": "Move only same five index statements after original field fragments in SQL and historical reversal; original definitions and 432 assertions preserved",
+    "proof_mapping": "Existing focused MT139 compiles owning LibTest and measures genuine schema. Required broad core after measured-pin batch stabilizes; no duplicate broad run before missing primary measurement",
+    "gameplan_cause": "GP-520",
+    "historical_pins": "UNCHANGED",
+    "catalog_pins": "UNMEASURED",
+    "runtime_acceptance": "NOT_EVALUATED",
+    "failure_ref": "MT-174.json#/round43_independent_catalog_actual_result_20261012"
+  }
+,
+  "round43_independent_catalog_actual_result_20261012": {
+    "id": "WP012-P2-ROUND43-MT139-ACTUAL-20261012",
+    "status": "SCHEMA_PRIMARY_ERROR_IDENTIFIED",
+    "product_commit": "75c42c63a22a512477e9545041644ffd5969f47c",
+    "actual_result": {
+      "attempt_id": "6968aee4ee174ad1a07f8c26fb1c0510",
+      "started_utc": "2026-10-12T13:40:00.2762951Z",
+      "status": "TEST_FAILED",
+      "exit_code": 101,
+      "runtime_acceptance": "NOT_EVALUATED",
+      "cap_bytes": 180000000000,
+      "gameplan_exit": 0,
+      "resources": {
+        "utc": "2026-10-12T13:40:21.5531224Z",
+        "available_mb": 5857,
+        "commit_reserve": 45416882176,
+        "pages_input": 34,
+        "page_reads": 7,
+        "free_bytes": 388688347136
+      },
+      "target_bytes_before": 30396225184.0,
+      "max_target_bytes": 31695071821,
+      "argv": [
+        "test",
+        "--locked",
+        "--manifest-path",
+        "src/backend/handshake_core/Cargo.toml",
+        "--features",
+        "app-runtime,surreal-test-support,test-utils",
+        "-j",
+        "1",
+        "--lib",
+        "storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog",
+        "--",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cargo_pid": 13596,
+      "cargo_identity": {
+        "ProcessId": 13596,
+        "CreationDate": "2026-10-12T15:40:23.584212+02:00",
+        "CommandLine": "\"C:\\Users\\iljas\\.cargo\\bin\\cargo.exe\" test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils -j 1 --lib storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog -- --exact --nocapture --test-threads=1",
+        "ExecutablePath": "C:\\Users\\iljas\\.cargo\\bin\\cargo.exe"
+      },
+      "post_binding_exit": 0,
+      "inputs_unchanged": true,
+      "stdout_sha256": "2009c1995804ce55931da49cff414f2d843e48367b6933101be5ef2f2de59d7a",
+      "stderr_sha256": "0b5365902bdf288da47e6cdc867b651e13ece552ac88f5cd12bb5257df244635",
+      "completed_utc": "2026-10-12T13:48:33.1241778Z"
+    },
+    "post_binding": {
+      "matched": true,
+      "binding_equal": {
+        "head": true,
+        "tree": true,
+        "status": true,
+        "files": true,
+        "authority": true,
+        "profile_sha256": true,
+        "toolchain": true,
+        "launcher_sha256": true,
+        "external_inputs": true
+      },
+      "files": 7416
+    },
+    "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round43-mt139-catalog-measurement",
+    "artifact_sha256": {
+      "measurement-result.json": "69470ffd4cb0ccb92a29d3b5c7cc40715be92138e2c00a3619fcd49d07587255",
+      "post-binding.json": "9fd1f0edf84de597d3e3539b2e2e05928124e0ababc2fde42ac5ddac59f1fb69",
+      "test.stdout.log": "2009c1995804ce55931da49cff414f2d843e48367b6933101be5ef2f2de59d7a",
+      "test.stderr.log": "0b5365902bdf288da47e6cdc867b651e13ece552ac88f5cd12bb5257df244635"
+    },
+    "primary_error": {
+      "statement_index": 1124,
+      "code": -32000,
+      "message": "The field 'scoped_name_key' does not exist",
+      "details": "Internal",
+      "cause": null
+    },
+    "diagnostic_counts": {
+      "all_errors": 5042,
+      "NotExecuted": 1124,
+      "Cancelled": 3917,
+      "primary": 1
+    },
+    "source_observation": "schema.surql1536 index uses scoped_name_key before DEFINE FIELD1540; mapping/engine causal requirement under source inspection",
+    "base_pin": "NOT_MEASURED",
+    "production_pin": "NOT_MEASURED",
+    "original_pin_assertion": "NOT_REACHED",
+    "runtime_acceptance": "NOT_EVALUATED",
+    "failed_core_launches_retained": 38,
+    "next": "Verify pinned engine requirement and repair exact existing MT173 source ordering; independent review before focused retry"
+  }
+,
+  "round43_prelaunch_scope_reconciliation_20261012": {
+    "id": "WP012-P2-ROUND43-ADMISSION-20261012",
+    "status": "PRELAUNCH_HELD_NO_CARGO",
+    "cause": "Shared confirmations bound previous product HEAD after test-only commit",
+    "candidate": "75c42c63a22a512477e9545041644ffd5969f47c",
+    "gameplan_exit": 1,
+    "cargo_launched": false,
+    "failed_core_launches_retained": 38,
+    "cause_step": "GP-519",
+    "scoped_disposition": {
+      "authority": [
+        "CX-GP-003",
+        "CX-GP-006",
+        "CX-VERIFY-002"
+      ],
+      "GP-409": "Selected: direct owned wrapper numerical outcome, compiler/profile. NONSELECTED: legacy MT168 Scheduler parent-exit survival; no survival claim",
+      "GP-417": "NONSELECTED: native/Scheduler host-exit proof; current exact MT139 is direct library test. No fabricated scheduler outcome",
+      "legacy_steps": "Retained unchanged; conditional nonselected scope does not replace applicable current admission/resource/binding checks"
+    },
+    "next": "Independent currentHEAD applicable confirmations and fresh numerical gate/resource admission; same exact existing MT139 diagnostic"
+  }
+,
+  "round43_reviewed_diagnostic_release_20261012": {
+    "id": "WP012-P2-ROUND43-MT139-DIAGNOSTIC-20261012",
+    "status": "SOURCE_CLEAR_PUSHED_PENDING_INDEPENDENT_FOCUSED_RUN",
+    "product_commit": "75c42c63a22a512477e9545041644ffd5969f47c",
+    "product_tree": "7ccb1906ee559b28d7d4c08f08aeefdc87fe4b45",
+    "review_thread": "01a129ca-8eea-7f53-aa9d-7f81f6f08319",
+    "source_binding_sha256": "b8696002d6104090be103c937b6ba8ecefcfbdbf0769646343091d572e9ea391",
+    "source_diff_sha256": "c460dc021655c43a51ff264b38560166d25ebc2f0ad1a0413909540573699ab9",
+    "schema_rs_sha256": "5a1bedd2bb28d41a89fac7bc5f2d921455b53da5448aa97ff2fc55c63c7fba24",
+    "change_scope": "Only existing MT139 cfg(test) query diagnostic; same transaction and bindings; original first error and 432 assertions preserved",
+    "proof_mapping": "Existing exact MT139 LibTest compiles changed owning test. Reuse Round42 unchanged production core; required broad core after stable product/pin repair",
+    "gameplan_cause": "GP-518",
+    "prior_failure_ref": "MT-174.json#/round42_independent_catalog_actual_result_20261012",
+    "independent_role": "INTEGRATION_VALIDATOR",
+    "run_scope": "Same existing exact MT139 command, owned warm target/profile/toolchain/j1/180GB cap; fresh numerical gameplan and resources required",
+    "acceptance": "NOT_EVALUATED"
+  },
+  "round42_independent_catalog_actual_result_20261012": {
+    "id": "WP012-P2-ROUND42-MT139-ACTUAL-20261012",
+    "status": "SCHEMA_TRANSACTION_FAILED_PRIMARY_ERROR_MASKED",
+    "product_commit": "f776f494e2b12b4ab59cac856964472ab7d34800",
+    "actual_result": {
+      "attempt_id": "1023b447afa948e186017bce57eab7b1",
+      "started_utc": "2026-10-12T13:10:56.7633805Z",
+      "status": "TEST_FAILED",
+      "exit_code": 101,
+      "runtime_acceptance": "NOT_EVALUATED",
+      "cap_bytes": 180000000000,
+      "gameplan_exit": 0,
+      "resources": {
+        "utc": "2026-10-12T13:11:17.2062327Z",
+        "available_mb": 6633,
+        "commit_reserve": 45372964864,
+        "pages_input": 405,
+        "page_reads": 27,
+        "free_bytes": 388720635904
+      },
+      "target_bytes_before": 30395401888.0,
+      "max_target_bytes": 31695450189,
+      "argv": [
+        "test",
+        "--locked",
+        "--manifest-path",
+        "src/backend/handshake_core/Cargo.toml",
+        "--features",
+        "app-runtime,surreal-test-support,test-utils",
+        "-j",
+        "1",
+        "--lib",
+        "storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog",
+        "--",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cargo_pid": 20700,
+      "cargo_identity": {
+        "ProcessId": 20700,
+        "CreationDate": "2026-10-12T15:11:19.220922+02:00",
+        "CommandLine": "\"C:\\Users\\iljas\\.cargo\\bin\\cargo.exe\" test --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime,surreal-test-support,test-utils -j 1 --lib storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog -- --exact --nocapture --test-threads=1",
+        "ExecutablePath": "C:\\Users\\iljas\\.cargo\\bin\\cargo.exe"
+      },
+      "post_binding_exit": 0,
+      "inputs_unchanged": true,
+      "stdout_sha256": "3a017dc637628f3dd71ef3918a9002c00c435f94771600030d2ce696255672c7",
+      "stderr_sha256": "9d8aa30bbcc8b8be4de743422fd7e7a90c58e3c92474ceb27ba680e53e5305ea",
+      "completed_utc": "2026-10-12T13:19:19.5986018Z"
+    },
+    "post_binding": {
+      "matched": true,
+      "binding_equal": {
+        "head": true,
+        "tree": true,
+        "status": true,
+        "files": true,
+        "authority": true,
+        "profile_sha256": true,
+        "toolchain": true,
+        "launcher_sha256": true,
+        "external_inputs": true
+      },
+      "files": 7416
+    },
+    "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round42-mt139-catalog-measurement",
+    "artifact_sha256": {
+      "measurement-result.json": "3b4c2b3446d48f8e88ec041b62a14c583520fc73a30bbce50e12423c69178d87",
+      "post-binding.json": "9fd1f0edf84de597d3e3539b2e2e05928124e0ababc2fde42ac5ddac59f1fb69",
+      "test.stdout.log": "3a017dc637628f3dd71ef3918a9002c00c435f94771600030d2ce696255672c7",
+      "test.stderr.log": "9d8aa30bbcc8b8be4de743422fd7e7a90c58e3c92474ceb27ba680e53e5305ea"
+    },
+    "base_pin": "NOT_MEASURED",
+    "production_pin": "NOT_MEASURED",
+    "original_pin_assertion": "NOT_REACHED",
+    "runtime_acceptance": "NOT_EVALUATED",
+    "failed_core_launches_retained": 38
+  }
+,
+  "round42_actual_core_20261012": {
+  "id": "WP012-P2-ROUND42-ACTUAL-CORE-20261012",
+  "status": "CORE_CHECK_GREEN",
+  "executor_role": "KERNEL_BUILDER_DELIVERY",
+  "executor_thread": "01a129ca-9bd2-7823-bc0d-746a6065835f",
+  "product_commit": "f776f494e2b12b4ab59cac856964472ab7d34800",
+  "product_tree": "7b020b918877aba655f393d32a070b7af8e47117",
+  "covers": [
+    "MT-171",
+    "MT-172",
+    "MT-173",
+    "MT-174"
+  ],
+  "exit_code": 0,
+  "terminal_utc": "2026-10-12T13:07:04.3684467Z",
+  "attempt_id": "44524915b04648ec8b979e8bf01ac423",
+  "command": [
+    "check",
+    "--locked",
+    "--manifest-path",
+    "src/backend/handshake_core/Cargo.toml",
+    "--lib",
+    "--tests",
+    "--features",
+    "app-runtime,surreal-test-support,test-utils",
+    "-j",
+    "1",
+    "--keep-going",
+    "--message-format=json"
+  ],
+  "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round42-parameter-equality",
+  "artifact_sha256": {
+    "compile-result.json": "7c00b07f30bdd57b02115717b78a59171bfe06b02a450a00ef6ecef482b0a459",
+    "compile-evidence.json": "197aa0dfb706036331479cbafb1c3ac0c3b77607dda0778ec6b80b98e7b0caf7",
+    "compile.stdout.log": "4d77ab91508999e7b19329fb2c2dc7ec13949bd279410f18f88f3e1982e0a4f8",
+    "compile.stderr.log": "85efb33a9909ca4a4762a88a6587603dff9a30e28a8372ca802d5a7396e5db7f",
+    "compile-post-binding.json": "8dba7777f688a4c4e061bc0a0e0544adb7ba3a10c72f40700108608415d886dc",
+    "compile-post-candidate.json": "2a867d252834d9993eecb81a6106a3dfe70aca954415ae046136f04c6f78c3fd",
+    "compile-authority-after.json": "944713178bc83f876cc7ce78fd3f6d1f1810db8d7bc4ad7ec721276ad67e6bad"
+  },
+  "expected_targets": 485,
+  "observed_target_states": 485,
+  "diagnostics": {
+    "lines": 3022,
+    "noise": 0,
+    "unknown": 0,
+    "malformed": 0,
+    "errors": 0,
+    "dropped_groups": 0,
+    "unexpected_artifacts": 833,
+    "oversized_records": 0
+  },
+  "blockers": [],
+  "post_binding_files": 7416,
+  "scalar_binding_count": 19,
+  "all_inputs_matched": true,
+  "independent_authority_matched": true,
+  "owned_target_peak_bytes": 30395401888,
+  "owned_target_cap_bytes": 180000000000,
+  "original_failures_retained": 38,
+  "runtime_acceptance": "NOT_RUN; accepted0/5",
+  "source_review_ref": "MT-174.json#/round42_parameter_equality_source_release_20261012",
+  "remaining": "Actual BASE/FINAL catalog observations, exact measured pins and fresh/reopen; genuine native authorization/publication and consumed runtime acceptance",
+  "prior_lifecycle": {
+    "status": "BLOCKED",
+    "blocked_on": "Reviewed two-file SQL identity-expression repair pushed f776f494e; changed-input compiler proof pending. BASE/FINAL catalog observations, exact pins and fresh/reopen, genuine native authorization/publication and consumed runtime acceptance remain unproven; accepted0/5.",
+    "depends_on": [
+      "MT-173"
+    ],
+    "blocks": [],
+    "active": true,
+    "validator_verdict": null,
+    "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
+    "claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
+    "completed_by": null,
+    "next_actor": "Delivery one existing changed-input core command after fresh admission; Review exact MT139 afterward; measured pins then original fresh/reopen proofs"
+  }
+},
+
+  "round42_independent_catalog_assignment_20261012": {
+  "id": "WP012-P2-ROUND42-MT139-REPAIRED-CANDIDATE-DIAGNOSTIC-20261012",
+  "assigned_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
+  "operator_authority": "Live operator: all approved deploy, commit and push; finish without me",
+  "executor_thread": "01a129ca-8eea-7f53-aa9d-7f81f6f08319",
+  "executor_role": "INTEGRATION_VALIDATOR",
+  "workflow": "KERNEL_BUILDER_FOLDED_NO_ACP / DIRECT_REVIEW_V1",
+  "scope": "Bounded independent diagnostic catalog observation only; no product writes, acceptance verdict or MT completion",
+  "candidate": "f776f494e2b12b4ab59cac856964472ab7d34800",
+  "core_proof_ref": "MT-174.json#/round42_actual_core_20261012",
+  "command": [
+    "cargo",
+    "test",
+    "--locked",
+    "--manifest-path",
+    "src/backend/handshake_core/Cargo.toml",
+    "--features",
+    "app-runtime,surreal-test-support,test-utils",
+    "-j",
+    "1",
+    "--lib",
+    "storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog",
+    "--",
+    "--exact",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "resource_allocation": "Explicit sequential reuse of existing MT174 Delivery target; same pinned toolchain/profile and 180000000000 byte cap under existing WP012 grant; Delivery releases sole execution ownership to assigned Review thread for this observation",
+  "release_conditions": "Root pushed checkpoint; fresh actual role-scoped numeric gameplan/resources; unchanged original source/assertions; actual stdout/stderr/numeric exit and post-binding",
+  "outputs": "Actual BASE and FINAL printed SHA256, inventory/source fields, executed test count and original assertion outcome",
+  "next": "Measured pin reconciliation plus original registry external-input seam; independent fresh/reopen proof still mandatory",
+  "status": "RELEASED_AFTER_PUSHED_CHECKPOINT_FRESH_ADMISSION_REQUIRED",
+  "prior_actual_failure_ref": "MT-174.json#/round41_independent_catalog_actual_result_20261012",
+  "required_gameplan_step": "GP-516",
+  "required_gameplan_steps": [
+    "GP-516",
+    "GP-517"
+  ]
+},
+
+  "round42_parameter_equality_source_release_20261012": {
+  "id": "WP012-P2-ROUND42-PARAMETER-EQUALITY-SOURCE-20261012",
+  "status": "SOURCE_CLEAR_PUSHED_COMPILE_PENDING",
+  "at_utc": "2026-10-12T12:48:54.082752+00:00",
+  "product_commit": "f776f494e2b12b4ab59cac856964472ab7d34800",
+  "product_tree": "7b020b918877aba655f393d32a070b7af8e47117",
+  "parent": "de66b452230dbc139cadb567aded30c96d98e6a8",
+  "covers": [
+    "MT-171",
+    "MT-172",
+    "MT-173",
+    "MT-174"
+  ],
+  "files": [
+    {
+      "path": "src/backend/handshake_core/src/storage/surreal/schema.surql",
+      "before_sha256": "5adf07f534a3678d9932978336134d8f522aa535e96bc396c0814c6a90177d87",
+      "after_sha256": "be1a8bf8f1b3dbeb92b64a309c9f8e2b579b2f8d22f0e258161596c34c7d5f3f",
+      "MT173_execution_and_scope_admitted": true,
+      "exact_raw_inverse_preserved": true,
+      "original_assertion_lines_preserved": 0,
+      "changes": [
+        {
+          "before_start": 4171,
+          "before_count": 1,
+          "after_start": 4171,
+          "after_count": 1
+        }
+      ]
+    },
+    {
+      "path": "src/backend/handshake_core/src/storage/surreal/schema.rs",
+      "before_sha256": "cd07ee7450a3c3989ad174ec26aa76dea378ff454a3124ddff926ea2e5fa740d",
+      "after_sha256": "5f740584dfc8a7a50d3e2c125516ab414768e47dee762c5548b74798b245993d",
+      "MT173_execution_and_scope_admitted": true,
+      "exact_raw_inverse_preserved": true,
+      "original_assertion_lines_preserved": 432,
+      "changes": [
+        {
+          "before_start": 3059,
+          "before_count": 1,
+          "after_start": 3059,
+          "after_count": 1
+        },
+        {
+          "before_start": 3999,
+          "before_count": 1,
+          "after_start": 3999,
+          "after_count": 1
+        }
+      ]
+    }
+  ],
+  "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round41-parameter-equality-repair",
+  "bindings_sha256": "9849c6e1df6a00ac8c5bc2b1aaff87e4a955cf326ee98b6ffff54ac3e8b27186",
+  "diff_sha256": "d40eed1225f65cbfb425fce5af02df5e2ff528bfdb53f61a1eacf46625e09613",
+  "independent_source_review": {
+    "thread": "01a129ca-8eea-7f53-aa9d-7f81f6f08319",
+    "verdict": "SOURCE_CLEAR",
+    "remaining_product_findings": 0,
+    "provenance_correction": "Full block parser preserves first-token parenthesis exemption; prior incomplete diagnosis retracted, old binding retained"
+  },
+  "actual_failure_ref": "MT-174.json#/round41_independent_catalog_actual_result_20261012",
+  "semantics": "Explicit parenthesized function-left native string identity equality in sole failed IF arm; Boolean result retained, no LET/RETURN or permission/type/other-arm changes",
+  "preserved": "432 original assertion lines, exact byte inverses, historical pins and every other product source/config",
+  "generated_sql_sha256": "be1a8bf8f1b3dbeb92b64a309c9f8e2b579b2f8d22f0e258161596c34c7d5f3f",
+  "BASE": null,
+  "FINAL": null,
+  "prior_core": "Round41 GREEN historical de66b only; 38 actual failed core launches retained",
+  "runtime_acceptance": "NOT_RUN; accepted0/5",
+  "gameplan_cause_step": "GP-517",
+  "next_actor": "Delivery one existing changed-input core command after fresh admission; Review exact MT139 afterward; measured pins then original fresh/reopen proofs",
+  "prior_lifecycle": {
+    "status": "BLOCKED",
+    "blocked_on": "Core Round41 GREEN on de66b4522; independently measured BASE/FINAL pins and fresh/reopen, genuine native authorization/publication and consumed runtime/native independent acceptance remain unproven; accepted0/5.",
+    "depends_on": [
+      "MT-173"
+    ],
+    "blocks": [],
+    "active": true,
+    "validator_verdict": null,
+    "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
+    "claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
+    "completed_by": null,
+    "next_actor": "Independent Review existing MT139 catalog observation on de66b after fresh admission; measured pin reconciliation then exact original fresh/reopen proof; no unchanged core rerun"
+  }
+},
+
+  "round41_independent_catalog_actual_result_20261012": {
+  "id": "WP012-P2-ROUND41-MT139-PARAMETER-PARSE-FAILURE-20261012",
+  "status": "TEST_FAILED",
+  "executor_role": "INTEGRATION_VALIDATOR",
+  "executor_thread": "01a129ca-8eea-7f53-aa9d-7f81f6f08319",
+  "candidate": "de66b452230dbc139cadb567aded30c96d98e6a8",
+  "attempt_id": "25391ea1bc5e414ca667db7ed8316ec0",
+  "terminal_utc": "2026-10-12T12:38:59.0292507Z",
+  "exit_code": 101,
+  "wrapper_exit_code": 1,
+  "test_result": {
+    "passed": 0,
+    "failed": 1,
+    "filtered": 2545,
+    "test_duration_s": 0.67
+  },
+  "compile_link_duration": "7m37s; existing dependency libraries reused",
+  "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round41-mt139-catalog-measurement",
+  "artifact_sha256": {
+    "measurement-result.json": "5b76305959f2159c52a8bcf50ba5b273e2f2aae5be0a1de4c9e2b9babb65ddae",
+    "post-binding.json": "9fd1f0edf84de597d3e3539b2e2e05928124e0ababc2fde42ac5ddac59f1fb69",
+    "test.stdout.log": "397bef5fc7cc691af900cf75452aa6c95a8a67c42d6e76b4427930f6d8209767",
+    "test.stderr.log": "4f51008b12850dd39568bf276df337fd8a5fa19fa9b78c3d9bf32171ec0fde7c"
+  },
+  "source_binding_files": 7416,
+  "post_bindings_matched": true,
+  "blocker": "SurrealDB -32000 SQL4171:243 parameter declarations without let deprecated; legacy CRDT proposal ASSERT IF arm starts bare $value equality, emitter schema.rs3059",
+  "remediation": "Explicit parenthesized BOOLEAN comparison in existing emitter and generated SQL; diagnostic LET would change semantics and is forbidden; exactly one same-class bare parameter equality block in current pair",
+  "BASE": null,
+  "FINAL": null,
+  "original_pin_assertion": "NOT_REACHED",
+  "production_module_body": "NOT_REACHED",
+  "prior_object_parse_failure": "Passed original SQL979; distinct exact subsequent statement failure",
+  "core_history": "Round40 and Round41 GREEN retained; 38 actual failed core launches retained; this runtime diagnostic failure separate",
+  "accepted_mts": "0/5",
+  "next_actor": "Sole coder exact two-file expression repair; independent scoped source review; changed-input proof under fresh gate; no unchanged retry",
+  "gameplan_cause_step": "GP-517"
+},
+
+  "round41_actual_core_20261012": {
+  "id": "WP012-P2-ROUND41-ACTUAL-CORE-20261012",
+  "status": "CORE_CHECK_GREEN",
+  "executor_role": "KERNEL_BUILDER_DELIVERY",
+  "executor_thread": "01a129ca-9bd2-7823-bc0d-746a6065835f",
+  "at_utc": "2026-10-12T12:29:05.462479+00:00",
+  "product_commit": "de66b452230dbc139cadb567aded30c96d98e6a8",
+  "product_tree": "7a6114b0d7f8820c17477d84e247e3e8e3d2f110",
+  "covers": [
+    "MT-171",
+    "MT-172",
+    "MT-173",
+    "MT-174"
+  ],
+  "exit_code": 0,
+  "terminal_utc": "2026-10-12T12:25:49.0326684Z",
+  "attempt_id": "2a9f33384a4845d5bbc561d173dd0d20",
+  "command": [
+    "check",
+    "--locked",
+    "--manifest-path",
+    "src/backend/handshake_core/Cargo.toml",
+    "--lib",
+    "--tests",
+    "--features",
+    "app-runtime,surreal-test-support,test-utils",
+    "-j",
+    "1",
+    "--keep-going",
+    "--message-format=json"
+  ],
+  "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round41-measurement-input-context",
+  "artifact_sha256": {
+    "compile-result.json": "50dbf3950101b340ab46f232509ac79614ad7c5f16882999971cb42cb31152b9",
+    "compile-evidence.json": "12638253f3846e3263015d82164c39b0c43700a1a84dd6ea5abca7d9b6ef77be",
+    "compile.stdout.log": "2f31ad68d84cd81130e4efc6fe1059347d1be122ae5975edb9f85bef29bdede3",
+    "compile.stderr.log": "85efb33a9909ca4a4762a88a6587603dff9a30e28a8372ca802d5a7396e5db7f",
+    "compile-post-binding.json": "8dba7777f688a4c4e061bc0a0e0544adb7ba3a10c72f40700108608415d886dc",
+    "compile-post-candidate.json": "0c9dde34c31a50d3a4c486303961b0550e69c611f2d74f817bae4ef09a5094f9",
+    "compile-authority-after.json": "d173ea947ee363411207f8bd76c58db152b6a99a05595c943cc221ad042c348c"
+  },
+  "expected_targets": 485,
+  "observed_target_states": 485,
+  "diagnostics": {
+    "lines": 3022,
+    "noise": 0,
+    "unknown": 0,
+    "malformed": 0,
+    "errors": 0,
+    "dropped_groups": 0,
+    "unexpected_artifacts": 833,
+    "oversized_records": 0
+  },
+  "blockers": [],
+  "post_binding_files": 7416,
+  "scalar_bindings_match": {
+    "head": true,
+    "tree": true,
+    "config_sha256": true,
+    "launcher_sha256": true,
+    "source_review_binding_sha256": true,
+    "tracked_diff_sha256": true,
+    "collector_sha256": true,
+    "collector_commit": true,
+    "caller_config_sha256": true,
+    "metadata_sha256": true,
+    "cargo_argv": true,
+    "toolchain": true,
+    "effective_profile_env": true,
+    "praxidike_root": true,
+    "selected_package_id": true,
+    "resolved_selected_features": true,
+    "expected_target_ids": true,
+    "actual_toolchain_binary_hashes": true,
+    "observed_toolchain_identity": true
+  },
+  "independent_authority_matched": true,
+  "owned_target_peak_bytes": 30386404508,
+  "owned_target_cap_bytes": 180000000000,
+  "original_failures_retained": 38,
+  "runtime_acceptance": "NOT_RUN; accepted0/5",
+  "source_review_ref": "MT-174.json#/round41_reviewed_source_release_20261012",
+  "remaining": "Actual BASE/FINAL catalog observations, exact measured pins and fresh/reopen; genuine native authorization/publication and consumed runtime acceptance",
+  "prior_lifecycle": {
+    "status": "BLOCKED",
+    "blocked_on": "Reviewed source repair pushed de66b4522; required compiler proof on changed inputs pending. Independent BASE/FINAL catalog observations and fresh/reopen, genuine native authorization/publication and consumed runtime acceptance remain unproven; accepted0/5.",
+    "depends_on": [
+      "MT-173"
+    ],
+    "blocks": [],
+    "active": true,
+    "validator_verdict": null,
+    "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
+    "claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
+    "completed_by": null,
+    "next_actor": "Delivery fresh admission then one existing core command; Review exact existing MT139 observation after successful compiler result; no unchanged retries"
+  }
+},
+
+  "round41_independent_catalog_assignment_20261012": {
+  "id": "WP012-P2-MT139-INDEPENDENT-CATALOG-REPAIRED-CANDIDATE-20261012",
+  "assigned_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
+  "operator_authority": "Live operator: all approved deploy, commit and push; finish without me",
+  "executor_thread": "01a129ca-8eea-7f53-aa9d-7f81f6f08319",
+  "executor_role": "INTEGRATION_VALIDATOR",
+  "workflow": "KERNEL_BUILDER_FOLDED_NO_ACP / DIRECT_REVIEW_V1",
+  "scope": "Bounded independent diagnostic catalog observation only; no product writes, acceptance verdict or MT completion",
+  "candidate": "de66b452230dbc139cadb567aded30c96d98e6a8",
+  "core_proof_ref": "MT-174.json#/round41_actual_core_20261012",
+  "command": [
+    "cargo",
+    "test",
+    "--locked",
+    "--manifest-path",
+    "src/backend/handshake_core/Cargo.toml",
+    "--features",
+    "app-runtime,surreal-test-support,test-utils",
+    "-j",
+    "1",
+    "--lib",
+    "storage::surreal::schema::tests::mt139_current_schema_info_pin_matches_fresh_mem_catalog",
+    "--",
+    "--exact",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "resource_allocation": "Explicit sequential reuse of existing MT174 Delivery target; same pinned toolchain/profile and 180000000000 byte cap under existing WP012 grant; Delivery releases sole execution ownership to assigned Review thread for this observation",
+  "release_conditions": "Root pushed checkpoint; fresh actual role-scoped numeric gameplan/resources; unchanged original source/assertions; actual stdout/stderr/numeric exit and post-binding",
+  "outputs": "Actual BASE and FINAL printed SHA256, inventory/source fields, executed test count and original assertion outcome",
+  "next": "Measured pin reconciliation plus original registry external-input seam; independent fresh/reopen proof still mandatory",
+  "status": "RELEASED_AFTER_PUSHED_CHECKPOINT_FRESH_ADMISSION_REQUIRED",
+  "prior_actual_failure_ref": "MT-174.json#/round40_independent_catalog_actual_result_20261012",
+  "required_gameplan_step": "GP-516"
+},
+
+  "round41_reviewed_source_release_20261012": {
+  "id": "WP012-P2-ROUND41-REVIEWED-SOURCE-20261012",
+  "at_utc": "2026-10-12T12:07:32.787230+00:00",
+  "status": "SOURCE_CLEAR_PUSHED_COMPILE_PENDING",
+  "product_commit": "de66b452230dbc139cadb567aded30c96d98e6a8",
+  "product_tree": "7a6114b0d7f8820c17477d84e247e3e8e3d2f110",
+  "parent": "880dda6d7fea02e230598d4c6215545ec35510fd",
+  "covers": [
+    "MT-171",
+    "MT-172",
+    "MT-173",
+    "MT-174"
+  ],
+  "files": [
+    {
+      "path": "src/backend/handshake_core/src/capability_registry_workflow.rs",
+      "before_sha256": "549b98d0ae7606b2260f18f10d92bb84471ccb1d62581fda0367ee4261492385",
+      "after_sha256": "9e35a7b4e26bd04c4a8d2772d179866cc73e936ed337689fe77b4af7f270a004",
+      "original_assertion_lines_preserved": 0,
+      "changes": [
+        {
+          "before_start": 174,
+          "before_count": 1,
+          "after_start": 174,
+          "after_count": 3
+        },
+        {
+          "before_start": 194,
+          "before_count": 1,
+          "after_start": 196,
+          "after_count": 3
+        },
+        {
+          "before_start": 199,
+          "before_count": 0,
+          "after_start": 203,
+          "after_count": 33
+        },
+        {
+          "before_start": 209,
+          "before_count": 10,
+          "after_start": 246,
+          "after_count": 2
+        },
+        {
+          "before_start": 222,
+          "before_count": 2,
+          "after_start": 251,
+          "after_count": 2
+        },
+        {
+          "before_start": 228,
+          "before_count": 5,
+          "after_start": 257,
+          "after_count": 22
+        },
+        {
+          "before_start": 234,
+          "before_count": 2,
+          "after_start": 280,
+          "after_count": 3
+        },
+        {
+          "before_start": 817,
+          "before_count": 2,
+          "after_start": 864,
+          "after_count": 5
+        },
+        {
+          "before_start": 821,
+          "before_count": 1,
+          "after_start": 871,
+          "after_count": 1
+        },
+        {
+          "before_start": 844,
+          "before_count": 1,
+          "after_start": 894,
+          "after_count": 0
+        },
+        {
+          "before_start": 908,
+          "before_count": 0,
+          "after_start": 957,
+          "after_count": 1
+        },
+        {
+          "before_start": 913,
+          "before_count": 0,
+          "after_start": 963,
+          "after_count": 1
+        },
+        {
+          "before_start": 915,
+          "before_count": 4,
+          "after_start": 966,
+          "after_count": 12
+        },
+        {
+          "before_start": 920,
+          "before_count": 3,
+          "after_start": 979,
+          "after_count": 2
+        },
+        {
+          "before_start": 924,
+          "before_count": 2,
+          "after_start": 982,
+          "after_count": 5
+        },
+        {
+          "before_start": 928,
+          "before_count": 2,
+          "after_start": 989,
+          "after_count": 3
+        },
+        {
+          "before_start": 931,
+          "before_count": 1,
+          "after_start": 993,
+          "after_count": 2
+        },
+        {
+          "before_start": 933,
+          "before_count": 0,
+          "after_start": 996,
+          "after_count": 10
+        },
+        {
+          "before_start": 940,
+          "before_count": 0,
+          "after_start": 1013,
+          "after_count": 8
+        },
+        {
+          "before_start": 1011,
+          "before_count": 5,
+          "after_start": 1092,
+          "after_count": 3
+        },
+        {
+          "before_start": 1031,
+          "before_count": 0,
+          "after_start": 1110,
+          "after_count": 1
+        },
+        {
+          "before_start": 1062,
+          "before_count": 2,
+          "after_start": 1142,
+          "after_count": 3
+        },
+        {
+          "before_start": 1067,
+          "before_count": 5,
+          "after_start": 1148,
+          "after_count": 3
+        }
+      ]
+    },
+    {
+      "path": "src/backend/handshake_core/src/storage/surreal.rs",
+      "before_sha256": "cb4d0a6e2dc981fc7e045a57467a22b2491f2d266c4896dcd554169e397145b9",
+      "after_sha256": "e8ab25b663dd522e0ebd98f8161191d504057f7f8446db4d22b246f30a3a5595",
+      "original_assertion_lines_preserved": 24,
+      "changes": [
+        {
+          "before_start": 749,
+          "before_count": 0,
+          "after_start": 749,
+          "after_count": 35
+        }
+      ]
+    },
+    {
+      "path": "src/backend/handshake_core/src/swarm_orchestration/coordinator.rs",
+      "before_sha256": "6553014958b42368c26ed3c21da9edceb61a7f7a3a7df059bad48ebc1fed65f8",
+      "after_sha256": "185aacdec50fae221f6fe6f1f74e9778516052290e546c3187ef12033d412a42",
+      "original_assertion_lines_preserved": 0,
+      "changes": [
+        {
+          "before_start": 4316,
+          "before_count": 0,
+          "after_start": 4316,
+          "after_count": 2
+        },
+        {
+          "before_start": 4321,
+          "before_count": 0,
+          "after_start": 4323,
+          "after_count": 2
+        },
+        {
+          "before_start": 4340,
+          "before_count": 0,
+          "after_start": 4344,
+          "after_count": 1
+        }
+      ]
+    },
+    {
+      "path": "src/backend/handshake_core/src/storage/surreal/schema.rs",
+      "before_sha256": "625535be5d93feb3aca27c2d651ea45d195f137f0ba9ecebdff9bd2a5b0e332b",
+      "after_sha256": "cd07ee7450a3c3989ad174ec26aa76dea378ff454a3124ddff926ea2e5fa740d",
+      "original_assertion_lines_preserved": 432,
+      "changes": [
+        {
+          "before_start": 3400,
+          "before_count": 1,
+          "after_start": 3400,
+          "after_count": 1
+        },
+        {
+          "before_start": 3423,
+          "before_count": 1,
+          "after_start": 3423,
+          "after_count": 1
+        },
+        {
+          "before_start": 3999,
+          "before_count": 1,
+          "after_start": 3999,
+          "after_count": 1
+        }
+      ]
+    },
+    {
+      "path": "src/backend/handshake_core/src/storage/surreal/schema.surql",
+      "before_sha256": "8019bfd40173c9b9b07fc6878bb74780e064b2f3c93193db98c6e59082513147",
+      "after_sha256": "5adf07f534a3678d9932978336134d8f522aa535e96bc396c0814c6a90177d87",
+      "original_assertion_lines_preserved": 0,
+      "changes": [
+        {
+          "before_start": 978,
+          "before_count": 1,
+          "after_start": 978,
+          "after_count": 1
+        },
+        {
+          "before_start": 1001,
+          "before_count": 1,
+          "after_start": 1001,
+          "after_count": 1
+        }
+      ]
+    }
+  ],
+  "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round40-measurement-input-context-repair",
+  "bindings_sha256": "b449f2693ffd7a82a4acbd12f29ee2c1ac7f34f21a7b9f8bab083daaa78ddc72",
+  "diff_sha256": "ef90dea7a9ddeef20eb2b7a765925de93a7132f405d4c85efdafe2cd495aad5d",
+  "independent_review": {
+    "thread": "01a129ca-8eea-7f53-aa9d-7f81f6f08319",
+    "verdict": "SOURCE_CLEAR",
+    "finding": "Existing job-output alias equality missing",
+    "disposition": "Canonical resolved existing job directory must equal selected external path before write",
+    "remaining_findings": 0,
+    "limits": "Source only; not runtime acceptance"
+  },
+  "actual_failure_ref": "MT-174.json#/round40_independent_catalog_actual_result_20261012",
+  "source_semantics": "Explicit nested object in conditional preserves fields/filter; original optional account/subject/purpose carried into detached heartbeat; server config pins original external export bytes, no runtime live.GOV filesystem coupling",
+  "preserved": "Original assertions, historical pins, native grants/leases/journal/commit/FR behavior, workflow/event_ledger bytes and official CLI config",
+  "runtime_config": {
+    "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/registry-approved-inputs/registry-server-config.json",
+    "sha256": "71700f65e37ccc0db1b6465035a033d3228ea441b295aada1b38b274f070ac17",
+    "exports_sha256": "60917003b7d42db847942450dea8d7954b6e093fa11872de221c8e148a768955",
+    "original_exports_byte_exact": 19,
+    "approval_sha256": "e8c13358c9381011c40a9719d0eeb48a944df68c83c4eb9b36d7c87a503456e2"
+  },
+  "prior_core": "Round40 GREEN historical only; changed-input proof pending; 38 actual failures retained",
+  "BASE": null,
+  "FINAL": null,
+  "accepted_mts": "0/5",
+  "next_actor": "Delivery fresh admission then one existing core command; Review exact existing MT139 observation after successful compiler result; no unchanged retries",
+  "prior_lifecycle": {
+    "status": "BLOCKED",
+    "blocked_on": "Core Round40 GREEN on880dda; runtime remains blocked on independently measured BASE/FINAL pins and fresh/reopen proof, prohibited live .GOV registry input coupling, genuine native authorization/publication and consumed runtime/native independent acceptance; accepted0/5.",
+    "depends_on": [
+      "MT-173"
+    ],
+    "blocks": [],
+    "active": true,
+    "validator_verdict": null,
+    "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
+    "claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
+    "completed_by": null,
+    "next_actor": "Independent Review executes existing MT139 measured catalog target after fresh admission; sole coder reconciles measured pins and original registry external input seam; preserve original authority/assertions; no unchanged core rerun"
+  }
+},
+
+
+  "round40_independent_catalog_actual_result_20261012": {
+    "id": "WP012-P2-MT139-ACTUAL-PARSE-FAILURE-20261012",
+    "executor_role": "INTEGRATION_VALIDATOR",
+    "executor_thread": "01a129ca-8eea-7f53-aa9d-7f81f6f08319",
+    "status": "TEST_FAILED",
+    "exit_code": 101,
+    "wrapper_exit_code": 1,
+    "attempt_id": "a41bcf7ed45f48f0b194781772479f6b",
+    "terminal_utc": "2026-10-12T11:50:42.3340511Z",
+    "candidate": "880dda6d7fea02e230598d4c6215545ec35510fd",
+    "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/round40-mt139-catalog-measurement",
+    "result_sha256": "9668843c967496f083b3173eb8a4f771be8021b9b39c31afe978243f2935e6cb",
+    "post_binding_sha256": "9da25ada5a72186e08b3dc44a90631872100d4cb4c68f64f0efae66d5bc94497",
+    "stdout_sha256": "1d4eb8d714faac0ded5df82a054f50e2aea6d0c450a13a69091e962901ed4f5b",
+    "stderr_sha256": "a24246df5b2f177501ab02239c7b29a22339847374b92eaa10a5c08d59fad278",
+    "test_result": {
+      "passed": 0,
+      "failed": 1,
+      "filtered": 2545
+    },
+    "source_bindings_matched": 7416,
+    "authority_profile_toolchain_capture_matched": true,
+    "actual_BASE": null,
+    "actual_FINAL": null,
+    "original_pin_assertion": "NOT_REACHED",
+    "production_module_install": "NOT_REACHED",
+    "blocker": "SurrealDB parse error -32000 generated schema.surql979:24; IF/ELSE application_evidence object fields parsed as record-id syntax, unexpected parameter",
+    "remediation": "Explicit correct object expression in existing Rust emitter and generated SQL; preserve fields/permission/function semantics and historical pins; update only actual generated-byte hash; no invented BASE/FINAL",
+    "actual_core_failed_launches_retained": 38,
+    "core_round40": "GREEN unchanged historical compiler proof; SQL runtime failure separate",
+    "accepted_mts": "0/5",
+    "next_actor": "Sole coder frozen existing-owner syntax/external-input/optional-context batch; scoped independent source review; pushed changed candidate and required compile then exact existing independent measurement",
+    "exports_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/registry-approved-inputs/source-exports.json",
+    "exports_sha256": "60917003b7d42db847942450dea8d7954b6e093fa11872de221c8e148a768955"
+  }
+,
 
   "round40_independent_catalog_measurement_assignment_20261012": {
     "id": "WP012-P2-MT139-INDEPENDENT-CATALOG-MEASUREMENT-20261012",
@@ -1333,7 +3158,9 @@
       "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs",
       "src/backend/handshake_core/src/workflows.rs",
       "tests/live_pg/seed_fixture.sh"
-    ],
+    ,
+      "src/backend/handshake_core/src/api/model_access.rs",
+      "src/backend/handshake_core/src/storage/surreal/palmistry.rs"],
     "forbidden_write_paths": [
       ".GOV/**",
       "app/src/**",
@@ -3783,19 +5610,19 @@
     "generator": null
   },
   "lifecycle": {
-  "status": "BLOCKED",
-  "blocked_on": "Core Round40 GREEN on880dda; runtime remains blocked on independently measured BASE/FINAL pins and fresh/reopen proof, prohibited live .GOV registry input coupling, genuine native authorization/publication and consumed runtime/native independent acceptance; accepted0/5.",
-  "depends_on": [
-    "MT-173"
-  ],
-  "blocks": [],
-  "active": true,
-  "validator_verdict": null,
-  "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
-  "claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
-  "completed_by": null,
-  "next_actor": "Independent Review executes existing MT139 measured catalog target after fresh admission; sole coder reconciles measured pins and original registry external input seam; preserve original authority/assertions; no unchanged core rerun"
-},
+    "status": "BLOCKED",
+    "blocked_on": "Round50 exact predecessor TABLE_SET_MISMATCH expected306 actual294 missing12 extra0. Complete schema repair and independent original proof outstanding. Genuine deployment/authentication/publication and consumed native acceptance unresolved; accepted0/5.",
+    "depends_on": [
+      "MT-173"
+    ],
+    "blocks": [],
+    "active": true,
+    "validator_verdict": null,
+    "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
+    "claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
+    "completed_by": null,
+    "next_actor": "Fresh devlead MT183 source reconciliation/repair and independent proof, then MT184 final core compile; MT186 real deployment admission precedes MT185 actual publication."
+  },
   "scope": {
     "summary": "Reconcile shared core/bootstrap/manifests import paths",
     "allowed_paths": [
@@ -3820,7 +5647,9 @@
       "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs",
       "src/backend/handshake_core/src/workflows.rs",
       "tests/live_pg/seed_fixture.sh"
-    ],
+    ,
+      "src/backend/handshake_core/src/api/model_access.rs",
+      "src/backend/handshake_core/src/storage/surreal/palmistry.rs"],
     "forbidden_paths": [
       ".GOV/**",
       "app/src/**",
@@ -4784,7 +6613,7 @@
     ],
     "contract_sha256": "061e1e58478bb87d3b279a4b02c78c7a8007499d091e7fb9ed84460db0c4287a",
     "source_map_sha256": "2857efac8c6d92f409a6f808d3de50ab64e47cfc6de6dd70175d2c0a9d051f58",
-    "scope": "Exact MT171–175 source/path reconciliation only; compile configuration binds before proof",
+    "scope": "Exact MT171\u2013175 source/path reconciliation only; compile configuration binds before proof",
     "runtime_acceptance": "Independent validator pending; no acceptance claimed"
   },
   "remediation_record": {
@@ -6378,5 +8207,225 @@
       ],
       "partial_disposition": "KEEP HTTP seeds/exports consumed by current Surreal; remove psql section13, LOCUS export268 and active PG startup instructions only. Exact new root fixture path admitted by explicit ALL retirement."
     }
+  },
+  "swarm_source_batch_20261014": {
+    "decision_id": "WP012-SWARM-SOURCE-BATCH-20261014-01",
+    "status": "SOURCE_IMPLEMENTATION_RELEASED",
+    "recorded_at_utc": "2026-10-14T14:38:47.854930+00:00",
+    "decision_owner": "01a13ab5-bfe4-74b1-8fc3-64e691a76827",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "operator_direction": "Finish fullWP by actual swarmproduction; additional codingteamchats/workers/directteamcollaboration; primaryHuman additionally specified5extra coderchats via coder mediator, bundled proof/warmCargo/cache and meaningful MTcheckpointcommit/push",
+    "preceding_compile_closure": {
+      "disposition": "TERMINAL_FREEZE_CLOSED_SUCCEEDED",
+      "independent_validator_chat": "01a139f6-ce6a-7b50-a058-dff3732ea4a2",
+      "original_outer_session": 12473,
+      "original_outer_execution": "exec-0498afc6-6e93-474f-b41f-c40d01246cab",
+      "exit_code": 0,
+      "expected_targets": 485,
+      "missing_targets": 0,
+      "compiler_errors": 0,
+      "warnings": 1639,
+      "source_inputs": 7416,
+      "metadata_inputs": 23,
+      "authority_inputs": 11,
+      "tool_inputs": 3,
+      "ephemeral_owned_identities_closed": 18,
+      "persistent_cache_retained": 4820,
+      "candidate_commit": "139e4b7db83ffc56bf72f59cec3e8ea7c69fecc3",
+      "candidate_tree": "5f987622be9587282567858f1ba4b4618659d133",
+      "evidence_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt188-core-changed-host-retry01/compile-evidence.json",
+      "evidence_sha256": "9c1db3c7a723d0a042cc6752d22f2a9cf5b520489b424fa8e240fa1423e9deda",
+      "postbinding_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt188-core-changed-host-retry01/compile-post-binding.json",
+      "runtime_acceptance": "NOT_RUN",
+      "whole_wp_acceptance": "NOT_ASSESSED"
+    },
+    "batch_owner": "MT-174",
+    "covered_mts": [
+      "MT-173",
+      "MT-174",
+      "MT-175",
+      "MT-186",
+      "MT-188"
+    ],
+    "source_base": "139e4b7db83ffc56bf72f59cec3e8ea7c69fecc3",
+    "coordination": {
+      "mediator_chat": "01a13acf-a8bf-7ae1-92f3-9c5fffc5d385",
+      "product_dev_lead_integrator_compiler": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+      "kernel_writer": "01a13ab5-bfe4-74b1-8fc3-64e691a76827",
+      "worker_policy": "Teamleaders choose useful disjoint coderworkers/waves, manage theirown followups; mediator consolidates interteam implementation interfaces/findings/readiness to primary. No mandatoryfanout or newapprovalgate. Actual tool limits stated, no leaderfixedthree-worker ceiling.",
+      "checkpoint_policy": "Commit/push meaningful coherent MT/unit progress through sole primaryproductGit owner; governance explicitpaths through kernelowner. Bundle required tests/checks on stable inputs and reuse same approved warmtarget/cache, no perworkerCargo."
+    },
+    "failure_basis": [
+      "Argus API18key receipt absent from current existing schema predicate",
+      "Accepted164 real successor transition must retain authentic BASE/FINAL history",
+      "main five-ID-from-env beforestorage/accountserver prevents legitimate existing setup/login/session/workspace flow",
+      "api/mod runtime has SwarmdrainNone and mounts no paired actualoperatorchat producer",
+      "Native signing lacks actual nativeowned lease/parentOSgeneration and canonical durableADOPT/START remains unavailable"
+    ],
+    "scope_exceptions": [
+      "This current bounded source amendment takes precedence over older source-only READ_ONLY/reuse/owner constraints ONLY for exact listed paths; old scope/pins/histories/runtime admission remain intact",
+      "Only exact listedsourcepaths supersede older startupREAD_ONLY/native_local_account reuse-only/producer-path exclusion for these proven repairs; existing historicalauthority preserved",
+      "No schema semantic repair under MT183 historical verdict lease; sourceownerMT173 and affected original predecessor proof revalidated",
+      "Existing /authority/session route may carry minimal authenticated canonicalworkspace activation; no unrelated newendpoint/capability/grant",
+      "No broader .GOV/product scope, sourcepin reset, newbranches/worktrees/dependencies or inventedstore/account/session/provenance"
+    ],
+    "controls": [
+      "One writer per exactfile; offered ownership accepted before firstwrite and oldowner relinquished",
+      "No workerGit/compiler/test/metadata/runtime/provisioning; primary solecompiler/Git, independentvalidator runtime/verdict",
+      "No source-only result claims genuine originaldeployment/auth/publication/runtime/WPcompletion",
+      "ExplicitOwner sourcebehavior is repaired, never accepted as fabricated replacement originaldeployment/newdefaultstore proof",
+      "Historical164 source/catalog/INFO/lineage and all pastverdicts/failurecounters retained; no guessed/fabricated pins",
+      "Actual resolved watcherbinary identity remains independent originalruntime prerequisite",
+      "After completebatch assembly perform one affectedtrust/persistence/concurrency source review; then unchangedstable captured source for strategic originalcore/nativechecks and required independentruntime. No reviewofreview or unchanged duplicated gates"
+    ],
+    "proof_unchanged": true,
+    "excluded_actions": [
+      "runtimeprovisioning/newdefaultstore/firstOwner as originaldeployment substitute",
+      "authentication/grant/provenance manufacture",
+      "foreignprocess disruption",
+      "acceptance narrowing or selfverdict",
+      "newtarget/profile/cap/counterreset",
+      "storage/APIpath expansion beyond exactlistedlease without evidenced rootamendment"
+    ],
+    "next_action": "SOURCE RELEASE EFFECTIVE: sameworkers implement exact ownedfiles now; mediator coordinates interfaces, primary integrates and meaningfulMTcheckpoint/Git; required stablebatch compiler/source review and independent originalruntime remain",
+    "leases": [
+      {
+        "id": "WP012-SWARM-ACCOUNT-001",
+        "mt": "MT-174",
+        "owner_chat": "01a13acc-56f9-7ee1-a6f9-4920504b7136",
+        "paths": [
+          "src/backend/handshake_core/src/api/authority.rs",
+          "src/backend/handshake_core/src/api/workspaces.rs",
+          "src/backend/handshake_core/src/lib.rs",
+          "src/frontend/handshake_native/src/local_account.rs"
+        ],
+        "deliverable": "Repair proven genuine account acquisition startupcycle using minimal account-only SAME storage/capability state, existing setup/login/session/workspace APIs, authenticated selectedworkspace activation through existing session route; backend derives actual five-tuple/grant/profile from genuine token/channel/canonical workspace, never clientIDs or placeholderLLM; native returns actual activationACK",
+        "original_proof_refs": [
+          "MT-186.json#/proof",
+          "packet.json#/auth_mapping_r2_adoption_20261011"
+        ],
+        "ownership_agreement": "Account owns privatefiles; primary sharedmain/mod and activation nav/app remain separate",
+        "source_only": true,
+        "state": "SOURCE_IMPLEMENTATION_RELEASED"
+      },
+      {
+        "id": "WP012-SWARM-COMPOSITION-001",
+        "mt": "MT-174",
+        "owner_chat": "01a13ad0-0422-7df1-af8b-5741e13d2551",
+        "paths": [
+          "src/backend/handshake_core/src/api/model_access.rs",
+          "src/backend/handshake_core/src/api/operator_chat.rs"
+        ],
+        "deliverable": "Expose genuine same account-owned cloudvault/officialCLI launch configuration and connect existing paired OperatorChatLaunchService/DurableSwarmFrDrain scopedfactory; keep service/drain paired, no dummycatalog/config/bridge",
+        "original_proof_refs": [
+          "MT-174.json#/proof",
+          "MT-188.json#/proof"
+        ],
+        "ownership_agreement": "Runtime and composition mutually ACCEPTED wholemodel_access; primary andcomposition ACCEPTED operator_chat; production_factory remains unchanged/currentpairedproducer",
+        "source_only": true,
+        "state": "SOURCE_IMPLEMENTATION_RELEASED"
+      },
+      {
+        "id": "WP012-SWARM-ACTIVATION-CORE-001",
+        "mt": "MT-174",
+        "owner_chat": "01a13ad0-09c7-7b63-82ca-8146aef24110",
+        "paths": [
+          "src/backend/handshake_core/src/api/model_lane_navigation.rs"
+        ],
+        "deliverable": "Factor existing canonical session/workspace/grant/policy/lifecycle/profile producer for account activation without duplicated authorizationSQL or fabricated versions; coordinate exact publichelper with account",
+        "original_proof_refs": [
+          "packet.json#/auth_mapping_r2_adoption_20261011",
+          "MT-186.json#/proof"
+        ],
+        "ownership_agreement": "Primary currentowner, account and activation mutually ACCEPTED wholefactor-only model_lane_navigation file",
+        "source_only": true,
+        "state": "SOURCE_IMPLEMENTATION_RELEASED"
+      },
+      {
+        "id": "WP012-SWARM-CORE-INTEGRATION-001",
+        "mt": "MT-174",
+        "owner_chat": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+        "paths": [
+          "src/backend/handshake_core/src/main.rs",
+          "src/backend/handshake_core/src/api/mod.rs"
+        ],
+        "deliverable": "Stage only existing channel-checked account APIs + authenticated workspace acquisition until genuine context; then retain exact scopebound registry/reclaim/model/cloud/router owner. Mount actual operatorchatservice and retain actual paired SwarmFrDrain; preserve defaultdeny and actual shutdown",
+        "original_proof_refs": [
+          "MT-186.json#/proof",
+          "MT-188.json#/proof"
+        ],
+        "ownership_agreement": "Primary retains sharedcoreentrypoints, all productGit/compiler and manifests/locks",
+        "source_only": true,
+        "state": "SOURCE_IMPLEMENTATION_RELEASED"
+      }
+    ],
+    "packet_ref": "packet.json#/swarm_production_20261014"
+  },
+  "active_swarm_source_lease_ref": "MT-174.json#/swarm_source_batch_20261014",
+  "swarm_direct_blocker_expansion_20261014": {
+    "decision_id": "WP012-SWARM-DIRECT-BLOCKER-EXPANSION-20261014-02",
+    "status": "SOURCE_IMPLEMENTATION_RELEASED",
+    "recorded_at_utc": "2026-10-14T14:43:07.874862+00:00",
+    "parent_ref": "packet.json#/swarm_production_20261014",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "decision_owner": "01a13ab5-bfe4-74b1-8fc3-64e691a76827",
+    "source_only": true,
+    "runtime_and_independent_acceptance_unchanged": true,
+    "next_action": "Exact owners implement now, publish source interfaces to mediator; primary completes same coherent batch before strategic proof",
+    "leases": [
+      {
+        "id": "WP012-SWARM-LIFECYCLE-PUBLICATION-001",
+        "mt": "MT-174",
+        "owner_chat": "01a13acf-a8bf-7ae1-92f3-9c5fffc5d385",
+        "worker": "/root/activation_interface",
+        "paths": [
+          "src/backend/handshake_core/src/swarm_orchestration/resource_scope.rs"
+        ],
+        "failure": "Existing authorize_association releases lifecycle read guard before primary router and activation ACK publication",
+        "deliverable": "Minimal existing registry with_authorized_association generic synchronous callback retains current active exact scope and original grant association read guard across publication; existing authorize_association delegates to it. No async, blocking, recursive registry access, new authority, or claim that in-memory lock proves canonical DB authorization",
+        "ownership_agreement": "Account and primary agree idle mediator activation_interface sole writer; no other active owner",
+        "controls": [
+          "Account acknowledge_with and primary publication closure consume same guard",
+          "Original durable re-resolve and full R2 revocation/expiry/cancellation/lost ACK proof remain independently required"
+        ],
+        "original_proof_refs": [
+          "packet.json#/auth_mapping_r2_adoption_20261011",
+          "MT-186.json#/proof"
+        ]
+      }
+    ],
+    "packet_ref": "packet.json#/swarm_direct_blocker_expansion_20261014"
+  },
+  "swarm_cli_only_catalog_repair_20261014": {
+    "decision_id": "WP012-SWARM-CLI-ONLY-CATALOG-REPAIR-20261014-03",
+    "status": "SOURCE_IMPLEMENTATION_RELEASED",
+    "recorded_at_utc": "2026-10-14T14:56:17.061871+00:00",
+    "parent_ref": "packet.json#/swarm_production_20261014",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "decision_owner": "01a13ab5-bfe4-74b1-8fc3-64e691a76827",
+    "owner_chat": "01a13ad0-0422-7df1-af8b-5741e13d2551",
+    "mt": "MT-174",
+    "paths": [
+      "src/backend/handshake_core/src/swarm_orchestration/operator_chat.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/production_factory.rs",
+      "src/backend/handshake_core/src/api/operator_chat.rs"
+    ],
+    "failure": "Real LLM disabled/external mode has no loaded local ModelCatalog; requiring Arc catalog prevents genuine independently configured CLI/cloud activation and new main early exit bypasses runtime drains",
+    "deliverable": "Represent genuine optional local catalog through existing operator-chat service/factory/API composition. Reuse existing optional catalog spawn helper; local spawn/selection with no actual catalog remain denied. Existing configured cloud/CLI uses genuine provider/config, paired service+drain retained. No empty catalog, fake READY or manufactured registry",
+    "ownership_agreement": "Primary renewed whole factory/API operator_chat to same composition team; new service path has no active writer, same worker coherent three-file repair",
+    "controls": [
+      "Migrate affected actual constructor consumers/assertions in the same coherent change, retain original positive/negative proofs",
+      "Generic Into<Option<Arc<dyn ModelCatalog>>> must not assume unsizing of concrete Arc callers; inspect actual callers and report exact additional paths before out-of-scope writes",
+      "ModelLaneStore already optional catalog; no new dependency/version/source pin/authority changes",
+      "Primary main uses actual Option and graceful typed failures, no process exit after owned Janitor startup",
+      "Other published source leases and independent runtime acceptance remain unchanged"
+    ],
+    "original_proof_refs": [
+      "MT-174.json#/proof/consumed_source_checks",
+      "MT-188.json#/proof",
+      "MT-186.json#/proof"
+    ],
+    "source_only": true,
+    "next_action": "Same prepared composition worker implements coherent three-file repair now; primary integrates and then required strategic proof"
   }
 }

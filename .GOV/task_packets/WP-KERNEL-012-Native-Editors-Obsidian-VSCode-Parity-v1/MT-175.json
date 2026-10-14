@@ -1,4 +1,545 @@
 {
+  "successor_connected_batch_checkpoint_20261014": {
+    "status": "SOURCE_CHECKPOINT_PUSH_VERIFIED",
+    "candidate_commit": "eba6c403773524e498629153e9c725f64b72a9bd",
+    "candidate_tree": "6edf1f190e308efb4eaac0d5af2ad27199a6d668",
+    "base_commit": "f724b8852f79d0ea6e2601ff6151c0522fa1be78",
+    "changed_paths": [
+      "src/backend/handshake_core/src/api/mod.rs",
+      "src/backend/handshake_core/src/api/model_access.rs",
+      "src/backend/handshake_core/src/api/palmistry.rs",
+      "src/backend/handshake_core/src/main.rs",
+      "src/backend/handshake_core/src/storage/surreal/palmistry.rs",
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/src/backend_client.rs",
+      "src/frontend/handshake_native/src/diagnostics/recorder.rs",
+      "src/frontend/handshake_native/src/internal_diagnostics.rs",
+      "src/frontend/handshake_native/src/main.rs",
+      "src/frontend/handshake_native/src/mcp/action.rs",
+      "src/frontend/handshake_native/src/mcp/server.rs",
+      "src/frontend/handshake_native/src/popout_window.rs",
+      "src/frontend/handshake_native/src/settings_dialog.rs",
+      "src/frontend/handshake_native/src/workspace_settings.rs"
+    ],
+    "source_sha256": {
+      "src/backend/handshake_core/src/api/mod.rs": "7eba79c16f41692949f1988703a3f3aa3eaff80ade51fc7334f8ea38376aef46",
+      "src/backend/handshake_core/src/api/model_access.rs": "27cd7869bb11ce4dd1d588904be36e2202b08bab69fc5ca3e31328f6bc4eccee",
+      "src/backend/handshake_core/src/api/palmistry.rs": "5f77021c5280c498660859d84a0a0e587851f670c729ab827f1e1bdf7c1af77a",
+      "src/backend/handshake_core/src/main.rs": "26ef8f32c5a8b6905240b571eeeabf2d019d20658eb40e0239ac2d1bfa1d0ca3",
+      "src/backend/handshake_core/src/storage/surreal/palmistry.rs": "a10cee72fa8afe74e2cce8207bb915fd7eacc0d2bceef6de765f2761b0f3e64b",
+      "src/frontend/handshake_native/src/app.rs": "3255ffd0a730ba2794f920811cf5753802bec353484822b24c6493f1e61f21c1",
+      "src/frontend/handshake_native/src/backend_client.rs": "11e661add789b7e4a4eeb3109ca4830c368dd2811908e86ff690d0c2198a30e9",
+      "src/frontend/handshake_native/src/diagnostics/recorder.rs": "dc7f905d06c58fa645fa09cbd49b82df654ac12e2826caa649738fb5b816b771",
+      "src/frontend/handshake_native/src/internal_diagnostics.rs": "54803b0b1d575ffa0d6cfce576fa44bd0c4b0921197f055d1bc65ad4e7932334",
+      "src/frontend/handshake_native/src/main.rs": "f6e05fc259e1c76d298821c87b3940420fd34aff43d7b95f9ddfe0390ea8a189",
+      "src/frontend/handshake_native/src/mcp/action.rs": "d97a7833eda38a76551d4977d40171f72d198f78ef3a8c52c687e9c40f876b06",
+      "src/frontend/handshake_native/src/mcp/server.rs": "2cc9d8041d3fcd90df056e01b3df27fd15c699c6591c782c09f70a245b6be860",
+      "src/frontend/handshake_native/src/popout_window.rs": "65abaf89f005110d0b95663950ab09ba3d0e33fe28bacb145d9169e7f3ac4cd8",
+      "src/frontend/handshake_native/src/settings_dialog.rs": "8e7c96a8a197a55cf685649acd8eddb3908d71aa9c3743e7cd1c9889dd487d22",
+      "src/frontend/handshake_native/src/workspace_settings.rs": "796679eea03cc534eb8e0734eac613338a46c3747294fb568213aa2b28f975b8"
+    },
+    "independent_reviewer": "01a139f6-ce6a-7b50-a058-dff3732ea4a2",
+    "independent_source_disposition": "SOURCE_CLEAR_WITH_DECLARED_RUNTIME_RESIDUALS; original four findings plus closed-popout recovery delta repaired; one coherent review with unchanged input reuse",
+    "source_review_ref": "Independent validator final affected-batch message to delivery lead and integrator; source-only, not lifecycle PASS",
+    "root_canonical_reread": "Exact HEAD/tree/clean tree/15committed paths and live matching origin feat/WP-KERNEL-012 verified",
+    "compiler": "NOT_RUN_ON_THIS_CANDIDATE",
+    "lf_preservation_correction": {
+      "src/backend/handshake_core/src/api/model_access.rs": {
+        "prior_raw_sha256": "cf7f653b4328650d50566d58be5bed218654081b4fda7a8f19b47018668c8d12",
+        "current_raw_sha256": "27cd7869bb11ce4dd1d588904be36e2202b08bab69fc5ca3e31328f6bc4eccee",
+        "canonical_git_bytes_unchanged": true
+      },
+      "src/backend/handshake_core/src/storage/surreal/palmistry.rs": {
+        "prior_raw_sha256": "8f4a88668e7f45dce5c717fbbda613f9ff50625ead6a69f226609c0b3c6cfc81",
+        "current_raw_sha256": "a10cee72fa8afe74e2cce8207bb915fd7eacc0d2bceef6de765f2761b0f3e64b",
+        "canonical_git_bytes_unchanged": true
+      }
+    },
+    "runtime": "NOT_RUN",
+    "remaining_blockers": [
+      "Native-owned watcher canonical START/public-verifier/runtime-owner protocol not established; no fabricated witness",
+      "Canonical Argus receipt permission branch missing; authenticated record-user writer denies rather than root fallback",
+      "Genuine deployment/auth/session/grants original targets unavailable/unproven",
+      "Original native seven-argument and current core compiler proof missing; production-main +/- runtime selector unresolved",
+      "Original source-parent/native GUI/persistence/multiwindow/manual/HBR/full WP acceptance open"
+    ]
+  },
+  "diagnostic_two_group_checkpoint_20261014": {
+    "status": "INDEPENDENT_TWO_GROUP_SOURCE_CLEAR_PUSH_VERIFIED",
+    "repair_ref": "/diagnostic_two_group_batch_repair_20261014",
+    "commit": "f724b8852f79d0ea6e2601ff6151c0522fa1be78",
+    "tree": "b978dd518cff688e38cac67d15d14814f125256f",
+    "parent": "e63eef6594f70ee47a31fbebec070bf79220047c",
+    "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt175-two-group-diagnostic-repair",
+    "diff_sha256": "ca57f4585c9be6e60d62a368aab96bf85266bb2b5ad174f7c40c20b70136eb55",
+    "test_sha256": "5db7714c6f598ab8699140109d3f422c877a1a366800425250e8dea90e2e9be4",
+    "settings_sha256": "3d205ab48860645a3777e0db095c8f69602ea594f86bd92dc33d4e857709e48d",
+    "review": "Independent exactProcessUiAction serdecontextmenu/bothidentityconversions/twotraces/strictsearchunchanged and3pinnedsettingssymbol definitions;2rawinverses/7414othersunchanged. Rootopenedentirediff/checkpoint and freshcanonicalHEAD/tree/clean/liveorigin/bothrawhashes. Exactly2paths13insertions; no weakenedassertions or runtimeclaim.",
+    "compiler_tests_runtime": "NOT_RUN_ADDITIONAL",
+    "residuals": "Actual Swarm settingscontrol/state/render/outcome/backendcooperativelowering proof OPEN; ID/helper staticcompatibility only. Alloriginalruntime/fullWPacceptance OPEN."
+  },
+  "diagnostic_two_group_batch_repair_20261014": {
+    "decision_id": "WP012-DIAGNOSTIC-TWO-GROUP-BATCH-REPAIR-20261014",
+    "status": "SOURCE_REPAIR_AUTHORIZED",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "failure_ref": "MT-186.json#/delegated_stage03_check3_diagnostic_result_20261014",
+    "owner": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+    "allowed_write_paths": ["src/frontend/handshake_native/tests/test_e7_swarm_edit_proof.rs", "src/frontend/handshake_native/src/settings_dialog.rs"],
+    "repairs": ["test_e7: explicitly carry real UiAction::ShowContextMenu through separate serde ProcessUiAction variant and both conversion directions; both dispatchtrace projections label ShowContextMenu with no payload. Native action already maps actual AccessKit::ShowContextMenu. Preserve all existing process plans/assertions/old action identity, no wildcard/noop/Click substitution or weakened proof.", "settings: restore exact consumed WP1pin98efa3 public definitions SWARM_MODEL_SESSIONS_COMBO_AUTHOR_ID='settings.swarm-model-sessions-max-concurrent', STATUS same+'.status', swarm_model_session_option_author_id(usize) formats COMBO+'.option.'+value. Actual imports in preserved socket test require them. No fake state/control/status/runtime success or alternate IDs."],
+    "source_basis": "Root opened all three actual failingmatches/conversion context and native canonical ShowContextMenu mapping, actual pinnedsettings definitions/current absent symbols. Primary samecause processenum/conversion/trace and allnative symbolconsumer census confirms only namedgroups. Report additional exact samecausepaths before writes.",
+    "runtime_residual": "Current backend_client has real SwarmConcurrencySnapshot/Cell/GETPUT/fetch/set but settings/app/workspace state/render/outcome wiring absent. Restored publicIDs/helper close staticimport surface only. Original actualSwarmcontrols/backendcooperative concurrency proof remains OPEN; no seededconstants or fakeUI count as runtime proof. Full connected runtime restoration requires separate exactowner/path lease when this actual acceptanceblocker is addressed.",
+    "control": "One2file sourcebatch and affected independent enum/conversion/trace/pinnedidentifier review, explicitpathcheckpointpush, unchangedsource proofs reused. Source test edits permitted for this exactcompilefailure only; no testexecution/newfixtures/disabledtests/metadata/runtime. Nextstage04 diagnosticcollects independenttargets then originalcommand acceptance separately."
+  },
+  "pane_registry_checkpoint_20261014": {
+    "status": "INDEPENDENT_CONNECTED_THREE_PATH_SOURCE_CLEAR_PUSH_VERIFIED",
+    "repair_ref": "/pane_factory_setter_repair_20261014",
+    "commit": "e63eef6594f70ee47a31fbebec070bf79220047c",
+    "tree": "6dd041f88270fbb1f8b46771d35dd562a1cc6468",
+    "parent": "d57f6707359d39f0ad652f8d5a7ab475f7dbebb4",
+    "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt175-pane-factory-restoration",
+    "diff_sha256": "30bdfb66aa1d58b95a5332064f1bdc7d192903600b3bcd3c36205fff63298d43",
+    "source_comparison_sha256": "33e5e3e019f163190ec0241ea26c65132f54a2fee8ed0de0204b693af25eb1cf",
+    "review": "Independent exactpinnedsetter/sameinnerArcMutexregistrygetter/typed7canonicalfields+sort/serverauthenticatedwireenvelope/actualtestcallers+3rawinverses/7413unchanged. Root opened actualentire3filediff/checkpoint and freshHEAD/tree/clean/liveorigin/all3actualhashes; IVcheckpointclosed. No otherpaths/tests/manifests changed. Source/syntaxonly, no globaltypeclaim.",
+    "compiler_tests_runtime": "NOT_RUN_ADDITIONAL",
+    "outer_payload_prerequisite": "MT186#/outer_launch_payload_repair_20261014 actualqueuedpayload generation/freeze/identity/assertion/explicitexit required before nextcompiler; oldactualouter1 preserved.",
+    "residuals": "Original backendmount/legacytestauth/windowGUI/durableHMAC/genuineauth/runtime/fullacceptance OPEN."
+  },
+  "pane_factory_setter_repair_20261014": {
+    "decision_id": "WP012-PANE-FACTORY-SETTER-REPAIR-20261014",
+    "status": "SOURCE_REPAIR_AUTHORIZED",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "failure_ref": "MT-186.json#/delegated_stage03_check2_result_20261014",
+    "owner": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+    "allowed_write_paths": ["src/frontend/handshake_native/src/app.rs", "src/frontend/handshake_native/src/mcp/argus.rs", "src/frontend/handshake_native/src/mcp/server.rs"],
+    "connected_census_extension": "Actual ALL current native integration tests against all absent pinned public app methods found missing mcp_window_registry getter used at detachedsettings test251 in additionto2factorycalls. Restore getter cloning SAME current innerregistry under existingArcMutex, no newregistry/cache. Actual test expects typed Vec<ArgusWindowListing>; current registry.list returns JSON and typedrow absent. Restore typed listing struct/list over same canonical registered descriptor/epoch/revision/publication/closing fields and existing stable sorting. Adapt solecurrent server ListWindows consumer to originalwire envelope {windows: typedlist}, preserve every existingwirekey/type including currentepoch/closing and auth/identity/admission semantics; no dualpubliclisting API or altered tests. Root opened actual getterconsumer/current list/currentserver/pinnedlisting. Exact3paths only, no mod/manifest needed. Unconsumed missing SwarmConcurrency methods excluded.",
+    "repair": "Restore exact consumed WP1pin98efa public set_pane_factory(&mutself,PaneType,Box<dyncrate::pane_registry::PaneFactory>) inserting into existing realself.factories map. Actual unchanged operatorchat test103/207 calls missing method; root opened actual diagnostics/pinned body/current absentmethod and realfactory map. No shadowstate/dummysetter/testdeletion or livebackend claim.",
+    "changed_method": "Read-only ALL actual current test consumers of absent pinned HandshakeApp methods, including unsuffixed method names rather than only *_for_test. Inspect actualreceiver/call sites to exclude unrelated methods; report further exactdirectlyconsumed missingmethods beforewrites for one batch. No generalbehavioraudit.",
+    "control": "Primary exact3file connectedsetter/getter/typedlist-server-envelope batch, oneaffectedpinnedbody/currentfactory-registry-owner/list-producer-wire-consumer review and explicit3pathcheckpointpush. Preserve current sevenwirefields window_id/viewport_id/title/epoch/revision/snapshot_available/closing and stablewindowIDsort. Priorunchangedbehavior/source proofs reused within scope, originalcomponenttests untouched. Stage03two/3 total12Cargo failures retained; nextchangedcandidate compiler also requires actualouterpayload correction/reproof. No tests/metadata/runtime/extra sourcepaths."
+  },
+  "receipt_guard_checkpoint_20261014": {
+    "status": "INDEPENDENT_RECEIVER_SOURCE_REPROOF_PUSH_VERIFIED",
+    "repair_ref": "/receipt_guard_mutability_repair_20261014",
+    "commit": "d57f6707359d39f0ad652f8d5a7ab475f7dbebb4",
+    "tree": "808c7b3ccd319daa1948a994c77d12b48dbbdc3c",
+    "parent": "db339b9772ff848321de30600f60213e81b47789",
+    "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt175-receipt-guard-mutability-repair",
+    "server_sha256": "ed8e3bb728723dbd2f2dff3e46a9b6340d44e743bfb6d023f29316b912aeb9d6",
+    "diff_sha256": "5b7cf056c9afe60c2b7e405d11f7ea89c3423d8cb83c500a8cbcac54f79c9bad",
+    "review": "Independent exactmutableguard/currentreceipts mutablegetter expiration/relatedcaller/sourceinverse proof; all7415unaffected inputs and unchangedatomicpublication behavior preserved. Rootopenedactualpatch/caller/getter/checkpoint and fresh canonicalHEAD/tree/clean/liveorigin/serverhash exact. Singlefile1insertion1deletion. Syntax0only, no compiler/runtime claim.",
+    "compiler_tests_runtime": "NOT_RUN_ADDITIONAL",
+    "encoding_incident": "Read-only census defaultcp1252 failure beforeproductwrites correctedexplicitUTF8; existingGP392/426cover, no extra step orcompiler consumed.",
+    "residuals": "Originalbackendmount/legacytestauth/windowGUI/durableHMAC/genuineauth/runtime/fullacceptance OPEN."
+  },
+  "receipt_guard_mutability_repair_20261014": {
+    "decision_id": "WP012-RECEIPT-GUARD-MUTABILITY-REPAIR-20261014",
+    "status": "SOURCE_REPAIR_AUTHORIZED",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "failure_ref": "MT-186.json#/delegated_stage03_check1_result_20261014",
+    "owner": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+    "allowed_write_paths": ["src/frontend/handshake_native/src/mcp/server.rs"],
+    "repair": "Make actual receipt observation channel guard mutable at existing server571/572 because current ActionChannel::receipts(&mutself) expires stale actions. Preserve getter signature/expiration effects, existing snapshot-then-channel atomic receipt/revision boundary, auth/epoch/causal guards and all unrelated bodies. Root opened actual error/caller/getter; all prior DTOimporterrors absent.",
+    "census": "Read-only same-cause receipts getter/guard caller mutability census before one affected receiver reproof, no whole behavior audit or unrelated warning cleanup. Report additional exact directlyrequired paths before writes.",
+    "review_correction": "IV explicitly acknowledged CW003 source review missed getter receiver mutability; exact receiver closure invalid until repair/reproof. Unchanged atomicpublication design and other scopedbehavior review reused, no type/runtime claim.",
+    "control": "Singlefile exactone-line patch, one independent mutablecaller/getter/lockordering reproof, explicitpathcheckpointpush. Stage03one/3,total11 retained; next compiler only after actualreviewedpushedcandidate binding/freshpreflight, no tests/metadata/runtime or extra source paths."
+  },
+  "cloud_dto_import_checkpoint_20261014": {
+    "status": "INDEPENDENT_IMPORT_SOURCE_REPROOF_PUSH_VERIFIED",
+    "repair_ref": "/cloud_dto_import_repair_20261014",
+    "commit": "db339b9772ff848321de30600f60213e81b47789",
+    "tree": "8f76e189f71f394ffec64ad0333cc7e4dc440d48",
+    "parent": "25e1491c742049e3fbf433045b10813c81f8eb90",
+    "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt175-cloud-dto-import-repair",
+    "client_sha256": "0fa538ac2355c15a37d55e441ea620f46a73b78718d560ea182f443222480271",
+    "source_comparison_sha256": "a83cc6d20334f1796b4864c1fc76d017bb8383cc33420bfd97027527ff4931a0",
+    "diff_sha256": "3542cc16be13a4af12110324e1ea010b03a4ca41f7359b94d6d71508b7e6459b",
+    "review": "Independent exact3line unconditional5DTO moduleimport and actual presentpublicsettings producers/clientuses/census reproof. All7416inventory/7415unchanged/rawinverse and lock reviewed. Root openedactualdiff/checkpoint; fresh canonicalHEAD/tree/clean/liveorigin and actualclienthash exact. Prior behaviorreviews reused only unchangedscope.",
+    "compiler_tests_runtime": "NOT_RUN",
+    "residuals": "Backendmount/legacytestauth/windowdriver/durableHMAC/genuineauth/runtime and originalfullacceptance remainOPEN; source import reproof is not compiler evidence."
+  },
+  "cloud_dto_import_repair_20261014": {
+    "decision_id": "WP012-CLOUD-DTO-IMPORT-REPAIR-20261014",
+    "status": "SOURCE_REPAIR_AUTHORIZED",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "failure_ref": "MT-186.json#/delegated_stage02_check3_result_20261014",
+    "owner": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+    "allowed_write_paths": ["src/frontend/handshake_native/src/backend_client.rs"],
+    "repair": "Add actual settings_dialog import group CloudAccessSnapshot/CloudCliLoginState/CloudByokRow/CloudCliAuthStatus/CloudCliRow required by all ten actual E0422/E0425/E0433 diagnostics. All five actual public definitions exist and actual client top imports omit them; root opened full diagnostic group/current imports/definitions. Preserve all cloud/auth/state/window/secret behavior bodies.",
+    "changed_method": "Read-only restored-block external type/use/import/declaration-scope census across connected cloud blocks before next compiler; verify actual import group and present public producers with one affected independent reproof, not syntax parser alone. Report additional exact same-cause missing imports for bounded assignment before writes. No whole behavior audit repetition.",
+    "review_correction": "Independent reviewer explicitly acknowledged assembled source review missed five imports; prior import-closure claim invalid until exactrepair/reproof. CW001-CW005 behavior boundary closure stays valid only for unchanged source bodies, and syntax never claimed type proof. Historical checkpoint/push facts retained.",
+    "control": "Primary singlefile source patch/explicit-pathcheckpointpush, one affected import/producer scope review, unchanged prior source proof reused. No tests/metadata/runtime/extra paths. Next native compiler only under newly recorded stage03 after reviewedpushedcandidatebinding. Original runtime/wholeWPacceptance OPEN."
+  },
+  "cloud_window_connected_checkpoint_20261014": {
+    "status": "INDEPENDENT_ASSEMBLED_SOURCE_CLEAR_EXACT_TEN_PATH_PUSH_VERIFIED",
+    "repair_refs": ["/cloud_connected_restoration_20261014", "/detached_settings_connected_action_repair_20261014", "/cloud_window_assembled_review_repair_20261014"],
+    "commit": "25e1491c742049e3fbf433045b10813c81f8eb90",
+    "tree": "b0adb052982ea7994de58e759251795bd0e614f4",
+    "parent": "141ea593a278bb5f01ea804d2f5f6820da9b10be",
+    "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt175-cloud-connected-restoration",
+    "checkpoint_sha256": "872ed41c66dfed705a77be263ac5d37852a06d906ea38e235506dbe588a29152",
+    "source_comparison_sha256": "7a25ec5b0dcc8efb1cba77290db41556dec0823f465ca886fc197c1f4e9e6998",
+    "diff_sha256": "ea1605a2990e9a064792d39ee14093aab4badce2e35333bdf486440e2a910890",
+    "independent_reviewer": "01a1323e-c183-77e3-b8ba-b286507e5617",
+    "review": "Single assembled10path review and affected finding rechecks closedCW001-CW005, prior unaffected evidence reused. All7416 input inventory with7406 untouched/rawinverses exact; nonmutating source syntax0 or unchanged validreuse. Root opened actual assembled capture/server and finalpredicate/conditionalclear/callers, checkpoint and fresh actual GitHEAD/tree/clean/liveorigin/exact10committedpaths/rawafterhashes verified. No manifests/tests/governance product writes.",
+    "compiler_tests_runtime": "NOT_RUN",
+    "residuals": ["Backend model_access route mounting OPEN", "Legacy zeroizing client test auth expectation migration before runtime proof OPEN", "Actual windowRPC/GUI/capture/isolation/lifecycle/accountrevocation proof OPEN", "Authenticated durable Argus HMAC receipt persistence unbound; truthfuldurability_error remains OPEN", "Genuine first-run/authenticated session/canonical store/grants/runtime and original wholeWP acceptance OPEN"]
+  },
+  "cloud_window_assembled_review_repair_20261014": {
+    "decision_id": "WP012-CLOUD-WINDOW-ASSEMBLED-REVIEW-REPAIR-20261014",
+    "status": "FIVE_FINDINGS_REPAIR_AUTHORIZED_SOURCE_CLEAR_WITHHELD",
+    "reviewer": "01a1323e-c183-77e3-b8ba-b286507e5617",
+    "owner": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+    "scope_refs": ["/cloud_connected_restoration_20261014", "/detached_settings_connected_action_repair_20261014"],
+    "reviewed_frozen_diff_sha256": "3ce67fbd0270732b5e3aa894372637472689551c58c512eb93b382015ed916cc",
+    "scope": "Existing exact10 source paths only; no new permission/paths/tests/runtime or compiler grant. One bounded repair batch then affected independent recheck, unchanged reviewed connections reused.",
+    "capture_legacy_test_caller_disposition": "CW005 caller census found four absent pinned screenshot declarations consumed by preserved detachedsettings test438: record_window_handle, recorded_window_handle, resolve_capture_target, CaptureTarget. Root opened actual test and pinned98efa bodies. Restore within screenshot.rs only as explicit legacy/pure seeded test compatibility; separate legacy registry from actual live epoch+ViewportId registry, legacy clear/record cannot mutate/promote live capture, TitleFallback result never routes production registered capture. Current live close/capture use exact epoch-bound APIs. Preserve test assertions but treat this seeded/pure policy as component compatibility, never actual current window/capture proof. Include sameCW005 affected caller recheck, not a separate review cycle.",
+    "findings": [
+      {"id": "CW-001", "paths": ["app.rs", "backend_client.rs"], "failure": "Settings host generation gated only CLI deliveries; old BYOK/enumeration survives close/reopen.", "repair": "Distinct host generation on every delivery, advance open/close/detach/redock; preserve exact account/provider/backendCLI/session owner. Old response cannot update newUI; cleanup uses captured authorized owner only, retains uncertainty if cleanup denied, never newaccountcredentials or fabricatedCancelled."},
+      {"id": "CW-002", "paths": ["mcp/action.rs", "mcp/tools.rs"], "failure": "enqueue clones secret into PendingAction but original returned ActionOutcome has no zeroizing Drop; dropped original leaves secret duplicate.", "repair": "Bound every owned secret request/outcome clone with wiping on every return/drop; inspect all current field-move/consumer sites affected by Drop semantics before finalparse. Preserve private exactmutation witness/generic floors and no public value/length/hash; no unsupported public leak claim."},
+      {"id": "CW-003", "paths": ["mcp/argus.rs", "mcp/server.rs"], "failure": "Childoutput terminalizes receipt/snapshot then dropschannel before revision advance; reader can observe Applied with old/equal after_revision.", "repair": "Publish terminalreceipt and actual successor revision atomically under existing snapshot-then-channel ownership, reader sees coherent samepublication. Never manufacture a newer revision or use timestamp as frame proof."},
+      {"id": "CW-004", "paths": ["mcp/server.rs", "mcp/session.rs"], "failure": "Inspect validates expectedrevision before awaited SharedRead lease, then clones snapshot without registeredwindow revalidation.", "repair": "Revalidate exact current epoch/live/revision at actual snapshot acquisition boundary after await; stale expected revision denies rather than returning newer unbound snapshot. Preserve auth/lease ownership and lock ordering."},
+      {"id": "CW-005", "paths": ["mcp/screenshot.rs", "app.rs"], "failure": "Handle registry keyed onlywindowID stores HWND/title without epoch/ViewportId; lateold callback can repopulate afterunregister; optionalgeometry allows PID/title-only resolution.", "repair": "Record/capture with exact current registered epoch+actualViewportId and actual viewport-handle evidence; stale/unregistered callbacks reject, no PID/title-only fallback. Close/recreate cannot retarget old handles. Runtime wrongcapture not claimed. Primary/root exact source inspection and independent review confirmed identity binding gap."}
+    ],
+    "validation": "Refresh only changed actual source/diff/inverse/parse bindings after batch, exact10path/fulluntouched inventory; one existing independent reviewer closes concrete5findings and affected connections, no general re-audit/reviewchain/helpers. Syntax is not type/compiler/runtime evidence; laststage02check remains HELD until reviewedpushedcandidate binding.",
+    "history": "Nine cumulativeFAIL101; stage02two/3 used. No source acceptance/runtime claim until original proof; no compiler check consumed by review or syntax."
+  },
+  "detached_settings_connected_action_repair_20261014": {
+    "decision_id": "WP012-DETACHED-SETTINGS-CONNECTED-ACTION-20261014",
+    "status": "SOURCE_REPAIR_AUTHORIZED",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "blocker_ref": "/cloud_connected_restoration_20261014/detached_settings_dependency",
+    "owner": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+    "additional_allowed_write_paths": ["src/frontend/handshake_native/src/mcp/argus.rs", "src/frontend/handshake_native/src/mcp/action.rs", "src/frontend/handshake_native/src/mcp/server.rs", "src/frontend/handshake_native/src/mcp/session.rs", "src/frontend/handshake_native/src/mcp/tools.rs", "src/frontend/handshake_native/src/mcp/screenshot.rs", "src/frontend/handshake_native/src/mcp/mod.rs"],
+    "named_disjoint_worker_assignment": {
+      "assignment_id": "WP012-DETACHED-MCP-WORKER-20261014",
+      "status": "AUTHORIZED_BEFORE_WRITES",
+      "worker_chat": "01a1323e-8219-7f01-b326-bbd802d1ba9a",
+      "worker_role_for_assignment": "Bounded coder worker under primary integrator; existing diagnostics actor reused",
+      "primary_integrator": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+      "owned_write_paths_ref": "/detached_settings_connected_action_repair_20261014/additional_allowed_write_paths",
+      "exclusive_split": "Worker owns exact7MCP files ONLY; primary owns app.rs/settings_dialog.rs/backend_client.rs ONLY until worker hands back. Neither reverts other's changes. Shared codebase; agree concrete host/registry/input-output/capture/lifecycle API with primary before integration. Primary assembles and commits complete10path batch.",
+      "prohibitions": "No worker app/cloud3path/kernel/manifest/test/other source writes, helpers/new agents, Git commit/push/topology changes, compiler/tests/runtime/window/CLI/provision. Source-only parse allowed only nonmutating exactowned files to external artifact root, actual exit retained.",
+      "review": "One independent assembled10path affected connection review; no perworker acceptance claims. Original source/compile/runtime distinctions and current causal/ownership constraints remain binding."
+    },
+    "existing_allowed_write_paths_ref": "/cloud_connected_restoration_20261014/allowed_write_paths",
+    "diagnosis": "Read-only diagnostics specialist verified current single root snapshot/channel listener/tools, author-only lease selection, root-only EffectTicket/raw-input ACK and main-title capture; current detached host has no registered child routing/publication. Root opened actual server/tools/EffectTicket source. Genuine original detached Argus acceptance requires connected exact-window routing rather than guard removal.",
+    "source_basis": "Pinned98efa app registration/input and Argus bounded descriptors/registry/actual paired viewport output hook plus targeted capture patterns; adapt installed current APIs/current ActionEffectTicket/ACK bridge. Do not restore pinned replacement ActionReceiptTracker or overwrite current action framework.",
+    "secret_set_value_direct_blocker_remedy": "Root inspected current serialize_set_value_completion: Some(value) emits plaintext applied_value plus length/hash; current cloud key/input handlers consume actual SetValue and signal current ticket, but tokenless SetValue remains Indeterminate. Within already admitted worker action.rs/argus.rs and primary settings handlers, authorize narrowly typed secret-target exact-ticket realization: existing canonical sensitivity classification plus actual admitted window/epoch/context/receipt/request/frame/current handler mutation correlation and later completed exact-window frame. Do not route through public applied_value/length/hash completion metadata, reveal keys or merely promote tokenless/generic SetValue. Preserve unrelated generic receipt gates, actual auth/cancel/revocation/sameframe/identity guards and default Indeterminate without causal proof. Handler must bind the exact requested value to actual owned mutation internally, with bounded secret ownership/clearing, rather than acknowledging author-only/noop. Secrets never enter receipt/AccessKit/log/diagnostic/FlightRecorder metadata, including request debug/error paths; request values stay only within bounded required input/owned zeroizing lifetimes. Primary and disjoint worker coordinate API without overlapping files. Independent assembled review checks exact causal and non-disclosure paths; actual positive/negative/redaction tests and runtime proof remain owed, no fixture/boolean completion claim. If actual safe proof cannot be supplied, retain honest Indeterminate and report exact unresolved source blocker before release, not weaker generic success.",
+    "connected_contract": ["Bounded registered descriptor binds stable canonical window selector to actual ViewportId and recreation epoch, exact snapshot/revision and scoped existing channel owner. Root retains current snapshot/channel; child has separate queue or equivalent enforced window-tag scope, never drains rootqueue. One existing authenticated endpoint/token/process birth identity; no perwindow servers/tokens/files or binding rewrite.", "Validate actual known live registered window and exact expected revision/unique author before inspect/action/capture. Lease and receipt correlation include window epoch and author/receipt identity, preserving agent/account/session and current causal fences. Register before live child render; unavailable before actual publication; unknown/stale/closed selectors deny rather than fallback to root.", "Publish actual child AccessKit full output through installed paired input/output viewport hook with exact current context/viewport and real completed-frame successor. Isolated capture, timestamps/root frames or unrelated ACK never prove child realization. Preserve request matching, same-frame quarantine/cancel metadata with viewport+epoch, current focus/SetValue and one child input drain owner. Existing ROOT fence stays until explicit registry admission; no unconditional guard removal.", "Close/redock rejects new actions, preserves exact final effect/receipt ordering, cancels remaining old-epoch tickets/receipts and releases leases/handles before unregister; recreation cannot reuse stale nodes/ACK/revision/handle. One settings state/account, quiet inactive child, no foreground/focus/global keyboard capture. Screenshots bind actual current process/window handle identity, never title fallback to main.", "Preserve existing session teardown/shutdown, token/account generation/revocation and ordered snapshot/channel publication; avoid nested context/channel/registry locks. Leases/attribution/binding/schema/manifests outside this additional lease unless a further exact caller proves required and root assigns it."],
+    "execution": "Primary serial integrator owns cloud3paths plus exact7additional MCP paths. Assemble connected source batch before one affected independent interface/owner/revision/causalACK/auth/lifecycle review. Named disjoint workers may be proposed under existing adaptive delegation only with exact file ownership/identity recorded before writes; shared app.rs has one writer. No runtime/window/provision/CLI/test execution by source lease; no additional broad audit or legacy framework takeover.",
+    "proof_owed": "Original detached-cloud and production-socket windowlist/inspect/action/newer actualchildtree/pixels; root-child isolation, stale/duplicate/unknown windows/revisions, unrelatedACK/sameframecancel, close-redock-reopen/accountrevocation/no focus steal. Compiler/source review cannot replace those runtime checks or durable signing producer. All original acceptance stays OPEN.",
+    "compiler_disposition": "Last stage02 compiler remains HELD until complete connected cloud/window batch assembled, reviewed and pushed and root binds actual candidate; stage2/3,total9 history retained. Backend cloud route mounting and durable signing are separately OPEN runtime residuals."
+  },
+  "cloud_connected_restoration_20261014": {
+    "decision_id": "WP012-CLOUD-CONNECTED-RESTORATION-20261014",
+    "status": "FRONTEND_SOURCE_REPAIR_AUTHORIZED",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "blocker_ref": "/console_test_seam_repair_20261014/cloud_gap_disposition",
+    "original_contract_ref": "/source_import_binding; original_contract_records/258 WP1 MT015",
+    "source_pin": "98efa4d019c4f670186cd3ec1f048ece3adf0dcd",
+    "owner": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+    "allowed_write_paths": ["src/frontend/handshake_native/src/settings_dialog.rs", "src/frontend/handshake_native/src/backend_client.rs", "src/frontend/handshake_native/src/app.rs",
+      "src/backend/handshake_core/src/storage/surreal/palmistry.rs"],
+    "diagnosis": "Actual current cloudsettings/detached tests consume two missing setters plus real CloudModelsSettingsState accessors/controls; current source lacks underlying state/DTO/client/render/app ownership. Existing consumed WP1 MT015 pinned production blocks are required; empty setters cannot close actual compile-facing original feature. Dependency specialist traced precise blocks and root opened pinned state/client and current backend route assembly.",
+    "restoration": ["Settings: restore only pinned cloud provider/author IDs, typed state/snapshot/login/rows, zeroizing drafts, existing SettingsOutcome cloud variants and SettingsView cloud, actual section/render/login controls and clear-key accessibility/undo helpers. Preserve current unrelated editor/diagnostic rendering. Only existing Anthropic/OpenAI BYOK and ClaudeCode/Codex CLI providers; unknown/unavailable status never authentication proof.", "Client: restore genuine CloudAccessClient/Cell/Delivery/CliLoginSnapshot and parsers/current route requests over existing bounded shared no-redirect HTTP/authenticated helper boundaries. Every async delivery captures immutable AccountContext and relevant account/panel/provider/session generation; missing context rejects before protected send; rebind/logout/stale results discarded. Keys only in owned zeroizing draft/request serialization lifetime, never logs/FlightRecorder/diagnostics or enumeration snapshots.", "App: restore connected owned state/client/queue/refresh/singleflight guards, both actual constructors, genuine accessors/two testseams, docked+detached settings views/outcomes, save/remove and backend-owned CLI request/input/cancel/poll dispatch, and current async delivery pump. Adapt current account binding, quiet ownership and existing ACK/EffectTicket path. Headless constructor has no live client/no CLI launch. Preserve app3method checkpoint and unrelated existing product code; no whole pinned app overwrite."],
+    "controls": "Primary serial integrator across app/client/settings; one complete affected state-render-auth-generation-clear-key/timeout/ACK review after batch assembled, explicit3path checkpoint/push. Clear drafts and egui undo/accessibility caches on save/remove/close/reopen/detach/redock/logout; ignore stale account/provider/session/panel generations; singleflight login poll; unknown wire state stays unknown/error rather than invented Cancelled. UI ACK reflects realized effect or accepted request, never completed external login. Existing backend owns fixed-provider process paths, no native arbitrary argv/OSconsole/focus/token scrape. No actual CLI/provision/credentials/runtime/test execution by this source lease. No new dependency/manifest needed. Report additional directly required paths before writes.",
+    "backend_route_residual": "Current api/mod.rs declares existing model_access but does not mount routes. Backend path NOT admitted here: reconcile current ModelAccessState production constructor/shared auth/process/lifecycle owner before separate exact route lease. Frontend may honestly report backend unavailable/404. Frontend source/compile closure does not prove backend cloud runtime or original MT015 acceptance.",
+    "legacy_cloud_test_auth_residual": "Root inspected tests/test_cloud_access_client_zeroizing.rs29-100: CloudAccessClient::new with no authenticated context expects a successful socket PUT. This legacy anonymous success expectation conflicts with current explicit AccountContext/default-deny boundary. Do not weaken production auth to preserve it. Test file currently outside source lease, unchanged/unrun; before runtime proof, separately admit minimal authenticated positive/nonsecret success and transport-failure cases plus missing-context no-socket denial while preserving zeroizing ownership/leak assertions. Fixture tests never prove genuine production authentication. Static native compile may proceed after connected reviewed frontend without claiming this runtime test green.",
+    "detached_settings_dependency": "Current app lacks pinned settings_detached and legacy mcp_windows infrastructure; primary must reconcile current actual viewport/action owners within admitted3paths and report additional exact directly required paths before writes. No whole pinned window/ACK implementation replacement or fabricated realized-effect receipt. Both docked/detached original cloud acceptance remains required.",
+    "compiler_disposition": "Existing stage02 remains2/3,total9. Hold lastcheck until complete connected frontend batch reviewed/pushed and root binds actual candidate; backend route runtime residual remains OPEN, not a prerequisite to static frontend compiler unless new actual dependency requires it. Preserve all original cloud and wholeWP acceptance/tests; no deleted tests/dummy setters or repeated blind compile."
+  },
+  "console_test_seam_checkpoint_20261014": {
+    "status": "INDEPENDENT_SOURCE_CLEAR_PUSH_VERIFIED",
+    "repair_ref": "/console_test_seam_repair_20261014",
+    "commit": "141ea593a278bb5f01ea804d2f5f6820da9b10be",
+    "tree": "255efaf708ca1513b378141c31538e89bc438a3a",
+    "parent": "952d6bbe61d9162e5b98b843c73cc7e871aa23c0",
+    "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt175-app-test-seam-repair",
+    "app_sha256": "c499f20c6d8cb773f826c3ba3c247544a8eba833ef89a31be2ace3a839e3bef6",
+    "source_comparison_sha256": "5f3b8006c346fe7fb89aa941bcedcfcbd36b1db407e41db812f97dfb5281fdbd",
+    "diff_sha256": "47fe8384791ac65d9e7847b3ee8a93880206727314a3ce19c830ca8cfd16bc5f",
+    "review": "Independent exact three pinned method bodies/actual existing factory constructors and current test callers; raw inverse and7415 unaffected inputs verified. Root opened actual diff and checkpoint, fresh GitHEAD/tree/clean/liveorigin exact. App.rs only41 insertions.",
+    "compiler_tests_runtime": "NOT_RUN",
+    "next_compiler": "HELD pending directly evidenced cloud production dependency closure/explicit root assignment and final coherent candidate binding; this checkpoint alone is not release.",
+    "residuals": "Cloud production restoration, console liveSSE and original fullGUI/runtime acceptance OPEN."
+  },
+  "console_test_seam_repair_20261014": {
+    "decision_id": "WP012-CONSOLE-TEST-SEAM-REPAIR-20261014",
+    "status": "SOURCE_REPAIR_AUTHORIZED",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "failure_ref": "MT-186.json#/delegated_stage02_check2_result_20261014",
+    "owner": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+    "allowed_write_paths": ["src/frontend/handshake_native/src/app.rs"],
+    "same_root_batch_extension": "Also restore exactly pinned set_swarm_lane_diagnostics_projection_for_test and set_swarm_lane_diagnostics_transport_for_test: current actual test consumers at test_swarm_lane_diagnostics_argus.rs146/569 call these methods; existing SwarmLaneDiagnosticsPaneFactory::with_projection/with_transport and types exist. All three methods insert actual existing factories into the same map. No other unconsumed pinned methods admitted. Root opened actual pinned bodies and current constructor definitions.",
+    "cloud_gap_disposition": "Actual current cloud-settings/detached tests call absent set_cloud_snapshot_for_test and apply_cli_login_snapshot_for_test, but current app lacks cloud_models field and settings_dialog lacks production CloudAccessSnapshot/CloudCliLoginState. These are not admitted dummy setters. Primary/dependency specialist read-only trace exact pinned production state/module/factory/auth/caller closure and current owners before root assigns any additional write paths. Preserve original cloud scope and acceptance; do not compile knowingly incomplete dummy seams or delete tests to hide absent production implementation.",
+    "repair": "Restore exact pinned98efa4d019c4f670186cd3ec1f048ece3adf0dcd HandshakeApp::set_wp1_console_entries_for_test method connecting current existing factories map/PaneType::Wp1OrchestrationConsole to existing ConsoleStreamPaneFactory::with_entries. Existing integration test calls this exactmethod; root opened actual pinnedbody/current test/current producer. Before write, census directly related app test-method consumers and report additional evidenced missing seams for assignment; no arbitrary app merge.",
+    "controls": "One source writer; preserve production ownership/auth/attribution and current unrelated factories. No dummy/no-op setter or fabricated live stream. This explicitly seeded test seam proves no production/runtime outcome. One affected pinned method/producer review and explicit app.rs checkpoint/push before last remaining stage02 original check; no test execution/runtime grant.",
+    "history": "Stage02two/3 consumed; nine totalFAIL101 preserved. Same failed inputs never retried; original independent runtime/full acceptance remains OPEN."
+  },
+  "three_interface_checkpoint_20261014": {
+    "status": "INDEPENDENT_SOURCE_CLEAR_PUSH_VERIFIED",
+    "repair_ref": "/three_interface_repair_20261014",
+    "commit": "952d6bbe61d9162e5b98b843c73cc7e871aa23c0",
+    "tree": "957b27b927d3fdf2de3d0e4d28855ef8e54e5023",
+    "parent": "ebb7c666360ae1a389fe2725d2590e06ee55313d",
+    "remote_verified": "Live origin/feat/WP-KERNEL-012 matches actual clean productHEAD",
+    "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt175-three-interface-repair",
+    "source_comparison_sha256": "e2364a51a5ae336a9deb310dbad69253310465f72647d222ad89c77ed03939fd",
+    "diff_sha256": "fa2d51ac9fef55d531527ba33d0216ae4e697d856b4087e16382f3a6f18495be",
+    "review": "Independent actual four-file diff, pinned source, route/DTO/cell/authenticated HTTP boundary, sensitivity export and timeout/ACK connection review. Four exact changed inputs/7412 unchanged; raw inverses and unchangedlock. Root opened actual complete diff/checkpoint and verified cleanHEAD/tree/remote.",
+    "compiler_tests_runtime": "NOT_RUN",
+    "residuals": "Manual host mount, full canonical receipt/durability integration and original runtime/full acceptance OPEN."
+  },
+  "three_interface_repair_20261014": {
+    "decision_id": "WP012-THREE-INTERFACE-REPAIR-20261014",
+    "status": "SOURCE_REPAIR_AUTHORIZED",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "failure_ref": "MT-186.json#/delegated_stage02_check1_result_20261014",
+    "owner": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+    "allowed_write_paths": ["src/frontend/handshake_native/src/backend_client.rs", "src/frontend/handshake_native/src/accessibility/mod.rs", "src/frontend/handshake_native/src/mcp/argus.rs", "src/frontend/handshake_native/src/mcp/mod.rs"],
+    "source_basis": "Existing MT175.source_import_binding WP1 pin98efa4d019c4f670186cd3ec1f048ece3adf0dcd contains genuine UserManualClient/routes/transport and Argus transport policy/reexports. Current accessibility/snapshot.rs345 already implements actual sensitivity predicate. Root opened actual pinned client/timeout policy and current consumers/exports.",
+    "repairs": ["Restore genuine UserManualClient request builders and UserManualTransport over existing bounded shared HTTP pool/current get_json boundary, explicit AccountContext/with_authenticated_context and captured context in every future; missing context fails before socket, no anonymous fallback. Reuse current user_manual DTO/cell semantics.", "Reexport existing snapshot::is_sensitive_author_id without changing BYOK or secret classification.", "Restore pinned20second ACTION_RECEIPT_TRANSPORT_TIMEOUT policy and public reexport; preserve pinned budget relationships and current actual action lease/ACK behavior. No shorter test timeout, dummy declaration presented as production receipt adoption, server replacement or unassigned implementation change."],
+    "controls": "One coupled four-file repair, source provenance and whole affected caller/producer/auth/timeout connection review, explicit-path checkpoint/push. Report additional directly evidenced paths before writes. Original stage02 retains1/3 consumed and eight cumulative failures. No test execution/runtime granted by source repair; next original compiler only on reviewed pushed candidate with fresh bindings and conditional release.",
+    "residuals": "Current app lacks manual-client/factory live mounting; restored source producer is not live host proof. Current server queued-response path lacks pinned full receipt/durability integration; restoring20second transport policy does not close that runtime gap. Original canonical Argus/auth/durable/negative/GUI/multiwindow and whole-WP acceptance remain OPEN."
+  },
+  "palmistry_export_checkpoint_20261014": {
+    "status": "INDEPENDENT_SOURCE_CLEAR_PUSH_VERIFIED",
+    "source_repair_ref": "/palmistry_export_repair_20261014",
+    "commit": "ebb7c666360ae1a389fe2725d2590e06ee55313d",
+    "tree": "a0a92e0adf835edcbb829da995d5561fdd0a69bd",
+    "parent": "8088c79c8de982a6bb3c38565f71d9ce6ff23979",
+    "remote_verified": "origin/feat/WP-KERNEL-012 matches commit; actual product worktree clean",
+    "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt175-palmistry-export-repair",
+    "lib_sha256": "9839649e8a76fe590009a81348f52d12d3896db710141361d9a1133d3f4c7029",
+    "manifest_sha256": "7845d4620efdf3daf5388840400b770a83afcad4002357a053d33e661db7eda2",
+    "source_comparison_sha256": "0f6e4a3cade3c1c7e964df1b8c78f4bb99f1714ef6f2c57414a041882d3bbce0",
+    "dependency_census_sha256": "fa9b77122063ec81c6b806860d2368139319ad9d4f1919c3019d9dca8cd9386b",
+    "review": "Independent actual coupled diff/raw inverse/selected SDK and fingerprint closure; three insertions in two files,7414 unaffected input hashes match. Root opened diff/census/checkpoint and verified live GitHEAD/tree/remote/clean state. Lock unchanged.",
+    "compiler_tests_runtime": "NOT_RUN"
+  },
+  "palmistry_export_repair_20261014": {
+    "decision_id": "WP012-PALMISTRY-EXPORT-REPAIR-20261014",
+    "status": "SOURCE_REPAIR_AUTHORIZED",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "failure_ref": "MT-186.json#/delegated_stage01_check3_result_20261014",
+    "owner": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+    "allowed_write_paths": ["src/frontend/handshake_native/src/lib.rs", "src/frontend/handshake_native/Cargo.toml"],
+    "coupled_feature_repair": "Existing palmistry.rs Windows MiniDumpWriteDump imports require Win32_System_Diagnostics_Debug and Win32_System_Kernel in existing locked windows-sys0.61.2. Actual compiled selected dependency fingerprint lacks both; Storage_FileSystem/System_Memory prerequisites already enabled. Add exactly these two features, no lockfile/dependency version change. Primary read-only full declared/auto-binary module census found no other absent library module; producer dependencies already declared. Independent reviewer verifies actual SDK gates/fingerprint and coupled two-file patch before checkpoint.",
+    "repair": "Expose the existing palmistry producer through the native library for its actual existing binary consumer. Before writing, inspect all currently declared binary/library export connections and this producer's dependencies; report any additional evidenced repair paths for root assignment. No duplicate implementation, replacement watcher or runtime startup change.",
+    "control": "Primary sole product writer; independent affected-export/dependency review, explicit-path checkpoint and push. Compiler checks use new MT186 stage02 only after checkpoint refresh. Existing producer tests are not executed by this grant; source-clear is not runtime acceptance.",
+    "residuals": "Original diagnostics single-owner, authenticated adoption, canonical receipts and runtime acceptance remain unchanged and OPEN. Do not substitute this internal native binary for the separately specified watcher deployment without original-contract reconciliation."
+  },
+  "four_group_batch_checkpoint_20261014": {
+    "commit": "8088c79c8de982a6bb3c38565f71d9ce6ff23979",
+    "tree": "137394ee441aabab611ac5ebf6ad9a8ff0ead8d0",
+    "parent": "7930cb914332836ec22724468c949f88c6182b66",
+    "repair_ref": "/four_group_connected_batch_repair_20261014",
+    "diff_sha256": "db7f1dae85253771a37b3a5a11329ff5a36a7ab2fedf0a71d5fa80733cbb704a",
+    "metadata_sha256": "3591ec1dafbbb9b8f019b2cc596a318ba3b434962a556ef99abcc1bcd1d3fa96",
+    "artifact_lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt175-four-group-repair",
+    "independent_reviewer": "01a1323e-c183-77e3-b8ba-b286507e5617",
+    "verdict": "SOURCE_CLEAR only; full changedinterface/canonicalresponse/generation/auth/strictcount+relation/explicitkind+pane mapping and existing sourcecases inspected; freshcanonicalremote/clean/exact5paths/all7416bytes matchesreviewed5afterhashes",
+    "after_hashes": {
+      "backend_client.rs": "6c6c62a4ee5839dcd50735edd51b10f22ea3e614024ea53f4ba03af60e1c4c76",
+      "atelier_side_panel.rs": "224d5649ec7bca49297d5ce08b175bea42cb4aeefabbcca0b8b4bab1f9ee591e",
+      "atelier_panel.rs": "7d3cda937c57df6538b409d6cefe1246b5b0f7d2e20fe17aa8807e84d54f3672",
+      "visual_debugger/mod.rs": "d520e499798878d2436607644fa0494ef6db0df45cd60bf0ed5645536660d478",
+      "test_ckc_embed.rs": "8b53a47e80842d5e87e11c6e8f2f9b97ceb61d726be5f90f11b06d8d946ba0d8"
+    },
+    "review_limits": "Source-only; new inline/live tests NOT_RUN; no actualauth/API/GUI/durable acceptance fromsource. Original4richerprojection residualOPEN; main188productionproof separate.",
+    "worker": "Existing declaration_inventory owned only debugger, returnedthreeexactarms and relinquished; primary ownedremaining4paths andassembled5filecheckpoint",
+    "compiler": "NOT_RUN on new8088candidate",
+    "runtime": "NOT_RUN"
+  },
+  "four_group_connected_batch_repair_20261014": {
+    "decision_id": "WP012-NATIVE-FOUR-GROUP-BATCH-20261014",
+    "status": "SOURCE_CHECKPOINT_PUSH_VERIFIED",
+    "updated_at_utc": "2026-10-14T03:59:57.623799+00:00",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "scope_expansion_quote": "i allow scope expantion if this directly fixes a failure or blocker",
+    "failure_ref": "MT-186.json#/delegated_stage01_check2_result_20261014",
+    "base_candidate": "7930cb914332836ec22724468c949f88c6182b66",
+    "primary_integrator": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+    "exact_write_paths": [
+      "src/frontend/handshake_native/src/backend_client.rs",
+      "src/frontend/handshake_native/src/atelier_side_panel.rs",
+      "src/frontend/handshake_native/src/atelier_panel.rs",
+      "src/frontend/handshake_native/src/visual_debugger/mod.rs",
+      "src/frontend/handshake_native/tests/test_ckc_embed.rs"
+    ],
+    "added_scope": [
+      "src/frontend/handshake_native/src/atelier_side_panel.rs",
+      "src/frontend/handshake_native/src/visual_debugger/mod.rs",
+      "src/frontend/handshake_native/tests/test_ckc_embed.rs"
+    ],
+    "debugger_worker_assignment": {"primary_chat": "01a1323e-8bb0-7770-9420-07af9d1f22ec", "helper_task": "/root/declaration_inventory", "only_path": "src/frontend/handshake_native/src/visual_debugger/mod.rs", "base_candidate": "7930cb914332836ec22724468c949f88c6182b66", "limits": "No commits/builds/tests/kernel/other paths; not alone and do not revert other workers; primary integrator owns assembly and checkpoint", "identity_reported_before_edits": true},
+    "ownership": "Primary owns backend_client/sidepanel/panel and affected existing tests as one response-generation/auth interface. Primary may assign one named worker exclusively visual_debugger/mod.rs, sameWP worktree, no worker commit/build/kernel/sourceotherwrites. Record helper identity before edits; primary assembles checkpoint after one scoped IV review.",
+    "repairs": [
+      {
+        "group": "ATELIER_KIND_PROJECTION_EXHAUSTIVENESS",
+        "change": "Explicitly reject four unsupported canonical Loom projection kinds using existing typed AppError path; retain original Media/file, Character/ckc_character, Moodboard/ckc_moodboard mappings and ID/source/account checks. Preserve all rich reference-chip behavior; no wildcard/alias/version-erasing CharacterSheet mapping.",
+        "open_residual": "No existing canonical four-kind projection producer verified; retain as OPEN if original consumed scope requires it, not new canvas support or acceptance."
+      },
+      {
+        "group": "ATELIER_LOOM_RELATION_PARSE",
+        "change": "Both existing parser initializers carry actual optional backend loom_block_id; preserve required fields/UUID/duplicate and canonical relation checks; reject malformed present values rather than fabricated None."
+      },
+      {
+        "group": "ATELIER_FULL_BATCH_COUNTS_PRODUCER",
+        "change": "Existing FIFO authenticated fetch_items/AtelierItemsCell carries existing AtelierBatchItemsProjection counts+strict items from SAME one HTTP response. Reuse existing typed lane counts; avoid permissive filter_map, second request, counting capped preview or fake zero counts.",
+        "sidepanel": "Accept rows+canonical full-batch counts atomically under same current generation/batch/auth context; getter returns existing typed counts. Clear/invalidate on collapse/switch/rebind/loadstart/retry/error/stale response. Missing counts unavailable, not zero.",
+        "ui": "Caller formats six existing lane counts+total; preserve stable author IDs, label/hover, original preview APIs where practical. No invented summary.value authority DTO.",
+        "tests": "Adapt existing test_ckc_embed items consumer without dropping original assertions; validate actual backend canonical counts. Add focused cases in existing owning inline targets only where needed: malformed/missing/out-of-range counts, total overflow, full counts larger than preview, same generation/batch delivery and stale/error/reset paths. No tests/runtime executed by source worker."
+      },
+      {
+        "group": "DEBUGGER_PANE_EXHAUSTIVENESS",
+        "change": "Three explicit existing variant keys SwarmLaneDiagnostics/OperatorChatLaunch/Wp1OrchestrationConsole following current pane_type_key naming; no wildcard or registry rename"
+      }
+    ],
+    "risks_controls": [
+      "Strict pre/post-body authenticated context and resource checks unchanged; no authorization fallback",
+      "Canonical counts and items from one payload, no generation/session mixing; clear both on all invalidation paths",
+      "No false canvas projection for unsupported richer kinds; optional real relation preserved",
+      "Structured numeric parsing fails closed and view aggregate cannot silently fabricate overflowing total",
+      "Disjoint worker modifies only owned debugger path and cannot commit an incomplete shared batch",
+      "All observed groups repaired before one assembled originalcheck; unchanged proof reused, source-only review not runtime acceptance"
+    ],
+    "proof": "One independent affected-interface/actualdiff review after coherent batch; source checkpoint/push then current bindings and originalnativecheck3. Existing original authenticated live proof and negative/persistence/GUI acceptance remain separate required results.",
+    "budget": "Stage2of3 consumed, six native failures retained. Final initialstage candidate remaining; after any limit root records new evidenced decision under delegation, no history reset or identical blindretry.",
+    "limits": "No backend/schema/manifest/lock/other product path edits, no metadata/test/compiler/runtime/secret/provision/foreign process action by source workers; additional actual caller path requires evidenced root scope amendment before writes."
+  },
+  "windows_feature_checkpoint_20261014": {
+    "commit": "7930cb914332836ec22724468c949f88c6182b66",
+    "tree": "b5cdce641bdba2af14288dd6b5289df2f956aeb4",
+    "parent": "cc6b5b356e244734f290355c159695e33dbbd4d2",
+    "only_changed_path": "src/frontend/handshake_native/Cargo.toml",
+    "source_sha256": "2297140f64d545c920a541e90b604bd9e52d918d1a1603f92fb70ba1d1dd3b5f",
+    "diff_sha256": "81c15701b242b1eee59ab15e21a65a5e75ae060ea9038d24c195eb6936d1270b",
+    "comparison_sha256": "1b9f4cade901be263c4a135dd3995b27a1efdb5f22829578285467352df644eb",
+    "checkpoint_sha256": "f1d7ced5c86af6481e732f2c62a4fe683fe12c9e13e438853696fc4bdec1e10a",
+    "lock_sha256": "8599c3473c81c2a23b1e5b2cd634966206c374d633fd481fb118a2f47f931088",
+    "independent_reviewer": "01a1323e-c183-77e3-b8ba-b286507e5617",
+    "verdict": "SOURCE_CLEAR only; cachedactualfeature/module/13symbolimport closure andsoleWindowsfeatureline; strictTOML, byteinverse, freshremote/clean/all7416 reviewedbytes exact. Originallockedcompilerresolution/runtime notyetproven",
+    "artifact_lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt175-windows-feature-repair",
+    "compiler": "NOT_RUN",
+    "runtime": "NOT_RUN"
+  },
+  "connected_windows_feature_repair_20261014": {
+    "status": "SOURCE_CHECKPOINT_PUSH_VERIFIED",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "failure_ref": "MT-186.json#/delegated_stage01_check1_result_20261014",
+    "failure_group": "NATIVE_DIAGNOSTICS_WINDOWS_PROCESSSTATUS_FEATURE",
+    "owner": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+    "base_candidate": "cc6b5b356e244734f290355c159695e33dbbd4d2",
+    "only_write_path": "src/frontend/handshake_native/Cargo.toml",
+    "remedy": "Add Windows-specific windows-sys Win32_System_ProcessStatus feature required by actual resource sampler GetProcessMemoryInfo/PROCESS_MEMORY_COUNTERS; retain versions/alloldfeatures/lockbytes and existing real source",
+    "connected_reconciliation": "Primary integrator checks every windows_sys import in newlyexported internal_diagnostics module against actual installed locked0.61.2 module cfg/current features. Source inspection found one missingfeature and existingFoundation/Threading enabled; actualfeaturedefinition depends onlyWin32_System.",
+    "limits": "One minimalfeature-list change after connectedimport census; no sourceconsumer/guard removal, no newcrate/version, no Cargo.lock mutation/metadata/test/runtime. Independent scoped actualdiff review then root sourcecheckpoint release. Any other evidenced missingfeature returned in samegroup for root disposition.",
+    "risks_controls": "Enable already-present Windows sampler API without adding runtime startup or diagnosticsowner; privacy/auth/shutdown unchanged. Compiler must independently verify actuallockedgraph; no source-only PASS.",
+    "next_proof": "Original nativecheck after pushedchangedcandidate/currentbindings inside remainingdelegatedstage allowance; unchangedsource proof reused. Backendmain currentproof remains separate."
+  },
+  "adaptive_connected_repair_execution_20261014": {
+    "status": "ACTIVE_CONNECTED_REPAIR_ASSIGNMENT",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "primary_owner": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+    "candidate": "73368c07fe7ab713e1110c85004a0a18882351b5",
+    "original_paths_ref": "/execution/allowed_write_paths",
+    "original_scope_preserved": true,
+    "assignment": "Primary integrator owns native assembled connection and current reviewed checkpoint. Existing allowed paths supply connected repair envelope; disjoint worker assignments must name exact files and active failure group before edits. Changes outside original paths require root evidenced direct-blocker amendment under delegation before writes.",
+    "shared_owner": "app/lib/manifests/backend_client/action/argus/auth/receipt lifecycle remain primary-integrator-owned unless an exact sequential lease is recorded",
+    "batch_owner": "MT-175",
+    "covered_mts": [
+      "MT-175",
+      "MT-186"
+    ],
+    "compile_stage_ref": "MT-186.json#/delegated_native_stage_20261014",
+    "review": "One named affected-connection reviewer; unchanged accepted source evidence reused. Explicit runtime initialization/signing provenance residual retained.",
+    "next_action": "Prepare reviewed73368c07 native stage; no source mutation until actual observed failure requires connected repair or root assigns a separate admitted original-contract batch",
+    "limits": "No fabricated authentication/grants/provenance, no consumer/assertion removal, no independent acceptance self-verdict. Original parent/consumed-source durability/multiwindow obligations remain OPEN."
+  },
+  "bounded_native_diagnostics_export_repair_20261013": {
+    "state": "CLOSED_SOURCE_ONLY_LIBRARY_EXPORT_CHECKPOINT_PUSH_VERIFIED",
+    "owner": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+    "failure_ref": "MT-186.json#/native_producer_recheck_result_20261013",
+    "candidate_commit": "1d170964bfff8a189bc68425e76c86bce0e53178",
+    "only_write_path": "src/frontend/handshake_native/src/lib.rs",
+    "change": "Add pub mod internal_diagnostics; adjacent to the existing diagnostics export, exposing the already present real emit_behavior_observation_open producer",
+    "source_basis": "Actual E0433 consumer at backend_client14846; existing internal_diagnostics.rs producer370-377, provenance350-367 and pane_registry import33; current library root lacks declaration, main consumes library diagnostics; existing manifest dependencies present",
+    "limits": "Sole coder writer, one line source-only. Preserve client and producer bytes, current diagnostics facade and module declarations. No alias/stub/cfg deletion/consumer removal, duplicate runtime diagnostics startup, provenance manufacture, manifest/lock write, compiler/tests/metadata/runtime/process disruption, kernel write, branch/worktree change. Root and independent actual diff review precede checkpoint/push.",
+    "runtime_residual": "Existing InternalDiagnostics::start is not wired in current native src; export alone cannot establish active signing provenance. Genuine deployment/auth and original durable/multiwindow acceptance remain OPEN unchanged. All four compiler failures retained; no next compiler approval."
+  },
+  "native_producer_repair_checkpoint_20261013": {
+    "state": "CLOSED_SOURCE_ONLY_CHECKPOINT_PUSH_VERIFIED",
+    "commit": "1d170964bfff8a189bc68425e76c86bce0e53178",
+    "tree": "d7a978492840e46572b0ea3b73bfc2c5ab541bc2",
+    "parent": "5e4133679c3bbba904c6d17cfd46cadab93dc97b",
+    "independent_reviewer": "01a1323e-c183-77e3-b8ba-b286507e5617",
+    "verdict": "SOURCE_CLEAR only; exact pinned client inverses, full7416 independent reread, current authentication, production frame fence, same-frame re-admission guard, terminal cleanup and assertion correction inspected",
+    "artifact_lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt175-ack-source-repair",
+    "checkpoint_result_sha256": "84d9213e53047c68f0712e9602fa30a533db32979d43007d7c24a6549bfd85aa",
+    "joint_diff_sha256": "041c26de897f837d215d9da2f08adda52a60d951ca66681f3ceb5bb04e451f6d",
+    "reconciliation_sha256": "b0b3729ae9b877df6e4bb74e250ceda76be65516fb0aa716a536656314ad9368",
+    "root_reread": "Clean assigned product worktree, exact HEAD/tree, four committed paths and final hashes, matching GitHub branch SHA independently observed after push",
+    "findings_repaired": ["OperatorChat transport error redaction", "whole request payload equality", "handler dispatch epoch", "same-frame released-ticket re-admission alias", "aged Drop assertion frame-count contradiction"],
+    "limits": "Compiler/tests/runtime NOT_RUN on new checkpoint. Three exact-one compiler approvals spent, all FAIL101 retained. Original durable and multiwindow acceptance OPEN unchanged; genuine deployment/auth admission UNBOUND. No parent PASS or MT completion."
+  },
+  "bounded_native_ack_producer_repair_20261013": {
+    "state": "CLOSED_SOURCE_ONLY_CHECKPOINT_PUSH_VERIFIED",
+    "owner": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+    "failure_ref": "MT-186.json#/native_feature_recheck_result_20261013",
+    "candidate_commit": "5e4133679c3bbba904c6d17cfd46cadab93dc97b",
+    "allowed_write_paths": ["src/frontend/handshake_native/src/mcp/argus.rs", "src/frontend/handshake_native/src/mcp/action.rs", "src/frontend/handshake_native/src/app.rs"],
+    "source_closure": "Restore pinned exact handler acknowledgment through the existing ActionChannel owner. No parallel legacy receipt tracker. Preserve stronger explicit value/click causal tokens first, current queue/FIFO/revalidation/operator priority and current consumers.",
+    "dispatch_binding": "After successful current revalidation and before AccessKit emission, reserve a bounded exact channel/receipt/target/author/action ticket in the actual live context. Actual raw_input.viewport_id is authoritative; hook ctx.viewport_id before begin_pass is not. Immediate root bridge admits ROOT only; nonroot cannot drain through root publication. Unknown/nonroot stays fail closed under existing expiration, never manufactured context state.",
+    "production_fence": "Exact handler context identity, viewport, author, target, action and live ticket are required. Handler ACK is nonterminal. Require completed live frame counter strictly greater than dispatch counter and actual production update ctx handed solely from update into the postrender adapter. Isolated refresh capture counters, frame_ctx inference, timestamps, fingerprints, navigation/debug capture and same-frame multipasses cannot supply this fence. Preserve snapshot-to-channel lock/publication ordering; existing pending repaint schedules later frame.",
+    "cleanup": "Release tickets and handler signals on every terminal receipt, expiration, rejection, trim, session teardown and channel drop. Busy targets retain queue without emission; terminal receipts cannot resurrect or accept stale/cross-channel acknowledgment. No ACK alone proves backend business completion.",
+    "original_assertions": "Reconcile pinned handler exactness, drift/removal denial, unrelated parallel ACK, same-target serialization, timeout/late acknowledgment and cleanup assertions into existing owning modules without a duplicate harness. Preserve current stronger-token regression assertions.",
+    "limits": "Same sole coder writer; source only, narrow app raw-input and production publication hooks. No session/server/mod write, consumer removal, whole-file replacement, compiler/tests/metadata/runtime, provisioning, new identity/auth/store/grant, process disruption, kernel write or branch change. Root and independent actual full diff review precede checkpoint.",
+    "acceptance_preserved": "Original multiwindow/child production publication and durable Applied/after_revision/evidence_ref acceptance remain OPEN and unchanged. Root-only source bridge is not original acceptance PASS. Existing canonical receipt persistence/authenticated provenance integration remains outstanding; no substitute tracker or synthetic proof.",
+    "evidence_basis": "Diagnostic leader directly inspected current app/action and installed egui0.33.3 Context::run/identity/counters plus cached eframe raw_input_hook-before-run ordering. Child viewport callback differs from root app.update; no child publication proof established. Current three compiler failures retained and approvals spent."
+  },
+  "bounded_native_client_producer_repair_20261013": {
+    "state": "CLOSED_SOURCE_ONLY_CHECKPOINT_PUSH_VERIFIED",
+    "failure_ref": "MT-186.json#/native_feature_recheck_result_20261013",
+    "owner": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+    "candidate_commit": "5e4133679c3bbba904c6d17cfd46cadab93dc97b",
+    "allowed_write_paths": ["src/frontend/handshake_native/src/backend_client.rs"],
+    "source_closure": "Reconcile missing CKC supplement from pinned c6e624664412f3413401be92914164b6909d720a lines13713-20043 and WP1 OperatorChatClient closure from c2d4e2c7bf8500e91d787bff25ff6b80b38becaf lines473-980. Preserve DTOs, complete model-operation context, byte length/SHA checks, original consumers and required client methods.",
+    "current_owner_adaptations": "Consume current bounded shared HTTP client, AccountContext, AuthenticatedRequest and body/logout guards. Adapt old get/post/put/bytes calls to current authenticated transport; deduplicate existing helpers. Minimum actor constructor/model-lease/session-header bridge must not make actor headers an authentication fallback or manufacture identity/context/grants. Keep all current prefix edits except directly required reviewed merge sites.",
+    "limits": "One product writer, one file, source-only original import remediation. No blind whole-file replacement, stubs, consumer removal, new auth authority, provisioning, runtime, metadata, compiler, schema, manifest/lock, branch/worktree or kernel writes. Argus ACK integration remains separately held pending exact existing-owner closure plan. No checkpoint until root and independent actual diff review.",
+    "validation": "Complete native compiler proof remains required only after both client and ACK producer closures are reviewed and checkpointed. All three previous compiler failures remain retained; no further run is granted. Source comparison and original/current behavior reconciliation precede checkpoint."
+  },
+  "native_import_producer_failure_20261013": {
+    "result_ref": "MT-186.json#/native_feature_recheck_result_20261013",
+    "status": "FAIL101_NATIVE_IMPORTED_PRODUCER_CLOSURE",
+    "owned_paths": ["src/frontend/handshake_native/src/backend_client.rs", "src/frontend/handshake_native/src/mcp/argus.rs"],
+    "source_pins": {
+      "ckc_backend_client_blob": "c6e624664412f3413401be92914164b6909d720a",
+      "wp1_backend_client_blob": "c2d4e2c7bf8500e91d787bff25ff6b80b38becaf",
+      "wp1_argus_blob": "443f1a9bc0db3a005aaa488dd952c8ec12b46e1b"
+    },
+    "disposition": "Focused read-only producer reconciliation underway; no source lease yet. Restore required pinned behavior with current owner adaptations, preserve current clients/authentication/ACK behavior and original consumers. No stubs, blanket whole-file replacement, runtime claim or compiler grant."
+  },
+  "native_feature_recheck_20261013": {
+    "result_ref": "MT-186.json#/native_recheck_result_20261013",
+    "status": "FAIL101_FEATURE_GATED_STORAGE_HELPER",
+    "repair_owner_ref": "MT-173.json#/bounded_native_feature_repair_20261013",
+    "runtime_acceptance": "NOT_RUN",
+    "limits": "Both exact-one native checks consumed; source repair belongs to MT173, not an expansion of MT175 write scope. No aggregate native acceptance or new compiler allowance."
+  },
+  "execution_restructure_20261013": {
+    "decision_ref": "packet.json#/operator_workflow_restructure_20261013",
+    "child_refs": [
+      "MT-186.json"
+    ],
+    "retained_acceptance_refs": [
+      "/closure_unit/materialized_acceptance",
+      "/scope/acceptance_criteria",
+      "/proof/consumed_source_checks",
+      "/spec_basis",
+      "/attempt_budget"
+    ],
+    "residual_disposition": "Every obligation not explicitly closed by a child remains required in its original parent. Historical dependencies/verdicts retained; aggregate parent PASS is not a child predecessor."
+  },
   "auth_mapping_r2_adoption_20261011": {
     "decision_id": "WP012-P2-AUTH-MAPPING-001-R2",
     "status": "ADOPTED_IMPLEMENTATION_AUTHORIZED",
@@ -230,7 +771,10 @@
       "src/frontend/handshake_native/tests/test_uia_steer_proof.rs",
       "src/frontend/handshake_native/tests/test_user_manual_pane_argus.rs",
       "src/frontend/handshake_native/tests/test_visual_interaction_proof.rs",
-      "src/frontend/handshake_native/tests/test_wp1_console_stream_pane_argus.rs"
+      "src/frontend/handshake_native/tests/test_wp1_console_stream_pane_argus.rs",
+      "src/frontend/handshake_native/src/diagnostics/recorder.rs",
+      "src/frontend/handshake_native/src/diagnostics/palmistry_launch.rs",
+      "src/backend/handshake_core/src/api/palmistry.rs"
     ],
     "forbidden_write_paths": [
       ".GOV/**",
@@ -2350,17 +2894,17 @@
   },
   "lifecycle": {
     "status": "BLOCKED",
-    "blocked_on": "Backend retirement135freeze independently SOURCE_CLEAR source-only; required next wholecore compiler proof pending. Auth R2 adoption/real authenticated lifecycle/full composer/runtime acceptance remains outstanding; latest completed Round28FAILED101 historical, no PASS/accepted0of5.",
+    "blocked_on": "Original exact seven-argument native compiler and genuine authenticated runtime/source acceptance unproven; diagnostic0 source evidence only",
     "depends_on": [
       "MT-174"
     ],
     "blocks": [],
     "active": true,
     "validator_verdict": null,
-    "claimed_by": "KERNEL_BUILDER_PHASE02_IMPORT_OWNER",
+    "claimed_by": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
     "claimed_at_utc": "2026-10-10T05:29:10.632262+00:00",
     "completed_by": null,
-    "next_actor": "Delivery conditional ONE required wholecore after current final-backup/HEAD/input/absence/wrapper/gameplan/resource/profile/process gates; launch unobserved. Native owning predecessor unchanged. R2 concrete adoption question pending, proposal only."
+    "next_actor": "Fresh disjoint teams implement connected source batch; integrator assembles then one affected independent review and stable original native check"
   },
   "scope": {
     "summary": "Reconcile native import paths preserving current native host",
@@ -2474,8 +3018,12 @@
       "src/frontend/handshake_native/tests/test_uia_steer_proof.rs",
       "src/frontend/handshake_native/tests/test_user_manual_pane_argus.rs",
       "src/frontend/handshake_native/tests/test_visual_interaction_proof.rs",
-      "src/frontend/handshake_native/tests/test_wp1_console_stream_pane_argus.rs"
-    ],
+      "src/frontend/handshake_native/tests/test_wp1_console_stream_pane_argus.rs",
+      "src/frontend/handshake_native/src/diagnostics/recorder.rs",
+      "src/frontend/handshake_native/src/diagnostics/palmistry_launch.rs",
+      "src/backend/handshake_core/src/api/palmistry.rs"
+    ,
+      "src/backend/handshake_core/src/storage/surreal/palmistry.rs"],
     "forbidden_paths": [
       ".GOV/**",
       "app/src/**",
@@ -5593,6 +6141,401 @@
         "reviewer": "/root/backend_retirement_frozen_review",
         "verified": "All135 actual hashes/absences, single-ID inverse and134unchanged; valid launch/capture/native closure reused. No compiler/runtime/acceptance proof."
       }
+    }
+  },
+  "bounded_native_lock_repair_20261013": {
+    "lease_id": "WP012-MT175-NATIVE-LOCK-20261013",
+    "state": "CLOSED_SOURCE_ONLY_CHECKPOINT_PUSH_VERIFIED",
+    "owner": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+    "authority_refs": ["scope/allowed_paths", "execution/allowed_write_paths", "implementation_record/native_lock_resolver", "execution_restructure_20261013/residual_disposition"],
+    "recorded_failure_ref": "MT-186.json#/native_compiler_result_20261013",
+    "candidate_commit": "37f452a6b3b07c0ffd91ab49c3f99632c4104bb8",
+    "candidate_tree": "e22db7bd603b56caac2fec5cef9afc2e8b38733f",
+    "only_write_path": "src/frontend/handshake_native/Cargo.lock",
+    "before_sha256": "0ea248f2cbac6bc578296381bedef6641bc6897312715f3f47c16e1f28165b24",
+    "command": "cargo +1.97.1 update --workspace --offline --manifest-path src/frontend/handshake_native/Cargo.toml",
+    "cwd": "../wtc-WP-KERNEL-012",
+    "resolver_invocations_authorized": 1,
+    "configuration": "Existing MT174 profile/toolchain/owned CARGO_HOME and TMP; no new target, profile or aggregate cap",
+    "diagnosis": "Current Palmistry manifest declares ed25519-dalek and zeroize, while the current native lock Palmistry dependency entry omits both. Actual exact locked native compiler failed101; full resolver delta remains unobserved until this run.",
+    "controls": "Capture closed logs/numeric exit and full before/after source/config/tool/authority bindings; permit only the named lockfile drift. Independently inspect package identity/checksum/dependency delta before lock-only checkpoint/push.",
+    "limits": "No manifest, other lockfile or product source changes; no compiler, metadata run, runtime provisioning, secrets or process disruption. Native failed attempt retained; no retry grant or counter reset.",
+    "result": {
+      "resolver_numeric_exit": 0,
+      "artifact_lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt175-native-lock-repair",
+      "result_sha256": "d2ec850a15e4c8c5171bf5920a6bc3d2f090d82e0ddb37716e4402ac4ac13ead",
+      "delta_sha256": "02afa4edd5e5f09e972f2ea40d66b5d36670e2e40b540841f287fb3900cfdd15",
+      "delta": "Five already-declared dependency edges only: handshake_core adds handshake-diag-ring/interprocess; Palmistry adds ed25519-dalek3.0.0/libc/zeroize. No package additions/removals/version/identity/checksum changes.",
+      "after_lock_sha256": "8599c3473c81c2a23b1e5b2cd634966206c374d633fd481fb118a2f47f931088",
+      "all_other_inputs": "All7415 other source files,22 other manifest/config inputs,10 raw authorities,tools/profile/argv/script unchanged during resolver; same7416 file set.",
+      "independent_reviewer": "01a1323e-c183-77e3-b8ba-b286507e5617",
+      "independent_verdict": "SOURCE_LOCK_RECONCILIATION_CLEAR; exact actual diff and package fields independently inspected, not compiler/native/runtime PASS",
+      "checkpoint_commit": "c00c1de6d93bdf93b4da36ee3efbdaa4ed5490c5",
+      "checkpoint_tree": "a8d3bdcd52a91d7e2dfd75cd79ab03e98bdf7902",
+      "remote_sha": "c00c1de6d93bdf93b4da36ee3efbdaa4ed5490c5",
+      "root_independent_reread": "Actual clean product HEAD/tree, current lock hash and matching GitHub branch SHA observed after checkpoint",
+      "compiler_after_repair": "NOT_RUN; new exact native compiler approval required because previous exact-one grant was consumed",
+      "proof_reuse": "MT183/184 historical independent proof remains valid for its unchanged backend/core inputs; native Cargo.lock is not an input to their exact core commands. No claim of current native compiler acceptance."
+    }
+  },
+  "native_diagnostics_export_repair_checkpoint_20261013": {
+    "state": "CLOSED_SOURCE_ONLY_CHECKPOINT_PUSH_VERIFIED",
+    "lease_ref": "/bounded_native_diagnostics_export_repair_20261013",
+    "commit": "73368c07fe7ab713e1110c85004a0a18882351b5",
+    "tree": "0ba903d5ffdf2a19025eb5f0d16498b4327e5b50",
+    "parent": "1d170964bfff8a189bc68425e76c86bce0e53178",
+    "only_changed_path": "src/frontend/handshake_native/src/lib.rs",
+    "source_sha256": "89984e6c8f1c3781b916744c0cf9b027b80148e9438679090ababd56b8c9cf89",
+    "reviewed_diff_sha256": "6b0e08dd8e510eb387fbf56e54a94341ce3f446e5f74e37b6fd95f6bf57026e3",
+    "comparison_sha256": "53dea0ec2ac99538d8922e778aeee3418ad64ea38197bee1f4cf93d1317cae13",
+    "artifact_lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt175-diagnostics-export-repair",
+    "checkpoint_result_sha256": "b08cfe690d222f0e44670fde7ff48bb77198e5b2bdbf34f33947bbc4c1ca1f4a",
+    "independent_reviewer": "01a1323e-c183-77e3-b8ba-b286507e5617",
+    "verdict": "SOURCE_CLEAR only; independent postcheckpoint canonical remote, clean status, sole lib export diff and all7416 reviewed input bytes exact",
+    "root_reread": "Actual HEAD/tree/parent, live GitHub branch SHA, clean assigned worktree, committed one-line diff and source/checkpoint hashes independently verified",
+    "limits": "No compiler/tests/metadata/runtime run on this checkpoint. Four FAIL101 exact-one approvals spent. InternalDiagnostics startup wiring, genuine deployment/auth admission, durable and multiwindow acceptance remain OPEN unchanged; no PASS or MT completion."
+  },
+  "successor_parallel_connected_batch_20261014": {
+    "decision_ref": "packet.json#/operator_successor_delivery_team_20261014",
+    "status": "SOURCE_BATCH_RELEASED",
+    "base_commit": "f724b8852f79d0ea6e2601ff6151c0522fa1be78",
+    "leases": [
+      {
+        "id": "WP012-SUCCESSOR-INTEGRATOR",
+        "owner_chat": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+        "mt": "MT-175",
+        "paths": [
+          "src/frontend/handshake_native/src/app.rs",
+          "src/frontend/handshake_native/src/mcp/server.rs"
+        ],
+        "deliverable": "Actual authenticated app state/async Swarm outcomes, native diagnostics lifetime consumption and terminal ACK durable receipt integration; assemble every peer diff",
+        "next_integration": "One complete changed-connection review; stable pushed source capture; sole product Git/compiler owner"
+      },
+      {
+        "id": "WP012-SUCCESSOR-CLIENT",
+        "owner_chat": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+        "worker": "/root/native_consumers",
+        "mt": "MT-175",
+        "paths": [
+          "src/frontend/handshake_native/src/backend_client.rs"
+        ],
+        "deliverable": "Real authenticated Swarm diagnostics transport and signed durable Argus POST/canonical GET methods with exact context/generation and response checks",
+        "next_integration": "Publish typed client interfaces to integrator server/app; no fixture/provenance substitution"
+      },
+      {
+        "id": "WP012-SUCCESSOR-ACTION",
+        "owner_chat": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+        "worker": "/root/native_exports",
+        "mt": "MT-175",
+        "paths": [
+          "src/frontend/handshake_native/src/mcp/action.rs"
+        ],
+        "deliverable": "Stable original UUID allocated once before enqueue, retained beside numeric receipt ID through actual terminal ACK and ambiguity",
+        "next_integration": "Integrator server uses original UUID; preserve existing positive/negative ACK invariants"
+      },
+      {
+        "id": "WP012-SUCCESSOR-NATIVE-START",
+        "owner_chat": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+        "worker": "/root/native_startup",
+        "mt": "MT-175",
+        "paths": [
+          "src/frontend/handshake_native/src/main.rs"
+        ],
+        "deliverable": "Consume actual current ring/watcher adoption bridge and app lifetime; retain early panic/SEH/crash socket/shutdown; no duplicate watcher",
+        "next_integration": "Requires runtime worker exact V2/adoption interface before dependent edits"
+      },
+      {
+        "id": "WP012-SUCCESSOR-SETTINGS",
+        "owner_chat": "01a139f6-8cf0-7571-bab2-960a33d7cafa",
+        "worker": "/root/native_windows_worker",
+        "mt": "MT-175",
+        "paths": [
+          "src/frontend/handshake_native/src/settings_dialog.rs"
+        ],
+        "deliverable": "Pinned Swarm typed snapshot/updating/error, real concurrency selector/status and outcome through existing author IDs",
+        "next_integration": "Shared SettingsView borrowed state and outcome consumed by integrator app"
+      },
+      {
+        "id": "WP012-SUCCESSOR-PREFERENCES",
+        "owner_chat": "01a139f6-8cf0-7571-bab2-960a33d7cafa",
+        "worker": "/root/cloud_gui_specialist",
+        "mt": "MT-175",
+        "paths": [
+          "src/frontend/handshake_native/src/workspace_settings.rs"
+        ],
+        "deliverable": "Pinned optional desired concurrency preference default None, serialization/normalization/merge; real backend state remains authority",
+        "next_integration": "Integrator app consumes desired preference separately from actual in-force state"
+      },
+      {
+        "id": "WP012-SUCCESSOR-DIAGNOSTICS",
+        "owner_chat": "01a139f6-2aa7-7b93-bc12-28f207a6909f",
+        "worker": "/root/diagnostics_receipts",
+        "mt": "MT-175",
+        "paths": [
+          "src/frontend/handshake_native/src/diagnostics/recorder.rs",
+          "src/frontend/handshake_native/src/diagnostics/palmistry_launch.rs",
+          "src/frontend/handshake_native/src/internal_diagnostics.rs",
+          "src/backend/handshake_core/src/api/palmistry.rs"
+        ],
+        "deliverable": "Connected existing V2 ring/current-child readiness and weak adopted provenance bridge; canonical account-scoped durable receipt/adoption producer using genuine existing verification mechanics",
+        "next_integration": "Coordinate exact same session/nonce/V2 recorder/current-child signed-ready interfaces with native startup/client/action/server; no raw seed or manufactured witness"
+      }
+    ],
+    "recorded_blockers": [
+      "Missing actual Swarm settings/app consumer and diagnostics production transport",
+      "Active diagnostics signing/observer provenance has no current same-ring/watcher lifecycle consumer",
+      "Argus terminal ACK always durability_error and lacks stable canonical UUID/receipt transport",
+      "Existing cloud route/auth/process ownership is unmounted and original runtime acceptance remains open"
+    ],
+    "controls": "No duplicate ring/watcher; actual signed readiness, same original UUID/account/session/space, no optimistic applied status; one assembled batch review and frozen compiler; unavailable dependencies stay explicit",
+    "original_proof_unchanged": true,
+    "batch_owner": "MT-175",
+    "covered_mts": [
+      "MT-174",
+      "MT-175",
+      "MT-186"
+    ]
+  },
+  "swarm_source_batch_20261014": {
+    "decision_id": "WP012-SWARM-SOURCE-BATCH-20261014-01",
+    "status": "SOURCE_IMPLEMENTATION_RELEASED",
+    "recorded_at_utc": "2026-10-14T14:38:47.854930+00:00",
+    "decision_owner": "01a13ab5-bfe4-74b1-8fc3-64e691a76827",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "operator_direction": "Finish fullWP by actual swarmproduction; additional codingteamchats/workers/directteamcollaboration; primaryHuman additionally specified5extra coderchats via coder mediator, bundled proof/warmCargo/cache and meaningful MTcheckpointcommit/push",
+    "preceding_compile_closure": {
+      "disposition": "TERMINAL_FREEZE_CLOSED_SUCCEEDED",
+      "independent_validator_chat": "01a139f6-ce6a-7b50-a058-dff3732ea4a2",
+      "original_outer_session": 12473,
+      "original_outer_execution": "exec-0498afc6-6e93-474f-b41f-c40d01246cab",
+      "exit_code": 0,
+      "expected_targets": 485,
+      "missing_targets": 0,
+      "compiler_errors": 0,
+      "warnings": 1639,
+      "source_inputs": 7416,
+      "metadata_inputs": 23,
+      "authority_inputs": 11,
+      "tool_inputs": 3,
+      "ephemeral_owned_identities_closed": 18,
+      "persistent_cache_retained": 4820,
+      "candidate_commit": "139e4b7db83ffc56bf72f59cec3e8ea7c69fecc3",
+      "candidate_tree": "5f987622be9587282567858f1ba4b4618659d133",
+      "evidence_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt188-core-changed-host-retry01/compile-evidence.json",
+      "evidence_sha256": "9c1db3c7a723d0a042cc6752d22f2a9cf5b520489b424fa8e240fa1423e9deda",
+      "postbinding_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt188-core-changed-host-retry01/compile-post-binding.json",
+      "runtime_acceptance": "NOT_RUN",
+      "whole_wp_acceptance": "NOT_ASSESSED"
+    },
+    "batch_owner": "MT-174",
+    "covered_mts": [
+      "MT-173",
+      "MT-174",
+      "MT-175",
+      "MT-186",
+      "MT-188"
+    ],
+    "source_base": "139e4b7db83ffc56bf72f59cec3e8ea7c69fecc3",
+    "coordination": {
+      "mediator_chat": "01a13acf-a8bf-7ae1-92f3-9c5fffc5d385",
+      "product_dev_lead_integrator_compiler": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+      "kernel_writer": "01a13ab5-bfe4-74b1-8fc3-64e691a76827",
+      "worker_policy": "Teamleaders choose useful disjoint coderworkers/waves, manage theirown followups; mediator consolidates interteam implementation interfaces/findings/readiness to primary. No mandatoryfanout or newapprovalgate. Actual tool limits stated, no leaderfixedthree-worker ceiling.",
+      "checkpoint_policy": "Commit/push meaningful coherent MT/unit progress through sole primaryproductGit owner; governance explicitpaths through kernelowner. Bundle required tests/checks on stable inputs and reuse same approved warmtarget/cache, no perworkerCargo."
+    },
+    "failure_basis": [
+      "Argus API18key receipt absent from current existing schema predicate",
+      "Accepted164 real successor transition must retain authentic BASE/FINAL history",
+      "main five-ID-from-env beforestorage/accountserver prevents legitimate existing setup/login/session/workspace flow",
+      "api/mod runtime has SwarmdrainNone and mounts no paired actualoperatorchat producer",
+      "Native signing lacks actual nativeowned lease/parentOSgeneration and canonical durableADOPT/START remains unavailable"
+    ],
+    "scope_exceptions": [
+      "This current bounded source amendment takes precedence over older source-only READ_ONLY/reuse/owner constraints ONLY for exact listed paths; old scope/pins/histories/runtime admission remain intact",
+      "Only exact listedsourcepaths supersede older startupREAD_ONLY/native_local_account reuse-only/producer-path exclusion for these proven repairs; existing historicalauthority preserved",
+      "No schema semantic repair under MT183 historical verdict lease; sourceownerMT173 and affected original predecessor proof revalidated",
+      "Existing /authority/session route may carry minimal authenticated canonicalworkspace activation; no unrelated newendpoint/capability/grant",
+      "No broader .GOV/product scope, sourcepin reset, newbranches/worktrees/dependencies or inventedstore/account/session/provenance"
+    ],
+    "controls": [
+      "One writer per exactfile; offered ownership accepted before firstwrite and oldowner relinquished",
+      "No workerGit/compiler/test/metadata/runtime/provisioning; primary solecompiler/Git, independentvalidator runtime/verdict",
+      "No source-only result claims genuine originaldeployment/auth/publication/runtime/WPcompletion",
+      "ExplicitOwner sourcebehavior is repaired, never accepted as fabricated replacement originaldeployment/newdefaultstore proof",
+      "Historical164 source/catalog/INFO/lineage and all pastverdicts/failurecounters retained; no guessed/fabricated pins",
+      "Actual resolved watcherbinary identity remains independent originalruntime prerequisite",
+      "After completebatch assembly perform one affectedtrust/persistence/concurrency source review; then unchangedstable captured source for strategic originalcore/nativechecks and required independentruntime. No reviewofreview or unchanged duplicated gates"
+    ],
+    "proof_unchanged": true,
+    "excluded_actions": [
+      "runtimeprovisioning/newdefaultstore/firstOwner as originaldeployment substitute",
+      "authentication/grant/provenance manufacture",
+      "foreignprocess disruption",
+      "acceptance narrowing or selfverdict",
+      "newtarget/profile/cap/counterreset",
+      "storage/APIpath expansion beyond exactlistedlease without evidenced rootamendment"
+    ],
+    "next_action": "SOURCE RELEASE EFFECTIVE: sameworkers implement exact ownedfiles now; mediator coordinates interfaces, primary integrates and meaningfulMTcheckpoint/Git; required stablebatch compiler/source review and independent originalruntime remain",
+    "leases": [
+      {
+        "id": "WP012-SWARM-NATIVE-WIRE-001",
+        "mt": "MT-175",
+        "owner_chat": "01a13acc-9793-7341-8255-c68d5eb8a17a",
+        "paths": [
+          "src/frontend/handshake_native/src/diagnostics/palmistry_launch.rs",
+          "src/frontend/handshake_native/tests/test_palmistry_launch.rs",
+          "src/frontend/palmistry/src/cli.rs",
+          "src/frontend/palmistry/src/main.rs",
+          "src/frontend/palmistry/src/control.rs",
+          "src/frontend/palmistry/tests/test_lifecycle.rs"
+        ],
+        "deliverable": "Actual borrowed canonical nativelease aftercontrol_socket; coherent seven appended signedfields nativeparent OSgeneration and mirroredwatcherwire; fail missing/mismatched identity, preserve actual childgeneration distinction and all existing assertions",
+        "original_proof_refs": [
+          "MT-175.json#/proof",
+          "MT-186.json#/proof",
+          "MT-188.json#/proof"
+        ],
+        "ownership_agreement": "GUI explicitly relinquished coherent6filewire; runtime/primary consumers separate",
+        "source_only": true,
+        "state": "SOURCE_IMPLEMENTATION_RELEASED"
+      },
+      {
+        "id": "WP012-SWARM-NATIVE-ACTIVATION-001",
+        "mt": "MT-175",
+        "owner_chat": "01a13ad0-09c7-7b63-82ca-8146aef24110",
+        "paths": [
+          "src/frontend/handshake_native/src/app.rs"
+        ],
+        "deliverable": "Consume genuine selectedworkspace activationACK/context and fence stale/foreign/lifecycle deliveries through existing app; accountlocal_account publishes producer; no optimistic activation or clienttupleauthority",
+        "original_proof_refs": [
+          "MT-175.json#/proof",
+          "MT-186.json#/proof"
+        ],
+        "ownership_agreement": "Primary and activation mutually ACCEPTED wholeappfiletransfer; accountlocal_account producer separate",
+        "source_only": true,
+        "state": "SOURCE_IMPLEMENTATION_RELEASED"
+      },
+      {
+        "id": "WP012-SWARM-NATIVE-HOLDER-001",
+        "mt": "MT-175",
+        "owner_chat": "01a13ad0-1d9e-76c2-ba80-f97e366be363",
+        "paths": [
+          "src/frontend/handshake_native/src/main.rs"
+        ],
+        "deliverable": "Acquire actual canonical strict explicit hostscope nativeprocess_session_uuid UDPlease before diagnostics/watcher startup, retain through real eventloop and watcher shutdown/reap; consume exact borrowed launcherinterface preserving panic/crash/earlyfailurecleanup",
+        "original_proof_refs": [
+          "MT-175.json#/proof",
+          "MT-186.json#/proof",
+          "MT-188.json#/proof"
+        ],
+        "ownership_agreement": "Primary and native lifetimeconsumer mutually ACCEPTED wholefiletransfer; no overlappingwriter",
+        "source_only": true,
+        "state": "SOURCE_IMPLEMENTATION_RELEASED"
+      },
+      {
+        "id": "WP012-SWARM-PALMISTRY-001",
+        "mt": "MT-175",
+        "owner_chat": "01a13ad0-112c-7c51-9dac-b19da4d01c76",
+        "paths": [
+          "src/backend/handshake_core/src/api/palmistry.rs"
+        ],
+        "deliverable": "Consume full genuine signednative descriptor; independently verify OSUDP nativeparentPID+generation/hostscope/auth/liveowner; use existing canonical durable START/verifier/ADOPT rather than unconditional unavailable or backendlease substitute; no protectedroute bypass",
+        "original_proof_refs": [
+          "MT-175.json#/proof",
+          "MT-186.json#/proof"
+        ],
+        "ownership_agreement": "Runtime and diagnostics mutually accepted wholeapi/palmistry; storage remains excluded until exact evidenced need",
+        "source_only": true,
+        "state": "SOURCE_IMPLEMENTATION_RELEASED"
+      }
+    ],
+    "packet_ref": "packet.json#/swarm_production_20261014"
+  },
+  "active_swarm_source_lease_ref": "MT-175.json#/swarm_source_batch_20261014",
+  "swarm_direct_blocker_expansion_20261014": {
+    "decision_id": "WP012-SWARM-DIRECT-BLOCKER-EXPANSION-20261014-02",
+    "status": "SOURCE_IMPLEMENTATION_RELEASED",
+    "recorded_at_utc": "2026-10-14T14:43:07.874862+00:00",
+    "parent_ref": "packet.json#/swarm_production_20261014",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "decision_owner": "01a13ab5-bfe4-74b1-8fc3-64e691a76827",
+    "source_only": true,
+    "runtime_and_independent_acceptance_unchanged": true,
+    "next_action": "Exact owners implement now, publish source interfaces to mediator; primary completes same coherent batch before strategic proof",
+    "leases": [
+      {
+        "id": "WP012-SWARM-NATIVE-CORE-EDGE-001",
+        "mt": "MT-175",
+        "owner_chat": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+        "paths": [
+          "src/frontend/handshake_native/Cargo.toml",
+          "src/frontend/handshake_native/Cargo.lock"
+        ],
+        "failure": "Native production main now consumes canonical core lease but manifest has handshake_core only as dev dependency",
+        "deliverable": "Add existing same local core normal dependency default-features false runtime-full; retain dev runtime-full,test-utils. Lock change only if exact affected resolution requires it, no unrelated package/version/feature/source pin change",
+        "controls": [
+          "Primary sole manifest/lock writer and compiler",
+          "Preserve original locked native seven-argument proof and exact host profile/target/cap; no worker metadata/build/test"
+        ],
+        "original_proof_refs": [
+          "MT-175.json#/proof/checks/0",
+          "MT-186.json#/proof/native_compile_prerequisite"
+        ]
+      }
+    ],
+    "packet_ref": "packet.json#/swarm_direct_blocker_expansion_20261014"
+  },
+  "operator_decision_request_adopt_authority_20261014": {
+    "id": "WP012-ADOPT-AUTHORITY-DECISION-20261014",
+    "status": "UNRESOLVED_PRODUCT_AUTHORITY_MAPPING",
+    "recorded_at_utc": "2026-10-14T14:49:36.221378+00:00",
+    "blocked_item": "Protected ADOPT of the genuine native-owned existing watcher and guarded durable START/verifier registration",
+    "observed_authority": [
+      "diagnostics.read is explicitly Read only",
+      "fr.ingest.native_editor maps native editor FlightRecorder/Create receipts, not ProcessStart",
+      "proc.exec already canonical, but Operator profile excludes it and no exact process lifecycle resource/grant/action mapping is defined",
+      "ResourceKind lacks a process lifecycle type; process lifecycle table permissions are NONE; host internal writes do not authorize HTTP adoption"
+    ],
+    "source_refs": [
+      "src/backend/handshake_core/src/capabilities.rs:105",
+      "src/backend/handshake_core/src/capabilities.rs:218",
+      "src/backend/handshake_core/src/storage/surreal/resource_authority.rs:93",
+      "src/backend/handshake_core/src/api/palmistry.rs",
+      "src/backend/handshake_core/src/storage/surreal/schema.surql:1143"
+    ],
+    "spec_refs": [
+      "Pinnedv02.206 \u00a75.7.2 START/STOP duty",
+      "\u00a711.1 capability registry unknown deny",
+      "\u00a75.8.7 request authorization",
+      "ApprovedR2-006/007/008 exact live grant/resource/action and guarded commit/publication"
+    ],
+    "reviewable_proposal": {
+      "kind": "NON_AUTHORITATIVE_PENDING_OPERATOR_SPEC_APPROVAL",
+      "resource_kind": "Proposed PalmistryWatcher; resource ID is the original watcher UUID, parent canonical Workspace, server-derived account/Principal/session/Space/workspace",
+      "action": "Existing Reconcile, adoption of an already-owned watcher only, no spawning or ownership transfer",
+      "capability": "Proposed diagnostics.watcher.adopt_existing; a narrow dedicated permission rather than extending read/recorder ingestion or broad spawn authority",
+      "profile_and_grant": "Explicit eligible profile selected through approved policy; genuine persisted exact watcher grant with Reconcile, expiry/policy/revocation and delegated capability; no automatic grants or Operator profile widening",
+      "commit": "Atomically original five-ID/native-owned START, EventLedger and public verifier in same guarded transaction; live genuine grant/session/profile/policy checks at commit and publication; canonical same-UUID/timestamp reread on uncertain ACK",
+      "existing_mechanics": "Reuse authenticated protected-resource registration/grant APIs only via actual separately authorized user flow; adapt existing owned transaction guard, not unguarded root append",
+      "excluded": "No fake grant, credential, process state, default store, arbitrary proc.exec, unauthenticated legacy route or reduced original runtime proof",
+      "implementation_authority": "Operator explicit spec enrichment and narrow storage/process-ledger source contract admission required before this new mapping is implemented"
+    },
+    "excluded_substitutes": [
+      "diagnostics.read as write",
+      "recorder ingest as ProcessStart",
+      "unauthenticated legacy mount",
+      "synthetic grants/credentials/lifecycle records"
+    ],
+    "other_work": "Continue all other admitted coding and strategic compilation; only this mutation authority remains held",
+    "operator_decision": null,
+    "updated_at_utc": "2026-10-14T14:50:32.774209+00:00",
+    "earlier_proposal": {
+      "capability": "Existing proc.exec, no new capability ID",
+      "protected_resource": "Dedicated canonical account/Principal/session/Space/workspace-bound process lifecycle resource, limited to the already-owned signed native watcher and exact native/watcher OS generation",
+      "intended_actions": "Create initial START+verifier; Update only exact existing adoption reconciliation; no process spawn or arbitrary executable permission",
+      "profile_and_grant": "Explicit eligibility and genuine persisted scoped grant required; no automatic grants, client-supplied owner tuple or fixture authority",
+      "commit_boundary": "Same grant/profile/policy/live owner rechecked inside guarded START/verifier transaction and publication; expiry/revocation/foreign context/replay/lost ACK canonical reread required",
+      "spec_contract_path": "Explicit approved enrichment and exact source lease before implementing new resource/profile semantics; original full runtime assertions retained"
     }
   }
 }

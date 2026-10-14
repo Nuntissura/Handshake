@@ -1,0 +1,772 @@
+{
+  "successor_core_json_macro_checkpoint_20261014": {
+    "status": "SOURCE_CHECKPOINT_PUSH_VERIFIED",
+    "commit": "139e4b7db83ffc56bf72f59cec3e8ea7c69fecc3",
+    "tree": "5f987622be9587282567858f1ba4b4618659d133",
+    "parent": "eba6c403773524e498629153e9c725f64b72a9bd",
+    "only_path": "src/backend/handshake_core/src/api/palmistry.rs",
+    "source_sha256": "bc6461a3d546708042aadbaabbf8dc9b013f71864aeb3848d9556a13cc04d2c0",
+    "checkpoint_sha256": "01362f06f68a95df0c5da2cb61099e791d3c756597b56352065709e6b0afabae",
+    "independent_reviewer": "01a139f6-ce6a-7b50-a058-dff3732ea4a2",
+    "source_review": "One changed macro preserves16JSON99 values and unchanged nonce-negative assertion; unchanged whole15file review reused",
+    "compiler": "NOT_RUN_ON_CHANGED_CANDIDATE",
+    "runtime": "NOT_RUN",
+    "core_stage_consumed": 1,
+    "core_stage_limit": 2,
+    "core_failures_retained": 39,
+    "native_stage_consumed": 1,
+    "native_stage_limit": 3,
+    "original_acceptance": "UNCHANGED_OPEN"
+  },
+  "successor_core_json_macro_repair_20261014": {
+    "id": "WP012-CORE-LIBTEST-JSON-REPAIR-20261014",
+    "status": "SOURCE_REPAIR_RELEASED",
+    "failure_ref": "MT-188.json#/successor_core_check1_result_20261014",
+    "census_artifact": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt188-successor-core-check01/related-palmistry-census.json",
+    "census_sha256": "b3b96c7575b0e0835db04276fc4acfc7e455cf89d8900cce7c38793bbb53638d",
+    "owner_chat": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+    "worker": "Existing bounded Palmistry census worker under primary integrator",
+    "only_write_path": "src/backend/handshake_core/src/api/palmistry.rs",
+    "base_commit": "eba6c403773524e498629153e9c725f64b72a9bd",
+    "repair": "Replace only json!([99; 16]) with json!(vec![99u8; 16]); same16 JSON integer99 values, invalid nonce case and existing verify_current_watcher_ready(...).is_err assertion unchanged",
+    "scope_reason": "Complete actual core inventory has1error/484observed/1failed libtest; entire newly published Palmistry test-module constructor/cfg/import/serde/signature census found no other source-backed repair. No artificial extra source scope or blind retry",
+    "next": "Scoped syntax/source semantic check using unchanged whole-batch review, explicit source-only checkpoint/push, then remaining authorized original core confirmation on changed frozen input; no native broad check before core success",
+    "gameplan_ref": "gameplan.yaml#GP-563; cause generation687",
+    "preserved": "Original assertions/profile/command/resource/counters/source pins/runtime acceptance and held canonical permission/native owner blockers unchanged"
+  },
+  "successor_core_check1_result_20261014": {
+    "status": "ORIGINAL_CORE_CHECK_FAILED",
+    "candidate_commit": "eba6c403773524e498629153e9c725f64b72a9bd",
+    "candidate_tree": "6edf1f190e308efb4eaac0d5af2ad27199a6d668",
+    "original_outer_session": 77947,
+    "outer_exit": 101,
+    "cargo_exit": 101,
+    "target_states": {
+      "OBSERVED": 484,
+      "NOT_OBSERVED": 1
+    },
+    "failed_or_unobserved_target": "handshake_core lib profile_test=true; other484 observed, not a claim all latent failures found",
+    "errors": [
+      {
+        "target_id": "{\"kind\":[\"lib\"],\"name\":\"handshake_core\",\"package_id\":\"path+file:///C:/Projects/LLM%20Projects/handshake-desktop/wtc-WP-KERNEL-012/src/backend/handshake_core#0.1.0\",\"profile_test\":null,\"src_path\":\"C:\\\\Projects\\\\LLM Projects\\\\handshake-desktop\\\\wtc-WP-KERNEL-012\\\\src\\\\backend\\\\handshake_core\\\\src\\\\lib.rs\"}",
+        "level": "error",
+        "code": null,
+        "message": "no rules expected `99`",
+        "primary_spans": [
+          {
+            "file_name": "src\\api\\palmistry.rs",
+            "line_start": 3926,
+            "column_start": 54,
+            "line_end": 3926,
+            "column_end": 56
+          }
+        ],
+        "repeated_count": 1
+      }
+    ],
+    "complete_raw_record_counts": {
+      "lines": 2804,
+      "noise": 0,
+      "unknown": 0,
+      "malformed": 0,
+      "errors": 1,
+      "dropped_groups": 0,
+      "unexpected_artifacts": 833,
+      "oversized_records": 0
+    },
+    "artifact_lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt188-successor-core-check01",
+    "hashes": {
+      "compile-evidence.json": "45482241ef26db77c78cc6d13918a22ef9856aace4e9c74e6be5b0066744ddc9",
+      "compile.stdout.log": "048b2a322e081fd4bb531392c0898be126f084719eafb3dc02013a4c62d6085b",
+      "compile.stderr.log": "59a99f4a4d803278e5ca493f8cf8f4a1804a6a855e43f469552ee0e694366b7d",
+      "compile-post-binding.json": "9c7ff15cfe4255a80e5fed07b962ba68d019a9f6f7f039e56192cf1c7159bfeb",
+      "owned-closure.json": "8c03b58425804e8f7f394571bc6ddb3420b1f212ef7d3f8f9feb228b144cc03a",
+      "terminal-closure.json": "1fe800715d2c51a394c792d30efacbc5ed03e52ded41b8882928949d6988acab"
+    },
+    "input_proof": {
+      "matched": true,
+      "checked_files": 7416,
+      "drift_paths": [],
+      "binding_equal": {
+        "collector_runtime_env": true,
+        "head": true,
+        "tree": true,
+        "config_sha256": true,
+        "launcher_sha256": true,
+        "source_review_binding_sha256": true,
+        "tracked_diff_sha256": true,
+        "collector_sha256": true,
+        "collector_commit": true,
+        "caller_config_sha256": true,
+        "metadata_sha256": true,
+        "cargo_argv": true,
+        "toolchain": true,
+        "effective_profile_env": true,
+        "praxidike_root": true,
+        "selected_package_id": true,
+        "resolved_selected_features": true,
+        "expected_target_ids": true,
+        "actual_toolchain_binary_hashes": true,
+        "observed_toolchain_identity": true,
+        "authority_raw_sha256": true,
+        "retained_metadata_inputs": true
+      }
+    },
+    "owned_processes_remaining": 0,
+    "independent_reviewer": "01a139f6-ce6a-7b50-a058-dff3732ea4a2",
+    "independent_disposition": "TERMINAL_FREEZE_CLOSED_FOR_FAILED_RUN; original exec-c128bcb7/outer77947 numeric101 independently inspected, no runtime acceptance",
+    "stage_consumed": 1,
+    "stage_limit": 2,
+    "historical_core_failed_launches_before": 38,
+    "cumulative_core_failed_launches": 39,
+    "native_stage04_consumed": 1,
+    "native_stage04_limit": 3,
+    "native_cumulative_fail101": 13,
+    "runtime": "NOT_RUN",
+    "next": "Finish newly exposed libtest constructor/cfg/import/json macro census, repair all available same-cause groups before remaining original core confirmation; no native broad run before core passes"
+  },
+  "successor_current_core_compile_stage_20261014": {
+    "decision_id": "WP012-CURRENT-CORE-COMPILE-STAGE-20261014",
+    "status": "EXHAUSTED_2_OF_2; OPERATOR_CHANGED_HOST_SINGLE_RETRY_ADMITTED_SEPARATELY",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "decision_owner": "01a139f3-b98c-7b61-b541-960ec3e048de",
+    "source_failure": "Current backend main cloud factory and newly exported Palmistry module are changed; old MT184 proof cannot cover these input changes",
+    "actual_prior_proof_observation": "Original MT184 artifact target_states includes handshake_core bin main.rs profile_test=true OBSERVED among485; no profile_test=false main target observed. Do not claim original command misses main or proves production runtime",
+    "command": "cargo check --locked --manifest-path src/backend/handshake_core/Cargo.toml --lib --tests --features app-runtime,surreal-test-support,test-utils -j 1 --keep-going --message-format=json",
+    "profile_ref": "../gov-runtime/host-profile-wp012-phase02-builder.json",
+    "profile_sha256": "916767bbbac5a853b9b8dbd5688d2262cc91bff0d9173fc2431f4dad0bc6b776",
+    "target": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/target",
+    "additional_terminal_limit": 2,
+    "checks_consumed": 2,
+    "counter_policy": "Retain original core38 historical failed launches and all parent per-check histories; this scoped source-change stage adds at most one probe and one changed-input confirmation, no history reset or automatic renewal; root records evidence-based next method/continuation at threshold",
+    "run_conditions": "Pushed stable whole source batch/one scoped affected independent review/current actual source-authority-tool-config bindings/official gameplan/current resource admission; one serial shared-target compiler owner; no simultaneous native/core job",
+    "ordering": "Core is affected predecessor shared by native. When current core check fails repair all emitted related groups before native broad check. When core passes run native diagnostic/original command strategically on stable same inputs; original native seven-argument check remains required",
+    "collector": "Reuse current installed original structured compiler collector only after validating current selected targets/features against actual manifest/config; missing census is NOT_ASSESSED, never assume old485 all targets from plaintext. Metadata not an automatic prerequisite; request exact necessary method if old graph invalid",
+    "preserved": "Memory observation only,180GBcap175GBstop50GiBfloor/j1/Normal scheduling/actual target; original source/runtime/negative acceptance, no linked executable/test/runtime/first-run/auth/grant/provenance/foreign-process/topology action granted",
+    "runtime": "NOT_AUTHORIZED_BY_THIS_DECISION; original MT188 production-main positive/negative selector remains unresolved",
+    "candidate_commit": "139e4b7db83ffc56bf72f59cec3e8ea7c69fecc3",
+    "candidate_tree": "5f987622be9587282567858f1ba4b4618659d133",
+    "source_checkpoint_ref": "MT-175.json#/successor_connected_batch_checkpoint_20261014",
+    "caller_conditions": {
+      "tool": "Existing previously accepted pinned Praxidike collector only; runtime root supplied by existing machine-local caller config, no new installation",
+      "tool_env": {
+        "PYTHONDONTWRITEBYTECODE": "1"
+      },
+      "tool_env_scope": "Only existing Python collector, avoids out-of-artifact bytecode; no product runtime env or host profile mutation",
+      "runner_delta": "Old df7068 profile/10GB reserve replaced by current916767 observational-memory policy; original core argv/target/normal scheduling/exit/input/postbinding/owned closure retained",
+      "core_metadata_reuse": "Original core metadata719packages/rootcore; only retained-input mismatches are native root Cargo.toml/Cargo.lock absent from actual core package graph, while core and20otherretainedinputs unchanged. Validate current actual719 manifests/rootfeatures/selectedtargets before reuse; retain original bytes/hash and exact irrelevant-input disposition. Original485 target/feature/assertion scope unchanged",
+      "no_automatic_metadata_run": true,
+      "original_native_metadata": "Distinct invalidated native graph; no current native graph/census implied by core metadata reuse"
+    }
+  },
+  "source_only_checkpoint_20261014": {
+    "status": "SOURCE_CHECKPOINT_PUSH_VERIFIED",
+    "decision_ref": "/delegated_source_only_shutdown_repair_20261014",
+    "commit": "cc6b5b356e244734f290355c159695e33dbbd4d2",
+    "tree": "5d7b211dcfc7bbe61b96ad6c5799d361c448feca",
+    "parent": "73368c07fe7ab713e1110c85004a0a18882351b5",
+    "only_changed_path": "src/backend/handshake_core/src/main.rs",
+    "source_sha256": "d055e9d7cd30eda6b71b157c780c1d06c3f7b3610ed992c99e276c0f7d18b7a1",
+    "diff_sha256": "aa0094d01dc670944117e6fc6fbde85b3ce64316e7394f38066ca0553424eff4",
+    "comparison_sha256": "24381dac7198c50d42a6c6783261433bc61eecaff7c1f171b02ece2d57fb8be5",
+    "checkpoint_sha256": "12214cad8a6e1ed59db3792f3b70bd108d93595b2b75da2689521c89a28a7843",
+    "independent_reviewer": "01a1323e-c183-77e3-b8ba-b286507e5617",
+    "independent_verification": "SOURCE_CLEAR twoinsertions/byteinverse; actual bool producer and retained-owner exit1 inspected; fresh live remote/clean/solecommittedpath/all7416 reviewed inputs exact after checkpoint",
+    "root_verification": "Actualdiff/currenthash/dirtysolepath opened beforecommit; postcheckpoint canonicalHEAD/tree/remote independently verified",
+    "compiler": "NOT_RUN",
+    "runtime": "NOT_RUN; actualproductionpositive/negativeproof unresolved; no AC3/PASS/parent acceptance",
+    "artifact_lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-188/shutdown-source-repair",
+    "proof_reuse": "Main source changed; old MT184 full485-target proof remains historical and cannot substitute for current MT188 main compilation. Nativecheck is not proof of backendmain."
+  },
+  "delegated_source_only_shutdown_repair_20261014": {
+    "decision_id": "WP012-MT188-SOURCE-REPAIR-20261014",
+    "status": "SOURCE_ONLY_LEASE_RELEASED",
+    "updated_at_utc": "2026-10-14T02:21:25.963309+00:00",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "decision_owner": "01a1323d-2a04-78f1-9430-1589c9cd54ea",
+    "source_owner": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+    "base_candidate": "73368c07fe7ab713e1110c85004a0a18882351b5",
+    "only_write_path": "src/backend/handshake_core/src/main.rs",
+    "recorded_failure": "MT188 AC1/AC2: actualmain shutdown predicate411-415 omits ApiRouteRuntimeDrainReport.swarm_events_flushed; failure diagnostic423-429 omits this result. Realreportfield exists; existingexit1 and owner-retention path preserved.",
+    "remedy": "Add false swarm_events_flushed to existing combined shutdown failure condition and actual boolean to existing structured failure diagnostic only; preserve all other bytes/guards/owner/drop/lease behavior",
+    "source_only_exception": "Under explicit Operator delegation and direct-blocker expansion, root admits this exact original-contract source repair while production-main proof selector/allowance remain unresolved. These unresolved conditions continue to block proof/readiness/acceptance, but no longer block this source-only lease. No test, compiler, runtime, fixture/harness or process grant supplied.",
+    "risk_controls": [
+      "All-success path unchanged when swarm flag true",
+      "Failure follows existing retained-owner exit1; no new lifecycle owner or shutdown order",
+      "Diagnostic boolean only, no account/session/workspace/secret metadata",
+      "One source owner, native compiler not running; allcaptured writers frozen before latercheck"
+    ],
+    "review": "One independent scoped diff/predicate/diagnostic review, then source checkpoint+nonforcepush; compiler and original production positive/negative proof NOT_RUN",
+    "original_proof": "MT188 proof checks and original MT020 AC7/AC8/AC10 residuals unchanged; source checkpoint cannot become PASS",
+    "stop": "Anything outside two named adaptations, main.rs ownership conflict or changed source basis returns to root for an evidenced direct-blocker decision"
+  },
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-188",
+  "created_at_utc": "2026-10-13T00:23:19.329053+00:00",
+  "updated_at_utc": "2026-10-13T00:23:19.329053+00:00",
+  "identity": {
+    "mt_id": "MT-188",
+    "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+    "title": "Consume swarm drain failure in production shutdown",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "closure_unit": {
+    "outcome": "Production shutdown consumes the existing swarm drain failure result without reporting a clean lifecycle.",
+    "requirement_refs": [
+      "packet.json#/operator_workflow_restructure_20261013",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-020.json#/scope/acceptance_criteria/6",
+      "MT-174.json#/scope/allowed_paths",
+      "WP-KERNEL-012-phase-01-source-reconciliation-v1.json#/original_contract_records/263"
+    ],
+    "acceptance_refs": [
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-020.json#/scope/acceptance_criteria/6"
+    ],
+    "materialized_acceptance": [
+      {
+        "id": "WP012-MT-188-AC1",
+        "requirement": "When ApiRouteRuntimeDrainReport.swarm_events_flushed is false, production main follows its existing failure exit path and cannot return clean shutdown success. Preserve every existing connection, runtime, reclaim, ledger and lease safeguard; the all-success path retains its existing behavior."
+      },
+      {
+        "id": "WP012-MT-188-AC2",
+        "requirement": "The existing shutdown failure diagnostic records the actual swarm_events_flushed result without introducing account, session, workspace, grant or sensitive resource metadata."
+      },
+      {
+        "id": "WP012-MT-188-AC3",
+        "requirement": "Independent proof exercises the actual production-main success and swarm-drain failure exit boundary on a frozen pushed candidate. Component drain results, source inspection, compilation and zero-match tests do not substitute."
+      },
+      {
+        "id": "WP012-MT-188-AC4",
+        "requirement": "Preserve original source pins, parent residuals, assertions, historical verdicts and cumulative budgets. This child does not close original MT020 AC8, the remaining AC7 bridge obligations, AC10 union proof, MT174 or whole-WP acceptance."
+      }
+    ]
+  },
+  "model_routing": {
+    "model_tier": null,
+    "tier_reason": "Configured role defaults; bounded existing consumer remediation.",
+    "sized_for_declared_tier": false,
+    "escalate_to_tier_on_blocker": null
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 2,
+    "attempts_counted_per_failing_check_not_per_hypothesis": true,
+    "written_diagnosis_required_before_further_attempts": true,
+    "post_diagnosis_runs": {
+      "probe": 1,
+      "confirm": 1
+    },
+    "exhausted_budget_outcome": "blocked_with_diagnosis",
+    "lineage_refs": [
+      "MT-174.json#/attempt_budget",
+      "packet.json#/operator_workflow_restructure_20261013/budget_binding",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-020.json"
+    ],
+    "new_counter_or_allowance_created": false,
+    "authority_precedence": "Numeric fields retain parent policy only. Original per-check histories and explicit scoped grants determine allowance; child identity creates none.",
+    "remaining_allowance_source_ref": "packet.json#/operator_workflow_restructure_20261013/budget_binding",
+    "remaining_allowance_status": "UNVERIFIED",
+    "historical_failed_core_launches_retained": 38
+  },
+  "execution": {
+    "lane": "KERNEL_BUILDER_FOLDED_NO_ACP",
+    "foreground_or_interactive_tools_forbidden": true,
+    "depends_on": [],
+    "module_ref": "src/backend/handshake_core/src",
+    "allowed_write_paths": [
+      "src/backend/handshake_core/src/main.rs"
+    ],
+    "forbidden_write_paths": [
+      ".GOV/**",
+      "src/backend/handshake_core/src/api/mod.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/events.rs",
+      "src/backend/handshake_core/tests/**",
+      "src/frontend/**",
+      "manifests and lockfiles",
+      "schema sources and historical migration literals",
+      "all other product paths"
+    ],
+    "stop_conditions": [
+      "No explicit MT188 source lease",
+      "Overlapping main.rs writer or captured authority conflict",
+      "Candidate, source pin, configuration or resource binding drift",
+      "Applicable retained attempt allowance absent or exhausted",
+      "Remedy requires broader source, API, schema or product authority",
+      "Runtime proof method remains unresolved",
+      "Proof requires an unauthorized harness, fixture, launch, store or process action"
+    ],
+    "write_authority": "Contract materialization alone grants no implementation or execution lease."
+  },
+  "proof": {
+    "parent_proof_refs": [
+      "MT-174.json#/proof",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-020.json#/scope/proof_commands",
+      "WP-KERNEL-012-phase-01-source-reconciliation-v1.json#/combined_acceptance_binding"
+    ],
+    "checks": [
+      {
+        "check_id": "WP012-MT-188-COMPILE",
+        "claim_refs": [
+          "WP012-MT-188-AC1",
+          "WP012-MT-188-AC2"
+        ],
+        "executor_role": "KERNEL_BUILDER",
+        "command_or_method": "cargo check --locked --manifest-path src/backend/handshake_core/Cargo.toml --lib --tests --features app-runtime,surreal-test-support,test-utils -j 1 --keep-going --message-format=json",
+        "expected": "Affected required compilation succeeds with unchanged input digest. Compilation is not shutdown runtime acceptance.",
+        "timeout_seconds": null,
+        "on_timeout": "Retain actual result and owned-resource observations; no foreign process action or whole-run timeout.",
+        "evidence_required": [
+          "Frozen pushed candidate commit and tree",
+          "Relevant source input digest before and after",
+          "Original command, features, target, profile and toolchain",
+          "Actual terminal exit and complete bound compiler evidence",
+          "Applicable inherited allowance or justified valid proof reuse"
+        ],
+        "configuration_binding_ref": "MT-174.json#/operator_decision_20261010_phase02_builder_output_grant",
+        "run_authority": "UNRELEASED; no new compiler allowance. Reuse valid relevant-input proof or obtain the existing owner's permitted affected check."
+      },
+      {
+        "check_id": "WP012-MT-188-PRODUCTION-SHUTDOWN",
+        "claim_refs": [
+          "WP012-MT-188-AC1",
+          "WP012-MT-188-AC2",
+          "WP012-MT-188-AC3"
+        ],
+        "executor_role": "INTEGRATION_VALIDATOR",
+        "command_or_method": "UNRESOLVED_EXISTING_PRODUCTION_MAIN_NEGATIVE_EXIT_SELECTOR",
+        "expected": "Actual production main with otherwise-successful connection/runtime/reclaim/ledger drains and swarm_events_flushed=false exits 1 without clean lifecycle success; all successful drains preserve the existing successful exit. Failure diagnostics contain the actual drain result.",
+        "timeout_seconds": null,
+        "on_timeout": "No result inferred from timeout or liveness; preserve original process authority and evidence.",
+        "evidence_required": [
+          "Authorized exact executable method and configuration recorded before execution",
+          "Frozen pushed candidate commit and tree",
+          "Actual executable identity and owned process identity",
+          "Observed swarm drain failure and remaining shutdown outcomes",
+          "Actual numeric exit and scoped diagnostic evidence",
+          "Independent positive and negative boundary observation",
+          "Retained per-check history and applicable allowance"
+        ],
+        "selector_status": "UNRESOLVED",
+        "execution_authorized": false,
+        "blocker": "No inspected existing selector exercises the actual production-main negative exit. Resolve an existing approved method or separately authorize a bounded proof entrypoint before readiness; this contract grants neither."
+      }
+    ],
+    "independent_review_required": true,
+    "duplicate_parent_proof_forbidden": true,
+    "configuration_binding_ref": "MT-174.json#/operator_decision_20261010_phase02_builder_output_grant",
+    "proof_reuse": "Reuse only independently valid observations whose relevant source, dependencies, configuration and asserted behavior remain unchanged. MT183/184 PASS does not automatically prove changed main.rs.",
+    "supporting_existing_evidence": {
+      "owner_mt": "MT-172",
+      "source_path": "src/backend/handshake_core/tests/swarm_outbox_surreal_tests.rs",
+      "required_features": [
+        "test-utils",
+        "surreal-test-support"
+      ],
+      "inspected_cases": [
+        "bridge_terminal_events_are_acknowledged_ordered_and_drained_without_loss",
+        "pending_terminal_event_recovers_through_new_store_and_healthy_shutdown_drain",
+        "closed_storage_rejection_fences_terminal_producer_and_fails_shutdown_ack",
+        "shutdown_timeout_is_negative_then_recovers_without_terminal_loss",
+        "bounded_non_terminal_capacity_reports_drop_and_preserves_accepted_order",
+        "each_scope_mismatch_and_incomplete_scope_fail_closed_without_mutation",
+        "identical_retry_is_stable_conflict_and_capacity_preserve_order_and_receipts"
+      ],
+      "new_execution_authorized": false,
+      "limitations": [
+        "These cases do not invoke production main's exit decision.",
+        "The inspected recovery cases construct new outbox wrappers over the same open storage clone; they do not establish actual embedded-store close/reopen.",
+        "Original MT020 proof_commands/7 names a lib-test filter absent from inspected events.rs. Preserve that history and reconcile routing in its existing owner; never credit zero matching tests.",
+        "process_ledger_writer_tests.rs production_process_ledger_writers_are_retained_until_shutdown inspects API/factory source and does not prove production-main exit."
+      ]
+    }
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-188.json",
+    "microtask_projection": null,
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": null,
+    "status": "ON_DEMAND_ONLY",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "BLOCKED",
+    "depends_on": [],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": null,
+    "claimed_by": null,
+    "completed_by": null,
+    "blocked_on": [
+      "Explicit MT188 main.rs-only implementation lease is unreleased.",
+      "Independent actual production-main positive/negative exit proof selector and configuration are unresolved.",
+      "Applicable remaining per-check allowance is unverified."
+    ],
+    "next_actor": "Coordinator materializes after captured native authority closes; resolve exact source/proof ownership and retained allowance before releasing execution."
+  },
+  "scope": {
+    "summary": "Repair only the existing production shutdown consumer of swarm_events_flushed and its truthful failure diagnostic.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/main.rs"
+    ],
+    "forbidden_paths": [
+      "All product paths outside main.rs",
+      "New tests, harnesses, scripts or launchers",
+      "New stores, identities, grants or startup envelopes",
+      "Schema, manifest, dependency or source-pin changes",
+      "Kernel governance writes by the product implementer"
+    ],
+    "acceptance_criteria": [
+      {
+        "id": "WP012-MT-188-AC1",
+        "requirement": "Consume false swarm_events_flushed through the existing production shutdown failure path; preserve every existing guard and successful path."
+      },
+      {
+        "id": "WP012-MT-188-AC2",
+        "requirement": "Include the actual swarm_events_flushed result in the existing failure diagnostic without sensitive metadata."
+      },
+      {
+        "id": "WP012-MT-188-AC3",
+        "requirement": "Independent actual production-main positive and negative exit proof is required; the currently unresolved selector prevents readiness."
+      },
+      {
+        "id": "WP012-MT-188-AC4",
+        "requirement": "Preserve original requirements, source pins, residuals, historical verdicts and cumulative budgets; no parent or whole-WP acceptance transfer."
+      }
+    ],
+    "proof_targets": [
+      "WP012-MT-188-COMPILE",
+      "WP012-MT-188-PRODUCTION-SHUTDOWN"
+    ],
+    "non_goals": [
+      "Implement or re-prove all DurableSwarmFrDrain internals",
+      "Close original MT020 AC8 embedded-store restart acceptance",
+      "Close original MT020 AC10 union acceptance",
+      "Change native deployment or authenticated admission",
+      "Create a proof harness or substitute fixture",
+      "Grant compiler or runtime attempts"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": [
+      "Existing truthful shutdown failure diagnostic"
+    ],
+    "not_applicable_reason": "This child changes an existing backend shutdown predicate and diagnostic, not a GUI surface. Original parent GUI obligations remain required.",
+    "inherited_parent_obligation_ref": "MT-174.json#/gui_obligation"
+  },
+  "user_manual_obligation": {
+    "required": false,
+    "same_change_update_required": false,
+    "manual_version_bump_required": false,
+    "target_entries": [],
+    "expected_evidence": [],
+    "not_applicable_reason": "Restores an original shutdown invariant without introducing a new workflow. Original parent manual obligations remain required; any wider behavior change exceeds this write scope.",
+    "inherited_parent_obligation_ref": "MT-174.json#/user_manual_obligation"
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": false,
+    "resources_touched": [
+      "Existing shutdown drain outcome"
+    ],
+    "identity_and_scope_contexts": [
+      "Original immutable exact-scope authority remains unchanged"
+    ],
+    "enforcement_boundaries": [
+      "Existing process/runtime/ledger shutdown guards"
+    ],
+    "same_project_private_resource_cases": [],
+    "cross_account_negative_cases": [],
+    "derived_resource_non_widening_cases": [],
+    "revocation_and_context_switch_cases": [],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": [
+      "Diagnostic adds only the existing boolean drain outcome"
+    ],
+    "expected_evidence": [
+      "Scoped diff contains no new identity, grant or sensitive resource diagnostic fields"
+    ],
+    "not_applicable_reason": "The bounded boolean consumer repair changes no authorization, resource visibility or scope semantics. Original MT020 and MT174 privacy obligations remain required.",
+    "inherited_parent_obligation_ref": "MT-174.json#/resource_privacy_obligation"
+  },
+  "hbr_obligations": [
+    "Retain MT174 and original MT020 applicable pinned HBR obligations without blanket reassessment or repin.",
+    "This child delegates only the existing AC7 production shutdown consumer and diagnostic."
+  ],
+  "hbr_int_009_tier_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "model_reports": [
+      "observations",
+      "blockers",
+      "attempt_diagnoses",
+      "operator_decision_requests",
+      "residual_risks",
+      "proposed_followups"
+    ],
+    "worker_final_status": "ready_for_validation_or_blocked",
+    "parent_handoff_ref": "MT-174.json#/handoff"
+  },
+  "red_team": {
+    "required": false,
+    "profile": "RECORDED_REMEDIATION",
+    "risks": [
+      "Component drain proof is credited as actual production-main exit proof.",
+      "New child identity resets attempt history.",
+      "Shutdown repair silently weakens another guard or closes unrelated restart acceptance."
+    ],
+    "minimum_controls": [
+      "Actual production-main proof selector must be resolved before readiness.",
+      "Retain parent/source budgets and explicit execution leases.",
+      "Main.rs-only write scope and unchanged original guards.",
+      "AC8 and aggregate acceptance remain explicit residuals."
+    ],
+    "not_applicable_reason": "Recorded existing consumer remediation; no new refinement, research or separate red-team gate is introduced."
+  },
+  "obligation_binding": {
+    "parent_ref": "MT-174.json",
+    "required_original_obligations_unchanged": true,
+    "change_to_proof_mapping": "Bind changed main.rs behavior to affected compiler evidence and independent production-main exit proof. Reuse unchanged original evidence only with valid relevant-input reconciliation.",
+    "source_obligation_ref": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-020.json#/scope/acceptance_criteria/6",
+    "distinct_residuals": [
+      {
+        "source_ref": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-020.json#/scope/acceptance_criteria/7",
+        "disposition": "AC8 remains required in original source/consuming parent ownership: actual same embedded-store close/reopen, pending-once delivery, canonical receipt retention and foreign-scope isolation. MT188 does not close it."
+      },
+      {
+        "source_ref": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-020.json#/scope/acceptance_criteria/6",
+        "disposition": "All AC7 bridge admission, queue, outbox retry, bounded join, timeout, persistence, fencing and drop obligations remain with their original owners; this child repairs only the production-main consumer."
+      },
+      {
+        "source_ref": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-020.json#/scope/acceptance_criteria/9",
+        "disposition": "AC10 original frozen union proof remains required; this child supplies no aggregate PASS."
+      }
+    ]
+  },
+  "parent_binding": {
+    "parent_mt": "MT-174",
+    "authority_ref": "packet.json#/operator_workflow_restructure_20261013",
+    "delegates_only_current_outcome": true,
+    "original_residual_scope_remains_parent": true,
+    "parent_is_not_execution_predecessor": true
+  },
+  "spec_basis": {
+    "kind": "Operator-authorized bounded remediation of preserved original acceptance",
+    "new_product_requirements": false,
+    "original_requirement_ref": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-020.json#/scope/acceptance_criteria/6",
+    "retained_source_spec_refs": [
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json#/scope/spec_anchors",
+      ".GOV/spec/master-spec-v02.197/spec-modules/04-llm-infrastructure.md#4.3.9",
+      ".GOV/spec/master-spec-v02.197/spec-modules/04-llm-infrastructure.md#4.6"
+    ],
+    "current_context_ref": ".GOV/spec/master-spec-v02.216/spec-modules/04-llm-infrastructure.md",
+    "current_context_observed_lines": [
+      1628,
+      1638
+    ],
+    "pin_policy": "Retain WP012 v02.206 plus only its explicitly adopted amendments and original source-contract pins. Current recovery/replay clauses are context, not a blanket repin or new shutdown requirement."
+  },
+  "source_binding": {
+    "source_wp": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+    "source_revision": "98efa4d019c4f670186cd3ec1f048ece3adf0dcd",
+    "source_path": "src/backend/handshake_core/src/main.rs",
+    "source_blob": "b42ca1b206bf434b78af67f83fdb5b81bd961510",
+    "source_map_ref": "WP-KERNEL-012-phase-01-source-reconciliation-v1.json#/import_path_ownership/1/entries/216",
+    "source_contract_record_ref": "WP-KERNEL-012-phase-01-source-reconciliation-v1.json#/original_contract_records/263",
+    "product_worktree": "../wtc-WP-KERNEL-012",
+    "product_branch": "feat/WP-KERNEL-012",
+    "inspected_candidate": "37f452a6b3b07c0ffd91ab49c3f99632c4104bb8",
+    "finding": "Pinned source consumes !api_drain_report.swarm_events_flushed; inspected candidate main.rs failure predicate omits it.",
+    "read_only_dependencies": [
+      {
+        "path": "src/backend/handshake_core/src/api/mod.rs",
+        "observed_lines": [
+          25,
+          45
+        ],
+        "role": "Produces ApiRouteRuntimeDrainReport.swarm_events_flushed."
+      },
+      {
+        "path": "src/backend/handshake_core/src/swarm_orchestration/events.rs",
+        "observed_lines": [
+          543,
+          560
+        ],
+        "owner_mt": "MT-172",
+        "source_map_ref": "WP-KERNEL-012-phase-01-source-reconciliation-v1.json#/import_path_ownership/1/entries/361",
+        "role": "Produces bounded drain result; no writes authorized here."
+      }
+    ]
+  },
+  "authoring_authority": {
+    "recorded_ref": "packet.json#/operator_workflow_restructure_20261013/operator_authority",
+    "operator_quote": "you can create extra mt, you can create extra chats with extra tams to explore code, mt, master spec  etc., you can change workflow",
+    "preservation_rule_refs": [
+      "WP012-WF-002",
+      "WP012-WF-003",
+      "WP012-WF-016",
+      "WP012-WF-017",
+      "WP012-WF-020"
+    ],
+    "delegating_coordinator": "01a1323d-2a04-78f1-9430-1589c9cd54ea",
+    "latest_delegation_quote": "Root will materialize after native capturedauthority closes; no implementationlease.",
+    "proposal_only": false,
+    "implementation_lease_granted": false,
+    "proof_execution_granted": false,
+    "new_attempt_allowance_granted": false
+  },
+  "source_lease_ref": null,
+  "contract_materialization": {
+    "authority_ref": "packet.json#/operator_workflow_restructure_20261013/operator_authority",
+    "proposal_sha256": "711f05250474932e8fce1b1c980d129987dfa970eaddf9890c5cf213ee61e7a5",
+    "materialized_by": "01a1323d-2a04-78f1-9430-1589c9cd54ea",
+    "implementation_lease_granted": false,
+    "proof_execution_granted": false,
+    "new_attempt_allowance_granted": false
+  },
+  "successor_core_check2_result_20261014": {
+    "status": "TERMINAL_FREEZE_CLOSED_FAILED",
+    "candidate_commit": "139e4b7db83ffc56bf72f59cec3e8ea7c69fecc3",
+    "candidate_tree": "5f987622be9587282567858f1ba4b4618659d133",
+    "outer_session": 92218,
+    "outer_exit": 101,
+    "cargo_exit": 101,
+    "wrapper_exit": 101,
+    "artifact_lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt188-successor-core-check02",
+    "terminal_sha256": "4afd9a624b4177ab88b14fc7a42688d4677774c6aa4838967d88e318e95bdca7",
+    "retained_hashes": {
+      "compile-result.json": "8e3c3f5f3a0957e79aa71a1214b0b1a4d5df462239726a3204cfc8ffd66094cf",
+      "compile-evidence.json": "3496be39c5a9be807d297ccf3300705d64c6e7c8987d9979b8e65da682fa8877",
+      "compile.stdout.log": "9f9bce7587519dc0834aa23d12563f5df208428ff27f12576ac11d59735dd5fb",
+      "compile.stderr.log": "fb75f217b0a056d8136e6933280e34c8c199e1345ac27b7fb93b2430feb757b6",
+      "compile-candidate.json": "42e01081340f9d0570d50aa8808d0152ef09d8d4620de675e79f264779dfdd58",
+      "compile-post-candidate.json": "7e01a5c5a1b0c698a51ba221f7719b87dddf7b22dd162716fee5ce39c5af9d53",
+      "compile-post-binding.json": "9c7ff15cfe4255a80e5fed07b962ba68d019a9f6f7f039e56192cf1c7159bfeb",
+      "owned-closure.json": "3da889e1d54797954cf46b324d68f9c0b14bd3436b6cc9e2b4b9f9895ce859b4",
+      "owned-allocation-event-query.json": "3b22ff55c404a53cf7d7935c8d301a3cc16025dd352d13a4dab7810f7f659898"
+    },
+    "input_digest": "39e21615f6c3d535887b30dfdb79b9b9503163c768b6588ae3e95a08d1a8bcac",
+    "input_observation": "All7416 source inputs,23 configuration binding categories,11 authority/tool bindings unchanged before/after",
+    "actual_diagnostics": [
+      "normal library allocation of2096640 bytes failed",
+      "library-test allocation of155648 bytes failed",
+      "Both compiler processes aborted0xc0000409; Windows label is not a stack-overflow diagnosis"
+    ],
+    "structured_records": 1019,
+    "structured_errors": 0,
+    "malformed": 0,
+    "unknown": 0,
+    "dropped": 0,
+    "selected_targets": 485,
+    "observed_targets": 0,
+    "not_observed_targets": 485,
+    "source_or_compiler_correctness": "UNPROVEN; zero structured errors does not override allocator aborts",
+    "owned_closure": {
+      "captured_utc": "2026-10-14T13:11:46.7836538Z",
+      "owned_pids": [
+        51128,
+        51660,
+        51024,
+        36520,
+        36700,
+        37240,
+        21940,
+        22152
+      ],
+      "remaining_owned_processes": [],
+      "owned_closed": true,
+      "outer_session": 92218,
+      "outer_exit": 101
+    },
+    "independent_validator": "01a139f6-ce6a-7b50-a058-dff3732ea4a2",
+    "independent_verdict": "TERMINAL_FREEZE_CLOSED_FAILED",
+    "resource_event": "System Resource-Exhaustion-Detector event2004 record21110 at2026-10-14T13:00:04Z identifies actual owned rustc37240; system commit68114677760/limit68191776768. Not an exact allocation-instant measurement.",
+    "core_stage_consumed": 2,
+    "core_stage_limit": 2,
+    "cumulative_core_failures": 40,
+    "native_stage_consumed": 1,
+    "native_stage_limit": 3,
+    "cumulative_native_failures": 13,
+    "runtime_acceptance": "NOT_RUN"
+  },
+  "operator_changed_host_retry_20261014": {
+    "decision_id": "WP012-CORE-CHANGED-HOST-RETRY-20261014",
+    "status": "CONSUMED_ONE_TERMINAL_RETRY_SUCCEEDED",
+    "operator_quote": "trynagain i closed memory hungry chrome",
+    "recorded_at_utc": "2026-10-14T13:14:59.881297+00:00",
+    "decision_owner": "01a139f3-b98c-7b61-b541-960ec3e048de",
+    "authority": "Explicit live Operator retry instruction; packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "failure_ref": "MT-188.json#/successor_core_check2_result_20261014",
+    "changed_input": "Operator reports Chrome closed; fresh host observation after failed-run closure shows committed44064907264/limit68191776768 and available2100MB at2026-10-14T13:10:58.6037735Z. Do not attribute the entire change to Chrome or claim an exact failure-time sample.",
+    "candidate_commit": "139e4b7db83ffc56bf72f59cec3e8ea7c69fecc3",
+    "candidate_tree": "5f987622be9587282567858f1ba4b4618659d133",
+    "command": "cargo check --locked --manifest-path src/backend/handshake_core/Cargo.toml --lib --tests --features app-runtime,surreal-test-support,test-utils -j 1 --keep-going --message-format=json",
+    "profile_ref": "../gov-runtime/host-profile-wp012-phase02-builder.json",
+    "profile_sha256": "916767bbbac5a853b9b8dbd5688d2262cc91bff0d9173fc2431f4dad0bc6b776",
+    "target": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/target",
+    "additional_terminal_limit": 1,
+    "checks_consumed": 1,
+    "prior_core_stage_consumed": 2,
+    "prior_core_stage_limit": 2,
+    "cumulative_core_failures_before_retry": 40,
+    "run_conditions": "Fresh current source/authority/tool/caller/resource bindings; unchanged original485-target metadata/features; official gameplan gates; serial sole primary integrator compiler lease; full actual diagnostics and postbinding/owned closure with independent review",
+    "gameplan_cause": "GP-564 records allocator abort/changed-host retry. Controller rejected overlong action and unsupported initial verb before writing; corrected compliant action accepted, no compiler launched by rejected attempts.",
+    "preserved": "Same source/argv/profile/target/j1/Normal scheduling/diskcap/floor and all original acceptance. Memory observation only; no new memory floor, profile/pagefile changes, foreign process action, fake auth, runtime provisioning, pin reset or automatic further retry.",
+    "runtime": "NOT_AUTHORIZED_BY_THIS_RETRY; original runtime/auth/GUI/recovery/publication/negative acceptance remains open",
+    "result_ref": "MT-188.json#/swarm_core_retry_success_20261014"
+  },
+  "swarm_core_retry_success_20261014": {
+    "disposition": "TERMINAL_FREEZE_CLOSED_SUCCEEDED",
+    "independent_validator_chat": "01a139f6-ce6a-7b50-a058-dff3732ea4a2",
+    "original_outer_session": 12473,
+    "original_outer_execution": "exec-0498afc6-6e93-474f-b41f-c40d01246cab",
+    "exit_code": 0,
+    "expected_targets": 485,
+    "missing_targets": 0,
+    "compiler_errors": 0,
+    "warnings": 1639,
+    "source_inputs": 7416,
+    "metadata_inputs": 23,
+    "authority_inputs": 11,
+    "tool_inputs": 3,
+    "ephemeral_owned_identities_closed": 18,
+    "persistent_cache_retained": 4820,
+    "candidate_commit": "139e4b7db83ffc56bf72f59cec3e8ea7c69fecc3",
+    "candidate_tree": "5f987622be9587282567858f1ba4b4618659d133",
+    "evidence_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt188-core-changed-host-retry01/compile-evidence.json",
+    "evidence_sha256": "9c1db3c7a723d0a042cc6752d22f2a9cf5b520489b424fa8e240fa1423e9deda",
+    "postbinding_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt188-core-changed-host-retry01/compile-post-binding.json",
+    "runtime_acceptance": "NOT_RUN",
+    "whole_wp_acceptance": "NOT_ASSESSED"
+  },
+  "swarm_source_admission_ref": "packet.json#/swarm_production_20261014"
+}
