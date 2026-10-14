@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 674
+generation: 675
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -569,3 +569,4 @@ steps:
 - {id: GP-548, role: builder, at: before_dispatch, do: verify memory observations are telemetry only; disk cap and sole compiler ownership remain enforced, check: {type: confirm}, source: 'Operator20261014: remove memory reserve; legacy10GB admission and refusal superseded', state: active}
 - {id: GP-549, role: builder, at: before_dispatch, do: verify preparation assertions consume current canonical stage fields rather than copied status labels, check: {type: confirm}, source: 'infra: transient stage prep expected old approved status after explicit memory policy amendment', state: active}
 - {id: GP-550, role: builder, at: before_round, do: verify restored native Windows APIs resolve against enabled locked windows-sys feature modules, check: {type: confirm}, source: 'fail: stagecheck1 E0432 ProcessStatus module gated behind missingWin32_System_ProcessStatus feature', state: active}
+- {id: GP-551, role: builder, at: before_dispatch, do: 'verify grouped-note preflight syntax, selected-step coverage and evidence references before positive gates', check: {type: confirm}, source: 'infra: grouped prep caught syntax typo, omittedGP534 and stale client evidence filename before compiler', state: active}
