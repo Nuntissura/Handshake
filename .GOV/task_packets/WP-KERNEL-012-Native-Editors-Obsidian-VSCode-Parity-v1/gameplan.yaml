@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: wp
 assignment: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
 parent: null
-generation: 680
+generation: 681
 confirm_binding:
   ref: product_worktree_dir
 refs:
@@ -575,3 +575,4 @@ steps:
 - {id: GP-554, role: builder, at: before_dispatch, do: verify actual patch postconditions include admission predicates and exactly-once lifecycle invalidation, check: {type: confirm}, source: 'infra: CW001 silent replacement left host predicate and redock unchanged while close increment doubled', state: active}
 - {id: GP-555, role: builder, at: before_dispatch, do: verify restored cloud DTO type uses resolve through actual module imports and public producers, check: {type: confirm}, source: 'fail: native stage02 check3 ten errors from five omitted settings DTO imports after source review', state: active}
 - {id: GP-556, role: builder, at: before_dispatch, do: verify receipt getter callers match mutable receiver and expiration effects without lock-order changes, check: {type: confirm}, source: 'fail: stage03 check1 E0596 server receipt guard immutable after source receiver review', state: active}
+- {id: GP-557, role: builder, at: before_dispatch, do: verify numeric resource observations are retained before refusal and unavailable values are classified explicitly, check: {type: confirm}, source: 'infra: headroom refusal had no retained reading; fresh C free370GB passes; first cause unverified', state: active}

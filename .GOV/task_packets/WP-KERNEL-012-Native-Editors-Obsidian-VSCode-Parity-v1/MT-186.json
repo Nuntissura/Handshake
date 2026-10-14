@@ -1,4 +1,14 @@
 {
+  "stage03_check2_resource_observation_incident_20261014": {
+    "status": "FIRST_REFUSAL_RETAINED_FRESH_NUMERIC_ADMISSION_PASSED",
+    "candidate_commit": "d57f6707359d39f0ad652f8d5a7ab475f7dbebb4",
+    "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-stage03-check02",
+    "reported_refusal": "inspect-resources.ps1 DISK_HEADROOM_BELOW_50GIB before Cargo; no resource-preparation.json written because guard threw before receipt. Earlier claim of opened resource file corrected.",
+    "first_failure_cause": "UNVERIFIED: first GetVolume/free-space observation not retained; do not infer actual disk shortage or a fixed root cause.",
+    "fresh_observations": "Root independentDriveInfo C available370243956736; primary freshconfiguredtarget GetVolume C370243956736 and instrumented immediate/pre-floor C370243944448, physicaldisk0. All exceed unchanged53687091200floor. Fresh09:03:59Z resourceadmission target36917154366, competing0/cache4820normal32/5/2. No deletion/processstop/profilerenewal.",
+    "bounded_remedy": "Existing external probe captures exacttarget/volume count/type/numeric free-space/physicaldisk and independentDriveInfo before refusal; missing/non-numeric observations stop explicitly unavailable rather than null-as-zero. Preserve same50GiBfloor/175stop180cap/profile/j1/normal/memorytelemetry. Retain originalhelperbytes/failedattempt and changedprobe delta for affected independent preflight review, not a fullaudit or newhelper.",
+    "counter_disposition": "No compiler launched or allowance consumed; stage03one/3 cumulative11 unchanged. Fresh exactbinding after currentkernel update required before conditionalrelease."
+  },
   "delegated_stage03_check1_result_20261014": {
     "status": "FAIL101_INDEPENDENT_TERMINAL_FREEZE_CLOSED",
     "attempt_id": "2ea802f0ecba42ea9e7604977444375f",
