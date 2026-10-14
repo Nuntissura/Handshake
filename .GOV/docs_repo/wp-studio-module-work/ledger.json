@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-14T22:30:59Z",
+ "updated_at": "2026-10-14T22:31:48Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -4604,12 +4604,17 @@
   {
    "lane_id": "SMB-ACCORD-COMPOSITION-PREFIX",
    "crate": "hsk-studio-accord",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-folio-comp-20261015",
-   "commits": [],
+   "commits": [
+    "63fce7a",
+    "8575cd7",
+    "9268bca"
+   ],
    "verdicts": [],
-   "note": "register a composition id prefix in accord's closed prefix list; folio composition_id uses it"
+   "note": "register a composition id prefix in accord's closed prefix list; folio composition_id uses it",
+   "lane_file": "builders/lanes/hsk-studio-accord-composition-prefix.json"
   },
   {
    "lane_id": "SMB-COMPOSITE-COMPOSITION-ADAPTER",
@@ -4634,9 +4639,9 @@
   {
    "lane_id": "SMB-FOLIO-VECTOR-IMAGE-PORT",
    "crate": "hsk-studio-folio",
-   "phase": "queued",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-folio2-20261015",
    "commits": [],
    "verdicts": [],
    "note": "vector sources typed `vector` cannot feed groups; add image-typed out port for vector sources (like G1 for text) so vector layers composite inside groups"
@@ -4644,9 +4649,9 @@
   {
    "lane_id": "SMB-FOLIO-PARENT-PAGES",
    "crate": "hsk-studio-folio",
-   "phase": "queued",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-folio2-20261015",
    "commits": [],
    "verdicts": [],
    "note": "folio record for parent/master pages: applied_parent per page, override_list, parent_page_items (layout ParentSet exists, not persistable)"
