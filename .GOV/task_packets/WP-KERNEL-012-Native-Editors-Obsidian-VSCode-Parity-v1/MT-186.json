@@ -1011,5 +1011,64 @@
     "root_fresh_canonical_reread": "All7416 product files matched fresh hashes; actual kernelad1/productf724/clean and owned wrapper/Cargo absent",
     "runtime": "NOT_RUN",
     "acceptance": "NOT_ASSESSED"
+  },
+  "swarm_changed_source_compile_admission_20261014": {
+    "decision_id": "WP012-SWARM-CHANGED-SOURCE-COMPILER-20261014-06",
+    "status": "PREPARATION_RELEASED_LAUNCH_CONDITIONAL",
+    "recorded_at_utc": "2026-10-14T15:45:07.325853+00:00",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "decision_owner_chat": "01a13ab5-bfe4-74b1-8fc3-64e691a76827",
+    "compiler_owner_chat": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+    "independent_validator_chat": "01a139f6-ce6a-7b50-a058-dff3732ea4a2",
+    "candidate_commit": "575997886285ede0442cc8b93bb69eed57d94e08",
+    "candidate_tree": "d09d95190432025bcafd5a8593c74eec7dbd401a",
+    "source_checkpoint_ref": "MT-174.json#/swarm_p1_source_checkpoint_20261014",
+    "changed_input": "Coherent pushed swarm integration aaadc plus exact10-file remediation57599788; prior core139e compiler proof is invalid for changed source. Native normal core dependency invalidates native graph; no runtime outcome is inferred.",
+    "source_review": "SAME independent validator reviews only actual10-file remediation delta against its original three P1 findings; source review must have no blocking finding before compiler. No second broad review or team-vote gate.",
+    "conditions": [
+      "Stable pushed product candidate and all owners quiescent; captured full product source/config/tool/current kernel authority freeze through terminal postbinding and owned process closure",
+      "Current actual selected graph/features/targets, tool hashes and source bindings; original exit and whole-target diagnostic/missing-target accounting",
+      "Official builder gameplan and numeric resource admission; same profile916767bb, warm target,180GBcap175GBstop50GiBfloor,j1,Normal scheduling,memory observation only",
+      "One affected independent review of changed runner/config/reuse/caller release and exact frozen outer payload; no fresh Operator approval inside recorded finite scope",
+      "One serial shared-target compiler owner; core affected predecessor before native; batch all actual related failure groups before changed confirmation"
+    ],
+    "kernel_publication": "Canonical local typed contracts and captured raw authority are valid; no mandatory remote equality predecessor verified. Separate non-force kernel publication/reconciliation protection remains; pending Git question grants no merge/reset/force authority. Do not change captured kernel inputs or HEAD during a run.",
+    "runtime": "NOT_AUTHORIZED; original full runtime/auth/persistence/GUI/recovery/shutdown/CKC/WP1/interconnection/HBR and independent acceptance remain open; protected ADOPT mapping remains held pending explicit spec approval.",
+    "stage_ref": "MT-186.json#/delegated_native_stage04_20261014",
+    "stage_terminal_checks_at_record": 1,
+    "stage_limit_unchanged": 3,
+    "remaining_terminal_checks_at_record": 2,
+    "next_command_mode": "ORIGINAL_EXACT_SEVEN_ARGV",
+    "next_argv": [
+      "check",
+      "--locked",
+      "--manifest-path",
+      "src/frontend/handshake_native/Cargo.toml",
+      "--tests",
+      "-j",
+      "1"
+    ],
+    "original_command": "cargo check --locked --manifest-path src/frontend/handshake_native/Cargo.toml --tests -j 1",
+    "history": "Retain13 historical native failures and all earlier stage counters. Diagnostic0 on previous source did not prove original7argv; new current source requires actual exact7argv numeric0 plus postbinding/owned closure and independent confirmation. This amendment creates no new native compiler slots.",
+    "metadata_preparation": {
+      "status": "EXACT_ONCE_PREPARATION_RELEASED_AFTER_SOURCE_QUIESCENCE",
+      "argv": [
+        "metadata",
+        "--locked",
+        "--offline",
+        "--format-version",
+        "1",
+        "--manifest-path",
+        "src/frontend/handshake_native/Cargo.toml"
+      ],
+      "cwd": "../wtc-WP-KERNEL-012",
+      "additional_capture_limit": 1,
+      "captures_consumed": 0,
+      "output_root": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02",
+      "reason": "Native manifest now has normal+dev core dependency; retained955-package/205-target metadata is expressly historical invalidated and not current. Renew real normal/dev graph/resolved features/required-feature exclusions.",
+      "constraints": "Original root configuration/toolchain/default resolution; no all-features,no no-deps,no platform/feature/profile override,no lock/source mutation,no build/test/runtime. Capture genuine resolver stdout/stderr/numeric exit and current before/after source/config/tool bindings. --locked refusal is an exact blocker, never implicit lock-write permission. Official gate/resource/tool ownership applies.",
+      "source_review_order": "Metadata preparation may run on stable quiescent pushed source while same IV source delta review proceeds; compiler waits for both review and actual admission."
+    },
+    "specific_supersession": "Only stage04 limits prohibition on metadata is superseded for this exact one locked resolver capture; stage04 next diagnostic selector is superseded by original7argv. All other conditions, budgets and scope remain unchanged."
   }
 }

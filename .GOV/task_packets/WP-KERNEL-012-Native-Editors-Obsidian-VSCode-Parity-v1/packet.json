@@ -7065,5 +7065,52 @@
     "source_only": true,
     "next_action": "Implement prepared controller repair now alongside existing schema/core remediation; preserve checkpoint/history and submit changed delta to same reviewer before strategic compilation",
     "failed_record_attempt": "Initial path assertion resolved relative parent incorrectly and stopped before any record write; corrected absolute repo-root path check succeeded before this release"
+  },
+  "swarm_workspace_invalidation_helper_20261014": {
+    "decision_id": "WP012-SWARM-WORKSPACE-INVALIDATION-20261014-05",
+    "status": "SOURCE_IMPLEMENTATION_RELEASED",
+    "recorded_at_utc": "2026-10-14T15:35:55.955448+00:00",
+    "parent_ref": "packet.json#/swarm_p1_canonical_publication_repair_20261014",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "owner_chat": "01a13acf-a8bf-7ae1-92f3-9c5fffc5d385",
+    "worker": "/root/activation_interface",
+    "path": "src/backend/handshake_core/src/swarm_orchestration/resource_scope.rs",
+    "ownership_agreement": "Primary renews same mediator helper as sole registry writer; account controller worker remains separate",
+    "failure": "Canonical workspace deletion consumers need to invalidate every registered exact workspace tuple after observed commit; only grant/session/account invalidators exist",
+    "deliverable": "Minimal pub(crate) invalidate_workspace(&str) uses existing invalidate_matching on exact.workspace_id; no new registry/store/permission. Account deletion invokes it after actual DBcommit under owned authority gate",
+    "controls": [
+      "Existing readguard helper and mappings preserved",
+      "No account writer edits registry path",
+      "Actual unknown/cancel settlement cannot claim delete or invalidation complete",
+      "Original R2 deletion/revocation/foreign-scope/runtime proof unchanged"
+    ],
+    "source_only": true,
+    "next_action": "Same idle mediator helper implements now, then coherent 10-file P1 delta to primary and same IV review"
+  },
+  "swarm_changed_source_compile_admission_20261014": {
+    "decision_id": "WP012-SWARM-CHANGED-SOURCE-COMPILER-20261014-06",
+    "status": "PREPARATION_RELEASED_LAUNCH_CONDITIONAL",
+    "recorded_at_utc": "2026-10-14T15:45:07.325853+00:00",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "decision_owner_chat": "01a13ab5-bfe4-74b1-8fc3-64e691a76827",
+    "compiler_owner_chat": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+    "independent_validator_chat": "01a139f6-ce6a-7b50-a058-dff3732ea4a2",
+    "candidate_commit": "575997886285ede0442cc8b93bb69eed57d94e08",
+    "candidate_tree": "d09d95190432025bcafd5a8593c74eec7dbd401a",
+    "source_checkpoint_ref": "MT-174.json#/swarm_p1_source_checkpoint_20261014",
+    "changed_input": "Coherent pushed swarm integration aaadc plus exact10-file remediation57599788; prior core139e compiler proof is invalid for changed source. Native normal core dependency invalidates native graph; no runtime outcome is inferred.",
+    "source_review": "SAME independent validator reviews only actual10-file remediation delta against its original three P1 findings; source review must have no blocking finding before compiler. No second broad review or team-vote gate.",
+    "conditions": [
+      "Stable pushed product candidate and all owners quiescent; captured full product source/config/tool/current kernel authority freeze through terminal postbinding and owned process closure",
+      "Current actual selected graph/features/targets, tool hashes and source bindings; original exit and whole-target diagnostic/missing-target accounting",
+      "Official builder gameplan and numeric resource admission; same profile916767bb, warm target,180GBcap175GBstop50GiBfloor,j1,Normal scheduling,memory observation only",
+      "One affected independent review of changed runner/config/reuse/caller release and exact frozen outer payload; no fresh Operator approval inside recorded finite scope",
+      "One serial shared-target compiler owner; core affected predecessor before native; batch all actual related failure groups before changed confirmation"
+    ],
+    "kernel_publication": "Canonical local typed contracts and captured raw authority are valid; no mandatory remote equality predecessor verified. Separate non-force kernel publication/reconciliation protection remains; pending Git question grants no merge/reset/force authority. Do not change captured kernel inputs or HEAD during a run.",
+    "runtime": "NOT_AUTHORIZED; original full runtime/auth/persistence/GUI/recovery/shutdown/CKC/WP1/interconnection/HBR and independent acceptance remain open; protected ADOPT mapping remains held pending explicit spec approval.",
+    "core_execution_ref": "MT-188.json#/swarm_changed_source_compile_admission_20261014",
+    "native_execution_ref": "MT-186.json#/swarm_changed_source_compile_admission_20261014",
+    "original_scope_unchanged": true
   }
 }

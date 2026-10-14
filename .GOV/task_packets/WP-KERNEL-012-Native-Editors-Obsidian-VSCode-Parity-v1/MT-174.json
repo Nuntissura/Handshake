@@ -8484,5 +8484,66 @@
     "next_action": "Implement prepared controller repair now alongside existing schema/core remediation; preserve checkpoint/history and submit changed delta to same reviewer before strategic compilation",
     "failed_record_attempt": "Initial path assertion resolved relative parent incorrectly and stopped before any record write; corrected absolute repo-root path check succeeded before this release",
     "packet_ref": "packet.json#/swarm_p1_canonical_publication_repair_20261014"
+  },
+  "swarm_workspace_invalidation_helper_20261014": {
+    "decision_id": "WP012-SWARM-WORKSPACE-INVALIDATION-20261014-05",
+    "status": "SOURCE_IMPLEMENTATION_RELEASED",
+    "recorded_at_utc": "2026-10-14T15:35:55.955448+00:00",
+    "parent_ref": "packet.json#/swarm_p1_canonical_publication_repair_20261014",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "owner_chat": "01a13acf-a8bf-7ae1-92f3-9c5fffc5d385",
+    "worker": "/root/activation_interface",
+    "path": "src/backend/handshake_core/src/swarm_orchestration/resource_scope.rs",
+    "ownership_agreement": "Primary renews same mediator helper as sole registry writer; account controller worker remains separate",
+    "failure": "Canonical workspace deletion consumers need to invalidate every registered exact workspace tuple after observed commit; only grant/session/account invalidators exist",
+    "deliverable": "Minimal pub(crate) invalidate_workspace(&str) uses existing invalidate_matching on exact.workspace_id; no new registry/store/permission. Account deletion invokes it after actual DBcommit under owned authority gate",
+    "controls": [
+      "Existing readguard helper and mappings preserved",
+      "No account writer edits registry path",
+      "Actual unknown/cancel settlement cannot claim delete or invalidation complete",
+      "Original R2 deletion/revocation/foreign-scope/runtime proof unchanged"
+    ],
+    "source_only": true,
+    "next_action": "Same idle mediator helper implements now, then coherent 10-file P1 delta to primary and same IV review"
+  },
+  "swarm_p1_source_checkpoint_20261014": {
+    "candidate_commit": "575997886285ede0442cc8b93bb69eed57d94e08",
+    "candidate_tree": "d09d95190432025bcafd5a8593c74eec7dbd401a",
+    "base_commit": "aaadc90652596940246106fe3b028601799b037d",
+    "status": "PUSHED_SOURCE_CLEAR_WITH_DECLARED_RUNTIME_RESIDUALS",
+    "actual_paths": 10,
+    "actual_insertions": 448,
+    "actual_deletions": 38,
+    "source_owners_quiescent": true,
+    "source_review_owner_chat": "01a139f6-ce6a-7b50-a058-dff3732ea4a2",
+    "findings": [
+      "Argus receipt independent reader SELECT authority",
+      "Canonical revocation/expiry publication gate including all workspace invalidation",
+      "Actual coordinator quiescence and retained old runtime lease disposition"
+    ],
+    "compiler": "NOT_RUN_ON_THIS_CANDIDATE",
+    "runtime": "NOT_RUN",
+    "acceptance": "NOT_ASSESSED",
+    "independent_source_review": {
+      "validator_chat": "01a139f6-ce6a-7b50-a058-dff3732ea4a2",
+      "reviewed_at_recorded_utc": "2026-10-14T15:47:31.272719+00:00",
+      "base_commit": "aaadc90652596940246106fe3b028601799b037d",
+      "candidate_commit": "575997886285ede0442cc8b93bb69eed57d94e08",
+      "disposition": "SOURCE_CLEAR_WITH_DECLARED_RUNTIME_RESIDUALS",
+      "cleared_findings": [
+        "Argus legitimate independent reader SELECT origin",
+        "Same-store supported mutation/expiry fencing through exact activation publication and failed-mount rollback",
+        "Actual coordinator quiescence and retained lease disposition before replacement/clean exit"
+      ],
+      "proof_scope": "Independent scoped source/caller/hash/inverse/cancellation/expiry trace only; NOT compiler/runtime/MT/WP PASS",
+      "runtime_residuals": [
+        "Same-store declared controller gate does not fence arbitrary external DB writes",
+        "Lost-ACK canonical recovery and protectedADOPTSTART remain unresolved",
+        "Schema165 genuineBASE/FINALINFO unmeasured failclosed",
+        "Original runtime/auth/deployment/GUI/reopen/recovery/positive-negative shutdown/full consumed scope unrun"
+      ]
+    },
+    "repair_diff_sha256": "86cfc564b50c99c18862f36fac4f047f90fc4d2d6fa06d43bc37b8aaabebed56",
+    "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt174-swarm-p1-checkpoint01/checkpoint.json"
   }
 }

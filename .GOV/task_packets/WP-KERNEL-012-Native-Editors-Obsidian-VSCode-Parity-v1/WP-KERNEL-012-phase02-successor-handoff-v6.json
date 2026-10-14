@@ -565,5 +565,17 @@
       "Single-owned diagnostics signing/current watcher adoption and native durable receipt consumer missing; diagnostic/dependency reports provide exact paths for laterroot scope assignment"
     ],
     "last_result_ref": "MT-186.json#/delegated_stage01_check2_result_20261014"
+  },
+  "swarm_p1_checkpoint_and_next_boundary_20261014": {
+    "source_state_ref": "MT-174.json#/swarm_p1_source_checkpoint_20261014",
+    "compiler_admission_ref": "packet.json#/swarm_changed_source_compile_admission_20261014",
+    "current_product_commit": "575997886285ede0442cc8b93bb69eed57d94e08",
+    "current_product_tree": "d09d95190432025bcafd5a8593c74eec7dbd401a",
+    "independent_source_disposition": "SOURCE_CLEAR_WITH_DECLARED_RUNTIME_RESIDUALS",
+    "compiler_runtime_status": "NOT_RUN_ON_CURRENT_CANDIDATE; original full acceptance retained",
+    "next_action": "Primary renews exact affected capture and official gates; one strategic original core then native compiler. Native metadata preparation exact-once admitted; no worker compiler. Runtime/GUI leaders prepare genuine original resource and graceful proof method without captured-source writes.",
+    "kernel_git": "Approved exact9bea merge completed as9f925666 with both parents and seven dirty files byte-preserved; normal push rejected because Studio advanced matchingremote to e54ada21. Latest27Studio paths are disjoint and merge-tree conflict-free. No extra branches/worktrees or force/reset/stash. Follow-up reconciliation approval and non-force publication remain separate from compiler admission; current canonical local raw authority is valid.",
+    "operator_mapping_question_ref": "MT-175.json#/operator_decision_request_adopt_authority_20261014",
+    "source_of_truth": "This handoff is navigation; current typed contracts and actual evidence win."
   }
 }
