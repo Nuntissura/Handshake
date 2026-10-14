@@ -926,7 +926,7 @@
       "recorded_at_utc": "2026-10-14T18:52:11Z",
       "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
       "failure_ref": "MT-188.json#/swarm_changed_source_compile_admission_20261014/lost_owned_caller_20261014",
-      "status": "CORE_RELEASE_ADMITTED_AFTER_PROBE_SETTLEMENT_AND_FINAL_BINDINGS",
+      "status": "TERMINAL_FREEZE_CLOSED_DURABLE_HOST_FAILED",
       "owner_chat": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
       "independent_validator_chat": "01a139f6-ce6a-7b50-a058-dff3732ea4a2",
       "caller_review": {
@@ -987,7 +987,7 @@
         "infrastructure_probe_limit": 1,
         "infrastructure_probes_consumed": 1,
         "additional_original_core_terminal_limit": 1,
-        "additional_original_core_checks_consumed": 0,
+        "additional_original_core_checks_consumed": 1,
         "probe": "One fixed-exit7 harmless child through the exact admitted host, closed logs and exact priority/owned identities after registration caller return; no Cargo, product source, backend, store or runtime access",
         "probe_failure": "Preserve actual result and stop before compiler; no automatic repeat",
         "core_release": "Only after one affected SAME-IV caller/config review, independently settled harmless probe, root GP574 plus all current dynamic preparation notes, final canonical raw/HEAD/caller freeze and original official resource/gates",
@@ -996,7 +996,54 @@
       },
       "research_basis": ["https://learn.microsoft.com/en-us/windows/win32/taskschd/taskschedulerschema-priority-settingstype-element", "https://learn.microsoft.com/en-us/windows/win32/api/taskschd/nf-taskschd-iregisteredtask-get_lasttaskresult"],
       "forbidden": ["Product source edits", "Changing original selectors/argv/features/toolchain/profile/target/cap or metadata rerun", "Task overwrite, auto-retry or duplicate compiler", "Default fabricated numeric exits, stale scheduler-instance success or synthesized old-run postbinding", "Fake auth/store/grants/START/publication, runtime/GUI launch or acceptance weakening"],
-      "original_outcome": "Original complete independent WP012/CKC/WP1/parity/interconnection/HBR/auth/GUI/persistence/reopen/recovery/shutdown acceptance remains required; schema165 measurement and ADOPT-held decision unchanged"
+      "original_outcome": "Original complete independent WP012/CKC/WP1/parity/interconnection/HBR/auth/GUI/persistence/reopen/recovery/shutdown acceptance remains required; schema165 measurement and ADOPT-held decision unchanged",
+      "terminal_result_20261014": {
+        "recorded_at_utc": "2026-10-14T20:49:38Z",
+        "attempt_id": "cb71096278364baf8f1e45ca48aba4a1",
+        "independent_disposition": "TERMINAL_FREEZE_CLOSED_DURABLE_HOST_FAILED",
+        "independent_owner_chat": "01a139f6-ce6a-7b50-a058-dff3732ea4a2",
+        "evidence_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt188-swarm-core-durable01",
+        "captured_kernel_head": "d2f2f0af672db4574b84eff5613995b9cb543199",
+        "original_config_sha256": "6b13a78c13b81aea8c8dfa85b51a93f87f840422d73ba7ccaa2911b6769f6c38",
+        "actual_cargo_exit": 0,
+        "cargo_exit_sha256": "ea3ee3b976ddd6c7114b78507ad1ef5ff27bab4e5539c1d2eb8acc7390ffae5d",
+        "actual_wrapper_exit": null,
+        "canonical_scheduler_result": 3221225786,
+        "scheduler_definition_sha256": "62ded68785e73421a7cd6ae61f09d16f5e0377b3caf9a96c6f6affd6a4d81ec9",
+        "host_termination_cause": "UNVERIFIED",
+        "compiler_output": {"valid_json": 3028, "expected_targets": 485, "observed_exact_targets": 485, "missing": 0, "errors": 0, "warnings": 1637, "build_finished_success": true},
+        "stdout_sha256": "a4f26a7ecceaccb25bc8cd30e6f544b0d7914a6e59a5676bdf522e4895d87e85",
+        "stderr_sha256": "8cf6bd4948de6c7af1491c8002a2ebee642975dc7d0a0714f8c8793bba3ce9ae",
+        "actual_postbinding": "matched=true,7416 files, drift_paths=[], all23 binding_equal true; independent canonical7416+23configs+11raw+3tools zero drift/digestb5f49807",
+        "postbinding_sha256": "d642d7c3b473ef0eed906c4bd29be0de1cc3e844c8979ee030eb58533cd68f48",
+        "original_failed_result_sha256": "a12a44d6e1bb503df7f72fb34bfda39182ffb2ba1b86dad67cb8c816eb6aef1b",
+        "failure_interpretation": "Retain FAILED_OR_BLOCKED/POST_COMPILE_INPUT_DRIFT. Actual snapshots show no input drift; that label only records caller nonzero LASTEXITCODE, whose actual capture numeric/cause was not retained. No product defect inferred.",
+        "missing": ["actual host/wrapper exit artifacts", "closed host logs", "original Prax compile-evidence"],
+        "owned_closure": "SAMEIV25 exact ephemeral PID+birth identities and direct children absent; cache4820 retained; unique task Ready/current definition matches registered",
+        "acceptance_limit": "Cargo numeric0/all485/zero-drift compiler primitives retained; durable09 overall proof NOT_ACCEPTED, no compiler/runtime/MT/WP PASS or renewal. Missing numerics remain null."
+      },
+      "retained_compiler_evidence_reconciliation_20261014": {
+        "decision_id": "WP012-RETAINED-CORE-EVIDENCE-20261014-12",
+        "status": "ONE_NON_CARGO_EVIDENCE_ACQUISITION_ADMITTED",
+        "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+        "owner_chat": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+        "independent_owner_chat": "01a139f6-ce6a-7b50-a058-dff3732ea4a2",
+        "basis": "Actual Cargo0/all485/no errors/true postbinding/independent full zero drift and owned closure. Complete missing original compiler evidence without repeating green Cargo; retain failed supervisor outcome separately.",
+        "source_lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt188-swarm-core-durable01",
+        "allowed_output": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt188-swarm-core-durable01/retained-evidence-12/compile-evidence.json",
+        "collector": "Use original collectorCode and original Prax commit3ef3aea56cc9e4b3a8e231a89a1ca70533d8da96/module8bd50b47e7a88abd24864ea49ebc9ae883bcdc3cbcb47fcea8f780cb63eaec4f. Only redirect the sole evidence write to exact distinct CreateNew output; original lane remains all-read/provenance base, preserving relative metadata.",
+        "minimum_controls": [
+          "Derive actual numeric0/PIDs/attempt/argv/source identity from immutable cargo-exit ea3ee3 and original candidate/config, never author replacement exits",
+          "Before and after acquire verify immutable log/candidate/config/postbinding/metadata/tool hashes; retain exact original485 target set and original source575/f626",
+          "Exclude captured_utc only as original collector does; no null skipping, history bypass, original status rewrite, copied lane, missing-target substitution or wrapper/host numeric fabrication",
+          "Retain original failed result/raw state/scheduler failure/missing exits and source history; output classifies original Cargo compile primitives only",
+          "ONE acquisition after held adaptation/bindings are inspected; independent affected evidence reconciliation, no new source audit or Cargo/metadata/probe/test/runtime"
+        ],
+        "limit": 1,
+        "consumed": 0,
+        "result": null,
+        "acceptance_limit": "Recovered compiler-only evidence cannot supply missing historical host/wrapper exits, repair durable09 or waive original native/runtime/WP acceptance. Original durable09 and earlier budgets stay consumed."
+      }
     }
   }
 }
