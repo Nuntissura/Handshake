@@ -1,0 +1,57 @@
+{
+ "crate": "hsk-studio-press",
+ "lane": "SMB-PRESS-PROPERTIES",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "READY: PLR-104 property-list purge + fail-closed counts, PLR-105 fail-closed structure-scan rows, PLR-107 claim text (READY commit 950fd85)",
+ "commits": [
+  {"sha": "9dd0fc7", "subject": "press (SMB-PRESS-PROPERTIES, PLR-104): /Properties is a gated resource category; property lists the flattened pages reached that no kept BDC/DP names are purged (inline and referenced), undeterminable or uneditable ones are counted in residual_in_region"},
+  {"sha": "32d4df3", "subject": "press (SMB-PRESS-PROPERTIES, PLR-104, PLR-105, PLR-107): property lists named only by an old page's own inline /Resources are purged too; structure-shape scan counts /Type or /S past the hop bound, object-stream bytes that are not members and the saved trailer; docs and DESCRIPTOR cite the tests"},
+  {"sha": "45a3792", "subject": "press (SMB-PRESS-PROPERTIES, PLR-104): an undrawn form listed in an unnamed /Properties entry no longer keeps the image it would draw (gated category); R16 test row and module docs follow"},
+  {"sha": "950fd85", "subject": "press (SMB-PRESS-PROPERTIES, PLR-104, V4-08): property-list names are read from the parsed operators: name-escape and DP rows keep the entry, comment and case decoys do not"}
+ ],
+ "capabilities_done": [
+  "PLR-104 (flatten_purge.rs): /Properties is a gated resource category. Usage::read_scope records the property-list operand of BDC and DP (Usage::use_property: every entry of that name in the scope's chain, shadowed ones included, is used and reached); Usage::resources no longer follows /Properties entries as plain references; Usage::all_used (content that cannot be read) keeps every entry and marks the dictionary undetermined. plan_properties/apply_properties purge, in every /Properties dictionary the old page reached (its own /Resources object, a /Properties object its own inline /Resources named, the /Resources a kept page received from a node of its /Parent chain - detach_from_page_tree now returns those heirs, Flat::heirs - and the /Resources of every stream and Type 3 font in Flat::sources), every entry no BDC/DP of the content read names, inline dictionaries and references alike.",
+  "PLR-104 fail closed (residual_in_region, NotProven::ResidualInRegion, region_flattened false): a reached /Properties dictionary whose usage is undetermined (scope content unreadable, or the usage analysis incomplete), one the purge cannot edit (a /Resources or /Properties value that is a stream or an alias object) holding an unnamed entry whose property list has /Alt /ActualText /E /T or /Lang, and a property list of a removed or unedited entry still live (another object references it) with such a key while no kept content names it.",
+  "PLR-105 (check_document): structure_shaped counts a /Type or /S value that PdfDoc::resolve reads as null because of the 16-hop bound (past_hop_bound; R25-P3); a stream with /N and /First is read as an object stream whatever its /Type (R25-P4 K4); object-stream bytes that are not white space, comments, header pairs or members count (K5 /N too small, K6 bytes between header and /First, K11 /N 0 with data); the saved trailer's values are scanned (R25-P5 X1, /ID copied by the writer).",
+  "PLR-107 / V4-07: module docs (flatten_purge.rs), RedactedOutput::residual_in_region doc, DESCRIPTOR redaction.flatten.purge (PLR-104 sentence, PLR-105 sentence, usage-analysis operator list) and region_clearing (property-list count) state exactly what is implemented and cite the tests; descriptor_states_the_structure_tree_rule asserts the citations exist and the sentences carry no never/always/guarantee/proves.",
+  "Tests (tests/flatten_r13.rs): NEW marked_content_property_lists_of_flattened_pages_are_purged (layouts shared, inherited, inherited-object, properties-object, lists-as-objects; V4-08 rows: name escape /MC#30 kept, DP kept, comment decoy purged, case /mc0 purged), property_lists_the_purge_cannot_clear_are_counted (catalog keeps the list object, alias /Properties, unreadable kept content), unreadable_structure_shapes_are_counted (S9/S10 15 aliases, 14-alias control, K4, K5, K6, K11, covered-objstm control, X1 trailer /ID); CHANGED descriptor_states_the_structure_tree_rule (new citations), painted_source_referenced_by_a_key_of_a_drawn_object_is_reported (the /Properties row: see notes.behaviour_change)."
+ ],
+ "tests": {"argv": "cargo nextest run -p hsk-studio-press --tests --no-fail-fast", "exit": 0, "sha": "45a3792", "passed": 167, "failed": 0},
+ "blockers": [],
+ "lock_wait_s": 16,
+ "bg_pids": [],
+ "next": "Validator: judge SMB-PRESS-PROPERTIES as the claim 9dd0fc7 + 32d4df3 + 45a3792 + 950fd85 (READY commit 950fd85). Later hsk-studio-press commit ade85a0 belongs to lane SMB-PRESS-STRUCT-STRIP (separate claim, its own lane file); at ade85a0 this lane's tests are unchanged except that the shared structure fixture pages_output_with now reads the D28 opt-out (the PLR-105 rows keep today's semantics) and the full press suite is 169/169. V4-13: SMB-PRESS is a two-FAIL lane; narrow pre-review of 1da2453..950fd85 expected before the round.",
+ "updated_at": "2026-10-14T15:44:06Z",
+ "notes": {
+  "source": "lead dispatch 2026-10-14 (Operator decisions 2026-10-14: PLR-104 plan confirmed, folds PLR-105 + PLR-107); register workflow/plausible-register.json PLR-104, PLR-105, PLR-107; evidence validation/R25-prereview-narrow.json R25-P3, P4, P5, P7",
+  "not_inspected_resolved": "Usage::drain did NOT record BDC/DP operand names at 1da2453 (read_scope matched only Do sh gs Tf scn SCN; Usage::resources followed /Properties entries as plain references).",
+  "claim": {
+   "commits": ["9dd0fc7", "32d4df3", "45a3792", "950fd85"],
+   "ready_commit": "950fd85",
+   "text": "A redaction save that flattens a region purges, from every /Properties dictionary the flattened page reached (its own /Resources object, a /Properties object its own /Resources named, the /Resources a kept page received from its /Parent chain, the /Resources of every stream and Type 3 font it reached), every entry that no BDC or DP operator of the content the usage analysis reads names (inline dictionaries and references), and keeps the entries kept content names with their text. residual_in_region adds 1 (NotProven::ResidualInRegion, region_flattened false) for: a reached /Properties dictionary whose usage is undetermined (unreadable scope content, incomplete analysis), a reached dictionary the purge cannot edit (stream or alias spelling) with an unnamed entry whose property list holds /Alt /ActualText /E /T or /Lang, and each such property list of the old page left live (another object references it) that no kept content names. With a flattened region, check_document also counts a /Type or /S past the reader's 16-hop bound, a stream with /N and /First read as an object stream whatever its /Type, object-stream bytes that are not white space, comments, header pairs or members, and structure shapes in the saved trailer."
+  },
+  "plr_107_claim_text": "Reworded claim of SMB-PRESS-STRUCT-FAILCLOSED (PLR-107, R22 V-1; lead: reword in the next press lane record): 'A redaction save that flattens at least one region and whose saved document still has a structure tree (a /StructTreeRoot the catalog holds, directly or through a chain of references, or any /StructParents or /StructParent entry left in the file) reads region_flattened false and reports NotProven::ResidualInRegion, residual_in_region + 1 once; a save with no region applies none of these rules (PLR-101). The redaction proof covers untagged documents; for tagged documents the structure tree is neutralized best effort and reported.' (The SMB-PRESS-STRUCT-FAILCLOSED lane file itself is not edited: not owned by this lane.)",
+  "behaviour_change": "painted_source_referenced_by_a_key_of_a_drawn_object_is_reported, row 'an undrawn form (/Properties) whose content draws it': before, the /Properties entry was a plain reference, the image stayed and was reported (PaintedSourceKept); now /Properties is gated, the entry is reached only when kept content names it, so the image is dropped (its entry in the form's /XObject pruned like any unused source) and nothing is reported (SCAN-PIXELS-SECRET gone, region_flattened true). The direct case (painted_source_referenced_but_not_drawn_by_a_kept_page_is_reported: page two's own /Properties names the image) is unchanged: the unnamed entry is not in a reached dictionary, its reference keeps the image live, reported.",
+  "residuals_fail_closed": [
+   "usage undetermined (kept scope content that does not parse, incomplete analysis): counted, every entry stays",
+   "/Resources or /Properties written as a stream or reached through an alias object: not edited; counted when an unnamed entry's property list holds a text key",
+   "a property list object of the old page kept live by another reference while no kept content names it: counted when it holds a text key",
+   "a /Type or /S chain past 16 hops, a stream with /N and /First that is not an object stream, object-stream gaps: counted (over-report accepted)"
+  ],
+  "residuals_not_counted": [
+   "an unnamed property list whose text is under a key other than /Alt /ActualText /E /T /Lang and that stays only through an unedited (stream/alias) dictionary or another reference",
+   "property lists in /Properties dictionaries the flattened page never reached (kept pages' own) are not purged: not part of the old page",
+   "an entry named by kept content keeps its text (kept content invokes it), also when the flattened page named it too"
+  ],
+  "v4_06_sites": [
+   {"file_line": "crates/hsk-studio-press/src/flatten_purge.rs Usage::resources (GATED chain)", "verdict": "fixed: /Properties gated"},
+   {"file_line": "crates/hsk-studio-press/src/flatten_purge.rs Usage::all_used (GATED chain)", "verdict": "fixed: /Properties kept + undetermined"},
+   {"file_line": "crates/hsk-studio-press/src/flatten_purge.rs Usage::read_scope (operator to category map)", "verdict": "fixed: BDC/DP property-list operand"},
+   {"file_line": "crates/hsk-studio-press/src/flatten_purge.rs prune_gated (GATED)", "verdict": "not applicable: property entries are removed by name in apply_properties, not by gone object"},
+   {"file_line": "crates/hsk-studio-press/src/flatten_purge.rs drop_painted_sources incomplete branch", "verdict": "fixed: property residual counted"}
+  ],
+  "v4_06_regex": "GATED|\"Properties\"|b\"BDC\"|b\"DP\"",
+  "red_proof": "NOT rerun in a scratch tree (cost: cold build). Red evidence at 1da2453 is R25-P7 (validation/R25-prereview-narrow.json: X2a shared and X2b inherited read proven with R25-PROP-SECRET surviving) and R25-P3/P4/P5 (S9/S10, K4/K5/K6/K11, X1 read proven); the new tests encode those inputs.",
+  "retry_guard": "no gameplan block met; one product test failure (painted_source_referenced_by_a_key_of_a_drawn_object_is_reported) fixed by commit 45a3792 (route a)"
+ }
+}

@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-14T15:42:16Z",
+ "updated_at": "2026-10-14T15:53:38Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3410,22 +3410,31 @@
   {
    "lane_id": "SMB-PRESS-PROPERTIES",
    "crate": "hsk-studio-press",
-   "phase": "queued (Operator 2026-10-14)",
-   "status": null,
-   "owner": null,
-   "commits": [],
+   "phase": "pre-review (V4-13) then validation",
+   "status": "READY_FOR_VALIDATION",
+   "owner": "builder-press-20261014",
+   "commits": [
+    "9dd0fc7",
+    "32d4df3",
+    "45a3792",
+    "950fd85"
+   ],
    "verdicts": [],
-   "note": "PLR-104 exact /Properties purge or fail closed; folds PLR-105, PLR-107"
+   "note": "PLR-104 exact /Properties purge or fail closed; folds PLR-105, PLR-107",
+   "lane_file": "builders/lanes/hsk-studio-press-properties.json"
   },
   {
    "lane_id": "SMB-PRESS-STRUCT-STRIP",
    "crate": "hsk-studio-press",
-   "phase": "queued (Operator 2026-10-14)",
-   "status": null,
-   "owner": null,
-   "commits": [],
+   "phase": "pre-review (V4-13) then validation",
+   "status": "READY_FOR_VALIDATION",
+   "owner": "builder-press-20261014",
+   "commits": [
+    "ade85a0"
+   ],
    "verdicts": [],
-   "note": "D28: strip structure tree by default on redaction save, typed loss accessibility_tags_removed, opt-out keeps NotProven"
+   "note": "D28: strip structure tree by default on redaction save, typed loss accessibility_tags_removed, opt-out keeps NotProven",
+   "lane_file": "builders/lanes/hsk-studio-press-struct-strip.json"
   },
   {
    "lane_id": "SMB-ZIP-CONSOLIDATE",
