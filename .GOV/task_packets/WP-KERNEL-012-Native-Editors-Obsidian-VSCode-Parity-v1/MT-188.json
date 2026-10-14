@@ -771,7 +771,7 @@
   "swarm_source_admission_ref": "packet.json#/swarm_production_20261014",
   "swarm_changed_source_compile_admission_20261014": {
     "decision_id": "WP012-SWARM-CHANGED-SOURCE-COMPILER-20261014-06",
-    "status": "CORE_LOST_OWNED_CALLER_FREEZE_CLOSED_STAGE06_EXHAUSTED",
+    "status": "DURABLE_CALLER_PREPARATION_ADMITTED_STAGE06_EXHAUSTED",
     "recorded_at_utc": "2026-10-14T15:45:07.325853+00:00",
     "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
     "decision_owner_chat": "01a13ab5-bfe4-74b1-8fc3-64e691a76827",
@@ -920,6 +920,51 @@
       },
       "next_action": "Primary inspects retained owning command and proposes the smallest durable owned caller/exit-capture method. Root records exact finite changed-method admission before external caller writes or another invocation; one affected SAME-IV caller review and original official preparation/resource gates remain required.",
       "preserved": "Both stage06 attempts, old40 source failures, spent original2of2 and hostretry1of1, native13/stage04 1of3, metadata1of1 and original full independent WP acceptance; no dependent native/runtime permission"
+    },
+    "durable_caller_repair_admission_20261014": {
+      "decision_id": "WP012-DURABLE-OWNED-CALLER-20261014-09",
+      "recorded_at_utc": "2026-10-14T18:52:11Z",
+      "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+      "failure_ref": "MT-188.json#/swarm_changed_source_compile_admission_20261014/lost_owned_caller_20261014",
+      "status": "PREPARATION_ADMITTED_EXECUTION_HELD_FOR_PROBE_REVIEW_AND_FINAL_BINDINGS",
+      "owner_chat": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+      "independent_validator_chat": "01a139f6-ce6a-7b50-a058-dff3732ea4a2",
+      "candidate_commit": "575997886285ede0442cc8b93bb69eed57d94e08",
+      "candidate_tree": "d09d95190432025bcafd5a8593c74eec7dbd401a",
+      "changed_method_hypothesis": "Transfer wrapper ownership from the unavailable managed foreground caller to one unique current-user scheduled host with retained process handles and immediate durable actual numeric exits. A harmless bounded probe verifies settlement after registration caller return; actual chat-interruption survival and underlying check02 termination cause remain UNVERIFIED.",
+      "artifact_root": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt188-swarm-core-durable01",
+      "owned_files": ["scheduled-host.ps1", "compile-owned.ps1", "launch-config.json", "launch-bindings.json", "create-new registration/definition/started/child-identity/cargo-exit/wrapper-exit/host-exit/stdout/stderr/scheduler-result files", "distinct harmless-probe files under a probe subfolder"],
+      "allowed_changes": [
+        "Adapt the existing MT168 scheduled host pattern only for current CORE ownership, exact native priority4, unique task/PID/birth/hash identity, current raw/HEAD/output bindings and non-overwriting settlement",
+        "Persist actual Cargo numeric exit immediately after retained Cargo handle WaitForExit and before postcapture/collector; host persists actual wrapper numeric exit immediately after WaitForExit and before log-copy waits",
+        "Keep Cargo, wrapper, host and canonical matching scheduler results distinct; unknown stays null and missing finalization remains FAIL or INCONCLUSIVE",
+        "Reuse byte-identical f626 source binding and original verified lineage; unchanged719-package/485-target metadata, original12 argv, tools/profile916/warm target/cache/resource controls"
+      ],
+      "task_controls": {
+        "name": "Handshake-MT188-Core-<freshUUID>; exact name and definition hash recorded before start",
+        "principal": "Current user Interactive/Limited; no elevation, password or service account",
+        "host": "Verified pwsh Hidden/NonInteractive/CreateNoWindow",
+        "task_priority": 4,
+        "actual_child_scheduling": "Normal CPU32, memory5, IO2 verified before Cargo; do not inherit old host default7",
+        "execution_time_limit": 0,
+        "identity_and_settlement": "CreateNew latch and unique registration; independently reread exact definition/run instance/start time/LastTaskResult plus retained actual handles, exits, complete logs and source postbinding",
+        "cleanup": "Only the exact task created by this attempt after its owned process settlement; preserve all files and do not disrupt foreign processes or retained cache4820"
+      },
+      "historical_host_limitation": "Retained r15 harmless exit7 probe survived registration return; r18 had Cargo0 but scheduler3221225786/0xC000013A and missing host finalization. Neither proves current chat survival or the cause of check02; preserve both.",
+      "finite_allowances": {
+        "infrastructure_probe_limit": 1,
+        "infrastructure_probes_consumed": 0,
+        "additional_original_core_terminal_limit": 1,
+        "additional_original_core_checks_consumed": 0,
+        "probe": "One fixed-exit7 harmless child through the exact admitted host, closed logs and exact priority/owned identities after registration caller return; no Cargo, product source, backend, store or runtime access",
+        "probe_failure": "Preserve actual result and stop before compiler; no automatic repeat",
+        "core_release": "Only after one affected SAME-IV caller/config review, independently settled harmless probe, root GP574 plus all current dynamic preparation notes, final canonical raw/HEAD/caller freeze and original official resource/gates",
+        "core_acceptance": "Actual retained Cargo and wrapper numeric results plus matching canonical scheduler settlement, full original485 target/error accounting, full7416/config/raw/tool postbinding and independent owned closure. Registration0 or LastTaskResult0 alone never proves compilation.",
+        "threshold": "Stage06 stays exhausted2of2 and original CORE invocations1; this is a distinct explicit finite changed-method decision. Any further attempt requires a new evidenced root decision, never a history reset."
+      },
+      "research_basis": ["https://learn.microsoft.com/en-us/windows/win32/taskschd/taskschedulerschema-priority-settingstype-element", "https://learn.microsoft.com/en-us/windows/win32/api/taskschd/nf-taskschd-iregisteredtask-get_lasttaskresult"],
+      "forbidden": ["Product source edits", "Changing original selectors/argv/features/toolchain/profile/target/cap or metadata rerun", "Task overwrite, auto-retry or duplicate compiler", "Default fabricated numeric exits, stale scheduler-instance success or synthesized old-run postbinding", "Fake auth/store/grants/START/publication, runtime/GUI launch or acceptance weakening"],
+      "original_outcome": "Original complete independent WP012/CKC/WP1/parity/interconnection/HBR/auth/GUI/persistence/reopen/recovery/shutdown acceptance remains required; schema165 measurement and ADOPT-held decision unchanged"
     }
   }
 }

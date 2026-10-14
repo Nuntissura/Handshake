@@ -1,10 +1,10 @@
 {
   "schema": "handshake.build_rules@1",
   "name": "HANDSHAKE_BUILD_RULES",
-  "version": "1.16.0",
+  "version": "1.17.0",
   "status": "ACTIVE",
   "owner": "KERNEL_BUILDER",
-  "updated_at": "2026-10-09T22:16:36.949825Z",
+  "updated_at": "2026-10-14T18:57:41Z",
   "purpose": "Authority registry for build-time and handoff-time gates that every Handshake product WP must demonstrate. Operationalizes interconnectivity, parallel agent + operator swarm safety, Argus visual + operator-GUI verification, quiet/non-intrusive operation, in-product UserManual currency, UserManual diagnostic linkage, and account-bound ownership/visibility/privacy for every product resource. Does NOT duplicate refinement, enrichment, Codex, AGENTS, or role-protocol authority; cite-only relationships to those surfaces.",
   "scope": {
     "trigger_phase": "build_time_and_handoff_time",
@@ -2049,6 +2049,39 @@
       "contract_fields_required_if": {
         "mt.execution.source_adoption": "execution.module_change_stage == host_adoption"
       }
+    },
+    {
+      "id": "HBR-MODULE-LIFECYCLE-008",
+      "pillar": "COMPART",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "host_integration_identifies_missing_reusable_module_or_asset_logic",
+      "applicability": {
+        "predicate_text": "Host integration identifies required shared behavior missing from a reusable module or asset",
+        "tags": ["module_lifecycle", "standalone_source", "host_adoption"]
+      },
+      "required_action": "When reusable module or asset logic is missing, update the asset's declared canonical original source files first and expose the added capability through its reusable public contract. Prove and land that standalone change under HBR-MODULE-LIFECYCLE-007 before implementing the capability in the host through a distinct pinned adoption. Preserve the same shared capability for other consuming projects; do not fill the shared-logic gap with a host-local workaround, copied implementation or host-only fork. Host-specific policy and adaptation remain in the host under HBR-MODULE-LIFECYCLE-004.",
+      "evidence_kind": "canonical_asset_logic_gap_resolution_and_ordered_pinned_host_adoption",
+      "contract_fields": {
+        "wp": ["architecture_binding.module_lifecycle_refs"],
+        "mt": ["execution.module_change_stage", "context_capsule.module_maintenance_refs", "execution.depends_on", "execution.source_adoption"],
+        "module": ["maintenance"]
+      },
+      "citations": [
+        {"kind": "build_rule", "anchor": "HBR-MODULE-LIFECYCLE-007"},
+        {"kind": "build_rule", "anchor": "HBR-MODULE-LIFECYCLE-004"},
+        {"kind": "codex", "anchor": "CX-MODULE-LIFECYCLE-001"},
+        {"kind": "codex", "anchor": "CX-MODULE-LIFECYCLE-002"}
+      ],
+      "not_applicable_when": ["Pure repo-governance work", "No missing reusable logic is identified; ordinary host-specific adaptation remains governed by HBR-MODULE-LIFECYCLE-004"],
+      "deferred_until": null,
+      "provenance": {
+        "authored_by": "OPERATOR_INSTRUCTION_2026-10-14",
+        "operator_quote": "add a rule to the build rules file that if an asset is lacking in logic , first update the asset o-original files , then implement it in the host. this keeps the asset growing in capability and the same capability can be reused in other projects"
+      },
+      "contract_fields_required_if": {
+        "mt.execution.source_adoption": "execution.module_change_stage == host_adoption"
+      }
     }
   ],
   "deferred_pillars": [
@@ -2179,6 +2212,11 @@
       "version": "1.16.0",
       "at_utc": "2026-10-09T22:16:36.949825Z",
       "change": "Selective stock pack 38 module-lifecycle alignment: seven COMPART rules, canonical module GitHub source before separate pinned host adoption, module-owned maintenance refs and V2 fields. Existing HBR rules, pillars, SurrealDB/Argus/FlightRecorder/Palmistry requirements and in-flight pins preserved. No new validator/check suite; existing contract workflow and Codex CX-VERIFY-001..003 govern minimum sufficient proof."
+    },
+    {
+      "version": "1.17.0",
+      "at_utc": "2026-10-14T18:57:41Z",
+      "change": "Operator-directed HBR-MODULE-LIFECYCLE-008: resolve missing shared asset logic in canonical original source first, grow its reusable public capability, then adopt the proven pinned revision in the host. Existing rule IDs and in-flight pins preserved; no new checker or proof suite."
     }
   ]
 }
