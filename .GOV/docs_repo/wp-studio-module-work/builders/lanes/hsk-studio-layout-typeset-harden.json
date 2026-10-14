@@ -1,0 +1,57 @@
+{
+ "crate": "hsk-studio-layout",
+ "lane": "SMB-LAYOUT-TYPESET-HARDEN",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "R28 finding remediated; pushed",
+ "commits": [
+  {
+   "sha": "54f8d69",
+   "subject": "layout (SMB-LAYOUT-TYPESET-HARDEN, R28 finding): checked hyphenation limits with a typed refusal"
+  }
+ ],
+ "capabilities_done": [
+  "HyphenationParams::validate: min_word_len, min_before, min_after each <= MAX_WORD_BYTES (64); min_before + min_after through checked_add <= MAX_WORD_BYTES; float limits (hyphen advance finite >= 0, penalty finite, double-hyphen demerits finite >= 0); consecutive_limit accepts its whole u8 range (a word holds at most 63 breaks, so limits >= 63 never bind; documented on the field)",
+  "HyphenationError::InvalidParams with stable code invalid_hyphenation_params (HyphenationError::code; Display uses it)",
+  "Hyphenator::try_points returns the typed refusal; points() maps a refusal to no breaks (existing callers unchanged)",
+  "hyphenate.rs carries #![deny(clippy::arithmetic_side_effects)]; every integer op is checked, saturating or replaced by last_mut/get",
+  "TypesetOptions::validate delegates to HyphenationParams::validate (every integer and float hyphenation option) -> LayoutError::InvalidInput before any composition; JustifyParams holds floats only and keeps its own float validation",
+  "breaker.rs first_fit consecutive-hyphen run counter: run + 1 -> saturating_add (Knuth-Plass already used saturating_add)"
+ ],
+ "tests": {
+  "argv": "nextest run -p hsk-studio-layout --test hyphenation --test typeset",
+  "exit": 0,
+  "sha": "54f8d69",
+  "passed": 18,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "lane SMB-LAYOUT-PDF-EXPORT (separate lane file)",
+ "updated_at": "2026-10-14T23:46:38Z",
+ "notes": {
+  "finding_verified": "RED observed before the fix: a test calling points('hyphenation', min_before 1, min_after usize::MAX) on the unfixed code panicked 'attempt to add with overflow' at crates/hsk-studio-layout/src/hyphenate.rs:159:39 (nextest run -p hsk-studio-layout --test hyphenation red_min_before, 2026-10-14T23:41Z). The RED test was replaced by the full hostile test before the commit.",
+  "clippy": "clippy -p hsk-studio-layout -p hsk-studio-interop-layout --tests: no warnings in layout or interop-layout (type and observe warnings are pre-existing, other owners)",
+  "tests_added": [
+   "tests/hyphenation.rs hostile_integer_limits_at_type_max_are_refused: usize::MAX for min_word_len, min_before, min_after, (1, MAX), (MAX, 1), (MAX, MAX), sum 65, min_word_len 65 -> validate/try_points Err(InvalidParams), points and hyphenate_text empty; inclusive bound sum 64 accepted; consecutive_limit u8::MAX accepted",
+   "tests/typeset.rs hostile_integer_options_at_type_max: reflow_typeset with each usize option at usize::MAX (and 1 + MAX) refuses InvalidInput in FirstFit and KnuthPlass; consecutive_limit u8::MAX gives the same lines as 0 (unlimited) on the three-hyphen ladder in both composers"
+  ],
+  "v4_06_failure_class": "unchecked integer arithmetic on caller-controlled hyphenation limits / counters",
+  "v4_06_search_regex": "min_before|min_after|min_word_len|consecutive_limit|run \\+ 1|\\+ p\\.",
+  "v4_06_sites": [
+   "src/hyphenate.rs:159 (old) min_before + min_after: fixed (checked_add, refusal)",
+   "src/hyphenate.rs:168 (old) k + min_after.max(1): fixed (checked_add)",
+   "src/hyphenate.rs index arithmetic (levels.len() - 1, b - b'0', n + 2, i + max_pattern, i + 1, i + o, k + 1, s + k, word.len() + pts.len()): fixed (last_mut, wrapping_sub on an ASCII digit, saturating, get)",
+   "src/breaker.rs:175 first_fit run + 1 (u8): fixed (saturating_add); unreachable overflow in practice since a word has at most 63 breaks",
+   "src/breaker.rs:299 Knuth-Plass run: not applicable (already saturating_add)",
+   "src/breaker.rs:170, :300 run vs limit comparisons: not applicable (no arithmetic)",
+   "src/threaded_reflow.rs:252-253 copies consecutive_limit into HyphenRules: not applicable",
+   "src/typeset.rs:163 TypesetOptions::validate: fixed (delegates every integer and float option)"
+  ],
+  "spec_basis": "Remediation of the STUDIO-R28 validator finding on SMB-LAYOUT-TYPESET (lane hsk-studio-layout-typeset.json verdict note); V4-01/V4-02 hostile sizes",
+  "unverified": [
+   "InDesign's own ranges for these settings (e.g. word length, before/after, hyphen limit) are UNVERIFIED; the bound used is the crate's MAX_WORD_BYTES hostile bound"
+  ],
+  "claim": "No PASS claimed; READY_FOR_VALIDATION on pushed commit 54f8d69"
+ }
+}

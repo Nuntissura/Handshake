@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-14T23:51:46Z",
+ "updated_at": "2026-10-14T23:56:28Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -4484,7 +4484,7 @@
   {
    "lane_id": "SMB-LAYOUT-PDF-EXPORT",
    "crate": "hsk-studio-layout",
-   "phase": "queued",
+   "phase": "build",
    "status": null,
    "owner": "builder-layout-20261015b",
    "commits": [],
@@ -5099,12 +5099,15 @@
   {
    "lane_id": "SMB-LAYOUT-TYPESET-HARDEN",
    "crate": "hsk-studio-layout",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-layout-20261015b",
-   "commits": [],
+   "commits": [
+    "54f8d69"
+   ],
    "verdicts": [],
-   "note": "R28 finding_not_failure: hyphenate.rs:159 unchecked min_before+min_after add; TypesetOptions::validate (typeset.rs:163) checks floats only; hostile integer limits panic on overflow in debug. Checked arithmetic + typed refusal + hostile test at usize::MAX"
+   "note": "R28 finding_not_failure: hyphenate.rs:159 unchecked min_before+min_after add; TypesetOptions::validate (typeset.rs:163) checks floats only; hostile integer limits panic on overflow in debug. Checked arithmetic + typed refusal + hostile test at usize::MAX",
+   "lane_file": "builders/lanes/hsk-studio-layout-typeset-harden.json"
   },
   {
    "lane_id": "SMB-RENDER-GPU-PIPELINE-FAULT",
