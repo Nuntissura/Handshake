@@ -1,0 +1,51 @@
+{
+  "crate": "hsk-studio-type",
+  "lane": "SMB-TYPE-GLYPH-RENDER",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "validation",
+  "commits": [
+    {
+      "sha": "07fee7f7ace51b5d80e2b77c7479395bf760ac53",
+      "subject": "type (SMB-TYPE-GLYPH-RENDER slice 1): glyph outline extraction and deterministic fixed-point rasteriser"
+    },
+    {
+      "sha": "bf302f4ce7e6da871024d9230dc96fba6db6460a",
+      "subject": "type (SMB-TYPE-GLYPH-RENDER slice 1): glyph_render tests (outlines, hand values, run digest, hostile)"
+    }
+  ],
+  "capabilities_done": [
+    "src/outline.rs: FontBytes, OutlineCommand, GlyphOutline{glyph_id, units_per_em, font_hash, commands, bounds}, OutlineLimits, GlyphError{Type(Error), GlyphOutlineUnavailable, VariableOutlineUnsupported, OutlineOverLimit, RasterOverLimit}+code(); glyph_outlines(font, glyph_ids, limits, cancel) over vendored ttf::Face::parse_bounded (content hash, face index, CFF2 -> UnsupportedProfile as fonts.rs, colour/bitmap/SVG faces refused whole by parse_bounded), glyph id >= numGlyphs -> glyph_outline_unavailable, empty glyph -> no commands, per-glyph and per-call command caps, nonfinite -> CorruptFont; #![deny(clippy::arithmetic_side_effects)]",
+    "src/raster.rs: RASTER_VERSION hsk-type-raster-1, RasterLimits, GlyphCoverage{x,y,width,height,data} row-major coverage_u8 stride=width; rasterize_run(run, outlines, origin_px, px_per_pt, limits, cancel) and rasterize_glyph(outline, origin_px, px_per_unit, ...); one f64 transform per point then integer 24.8: curve flattening tolerance 1/16 px (<=256 steps/curve, integer Bernstein eval, i128), exact signed-area cell accumulation, non-zero |w| clamped, unhinted, glyph planes summed with saturation; refusals before allocation; #![deny(clippy::arithmetic_side_effects)]",
+    "descriptor: outline removed from excluded_routes; outline + raster entries (API, limits, unhinted, nonzero, default-instance-only, colour refused, cross-host and Adobe parity NOT_PROVEN); pending list updated; COMPOSITION_VERSION unchanged",
+    "tests/glyph_render.rs (4 tests)"
+  ],
+  "tests": {
+    "argv": "cargo nextest run -p hsk-studio-type --test glyph_render --no-fail-fast --no-capture",
+    "exit": 0,
+    "sha": "bf302f4ce7e6da871024d9230dc96fba6db6460a",
+    "passed": 4,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "Slice 2 (separate lane SMB-COMPOSITE-TEXT, composite owner): composite gains its allowed type edge and lowers a point-text layer to PlanNode::Solid + MaskInput(coverage_u8) from GlyphCoverage. Slice 3: create-outlines (STU-TYP-024 / STU-VEC-178) converting GlyphOutline to nib OwnedPath. Later type slices: variable-instance outlines (run axes), COLR monochrome fallback, hinting off stays.",
+  "updated_at": "2026-10-14T20:12:46Z",
+  "notes": {
+    "proof": "cargo clippy -p hsk-studio-type --tests at bf302f4: exit 0, no warnings in outline.rs/raster.rs/lib.rs/descriptor.rs/tests/glyph_render.rs (remaining warnings are pre-existing vendored ttf/rustybuzz code and hsk-studio-observe). Focused tests 4/4 at bf302f4.",
+    "determinism": "Hi (Inter-Regular, shaped at 12 pt by the shared harness, rasterised at px_per_pt 96/72*2 = 32 px/em = 24 pt at 96 ppi, origin (10.25, 40.0)): plane x=13 y=16 w=27 h=24 sha256 2b66ea525d0abc933ff810dc5d5be4016d0837a745c633ffae52271d74bc47ac asserted; 4 concurrent threads produce identical planes. Cross-host half of STU-TYP-131 printed NOT_PROVEN (needs a second host/platform).",
+    "deviations_from_brief": [
+      "Harness with_case fixes font_size_pt 12 (tests/support not in owned paths): 24 pt at 96 ppi reproduced by px_per_pt = 2*96/72.",
+      "Brief 'x extent equals summed advances within 1 px' would ignore side bearings; test asserts plane left/right within 1 px of the pen model (H xMin, H advance + i xMax) and width <= summed advances + 1.",
+      "Hand curve test (quad + cubic elevation of the same parabola, extra to brief): chords lie inside the convex curve so area is <= exact and within 1 % (measured 132.55 vs 133.33 at 20 px); triangle within 0.5 % as briefed.",
+      "Raster segment cap counts stored (non-horizontal) lines; horizontal edges carry no coverage and are dropped.",
+      "COLR/sbix/SVG/bitmap faces are refused whole (UnsupportedProfile from parse_bounded), no monochrome fallback in slice 1; recorded in descriptor.",
+      "Variable fonts: rasterize_run refuses any run whose AxisReceipt is not defaulted (explicit axes, even at default value) with variable_outline_unsupported; glyph_outlines always extracts the default instance.",
+      "Pigment Mask::validate interop not exercised (no type->pigment edge, none added); layout asserted as len = width*height, stride = width.",
+      "Brief proof 'cargo check -p hsk-studio-layout -p hsk-studio-interop-psd --tests' NOT RUN (dispatch limited proof to type check+clippy); API is additive and no crate outside hsk-studio-type glob-imports hsk_studio_type (grep at bf302f4), so no name collision path exists."
+    ],
+    "retry_guard": "One identical rerun blocked after the first failing run (test expectation max_segments 2 vs 2 stored lines); route (a): committed the test fix bf302f4 (HEAD changed), then reran; no gameplan step added.",
+    "new_deps": "none (no dep request)",
+    "composite_lowering": "NOT this lane; next lane SMB-COMPOSITE-TEXT"
+  }
+}
