@@ -1,0 +1,30 @@
+{
+ "crate": "hsk-studio-interop-psd",
+ "lane": "SMB-INTEROP-PSD-LE-LAYERS",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "little_endian_image_source_layers",
+ "commits": [
+  {"sha": "68cba91df40e090881cfd812489cbeba55d9fdab", "subject": "interop-psd: byte-order aware layer readers parse little-endian MIB8/46B8 ImageSourceData"},
+  {"sha": "84cdc17665a5a3215e46fdc98afa8f6e08dd6d50", "subject": "interop-psd: little-endian ImageSourceData tests (twin fixture, hostile inputs, Pillow Photoshop-CS sample)"}
+ ],
+ "capabilities_done": [
+  "Reader has a byte-order mode (with_order): LE numbers, reversed 4-byte tags returned in canonical spelling; no second parser (layers::parse_tagged_blocks/read_record/read_channel_data, document::read_layer_info, resources::read_unicode, compression RLE counts take the order)",
+  "image_source_document accepts MIB8 and 46B8 (8-bit only); PsdLayer.little_endian marks such layers so mask/lsct/lyid/luni accessors read LE payloads",
+  "typed refusals: image_source_little_endian_depth (depth != 8), image_source_little_endian_adjustment (adjustment/fill blocks), image_source_little_endian_effects (cached-pixel/effect blocks), little_endian_layer_write (write_psd is import-only for LE layers)",
+  "V4-01: #![deny(clippy::arithmetic_side_effects)] added to reader, layers, compression, resources, document, pixels and the touched arithmetic made checked/saturating"
+ ],
+ "tests": {"argv": "nextest run -p hsk-studio-interop-psd --no-fail-fast", "exit": 0, "sha": "84cdc17", "passed": 70, "failed": 0},
+ "blockers": [
+  {"error": "hsk-studio-harness tests/import_tiff.rs still asserts the old LE refusal and now fails (2 of 4): photoshop_tiff_imports_its_composite_exactly_and_records_the_layers_as_typed_loss (line 109, asserts parse_error contains image_source_little_endian) and photoshop_tiff_imports_its_layers_through_interop_psd (line 314, Pillow sample expectations). Harness is not an owned path of this lane; its crate compiles and clippy is clean with --all-features", "file_line": "crates/hsk-studio-harness/tests/import_tiff.rs:109,314", "attempts": 0}
+ ],
+ "lock_wait_s": 62,
+ "bg_pids": [],
+ "next": "harness owner updates import_tiff.rs for LE layers (Pillow sample now yields 2 layers Background / Layer 1); then validator",
+ "updated_at": "2026-10-14T20:15:00Z",
+ "notes": {
+  "real_photoshop_parity": "NOT_PROVEN: layers parsed from the Pillow Photoshop-CS file bytes only; expected names/count/channels/rects/lengths taken from independent byte inspection of the file (2 layers: Background R,G,B; Layer 1 alpha,R,G,B; rect 0,0,374,278)",
+  "sha_pin": "interop-psd test pins the Pillow file by length 313740 + tag length 188236 (no hash dependency in the crate); sha256 pin stays in the harness test",
+  "route": "commit first (HEAD change) cleared the retry guard after a failing test run; new test file needed git add before the pathspec commit",
+  "v4_06": "failure class: big-endian-only readers reached from image_source_document; sites: Reader numbers/array4, parse_tagged_blocks signature check, read_record, read_channel_data, RLE counts, read_unicode, LayerMask::parse, group_role/group_blend_key/layer_id, adjust.rs mask parameters, loss.rs luni check -- all fixed; descriptor.rs/adjust curve parsers remain BE and are guarded by the adjustment/effects refusals"
+ }
+}

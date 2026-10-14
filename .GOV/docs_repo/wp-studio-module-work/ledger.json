@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-14T20:13:30Z",
+ "updated_at": "2026-10-14T20:15:24Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3946,22 +3946,29 @@
   {
    "lane_id": "SMB-INTEROP-PSD-LE-LAYERS",
    "crate": "hsk-studio-interop-psd",
-   "phase": "queued",
-   "status": null,
+   "phase": "validation (harness tests/import_tiff.rs:109,314 must follow; routed to harness owner)",
+   "status": "READY_FOR_VALIDATION",
    "owner": null,
-   "commits": [],
+   "commits": [
+    "68cba91",
+    "84cdc17"
+   ],
    "verdicts": [],
-   "note": "little-endian MIB8 layer records in TIFF ImageSourceData (oracle-corpus/tiff-layered Pillow sample) refused; byte-order-aware readers"
+   "note": "little-endian MIB8 layer records in TIFF ImageSourceData (oracle-corpus/tiff-layered Pillow sample) refused; byte-order-aware readers",
+   "lane_file": "builders/lanes/hsk-studio-interop-psd-le-layers.json"
   },
   {
    "lane_id": "SMB-DEVELOP-CORPUS-PATH",
    "crate": "hsk-studio-develop",
-   "phase": "queued",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": null,
-   "commits": [],
+   "commits": [
+    "c946aa6"
+   ],
    "verdicts": [],
-   "note": "real_dng.rs:196 hard-codes ../../../../Handshake_Artifacts instead of .config/oracle-corpus.toml; panics in every export"
+   "note": "real_dng.rs:196 hard-codes ../../../../Handshake_Artifacts instead of .config/oracle-corpus.toml; panics in every export",
+   "lane_file": "builders/lanes/hsk-studio-develop-corpus-path.json"
   },
   {
    "lane_id": "SMB-PIGMENT-TRANSFORM",
