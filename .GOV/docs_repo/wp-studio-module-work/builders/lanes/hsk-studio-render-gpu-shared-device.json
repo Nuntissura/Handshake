@@ -70,6 +70,28 @@
    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R27",
    "started_at": "2026-10-14T22:06:44Z",
    "completed_at": "2026-10-14T22:35:40Z"
+  },
+  {
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+desktop+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-raw+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas"
+   ],
+   "note": "9ea8594 2bc4120: R27 blocker closed (round-features shared-device set). features render-gpu+shared-device shared_device_renders_into_the_callers_texture_without_readback (23.6 s, live adapter) + shared_target_refusals_happen_before_device_work passed; no_wgpu_types_in_public_api passed; harness desktop+viewer viewer_shared_display passed. Diff read: real compute-pass texture write, refusals before device work, bytes_read_back 0 asserted",
+   "idempotency_key": "STUDIO-R28:SMB-RENDER-GPU-SHARED-DEVICE:dd63d21efb85:PASS_V1",
+   "round": "STUDIO-R28",
+   "lane": "SMB-RENDER-GPU-SHARED-DEVICE",
+   "candidate": "dd63d21efb855ef539701fcd10f61a6bf5481e15",
+   "tree": "95d5239cfdde6e57e3a6934ca69453f3487b5ae4",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "started_at": "2026-10-14T22:55:24Z",
+   "completed_at": "2026-10-14T23:36:18Z"
   }
  ]
 }

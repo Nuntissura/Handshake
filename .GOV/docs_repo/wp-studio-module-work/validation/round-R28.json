@@ -1,0 +1,4096 @@
+{
+ "round": 28,
+ "round_id": "STUDIO-R28",
+ "round_opened": true,
+ "rule_refs": [
+  "CX-VAL-001",
+  "CX-VAL-002",
+  "CX-VAL-003",
+  "CX-VAL-004",
+  "CX-VAL-005",
+  "CX-VAL-006",
+  "CX-VAL-007",
+  "CX-VAL-008",
+  "CX-VAL-009",
+  "CX-VAL-010",
+  "CX-STATUS-001",
+  "CX-STATUS-003",
+  "CX-EXEC-005",
+  "CX-EXEC-014",
+  "CX-EXEC-015",
+  "V4-03 NOT_PROVEN",
+  "V4-13",
+  "V4-14"
+ ],
+ "candidate": "dd63d21efb855ef539701fcd10f61a6bf5481e15",
+ "tree": "95d5239cfdde6e57e3a6934ca69453f3487b5ae4",
+ "candidate_note": "dispatch freeze: exactly dd63d21 (steward sync for c6a636f). fetch 22:55:39Z: origin = e90ad7b (6e2ec80 fd8a271 b4f0107 edc1e0b 63af66e 917a7ac e90ad7b after the candidate); 3d02f56 at launch -> all queue for R29. e698964..dd63d21: 25 commits",
+ "round_identity_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/ROUND_IDENTITY.json",
+ "export": {
+  "file_count": 1117,
+  "manifest_sha256": "8d333d9948193b6a85629b70055ef1dbd52f471a0344806300739d7fb1e51d66",
+  "git_blob_equal": true,
+  "refresh": "kernel tools/export-refresh.sh in place e698964 -> dd63d21 (39 added, 37 changed, 1041 unchanged, 0 deleted), blob_mismatch 0, 22:55:24Z..22:55:31Z"
+ },
+ "started_at": "2026-10-14T22:55:24Z",
+ "completed_at": "2026-10-14T23:37:27Z",
+ "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+ "running_record": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/RUNNING-R28.jsonl (freeze, canary_reused C37, opened, running, process_identity pid 298328 start 22:59:53Z, completed, verdicts_accepted, verdicts_recorded)",
+ "gameplan": ".GOV/task_packets/WP-KERNEL-STUDIO/gameplans/STUDIO-MODULE-ROUND.yaml before_round PASS 12/12 at 22:59Z: GP-001 failed first (edit HEAD 172ed34 7 local builder commits ahead of origin); waited until edit HEAD == origin 3d02f56, then GP-003 (D: round target idle; 1 builder run on C: only), GP-005 LongPathsEnabled=1, GP-007..GP-014 confirmed with facts bound to edit HEAD 3d02f56; GP-004 D: 2.9 TiB free; GP-012 cargo metadata --locked ok",
+ "canary": {
+  "reused": true,
+  "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/steward-export/results/C37-dd63d21",
+  "round_json_sha256": "3989dba81817aea41d487dd1830506d9b2216e4a2be33e50f86dc9fbae683451",
+  "sha": "dd63d21efb855ef539701fcd10f61a6bf5481e15",
+  "tree": "95d5239cfdde6e57e3a6934ca69453f3487b5ae4",
+  "export_manifest_sha256": "8d333d9948193b6a85629b70055ef1dbd52f471a0344806300739d7fb1e51d66",
+  "summary": "steward canary --canary --all, same entrypoint, sha, tree and manifest: complete true, exit 0, 94 units (30 nextest, 63 doctest, 1 fixture), 37/37 first tests passed, failed 0, timed_out 0, not_proven []",
+  "reuse_basis": "CX-VAL-010 canary per candidate; identity record sha/tree/manifest == this round's export",
+  "caveat": "C37 round.json records rustc_wrapper sccache (steward caller env); R28 union ran with no caller env (rustc_wrapper '')"
+ },
+ "union": {
+  "selection": "--all (38 workspace members)",
+  "selection_rule": "crates changed e698964..dd63d21 (accord composite develop folio harness interop-fig layout nib pigment render-cpu render-gpu score) + reverse dependency closure from C37 metadata.json: accord is a normal dependency of every member -> all 38",
+  "argv": "bash tools/[round entry script] --results <studio-round>/results/R28 --target-dir <studio-round>/target --all (cwd export; absolute D: paths; no caller env)",
+  "started_at": "2026-10-14T22:59:58Z",
+  "ended_at": "2026-10-14T23:34:06Z",
+  "build_exit": 0,
+  "run_exit": 0,
+  "exit": 73,
+  "summary": "94 units all build 0 / run 0 (30 nextest: default + 28 feature + ignored; 63 doctest; 1 fixture binding_intact); default 1437 passed 12 skipped 0 failed; all units 2151 passed 168 skipped 0 failed; timed_out_tests [] (0 timeouts); absent []; NOT_PROVEN 17 lines -> exit 73",
+  "per_crate_default": {
+   "accord": 18,
+   "chronicle": 21,
+   "components": 17,
+   "composite": 49,
+   "controls": 16,
+   "develop": 51,
+   "folio": 54,
+   "harness": 7,
+   "interop-fig": 29,
+   "interop-layout": 11,
+   "interop-lrcat": 9,
+   "interop-media": 6,
+   "interop-psd": 70,
+   "interop-raster": 9,
+   "interop-tiff": 13,
+   "interop-vector": 23,
+   "kernel-bindings": 11,
+   "layout": 22,
+   "motion": 8,
+   "motion-js": 8,
+   "nib": 19,
+   "observe": 19,
+   "package": 25,
+   "pigment": 109,
+   "press": 181,
+   "prism": 156,
+   "pulse": 18,
+   "reel": 93,
+   "render-cpu": 47,
+   "render-gpu": 32,
+   "score": 47,
+   "score-device": 10,
+   "score-plugin": 23,
+   "session": 21,
+   "type": 45,
+   "web": 138,
+   "worker": 2
+  },
+  "hashes": {
+   "round.json": "5680595b04cdf617acb5f05b4717f7d5a5ebcc87d152342bd5e92613b8f7f3b0",
+   "tests.json": "62329191d7b1cc37df937569b688ef7bcc3e96079c871b0e6cf09c51bc6fd11b",
+   "junit.xml": "ef6dc1542c6c15f8dd4fa0c66f5c814f5b725558be202b1fd4a839fa4917eb22",
+   "units.tsv": "951256bee49254858d3ba88176f676e351cb14fcc9d1fd79315f9b04993c74d1",
+   "run.stderr.txt": "0fcf30ef03fdd3aadad2e68d9fd40e62ddaf9919e3162db0d23750fa5ee0c82e",
+   "build.stderr.txt": "19e53e235c0fd83d35f4364ea2a82c789df23873bff79a5fae487c39bf41f6d4",
+   "step0.policy.json": "d4f6431ce057b97971323f48c65e8035564117a31c7df664fc0087bfff48238b",
+   "oracle-corpus.manifest.txt": "cf9b560f3191c8e769b5d1e060462ad6eb9a5c2adc356b72334ee3bfd3e5e382"
+  },
+  "disk_lock": {
+   "root": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/.disk-build-lock",
+   "schema": "hsk.studio.disk-build-lock@2",
+   "class": "round",
+   "holds": 5,
+   "yields": 4,
+   "slice_s": 300,
+   "waited_s_total": 311,
+   "waited_s_max": 305,
+   "broke_stale": "",
+   "first_acquired_at": "2026-10-14T23:00:05Z",
+   "released_at": "2026-10-14T23:34:06Z"
+  },
+  "tools": {
+   "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+   "cargo": "cargo 1.97.1 (c980f4866 2026-06-30)",
+   "nextest": "cargo-nextest 0.9.148 (cd1d6d546 2026-10-07)"
+  },
+  "env": {
+   "set_by_entrypoint": [
+    "CARGO_TARGET_DIR",
+    "TMP",
+    "TEMP",
+    "TMPDIR",
+    "CARGO_PROFILE_DEV_DEBUG",
+    "CARGO_PROFILE_TEST_DEBUG",
+    "CARGO_TERM_COLOR"
+   ],
+   "env_added_by_caller": "none (CX-VAL-007)",
+   "rustc_wrapper": ""
+  },
+  "feature_matrix": {
+   "file": ".config/round-features.toml",
+   "sha256": "f2bf1b9a83506a7e243aff3c470f0187ef582fe0381068ea7f498066176fadd8"
+  },
+  "fixtures": [
+   {
+    "id": "score-plugin/clap-gain",
+    "binding_intact": true
+   }
+  ]
+ },
+ "timeouts": [],
+ "timeouts_note": "no per-test expiry in R28: timed_out_tests [] and every unit timed_out 0 (slowest: render-gpu gpu_plan slice3_hand_oracles_and_lattice_parity 36.8 s SLOW, passed)",
+ "not_proven": {
+  "union_lines": [
+   {
+    "unit": "default",
+    "crate": "hsk-studio-interop-fig",
+    "binary": "hsk-studio-interop-fig::fig_import",
+    "test": "actual_fig_instance_variable_prototype_edit_reopen",
+    "reason": "actual_fig_instance_variable_prototype_edit_reopen file=fig-basic-shapes.fig decoded=census+typed_node_tree editable_import=not_proven(tests/fig_native.rs maps into Folio and proves save+reopen identity and a rename; geometry, transforms, effects, images and masks are losses)"
+   },
+   {
+    "unit": "default",
+    "crate": "hsk-studio-interop-fig",
+    "binary": "hsk-studio-interop-fig::fig_import",
+    "test": "actual_fig_instance_variable_prototype_edit_reopen",
+    "reason": "actual_fig_instance_variable_prototype_edit_reopen file=fig-components-autolayout.fig decoded=census+typed_node_tree editable_import=not_proven(tests/fig_native.rs maps into Folio and proves save+reopen identity and a rename; geometry, transforms, effects, images and masks are losses)"
+   },
+   {
+    "unit": "default",
+    "crate": "hsk-studio-interop-fig",
+    "binary": "hsk-studio-interop-fig::fig_import",
+    "test": "actual_fig_instance_variable_prototype_edit_reopen",
+    "reason": "actual_fig_instance_variable_prototype_edit_reopen file=fig-prototype-pages.fig decoded=census+typed_node_tree editable_import=not_proven(tests/fig_native.rs maps into Folio and proves save+reopen identity and a rename; geometry, transforms, effects, images and masks are losses)"
+   },
+   {
+    "unit": "default",
+    "crate": "hsk-studio-interop-psd",
+    "binary": "hsk-studio-interop-psd::image_source_le",
+    "test": "pillow_photoshop_cs_little_endian_layers_parse",
+    "reason": "pillow_photoshop_cs_parity reason=no_independent_photoshop_oracle (layers parsed from file bytes only)"
+   },
+   {
+    "unit": "default",
+    "crate": "hsk-studio-reel",
+    "binary": "hsk-studio-reel::vc3_decode",
+    "test": "vc3_decode_matches_external_oracle_within_tolerance",
+    "reason": "dnxhr-hqx-264x120 10-bit agreement with ffmpeg (max delta 4); ffmpeg's CID 1271 weights differ from ST 2019-1 Table D.1"
+   },
+   {
+    "unit": "default",
+    "crate": "hsk-studio-type",
+    "binary": "hsk-studio-type::glyph_render",
+    "test": "run_raster_digest_and_mixed_scripts",
+    "reason": "cross-host raster identity (STU-TYP-131) needs a second host running this digest"
+   },
+   {
+    "unit": "features:hsk-studio-harness+import-tiff",
+    "crate": "hsk-studio-harness",
+    "binary": "hsk-studio-harness::import_tiff",
+    "test": "photoshop_tiff_imports_its_layers_through_interop_psd",
+    "reason": "tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file bytes only)"
+   },
+   {
+    "unit": "features:hsk-studio-harness+import-raw+import-tiff",
+    "crate": "hsk-studio-harness",
+    "binary": "hsk-studio-harness::import_tiff",
+    "test": "photoshop_tiff_imports_its_layers_through_interop_psd",
+    "reason": "tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file bytes only)"
+   },
+   {
+    "unit": "features:hsk-studio-harness+viewer",
+    "crate": "hsk-studio-harness",
+    "binary": "hsk-studio-harness::import_tiff",
+    "test": "photoshop_tiff_imports_its_layers_through_interop_psd",
+    "reason": "tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file bytes only)"
+   },
+   {
+    "unit": "features:hsk-studio-harness+desktop+viewer",
+    "crate": "hsk-studio-harness",
+    "binary": "hsk-studio-harness::import_tiff",
+    "test": "photoshop_tiff_imports_its_layers_through_interop_psd",
+    "reason": "tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file bytes only)"
+   },
+   {
+    "unit": "features:hsk-studio-reel+av1",
+    "crate": "hsk-studio-reel",
+    "binary": "hsk-studio-reel::vc3_decode",
+    "test": "vc3_decode_matches_external_oracle_within_tolerance",
+    "reason": "dnxhr-hqx-264x120 10-bit agreement with ffmpeg (max delta 4); ffmpeg's CID 1271 weights differ from ST 2019-1 Table D.1"
+   },
+   {
+    "unit": "features:hsk-studio-reel+prores",
+    "crate": "hsk-studio-reel",
+    "binary": "hsk-studio-reel::vc3_decode",
+    "test": "vc3_decode_matches_external_oracle_within_tolerance",
+    "reason": "dnxhr-hqx-264x120 10-bit agreement with ffmpeg (max delta 4); ffmpeg's CID 1271 weights differ from ST 2019-1 Table D.1"
+   },
+   {
+    "unit": "features:hsk-studio-type+harfrust",
+    "crate": "hsk-studio-type",
+    "binary": "hsk-studio-type::glyph_render",
+    "test": "run_raster_digest_and_mixed_scripts",
+    "reason": "cross-host raster identity (STU-TYP-131) needs a second host running this digest"
+   },
+   {
+    "unit": "ignored:hsk-studio-develop",
+    "crate": "hsk-studio-develop",
+    "binary": "hsk-studio-develop::real_raw",
+    "test": "nef_d1h_uncompressed_decodes_deterministically",
+    "reason": "nef_d1h_uncompressed_decodes_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run"
+   },
+   {
+    "unit": "ignored:hsk-studio-develop",
+    "crate": "hsk-studio-develop",
+    "binary": "hsk-studio-develop::real_raw",
+    "test": "arw_7s_craw_decodes_deterministically",
+    "reason": "arw_7s_craw_decodes_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run"
+   },
+   {
+    "unit": "ignored:hsk-studio-develop",
+    "crate": "hsk-studio-develop",
+    "binary": "hsk-studio-develop::real_raw",
+    "test": "cr2_350d_decodes_the_stored_frame_deterministically",
+    "reason": "cr2_350d_decodes_the_stored_frame_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run"
+   },
+   {
+    "unit": "ignored:hsk-studio-develop",
+    "crate": "hsk-studio-develop",
+    "binary": "hsk-studio-develop::real_dng",
+    "test": "real_dng_decode_and_develop",
+    "reason": "real_dng_decode_and_develop samsung-sm-g973u-16bit-uncompressed.dng reason=listed_download_is_a_jfif_rendering_not_a_dng"
+   }
+  ],
+  "not_launched": [
+   "harness desktop window (Operator-attended, CX-SAFE-002)"
+  ],
+  "rule": "V4-03: NOT_PROVEN lines prove nothing; lanes judged on their passing tests. New vs R27 (crates not built in R27): interop-fig fig_import editable_import=not_proven x3 (D17 .fig fixtures), reel vc3_decode CID 1271 vs ffmpeg x3 (lead decision 2026-10-14 SMB-REEL-ENG-2), type glyph_render cross-host raster identity x2"
+ },
+ "cx_val_009": {
+  "rule": "PASS lanes whose crate (or listed crates) is in the changed closure e698964..dd63d21 return to READY and are judged here; closure = all 38 crates (accord changed)",
+  "reopened": [
+   "SMB-TYPE",
+   "SMB-LAYOUT",
+   "SMB-DEVELOP",
+   "SMB-COMPONENTS",
+   "SMB-PULSE",
+   "SMB-SCORE",
+   "SMB-REEL",
+   "SMB-MOTION",
+   "SMB-COMPOSITE",
+   "SMB-RENDER-CPU",
+   "SMB-RENDER-GPU",
+   "SMB-PACKAGE",
+   "SMB-INTEROP-PSD",
+   "SMB-INTEROP-VECTOR",
+   "SMB-INTEROP-FIG",
+   "SMB-INTEROP-LAYOUT",
+   "SMB-INTEROP-MEDIA",
+   "SMB-CONTROLS",
+   "SMB-SESSION",
+   "SMB-HARNESS",
+   "SMB-KERNEL-BINDINGS",
+   "SMB-WEB",
+   "SMB-SCORE-DEVICE",
+   "SMB-SCORE-PLUGIN",
+   "SMB-INTEROP-LRCAT",
+   "SMB-MOTION-JS",
+   "SMB-PRISM-ENG-1",
+   "SMB-TYPE-ENG-1",
+   "SMB-REEL-ENG-1",
+   "SMB-REEL-ENG-2",
+   "SMB-REEL-ENG-3",
+   "SMB-PULSE-ENG-1",
+   "SMB-REEL-NATIVE-ENG-1",
+   "SMB-PRISM-ENG-2",
+   "SMB-PRISM-ENG-3",
+   "SMB-PRISM-ENG-4",
+   "SMB-PRISM-ENG-5",
+   "SMB-TYPE-DOCTEST",
+   "SMB-FOLIO-ENG-1",
+   "SMB-PIGMENT-ENG-1",
+   "SMB-TYPE-ENV",
+   "SMB-ACCORD-ENG-1",
+   "SMB-TYPE-FONTS",
+   "SMB-TYPE-FIXTURES",
+   "SMB-FOLIO-ENG-2",
+   "SMB-NIB-ENG-1",
+   "SMB-FOLIO-ENG-3",
+   "SMB-ACCORD-ENG-2",
+   "SMB-INTEROP-MEDIA-PULSE",
+   "SMB-RENDER-CPU-CLIP",
+   "SMB-MOTION-JS-WORKER",
+   "SMB-COMPOSITE-CLIP-ALIGN",
+   "SMB-LAYOUT-FOLIO-MIGRATE",
+   "SMB-FOLIO-ENG-4",
+   "SMB-INTEROP-PSD-WIDE",
+   "SMB-DEVELOP-WIDE",
+   "SMB-PACKAGE-STREAM-SAVE",
+   "SMB-PRISM-ENG-6",
+   "SMB-COMPONENTS-FOLIO-MIGRATE",
+   "SMB-INTEROP-VECTOR-FOLIO-MIGRATE",
+   "SMB-REEL-NATIVE-AV1-WORKER",
+   "SMB-REEL-AV1-ROUTE",
+   "SMB-PIGMENT-ENG-2",
+   "SMB-MOTION-JS-SANDBOX-2",
+   "SMB-PRISM-ENG-7",
+   "SMB-COMPOSITE-ADJ",
+   "SMB-RENDER-CPU-ADJ",
+   "SMB-RENDER-GPU-ADJ",
+   "SMB-INTEROP-PSD-ADJ",
+   "SMB-EFFECTS-WAVE-1",
+   "SMB-EFFECTS-WAVE-2",
+   "SMB-FOLIO-ENG-6",
+   "SMB-FOLIO-ENG-7",
+   "SMB-CHRONICLE-TABLE",
+   "SMB-PIGMENT-WINDOW",
+   "SMB-RENDER-CPU-WINDOW",
+   "SMB-INTEROP-VECTOR-RECORDS",
+   "SMB-WEB-DIFFTEST",
+   "SMB-RENDER-CPU-FX2",
+   "SMB-PRISM-ENG-8",
+   "SMB-INTEROP-PSD-RECEIPT",
+   "SMB-DEVELOP-JOBS",
+   "SMB-PIGMENT-BLENDIF-CLIP",
+   "SMB-BLENDIF-CLIP-ADOPT",
+   "SMB-INTEROP-PSD-CLIP-ROLES",
+   "SMB-PIGMENT-PLANLIMITS",
+   "SMB-REFUSAL-KEYS",
+   "SMB-SCORE-GUARDS",
+   "SMB-COMPONENTS-FOOTPRINT",
+   "SMB-FOLIO-UNIQUENESS",
+   "SMB-PIGMENT-FX-OPS",
+   "SMB-PRESS-DIFFERENCES",
+   "SMB-RENDER-GPU-PROBE",
+   "SMB-PIGMENT-ADMIT-PARITY",
+   "SMB-FX-OPS-ADOPT",
+   "SMB-SCORE-PLUGIN-RATE",
+   "SMB-PARITY-FOLLOWUP",
+   "SMB-INTEROP-PSD-BUDGET",
+   "SMB-REEL-NATIVE-FAULTS",
+   "SMB-WEB-PARITY",
+   "SMB-REEL-RECEIPTS",
+   "SMB-REEL-NATIVE-FAULTS-2",
+   "SMB-PIGMENT-FOLLOWUPS",
+   "SMB-PIGMENT-NOTES",
+   "SMB-NOTES-BATCH-1",
+   "SMB-PRESS-DOCS",
+   "SMB-REEL-PARTIAL-PTS",
+   "SMB-INTEROP-PSD-FOLIO-CEILING",
+   "SMB-REEL-PARTIAL-PTS-2",
+   "SMB-INTEROP-PSD-LOSS-DETAIL",
+   "SMB-PRESS-DOCS-2",
+   "SMB-PRESS-STRUCT-FAILCLOSED",
+   "SMB-INTEROP-PSD-DESC-CAP",
+   "SMB-REEL-PTS-TESTS",
+   "SMB-PRESS-STRUCT-ORPHANS",
+   "SMB-INTEROP-PSD-DOCS",
+   "SMB-PRESS-PROPERTIES",
+   "SMB-PRESS-STRUCT-STRIP",
+   "SMB-ZIP-CONSOLIDATE",
+   "SMB-WORKER-CRATE",
+   "SMB-INTEROP-FIG-FORMAT",
+   "SMB-DEVELOP-RAW-VENDOR",
+   "SMB-DEVELOP-DNG-MLV",
+   "SMB-INTEROP-TIFF",
+   "SMB-CONVERT-NATIVE",
+   "SMB-DEVELOP-RAW-ARW",
+   "SMB-SESSION-IMPORT-ENTRIES",
+   "SMB-CONVERT-COLOUR",
+   "SMB-CONVERT-TIFF",
+   "SMB-DEVELOP-TIFF-CONSOLIDATE",
+   "SMB-INTEROP-TIFF-CONTAINER-API",
+   "SMB-INTEROP-FIG-NODES",
+   "SMB-CONVERT-FOLLOWUPS",
+   "SMB-INTEROP-FIG-NATIVE",
+   "SMB-HARNESS-UI",
+   "SMB-IO-RASTER-COMMON",
+   "SMB-TYPE-GLYPH-RENDER",
+   "SMB-PIGMENT-SELECTION",
+   "SMB-PIGMENT-BRUSH",
+   "SMB-COMPOSITE-TEMPORAL",
+   "SMB-INTEROP-FIG-GEOMETRY",
+   "SMB-REEL-BFRAME-ORDER",
+   "SMB-INTEROP-PSD-LE-LAYERS",
+   "SMB-DEVELOP-CORPUS-PATH",
+   "SMB-PIGMENT-TRANSFORM",
+   "SMB-COMPOSITE-TEXT",
+   "SMB-FOLIO-PAINT-BLUR-STYLE",
+   "SMB-UI-SUPPORT-APIS",
+   "SMB-CONVERT-RASTER",
+   "SMB-INTEROP-FIG-FOLIO-KINDS",
+   "SMB-HARNESS-SWEEP-PERF"
+  ],
+  "count": 151,
+  "two_fail_lanes_reopened": [
+   "SMB-DEVELOP",
+   "SMB-COMPONENTS",
+   "SMB-RENDER-GPU",
+   "SMB-CONTROLS",
+   "SMB-WEB",
+   "SMB-MOTION-JS",
+   "SMB-PRISM-ENG-5",
+   "SMB-REEL-NATIVE-AV1-WORKER",
+   "SMB-REEL-AV1-ROUTE",
+   "SMB-INTEROP-PSD-BUDGET"
+  ],
+  "not_reopened_note": "SMB-ROUND-ENTRYPOINT not reopened: tools/run-round.sh unchanged e698964..dd63d21 (config .config/round-features.toml, Cargo.toml/lock and tools/workspace-probe.rs only), as R27. R32 INFO honoured: harness depends on press since fcd53b8; harness lanes reopened anyway (closure all crates)"
+ },
+ "excluded": [
+  {
+   "lane": "SMB-PIGMENT-RETOUCH",
+   "reason": "claim edc1e0b after the candidate; stays READY for R29"
+  },
+  {
+   "lane": "SMB-DEVELOP-CONTROLS",
+   "reason": "claim b4f0107 after the candidate; stays READY for R29"
+  },
+  {
+   "lane": "SMB-SCORE-DSP",
+   "reason": "claim 917a7ac after the candidate; stays READY for R29"
+  },
+  {
+   "lane": "SMB-FOLIO-VECTOR-IMAGE-PORT",
+   "reason": "claim 6e2ec80 after the candidate; stays READY for R29"
+  },
+  {
+   "lane": "SMB-FOLIO-PARENT-PAGES",
+   "reason": "claim 6e2ec80 after the candidate; stays READY for R29"
+  },
+  {
+   "lane": "SMB-PRESS-PG-HARDEN",
+   "reason": "claim aafcde7 after the candidate (lane set READY after freeze); stays READY for R29"
+  },
+  {
+   "lane": "SMB-NIB-VECTOR-RENDER",
+   "reason": "claims fd8a271 a1fc75f 201dca0 baf8ffc after the candidate (5e550e2 9e5c438 c6a636f inside); stays READY for R29"
+  },
+  {
+   "lane": "SMB-INTEROP-FIG-LAYER-GRAPH",
+   "reason": "claims e90ad7b 3a0cebc e3b89c4 5db9339 0c1ae4d after the candidate (55606ee inside); stays READY for R29"
+  },
+  {
+   "lane": "SMB-SCORE-TRUEPEAK",
+   "reason": "claim f025ff7 after the candidate; stays READY for R29"
+  },
+  {
+   "lane": "SMB-PIGMENT-CONTENT-AWARE",
+   "reason": "claims 5c2288e 3d02528 9c39a5e b7880bb after the candidate; stays READY for R29"
+  },
+  {
+   "lane": "SMB-DEVELOP-CONTROLS-2",
+   "reason": "claims 6a636c2 c809101 cfd75bf 31642da after the candidate; stays READY for R29"
+  },
+  {
+   "lane": "SMB-LAYOUT-PARENT-ADAPTER",
+   "reason": "claim 3d02f56 after the candidate; stays READY for R29"
+  }
+ ],
+ "proof_reuse": "none: every crate rebuilt and run in this round (closure = all 38)",
+ "adversarial_review": "diffs read: 63fce7a/8575cd7/9268bca (accord SCOM prefix additive; folio SCOM- ids validated), ee86db7 folio composition.rs (i128 source_tick, parent/precomp/matte cycle refusals, V4-01 deny), 32515b7/64356ff layout hyphenate/typeset/styles/parents (real Liang patterns, licence recorded), bff3713 harness view/edit.rs + viewer_edit.rs (pigment selection/brush, chronicle undo, pixel asserts after save+reopen; text tool typed refusal declared), 9ea8594 shared_device.rs (refusals before device work, texture vs read-back <=1, bytes_read_back 0), composite-new-kinds 8 commits (blur_math, cpu/gpu blur, vector.rs point-sampled booleans, typed refusals, V4-01 deny), SMB-PRESS via R32 pre-review (press byte-equal 2fd94c7..dd63d21). No stub claimed as capability found",
+ "findings_not_failures": [
+  {
+   "lane": "SMB-LAYOUT-TYPESET",
+   "severity": "CONFIRMED (reasoned, not run)",
+   "file_line": "crates/hsk-studio-layout/src/hyphenate.rs:159 (+:168)",
+   "finding": "p.min_before + p.min_after is an unchecked usize add; HyphenationParams{min_before: usize::MAX, min_after: 1} panics (overflow) in debug/test builds via Hyphenator::points and reflow_typeset (TypesetOptions::validate checks floats only, typeset.rs:163). hostile_inputs_are_refused_not_guessed covers usize::MAX/2 only. hyphenate.rs parses pattern text without V4-01 deny",
+   "why_not_fail": "CX-VAL-009/006: a FAIL needs a product failure in this round's results; validators add no tests (CX-EXEC-014). Routed to the lead as a V4-01/V4-02 follow-up",
+   "repair_direction": "checked_add/saturating on min_before+min_after and k+min_after; validate integer limits in TypesetOptions::validate; add deny + test"
+  }
+ ],
+ "verdict_counts": {
+  "PASS": 158,
+  "FAIL": 0,
+  "INCONCLUSIVE": 0
+ },
+ "verdict_numbering": "Vn = 1 + highest prior PASS_V/FAIL_V of the lane (ledger verdicts + status)",
+ "counters": [
+  {
+   "lane": "round",
+   "counter": "CX-EXEC-015(4)",
+   "outcome": "no infrastructure failure in this round"
+  },
+  {
+   "lane": "SMB-PRESS",
+   "counter": "CX-EXEC-015(1) fix budget",
+   "outcome": "2 failed verdicts (R5, R6) < 3; PASS_V9"
+  }
+ ],
+ "lanes": [
+  {
+   "lane": "SMB-TYPE",
+   "crate": "hsk-studio-type",
+   "crates_checked": [
+    "type"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V7",
+   "status_change": "PASS_V7",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V6",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "type glyph_render::run_raster_digest_and_mixed_scripts (default): cross-host raster identity (STU-TYP-131) needs a second host running this digest",
+    "type glyph_render::run_raster_digest_and_mixed_scripts (features:hsk-studio-type+harfrust): cross-host raster identity (STU-TYP-131) needs a second host running this digest"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default type 45; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-TYPE:dd63d21efb85:PASS_V7",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-LAYOUT",
+   "crate": "hsk-studio-layout",
+   "crates_checked": [
+    "layout"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V8",
+   "status_change": "PASS_V8",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V7",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default layout 22; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-layout.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-LAYOUT:dd63d21efb85:PASS_V8",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-DEVELOP",
+   "crate": "hsk-studio-develop",
+   "crates_checked": [
+    "develop"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V14",
+   "status_change": "PASS_V14",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V13",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "develop real_dng::real_dng_decode_and_develop (ignored:hsk-studio-develop): real_dng_decode_and_develop samsung-sm-g973u-16bit-uncompressed.dng reason=listed_download",
+    "develop real_raw::arw_7s_craw_decodes_deterministically (ignored:hsk-studio-develop): arw_7s_craw_decodes_deterministically cfa_samples_vs_independent_dng reason=no_approved_co",
+    "develop real_raw::cr2_350d_decodes_the_stored_frame_deterministically (ignored:hsk-studio-develop): cr2_350d_decodes_the_stored_frame_deterministically cfa_samples_vs_independent_dng reason=",
+    "develop real_raw::nef_d1h_uncompressed_decodes_deterministically (ignored:hsk-studio-develop): nef_d1h_uncompressed_decodes_deterministically cfa_samples_vs_independent_dng reason=no_ap"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default develop 51; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-develop.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-DEVELOP:dd63d21efb85:PASS_V14",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-COMPONENTS",
+   "crate": "hsk-studio-components",
+   "crates_checked": [
+    "components"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V8",
+   "status_change": "PASS_V8",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V7",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default components 17; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-components.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-COMPONENTS:dd63d21efb85:PASS_V8",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-PULSE",
+   "crate": "hsk-studio-pulse",
+   "crates_checked": [
+    "pulse"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V8",
+   "status_change": "PASS_V8",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V7",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default pulse 18; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-pulse.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-PULSE:dd63d21efb85:PASS_V8",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-SCORE",
+   "crate": "hsk-studio-score",
+   "crates_checked": [
+    "score"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V4",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default score 47; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-score.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-SCORE:dd63d21efb85:PASS_V5",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-REEL",
+   "crate": "hsk-studio-reel",
+   "crates_checked": [
+    "reel"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V17",
+   "status_change": "PASS_V17",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V16",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "reel vc3_decode::vc3_decode_matches_external_oracle_within_tolerance (default): dnxhr-hqx-264x120 10-bit agreement with ffmpeg (max delta 4); ffmpeg's CID 1271 weights di",
+    "reel vc3_decode::vc3_decode_matches_external_oracle_within_tolerance (features:hsk-studio-reel+av1): dnxhr-hqx-264x120 10-bit agreement with ffmpeg (max delta 4); ffmpeg's CID 1271 weights di",
+    "reel vc3_decode::vc3_decode_matches_external_oracle_within_tolerance (features:hsk-studio-reel+prores): dnxhr-hqx-264x120 10-bit agreement with ffmpeg (max delta 4); ffmpeg's CID 1271 weights di"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default reel 93; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-reel.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-REEL:dd63d21efb85:PASS_V17",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-MOTION",
+   "crate": "hsk-studio-motion",
+   "crates_checked": [
+    "motion"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default motion 8; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-motion.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-MOTION:dd63d21efb85:PASS_V2",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-COMPOSITE",
+   "crate": "hsk-studio-composite",
+   "crates_checked": [
+    "composite"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V13",
+   "status_change": "PASS_V13",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V12",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default composite 49; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-composite.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-COMPOSITE:dd63d21efb85:PASS_V13",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-RENDER-CPU",
+   "crate": "hsk-studio-render-cpu",
+   "crates_checked": [
+    "render-cpu"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V13",
+   "status_change": "PASS_V13",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V12",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default render-cpu 47; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-render-cpu.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-RENDER-CPU:dd63d21efb85:PASS_V13",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-RENDER-GPU",
+   "crate": "hsk-studio-render-gpu",
+   "crates_checked": [
+    "render-gpu"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V8",
+   "status_change": "PASS_V8",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V7",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default render-gpu 32; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-render-gpu.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-RENDER-GPU:dd63d21efb85:PASS_V8",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-PACKAGE",
+   "crate": "hsk-studio-package",
+   "crates_checked": [
+    "package"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V9",
+   "status_change": "PASS_V9",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V8",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default package 25; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-package.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-PACKAGE:dd63d21efb85:PASS_V9",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD",
+   "crate": "hsk-studio-interop-psd",
+   "crates_checked": [
+    "interop-psd"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V21",
+   "status_change": "PASS_V21",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V20",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "interop-psd image_source_le::pillow_photoshop_cs_little_endian_layers_parse (default): pillow_photoshop_cs_parity reason=no_independent_photoshop_oracle (layers parsed from file"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default interop-psd 70; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-interop-psd.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-INTEROP-PSD:dd63d21efb85:PASS_V21",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-INTEROP-VECTOR",
+   "crate": "hsk-studio-interop-vector",
+   "crates_checked": [
+    "interop-vector"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V10",
+   "status_change": "PASS_V10",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V9",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default interop-vector 23; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-INTEROP-VECTOR:dd63d21efb85:PASS_V10",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-INTEROP-FIG",
+   "crate": "hsk-studio-interop-fig",
+   "crates_checked": [
+    "interop-fig"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V7",
+   "status_change": "PASS_V7",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V6",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-basic-shapes.fig decoded=censu",
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-components-autolayout.fig deco",
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-prototype-pages.fig decoded=ce"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default interop-fig 29; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-INTEROP-FIG:dd63d21efb85:PASS_V7",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-INTEROP-LAYOUT",
+   "crate": "hsk-studio-interop-layout",
+   "crates_checked": [
+    "interop-layout"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V9",
+   "status_change": "PASS_V9",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V8",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default interop-layout 11; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-INTEROP-LAYOUT:dd63d21efb85:PASS_V9",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-INTEROP-MEDIA",
+   "crate": "hsk-studio-interop-media",
+   "crates_checked": [
+    "interop-media"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V3",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default interop-media 6; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-interop-media.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-INTEROP-MEDIA:dd63d21efb85:PASS_V4",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-CONTROLS",
+   "crate": "hsk-studio-controls",
+   "crates_checked": [
+    "controls"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V3",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default controls 16; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-CONTROLS:dd63d21efb85:PASS_V4",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-SESSION",
+   "crate": "hsk-studio-session",
+   "crates_checked": [
+    "session"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V10",
+   "status_change": "PASS_V10",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V9",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default session 21; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-session.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-SESSION:dd63d21efb85:PASS_V10",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-HARNESS",
+   "crate": "hsk-studio-harness",
+   "crates_checked": [
+    "harness"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V8",
+   "status_change": "PASS_V8",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V7",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+desktop+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-raw+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default harness 7; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-harness.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-HARNESS:dd63d21efb85:PASS_V8",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-KERNEL-BINDINGS",
+   "crate": "hsk-studio-kernel-bindings",
+   "crates_checked": [
+    "kernel-bindings"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V8",
+   "status_change": "PASS_V8",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V7",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default kernel-bindings 11; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-KERNEL-BINDINGS:dd63d21efb85:PASS_V8",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-PRESS",
+   "crate": "hsk-studio-press",
+   "crates_checked": [
+    "press"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V9",
+   "status_change": "PASS_V9",
+   "included_by": "READY claim in candidate",
+   "prior_status": "READY_FOR_VALIDATION",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "two-FAIL lane judged on R32 pre-review SAFE_TO_JUDGE (1da2453..2fd94c7; press byte-equal 2fd94c7..dd63d21). press default 181/181 + doctest:hsk-studio-press green. Diff read: flatten/purge/strip changes stay in redaction paths; writer/reader/sanitize unchanged. No stub",
+   "lane_file": "builders/lanes/hsk-studio-press.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-PRESS:dd63d21efb85:PASS_V9",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-WEB",
+   "crate": "hsk-studio-web",
+   "crates_checked": [
+    "web"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V6",
+   "status_change": "PASS_V6",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V5",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default web 138; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-WEB:dd63d21efb85:PASS_V6",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-SCORE-DEVICE",
+   "crate": "hsk-studio-score-device",
+   "crates_checked": [
+    "score-device"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V3",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default score-device 10; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-SCORE-DEVICE:dd63d21efb85:PASS_V4",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-SCORE-PLUGIN",
+   "crate": "hsk-studio-score-plugin",
+   "crates_checked": [
+    "score-plugin"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V6",
+   "status_change": "PASS_V6",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V5",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default score-plugin 23; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-SCORE-PLUGIN:dd63d21efb85:PASS_V6",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-INTEROP-LRCAT",
+   "crate": "hsk-studio-interop-lrcat",
+   "crates_checked": [
+    "interop-lrcat"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V2",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default interop-lrcat 9; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-INTEROP-LRCAT:dd63d21efb85:PASS_V3",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-MOTION-JS",
+   "crate": "hsk-studio-motion-js",
+   "crates_checked": [
+    "motion-js"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V4",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default motion-js 8; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-motion-js.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-MOTION-JS:dd63d21efb85:PASS_V5",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-PRISM-ENG-1",
+   "crate": "hsk-studio-prism",
+   "crates_checked": [
+    "prism"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V7",
+   "status_change": "PASS_V7",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V6",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default prism 156; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-prism-eng.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-PRISM-ENG-1:dd63d21efb85:PASS_V7",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-TYPE-ENG-1",
+   "crate": "hsk-studio-type",
+   "crates_checked": [
+    "type"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V2",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "type glyph_render::run_raster_digest_and_mixed_scripts (default): cross-host raster identity (STU-TYP-131) needs a second host running this digest",
+    "type glyph_render::run_raster_digest_and_mixed_scripts (features:hsk-studio-type+harfrust): cross-host raster identity (STU-TYP-131) needs a second host running this digest"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default type 45; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-TYPE-ENG-1:dd63d21efb85:PASS_V3",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-REEL-ENG-1",
+   "crate": "hsk-studio-reel",
+   "crates_checked": [
+    "reel"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V11",
+   "status_change": "PASS_V11",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V10",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "reel vc3_decode::vc3_decode_matches_external_oracle_within_tolerance (default): dnxhr-hqx-264x120 10-bit agreement with ffmpeg (max delta 4); ffmpeg's CID 1271 weights di",
+    "reel vc3_decode::vc3_decode_matches_external_oracle_within_tolerance (features:hsk-studio-reel+av1): dnxhr-hqx-264x120 10-bit agreement with ffmpeg (max delta 4); ffmpeg's CID 1271 weights di",
+    "reel vc3_decode::vc3_decode_matches_external_oracle_within_tolerance (features:hsk-studio-reel+prores): dnxhr-hqx-264x120 10-bit agreement with ffmpeg (max delta 4); ffmpeg's CID 1271 weights di"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default reel 93; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-reel-eng-1.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-REEL-ENG-1:dd63d21efb85:PASS_V11",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-REEL-ENG-2",
+   "crate": "hsk-studio-reel",
+   "crates_checked": [
+    "reel"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V3",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "reel vc3_decode::vc3_decode_matches_external_oracle_within_tolerance (default): dnxhr-hqx-264x120 10-bit agreement with ffmpeg (max delta 4); ffmpeg's CID 1271 weights di",
+    "reel vc3_decode::vc3_decode_matches_external_oracle_within_tolerance (features:hsk-studio-reel+av1): dnxhr-hqx-264x120 10-bit agreement with ffmpeg (max delta 4); ffmpeg's CID 1271 weights di",
+    "reel vc3_decode::vc3_decode_matches_external_oracle_within_tolerance (features:hsk-studio-reel+prores): dnxhr-hqx-264x120 10-bit agreement with ffmpeg (max delta 4); ffmpeg's CID 1271 weights di"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default reel 93; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-reel-eng-2.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-REEL-ENG-2:dd63d21efb85:PASS_V4",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-REEL-ENG-3",
+   "crate": "hsk-studio-reel",
+   "crates_checked": [
+    "reel"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V15",
+   "status_change": "PASS_V15",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V14",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "reel vc3_decode::vc3_decode_matches_external_oracle_within_tolerance (default): dnxhr-hqx-264x120 10-bit agreement with ffmpeg (max delta 4); ffmpeg's CID 1271 weights di",
+    "reel vc3_decode::vc3_decode_matches_external_oracle_within_tolerance (features:hsk-studio-reel+av1): dnxhr-hqx-264x120 10-bit agreement with ffmpeg (max delta 4); ffmpeg's CID 1271 weights di",
+    "reel vc3_decode::vc3_decode_matches_external_oracle_within_tolerance (features:hsk-studio-reel+prores): dnxhr-hqx-264x120 10-bit agreement with ffmpeg (max delta 4); ffmpeg's CID 1271 weights di"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default reel 93; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-REEL-ENG-3:dd63d21efb85:PASS_V15",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-PULSE-ENG-1",
+   "crate": "hsk-studio-pulse",
+   "crates_checked": [
+    "pulse"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V6",
+   "status_change": "PASS_V6",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V5",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default pulse 18; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-PULSE-ENG-1:dd63d21efb85:PASS_V6",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-REEL-NATIVE-ENG-1",
+   "crate": "hsk-studio-reel-native",
+   "crates_checked": [
+    "reel-native"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default ; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-reel-native-eng-1.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-REEL-NATIVE-ENG-1:dd63d21efb85:PASS_V2",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-PRISM-ENG-2",
+   "crate": "hsk-studio-prism",
+   "crates_checked": [
+    "prism"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V7",
+   "status_change": "PASS_V7",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V6",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default prism 156; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-prism-eng.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-PRISM-ENG-2:dd63d21efb85:PASS_V7",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-PRISM-ENG-3",
+   "crate": "hsk-studio-prism",
+   "crates_checked": [
+    "prism"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V6",
+   "status_change": "PASS_V6",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V5",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default prism 156; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-prism-eng.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-PRISM-ENG-3:dd63d21efb85:PASS_V6",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-PRISM-ENG-4",
+   "crate": "hsk-studio-prism",
+   "crates_checked": [
+    "prism"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V7",
+   "status_change": "PASS_V7",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V6",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default prism 156; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-prism-eng.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-PRISM-ENG-4:dd63d21efb85:PASS_V7",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-PRISM-ENG-5",
+   "crate": "hsk-studio-prism",
+   "crates_checked": [
+    "prism"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V6",
+   "status_change": "PASS_V6",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V5",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default prism 156; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-PRISM-ENG-5:dd63d21efb85:PASS_V6",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-TYPE-DOCTEST",
+   "crate": "hsk-studio-type",
+   "crates_checked": [
+    "type"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V2",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "type glyph_render::run_raster_digest_and_mixed_scripts (default): cross-host raster identity (STU-TYP-131) needs a second host running this digest",
+    "type glyph_render::run_raster_digest_and_mixed_scripts (features:hsk-studio-type+harfrust): cross-host raster identity (STU-TYP-131) needs a second host running this digest"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default type 45; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-TYPE-DOCTEST:dd63d21efb85:PASS_V3",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-FOLIO-ENG-1",
+   "crate": "hsk-studio-folio",
+   "crates_checked": [
+    "folio"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V8",
+   "status_change": "PASS_V8",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V7",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default folio 54; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-folio-eng-1.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-FOLIO-ENG-1:dd63d21efb85:PASS_V8",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-ENG-1",
+   "crate": "hsk-studio-pigment",
+   "crates_checked": [
+    "pigment"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V13",
+   "status_change": "PASS_V13",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V12",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default pigment 109; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-PIGMENT-ENG-1:dd63d21efb85:PASS_V13",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-TYPE-ENV",
+   "crate": "hsk-studio-type",
+   "crates_checked": [
+    "type"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V2",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "type glyph_render::run_raster_digest_and_mixed_scripts (default): cross-host raster identity (STU-TYP-131) needs a second host running this digest",
+    "type glyph_render::run_raster_digest_and_mixed_scripts (features:hsk-studio-type+harfrust): cross-host raster identity (STU-TYP-131) needs a second host running this digest"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default type 45; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-TYPE-ENV:dd63d21efb85:PASS_V3",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-ACCORD-ENG-1",
+   "crate": "hsk-studio-accord",
+   "crates_checked": [
+    "accord"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default accord 18; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-ACCORD-ENG-1:dd63d21efb85:PASS_V2",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-TYPE-FONTS",
+   "crate": "hsk-studio-type",
+   "crates_checked": [
+    "type"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V2",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "type glyph_render::run_raster_digest_and_mixed_scripts (default): cross-host raster identity (STU-TYP-131) needs a second host running this digest",
+    "type glyph_render::run_raster_digest_and_mixed_scripts (features:hsk-studio-type+harfrust): cross-host raster identity (STU-TYP-131) needs a second host running this digest"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default type 45; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-TYPE-FONTS:dd63d21efb85:PASS_V3",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-TYPE-FIXTURES",
+   "crate": "hsk-studio-type",
+   "crates_checked": [
+    "type"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V2",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "type glyph_render::run_raster_digest_and_mixed_scripts (default): cross-host raster identity (STU-TYP-131) needs a second host running this digest",
+    "type glyph_render::run_raster_digest_and_mixed_scripts (features:hsk-studio-type+harfrust): cross-host raster identity (STU-TYP-131) needs a second host running this digest"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default type 45; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-TYPE-FIXTURES:dd63d21efb85:PASS_V3",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-FOLIO-ENG-2",
+   "crate": "hsk-studio-folio",
+   "crates_checked": [
+    "folio"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V8",
+   "status_change": "PASS_V8",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V7",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default folio 54; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-FOLIO-ENG-2:dd63d21efb85:PASS_V8",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-NIB-ENG-1",
+   "crate": "hsk-studio-nib",
+   "crates_checked": [
+    "nib"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V2",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default nib 19; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-NIB-ENG-1:dd63d21efb85:PASS_V3",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-FOLIO-ENG-3",
+   "crate": "hsk-studio-folio",
+   "crates_checked": [
+    "folio"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V8",
+   "status_change": "PASS_V8",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V7",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default folio 54; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-folio-eng-3.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-FOLIO-ENG-3:dd63d21efb85:PASS_V8",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-ACCORD-ENG-2",
+   "crate": "hsk-studio-accord",
+   "crates_checked": [
+    "accord"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default accord 18; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-ACCORD-ENG-2:dd63d21efb85:PASS_V2",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-INTEROP-MEDIA-PULSE",
+   "crate": "hsk-studio-interop-media",
+   "crates_checked": [
+    "interop-media"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V3",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default interop-media 6; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-interop-media-pulse.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-INTEROP-MEDIA-PULSE:dd63d21efb85:PASS_V4",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-RENDER-CPU-CLIP",
+   "crate": "hsk-studio-render-cpu",
+   "crates_checked": [
+    "render-cpu"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V13",
+   "status_change": "PASS_V13",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V12",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default render-cpu 47; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-RENDER-CPU-CLIP:dd63d21efb85:PASS_V13",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-MOTION-JS-WORKER",
+   "crate": "hsk-studio-motion-js",
+   "crates_checked": [
+    "motion-js"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V3",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default motion-js 8; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-MOTION-JS-WORKER:dd63d21efb85:PASS_V4",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-COMPOSITE-CLIP-ALIGN",
+   "crate": "hsk-studio-composite",
+   "crates_checked": [
+    "composite"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V13",
+   "status_change": "PASS_V13",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V12",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default composite 49; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-COMPOSITE-CLIP-ALIGN:dd63d21efb85:PASS_V13",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-LAYOUT-FOLIO-MIGRATE",
+   "crate": "hsk-studio-layout",
+   "crates_checked": [
+    "layout"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V7",
+   "status_change": "PASS_V7",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V6",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default layout 22; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-LAYOUT-FOLIO-MIGRATE:dd63d21efb85:PASS_V7",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-FOLIO-ENG-4",
+   "crate": "hsk-studio-folio",
+   "crates_checked": [
+    "folio"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V7",
+   "status_change": "PASS_V7",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V6",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default folio 54; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-FOLIO-ENG-4:dd63d21efb85:PASS_V7",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-WIDE",
+   "crate": "hsk-studio-interop-psd",
+   "crates_checked": [
+    "interop-psd"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V19",
+   "status_change": "PASS_V19",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V18",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "interop-psd image_source_le::pillow_photoshop_cs_little_endian_layers_parse (default): pillow_photoshop_cs_parity reason=no_independent_photoshop_oracle (layers parsed from file"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default interop-psd 70; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-INTEROP-PSD-WIDE:dd63d21efb85:PASS_V19",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-DEVELOP-WIDE",
+   "crate": "hsk-studio-develop",
+   "crates_checked": [
+    "develop"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V11",
+   "status_change": "PASS_V11",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V10",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "develop real_dng::real_dng_decode_and_develop (ignored:hsk-studio-develop): real_dng_decode_and_develop samsung-sm-g973u-16bit-uncompressed.dng reason=listed_download",
+    "develop real_raw::arw_7s_craw_decodes_deterministically (ignored:hsk-studio-develop): arw_7s_craw_decodes_deterministically cfa_samples_vs_independent_dng reason=no_approved_co",
+    "develop real_raw::cr2_350d_decodes_the_stored_frame_deterministically (ignored:hsk-studio-develop): cr2_350d_decodes_the_stored_frame_deterministically cfa_samples_vs_independent_dng reason=",
+    "develop real_raw::nef_d1h_uncompressed_decodes_deterministically (ignored:hsk-studio-develop): nef_d1h_uncompressed_decodes_deterministically cfa_samples_vs_independent_dng reason=no_ap"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default develop 51; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-DEVELOP-WIDE:dd63d21efb85:PASS_V11",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-PACKAGE-STREAM-SAVE",
+   "crate": "hsk-studio-package",
+   "crates_checked": [
+    "package"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V8",
+   "status_change": "PASS_V8",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V7",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default package 25; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-PACKAGE-STREAM-SAVE:dd63d21efb85:PASS_V8",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-PRISM-ENG-6",
+   "crate": "hsk-studio-prism",
+   "crates_checked": [
+    "prism"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V4",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default prism 156; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-PRISM-ENG-6:dd63d21efb85:PASS_V5",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-COMPONENTS-FOLIO-MIGRATE",
+   "crate": "hsk-studio-components",
+   "crates_checked": [
+    "components"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V7",
+   "status_change": "PASS_V7",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V6",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default components 17; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-COMPONENTS-FOLIO-MIGRATE:dd63d21efb85:PASS_V7",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-INTEROP-VECTOR-FOLIO-MIGRATE",
+   "crate": "hsk-studio-interop-vector",
+   "crates_checked": [
+    "interop-vector"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V9",
+   "status_change": "PASS_V9",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V8",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default interop-vector 23; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-INTEROP-VECTOR-FOLIO-MIGRATE:dd63d21efb85:PASS_V9",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-REEL-NATIVE-AV1-WORKER",
+   "crate": "hsk-studio-reel-native",
+   "crates_checked": [
+    "reel-native"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V16",
+   "status_change": "PASS_V16",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V15",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default ; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-REEL-NATIVE-AV1-WORKER:dd63d21efb85:PASS_V16",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-REEL-AV1-ROUTE",
+   "crate": "hsk-studio-reel",
+   "crates_checked": [
+    "reel"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V15",
+   "status_change": "PASS_V15",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V14",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "reel vc3_decode::vc3_decode_matches_external_oracle_within_tolerance (default): dnxhr-hqx-264x120 10-bit agreement with ffmpeg (max delta 4); ffmpeg's CID 1271 weights di",
+    "reel vc3_decode::vc3_decode_matches_external_oracle_within_tolerance (features:hsk-studio-reel+av1): dnxhr-hqx-264x120 10-bit agreement with ffmpeg (max delta 4); ffmpeg's CID 1271 weights di",
+    "reel vc3_decode::vc3_decode_matches_external_oracle_within_tolerance (features:hsk-studio-reel+prores): dnxhr-hqx-264x120 10-bit agreement with ffmpeg (max delta 4); ffmpeg's CID 1271 weights di"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default reel 93; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-REEL-AV1-ROUTE:dd63d21efb85:PASS_V15",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-ENG-2",
+   "crate": "hsk-studio-pigment + hsk-studio-folio",
+   "crates_checked": [
+    "pigment",
+    "folio"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V11",
+   "status_change": "PASS_V11",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V10",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default pigment 109, folio 54; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-PIGMENT-ENG-2:dd63d21efb85:PASS_V11",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-MOTION-JS-SANDBOX-2",
+   "crate": "hsk-studio-motion-js",
+   "crates_checked": [
+    "motion-js"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V2",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default motion-js 8; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-MOTION-JS-SANDBOX-2:dd63d21efb85:PASS_V3",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-PRISM-ENG-7",
+   "crate": "hsk-studio-prism",
+   "crates_checked": [
+    "prism"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V3",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default prism 156; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-PRISM-ENG-7:dd63d21efb85:PASS_V4",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-COMPOSITE-ADJ",
+   "crate": "hsk-studio-composite",
+   "crates_checked": [
+    "composite"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V10",
+   "status_change": "PASS_V10",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V9",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default composite 49; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-COMPOSITE-ADJ:dd63d21efb85:PASS_V10",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-RENDER-CPU-ADJ",
+   "crate": "hsk-studio-render-cpu",
+   "crates_checked": [
+    "render-cpu"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V10",
+   "status_change": "PASS_V10",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V9",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default render-cpu 47; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-RENDER-CPU-ADJ:dd63d21efb85:PASS_V10",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-RENDER-GPU-ADJ",
+   "crate": "hsk-studio-render-gpu",
+   "crates_checked": [
+    "render-gpu"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V9",
+   "status_change": "PASS_V9",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V8",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default render-gpu 32; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-RENDER-GPU-ADJ:dd63d21efb85:PASS_V9",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-ADJ",
+   "crate": "hsk-studio-interop-psd",
+   "crates_checked": [
+    "interop-psd"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V18",
+   "status_change": "PASS_V18",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V17",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "interop-psd image_source_le::pillow_photoshop_cs_little_endian_layers_parse (default): pillow_photoshop_cs_parity reason=no_independent_photoshop_oracle (layers parsed from file"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default interop-psd 70; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-INTEROP-PSD-ADJ:dd63d21efb85:PASS_V18",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-EFFECTS-WAVE-1",
+   "crate": "hsk-studio-pigment",
+   "crates_checked": [
+    "pigment"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V10",
+   "status_change": "PASS_V10",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V9",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default pigment 109; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-EFFECTS-WAVE-1:dd63d21efb85:PASS_V10",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-EFFECTS-WAVE-2",
+   "crate": "hsk-studio-pigment",
+   "crates_checked": [
+    "pigment"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V10",
+   "status_change": "PASS_V10",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V9",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default pigment 109; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-EFFECTS-WAVE-2:dd63d21efb85:PASS_V10",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-FOLIO-ENG-6",
+   "crate": "hsk-studio-folio",
+   "crates_checked": [
+    "folio"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V4",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default folio 54; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-FOLIO-ENG-6:dd63d21efb85:PASS_V5",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-FOLIO-ENG-7",
+   "crate": "hsk-studio-folio",
+   "crates_checked": [
+    "folio"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V4",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default folio 54; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-FOLIO-ENG-7:dd63d21efb85:PASS_V5",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-CHRONICLE-TABLE",
+   "crate": "hsk-studio-chronicle + hsk-studio-session",
+   "crates_checked": [
+    "chronicle",
+    "session"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V7",
+   "status_change": "PASS_V7",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V6",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default chronicle 21, session 21; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-CHRONICLE-TABLE:dd63d21efb85:PASS_V7",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-WINDOW",
+   "crate": "hsk-studio-pigment",
+   "crates_checked": [
+    "pigment"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V10",
+   "status_change": "PASS_V10",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V9",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default pigment 109; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-PIGMENT-WINDOW:dd63d21efb85:PASS_V10",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-RENDER-CPU-WINDOW",
+   "crate": "hsk-studio-render-cpu",
+   "crates_checked": [
+    "render-cpu"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V10",
+   "status_change": "PASS_V10",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V9",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default render-cpu 47; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-RENDER-CPU-WINDOW:dd63d21efb85:PASS_V10",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-INTEROP-VECTOR-RECORDS",
+   "crate": "hsk-studio-interop-vector",
+   "crates_checked": [
+    "interop-vector"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V7",
+   "status_change": "PASS_V7",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V6",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default interop-vector 23; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-INTEROP-VECTOR-RECORDS:dd63d21efb85:PASS_V7",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-WEB-DIFFTEST",
+   "crate": "hsk-studio-web",
+   "crates_checked": [
+    "web"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V2",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default web 138; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-web-difftest.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-WEB-DIFFTEST:dd63d21efb85:PASS_V3",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-RENDER-CPU-FX2",
+   "crate": "hsk-studio-render-cpu",
+   "crates_checked": [
+    "render-cpu"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V10",
+   "status_change": "PASS_V10",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V9",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default render-cpu 47; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-RENDER-CPU-FX2:dd63d21efb85:PASS_V10",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-PRISM-ENG-8",
+   "crate": "hsk-studio-prism",
+   "crates_checked": [
+    "prism"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V3",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default prism 156; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-PRISM-ENG-8:dd63d21efb85:PASS_V4",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-RECEIPT",
+   "crate": "hsk-studio-interop-psd",
+   "crates_checked": [
+    "interop-psd"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V18",
+   "status_change": "PASS_V18",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V17",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "interop-psd image_source_le::pillow_photoshop_cs_little_endian_layers_parse (default): pillow_photoshop_cs_parity reason=no_independent_photoshop_oracle (layers parsed from file"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default interop-psd 70; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-INTEROP-PSD-RECEIPT:dd63d21efb85:PASS_V18",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-DEVELOP-JOBS",
+   "crate": "hsk-studio-develop",
+   "crates_checked": [
+    "develop"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V11",
+   "status_change": "PASS_V11",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V10",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "develop real_dng::real_dng_decode_and_develop (ignored:hsk-studio-develop): real_dng_decode_and_develop samsung-sm-g973u-16bit-uncompressed.dng reason=listed_download",
+    "develop real_raw::arw_7s_craw_decodes_deterministically (ignored:hsk-studio-develop): arw_7s_craw_decodes_deterministically cfa_samples_vs_independent_dng reason=no_approved_co",
+    "develop real_raw::cr2_350d_decodes_the_stored_frame_deterministically (ignored:hsk-studio-develop): cr2_350d_decodes_the_stored_frame_deterministically cfa_samples_vs_independent_dng reason=",
+    "develop real_raw::nef_d1h_uncompressed_decodes_deterministically (ignored:hsk-studio-develop): nef_d1h_uncompressed_decodes_deterministically cfa_samples_vs_independent_dng reason=no_ap"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default develop 51; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-DEVELOP-JOBS:dd63d21efb85:PASS_V11",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-BLENDIF-CLIP",
+   "crate": "hsk-studio-pigment",
+   "crates_checked": [
+    "pigment"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V10",
+   "status_change": "PASS_V10",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V9",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default pigment 109; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-PIGMENT-BLENDIF-CLIP:dd63d21efb85:PASS_V10",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-BLENDIF-CLIP-ADOPT",
+   "crate": "hsk-studio-composite + render-cpu + render-gpu",
+   "crates_checked": [
+    "composite",
+    "render-cpu",
+    "render-gpu"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V11",
+   "status_change": "PASS_V11",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V10",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default composite 49, render-cpu 47, render-gpu 32; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-BLENDIF-CLIP-ADOPT:dd63d21efb85:PASS_V11",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-CLIP-ROLES",
+   "crate": "hsk-studio-interop-psd",
+   "crates_checked": [
+    "interop-psd"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V18",
+   "status_change": "PASS_V18",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V17",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "interop-psd image_source_le::pillow_photoshop_cs_little_endian_layers_parse (default): pillow_photoshop_cs_parity reason=no_independent_photoshop_oracle (layers parsed from file"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default interop-psd 70; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-INTEROP-PSD-CLIP-ROLES:dd63d21efb85:PASS_V18",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-PLANLIMITS",
+   "crate": "hsk-studio-pigment",
+   "crates_checked": [
+    "pigment"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V7",
+   "status_change": "PASS_V7",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V6",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default pigment 109; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-pigment-planlimits.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-PIGMENT-PLANLIMITS:dd63d21efb85:PASS_V7",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-REFUSAL-KEYS",
+   "crate": "composite + render-cpu + render-gpu",
+   "crates_checked": [
+    "composite",
+    "render-cpu",
+    "render-gpu"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V10",
+   "status_change": "PASS_V10",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V9",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default composite 49, render-cpu 47, render-gpu 32; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-REFUSAL-KEYS:dd63d21efb85:PASS_V10",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-SCORE-GUARDS",
+   "crate": "hsk-studio-score",
+   "crates_checked": [
+    "score"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default score 47; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-SCORE-GUARDS:dd63d21efb85:PASS_V2",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-COMPONENTS-FOOTPRINT",
+   "crate": "hsk-studio-components",
+   "crates_checked": [
+    "components"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V3",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default components 17; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-COMPONENTS-FOOTPRINT:dd63d21efb85:PASS_V4",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-FOLIO-UNIQUENESS",
+   "crate": "hsk-studio-folio + hsk-studio-components",
+   "crates_checked": [
+    "folio",
+    "components"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V3",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default folio 54, components 17; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-FOLIO-UNIQUENESS:dd63d21efb85:PASS_V4",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-FX-OPS",
+   "crate": "hsk-studio-pigment",
+   "crates_checked": [
+    "pigment"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V9",
+   "status_change": "PASS_V9",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V8",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default pigment 109; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-PIGMENT-FX-OPS:dd63d21efb85:PASS_V9",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-PRESS-DIFFERENCES",
+   "crate": "hsk-studio-press",
+   "crates_checked": [
+    "press"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V10",
+   "status_change": "PASS_V10",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V9",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default press 181; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-PRESS-DIFFERENCES:dd63d21efb85:PASS_V10",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-RENDER-GPU-PROBE",
+   "crate": "hsk-studio-render-gpu",
+   "crates_checked": [
+    "render-gpu"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V4",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default render-gpu 32; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-render-gpu-probe.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-RENDER-GPU-PROBE:dd63d21efb85:PASS_V5",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-ADMIT-PARITY",
+   "crate": "hsk-studio-pigment",
+   "crates_checked": [
+    "pigment"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V9",
+   "status_change": "PASS_V9",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V8",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default pigment 109; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-PIGMENT-ADMIT-PARITY:dd63d21efb85:PASS_V9",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-FX-OPS-ADOPT",
+   "crate": "composite + render-cpu + render-gpu + interop-psd",
+   "crates_checked": [
+    "composite",
+    "render-cpu",
+    "render-gpu",
+    "interop-psd"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V17",
+   "status_change": "PASS_V17",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V16",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "interop-psd image_source_le::pillow_photoshop_cs_little_endian_layers_parse (default): pillow_photoshop_cs_parity reason=no_independent_photoshop_oracle (layers parsed from file"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default composite 49, render-cpu 47, render-gpu 32, interop-psd 70; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-FX-OPS-ADOPT:dd63d21efb85:PASS_V17",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-SCORE-PLUGIN-RATE",
+   "crate": "hsk-studio-score-plugin",
+   "crates_checked": [
+    "score-plugin"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V2",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default score-plugin 23; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-score-plugin-rate.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-SCORE-PLUGIN-RATE:dd63d21efb85:PASS_V3",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-PARITY-FOLLOWUP",
+   "crate": "hsk-studio-pigment + hsk-studio-render-cpu",
+   "crates_checked": [
+    "pigment",
+    "render-cpu"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V8",
+   "status_change": "PASS_V8",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V7",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default pigment 109, render-cpu 47; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-parity-followup.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-PARITY-FOLLOWUP:dd63d21efb85:PASS_V8",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-BUDGET",
+   "crate": "hsk-studio-interop-psd",
+   "crates_checked": [
+    "interop-psd"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V16",
+   "status_change": "PASS_V16",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V15",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "interop-psd image_source_le::pillow_photoshop_cs_little_endian_layers_parse (default): pillow_photoshop_cs_parity reason=no_independent_photoshop_oracle (layers parsed from file"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default interop-psd 70; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-INTEROP-PSD-BUDGET:dd63d21efb85:PASS_V16",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-REEL-NATIVE-FAULTS",
+   "crate": "hsk-studio-reel-native",
+   "crates_checked": [
+    "reel-native"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V13",
+   "status_change": "PASS_V13",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V12",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default ; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-reel-native-faults.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-REEL-NATIVE-FAULTS:dd63d21efb85:PASS_V13",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-WEB-PARITY",
+   "crate": "hsk-studio-web",
+   "crates_checked": [
+    "web"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V2",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default web 138; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-web-parity.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-WEB-PARITY:dd63d21efb85:PASS_V3",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-REEL-RECEIPTS",
+   "crate": "hsk-studio-reel",
+   "crates_checked": [
+    "reel"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V8",
+   "status_change": "PASS_V8",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V7",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "reel vc3_decode::vc3_decode_matches_external_oracle_within_tolerance (default): dnxhr-hqx-264x120 10-bit agreement with ffmpeg (max delta 4); ffmpeg's CID 1271 weights di",
+    "reel vc3_decode::vc3_decode_matches_external_oracle_within_tolerance (features:hsk-studio-reel+av1): dnxhr-hqx-264x120 10-bit agreement with ffmpeg (max delta 4); ffmpeg's CID 1271 weights di",
+    "reel vc3_decode::vc3_decode_matches_external_oracle_within_tolerance (features:hsk-studio-reel+prores): dnxhr-hqx-264x120 10-bit agreement with ffmpeg (max delta 4); ffmpeg's CID 1271 weights di"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default reel 93; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-reel-receipts.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-REEL-RECEIPTS:dd63d21efb85:PASS_V8",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-REEL-NATIVE-FAULTS-2",
+   "crate": "hsk-studio-reel-native",
+   "crates_checked": [
+    "reel-native"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V9",
+   "status_change": "PASS_V9",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V8",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default ; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-reel-native-faults-2.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-REEL-NATIVE-FAULTS-2:dd63d21efb85:PASS_V9",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-FOLLOWUPS",
+   "crate": "hsk-studio-pigment + hsk-studio-render-cpu",
+   "crates_checked": [
+    "pigment",
+    "render-cpu"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V6",
+   "status_change": "PASS_V6",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V5",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default pigment 109, render-cpu 47; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-pigment-followups.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-PIGMENT-FOLLOWUPS:dd63d21efb85:PASS_V6",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-NOTES",
+   "crate": "hsk-studio-pigment + hsk-studio-render-cpu",
+   "crates_checked": [
+    "pigment",
+    "render-cpu"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V4",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default pigment 109, render-cpu 47; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-pigment-notes.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-PIGMENT-NOTES:dd63d21efb85:PASS_V5",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-NOTES-BATCH-1",
+   "crate": "hsk-studio-press + hsk-studio-web + hsk-studio-reel-native + hsk-studio-interop-psd",
+   "crates_checked": [
+    "press",
+    "web",
+    "reel-native",
+    "interop-psd"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V9",
+   "status_change": "PASS_V9",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V8",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "interop-psd image_source_le::pillow_photoshop_cs_little_endian_layers_parse (default): pillow_photoshop_cs_parity reason=no_independent_photoshop_oracle (layers parsed from file"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default press 181, web 138, interop-psd 70; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/notes-batch-1.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-NOTES-BATCH-1:dd63d21efb85:PASS_V9",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-PRESS-DOCS",
+   "crate": "hsk-studio-press",
+   "crates_checked": [
+    "press"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V8",
+   "status_change": "PASS_V8",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V7",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default press 181; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-PRESS-DOCS:dd63d21efb85:PASS_V8",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-REEL-PARTIAL-PTS",
+   "crate": "hsk-studio-reel",
+   "crates_checked": [
+    "reel"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V7",
+   "status_change": "PASS_V7",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V6",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "reel vc3_decode::vc3_decode_matches_external_oracle_within_tolerance (default): dnxhr-hqx-264x120 10-bit agreement with ffmpeg (max delta 4); ffmpeg's CID 1271 weights di",
+    "reel vc3_decode::vc3_decode_matches_external_oracle_within_tolerance (features:hsk-studio-reel+av1): dnxhr-hqx-264x120 10-bit agreement with ffmpeg (max delta 4); ffmpeg's CID 1271 weights di",
+    "reel vc3_decode::vc3_decode_matches_external_oracle_within_tolerance (features:hsk-studio-reel+prores): dnxhr-hqx-264x120 10-bit agreement with ffmpeg (max delta 4); ffmpeg's CID 1271 weights di"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default reel 93; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-REEL-PARTIAL-PTS:dd63d21efb85:PASS_V7",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-FOLIO-CEILING",
+   "crate": "hsk-studio-interop-psd",
+   "crates_checked": [
+    "interop-psd"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V9",
+   "status_change": "PASS_V9",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V8",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "interop-psd image_source_le::pillow_photoshop_cs_little_endian_layers_parse (default): pillow_photoshop_cs_parity reason=no_independent_photoshop_oracle (layers parsed from file"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default interop-psd 70; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-INTEROP-PSD-FOLIO-CEILING:dd63d21efb85:PASS_V9",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-REEL-PARTIAL-PTS-2",
+   "crate": "hsk-studio-reel",
+   "crates_checked": [
+    "reel"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V6",
+   "status_change": "PASS_V6",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V5",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "reel vc3_decode::vc3_decode_matches_external_oracle_within_tolerance (default): dnxhr-hqx-264x120 10-bit agreement with ffmpeg (max delta 4); ffmpeg's CID 1271 weights di",
+    "reel vc3_decode::vc3_decode_matches_external_oracle_within_tolerance (features:hsk-studio-reel+av1): dnxhr-hqx-264x120 10-bit agreement with ffmpeg (max delta 4); ffmpeg's CID 1271 weights di",
+    "reel vc3_decode::vc3_decode_matches_external_oracle_within_tolerance (features:hsk-studio-reel+prores): dnxhr-hqx-264x120 10-bit agreement with ffmpeg (max delta 4); ffmpeg's CID 1271 weights di"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default reel 93; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-REEL-PARTIAL-PTS-2:dd63d21efb85:PASS_V6",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-LOSS-DETAIL",
+   "crate": "hsk-studio-interop-psd",
+   "crates_checked": [
+    "interop-psd"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V8",
+   "status_change": "PASS_V8",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V7",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "interop-psd image_source_le::pillow_photoshop_cs_little_endian_layers_parse (default): pillow_photoshop_cs_parity reason=no_independent_photoshop_oracle (layers parsed from file"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default interop-psd 70; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-INTEROP-PSD-LOSS-DETAIL:dd63d21efb85:PASS_V8",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-PRESS-DOCS-2",
+   "crate": "hsk-studio-press",
+   "crates_checked": [
+    "press"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V7",
+   "status_change": "PASS_V7",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V6",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default press 181; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-PRESS-DOCS-2:dd63d21efb85:PASS_V7",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-PRESS-STRUCT-FAILCLOSED",
+   "crate": "hsk-studio-press",
+   "crates_checked": [
+    "press"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V6",
+   "status_change": "PASS_V6",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V5",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default press 181; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-PRESS-STRUCT-FAILCLOSED:dd63d21efb85:PASS_V6",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-DESC-CAP",
+   "crate": "hsk-studio-interop-psd",
+   "crates_checked": [
+    "interop-psd"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V7",
+   "status_change": "PASS_V7",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V6",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "interop-psd image_source_le::pillow_photoshop_cs_little_endian_layers_parse (default): pillow_photoshop_cs_parity reason=no_independent_photoshop_oracle (layers parsed from file"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default interop-psd 70; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-INTEROP-PSD-DESC-CAP:dd63d21efb85:PASS_V7",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-REEL-PTS-TESTS",
+   "crate": "hsk-studio-reel",
+   "crates_checked": [
+    "reel"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V4",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "reel vc3_decode::vc3_decode_matches_external_oracle_within_tolerance (default): dnxhr-hqx-264x120 10-bit agreement with ffmpeg (max delta 4); ffmpeg's CID 1271 weights di",
+    "reel vc3_decode::vc3_decode_matches_external_oracle_within_tolerance (features:hsk-studio-reel+av1): dnxhr-hqx-264x120 10-bit agreement with ffmpeg (max delta 4); ffmpeg's CID 1271 weights di",
+    "reel vc3_decode::vc3_decode_matches_external_oracle_within_tolerance (features:hsk-studio-reel+prores): dnxhr-hqx-264x120 10-bit agreement with ffmpeg (max delta 4); ffmpeg's CID 1271 weights di"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default reel 93; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-REEL-PTS-TESTS:dd63d21efb85:PASS_V5",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-PRESS-STRUCT-ORPHANS",
+   "crate": "hsk-studio-press",
+   "crates_checked": [
+    "press"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V4",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default press 181; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-PRESS-STRUCT-ORPHANS:dd63d21efb85:PASS_V5",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-DOCS",
+   "crate": "hsk-studio-interop-psd",
+   "crates_checked": [
+    "interop-psd"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V6",
+   "status_change": "PASS_V6",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V5",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "interop-psd image_source_le::pillow_photoshop_cs_little_endian_layers_parse (default): pillow_photoshop_cs_parity reason=no_independent_photoshop_oracle (layers parsed from file"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default interop-psd 70; feature/ignored/doctest units green",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-INTEROP-PSD-DOCS:dd63d21efb85:PASS_V6",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-PRESS-PROPERTIES",
+   "crate": "hsk-studio-press",
+   "crates_checked": [
+    "press"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V3",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default press 181; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-press-properties.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-PRESS-PROPERTIES:dd63d21efb85:PASS_V4",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-PRESS-STRUCT-STRIP",
+   "crate": "hsk-studio-press",
+   "crates_checked": [
+    "press"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default press 181; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-press-struct-strip.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-PRESS-STRUCT-STRIP:dd63d21efb85:PASS_V2",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-ZIP-CONSOLIDATE",
+   "crate": "hsk-studio-package",
+   "crates_checked": [
+    "package"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V3",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default package 25; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-zip-consolidate.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-ZIP-CONSOLIDATE:dd63d21efb85:PASS_V4",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-WORKER-CRATE",
+   "crate": "hsk-studio-worker",
+   "crates_checked": [
+    "worker"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default worker 2; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-worker.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-WORKER-CRATE:dd63d21efb85:PASS_V2",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-INTEROP-FIG-FORMAT",
+   "crate": "hsk-studio-interop-fig",
+   "crates_checked": [
+    "interop-fig"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V2",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-basic-shapes.fig decoded=censu",
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-components-autolayout.fig deco",
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-prototype-pages.fig decoded=ce"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default interop-fig 29; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-interop-fig-format.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-INTEROP-FIG-FORMAT:dd63d21efb85:PASS_V3",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-DEVELOP-RAW-VENDOR",
+   "crate": "hsk-studio-develop",
+   "crates_checked": [
+    "develop"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V4",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "develop real_dng::real_dng_decode_and_develop (ignored:hsk-studio-develop): real_dng_decode_and_develop samsung-sm-g973u-16bit-uncompressed.dng reason=listed_download",
+    "develop real_raw::arw_7s_craw_decodes_deterministically (ignored:hsk-studio-develop): arw_7s_craw_decodes_deterministically cfa_samples_vs_independent_dng reason=no_approved_co",
+    "develop real_raw::cr2_350d_decodes_the_stored_frame_deterministically (ignored:hsk-studio-develop): cr2_350d_decodes_the_stored_frame_deterministically cfa_samples_vs_independent_dng reason=",
+    "develop real_raw::nef_d1h_uncompressed_decodes_deterministically (ignored:hsk-studio-develop): nef_d1h_uncompressed_decodes_deterministically cfa_samples_vs_independent_dng reason=no_ap"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default develop 51; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-develop-raw-vendor.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-DEVELOP-RAW-VENDOR:dd63d21efb85:PASS_V5",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-DEVELOP-DNG-MLV",
+   "crate": "hsk-studio-develop",
+   "crates_checked": [
+    "develop"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V4",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "develop real_dng::real_dng_decode_and_develop (ignored:hsk-studio-develop): real_dng_decode_and_develop samsung-sm-g973u-16bit-uncompressed.dng reason=listed_download",
+    "develop real_raw::arw_7s_craw_decodes_deterministically (ignored:hsk-studio-develop): arw_7s_craw_decodes_deterministically cfa_samples_vs_independent_dng reason=no_approved_co",
+    "develop real_raw::cr2_350d_decodes_the_stored_frame_deterministically (ignored:hsk-studio-develop): cr2_350d_decodes_the_stored_frame_deterministically cfa_samples_vs_independent_dng reason=",
+    "develop real_raw::nef_d1h_uncompressed_decodes_deterministically (ignored:hsk-studio-develop): nef_d1h_uncompressed_decodes_deterministically cfa_samples_vs_independent_dng reason=no_ap"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default develop 51; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-develop-dng-mlv.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-DEVELOP-DNG-MLV:dd63d21efb85:PASS_V5",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-INTEROP-TIFF",
+   "crate": "hsk-studio-interop-tiff",
+   "crates_checked": [
+    "interop-tiff"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V2",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default interop-tiff 13; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-interop-tiff.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-INTEROP-TIFF:dd63d21efb85:PASS_V3",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-CONVERT-NATIVE",
+   "crate": "hsk-studio-harness",
+   "crates_checked": [
+    "harness"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V3",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+desktop+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-raw+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default harness 7; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-convert-native.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-CONVERT-NATIVE:dd63d21efb85:PASS_V4",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-DEVELOP-RAW-ARW",
+   "crate": "hsk-studio-develop",
+   "crates_checked": [
+    "develop"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V4",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "develop real_dng::real_dng_decode_and_develop (ignored:hsk-studio-develop): real_dng_decode_and_develop samsung-sm-g973u-16bit-uncompressed.dng reason=listed_download",
+    "develop real_raw::arw_7s_craw_decodes_deterministically (ignored:hsk-studio-develop): arw_7s_craw_decodes_deterministically cfa_samples_vs_independent_dng reason=no_approved_co",
+    "develop real_raw::cr2_350d_decodes_the_stored_frame_deterministically (ignored:hsk-studio-develop): cr2_350d_decodes_the_stored_frame_deterministically cfa_samples_vs_independent_dng reason=",
+    "develop real_raw::nef_d1h_uncompressed_decodes_deterministically (ignored:hsk-studio-develop): nef_d1h_uncompressed_decodes_deterministically cfa_samples_vs_independent_dng reason=no_ap"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default develop 51; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-develop-raw-arw.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-DEVELOP-RAW-ARW:dd63d21efb85:PASS_V5",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-SESSION-IMPORT-ENTRIES",
+   "crate": "hsk-studio-session",
+   "crates_checked": [
+    "session"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V3",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default session 21; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-session-import-entries.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-SESSION-IMPORT-ENTRIES:dd63d21efb85:PASS_V4",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-CONVERT-COLOUR",
+   "crate": "hsk-studio-harness",
+   "crates_checked": [
+    "harness"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V3",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+desktop+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-raw+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default harness 7; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-convert-colour.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-CONVERT-COLOUR:dd63d21efb85:PASS_V4",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-CONVERT-TIFF",
+   "crate": "hsk-studio-harness",
+   "crates_checked": [
+    "harness"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V3",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+desktop+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-raw+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default harness 7; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-convert-tiff.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-CONVERT-TIFF:dd63d21efb85:PASS_V4",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-DEVELOP-TIFF-CONSOLIDATE",
+   "crate": "hsk-studio-develop",
+   "crates_checked": [
+    "develop"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V3",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "develop real_dng::real_dng_decode_and_develop (ignored:hsk-studio-develop): real_dng_decode_and_develop samsung-sm-g973u-16bit-uncompressed.dng reason=listed_download",
+    "develop real_raw::arw_7s_craw_decodes_deterministically (ignored:hsk-studio-develop): arw_7s_craw_decodes_deterministically cfa_samples_vs_independent_dng reason=no_approved_co",
+    "develop real_raw::cr2_350d_decodes_the_stored_frame_deterministically (ignored:hsk-studio-develop): cr2_350d_decodes_the_stored_frame_deterministically cfa_samples_vs_independent_dng reason=",
+    "develop real_raw::nef_d1h_uncompressed_decodes_deterministically (ignored:hsk-studio-develop): nef_d1h_uncompressed_decodes_deterministically cfa_samples_vs_independent_dng reason=no_ap"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default develop 51; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-develop-tiff-consolidate.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-DEVELOP-TIFF-CONSOLIDATE:dd63d21efb85:PASS_V4",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-INTEROP-TIFF-CONTAINER-API",
+   "crate": "hsk-studio-interop-tiff",
+   "crates_checked": [
+    "interop-tiff"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default interop-tiff 13; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-interop-tiff-container-api.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-INTEROP-TIFF-CONTAINER-API:dd63d21efb85:PASS_V2",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-INTEROP-FIG-NODES",
+   "crate": "hsk-studio-interop-fig",
+   "crates_checked": [
+    "interop-fig"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V2",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-basic-shapes.fig decoded=censu",
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-components-autolayout.fig deco",
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-prototype-pages.fig decoded=ce"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default interop-fig 29; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-interop-fig-nodes.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-INTEROP-FIG-NODES:dd63d21efb85:PASS_V3",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-CONVERT-FOLLOWUPS",
+   "crate": "hsk-studio-harness",
+   "crates_checked": [
+    "harness"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V3",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+desktop+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-raw+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default harness 7; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-convert-followups.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-CONVERT-FOLLOWUPS:dd63d21efb85:PASS_V4",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-INTEROP-FIG-NATIVE",
+   "crate": "hsk-studio-interop-fig",
+   "crates_checked": [
+    "interop-fig"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V2",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-basic-shapes.fig decoded=censu",
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-components-autolayout.fig deco",
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-prototype-pages.fig decoded=ce"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default interop-fig 29; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-interop-fig-native.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-INTEROP-FIG-NATIVE:dd63d21efb85:PASS_V3",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-HARNESS-UI",
+   "crate": "hsk-studio-harness",
+   "crates_checked": [
+    "harness"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+desktop+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-raw+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default harness 7; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-harness-ui.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-HARNESS-UI:dd63d21efb85:PASS_V2",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-IO-RASTER-COMMON",
+   "crate": "hsk-studio-interop-raster",
+   "crates_checked": [
+    "interop-raster"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default interop-raster 9; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-io-raster-common.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-IO-RASTER-COMMON:dd63d21efb85:PASS_V2",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-TYPE-GLYPH-RENDER",
+   "crate": "hsk-studio-type",
+   "crates_checked": [
+    "type"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "type glyph_render::run_raster_digest_and_mixed_scripts (default): cross-host raster identity (STU-TYP-131) needs a second host running this digest",
+    "type glyph_render::run_raster_digest_and_mixed_scripts (features:hsk-studio-type+harfrust): cross-host raster identity (STU-TYP-131) needs a second host running this digest"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default type 45; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-type-glyph-render.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-TYPE-GLYPH-RENDER:dd63d21efb85:PASS_V2",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-SELECTION",
+   "crate": "hsk-studio-pigment",
+   "crates_checked": [
+    "pigment"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V3",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default pigment 109; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-pigment-selection.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-PIGMENT-SELECTION:dd63d21efb85:PASS_V4",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-BRUSH",
+   "crate": "hsk-studio-pigment",
+   "crates_checked": [
+    "pigment"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V2",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default pigment 109; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-pigment-brush.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-PIGMENT-BRUSH:dd63d21efb85:PASS_V3",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-COMPOSITE-TEMPORAL",
+   "crate": "hsk-studio-composite",
+   "crates_checked": [
+    "composite"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default composite 49; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-composite-temporal.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-COMPOSITE-TEMPORAL:dd63d21efb85:PASS_V2",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-INTEROP-FIG-GEOMETRY",
+   "crate": "hsk-studio-interop-fig",
+   "crates_checked": [
+    "interop-fig"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-basic-shapes.fig decoded=censu",
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-components-autolayout.fig deco",
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-prototype-pages.fig decoded=ce"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default interop-fig 29; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-interop-fig-geometry.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-INTEROP-FIG-GEOMETRY:dd63d21efb85:PASS_V2",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-REEL-BFRAME-ORDER",
+   "crate": "hsk-studio-reel",
+   "crates_checked": [
+    "reel"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "reel vc3_decode::vc3_decode_matches_external_oracle_within_tolerance (default): dnxhr-hqx-264x120 10-bit agreement with ffmpeg (max delta 4); ffmpeg's CID 1271 weights di",
+    "reel vc3_decode::vc3_decode_matches_external_oracle_within_tolerance (features:hsk-studio-reel+av1): dnxhr-hqx-264x120 10-bit agreement with ffmpeg (max delta 4); ffmpeg's CID 1271 weights di",
+    "reel vc3_decode::vc3_decode_matches_external_oracle_within_tolerance (features:hsk-studio-reel+prores): dnxhr-hqx-264x120 10-bit agreement with ffmpeg (max delta 4); ffmpeg's CID 1271 weights di"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default reel 93; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-reel-bframe-order.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-REEL-BFRAME-ORDER:dd63d21efb85:PASS_V2",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-LE-LAYERS",
+   "crate": "hsk-studio-interop-psd",
+   "crates_checked": [
+    "interop-psd"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V2",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "interop-psd image_source_le::pillow_photoshop_cs_little_endian_layers_parse (default): pillow_photoshop_cs_parity reason=no_independent_photoshop_oracle (layers parsed from file"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default interop-psd 70; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-interop-psd-le-layers.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-INTEROP-PSD-LE-LAYERS:dd63d21efb85:PASS_V3",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-DEVELOP-CORPUS-PATH",
+   "crate": "hsk-studio-develop",
+   "crates_checked": [
+    "develop"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V3",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "develop real_dng::real_dng_decode_and_develop (ignored:hsk-studio-develop): real_dng_decode_and_develop samsung-sm-g973u-16bit-uncompressed.dng reason=listed_download",
+    "develop real_raw::arw_7s_craw_decodes_deterministically (ignored:hsk-studio-develop): arw_7s_craw_decodes_deterministically cfa_samples_vs_independent_dng reason=no_approved_co",
+    "develop real_raw::cr2_350d_decodes_the_stored_frame_deterministically (ignored:hsk-studio-develop): cr2_350d_decodes_the_stored_frame_deterministically cfa_samples_vs_independent_dng reason=",
+    "develop real_raw::nef_d1h_uncompressed_decodes_deterministically (ignored:hsk-studio-develop): nef_d1h_uncompressed_decodes_deterministically cfa_samples_vs_independent_dng reason=no_ap"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default develop 51; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-develop-corpus-path.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-DEVELOP-CORPUS-PATH:dd63d21efb85:PASS_V4",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-TRANSFORM",
+   "crate": "hsk-studio-pigment",
+   "crates_checked": [
+    "pigment"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V2",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default pigment 109; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-pigment-transform.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-PIGMENT-TRANSFORM:dd63d21efb85:PASS_V3",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-FOLIO-COMPOSITION",
+   "crate": "hsk-studio-folio",
+   "crates_checked": [
+    "folio"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "included_by": "READY claim in candidate",
+   "prior_status": "READY_FOR_VALIDATION",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "ee86db7 (+8575cd7 9268bca SCOM adoption): folio composition_contract 4/4 (round trip/time map, cycle refusals, bounds/overflow/identity incl. SCOM, budget/cancel); folio default 54. Diff read: i128 source_tick, cycle detection for parent/precomp/matte, deny(arithmetic_side_effects). No stub",
+   "lane_file": "builders/lanes/hsk-studio-folio-composition.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-FOLIO-COMPOSITION:dd63d21efb85:PASS_V1",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-COMPOSITE-TEXT",
+   "crate": "hsk-studio-composite",
+   "crates_checked": [
+    "composite"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V2",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default composite 49; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-composite-text.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-COMPOSITE-TEXT:dd63d21efb85:PASS_V3",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-FOLIO-PAINT-BLUR-STYLE",
+   "crate": "hsk-studio-folio",
+   "crates_checked": [
+    "folio"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default folio 54; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-folio-paint-blur-style.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-FOLIO-PAINT-BLUR-STYLE:dd63d21efb85:PASS_V2",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-RENDER-GPU-SHARED-DEVICE",
+   "crate": "hsk-studio-render-gpu",
+   "crates_checked": [
+    "render-gpu",
+    "harness"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "included_by": "READY claim in candidate",
+   "prior_status": "READY_FOR_VALIDATION",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+desktop+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-raw+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas"
+   ],
+   "note": "9ea8594 2bc4120: R27 blocker closed (round-features shared-device set). features render-gpu+shared-device shared_device_renders_into_the_callers_texture_without_readback (23.6 s, live adapter) + shared_target_refusals_happen_before_device_work passed; no_wgpu_types_in_public_api passed; harness desktop+viewer viewer_shared_display passed. Diff read: real compute-pass texture write, refusals before device work, bytes_read_back 0 asserted",
+   "lane_file": "builders/lanes/hsk-studio-render-gpu-shared-device.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-RENDER-GPU-SHARED-DEVICE:dd63d21efb85:PASS_V1",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-UI-SUPPORT-APIS",
+   "crate": "multi",
+   "crates_checked": [
+    "chronicle",
+    "session",
+    "harness"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+desktop+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-raw+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default chronicle 21, session 21, harness 7; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-ui-support-apis.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-UI-SUPPORT-APIS:dd63d21efb85:PASS_V2",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-HARNESS-UI-2",
+   "crate": "hsk-studio-harness",
+   "crates_checked": [
+    "harness"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "included_by": "READY claim in candidate",
+   "prior_status": "READY_FOR_VALIDATION",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+desktop+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-raw+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas"
+   ],
+   "note": "bff3713: viewer_edit select_paint_undo_redo_save_reopen_pixels, opacity_and_blend_mode_edits_with_undo_redo_survive_save, one_ui_frame_draws_the_tool_ids passed in harness+viewer and harness+desktop+viewer; harness default 7 + all harness feature units green. Diff read: real pigment selection/brush calls, chronicle-backed undo, pixel assertions after save+reopen. Text tool is a declared typed refusal (text_layer_unavailable), not claimed. Window not launched (CX-SAFE-002)",
+   "lane_file": "builders/lanes/hsk-studio-harness-ui-2.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-HARNESS-UI-2:dd63d21efb85:PASS_V1",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-CONVERT-RASTER",
+   "crate": "hsk-studio-harness",
+   "crates_checked": [
+    "harness"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+desktop+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-raw+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default harness 7; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-convert-raster.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-CONVERT-RASTER:dd63d21efb85:PASS_V2",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-INTEROP-FIG-FOLIO-KINDS",
+   "crate": "hsk-studio-interop-fig",
+   "crates_checked": [
+    "interop-fig"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-basic-shapes.fig decoded=censu",
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-components-autolayout.fig deco",
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-prototype-pages.fig decoded=ce"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default interop-fig 29; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-interop-fig-folio-kinds.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-INTEROP-FIG-FOLIO-KINDS:dd63d21efb85:PASS_V2",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-COMPOSITE-NEW-KINDS",
+   "crate": "hsk-studio-composite",
+   "crates_checked": [
+    "composite",
+    "pigment",
+    "render-cpu",
+    "render-gpu"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "included_by": "READY claim in candidate",
+   "prior_status": "READY_FOR_VALIDATION",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "8 commits (pigment f1816ef, render-cpu 7137249, render-gpu 06cff14, composite c691280 108b67e 46f18cd b316ba2 3800a14): pigment blur, render-cpu cpu_blur/vector_paint, render-gpu gpu_blur/vector_paint (live adapter; default, test-faults, shared-device units), composite blur/vector/boolean lowering, text_in_group, document_root: 35 results all passed. Diff read: real blur maths, point-sampled booleans, typed refusals; V4-01 deny on new modules",
+   "lane_file": "builders/lanes/hsk-studio-composite-new-kinds.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-COMPOSITE-NEW-KINDS:dd63d21efb85:PASS_V1",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-HARNESS-SWEEP-PERF",
+   "crate": "hsk-studio-harness",
+   "crates_checked": [
+    "harness"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+desktop+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-raw+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default harness 7; feature/ignored/doctest units green",
+   "lane_file": "builders/lanes/hsk-studio-harness-sweep-perf.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-HARNESS-SWEEP-PERF:dd63d21efb85:PASS_V2",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-LAYOUT-TYPESET",
+   "crate": "hsk-studio-layout",
+   "crates_checked": [
+    "layout",
+    "interop-layout"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "included_by": "READY claim in candidate",
+   "prior_status": "READY_FOR_VALIDATION",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "32515b7 64356ff: layout typeset 10 + hyphenation 6 passed (default 22), interop-layout 11. Diff read: real Liang patterns (hyph-en-us, licence recorded), justification, style inheritance, parent pages. FINDING (not a test failure): hyphenate.rs:159 min_before+min_after unchecked add; reflow_typeset validates floats only (typeset.rs:163)",
+   "lane_file": "builders/lanes/hsk-studio-layout-typeset.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-LAYOUT-TYPESET:dd63d21efb85:PASS_V1",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "lane": "SMB-ACCORD-COMPOSITION-PREFIX",
+   "crate": "hsk-studio-accord",
+   "crates_checked": [
+    "accord",
+    "folio"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "included_by": "READY claim in candidate",
+   "prior_status": "READY_FOR_VALIDATION",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "63fce7a 8575cd7 9268bca: accord composition_identity_prefix_is_registered + unsupported_identity_mapping (38 schemas) passed; accord default 18; folio composition_contract SCOM case passed. Diff read: additive prefix registration, SCOM- ids validated, legacy keys kept",
+   "lane_file": "builders/lanes/hsk-studio-accord-composition-prefix.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "idempotency_key": "STUDIO-R28:SMB-ACCORD-COMPOSITION-PREFIX:dd63d21efb85:PASS_V1",
+   "recorded_at": "2026-10-14T23:36:18Z"
+  }
+ ],
+ "infrastructure": [
+  "No infrastructure failure; disk lock round class holds 5 yields 4 waited 311 s total (max 305)",
+  "GP-001 initially failed: edit tree HEAD 172ed34 held 7 unpushed builder commits; validator waited (no git write) until HEAD == origin 3d02f56, then confirmed and launched",
+  "Gated-word hook blocked two inline commands naming gated words (process listing, records); re-run via script files; no build or test affected",
+  "No process stopped; no outer timeout wrapper; no caller env (round.json rustc_wrapper '', env_unset '')",
+  "No git write other than git fetch in the edit tree; no kernel commit; no outbound request besides fetch (V4-21)"
+ ],
+ "observations_for_next_round": [
+  "R29 queue: SMB-PIGMENT-RETOUCH (edc1e0b), SMB-DEVELOP-CONTROLS (b4f0107), SMB-SCORE-DSP (917a7ac), SMB-FOLIO-VECTOR-IMAGE-PORT + SMB-FOLIO-PARENT-PAGES (6e2ec80), plus whatever e90ad7b..3d02f56 claims (render-cpu SMB-RENDER-FILTERS, nib SMB-NIB-VECTOR-RENDER slices 3-4, interop-fig SMB-INTEROP-FIG-LAYER-GRAPH, SMB-HARNESS-UI-3 63af66e)",
+  "SMB-LAYOUT-TYPESET hyphenation overflow finding (findings_not_failures) for remediation routing",
+  "Ledger SMB-PRESS lane_file is null; verdict also recorded in builders/lanes/hsk-studio-press.json (the press lane file)",
+  "Ledger at verdict write time (23:36Z) held 7 more READY lanes set after the freeze; each has a claim commit after dd63d21 -> excluded, R29"
+ ],
+ "by": "wp_validator STUDIO-R28",
+ "recorded_at": "2026-10-14T23:37:27Z"
+}

@@ -1,78 +1,101 @@
 {
-  "crate": "hsk-studio-interop-fig",
-  "lane": "SMB-INTEROP-FIG-FORMAT",
-  "status": "READY_FOR_VALIDATION",
-  "phase": "real-file container facts recorded; census extended; editable decode still NOT_PROVEN",
-  "commits": [
-    {
-      "sha": "8278915",
-      "subject": "interop-fig (SMB-INTEROP-FIG-FORMAT): container facts observed in 3 real Figma 126.10.7 files, OBSERVED_VERSIONS, fig-diff UnsupportedKind, census fileVersion + NodeChange field presence, 616-field pin, fixtures + provenance.json, fixture-driven edit_reopen test"
-    }
-  ],
-  "capabilities_done": [
-    "Observed (3 files): ZIP with canvas.fig, thumbnail.png, meta.json, images/; prelude fig-kiwi + u32 LE version 106; u32 LE length-prefixed chunks, exactly 2: chunk0 Kiwi schema raw DEFLATE (653 definitions, NodeChange 616 fields, ids to 616), chunk1 message zstd; the existing reader was already correct, docs updated",
-    "OBSERVED_VERSIONS = [(Design, 106)] only; VersionPolicy::observed admits it",
-    "FigKind::Diff + FigError::UnsupportedKind (unsupported_kind): bare and in-ZIP fig-diff open with bytes preserved, no chunk table, never admitted; fig-deck marked UNVERIFIED",
-    "Census: file_version (Message.fileVersion field 18; ABSENT in all 3 files so None) and node_field_histogram (NodeChange field name -> node count)",
-    "Tests: real_fig_fixtures_container_facts, real_fig_node_change_schema_field_count_pinned, fig_diff_is_known_unsupported_and_file_version_is_recorded, actual_fig_instance_variable_prototype_edit_reopen (rewritten on the real fixtures)",
-    "DESCRIPTOR updated to observed facts"
-  ],
-  "tests": {
-    "argv": "cargo nextest run -p hsk-studio-interop-fig --tests --no-fail-fast --no-capture",
-    "exit": 0,
-    "sha": "8278915",
-    "passed": 8,
-    "failed": 0
-  },
-  "blockers": [],
-  "lock_wait_s": 215,
-  "bg_pids": [],
-  "next": "typed node-tree decode (parentIndex, properties, SYMBOL/INSTANCE overrides, VARIABLE/VARIABLE_SET values, prototypeInteractions) checked against fixture PNGs; fig-jam./fig-deck/fig-diff fixtures; images/<hash> blob mapping",
-  "updated_at": "2026-10-14T18:15:58Z",
-  "notes": {
-    "decodes": "Kiwi census only: node type histogram, source ids (session:local), DOCUMENT roots, NodeChange field presence. Real node kinds present: basic-shapes ELLIPSE 4, ROUNDED_RECTANGLE 5, STAR, LINE, VECTOR, BOOLEAN_OPERATION, TEXT, FRAME 3, CANVAS 2; components SYMBOL 2, INSTANCE 3, VARIABLE 3, VARIABLE_SET 1, FRAME 3, TEXT 3; prototype FRAME 13, TEXT 14, ELLIPSE 3, SECTION 1, CANVAS 3 (prototypeInteractions on 3 nodes, prototypeStartingPoint 1). NOT decoded: tree, property values, instance overrides, variable values, prototype actions, blobs/geometry, images. Editable import NOT_PROVEN.",
-    "variables": "fixtures have one variable mode only (plan limit); light/dark not representable",
-    "fixtures_commit": "fixtures + provenance.json (sha256/size per file) in 8278915; Cargo.lock untouched; no new dependency",
-    "gameplan_route": "no hook block on cargo steps; no retries",
-    "verdicts": [
-      {
-        "decision": "passed",
-        "verdict": "PASS_V1",
-        "failures": [],
-        "remediation": null,
-        "blocker": null,
-        "not_proven": [
-          "interop-fig fig_import actual_fig_instance_variable_prototype_edit_reopen x3 fixtures: editable import NOT_PROVEN (fig editable rows)"
-        ],
-        "note": "8278915: fig_import 8/8 on the 3 Operator .fig fixtures (container facts, 616-field pin, fig-diff unsupported); editable row NOT_PROVEN by design",
-        "idempotency_key": "STUDIO-R25:SMB-INTEROP-FIG-FORMAT:d48bc301bff0:PASS_V1",
-        "round": "STUDIO-R25",
-        "lane": "SMB-INTEROP-FIG-FORMAT",
-        "candidate": "d48bc301bff07a25da20a6cf6b11d84b8fbf197f",
-        "tree": "0a55d878183b3ba377d42f6547d1ca50a20228b2",
-        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R25",
-        "started_at": "2026-10-14T20:12:28Z",
-        "completed_at": "2026-10-14T20:53:21Z"
-      },
-      {
-        "decision": "passed",
-        "verdict": "PASS_V2",
-        "failures": [],
-        "remediation": null,
-        "blocker": null,
-        "not_proven": [
-          "interop-fig fig_import actual_fig_instance_variable_prototype_edit_reopen x3 fixtures: editable import NOT_PROVEN (fig editable rows)"
-        ],
-        "note": "reopened (CX-VAL-009: crate or dependency closure changed d48bc30..507aa36); units of interop-fig green in R26 (all units incl. feature, ignored, doctest)",
-        "idempotency_key": "STUDIO-R26:SMB-INTEROP-FIG-FORMAT:507aa36d6a58:PASS_V2",
-        "round": "STUDIO-R26",
-        "lane": "SMB-INTEROP-FIG-FORMAT",
-        "candidate": "507aa36d6a588f82568f0d2867495b71ce5023ae",
-        "tree": "595bb180eada95cebf57b6cbca509292ac949252",
-        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R26",
-        "started_at": "2026-10-14T21:21:54Z",
-        "completed_at": "2026-10-14T21:51:04Z"
-      }
-    ]
+ "crate": "hsk-studio-interop-fig",
+ "lane": "SMB-INTEROP-FIG-FORMAT",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "real-file container facts recorded; census extended; editable decode still NOT_PROVEN",
+ "commits": [
+  {
+   "sha": "8278915",
+   "subject": "interop-fig (SMB-INTEROP-FIG-FORMAT): container facts observed in 3 real Figma 126.10.7 files, OBSERVED_VERSIONS, fig-diff UnsupportedKind, census fileVersion + NodeChange field presence, 616-field pin, fixtures + provenance.json, fixture-driven edit_reopen test"
   }
+ ],
+ "capabilities_done": [
+  "Observed (3 files): ZIP with canvas.fig, thumbnail.png, meta.json, images/; prelude fig-kiwi + u32 LE version 106; u32 LE length-prefixed chunks, exactly 2: chunk0 Kiwi schema raw DEFLATE (653 definitions, NodeChange 616 fields, ids to 616), chunk1 message zstd; the existing reader was already correct, docs updated",
+  "OBSERVED_VERSIONS = [(Design, 106)] only; VersionPolicy::observed admits it",
+  "FigKind::Diff + FigError::UnsupportedKind (unsupported_kind): bare and in-ZIP fig-diff open with bytes preserved, no chunk table, never admitted; fig-deck marked UNVERIFIED",
+  "Census: file_version (Message.fileVersion field 18; ABSENT in all 3 files so None) and node_field_histogram (NodeChange field name -> node count)",
+  "Tests: real_fig_fixtures_container_facts, real_fig_node_change_schema_field_count_pinned, fig_diff_is_known_unsupported_and_file_version_is_recorded, actual_fig_instance_variable_prototype_edit_reopen (rewritten on the real fixtures)",
+  "DESCRIPTOR updated to observed facts"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-interop-fig --tests --no-fail-fast --no-capture",
+  "exit": 0,
+  "sha": "8278915",
+  "passed": 8,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 215,
+ "bg_pids": [],
+ "next": "typed node-tree decode (parentIndex, properties, SYMBOL/INSTANCE overrides, VARIABLE/VARIABLE_SET values, prototypeInteractions) checked against fixture PNGs; fig-jam./fig-deck/fig-diff fixtures; images/<hash> blob mapping",
+ "updated_at": "2026-10-14T18:15:58Z",
+ "notes": {
+  "decodes": "Kiwi census only: node type histogram, source ids (session:local), DOCUMENT roots, NodeChange field presence. Real node kinds present: basic-shapes ELLIPSE 4, ROUNDED_RECTANGLE 5, STAR, LINE, VECTOR, BOOLEAN_OPERATION, TEXT, FRAME 3, CANVAS 2; components SYMBOL 2, INSTANCE 3, VARIABLE 3, VARIABLE_SET 1, FRAME 3, TEXT 3; prototype FRAME 13, TEXT 14, ELLIPSE 3, SECTION 1, CANVAS 3 (prototypeInteractions on 3 nodes, prototypeStartingPoint 1). NOT decoded: tree, property values, instance overrides, variable values, prototype actions, blobs/geometry, images. Editable import NOT_PROVEN.",
+  "variables": "fixtures have one variable mode only (plan limit); light/dark not representable",
+  "fixtures_commit": "fixtures + provenance.json (sha256/size per file) in 8278915; Cargo.lock untouched; no new dependency",
+  "gameplan_route": "no hook block on cargo steps; no retries",
+  "verdicts": [
+   {
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "blocker": null,
+    "not_proven": [
+     "interop-fig fig_import actual_fig_instance_variable_prototype_edit_reopen x3 fixtures: editable import NOT_PROVEN (fig editable rows)"
+    ],
+    "note": "8278915: fig_import 8/8 on the 3 Operator .fig fixtures (container facts, 616-field pin, fig-diff unsupported); editable row NOT_PROVEN by design",
+    "idempotency_key": "STUDIO-R25:SMB-INTEROP-FIG-FORMAT:d48bc301bff0:PASS_V1",
+    "round": "STUDIO-R25",
+    "lane": "SMB-INTEROP-FIG-FORMAT",
+    "candidate": "d48bc301bff07a25da20a6cf6b11d84b8fbf197f",
+    "tree": "0a55d878183b3ba377d42f6547d1ca50a20228b2",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R25",
+    "started_at": "2026-10-14T20:12:28Z",
+    "completed_at": "2026-10-14T20:53:21Z"
+   },
+   {
+    "decision": "passed",
+    "verdict": "PASS_V2",
+    "failures": [],
+    "remediation": null,
+    "blocker": null,
+    "not_proven": [
+     "interop-fig fig_import actual_fig_instance_variable_prototype_edit_reopen x3 fixtures: editable import NOT_PROVEN (fig editable rows)"
+    ],
+    "note": "reopened (CX-VAL-009: crate or dependency closure changed d48bc30..507aa36); units of interop-fig green in R26 (all units incl. feature, ignored, doctest)",
+    "idempotency_key": "STUDIO-R26:SMB-INTEROP-FIG-FORMAT:507aa36d6a58:PASS_V2",
+    "round": "STUDIO-R26",
+    "lane": "SMB-INTEROP-FIG-FORMAT",
+    "candidate": "507aa36d6a588f82568f0d2867495b71ce5023ae",
+    "tree": "595bb180eada95cebf57b6cbca509292ac949252",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R26",
+    "started_at": "2026-10-14T21:21:54Z",
+    "completed_at": "2026-10-14T21:51:04Z"
+   }
+  ]
+ },
+ "verdicts": [
+  {
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-basic-shapes.fig decoded=censu",
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-components-autolayout.fig deco",
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-prototype-pages.fig decoded=ce"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default interop-fig 29; feature/ignored/doctest units green",
+   "idempotency_key": "STUDIO-R28:SMB-INTEROP-FIG-FORMAT:dd63d21efb85:PASS_V3",
+   "round": "STUDIO-R28",
+   "lane": "SMB-INTEROP-FIG-FORMAT",
+   "candidate": "dd63d21efb855ef539701fcd10f61a6bf5481e15",
+   "tree": "95d5239cfdde6e57e3a6934ca69453f3487b5ae4",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "started_at": "2026-10-14T22:55:24Z",
+   "completed_at": "2026-10-14T23:36:18Z"
+  }
+ ]
 }

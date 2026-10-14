@@ -1,218 +1,237 @@
 {
-  "crate": "hsk-studio-interop-media",
-  "lane": "SMB-INTEROP-MEDIA",
-  "status": "PASS_V1",
-  "phase": "slice-1 CMX3600 EDL import/export + Folio mapping + native-format gap; R3 remediation: tick->frame math on accord (timecode label duplication with pulse remains: D9 pulse edge BLOCKED on Operator decision)",
-  "commits": [
-    {
-      "sha": "8be9cee8603fec9bce780550b87d5a2d61d085dc",
-      "subject": "Interop-media: CMX3600 EDL import into neutral proposal with typed losses, Folio sequence + validated document revision, deterministic export, native PRPROJ/AEP/SESX blocked-loudly sniffing, example"
-    },
-    {
-      "sha": "9575239193da1311816216cfe32b2f212264a92c",
-      "subject": "Interop-media: rational_to_ticks, frame_rate_from_fraction, fps_fraction delegate to accord Timescale/FrameRate (CX-CAP-001); timecode label collapse onto pulse still pending the pulse path dependency"
-    },
-    {
-      "sha": "4a6bb19",
-      "subject": "Interop-media R3: tick->frame math and ratio reduction delegate to accord Timescale (D9 pulse edge stays blocked)"
-    }
-  ],
-  "capabilities_done": [
-    "import_cmx3600(bytes, ImportRequest{frame_rate, assume_drop, record_origin_frames, known_reels}, Limits, cancel) -> TimelineProposal: TITLE, FCM, cuts on V/A/A2../AA/B/AA-V, M2 speed as exact rational (negative = reverse), FROM/TO CLIP NAME, bounded bytes/events/line, typed errors with 1-based line",
-    "typed losses (STU-IO-186 vocabulary): dissolve/wipe/key dropped, zero-length cut anchors, freeze frame, unknown track, unknown reel (Missing), channel pair collapsed (Approximate), M2 vs span disagreement (Approximate, spans used), other directives",
-    "build_sequence(TimelineProposal, SequenceOptions{sequence_id, name, reels}, IdSource) -> Folio StudioSequence; unmapped reel = explicit offline reference + Missing loss; SequentialIds deterministic uuid_v7-shaped ids (caller can supply any IdSource)",
-    "propose_document_revision(Snapshot, expected_revision, BuiltSequence, FolioContext) -> DocumentProposal with Folio validate_document at revision+1 (insert or replace by sequence id); nothing committed",
-    "export_cmx3600(TimelineProposal) deterministic text for the round-trip-able subset (cuts, V index 0 + A/A2.., names, M2 speed as exact decimal); fixed point after one import/export cycle",
-    "time adapters: parse_frame_rate (integer, n/d, decimal aliases 23.976/29.97/59.94 with RateSpelling receipt), frame_rate_from_ticks (legacy normalization receipt), timecode_to_frames / frames_to_timecode incl. drop-frame, rational_to_ticks with Exactness (Exact / NormalizedLegacy / Approximate(HalfAwayFromZero))",
-    "native gap: sniff_native (gzip magic = PRPROJ candidate, RIFX = AEP candidate, XML root sesx / AfterEffectsProject), import_native always blocked with Missing loss for 7 entity classes; detection strings are UNVERIFIED candidates (need black-box saves)",
-    "report() -> one Observe terminal outcome; DESCRIPTOR; examples/interop-media-consumer.rs (--edl FILE --rate R [--drop] [--origin FRAMES] [--export], --sniff FILE) run: import, export, sniff, refusal exit 2",
-    "SMB-ACCORD-ENG-2 migration part 1 (9575239): rational_to_ticks -> Timescale::rational(num,den).ticks_from_units(.., NearestHalfUp) (Exactness/RoundingRule public types and every error kind unchanged; negative -> NegativeTime, zero -> InvalidRational, overflow -> TimecodeOverflow); frame_rate_from_fraction -> FrameRate::from_fps after the InvalidFrameRate zero check; fps_fraction -> FrameRate::fps_fraction. reduce/gcd stay (edl.rs derive_speed ratio reduction).",
-    "R3 remediation (4a6bb19): ticks_to_frames_exact = Timescale::rational(fps_fraction).units_from_ticks(Floor), remainder -> NotFrameAligned (was a local ticks-per-frame division); the local gcd/reduce is replaced by the reduced Timescale ratio (reduce() now returns Result, used by derive_speed in edl.rs, failure -> InvalidSpeed at the event line). Public API, error kinds and expected values unchanged."
-  ],
-  "tests": {
-    "argv": "cargo test -p hsk-studio-interop-media --tests",
-    "exit": 0,
-    "sha": "4a6bb19",
-    "passed": 6,
-    "failed": 0
+ "crate": "hsk-studio-interop-media",
+ "lane": "SMB-INTEROP-MEDIA",
+ "status": "PASS_V1",
+ "phase": "slice-1 CMX3600 EDL import/export + Folio mapping + native-format gap; R3 remediation: tick->frame math on accord (timecode label duplication with pulse remains: D9 pulse edge BLOCKED on Operator decision)",
+ "commits": [
+  {
+   "sha": "8be9cee8603fec9bce780550b87d5a2d61d085dc",
+   "subject": "Interop-media: CMX3600 EDL import into neutral proposal with typed losses, Folio sequence + validated document revision, deterministic export, native PRPROJ/AEP/SESX blocked-loudly sniffing, example"
   },
-  "blockers": [
-    {
-      "error": "Edit tool permission denied by the auto mode classifier (Modify Shared Resources) when adding the hsk-studio-pulse path dependency to crates/hsk-studio-interop-media/Cargo.toml; the coordinator instruction authorizing the edge could not be applied, so D9 (collapse src/time.rs timecode/drop-frame label arithmetic onto pulse) is NOT done. No workaround attempted.",
-      "file_line": "crates/hsk-studio-interop-media/Cargo.toml:13",
-      "attempts": 1
-    }
-  ],
-  "lock_wait_s": 0,
-  "bg_pids": [],
-  "next": "Validator round on 4a6bb19. D9 once the Cargo.toml edge is permitted: add hsk-studio-pulse = { path = \"../hsk-studio-pulse\", version = \"=0.1.0\", default-features = false }; add impl From<PulseError> for InteropError in error.rs (Canceled, Overflow->TimecodeOverflow, UnsupportedFrameRate, NotFrameAligned, TimecodeUnsupported, DropFrameUnsupported, other->InvalidTimecode); time.rs: timecode_format() = pulse::TimecodeFormat::new; frames_to_timecode = pulse::frames_to_timecode + hours>99 -> TimecodeOverflow + Display; timecode_to_frames = interop syntax bound (len 11..13, <=3 digits/field) -> pulse::parse_timecode -> ';' with non-drop = DropMismatch -> set drop flag -> minutes/seconds/frames range pre-check = InvalidTimecode -> pulse::timecode_to_frames, whose only remaining InvalidTimecode is a dropped label = DroppedTimecode; ticks_to_frames_exact = pulse::ticks_to_frames_exact; delete nominal/Base/base. Then the steward adds the root allowed edge. Earlier next: OTIO JSON subset (serde_json dep request) and FCP7 XML (roxmltree dep request) mapped through the same TimelineProposal; transitions as typed Folio transition data once Folio has them; lead decision on the pulse edge; black-box EDL export from Premiere for an independent oracle",
-  "updated_at": "2026-10-11T03:20:58Z",
-  "notes": {
-    "mt": "MT-35552",
-    "oracle_values": {
-      "ticks": "01:00:00:00 at 25 fps = frame 90000 = 914457600000000 ticks; 50-frame record duration = 508032000000; 29.97 DF 01:00:00;00 = 107892 frames, 00:10:00;00 = 17982, 00:01:00;02 = 1800; rational (48, 24/1) = 508032000000 Exact, (1, 24000/1001) = 10594584000 Exact, (1, 13/1) = 19539692308 Approximate",
-      "edl": "hand-authored synthetic fixtures only; no Adobe-exported file used yet"
-    },
-    "contradiction_resolved": "brief said Folio has no timeline types; Folio now has StudioSequence/Track/Clip (89201e7) so the proposal maps into a Folio-validated sequence revision",
-    "edge_requests": [
-      "interop-media -> pulse is NOT in the allowed list (root metadata + STUDIO_MODULES). Timecode/drop-frame/rate label arithmetic is duplicated minimally in src/time.rs (documented). CX-CAP-001 wants one owner: lead decision needed to add the pulse edge and then collapse time.rs onto pulse."
-    ],
-    "dep_requests": [
-      "sha2 (optional): digest of the original bytes for source_sha256 and opaque native blobs; line appended to builders/dep-requests.jsonl"
-    ],
-    "known_limits": [
-      "EDL has no frame rate: the caller supplies it (ImportRequest.frame_rate); source timecode assumed at the sequence rate",
-      "dissolves/wipes/keys are cuts-only with a loss note; the outgoing clip is not extended",
-      "linked V+A pairs from B events are linked in the Folio sequence; export splits them into two events",
-      "FCP7 XML, FCPXML, OTIO JSON, AAF/OMF not started (OTIO needs the pinned serde_json via dep request)",
-      "PRPROJ/AEP/SESX: no decoder; detection candidates UNVERIFIED; black-box oracle saves from the installed apps need an Operator-approved session"
-    ],
-    "tests_detail_before_migration": {
-      "check_tests_examples": "PASS",
-      "clippy_tests_examples": "PASS (no findings in interop-media)",
-      "foundation_contract": {
-        "passed": 4,
-        "failed": 0,
-        "cases": [
-          "edl_fixture_ticks_losses_and_folio_sequence",
-          "timecode_rational_and_rates",
-          "edl_negative_paths_and_dispositions",
-          "round_trip_export_and_native_formats_blocked"
-        ]
-      },
-      "passed": 4,
-      "failed": 0
-    },
-    "accord_migration": {
-      "lane": "SMB-ACCORD-ENG-2",
-      "commit": "9575239193da1311816216cfe32b2f212264a92c",
-      "tests": "4 passed with unchanged expected values (timecode_rational_and_rates covers rational_to_ticks incl. 1/13 and 1/11 Approximate, overflow, negative, zero; fps_fraction; frame_rate parsing); clippy clean; rustfmt clean",
-      "d9_expected_deviation": "after the pulse collapse, a timecode with a minutes/seconds/frames field above 255 AND a ';' separator under non-drop reports invalid_timecode (pulse::parse_timecode u8 range) instead of drop_mismatch; no test covers it"
-    },
-    "commits_converted": "commit entries converted from {sha, branch, summary, pushed} to {sha, subject}; all on codex/handshake-studio-assets and pushed",
-    "verdicts": [
-      {
-        "round": "STUDIO-R3",
-        "lane": "SMB-INTEROP-MEDIA",
-        "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
-        "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
-        "decision": "blocked",
-        "verdict": "BLOCKED",
-        "failures": [
-          {
-            "failure_class": "cap-duplicate-timecode-pending-d9",
-            "file_line": "crates/hsk-studio-interop-media/src/time.rs:7-10,132-146,174-262"
-          }
-        ],
-        "remediation": "Blocked on SMB-INTEROP-MEDIA-PULSE (Operator D9); then delegate time.rs to pulse",
-        "round_ref": "validation/round-R3.json",
-        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
-        "idempotency_key": "STUDIO-R3:SMB-INTEROP-MEDIA:404ff3ae8cd7:BLOCKED",
-        "recorded_at": "2026-10-11T03:11:21Z",
-        "by": "wp_validator STUDIO-R3"
-      },
-      {
-        "round": "STUDIO-R5",
-        "lane": "SMB-INTEROP-MEDIA",
-        "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
-        "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
-        "decision": "blocked",
-        "verdict": "BLOCKED",
-        "failures": [
-          {
-            "failure_kind": "product",
-            "failure_class": "cap-duplicate-timecode-pending-d9",
-            "file_line": "crates/hsk-studio-interop-media/src/time.rs:127-237"
-          }
-        ],
-        "remediation": "Blocked on SMB-INTEROP-MEDIA-PULSE (Operator D9); then delegate timecode labels to pulse, delete time.rs:127-237",
-        "status_after": "BLOCKED",
-        "review": "validation/R5-review-b.json",
-        "round_ref": "validation/round-R5.json",
-        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
-        "idempotency_key": "STUDIO-R5:SMB-INTEROP-MEDIA:1d404f8c4b72:BLOCKED",
-        "recorded_at": "2026-10-11T05:38:23Z",
-        "by": "wp_validator STUDIO-R5",
-        "blocked_on": "SMB-INTEROP-MEDIA-PULSE (Operator D9)"
-      },
-      {
-        "round": "STUDIO-R24",
-        "lane": "SMB-INTEROP-MEDIA",
-        "candidate": "f07f447f50c1350241133433743c04b63da1b92d",
-        "tree": "21147a2c4b4f8d23f21e634fc9541c0815df5e81",
-        "decision": "passed",
-        "verdict": "PASS_V1",
-        "failures": [],
-        "remediation": null,
-        "not_proven": [],
-        "status_after": "PASS_V1",
-        "round_ref": "validation/round-R24.json",
-        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R24",
-        "recorded_at": "2026-10-14T18:31:51Z"
-      },
-      {
-        "decision": "passed",
-        "verdict": "PASS_V2",
-        "failures": [],
-        "remediation": null,
-        "blocker": null,
-        "not_proven": [],
-        "note": "reopened (CX-VAL-009: crate or dependency closure changed f07f447..d48bc30); crate units green in R25",
-        "idempotency_key": "STUDIO-R25:SMB-INTEROP-MEDIA:d48bc301bff0:PASS_V2",
-        "round": "STUDIO-R25",
-        "lane": "SMB-INTEROP-MEDIA",
-        "candidate": "d48bc301bff07a25da20a6cf6b11d84b8fbf197f",
-        "tree": "0a55d878183b3ba377d42f6547d1ca50a20228b2",
-        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R25",
-        "started_at": "2026-10-14T20:12:28Z",
-        "completed_at": "2026-10-14T20:53:21Z"
-      },
-      {
-        "decision": "passed",
-        "verdict": "PASS_V3",
-        "failures": [],
-        "remediation": null,
-        "blocker": null,
-        "not_proven": [],
-        "note": "reopened (CX-VAL-009: crate or dependency closure changed d48bc30..507aa36); units of interop-media green in R26 (all units incl. feature, ignored, doctest)",
-        "idempotency_key": "STUDIO-R26:SMB-INTEROP-MEDIA:507aa36d6a58:PASS_V3",
-        "round": "STUDIO-R26",
-        "lane": "SMB-INTEROP-MEDIA",
-        "candidate": "507aa36d6a588f82568f0d2867495b71ce5023ae",
-        "tree": "595bb180eada95cebf57b6cbca509292ac949252",
-        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R26",
-        "started_at": "2026-10-14T21:21:54Z",
-        "completed_at": "2026-10-14T21:51:04Z"
-      }
-    ],
-    "r3_remediation": {
-      "round": "STUDIO-R3",
-      "lane": "SMB-INTEROP-MEDIA",
-      "commit": "4a6bb19",
-      "fixed": [
-        {
-          "finding": "time.rs:248 ticks_to_frames_exact did local tick/tpf division with is_multiple_of (duplicates pulse and accord Timescale::units_from_ticks; used by export at edl.rs:570)",
-          "fix": "delegates to accord Timescale::rational(rate.fps_fraction()).units_from_ticks(ticks, Floor); inexact -> NotFrameAligned",
-          "test": "ticks_to_frames_exact_is_exact_on_every_table_rate_and_refuses_off_frame_ticks (10 table rates, hand-computed ticks per frame, independent u128 oracle, frame 0..u64::MAX/tpf boundaries, +-1 tick refusals, export refuses an off-frame record)"
-        },
-        {
-          "finding": "(PLAUSIBLE) time.rs:18-29 local gcd/reduce for the speed span/duration ratio",
-          "fix": "reduce() returns Timescale::rational(num, den).units_per_second(); local gcd deleted",
-          "test": "tick_frame_and_ratio_math_has_no_local_copy (source guard: no local division in ticks_to_frames_exact, no fn gcd, no pulse in Cargo.toml) plus the unchanged M2 speed expectations in edl_fixture_ticks_losses_and_folio_sequence"
-        }
-      ],
-      "d9_recorded_not_fixed": {
-        "finding": "(CONFIRMED) nominal(), timecode_to_frames and frames_to_timecode re-implement pulse time.rs (nominal:87, frames_to_timecode:166, timecode_to_frames:195, parse_timecode:245) - CX-CAP-001 duplicate of the label arithmetic",
-        "status": "OPEN, BLOCKED on Operator decision D9: the interop-media -> pulse edge is not allowed; no pulse dependency was added and Cargo.toml is untouched. The label arithmetic stays in src/time.rs with the module NOTE updated to say so.",
-        "resolution_plan": "unchanged from `next`: after D9 and the steward's root edge, add the path dependency and collapse nominal/Base/timecode functions onto pulse. The guard in tests/foundation_contract.rs (tick_frame_and_ratio_math_has_no_local_copy) asserts the edge is absent and must be updated in that commit.",
-        "lane_state": "the lane stays BLOCKED on this one finding even though status is READY_FOR_VALIDATION for the rest"
-      },
-      "r3_plausible_not_in_this_pass": [
-        "folio_map.rs sanitize is not injective (reels R#1 and R$1 both become offline-reel-R_1)",
-        "import accepts 3-digit timecode hours but frames_to_timecode refuses hours > 99 (asymmetric round trip, typed TimecodeOverflow)"
-      ],
-      "evidence": "cargo test -p hsk-studio-interop-media --tests: 6 passed (4 earlier unchanged + 2 new); cargo clippy -p hsk-studio-interop-media --tests --examples clean; rustfmt applied to the crate",
-      "git_rule": "pathspec commits only; never --amend, rebase or a bare commit in the shared worktree"
-    }
+  {
+   "sha": "9575239193da1311816216cfe32b2f212264a92c",
+   "subject": "Interop-media: rational_to_ticks, frame_rate_from_fraction, fps_fraction delegate to accord Timescale/FrameRate (CX-CAP-001); timecode label collapse onto pulse still pending the pulse path dependency"
+  },
+  {
+   "sha": "4a6bb19",
+   "subject": "Interop-media R3: tick->frame math and ratio reduction delegate to accord Timescale (D9 pulse edge stays blocked)"
   }
+ ],
+ "capabilities_done": [
+  "import_cmx3600(bytes, ImportRequest{frame_rate, assume_drop, record_origin_frames, known_reels}, Limits, cancel) -> TimelineProposal: TITLE, FCM, cuts on V/A/A2../AA/B/AA-V, M2 speed as exact rational (negative = reverse), FROM/TO CLIP NAME, bounded bytes/events/line, typed errors with 1-based line",
+  "typed losses (STU-IO-186 vocabulary): dissolve/wipe/key dropped, zero-length cut anchors, freeze frame, unknown track, unknown reel (Missing), channel pair collapsed (Approximate), M2 vs span disagreement (Approximate, spans used), other directives",
+  "build_sequence(TimelineProposal, SequenceOptions{sequence_id, name, reels}, IdSource) -> Folio StudioSequence; unmapped reel = explicit offline reference + Missing loss; SequentialIds deterministic uuid_v7-shaped ids (caller can supply any IdSource)",
+  "propose_document_revision(Snapshot, expected_revision, BuiltSequence, FolioContext) -> DocumentProposal with Folio validate_document at revision+1 (insert or replace by sequence id); nothing committed",
+  "export_cmx3600(TimelineProposal) deterministic text for the round-trip-able subset (cuts, V index 0 + A/A2.., names, M2 speed as exact decimal); fixed point after one import/export cycle",
+  "time adapters: parse_frame_rate (integer, n/d, decimal aliases 23.976/29.97/59.94 with RateSpelling receipt), frame_rate_from_ticks (legacy normalization receipt), timecode_to_frames / frames_to_timecode incl. drop-frame, rational_to_ticks with Exactness (Exact / NormalizedLegacy / Approximate(HalfAwayFromZero))",
+  "native gap: sniff_native (gzip magic = PRPROJ candidate, RIFX = AEP candidate, XML root sesx / AfterEffectsProject), import_native always blocked with Missing loss for 7 entity classes; detection strings are UNVERIFIED candidates (need black-box saves)",
+  "report() -> one Observe terminal outcome; DESCRIPTOR; examples/interop-media-consumer.rs (--edl FILE --rate R [--drop] [--origin FRAMES] [--export], --sniff FILE) run: import, export, sniff, refusal exit 2",
+  "SMB-ACCORD-ENG-2 migration part 1 (9575239): rational_to_ticks -> Timescale::rational(num,den).ticks_from_units(.., NearestHalfUp) (Exactness/RoundingRule public types and every error kind unchanged; negative -> NegativeTime, zero -> InvalidRational, overflow -> TimecodeOverflow); frame_rate_from_fraction -> FrameRate::from_fps after the InvalidFrameRate zero check; fps_fraction -> FrameRate::fps_fraction. reduce/gcd stay (edl.rs derive_speed ratio reduction).",
+  "R3 remediation (4a6bb19): ticks_to_frames_exact = Timescale::rational(fps_fraction).units_from_ticks(Floor), remainder -> NotFrameAligned (was a local ticks-per-frame division); the local gcd/reduce is replaced by the reduced Timescale ratio (reduce() now returns Result, used by derive_speed in edl.rs, failure -> InvalidSpeed at the event line). Public API, error kinds and expected values unchanged."
+ ],
+ "tests": {
+  "argv": "cargo test -p hsk-studio-interop-media --tests",
+  "exit": 0,
+  "sha": "4a6bb19",
+  "passed": 6,
+  "failed": 0
+ },
+ "blockers": [
+  {
+   "error": "Edit tool permission denied by the auto mode classifier (Modify Shared Resources) when adding the hsk-studio-pulse path dependency to crates/hsk-studio-interop-media/Cargo.toml; the coordinator instruction authorizing the edge could not be applied, so D9 (collapse src/time.rs timecode/drop-frame label arithmetic onto pulse) is NOT done. No workaround attempted.",
+   "file_line": "crates/hsk-studio-interop-media/Cargo.toml:13",
+   "attempts": 1
+  }
+ ],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "Validator round on 4a6bb19. D9 once the Cargo.toml edge is permitted: add hsk-studio-pulse = { path = \"../hsk-studio-pulse\", version = \"=0.1.0\", default-features = false }; add impl From<PulseError> for InteropError in error.rs (Canceled, Overflow->TimecodeOverflow, UnsupportedFrameRate, NotFrameAligned, TimecodeUnsupported, DropFrameUnsupported, other->InvalidTimecode); time.rs: timecode_format() = pulse::TimecodeFormat::new; frames_to_timecode = pulse::frames_to_timecode + hours>99 -> TimecodeOverflow + Display; timecode_to_frames = interop syntax bound (len 11..13, <=3 digits/field) -> pulse::parse_timecode -> ';' with non-drop = DropMismatch -> set drop flag -> minutes/seconds/frames range pre-check = InvalidTimecode -> pulse::timecode_to_frames, whose only remaining InvalidTimecode is a dropped label = DroppedTimecode; ticks_to_frames_exact = pulse::ticks_to_frames_exact; delete nominal/Base/base. Then the steward adds the root allowed edge. Earlier next: OTIO JSON subset (serde_json dep request) and FCP7 XML (roxmltree dep request) mapped through the same TimelineProposal; transitions as typed Folio transition data once Folio has them; lead decision on the pulse edge; black-box EDL export from Premiere for an independent oracle",
+ "updated_at": "2026-10-11T03:20:58Z",
+ "notes": {
+  "mt": "MT-35552",
+  "oracle_values": {
+   "ticks": "01:00:00:00 at 25 fps = frame 90000 = 914457600000000 ticks; 50-frame record duration = 508032000000; 29.97 DF 01:00:00;00 = 107892 frames, 00:10:00;00 = 17982, 00:01:00;02 = 1800; rational (48, 24/1) = 508032000000 Exact, (1, 24000/1001) = 10594584000 Exact, (1, 13/1) = 19539692308 Approximate",
+   "edl": "hand-authored synthetic fixtures only; no Adobe-exported file used yet"
+  },
+  "contradiction_resolved": "brief said Folio has no timeline types; Folio now has StudioSequence/Track/Clip (89201e7) so the proposal maps into a Folio-validated sequence revision",
+  "edge_requests": [
+   "interop-media -> pulse is NOT in the allowed list (root metadata + STUDIO_MODULES). Timecode/drop-frame/rate label arithmetic is duplicated minimally in src/time.rs (documented). CX-CAP-001 wants one owner: lead decision needed to add the pulse edge and then collapse time.rs onto pulse."
+  ],
+  "dep_requests": [
+   "sha2 (optional): digest of the original bytes for source_sha256 and opaque native blobs; line appended to builders/dep-requests.jsonl"
+  ],
+  "known_limits": [
+   "EDL has no frame rate: the caller supplies it (ImportRequest.frame_rate); source timecode assumed at the sequence rate",
+   "dissolves/wipes/keys are cuts-only with a loss note; the outgoing clip is not extended",
+   "linked V+A pairs from B events are linked in the Folio sequence; export splits them into two events",
+   "FCP7 XML, FCPXML, OTIO JSON, AAF/OMF not started (OTIO needs the pinned serde_json via dep request)",
+   "PRPROJ/AEP/SESX: no decoder; detection candidates UNVERIFIED; black-box oracle saves from the installed apps need an Operator-approved session"
+  ],
+  "tests_detail_before_migration": {
+   "check_tests_examples": "PASS",
+   "clippy_tests_examples": "PASS (no findings in interop-media)",
+   "foundation_contract": {
+    "passed": 4,
+    "failed": 0,
+    "cases": [
+     "edl_fixture_ticks_losses_and_folio_sequence",
+     "timecode_rational_and_rates",
+     "edl_negative_paths_and_dispositions",
+     "round_trip_export_and_native_formats_blocked"
+    ]
+   },
+   "passed": 4,
+   "failed": 0
+  },
+  "accord_migration": {
+   "lane": "SMB-ACCORD-ENG-2",
+   "commit": "9575239193da1311816216cfe32b2f212264a92c",
+   "tests": "4 passed with unchanged expected values (timecode_rational_and_rates covers rational_to_ticks incl. 1/13 and 1/11 Approximate, overflow, negative, zero; fps_fraction; frame_rate parsing); clippy clean; rustfmt clean",
+   "d9_expected_deviation": "after the pulse collapse, a timecode with a minutes/seconds/frames field above 255 AND a ';' separator under non-drop reports invalid_timecode (pulse::parse_timecode u8 range) instead of drop_mismatch; no test covers it"
+  },
+  "commits_converted": "commit entries converted from {sha, branch, summary, pushed} to {sha, subject}; all on codex/handshake-studio-assets and pushed",
+  "verdicts": [
+   {
+    "round": "STUDIO-R3",
+    "lane": "SMB-INTEROP-MEDIA",
+    "candidate": "404ff3ae8cd7ea48081cbf1042a19f12d393cf30",
+    "tree": "d89c2e7910b2ebdc7ab41dd0a0f58949feaa3722",
+    "decision": "blocked",
+    "verdict": "BLOCKED",
+    "failures": [
+     {
+      "failure_class": "cap-duplicate-timecode-pending-d9",
+      "file_line": "crates/hsk-studio-interop-media/src/time.rs:7-10,132-146,174-262"
+     }
+    ],
+    "remediation": "Blocked on SMB-INTEROP-MEDIA-PULSE (Operator D9); then delegate time.rs to pulse",
+    "round_ref": "validation/round-R3.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R3",
+    "idempotency_key": "STUDIO-R3:SMB-INTEROP-MEDIA:404ff3ae8cd7:BLOCKED",
+    "recorded_at": "2026-10-11T03:11:21Z",
+    "by": "wp_validator STUDIO-R3"
+   },
+   {
+    "round": "STUDIO-R5",
+    "lane": "SMB-INTEROP-MEDIA",
+    "candidate": "1d404f8c4b72a849da064c4709e025bd05369b78",
+    "tree": "f39c4293ca38c6a03b175c9375435e6ce8061143",
+    "decision": "blocked",
+    "verdict": "BLOCKED",
+    "failures": [
+     {
+      "failure_kind": "product",
+      "failure_class": "cap-duplicate-timecode-pending-d9",
+      "file_line": "crates/hsk-studio-interop-media/src/time.rs:127-237"
+     }
+    ],
+    "remediation": "Blocked on SMB-INTEROP-MEDIA-PULSE (Operator D9); then delegate timecode labels to pulse, delete time.rs:127-237",
+    "status_after": "BLOCKED",
+    "review": "validation/R5-review-b.json",
+    "round_ref": "validation/round-R5.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R5",
+    "idempotency_key": "STUDIO-R5:SMB-INTEROP-MEDIA:1d404f8c4b72:BLOCKED",
+    "recorded_at": "2026-10-11T05:38:23Z",
+    "by": "wp_validator STUDIO-R5",
+    "blocked_on": "SMB-INTEROP-MEDIA-PULSE (Operator D9)"
+   },
+   {
+    "round": "STUDIO-R24",
+    "lane": "SMB-INTEROP-MEDIA",
+    "candidate": "f07f447f50c1350241133433743c04b63da1b92d",
+    "tree": "21147a2c4b4f8d23f21e634fc9541c0815df5e81",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "not_proven": [],
+    "status_after": "PASS_V1",
+    "round_ref": "validation/round-R24.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R24",
+    "recorded_at": "2026-10-14T18:31:51Z"
+   },
+   {
+    "decision": "passed",
+    "verdict": "PASS_V2",
+    "failures": [],
+    "remediation": null,
+    "blocker": null,
+    "not_proven": [],
+    "note": "reopened (CX-VAL-009: crate or dependency closure changed f07f447..d48bc30); crate units green in R25",
+    "idempotency_key": "STUDIO-R25:SMB-INTEROP-MEDIA:d48bc301bff0:PASS_V2",
+    "round": "STUDIO-R25",
+    "lane": "SMB-INTEROP-MEDIA",
+    "candidate": "d48bc301bff07a25da20a6cf6b11d84b8fbf197f",
+    "tree": "0a55d878183b3ba377d42f6547d1ca50a20228b2",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R25",
+    "started_at": "2026-10-14T20:12:28Z",
+    "completed_at": "2026-10-14T20:53:21Z"
+   },
+   {
+    "decision": "passed",
+    "verdict": "PASS_V3",
+    "failures": [],
+    "remediation": null,
+    "blocker": null,
+    "not_proven": [],
+    "note": "reopened (CX-VAL-009: crate or dependency closure changed d48bc30..507aa36); units of interop-media green in R26 (all units incl. feature, ignored, doctest)",
+    "idempotency_key": "STUDIO-R26:SMB-INTEROP-MEDIA:507aa36d6a58:PASS_V3",
+    "round": "STUDIO-R26",
+    "lane": "SMB-INTEROP-MEDIA",
+    "candidate": "507aa36d6a588f82568f0d2867495b71ce5023ae",
+    "tree": "595bb180eada95cebf57b6cbca509292ac949252",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R26",
+    "started_at": "2026-10-14T21:21:54Z",
+    "completed_at": "2026-10-14T21:51:04Z"
+   }
+  ],
+  "r3_remediation": {
+   "round": "STUDIO-R3",
+   "lane": "SMB-INTEROP-MEDIA",
+   "commit": "4a6bb19",
+   "fixed": [
+    {
+     "finding": "time.rs:248 ticks_to_frames_exact did local tick/tpf division with is_multiple_of (duplicates pulse and accord Timescale::units_from_ticks; used by export at edl.rs:570)",
+     "fix": "delegates to accord Timescale::rational(rate.fps_fraction()).units_from_ticks(ticks, Floor); inexact -> NotFrameAligned",
+     "test": "ticks_to_frames_exact_is_exact_on_every_table_rate_and_refuses_off_frame_ticks (10 table rates, hand-computed ticks per frame, independent u128 oracle, frame 0..u64::MAX/tpf boundaries, +-1 tick refusals, export refuses an off-frame record)"
+    },
+    {
+     "finding": "(PLAUSIBLE) time.rs:18-29 local gcd/reduce for the speed span/duration ratio",
+     "fix": "reduce() returns Timescale::rational(num, den).units_per_second(); local gcd deleted",
+     "test": "tick_frame_and_ratio_math_has_no_local_copy (source guard: no local division in ticks_to_frames_exact, no fn gcd, no pulse in Cargo.toml) plus the unchanged M2 speed expectations in edl_fixture_ticks_losses_and_folio_sequence"
+    }
+   ],
+   "d9_recorded_not_fixed": {
+    "finding": "(CONFIRMED) nominal(), timecode_to_frames and frames_to_timecode re-implement pulse time.rs (nominal:87, frames_to_timecode:166, timecode_to_frames:195, parse_timecode:245) - CX-CAP-001 duplicate of the label arithmetic",
+    "status": "OPEN, BLOCKED on Operator decision D9: the interop-media -> pulse edge is not allowed; no pulse dependency was added and Cargo.toml is untouched. The label arithmetic stays in src/time.rs with the module NOTE updated to say so.",
+    "resolution_plan": "unchanged from `next`: after D9 and the steward's root edge, add the path dependency and collapse nominal/Base/timecode functions onto pulse. The guard in tests/foundation_contract.rs (tick_frame_and_ratio_math_has_no_local_copy) asserts the edge is absent and must be updated in that commit.",
+    "lane_state": "the lane stays BLOCKED on this one finding even though status is READY_FOR_VALIDATION for the rest"
+   },
+   "r3_plausible_not_in_this_pass": [
+    "folio_map.rs sanitize is not injective (reels R#1 and R$1 both become offline-reel-R_1)",
+    "import accepts 3-digit timecode hours but frames_to_timecode refuses hours > 99 (asymmetric round trip, typed TimecodeOverflow)"
+   ],
+   "evidence": "cargo test -p hsk-studio-interop-media --tests: 6 passed (4 earlier unchanged + 2 new); cargo clippy -p hsk-studio-interop-media --tests --examples clean; rustfmt applied to the crate",
+   "git_rule": "pathspec commits only; never --amend, rebase or a bare commit in the shared worktree"
+  }
+ },
+ "verdicts": [
+  {
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default interop-media 6; feature/ignored/doctest units green",
+   "idempotency_key": "STUDIO-R28:SMB-INTEROP-MEDIA:dd63d21efb85:PASS_V4",
+   "round": "STUDIO-R28",
+   "lane": "SMB-INTEROP-MEDIA",
+   "candidate": "dd63d21efb855ef539701fcd10f61a6bf5481e15",
+   "tree": "95d5239cfdde6e57e3a6934ca69453f3487b5ae4",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "started_at": "2026-10-14T22:55:24Z",
+   "completed_at": "2026-10-14T23:36:18Z"
+  }
+ ]
 }

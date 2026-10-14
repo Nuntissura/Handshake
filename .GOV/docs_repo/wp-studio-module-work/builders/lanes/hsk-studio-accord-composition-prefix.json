@@ -1,27 +1,61 @@
 {
-  "crate": "hsk-studio-accord",
-  "lane": "SMB-ACCORD-COMPOSITION-PREFIX",
-  "status": "READY_FOR_VALIDATION",
-  "phase": "accord prefix 63fce7a and folio adoption 8575cd7 + test fix pushed; workspace clippy clean; accord+folio tests green",
-  "commits": [
-    {"sha": "63fce7a", "subject": "accord (SMB-ACCORD-COMPOSITION-PREFIX): register hsk.studio.composition@1 and identity prefix SCOM"},
-    {"sha": "8575cd7", "subject": "folio (SMB-FOLIO-COMPOSITION): composition_id uses the Accord SCOM prefix; legacy local keys still accepted"},
-    {"sha": "see git log", "subject": "folio tests (SMB-FOLIO-COMPOSITION): SCOM id case updates the precomp reference (test-only fix of my own test)"}
-  ],
-  "capabilities_done": [
-    "accord: const SCHEMA_STUDIO_COMPOSITION, added to CANONICAL_SCHEMAS (37 -> 38), SchemaId::identity_prefix maps it to SCOM, DomainId::parse accepts SCOM; additive only",
-    "accord test: composition_identity_prefix_is_registered (prefix, for_schema accept, PrefixMismatch against another schema); schema count assertion 37 -> 38",
-    "folio: composition_id and precomp composition_id accept SCOM-{uuid_v7}; anything starting SCOM- must be a valid id; legacy document-local keys still accepted (no existing SCOM ids existed)"
-  ],
-  "tests": {"argv": "cargo nextest run -p hsk-studio-folio -p hsk-studio-accord --no-fail-fast", "exit": 0, "sha": "HEAD after folio test fix", "passed": 72, "failed": 0},
-  "blockers": [],
-  "lock_wait_s": 160,
-  "bg_pids": [],
-  "next": "validator round",
-  "updated_at": "2026-10-14T22:32:00Z",
-  "notes": {
-    "proof_commands": "cargo clippy --workspace --tests: Finished, no error (covers accord and all dependents; only pre-existing warnings in other crates)",
-    "prefix_choice": "SCOM is a Folio/Accord choice: the spec states no composition prefix (STU-MOT-001 gives only the schema id); SCMP is already the component prefix",
-    "route": "gameplan retry guard blocked an identical rerun after a product test failure in my own test; took route (a): committed the fix, then reran"
+ "crate": "hsk-studio-accord",
+ "lane": "SMB-ACCORD-COMPOSITION-PREFIX",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "accord prefix 63fce7a and folio adoption 8575cd7 + test fix pushed; workspace clippy clean; accord+folio tests green",
+ "commits": [
+  {
+   "sha": "63fce7a",
+   "subject": "accord (SMB-ACCORD-COMPOSITION-PREFIX): register hsk.studio.composition@1 and identity prefix SCOM"
+  },
+  {
+   "sha": "8575cd7",
+   "subject": "folio (SMB-FOLIO-COMPOSITION): composition_id uses the Accord SCOM prefix; legacy local keys still accepted"
+  },
+  {
+   "sha": "see git log",
+   "subject": "folio tests (SMB-FOLIO-COMPOSITION): SCOM id case updates the precomp reference (test-only fix of my own test)"
   }
+ ],
+ "capabilities_done": [
+  "accord: const SCHEMA_STUDIO_COMPOSITION, added to CANONICAL_SCHEMAS (37 -> 38), SchemaId::identity_prefix maps it to SCOM, DomainId::parse accepts SCOM; additive only",
+  "accord test: composition_identity_prefix_is_registered (prefix, for_schema accept, PrefixMismatch against another schema); schema count assertion 37 -> 38",
+  "folio: composition_id and precomp composition_id accept SCOM-{uuid_v7}; anything starting SCOM- must be a valid id; legacy document-local keys still accepted (no existing SCOM ids existed)"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-folio -p hsk-studio-accord --no-fail-fast",
+  "exit": 0,
+  "sha": "HEAD after folio test fix",
+  "passed": 72,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 160,
+ "bg_pids": [],
+ "next": "validator round",
+ "updated_at": "2026-10-14T22:32:00Z",
+ "notes": {
+  "proof_commands": "cargo clippy --workspace --tests: Finished, no error (covers accord and all dependents; only pre-existing warnings in other crates)",
+  "prefix_choice": "SCOM is a Folio/Accord choice: the spec states no composition prefix (STU-MOT-001 gives only the schema id); SCMP is already the component prefix",
+  "route": "gameplan retry guard blocked an identical rerun after a product test failure in my own test; took route (a): committed the fix, then reran"
+ },
+ "verdicts": [
+  {
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "63fce7a 8575cd7 9268bca: accord composition_identity_prefix_is_registered + unsupported_identity_mapping (38 schemas) passed; accord default 18; folio composition_contract SCOM case passed. Diff read: additive prefix registration, SCOM- ids validated, legacy keys kept",
+   "idempotency_key": "STUDIO-R28:SMB-ACCORD-COMPOSITION-PREFIX:dd63d21efb85:PASS_V1",
+   "round": "STUDIO-R28",
+   "lane": "SMB-ACCORD-COMPOSITION-PREFIX",
+   "candidate": "dd63d21efb855ef539701fcd10f61a6bf5481e15",
+   "tree": "95d5239cfdde6e57e3a6934ca69453f3487b5ae4",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "started_at": "2026-10-14T22:55:24Z",
+   "completed_at": "2026-10-14T23:36:18Z"
+  }
+ ]
 }

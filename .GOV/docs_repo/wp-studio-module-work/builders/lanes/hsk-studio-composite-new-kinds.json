@@ -4,14 +4,38 @@
  "status": "READY_FOR_VALIDATION",
  "phase": "slices 1-5 pushed and green (last 46f18cd); claim = the 8 commits listed below, all in composite, pigment, render-cpu, render-gpu",
  "commits": [
-  {"sha": "3800a14", "subject": "composite (SMB-COMPOSITE-NEW-KINDS slice 5): document root over every graph output"},
-  {"sha": "b316ba2", "subject": "composite (SMB-COMPOSITE-NEW-KINDS slice 4): image-typed text sources composite inside groups (G1)"},
-  {"sha": "f1816ef", "subject": "pigment (SMB-COMPOSITE-NEW-KINDS slice 1): layer blur and backdrop blur maths + envelope entry"},
-  {"sha": "7137249", "subject": "render-cpu (SMB-COMPOSITE-NEW-KINDS slice 1): execute layer blur and backdrop blur"},
-  {"sha": "06cff14", "subject": "render-gpu (SMB-COMPOSITE-NEW-KINDS slice 1): layer blur and backdrop blur passes"},
-  {"sha": "c691280", "subject": "composite (SMB-COMPOSITE-NEW-KINDS slice 1): lower Folio blur effects to pigment layer/backdrop blur"},
-  {"sha": "108b67e", "subject": "composite (SMB-COMPOSITE-NEW-KINDS slice 2): vector layers with solid and image paint fills"},
-  {"sha": "46f18cd", "subject": "composite (SMB-COMPOSITE-NEW-KINDS slice 3): live boolean groups proven per operation"}
+  {
+   "sha": "3800a14",
+   "subject": "composite (SMB-COMPOSITE-NEW-KINDS slice 5): document root over every graph output"
+  },
+  {
+   "sha": "b316ba2",
+   "subject": "composite (SMB-COMPOSITE-NEW-KINDS slice 4): image-typed text sources composite inside groups (G1)"
+  },
+  {
+   "sha": "f1816ef",
+   "subject": "pigment (SMB-COMPOSITE-NEW-KINDS slice 1): layer blur and backdrop blur maths + envelope entry"
+  },
+  {
+   "sha": "7137249",
+   "subject": "render-cpu (SMB-COMPOSITE-NEW-KINDS slice 1): execute layer blur and backdrop blur"
+  },
+  {
+   "sha": "06cff14",
+   "subject": "render-gpu (SMB-COMPOSITE-NEW-KINDS slice 1): layer blur and backdrop blur passes"
+  },
+  {
+   "sha": "c691280",
+   "subject": "composite (SMB-COMPOSITE-NEW-KINDS slice 1): lower Folio blur effects to pigment layer/backdrop blur"
+  },
+  {
+   "sha": "108b67e",
+   "subject": "composite (SMB-COMPOSITE-NEW-KINDS slice 2): vector layers with solid and image paint fills"
+  },
+  {
+   "sha": "46f18cd",
+   "subject": "composite (SMB-COMPOSITE-NEW-KINDS slice 3): live boolean groups proven per operation"
+  }
  ],
  "capabilities_done": [
   "slice 1 blur: pigment blur_math (single owner): LayerBlur{scope Layer|Backdrop, radius_px 0..=1000}; radius -> sigma = radius/2 with coverage_math::feather_kernel taps (the SAME Gaussian as the mask feather and the effect matte blurs; Figma CSS export blur(r/2) and Photoshop radius relation UNVERIFIED -> class Approximate); blur_window = separable premultiplied blur (binary64 per pass, rounded once, unpremultiply; radius 0 = exact copy), bytes/work checked against BlurLimits before allocation; backdrop_mix = premultiplied lerp, k = shape alpha * layer opacity; LayerExtension.blur (absent from digest when None), ExtOperator::Blur keys blur_layer/blur_backdrop, PlanError::BlurCombination (blur with adjustment, effects, Blend-If, pass-through, clip roles; backdrop blur in a non-isolated group)",
@@ -46,5 +70,24 @@
   "deps": "composite: hsk-studio-nib (path, allowed edge) and kurbo =0.13.1 [std] (already locked via nib); Cargo.lock uncommitted",
   "v4": "V4-01: pigment blur_math, render-cpu plan_sink/blur.rs and composite vector.rs carry deny(clippy::arithmetic_side_effects); V4-02: blur_window_cost checked before allocation (tests hostile_radii_sizes_and_budgets_are_refused_before_allocation: dims_u32_max + aggregate exact/minus-one), render-cpu scratch charge exact/minus-one test, vector plane pixels and sample work checked before allocation; V4-03: GPU tests gated by gpu-proof.toml; V4-09: commit messages via -F files; V4-12: helper files under scratchpad/smb-composite-new-kinds/",
   "retry_guard": "one gameplan retry-guard block on a rerun of a failing composite test (test bug: require_ready over the fixture's unrelated unavailable outputs); route (a): fixed and committed c691280, then rerun green; no gameplan step added"
- }
+ },
+ "verdicts": [
+  {
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "8 commits (pigment f1816ef, render-cpu 7137249, render-gpu 06cff14, composite c691280 108b67e 46f18cd b316ba2 3800a14): pigment blur, render-cpu cpu_blur/vector_paint, render-gpu gpu_blur/vector_paint (live adapter; default, test-faults, shared-device units), composite blur/vector/boolean lowering, text_in_group, document_root: 35 results all passed. Diff read: real blur maths, point-sampled booleans, typed refusals; V4-01 deny on new modules",
+   "idempotency_key": "STUDIO-R28:SMB-COMPOSITE-NEW-KINDS:dd63d21efb85:PASS_V1",
+   "round": "STUDIO-R28",
+   "lane": "SMB-COMPOSITE-NEW-KINDS",
+   "candidate": "dd63d21efb855ef539701fcd10f61a6bf5481e15",
+   "tree": "95d5239cfdde6e57e3a6934ca69453f3487b5ae4",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "started_at": "2026-10-14T22:55:24Z",
+   "completed_at": "2026-10-14T23:36:18Z"
+  }
+ ]
 }

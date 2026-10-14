@@ -4138,5 +4138,24 @@
    "gameplan_route": "retry guard: the full nextest at 0668d35 failed (two proof tests, R13-F6 semantics) -> route (a): test adaptation committed (dd66d52), rerun; a second failure at dd66d52 (one more sub-case) and a focused debug run in the shared tree at dd66d52 that did not compile (a debug print, removed again without a commit) -> diagnosed on the scratch tree (own STUDIO_OWNER), fix committed (88e0c28), rerun green; one scratch-tree command was blocked because it did not start with cd (hook resolved another gameplan): rerun with cd first, no step confirmed or added",
    "notes": "No new dependencies. Limits gains max_render_image_bytes (default 1 GiB); FlattenCause gains NestingDepth and RendererInput; NotProven gains PaintedSourceKept; RedactedOutput gains flattened_annotations_removed, structure_elements_neutralized, xfa_removed, painted_sources_kept; RENDER_STACK_BYTES exported. Behaviour changes: every redaction output loses /XFA and /NeedsRendering; /Pages nodes on a flattened page's chain are emptied (siblings get explicit Resources/MediaBox/CropBox/Rotate); listed-but-undrawn sources of a flattened page leave the file."
   }
- }
+ },
+ "verdicts": [
+  {
+   "decision": "passed",
+   "verdict": "PASS_V9",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "two-FAIL lane judged on R32 pre-review SAFE_TO_JUDGE (1da2453..2fd94c7; press byte-equal 2fd94c7..dd63d21). press default 181/181 + doctest:hsk-studio-press green. Diff read: flatten/purge/strip changes stay in redaction paths; writer/reader/sanitize unchanged. No stub",
+   "idempotency_key": "STUDIO-R28:SMB-PRESS:dd63d21efb85:PASS_V9",
+   "round": "STUDIO-R28",
+   "lane": "SMB-PRESS",
+   "candidate": "dd63d21efb855ef539701fcd10f61a6bf5481e15",
+   "tree": "95d5239cfdde6e57e3a6934ca69453f3487b5ae4",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "started_at": "2026-10-14T22:55:24Z",
+   "completed_at": "2026-10-14T23:36:18Z"
+  }
+ ]
 }

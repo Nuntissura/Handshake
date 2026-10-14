@@ -1,87 +1,106 @@
 {
-  "crate": "hsk-studio-interop-media",
-  "lane": "SMB-INTEROP-MEDIA-PULSE",
-  "status": "PASS_V1",
-  "phase": "D9: timecode label arithmetic collapsed onto hsk-studio-pulse",
-  "commits": [
-    {
-      "sha": "394082f",
-      "subject": "Interop-media D9: timecode/drop-frame label arithmetic and tick/frame exactness collapse onto hsk-studio-pulse (path dep); PulseError mapped to typed InteropError; D9 OPEN note removed (V4-05)"
-    }
-  ],
-  "capabilities_done": [
-    "Cargo.toml: hsk-studio-pulse path dep (edge allowed by steward 688be58)",
-    "time.rs: nominal/Base/base and local label arithmetic deleted; timecode_to_frames = interop syntax bound -> pulse::parse_timecode -> DropMismatch -> range pre-check -> pulse::timecode_to_frames; frames_to_timecode = pulse::frames_to_timecode + hours>99 TimecodeOverflow; ticks_to_frames_exact = pulse::ticks_to_frames_exact; fps_fraction = pulse::fps_fraction",
-    "error.rs: From<PulseError> for InteropError (Canceled, Overflow->TimecodeOverflow, UnsupportedFrameRate, NotFrameAligned, TimecodeUnsupported, DropFrameUnsupported, other->InvalidTimecode)",
-    "D9 OPEN note removed; guard test tick_frame_and_ratio_math_has_no_local_copy now asserts delegation and absence of duplicate fingerprints (fn nominal, struct Base, fn base(, 17_982, % 10)"
-  ],
-  "tests": {
-    "argv": "cargo nextest run -p hsk-studio-interop-media --tests --no-fail-fast",
-    "exit": 0,
-    "sha": "394082f",
-    "passed": 6,
-    "failed": 0
-  },
-  "blockers": [],
-  "lock_wait_s": 12,
-  "bg_pids": [],
-  "next": "Validator round. Steward: Cargo.lock left uncommitted by this lane (working tree already had unrelated Cargo.lock modifications).",
-  "updated_at": "2026-10-14T15:33:17Z",
-  "notes": {
-    "behaviour_differences": "None observed in results or error kinds. Mapping details: pulse TimecodeFormat::new errors map TimecodeUnsupported/DropFrameUnsupported 1:1 and are raised first (same order as before); a skipped drop label is pulse InvalidTimecode after interop pre-checked minutes/seconds/frames ranges, so it maps to DroppedTimecode; ';' with non-drop = DropMismatch (checked before ranges, as before); ':' with drop flag accepted as before (tc.drop_frame set to the requested flag); interop syntax bound kept (len 11..13, <=3 digits per field, hours up to 999 parsed) since pulse allows 10 digits; frames_to_timecode hours>99 -> TimecodeOverflow kept locally (pulse allows any hours). ticks_to_frames_exact now uses pulse's modulo path instead of accord units_from_ticks; same results (remainder -> NotFrameAligned); the earlier R3 accord-delegation assertion in the guard test was changed to assert pulse delegation.",
-    "v4_05": "no remaining duplicate timecode arithmetic in src/time.rs; frames_to_ticks keeps accord Ticks::checked_frames (not a duplicate).",
-    "retry_route": "none needed",
-    "clippy": "interop-media clean; warnings shown are pre-existing in hsk-studio-observe",
-    "verdicts": [
-      {
-        "round": "STUDIO-R24",
-        "lane": "SMB-INTEROP-MEDIA-PULSE",
-        "candidate": "f07f447f50c1350241133433743c04b63da1b92d",
-        "tree": "21147a2c4b4f8d23f21e634fc9541c0815df5e81",
-        "decision": "passed",
-        "verdict": "PASS_V1",
-        "failures": [],
-        "remediation": null,
-        "not_proven": [],
-        "status_after": "PASS_V1",
-        "round_ref": "validation/round-R24.json",
-        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R24",
-        "recorded_at": "2026-10-14T18:31:51Z"
-      },
-      {
-        "decision": "passed",
-        "verdict": "PASS_V2",
-        "failures": [],
-        "remediation": null,
-        "blocker": null,
-        "not_proven": [],
-        "note": "reopened (CX-VAL-009: crate or dependency closure changed f07f447..d48bc30); crate units green in R25",
-        "idempotency_key": "STUDIO-R25:SMB-INTEROP-MEDIA-PULSE:d48bc301bff0:PASS_V2",
-        "round": "STUDIO-R25",
-        "lane": "SMB-INTEROP-MEDIA-PULSE",
-        "candidate": "d48bc301bff07a25da20a6cf6b11d84b8fbf197f",
-        "tree": "0a55d878183b3ba377d42f6547d1ca50a20228b2",
-        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R25",
-        "started_at": "2026-10-14T20:12:28Z",
-        "completed_at": "2026-10-14T20:53:21Z"
-      },
-      {
-        "decision": "passed",
-        "verdict": "PASS_V3",
-        "failures": [],
-        "remediation": null,
-        "blocker": null,
-        "not_proven": [],
-        "note": "reopened (CX-VAL-009: crate or dependency closure changed d48bc30..507aa36); units of interop-media green in R26 (all units incl. feature, ignored, doctest)",
-        "idempotency_key": "STUDIO-R26:SMB-INTEROP-MEDIA-PULSE:507aa36d6a58:PASS_V3",
-        "round": "STUDIO-R26",
-        "lane": "SMB-INTEROP-MEDIA-PULSE",
-        "candidate": "507aa36d6a588f82568f0d2867495b71ce5023ae",
-        "tree": "595bb180eada95cebf57b6cbca509292ac949252",
-        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R26",
-        "started_at": "2026-10-14T21:21:54Z",
-        "completed_at": "2026-10-14T21:51:04Z"
-      }
-    ]
+ "crate": "hsk-studio-interop-media",
+ "lane": "SMB-INTEROP-MEDIA-PULSE",
+ "status": "PASS_V1",
+ "phase": "D9: timecode label arithmetic collapsed onto hsk-studio-pulse",
+ "commits": [
+  {
+   "sha": "394082f",
+   "subject": "Interop-media D9: timecode/drop-frame label arithmetic and tick/frame exactness collapse onto hsk-studio-pulse (path dep); PulseError mapped to typed InteropError; D9 OPEN note removed (V4-05)"
   }
+ ],
+ "capabilities_done": [
+  "Cargo.toml: hsk-studio-pulse path dep (edge allowed by steward 688be58)",
+  "time.rs: nominal/Base/base and local label arithmetic deleted; timecode_to_frames = interop syntax bound -> pulse::parse_timecode -> DropMismatch -> range pre-check -> pulse::timecode_to_frames; frames_to_timecode = pulse::frames_to_timecode + hours>99 TimecodeOverflow; ticks_to_frames_exact = pulse::ticks_to_frames_exact; fps_fraction = pulse::fps_fraction",
+  "error.rs: From<PulseError> for InteropError (Canceled, Overflow->TimecodeOverflow, UnsupportedFrameRate, NotFrameAligned, TimecodeUnsupported, DropFrameUnsupported, other->InvalidTimecode)",
+  "D9 OPEN note removed; guard test tick_frame_and_ratio_math_has_no_local_copy now asserts delegation and absence of duplicate fingerprints (fn nominal, struct Base, fn base(, 17_982, % 10)"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-interop-media --tests --no-fail-fast",
+  "exit": 0,
+  "sha": "394082f",
+  "passed": 6,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 12,
+ "bg_pids": [],
+ "next": "Validator round. Steward: Cargo.lock left uncommitted by this lane (working tree already had unrelated Cargo.lock modifications).",
+ "updated_at": "2026-10-14T15:33:17Z",
+ "notes": {
+  "behaviour_differences": "None observed in results or error kinds. Mapping details: pulse TimecodeFormat::new errors map TimecodeUnsupported/DropFrameUnsupported 1:1 and are raised first (same order as before); a skipped drop label is pulse InvalidTimecode after interop pre-checked minutes/seconds/frames ranges, so it maps to DroppedTimecode; ';' with non-drop = DropMismatch (checked before ranges, as before); ':' with drop flag accepted as before (tc.drop_frame set to the requested flag); interop syntax bound kept (len 11..13, <=3 digits per field, hours up to 999 parsed) since pulse allows 10 digits; frames_to_timecode hours>99 -> TimecodeOverflow kept locally (pulse allows any hours). ticks_to_frames_exact now uses pulse's modulo path instead of accord units_from_ticks; same results (remainder -> NotFrameAligned); the earlier R3 accord-delegation assertion in the guard test was changed to assert pulse delegation.",
+  "v4_05": "no remaining duplicate timecode arithmetic in src/time.rs; frames_to_ticks keeps accord Ticks::checked_frames (not a duplicate).",
+  "retry_route": "none needed",
+  "clippy": "interop-media clean; warnings shown are pre-existing in hsk-studio-observe",
+  "verdicts": [
+   {
+    "round": "STUDIO-R24",
+    "lane": "SMB-INTEROP-MEDIA-PULSE",
+    "candidate": "f07f447f50c1350241133433743c04b63da1b92d",
+    "tree": "21147a2c4b4f8d23f21e634fc9541c0815df5e81",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "not_proven": [],
+    "status_after": "PASS_V1",
+    "round_ref": "validation/round-R24.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R24",
+    "recorded_at": "2026-10-14T18:31:51Z"
+   },
+   {
+    "decision": "passed",
+    "verdict": "PASS_V2",
+    "failures": [],
+    "remediation": null,
+    "blocker": null,
+    "not_proven": [],
+    "note": "reopened (CX-VAL-009: crate or dependency closure changed f07f447..d48bc30); crate units green in R25",
+    "idempotency_key": "STUDIO-R25:SMB-INTEROP-MEDIA-PULSE:d48bc301bff0:PASS_V2",
+    "round": "STUDIO-R25",
+    "lane": "SMB-INTEROP-MEDIA-PULSE",
+    "candidate": "d48bc301bff07a25da20a6cf6b11d84b8fbf197f",
+    "tree": "0a55d878183b3ba377d42f6547d1ca50a20228b2",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R25",
+    "started_at": "2026-10-14T20:12:28Z",
+    "completed_at": "2026-10-14T20:53:21Z"
+   },
+   {
+    "decision": "passed",
+    "verdict": "PASS_V3",
+    "failures": [],
+    "remediation": null,
+    "blocker": null,
+    "not_proven": [],
+    "note": "reopened (CX-VAL-009: crate or dependency closure changed d48bc30..507aa36); units of interop-media green in R26 (all units incl. feature, ignored, doctest)",
+    "idempotency_key": "STUDIO-R26:SMB-INTEROP-MEDIA-PULSE:507aa36d6a58:PASS_V3",
+    "round": "STUDIO-R26",
+    "lane": "SMB-INTEROP-MEDIA-PULSE",
+    "candidate": "507aa36d6a588f82568f0d2867495b71ce5023ae",
+    "tree": "595bb180eada95cebf57b6cbca509292ac949252",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R26",
+    "started_at": "2026-10-14T21:21:54Z",
+    "completed_at": "2026-10-14T21:51:04Z"
+   }
+  ]
+ },
+ "verdicts": [
+  {
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default interop-media 6; feature/ignored/doctest units green",
+   "idempotency_key": "STUDIO-R28:SMB-INTEROP-MEDIA-PULSE:dd63d21efb85:PASS_V4",
+   "round": "STUDIO-R28",
+   "lane": "SMB-INTEROP-MEDIA-PULSE",
+   "candidate": "dd63d21efb855ef539701fcd10f61a6bf5481e15",
+   "tree": "95d5239cfdde6e57e3a6934ca69453f3487b5ae4",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "started_at": "2026-10-14T22:55:24Z",
+   "completed_at": "2026-10-14T23:36:18Z"
+  }
+ ]
 }
