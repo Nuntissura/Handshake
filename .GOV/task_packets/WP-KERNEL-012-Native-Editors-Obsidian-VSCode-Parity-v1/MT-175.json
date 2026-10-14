@@ -1,4 +1,16 @@
 {
+  "cloud_dto_import_repair_20261014": {
+    "decision_id": "WP012-CLOUD-DTO-IMPORT-REPAIR-20261014",
+    "status": "SOURCE_REPAIR_AUTHORIZED",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "failure_ref": "MT-186.json#/delegated_stage02_check3_result_20261014",
+    "owner": "01a1323e-8bb0-7770-9420-07af9d1f22ec",
+    "allowed_write_paths": ["src/frontend/handshake_native/src/backend_client.rs"],
+    "repair": "Add actual settings_dialog import group CloudAccessSnapshot/CloudCliLoginState/CloudByokRow/CloudCliAuthStatus/CloudCliRow required by all ten actual E0422/E0425/E0433 diagnostics. All five actual public definitions exist and actual client top imports omit them; root opened full diagnostic group/current imports/definitions. Preserve all cloud/auth/state/window/secret behavior bodies.",
+    "changed_method": "Read-only restored-block external type/use/import/declaration-scope census across connected cloud blocks before next compiler; verify actual import group and present public producers with one affected independent reproof, not syntax parser alone. Report additional exact same-cause missing imports for bounded assignment before writes. No whole behavior audit repetition.",
+    "review_correction": "Independent reviewer explicitly acknowledged assembled source review missed five imports; prior import-closure claim invalid until exactrepair/reproof. CW001-CW005 behavior boundary closure stays valid only for unchanged source bodies, and syntax never claimed type proof. Historical checkpoint/push facts retained.",
+    "control": "Primary singlefile source patch/explicit-pathcheckpointpush, one affected import/producer scope review, unchanged prior source proof reused. No tests/metadata/runtime/extra paths. Next native compiler only under newly recorded stage03 after reviewedpushedcandidatebinding. Original runtime/wholeWPacceptance OPEN."
+  },
   "cloud_window_connected_checkpoint_20261014": {
     "status": "INDEPENDENT_ASSEMBLED_SOURCE_CLEAR_EXACT_TEN_PATH_PUSH_VERIFIED",
     "repair_refs": ["/cloud_connected_restoration_20261014", "/detached_settings_connected_action_repair_20261014", "/cloud_window_assembled_review_repair_20261014"],
