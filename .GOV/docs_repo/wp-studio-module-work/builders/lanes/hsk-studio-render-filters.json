@@ -1,0 +1,43 @@
+{
+ "crate": "hsk-studio-render-cpu + hsk-studio-render-gpu",
+ "lane": "SMB-RENDER-FILTERS",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slices 1-2 pushed (9698de3 + 5556fe9 render-cpu, e029861 render-gpu; 50e2b87 and the following local WIP commits are in the same range): layer filters executed on both renderers; clippy over pigment + render-cpu + render-gpu (+test-faults, shared-device) --tests exit 0 (warnings only in hsk-studio-type, pre-existing)",
+ "commits": [
+  {"sha": "9698de3", "subject": "render-cpu (SMB-RENDER-FILTERS slice 1): execute layer filters (gaussian blur, unsharp mask, high pass, median, seeded add noise) with pigment filter_window per stage; chunk and thread independent, mask applied after the filters"},
+  {"sha": "50e2b87", "subject": "render-gpu (SMB-RENDER-FILTERS slice 2, WIP): filter.wgsl passes and filter chain evaluation (superseded by e029861; includes probe/debug commits between 50e2b87 and e029861 that were removed again)"},
+  {"sha": "e029861", "subject": "render-gpu (SMB-RENDER-FILTERS slice 2): WGSL layer filters within 1.2e-7 of pigment filter_window; DESCRIPTORs of render-cpu and render-gpu"},
+  {"sha": "5556fe9", "subject": "render-cpu (SMB-RENDER-FILTERS slice 1 fix): hostile-radius test uses the extent-sized window for the work limit and proves radius 1000 parity and the byte charge"}
+ ],
+ "capabilities_done": [
+  "render-cpu plan_sink/filter.rs: ExtOperator::Filter(kind) declared with pigment's class (extension_exactness -> intrinsic, approximate); each stage is one pigment filter_math::filter_window call (render-cpu keeps no filter formula, noise generator or median); content WITHOUT the layer mask is stage 0 (new Eval::frame_content_raw, frame_content = raw + mask); stage windows derived backwards R(k-1) = grow(Rk, reach_k) clipped to B(k-1), B(k) = grow(B(k-1), growth_k) (growth = blur support or median radius, 0 for unsharp/high pass/noise); evaluated per chunk on the chunk-level frame; composited by the normal path so mask (feather/invert/density), Blend-If, mode and opacity*fill apply after the filters; with a mask the composite covers the mask plane only; ExtPrep filters table + FilterLayer growth, frame_shape sizes the frame and charges the sum of pigment filter_window_cost bytes over the stages, filter_work_limit above MAX_EFFECT_WINDOW_WORK, filter_nested when the chunk-level frame is in use, defence in depth InvalidPlan(FilterCombination | FilterParameter)",
+  "render-gpu: ExtOperator::Filter(kind) declared (approximate); new filter.wgsl (entry filter_pass, FXC-safe: no dynamic vector component indexing) over the blur bind layout with unsharp and high-pass combine, median (bounded radius 7) and noise passes; gaussian blur and the blur half of unsharp/high pass reuse blur.wgsl with pigment taps; content without the mask rendered one level below (render_content), stage passes over the frame, then composite with mask/Blend-If/mode/opacity (mask plane only, as render-cpu); frame margin = sum of stage reaches; noise: SplitMix64 hash of (seed, x, y, channel, draw) exact via u32 pairs, uniform = top 24 bits in binary32; filter params written into the blur parameter buffer, blur buffers A/B reused (has_blur set for filtered layers, pass_ops bounded)",
+  "descriptor keys filters added to render-cpu and render-gpu DESCRIPTOR"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-render-cpu --test cpu_filters --test cpu_blur --test cpu_transform; -p hsk-studio-render-gpu --test gpu_filters --test gpu_blur --lib; -p hsk-studio-render-cpu --lib",
+  "exit": 0,
+  "sha": "5556fe9",
+  "passed": 7,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "validator round on 9698de3..5556fe9; follow-ups below",
+ "updated_at": "2026-10-14T23:41:00Z",
+ "notes": {
+  "spec_basis": "STU-RAS-037 (live filter with destructive apply form), STU-FX-011 (deterministic effects, seed), STU-FX-013 (blur core), STU-FX-015 (add noise seed, colour mode), STU-FX-019 (high pass), 14.9 rows Unsharp Mask, High Pass, Median Blur, Add Noise; formulas, ranges and the reading that the mask applies after the filters are Studio readings (pigment filter_math docs), Photoshop behaviour UNVERIFIED (D5)",
+  "tests_detail": "render-cpu cpu_filters 4/4: every_filter_matches_pigment_for_every_chunking_and_thread_count (7 cases x chunkings (1,1) (3,1) (5,4) (64,1) (4,8), to_bits equal to filter_window stage by stage), filters_apply_before_the_layer_mask (masked, 7 cases x 3 chunkings), hostile_radii_and_parameters_are_typed_before_any_sink_call (radius 0 blur parity, six out-of-range parameter kinds and 17 filters = PlanError::FilterParameter, median 500 = filter_work_limit, high pass 1000 parity + peak-1 BudgetExceeded), refusals_budget_and_nesting_are_typed_before_any_sink_call (each kind refused under its key at Exact, filters+blur = FilterCombination, peak-1 BudgetExceeded, filter_nested); render-gpu gpu_filters 3/3 on a live adapter (NVIDIA per earlier render-gpu lane notes; which adapter ran this lane's tests: NOT_INSPECTED): gpu_filters_match_pigment_within_tolerance (9 cases x masked/unmasked x chunk sides 8 and 64, max |delta| alpha/premultiplied colour 1.19e-7 worst, tolerance 2e-5), gpu_noise_follows_the_seed, gpu_filter_admission_and_refusals_are_typed (no adapter needed except the median-8 case, which accepts the no-adapter state). regression: cpu_blur 3/3, cpu_transform 4/4, gpu_blur 2/2, render-cpu lib and render-gpu lib refusal_keys tests green (run at e029861/5556fe9)",
+  "gpu_proof": "gate per tests/gpu-proof.toml (require_gpu = true); no adapter = the parity tests fail with NOT_PROVEN: no adapter, never skipped as pass (V4-03)",
+  "gpu_limits": "median radius at most 7 (pigment admits 1..500): larger = typed Unsupported filter_median_radius from prepare, before any device work (the CPU backend runs radius up to the work limit: a 20 x 16 window up to radius 499); noise coordinates must fit i32 (filter_coordinates); noise values differ from the reference by at most 2^-24 times the amplitude (24-bit uniform), the hash sequence is exact; unsharp threshold comparison in binary32 can fall on the other side for a pixel exactly on the threshold; gaussian/unsharp/high pass use blur.wgsl taps (BLUR_MAX_TAPS) accumulated in binary32",
+  "cpu_limits": "stage window work above MAX_EFFECT_WINDOW_WORK (1e9) is filter_work_limit (median radius 500 on a 20 x 16 chunk window = 1.005e9); a filtered layer inside a layer that uses the chunk-level frame (effects, blur, filters) is filter_nested; a mask limits the composited window to the mask plane (blur/median spread beyond the plane is not composited, on both backends)",
+  "retry_guard_route": "route (a) three times (commit of the product change, then rerun): 1) first hostile test timeout (test assumed a 64 px chunk window), 2) FXC abort of filter.wgsl (dynamic vector indexing), 3) hostile test radius-1000 expectation. One gameplan step GP-029 (truepeak confirm, other lane) blocked a run for a few minutes and then cleared without any action of this lane; this lane did not confirm it",
+  "diagnosis": "wgpu on DX12 panics at create_compute_pipeline on an FXC error (not caught by the error scope in Kernel::new, so a bad kernel surfaces as device_fault at the first dispatch, not as GpuError::Pipeline); FXC aborts on dynamic component indexing of vectors (c[k] = v, q[c]); fixed by per-component helper functions. Existing kernel creation does not turn this into the typed pipeline failure: follow-up candidate for the gpu lane owner (not changed here)",
+  "outside_owned_paths": "none (render-cpu and render-gpu only; pigment untouched). pigment filter_math DESCRIPTOR still says backends do not yet declare filters (pigment-owned, now stale: render-cpu and render-gpu declare all five kinds)",
+  "unowned_dirty_files": "crates/hsk-studio-pigment/tests/transform.rs (M, line-ending only) and untracked crates/hsk-studio-render-{cpu,gpu}/tests/composition_frames.rs belong to other lanes; not touched",
+  "cargo_lock": "not touched",
+  "v4": "V4-01 deny(arithmetic_side_effects) on the new render-cpu module and extended.rs additions (checked helpers, typed errors); V4-02 sizes and running aggregates charged before allocation (filter_window_cost per stage, frame, FILTER_OP_BYTES), tests hostile_radii_*, refusals_budget_*; V4-03 GPU tests gated; V4-07 DESCRIPTOR claims cite tests; V4-09 commit messages via files",
+  "followups": "GPU median beyond radius 7 (separable histogram or tiled selection); exact-threshold unsharp on GPU; GPU gaussian blur beyond the 3004-tap block (BLUR_MAX_TAPS) is a typed refusal; Photoshop parity of every filter NOT_PROVEN (D5)"
+ }
+}
