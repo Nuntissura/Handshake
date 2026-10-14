@@ -4,11 +4,11 @@
   "file_kind": "handoff",
   "version": 6,
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
-  "updated_at_utc": "2026-10-14T14:43:07.874862+00:00",
-  "status": "CORE_RETRY_INDEPENDENTLY_VERIFIED; SWARM_SOURCE_IMPLEMENTATION_RELEASED",
-  "current_diagnostic_method_ref": "MT-186.json#/delegated_native_stage04_20261014",
-  "current_source_checkpoint_ref": "MT-188.json#/successor_core_json_macro_checkpoint_20261014",
-  "current_product_candidate": "139e4b7db83ffc56bf72f59cec3e8ea7c69fecc3",
+  "updated_at_utc": "2026-10-14T18:52:11Z",
+  "status": "SWARM_SOURCE_CLEAR; CORE_LOST_CALLER_CLOSED; DURABLE_CALLER_PREPARATION_ADMITTED",
+  "current_diagnostic_method_ref": "MT-188.json#/swarm_changed_source_compile_admission_20261014/durable_caller_repair_admission_20261014",
+  "current_source_checkpoint_ref": "MT-174.json#/swarm_p1_source_checkpoint_20261014",
+  "current_product_candidate": "575997886285ede0442cc8b93bb69eed57d94e08",
   "latest_native_terminal_ref": "MT-186.json#/delegated_stage04_check1_diagnostic_result_20261014",
   "current_native_continuation_ref": "MT-186.json#/delegated_native_stage04_20261014",
   "current_native_source_repair_ref": "MT-175.json#/diagnostic_two_group_batch_repair_20261014",
@@ -16,7 +16,7 @@
   "current_stage_history": "Stage01 and02 independently exhausted3/3 each; ten cumulativeFAIL101 retained. Current25e1491c10path cloud/window batch failednative library on omitted5DTOimportgroup; reviewer acknowledged missedimportclosure and exactclaiminvalid pendingreproof. CW001-CW005 unchanged behavior review remains scopedsourceevidence, never compiler/runtime proof. Stage03 explicit0/3 additionalcontinuation with actualrestoredtype/importscopecensus and exactbackendclient importrepair. No resets. Backendmount/authlegacytest/windowGUI/durableHMAC/genuineauth/fullacceptance OPEN. Currentrefs supersede historical preparation prose.",
   "operator_request": "ok update handoff, apply repo changes. commit and push gov kernel, then wp kernel 012 with dirt. then restart work, give all teams the updated workflow and changes to repo governance before restarting.. i will also hand off every descicion to you.",
   "document_authorization": "Operator authorizes handoff/repo changes, kernel then product checkpoint/push and restart, all team briefing first, delegates technical decisions and direct-blocker scope expansion",
-  "plain_language_summary": "Finish original WP012/CKC/WP1 native editor and connected runtime acceptance with independent proof. Parallel15-file source batch and one JSON macro repair are pushed and source-reviewed. Core confirmation failed on allocator aborts with all485 selected targets NOT_OBSERVED; original runtime/native/registry/recovery and parent acceptance remain open. Operator requested one retry after closing Chrome; retain histories and use fresh host observation.",
+  "plain_language_summary": "Finish original full WP012/CKC/WP1 acceptance. Coherent28-file swarm product575 is pushed and source-clear with runtime residuals. Current core check02 lost its owned caller: numeric exit unknown,484of485 targets observed and final completion/postbinding absent; independent canonical freeze and all-owned closure established, never compiler PASS. Stage06 exhausted2of2; root admits one bounded harmless durable-host probe then at most one original core run after exact review/gates. Native and full runtime acceptance remain open. Shared frame/window behavior is fixed in standalone Assets/Kumihimo first, then adopted at a pinned revision in Handshake.",
   "authority_precedence": [
     "Live root AGENTS.md/CLAUDE.md and current Handshake Codex, subject to preserved WP pins and explicit Operator amendments",
     "Kernel Builder protocol, HANDSHAKE_BUILD_RULES.json and governing Master Spec bindings",
@@ -572,10 +572,59 @@
     "current_product_commit": "575997886285ede0442cc8b93bb69eed57d94e08",
     "current_product_tree": "d09d95190432025bcafd5a8593c74eec7dbd401a",
     "independent_source_disposition": "SOURCE_CLEAR_WITH_DECLARED_RUNTIME_RESIDUALS",
-    "compiler_runtime_status": "NOT_RUN_ON_CURRENT_CANDIDATE; original full acceptance retained",
-    "next_action": "Primary renews exact affected capture and official gates; one strategic original core then native compiler. Native metadata preparation exact-once admitted; no worker compiler. Runtime/GUI leaders prepare genuine original resource and graceful proof method without captured-source writes.",
-    "kernel_git": "Approved exact9bea merge completed as9f925666 with both parents and seven dirty files byte-preserved; normal push rejected because Studio advanced matchingremote to e54ada21. Latest27Studio paths are disjoint and merge-tree conflict-free. No extra branches/worktrees or force/reset/stash. Follow-up reconciliation approval and non-force publication remain separate from compiler admission; current canonical local raw authority is valid.",
+    "compiler_runtime_status": "CORE_INCONCLUSIVE_LOST_OWNED_CALLER; native/runtime NOT_RUN on current candidate; original full acceptance retained",
+    "next_action": "Primary prepares exact MT188 durable-caller09 admission; one affected SAMEIV review, one independently settled harmless fixed-exit7 probe, final current raw/HEAD/caller/source/resource gates, then at most one original core run. Original native follows proven core. Native metadata1of1 is consumed and reused; no worker compiler. Runtime uses genuine supported normal setup/login after original admission, preserving real data/auth/history. GUI prepares standalone Kumihimo-first adoption against original acceptance.",
+    "kernel_git": "Approved preserved Studio reconciliation17bc and checkpoint8c3 were pushed and matching remote verified. Local7416e95ae records lost-caller closure and narrow normal-startup correction, not yet published. Standing approval permits further verified disjoint .GOV/docs_repo/wp-studio-module-work/ reconciliation with fresh verified external bundle and normal push; no extra branches/worktrees/force/reset/stash. Confirmations remain unstaged. No HEAD/raw mutations during a new run.",
     "operator_mapping_question_ref": "MT-175.json#/operator_decision_request_adopt_authority_20261014",
     "source_of_truth": "This handoff is navigation; current typed contracts and actual evidence win."
+  },
+  "operator_component_first_gui_direction_20261014": {
+    "direction_id": "WP012-KUMIHIMO-ASSET-FIRST-20261014",
+    "operator_quotes": [
+      "i wanted fixed behaviour for the frames/windows in evrey project. so if we find missing logic in kumohime we update the asset first then only inside handshake",
+      "it is a sub project of Assets. like the current rebuild of wp kernel 012, i am buèilding all components of handshake separete now. so we can update the component and its easier to update the asset of module asset in the future"
+    ],
+    "source_url": "https://github.com/Nuntissura/assets/tree/codex/handpick/Kumihimo",
+    "component_order": "Shared frame/window behavior belongs to standalone Assets/Kumihimo. Inspect and repair missing shared logic there first; then Handshake adopts the independently proven pinned component revision. No Handshake-local shared-behavior workaround or copied fork.",
+    "local_checkout_observation": {
+      "path": "C:/Projects/LLM Projects/.assets",
+      "scope": "Machine-local observed checkout, not a hardcoded product dependency",
+      "branch": "codex/handpick",
+      "commit": "1e37e0aa49ce960306be0ef0fe2e432b73e85589",
+      "user_git_request": "first push the repo and see for conflicts; then pull it",
+      "actual_git_result": "Initial normal push rejected because remote was ahead; all438 incoming paths underKumihimo, zero local overlap and currentHEAD ancestor. Fast-forward pull exit0; all21 existing edited/untracked files hash-identical before/after. Follow-up normal push0 Everything up-to-date.",
+      "source_present": "Kumihimo/product/Cargo.toml exists after pull"
+    },
+    "coordination": "GUI leader, native-main leader and mediator coordinate shared-component/host boundaries; original full theme/divider/tab/Argus/persistence/accessibility/popout acceptance retained. Root owns exact admissions, primary product integration/Git/compiler, independent validator proof.",
+    "inspection_team": {
+      "chat_id": "01a13bc6-31e0-7d41-8ea8-805ce8c65bcd",
+      "chat_title_at_creation": "WP012-Kumihimo-adoption-team",
+      "host_id": "local",
+      "operator_request": "create a new chat team to inspect the microtasks to see where the asset needs to be implemented",
+      "scope": "Read-only complete relevant MT-to-asset/host mapping, concrete missing shared logic versus host adapter responsibility, asset-first repair and distinct pinned adoption, original proof and ownership; leader selects useful helpers and coordinates directly with root/mediator/GUI/native-main/primary/runtime/IV",
+      "boundaries": "No source/governance writes, branch/worktree creation, build/test/runtime launch or acceptance changes; report inspected evidence to root and mediator before exact implementation admission"
+    },
+    "source_implementation_ref": "MT-175.json#/kumihimo_standalone_source_admission_20261014",
+    "source_implementation_direction": "Operator now assigns the same Kumi team to original Assets/Kumihimo implementation. Its completed read-only inspection boundary remains historical; source work follows exact source10 admission and asset authority. Commit and normal push the proven updated component to GitHub first, independently reread the revision, then separately admit Handshake adoption. This is part of the Assets folder, not Handshake product source.",
+    "build_rule_ref": {"path": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json", "rule_id": "HBR-MODULE-LIFECYCLE-008"},
+    "inspection_outcome": {
+      "status": "READ_ONLY_MAPPING_COMPLETE",
+      "actual_helpers_selected_by_leader": 3,
+      "current_host_binding": "MT175 owns native implementation; existing WP1 pin98efa is not a Kumihimo source pin. No existing Kumihimo adoption MT or native Cargo/lock/source reference was inspected.",
+      "microtask_groups": {
+        "WP-KERNEL-011": ["MT-003 theme", "MT-005 registry", "MT-006 split", "MT-007 tabs", "MT-008 detached windows", "MT-009 persistence", "MT-010 rails", "MT-011 project tabs", "MT-013 headers", "MT-020 context actions"],
+        "WP-KERNEL-012": ["MT-079 primary payload factories", "MT-080 secondary payload factories", "MT-097 defaults", "MT-098 runtime chat", "MT-102 visual diagnostics", "MT-103 model navigation", "MT-121 viewport/accessibility", "MT-126 actual GPU capture"],
+        "indirect_originals": "WP011025/026 AccessKit,027/028 Argus,029/030 audits; WP012035/036 undo+FR,041/042 editor/graph accessibility,084/085/087 frame/performance diagnostics"
+      },
+      "shared_source_gaps": [
+        {"id": "WP012-KUM-GAP-001", "source": "Kumihimo/product/kumihimo-egui/src/window_slots.rs:152 and src/native.rs:26-47", "finding": "WindowSlots commit is pub(crate) and Ready is privately minted after genuine capture. An external eframe host lacks a public genuine readiness/commit boundary.", "required_order": "Original asset safe public embedding boundary first, preserving nonce/root/identity/generation/epoch/HWND/size/scale/byte validation and genuine readiness; standalone proof/publish/independent remote reread, then distinct pinned host adoption. Never expose an unvalidated receipt constructor or copy the state machine into Handshake."},
+        {"id": "WP012-KUM-GAP-002", "source": "Kumihimo/product/kumihimo-egui/src/input.rs:1011,1047,1222 and src/navigation.rs:469", "finding": "Shared preview/divider/rail colors use fixed values. Original semantic theme and dark/light obligations require shared theme-token hooks.", "required_order": "Original reusable theme hook first with affected source proof, then host semantic palette adaptation and actual opened dark/light pixel proof."}
+      ],
+      "conditional_shared_work": "Native-session outer geometry representation/validation only if the selected adapter requires it; host monitor discovery/authenticated storage remains host. Configurable demo runner title/size only if separately admitted runner replacement is selected; replacement is not implicit.",
+      "host_responsibilities": "Pane/tab identity and dirty/pin/close policy, content factories, actual native viewport allocation/title/payload, Argus/auth/diagnostics, undo/FR, authenticated workspace persistence/LKG/restart and stable accessibility. Current split is custom SplitWeights; retain original clamping, geometry and actions rather than infer an egui_tiles tree.",
+      "proof": "Existing standalone WP-KUM-012 A001-A013 and affected original asset/native/UIA/pixel/remote proof precede distinct host proof. Original WP012/WP011 live storage/restart, Argus, quiet lifecycle and dark/light pixels remain. Asset egui0.33.3 versus host0.33-family compatibility NOT_PROVED."
+    },
+    "current_evidence_limits": "Exact original source gaps inspected; actual GUI pixels NOT_INSPECTED, no component or Handshake adoption edits performed. Root must admit canonical component work and distinct host adoption through existing contracts before writes; original core lost-result recovery remains separate.",
+    "normal_startup_ref": "MT-186.json#/normal_startup_coordination_correction_20261014"
   }
 }

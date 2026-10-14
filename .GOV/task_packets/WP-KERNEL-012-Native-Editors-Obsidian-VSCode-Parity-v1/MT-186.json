@@ -835,19 +835,29 @@
   "admission_constraints": {
     "status": "NOT_INSPECTED",
     "inputs": [
-      "original deployment executable/data root/listener",
+      "Current pinned product executable/data root/listener; preserve any existing real deployment data",
       "native channel",
       "real account/Principal/session/AccessSpace",
       "persisted grant/policy/reviewer and five-ID tuple"
     ],
     "forbidden": [
-      "new default store/first Owner",
+      "Invented or fixture store/Owner/authentication replacing genuine normal product setup and original proof",
       "synthetic grant/account/session",
       "secret scraping",
       "channel token as account proof",
       "competing direct RocksDB opener"
     ],
     "after_admission": "MT185 actual publication; full native/source acceptance stays MT175/original consumed owners."
+  },
+  "normal_startup_coordination_correction_20261014": {
+    "decision_id": "WP012-NORMAL-STARTUP-COORDINATION-CORRECTION-20261014",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "spec_ref": ".GOV/spec/master-spec-v02.206/spec-modules/10-product-surfaces.md#10.18",
+    "original_proof_ref": "packet.json#/auth_mapping_r2_adoption_20261011/registry_publication_proof/prerequisites",
+    "operator_context": "Operator has not seen Handshake GUI in four months and does not know technical deployment paths; an installation or signed-in session predating this work is not an original acceptance prerequisite",
+    "correction": "Pinned original spec includes genuine normal first-run Owner setup/login. Runtime owner determines the supported current candidate startup, preserving any real existing data, and independently observes actual executable/data/listener/native channel, canonical account/Principal/session/AccessSpace/workspace and persisted grants/policy/reviewer through supported product behavior. No human reconstruction of technical IDs or old installation is required.",
+    "release_conditions": "Original required compiler and runtime admission precede actual launch/setup. This coordination correction alone authorizes no runtime launch, source change, synthetic authority, default replacement store or acceptance waiver.",
+    "preserved": "Original immutable proof IDs/owner tuple, genuine policy/grants, same-store reopen/history and complete independent acceptance; unrelated ADOPT spec decision remains HELD"
   },
   "native_dispatch_proposal_20261013": {
     "decision_id": "WP012-NATIVE-DISPATCH-PROPOSAL-20261013",
