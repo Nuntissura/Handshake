@@ -1,4 +1,18 @@
 {
+  "receipt_guard_checkpoint_20261014": {
+    "status": "INDEPENDENT_RECEIVER_SOURCE_REPROOF_PUSH_VERIFIED",
+    "repair_ref": "/receipt_guard_mutability_repair_20261014",
+    "commit": "d57f6707359d39f0ad652f8d5a7ab475f7dbebb4",
+    "tree": "808c7b3ccd319daa1948a994c77d12b48dbbdc3c",
+    "parent": "db339b9772ff848321de30600f60213e81b47789",
+    "artifact_dir": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt175-receipt-guard-mutability-repair",
+    "server_sha256": "ed8e3bb728723dbd2f2dff3e46a9b6340d44e743bfb6d023f29316b912aeb9d6",
+    "diff_sha256": "5b7cf056c9afe60c2b7e405d11f7ea89c3423d8cb83c500a8cbcac54f79c9bad",
+    "review": "Independent exactmutableguard/currentreceipts mutablegetter expiration/relatedcaller/sourceinverse proof; all7415unaffected inputs and unchangedatomicpublication behavior preserved. Rootopenedactualpatch/caller/getter/checkpoint and fresh canonicalHEAD/tree/clean/liveorigin/serverhash exact. Singlefile1insertion1deletion. Syntax0only, no compiler/runtime claim.",
+    "compiler_tests_runtime": "NOT_RUN_ADDITIONAL",
+    "encoding_incident": "Read-only census defaultcp1252 failure beforeproductwrites correctedexplicitUTF8; existingGP392/426cover, no extra step orcompiler consumed.",
+    "residuals": "Originalbackendmount/legacytestauth/windowGUI/durableHMAC/genuineauth/runtime/fullacceptance OPEN."
+  },
   "receipt_guard_mutability_repair_20261014": {
     "decision_id": "WP012-RECEIPT-GUARD-MUTABILITY-REPAIR-20261014",
     "status": "SOURCE_REPAIR_AUTHORIZED",
