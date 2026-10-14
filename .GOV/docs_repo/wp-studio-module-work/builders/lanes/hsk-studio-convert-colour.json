@@ -1,0 +1,37 @@
+{
+ "crate": "hsk-studio-harness",
+ "lane": "SMB-CONVERT-COLOUR",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "Prism colour conversion on import pushed; claim = 3a496bb (on top of SMB-CONVERT-TIFF 8398c7a)",
+ "commits": [
+  {"sha": "3a496bb", "subject": "harness (SMB-CONVERT-COLOUR): embedded ICC profiles convert through Prism into the working space on import"}
+ ],
+ "capabilities_done": [
+  "edge harness -> hsk-studio-prism (optional; enabled by import-psd, import-raw and import-tiff): new module src/import/colour.rs builds interop-psd's PrismConverter (Prism::new(default_actor, 4), PrismRoute with SCPF/SDOC ids from reserved SourceMint counters, a counting SinkPort) and every importer passes it to to_proposal / raster_proposal; colour math stays in interop-psd + prism (CX-CAP-001), the harness adds none",
+  "working colour space = linear-light sRGB: destination profile src/import/profiles/sRGB-linear-v4.icc (480 B, sha256 4813c25a76abcf572f146c5a36b56ed83526c82327ee9f863553bf1e99c8b64d, CC0 derivative copied unchanged from prism tests/profiles, README + CC0-LICENSE beside it)",
+  "PSD (resource 1039) and TIFF (tag 34675) embedded profiles convert through Prism's wide path (configured/assumed intent and BPC reach Prism); camera raw output is already linear sRGB primaries from develop's camera solution (no ICC transform; DNG embedded profiles not read, recorded)",
+  "missing profile -> typed profile_assumed_srgb; refused/unparseable profile -> loss entry on document/profile with Prism's code (import still maps under the recorded assumption); CMYK without profile -> typed unmapped layer + cmyk_profile_missing; nothing silent",
+  "receipt key colour: status (converted|assumed|not_applied|unmapped_or_not_applicable), route, working + embedded profile sha256, icc_converted, assumed_profile, Prism frame count, interop-psd's conversion report (source space, intent, BPC requested/applied/rule, clip, absolute, engine name/version/simd/fma) and the profile-related loss entries; original profile bytes stay in the import's original entry",
+  "RECEIPT_NOT_PROVEN: colour_managed_import replaced by colour_oracle_parity; DESCRIPTOR/manual updated; quiet-source scan covers src/import/colour.rs"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-harness --features import-psd,import-raw,import-tiff --test import_colour --test import_psd --no-fail-fast --run-ignored all -E 'binary(import_colour) | test(psd_converts_to_a_native_package_that_opens_in_a_session_with_receipt_and_original) | test(dng_converts_to_one_developed_raster_layer_and_opens_in_a_session)'",
+  "exit": 0,
+  "sha": "3a496bb",
+  "passed": 4,
+  "failed": 0,
+  "evidence": "embedded_profiles_convert_through_prism_into_the_working_space: sRGB v4 tagged 8-bit TIFF -> Prism -> linear [0.5776,0.1274,0.0319,0.0030,0.2159,0.9560] within 2e-3 of the IEC 61966-2-1 closed form; status converted, Prism frames > 0; untagged twin = assumed + profile_assumed_srgb. missing_or_unusable_profiles_are_typed_losses: 200-byte junk profile -> document/profile loss, not converted, bytes kept in original; CMYK untagged -> cmyk_profile_missing. PSD and DNG (ignored corpus test, run) routes still green with the converter. Regression: import_tiff (2) + quiet sources also green at 3a496bb.",
+  "clippy": "cargo clippy -p hsk-studio-harness --features import-psd,import-raw,import-tiff --tests --examples: clean (only pre-existing hsk-studio-observe too_many_arguments)"
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "none in this dispatch",
+ "updated_at": "2026-10-14T18:28:22Z",
+ "notes": {
+  "lead_requests": "Prism exposes no built-in working-space profile; the harness ships the CC0 linear sRGB v4 profile as the conversion destination (a Prism-owned working-profile constant would be the lower owner, CX-CAP-001). Colour oracle parity (LittleCMS/Photoshop) of converted import pixels is NOT_PROVEN.",
+  "identity": "Profile/resource ids come from SourceMint::reserved (tail ffff<k>), outside the document id counter, deterministic per source digest.",
+  "cargo_lock": "Cargo.lock not committed (new optional edge harness -> prism).",
+  "deps": "no crates.io dependency; harness -> prism is in the allowed list (steward)."
+ }
+}

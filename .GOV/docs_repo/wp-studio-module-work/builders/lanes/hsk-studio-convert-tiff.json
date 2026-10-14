@@ -1,0 +1,41 @@
+{
+ "crate": "hsk-studio-harness",
+ "lane": "SMB-CONVERT-TIFF",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "plain TIFF import pushed; claim = 8398c7a",
+ "commits": [
+  {
+   "sha": "8398c7a",
+   "subject": "harness (SMB-CONVERT-TIFF): plain TIFF opens directly / converts to native (feature import-tiff)"
+  }
+ ],
+ "capabilities_done": [
+  "feature import-tiff (harness -> interop-tiff + interop-psd, optional): TIFF bytes -> hsk_studio_interop_tiff::decode (default Limits; typed refusals pass through unchanged as ImportError::Importer{format: tiff, code}) -> first page -> interop-psd raster_proposal (RasterSource: format tiff, depth 8/16/32f, colour mode Gray/RGB/CMYK/Lab, planes BE, straight alpha, embedded ICC) -> shared package_proposal tail (tile assets, records, receipt, original bytes)",
+  "routing: with import-raw, develop::decode_container decides first (DNG/CR2/NEF/ARW; its refusals pass through); only develop unsupported_container continues as plain TIFF; without import-raw the receipt records tiff.camera_raw_check = not_in_build; without import-tiff a TIFF is format_unavailable{feature import-tiff, reason feature_not_enabled}",
+  "multi-page: first page imported; each further page is a typed loss page[n] tiff_pages_not_imported (preserved_opaque; bytes in the original entry). Pages are NOT imported as layers",
+  "Photoshop layered TIFF (tag 37724): interop-psd has no public layer-record parser for ImageSourceData, so the composite is imported and loss page[0]/tag/37724 tiff_photoshop_layers_not_imported is recorded; receipt tiff.image_source_data carries the interop-tiff envelope check (valid/byte order/wide sizes/block bytes or the envelope error code)",
+  "other typed losses: tiff_image_resources_not_imported (34377), tiff_orientation_not_applied (274 != 1), tiff_extra_samples_not_imported (non-alpha extras), tiff_associated_alpha_unpremultiplied (transformed), tiff_cielab_reencoded_offset (PI 8 signed a/b -> offset encoding, transformed); u32/f64 samples refused tiff_sample_type_unmapped; CIELab float refused tiff_cielab_float_unmapped",
+  "receipt key tiff: byte order, BigTIFF, page count, imported page, page facts (photometric, bits, sample format, spp, planar, alpha, extras, compression, predictor, orientation, resolution, ICC size); DESCRIPTOR + manual updated; quiet-source scan covers src/import/tiff.rs"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-harness --features import-psd,import-raw,import-tiff --test import_tiff --test import_psd --test harness_headless --no-fail-fast -E 'binary(import_tiff) | test(unknown_and_not_yet_importable_formats_are_typed_refusals) | test(quiet_sources_use_no_process_network_or_environment_api)'",
+  "exit": 0,
+  "sha": "8398c7a",
+  "passed": 4,
+  "failed": 0,
+  "corpus": "tiff_corpus_files_import_with_typed_losses_or_pass_through_refusals (not ignored; NOT_PROVEN line when the corpus is absent): rgb-3c-16b.tiff -> 1 layer; seq__seq-1c-8b-multipage-adeefdcc.tiff 3 pages -> 1 layer + 2 tiff_pages_not_imported; seq__seq-4c-8b-rgba-50969cda.tiff -> tiff_associated_alpha_unpremultiplied; int16_zstd.tif -> interop-tiff refusal passed through unchanged; all 4 sha256-pinned via .config/oracle-corpus.toml",
+  "clippy": "cargo clippy -p hsk-studio-harness --features import-psd,import-raw,import-tiff --tests --examples: clean (only pre-existing hsk-studio-observe too_many_arguments)"
+ },
+ "blockers": [],
+ "lock_wait_s": 74,
+ "bg_pids": [],
+ "next": "SMB-CONVERT-COLOUR (new lane id): Prism-backed colour conversion on import",
+ "updated_at": "2026-10-14T18:28:22Z",
+ "notes": {
+  "lead_requests": "(1) interop-psd: no public parser for Photoshop layer records inside TIFF ImageSourceData (parse_tagged_blocks is pub(crate)); layered TIFF imports the composite + typed loss until it exists. (2) interop-tiff: no accessor for DNGVersion (50706) / NewSubfileType (254); in a build without import-raw a TIFF-based camera raw imports its IFD0 as a plain page (receipt camera_raw_check=not_in_build). Also develop's unsupported_container covers both 'not a camera raw' and some unsupported DNG layouts (dng.rs:382,397,402), which then import IFD0 as plain TIFF; a typed accessor would close that.",
+  "shared_tree": "At 18:16Z the shared edit tree held another lane's uncommitted interop-tiff WIP (lib.rs declared mod container before container.rs existed; E0583), which failed the first test run. Retry-guard route (b): added gameplan step GP-026 (machine check: every mod declared in interop-tiff lib.rs has its file). The green proof ran against the edit tree while that WIP (container.rs, scan.rs, lib.rs) was still uncommitted; harness uses only interop-tiff decode/image_source_data/Limits/model types.",
+  "cargo_lock": "Cargo.lock not committed (new optional edge harness -> interop-tiff).",
+  "deps": "no crates.io dependency added; workspace edge harness -> interop-tiff is in the allowed list.",
+  "later_commits": "3a496bb (SMB-CONVERT-COLOUR, separate lane) touches src/import/tiff.rs after this claim (passes the Prism converter, adds receipt key colour); import_tiff tests rerun green at 3a496bb (2026-10-14T18:28:22Z). Judge this lane at 8398c7a or include 3a496bb with SMB-CONVERT-COLOUR."
+ }
+}

@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-14T18:27:01Z",
+ "updated_at": "2026-10-14T18:29:37Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3618,22 +3618,29 @@
   {
    "lane_id": "SMB-CONVERT-COLOUR",
    "crate": "hsk-studio-harness",
-   "phase": "queued",
-   "status": null,
-   "owner": null,
-   "commits": [],
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
+   "owner": "builder-convert-20261014",
+   "commits": [
+    "3a496bb"
+   ],
    "verdicts": [],
-   "note": "harness has no prism edge: embedded ICC preserved but not applied on import; add harness->prism edge and apply profiles in convert_to_native"
+   "note": "harness has no prism edge: embedded ICC preserved but not applied on import; add harness->prism edge and apply profiles in convert_to_native",
+   "lane_file": "builders/lanes/hsk-studio-convert-colour.json"
   },
   {
    "lane_id": "SMB-CONVERT-TIFF",
    "crate": "hsk-studio-harness",
-   "phase": "queued",
-   "status": null,
-   "owner": null,
-   "commits": [],
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
+   "owner": "builder-convert-20261014",
+   "commits": [
+    "8398c7a",
+    "3a496bb"
+   ],
    "verdicts": [],
-   "note": "wire interop-tiff into harness import/convert (feature import-tiff) via interop-psd raster_proposal; layered TIFF 37724 via interop-psd layer parser"
+   "note": "wire interop-tiff into harness import/convert (feature import-tiff) via interop-psd raster_proposal; layered TIFF 37724 via interop-psd layer parser",
+   "lane_file": "builders/lanes/hsk-studio-convert-tiff.json"
   },
   {
    "lane_id": "SMB-DNG-CORPUS-REPLACE",
@@ -3681,6 +3688,16 @@
    "commits": [],
    "verdicts": [],
    "note": "typed node-tree decode from real fixtures (parentIndex/guid tree, geometry blobs, fills/strokes/effects, text, SYMBOL/INSTANCE overrides, VARIABLE values, prototypeInteractions); container facts: fig-kiwi v106, schema DEFLATE, message zstd"
+  },
+  {
+   "lane_id": "SMB-CONVERT-FOLLOWUPS",
+   "crate": "hsk-studio-harness",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-convert-followups-20261014",
+   "commits": [],
+   "verdicts": [],
+   "note": "(1) prism exposes a working-profile constant (linear sRGB) and harness drops its private CC0 profile copy (CX-CAP-001); (2) harness detects DNG/TIFF-raw via interop-tiff Container (DNGVersion 50706, NewSubfileType) so raw never falls through to plain TIFF IFD0; (3) interop-psd public ImageSourceData/layer-record parser and harness imports layered Photoshop TIFF (37724) as layers"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
