@@ -1708,19 +1708,71 @@ fn production_binary_argus_socket_inspect_click_set_screenshot_receipts_and_popo
         "argus.inspect",
         serde_json::json!({"window_id": "main"}),
         "not-the-session-token",
-        "production-socket-live",
+        live_socket::AGENT_LABEL,
     );
     assert!(bad_token.get("error").is_some(), "bad token was accepted");
+    assert_eq!(
+        bad_token["error"]["code"],
+        handshake_native::mcp::tools::ERR_UNAUTHORIZED
+    );
+    assert_eq!(bad_token["error"]["message"], "Unauthorized");
     let valid_token = client.token.clone();
+    let label_baseline = client.inspect("main");
     let missing_label = client.call_with_credentials(
         "argus.inspect",
-        serde_json::json!({"window_id": "main"}),
+        serde_json::json!({
+            "window_id": "main", "expected_revision": label_baseline["revision"],
+            "window_epoch": label_baseline["window_epoch"],
+        }),
         &valid_token,
         "",
     );
     assert!(
         missing_label.get("error").is_some(),
         "missing agent_label was accepted"
+    );
+    assert_eq!(
+        missing_label["error"]["code"],
+        handshake_native::mcp::tools::ERR_INVALID_PARAMS
+    );
+    assert_eq!(
+        missing_label["error"]["message"],
+        "agent_label must be 1..=96 ASCII graphic characters"
+    );
+    let label_read_deadline = Instant::now() + SURFACE_TIMEOUT;
+    let valid_label_read = loop {
+        let current = client.inspect("main");
+        let response = client.call_with_credentials(
+            "argus.inspect",
+            serde_json::json!({
+                "window_id": "main", "expected_revision": current["revision"],
+                "window_epoch": current["window_epoch"],
+            }),
+            &valid_token,
+            live_socket::AGENT_LABEL,
+        );
+        let revision_conflict = response["error"]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("revision") && message.contains("stale"));
+        if !revision_conflict {
+            break response;
+        }
+        assert!(
+            Instant::now() < label_read_deadline,
+            "valid-label read could not acquire the current revision"
+        );
+    };
+    assert_success(&valid_label_read, "valid-label guarded read");
+    assert_eq!(
+        node_text(require_node(
+            &valid_label_read["result"]["snapshot"]["root"],
+            "shell.chrome.theme-toggle"
+        )),
+        node_text(require_node(
+            &label_baseline["snapshot"]["root"],
+            "shell.chrome.theme-toggle"
+        )),
+        "label validation changed the actual theme state",
     );
     let wrong_window = client.call(
         "argus.inspect",

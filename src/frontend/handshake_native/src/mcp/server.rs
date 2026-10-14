@@ -553,9 +553,28 @@ async fn handle_line(
         }
     };
 
+    let agent_label = match value.get("agent_label") {
+        Some(serde_json::Value::String(label))
+            if !label.is_empty()
+                && label.len() <= 96
+                && label.bytes().all(|byte| byte.is_ascii_graphic()) => label.clone(),
+        None if state.safety.windows.is_none() => String::new(),
+        _ => {
+            return serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": request.id,
+                "error": { "code": ERR_INVALID_PARAMS, "message": "agent_label must be 1..=96 ASCII graphic characters" },
+            });
+        }
+    };
+    let labeled_session = attributed_session
+        .as_ref()
+        .unwrap_or(session)
+        .clone()
+        .with_agent_label(agent_label);
     dispatch_with_session(
         &request,
-        attributed_session.as_ref().unwrap_or(session),
+        &labeled_session,
         state,
     )
     .await
@@ -585,6 +604,22 @@ async fn dispatch_with_session(
 ) -> McpResponse {
     {
         let mut pending = state.pending_receipts.lock().unwrap_or_else(|e| e.into_inner());
+        if state.safety.windows.is_some() && state.safety.token.matches(&request.session_token) {
+            if let Some(original) = request.params.get("action_id")
+                .and_then(|value| value.as_str())
+                .and_then(|action_id| pending.get(action_id))
+            {
+                if original.envelope.agent_label != session.agent_label() {
+                    return McpResponse::error(
+                        request.id.clone(),
+                        super::tools::McpError::general(
+                            ERR_INVALID_PARAMS,
+                            "agent_label does not match the original pending action; no reconciliation dispatched",
+                        ),
+                    );
+                }
+            }
+        }
         for receipt in pending.values_mut() {
             if !durability_binding_is_current(state, &receipt.binding) {
                 receipt.reservation.take();
@@ -691,6 +726,7 @@ async fn dispatch_with_session(
                                     object.insert("before_revision".to_owned(), serde_json::Value::from(expected));
                                     object.insert("after_revision".to_owned(), serde_json::Value::from(receipt_revision));
                                     object.insert("agent_id".to_owned(), serde_json::Value::String(scoped.agent_id().to_owned()));
+                                    object.insert("agent_label".to_owned(), serde_json::Value::String(scoped.agent_label().to_owned()));
                                     object.insert("durability_error".to_owned(), serde_json::Value::String("Authenticated durable Argus receipt persistence is not bound".to_owned()));
                                 }
                                 if let Some(binding) = original_binding.as_ref().filter(|binding| durability_binding_is_current(state, binding)) {
@@ -701,7 +737,7 @@ async fn dispatch_with_session(
                                             action: request.method.clone(),
                                             connection_id: session.agent_id().to_owned(),
                                             agent_id: scoped.agent_id().to_owned(),
-                                            agent_label: scoped.agent_id().to_owned(),
+                                            agent_label: scoped.agent_label().to_owned(),
                                             window_id: window_id.to_owned(),
                                             author_id: receipt.target.clone(),
                                             before_revision: expected,
@@ -923,7 +959,7 @@ mod tests {
         let state = test_state("secret-token-1234567890");
         let session = state.safety.session();
         let mut limiter = RateLimiter::new(MAX_REQUESTS_PER_SEC);
-        let line = r#"{"jsonrpc":"2.0","id":3,"method":"argus.click","params":{"target":"btn"},"session_token":"secret-token-1234567890"}"#;
+        let line = r#"{"jsonrpc":"2.0","id":3,"method":"argus.click","params":{"target":"btn"},"session_token":"secret-token-1234567890","agent_label":"caller-display-label"}"#;
         let resp = handle_line(line, &state, &session, &mut limiter).await;
         assert_eq!(resp["result"]["queued"], true);
         // MAJOR #2 / AC#2: the success result carries the acting agent_id over the wire shape.
@@ -946,6 +982,97 @@ mod tests {
         );
         assert_eq!(entries[0].agent_id, session.agent_id());
         assert_eq!(entries[0].target_key, "btn");
+        assert_eq!(entries[0].agent_label, "caller-display-label");
+        assert_eq!(resp["result"]["agent_label"], "caller-display-label");
+        for invalid in [
+            serde_json::Value::Null,
+            serde_json::json!(1),
+            serde_json::json!(""),
+            serde_json::json!("contains space"),
+            serde_json::json!("nonascii-\u{e9}"),
+            serde_json::json!("a".repeat(97)),
+        ] {
+            let mut request: serde_json::Value = serde_json::from_str(line).unwrap();
+            request["agent_label"] = invalid;
+            let rejected = handle_line(&request.to_string(), &state, &session, &mut limiter).await;
+            assert_eq!(rejected["error"]["code"], ERR_INVALID_PARAMS);
+            assert!(rejected["error"]["message"].as_str().unwrap().contains("agent_label"));
+            assert_eq!(state.safety.channel.lock().unwrap().pending(), 1);
+            let retained = state.safety.log().drain_log();
+            assert_eq!(retained.len(), entries.len());
+            assert_eq!(retained[0].agent_id, entries[0].agent_id);
+            assert_eq!(retained[0].agent_label, entries[0].agent_label);
+            assert_eq!(retained[0].target_key, entries[0].target_key);
+        }
+    }
+
+    #[tokio::test]
+    async fn changed_label_retry_preserves_original_pending_receipt_before_cleanup() {
+        let token = "secret-token-1234567890";
+        let mut state = test_state(token);
+        state.safety.windows = Some(super::super::argus::WindowSnapshotRegistry::new(
+            state.safety.snapshot.clone(),
+            state.safety.channel.clone(),
+        ));
+        let session = state.safety.session_for_client("component-client");
+        let action_id = format!("argus-action-{}", uuid::Uuid::now_v7());
+        // This local fixture has no account, grant, signing key, transport or authentic durable proof.
+        let binding = ArgusDurabilityBinding {
+            generation: 1,
+            diagnostics_session_id: uuid::Uuid::now_v7(),
+            client: crate::backend_client::ArgusActionReceiptClient::new("http://component-only.invalid"),
+            signing_secret: Arc::new(|| None),
+        };
+        let envelope = crate::backend_client::ArgusActionReceiptEnvelope {
+            diagnostics_session_id: binding.diagnostics_session_id,
+            action_id: action_id.clone(),
+            action: "argus.click".to_owned(),
+            connection_id: session.agent_id().to_owned(),
+            agent_id: session.agent_id().to_owned(),
+            agent_label: "original-display-label".to_owned(),
+            window_id: "main".to_owned(),
+            author_id: "btn".to_owned(),
+            before_revision: 0,
+            after_revision: Some(1),
+            status: "applied".to_owned(),
+            proof: "component-only-opaque-proof-not-a-signature".to_owned(),
+        };
+        let original_envelope = serde_json::to_value(&envelope).unwrap();
+        let original_value = serde_json::json!({
+            "action_id": action_id,
+            "agent_label": "original-display-label",
+            "durability_error": "component-only pending receipt",
+        });
+        let reservation = state.receipt_slots.clone().try_acquire_owned().unwrap();
+        let available_permits = state.receipt_slots.available_permits();
+        state.pending_receipts.lock().unwrap().insert(action_id.clone(), PendingDurableReceipt {
+            envelope,
+            binding,
+            receipt_value: original_value.clone(),
+            reservation: Some(reservation),
+        });
+        let request = serde_json::json!({
+            "jsonrpc": "2.0", "id": 18, "method": "argus.click",
+            "session_token": token, "client_session_id": "component-client",
+            "agent_label": "replacement-display-label",
+            "params": { "window_id": "main", "action_id": action_id, "target": "btn", "expected_revision": 0 },
+        });
+        let response = handle_line(
+            &request.to_string(), &state, &session, &mut RateLimiter::new(MAX_REQUESTS_PER_SEC),
+        ).await;
+        assert_eq!(response["id"], 18);
+        assert_eq!(response["error"]["code"], ERR_INVALID_PARAMS);
+        assert_eq!(response["error"]["message"], "agent_label does not match the original pending action; no reconciliation dispatched");
+        assert!(response.get("result").is_none());
+        let pending = state.pending_receipts.lock().unwrap();
+        assert_eq!(pending.len(), 1);
+        let original = pending.get(&action_id).unwrap();
+        assert_eq!(serde_json::to_value(&original.envelope).unwrap(), original_envelope);
+        assert_eq!(original.receipt_value, original_value);
+        assert!(original.reservation.is_some());
+        assert_eq!(state.receipt_slots.available_permits(), available_permits);
+        assert_eq!(state.safety.channel.lock().unwrap().pending(), 0);
+        assert!(state.safety.log().drain_log().is_empty());
     }
 
     #[tokio::test]

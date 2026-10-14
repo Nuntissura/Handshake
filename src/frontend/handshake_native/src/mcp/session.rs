@@ -107,6 +107,7 @@ enum DispatchPlan {
 pub struct McpSession {
     /// The short deterministic per-session id (first 8 hex of SHA-256(token)).
     agent_id: String,
+    agent_label: String,
     /// The per-session HMAC token (the dispatch auth-gates every request against this).
     token: SessionToken,
     /// The shared registry every session contends on for widget/pane leases.
@@ -137,6 +138,7 @@ impl McpSession {
     ) -> Self {
         Self {
             agent_id,
+            agent_label: String::new(),
             token,
             leases,
             log,
@@ -156,6 +158,15 @@ impl McpSession {
         let mut session = self.clone();
         session.window = Some(window);
         session
+    }
+
+    pub(crate) fn with_agent_label(mut self, agent_label: String) -> Self {
+        self.agent_label = agent_label;
+        self
+    }
+
+    pub(crate) fn agent_label(&self) -> &str {
+        &self.agent_label
     }
 
     fn lease_resource(&self, target: &str) -> String {
@@ -510,7 +521,13 @@ impl McpSession {
         let op_name = ArgusMethod::from_wire_name(&request.method)
             .map(ArgusMethod::canonical_name)
             .unwrap_or(&request.method);
-        self.log.record(&self.agent_id, op_name, &self.lease_resource(target), node_id);
+        self.log.record_with_label(
+            &self.agent_id,
+            &self.agent_label,
+            op_name,
+            &self.lease_resource(target),
+            node_id,
+        );
         // Rebuild the result Value with the acting agent_id added (AC#2).
         let mut stamped = result;
         if let Some(obj) = stamped.as_object_mut() {
@@ -518,6 +535,12 @@ impl McpSession {
                 "agent_id".to_owned(),
                 serde_json::Value::String(self.agent_id.clone()),
             );
+            if !self.agent_label.is_empty() {
+                obj.insert(
+                    "agent_label".to_owned(),
+                    serde_json::Value::String(self.agent_label.clone()),
+                );
+            }
         }
         McpResponse::ok_value(request.id.clone(), stamped)
     }
