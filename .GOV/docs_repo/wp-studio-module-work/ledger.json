@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-14T23:38:57Z",
+ "updated_at": "2026-10-14T23:39:57Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -4483,13 +4483,13 @@
   },
   {
    "lane_id": "SMB-LAYOUT-PDF-EXPORT",
-   "crate": "hsk-studio-press",
+   "crate": "hsk-studio-layout",
    "phase": "queued",
    "status": null,
-   "owner": null,
+   "owner": "builder-layout-20261015b",
    "commits": [],
    "verdicts": [],
-   "note": "brief lane-smb-layout-pdf-export.md; lead L1: edge interop-layout->press approved for slice 2; start after press lanes are judged (V4-14)"
+   "note": "after SMB-LAYOUT-TYPESET-HARDEN, same builder"
   },
   {
    "lane_id": "SMB-COMPOSITE-TEMPORAL",
@@ -5084,9 +5084,9 @@
   {
    "lane_id": "SMB-PIGMENT-CONTENT-AWARE-2",
    "crate": "hsk-studio-pigment",
-   "phase": "queued",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-pigment-ca2-20261015",
    "commits": [],
    "verdicts": [],
    "note": "STU-RAS-143 remainder: content-aware crop-expand, content-aware scale, inpaint; colour adaptation high/very_high; rotation/scale/mirror adaptation; wire retouch::content_aware_fill and crop content_aware_fill_on_expand to native fill (re-opens SMB-PIGMENT-RETOUCH per CX-VAL-009); photo-size perf proof"
@@ -5094,9 +5094,9 @@
   {
    "lane_id": "SMB-LAYOUT-TYPESET-HARDEN",
    "crate": "hsk-studio-layout",
-   "phase": "queued",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-layout-20261015b",
    "commits": [],
    "verdicts": [],
    "note": "R28 finding_not_failure: hyphenate.rs:159 unchecked min_before+min_after add; TypesetOptions::validate (typeset.rs:163) checks floats only; hostile integer limits panic on overflow in debug. Checked arithmetic + typed refusal + hostile test at usize::MAX"
