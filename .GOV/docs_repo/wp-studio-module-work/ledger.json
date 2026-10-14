@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-14T15:28:24Z",
+ "updated_at": "2026-10-14T15:34:14Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -578,8 +578,8 @@
    "lane_id": "SMB-INTEROP-MEDIA",
    "crate": "hsk-studio-interop-media",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-interop-media",
-   "phase": "queued (D9 decided 2026-10-14: edge interop-media->pulse approved)",
-   "status": null,
+   "phase": "validation (D9 done: judge with SMB-INTEROP-MEDIA-PULSE at 394082f+)",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-pulse (reused)",
    "brief": "builders/briefs/hsk-studio-interop-media.md",
    "commits": [
@@ -1524,14 +1524,16 @@
    "crate": "hsk-studio-interop-media",
    "origin": "interop-media builder; CX-CAP-001 timecode duplicate",
    "scope": "after steward adds interop-media->pulse edge (provisional D9): replace src/time.rs timecode/DF arithmetic with pulse APIs; tests unchanged; also interop-media src/time.rs:114 fps_fraction copy",
-   "phase": "queued (D9 decided 2026-10-14: edge interop-media->pulse approved)",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "blocked_on": "Operator: the permission system denied adding hsk-studio-pulse to interop-media Cargo.toml (D9); lead does not route around a denial",
-   "owner": "builder-accord-eng-2 (reused)",
+   "owner": "builder-interop-media-pulse-20261014",
    "commits": [
-    "9575239 (accord delegation part)"
+    "9575239 (accord delegation part)",
+    "394082f"
    ],
-   "verdicts": []
+   "verdicts": [],
+   "lane_file": "builders/lanes/hsk-studio-interop-media-pulse.json"
   },
   {
    "lane_id": "SMB-RENDER-CPU-CLIP",
