@@ -1,4 +1,57 @@
 {
+  "successor_connected_batch_checkpoint_20261014": {
+    "status": "SOURCE_CHECKPOINT_PUSH_VERIFIED",
+    "candidate_commit": "eba6c403773524e498629153e9c725f64b72a9bd",
+    "candidate_tree": "6edf1f190e308efb4eaac0d5af2ad27199a6d668",
+    "base_commit": "f724b8852f79d0ea6e2601ff6151c0522fa1be78",
+    "changed_paths": [
+      "src/backend/handshake_core/src/api/mod.rs",
+      "src/backend/handshake_core/src/api/model_access.rs",
+      "src/backend/handshake_core/src/api/palmistry.rs",
+      "src/backend/handshake_core/src/main.rs",
+      "src/backend/handshake_core/src/storage/surreal/palmistry.rs",
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/src/backend_client.rs",
+      "src/frontend/handshake_native/src/diagnostics/recorder.rs",
+      "src/frontend/handshake_native/src/internal_diagnostics.rs",
+      "src/frontend/handshake_native/src/main.rs",
+      "src/frontend/handshake_native/src/mcp/action.rs",
+      "src/frontend/handshake_native/src/mcp/server.rs",
+      "src/frontend/handshake_native/src/popout_window.rs",
+      "src/frontend/handshake_native/src/settings_dialog.rs",
+      "src/frontend/handshake_native/src/workspace_settings.rs"
+    ],
+    "source_sha256": {
+      "src/backend/handshake_core/src/api/mod.rs": "7eba79c16f41692949f1988703a3f3aa3eaff80ade51fc7334f8ea38376aef46",
+      "src/backend/handshake_core/src/api/model_access.rs": "cf7f653b4328650d50566d58be5bed218654081b4fda7a8f19b47018668c8d12",
+      "src/backend/handshake_core/src/api/palmistry.rs": "5f77021c5280c498660859d84a0a0e587851f670c729ab827f1e1bdf7c1af77a",
+      "src/backend/handshake_core/src/main.rs": "26ef8f32c5a8b6905240b571eeeabf2d019d20658eb40e0239ac2d1bfa1d0ca3",
+      "src/backend/handshake_core/src/storage/surreal/palmistry.rs": "8f4a88668e7f45dce5c717fbbda613f9ff50625ead6a69f226609c0b3c6cfc81",
+      "src/frontend/handshake_native/src/app.rs": "3255ffd0a730ba2794f920811cf5753802bec353484822b24c6493f1e61f21c1",
+      "src/frontend/handshake_native/src/backend_client.rs": "11e661add789b7e4a4eeb3109ca4830c368dd2811908e86ff690d0c2198a30e9",
+      "src/frontend/handshake_native/src/diagnostics/recorder.rs": "dc7f905d06c58fa645fa09cbd49b82df654ac12e2826caa649738fb5b816b771",
+      "src/frontend/handshake_native/src/internal_diagnostics.rs": "54803b0b1d575ffa0d6cfce576fa44bd0c4b0921197f055d1bc65ad4e7932334",
+      "src/frontend/handshake_native/src/main.rs": "f6e05fc259e1c76d298821c87b3940420fd34aff43d7b95f9ddfe0390ea8a189",
+      "src/frontend/handshake_native/src/mcp/action.rs": "d97a7833eda38a76551d4977d40171f72d198f78ef3a8c52c687e9c40f876b06",
+      "src/frontend/handshake_native/src/mcp/server.rs": "2cc9d8041d3fcd90df056e01b3df27fd15c699c6591c782c09f70a245b6be860",
+      "src/frontend/handshake_native/src/popout_window.rs": "65abaf89f005110d0b95663950ab09ba3d0e33fe28bacb145d9169e7f3ac4cd8",
+      "src/frontend/handshake_native/src/settings_dialog.rs": "8e7c96a8a197a55cf685649acd8eddb3908d71aa9c3743e7cd1c9889dd487d22",
+      "src/frontend/handshake_native/src/workspace_settings.rs": "796679eea03cc534eb8e0734eac613338a46c3747294fb568213aa2b28f975b8"
+    },
+    "independent_reviewer": "01a139f6-ce6a-7b50-a058-dff3732ea4a2",
+    "independent_source_disposition": "SOURCE_CLEAR_WITH_DECLARED_RUNTIME_RESIDUALS; original four findings plus closed-popout recovery delta repaired; one coherent review with unchanged input reuse",
+    "source_review_ref": "Independent validator final affected-batch message to delivery lead and integrator; source-only, not lifecycle PASS",
+    "root_canonical_reread": "Exact HEAD/tree/clean tree/15committed paths and live matching origin feat/WP-KERNEL-012 verified",
+    "compiler": "NOT_RUN_ON_THIS_CANDIDATE",
+    "runtime": "NOT_RUN",
+    "remaining_blockers": [
+      "Native-owned watcher canonical START/public-verifier/runtime-owner protocol not established; no fabricated witness",
+      "Canonical Argus receipt permission branch missing; authenticated record-user writer denies rather than root fallback",
+      "Genuine deployment/auth/session/grants original targets unavailable/unproven",
+      "Original native seven-argument and current core compiler proof missing; production-main +/- runtime selector unresolved",
+      "Original source-parent/native GUI/persistence/multiwindow/manual/HBR/full WP acceptance open"
+    ]
+  },
   "diagnostic_two_group_checkpoint_20261014": {
     "status": "INDEPENDENT_TWO_GROUP_SOURCE_CLEAR_PUSH_VERIFIED",
     "repair_ref": "/diagnostic_two_group_batch_repair_20261014",

@@ -1,4 +1,27 @@
 {
+  "successor_current_core_compile_stage_20261014": {
+    "decision_id": "WP012-CURRENT-CORE-COMPILE-STAGE-20261014",
+    "status": "APPROVED_ON_STABLE_CHANGED_BATCH",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "decision_owner": "01a139f3-b98c-7b61-b541-960ec3e048de",
+    "source_failure": "Current backend main cloud factory and newly exported Palmistry module are changed; old MT184 proof cannot cover these input changes",
+    "actual_prior_proof_observation": "Original MT184 artifact target_states includes handshake_core bin main.rs profile_test=true OBSERVED among485; no profile_test=false main target observed. Do not claim original command misses main or proves production runtime",
+    "command": "cargo check --locked --manifest-path src/backend/handshake_core/Cargo.toml --lib --tests --features app-runtime,surreal-test-support,test-utils -j 1 --keep-going --message-format=json",
+    "profile_ref": "../gov-runtime/host-profile-wp012-phase02-builder.json",
+    "profile_sha256": "916767bbbac5a853b9b8dbd5688d2262cc91bff0d9173fc2431f4dad0bc6b776",
+    "target": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/target",
+    "additional_terminal_limit": 2,
+    "checks_consumed": 0,
+    "counter_policy": "Retain original core38 historical failed launches and all parent per-check histories; this scoped source-change stage adds at most one probe and one changed-input confirmation, no history reset or automatic renewal; root records evidence-based next method/continuation at threshold",
+    "run_conditions": "Pushed stable whole source batch/one scoped affected independent review/current actual source-authority-tool-config bindings/official gameplan/current resource admission; one serial shared-target compiler owner; no simultaneous native/core job",
+    "ordering": "Core is affected predecessor shared by native. When current core check fails repair all emitted related groups before native broad check. When core passes run native diagnostic/original command strategically on stable same inputs; original native seven-argument check remains required",
+    "collector": "Reuse current installed original structured compiler collector only after validating current selected targets/features against actual manifest/config; missing census is NOT_ASSESSED, never assume old485 all targets from plaintext. Metadata not an automatic prerequisite; request exact necessary method if old graph invalid",
+    "preserved": "Memory observation only,180GBcap175GBstop50GiBfloor/j1/Normal scheduling/actual target; original source/runtime/negative acceptance, no linked executable/test/runtime/first-run/auth/grant/provenance/foreign-process/topology action granted",
+    "runtime": "NOT_AUTHORIZED_BY_THIS_DECISION; original MT188 production-main positive/negative selector remains unresolved",
+    "candidate_commit": "eba6c403773524e498629153e9c725f64b72a9bd",
+    "candidate_tree": "6edf1f190e308efb4eaac0d5af2ad27199a6d668",
+    "source_checkpoint_ref": "MT-175.json#/successor_connected_batch_checkpoint_20261014"
+  },
   "source_only_checkpoint_20261014": {
     "status": "SOURCE_CHECKPOINT_PUSH_VERIFIED",
     "decision_ref": "/delegated_source_only_shutdown_repair_20261014",

@@ -1,10 +1,10 @@
 {
   "delegated_native_stage04_20261014": {
     "decision_id": "WP012-NATIVE-STAGE-20261014-04",
-    "status": "CHECK1_DIAGNOSTIC0_CLOSED_CONNECTED_SOURCE_BATCH_ACTIVE",
-    "candidate_commit": "f724b8852f79d0ea6e2601ff6151c0522fa1be78",
-    "candidate_tree": "b978dd518cff688e38cac67d15d14814f125256f",
-    "source_checkpoint_ref": "MT-175.json#/diagnostic_two_group_checkpoint_20261014",
+    "status": "CHECK1_DIAGNOSTIC0_CLOSED_SOURCE_BATCH_PUSHED_CURRENT_CORE_PREDECESSOR_PENDING",
+    "candidate_commit": "eba6c403773524e498629153e9c725f64b72a9bd",
+    "candidate_tree": "6edf1f190e308efb4eaac0d5af2ad27199a6d668",
+    "source_checkpoint_ref": "MT-175.json#/successor_connected_batch_checkpoint_20261014",
     "next_command_mode": "DIAGNOSTIC_KEEP_GOING",
     "next_argv": ["check", "--locked", "--manifest-path", "src/frontend/handshake_native/Cargo.toml", "--tests", "-j", "1", "--keep-going"],
     "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
