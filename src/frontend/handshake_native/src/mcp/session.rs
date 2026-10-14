@@ -115,6 +115,7 @@ pub struct McpSession {
     log: ActionLog,
     /// Per-acquire lease timeout (configurable so the concurrent test can force the timeout path).
     lease_timeout: Duration,
+    window: Option<super::argus::RegisteredWindow>,
 }
 
 impl McpSession {
@@ -140,6 +141,7 @@ impl McpSession {
             leases,
             log,
             lease_timeout: DEFAULT_LEASE_TIMEOUT,
+            window: None,
         }
     }
 
@@ -148,6 +150,19 @@ impl McpSession {
     pub fn with_lease_timeout(mut self, timeout: Duration) -> Self {
         self.lease_timeout = timeout;
         self
+    }
+
+    pub(crate) fn for_window(&self, window: super::argus::RegisteredWindow) -> Self {
+        let mut session = self.clone();
+        session.window = Some(window);
+        session
+    }
+
+    fn lease_resource(&self, target: &str) -> String {
+        match &self.window {
+            Some(w) => format!("argus-window:{}:{}:{}", w.descriptor.window_id, w.epoch, target),
+            None => target.to_owned(),
+        }
     }
 
     /// This session's deterministic agent id.
@@ -182,7 +197,7 @@ impl McpSession {
                     _ => DispatchPlan::Direct,
                 }
             }
-            Some(ArgusMethod::Inspect) => DispatchPlan::SharedRead,
+            Some(ArgusMethod::Inspect | ArgusMethod::ListWindows) => DispatchPlan::SharedRead,
             Some(ArgusMethod::Screenshot) => DispatchPlan::Screenshot,
             // Unknown methods: no shared-widget mutation, so no lease.
             _ => DispatchPlan::Direct,
@@ -242,7 +257,7 @@ impl McpSession {
                 let _guard =
                     match self
                         .leases
-                        .try_acquire(&target, LeaseKind::Exclusive, self.lease_timeout)
+                        .try_acquire(&self.lease_resource(&target), LeaseKind::Exclusive, self.lease_timeout)
                     {
                         Ok(g) => g,
                         Err(e) => return Self::lease_timeout_response(request, e),
@@ -275,6 +290,26 @@ impl McpSession {
     /// The leasing/attribution DECISION is shared with the sync path via [`Self::decide`]; this method
     /// differs only in acquiring the lease asynchronously ([`LeaseRegistry::acquire_async`], which yields
     /// the worker thread) and locking the shared `Arc<Mutex<ActionChannel>>` for ONLY the brief enqueue.
+    fn dispatch_read_locked(
+        &self, request: &McpRequest, snapshot: &Arc<Mutex<UiTreeSnapshot>>,
+        channel: &Arc<Mutex<ActionChannel>>, capture: impl FnOnce() -> Result<ScreenshotResult, ScreenshotError>,
+    ) -> McpResponse {
+        let snapshot = snapshot.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(window) = self.window.as_ref() {
+            let Some(expected) = request.params.get("expected_revision").and_then(serde_json::Value::as_u64) else {
+                return McpResponse::error(request.id.clone(), McpError::general(super::tools::ERR_INVALID_PARAMS, "expected_revision is required"));
+            };
+            if let Err(error) = window.validate(expected) {
+                return McpResponse::error(request.id.clone(), McpError::general(super::tools::ERR_INVALID_PARAMS, error));
+            }
+            if request.params.get("window_epoch").is_some_and(|v| v.as_u64() != Some(window.epoch)) {
+                return McpResponse::error(request.id.clone(), McpError::general(super::tools::ERR_INVALID_PARAMS, "Argus window epoch is stale"));
+            }
+        }
+        let mut channel = lock_channel(channel);
+        dispatch_request(request, &self.token, &snapshot, &mut channel, capture)
+    }
+
     pub async fn dispatch_shared_async(
         &self,
         request: &McpRequest,
@@ -318,9 +353,7 @@ impl McpSession {
                 )
             }
             DispatchPlan::Direct => {
-                let snapshot = clone_snapshot(snapshot);
-                let mut ch = lock_channel(channel);
-                dispatch_request(request, &self.token, &snapshot, &mut ch, capture)
+                self.dispatch_read_locked(request, snapshot, channel, capture)
             }
             DispatchPlan::SharedRead => {
                 let _read_guard = match self
@@ -331,9 +364,7 @@ impl McpSession {
                     Ok(g) => g,
                     Err(e) => return Self::lease_timeout_response(request, e),
                 };
-                let snapshot = clone_snapshot(snapshot);
-                let mut ch = lock_channel(channel);
-                dispatch_request(request, &self.token, &snapshot, &mut ch, capture)
+                self.dispatch_read_locked(request, snapshot, channel, capture)
             }
             DispatchPlan::ExclusiveWrite { target } => {
                 // One request deadline covers BOTH serializer windows. Starting it before registry
@@ -344,7 +375,7 @@ impl McpSession {
                 let _guard = match self
                     .leases
                     .acquire_async(
-                        &target,
+                        &self.lease_resource(&target),
                         LeaseKind::Exclusive,
                         deadline.saturating_duration_since(std::time::Instant::now()),
                     )
@@ -402,6 +433,7 @@ impl McpSession {
                         snapshot,
                         channel,
                         deadline,
+                        self.window.as_ref(),
                     ) {
                         MutationDispatchAttempt::SnapshotContended => {
                             tokio::time::sleep(CHANNEL_BUSY_RETRY_INTERVAL.min(remaining)).await;
@@ -478,7 +510,7 @@ impl McpSession {
         let op_name = ArgusMethod::from_wire_name(&request.method)
             .map(ArgusMethod::canonical_name)
             .unwrap_or(&request.method);
-        self.log.record(&self.agent_id, op_name, target, node_id);
+        self.log.record(&self.agent_id, op_name, &self.lease_resource(target), node_id);
         // Rebuild the result Value with the acting agent_id added (AC#2).
         let mut stamped = result;
         if let Some(obj) = stamped.as_object_mut() {
@@ -507,6 +539,7 @@ fn try_dispatch_mutation(
     snapshot: &Arc<Mutex<UiTreeSnapshot>>,
     channel: &Arc<Mutex<ActionChannel>>,
     deadline: std::time::Instant,
+    window: Option<&super::argus::RegisteredWindow>,
 ) -> MutationDispatchAttempt {
     // Hold the snapshot guard through channel acquisition + dispatch. This makes the old-tree
     // resolution and enqueue one snapshot->channel critical section with the UI's post-render
@@ -523,6 +556,12 @@ fn try_dispatch_mutation(
         Err(TryLockError::Poisoned(poisoned)) => poisoned.into_inner(),
         Err(TryLockError::WouldBlock) => return MutationDispatchAttempt::ChannelContended,
     };
+    if let Some(window) = window {
+        let expected = request.params.get("expected_revision").and_then(|v| v.as_u64());
+        if let Err(reason) = expected.ok_or_else(|| "expected_revision is required".to_owned()).and_then(|revision| window.validate(revision)) {
+            return MutationDispatchAttempt::Response(McpResponse::error(request.id.clone(), McpError::general(super::tools::ERR_INVALID_PARAMS, reason)));
+        }
+    }
     // A screenshot/capture or frame holder may have owned the global channel mutex through the
     // deadline. Acquiring it late must not authorize a late enqueue.
     if std::time::Instant::now() >= deadline {
@@ -561,6 +600,7 @@ fn clone_snapshot(snapshot: &Arc<Mutex<UiTreeSnapshot>>) -> UiTreeSnapshot {
 /// loop owns.
 #[derive(Clone)]
 pub struct SwarmSafetyState {
+    pub(crate) windows: Option<super::argus::WindowSnapshotRegistry>,
     /// The per-session HMAC token (one server = one session token, per MT-027).
     pub token: SessionToken,
     /// The shared lease registry every connection contends on.
@@ -586,6 +626,7 @@ impl SwarmSafetyState {
         channel: Arc<Mutex<ActionChannel>>,
     ) -> Self {
         Self {
+            windows: None,
             token,
             leases: LeaseRegistry::new(),
             log: ActionLog::new(),
@@ -615,6 +656,7 @@ impl SwarmSafetyState {
         log: ActionLog,
     ) -> Self {
         Self {
+            windows: None,
             token,
             leases,
             log,

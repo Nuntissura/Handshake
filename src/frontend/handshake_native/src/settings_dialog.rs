@@ -114,6 +114,497 @@ pub const SETTINGS_PERSIST_RETRY_AUTHOR_ID: &str = "settings.persist.retry";
 /// Stable AccessKit status address for the visible settings persistence failure.
 pub const SETTINGS_PERSIST_ERROR_AUTHOR_ID: &str = "settings.persist.error";
 
+/// Author_id for a BYOK provider's password-masked API-key input: `settings.cloud.byok.{provider}.key`.
+pub fn cloud_byok_key_author_id(provider: &str) -> String {
+    format!("settings.cloud.byok.{provider}.key")
+}
+/// The STABLE egui widget id for a BYOK provider's key `TextEdit`. Fixed (not
+/// auto-derived from the ui id-stack) so the dialog can RESET that widget's egui
+/// state (cursor + undo history) on close/open, wiping any typed-but-unsaved key
+/// from egui memory (MT-015 F3). The undo history would otherwise retain a
+/// plaintext copy of the key in process memory across a reopen.
+pub fn cloud_byok_key_egui_id(provider: &str) -> egui::Id {
+    egui::Id::new(("settings.cloud.byok.key", provider))
+}
+
+/// The static BYOK providers Handshake offers, used to render key-entry rows
+/// even before (or entirely without) a backend enumeration response (MT-015
+/// F10). Mirrors the backend `ByokProvider::OFFERED` ids/labels; Gemini is never
+/// present. When these seed rows are used, `configured` is unknown (the backend
+/// has not answered), so they render as not-configured with a "status unknown"
+/// note — but the key field + Save ALWAYS render so BYOK entry never depends on
+/// the backend being reachable.
+pub const STATIC_BYOK_PROVIDERS: [(&str, &str); 2] = [
+    ("anthropic", "Anthropic (Claude)"),
+    ("openai", "OpenAI (GPT)"),
+];
+/// Author_id for a BYOK provider's Save button: `settings.cloud.byok.{provider}.save`.
+pub fn cloud_byok_save_author_id(provider: &str) -> String {
+    format!("settings.cloud.byok.{provider}.save")
+}
+/// Author_id for a BYOK provider's Remove/Rotate button: `settings.cloud.byok.{provider}.remove`.
+pub fn cloud_byok_remove_author_id(provider: &str) -> String {
+    format!("settings.cloud.byok.{provider}.remove")
+}
+/// Author_id for a BYOK provider's status label: `settings.cloud.byok.{provider}.status`.
+pub fn cloud_byok_status_author_id(provider: &str) -> String {
+    format!("settings.cloud.byok.{provider}.status")
+}
+/// Author_id for a CLI-bridge provider's Log-in button: `settings.cloud.cli.{provider}.login`.
+pub fn cloud_cli_login_author_id(provider: &str) -> String {
+    format!("settings.cloud.cli.{provider}.login")
+}
+pub fn cloud_cli_login_confirm_author_id(provider: &str) -> String {
+    format!("settings.cloud.cli.{provider}.login.confirm")
+}
+pub fn cloud_cli_login_cancel_author_id(provider: &str) -> String {
+    format!("settings.cloud.cli.{provider}.login.cancel")
+}
+/// Author_id for a CLI-bridge provider's status label: `settings.cloud.cli.{provider}.status`.
+pub fn cloud_cli_status_author_id(provider: &str) -> String {
+    format!("settings.cloud.cli.{provider}.status")
+}
+
+// ── In-app official-CLI login panel (MT-015 v5, HBR-QUIET-001) ─────────────────────────────────────
+//
+// The login used to be launched into a NEW OS console window that could take focus. It now runs in a
+// Handshake-hosted pseudo-terminal in the backend and is driven from THIS panel: the provider's own
+// prompt is rendered here and the operator types the device code / answer here. Every control carries
+// a stable per-provider author_id so Argus can read the prompt and type the answer out-of-process.
+
+/// Author_id for the live login transcript: `settings.cloud.cli.{provider}.login.transcript`.
+pub fn cloud_cli_login_transcript_author_id(provider: &str) -> String {
+    format!("settings.cloud.cli.{provider}.login.transcript")
+}
+/// Author_id for the login session status line: `settings.cloud.cli.{provider}.login.state`.
+pub fn cloud_cli_login_state_author_id(provider: &str) -> String {
+    format!("settings.cloud.cli.{provider}.login.state")
+}
+/// Author_id for the operator's answer field: `settings.cloud.cli.{provider}.login.input`.
+pub fn cloud_cli_login_input_author_id(provider: &str) -> String {
+    format!("settings.cloud.cli.{provider}.login.input")
+}
+/// Author_id for the Send button: `settings.cloud.cli.{provider}.login.send`.
+pub fn cloud_cli_login_send_author_id(provider: &str) -> String {
+    format!("settings.cloud.cli.{provider}.login.send")
+}
+/// Author_id for the Stop-login button: `settings.cloud.cli.{provider}.login.stop`.
+pub fn cloud_cli_login_stop_author_id(provider: &str) -> String {
+    format!("settings.cloud.cli.{provider}.login.stop")
+}
+/// Author_id for the Close-panel button: `settings.cloud.cli.{provider}.login.close`.
+pub fn cloud_cli_login_close_author_id(provider: &str) -> String {
+    format!("settings.cloud.cli.{provider}.login.close")
+}
+/// The STABLE egui widget id for the login answer field, so its egui state (cursor + undo history)
+/// can be reset when the panel closes. The answer is a provider-issued one-time prompt response, not
+/// a Handshake credential, but it is still cleared rather than left in widget memory.
+pub fn cloud_cli_login_input_egui_id(provider: &str) -> egui::Id {
+    egui::Id::new(("settings.cloud.cli.login.input", provider))
+}
+
+/// Typed state of the in-app official-CLI login session, mirroring the backend
+/// `CliLoginSessionStatus` wire enum. Handshake never guesses a state it cannot prove.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CloudCliLoginState {
+    /// The session was started but the provider has not printed anything yet.
+    Pending,
+    /// The provider has printed output and the login process is still running.
+    AwaitingInput,
+    Succeeded,
+    Failed,
+    /// The bounded login window elapsed and the backend terminated the process.
+    TimedOut,
+    Cancelled,
+}
+
+impl CloudCliLoginState {
+    pub fn from_wire(value: &str) -> Option<Self> {
+        Some(match value {
+            "pending" => Self::Pending,
+            "awaiting_input" => Self::AwaitingInput,
+            "succeeded" => Self::Succeeded,
+            "failed" => Self::Failed,
+            "timed_out" => Self::TimedOut,
+            "cancelled" => Self::Cancelled,
+            _ => return None,
+        })
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Pending => "Starting the provider's login…",
+            Self::AwaitingInput => "Waiting for you — read the prompt below and answer it here.",
+            Self::Succeeded => "Login finished successfully.",
+            Self::Failed => "The provider's login exited with an error.",
+            Self::TimedOut => "Login timed out and was stopped.",
+            Self::Cancelled => "Login stopped.",
+        }
+    }
+
+    pub fn is_terminal(self) -> bool {
+        matches!(
+            self,
+            Self::Succeeded | Self::Failed | Self::TimedOut | Self::Cancelled
+        )
+    }
+}
+
+/// Shell-owned state for ONE live in-app login session (at most one at a time).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct CloudCliLoginPanel {
+    pub provider: String,
+    pub label: String,
+    /// Backend-issued session id; empty until the start request answers.
+    pub session_id: String,
+    pub state: CloudCliLoginState,
+    /// The provider's own terminal output (ANSI already stripped by the backend).
+    pub transcript: String,
+    /// The operator's in-progress answer to the provider's prompt.
+    pub input: String,
+    /// Transient transport error, if the last request failed.
+    pub error: Option<String>,
+}
+
+impl Default for CloudCliLoginState {
+    fn default() -> Self {
+        Self::Pending
+    }
+}
+
+// ── Cloud consent / export posture (WP-1 MT-021 AC-2) ──────────────────────────────────────────────
+//
+// The operator needs to see, per configured provider lane, whether cloud escalation is CONSENTED and
+// what leaves the machine — and, when access is refused, why. Handshake cannot show that today:
+//
+// - the consent artifacts exist as backend TYPES only (`llm/guard.rs` ProjectionPlanV0_4 /
+//   ConsentReceiptV0_4 / CloudEscalationBundleV0_4 + migration 0353);
+// - `api/mod.rs` builds `CloudLaneObservability { flight_recorder, consent: None }` — the live wiring
+//   is a literal `None`;
+// - `api/model_access.rs::routes` exposes ONLY `/model-access/providers`,
+//   `/model-access/byok/:provider/key`, and `/model-access/cli-bridge/:provider/login`. There is no
+//   consent or export-posture route to call.
+//
+// DECISION (recorded here because this is the code that would consume it): wiring the backend consent
+// route is NOT part of this MT. This MT is frontend-only by contract scope, a consent/export-posture
+// route is a backend trust-boundary surface that must be designed with its own privacy review
+// (HBR-PRIV-008: a denial reason must not leak restricted resource metadata), and inventing a shape
+// here would fix a contract the backend has not agreed to. It belongs in a FOLLOW-UP backend MT that
+// owns `api/model_access.rs` + `CloudLaneObservability.consent`.
+//
+// Until then the UI renders an explicit NOT-WIRED posture per lane and MUST NOT fabricate one. A
+// plausible-looking default ("Consented", "No export") would be worse than nothing: it would tell the
+// operator cloud data flow is under control when Handshake cannot see it at all.
+
+/// Author_id for a provider lane's consent / export posture row:
+/// `settings.cloud.consent.{provider}.posture`.
+pub fn cloud_consent_posture_author_id(provider: &str) -> String {
+    format!("settings.cloud.consent.{provider}.posture")
+}
+
+/// Author_id for the Cloud Models section's consent-posture summary row (the one node that states the
+/// whole surface's wiring state): `settings.cloud.consent.status`.
+pub const CLOUD_CONSENT_STATUS_AUTHOR_ID: &str = "settings.cloud.consent.status";
+
+/// The literal token every un-wired consent row carries, so a test (and an out-of-process model) can
+/// assert the surface is showing an explicit unavailable state rather than a fabricated posture.
+pub const CLOUD_CONSENT_NOT_WIRED_TOKEN: &str = "NOT WIRED";
+
+/// The exact per-lane posture line rendered while no backend consent route exists. It names ONLY the
+/// provider id already visible in the section above it — no project, workspace, account, artifact,
+/// resource id, or any other restricted metadata (HBR-PRIV-008). There is deliberately no
+/// "posture: allowed/denied" wording anywhere in it: Handshake does not know, and must not imply it.
+pub fn cloud_consent_posture_line(provider_label: &str) -> String {
+    format!(
+        "{CLOUD_CONSENT_NOT_WIRED_TOKEN} — Handshake cannot read {provider_label}'s cloud consent or \
+         export posture. No consent/export-posture route exists on the backend yet, so no posture is \
+         shown and none is assumed. Cloud escalation stays fail-closed at launch."
+    )
+}
+
+/// One non-secret BYOK provider row from the backend enumeration.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CloudByokRow {
+    pub provider: String,
+    pub label: String,
+    pub configured: bool,
+}
+
+/// One non-secret CLI-bridge provider row from the backend enumeration, carrying the provider's OWN
+/// official login command (started operator-initiated in a Handshake-hosted in-app terminal session;
+/// no OS console window and no focus change).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CloudCliAuthStatus {
+    LoggedIn,
+    LoggedOut,
+    Expired,
+    Unavailable,
+}
+
+impl CloudCliAuthStatus {
+    pub fn from_wire(value: &str) -> Self {
+        match value {
+            "logged_in" => Self::LoggedIn,
+            "logged_out" => Self::LoggedOut,
+            "expired" => Self::Expired,
+            _ => Self::Unavailable,
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::LoggedIn => "Logged in",
+            Self::LoggedOut => "Logged out",
+            Self::Expired => "Session expired",
+            Self::Unavailable => "Status unavailable",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CloudCliRow {
+    pub provider: String,
+    pub label: String,
+    pub auth_status: CloudCliAuthStatus,
+    pub login_program: String,
+    pub login_args: Vec<String>,
+    pub hint: String,
+}
+
+/// The non-secret cloud-access enumeration snapshot the dialog renders from. Fetched by the shell from
+/// `GET /model-access/providers`; never contains key material.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct CloudAccessSnapshot {
+    pub byok: Vec<CloudByokRow>,
+    pub cli_bridge: Vec<CloudCliRow>,
+}
+
+/// Mutable, shell-owned UI state for the Cloud Models section.
+///
+/// SECURITY (MT-015): the per-provider API-key edit buffer is a
+/// [`zeroize::Zeroizing<String>`] so it is wiped on clear/drop. This state lives in the shell
+/// (`HandshakeApp`), NOT in the dialog's `DialogState` and NOT in the persisted egui snapshot, so a key
+/// never reaches the persisted snapshot or the workspace-settings PUT. The buffer is cleared immediately
+/// after a Save is dispatched AND on every dialog close (Escape / Close button / backdrop) and on
+/// (re-)open; the same close/open paths also reset each key `TextEdit`'s egui state so the widget's undo
+/// history never retains a typed-but-unsaved key across a reopen (F3).
+#[derive(Default)]
+pub struct CloudModelsSettingsState {
+    snapshot: CloudAccessSnapshot,
+    /// Per-provider editable API-key buffer (zeroized on clear/drop).
+    key_drafts: Vec<(String, zeroize::Zeroizing<String>)>,
+    /// Per-provider transient status message (e.g. "Saved", "Removed", an error).
+    messages: Vec<(String, String)>,
+    pending_cli_login_confirmation: Option<String>,
+    /// MT-015 v5: the live in-app official-CLI login session, when one is open.
+    /// At most one at a time, matching the backend's one-session-per-provider rule.
+    login_panel: Option<CloudCliLoginPanel>,
+}
+
+impl CloudModelsSettingsState {
+    /// Replace the non-secret enumeration snapshot (does not touch key buffers).
+    pub fn set_snapshot(&mut self, snapshot: CloudAccessSnapshot) {
+        self.snapshot = snapshot;
+    }
+
+    pub(crate) fn set_unavailable(&mut self) {
+        self.snapshot.byok.clear();
+        for row in &mut self.snapshot.cli_bridge {
+            row.auth_status = CloudCliAuthStatus::Unavailable;
+        }
+    }
+
+    pub(crate) fn snapshot_projection(&self) -> Self {
+        Self {
+            snapshot: self.snapshot.clone(),
+            key_drafts: Vec::new(),
+            messages: self.messages.clone(),
+            pending_cli_login_confirmation: self.pending_cli_login_confirmation.clone(),
+            login_panel: self.login_panel.as_ref().map(|panel| CloudCliLoginPanel {
+                provider: panel.provider.clone(),
+                label: panel.label.clone(),
+                session_id: panel.session_id.clone(),
+                state: panel.state,
+                transcript: panel.transcript.clone(),
+                input: String::new(),
+                error: panel.error.clone(),
+            }),
+        }
+    }
+
+    pub fn snapshot(&self) -> &CloudAccessSnapshot {
+        &self.snapshot
+    }
+
+    /// Mutable handle to a provider's key buffer, created empty on first use.
+    fn key_draft_mut(&mut self, provider: &str) -> &mut zeroize::Zeroizing<String> {
+        if let Some(idx) = self.key_drafts.iter().position(|(p, _)| p == provider) {
+            &mut self.key_drafts[idx].1
+        } else {
+            self.key_drafts
+                .push((provider.to_owned(), zeroize::Zeroizing::new(String::new())));
+            &mut self.key_drafts.last_mut().unwrap().1
+        }
+    }
+
+    /// Whether a provider's key buffer currently holds any non-whitespace text.
+    pub fn key_draft_is_empty(&self, provider: &str) -> bool {
+        self.key_drafts
+            .iter()
+            .find(|(p, _)| p == provider)
+            .map(|(_, b)| b.trim().is_empty())
+            .unwrap_or(true)
+    }
+
+    /// Take the provider's key buffer OUT (moving it to the caller, e.g. an async save task) and leave
+    /// the UI slot empty. The moved buffer zeroizes when the caller drops it; the UI buffer is cleared.
+    pub fn take_key_draft(&mut self, provider: &str) -> zeroize::Zeroizing<String> {
+        if let Some(idx) = self.key_drafts.iter().position(|(p, _)| p == provider) {
+            std::mem::replace(
+                &mut self.key_drafts[idx].1,
+                zeroize::Zeroizing::new(String::new()),
+            )
+        } else {
+            zeroize::Zeroizing::new(String::new())
+        }
+    }
+
+    /// Drop ALL per-provider key buffers. Each buffer is a [`zeroize::Zeroizing<String>`], so clearing
+    /// the vector zeroizes every held key. Called on dialog close and (re-)open so a typed-but-unsaved
+    /// key never lingers in the shell across a reopen (MT-015 F3).
+    pub fn clear_key_drafts(&mut self) {
+        self.key_drafts.clear();
+        self.pending_cli_login_confirmation = None;
+    }
+
+    /// The BYOK rows to render: the backend enumeration snapshot when present, else the static seed rows
+    /// (MT-015 F10) so a key field + Save ALWAYS render even when the backend is unreachable. Only the
+    /// `configured` badge needs the backend; key entry does not.
+    pub fn byok_rows_for_render(&self) -> Vec<CloudByokRow> {
+        if !self.snapshot.byok.is_empty() {
+            self.snapshot.byok.clone()
+        } else {
+            STATIC_BYOK_PROVIDERS
+                .iter()
+                .map(|(id, label)| CloudByokRow {
+                    provider: (*id).to_owned(),
+                    label: (*label).to_owned(),
+                    configured: false,
+                })
+                .collect()
+        }
+    }
+
+    /// True when the rendered BYOK rows are the static seed (no backend enumeration yet), so the section
+    /// can show a "status unknown" note rather than a misleading "not configured".
+    pub fn byok_rows_are_static_seed(&self) -> bool {
+        self.snapshot.byok.is_empty()
+    }
+
+    /// Every BYOK provider id that could currently own a key `TextEdit` — the union of the rendered rows
+    /// (snapshot or static) and any provider that already has a draft buffer. Used to reset each key
+    /// widget's egui state on close/open (MT-015 F3).
+    pub fn byok_provider_ids_for_clear(&self) -> Vec<String> {
+        let mut ids: Vec<String> = self
+            .byok_rows_for_render()
+            .into_iter()
+            .map(|r| r.provider)
+            .collect();
+        for (provider, _) in &self.key_drafts {
+            if !ids.iter().any(|id| id == provider) {
+                ids.push(provider.clone());
+            }
+        }
+        ids
+    }
+
+    /// Set a provider's transient status message.
+    pub fn set_message(&mut self, provider: &str, message: impl Into<String>) {
+        let message = message.into();
+        if let Some(slot) = self.messages.iter_mut().find(|(p, _)| p == provider) {
+            slot.1 = message;
+        } else {
+            self.messages.push((provider.to_owned(), message));
+        }
+    }
+
+    fn message_for(&self, provider: &str) -> Option<&str> {
+        self.messages
+            .iter()
+            .find(|(p, _)| p == provider)
+            .map(|(_, m)| m.as_str())
+    }
+
+    /// The transient status message for a provider, if any (for tests + drivers).
+    pub fn message(&self, provider: &str) -> Option<&str> {
+        self.message_for(provider)
+    }
+
+    /// Open (or replace) the in-app login panel for a provider.
+    pub fn open_login_panel(&mut self, provider: &str, label: &str) {
+        self.login_panel = Some(CloudCliLoginPanel {
+            provider: provider.to_owned(),
+            label: label.to_owned(),
+            ..CloudCliLoginPanel::default()
+        });
+    }
+
+    /// The live in-app login panel, if one is open (for the shell + tests).
+    pub fn login_panel(&self) -> Option<&CloudCliLoginPanel> {
+        self.login_panel.as_ref()
+    }
+
+    /// Mutable access for the shell's async delivery pump.
+    pub fn login_panel_mut(&mut self) -> Option<&mut CloudCliLoginPanel> {
+        self.login_panel.as_mut()
+    }
+
+    /// Close the in-app login panel. The shell separately resets the answer
+    /// field's egui state so no typed answer survives in widget memory.
+    pub fn close_login_panel(&mut self) -> Option<CloudCliLoginPanel> {
+        self.login_panel.take()
+    }
+
+    /// Wipe a half-typed answer without dismissing the panel or disturbing the
+    /// live backend session.
+    pub fn clear_login_input(&mut self) {
+        if let Some(panel) = self.login_panel.as_mut() {
+            zeroize::Zeroize::zeroize(&mut panel.input);
+        }
+    }
+
+    /// Apply one backend login-session snapshot to the open panel.
+    pub fn apply_login_snapshot(
+        &mut self,
+        session_id: &str,
+        state: CloudCliLoginState,
+        transcript: String,
+    ) {
+        if let Some(panel) = self.login_panel.as_mut() {
+            panel.session_id = session_id.to_owned();
+            panel.state = state;
+            panel.transcript = transcript;
+            panel.error = None;
+        }
+    }
+
+    /// Record a transport failure against the open login panel.
+    pub fn set_login_error(&mut self, error: impl Into<String>) {
+        if let Some(panel) = self.login_panel.as_mut() {
+            panel.error = Some(error.into());
+        }
+    }
+
+    /// The CLI-bridge login command for a provider, if present in the snapshot.
+    pub fn cli_login_command(&self, provider: &str) -> Option<(String, Vec<String>)> {
+        self.snapshot
+            .cli_bridge
+            .iter()
+            .find(|r| r.provider == provider)
+            .map(|r| (r.login_program.clone(), r.login_args.clone()))
+    }
+}
+
 /// The production settings operation whose last attempt failed. The app retains this typed identity so
 /// Retry never guesses between reloading durable state and re-sending the current in-memory edits.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -139,6 +630,27 @@ pub enum SettingsPersistenceOperation {
 pub enum SettingsOutcome {
     /// Nothing happened this frame; keep the dialog open.
     None,
+    CloudByokKeySaveRequested {
+        provider: String,
+    },
+    CloudByokKeyRemoveRequested {
+        provider: String,
+    },
+    CliBridgeLoginRequested {
+        provider: String,
+    },
+    CliBridgeLoginInputSubmitted {
+        provider: String,
+        input: String,
+    },
+    CliBridgeLoginStopRequested {
+        provider: String,
+    },
+    CliBridgeLoginPanelClosed {
+        provider: String,
+    },
+    PopOut,
+    Redock,
     /// The Theme / appearance ComboBox selected a (different) theme. WIRED.
     ThemeChanged(WorkspaceTheme),
     /// The View Mode ComboBox selected a (different) mode. WIRED.
@@ -191,6 +703,7 @@ pub struct SettingsFrame {
 /// Read-only inputs the dialog renders from (the live settings + the open generation). The dialog never
 /// borrows `&mut HandshakeApp`; the shell applies the returned [`SettingsOutcome`].
 pub struct SettingsView<'a> {
+    pub cloud: &'a mut CloudModelsSettingsState,
     /// Monotonic open generation; a new value resets the dialog's transient state.
     pub open_count: u64,
     /// The live workspace settings (theme, keybindings, view mode, swarm board flag, MT-072 editor
@@ -319,6 +832,14 @@ impl DialogState {
 /// centred-modal fallback; the centred modal matches the palette/switcher overlay convention already in
 /// this crate, so the three overlays are visually + structurally consistent.
 pub fn show(ctx: &egui::Context, view: SettingsView<'_>) -> SettingsFrame {
+    show_host(ctx, view, false)
+}
+
+pub fn show_detached(ctx: &egui::Context, view: SettingsView<'_>) -> SettingsFrame {
+    show_host(ctx, view, true)
+}
+
+fn show_host(ctx: &egui::Context, mut view: SettingsView<'_>, detached: bool) -> SettingsFrame {
     let state_id = egui::Id::new("settings.state");
     let mut state: DialogState = ctx
         .data_mut(|d| d.get_temp::<DialogState>(state_id))
@@ -337,6 +858,7 @@ pub fn show(ctx: &egui::Context, view: SettingsView<'_>) -> SettingsFrame {
     // Reset transient state on (re-)open: a new open generation clears the query + reseeds drafts from
     // the live settings so a re-open never shows the previous session's text/drafts.
     if state.open_count != view.open_count {
+        clear_cloud_key_state(ctx, view.cloud);
         state = DialogState {
             open_count: view.open_count,
             query: String::new(),
@@ -386,6 +908,7 @@ pub fn show(ctx: &egui::Context, view: SettingsView<'_>) -> SettingsFrame {
     if escape {
         let popup_open = egui::Popup::is_any_open(ctx);
         if !popup_open {
+            clear_cloud_key_state(ctx, view.cloud);
             persist(ctx, state_id, &state);
             return SettingsFrame {
                 outcome: SettingsOutcome::Close,
@@ -398,7 +921,7 @@ pub fn show(ctx: &egui::Context, view: SettingsView<'_>) -> SettingsFrame {
 
     // ── Backdrop: a full-screen interactable Area BEHIND the window; a click on it dismisses. ──
     let screen = ctx.content_rect();
-    let backdrop = egui::Area::new(egui::Id::new("settings.backdrop"))
+    let backdrop = (!detached).then(|| egui::Area::new(egui::Id::new("settings.backdrop"))
         .order(egui::Order::Foreground)
         .fixed_pos(screen.min)
         .interactable(true)
@@ -407,9 +930,10 @@ pub fn show(ctx: &egui::Context, view: SettingsView<'_>) -> SettingsFrame {
             ui.painter()
                 .rect_filled(rect, 0.0, egui::Color32::from_black_alpha(96));
             response
-        });
-    if backdrop.inner.clicked() {
+        }));
+    if backdrop.is_some_and(|backdrop| backdrop.inner.clicked()) {
         persist(ctx, state_id, &state);
+        clear_cloud_key_state(ctx, view.cloud);
         return SettingsFrame {
             outcome: SettingsOutcome::Close,
             query: state.query,
@@ -422,15 +946,7 @@ pub fn show(ctx: &egui::Context, view: SettingsView<'_>) -> SettingsFrame {
 
     let mut outcome = SettingsOutcome::None;
 
-    egui::Window::new("settings")
-        .id(egui::Id::new("settings.window"))
-        .order(egui::Order::Foreground)
-        .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
-        .fixed_size([480.0, 560.0])
-        .title_bar(false)
-        .collapsible(false)
-        .resizable(false)
-        .show(ctx, |ui| {
+    let mut render_body = |ui: &mut egui::Ui| {
             // Header: eyebrow + title on the left, Close button on the right.
             ui.horizontal(|ui| {
                 ui.vertical(|ui| {
@@ -438,6 +954,9 @@ pub fn show(ctx: &egui::Context, view: SettingsView<'_>) -> SettingsFrame {
                     ui.label(egui::RichText::new("Settings").heading());
                 });
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    let host = ui.button(if detached { "Re-dock" } else { "Pop out" });
+                    set_author_id(ui, host.id, if detached { SETTINGS_REDOCK_AUTHOR_ID } else { SETTINGS_POPOUT_AUTHOR_ID });
+                    if host.clicked() { outcome = if detached { SettingsOutcome::Redock } else { SettingsOutcome::PopOut }; }
                     let close = ui.button("Close");
                     set_author_id(ui, close.id, CLOSE_AUTHOR_ID);
                     if close.clicked() {
@@ -498,30 +1017,49 @@ pub fn show(ctx: &egui::Context, view: SettingsView<'_>) -> SettingsFrame {
             // The scrollable body region (Role::Group container at the fixed list id).
             ui.push_id(list_egui_id, |ui| {
                 egui::ScrollArea::vertical()
-                    .max_height(440.0)
+                    .max_height(if detached { ui.available_height() } else { 440.0 })
                     .auto_shrink([false, false])
                     .show(ui, |ui| {
                         outcome = render_sections(
                             ui,
                             &query,
                             &mut state,
-                            &view,
+                            &mut view,
                             &mut editor_section,
                             outcome.clone(),
                         );
                     });
             });
             emit_list_node(ui.ctx(), list_egui_id);
-        });
+    };
+    if detached {
+        egui::CentralPanel::default().show(ctx, &mut render_body);
+    } else {
+        egui::Window::new("settings")
+            .id(egui::Id::new("settings.window"))
+            .order(egui::Order::Foreground)
+            .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+            .fixed_size([480.0, 560.0])
+            .title_bar(false)
+            .collapsible(false)
+            .resizable(false)
+            .show(ctx, &mut render_body);
+    }
 
     // The dialog root container node (Role::Dialog, modal) attached to the fixed dialog id so an
     // out-of-process model finds the modal by `settings.dialog`. Emitted each open frame.
-    emit_dialog_node(ctx, dialog_egui_id);
+    emit_dialog_node(ctx, dialog_egui_id, !detached);
 
     let query = state.query.clone();
     persist(ctx, state_id, &state);
     // MT-072: store the editor section (with its updated keybinding-row drafts) back to temp memory.
     ctx.data_mut(|d| d.insert_temp(editor_section_id, editor_section));
+    if matches!(
+        outcome,
+        SettingsOutcome::Close | SettingsOutcome::PopOut | SettingsOutcome::Redock
+    ) {
+        clear_cloud_key_state(ctx, view.cloud);
+    }
     SettingsFrame { outcome, query }
 }
 
@@ -545,7 +1083,7 @@ fn render_sections(
     ui: &mut egui::Ui,
     query: &str,
     state: &mut DialogState,
-    view: &SettingsView<'_>,
+    view: &mut SettingsView<'_>,
     editor_section: &mut crate::settings_editor_section::EditorSettingsSection,
     mut outcome: SettingsOutcome,
 ) -> SettingsOutcome {
@@ -558,6 +1096,33 @@ fn render_sections(
         auto_save_interval_label: AUTO_SAVE_INTERVAL_LABEL,
         provenance: view.preference_provenance,
     };
+
+    if setting_matches_query(
+        query,
+        &[
+            "cloud",
+            "models",
+            "byok",
+            "anthropic",
+            "openai",
+            "claude",
+            "codex",
+            "login",
+            "consent",
+        ],
+    ) {
+        let header = egui::CollapsingHeader::new("Cloud Models")
+            .default_open(true)
+            .open((!query.is_empty()).then_some(true))
+            .show(ui, |ui| {
+                outcome = render_cloud_models_body(ui, view.cloud, outcome.clone());
+            });
+        set_author_id(
+            ui,
+            header.header_response.id,
+            &format!("{SECTION_HEADER_AUTHOR_ID_PREFIX}cloud-models"),
+        );
+    }
 
     // ── [1] Appearance (theme + view mode — both WIRED) ────────────────────────────────────────────
     let show_appearance = setting_matches_query(
@@ -1167,6 +1732,457 @@ fn not_yet_wired_row(ui: &mut egui::Ui, setting: &NotYetWiredSetting) {
 }
 
 /// Persist the transient dialog state back into egui memory.
+pub const SETTINGS_POPOUT_AUTHOR_ID: &str = "settings.popout";
+pub const SETTINGS_REDOCK_AUTHOR_ID: &str = "settings.redock";
+pub const SETTINGS_POPOUT_KEY: &str = "settings";
+pub const SETTINGS_WINDOW_LABEL: &str = "Settings";
+
+pub(crate) fn clear_cloud_key_state(ctx: &egui::Context, cloud: &mut CloudModelsSettingsState) {
+    for provider in cloud.byok_provider_ids_for_clear() {
+        // Overwrite the widget's persisted egui state with a default (empty cursor + empty undoer) so the
+        // undo history no longer holds a plaintext snapshot of the typed key.
+        egui::TextEdit::store_state(
+            ctx,
+            cloud_byok_key_egui_id(&provider),
+            egui::text_edit::TextEditState::default(),
+        );
+        ctx.accesskit_node_builder(cloud_byok_key_egui_id(&provider), |node| node.clear_value());
+    }
+    cloud.clear_key_drafts();
+    // MT-015 v5: wipe the login ANSWER field (buffer + egui cursor/undo history) for
+    // the same reason the key fields are wiped — a half-typed provider prompt answer
+    // should not survive in widget memory across a close/reopen or a window
+    // transition.
+    //
+    // The PANEL itself is deliberately NOT dropped here. It is shell-owned state
+    // over a LIVE backend login session, and this helper also runs on `PopOut` /
+    // `Redock`, where settings stays open. Dropping it would strand a running
+    // device/OAuth login: the child would keep running under its bounded window
+    // with no surface left to answer its prompt. The panel is dismissed only by an
+    // explicit operator action — `Stop login` (which cancels the session) or
+    // `Close` on a finished one.
+    if let Some(provider) = cloud.login_panel().map(|panel| panel.provider.clone()) {
+        cloud.clear_login_input();
+        egui::TextEdit::store_state(
+            ctx,
+            cloud_cli_login_input_egui_id(&provider),
+            egui::text_edit::TextEditState::default(),
+        );
+        ctx.accesskit_node_builder(cloud_cli_login_input_egui_id(&provider), |node| {
+            node.clear_value()
+        });
+    }
+}
+
+fn render_cloud_models_body(
+    ui: &mut egui::Ui,
+    cloud: &mut CloudModelsSettingsState,
+    mut outcome: SettingsOutcome,
+) -> SettingsOutcome {
+    ui.add(
+        egui::Label::new(egui::RichText::new(
+            "Configure cloud model access. Your subscription PLAN via the official CLI (Claude Code, \
+             GPT/Codex) is the primary path; a BYOK API key is available if you bring your own. \
+             Gemini is not offered.",
+        )
+        .small()
+        .weak()).wrap(),
+    );
+
+    // ---- BYOK: per-provider password key entry stored only in the OS keychain. ----
+    ui.add_space(6.0);
+    ui.label(
+        egui::RichText::new("Bring your own API key")
+            .small()
+            .strong(),
+    );
+    // F10: render the STATIC provider rows client-side when the backend enumeration has not arrived, so
+    // the key field + Save ALWAYS render (key entry never depends on the backend being reachable). Only
+    // the `configured` badge needs the backend; a seed row shows "status unknown" instead.
+    let byok_rows = cloud.byok_rows_for_render();
+    let byok_static_seed = cloud.byok_rows_are_static_seed();
+    if byok_static_seed {
+        ui.label(
+            egui::RichText::new(
+                "Provider status unknown until the backend responds — you can still enter a key.",
+            )
+            .small()
+            .weak(),
+        );
+    }
+    for row in &byok_rows {
+        ui.vertical(|ui| {
+            ui.vertical(|ui| {
+                ui.label(&row.label);
+                let status_text = if row.configured {
+                    "Configured — key stored in the OS keychain"
+                } else if byok_static_seed {
+                    "Status unknown — backend not reachable"
+                } else {
+                    "Not configured"
+                };
+                let status = ui.label(egui::RichText::new(status_text).small().weak());
+                // Attach the non-secret BYOK status TEXT as the AccessKit label EXPLICITLY (MT-015 v4).
+                // The detached Settings window renders into an embedded egui viewport whose plain
+                // `ui.label()` text is NOT auto-emitted into the AccessKit tree (only interactive
+                // widgets are), so relying on the auto-emitted name left the detached window's
+                // configured/unavailable state un-readable out-of-process. Setting the label directly
+                // makes the status readable in BOTH hosts. `status_text` is a fixed non-secret string —
+                // never key material.
+                set_author_id_and_label(
+                    ui,
+                    status.id,
+                    &cloud_byok_status_author_id(&row.provider),
+                    status_text,
+                );
+            });
+        });
+        ui.horizontal(|ui| {
+            {
+                let buf = cloud.key_draft_mut(&row.provider);
+                if let Some(value) = crate::mcp::accesskit_string_set_value(
+                    ui,
+                    cloud_byok_key_egui_id(&row.provider),
+                ) {
+                    zeroize::Zeroize::zeroize(&mut **buf);
+                    **buf = value;
+                    crate::mcp::argus::acknowledge_secret_set_value(ui.ctx(),
+                        &cloud_byok_key_author_id(&row.provider), cloud_byok_key_egui_id(&row.provider), buf.as_str());
+                }
+                let input = ui.add(
+                    // Pin a STABLE egui id so the dialog can reset this widget's egui state (undo
+                    // history) on close/open, wiping any typed-but-unsaved key from egui memory (F3).
+                    egui::TextEdit::singleline(&mut **buf)
+                        .id(cloud_byok_key_egui_id(&row.provider))
+                        .password(true)
+                        .hint_text("Paste API key")
+                        .desired_width(220.0),
+                );
+                set_author_id_and_label(
+                    ui,
+                    input.id,
+                    &cloud_byok_key_author_id(&row.provider),
+                    &format!("{} API key", row.label),
+                );
+            }
+            let save = ui.button("Save");
+            let save_author = cloud_byok_save_author_id(&row.provider);
+            set_author_id(ui, save.id, &save_author);
+            if save.clicked() && outcome == SettingsOutcome::None {
+                outcome = SettingsOutcome::CloudByokKeySaveRequested {
+                    provider: row.provider.clone(),
+                };
+            }
+            let remove = ui.add_enabled(row.configured, egui::Button::new("Remove"));
+            let remove_author = cloud_byok_remove_author_id(&row.provider);
+            set_author_id(ui, remove.id, &remove_author);
+            if remove.clicked() && outcome == SettingsOutcome::None {
+                outcome = SettingsOutcome::CloudByokKeyRemoveRequested {
+                    provider: row.provider.clone(),
+                };
+            }
+        });
+        if let Some(msg) = cloud.message_for(&row.provider) {
+            ui.label(egui::RichText::new(msg).small().weak());
+        }
+    }
+
+    // ---- CLI bridge: subscription-plan login status + operator-initiated official login launch. ----
+    ui.add_space(8.0);
+    ui.label(
+        egui::RichText::new("Subscription plan (official CLI login)")
+            .small()
+            .strong(),
+    );
+    let cli_rows = cloud.snapshot().cli_bridge.clone();
+    for row in &cli_rows {
+        ui.vertical(|ui| {
+            ui.vertical(|ui| {
+                ui.label(&row.label);
+                let status_label = row.auth_status.label();
+                let status = ui.label(egui::RichText::new(status_label).small().strong());
+                // Explicit AccessKit label so the CLI-bridge auth status (logged-in / logged-out /
+                // expired / unavailable) is out-of-process readable in the DETACHED window too (embedded
+                // egui viewports do not auto-emit plain-label text). Non-secret text only. MT-015 v4.
+                set_author_id_and_label(
+                    ui,
+                    status.id,
+                    &cloud_cli_status_author_id(&row.provider),
+                    status_label,
+                );
+                ui.add(
+                    egui::Label::new(
+                        egui::RichText::new(if row.hint.is_empty() {
+                            "Provider-owned CLI auth; Handshake stores no credential."
+                        } else {
+                            row.hint.as_str()
+                        })
+                        .small()
+                        .weak(),
+                    )
+                    .wrap(),
+                );
+            });
+            let login = ui.button("Log in…");
+            let login_author = cloud_cli_login_author_id(&row.provider);
+            set_author_id(ui, login.id, &login_author);
+            if login.clicked() && outcome == SettingsOutcome::None {
+                // Applied effect: the login-confirmation prompt is armed for this provider.
+                crate::mcp::argus::acknowledge_action_effect(ui.ctx(), &login_author);
+                cloud.pending_cli_login_confirmation = Some(row.provider.clone());
+            }
+        });
+        if let Some(msg) = cloud.message_for(&row.provider) {
+            ui.label(egui::RichText::new(msg).small().weak());
+        }
+    }
+
+    // ---- WP-1 MT-021 (AC-2): per-lane cloud consent / export posture, explicitly NOT WIRED. ----
+    // "Each configured provider lane" = every lane rendered above: the BYOK rows (snapshot or static
+    // seed) plus the CLI-bridge rows. De-duplicated by provider id so a provider offering both a BYOK
+    // key and a CLI login shows one posture row, not two.
+    let mut consent_lanes: Vec<(String, String)> = Vec::new();
+    for row in byok_rows
+        .iter()
+        .map(|r| (&r.provider, &r.label))
+        .chain(cli_rows.iter().map(|r| (&r.provider, &r.label)))
+    {
+        if !consent_lanes.iter().any(|(p, _)| p == row.0) {
+            consent_lanes.push((row.0.clone(), row.1.clone()));
+        }
+    }
+    render_cloud_consent_posture(ui, &consent_lanes);
+
+    if let Some(provider) = cloud.pending_cli_login_confirmation.clone() {
+        let label = cli_rows
+            .iter()
+            .find(|row| row.provider == provider)
+            .map(|row| row.label.as_str())
+            .unwrap_or(provider.as_str());
+        ui.group(|ui| {
+            let prompt = cloud_cli_login_confirmation_line(label);
+            let prompt_row = ui.label(&prompt);
+            set_author_id_and_label(
+                ui,
+                prompt_row.id,
+                &cloud_cli_login_confirm_prompt_author_id(&provider),
+                &prompt,
+            );
+            ui.horizontal(|ui| {
+                let confirm = ui.button("Start login");
+                let confirm_author = cloud_cli_login_confirm_author_id(&provider);
+                set_author_id(ui, confirm.id, &confirm_author);
+                if confirm.clicked() && outcome == SettingsOutcome::None {
+                    cloud.pending_cli_login_confirmation = None;
+                    outcome = SettingsOutcome::CliBridgeLoginRequested {
+                        provider: provider.clone(),
+                    };
+                }
+                let cancel = ui.button("Cancel");
+                let cancel_author = cloud_cli_login_cancel_author_id(&provider);
+                set_author_id(ui, cancel.id, &cancel_author);
+                if cancel.clicked() {
+                    crate::mcp::argus::acknowledge_action_effect(ui.ctx(), &cancel_author);
+                    cloud.pending_cli_login_confirmation = None;
+                }
+            });
+        });
+    }
+
+    if outcome == SettingsOutcome::None {
+        if let Some(panel_outcome) = render_cli_login_panel(ui, cloud) {
+            outcome = panel_outcome;
+        }
+    } else {
+        render_cli_login_panel(ui, cloud);
+    }
+
+    outcome
+}
+
+/// The operator-facing confirmation line for starting an official-CLI login.
+///
+/// HONESTY CONTRACT (HBR-QUIET-001): this text used to warn that a new terminal window would open
+/// and might take focus. That is no longer what happens — the backend runs the provider's login in a
+/// Handshake-hosted pseudo-terminal and this dialog renders it — so the text says what the product
+/// actually does. If the launch mechanism ever regresses to an OS console, this line and
+/// `render_cli_login_panel` are the two places that must change back.
+pub fn cloud_cli_login_confirmation_line(provider_label: &str) -> String {
+    format!(
+        "Start the official {provider_label} login inside Handshake? It runs in an in-app terminal \
+         session here in Settings — no new window opens, nothing takes focus, and you answer the \
+         provider's prompt in this panel. Handshake stores no credential."
+    )
+}
+
+/// Author_id for the confirmation prompt line: `settings.cloud.cli.{provider}.login.prompt`.
+pub fn cloud_cli_login_confirm_prompt_author_id(provider: &str) -> String {
+    format!("settings.cloud.cli.{provider}.login.prompt")
+}
+
+/// Render the live in-app official-CLI login panel.
+///
+/// This is the surface that makes the quiet launch USABLE: hiding the console without it would turn
+/// "steals focus" into "hangs invisibly with no prompt". The provider's own output is rendered
+/// read-only, the operator's answer goes back to the login process's stdin, and every node carries a
+/// stable author_id so Argus can read the prompt and type the answer out-of-process.
+fn render_cli_login_panel(
+    ui: &mut egui::Ui,
+    cloud: &mut CloudModelsSettingsState,
+) -> Option<SettingsOutcome> {
+    let panel = cloud.login_panel.as_mut()?;
+    let provider = panel.provider.clone();
+    let mut outcome: Option<SettingsOutcome> = None;
+
+    ui.add_space(8.0);
+    ui.group(|ui| {
+        ui.label(
+            egui::RichText::new(format!("{} login (in Handshake)", panel.label))
+                .small()
+                .strong(),
+        );
+
+        let state_line = panel.state.label();
+        let state_row = ui.label(egui::RichText::new(state_line).small());
+        set_author_id_and_label(
+            ui,
+            state_row.id,
+            &cloud_cli_login_state_author_id(&provider),
+            state_line,
+        );
+
+        // The provider's own terminal output. Read-only and monospaced so a device code or URL is
+        // copyable and unambiguous. Explicitly labelled for AccessKit: plain labels are not
+        // auto-emitted into an embedded (detached-window) viewport's tree.
+        let transcript_text = if panel.transcript.trim().is_empty() {
+            "(no output from the provider yet)".to_string()
+        } else {
+            panel.transcript.clone()
+        };
+        egui::ScrollArea::vertical()
+            .max_height(180.0)
+            .id_salt(("settings.cloud.cli.login.transcript", provider.as_str()))
+            .show(ui, |ui| {
+                let transcript =
+                    ui.label(egui::RichText::new(&transcript_text).monospace().small());
+                set_author_id_and_label(
+                    ui,
+                    transcript.id,
+                    &cloud_cli_login_transcript_author_id(&provider),
+                    &transcript_text,
+                );
+            });
+
+        if !panel.state.is_terminal() && !(panel.session_id.is_empty() && panel.error.is_some()) {
+            ui.vertical(|ui| {
+                if let Some(value) = crate::mcp::accesskit_string_set_value(
+                    ui,
+                    cloud_cli_login_input_egui_id(&provider),
+                ) {
+                    zeroize::Zeroize::zeroize(&mut panel.input);
+                    panel.input = value;
+                    crate::mcp::argus::acknowledge_action_effect(
+                        ui.ctx(),
+                        &cloud_cli_login_input_author_id(&provider),
+                    );
+                }
+                let field = ui.add(
+                    egui::TextEdit::singleline(&mut panel.input)
+                        .id(cloud_cli_login_input_egui_id(&provider))
+                        .desired_width(f32::INFINITY)
+                        .hint_text("Answer the prompt above"),
+                );
+                set_author_id(ui, field.id, &cloud_cli_login_input_author_id(&provider));
+
+                let submitted_with_enter =
+                    field.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+                ui.vertical(|ui| {
+                    let send = ui.button("Send");
+                    let send_author = cloud_cli_login_send_author_id(&provider);
+                    set_author_id(ui, send.id, &send_author);
+                    if (send.clicked() || submitted_with_enter) && outcome.is_none() {
+                        let input = std::mem::take(&mut panel.input);
+                        outcome = Some(SettingsOutcome::CliBridgeLoginInputSubmitted {
+                            provider: provider.clone(),
+                            input,
+                        });
+                    }
+
+                    let stop = ui.button("Stop login");
+                    let stop_author = cloud_cli_login_stop_author_id(&provider);
+                    set_author_id(ui, stop.id, &stop_author);
+                    if stop.clicked() && outcome.is_none() {
+                        outcome = Some(SettingsOutcome::CliBridgeLoginStopRequested {
+                            provider: provider.clone(),
+                        });
+                    }
+                });
+            });
+        } else {
+            let close = ui.button("Close");
+            let close_author = cloud_cli_login_close_author_id(&provider);
+            set_author_id(ui, close.id, &close_author);
+            if close.clicked() && outcome.is_none() {
+                outcome = Some(SettingsOutcome::CliBridgeLoginPanelClosed {
+                    provider: provider.clone(),
+                });
+            }
+        }
+
+        if let Some(error) = panel.error.as_deref() {
+            ui.label(egui::RichText::new(error).small().weak());
+        }
+    });
+
+    outcome
+}
+fn render_cloud_consent_posture(ui: &mut egui::Ui, lanes: &[(String, String)]) {
+    ui.add_space(8.0);
+    ui.label(
+        egui::RichText::new("Cloud consent & export posture")
+            .small()
+            .strong(),
+    );
+    let summary_text = format!(
+        "{CLOUD_CONSENT_NOT_WIRED_TOKEN} — no consent or export posture is available for any lane. \
+         The backend exposes no consent/export-posture route yet, so Handshake shows no posture and \
+         assumes none. Nothing here grants, widens, or records consent.",
+    );
+    // `selectable_labels` is enabled in Handshake's egui style, which upgrades a plain Label to
+    // click-and-drag sense and therefore advertises AccessKit `Click`.  This posture is deliberately
+    // display-only: pin `selectable(false)` so the accessibility contract cannot imply an authority-
+    // widening interaction that the product does not implement.
+    let summary = ui.add(
+        egui::Label::new(egui::RichText::new(&summary_text).small().weak())
+            .selectable(false)
+            .wrap(),
+    );
+    set_author_id_and_label(
+        ui,
+        summary.id,
+        CLOUD_CONSENT_STATUS_AUTHOR_ID,
+        &summary_text,
+    );
+
+    for (provider, label) in lanes {
+        let line = cloud_consent_posture_line(label);
+        // Plain `ui.label` text is NOT auto-emitted into the AccessKit tree of the DETACHED settings
+        // viewport (embedded viewports only auto-emit interactive widgets), so — exactly like the BYOK
+        // and CLI status rows — the posture text is attached as an explicit label. Non-secret text only.
+        let row = ui.add(
+            egui::Label::new(egui::RichText::new(&line).small())
+                .selectable(false)
+                .wrap(),
+        );
+        set_author_id_and_label(
+            ui,
+            row.id,
+            &cloud_consent_posture_author_id(provider),
+            &line,
+        );
+    }
+}
+
 fn persist(ctx: &egui::Context, state_id: egui::Id, state: &DialogState) {
     ctx.data_mut(|d| d.insert_temp(state_id, state.clone()));
 }
@@ -1204,12 +2220,14 @@ fn set_author_id_and_label(ui: &egui::Ui, widget_id: egui::Id, author_id: &str, 
 }
 
 /// Emit the dialog ROOT node (Role::Dialog, modal=true, label="Settings").
-fn emit_dialog_node(ctx: &egui::Context, dialog_id: egui::Id) {
+fn emit_dialog_node(ctx: &egui::Context, dialog_id: egui::Id, modal: bool) {
     ctx.accesskit_node_builder(dialog_id, |node| {
         node.set_role(accesskit::Role::Dialog);
         node.set_author_id(SETTINGS_DIALOG_AUTHOR_ID.to_owned());
         node.set_label("Settings".to_owned());
-        node.set_modal();
+        if modal {
+            node.set_modal();
+        }
     });
 }
 

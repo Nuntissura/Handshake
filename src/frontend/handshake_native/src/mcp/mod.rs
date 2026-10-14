@@ -54,6 +54,8 @@ pub mod server;
 pub mod session;
 pub mod tools;
 
+pub use argus::{ArgusWindowDescriptor, WindowSnapshotRegistry, MAIN_WINDOW_ID};
+
 pub use action::{
     accesskit_string_set_value, build_action_request, resolve_target, ActionChannel, ActionError,
     ActionOutcome, ActionReceipt, ActionReceiptStatus, UiAction, DEFAULT_ACTION_CAPACITY,

@@ -94,6 +94,17 @@ struct ServerState {
 }
 
 impl SwarmMcpServer {
+    pub async fn bind_with_windows(
+        token: SessionToken,
+        snapshot: Arc<Mutex<UiTreeSnapshot>>,
+        channel: Arc<Mutex<ActionChannel>>,
+        capture: Arc<dyn Fn() -> Result<ScreenshotResult, ScreenshotError> + Send + Sync>,
+        windows: Arc<Mutex<super::argus::WindowSnapshotRegistry>>,
+    ) -> std::io::Result<Self> {
+        let mut safety = SwarmSafetyState::new(token, snapshot, channel);
+        safety.windows = Some(windows.lock().unwrap_or_else(|e| e.into_inner()).clone());
+        Self::bind_with_safety_mode(safety, capture, true).await
+    }
     /// Bind the TCP listener (and, on Windows, the named pipe), write the owner-only discovery file, and
     /// spawn the accept loops on the CURRENT tokio runtime. Returns the server handle.
     ///
@@ -327,6 +338,7 @@ impl SwarmMcpServer {
 
     /// Stop the accept loops and remove the discovery file. Idempotent.
     pub fn shutdown(&mut self) {
+        if let Some(windows) = &self.safety.windows { windows.cancel_all(); }
         // A send error just means there are no live receivers (loops already stopped) — fine.
         let _ = self.shutdown_tx.send(true);
         if !self.binding_removed {
@@ -504,6 +516,93 @@ async fn dispatch_with_session(
     session: &McpSession,
     state: &ServerState,
 ) -> McpResponse {
+    if let Some(windows) = &state.safety.windows {
+        use super::argus::{ArgusMethod, MAIN_WINDOW_ID};
+        use super::tools::{McpError, ERR_INVALID_PARAMS, ERR_UNAUTHORIZED};
+        if !state.safety.token.matches(&request.session_token) {
+            return McpResponse::error(request.id.clone(), McpError::general(ERR_UNAUTHORIZED, "Unauthorized"));
+        }
+        if ArgusMethod::from_wire_name(&request.method) == Some(ArgusMethod::ListWindows) {
+            return McpResponse::ok_value(request.id.clone(), windows.list());
+        }
+        if let Some(selector) = request.params.get("window_id") {
+            let Some(window_id) = selector.as_str().filter(|id| !id.is_empty()) else {
+                return McpResponse::error(request.id.clone(), McpError::general(ERR_INVALID_PARAMS, "window_id must be a nonempty string"));
+            };
+            let window = match windows.get(window_id) {
+                Ok(window) => window,
+                Err(error) => return McpResponse::error(request.id.clone(), McpError::general(ERR_INVALID_PARAMS, error)),
+            };
+            let Some(expected) = request.params.get("expected_revision").and_then(|v| v.as_u64()) else {
+                return McpResponse::error(request.id.clone(), McpError::general(ERR_INVALID_PARAMS, "expected_revision is required"));
+            };
+            let validity = window.validate(expected);
+            if let Err(error) = validity {
+                return McpResponse::error(request.id.clone(), McpError::general(ERR_INVALID_PARAMS, error));
+            }
+            if let Some(epoch) = request.params.get("window_epoch") {
+                if epoch.as_u64() != Some(window.epoch) {
+                    return McpResponse::error(request.id.clone(), McpError::general(ERR_INVALID_PARAMS, "Argus window epoch is stale"));
+                }
+            }
+            let scoped = session.for_window(window.clone());
+            let capture = state.capture.clone();
+            let target = window.descriptor.clone();
+            let capture_live = window.live.clone();
+            let capture_window = window.clone();
+            let result = scoped.dispatch_shared_async(request, &window.snapshot, &window.channel, move || {
+                capture_window.validate(expected).map_err(ScreenshotError)?;
+                if !capture_live.load(std::sync::atomic::Ordering::Acquire) { return Err(ScreenshotError("Argus window closed before capture".to_owned())); }
+                let result = if target.window_id == MAIN_WINDOW_ID { capture() }
+                else { super::screenshot::capture_registered_window(&capture_window) };
+                if !capture_live.load(std::sync::atomic::Ordering::Acquire) { return Err(ScreenshotError("Argus window closed during capture".to_owned())); }
+                capture_window.validate(expected).map_err(ScreenshotError)?;
+                result
+            }).await;
+            let mut result = result;
+            let mut published_revision = expected;
+            if ArgusMethod::from_wire_name(&request.method).is_some_and(|m| m.is_mutating()) {
+                let receipt_id = result.result_ref().ok().and_then(|v| v.get("receipt_id")).and_then(|v| v.as_u64());
+                if let Some(receipt_id) = receipt_id {
+                    let deadline = std::time::Instant::now() + super::action::ACTION_LEASE_TIMEOUT;
+                    loop {
+                        let (receipt, receipt_revision) = {
+                            let _snapshot = window.snapshot.lock().unwrap_or_else(|e| e.into_inner());
+                            let channel = window.channel.lock().unwrap_or_else(|e| e.into_inner());
+                            (channel.receipts().into_iter().find(|r| r.receipt_id == receipt_id), window.revision())
+                        };
+                        match receipt {
+                            Some(receipt) if !matches!(receipt.status, super::action::ActionReceiptStatus::Queued | super::action::ActionReceiptStatus::Dispatched) => {
+                                published_revision = receipt_revision;
+                                let mut value = serde_json::to_value(receipt).unwrap_or(serde_json::Value::Null);
+                                if let Some(object) = value.as_object_mut() {
+                                    object.insert("before_revision".to_owned(), serde_json::Value::from(expected));
+                                    object.insert("after_revision".to_owned(), serde_json::Value::from(receipt_revision));
+                                    object.insert("agent_id".to_owned(), serde_json::Value::String(scoped.agent_id().to_owned()));
+                                    object.insert("durability_error".to_owned(), serde_json::Value::String("Authenticated durable Argus receipt persistence is not bound".to_owned()));
+                                }
+                                result = McpResponse::ok_value(request.id.clone(), value);
+                                break;
+                            }
+                            None => { result = McpResponse::error(request.id.clone(), McpError::general(super::tools::ERR_TOOL_FAILED, "Argus receipt is unavailable")); break; }
+                            _ if std::time::Instant::now() >= deadline => { result = McpResponse::error(request.id.clone(), McpError::general(super::tools::ERR_TOOL_FAILED, "Argus receipt observation timed out")); break; }
+                            _ => tokio::time::sleep(std::time::Duration::from_millis(2)).await,
+                        }
+                    }
+                }
+            } else if ArgusMethod::from_wire_name(&request.method) == Some(ArgusMethod::Inspect) {
+                if let Ok(value) = &mut result.payload { *value = serde_json::json!({"snapshot": value.clone()}); }
+            }
+            if let Ok(value) = &mut result.payload {
+                if let Some(object) = value.as_object_mut() {
+                    object.insert("window_id".to_owned(), serde_json::Value::String(window_id.to_owned()));
+                    object.insert("window_epoch".to_owned(), serde_json::Value::from(window.epoch));
+                    object.insert("revision".to_owned(), serde_json::Value::from(published_revision));
+                }
+            }
+            return result;
+        }
+    }
     let capture = state.capture.clone();
     session
         .dispatch_shared_async(

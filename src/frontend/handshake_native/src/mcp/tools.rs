@@ -163,7 +163,7 @@ fn key_from_hex_or_hash(hex: &str) -> [u8; 32] {
 
 /// A parsed JSON-RPC request for one tool call. `session_token` is a top-level field (per the
 /// contract), NOT inside `params`.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct McpRequest {
     /// JSON-RPC id echoed back in the response (number or string; kept as the raw JSON value).
     pub id: serde_json::Value,
@@ -173,6 +173,12 @@ pub struct McpRequest {
     pub params: serde_json::Value,
     /// The presented per-session token.
     pub session_token: String,
+}
+
+impl std::fmt::Debug for McpRequest {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("McpRequest").field("method", &self.method).finish_non_exhaustive()
+    }
 }
 
 impl McpRequest {
@@ -399,6 +405,7 @@ pub fn dispatch_request(
     };
 
     match method {
+        ArgusMethod::ListWindows => McpResponse::error(request.id.clone(), McpError::general(ERR_METHOD_NOT_FOUND, "Window registry is not bound")),
         ArgusMethod::Inspect => {
             let mut value = serde_json::to_value(snapshot)
                 .unwrap_or_else(|_| serde_json::json!({ "error": "snapshot serialize failed" }));

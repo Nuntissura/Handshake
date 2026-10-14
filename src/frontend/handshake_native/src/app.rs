@@ -6271,6 +6271,27 @@ pub struct HandshakeApp {
     pending_backlink_open_retry: VecDeque<String>,
     /// Whether the settings overlay is requested open (MT-015 HELP menu sets this; UI is MT-018).
     settings_open: bool,
+    cloud_models: crate::settings_dialog::CloudModelsSettingsState,
+    cloud_access_client: Option<crate::backend_client::CloudAccessClient>,
+    cloud_access_cell: crate::backend_client::CloudAccessCell,
+    cloud_access_refresh_pending: bool,
+    cloud_refresh_in_flight: Arc<std::sync::atomic::AtomicBool>,
+    cloud_epoch: u64,
+    cloud_panel_generation: u64,
+    cloud_host_generation: u64,
+    cloud_cli_start_in_flight: bool,
+    cloud_uncertain_login_owners: Vec<(u64, u64, String, Option<String>)>,
+    cloud_login_cancel_pending: Option<(u64, String)>,
+    cloud_revisions: HashMap<String, u64>,
+    last_cli_login_launch: Option<(String, Vec<String>)>,
+    last_cli_login_input: Option<(String, String)>,
+    suppress_cli_login_launch: bool,
+    cli_login_poll_in_flight: Arc<std::sync::atomic::AtomicBool>,
+    settings_detached: bool,
+    settings_detached_exit_pending: Option<crate::settings_dialog::SettingsOutcome>,
+    settings_effect_context: Option<egui::Context>,
+    mcp_windows: Arc<Mutex<crate::mcp::WindowSnapshotRegistry>>,
+
     /// Latched for one Settings-open session after backend loss is observed. Keeps Diagnostics expanded
     /// through recovery so both the down edge and `BackendRecovered` remain visible in the live and
     /// side-effect-free model-navigation contexts; cleared when Settings closes.
@@ -8134,6 +8155,12 @@ impl HandshakeApp {
         ) = build_factories_with_loom_search_v2(rt_handle.clone(), HsTheme::Dark.palette());
         // MT-066 REMEDIATION: the bottom Stage panel and the dockable Stage pane share ONE StagePane.
         let stage_pane_shared = Arc::clone(&editor_mounts.secondary.stage);
+        let mcp_snapshot = Arc::new(Mutex::new(empty_snapshot()));
+        let mcp_action_channel = Arc::new(Mutex::new(crate::mcp::ActionChannel::new()));
+        let mcp_windows = Arc::new(Mutex::new(crate::mcp::WindowSnapshotRegistry::new(
+            mcp_snapshot.clone(),
+            mcp_action_channel.clone(),
+        )));
         Self {
             health_status: HealthDisplayState::Loading,
             backend_health_url,
@@ -8268,6 +8295,26 @@ impl HandshakeApp {
             nav_pending_label: None,
             pending_backlink_open_retry: VecDeque::new(),
             settings_open: false,
+            cloud_models: crate::settings_dialog::CloudModelsSettingsState::default(),
+            cloud_access_client: Some(crate::backend_client::CloudAccessClient::production()),
+            cloud_access_cell: Arc::new(Mutex::new(Vec::new())),
+            cloud_access_refresh_pending: false,
+            cloud_refresh_in_flight: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            cloud_epoch: 0,
+            cloud_panel_generation: 0,
+            cloud_host_generation: 0,
+            cloud_cli_start_in_flight: false,
+            cloud_uncertain_login_owners: Vec::new(),
+            cloud_login_cancel_pending: None,
+            cloud_revisions: HashMap::new(),
+            last_cli_login_launch: None,
+            last_cli_login_input: None,
+            suppress_cli_login_launch: false,
+            cli_login_poll_in_flight: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            settings_detached: false,
+            settings_detached_exit_pending: None,
+            settings_effect_context: None,
+
             settings_diagnostics_force_open: false,
             settings_open_count: 0,
             settings_snapshot_query: String::new(),
@@ -8381,8 +8428,9 @@ impl HandshakeApp {
             // runtime. A bind failure is logged + degrades to "no MCP server" rather than blocking the
             // window from opening (the shell must always start).
             mcp_server: None,
-            mcp_action_channel: Arc::new(Mutex::new(crate::mcp::ActionChannel::new())),
-            mcp_snapshot: Arc::new(Mutex::new(empty_snapshot())),
+            mcp_action_channel,
+            mcp_snapshot,
+            mcp_windows,
             mcp_open_top_menu: None,
             mcp_open_top_menu_state: None,
             mt033_argus_action_completion: Mt033ArgusActionCompletion::default(),
@@ -8719,8 +8767,12 @@ impl HandshakeApp {
         let snapshot = self.mcp_snapshot.clone();
         let channel = self.mcp_action_channel.clone();
         let capture = crate::mcp::SwarmMcpServer::os_window_capture();
+        let windows = self.mcp_windows.clone();
         let result = self.runtime().block_on(async move {
-            crate::mcp::SwarmMcpServer::bind(token, snapshot, channel, capture).await
+            crate::mcp::SwarmMcpServer::bind_with_windows(
+                token, snapshot, channel, capture, windows,
+            )
+            .await
         });
         match result {
             Ok(server) => {
@@ -8734,6 +8786,8 @@ impl HandshakeApp {
     }
 
     fn shutdown_mcp_server(&mut self) {
+        self.mcp_windows.lock().unwrap_or_else(|p| p.into_inner()).unregister(
+            &crate::popout_window::argus_window_id(crate::settings_dialog::SETTINGS_POPOUT_KEY));
         self.mcp_action_channel.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
             .cancel_pending_actions();
         let Some(mut server) = self.mcp_server.take() else {
@@ -13079,6 +13133,11 @@ impl HandshakeApp {
             // handoff. Mutation dispatch takes these locks snapshot -> channel; retaining that order
             // here prevents a waiter from observing "target free" and cloning the pre-render tree in
             // the gap before publication.
+            let windows = self
+                .mcp_windows
+                .lock()
+                .unwrap_or_else(|p| p.into_inner())
+                .clone();
             let mut slot = self
                 .mcp_snapshot
                 .lock()
@@ -13089,6 +13148,7 @@ impl HandshakeApp {
                 .unwrap_or_else(|poisoned| poisoned.into_inner());
             channel.acknowledge_after_live_render(&snapshot, production_ctx);
             *slot = snapshot;
+            windows.note_root_publication_locked(production_ctx);
             drop(channel);
             drop(slot);
             // A failed Retry uses a transient target. Keep it absent until this exact projected tree
@@ -13139,6 +13199,12 @@ impl HandshakeApp {
         ) = build_factories_with_loom_search_v2(rt.handle().clone(), HsTheme::Dark.palette());
         // MT-066 REMEDIATION: the bottom Stage panel and the dockable Stage pane share ONE StagePane.
         let stage_pane_shared = Arc::clone(&editor_mounts.secondary.stage);
+        let mcp_snapshot = Arc::new(Mutex::new(empty_snapshot()));
+        let mcp_action_channel = Arc::new(Mutex::new(crate::mcp::ActionChannel::new()));
+        let mcp_windows = Arc::new(Mutex::new(crate::mcp::WindowSnapshotRegistry::new(
+            mcp_snapshot.clone(),
+            mcp_action_channel.clone(),
+        )));
         Self {
             health_status: state,
             backend_health_url: HEALTH_URL.to_owned(),
@@ -13281,6 +13347,26 @@ impl HandshakeApp {
             nav_pending_label: None,
             pending_backlink_open_retry: VecDeque::new(),
             settings_open: false,
+            cloud_models: crate::settings_dialog::CloudModelsSettingsState::default(),
+            cloud_access_client: None,
+            cloud_access_cell: Arc::new(Mutex::new(Vec::new())),
+            cloud_access_refresh_pending: false,
+            cloud_refresh_in_flight: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            cloud_epoch: 0,
+            cloud_panel_generation: 0,
+            cloud_host_generation: 0,
+            cloud_cli_start_in_flight: false,
+            cloud_uncertain_login_owners: Vec::new(),
+            cloud_login_cancel_pending: None,
+            cloud_revisions: HashMap::new(),
+            last_cli_login_launch: None,
+            last_cli_login_input: None,
+            suppress_cli_login_launch: true,
+            cli_login_poll_in_flight: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            settings_detached: false,
+            settings_detached_exit_pending: None,
+            settings_effect_context: None,
+
             settings_diagnostics_force_open: false,
             settings_open_count: 0,
             settings_snapshot_query: String::new(),
@@ -13391,8 +13477,9 @@ impl HandshakeApp {
             // dispatch + frame-drain steering loop in-process; the over-the-wire test binds its OWN
             // `SwarmMcpServer` on a `#[tokio::test]` runtime.
             mcp_server: None,
-            mcp_action_channel: Arc::new(Mutex::new(crate::mcp::ActionChannel::new())),
-            mcp_snapshot: Arc::new(Mutex::new(empty_snapshot())),
+            mcp_action_channel,
+            mcp_snapshot,
+            mcp_windows,
             mcp_open_top_menu: None,
             mcp_open_top_menu_state: None,
             mt033_argus_action_completion: Mt033ArgusActionCompletion::default(),
@@ -20032,6 +20119,24 @@ impl HandshakeApp {
     }
 
     fn bind_backend_clients(&mut self, base_url: &str, handle: tokio::runtime::Handle) {
+        self.retain_unconfirmed_cloud_login();
+        self.cloud_cli_start_in_flight = false;
+        self.clear_cloud_edit_state();
+        self.mcp_windows.lock().unwrap_or_else(|p| p.into_inner()).unregister(
+            &crate::popout_window::argus_window_id(crate::settings_dialog::SETTINGS_POPOUT_KEY));
+        self.cloud_epoch = self.cloud_epoch.wrapping_add(1);
+        self.invalidate_cloud_host();
+        self.cloud_panel_generation = self.cloud_panel_generation.wrapping_add(1);
+        self.cloud_login_cancel_pending = None;
+        self.cloud_models = crate::settings_dialog::CloudModelsSettingsState::default();
+        self.cloud_access_cell = Arc::new(Mutex::new(Vec::new()));
+        self.cloud_refresh_in_flight = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        self.cli_login_poll_in_flight = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        self.cloud_access_client = Some(
+            crate::backend_client::CloudAccessClient::new(base_url)
+                .with_authenticated_context(self.local_account.context.clone()),
+        );
+        self.cloud_access_refresh_pending = self.settings_open;
         self.quick_switcher_transport = Some(Arc::new(
             crate::quick_switcher::LoomGraphSearchClient::new(base_url, handle.clone()),
         ));
@@ -21366,6 +21471,9 @@ impl HandshakeApp {
     /// action, and tests all route through here. Fires the one-shot settings LOAD on open.
     pub fn open_settings(&mut self) {
         if !self.settings_open {
+            self.invalidate_cloud_host();
+            self.clear_cloud_edit_state();
+            self.cloud_access_refresh_pending = true;
             self.settings_open = true;
             self.settings_diagnostics_force_open = self.backend_is_down();
             self.settings_open_count = self.settings_open_count.wrapping_add(1);
@@ -21384,6 +21492,12 @@ impl HandshakeApp {
     /// (red-team MC2) so a fast change-then-close never loses the change. Safe to call when already
     /// closed.
     pub fn close_settings(&mut self) {
+        if self.settings_open { self.invalidate_cloud_host(); }
+        self.clear_cloud_edit_state();
+        self.settings_detached = false;
+        self.settings_detached_exit_pending = None;
+        self.mcp_windows.lock().unwrap_or_else(|p| p.into_inner()).unregister(
+            &crate::popout_window::argus_window_id(crate::settings_dialog::SETTINGS_POPOUT_KEY));
         self.settings_open = false;
         self.settings_diagnostics_force_open = false;
         self.settings_snapshot_query.clear();
@@ -21394,6 +21508,583 @@ impl HandshakeApp {
 
     /// The live, persisted workspace settings (MT-018), for tests + the dialog. Backs the in-memory
     /// theme/view_mode flags where they map.
+    pub fn cloud_models(&self) -> &crate::settings_dialog::CloudModelsSettingsState {
+        &self.cloud_models
+    }
+
+    /// MT-015 v5 test helper: apply one backend login-session snapshot to the open in-app login panel,
+    /// so the panel's live rendering (the provider's prompt) and its answer routing are drivable
+    /// headlessly with no backend and no login child. This is the SAME entry the async delivery pump
+    /// uses, so a test exercises the real panel state machine rather than a parallel one.
+    #[doc(hidden)]
+    pub fn apply_cli_login_snapshot_for_test(
+        &mut self,
+        session_id: &str,
+        state: crate::settings_dialog::CloudCliLoginState,
+        transcript: impl Into<String>,
+    ) {
+        self.cloud_models
+            .apply_login_snapshot(session_id, state, transcript.into());
+    }
+
+    /// MT-015 test helper: seed the non-secret cloud-access enumeration snapshot directly so the Cloud
+    /// Models section renders provider rows with no live backend.
+    #[doc(hidden)]
+    pub fn set_cloud_snapshot_for_test(
+        &mut self,
+        snapshot: crate::settings_dialog::CloudAccessSnapshot,
+    ) {
+        self.cloud_models.set_snapshot(snapshot);
+    }
+
+    /// MT-015 accessor: whether a BYOK provider's key edit buffer is currently empty (proves the buffer
+    /// clears after a Save is dispatched — the key never lingers in the UI).
+    pub fn cloud_key_draft_is_empty(&self, provider: &str) -> bool {
+        self.cloud_models.key_draft_is_empty(provider)
+    }
+
+    /// MT-015 accessor: the last CLI-bridge official-login command launched (program, args).
+    pub fn last_cli_login_launch(&self) -> Option<&(String, Vec<String>)> {
+        self.last_cli_login_launch.as_ref()
+    }
+
+    /// MT-015 v5: the last operator answer submitted through the in-app login
+    /// panel (provider id + answer text), for tests and diagnostics.
+    pub fn last_cli_login_input(&self) -> Option<&(String, String)> {
+        self.last_cli_login_input.as_ref()
+    }
+
+    /// MT-015 test helper: control whether a CLI-bridge login actually spawns a terminal. Tests keep this
+    /// suppressed so a login click records the intent without opening a focus-stealing console.
+    #[doc(hidden)]
+    pub fn set_suppress_cli_login_launch(&mut self, suppress: bool) {
+        self.suppress_cli_login_launch = suppress;
+    }
+
+    fn clear_cloud_edit_state(&mut self) {
+        if let Some(ctx) = self
+            .settings_effect_context
+            .as_ref()
+            .or(self.frame_ctx.as_ref())
+        {
+            crate::settings_dialog::clear_cloud_key_state(ctx, &mut self.cloud_models);
+        } else {
+            self.cloud_models.clear_key_drafts();
+            self.cloud_models.clear_login_input();
+        }
+    }
+
+    fn ack_cloud_action(&self, author: &str) {
+        if let Some(ctx) = self
+            .settings_effect_context
+            .as_ref()
+            .or(self.frame_ctx.as_ref())
+        {
+            crate::mcp::argus::acknowledge_action_effect(ctx, author);
+        }
+    }
+
+    pub fn settings_detached(&self) -> bool {
+        self.settings_detached
+    }
+
+    pub fn detach_settings(&mut self) -> bool {
+        if !self.settings_open || self.settings_detached {
+            return false;
+        }
+        self.invalidate_cloud_host();
+        self.clear_cloud_edit_state();
+        self.settings_detached = true;
+        self.ack_cloud_action(crate::settings_dialog::SETTINGS_POPOUT_AUTHOR_ID);
+        true
+    }
+
+    pub fn redock_settings(&mut self) -> bool {
+        if !self.settings_open || !self.settings_detached {
+            return false;
+        }
+        self.invalidate_cloud_host();
+        self.clear_cloud_edit_state();
+        self.settings_detached = false;
+        self.settings_detached_exit_pending = None;
+        self.mcp_windows
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .unregister(&crate::popout_window::argus_window_id(
+                crate::settings_dialog::SETTINGS_POPOUT_KEY,
+            ));
+        true
+    }
+
+    fn remember_uncertain_login_owner(&mut self, epoch: u64, panel: u64, provider: &str, session: Option<&str>) {
+        if let Some(owner) = self.cloud_uncertain_login_owners.iter_mut().find(|owner| owner.0 == epoch && owner.1 == panel && owner.2 == provider) {
+            if let Some(session) = session { owner.3 = Some(session.to_owned()); }
+        } else { self.cloud_uncertain_login_owners.push((epoch, panel, provider.to_owned(), session.map(str::to_owned))); }
+    }
+
+    fn retain_unconfirmed_cloud_login(&mut self) {
+        if let Some((provider, session)) = self.cloud_models.login_panel()
+            .filter(|p| !p.state.is_terminal() && (self.cloud_cli_start_in_flight || !p.session_id.is_empty()))
+            .map(|p| (p.provider.clone(), (!p.session_id.is_empty()).then(|| p.session_id.clone()))) {
+            self.remember_uncertain_login_owner(self.cloud_epoch, self.cloud_panel_generation, &provider, session.as_deref());
+        }
+    }
+
+    fn invalidate_cloud_host(&mut self) {
+        self.cloud_host_generation = self.cloud_host_generation.wrapping_add(1);
+        self.cloud_access_refresh_pending = true;
+    }
+
+    fn cancel_stale_cli_start(&mut self, old: &crate::backend_client::CloudAccessBinding, session: &str) {
+        if old.session.is_empty() && matches!(old.provider.as_str(), "claude_code" | "codex") {
+            self.remember_uncertain_login_owner(old.epoch, old.panel, &old.provider, Some(session));
+        }
+        if old.host == self.cloud_host_generation || !old.session.is_empty()
+            || old.epoch != self.cloud_epoch || old.panel != self.cloud_panel_generation
+            || old.revision != self.cloud_revisions.get(&old.provider).copied().unwrap_or(0)
+            || !self.cloud_models.login_panel().is_some_and(|p| p.provider == old.provider && p.session_id.is_empty()) {
+            return;
+        }
+        let account_matches = match (&old.account, &self.local_account.context) {
+            (Some(old), Some(current)) => Arc::ptr_eq(old, current) && old.is_active(),
+            _ => false,
+        };
+        if !account_matches { return; }
+        let (Some(client), Some(handle)) = (self.cloud_access_client.clone(), self.runtime_handle.clone()) else { return; };
+        let binding = self.cloud_binding(&old.provider);
+        let provider = old.provider.clone();
+        let session = session.to_owned();
+        let cell = self.cloud_access_cell.clone();
+        self.cloud_cli_start_in_flight = false;
+        self.cloud_models.set_login_error("Settings changed; the previous login is being stopped.");
+        handle.spawn(async move {
+            let delivery = match client.cancel_cli_login(&session).await {
+                Ok(snapshot) if snapshot.session_id == session => crate::backend_client::CloudAccessDelivery::LoginSession { provider, snapshot },
+                _ => crate::backend_client::CloudAccessDelivery::LoginError { provider, message: "Could not confirm the previous login stopped.".to_owned() },
+            };
+            if let Ok(mut queue) = cell.lock() { queue.push((binding, delivery)); }
+        });
+    }
+
+    fn cloud_binding(&self, provider: &str) -> crate::backend_client::CloudAccessBinding {
+        crate::backend_client::CloudAccessBinding {
+            account: self.local_account.context.clone(),
+            epoch: self.cloud_epoch,
+            panel: self.cloud_panel_generation,
+            host: self.cloud_host_generation,
+            provider: provider.to_owned(),
+            revision: self.cloud_revisions.get(provider).copied().unwrap_or(0),
+            session: self
+                .cloud_models
+                .login_panel()
+                .filter(|p| p.provider == provider)
+                .map(|p| p.session_id.clone())
+                .unwrap_or_default(),
+        }
+    }
+
+    fn cloud_binding_is_current(
+        &self,
+        binding: &crate::backend_client::CloudAccessBinding,
+    ) -> bool {
+        let account_matches = match (&binding.account, &self.local_account.context) {
+            (Some(old), Some(current)) => Arc::ptr_eq(old, current) && old.is_active(),
+            _ => false,
+        };
+        account_matches
+            && binding.epoch == self.cloud_epoch
+            && binding.host == self.cloud_host_generation
+            && binding.revision
+                == self
+                    .cloud_revisions
+                    .get(&binding.provider)
+                    .copied()
+                    .unwrap_or(0)
+            && (!matches!(binding.provider.as_str(), "claude_code" | "codex")
+                || (binding.panel == self.cloud_panel_generation
+                    && self.cloud_models.login_panel().is_some_and(|p| {
+                        p.provider == binding.provider && p.session_id == binding.session
+                    })))
+    }
+
+    fn advance_cloud_revision(&mut self, provider: &str) {
+        let revision = self.cloud_revisions.entry(provider.to_owned()).or_default();
+        *revision = revision.wrapping_add(1);
+        // A mutation invalidates an older enumeration of all providers.
+        if !provider.is_empty() {
+            let revision = self.cloud_revisions.entry(String::new()).or_default();
+            *revision = revision.wrapping_add(1);
+        }
+    }
+
+    fn dispatch_cloud_byok(&mut self, provider: &str, save: bool) -> bool {
+        if !matches!(provider, "anthropic" | "openai") {
+            return false;
+        }
+        if save && self.cloud_models.key_draft_is_empty(provider) {
+            self.clear_cloud_edit_state();
+            self.cloud_models
+                .set_message(provider, "Enter an API key first.");
+            return false;
+        }
+        let key = self.cloud_models.take_key_draft(provider);
+        self.clear_cloud_edit_state();
+        let (Some(client), Some(handle)) = (
+            self.cloud_access_client.clone(),
+            self.runtime_handle.clone(),
+        ) else {
+            self.cloud_models
+                .set_message(provider, "Backend not reachable — no key changed.");
+            return false;
+        };
+        if !self
+            .local_account
+            .context
+            .as_ref()
+            .is_some_and(|a| a.is_active())
+        {
+            self.cloud_models
+                .set_message(provider, "Account login required — no key changed.");
+            return false;
+        }
+        self.advance_cloud_revision(provider);
+        let binding = self.cloud_binding(provider);
+        let provider = provider.to_owned();
+        let cell = self.cloud_access_cell.clone();
+        self.cloud_models
+            .set_message(&provider, if save { "Saving…" } else { "Removing…" });
+        handle.spawn(async move {
+            let result = if save {
+                client.store_key(&provider, key).await
+            } else {
+                drop(key);
+                client.remove_key(&provider).await
+            };
+            let (message, snapshot) = match result {
+                Ok(()) => (
+                    if save {
+                        "Saved — key stored in the OS keychain."
+                    } else {
+                        "Removed."
+                    }
+                    .to_owned(),
+                    client.enumerate().await.ok(),
+                ),
+                Err(_) => (
+                    if save {
+                        "Save failed — backend unavailable or request rejected."
+                    } else {
+                        "Remove failed — backend unavailable or request rejected."
+                    }
+                    .to_owned(),
+                    None,
+                ),
+            };
+            if let Ok(mut queue) = cell.lock() {
+                queue.push((
+                    binding,
+                    crate::backend_client::CloudAccessDelivery::OpResult {
+                        provider,
+                        message,
+                        snapshot,
+                    },
+                ));
+            }
+        });
+        true
+    }
+
+    fn launch_cli_bridge_login(&mut self, provider: &str) -> bool {
+        let command = match provider {
+            "claude_code" => ("claude", vec!["auth".to_owned(), "login".to_owned()]),
+            "codex" => ("codex", vec!["login".to_owned()]),
+            _ => return false,
+        };
+        // A live login must be stopped or finish before another replaces its owner.
+        if self.cloud_models.login_panel().is_some_and(|p| {
+            !p.state.is_terminal() && !(p.session_id.is_empty() && p.error.is_some())
+        }) {
+            return false;
+        }
+        self.clear_cloud_edit_state();
+        self.cloud_panel_generation = self.cloud_panel_generation.wrapping_add(1);
+        let label = self
+            .cloud_models
+            .snapshot()
+            .cli_bridge
+            .iter()
+            .find(|r| r.provider == provider)
+            .map(|r| r.label.clone())
+            .unwrap_or_else(|| provider.to_owned());
+        self.cloud_login_cancel_pending = None;
+        self.cloud_models.open_login_panel(provider, &label);
+        self.last_cli_login_launch = Some((command.0.to_owned(), command.1));
+        if self.suppress_cli_login_launch {
+            return false;
+        }
+        let (Some(client), Some(handle)) = (
+            self.cloud_access_client.clone(),
+            self.runtime_handle.clone(),
+        ) else {
+            self.cloud_models
+                .set_login_error("Backend not reachable — login not started.");
+            return false;
+        };
+        if !self
+            .local_account
+            .context
+            .as_ref()
+            .is_some_and(|a| a.is_active())
+        {
+            self.cloud_models
+                .set_login_error("Account login required — login not started.");
+            return false;
+        }
+        self.advance_cloud_revision(provider);
+        let binding = self.cloud_binding(provider);
+        let provider = provider.to_owned();
+        let cell = self.cloud_access_cell.clone();
+        self.cloud_cli_start_in_flight = true;
+        handle.spawn(async move {
+            let delivery = match client.launch_cli_login(&provider).await {
+                Ok(snapshot) => crate::backend_client::CloudAccessDelivery::LoginSession { provider, snapshot },
+                Err(_) => crate::backend_client::CloudAccessDelivery::LoginError { provider, message: "Could not start the official login — backend unavailable or request rejected.".to_owned() },
+            };
+            if let Ok(mut queue) = cell.lock() { queue.push((binding, delivery)); }
+        });
+        true
+    }
+
+    fn dispatch_cli_login(&mut self, provider: &str, input: Option<String>, cancel: bool) -> bool {
+        let input = input.map(zeroize::Zeroizing::new);
+        self.clear_cloud_edit_state();
+        if cancel
+            && self.cloud_models.login_panel().is_some_and(|p| {
+                p.provider == provider
+                    && p.session_id.is_empty()
+                    && !p.state.is_terminal()
+                    && p.error.is_none()
+            })
+        {
+            self.cloud_login_cancel_pending =
+                Some((self.cloud_panel_generation, provider.to_owned()));
+            self.cloud_models.set_message(
+                provider,
+                "Stop requested — waiting for the backend session identifier.",
+            );
+            return true;
+        }
+        let Some(session) = self
+            .cloud_models
+            .login_panel()
+            .filter(|p| {
+                p.provider == provider && !p.session_id.is_empty() && !p.state.is_terminal()
+            })
+            .map(|p| p.session_id.clone())
+        else {
+            self.cloud_models
+                .set_login_error("No live login session to answer or stop.");
+            return false;
+        };
+        // The test observation is confined to the explicitly suppressed headless shell.
+        if self.suppress_cli_login_launch {
+            if let Some(input) = input.as_ref() {
+                self.last_cli_login_input = Some((provider.to_owned(), input.to_string()));
+            }
+            return false;
+        }
+        let (Some(client), Some(handle)) = (
+            self.cloud_access_client.clone(),
+            self.runtime_handle.clone(),
+        ) else {
+            return false;
+        };
+        if !self
+            .local_account
+            .context
+            .as_ref()
+            .is_some_and(|a| a.is_active())
+        {
+            return false;
+        }
+        self.advance_cloud_revision(provider);
+        let binding = self.cloud_binding(provider);
+        let provider = provider.to_owned();
+        let cell = self.cloud_access_cell.clone();
+        handle.spawn(async move {
+            let result = if cancel {
+                client.cancel_cli_login(&session).await
+            } else if let Some(input) = input.as_ref() {
+                client.send_cli_login_input(&session, input).await
+            } else {
+                return;
+            };
+            let delivery = match result {
+                Ok(snapshot) => {
+                    crate::backend_client::CloudAccessDelivery::LoginSession { provider, snapshot }
+                }
+                Err(_) => crate::backend_client::CloudAccessDelivery::LoginError {
+                    provider,
+                    message: "Login request failed — backend unavailable or request rejected."
+                        .to_owned(),
+                },
+            };
+            if let Ok(mut queue) = cell.lock() {
+                queue.push((binding, delivery));
+            }
+        });
+        true
+    }
+
+    fn pump_cloud_access(&mut self, ctx: &egui::Context) {
+        let deliveries = self
+            .cloud_access_cell
+            .try_lock()
+            .ok()
+            .map(|mut q| std::mem::take(&mut *q))
+            .unwrap_or_default();
+        for (binding, delivery) in deliveries {
+            if !self.cloud_binding_is_current(&binding) {
+                if let crate::backend_client::CloudAccessDelivery::LoginSession { snapshot, .. } = delivery {
+                    self.cancel_stale_cli_start(&binding, &snapshot.session_id);
+                }
+                continue;
+            }
+            match delivery {
+                crate::backend_client::CloudAccessDelivery::Snapshot(snapshot) => {
+                    self.cloud_models.set_snapshot(snapshot)
+                }
+                crate::backend_client::CloudAccessDelivery::SnapshotUnavailable => {
+                    self.cloud_models.set_unavailable()
+                }
+                crate::backend_client::CloudAccessDelivery::OpResult {
+                    provider,
+                    message,
+                    snapshot,
+                } => {
+                    self.cloud_models.set_message(&provider, message);
+                    // Re-enumerate instead of applying an operation's stale whole-provider response.
+                    if snapshot.is_some() {
+                        self.cloud_access_refresh_pending = true;
+                    }
+                }
+                crate::backend_client::CloudAccessDelivery::LoginSession { snapshot, .. } => {
+                    if !binding.session.is_empty() && snapshot.session_id != binding.session {
+                        self.cloud_models
+                            .set_login_error("CLI login receipt session mismatch.");
+                        continue;
+                    }
+                    if binding.session.is_empty() { self.cloud_cli_start_in_flight = false; }
+                    if snapshot.state.is_terminal() {
+                        self.cloud_uncertain_login_owners.retain(|owner| !(owner.0 == binding.epoch
+                            && owner.1 == binding.panel && owner.2 == binding.provider
+                            && owner.3.as_deref() == Some(snapshot.session_id.as_str())));
+                    }
+                    self.cloud_models.apply_login_snapshot(
+                        &snapshot.session_id,
+                        snapshot.state,
+                        snapshot.transcript,
+                    );
+                    if self.cloud_login_cancel_pending.as_ref().is_some_and(
+                        |(generation, provider)| {
+                            *generation == binding.panel && provider == &binding.provider
+                        },
+                    ) {
+                        self.cloud_login_cancel_pending = None;
+                        self.dispatch_cli_login(&binding.provider, None, true);
+                    }
+                    if snapshot.state.is_terminal() {
+                        self.cloud_access_refresh_pending = true;
+                    }
+                }
+                crate::backend_client::CloudAccessDelivery::LoginError { message, .. } => {
+                    self.cloud_models.set_login_error(message);
+                    if binding.session.is_empty() {
+                        if self.cloud_cli_start_in_flight {
+                            self.remember_uncertain_login_owner(binding.epoch, binding.panel, &binding.provider, None);
+                        }
+                        self.cloud_cli_start_in_flight = false;
+                        self.cloud_login_cancel_pending = None;
+                    }
+                }
+            }
+            ctx.request_repaint();
+        }
+        let (Some(client), Some(handle)) = (
+            self.cloud_access_client.clone(),
+            self.runtime_handle.clone(),
+        ) else {
+            return;
+        };
+        if !self
+            .local_account
+            .context
+            .as_ref()
+            .is_some_and(|a| a.is_active())
+        {
+            return;
+        }
+        if self.cloud_access_refresh_pending
+            && !self
+                .cloud_refresh_in_flight
+                .swap(true, std::sync::atomic::Ordering::AcqRel)
+        {
+            self.cloud_access_refresh_pending = false;
+            let binding = self.cloud_binding("");
+            let cell = self.cloud_access_cell.clone();
+            let guard = self.cloud_refresh_in_flight.clone();
+            let client = client.clone();
+            let repaint = ctx.clone();
+            handle.spawn(async move {
+                let delivery = match client.enumerate().await {
+                    Ok(snapshot) => crate::backend_client::CloudAccessDelivery::Snapshot(snapshot),
+                    Err(_) => crate::backend_client::CloudAccessDelivery::SnapshotUnavailable,
+                };
+                if let Ok(mut queue) = cell.lock() {
+                    queue.push((binding, delivery));
+                }
+                guard.store(false, std::sync::atomic::Ordering::Release);
+                repaint.request_repaint();
+            });
+        }
+        if self.settings_open
+            && self
+                .cloud_models
+                .login_panel()
+                .is_some_and(|p| !p.state.is_terminal() && !p.session_id.is_empty())
+        {
+            ctx.request_repaint_after(std::time::Duration::from_millis(500));
+            if !self
+                .cli_login_poll_in_flight
+                .swap(true, std::sync::atomic::Ordering::AcqRel)
+            {
+                let provider = self.cloud_models.login_panel().unwrap().provider.clone();
+                let binding = self.cloud_binding(&provider);
+                let session = binding.session.clone();
+                let cell = self.cloud_access_cell.clone();
+                let guard = self.cli_login_poll_in_flight.clone();
+                let repaint = ctx.clone();
+                handle.spawn(async move {
+                    let delivery = match client.poll_cli_login(&session).await {
+                        Ok(snapshot) => crate::backend_client::CloudAccessDelivery::LoginSession {
+                            provider,
+                            snapshot,
+                        },
+                        Err(_) => crate::backend_client::CloudAccessDelivery::LoginError {
+                            provider,
+                            message: "Login session unavailable.".to_owned(),
+                        },
+                    };
+                    if let Ok(mut queue) = cell.lock() {
+                        queue.push((binding, delivery));
+                    }
+                    guard.store(false, std::sync::atomic::Ordering::Release);
+                    repaint.request_repaint();
+                });
+            }
+        }
+    }
+
     pub fn workspace_settings(&self) -> &crate::workspace_settings::WorkspaceSettingsState {
         &self.workspace_settings
     }
@@ -21950,6 +22641,64 @@ impl HandshakeApp {
         use crate::settings_dialog::SettingsOutcome as O;
         match outcome {
             O::None => false,
+            O::PopOut => self.detach_settings(),
+            O::Redock => self.redock_settings(),
+            O::CloudByokKeySaveRequested { provider } => {
+                let accepted = self.dispatch_cloud_byok(&provider, true);
+                if accepted {
+                    self.ack_cloud_action(&crate::settings_dialog::cloud_byok_save_author_id(
+                        &provider,
+                    ));
+                }
+                true
+            }
+            O::CloudByokKeyRemoveRequested { provider } => {
+                let accepted = self.dispatch_cloud_byok(&provider, false);
+                if accepted {
+                    self.ack_cloud_action(&crate::settings_dialog::cloud_byok_remove_author_id(
+                        &provider,
+                    ));
+                }
+                true
+            }
+            O::CliBridgeLoginRequested { provider } => {
+                if self.launch_cli_bridge_login(&provider) {
+                    self.ack_cloud_action(
+                        &crate::settings_dialog::cloud_cli_login_confirm_author_id(&provider),
+                    );
+                }
+                true
+            }
+            O::CliBridgeLoginInputSubmitted { provider, input } => {
+                if self.dispatch_cli_login(&provider, Some(input), false) {
+                    self.ack_cloud_action(&crate::settings_dialog::cloud_cli_login_send_author_id(
+                        &provider,
+                    ));
+                }
+                true
+            }
+            O::CliBridgeLoginStopRequested { provider } => {
+                if self.dispatch_cli_login(&provider, None, true) {
+                    self.ack_cloud_action(&crate::settings_dialog::cloud_cli_login_stop_author_id(
+                        &provider,
+                    ));
+                }
+                true
+            }
+            O::CliBridgeLoginPanelClosed { provider } => {
+                if self.cloud_models.login_panel().is_some_and(|p| {
+                    p.provider == provider
+                        && (p.state.is_terminal() || (p.session_id.is_empty() && p.error.is_some()))
+                }) {
+                    self.clear_cloud_edit_state();
+                    self.cloud_models.close_login_panel();
+                    self.cloud_panel_generation = self.cloud_panel_generation.wrapping_add(1);
+                    self.ack_cloud_action(
+                        &crate::settings_dialog::cloud_cli_login_close_author_id(&provider),
+                    );
+                }
+                true
+            }
             O::Close => {
                 self.close_settings();
                 true
@@ -22196,6 +22945,9 @@ impl HandshakeApp {
     /// must remain live after close: if close flushes while a GET/PUT owns the I/O slot, the deferred
     /// save is re-armed and this driver dispatches it as soon as that operation completes.
     fn drive_settings_dialog(&mut self, ctx: &egui::Context) {
+        if !self.capturing_snapshot {
+            self.pump_cloud_access(ctx);
+        }
         let active_workspace = self.active_project_id.clone();
         if !active_workspace.is_empty()
             && self.settings_loaded_project_id.as_deref() != Some(active_workspace.as_str())
@@ -22496,14 +23248,95 @@ impl HandshakeApp {
         // MT-087: build the live internal_diagnostics projection + the active palette the Settings ->
         // Diagnostics section renders from. Built into locals first (owned values) so the borrows do not
         // conflict with the `&self.workspace_settings` borrow the SettingsView also takes.
+        if self.settings_detached {
+            self.drive_settings_detached_window(ctx);
+        } else {
+            self.render_settings_surface(ctx, false);
+        }
+    }
+
+    fn drive_settings_detached_window(&mut self, ctx: &egui::Context) {
+        if self.capturing_snapshot {
+            return;
+        }
+        let window_id =
+            crate::popout_window::argus_window_id(crate::settings_dialog::SETTINGS_POPOUT_KEY);
+        let viewport_id =
+            egui::ViewportId::from_hash_of(crate::settings_dialog::SETTINGS_POPOUT_KEY);
+        let windows = self
+            .mcp_windows
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .clone();
+        if self.settings_detached_exit_pending.is_some() && windows.is_close_ready(&window_id) {
+            if let Some(exit) = self.settings_detached_exit_pending.take() {
+                self.apply_settings_outcome(exit);
+            }
+            ctx.request_repaint();
+            return;
+        }
+        let title =
+            crate::popout_window::popout_title_for(crate::settings_dialog::SETTINGS_WINDOW_LABEL);
+        let epoch = match windows.register(crate::mcp::ArgusWindowDescriptor {
+            window_id: window_id.clone(), viewport_id, title: title.clone(),
+        }) { Ok(epoch) => epoch, Err(_) => return };
+        ctx.show_viewport_immediate(
+            viewport_id,
+            egui::ViewportBuilder::default()
+                .with_title(title.clone())
+                .with_inner_size([560.0, 700.0])
+                .with_active(false),
+            |ctx, _| {
+                let closing = ctx.input(|i| i.viewport().close_requested());
+                let admit = !closing && self.settings_detached_exit_pending.is_none();
+                if windows
+                    .pump_viewport_input(ctx, &window_id, admit)
+                    .unwrap_or(false)
+                {
+                    ctx.request_repaint();
+                }
+                self.render_settings_surface(ctx, true);
+                let outer_rect_px = ctx.input(|input| input.viewport().outer_rect).map(|rect| {
+                    let scale = ctx.pixels_per_point();
+                    (
+                        (rect.min.x * scale).round() as i32,
+                        (rect.min.y * scale).round() as i32,
+                        (rect.max.x * scale).round() as i32,
+                        (rect.max.y * scale).round() as i32,
+                    )
+                });
+                crate::mcp::screenshot::record_viewport_window_handle(&windows, &window_id, epoch, ctx, &title, outer_rect_px);
+                if closing && self.settings_detached_exit_pending.is_none() {
+                    self.clear_cloud_edit_state();
+                    self.settings_detached_exit_pending =
+                        Some(crate::settings_dialog::SettingsOutcome::Close);
+                    windows.begin_close(&window_id);
+                    ctx.request_repaint();
+                }
+            },
+        );
+    }
+
+    fn render_settings_surface(&mut self, ctx: &egui::Context, detached: bool) {
         let diagnostics_view = self.diagnostics_view();
         if self.backend_is_down() {
             self.settings_diagnostics_force_open = true;
         }
         let diagnostics_force_open = self.settings_diagnostics_force_open;
         let palette = self.current_theme.palette();
-        let view = crate::settings_dialog::SettingsView {
+        let mut cloud_projection = if self.capturing_snapshot {
+            self.cloud_models.snapshot_projection()
+        } else {
+            crate::settings_dialog::CloudModelsSettingsState::default()
+        };
+        let cloud = if self.capturing_snapshot {
+            &mut cloud_projection
+        } else {
+            &mut self.cloud_models
+        };
+        let mut view = crate::settings_dialog::SettingsView {
             open_count: self.settings_open_count,
+            cloud,
             settings: &self.workspace_settings,
             persist_error: self.settings_persist_error.as_deref(),
             persist_retry_operation: self.settings_retry_operation,
@@ -22520,13 +23353,45 @@ impl HandshakeApp {
                 self.settings_snapshot_query.clone(),
             );
         }
-        let frame = crate::settings_dialog::show(ctx, view);
+        let frame = if detached {
+            crate::settings_dialog::show_detached(ctx, view)
+        } else {
+            crate::settings_dialog::show(ctx, view)
+        };
         if !self.capturing_snapshot {
             self.settings_snapshot_query = frame.query;
         }
-        if self.apply_settings_outcome(frame.outcome) {
+        if detached && self.settings_detached_exit_pending.is_some() {
+            ctx.request_repaint();
+            return;
+        }
+        self.settings_effect_context = Some(ctx.clone());
+        let exit = detached
+            && matches!(
+                frame.outcome,
+                crate::settings_dialog::SettingsOutcome::Close
+                    | crate::settings_dialog::SettingsOutcome::Redock
+            );
+        if exit {
+            self.clear_cloud_edit_state();
+            let author = if frame.outcome == crate::settings_dialog::SettingsOutcome::Close {
+                crate::settings_dialog::CLOSE_AUTHOR_ID
+            } else {
+                crate::settings_dialog::SETTINGS_REDOCK_AUTHOR_ID
+            };
+            self.ack_cloud_action(author);
+            self.settings_detached_exit_pending = Some(frame.outcome);
+            self.mcp_windows
+                .lock()
+                .unwrap_or_else(|p| p.into_inner())
+                .begin_close(&crate::popout_window::argus_window_id(
+                    crate::settings_dialog::SETTINGS_POPOUT_KEY,
+                ));
+            ctx.request_repaint();
+        } else if self.apply_settings_outcome(frame.outcome) {
             ctx.request_repaint();
         }
+        self.settings_effect_context = None;
     }
 
     /// Whether the About box is requested open (MT-015 HELP menu).
@@ -36109,6 +36974,10 @@ impl HandshakeApp {
     }
 
     fn reset_account_workspace(&mut self, ctx: &egui::Context) {
+        self.retain_unconfirmed_cloud_login();
+        crate::settings_dialog::clear_cloud_key_state(ctx, &mut self.cloud_models);
+        self.mcp_windows.lock().unwrap_or_else(|p| p.into_inner()).unregister(
+            &crate::popout_window::argus_window_id(crate::settings_dialog::SETTINGS_POPOUT_KEY));
         self.begin_layout_shutdown();
         if let Some(handle) = self.health_handle.take() {
             handle.abort();
@@ -36136,6 +37005,9 @@ impl HandshakeApp {
         fresh.mcp_server = self.mcp_server.take();
         fresh.mcp_token = self.mcp_token.clone();
         fresh.mcp_snapshot = self.mcp_snapshot.clone();
+        fresh.mcp_windows = self.mcp_windows.clone();
+        fresh.cloud_epoch = self.cloud_epoch;
+        fresh.cloud_uncertain_login_owners = std::mem::take(&mut self.cloud_uncertain_login_owners);
         fresh.mcp_action_channel = self.mcp_action_channel.clone();
         fresh.palmistry = self.palmistry.take();
         fresh.frame_counter = self.frame_counter;
@@ -36182,6 +37054,14 @@ impl HandshakeApp {
     }
 
     pub fn ui(&mut self, ctx: &egui::Context) {
+        if !self.capturing_snapshot {
+            let windows = self
+                .mcp_windows
+                .lock()
+                .unwrap_or_else(|p| p.into_inner())
+                .clone();
+            windows.install_output_plugin(ctx);
+        }
         self.local_account.show(
             ctx,
             &self.rich_doc_base_url,
@@ -36213,6 +37093,18 @@ impl HandshakeApp {
                 .as_ref()
                 .is_some_and(|context| context.is_active())
         {
+            self.retain_unconfirmed_cloud_login();
+            self.cloud_cli_start_in_flight = false;
+            crate::settings_dialog::clear_cloud_key_state(ctx, &mut self.cloud_models);
+            self.cloud_models = crate::settings_dialog::CloudModelsSettingsState::default();
+            self.cloud_access_client = None;
+            self.settings_detached = false;
+            self.settings_detached_exit_pending = None;
+            self.mcp_windows.lock().unwrap_or_else(|p| p.into_inner()).unregister(
+                &crate::popout_window::argus_window_id(crate::settings_dialog::SETTINGS_POPOUT_KEY));
+            if let Ok(mut queue) = self.cloud_access_cell.lock() {
+                queue.clear();
+            }
             egui::CentralPanel::default().show(ctx, |ui| { ui.label("Session unavailable. Workspace edits remain locked until you log in or confirm discard."); });
             return;
         }

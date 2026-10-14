@@ -44,7 +44,7 @@ pub const MAX_ACTIONS_PER_BURST: usize = 16;
 
 /// Maximum ownership interval for a queued/dispatched target mutation. A lost frame acknowledgement
 /// must not leave that target permanently busy.
-const ACTION_LEASE_TIMEOUT: Duration = Duration::from_secs(5);
+pub(crate) const ACTION_LEASE_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// Reserved, opt-in action-specific acknowledgement carried in an AccessKit node's raw `value`.
 /// Generic controls never receive this schema and therefore retain conservative `Indeterminate`
@@ -652,7 +652,7 @@ pub(crate) fn serialize_observer_click_failure(
 /// JSON-RPC tool layer parses request params into; keeping it a closed enum (rather than a stringly
 /// `op` field threaded through the dispatch) makes an invalid action impossible to represent past the
 /// parse boundary.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum UiAction {
     /// Activate the widget (egui `Action::Click` — buttons, toggles, tabs).
     Click,
@@ -717,7 +717,7 @@ impl UiAction {
 
 /// A typed failure from the action channel. Each variant maps to a specific JSON-RPC error in the
 /// tool layer, so a model gets an actionable reason rather than a generic failure.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum ActionError {
     /// No live node carries the requested `author_id` (the model addressed a widget that is not on
     /// screen this frame).
@@ -760,6 +760,9 @@ impl std::fmt::Display for ActionError {
                 write!(f, "widget '{author_id}' does not support action '{action}'")
             }
             ActionError::InvalidNumericValue { author_id, value } => {
+                if crate::accessibility::is_sensitive_author_id(author_id) {
+                    return write!(f, "secret input target rejected numeric request");
+                }
                 write!(
                     f,
                     "widget '{author_id}' requires a finite numeric value, got '{value}'"
@@ -769,7 +772,11 @@ impl std::fmt::Display for ActionError {
                 author_id,
                 value,
                 reason,
-            } => write!(f, "widget '{author_id}' rejected value '{value}': {reason}"),
+            } => {
+                if crate::accessibility::is_sensitive_author_id(author_id) {
+                    write!(f, "secret input target rejected request")
+                } else { write!(f, "widget '{author_id}' rejected value '{value}': {reason}") }
+            },
             ActionError::TargetBusy { author_id } => write!(
                 f,
                 "widget '{author_id}' already has an unacknowledged mutation"
@@ -779,10 +786,14 @@ impl std::fmt::Display for ActionError {
     }
 }
 
+impl std::fmt::Debug for ActionError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { std::fmt::Display::fmt(self, f) }
+}
+
 impl std::error::Error for ActionError {}
 
 /// The result of resolving + enqueuing one target-specific AccessKit action request.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ActionOutcome {
     /// The AccessKit request enqueued for the frame loop.
     pub request: accesskit::ActionRequest,
@@ -943,7 +954,7 @@ pub struct ActionChannel {
     handler_tickets: std::collections::HashMap<u64, std::sync::Arc<super::argus::ActionEffectTicket>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 struct PendingAction {
     outcome: ActionOutcome,
     author_id: String,
@@ -980,6 +991,51 @@ enum PendingClickCompletion {
         observer_raw_baseline: String,
         dispatch_validated: bool,
     },
+}
+
+pub(crate) fn wipe_action_request(request: &mut accesskit::ActionRequest) {
+    if let Some(accesskit::ActionData::Value(value)) = request.data.as_mut() {
+        zeroize::Zeroize::zeroize(&mut **value);
+    }
+}
+
+impl std::fmt::Debug for UiAction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("UiAction").field("action", &self.accesskit_action()).finish_non_exhaustive()
+    }
+}
+
+impl Drop for ActionOutcome {
+    fn drop(&mut self) { wipe_action_request(&mut self.request); }
+}
+
+impl std::fmt::Debug for ActionOutcome {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ActionOutcome").field("receipt_id", &self.receipt_id)
+            .field("action", &self.request.action).field("target", &self.request.target).finish_non_exhaustive()
+    }
+}
+
+impl std::fmt::Debug for PendingAction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PendingAction").field("author_id", &self.author_id)
+            .field("receipt_id", &self.outcome.receipt_id).finish_non_exhaustive()
+    }
+}
+
+impl Drop for PendingAction {
+    fn drop(&mut self) {
+        match &mut self.action {
+            UiAction::SetValue { text } | UiAction::NativeSetValue { text }
+                | UiAction::ReplaceSelectedText { text } => zeroize::Zeroize::zeroize(text),
+            UiAction::ClickWithPayload { payload } => zeroize::Zeroize::zeroize(payload),
+            _ => {},
+        }
+        wipe_action_request(&mut self.outcome.request);
+        if crate::accessibility::is_sensitive_author_id(&self.author_id) {
+            if let Some(value) = self.enqueued_value.as_mut() { zeroize::Zeroize::zeroize(value); }
+        }
+    }
 }
 
 impl PendingAction {
@@ -1199,13 +1255,24 @@ impl ActionChannel {
         if viewport != egui::ViewportId::ROOT {
             return Vec::new();
         }
-        self.drain_revalidated_with_context(fresh_snapshot, Some((ctx, viewport)))
+        self.drain_revalidated_with_context(fresh_snapshot, Some((ctx, viewport, 0)))
+    }
+
+    pub(crate) fn drain_revalidated_into_registered_events(
+        &mut self,
+        snapshot: &UiTreeSnapshot,
+        ctx: &egui::Context,
+        window: &super::argus::RegisteredWindow,
+    ) -> Vec<egui::Event> {
+        if !window.live.load(std::sync::atomic::Ordering::Acquire)
+            || ctx.viewport_id() != window.descriptor.viewport_id { return Vec::new(); }
+        self.drain_revalidated_with_context(snapshot, Some((ctx, window.descriptor.viewport_id, window.epoch)))
     }
 
     fn drain_revalidated_with_context(
         &mut self,
         fresh_snapshot: &UiTreeSnapshot,
-        production: Option<(&egui::Context, egui::ViewportId)>,
+        production: Option<(&egui::Context, egui::ViewportId, u64)>,
     ) -> Vec<egui::Event> {
         self.expire_stale_actions();
         let mut events = Vec::new();
@@ -1228,9 +1295,9 @@ impl ActionChannel {
                 );
                 continue;
             }
-            if let Some((ctx, viewport)) = production {
-                let Some(ticket) = super::argus::register_action_effect(
-                    ctx, viewport, pending.outcome.receipt_id, &pending.author_id,
+            if let Some((ctx, viewport, epoch)) = production {
+                let Some(ticket) = super::argus::register_admitted_action_effect(
+                    ctx, viewport, epoch, pending.outcome.receipt_id, &pending.author_id,
                     &pending.outcome.request, pending.enqueued_at + ACTION_LEASE_TIMEOUT,
                 ) else {
                     // A different channel still owns this live target. Keep FIFO and its lease;
@@ -1284,7 +1351,7 @@ impl ActionChannel {
                         .to_owned(),
                 ),
             );
-            events.push(egui::Event::AccessKitActionRequest(pending.outcome.request));
+            events.push(egui::Event::AccessKitActionRequest(pending.outcome.request.clone()));
         }
         events
     }
@@ -1293,7 +1360,7 @@ impl ActionChannel {
     /// the same target is recorded as terminal `Indeterminate` because the tree has no causal mutation
     /// token; target/action drift is rejected.
     pub fn acknowledge_after_render(&mut self, fresh_snapshot: &UiTreeSnapshot) {
-        self.acknowledge_with_context(fresh_snapshot, None);
+        self.acknowledge_with_context(fresh_snapshot, None, None);
     }
 
     pub(crate) fn acknowledge_after_live_render(
@@ -1301,13 +1368,23 @@ impl ActionChannel {
         fresh_snapshot: &UiTreeSnapshot,
         production_ctx: Option<&egui::Context>,
     ) {
-        self.acknowledge_with_context(fresh_snapshot, production_ctx);
+        self.acknowledge_with_context(fresh_snapshot, production_ctx, None);
+    }
+
+    pub(crate) fn acknowledge_after_registered_render(
+        &mut self,
+        snapshot: &UiTreeSnapshot,
+        ctx: &egui::Context,
+        window: &super::argus::RegisteredWindow,
+    ) {
+        self.acknowledge_with_context(snapshot, Some(ctx), Some(window));
     }
 
     fn acknowledge_with_context(
         &mut self,
         fresh_snapshot: &UiTreeSnapshot,
         production_ctx: Option<&egui::Context>,
+        window: Option<&super::argus::RegisteredWindow>,
     ) {
         self.expire_stale_actions();
         let in_flight = std::mem::take(&mut self.in_flight);
@@ -1371,14 +1448,20 @@ impl ActionChannel {
                 continue;
             }
             let node = fresh_snapshot.find_unique_by_author_id(&pending.author_id);
-            if is_effect_activation(&pending.action)
+            let secret_set_value = matches!(pending.action, UiAction::SetValue { .. })
+                && crate::accessibility::is_sensitive_author_id(&pending.author_id)
+                && matches!(pending.author_id.as_str(), "settings.cloud.byok.anthropic.key" | "settings.cloud.byok.openai.key");
+            if (is_effect_activation(&pending.action) || secret_set_value)
                 && self.handler_tickets.contains_key(&pending.outcome.receipt_id)
             {
                 // Stronger value/click completion tokens above always win. Capture-only passes
                 // never finish a handler ticket, even if they replay a matching widget.
                 let acknowledged = production_ctx.is_some_and(|ctx| {
                     self.handler_tickets.get(&pending.outcome.receipt_id).is_some_and(|ticket| {
-                        ticket.acknowledged_after_frame(ctx, pending.outcome.receipt_id)
+                        if secret_set_value && !ticket.secret_mutation_acknowledged() { return false; }
+                        if let Some(window) = window {
+                            ticket.acknowledged_after_registered_frame(ctx, pending.outcome.receipt_id, window)
+                        } else { ticket.acknowledged_after_frame(ctx, pending.outcome.receipt_id) }
                     })
                 });
                 if production_ctx.is_none() {
@@ -1579,7 +1662,9 @@ impl ActionChannel {
                 return;
             }
             receipt.status = status;
-            receipt.observed_value = observed_value;
+            receipt.observed_value = if crate::accessibility::is_sensitive_author_id(&receipt.target) {
+                None
+            } else { observed_value };
             receipt.rejection = rejection;
         }
     }
@@ -1943,7 +2028,7 @@ fn pending_set_value_completion(
     target_author_id: &str,
     action: &UiAction,
 ) -> Option<PendingSetValueCompletion> {
-    if !matches!(action, UiAction::SetValue { .. }) {
+    if !matches!(action, UiAction::SetValue { .. }) || crate::accessibility::is_sensitive_author_id(target_author_id) {
         return None;
     }
     let observer_author_id = set_value_completion_author_id(target_author_id);

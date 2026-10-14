@@ -1697,6 +1697,375 @@ fn deliver_text(cell: &ScmTextCell, result: Result<String, AppError>) {
     }
 }
 
+#[derive(Clone)]
+pub struct CloudAccessBinding {
+    pub account: AccountContext,
+    pub epoch: u64,
+    pub panel: u64,
+    pub host: u64,
+    pub provider: String,
+    pub revision: u64,
+    pub session: String,
+}
+
+/// One delivered cloud-access result, drained by the shell each frame.
+pub enum CloudAccessDelivery {
+    /// A fresh non-secret enumeration snapshot (provider statuses + CLI login commands).
+    Snapshot(CloudAccessSnapshot),
+    SnapshotUnavailable,
+    /// The result of a BYOK save/remove op: a per-provider message + (on success) a refreshed snapshot.
+    OpResult {
+        provider: String,
+        message: String,
+        snapshot: Option<CloudAccessSnapshot>,
+    },
+    /// MT-015 v5: a fresh in-app official-CLI login session snapshot (start, poll,
+    /// input, or cancel). Carries only the backend-owned session id, the typed
+    /// status, and the provider's own terminal output.
+    LoginSession {
+        provider: String,
+        snapshot: CliLoginSnapshot,
+    },
+    /// MT-015 v5: an in-app login request failed at the transport level.
+    LoginError {
+        provider: String,
+        message: String,
+    },
+}
+
+/// The single-writer async delivery queue for cloud-access results.
+pub type CloudAccessCell = Arc<Mutex<Vec<(CloudAccessBinding, CloudAccessDelivery)>>>;
+
+/// Off-thread client for the operator cloud-model access surface (MT-015).
+#[derive(Clone)]
+pub struct CloudAccessClient {
+    client: reqwest::Client,
+    base_url: String,
+    authenticated_context: AccountContext,
+}
+
+impl CloudAccessClient {
+    pub fn new(base_url: impl Into<String>) -> Self {
+        Self {
+            client: shared_http_client(),
+            authenticated_context: None,
+            base_url: base_url.into(),
+        }
+    }
+
+    /// The production client against the hardcoded backend base URL.
+    pub fn with_authenticated_context(mut self, context: AccountContext) -> Self {
+        self.authenticated_context = context;
+        self
+    }
+
+    pub fn production() -> Self {
+        Self::new(BACKEND_BASE_URL)
+    }
+
+    /// `GET /model-access/providers` → the non-secret enumeration snapshot.
+    pub async fn enumerate(&self) -> Result<CloudAccessSnapshot, AppError> {
+        let url = format!("{}/model-access/providers", self.base_url);
+        // Each provider-owned command has a five-second execution bound, but the authoritative route
+        // also performs keychain access plus lifecycle attach/reap and bounded pipe cleanup.  A live
+        // loaded-host probe measured above ten seconds, so twelve seconds could discard a valid complete
+        // response and leave every CLI lane absent until Settings was reopened.  Keep the request
+        // bounded while allowing the backend's complete fail-closed enumeration to arrive.
+        let value = authenticated_json_expect_success(
+            &self.client,
+            self.authenticated_context.clone(),
+            "GET",
+            self.client.get(&url).timeout(Duration::from_secs(20)),
+        )
+        .await?;
+        Ok(parse_cloud_access_snapshot(&value))
+    }
+
+    /// `PUT /model-access/byok/{provider}/key` with `{ "api_key": <key> }` → store the key in the OS
+    /// keychain vault. The key travels in the body only; it is never logged by this client.
+    pub async fn store_key(
+        &self,
+        provider: &str,
+        api_key: zeroize::Zeroizing<String>,
+    ) -> Result<(), AppError> {
+        #[derive(serde::Serialize)]
+        struct StoreKeyBody<'a> {
+            api_key: &'a str,
+        }
+
+        if !matches!(provider, "anthropic" | "openai") {
+            return Err(AppError::Parse("unsupported BYOK provider".to_owned()));
+        }
+        let url = format!("{}/model-access/byok/{}/key", self.base_url, provider);
+        let body = StoreKeyBody {
+            api_key: api_key.as_str(),
+        };
+        let request = self
+            .client
+            .put(&url)
+            .timeout(Duration::from_secs(5))
+            .json(&body);
+        drop(body);
+        drop(api_key);
+        authenticated_expect_success(
+            &self.client,
+            self.authenticated_context.clone(),
+            "PUT",
+            request,
+        )
+        .await
+    }
+
+    /// `DELETE /model-access/byok/{provider}/key` → remove / rotate the key (idempotent).
+    pub async fn remove_key(&self, provider: &str) -> Result<(), AppError> {
+        if !matches!(provider, "anthropic" | "openai") {
+            return Err(AppError::Parse("unsupported BYOK provider".to_owned()));
+        }
+        let url = format!("{}/model-access/byok/{}/key", self.base_url, provider);
+        delete_expect_success(&self.client, self.authenticated_context.clone(), &url).await
+    }
+
+    /// Ask the backend to start the already-pinned provider login graph as an
+    /// IN-APP pseudo-terminal session (no OS console window, no focus change).
+    /// The response is a backend-owned session snapshot; executable paths, argv,
+    /// and the child pid never cross into the GUI.
+    pub async fn launch_cli_login(&self, provider: &str) -> Result<CliLoginSnapshot, AppError> {
+        if !matches!(provider, "claude_code" | "codex") {
+            return Err(AppError::Parse(
+                "unsupported CLI login provider".to_string(),
+            ));
+        }
+        let url = format!("{}/model-access/cli-bridge/{provider}/login", self.base_url);
+        let value = post_json_expect_value_authenticated(
+            &self.client,
+            self.authenticated_context.clone(),
+            &url,
+            &serde_json::json!({}),
+            Duration::from_secs(10),
+        )
+        .await?;
+        if value.get("provider").and_then(Value::as_str) != Some(provider) {
+            return Err(AppError::Parse(
+                "CLI login receipt provider mismatch".to_string(),
+            ));
+        }
+        parse_cli_login_snapshot(&value)
+    }
+
+    /// `GET /model-access/cli-bridge-login/{session}` — poll one in-app login
+    /// session for the provider's prompt and the typed status.
+    pub async fn poll_cli_login(&self, session_id: &str) -> Result<CliLoginSnapshot, AppError> {
+        let url = format!(
+            "{}/model-access/cli-bridge-login/{}",
+            self.base_url,
+            encode_path_segment(session_id)
+        );
+        let value = authenticated_json_expect_success(
+            &self.client,
+            self.authenticated_context.clone(),
+            "GET",
+            self.client.get(&url).timeout(Duration::from_secs(10)),
+        )
+        .await?;
+        parse_cli_login_snapshot(&value)
+    }
+
+    /// `POST /model-access/cli-bridge-login/{session}/input` — deliver the
+    /// operator's answer to the provider's prompt.
+    pub async fn send_cli_login_input(
+        &self,
+        session_id: &str,
+        input: &str,
+    ) -> Result<CliLoginSnapshot, AppError> {
+        let url = format!(
+            "{}/model-access/cli-bridge-login/{}/input",
+            self.base_url,
+            encode_path_segment(session_id)
+        );
+        let value = post_json_expect_value_authenticated(
+            &self.client,
+            self.authenticated_context.clone(),
+            &url,
+            &serde_json::json!({ "input": input }),
+            Duration::from_secs(10),
+        )
+        .await?;
+        parse_cli_login_snapshot(&value)
+    }
+
+    /// `POST /model-access/cli-bridge-login/{session}/cancel` — stop the running
+    /// login process.
+    pub async fn cancel_cli_login(&self, session_id: &str) -> Result<CliLoginSnapshot, AppError> {
+        let url = format!(
+            "{}/model-access/cli-bridge-login/{}/cancel",
+            self.base_url,
+            encode_path_segment(session_id)
+        );
+        let value = post_json_expect_value_authenticated(
+            &self.client,
+            self.authenticated_context.clone(),
+            &url,
+            &serde_json::json!({}),
+            Duration::from_secs(10),
+        )
+        .await?;
+        parse_cli_login_snapshot(&value)
+    }
+}
+
+/// One in-app official-CLI login session as the shell sees it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CliLoginSnapshot {
+    pub session_id: String,
+    pub state: CloudCliLoginState,
+    /// The provider's own terminal output (ANSI already stripped by the backend).
+    pub transcript: String,
+}
+
+/// Percent-encode a path segment. The session id is a backend-generated UUID, so
+/// this is defence in depth against a malformed id being pasted into a URL.
+fn encode_path_segment(value: &str) -> String {
+    value
+        .bytes()
+        .flat_map(|c| {
+            if c.is_ascii_alphanumeric() || matches!(c, b'-' | b'_' | b'.' | b'~') {
+                vec![c as char]
+            } else {
+                format!("%{:02X}", c).chars().collect()
+            }
+        })
+        .collect()
+}
+
+fn parse_cli_login_snapshot(value: &Value) -> Result<CliLoginSnapshot, AppError> {
+    let session_id = value
+        .get("session_id")
+        .and_then(Value::as_str)
+        .filter(|id| !id.is_empty())
+        .ok_or_else(|| AppError::Parse("CLI login session id missing".to_string()))?
+        .to_owned();
+    let state = value
+        .get("status")
+        .and_then(Value::as_str)
+        .and_then(CloudCliLoginState::from_wire)
+        .ok_or_else(|| {
+            AppError::Parse("CLI login session status missing or unknown".to_string())
+        })?;
+    Ok(CliLoginSnapshot {
+        session_id,
+        state,
+        transcript: value
+            .get("transcript")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_owned(),
+    })
+}
+
+/// Parse the `GET /model-access/providers` JSON into the UI snapshot. Defensive:
+/// only the exact compiled provider IDs and fixed official login command vectors
+/// are accepted. A stale/spoofed response therefore cannot surface Gemini, case
+/// variants, an unknown provider row, or substitute an executable/argv.
+fn parse_cloud_access_snapshot(value: &Value) -> CloudAccessSnapshot {
+    let is_allowed_byok = |provider: &str| matches!(provider, "anthropic" | "openai");
+    let is_allowed_cli = |provider: &str| matches!(provider, "claude_code" | "codex");
+    let expected_cli_login = |provider: &str| match provider {
+        "claude_code" => Some(("claude", &["auth", "login"][..])),
+        "codex" => Some(("codex", &["login"][..])),
+        _ => None,
+    };
+    let byok = value
+        .get("byok")
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter()
+                .filter_map(|row| {
+                    let provider = row.get("provider")?.as_str()?.to_owned();
+                    if !is_allowed_byok(&provider) {
+                        return None;
+                    }
+                    let label = row
+                        .get("label")
+                        .and_then(Value::as_str)
+                        .unwrap_or(&provider)
+                        .to_owned();
+                    let configured =
+                        row.get("status").and_then(Value::as_str) == Some("configured");
+                    Some(CloudByokRow {
+                        provider,
+                        label,
+                        configured,
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    let cli_bridge = value
+        .get("cli_bridge")
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter()
+                .filter_map(|row| {
+                    let provider = row.get("provider")?.as_str()?.to_owned();
+                    if !is_allowed_cli(&provider) {
+                        return None;
+                    }
+                    let label = row
+                        .get("label")
+                        .and_then(Value::as_str)
+                        .unwrap_or(&provider)
+                        .to_owned();
+                    let login = row.get("login");
+                    let login_program = login
+                        .and_then(|l| l.get("program"))
+                        .and_then(Value::as_str)
+                        .unwrap_or("")
+                        .to_owned();
+                    let login_args_json = login
+                        .and_then(|l| l.get("args"))
+                        .and_then(Value::as_array)?;
+                    let (expected_program, expected_args) = expected_cli_login(&provider)?;
+                    if login_program != expected_program
+                        || login_args_json.len() != expected_args.len()
+                    {
+                        return None;
+                    }
+                    let login_args = login_args_json
+                        .iter()
+                        .map(|arg| arg.as_str().map(str::to_owned))
+                        .collect::<Option<Vec<_>>>()?;
+                    if login_args
+                        .iter()
+                        .map(String::as_str)
+                        .ne(expected_args.iter().copied())
+                    {
+                        return None;
+                    }
+                    let hint = login
+                        .and_then(|l| l.get("hint"))
+                        .and_then(Value::as_str)
+                        .unwrap_or("")
+                        .to_owned();
+                    let auth_status = CloudCliAuthStatus::from_wire(
+                        row.get("auth_status")
+                            .and_then(Value::as_str)
+                            .unwrap_or("unavailable"),
+                    );
+                    Some(CloudCliRow {
+                        provider,
+                        label,
+                        auth_status,
+                        login_program,
+                        login_args,
+                        hint,
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    CloudAccessSnapshot { byok, cli_bridge }
+}
+
 /// MT-153 C3: the immutable account context every account-scoped native client carries. `None` means no
 /// account session is bound; the shared authenticated helpers below then fail with "Account login
 /// required" BEFORE any socket is opened, so no unauthenticated request ever reaches the backend.

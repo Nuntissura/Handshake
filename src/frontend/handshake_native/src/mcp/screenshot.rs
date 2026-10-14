@@ -110,6 +110,104 @@ pub fn capture_handshake_window() -> Result<ScreenshotResult, ScreenshotError> {
     }
 }
 
+#[derive(Clone)]
+struct RegisteredHandle {
+    handle: isize,
+    title: String,
+    epoch: u64,
+    viewport: egui::ViewportId,
+    outer_rect_px: (i32, i32, i32, i32),
+    live: std::sync::Arc<std::sync::atomic::AtomicBool>,
+}
+
+static WINDOW_HANDLES: std::sync::OnceLock<std::sync::Mutex<std::collections::HashMap<String, RegisteredHandle>>> = std::sync::OnceLock::new();
+
+pub(crate) fn clear_registered_window_handle(window: &super::argus::RegisteredWindow) {
+    let mut handles = WINDOW_HANDLES.get_or_init(Default::default).lock().unwrap_or_else(|e| e.into_inner());
+    if handles.get(&window.descriptor.window_id).is_some_and(|handle|
+        handle.epoch == window.epoch && handle.viewport == window.descriptor.viewport_id
+            && std::sync::Arc::ptr_eq(&handle.live, &window.live)) {
+        handles.remove(&window.descriptor.window_id);
+    }
+}
+
+// Pinned legacy resolution seam; seeded handles never enter live registered capture.
+static LEGACY_WINDOW_HANDLES: std::sync::OnceLock<std::sync::Mutex<std::collections::HashMap<String, isize>>> = std::sync::OnceLock::new();
+
+pub fn record_window_handle(window_id: &str, hwnd: isize) {
+    if hwnd != 0 {
+        LEGACY_WINDOW_HANDLES.get_or_init(Default::default).lock().unwrap_or_else(|e| e.into_inner())
+            .insert(window_id.to_owned(), hwnd);
+    }
+}
+
+pub fn clear_window_handle(window_id: &str) {
+    LEGACY_WINDOW_HANDLES.get_or_init(Default::default).lock().unwrap_or_else(|e| e.into_inner()).remove(window_id);
+}
+
+pub fn recorded_window_handle(window_id: &str) -> Option<isize> {
+    LEGACY_WINDOW_HANDLES.get_or_init(Default::default).lock().unwrap_or_else(|e| e.into_inner()).get(window_id).copied()
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CaptureTarget { RecordedHandle(isize), TitleFallback }
+
+pub fn resolve_capture_target(recorded: Option<isize>, is_valid: impl Fn(isize) -> bool) -> CaptureTarget {
+    match recorded {
+        Some(hwnd) if is_valid(hwnd) => CaptureTarget::RecordedHandle(hwnd),
+        _ => CaptureTarget::TitleFallback,
+    }
+}
+
+pub(crate) fn record_viewport_window_handle(
+    windows: &super::argus::WindowSnapshotRegistry, window_id: &str, epoch: u64,
+    ctx: &egui::Context, title: &str, outer_rect_px: Option<(i32, i32, i32, i32)>,
+) -> Option<isize> {
+    let window = windows.get(window_id).ok()?;
+    let _channel = window.channel.lock().unwrap_or_else(|e| e.into_inner());
+    if window.epoch != epoch || window.descriptor.viewport_id != ctx.viewport_id()
+        || window.descriptor.title != title || !window.live.load(std::sync::atomic::Ordering::Acquire) {
+        return None;
+    }
+    let (left, top, right, bottom) = outer_rect_px?;
+    if right <= left || bottom <= top { return None; }
+    #[cfg(target_os = "windows")]
+    {
+        let hwnd = windows_capture::resolve_registered_window(title, std::process::id(), (left, top, right, bottom))?;
+        let current = windows.get(window_id).ok()?;
+        if current.epoch != epoch || !std::sync::Arc::ptr_eq(&current.live, &window.live)
+            || !window.live.load(std::sync::atomic::Ordering::Acquire) { return None; }
+        WINDOW_HANDLES.get_or_init(Default::default).lock().unwrap_or_else(|e| e.into_inner())
+            .insert(window_id.to_owned(), RegisteredHandle { handle: hwnd, title: title.to_owned(),
+                epoch, viewport: ctx.viewport_id(), outer_rect_px: (left, top, right, bottom), live: window.live.clone() });
+        Some(hwnd)
+    }
+    #[cfg(not(target_os = "windows"))]
+    { let _ = (left, top, right, bottom); None }
+}
+
+pub(crate) fn capture_registered_window(window: &super::argus::RegisteredWindow) -> Result<ScreenshotResult, ScreenshotError> {
+    let stored = WINDOW_HANDLES.get_or_init(Default::default).lock().unwrap_or_else(|e| e.into_inner())
+        .get(&window.descriptor.window_id).cloned();
+    let Some(stored) = stored else { return Err(ScreenshotError("Argus window has no recorded live OS handle".to_owned())); };
+    if stored.title != window.descriptor.title || stored.epoch != window.epoch
+        || stored.viewport != window.descriptor.viewport_id
+        || !std::sync::Arc::ptr_eq(&stored.live, &window.live)
+        || !stored.live.load(std::sync::atomic::Ordering::Acquire) {
+        return Err(ScreenshotError("Argus capture window identity is stale".to_owned()));
+    }
+    #[cfg(target_os = "windows")]
+    {
+        let result = windows_capture::capture_registered_handle(stored.handle, &stored.title, std::process::id(), stored.outer_rect_px);
+        if !stored.live.load(std::sync::atomic::Ordering::Acquire) {
+            return Err(ScreenshotError("Argus capture window closed during capture".to_owned()));
+        }
+        result
+    }
+    #[cfg(not(target_os = "windows"))]
+    { let _ = stored.handle; Err(ScreenshotError("Live registered-window capture is Windows-only".to_owned())) }
+}
+
 /// Win32 GDI window capture (focus-safe `PrintWindow`). Windows-only; gated behind `cfg(windows)` so
 /// non-Windows builds never reference the Win32 APIs.
 #[cfg(target_os = "windows")]
@@ -171,6 +269,8 @@ mod windows_capture {
         want_title: Vec<u16>,
         want_pid: u32,
         found: HWND,
+        matches: usize,
+        rect: Option<(i32, i32, i32, i32)>,
     }
 
     /// Enumerate top-level windows, matching by exact title AND owning pid. Returns the first match.
@@ -179,13 +279,15 @@ mod windows_capture {
             want_title: title.encode_utf16().collect(),
             want_pid: pid,
             found: std::ptr::null_mut(),
+            matches: 0,
+            rect: None,
         };
         // SAFETY: EnumWindows calls `enum_proc` synchronously for each top-level window with our
         // &mut FindCtx as the lparam; the pointer is valid for the duration of the call.
         unsafe {
             EnumWindows(Some(enum_proc), &mut ctx as *mut FindCtx as LPARAM);
         }
-        if ctx.found.is_null() {
+        if ctx.found.is_null() || ctx.matches != 1 {
             None
         } else {
             Some(ctx.found)
@@ -210,11 +312,41 @@ mod windows_capture {
         if len > 0 {
             let got = &buf[..len as usize];
             if got == ctx.want_title.as_slice() {
+                if let Some(wanted) = ctx.rect {
+                    let mut rect: RECT = std::mem::zeroed();
+                    if GetWindowRect(hwnd, &mut rect) == 0 || (rect.left, rect.top, rect.right, rect.bottom) != wanted {
+                        return TRUE;
+                    }
+                }
                 ctx.found = hwnd;
-                return 0; // stop enumerating
+                ctx.matches += 1;
             }
         }
         TRUE
+    }
+
+    pub(super) fn resolve_registered_window(title: &str, pid: u32, rect: (i32, i32, i32, i32)) -> Option<isize> {
+        let mut ctx = FindCtx { want_title: title.encode_utf16().collect(), want_pid: pid, found: std::ptr::null_mut(), matches: 0, rect: Some(rect) };
+        unsafe { EnumWindows(Some(enum_proc), &mut ctx as *mut FindCtx as LPARAM); }
+        if ctx.matches == 1 && !ctx.found.is_null() { Some(ctx.found as isize) } else { None }
+    }
+
+    pub(super) fn capture_registered_handle(handle: isize, title: &str, pid: u32, expected_rect: (i32, i32, i32, i32)) -> Result<ScreenshotResult, ScreenshotError> {
+        let _in_flight = CaptureInFlightGuard::acquire()?;
+        let hwnd = handle as HWND;
+        let mut owner = 0;
+        let mut buf = [0u16; 512];
+        let mut rect: RECT = unsafe { std::mem::zeroed() };
+        let valid = unsafe {
+            GetWindowThreadProcessId(hwnd, &mut owner);
+            let len = GetWindowTextW(hwnd, buf.as_mut_ptr(), buf.len() as i32);
+            IsWindowVisible(hwnd) != 0 && owner == pid && len > 0
+                && buf[..len as usize] == title.encode_utf16().collect::<Vec<_>>()
+                && GetWindowRect(hwnd, &mut rect) != 0
+                && (rect.left, rect.top, rect.right, rect.bottom) == expected_rect
+        };
+        if !valid { return Err(ScreenshotError("Argus recorded window is no longer owned by this process/descriptor".to_owned())); }
+        capture_hwnd(hwnd)
     }
 
     /// Capture a specific HWND to PNG bytes via an off-screen memory DC + bounded `WM_PRINT`.
