@@ -1115,7 +1115,7 @@
         "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-original7-filehost01/launch-config.json",
         "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-original7-filehost01/launch-bindings.json"
       ],
-      "method": "Adapt the actual native-stage04 capture/scheduling/cache/collector boundary. One Python3.12 Popen of the original Cargo argv list with shellFalse/CREATE_NO_WINDOW/direct exclusive binary file handles, retained native process handle and GetProcessTimes100ns birth. Persist actual Cargo numeric CreateNew/flush/fsync immediately after wait, before postcapture; close and hash real logs. Primary independently retains the Python owner handle and actual numeric exit.",
+      "method": "Adapt the actual native-stage04 capture/scheduling/cache/collector boundary. One Python3.12 Popen directly of the already-pinned cargo_actual.path plus original seven Cargo args, never the rustup shim or a fallback with shellFalse/CREATE_NO_WINDOW/direct exclusive binary file handles, retained native process handle and GetProcessTimes100ns birth. Persist actual Cargo numeric CreateNew/flush/fsync immediately after wait, before postcapture; close and hash real logs. Primary independently retains the Python owner handle and actual numeric exit.",
       "before_batch_source_commit": "575997886285ede0442cc8b93bb69eed57d94e08",
       "before_batch_source_tree": "d09d95190432025bcafd5a8593c74eec7dbd401a",
       "source_binding_policy": "Retain f626 as the before-batch source proof. Invocation must bind the final coherent pushed candidate after GUI15 and any other admitted related changes, with exact changed-source allowance and fresh full before/after bindings; do not launch stale575 ahead of consolidation.",
@@ -1142,7 +1142,9 @@
         "Preserve capture-command numerics and error outputs separately; do not infer drift from an unretained LASTEXITCODE or self-author a host-success numeric.",
         "Native invocation remains conditional on final integrated source, affected SAME-IV caller/binding review, original gates, sole physical-slot ownership and original remaining stage allowance. No new compiler slots or historical counter reset.",
         "Lint and dependency preflight follow packet swarm coordination rules before expensive compile; reuse valid unchanged resolver and relevant backend CORE12 evidence.",
-        "Retain original full native/runtime/auth/GUI/reopen/recovery/shutdown/CKC/WP1/HBR independent acceptance; do not claim interruption survival from this method."
+        "Retain original full native/runtime/auth/GUI/reopen/recovery/shutdown/CKC/WP1/HBR independent acceptance; do not claim interruption survival from this method.",
+        "Launch already-pinned cargo_actual directly with exact retained native handle/birth/exit; cargo_shim hash is provenance only and cannot be a fallback.",
+        "Actual Cargo success is separate from exact owned descendant and caller closure on success/error/cap paths; preserve truthful missing or indeterminate results."
       ],
       "allowed_execution_outputs_after_separate_release": [
         "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-original7-filehost01/caller-identity.json",
@@ -1157,7 +1159,22 @@
         "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-original7-filehost01/compile-post-binding.json",
         "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-original7-filehost01/compile-evidence.json"
       ],
-      "recorded_at_utc": "2026-10-14T22:12:57.689895+00:00"
+      "recorded_at_utc": "2026-10-14T22:12:57.689895+00:00",
+      "direct_actual_cargo_method_amendment_20261015": {
+        "method": "DIRECT_ACTUAL_CARGO",
+        "finding": "SAME-IV and Diagnostics observed native-check-owner.py:320 launching cargo_shim; retained handle/birth/scheduling/wait therefore prove the shim only. Checked cargo_actual hash alone does not prove launch identity; caller remains NOT_EXECUTION_CLEAR.",
+        "actual_binary": {
+          "path": "C:\\Users\\iljas\\.rustup\\toolchains\\1.97.1-x86_64-pc-windows-msvc\\bin\\cargo.exe",
+          "sha256": "ddfbad20b31b918d3439d070945ec59bbfe037a6ec0ab5b584459e69c8b37d1b"
+        },
+        "source_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt186-native-original7-filehost01/native-check-owner.py:320",
+        "required_change": "Within the same three preparation files, launch pinned cargo_actual.path directly, verify exact binary identity/hash, and retain its Popen native handle, GetProcessTimes100ns birth, scheduling and actual wait exit. No shim fallback.",
+        "exit_proof": "Persist actual Cargo numeric CreateNew/flush/fsync immediately after actual wait and before postcapture; primary separately retains external Python owner native handle and actual exit. Shim hash is provenance only; never invent historical child numerics.",
+        "closure_proof": "Actual Cargo0 does not prove descendants closed. Retain exact owned child birth/hash inventory and original owner closure including error/cap paths; missing or indeterminate numerics/closure stay unproven.",
+        "review": "One SAME-IV affected launch-lineage confirmation on stable final bindings before execution; reuse unchanged source proof, no repeat full audit.",
+        "next_actor": "Central primary delegates the same three-file Diagnostics correction, then consolidates final candidate and affected bindings for SAME-IV launch-lineage confirmation; invocation remains HELD.",
+        "preserved": "Original7 args/env/profile916/source575-before-batch/f626/target/cache/gates/stage1of3/history13/metadata955packages205DECLARED/counters; no new tool install, flags, lane, metadata/probe, budget or permission."
+      }
     }
   }
 }

@@ -201,6 +201,39 @@
     "serial_consumers": "MT172 navigation store/API/tests then MT174 composer; no overlapping writer",
     "runtime_predecessors": "Actual canonical registry publication/Flight Recorder proof and real grants remain required; independent runtime/acceptance NOT_RUN0/5"
   },
+  "owner_workspace_navigation_grant_issuer_repair_20261015": {
+    "decision_id": "WP012-R2-OWNER-WORKSPACE-NAVIGATION-GRANT-ISSUER-20261015",
+    "recorded_at_utc": "2026-10-14T23:37:36Z",
+    "status": "SOURCE_ONLY_IMPLEMENTATION_RELEASED",
+    "decision_owner": "01a13ab5-bfe4-74b1-8fc3-64e691a76827",
+    "authority_refs": [
+      "packet.json#/operator_adaptive_delivery_delegation_20261014",
+      "packet.json#/auth_mapping_r2_adoption_20261011",
+      "packet.json#/swarm_production_20261014"
+    ],
+    "adopted_unit_ids": ["WP012-P2-AUTH-R2-001", "WP012-P2-AUTH-R2-004"],
+    "source_lease_id": "WP012-SWARM-ACCOUNT-001",
+    "source_owner_chat": "01a13acc-56f9-7ee1-a6f9-4920504b7136",
+    "accepted_workers": {
+      "sole_writer": "/root/account_backend_contract",
+      "independent_dependency_adversarial_checker": "/root/native_account_contract",
+      "leader_integration_dependency": "01a13acc-56f9-7ee1-a6f9-4920504b7136",
+      "assignment_evidence": "Actual Account leader acceptance relayed by central mediator before source start; storage/surreal/workspaces.rs only, api/workspaces.rs is caller and not admitted."
+    },
+    "coordinator_chat": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+    "exact_path": "src/backend/handshake_core/src/storage/surreal/workspaces.rs",
+    "recorded_failure": "Central Account/Diagnostics source evidence: authenticated genuine NEW-workspace CREATE derives the existing granted capabilities from current session/principal delegation and allowlist, but that allowlist omits already-adopted model_lane.navigation.read Workspace/Read. This prevents the legitimate original Owner navigation flow despite supported profile/session eligibility.",
+    "remedy_scope": "Add only already-authorized delegated model_lane.navigation.read to the genuine NEW-workspace CREATE issuer through existing capability filters and grant transaction. Retain exact workspace resource, Read action, five-scope identity, canonical authenticated principal/session and current delegation checks.",
+    "lease_resolution": "This exact child adds only workspaces.rs to current MT173 R2 scope and the account source lease. Central records actual one-writer/dependency-checker acceptance and settles any former whole-file writer before source starts; existing Account leader chooses useful workers. No worker names or starts are invented by this record.",
+    "controls": [
+      "Profile membership never confers content access without the exact persisted grant; no wildcard, fake/manual preflight provisioning or new capability.",
+      "No historical workspace backfill, login migration, automatic grants outside explicit genuine NEW workspace CREATE, profile/session widening or unrelated account source change.",
+      "This admission supplies neither proposed mandatory three-grant activation eligibility nor a replacement durable recovery controller/law; those policy dispositions remain separate.",
+      "Preserve original R2 denial, foreign tuple, canonical credential/grant, revocation, reopen and same-session attribution proof. Source-only changes do not prove runtime.",
+      "No build/test/runtime/provisioning/Git authority or acceptance closure. Central integrates affected source with coherent batch and original proof separately."
+    ],
+    "next_actor": "Central obtains and records actual Account exclusive writer/checker handoff, starts the exact issuer repair and returns source/affected-proof handback."
+  },
   "auth_mapping_r2_adoption_20261011": {
     "decision_id": "WP012-P2-AUTH-MAPPING-001-R2",
     "status": "ADOPTED_IMPLEMENTATION_AUTHORIZED",
@@ -242,6 +275,7 @@
     ],
     "exact_file_scope": {
       "MT-173": [
+        "src/backend/handshake_core/src/storage/surreal/workspaces.rs",
         "src/backend/handshake_core/src/storage/surreal.rs",
         "src/backend/handshake_core/src/storage/surreal/model_lane.rs",
         "src/backend/handshake_core/src/storage/surreal/model_lane_schema.surql",

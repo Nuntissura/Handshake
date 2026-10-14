@@ -7,8 +7,8 @@
   "updated_at_utc": "2026-10-14T21:25:37Z",
   "status": "ORIGINAL_CORE_CHECK_INDEPENDENTLY_VERIFIED_VIA_RETAINED12; DURABLE_HOST_FAILED_CLOSED; KERNEL_BOTH_DEVICES_MERGED_PUSHED; ASSETS_KUMIHIMO1C9_PUBLISHED_UNVALIDATED; SERIAL_ASSET_PROOF13_PHASE1_CLEARED",
   "current_diagnostic_method_ref": "MT-188.json#/swarm_changed_source_compile_admission_20261014/durable_caller_repair_admission_20261014",
-  "current_source_checkpoint_ref": "MT-174.json#/swarm_p1_source_checkpoint_20261014",
-  "current_product_candidate": "575997886285ede0442cc8b93bb69eed57d94e08",
+  "current_source_checkpoint_ref": "WP-KERNEL-012-phase02-successor-handoff-v6.json#/current_working_source_checkpoint_20261015",
+  "current_product_candidate": "776fd44d7fb7990d37a5501ada699dd19efb7746",
   "latest_native_terminal_ref": "MT-186.json#/delegated_stage04_check1_diagnostic_result_20261014",
   "current_native_continuation_ref": "MT-186.json#/delegated_native_stage04_20261014",
   "current_native_source_repair_ref": "MT-175.json#/diagnostic_two_group_batch_repair_20261014",
@@ -43,8 +43,8 @@
     "product": {
       "worktree": "../wtc-WP-KERNEL-012",
       "branch": "feat/WP-KERNEL-012",
-      "head": "139e4b7db83ffc56bf72f59cec3e8ea7c69fecc3",
-      "tree": "5f987622be9587282567858f1ba4b4618659d133",
+      "head": "776fd44d7fb7990d37a5501ada699dd19efb7746",
+      "tree": "660707149e5224c378f756856a935ec39e3b7019",
       "parent": "eba6c403773524e498629153e9c725f64b72a9bd",
       "observed_clean": true,
       "live_remote_observed": "refs/heads/feat/WP-KERNEL-012 matched8088c79c8de982a6bb3c38565f71d9ce6ff23979 after assembled5filecheckpoint",
@@ -157,16 +157,12 @@
     }
   ],
   "latest_source_checkpoint": {
-    "record_ref": "MT-175.json#/native_diagnostics_export_repair_checkpoint_20261013",
-    "change": "Exactly one insertion: pub mod internal_diagnostics; in native src/lib.rs",
-    "independent_verdict": "SOURCE_CLEAR only; postcheckpoint remote/clean/sole-path/all7416 reviewed bytes independently verified",
-    "source_sha256": "89984e6c8f1c3781b916744c0cf9b027b80148e9438679090ababd56b8c9cf89",
-    "checkpoint_result_sha256": "b08cfe690d222f0e44670fde7ff48bb77198e5b2bdbf34f33947bbc4c1ca1f4a",
-    "artifact_lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt175-diagnostics-export-repair",
-    "compiler_on_checkpoint": "NOT_RUN",
-    "runtime_on_checkpoint": "NOT_RUN",
-    "known_residual": "InternalDiagnostics::start is not wired in current native src. Exporting its producer does not establish active signing provenance. Do not add duplicate startup or invent provenance without scoped reconciliation."
-  },
+  "record_ref": "WP-KERNEL-012-phase02-successor-handoff-v6.json#/current_working_source_checkpoint_20261015",
+  "status": "CURRENT_WORKING_SOURCE_CHECKPOINT_NOT_FINAL_FROZEN_CANDIDATE",
+  "compiler_on_checkpoint": "NOT_PROVEN_ON_CURRENT_WORKING_SOURCE",
+  "runtime_on_checkpoint": "NOT_ACCEPTED",
+  "historical_observation_ref": "WP-KERNEL-012-phase02-successor-handoff-v6.json#/current_working_source_checkpoint_20261015/prior_projection_observations/latest_source_checkpoint"
+},
   "current_authorized_team": {
     "decision_ref": "packet.json#/operator_successor_delivery_team_20261014",
     "delivery_lead_kernel_owner": "01a13ab5-bfe4-74b1-8fc3-64e691a76827",
@@ -429,6 +425,32 @@
           "authority": "Roster only; no new authority role or permission."
         }
       }
+    },
+    "current_practice_lessons_20261015": {
+      "operator_instruction": "let your subagent update the workflow in the handoff so we can take these lessons that dont use extra tools in the next sessions. then focus back on wp kernel 012 and orchestrating your teams",
+      "kind": "Attributed existing-tool handoff lessons; no new mandatory gate, policy or tool implementation.",
+      "source": {
+        "path": "WP-KERNEL-012-agent-coordination-tool-proposal-v1.md",
+        "sha256": "87c801f9ba7bdf1c274fc3b0ddb1ecaa5d3d3be896f86ec70e96447f648517d3",
+        "topic_refs": [
+          "communication-preparation-synthesis",
+          "dependency-pre-cargo-execution-synthesis",
+          "attributed-corrections-and-proof-floor"
+        ],
+        "attribution": "Synthesis of thirteen collected roles plus delivery_dependencies and coordination_buddy; preserves individual attribution, not unanimous consensus."
+      },
+      "practices": [
+        "Use existing saved scope/owner records for readback and obtain worker ACK; ACK confirms receipt, not permission, execution or acceptance.",
+        "Use focused rg and scoped diff to trace affected callers, parser and fields through existing consumers; retain intentional malformed/negative cases.",
+        "Compare original selector, target, feature and manual command declarations; ambiguous or generated cases remain UNKNOWN, and presence is not execution.",
+        "For changed schema behavior review existing reader law, inverse and history; preserve original pins and required independent runtime proof.",
+        "Compare actual grant allowlists with required capability/action/resource triples; never provision grants automatically or widen intentional identity rules.",
+        "Bind admitted actual executable path/hash/argv and reuse the SAME existing lineage preflight on unchanged relevant inputs; a shim hash alone proves no actual child identity.",
+        "Observe owned process PID plus OS birth/image/parent identity under the original observed/current-process floor; retain missing facts and original closure, without adding historical census requirements.",
+        "Keep source handback, Cargo exit, outer exit, postbinding, owned closure and independent runtime acceptance distinct; reuse unchanged valid proof rather than rerunning green inputs."
+      ],
+      "limits": "No new projections, tools, workspaces, checklists, scripts, Job or ETW mechanism. Existing rules001-022, milestones, source history, unresolved work and independent acceptance remain unchanged.",
+      "next_action": "Return to WP-KERNEL-012 and orchestrate existing teams through the central devleader and mediator under current saved admissions."
     }
   },
   "approval_state_and_proposal": {
@@ -633,10 +655,10 @@
     "last_result_ref": "MT-186.json#/delegated_stage01_check2_result_20261014"
   },
   "swarm_p1_checkpoint_and_next_boundary_20261014": {
-    "source_state_ref": "MT-174.json#/swarm_p1_source_checkpoint_20261014",
+    "source_state_ref": "WP-KERNEL-012-phase02-successor-handoff-v6.json#/current_working_source_checkpoint_20261015",
     "compiler_admission_ref": "packet.json#/swarm_changed_source_compile_admission_20261014",
-    "current_product_commit": "575997886285ede0442cc8b93bb69eed57d94e08",
-    "current_product_tree": "d09d95190432025bcafd5a8593c74eec7dbd401a",
+    "current_product_commit": "776fd44d7fb7990d37a5501ada699dd19efb7746",
+    "current_product_tree": "660707149e5224c378f756856a935ec39e3b7019",
     "independent_source_disposition": "SOURCE_CLEAR_WITH_DECLARED_RUNTIME_RESIDUALS",
     "compiler_runtime_status": "VERIFIED_ORIGINAL_CORE_CHECK_RETAINED_EVIDENCE on575 via decision12; DURABLE09_OVERALL_NOT_ACCEPTED; native/runtime NOT_RUN on575; all original acceptance retained",
     "next_action": "Decision12 consumed1/1: retain independent compiler-only verdict/output1e1d577d and failed09 separately; no collector or green Cargo repetition. Decision13: primary independently cleared phase1 fetch0/narrow lock delta/owned closure, then prepares the next exact original Assets phase/current binding and sole slot. Continue actual native/dark/light/negative proof and canonical GitHub publication before distinct host adoption. Original native7 has2 remaining stage04 slots; prepare minimum evidenced changed-caller method/admission before release, preserving exact argv/profile/warm target and existing metadata. Real schema165 INFO/pin confirmation and full original runtime remain required; no fake auth/grants.",
@@ -706,6 +728,62 @@
     "gui15_scope": "Four exact test/helper paths retained; amendment2dde preserved.",
     "caller14_ref": "MT-186.json#/swarm_changed_source_compile_admission_20261014/native_caller_preparation_repair_20261014",
     "caller14_scope": "Three exact preparation paths retained; invocation HELD.",
-    "next_actor": "Central devleader routes admissions16/17 to existing signedwatcher/activation owners and mediator checker assignments; primary consolidates source plus lint/dependencies before original native7. Owning original runtime proofs remain separate."
+    "next_actor": "Central devleader routes admissions16/17 to existing signedwatcher/activation owners and mediator checker assignments; primary consolidates source plus lint/dependencies before original native7. Owning original runtime proofs remain separate. Central primary routes same-three-file direct pinned Cargo correction to Diagnostics, then one affected SAME-IV launch-lineage confirmation at stable final bindings before invocation. Central primary/mediator immediately releases coupled two-file source18 to the same nativewire writer/checker; GUI15 remains sole consumer writer.",
+    "caller14_method_ref": "MT-186.json#/swarm_changed_source_compile_admission_20261014/native_caller_preparation_repair_20261014/direct_actual_cargo_method_amendment_20261015",
+    "caller14_method": "DIRECT_ACTUAL_CARGO; same three preparation files, original7/pins/history; final candidate binding pending and invocation HELD.",
+    "source_release18_ref": "MT-175.json#/request_agent_display_label_repairs_20261015",
+    "source_release18_ownership": "server.rs primary-to-nativewire whole-file transfer unchanged; session.rs confirmed no active exclusive writer by mediator item exec-0a93a011-174f-41e4-90fc-2ae83d5cd6a2 and explicitly assigned by Root; coupled two-file source18 RELEASED."
+  },
+  "current_working_source_checkpoint_20261015": {
+  "status": "CURRENT_WORKING_SOURCE_CHECKPOINT_NOT_FINAL_FROZEN_CANDIDATE",
+  "candidate_commit": "776fd44d7fb7990d37a5501ada699dd19efb7746",
+  "candidate_tree": "660707149e5224c378f756856a935ec39e3b7019",
+  "observation_source": "Root supplied actual central normal-pushed clean checkpoint at latest read; no new Git observation performed by this projection writer",
+  "includes_prior_source18_checkpoint": {
+    "commit": "ad7aba7a469f220cb7f71884f5db5c3a01e292c9",
+    "tree": "0bff2b202c8e33aab81cefd955c12224b63ef1d8"
+  },
+  "saved_source_admission_refs": [
+    "MT-175.json#/kumihimo_standalone_source_admission_20261014/original_chrome_demo_repair_20261015",
+    "MT-188.json#/independent_drain_source_repair_20261015",
+    "MT-173.json#/owner_workspace_navigation_grant_issuer_repair_20261015"
+  ],
+  "admission_limit": "Saved source-only admissions; code START/completion not yet proven to Root. No proof invocation release.",
+  "native14": "Static caller accepted; source hash unchanged; final candidate bindings and invocation remain HELD",
+  "compiler_and_runtime": "Current checkpoint is not final frozen compile candidate or compiler/runtime PASS; whole WP/runtime NOT_ACCEPTED",
+  "historical_core_proof": {
+    "commit": "575997886285ede0442cc8b93bb69eed57d94e08",
+    "tree": "d09d95190432025bcafd5a8593c74eec7dbd401a",
+    "evidence_scope": "Retained historical CORE12 bound to original unchanged inputs; not rebound to current working checkpoint"
+  },
+  "prior_projection_observations": {
+    "current_product_candidate": "575997886285ede0442cc8b93bb69eed57d94e08",
+    "current_source_checkpoint_ref": "MT-174.json#/swarm_p1_source_checkpoint_20261014",
+    "repository_product": {
+      "worktree": "../wtc-WP-KERNEL-012",
+      "branch": "feat/WP-KERNEL-012",
+      "head": "139e4b7db83ffc56bf72f59cec3e8ea7c69fecc3",
+      "tree": "5f987622be9587282567858f1ba4b4618659d133",
+      "parent": "eba6c403773524e498629153e9c725f64b72a9bd",
+      "observed_clean": true,
+      "live_remote_observed": "refs/heads/feat/WP-KERNEL-012 matched8088c79c8de982a6bb3c38565f71d9ce6ff23979 after assembled5filecheckpoint",
+      "restart_rule": "Re-read branch, HEAD, dirty state and live remote before mutation; retain direct HANDSHAKE_GOV_ROOT access. No new branch/worktree, merge, reset or governance copy is authorized here.",
+      "dirt_at_activation": "NONE observed; do not fabricate a product commit. Push existing branch after kernel preservation."
+    },
+    "latest_source_checkpoint": {
+      "record_ref": "MT-175.json#/native_diagnostics_export_repair_checkpoint_20261013",
+      "change": "Exactly one insertion: pub mod internal_diagnostics; in native src/lib.rs",
+      "independent_verdict": "SOURCE_CLEAR only; postcheckpoint remote/clean/sole-path/all7416 reviewed bytes independently verified",
+      "source_sha256": "89984e6c8f1c3781b916744c0cf9b027b80148e9438679090ababd56b8c9cf89",
+      "checkpoint_result_sha256": "b08cfe690d222f0e44670fde7ff48bb77198e5b2bdbf34f33947bbc4c1ca1f4a",
+      "artifact_lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/mt175-diagnostics-export-repair",
+      "compiler_on_checkpoint": "NOT_RUN",
+      "runtime_on_checkpoint": "NOT_RUN",
+      "known_residual": "InternalDiagnostics::start is not wired in current native src. Exporting its producer does not establish active signing provenance. Do not add duplicate startup or invent provenance without scoped reconciliation."
+    },
+    "swarm_p1_current_product_commit": "575997886285ede0442cc8b93bb69eed57d94e08",
+    "swarm_p1_current_product_tree": "d09d95190432025bcafd5a8593c74eec7dbd401a",
+    "swarm_p1_source_state_ref": "MT-174.json#/swarm_p1_source_checkpoint_20261014"
   }
+}
 }
