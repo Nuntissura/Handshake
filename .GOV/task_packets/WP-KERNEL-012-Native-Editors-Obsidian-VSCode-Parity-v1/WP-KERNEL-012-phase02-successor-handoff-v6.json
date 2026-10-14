@@ -4,11 +4,11 @@
   "file_kind": "handoff",
   "version": 6,
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
-  "updated_at_utc": "2026-10-14T10:44:03.617586+00:00",
-  "status": "FRESH_SUCCESSOR_PARALLEL_CONNECTED_SOURCE_BATCH_ACTIVE",
+  "updated_at_utc": "2026-10-14T13:14:59.881297+00:00",
+  "status": "CORE_CHECK02_FAILED; OPERATOR_CHANGED_HOST_RETRY_AUTHORIZED",
   "current_diagnostic_method_ref": "MT-186.json#/delegated_native_stage04_20261014",
-  "current_source_checkpoint_ref": "MT-175.json#/diagnostic_two_group_checkpoint_20261014",
-  "current_product_candidate": "f724b8852f79d0ea6e2601ff6151c0522fa1be78",
+  "current_source_checkpoint_ref": "MT-188.json#/successor_core_json_macro_checkpoint_20261014",
+  "current_product_candidate": "139e4b7db83ffc56bf72f59cec3e8ea7c69fecc3",
   "latest_native_terminal_ref": "MT-186.json#/delegated_stage04_check1_diagnostic_result_20261014",
   "current_native_continuation_ref": "MT-186.json#/delegated_native_stage04_20261014",
   "current_native_source_repair_ref": "MT-175.json#/diagnostic_two_group_batch_repair_20261014",
@@ -16,7 +16,7 @@
   "current_stage_history": "Stage01 and02 independently exhausted3/3 each; ten cumulativeFAIL101 retained. Current25e1491c10path cloud/window batch failednative library on omitted5DTOimportgroup; reviewer acknowledged missedimportclosure and exactclaiminvalid pendingreproof. CW001-CW005 unchanged behavior review remains scopedsourceevidence, never compiler/runtime proof. Stage03 explicit0/3 additionalcontinuation with actualrestoredtype/importscopecensus and exactbackendclient importrepair. No resets. Backendmount/authlegacytest/windowGUI/durableHMAC/genuineauth/fullacceptance OPEN. Currentrefs supersede historical preparation prose.",
   "operator_request": "ok update handoff, apply repo changes. commit and push gov kernel, then wp kernel 012 with dirt. then restart work, give all teams the updated workflow and changes to repo governance before restarting.. i will also hand off every descicion to you.",
   "document_authorization": "Operator authorizes handoff/repo changes, kernel then product checkpoint/push and restart, all team briefing first, delegates technical decisions and direct-blocker scope expansion",
-  "plain_language_summary": "Historical schema/core proof is retained. Twelve native compiler failures are recorded; latestnative library compiled and nextintegrationtest stopped on missingappfactorysetter. Allcurrentpinnedappmethod testconsumers were checked, and the connectedsetter/sharedregistrygetter/typedlisting batch is reviewed/pushed e63eef659. Laststage03 compiler preparation authorized afterexactactualouterpayload repair: previousparent1/directCargo101 discrepancy staysrecorded. Threecore roles and temporarydisjointworkers followactiveworkflow. Fixedmemoryreserve refusal removed; diskfloorunchanged/fresh370GBpasses and initialunobservedresourcecause remainsunknown. Real runtimeauth/GUI/windows/backendcloudroutes/durablereceipts/originalwholeWPacceptance stillOPEN.",
+  "plain_language_summary": "Finish original WP012/CKC/WP1 native editor and connected runtime acceptance with independent proof. Parallel15-file source batch and one JSON macro repair are pushed and source-reviewed. Core confirmation failed on allocator aborts with all485 selected targets NOT_OBSERVED; original runtime/native/registry/recovery and parent acceptance remain open. Operator requested one retry after closing Chrome; retain histories and use fresh host observation.",
   "authority_precedence": [
     "Live root AGENTS.md/CLAUDE.md and current Handshake Codex, subject to preserved WP pins and explicit Operator amendments",
     "Kernel Builder protocol, HANDSHAKE_BUILD_RULES.json and governing Master Spec bindings",
@@ -35,17 +35,17 @@
       "worktree": "Discover live kernel from this file's ancestor root",
       "branch": "gov_kernel",
       "observed_head_before_handoff": "59815f59b74730f993938155244ce07842d872d2",
-      "owner_chat": "01a1323d-2a04-78f1-9430-1589c9cd54ea",
-      "ownership_transfer": "NONE; another reader does not become writer by reading this handoff",
+      "owner_chat": "01a139f3-b98c-7b61-b541-960ec3e048de",
+      "ownership_transfer": "Fresh successor owner is declared in packet.json#/operator_successor_delivery_team_20261014",
       "handoff_commit": "Resolve the commit containing this file through Git history; do not treat the pre-handoff HEAD as its containing commit",
       "preserved_transient": "gameplan.confirmations.yaml was already dirty; preserve it and exclude it from this handoff commit"
     },
     "product": {
       "worktree": "../wtc-WP-KERNEL-012",
       "branch": "feat/WP-KERNEL-012",
-      "head": "f724b8852f79d0ea6e2601ff6151c0522fa1be78",
-      "tree": "137394ee441aabab611ac5ebf6ad9a8ff0ead8d0",
-      "parent": "7930cb914332836ec22724468c949f88c6182b66",
+      "head": "139e4b7db83ffc56bf72f59cec3e8ea7c69fecc3",
+      "tree": "5f987622be9587282567858f1ba4b4618659d133",
+      "parent": "eba6c403773524e498629153e9c725f64b72a9bd",
       "observed_clean": true,
       "live_remote_observed": "refs/heads/feat/WP-KERNEL-012 matched8088c79c8de982a6bb3c38565f71d9ce6ff23979 after assembled5filecheckpoint",
       "restart_rule": "Re-read branch, HEAD, dirty state and live remote before mutation; retain direct HANDSHAKE_GOV_ROOT access. No new branch/worktree, merge, reset or governance copy is authorized here.",
@@ -179,7 +179,7 @@
   },
   "proposed_adaptive_team": {
     "id": "WP012-V5-PROPOSAL-TEAM",
-    "approval_state": "APPROVED_ACTIVE",
+    "approval_state": "HISTORICAL; CURRENT_TEAM_IS_current_authorized_team",
     "core_roles": [
       {
         "role": "delivery_lead",
@@ -378,14 +378,11 @@
   "authoritative_decision_ref": "packet.json#/operator_successor_delivery_team_20261014",
   "scope_expansion_authority": "Delivery lead may authorize the smallest evidenced source/configuration/proof-method expansion that directly repairs a recorded failure or removes an exact blocker. Before writes, record failure, necessary paths, owner, risks/control and original proof. Preserve previous work and return to original outcome; no unrelated feature, invented authentication/grants/provenance or acceptance weakening.",
   "restart_execution_state": {
-    "native_preparation_ref": "MT-186.json#/stage01_preparation_and_resource_blocker_20261014",
-    "source_repair_ref": "MT-175.json#/four_group_batch_checkpoint_20261014",
-    "next_action": "Bind current8088c79c/sourcecheckpoint tostage, refresh fivechangedsource/full input+authority and relevantproof groups; reuseunchangedrunner/profiles. OneIVdelta then originalnativecheck3. Afterthirdterminal rootrecords next evidencedstage/method decision; no automaticreset.",
-    "runtime_blocker_refs": [
-      "MT-186.json original deployment/auth admission",
-      "Single-owned diagnostics signing/current watcher adoption and native durable receipt consumer missing; diagnostic/dependency reports provide exact paths for laterroot scope assignment"
-    ],
-    "last_result_ref": "MT-186.json#/delegated_stage01_check2_result_20261014"
+    "source_checkpoint_ref": "MT-188.json#/successor_core_json_macro_checkpoint_20261014",
+    "last_result_ref": "MT-188.json#/successor_core_check2_result_20261014",
+    "next_action": "Prepare one Operator-authorized changed-host core retry on139e, same original command/profile/target, current bindings and official gates. Native proof and runtime remain dependent/open; do not reset counters.",
+    "continuation_ref": "MT-188.json#/operator_changed_host_retry_20261014",
+    "original_acceptance": "MT171-175 remainBLOCKED/accepted0of5; original scope/pins/source conservation/auth/publication/native/recovery/shutdown/independent proofs retained"
   },
   "memory_policy_ref": "packet.json#/operator_memory_reserve_removal_20261014",
   "latest_shutdown_checkpoint_ref": "MT-188.json#/source_only_checkpoint_20261014",
@@ -399,5 +396,37 @@
     ],
     "finding": "Productsupportslegitimatefirst-runsetup; currentcustomMT186newstore/firstOwner admissionban needs scopedrootdisposition. Startupcurrentlyrequires5IDs beforestorage whileproductsetup/loginneedsrunningbackend. Existingrealaccount API cancreate3IDs/login-sessionfour/authorizedworkspacefive; no manualfakeIDs/grants/fixture substitutes.",
     "next": "Resolve restrictedproductmanagedauthority setup/login startup anddeferredprotectedruntime againstactualsource state/owners beforewrites; preservedefaultdeny/currentcontext/same-heldsessionreopen andoriginalpublication."
+  },
+  "current_core_terminal_ref": "MT-188.json#/successor_core_check2_result_20261014",
+  "current_core_continuation_ref": "MT-188.json#/operator_changed_host_retry_20261014",
+  "communication_roi_decision_20261014": {
+    "decision_id": "WP012-COMMUNICATION-ROI-20261014",
+    "operator_request": "Continue work; improve team communication only if it provides a big, significant development speed benefit; record an adopted improvement in the handoff.",
+    "observed_examples": [
+      "GUI producer/consumer coordination required follow-up after a public wrapper choice was withdrawn and BeforeRender lacked the actual ViewportClass input.",
+      "Direct app-server messaging to a native subagent was rejected; the existing runtime-leader to primary-integrator relay delivered exact signatures to the native worker.",
+      "A preparer message crossed an already completed preparation result; the integrator reused the result and did not repeat the work."
+    ],
+    "decision": "No larger communication redesign is justified. No measured significant speed gain has been established. Reuse existing direct peer coordination; clarify exact interfaces inline where this prevents evidenced cross-file rework.",
+    "optional_inline_payload": [
+      "producer owner and exact file",
+      "existing method signature and required real identity/callback inputs",
+      "consumer callsite and existing caller migrations",
+      "close and error semantics",
+      "ready or blocked; relinquished ownership when relevant"
+    ],
+    "routing": "Leaders communicate directly. The primary integrator relays to its own subagents when the app-server route rejects them. The delivery lead retains scope, resource and proof decisions.",
+    "constraints": "No new approval chain, mandatory meeting, reporting system, helper, validator gate or interruption of compiler input freezes. Disjoint edits need no interface exchange.",
+    "speed_claim": "NOT_MEASURED; do not claim a significant speedup."
+  },
+  "historical_restart_execution_state_before_core_20261014": {
+    "native_preparation_ref": "MT-186.json#/stage01_preparation_and_resource_blocker_20261014",
+    "source_repair_ref": "MT-175.json#/four_group_batch_checkpoint_20261014",
+    "next_action": "Bind current8088c79c/sourcecheckpoint tostage, refresh fivechangedsource/full input+authority and relevantproof groups; reuseunchangedrunner/profiles. OneIVdelta then originalnativecheck3. Afterthirdterminal rootrecords next evidencedstage/method decision; no automaticreset.",
+    "runtime_blocker_refs": [
+      "MT-186.json original deployment/auth admission",
+      "Single-owned diagnostics signing/current watcher adoption and native durable receipt consumer missing; diagnostic/dependency reports provide exact paths for laterroot scope assignment"
+    ],
+    "last_result_ref": "MT-186.json#/delegated_stage01_check2_result_20261014"
   }
 }
