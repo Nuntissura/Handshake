@@ -1,0 +1,24 @@
+{
+ "crate": "hsk-studio-pigment",
+ "lane": "SMB-PIGMENT-SELECTION",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slice 1 pushed on d48bc30: clippy clean, 5 selection tests green, check of pigment+composite+render-cpu+render-gpu exit 0",
+ "commits": [
+  {"sha": "7fe7a3a", "subject": "Pigment selection engine: lib.rs mod line (sources not yet added)"},
+  {"sha": "d476434", "subject": "Pigment selection engine sources and tests"},
+  {"sha": "d48bc30", "subject": "Pigment selection: extend combine in u32 fixed point; hostile test accepts Overflow or BudgetExceeded"}
+ ],
+ "capabilities_done": ["CoveragePlane + to_mask_bytes", "CombineMode STU-RAS-118", "rect/ellipse/polygon(FillRule) AA", "feather via feather_kernel", "colour_range", "invert", "selection::DESCRIPTOR"],
+ "tests": {"argv": "nextest run -p hsk-studio-pigment --test selection --no-fail-fast", "exit": 0, "sha": "d48bc30", "passed": 5, "failed": 0},
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "SMB-PIGMENT-BRUSH may consume CoveragePlane and combine",
+ "updated_at": "2026-10-14T20:01:40Z",
+ "notes": {
+  "route": "retry guard route (a): product failure fixed by commit then rerun; no gameplan step added",
+  "commit_note": "first commit 7fe7a3a missed the untracked new files (pathspec commit); d476434 added them. Cargo.lock untouched",
+  "descriptor": "selection::DESCRIPTOR is a separate const; the crate-level DESCRIPTOR is unchanged to keep the change additive",
+  "deviations": "bow-tie replaced by pentagram for the fill-rule case (both rules fill a bow-tie identically); colour_range takes a tight-stride ColourView; invert on a u32::MAX canvas may refuse as Overflow or BudgetExceeded"
+ }
+}
