@@ -298,6 +298,32 @@ use crate::storage::Database;
 
 #[cfg(feature = "runtime-full")]
 #[derive(Clone)]
+pub struct AccountBootstrapState {
+    pub storage: Arc<dyn Database>,
+    pub surreal: storage::surreal::SurrealStorage,
+    pub capability_registry: Arc<capabilities::CapabilityRegistry>,
+}
+
+#[cfg(feature = "runtime-full")]
+impl AccountBootstrapState {
+    pub fn new(
+        storage: Arc<dyn Database>,
+        surreal: storage::surreal::SurrealStorage,
+        capability_registry: Arc<capabilities::CapabilityRegistry>,
+    ) -> Self {
+        Self { storage, surreal, capability_registry }
+    }
+}
+
+#[cfg(feature = "runtime-full")]
+impl From<&AppState> for AccountBootstrapState {
+    fn from(state: &AppState) -> Self {
+        Self::new(state.storage.clone(), state.surreal.clone(), state.capability_registry.clone())
+    }
+}
+
+#[cfg(feature = "runtime-full")]
+#[derive(Clone)]
 pub struct AppState {
     pub storage: Arc<dyn Database>,
     /// The embedded store itself.

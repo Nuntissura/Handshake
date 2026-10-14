@@ -870,6 +870,16 @@ pub fn run_watcher(config: PalmistryConfig, options: RunOptions) -> std::io::Res
                     "invalid original signing session",
                 )
             })?;
+            let runtime_identity = config
+                .signing_runtime_identity
+                .as_ref()
+                .filter(|identity| identity.is_valid_for_session(session_id))
+                .ok_or_else(|| {
+                    std::io::Error::new(
+                        std::io::ErrorKind::InvalidInput,
+                        "signing requires canonical native runtime identity",
+                    )
+                })?;
             let seed = control::read_private_signing_seed(Duration::from_secs(1))?;
             Some(control::WatcherSigningBootstrap::from_private_seed(
                 control::WatcherSigningIdentity {
@@ -881,6 +891,13 @@ pub fn run_watcher(config: PalmistryConfig, options: RunOptions) -> std::io::Res
                     ring_version: 2,
                     record_size: 120,
                     launch_nonce: expected_nonce,
+                    runtime_instance_schema_id: runtime_identity.runtime_instance_schema_id.clone(),
+                    runtime_instance_id: runtime_identity.runtime_instance_id,
+                    runtime_host_scope_id: runtime_identity.runtime_host_scope_id.clone(),
+                    runtime_lease_protocol: runtime_identity.runtime_lease_protocol.clone(),
+                    runtime_lease_address: runtime_identity.runtime_lease_address,
+                    runtime_lease_port: runtime_identity.runtime_lease_port,
+                    parent_os_creation_time_100ns: runtime_identity.parent_os_creation_time_100ns,
                 },
                 seed,
             )?)

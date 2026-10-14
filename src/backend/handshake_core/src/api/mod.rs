@@ -83,6 +83,26 @@ pub fn routes_with_process_reclaim_runtime(
     }
 }
 
+/// Compose the real scoped launch service and retain its paired durable drain.
+pub fn routes_with_scoped_operator_chat(
+    state: AppState,
+    process_runtime: crate::process_ledger::ProcessReclaimRuntime,
+    product_scope: ProductLocalResourceScope,
+    model_access_state: model_access::ModelAccessState,
+    operator_chat_state: operator_chat::OperatorChatState,
+    swarm_event_drain: crate::swarm_orchestration::events::DurableSwarmFrDrain,
+) -> ApiRoutes {
+    let operator_routes = operator_chat::scoped_routes(operator_chat_state)
+        .layer(axum::Extension(product_scope.clone()))
+        .layer(axum::Extension(state.surreal.resource_access_lifecycle()));
+    let mut routes = routes_with_process_reclaim_runtime(
+        state, process_runtime, product_scope, model_access_state,
+    );
+    routes.router = routes.router.merge(operator_routes);
+    routes.runtime.swarm_event_drain = Some(swarm_event_drain);
+    routes
+}
+
 use axum::{routing::get, Router};
 
 use crate::AppState;

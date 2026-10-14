@@ -1356,7 +1356,7 @@ pub fn force_json_stream_output(
 #[derive(Clone)]
 pub struct OperatorChatLaunchService {
     coordinator: Arc<SwarmCoordinator>,
-    catalog: Arc<ModelCatalog>,
+    catalog: Option<Arc<ModelCatalog>>,
     recorder: Arc<dyn FlightRecorder>,
     instance_counter: Arc<AtomicU32>,
     _process_ledger_runtime: Option<RetainedLedgerBatcher>,
@@ -1401,12 +1401,12 @@ impl OperatorChatLaunchService {
 
     pub fn new(
         coordinator: Arc<SwarmCoordinator>,
-        catalog: Arc<ModelCatalog>,
+        catalog: impl Into<Option<Arc<ModelCatalog>>>,
         recorder: Arc<dyn FlightRecorder>,
     ) -> Self {
         Self {
             coordinator,
-            catalog,
+            catalog: catalog.into(),
             recorder,
             instance_counter: Arc::new(AtomicU32::new(1)),
             _process_ledger_runtime: None,
@@ -1415,13 +1415,13 @@ impl OperatorChatLaunchService {
 
     pub fn new_with_process_ledger_runtime(
         coordinator: Arc<SwarmCoordinator>,
-        catalog: Arc<ModelCatalog>,
+        catalog: impl Into<Option<Arc<ModelCatalog>>>,
         recorder: Arc<dyn FlightRecorder>,
         process_ledger_runtime: RetainedLedgerBatcher,
     ) -> Self {
         Self {
             coordinator,
-            catalog,
+            catalog: catalog.into(),
             recorder,
             instance_counter: Arc::new(AtomicU32::new(1)),
             _process_ledger_runtime: Some(process_ledger_runtime),
@@ -1854,7 +1854,12 @@ impl OperatorChatLaunchService {
         actor: &str,
         reason: &str,
     ) -> Result<(), OperatorChatError> {
-        self.catalog
+        let catalog = self.catalog.as_deref().ok_or_else(|| {
+            OperatorChatError::Invalid(
+                "operator-chat selection audit requires a ModelCatalog".to_string(),
+            )
+        })?;
+        catalog
             .record_selection_decision(self.recorder.as_ref(), selected_model_id, actor, reason)
             .await
             .map_err(OperatorChatError::from)
@@ -1870,7 +1875,7 @@ impl OperatorChatLaunchService {
         build_spawn_request_with_catalog(
             selection,
             self.next_instance(),
-            Some(self.catalog.as_ref()),
+            self.catalog.as_deref(),
         )
     }
 

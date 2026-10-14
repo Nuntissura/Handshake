@@ -5825,6 +5825,28 @@ struct PendingRichCodeBlockSave {
     saved_text: String,
 }
 
+struct WorkspaceActivationRequest {
+    operation_id: uuid::Uuid,
+    generation: u64,
+    workspace_id: String,
+    account: Arc<crate::local_account::AuthenticatedContext>,
+    handle: Option<tokio::task::JoinHandle<Result<
+        crate::local_account::WorkspaceActivationAcknowledgement,
+        crate::local_account::WorkspaceActivationError,
+    >>>,
+}
+
+#[derive(Default)]
+struct WorkspaceActivationState {
+    required: bool,
+    has_committed_workspace: bool,
+    generation: u64,
+    admitted: Option<(Arc<crate::local_account::AuthenticatedContext>, String)>,
+    requests: Vec<WorkspaceActivationRequest>,
+    desired: Option<String>,
+    error: Option<String>,
+}
+
 pub struct HandshakeApp {
     health_status: HealthDisplayState,
     /// Canonical `/health` endpoint retained across manual refreshes and periodic re-probes. Tests may
@@ -6063,6 +6085,7 @@ pub struct HandshakeApp {
     /// `/workspaces/:id/workbench/layout` path (MT-009). Seeded to the same `default-project` the
     /// default panes use; a project-switch changes this and triggers a load on the next frame.
     active_project_id: String,
+    workspace_activation: WorkspaceActivationState,
     /// Per-project layout persistence manager (MT-009): debounce-on-change, retry-on-transient,
     /// in-memory last-known-good, and a UI-readable status. Persists THROUGH the backend's
     /// SurrealDB-authoritative `/workspaces/:id/workbench/layout` REST endpoint — no local file.
@@ -8271,6 +8294,7 @@ impl HandshakeApp {
             popout_argus_epochs: HashMap::new(),
             pop_out_request: None,
             active_project_id: DEFAULT_PROJECT_ID.to_owned(),
+            workspace_activation: WorkspaceActivationState { required: true, ..Default::default() },
             layout_manager,
             loaded_project_id: None,
             layout_dirty_signal: false,
@@ -13328,6 +13352,7 @@ impl HandshakeApp {
             popout_argus_epochs: HashMap::new(),
             pop_out_request: None,
             active_project_id: DEFAULT_PROJECT_ID.to_owned(),
+            workspace_activation: WorkspaceActivationState::default(),
             layout_manager,
             loaded_project_id: None,
             layout_dirty_signal: false,
@@ -20180,6 +20205,10 @@ impl HandshakeApp {
 
     fn refresh_mcp_durability_binding(&mut self, base_url: &str) {
         self.mcp_durability_generation = self.mcp_durability_generation.wrapping_add(1);
+        if self.workspace_activation.required && !self.workspace_activation_is_admitted() {
+            *self.mcp_durability.lock().unwrap_or_else(|e| e.into_inner()) = None;
+            return;
+        }
         let binding = self.diagnostic_provenance.as_ref().zip(self.local_account.context.as_ref())
             .filter(|(_, account)| account.is_active())
             .map(|(provenance, account)| crate::mcp::server::ArgusDurabilityBinding {
@@ -20194,6 +20223,8 @@ impl HandshakeApp {
     }
 
     fn bind_backend_clients(&mut self, base_url: &str, handle: tokio::runtime::Handle) {
+        self.workspace_activation.generation = self.workspace_activation.generation.wrapping_add(1);
+        self.workspace_activation.admitted = None;
         self.refresh_mcp_durability_binding(base_url);
         self.swarm_concurrency_epoch = self.swarm_concurrency_epoch.wrapping_add(1);
         self.swarm_concurrency_pending = None;
@@ -35252,8 +35283,141 @@ impl HandshakeApp {
     /// fresh default from step 2 remains — mirroring React's `defaultWorkbenchLayoutState(projectId)`
     /// fallback. No-op if `project_id` is already active.
     ///
-    /// Returns `true` if the switch happened (the id actually changed).
+    /// Production returns `true` when an activation request starts; the layout changes only after
+    /// its authenticated readiness acknowledgement. The explicitly constructed headless test shell
+    /// retains synchronous layout setup, which supplies no production activation evidence.
     pub fn switch_project(&mut self, project_id: &str) -> bool {
+        if self.workspace_activation.required {
+            return self.request_workspace_activation(project_id);
+        }
+        self.commit_workspace_selection(project_id)
+    }
+
+    fn workspace_activation_is_admitted(&self) -> bool {
+        self.workspace_activation.admitted.as_ref().is_some_and(|(account, workspace)| {
+            workspace == &self.active_project_id && account.is_active()
+                && self.local_account.context.as_ref().is_some_and(|current| Arc::ptr_eq(account, current))
+        })
+    }
+
+    fn request_workspace_activation(&mut self, workspace_id: &str) -> bool {
+        if workspace_id.is_empty() || (self.workspace_activation_is_admitted()
+            && self.active_project_id == workspace_id) {
+            return false;
+        }
+        if !self.workspace_activation.requests.is_empty() {
+            if self.workspace_activation.desired.as_deref() != Some(workspace_id) {
+                self.workspace_activation.generation = self.workspace_activation.generation.wrapping_add(1);
+                self.workspace_activation.desired = Some(workspace_id.to_owned());
+            }
+            // A superseded operation still owns its server mutation. Unknown delivery never
+            // permits a second POST, even for a different workspace.
+            return false;
+        }
+        let Some(account) = self.local_account.context.clone().filter(|account| account.is_active()) else {
+            self.workspace_activation.error = Some("Log in before activating a workspace.".to_owned());
+            return false;
+        };
+        let Some(runtime) = self.runtime_handle.clone() else {
+            self.workspace_activation.error = Some("Workspace activation runtime is unavailable.".to_owned());
+            return false;
+        };
+        self.workspace_activation.generation = self.workspace_activation.generation.wrapping_add(1);
+        self.workspace_activation.admitted = None;
+        self.workspace_activation.desired = Some(workspace_id.to_owned());
+        self.workspace_activation.error = None;
+        self.mcp_durability_generation = self.mcp_durability_generation.wrapping_add(1);
+        *self.mcp_durability.lock().unwrap_or_else(|e| e.into_inner()) = None;
+        self.project_tabs.set_active_id("");
+        let operation_id = uuid::Uuid::new_v4();
+        let selected = workspace_id.to_owned();
+        let backend = self.rich_doc_base_url.clone();
+        let captured_account = account.clone();
+        let captured_workspace = selected.clone();
+        let wake = self.frame_ctx.clone();
+        let handle = runtime.spawn(async move {
+            let result = crate::local_account::activate_workspace(
+                &crate::backend_client::shared_http_client(), &backend, captured_account, &captured_workspace, operation_id,
+            ).await;
+            if let Some(wake) = wake { wake.request_repaint(); }
+            result
+        });
+        self.workspace_activation.requests.push(WorkspaceActivationRequest {
+            operation_id, generation: self.workspace_activation.generation,
+            workspace_id: selected, account, handle: Some(handle),
+        });
+        true
+    }
+
+    fn poll_workspace_activation(&mut self) {
+        if self.capturing_snapshot { return; }
+        let mut index = 0;
+        while index < self.workspace_activation.requests.len() {
+            if !self.workspace_activation.requests[index].handle.as_ref().is_some_and(|handle| handle.is_finished()) {
+                index += 1;
+                continue;
+            }
+            let mut request = self.workspace_activation.requests.remove(index);
+            let Some(handle) = request.handle.take() else { continue; };
+            let result = self.runtime().block_on(handle);
+            let current = request.generation == self.workspace_activation.generation
+                && request.account.is_active()
+                && self.local_account.context.as_ref().is_some_and(|account| Arc::ptr_eq(account, &request.account));
+            match result {
+                Ok(Ok(ack)) => {
+                    let matches = ack.operation_id == request.operation_id
+                        && ack.workspace_id == request.workspace_id
+                        && ack.owner_account_id == request.account.account_id
+                        && ack.actor_principal_id == request.account.principal_id
+                        && ack.authenticated_session_id == request.account.session_id
+                        && ack.access_space_id == request.account.access_space_id;
+                    if !matches {
+                        if current { self.workspace_activation.error = Some("Workspace activation acknowledgement did not match. The original operation remains unresolved.".to_owned()); }
+                        self.workspace_activation.requests.insert(index, request);
+                        index += 1;
+                    } else if current {
+                        self.commit_workspace_selection(&request.workspace_id);
+                        self.workspace_activation.admitted = Some((request.account, request.workspace_id.clone()));
+                        self.workspace_activation.has_committed_workspace = true;
+                        self.workspace_activation.error = None;
+                        self.workspace_activation.desired = None;
+                        self.project_tabs.set_active_id(&request.workspace_id);
+                        if let Some(runtime) = self.runtime_handle.clone() {
+                            self.left_rail.project_tree.set_workspace(&request.workspace_id, &runtime);
+                        }
+                        let base = self.rich_doc_base_url.clone();
+                        self.refresh_mcp_durability_binding(&base);
+                    }
+                }
+                Ok(Err(error)) if !error.is_uncertain() => {
+                    if current {
+                        self.workspace_activation.error = Some(error.to_string());
+                        self.workspace_activation.desired = None;
+                    }
+                }
+                other => {
+                    if current {
+                        self.workspace_activation.error = Some(match other {
+                            Ok(Err(error)) => error.to_string(),
+                            Err(error) => format!("Workspace activation delivery failed: {error}. The original operation remains unresolved."),
+                            Ok(Ok(_)) => unreachable!(),
+                        });
+                    } else {
+                        self.workspace_activation.error = Some("An earlier workspace activation remains unresolved. Further activation is locked pending canonical operation reconciliation.".to_owned());
+                    }
+                    self.workspace_activation.requests.insert(index, request);
+                    index += 1;
+                }
+            }
+        }
+        if self.workspace_activation.requests.is_empty() {
+            if let Some(workspace) = self.workspace_activation.desired.take() {
+                self.request_workspace_activation(&workspace);
+            }
+        }
+    }
+
+    fn commit_workspace_selection(&mut self, project_id: &str) -> bool {
         if self.active_project_id == project_id {
             return false;
         }
@@ -35263,7 +35427,9 @@ impl HandshakeApp {
         //    `PUT` on the UI thread, so a backend-down switch would stall the frame loop (the same freeze
         //    class this MT fixes). The snapshot is captured on the UI thread (it reads live shell state),
         //    then the network `PUT` runs on a short-lived worker; the layout reset below proceeds at once.
-        self.spawn_layout_save_now();
+        if !self.workspace_activation.required || self.workspace_activation.has_committed_workspace {
+            self.spawn_layout_save_now();
+        }
         // 2. Reset to the entered project's fresh default + point the shell at it. The next frame's
         //    lifecycle load overwrites this default with the stored layout if one exists (loaded_project_id
         //    now differs from active_project_id), else the fresh default remains.
@@ -35271,6 +35437,18 @@ impl HandshakeApp {
         self.ensure_rich_document_workspace();
         self.project_tabs.set_active_id(project_id);
         true
+    }
+
+    fn show_project_tabs(&mut self, ctx: &egui::Context) -> Option<String> {
+        let palette = self.current_theme.palette();
+        let colors = ProjectTabColors {
+            bar_bg: palette.bg, active_bg: palette.accent_soft, inactive_bg: palette.surface,
+            hover_bg: palette.surface_strong, text: palette.text,
+            disabled_text: palette.text_subtle, accent: palette.accent, error: palette.error_text,
+        };
+        egui::TopBottomPanel::top("handshake_project_tabs")
+            .exact_height(PROJECT_TAB_BAR_HEIGHT)
+            .show(ctx, |ui| self.project_tabs.show(ui, colors)).inner
     }
 
     /// Poll the in-flight `GET /workspaces` fetch (MT-011) and fold the result into the project-tab
@@ -35295,7 +35473,18 @@ impl HandshakeApp {
                     self.project_tabs.apply_fetched(projects);
                     // Keep the active highlight + active_project_id consistent if the fetch changed the
                     // active id (e.g. the seeded default project is not in the backend list).
-                    self.active_project_id = self.project_tabs.active_id().to_owned();
+                    if self.workspace_activation.required {
+                        let selected = self.project_tabs.active_id().to_owned();
+                        self.project_tabs.set_active_id(
+                            self.workspace_activation.admitted.as_ref()
+                                .map(|(_, id)| id.as_str()).unwrap_or(""),
+                        );
+                        if !selected.is_empty() {
+                            self.request_workspace_activation(&selected);
+                        }
+                    } else {
+                        self.active_project_id = self.project_tabs.active_id().to_owned();
+                    }
                 }
                 Ok(Err(e)) => self.project_tabs.apply_fetch_error(e.to_string()),
                 Err(e) => self
@@ -37156,6 +37345,8 @@ impl HandshakeApp {
     }
 
     fn reset_account_workspace(&mut self, ctx: &egui::Context) {
+        self.workspace_activation.generation = self.workspace_activation.generation.wrapping_add(1);
+        self.workspace_activation.admitted = None;
         {
             let windows = self.mcp_windows.lock().unwrap_or_else(|e| e.into_inner()).clone();
             for pane_id in self.popout_argus_epochs.keys() {
@@ -37189,6 +37380,9 @@ impl HandshakeApp {
             &self.rich_doc_base_url,
         );
         fresh.local_account = std::mem::take(&mut self.local_account);
+        fresh.workspace_activation.requests = std::mem::take(&mut self.workspace_activation.requests);
+        fresh.workspace_activation.generation = self.workspace_activation.generation;
+        fresh.workspace_activation.desired = None;
         fresh.account_has_private_state = fresh.local_account.context.is_some();
         fresh.mcp_server = self.mcp_server.take();
         fresh.mcp_durability = self.mcp_durability.clone();
@@ -37306,6 +37500,26 @@ impl HandshakeApp {
                 queue.clear();
             }
             egui::CentralPanel::default().show(ctx, |ui| { ui.label("Session unavailable. Workspace edits remain locked until you log in or confirm discard."); });
+            return;
+        }
+
+        if !self.capturing_snapshot {
+            self.frame_ctx.get_or_insert_with(|| ctx.clone());
+            self.poll_workspace_activation();
+            self.poll_workspaces();
+        }
+        if self.workspace_activation.required && !self.workspace_activation_is_admitted() {
+            let selection = self.show_project_tabs(ctx);
+            if !self.capturing_snapshot {
+                if let Some(workspace) = selection { self.request_workspace_activation(&workspace); }
+            }
+            egui::CentralPanel::default().show(ctx, |ui| {
+                ui.label(self.workspace_activation.error.as_deref()
+                    .unwrap_or("Select a workspace. Workspace edits remain locked until activation is acknowledged."));
+            });
+            if !self.capturing_snapshot && self.workspace_activation.requests.iter().any(|request| request.handle.is_some()) {
+                ctx.request_repaint_after(std::time::Duration::from_millis(100));
+            }
             return;
         }
 
@@ -37749,27 +37963,17 @@ impl HandshakeApp {
         // `active_project_id`; the layout-persistence lifecycle (below) then saves the leaving project's
         // layout and loads the entered project's layout on the next frame. Colors come from the active
         // MT-003 theme tokens so the strip flips dark<->light with the rest of the shell.
-        let project_palette = self.current_theme.palette();
-        let project_tab_colors = ProjectTabColors {
-            bar_bg: project_palette.bg,
-            active_bg: project_palette.accent_soft,
-            inactive_bg: project_palette.surface,
-            hover_bg: project_palette.surface_strong,
-            text: project_palette.text,
-            disabled_text: project_palette.text_subtle,
-            accent: project_palette.accent,
-            error: project_palette.error_text,
-        };
-        let switch_request = egui::TopBottomPanel::top("handshake_project_tabs")
-            .exact_height(PROJECT_TAB_BAR_HEIGHT)
-            .show(ctx, |ui| self.project_tabs.show(ui, project_tab_colors))
-            .inner;
+        let switch_request = self.show_project_tabs(ctx);
         if let Some(new_project_id) = switch_request {
             // A non-active project tab was clicked: perform the save-old / set-active transition. The
             // entered project's layout LOADS on the next frame via the lifecycle (loaded != active).
             if self.switch_project(&new_project_id) {
                 ctx.request_repaint();
             }
+        }
+        if self.workspace_activation.required && !self.workspace_activation_is_admitted() {
+            ctx.request_repaint();
+            return;
         }
 
         // WP-KERNEL-012 MT-088 (§5.8.5 HARD): the status-bar health segment is the global backend

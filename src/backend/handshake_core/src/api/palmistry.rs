@@ -102,6 +102,25 @@ pub struct AdoptExistingWatcher {
     pub original_signature: String,
     #[serde(deserialize_with = "deserialize_adopt_original_scope")]
     pub original_scope: crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+    pub runtime_instance_schema_id: String,
+    pub runtime_instance_id: Uuid,
+    pub runtime_host_scope_id: String,
+    pub runtime_lease_protocol: String,
+    pub runtime_lease_address: IpAddr,
+    pub runtime_lease_port: u16,
+    pub parent_os_creation_time_100ns: u64,
+}
+
+impl AdoptExistingWatcher {
+    fn runtime_descriptor(&self) -> crate::process_ledger::EmbeddedRuntimeInstanceDescriptor {
+        crate::process_ledger::EmbeddedRuntimeInstanceDescriptor {
+            instance_id: self.runtime_instance_id,
+            host_scope_id: self.runtime_host_scope_id.clone(),
+            lease_protocol: self.runtime_lease_protocol.clone(),
+            loopback_address: self.runtime_lease_address,
+            loopback_port: self.runtime_lease_port,
+        }
+    }
 }
 
 // Close only the adoption wire. Shared scope deserialization and legacy callers stay unchanged.
@@ -634,8 +653,10 @@ async fn launch(
     authenticate_native_launch(peer_addr, &request)?;
     if request.mode == PalmistryLaunchMode::AdoptExisting {
         let observed = observe_current_watcher_os_identity(&request)?;
+        verify_native_runtime_lease(&request, &observed)?;
         challenge_current_owned_watcher(&request).await?;
         observed.recheck_after_challenge()?;
+        verify_native_runtime_lease(&request, &observed)?;
         // Wire/ring validation is not the missing independent OS/challenge/START/verifier predecessor.
         // Never enter legacy reattach-or-SPAWN for an existing native-owned watcher.
         return Err(PalmistryLaunchError::unavailable(
@@ -2017,6 +2038,17 @@ fn validate_adopt_existing_shape(
         || adopt.os_creation_time_100ns == 0
         || adopt.ring_version != 2
         || adopt.record_size != 120
+        || adopt.runtime_instance_schema_id
+            != crate::process_ledger::EMBEDDED_RUNTIME_INSTANCE_SCHEMA_ID
+        || adopt.runtime_instance_id.is_nil()
+        || adopt.runtime_instance_id != request.session_id
+        || adopt.runtime_host_scope_id.trim().is_empty()
+        || adopt.runtime_host_scope_id.len() > 256
+        || adopt.runtime_lease_protocol
+            != crate::process_ledger::EMBEDDED_RUNTIME_LOOPBACK_UDP_PROTOCOL
+        || adopt.runtime_lease_address != IpAddr::V4(Ipv4Addr::LOCALHOST)
+        || adopt.runtime_lease_port == 0
+        || adopt.parent_os_creation_time_100ns == 0
         || scope.owner_account_id.as_uuid().is_nil()
         || scope.actor_principal_id.as_uuid().is_nil()
         || scope.authenticated_session_id.as_uuid().is_nil()
@@ -2085,6 +2117,7 @@ fn validate_current_watcher_os_facts(
     if facts.parent_pid != request.parent_pid
         || facts.creation_time_100ns != adopt.os_creation_time_100ns
         || facts.parent_creation_time_100ns == 0
+        || facts.parent_creation_time_100ns != adopt.parent_os_creation_time_100ns
         || facts.parent_creation_time_100ns > facts.creation_time_100ns
         || facts.executable != configured
         || facts.executable != claimed
@@ -2171,6 +2204,121 @@ impl CurrentWatcherOsObservation {
 }
 
 #[cfg(target_os = "windows")]
+fn verify_native_runtime_lease(
+    request: &PalmistryLaunchRequest,
+    observed: &CurrentWatcherOsObservation,
+) -> Result<(), PalmistryLaunchError> {
+    let adopt = validate_adopt_existing_shape(request)?;
+    let host_scope = crate::process_ledger::resolve_embedded_runtime_host_scope()
+        .map_err(|error| PalmistryLaunchError::unavailable(error.to_string()))?;
+    let descriptor = adopt.runtime_descriptor();
+    if descriptor.host_scope_id != host_scope
+        || observed.parent_creation_time_100ns != adopt.parent_os_creation_time_100ns
+        || read_live_process_generation(&observed.parent)? != adopt.parent_os_creation_time_100ns
+        || udp_lease_owner_pid(descriptor.loopback_address, descriptor.loopback_port)?
+            != request.parent_pid
+    {
+        return Err(PalmistryLaunchError::bad_request(
+            "native runtime lease does not match the authenticated parent generation",
+        ));
+    }
+    if read_live_process_generation(&observed.parent)? != adopt.parent_os_creation_time_100ns {
+        return Err(PalmistryLaunchError::bad_request(
+            "native parent generation changed during runtime lease observation",
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(not(target_os = "windows"))]
+fn verify_native_runtime_lease(
+    _request: &PalmistryLaunchRequest,
+    _observed: &CurrentWatcherOsObservation,
+) -> Result<(), PalmistryLaunchError> {
+    Err(PalmistryLaunchError::unavailable(
+        "native runtime lease ownership requires supported Windows observation",
+    ))
+}
+
+#[cfg(target_os = "windows")]
+fn udp_lease_owner_pid(address: IpAddr, port: u16) -> Result<u32, PalmistryLaunchError> {
+    use std::ffi::c_void;
+    const AF_INET: u32 = 2;
+    const UDP_TABLE_OWNER_PID: i32 = 1;
+    const ERROR_INSUFFICIENT_BUFFER: u32 = 122;
+    const TABLE_HEADER_SIZE: usize = std::mem::size_of::<u32>();
+    #[repr(C)]
+    struct UdpRowOwnerPid {
+        local_addr: u32,
+        local_port: u32,
+        owning_pid: u32,
+    }
+    #[link(name = "iphlpapi")]
+    unsafe extern "system" {
+        fn GetExtendedUdpTable(
+            table: *mut c_void,
+            size: *mut u32,
+            order: i32,
+            address_family: u32,
+            table_class: i32,
+            reserved: u32,
+        ) -> u32;
+    }
+    let IpAddr::V4(address) = address else {
+        return Err(PalmistryLaunchError::bad_request("native UDP lease must use IPv4"));
+    };
+    if address != Ipv4Addr::LOCALHOST || port == 0 {
+        return Err(PalmistryLaunchError::bad_request("invalid native UDP lease endpoint"));
+    }
+    let mut byte_len = 0_u32;
+    let status = unsafe {
+        GetExtendedUdpTable(
+            std::ptr::null_mut(), &mut byte_len, 0, AF_INET, UDP_TABLE_OWNER_PID, 0,
+        )
+    };
+    if status != ERROR_INSUFFICIENT_BUFFER || (byte_len as usize) < TABLE_HEADER_SIZE {
+        return Err(PalmistryLaunchError::unavailable(format!(
+            "cannot size the Windows UDP ownership table (status {status})"
+        )));
+    }
+    let word_len = (byte_len as usize).div_ceil(std::mem::size_of::<u32>());
+    let mut words = vec![0_u32; word_len];
+    let capacity_bytes = words.len() * std::mem::size_of::<u32>();
+    let status = unsafe {
+        GetExtendedUdpTable(
+            words.as_mut_ptr().cast(), &mut byte_len, 0, AF_INET, UDP_TABLE_OWNER_PID, 0,
+        )
+    };
+    if status != 0 || (byte_len as usize) < TABLE_HEADER_SIZE || byte_len as usize > capacity_bytes {
+        return Err(PalmistryLaunchError::unavailable(format!(
+            "cannot read the complete Windows UDP ownership table (status {status})"
+        )));
+    }
+    let count = words[0] as usize;
+    let required = count.checked_mul(std::mem::size_of::<UdpRowOwnerPid>())
+        .and_then(|rows| rows.checked_add(TABLE_HEADER_SIZE))
+        .ok_or_else(|| PalmistryLaunchError::unavailable("UDP ownership table overflow"))?;
+    if required > byte_len as usize || required > capacity_bytes {
+        return Err(PalmistryLaunchError::unavailable("Windows UDP ownership table was truncated"));
+    }
+    // The aligned allocation and checked returned byte count cover every row.
+    let rows = unsafe {
+        std::slice::from_raw_parts(words.as_ptr().add(1).cast::<UdpRowOwnerPid>(), count)
+    };
+    let mut owner = None;
+    for row in rows {
+        if row.local_addr.to_ne_bytes() == address.octets()
+            && u16::from_be(row.local_port as u16) == port
+        {
+            if row.owning_pid == 0 || owner.replace(row.owning_pid).is_some() {
+                return Err(PalmistryLaunchError::bad_request("ambiguous native UDP lease owner"));
+            }
+        }
+    }
+    owner.ok_or_else(|| PalmistryLaunchError::bad_request("native UDP lease is not owned"))
+}
+
+#[cfg(target_os = "windows")]
 fn observe_current_watcher_os_identity(
     request: &PalmistryLaunchRequest,
 ) -> Result<CurrentWatcherOsObservation, PalmistryLaunchError> {
@@ -2204,7 +2352,10 @@ fn observe_current_watcher_os_identity(
     let parent = open(request.parent_pid)?;
     let creation = read_live_process_generation(&process)?;
     let parent_creation = read_live_process_generation(&parent)?;
-    if creation != adopt.os_creation_time_100ns || parent_creation > creation {
+    if creation != adopt.os_creation_time_100ns
+        || parent_creation != adopt.parent_os_creation_time_100ns
+        || parent_creation > creation
+    {
         return Err(PalmistryLaunchError::bad_request(
             "watcher PID generation or parent generation mismatch",
         ));
@@ -2324,6 +2475,13 @@ struct CurrentWatcherIdentity {
     ring_version: u32,
     record_size: u32,
     launch_nonce: [u8; 16],
+    runtime_instance_schema_id: String,
+    runtime_instance_id: Uuid,
+    runtime_host_scope_id: String,
+    runtime_lease_protocol: String,
+    runtime_lease_address: IpAddr,
+    runtime_lease_port: u16,
+    parent_os_creation_time_100ns: u64,
 }
 #[derive(Serialize)]
 #[serde(tag = "type")]
@@ -2424,6 +2582,13 @@ async fn challenge_current_owned_watcher(
         ring_version: adopt.ring_version,
         record_size: adopt.record_size,
         launch_nonce: *request.launch_nonce.as_bytes(),
+        runtime_instance_schema_id: adopt.runtime_instance_schema_id.clone(),
+        runtime_instance_id: adopt.runtime_instance_id,
+        runtime_host_scope_id: adopt.runtime_host_scope_id.clone(),
+        runtime_lease_protocol: adopt.runtime_lease_protocol.clone(),
+        runtime_lease_address: adopt.runtime_lease_address,
+        runtime_lease_port: adopt.runtime_lease_port,
+        parent_os_creation_time_100ns: adopt.parent_os_creation_time_100ns,
     };
     let expected_verifier = decode_hex_array::<32>(&adopt.expected_public_verifier)
         .map_err(|_| PalmistryLaunchError::bad_request("invalid admitted watcher verifier"))?;
@@ -3827,6 +3992,13 @@ mod adoption_wire_tests {
                     access_space_id: AccessSpaceRef::from_uuid(Uuid::from_u128(8)),
                     workspace_id: WorkspaceScopeRef::new("workspace-source-fixture").unwrap(),
                 },
+                runtime_instance_schema_id: crate::process_ledger::EMBEDDED_RUNTIME_INSTANCE_SCHEMA_ID.into(),
+                runtime_instance_id: Uuid::from_u128(1),
+                runtime_host_scope_id: "fixture-host".into(),
+                runtime_lease_protocol: crate::process_ledger::EMBEDDED_RUNTIME_LOOPBACK_UDP_PROTOCOL.into(),
+                runtime_lease_address: Ipv4Addr::LOCALHOST.into(),
+                runtime_lease_port: 43210,
+                parent_os_creation_time_100ns: 1,
             }),
             session_id: Uuid::from_u128(1),
             launch_nonce: Uuid::from_u128(2),
@@ -3844,7 +4016,14 @@ mod adoption_wire_tests {
         let adopt = request.adopt_existing.as_ref().unwrap();
         serde_json::json!({"mode":"ADOPT_EXISTING","session_id":request.session_id,"launch_nonce":request.launch_nonce,"parent_pid":request.parent_pid,
             "ring":request.ring,"survivor_dir":request.survivor_dir,"panic_signal":request.panic_signal,"panic_ack":request.panic_ack,"shutdown_signal":request.shutdown_signal,"ready_signal":request.ready_signal,"transport_public_key":request.transport_public_key,
-            "adopt_existing":{"process_uuid":adopt.process_uuid,"watcher_pid":adopt.watcher_pid,"os_creation_time_100ns":adopt.os_creation_time_100ns,"watcher_executable":adopt.watcher_executable,"watcher_executable_sha256":adopt.watcher_executable_sha256,"control_socket":adopt.control_socket,"expected_public_verifier":adopt.expected_public_verifier,"ring_version":adopt.ring_version,"record_size":adopt.record_size,"original_challenge":adopt.original_challenge,"original_signature":adopt.original_signature,"original_scope":adopt.original_scope}})
+            "adopt_existing":{"process_uuid":adopt.process_uuid,"watcher_pid":adopt.watcher_pid,"os_creation_time_100ns":adopt.os_creation_time_100ns,"watcher_executable":adopt.watcher_executable,"watcher_executable_sha256":adopt.watcher_executable_sha256,"control_socket":adopt.control_socket,"expected_public_verifier":adopt.expected_public_verifier,"ring_version":adopt.ring_version,"record_size":adopt.record_size,"original_challenge":adopt.original_challenge,"original_signature":adopt.original_signature,"original_scope":adopt.original_scope,
+                "runtime_instance_schema_id":adopt.runtime_instance_schema_id,
+                "runtime_instance_id":adopt.runtime_instance_id,
+                "runtime_host_scope_id":adopt.runtime_host_scope_id,
+                "runtime_lease_protocol":adopt.runtime_lease_protocol,
+                "runtime_lease_address":adopt.runtime_lease_address,
+                "runtime_lease_port":adopt.runtime_lease_port,
+                "parent_os_creation_time_100ns":adopt.parent_os_creation_time_100ns}})
     }
     #[test]
     fn fresh_current_challenge_requires_full_expected_identity_signature_and_transport() {
@@ -3860,6 +4039,13 @@ mod adoption_wire_tests {
             ring_version: 2,
             record_size: 120,
             launch_nonce: *request.launch_nonce.as_bytes(),
+            runtime_instance_schema_id: adopt.runtime_instance_schema_id.clone(),
+            runtime_instance_id: adopt.runtime_instance_id,
+            runtime_host_scope_id: adopt.runtime_host_scope_id.clone(),
+            runtime_lease_protocol: adopt.runtime_lease_protocol.clone(),
+            runtime_lease_address: adopt.runtime_lease_address,
+            runtime_lease_port: adopt.runtime_lease_port,
+            parent_os_creation_time_100ns: adopt.parent_os_creation_time_100ns,
         };
         let seed = Zeroizing::new([7; 32]);
         let key = SigningKey::from_bytes(&seed);

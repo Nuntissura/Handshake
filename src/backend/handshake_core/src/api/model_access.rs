@@ -70,7 +70,7 @@ use crate::model_runtime::cloud::access_config::{
     enumerate_with_cli_auth_probe, AccessConfigError, ByokProvider, CliBridgeAuthStatusProbe,
     CliBridgeLoginLaunchError, CliBridgeLoginLauncher, CliBridgeLoginSessionRegistry,
     CliBridgeProvider, CliLoginSessionError, CloudAccessEnumeration, CloudModelAccess,
-    InMemoryAccessRegistry,
+    InMemoryAccessRegistry, ProviderAccessRegistry, ProviderAccessStatus,
 };
 use crate::model_runtime::cloud::{InteractiveLoginTransport, SecretsVaultError};
 
@@ -219,6 +219,19 @@ pub trait CloudAccessProvider: Send + Sync {
     fn access(&self) -> Result<CloudModelAccess, AccessConfigError>;
 }
 
+struct ProviderBackedAccessRegistry {
+    provider: Arc<dyn CloudAccessProvider>,
+}
+
+impl ProviderAccessRegistry for ProviderBackedAccessRegistry {
+    fn byok_status(&self, provider: ByokProvider) -> ProviderAccessStatus {
+        match self.provider.access() {
+            Ok(access) => access.registry().byok_status(provider),
+            Err(_) => ProviderAccessStatus::Unavailable,
+        }
+    }
+}
+
 /// Default provider: builds the production OS-keychain-backed service per call.
 /// Under `--no-default-features` (no `os-keychain`) `production()` returns
 /// [`AccessConfigError::KeychainUnavailable`], which the handlers map to a typed
@@ -290,6 +303,16 @@ pub struct ModelAccessState {
     component_only: bool,
 }
 
+#[derive(Debug, thiserror::Error)]
+pub enum ModelAccessProductionError {
+    #[error("production model access requires an exact owner")]
+    UnboundOwner,
+    #[error("component-only model access cannot supply production dependencies")]
+    ComponentOnly,
+    #[error(transparent)]
+    CloudAccess(#[from] AccessConfigError),
+}
+
 impl ModelAccessState {
     pub fn production_for_owner(
         owner: crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
@@ -304,6 +327,49 @@ impl ModelAccessState {
             cli_login_sessions: Arc::new(CliBridgeLoginSessionRegistry::new(cli_login_launcher)),
             owner: Some(owner), authority: None, component_only: false,
         }
+    }
+
+    pub fn production_cloud_dependencies(
+        &self,
+    ) -> Result<
+        (
+            crate::swarm_orchestration::production_factory::CloudLaneFactoryConfig,
+            Arc<dyn crate::model_runtime::cloud::access_config::ProviderAccessRegistry>,
+        ),
+        ModelAccessProductionError,
+    > {
+        if self.component_only {
+            return Err(ModelAccessProductionError::ComponentOnly);
+        }
+        if self.owner.is_none() {
+            return Err(ModelAccessProductionError::UnboundOwner);
+        }
+        let access = self.provider.access()?;
+        let cloud =
+            crate::swarm_orchestration::production_factory::CloudLaneFactoryConfig::from_vault(
+                access.vault(),
+                Some(ByokProvider::Anthropic.vault_lane().to_owned()),
+                Some(ByokProvider::OpenAi.vault_lane().to_owned()),
+            );
+        Ok((cloud, Arc::new(access.registry())))
+    }
+
+    pub fn production_provider_registry(
+        &self,
+    ) -> Result<Arc<dyn ProviderAccessRegistry>, ModelAccessProductionError> {
+        if self.component_only {
+            return Err(ModelAccessProductionError::ComponentOnly);
+        }
+        if self.owner.is_none() {
+            return Err(ModelAccessProductionError::UnboundOwner);
+        }
+        Ok(Arc::new(ProviderBackedAccessRegistry {
+            provider: Arc::clone(&self.provider),
+        }))
+    }
+
+    pub fn cli_auth_probe(&self) -> Arc<dyn CliBridgeAuthStatusProbe> {
+        Arc::clone(&self.cli_auth_probe)
     }
 
     async fn ensure_authority(

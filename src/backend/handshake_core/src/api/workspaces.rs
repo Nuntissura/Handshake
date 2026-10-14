@@ -71,6 +71,12 @@ pub fn routes(state: AppState) -> Router {
         .with_state(state)
 }
 
+pub fn bootstrap_routes(state: crate::AccountBootstrapState) -> Router {
+    Router::new()
+        .route("/workspaces", post(create_workspace_bootstrap).get(list_workspaces_bootstrap))
+        .with_state(state)
+}
+
 /// Workspace-specific routes run under the same exact resource grant and record-user boundary.
 async fn workspace_authority(
     State(state): State<AppState>,
@@ -632,9 +638,22 @@ async fn create_workspace(
     headers: HeaderMap,
     Json(payload): Json<CreateWorkspaceRequest>,
 ) -> Result<(StatusCode, Json<WorkspaceResponse>), (StatusCode, Json<ErrorResponse>)> {
+    create_workspace_bootstrap(
+        State(crate::AccountBootstrapState::from(&state)),
+        headers,
+        Json(payload),
+    )
+    .await
+}
+
+async fn create_workspace_bootstrap(
+    State(state): State<crate::AccountBootstrapState>,
+    headers: HeaderMap,
+    Json(payload): Json<CreateWorkspaceRequest>,
+) -> Result<(StatusCode, Json<WorkspaceResponse>), (StatusCode, Json<ErrorResponse>)> {
     let started = Instant::now();
     tracing::info!(target: "handshake_core", route = "/workspaces", "workspace create request entered");
-    let credentials = crate::api::authority::authenticated_session_credentials(&state, &headers)
+    let credentials = crate::api::authority::authenticated_session_credentials_bootstrap(&state, &headers)
         .await
         .map_err(|error| {
             tracing::warn!(
@@ -708,7 +727,14 @@ async fn list_workspaces(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> Result<Json<Vec<WorkspaceResponse>>, (StatusCode, Json<ErrorResponse>)> {
-    crate::api::authority::authenticated_session(&state, &headers)
+    list_workspaces_bootstrap(State(crate::AccountBootstrapState::from(&state)), headers).await
+}
+
+async fn list_workspaces_bootstrap(
+    State(state): State<crate::AccountBootstrapState>,
+    headers: HeaderMap,
+) -> Result<Json<Vec<WorkspaceResponse>>, (StatusCode, Json<ErrorResponse>)> {
+    crate::api::authority::authenticated_session_bootstrap(&state, &headers)
         .await
         .map_err(|_| protected_workspace_denial())?;
     let channel = crate::api::stage::capture_channel_binding(&headers)

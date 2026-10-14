@@ -21,7 +21,7 @@ use crate::storage::surreal::resource_authority::{
     AuthorizationRequest, IssuedSession, ProvisionedPrincipal, RecordUserScope, ResourceAction,
     ResourceGrantSpec, ResourceKind,
 };
-use crate::AppState;
+use crate::{AccountBootstrapState, AppState};
 
 const HSK_HEADER_SESSION_TOKEN: &str = "x-hsk-session-token";
 const LOCAL_SESSION_TTL_HOURS: i64 = 12;
@@ -59,7 +59,7 @@ static ACCOUNT_LIFECYCLE_PROBE: std::sync::Mutex<Option<AccountLifecycleProbe>> 
     std::sync::Mutex::new(None);
 #[cfg(test)]
 async fn account_lifecycle_probe(
-    state: &AppState,
+    state: &AccountBootstrapState,
     phase: &'static str,
 ) -> Result<(), (StatusCode, Json<Value>)> {
     let probe = {
@@ -207,15 +207,173 @@ struct LocalSessionExchange {
     authentication_token: String,
 }
 
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct WorkspaceActivationInput {
+    workspace_id: String,
+    operation_id: uuid::Uuid,
+}
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum LocalSessionOperation {
+    Exchange(LocalSessionExchange),
+    Activate(WorkspaceActivationInput),
+}
+
+#[derive(Serialize)]
+pub struct WorkspaceActivationAcknowledgement {
+    pub schema_version: &'static str,
+    pub operation_id: uuid::Uuid,
+    #[serde(flatten)]
+    pub scope: crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+}
+
+pub struct WorkspaceActivationRequest {
+    state: AccountBootstrapState,
+    headers: HeaderMap,
+    scope: crate::api::account_scope::ProductLocalResourceScope,
+    operation_id: uuid::Uuid,
+    original_scope: RecordUserScope,
+    association: crate::swarm_orchestration::resource_scope::ResourceAccessGrantAssociation,
+    reply: tokio::sync::oneshot::Sender<Result<WorkspaceActivationAcknowledgement, (StatusCode, Json<Value>)>>,
+}
+
+impl WorkspaceActivationRequest {
+    pub fn scope(&self) -> &crate::api::account_scope::ProductLocalResourceScope {
+        &self.scope
+    }
+
+    pub fn operation_id(&self) -> uuid::Uuid {
+        self.operation_id
+    }
+
+    pub async fn authorize_for_publication(&self) -> Result<(), (StatusCode, Json<Value>)> {
+        let session = authenticated_session_credentials_bootstrap(&self.state, &self.headers).await?;
+        let lifecycle = self.state.surreal.resource_access_lifecycle();
+        let (scope, association) = crate::api::model_lane_navigation::resolve_navigation_authorization(
+            &self.state.surreal, &self.state.capability_registry, session,
+            self.scope.exact().workspace_id.as_str(), &lifecycle,
+        ).await?;
+        if association != self.association
+            || scope.session_id != self.original_scope.session_id
+            || scope.resource_id != self.original_scope.resource_id
+            || scope.grant_id != self.original_scope.grant_id
+            || scope.capability_id != self.original_scope.capability_id
+            || scope.action != self.original_scope.action
+        {
+            return Err(constant_denial());
+        }
+        lifecycle.authorize_association(&self.association).map_err(|_| constant_denial())
+    }
+
+    pub async fn acknowledge_with<F>(self, publication: F) -> Result<(), (StatusCode, Json<Value>)>
+    where
+        F: FnOnce() -> Result<(), (StatusCode, Json<Value>)> + Send,
+    {
+        if let Err(error) = self.authorize_for_publication().await {
+            let _ = self.reply.send(Err(error.clone()));
+            return Err(error);
+        }
+        let lifecycle = self.state.surreal.resource_access_lifecycle();
+        let acknowledgement = WorkspaceActivationAcknowledgement {
+            schema_version: "hsk.workspace_activation@1",
+            operation_id: self.operation_id,
+            scope: self.scope.exact().clone(),
+        };
+        let mut reply = Some(self.reply);
+        // The callback must be synchronous, nonblocking, and must not re-enter the registry.
+        let result = match lifecycle.with_authorized_association(&self.association, || {
+            publication()?;
+            if let Some(reply) = reply.take() {
+                // A lost HTTP waiter does not undo the completed runtime publication.
+                let _ = reply.send(Ok(acknowledgement));
+            }
+            Ok(())
+        }) {
+            Ok(result) => result,
+            Err(_) => Err(constant_denial()),
+        };
+        if let Err(error) = result {
+            if let Some(reply) = reply.take() {
+                let _ = reply.send(Err(error.clone()));
+            }
+            return Err(error);
+        }
+        Ok(())
+    }
+
+    pub fn deny(self) {
+        let _ = self.reply.send(Err(constant_denial()));
+    }
+
+    pub fn unavailable(self) {
+        let _ = self.reply.send(Err(activation_unavailable()));
+    }
+}
+
+fn activation_unavailable() -> (StatusCode, Json<Value>) {
+    (
+        StatusCode::SERVICE_UNAVAILABLE,
+        Json(json!({"error": "activation_unavailable"})),
+    )
+}
+
+async fn session_operation(
+    State(state): State<AccountBootstrapState>,
+    axum::Extension(activation): axum::Extension<Option<tokio::sync::mpsc::Sender<WorkspaceActivationRequest>>>,
+    headers: HeaderMap,
+    Json(operation): Json<LocalSessionOperation>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    match operation {
+        LocalSessionOperation::Exchange(exchange) => {
+            let Json(response) = exchange_local_session(State(state), headers, Json(exchange)).await?;
+            serde_json::to_value(response).map(Json).map_err(|_| constant_denial())
+        }
+        LocalSessionOperation::Activate(input) => {
+            if input.operation_id.is_nil() || input.workspace_id.trim().is_empty() {
+                return Err(constant_denial());
+            }
+            let sender = activation.ok_or_else(activation_unavailable)?;
+            let session = authenticated_session_credentials_bootstrap(&state, &headers).await?;
+            let lifecycle = state.surreal.resource_access_lifecycle();
+            let (original_scope, association) = crate::api::model_lane_navigation::resolve_navigation_authorization(
+                &state.surreal, &state.capability_registry, session, &input.workspace_id, &lifecycle,
+            ).await?;
+            let scope = crate::api::account_scope::ProductLocalResourceScope::from_exact(association.exact.clone())
+                .map_err(|_| constant_denial())?;
+            let (reply, result) = tokio::sync::oneshot::channel();
+            sender.send(WorkspaceActivationRequest {
+                state, headers, scope, operation_id: input.operation_id,
+                original_scope, association, reply,
+            }).await.map_err(|_| activation_unavailable())?;
+            let acknowledgement = result.await.map_err(|_| activation_unavailable())??;
+            serde_json::to_value(acknowledgement).map(Json).map_err(|_| constant_denial())
+        }
+    }
+}
+
 pub fn routes(state: AppState) -> Router {
+    account_routes(AccountBootstrapState::from(&state), None)
+}
+
+pub fn bootstrap_routes(
+    state: AccountBootstrapState,
+    activation: tokio::sync::mpsc::Sender<WorkspaceActivationRequest>,
+) -> Router {
+    account_routes(state, Some(activation))
+}
+
+fn account_routes(
+    state: AccountBootstrapState,
+    activation: Option<tokio::sync::mpsc::Sender<WorkspaceActivationRequest>>,
+) -> Router {
     Router::new()
         .route("/authority/setup", get(setup_status).post(setup_owner))
         .route("/authority/login", post(login_owner))
-        .route(
-            "/authority/session",
-            get(current_session).post(exchange_local_session),
-        )
+        .route("/authority/session", get(current_session).post(session_operation))
         .route("/authority/logout", post(logout))
+        .layer(axum::Extension(activation))
         .with_state(state)
 }
 
@@ -890,7 +1048,7 @@ struct PasswordLogin {
 }
 
 async fn setup_status(
-    State(state): State<AppState>,
+    State(state): State<AccountBootstrapState>,
     headers: HeaderMap,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     crate::api::stage::capture_channel_binding(&headers).map_err(|_| constant_denial())?;
@@ -905,7 +1063,7 @@ async fn setup_status(
 }
 
 async fn setup_owner(
-    State(state): State<AppState>,
+    State(state): State<AccountBootstrapState>,
     headers: HeaderMap,
     Json(input): Json<PasswordLogin>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
@@ -963,7 +1121,7 @@ async fn setup_owner(
 }
 
 async fn login_owner(
-    State(state): State<AppState>,
+    State(state): State<AccountBootstrapState>,
     headers: HeaderMap,
     Json(input): Json<PasswordLogin>,
 ) -> Result<
@@ -1045,6 +1203,20 @@ pub(crate) struct AuthenticatedLocalSession {
 
 pub(crate) async fn authenticated_session_credentials(
     state: &AppState,
+    headers: &HeaderMap,
+) -> Result<AuthenticatedLocalSession, (StatusCode, Json<Value>)> {
+    authenticated_session_credentials_bootstrap(&AccountBootstrapState::from(state), headers).await
+}
+
+pub(crate) async fn authenticated_session_bootstrap(
+    state: &AccountBootstrapState,
+    headers: &HeaderMap,
+) -> Result<crate::storage::surreal::local_accounts::LocalSessionContext, (StatusCode, Json<Value>)> {
+    authenticated_session_credentials_bootstrap(state, headers).await.map(|session| session.context)
+}
+
+pub(crate) async fn authenticated_session_credentials_bootstrap(
+    state: &AccountBootstrapState,
     headers: &HeaderMap,
 ) -> Result<AuthenticatedLocalSession, (StatusCode, Json<Value>)> {
     let channel =
@@ -1130,12 +1302,12 @@ pub(crate) async fn authorize_account_session(
 }
 
 async fn logout(
-    State(state): State<AppState>,
+    State(state): State<AccountBootstrapState>,
     headers: HeaderMap,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
     // Own completion before revocation so cancellation cannot drop vault cleanup.
     tokio::spawn(async move {
-        let context = match authenticated_session(&state, &headers).await {
+        let context = match authenticated_session_bootstrap(&state, &headers).await {
             Ok(context) => context,
             Err(denial) => {
                 let channel = crate::api::stage::capture_channel_binding(&headers)
@@ -1176,10 +1348,10 @@ async fn logout(
 }
 
 async fn current_session(
-    State(state): State<AppState>,
+    State(state): State<AccountBootstrapState>,
     headers: HeaderMap,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
-    let context = authenticated_session(&state, &headers).await?;
+    let context = authenticated_session_bootstrap(&state, &headers).await?;
     Ok(Json(json!({"schema_version": "hsk.current_account@1",
         "account_id": context.identity.account_id, "principal_id": context.identity.principal_id,
         "access_space_id": context.identity.access_space_id, "session_id": context.session_id})))
@@ -1187,7 +1359,7 @@ async fn current_session(
 
 /// Persist bearer material only in the existing OS-bound vault. The database stores hashes.
 async fn record_login_event(
-    state: &AppState,
+    state: &AccountBootstrapState,
     session: &IssuedSession,
     channel_hash: &str,
 ) -> Result<(), (StatusCode, Json<Value>)> {
@@ -1225,7 +1397,7 @@ async fn record_login_event(
 // Revocation stays immediate; transient vault errors do not require a discarded UI context.
 // Permanent failure remains an error and the exact retired-session cleanup route remains retryable.
 async fn delete_session_secret_with_retry(
-    state: &AppState,
+    state: &AccountBootstrapState,
     session_id: &str,
 ) -> Result<(), (StatusCode, Json<Value>)> {
     for attempt in 0..3 {
@@ -1238,7 +1410,7 @@ async fn delete_session_secret_with_retry(
     Err(constant_denial())
 }
 async fn store_session_secret(
-    state: &AppState,
+    state: &AccountBootstrapState,
     session_id: &str,
     token: Option<String>,
 ) -> Result<(), (StatusCode, Json<Value>)> {
@@ -1392,7 +1564,7 @@ pub(crate) async fn authorize_request(
 }
 
 async fn exchange_local_session(
-    State(state): State<AppState>,
+    State(state): State<AccountBootstrapState>,
     headers: HeaderMap,
     Json(exchange): Json<LocalSessionExchange>,
 ) -> Result<Json<LocalSessionResponse>, (StatusCode, Json<Value>)> {

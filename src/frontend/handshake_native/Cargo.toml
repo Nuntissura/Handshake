@@ -108,6 +108,7 @@ wgpu_screenshots = []
 diag-test-seams = []
 
 [dependencies]
+handshake_core = { path = "../../backend/handshake_core", default-features = false, features = ["runtime-full"] }
 
 hex = "0.4"
 ed25519-dalek = "3.0.0"

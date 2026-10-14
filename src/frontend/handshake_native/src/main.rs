@@ -448,6 +448,13 @@ fn main() -> eframe::Result<()> {
     // — GLOBAL-PORTABILITY); if no local-data dir exists (rare), fall back to a still-portable temp dir.
     let process_session_uuid = uuid::Uuid::new_v4();
     let process_session_id = process_session_uuid.to_string();
+    let native_runtime_lease = handshake_core::process_ledger::resolve_embedded_runtime_host_scope()
+        .and_then(|host_scope| {
+            handshake_core::process_ledger::acquire_embedded_runtime_instance_lease(
+                process_session_uuid,
+                host_scope,
+            )
+        });
     let crash_dir = diagnostics::default_crash_dir()
         .unwrap_or_else(|| std::env::temp_dir().join("handshake").join("crash"));
     diagnostics::install_panic_hook(crash_dir, &process_session_id);
@@ -495,13 +502,16 @@ fn main() -> eframe::Result<()> {
             ring_path,
         };
         diagnostics::set_preinstalled_diag_session(session.clone());
+        let control_socket = diagnostics::control_socket_name(&session.session_id);
+        let native_lease = native_runtime_lease
+            .as_ref()
+            .map_err(|error| std::io::Error::other(error.to_string()))?;
         let provenance =
             handshake_native::internal_diagnostics::AdoptedDiagnosticProvenance::for_current_owner(
                 process_session_uuid,
                 launch_nonce,
             )
             .map_err(std::io::Error::other)?;
-        let control_socket = diagnostics::control_socket_name(&session.session_id);
         let executable = diagnostics::resolve_palmistry_exe()?;
         let signing_seed = zeroize::Zeroizing::new(rand::random::<[u8; 32]>());
         let handle = diagnostics::palmistry_launch::launch_palmistry_signed_at(
@@ -509,6 +519,7 @@ fn main() -> eframe::Result<()> {
             &session,
             &session.ring_path,
             &control_socket,
+            native_lease,
             uuid::Uuid::new_v4(),
             launch_nonce,
             zeroize::Zeroizing::new(signing_seed.to_vec()),
@@ -551,7 +562,7 @@ fn main() -> eframe::Result<()> {
         ..Default::default()
     };
 
-    eframe::run_native(
+    let result = eframe::run_native(
         "handshake-native",
         native_options,
         Box::new(move |cc| {
@@ -564,5 +575,8 @@ fn main() -> eframe::Result<()> {
             }
             Ok(Box::new(app))
         }),
-    )
+    );
+    // The app and its watcher finish shutdown/reaping before the native lease is released.
+    drop(native_runtime_lease);
+    result
 }

@@ -347,6 +347,7 @@ fn live_spawn_handshake_then_clean_shutdown_no_crash() {
 }
 
 #[test]
+#[cfg(target_os = "windows")]
 #[ignore = "requires the current separately built watcher and admitted compile/runtime target"]
 fn signed_current_owned_launch_binds_actual_child_and_retains_clean_shutdown() {
     use handshake_diag_ring::ring::DiagRingWriterV2;
@@ -357,6 +358,16 @@ fn signed_current_owned_launch_binds_actual_child_and_retains_clean_shutdown() {
     std::fs::create_dir_all(&dir).unwrap();
     let session_id = uuid::Uuid::now_v7();
     let instance = uuid::Uuid::now_v7();
+    let native_lease = handshake_core::process_ledger::acquire_embedded_runtime_instance_lease(
+        session_id,
+        "signed-current-owned-launch-test",
+    )
+    .unwrap();
+    let native_descriptor = native_lease.descriptor().clone();
+    let parent_generation =
+        handshake_core::sandbox::handshake_native::process_creation_time_100ns(std::process::id())
+            .unwrap();
+    assert_ne!(parent_generation, 0);
     let nonce = [0x66; 16];
     let path = dir.join(format!("ring-signed-{session_id}.ring"));
     let writer = DiagRingWriterV2::create(&path, DEFAULT_CAPACITY, nonce).unwrap();
@@ -379,6 +390,7 @@ fn signed_current_owned_launch_binds_actual_child_and_retains_clean_shutdown() {
         &session,
         &path,
         &control_socket_name(&session.session_id),
+        &native_lease,
         instance,
         nonce,
         seed,
@@ -395,6 +407,19 @@ fn signed_current_owned_launch_binds_actual_child_and_retains_clean_shutdown() {
     assert_eq!(receipt.identity.launch_nonce, nonce);
     assert_eq!(receipt.identity.ring_version, 2);
     assert_eq!(receipt.identity.record_size, 120);
+    assert_eq!(receipt.identity.runtime_instance_schema_id,
+        handshake_core::process_ledger::EMBEDDED_RUNTIME_INSTANCE_SCHEMA_ID);
+    assert_eq!(receipt.identity.runtime_instance_id, native_descriptor.instance_id);
+    assert_eq!(receipt.identity.runtime_host_scope_id, native_descriptor.host_scope_id);
+    assert_eq!(receipt.identity.runtime_lease_protocol, native_descriptor.lease_protocol);
+    assert_eq!(receipt.identity.runtime_lease_address, native_descriptor.loopback_address);
+    assert_eq!(receipt.identity.runtime_lease_port, native_descriptor.loopback_port);
+    assert_eq!(receipt.identity.parent_os_creation_time_100ns, parent_generation);
+    assert_ne!(receipt.identity.runtime_instance_id, receipt.identity.process_instance_id);
+    assert!(std::net::UdpSocket::bind((
+        native_descriptor.loopback_address,
+        native_descriptor.loopback_port,
+    )).is_err());
     assert_eq!(receipt.public_verifier, expected_verifier);
     assert_ne!(receipt.challenge, [0; 32]);
     assert_eq!(receipt.transport_public_key, transport_public);
@@ -438,5 +463,15 @@ fn signed_current_owned_launch_binds_actual_child_and_retains_clean_shutdown() {
         ShutdownOutcome::ExitedCleanly(status) => assert!(status.success()),
         other => panic!("same owned signed child must shutdown cleanly: {other:?}"),
     }
+    assert!(std::net::UdpSocket::bind((
+        native_descriptor.loopback_address,
+        native_descriptor.loopback_port,
+    )).is_err());
+    drop(native_lease);
+    let released_lease = std::net::UdpSocket::bind((
+        native_descriptor.loopback_address,
+        native_descriptor.loopback_port,
+    )).expect("native lease releases only after the owned watcher shutdown and reap");
+    drop(released_lease);
     drop(writer);
 }

@@ -59,9 +59,10 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let requested_addr = backend_listen_addr()?;
 
     logging::init_logging();
-    let product_local_scope = api::account_scope::ProductLocalResourceScope::from_env()?;
+    let recovery_only_scope = if startup_recovery_only_requested() {
+        Some(api::account_scope::ProductLocalResourceScope::from_env()?)
+    } else { None };
     std::env::remove_var(api::account_scope::PRODUCT_LOCAL_RESOURCE_SCOPE_ENV);
-    let reclaim_resource_scope = ReclaimResourceScope::from_exact(product_local_scope.exact())?;
 
     let cors = CorsLayer::new()
         .allow_origin(Any)
@@ -81,9 +82,466 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         "control-plane storage mode resolved"
     );
     let control_plane = storage::init_control_plane_storage_with_config(&storage_config).await?;
+    if let Some(scope) = recovery_only_scope {
+        perform_startup_recovery(&control_plane.surreal, ReclaimResourceScope::from_exact(scope.exact())?).await?;
+        control_plane.surreal.shutdown().await?;
+        return Ok(());
+    }
+    let recorder = init_flight_recorder().await?;
+    let capability_registry = Arc::new(CapabilityRegistry::new());
+    let bootstrap_state = handshake_core::AccountBootstrapState::new(
+        control_plane.database.clone(), control_plane.surreal.clone(), capability_registry.clone(),
+    );
+    let (activation_tx, mut activation_rx) = tokio::sync::mpsc::channel(16);
+    let bootstrap = api::authority::bootstrap_routes(bootstrap_state.clone(), activation_tx)
+        .merge(api::workspaces::bootstrap_routes(bootstrap_state.clone()))
+        .merge(Router::new().route("/health", get(bootstrap_health)).with_state(bootstrap_state));
+    let mounted = Arc::new(tokio::sync::RwLock::new(None::<Router>));
+    let dispatch_mount = mounted.clone();
+    let app = bootstrap.clone().nest("/api", bootstrap)
+        .fallback(move |request: axum::extract::Request| {
+            let mounted = dispatch_mount.clone();
+            async move {
+                let guard = mounted.read_owned().await;
+                match guard.as_ref() {
+                    Some(router) => {
+                        use futures::StreamExt;
+                        let response = dispatch_router(router.clone(), request).await;
+                        let (parts, body) = response.into_parts();
+                        let body = body.into_data_stream().map(move |chunk| {
+                            let _runtime_dispatch_owner = &guard;
+                            chunk
+                        });
+                        axum::response::Response::from_parts(parts, axum::body::Body::from_stream(body))
+                    },
+                    None => axum::response::IntoResponse::into_response((
+                        axum::http::StatusCode::SERVICE_UNAVAILABLE,
+                        Json(serde_json::json!({"code":"workspace_activation_required"})),
+                    )),
+                }
+            }
+        }).layer(cors);
+    let listener = TcpListener::bind(requested_addr).await?;
+    let actual_addr = listener.local_addr()?;
+    write_backend_listen_report(actual_addr)?;
+    let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
+    let signal_task = tokio::spawn(async move {
+        shutdown_signal().await;
+        let _ = shutdown_tx.send(true);
+    });
+    let server_shutdown_rx = shutdown_rx.clone();
+    let mut server = tokio::spawn(async move {
+        axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
+            .with_graceful_shutdown(async move { wait_for_shutdown_request(server_shutdown_rx).await; })
+            .await
+    });
+    let deadline_shutdown_rx = shutdown_rx.clone();
+    let connection_drain_deadline = async move {
+        wait_for_shutdown_request(deadline_shutdown_rx).await;
+        tokio::time::sleep(HTTP_CONNECTION_DRAIN_TIMEOUT).await;
+    };
+    tokio::pin!(connection_drain_deadline);
+    let mut activation = tokio::select! {
+        request = activation_rx.recv() => request.ok_or("workspace activation channel closed")?,
+        result = &mut server => { server_result(result)?; control_plane.surreal.shutdown().await?; return Ok(()); },
+        _ = &mut connection_drain_deadline => { return Err("account HTTP drain timed out".into()); },
+    };
+    loop {
+        if activation.authorize_for_publication().await.is_err() {
+            activation.deny();
+            activation = tokio::select! {
+                request = activation_rx.recv() => request.ok_or("workspace activation channel closed")?,
+                result = &mut server => { server_result(result)?; break; },
+                _ = &mut connection_drain_deadline => { return Err("account HTTP drain timed out".into()); },
+            };
+            continue;
+        }
+        let product_local_scope = activation.scope().clone();
+        let reclaim_resource_scope = ReclaimResourceScope::from_exact(product_local_scope.exact())?;
+        perform_startup_recovery(&control_plane.surreal, reclaim_resource_scope.clone()).await?;
+        let storage = control_plane.database.clone();
+        let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
+        let diagnostics: Arc<dyn DiagnosticsStore> = recorder.clone();
+        // WP-KERNEL-012 MT-138: fail closed before serving Atelier routes unless
+        // every canonical atelier_* table is present, then project the builtin CKC
+        // command corpus into the same embedded authority. Both operations are
+        // idempotent, so every restart converges without a compatibility store.
+        let atelier = AtelierStore::with_observability(
+            control_plane.surreal.clone(),
+            storage.clone(),
+            flight_recorder.clone(),
+        );
+        let atelier_schema = atelier.bootstrap_schema().await?;
+        let atelier_corpus = atelier.bootstrap_builtin_command_corpus().await?;
+        tracing::info!(
+            target: "handshake_core::atelier",
+            schema_applied = atelier_schema.applied,
+            atelier_table_count = atelier_schema.table_count,
+            total_commands = atelier_corpus.total_commands,
+            covered_commands = atelier_corpus.covered_count,
+            blocked_commands = atelier_corpus.blocked_count,
+            "atelier schema readiness and builtin command-corpus projection completed against embedded SurrealDB"
+        );
+
+        // WP-KERNEL-009 MT-195/MT-196: seed (or hash-resync) the built-in
+        // UserManual corpus so the no-context manual surface is queryable from
+        // boot. Idempotent (content-hash short-circuit; receipts only for changed
+        // rows). A seed failure is logged loudly but does not abort startup — the
+        // freshness route reports `unseeded_version` and the gated
+        // POST /usermanual/resync recovers.
+        let manual_db = SurrealDatabase::new(control_plane.surreal.clone());
+        match user_manual::seed::ensure_seeded(&manual_db).await {
+            Ok(report) => tracing::info!(
+                target: "handshake_core::user_manual",
+                manual_version = %report.manual_version,
+                pages_changed = report.pages_changed,
+                tools_changed = report.tools_changed,
+                features_changed = report.features_changed,
+                aliases_changed = report.aliases_changed,
+                "UserManual corpus seed synchronized against embedded SurrealDB"
+            ),
+            Err(error) => tracing::error!(
+                target: "handshake_core::user_manual",
+                error = %error,
+                "UserManual corpus seed failed; freshness and resync surfaces remain available"
+            ),
+        }
+
+        let runtime_host_scope_id =
+            handshake_core::process_ledger::resolve_embedded_runtime_host_scope()?;
+        let process_runtime = ProcessReclaimRuntime::production(
+            control_plane.surreal.clone(),
+            reclaim_resource_scope,
+            None,
+            handshake_core::process_ledger::production_process_sandbox_registry_async().await?,
+            runtime_host_scope_id,
+            Duration::from_secs(30),
+        )
+        .await?;
+        let (model_access_state, cloud, cloud_registry, cli_providers) =
+            match model_access_state(&process_runtime, &product_local_scope) {
+                Ok(dependencies) => dependencies,
+                Err(error) => {
+                    tracing::error!(error = %error, "scoped model access initialization failed; no activation ACK published");
+                    drain_unpublished_runtime(&process_runtime, None).await;
+                    activation.unavailable();
+                    drop(process_runtime);
+                    activation = tokio::select! {
+                        request = activation_rx.recv() => request.ok_or("workspace activation channel closed")?,
+                        result = &mut server => { server_result(result)?; break; },
+                        _ = &mut connection_drain_deadline => { return Err("account HTTP drain timed out".into()); },
+                    };
+                    continue;
+                }
+            };
+        let model_registry_authority = ScopedModelRegistryAuthority::new(
+            ModelRegistryStore::new(control_plane.surreal.clone()),
+            product_local_scope.exact().clone(),
+        );
+        let llm_client = init_llm_client(
+            flight_recorder.clone(),
+            Some(process_runtime.ledger().ledger()),
+            Some(model_registry_authority),
+            Some(process_runtime.runtime_instance().clone()),
+        )
+        .await;
+        let session_registry = Arc::new(workflows::SessionRegistry::new(
+            workflows::SessionSchedulerConfig::from_env(),
+        ));
+
+        let state = AppState {
+            storage: storage.clone(),
+            surreal: control_plane.surreal.clone(),
+            flight_recorder: flight_recorder.clone(),
+            diagnostics,
+            llm_client,
+            capability_registry: capability_registry.clone(),
+            session_registry,
+        };
+
+        let catalog = state.llm_client.model_catalog();
+
+        match workflows::repair_model_run_workflow_bindings(&state).await {
+            Ok(repaired) => tracing::info!(
+                target: "handshake_core::model_run_scheduler",
+                repaired,
+                "model_run workflow bindings repaired at startup"
+            ),
+            Err(err) => {
+                tracing::error!(
+                    target: "handshake_core::model_run_scheduler",
+                    error = %err,
+                    "model_run workflow binding startup repair failed"
+                );
+                drain_unpublished_runtime(&process_runtime, Some(state.llm_client.as_ref())).await;
+                activation.unavailable();
+                drop(state);
+                drop(process_runtime);
+                activation = tokio::select! {
+                    request = activation_rx.recv() => request.ok_or("workspace activation channel closed")?,
+                    result = &mut server => { server_result(result)?; break; },
+                    _ = &mut connection_drain_deadline => { return Err("account HTTP drain timed out".into()); },
+                };
+                continue;
+            }
+        }
+
+        // [HSK-WF-003] Startup Recovery Loop
+        // Scan for and mark 'Running' workflows > 30s old as 'Stalled'.
+        // Executed non-blockingly but initiated before server start.
+        workflows::enable_startup_recovery_gate();
+        let recovery_state = state.clone();
+        let recovery_handle = tokio::spawn(async move {
+            tracing::info!(target: "handshake_core::recovery", "Starting boot-time workflow recovery scan...");
+            match workflows::mark_stalled_workflows(&recovery_state, 30, true).await {
+                Ok(recovered) => {
+                    if !recovered.is_empty() {
+                        tracing::info!(target: "handshake_core::recovery", count = recovered.len(), "Workflow recovery complete");
+                    } else {
+                        tracing::info!(target: "handshake_core::recovery", "No workflows required recovery");
+                    }
+                    workflows::mark_startup_recovery_complete();
+                }
+                Err(err) => {
+                    tracing::error!(target: "handshake_core::recovery", error = %err, "Workflow recovery failed");
+                    workflows::mark_startup_recovery_failed(err.to_string());
+                }
+            }
+        });
+
+        // Start Janitor background service [§2.3.11]
+        // Configuration via environment or defaults
+        let janitor_config = init_janitor_config();
+        let janitor = Arc::new(Janitor::new(
+            storage,
+            flight_recorder.clone(),
+            janitor_config,
+        ));
+        let janitor_handle = janitor.clone().spawn_background();
+
+        let (launch_service, swarm_drain) = handshake_core::swarm_orchestration::production_factory::
+            build_scoped_operator_chat_launch_service_with_sandbox_registry_and_lifecycle(
+                state.surreal.clone(), state.flight_recorder.clone(), catalog.clone(),
+                process_runtime.ledger(), process_runtime.reclaim(), cloud,
+                Some(process_runtime.sandbox_registry()), state.surreal.resource_access_lifecycle(),
+                product_local_scope.exact().clone(), uuid::Uuid::now_v7(),
+            );
+        let operator_chat_state = api::operator_chat::OperatorChatState::with_production_dependencies(
+            launch_service, catalog, cloud_registry, model_access_state.cli_auth_probe(),
+            cli_providers, state.flight_recorder.clone(), state.session_registry.clone(),
+        );
+        let api::ApiRoutes { router: api_routes, runtime: api_runtime } =
+            api::routes_with_scoped_operator_chat(
+                state.clone(), process_runtime, product_local_scope.clone(), model_access_state,
+                operator_chat_state, swarm_drain,
+            );
+
+        let scoped_app = Router::new()
+            .route("/health", get(health))
+            .with_state(state.clone())
+            .merge(api_routes.clone())
+            .nest("/api", api_routes);
+
+        tracing::info!(target: "handshake_core", listen_addr = %actual_addr, "handshake_core started");
+
+        let mut publication = mounted.write().await;
+        let publication_result = activation.acknowledge_with(|| {
+            *publication = Some(scoped_app);
+            Ok(())
+        }).await;
+        drop(publication);
+        let mut next_activation = None;
+        let (serve_result, connection_drain_timed_out) = if publication_result.is_err() {
+            (None, false)
+        } else {
+            loop {
+                tokio::select! {
+                    result = &mut server => break (Some(server_result(result)), false),
+                    _ = &mut connection_drain_deadline => break (None, true),
+                    request = activation_rx.recv() => match request {
+                        Some(request) if request.scope() == &product_local_scope => {
+                            let _ = request.acknowledge_with(|| Ok(())).await;
+                        }
+                        Some(request) => { next_activation = Some(request); break (None, false); }
+                        None => break (None, false),
+                    },
+                }
+            }
+        };
+        let mount_closed = tokio::time::timeout(HTTP_CONNECTION_DRAIN_TIMEOUT, mounted.write()).await;
+        let connection_drain_timed_out = connection_drain_timed_out || mount_closed.is_err();
+        if let Ok(mut guard) = mount_closed { *guard = None; }
+
+        // The one-shot recovery scan owns an AppState clone, and therefore an LLM
+        // runtime owner. Cancel and join it after Axum returns or reaches its
+        // bounded connection deadline. On the deadline path the still-live Axum
+        // connection owners force the explicit no-STOP process-exit branch below.
+        // Stop the janitor before draining durable runtime infrastructure.
+        recovery_handle.abort();
+        let _ = recovery_handle.await;
+        janitor_handle.abort();
+        let _ = janitor_handle.await;
+
+        // A timed-out Axum drain leaves spawned connection tasks alive with
+        // AppState clones. Pre-abandon STOP authority before quiescing so even a
+        // successful worker barrier cannot publish a false clean lifecycle while
+        // those accepted tasks still exist.
+        if connection_drain_timed_out {
+            tracing::error!(
+                target: "handshake_core",
+                timeout_seconds = HTTP_CONNECTION_DRAIN_TIMEOUT.as_secs(),
+                "accepted HTTP connections missed the drain deadline; embedded START will remain open until process-death reconciliation"
+            );
+            state.llm_client.leave_open_for_reconciliation();
+        }
+
+        // 1) Close runtime admission, cancel active workers, and wait for the
+        //    worker-owned quiescence guards. Only a proven idle result may emit the
+        //    embedded ProcessOwnershipLedger STOP. On failure the client releases
+        //    its reserved STOP permits without emitting rows, leaving START open
+        //    for next-boot reconciliation.
+        let runtime_shutdown = if connection_drain_timed_out {
+            Err(handshake_core::llm::LlmError::ProviderError(
+                "accepted HTTP connections still own AppState; runtime unload ownership is unproven"
+                    .to_string(),
+            ))
+        } else {
+            state.llm_client.shutdown_gracefully().await
+        };
+        if let Err(err) = &runtime_shutdown {
+            tracing::error!(
+                target: "handshake_core::process_ledger",
+                error = %err,
+                "embedded runtime did not prove quiescence; STOP remains open and shutdown will exit with the OS liveness lease held"
+            );
+        }
+
+        // Retain the final runtime-owning AppState on failed quiescence or an Axum
+        // connection-drain timeout. Only the fully-drained + quiesced path can drop
+        // the final owner. Lease release remains the shared runtime's own decision. The Option keeps both paths explicit
+        // without an accidental Drop during error unwinding.
+        let mut state_owner = Some(state);
+
+        // 2) Quiesce the single reclaimer before closing and draining the single
+        // process-ledger writer. The shared runtime releases its OS lease only after
+        // both boundaries are proven and its exact-scope open-row check permits release.
+        let api_drain_report = api_runtime
+            .drain_and_join(std::time::Duration::from_secs(35))
+            .await;
+        tracing::info!(
+            target: "handshake_core::process_ledger",
+            outcome = ?api_drain_report.operator_chat_process_ledger,
+            "operator-chat process ledger drain-and-join at shutdown"
+        );
+
+        let operator_chat_ledger_flushed = matches!(
+            &api_drain_report.operator_chat_process_ledger,
+            handshake_core::process_ledger::LedgerDrainJoinOutcome::Flushed
+                | handshake_core::process_ledger::LedgerDrainJoinOutcome::AlreadyDrained
+        );
+
+        if connection_drain_timed_out
+            || runtime_shutdown.is_err()
+            || !api_drain_report.process_reclaim_quiesced
+            || !api_drain_report.swarm_events_flushed
+            || !operator_chat_ledger_flushed
+        {
+            if let Err(err) = &runtime_shutdown {
+                tracing::error!(
+                    target: "handshake_core::process_ledger",
+                    error = %err,
+                    "runtime shutdown did not reach a graceful terminal state"
+                );
+            }
+            tracing::error!(
+                target: "handshake_core::process_ledger",
+                connection_drain_timed_out,
+                process_reclaim_quiesced = api_drain_report.process_reclaim_quiesced,
+                swarm_events_flushed = api_drain_report.swarm_events_flushed,
+                operator_chat_ledger_flushed,
+                "shutdown durability was not fully proven; exiting with failure after preserving truthful process-ledger state"
+            );
+            // Do not unwind `state_owner` or release the lease while a worker may
+            // or an accepted connection task does still exist. Process termination
+            // ends them and releases the OS socket atomically from another
+            // instance's point of view.
+            std::process::exit(1);
+        }
+
+        // Runtime quiescence and queue acceptance are not sufficient to release
+        // the final runtime owner. The process-ledger writer has now proved that
+        // every accepted START/STOP row reached embedded SurrealDB, so dropping
+        // AppState can no longer race durable lifecycle evidence.
+        drop(state_owner.take());
+
+        drop(api_runtime);
+        drop(janitor);
+        if let Some(request) = next_activation {
+            activation = request;
+            continue;
+        }
+        if publication_result.is_err() {
+            activation = tokio::select! {
+                request = activation_rx.recv() => request.ok_or("workspace activation channel closed")?,
+                result = &mut server => { server_result(result)?; break; },
+                _ = &mut connection_drain_deadline => { return Err("account HTTP drain timed out".into()); },
+            };
+            continue;
+        }
+        if !server.is_finished() {
+            server.abort();
+            let _ = server.await;
+        }
+        signal_task.abort();
+        let _ = signal_task.await;
+        let shutdown_result = control_plane.surreal.shutdown().await;
+        if let Err(err) = &shutdown_result {
+            tracing::error!(target: "handshake_core::storage", error = %err,
+                "embedded SurrealDB store did not close cleanly at shutdown");
+        } else {
+            tracing::info!(target: "handshake_core::storage", "embedded SurrealDB store closed");
+        }
+        return match (serve_result.unwrap_or(Ok(())), shutdown_result) {
+            (Ok(()), Ok(())) => Ok(()),
+            (Err(serve_error), Ok(())) => Err(serve_error.into()),
+            (Ok(()), Err(shutdown_error)) => Err(shutdown_error.into()),
+            (Err(serve_error), Err(shutdown_error)) => Err(format!(
+                "serve loop failed: {serve_error}; embedded SurrealDB shutdown also failed: {shutdown_error}"
+            ).into()),
+        };
+    }
+    control_plane.surreal.shutdown().await?;
+    Ok(())
+}
+
+fn server_result(result: Result<io::Result<()>, tokio::task::JoinError>) -> io::Result<()> {
+    result.map_err(io::Error::other)?
+}
+
+async fn drain_unpublished_runtime(runtime: &ProcessReclaimRuntime, client: Option<&dyn LlmClient>) {
+    let runtime_quiesced = match client {
+        Some(client) => client.shutdown_gracefully().await.is_ok(),
+        None => true,
+    };
+    let report = runtime.shutdown_and_drain(Duration::from_secs(35)).await;
+    let ledger_flushed = matches!(report.ledger,
+        handshake_core::process_ledger::LedgerDrainJoinOutcome::Flushed
+        | handshake_core::process_ledger::LedgerDrainJoinOutcome::AlreadyDrained);
+    if !runtime_quiesced || !report.reclaim_task_quiesced || !ledger_flushed || !report.lease_released {
+        if let Some(client) = client { client.leave_open_for_reconciliation(); }
+        tracing::error!(runtime_quiesced, ledger_flushed, reclaim_quiesced = report.reclaim_task_quiesced,
+            lease_released = report.lease_released, "unpublished runtime did not prove durable retirement");
+        std::process::exit(1);
+    }
+}
+
+async fn perform_startup_recovery(
+    surreal: &handshake_core::storage::surreal::SurrealStorage,
+    reclaim_resource_scope: ReclaimResourceScope,
+) -> Result<(), Box<dyn std::error::Error>> {
     let sandbox_registry = Arc::new(build_startup_recovery_registry_async().await);
     let process_store = Arc::new(SurrealProcessLedgerStore::new(
-        control_plane.surreal.clone(),
+        surreal.clone(),
     ));
     let startup_cleanup = Arc::new(RegistryStartupProcessCleanup::new(sandbox_registry));
     let orphan_reclaimer = Arc::new(SurrealRestartOrphanReclaimer::new(
@@ -91,7 +549,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         startup_cleanup,
     ));
     let restart_outcome = SurrealRestartResumeRunner::open(
-        control_plane.surreal.clone(),
+        surreal.clone(),
         reclaim_resource_scope.clone(),
         orphan_reclaimer,
     )
@@ -119,349 +577,13 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         sessions_recovery_failed = restart_report.sessions_recovery_failed.len(),
         "startup restart-resume outcome recorded against embedded SurrealDB"
     );
-    if startup_recovery_only_requested() {
-        control_plane.surreal.shutdown().await?;
-        return Ok(());
-    }
-    let storage = control_plane.database.clone();
-    let recorder = init_flight_recorder().await?;
-    let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
-    let diagnostics: Arc<dyn DiagnosticsStore> = recorder.clone();
-    // WP-KERNEL-012 MT-138: fail closed before serving Atelier routes unless
-    // every canonical atelier_* table is present, then project the builtin CKC
-    // command corpus into the same embedded authority. Both operations are
-    // idempotent, so every restart converges without a compatibility store.
-    let atelier = AtelierStore::with_observability(
-        control_plane.surreal.clone(),
-        storage.clone(),
-        flight_recorder.clone(),
-    );
-    let atelier_schema = atelier.bootstrap_schema().await?;
-    let atelier_corpus = atelier.bootstrap_builtin_command_corpus().await?;
-    tracing::info!(
-        target: "handshake_core::atelier",
-        schema_applied = atelier_schema.applied,
-        atelier_table_count = atelier_schema.table_count,
-        total_commands = atelier_corpus.total_commands,
-        covered_commands = atelier_corpus.covered_count,
-        blocked_commands = atelier_corpus.blocked_count,
-        "atelier schema readiness and builtin command-corpus projection completed against embedded SurrealDB"
-    );
+    Ok(())
+}
 
-    // WP-KERNEL-009 MT-195/MT-196: seed (or hash-resync) the built-in
-    // UserManual corpus so the no-context manual surface is queryable from
-    // boot. Idempotent (content-hash short-circuit; receipts only for changed
-    // rows). A seed failure is logged loudly but does not abort startup — the
-    // freshness route reports `unseeded_version` and the gated
-    // POST /usermanual/resync recovers.
-    let manual_db = SurrealDatabase::new(control_plane.surreal.clone());
-    match user_manual::seed::ensure_seeded(&manual_db).await {
-        Ok(report) => tracing::info!(
-            target: "handshake_core::user_manual",
-            manual_version = %report.manual_version,
-            pages_changed = report.pages_changed,
-            tools_changed = report.tools_changed,
-            features_changed = report.features_changed,
-            aliases_changed = report.aliases_changed,
-            "UserManual corpus seed synchronized against embedded SurrealDB"
-        ),
-        Err(error) => tracing::error!(
-            target: "handshake_core::user_manual",
-            error = %error,
-            "UserManual corpus seed failed; freshness and resync surfaces remain available"
-        ),
-    }
-
-    let listener = TcpListener::bind(requested_addr).await?;
-    let actual_addr = listener.local_addr()?;
-    write_backend_listen_report(actual_addr)?;
-    let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
-    let signal_task = tokio::spawn(async move {
-        shutdown_signal().await;
-        let _ = shutdown_tx.send(true);
-    });
-    let runtime_host_scope_id =
-        handshake_core::process_ledger::resolve_embedded_runtime_host_scope()?;
-    let process_runtime = ProcessReclaimRuntime::production(
-        control_plane.surreal.clone(),
-        reclaim_resource_scope,
-        None,
-        handshake_core::process_ledger::production_process_sandbox_registry_async().await?,
-        runtime_host_scope_id,
-        Duration::from_secs(30),
-    )
-    .await?;
-    let model_access_state = model_access_state(&process_runtime, &product_local_scope)?;
-    let model_registry_authority = ScopedModelRegistryAuthority::new(
-        ModelRegistryStore::new(control_plane.surreal.clone()),
-        product_local_scope.exact().clone(),
-    );
-    let llm_client = init_llm_client(
-        flight_recorder.clone(),
-        Some(process_runtime.ledger().ledger()),
-        Some(model_registry_authority),
-        Some(process_runtime.runtime_instance().clone()),
-    )
-    .await;
-    let capability_registry = Arc::new(CapabilityRegistry::new());
-    let session_registry = Arc::new(workflows::SessionRegistry::new(
-        workflows::SessionSchedulerConfig::from_env(),
-    ));
-
-    let state = AppState {
-        storage: storage.clone(),
-        surreal: control_plane.surreal.clone(),
-        flight_recorder: flight_recorder.clone(),
-        diagnostics,
-        llm_client,
-        capability_registry,
-        session_registry,
-    };
-
-    match workflows::repair_model_run_workflow_bindings(&state).await {
-        Ok(repaired) => tracing::info!(
-            target: "handshake_core::model_run_scheduler",
-            repaired,
-            "model_run workflow bindings repaired at startup"
-        ),
-        Err(err) => {
-            tracing::error!(
-                target: "handshake_core::model_run_scheduler",
-                error = %err,
-                "model_run workflow binding startup repair failed"
-            );
-            // No HTTP/API/background owner has been created on this failure path.
-            drop(listener);
-            signal_task.abort();
-            let _ = signal_task.await;
-            let runtime_shutdown = state.llm_client.shutdown_gracefully().await;
-            let drain_report = process_runtime.shutdown_and_drain(Duration::from_secs(35)).await;
-            tracing::info!(target: "handshake_core::process_ledger",
-                lease_released = drain_report.lease_released,
-                lease_retained_reason = ?drain_report.lease_retained_reason,
-                "startup repair failure runtime drain lease disposition");
-            let ledger_flushed = matches!(
-                &drain_report.ledger,
-                handshake_core::process_ledger::LedgerDrainJoinOutcome::Flushed
-                    | handshake_core::process_ledger::LedgerDrainJoinOutcome::AlreadyDrained
-            );
-            if runtime_shutdown.is_err() || !drain_report.reclaim_task_quiesced || !ledger_flushed {
-                state.llm_client.leave_open_for_reconciliation();
-                tracing::error!(target: "handshake_core::process_ledger",
-                    runtime_shutdown = ?runtime_shutdown,
-                    reclaim_task_quiesced = drain_report.reclaim_task_quiesced,
-                    ledger = ?drain_report.ledger,
-                    "startup failure cleanup was not confirmed; exiting with retained owners");
-                std::process::exit(1);
-            }
-            drop(state);
-            drop(process_runtime);
-            if let Err(cleanup_error) = control_plane.surreal.shutdown().await {
-                tracing::error!(target: "handshake_core::storage", error = %cleanup_error,
-                    "embedded SurrealDB did not close after startup repair failure");
-            }
-            return Err(Box::new(err));
-        }
-    }
-
-    // [HSK-WF-003] Startup Recovery Loop
-    // Scan for and mark 'Running' workflows > 30s old as 'Stalled'.
-    // Executed non-blockingly but initiated before server start.
-    workflows::enable_startup_recovery_gate();
-    let recovery_state = state.clone();
-    let recovery_handle = tokio::spawn(async move {
-        tracing::info!(target: "handshake_core::recovery", "Starting boot-time workflow recovery scan...");
-        match workflows::mark_stalled_workflows(&recovery_state, 30, true).await {
-            Ok(recovered) => {
-                if !recovered.is_empty() {
-                    tracing::info!(target: "handshake_core::recovery", count = recovered.len(), "Workflow recovery complete");
-                } else {
-                    tracing::info!(target: "handshake_core::recovery", "No workflows required recovery");
-                }
-                workflows::mark_startup_recovery_complete();
-            }
-            Err(err) => {
-                tracing::error!(target: "handshake_core::recovery", error = %err, "Workflow recovery failed");
-                workflows::mark_startup_recovery_failed(err.to_string());
-            }
-        }
-    });
-
-    // Start Janitor background service [§2.3.11]
-    // Configuration via environment or defaults
-    let janitor_config = init_janitor_config();
-    let janitor = Arc::new(Janitor::new(
-        storage,
-        flight_recorder.clone(),
-        janitor_config,
-    ));
-    let janitor_handle = janitor.clone().spawn_background();
-
-    let api::ApiRoutes { router: api_routes, runtime: api_runtime } =
-        api::routes_with_process_reclaim_runtime(
-            state.clone(), process_runtime, product_local_scope, model_access_state,
-        );
-
-    let app = Router::new()
-        .route("/health", get(health))
-        .with_state(state.clone())
-        .merge(api_routes.clone())
-        .nest("/api", api_routes)
-        .layer(cors);
-
-    tracing::info!(target: "handshake_core", listen_addr = %actual_addr, "handshake_core started");
-
-    // WP-1 MT-013 (F1 graceful shutdown): stop accepting after the OS signal and
-    // give already-accepted connections a bounded drain window. Dropping only
-    // Axum's outer serve future does not prove its spawned connection tasks have
-    // ended, so the timeout path still drives the model-runtime quiescence
-    // barrier below and exits the process after cleanup.
-    let server_shutdown_rx = shutdown_rx.clone();
-    let deadline_shutdown_rx = shutdown_rx;
-    let mut server = Box::pin(std::future::IntoFuture::into_future(
-        axum::serve(
-            listener,
-            app.into_make_service_with_connect_info::<SocketAddr>(),
-        )
-        .with_graceful_shutdown(async move {
-            wait_for_shutdown_request(server_shutdown_rx).await;
-        }),
-    ));
-    let connection_drain_deadline = async move {
-        wait_for_shutdown_request(deadline_shutdown_rx).await;
-        tokio::time::sleep(HTTP_CONNECTION_DRAIN_TIMEOUT).await;
-    };
-    tokio::pin!(connection_drain_deadline);
-    let (serve_result, connection_drain_timed_out) = tokio::select! {
-        result = server.as_mut() => (Some(result), false),
-        _ = &mut connection_drain_deadline => (None, true),
-    };
-    // Release the Axum service graph before draining its AppState-owned runtime
-    // and storage clones. On the deadline branch, accepted connection tasks are
-    // still handled by the explicit fail-closed process-exit path below.
-    drop(server);
-    signal_task.abort();
-    let _ = signal_task.await;
-
-    // The one-shot recovery scan owns an AppState clone, and therefore an LLM
-    // runtime owner. Cancel and join it after Axum returns or reaches its
-    // bounded connection deadline. On the deadline path the still-live Axum
-    // connection owners force the explicit no-STOP process-exit branch below.
-    // Stop the janitor before draining durable runtime infrastructure.
-    recovery_handle.abort();
-    let _ = recovery_handle.await;
-    janitor_handle.abort();
-    let _ = janitor_handle.await;
-
-    // A timed-out Axum drain leaves spawned connection tasks alive with
-    // AppState clones. Pre-abandon STOP authority before quiescing so even a
-    // successful worker barrier cannot publish a false clean lifecycle while
-    // those accepted tasks still exist.
-    if connection_drain_timed_out {
-        tracing::error!(
-            target: "handshake_core",
-            timeout_seconds = HTTP_CONNECTION_DRAIN_TIMEOUT.as_secs(),
-            "accepted HTTP connections missed the drain deadline; embedded START will remain open until process-death reconciliation"
-        );
-        state.llm_client.leave_open_for_reconciliation();
-    }
-
-    // 1) Close runtime admission, cancel active workers, and wait for the
-    //    worker-owned quiescence guards. Only a proven idle result may emit the
-    //    embedded ProcessOwnershipLedger STOP. On failure the client releases
-    //    its reserved STOP permits without emitting rows, leaving START open
-    //    for next-boot reconciliation.
-    let runtime_shutdown = if connection_drain_timed_out {
-        Err(handshake_core::llm::LlmError::ProviderError(
-            "accepted HTTP connections still own AppState; runtime unload ownership is unproven"
-                .to_string(),
-        ))
-    } else {
-        state.llm_client.shutdown_gracefully().await
-    };
-    if let Err(err) = &runtime_shutdown {
-        tracing::error!(
-            target: "handshake_core::process_ledger",
-            error = %err,
-            "embedded runtime did not prove quiescence; STOP remains open and shutdown will exit with the OS liveness lease held"
-        );
-    }
-
-    // Retain the final runtime-owning AppState on failed quiescence or an Axum
-    // connection-drain timeout. Only the fully-drained + quiesced path can drop
-    // the final owner. Lease release remains the shared runtime's own decision. The Option keeps both paths explicit
-    // without an accidental Drop during error unwinding.
-    let mut state_owner = Some(state);
-
-    // 2) Quiesce the single reclaimer before closing and draining the single
-    // process-ledger writer. The shared runtime releases its OS lease only after
-    // both boundaries are proven and its exact-scope open-row check permits release.
-    let api_drain_report = api_runtime
-        .drain_and_join(std::time::Duration::from_secs(35))
-        .await;
-    tracing::info!(
-        target: "handshake_core::process_ledger",
-        outcome = ?api_drain_report.operator_chat_process_ledger,
-        "operator-chat process ledger drain-and-join at shutdown"
-    );
-
-    let operator_chat_ledger_flushed = matches!(
-        &api_drain_report.operator_chat_process_ledger,
-        handshake_core::process_ledger::LedgerDrainJoinOutcome::Flushed
-            | handshake_core::process_ledger::LedgerDrainJoinOutcome::AlreadyDrained
-    );
-
-    if connection_drain_timed_out
-        || runtime_shutdown.is_err()
-        || !api_drain_report.process_reclaim_quiesced
-        || !api_drain_report.swarm_events_flushed
-        || !operator_chat_ledger_flushed
-    {
-        if let Err(err) = &runtime_shutdown {
-            tracing::error!(
-                target: "handshake_core::process_ledger",
-                error = %err,
-                "runtime shutdown did not reach a graceful terminal state"
-            );
-        }
-        tracing::error!(
-            target: "handshake_core::process_ledger",
-            connection_drain_timed_out,
-            process_reclaim_quiesced = api_drain_report.process_reclaim_quiesced,
-            swarm_events_flushed = api_drain_report.swarm_events_flushed,
-            operator_chat_ledger_flushed,
-            "shutdown durability was not fully proven; exiting with failure after preserving truthful process-ledger state"
-        );
-        // Do not unwind `state_owner` or release the lease while a worker may
-        // or an accepted connection task does still exist. Process termination
-        // ends them and releases the OS socket atomically from another
-        // instance's point of view.
-        std::process::exit(1);
-    }
-
-    // Runtime quiescence and queue acceptance are not sufficient to release
-    // the final runtime owner. The process-ledger writer has now proved that
-    // every accepted START/STOP row reached embedded SurrealDB, so dropping
-    // AppState can no longer race durable lifecycle evidence.
-    drop(state_owner.take());
-
-    drop(api_runtime);
-    drop(janitor);
-    let shutdown_result = control_plane.surreal.shutdown().await;
-    if let Err(err) = &shutdown_result {
-        tracing::error!(target: "handshake_core::storage", error = %err,
-            "embedded SurrealDB store did not close cleanly at shutdown");
-    } else {
-        tracing::info!(target: "handshake_core::storage", "embedded SurrealDB store closed");
-    }
-    match (serve_result.unwrap_or(Ok(())), shutdown_result) {
-        (Ok(()), Ok(())) => Ok(()),
-        (Err(serve_error), Ok(())) => Err(serve_error.into()),
-        (Ok(()), Err(shutdown_error)) => Err(shutdown_error.into()),
-        (Err(serve_error), Err(shutdown_error)) => Err(format!(
-            "serve loop failed: {serve_error}; embedded SurrealDB shutdown also failed: {shutdown_error}"
-        ).into()),
-    }
+async fn dispatch_router<S>(mut service: S, request: axum::extract::Request) -> axum::response::Response
+where S: axum::ServiceExt<axum::extract::Request, Response = axum::response::Response, Error = std::convert::Infallible> {
+    std::future::poll_fn(|context| service.poll_ready(context)).await.unwrap();
+    service.call(request).await.unwrap()
 }
 
 async fn wait_for_shutdown_request(mut shutdown_rx: tokio::sync::watch::Receiver<bool>) {
@@ -680,7 +802,12 @@ async fn init_llm_client(
 fn model_access_state(
     runtime: &ProcessReclaimRuntime,
     scope: &api::account_scope::ProductLocalResourceScope,
-) -> Result<api::model_access::ModelAccessState, Box<dyn std::error::Error>> {
+) -> Result<(
+    api::model_access::ModelAccessState,
+    handshake_core::swarm_orchestration::production_factory::CloudLaneFactoryConfig,
+    Arc<dyn handshake_core::model_runtime::cloud::ProviderAccessRegistry>,
+    Vec<String>,
+), Box<dyn std::error::Error>> {
     use handshake_core::model_runtime::cloud::{
         CliBridgeProvider, LiveCliSpawner, ProductionCliBridgeAuthStatusProbe,
     };
@@ -689,6 +816,7 @@ fn model_access_state(
         Arc::new(runtime.ledger().ledger()), runtime.sandbox_registry(),
     ).with_reclaim(runtime.reclaim(), ReclaimResourceScope::from_exact(scope.exact())?));
     let mut launches = Vec::new();
+    let mut launch_configs = Vec::new();
     match std::env::var_os(api::model_access::HANDSHAKE_OFFICIAL_CLI_CONFIG_PATH) {
         Some(path) => {
             let path = PathBuf::from(path);
@@ -704,7 +832,8 @@ fn model_access_state(
                 ),
                 Err(error) => return Err(error.into()),
             };
-            let (launch, _) = config.1.into_parts();
+            let (launch, _) = config.1.clone().into_parts();
+            launch_configs.push((config.0.id().to_owned(), config.1));
             spawner.pin_config(&launch).map_err(|_| io::Error::new(
                 io::ErrorKind::InvalidInput, "official CLI launch graph rejected",
             ))?;
@@ -717,11 +846,40 @@ fn model_access_state(
         ),
     }
     let probe = Arc::new(ProductionCliBridgeAuthStatusProbe::from_canonical_launches(
-        spawner, launches,
+        spawner.clone(), launches,
     ));
-    Ok(api::model_access::ModelAccessState::production_for_owner(
+    let state = api::model_access::ModelAccessState::production_for_owner(
         scope.exact().clone(), probe.clone(), probe,
-    ))
+    );
+    let (mut cloud, registry) = match state.production_cloud_dependencies() {
+        Ok(dependencies) => dependencies,
+        Err(api::model_access::ModelAccessProductionError::CloudAccess(
+            handshake_core::model_runtime::cloud::AccessConfigError::KeychainUnavailable,
+        )) => (
+            handshake_core::swarm_orchestration::production_factory::CloudLaneFactoryConfig::unconfigured(),
+            state.production_provider_registry()?,
+        ),
+        Err(error) => return Err(error.into()),
+    };
+    let mut providers = Vec::new();
+    for (provider, config) in launch_configs {
+        providers.push(provider.clone());
+        cloud = cloud.with_official_cli_provider_replay_captured(
+            provider, spawner.clone(), config, None,
+        );
+    }
+    Ok((state, cloud, registry, providers))
+}
+
+async fn bootstrap_health(State(state): State<handshake_core::AccountBootstrapState>) -> Json<HealthResponse> {
+    let (status, version) = match state.storage.ping().await {
+        Ok(()) => match state.storage.migration_version().await {
+            Ok(version) => ("ok", Some(version)),
+            Err(_) => ("error", None),
+        },
+        Err(_) => ("error", None),
+    };
+    Json(build_health_response(status, version))
 }
 
 async fn health(State(state): State<AppState>) -> Json<HealthResponse> {

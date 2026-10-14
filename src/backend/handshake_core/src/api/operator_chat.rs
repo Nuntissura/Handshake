@@ -54,7 +54,7 @@ type ApiError = (StatusCode, Json<Value>);
 #[derive(Clone)]
 pub struct OperatorChatState {
     launch_service: Option<Arc<OperatorChatLaunchService>>,
-    catalog: Arc<ModelCatalog>,
+    catalog: Option<Arc<ModelCatalog>>,
     cloud_registry: Arc<dyn ProviderAccessRegistry>,
     cli_auth_probe: Arc<dyn CliBridgeAuthStatusProbe>,
     cli_bridge_launchable_providers: BTreeSet<String>,
@@ -72,14 +72,35 @@ impl CliBridgeAuthStatusProbe for UnavailableOperatorChatCliAuthProbe {
 }
 
 impl OperatorChatState {
-    /// Production default: enumeration/selection serve from an empty catalog and
+    /// Construct the production router from its shared, scope-bound dependencies.
+    pub fn with_production_dependencies(
+        launch_service: Arc<OperatorChatLaunchService>,
+        catalog: impl Into<Option<Arc<ModelCatalog>>>,
+        cloud_registry: Arc<dyn ProviderAccessRegistry>,
+        cli_auth_probe: Arc<dyn CliBridgeAuthStatusProbe>,
+        cli_bridge_launchable_providers: impl IntoIterator<Item = String>,
+        recorder: Arc<dyn FlightRecorder>,
+        session_registry: Arc<SessionRegistry>,
+    ) -> Self {
+        Self {
+            launch_service: Some(launch_service),
+            catalog: catalog.into(),
+            cloud_registry,
+            cli_auth_probe,
+            cli_bridge_launchable_providers: cli_bridge_launchable_providers.into_iter().collect(),
+            recorder,
+            session_registry,
+        }
+    }
+
+    /// Production default: enumeration/selection serve without a local catalog and
     /// an in-memory (all-unavailable) cloud registry until the app wires the live
     /// model registry, cloud vault, and coordinator singleton. Launch is not wired
     /// here (`503 launch_not_wired`) because it needs the live `SwarmCoordinator`.
     pub fn production() -> Self {
         Self {
             launch_service: None,
-            catalog: ModelCatalog::empty(),
+            catalog: None,
             cloud_registry: Arc::new(InMemoryAccessRegistry::new()),
             cli_auth_probe: Arc::new(UnavailableOperatorChatCliAuthProbe),
             cli_bridge_launchable_providers: BTreeSet::new(),
@@ -94,7 +115,7 @@ impl OperatorChatState {
     }
 
     pub fn with_catalog(mut self, catalog: Arc<ModelCatalog>) -> Self {
-        self.catalog = catalog;
+        self.catalog = Some(catalog);
         self
     }
 
@@ -591,8 +612,9 @@ async fn enumerate_models(State(state): State<OperatorChatState>) -> Json<Value>
 async fn enumerate_inventory(state: &OperatorChatState) -> OperatorChatModelInventory {
     let local = state
         .catalog
-        .list()
+        .as_ref()
         .into_iter()
+        .flat_map(|catalog| catalog.list())
         .filter(|entry| entry.default_selectable)
         .map(|entry| OperatorChatModelRow {
             model_id: entry.model_id,

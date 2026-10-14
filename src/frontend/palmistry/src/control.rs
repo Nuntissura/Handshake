@@ -525,6 +525,7 @@ mod tests {
 
 /// Non-secret original process/ring identity signed by the current owned watcher.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct WatcherSigningIdentity {
     pub protocol_version: u32,
     pub session_id: uuid::Uuid,
@@ -534,6 +535,28 @@ pub struct WatcherSigningIdentity {
     pub ring_version: u32,
     pub record_size: u32,
     pub launch_nonce: [u8; 16],
+    pub runtime_instance_schema_id: String,
+    pub runtime_instance_id: uuid::Uuid,
+    pub runtime_host_scope_id: String,
+    pub runtime_lease_protocol: String,
+    pub runtime_lease_address: std::net::IpAddr,
+    pub runtime_lease_port: u16,
+    pub parent_os_creation_time_100ns: u64,
+}
+
+impl WatcherSigningIdentity {
+    fn valid_runtime_identity(&self) -> bool {
+        crate::cli::SigningRuntimeIdentity {
+            runtime_instance_schema_id: self.runtime_instance_schema_id.clone(),
+            runtime_instance_id: self.runtime_instance_id,
+            runtime_host_scope_id: self.runtime_host_scope_id.clone(),
+            runtime_lease_protocol: self.runtime_lease_protocol.clone(),
+            runtime_lease_address: self.runtime_lease_address,
+            runtime_lease_port: self.runtime_lease_port,
+            parent_os_creation_time_100ns: self.parent_os_creation_time_100ns,
+        }
+        .is_valid_for_session(self.session_id)
+    }
 }
 
 /// Source-compatible signing identity only. No backend-issued native HMAC key is held here.
@@ -551,11 +574,13 @@ impl WatcherSigningBootstrap {
             || identity.protocol_version != 1
             || identity.session_id.is_nil()
             || identity.process_instance_id.is_nil()
+            || identity.process_instance_id == identity.session_id
             || identity.parent_pid == 0
             || identity.watcher_pid == 0
             || identity.ring_version != 2
             || identity.record_size != 120
             || identity.launch_nonce == [0; 16]
+            || !identity.valid_runtime_identity()
         {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
@@ -778,10 +803,31 @@ mod signing_bootstrap_tests {
             ring_version: 2,
             record_size: 120,
             launch_nonce: [5; 16],
+            runtime_instance_schema_id: crate::cli::RUNTIME_INSTANCE_SCHEMA_ID.into(),
+            runtime_instance_id: uuid::Uuid::from_u128(1),
+            runtime_host_scope_id: "component-host".into(),
+            runtime_lease_protocol: crate::cli::RUNTIME_LEASE_PROTOCOL.into(),
+            runtime_lease_address: std::net::Ipv4Addr::LOCALHOST.into(),
+            runtime_lease_port: 12345,
+            parent_os_creation_time_100ns: 42,
         }
     }
     #[test]
     fn exact_seed_and_signed_original_identity_fail_closed() {
+        let mut invalid = identity();
+        invalid.runtime_instance_id = invalid.process_instance_id;
+        assert!(WatcherSigningBootstrap::from_private_seed(
+            invalid,
+            zeroize::Zeroizing::new(vec![7; 32]),
+        )
+        .is_err());
+        let mut invalid = identity();
+        invalid.parent_os_creation_time_100ns = 0;
+        assert!(WatcherSigningBootstrap::from_private_seed(
+            invalid,
+            zeroize::Zeroizing::new(vec![7; 32]),
+        )
+        .is_err());
         for size in [31, 33] {
             assert!(WatcherSigningBootstrap::from_private_seed(
                 identity(),
@@ -818,6 +864,20 @@ mod signing_bootstrap_tests {
         foreign = identity();
         foreign.watcher_pid += 1;
         assert!(signer.sign_challenge(&foreign, [8; 32], [9; 32]).is_err());
+        foreign = identity();
+        foreign.parent_os_creation_time_100ns += 1;
+        assert!(signer.sign_challenge(&foreign, [8; 32], [9; 32]).is_err());
+        foreign = identity();
+        foreign.runtime_lease_port += 1;
+        assert!(signer.sign_challenge(&foreign, [8; 32], [9; 32]).is_err());
+        let mut wire = serde_json::to_value(identity()).unwrap();
+        wire["unknown_signed_field"] = serde_json::json!(1);
+        assert!(serde_json::from_value::<WatcherSigningIdentity>(wire).is_err());
+        let mut wire = serde_json::to_value(identity()).unwrap();
+        wire.as_object_mut()
+            .unwrap()
+            .remove("runtime_instance_schema_id");
+        assert!(serde_json::from_value::<WatcherSigningIdentity>(wire).is_err());
         assert!(signer
             .sign_challenge(&identity(), [0; 32], [9; 32])
             .is_err());

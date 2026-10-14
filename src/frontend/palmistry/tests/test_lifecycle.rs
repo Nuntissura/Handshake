@@ -745,6 +745,7 @@ fn send_v2_control_with_complete_deadline(
 }
 
 #[test]
+#[cfg(windows)]
 fn current_owned_v2_child_private_seed_signs_exact_identity_and_keeps_control() {
     use handshake_diag_ring::ring::DiagRingWriterV2;
     use palmistry::control::{
@@ -752,6 +753,38 @@ fn current_owned_v2_child_private_seed_signs_exact_identity_and_keeps_control() 
     };
     let session = uuid::Uuid::now_v7();
     let instance = uuid::Uuid::now_v7();
+    let native_lease = std::net::UdpSocket::bind((std::net::Ipv4Addr::LOCALHOST, 0)).unwrap();
+    let native_endpoint = native_lease.local_addr().unwrap();
+    assert!(std::net::UdpSocket::bind(native_endpoint).is_err());
+    let native_host_scope = unique_tag("signed-native-host");
+    let parent_os_creation_time_100ns = {
+        use windows_sys::Win32::Foundation::FILETIME;
+        use windows_sys::Win32::System::Threading::{GetCurrentProcess, GetProcessTimes};
+        let mut creation = FILETIME {
+            dwLowDateTime: 0,
+            dwHighDateTime: 0,
+        };
+        let mut exit = creation;
+        let mut kernel = creation;
+        let mut user = creation;
+        // SAFETY: query only this test process using its pseudo-handle and valid output pointers.
+        assert_ne!(
+            unsafe {
+                GetProcessTimes(
+                    GetCurrentProcess(),
+                    &mut creation,
+                    &mut exit,
+                    &mut kernel,
+                    &mut user,
+                )
+            },
+            0
+        );
+        let generation =
+            (u64::from(creation.dwHighDateTime) << 32) | u64::from(creation.dwLowDateTime);
+        assert_ne!(generation, 0);
+        generation
+    };
     let nonce = [0x66; 16];
     let path = std::env::temp_dir().join(format!("handshake-diag-signed-{session}.ring"));
     let _ring_guard = RingGuard(path.clone());
@@ -788,6 +821,20 @@ fn current_owned_v2_child_private_seed_signs_exact_identity_and_keeps_control() 
                 "66666666666666666666666666666666",
                 "--signing-process-instance",
                 &instance.to_string(),
+                "--runtime-instance-schema-id",
+                palmistry::cli::RUNTIME_INSTANCE_SCHEMA_ID,
+                "--runtime-instance-id",
+                &session.to_string(),
+                "--runtime-host-scope-id",
+                &native_host_scope,
+                "--runtime-lease-protocol",
+                palmistry::cli::RUNTIME_LEASE_PROTOCOL,
+                "--runtime-lease-address",
+                &native_endpoint.ip().to_string(),
+                "--runtime-lease-port",
+                &native_endpoint.port().to_string(),
+                "--parent-os-creation-time-100ns",
+                &parent_os_creation_time_100ns.to_string(),
             ])
             .stdin(Stdio::piped())
             .stdout(Stdio::null())
@@ -810,6 +857,13 @@ fn current_owned_v2_child_private_seed_signs_exact_identity_and_keeps_control() 
         ring_version: 2,
         record_size: 120,
         launch_nonce: nonce,
+        runtime_instance_schema_id: palmistry::cli::RUNTIME_INSTANCE_SCHEMA_ID.into(),
+        runtime_instance_id: session,
+        runtime_host_scope_id: native_host_scope.clone(),
+        runtime_lease_protocol: palmistry::cli::RUNTIME_LEASE_PROTOCOL.into(),
+        runtime_lease_address: native_endpoint.ip(),
+        runtime_lease_port: native_endpoint.port(),
+        parent_os_creation_time_100ns,
     };
     let request = ControlMessage::ProvenanceChallengeV1 {
         identity: identity.clone(),
@@ -909,4 +963,6 @@ fn current_owned_v2_child_private_seed_signs_exact_identity_and_keeps_control() 
     assert_eq!(wait_for_exit(&mut quiet.0, Duration::from_secs(5)), Some(2));
     drop(held_pipe);
     drop(writer);
+    assert!(std::net::UdpSocket::bind(native_endpoint).is_err());
+    drop(native_lease);
 }

@@ -39,6 +39,7 @@
 
 use std::collections::VecDeque;
 use std::io::{self, BufReader, Read, Write};
+use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitStatus, Stdio};
 use std::sync::{mpsc, Mutex, OnceLock};
@@ -60,6 +61,9 @@ use windows_sys::Win32::Foundation::{
 use windows_sys::Win32::System::Pipes::{PeekNamedPipe, WaitNamedPipeW};
 
 use handshake_diag_ring::{DiagEventCode, DiagPhase, DiagSeverity};
+use handshake_core::process_ledger::{
+    EMBEDDED_RUNTIME_INSTANCE_SCHEMA_ID, EMBEDDED_RUNTIME_LOOPBACK_UDP_PROTOCOL,
+};
 #[cfg(not(windows))]
 use interprocess::local_socket::traits::Stream as _;
 use interprocess::local_socket::Stream as LocalStream;
@@ -279,6 +283,7 @@ pub fn drain_palmistry_child_watch_commands(handle: &mut PalmistryHandle) -> usi
 
 /// Public identity of the SAME native-owned watcher; not a durable process START receipt.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct SignedWatcherIdentity {
     pub protocol_version: u32,
     pub session_id: uuid::Uuid,
@@ -288,6 +293,22 @@ pub struct SignedWatcherIdentity {
     pub ring_version: u32,
     pub record_size: u32,
     pub launch_nonce: [u8; 16],
+    pub runtime_instance_schema_id: String,
+    pub runtime_instance_id: uuid::Uuid,
+    pub runtime_host_scope_id: String,
+    pub runtime_lease_protocol: String,
+    pub runtime_lease_address: IpAddr,
+    pub runtime_lease_port: u16,
+    pub parent_os_creation_time_100ns: u64,
+}
+
+struct SignedWatcherBootstrap {
+    process_instance_id: uuid::Uuid,
+    launch_nonce: [u8; 16],
+    signing_seed: zeroize::Zeroizing<Vec<u8>>,
+    transport_public_key: [u8; 32],
+    native_descriptor: handshake_core::process_ledger::EmbeddedRuntimeInstanceDescriptor,
+    parent_os_creation_time_100ns: u64,
 }
 
 /// Verified launch-local challenge evidence. Only PalmistryHandle's owned spawn can install it.
@@ -310,7 +331,7 @@ enum SignedWatcherRequest {
     },
 }
 #[derive(Deserialize)]
-#[serde(tag = "type")]
+#[serde(tag = "type", deny_unknown_fields)]
 enum SignedWatcherReply {
     ProvenanceReadyV1 {
         identity: SignedWatcherIdentity,
@@ -1253,6 +1274,7 @@ pub fn launch_palmistry_signed_at(
     session: &DiagSession,
     ring_path: &Path,
     control_socket: &str,
+    native_lease: &handshake_core::process_ledger::EmbeddedRuntimeInstanceLease,
     process_instance_id: uuid::Uuid,
     launch_nonce: [u8; 16],
     signing_seed: zeroize::Zeroizing<Vec<u8>>,
@@ -1266,6 +1288,7 @@ pub fn launch_palmistry_signed_at(
     })?;
     if original_session.is_nil()
         || process_instance_id.is_nil()
+        || process_instance_id == original_session
         || launch_nonce == [0; 16]
         || signing_seed.len() != 32
         || transport_public_key == [0; 32]
@@ -1275,6 +1298,28 @@ pub fn launch_palmistry_signed_at(
             "invalid signed watcher bootstrap",
         ));
     }
+    let descriptor = native_lease.descriptor();
+    if descriptor.instance_id != original_session
+        || descriptor.host_scope_id.trim().is_empty()
+        || descriptor.host_scope_id.trim() != descriptor.host_scope_id
+        || descriptor.host_scope_id.len() > 256
+        || descriptor.lease_protocol != EMBEDDED_RUNTIME_LOOPBACK_UDP_PROTOCOL
+        || !descriptor.loopback_address.is_loopback()
+        || descriptor.loopback_port == 0
+    {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "signed watcher requires the canonical native session lease",
+        ));
+    }
+    let parent_os_creation_time_100ns =
+        handshake_core::sandbox::handshake_native::process_creation_time_100ns(std::process::id())?;
+    if parent_os_creation_time_100ns == 0 {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "native parent process generation is unavailable",
+        ));
+    }
     // Validate the actual existing ring, not a path/CLI assertion of version or nonce.
     let _ring = handshake_diag_ring::ring::DiagRingReaderV2::open(ring_path, launch_nonce)?;
     launch_palmistry_at_with_bootstrap(
@@ -1282,12 +1327,14 @@ pub fn launch_palmistry_signed_at(
         session,
         ring_path,
         control_socket,
-        Some((
+        Some(SignedWatcherBootstrap {
             process_instance_id,
             launch_nonce,
             signing_seed,
             transport_public_key,
-        )),
+            native_descriptor: descriptor.clone(),
+            parent_os_creation_time_100ns,
+        }),
     )
 }
 
@@ -1296,7 +1343,7 @@ fn launch_palmistry_at_with_bootstrap(
     session: &DiagSession,
     ring_path: &Path,
     control_socket: &str,
-    bootstrap: Option<(uuid::Uuid, [u8; 16], zeroize::Zeroizing<Vec<u8>>, [u8; 32])>,
+    bootstrap: Option<SignedWatcherBootstrap>,
 ) -> io::Result<PalmistryHandle> {
     let parent_pid = std::process::id();
 
@@ -1329,36 +1376,60 @@ fn launch_palmistry_at_with_bootstrap(
         command.creation_flags(CREATE_NO_WINDOW);
     }
 
-    if let Some((process_instance_id, nonce, _, _)) = bootstrap.as_ref() {
-        let nonce_hex: String = nonce.iter().map(|byte| format!("{byte:02x}")).collect();
+    if let Some(bootstrap) = bootstrap.as_ref() {
+        let nonce_hex: String = bootstrap
+            .launch_nonce
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect();
+        let descriptor = &bootstrap.native_descriptor;
         command
             .arg("--signing-process-instance")
-            .arg(process_instance_id.to_string())
+            .arg(bootstrap.process_instance_id.to_string())
             .arg("--ring-version")
             .arg("2")
             .arg("--ring-nonce")
             .arg(nonce_hex)
+            .arg("--runtime-instance-schema-id")
+            .arg(EMBEDDED_RUNTIME_INSTANCE_SCHEMA_ID)
+            .arg("--runtime-instance-id")
+            .arg(descriptor.instance_id.to_string())
+            .arg("--runtime-host-scope-id")
+            .arg(&descriptor.host_scope_id)
+            .arg("--runtime-lease-protocol")
+            .arg(&descriptor.lease_protocol)
+            .arg("--runtime-lease-address")
+            .arg(descriptor.loopback_address.to_string())
+            .arg("--runtime-lease-port")
+            .arg(descriptor.loopback_port.to_string())
+            .arg("--parent-os-creation-time-100ns")
+            .arg(bootstrap.parent_os_creation_time_100ns.to_string())
             .stdin(Stdio::piped());
     }
-    let expected_signer = bootstrap
-        .as_ref()
-        .map(|(instance, nonce, seed, transport)| {
-            let exact = zeroize::Zeroizing::new(
-                <[u8; 32]>::try_from(seed.as_slice()).expect("validated exact seed"),
-            );
-            let verifier = ed25519_dalek::SigningKey::from_bytes(&exact)
-                .verifying_key()
-                .to_bytes();
-            (*instance, *nonce, verifier, *transport)
-        });
+    let expected_signer = bootstrap.as_ref().map(|bootstrap| {
+        let exact = zeroize::Zeroizing::new(
+            <[u8; 32]>::try_from(bootstrap.signing_seed.as_slice()).expect("validated exact seed"),
+        );
+        let verifier = ed25519_dalek::SigningKey::from_bytes(&exact)
+            .verifying_key()
+            .to_bytes();
+        (
+            bootstrap.process_instance_id,
+            bootstrap.launch_nonce,
+            verifier,
+            bootstrap.transport_public_key,
+            bootstrap.native_descriptor.clone(),
+            bootstrap.parent_os_creation_time_100ns,
+        )
+    });
     let mut child = command.spawn()?;
-    if let Some((_, _, seed, _)) = bootstrap {
+    if let Some(bootstrap) = bootstrap {
         // Only 32 bytes into our own freshly created private pipe. Drop closes EOF; no CLI/env/log key.
         let result = child
             .stdin
             .take()
             .ok_or_else(|| io::Error::other("missing owned bootstrap pipe"))
-            .and_then(|mut pipe| pipe.write_all(seed.as_slice()));
+            .and_then(|mut pipe| pipe.write_all(bootstrap.signing_seed.as_slice()));
         if let Err(error) = result {
             // This session spawned this child; preserve existing reap-on-incomplete-launch ownership.
             let _ = child.kill();
@@ -1376,8 +1447,14 @@ fn launch_palmistry_at_with_bootstrap(
         "palmistry watcher spawned (Tier 3, §6.13.3 launched-with-Handshake); starting bounded handshake"
     );
 
-    if let Some((process_instance_id, launch_nonce, verifier, transport_public_key)) =
-        expected_signer
+    if let Some((
+        process_instance_id,
+        launch_nonce,
+        verifier,
+        transport_public_key,
+        descriptor,
+        parent_os_creation_time_100ns,
+    )) = expected_signer
     {
         let identity = SignedWatcherIdentity {
             protocol_version: 1,
@@ -1389,6 +1466,13 @@ fn launch_palmistry_at_with_bootstrap(
             ring_version: 2,
             record_size: 120,
             launch_nonce,
+            runtime_instance_schema_id: EMBEDDED_RUNTIME_INSTANCE_SCHEMA_ID.to_string(),
+            runtime_instance_id: descriptor.instance_id,
+            runtime_host_scope_id: descriptor.host_scope_id,
+            runtime_lease_protocol: descriptor.lease_protocol,
+            runtime_lease_address: descriptor.loopback_address,
+            runtime_lease_port: descriptor.loopback_port,
+            parent_os_creation_time_100ns,
         };
         let result = perform_signed_watcher_handshake(
             control_socket,
@@ -1863,6 +1947,13 @@ mod signed_launch_evidence_tests {
             ring_version: 2,
             record_size: 120,
             launch_nonce: [5; 16],
+            runtime_instance_schema_id: EMBEDDED_RUNTIME_INSTANCE_SCHEMA_ID.to_string(),
+            runtime_instance_id: uuid::Uuid::from_u128(1),
+            runtime_host_scope_id: "signed-wire-unit-test".to_string(),
+            runtime_lease_protocol: EMBEDDED_RUNTIME_LOOPBACK_UDP_PROTOCOL.to_string(),
+            runtime_lease_address: std::net::Ipv4Addr::LOCALHOST.into(),
+            runtime_lease_port: 43210,
+            parent_os_creation_time_100ns: 17,
         };
         let seed = zeroize::Zeroizing::new([7; 32]);
         let signer = ed25519_dalek::SigningKey::from_bytes(&seed);
@@ -1878,6 +1969,13 @@ mod signed_launch_evidence_tests {
             ring_version: identity.ring_version,
             record_size: identity.record_size,
             launch_nonce: identity.launch_nonce,
+            runtime_instance_schema_id: identity.runtime_instance_schema_id.clone(),
+            runtime_instance_id: identity.runtime_instance_id,
+            runtime_host_scope_id: identity.runtime_host_scope_id.clone(),
+            runtime_lease_protocol: identity.runtime_lease_protocol.clone(),
+            runtime_lease_address: identity.runtime_lease_address,
+            runtime_lease_port: identity.runtime_lease_port,
+            parent_os_creation_time_100ns: identity.parent_os_creation_time_100ns,
         };
         assert_eq!(
             signed_watcher_challenge_bytes(&identity, challenge, transport).unwrap(),
@@ -1916,6 +2014,46 @@ mod signed_launch_evidence_tests {
             )
             .is_err());
         }
+        for (field, changed) in [
+            ("runtime_instance_schema_id", serde_json::json!("wrong-schema")),
+            ("runtime_instance_id", serde_json::json!(uuid::Uuid::from_u128(99))),
+            ("runtime_host_scope_id", serde_json::json!("wrong-host")),
+            ("runtime_lease_protocol", serde_json::json!("wrong-protocol")),
+            ("runtime_lease_address", serde_json::json!("127.0.0.2")),
+            ("runtime_lease_port", serde_json::json!(43211)),
+            ("parent_os_creation_time_100ns", serde_json::json!(18)),
+        ] {
+            let mut forged = reply.clone();
+            forged["identity"][field] = changed;
+            assert!(verify_signed_watcher_reply(
+                &serde_json::to_vec(&forged).unwrap(),
+                &identity,
+                verifier,
+                challenge,
+                transport,
+            )
+            .is_err());
+            let mut missing = reply.clone();
+            missing["identity"].as_object_mut().unwrap().remove(field);
+            assert!(verify_signed_watcher_reply(
+                &serde_json::to_vec(&missing).unwrap(),
+                &identity,
+                verifier,
+                challenge,
+                transport,
+            )
+            .is_err());
+        }
+        let mut unknown = reply.clone();
+        unknown["identity"]["unrecognized_runtime_identity"] = serde_json::json!(true);
+        assert!(verify_signed_watcher_reply(
+            &serde_json::to_vec(&unknown).unwrap(),
+            &identity,
+            verifier,
+            challenge,
+            transport,
+        )
+        .is_err());
         let mut forged = reply.clone();
         forged["signature"] = serde_json::json!(vec![0; 64]);
         assert!(verify_signed_watcher_reply(

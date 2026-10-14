@@ -31,6 +31,7 @@ use std::fmt;
 pub struct PalmistryConfig {
     /// Optional private-seed bootstrap for the current owned child; never a native HMAC key.
     pub signing_process_instance: Option<uuid::Uuid>,
+    pub signing_runtime_identity: Option<SigningRuntimeIdentity>,
     /// Explicit wire choice; ordinary invocations retain v1. This is not authenticated admission.
     pub ring_format: RingFormat,
     /// OS process id of the Handshake parent this watcher guards.
@@ -41,6 +42,35 @@ pub struct PalmistryConfig {
     pub ring_path: String,
     /// Local-socket name for the control channel (Shutdown/Ping/...).
     pub control_socket: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SigningRuntimeIdentity {
+    pub runtime_instance_schema_id: String,
+    pub runtime_instance_id: uuid::Uuid,
+    pub runtime_host_scope_id: String,
+    pub runtime_lease_protocol: String,
+    pub runtime_lease_address: std::net::IpAddr,
+    pub runtime_lease_port: u16,
+    pub parent_os_creation_time_100ns: u64,
+}
+
+pub const RUNTIME_INSTANCE_SCHEMA_ID: &str = "hsk.embedded_runtime.instance@2";
+pub const RUNTIME_LEASE_PROTOCOL: &str = "hsk.embedded_runtime.loopback_udp_exclusive@1";
+
+impl SigningRuntimeIdentity {
+    pub fn is_valid_for_session(&self, session: uuid::Uuid) -> bool {
+        self.runtime_instance_schema_id == RUNTIME_INSTANCE_SCHEMA_ID
+            && !session.is_nil()
+            && self.runtime_instance_id == session
+            && !self.runtime_host_scope_id.is_empty()
+            && self.runtime_host_scope_id.trim() == self.runtime_host_scope_id
+            && self.runtime_host_scope_id.len() <= 256
+            && self.runtime_lease_protocol == RUNTIME_LEASE_PROTOCOL
+            && self.runtime_lease_address.is_loopback()
+            && self.runtime_lease_port != 0
+            && self.parent_os_creation_time_100ns != 0
+    }
 }
 
 /// Explicit wire choice. V2 always carries the caller's immutable expected nonce.
@@ -95,7 +125,7 @@ impl fmt::Display for CliError {
         match self {
             CliError::BadSigningIdentity => write!(
                 f,
-                "signing bootstrap requires v2 and non-nil original session/process UUIDs"
+                "signing bootstrap requires v2, original session/process UUIDs and the complete canonical native runtime identity"
             ),
             CliError::BadRingVersion => write!(f, "ring version must be explicitly 1 or 2"),
             CliError::BadRingNonce => {
@@ -127,6 +157,13 @@ impl std::error::Error for CliError {}
 #[derive(Default)]
 struct RawInputs {
     signing_process_instance: Option<String>,
+    runtime_instance_schema_id: Option<String>,
+    runtime_instance_id: Option<String>,
+    runtime_host_scope_id: Option<String>,
+    runtime_lease_protocol: Option<String>,
+    runtime_lease_address: Option<String>,
+    runtime_lease_port: Option<String>,
+    parent_os_creation_time_100ns: Option<String>,
     ring_version: Option<String>,
     ring_nonce: Option<String>,
     parent_pid: Option<String>,
@@ -162,6 +199,34 @@ impl PalmistryConfig {
             match arg.as_str() {
                 "--signing-process-instance" => {
                     raw.signing_process_instance = Some(next(i)?);
+                    i += 2;
+                }
+                "--runtime-instance-schema-id" => {
+                    raw.runtime_instance_schema_id = Some(next(i)?);
+                    i += 2;
+                }
+                "--runtime-instance-id" => {
+                    raw.runtime_instance_id = Some(next(i)?);
+                    i += 2;
+                }
+                "--runtime-host-scope-id" => {
+                    raw.runtime_host_scope_id = Some(next(i)?);
+                    i += 2;
+                }
+                "--runtime-lease-protocol" => {
+                    raw.runtime_lease_protocol = Some(next(i)?);
+                    i += 2;
+                }
+                "--runtime-lease-address" => {
+                    raw.runtime_lease_address = Some(next(i)?);
+                    i += 2;
+                }
+                "--runtime-lease-port" => {
+                    raw.runtime_lease_port = Some(next(i)?);
+                    i += 2;
+                }
+                "--parent-os-creation-time-100ns" => {
+                    raw.parent_os_creation_time_100ns = Some(next(i)?);
                     i += 2;
                 }
                 "--ring-version" => {
@@ -251,6 +316,7 @@ impl PalmistryConfig {
                     uuid::Uuid::parse_str(&session_id).map_err(|_| CliError::BadSigningIdentity)?;
                 if process.is_nil()
                     || session.is_nil()
+                    || process == session
                     || !matches!(ring_format, RingFormat::V2 { .. })
                 {
                     return Err(CliError::BadSigningIdentity);
@@ -258,8 +324,61 @@ impl PalmistryConfig {
                 Ok(process)
             })
             .transpose()?;
+        let has_runtime_fields = raw.runtime_instance_schema_id.is_some()
+            || raw.runtime_instance_id.is_some()
+            || raw.runtime_host_scope_id.is_some()
+            || raw.runtime_lease_protocol.is_some()
+            || raw.runtime_lease_address.is_some()
+            || raw.runtime_lease_port.is_some()
+            || raw.parent_os_creation_time_100ns.is_some();
+        let signing_runtime_identity = if signing_process_instance.is_some() {
+            let identity = SigningRuntimeIdentity {
+                runtime_instance_schema_id: raw
+                    .runtime_instance_schema_id
+                    .ok_or(CliError::BadSigningIdentity)?,
+                runtime_instance_id: raw
+                    .runtime_instance_id
+                    .ok_or(CliError::BadSigningIdentity)?
+                    .parse()
+                    .map_err(|_| CliError::BadSigningIdentity)?,
+                runtime_host_scope_id: raw
+                    .runtime_host_scope_id
+                    .ok_or(CliError::BadSigningIdentity)?,
+                runtime_lease_protocol: raw
+                    .runtime_lease_protocol
+                    .ok_or(CliError::BadSigningIdentity)?,
+                runtime_lease_address: raw
+                    .runtime_lease_address
+                    .ok_or(CliError::BadSigningIdentity)?
+                    .parse()
+                    .map_err(|_| CliError::BadSigningIdentity)?,
+                runtime_lease_port: raw
+                    .runtime_lease_port
+                    .ok_or(CliError::BadSigningIdentity)?
+                    .parse()
+                    .map_err(|_| CliError::BadSigningIdentity)?,
+                parent_os_creation_time_100ns: raw
+                    .parent_os_creation_time_100ns
+                    .ok_or(CliError::BadSigningIdentity)?
+                    .parse()
+                    .map_err(|_| CliError::BadSigningIdentity)?,
+            };
+            let session = session_id
+                .parse()
+                .map_err(|_| CliError::BadSigningIdentity)?;
+            if !identity.is_valid_for_session(session) {
+                return Err(CliError::BadSigningIdentity);
+            }
+            Some(identity)
+        } else {
+            if has_runtime_fields {
+                return Err(CliError::BadSigningIdentity);
+            }
+            None
+        };
         Ok(Self {
             signing_process_instance,
+            signing_runtime_identity,
             ring_format,
             parent_pid,
             session_id,
@@ -312,10 +431,77 @@ mod tests {
             "55555555555555555555555555555555".into(),
         ]);
         assert_eq!(
+            PalmistryConfig::parse(&args, |_| None),
+            Err(CliError::BadSigningIdentity)
+        );
+        args.extend([
+            "--runtime-instance-schema-id".into(),
+            RUNTIME_INSTANCE_SCHEMA_ID.into(),
+            "--runtime-instance-id".into(),
+            uuid::Uuid::from_u128(1).to_string(),
+            "--runtime-host-scope-id".into(),
+            "component-host".into(),
+            "--runtime-lease-protocol".into(),
+            RUNTIME_LEASE_PROTOCOL.into(),
+            "--runtime-lease-address".into(),
+            "127.0.0.1".into(),
+            "--runtime-lease-port".into(),
+            "12345".into(),
+            "--parent-os-creation-time-100ns".into(),
+            "42".into(),
+        ]);
+        assert_eq!(
             PalmistryConfig::parse(&args, |_| None)
                 .unwrap()
                 .signing_process_instance,
             Some(uuid::Uuid::from_u128(2))
+        );
+        for (flag, invalid) in [
+            ("--runtime-instance-schema-id", "unknown"),
+            (
+                "--runtime-instance-id",
+                "00000000-0000-0000-0000-000000000000",
+            ),
+            ("--runtime-host-scope-id", " "),
+            ("--runtime-lease-protocol", "unknown"),
+            ("--runtime-lease-address", "192.0.2.1"),
+            ("--runtime-lease-port", "0"),
+            ("--parent-os-creation-time-100ns", "0"),
+        ] {
+            let index = args.iter().position(|arg| arg == flag).unwrap();
+            let mut invalid_args = args.clone();
+            invalid_args[index + 1] = invalid.into();
+            assert_eq!(
+                PalmistryConfig::parse(&invalid_args, |_| None),
+                Err(CliError::BadSigningIdentity)
+            );
+            let mut missing_args = args.clone();
+            missing_args.drain(index..index + 2);
+            assert_eq!(
+                PalmistryConfig::parse(&missing_args, |_| None),
+                Err(CliError::BadSigningIdentity)
+            );
+        }
+        let mut unsigned_args = args.clone();
+        let index = unsigned_args
+            .iter()
+            .position(|arg| arg == "--signing-process-instance")
+            .unwrap();
+        unsigned_args.drain(index..index + 2);
+        assert_eq!(
+            PalmistryConfig::parse(&unsigned_args, |_| None),
+            Err(CliError::BadSigningIdentity)
+        );
+        let mut same_instance_args = args.clone();
+        let process_index = same_instance_args
+            .iter()
+            .position(|arg| arg == "--signing-process-instance")
+            .unwrap()
+            + 1;
+        same_instance_args[process_index] = uuid::Uuid::from_u128(1).to_string();
+        assert_eq!(
+            PalmistryConfig::parse(&same_instance_args, |_| None),
+            Err(CliError::BadSigningIdentity)
         );
         let index = args
             .iter()

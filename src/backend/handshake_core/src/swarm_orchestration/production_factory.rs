@@ -323,7 +323,7 @@ pub async fn execute_production_routing_lifecycle(
 pub fn build_scoped_operator_chat_launch_service_with_sandbox_registry(
     surreal_storage: crate::storage::surreal::SurrealStorage,
     recorder: Arc<dyn crate::flight_recorder::FlightRecorder>,
-    catalog: Arc<crate::model_runtime::catalog::ModelCatalog>,
+    catalog: impl Into<Option<Arc<crate::model_runtime::catalog::ModelCatalog>>>,
     process_ledger_runtime: RetainedLedgerBatcher,
     process_reclaimer: Arc<crate::process_ledger::ScopedReclaim>,
     cloud: CloudLaneFactoryConfig,
@@ -337,7 +337,7 @@ pub fn build_scoped_operator_chat_launch_service_with_sandbox_registry(
     build_scoped_operator_chat_launch_service_with_sandbox_registry_inner(
         surreal_storage,
         recorder,
-        catalog,
+        catalog.into(),
         process_ledger_runtime,
         process_reclaimer,
         cloud,
@@ -357,7 +357,7 @@ pub fn build_scoped_operator_chat_launch_service_with_sandbox_registry(
 pub fn build_scoped_operator_chat_launch_service_with_sandbox_registry_and_lifecycle(
     surreal_storage: crate::storage::surreal::SurrealStorage,
     recorder: Arc<dyn crate::flight_recorder::FlightRecorder>,
-    catalog: Arc<crate::model_runtime::catalog::ModelCatalog>,
+    catalog: impl Into<Option<Arc<crate::model_runtime::catalog::ModelCatalog>>>,
     process_ledger_runtime: RetainedLedgerBatcher,
     process_reclaimer: Arc<crate::process_ledger::ScopedReclaim>,
     cloud: CloudLaneFactoryConfig,
@@ -372,7 +372,7 @@ pub fn build_scoped_operator_chat_launch_service_with_sandbox_registry_and_lifec
     build_scoped_operator_chat_launch_service_with_sandbox_registry_inner(
         surreal_storage,
         recorder,
-        catalog,
+        catalog.into(),
         process_ledger_runtime,
         process_reclaimer,
         cloud,
@@ -386,7 +386,7 @@ pub fn build_scoped_operator_chat_launch_service_with_sandbox_registry_and_lifec
 fn build_scoped_operator_chat_launch_service_with_sandbox_registry_inner(
     surreal_storage: crate::storage::surreal::SurrealStorage,
     recorder: Arc<dyn crate::flight_recorder::FlightRecorder>,
-    catalog: Arc<crate::model_runtime::catalog::ModelCatalog>,
+    catalog: Option<Arc<crate::model_runtime::catalog::ModelCatalog>>,
     process_ledger_runtime: RetainedLedgerBatcher,
     process_reclaimer: Arc<crate::process_ledger::ScopedReclaim>,
     cloud: CloudLaneFactoryConfig,
@@ -414,8 +414,11 @@ fn build_scoped_operator_chat_launch_service_with_sandbox_registry_inner(
             ModelLaneStore::new_scoped_with_lifecycle(surreal_storage, resource_scope, lifecycle)
         }
         None => ModelLaneStore::new_scoped(surreal_storage, resource_scope),
-    }
-    .with_model_catalog(Arc::clone(&catalog));
+    };
+    let model_lane_store = match catalog.as_ref() {
+        Some(catalog) => model_lane_store.with_model_catalog(Arc::clone(catalog)),
+        None => model_lane_store,
+    };
     let ledger = process_ledger_runtime.ledger();
     let (terminal_bridge, terminal_drain) =
         super::events::DurableSwarmFrBridge::spawn_with_surreal_outbox(

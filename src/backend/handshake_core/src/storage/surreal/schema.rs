@@ -15,7 +15,26 @@ use super::{
 };
 
 pub const SCHEMA_VERSION: &str = "wp-kernel-012-surreal-v1";
-pub const SCHEMA_REVISION: i64 = 164;
+pub const SCHEMA_REVISION: i64 = 165;
+
+const PRE_ARGUS_RECEIPT_REVISION: i64 = 164;
+const PRE_ARGUS_RECEIPT_GENERATED_SHA256: &str =
+    "7daf5f03b36d6792575bbc40e3775f901182d975946a4b5fd14f2912c7979fd8";
+const PRE_ARGUS_RECEIPT_CATALOG_SHA256: &str =
+    "df6e8ffaf451c5b6583483c3e6067c616d7a8e7ffcf30eb20b8879ff883fbff4";
+const PRE_ARGUS_RECEIPT_INFO_SHA256: &str =
+    "332526eb4d84ff4eb2cc1d1ed2e2ce3b334008c9a5c77335d7e355637fb6f994";
+const PRE_ARGUS_PRODUCTION_GENERATED_SHA256: &str =
+    "308b15ff13ac06160b00c9756fba69bd306adbfb2360bebe0da2433a928494b4";
+const PRE_ARGUS_PRODUCTION_SOURCE_SHA256: &str =
+    "e76f494462a191a86c9a8df9597bdda6cdbf77f808a87d42f6b125cf2039eb47";
+const PRE_ARGUS_PRODUCTION_CATALOG_SHA256: &str =
+    "7f79f7fe6e3da1c4284b2c18e8908c6fb685b030d1822a114ebc1e2f88e827ff";
+const PRE_ARGUS_PRODUCTION_INFO_SHA256: &str =
+    "207c9f797ea2f6003f9b803a800f4f06ba3fac4558cb45bca1787c304a4f1e8a";
+const PRE_ARGUS_PRODUCTION_FIELDS: usize = 4357;
+const PRE_ARGUS_PRODUCTION_INDEXES: usize = 923;
+
 /// Exact accepted revision-163 catalog before the MT-168 bare-key workspace-delete repair.
 const PRE_MT168_LOOKUP_REVISION: i64 = 163;
 const PRE_MT168_LOOKUP_GENERATED_SHA256: &str =
@@ -2938,6 +2957,116 @@ fn schema_function_definition(name: &str) -> &'static str {
     &SCHEMA[start..end]
 }
 
+const ARGUS_RECEIPT_SCHEMA_DELTAS: [(&str, &str); 2] = [
+    (r####"DEFINE TABLE OVERWRITE kernel_event_ledger SCHEMAFULL
+    PERMISSIONS FOR select WHERE (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_reader(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids) AND (aggregate_type != 'argus_action' OR (aggregate_id = payload.action_id AND correlation_id = payload.action_id AND kernel_task_run_id = 'argus:' + payload.connection_id AND session_run_id = 'argus:' + payload.connection_id AND idempotency_key = 'argus-action-receipt:' + payload.diagnostics_session_id + ':' + payload.action_id AND authority_action = 'create' AND authority_resource_id.resource_kind = 'flight_recorder' AND owner_account_id = payload.owner_account_id AND actor_principal_id = payload.actor_principal_id AND authenticated_session_id = payload.authenticated_session_id AND access_space_id = payload.access_space_id AND workspace_id = payload.workspace_id AND authenticated_session_id = record::id(authority_session_id) AND owner_account_id = record::id(authority_session_id.account_id) AND actor_principal_id = record::id(authority_session_id.principal_id) AND access_space_id = record::id(authority_session_id.access_space_id) AND authority_session_id = $auth.id AND owner_account_id = record::id($auth.account_id) AND actor_principal_id = record::id($auth.principal_id) AND authenticated_session_id = record::id($auth.id) AND access_space_id = record::id($auth.access_space_id) AND actor_kind IN ['operator', 'toolgate'] AND actor_kind = authority_session_id.principal_id.actor_kind AND actor_id = authority_session_id.principal_id.actor_id))) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_nav_quiet_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_index_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_loom_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt154_workspace_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt154_account_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt157_breakpoint_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::wp012_api_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::wp012_model_lane_receipt($this, false)
+                FOR create WHERE (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_producer(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids) AND (aggregate_type != 'argus_action' OR (aggregate_id = payload.action_id AND correlation_id = payload.action_id AND kernel_task_run_id = 'argus:' + payload.connection_id AND session_run_id = 'argus:' + payload.connection_id AND idempotency_key = 'argus-action-receipt:' + payload.diagnostics_session_id + ':' + payload.action_id AND authority_action = 'create' AND authority_resource_id.resource_kind = 'flight_recorder' AND owner_account_id = payload.owner_account_id AND actor_principal_id = payload.actor_principal_id AND authenticated_session_id = payload.authenticated_session_id AND access_space_id = payload.access_space_id AND workspace_id = payload.workspace_id AND authenticated_session_id = record::id(authority_session_id) AND owner_account_id = record::id(authority_session_id.account_id) AND actor_principal_id = record::id(authority_session_id.principal_id) AND access_space_id = record::id(authority_session_id.access_space_id) AND authority_session_id = $auth.id AND owner_account_id = record::id($auth.account_id) AND actor_principal_id = record::id($auth.principal_id) AND authenticated_session_id = record::id($auth.id) AND access_space_id = record::id($auth.access_space_id) AND actor_kind IN ['operator', 'toolgate'] AND actor_kind = authority_session_id.principal_id.actor_kind AND actor_id = authority_session_id.principal_id.actor_id))) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_nav_quiet_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_index_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_loom_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt154_workspace_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt154_account_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt157_breakpoint_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::wp012_api_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::wp012_model_lane_receipt($this, true)
+                FOR update, delete NONE;"####, r####"DEFINE TABLE OVERWRITE kernel_event_ledger SCHEMAFULL
+    PERMISSIONS FOR select WHERE (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_reader(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids)) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_nav_quiet_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_index_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_loom_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt154_workspace_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt154_account_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt157_breakpoint_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::wp012_api_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::wp012_model_lane_receipt($this, false)
+                FOR create WHERE (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_producer(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids)) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_nav_quiet_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_index_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_loom_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt154_workspace_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt154_account_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt157_breakpoint_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::wp012_api_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::wp012_model_lane_receipt($this, true)
+                FOR update, delete NONE;"####),
+    (r####"DEFINE FUNCTION OVERWRITE fn::mt109_ledger_receipt($capability: option<string>, $event_type: string, $source: string, $aggregate: string, $payload: object, $wsids: array<string>) {
+    IF $aggregate = 'argus_action' {
+        IF array::len($wsids) != 1
+            OR $capability != 'fr.ingest.native_editor'
+            OR $source != 'handshake_native_argus'
+            OR $event_type != 'TOOL_RESULT_RECORDED'
+            OR array::sort(object::keys($payload)) != [
+                'access_space_id', 'action', 'action_id', 'actor_principal_id',
+                'after_revision', 'agent_id', 'agent_label', 'authenticated_session_id',
+                'author_id', 'authority_source', 'before_revision', 'connection_id',
+                'diagnostics_session_id', 'kind', 'owner_account_id', 'status',
+                'window_id', 'workspace_id'
+            ]
+            OR $payload.kind != 'argus_action_receipt'
+            OR $payload.authority_source != 'embedded_surrealdb_kernel_event_ledger'
+            OR $payload.action NOT IN ['argus.click', 'argus.set_value', 'argus.show_context_menu']
+            OR $payload.status NOT IN ['applied', 'failed']
+            OR $payload.workspace_id != $wsids[0] { RETURN false; };
+        FOR $key IN ['action_id', 'connection_id', 'agent_id', 'agent_label', 'window_id',
+                     'author_id', 'diagnostics_session_id', 'owner_account_id',
+                     'actor_principal_id', 'authenticated_session_id', 'access_space_id', 'workspace_id'] {
+            IF !type::is_string($payload[$key]) { RETURN false; };
+        };
+        FOR $key IN ['action_id', 'connection_id', 'agent_id'] {
+            IF !string::matches($payload[$key], /\A[A-Za-z0-9._:-]{1,96}\z/) { RETURN false; };
+        };
+        FOR $key IN ['agent_label', 'window_id'] {
+            IF !string::matches($payload[$key], /\A[\x21-\x7e]{1,96}\z/) { RETURN false; };
+        };
+        IF !string::matches($payload.author_id, /\A[\x21-\x7e]{1,256}\z/)
+            OR !string::starts_with($payload.action_id, 'argus-action-')
+            OR !string::is_uuid(string::slice($payload.action_id, 13))
+            OR !string::is_uuid($payload.diagnostics_session_id)
+            OR $payload.diagnostics_session_id = '00000000-0000-0000-0000-000000000000'
+            OR !type::is_int($payload.before_revision) { RETURN false; };
+        IF $payload.before_revision < 0 { RETURN false; };
+        IF $payload.after_revision = NULL { RETURN $payload.status = 'failed'; };
+        IF !type::is_int($payload.after_revision) { RETURN false; };
+        RETURN $payload.after_revision >= $payload.before_revision
+            AND ($payload.status = 'failed' OR $payload.after_revision > $payload.before_revision);
+    };
+    RETURN array::len($wsids) = 1 AND (
+        ($capability = 'fr.ingest.native_editor' AND $aggregate = 'native_editor_event'
+            AND $source = 'native_editor_fr_ingestion' AND $payload.envelope.workspace_id = $wsids[0]
+            AND (($payload.receipt_kind = 'native_editor_flight_recorder_pending' AND $event_type = 'FLIGHT_RECORDER_MIRROR_PENDING')
+                 OR ($payload.receipt_kind = 'native_editor_flight_recorder_recorded' AND $event_type = 'FLIGHT_RECORDER_MIRROR_RECORDED')))
+        OR ($capability = 'fr.ingest.runtime_chat' AND $aggregate = 'runtime_chat_event'
+            AND $source = 'runtime_chat_fr_ingestion' AND $payload.workspace_id = $wsids[0]
+            AND $payload.receipt_kind = 'runtime_chat_flight_recorder_recorded' AND $event_type = 'FLIGHT_RECORDER_MIRROR_RECORDED')
+        OR ($payload.workspace_id = $wsids[0] AND (
+            ($capability = 'memory.propose' AND $payload.receipt_kind = 'fems_memory_write_proposal'
+                AND $aggregate = 'fems_memory_proposal' AND $source = 'fems_memory_proposal_intake' AND $event_type = 'ARTIFACT_PROPOSED')
+            OR ($capability = 'memory.review' AND $payload.receipt_kind = 'fems_memory_write_review'
+                AND $aggregate = 'fems_memory_proposal' AND $source = 'fems_memory_proposal_review' AND $event_type IN ['PROMOTION_ACCEPTED', 'PROMOTION_REJECTED'])
+            OR ($capability = 'memory.commit' AND $payload.receipt_kind = 'fems_memory_write_committed'
+                AND $aggregate = 'fems_memory_commit' AND $source = 'fems_memory_proposal_commit' AND $event_type = 'ARTIFACT_STORED'))));
+};"####, r####"DEFINE FUNCTION OVERWRITE fn::mt109_ledger_receipt($capability: option<string>, $event_type: string, $source: string, $aggregate: string, $payload: object, $wsids: array<string>) {
+    RETURN array::len($wsids) = 1 AND (
+        ($capability = 'fr.ingest.native_editor' AND $aggregate = 'native_editor_event'
+            AND $source = 'native_editor_fr_ingestion' AND $payload.envelope.workspace_id = $wsids[0]
+            AND (($payload.receipt_kind = 'native_editor_flight_recorder_pending' AND $event_type = 'FLIGHT_RECORDER_MIRROR_PENDING')
+                 OR ($payload.receipt_kind = 'native_editor_flight_recorder_recorded' AND $event_type = 'FLIGHT_RECORDER_MIRROR_RECORDED')))
+        OR ($capability = 'fr.ingest.runtime_chat' AND $aggregate = 'runtime_chat_event'
+            AND $source = 'runtime_chat_fr_ingestion' AND $payload.workspace_id = $wsids[0]
+            AND $payload.receipt_kind = 'runtime_chat_flight_recorder_recorded' AND $event_type = 'FLIGHT_RECORDER_MIRROR_RECORDED')
+        OR ($payload.workspace_id = $wsids[0] AND (
+            ($capability = 'memory.propose' AND $payload.receipt_kind = 'fems_memory_write_proposal'
+                AND $aggregate = 'fems_memory_proposal' AND $source = 'fems_memory_proposal_intake' AND $event_type = 'ARTIFACT_PROPOSED')
+            OR ($capability = 'memory.review' AND $payload.receipt_kind = 'fems_memory_write_review'
+                AND $aggregate = 'fems_memory_proposal' AND $source = 'fems_memory_proposal_review' AND $event_type IN ['PROMOTION_ACCEPTED', 'PROMOTION_REJECTED'])
+            OR ($capability = 'memory.commit' AND $payload.receipt_kind = 'fems_memory_write_committed'
+                AND $aggregate = 'fems_memory_commit' AND $source = 'fems_memory_proposal_commit' AND $event_type = 'ARTIFACT_STORED'))));
+};"####),
+];
+
+#[cfg(test)]
+fn restore_pre_argus_receipt_schema(mut source: String) -> String {
+    for (current, previous) in ARGUS_RECEIPT_SCHEMA_DELTAS {
+        assert_eq!(source.matches(current).count(), 1, "Argus delta must occur exactly once");
+        source = source.replacen(current, previous, 1);
+    }
+    assert_eq!(sha256_hex(source.as_bytes()), PRE_ARGUS_RECEIPT_GENERATED_SHA256,
+        "restored revision 164 must match the frozen source");
+    source
+}
+
+fn argus_receipt_upgrade_statements() -> String {
+    let mut spans = BTreeMap::new();
+    for (current, _) in ARGUS_RECEIPT_SCHEMA_DELTAS {
+        assert_eq!(SCHEMA.matches(current).count(), 1, "Argus delta must match the canonical definition");
+        assert!(schema_statements_enclosing(current, &mut spans) > 0,
+            "Argus delta must have a complete OVERWRITE statement");
+    }
+    assert_eq!(spans.len(), 2, "Argus successor must emit only its two changed definitions");
+    let mut statements = String::new();
+    for (start, end) in spans {
+        statements.push_str(&SCHEMA[start..end]);
+        statements.push('\n');
+    }
+    statements
+}
+
 // Imported declarations are shared by every supported predecessor, including
 // the newer lineages which do not consume the revision-160 delta emitter.
 // Select their current canonical statements, never historical reconstruction
@@ -2945,6 +3074,7 @@ fn schema_function_definition(name: &str) -> &'static str {
 fn imported_schema_upgrade_spans() -> BTreeMap<usize, usize> {
     let mut spans = BTreeMap::new();
     for name in [
+        "mt109_ledger_receipt",
         "wp012_navigation_receipt_semantics", "wp012_exact_loom_scope",
         "wp012_search_contributors", "wp012_api_receipt", "wp012_search_evidence",
         "wp012_model_lane_crdt_lease_receipt", "wp012_model_lane_proposal_receipt",
@@ -3588,6 +3718,7 @@ DEFINE FIELD OVERWRITE owner_account_id ON TABLE kernel_event_ledger TYPE option
 // Test-only: current revision/INFO upgrade proof remains pending.
 #[cfg(test)]
 fn restore_pre_mt173_import_schema(mut source: String) -> String {
+    source = restore_pre_argus_receipt_schema(source);
     source = restore_pre_navigation_provider_schema(source);
     source = restore_round08_context_schema(source);
     let connected_delta_2 = r###"    RETURN record::id($block.source_rich_document_id) = record::id($block)
@@ -4096,7 +4227,7 @@ const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
 // Existing collection subtype count also drifted (57 observed source nestings, 56 declared).
 // Live INFO, shared/module catalog ownership and compatible reopen lineage remain unmeasured.
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "7daf5f03b36d6792575bbc40e3775f901182d975946a4b5fd14f2912c7979fd8";
+    "5cc120ca23c3785aabad719b19c359e7d023bb813ab5d87db4de5e1a3246dbc4";
 // MT-142 re-pin: catalog identities gained the knowledge_rich_document_title_anchors objects.
 // MT-151 re-pin: catalog identities gained the journal_key field/index and the
 // storage_graph_anchors objects.
@@ -4207,8 +4338,8 @@ pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
 // MT-168 PIN-MEASURE PENDING: the seven grant function bodies changed (key-only candidate lookup),
 // fn::mt120_workspace_delete changed and protected_resources gained protected_resources_parent_idx;
 // MT-170 CURRENT schema-info pin; fresh-Mem canonical measurement on c1f8d7cd.
-pub const EXPECTED_SCHEMA_INFO_SHA256: &str =
-    "332526eb4d84ff4eb2cc1d1ed2e2ce3b334008c9a5c77335d7e355637fb6f994";
+// Revision 165 awaits independent BASE INFO measurement and confirmation.
+pub const EXPECTED_SCHEMA_INFO_SHA256: &str = "";
 // MT-141 R9 re-pin: atelier_media_source_provenance_ref.asset_id definition changed (previous
 // value 25cd85bc8267363891ef9bcece05b2e41b4aa0762e8384f86f4a1563e1d43585, MT-150).
 // MT-141 re-pin (second hop): the atelier catalog gained atelier_saved_search_retrieval_projection
@@ -5750,6 +5881,23 @@ struct PredecessorUpgradeBindings {
 }
 
 impl SchemaState {
+    fn is_exact_pre_argus_receipt(&self, production: bool) -> bool {
+        self.version == SCHEMA_VERSION
+            && self.revision == PRE_ARGUS_RECEIPT_REVISION
+            && self.target_revision == PRE_ARGUS_RECEIPT_REVISION
+            && self.namespace == DEFAULT_NAMESPACE && self.database == DEFAULT_DATABASE
+            && self.apply_state == "complete"
+            && self.source_manifest_sha256 == if production {
+                PRE_ARGUS_PRODUCTION_SOURCE_SHA256
+            } else { SCHEMA_LINEAGE_SHA256 }
+            && self.generated_surql_sha256 == if production {
+                PRE_ARGUS_PRODUCTION_GENERATED_SHA256
+            } else { PRE_ARGUS_RECEIPT_GENERATED_SHA256 }
+            && self.info_fingerprint_sha256 == if production {
+                PRE_ARGUS_PRODUCTION_INFO_SHA256
+            } else { PRE_ARGUS_RECEIPT_INFO_SHA256 }
+    }
+
     fn has_stable_v1_identity(&self) -> bool {
         self.version == SCHEMA_VERSION
             && self.revision == SCHEMA_REVISION
@@ -6316,7 +6464,8 @@ async fn definitions_committed_without_receipt(
 
 // Only an independently observed whole engine catalog can populate this pin.
 // Source/catalog digests below are provenance, never substitutes for INFO.
-const EXPECTED_PRODUCTION_SCHEMA_PIN: Option<(&str, usize, usize)> = Some(("207c9f797ea2f6003f9b803a800f4f06ba3fac4558cb45bca1787c304a4f1e8a", 4357, 923));
+// Revision 165 awaits independent FINAL INFO measurement and confirmation.
+const EXPECTED_PRODUCTION_SCHEMA_PIN: Option<(&str, usize, usize)> = None;
 
 fn production_schema_sources() -> Vec<(&'static str, &'static str)> {
     vec![
@@ -6432,6 +6581,14 @@ async fn production_reopen_report(storage: &SurrealStorage) -> Result<Option<Sch
         let mut response = database.query(format!("SELECT * FROM ONLY {BOOTSTRAP_STATE_ID};")).await?;
         let state: Option<SchemaState> = response.take(0)?;
         let Some(mut state) = state else { return Ok(None); };
+        if state.is_exact_pre_argus_receipt(true) {
+            verify_compiled_manifest(&database).await?;
+            let observed = upgrade_pre_argus_receipt(&database, &state, true).await?;
+            let complete = read_context_and_state(&database).await?
+                .ok_or_else(|| SurrealStorageError::TransactionWorker("Argus production successor receipt missing".to_owned()))?;
+            return Ok(Some(build_schema_report(complete, observed,
+                SchemaBootstrapOutcome::UpgradedSupportedPredecessor, 10)));
+        }
         if !has_production_identity(&state) { return Ok(None); }
         let observed = inspect_production_schema(&database).await?;
         verify_production_module_receipts(&database).await?;
@@ -6659,6 +6816,10 @@ async fn bootstrap_schema_unbounded(
                     Some(state) if state.is_exact_current() => {
                         ensure_knowledge_schema_registry(&database).await?;
                         SchemaBootstrapOutcome::ReusedExactCurrent
+                    }
+                    Some(state) if state.is_exact_pre_argus_receipt(false) => {
+                        verified_observed = Some(upgrade_pre_argus_receipt(&database, &state, false).await?);
+                        SchemaBootstrapOutcome::UpgradedSupportedPredecessor
                     }
                     Some(state) if state.is_exact_pre_mt168_lookup_revision() => {
                         verified_observed =
@@ -8149,6 +8310,94 @@ COMMIT TRANSACTION;\n"
             .await
         }
     }
+}
+
+
+#[derive(SurrealValue)]
+struct ArgusSuccessorBindings {
+    version: String, previous_revision: i64, revision: i64,
+    namespace: String, database: String,
+    previous_source: String, previous_generated: String, previous_info: String,
+    source: String, generated: String, pending_info: String,
+}
+
+async fn upgrade_pre_argus_receipt(
+    database: &SurrealAdminContext<'_>,
+    previous_state: &SchemaState,
+    production: bool,
+) -> Result<ObservedSchema, SurrealStorageError> {
+    if !previous_state.is_exact_pre_argus_receipt(production) {
+        return fail_closed(database, "HANDSHAKE_SURREAL_PRE_ARGUS_PRECONDITION_FAILED".to_owned()).await;
+    }
+    let predecessor = read_schema_catalog(database).await?;
+    if predecessor.info_fingerprint_sha256 != previous_state.info_fingerprint_sha256
+        || (production && (predecessor.fields_defined != PRE_ARGUS_PRODUCTION_FIELDS
+            || predecessor.indexes_defined != PRE_ARGUS_PRODUCTION_INDEXES)) {
+        return fail_closed(database, format!(
+            "HANDSHAKE_SURREAL_PRE_ARGUS_CATALOG_MISMATCH: observed={}; fields={}; indexes={}",
+            predecessor.info_fingerprint_sha256, predecessor.fields_defined, predecessor.indexes_defined)).await;
+    }
+    if production { verify_production_module_receipts(database).await?; }
+    if EXPECTED_SCHEMA_INFO_SHA256.is_empty()
+        || (production && EXPECTED_PRODUCTION_SCHEMA_PIN.is_none()) {
+        return fail_closed(database, "HANDSHAKE_SURREAL_ARGUS_SUCCESSOR_INFO_UNMEASURED".to_owned()).await;
+    }
+    let source = if production { production_source_sha256() } else { SCHEMA_LINEAGE_SHA256.to_owned() };
+    let generated = if production { production_generated_sha256() } else { GENERATED_SURREALQL_SHA256.to_owned() };
+    let upgrade = format!(r#"
+BEGIN TRANSACTION;
+LET $current = SELECT * FROM ONLY handshake_schema_state:primary;
+IF $current = NONE OR $current.version != $version
+ OR $current.revision != $previous_revision OR $current.target_revision != $previous_revision
+ OR $current.namespace != $namespace OR $current.database != $database
+ OR $current.source_manifest_sha256 != $previous_source
+ OR $current.generated_surql_sha256 != $previous_generated
+ OR $current.info_fingerprint_sha256 != $previous_info OR $current.apply_state != 'complete'
+{{ THROW 'HANDSHAKE_SURREAL_PRE_ARGUS_STATE_CHANGED'; }};
+{}
+UPDATE ONLY handshake_schema_state:primary SET revision = $revision, target_revision = $revision,
+ source_manifest_sha256 = $source, generated_surql_sha256 = $generated,
+ info_fingerprint_sha256 = $pending_info, apply_state = 'schema_applied', updated_at = time::now();
+COMMIT TRANSACTION;
+"#, argus_receipt_upgrade_statements());
+    database.query_bound(upgrade, ArgusSuccessorBindings {
+        version: SCHEMA_VERSION.to_owned(), previous_revision: PRE_ARGUS_RECEIPT_REVISION,
+        revision: SCHEMA_REVISION, namespace: DEFAULT_NAMESPACE.to_owned(), database: DEFAULT_DATABASE.to_owned(),
+        previous_source: previous_state.source_manifest_sha256.clone(),
+        previous_generated: previous_state.generated_surql_sha256.clone(), previous_info: previous_state.info_fingerprint_sha256.clone(),
+        source: source.clone(), generated: generated.clone(), pending_info: PENDING_SCHEMA_INFO_SHA256.to_owned(),
+    }).await?;
+    let pending = read_context_and_state(database).await?
+        .ok_or_else(|| SurrealStorageError::TransactionWorker("Argus successor pending receipt missing".to_owned()))?;
+    let pending_identity = if production { has_production_identity(&pending) } else { pending.has_stable_v1_identity() };
+    if !pending_identity || pending.generated_surql_sha256 != generated
+        || pending.apply_state != "schema_applied" || pending.info_fingerprint_sha256 != PENDING_SCHEMA_INFO_SHA256 {
+        return fail_closed(database, "HANDSHAKE_SURREAL_ARGUS_SUCCESSOR_PENDING_MISMATCH".to_owned()).await;
+    }
+    let observed = if production {
+        verify_production_module_receipts(database).await?;
+        inspect_production_schema(database).await?
+    } else {
+        ensure_knowledge_schema_registry(database).await?;
+        let observed = inspect_schema(database).await?;
+        verify_expected_info_fingerprint(database, &observed).await?;
+        observed
+    };
+    finalize_schema_state_bound(database, FinalizeBindings {
+        schema_version: SCHEMA_VERSION.to_owned(), schema_revision: SCHEMA_REVISION,
+        namespace: DEFAULT_NAMESPACE.to_owned(), database: DEFAULT_DATABASE.to_owned(),
+        source_manifest_sha256: source, generated_surql_sha256: generated.clone(),
+        pending_info_fingerprint_sha256: PENDING_SCHEMA_INFO_SHA256.to_owned(),
+        info_fingerprint_sha256: observed.info_fingerprint_sha256.clone(),
+    }).await?;
+    let complete = read_context_and_state(database).await?
+        .ok_or_else(|| SurrealStorageError::TransactionWorker("Argus successor complete receipt missing".to_owned()))?;
+    let complete_identity = if production { has_production_identity(&complete) } else { complete.has_stable_v1_identity() };
+    if !complete_identity || complete.generated_surql_sha256 != generated
+        || complete.apply_state != "complete" || complete.info_fingerprint_sha256 != observed.info_fingerprint_sha256 {
+        return fail_closed(database, "HANDSHAKE_SURREAL_ARGUS_SUCCESSOR_COMPLETE_MISMATCH".to_owned()).await;
+    }
+    Ok(observed)
 }
 
 /// MT-168: upgrade only the workspace-delete lookup function from the exact revision-163 catalog.
@@ -12280,6 +12529,30 @@ mod tests {
     /// comments) is emitted.
     #[test]
     fn schema_delta_upgrade_statements_re_emit_every_mt154_delta() {
+        let previous = restore_pre_argus_receipt_schema(SCHEMA.to_owned());
+        let previous_sources = production_schema_sources().into_iter().map(|(name, source)| {
+            (name.to_owned(), if name == "shared" { previous.clone() } else { source.to_owned() })
+        }).collect::<Vec<_>>();
+        assert_eq!(sha256_hex(serde_json::to_string(&previous_sources).unwrap().as_bytes()),
+            PRE_ARGUS_PRODUCTION_GENERATED_SHA256, "historical FINAL 164 source composition changed");
+        let manifest = previous_sources.iter().map(|(name, source)|
+            (name, sha256_hex(source.as_bytes()))).collect::<Vec<_>>();
+        assert_eq!(sha256_hex(serde_json::to_string(&(
+            SCHEMA_VERSION, PRE_ARGUS_RECEIPT_REVISION, SCHEMA_LINEAGE_SHA256, manifest,
+        )).unwrap().as_bytes()), PRE_ARGUS_PRODUCTION_SOURCE_SHA256,
+            "historical FINAL 164 manifest changed");
+        assert_eq!(compute_declarative_schema_catalog_sha256().unwrap(), PRE_ARGUS_RECEIPT_CATALOG_SHA256,
+            "the Argus predicate must preserve catalog identities");
+        assert_eq!(production_catalog_sha256().unwrap(), PRE_ARGUS_PRODUCTION_CATALOG_SHA256,
+            "the Argus predicate must preserve composed catalog identities");
+        let successor = argus_receipt_upgrade_statements();
+        assert_eq!(successor.lines().filter(|line| line.starts_with("DEFINE ")).count(), 2);
+        let imported = imported_schema_upgrade_spans();
+        for (current, _) in ARGUS_RECEIPT_SCHEMA_DELTAS {
+            assert_eq!(successor.matches(current).count(), 1);
+            assert!(imported.iter().any(|(start, end)| &SCHEMA[*start..*end] == current),
+                "every older predecessor must reach the current Argus definition");
+        }
         for (current, _) in MT154_SCHEMA_DELTAS {
             let mut spans = BTreeMap::new();
             assert!(

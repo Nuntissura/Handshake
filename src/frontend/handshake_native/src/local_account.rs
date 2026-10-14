@@ -295,6 +295,106 @@ pub async fn current_session(
     Ok(matches)
 }
 
+#[derive(Debug, Clone, Deserialize)]
+pub struct WorkspaceActivationAcknowledgement {
+    pub operation_id: uuid::Uuid,
+    pub owner_account_id: String,
+    pub actor_principal_id: String,
+    pub authenticated_session_id: String,
+    pub access_space_id: String,
+    pub workspace_id: String,
+}
+
+#[derive(Debug)]
+pub enum WorkspaceActivationError {
+    Denied(String),
+    Uncertain(String),
+}
+
+impl WorkspaceActivationError {
+    pub fn is_uncertain(&self) -> bool {
+        matches!(self, Self::Uncertain(_))
+    }
+}
+
+impl std::fmt::Display for WorkspaceActivationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Denied(message) | Self::Uncertain(message) => f.write_str(message),
+        }
+    }
+}
+
+pub async fn activate_workspace(
+    _client: &reqwest::Client,
+    backend: &str,
+    context: std::sync::Arc<AuthenticatedContext>,
+    workspace_id: &str,
+    operation_id: uuid::Uuid,
+) -> Result<WorkspaceActivationAcknowledgement, WorkspaceActivationError> {
+    let client = crate::backend_client::shared_http_client();
+    let request = context
+        .authorize(
+            client
+                .post(format!("{backend}/authority/session"))
+                .json(&serde_json::json!({
+                    "workspace_id": workspace_id,
+                    "operation_id": operation_id,
+                })),
+        )
+        .map_err(WorkspaceActivationError::Denied)?;
+    let response = client
+        .execute(request)
+        .await
+        .map_err(|error| WorkspaceActivationError::Uncertain(send_error_detail(&error)))?;
+    let status = response.status();
+    context.observe_status(status);
+    if matches!(status.as_u16(), 400 | 401 | 403 | 404) {
+        if matches!(status.as_u16(), 401 | 403) {
+            context.invalidate();
+        }
+        return Err(WorkspaceActivationError::Denied(format!(
+            "Workspace activation denied ({status})"
+        )));
+    }
+    if !status.is_success() {
+        return Err(WorkspaceActivationError::Uncertain(format!(
+            "Workspace activation acknowledgement unavailable ({status})"
+        )));
+    }
+    let value: serde_json::Value = response.json().await.map_err(|_| {
+        WorkspaceActivationError::Uncertain("Invalid workspace activation acknowledgement".into())
+    })?;
+    if value["schema_version"].as_str() != Some("hsk.workspace_activation@1") {
+        return Err(WorkspaceActivationError::Uncertain(
+            "Invalid workspace activation acknowledgement schema".into(),
+        ));
+    }
+    let acknowledgement: WorkspaceActivationAcknowledgement =
+        serde_json::from_value(value).map_err(|_| {
+            WorkspaceActivationError::Uncertain(
+                "Invalid workspace activation acknowledgement".into(),
+            )
+        })?;
+    if acknowledgement.operation_id != operation_id
+        || acknowledgement.owner_account_id != context.account_id
+        || acknowledgement.actor_principal_id != context.principal_id
+        || acknowledgement.authenticated_session_id != context.session_id
+        || acknowledgement.access_space_id != context.access_space_id
+        || acknowledgement.workspace_id != workspace_id
+    {
+        return Err(WorkspaceActivationError::Uncertain(
+            "Workspace activation acknowledgement mismatch".into(),
+        ));
+    }
+    if !context.is_active() {
+        return Err(WorkspaceActivationError::Uncertain(
+            "Account session changed during workspace activation".into(),
+        ));
+    }
+    Ok(acknowledgement)
+}
+
 fn channel_request(
     request: reqwest::RequestBuilder,
     channel: &str,

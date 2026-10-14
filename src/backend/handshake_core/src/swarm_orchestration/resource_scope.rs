@@ -766,9 +766,24 @@ impl ResourceAccessLifecycleRegistry {
     }
 
     pub(crate) fn authorize_association(&self, association: &ResourceAccessGrantAssociation) -> Result<(), ScopeDenied> {
+        self.with_authorized_association(association, || ())
+    }
+
+    /// Publication is synchronous and must not block or reenter this registry.
+    pub(crate) fn with_authorized_association<T>(
+        &self,
+        association: &ResourceAccessGrantAssociation,
+        publication: impl FnOnce() -> T,
+    ) -> Result<T, ScopeDenied> {
         let state = self.state.read().map_err(|_| ScopeDenied::LifecycleAuthorityUnavailable)?;
         if matches!(state.entries.get(&association.exact), Some(entry) if entry.state == ResourceAccessLifecycleState::Active)
-            && state.grants.get(association) == Some(&true) { Ok(()) } else { Err(ScopeDenied::LifecycleRevoked) }
+            && state.grants.get(association) == Some(&true) {
+            let published = publication();
+            drop(state);
+            Ok(published)
+        } else {
+            Err(ScopeDenied::LifecycleRevoked)
+        }
     }
 
     pub(crate) fn capture_grants(

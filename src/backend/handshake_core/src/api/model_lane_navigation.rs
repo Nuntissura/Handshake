@@ -58,6 +58,98 @@ struct NavigationGrant { grant_id: String, resource_id: String, grant_version: i
 // Select an existing canonical grant as the native record user, without the
 // audit-writing authorization helper. The provider revalidates this original
 // envelope inside the read transaction before and after acquiring the projection.
+pub(crate) async fn resolve_navigation_authorization(
+    surreal: &crate::storage::surreal::SurrealStorage,
+    capability_registry: &crate::capabilities::CapabilityRegistry,
+    session: crate::api::authority::AuthenticatedLocalSession,
+    workspace_id: &str,
+    lifecycle: &ResourceAccessLifecycleRegistry,
+) -> Result<(RecordUserScope, ResourceAccessGrantAssociation), ApiError> {
+    let unavailable = || (StatusCode::SERVICE_UNAVAILABLE, Json(json!({"error": "navigation_authority_unavailable"})));
+    let denied = || (StatusCode::NOT_FOUND, Json(json!({"error": "not_found"})));
+    if *lifecycle != surreal.resource_access_lifecycle() { return Err(unavailable()); }
+    let locator = match surreal.canonical_resource_locator(ResourceKind::Workspace, workspace_id).await {
+        Ok(Some(locator)) => locator, Ok(None) => return Err(denied()), Err(_) => return Err(unavailable()),
+    };
+    if locator.owner_account_id != surrealdb::types::RecordId::new("local_accounts", session.context.identity.account_id.clone())
+        || locator.access_space_id != surrealdb::types::RecordId::new("access_spaces", session.context.identity.access_space_id.clone())
+        || locator.external_resource_id != workspace_id {
+        return Err(denied());
+    }
+    // Construct authority from the authenticated native identity and located
+    // canonical workspace; the server selection above only asserts equality.
+    let canonical = (|| {
+        use crate::swarm_orchestration::resource_scope::{OwnerAccountId, ActorPrincipalId, AuthenticatedSessionRef, AccessSpaceRef, WorkspaceScopeRef, ResourceScope, ExactResourceScopeAttribution};
+        let scope = ResourceScope::new(
+            OwnerAccountId::from_uuid(uuid::Uuid::parse_str(&session.context.identity.account_id).ok()?),
+            ActorPrincipalId::from_uuid(uuid::Uuid::parse_str(&session.context.identity.principal_id).ok()?),
+        ).with_session(AuthenticatedSessionRef::from_uuid(uuid::Uuid::parse_str(&session.context.session_id).ok()?))
+            .with_access_space(AccessSpaceRef::from_uuid(uuid::Uuid::parse_str(&session.context.identity.access_space_id).ok()?))
+            .with_workspace(WorkspaceScopeRef::new(locator.external_resource_id.clone()).ok()?);
+        ExactResourceScopeAttribution::try_from_resource_scope(&scope).ok()
+    })();
+    let Some(canonical) = canonical else { return Err(crate::api::authority::constant_denial()); };
+    let exact = &canonical;
+    match lifecycle.decision(exact) {
+        Ok(ResourceAccessLifecycleDecision::Unknown) => {},
+        Ok(ResourceAccessLifecycleDecision::Known { state: ResourceAccessLifecycleState::Active, .. }) => {},
+        Ok(ResourceAccessLifecycleDecision::Known { .. }) => return Err(crate::api::authority::constant_denial()),
+        Err(_) => return Err(unavailable()),
+    }
+    if !crate::api::authority::session_holds_capability(&session.context, "model_lane.navigation.read") {
+        return Err(crate::api::authority::constant_denial());
+    }
+    let workspace_id = exact.workspace_id.as_str().to_owned();
+    let mut original = RecordUserScope { grant_id: None, workspace_id: Some(workspace_id.clone()),
+        resource_id: workspace_id.clone(), session_id: session.context.session_id,
+        session_token: session.session_token, channel_binding_hash: Some(session.channel_binding_hash),
+        capability_id: "model_lane.navigation.read".into(), action: ResourceAction::Read };
+    let captured_grants = match lifecycle.capture_grants(exact, "navigation_read") {
+        Ok(captured) => captured, Err(_) => return Err(unavailable()),
+    };
+    let rows = surreal.with_record_user_scope(original.clone(), surreal.with_data_operation(|database| Box::pin(async move {
+        database.query_values::<NavigationGrant, _>(
+            "SELECT record::id(id) AS grant_id, record::id(resource_id) AS resource_id, grant_version, policy_version, principal_id.capability_profile_id AS capability_profile_id FROM resource_grants WHERE account_id = $auth.account_id AND principal_id = $auth.principal_id AND access_space_id = $auth.access_space_id AND resource_id = $resource_id AND resource_id.lifecycle_state = 'active' AND resource_id.owner_account_id = $auth.account_id AND resource_id.access_space_id = $auth.access_space_id AND status = 'active' AND revoked_at = NONE AND (expires_at = NONE OR expires_at > time::now()) AND actions CONTAINS 'read' AND capability_ids CONTAINS 'model_lane.navigation.read' AND delegation_chain = $auth.delegation_chain AND policy_version <= $auth.policy_version AND resource_id.policy_version <= policy_version AND resource_id.created_by_principal_id.status = 'enabled' AND $auth.principal_id.delegated_capabilities CONTAINS 'model_lane.navigation.read' ORDER BY id ASC LIMIT 2;",
+            NavigationGrantBindings { resource_id: locator.id },
+        ).await
+    }))).await;
+    let mut rows = match rows {
+        Ok(rows) => rows,
+        Err(crate::storage::surreal::SurrealStorageError::StatementBudgetExhausted { .. }
+            | crate::storage::surreal::SurrealStorageError::StatementTimeout { .. }
+            | crate::storage::surreal::SurrealStorageError::Closed
+            | crate::storage::surreal::SurrealStorageError::ResourceAuthorityUnavailable) => return Err(unavailable()),
+        Err(crate::storage::surreal::SurrealStorageError::TransactionAuthorityRequired) =>
+            return Err(crate::api::authority::constant_denial()),
+        Err(crate::storage::surreal::SurrealStorageError::Database(error)) if matches!(
+            error.not_allowed_details(),
+            Some(surrealdb::types::NotAllowedError::Auth(
+                surrealdb::types::AuthError::TokenExpired | surrealdb::types::AuthError::SessionExpired
+                | surrealdb::types::AuthError::InvalidAuth | surrealdb::types::AuthError::MissingUserOrPass
+                | surrealdb::types::AuthError::InvalidPass | surrealdb::types::AuthError::NotAllowed { .. }
+            ))
+        ) => return Err(crate::api::authority::constant_denial()),
+        Err(error) => return Err(model_lane_api_error(ModelLaneError::Surreal(error))),
+    };
+    let eligible: Vec<_> = rows.iter().map(|grant| (grant.grant_id.clone(), grant.grant_version, grant.policy_version)).collect();
+    // LIMIT 2 is an ambiguity probe; two rows are not complete membership evidence.
+    if rows.len() < 2 && lifecycle.observe_grants(&captured_grants, &eligible).is_err() { return Err(unavailable()); }
+    let grant = match rows.len() { 1 => rows.remove(0), _ => return Err(crate::api::authority::constant_denial()) };
+    if !capability_registry.profile_can(&grant.capability_profile_id, "model_lane.navigation.read").unwrap_or(false) {
+        return Err(crate::api::authority::constant_denial());
+    }
+    let association = ResourceAccessGrantAssociation { exact: exact.clone(), resource_id: grant.resource_id.clone(),
+        grant_id: grant.grant_id.clone(), grant_version: grant.grant_version, policy_version: grant.policy_version,
+        capability_id: "model_lane.navigation.read".into(), action: "read".into(), purpose: "navigation_read".into() };
+    match lifecycle.register_authorization(association.clone()) {
+        Ok(()) => {},
+        Err(crate::swarm_orchestration::resource_scope::ResourceAccessLifecycleTransitionError::AuthorityUnavailable) => return Err(unavailable()),
+        Err(_) => return Err(crate::api::authority::constant_denial()),
+    }
+    original.grant_id = Some(grant.grant_id); original.resource_id = grant.resource_id;
+    Ok((original, association))
+}
+
 async fn navigation_authority(State(state): State<AppState>, request: Request, next: Next) -> Response {
     let unavailable = || (StatusCode::SERVICE_UNAVAILABLE, Json(json!({"error": "navigation_authority_unavailable"}))).into_response();
     let denied = || (StatusCode::NOT_FOUND, Json(json!({"error": "not_found"}))).into_response();
@@ -73,88 +165,18 @@ async fn navigation_authority(State(state): State<AppState>, request: Request, n
         || session.context.identity.access_space_id != exact.access_space_id.to_string() {
         return denied();
     }
-    if lifecycle != state.surreal.resource_access_lifecycle() { return unavailable(); }
-    let locator = match state.surreal.canonical_resource_locator(ResourceKind::Workspace, exact.workspace_id.as_str()).await {
-        Ok(Some(locator)) => locator, Ok(None) => return denied(), Err(_) => return unavailable(),
+    let (original, association) = match resolve_navigation_authorization(
+        &state.surreal,
+        &state.capability_registry,
+        session,
+        exact.workspace_id.as_str(),
+        &lifecycle,
+    ).await {
+        Ok(authorization) => authorization,
+        Err(error) => return error.into_response(),
     };
-    if locator.owner_account_id != surrealdb::types::RecordId::new("local_accounts", session.context.identity.account_id.clone())
-        || locator.access_space_id != surrealdb::types::RecordId::new("access_spaces", session.context.identity.access_space_id.clone())
-        || locator.external_resource_id != exact.workspace_id.as_str() {
-        return denied();
-    }
-    // Construct authority from the authenticated native identity and located
-    // canonical workspace; the server selection above only asserts equality.
-    let canonical = (|| {
-        use crate::swarm_orchestration::resource_scope::{OwnerAccountId, ActorPrincipalId, AuthenticatedSessionRef, AccessSpaceRef, WorkspaceScopeRef, ResourceScope, ExactResourceScopeAttribution};
-        let scope = ResourceScope::new(
-            OwnerAccountId::from_uuid(uuid::Uuid::parse_str(&session.context.identity.account_id).ok()?),
-            ActorPrincipalId::from_uuid(uuid::Uuid::parse_str(&session.context.identity.principal_id).ok()?),
-        ).with_session(AuthenticatedSessionRef::from_uuid(uuid::Uuid::parse_str(&session.context.session_id).ok()?))
-            .with_access_space(AccessSpaceRef::from_uuid(uuid::Uuid::parse_str(&session.context.identity.access_space_id).ok()?))
-            .with_workspace(WorkspaceScopeRef::new(locator.external_resource_id.clone()).ok()?);
-        ExactResourceScopeAttribution::try_from_resource_scope(&scope).ok()
-    })();
-    let Some(canonical) = canonical else { return crate::api::authority::constant_denial().into_response(); };
-    let exact = &canonical;
-    match lifecycle.decision(exact) {
-        Ok(ResourceAccessLifecycleDecision::Unknown) => {},
-        Ok(ResourceAccessLifecycleDecision::Known { state: ResourceAccessLifecycleState::Active, .. }) => {},
-        Ok(ResourceAccessLifecycleDecision::Known { .. }) => return crate::api::authority::constant_denial().into_response(),
-        Err(_) => return unavailable(),
-    }
-    if !crate::api::authority::session_holds_capability(&session.context, "model_lane.navigation.read") {
-        return crate::api::authority::constant_denial().into_response();
-    }
-    let workspace_id = exact.workspace_id.as_str().to_owned();
-    let mut original = RecordUserScope { grant_id: None, workspace_id: Some(workspace_id.clone()),
-        resource_id: workspace_id.clone(), session_id: session.context.session_id,
-        session_token: session.session_token, channel_binding_hash: Some(session.channel_binding_hash),
-        capability_id: "model_lane.navigation.read".into(), action: ResourceAction::Read };
-    let captured_grants = match lifecycle.capture_grants(exact, "navigation_read") {
-        Ok(captured) => captured, Err(_) => return unavailable(),
-    };
-    let rows = state.surreal.with_record_user_scope(original.clone(), state.surreal.with_data_operation(|database| Box::pin(async move {
-        database.query_values::<NavigationGrant, _>(
-            "SELECT record::id(id) AS grant_id, record::id(resource_id) AS resource_id, grant_version, policy_version, principal_id.capability_profile_id AS capability_profile_id FROM resource_grants WHERE account_id = $auth.account_id AND principal_id = $auth.principal_id AND access_space_id = $auth.access_space_id AND resource_id = $resource_id AND resource_id.lifecycle_state = 'active' AND resource_id.owner_account_id = $auth.account_id AND resource_id.access_space_id = $auth.access_space_id AND status = 'active' AND revoked_at = NONE AND (expires_at = NONE OR expires_at > time::now()) AND actions CONTAINS 'read' AND capability_ids CONTAINS 'model_lane.navigation.read' AND delegation_chain = $auth.delegation_chain AND policy_version <= $auth.policy_version AND resource_id.policy_version <= policy_version AND resource_id.created_by_principal_id.status = 'enabled' AND $auth.principal_id.delegated_capabilities CONTAINS 'model_lane.navigation.read' ORDER BY id ASC LIMIT 2;",
-            NavigationGrantBindings { resource_id: locator.id },
-        ).await
-    }))).await;
-    let mut rows = match rows {
-        Ok(rows) => rows,
-        Err(crate::storage::surreal::SurrealStorageError::StatementBudgetExhausted { .. }
-            | crate::storage::surreal::SurrealStorageError::StatementTimeout { .. }
-            | crate::storage::surreal::SurrealStorageError::Closed
-            | crate::storage::surreal::SurrealStorageError::ResourceAuthorityUnavailable) => return unavailable(),
-        Err(crate::storage::surreal::SurrealStorageError::TransactionAuthorityRequired) =>
-            return crate::api::authority::constant_denial().into_response(),
-        Err(crate::storage::surreal::SurrealStorageError::Database(error)) if matches!(
-            error.not_allowed_details(),
-            Some(surrealdb::types::NotAllowedError::Auth(
-                surrealdb::types::AuthError::TokenExpired | surrealdb::types::AuthError::SessionExpired
-                | surrealdb::types::AuthError::InvalidAuth | surrealdb::types::AuthError::MissingUserOrPass
-                | surrealdb::types::AuthError::InvalidPass | surrealdb::types::AuthError::NotAllowed { .. }
-            ))
-        ) => return crate::api::authority::constant_denial().into_response(),
-        Err(error) => return model_lane_api_error(ModelLaneError::Surreal(error)).into_response(),
-    };
-    let eligible: Vec<_> = rows.iter().map(|grant| (grant.grant_id.clone(), grant.grant_version, grant.policy_version)).collect();
-    // LIMIT 2 is an ambiguity probe; two rows are not complete membership evidence.
-    if rows.len() < 2 && lifecycle.observe_grants(&captured_grants, &eligible).is_err() { return unavailable(); }
-    let grant = match rows.len() { 1 => rows.remove(0), _ => return crate::api::authority::constant_denial().into_response() };
-    if !state.capability_registry.profile_can(&grant.capability_profile_id, "model_lane.navigation.read").unwrap_or(false) {
-        return crate::api::authority::constant_denial().into_response();
-    }
-    let association = ResourceAccessGrantAssociation { exact: exact.clone(), resource_id: grant.resource_id.clone(),
-        grant_id: grant.grant_id.clone(), grant_version: grant.grant_version, policy_version: grant.policy_version,
-        capability_id: "model_lane.navigation.read".into(), action: "read".into(), purpose: "navigation_read".into() };
-    match lifecycle.register_authorization(association.clone()) {
-        Ok(()) => {},
-        Err(crate::swarm_orchestration::resource_scope::ResourceAccessLifecycleTransitionError::AuthorityUnavailable) => return unavailable(),
-        Err(_) => return crate::api::authority::constant_denial().into_response(),
-    }
-    original.grant_id = Some(grant.grant_id); original.resource_id = grant.resource_id;
     let response = crate::storage::surreal::RESOURCE_ACCESS_AUTHORIZATION.scope(association.clone(), crate::storage::surreal::with_model_lane_subject(
-        crate::storage::surreal::ModelLaneOperationSubject { kind: ResourceKind::Workspace, external_id: exact.workspace_id.as_str().to_owned() },
+        crate::storage::surreal::ModelLaneOperationSubject { kind: ResourceKind::Workspace, external_id: association.exact.workspace_id.as_str().to_owned() },
         state.surreal.with_record_user_scope(original, next.run(request)),
     )).await;
     match lifecycle.authorize_association(&association) {
