@@ -1,0 +1,15 @@
+{
+ "crate": "hsk-studio-develop",
+ "lane": "SMB-DEVELOP-CORPUS-PATH",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "real_dng_corpus_config_resolver",
+ "commits": [{"sha": "c946aa62f652c0554b3c81d916b65919357cf7fa", "subject": "develop tests: real_dng resolves the corpus through .config/oracle-corpus.toml (no hard-coded path)"}],
+ "capabilities_done": ["real_dng corpus_dir uses the .config/oracle-corpus.toml resolver (same convention as real_raw/container_identity); absent root prints NOT_PROVEN; STUDIO_DNG_CORPUS env override, CORPUS_RELATIVE const and fetch-script drift guard test removed; fetch-corpus.sh keeps its own destination"],
+ "tests": {"argv": "nextest run -p hsk-studio-develop --test real_dng --test real_raw --test container_identity --run-ignored only --no-capture", "exit": 0, "sha": "c946aa6", "passed": 6, "failed": 0},
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "validator",
+ "updated_at": "2026-10-14T19:58:00Z",
+ "notes": {"grep": "only real_dng.rs used a hard-coded Handshake_Artifacts path in tests; check+clippy of crate clean (warnings only in hsk-studio-observe)"}
+}
