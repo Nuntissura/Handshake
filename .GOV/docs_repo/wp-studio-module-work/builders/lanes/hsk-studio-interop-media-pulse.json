@@ -1,7 +1,7 @@
 {
   "crate": "hsk-studio-interop-media",
   "lane": "SMB-INTEROP-MEDIA-PULSE",
-  "status": "READY_FOR_VALIDATION",
+  "status": "PASS_V1",
   "phase": "D9: timecode label arithmetic collapsed onto hsk-studio-pulse",
   "commits": [
     {
@@ -31,6 +31,23 @@
     "behaviour_differences": "None observed in results or error kinds. Mapping details: pulse TimecodeFormat::new errors map TimecodeUnsupported/DropFrameUnsupported 1:1 and are raised first (same order as before); a skipped drop label is pulse InvalidTimecode after interop pre-checked minutes/seconds/frames ranges, so it maps to DroppedTimecode; ';' with non-drop = DropMismatch (checked before ranges, as before); ':' with drop flag accepted as before (tc.drop_frame set to the requested flag); interop syntax bound kept (len 11..13, <=3 digits per field, hours up to 999 parsed) since pulse allows 10 digits; frames_to_timecode hours>99 -> TimecodeOverflow kept locally (pulse allows any hours). ticks_to_frames_exact now uses pulse's modulo path instead of accord units_from_ticks; same results (remainder -> NotFrameAligned); the earlier R3 accord-delegation assertion in the guard test was changed to assert pulse delegation.",
     "v4_05": "no remaining duplicate timecode arithmetic in src/time.rs; frames_to_ticks keeps accord Ticks::checked_frames (not a duplicate).",
     "retry_route": "none needed",
-    "clippy": "interop-media clean; warnings shown are pre-existing in hsk-studio-observe"
+    "clippy": "interop-media clean; warnings shown are pre-existing in hsk-studio-observe",
+    "verdicts": [
+      {
+        "round": "STUDIO-R24",
+        "lane": "SMB-INTEROP-MEDIA-PULSE",
+        "candidate": "f07f447f50c1350241133433743c04b63da1b92d",
+        "tree": "21147a2c4b4f8d23f21e634fc9541c0815df5e81",
+        "decision": "passed",
+        "verdict": "PASS_V1",
+        "failures": [],
+        "remediation": null,
+        "not_proven": [],
+        "status_after": "PASS_V1",
+        "round_ref": "validation/round-R24.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R24",
+        "recorded_at": "2026-10-14T18:31:51Z"
+      }
+    ]
   }
 }

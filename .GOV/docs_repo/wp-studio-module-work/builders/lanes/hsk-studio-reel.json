@@ -793,6 +793,23 @@
     "idempotency_key": "STUDIO-R21:SMB-REEL-AV1-ROUTE:2dde8324d111:PASS_V11",
     "recorded_at": "2026-10-12T09:54:57Z",
     "by": "wp_validator STUDIO-R21"
+   },
+   {
+    "round": "STUDIO-R24",
+    "lane": "SMB-REEL",
+    "candidate": "f07f447f50c1350241133433743c04b63da1b92d",
+    "tree": "21147a2c4b4f8d23f21e634fc9541c0815df5e81",
+    "decision": "passed",
+    "verdict": "PASS_V14",
+    "failures": [],
+    "remediation": null,
+    "not_proven": [
+     "reel vc3 CID 1271 10-bit (SMB-REEL-ENG-2 test, lead-accepted)"
+    ],
+    "status_after": "PASS_V14",
+    "round_ref": "validation/round-R24.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R24",
+    "recorded_at": "2026-10-14T18:31:51Z"
    }
   ],
   "lanes": {

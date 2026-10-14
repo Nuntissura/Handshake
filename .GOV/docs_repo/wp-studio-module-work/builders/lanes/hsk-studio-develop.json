@@ -1,7 +1,7 @@
 {
  "crate": "hsk-studio-develop",
  "lane": "SMB-DEVELOP",
- "status": "READY_FOR_VALIDATION",
+ "status": "PASS_V10",
  "phase": "slice6_prism_job_conversion_in_tile_workers_done_r7_fix_first_stale_docs_fixed_60b0e47_real_dng_awaiting_download_approval",
  "commits": [
   {
@@ -888,6 +888,27 @@
     },
     "workflow_routes": "V4-09 commit via git commit -F with a pathspec; V4-12 scratch files only under scratchpad/smb-develop-prereview; no gameplan step added, no hook block; no new copy of a frozen duplicate; one heredoc-in-bash mishap (a hung python3 call started by this session, stopped with TaskStop) left no files"
    }
+  },
+  {
+   "verdicts": [
+    {
+     "round": "STUDIO-R24",
+     "lane": "SMB-DEVELOP",
+     "candidate": "f07f447f50c1350241133433743c04b63da1b92d",
+     "tree": "21147a2c4b4f8d23f21e634fc9541c0815df5e81",
+     "decision": "passed",
+     "verdict": "PASS_V10",
+     "failures": [],
+     "remediation": null,
+     "not_proven": [
+      "develop real_dng/real_raw: ignored corpus tests not run (round config runs no ignored tests): NOT_PROVEN in R24"
+     ],
+     "status_after": "PASS_V10",
+     "round_ref": "validation/round-R24.json",
+     "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R24",
+     "recorded_at": "2026-10-14T18:31:51Z"
+    }
+   ]
   }
  ],
  "next": "after download approval: run real_dng ignored test (+ ExifTool oracle), fix any refusals; open R3 PLAUSIBLE LJPEG items (ljpeg.rs fill bytes / RST sequence + hand KATs; ljpeg.rs and tiff.rs are not under deny(arithmetic_side_effects) yet: V4-01 applies when they are touched); encoded (non-linear) profiles through the same job API (needs a decision on the linear_light tile contract); optional: finish() on aborted jobs (notes.develop_jobs.abort_policy); STU-CON-044: Operator decision whether Prism's 64-pixel chunking inside each band (provisional lead reading 07:19:59Z) is enough or the literal one admitted call per 64 pixels / spec enrichment is required; optional: AVX2/std::arch normalisation (skipped, see notes.simd_decision)",

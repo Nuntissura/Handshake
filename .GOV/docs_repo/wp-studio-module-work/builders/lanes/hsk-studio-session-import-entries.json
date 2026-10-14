@@ -1,0 +1,19 @@
+{
+ "crate": "hsk-studio-session",
+ "lane": "SMB-SESSION-IMPORT-ENTRIES",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "session recognises package import entries",
+ "commits": [{"sha": "306f894", "subject": "session (SMB-SESSION-IMPORT-ENTRIES): typed package import entries carried through open/save/checkpoint without loss notes"}],
+ "capabilities_done": [
+  "load_parts classifies opaque import/<records|receipt|original>.<sha256> entries (grammar and digest checked) as typed ImportRef, no LossReason::Opaque note; unknown opaque and unlisted entries unchanged",
+  "Session::imports(); SaveReceipt/Checkpoint gain imports_preserved, quarantined_preserved now excludes imports",
+  "export_checkpoint re-read compares imports and the (name, sha256) set of quarantined entries, not just counts"
+ ],
+ "tests": {"argv": "cargo nextest run -p hsk-studio-session --test session_contract -E 'test(import_entries_round_trip) | test(export_checkpoint_is_verified) | test(lazy_failures_are_typed)'", "exit": 0, "sha": "306f894", "passed": 3, "failed": 0},
+ "blockers": [],
+ "lock_wait_s": 217,
+ "bg_pids": [],
+ "next": null,
+ "updated_at": "2026-10-14T18:12:19Z",
+ "notes": {"no_new_entrykind": true, "check_clippy": "check and clippy on hsk-studio-session --tests clean (only pre-existing observe too_many_arguments)", "cargo_lock": "left uncommitted"}
+}

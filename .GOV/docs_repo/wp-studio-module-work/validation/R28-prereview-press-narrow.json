@@ -1,0 +1,131 @@
+{
+ "kind": "pre-review",
+ "scope": "narrow 13534f8..8b11939, crate hsk-studio-press only: SMB-PRESS-STRUCT-STRIP remediation 297c309 (R27-S1/S2/S3, DIAG-PRESS-R27 unlink only) and SMB-PRESS-PROPERTIES remediation ad73e0c (R27-P2) + 8b11939 (R27-P1, DIAG-PRESS-R27 count kept-reached lists), plus regression of the R26/R27 inputs and of the claims as now worded in the lane files",
+ "head": "8b11939",
+ "base": "13534f8",
+ "head_note": "git fetch done; shared tree HEAD 8b11939 = origin/codex/handshake-studio-assets; git log --all --not 8b11939 -- handshake-studio-assets/crates/hsk-studio-press is empty (V4-14 holds for both lanes); git status of the press crate clean. Press commits in range: 297c309 (flatten_purge.rs 354 +/-, lib.rs 2, sanitized_save.rs 15, tests 148), ad73e0c (flatten.rs, pdf_edit.rs), 8b11939 (flatten_purge.rs, lib.rs, sanitized_save.rs, tests).",
+ "rule": "V4-13: hsk-studio-press holds SMB-PRESS (2 failed verdicts). R27 (validation/R27-prereview-press-narrow.json) returned FIX_FIRST on both lanes; this file covers only the R27 remediation (changed approach DIAG-PRESS-R27) and the claims as now worded. R26, R27 stand for what they covered (V4-18). Lead residual decision 2026-10-14 applied: a list kept content NAMES keeps its text uncounted; R26-P3 and the PLR-103 remainder are accepted residuals (not findings).",
+ "two_fail_lanes_reopened": [
+  {"lane": "SMB-PRESS", "verdicts": "FAIL_V1 R5, FAIL_V2 R6 (PASS at R21, R22)", "reopened_by": "hsk-studio-press changed by 297c309, ad73e0c, 8b11939", "covered_by": "lanes[0] and lanes[1] below"}
+ ],
+ "reviewer": "independent read-only PRE-REVIEWER (V4-13), fresh context, wrote none of this code and none of the earlier pre-reviews. No product file edited, nothing committed, no process stopped, no sub-agents. Runs only on a scratch export with its own owner (V4-11): Handshake_Artifacts/WP-KERNEL-STUDIO/r28-prereview-probe (src = git archive 8b11939 handshake-studio-assets, tree ec2824f4fd2f72dc095805b4db63c37cfba1f128, 960 files; press crate diff -rq equal to the shared tree; STUDIO_OWNER=r28-prereview-probe, own target and tmp on D:; cargo only through builders/studio-env.sh with the leading cd first; Studio gameplan STUDIO-MODULE-BUILD check --at before_round PASS 3/3 before the run). One probe test file added to the scratch copy only: crates/hsk-studio-press/tests/r28_probe.rs (written by this reviewer; 19 printed cases; asserts nothing; every saved file opened with hayro-syntax, 2 pages each). The R26/R27 probe exports were already removed, so the R26/R27 inputs were re-run through the product tests that encode them plus re-built probe rows. Log: r28-prereview-probe/probe-1.log (exit 0). V4-21: git fetch only, no web request.",
+ "severity_rule": "CONFIRMED = file:line read at 8b11939 and the behaviour follows from the code (reasoned), or observed in a run where marked (run); PLAUSIBLE = reasoning only, an untested sub-case, an accepted-residual intersection, or an external fact not read; INFO = observation, no action required",
+ "recommendation_standard": "FIX_FIRST only for a product defect with concrete evidence (file:line plus a failing input or test) inside the lane's claim; a CONFIRMED doc-only or process mismatch is a note (round-R17 fold_rule); UNVERIFIED suspicions are PLAUSIBLE; accepted residuals are not findings",
+ "method": "Kernel reads: R27- and R26-prereview-press-narrow.json (all findings and inputs), START_LOG DIAG-PRESS-R27 and the lead residual decision, builders/DISPATCH_TEMPLATES.md v4-rules, builders/studio-env.sh, lane files hsk-studio-press-properties.json and hsk-studio-press-struct-strip.json (claim.text, remediation_R27, v4_06_sites_r27, v4_07_r27, residuals). Product (8b11939): git diff 13534f8..297c309, 297c309..ad73e0c, ad73e0c..8b11939 (src, all hunks) and the test diff; flatten_purge.rs:164-170 (catalog_num, touch), :586-720 (STRUCT_LINK_KEYS, is_goto, strip_links, link_values, STRUCT_ROOT_KEYS, root_shaped, strip_structure), :1088-1220 (drop_painted_sources, kept_reach :1162-1165, candidate count :1210-1218), :1233-1440 (ResAt, PropsAt, old_resources, reached_resources, plan_properties, apply_properties), :1485-1713 (catalog_names_structure_tree, past_hop_bound, holds, structure_shaped, Scan, check_document), module docs :1-147; writer.rs:96-210 (reachable, trailer_roots, write_document: written objects = reachable from trailer /Root and /Info; output trailer Size, Root, Info if live, ID array; raw span copy only for untouched objects); reader.rs:398-491 (/Prev and /XRefStm merged newest-wins, object-stream members parsed with span None, encrypted inputs not expanded); pdf_edit.rs:203-215, :285-300 (inherited, null = absent), :364-372 (guard_mutation refuses encrypted and signed); flatten.rs:229-260, :414-473 (isolate: sources = closure of the nearest inherited /Resources, /Contents, /Group), :606-764 (flatten_region_pages, detach_from_page_tree); sanitized_save.rs:1603-1664 (call order: flatten, strip_xfa, strip_structure, neutralize_structure, remove_annotations, canonicalize, drop_painted_sources, save_full, re-open, check_flattened, check_document); lib.rs DESCRIPTOR PLR-104 and D28 sentences. Scripted: git grep -n/-c of the lane V4-06 regexes at 8b11939; V4-07 word counts of lib.rs at 13534f8, 297c309, ad73e0c, 8b11939 (10 never, 1 always each); grep of deny(clippy::arithmetic_side_effects) in touched modules. Run (scratch export, own owner): cargo nextest run -p hsk-studio-press --test flatten_r13 --test r28_probe --no-capture --no-fail-fast, once (56/56 passed: 55 product tests of flatten_r13 incl. every R26/R27-encoding test, plus the probe; exit 0; the run waited on the D: disk lock for a validator round first). Full suite not re-run (builder: 175/175 at 8b11939).",
+ "first_clock_reading": "2026-10-14T18:34:12Z",
+ "first_clock_reading_note": "first `date -u` reading, after the git fetch and the kernel reads, before reading product code",
+ "completed_at": "2026-10-14T18:52:00Z",
+ "status": "COMPLETE",
+ "r26_r27_recheck": {
+  "R26-P1": "FIXED (run): inherited_property_lists_shared_with_a_kept_pages_own_resources_are_counted (R26 P1, P2, P3) PASS at 8b11939: counted (R26 expected 'purged or counted').",
+  "R26-P2": "Superseded by v4_06_sites_r27 (see process note R28-N1).",
+  "R26-P3": "Accepted residual (lead decision 2026-10-14); not a finding.",
+  "R26-S1": "FIXED (run): structure_strip_keeps_multimedia_of_kept_pages (M1, M2) PASS: media kept, losses [].",
+  "R26-S2": "FIXED for the reported input (run): structure_strip_unlinks_structure_destinations (a) PASS (/SD unlinked, element not written). Remainder = accepted PLR-103 remainder; see R28-S2 for the alias /S spelling.",
+  "R26-S3": "Fail closed (run): structure_strip_reports_what_it_cannot_remove (S2 typeless root under a private key, /IDTree-only root) PASS: reported NOT PROVEN; (b) control gone. See R28-S1: the same private-key path to the /ClassMap OBJECT itself is not reported.",
+  "R26-S4": "FIXED (run): structure_strip_reports_no_loss_without_structure PASS.",
+  "R27-P1": "FIXED (run): property_lists_a_kept_page_reaches_are_counted node-inline-lists (P8), own-inline-lists (P9) PASS: counted. Probe P10 (control: node inline /Resources -> /Properties 20 object) counted residual 1.",
+  "R27-P2": "FIXED (run): null-own (P7b) PASS. Probe P7 (text page, /Resources null; R27 refused UnresolvedFont) now renders and reads counted; P7c (absent) counted; P7d (/Resources 99 0 R, no object) counted. P6 (grandparent through a node without /Resources) counted.",
+  "R27-S1": "FIXED (run): structure_strip_unlinks_and_keeps_what_anything_kept_reaches X1 (/AcroForm), X2 (text annotation), X7 (OCG) PASS: kept, losses [], read flattened.",
+  "R27-S2": "FIXED (run): same test X3 (URI action of a kept link) PASS: kept, loss reported for the real tree.",
+  "R27-S3": "FIXED (run): same test X6 (/StructTreeRoot 99 0 R) PASS: losses []. Probe X4 (typeless root behind an alias a private key names) NOT PROVEN residual 1 (fail closed)."
+ },
+ "lanes": [
+  {
+   "lane": "SMB-PRESS-STRUCT-STRIP",
+   "crate": "hsk-studio-press",
+   "two_fail_lane_in_crate": "SMB-PRESS (R5 FAIL_V1, R6 FAIL_V2)",
+   "commits_checked": ["297c309 (focus)", "ade85a0, 13534f8 (regression of the claim as worded)"],
+   "recommendation": "FIX_FIRST",
+   "recommendation_note": "The unlink-only design holds where checked: the writer writes only objects reachable from trailer /Root and /Info (writer.rs:123-128, :142), the output trailer carries only Size/Root/Info/ID (/Prev, /XRefStm, /Encrypt are not written; encrypted and signed inputs are refused by guard_mutation, pdf_edit.rs:364-372), object-stream members are re-written individually and a stream a kept object references is scanned by check_document; unlinking only removes keys, so no written object can name an unwritten one (no dangling references), and no kept /AcroForm, annotation, action, OCG or media object is removed (R27-S1/S2 inputs green). But the design's safety rests on check_document detecting every structure object a kept path still reaches, and it detects roots and elements only: a /ClassMap object or an attribute object (/O ...) that a private catalog key or any kept array still names keeps its text with the save read proven and losses [AccessibilityTagsRemoved] (R28-S1). The claim says 'structure that stays is reported by check_document' and lists the private catalog key as such a path. At 13534f8 these objects were taken by role and their text was gone, so this is a regression of the changed approach.",
+   "findings": [
+    {
+     "id": "R28-S1",
+     "severity": "CONFIRMED (run; structure text left in the saved file with the save read proven, inside the claim 'structure that stays is reported by check_document'; adversarial private-key input of the class the claim names; FIX_FIRST)",
+     "file_line": "src/flatten_purge.rs:683-720 strip_structure (unlink only, deletion left to the writer drop); :1529-1542 structure_shaped (Type StructElem/StructTreeRoot, /S+/P+text, /SE, STRUCT_ROOT_KEYS, hop bound: a class-map dictionary and an attribute object match none); :1576 Scan::value; writer.rs:142 (the private key keeps the object live)",
+     "input": "pages_pdf-style two pages, region on page one; catalog '/StructTreeRoot 80 0 R /MarkInfo << /Marked true >>'. A1: catalog also '/HskCM 85 0 R'; 80 = << /Type /StructTreeRoot /K [82 0 R] /ClassMap 85 0 R >>, 82 = << /Type /StructElem /S /P /P 80 0 R /Pg 5 0 R /C /C1 /K 0 >>, 85 = << /C1 << /O /UserProperties /P [<< /N (n) /V (CLASSMAP-SECRET) >>] >> >>, page two /StructParents 0. A2: catalog also '/HskAttr 86 0 R'; 80 = << /Type /StructTreeRoot /K [81 0 R] >>, 81 = << /Type /StructElem /S /Table /P 80 0 R /Pg 3 0 R /A 86 0 R /K 0 >> (an element of the FLATTENED page), 86 = << /O /Table /Summary (ATTR-SUMMARY-SECRET) >>, page one /StructParents 0 and '/Figure << /MCID 0 >> BDC (SECRET-ALPHA) .. EMC'. A2b: as A2 with the catalog naming 86 only inside a private array '/HskArr [86 0 R]'. A0 control: A1 without the private key.",
+     "expected": "Per the claim: the structure object the private key keeps is reported by check_document (region_flattened false, NotProven::ResidualInRegion), as for J1, the R26-S3 S2 root and X4; or its text is gone",
+     "observed": "probe-1.log: A1, A2, A2b all flattened=true cleared=true proven=true residual=0 reasons=[] losses=[AccessibilityTagsRemoved]; CLASSMAP-SECRET (A1) and ATTR-SUMMARY-SECRET (A2, A2b; the /Summary of a table element on the flattened page) PRESENT in the saved bytes; /StructTreeRoot gone; hayro opens each. A0 control: CLASSMAP-SECRET gone, proven (writer drop works when only the tree reaches it). At 13534f8 structure_objects followed /ClassMap (Role::ClassMap) and element /A (Role::Attribute) and deleted them, so A1/A2 text was gone there (reasoned from the removed code in the 297c309 diff; 13534f8 not run).",
+     "repair_direction": "check_document: count a dictionary with /O name plus a text value (attribute object) and a dictionary whose values are attribute objects (class map), or any object only the old tree reached before the unlink that stays live (compute tree-reach before the unlink, count survivors). Alternatively the lead narrows the claim ('roots and elements are reported') and records the residual."
+    },
+    {
+     "id": "R28-S2",
+     "severity": "PLAUSIBLE (run for the behaviour; intersection of the accepted PLR-103 remainder with an alias spelling of /S; claim wording '(/S the name GoTo)' is ambiguous for an indirect name)",
+     "file_line": "src/flatten_purge.rs:597-600 is_goto (/S read directly, a reference to the name GoTo is not a GoTo), :619 strip_links, :641 link_values; :1537-1539 structure_shaped (no /P, no /Type: not a shape)",
+     "input": "A3: tagged (tree 80 /K [82]); page two /Annots [71 0 R], 71 = Link /A << /S 90 0 R /D [5 0 R /Fit] /SD [81 0 R /Fit] >>, 90 = /GoTo, 81 = << /S /Figure /Alt (SD-ALT-SECRET) /K 0 >> (the R26-S2 element). A3c control: 81 with /P 80 0 R.",
+     "expected": "/SD unlinked (resolved /S is GoTo, as PdfDoc::resolve and viewers read it) and 81 not written; or counted",
+     "observed": "probe-1.log A3: proven=true residual=0 losses=[AccessibilityTagsRemoved], /SD and SD-ALT-SECRET PRESENT. A3c: NOT PROVEN residual 1 (the shape rule catches /P). Same is_goto at 13534f8 (not a regression).",
+     "repair_direction": "Optional: is_goto through resolve (strip_links has no doc; read the GoTo set before the unlink as link_values does)."
+    },
+    {
+     "id": "R28-S3",
+     "severity": "INFO (run; claim-consistent loss accuracy)",
+     "file_line": "src/flatten_purge.rs:700 (a non-null /StructParents counts as an unlinked structure entry)",
+     "input": "A4: untagged (no /StructTreeRoot), page two /StructParents 0 only. A5: trailer /Root names an alias object of a tagged catalog.",
+     "expected": "n/a",
+     "observed": "A4: proven, losses [AccessibilityTagsRemoved] although no tree existed (the claim states this rule). A5: the strip does not unlink (dict_of(root) is None for the alias, :690, :703), check_document reads the catalog through resolve and reports NOT PROVEN residual 1: fail closed.",
+     "repair_direction": "None required."
+    }
+   ],
+   "checks": {
+    "writer_reachability": "Read: write_document writes `live = reachable(objects, trailer_roots(trailer))`, trailer_roots = /Root, /Info (writer.rs:123-128, :142); output trailer Size, Root, Info (only when live), ID (array copied) (:194-202). Incremental sections and xref streams are merged by the reader newest-wins (reader.rs:398-416) and never re-emitted; object-stream members are parsed with span None (:487) and written individually; an /ObjStm container is written only when a kept object references it, and check_document then parses its members (flatten_purge.rs:1589-1659). /Encrypt: guard_mutation refuses (pdf_edit.rs:366). Untouched objects are copied from their source span (writer.rs:159-161); strip_links touches every object it edits (:712-717).",
+    "unlink_breakage": "Unlink removes /StructTreeRoot, /MarkInfo, /StructParents, /StructParent, /SE and GoTo /SD keys only (:604-628, :703-718); no object deleted, so no written object names an unwritten one. Kept functionality checked by the product test X1-X7 rows (green) and probe A3 (/Link kept).",
+    "escape_class": "Kept path + check_document miss: R28-S1 (class map, attribute objects), R28-S2 (alias /S x PLR-103), PLR-103 remainder (accepted). Roots (/Type or root keys), elements (/Type or /S+/P+text), /SE holders and object-stream members are counted (J1, X4, A3c, product tests).",
+    "opt_out": "Unchanged: sanitized_save.rs:1612 gates strip_structure only.",
+    "v4_06": "notes.v4_06_sites_r27: regex 'scrub_references\\(|structure_objects|element_like|strip_nested_shapes|typed_structure|content_item\\(|link_targets' gives 2 hits at 8b11939 (flatten_purge.rs:232, :323), equal to the lane table.",
+    "v4_01_v4_02": "flatten_purge.rs:148 deny(clippy::arithmetic_side_effects) covers the new code (saturating_add, `i & 1023`); strip_structure allocates one reachable set and per-object value lists bounded by the parsed objects and depth_cap; no size read from the file.",
+    "v4_07": "lib.rs never/always counts unchanged 13534f8 -> 8b11939 (10 never, 1 always); the strip sentences cite tests that exist (descriptor_states_the_structure_tree_rule green). The DESCRIPTOR/claim 'structure that stays is reported' is broader than the code for R28-S1."
+   }
+  },
+  {
+   "lane": "SMB-PRESS-PROPERTIES",
+   "crate": "hsk-studio-press",
+   "two_fail_lane_in_crate": "SMB-PRESS (R5 FAIL_V1, R6 FAIL_V2)",
+   "commits_checked": ["ad73e0c, 8b11939 (focus)", "9dd0fc7, 32d4df3, 45a3792, 950fd85, 5ad0c68 (regression of the claim as worded)"],
+   "recommendation": "SAFE_TO_JUDGE",
+   "recommendation_note": "Every R26/R27 PROPERTIES input is fixed or now fails closed (run). kept_reach (reachable from the kept pages, through /Parent too) over-approximates 'a kept page reaches', which only moves dictionaries from the exact purge to the count (fail closed). Candidate collection now covers ResAt::Old inline /Properties (:1379) and every reached dictionary's unnamed reference entries; a kept-reached inline unnamed text list counts (:1384-1389); undetermined/uneditable/alias spellings count. No CONFIRMED product defect inside the claim. R28-P1 (ancestor /Resources merged with the page's own, the crate's own usage model) is PLAUSIBLE: it depends on a viewer-differential reading (ISO nearest-only vs pdf.js merge) the claim does not enumerate. R28-N1 is a lane-notes count mismatch (process).",
+   "findings": [
+    {
+     "id": "R28-P1",
+     "severity": "PLAUSIBLE (run for the behaviour; 'reached' under the merge reading only: the crate's own module docs flatten_purge.rs:114-115 say names resolve in every ancestor's /Resources (pdf.js merges them); ISO 32000 inheritance is nearest-only and the renderer/purge use nearest-only; pdf.js source not read, UNVERIFIED)",
+     "file_line": "src/flatten.rs:622 (inherited_resources only when own /Resources absent or null), :247-258 inherited_raw (nearest node), :417 isolate (nearest only, so Flat::sources omit ancestor /Resources); src/flatten_purge.rs:1278-1280 old_resources, :1287-1321 reached_resources; :1147-1155 (the kept-page usage chain merges ancestors)",
+     "input": "B1: page one OWN '/Resources << /Font << /F1 6 0 R >> >>' draws '/Span /MC0 BDC (SECRET-ALPHA) Tj EMC'; node 2 '/Resources 9 0 R', 9 = << /Properties << /MC0 22 0 R >> >>, 22 = << /Alt (PROP-ALT-SECRET) /ActualText (PROP-ACTUAL-SECRET) >>; page two own '/Resources << /Font .. /Properties << /MC0 22 0 R /MC1 23 0 R >> >>' draws '/Span /MC1 BDC .. EMC'. B1c: node /Resources written inline. B1b: three levels, page one inherits a mid node's /Resources (font only), the root node holds /Resources 9. B1-control: page one's own /Resources holds /MC0 22.",
+     "expected": "Under the merge reading /MC0 of page one is 22 (an unnamed list a kept page keeps live): counted, as B1-control",
+     "observed": "probe-1.log B1, B1b, B1c: flattened=true proven=true residual=0, PROP-ALT-SECRET and PROP-ACTUAL-SECRET PRESENT. B1-control: NOT PROVEN residual 1 (counted).",
+     "repair_direction": "For the lead: either count property-list objects named by unnamed entries of every ancestor /Resources of a flattened page (fail closed, cheap: walk the /Parent chain before detach) or record 'ancestor /Resources beyond the nearest are not read (ISO nearest-only)' as a residual."
+    }
+   ],
+   "process_notes_lane": [
+    {
+     "id": "R28-N1",
+     "severity": "CONFIRMED (scripted; process, V4-06 count field, note)",
+     "file_line": "kernel builders/lanes/hsk-studio-press-properties.json notes.v4_06_sites_r27.count (28) and count_note ('24 rows cover 28 hits')",
+     "observed": "git grep -c of the lane regex at 8b11939: 33 hits (canon.rs 1, flatten.rs 9, flatten_purge.rs 17, pdf_edit.rs 2, redaction.rs 1, show_text.rs 3); the table has 29 rows that do cover all 33 hits (two grouped rows of 3). Only the stated count and note are wrong.",
+     "repair_direction": "Set count 33 and count_note '29 rows cover 33 hits'."
+    }
+   ],
+   "checks": {
+    "attack_multi_level": "Run: P6 (grandparent through a node without /Resources) counted; B1b (mid node has /Resources, root node holds the list) not read = R28-P1.",
+    "attack_form_type3_smask": "Read: Flat::sources is the closure of the nearest /Resources, /Contents and /Group (flatten.rs:417-427), so every form, tiling pattern, soft-mask group and Type 3 font the old page reached is a source; reached_resources reads each stream/Type 3 /Resources (:1310-1319). Usage makes only scopes reached from kept content, so an entry only an old-page form names is unnamed -> purged or counted. Not run.",
+    "attack_annotation_appearance": "R26-P3 accepted residual (not a finding).",
+    "null_semantics": "ad73e0c: PdfDoc::inherited (pdf_edit.rs:285-300), inherited_raw and detach_from_page_tree treat a null-resolving entry as absent; renderer and purge read the same dictionary (P7, P7c, P7d run).",
+    "kept_reach": "reachable(objs, kept pages) follows /Parent and /Kids, so it includes everything any page node names; over-approximation -> count, never a purge of a kept list.",
+    "v4_01": "pdf_edit.rs:3, flatten.rs:90, flatten_purge.rs:148 deny(clippy::arithmetic_side_effects); ad73e0c/8b11939 add no arithmetic.",
+    "v4_07": "DESCRIPTOR PLR-104 sentence matches the code for the enumerated dictionaries; counts unchanged; cited tests exist and pass (run)."
+   }
+  }
+ ],
+ "prior_findings_rechecked": [
+  "R27-P1, R27-P2: fixed (run). R27-S1, R27-S2, R27-S3: fixed (run).",
+  "R26-P1, R26-S1, R26-S3, R26-S4: fixed or fail closed (run); R26-S2 fixed for the input, remainder accepted (PLR-103); R26-P3 accepted residual.",
+  "R25-P7 / PLR-104: closed for all R25-R27 layouts (run); ancestor-merge layout open as PLAUSIBLE R28-P1."
+ ],
+ "process_notes": [
+  "V4-18: this file covers 13534f8..8b11939 only; R27-prereview-press-narrow.json stands for 950fd85..5ad0c68 and ade85a0..13534f8.",
+  "Gameplan: Studio gameplan STUDIO-MODULE-BUILD check --at before_round PASS 3/3 before the one cargo command; leading cd first, studio-env.sh sourced with STUDIO_OWNER=r28-prereview-probe; no hook block, no retry-guard record. The run waited on the D: disk lock behind a validator round (run-round steward-export).",
+  "Scratch export left for the lead to remove: Handshake_Artifacts/WP-KERNEL-STUDIO/r28-prereview-probe (src, target, tmp, probe-1.log; probe test only in the scratch copy: src/handshake-studio-assets/crates/hsk-studio-press/tests/r28_probe.rs).",
+  "Helper diffs under the reviewer's scratchpad folder R28 (s.diff, p1.diff, p2.diff, tests.diff), written by this reviewer only (V4-12).",
+  "PLAUSIBLE items R28-P1 and R28-S2 go to workflow/plausible-register.json only via the lead.",
+  "No product file edited, nothing committed, no process stopped; this file is not committed (the lead commits)."
+ ]
+}

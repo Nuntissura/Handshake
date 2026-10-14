@@ -393,6 +393,21 @@
         "idempotency_key": "STUDIO-R7:SMB-MOTION-JS-SANDBOX-2:dff7ef51d282:PASS_V1",
         "recorded_at": "2026-10-11T11:04:31Z",
         "by": "wp_validator STUDIO-R7"
+      },
+      {
+        "round": "STUDIO-R24",
+        "lane": "SMB-MOTION-JS",
+        "candidate": "f07f447f50c1350241133433743c04b63da1b92d",
+        "tree": "21147a2c4b4f8d23f21e634fc9541c0815df5e81",
+        "decision": "passed",
+        "verdict": "PASS_V4",
+        "failures": [],
+        "remediation": null,
+        "not_proven": [],
+        "status_after": "PASS_V4",
+        "round_ref": "validation/round-R24.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R24",
+        "recorded_at": "2026-10-14T18:31:51Z"
       }
     ],
     "builder": [

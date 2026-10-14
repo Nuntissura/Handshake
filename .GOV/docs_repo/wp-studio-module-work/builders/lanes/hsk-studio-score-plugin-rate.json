@@ -1,7 +1,7 @@
 {
  "crate": "hsk-studio-score-plugin",
  "lane": "SMB-SCORE-PLUGIN-RATE",
- "status": "READY_FOR_VALIDATION",
+ "status": "PASS_V2",
  "phase": "PLR-054 closed at e9fb519: one sample-rate rule (validate_sample_rate -> score ticks_per_sample) for the host ProcessConfig::validate and both worker backends; a 44101 Hz config is refused with invalid_config at activation, before any worker is spawned; 4 new tests red on a scratch copy of eefe44d and green here",
  "commits": [
   {
@@ -119,6 +119,21 @@
     "idempotency_key": "STUDIO-R9:SMB-SCORE-PLUGIN-RATE:4d80e50d4043:PASS_V1",
     "recorded_at": "2026-10-11T14:23:56Z",
     "by": "wp_validator STUDIO-R9"
+   },
+   {
+    "round": "STUDIO-R24",
+    "lane": "SMB-SCORE-PLUGIN-RATE",
+    "candidate": "f07f447f50c1350241133433743c04b63da1b92d",
+    "tree": "21147a2c4b4f8d23f21e634fc9541c0815df5e81",
+    "decision": "passed",
+    "verdict": "PASS_V2",
+    "failures": [],
+    "remediation": null,
+    "not_proven": [],
+    "status_after": "PASS_V2",
+    "round_ref": "validation/round-R24.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R24",
+    "recorded_at": "2026-10-14T18:31:51Z"
    }
   ]
  }

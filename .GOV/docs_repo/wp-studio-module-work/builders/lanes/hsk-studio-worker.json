@@ -1,13 +1,25 @@
 {
  "crate": "hsk-studio-worker",
  "lane": "SMB-WORKER-CRATE",
- "status": "READY_FOR_VALIDATION",
+ "status": "PASS_V1",
  "phase": "D18 option (a): worker-process supervision moved into hsk-studio-worker; motion-js, reel-native and score-plugin switched; consumer files no longer hold supervision code",
  "commits": [
-  {"sha": "c34e17f", "subject": "worker: supervision API (Supervisor, Session, RespawnGate, program lookup beside the executable, Job Object caps behind job-caps, typed Classified, heartbeat) with 7 tests"},
-  {"sha": "9b10ac6", "subject": "motion-js: supervision, Job Object caps and program lookup moved to the worker crate; windows-sys dropped; WorkerConfig::with_worker_program"},
-  {"sha": "502c208", "subject": "reel-native: supervision, respawn gate, program lookup and HELLO wait moved to the worker crate"},
-  {"sha": "5c664dd", "subject": "score-plugin: supervisor.rs removed, host.rs uses the worker crate Supervisor/Session"}
+  {
+   "sha": "c34e17f",
+   "subject": "worker: supervision API (Supervisor, Session, RespawnGate, program lookup beside the executable, Job Object caps behind job-caps, typed Classified, heartbeat) with 7 tests"
+  },
+  {
+   "sha": "9b10ac6",
+   "subject": "motion-js: supervision, Job Object caps and program lookup moved to the worker crate; windows-sys dropped; WorkerConfig::with_worker_program"
+  },
+  {
+   "sha": "502c208",
+   "subject": "reel-native: supervision, respawn gate, program lookup and HELLO wait moved to the worker crate"
+  },
+  {
+   "sha": "5c664dd",
+   "subject": "score-plugin: supervisor.rs removed, host.rs uses the worker crate Supervisor/Session"
+  }
  ],
  "capabilities_done": [
   "hsk-studio-worker: Supervisor/SupervisorConfig/StartRequest (spawn: env_clear + explicit env, null stderr, piped stdio, CREATE_NO_WINDOW), Session (wait with cancel/deadline/CPU-cap polling, send_request, exchange, heartbeat, terminate idempotent, fail -> Classified{Canceled,Deadline,Crashed{exit_code},Protocol(E)}), admission Permit (worker + byte budget), ledger, counters, RespawnGate, resolve_program/find_beside/discover_program (beside the running executable only), optional Windows Job Object caps (feature job-caps, unsafe confined to src/job.rs) and harden_worker_process, overflow-safe deadline arithmetic (after, 24 h clamp)",
@@ -42,6 +54,23 @@
   "behaviour_differences": "(1) deadline arithmetic is clamped to 24 h for motion-js and reel-native waits (they previously fell back to 24 h only on Instant overflow); (2) none else known; hello-failure handling, counters, terminate patience and drain order were kept per consumer",
   "heartbeat": "no consumer had a wire heartbeat; Session::heartbeat is a non-blocking process liveness probe (try_wait), used by is_alive",
   "v4": "V4-01 deny(clippy::arithmetic_side_effects) in every new worker module and kept in the touched consumer modules; V4-04 the worker crate has no fault hook, its helper bin and integration tests need the non-default test-faults feature; V4-05 no new duplicate fingerprint site",
-  "not_proven": "absence of a console window (CREATE_NO_WINDOW) is not tested; Job Object behaviour is proven only through motion-js tests/os_caps.rs"
+  "not_proven": "absence of a console window (CREATE_NO_WINDOW) is not tested; Job Object behaviour is proven only through motion-js tests/os_caps.rs",
+  "verdicts": [
+   {
+    "round": "STUDIO-R24",
+    "lane": "SMB-WORKER-CRATE",
+    "candidate": "f07f447f50c1350241133433743c04b63da1b92d",
+    "tree": "21147a2c4b4f8d23f21e634fc9541c0815df5e81",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "not_proven": [],
+    "status_after": "PASS_V1",
+    "round_ref": "validation/round-R24.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R24",
+    "recorded_at": "2026-10-14T18:31:51Z"
+   }
+  ]
  }
 }

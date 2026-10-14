@@ -1,0 +1,35 @@
+{
+  "crate": "hsk-studio-interop-fig",
+  "lane": "SMB-INTEROP-FIG-NODES",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slices 1-3 pushed; typed node tree decodes on the 3 real fixtures; native-document mapping not in this lane",
+  "commits": [
+    {"sha": "a55c345", "subject": "interop-fig (SMB-INTEROP-FIG-NODES): generic schema-driven Kiwi value decoder"},
+    {"sha": "87954e8", "subject": "interop-fig (SMB-INTEROP-FIG-NODES): typed node tree, components/instances, variables, prototype interactions"}
+  ],
+  "capabilities_done": [
+    "decode_kiwi / decode_message_tree: bounded schema-driven KiwiValue tree from the file's own schema (max_depth, max_array_len + remaining-input check, max_string_bytes, max_tree_values checked before allocation; duplicate wire field, trailing bytes, bad UTF-8, bad bool refused; no partial tree)",
+    "decode_document / document_from_tree: FigDocument nodes with guid, parent + position ordering, type, name, visible, opacity, blend mode, transform, size, mask, fills/strokes (SOLID, GRADIENT_* stops, IMAGE hash -> images/<hex> part, other types typed Unsupported), stroke weight/align/join, effects (drop shadow, inner shadow, blurs), fill/stroke geometry blobs -> path commands",
+    "per-kind payloads: CANVAS, FRAME/SECTION (corner radii, frameMaskDisabled, auto-layout stack fields, scrollDirection, componentPropDefs, isStateGroup), RECTANGLE/ROUNDED_RECTANGLE radii, ELLIPSE arc, STAR/REGULAR_POLYGON, VECTOR vector network (vertices, segments, regions/loops), BOOLEAN_OPERATION, TEXT (characters, font, size, line height, letter spacing, align, style runs from characterStyleIDs + styleOverrideTable)",
+    "SYMBOL variant props + componentKey; INSTANCE symbolID + symbolOverrides (guidPath, name, characters, size, visible, opacity, fills); VARIABLE values per mode + single-mode resolved value with alias chain (<=16 hops); VARIABLE_SET modes; paint colorVar -> variable id",
+    "prototypeInteractions (id, trigger, deleted, actions: navigation, transition, duration, easing, connection, destination) + prototypeStartingPoint name",
+    "losses: every present field is decoded (FigDocument.decoded) or a field_not_decoded loss; typed codes for type mismatch, non-finite, unknown enum, removed/duplicate/orphan/cycle nodes, unsupported paint/kind, missing image part, blob index/base/truncation/unknown command, vector-network bounds, variable set/mode/alias failures",
+    "decode_path_blob public (glyph outlines incl. quadratic command 3 decode exactly on the fixture)"
+  ],
+  "tests": {"argv": "cargo nextest run -p hsk-studio-interop-fig --test fig_nodes --no-fail-fast", "exit": 0, "sha": "87954e8", "passed": 6, "failed": 0},
+  "blockers": [],
+  "lock_wait_s": 74,
+  "bg_pids": [],
+  "next": "new lane (e.g. SMB-INTEROP-FIG-NATIVE): map FigDocument into folio records; see notes.mapping_plan",
+  "updated_at": "2026-10-14T18:41:57Z",
+  "notes": {
+    "tests_detail": "tests/fig_nodes.rs: real_node_counts_match_census_and_tree_is_ordered, real_basic_shapes_geometry_colour_text, real_components_variables_prototypes, real_fields_decoded_or_listed_as_loss, kiwi_tree_hostile_bounds (dims u32::MAX array, array longer than input, aggregate_over_budget zero-width array, depth 40, string cap, byte array past end, duplicate wire field, trailing bytes, bad UTF-8, cancel), node_tree_hostile_blobs_and_cycles (unknown/truncated path command, vector-network counts u32::MAX, blob out of range, parent cycle, missing parent, duplicate guid, type mismatch, geometry aggregate budget, non-zero blobBaseIndex, max_nodes, cancel). Run at the pushed tree (HEAD c6d5731 = steward sync after 87954e8, interop-fig unchanged). The 6 fig_import tests affected by the kiwi.rs refactor (legacy_bare_and_foreign_kinds, fig_container_bounded_identity_loss, real_fig_node_change_schema_field_count_pinned, unsupported_version_duplicate_key_bomb_cancel, actual_fig_instance_variable_prototype_edit_reopen, real_fig_fixtures_container_facts) PASSED before the final commit; the only later changes to them were rustfmt formatting and a comment/NOT_PROVEN wording edit.",
+    "kinds_decoded": "DOCUMENT, CANVAS, FRAME, SECTION, GROUP (no payload), RECTANGLE, ROUNDED_RECTANGLE, ELLIPSE, STAR, REGULAR_POLYGON, LINE, VECTOR, BOOLEAN_OPERATION, TEXT, SYMBOL, INSTANCE, VARIABLE, VARIABLE_SET; any other NodeType keeps its common props and gets node_kind_payload_not_decoded",
+    "losses_on_fixtures": "field_not_decoded for editor/derived data: editInfo, derivedTextData (glyphs, baselines), derivedSymbolData, authoredColor, stopsVar, imageThumbnail, thumbHash, textData.lines, vectorData.styleOverrideTable, fontVariations, stack counter sizing/layout version, bordersTakeSpace, rectangle border weights, styleType/sortPosition/isPublishable/version, codeSyntax, Message originFileKey/type/sessionID/ackID/nodeChangeOrder; no field_type_unexpected on any fixture",
+    "unverified": "path command 3 = quadratic (4 floats) proven only by exact consumption of 24 glyph blobs; characterStyleIDs indexed per Unicode scalar and characters past the array use style 0 (ASCII fixtures only); vector-network region flag bit 0 = nonzero (fig2sketch reading); blobBaseIndex semantics (non-zero -> no blob resolved, typed loss)",
+    "wire_sources": "evanw/kiwi js/bb.ts (MIT) readVarUint64/readVarFloat; sketch-hq/fig2sketch (MIT) vector_network.py layout and images/<hex(hash)>; open-pencil + OpenFig-org/openfig-core (MIT) path command codes; layouts re-implemented, no code copied",
+    "mapping_plan": "Next lane (new id; needs the allowed interop-fig -> hsk-studio-folio path edge in the crate manifest): CANVAS -> page set; top-level FRAME/SECTION on a canvas -> StudioArtboard; every node -> StudioLayer in StudioLayerGraph keeping SourceId as the source-qualified provenance id; visible/opacity/blend_mode/mask -> LayerAppearance + StudioVectorMask; fills/strokes -> StudioPaint/StudioGradient/StudioGradientStop + StudioStrokeStyle (StrokeAlign/StrokeJoin); Geometry/VectorNetwork -> folio vector.rs path records; TEXT runs -> StudioTextStory; SYMBOL/INSTANCE overrides -> folio components.rs (StudioOverrideRecord); stack fields -> folio autolayout.rs; prototype interactions -> folio reactions.rs; variables -> folio variable model (target type UNVERIFIED, read folio first); images/<hash> parts carried byte-exact as opaque assets; every unmapped FigDocument field and loss -> import loss receipt; then an edit/reopen round trip through the native package to move editable off NOT_PROVEN. Effects -> pigment effect records is a separate edge question (interop-fig may not depend on pigment).",
+    "gameplan_route": "no hook block on cargo steps; one hook block on a heredoc containing gated words (D3) for this lane file, rewritten with the Write tool; rustfmt applied to the whole crate (formatting-only changes in container.rs, error.rs, version_map.rs, fig_import.rs)",
+    "deps": "no new crates.io dependency; Cargo.lock untouched"
+  }
+}

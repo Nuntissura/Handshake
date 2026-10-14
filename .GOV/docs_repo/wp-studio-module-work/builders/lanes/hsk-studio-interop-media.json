@@ -1,7 +1,7 @@
 {
   "crate": "hsk-studio-interop-media",
   "lane": "SMB-INTEROP-MEDIA",
-  "status": "READY_FOR_VALIDATION",
+  "status": "PASS_V1",
   "phase": "slice-1 CMX3600 EDL import/export + Folio mapping + native-format gap; R3 remediation: tick->frame math on accord (timecode label duplication with pulse remains: D9 pulse edge BLOCKED on Operator decision)",
   "commits": [
     {
@@ -134,6 +134,21 @@
         "recorded_at": "2026-10-11T05:38:23Z",
         "by": "wp_validator STUDIO-R5",
         "blocked_on": "SMB-INTEROP-MEDIA-PULSE (Operator D9)"
+      },
+      {
+        "round": "STUDIO-R24",
+        "lane": "SMB-INTEROP-MEDIA",
+        "candidate": "f07f447f50c1350241133433743c04b63da1b92d",
+        "tree": "21147a2c4b4f8d23f21e634fc9541c0815df5e81",
+        "decision": "passed",
+        "verdict": "PASS_V1",
+        "failures": [],
+        "remediation": null,
+        "not_proven": [],
+        "status_after": "PASS_V1",
+        "round_ref": "validation/round-R24.json",
+        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R24",
+        "recorded_at": "2026-10-14T18:31:51Z"
       }
     ],
     "r3_remediation": {

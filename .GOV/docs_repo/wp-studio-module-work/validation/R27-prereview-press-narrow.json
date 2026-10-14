@@ -1,0 +1,124 @@
+{
+ "kind": "pre-review",
+ "scope": "narrow 950fd85..5ad0c68 (SMB-PRESS-PROPERTIES remediation R26-P1/P2) and ade85a0..13534f8 (SMB-PRESS-STRUCT-STRIP remediation R26-S1..S4), crate hsk-studio-press only, plus regression of the earlier lane claims",
+ "head": "13534f8",
+ "base": "950fd85 (PROPERTIES) / ade85a0 (STRUCT-STRIP)",
+ "head_note": "git fetch done; shared tree HEAD 6863190; git log --all --not 13534f8 -- crates/hsk-studio-press is empty (V4-14 holds for both lanes); git status of crates/hsk-studio-press clean. Fix commits: 5ad0c68 (flatten.rs 20, flatten_purge.rs 27, lib.rs 2, tests 78) and 13534f8 (flatten_purge.rs 297, lib.rs 2, sanitized_save.rs 8, tests 109).",
+ "rule": "V4-13: hsk-studio-press holds SMB-PRESS (2 failed verdicts). R26 (validation/R26-prereview-press-narrow.json) returned FIX_FIRST on both lanes; this file covers only the R26 remediation and the claims as now worded in the lane files. R24, R25, R26 stand for what they covered (V4-18).",
+ "two_fail_lanes_reopened": [
+  {"lane": "SMB-PRESS", "verdicts": "FAIL_V1 R5, FAIL_V2 R6 (PASS at R21, R22)", "reopened_by": "hsk-studio-press changed by 5ad0c68, 13534f8 (on top of 9dd0fc7, 32d4df3, 45a3792, 950fd85, ade85a0)", "covered_by": "lanes[0] and lanes[1] below"}
+ ],
+ "reviewer": "independent read-only PRE-REVIEWER (V4-13), fresh context, wrote none of this code and did not do R26. No product file edited, nothing committed, no process stopped, no sub-agents. Runs only on a scratch export with its own owner (V4-11): Handshake_Artifacts/WP-KERNEL-STUDIO/r27-prereview-probe (src = git archive 13534f8 handshake-studio-assets, tree 1218daf9651320667b5f3700269b0f1b2c0017e1, 916 files; press crate diff -rq equal to the shared tree; STUDIO_OWNER=r27-prereview-probe, own target and tmp on D:; cargo only through builders/studio-env.sh with the leading cd first; Studio gameplan STUDIO-MODULE-BUILD check --at before_round PASS 2/2 before each run). One probe test file added to the scratch copy only: crates/hsk-studio-press/tests/r27_probe.rs (R26 harness and cases re-run unchanged, plus new P6-P10 and X1-X7; prints, asserts nothing; every saved file opened with hayro-syntax). Logs: r27-prereview-probe/probe-1.log (run 1 panicked at P7: redaction refused UnresolvedFont, a fail-closed outcome; all earlier cases printed), probe-2.log (cases made non-panicking, P7b/P7c added; exit 0). V4-21: git fetch only, no web request.",
+ "severity_rule": "CONFIRMED = file:line read at 13534f8 and the behaviour follows from the code (reasoned), or observed in a run where marked (run); PLAUSIBLE = reasoning only, an untested sub-case, or an external fact not read; INFO = observation, no action required",
+ "recommendation_standard": "FIX_FIRST only for a product defect with concrete evidence (file:line plus a failing input or test); a CONFIRMED doc-only or process mismatch is a note (round-R17 fold_rule); UNVERIFIED suspicions are PLAUSIBLE",
+ "method": "Kernel reads: R26-prereview-press-narrow.json (findings, inputs), R25/R24 files (format), builders/DISPATCH_TEMPLATES.md v4-rules, builders/studio-env.sh, lane files hsk-studio-press-properties.json and hsk-studio-press-struct-strip.json (claim, remediation_R26, v4_06_sites_r26, residuals), START_LOG D28 line. Product (13534f8): git diff of 5ad0c68 and 13534f8 (src and tests, all hunks); flatten.rs:229-250 (Flat::inherited_resources, inherited_raw), :405-415 (isolate: doc.inherited), :613, :700-754 (detach_from_page_tree); pdf_edit.rs:203 (dict_of), :287-297 (inherited); syntax.rs:41-50, :295-315 (null entries are stored); flatten_purge.rs:227-270 (scrub_references), :581-950 (strip_links, link_targets, typed_structure, element_like, content_item, Role, structure_objects, strip_target, nested_shape, strip_nested_shapes, strip_structure), :1425-1450 (candidate liveness count), :1500-1660 (old_resources, reached_resources, plan_properties, apply_properties), :1740-1752 (structure_shaped); sanitized_save.rs:1600-1640 (call order); tests/flatten_r13.rs:2975-2981, :3199-3305. Scripted: git grep -n -E 'GATED|\"Properties\"|b\"BDC\"|b\"DP\"' 13534f8 (13 hits, file:line equal to notes.v4_06_sites_r26); git grep of structure_shaped(/nested_shape(/strip_nested_shapes(; DESCRIPTOR never/always/guarantee/proves word counts at 950fd85, ade85a0, 5ad0c68, 13534f8 (unchanged: 8 never, 1 always); word scan of added src lines. Run (scratch export, own owner): cargo nextest run -p hsk-studio-press --test r27_probe --no-capture, twice (probe-1 exit 100 = probe panic on the P7 refusal, probe-2 exit 0). Full suite not re-run (builder: 173/173 at 13534f8; not needed to confirm the findings).",
+ "first_clock_reading": "2026-10-14T17:52:08Z",
+ "first_clock_reading_note": "first `date -u` reading, after the git fetch and the kernel reads, before reading product code",
+ "completed_at": "2026-10-14T18:06:00Z",
+ "status": "COMPLETE",
+ "r26_recheck": {
+  "R26-P1": "FIXED (run): probe-1 P1, P2, P3 (R26 inputs unchanged) read flattened=true proven=true and INH-ALT-SECRET / INH-ACTUAL-SECRET gone, KEPT-PROP-TEXT kept; controls P4, P5 unchanged (green). Multi-level and mixed inheritance also green: P6 (grandparent /Resources through a /Pages node without one), P6b (nearest node /Resources 9, grandparent /Resources 12, third page heir of 12).",
+  "R26-P2": "FIXED (scripted): git grep at 13534f8 gives 13 hits; notes.v4_06_sites_r26 lists the same 13 file:line with fixed/not-applicable.",
+  "R26-P3": "OPEN as recorded (INFO; annotation appearance /Resources not in Flat::sources); not re-run, code unchanged on that path (reached_resources reads Flat::sources only).",
+  "R26-S1": "FIXED (run): probe-1 M1, M2 default Strip keep MEDIA-NAME/ALT/FILE/TITLE, /Rendition, /MediaClip; losses []; read NOT PROVEN (check_document shape over-report, as the claim states). M3 no-region control unchanged.",
+  "R26-S2": "FIXED for the reported input (run): S1 default Strip SD-ALT-SECRET gone, /SD not written (S5: no /SD in the bytes), losses [AccessibilityTagsRemoved], opt-out still reported. Remainder (an element without /P and /Type that no tree path, /SE or GoTo /SD names) stays the recorded PLR-103 remainder.",
+  "R26-S3": "FIXED (run): S2 CLASSMAP-SECRET and IDTREE-SECRET gone with the private key; S3 control gone. Alias variant X4 (typeless root behind an alias a private key also names) and X5 (typed) are reported NOT PROVEN (fail closed).",
+  "R26-S4": "FIXED (run): S4 losses []. See R27-S3 for the remaining loss-accuracy edge."
+ },
+ "lanes": [
+  {
+   "lane": "SMB-PRESS-PROPERTIES",
+   "crate": "hsk-studio-press",
+   "two_fail_lane_in_crate": "SMB-PRESS (R5 FAIL_V1, R6 FAIL_V2)",
+   "commits_checked": ["5ad0c68 (focus)", "9dd0fc7, 32d4df3, 45a3792, 950fd85 (regression of the claim as worded)"],
+   "recommendation": "FIX_FIRST",
+   "recommendation_note": "R27-P1: the R26-P1 inputs are fixed, but the claim's fail-closed rule 'each such property list of the old page left live (another object references it) that no kept content names' is not applied when the /Resources the old page read was written INLINE (its own inline /Resources, or, new in 5ad0c68, a /Pages node's inline /Resources) and its /Properties is an inline dictionary naming property-list OBJECTS: plan_properties skips that dictionary before collecting candidates. A kept page whose own /Properties names the same list object (unused by kept content) keeps the flattened page's /Alt and /ActualText text with the save read proven. The same objects behind a /Properties OBJECT are counted (control P10). Untagged input, inside the proven claim.",
+   "findings": [
+    {
+     "id": "R27-P1",
+     "severity": "CONFIRMED (run; product defect inside the untagged proven claim; FIX_FIRST)",
+     "file_line": "src/flatten_purge.rs:1579-1582 (ResAt::Old with a non-reference /Properties: `continue` before plan.candidates is extended at :1602); :1438-1446 (the live count reads plan.candidates only)",
+     "input": "Untagged two pages. 21 = << /Alt (INH-ALT-SECRET) /ActualText (INH-ACTUAL-SECRET) >>, 22 = << /ActualText (KEPT-PROP-TEXT) >>. Page one (flattened) draws '/Span /MC0 BDC (SECRET-ALPHA) Tj EMC'; page two (kept) has own '/Resources << /Font .. /Properties << /MC0 21 0 R /MC1 22 0 R >> >>' and draws '/Span /MC1 BDC .. EMC'. P8: page one inherits '/Resources << /Font .. /Properties << /MC0 21 0 R /MC1 22 0 R >> >>' written inline in /Pages node 2 (R26-P1 path). P9: the same dictionary written inline as page one's own /Resources (32d4df3 path). P10 control: node inline /Resources -> /Properties 20 0 R, 20 = << /MC0 21 0 R /MC1 22 0 R >>.",
+     "expected": "21 counted (residual_in_region 1, NotProven::ResidualInRegion, region_flattened false) per the claim's live-list rule, as in P10",
+     "observed": "probe-2.log P8 and P9: flattened=true cleared=true proven=true residual=0 reasons=[] losses=[]; SECRET-ALPHA gone, INH-ALT-SECRET and INH-ACTUAL-SECRET PRESENT. P10: flattened=false residual=1 reasons=[ResidualInRegion] (counted). The list object is kept live by page two's own /Properties /MC0 entry, which no kept BDC/DP names.",
+     "repair_direction": "For ResAt::Old with an inline /Properties, still add its unnamed reference entries to plan.candidates (skip only the edit)."
+    },
+    {
+     "id": "R27-P2",
+     "severity": "PLAUSIBLE (run for the behaviour; the null-equals-absent reading of ISO 32000-1 7.3.9 is reviewer knowledge, not read; UNVERIFIED)",
+     "file_line": "src/flatten.rs:613 (inherited_resources only when old.get(\"Resources\").is_none(); a /Resources null entry is stored, syntax.rs:295-315), flatten.rs:409 and pdf_edit.rs:287-297 (doc.inherited stops at the page's null)",
+     "input": "P7b: page one '/Resources null' (path only: '/Span /MC0 BDC 100 700 m 150 710 l S EMC'), node 2 '/Resources 9 0 R', page two own '/Resources 9 0 R'; 9 holds /Properties /MC0 (INH-ALT-SECRET, INH-ACTUAL-SECRET) and /MC1 (KEPT-PROP-TEXT). P7c control: same bytes with /Resources absent (space-padded, offsets kept). P7: the R26 text page with /Resources null.",
+     "expected": "If null equals absent, page one inherits 9 and /MC0 is its property list: purged (as P7c) or counted",
+     "observed": "probe-2.log P7b: proven=true residual=0, INH-ALT-SECRET and INH-ACTUAL-SECRET PRESENT; P7c control: both gone. P7 (text page): the save refuses (UnsupportedRedactionClass UnresolvedFont), fail closed. The renderer and the purge agree with each other (null = no resources); a viewer that applies null = absent would attach /MC0 to page one.",
+     "repair_direction": "Treat a null (or dangling-ref) page /Resources as absent in inherited_raw/doc.inherited, or count it."
+    }
+   ],
+   "checks": {
+    "r26_p1_layouts": "Run: P1, P2, P3 (R26 inputs) purged; P4, P5 controls; P6 grandparent; P6b mixed nearest-node inheritance with a heir of a different node: all flattened=true with INH texts gone and KEPT-PROP-TEXT kept.",
+    "inheritance_reader": "inherited_raw (flatten.rs:239) walks /Parent with dict_of, bounded by depth_cap, nearest node wins: same order as doc.inherited used by isolate for rendering, so the purge reads the dictionary the render used (null and alias spellings aside, R27-P2).",
+    "v4_06": "13 regex hits at 13534f8 = notes.v4_06_sites_r26 (file:line equal). Class sites beyond the regex: reached_resources / plan_properties ResAt::Old inline-/Properties path is R27-P1.",
+    "v4_01": "flatten.rs:90 and flatten_purge.rs:143 carry deny(clippy::arithmetic_side_effects); 5ad0c68 adds no arithmetic (a bounded for loop over depth_cap).",
+    "v4_07": "DESCRIPTOR never/always counts unchanged 950fd85 -> 13534f8 (8 never, 1 always); new module/doc text adds none. The claim sentence 'each such property list of the old page left live ... is counted' is broader than the code for the R27-P1 inputs."
+   }
+  },
+  {
+   "lane": "SMB-PRESS-STRUCT-STRIP",
+   "crate": "hsk-studio-press",
+   "two_fail_lane_in_crate": "SMB-PRESS (R5 FAIL_V1, R6 FAIL_V2)",
+   "commits_checked": ["13534f8 (focus)", "ade85a0 (regression)"],
+   "recommendation": "FIX_FIRST",
+   "recommendation_note": "R27-S1/S2: the R26-S1 repair moved deletion from shape to role, but two role rules take objects that are not structure: the catalog's /StructTreeRoot value is a Root whatever it is (any dictionary is taken, R26-S3 fix), and a /Type-less dictionary with an /S name in an element slot (/K, /Nums, /Names, /Ref) is an element. Each taken object is deleted with every reference scrubbed and the save reads proven with losses [AccessibilityTagsRemoved]: a kept page's /AcroForm, text annotation, optional-content group or link action is silently removed and mislabeled, the R26-S1 failure class. Inputs are malformed (a non-root catalog value, a non-element in /K), but at ade85a0 the same inputs kept those objects (no structure shape), so this is a regression of the fix. Everything else D28 asks holds in the runs: no /StructTreeRoot, /StructParents or /SD left, multimedia kept, hayro opens every output, opt-out unchanged.",
+   "findings": [
+    {
+     "id": "R27-S1",
+     "severity": "CONFIRMED (run; data loss on kept content with a false typed loss; malformed catalog value; FIX_FIRST)",
+     "file_line": "src/flatten_purge.rs:900 (tree_root = catalog /StructTreeRoot value), :722 (pushed as Role::Root), :767-774 ((Role::Root, Object::Dict) => take = true for any dictionary), :950 scrub_references; :914 had_tree",
+     "input": "Untagged two pages, region on page one. X1: catalog '/StructTreeRoot 30 0 R /AcroForm 30 0 R', 30 = << /Fields [31 0 R] /DA (..) >>, 31 = page-two text-field widget /T (FIELD-KEEP) /V (FIELD-VAL-KEEP). X2: catalog '/StructTreeRoot 71 0 R', 71 = page-two /Text annotation /Contents (ANNOT-KEEP). X7: catalog '/StructTreeRoot 40 0 R /OCProperties << /OCGs [40 0 R] /D << /ON [40 0 R] >> >>', 40 = << /Type /OCG /Name (OCG-KEEP) >>, page two /Properties << /OC1 40 0 R >> and content '/OC /OC1 BDC .. EMC'.",
+     "expected": "The non-structure object stays (at most the catalog key is dropped or the save reported), losses [] as at ade85a0 and as the opt-out keeps it",
+     "observed": "probe-2.log default Strip, all flattened=true proven=true losses=[AccessibilityTagsRemoved]: X1 /AcroForm and /Fields gone (widget left without its form); X2 ANNOT-KEEP gone (page two /Annots slot nulled); X7 OCG-KEEP gone, /OC1 removed from page two's /Properties while its content still names it. X1 opt-out: /AcroForm kept, reported NOT PROVEN. hayro opens every output.",
+     "repair_direction": "Take the catalog value as Root only when /Type is StructTreeRoot or absent with root keys; else drop the key and report."
+    },
+    {
+     "id": "R27-S2",
+     "severity": "CONFIRMED (run; data loss on kept content with a false typed loss; malformed /K entry; FIX_FIRST with R27-S1)",
+     "file_line": "src/flatten_purge.rs:659-662 element_like (/Type absent and /S a name), :783-793 ((Role::Element, o): taken and followed), :950 scrub_references",
+     "input": "X3: tagged; catalog '/StructTreeRoot 80 0 R /MarkInfo << /Marked true >>', 80 = << /Type /StructTreeRoot /K [82 0 R 72 0 R] >>, 82 = /Type /StructElem element, 72 = << /S /URI /URI (http://uri-keep.example) >> which is also the /A of page two's link annotation 71.",
+     "expected": "72 (an action, not an element) stays on the kept link; only the tree goes",
+     "observed": "probe-2.log X3: flattened=true proven=true losses=[AccessibilityTagsRemoved]; uri-keep gone (the kept link loses /A). Any /Type-less dictionary with an /S name (actions, transitions, page labels, soft masks) placed where the tree names an element is deleted the same way.",
+     "repair_direction": "From /K, /Nums, /Names, /Ref take an untyped dict only if its /P is a tree object; keep /SE and GoTo /SD targets as now."
+    },
+    {
+     "id": "R27-S3",
+     "severity": "CONFIRMED (run; typed-loss accuracy note, R26-S4 class)",
+     "file_line": "src/flatten_purge.rs:914 (had_tree: any non-null /StructTreeRoot value counts, also a reference to an object that does not exist)",
+     "input": "X6: untagged; catalog '/StructTreeRoot 99 0 R' with no object 99",
+     "expected": "losses [] (no structure tree existed; a dangling reference reads as null)",
+     "observed": "probe-2.log X6: proven=true losses=[AccessibilityTagsRemoved]",
+     "repair_direction": "Optional: count had_tree only when the value resolves to a dictionary."
+    }
+   ],
+   "checks": {
+    "escape_attempts": "Run: typeless root behind an alias a private key also names (X4) and the typed variant (X5) read NOT PROVEN residual 1 (fail closed). Read: the walk follows /ParentTree /Kids /Nums, /IDTree /Kids /Names, /ClassMap values (attribute objects need /O), /RoleMap, element /K /A /Ref and /P-children; /Pg /Obj /Stm /AF and /Namespaces are not followed (unreachable after the root goes); visited is per (object, role) so cycles end; an object whose only path is the tree is not written. Escapes left are the recorded ones (PLR-103 remainder without /P and /Type; object-stream members and aliases, both reported); an attribute object without /O reachable from outside the tree is neither taken nor shape-counted (reasoned, adversarial, not run).",
+    "dangling_references": "scrub_references nulls array slots and removes dictionary entries naming tree objects; on conforming inputs only structure keys are affected (S1, S2: no /StructParents, /SD or /SE written, hayro opens). On R27-S1/S2 inputs it leaves /Annots [null], a widget without /AcroForm and a BDC /OC naming a removed /Properties entry (hayro still opens).",
+    "opt_out": "Unchanged by 13534f8 (sanitized_save.rs:1609 only gates strip_structure); X1 and S1 opt-out read NOT PROVEN with losses [].",
+    "typed_loss_once": "losses is [AccessibilityTagsRemoved] or [] (sanitized_save.rs); /MarkInfo alone no longer counts (S4).",
+    "v4_06": "notes.v4_06_regex_r26 at 13534f8: structure_shaped is called only from check_document's scan (:1786); nested_shape/strip_nested_shapes take the tree set (:832-871, :935-937). Matches the lane notes.",
+    "v4_01_v4_02": "flatten_purge.rs:143 deny(arithmetic_side_effects) covers the new walk (saturating_add, & 255 / & 1023 masks). structure_objects allocates per object and per pushed reference of taken objects, bounded by the parsed object set, depth_cap and the (object, role) visited set; no size read from the file.",
+    "v4_07": "New docs/DESCRIPTOR text adds no never/always/guarantee/proves (counts unchanged). The claim's 'a dictionary is not removed for its shape alone (R26-S1: kept-page media renditions and clips stay)' holds for shape; R27-S1/S2 are removals by position."
+   }
+  }
+ ],
+ "prior_findings_rechecked": [
+  "R26-P1: fixed (run). R26-P2: fixed. R26-P3: open INFO as recorded.",
+  "R26-S1, R26-S3, R26-S4: fixed (run). R26-S2: fixed for the reported input; PLR-103 remainder unchanged.",
+  "R25-P7 / PLR-104: closed for own/shared/heir/inherited-object layouts (run P1-P6b); open for inline /Properties naming list objects (R27-P1)."
+ ],
+ "process_notes": [
+  "V4-18: this file covers 950fd85..5ad0c68 and ade85a0..13534f8 only; R26-prereview-press-narrow.json stands for 1da2453..ade85a0.",
+  "Gameplan: STUDIO-MODULE-BUILD check --at before_round PASS 2/2 before each of the two cargo runs; both had the leading cd first and sourced studio-env.sh with STUDIO_OWNER=r27-prereview-probe. Run 1 waited ~2 min on the D: disk lock (validator round), exit 100 = probe panic on the P7 refusal (no product test involved); run 2 after changing the probe file only. One command was blocked by the gameplan hook because its first token was not the cd (it resolved another WP's gameplan); re-issued with the cd first, nothing executed by the blocked command.",
+  "Scratch export left for the lead to remove: Handshake_Artifacts/WP-KERNEL-STUDIO/r27-prereview-probe (src, target, tmp, probe-1.log, probe-2.log; probe test only in the scratch copy: src/handshake-studio-assets/crates/hsk-studio-press/tests/r27_probe.rs).",
+  "Helper files under the reviewer's scratchpad folder R27 (p1.diff, s.diff, tests diffs, tail.rs), written by this reviewer only (V4-12).",
+  "PLAUSIBLE item R27-P2 goes to workflow/plausible-register.json only via the lead.",
+  "No product file edited, nothing committed, no process stopped; this file is not committed (the lead commits)."
+ ]
+}

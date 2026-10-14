@@ -1,7 +1,7 @@
 {
  "crate": "hsk-studio-reel",
  "lane": "SMB-REEL-ENG-1",
- "status": "READY_FOR_VALIDATION",
+ "status": "PASS_V8",
  "phase": "rem-reel-eng-1 R10 remediation complete on 7cdf18e: a repeated media sample is a shortfall (packet delivery computes complete from the units delivered, an export is refused before the first read), a refused track is honoured by read_timecode_start and by the PCM window, the export pre-check covers the range before any decoder session (PLR-062) with Export tests through the fake external decoder and the in-process rav1d arm; claim = 6d232da + 2ddff00 + bd5bd60 + 0474906 + e424f46 + 7cdf18e; base 62d8983 (SMB-REEL-AV1-ROUTE trust routing untouched: registry.rs not in the diff, video.rs choose() and Forward and the declared-size check unchanged)",
  "commits": [
   {
@@ -485,6 +485,23 @@
     "idempotency_key": "STUDIO-R21:SMB-REEL-ENG-1:2dde8324d111:PASS_V7",
     "recorded_at": "2026-10-12T09:54:57Z",
     "by": "wp_validator STUDIO-R21"
+   },
+   {
+    "round": "STUDIO-R24",
+    "lane": "SMB-REEL-ENG-1",
+    "candidate": "f07f447f50c1350241133433743c04b63da1b92d",
+    "tree": "21147a2c4b4f8d23f21e634fc9541c0815df5e81",
+    "decision": "passed",
+    "verdict": "PASS_V8",
+    "failures": [],
+    "remediation": null,
+    "not_proven": [
+     "reel vc3 CID 1271 10-bit (SMB-REEL-ENG-2 test, lead-accepted)"
+    ],
+    "status_after": "PASS_V8",
+    "round_ref": "validation/round-R24.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R24",
+    "recorded_at": "2026-10-14T18:31:51Z"
    }
   ],
   "remediation_R10": {
