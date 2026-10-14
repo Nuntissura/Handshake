@@ -5,6 +5,9 @@
 
 use crate::error::AppError;
 use crate::layout_persistence::{LayoutError, LayoutTransport};
+use crate::settings_dialog::{
+    CloudAccessSnapshot, CloudByokRow, CloudCliAuthStatus, CloudCliLoginState, CloudCliRow,
+};
 use crate::user_manual_pane::{
     UserManualNavigation, UserManualPageContent, UserManualResultCell,
     UserManualSearchResponse, UserManualTransport,
