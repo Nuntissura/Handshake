@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-14T20:46:27Z",
+ "updated_at": "2026-10-14T20:51:36Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3853,12 +3853,19 @@
   {
    "lane_id": "SMB-IO-RASTER-COMMON",
    "crate": "hsk-studio-interop-raster",
-   "phase": "queued",
-   "status": null,
-   "owner": null,
-   "commits": [],
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
+   "owner": "builder-raster-20261014",
+   "commits": [
+    "32817d9",
+    "e4f7ca6",
+    "6e5fbfc",
+    "b3d9c19",
+    "ac71845"
+   ],
    "verdicts": [],
-   "note": "brief lane-smb-io-raster-common.md; lead R-OWN: new folio-free crate hsk-studio-interop-raster approved (sub-module per Operator 2026-10-14); J1: JPEG export = own clean-room baseline encoder from ITU T.81 (no jpeg-encoder: licence AND IJG)"
+   "note": "brief lane-smb-io-raster-common.md; lead R-OWN: new folio-free crate hsk-studio-interop-raster approved (sub-module per Operator 2026-10-14); J1: JPEG export = own clean-room baseline encoder from ITU T.81 (no jpeg-encoder: licence AND IJG)",
+   "lane_file": "builders/lanes/hsk-studio-io-raster-common.json"
   },
   {
    "lane_id": "SMB-TYPE-GLYPH-RENDER",
@@ -4056,6 +4063,16 @@
    "commits": [],
    "verdicts": [],
    "note": "UI slice 2: editable opacity/blend, masks/effects rendering once supported, selection + brush tools on canvas, AccessKit on, text layers, export JPEG/PNG"
+  },
+  {
+   "lane_id": "SMB-CONVERT-RASTER",
+   "crate": "hsk-studio-harness",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-raster-20261014",
+   "commits": [],
+   "verdicts": [],
+   "note": "harness import-raster route (PNG/JPEG open + convert to native) per notes.harness_route; plus PNG/JPEG export of the composited document"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
