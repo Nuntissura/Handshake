@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-14T17:49:52Z",
+ "updated_at": "2026-10-14T18:06:45Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3453,8 +3453,8 @@
   {
    "lane_id": "SMB-PRESS-PROPERTIES",
    "crate": "hsk-studio-press",
-   "phase": "pre-review R27 (V4-13) then validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "remediation R27 FIX_FIRST (R27-P1): changed approach DIAG-PRESS-R27 (fail closed on shared text-bearing property lists)",
+   "status": null,
    "owner": "builder-press-20261014",
    "commits": [
     "9dd0fc7",
@@ -3470,8 +3470,8 @@
   {
    "lane_id": "SMB-PRESS-STRUCT-STRIP",
    "crate": "hsk-studio-press",
-   "phase": "pre-review R27 (V4-13) then validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "remediation R27 FIX_FIRST (R27-S1, S2, S3): changed approach DIAG-PRESS-R27 (unlink + unreachable drop, no identify-and-delete)",
+   "status": null,
    "owner": "builder-press-20261014",
    "commits": [
     "ade85a0",
