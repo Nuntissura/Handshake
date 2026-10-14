@@ -23,10 +23,10 @@
     ],
     "source_sha256": {
       "src/backend/handshake_core/src/api/mod.rs": "7eba79c16f41692949f1988703a3f3aa3eaff80ade51fc7334f8ea38376aef46",
-      "src/backend/handshake_core/src/api/model_access.rs": "cf7f653b4328650d50566d58be5bed218654081b4fda7a8f19b47018668c8d12",
+      "src/backend/handshake_core/src/api/model_access.rs": "27cd7869bb11ce4dd1d588904be36e2202b08bab69fc5ca3e31328f6bc4eccee",
       "src/backend/handshake_core/src/api/palmistry.rs": "5f77021c5280c498660859d84a0a0e587851f670c729ab827f1e1bdf7c1af77a",
       "src/backend/handshake_core/src/main.rs": "26ef8f32c5a8b6905240b571eeeabf2d019d20658eb40e0239ac2d1bfa1d0ca3",
-      "src/backend/handshake_core/src/storage/surreal/palmistry.rs": "8f4a88668e7f45dce5c717fbbda613f9ff50625ead6a69f226609c0b3c6cfc81",
+      "src/backend/handshake_core/src/storage/surreal/palmistry.rs": "a10cee72fa8afe74e2cce8207bb915fd7eacc0d2bceef6de765f2761b0f3e64b",
       "src/frontend/handshake_native/src/app.rs": "3255ffd0a730ba2794f920811cf5753802bec353484822b24c6493f1e61f21c1",
       "src/frontend/handshake_native/src/backend_client.rs": "11e661add789b7e4a4eeb3109ca4830c368dd2811908e86ff690d0c2198a30e9",
       "src/frontend/handshake_native/src/diagnostics/recorder.rs": "dc7f905d06c58fa645fa09cbd49b82df654ac12e2826caa649738fb5b816b771",
@@ -43,6 +43,18 @@
     "source_review_ref": "Independent validator final affected-batch message to delivery lead and integrator; source-only, not lifecycle PASS",
     "root_canonical_reread": "Exact HEAD/tree/clean tree/15committed paths and live matching origin feat/WP-KERNEL-012 verified",
     "compiler": "NOT_RUN_ON_THIS_CANDIDATE",
+    "lf_preservation_correction": {
+      "src/backend/handshake_core/src/api/model_access.rs": {
+        "prior_raw_sha256": "cf7f653b4328650d50566d58be5bed218654081b4fda7a8f19b47018668c8d12",
+        "current_raw_sha256": "27cd7869bb11ce4dd1d588904be36e2202b08bab69fc5ca3e31328f6bc4eccee",
+        "canonical_git_bytes_unchanged": true
+      },
+      "src/backend/handshake_core/src/storage/surreal/palmistry.rs": {
+        "prior_raw_sha256": "8f4a88668e7f45dce5c717fbbda613f9ff50625ead6a69f226609c0b3c6cfc81",
+        "current_raw_sha256": "a10cee72fa8afe74e2cce8207bb915fd7eacc0d2bceef6de765f2761b0f3e64b",
+        "canonical_git_bytes_unchanged": true
+      }
+    },
     "runtime": "NOT_RUN",
     "remaining_blockers": [
       "Native-owned watcher canonical START/public-verifier/runtime-owner protocol not established; no fabricated witness",
