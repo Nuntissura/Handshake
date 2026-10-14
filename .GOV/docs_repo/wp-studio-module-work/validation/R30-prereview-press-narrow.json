@@ -1,0 +1,95 @@
+{
+ "kind": "pre-review",
+ "scope": "narrow 18ebacf..d43fd4e, crate hsk-studio-press only: SMB-PRESS-STRUCT-STRIP remediation d43fd4e (R29-S1/S2/S3, DIAG-PRESS-R29 key-based cap-free closed set), plus the claim as now worded (ade85a0 13534f8 297c309 9a2c840 d43fd4e)",
+ "head": "d43fd4e",
+ "base": "18ebacf",
+ "head_note": "git fetch done; shared tree HEAD 7c190d3 = origin/codex/handshake-studio-assets; the press crate is byte-equal between d43fd4e and 7c190d3 (git diff --quiet d43fd4e HEAD -- handshake-studio-assets/crates/hsk-studio-press); git log d43fd4e..HEAD -- <press> is empty; only d43fd4e touches the press crate in range (flatten_purge.rs, lib.rs, sanitized_save.rs, tests/flatten_r13.rs). V4-14 holds.",
+ "rule": "V4-13: hsk-studio-press holds SMB-PRESS (2 failed verdicts). R29 (validation/R29-prereview-press-narrow.json) returned FIX_FIRST on STRUCT-STRIP (R29-S1, R29-S2). This file covers only the R29 remediation (DIAG-PRESS-R29) and the STRUCT-STRIP claim as now worded; R26-R29 stand for what they covered (V4-18). Lead residual decision 2026-10-14 (named property lists, R26-P3, PLR-103 remainder) and the lead acceptance of R27 X3 (over-count) applied: not findings. Over-counts are INFO only.",
+ "two_fail_lanes_reopened": [
+  {"lane": "SMB-PRESS", "verdicts": "FAIL_V1 R5, FAIL_V2 R6 (PASS at R21, R22)", "reopened_by": "hsk-studio-press changed by d43fd4e", "covered_by": "lanes[0] below"}
+ ],
+ "reviewer": "independent read-only PRE-REVIEWER (V4-13), fresh context, wrote none of this code and none of the earlier pre-reviews. No product file edited, nothing committed, no process stopped, no sub-agents. Runs only on a scratch export with its own owner (V4-11): Handshake_Artifacts/WP-KERNEL-STUDIO/r30-prereview-probe (src = git archive d43fd4e handshake-studio-assets extracted with fresh mtimes (tar -m), tree 6b0163deda27a12d42c37014b1e84466aff135e7, 1019 files incl. the probe; STUDIO_OWNER=r30-prereview-probe, own target and tmp on D:; cargo only through builders/studio-env.sh with the leading cd first; Studio gameplan STUDIO-MODULE-BUILD check --at before_round PASS 3/3 before the run). One probe test file added to the scratch copy only: crates/hsk-studio-press/tests/r30_probe.rs (written by this reviewer; 19 printed cases; asserts nothing; every saved file re-opened with PdfDoc::open). Log: r30-prereview-probe/probe-1.log (exit 0). V4-21: git fetch only, no web request.",
+ "severity_rule": "CONFIRMED = file:line read at d43fd4e and the behaviour follows from the code (reasoned), or observed in a run where marked (run); PLAUSIBLE = reasoning only, an untested sub-case, an accepted-residual intersection, or an external fact not read; INFO = observation, no action required",
+ "recommendation_standard": "FIX_FIRST only for a product defect with concrete evidence (file:line plus a failing input or test) inside the lane's claim; a CONFIRMED doc-only or process mismatch is a note (round-R17 fold_rule); UNVERIFIED suspicions are PLAUSIBLE; accepted residuals and fail-closed over-counts are not findings",
+ "method": "Kernel reads: R29-prereview-press-narrow.json (all findings, inputs, checks), START_LOG DIAG-PRESS-R27, DIAG-PRESS-R28, DIAG-PRESS-R29 (incl. the R30 escalation rule), the lead residual decision and the X3 acceptance, builders/DISPATCH_TEMPLATES.md v4-rules and CARGO/TESTS rules, builders/studio-env.sh, lane file hsk-studio-press-struct-strip.json (notes.remediation_R29, v4_06_sites_r29, v4_07_r29, retry_guard_r29). Product (d43fd4e): git diff 18ebacf..d43fd4e (src all hunks, test diff); flatten_purge.rs:668 STRUCT_ROOT_KEYS, :673 root_shaped, :705-749 strip_structure (S computed before the unlink, from the catalog value as written), :755-760 Stripped, :764 TREE_OUTWARD_KEYS, :769-774 names_tree_root, :790-826 structure_tree_objects, :1603 catalog_names_structure_tree, :1636 holds, :1647 structure_shaped, Scan::value and Scan::object_stream (tree member numbers), :1811-1820 check_document (stripped.incomplete counted), unit test :1880-1914; sanitized_save.rs:1599-1651 (order: flatten, strip_xfa, page_annotations, strip_structure, neutralize_structure, remove_annotations, canonicalize, drop_painted_sources, save_full, re-open, check_document); reader.rs:420-487 (object-stream members taken by header number only when the xref names them in that stream); canon.rs:380 (new objects take max+1). Scripted: git grep -n of the v4_06_sites_r29 regex at d43fd4e; old-name count; V4-07 word counts of lib.rs at 18ebacf and d43fd4e. Run (scratch export, own owner): cargo nextest run -p hsk-studio-press --test r30_probe --test flatten_r13 --lib --no-capture --no-fail-fast, once (102/102 passed: press lib unit tests incl. closed_set_budget_exhaustion_is_counted, every flatten_r13 test incl. structure_tree_closed_set_follows_every_key_without_a_depth_cap, structure_objects_still_written_after_the_strip_are_reported, structure_strip_unlinks_and_keeps_what_anything_kept_reaches (X3 row), descriptor_states_the_structure_tree_rule, plus the probe; exit 0).",
+ "first_clock_reading": "2026-10-14T20:39:36Z",
+ "first_clock_reading_note": "first `date -u` reading, after the git fetch, the kernel reads and the diff read, at the scratch export, before the run",
+ "completed_at": "2026-10-14T20:50:07Z",
+ "status": "COMPLETE",
+ "r29_recheck": {
+  "R29-S1": "FIXED for the reported inputs (run): probes C1, C1t, C1u, C1c, C1e all region_flattened false, residual 1, [ResidualInRegion], text kept by the private key (correctly reported); C1 control without the private key flattened, residual 0, losses [AccessibilityTagsRemoved], ATTR-SECRET gone. Same class remains through the outward-key filter applied to class names: R30-S1.",
+  "R29-S2": "FIXED (run): C2 (shallow element also at chain depth 10), C2d (chain 12) and C2x (chain 60) all NotProven residual 1; the walk is iterative with a visited set and no depth cut (flatten_purge.rs:797-826); budget exhaustion sets incomplete and check_document counts it (:1820; unit test closed_set_budget_exhaustion_is_counted PASS).",
+  "R29-S3": "FIXED (product test row C3 PASS): a /P-less root kid is reached via /K and counted.",
+  "R29-S4": "INFO kept (product test row C7 PASS: Word-like tagged file flattened, no over-count).",
+  "R26/R27/R28 inputs": "green (run): every flatten_r13 test passes at d43fd4e; R27 X3 now NotProven (lead-accepted over-count)."
+ },
+ "lanes": [
+  {
+   "lane": "SMB-PRESS-STRUCT-STRIP",
+   "crate": "hsk-studio-press",
+   "two_fail_lane_in_crate": "SMB-PRESS (R5 FAIL_V1, R6 FAIL_V2)",
+   "commits_checked": ["d43fd4e (focus)", "ade85a0, 13534f8, 297c309, 9a2c840 (regression of the claim as worded)"],
+   "recommendation": "FIX_FIRST",
+   "recommendation_note": "The key-based, cap-free walk fixes every R29 input and over-counts nothing on the Word-like control. But the outward-key filter (TREE_OUTWARD_KEYS: /Pg /Obj /Stm /StmOwn) is applied to the keys of EVERY dictionary on the walk, including the /ClassMap dictionary, whose keys are class names chosen by the writer, not outward pointers. A class named Obj, Pg, Stm or StmOwn whose attribute object is indirect leaves S; a private catalog key then keeps the class attribute text with the save read proven (R30-S1, run, 4 spellings). This is the R29 C1c input (class map UserProperties text, counted at d43fd4e) with only the class name changed, so it sits inside the claim the lane and the code document ('the /ClassMap, /RoleMap and namespace objects, the attribute objects and what they name'; lane note 'class map objects ... are closed-set members'); the DESCRIPTOR's 'every key except the outward pointers /Pg /Obj /Stm /StmOwn' reads literally as a key list but names them as outward pointers, which a class name is not. Per START_LOG DIAG-PRESS-R29 the lead's recorded escalation rule applies (another in-claim leak at R30 -> Operator option to narrow D28 to 'tagged documents always NotProven').",
+   "findings": [
+    {
+     "id": "R30-S1",
+     "severity": "CONFIRMED (run; class-map attribute text written with the save read proven; inside the claim per the lane note and the structure_tree_objects doc; FIX_FIRST)",
+     "file_line": "src/flatten_purge.rs:764 TREE_OUTWARD_KEYS; :818-821 structure_tree_objects filters `!TREE_OUTWARD_KEYS.contains(&k)` on every Dict/Stream entry, the /ClassMap dictionary's class-name keys included; :782-789 doc ('the /ClassMap ... the attribute objects and what they name'); check_document structure_shaped (:1647) has no attribute-object shape, so the shape net does not catch the kept object",
+     "input": "pages_pdf two pages, region on page one, catalog '/StructTreeRoot 80 0 R /MarkInfo << /Marked true >> /HskCM 87 0 R', page two '/StructParents 0'. 80 = << /Type /StructTreeRoot /K [82 0 R] /ClassMap 85 0 R >>, 82 = << /Type /StructElem /S /P /P 80 0 R /Pg 5 0 R /C /<K> /K 0 >>, 85 = << /<K> 87 0 R >>, 87 = << /O /UserProperties /P [<< /N (n) /V (CLASS-SECRET) >>] >>, with <K> = Obj (N1o), Pg (N1p), Stm (N1s), StmOwn (N1w). Control N1-ctrl: <K> = C1.",
+     "expected": "Per the claim (class map attribute objects are closed-set members; R29 C1c): 87 is a tree object still written, so NotProven (region_flattened false, NotProven::ResidualInRegion), as N1-ctrl",
+     "observed": "probe-1.log: N1o, N1p, N1s, N1w all flattened=true cleared=true residual=0 reasons=[] losses=[AccessibilityTagsRemoved], CLASS-SECRET PRESENT in the saved bytes, /StructTreeRoot gone, saved file re-opens. N1-ctrl: flattened=false residual=1 [ResidualInRegion]. Class names are writer-chosen names (ISO 32000 ClassMap text not re-read here, UNVERIFIED); viewer display of class attributes UNVERIFIED for this exact file; the input class (private-key retention of tree text) is the one R28/R29 judged in claim.",
+     "repair_direction": "Apply the outward-key exclusion only where those keys are outward pointers, never to dictionaries whose keys are names chosen by the writer: follow every key of the dictionary the root's /ClassMap names (class names), and of /RoleMap and /RoleMapNS dictionaries; or role-free: follow /Pg /Obj /Stm /StmOwn too and rely on the page/catalog number exclusion plus a narrower outward rule (e.g. skip an outward key only in a dictionary that holds /S, /Type /MCR or /Type /OBJR), accepting fail-closed over-count. Add N1o/N1p/N1s/N1w as rows of structure_tree_closed_set_follows_every_key_without_a_depth_cap. Alternatively the lead's recorded escalation (narrow D28)."
+    },
+    {
+     "id": "R30-S2",
+     "severity": "PLAUSIBLE (run for the behaviour; whether an attribute named Obj/Pg/Stm/StmOwn of a free-name owner is tree text a viewer exposes is UNVERIFIED)",
+     "file_line": "src/flatten_purge.rs:818-821 (same filter applied inside attribute objects)",
+     "input": "N2: A2-shaped tree (81 = << /Type /StructElem /S /Table /P 80 0 R /Pg 3 0 R /A 86 0 R /K 0 >>), 86 = << /O /XML-1.00 /Obj 91 0 R >>, 91 = (XMLATTR-SECRET) (an indirect string object), catalog '/HskX 91 0 R'.",
+     "expected": "If an attribute of an owner with free attribute names (XML-1.00, HTML-*, CSS-*, NSO) is tree text: counted",
+     "observed": "probe-1.log N2: flattened=true residual 0, XMLATTR-SECRET PRESENT, losses [AccessibilityTagsRemoved].",
+     "repair_direction": "The R30-S1 repair covers it if attribute objects (values of /A and of class-map entries) follow every key too."
+    },
+    {
+     "id": "R30-S3",
+     "severity": "PLAUSIBLE (run; the 'no tree' rule of names_tree_root; ISO 32000-2 root key list UNVERIFIED, not re-read)",
+     "file_line": "src/flatten_purge.rs:668 STRUCT_ROOT_KEYS (ParentTree IDTree ClassMap RoleMap ParentTreeNextKey), :769-774 names_tree_root",
+     "input": "N3ns: catalog /StructTreeRoot 80, 80 = << /Namespaces [92 0 R] >>, 92 = << /Type /Namespace /NS (NS-SECRET) >>, catalog '/HskNS 92 0 R'. N3af: 80 = << /AF [93 0 R] >>, 93 = << /Type /Filespec /F (a.txt) /Desc (AF-SECRET) >>, catalog '/HskAF 93 0 R'. Control N3ctrl: 80 = << /ParentTree << /Nums [0 [81 0 R]] >> >> (no /Type, no /K) with a /P-less element: counted.",
+     "expected": "A root dictionary holding only PDF 2.0 root keys (/Namespaces, /AF, /PronunciationLexicon) names a tree that has no elements; its namespace and associated-file objects are tree-owned",
+     "observed": "probe-1.log: N3ns and N3af flattened=true residual 0, losses [] (no tree), text PRESENT; N3ctrl NotProven residual 1. Can real structure hide behind the rule: no element is reachable from such a root without /K, /ParentTree or /IDTree (all three make it a tree), so no element text was found; only namespace URIs and associated-file descriptions stay. Over the claim boundary at most.",
+     "repair_direction": "Optional: add Namespaces, AF and PronunciationLexicon to the names_tree_root key test (not to STRUCT_ROOT_KEYS of the shape net unless wanted); over-count is fail closed."
+    },
+    {
+     "id": "R30-S4",
+     "severity": "INFO (run; outside the claim by design: /Obj names annotations and XObjects)",
+     "file_line": "src/flatten_purge.rs:764 TREE_OUTWARD_KEYS (/Obj of an OBJR)",
+     "input": "N5: 82 = << /Type /StructElem /S /Link /P 80 0 R /Pg 5 0 R /K [<< /Type /OBJR /Obj 94 0 R /Pg 5 0 R >>] >>, 94 = << /S /Figure /Alt (OBJR-SECRET) >> (no /P), catalog '/HskO 94 0 R'.",
+     "expected": "n/a (an OBJR target is a content item, not a structure element; annotation text is not tree text per the DESCRIPTOR exclusion)",
+     "observed": "probe-1.log N5: flattened=true residual 0, OBJR-SECRET PRESENT. A structure-element-shaped target with /P is still caught by the shape net (R29 escape_class note). Marked-content /ActualText and form XObjects behind /Stm are content-stream text (PROPERTIES lane, accepted residuals), not re-probed.",
+     "repair_direction": "None required."
+    }
+   ],
+   "checks": {
+    "closed_set_sound_parts": "Read: S computed in strip_structure before any unlink (:708-711) from the catalog value as written, after flatten_region_pages/strip_xfa but before neutralize/remove/canonicalize/purge (sanitized_save.rs:1599-1629); the walk enters every Ref once (visited set), arrays fully, dictionaries and stream dictionaries on every key but the four outward keys; pages and catalog excluded by number; budget = Limits::max_objects and the reader refuses files at max_objects, so exhaustion is defensive only (unit test proves the fail-closed path). Object-stream members: reader.rs takes a member only under its header number when the xref names it in that stream, and Scan::object_stream counts a kept container's header numbers that are in S, so compressed members are covered (a decoy container header can only over-count). Allocation is max+1 (canon.rs:380), the writer keeps numbers, so `saved.objects.contains_key(n)` cannot name a different object.",
+    "escape_class": "Kept path + not in S + no shape: R30-S1 (class names equal to an outward key, CONFIRMED), R30-S2 (free-name attribute equal to an outward key, PLAUSIBLE), R30-S3 (root with only PDF 2.0 root keys, PLAUSIBLE), OBJR /Obj and MCR /Stm targets (by design), PLR-103 remainder and named property lists (accepted).",
+    "over_count": "INFO: the walk now follows /AF, /PronunciationLexicon, /Namespaces and any private key of a tree object, and enters a /Pages node or an action if a tree key names one (R27 X3 accepted); fail closed. Word-like control C7 green (no over-count).",
+    "opt_out": "Unchanged: sanitized_save.rs:1614 gates strip_structure only; Stripped::default() (empty tree, incomplete false) for the opt-out and for saves without a flattened page.",
+    "v4_06": "notes.v4_06_sites_r29: regex gives 9 git grep lines at d43fd4e (flatten_purge.rs:710, 764, 769, 782, 790, 792, 820, 1903, 1906) = 9 rows; the removed names (outside_tree, tree_admits, element_like, tree_child, TreeRole) have 0 matches in src at d43fd4e.",
+    "v4_01_v4_02": "flatten_purge.rs deny(clippy::arithmetic_side_effects) covers the new code (saturating_add on steps, `steps & 1023`, set.len() compare); the unit-test module allows arithmetic under cfg(test) only.",
+    "v4_07": "lib.rs never/always/guarantee/proves counts unchanged 18ebacf -> d43fd4e (10 never, 1 always, 0 guarantee, 0 proves). The DESCRIPTOR D28 clause cites structure_objects_still_written_after_the_strip_are_reported, structure_tree_closed_set_follows_every_key_without_a_depth_cap and closed_set_budget_exhaustion_is_counted (all exist, all pass) and states the 'no tree' rule. Claim vs behaviour: 'every key except the outward pointers /Pg /Obj /Stm /StmOwn' is implemented as a key-name filter on every dictionary, which also drops class-map entries and attribute entries that carry those names (R30-S1, R30-S2); the doc's 'the /ClassMap ... the attribute objects and what they name' is broader than that behaviour."
+   }
+  }
+ ],
+ "prior_findings_rechecked": [
+  "R29-S1: fixed for C1/C1t/C1u/C1c/C1e (run); same class remains via R30-S1 (class names equal to an outward key). R29-S2: fixed (run, C2, C2d, C2x 60-element chain). R29-S3: fixed (product test). R29-S4: INFO kept.",
+  "R26, R27, R28 inputs: green (run, product tests). R26-P3, PLR-103 remainder, named property lists, R27 X3: accepted (not findings)."
+ ],
+ "process_notes": [
+  "V4-18: this file covers 18ebacf..d43fd4e only; R29-prereview-press-narrow.json stands for 8b11939..18ebacf.",
+  "Gameplan: Studio gameplan STUDIO-MODULE-BUILD check --at before_round PASS 3/3 before the one cargo command; leading cd first, studio-env.sh sourced with STUDIO_OWNER=r30-prereview-probe; no hook block, no retry-guard record.",
+  "Scratch export left for the lead to remove: Handshake_Artifacts/WP-KERNEL-STUDIO/r30-prereview-probe (src, target, tmp, probe-1.log; probe test only in the scratch copy: src/handshake-studio-assets/crates/hsk-studio-press/tests/r30_probe.rs).",
+  "START_LOG DIAG-PRESS-R29 escalation rule: R30-S1 is an in-claim leak; the lead decides between remediation and the recorded Operator escalation (narrow D28).",
+  "PLAUSIBLE items R30-S2 and R30-S3 go to workflow/plausible-register.json only via the lead.",
+  "No product file edited, nothing committed, no process stopped; this file is not committed (the lead commits)."
+ ]
+}

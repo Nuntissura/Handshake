@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-14T20:51:36Z",
+ "updated_at": "2026-10-14T20:52:45Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -3547,8 +3547,8 @@
   {
    "lane_id": "SMB-PRESS-STRUCT-STRIP",
    "crate": "hsk-studio-press",
-   "phase": "pre-review R30 (V4-13) then validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "R30 FIX_FIRST (R30-S1 ClassMap/RoleMap key skip); escalated to Operator per DIAG-PRESS-R29 rule",
+   "status": null,
    "owner": "builder-press-20261014",
    "commits": [
     "ade85a0",
@@ -4027,12 +4027,17 @@
   {
    "lane_id": "SMB-FOLIO-PAINT-BLUR-STYLE",
    "crate": "hsk-studio-folio",
-   "phase": "queued",
-   "status": null,
-   "owner": null,
-   "commits": [],
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
+   "owner": "builder-folio-20261014",
+   "commits": [
+    "5813f4c",
+    "d43a697",
+    "48c6975"
+   ],
    "verdicts": [],
-   "note": "folio gaps found by Figma import: no blur effect kind (FOREGROUND/BACKGROUND blur), no image paint kind (image fills referencing package assets), no text style record (STYS ids), no boolean-result geometry home on groups; add with composite/render support"
+   "note": "folio gaps found by Figma import: no blur effect kind (FOREGROUND/BACKGROUND blur), no image paint kind (image fills referencing package assets), no text style record (STYS ids), no boolean-result geometry home on groups; add with composite/render support",
+   "lane_file": "builders/lanes/hsk-studio-folio-paint-blur-style.json"
   },
   {
    "lane_id": "SMB-RENDER-GPU-SHARED-DEVICE",
@@ -4073,6 +4078,26 @@
    "commits": [],
    "verdicts": [],
    "note": "harness import-raster route (PNG/JPEG open + convert to native) per notes.harness_route; plus PNG/JPEG export of the composited document"
+  },
+  {
+   "lane_id": "SMB-INTEROP-FIG-FOLIO-KINDS",
+   "crate": "hsk-studio-interop-fig",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-fig-geometry-20261014",
+   "commits": [],
+   "verdicts": [],
+   "note": "map FOREGROUND/BACKGROUND_BLUR -> folio Blur, IMAGE fills -> StudioImagePaint, BOOLEAN_OPERATION -> StudioBooleanGroup, text styles -> StudioTypeStyleRecords; drop matching losses; real package round trip"
+  },
+  {
+   "lane_id": "SMB-COMPOSITE-NEW-KINDS",
+   "crate": "hsk-studio-composite",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "render folio Blur (layer + backdrop), lower image paints, evaluate boolean groups, image-typed text source -> Solid + coverage mask; after composite text/transform lanes"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
