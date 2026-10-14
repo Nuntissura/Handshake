@@ -604,6 +604,8 @@
       "scope": "Read-only complete relevant MT-to-asset/host mapping, concrete missing shared logic versus host adapter responsibility, asset-first repair and distinct pinned adoption, original proof and ownership; leader selects useful helpers and coordinates directly with root/mediator/GUI/native-main/primary/runtime/IV",
       "boundaries": "No source/governance writes, branch/worktree creation, build/test/runtime launch or acceptance changes; report inspected evidence to root and mediator before exact implementation admission"
     },
+    "source_implementation_ref": "MT-175.json#/kumihimo_standalone_source_admission_20261014",
+    "source_implementation_direction": "Operator now assigns the same Kumi team to original Assets/Kumihimo implementation. Its completed read-only inspection boundary remains historical; source work follows exact source10 admission and asset authority. Commit and normal push the proven updated component to GitHub first, independently reread the revision, then separately admit Handshake adoption. This is part of the Assets folder, not Handshake product source.",
     "build_rule_ref": {"path": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json", "rule_id": "HBR-MODULE-LIFECYCLE-008"},
     "inspection_outcome": {
       "status": "READ_ONLY_MAPPING_COMPLETE",

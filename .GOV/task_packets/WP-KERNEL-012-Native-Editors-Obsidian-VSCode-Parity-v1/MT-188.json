@@ -926,9 +926,17 @@
       "recorded_at_utc": "2026-10-14T18:52:11Z",
       "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
       "failure_ref": "MT-188.json#/swarm_changed_source_compile_admission_20261014/lost_owned_caller_20261014",
-      "status": "PREPARATION_ADMITTED_EXECUTION_HELD_FOR_PROBE_REVIEW_AND_FINAL_BINDINGS",
+      "status": "PROBE_RELEASE_ADMITTED_AFTER_CALLER_REVIEW_AND_FINAL_BINDINGS",
       "owner_chat": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
       "independent_validator_chat": "01a139f6-ce6a-7b50-a058-dff3732ea4a2",
+      "caller_review": {
+        "disposition": "CLEAR_FOR_CONDITIONAL_INFRASTRUCTURE_PROBE_RELEASE",
+        "owner_chat": "01a139f6-ce6a-7b50-a058-dff3732ea4a2",
+        "host_sha256": "395e5fbbacb6e85456d5a7a288d6f25a0a773ee9f32719df3ee7c3470330b580",
+        "wrapper_sha256": "ada9ad56ed06c6d6fcab1571b6b4b4f1527f2d95f884e87a2a76c11b0cde6934",
+        "scope": "One affected caller/config review plus exact guard/snapshot delta reconciliation; original source/argv/metadata/lineage unchanged. CORE held until actual independent probe settlement.",
+        "failure_control": "A post-start host failure can leave its owned child alive; independently settle exact owned child/Cargo family before any next action or exact task cleanup. Unknown exits/log closure never prove completion."
+      },
       "candidate_commit": "575997886285ede0442cc8b93bb69eed57d94e08",
       "candidate_tree": "d09d95190432025bcafd5a8593c74eec7dbd401a",
       "changed_method_hypothesis": "Transfer wrapper ownership from the unavailable managed foreground caller to one unique current-user scheduled host with retained process handles and immediate durable actual numeric exits. A harmless bounded probe verifies settlement after registration caller return; actual chat-interruption survival and underlying check02 termination cause remain UNVERIFIED.",
@@ -951,6 +959,14 @@
         "cleanup": "Only the exact task created by this attempt after its owned process settlement; preserve all files and do not disrupt foreign processes or retained cache4820"
       },
       "historical_host_limitation": "Retained r15 harmless exit7 probe survived registration return; r18 had Cargo0 but scheduler3221225786/0xC000013A and missing host finalization. Neither proves current chat survival or the cause of check02; preserve both.",
+      "probe_predecessor": {
+        "state": "NOT_RUN",
+        "actual_child_exit": null,
+        "independent_owner_chat": "01a139f6-ce6a-7b50-a058-dff3732ea4a2",
+        "independent_disposition": null,
+        "evidence_ref": null
+      },
+      "core_release_guard": "Both scheduled host and CORE wrapper must deny CORE unless canonical infrastructure_probes_consumed equals1 and probe_predecessor.state is INDEPENDENTLY_SETTLED_PROBE_EXIT7_CLOSED with actual_child_exit7 and independent disposition/evidence. Preserve exact released probe config CreateNew snapshot before registration; a held/rebound flag alone never crosses this predecessor.",
       "finite_allowances": {
         "infrastructure_probe_limit": 1,
         "infrastructure_probes_consumed": 0,
