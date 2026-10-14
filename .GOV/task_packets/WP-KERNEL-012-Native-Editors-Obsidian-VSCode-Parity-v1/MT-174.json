@@ -8395,5 +8395,37 @@
       }
     ],
     "packet_ref": "packet.json#/swarm_direct_blocker_expansion_20261014"
+  },
+  "swarm_cli_only_catalog_repair_20261014": {
+    "decision_id": "WP012-SWARM-CLI-ONLY-CATALOG-REPAIR-20261014-03",
+    "status": "SOURCE_IMPLEMENTATION_RELEASED",
+    "recorded_at_utc": "2026-10-14T14:56:17.061871+00:00",
+    "parent_ref": "packet.json#/swarm_production_20261014",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
+    "decision_owner": "01a13ab5-bfe4-74b1-8fc3-64e691a76827",
+    "owner_chat": "01a13ad0-0422-7df1-af8b-5741e13d2551",
+    "mt": "MT-174",
+    "paths": [
+      "src/backend/handshake_core/src/swarm_orchestration/operator_chat.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/production_factory.rs",
+      "src/backend/handshake_core/src/api/operator_chat.rs"
+    ],
+    "failure": "Real LLM disabled/external mode has no loaded local ModelCatalog; requiring Arc catalog prevents genuine independently configured CLI/cloud activation and new main early exit bypasses runtime drains",
+    "deliverable": "Represent genuine optional local catalog through existing operator-chat service/factory/API composition. Reuse existing optional catalog spawn helper; local spawn/selection with no actual catalog remain denied. Existing configured cloud/CLI uses genuine provider/config, paired service+drain retained. No empty catalog, fake READY or manufactured registry",
+    "ownership_agreement": "Primary renewed whole factory/API operator_chat to same composition team; new service path has no active writer, same worker coherent three-file repair",
+    "controls": [
+      "Migrate affected actual constructor consumers/assertions in the same coherent change, retain original positive/negative proofs",
+      "Generic Into<Option<Arc<dyn ModelCatalog>>> must not assume unsizing of concrete Arc callers; inspect actual callers and report exact additional paths before out-of-scope writes",
+      "ModelLaneStore already optional catalog; no new dependency/version/source pin/authority changes",
+      "Primary main uses actual Option and graceful typed failures, no process exit after owned Janitor startup",
+      "Other published source leases and independent runtime acceptance remain unchanged"
+    ],
+    "original_proof_refs": [
+      "MT-174.json#/proof/consumed_source_checks",
+      "MT-188.json#/proof",
+      "MT-186.json#/proof"
+    ],
+    "source_only": true,
+    "next_action": "Same prepared composition worker implements coherent three-file repair now; primary integrates and then required strategic proof"
   }
 }
