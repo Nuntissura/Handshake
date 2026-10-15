@@ -1,3 +1,5 @@
+pub mod operation_watchdog;
+
 use serde::{Deserialize, Serialize};
 use std::{
     collections::VecDeque,

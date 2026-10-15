@@ -1,0 +1,10 @@
+[workspace]
+
+[package]
+name = "handshake_folder_tree"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+egui = "0.33"

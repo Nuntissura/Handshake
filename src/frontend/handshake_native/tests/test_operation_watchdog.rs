@@ -10,6 +10,7 @@ use egui_kittest::Harness;
 use handshake_diag_ring::{DiagEvent, DiagEventCode};
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
 use handshake_native::backend_client::HealthInfo;
+use handshake_native::diagnostics::operation_watchdog::emit_stalled_operation;
 use handshake_native::diagnostics::{
     self, OperationCode, OperationWatchdog, BACKEND_OPERATION_MAX_TOTAL_RUNTIME, BUFFER_CAP,
     OPERATION_WATCHDOG_POLL_INTERVAL,
@@ -53,7 +54,7 @@ fn stalled_operation_emits_one_typed_event_within_bound() {
     let deadline = Duration::from_millis(80);
     let watchdog = OperationWatchdog::new(poll_interval);
     let _thread = watchdog
-        .start_poll_thread()
+        .start_poll_thread(Arc::new(emit_stalled_operation))
         .expect("fresh watchdog starts a poll thread");
     let handle = watchdog.register(OperationCode::BackendCall, deadline, None);
     let operation_id = handle.operation_id();
@@ -92,14 +93,14 @@ fn ticking_and_completed_operations_do_not_false_flag() {
         std::thread::sleep(Duration::from_millis(60));
         handle.tick();
         assert_eq!(
-            watchdog.poll_once(),
+            watchdog.poll_once(emit_stalled_operation),
             0,
             "a ticking operation must not emit StalledOperation"
         );
     }
     handle.complete();
     std::thread::sleep(Duration::from_millis(300));
-    assert_eq!(watchdog.poll_once(), 0);
+    assert_eq!(watchdog.poll_once(emit_stalled_operation), 0);
 
     assert_eq!(
         stalled_events().len(),
@@ -131,7 +132,7 @@ fn forever_ticking_operation_is_flagged_by_hard_total_runtime_cap() {
     while emitted == 0 && Instant::now() < deadline {
         handle.tick();
         std::thread::sleep(Duration::from_millis(20));
-        emitted += watchdog.poll_once();
+        emitted += watchdog.poll_once(emit_stalled_operation);
     }
     assert_eq!(
         emitted, 1,
@@ -174,7 +175,7 @@ fn ticking_operation_without_a_cap_is_never_flagged() {
     for _ in 0..10 {
         handle.tick();
         std::thread::sleep(Duration::from_millis(20));
-        assert_eq!(watchdog.poll_once(), 0);
+        assert_eq!(watchdog.poll_once(emit_stalled_operation), 0);
     }
     assert_eq!(
         stalled_events().len(),
@@ -192,10 +193,18 @@ fn stalled_operation_is_debounced_to_one_event() {
     let _handle = watchdog.register(OperationCode::BackendCall, Duration::from_millis(30), None);
 
     std::thread::sleep(Duration::from_millis(60));
-    assert_eq!(watchdog.poll_once(), 1, "first stalled edge emits once");
+    assert_eq!(
+        watchdog.poll_once(emit_stalled_operation),
+        1,
+        "first stalled edge emits once"
+    );
     for _ in 0..6 {
         std::thread::sleep(Duration::from_millis(10));
-        assert_eq!(watchdog.poll_once(), 0, "still-stalled op is debounced");
+        assert_eq!(
+            watchdog.poll_once(emit_stalled_operation),
+            0,
+            "still-stalled op is debounced"
+        );
     }
 
     assert_eq!(
@@ -211,7 +220,7 @@ fn register_tick_complete_stress_has_no_deadlock_or_spurious_emit() {
     let before = stalled_events().len();
     let watchdog = OperationWatchdog::new(OPERATION_WATCHDOG_POLL_INTERVAL);
     let _thread = watchdog
-        .start_poll_thread()
+        .start_poll_thread(Arc::new(emit_stalled_operation))
         .expect("fresh watchdog starts a poll thread");
     let mut joins = Vec::new();
 
@@ -249,7 +258,7 @@ fn completed_after_deadline_but_before_poll_does_not_emit() {
     handle.complete();
 
     assert_eq!(
-        watchdog.poll_once(),
+        watchdog.poll_once(emit_stalled_operation),
         0,
         "an operation completed before the watchdog poll must not be reported as stalled"
     );
@@ -329,7 +338,13 @@ fn typed_constructor_and_schema_size_stay_fixed() {
 
 #[test]
 fn watchdog_source_exposes_no_free_text_payload_or_allocating_emit_path() {
-    let src = strip_line_comments(include_str!("../src/diagnostics/operation_watchdog.rs"));
+    let src = strip_line_comments(
+        &[
+            include_str!("../../handshake_internal_diagnostics/src/operation_watchdog.rs"),
+            include_str!("../src/diagnostics/operation_watchdog.rs"),
+        ]
+        .concat(),
+    );
     for forbidden in ["String", "&str", "Vec<", "format!", "std::process::Command"] {
         assert!(
             !src.contains(forbidden),
@@ -417,7 +432,13 @@ fn shipped_backend_health_and_layout_paths_register_operations() {
 #[test]
 fn production_backend_registration_carries_progress_gap_and_hard_runtime_cap() {
     let _guard = lock_watchdog_tests();
-    let source = strip_line_comments(include_str!("../src/diagnostics/operation_watchdog.rs"));
+    let source = strip_line_comments(
+        &[
+            include_str!("../../handshake_internal_diagnostics/src/operation_watchdog.rs"),
+            include_str!("../src/diagnostics/operation_watchdog.rs"),
+        ]
+        .concat(),
+    );
     let registration = extract_fn_body(&source, "pub fn register_backend_operation()")
         .expect("production backend registration helper exists");
     assert!(registration.contains("register_with_runtime_cap"));
@@ -440,7 +461,7 @@ fn production_backend_registration_carries_progress_gap_and_hard_runtime_cap() {
         Some(Duration::from_millis(60)),
     );
     let deadline = Instant::now() + Duration::from_secs(2);
-    while watchdog.poll_once() == 0 && Instant::now() < deadline {
+    while watchdog.poll_once(emit_stalled_operation) == 0 && Instant::now() < deadline {
         handle.tick();
         std::thread::sleep(Duration::from_millis(10));
     }
@@ -461,7 +482,10 @@ fn diagnostics_panel_and_status_bar_surface_stalled_operation() {
         None,
     );
     std::thread::sleep(Duration::from_millis(5));
-    assert_eq!(diagnostics::global_operation_watchdog().poll_once(), 1);
+    assert_eq!(
+        diagnostics::global_operation_watchdog().poll_once(emit_stalled_operation),
+        1
+    );
 
     let app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
         status: "ok".to_owned(),

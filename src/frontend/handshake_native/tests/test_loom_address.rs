@@ -431,7 +431,8 @@ fn backlinks_diagnostics_wire_reaches_internal_panel_and_palmistry_ring() {
 
     std::thread::sleep(BACKEND_OPERATION_STALL_DEADLINE + std::time::Duration::from_millis(100));
     assert_eq!(
-        diagnostics::global_operation_watchdog().poll_once(),
+        diagnostics::global_operation_watchdog()
+            .poll_once(diagnostics::operation_watchdog::emit_stalled_operation),
         0,
         "completed/error/cancelled backlink requests must not emit a later false stall"
     );
@@ -456,7 +457,8 @@ fn backlinks_diagnostics_wire_reaches_internal_panel_and_palmistry_ring() {
         .expect("stalled request reached silent server");
     std::thread::sleep(BACKEND_OPERATION_STALL_DEADLINE + std::time::Duration::from_millis(100));
     assert_eq!(
-        diagnostics::global_operation_watchdog().poll_once(),
+        diagnostics::global_operation_watchdog()
+            .poll_once(diagnostics::operation_watchdog::emit_stalled_operation),
         1,
         "a silent list_backlinks request must emit one bounded StalledOperation"
     );
@@ -516,7 +518,8 @@ fn backlinks_diagnostics_wire_reaches_internal_panel_and_palmistry_ring() {
     );
     std::thread::sleep(BACKEND_OPERATION_STALL_DEADLINE + std::time::Duration::from_millis(100));
     assert_eq!(
-        diagnostics::global_operation_watchdog().poll_once(),
+        diagnostics::global_operation_watchdog()
+            .poll_once(diagnostics::operation_watchdog::emit_stalled_operation),
         0,
         "completed stalled request cannot emit a duplicate late event"
     );

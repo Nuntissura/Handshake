@@ -115,12 +115,6 @@ const COLOR_PICKER_SWATCHES: [(&str, &str); 4] = [
     ("Amber", "#f59e0b"),
 ];
 
-/// Hard cap on tree depth (RISK-1 / MC-1). Beyond this a `…(deep)` truncation row is shown rather than
-/// recursing further, so a cyclic / pathologically-deep `parent_folder_id` chain can never blow the
-/// stack or hang the layout. The contract names 20 for the build-time cycle guard; the *render* depth
-/// limit is the stricter UX value 5 (`Depth limit: support up to 5 levels of nesting`).
-pub const MAX_BUILD_DEPTH: usize = 20;
-
 /// Render-depth limit: nesting deeper than this shows a `…(deep)` truncation row (contract: "up to 5
 /// levels of nesting. Beyond that, show a '...(deep)' truncation row").
 pub const MAX_RENDER_DEPTH: usize = 5;
@@ -176,386 +170,11 @@ pub fn move_target_author_id(source_folder_id: &str, target_folder_id: &str) -> 
     )
 }
 
-/// CSS basic named colors accepted by the folder token parser. This deliberately defined vocabulary keeps
-/// backend rendering deterministic without accepting arbitrary strings as valid colors.
-const CSS_BASIC_NAMED_COLORS: [(&str, &str); 18] = [
-    ("black", "000000"),
-    ("silver", "c0c0c0"),
-    ("gray", "808080"),
-    ("grey", "808080"),
-    ("white", "ffffff"),
-    ("maroon", "800000"),
-    ("red", "ff0000"),
-    ("purple", "800080"),
-    ("fuchsia", "ff00ff"),
-    ("green", "008000"),
-    ("lime", "00ff00"),
-    ("olive", "808000"),
-    ("yellow", "ffff00"),
-    ("navy", "000080"),
-    ("blue", "0000ff"),
-    ("teal", "008080"),
-    ("aqua", "00ffff"),
-    ("cyan", "00ffff"),
-];
-
-/// Parse a legal persisted folder color token into an opaque [`Color32`]. Accepted forms are `#rgb`,
-/// `#rrggbb` (the leading `#` is optional for compatibility), and the defined CSS basic named-color
-/// vocabulary above. Unknown non-empty tokens degrade only that row to the neutral theme swatch; they do
-/// not reject the backend folder list.
-///
-/// NOTE the no-hardcode invariant (CONTROL-4): this builds the color from RUNTIME backend data via
-/// [`Color32::from_rgba_unmultiplied`] (the sanctioned dynamic RGBA form the architecture-guard test
-/// does NOT flag), NOT an opaque-hex literal constructor. The bytes come from the persisted
-/// `loom_folders.color` string, so this is data, not a hardcoded palette color.
-pub fn parse_folder_color_token(token: &str) -> Option<Color32> {
-    let named_hex = CSS_BASIC_NAMED_COLORS
-        .iter()
-        .find(|(name, _)| token.eq_ignore_ascii_case(name))
-        .map(|(_, hex)| *hex);
-    let s = named_hex.unwrap_or_else(|| token.strip_prefix('#').unwrap_or(token));
-    if !s.bytes().all(|b| b.is_ascii_hexdigit()) {
-        return None;
-    }
-    let expanded;
-    let s = if s.len() == 3 {
-        expanded = s
-            .chars()
-            .flat_map(|component| [component, component])
-            .collect::<String>();
-        expanded.as_str()
-    } else if s.len() == 6 {
-        s
-    } else {
-        return None;
-    };
-    let r = u8::from_str_radix(&s[0..2], 16).ok()?;
-    let g = u8::from_str_radix(&s[2..4], 16).ok()?;
-    let b = u8::from_str_radix(&s[4..6], 16).ok()?;
-    Some(Color32::from_rgba_unmultiplied(r, g, b, 255))
-}
-
-/// Compatibility name retained for existing callers; the parser now accepts every canonical folder color
-/// token, not only six-digit hex.
-pub fn parse_hex_color(token: &str) -> Option<Color32> {
-    parse_folder_color_token(token)
-}
-
-/// Encode an opaque [`Color32`] as a `#rrggbb` hex string (the form persisted into `loom_folders.color`
-/// via the recolor PATCH). Alpha is dropped (folder swatches are opaque).
-pub fn color_to_hex(color: Color32) -> String {
-    format!("#{:02x}{:02x}{:02x}", color.r(), color.g(), color.b())
-}
-
-/// One flat folder row as returned by `GET /loom/folders` (the fields the tree needs). The full
-/// `LoomFolder` carries more (sort_mode, sort_order, project_ref, timestamps); the tree only consumes
-/// the id, parent link, title, and color, so the host parses just these from the JSON.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct FolderRow {
-    pub folder_id: String,
-    /// `None` => a root folder; `Some(id)` => nested under `id`.
-    pub parent_folder_id: Option<String>,
-    pub name: String,
-    /// The persisted `#rrggbb` color string (if any).
-    pub color: Option<String>,
-}
-
-impl FolderRow {
-    pub fn new(
-        folder_id: impl Into<String>,
-        parent_folder_id: Option<String>,
-        name: impl Into<String>,
-        color: Option<String>,
-    ) -> Self {
-        Self {
-            folder_id: folder_id.into(),
-            parent_folder_id,
-            name: name.into(),
-            color,
-        }
-    }
-}
-
-/// One leaf block (a member of a folder), loaded lazily on expand from
-/// `GET /loom/folders/{folder_id}/blocks`. Carries the `block_id` (the open key), a display title, and
-/// the `content_type` (drives a small icon character).
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct LeafBlock {
-    pub block_id: String,
-    pub title: String,
-    pub content_type: String,
-}
-
-impl LeafBlock {
-    pub fn new(
-        block_id: impl Into<String>,
-        title: impl Into<String>,
-        content_type: impl Into<String>,
-    ) -> Self {
-        Self {
-            block_id: block_id.into(),
-            title: title.into(),
-            content_type: content_type.into(),
-        }
-    }
-
-    /// A single-character icon for the block's content type (the contract's "content_type icon
-    /// character"). Purely cosmetic; an unknown type gets a neutral bullet.
-    fn icon(&self) -> char {
-        match self.content_type.as_str() {
-            "note" => '📝',
-            "file" | "annotated_file" => '📄',
-            "tag_hub" => '#',
-            "journal" => '📔',
-            "canvas" => '🎨',
-            "view_def" => '▦',
-            _ => '•',
-        }
-    }
-}
-
-/// One folder node in the rendered tree: a folder row plus its lazily-loaded children and UI state.
-/// `children` is `None` until the folder is first expanded and its blocks load (the lazy-load cache,
-/// RISK-3 / MC-3); a folder may also have child *folders* (`child_folders`), built eagerly from the flat
-/// row list (the structure is known up-front; only the block membership is lazy).
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct FolderNode {
-    pub folder_id: String,
-    pub title: String,
-    /// Parsed swatch color, or `None` => paint the neutral theme swatch.
-    pub color: Option<Color32>,
-    /// Child *folders* (known from the flat-row tree build).
-    pub child_folders: Vec<FolderNode>,
-    /// Child *blocks*, loaded lazily on first expand. `None` = not yet loaded; `Some(vec)` = loaded
-    /// (possibly empty). Disclosure-only collapse/re-expand may reuse this cache; a folder-row Open action
-    /// always revalidates it through a fresh backend request so ActionChannel causality is authoritative.
-    pub child_blocks: Option<Vec<LeafBlock>>,
-    pub expanded: bool,
-    /// True ONLY while a genuine in-flight child-block fetch is dispatched (set by the host when it
-    /// spawns the request; cleared when the result is delivered). Drives the bounded spinner.
-    pub loading: bool,
-    /// Typed terminal failure for the latest child-list request owned by this folder/action.
-    pub child_error: Option<String>,
-    /// Monotonic generation for causally binding a folder-row click to selection, expansion, and the
-    /// authoritative child-list terminal state.
-    expansion_generation: u64,
-    expansion_action_generation: Option<u64>,
-    /// Exact latest child-list request bound to this concrete node instance. A list/tree rebuild creates
-    /// a new node with no binding, so even an app-level latest sequence cannot mutate rebuilt state.
-    child_request_sequence: Option<u64>,
-    /// Exact backend child-list sequence bound to the current folder-row Open action.
-    expansion_request_sequence: Option<u64>,
-    /// Terminal child-list sequence applied to this node. Completion is legal only when this equals the
-    /// current action's `expansion_request_sequence`.
-    expansion_terminal_sequence: Option<u64>,
-    /// One-shot viewport reveal armed by an exact child-list completion. The mounted pane consumes it
-    /// after painting the first returned child so an expansion at the bottom of the compact Folders
-    /// pane cannot leave the newly loaded row clipped below the viewport.
-    reveal_children_once: bool,
-}
-
-impl FolderNode {
-    fn new(row: &FolderRow) -> Self {
-        Self {
-            folder_id: row.folder_id.clone(),
-            title: if row.name.trim().is_empty() {
-                row.folder_id.clone()
-            } else {
-                row.name.clone()
-            },
-            color: row.color.as_deref().and_then(parse_hex_color),
-            child_folders: Vec::new(),
-            child_blocks: None,
-            expanded: false,
-            loading: false,
-            child_error: None,
-            expansion_generation: 0,
-            expansion_action_generation: None,
-            child_request_sequence: None,
-            expansion_request_sequence: None,
-            expansion_terminal_sequence: None,
-            reveal_children_once: false,
-        }
-    }
-
-    /// Start one folder-row Open action and return its exact UI generation for the host event.
-    pub fn begin_open_action(&mut self) -> u64 {
-        self.expansion_generation = self
-            .expansion_generation
-            .checked_add(1)
-            .expect("folder expansion generation exhausted");
-        self.expansion_action_generation = Some(self.expansion_generation);
-        self.child_request_sequence = None;
-        self.expansion_request_sequence = None;
-        self.expansion_terminal_sequence = None;
-        self.reveal_children_once = false;
-        self.expanded = true;
-        self.child_error = None;
-        self.expansion_generation
-    }
-
-    /// Bind the current Open action to the exact fresh child-list request allocated by the host.
-    /// Returns false for a stale queued event so it cannot start or claim a newer action's request.
-    pub fn bind_open_request(&mut self, action_generation: u64, request_sequence: u64) -> bool {
-        if self.expansion_action_generation != Some(action_generation)
-            || self.expansion_generation != action_generation
-        {
-            return false;
-        }
-        self.child_request_sequence = Some(request_sequence);
-        self.expansion_request_sequence = Some(request_sequence);
-        self.expansion_terminal_sequence = None;
-        self.reveal_children_once = false;
-        self.expanded = true;
-        self.loading = true;
-        self.child_error = None;
-        true
-    }
-
-    /// Bind a disclosure-only lazy fetch to this concrete node instance. Unlike a row Open, this does
-    /// not claim an ActionChannel generation, but its delivery is still rejected after a node rebuild.
-    pub fn bind_disclosure_request(&mut self, request_sequence: u64) {
-        self.child_request_sequence = Some(request_sequence);
-        self.reveal_children_once = false;
-        self.loading = true;
-        self.child_error = None;
-    }
-
-    /// Mark the exact node-bound child request terminal. Stale or unbound responses return false and
-    /// callers must not mutate child/error/loading state when false.
-    pub fn complete_child_request(&mut self, request_sequence: u64) -> bool {
-        if self.child_request_sequence != Some(request_sequence) {
-            return false;
-        }
-        self.child_request_sequence = None;
-        if self.expansion_request_sequence == Some(request_sequence) {
-            self.expansion_terminal_sequence = Some(request_sequence);
-        }
-        self.loading = false;
-        true
-    }
-
-    /// Reveal a newly installed successful child-list result once in the mounted scrolling viewport.
-    /// Failure deliveries do not call this, so an old cached child can never steal focus from an error.
-    pub fn reveal_loaded_children_once(&mut self) {
-        self.reveal_children_once = self.expanded && self.child_blocks.is_some();
-    }
-
-    /// Collapse the node and retire any reveal that was armed for content no longer being painted.
-    pub fn collapse(&mut self) {
-        self.expanded = false;
-        self.reveal_children_once = false;
-    }
-
-    fn expansion_completion_state(&self, selected: bool) -> ClickCompletionState {
-        if self.expansion_action_generation != Some(self.expansion_generation) {
-            return ClickCompletionState::Ready;
-        }
-        let exact_request_terminal = self.expansion_request_sequence.is_some()
-            && self.expansion_terminal_sequence == self.expansion_request_sequence;
-        if selected
-            && self.expanded
-            && !self.loading
-            && exact_request_terminal
-            && (self.child_blocks.is_some() || self.child_error.is_some())
-        {
-            ClickCompletionState::Applied
-        } else {
-            ClickCompletionState::Pending
-        }
-    }
-
-    /// Total folder nodes in this subtree (including self). Used by tests to assert the build shape.
-    pub fn folder_count(&self) -> usize {
-        1 + self
-            .child_folders
-            .iter()
-            .map(FolderNode::folder_count)
-            .sum::<usize>()
-    }
-
-    /// Find a folder node by id anywhere in this subtree (mutable), so a host can flip `expanded` /
-    /// install loaded `child_blocks` after an async fetch resolves.
-    pub fn find_mut(&mut self, folder_id: &str) -> Option<&mut FolderNode> {
-        if self.folder_id == folder_id {
-            return Some(self);
-        }
-        for c in &mut self.child_folders {
-            if let Some(found) = c.find_mut(folder_id) {
-                return Some(found);
-            }
-        }
-        None
-    }
-
-    fn first_child_error(&self) -> Option<&str> {
-        self.child_error.as_deref().or_else(|| {
-            self.child_folders
-                .iter()
-                .find_map(FolderNode::first_child_error)
-        })
-    }
-}
-
-/// Build a forest of [`FolderNode`]s from a flat [`FolderRow`] list, linking children to parents by
-/// `parent_folder_id`. Roots are rows whose parent is `None` OR whose parent id is not present in the
-/// set (an orphan is promoted to a root rather than dropped). RISK-1 / MC-1: a `visited` set + a
-/// [`MAX_BUILD_DEPTH`] cap break any cyclic parent chain (folder A parent of B, B parent of A) so the
-/// build always terminates and never recurses unboundedly. Returns the root nodes in input order.
-///
-/// This is the PROOF1 standalone core — no backend, no egui: pure flat-list -> tree.
-pub fn build_tree(rows: &[FolderRow]) -> Vec<FolderNode> {
-    use std::collections::{HashMap, HashSet};
-
-    // Index rows by id and map parent -> ordered children ids.
-    let id_set: HashSet<&str> = rows.iter().map(|r| r.folder_id.as_str()).collect();
-    let by_id: HashMap<&str, &FolderRow> = rows.iter().map(|r| (r.folder_id.as_str(), r)).collect();
-    let mut children_of: HashMap<&str, Vec<&str>> = HashMap::new();
-    let mut roots: Vec<&str> = Vec::new();
-    for r in rows {
-        match &r.parent_folder_id {
-            Some(p) if id_set.contains(p.as_str()) => {
-                children_of
-                    .entry(p.as_str())
-                    .or_default()
-                    .push(r.folder_id.as_str());
-            }
-            // No parent, or a parent id that isn't in the set (orphan) => a root.
-            _ => roots.push(r.folder_id.as_str()),
-        }
-    }
-
-    fn build_node<'a>(
-        id: &'a str,
-        by_id: &HashMap<&'a str, &'a FolderRow>,
-        children_of: &HashMap<&'a str, Vec<&'a str>>,
-        visited: &mut std::collections::HashSet<&'a str>,
-        depth: usize,
-    ) -> Option<FolderNode> {
-        // Cycle guard (RISK-1): a folder already on the current path is not re-entered. Depth guard
-        // (MC-1): stop recursing past the build cap so a pathological chain terminates.
-        if depth >= MAX_BUILD_DEPTH || !visited.insert(id) {
-            return None;
-        }
-        let row = by_id.get(id)?;
-        let mut node = FolderNode::new(row);
-        if let Some(kids) = children_of.get(id) {
-            for kid in kids {
-                if let Some(child) = build_node(kid, by_id, children_of, visited, depth + 1) {
-                    node.child_folders.push(child);
-                }
-            }
-        }
-        visited.remove(id);
-        Some(node)
-    }
-
-    let mut visited: HashSet<&str> = HashSet::new();
-    roots
-        .into_iter()
-        .filter_map(|id| build_node(id, &by_id, &children_of, &mut visited, 0))
-        .collect()
-}
+pub use handshake_folder_tree::{
+    build_tree, color_to_hex, parse_folder_color_token, parse_hex_color, FolderNode, FolderRow,
+    LeafBlock, MAX_BUILD_DEPTH,
+};
+use handshake_folder_tree::FolderOpenCompletion;
 
 /// The typed event a folder-tree interaction produces this frame, for the host to apply. The host owns
 /// the backend wiring (lazy child fetch on `ExpandFolder`, recolor PATCH on `ChangeColor`, open on
@@ -1027,12 +646,16 @@ fn render_folder(
     };
 
     let selected = selected_folder_id == Some(node.folder_id.as_str());
-    let completion_state = node.expansion_completion_state(selected);
+    let completion_state = match node.expansion_completion_state(selected) {
+        FolderOpenCompletion::Ready => ClickCompletionState::Ready,
+        FolderOpenCompletion::Pending => ClickCompletionState::Pending,
+        FolderOpenCompletion::Applied => ClickCompletionState::Applied,
+    };
     let completion_context = format!("{workspace_id}:{}", node.folder_id);
     let completion_value = serialize_same_target_click_completion(
         "folder-open-expand",
         &completion_context,
-        node.expansion_generation,
+        node.expansion_generation(),
         completion_state,
     );
 
@@ -1192,8 +815,8 @@ fn render_folder(
             }
             spinner_active |= spin;
         }
+        let mut reveal_children = node.child_blocks.is_some() && node.take_reveal_children_once();
         if let Some(blocks) = &node.child_blocks {
-            let mut reveal_children = std::mem::take(&mut node.reveal_children_once);
             if blocks.is_empty() {
                 let empty = ui.horizontal(|ui| {
                     ui.add_space(
@@ -1393,9 +1016,9 @@ fn emit_folder_status_accesskit(
         "schema": "handshake.folder-expansion-status/v1",
         "workspace_id": workspace_id,
         "folder_id": &folder.folder_id,
-        "generation": folder.expansion_generation,
-        "request_sequence": folder.expansion_request_sequence,
-        "terminal_request_sequence": folder.expansion_terminal_sequence,
+        "generation": folder.expansion_generation(),
+        "request_sequence": folder.expansion_request_sequence(),
+        "terminal_request_sequence": folder.expansion_terminal_sequence(),
         "selected": selected,
         "expanded": folder.expanded,
         "loading": folder.loading,
@@ -1428,117 +1051,6 @@ mod tests {
                 Some("00ff00".to_owned()),
             ),
         ]
-    }
-
-    /// PROOF1: flat rows -> tree. 2 roots, folder-001 has one child folder, colors parsed.
-    #[test]
-    fn build_tree_links_children_and_parses_colors() {
-        let tree = build_tree(&rows_fixture());
-        assert_eq!(tree.len(), 2, "two root folders");
-        let projects = tree
-            .iter()
-            .find(|n| n.folder_id == "folder-001")
-            .expect("folder-001 root");
-        assert_eq!(
-            projects.child_folders.len(),
-            1,
-            "folder-001 has one child folder"
-        );
-        assert_eq!(projects.child_folders[0].folder_id, "folder-003");
-        // Color parsed from "#ff0000" => opaque red.
-        assert_eq!(
-            projects.color,
-            Some(Color32::from_rgba_unmultiplied(255, 0, 0, 255))
-        );
-        // The child's color came from a bare (no-#) hex.
-        assert_eq!(
-            projects.child_folders[0].color,
-            Some(Color32::from_rgba_unmultiplied(0, 255, 0, 255))
-        );
-        // The un-colored root falls back to None (host paints the neutral theme swatch).
-        let archive = tree
-            .iter()
-            .find(|n| n.folder_id == "folder-002")
-            .expect("folder-002 root");
-        assert_eq!(archive.color, None);
-    }
-
-    /// RISK-1 / MC-1: a cyclic parent chain (A->B, B->A) terminates and never recurses unboundedly.
-    #[test]
-    fn build_tree_breaks_cycles() {
-        let rows = vec![
-            FolderRow::new("a", Some("b".to_owned()), "A", None),
-            FolderRow::new("b", Some("a".to_owned()), "B", None),
-        ];
-        // Neither is a real root (each parent IS present), so the cycle-guard must still produce a
-        // terminating, finite forest rather than hang. Both rows reference an in-set parent, so `roots`
-        // is empty => the forest is empty (no acyclic entry point), which is the correct, safe result
-        // for a pure cycle with no root.
-        let tree = build_tree(&rows);
-        // The key property: build_tree returns (does not hang / stack-overflow) and yields a finite tree.
-        assert!(
-            tree.len() <= 2,
-            "cyclic input yields a finite, bounded forest"
-        );
-    }
-
-    /// A self-parent (A->A) is treated as a root (its parent id == its own id is in-set, so it links to
-    /// itself) — the cycle guard must still terminate and not duplicate the node infinitely.
-    #[test]
-    fn build_tree_self_parent_terminates() {
-        let rows = vec![FolderRow::new("a", Some("a".to_owned()), "A", None)];
-        let tree = build_tree(&rows);
-        // 'a' is its own parent => it is NOT a root (parent is in-set), so the forest is empty; the
-        // important property is termination + finiteness.
-        assert!(tree.len() <= 1);
-        if let Some(n) = tree.first() {
-            assert!(
-                n.folder_count() < MAX_BUILD_DEPTH,
-                "no infinite self-nesting"
-            );
-        }
-    }
-
-    /// An orphan (parent id not present) is promoted to a root, not dropped.
-    #[test]
-    fn build_tree_orphan_becomes_root() {
-        let rows = vec![FolderRow::new(
-            "x",
-            Some("missing".to_owned()),
-            "Orphan",
-            None,
-        )];
-        let tree = build_tree(&rows);
-        assert_eq!(tree.len(), 1, "orphan promoted to root");
-        assert_eq!(tree[0].folder_id, "x");
-    }
-
-    /// Deep linear chain past MAX_BUILD_DEPTH terminates (the build depth cap).
-    #[test]
-    fn build_tree_depth_capped() {
-        let mut rows = vec![FolderRow::new("root", None, "Root", None)];
-        let mut prev = "root".to_owned();
-        for i in 0..(MAX_BUILD_DEPTH + 10) {
-            let id = format!("d{i}");
-            rows.push(FolderRow::new(
-                id.clone(),
-                Some(prev.clone()),
-                format!("D{i}"),
-                None,
-            ));
-            prev = id;
-        }
-        let tree = build_tree(&rows);
-        assert_eq!(tree.len(), 1, "single root");
-        // The nesting depth is capped at MAX_BUILD_DEPTH (the chain is truncated past the cap).
-        fn max_depth(n: &FolderNode) -> usize {
-            1 + n.child_folders.iter().map(max_depth).max().unwrap_or(0)
-        }
-        assert!(
-            max_depth(&tree[0]) <= MAX_BUILD_DEPTH,
-            "tree depth capped at {MAX_BUILD_DEPTH}, got {}",
-            max_depth(&tree[0])
-        );
     }
 
     /// Hex parse: valid #rrggbb and bare rrggbb both parse; malformed yields None (graceful neutral
@@ -1643,119 +1155,6 @@ mod tests {
                 .child_blocks
                 .is_some(),
             "installed child blocks persist on the node"
-        );
-    }
-
-    /// Disclosure-only lazy-load caching: a node whose `child_blocks` is already `Some` is considered
-    /// loaded, so collapse/re-expand need not re-fetch. Row Open actions separately revalidate on every
-    /// click through an exact action-generation/request-sequence binding.
-    #[test]
-    fn disclosure_reexpand_reuses_loaded_node_cache() {
-        let mut node = FolderNode::new(&FolderRow::new("f", None, "F", None));
-        // Not yet loaded => an expand should trigger a fetch.
-        assert!(
-            node.child_blocks.is_none(),
-            "fresh node has no cached blocks"
-        );
-        // After loading (even empty), it is cached => no re-fetch.
-        node.child_blocks = Some(vec![]);
-        assert!(
-            node.child_blocks.is_some(),
-            "loaded (even empty) node is cached"
-        );
-    }
-
-    #[test]
-    fn successful_child_install_arms_one_shot_reveal_but_failure_does_not() {
-        let mut node = FolderNode::new(&FolderRow::new("f", None, "F", None));
-        let generation = node.begin_open_action();
-        assert!(node.bind_open_request(generation, 7));
-        assert!(node.complete_child_request(7));
-        assert!(
-            !node.reveal_children_once,
-            "a terminal delivery alone may still be a failure and must not reveal stale cache"
-        );
-
-        node.child_blocks = Some(vec![LeafBlock::new("b", "Child", "note")]);
-        node.reveal_loaded_children_once();
-        assert!(node.reveal_children_once);
-
-        node.collapse();
-        assert!(
-            !node.reveal_children_once,
-            "collapse retires a reveal for children that are no longer painted"
-        );
-
-        node.expanded = true;
-        node.reveal_loaded_children_once();
-        assert!(node.reveal_children_once);
-        node.bind_disclosure_request(8);
-        assert!(
-            !node.reveal_children_once,
-            "a fresh disclosure request resets an unconsumed reveal"
-        );
-
-        node.reveal_loaded_children_once();
-        node.begin_open_action();
-        assert!(
-            !node.reveal_children_once,
-            "a fresh open action resets an unconsumed reveal from the prior generation"
-        );
-    }
-
-    #[test]
-    fn folder_open_generation_stays_pending_until_selected_child_terminal_state() {
-        let row = FolderRow::new("folder-001", None, "Projects", None);
-        let mut node = FolderNode::new(&row);
-        assert_eq!(
-            node.expansion_completion_state(false),
-            ClickCompletionState::Ready
-        );
-
-        let generation_one = node.begin_open_action();
-        assert_eq!(generation_one, 1);
-        assert_eq!(node.expansion_generation, 1);
-        assert!(node.expanded);
-        assert_eq!(
-            node.expansion_completion_state(false),
-            ClickCompletionState::Pending,
-            "selection must be observed on a fresh frame"
-        );
-        assert!(node.bind_open_request(generation_one, 41));
-        assert_eq!(
-            node.expansion_completion_state(true),
-            ClickCompletionState::Pending
-        );
-        assert!(
-            !node.complete_child_request(40),
-            "a stale backend sequence cannot terminate the current action"
-        );
-        assert_eq!(
-            node.expansion_completion_state(true),
-            ClickCompletionState::Pending
-        );
-        assert!(node.complete_child_request(41));
-        node.child_blocks = Some(vec![LeafBlock::new("block-001", "Child", "note")]);
-        assert_eq!(
-            node.expansion_completion_state(true),
-            ClickCompletionState::Applied
-        );
-
-        let generation_two = node.begin_open_action();
-        assert_eq!(node.expansion_generation, 2);
-        assert_eq!(generation_two, 2);
-        assert_eq!(
-            node.expansion_completion_state(true),
-            ClickCompletionState::Pending,
-            "a repeated click cannot reuse the generation-one cached children"
-        );
-        assert!(node.bind_open_request(generation_two, 42));
-        assert!(node.complete_child_request(42));
-        node.child_error = Some("typed backend failure".to_owned());
-        assert_eq!(
-            node.expansion_completion_state(true),
-            ClickCompletionState::Applied,
-            "typed failure acknowledges the click without claiming child-load success"
         );
     }
 
