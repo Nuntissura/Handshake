@@ -1,0 +1,18 @@
+{
+  "crate": "hsk-studio-develop",
+  "lane": "SMB-DEVELOP-CAMERA-COLOUR",
+  "status": "IN_PROGRESS",
+  "phase": "slice 1 (as-shot neutral readers, file-matrix and spectral-table colour routes) implemented, corpus proof running; nothing pushed yet",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {},
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "measure the corpus colour oracle, commit + push slice 1, then harness end-to-end CR3 import",
+  "updated_at": "2026-10-15T08:20:00Z",
+  "notes": {
+    "owned_paths": ["crates/hsk-studio-develop/src/camera_colour.rs", "crates/hsk-studio-develop/src/camera_table.rs (generated)", "tools/camera-matrix-table.py", "crates/hsk-studio-develop/src/{dng,cr3,nef,raf,orf,rw2,arw,cr2,lib}.rs (colour wiring)", "crates/hsk-studio-develop/NOTICE", "crates/hsk-studio-develop/tests/camera_colour.rs"],
+    "sources": "rawtoaces-data (AcademySoftwareFoundation, Apache-2.0, GitHub API spdx checked 2026-10-15, commit e9b8503c) for spectral sensitivities, CMF, training set, aliases; rawtoaces (Apache-2.0, commit ae8ad1fc) define.h daylight basis read; LightCraft (MIT OR Apache-2.0, af4c5e10) read for WB tag offsets (vendor/cr3.rs ColorData versions, nef.rs 0x000c, raf.rs 0xf00e, rw2.rs 0x0024-26, orf.rs 0x1017/0x1018) and its spectral_table.rs used only as a cross-check. No dcraw, LibRaw, rawspeed, rawler code or tables read."
+  }
+}

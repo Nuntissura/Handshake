@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T05:45:18Z",
+ "updated_at": "2026-10-15T06:08:18Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -6260,12 +6260,18 @@
   {
    "lane_id": "SMB-COMPOSITE-DOCGRAPH-MASKS",
    "crate": "hsk-studio-composite",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-composite-docgraph-20261015",
-   "commits": [],
+   "commits": [
+    "a0b84d5",
+    "a0a08c3",
+    "c095c1f",
+    "0be7877"
+   ],
    "verdicts": [],
-   "note": "document-graph frame path ignores vector clips/masks (pre-existing); unlinked-mask adapter wiring needs a Folio-records test"
+   "note": "12 commits a0b84d5..0be7877; docgraph vs scene colour differs <=2^-22 on 3-4 px (scene intermediate surface); one composite test 28.6 s vs 30 s cap (flake risk)",
+   "lane_file": "builders/lanes/hsk-studio-composite-docgraph-masks.json"
   },
   {
    "lane_id": "SMB-PULSE-PLAYBACK-2",
@@ -6404,6 +6410,16 @@
    "commits": [],
    "verdicts": [],
    "note": "viewer stores/edits vector networks (folio network record), region detection with T-junction splitting, knife on open paths, width tool + variable-width strokes, reshape, blob brush"
+  },
+  {
+   "lane_id": "SMB-COMPOSITE-DOCGRAPH-2",
+   "crate": "hsk-studio-composite",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "fractional/rotated clipped+masked layers on document path tests; feathered unlinked masks parity; clip + unlinked mask on moved layer; collapse on document graph; slow composite test under cap with margin"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",

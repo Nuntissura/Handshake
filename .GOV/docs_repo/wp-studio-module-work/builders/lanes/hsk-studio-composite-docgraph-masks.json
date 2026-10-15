@@ -1,17 +1,53 @@
 {
  "crate": "hsk-studio-composite",
  "lane": "SMB-COMPOSITE-DOCGRAPH-MASKS",
- "status": null,
- "phase": "slice 1 pushed (a0b84d5): document-graph frames lower with the render inputs; proof slice in progress",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slices 1-2 + proofs pushed (a0b84d5..0be7877, the 12 commits listed): vector clips, vector masks and clipped layers on the document-graph frame path; Folio-records-driven unlinked-mask composition test; composition_matte_with_mask lifted for masked layers",
  "commits": [
-  {"sha": "a0b84d5", "subject": "composite (SMB-COMPOSITE-DOCGRAPH-MASKS slice 1): the document-graph frame path lowers with the render inputs (vector clips, vector masks, clipped layers)"}
+  {"sha": "a0b84d5", "subject": "composite (SMB-COMPOSITE-DOCGRAPH-MASKS slice 1): the document-graph frame path lowers with the render inputs (vector clips, vector masks, clipped layers)"},
+  {"sha": "a0a08c3", "subject": "composite (SMB-COMPOSITE-DOCGRAPH-MASKS fix): an unlinked vector mask is not re-applied as a track matte on the document-graph path"},
+  {"sha": "f4d36bb", "subject": "composite tests (SMB-COMPOSITE-DOCGRAPH-MASKS wip): Folio-records-driven document-graph vs scene-path test and its folio-free fixture (in progress)"},
+  {"sha": "2d36e89", "subject": "composite tests (SMB-COMPOSITE-DOCGRAPH-MASKS wip): fixture document frame layout; unlinked masks in compositions from Folio records"},
+  {"sha": "8ee9c0a", "subject": "composite tests (SMB-COMPOSITE-DOCGRAPH-MASKS wip): folio-free scene fixture of the same composition"},
+  {"sha": "c671a1e", "subject": "render-cpu + composite tests (SMB-COMPOSITE-DOCGRAPH-MASKS wip): CPU document-graph frame test; the fixture mask rule is the v1 inversion at density 1"},
+  {"sha": "da7efe0", "subject": "render-cpu + render-gpu + composite tests (SMB-COMPOSITE-DOCGRAPH-MASKS): document-graph frame vs the shared oracle (CPU bit for bit, pinned digest; GPU within 2e-6) and vs the scene path"},
+  {"sha": "c03646b", "subject": "composite + render-cpu tests (SMB-COMPOSITE-DOCGRAPH-MASKS): the 1-ULP colour allowance between the scene and document-graph paths covers every layer the scene path draws through an intermediate surface (found on CPU at the unlinked-mask layer)"},
+  {"sha": "c095c1f", "subject": "composite (SMB-COMPOSITE-DOCGRAPH-MASKS slice 2): a track matte on a masked layer on the document graph (composition_matte_with_mask lifted)"},
+  {"sha": "2185f9e", "subject": "composite tests (SMB-COMPOSITE-DOCGRAPH-MASKS): the test frame conversion serves the track-matte planes too"},
+  {"sha": "230e7eb", "subject": "composite + render-cpu tests (SMB-COMPOSITE-DOCGRAPH-MASKS): scene/document-graph agreement bounds the surface rounding in premultiplied colour (2^-22) instead of 1 ULP of straight colour"},
+  {"sha": "0be7877", "subject": "composite (SMB-COMPOSITE-DOCGRAPH-MASKS): DESCRIPTOR states the document-graph inputs path, the matte wrapper and the renderer proofs; matte_coverage allowed dead without feature motion"}
  ],
- "capabilities_done": [],
- "tests": {"argv": "cargo nextest run -p hsk-studio-composite --features motion --test composition_document --test temporal --test temporal_transform --test clip_records --test vector_mask_2 (11/11, shared tree, regression only)", "exit": 0, "sha": "a0b84d5", "passed": 11, "failed": 0},
+ "capabilities_done": [
+  "goal 1: temporal::lower_frame_with_inputs(FrameRequest, RenderInputs, TemporalSource, tick, cancel) lowers the frame document through evaluate_with_inputs / lower_with_inputs (the static path's machinery), so vector clips and vector masks (VECTOR, ALPHA, LUMINANCE, invert, region, density, feather, reveal_outside), Folio clipped layers and vector/text layers render on the document-graph path; a clip or linked vector-mask plane follows its layer's integer move (plan mask and owned plane placement shifted) and resample (LayerTransform::with_mask); an unlinked mask stays in plan space, re-rasterised over its rect united with the target extent so it covers the moved content; transform entries merge into the inputs' envelope; FrameLowering.tables (FrameTables) + vector_mask/vector_paint; lower_frame = lower_frame_with_inputs with empty inputs (same calls); refusal transform_unlinked_vector_mask_with_clip",
+  "goal 1: CompositionTemporalSource::lower_document_frame takes the RenderInputs, owns the planes it reads (DocumentFrame.owned_masks / owned_tiles, served first by DocumentSources) and no longer re-applies the scene path's unlinked-mask matte as a track matte (was composition_matte_with_mask)",
+  "goal 1 proof: one Folio composition (6 raster layers: plain, inverted VECTOR mask density 60 % feather 1.5 linked, a clipped layer over that masked base, vector clip, unlinked ALPHA mask, LUMINANCE reveal_outside; all moved) lowers on the document graph to exactly the folio-free fixture support/docgraph_scenes.rs (plan, envelope, tiles, owned planes) and scene_at to exactly its scene fixture; document graph vs scene path: alpha bit-identical, colour bit-identical except where the scene path draws an intermediate surface (3 px Ref, 4 px CPU, premultiplied <= 2^-22, measured 5.96e-8)",
+  "goal 2: Folio-records-driven unlinked masks in compositions: scene_at strips the unlinked mask from the static subtree and carries it as an identity-matrix alpha matte of the document plane while the layer moves; density < 1 refused vector_mask_unlinked_density at read; unlinked mask + track matte refused vector_mask_unlinked_with_matte; document graph keeps the same plane in place",
+  "stretch: composition_matte_with_mask (document-path-only DESCRIPTOR refusal) lifted for masked layers: the layer's own coverage mask moves into an isolated wrapper group inserted before its parent (node ids, root and envelope groups shifted; feather entry moved) and the matte takes the slot; still refused for a clip-to-base route or an envelope entry with a transform or effects",
+  "DESCRIPTOR composition and temporal entries updated (inputs path, matte wrapper, refusal, tests and renderer proofs)"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-composite -p hsk-studio-render-cpu -p hsk-studio-render-gpu --features hsk-studio-composite/motion -E 'binary(composition_docgraph_masks) | binary(composition_document)' (7/7 at 230e7eb, shared tree, live adapter); regression: -p hsk-studio-composite --features motion --test composition_document --test temporal --test temporal_transform --test clip_records --test vector_mask_2 (11/11 at a0b84d5), --test composition_docgraph_masks --test composition_document --test composition_adapter (adapter 7/7 at 2185f9e), --test static_plan (5/5 at 0be7877, DESCRIPTOR JSON)",
+  "exit": 0,
+  "sha": "0be7877",
+  "passed": 30,
+  "failed": 0
+ },
  "blockers": [],
  "lock_wait_s": 0,
  "bg_pids": [],
- "next": "Folio-records-driven document-graph vs scene proof (composite) and renderer proofs (render-cpu bit for bit, render-gpu tolerance)",
- "updated_at": "2026-10-15T05:02:44Z",
- "notes": {}
+ "next": "validator round on the commits listed",
+ "updated_at": "2026-10-15T06:05:40Z",
+ "notes": {
+  "spec_basis": "STU-RAS-016: 'Masks MUST support density/opacity, feather, and enable/disable, and MUST be linkable or unlinkable from parent-layer position.'; STU-CMP-010 render order: '2. Masks. ... multiply it into the layer's alpha' before '5. Transform', '6. Opacity', '7. Track matte. Apply the layer's track matte ([STU-CMP-030]), which consumes another layer's already-rendered alpha or luminance.'; STU-VEC-053/153 vector masks (quoted in lanes SMB-COMPOSITE-VECTOR-MASK and -2); current spec master-spec-v02.216 module 14",
+  "new_tests": "3 composite (tests/composition_docgraph_masks.rs: document graph == fixture == scene path == oracle; unlinked masks in compositions from Folio records; matted masked layers), 1 render-cpu, 1 render-gpu (tests/composition_docgraph_masks.rs over the shared folio-free fixture tests/support/docgraph_scenes.rs, which also carries the reference executor with mask feather/density and the clip-to-base run rule)",
+  "measured": "CPU document-graph frame vs shared oracle: max |delta| 0, 0 of 768 pixels not bit-identical, digest 424d4e27d452383a1d5f02dbf985671c424ca44733cb833461392d6210c92b8d pinned, identical for chunk/thread 64x1, 5x1, 7x4, 4x8, 64x2; CPU scene path vs document graph max 5.96e-8 (764/768 bit-identical, 4 under surfaced layers); GPU vs oracle 5.96e-8 and scene vs document 5.96e-8 (tolerance 2e-6)",
+  "fixture_mask_rule": "the shared fixture applies pigment's v1 inversion at density 1 and coverage_math::mask_coverage below 1 (as render-cpu MaskView::effective); with mask_coverage at density 1 the oracle read 12 px at 1 ULP off the CPU",
+  "outside_owned_paths": "new renderer test files only (B1): crates/hsk-studio-render-cpu/tests/composition_docgraph_masks.rs, crates/hsk-studio-render-gpu/tests/composition_docgraph_masks.rs; waiver requested (GLOBAL-SCOPE-005)",
+  "shared_file_hunks": "0be7877: crates/hsk-studio-composite/src/lib.rs carried another lane's uncommitted 'pub mod track_apply;' (with untracked src/track_apply.rs, tests/track_apply.rs); only this lane's DESCRIPTOR hunk was staged (git apply --cached of the filtered patch) and the staged index (2 files) committed; the other lane's line stays uncommitted in the working tree",
+  "proof_route": "shared tree compiled for composite, render-cpu and render-gpu at the time of the runs (no scratch export needed); Cargo.lock untouched",
+  "retry_guard": "route (a) each time, fixes committed before reruns: unlinked matte refused as matte_with_mask (a0a08c3), diagnostic-first test (f4d36bb), fixture layout (2d36e89), fixture density-1 rule (c671a1e), surface rounding found on CPU (c03646b) and premultiplied bound (230e7eb), test matte planes (2185f9e); one hook block from a commit and rerun in one command (split into two); no gameplan step added",
+  "gaps": "1) a fractional/rotated move of a vector-clipped or vector-masked layer on the document graph (LayerTransform::with_mask, unlinked = mask not transformed) is implemented but NOT_PROVEN by a test (the fixture moves integer only; the reference executor takes no transforms); 2) feathered unlinked mask: the document graph feathers past the plane edge (pigment rule over the re-rasterised plane), the scene path's unlinked matte cuts the feather at its plane rect (lane VECTOR-MASK-2 gap), so they differ where feathered content leaves the source rect (not tested); 3) the matte wrapper is proven under the reference executor only (not on CPU/GPU); 4) composition_collapse_on_document_graph stays a document-path-only refusal, composition_matte_with_mask stays for clip-to-base / transform / effects entries; 5) clip and unlinked mask on one moved layer refused (transform_unlinked_vector_mask_with_clip; the scene path renders it); 6) Photoshop/After Effects unlinked-mask placement and clip semantics UNVERIFIED (D5)",
+  "flake_watch": "composite unlinked_masks_in_compositions_from_folio_records took 28.6 s once when run beside the GPU test (0.05 s alone; bounded_case deadline 30 s)",
+  "v4": "V4-01 deny(arithmetic_side_effects) kept on temporal.rs and temporal/composition.rs (checked id shifts in wrap_masked_entry); V4-02 re-rasterised unlinked planes bounded by vector_mask::plane's MAX_CLIP_PIXELS check before allocation; V4-03 GPU gated by gpu-proof.toml; V4-07 DESCRIPTOR claims cite the tests; V4-09 commit messages via files"
+ }
 }

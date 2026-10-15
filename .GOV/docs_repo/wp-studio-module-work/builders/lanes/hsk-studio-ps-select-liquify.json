@@ -2,32 +2,37 @@
  "crate": "hsk-studio-pigment",
  "lane": "SMB-PS-SELECT-LIQUIFY",
  "status": "READY_FOR_VALIDATION",
- "phase": "slice 1 (magic wand) pushed on 176aa99; clippy -p hsk-studio-pigment --tests clean; select_wand 5/5",
+ "phase": "slices 1-2 pushed (176aa99 wand, 156249c quick select / GrabCut); clippy -p hsk-studio-pigment --tests clean for lane files; select_wand 5/5 + select_quick 5/5 on 156249c",
  "commits": [
-  {"sha": "176aa99", "subject": "pigment (SMB-PS-SELECT-LIQUIFY slice 1): magic wand flood select"}
+  {"sha": "176aa99", "subject": "pigment (SMB-PS-SELECT-LIQUIFY slice 1): magic wand flood select"},
+  {"sha": "156249c", "subject": "pigment (SMB-PS-SELECT-LIQUIFY slice 2): quick selection and GrabCut by graph cut"}
  ],
  "capabilities_done": [
   "slice 1 select_tools::wand::magic_wand: tolerance in 8-bit units (Chebyshev distance of premultiplied RGBA x 255, not clamped), contiguous flood (Connectivity Four|Eight) or global, sample_merged = Porter-Duff source-over composite of the bottom-to-top layer stack (select_tools::Composite), sample_size odd square mean seed, document anti-alias toggle = 3x3 box mean on 4-neighbour boundary pixels; result tightened CoveragePlane (feeds selection::combine / to_mask_bytes)",
-  "slice 1 shared scaffolding select_tools: ToolError (selection / brush / model_unavailable / tool_out_of_range), ToolLimits.max_work_bytes (default 256 MiB) admitted before allocation, Composite (stride/NaN/alpha-range checked), RgbaImage ROI copy, select_tools::DESCRIPTOR"
+  "slice 1 shared scaffolding select_tools: ToolError (selection / brush / model_unavailable / tool_out_of_range), ToolLimits.max_work_bytes (default 256 MiB) admitted before allocation, Composite (stride/NaN/alpha-range checked), RgbaImage ROI copy, select_tools::DESCRIPTOR",
+  "slice 2 select_tools::quick: quick_select(layers, active, base, QuickStroke{samples, diameter_px, mode Add|Subtract}) - dabs by brush::place_dabs + stroke_coverage (hard round tip, 25 % spacing), ROI = footprint grown by roi_margin_px (default 3 d + 8), hard seeds (Add: stroke + base = fg; Subtract: stroke + unselected = bg), min-cut segmentation, combined with base by selection::combine Extend / Diminish; grabcut_rect(rect) rectangle-initialised GrabCut; GraphCutOptions{gamma 50, iterations 3, roi_margin_px, sample_merged, max_flow_steps}; select_tools::maxflow::FlowGraph Dinic (iterative DFS, current-arc, arc-scan budget, source_side min cut); object_select / subject_select / sky_select -> model_unavailable"
  ],
  "tests": {
-  "argv": "cargo nextest run -p hsk-studio-pigment --test select_wand --no-fail-fast",
+  "argv": "cargo nextest run -p hsk-studio-pigment --test select_quick --test select_wand --no-fail-fast",
   "exit": 0,
-  "sha": "176aa99",
-  "passed": 5,
+  "sha": "156249c",
+  "passed": 10,
   "failed": 0
  },
  "blockers": [],
  "lock_wait_s": 64,
  "bg_pids": [],
- "next": "slice 2 quick selection (graph cut) + object_select model_unavailable",
- "updated_at": "2026-10-15T05:37:39Z",
+ "next": "slice 3 Select and Mask refine (guided filter / closed-form matting, decontaminate)",
+ "updated_at": "2026-10-15T05:51:59Z",
  "notes": {
-  "owned_paths": "crates/hsk-studio-pigment/src/select_tools.rs, src/select_tools/**, tests/select_wand.rs (later: tests/select_quick.rs, tests/select_refine.rs, src/liquify.rs, tests/liquify.rs) and one `pub mod select_tools;` line in src/lib.rs",
+  "owned_paths": "crates/hsk-studio-pigment/src/select_tools.rs, src/select_tools/** (wand, maxflow, quick), tests/select_wand.rs, tests/select_quick.rs (later tests/select_refine.rs, src/liquify.rs, tests/liquify.rs) and one `pub mod select_tools;` line in src/lib.rs",
   "shared_file_hunks": "176aa99: src/lib.rs carried another lane's uncommitted `pub mod keying;` line; only this lane's `pub mod select_tools;` hunk was staged (index blob built from HEAD + one line, committed from the index); keying line left unstaged",
-  "spec_basis": "STU-RAS-017 (l.695) 'All selection tools produce, refine, or consume a StudioSelectionSet'; STU-RAS-018 row 'Flood select (tolerance) | Selects similar color/tone from a sampled point by tolerance, with contiguous and sample-all-layers options.'; STU-RAS-119 `contiguous` default true (flood select only), `sample_all_layers` default false, `anti_alias` default true",
-  "readings_unverified_d5": "Photoshop tolerance metric (Chebyshev on premultiplied RGBA here), default tolerance 32, sample-size averaging, 4-connectivity default and the anti-alias kernel are UNVERIFIED (D5 oracle list); class Approximate",
-  "v4": "V4-01 deny(clippy::arithmetic_side_effects) on select_tools and wand; V4-02 output plane (admit_plane) and work set (11 bytes/px) admitted before allocation, tests dims_u32_max + aggregate_over_budget in hostile_inputs_refuse_typed_before_allocation; NaN tolerance/pixel -> nonfinite, alpha 2 -> alpha_range, short stride -> malformed_stride; V4-09 commit message via file",
+  "spec_basis": "STU-RAS-017 (l.695) 'All selection tools produce, refine, or consume a StudioSelectionSet'; STU-RAS-018 row 'Flood select (tolerance) | Selects similar color/tone from a sampled point by tolerance, with contiguous and sample-all-layers options.'; STU-RAS-119 `contiguous` default true (flood select only), `sample_all_layers` default false, `anti_alias` default true; STU-RAS-018 row 'Quick/selection brush | Painted selection that grows to matching regions and snaps to edges, with add/subtract by stroke and an on-canvas selection overlay.' and row 'Object select | Auto-selects a detected object ... using an on-device model'; STU-RAS-019 'Object-select, subject-select, and sky-select MUST run on-device by default with no cloud dependency' (no model installed -> typed refusal model_unavailable, nothing downloaded); STU-RAS-122 quick-select brush inside the edge-refinement surface",
+  "measured_bounds": "select_quick on 64x64 synthetic images with +-0.04 deterministic noise: quick add IoU vs disk 1.0000 (asserted >= 0.95), quick subtract IoU vs kept half 1.0000 (asserted >= 0.98), grabcut_rect IoU vs disk 1.0000 (asserted >= 0.95); Dinic on CLRS fig 26.1 = 23 with min cut {s,v1,v2,v4}",
+  "own_failures": "slice 2 first run: subtract IoU 0.5226 - Laplace (+1 per bin over 4096 bins) smoothing drowned a 180-pixel seed model and the Subtract foreground model contained the stroked colour; fixed before commit (smoothing 0.01, other-side model = ROI ring + band outside the ROI); rerun green. Not a gameplan matter.",
+  "readings_unverified_d5": "Photoshop tolerance metric (Chebyshev on premultiplied RGBA here), default tolerance 32, sample-size averaging, 4-connectivity default and the anti-alias kernel are UNVERIFIED (D5 oracle list); quick select energy (histogram model, smoothing 0.01, gamma 50, 4-connectivity, ROI margin 3 d + 8) and grabcut_rect are Studio readings of the papers, not Photoshop's algorithm (UNVERIFIED); class Approximate",
+  "v4": "V4-01 deny(clippy::arithmetic_side_effects) on select_tools, wand, maxflow, quick; V4-02 output plane (admit_plane) and work sets (wand 11 B/px, graph cut 196 B/px + band) admitted before allocation; tests dims_u32_max + aggregate_over_budget in both hostile tests; NaN -> nonfinite, huge brush / NaN diameter -> brush_out_of_range (brush engine tip range), long stroke -> dab cap budget_exceeded, solver arc-scan budget -> budget_exceeded; V4-09 commit messages via files",
+  "hook_note": "a python edit of this lane file run from the kernel lanes dir was blocked by the kernel-root gameplan hook (WP-012 steps); not bypassed - lane file edits now through Write/Edit only, as dispatched",
   "cargo_lock": "not touched",
   "parity": "Photoshop parity UNVERIFIED (D5); never claimed"
  }
