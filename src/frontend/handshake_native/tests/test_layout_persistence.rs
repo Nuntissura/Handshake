@@ -24,8 +24,9 @@ use handshake_native::app::{
 };
 use handshake_native::backend_client::HealthInfo;
 use handshake_native::layout_persistence::{
-    LayoutError, LayoutPersistenceManager, LayoutTransport,
+    LayoutError, LayoutPersistenceManager, LayoutSnapshot, LayoutTransport,
 };
+use handshake_native::module_switcher::ModuleId;
 use handshake_native::pane_registry::{PaneId, PaneType};
 use handshake_native::split_layout::SplitWeights;
 use handshake_native::tab_bar::TabState;
@@ -182,6 +183,105 @@ fn full_layout_round_trips_through_the_app() {
     assert!(
         bar_a.tabs.iter().any(|t| t.pinned),
         "MT-007 pinned flag restored"
+    );
+}
+
+#[test]
+fn ckc_and_canvas_pane_routes_round_trip_through_the_app() {
+    let transport = MemoryTransport::new();
+    let mut h1 = shell(transport.clone());
+    h1.run();
+
+    h1.state_mut().set_active_pane_for_test(Some(pid("pane-a")));
+    assert!(h1.state_mut().set_module(ModuleId::Ckc));
+    h1.state_mut().set_active_pane_for_test(Some(pid("pane-b")));
+    assert!(h1.state_mut().set_module(ModuleId::Main));
+    {
+        let bar = h1
+            .state_mut()
+            .tab_bar_states_mut()
+            .get_mut(&pid("pane-b"))
+            .expect("Canvas pane bar");
+        let mut canvas = TabState::new(PaneType::AtelierEditor);
+        canvas.content_id = Some("layout-persistence-canvas".to_owned());
+        bar.tabs.push(canvas);
+        bar.activate(bar.tabs.len() - 1);
+    }
+    let saved_canvas_bar = h1.state().tab_bar_states()[&pid("pane-b")].clone();
+    h1.state_mut().set_active_pane_for_test(Some(pid("pane-a")));
+    assert!(h1.state_mut().set_module(ModuleId::Ckc));
+
+    let saved = h1.state().capture_layout_snapshot();
+    assert_eq!(saved.pane_modules.get(&pid("pane-a")), Some(&ModuleId::Ckc));
+    assert_eq!(saved.pane_modules.get(&pid("pane-b")), Some(&ModuleId::Main));
+    let saved_json = saved.to_layout_state();
+    h1.state().save_layout_now();
+
+    let mut h2 = shell(transport);
+    h2.run();
+    assert!(h2.state_mut().load_layout(DEFAULT_PROJECT_ID, big_desktop()));
+    let restored = h2.state().capture_layout_snapshot();
+    assert_eq!(h2.state().active_module(), ModuleId::Ckc);
+    assert_eq!(restored.active_pane, Some(pid("pane-a")));
+    assert_eq!(
+        restored.pane_modules.get(&pid("pane-a")),
+        Some(&ModuleId::Ckc)
+    );
+    assert_eq!(
+        restored.pane_modules.get(&pid("pane-b")),
+        Some(&ModuleId::Main)
+    );
+    let ckc_tab = restored.tab_bars[&pid("pane-a")].active().expect("CKC tab");
+    assert_eq!(ckc_tab.pane_type, PaneType::AtelierEditor);
+    assert_eq!(ckc_tab.content_id, None);
+    let canvas_bar = &restored.tab_bars[&pid("pane-b")];
+    assert_eq!(canvas_bar, &saved_canvas_bar);
+    let canvas_tab = canvas_bar.active().expect("Canvas tab");
+    assert_eq!(canvas_tab.pane_type, PaneType::AtelierEditor);
+    assert_eq!(
+        canvas_tab.content_id.as_deref(),
+        Some("layout-persistence-canvas")
+    );
+    assert_eq!(restored.to_layout_state(), saved_json);
+}
+
+#[test]
+fn legacy_layout_replaces_ckc_routes_with_active_pane_main_fallback() {
+    let mut h = shell(MemoryTransport::new());
+    h.run();
+    h.state_mut().set_active_pane_for_test(Some(pid("pane-a")));
+    assert!(h.state_mut().set_module(ModuleId::Ckc));
+    assert_eq!(
+        h.state()
+            .capture_layout_snapshot()
+            .pane_modules
+            .get(&pid("pane-a")),
+        Some(&ModuleId::Ckc)
+    );
+
+    let mut legacy_json = h.state().capture_layout_snapshot().to_layout_state();
+    let fields = legacy_json.as_object_mut().expect("snapshot object");
+    assert!(fields.remove("pane_modules").is_some());
+    assert!(fields.remove("active_module").is_some());
+    let legacy = LayoutSnapshot::from_layout_state(legacy_json).expect("legacy snapshot");
+    assert!(legacy.pane_modules.is_empty());
+    assert_eq!(legacy.active_module, ModuleId::Main);
+
+    h.state_mut()
+        .apply_layout_snapshot(legacy, big_desktop())
+        .expect("apply legacy layout");
+    let restored = h.state().capture_layout_snapshot();
+    assert_eq!(h.state().active_module(), ModuleId::Main);
+    assert_eq!(restored.pane_modules.len(), 1);
+    assert_eq!(
+        restored.pane_modules.get(&pid("pane-a")),
+        Some(&ModuleId::Main)
+    );
+    assert!(
+        !restored
+            .pane_modules
+            .values()
+            .any(|module| *module == ModuleId::Ckc)
     );
 }
 

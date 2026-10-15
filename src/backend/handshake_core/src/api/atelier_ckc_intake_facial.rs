@@ -39,7 +39,7 @@ use super::atelier::{
     atelier_error, atelier_store, header_str, internal_error, ErrorResponse, HSK_HEADER_ACTOR_ID,
 };
 use crate::ace::ArtifactHandle;
-use crate::atelier::contact_sheet::{
+use handshake_contact_sheet::{
     generate_contact_sheet_export, ContactSheetExport, ContactSheetExportItem, ContactSheetLayout,
     GenerateContactSheetRequest, CONTACT_SHEET_EXPORT_SCHEMA_ID,
 };

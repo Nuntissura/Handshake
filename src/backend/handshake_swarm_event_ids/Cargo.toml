@@ -1,0 +1,7 @@
+[workspace]
+
+[package]
+name = "handshake_swarm_event_ids"
+version = "0.1.0"
+edition = "2021"
+publish = false

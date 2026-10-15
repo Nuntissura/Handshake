@@ -1,11 +1,13 @@
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fs;
 use std::io::{Read, Seek, SeekFrom, Write};
 use fs2::FileExt;
 use std::path::{Path, PathBuf};
 
-use jsonschema::{Draft, JSONSchema};
-use regex::Regex;
+use handshake_capability_registry_document::{
+    CapabilityKind, CapabilityRegistryDiff, CapabilityRegistryDocument,
+    CapabilityRegistryDocumentError, CapabilityRegistryEntry, GovernanceMode, RiskClass,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use thiserror::Error;
@@ -306,60 +308,6 @@ pub(crate) async fn run_approved_capability_registry_workflow(
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-enum CapabilityKind {
-    Surface,
-    Engine,
-    Runtime,
-    Integration,
-    Model,
-    Workflow,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-enum GovernanceMode {
-    GovStrict,
-    GovStandard,
-    GovLight,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-enum RiskClass {
-    Low,
-    Medium,
-    High,
-    Critical,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-struct CapabilityRegistryEntry {
-    capability_id: String,
-    kind: CapabilityKind,
-    display_name: String,
-    section_ref: String,
-    required_capabilities: Vec<String>,
-    default_governance_mode: GovernanceMode,
-    risk_class: RiskClass,
-    tags: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-struct CapabilityRegistryDocument {
-    entries: Vec<CapabilityRegistryEntry>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-struct CapabilityRegistryDiff {
-    previous_registry_sha256: Option<String>,
-    next_registry_sha256: String,
-    added: Vec<String>,
-    removed: Vec<String>,
-    changed: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 struct CapabilityRegistryReview {
     approved: bool,
     reviewer_id: Option<String>,
@@ -405,56 +353,31 @@ fn load_schema() -> CapabilityRegistryWorkflowResult<Value> {
         .map_err(|source| CapabilityRegistryWorkflowError::SchemaParse { source })
 }
 
-fn validate_schema(schema: &Value, instance: &Value) -> CapabilityRegistryWorkflowResult<()> {
-    let compiled = JSONSchema::options()
-        .with_draft(Draft::Draft7)
-        .compile(schema)
-        .map_err(|source| CapabilityRegistryWorkflowError::SchemaCompile {
-            message: source.to_string(),
-        })?;
-
-    let result = compiled.validate(instance);
-    if let Err(errors) = result {
-        let mut messages: Vec<String> = errors.map(|e| e.to_string()).collect();
-        messages.sort();
-        let details = messages
-            .into_iter()
-            .map(|m| format!("- {m}"))
-            .collect::<Vec<_>>()
-            .join("\n");
-        return Err(CapabilityRegistryWorkflowError::SchemaValidationFailed { details });
+fn document_error_into_workflow(error: CapabilityRegistryDocumentError) -> CapabilityRegistryWorkflowError {
+    match error {
+        CapabilityRegistryDocumentError::SchemaCompile { message } =>
+            CapabilityRegistryWorkflowError::SchemaCompile { message },
+        CapabilityRegistryDocumentError::SchemaValidationFailed { details } =>
+            CapabilityRegistryWorkflowError::SchemaValidationFailed { details },
+        CapabilityRegistryDocumentError::RegexCompile { message } =>
+            CapabilityRegistryWorkflowError::RegexCompile { message },
+        CapabilityRegistryDocumentError::DuplicateCapabilityId { capability_id } =>
+            CapabilityRegistryWorkflowError::DuplicateCapabilityId { capability_id },
+        CapabilityRegistryDocumentError::InvalidSectionRef { capability_id, section_ref } =>
+            CapabilityRegistryWorkflowError::InvalidSectionRef { capability_id, section_ref },
+        CapabilityRegistryDocumentError::EmptyDisplayName { capability_id } =>
+            CapabilityRegistryWorkflowError::EmptyDisplayName { capability_id },
     }
-    Ok(())
+}
+
+fn validate_schema(schema: &Value, instance: &Value) -> CapabilityRegistryWorkflowResult<()> {
+    handshake_capability_registry_document::validate_schema(schema, instance)
+        .map_err(document_error_into_workflow)
 }
 
 fn validate_integrity(doc: &CapabilityRegistryDocument) -> CapabilityRegistryWorkflowResult<()> {
-    let section_re = Regex::new(r"^\d+(\.\d+)*$").map_err(|source| {
-        CapabilityRegistryWorkflowError::RegexCompile {
-            message: source.to_string(),
-        }
-    })?;
-
-    let mut seen = HashSet::new();
-    for entry in &doc.entries {
-        if !seen.insert(entry.capability_id.as_str()) {
-            return Err(CapabilityRegistryWorkflowError::DuplicateCapabilityId {
-                capability_id: entry.capability_id.clone(),
-            });
-        }
-        if !section_re.is_match(entry.section_ref.as_str()) {
-            return Err(CapabilityRegistryWorkflowError::InvalidSectionRef {
-                capability_id: entry.capability_id.clone(),
-                section_ref: entry.section_ref.clone(),
-            });
-        }
-        if entry.display_name.trim().is_empty() {
-            return Err(CapabilityRegistryWorkflowError::EmptyDisplayName {
-                capability_id: entry.capability_id.clone(),
-            });
-        }
-    }
-
-    Ok(())
+    handshake_capability_registry_document::validate_integrity(doc)
+        .map_err(document_error_into_workflow)
 }
 
 fn display_name_for(capability_id: &str) -> String {

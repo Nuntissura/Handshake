@@ -506,7 +506,11 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_canonical_record_identity($row: o
         OR $ledger.actor_id != $row.actor_principal_id OR $ledger.authority_session_id != $auth.id
         OR array::len($ledger.wsids) != 1 OR $ledger.wsids[0] != $row.workspace_id
         OR $ledger.event_version != 'kernel_event_v1'
-        OR $ledger.event_type != (IF $row.record_kind = 'recovery_checkpoint' { 'MODEL_LANE_RECOVERY_CHECKPOINT_RECORDED' } ELSE IF $row.record_kind = 'message' { 'MODEL_LANE_MESSAGE_RECORDED' } ELSE { 'MODEL_LANE_AUTHORITY_RECORDED' })
+        OR (IF $row.record_kind = 'recovery_event' {
+            $ledger.event_type NOT IN ['MODEL_LANE_AUTHORITY_RECORDED', 'MODEL_LANE_RECOVERY_EVENT_RECORDED']
+        } ELSE {
+            $ledger.event_type != (IF $row.record_kind = 'recovery_checkpoint' { 'MODEL_LANE_RECOVERY_CHECKPOINT_RECORDED' } ELSE IF $row.record_kind = 'message' { 'MODEL_LANE_MESSAGE_RECORDED' } ELSE { 'MODEL_LANE_AUTHORITY_RECORDED' })
+        })
         OR ($ledger.event_type = 'MODEL_LANE_MESSAGE_RECORDED' AND $row.record_kind != 'message')
         OR $ledger.payload.record_kind != $row.record_kind
         OR $ledger.aggregate_type != $row.record_kind OR $ledger.aggregate_id != $row.aggregate_id
@@ -691,6 +695,10 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_match($row: object, $s
     };
     IF $kind = 'event_ledger_event_id' { RETURN $row.event_id = $value; };
     IF $kind = 'event_ledger_seq' { RETURN type::string($row.event_seq) = $value; };
+    IF $kind = 'error_code' {
+        RETURN ($row.record_kind = 'lane' AND $body.failstate_code = $value)
+            OR ($row.record_kind = 'recovery_event' AND $body.error_code = $value);
+    };
     IF $kind IN ['context_bundle_id', 'artifact_ref', 'document_id'] {
         RETURN fn::wp012_model_lane_navigation_child_match($row, $selection);
     };
@@ -810,7 +818,7 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_message_lane_input($ro
     } ELSE {
         { source_kind: 'lane', lane_id: $body.lane_id, run_id: $body.run_id,
           session_id: $body.session_id, model_session_id: $body.model_session_id,
-          trace_id: $body.trace_id, kind: $body.kind }
+          trace_id: $body.trace_id, kind: $body.kind, failstate_code: $body.failstate_code }
     };
     RETURN object::from_entries(array::filter(object::entries($input), |$entry| { $entry[1] != NONE AND $entry[1] != NULL }));
 };
@@ -843,6 +851,11 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_context_message($row: 
 };
 DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_source_input($row: object) {
     IF $row.record_kind IN ['message', 'lane'] { RETURN fn::wp012_model_lane_navigation_message_lane_input($row); };
+    IF $row.record_kind = 'recovery_event' {
+        LET $body = encoding::json::decode($row.record_json);
+        RETURN { source_kind: 'recovery_event', run_id: $row.run_id,
+            kind: $row.record_kind, error_code: $body.error_code };
+    };
     IF $row.record_kind NOT IN ['context_handoff', 'context_artifact'] { RETURN NONE; };
     LET $contexts = fn::wp012_model_lane_navigation_context_candidates($row);
     RETURN { source_kind: 'context_sources', run_id: $row.run_id, kind: $row.record_kind,
@@ -855,7 +868,7 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_source_input($row: obj
 DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_source_input_access($row: object) {
     IF $row.navigation_source_input != fn::wp012_model_lane_navigation_source_input($row)
         OR !fn::wp012_model_lane_navigation_selector($row, $navigation_selection) { RETURN false; };
-    IF $row.record_kind = 'lane' { RETURN true; };
+    IF $row.record_kind IN ['lane', 'recovery_event'] { RETURN true; };
     IF $row.record_kind IN ['context_handoff', 'context_artifact'] {
         LET $candidates = fn::wp012_model_lane_navigation_context_candidates($row);
         LET $authorized = fn::wp012_model_lane_navigation_context_sources($row);
@@ -890,6 +903,8 @@ DEFINE FIELD OVERWRITE navigation_source_input ON model_lane_authority TYPE opti
 DEFINE FIELD OVERWRITE navigation_source_input.source_kind ON model_lane_authority TYPE string;
 DEFINE FIELD OVERWRITE navigation_source_input.run_id ON model_lane_authority TYPE string;
 DEFINE FIELD OVERWRITE navigation_source_input.kind ON model_lane_authority TYPE string;
+DEFINE FIELD OVERWRITE navigation_source_input.failstate_code ON model_lane_authority TYPE option<string>;
+DEFINE FIELD OVERWRITE navigation_source_input.error_code ON model_lane_authority TYPE option<string>;
 DEFINE FIELD OVERWRITE navigation_source_input.source_event_id ON model_lane_authority TYPE option<string>;
 DEFINE FIELD OVERWRITE navigation_source_input.source_event_seq ON model_lane_authority TYPE option<int>;
 DEFINE FIELD OVERWRITE navigation_source_input.message_id ON model_lane_authority TYPE option<string>;

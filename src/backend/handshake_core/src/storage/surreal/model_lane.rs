@@ -2100,6 +2100,14 @@ pub(crate) struct NavigationLaneInput {
     pub(crate) kind: String,
 }
 
+#[derive(serde::Deserialize)]
+pub(crate) struct NavigationErrorInput {
+    pub(crate) source_kind: String,
+    pub(crate) run_id: String,
+    pub(crate) failstate_code: Option<String>,
+    pub(crate) error_code: Option<String>,
+}
+
 #[derive(SurrealValue)]
 struct NavigationApplicationReceiptRow {
     event_id: String,
@@ -3802,6 +3810,25 @@ impl SurrealModelLaneStore {
         &self, scope: &ModelLaneScope, row: &SurrealModelLaneNavigationRow,
     ) -> Result<Option<NavigationLaneInput>, SurrealStorageError> {
         if row.record_kind != "lane" { return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "navigation lane input requires lane kind" }); }
+        let input: Option<Value> = self.navigation_source_input(scope, row).await?;
+        input.map(|mut input| {
+            if let Some(fields) = input.as_object_mut() {
+                fields.remove("failstate_code");
+            }
+            serde_json::from_value(input).map_err(|_| SurrealStorageError::InvalidModelLaneRecord {
+                reason: "navigation lane input has invalid canonical types",
+            })
+        }).transpose()
+    }
+
+    pub(crate) async fn navigation_error_input(
+        &self, scope: &ModelLaneScope, row: &SurrealModelLaneNavigationRow,
+    ) -> Result<Option<NavigationErrorInput>, SurrealStorageError> {
+        if !matches!(row.record_kind.as_str(), "lane" | "recovery_event") {
+            return Err(SurrealStorageError::InvalidModelLaneRecord {
+                reason: "navigation error input requires lane or recovery event kind",
+            });
+        }
         self.navigation_source_input(scope, row).await
     }
 

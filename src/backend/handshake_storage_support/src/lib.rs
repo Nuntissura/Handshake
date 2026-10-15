@@ -2,6 +2,7 @@
 mod error;
 pub use error::{StorageError, StorageResult};
 pub mod canonical_json;
+pub mod compiled_schema_catalog_entries;
 pub mod keyed_lock;
 pub mod retry;
 

@@ -1,0 +1,10 @@
+[workspace]
+
+[package]
+name = "handshake-workspace-activation"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+uuid = "1"

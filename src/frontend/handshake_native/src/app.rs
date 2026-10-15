@@ -5825,28 +5825,18 @@ struct PendingRichCodeBlockSave {
     saved_text: String,
 }
 
-struct WorkspaceActivationRequest {
-    operation_id: uuid::Uuid,
-    generation: u64,
-    backend_readiness_lost: bool,
-    workspace_id: String,
-    account: Arc<crate::local_account::AuthenticatedContext>,
-    handle: Option<tokio::task::JoinHandle<Result<
-        crate::local_account::WorkspaceActivationAcknowledgement,
-        crate::local_account::WorkspaceActivationError,
-    >>>,
-}
-
-#[derive(Default)]
-struct WorkspaceActivationState {
-    required: bool,
-    has_committed_workspace: bool,
-    generation: u64,
-    admitted: Option<(Arc<crate::local_account::AuthenticatedContext>, String)>,
-    requests: Vec<WorkspaceActivationRequest>,
-    desired: Option<String>,
-    error: Option<String>,
-}
+type WorkspaceActivationHandle = tokio::task::JoinHandle<Result<
+    crate::local_account::WorkspaceActivationAcknowledgement,
+    crate::local_account::WorkspaceActivationError,
+>>;
+type WorkspaceActivationRequest = handshake_workspace_activation::WorkspaceActivationRequest<
+    crate::local_account::AuthenticatedContext,
+    WorkspaceActivationHandle,
+>;
+type WorkspaceActivationState = handshake_workspace_activation::WorkspaceActivationState<
+    crate::local_account::AuthenticatedContext,
+    WorkspaceActivationHandle,
+>;
 
 pub struct HandshakeApp {
     health_status: HealthDisplayState,
@@ -8343,7 +8333,11 @@ impl HandshakeApp {
             popout_argus_epochs: HashMap::new(),
             pop_out_request: None,
             active_project_id: DEFAULT_PROJECT_ID.to_owned(),
-            workspace_activation: WorkspaceActivationState { required: true, ..Default::default() },
+            workspace_activation: {
+                let mut state = WorkspaceActivationState::default();
+                state.set_required(true);
+                state
+            },
             layout_manager,
             loaded_project_id: None,
             layout_dirty_signal: false,
@@ -20255,7 +20249,7 @@ impl HandshakeApp {
 
     fn refresh_mcp_durability_binding(&mut self, base_url: &str) {
         self.mcp_durability_generation = self.mcp_durability_generation.wrapping_add(1);
-        if self.workspace_activation.required && !self.workspace_activation_is_admitted() {
+        if self.workspace_activation.required() && !self.workspace_activation_is_admitted() {
             *self.mcp_durability.lock().unwrap_or_else(|e| e.into_inner()) = None;
             return;
         }
@@ -20273,8 +20267,7 @@ impl HandshakeApp {
     }
 
     fn bind_backend_clients(&mut self, base_url: &str, handle: tokio::runtime::Handle) {
-        self.workspace_activation.generation = self.workspace_activation.generation.wrapping_add(1);
-        self.workspace_activation.admitted = None;
+        self.workspace_activation.invalidate();
         self.refresh_mcp_durability_binding(base_url);
         self.swarm_concurrency_epoch = self.swarm_concurrency_epoch.wrapping_add(1);
         self.swarm_concurrency_pending = None;
@@ -35379,15 +35372,15 @@ impl HandshakeApp {
     /// its authenticated readiness acknowledgement. The explicitly constructed headless test shell
     /// retains synchronous layout setup, which supplies no production activation evidence.
     pub fn switch_project(&mut self, project_id: &str) -> bool {
-        if self.workspace_activation.required {
+        if self.workspace_activation.required() {
             return self.request_workspace_activation(project_id);
         }
         self.commit_workspace_selection(project_id)
     }
 
     fn workspace_activation_is_admitted(&self) -> bool {
-        self.workspace_activation.admitted.as_ref().is_some_and(|(account, workspace)| {
-            workspace == &self.active_project_id && account.is_active()
+        self.workspace_activation.admitted().is_some_and(|(account, workspace)| {
+            workspace == self.active_project_id.as_str() && account.is_active()
                 && self.local_account.context.as_ref().is_some_and(|current| Arc::ptr_eq(account, current))
         })
     }
@@ -35397,31 +35390,22 @@ impl HandshakeApp {
             && self.active_project_id == workspace_id) {
             return false;
         }
-        if !self.workspace_activation.requests.is_empty() {
-            if self.workspace_activation.desired.as_deref() != Some(workspace_id) {
-                self.workspace_activation.generation = self.workspace_activation.generation.wrapping_add(1);
-                self.workspace_activation.desired = Some(workspace_id.to_owned());
-            }
-            // A superseded operation still owns its server mutation. Unknown delivery never
-            // permits a second POST, even for a different workspace.
+        if !self.workspace_activation.queue_workspace(workspace_id) {
             return false;
         }
         if self.backend_down {
-            self.workspace_activation.error = Some("Backend unavailable. Workspace activation remains locked.".to_owned());
+            self.workspace_activation.set_error(Some("Backend unavailable. Workspace activation remains locked.".to_owned()));
             return false;
         }
         let Some(account) = self.local_account.context.clone().filter(|account| account.is_active()) else {
-            self.workspace_activation.error = Some("Log in before activating a workspace.".to_owned());
+            self.workspace_activation.set_error(Some("Log in before activating a workspace.".to_owned()));
             return false;
         };
         let Some(runtime) = self.runtime_handle.clone() else {
-            self.workspace_activation.error = Some("Workspace activation runtime is unavailable.".to_owned());
+            self.workspace_activation.set_error(Some("Workspace activation runtime is unavailable.".to_owned()));
             return false;
         };
-        self.workspace_activation.generation = self.workspace_activation.generation.wrapping_add(1);
-        self.workspace_activation.admitted = None;
-        self.workspace_activation.desired = Some(workspace_id.to_owned());
-        self.workspace_activation.error = None;
+        let generation = self.workspace_activation.start_request(workspace_id);
         self.mcp_durability_generation = self.mcp_durability_generation.wrapping_add(1);
         *self.mcp_durability.lock().unwrap_or_else(|e| e.into_inner()) = None;
         self.project_tabs.set_active_id("");
@@ -35438,8 +35422,9 @@ impl HandshakeApp {
             if let Some(wake) = wake { wake.request_repaint(); }
             result
         });
-        self.workspace_activation.requests.push(WorkspaceActivationRequest {
-            operation_id, generation: self.workspace_activation.generation,
+        let index = self.workspace_activation.requests().len();
+        self.workspace_activation.reinsert_request(index, WorkspaceActivationRequest {
+            operation_id, generation,
             backend_readiness_lost: false,
             workspace_id: selected, account, handle: Some(handle),
         });
@@ -35449,21 +35434,21 @@ impl HandshakeApp {
     fn poll_workspace_activation(&mut self) {
         if self.capturing_snapshot { return; }
         let mut index = 0;
-        while index < self.workspace_activation.requests.len() {
-            if !self.workspace_activation.requests[index].handle.as_ref().is_some_and(|handle| handle.is_finished()) {
+        while index < self.workspace_activation.requests().len() {
+            if !self.workspace_activation.requests()[index].handle.as_ref().is_some_and(|handle| handle.is_finished()) {
                 index += 1;
                 continue;
             }
-            let mut request = self.workspace_activation.requests.remove(index);
+            let mut request = self.workspace_activation.take_request(index);
             let Some(handle) = request.handle.take() else { continue; };
             let result = self.runtime().block_on(handle);
             if request.backend_readiness_lost {
-                self.workspace_activation.error = Some("Backend readiness changed before activation settled. The original operation requires canonical reconciliation.".to_owned());
-                self.workspace_activation.requests.insert(index, request);
+                self.workspace_activation.set_error(Some("Backend readiness changed before activation settled. The original operation requires canonical reconciliation.".to_owned()));
+                self.workspace_activation.reinsert_request(index, request);
                 index += 1;
                 continue;
             }
-            let current = request.generation == self.workspace_activation.generation
+            let current = request.generation == self.workspace_activation.generation()
                 && request.account.is_active()
                 && self.local_account.context.as_ref().is_some_and(|account| Arc::ptr_eq(account, &request.account));
             match result {
@@ -35475,15 +35460,12 @@ impl HandshakeApp {
                         && ack.authenticated_session_id == request.account.session_id
                         && ack.access_space_id == request.account.access_space_id;
                     if !matches {
-                        if current { self.workspace_activation.error = Some("Workspace activation acknowledgement did not match. The original operation remains unresolved.".to_owned()); }
-                        self.workspace_activation.requests.insert(index, request);
+                        if current { self.workspace_activation.set_error(Some("Workspace activation acknowledgement did not match. The original operation remains unresolved.".to_owned())); }
+                        self.workspace_activation.reinsert_request(index, request);
                         index += 1;
                     } else if current {
                         self.commit_workspace_selection(&request.workspace_id);
-                        self.workspace_activation.admitted = Some((request.account, request.workspace_id.clone()));
-                        self.workspace_activation.has_committed_workspace = true;
-                        self.workspace_activation.error = None;
-                        self.workspace_activation.desired = None;
+                        self.workspace_activation.admit(request.account, request.workspace_id.clone());
                         self.project_tabs.set_active_id(&request.workspace_id);
                         if let Some(runtime) = self.runtime_handle.clone() {
                             self.left_rail.project_tree.set_workspace(&request.workspace_id, &runtime);
@@ -35494,27 +35476,27 @@ impl HandshakeApp {
                 }
                 Ok(Err(error)) if !error.is_uncertain() => {
                     if current {
-                        self.workspace_activation.error = Some(error.to_string());
-                        self.workspace_activation.desired = None;
+                        self.workspace_activation.set_error(Some(error.to_string()));
+                        self.workspace_activation.clear_desired();
                     }
                 }
                 other => {
                     if current {
-                        self.workspace_activation.error = Some(match other {
+                        self.workspace_activation.set_error(Some(match other {
                             Ok(Err(error)) => error.to_string(),
                             Err(error) => format!("Workspace activation delivery failed: {error}. The original operation remains unresolved."),
                             Ok(Ok(_)) => unreachable!(),
-                        });
+                        }));
                     } else {
-                        self.workspace_activation.error = Some("An earlier workspace activation remains unresolved. Further activation is locked pending canonical operation reconciliation.".to_owned());
+                        self.workspace_activation.set_error(Some("An earlier workspace activation remains unresolved. Further activation is locked pending canonical operation reconciliation.".to_owned()));
                     }
-                    self.workspace_activation.requests.insert(index, request);
+                    self.workspace_activation.reinsert_request(index, request);
                     index += 1;
                 }
             }
         }
-        if self.workspace_activation.requests.is_empty() {
-            if let Some(workspace) = self.workspace_activation.desired.take() {
+        if self.workspace_activation.requests().is_empty() {
+            if let Some(workspace) = self.workspace_activation.take_desired() {
                 self.request_workspace_activation(&workspace);
             }
         }
@@ -35530,7 +35512,7 @@ impl HandshakeApp {
         //    `PUT` on the UI thread, so a backend-down switch would stall the frame loop (the same freeze
         //    class this MT fixes). The snapshot is captured on the UI thread (it reads live shell state),
         //    then the network `PUT` runs on a short-lived worker; the layout reset below proceeds at once.
-        if !self.workspace_activation.required || self.workspace_activation.has_committed_workspace {
+        if !self.workspace_activation.required() || self.workspace_activation.has_committed_workspace() {
             self.spawn_layout_save_now();
         }
         // 2. Reset to the entered project's fresh default + point the shell at it. The next frame's
@@ -35576,11 +35558,11 @@ impl HandshakeApp {
                     self.project_tabs.apply_fetched(projects);
                     // Keep the active highlight + active_project_id consistent if the fetch changed the
                     // active id (e.g. the seeded default project is not in the backend list).
-                    if self.workspace_activation.required {
+                    if self.workspace_activation.required() {
                         let selected = self.project_tabs.active_id().to_owned();
                         self.project_tabs.set_active_id(
-                            self.workspace_activation.admitted.as_ref()
-                                .map(|(_, id)| id.as_str()).unwrap_or(""),
+                            self.workspace_activation.admitted()
+                                .map(|(_, id)| id).unwrap_or(""),
                         );
                         if !selected.is_empty() {
                             self.request_workspace_activation(&selected);
@@ -36613,11 +36595,7 @@ impl HandshakeApp {
         } else if !reachable && !was_down {
             // Down edge: reachable -> unreachable.
             self.backend_down = true;
-            self.workspace_activation.generation = self.workspace_activation.generation.wrapping_add(1);
-            self.workspace_activation.admitted = None;
-            for request in &mut self.workspace_activation.requests {
-                request.backend_readiness_lost = true;
-            }
+            self.workspace_activation.mark_backend_readiness_lost();
             self.mcp_durability_generation = self.mcp_durability_generation.wrapping_add(1);
             *self.mcp_durability.lock().unwrap_or_else(|e| e.into_inner()) = None;
             self.record_backend_event(true);
@@ -37476,8 +37454,7 @@ impl HandshakeApp {
 
     fn reset_account_workspace(&mut self, ctx: &egui::Context) {
         self.rebind_atelier_client(None);
-        self.workspace_activation.generation = self.workspace_activation.generation.wrapping_add(1);
-        self.workspace_activation.admitted = None;
+        self.workspace_activation.invalidate();
         {
             let windows = self.mcp_windows.lock().unwrap_or_else(|e| e.into_inner()).clone();
             for pane_id in self.popout_argus_epochs.keys() {
@@ -37511,9 +37488,7 @@ impl HandshakeApp {
             &self.rich_doc_base_url,
         );
         fresh.local_account = std::mem::take(&mut self.local_account);
-        fresh.workspace_activation.requests = std::mem::take(&mut self.workspace_activation.requests);
-        fresh.workspace_activation.generation = self.workspace_activation.generation;
-        fresh.workspace_activation.desired = None;
+        self.workspace_activation.transfer_pending_to(&mut fresh.workspace_activation);
         fresh.account_has_private_state = fresh.local_account.context.is_some();
         fresh.mcp_server = self.mcp_server.take();
         fresh.mcp_durability = self.mcp_durability.clone();
@@ -37641,16 +37616,16 @@ impl HandshakeApp {
             self.poll_workspace_activation();
             self.poll_workspaces();
         }
-        if self.workspace_activation.required && !self.workspace_activation_is_admitted() {
+        if self.workspace_activation.required() && !self.workspace_activation_is_admitted() {
             let selection = self.show_project_tabs(ctx);
             if !self.capturing_snapshot {
                 if let Some(workspace) = selection { self.request_workspace_activation(&workspace); }
             }
             egui::CentralPanel::default().show(ctx, |ui| {
-                ui.label(self.workspace_activation.error.as_deref()
+                ui.label(self.workspace_activation.error()
                     .unwrap_or("Select a workspace. Workspace edits remain locked until activation is acknowledged."));
             });
-            if !self.capturing_snapshot && self.workspace_activation.requests.iter().any(|request| request.handle.is_some()) {
+            if !self.capturing_snapshot && self.workspace_activation.requests().iter().any(|request| request.handle.is_some()) {
                 ctx.request_repaint_after(std::time::Duration::from_millis(100));
             }
             return;
@@ -38103,7 +38078,7 @@ impl HandshakeApp {
                 ctx.request_repaint();
             }
         }
-        if self.workspace_activation.required && !self.workspace_activation_is_admitted() {
+        if self.workspace_activation.required() && !self.workspace_activation_is_admitted() {
             ctx.request_repaint();
             return;
         }

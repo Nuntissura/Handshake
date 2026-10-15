@@ -164,6 +164,10 @@ path = "src/bin/cwd-probe.rs"
 test = false
 
 [dependencies]
+handshake-account-activation = { path = "../../shared/handshake_account_activation" }
+handshake_capability_registry_document = { path = "../handshake_capability_registry_document" }
+handshake_contact_sheet = { path = "../handshake_contact_sheet" }
+handshake_swarm_event_ids = { path = "../handshake_swarm_event_ids" }
 handshake_document = { path = "../handshake_document" }
 handshake_storage_support = { path = "../handshake_storage_support" }
 # MT171 exact shared reader edge: explicit existing-watcher v2 validation; no native runtime owner.

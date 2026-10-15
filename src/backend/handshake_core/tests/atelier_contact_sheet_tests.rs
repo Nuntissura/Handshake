@@ -16,7 +16,7 @@ use std::sync::{Arc, OnceLock};
 use async_trait::async_trait;
 use atelier_surreal_support::AtelierSurrealHarness;
 use handshake_core::api::atelier_ckc_intake_facial as lane_api;
-use handshake_core::atelier::contact_sheet::CONTACT_SHEET_EXPORT_SCHEMA_ID;
+use handshake_contact_sheet::CONTACT_SHEET_EXPORT_SCHEMA_ID;
 use handshake_core::atelier::intake::{
     IntakeBatchMode, IntakeProfileMode, NewIntakeBatch, NewIntakeItem,
 };

@@ -11,6 +11,7 @@ use axum::{
     Json, Router,
 };
 use chrono::Duration;
+use handshake_account_activation::WorkspaceActivationInput;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 #[cfg(test)]
@@ -208,25 +209,30 @@ struct LocalSessionExchange {
 }
 
 #[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct WorkspaceActivationInput {
-    workspace_id: String,
-    operation_id: uuid::Uuid,
-}
-
-#[derive(Deserialize)]
 #[serde(untagged)]
 enum LocalSessionOperation {
     Exchange(LocalSessionExchange),
     Activate(WorkspaceActivationInput),
 }
 
-#[derive(Serialize)]
 pub struct WorkspaceActivationAcknowledgement {
     pub schema_version: &'static str,
     pub operation_id: uuid::Uuid,
-    #[serde(flatten)]
     pub scope: crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+}
+
+impl Serialize for WorkspaceActivationAcknowledgement {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let acknowledgement = handshake_account_activation::WorkspaceActivationAcknowledgement {
+            operation_id: self.operation_id,
+            owner_account_id: self.scope.owner_account_id.to_string(),
+            actor_principal_id: self.scope.actor_principal_id.to_string(),
+            authenticated_session_id: self.scope.authenticated_session_id.to_string(),
+            access_space_id: self.scope.access_space_id.to_string(),
+            workspace_id: self.scope.workspace_id.to_string(),
+        };
+        handshake_account_activation::serialize_workspace_activation_ack(&acknowledgement, self.schema_version, serializer)
+    }
 }
 
 pub struct WorkspaceActivationRequest {

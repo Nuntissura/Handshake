@@ -295,15 +295,7 @@ pub async fn current_session(
     Ok(matches)
 }
 
-#[derive(Debug, Clone, Deserialize)]
-pub struct WorkspaceActivationAcknowledgement {
-    pub operation_id: uuid::Uuid,
-    pub owner_account_id: String,
-    pub actor_principal_id: String,
-    pub authenticated_session_id: String,
-    pub access_space_id: String,
-    pub workspace_id: String,
-}
+pub use handshake_account_activation::WorkspaceActivationAcknowledgement;
 
 #[derive(Debug)]
 pub enum WorkspaceActivationError {
@@ -365,28 +357,32 @@ pub async fn activate_workspace(
     let value: serde_json::Value = response.json().await.map_err(|_| {
         WorkspaceActivationError::Uncertain("Invalid workspace activation acknowledgement".into())
     })?;
-    if value["schema_version"].as_str() != Some("hsk.workspace_activation@1") {
-        return Err(WorkspaceActivationError::Uncertain(
-            "Invalid workspace activation acknowledgement schema".into(),
-        ));
-    }
-    let acknowledgement: WorkspaceActivationAcknowledgement =
-        serde_json::from_value(value).map_err(|_| {
-            WorkspaceActivationError::Uncertain(
-                "Invalid workspace activation acknowledgement".into(),
-            )
-        })?;
-    if acknowledgement.operation_id != operation_id
-        || acknowledgement.owner_account_id != context.account_id
-        || acknowledgement.actor_principal_id != context.principal_id
-        || acknowledgement.authenticated_session_id != context.session_id
-        || acknowledgement.access_space_id != context.access_space_id
-        || acknowledgement.workspace_id != workspace_id
-    {
-        return Err(WorkspaceActivationError::Uncertain(
-            "Workspace activation acknowledgement mismatch".into(),
-        ));
-    }
+    let acknowledgement = handshake_account_activation::parse_workspace_activation_ack(
+        value,
+        &handshake_account_activation::WorkspaceActivationExpected {
+            operation_id,
+            owner_account_id: &context.account_id,
+            actor_principal_id: &context.principal_id,
+            authenticated_session_id: &context.session_id,
+            access_space_id: &context.access_space_id,
+            workspace_id,
+        },
+    )
+    .map_err(|error| {
+        use handshake_account_activation::WorkspaceActivationAcknowledgementError;
+        let message = match error {
+            WorkspaceActivationAcknowledgementError::InvalidSchema => {
+                "Invalid workspace activation acknowledgement schema"
+            }
+            WorkspaceActivationAcknowledgementError::InvalidAcknowledgement => {
+                "Invalid workspace activation acknowledgement"
+            }
+            WorkspaceActivationAcknowledgementError::Mismatch => {
+                "Workspace activation acknowledgement mismatch"
+            }
+        };
+        WorkspaceActivationError::Uncertain(message.into())
+    })?;
     if !context.is_active() {
         return Err(WorkspaceActivationError::Uncertain(
             "Account session changed during workspace activation".into(),

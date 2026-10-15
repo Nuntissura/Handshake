@@ -5425,7 +5425,17 @@ impl ModelLaneStore {
         let run_id = one_navigation_run_id(&selector.lookup_ref, runs)?
             .ok_or_else(|| ModelLaneError::NotFound("navigation target".into()))?;
         let mut projection = ModelLaneNavigationProjection::empty(route_id, selector);
+        let mut error_codes = BTreeSet::new();
         for (row, receipt) in visible.into_iter().filter(|(row, _)| row.run_id == run_id) {
+            if matches!(row.record_kind.as_str(), "lane" | "recovery_event") {
+                if let Some(input) = provider.navigation_error_input(scope, &row).await? {
+                    if input.source_kind != row.record_kind || input.run_id != row.run_id {
+                        return Err(crdt_authority_denied("navigation error input differs from canonical source identity"));
+                    }
+                    let code = if row.record_kind == "lane" { input.failstate_code } else { input.error_code };
+                    if let Some(code) = code { error_codes.insert(code); }
+                }
+            }
             let scalar = ModelLaneNavigationScalar { aggregate_id: row.aggregate_id.clone(), run_id: row.run_id.clone(),
                 event_ledger_event_id: receipt.event_id, event_ledger_seq: receipt.event_seq, ordering_seq: row.ordering_seq };
             match row.record_kind.as_str() {
@@ -5446,7 +5456,9 @@ impl ModelLaneStore {
                 && projection.context_handoffs.is_empty() && projection.artifacts.is_empty()) {
             return Err(ModelLaneError::NotFound("navigation target".into()));
         }
-        projection.rebuild_navigation_evidence(); Ok(projection)
+        projection.rebuild_navigation_evidence();
+        projection.error_codes = error_codes.into_iter().collect();
+        Ok(projection)
     }
 
     pub async fn record_recovery_checkpoint(

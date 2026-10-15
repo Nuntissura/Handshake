@@ -19,7 +19,7 @@
 # standalone (so `cargo test -p handshake-diag-ring` from its own dir still resolves cleanly, as MT-081
 # designed) while this crate consumes it purely as a path dependency.
 [workspace]
-exclude = ["diag_ring"]
+exclude = ["diag_ring", "workspace_activation"]
 
 # release-native: for INSTALLER builds only. Dev builds use --profile dev. CI smoke tests use
 # --profile release. (CONTROL-2: lto='fat' + codegen-units=1 is slow; gate fat-LTO behind the
@@ -108,7 +108,11 @@ wgpu_screenshots = []
 diag-test-seams = []
 
 [dependencies]
+handshake-account-activation = { path = "../../shared/handshake_account_activation" }
+palmistry-control-protocol = { path = "../palmistry_control_protocol" }
 handshake_core = { path = "../../backend/handshake_core", default-features = false, features = ["runtime-full"] }
+handshake-layout-snapshot = { path = "../layout_snapshot" }
+handshake-workspace-activation = { path = "workspace_activation" }
 
 hex = "0.4"
 ed25519-dalek = "3.0.0"

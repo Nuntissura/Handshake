@@ -540,40 +540,19 @@ mod tests {
     }
 }
 
-/// Non-secret original process/ring identity signed by the current owned watcher.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct WatcherSigningIdentity {
-    pub protocol_version: u32,
-    pub session_id: uuid::Uuid,
-    pub process_instance_id: uuid::Uuid,
-    pub parent_pid: u32,
-    pub watcher_pid: u32,
-    pub ring_version: u32,
-    pub record_size: u32,
-    pub launch_nonce: [u8; 16],
-    pub runtime_instance_schema_id: String,
-    pub runtime_instance_id: uuid::Uuid,
-    pub runtime_host_scope_id: String,
-    pub runtime_lease_protocol: String,
-    pub runtime_lease_address: std::net::IpAddr,
-    pub runtime_lease_port: u16,
-    pub parent_os_creation_time_100ns: u64,
-}
+pub use palmistry_control_protocol::{watcher_challenge_bytes, WatcherSigningIdentity};
 
-impl WatcherSigningIdentity {
-    fn valid_runtime_identity(&self) -> bool {
-        crate::cli::SigningRuntimeIdentity {
-            runtime_instance_schema_id: self.runtime_instance_schema_id.clone(),
-            runtime_instance_id: self.runtime_instance_id,
-            runtime_host_scope_id: self.runtime_host_scope_id.clone(),
-            runtime_lease_protocol: self.runtime_lease_protocol.clone(),
-            runtime_lease_address: self.runtime_lease_address,
-            runtime_lease_port: self.runtime_lease_port,
-            parent_os_creation_time_100ns: self.parent_os_creation_time_100ns,
-        }
-        .is_valid_for_session(self.session_id)
+fn valid_runtime_identity(identity: &WatcherSigningIdentity) -> bool {
+    crate::cli::SigningRuntimeIdentity {
+        runtime_instance_schema_id: identity.runtime_instance_schema_id.clone(),
+        runtime_instance_id: identity.runtime_instance_id,
+        runtime_host_scope_id: identity.runtime_host_scope_id.clone(),
+        runtime_lease_protocol: identity.runtime_lease_protocol.clone(),
+        runtime_lease_address: identity.runtime_lease_address,
+        runtime_lease_port: identity.runtime_lease_port,
+        parent_os_creation_time_100ns: identity.parent_os_creation_time_100ns,
     }
+    .is_valid_for_session(identity.session_id)
 }
 
 /// Source-compatible signing identity only. No backend-issued native HMAC key is held here.
@@ -597,7 +576,7 @@ impl WatcherSigningBootstrap {
             || identity.ring_version != 2
             || identity.record_size != 120
             || identity.launch_nonce == [0; 16]
-            || !identity.valid_runtime_identity()
+            || !valid_runtime_identity(&identity)
         {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
@@ -637,20 +616,6 @@ impl WatcherSigningBootstrap {
         let bytes = watcher_challenge_bytes(identity, challenge, transport_public_key)?;
         Ok(self.key.sign(&bytes).to_bytes().to_vec())
     }
-}
-
-pub fn watcher_challenge_bytes(
-    identity: &WatcherSigningIdentity,
-    challenge: [u8; 32],
-    transport_public_key: [u8; 32],
-) -> io::Result<Vec<u8>> {
-    let mut bytes = b"handshake-current-watcher-provenance-v1\0".to_vec();
-    let identity_bytes = serde_json::to_vec(identity).map_err(io::Error::other)?;
-    bytes.extend_from_slice(&(identity_bytes.len() as u64).to_le_bytes());
-    bytes.extend_from_slice(&identity_bytes);
-    bytes.extend_from_slice(&challenge);
-    bytes.extend_from_slice(&transport_public_key);
-    Ok(bytes)
 }
 
 /// Read one inherited PRIVATE pipe to EOF. Exact 32 bytes only, bounded time and zeroized buffers.

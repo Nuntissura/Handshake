@@ -62,7 +62,6 @@ use thiserror::Error;
 use uuid::Uuid;
 
 pub mod acceptance;
-pub mod contact_sheet;
 pub mod facial;
 pub mod facial_native;
 pub mod prompt_feedback;

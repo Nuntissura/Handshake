@@ -39,7 +39,6 @@
 
 use std::collections::VecDeque;
 use std::io::{self, BufReader, Read, Write};
-use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitStatus, Stdio};
 use std::sync::{mpsc, Mutex, OnceLock};
@@ -281,26 +280,8 @@ pub fn drain_palmistry_child_watch_commands(handle: &mut PalmistryHandle) -> usi
 // `palmistry`'s own `tagged_json_shape_is_explicit` test pins — so the two sides stay byte-compatible.
 // ----------------------------------------------------------------------------------------------------
 
-/// Public identity of the SAME native-owned watcher; not a durable process START receipt.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct SignedWatcherIdentity {
-    pub protocol_version: u32,
-    pub session_id: uuid::Uuid,
-    pub process_instance_id: uuid::Uuid,
-    pub parent_pid: u32,
-    pub watcher_pid: u32,
-    pub ring_version: u32,
-    pub record_size: u32,
-    pub launch_nonce: [u8; 16],
-    pub runtime_instance_schema_id: String,
-    pub runtime_instance_id: uuid::Uuid,
-    pub runtime_host_scope_id: String,
-    pub runtime_lease_protocol: String,
-    pub runtime_lease_address: IpAddr,
-    pub runtime_lease_port: u16,
-    pub parent_os_creation_time_100ns: u64,
-}
+pub use palmistry_control_protocol::WatcherSigningIdentity as SignedWatcherIdentity;
+use palmistry_control_protocol::watcher_challenge_bytes as signed_watcher_challenge_bytes;
 
 struct SignedWatcherBootstrap {
     process_instance_id: uuid::Uuid,
@@ -340,20 +321,6 @@ enum SignedWatcherReply {
         public_verifier: [u8; 32],
         signature: Vec<u8>,
     },
-}
-
-fn signed_watcher_challenge_bytes(
-    identity: &SignedWatcherIdentity,
-    challenge: [u8; 32],
-    transport_public_key: [u8; 32],
-) -> io::Result<Vec<u8>> {
-    let mut bytes = b"handshake-current-watcher-provenance-v1\0".to_vec();
-    let identity_bytes = serde_json::to_vec(identity).map_err(io::Error::other)?;
-    bytes.extend_from_slice(&(identity_bytes.len() as u64).to_le_bytes());
-    bytes.extend_from_slice(&identity_bytes);
-    bytes.extend_from_slice(&challenge);
-    bytes.extend_from_slice(&transport_public_key);
-    Ok(bytes)
 }
 
 fn perform_signed_watcher_handshake(
@@ -1960,27 +1927,15 @@ mod signed_launch_evidence_tests {
         let verifier = signer.verifying_key().to_bytes();
         let challenge = [8; 32];
         let transport = [9; 32];
-        let watcher_identity = palmistry::control::WatcherSigningIdentity {
-            protocol_version: identity.protocol_version,
-            session_id: identity.session_id,
-            process_instance_id: identity.process_instance_id,
-            parent_pid: identity.parent_pid,
-            watcher_pid: identity.watcher_pid,
-            ring_version: identity.ring_version,
-            record_size: identity.record_size,
-            launch_nonce: identity.launch_nonce,
-            runtime_instance_schema_id: identity.runtime_instance_schema_id.clone(),
-            runtime_instance_id: identity.runtime_instance_id,
-            runtime_host_scope_id: identity.runtime_host_scope_id.clone(),
-            runtime_lease_protocol: identity.runtime_lease_protocol.clone(),
-            runtime_lease_address: identity.runtime_lease_address,
-            runtime_lease_port: identity.runtime_lease_port,
-            parent_os_creation_time_100ns: identity.parent_os_creation_time_100ns,
-        };
+        let expected_identity = br#"{"protocol_version":1,"session_id":"00000000-0000-0000-0000-000000000001","process_instance_id":"00000000-0000-0000-0000-000000000002","parent_pid":3,"watcher_pid":4,"ring_version":2,"record_size":120,"launch_nonce":[5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5],"runtime_instance_schema_id":"hsk.embedded_runtime.instance@2","runtime_instance_id":"00000000-0000-0000-0000-000000000001","runtime_host_scope_id":"signed-wire-unit-test","runtime_lease_protocol":"hsk.embedded_runtime.loopback_udp_exclusive@1","runtime_lease_address":"127.0.0.1","runtime_lease_port":43210,"parent_os_creation_time_100ns":17}"#;
+        let mut expected = b"handshake-current-watcher-provenance-v1\0".to_vec();
+        expected.extend_from_slice(&(expected_identity.len() as u64).to_le_bytes());
+        expected.extend_from_slice(expected_identity);
+        expected.extend_from_slice(&[8; 32]);
+        expected.extend_from_slice(&[9; 32]);
         assert_eq!(
             signed_watcher_challenge_bytes(&identity, challenge, transport).unwrap(),
-            palmistry::control::watcher_challenge_bytes(&watcher_identity, challenge, transport)
-                .unwrap()
+            expected,
         );
         let signature = signer
             .sign(&signed_watcher_challenge_bytes(&identity, challenge, transport).unwrap())
