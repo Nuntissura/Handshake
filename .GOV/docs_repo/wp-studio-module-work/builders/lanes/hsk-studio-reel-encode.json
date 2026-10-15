@@ -1,16 +1,21 @@
 {
   "crate": "hsk-studio-reel",
   "lane": "SMB-REEL-ENCODE",
-  "status": null,
-  "phase": "slice 1 (ISO BMFF MOV/MP4 muxer) in progress",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {"argv": null, "exit": null, "sha": null, "passed": 0, "failed": 0},
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slice 1 (ISO BMFF MOV/MP4 muxer) pushed a922e2e; slice 2 (export queue) in progress",
+  "commits": [
+    {"sha": "a922e2e", "subject": "reel (SMB-REEL-ENCODE slice 1): ISO BMFF writer for MP4 and MOV"}
+  ],
+  "capabilities_done": [
+    "(1) reel src/mux.rs Muxer<W: Write+Seek>: MP4 (isom/iso2/mp41 brands) and MOV (qt) writer; video sample entries av01+av1C (validated by parse_av1c), avc1+avcC REMUX ONLY (validated, SPS+PPS required; D24: reel encodes no H.264), VC-3 AVdn/AVdh (MOV only); colr nclx (MP4) / nclc (MOV), pasp 1:1; PCM audio: QuickTime lpcm sound description v2 (16/24/32-bit signed integer, 32-bit float, little-endian packed) in MOV, ipcm/fpcm + pcmC (ISO/IEC 23003-5) in MP4 (rate <= 65535); streamed mdat behind an 8-byte wide placeholder rewritten as a 64-bit mdat header past 4 GiB, co64 when an offset exceeds 32 bits, moov last; video media timescale = 254016000000/gcd(254016000000, ticks_per_frame) with the matching delta (STU-IO-142; 25 -> 25/1, 29.97 -> 30000/1001, 23.976 -> 24000/1001), refused when not 32-bit; samples in decode order with presentation index, reordered streams get ctts v0 + one-entry elst removing the decode delay; deterministic bytes (creation/modification times 0); MuxReceipt (samples, frames, timescale, delay, mdat payload, file bytes, co64, large_mdat)",
+    "(1) STU-VID-062 refusal before encoding: Muxer::new refuses unsupported combinations (mux-mp4-cannot-carry-vc3, mux-mp4-pcm-rate-above-65535, mux-pcm-bit-depth, mux-no-tracks) and hostile bounds (mux-dimensions, mux-zero-dimension, mux-zero-frame-duration, mux-frame-rate-not-representable, mux-pcm-layout, mux-config-bytes) before a byte is written; per-sample bounds (mux-sample-bytes, mux-video-samples, mux-file-bytes, mux-pcm-partial-frame, mux-audio-chunks) checked before the write; mux-pts-not-a-permutation and empty tracks refused at finish"
+  ],
+  "tests": {"argv": "cargo nextest run -p hsk-studio-reel --test mux_roundtrip --no-fail-fast; cargo nextest run -p hsk-studio-reel --lib -E 'test(/^mux::/)'", "exit": 0, "sha": "a922e2e", "passed": 6, "failed": 0},
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
   "next": "slice 1 muxer; slice 2 export queue; slice 3 AV1 encode (rav1e, after the steward sync pins it); slice 4 timeline export glue (harness); slice 5 VC-3 (DNxHD/HR) encode",
-  "updated_at": "2026-10-15T06:16:15Z",
+  "updated_at": "2026-10-15T06:35:11Z",
   "notes": {
     "spec_basis": [
       "STU-VID-060 (14-studio-creative-suite.md:24658): 'Video export is a StudioExportRecipe and 14.13 owns the format writers.'",

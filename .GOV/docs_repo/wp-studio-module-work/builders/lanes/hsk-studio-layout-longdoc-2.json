@@ -1,18 +1,49 @@
 {
   "crate": "hsk-studio-layout",
   "lane": "SMB-LAYOUT-LONGDOC-2",
-  "status": null,
-  "phase": "item 1 (PDF/A-2b 6.2.11.5: /W from hmtx, kerning through TJ) in progress",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {"argv": null, "exit": null, "sha": null, "passed": 0, "failed": 0},
+  "status": "READY_FOR_VALIDATION",
+  "phase": "items 1-3 pushed; claim = 8b7ba7d, de85c97, 90659d0",
+  "commits": [
+    {"sha": "8b7ba7d", "subject": "layout + folio (SMB-LAYOUT-LONGDOC-2 item 3): text after tables, running text, endnotes, sidenotes"},
+    {"sha": "de85c97", "subject": "press + interop-layout + layout (SMB-LAYOUT-LONGDOC-2 items 1-2): PDF/A-2b glyph widths, page labels, outline"},
+    {"sha": "90659d0", "subject": "interop-layout tests (SMB-LAYOUT-LONGDOC-2 item 3): running footer, sidenote and endnotes in PDF"}
+  ],
+  "capabilities_done": [
+    "item 1 press: font_advance_widths (bounded hhea/hmtx reader in sfnt.rs); embed_truetype / embed_font write the program's own advances into /W for every glyph the caller names (caller width values ignored); show_glyph_run writes one Tm + TJ per baseline with program-advance-vs-caller-position adjustments (kerning and justification exact); interop-layout text runs use it",
+    "item 1 proof: veraPDF 1.30.3 PDF/A-2b passes layout-longdoc.pdf (sha256 f1340044...6259; failed 6.2.11.5 before) and layout-labels-outline.pdf (c96de9df...c090), each run from the folder holding the PDF; reports normalised (<name> = file name, no machine path; press normalize_verapdf_report rule) and committed as fixtures tests/fixtures/verapdf/layout-longdoc.pdfa-2b.xml and layout-labels-outline.pdfa-2b.xml, checked through ExportReceipt::with_verapdf_report against the pinned output sha256",
+    "item 2 press: set_page_labels (/PageLabels number tree, /S D R r A a, /P, /St, ranges from page 0) and set_outline (/Outlines from entries in document order, nested levels, open counts, /XYZ or /Fit), typed refusals",
+    "item 2 interop-layout: PdfLongDoc.page_labels via page_labels_from_sections (range per section start; /P-only per-page ranges for styles PDF cannot express) and PdfLongDoc.outline via outline_from_toc (bookmark per placed TOC entry at its source baseline; TocEntryOut.baseline_y added in layout)",
+    "item 3 layout: reflow_with_tables (host text, anchored tables, text resuming below each table; typed table_anchor_not_on_paragraph); resolve_running_texts (page number, section marker, the twelve variable kinds: custom text, file name, last page number by scope incl. current, chapter number, caller-formatted dates, match paragraph/character style first/last with carry-over, end punctuation, change case; xref/live caption typed variable_unsupported) + compose_overlay; generate_endnotes (document or per-story groups, continuous or per-story numbering, reference positions); place_sidenotes (provisional options, spec names sidenotes and declares their contract a SPEC GAP)",
+    "item 3 folio: text_variables, running_texts, endnotes, endnote_options, sidenotes, sidenote_options records (serde default, skipped when empty) with check_running / check_endnotes / check_sidenote_options",
+    "item 3 PDF: running footer, sidenote and endnotes exported (glyph ids at hand-computed positions)"
+  ],
+  "tests": {
+    "argv": "per-test runner: -p hsk-studio-layout --test longdoc_running_notes; -p hsk-studio-folio --test longdoc_records_contract; -p hsk-studio-interop-layout --test longdoc_pdf; full press + interop-layout + layout suites at de85c97 tree (270/270)",
+    "exit": 0,
+    "sha": "90659d0",
+    "passed": 8,
+    "failed": 0
+  },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "item 1 press hmtx widths + TJ runs; item 2 /PageLabels + outlines; item 3 running headers/footers with section markers, endnotes, sidenotes, host text after tables",
-  "updated_at": "2026-10-15T05:19:28Z",
+  "next": "Independent validator round on 8b7ba7d, de85c97, 90659d0. Follow-ups: running headers on parent pages through parent_adapter, text variables inside story text (instances anchored in stories), sidenote contract when the spec defines it, outline from the index or headings without a TOC",
+  "updated_at": "2026-10-15T06:35:25Z",
   "notes": {
-    "owned_paths": ["crates/hsk-studio-layout/**", "crates/hsk-studio-interop-layout/** (not tests/fixtures/verapdf/layout-clip-gradient.pdfa-2b.xml)", "crates/hsk-studio-folio/src/longdoc.rs", "crates/hsk-studio-folio/tests/longdoc_records_contract.rs", "crates/hsk-studio-press/src/export.rs + src/export/sfnt.rs (writer paths: widths, TJ runs, page labels, outlines)"],
-    "parity": "InDesign parity UNVERIFIED (D5)"
+    "owned_paths": ["crates/hsk-studio-layout/**", "crates/hsk-studio-interop-layout/** (the two fix-up-lane veraPDF fixtures untouched)", "crates/hsk-studio-folio/src/longdoc.rs", "crates/hsk-studio-folio/tests/longdoc_records_contract.rs", "crates/hsk-studio-press/src/export.rs, src/export/sfnt.rs, src/lib.rs (writer paths: widths, TJ runs, page labels, outline; DESCRIPTOR api list)"],
+    "tests_new": ["layout longdoc_running_notes: host_text_resumes_after_tables, running_headers_section_markers_and_variables, endnotes_and_sidenotes", "folio longdoc_running_endnote_sidenote_records", "interop longdoc_pdf: press_tj_runs_program_widths_and_navigation_refusals, page_labels_and_outline_from_sections_and_toc, running_footer_sidenote_and_endnotes_export; long_document_archival_export now pins its sha256 and the veraPDF verdict"],
+    "reopens": "tests/pdf_export.rs shown() now scans Tj and TJ through tests/common/pdf_scan.rs (text runs changed from per-glyph Tj to TJ): SMB-LAYOUT-PDF-EXPORT / -2 / -3 / PDFX-VERAPDF claims touch these tests and press /W output (CX-VAL-009 reopen); press /W values now come from hmtx (press tests 204/204 green)",
+    "spec_basis": {
+      "ISO 19005-2 6.2.11.5": "glyph width information in the font dictionary and in the embedded font program shall be consistent (veraPDF rule text)",
+      "STU-LAY-015": "Automatic page-number markers MUST resolve to the current page's section number wherever placed (parent page, running header, TOC). A last-page-number marker with selectable section or document scope MUST resolve",
+      "STU-LAY-016": "Running headers and footers MUST be content-derived: a header/footer field pulls the first or last on-page text carrying a chosen paragraph or character style, with delete-trailing-punctuation and change-case options",
+      "STU-LAY-048": "Text variables MUST be resolvable placeholders ... The captured variable-type enumeration has TWELVE members and Studio MUST carry all twelve",
+      "STU-LAY-148": "create_bookmarks: Emit bookmarks for entries",
+      "STU-LAY-150": "endnote_title, prefix/suffix 0..100 characters, restart_endnote_numbering continuous/story_restart, scope_value story/document; Sidenotes ... NO captured parameter contract for sidenotes was recovered; sidenote options are a declared SPEC GAP",
+      "STU-LAY-035": "A table is a structured object flowed inside a StudioTextStory"
+    },
+    "unverified": "InDesign parity UNVERIFIED (D5): running-header carry-over, title case rule, sidenote placement, endnote paragraph form, outline destination at the entry baseline; PDF/X-4 still self-checked only (veraPDF has no PDF/X profile)",
+    "own_cause_log": ["press export.rs reserve() takes u32: outline reserve converted with try_from (compile fix before any test run)"],
+    "commit_method": "temp-index commits as in SMB-LAYOUT-LONGDOC (folio lib.rs untouched this lane)"
   }
 }
