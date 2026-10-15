@@ -1,0 +1,42 @@
+{
+  "crate": "hsk-studio-interop-fig",
+  "lane": "SMB-INTEROP-FIG-INSTANCES-FRAMES",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slices 1-2 pushed; claim = 3b665d1 + 2bbeb48 (2bbeb48 = test pin only)",
+  "commits": [
+    {"sha": "3b665d1", "subject": "interop-fig (SMB-INTEROP-FIG-INSTANCES-FRAMES slice 1): instance expansion with overrides, frame fill backgrounds and clips, text outputs with granted fonts"},
+    {"sha": "2bbeb48", "subject": "interop-fig tests (SMB-INTEROP-FIG-INSTANCES-FRAMES slice 2): whole-fixture p99 pinned at the measured 0.51/255"}
+  ],
+  "capabilities_done": [
+    "Instance expansion (src/native.rs expand_instance): a document INSTANCE keeps its component_instance binding layer + SCIN record (unchanged) and gets an expansion group layer as its following sibling: the instance fill as background, then the definition (SYMBOL) children walked with the overrides mapped onto them. Mapped override fields: name, visible, opacity, fills (text runs carrying the node fills follow), characters (runs reset to the first style; >1 style = typed loss), root size (= the instance's own stored size), derivedSymbolData transform/size/derivedTextData. Every other overridden field is a typed loss per field (native.instance.expansion.override.<field> override_field_unsupported; fixture: textData.lines x1); sublayer size override without a derived entry, derived size change on a shape with geometry, uniform scale != 1, unmatched override paths are typed losses. Nested instances expand recursively (outer overrides win). Expanded nodes are recorded with Figma's guid path (NativeProposal.expanded: instance + path [I, ..., node]); their duplicated definition losses carry the prefix expansion:",
+    "Hostile bounds, refused before any layer is created: instance cycle (instance_cycle_refused), nesting > MAX_INSTANCE_DEPTH 16, override path > MAX_OVERRIDE_PATH 16, expansion cost > MAX_EXPANDED_NODES 20000 or the caller's Folio node budget left after the document's own nodes (cost walk over node indices only, 2 nodes counted per node)",
+    "Frame fills -> background layers: FRAME/SECTION/SYMBOL/instance with fills gets a bottom-most vector child of its decoded fill geometry (rounded corners resolved; else the size rectangle) carrying the fill rows; strokes stay on the frame (NativeProposal.frame_backgrounds)",
+    "Frame clipping -> clip content: frameMaskDisabled=false with children -> StudioVectorClip (NONZERO) whose source is the background (a hidden clip-source vector layer when the frame has no fill) attached to every child layer (merged with mask attachments); frame_clip_not_mapped loss removed",
+    "Text outputs: text layers record lines and runs from Figma's stored layout (decoder now reads derivedTextData baselines/glyph sizes/font keys and derivedSymbolData); resolve_text_outputs (src/text_out.rs) maps each run's family/style to a caller-granted hsk_studio_type::FontResource; a missing font is MissingFont{layer_id, family, style} + loss native.text.font=<family>/<style> font_not_granted, the layer is not output; text sources stay image-typed graph outputs",
+    "Graph: component_instance binding layers drawn by an expansion contribute no op and no loss; the components page now composites 8 outputs (was 0)"
+  ],
+  "tests": {
+    "argv": "cargo nextest run -p hsk-studio-interop-fig --no-fail-fast (all 37 at 3b665d1: 36 passed, whole_fixture failed on an over-tight p99 pin read from a 1-decimal print; fixed in 2bbeb48) + cargo nextest run -p hsk-studio-interop-fig --test fig_instances_frames at 2bbeb48",
+    "exit": 0,
+    "sha": "2bbeb48",
+    "passed": 5,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "Renderer side: composite applies no vector clip records yet (frame clip proven structurally only); vector sources could become image-typed (SMB-FOLIO-VECTOR-IMAGE-PORT + composite vector-in-group c917333) so frames with fills composite as groups instead of flattening (group_flattened_vector_not_group_input 3/9/14); effect styles (styleIdForEffect, the instance drop shadows), frame strokes, Inter Bold font file (Operator/lead to supply OFL Inter Bold) for basic-shapes and components parity",
+  "updated_at": "2026-10-15T01:12:50Z",
+  "notes": {
+    "spec_basis": "STU-IO-186 (FIG native editable: per-object/property mapping, unsupported/loss decisions, never silent exclusions; self-render is not editable-parity proof); 14.10 design systems: component_instance = a live reference to exactly one component with override records only (l.19690); STU-PRO-167 lists Figma BaseFrame clipsContent among frame fields mapped to existing owners",
+    "new_module_edge": "interop-fig -> hsk-studio-type (normal). Already in root Cargo.toml [workspace.metadata.studio.dependencies.hsk-studio-interop-fig] allowed (verified before use); first use; dep-requests.jsonl line appended 2026-10-15; REPORTED TO LEAD in the final handback. Cargo.lock left uncommitted (steward sync)",
+    "tests_detail": "tests/fig_instances_frames.rs (new, 5): instance_override_renders_overridden_value (file override 'Changed text' + injected red fill override and hidden-label override render; label extent vs PNG measured: left equal 287, right 386 vs 390, Regular stand-in for Bold), frame_fill_and_clip (artboard background first child, fill 0.96/0.97/0.99, clip source + attachments, hidden clip source for group-multiply, no clip on the non-clipping SECTION; rendered fill within 1/255 of the PNG at 4 empty points), text_output_resolves_granted_font_and_types_missing_family (14 prototype outputs with Inter/Regular; basic-shapes MissingFont Inter/Bold; plane origin within 1 px of the PNG ink), whole_fixture_render_matches_operator_png, hostile_instances_refused_before_allocation (cycle 3 refusals, depth chain 17, override path 17, 2000 x 20-child instances -> 476 expansions / 1524 refused, tight Folio budget). tests/common/mod.rs: harness + Type shaping ports (after composite tests/common/text_shaping.rs), fonts read from hsk-studio-type/tests/fixtures (repo-relative)",
+    "pixel_tolerance_measured": "prototype-pages page 1 (Inter Regular granted, all 13 outputs drawn) vs start/detail/animated PNGs (360x520 each, whole area): within 8/255 = 0.9923/0.9931/0.9927, mean = 0.7122/0.6762/0.6782, p99 = 0.5000, max 123.8/111.9/114.9 (glyph antialiasing; Inter 3.019 vs Figma's Inter build); asserts >= 0.992, <= 0.72, p99 <= 0.51",
+    "parity_unverified": "basic-shapes whole artboard: mean 20.251/255, 88.61 % within 8/255 (strokes x3, gradient, image paint, text with Inter Bold not drawn; drop shadow present) -> Figma parity UNVERIFIED, pinned only as a regression floor (>= 0.886, <= 20.26). components page: instance drop shadows come from an effect style (styleIdForEffect, not decoded) and Inter Bold is not in the repo; the override test grants Inter Regular for Inter/Bold explicitly (test-only caller grant)",
+    "pins_updated": "fig_composite graph pins (15/0/15, 16/0/13, 31/0/13; native.graph losses), render tests reworked for drawn frame fills (multiply region now matches the PNG directly within 4/255, the old frame-fill residual closed) and renamed real_components_document_has_nothing_drawable_and_says_why -> real_components_document_draws_instances_through_expansions; fig_native layer() helper skips background/expansion layers, story counts include expanded labels, group-multiply kids include its clip source; fig_geometry pins (0,3,1,0,0,16)/(3,0,6,3,3,10)/(0,1,14,0,0,17) and mask attachment lookup; fig_nodes derivedTextData/derivedSymbolData now decoded",
+    "unverified": "Figma draws frame strokes above or below children; nested instance override path semantics beyond depth 1 (no nested-instance fixture); derivedSymbolData transform semantics (relative to parent assumed); text baseline reuse for a one-line left-aligned override without a derived entry",
+    "retry_guard": "no gameplan block; no gameplan step added",
+    "scratch": "dump test kept outside the repo (Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/smb-interop-fig-instances-frames/), never committed",
+    "deps": "normal dep hsk-studio-type added in crates/hsk-studio-interop-fig/Cargo.toml; Cargo.lock uncommitted"
+  }
+}
