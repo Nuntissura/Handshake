@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T00:01:19Z",
+ "updated_at": "2026-10-15T00:07:22Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -4932,12 +4932,22 @@
   {
    "lane_id": "SMB-COMPOSITE-COMPOSITION-ADAPTER",
    "crate": "hsk-studio-composite",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-composite-comp-20261015",
-   "commits": [],
+   "commits": [
+    "791f865",
+    "19a7c19",
+    "13f5bd0",
+    "b1d5e85",
+    "e99c4a7",
+    "62c0bf6",
+    "b9bb3e0",
+    "1ddd686"
+   ],
    "verdicts": [],
-   "note": "TemporalSource adapter over folio StudioCompositionRecords (layer lookup, timing, streams -> motion Property), anchor/parent chain/source-time mapping/precomp recursion/track mattes via pigment Transform; after SMB-COMPOSITE-NEW-KINDS"
+   "note": "TemporalSource adapter over folio StudioCompositionRecords (layer lookup, timing, streams -> motion Property), anchor/parent chain/source-time mapping/precomp recursion/track mattes via pigment Transform; after SMB-COMPOSITE-NEW-KINDS",
+   "lane_file": "builders/lanes/hsk-studio-composite-composition-adapter.json"
   },
   {
    "lane_id": "SMB-INTEROP-FIG-LAYER-GRAPH",
@@ -5056,9 +5066,9 @@
   {
    "lane_id": "SMB-COMPOSITE-VECTOR-IN-GROUP",
    "crate": "hsk-studio-composite",
-   "phase": "queued",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-composite-comp-20261015",
    "commits": [],
    "verdicts": [],
    "note": "after SMB-COMPOSITE-COMPOSITION-ADAPTER: image-typed vector sources in groups (folio 6e2ec80) + lower strokes (nib::stroke::outline_stroke), exact coverage (nib::raster::rasterize), gradients/patterns (nib::raster::paint_coverage), live boolean outlines (nib::boolean); CPU/GPU parity"
@@ -5141,6 +5151,16 @@
    "commits": [],
    "verdicts": [],
    "note": "after a2d17b0: errors raised at submit still surface as device_fault; SharedDevice::new returns code without detail; FXC message carries a machine path (redact to file name before it enters fault data)"
+  },
+  {
+   "lane_id": "SMB-COMPOSITE-COMPOSITION-2",
+   "crate": "hsk-studio-composite",
+   "phase": "queued",
+   "status": null,
+   "owner": "builder-composite-comp-20261015",
+   "commits": [],
+   "verdicts": [],
+   "note": "composition layers: masks + effects (reuse lower_to_render_plan_extended per layer), vector/text/adjustment layers via prepared planes, collapse_transformations; precomps + mattes on the document-graph path; after SMB-COMPOSITE-VECTOR-IN-GROUP"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
