@@ -1,0 +1,20 @@
+[workspace]
+
+[package]
+name = "handshake_document_surreal"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[features]
+surreal-test-support = ["handshake_document/surreal-test-support", "handshake_storage_support/surreal-test-support"]
+
+[dependencies]
+handshake_document = { path = "../handshake_document" }
+handshake_storage_support = { path = "../handshake_storage_support" }
+async-trait = "0.1"
+chrono = { version = "0.4", features = ["serde", "clock"] }
+serde_json = "1"
+surrealdb-types = "=3.2.0"
+tracing = "0.1"

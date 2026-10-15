@@ -32,10 +32,10 @@ use screenshot_harness::ScreenshotHarness as Harness;
 mod backend_proof_support;
 
 use handshake_native::rich_editor::document_model::node::{BlockNode, Child, HsLinkNode, NodeKind};
-use handshake_native::rich_editor::embeds::asset_resolver::SequenceItem;
-use handshake_native::rich_editor::embeds::asset_resolver::{
+use handshake_asset_resolver::SequenceItem;
+use handshake_asset_resolver::{
     AssetMetadataFetcher, EmbedAssetMetadata, EmbedError, EmbedResolutionState, MediaEmbedKind,
-    MediaTier, MetadataFuture, ResolvedAsset,
+    MediaTier, MetadataFuture, ResolvedAsset, ResolvedAssetUrls,
 };
 use handshake_native::rich_editor::embeds::embed_block_renderer::{EmbedRuntime, SequenceState};
 use handshake_native::rich_editor::embeds::image_view::decode_rgba;
@@ -115,8 +115,20 @@ fn assert_image_interaction<State>(harness: &Harness<'_, State>, author_id: &str
 
 /// A fetcher that always errors — drives the headless typed-error-chip path (used by the
 /// error-chip screenshot when no resolution is pre-seeded).
+fn mock_asset_urls(asset_id: &str) -> ResolvedAssetUrls {
+    ResolvedAssetUrls {
+        content_url: format!("mock://{asset_id}/content"),
+        thumbnail_url: format!("mock://{asset_id}/thumbnail"),
+        preview_url: format!("mock://{asset_id}/preview"),
+        poster_url: format!("mock://{asset_id}/poster"),
+    }
+}
+
 struct ErrFetcher;
 impl AssetMetadataFetcher for ErrFetcher {
+    fn asset_urls(&self, _base: &str, _ws: &str, id: &str) -> ResolvedAssetUrls {
+        mock_asset_urls(id)
+    }
     fn fetch_metadata<'a>(&'a self, _ws: &'a str, id: &'a str) -> MetadataFuture<'a> {
         let id = id.to_owned();
         Box::pin(async move { Err(EmbedError::NotFound(id)) })
@@ -164,6 +176,9 @@ impl PngContentFetcher {
     }
 }
 impl AssetMetadataFetcher for PngContentFetcher {
+    fn asset_urls(&self, _base: &str, _ws: &str, id: &str) -> ResolvedAssetUrls {
+        mock_asset_urls(id)
+    }
     fn fetch_metadata<'a>(&'a self, ws: &'a str, id: &'a str) -> MetadataFuture<'a> {
         let (ws, id) = (ws.to_owned(), id.to_owned());
         Box::pin(async move {
@@ -188,7 +203,7 @@ impl AssetMetadataFetcher for PngContentFetcher {
         &'a self,
         _ws: &'a str,
         _id: &'a str,
-    ) -> handshake_native::rich_editor::embeds::asset_resolver::ContentFuture<'a> {
+    ) -> handshake_asset_resolver::ContentFuture<'a> {
         self.content_calls
             .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         let png = self.png.clone();
@@ -201,7 +216,7 @@ impl AssetMetadataFetcher for PngContentFetcher {
         _id: &'a str,
         _kind: MediaEmbedKind,
         tier: MediaTier,
-    ) -> handshake_native::rich_editor::embeds::asset_resolver::ContentFuture<'a> {
+    ) -> handshake_asset_resolver::ContentFuture<'a> {
         self.content_calls
             .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         self.tier_calls.lock().unwrap().push(tier);
@@ -216,6 +231,9 @@ struct FlakyRetryFetcher {
 }
 
 impl AssetMetadataFetcher for FlakyRetryFetcher {
+    fn asset_urls(&self, _base: &str, _ws: &str, id: &str) -> ResolvedAssetUrls {
+        mock_asset_urls(id)
+    }
     fn fetch_metadata<'a>(&'a self, ws: &'a str, id: &'a str) -> MetadataFuture<'a> {
         let attempt = self
             .metadata_calls
@@ -245,7 +263,7 @@ impl AssetMetadataFetcher for FlakyRetryFetcher {
         _id: &'a str,
         _kind: MediaEmbedKind,
         _tier: MediaTier,
-    ) -> handshake_native::rich_editor::embeds::asset_resolver::ContentFuture<'a> {
+    ) -> handshake_asset_resolver::ContentFuture<'a> {
         let png = self.png.clone();
         Box::pin(async move { Ok(png) })
     }
@@ -1221,9 +1239,8 @@ fn mt014_traversal_and_scheme_refs_render_typed_chip() {
 #[cfg(feature = "integration")]
 fn real_image_resolve_against_live_backend() {
     let _gui_guard = embed_gui_test_guard();
-    use handshake_native::rich_editor::embeds::asset_resolver::{
-        resolve_one, MediaEmbedKind, ReqwestAssetFetcher,
-    };
+    use handshake_asset_resolver::{resolve_one, MediaEmbedKind};
+    use handshake_native::rich_editor::embeds::asset_resolver::ReqwestAssetFetcher;
 
     // MT-154: the proof seeds its own workspace image through the owned managed backend (the same
     // fixture and production import route as the hermetic MT-014 proof) instead of reading
@@ -1407,7 +1424,8 @@ fn seed_asset(
 
 #[test]
 fn mt014_seeded_asset_real_backend_decode_aspect_missing_corrupt() {
-    use handshake_native::rich_editor::embeds::asset_resolver::{resolve_one, ReqwestAssetFetcher};
+    use handshake_asset_resolver::resolve_one;
+    use handshake_native::rich_editor::embeds::asset_resolver::ReqwestAssetFetcher;
 
     let _gui_guard = embed_gui_test_guard();
     let mut backend = backend_proof_support::require_live_backend();

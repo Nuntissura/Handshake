@@ -9588,40 +9588,7 @@ impl ModelLaneAuthority {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ModelLaneRoutingPolicy {
-    LocalFirst,
-    CloudReview,
-    CloudPlanLocalExecute,
-    ParallelDebate,
-    ValidatorLane,
-    OperatorLane,
-}
-
-impl ModelLaneRoutingPolicy {
-    pub fn all() -> &'static [Self] {
-        &[
-            Self::LocalFirst,
-            Self::CloudReview,
-            Self::CloudPlanLocalExecute,
-            Self::ParallelDebate,
-            Self::ValidatorLane,
-            Self::OperatorLane,
-        ]
-    }
-
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::LocalFirst => "local_first",
-            Self::CloudReview => "cloud_review",
-            Self::CloudPlanLocalExecute => "cloud_plan_local_execute",
-            Self::ParallelDebate => "parallel_debate",
-            Self::ValidatorLane => "validator_lane",
-            Self::OperatorLane => "operator_lane",
-        }
-    }
-}
+pub use handshake_model_lane_routing::ModelLaneRoutingPolicy;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

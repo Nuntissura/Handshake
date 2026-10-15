@@ -16,10 +16,8 @@
 //!
 //! ## Submodules
 //!
-//! - [`asset_resolver`] — the fail-closed validation pipeline (port of `embed_assets.ts`), the
-//!   typed [`asset_resolver::EmbedError`] vocabulary, the async [`asset_resolver::resolve_one`] /
-//!   [`asset_resolver::resolve_sequence`] (bounded concurrency, MC-002), and the per-asset
-//!   resolution cache (AC-9). Fully unit-testable with a counted mock fetcher (NO backend).
+//! - [`asset_resolver`] — native authenticated transport and REST URLs. Validation, ordered
+//!   resolution, cancellation and caching live in [`handshake_asset_resolver`].
 //! - [`image_view`] — single-image decode (off-thread, MC-001), texture cache, aspect-fit.
 //! - [`slideshow_view`] — one-at-a-time prev/next with wrap (AC-5), pure nav state.
 //! - [`album_view`] — 3-per-row grid + click-to-enlarge modal state (AC-6).

@@ -1,0 +1,13 @@
+[workspace]
+
+[package]
+name = "handshake_text_mechanics"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+ropey = "1.6"
+unicode-segmentation = "1.13"
+unicode-linebreak = "0.1"
+unicode-bidi = "0.3"

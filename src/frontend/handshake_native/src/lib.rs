@@ -140,7 +140,7 @@ pub mod visual_debugger;
 // `text_intl::linebreak` = UAX#14 break opportunities + kinsoku that SUPPLEMENT egui's native CJK Galley
 // wrap where it falls short (Korean Hangul + no-break-after-opening-bracket); `text_intl::counts` =
 // UAX#29 word count + grapheme-cluster char count for the MT-019 footer. Pure logic (no egui, no Color32).
-pub mod text_intl;
+pub use handshake_text_mechanics::text_intl;
 pub mod theme;
 pub mod top_menu_bar;
 // WP-KERNEL-012 MT-035 (E5 — unified undo scope): the ONE session-scoped in-memory undo authority

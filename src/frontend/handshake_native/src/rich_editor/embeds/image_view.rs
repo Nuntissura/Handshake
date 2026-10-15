@@ -17,7 +17,7 @@
 
 use egui::{ColorImage, TextureHandle, TextureOptions};
 
-use crate::rich_editor::embeds::asset_resolver::{
+use handshake_asset_resolver::{
     EmbedError, ResolvedAsset, MAX_FULL_IMAGE_BYTES, MAX_IMAGE_DIMENSION, MAX_IMAGE_PIXELS,
 };
 

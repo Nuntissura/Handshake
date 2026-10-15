@@ -21,7 +21,7 @@ use std::sync::Arc;
 use egui::{Color32, FontId, Rect, Stroke, Vec2};
 
 use crate::rich_editor::document_model::node::{BlockNode, Child, HsLinkNode, NodeKind};
-use crate::rich_editor::embeds::asset_resolver::MediaEmbedKind;
+use handshake_asset_resolver::MediaEmbedKind;
 use crate::theme::HsPalette;
 
 use super::caret::{DocCaret, CARET_WIDTH_PTS};

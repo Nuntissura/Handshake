@@ -32,7 +32,8 @@ use egui::accesskit;
 use crate::mcp::action::{serialize_same_target_click_completion, ClickCompletionState};
 use crate::rich_editor::document_model::node::HsLinkNode;
 use crate::rich_editor::embeds::album_view::{self, AlbumViewState};
-use crate::rich_editor::embeds::asset_resolver::{
+use crate::rich_editor::embeds::asset_resolver::ReqwestAssetFetcher;
+use handshake_asset_resolver::{
     AssetMetadataFetcher, EmbedError, EmbedResolutionCache, EmbedResolutionState, MediaEmbedKind,
     MediaTier, ResolvedAsset, SequenceItem, EMBED_OPERATION_TIMEOUT, MAX_CONCURRENT_RESOLUTIONS,
 };
@@ -116,6 +117,11 @@ pub enum SequenceState {
     Err(EmbedError),
 }
 
+enum EmbedTransport {
+    Reqwest(ReqwestAssetFetcher),
+    Injected(Arc<dyn AssetMetadataFetcher>),
+}
+
 /// The per-editor embed runtime: caches + view states + the async transport. Owned by
 /// `RichEditorState`. Stores everything that must survive across frames so a re-render reuses
 /// resolved assets/textures (AC-9) and remembers slideshow/album/video paging.
@@ -125,7 +131,8 @@ pub struct EmbedRuntime {
     /// REST base the content/thumbnail URLs resolve against (matches the fetcher's base).
     pub base_url: String,
     /// The async metadata fetcher (production: reqwest; tests: a counted mock).
-    pub fetcher: Arc<dyn AssetMetadataFetcher>,
+    transport: EmbedTransport,
+    authenticated_context: Option<Arc<crate::local_account::AuthenticatedContext>>,
     /// The tokio runtime handle resolutions spawn onto (None in a headless unit test that does
     /// not exercise the spawn path — the standalone view/validation tests do not need it).
     pub runtime: Option<tokio::runtime::Handle>,
@@ -230,12 +237,31 @@ impl EmbedRuntime {
         fetcher: Arc<dyn AssetMetadataFetcher>,
         runtime: Option<tokio::runtime::Handle>,
     ) -> Self {
+        Self::with_transport(workspace_id, base_url, EmbedTransport::Injected(fetcher), runtime)
+    }
+
+    pub fn new_production(
+        workspace_id: impl Into<String>,
+        base_url: impl Into<String>,
+        fetcher: ReqwestAssetFetcher,
+        runtime: Option<tokio::runtime::Handle>,
+    ) -> Self {
+        Self::with_transport(workspace_id, base_url, EmbedTransport::Reqwest(fetcher), runtime)
+    }
+
+    fn with_transport(
+        workspace_id: impl Into<String>,
+        base_url: impl Into<String>,
+        transport: EmbedTransport,
+        runtime: Option<tokio::runtime::Handle>,
+    ) -> Self {
         let workspace_id = workspace_id.into();
         Self {
             context_workspace_id: workspace_id.clone(),
             workspace_id,
             base_url: base_url.into(),
-            fetcher,
+            transport,
+            authenticated_context: None,
             runtime,
             resolutions: EmbedResolutionCache::new(),
             sequences: std::collections::HashMap::new(),
@@ -268,8 +294,12 @@ impl EmbedRuntime {
             return;
         }
 
-        self.generation = self.generation.wrapping_add(1);
         self.context_workspace_id.clone_from(&self.workspace_id);
+        self.invalidate_context();
+    }
+
+    fn invalidate_context(&mut self) {
+        self.generation = self.generation.wrapping_add(1);
         for task in self.pending_tasks.drain(..) {
             task.abort();
         }
@@ -285,6 +315,32 @@ impl EmbedRuntime {
         self.image_modal_clip_rects.clear();
         self.image_modal_generations.clear();
         self.video_states.clear();
+    }
+
+    pub fn bind_authenticated_context(
+        &mut self,
+        context: Option<Arc<crate::local_account::AuthenticatedContext>>,
+    ) {
+        let unchanged = match (&self.authenticated_context, &context) {
+            (Some(left), Some(right)) => Arc::ptr_eq(left, right),
+            (None, None) => true,
+            _ => false,
+        };
+        if unchanged {
+            return;
+        }
+        self.invalidate_context();
+        if let EmbedTransport::Reqwest(fetcher) = &mut self.transport {
+            *fetcher = fetcher.clone().with_authenticated_context(context.clone());
+        }
+        self.authenticated_context = context;
+    }
+
+    fn clone_fetcher(&self) -> Arc<dyn AssetMetadataFetcher> {
+        match &self.transport {
+            EmbedTransport::Reqwest(fetcher) => Arc::new(fetcher.clone()),
+            EmbedTransport::Injected(fetcher) => Arc::clone(fetcher),
+        }
     }
 
     /// Drain any off-thread resolution results delivered since the last frame into the caches.
@@ -358,7 +414,7 @@ impl EmbedRuntime {
         };
         self.resolutions
             .insert(cache_key, EmbedResolutionState::Resolving);
-        let fetcher = Arc::clone(&self.fetcher);
+        let fetcher = self.clone_fetcher();
         let cell = Arc::clone(&self.single_cell);
         let workspace_id = self.workspace_id.clone();
         let base_url = self.base_url.clone();
@@ -372,7 +428,7 @@ impl EmbedRuntime {
                     .acquire_owned()
                     .await
                     .map_err(|_| EmbedError::ServerError("embed work budget closed".to_owned()))?;
-                crate::rich_editor::embeds::asset_resolver::resolve_one(
+                handshake_asset_resolver::resolve_one(
                     kind,
                     &workspace_id,
                     &asset_id,
@@ -420,7 +476,7 @@ impl EmbedRuntime {
             return; // headless: the caller delivers the decoded image directly in tests.
         };
         self.content_in_flight.insert(media_key);
-        let fetcher = Arc::clone(&self.fetcher);
+        let fetcher = self.clone_fetcher();
         let cell = Arc::clone(&self.content_cell);
         let workspace_id = self.workspace_id.clone();
         let asset_id = asset_id.to_owned();
@@ -482,7 +538,7 @@ impl EmbedRuntime {
         };
         self.sequences
             .insert(sequence_key, SequenceState::Resolving);
-        let fetcher = Arc::clone(&self.fetcher);
+        let fetcher = self.clone_fetcher();
         let cell = Arc::clone(&self.sequence_cell);
         let workspace_id = self.workspace_id.clone();
         let base_url = self.base_url.clone();
@@ -493,7 +549,7 @@ impl EmbedRuntime {
         let task = runtime.spawn(async move {
             let result = tokio::time::timeout(
                 operation_timeout,
-                crate::rich_editor::embeds::asset_resolver::resolve_sequence_with_budget(
+                handshake_asset_resolver::resolve_sequence_with_budget(
                     kind,
                     &workspace_id,
                     &ref_value,
@@ -580,7 +636,7 @@ fn render_single_image(
     max_width: f32,
 ) {
     // Validate first so a bad ref is a visible chip with NO fetch (AC-3/AC-4 at render time).
-    let asset_id = match crate::rich_editor::embeds::asset_resolver::validate_asset_ref(ref_value) {
+    let asset_id = match handshake_asset_resolver::validate_asset_ref(ref_value) {
         Ok(id) => id,
         Err(e) => {
             render_error_chip(ui, ref_value, &e, palette);
@@ -871,7 +927,7 @@ fn render_video(
     runtime: &mut EmbedRuntime,
     palette: &HsPalette,
 ) {
-    let asset_id = match crate::rich_editor::embeds::asset_resolver::validate_asset_ref(ref_value) {
+    let asset_id = match handshake_asset_resolver::validate_asset_ref(ref_value) {
         Ok(id) => id,
         Err(e) => {
             render_error_chip(ui, ref_value, &e, palette);
@@ -1422,14 +1478,26 @@ fn emit_image_node(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::rich_editor::embeds::asset_resolver::{
-        ContentFuture, EmbedAssetMetadata, MetadataFuture,
+    use handshake_asset_resolver::{
+        ContentFuture, EmbedAssetMetadata, MetadataFuture, ResolvedAssetUrls,
     };
     use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+
+    fn mock_asset_urls(asset_id: &str) -> ResolvedAssetUrls {
+        ResolvedAssetUrls {
+            content_url: format!("mock://{asset_id}/content"),
+            thumbnail_url: format!("mock://{asset_id}/thumbnail"),
+            preview_url: format!("mock://{asset_id}/preview"),
+            poster_url: format!("mock://{asset_id}/poster"),
+        }
+    }
 
     /// A fetcher that always errors (used to drive the headless Err-chip path without a backend).
     struct NeverFetcher;
     impl AssetMetadataFetcher for NeverFetcher {
+        fn asset_urls(&self, _base: &str, _ws: &str, id: &str) -> ResolvedAssetUrls {
+            mock_asset_urls(id)
+        }
         fn fetch_metadata<'a>(&'a self, _ws: &'a str, _id: &'a str) -> MetadataFuture<'a> {
             Box::pin(async { Err(EmbedError::NotFound("never".to_owned())) })
         }
@@ -1438,6 +1506,9 @@ mod tests {
     /// A transport that never completes, used to prove the bounded timeout terminal state.
     struct PendingFetcher;
     impl AssetMetadataFetcher for PendingFetcher {
+        fn asset_urls(&self, _base: &str, _ws: &str, id: &str) -> ResolvedAssetUrls {
+            mock_asset_urls(id)
+        }
         fn fetch_metadata<'a>(&'a self, _ws: &'a str, _id: &'a str) -> MetadataFuture<'a> {
             Box::pin(std::future::pending())
         }
@@ -1461,6 +1532,9 @@ mod tests {
     }
 
     impl AssetMetadataFetcher for SharedBudgetFetcher {
+        fn asset_urls(&self, _base: &str, _ws: &str, id: &str) -> ResolvedAssetUrls {
+            mock_asset_urls(id)
+        }
         fn fetch_metadata<'a>(
             &'a self,
             workspace_id: &'a str,
@@ -1505,6 +1579,9 @@ mod tests {
     }
 
     impl AssetMetadataFetcher for DropTrackedFetcher {
+        fn asset_urls(&self, _base: &str, _ws: &str, id: &str) -> ResolvedAssetUrls {
+            mock_asset_urls(id)
+        }
         fn fetch_metadata<'a>(&'a self, _ws: &'a str, _id: &'a str) -> MetadataFuture<'a> {
             let dropped = Arc::clone(&self.future_dropped);
             Box::pin(async move {
@@ -1794,6 +1871,59 @@ mod tests {
             rt.pending_tasks.is_empty(),
             "workspace rebind aborts and releases every task owned by the prior context"
         );
+    }
+
+    #[test]
+    fn authenticated_rebind_clears_caches_tasks_and_stale_deliveries() {
+        let async_runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("auth cancellation test runtime");
+        let mut rt = EmbedRuntime::new_production(
+            "ws",
+            "http://b",
+            ReqwestAssetFetcher::new("http://b"),
+            None,
+        );
+        let first = crate::local_account::mock_account_context("http://b");
+        rt.bind_authenticated_context(Some(first.clone()));
+        let generation = rt.generation;
+        rt.resolutions.insert("images:old", EmbedResolutionState::Resolving);
+        rt.bind_authenticated_context(Some(first));
+        assert_eq!(rt.generation, generation, "same auth Arc preserves the cache");
+        assert!(!rt.resolutions.is_empty());
+        rt.sequences.insert("album:old".to_owned(), SequenceState::Resolving);
+        rt.pending_tasks.push(async_runtime.spawn(std::future::pending()));
+        rt.single_cell.lock().unwrap().push((
+            generation,
+            MediaEmbedKind::Images,
+            "old".to_owned(),
+            EmbedResolutionState::Ok(ok_resolved("old")),
+        ));
+        let second = crate::local_account::mock_account_context("http://b");
+        rt.bind_authenticated_context(Some(second));
+        assert_ne!(rt.generation, generation);
+        assert!(rt.pending_tasks.is_empty());
+        assert!(rt.resolutions.is_empty());
+        assert!(rt.sequences.is_empty());
+        assert!(!rt.drain_deliveries(), "old auth delivery cannot repopulate caches");
+        assert!(matches!(&rt.transport, EmbedTransport::Reqwest(_)));
+
+        rt.resolutions.insert("images:logout", EmbedResolutionState::Resolving);
+        let generation = rt.generation;
+        rt.bind_authenticated_context(None);
+        assert_ne!(rt.generation, generation, "lost auth invalidates cached state");
+        assert!(rt.resolutions.is_empty());
+        rt.bind_authenticated_context(None);
+        assert_eq!(rt.generation, generation.wrapping_add(1));
+
+        let fetcher: Arc<dyn AssetMetadataFetcher> = Arc::new(NeverFetcher);
+        let mut injected = EmbedRuntime::new("ws", "http://b", fetcher.clone(), None);
+        injected.bind_authenticated_context(Some(crate::local_account::mock_account_context("http://b")));
+        let EmbedTransport::Injected(retained) = &injected.transport else {
+            panic!("auth binding must not replace an injected transport");
+        };
+        assert!(Arc::ptr_eq(&fetcher, retained));
     }
 
     #[test]

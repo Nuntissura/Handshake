@@ -70,7 +70,7 @@ use crate::storage::knowledge::{
     WikiLoomBlockState, RICH_DOCUMENT_RESULT_REF_KIND, RICH_DOCUMENT_VERSION_RESULT_REF_KIND,
 };
 use crate::storage::{StorageError, StorageResult};
-use handshake_document::surreal::{
+use handshake_document_surreal::{
     backlink_to_domain, backlink_write_binds, entity_to_domain, owned_source_upsert_rows,
     read_live_rich_document, replace_backlinks_attempt, resolve_backlink_rows,
     rich_document_to_domain, source_to_domain, BacklinkRecord, EntityRecord, RichDocRecord,
@@ -2708,7 +2708,7 @@ impl KnowledgeStore for SurrealDatabase {
                 let source_id = new_knowledge_id("KSRC");
                 owned_source_upsert_rows(
                     self.storage(),
-                    handshake_document::surreal::SOURCE_UPSERT_STATEMENT,
+                    handshake_document_surreal::SOURCE_UPSERT_STATEMENT,
                     vec![
                         b("source_id", source_id.clone()),
                         b(
@@ -2783,7 +2783,7 @@ impl KnowledgeStore for SurrealDatabase {
         workspace_id: &str,
         document_id: &str,
     ) -> StorageResult<Option<KnowledgeSource>> {
-        handshake_document::surreal::get_knowledge_source_by_document_id(
+        handshake_document_surreal::get_knowledge_source_by_document_id(
             self.storage(),
             workspace_id,
             document_id,
@@ -2805,7 +2805,7 @@ impl KnowledgeStore for SurrealDatabase {
     }
 
     async fn mark_knowledge_source_stale(&self, source_id: &str) -> StorageResult<KnowledgeSource> {
-        handshake_document::surreal::mark_knowledge_source_stale(self.storage(), source_id).await
+        handshake_document_surreal::mark_knowledge_source_stale(self.storage(), source_id).await
     }
 
     async fn record_knowledge_source_index_receipt(
@@ -3089,7 +3089,7 @@ impl KnowledgeStore for SurrealDatabase {
             || {
                 let entity_id = new_knowledge_id("KEN");
                 async move {
-                    handshake_document::surreal::upsert_entity_attempt(
+                    handshake_document_surreal::upsert_entity_attempt(
                         self.storage(),
                         new_entity,
                         entity_id,
@@ -6646,7 +6646,7 @@ mod knowledge_store_surface {
 }
 
 #[async_trait]
-impl handshake_document::surreal::DocumentQuery for SurrealStorage {
+impl handshake_document_surreal::DocumentQuery for SurrealStorage {
     async fn execute(&self, statement: String, binds: Binds) -> StorageResult<()> {
         raw_execute(self, statement, binds).await.map_err(map_err)
     }
@@ -6734,7 +6734,7 @@ impl handshake_document::surreal::DocumentQuery for SurrealStorage {
         statement: String,
         binds: Binds,
         index: usize,
-        guards: Option<&[handshake_document::surreal::Guard]>,
+        guards: Option<&[handshake_document_surreal::Guard]>,
     ) -> StorageResult<Vec<R>> {
         raw_rows_at(self, statement, binds, index)
             .await

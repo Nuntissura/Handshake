@@ -1,7 +1,7 @@
 //! Line-edit buffer transform proofs (WP-KERNEL-012 MT-051).
 //!
 //! These integration proofs exercise the REAL wired path, not the pure-function unit tests that live in
-//! `src/code_editor/line_ops.rs` (those cover the per-transform AC behavior — ToggleComment all-or-nothing,
+//! `handshake_text_mechanics/src/line_ops.rs` (those cover the per-transform AC behavior — ToggleComment all-or-nothing,
 //! move/delete boundaries, tab/space modes, UTF-8 correctness). Here we prove the contract obligations
 //! that need the PANEL + the DISPATCH + the unified-undo BUS:
 //!
@@ -268,8 +268,11 @@ fn no_unimplemented_markers_on_handler_paths() {
     // Scan the two source files that carry the eight action handlers: the dispatch site (panel.rs) and the
     // transform library (line_ops.rs). Neither may contain a `todo!`/`unimplemented!` macro invocation —
     // the handlers are REAL (AC-010 / PT-004). The crate root is the CWD for cargo test.
-    let line_ops =
-        std::fs::read_to_string("src/code_editor/line_ops.rs").expect("read line_ops.rs");
+    let line_ops = std::fs::read_to_string(
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../handshake_text_mechanics/src/line_ops.rs"),
+    )
+    .expect("read extracted line_ops.rs");
     // line_ops.rs is the transform library: it must contain ZERO of these markers anywhere.
     for marker in ["todo!", "unimplemented!"] {
         assert!(
@@ -367,4 +370,65 @@ fn line_ops_panel_renders_and_screenshots_externally() {
 
     // CX-212E: the run must not have created any repo-local artifact dir.
     assert_no_local_artifact_dir();
+}
+
+// ── line_comment_token + LanguageRegistry id reuse (RISK-007 / MC-007) ────────────────────────────
+
+#[test]
+fn comment_token_keyed_on_language_family_id() {
+    // The token table is keyed on the SAME language-family id the highlighter carries, and NARROWED to
+    // the families the bundled registry can actually produce. Every id that resolves to Some(_) here is
+    // a real, reachable product id: `language_id_for_extension` MUST resolve a file extension to it.
+    // A `.rs` buffer's family id is "rust" (the SAME id the highlighter carries) -> "//".
+    assert_eq!(
+        handshake_native::code_editor::highlight::language_id_for_extension("rs"),
+        Some("rust")
+    );
+    assert_eq!(line_comment_token("rust"), Some("//"));
+    // `.js`/`.jsx`/`.mjs`/`.cjs` -> "javascript" -> "//".
+    assert_eq!(
+        handshake_native::code_editor::highlight::language_id_for_extension("js"),
+        Some("javascript")
+    );
+    assert_eq!(line_comment_token("javascript"), Some("//"));
+
+    // REACHABILITY INVARIANT (adversarial-review hardening): the ONLY family ids that may yield a token
+    // are the ids the registry can actually produce. Anything `line_comment_token` accepts must be a
+    // value `language_id_for_extension` returns for some extension — otherwise the arm is DEAD in the
+    // product (a panel can never carry it). Prove the two reachable ids round-trip from an extension,
+    // and that there is no third reachable id by construction (the table only matches "rust"/"javascript").
+    for (ext, expected_id) in [("rs", "rust"), ("js", "javascript")] {
+        let id = handshake_native::code_editor::highlight::language_id_for_extension(ext)
+            .expect("bundled extension resolves to a family id");
+        assert_eq!(id, expected_id);
+        assert!(
+            line_comment_token(id).is_some(),
+            "a reachable family id must have a comment token"
+        );
+    }
+
+    // Families with NO bundled grammar are intentionally unreachable -> None (future work, see fn docs).
+    // These are NOT dispatch ids today: `language_id_for_extension` resolves no extension to them, so
+    // no panel can produce them. Asserting None pins the narrowing (not a dead Some(_) arm).
+    for unmapped in [
+        "python",
+        "shell",
+        "sql",
+        "lua",
+        "typescript",
+        "c",
+        "cpp",
+        "java",
+        "go",
+        "csharp",
+    ] {
+        assert_eq!(
+            line_comment_token(unmapped),
+            None,
+            "{unmapped} has no bundled grammar -> no comment token reachable yet (AC-008 no-op)"
+        );
+    }
+    // Unknown / empty language -> None (ToggleComment no-op, AC-008).
+    assert_eq!(line_comment_token("plaintext"), None);
+    assert_eq!(line_comment_token(""), None);
 }

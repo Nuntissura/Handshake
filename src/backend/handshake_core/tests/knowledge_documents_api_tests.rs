@@ -142,7 +142,7 @@ mod mt170_resolver_observation_capture {
             }
             let safe = match name {
                 "owning_module" => {
-                    (value == "handshake_document::surreal").then_some(value.to_owned())
+                    (value == "handshake_document_surreal").then_some(value.to_owned())
                 }
                 "case_label" => {
                     (value == "mt170_record_user_candidate_read").then_some(value.to_owned())
@@ -297,7 +297,7 @@ mod mt170_resolver_observation_capture {
                 let module_path = event.metadata().module_path().unwrap_or("unknown");
                 fields.values.insert(
                     "producer_module_path".to_owned(),
-                    if module_path == "handshake_document::surreal" {
+                    if module_path == "handshake_document_surreal" {
                         module_path.to_owned()
                     } else {
                         "unbound".to_owned()
@@ -4262,11 +4262,11 @@ async fn mt170_wikilink_to_standalone_loom_block_projects_one_mention_edge() {
             .expect("MT-170 redacted record-user resolver observation");
         assert_eq!(
             observation.get("owning_module").map(String::as_str),
-            Some("handshake_document::surreal")
+            Some("handshake_document_surreal")
         );
         assert_eq!(
             observation.get("producer_module_path").map(String::as_str),
-            Some("handshake_document::surreal")
+            Some("handshake_document_surreal")
         );
         assert_eq!(
             observation

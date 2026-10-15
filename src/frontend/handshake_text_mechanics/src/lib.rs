@@ -1,0 +1,7 @@
+//! Shared text buffer, cursor, line-edit, virtualization and Unicode mechanics.
+
+pub mod buffer;
+pub mod cursor;
+pub mod line_ops;
+pub mod virtual_lines;
+pub mod text_intl;

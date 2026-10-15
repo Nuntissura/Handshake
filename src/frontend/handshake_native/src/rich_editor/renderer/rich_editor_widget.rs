@@ -386,10 +386,10 @@ impl RichEditorState {
     /// fetcher via [`Self::with_embed_runtime`].
     pub fn new(doc: BlockNode) -> Self {
         let base = crate::backend_client::BACKEND_BASE_URL;
-        let embeds = EmbedRuntime::new(
+        let embeds = EmbedRuntime::new_production(
             String::new(),
             base,
-            std::sync::Arc::new(ReqwestAssetFetcher::new(base)),
+            ReqwestAssetFetcher::new(base),
             None,
         );
         // MT-015: the wikilink runtime defaults to the PRODUCTION reqwest backend, no tokio handle,
@@ -860,14 +860,7 @@ impl RichEditorState {
         self.authenticated_context = context.clone();
         // MT-154: asset/collection embed reads run as the account record user. Rebind the production
         // fetcher to the new session; an injected test double (no account transport) is left as-is.
-        if let Some(fetcher) =
-            crate::rich_editor::embeds::asset_resolver::AssetMetadataFetcher::rebind_authenticated_context(
-                &*self.embeds.fetcher,
-                context.clone(),
-            )
-        {
-            self.embeds.fetcher = fetcher;
-        }
+        self.embeds.bind_authenticated_context(context.clone());
         self.properties_runtime.backend = std::sync::Arc::new(
             crate::rich_editor::properties::metadata_client::ReqwestMetadataBackend::new(base_url)
                 .with_authenticated_context(context),

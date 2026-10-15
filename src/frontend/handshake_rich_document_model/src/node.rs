@@ -18,7 +18,7 @@
 //! ## Char-index discipline (red-team RISK-1)
 //!
 //! Text lives in [`TextLeaf`] which wraps `ropey::Rope`. Every text mutation goes
-//! through [`crate::rich_editor::document_model::rope_text::RopeText`], which speaks
+//! through [`crate::rope_text::RopeText`], which speaks
 //! CHAR indices exclusively (`Rope::insert` / `Rope::remove` / `Rope::char`). A
 //! byte index is NEVER used to address rope content here, because a byte offset
 //! that lands inside a multi-byte UTF-8 char (CJK, emoji) silently corrupts the

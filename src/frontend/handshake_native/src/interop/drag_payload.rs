@@ -379,7 +379,7 @@ mod tests {
         }
         // The CKC refKinds are DISTINCT from the media-render kinds (so a CKC chip is never routed to the
         // image/video renderer).
-        for media in crate::rich_editor::embeds::asset_resolver::MEDIA_EMBED_REF_KINDS {
+        for media in handshake_asset_resolver::MEDIA_EMBED_REF_KINDS {
             assert!(
                 !ATELIER_EMBED_REF_KINDS.contains(&media) || media == "atelier",
                 "CKC refKinds must not collide with media-render kinds (collision on '{media}')"

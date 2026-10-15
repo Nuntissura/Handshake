@@ -52,7 +52,7 @@
 //! than re-creating.
 
 pub mod breakpoints;
-pub mod buffer;
+pub use handshake_text_mechanics::buffer;
 // WP-KERNEL-012 MT-049 (E1 — VS Code parity): Code actions / quick fixes. The lightbulb that turns a
 // read-only diagnostic into an actionable fix. Owns the code-action request lifecycle, the action-list +
 // menu state, the gutter-lightbulb decision, and the apply call — which DELEGATES to the MT-048
@@ -61,7 +61,7 @@ pub mod buffer;
 // the MT-048 multi-file/atomic apply (so cross-file fixes apply, not silently dropped).
 pub mod code_actions;
 pub mod code_nav;
-pub mod cursor;
+pub use handshake_text_mechanics::cursor;
 pub mod diff_editor_panel;
 pub mod diff_engine;
 pub mod editor_view;
@@ -98,7 +98,7 @@ pub mod keymap_settings;
 // transform applies per-affected-line in DESCENDING order (RISK-001), is UTF-8 correct via
 // line_to_byte/byte_to_line (RISK-002), and is recorded as ONE undo entry at the panel/factory bus
 // boundary (the MT-035/050 single-undo pattern, RISK-003).
-pub mod line_ops;
+pub use handshake_text_mechanics::line_ops;
 pub mod lsp_client;
 pub mod minimap;
 // WP-KERNEL-012 MT-052 (E1 — VS Code parity): diagnostic traversal (the F8 / Shift+F8 core behind Go to
@@ -142,7 +142,7 @@ pub mod symbol_palette;
 // the top of the viewport while scrolling inside a nested scope. A pure reuse layer over the MT-005
 // FoldRegion list + the MT-002 buffer (literal declaration lines) — no re-parse, no backend.
 pub mod sticky_scroll;
-pub mod virtual_lines;
+pub use handshake_text_mechanics::virtual_lines;
 
 pub use breakpoints::{BreakpointAction, BreakpointEvent, BreakpointSet};
 pub use buffer::{BufferError, TextBuffer};

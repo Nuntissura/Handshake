@@ -109,6 +109,9 @@ diag-test-seams = []
 
 [dependencies]
 handshake-account-activation = { path = "../../shared/handshake_account_activation" }
+handshake_rich_document_model = { path = "../handshake_rich_document_model" }
+handshake_text_mechanics = { path = "../handshake_text_mechanics" }
+handshake_asset_resolver = { path = "../handshake_asset_resolver" }
 handshake_internal_diagnostics = { path = "../handshake_internal_diagnostics" }
 palmistry-control-protocol = { path = "../palmistry_control_protocol" }
 handshake_core = { path = "../../backend/handshake_core", default-features = false, features = ["runtime-full"] }

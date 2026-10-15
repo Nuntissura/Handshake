@@ -1,6 +1,6 @@
 //! Line-edit buffer transforms behind the MT-010 keymap (WP-KERNEL-012 — E1 MT-051).
 //!
-//! MT-010 (`keymap.rs`) declares the [`CodeEditorAction`](super::keymap::CodeEditorAction) variants
+//! MT-010 (`keymap.rs`) declares the `CodeEditorAction` variants
 //! `ToggleComment`, `DuplicateLine`, `MoveLineUp`, `MoveLineDown`, `DeleteLine`, `IndentLine`,
 //! `DedentLine`, and `InsertTab` and binds them to the VS Code parity chords (Ctrl+/, Ctrl+Shift+K,
 //! Alt+Up/Down, Tab, …). This module supplies the REAL buffer transforms those chords run, so they
@@ -12,8 +12,8 @@
 //!
 //! The MT contract asked to "import/re-export the MT-001 LanguageRegistry language enum". MT-001 does
 //! NOT model language as a Rust enum: a document's language is the stable language-FAMILY id string
-//! ([`super::highlight::language_id_for_extension`] → `"rust"` / `"javascript"`), carried on the
-//! highlighter and on [`CodeEditorPanel::language_id`](super::panel::CodeEditorPanel). To avoid creating
+//! (`language_id_for_extension` → `"rust"` / `"javascript"`), carried on the
+//! highlighter and on `CodeEditorPanel::language_id`. To avoid creating
 //! a SECOND competing language type (the exact RISK-007 failure), [`LineEditContext`] keys the comment
 //! token on that SAME language-family id string, so a file's highlight language drives its comment token.
 //! [`line_comment_token`] is the single token table, and it is NARROWED to the language families the
@@ -96,15 +96,15 @@ impl LineEditContext {
 
 /// The line-comment token for a language-family id, or `None` for a language with no line comment token
 /// reachable through the product (whose ToggleComment is a safe no-op — AC-008). Keyed on the SAME stable
-/// language-family id string the highlighter carries ([`super::highlight::language_id_for_extension`]),
+/// language-family id string the highlighter carries (`language_id_for_extension`),
 /// so it matches the file's highlight language (RISK-007 / MC-007), never a second enum. Returns a
 /// `&'static str` so callers do not allocate.
 ///
 /// REACHABILITY (adversarial-review hardening): the token table is deliberately NARROWED to the language
-/// families the bundled [`super::highlight::LanguageRegistry::with_bundled_languages`] actually produces —
+/// families the bundled `LanguageRegistry::with_bundled_languages` actually produces —
 /// `"rust"` (`.rs`) and `"javascript"` (`.js`/`.jsx`/`.mjs`/`.cjs`). Those are the ONLY ids
-/// [`super::highlight::language_id_for_extension`] resolves, and the dispatch path
-/// ([`super::panel::CodeEditorPanel::line_edit_context`]) feeds this fn exactly the panel's
+/// `language_id_for_extension` resolves, and the dispatch path
+/// (`CodeEditorPanel::line_edit_context`) feeds this fn exactly the panel's
 /// `language_id`, i.e. one of `"rust"` / `"javascript"` / `""`. A wider table (`#` for Python/Shell/YAML,
 /// `--` for SQL/Lua, `//` for TS/C/C++/Java/Go/C#) would be DEAD in the product: no panel can carry those
 /// ids until the registry bundles the grammar AND `language_id_for_extension` learns the extension — a
@@ -699,67 +699,6 @@ mod tests {
         let mut s = CursorSet::single(offset);
         s.normalize(buf);
         s
-    }
-
-    // ── line_comment_token + LanguageRegistry id reuse (RISK-007 / MC-007) ────────────────────────────
-
-    #[test]
-    fn comment_token_keyed_on_language_family_id() {
-        // The token table is keyed on the SAME language-family id the highlighter carries, and NARROWED to
-        // the families the bundled registry can actually produce. Every id that resolves to Some(_) here is
-        // a real, reachable product id: `language_id_for_extension` MUST resolve a file extension to it.
-        // A `.rs` buffer's family id is "rust" (the SAME id the highlighter carries) -> "//".
-        assert_eq!(
-            super::super::highlight::language_id_for_extension("rs"),
-            Some("rust")
-        );
-        assert_eq!(line_comment_token("rust"), Some("//"));
-        // `.js`/`.jsx`/`.mjs`/`.cjs` -> "javascript" -> "//".
-        assert_eq!(
-            super::super::highlight::language_id_for_extension("js"),
-            Some("javascript")
-        );
-        assert_eq!(line_comment_token("javascript"), Some("//"));
-
-        // REACHABILITY INVARIANT (adversarial-review hardening): the ONLY family ids that may yield a token
-        // are the ids the registry can actually produce. Anything `line_comment_token` accepts must be a
-        // value `language_id_for_extension` returns for some extension — otherwise the arm is DEAD in the
-        // product (a panel can never carry it). Prove the two reachable ids round-trip from an extension,
-        // and that there is no third reachable id by construction (the table only matches "rust"/"javascript").
-        for (ext, expected_id) in [("rs", "rust"), ("js", "javascript")] {
-            let id = super::super::highlight::language_id_for_extension(ext)
-                .expect("bundled extension resolves to a family id");
-            assert_eq!(id, expected_id);
-            assert!(
-                line_comment_token(id).is_some(),
-                "a reachable family id must have a comment token"
-            );
-        }
-
-        // Families with NO bundled grammar are intentionally unreachable -> None (future work, see fn docs).
-        // These are NOT dispatch ids today: `language_id_for_extension` resolves no extension to them, so
-        // no panel can produce them. Asserting None pins the narrowing (not a dead Some(_) arm).
-        for unmapped in [
-            "python",
-            "shell",
-            "sql",
-            "lua",
-            "typescript",
-            "c",
-            "cpp",
-            "java",
-            "go",
-            "csharp",
-        ] {
-            assert_eq!(
-                line_comment_token(unmapped),
-                None,
-                "{unmapped} has no bundled grammar -> no comment token reachable yet (AC-008 no-op)"
-            );
-        }
-        // Unknown / empty language -> None (ToggleComment no-op, AC-008).
-        assert_eq!(line_comment_token("plaintext"), None);
-        assert_eq!(line_comment_token(""), None);
     }
 
     // ── ToggleComment (AC-001, MC-004) ────────────────────────────────────────────────────────────────

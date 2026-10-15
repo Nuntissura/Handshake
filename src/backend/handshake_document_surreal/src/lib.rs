@@ -1,5 +1,5 @@
 //! RichDocument SurrealQL adapter; the host supplies a live authenticated query boundary.
-use crate::domain::*;
+use handshake_document::domain::*;
 use chrono::{DateTime, Utc};
 use handshake_storage_support::diagnostics::observe_result;
 use handshake_storage_support::{StorageError, StorageResult};

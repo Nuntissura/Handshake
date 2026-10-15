@@ -708,7 +708,7 @@ mod tests {
     #[test]
     fn embed_kind_ref_kinds_match_backend() {
         // The embed ref_kinds must be the exact MT-014 backend strings.
-        use crate::rich_editor::embeds::asset_resolver::MEDIA_EMBED_REF_KINDS;
+        use handshake_asset_resolver::MEDIA_EMBED_REF_KINDS;
         for ek in [
             EmbedKind::Image,
             EmbedKind::Slideshow,

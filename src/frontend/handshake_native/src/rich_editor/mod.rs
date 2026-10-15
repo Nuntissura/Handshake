@@ -20,7 +20,7 @@
 //! re-creating shell infrastructure.
 
 pub mod daily_notes;
-pub mod document_model;
+pub use handshake_rich_document_model as document_model;
 pub mod embeds;
 pub mod find_replace;
 pub mod formatting;

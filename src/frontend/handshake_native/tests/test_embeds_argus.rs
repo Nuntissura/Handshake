@@ -39,7 +39,7 @@ use handshake_native::pane_registry::{
     DirtyState, LockState, PaneAuthority, PaneId, PaneRecord, PaneType,
 };
 use handshake_native::rich_editor::document_model::node::{BlockNode, Child, HsLinkNode, NodeKind};
-use handshake_native::rich_editor::embeds::asset_resolver::{
+use handshake_asset_resolver::{
     EmbedAssetMetadata, EmbedError, EmbedResolutionState, ResolvedAsset,
 };
 use handshake_native::rich_editor::embeds::image_view::decode_rgba;

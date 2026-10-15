@@ -165,6 +165,9 @@ test = false
 
 [dependencies]
 handshake-account-activation = { path = "../../shared/handshake_account_activation" }
+handshake_model_lane_routing = { path = "../handshake_model_lane_routing" }
+handshake_resource_scope = { path = "../handshake_resource_scope" }
+handshake_document_surreal = { path = "../handshake_document_surreal" }
 handshake_capability_registry_document = { path = "../handshake_capability_registry_document" }
 handshake_contact_sheet = { path = "../handshake_contact_sheet" }
 handshake_swarm_event_ids = { path = "../handshake_swarm_event_ids" }
@@ -319,7 +322,7 @@ app-runtime = ["runtime-full", "duckdb-flight-recorder"]
 duckdb-flight-recorder = ["dep:duckdb"]
 tokenization = ["dep:tiktoken-rs", "dep:tokenizers"]
 test-utils = []  # Exposes test helper utilities for integration tests
-surreal-test-support = ["handshake_document/surreal-test-support", "handshake_storage_support/surreal-test-support"]
+surreal-test-support = ["handshake_document/surreal-test-support", "handshake_document_surreal/surreal-test-support", "handshake_storage_support/surreal-test-support"]
 wsl2-integration = []
 docker-integration = []
 win-native-integration = []
