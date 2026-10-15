@@ -999,6 +999,51 @@
      "expected_files": 1
     },
     {
+     "case_id": "ID-05",
+     "source_item_ref": "lane SMB-INTEROP-IDML (hsk-studio-interop-layout src/idml_longdoc.rs module docs, UNVERIFIED list)",
+     "title": "InDesign-written IDML of every long-document feature: names and values Studio's IDML import reads",
+     "input_fixture_spec": [
+      "one document, 2 sections (second: ContinueNumbering false, PageNumberStart 5, LowerRoman, prefix A, marker Intro)",
+      "table 3 rows (1 header, 1 body fixed 20 pt, 1 footer) x 2 columns, header cell spanning 2 columns with red fill tint 50 and a 1 pt top stroke, BreakHeaders / StrokeOrder / StartRow set to non-defaults",
+      "a footnote and an endnote in body text; footnote options (lower letters, start 2, restart per page, prefix [ suffix ], rule on 0.5 pt) and endnote options (title Notes)",
+      "TOC style mapping Heading 1 at level 1 with a tab separator",
+      "text variables: chapter number (text before 'Ch ', upper roman), custom text 'Studio', running header (paragraph style)",
+      "a placed image fitted proportionally, centred, in a 200 x 100 pt rectangle; a second one in an ellipse with crop"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/indesign",
+      "file_pattern": "ID-05__longdoc.idml, ID-05__longdoc.indd (kept as the refusal input)",
+      "format": "IDML (ExportFormat.INDESIGN_MARKUP)",
+      "bit_depth": "n/a",
+      "colour_profile": "n/a"
+     },
+     "script": null,
+     "scriptable": "yes (script pending: hsk_oracle_indesign.jsx has no ID-05 block yet)",
+     "api_status": "UNVERIFIED: the endnote body reference element (assumed Endnote@Self), TOCStyle / TOCStyleEntry attributes, TextVariable preference attributes, FootnoteOption / EndnoteOption / ChapterNumberPreference attributes, BreakHeaders / BreakFooters / SkipFirstHeader / SkipLastFooter / StrokeOrder / StartRow values, whether span-covered Cell elements are written, GraphicBounds units",
+     "notes": "Studio check: import_longdoc on the IDML must map every listed feature with no unexpected loss; each UNVERIFIED name that differs is a fix in idml_longdoc.rs",
+     "expected_files": 2
+    },
+    {
+     "case_id": "ID-06",
+     "source_item_ref": "lane SMB-INTEROP-IDML (export_folio_longdoc)",
+     "title": "InDesign opens a Studio-written long-document IDML and re-exports it",
+     "input_fixture_spec": [
+      "Studio-written IDML from tests/idml_longdoc.rs fixture via export_folio_longdoc (written to the session input dir before the run)"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/indesign",
+      "file_pattern": "ID-06__reexport.idml, ID-06__open_report.json (open errors, missing links, overset, table / note / section / TOC / variable counts)",
+      "format": "IDML, JSON",
+      "bit_depth": "n/a",
+      "colour_profile": "n/a"
+     },
+     "script": null,
+     "scriptable": "yes (script pending)",
+     "api_status": "app.open / exportFile verified in typings; acceptance of the Studio package shape (DOMVersion 16.0, no Styles definitions) UNVERIFIED",
+     "notes": "Studio check: import_longdoc(re-export) equals import_longdoc(Studio export) on the modelled fields",
+     "expected_files": 2
+    },
+    {
      "case_id": "ID-NS1",
      "source_item_ref": "research/adobe-behavior.md section 5",
      "title": "Adobe's internal composer weights and any Knuth-Plass equivalence; inline-object text wrap forcing single-line",
@@ -1019,6 +1064,10 @@
    ],
    "not_scriptable_cases": [
     "ID-NS1"
+   ],
+   "pending_script_cases": [
+    "ID-05",
+    "ID-06"
    ],
    "expected_file_count": 102
   },

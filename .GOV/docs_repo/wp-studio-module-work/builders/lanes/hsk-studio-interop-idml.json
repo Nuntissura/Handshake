@@ -1,19 +1,35 @@
 {
   "crate": "hsk-studio-interop-layout",
   "lane": "SMB-INTEROP-IDML",
-  "status": null,
-  "phase": "research done (DesignCraft MIT/Apache IDML import read for element names; Okapi issue 856 for endnote markup); implementing import of longdoc features",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {"argv": null, "exit": null, "sha": null, "passed": 0, "failed": 0},
+  "status": "READY_FOR_VALIDATION",
+  "phase": "done: IDML long-document import (typed losses), export, round trip; INDD refusal unchanged; oracle cases ID-05/ID-06 added",
+  "commits": ["8f73db2"],
+  "capabilities_done": [
+    "decoder keeps character-range Table/Footnote/Endnote/EndnoteRange/TextVariableInstance in place (RunModel::inline); both write paths write them back",
+    "import_longdoc: tables, footnotes, endnotes, sections, text variables, TOC styles, footnote/endnote options, Image graphic frames with fit recovered via layout fit_content; typed losses for everything unmapped; hostile tables refused before any grid beyond MAX_TABLE_CELLS",
+    "export_folio_longdoc: same features written into the Folio IDML export (inline objects, endnote story, designmap sections/variables, Styles.xml TOC, Graphic.xml swatches, preferences, Rectangle/Oval + FrameFittingOption + fitted Image)",
+    "round trip import -> export -> import equal on modelled fields, then fixed point with byte-identical packages",
+    "INDD stays NativeEditabilityBlocked (existing test indd_actual_native_editability_or_blocker)"
+  ],
+  "tests": {
+    "argv": "cargo nextest run -p hsk-studio-interop-layout",
+    "exit": 0,
+    "sha": "8f73db2 (content; descriptor.rs JSON re-checked after by pdf_export misaligned_stale_and_refused_inputs, exit 0)",
+    "passed": 29,
+    "failed": 0
+  },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "(1) IDML import -> longdoc records with typed losses; (2) IDML export + round trip; (3) INDD stays refused; oracle plan cases for InDesign",
-  "updated_at": "2026-10-15T06:45:00Z",
+  "next": "D5 attended session: script and run oracle cases ID-05 (InDesign-written longdoc IDML) and ID-06 (InDesign opens/re-exports Studio IDML); fix any UNVERIFIED name that differs",
+  "updated_at": "2026-10-15T08:10:00Z",
   "notes": {
     "owned_paths": ["crates/hsk-studio-interop-layout/** (not the two fix-up-lane veraPDF fixtures)"],
+    "new_files": ["crates/hsk-studio-interop-layout/src/idml_longdoc.rs", "crates/hsk-studio-interop-layout/tests/idml_longdoc.rs"],
+    "dep_edges": "none new (hsk-studio-layout and hsk-studio-folio already dependencies)",
     "research_basis": "Adobe IDML File Format Specification CS6 (2012) is the last published spec (Adobe community threads; trainingonsite.com mirror is > 10 MB and could not be read through WebFetch); element and attribute names cross-checked against DesignCraft crates/idml/src/import.rs (MIT OR Apache-2.0, read under the 2026-10-14 permissive-source rule; attribution in module docs) and Okapi issue 856 (IsEndnoteStory, EndnoteRange@SourceEndnote). Names not confirmed by either source are UNVERIFIED and routed to the D5 InDesign oracle cases.",
+    "unverified_names": "Endnote@Self body reference; TOCStyle/TOCStyleEntry attributes; TextVariable preference attributes; FootnoteOption/EndnoteOption/ChapterNumberPreference attributes; BreakHeaders/BreakFooters/SkipFirstHeader/SkipLastFooter/StrokeOrder/StartRow values; covered-cell elements; GraphicBounds units",
+    "oracle_plan": "oracle-session/SESSION_PLAN.json indesign cases ID-05, ID-06 (pending_script_cases; hsk_oracle_indesign.jsx block not written)",
     "parity": "InDesign parity UNVERIFIED (D5)"
   }
 }
