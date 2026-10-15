@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T07:53:34Z",
+ "updated_at": "2026-10-15T07:57:44Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -6484,15 +6484,21 @@
   },
   {
    "lane_id": "SMB-AUDIO-CODECS",
-   "crate": "tbd-by-spec",
-   "phase": "done (STUDIO-R32 PASS_V1 @eb569d5) - partial claim, rest R33",
-   "status": "PASS_V1",
+   "crate": "hsk-studio-reel",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-audio-codecs-20261015",
-   "commits": [],
+   "commits": [
+    "0a6119f",
+    "d40516c",
+    "3f201ed",
+    "9d80e67",
+    "c9bb8d4"
+   ],
    "verdicts": [
     "STUDIO-R32 PASS_V1 @eb569d5 (NOT_PROVEN lines: 3, see round-R32.json) [slice 1 0a6119f; slices 2-3 d40516c 3f201ed after the candidate -> R33]"
    ],
-   "note": "AU/PR compressed audio: FLAC, Vorbis, Opus, MP3, AAC-LC decode (permissive sources only; symphonia is MPL = excluded), FLAC encode; container read via interop-media",
+   "note": "FLAC dec/enc, Vorbis (lewton), Opus (opus-pure), MP1/2/3 (minimp3 CC0 port), AAC-LC (own), MP4/MOV/MKV hooks, AIFF; providers opt-in (not in Registry::standard)",
    "lane_file": "builders/lanes/hsk-studio-audio-codecs.json"
   },
   {
@@ -6890,6 +6896,26 @@
    "commits": [],
    "verdicts": [],
    "note": "corner-pin layers rendered in compositions via an ADDITIVE scene-layer extension (Option field defaulted through one constructor/extension struct, not 29 literal edits); GPU keyer; planar tracks written as folio mask paths; tracker command serialisation where serde exists"
+  },
+  {
+   "lane_id": "SMB-AUDIO-CODECS-OPERATOR",
+   "crate": "operator",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "STU-VID-084 licensing call: ship AAC-LC and MP3 decode by default? (AAC patent status UNVERIFIED); until decided the providers stay opt-in"
+  },
+  {
+   "lane_id": "SMB-AUDIO-IMPORT-WIRING",
+   "crate": "hsk-studio-harness",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "score import of compressed audio via harness -> reel (edge exists); Registry::with_audio() opt-in constructor instead of changing Registry::standard()"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
