@@ -1,30 +1,56 @@
 {
-  "crate": "hsk-studio-pigment (envelope keys, projective transform), hsk-studio-render-cpu (keying), hsk-studio-render-gpu (tests), hsk-studio-folio (corner pin), hsk-studio-composite (corner pin, tracker commands)",
+  "crate": "hsk-studio-pigment (envelope keys, projective transform, keyers), hsk-studio-render-cpu (keying execution), hsk-studio-render-gpu (tests only), hsk-studio-folio (corner pin), hsk-studio-composite (corner pin, tracker commands)",
   "lane": "SMB-AE-KEY-TRACK-2",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice 1 pushed; slice 2 (projective transform, corner pin) in progress",
+  "phase": "slices 1-3 pushed",
   "commits": [
-    {"sha": "59b6900", "subject": "pigment + render-cpu (SMB-AE-KEY-TRACK-2 slice 1): key pipelines as render-plan envelope entries, executed by render-cpu through pigment"}
+    {"sha": "59b6900", "subject": "pigment + render-cpu (SMB-AE-KEY-TRACK-2 slice 1): key pipelines as render-plan envelope entries, executed by render-cpu through pigment"},
+    {"sha": "81b32be", "subject": "pigment + folio + composite (SMB-AE-KEY-TRACK-2 slice 2): projective layer transform and corner pin"},
+    {"sha": "9590d37", "subject": "pigment + composite (SMB-AE-KEY-TRACK-2 slice 3): remaining STU-CMP-032 keyers and the tracker command surface"}
   ],
   "capabilities_done": [
-    "slice 1 (59b6900): pigment LayerExtension.keys (Vec<KeyStage>, serde-skipped when empty so every existing digest is unchanged), with_keys, keying::KeyKind + KeyStage::kind, ExtOperator::Key(KeyKind) (class KEY_EXACTNESS = Approximate), PlanError::KeyParameter (stage out of range, more than MAX_KEY_STAGES, difference matte: no clean-plate input in the envelope) and KeyCombination (adjustment, effects, transform, blur, filters, content-aware fill, pass-through, clip roles, extended-range output); render-cpu: a keyed layer's content (no mask) over the content bounds inside the plan extent is keyed once by pigment run_key_pipeline before the first chunk and stored as an extra Filled node, then composited normally (mask, Blend-If, mode, opacity after the key); keyed content holding effects/fills/keys refused key_nested; planes + pigment's predicted pipeline bytes charged before the first sink call; extension_exactness declares Key(_) at pigment's class"
+    "slice 1 (59b6900): pigment LayerExtension.keys (Vec<KeyStage>, serde-skipped when empty, digests unchanged), KeyKind + KeyStage::kind, ExtOperator::Key(KeyKind) (Approximate), PlanError::KeyParameter (out of range, > MAX_KEY_STAGES, difference matte: no clean-plate input in the envelope) / KeyCombination (adjustment, effects, transform, blur, filters, content-aware fill, pass-through, clip roles, extended-range output). render-cpu keys a keyed layer's content (no mask, content bounds inside the plan extent) once with pigment run_key_pipeline before the first chunk (extra Filled node), then composites normally; nested keys -> key_nested; planes + pigment predicted bytes charged before the first sink call; Key(_) declared at pigment's class. render-gpu: every Key kind declared Unsupported -> typed refusal under the stage key before any device work (no WGSL keyer).",
+    "slice 2 (81b32be): pigment Projective2 (then, apply, adjugate inverse, from_quads) and LayerTransform.perspective (map = perspective after affine; serde-skipped when None): validation = finite, homogeneous weight > MIN_PERSPECTIVE_WEIGHT at the footprint corners and centre, local Jacobian and inverse within MAX_TRANSFORM_LINEAR, mapped corners within MAX_TRANSFORM_TRANSLATE; destination centres map back through the inverse 3x3, beyond the horizon = transparent; rules 1-5 unchanged. render-cpu and render-gpu take sample sites from PreparedTransform, so both run perspective with no renderer code change. folio StudioCompositionLayer.corner_pin (serde default; records without it byte-identical) = StudioCornerPin {from quad, 8-component keyed to-quad}, convexity + keyframe validation. composite track_apply: corner_frames_from_tracks / corner_frames_from_planar, apply_corner_pin (linear keys, new record), corner_pin_transform (projective LayerTransform), corner_pin_quad_at (motion feature); composition adapter refuses a corner pin typed (composition_corner_pin) instead of dropping it.",
+    "slice 3 (9590d37): pigment keyers colour key, colour-difference key, linear colour key (rgb/hue/chroma, keep/remove), extract (channel range, soft ends, invert), inner/outer key (two even-odd paths, colour-line projection in the band), key cleaner (band-limited guided smoothing + alpha contrast), wire removal (segment band from both sides, slope), unmult; KeyKind keys, validation, cost admission; carried by the envelope and render-cpu unchanged. composite tracker: TrackerSession + TrackerCommand: the 18 recovered MotionTracker commands (MoveTrackPoint with/without attach point x 4 directions x 1/10 screen px at the session zoom = 16; SetPointsBarIn/Out = 2) plus AddPoint, RemovePoint, SetCurrentFrame, SetZoom, PlacePoint (manual correction), Analyze forward/backward over the bar (pigment tracker, cancellable, determinate progress); a refused command changes nothing; motion_track -> track_apply."
   ],
   "tests": {
-    "argv": "cargo nextest run -p hsk-studio-render-cpu --test cpu_keying",
+    "argv": "cargo nextest run -p hsk-studio-render-cpu --test cpu_keying --test cpu_projective --test cpu_transform ; -p hsk-studio-render-gpu --test gpu_transform ; -p hsk-studio-folio --test corner_pin_contract ; -p hsk-studio-composite --features motion --test corner_pin --test composition_adapter (refusals_are_typed_and_nothing_is_dropped) --test track_apply --test tracker_commands ; -p hsk-studio-pigment --test keying --test keying_2",
     "exit": 0,
-    "sha": "59b6900",
-    "passed": 2,
+    "sha": "9590d37",
+    "passed": 34,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "slice 2: projective transform (pigment), folio corner pin, composite corner-pin helpers, CPU + GPU proofs; slice 3: remaining keyers + tracker command surface",
-  "updated_at": "2026-10-15T06:50:55Z",
+  "next": "validator round on 59b6900, 81b32be, 9590d37 (lane commits only; other lanes interleave). Follow-ups in notes.gaps.",
+  "updated_at": "2026-10-15T07:45:49Z",
   "notes": {
-    "spec_basis": "as lane SMB-AE-KEY-TRACK (STU-CMP-032/032a/033/065/065a/065b); STU-CMP-065 'four solve a corner-pin', 'Planar / mask tracking ... producing an animated mask path'; STU-CMP-065a '18 tracker commands are recovered as the operation-surface target' (MotionTracker table: move track point / move track point not attach point, up/down/left/right by 1 or 10 screen pixels, set in/out point of the Motion Tracker Points bar)",
-    "gpu_keying": "render-gpu keeps the typed refusal for every key stage kind (extension_exactness Unsupported -> shared admission refuses under the stage key before any device work); no WGSL keyer",
-    "shared_files": [],
-    "cargo_lock": "left uncommitted"
+    "spec_basis": "STU-CMP-032 (keying family table), STU-CMP-032a (live filters, parameter records declared gap STU-FX-146: parameters authored here), STU-CMP-033 (matte pipeline of ordinary stages), STU-CMP-065 ('four solve a corner-pin', 'Planar / mask tracking ... producing an animated mask path', manual correction, apply to target, stabilisation), STU-CMP-065a ('fully drivable by typed command ... 18 tracker commands are recovered as the operation-surface target'; MotionTracker command table in the shortcut catalogue: Move Track Point [(Not Attach Point)] Up/Down/Left/Right 1 / 10 Screen Pixel(s), Set In/Out Point of 'Motion Tracker Points' Bar), STU-CMP-065b (tracker parameters authored)",
+    "measured": {
+      "cpu keying": "bit-identical to a direct pigment run_key_pipeline + composite_over for 6 chunkings x thread counts, masked and unmasked (cpu_keying key_matches_pigment_for_every_chunking_and_thread_count)",
+      "cpu projective": "bit-identical to pigment's binary64 reference for 3 filters x 2 edge modes x 5 chunkings; identity perspective = untransformed plan bits (cpu_projective)",
+      "gpu projective": "max |delta| 1.79e-7 (alpha / premultiplied / straight) over 3 filters x 2 edge modes on a live adapter, tolerance 2e-6 (gpu_transform gpu_projective_parity_vs_pigment_reference)",
+      "planar track -> corner pin": "pinned corners follow the true surface within 0.0165 px over 5 frame pairs (composite corner_pin planar_track_pins_a_layer_onto_the_tracked_surface); four-point pin maps from-corners exactly (1e-9)",
+      "tracker commands": "analyse over the bar 6 frames, error < 0.05 px; 16 nudges exact at zoom 2; refused commands leave the session equal"
+    },
+    "gpu_keying": "kept as the typed refusal (lead option): every KeyKind is Unsupported in render-gpu extension_exactness, shared admission refuses before any device work (gpu_transform gpu_keying_is_refused_before_any_device_work, passes with or without an adapter)",
+    "gaps": [
+      "composite's composition adapter does not render a corner pin: SceneLayer carries an affine matrix (29 struct-literal sites across composite, render-cpu, harness, pulse), so the adapter refuses composition_corner_pin; corner_pin_transform gives the pigment LayerTransform for direct plans. Rendering it from CompositionTemporalSource needs a SceneLayer projective field (steward-coordinated change)",
+      "planar output as a Folio mask path: the mapped quad and Homography::apply exist; writing a StudioVectorMask path is not built",
+      "difference matte in the envelope: needs a clean-plate plan input (refused KeyParameter)",
+      "no WGSL keyer (GPU refuses typed)",
+      "tracker commands are a typed Rust enum (composite has no serde dependency, so no wire form); default key bindings are the caller's keymap",
+      "keyer parameter ranges and formulas, the corner-pin key interpolation and the 18 commands' exact After Effects behaviour are UNVERIFIED (D5)"
+    ],
+    "own_causes": [
+      "slice 1: cpu_keying first compile failed on my non-exhaustive OutputStage literal (E0639) -> OutputStage::new; retry guard cleared by local commit 59b6900 (route a)"
+    ],
+    "shared_files": [
+      "crates/hsk-studio-pigment/src/render_plan.rs, render_plan/extensions.rs, transform_math.rs, keying.rs; crates/hsk-studio-render-cpu/src/plan_sink.rs, plan_sink/extended.rs; crates/hsk-studio-folio/src/composition.rs; crates/hsk-studio-composite/src/lib.rs, src/temporal/composition.rs (5-line refusal), tests/composition_adapter.rs (4-line case); crates/hsk-studio-render-gpu/tests/gpu_transform.rs (2 appended tests): each had no other lane's uncommitted hunk at commit time (checked with git diff), committed by pathspec",
+      "clippy for slice 2 was run with my not-yet-committed slice-3 tests (keying_2.rs, tracker_commands.rs) moved to the scratchpad and restored with fresh mtimes before slice 3; another lane's pigment WIP (select_tools/magnetic.rs) blocked pigment clippy at 07:05Z and was clean at 07:30Z"
+    ],
+    "cargo_lock": "left uncommitted",
+    "v4": "keying.rs, track_math.rs, transform_math.rs, track_apply.rs, tracker.rs, render-cpu plan_sink/key.rs deny clippy::arithmetic_side_effects; hostile tests: cpu_keying key_refusals_and_budgets_are_typed_before_any_sink_call, cpu_projective hostile_projective_maps_are_refused_typed_before_any_sink_call, keying_2 new_keyers_refuse_hostile_parameters_before_allocation, corner_pin_contract refusals, tracker_commands refusals"
   }
 }
