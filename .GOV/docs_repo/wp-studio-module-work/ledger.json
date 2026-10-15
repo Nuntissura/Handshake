@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T00:10:23Z",
+ "updated_at": "2026-10-15T00:13:38Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -5111,12 +5111,20 @@
   {
    "lane_id": "SMB-PIGMENT-CONTENT-AWARE-2",
    "crate": "hsk-studio-pigment",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-pigment-ca2-20261015",
-   "commits": [],
+   "commits": [
+    "fcd627d",
+    "8705d18",
+    "4bfc005",
+    "874e622",
+    "eef4c93",
+    "809a276"
+   ],
    "verdicts": [],
-   "note": "STU-RAS-143 remainder: content-aware crop-expand, content-aware scale, inpaint; colour adaptation high/very_high; rotation/scale/mirror adaptation; wire retouch::content_aware_fill and crop content_aware_fill_on_expand to native fill (re-opens SMB-PIGMENT-RETOUCH per CX-VAL-009); photo-size perf proof"
+   "note": "STU-RAS-143 remainder: content-aware crop-expand, content-aware scale, inpaint; colour adaptation high/very_high; rotation/scale/mirror adaptation; wire retouch::content_aware_fill and crop content_aware_fill_on_expand to native fill (re-opens SMB-PIGMENT-RETOUCH per CX-VAL-009); photo-size perf proof",
+   "lane_file": "builders/lanes/hsk-studio-pigment-content-aware-2.json"
   },
   {
    "lane_id": "SMB-LAYOUT-TYPESET-HARDEN",
@@ -5147,9 +5155,9 @@
   {
    "lane_id": "SMB-PIGMENT-FILTER-DESCRIPTOR",
    "crate": "hsk-studio-pigment",
-   "phase": "queued",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-pigment-ca2-20261015",
    "commits": [],
    "verdicts": [],
    "note": "filter_math DESCRIPTOR says backends do not declare filters; stale since SMB-RENDER-FILTERS (render-cpu/gpu execute all five). Text-only fix, fold into the next pigment lane"
