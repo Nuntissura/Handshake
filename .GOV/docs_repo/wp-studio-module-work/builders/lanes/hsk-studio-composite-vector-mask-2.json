@@ -1,18 +1,49 @@
 {
  "crate": "hsk-studio-composite",
  "lane": "SMB-COMPOSITE-VECTOR-MASK-2",
- "status": null,
- "phase": "slices 1-2 pushed (391b9e1 folio, 27388e8 composite + pigment); renderer proofs waiting on the disk build lock (validator round)",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slices 1-3 pushed (391b9e1, 27388e8, cdf70a7): folio mask parameters, rendered parameters, caller-rendered sources, pigment pass-through isolation, unlinked composition mattes",
  "commits": [
   {"sha": "391b9e1", "subject": "folio (SMB-COMPOSITE-VECTOR-MASK-2 slice 1): StudioVectorMaskParameters sidecar (density, feather, linked, reveal_outside), skipped at defaults; earlier record sets byte-identical"},
-  {"sha": "27388e8", "subject": "composite + pigment (SMB-COMPOSITE-VECTOR-MASK-2 slice 2): mask density/feather/link/reveal_outside, caller-rendered raster/text/image sources, unlinked masks as composition mattes, pigment isolation rule for clipped/masked pass-through groups"}
+  {"sha": "27388e8", "subject": "composite + pigment (SMB-COMPOSITE-VECTOR-MASK-2 slice 2): mask density/feather/link/reveal_outside, caller-rendered raster/text/image sources, unlinked masks as composition mattes, pigment isolation rule for clipped/masked pass-through groups"},
+  {"sha": "cdf70a7", "subject": "render-cpu + render-gpu tests (SMB-COMPOSITE-VECTOR-MASK-2): density/feather, reveal_outside, caller-rendered raster source, pigment pass-through isolation and unlinked composition mattes vs the shared oracle; without_mask gated on motion"}
  ],
- "capabilities_done": [],
- "tests": {"argv": "", "exit": null, "sha": "", "passed": 0, "failed": 0},
+ "capabilities_done": [
+  "folio StudioVectorRecords.mask_parameters: Vec<StudioVectorMaskParameters{mask_id, density percent 0..=100 (default 100), feather px 0..=10000 (default 0), linked (default true), reveal_outside (default false)}>, every field skipped at its default and the list skipped when empty; validated (dangling mask, duplicate, ranges); a sidecar keyed by mask_id instead of new StudioVectorMask fields so the literal StudioVectorMask constructors in interop-fig (active lane PAINTS-2) and interop-vector stay untouched",
+  "density -> the masked layer's MaskInput.density (pigment mask_coverage, after invert); feather -> envelope LayerExtension.mask_feather_px on the masked layer (merged into an existing entry), both executed by the backends; ledger mask_density / mask_feather",
+  "reveal_outside on LUMINANCE = Illustrator's opacity mask with Clip off: MaskContentMode::LuminanceRevealed, luminance of the content over opaque white, 1 outside the art; on ALPHA/VECTOR refused vector_mask_reveal_outside_mode",
+  "linked false in a composition: the mask leaves the layer's static subtree and becomes a composition-space alpha matte of its plane (pub unlinked_mask_matte; CompositionTemporalSource static path), so the layer moves and the mask stays; density below 1 there refused vector_mask_unlinked_density, an unlinked mask plus a track matte refused vector_mask_unlinked_with_matte; linked (default) moves with the layer as in lane 1",
+  "raster, text and image-paint mask sources: preparation records them as pending (PreparedVectors::pending_mask_sources; masked layers vector_mask_source_not_rendered), mask_source_lowerings lowers each source alone through the static path rooted at its graph operation over its extent, the caller executes with its backend and PlanSources, PreparedVectors::resolve_mask_source turns the straight RGBA into the same content values (fail_mask_source on failure; folio-free with_pending_mask); a source without a graph operation is vector_mask_source_not_in_graph",
+  "pigment RenderPlan::isolate_masked_pass_through(group, layer) + PASS_THROUGH_MASK_ISOLATED: the W3C Compositing 1 s3.2 reading of a clipped/masked pass-through group (group isolated, layer Normal), so it admits without mask_on_pass_through; composite applies it after emission to every vector clip and vector mask on a pass-through layer (replacing lane 1's in-emission isolation; clips on pass-through groups were refused before); raster-mask pass-through layers stay refused; ledger mask_isolates_pass_through Approximate"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-folio --test vector_mask_parameters_contract --test vector_records_contract (6/6, shared tree); -p hsk-studio-composite --features motion (67/67, shared tree at cdf70a7 sources); on a scratch export of HEAD 6f4e2f6 plus cdf70a7's files (STUDIO_OWNER smb-composite-vector-mask-scratch): -p hsk-studio-render-cpu -p hsk-studio-render-gpu -E 'binary(vector_mask_2)|binary(vector_mask)' (5/5, live adapter), -p hsk-studio-interop-fig -p hsk-studio-folio (105/105)",
+  "exit": 0,
+  "sha": "cdf70a7",
+  "passed": 183,
+  "failed": 0
+ },
  "blockers": [],
- "lock_wait_s": 0,
+ "lock_wait_s": 1800,
  "bg_pids": [],
- "next": "renderer proofs (render-cpu/render-gpu tests/vector_mask_2.rs) on the scratch export",
- "updated_at": "2026-10-15T04:06:19Z",
- "notes": {}
+ "next": "validator round on the commits listed; lead: stage the spec enrichments in notes.spec_gaps",
+ "updated_at": "2026-10-15T04:38:57Z",
+ "notes": {
+  "new_tests": "4 (budget 5): folio tests/vector_mask_parameters_contract.rs (byte identity vs bytes pinned from a run of the pre-lane folio code, defaults skipped, round trip, typed refusals); composite tests/vector_mask_2.rs (density/feather lowering and ledger, reveal_outside plane, refusal on ALPHA, pigment isolation of a clipped pass-through root, pending raster source -> mask_source_lowerings -> resolve -> plane = source alpha, fail path, unlinked matte = nib plane with feather, density refusal); render-cpu and render-gpu tests/vector_mask_2.rs over the shared tests/support/mask_scenes.rs lane2_cases (5 cases each)",
+  "measured": "CPU (chunk/thread 64x1 and 7x4): density_feather 0, reveal_outside 2.98e-8, raster_source 2.98e-8, pass_through_isolated 0, unlinked_composition 0 (tolerance 1e-6); GPU: 1.79e-7, 1.79e-7, 1.19e-7, 5.96e-8, 0 (tolerance 2e-6); lane-1 CPU digests unchanged (the shared oracle now applies pigment's mask_coverage, so its lane-1 deltas read 2.98e-8 instead of 0, digests identical)",
+  "byte_identity": "OLD_BYTES in the folio test = serde_json::to_string of a record set under the folio code before this lane (scratch export a78cb6d, throwaway probe, not committed); the new code serializes the same bytes; the existing vector_records_contract suite passes unchanged",
+  "spec_gaps": {
+   "density_feather_linked": "STU-RAS-016: 'Masks MUST support density/opacity, feather, and enable/disable, and MUST be linkable or unlinkable from parent-layer position.' The clause sits with raster masks; Folio's StudioVectorMask (STU-VEC-053/153) had no home for them. Enrichment: name StudioVectorMaskParameters (density percent 0..=100 default 100, feather px 0..=10000 default 0, linked default true) as the vector-mask carrier of STU-RAS-016, and state that an unlinked mask stays in canvas/composition space (Photoshop-style).",
+   "reveal_outside": "STU-VEC-153 row 'mask_clip | boolean | -- | false' does not say what false means. Importers store SVG and Figma masks (zero outside the mask content) as false, which equals Illustrator's Clip ON (black background); Illustrator's Clip OFF (white background, outside revealed) then has no encoding. Enrichment: define mask_clip=false as the SVG/Figma reading and add reveal_outside (LUMINANCE only) for Illustrator Clip off, or redefine mask_clip with an importer migration. UNVERIFIED against Illustrator (D5).",
+   "pass_through_mask": "STU-VEC-153 / STU-VEC-025: groups default to blend.pass_through and isolate_blending is a separate control, but no clause defines a clip or mask on a pass-through group. Pigment now carries the W3C Compositing 1 s3.2 reading (a masked group is isolated, composited Normal) as a caller-chosen rule; enrichment: state that reading, or the Photoshop one once the D5 oracle measures it.",
+   "rendered_sources": "STU-VEC-053: 'Masking MUST be a shared Studio capability ([STU-DOC-004]) using the canonical StudioMask primitive, not a vector-only reimplementation.' The mask source may be any payload (Folio doc 'any payload'); enrichment: state that raster/text/image content masks are evaluated from the rendered source (straight RGBA of the source alone, its own appearance applied), as the caller-rendered route does."
+  },
+  "unverified": "Illustrator Clip-off reading; luminance weights (BT.709 on plan values) vs SVG; Photoshop pass-through group with a mask or clip; Photoshop unlinked-mask placement under composition transforms (After Effects/Photoshop parity D5); feather radius-to-sigma is pigment's Studio rule (sigma = r/2)",
+  "not_covered_by_a_test": "the CompositionTemporalSource wiring of unlinked masks (static_content strips the mask and attaches unlinked_mask_matte; feature motion) is exercised only through unlinked_mask_matte and the hand-built scene in lane2_cases, not through Folio composition records",
+  "gaps": "document-graph temporal path (lower_frame / FrameRequest) takes no vector records, so vector clips and masks are not applied there at all (pre-existing; a raster layer with a vector mask attachment renders unmasked on that path); an unlinked mask's feather is cut at its plane rect inside the matte; a pending source that is a hidden definition layer outside the graph (SVG <mask> with an <image>) is refused vector_mask_source_not_in_graph; effect spill outside the masked layer's extent is outside the plane",
+  "outside_owned_paths": "new test files only (B1): crates/hsk-studio-render-cpu/tests/vector_mask_2.rs, crates/hsk-studio-render-gpu/tests/vector_mask_2.rs; folio src/vector.rs + lib.rs DESCRIPTOR and pigment src/render_plan.rs (method, constant, DESCRIPTOR key) under the lead's grant; lane-1 tests updated for the new API and behaviour (raster source now pending; isolation note key now pigment's mask_isolates_pass_through)",
+  "cpu_gpu_proof_route": "the shared tree's render-gpu does not compile from another lane's uncommitted work, so renderer, interop-fig and folio suites ran on a git-archive export of HEAD 6f4e2f6 with cdf70a7's files copied in and touched (working-tree Cargo.lock), STUDIO_OWNER smb-composite-vector-mask-scratch; about 30 min of disk-lock waits behind validator rounds",
+  "retry_guard": "route (a) twice (lane-1 raster-source expectation changed by design; reveal_outside assertion probed a pixel outside the plane), fixes committed before reruns; one hook block from a command not starting with cd (rerun with cd first); no gameplan step added",
+  "v4": "V4-01 deny(arithmetic_side_effects) kept on vector_mask.rs/vector.rs/composition.rs; V4-02 resolve_mask_source checks frame size against the rect and MAX_CLIP_PIXELS and every sample's domain before use, mask_parameters ranges validated by folio and re-checked in composite; V4-03 GPU gated"
+ }
 }

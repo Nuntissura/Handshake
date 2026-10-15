@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T04:38:49Z",
+ "updated_at": "2026-10-15T04:40:19Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -5889,12 +5889,17 @@
   {
    "lane_id": "SMB-COMPOSITE-VECTOR-MASK-2",
    "crate": "hsk-studio-composite",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-composite-vmask-20261015",
-   "commits": [],
+   "commits": [
+    "391b9e1",
+    "27388e8",
+    "cdf70a7"
+   ],
    "verdicts": [],
-   "note": "folio mask fields feather/density/linked + Illustrator mask_clip (serde default, byte-identical existing docs); raster/text/image-paint mask sources; clip on pass-through group in pigment; spec-gap note staged"
+   "note": "27388e8 also carries the SMB-PRISM-VIEW-TRANSFORM-2 pigment DESCRIPTOR hunk (cross-lane capture, recorded)",
+   "lane_file": "builders/lanes/hsk-studio-composite-vector-mask-2.json"
   },
   {
    "lane_id": "SMB-SCORE-EFFECTS-4",
@@ -6052,6 +6057,16 @@
    "commits": [],
    "verdicts": [],
    "note": "typed CKC port contracts (asset metadata mutation commands, search/filter request+result, collection/smart-collection commands, XMP sidecar write request) in kernel-bindings; Studio-side test double only in tests (no shipped second store); lrcat -> develop settings mapping; XMP inflate via shared deflate"
+  },
+  {
+   "lane_id": "SMB-COMPOSITE-DOCGRAPH-MASKS",
+   "crate": "hsk-studio-composite",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "document-graph frame path ignores vector clips/masks (pre-existing); unlinked-mask adapter wiring needs a Folio-records test"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
