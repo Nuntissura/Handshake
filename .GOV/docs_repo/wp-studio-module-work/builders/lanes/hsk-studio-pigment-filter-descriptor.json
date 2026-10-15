@@ -1,0 +1,29 @@
+{
+ "crate": "hsk-studio-pigment",
+ "lane": "SMB-PIGMENT-FILTER-DESCRIPTOR",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slices 1-2 pushed (d111a1c, 25d6cec); content_aware_plan 2/2 + retouch filters::filter_envelope_entries_validate_report_and_admission_refuses_undeclared 1/1 on the 25d6cec tree (run just before the commit, same files); clippy pigment + composite + develop + interop-fig + interop-psd + render-cpu + render-gpu --tests exit 0 (warnings only in observe/type and another lane's composite test vector_nib)",
+ "commits": [
+  {"sha": "d111a1c", "subject": "pigment (SMB-PIGMENT-FILTER-DESCRIPTOR slice 1): filter_math DESCRIPTOR states the backends run and declare all five filters (SMB-RENDER-FILTERS)"},
+  {"sha": "25d6cec", "subject": "pigment (SMB-PIGMENT-FILTER-DESCRIPTOR slice 2): content-aware fill as a typed render-plan envelope operator"}
+ ],
+ "capabilities_done": [
+  "slice 1 filter_math::DESCRIPTOR 'plan' text: the stale 'render-cpu/render-gpu: not yet, admission refuses filter_* keys' is replaced by: render-cpu (SMB-RENDER-FILTERS 9698de3 + 5556fe9) runs all five kinds through filter_window, bytes equal for every chunking and thread count (render-cpu tests/cpu_filters.rs every_filter_matches_pigment_for_every_chunking_and_thread_count, filters_apply_before_the_layer_mask, hostile_radii_and_parameters_are_typed_before_any_sink_call, refusals_budget_and_nesting_are_typed_before_any_sink_call); render-gpu (e029861; gpu_filters.rs itself landed in afaa779) runs all five in WGSL within 2e-5 (measured 1.19e-7), median radius <= 7 else filter_median_radius (render-gpu tests/gpu_filters.rs gpu_filters_match_pigment_within_tolerance on a live adapter, NOT_PROVEN without one, gpu_filter_admission_and_refusals_are_typed); both report class approximate (text only, no behaviour change)",
+  "slice 2 LayerExtension.content_aware_fill: Option<ContentAwareFillOp{hole MaskInput (coverage > 0, inverted honoured, not clip-to-base, density 1), sampling Option<Rect> (None auto, Some rectangular), options content_aware::ContentAwareOptions}> + with_content_aware_fill + ContentAwareFillOp::new; PlanExtensions::validate: bad options / clip-to-base or density != 1 hole / overflowing hole placement / empty or overflowing sampling rect -> PlanError::ContentAwareParameter (plan_content_aware_parameter); with adjustment, effects, transform, blur or filters on the same layer, a pass-through layer or a clip role -> PlanError::ContentAwareCombination (plan_content_aware_combination); reports ExtOperator::ContentAwareFill (key content_aware_fill, intrinsic CONTENT_AWARE_EXACTNESS approximate); no backend declares it, so admit_extended refuses BackendError::Unsupported{operator content_aware_fill} before any sink call; ColourAdaptation/RotationAdaptation/ContentAwareOptions derive Serialize (snake_case, threads skipped: digest independent of the thread count, other options digested); render_plan DESCRIPTOR key content_aware_fill; ContentAwareFillOp re-exported from render_plan"
+ ],
+ "tests": {"argv": "cargo nextest run -p hsk-studio-pigment --test content_aware_plan --test retouch --no-fail-fast content_aware_fill filter_envelope", "exit": 0, "sha": "25d6cec", "passed": 3, "failed": 0},
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "backends executing ContentAwareFill (render-cpu: call content_aware::fill on the layer content window with the resolved hole mask; render-gpu: refuse or CPU fallback); composite lowering of a Folio content-aware fill command into the envelope; a render-cpu/render-gpu test asserting their admission refusal key content_aware_fill (not owned by this lane)",
+ "updated_at": "2026-10-15T00:24:56Z",
+ "notes": {
+  "spec_basis": "STU-RAS-143 (v02.216 module 14 line 1590): 'Content-aware fill, content-aware scale, content-aware crop-expand and inpaint/remove MUST have a native on-device implementation in the owning modular Studio asset crate.' STU-RAS-030: 'Content-aware operations are native and on-device per [STU-RAS-143].'",
+  "backend_refusal_evidence": "not test-proven inside render-cpu/render-gpu (not this lane's crates): by inspection their extension_exactness fall-through arms answer unsupported for an unlisted operator (render-cpu src/plan_sink.rs:2025 '_ => Exactness::Unsupported'; render-gpu src/plan_sink.rs:1555 '_ => false' -> Unsupported); ExtOperator is #[non_exhaustive] so both compile unchanged (clippy exit 0). Shared admission refusal is proven in pigment tests/content_aware_plan.rs content_aware_fill_is_a_typed_plan_operator with the trait-default backend and a stub.",
+  "size": "small: about 120 lines in pigment (extensions.rs, render_plan.rs, content_aware.rs derives) + 1 test file; additive enum variants (ExtOperator non_exhaustive; PlanError gains 2 variants, dependents only match it partially with fall-through arms, checked by the 7-crate clippy)",
+  "readings": "the combination rules mirror the filters' (no public source defines a content-aware fill composed with those features); density != 1 holes and clip-to-base holes refused rather than reinterpreted; Studio readings, class Approximate, Photoshop UNVERIFIED (D5)",
+  "owned_paths_note": "render_plan.rs / render_plan/extensions.rs edited on the lead's instruction for this lane (outside the earlier content-aware brief's owned paths); no other lane had uncommitted edits there",
+  "cargo_lock": "not touched",
+  "unowned_dirty_file": "crates/hsk-studio-pigment/tests/transform.rs M (pre-existing, not mine, not committed)"
+ }
+}
