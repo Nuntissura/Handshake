@@ -32,7 +32,7 @@
 //! not.
 
 pub mod adapter;
-pub mod engine;
+pub use handshake_prompt_feedback as engine;
 pub mod model;
 
 use std::path::Path;
