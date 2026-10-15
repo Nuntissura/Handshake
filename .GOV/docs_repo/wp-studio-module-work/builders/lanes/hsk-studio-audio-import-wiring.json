@@ -1,0 +1,46 @@
+{
+  "crate": "hsk-studio-harness",
+  "lane": "SMB-AUDIO-IMPORT-WIRING",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "single slice pushed: Registry::with_audio, harness audio file import into the score mixdown, FLAC/AIFF mixdown export",
+  "commits": [
+    {
+      "sha": "29bf1c2",
+      "subject": "harness+reel (SMB-AUDIO-IMPORT-WIRING): audio file import into the score mixdown, FLAC/AIFF mixdown export, Registry::with_audio"
+    }
+  ],
+  "capabilities_done": [
+    "reel Registry::with_audio(): standard() + AudioFileProvider::all() (flac, ogg-audio, mpeg-audio, aac-adts, aiff-pcm); standard() unchanged (judged foundation_contract + engine_video 14/14 green)",
+    "harness view::audio_import (feature media, existing harness -> reel and harness -> pulse edges, no new edge): open_audio_file / import_audio decode through reel::decode_audio_file (frame budget before allocation), ClipSource::Media digest = file SHA-256; AudioImport = one 25 fps sequence, one audio track, one clip of the whole file; mix_stream() = pulse TimelineMixStream (score sessions) at the file rate, no resampling; playable through view::audio_out::AudioOut",
+    "export_mix: streams the mixdown through reel's flac / aiff-pcm encode ports (FLAC 16/24, AIFF 16/24, AIFF-C fl32), round-to-nearest quantisation with a clipped-sample count; one 4096-frame block resident",
+    "typed refusals: audio_read, audio_decode (reel code in detail), audio_channels (>2), audio_empty, audio_rate, audio_mix, export_format, export_length, export_write"
+  ],
+  "tests": {
+    "argv": "cargo nextest run -p hsk-studio-harness --features media,audio-device --test audio_import (4/4); --features media (3/3, playback test cfg'd out); cargo nextest run -p hsk-studio-reel --test foundation_contract --test engine_video (14/14); clippy harness --features media,audio-device --lib --test audio_import and reel --lib: no findings in lane files",
+    "exit": 0,
+    "sha": "29bf1c2 (working tree = commit content for the 4 lane paths)",
+    "passed": 4,
+    "failed": 0,
+    "cases": [
+      "opening_mp3_flac_and_opus_lands_in_a_score_mix_of_the_decoded_file (also asserts with_audio vs standard ids)",
+      "mixdown_exports_to_flac_and_aiff_and_decodes_back",
+      "hostile_or_unsupported_audio_files_fail_typed",
+      "imported_file_plays_through_the_device (feature audio-device, score-device software device loopback)"
+    ]
+  },
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "Validator: judge 29bf1c2 (crates/hsk-studio-reel/src/registry.rs with_audio hunk, crates/hsk-studio-harness/src/view/audio_import.rs, view/mod.rs 4-line module hunk, tests/audio_import.rs) with --features media,audio-device. Lead: Viewer::open does not route audio files yet (view/mod.rs open_inner is package/import only); wiring the UI open path is a follow-up if wanted.",
+  "updated_at": "2026-10-15T08:45:30Z",
+  "notes": {
+    "not_proven": [
+      "NOT_PROVEN: more than 2 channels are refused (audio_channels), not downmixed",
+      "NOT_PROVEN: FLAC export STREAMINFO MD5 is 'unknown' (streamed header, RFC 9639 8.2); encode_flac with MD5 needs all samples in memory",
+      "NOT_PROVEN: WAV files go through reel's wav-pcm provider, not decode_audio_file, so import_audio does not take WAV",
+      "NOT_PROVEN: desktop Viewer UI open of audio files (headless API + tests only)"
+    ],
+    "bounds": "mix equals decode within 1e-6 (stereo, centre pan, unity fader; test 1); integer export within half an LSB, float AIFF exact (test 2); device loopback equals decode within 1e-6 (test 4)",
+    "licensing": "no new dependencies; AAC/MP3 providers stay opt-in per lead (Operator decision)"
+  }
+}
