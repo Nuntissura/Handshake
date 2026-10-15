@@ -1,18 +1,45 @@
 {
  "crate": "hsk-studio-render-gpu",
  "lane": "SMB-PS-ADJUST-STYLES-2",
- "status": null,
- "phase": "slices 1-5 implemented; first focused run 86/105 (WGSL rejected by DX12 FXC: dynamically indexed writes; knockout_union rounding; unclassified plain_ancestry reader; placedLayer.psd ObAr/UnFl + identity warpCustom) -> fixed, reduced rerun 19/19; final clippy + 22-target focused run in progress; then commits A-E and push; pattern overlay (goal 2 remainder) after",
- "commits": [],
- "capabilities_done": [],
- "tests": {"argv": "", "exit": null, "sha": null, "passed": 0, "failed": 0},
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slices 1-5 pushed to codex/handshake-studio-assets (d2c52d5..1538ffb), each READY_FOR_VALIDATION; pattern overlay (goal 2 remainder) in progress as slice 6",
+ "commits": [
+  {"sha": "d2c52d5", "slice": "2a pigment+composite: bevel chisel hard/soft, soften, stroke emboss", "status": "READY_FOR_VALIDATION"},
+  {"sha": "51a7164", "slice": "1+2b render-gpu: WGSL for legacy brightness/contrast + 12 second-set adjustments; satin, bevel & emboss (all styles/techniques), gradient overlay", "status": "READY_FOR_VALIDATION"},
+  {"sha": "1df20b8", "slice": "3 pigment+render-cpu: deep, root and pass-through knockout", "status": "READY_FOR_VALIDATION"},
+  {"sha": "1dae132", "slice": "4 composite: smart filters over placed smart-object instances", "status": "READY_FOR_VALIDATION"},
+  {"sha": "1538ffb", "slice": "5 interop-psd: grdm, clrL, SoLd/SoLE (+lnk2/lnk3/lnkD/lnkE) -> placed_sources/placed_asset; PlLd alone typed loss", "status": "READY_FOR_VALIDATION"}
+ ],
+ "capabilities_done": [
+  "render-gpu WGSL bodies for every AdjustmentKind (legacy brightness_contrast, vibrance, colour_balance, photo_filter, black_and_white, channel_mixer, selective_colour, gradient_map, colour_lookup, shadows_highlights, tone_compression, match_colour, replace_colour); modern brightness_contrast stays pigment's typed refusal; parity vs pigment within 5e-6/1e-5/2e-5 (gpu_adjust_styles_2::gpu_second_set_adjustments_match_pigment_within_tolerance), 65-cube LUT + BudgetExceeded (gpu_colour_lookup_65_cube_and_table_budget)",
+  "render-gpu satin, bevel & emboss (inner/outer/emboss/pillow/stroke emboss; smooth/chisel hard/chisel soft; soften) and gradient overlay within 2e-5 of pigment render_layer_reference (gpu_layer_styles_2::gpu_styles_match_pigment_reference_within_tolerance); chisel over budget = effect_cost refusal (gpu_chisel_cost_refusal_and_empty_stroke_emboss)",
+  "pigment bevel chisel hard/soft, soften, stroke emboss (bevel_techniques: chisel_hard_hand_values, soften/stroke emboss bit-identical recomputation, windows bit-identical, hostile budgets)",
+  "knockout: shallow at root (transparent base) and in pass-through groups (running result before the group), deep (document base + clearing enclosing backdrops by the accumulated shape) under a plain ancestry (pigment knockout_placements; render-cpu cpu_knockout_2)",
+  "smart filters on placed instances: SceneContent::Filtered runs the stack in source space before the instance transform (composite placed_smart_filters; render-cpu cpu_placed_filters vs SmartFilterStack::render, tol 1e-6)",
+  "PSD import: grdm v1/v3 -> gradient_map, clrL -> colour_lookup (unset = identity cube; CUBE text tokenized, V4-08), SoLd/SoLE -> placed records with affine from Trnf, identity warpCustom accepted; descriptor ObAr/UnFl bounded (adjustment_records_3, placed_records on psd-tools corpus gradient-map/color-lookup/smartobject-layer/placedLayer)"
+ ],
+ "tests": {
+  "argv": "cargo nextest run --no-fail-fast -p hsk-studio-pigment -p hsk-studio-render-gpu -p hsk-studio-render-cpu -p hsk-studio-composite -p hsk-studio-interop-psd --test layer_style_records --test placed_assets --test placed_smart_filters --test render_plan_lowering --test adjustment_records --test adjustment_records_2 --test adjustment_records_3 --test placed_records --test bevel_techniques --test knockout --test knockout_placements --test layer_styles --test plan_extensions --test plan_followups --test cpu_extended --test cpu_knockout --test cpu_knockout_2 --test cpu_layer_styles --test cpu_placed_filters --test gpu_adjust_styles_2 --test gpu_layer_styles_2 --test gpu_plan",
+  "exit": 0,
+  "sha": "1538ffb (run on the pre-final-rebase tree; the two later upstream rebases touched only hsk-studio-score/pulse/harness, not dependencies of these crates)",
+  "passed": 105,
+  "failed": 0
+ },
  "blockers": [],
- "lock_wait_s": 0,
+ "lock_wait_s": 2872,
  "bg_pids": [],
- "next": "check + clippy + focused tests per slice, then pathspec commits and pushes",
- "updated_at": "2026-10-15T13:38:38Z",
+ "next": "slice 6 pattern overlay (pigment PatternOverlayOp + folio pattern_tile + composite resolve_patterns + render-cpu/gpu), then lane update",
+ "updated_at": "2026-10-15T13:56:50Z",
  "notes": {
-  "worktree": "wt-studio-lanes/smb-ps-adjust-styles-2, branch lane/smb-ps-adjust-styles-2 from origin/codex/handshake-studio-assets 4845773, STUDIO_OWNER=smb-ps-adjust-styles-2",
-  "parity": "Photoshop parity UNVERIFIED (D5); never claimed"
+  "worktree": "wt-studio-lanes/smb-ps-adjust-styles-2, branch lane/smb-ps-adjust-styles-2, STUDIO_OWNER=smb-ps-adjust-styles-2",
+  "parity": "Photoshop parity UNVERIFIED (D5); never claimed",
+  "spec_basis": "STU-RAS-151 (second-set kinds, gradient_map, colour_lookup); STU-RAS-040 (Bevel & Emboss, Satin, Gradient/Pattern Overlay); STU-RAS-157 rows bevel_emboss (technique smooth|chisel_hard|chisel_soft, soften, style incl. stroke_emboss) and pattern_overlay; STU-RAS-041 + STU-VEC-153 (knockout); STU-CMP-010a (bottom-up compositing, backdrop = everything below); STU-RAS-037 (live filters on placed_asset); STU-CMP-010 steps 3 before 5; STU-RAS-012/013 (placed_asset embedded/linked, shared sources)",
+  "readings_unverified_d5": "GPU bodies transcribe pigment (parity with pigment, not Photoshop). Chisel = capped signed edge distance (soft blurs by size/4); soften = blur of the part matte; stroke emboss = field of shape union stroke, region = stroke matte; knockout placements as in 'capabilities_done'; smart filters on placed instances run in source space before the instance transform (Photoshop evaluates on the transformed object: documented difference); grdm smoothness/perceptual interpolation read as linear (noted); clrL selected-table keys (lookupType, LUTFormat, LUT3DFileData) have no corpus sample; external SoLE links recorded health missing (no file read); warpCustom accepted only when the mesh is an even grid over bounds (all four placedLayer.psd meshes)",
+  "own_failures_fixed": "first full run 86/105: (1) every GPU pipeline Pipeline(pipeline_create): DX12 FXC refused dynamically indexed writes in kernel.wgsl (black_and_white rank array, selective_colour vector component) -> rewritten with select/vector accumulation, same per-channel operation order; (2) knockout_union k+s-ks rounded at k=1 -> k+s(1-k); (3) plan_followups reader classification for PlanExtensions::plain_ancestry added; (4) placedLayer.psd descriptor used ObAr/UnFl -> decoded with bounds, identity warpCustom accepted",
+  "adjacent_test_updates": "gpu_plan.rs (refused-adjustment/effect pins now empty, legacy BC Unavailable(no_adapter)), layer_styles.rs (chisel/stroke emboss/soften now Ok), layer_style_records.rs (chisel lowers), knockout.rs + cpu_extended.rs (deep Approximate), plan_extensions.rs + plan_followups.rs (deep+adjustment examples), cpu_knockout.rs (3 refusals removed), render_plan_lowering.rs (root shallow knockout admitted)",
+  "gaps": "GPU knockout and GPU smart-filter masks remain typed refusals; enabled smart-filter masks on placed instances refused (placed_smart_filter_mask); legacy PlLd without SoLd is a typed loss; pattern overlay pending (slice 6)",
+  "pre_existing_clippy_outside_own_hunks": "hsk-studio-observe too_many_arguments (fails -D warnings), hsk-studio-type unneeded cfg, pigment tests/layer_styles.rs:145 manual_is_multiple_of, composite tests/support/composition_scenes.rs large_enum_variant; none in this lane's hunks",
+  "first_push_deadline": "missed: D: disk-build-lock queue behind validator rounds (lock_wait_s)",
+  "module_edges": "none new"
  }
 }

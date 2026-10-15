@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T21:33:27Z",
+ "updated_at": "2026-10-15T21:33:58Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -7552,12 +7552,17 @@
   {
    "lane_id": "SMB-ILLUSTRATOR-INTEROP-2",
    "crate": "hsk-studio-interop-vector",
-   "phase": "queued",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": null,
-   "commits": [],
+   "commits": [
+    "f2c1845",
+    "0a8f3e6",
+    "39c900f"
+   ],
    "verdicts": [],
-   "note": "text-as-text .ai import, AI layers preserved, colour kept in document space (CMYK/Lab), clips + masks in SVG/PDF export"
+   "note": "text-as-text .ai import, AI layers preserved, colour kept in document space (CMYK/Lab), clips + masks in SVG/PDF export",
+   "lane_file": "builders/lanes/hsk-studio-illustrator-interop-2.json"
   },
   {
    "lane_id": "SMB-PACKAGE-COMPLETENESS-2",
@@ -7602,9 +7607,9 @@
   {
    "lane_id": "SMB-D24A-CODEC-DEFAULTS",
    "crate": "hsk-studio-reel",
-   "phase": "queued",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-d24a-20261015",
    "commits": [],
    "verdicts": [],
    "note": "implement D24-A: MP3 decode default-on; AAC default via Windows Media Foundation decoder in reel-native worker, own AAC decoder opt-in; H.264/HEVC encode via OS MFT behind default-off feature os-encode; typed refusals"
