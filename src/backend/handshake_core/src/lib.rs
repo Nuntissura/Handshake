@@ -1,3 +1,10 @@
+#[cfg(all(test, feature = "runtime-full", feature = "test-utils", feature = "surreal-test-support"))]
+extern crate self as handshake_core;
+
+#[cfg(all(test, feature = "runtime-full", feature = "test-utils", feature = "surreal-test-support"))]
+#[path = "../tests/surreal_test_store_support/mod.rs"]
+mod ac9_surreal_test_store_support;
+
 #[cfg(all(feature = "runtime-full", not(feature = "duckdb-flight-recorder")))]
 extern crate self as duckdb;
 

@@ -7,6 +7,13 @@
 //! concurrency cap, lifetime ceiling, lease reaper, failure-fingerprint breaker,
 //! budget exhaustion, cancel teardown, and no-orphan ledger reconciliation.
 
+#[cfg(all(feature = "test-utils", feature = "surreal-test-support"))]
+use crate::ac9_surreal_test_store_support;
+#[cfg(all(feature = "test-utils", feature = "surreal-test-support"))]
+mod ac9_lifecycle_surreal_tests;
+#[cfg(all(feature = "test-utils", feature = "surreal-test-support"))]
+mod ac9_policy_surreal_tests;
+
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
