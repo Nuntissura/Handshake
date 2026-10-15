@@ -1,0 +1,18 @@
+{
+ "crate": "hsk-studio-package",
+ "lane": "SMB-PACKAGE-COMPLETENESS-2",
+ "status": "IN_PROGRESS",
+ "phase": "slice 1 committed in lane worktree (folio ports + catalog asset_id + linked health check); final tests waiting on the D: disk lock behind validation round C48",
+ "commits": [],
+ "capabilities_done": [],
+ "tests": {"argv": null, "exit": null, "sha": null, "passed": null, "failed": null},
+ "blockers": [],
+ "lock_wait_s": null,
+ "bg_pids": [],
+ "next": "push slice 1",
+ "updated_at": "2026-10-16T00:30:00Z",
+ "notes": {
+  "housekeeping": "stale shared-tree copies of this builder's paths stashed reversibly in wt-studio-assets: stash c3365f7 'SAFETY: smb-package stale shared-tree edits 2026-10-15' (package lib/references/stream/write, session session.rs and the source.rs load_parts hunk only; the other lane's source.rs import_ref hunk was lifted out first with git apply -R and re-applied after, so it stays in the working tree and is not in the stash); not dropped",
+  "cargo_lock": "not touched"
+ }
+}

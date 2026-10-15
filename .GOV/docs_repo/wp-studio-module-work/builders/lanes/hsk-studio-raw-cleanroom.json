@@ -1,0 +1,31 @@
+{
+ "crate": "hsk-studio-develop",
+ "lane": "SMB-RAW-CLEANROOM",
+ "status": null,
+ "phase": "started: clean-room rewrite of the compressed vendor RAW decoders (ORF, RW2, NEF, RAF, CR3), one vendor per slice; worktree wt-studio-lanes/smb-raw-cleanroom (branch lane/smb-raw-cleanroom)",
+ "commits": [],
+ "capabilities_done": [],
+ "tests": {"argv": "", "exit": null, "sha": "", "passed": 0, "failed": 0},
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "slice 1 ORF two-field layout in crates/hsk-studio-develop/src/raw_cr/orf.rs",
+ "updated_at": "2026-10-15T21:36:20Z",
+ "notes": {
+  "operator_basis": "START_LOG Operator decisions 2026-10-15 (5): rewrite the compressed-RAW decoders clean-room now",
+  "clean_room_rules": "not read: LightCraft source, develop src/{nef,nefc,cr3,crx,crx_wavelet,raf,rafc,orf,rw2}.rs, develop NOTICE, any GPL/LGPL/MPL raw code (dcraw, LibRaw, rawspeed, rawler, lclevy canon_cr3, darktable, RawTherapee). Read: develop lib.rs exports, dng.rs (DngRaw/VendorFrame), tiffep.rs, levels.rs, camera_colour.rs and the tests.",
+  "sources": [
+   {"url": "TIFF 6.0 (Adobe public specification) and Exif 2.3 (CIPA DC-008)", "licence": "public specifications", "used_for": "TIFF IFDs, strips, Exif IFD, MakerNote, CFAPattern 0xA302"},
+   {"url": "https://exiv2.org/makernote.html", "licence": "documentation prose (Exiv2 project site); no code read", "used_for": "Olympus old maker note header OLYMP\\0 + 2 bytes, TIFF-relative offsets"},
+   {"url": "https://exiftool.org/TagNames/Olympus.html", "licence": "ExifTool documentation (Perl Artistic/GPL project; tag-table facts only, no code read)", "used_for": "Olympus 0x1011 ColorMatrix, 0x1012 BlackLevel, 0x1017/0x1018 Red/BlueBalance, 0x102C ValidBits"},
+   {"url": "https://exiftool.org/TagNames/PanasonicRaw.html", "licence": "ExifTool documentation (tag-table facts only, no code read)", "used_for": "Panasonic IFD0 0x0002-0x0007, 0x0009 CFAPattern values, 0x000A, 0x001C-0x001E, 0x0024-0x0026, 0x002D, 0x0118, Make/Model"},
+   {"url": "https://support.captureone.com/hc/en-us/community/posts/360012253617", "licence": "forum prose", "used_for": "RW2 16-byte packed blocks: ten 12-bit or nine 14-bit samples (only the 12-bit format 5 is built, it is also documented by tests/develop_rw2.rs)"},
+   {"url": "develop tests (tests/develop_orf.rs, tests/develop_rw2.rs, tests/develop_camera_colour.rs, tests/real_raw_levels.rs, tests/real_raw_compressed.rs)", "licence": "workspace", "used_for": "two-field ORF layout, RW2 format-4 field layout and known answers, format-5 chunk rotation, +15 codec black offset, expected unapplied names"}
+  ],
+  "checked_and_insufficient": [
+   {"vendor": "NEF Huffman (34713)", "checked": "lclevy/nikon_nef README (https://github.com/lclevy/nikon_nef: tag dumps only, no Huffman tables; its nikon_compression.c and the lclevy.free.fr/nef section 4.2 dcraw excerpt were NOT read), ExifTool Nikon tag table (0x0096 NEFLinearizationTable named only)", "missing": "the fixed Huffman tables (code-length counts and symbol order per table version 0x46/0x44 0x10/0x44 0x20/0x44 0x40, 12 and 14 bit), the difference/sign convention and the row/column predictor seeding from 0x0096, the lossy curve expansion (type-1 full curve, type-2 257-point interpolation and its rounding), the split-row semantics"},
+   {"vendor": "RAF compressed (modes 2/3, Bayer and X-Trans)", "checked": "capnfabs.net 'How Does Lossless Compression in Fuji RAF Files work?' (prose, lossless only)", "missing": "header (IS block) field offsets, stripe width rule, predictor weights, the gradient quantisation thresholds, Rice parameter adaptation and context update formulas, escape length, edge handling, and everything of the lossy mode (quantiser tables) used by the corpus X-S10"},
+   {"vendor": "CR3 CRX", "checked": "lclevy/canon_cr3 README description (container boxes and CMP1 header fields; the GPL code was not opened), libopenraw CR3 page", "missing": "the CRX entropy coder (adaptive Golomb-Rice parameter rule, run mode, escape), subband/tile/plane ordering, the Le Gall 5/3 lifting and rounding as Canon applies it, C-RAW quantisation (uniform and QP-map) and the line-buffer edge rules; only LibRaw crx.cpp (LGPL/CDDL) describes them"}
+  ]
+ }
+}
