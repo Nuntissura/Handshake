@@ -38,5 +38,8 @@
   "cargo_lock": "not touched",
   "v4": "V4-01 deny(arithmetic_side_effects) on pipeline.rs, kernel.rs, device.rs; V4-02 fault message bounded (test with a 20000-byte identifier); V4-03 GPU tests gated per gpu-proof.toml with NOT_PROVEN lines; V4-04 probe_pipeline under test-faults (source-scan test + compile_fail doctest); V4-07 DESCRIPTOR claim cites tests; V4-09 commit -F",
   "retry_guard": "no gameplan blocks; no shared gameplan step touched"
- }
+ },
+ "verdicts": [
+  {"decision": "passed", "verdict": "PASS_V1", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "a2d17b0: every module/layout/pipeline created under OOM+internal+validation scopes and catch_unwind (pipeline.rs guarded), PipelineFault typed at acquire, shared OutputPipeline same guard (lead waiver); fxc_rejected_kernel_is_a_typed_refusal_before_any_dispatch passed on the live DX12 adapter in test-faults and shared-device+test-faults units. Only DX12/FXC proven (other backends print NOT_PROVEN by design; none printed here). No stub. Lane tests 6 passed / 0 failed (/gpu_pipeline_fault/); default render-gpu 38; all units of render-gpu build 0 run 0", "idempotency_key": "STUDIO-R30:SMB-RENDER-GPU-PIPELINE-FAULT:e7a2b6c5f8e2:PASS_V1", "round": "STUDIO-R30", "lane": "SMB-RENDER-GPU-PIPELINE-FAULT", "candidate": "e7a2b6c5f8e2162f26de6e651aa2f195d04d14b2", "tree": "1e1cbc37a8dec6fba5cf6fdfddac3212d12ded23", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R30", "started_at": "2026-10-15T01:28:40Z", "completed_at": "2026-10-15T02:04:29Z"}
+ ]
 }

@@ -88,5 +88,8 @@
    "DESCRIPTOR lists the press api entries only; interop-layout DESCRIPTOR not yet updated with export_pdf"
   ],
   "claim": "No PASS claimed; READY_FOR_VALIDATION for slices 1+2 on pushed commits 0451297, e83e699, f97530d"
- }
+ },
+ "verdicts": [
+  {"decision": "passed", "verdict": "PASS_V1", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "0451297 e83e699 f97530d: press PdfExport builder over canon::write_ops/writer::write_document (Type0/CIDFontType2 whole-font embed, Flate images + SMask, ICCBased, deterministic /ID, typed ExportError refusals, conformance not_proven stated); interop-layout lowers Folio pages/spreads, text runs (Type glyph ids), SVPT paths, raster tiles onto it with typed losses. Judged at candidate tree, which also holds SMB-LAYOUT-PDF-EXPORT-2 commits fb369b9 98abfd6 7027040 084e744 (other lane id, V4-15). No stub. Lane tests 12 passed / 0 failed (/press::export|interop-layout::pdf_export|::export::/); default press 190, interop-layout 15; all units of press/interop-layout build 0 run 0", "idempotency_key": "STUDIO-R30:SMB-LAYOUT-PDF-EXPORT:e7a2b6c5f8e2:PASS_V1", "round": "STUDIO-R30", "lane": "SMB-LAYOUT-PDF-EXPORT", "candidate": "e7a2b6c5f8e2162f26de6e651aa2f195d04d14b2", "tree": "1e1cbc37a8dec6fba5cf6fdfddac3212d12ded23", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R30", "started_at": "2026-10-15T01:28:40Z", "completed_at": "2026-10-15T02:04:29Z"}
+ ]
 }

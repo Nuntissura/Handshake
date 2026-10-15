@@ -37,5 +37,8 @@
   "cargo_lock": "not touched",
   "v4": "V4-01 deny(arithmetic_side_effects) on content_aware.rs (checked index and size arithmetic); V4-02 every plane charged before allocation, pigment charges its pyramid against the remainder (test budgets_are_charged_before_any_sink_call); V4-03 the render-gpu test is hardware-independent and also runs on the live adapter; V4-07 DESCRIPTOR claims cite tests; V4-09 commit -F",
   "retry_guard": "the gameplan retry guard refused an identical rerun of the failing suite; the rerun used a different filter; no gameplan step added"
- }
+ },
+ "verdicts": [
+  {"decision": "passed", "verdict": "PASS_V1", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "7d2367a: render-cpu ExtOperator::ContentAwareFill runs pigment content_aware::fill once per layer before the first chunk (planes charged before allocation, pigment gets the rest of the budget), byte identity with a direct pigment call over 6 chunkings/thread counts; render-gpu keeps a declared typed Unsupported refusal (not claimed as GPU capability). No stub. Lane tests 7 passed / 0 failed (/cpu_content_aware|gpu_content_aware/); default render-cpu 59, render-gpu 38; all units of render-cpu/render-gpu build 0 run 0", "idempotency_key": "STUDIO-R30:SMB-RENDER-CONTENT-AWARE:e7a2b6c5f8e2:PASS_V1", "round": "STUDIO-R30", "lane": "SMB-RENDER-CONTENT-AWARE", "candidate": "e7a2b6c5f8e2162f26de6e651aa2f195d04d14b2", "tree": "1e1cbc37a8dec6fba5cf6fdfddac3212d12ded23", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R30", "started_at": "2026-10-15T01:28:40Z", "completed_at": "2026-10-15T02:04:29Z"}
+ ]
 }

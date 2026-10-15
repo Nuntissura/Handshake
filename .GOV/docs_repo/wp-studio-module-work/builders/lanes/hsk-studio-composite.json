@@ -1770,6 +1770,7 @@
    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
    "started_at": "2026-10-14T23:54:12Z",
    "completed_at": "2026-10-15T00:47:07Z"
-  }
+  },
+  {"decision": "passed", "verdict": "PASS_V15", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed 62c0bf6..e7a2b6c + reverse-dependency closure, 13 crates): units of composite all build 0/run 0, 0 failed, 0 timed_out; default composite 52", "idempotency_key": "STUDIO-R30:SMB-COMPOSITE:e7a2b6c5f8e2:PASS_V15", "round": "STUDIO-R30", "lane": "SMB-COMPOSITE", "candidate": "e7a2b6c5f8e2162f26de6e651aa2f195d04d14b2", "tree": "1e1cbc37a8dec6fba5cf6fdfddac3212d12ded23", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R30", "started_at": "2026-10-15T01:28:40Z", "completed_at": "2026-10-15T02:04:29Z"}
  ]
 }

@@ -31,5 +31,8 @@
   "followups": "1) default switch to nib Exact coverage + interop-fig pin update; 2) default mode still treats a pattern-bound row by its stand-in paint (pre-existing behaviour, refused only in nib mode); 3) Folio pattern artwork -> nib PatternTile needs a caller source (refused paint_pattern_not_resolved); 4) gradient transform assumes document px = plan px (non-px documents refused); 5) Figma/Illustrator parity NOT_PROVEN (D5)",
   "retry_guard": "route (a) once: vector_in_group compared against the wrong subtree of the standalone plan (its root IS the content group); fixed and committed in c917333 before the green rerun",
   "v4": "V4-01 deny(arithmetic_side_effects) on src/vector_nib.rs and src/vector.rs; V4-02 plane pixels checked against max_layer_pixels before nib allocates (nib bounds its own work); V4-03 GPU gated; V4-09 messages via files"
- }
+ },
+ "verdicts": [
+  {"decision": "passed", "verdict": "PASS_V1", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "c917333 5898a82: image-typed vector sources inside groups; vector_nib routes exact coverage (nib rasterize, boolean union/subtract), strokes (outline_stroke + union), gradient/pattern paint (paint_coverage) with typed nib refusals; CPU and GPU frames vs one shared oracle (GPU live adapter, no NOT_PROVEN). No stub. Lane tests 11 passed / 0 failed (/vector_in_group|vector_nib/); default composite 52, render-cpu 59, render-gpu 38; all units of composite/render-cpu/render-gpu build 0 run 0", "idempotency_key": "STUDIO-R30:SMB-COMPOSITE-VECTOR-IN-GROUP:e7a2b6c5f8e2:PASS_V1", "round": "STUDIO-R30", "lane": "SMB-COMPOSITE-VECTOR-IN-GROUP", "candidate": "e7a2b6c5f8e2162f26de6e651aa2f195d04d14b2", "tree": "1e1cbc37a8dec6fba5cf6fdfddac3212d12ded23", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R30", "started_at": "2026-10-15T01:28:40Z", "completed_at": "2026-10-15T02:04:29Z"}
+ ]
 }
