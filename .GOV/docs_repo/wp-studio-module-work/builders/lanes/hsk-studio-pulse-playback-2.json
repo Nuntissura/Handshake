@@ -6,16 +6,31 @@
  ],
  "lane": "SMB-PULSE-PLAYBACK-2",
  "status": "READY_FOR_VALIDATION",
- "phase": "slice 1 pushed: loop, in/out play, J/K/L shuttle (a107124)",
+ "phase": "slices 1, 2a, manifest, 2b pushed: transport (a107124), frame cache + prefetch (b8e4719), harness features (2a5433d), monitor decodes real media (e33f623)",
  "commits": [
   {
    "sha": "a107124",
    "subject": "pulse (SMB-PULSE-PLAYBACK-2 slice 1): loop, in/out play and J/K/L shuttle with reverse and 2x/4x/8x"
+  },
+  {
+   "sha": "b8e4719",
+   "subject": "pulse (SMB-PULSE-PLAYBACK-2 slice 2a): decoded-frame cache, decoder port and prefetch"
+  },
+  {
+   "sha": "2a5433d",
+   "subject": "harness (SMB-PULSE-PLAYBACK-2 manifest): optional features media, media-native, audio-device"
+  },
+  {
+   "sha": "e33f623",
+   "subject": "harness (SMB-PULSE-PLAYBACK-2 slice 2b): program monitor shows decoded media frames"
   }
  ],
  "capabilities_done": [
   "(3) transport: PlaybackScheduler set_in_out(in_frame, out_frame inclusive) / clear_in_out / play_in_to_out (1x forward over the span; invalid_range without in/out, outside_range beyond the play range, overflow for absurd frames); set_looping wraps the position in exact integer ticks (unwrapped offset u from the active start, cycle u.div_euclid(span), position start + u.rem_euclid(span)); PlaySpeed signed ratio (numerator != 0 else zero_speed; denominator power of two <= 8, reduced, magnitude <= 8 else invalid_speed); shuttle_right/left (J/L: from stop or the other direction 1x, then doubling 2x/4x/8x, capped), shuttle_stop (K = pause), shuttle_slow (Shift+J/L = 1/2); speed and loop changes while playing re-anchor at the current position (continuous); forward positions floor and reverse positions ceil the scaled elapsed distance so the due frame always holds the exact position",
-  "(3) frame-drop policy: presentation index p = cycle * n + (frame - first) orders frames in both directions and across the wrap; DropLate presents the due frame and counts skipped frames (Nx shuttle at one refresh per real frame drops N - 1); PresentEveryFrame steps one frame per refresh in the play direction at any speed and reports the lag; stats gain wraps; forward bound 0 <= position - frame_start < one frame (unchanged), reverse bound 0 < frame_end - position <= one frame (sequence ticks)"
+  "(3) frame-drop policy: presentation index p = cycle * n + (frame - first) orders frames in both directions and across the wrap; DropLate presents the due frame and counts skipped frames (Nx shuttle at one refresh per real frame drops N - 1); PresentEveryFrame steps one frame per refresh in the play direction at any speed and reports the lag; stats gain wraps; forward bound 0 <= position - frame_start < one frame (unchanged), reverse bound 0 < frame_end - position <= one frame (sequence ticks)",
+  "(1) pulse frame_cache.rs: FrameDecoder port (declared_bytes from metadata, decode_run of up to N frames with source spans, DecodeRefusal{code, detail}); FrameCache LRU keyed by source key + span start, bounded by max_bytes/max_entries/max_frame_bytes, admission before decode (limit_exceeded), invalidate per source; FramePipeline (hit, else admit + decode a run + insert; frames larger than declared refused; refusals remembered per source, bounded 256, canceled/out_of_range not remembered); PlaybackScheduler::upcoming_frames (direction, whole-speed stride, loop wrap, <= 256) + prefetch_layers; CacheStats hits/misses/inserts/evictions/refused/prefetched/decodes",
+  "(1) harness view/media.rs (feature media; media-native adds reel-native mf+av1 hosts): ReelFrameDecoder over reel Registry::decode_segment_routed (Untrusted; VC-3 + ProRes + Y4M in process, H.264/AV1 only via with_external), probe -> declared size (<= MAX_MONITOR_PIXELS, 16 bytes/pixel) before decode, run budget from the declared size, decoded size must equal declared (corrupt), Y'CbCr -> R'G'B' f32 by H.273 matrix 0/1/5/6/9/10 and range flag (unspecified assumed BT.709 >= 720 lines else BT.601, recorded), nearest chroma, DecodeNote with per-frame plane SHA-256; MediaFrames = monitor FrameSource over FramePipeline (run 4, prefetch 2 decoder calls per refresh); reel errors mapped to stable codes (codec_unavailable, import_unsupported, corrupt, truncated, limit_exceeded, out_of_range, decoder_fault, ...)",
+  "(1) harness monitor.rs: FrameSource::frame_result (typed refusal kept as the monitor error code + detail, shown in the transport label; nothing rendered) and FrameSource::prefetch; refresh prefetches the next DEFAULT_PREFETCH_AHEAD (8) frames; frames of another size fitted (uniform scale, centred, bilinear via the scene layer matrix); set_in_out / play_in_to_out / set_looping / shuttle / shuttle_slow / shuttle_stop; widget ids monitor.shuttle_left|shuttle_stop|shuttle_right|play_in_out|loop; state_json adds speed, looping, in_out_ticks, active_range_ticks, wraps, prefetched, error_detail"
  ],
  "tests": {
   "argv": "cargo nextest run -p hsk-studio-pulse --test playback --test playback_shuttle --test playback_audio --no-fail-fast; cargo clippy -p hsk-studio-pulse --tests (no pulse findings); cargo check -p hsk-studio-harness -p hsk-studio-interop-media --features hsk-studio-harness/viewer --tests",

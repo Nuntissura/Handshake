@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T05:20:25Z",
+ "updated_at": "2026-10-15T05:36:51Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -5708,12 +5708,14 @@
   {
    "lane_id": "SMB-V4-01-DENY-SWEEP",
    "crate": "hsk-studio-develop",
-   "phase": "queued",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": null,
-   "commits": [],
+   "commits": [
+    "74d5cc2"
+   ],
    "verdicts": [],
-   "note": "R29 finding_not_failure: develop/src/output.rs:72 and layout/src/parent_adapter.rs lack the V4-01 arithmetic deny; add deny(clippy::arithmetic_side_effects) + checked ops; fold into next develop / layout lanes"
+   "note": "folded into SMB-R31-FINDINGS"
   },
   {
    "lane_id": "SMB-INTEROP-FIG-PAINTS",
@@ -6278,12 +6280,19 @@
   {
    "lane_id": "SMB-R31-FINDINGS",
    "crate": "multi",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-r31-findings-20261015",
-   "commits": [],
+   "commits": [
+    "bd0229a",
+    "bf24e3c",
+    "9f69a2f",
+    "74d5cc2",
+    "eb569d5"
+   ],
    "verdicts": [],
-   "note": "F-R31-1 harness tests/import_psd.rs:544 expects old CR3 refusal (blocks R32 harness ignored unit); F-R31-2 interop-layout pdfx.rs:111 XMP PDF/X marker by text search -> parse XMP; F-R31-3 harness 3 deprecated with_display_transform call sites -> PlanExtensions output stage; plus SMB-V4-01-DENY-SWEEP (develop output.rs:72, layout parent_adapter.rs)"
+   "note": "F-R31-1 harness tests/import_psd.rs:544 expects old CR3 refusal (blocks R32 harness ignored unit); F-R31-2 interop-layout pdfx.rs:111 XMP PDF/X marker by text search -> parse XMP; F-R31-3 harness 3 deprecated with_display_transform call sites -> PlanExtensions output stage; plus SMB-V4-01-DENY-SWEEP (develop output.rs:72, layout parent_adapter.rs)",
+   "lane_file": "builders/lanes/hsk-studio-r31-findings.json"
   },
   {
    "lane_id": "SMB-HARNESS-PROTOTYPE-PLAY",
@@ -6368,6 +6377,16 @@
    "commits": [],
    "verdicts": [],
    "note": "PS-13/14/21/22/24: magic wand, quick select (graph cut), Select and Mask refine (guided filter/closed-form matting, decontaminate), liquify mesh warp, smart filters; object select typed model_unavailable"
+  },
+  {
+   "lane_id": "SMB-DEVELOP-CAMERA-COLOUR",
+   "crate": "hsk-studio-develop",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "CR3 (and other newly decoded vendors) import refuses missing_colour_data: camera colour matrices / forward matrices needed per model; permissive sources only (dcraw/rawspeed/LibRaw excluded), e.g. embedded maker-note matrices or DNG-SDK-licensed tables; else typed refusal stays"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",

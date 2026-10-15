@@ -1,0 +1,18 @@
+{
+  "crate": "hsk-studio-layout",
+  "lane": "SMB-LAYOUT-LONGDOC-2",
+  "status": null,
+  "phase": "item 1 (PDF/A-2b 6.2.11.5: /W from hmtx, kerning through TJ) in progress",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {"argv": null, "exit": null, "sha": null, "passed": 0, "failed": 0},
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "item 1 press hmtx widths + TJ runs; item 2 /PageLabels + outlines; item 3 running headers/footers with section markers, endnotes, sidenotes, host text after tables",
+  "updated_at": "2026-10-15T05:19:28Z",
+  "notes": {
+    "owned_paths": ["crates/hsk-studio-layout/**", "crates/hsk-studio-interop-layout/** (not tests/fixtures/verapdf/layout-clip-gradient.pdfa-2b.xml)", "crates/hsk-studio-folio/src/longdoc.rs", "crates/hsk-studio-folio/tests/longdoc_records_contract.rs", "crates/hsk-studio-press/src/export.rs + src/export/sfnt.rs (writer paths: widths, TJ runs, page labels, outlines)"],
+    "parity": "InDesign parity UNVERIFIED (D5)"
+  }
+}
