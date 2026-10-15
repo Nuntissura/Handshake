@@ -175,8 +175,10 @@ handshake_swarm_event_ids = { path = "../handshake_swarm_event_ids" }
 handshake_prompt_feedback = { path = "../handshake_prompt_feedback" }
 handshake_swarm_breaker = { path = "../handshake_swarm_breaker" }
 handshake_swarm_schedule = { path = "../handshake_swarm_schedule" }
+handshake_swarm_routing_policy = { path = "../handshake_swarm_routing_policy" }
 handshake_openpose_render = { path = "../handshake_openpose_render" }
 handshake_ckc_search_metrics = { path = "../handshake_ckc_search_metrics" }
+handshake_ckc_sheet_template = { path = "../handshake_ckc_sheet_template" }
 handshake_model_lane_navigation = { path = "../handshake_model_lane_navigation" }
 handshake_document = { path = "../handshake_document" }
 handshake_storage_support = { path = "../handshake_storage_support" }

@@ -1,0 +1,11 @@
+[workspace]
+
+[package]
+name = "handshake_swarm_routing_policy"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+handshake_swarm_breaker = { path = "../handshake_swarm_breaker" }
+handshake_model_lane_routing = { path = "../handshake_model_lane_routing" }
