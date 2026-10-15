@@ -1,0 +1,35 @@
+{
+ "crate": "hsk-studio-composite",
+ "lane": "SMB-COMPOSITE-VECTOR-IN-GROUP",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slices 1-2 pushed (c917333, 5898a82): image-typed vector sources inside groups; vector layers drawn through nib (exact coverage, strokes, gradients, patterns) with CPU/GPU proofs against one oracle",
+ "commits": [
+  {"sha": "c917333", "subject": "composite (SMB-COMPOSITE-VECTOR-IN-GROUP slice 1): image-typed vector sources composite inside groups"},
+  {"sha": "5898a82", "subject": "composite + render-cpu + render-gpu (SMB-COMPOSITE-VECTOR-IN-GROUP slice 2): vector layers drawn through nib (exact coverage, strokes, gradients, patterns)"}
+ ],
+ "capabilities_done": [
+  "slice 1: evaluate and lower treat a vector source whose out port is image-typed (Folio 6e2ec80, SMB-FOLIO-VECTOR-IMAGE-PORT) like a vector-typed one: it draws its prepared plane inside its group, the group entry carrying the layer's authored appearance; without prepared vectors vector_to_image_conversion (typed)",
+  "slice 2 (nib APIs verified at tip: nib::stroke::outline_stroke, nib::raster::{rasterize, paint_coverage, Gradient, PatternTile}, nib::boolean::boolean at baf8ffc): new composite::vector_nib; VectorResolution.coverage Exact = nib rasterize of the layer outline (paths united, boolean groups combined by nib boolean; SUBTRACT = SubtractFront), default Supersampled unchanged; FillPaint::Stroke{StrokeStyle, paint} rows (solid/gradient/pattern) paint inside the nib stroke outline (each path stroked, outlines united, rasterised; StrokePlane per row), composited above the fill rows with row mode/opacity and their own coverage mask; FillPaint::Gradient/Pattern rows = nib paint_coverage over the layer plane stored straight (PreparedPaint::Painted, InputsLowering::vector_paint); the layer plane covers fills, strokes and image copies; Folio adapter nib mode (coverage Exact): stroke rows and gradient paints mapped for px documents, vector_geometry_unit otherwise, pattern-bound rows paint_pattern_not_resolved; default mode keeps vector_stroke_not_rendered / paint_gradient"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-composite --features motion --no-fail-fast (59/59 incl. vector_in_group 1, vector_nib 2); -p hsk-studio-render-cpu --test vector_nib --test vector_paint --test composition_frames (3/3); -p hsk-studio-render-gpu --test vector_nib (1/1, live adapter) --test vector_paint (1/1)",
+  "exit": 0,
+  "sha": "5898a82",
+  "passed": 65,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "validator round; lane SMB-COMPOSITE-COMPOSITION-2 follows",
+ "updated_at": "2026-10-15T00:31:18Z",
+ "notes": {
+  "spec_basis": "STU-VEC-134..138 (paint kinds, gradient geometry, stops and midpoints, classic interpolation, patterns), STU-VEC-143..145 (stroke weight, cap, join, align, miter limit, dash), STU-VEC-179 (deterministic coverage), STU-VEC-013 (live boolean groups); folio SMB-FOLIO-VECTOR-IMAGE-PORT (image-typed vector source port)",
+  "proofs": "composite vector_in_group: content subtree equals the standalone vector plan, mask served from the prepared plane; composite vector_nib: fill plane == nib rasterize(nib boolean Union) byte for byte, stroke planes == nib rasterize(nib union of outline_stroke per path), painted tile == nib paint_coverage straightened, lowering shape and served masks/tiles, Folio nib mode mapping (stroke plane == nib on the mapped style) and refusals, default mode unchanged; render-cpu vector_nib: layer with gradient fill, multiply pattern fill, round solid stroke, dashed gradient screen stroke = shared oracle bit for bit (max delta 0), golden b6bf11c7..9dbec, identical bytes for chunk/thread (64,1) (5,1) (7,4) (4,8) (64,2); render-gpu vector_nib max |delta| 1.79e-7 (tolerance 2e-6)",
+  "outside_owned_paths": "new test files only (B1): crates/hsk-studio-render-cpu/tests/vector_nib.rs, crates/hsk-studio-render-gpu/tests/vector_nib.rs. Waiver requested (GLOBAL-SCOPE-005).",
+  "compatibility": "default VectorResolution (Supersampled) keeps existing planes and Folio refusals byte-for-byte, because interop-fig tests/fig_composite.rs pins refusal counts (paint_gradient 1, vector_stroke_not_rendered 3); switching that consumer (or the default) to VectorCoverage::Exact is a decision for the lead/interop-fig lane (CX-CAP-001: composite's supersampler duplicates nib coverage). interop-fig could not be rerun now: its lib does not compile from another lane's uncommitted working-tree changes (Mapper node_refs), not touched here",
+  "followups": "1) default switch to nib Exact coverage + interop-fig pin update; 2) default mode still treats a pattern-bound row by its stand-in paint (pre-existing behaviour, refused only in nib mode); 3) Folio pattern artwork -> nib PatternTile needs a caller source (refused paint_pattern_not_resolved); 4) gradient transform assumes document px = plan px (non-px documents refused); 5) Figma/Illustrator parity NOT_PROVEN (D5)",
+  "retry_guard": "route (a) once: vector_in_group compared against the wrong subtree of the standalone plan (its root IS the content group); fixed and committed in c917333 before the green rerun",
+  "v4": "V4-01 deny(arithmetic_side_effects) on src/vector_nib.rs and src/vector.rs; V4-02 plane pixels checked against max_layer_pixels before nib allocates (nib bounds its own work); V4-03 GPU gated; V4-09 messages via files"
+ }
+}

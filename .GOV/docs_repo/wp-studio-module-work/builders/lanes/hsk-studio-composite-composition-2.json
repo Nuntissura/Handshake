@@ -1,0 +1,39 @@
+{
+ "crate": "hsk-studio-composite",
+ "lane": "SMB-COMPOSITE-COMPOSITION-2",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slices 1-4 pushed (0223776..156689b, the 5 commits listed): masks/effects/vector/text layers via the static path, adjustment layers, collapse transformations, precompositions and track mattes on the document-graph path",
+ "commits": [
+  {"sha": "0223776", "subject": "composite (SMB-COMPOSITE-COMPOSITION-2 slices 1-2 code): masks, effects, vector, text and adjustment layers in compositions"},
+  {"sha": "da4254c", "subject": "composite + render-cpu (SMB-COMPOSITE-COMPOSITION-2 slices 1-2 proofs): static subtrees and adjustment layers in compositions"},
+  {"sha": "a51ce3f", "subject": "composite + render-cpu (SMB-COMPOSITE-COMPOSITION-2 slice 3): collapse transformations"},
+  {"sha": "be2383a", "subject": "composite (SMB-COMPOSITE-COMPOSITION-2 slice 4): precompositions and track mattes on the document-graph path"},
+  {"sha": "156689b", "subject": "composite (SMB-COMPOSITE-COMPOSITION-2): DESCRIPTOR composition entry for static subtrees, adjustment layers, collapse and the document-graph path"}
+ ],
+ "capabilities_done": [
+  "slice 1 (follow-up 1, masks and effects): a composition layer with an enabled mask or a raster-records entry (effects, blur, mask parameters, Blend-If) is lowered by the document's static path (evaluate_with_inputs + lower_with_inputs rooted at its graph operation, frame document with opacity 100 and blend normal; fill opacity, masks, effects, blur kept) into SceneContent::Static, rendered by the scene backend into a surface over the content extent grown by pigment stack_support_px + blur support_px, then transformed, faded and blended by the composition (STU-CMP-010 order); CompositionInput gains space (ColourTag) and inputs (RenderInputs)",
+  "slice 2 (follow-up 2): vector (incl. nib strokes/gradients from SMB-COMPOSITE-VECTOR-IN-GROUP), text (prepared planes) and live boolean group layers take the same static path (owned coverage masks and painted tiles copied into the scene, caller tiles/image paints/mask tiles via ScenePixels::tile/mask); adjustment layers become SceneContent::Adjustment (records converted by the static converter): pigment adjustment envelope on a transparent placeholder over the composition rect, layer opacity/mode, applying to everything below; refusals adjustment_record_missing (and the converter's codes), composition_adjustment_transform, composition_adjustment_matte, composition_layer_not_in_graph, composition_space",
+  "slice 3 (follow-up 3): collapse_transformations expands the nested composition's layers into the outer one (nested matrix then the layer matrix, matte chains too; opacity times the layer opacity; no nested surface, no clip); composition_collapse_blend_mode, composition_collapse_matte refused",
+  "slice 4: CompositionTemporalSource::lower_document_frame(FrameRequest, tick, SceneContext) for the document-graph path: precompositions rendered through the scene path into surfaces, the precomposition layer given a synthetic raster tile (composite-precomp) and a Folio source operation in the frame document (composite resolver/tile-info wrappers), placed by lower_frame with the scene matrix; track mattes rendered to coverage_u16le planes and set as the mask of the matted layer's plan entry; matte sources hidden; DocumentFrame::sources; refusals composition_collapse_on_document_graph, composition_matte_with_mask, composition_matte_target_not_found, composition_precomp_graph_operation"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-composite --features motion --no-fail-fast (62/62) and default (52/52); -p hsk-studio-render-cpu --test composition_frames --test vector_nib --test vector_paint (3/3); -p hsk-studio-render-gpu --test composition_frames --test vector_nib (2/2, live adapter)",
+  "exit": 0,
+  "sha": "156689b",
+  "passed": 119,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "validator round on the commits listed",
+ "updated_at": "2026-10-15T01:16:42Z",
+ "notes": {
+  "spec_basis": "STU-CMP-010 (masks, effects, styles before the transform; opacity, track matte, blend after), STU-CMP-015 / STU-MOT-005 adjustment (applies to the stack below), STU-MOT-006 collapse_transformations, STU-CMP-030 track matte, STU-MOT-005 composition kind",
+  "proofs": "composite composition_static: masked raster (density 0.5 from records, subtree neutral in opacity/blend, mask and tile ids for the caller), vector static plan == standalone vector plan with the owned coverage plane, adjustment = AdjustmentOp::Invert at 70 %, refusals, adjustment envelope entry; composition_adapter: collapsed composition 3 scenes at frames 0/6/12/22/30, collapse blend refusal; composition_document: document-graph frames (precomposition at outer frame 22, track mattes at frames 0 and 10) pixel-identical to render_scene under one reference executor (tiles, solids, groups, coverage masks, pigment composite_over), nested surface == shared oracle; render-cpu composition_frames: 19 cases incl. comp6 (static subtree rotating + invert adjustment) and comp3c (collapsed) = oracle bit for bit, golden digests, 5 chunk/thread configs; render-gpu composition_frames: comp6 max 1.19e-7, comp3c max 1.19e-7",
+  "outside_owned_paths": "render-cpu tests/composition_frames.rs golden list extended (file of the waived SMB-COMPOSITE-COMPOSITION-ADAPTER lane, B1); no renderer source touched",
+  "limits_and_followups": "1) document-graph path proven under a reference executor for integer placements (the scene path it equals is CPU/GPU-proven incl. resampling); 2) static surfaces are rendered once per frame (content is tick-independent: a cache across frames would save work); 3) text in compositions is wired through the same static path but no text-specific composition test (text static lowering is proven by tests/text_lowering.rs); 4) adjustment layers ignore any transform (refused) and cover the composition rect; After Effects adjustment-layer bounds and collapse opacity/blend semantics UNVERIFIED (D5); 5) composition layers clipped to a base stay refused (composition_layer_clipped)",
+  "retry_guard": "route (a) twice: composition_frames golden lists lacked new cases on their first runs (pinned in da4254c, a51ce3f); composition_document failed on the frame document's source port (Folio requires the exact source port shape), fixed and committed be2383a before the green rerun. One gameplan hook block from a command whose first token was not cd (PROC-CD-FIRST), rerun with cd first; no gameplan step added",
+  "v4": "V4-01 deny(arithmetic_side_effects) on the touched modules (checked margins, keys, rect growth); V4-02 static surfaces and matte planes charged via SceneLimits before allocation; V4-03 GPU gated; V4-09 messages via files"
+ }
+}
