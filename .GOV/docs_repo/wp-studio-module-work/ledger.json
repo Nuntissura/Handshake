@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T01:23:41Z",
+ "updated_at": "2026-10-15T01:24:08Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -5471,9 +5471,9 @@
   {
    "lane_id": "SMB-PIGMENT-EXTENDED-RANGE",
    "crate": "hsk-studio-pigment",
-   "phase": "queued",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-render-display-20261015",
    "commits": [],
    "verdicts": [],
    "note": "extended-range (scene-referred, >1) blend domain in pigment composite_over + OutputTarget display-transform stage (STU-COL-161 stage 6a) in the plan IR and digest; then renderers move the clip from backend config into the plan"
