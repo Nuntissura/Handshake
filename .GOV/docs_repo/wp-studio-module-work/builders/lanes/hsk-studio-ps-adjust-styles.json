@@ -1,21 +1,30 @@
 {
  "crate": "hsk-studio-pigment",
  "lane": "SMB-PS-ADJUST-STYLES",
- "status": null,
- "phase": "slice 1a pushed (863ba0a): pigment maths of the second STU-RAS-151 set; slice 1b (folio records, composite lowering, interop-psd mapping) in progress",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slice 1 (adjustments) pushed and READY: 1a 863ba0a pigment maths, 1b 9e2a5eb folio records + composite lowering, 1c d8ae88e interop-psd import; slice 2 (layer styles) next",
  "commits": [
-  {"sha": "863ba0a", "subject": "pigment (SMB-PS-ADJUST-STYLES slice 1a): second STU-RAS-151 adjustment set"}
+  {"sha": "863ba0a", "subject": "pigment (SMB-PS-ADJUST-STYLES slice 1a): second STU-RAS-151 adjustment set"},
+  {"sha": "9e2a5eb", "subject": "folio + composite (SMB-PS-ADJUST-STYLES slice 1b): second adjustment set records and lowering"},
+  {"sha": "d8ae88e", "subject": "interop-psd (SMB-PS-ADJUST-STYLES slice 1c): import blnc, selc, mixr, phfl, vibA, blwh"}
  ],
  "capabilities_done": [
-  "slice 1a pigment adjust_colour + AdjustmentOp variants: vibrance, colour_balance, photo_filter, black_and_white, channel_mixer, selective_colour, gradient_map, colour_lookup, shadows_highlights (global), tone_compression (exposure_gamma, highlight_compression), match_colour, replace_colour; appended to AdjustmentKind::ALL (GPU opcodes unchanged); CPU renders via PreparedAdjustment, GPU typed refusal"
+  "slice 1a pigment adjust_colour + AdjustmentOp variants: vibrance, colour_balance, photo_filter, black_and_white, channel_mixer, selective_colour, gradient_map, colour_lookup (3D cube side 2..=65, refused before the table is read), shadows_highlights (global form; radius > 0 typed refusal), tone_compression (exposure_gamma, highlight_compression; local_adaptation/equalize_histogram typed refusal), match_colour (resolved statistics), replace_colour; appended to AdjustmentKind::ALL (GPU opcodes unchanged); CPU renders via PreparedAdjustment, GPU typed refusal (no WGSL body)",
+  "slice 1b folio StudioAdjustment second-set variants (StudioMixerRow, StudioSelectiveColourMethod, StudioLutKind + StudioLutTable resolved cube, StudioToneMethod, StudioMatchStatistics; gradient_map over STU-VEC-136 StudioGradientStop) validated with typed InvalidField codes (LUT side checked before values are walked, entries charged to Budget.nodes); composite lower_extensions::adjustment_op (public) + refusals channel_mixer_shape, gradient_map_stop, adjustment_dither, colour_lookup_unresolved, tone_compression_compression, adjustment_colour_profile, adjustment_colour_linear_light; render-cpu renders every new kind bit-identical (to_bits) to pigment composite_adjustment",
+  "slice 1c interop-psd import of blnc, selc, mixr, phfl (v2 RGB), vibA, blwh with range checks and typed losses (photo_filter_colour_model_unmapped for Lab, photo_filter_xyz_colour_unmapped, *_range, *_truncated, *_version_unsupported, selective_colour_method, channel_mixer_fourth_channel_dropped note, black_and_white_tint_colour_as_hue_saturation note)"
  ],
- "tests": {"argv": "cargo nextest run -p hsk-studio-pigment --test adjust_colour", "exit": 0, "sha": "863ba0a", "passed": 4, "failed": 0},
+ "tests": {"argv": "pigment --test adjust_colour (4); composite --test adjust_colour_records (2); render-cpu --test cpu_adjust_colour (1); interop-psd --test adjustment_records_2 (2) + adjustment_records (7, regression)", "exit": 0, "sha": "d8ae88e", "passed": 16, "failed": 0},
  "blockers": [],
  "lock_wait_s": 228,
  "bg_pids": [],
- "next": "slice 1b folio StudioAdjustment records + composite lower_extensions + interop-psd mapping",
- "updated_at": "2026-10-15T09:22:32Z",
+ "next": "slice 2 layer styles (bevel & emboss, satin, gradient/pattern overlay) in pigment effect maths + composite lowering",
+ "updated_at": "2026-10-15T09:56:00Z",
  "notes": {
-  "shared_file_hunks": "863ba0a: render-gpu tests/gpu_plan.rs REFUSED_ADJUSTMENTS pin extended with the 12 new kinds (adjacent required change: the capability test enumerates AdjustmentKind::ALL); no other lane had hunks in the committed files."
+  "spec_basis": "STU-RAS-151 'THE StudioAdjustment KIND ENUMERATION. The adjustment set is closed.' rows vibrance, colour_balance (nine values + preserve_luminosity), photo_filter (filter_colour, density, preserve_luminosity), black_and_white (six weights, tint_enabled, tint_hue, tint_saturation), channel_mixer ('stored as a weight list; the list length is channel-count-dependent'), selective_colour (nine ranges each a CMYK quadruple, method relative = 1 | absolute = 2), colour_lookup (lut artifact reference, lut_kind 3dlut | abstract | device_link, dither), gradient_map (gradient, reverse, dither), shadows_highlights ('the ten-field shape'), tone_compression (method, exposure, gamma, compression), match_colour, replace_colour (fuzziness 0..200); STU-RAS-152 canonical scales.",
+  "readings_unverified_d5": "Every second-set formula is a Studio reading (adjust_colour.rs cites each basis: GIMP colour-balance weights, W3C SetLum, Reinhard 2001/2002, the Adobe help relative/absolute example, the colour-range fuzziness falloff); Photoshop parity UNVERIFIED (D5). Merged-composite comparison against the psd-tools corpus files was not attempted (they carry default dialog values only).",
+  "spec_gaps": "STU-RAS-151 colour_lookup carries only an artifact reference: Folio adds an optional resolved cube by value (as STU-RAS-158 contours carry points); tone_compression method members are not enumerated by the spec (Folio uses the four HDR-toning methods); match_colour source selection is stored as resolved statistics. PSD export writes no adjustment blocks (the exporter keeps source bytes); grdm and clrL import stay unmapped.",
+  "test_count": "slice 1 = sub-slices 1a (4 tests), 1b (3), 1c (2); each sub-slice within 5.",
+  "own_failures": "slice 1c: first test run did not compile (descriptor builders live in another test file) - retry guard route (a): committed d8ae88e with the fix, rerun green. No gameplan step added.",
+  "shared_file_hunks": "863ba0a: render-gpu tests/gpu_plan.rs REFUSED_ADJUSTMENTS pin extended with the 12 new kinds (adjacent required change: the capability test enumerates AdjustmentKind::ALL); no other lane had hunks in the committed files (pigment adjust_math.rs, lib.rs, render_plan/output.rs; folio raster.rs; composite lower_extensions.rs; interop-psd adjust.rs). Push of 9e2a5eb (git push origin 9e2a5eb:branch) also carried the already-committed local commit d8a2451 of SMB-HARNESS-RENDER-RECORDS; d8ae88e reached origin through another lane's push (f448633). Report to lead."
  }
 }
