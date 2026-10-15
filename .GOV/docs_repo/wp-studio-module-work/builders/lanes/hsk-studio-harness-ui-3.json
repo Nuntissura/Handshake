@@ -2,52 +2,63 @@
  "crate": "hsk-studio-harness",
  "lane": "SMB-HARNESS-UI-3",
  "status": "READY_FOR_VALIDATION",
- "phase": "slices 1-2 pushed (claim below); slice 3 (selection persistence) in progress",
+ "phase": "slices 1-5 pushed; claim = all commits below (tip 9832c68)",
  "commits": [
   {"sha": "63af66e", "subject": "chronicle + session (SMB-HARNESS-UI-3 slice 1a): layer placement property - create, delete, reorder, group, ungroup as transactions"},
   {"sha": "e938e9c", "subject": "harness + chronicle + session (SMB-HARNESS-UI-3 slice 1b): layer management with undo; painting creates tiles"},
   {"sha": "e927352", "subject": "harness (SMB-HARNESS-UI-3 slice 2): brush pixel mix through pigment masked_replace"},
-  {"sha": "9a1b8d8", "subject": "harness (SMB-HARNESS-UI-3 slice 2): engine profile = prism WORKING_PROFILE_LINEAR_SRGB_ADMITTED"}
+  {"sha": "9a1b8d8", "subject": "harness (SMB-HARNESS-UI-3 slice 2): engine profile = prism WORKING_PROFILE_LINEAR_SRGB_ADMITTED"},
+  {"sha": "f6443de", "subject": "session + harness (SMB-HARNESS-UI-3 slices 3 and 5): selection saved in the package; commit-authority tile path test"},
+  {"sha": "cf18e93", "subject": "session tests (SMB-HARNESS-UI-3): seeded vector of the round-trip fixture includes the group placement (slice 1a)"},
+  {"sha": "9832c68", "subject": "chronicle + session + harness (SMB-HARNESS-UI-3 slices 1 rework and 4): enumerated placement commands (STU-RAS-114); text tool"}
  ],
  "capabilities_done": [
-  "chronicle Property::Placement: stack parent + index of a layer (absent = no layer); create (LayerCreate record + operation), delete (inverse re-creates the record), move/reorder/group/ungroup; writes apply in order, inverse in reverse; mask_property removes the layer for lineage; never-seen layer at revision 0; chronicle::placement",
-  "session: a proposal may add a placement vector entry for a created layer; publish merges new seeds after structural edits and keeps deleted layers' entries; Session::layer_placement",
-  "harness Run::restructure / Run::placement; viewer view::layers: new raster layer, duplicate (subtree, same tile bodies), delete (subtree), move/shift, rename, group, ungroup, all one undoable chronicle transaction each; layer panel buttons layers.new/duplicate/delete/up/down/group/ungroup; layer tree in graph stack order",
-  "painting into empty 256-pixel cells creates transparent tiles first (empty layers and layers on the 256 grid)",
-  "history fix: undo/redo refresh inverse read revisions from the session vector (values still guard); two edits of one property both undo (UI-2 history failed this)",
-  "brush pixel mix through pigment masked_replace itself (view::brush_mix: real engine transaction + SerializedOwner per 64x64 block, paint_replacement, coverage mask); transcribed formula removed"
+  "slice 1: chronicle Property::Placement - state value Placement (parent, stack index) for reads; writes are enumerated commands Place (place_inside / place_at_beginning / place_at_end / place_before / place_after + anchor, STU-RAS-114; index-only writes refused invalid_input); create carries LayerCreate (record + operation), Place(None) deletes, inverses are commands (a delete inverse re-creates the record); writes apply in order, inverse in reverse; mask_property removes the layer so session lineage holds; never-seen layer at revision 0; chronicle::placement",
+  "slice 1: session - proposals may add a placement vector entry for a created layer; publish merges new seeds after structural edits and keeps deleted layers' entries (tombstones); Session::layer_placement",
+  "slice 1: harness Run::restructure / Run::placement / Place enum; viewer view::layers new raster layer, duplicate (subtree, same tile bodies), delete (subtree), move_layer / shift_layer (reorder), rename, group, ungroup - each one undoable chronicle transaction; layer panel buttons layers.*; tree in graph stack order; painting into empty 256-pixel cells creates tiles",
+  "slice 1: history fix - undo/redo refresh inverse read revisions from the session vector (values still guard); UI-2 history could not undo two edits of one property",
+  "slice 2: brush mix through pigment masked_replace itself (view::brush_mix: real engine + SerializedOwner per 64x64 block, paint_replacement, coverage mask); transcribed formula removed; prism WORKING_PROFILE_LINEAR_SRGB_ADMITTED for the admitted route",
+  "slice 3: session typed document entries studio/<token>.<sha256> (tokens selection, text): Session::document_entry / set_document_entry, no loss note on reopen, bounded by limits.max_entry_bytes, dirty until saved; harness view::selection_store (RLE, hostile-safe decode) - the viewer saves the active selection with the document and restores it on open",
+  "slice 4: text tool view::text - place_text creates a Folio text layer (image-typed source, G1) through chronicle (undoable), story + paragraph/character type styles validated by Folio in the session entry text with the pen origin, shaped by hsk-studio-type TextEngine, drawn by composite prepare_text + lower_to_render_plan_with_text (text masks served to render-cpu/render-gpu); bundled egui Ubuntu-Light, add_font",
+  "slice 5: session test of the commit-authority (CommitPort) staged-tile path: missing_asset before the authority is called, keyed commit, authority holds the document naming the staged digest, save writes the staged body, lost acknowledgement reconciled, redo"
  ],
  "tests": {
-  "argv": "cargo nextest run -p hsk-studio-chronicle --no-fail-fast -E 'binary(structure)' ; cargo nextest run -p hsk-studio-harness --features viewer --no-fail-fast -E 'binary(viewer_layers) | binary(viewer_brush_parity) | test(select_paint_undo_redo_save_reopen_pixels)' ; cargo nextest run -p hsk-studio-prism --no-fail-fast -E 'binary(working_profile)'",
+  "argv": "cargo nextest run -p hsk-studio-chronicle -p hsk-studio-session --no-fail-fast ; cargo nextest run -p hsk-studio-harness --features viewer --no-fail-fast -E 'not test(psd_tools_sweep)' ; cargo nextest run -p hsk-studio-prism --no-fail-fast -E 'binary(working_profile)'",
   "exit": 0,
-  "sha": "9a1b8d8",
-  "passed": 9,
+  "sha": "9832c68",
+  "passed": 84,
   "failed": 0,
   "names": [
-   "chronicle structure create_reorder_delete_and_undo_restore_the_stack, group_and_ungroup_apply_in_order_and_invert_exactly, hostile_structure_edits_are_typed_and_change_nothing",
-   "harness viewer_layers layer_management_through_chronicle_with_undo_and_save, multi_step_history_undoes_every_step_and_panel_buttons_act",
-   "harness viewer_brush_parity viewer_brush_equals_a_direct_masked_replace_call (viewer stroke == one direct masked_replace call, byte-identical)",
-   "regression harness viewer_edit select_paint_undo_redo_save_reopen_pixels; earlier at e938e9c: viewer_edit/viewer_headless/harness_headless 13/13; chronicle foundation_contract 21/21 + session table/pixel tests at 63af66e",
-   "prism working_profile admitted_working_profile_is_the_pinned_fixture_and_admitted_linear_light (+ existing)"
+   "chronicle structure: create_reorder_delete_and_undo_restore_the_stack, group_and_ungroup_apply_in_order_and_invert_exactly, hostile_structure_edits_are_typed_and_change_nothing (+ foundation_contract 21) = 24",
+   "session session_contract 23 incl. document_entries_save_reopen_and_stay_bounded, commit_authority_tile_path_commits_stages_saves_and_reconciles",
+   "harness 35 (viewer feature, all but the psd_tools sweep) incl. viewer_layers 2, viewer_brush_parity viewer_brush_equals_a_direct_masked_replace_call, viewer_selection 2, viewer_text text_layer_is_created_drawn_undone_and_saved, viewer_edit 3",
+   "prism working_profile 2 (6e86820)"
   ],
-  "clippy": "clippy -p hsk-studio-harness --features viewer --tests and default --tests --examples: 0 harness warnings; -p chronicle -p session --tests --examples clean; prism + pigment + interop-psd + develop + composite + render-cpu + render-gpu --tests exit 0 at 6e86820"
+  "clippy": "clippy -p chronicle -p session --tests --examples clean; -p harness --features viewer --tests and default --tests --examples: 0 harness warnings at 9832c68. NOT RUN at 9832c68: --features desktop (another lane's uncommitted render-gpu edits break render-gpu shared-device: plan_sink/shared.rs:265 From<PipelineFault>)"
  },
  "blockers": [],
  "lock_wait_s": 0,
  "bg_pids": [],
- "next": "slice 3: selection persisted in the package (session-typed entry) and restored on reopen; slice 5: commit-authority tile path test; slice 4: text tool (type edge approved)",
- "updated_at": "2026-10-14T23:27:27Z",
+ "next": "Validator: judge on the commits above. Steward: add edge hsk-studio-harness -> hsk-studio-type (optional, feature viewer; coordinator-approved) and pin; round features harness [viewer] must cover tests/viewer_layers.rs, viewer_brush_parity.rs, viewer_selection.rs, viewer_text.rs. Desktop clippy to re-run once render-gpu compiles.",
+ "updated_at": "2026-10-15T00:08:02Z",
  "notes": {
   "claims": {
    "SMB-PRISM-ADMITTED-WORKING-PROFILE": {"sha": "6e86820", "subject": "prism: export WORKING_PROFILE_LINEAR_SRGB_ADMITTED (+ sha256) = CC0 fixture sRGB-admitted-linear-v4.icc for the admitted route", "test": "cargo nextest run -p hsk-studio-prism -E 'binary(working_profile)' 2/2", "approval": "coordinator 2026-10-14 (prism edit for exactly this)"}
   },
-  "edges_requested": "hsk-studio-harness -> hsk-studio-type (optional, feature viewer) for slice 4; approved by the coordinator 2026-10-14 (steward adds it)",
-  "spec_basis": "UNVERIFIED spec clause lookup pending (module 14 grep not yet done for layer commands); naming uses existing code names only",
+  "spec_basis": {
+   "STU-RAS-114": "LAYER STACK ORDERING IS AN EXPLICIT ENUMERATED PLACEMENT ... place_inside = 0, place_at_beginning = 1, place_at_end = 2, place_before = 3, place_after = 4. Index-only reordering is forbidden (implemented as chronicle Place commands; direction semantics UNVERIFIED, Photoshop document model reading, D5)",
+   "STU-VEC-072": "group/ungroup ... MUST preserve child identity and appearance (children keep ids and records; ungroup drops the group's own appearance - UNVERIFIED vs Photoshop)",
+   "STU-RAS-005": "Every raster operation MUST be reversible through the unified per-document history/undo (structure, paint, text creation undo through chronicle inverses)",
+   "STU-RAS-022": "saving a selection to a persistent alpha/spare channel ... Save/load selection, alpha channels, and the Channels surface are one shared mechanism - SPEC GAP / DEVIATION: Studio has no channel record yet (Folio/package), so the active selection is a session document entry, not a channel; must migrate when the channel record exists",
+   "STU-TYP-110": "StudioTextStory (hsk.studio.text_story@1) stores ... (story + styles validated by Folio validate_text_story / validate_type_style_records); SPEC GAP: no Folio field for the point-text origin, kept in the harness text entry"
+  },
+  "edges_requested": "hsk-studio-harness -> hsk-studio-type (optional, feature viewer); approved by the coordinator 2026-10-14 (steward adds it). No new crates.io dependency.",
   "found_bug_ui2_history": "UI-2 history replayed stored inverses with stale revisions (RevisionConflict after undoing a later step on the same address). Fixed in e938e9c (Run::submit_inverse refreshes read revisions from the session vector).",
-  "push_note": "my commits e927352, 6e86820, 9a1b8d8 reached origin through other builders' pushes of the shared branch; I did not push the local render-gpu WIP commit 0415503 of SMB-RENDER-FILTERS",
-  "design": "structure edits use one chronicle property (placement) per layer: no new transaction kind; lineage check unchanged in session (mask removes the layer); deleted layers keep revision entries (tombstones) so undo re-creation finds its revisions",
-  "limits": "a duplicate of a raster layer carries its whole tile list in the create record: chronicle value_bytes 64 KiB bounds it (~150-200 tiles) -> budget_exceeded beyond; group placement = above the topmost member (Photoshop UNVERIFIED); masked_replace engine profile assumes tiles in the working profile",
-  "retry_guard": "route (a) once: slice 2 tests failed (admission BudgetExceeded: byte limit above pigment MAX_BYTES); fixed by commit e927352 then Prism(UnsupportedProfile) fixed by prism 6e86820 + 9a1b8d8; no gameplan step added",
-  "v4": "V4-01 view module + brush_mix + chronicle structure.rs deny(arithmetic_side_effects); V4-09 commit -F; V4-12 scratch under scratchpad/smb-harness-ui-3/"
+  "push_note": "e927352, 6e86820, 9a1b8d8 reached origin through other builders' pushes of the shared branch; I never pushed another lane's local commit myself (render-gpu WIP 0415503 was pushed by its owner later)",
+  "commit_note": "slices 3 and 5 share commit f6443de (both tests in session_contract.rs); slice 1 rework and slice 4 share 9832c68 (shared harness files)",
+  "limits": "duplicate of a raster layer carries its tile list in the create record (chronicle value_bytes 64 KiB: about 150-200 tiles, larger refused budget_exceeded); tile creation only on the 256 grid; text one line, 1 pt = 1 px, fonts not embedded in the package (family name only); masked_replace engine profile assumes tiles in the working profile; selection entry RLE is uncompressed beyond runs",
+  "unverified": ["window not launched (CX-SAFE-002): layer buttons, text click, ants restore proven headlessly only", "Photoshop parity of placement directions, group placement above topmost member, ungroup appearance (D5)"],
+  "retry_guard": "route (a) three times (product/test failures fixed by commits e927352, cf18e93, f6443de before reruns); no gameplan step added",
+  "v4": "V4-01 deny(arithmetic_side_effects) in chronicle structure.rs, view module (layers, brush_mix, selection_store, text); V4-02 selection_store decode: dims_u32_max and aggregate tests in tests/viewer_selection.rs; text entry bounded (256 layers, 4096-byte stories, session entry bound); V4-09 commit -F; V4-12 scratch under scratchpad/smb-harness-ui-3/"
  }
 }

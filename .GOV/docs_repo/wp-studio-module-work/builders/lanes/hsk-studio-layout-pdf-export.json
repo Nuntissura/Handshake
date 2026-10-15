@@ -1,0 +1,73 @@
+{
+ "crate": "hsk-studio-press",
+ "lane": "SMB-LAYOUT-PDF-EXPORT",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slice 1 (press export builder) pushed; slice 2 (interop-layout lowering) BLOCKED on decision L1",
+ "commits": [
+  {
+   "sha": "0451297",
+   "subject": "press (SMB-LAYOUT-PDF-EXPORT slice 1): new-PDF export builder over the crate's own writers"
+  }
+ ],
+ "capabilities_done": [
+  "PdfExport::new(ExportOptions{version 1.4|1.5|1.6|1.7|2.0, output_intent, info_title}, &Limits): output intent (/S GTS_PDFX or GTS_PDFA1, OutputConditionIdentifier, OutputCondition, RegistryName, /DestOutputProfile Flate ICC with /N) after an ICC header check (size, acsp, data colour space vs components); /Info /Title + /Producer; text strings printable ASCII literal, otherwise UTF-16BE with BOM, escaped by writer.rs",
+  "add_page(PageSpec{media, trim, bleed}): finite, positive boxes; trim/bleed inside media (box_outside_media)",
+  "embed_icc -> IccHandle ([/ICCBased stream] colour space object); fill_path / stroke_path with MoveTo/LineTo/CubicTo/Close, NonZero/EvenOdd, width/cap/join, colour DeviceGray/RGB/CMYK/ICCBased (components 0..=1), each drawing in q..Q",
+  "draw_image(ImageSpec{width, height, bits 8|16, Device*/ICCBased, samples, alpha}) through a cm matrix: Flate image XObject, alpha as /SMask DeviceGray; size by checked arithmetic before any allocation",
+  "embed_truetype(bytes, face_index, widths, to_unicode): bounded sfnt reader (src/export/sfnt.rs); Type0 + CIDFontType2, /Encoding /Identity-H, /CIDToGIDMap /Identity, /W grouped runs, whole font as /FontFile2 (Length1, Flate) shared by font sha256, FontDescriptor from head/hhea/OS/2 (FontName = name id 6 or HskFont-<sha12>), /ToUnicode CMap (bfchar blocks of 100, UTF-16BE)",
+  "show_glyphs(page, font, size, origin, fill, [(gid, x, y)]): BT /Fn size Tf, one Tm + 2-byte CID Tj per glyph, ET (positions written as given, no shaping)",
+  "finish(cancel) -> (bytes, ExportReceipt): content via canon::write_ops + Flate, objects/xref/trailer via writer::write_document; trailer /ID = first 16 bytes of sha256 over the objects (deterministic, no dates); receipt re-reads the output with PdfDoc::open: pages, version, sha256, effective_destination_profile_sha256 (decoded profile), effective_output_condition, effective_oc_registry, effective_pdfx_profile None, conformance not_proven",
+  "Typed ExportError (32 variants, stable snake_case codes, Press(PressError) for writer/reader refusals); builder unchanged after any refusal; no bytes on error",
+  "Hostile bounds: image bytes vs max_decoded_bytes, raw aggregate vs max_decoded_total (checked before compressing), written aggregate vs max_bytes, max_pages, max_object_number (reserved before allocating), max_content_ops per page, |value| <= MAX_EXPORT_COORD 1e9 with |v| < 1e-9 written as 0 (so every number fits canon's 64-char numbers), text <= 4096 chars, /ToUnicode text 1..16 chars, glyph ids < maxp numGlyphs; module denies clippy::arithmetic_side_effects",
+  "lib.rs: mod export, pub use export::{...}, DESCRIPTOR api entries PdfExport::* and ExportError::code (JSON re-parsed after the edit: valid)"
+ ],
+ "tests": {
+  "argv": "nextest run -p hsk-studio-press --lib --test export -E 'binary(export) | test(/^export::/)'",
+  "exit": 0,
+  "sha": "0451297",
+  "passed": 6,
+  "failed": 0
+ },
+ "blockers": [
+  {
+   "error": "slice 2 needs Studio edge hsk-studio-interop-layout -> hsk-studio-press (decision L1, brief topic ownership/deps); interop-layout allowed edges today: folio, layout, type, prism (WORKSPACE_RULES path-deps). Also open: nib paths / pigment tiles for interop-layout.",
+   "file_line": "builders/briefs/lane-smb-layout-pdf-export.md topic deps; builders/dep-requests.jsonl last line (2026-10-15T00:08:36Z)",
+   "attempts": 0
+  }
+ ],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "lead decision L1 + steward edge, then slice 2 export_pdf in hsk-studio-interop-layout; slice 3 subsetting/CFF/transparency groups/PDF/X-4 + independent conformance oracle",
+ "updated_at": "2026-10-15T00:08:36Z",
+ "notes": {
+  "spec_basis": [
+   "STU-IO-006 row 20 (module 14 l.21336): 'Portable document format | .pdf | Vector/doc | I·EP·X | ... vector+text+raster; text preserved on export where not rasterized'",
+   "STU-LAY-158 (l.7093, l.7127): 'The four effective_* fields (effective destination profile, effective output condition, effective OC registry, effective PDF/X profile) are READ-BACK values distinct from the requested values'",
+   "STU-PDF-002 (l.243): 'Artifact-produced status, PDF/A object-subset check or approximate preview MUST NOT prove PDF/X, PDF/UA, plate or tagged-order conformity'",
+   "STU-TYP-127 (l.8048): render side receives positioned glyph runs (brief quote; this module never shapes)"
+  ],
+  "tests_detail": [
+   "tests/export.rs two_page_export_reads_back: A4 + Letter (trim/bleed on page 2), CMYK even-odd fill, ICCBased stroke and image, Inter H/i; PdfDoc::open page_count 2, proposal media boxes equal input, one content stream per page; receipt counts, sha256, effective_* values read back, conformance not_proven; font file shared (output < 2 x Inter)",
+   "tests/export.rs export_is_deterministic: two exports byte-identical, equal receipts; a different title differs",
+   "tests/export.rs hostile_sizes_are_typed_refusals: dims_u32_max (u32::MAX x u32::MAX CMYK 16-bit -> image_size_overflow), 65536^2 -> stream_over_budget, wrong sample length, zero dims, 4-bit, NaN matrix, NaN/zero/oversized/outside boxes, INF path, path without MoveTo, colour 1.5 / NaN / ICC 2.0, negative stroke, bad version, overlong title; builder still finishes with 1 page 0 images after the refusals; aggregate_over_budget (two images over max_decoded_total), font raw over max_decoded_bytes -> stream_over_budget, font written over max_bytes -> aggregate_over_budget; max_pages, max_object_number, max_content_ops; no pages; canceled token",
+   "tests/export.rs hostile_fonts_and_profiles_are_typed_refusals: empty / 4-byte / garbage / 64-byte and 4096-byte truncations of Inter and a 65535-table directory -> font_unreadable; Noto Sans SC OTF (CFF) -> font_cff_not_embedded; ttcf header and face_index 1 -> font_collection_not_embedded; fsType 0x0002 and 0x0200 -> font_embedding_restricted, 0x0008 embeds; glyph ids past maxp in widths / to_unicode / show_glyphs; empty and 17-char ToUnicode text; f64::MAX and 2e9 positions -> value_out_of_range; 1e-300 and -1e9 write and re-open; ICC truncated, no acsp, declared size u32::MAX, components mismatch",
+   "src/export/tests.rs hayro_renders_the_export: hayro-interpret 0.7.0 into paint.rs Painter at 1 px/pt: red square inside red / outside white, 2x2 image quadrants red, green, half-alpha blue ~(127,127,255), alpha-0 white; 0 UnsupportedFont warnings (the embedded CIDFontType2 is used); ink > 200 px in the 'Hi' box and a dark H stem pixel; zero non-white pixels outside the three regions",
+   "src/export/tests.rs dictionaries_read_back_through_the_strict_reader: 4 hostile titles (escapes ')\\(' , decoy ') >> endobj %%EOF /Evil (', CR/LF/tab, non-ASCII incl. a supplementary-plane char) read back exactly; TrimBox on page 2 only; OutputIntents /S GTS_PDFX, identifier with '(x)\\' read back; decoded DestOutputProfile sha256 == input; /ToUnicode parsed by cmap::parse_to_unicode maps 161->H, 679->i; Identity-H, CIDToGIDMap Identity; decoded FontFile2 sha256 == Inter"
+  ],
+  "fixtures": "include_bytes from hsk-studio-type/tests/fixtures/fonts (Inter-Regular.ttf, NotoSansSC-Regular.otf; OFL.txt and NotoSans-OFL.txt beside them) and hsk-studio-develop/tests/profiles/sRGB-v4.icc; no copies. Inter gids/advances read with fontTools 4.62.1 (H 161 adv 2084/2816, i 679 adv 668/2816).",
+  "clippy": "clippy -p hsk-studio-press --lib --tests: no press warnings (observe warnings pre-existing, other owner)",
+  "v4_14_note": "0451297 lands in hsk-studio-press AFTER SMB-PRESS-PG-HARDEN's READY commit aafcde7 (not yet judged). It is additive: new files src/export.rs, src/export/**, tests/export.rs and lib.rs lines (mod export, pub use export, DESCRIPTOR api list entries); no existing press function body changed. The lead must list 0451297 in that claim or judge PG-HARDEN at aafcde7.",
+  "own_cause_log": "first clippy: E0382 moved ExportError value in sfnt.rs (fixed with a const before the first commit); tests module inherited deny(arithmetic_side_effects) (fixed with saturating index math)",
+  "unverified": [
+   "Acrobat/InDesign rendering of the output (D5 oracle); only hayro-interpret 0.7.0 and press's own reader read it",
+   "StemV 80 and Flags 4 in the FontDescriptor are neutral values (TrueType has no StemV source); viewer tolerance UNVERIFIED beyond hayro",
+   "PDF/X or PDF/A conformance: not claimed, not proven (STU-PDF-002); needs an independent checker (slice 3)"
+  ],
+  "gaps": [
+   "slice 2 (interop-layout lowering) blocked on L1",
+   "no font subsetting (whole font embedded), no CFF (/FontFile3), no transparency groups/blend modes, spots, overprint, marks, tagged PDF, links, encryption, presets, JPEG passthrough",
+   "DESCRIPTOR lists the api entries only; no export proof/limitations block yet"
+  ],
+  "claim": "No PASS claimed; READY_FOR_VALIDATION for slice 1 on pushed commit 0451297"
+ }
+}
