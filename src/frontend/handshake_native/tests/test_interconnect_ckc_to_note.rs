@@ -76,11 +76,11 @@ fn doc_with_ckc_embed(ref_kind: &str, ref_value: &str, label: &str) -> BlockNode
         "CKC embed must insert through the native editor transaction"
     );
     assert_eq!(
-        state.undo.len(),
+        state.document_owner().history_snapshot().expect("live editor history").len(),
         1,
         "CKC editor insertion records one native undo transaction"
     );
-    state.doc
+    state.document_owner().document_snapshot().expect("live editor document")
 }
 
 /// The created document id from a `POST /knowledge/documents` response. The real handler returns
@@ -207,7 +207,7 @@ fn interconnect_ic05_route_selection_to_stage() {
     // authored after that initialization, not a pre-mount fixture that the host legitimately replaces.
     {
         let mut state = rich_state.lock().unwrap();
-        state.doc = BlockNode::doc(vec![BlockNode::paragraph(SELECTED)]);
+        { let owner = state.document_owner(); owner.edit(owner.current_context().expect("live editor context"), |document, _history| { *document = BlockNode::doc(vec![BlockNode::paragraph(SELECTED)]); Ok::<_, std::convert::Infallible>(()) }).expect("fixture edit commits"); }
         state.wikilinks.document_id = SOURCE_DOCUMENT.to_owned();
         state.selection = Selection::text(
             DocPosition::new(vec![0, 0], 0),

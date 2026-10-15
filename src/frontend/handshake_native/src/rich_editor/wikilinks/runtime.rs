@@ -311,6 +311,17 @@ type ResolverSeedDeliveryCell = Arc<
     >,
 >;
 
+pub struct AdmittedResolverSeed {
+    runtime: tokio::runtime::Handle,
+    backend: Arc<dyn WikilinkBackend>,
+    cell: ResolverSeedDeliveryCell,
+    workspace_id: String,
+    document_id: String,
+    context_generation: u64,
+    query: String,
+    limit: usize,
+}
+
 /// Queue of off-thread transclusion resolutions. Every delivery is stamped with its context
 /// generation plus workspace/document identity so a late old-workspace result cannot repopulate the
 /// current cache. A queue also prevents concurrent transclusions overwriting one another.
@@ -514,6 +525,28 @@ impl WikilinkRuntime {
             self.backlinks_index_warnings.clear();
             self.backlinks_invalidation_revision = 0;
         }
+    }
+
+    /// Retire delivery cells and cached reads belonging to an old authenticated connection.
+    pub fn invalidate_context(&mut self) {
+        self.autocomplete.invalidate_context();
+        self.context_generation = self.context_generation.wrapping_add(1);
+        self.backlinks_generation = self.backlinks_generation.wrapping_add(1);
+        self.transclusion_cell = Arc::new(Mutex::new(VecDeque::new()));
+        self.backlinks_cell = Arc::new(Mutex::new(VecDeque::new()));
+        self.resolver_seed_cell = Arc::new(Mutex::new(VecDeque::new()));
+        self.create_cell = Arc::new(Mutex::new(VecDeque::new()));
+        self.backlinks = BacklinksState::Idle;
+        self.transclusions.clear();
+        self.removed_transclusions.clear();
+        self.resolver_index = ResolverIndex::new();
+        self.creating_titles.clear();
+        self.created_notes_by_workspace.clear();
+        self.resolver_seeding = false;
+        self.resolver_seed_ready = false;
+        self.alias_backend_gap = false;
+        self.backlinks_index_warnings.clear();
+        self.backlinks_invalidation_revision = 0;
     }
 
     /// Ensure a transclusion is being (or has been) resolved: if it has no terminal state and is not
@@ -798,20 +831,38 @@ impl WikilinkRuntime {
     /// This adds NO new endpoint — it read-throughs the SAME `search()` the autocomplete dropdown uses
     /// (AC-007 / MC-006: no SQLite, no backend edit).
     pub fn seed_resolver_index_from_search(&mut self, query: &str, limit: usize) {
-        if self.resolver_seeding || self.workspace_id.trim().is_empty() {
-            return;
+        if let Some(seed) = self.prepare_seed_resolver_index_from_search(query, limit) {
+            Self::launch_resolver_seed(seed);
         }
-        let Some(runtime) = self.runtime.clone() else {
-            return; // headless: the test stages the seed directly.
-        };
+    }
+
+    pub fn prepare_seed_resolver_index_from_search(
+        &mut self,
+        query: &str,
+        limit: usize,
+    ) -> Option<AdmittedResolverSeed> {
+        if self.resolver_seeding || self.workspace_id.trim().is_empty() {
+            return None;
+        }
+        let runtime = self.runtime.clone()?;
         self.resolver_seeding = true;
         self.resolver_seed_ready = false;
-        let backend = Arc::clone(&self.backend);
-        let cell = Arc::clone(&self.resolver_seed_cell);
-        let workspace_id = self.workspace_id.clone();
-        let document_id = self.document_id.clone();
-        let context_generation = self.context_generation;
-        let query = query.to_owned();
+        Some(AdmittedResolverSeed {
+            runtime,
+            backend: Arc::clone(&self.backend),
+            cell: Arc::clone(&self.resolver_seed_cell),
+            workspace_id: self.workspace_id.clone(),
+            document_id: self.document_id.clone(),
+            context_generation: self.context_generation,
+            query: query.to_owned(),
+            limit,
+        })
+    }
+
+    pub fn launch_resolver_seed(seed: AdmittedResolverSeed) {
+        let AdmittedResolverSeed {
+            runtime, backend, cell, workspace_id, document_id, context_generation, query, limit,
+        } = seed;
         runtime.spawn(async move {
             // Each hit's `block_id` is the document/block id a `[[Title]]` resolves to; `title` is the
             // display title. A blank title is recorded for rendering but not indexed (add_document

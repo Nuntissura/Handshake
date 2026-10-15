@@ -260,7 +260,8 @@ fn hello_world_bold_run_and_heading_present() {
     // through a real frame so the galleys are built with the shell fonts.
     let state = RichEditorState::demo();
     // Structural: the paragraph's second run is bold "world".
-    let para = state.doc.children[1].as_block().unwrap();
+    let document = state.document_snapshot().unwrap();
+    let para = document.children[1].as_block().unwrap();
     let bold_run = para.children[1].as_text().unwrap();
     assert_eq!(bold_run.text.to_string(), "world");
     assert!(
@@ -268,7 +269,7 @@ fn hello_world_bold_run_and_heading_present() {
     );
     // The first block is an h1 heading.
     assert_eq!(
-        state.doc.children[0].as_block().unwrap().heading_level(),
+        state.document_snapshot().unwrap().children[0].as_block().unwrap().heading_level(),
         Some(1)
     );
 }
@@ -323,8 +324,11 @@ fn swarm_edit_reflects_in_render() {
             char_offset: 5,
             text: " edited".to_string(),
         }]);
-        let receipt = apply_transaction(&mut st.doc, tx).unwrap();
-        st.undo.push(receipt);
+        st.edit_document(|doc, history| {
+        let receipt = apply_transaction(doc, tx)?;
+        history.push(receipt);
+        Ok::<_, handshake_native::rich_editor::document_model::transform::TransformError>(())
+    }).unwrap();
     }
     harness.run();
     assert_eq!(

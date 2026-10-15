@@ -138,7 +138,7 @@ fn click_author_id(harness: &mut Harness<()>, author_id: &str) {
 /// has an unambiguous target.
 fn hello_selected_state() -> RichEditorState {
     let mut st = RichEditorState::demo();
-    st.doc = BlockNode::doc(vec![BlockNode::paragraph("hello")]);
+    st.open_document_owner(BlockNode::doc(vec![BlockNode::paragraph("hello")]));
     st.selection = Selection::text(
         DocPosition::new(vec![0, 0], 0),
         DocPosition::new(vec![0, 0], 5),
@@ -148,7 +148,7 @@ fn hello_selected_state() -> RichEditorState {
 
 fn leaf_has_bold(state: &Arc<Mutex<RichEditorState>>) -> bool {
     let st = state.lock().unwrap();
-    st.doc.children[0].as_block().unwrap().children[0]
+    st.document_snapshot().unwrap().children[0].as_block().unwrap().children[0]
         .as_text()
         .unwrap()
         .has_mark_type(&Mark::Bold)
@@ -166,15 +166,16 @@ fn bold_toolbar_button_click_toggles_bold_on_selection() {
         .build_ui(move |ui| {
             handshake_native::app::HandshakeApp::install_fonts(ui.ctx());
             let mut st = state_for_ui.lock().unwrap();
-            let RichEditorState {
-                doc,
-                selection,
-                undo,
-                actor_id,
-                ..
-            } = &mut *st;
+            let owner = st.document_owner();
+            let mut candidate = owner.prepare_edit().unwrap();
+            let mut staged_selection = st.selection.clone();
+            let selection = &mut staged_selection;
+            let actor_id = st.actor_id.clone();
+            let (doc, undo) = candidate.parts_mut();
             let cctx = CommandContext::new(doc, undo, selection, actor_id.as_str());
             EditorToolbar::new(cctx).show(ui);
+            owner.commit_edit(candidate).unwrap();
+            st.selection = staged_selection;
         });
 
     harness.run();
@@ -206,15 +207,16 @@ fn mt108_argus_formatting_toolbar_real_server_loop() {
         .build_ui(move |ui| {
             handshake_native::app::HandshakeApp::install_fonts(ui.ctx());
             let mut st = state_for_ui.lock().unwrap();
-            let RichEditorState {
-                doc,
-                selection,
-                undo,
-                actor_id,
-                ..
-            } = &mut *st;
+            let owner = st.document_owner();
+            let mut candidate = owner.prepare_edit().unwrap();
+            let mut staged_selection = st.selection.clone();
+            let selection = &mut staged_selection;
+            let actor_id = st.actor_id.clone();
+            let (doc, undo) = candidate.parts_mut();
             EditorToolbar::new(CommandContext::new(doc, undo, selection, actor_id.as_str()))
                 .show(ui);
+            owner.commit_edit(candidate).unwrap();
+            st.selection = staged_selection;
         });
     harness.run();
 
@@ -249,17 +251,18 @@ fn overflow_popup_opens_and_survives_two_frames() {
         .build_ui(move |ui| {
             handshake_native::app::HandshakeApp::install_fonts(ui.ctx());
             let mut st = state_for_ui.lock().unwrap();
-            let RichEditorState {
-                doc,
-                selection,
-                undo,
-                actor_id,
-                ..
-            } = &mut *st;
+            let owner = st.document_owner();
+            let mut candidate = owner.prepare_edit().unwrap();
+            let mut staged_selection = st.selection.clone();
+            let selection = &mut staged_selection;
+            let actor_id = st.actor_id.clone();
+            let (doc, undo) = candidate.parts_mut();
             let cctx = CommandContext::new(doc, undo, selection, actor_id.as_str());
             EditorToolbar::new(cctx)
                 .with_forced_max_width(120.0)
                 .show(ui);
+            owner.commit_edit(candidate).unwrap();
+            st.selection = staged_selection;
         });
 
     harness.run();
@@ -452,18 +455,19 @@ fn overflow_button_renders_when_narrow() {
         .build_ui(move |ui| {
             handshake_native::app::HandshakeApp::install_fonts(ui.ctx());
             let mut st = state_for_ui.lock().unwrap();
-            let RichEditorState {
-                doc,
-                selection,
-                undo,
-                actor_id,
-                ..
-            } = &mut *st;
+            let owner = st.document_owner();
+            let mut candidate = owner.prepare_edit().unwrap();
+            let mut staged_selection = st.selection.clone();
+            let selection = &mut staged_selection;
+            let actor_id = st.actor_id.clone();
+            let (doc, undo) = candidate.parts_mut();
             let cctx = CommandContext::new(doc, undo, selection, actor_id.as_str());
             // Force a narrow row so overflow triggers deterministically.
             EditorToolbar::new(cctx)
                 .with_forced_max_width(120.0)
                 .show(ui);
+            owner.commit_edit(candidate).unwrap();
+            st.selection = staged_selection;
         });
     // Run multiple frames to prove the popup id is stable (MC-005: it must not vanish on
     // a fresh-id frame). The `…` button node is present every frame.

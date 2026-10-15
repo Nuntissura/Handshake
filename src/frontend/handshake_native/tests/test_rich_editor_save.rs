@@ -38,6 +38,7 @@ use serde_json::json;
 use handshake_native::rich_editor::document_model::node::{
     BlockNode, Child, Mark, NodeKind, TextLeaf,
 };
+use handshake_native::rich_editor::document_owner::DocumentEditOwner;
 use handshake_native::rich_editor::renderer::rich_editor_widget::{
     RichEditorState, RichEditorWidget,
 };
@@ -50,7 +51,8 @@ use handshake_native::rich_editor::save::export::{
     export_document, AssetByteSource, ExportFormat, ResolvedAsset,
 };
 use handshake_native::rich_editor::save::save_manager::{
-    RichDocLoad, RichDocSaveResult, SaveBackend, SaveError, SaveFuture, SaveManager, SaveState,
+    RecoveryLoadFuture, RichDocLoad, RichDocSaveResult, SaveBackend, SaveError, SaveFuture,
+    SaveManager, SaveState,
 };
 use handshake_native::rich_editor::wikilinks::client::WikilinkError;
 use handshake_native::rich_editor::wikilinks::runtime::BacklinksState;
@@ -100,15 +102,24 @@ fn collect_author_ids(harness: &Harness<'_, ()>) -> std::collections::HashSet<St
 /// A mock save backend returning a staged result (so a test stages a 200 or a 409 without a live SurrealDB).
 struct MockSaveBackend {
     result: Mutex<Option<Result<RichDocSaveResult, SaveError>>>,
+    load: Mutex<Option<Result<handshake_native::backend::knowledge_documents::DocumentLoadResponse, SaveError>>>,
 }
 impl MockSaveBackend {
     fn new(result: Result<RichDocSaveResult, SaveError>) -> Self {
         Self {
             result: Mutex::new(Some(result)),
+            load: Mutex::new(None),
         }
     }
 }
 impl SaveBackend for MockSaveBackend {
+    fn load_document(&self, _id: &str) -> RecoveryLoadFuture {
+        let staged = self.load.lock().unwrap().clone();
+        Box::pin(async move {
+            staged.unwrap_or_else(|| Err(SaveError::Network("no staged recovery load".into())))
+        })
+    }
+
     fn save_document(&self, _id: &str, _c: serde_json::Value, _v: u64) -> SaveFuture {
         let staged = self.result.lock().unwrap().clone();
         Box::pin(
@@ -193,7 +204,42 @@ fn editor_with_save(result: Result<RichDocSaveResult, SaveError>) -> RichEditorS
         3,
         &handshake_native::rich_editor::document_model::doc_json::to_content_json_value(&demo_doc()),
     );
-    RichEditorState::new(demo_doc()).with_save_managers(save, draft)
+    let mut state = RichEditorState::new(demo_doc()).with_save_managers(save, draft);
+    let owner = state.document_owner();
+    owner.bind_context("workspace-test", "DOC-1", "http://test", None, None).unwrap();
+    owner.with_save_gate(|gate| {
+        assert!(state.save.as_mut().unwrap().bind_owner(gate));
+        assert!(state.draft.as_mut().unwrap().bind_owner(gate));
+    });
+    state
+}
+
+fn save_owner(document: BlockNode, document_id: &str) -> DocumentEditOwner {
+    let owner = DocumentEditOwner::new(document);
+    owner.bind_context("workspace-test", document_id, "http://test", None, None).unwrap();
+    owner
+}
+
+fn request_save(manager: &mut SaveManager, owner: &DocumentEditOwner) {
+    let snapshot = owner.save_snapshot().unwrap();
+    let attempt = owner.with_save_gate(|gate| {
+        assert!(manager.bind_owner(gate));
+        manager.request_save(snapshot, gate)
+    });
+    if let Some(attempt) = attempt {
+        SaveManager::launch_admitted(attempt);
+    }
+}
+
+fn drain_save(
+    manager: &mut SaveManager,
+    owner: &DocumentEditOwner,
+) -> Option<handshake_native::rich_editor::save::save_manager::SaveOutcome> {
+    let transition = owner.with_save_gate(|gate| manager.drain(gate));
+    if let Some(attempt) = transition.next_attempt {
+        SaveManager::launch_admitted(attempt);
+    }
+    transition.outcome
 }
 
 // ── AC: export PlainText / Markdown / ProseMirrorJson / HTML ──────────────────────────────────────
@@ -336,9 +382,10 @@ fn mt020_save_200_clears_dirty_and_bumps_version() {
         3,
     );
     m.mark_dirty();
-    m.request_save(json!({"type":"doc","content":[]}));
+    let owner = save_owner(BlockNode::doc(Vec::new()), "DOC-1");
+    request_save(&mut m, &owner);
     m.deliver_for_test(Ok(ok_save(4)));
-    m.drain();
+    drain_save(&mut m, &owner);
     assert_eq!(m.doc_version, 4);
     assert!(!m.dirty);
     assert_eq!(m.state, SaveState::Idle);
@@ -349,11 +396,14 @@ fn mt032_save_index_warning_reaches_an_already_mounted_target_panel() {
     let mut warning_result = ok_save(4);
     warning_result.backlinks_error = Some("index unavailable".into());
     let mut source_a = editor_with_save(Ok(warning_result.clone()));
-    let saved_content = json!({"type":"doc","content":[]});
+    let owner = source_a.document_owner();
+    owner.edit(owner.current_context().unwrap(), |document, _| {
+        *document = BlockNode::doc(Vec::new());
+        Ok::<_, ()>(())
+    }).unwrap();
     let source_save = source_a.save.as_mut().expect("source A save manager");
     source_save.mark_dirty();
-    source_save.set_pending_local_content(saved_content.clone());
-    source_save.request_save(saved_content);
+    request_save(source_save, &owner);
     source_save.deliver_for_test(Ok(warning_result));
 
     let mut target_b = RichEditorState::new(demo_doc());
@@ -383,11 +433,14 @@ fn mt032_save_index_warning_reaches_an_already_mounted_target_panel() {
 fn mt032_successful_save_invalidates_an_already_mounted_target_panel() {
     let save_result = ok_save(4);
     let mut source_a = editor_with_save(Ok(save_result.clone()));
-    let saved_content = json!({"type":"doc","content":[]});
+    let owner = source_a.document_owner();
+    owner.edit(owner.current_context().unwrap(), |document, _| {
+        *document = BlockNode::doc(Vec::new());
+        Ok::<_, ()>(())
+    }).unwrap();
     let source_save = source_a.save.as_mut().expect("source A save manager");
     source_save.mark_dirty();
-    source_save.set_pending_local_content(saved_content.clone());
-    source_save.request_save(saved_content);
+    request_save(source_save, &owner);
     source_save.deliver_for_test(Ok(save_result));
 
     let mut target_b = RichEditorState::new(demo_doc());
@@ -491,12 +544,12 @@ fn mt020_keep_server_reloads_and_clears() {
         "DOC-1",
         3,
     );
+    let owner = save_owner(BlockNode::doc(Vec::new()), "DOC-1");
     m.dirty = true;
-    m.state = SaveState::Conflict {
-        server: Box::new(server_doc(5)),
-        local_content: json!({"type":"doc","content":[]}),
-    };
-    let content = m.keep_server().unwrap();
+    request_save(&mut m, &owner);
+    m.deliver_for_test(Err(SaveError::VersionConflict(Box::new(server_doc(5)))));
+    drain_save(&mut m, &owner);
+    let content = owner.with_save_gate(|gate| m.keep_server(gate)).unwrap();
     assert_eq!(content["content"][0]["content"][0]["text"], "server wins");
     assert_eq!(m.doc_version, 5);
     assert!(!m.dirty);
@@ -513,11 +566,11 @@ fn mt020_keep_yours_requires_confirmation() {
         "DOC-1",
         3,
     );
-    m.state = SaveState::Conflict {
-        server: Box::new(server_doc(5)),
-        local_content: json!({"type":"doc","content":[]}),
-    };
-    m.request_keep_yours();
+    let owner = save_owner(BlockNode::doc(Vec::new()), "DOC-1");
+    request_save(&mut m, &owner);
+    m.deliver_for_test(Err(SaveError::VersionConflict(Box::new(server_doc(5)))));
+    drain_save(&mut m, &owner);
+    owner.with_save_gate(|gate| m.request_keep_yours(gate));
     assert!(
         matches!(m.state, SaveState::ConfirmKeepYours { .. }),
         "first step is a confirmation"
@@ -532,11 +585,12 @@ fn mt020_draft_banner_screenshot_and_accesskit() {
     let _g = wgpu_guard();
     let mut st = editor_with_save(Ok(ok_save(4)));
     // Drive the draft manager to Available (a matching draft loaded).
+    let owner = st.document_owner();
     if let Some(draft) = st.draft.as_mut() {
         let draft_content = json!({
             "type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"recovered draft"}]}]
         });
-        draft.deliver_load_for_test(Ok(RichDocumentDraftLoad {
+        owner.with_save_gate(|gate| draft.deliver_load_for_test(gate, Ok(RichDocumentDraftLoad {
             current_doc_version: 3,
             draft: Some(RichDocumentDraft {
                 base_doc_version: 3,
@@ -544,8 +598,8 @@ fn mt020_draft_banner_screenshot_and_accesskit() {
                 draft_content_sha256: "y".into(),
                 content_json: Some(draft_content),
             }),
-        }));
-        assert!(draft.drain_load(), "the matching draft becomes Available");
+        })));
+        assert!(owner.with_save_gate(|gate| draft.drain_load(gate)), "the matching draft becomes Available");
         assert!(draft.banner_visible());
     }
     let state = Arc::new(Mutex::new(st));
@@ -610,8 +664,9 @@ fn mt020_restore_draft_loads_content_into_doc() {
     let draft_content = json!({
         "type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"restored body"}]}]
     });
+    let owner = st.document_owner();
     if let Some(draft) = st.draft.as_mut() {
-        draft.deliver_load_for_test(Ok(RichDocumentDraftLoad {
+        owner.with_save_gate(|gate| draft.deliver_load_for_test(gate, Ok(RichDocumentDraftLoad {
             current_doc_version: 3,
             draft: Some(RichDocumentDraft {
                 base_doc_version: 3,
@@ -619,14 +674,17 @@ fn mt020_restore_draft_loads_content_into_doc() {
                 draft_content_sha256: "y".into(),
                 content_json: Some(draft_content),
             }),
-        }));
-        draft.drain_load();
+        })));
+        owner.with_save_gate(|gate| draft.drain_load(gate));
         let restored = draft.restore_draft().unwrap();
         // The widget would rebuild the doc; assert the model parses correctly here.
         let doc =
             handshake_native::rich_editor::document_model::doc_json::from_json_value(&restored)
                 .unwrap();
-        st.doc = doc;
+        owner.edit(owner.current_context().unwrap(), |document, _| {
+            *document = doc;
+            Ok::<_, ()>(())
+        }).unwrap();
     }
     assert_eq!(st.block_plain_text(0).as_deref(), Some("restored body"));
 }
@@ -641,11 +699,117 @@ fn mt020_save_in_flight_blocks_second_save_state() {
         "DOC-1",
         3,
     );
-    m.request_save(json!({}));
+    let owner = save_owner(BlockNode::doc(Vec::new()), "DOC-1");
+    request_save(&mut m, &owner);
     assert!(m.is_saving());
     // A second request while in flight is a no-op (state stays Saving, never two concurrent saves).
-    m.request_save(json!({}));
+    request_save(&mut m, &owner);
     assert!(m.is_saving());
+}
+
+#[test]
+fn rapid_saves_keep_newer_edits_dirty_and_advance_save_identity() {
+    use handshake_native::rich_editor::save::save_manager::SaveOutcome;
+    let owner = save_owner(demo_doc(), "DOC-1");
+    let mut manager = SaveManager::new(
+        Arc::new(MockSaveBackend::new(Ok(ok_save(4)))), None, "DOC-1", 3,
+    );
+    request_save(&mut manager, &owner);
+    owner.edit(owner.current_context().unwrap(), |document, _| {
+        *document = BlockNode::doc(vec![BlockNode::heading(1, "newer edit")]);
+        Ok::<_, ()>(())
+    }).unwrap();
+    manager.mark_dirty();
+    request_save(&mut manager, &owner);
+    manager.deliver_for_test(Ok(ok_save(4)));
+    let first = drain_save(&mut manager, &owner).unwrap();
+    let SaveOutcome::Saved { dispatch_stamp: first, current_edit_saved, .. } = first else {
+        panic!("the first dispatched snapshot must commit");
+    };
+    assert!(!current_edit_saved, "the older completion cannot clear newer edits");
+    assert!(manager.dirty);
+    assert_eq!(manager.doc_version, 4);
+    assert_eq!(manager.state, SaveState::Saving { expected_version: 4 });
+    manager.deliver_for_test(Ok(ok_save(5)));
+    let SaveOutcome::Saved { dispatch_stamp: second, current_edit_saved, .. } =
+        drain_save(&mut manager, &owner).unwrap() else {
+            panic!("the latest queued snapshot must commit");
+        };
+    assert!(second.save_id > first.save_id);
+    assert!(current_edit_saved);
+    assert!(!manager.dirty);
+    assert_eq!(manager.doc_version, 5);
+    assert_eq!(manager.state, SaveState::Idle);
+}
+
+#[test]
+fn retired_save_completion_cannot_change_a_reopened_document() {
+    use handshake_native::rich_editor::save::save_manager::SaveOutcome;
+    let owner = save_owner(demo_doc(), "DOC-1");
+    let mut manager = SaveManager::new(
+        Arc::new(MockSaveBackend::new(Ok(ok_save(4)))), None, "DOC-1", 3,
+    );
+    request_save(&mut manager, &owner);
+    owner.invalidate();
+    manager.deliver_for_test(Ok(ok_save(4)));
+    assert!(matches!(drain_save(&mut manager, &owner), Some(SaveOutcome::Stale { .. })));
+    assert_eq!(manager.doc_version, 3);
+    assert!(manager.dirty);
+    let reopened = save_owner(demo_doc(), "DOC-1");
+    let reopened_before = reopened.document_snapshot().unwrap();
+    let snapshot = reopened.save_snapshot().unwrap();
+    assert!(reopened.with_save_gate(|gate| manager.request_save(snapshot, gate)).is_none());
+    assert_eq!(reopened.document_snapshot().unwrap(), reopened_before);
+}
+
+#[test]
+fn unknown_save_requires_load_and_explicit_choice_before_an_intentional_save() {
+    use handshake_native::backend::knowledge_documents::{BlockTreeResponse, DocumentLoadResponse};
+    use handshake_native::rich_editor::save::save_manager::{RecoveryOutcome, SaveOutcome};
+    let owner = save_owner(demo_doc(), "DOC-1");
+    let mut manager = SaveManager::new(
+        Arc::new(MockSaveBackend::new(Ok(ok_save(4)))), None, "DOC-1", 3,
+    );
+    request_save(&mut manager, &owner);
+    owner.edit(owner.current_context().unwrap(), |document, _| {
+        *document = BlockNode::doc(vec![BlockNode::heading(1, "retained newer draft")]);
+        Ok::<_, ()>(())
+    }).unwrap();
+    request_save(&mut manager, &owner);
+    manager.deliver_for_test(Err(SaveError::Network("reply lost after send".into())));
+    let transition = owner.with_save_gate(|gate| manager.drain(gate));
+    assert!(matches!(transition.outcome, Some(SaveOutcome::Failed { uncertain: true, .. })));
+    assert!(transition.next_attempt.is_none(), "an unknown outcome cannot promote the queue");
+    assert!(manager.requires_recovery());
+    assert!(manager.dirty);
+    let snapshot = owner.save_snapshot().unwrap();
+    assert!(owner.with_save_gate(|gate| manager.request_save(snapshot, gate)).is_none());
+    let recovery = owner.with_save_gate(|gate| manager.request_recovery_load(gate)).unwrap();
+    SaveManager::launch_recovery_load(recovery);
+    manager.deliver_recovery_for_test(Ok(DocumentLoadResponse {
+        document: json!({
+            "rich_document_id": "DOC-1", "doc_version": 9, "title": "Server Title",
+            "content_json": server_doc(9).content_json.unwrap(),
+        }),
+        tree: BlockTreeResponse {
+            schema_version: "rich_document_v1".into(), schema_matches: true,
+            block_ids: Vec::new(), blocks: json!([]),
+        },
+        code_nodes: json!([]),
+    }));
+    assert!(matches!(owner.with_save_gate(|gate| manager.drain_recovery(gate)),
+        Some(RecoveryOutcome::Ready { server_version: 9, .. })));
+    assert!(manager.requires_recovery(), "GET does not settle the old operation");
+    assert!(owner.with_save_gate(|gate| manager.request_keep_yours(gate)));
+    let snapshot = owner.save_snapshot().unwrap();
+    assert!(owner.with_save_gate(|gate| manager.confirm_keep_yours(snapshot, gate)).is_none(),
+        "the recovery choice must not send PUT");
+    assert_eq!(manager.state, SaveState::Idle);
+    assert!(manager.dirty);
+    assert_eq!(manager.doc_version, 9);
+    assert!(!manager.requires_recovery());
+    request_save(&mut manager, &owner);
+    assert_eq!(manager.state, SaveState::Saving { expected_version: 9 });
 }
 
 // ── AC (must-fix #2): the "Export…" toolbar button renders and a click opens the picker ───────────
@@ -922,17 +1086,15 @@ fn test_real_save_conflict() {
         .expect("tokio runtime");
     let mut m = SaveManager::production(rt.handle().clone(), &document_id, 0);
     // Save with a deliberately stale expected_version (0) — the live doc is at a higher version.
-    let content =
-        handshake_native::rich_editor::document_model::doc_json::to_content_json_value(&demo_doc());
-    m.set_pending_local_content(content.clone());
-    m.request_save(content);
+    let owner = save_owner(demo_doc(), &document_id);
+    request_save(&mut m, &owner);
     // Poll the delivery cell (the spawned save resolves on the runtime).
     let deadline = Instant::now() + Duration::from_secs(15);
     loop {
-        if let Some(outcome) = m.drain() {
+        if let Some(outcome) = drain_save(&mut m, &owner) {
             use handshake_native::rich_editor::save::save_manager::SaveOutcome;
             match outcome {
-                SaveOutcome::Conflict => {
+                SaveOutcome::Conflict { .. } => {
                     assert!(
                         m.has_conflict(),
                         "a stale-version save returns 409 -> ConflictState"
@@ -942,7 +1104,8 @@ fn test_real_save_conflict() {
                 SaveOutcome::Saved { .. } => {
                     panic!("expected a 409 conflict, but the save succeeded")
                 }
-                SaveOutcome::Failed(e) => panic!("save failed (not a conflict): {e}"),
+                SaveOutcome::Failed { error, .. } => panic!("save failed (not a conflict): {error}"),
+                SaveOutcome::Stale { .. } => panic!("live save unexpectedly became stale"),
             }
         }
         if Instant::now() > deadline {

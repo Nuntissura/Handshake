@@ -11866,6 +11866,21 @@ impl RichDocSaveBackend {
 }
 
 impl crate::rich_editor::save::save_manager::SaveBackend for RichDocSaveBackend {
+    fn load_document(
+        &self,
+        document_id: &str,
+    ) -> crate::rich_editor::save::save_manager::RecoveryLoadFuture {
+        let client = self.client.clone();
+        let headers = self.headers(document_id);
+        let document_id = document_id.to_owned();
+        Box::pin(async move {
+            client
+                .load_document(&headers, &document_id)
+                .await
+                .map_err(doc_error_to_save_error)
+        })
+    }
+
     fn save_document(
         &self,
         document_id: &str,

@@ -35,6 +35,9 @@ use serde_json::Value as JsonValue;
 use thiserror::Error;
 
 use super::canonical_hash::canonical_content_sha256;
+use crate::rich_editor::document_owner::{
+    DocumentIdentity, DocumentSaveGate, DocumentSaveSnapshot, EditorSaveContext,
+};
 
 /// The debounce window before a dirty change is upserted as a draft (the contract's 5 seconds).
 pub const DRAFT_DEBOUNCE: Duration = Duration::from_secs(5);
@@ -231,7 +234,34 @@ impl DraftBackend for ReqwestDraftBackend {
 }
 
 /// One-slot delivery cell for the off-thread draft LOAD result.
-pub type DraftLoadCell = Arc<Mutex<Option<Result<RichDocumentDraftLoad, DraftError>>>>;
+type DraftLoadCell = Arc<Mutex<Option<DraftLoadDelivery>>>;
+
+#[derive(Clone, PartialEq, Eq)]
+struct DraftLoadAdmission {
+    request_id: u64,
+    context: EditorSaveContext,
+    identity: DocumentIdentity,
+    base_doc_version: u64,
+}
+
+struct DraftLoadDelivery {
+    admission: DraftLoadAdmission,
+    result: Result<RichDocumentDraftLoad, DraftError>,
+}
+
+pub struct AdmittedDraftLoad {
+    backend: Arc<dyn DraftBackend>,
+    runtime: Option<tokio::runtime::Handle>,
+    document_id: String,
+    cell: DraftLoadCell,
+    admission: DraftLoadAdmission,
+}
+
+pub struct DraftCleanupAction {
+    backend: Arc<dyn DraftBackend>,
+    runtime: Option<tokio::runtime::Handle>,
+    document_id: String,
+}
 
 /// The draft-recovery state. The editor holds one [`DraftManager`]; [`DraftState`] drives the
 /// recovery banner.
@@ -281,6 +311,9 @@ pub struct DraftManager {
     base_doc_version: u64,
     /// The load-result delivery cell.
     load_cell: DraftLoadCell,
+    next_load_request: u64,
+    pending_load: Option<DraftLoadAdmission>,
+    owner_binding: Option<(DocumentIdentity, EditorSaveContext)>,
     /// TEST SEAM: the last upsert the manager dispatched (so a headless test asserts the exact
     /// `base_content_sha256` matches the canonical hash without a live backend).
     pub last_upsert: Option<DraftUpsertRequest>,
@@ -305,6 +338,9 @@ impl DraftManager {
             base_content_sha256: canonical_content_sha256(base_content),
             base_doc_version,
             load_cell: Arc::new(Mutex::new(None)),
+            next_load_request: 0,
+            pending_load: None,
+            owner_binding: None,
             last_upsert: None,
         }
     }
@@ -328,21 +364,70 @@ impl DraftManager {
         )
     }
 
-    /// On document mount: spawn `GET /draft`. Only enters `Checking` when a runtime actually
-    /// spawns (no perpetual spinner headless). A headless test stages [`Self::deliver_load_for_test`].
-    pub fn check_on_mount(&mut self) {
-        if let Ok(mut slot) = self.load_cell.lock() {
-            *slot = None;
+    pub fn bind_owner(&mut self, gate: &mut DocumentSaveGate<'_>) -> bool {
+        let Some(context) = gate.current_context() else { return false };
+        let Some(identity) = gate.document_identity() else { return false };
+        if identity.document_id() != self.document_id {
+            return false;
         }
-        if let Some(rt) = &self.runtime {
+        if self.owner_binding.is_some() {
+            return self.owner_matches(gate);
+        }
+        self.owner_binding = Some((identity, context));
+        true
+    }
+
+    fn owner_matches(&self, gate: &DocumentSaveGate<'_>) -> bool {
+        let Some((identity, bound)) = &self.owner_binding else { return false };
+        gate.document_identity().as_ref() == Some(identity)
+            && gate.current_context().is_some_and(|current| {
+                current.document_incarnation == bound.document_incarnation
+                    && current.context_generation == bound.context_generation
+            })
+    }
+
+    /// Admit the mount read under the owner gate; launch it after unlocking.
+    pub fn prepare_check_on_mount(
+        &mut self,
+        gate: &mut DocumentSaveGate<'_>,
+    ) -> Option<AdmittedDraftLoad> {
+        if !self.owner_matches(gate) { return None }
+        let context = gate.current_context()?;
+        let identity = gate.document_identity()?;
+        if identity.document_id() != self.document_id
+            || self.dirty_since.is_some()
+            || gate.is_dirty()
+            || gate.known_server_version() > self.base_doc_version
+        {
+            return None;
+        }
+        self.next_load_request = self.next_load_request.checked_add(1)?;
+        let admission = DraftLoadAdmission {
+            request_id: self.next_load_request,
+            context,
+            identity,
+            base_doc_version: self.base_doc_version,
+        };
+        self.load_cell = Arc::new(Mutex::new(None));
+        if self.runtime.is_some() {
             self.state = DraftState::Checking;
-            let backend = Arc::clone(&self.backend);
-            let cell = Arc::clone(&self.load_cell);
-            let document_id = self.document_id.clone();
+        }
+        self.pending_load = Some(admission.clone());
+        Some(AdmittedDraftLoad {
+            backend: Arc::clone(&self.backend),
+            runtime: self.runtime.clone(),
+            document_id: self.document_id.clone(),
+            cell: Arc::clone(&self.load_cell),
+            admission,
+        })
+    }
+
+    pub fn launch_mount_load(attempt: AdmittedDraftLoad) {
+        if let Some(rt) = attempt.runtime {
             rt.spawn(async move {
-                let result = backend.load_draft(&document_id).await;
-                if let Ok(mut slot) = cell.lock() {
-                    *slot = Some(result);
+                let result = attempt.backend.load_draft(&attempt.document_id).await;
+                if let Ok(mut slot) = attempt.cell.lock() {
+                    *slot = Some(DraftLoadDelivery { admission: attempt.admission, result });
                 }
             });
         }
@@ -352,15 +437,27 @@ impl DraftManager {
     /// matches the load's `current_doc_version`, and it carries content, enter `Available` (banner
     /// shows). Otherwise `None`. A failure is swallowed to `None` (no draft offered, no crash).
     /// Returns `true` when a draft became available this frame.
-    pub fn drain_load(&mut self) -> bool {
+    pub fn drain_load(&mut self, gate: &mut DocumentSaveGate<'_>) -> bool {
         let Some(delivered) = self.load_cell.lock().ok().and_then(|mut s| s.take()) else {
             return false;
         };
-        match delivered {
+        if !self.owner_matches(gate)
+            || self.pending_load.as_ref() != Some(&delivered.admission)
+            || gate.current_context() != Some(delivered.admission.context)
+            || gate.document_identity().as_ref() != Some(&delivered.admission.identity)
+            || gate.known_server_version() > delivered.admission.base_doc_version
+            || self.dirty_since.is_some()
+            || gate.is_dirty()
+        {
+            return false;
+        }
+        self.pending_load = None;
+        match delivered.result {
             Ok(load) => match load.draft {
                 Some(draft)
                     // The draft must be based on the SAME server version we loaded, and carry content.
                     if draft.base_doc_version == load.current_doc_version
+                        && load.current_doc_version == delivered.admission.base_doc_version
                         && draft.content_json.is_some() =>
                 {
                     self.state = DraftState::Available {
@@ -439,15 +536,36 @@ impl DraftManager {
         true
     }
 
-    /// Clear the draft after a successful canonical save (`DELETE /draft`). Resets the debounce
-    /// window and re-bases on the new server version (the just-saved content). The caller passes the
-    /// new `doc_version` + the saved content so the next draft (if any) bases correctly.
-    pub fn clear_after_save(&mut self, new_doc_version: u64, saved_content: &JsonValue) {
+    /// Rebase after every confirmed same-binding save. Only an exact-current edit resets recovery
+    /// state and admits DELETE; an older saved edit preserves the newer dirty draft and debounce.
+    pub fn prepare_clear_after_save(
+        &mut self,
+        saved: &DocumentSaveSnapshot,
+        new_doc_version: u64,
+        gate: &mut DocumentSaveGate<'_>,
+    ) -> Option<DraftCleanupAction> {
+        let current = gate.current_context()?;
+        let submitted = saved.context();
+        if !self.owner_matches(gate)
+            || current.document_incarnation != submitted.document_incarnation
+            || current.context_generation != submitted.context_generation
+            || submitted.edit_revision > current.edit_revision
+            || gate.document_identity().as_ref() != Some(saved.document_identity())
+            || saved.document_identity().document_id() != self.document_id
+            || new_doc_version < gate.known_server_version()
+            || new_doc_version < self.base_doc_version
+        {
+            return None;
+        }
         self.base_doc_version = new_doc_version;
-        self.base_content_sha256 = canonical_content_sha256(saved_content);
+        self.base_content_sha256 = canonical_content_sha256(saved.content_json());
+        if submitted != current {
+            return None;
+        }
         self.dirty_since = None;
         self.state = DraftState::None;
-        self.spawn_clear();
+        self.pending_load = None;
+        Some(self.cleanup_action())
     }
 
     /// "Restore draft": adopt the available draft's content. Returns the draft `content_json` (the
@@ -488,11 +606,21 @@ impl DraftManager {
 
     /// Spawn the `DELETE /draft` clear (off-thread; no result needed by the UI). No-op headless.
     fn spawn_clear(&self) {
-        if let Some(rt) = &self.runtime {
-            let backend = Arc::clone(&self.backend);
-            let document_id = self.document_id.clone();
+        Self::launch_clear(self.cleanup_action());
+    }
+
+    fn cleanup_action(&self) -> DraftCleanupAction {
+        DraftCleanupAction {
+            backend: Arc::clone(&self.backend),
+            runtime: self.runtime.clone(),
+            document_id: self.document_id.clone(),
+        }
+    }
+
+    pub fn launch_clear(action: DraftCleanupAction) {
+        if let Some(rt) = action.runtime {
             rt.spawn(async move {
-                let _ = backend.clear_draft(&document_id).await;
+                let _ = action.backend.clear_draft(&action.document_id).await;
             });
         }
     }
@@ -504,9 +632,14 @@ impl DraftManager {
 
     /// TEST SEAM: stage a load result as if `GET /draft` resolved (headless). The next
     /// [`Self::drain_load`] applies it.
-    pub fn deliver_load_for_test(&self, result: Result<RichDocumentDraftLoad, DraftError>) {
+    pub fn deliver_load_for_test(
+        &mut self,
+        gate: &mut DocumentSaveGate<'_>,
+        result: Result<RichDocumentDraftLoad, DraftError>,
+    ) {
+        let Some(attempt) = self.prepare_check_on_mount(gate) else { return };
         if let Ok(mut slot) = self.load_cell.lock() {
-            *slot = Some(result);
+            *slot = Some(DraftLoadDelivery { admission: attempt.admission, result });
         }
     }
 }
@@ -521,16 +654,21 @@ mod tests {
     /// recorded `last_upsert` on the manager proves the request shape.
     struct MockDraftBackend {
         load: Mutex<Option<Result<RichDocumentDraftLoad, DraftError>>>,
+        load_calls: std::sync::atomic::AtomicUsize,
+        clear_calls: std::sync::atomic::AtomicUsize,
     }
     impl MockDraftBackend {
         fn new(load: Result<RichDocumentDraftLoad, DraftError>) -> Self {
             Self {
                 load: Mutex::new(Some(load)),
+                load_calls: std::sync::atomic::AtomicUsize::new(0),
+                clear_calls: std::sync::atomic::AtomicUsize::new(0),
             }
         }
     }
     impl DraftBackend for MockDraftBackend {
         fn load_draft(&self, _id: &str) -> DraftLoadFuture {
+            self.load_calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             let staged = self.load.lock().unwrap().clone();
             Box::pin(
                 async move { staged.unwrap_or(Err(DraftError::Network("no staged load".into()))) },
@@ -540,6 +678,7 @@ mod tests {
             Box::pin(async { Ok(()) })
         }
         fn clear_draft(&self, _id: &str) -> DraftWriteFuture {
+            self.clear_calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             Box::pin(async { Ok(()) })
         }
     }
@@ -556,6 +695,13 @@ mod tests {
         DraftManager::new(backend, None, "DOC-1", 3, &base_content())
     }
 
+    fn owner(content: &JsonValue) -> crate::rich_editor::document_owner::DocumentEditOwner {
+        let document = crate::rich_editor::document_model::doc_json::from_json_value(content).unwrap();
+        let owner = crate::rich_editor::document_owner::DocumentEditOwner::new(document);
+        owner.bind_context("workspace-test", "DOC-1", "http://test", None, None).unwrap();
+        owner
+    }
+
     #[test]
     fn draft_load_with_matching_base_version_sets_available() {
         // AC: a loadRichDocumentDraft response containing a draft sets DraftState::Available.
@@ -568,11 +714,13 @@ mod tests {
                 json!({"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"draft text"}]}]}),
             ),
         };
-        m.deliver_load_for_test(Ok(RichDocumentDraftLoad {
+        let owner = owner(&base_content());
+        assert!(owner.with_save_gate(|gate| m.bind_owner(gate)));
+        owner.with_save_gate(|gate| m.deliver_load_for_test(gate, Ok(RichDocumentDraftLoad {
             current_doc_version: 3,
             draft: Some(draft),
-        }));
-        assert!(m.drain_load(), "a matching draft becomes Available");
+        })));
+        assert!(owner.with_save_gate(|gate| m.drain_load(gate)), "a matching draft becomes Available");
         assert!(m.banner_visible(), "the recovery banner shows");
         assert!(matches!(m.state, DraftState::Available { shown: true, .. }));
     }
@@ -587,11 +735,13 @@ mod tests {
             draft_content_sha256: "y".into(),
             content_json: Some(json!({"type":"doc","content":[]})),
         };
-        m.deliver_load_for_test(Ok(RichDocumentDraftLoad {
+        let owner = owner(&base_content());
+        assert!(owner.with_save_gate(|gate| m.bind_owner(gate)));
+        owner.with_save_gate(|gate| m.deliver_load_for_test(gate, Ok(RichDocumentDraftLoad {
             current_doc_version: 3,
             draft: Some(draft),
-        }));
-        assert!(!m.drain_load());
+        })));
+        assert!(!owner.with_save_gate(|gate| m.drain_load(gate)));
         assert_eq!(m.state, DraftState::None);
     }
 
@@ -683,7 +833,12 @@ mod tests {
         let mut m = mgr();
         m.mark_dirty(Instant::now());
         let saved = json!({"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"saved"}]}]});
-        m.clear_after_save(4, &saved);
+        let owner = owner(&saved);
+        assert!(owner.with_save_gate(|gate| m.bind_owner(gate)));
+        let snapshot = owner.save_snapshot().unwrap();
+        let action = owner.with_save_gate(|gate| m.prepare_clear_after_save(&snapshot, 4, gate))
+            .expect("matching saved snapshot admits deferred cleanup");
+        DraftManager::launch_clear(action);
         assert_eq!(m.base_doc_version, 4, "re-based on the new server version");
         assert_eq!(m.base_content_sha256, canonical_content_sha256(&saved));
         assert!(
@@ -691,5 +846,98 @@ mod tests {
             "debounce reset"
         );
         assert_eq!(m.state, DraftState::None);
+    }
+
+    #[test]
+    fn admitted_draft_io_starts_only_after_the_gate_is_released() {
+        use std::sync::atomic::Ordering;
+        let runtime = tokio::runtime::Builder::new_current_thread().build().unwrap();
+        let backend = Arc::new(MockDraftBackend::new(Ok(RichDocumentDraftLoad {
+            current_doc_version: 3,
+            draft: None,
+        })));
+        let mut manager = DraftManager::new(
+            backend.clone(), Some(runtime.handle().clone()), "DOC-1", 3, &base_content(),
+        );
+        let owner = owner(&base_content());
+        assert!(owner.with_save_gate(|gate| manager.bind_owner(gate)));
+        let load = owner.with_save_gate(|gate| {
+            let load = manager.prepare_check_on_mount(gate).unwrap();
+            assert_eq!(backend.load_calls.load(Ordering::SeqCst), 0);
+            load
+        });
+        DraftManager::launch_mount_load(load);
+        runtime.block_on(async { tokio::task::yield_now().await });
+        assert_eq!(backend.load_calls.load(Ordering::SeqCst), 1);
+
+        let snapshot = owner.save_snapshot().unwrap();
+        let cleanup = owner.with_save_gate(|gate| {
+            let cleanup = manager.prepare_clear_after_save(&snapshot, 4, gate).unwrap();
+            assert_eq!(backend.clear_calls.load(Ordering::SeqCst), 0);
+            cleanup
+        });
+        DraftManager::launch_clear(cleanup);
+        runtime.block_on(async { tokio::task::yield_now().await });
+        assert_eq!(backend.clear_calls.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn saved_snapshot_cannot_clear_newer_dirty_edits_or_a_reopened_owner() {
+        let mut manager = mgr();
+        let owner = owner(&base_content());
+        assert!(owner.with_save_gate(|gate| manager.bind_owner(gate)));
+        let saved = owner.save_snapshot().unwrap();
+        let edited = crate::rich_editor::document_model::doc_json::from_json_value(
+            &json!({"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"newer"}]}]}),
+        ).unwrap();
+        owner.edit(owner.current_context().unwrap(), |document, _| {
+            *document = edited;
+            Ok::<_, ()>(())
+        }).unwrap();
+        let now = Instant::now();
+        manager.mark_dirty(now);
+        manager.state = DraftState::Available {
+            draft: Box::new(RichDocumentDraft {
+                base_doc_version: 3,
+                base_content_sha256: canonical_content_sha256(saved.content_json()),
+                draft_content_sha256: "retained-draft".to_owned(),
+                content_json: Some(owner.save_snapshot().unwrap().content_json().clone()),
+            }),
+            shown: false,
+        };
+        let recovery_before = manager.state.clone();
+        assert!(owner.with_save_gate(|gate| manager.prepare_clear_after_save(&saved, 4, gate)).is_none());
+        assert_eq!(manager.state, recovery_before);
+        assert_eq!(manager.base_doc_version, 4, "an older confirmed save advances the draft base");
+        assert_eq!(manager.base_content_sha256, canonical_content_sha256(saved.content_json()));
+        assert!(manager.upsert_due(now + DRAFT_DEBOUNCE));
+        let reopened = self::owner(&base_content());
+        assert!(reopened.with_save_gate(|gate| manager.prepare_clear_after_save(&saved, 4, gate)).is_none());
+        assert!(manager.upsert_due(now + DRAFT_DEBOUNCE));
+        let newer = owner.save_snapshot().unwrap().content_json().clone();
+        assert!(manager.maybe_upsert(newer.clone(), now + DRAFT_DEBOUNCE, false));
+        let request = manager.last_upsert.as_ref().unwrap();
+        assert_eq!(request.base_doc_version, 4);
+        assert_eq!(request.base_content_sha256, canonical_content_sha256(saved.content_json()));
+        assert_eq!(request.content_json, newer, "the newer edit remains the draft payload");
+    }
+
+    #[test]
+    fn mounted_draft_delivery_cannot_cross_a_context_change() {
+        let mut manager = mgr();
+        let owner = owner(&base_content());
+        assert!(owner.with_save_gate(|gate| manager.bind_owner(gate)));
+        owner.with_save_gate(|gate| manager.deliver_load_for_test(gate, Ok(RichDocumentDraftLoad {
+            current_doc_version: 3,
+            draft: Some(RichDocumentDraft {
+                base_doc_version: 3,
+                base_content_sha256: canonical_content_sha256(&base_content()),
+                draft_content_sha256: "draft".to_owned(),
+                content_json: Some(base_content()),
+            }),
+        })));
+        owner.bind_context("workspace-test", "DOC-1", "http://reconnected", None, None).unwrap();
+        assert!(!owner.with_save_gate(|gate| manager.drain_load(gate)));
+        assert_eq!(manager.state, DraftState::None);
     }
 }

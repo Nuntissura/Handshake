@@ -626,7 +626,7 @@ fn mt020_live_tag_commit_undo_restores_pre_insert_doc() {
     std::thread::sleep(std::time::Duration::from_millis(600));
     let pre_insert_json = {
         let st = state.lock().unwrap();
-        handshake_native::rich_editor::document_model::doc_json::to_content_json_value(&st.doc)
+        handshake_native::rich_editor::document_model::doc_json::to_content_json_value(&st.document_snapshot().unwrap())
     };
 
     // REAL Enter commits the top row ('rust') through the live key handler.
@@ -661,7 +661,7 @@ fn mt020_live_tag_commit_undo_restores_pre_insert_doc() {
             "MT-020: Ctrl+Z removed the committed tag atom"
         );
         let now_json =
-            handshake_native::rich_editor::document_model::doc_json::to_content_json_value(&st.doc);
+            handshake_native::rich_editor::document_model::doc_json::to_content_json_value(&st.document_snapshot().unwrap());
         assert_eq!(
             now_json, pre_insert_json,
             "MT-020: undo restored the EXACT pre-commit doc (the `#ru` trigger text)"
@@ -693,6 +693,17 @@ fn mt020_live_tag_commit_undo_restores_pre_insert_doc() {
 /// the queued intent is captured synchronously at dispatch time).
 struct NoopSaveBackend;
 impl handshake_native::rich_editor::save::save_manager::SaveBackend for NoopSaveBackend {
+    fn load_document(
+        &self,
+        _document_id: &str,
+    ) -> handshake_native::rich_editor::save::save_manager::RecoveryLoadFuture {
+        Box::pin(async {
+            Err(handshake_native::rich_editor::save::save_manager::SaveError::Network(
+                "recovery load not staged".to_owned(),
+            ))
+        })
+    }
+
     fn save_document(
         &self,
         _id: &str,
@@ -712,7 +723,7 @@ impl handshake_native::rich_editor::save::save_manager::SaveBackend for NoopSave
 #[test]
 fn mt058_request_save_for_host_queues_tag_edge_intent() {
     use handshake_native::rich_editor::inline_tags::TAG_EDGE_DISPATCH_BLOCKER;
-    use handshake_native::rich_editor::save::save_manager::{SaveManager, SaveState};
+    use handshake_native::rich_editor::save::save_manager::{RichDocLoad, RichDocSaveResult, SaveManager};
 
     // A doc with a committed inline #rust atom + property tags ['Rust', 'design'] (the dedupe case).
     let doc = doc_with_tag_chip("rust");
@@ -724,6 +735,12 @@ fn mt058_request_save_for_host_queues_tag_edge_intent() {
         "KRD-1",
         7,
     ));
+    let owner = state.document_owner();
+    owner.bind_context("workspace-1", "KRD-1", handshake_native::backend_client::BACKEND_BASE_URL, None, None)
+        .expect("headless fixture owns KRD-1");
+    owner.with_save_gate(|gate| {
+        assert!(state.save.as_mut().unwrap().bind_owner(gate));
+    });
     assert!(
         state.pending_tag_edge_intent.is_none(),
         "no intent before any save (MC-004: never per keystroke)"
@@ -776,7 +793,28 @@ fn mt058_request_save_for_host_queues_tag_edge_intent() {
     );
 
     // Latest-wins: once the save slot frees, a new dispatched save's tag set supersedes.
-    state.save.as_mut().unwrap().state = SaveState::Idle;
+    for doc_version in [8, 9] {
+        let content = state.current_content_json();
+        let save = state.save.as_mut().unwrap();
+        save.deliver_for_test(Ok(RichDocSaveResult {
+            document: RichDocLoad {
+                rich_document_id: "KRD-1".to_owned(),
+                doc_version,
+                title: String::new(),
+                content_json: Some(content),
+                updated_at: None,
+            },
+            backlinks_persisted: 0,
+            backlinks_error: None,
+            backlinks_skipped_reason: None,
+            save_receipt_event_id: None,
+            attribution: None,
+        }));
+        let transition = owner.with_save_gate(|gate| save.drain(gate));
+        if let Some(attempt) = transition.next_attempt {
+            SaveManager::launch_admitted(attempt);
+        }
+    }
     if let Some(props) = state.properties.as_mut() {
         props.add_tag("extra");
     }

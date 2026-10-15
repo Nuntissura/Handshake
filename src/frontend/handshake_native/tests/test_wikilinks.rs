@@ -542,7 +542,8 @@ fn mt015_transclusion_404_offers_remove_embed_mc003() {
     harness.run();
     {
         let st = state.lock().unwrap();
-        let para = st.doc.children[0].as_block().unwrap();
+        let document = st.document_owner().document_snapshot().expect("live editor document");
+        let para = document.children[0].as_block().unwrap();
         let has_transclusion = para.children.iter().any(|c| c.as_transclusion().is_some());
         assert!(
             !has_transclusion,
@@ -879,7 +880,7 @@ fn mt020_live_wikilink_confirm_undo_restores_pre_insert_doc_and_ordering() {
     }
     let pre_insert_json = {
         let st = state.lock().unwrap();
-        handshake_native::rich_editor::document_model::doc_json::to_content_json_value(&st.doc)
+        handshake_native::rich_editor::document_model::doc_json::to_content_json_value(&st.document_owner().document_snapshot().expect("live editor document"))
     };
     harness.key_press(egui::Key::Enter);
     harness.step();
@@ -887,7 +888,8 @@ fn mt020_live_wikilink_confirm_undo_restores_pre_insert_doc_and_ordering() {
     {
         let st = state.lock().unwrap();
         assert!(st.wikilink_autocomplete.is_none(), "confirm closes popup");
-        let para = st.doc.children[0].as_block().unwrap();
+        let document = st.document_owner().document_snapshot().expect("live editor document");
+        let para = document.children[0].as_block().unwrap();
         let atom = para
             .children
             .iter()
@@ -931,7 +933,8 @@ fn mt020_live_wikilink_confirm_undo_restores_pre_insert_doc_and_ordering() {
             !st.block_plain_text(0).unwrap_or_default().contains("tail"),
             "undo #1 removed the typed text"
         );
-        let para = st.doc.children[0].as_block().unwrap();
+        let document = st.document_owner().document_snapshot().expect("live editor document");
+        let para = document.children[0].as_block().unwrap();
         assert!(
             para.children.iter().any(|c| c.as_hs_link().is_some()),
             "undo #1 did NOT remove the atom (insert-type-undo-undo ordering)"
@@ -944,13 +947,14 @@ fn mt020_live_wikilink_confirm_undo_restores_pre_insert_doc_and_ordering() {
     harness.step();
     {
         let st = state.lock().unwrap();
-        let para = st.doc.children[0].as_block().unwrap();
+        let document = st.document_owner().document_snapshot().expect("live editor document");
+        let para = document.children[0].as_block().unwrap();
         assert!(
             para.children.iter().all(|c| c.as_hs_link().is_none()),
             "undo #2 removed the inserted atom"
         );
         let now_json =
-            handshake_native::rich_editor::document_model::doc_json::to_content_json_value(&st.doc);
+            handshake_native::rich_editor::document_model::doc_json::to_content_json_value(&st.document_owner().document_snapshot().expect("live editor document"));
         assert_eq!(
             now_json, pre_insert_json,
             "MT-020: undo restored the EXACT pre-insert doc (trigger text `[[Hi` included)"
@@ -1019,7 +1023,7 @@ fn mt020_live_remove_embed_undo_restores_the_transclusion() {
 
     let pre_remove_json = {
         let st = state.lock().unwrap();
-        handshake_native::rich_editor::document_model::doc_json::to_content_json_value(&st.doc)
+        handshake_native::rich_editor::document_model::doc_json::to_content_json_value(&st.document_owner().document_snapshot().expect("live editor document"))
     };
 
     // A REAL click on the live "Remove embed" button (the MC-003 affordance).
@@ -1031,7 +1035,8 @@ fn mt020_live_remove_embed_undo_restores_the_transclusion() {
     harness.step();
     {
         let st = state.lock().unwrap();
-        let para = st.doc.children[0].as_block().unwrap();
+        let document = st.document_owner().document_snapshot().expect("live editor document");
+        let para = document.children[0].as_block().unwrap();
         assert!(
             para.children.iter().all(|c| c.as_transclusion().is_none()),
             "clicking 'Remove embed' deleted the transclusion node (MC-003 behavior kept)"
@@ -1039,7 +1044,7 @@ fn mt020_live_remove_embed_undo_restores_the_transclusion() {
         // The removal landed on the MODEL UndoManager (the MT-020 transaction receipt) — the direct
         // retain mutation left this empty.
         assert_eq!(
-            st.undo.len(),
+            st.document_owner().history_snapshot().expect("live editor history").len(),
             1,
             "the removal pushed ONE transaction receipt onto the model UndoManager"
         );
@@ -1069,13 +1074,14 @@ fn mt020_live_remove_embed_undo_restores_the_transclusion() {
     harness.step();
     {
         let st = state.lock().unwrap();
-        let para = st.doc.children[0].as_block().unwrap();
+        let document = st.document_owner().document_snapshot().expect("live editor document");
+        let para = document.children[0].as_block().unwrap();
         assert!(
             para.children.iter().any(|c| c.as_transclusion().is_some()),
             "Ctrl+Z restored the removed transclusion embed"
         );
         let now_json =
-            handshake_native::rich_editor::document_model::doc_json::to_content_json_value(&st.doc);
+            handshake_native::rich_editor::document_model::doc_json::to_content_json_value(&st.document_owner().document_snapshot().expect("live editor document"));
         assert_eq!(
             now_json, pre_remove_json,
             "undo restored the EXACT pre-remove doc"

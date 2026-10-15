@@ -1163,7 +1163,7 @@ fn live_rich_shell(document_id: &str) -> (HandshakeApp, tokio::runtime::Runtime)
 
     let demo = RichEditorState::demo();
     let content_json =
-        handshake_native::rich_editor::document_model::doc_json::to_content_json_value(&demo.doc);
+        handshake_native::rich_editor::document_model::doc_json::to_content_json_value(&demo.document_owner().document_snapshot().expect("live editor document"));
     app.apply_loaded_rich_document_to_view_for_test(
         pane_id.as_ref(),
         handshake_native::backend_client::RichDocBody {
@@ -3422,9 +3422,9 @@ fn mt020_atelier_drop_insert_is_one_undoable_transaction() {
     use handshake_native::rich_editor::document_model::doc_json::to_content_json_value;
 
     let mut state = RichEditorState::demo();
-    let before_doc = state.doc.clone();
-    let before_json = to_content_json_value(&state.doc);
-    let undo_before = state.undo.len();
+    let before_doc = state.document_owner().document_snapshot().expect("live editor document");
+    let before_json = to_content_json_value(&state.document_owner().document_snapshot().expect("live editor document"));
+    let undo_before = state.document_owner().history_snapshot().expect("live editor history").len();
 
     let link = DragPayload::AtelierRef(AtelierRef::new(
         "char-undo",
@@ -3437,11 +3437,11 @@ fn mt020_atelier_drop_insert_is_one_undoable_transaction() {
         RichEditorWidget::insert_atelier_embed_at_caret(&mut state, link),
         "the transactional embed insert succeeds"
     );
-    assert_ne!(state.doc, before_doc, "the drop mutated the doc");
+    assert_ne!(state.document_owner().document_snapshot().expect("live editor document"), before_doc, "the drop mutated the doc");
 
     // ONE model-level receipt (atomic: split + atom + tail — not three separate entries).
     assert_eq!(
-        state.undo.len(),
+        state.document_owner().history_snapshot().expect("live editor history").len(),
         undo_before + 1,
         "MT-020: the whole drop is ONE UndoManager receipt"
     );
@@ -3459,11 +3459,11 @@ fn mt020_atelier_drop_insert_is_one_undoable_transaction() {
 
     // One model-level undo restores the EXACT pre-drop doc (split + atom + tail all invert).
     assert!(
-        state.undo.undo(&mut state.doc).expect("undo applies"),
+        { let owner = state.document_owner(); owner.edit(owner.current_context().expect("live editor context"), |document, history| history.undo(document)).expect("undo applies").output },
         "the receipt undoes"
     );
     assert_eq!(
-        state.doc, before_doc,
+        state.document_owner().document_snapshot().expect("live editor document"), before_doc,
         "MT-020: one undo restored the exact pre-drop doc (no split residue, no atom)"
     );
 }

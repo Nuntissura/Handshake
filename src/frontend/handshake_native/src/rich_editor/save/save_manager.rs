@@ -1,40 +1,10 @@
-//! Canonical save + optimistic-concurrency conflict state machine for the rich-text editor
-//! (WP-KERNEL-012 MT-020).
+//! Owner-gated canonical document saving and explicit uncertain-outcome recovery.
 //!
-//! Port of the `app/src/components/RichDocumentView.tsx` save flow (MT-244/MT-255):
-//! - [`SaveManager::request_save`] performs `PUT /knowledge/documents/{id}/save`
-//!   `{ content_json, expected_version }` off the egui frame thread (HBR-QUIET), delivering the
-//!   typed result into a one-slot cell the UI drains next frame.
-//! - A 200 updates `doc_version`, clears the dirty flag, sets `updated_at`.
-//! - A 409 (version mismatch) transitions to [`SaveState::Conflict`] carrying the server document
-//!   + the operator's local content, which the [`super::conflict_ui`] panel resolves.
-//!
-//! ## Backend reuse only (verified, not contract-assumed)
-//!
-//! The save endpoint + its `{ expected_version, content_json }` body were VERIFIED READ-ONLY
-//! against `src/backend/handshake_core/src/api/knowledge_documents.rs` (`save_document`,
-//! `SaveDocumentBody`). The 409 is the verified optimistic-concurrency conflict response. NO
-//! backend edit; a gap would be a typed blocker.
-//!
-//! ## Why a backend TRAIT + mock (the MT-019 pattern)
-//!
-//! [`SaveBackend`] is a `Send + Sync` trait returning a boxed future, with a production
-//! [`reqwest`] impl and a COUNTED in-memory mock for the unit tests. This is the proven
-//! MT-014/15/17/19 seam: the state machine is fully unit-testable with mock HTTP + a mock clock,
-//! and the live backend halves are the gated integration ACs (NEEDS_MANAGED_RESOURCE_PROOF).
-//!
-//! ## MC-002 (draft/save race): the is_saving guard
-//!
-//! [`SaveManager::is_saving`] is `true` from `request_save` until the result is drained. The
-//! draft manager ([`super::draft_manager`]) refuses to upsert a draft while a save is in flight,
-//! so a stale-`base_doc_version` draft can never race a canonical save (red-team RISK-2).
-//!
-//! ## MC-003 (Keep-yours data-loss guard)
-//!
-//! Resolving a conflict with "Keep yours" re-saves the operator's content AT the server's
-//! `doc_version`, silently overwriting a concurrent edit. That is destructive, so it requires a
-//! secondary confirmation ([`SaveState::ConfirmKeepYours`]) before [`SaveManager::confirm_keep_yours`]
-//! re-saves (red-team RISK-3 / HBR-STOP).
+//! Admission and local completion effects run under the canonical document gate.
+//! Opaque attempts launch the existing PUT or authenticated recovery GET after unlocking.
+//! One active save serializes the latest queued snapshot; only a current-edit ACK clears dirty.
+//! Unknown outcomes retain content until explicit reload/conflict recovery. A GET never proves
+//! the earlier save outcome. Draft network ordering remains a separate acceptance obligation.
 
 use std::future::Future;
 use std::pin::Pin;
@@ -43,6 +13,7 @@ use std::sync::{Arc, Mutex};
 use serde::Deserialize;
 use serde_json::Value as JsonValue;
 use thiserror::Error;
+use crate::rich_editor::document_owner::{DocumentIdentity, DocumentSaveGate, DocumentSaveSnapshot, EditorSaveContext};
 
 /// The verified subset of the backend `RichDocument` the save flow consumes: the id, the monotonic
 /// `doc_version` (the optimistic-concurrency token), and the `content_json` (so a "Keep server"
@@ -104,10 +75,10 @@ pub enum SaveError {
     /// server document for the conflict panel.
     #[error("version conflict (server is ahead)")]
     VersionConflict(Box<RichDocLoad>),
-    /// A transport-layer failure (timeout, connection refused, …) — TRANSIENT, retryable.
+    /// A transport failure can leave the canonical save outcome unknown; recovery precedes retry.
     #[error("network error: {0}")]
     Network(String),
-    /// A non-409 non-success HTTP status with the body text.
+    /// An HTTP failure or an unreadable success body; a 2xx parse error does not prove rejection.
     #[error("server error {0}: {1}")]
     Server(u16, String),
     /// The server rejected the content_json (e.g. malformed block tree) — a 400.
@@ -118,9 +89,113 @@ pub enum SaveError {
 /// A boxed future returned by [`SaveBackend`] (the MT-019 transport-trait shape).
 pub type SaveFuture = Pin<Box<dyn Future<Output = Result<RichDocSaveResult, SaveError>> + Send>>;
 
+pub type RecoveryLoadFuture = Pin<
+    Box<
+        dyn Future<
+                Output = Result<
+                    crate::backend::knowledge_documents::DocumentLoadResponse,
+                    SaveError,
+                >,
+            > + Send,
+    >,
+>;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct SaveDispatchStamp {
+    pub owner: crate::rich_editor::document_owner::EditorSaveContext,
+    pub save_id: u64,
+}
+
+impl SaveDispatchStamp {
+    fn accepts_context(
+        self,
+        current: Option<crate::rich_editor::document_owner::EditorSaveContext>,
+    ) -> bool {
+        current.is_some_and(|current| {
+            current.document_incarnation == self.owner.document_incarnation
+                && current.context_generation == self.owner.context_generation
+        })
+    }
+}
+
+struct PendingSave {
+    snapshot: crate::rich_editor::document_owner::DocumentSaveSnapshot,
+    stamp: SaveDispatchStamp,
+    expected_version: u64,
+    workspace_id: String,
+}
+
+struct SaveDelivery {
+    stamp: SaveDispatchStamp,
+    result: Result<RichDocSaveResult, SaveError>,
+}
+
+pub struct AdmittedSaveAttempt {
+    backend: Arc<dyn SaveBackend>,
+    runtime: Option<tokio::runtime::Handle>,
+    cell: Arc<Mutex<Option<SaveDelivery>>>,
+    document_id: String,
+    content_json: JsonValue,
+    expected_version: u64,
+    stamp: SaveDispatchStamp,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct RecoveryLoadStamp {
+    recovery_id: u64,
+    unknown_dispatch: SaveDispatchStamp,
+    owner: crate::rich_editor::document_owner::EditorSaveContext,
+    document_id: String,
+    kind: RecoveryKind,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum RecoveryKind {
+    UnknownOutcome,
+    ConflictRefresh,
+}
+
+struct RecoveryDelivery {
+    stamp: RecoveryLoadStamp,
+    result: Result<crate::backend::knowledge_documents::DocumentLoadResponse, SaveError>,
+}
+
+pub struct AdmittedRecoveryLoad {
+    backend: Arc<dyn SaveBackend>,
+    runtime: Option<tokio::runtime::Handle>,
+    cell: Arc<Mutex<Option<RecoveryDelivery>>>,
+    stamp: RecoveryLoadStamp,
+}
+
+fn decode_recovery_document(
+    document: JsonValue,
+    document_id: &str,
+    known_version: u64,
+) -> Result<RichDocLoad, SaveError> {
+    let invalid = |detail: &str| SaveError::Server(200, format!("invalid recovery document: {detail}"));
+    if document.get("rich_document_id").and_then(JsonValue::as_str) != Some(document_id) {
+        return Err(invalid("document identity does not match the recovery target"));
+    }
+    let version = document
+        .get("doc_version")
+        .and_then(JsonValue::as_u64)
+        .ok_or_else(|| invalid("an explicit nonnegative document version is required"))?;
+    if version < known_version {
+        return Err(invalid("document version is older than the confirmed version"));
+    }
+    let content = document
+        .get("content_json")
+        .ok_or_else(|| invalid("canonical content is missing"))?;
+    crate::rich_editor::document_model::doc_json::from_json_value(content)
+        .map_err(|_| invalid("canonical content is malformed"))?;
+    serde_json::from_value(document).map_err(|error| invalid(&error.to_string()))
+}
+
 /// The async save transport. A `Send + Sync` trait so the production reqwest impl and the unit
 /// mock are interchangeable; the manager spawns the returned future on the app runtime.
 pub trait SaveBackend: Send + Sync {
+    fn load_document(&self, document_id: &str) -> RecoveryLoadFuture;
+
     /// `PUT /knowledge/documents/{document_id}/save` with `{ content_json, expected_version }`.
     fn save_document(
         &self,
@@ -149,6 +224,7 @@ pub trait SaveBackend: Send + Sync {
 pub struct ReqwestSaveBackend {
     client: reqwest::Client,
     base_url: String,
+    authenticated_context: Option<Arc<crate::local_account::AuthenticatedContext>>,
     /// A per-backend session id folded into the per-request run ids so every save is individually
     /// traceable (HBR-SWARM attribution). Stable for the lifetime of one editor's save manager.
     session_run_id: String,
@@ -161,7 +237,16 @@ impl ReqwestSaveBackend {
             client: crate::backend_client::shared_http_client(),
             base_url: base_url.into(),
             session_run_id: new_session_run_id(),
+            authenticated_context: None,
         }
+    }
+
+    pub fn with_authenticated_context(
+        mut self,
+        context: Option<Arc<crate::local_account::AuthenticatedContext>>,
+    ) -> Self {
+        self.authenticated_context = context;
+        self
     }
 
     fn save_url(&self, document_id: &str) -> String {
@@ -170,6 +255,12 @@ impl ReqwestSaveBackend {
 }
 
 impl SaveBackend for ReqwestSaveBackend {
+    fn load_document(&self, document_id: &str) -> RecoveryLoadFuture {
+        crate::backend_client::RichDocSaveBackend::new(self.base_url.clone())
+            .with_authenticated_context(self.authenticated_context.clone())
+            .load_document(document_id)
+    }
+
     fn save_document(
         &self,
         document_id: &str,
@@ -286,73 +377,99 @@ pub(crate) fn attach_doc_headers(
         )
 }
 
-/// One-slot delivery cell for an off-thread save result, drained by the egui UI thread next frame
-/// (the proven `Arc<Mutex<Option<..>>>` pattern). `Some` once the spawned save resolves.
-pub type SaveDeliveryCell = Arc<Mutex<Option<Result<RichDocSaveResult, SaveError>>>>;
+type SaveDeliveryCell = Arc<Mutex<Option<SaveDelivery>>>;
 
-/// The save-flow state. The editor holds one [`SaveManager`]; [`SaveState`] drives the conflict UI.
 #[derive(Debug, Clone, PartialEq)]
 pub enum SaveState {
-    /// No save in progress and no conflict.
     Idle,
-    /// A save is in flight (the `is_saving` guard — MC-002). Carries the `expected_version` the
-    /// in-flight save used so a 409 result is matched correctly.
     Saving { expected_version: u64 },
-    /// The last save 409'd: a conflict is open. Carries the server document + the operator's local
-    /// content (the conflict UI shows both, then resolves via Keep-yours / Keep-server).
-    Conflict {
-        server: Box<RichDocLoad>,
-        local_content: JsonValue,
-    },
-    /// MC-003: the operator chose "Keep yours" and must confirm the destructive overwrite before it
-    /// re-saves. Carries the same conflict payload so a cancel returns to [`SaveState::Conflict`].
-    ConfirmKeepYours {
-        server: Box<RichDocLoad>,
-        local_content: JsonValue,
-    },
-    /// The last save failed for a NON-conflict reason (network/server/schema); the message is shown
-    /// on a dismissible error chip. Not a conflict (no both-versions UI).
+    Conflict { server: Box<RichDocLoad>, local_content: JsonValue },
+    ConfirmKeepYours { server: Box<RichDocLoad>, local_content: JsonValue },
     Error(String),
 }
 
-/// The persistent save coordinator owned by the editor. Tracks the dirty flag, the current
-/// `doc_version`, the in-flight save guard, and the conflict state machine.
 pub struct SaveManager {
-    /// The backend transport (production reqwest, or a mock in tests).
     backend: Arc<dyn SaveBackend>,
-    /// The tokio runtime handle saves spawn onto. `None` in a headless unit test (the test stages
-    /// the delivery cell directly instead of spawning), so the manager never blocks on a runtime.
     runtime: Option<tokio::runtime::Handle>,
-    /// The document id saves target.
     document_id: String,
-    /// The monotonic version the next save sends as `expected_version` (set on load, bumped after
-    /// each successful save). NEVER hardcoded 0 (impl note: comes from the loaded doc).
     pub doc_version: u64,
-    /// True when the in-memory doc has unsaved edits (cleared on a successful save).
     pub dirty: bool,
-    /// The server `updated_at` from the last successful save (surfaced in the UI).
     pub updated_at: Option<String>,
-    /// Last successful save receipt and its exact request identity, retained for diagnostics and
-    /// receipt-to-Flight-Recorder correlation without reconstructing either from mutable UI state.
     pub last_save_receipt_event_id: Option<String>,
     pub last_save_attribution: Option<SaveAttribution>,
-    /// The save-flow state (drives the conflict UI).
     pub state: SaveState,
-    /// The one-slot cell the spawned save delivers into; drained each frame by [`Self::drain`].
     cell: SaveDeliveryCell,
-    /// The content the in-flight save attempted, threaded into a resulting conflict so the
-    /// both-versions UI can show the operator's local version. Set by `set_pending_local_content`,
-    /// taken in `drain` on a 409.
-    pending_local_content: Option<JsonValue>,
-    /// Workspace currently owning this editor. Copied into the immutable in-flight save snapshot so a
-    /// later shell workspace switch cannot relabel the completion event.
     workspace_id: String,
-    pending_workspace_id: Option<String>,
+    owner_binding: Option<(DocumentIdentity, EditorSaveContext)>,
+    next_save_id: u64,
+    active: Option<PendingSave>,
+    queued: Option<DocumentSaveSnapshot>,
+    recovery_snapshot: Option<PendingSave>,
+    uncertain: bool,
+    choice_context: Option<EditorSaveContext>,
+    recovery_choice: bool,
+    next_recovery_id: u64,
+    recovery_active: Option<RecoveryLoadStamp>,
+    recovery_cell: Arc<Mutex<Option<RecoveryDelivery>>>,
+    recovery_local_snapshot: Option<DocumentSaveSnapshot>,
+}
+
+pub struct SaveTransition {
+    pub outcome: Option<SaveOutcome>,
+    pub next_attempt: Option<AdmittedSaveAttempt>,
+}
+
+impl SaveTransition {
+    fn none() -> Self { Self { outcome: None, next_attempt: None } }
+    fn outcome(outcome: SaveOutcome) -> Self {
+        Self { outcome: Some(outcome), next_attempt: None }
+    }
+}
+
+pub enum SaveOutcome {
+    Saved {
+        doc_version: u64,
+        backlinks_persisted: usize,
+        backlinks_warning: Option<String>,
+        saved_content: JsonValue,
+        saved_snapshot: DocumentSaveSnapshot,
+        workspace_id: String,
+        save_receipt_event_id: Option<String>,
+        attribution: Option<SaveAttribution>,
+        dispatch_stamp: SaveDispatchStamp,
+        current_edit_saved: bool,
+    },
+    Conflict { dispatch_stamp: SaveDispatchStamp },
+    Failed { error: SaveError, dispatch_stamp: SaveDispatchStamp, uncertain: bool },
+    Stale { dispatch_stamp: SaveDispatchStamp },
+}
+
+impl std::fmt::Debug for SaveOutcome {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Saved { doc_version, dispatch_stamp, current_edit_saved, .. } =>
+                f.debug_struct("Saved").field("doc_version", doc_version)
+                    .field("dispatch_stamp", dispatch_stamp)
+                    .field("current_edit_saved", current_edit_saved).finish_non_exhaustive(),
+            Self::Conflict { dispatch_stamp } =>
+                f.debug_struct("Conflict").field("dispatch_stamp", dispatch_stamp).finish(),
+            Self::Failed { error, dispatch_stamp, uncertain } =>
+                f.debug_struct("Failed").field("error", error)
+                    .field("dispatch_stamp", dispatch_stamp).field("uncertain", uncertain).finish(),
+            Self::Stale { dispatch_stamp } =>
+                f.debug_struct("Stale").field("dispatch_stamp", dispatch_stamp).finish(),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum RecoveryOutcome {
+    Ready { dispatch_stamp: SaveDispatchStamp, server_version: u64 },
+    Failed(SaveError),
+    Stale,
 }
 
 impl SaveManager {
-    /// Build a manager for `document_id` at `doc_version`, with `backend` + an optional runtime
-    /// handle. A headless test passes `runtime = None` and stages [`Self::deliver_for_test`].
     pub fn new(
         backend: Arc<dyn SaveBackend>,
         runtime: Option<tokio::runtime::Handle>,
@@ -360,454 +477,793 @@ impl SaveManager {
         doc_version: u64,
     ) -> Self {
         Self {
-            backend,
-            runtime,
-            document_id: document_id.into(),
-            doc_version,
-            dirty: false,
-            updated_at: None,
-            last_save_receipt_event_id: None,
-            last_save_attribution: None,
-            state: SaveState::Idle,
-            cell: Arc::new(Mutex::new(None)),
-            pending_local_content: None,
-            workspace_id: String::new(),
-            pending_workspace_id: None,
+            backend, runtime, document_id: document_id.into(), doc_version,
+            dirty: false, updated_at: None, last_save_receipt_event_id: None,
+            last_save_attribution: None, state: SaveState::Idle,
+            cell: Arc::new(Mutex::new(None)), workspace_id: String::new(),
+            owner_binding: None, next_save_id: 1, active: None, queued: None,
+            recovery_snapshot: None, uncertain: false, choice_context: None,
+            recovery_choice: false, next_recovery_id: 1, recovery_active: None,
+            recovery_cell: Arc::new(Mutex::new(None)),
+            recovery_local_snapshot: None,
         }
     }
 
-    /// The production manager over the reqwest backend + the app runtime handle.
     pub fn production(
         runtime: tokio::runtime::Handle,
         document_id: impl Into<String>,
         doc_version: u64,
     ) -> Self {
-        let backend = Arc::new(ReqwestSaveBackend::new(
-            crate::backend_client::BACKEND_BASE_URL,
-        ));
-        Self::new(backend, Some(runtime), document_id, doc_version)
-    }
-
-    /// True while a canonical save is in flight (the MC-002 guard the draft manager consults).
-    pub fn is_saving(&self) -> bool {
-        matches!(self.state, SaveState::Saving { .. })
-    }
-
-    /// True when a conflict (or its keep-yours confirmation) is open.
-    pub fn has_conflict(&self) -> bool {
-        matches!(
-            self.state,
-            SaveState::Conflict { .. } | SaveState::ConfirmKeepYours { .. }
+        Self::new(
+            Arc::new(ReqwestSaveBackend::new(crate::backend_client::BACKEND_BASE_URL)),
+            Some(runtime), document_id, doc_version,
         )
     }
 
-    /// Mark the document dirty (an edit happened). The widget calls this after any mutation; the
-    /// draft manager keys its debounce off the dirty flag.
-    pub fn mark_dirty(&mut self) {
-        self.dirty = true;
+    pub fn bind_owner(&mut self, gate: &mut DocumentSaveGate<'_>) -> bool {
+        let (Some(identity), Some(context)) = (gate.document_identity(), gate.current_context()) else {
+            return false;
+        };
+        if identity.document_id() != self.document_id { return false; }
+        if let Some((bound, original)) = &self.owner_binding {
+            return *bound == identity && same_binding(*original, context);
+        }
+        self.workspace_id = identity.workspace_id().to_owned();
+        self.doc_version = self.doc_version.max(gate.known_server_version());
+        self.dirty = gate.is_dirty();
+        self.owner_binding = Some((identity, context));
+        true
     }
 
-    /// Bind the owning workspace for subsequent save requests. An already in-flight save retains the
-    /// workspace captured when its request was dispatched.
+    fn accepts_gate(&self, gate: &DocumentSaveGate<'_>) -> bool {
+        match (&self.owner_binding, gate.document_identity(), gate.current_context()) {
+            (Some((identity, context)), Some(live_identity), Some(current)) =>
+                *identity == live_identity && same_binding(*context, current),
+            _ => false,
+        }
+    }
+
+    fn accepts_snapshot(&self, snapshot: &DocumentSaveSnapshot, gate: &DocumentSaveGate<'_>) -> bool {
+        self.accepts_gate(gate)
+            && gate.document_identity().as_ref() == Some(snapshot.document_identity())
+            && gate.current_context().is_some_and(|current|
+                same_binding(snapshot.context(), current)
+                    && snapshot.context().edit_revision <= current.edit_revision)
+    }
+
+    pub fn is_saving(&self) -> bool { matches!(self.state, SaveState::Saving { .. }) }
+    pub fn has_conflict(&self) -> bool {
+        matches!(self.state, SaveState::Conflict { .. } | SaveState::ConfirmKeepYours { .. })
+    }
+    pub fn requires_recovery(&self) -> bool { self.uncertain }
+    pub fn mark_dirty(&mut self) { self.dirty = true; }
     pub fn set_workspace_id(&mut self, workspace_id: impl Into<String>) {
         self.workspace_id = workspace_id.into();
     }
+    pub fn document_id(&self) -> &str { &self.document_id }
 
-    /// Request a canonical save of `content_json` at the current `doc_version`. No-op when a save is
-    /// already in flight (the guard prevents a double-save race). Spawns the backend call off the
-    /// frame thread (HBR-QUIET); the result lands in the delivery cell. In a headless test with no
-    /// runtime, the state still moves to `Saving` and the test stages the delivery directly.
-    pub fn request_save(&mut self, content_json: JsonValue) {
-        if self.is_saving() {
-            return; // MC-002: never start a second save while one is in flight.
+    pub fn request_save(
+        &mut self,
+        snapshot: DocumentSaveSnapshot,
+        gate: &mut DocumentSaveGate<'_>,
+    ) -> Option<AdmittedSaveAttempt> {
+        if !self.accepts_snapshot(&snapshot, gate)
+            || gate.current_context() != Some(snapshot.context())
+            || self.uncertain || self.has_conflict()
+        { return None; }
+        self.dirty = true;
+        if self.active.is_some() {
+            self.queued = Some(snapshot);
+            return None;
         }
-        // This exact immutable request snapshot is carried into SaveOutcome::Saved/Conflict. Completion
-        // must never reconstruct it from the editor's newer mutable document state.
-        self.pending_local_content = Some(content_json.clone());
-        self.pending_workspace_id = Some(self.workspace_id.clone());
-        let expected_version = self.doc_version;
-        self.state = SaveState::Saving { expected_version };
-        // Clear the cell before spawning so a stale prior result can't be drained as this save's.
-        if let Ok(mut slot) = self.cell.lock() {
-            *slot = None;
-        }
-        if let Some(rt) = &self.runtime {
-            let backend = Arc::clone(&self.backend);
-            let cell = Arc::clone(&self.cell);
-            let document_id = self.document_id.clone();
-            rt.spawn(async move {
-                let result = backend
-                    .save_document(&document_id, content_json, expected_version)
-                    .await;
-                if let Ok(mut slot) = cell.lock() {
-                    *slot = Some(result);
-                }
-            });
-        }
-        // No runtime (headless): the state is `Saving`; the test calls `deliver_for_test` then `drain`.
+        self.queued = None;
+        self.admit(snapshot, gate)
     }
 
-    /// Drain a completed save result (called each frame by the widget). Applies the outcome:
-    /// - Ok: bump `doc_version`, clear `dirty`, set `updated_at`, return to `Idle`, and report the
-    ///   document so the caller can clear the draft (`DELETE /draft`).
-    /// - 409: enter `Conflict` carrying the server doc + the local content the save attempted.
-    /// - other Err: enter `Error`.
-    ///
-    /// Returns `Some(SaveOutcome)` when a result was drained this frame, else `None`. The
-    /// `local_content` the conflict carries is the content the caller passed to `request_save`; the
-    /// caller threads it in via [`Self::set_pending_local_content`] before the result drains.
-    pub fn drain(&mut self) -> Option<SaveOutcome> {
-        let delivered = self.cell.lock().ok().and_then(|mut s| s.take())?;
-        match delivered {
+    fn admit(&mut self, snapshot: DocumentSaveSnapshot, gate: &DocumentSaveGate<'_>)
+        -> Option<AdmittedSaveAttempt>
+    {
+        if !self.accepts_snapshot(&snapshot, gate) { return None; }
+        let Some(next) = self.next_save_id.checked_add(1) else {
+            self.state = SaveState::Error("save identity counter exhausted".to_owned());
+            return None;
+        };
+        let stamp = SaveDispatchStamp { owner: snapshot.context(), save_id: self.next_save_id };
+        self.next_save_id = next;
+        let expected_version = self.doc_version.max(gate.known_server_version());
+        let content_json = snapshot.content_json().clone();
+        let workspace_id = snapshot.document_identity().workspace_id().to_owned();
+        self.cell = Arc::new(Mutex::new(None));
+        self.state = SaveState::Saving { expected_version };
+        self.active = Some(PendingSave { snapshot, stamp, expected_version, workspace_id });
+        Some(AdmittedSaveAttempt {
+            backend: Arc::clone(&self.backend), runtime: self.runtime.clone(),
+            cell: Arc::clone(&self.cell), document_id: self.document_id.clone(),
+            content_json, expected_version, stamp,
+        })
+    }
+
+    pub fn launch_admitted(attempt: AdmittedSaveAttempt) {
+        let AdmittedSaveAttempt { backend, runtime, cell, document_id,
+            content_json, expected_version, stamp } = attempt;
+        if let Some(runtime) = runtime {
+            runtime.spawn(async move {
+                let result = backend.save_document(&document_id, content_json, expected_version).await;
+                if let Ok(mut delivery) = cell.lock() { *delivery = Some(SaveDelivery { stamp, result }); }
+            });
+        }
+    }
+
+    pub fn drain(&mut self, gate: &mut DocumentSaveGate<'_>) -> SaveTransition {
+        let delivered = self.cell.lock().ok().and_then(|mut cell| cell.take());
+        let Some(delivered) = delivered else { return SaveTransition::none(); };
+        let stamp = delivered.stamp;
+        if self.active.as_ref().map(|pending| pending.stamp) != Some(stamp) {
+            return SaveTransition::outcome(SaveOutcome::Stale { dispatch_stamp: stamp });
+        }
+        if !self.accepts_gate(gate) || !stamp.accepts_context(gate.current_context()) {
+            self.recovery_snapshot = self.active.take();
+            self.queued = None;
+            self.uncertain = true;
+            self.state = SaveState::Error("save completed for an inactive document context; recovery retained".to_owned());
+            return SaveTransition::outcome(SaveOutcome::Stale { dispatch_stamp: stamp });
+        }
+        let pending = self.active.take().expect("full active dispatch was matched");
+        match delivered.result {
             Ok(result) => {
-                let saved_content = self.pending_local_content.take().unwrap_or(JsonValue::Null);
-                let workspace_id = self.pending_workspace_id.take().unwrap_or_default();
+                let floor = self.doc_version.max(gate.known_server_version()).max(pending.expected_version);
+                if result.document.rich_document_id != self.document_id
+                    || result.document.doc_version < floor
+                {
+                    return self.retain_failure(pending,
+                        SaveError::Server(200, "save acknowledgement did not match the target/current version".to_owned()), true);
+                }
+                let current_edit_saved = gate.record_save_commit(stamp.owner, result.document.doc_version);
                 self.doc_version = result.document.doc_version;
-                self.dirty = false;
+                self.dirty = !current_edit_saved;
                 self.updated_at = result.document.updated_at.clone();
                 self.last_save_receipt_event_id = result.save_receipt_event_id.clone();
                 self.last_save_attribution = result.attribution.clone();
                 self.state = SaveState::Idle;
-                Some(SaveOutcome::Saved {
-                    doc_version: result.document.doc_version,
-                    backlinks_persisted: result.backlinks_persisted,
+                self.recovery_snapshot = None;
+                self.uncertain = false;
+                let saved_content = pending.snapshot.content_json().clone();
+                let outcome = SaveOutcome::Saved {
+                    doc_version: self.doc_version, backlinks_persisted: result.backlinks_persisted,
                     backlinks_warning: result.backlinks_error.or(result.backlinks_skipped_reason),
-                    saved_content,
-                    workspace_id,
-                    save_receipt_event_id: result.save_receipt_event_id,
-                    attribution: result.attribution,
-                })
+                    saved_content, saved_snapshot: pending.snapshot,
+                    workspace_id: pending.workspace_id, save_receipt_event_id: result.save_receipt_event_id,
+                    attribution: result.attribution, dispatch_stamp: stamp, current_edit_saved,
+                };
+                let next_attempt = self.queued.take().and_then(|snapshot| self.admit(snapshot, gate));
+                SaveTransition { outcome: Some(outcome), next_attempt }
             }
             Err(SaveError::VersionConflict(server)) => {
-                let local = self.pending_local_content.take().unwrap_or(JsonValue::Null);
-                self.pending_workspace_id.take();
+                if server.rich_document_id != self.document_id
+                    || server.doc_version < gate.known_server_version()
+                {
+                    return self.retain_failure(pending,
+                        SaveError::Server(409, "conflict response requires authenticated recovery".to_owned()), true);
+                }
                 self.state = SaveState::Conflict {
-                    server: server.clone(),
-                    local_content: local,
+                    server, local_content: pending.snapshot.content_json().clone(),
                 };
-                Some(SaveOutcome::Conflict)
+                self.choice_context = gate.current_context();
+                self.recovery_choice = false;
+                self.recovery_snapshot = Some(pending);
+                self.queued = None;
+                self.dirty = true;
+                SaveTransition::outcome(SaveOutcome::Conflict { dispatch_stamp: stamp })
             }
-            Err(e) => {
-                self.pending_local_content.take();
-                self.pending_workspace_id.take();
-                self.state = SaveState::Error(e.to_string());
-                Some(SaveOutcome::Failed(e))
+            Err(error) => {
+                let uncertain = !matches!(error, SaveError::SchemaRejected(_));
+                self.retain_failure(pending, error, uncertain)
             }
         }
     }
 
-    /// Record the content the in-flight save attempted, so a resulting 409 conflict carries the
-    /// operator's local version for the both-versions UI. The widget calls this with the SAME
-    /// content it passed to `request_save`.
-    pub fn set_pending_local_content(&mut self, content_json: JsonValue) {
-        self.pending_local_content = Some(content_json);
+    fn retain_failure(&mut self, pending: PendingSave, error: SaveError, uncertain: bool) -> SaveTransition {
+        let stamp = pending.stamp;
+        self.state = SaveState::Error(if uncertain {
+            format!("Save outcome is uncertain; reload before another save: {error}")
+        } else { error.to_string() });
+        self.recovery_snapshot = Some(pending);
+        self.uncertain = uncertain;
+        self.dirty = true;
+        SaveTransition::outcome(SaveOutcome::Failed { error, dispatch_stamp: stamp, uncertain })
     }
 
-    /// MC-003 step 1: the operator clicked "Keep yours" in the conflict UI. Transition to the
-    /// confirmation state (does NOT re-save yet — the destructive overwrite needs a confirm).
-    pub fn request_keep_yours(&mut self) {
-        if let SaveState::Conflict {
-            server,
-            local_content,
-        } = &self.state
-        {
-            self.state = SaveState::ConfirmKeepYours {
-                server: server.clone(),
-                local_content: local_content.clone(),
-            };
+    pub fn request_recovery_load(&mut self, gate: &mut DocumentSaveGate<'_>)
+        -> Option<AdmittedRecoveryLoad>
+    {
+        if !self.uncertain || !self.accepts_gate(gate)
+            || self.active.is_some() || self.recovery_active.is_some()
+        { return None; }
+        let unknown = self.recovery_snapshot.as_ref()?;
+        let owner = gate.current_context()?;
+        if !same_binding(unknown.stamp.owner, owner) { return None; }
+        let next = self.next_recovery_id.checked_add(1)?;
+        let stamp = RecoveryLoadStamp {
+            recovery_id: self.next_recovery_id, unknown_dispatch: unknown.stamp,
+            owner, document_id: self.document_id.clone(), kind: RecoveryKind::UnknownOutcome,
+        };
+        self.next_recovery_id = next;
+        self.recovery_cell = Arc::new(Mutex::new(None));
+        self.recovery_active = Some(stamp.clone());
+        self.recovery_local_snapshot = None;
+        Some(AdmittedRecoveryLoad {
+            backend: Arc::clone(&self.backend), runtime: self.runtime.clone(),
+            cell: Arc::clone(&self.recovery_cell), stamp,
+        })
+    }
+
+    pub fn conflict_refresh_required(&self, gate: &DocumentSaveGate<'_>) -> bool {
+        self.accepts_gate(gate) && !self.uncertain && self.has_conflict()
+            && self.choice_context.is_some() && self.choice_context != gate.current_context()
+    }
+
+    pub fn request_conflict_refresh(
+        &mut self,
+        snapshot: DocumentSaveSnapshot,
+        gate: &mut DocumentSaveGate<'_>,
+    ) -> Option<AdmittedRecoveryLoad> {
+        if !self.conflict_refresh_required(gate) || self.active.is_some()
+            || self.recovery_active.is_some() || !self.accepts_snapshot(&snapshot, gate)
+            || gate.current_context() != Some(snapshot.context())
+        { return None; }
+        let original = self.recovery_snapshot.as_ref()?;
+        let next = self.next_recovery_id.checked_add(1)?;
+        let stamp = RecoveryLoadStamp {
+            recovery_id: self.next_recovery_id,
+            unknown_dispatch: original.stamp,
+            owner: snapshot.context(),
+            document_id: self.document_id.clone(),
+            kind: RecoveryKind::ConflictRefresh,
+        };
+        self.next_recovery_id = next;
+        self.recovery_cell = Arc::new(Mutex::new(None));
+        self.recovery_active = Some(stamp.clone());
+        self.recovery_local_snapshot = Some(snapshot);
+        Some(AdmittedRecoveryLoad {
+            backend: Arc::clone(&self.backend), runtime: self.runtime.clone(),
+            cell: Arc::clone(&self.recovery_cell), stamp,
+        })
+    }
+
+    pub fn launch_recovery_load(attempt: AdmittedRecoveryLoad) {
+        let AdmittedRecoveryLoad { backend, runtime, cell, stamp } = attempt;
+        if let Some(runtime) = runtime {
+            runtime.spawn(async move {
+                let result = backend.load_document(&stamp.document_id).await;
+                if let Ok(mut delivery) = cell.lock() { *delivery = Some(RecoveryDelivery { stamp, result }); }
+            });
         }
     }
 
-    /// MC-003 step 2: the operator confirmed the overwrite. Re-save the operator's local content AT
-    /// the server's `doc_version` (so the optimistic-concurrency check passes this time),
-    /// overwriting the concurrent edit. Only valid from [`SaveState::ConfirmKeepYours`].
-    pub fn confirm_keep_yours(&mut self) {
-        let SaveState::ConfirmKeepYours {
-            server,
-            local_content,
-        } = &self.state
-        else {
-            return;
+    pub fn drain_recovery(&mut self, gate: &mut DocumentSaveGate<'_>) -> Option<RecoveryOutcome> {
+        let delivery = self.recovery_cell.lock().ok().and_then(|mut cell| cell.take())?;
+        if self.recovery_active.as_ref() != Some(&delivery.stamp) {
+            return Some(RecoveryOutcome::Stale);
+        }
+        self.recovery_active = None;
+        if !self.accepts_gate(gate) || gate.current_context() != Some(delivery.stamp.owner)
+            || self.recovery_snapshot.as_ref().map(|pending| pending.stamp) != Some(delivery.stamp.unknown_dispatch)
+            || delivery.stamp.document_id != self.document_id
+            || match delivery.stamp.kind {
+                RecoveryKind::UnknownOutcome => !self.uncertain,
+                RecoveryKind::ConflictRefresh => self.uncertain || !self.has_conflict(),
+            }
+        { return Some(RecoveryOutcome::Stale); }
+        let response = match delivery.result {
+            Ok(response) => response,
+            Err(error) => {
+                if delivery.stamp.kind == RecoveryKind::UnknownOutcome {
+                    self.state = SaveState::Error(format!("Recovery load failed; submitted content retained: {error}"));
+                }
+                return Some(RecoveryOutcome::Failed(error));
+            }
         };
-        let local = local_content.clone();
-        // Adopt the server's version as our expected_version so the re-save matches the server.
-        self.doc_version = server.doc_version;
-        self.set_pending_local_content(local.clone());
-        // request_save reads self.doc_version (now the server's) and spawns the overwrite.
-        self.request_save(local);
+        let server = match decode_recovery_document(
+            response.document, &self.document_id, self.doc_version.max(gate.known_server_version()),
+        ) {
+            Ok(server) => server,
+            Err(error) => {
+                if delivery.stamp.kind == RecoveryKind::UnknownOutcome {
+                    self.state = SaveState::Error(error.to_string());
+                }
+                return Some(RecoveryOutcome::Failed(error));
+            }
+        };
+        if gate.observe_server_version(delivery.stamp.owner, server.doc_version).is_err() {
+            return Some(RecoveryOutcome::Stale);
+        }
+        let local_content = match delivery.stamp.kind {
+            RecoveryKind::UnknownOutcome => self.recovery_snapshot.as_ref()?.snapshot.content_json().clone(),
+            RecoveryKind::ConflictRefresh => self.recovery_local_snapshot.take()?.content_json().clone(),
+        };
+        let server_version = server.doc_version;
+        self.state = SaveState::Conflict { server: Box::new(server), local_content };
+        self.choice_context = Some(delivery.stamp.owner);
+        self.recovery_choice = delivery.stamp.kind == RecoveryKind::UnknownOutcome;
+        self.queued = None;
+        Some(RecoveryOutcome::Ready { dispatch_stamp: delivery.stamp.unknown_dispatch, server_version })
     }
 
-    /// The operator cancelled the keep-yours confirmation: return to the open conflict (no save).
-    pub fn cancel_keep_yours(&mut self) {
-        if let SaveState::ConfirmKeepYours {
-            server,
-            local_content,
-        } = &self.state
-        {
-            self.state = SaveState::Conflict {
-                server: server.clone(),
-                local_content: local_content.clone(),
-            };
+    fn accepts_choice(&self, gate: &DocumentSaveGate<'_>) -> bool {
+        self.accepts_gate(gate) && self.choice_context.is_some()
+            && gate.current_context() == self.choice_context
+    }
+
+    pub fn recovery_choice_ready(&self, gate: &DocumentSaveGate<'_>) -> bool {
+        self.uncertain && self.recovery_choice && self.has_conflict() && self.accepts_choice(gate)
+    }
+
+    pub fn request_keep_yours(&mut self, gate: &mut DocumentSaveGate<'_>) -> bool {
+        if !self.accepts_choice(gate) { return false; }
+        let SaveState::Conflict { server, local_content } = &self.state else { return false; };
+        self.state = SaveState::ConfirmKeepYours { server: server.clone(), local_content: local_content.clone() };
+        true
+    }
+
+    pub fn confirm_keep_yours(
+        &mut self, snapshot: DocumentSaveSnapshot, gate: &mut DocumentSaveGate<'_>,
+    ) -> Option<AdmittedSaveAttempt> {
+        if !self.accepts_choice(gate) || !self.accepts_snapshot(&snapshot, gate)
+            || gate.current_context() != Some(snapshot.context())
+        { return None; }
+        let SaveState::ConfirmKeepYours { server, .. } = &self.state else { return None; };
+        let version = server.doc_version;
+        gate.observe_server_version(snapshot.context(), version).ok()?;
+        self.doc_version = version;
+        let recovery_choice = self.recovery_choice;
+        self.state = SaveState::Idle;
+        self.uncertain = false;
+        self.recovery_snapshot = None;
+        self.queued = None;
+        self.choice_context = None;
+        self.recovery_choice = false;
+        self.dirty = true;
+        if recovery_choice { None } else { self.admit(snapshot, gate) }
+    }
+
+    pub fn cancel_keep_yours(&mut self, gate: &mut DocumentSaveGate<'_>) {
+        if !self.accepts_choice(gate) { return; }
+        if let SaveState::ConfirmKeepYours { server, local_content } = &self.state {
+            self.state = SaveState::Conflict { server: server.clone(), local_content: local_content.clone() };
         }
     }
 
-    /// "Keep server": discard the local edits, adopt the server document + version, clear the
-    /// conflict + dirty flag. Returns the server `content_json` (the caller rebuilds the doc from
-    /// it) when a conflict was open, else `None`.
-    pub fn keep_server(&mut self) -> Option<JsonValue> {
-        let SaveState::Conflict { server, .. } = &self.state else {
-            return None;
-        };
-        let content = server.content_json.clone().unwrap_or(JsonValue::Null);
+    pub fn keep_server(&mut self, gate: &mut DocumentSaveGate<'_>) -> Option<JsonValue> {
+        if !self.accepts_choice(gate) { return None; }
+        let SaveState::Conflict { server, .. } = &self.state else { return None; };
+        let content = server.content_json.clone()?;
+        let document = crate::rich_editor::document_model::doc_json::from_json_value(&content).ok()?;
+        gate.accept_server_document(self.choice_context?, document, server.doc_version).ok()?;
         self.doc_version = server.doc_version;
         self.updated_at = server.updated_at.clone();
         self.dirty = false;
         self.state = SaveState::Idle;
+        self.recovery_snapshot = None;
+        self.uncertain = false;
+        self.queued = None;
+        self.choice_context = None;
+        self.recovery_choice = false;
         Some(content)
     }
 
-    /// Dismiss a non-conflict error chip (return to `Idle`).
     pub fn dismiss_error(&mut self) {
-        if matches!(self.state, SaveState::Error(_)) {
-            self.state = SaveState::Idle;
+        if matches!(self.state, SaveState::Error(_)) { self.state = SaveState::Idle; }
+    }
+
+    pub fn deliver_for_test(&self, result: Result<RichDocSaveResult, SaveError>) {
+        if let Some(pending) = &self.active {
+            if let Ok(mut cell) = self.cell.lock() { *cell = Some(SaveDelivery { stamp: pending.stamp, result }); }
         }
     }
 
-    /// The document id (for the draft manager / tests).
-    pub fn document_id(&self) -> &str {
-        &self.document_id
-    }
-
-    /// TEST SEAM: stage a delivery into the cell as if the spawned save resolved (headless, no
-    /// runtime). The next [`Self::drain`] applies it. Mirrors the MT-019 `seed_*` test seams.
-    pub fn deliver_for_test(&self, result: Result<RichDocSaveResult, SaveError>) {
-        if let Ok(mut slot) = self.cell.lock() {
-            *slot = Some(result);
+    pub fn deliver_recovery_for_test(
+        &self, result: Result<crate::backend::knowledge_documents::DocumentLoadResponse, SaveError>,
+    ) {
+        if let Some(stamp) = &self.recovery_active {
+            if let Ok(mut cell) = self.recovery_cell.lock() {
+                *cell = Some(RecoveryDelivery { stamp: stamp.clone(), result });
+            }
         }
     }
 }
 
-/// The outcome `drain` reports for one frame's save result.
-#[derive(Debug, Clone, PartialEq)]
-// Saved carries the exact persisted snapshot and immutable attribution required by recovery/audit.
-#[allow(clippy::large_enum_variant)]
-pub enum SaveOutcome {
-    /// The save succeeded; the new `doc_version` is adopted. The caller should clear the draft.
-    Saved {
-        doc_version: u64,
-        backlinks_persisted: usize,
-        backlinks_warning: Option<String>,
-        /// Exact JSON snapshot sent to the successful backend request.
-        saved_content: JsonValue,
-        /// Exact workspace owning that request at dispatch time.
-        workspace_id: String,
-        /// Immutable EventLedger receipt returned by this exact successful request.
-        save_receipt_event_id: Option<String>,
-        /// Immutable request identity captured by the production transport.
-        attribution: Option<SaveAttribution>,
-    },
-    /// The save 409'd; a conflict is now open.
-    Conflict,
-    /// The save failed for a non-conflict reason.
-    Failed(SaveError),
+fn same_binding(left: EditorSaveContext, right: EditorSaveContext) -> bool {
+    left.document_incarnation == right.document_incarnation
+        && left.context_generation == right.context_generation
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::rich_editor::document_owner::DocumentEditOwner;
     use serde_json::json;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
-    /// A counted in-memory mock backend: returns a staged result and counts calls (so a test can
-    /// assert exactly one save fired, MC-002).
     struct MockBackend {
         result: Mutex<Option<Result<RichDocSaveResult, SaveError>>>,
+        recovery: Mutex<Option<Result<crate::backend::knowledge_documents::DocumentLoadResponse, SaveError>>>,
         calls: AtomicUsize,
     }
+
     impl MockBackend {
         fn new(result: Result<RichDocSaveResult, SaveError>) -> Self {
-            Self {
-                result: Mutex::new(Some(result)),
-                calls: AtomicUsize::new(0),
-            }
+            Self { result: Mutex::new(Some(result)), recovery: Mutex::new(None), calls: AtomicUsize::new(0) }
         }
     }
+
     impl SaveBackend for MockBackend {
-        fn save_document(&self, _id: &str, _c: JsonValue, _v: u64) -> SaveFuture {
+        fn save_document(&self, _id: &str, _content: JsonValue, _version: u64) -> SaveFuture {
             self.calls.fetch_add(1, Ordering::SeqCst);
-            let staged = self.result.lock().unwrap().clone();
-            Box::pin(
-                async move { staged.unwrap_or(Err(SaveError::Network("no staged result".into()))) },
-            )
+            let result = self.result.lock().unwrap().take().expect("stage the save result");
+            Box::pin(async move { result })
+        }
+
+        fn load_document(&self, _document_id: &str) -> RecoveryLoadFuture {
+            let result = self.recovery.lock().unwrap().take().expect("stage the recovery result");
+            Box::pin(async move { result })
         }
     }
 
-    fn ok_result(doc_version: u64) -> RichDocSaveResult {
-        RichDocSaveResult {
-            document: RichDocLoad {
-                rich_document_id: "DOC-1".into(),
-                doc_version,
-                title: "T".into(),
-                content_json: Some(json!({"type":"doc","content":[]})),
-                updated_at: Some("2026-06-22T00:00:00Z".into()),
-            },
-            backlinks_persisted: 0,
-            backlinks_error: None,
-            backlinks_skipped_reason: None,
-            save_receipt_event_id: None,
-            attribution: None,
+    fn content(text: &str) -> JsonValue {
+        json!({"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":text}]}]})
+    }
+
+    fn owner(content: &JsonValue) -> DocumentEditOwner {
+        let document = crate::rich_editor::document_model::doc_json::from_json_value(content).unwrap();
+        let owner = DocumentEditOwner::new(document);
+        owner.bind_context("workspace-a", "DOC-1", "http://test", None, None).unwrap();
+        owner.with_save_gate(|gate| {
+            gate.observe_server_version(gate.current_context().unwrap(), 3).unwrap();
+        });
+        owner
+    }
+
+    fn edit(owner: &DocumentEditOwner, value: &JsonValue) {
+        let expected = owner.current_context().unwrap();
+        let replacement = crate::rich_editor::document_model::doc_json::from_json_value(value).unwrap();
+        owner.edit(expected, |document, _history| {
+            *document = replacement;
+            Ok::<_, ()>(())
+        }).unwrap();
+    }
+
+    fn server_doc(version: u64) -> RichDocLoad {
+        RichDocLoad { rich_document_id: "DOC-1".to_owned(), doc_version: version,
+            title: "T".to_owned(), content_json: Some(content("server")),
+            updated_at: Some("2026-06-22T01:00:00Z".to_owned()) }
+    }
+
+    fn ok_result(version: u64) -> RichDocSaveResult {
+        RichDocSaveResult { document: server_doc(version), backlinks_persisted: 0,
+            backlinks_error: None, backlinks_skipped_reason: None,
+            save_receipt_event_id: None, attribution: None }
+    }
+
+    fn raw_load(version: u64) -> crate::backend::knowledge_documents::DocumentLoadResponse {
+        use crate::backend::knowledge_documents::{BlockTreeResponse, DocumentLoadResponse};
+        DocumentLoadResponse {
+            document: json!({"rich_document_id":"DOC-1","doc_version":version,"title":"T","content_json":content("server")}),
+            tree: BlockTreeResponse { schema_version: "test".to_owned(), schema_matches: true,
+                block_ids: vec![], blocks: json!([]) },
+            code_nodes: json!([]),
         }
     }
 
-    fn server_doc(doc_version: u64) -> RichDocLoad {
-        RichDocLoad {
-            rich_document_id: "DOC-1".into(),
-            doc_version,
-            title: "T".into(),
-            content_json: Some(
-                json!({"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"server"}]}]}),
-            ),
-            updated_at: Some("2026-06-22T01:00:00Z".into()),
-        }
+    fn mgr(value: &JsonValue) -> (SaveManager, DocumentEditOwner) {
+        let owner = owner(value);
+        let mut manager = SaveManager::new(Arc::new(MockBackend::new(Ok(ok_result(4)))), None, "DOC-1", 3);
+        assert!(owner.with_save_gate(|gate| manager.bind_owner(gate)));
+        (manager, owner)
     }
 
-    fn mgr(result: Result<RichDocSaveResult, SaveError>) -> SaveManager {
-        SaveManager::new(Arc::new(MockBackend::new(result)), None, "DOC-1", 3)
+    fn dispatch(manager: &mut SaveManager, owner: &DocumentEditOwner) -> SaveDispatchStamp {
+        let snapshot = owner.save_snapshot().unwrap();
+        let attempt = owner.with_save_gate(|gate| manager.request_save(snapshot, gate)).unwrap();
+        let stamp = attempt.stamp;
+        SaveManager::launch_admitted(attempt);
+        stamp
+    }
+
+    fn drain(manager: &mut SaveManager, owner: &DocumentEditOwner) -> Option<SaveOutcome> {
+        let transition = owner.with_save_gate(|gate| manager.drain(gate));
+        if let Some(attempt) = transition.next_attempt { SaveManager::launch_admitted(attempt); }
+        transition.outcome
+    }
+
+    fn conflict(manager: &mut SaveManager, owner: &DocumentEditOwner) {
+        dispatch(manager, owner);
+        manager.deliver_for_test(Err(SaveError::VersionConflict(Box::new(server_doc(5)))));
+        assert!(matches!(drain(manager, owner), Some(SaveOutcome::Conflict { .. })));
+    }
+
+    fn uncertain(manager: &mut SaveManager, owner: &DocumentEditOwner) {
+        dispatch(manager, owner);
+        manager.deliver_for_test(Err(SaveError::Network("response was lost".to_owned())));
+        assert!(matches!(drain(manager, owner), Some(SaveOutcome::Failed { uncertain: true, .. })));
+    }
+
+    fn recover(manager: &mut SaveManager, owner: &DocumentEditOwner) {
+        let attempt = owner.with_save_gate(|gate| manager.request_recovery_load(gate)).unwrap();
+        SaveManager::launch_recovery_load(attempt);
+        manager.deliver_recovery_for_test(Ok(raw_load(5)));
+        assert!(matches!(owner.with_save_gate(|gate| manager.drain_recovery(gate)),
+            Some(RecoveryOutcome::Ready { server_version: 5, .. })));
     }
 
     #[test]
     fn successful_save_bumps_version_and_clears_dirty() {
-        // AC: a 200 clears dirty + updates doc_version (mock HTTP 200, headless deliver).
-        let mut m = mgr(Ok(ok_result(4)));
-        m.mark_dirty();
-        m.request_save(json!({"type":"doc","content":[]}));
-        assert!(
-            m.is_saving(),
-            "state is Saving while in flight (MC-002 guard true)"
-        );
-        m.deliver_for_test(Ok(ok_result(4)));
-        let outcome = m.drain().unwrap();
-        assert_eq!(
-            outcome,
-            SaveOutcome::Saved {
-                doc_version: 4,
-                backlinks_persisted: 0,
-                backlinks_warning: None,
-                saved_content: json!({"type":"doc","content":[]}),
-                workspace_id: String::new(),
-                save_receipt_event_id: None,
-                attribution: None,
+        let value = content("mine");
+        let (mut manager, owner) = mgr(&value);
+        manager.mark_dirty();
+        let stamp = dispatch(&mut manager, &owner);
+        assert!(manager.is_saving());
+        manager.deliver_for_test(Ok(ok_result(4)));
+        match drain(&mut manager, &owner).unwrap() {
+            SaveOutcome::Saved { doc_version, backlinks_persisted, backlinks_warning, saved_content,
+                saved_snapshot, workspace_id, save_receipt_event_id, attribution,
+                dispatch_stamp, current_edit_saved } => {
+                assert_eq!(doc_version, 4);
+                assert_eq!(backlinks_persisted, 0);
+                assert_eq!(backlinks_warning, None);
+                assert_eq!(saved_content, value);
+                assert_eq!(saved_snapshot.content_json(), &value);
+                assert_eq!(workspace_id, "workspace-a");
+                assert_eq!(save_receipt_event_id, None);
+                assert_eq!(attribution, None);
+                assert_eq!(dispatch_stamp, stamp);
+                assert!(current_edit_saved);
             }
-        );
-        assert_eq!(m.doc_version, 4);
-        assert!(!m.dirty, "dirty cleared after a successful save");
-        assert_eq!(m.state, SaveState::Idle);
+            other => panic!("expected Saved, got {other:?}"),
+        }
+        assert_eq!(manager.doc_version, 4);
+        assert!(!manager.dirty);
+        assert_eq!(manager.state, SaveState::Idle);
+        assert!(!owner.with_save_gate(|gate| gate.is_dirty()));
     }
 
     #[test]
     fn save_completion_keeps_workspace_captured_at_dispatch() {
-        let mut m = mgr(Ok(ok_result(4)));
-        m.set_workspace_id("workspace-a");
-        m.request_save(json!({"type":"doc","content":[]}));
-        m.set_workspace_id("workspace-b");
-        m.deliver_for_test(Ok(ok_result(4)));
-
-        assert!(matches!(
-            m.drain(),
-            Some(SaveOutcome::Saved { workspace_id, .. }) if workspace_id == "workspace-a"
-        ));
+        let (mut manager, owner) = mgr(&content("mine"));
+        dispatch(&mut manager, &owner);
+        manager.set_workspace_id("workspace-b");
+        manager.deliver_for_test(Ok(ok_result(4)));
+        assert!(matches!(drain(&mut manager, &owner),
+            Some(SaveOutcome::Saved { workspace_id, .. }) if workspace_id == "workspace-a"));
     }
 
     #[test]
     fn conflict_409_sets_conflict_state_with_both_versions() {
-        // AC: a 409 sets ConflictState carrying server + local content.
-        let local = json!({"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"mine"}]}]});
-        let mut m = mgr(Err(SaveError::VersionConflict(Box::new(server_doc(5)))));
-        m.set_pending_local_content(local.clone());
-        m.request_save(local.clone());
-        m.deliver_for_test(Err(SaveError::VersionConflict(Box::new(server_doc(5)))));
-        let outcome = m.drain().unwrap();
-        assert_eq!(outcome, SaveOutcome::Conflict);
-        match &m.state {
-            SaveState::Conflict {
-                server,
-                local_content,
-            } => {
+        let local = content("mine");
+        let (mut manager, owner) = mgr(&local);
+        conflict(&mut manager, &owner);
+        match &manager.state {
+            SaveState::Conflict { server, local_content } => {
                 assert_eq!(server.doc_version, 5);
-                assert_eq!(
-                    local_content, &local,
-                    "the operator's local content is carried"
-                );
+                assert_eq!(local_content, &local);
             }
             other => panic!("expected Conflict, got {other:?}"),
         }
-        assert!(m.has_conflict());
+        assert!(manager.has_conflict());
     }
 
     #[test]
     fn keep_yours_requires_confirmation_before_resave() {
-        // MC-003: Keep-yours must NOT re-save without a confirm; it transitions to ConfirmKeepYours.
-        let local = json!({"type":"doc","content":[]});
-        let mut m = mgr(Ok(ok_result(6)));
-        m.state = SaveState::Conflict {
-            server: Box::new(server_doc(5)),
-            local_content: local.clone(),
-        };
-        m.request_keep_yours();
-        assert!(
-            matches!(m.state, SaveState::ConfirmKeepYours { .. }),
-            "Keep-yours first asks for confirmation, never an immediate overwrite"
-        );
-        assert!(!m.is_saving(), "no save fires until the operator confirms");
-        // Confirm -> re-saves at the SERVER's version (5), overwriting.
-        m.confirm_keep_yours();
-        assert_eq!(
-            m.doc_version, 5,
-            "the re-save adopts the server version so it passes"
-        );
-        assert!(m.is_saving(), "the overwrite save is now in flight");
+        let (mut manager, owner) = mgr(&content("mine"));
+        conflict(&mut manager, &owner);
+        assert!(owner.with_save_gate(|gate| manager.request_keep_yours(gate)));
+        assert!(matches!(manager.state, SaveState::ConfirmKeepYours { .. }));
+        assert!(!manager.is_saving());
+        let snapshot = owner.save_snapshot().unwrap();
+        let attempt = owner.with_save_gate(|gate| manager.confirm_keep_yours(snapshot, gate)).unwrap();
+        assert_eq!(attempt.expected_version, 5);
+        SaveManager::launch_admitted(attempt);
+        assert_eq!(manager.doc_version, 5);
+        assert!(manager.is_saving());
     }
 
     #[test]
     fn cancel_keep_yours_returns_to_conflict() {
-        let local = json!({"type":"doc","content":[]});
-        let mut m = mgr(Ok(ok_result(6)));
-        m.state = SaveState::ConfirmKeepYours {
-            server: Box::new(server_doc(5)),
-            local_content: local,
-        };
-        m.cancel_keep_yours();
-        assert!(matches!(m.state, SaveState::Conflict { .. }));
+        let (mut manager, owner) = mgr(&content("mine"));
+        conflict(&mut manager, &owner);
+        owner.with_save_gate(|gate| { manager.request_keep_yours(gate); manager.cancel_keep_yours(gate); });
+        assert!(matches!(manager.state, SaveState::Conflict { .. }));
     }
 
     #[test]
     fn keep_server_reloads_server_content_and_clears_conflict() {
-        // AC: Keep server reloads the server content into the doc and clears ConflictState.
-        let mut m = mgr(Ok(ok_result(6)));
-        m.dirty = true;
-        m.state = SaveState::Conflict {
-            server: Box::new(server_doc(5)),
-            local_content: json!({"type":"doc","content":[]}),
-        };
-        let server_content = m
-            .keep_server()
-            .expect("keep_server returns the server content");
+        let (mut manager, owner) = mgr(&content("mine"));
+        manager.mark_dirty();
+        conflict(&mut manager, &owner);
+        let server_content = owner.with_save_gate(|gate| manager.keep_server(gate)).unwrap();
         assert_eq!(server_content["content"][0]["content"][0]["text"], "server");
-        assert_eq!(m.doc_version, 5, "adopt the server version");
-        assert!(!m.dirty, "local edits discarded");
-        assert_eq!(m.state, SaveState::Idle);
+        assert_eq!(owner.save_snapshot().unwrap().content_json(), &server_content);
+        assert_eq!(manager.doc_version, 5);
+        assert!(!manager.dirty);
+        assert_eq!(manager.state, SaveState::Idle);
     }
 
     #[test]
     fn second_save_blocked_while_in_flight() {
-        // MC-002: a second request_save while one is in flight is a no-op (the in-flight guard).
-        let backend = Arc::new(MockBackend::new(Ok(ok_result(4))));
-        let mut m = SaveManager::new(backend.clone(), None, "DOC-1", 3);
-        m.request_save(json!({}));
-        m.request_save(json!({})); // ignored
-                                   // Only the state proves the guard here (no runtime spawn in headless); the production guard
-                                   // is the same `is_saving` check. The mock's call count would be 0 here because there is no
-                                   // runtime to spawn the future; the guard is proven by the state staying Saving once.
-        assert!(m.is_saving());
+        let (mut manager, owner) = mgr(&content("mine"));
+        dispatch(&mut manager, &owner);
+        let snapshot = owner.save_snapshot().unwrap();
+        assert!(owner.with_save_gate(|gate| manager.request_save(snapshot, gate)).is_none());
+        assert!(manager.is_saving());
+        assert!(manager.queued.is_some());
+    }
+
+    #[test]
+    fn rapid_save_uses_latest_snapshot_and_confirmed_version_without_clearing_newer_edits() {
+        let (mut manager, owner) = mgr(&content("first"));
+        let first_stamp = dispatch(&mut manager, &owner);
+        edit(&owner, &content("second"));
+        let snapshot = owner.save_snapshot().unwrap();
+        assert!(owner.with_save_gate(|gate| manager.request_save(snapshot, gate)).is_none());
+        edit(&owner, &content("third"));
+        let latest = owner.save_snapshot().unwrap();
+        assert!(owner.with_save_gate(|gate| manager.request_save(latest, gate)).is_none());
+        manager.deliver_for_test(Ok(ok_result(4)));
+        let transition = owner.with_save_gate(|gate| manager.drain(gate));
+        assert!(matches!(transition.outcome, Some(SaveOutcome::Saved { current_edit_saved: false, .. })));
+        let next = transition.next_attempt.unwrap();
+        assert_eq!(next.expected_version, 4);
+        assert_eq!(next.content_json, content("third"));
+        assert!(next.stamp.save_id > first_stamp.save_id);
+        assert!(manager.dirty);
+        assert!(owner.with_save_gate(|gate| gate.is_dirty()));
+        SaveManager::launch_admitted(next);
+        manager.deliver_for_test(Ok(ok_result(5)));
+        assert!(matches!(drain(&mut manager, &owner), Some(SaveOutcome::Saved { current_edit_saved: true, .. })));
+        assert!(!manager.dirty);
+    }
+
+    #[test]
+    fn mismatched_callback_does_not_consume_active_attempt() {
+        let (mut manager, owner) = mgr(&content("mine"));
+        let stamp = dispatch(&mut manager, &owner);
+        let wrong = SaveDispatchStamp { save_id: stamp.save_id + 1, ..stamp };
+        *manager.cell.lock().unwrap() = Some(SaveDelivery { stamp: wrong, result: Ok(ok_result(4)) });
+        assert!(matches!(drain(&mut manager, &owner), Some(SaveOutcome::Stale { .. })));
+        assert_eq!(manager.active.as_ref().unwrap().stamp, stamp);
+        assert_eq!(manager.doc_version, 3);
+    }
+
+    #[test]
+    fn reopened_or_rebound_context_cannot_accept_old_completion() {
+        let (mut manager, owner) = mgr(&content("mine"));
+        dispatch(&mut manager, &owner);
+        owner.bind_context("workspace-a", "DOC-1", "http://replacement", None, None).unwrap();
+        manager.deliver_for_test(Ok(ok_result(4)));
+        assert!(matches!(drain(&mut manager, &owner), Some(SaveOutcome::Stale { .. })));
+        assert_eq!(manager.doc_version, 3);
+        assert!(!manager.is_saving());
+        assert!(manager.recovery_snapshot.is_some());
+        assert!(!owner.with_save_gate(|gate| manager.bind_owner(gate)));
+    }
+
+    #[test]
+    fn unknown_save_and_dismiss_preserve_snapshot_without_automatic_resend() {
+        let (mut manager, owner) = mgr(&content("mine"));
+        uncertain(&mut manager, &owner);
+        manager.dismiss_error();
+        assert!(!manager.is_saving());
+        assert!(manager.requires_recovery());
+        let snapshot = owner.save_snapshot().unwrap();
+        assert!(owner.with_save_gate(|gate| manager.request_save(snapshot, gate)).is_none());
+        assert_eq!(manager.recovery_snapshot.as_ref().unwrap().snapshot.content_json(), &content("mine"));
+        assert_eq!(owner.save_snapshot().unwrap().content_json(), &content("mine"));
+    }
+
+    #[test]
+    fn recovery_get_and_keep_yours_never_resend_old_queue() {
+        let (mut manager, owner) = mgr(&content("first"));
+        dispatch(&mut manager, &owner);
+        edit(&owner, &content("second"));
+        let snapshot = owner.save_snapshot().unwrap();
+        owner.with_save_gate(|gate| { manager.request_save(snapshot, gate); });
+        manager.deliver_for_test(Err(SaveError::Server(200, "body parse failed".to_owned())));
+        drain(&mut manager, &owner);
+        recover(&mut manager, &owner);
+        assert!(manager.requires_recovery(), "GET does not prove the old save outcome");
+        assert!(manager.dirty);
+        assert!(owner.with_save_gate(|gate| gate.is_dirty()));
+        assert!(manager.queued.is_none());
+        owner.with_save_gate(|gate| { manager.request_keep_yours(gate); });
+        let snapshot = owner.save_snapshot().unwrap();
+        assert!(owner.with_save_gate(|gate| manager.confirm_keep_yours(snapshot, gate)).is_none());
+        assert!(!manager.is_saving());
+        assert!(manager.dirty);
+        assert_eq!(manager.doc_version, 5);
+        let snapshot = owner.save_snapshot().unwrap();
+        let attempt = owner.with_save_gate(|gate| manager.request_save(snapshot, gate)).unwrap();
+        assert_eq!(attempt.expected_version, 5);
+        assert_eq!(attempt.content_json, content("second"));
+        assert_eq!(attempt.stamp.save_id, 2);
+        SaveManager::launch_admitted(attempt);
+    }
+
+    #[test]
+    fn later_edit_rejects_recovery_delivery_without_losing_unknown_snapshot() {
+        let (mut manager, owner) = mgr(&content("first"));
+        uncertain(&mut manager, &owner);
+        let attempt = owner.with_save_gate(|gate| manager.request_recovery_load(gate)).unwrap();
+        SaveManager::launch_recovery_load(attempt);
+        edit(&owner, &content("later"));
+        manager.deliver_recovery_for_test(Ok(raw_load(5)));
+        assert!(matches!(owner.with_save_gate(|gate| manager.drain_recovery(gate)), Some(RecoveryOutcome::Stale)));
+        assert!(manager.requires_recovery());
+        assert_eq!(manager.doc_version, 3);
+        assert_eq!(owner.save_snapshot().unwrap().content_json(), &content("later"));
+        assert!(owner.with_save_gate(|gate| manager.request_recovery_load(gate)).is_some());
+    }
+
+    #[test]
+    fn recovery_rejects_missing_wrong_older_or_malformed_authority_fields() {
+        let valid = raw_load(5).document;
+        let mut missing_version = valid.clone();
+        missing_version.as_object_mut().unwrap().remove("doc_version");
+        let mut wrong_id = valid.clone(); wrong_id["rich_document_id"] = json!("OTHER");
+        let mut negative = valid.clone(); negative["doc_version"] = json!(-1);
+        let mut missing_content = valid.clone(); missing_content.as_object_mut().unwrap().remove("content_json");
+        let mut malformed = valid.clone(); malformed["content_json"] = json!({"type":"invalid-node"});
+        let mut older = valid.clone(); older["doc_version"] = json!(2);
+        for value in [missing_version, wrong_id, negative, missing_content, malformed, older] {
+            assert!(decode_recovery_document(value, "DOC-1", 3).is_err());
+        }
+        assert_eq!(decode_recovery_document(valid, "DOC-1", 3).unwrap().doc_version, 5);
+    }
+
+    #[test]
+    fn projection_failure_does_not_undo_canonical_save() {
+        let (mut manager, owner) = mgr(&content("mine"));
+        dispatch(&mut manager, &owner);
+        let mut result = ok_result(4); result.backlinks_error = Some("index unavailable".to_owned());
+        manager.deliver_for_test(Ok(result));
+        assert!(matches!(drain(&mut manager, &owner),
+            Some(SaveOutcome::Saved { backlinks_warning: Some(_), current_edit_saved: true, .. })));
+        assert_eq!(manager.doc_version, 4);
+        assert!(!manager.requires_recovery());
+    }
+
+    #[test]
+    fn edit_after_conflict_requires_explicit_refresh_before_confirmed_keep_yours() {
+        let (mut manager, owner) = mgr(&content("first"));
+        conflict(&mut manager, &owner);
+        edit(&owner, &content("newer local edit"));
+        assert!(!owner.with_save_gate(|gate| manager.request_keep_yours(gate)));
+        assert!(owner.with_save_gate(|gate| manager.keep_server(gate)).is_none());
+        assert!(owner.with_save_gate(|gate| manager.conflict_refresh_required(gate)));
+
+        let fresh = owner.save_snapshot().unwrap();
+        let attempt = owner.with_save_gate(|gate| manager.request_conflict_refresh(fresh, gate)).unwrap();
+        SaveManager::launch_recovery_load(attempt);
+        manager.deliver_recovery_for_test(Err(SaveError::Network("reload unavailable".to_owned())));
+        assert!(matches!(owner.with_save_gate(|gate| manager.drain_recovery(gate)), Some(RecoveryOutcome::Failed(_))));
+        assert!(manager.has_conflict());
+        let fresh = owner.save_snapshot().unwrap();
+        assert!(owner.with_save_gate(|gate| manager.request_save(fresh, gate)).is_none());
+
+        let fresh = owner.save_snapshot().unwrap();
+        let attempt = owner.with_save_gate(|gate| manager.request_conflict_refresh(fresh, gate)).unwrap();
+        SaveManager::launch_recovery_load(attempt);
+        manager.deliver_recovery_for_test(Ok(raw_load(5)));
+        assert!(matches!(owner.with_save_gate(|gate| manager.drain_recovery(gate)), Some(RecoveryOutcome::Ready { .. })));
+        match &manager.state {
+            SaveState::Conflict { local_content, .. } => assert_eq!(local_content, &content("newer local edit")),
+            _ => panic!("refresh must return to the explicit conflict choices"),
+        }
+        assert!(!manager.is_saving());
+        assert!(owner.with_save_gate(|gate| manager.request_keep_yours(gate)));
+        assert!(!manager.is_saving(), "secondary confirmation still precedes the overwrite");
+        let fresh = owner.save_snapshot().unwrap();
+        let attempt = owner.with_save_gate(|gate| manager.confirm_keep_yours(fresh, gate)).unwrap();
+        assert_eq!(attempt.expected_version, 5);
+        assert_eq!(attempt.content_json, content("newer local edit"));
+        SaveManager::launch_admitted(attempt);
     }
 }

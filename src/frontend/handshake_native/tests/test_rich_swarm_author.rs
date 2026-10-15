@@ -285,7 +285,7 @@ fn rich_wikilink_setvalue_by_id_sets_target_ref_value_headless() {
         harness.run();
         let s = state.lock().unwrap();
         let set = s
-            .doc
+            .document_owner().document_snapshot().expect("live editor document")
             .children
             .first()
             .and_then(Child::as_block)
@@ -304,8 +304,9 @@ fn rich_wikilink_setvalue_by_id_sets_target_ref_value_headless() {
         "MT-110: the swarm wikilink-target SetValue dispatch was consumed within the frame budget"
     );
     let s = state.lock().unwrap();
-    let link = s
-        .doc
+    let document = s.document_owner().document_snapshot().expect("live editor document");
+
+    let link = document
         .children
         .first()
         .and_then(Child::as_block)

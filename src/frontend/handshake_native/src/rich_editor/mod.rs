@@ -21,6 +21,7 @@
 
 pub mod daily_notes;
 pub use handshake_rich_document_model as document_model;
+pub mod document_owner;
 pub mod embeds;
 pub mod find_replace;
 pub mod formatting;

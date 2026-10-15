@@ -753,8 +753,11 @@ fn mt017_live_content_json_is_pulled_from_the_doc_mc001() {
         char_offset: 5,
         text: "!".into(),
     }]);
-    let receipt = apply_transaction(&mut state.doc, tx).unwrap();
-    state.undo.push(receipt);
+    state.edit_document(|doc, history| {
+        let receipt = apply_transaction(doc, tx)?;
+        history.push(receipt);
+        Ok::<_, handshake_native::rich_editor::document_model::transform::TransformError>(())
+    }).unwrap();
     let after = state.current_content_json();
     assert!(
         after.to_string().contains("hello!"),

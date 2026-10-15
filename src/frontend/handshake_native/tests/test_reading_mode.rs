@@ -189,7 +189,7 @@ fn ac001_reading_render_does_not_mutate_doc() {
 
     let after = {
         let st = state.lock().unwrap();
-        handshake_native::rich_editor::document_model::doc_json::to_content_json_value(&st.doc)
+        handshake_native::rich_editor::document_model::doc_json::to_content_json_value(&st.document_snapshot().unwrap())
     };
     assert_eq!(
         before, after,

@@ -300,7 +300,7 @@ impl OutlinePanel {
         // (RISK-004 / MC-004 / AC-006 — a live rebuild must not reset expand/collapse).
         let mut collapsed_ids = std::collections::HashSet::new();
         collect_collapsed_ids(&self.roots, &mut collapsed_ids);
-        let mut roots = build_outline(&state.doc);
+        let mut roots = build_outline(&state.document_snapshot().expect("live outline document"));
         carry_forward_collapse(&mut roots, &collapsed_ids);
         self.roots = roots;
         self.doc_revision = live;
@@ -627,10 +627,7 @@ mod tests {
         let h1_id = block_author_id(&[0]);
         toggle_collapsed(&mut panel.roots, &h1_id);
         assert!(panel.roots[0].collapsed, "h1 collapsed by the user");
-        state
-            .doc
-            .children
-            .push(Child::Block(BlockNode::heading(2, "Epsilon")));
+        state.edit_document(|doc, _| { doc.children.push(Child::Block(BlockNode::heading(2, "Epsilon"))); Ok::<_, std::convert::Infallible>(()) }).unwrap();
         // The revision advanced -> sync rebuilds and includes the new heading.
         assert!(
             panel.sync(&state),
@@ -658,25 +655,31 @@ mod tests {
         ]));
         let rev_before = state.doc_revision();
         // Mutate the paragraph text.
-        if let Some(p) = state.doc.children.get_mut(1).and_then(Child::as_block_mut) {
+        state.edit_document(|doc, _| {
+            if let Some(p) = doc.children.get_mut(1).and_then(Child::as_block_mut) {
             if let Some(t) = p.children.get_mut(0).and_then(Child::as_text_mut) {
                 t.text = crate::rich_editor::document_model::rope_text::RopeText::from_str(
                     "body edited longer",
                 );
             }
-        }
+            }
+            Ok::<_, std::convert::Infallible>(())
+        }).unwrap();
         let rev_after = state.doc_revision();
         assert_eq!(
             rev_before, rev_after,
             "a non-heading edit must not change the heading revision"
         );
         // Retitling the HEADING, by contrast, MUST change it.
-        if let Some(h) = state.doc.children.get_mut(0).and_then(Child::as_block_mut) {
+        state.edit_document(|doc, _| {
+            if let Some(h) = doc.children.get_mut(0).and_then(Child::as_block_mut) {
             if let Some(t) = h.children.get_mut(0).and_then(Child::as_text_mut) {
                 t.text =
                     crate::rich_editor::document_model::rope_text::RopeText::from_str("New Title");
             }
-        }
+            }
+            Ok::<_, std::convert::Infallible>(())
+        }).unwrap();
         assert_ne!(
             rev_after,
             state.doc_revision(),

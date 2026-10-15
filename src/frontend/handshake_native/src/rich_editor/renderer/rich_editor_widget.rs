@@ -136,12 +136,10 @@ fn saved_content_contains_exact_hs_link(
 /// types are single-threaded-friendly (no internal locks) per MT-011's design.
 pub struct RichEditorState {
     authenticated_context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
-    /// The document tree (the `doc` root).
-    pub doc: BlockNode,
+    owner_backend_url: String,
+    document_owner: crate::rich_editor::document_owner::DocumentEditOwner,
     /// The current selection (caret = collapsed).
     pub selection: Selection,
-    /// Bounded undo/redo history.
-    pub undo: UndoManager,
     /// In-progress IME composition overlay.
     pub preedit: PreeditState,
     /// Active theme (resolved to a palette each frame).
@@ -349,6 +347,105 @@ pub struct RichEditorState {
 }
 
 impl RichEditorState {
+    pub fn document_owner(&self) -> crate::rich_editor::document_owner::DocumentEditOwner {
+        self.document_owner.clone()
+    }
+
+    pub fn document_snapshot(&self) -> Result<BlockNode, crate::rich_editor::document_owner::DocumentOwnerError> {
+        self.document_owner.document_snapshot()
+    }
+
+    pub fn history_snapshot(&self) -> Result<UndoManager, crate::rich_editor::document_owner::DocumentOwnerError> {
+        self.document_owner.history_snapshot()
+    }
+
+    pub fn with_document<R>(&self, read: impl FnOnce(&BlockNode) -> R) -> Result<R, crate::rich_editor::document_owner::DocumentOwnerError> {
+        self.document_owner.with_document(read)
+    }
+
+    pub fn attach_document_owner(&mut self, owner: crate::rich_editor::document_owner::DocumentEditOwner) -> Result<(), crate::rich_editor::document_owner::DocumentOwnerError> {
+        owner.current_context()?;
+        if let Some(existing) = self.document_owner.document_identity() {
+            if owner.document_identity().as_ref() != Some(&existing) {
+                return Err(crate::rich_editor::document_owner::DocumentOwnerError::WrongDocument);
+            }
+        }
+        self.document_owner = owner;
+        Ok(())
+    }
+
+    pub fn edit_document<R, E>(
+        &mut self,
+        mutate: impl FnOnce(&mut BlockNode, &mut UndoManager) -> Result<R, E>,
+    ) -> Result<crate::rich_editor::document_model::edit_state::EditCommit<R>, crate::rich_editor::document_owner::DocumentOwnerEditError<E>> {
+        let expected = self.document_owner.current_context()
+            .map_err(crate::rich_editor::document_owner::DocumentOwnerEditError::Owner)?;
+        let commit = self.document_owner.edit(expected, mutate)?;
+        if commit.content_changed { self.mark_document_dirty(); }
+        Ok(commit)
+    }
+
+    fn mark_document_dirty(&mut self) {
+        let owner = self.document_owner();
+        owner.with_save_gate(|gate| {
+            if gate.current_context().is_none() || !gate.is_dirty() { return; }
+            if let Some(save) = self.save.as_mut() { save.mark_dirty(); }
+            if let Some(draft) = self.draft.as_mut() { draft.mark_dirty(std::time::Instant::now()); }
+        });
+    }
+
+    fn edit_with_state<R>(
+        &mut self,
+        mutate: impl FnOnce(&mut BlockNode, &mut UndoManager, &mut Self) -> R,
+    ) -> Option<R> {
+        let owner = self.document_owner();
+        let mut candidate = owner.prepare_edit().ok()?;
+        let original_selection = self.selection.clone();
+        let original_preedit = self.preedit.clone();
+        let original_find_replace = self.find_replace.clone();
+        let original_wikilink_popup = self.wikilink_autocomplete.clone();
+        let original_tag_popup = self.tag_autocomplete.clone();
+        let (document, history) = candidate.parts_mut();
+        let output = mutate(document, history, self);
+        match owner.commit_edit(candidate) {
+            Ok(commit) => {
+                if commit.content_changed { self.mark_document_dirty(); }
+                Some(output)
+            }
+            Err(error) => {
+                self.selection = original_selection;
+                self.preedit = original_preedit;
+                self.find_replace = original_find_replace;
+                self.wikilink_autocomplete = original_wikilink_popup;
+                self.tag_autocomplete = original_tag_popup;
+                self.interop_error = Some(error.to_string());
+                None
+            }
+        }
+    }
+
+    pub fn open_document_owner(&mut self, document: BlockNode) {
+        self.document_owner.invalidate();
+        self.document_owner = crate::rich_editor::document_owner::DocumentEditOwner::new(document);
+        self.selection = Selection::caret(DocPosition::new(vec![0, 0], 0));
+        self.preedit = PreeditState::default();
+        self.save = None;
+        self.draft = None;
+        self.find_replace = None;
+        self.pending_events.clear();
+        self.pending_bus_undo.clear();
+        self.undo_batcher.reset();
+        self.undo_batch_before = None;
+        self.wikilinks.invalidate_context();
+        self.wikilink_autocomplete = None;
+        self.tag_autocomplete = None;
+        self.pending_stage_embed_save = None;
+        self.pending_stage_embed_completion = None;
+        self.pending_stage_route_retry = None;
+        self.pending_tag_edge_intent = None;
+        self.deferred_shared_save_request = false;
+    }
+
     /// Update every mounted code-link atom for one canonical symbol identity. This is used by the
     /// note->code resolver so a real backend 404 immediately greys the persisted chip instead of only
     /// writing a shell status string. Returns the number of matching atoms changed.
@@ -372,7 +469,8 @@ impl RichEditorState {
             changed
         }
 
-        visit(&mut self.doc, symbol_entity_id, resolved)
+        self.edit_document(|doc, _| Ok::<_, std::convert::Infallible>(visit(doc, symbol_entity_id, resolved)))
+            .map(|commit| commit.output).unwrap_or_default()
     }
 
     /// A new editor over `doc`, caret at the document start.
@@ -422,9 +520,9 @@ impl RichEditorState {
             );
         Self {
             authenticated_context: None,
-            doc,
+            owner_backend_url: base.to_owned(),
+            document_owner: crate::rich_editor::document_owner::DocumentEditOwner::new(doc),
             selection: Selection::caret(DocPosition::new(vec![0, 0], 0)),
-            undo: UndoManager::new(),
             preedit: PreeditState::default(),
             theme: HsTheme::Dark,
             editor_focus_pending: false,
@@ -572,7 +670,7 @@ impl RichEditorState {
             }
         }
         let mut out = Vec::new();
-        walk(&self.doc, &mut out);
+        walk(&self.document_snapshot().expect("live rich document"), &mut out);
         out
     }
 
@@ -615,30 +713,34 @@ impl RichEditorState {
     /// the active document at `doc_version`, dispatching off the app's tokio runtime. The shell calls
     /// this when it mounts a document (the production wiring point). `base_content` seeds the draft
     /// base hash (the server content the edits fork from); the draft load is triggered on mount.
-    pub fn set_save_context(
-        &mut self,
-        document_id: impl Into<String>,
-        doc_version: u64,
-        runtime: tokio::runtime::Handle,
-    ) {
+    pub fn set_save_context(&mut self, document_id: impl Into<String>, doc_version: u64, runtime: tokio::runtime::Handle) {
+        use crate::rich_editor::save::save_manager::{ReqwestSaveBackend, SaveManager};
+        use crate::rich_editor::save::draft_manager::DraftManager;
         let document_id = document_id.into();
-        let base_content =
-            crate::rich_editor::document_model::doc_json::to_content_json_value(&self.doc);
-        let mut save = crate::rich_editor::save::save_manager::SaveManager::production(
-            runtime.clone(),
-            document_id.clone(),
-            doc_version,
-        );
+        let owner = self.document_owner();
+        if let Err(error) = owner.bind_context(&self.wikilinks.workspace_id, &document_id,
+            &self.owner_backend_url, Some(&runtime), self.authenticated_context.clone())
+            .and_then(|_| owner.advance_context()) {
+            self.interop_error = Some(error.to_string()); return;
+        }
+        let content = match owner.document_snapshot() {
+            Ok(document) => crate::rich_editor::document_model::doc_json::to_content_json_value(&document),
+            Err(error) => { self.interop_error = Some(error.to_string()); return; }
+        };
+        let mut save = SaveManager::new(Arc::new(ReqwestSaveBackend::new(&self.owner_backend_url)
+            .with_authenticated_context(self.authenticated_context.clone())), Some(runtime.clone()),
+            document_id.clone(), doc_version);
         save.set_workspace_id(self.wikilinks.workspace_id.clone());
-        let mut draft = crate::rich_editor::save::draft_manager::DraftManager::production(
-            runtime,
-            document_id,
-            doc_version,
-            &base_content,
-        );
-        draft.check_on_mount();
-        self.save = Some(save);
-        self.draft = Some(draft);
+        let mut draft = DraftManager::production(runtime, document_id, doc_version, &content);
+        let mut mount = None;
+        let bound = owner.with_save_gate(|gate| {
+            if !save.bind_owner(gate) || !draft.bind_owner(gate) { return false; }
+            mount = draft.prepare_check_on_mount(gate);
+            self.save = Some(save); self.draft = Some(draft);
+            true
+        });
+        if !bound { self.interop_error = Some("Save/draft owner binding was rejected".to_owned()); }
+        if let Some(mount) = mount { DraftManager::launch_mount_load(mount); }
     }
 
     /// True when this pane has an installed MT-020 save context (a [`SaveManager`] is bound). The host
@@ -692,12 +794,12 @@ impl RichEditorState {
                 self.pending_created_document_navigation =
                     Some((document_id.clone(), display_title.clone(), created));
                 if rewrite_origin_mark {
-                    crate::rich_editor::wikilinks::confirm::rewrite_mark_to_resolved(
-                        &mut self.doc,
+                    let _ = self.edit_document(|doc, _| Ok::<_, std::convert::Infallible>(crate::rich_editor::wikilinks::confirm::rewrite_mark_to_resolved(
+                        doc,
                         &normalized_title,
                         &document_id,
                         &display_title,
-                    );
+                    )));
                 }
             }
             CreateNoteOutcome::Failed {
@@ -744,7 +846,7 @@ impl RichEditorState {
             None => {
                 let mut panel = FindReplaceState::open(with_replace);
                 panel.focus_find_input = request_focus;
-                panel.rescan(&self.doc);
+                panel.rescan(&self.document_snapshot().expect("live rich document"));
                 self.find_replace = Some(panel);
             }
         }
@@ -761,40 +863,27 @@ impl RichEditorState {
     /// host keeps the leaf disabled for). No shell-local / SQLite write — the SaveManager owns the
     /// handshake_core SurrealDB/EventLedger write (MC-004 / RISK-004).
     pub fn request_save_for_host(&mut self) -> bool {
-        let content =
-            crate::rich_editor::document_model::doc_json::to_content_json_value(&self.doc);
-        // WP-KERNEL-012 MT-058 (tag-edge save hook): build the deduped inline+property tag union at
-        // the DOCUMENT COMMIT/SAVE point (MC-004 — fires here, never per keystroke) BEFORE borrowing
-        // the save manager mutably. Computed unconditionally-cheap (a doc walk); only queued when the
-        // save actually dispatches below.
+        let owner = self.document_owner();
+        let snapshot = match owner.save_snapshot() {
+            Ok(snapshot) => snapshot,
+            Err(error) => { self.interop_error = Some(error.to_string()); return false; }
+        };
         let tag_payload = self.build_tag_edge_payload_for_save();
-        if let Some(save) = self.save.as_mut() {
-            // A save already in flight will make `request_save` a no-op (MC-002) — mirror that guard
-            // so a swallowed save request does not queue a tag-edge intent for content that never
-            // dispatched.
-            let dispatched = !save.is_saving();
-            let document_id = save.document_id().to_owned();
-            let doc_version = save.doc_version;
-            save.request_save(content);
-            if dispatched {
-                // MT-058: queue the tag-edge intent for THIS save (latest-wins). Dispatch of the
-                // actual `POST /loom/edges` stays gated on the tag_hub block-id typed blocker
-                // (`TAG_EDGE_DISPATCH_BLOCKER`) — hub resolution is a backend-managed step, so the
-                // intent is queued for the future dispatcher, never silently POSTed here.
-                self.pending_tag_edge_intent =
-                    Some(crate::rich_editor::inline_tags::TagEdgeIntent {
-                        document_id,
-                        doc_version,
-                        payload: tag_payload,
-                        dispatch_blocked_on:
-                            crate::rich_editor::inline_tags::TAG_EDGE_DISPATCH_BLOCKER,
-                    });
-            }
-            true
-        } else {
+        let Some(save) = self.save.as_mut() else {
             self.deferred_shared_save_request = true;
-            false
+            return false;
+        };
+        let document_id = save.document_id().to_owned();
+        let doc_version = save.doc_version;
+        let attempt = owner.with_save_gate(|gate| save.request_save(snapshot, gate));
+        if let Some(attempt) = attempt {
+            self.pending_tag_edge_intent = Some(crate::rich_editor::inline_tags::TagEdgeIntent {
+                document_id, doc_version, payload: tag_payload,
+                dispatch_blocked_on: crate::rich_editor::inline_tags::TAG_EDGE_DISPATCH_BLOCKER,
+            });
+            crate::rich_editor::save::save_manager::SaveManager::launch_admitted(attempt);
         }
+        true
     }
 
     /// Drain the one-shot Stage embed save completion. The shell calls this across every stored rich
@@ -838,7 +927,8 @@ impl RichEditorState {
         document_id: impl Into<String>,
         runtime: tokio::runtime::Handle,
     ) {
-        self.finish_wikilink_context(workspace_id.into(), document_id.into(), runtime);
+        let base_url = self.owner_backend_url.clone();
+        self.set_wikilink_context_with_base_url(workspace_id, document_id, runtime, base_url);
     }
 
     /// Install the complete wikilink context against an explicitly selected Handshake backend.
@@ -849,7 +939,7 @@ impl RichEditorState {
         context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
         base_url: &str,
     ) {
-        let unchanged = match (&self.authenticated_context, &context) {
+        let unchanged = self.owner_backend_url == base_url && match (&self.authenticated_context, &context) {
             (Some(left), Some(right)) => std::sync::Arc::ptr_eq(left, right),
             (None, None) => true,
             _ => false,
@@ -858,6 +948,14 @@ impl RichEditorState {
             return;
         }
         self.authenticated_context = context.clone();
+        self.owner_backend_url = base_url.to_owned();
+        self.wikilinks.invalidate_context();
+        if !self.wikilinks.workspace_id.is_empty() && !self.wikilinks.document_id.is_empty() {
+            if let Err(error) = self.document_owner.bind_context(
+                &self.wikilinks.workspace_id, &self.wikilinks.document_id, base_url,
+                self.wikilinks.runtime.as_ref(), context.clone(),
+            ) { self.interop_error = Some(error.to_string()); }
+        }
         // MT-154: asset/collection embed reads run as the account record user. Rebind the production
         // fetcher to the new session; an injected test double (no account transport) is left as-is.
         self.embeds.bind_authenticated_context(context.clone());
@@ -879,8 +977,29 @@ impl RichEditorState {
         let workspace_id = workspace_id.into();
         let document_id = document_id.into();
         let base_url = base_url.into();
+        match self.document_owner.bind_context(&workspace_id, &document_id, &base_url, Some(&runtime), self.authenticated_context.clone()) {
+            Ok(true) => self.wikilinks.invalidate_context(),
+            Ok(false) => {},
+            Err(error) => { self.interop_error = Some(error.to_string()); return; }
+        }
+        if let Some(seed) = self.prepare_wikilink_context_with_base_url(workspace_id, document_id, runtime, base_url) {
+            crate::rich_editor::wikilinks::runtime::WikilinkRuntime::launch_resolver_seed(seed);
+        }
+    }
+
+    pub fn prepare_wikilink_context_with_base_url(
+        &mut self,
+        workspace_id: impl Into<String>,
+        document_id: impl Into<String>,
+        runtime: tokio::runtime::Handle,
+        base_url: impl Into<String>,
+    ) -> Option<crate::rich_editor::wikilinks::runtime::AdmittedResolverSeed> {
+        let workspace_id = workspace_id.into();
+        let document_id = document_id.into();
+        let base_url = base_url.into();
+        self.owner_backend_url = base_url.clone();
         self.rebind_wikilink_backend(base_url, &document_id);
-        self.finish_wikilink_context(workspace_id, document_id, runtime);
+        self.finish_wikilink_context(workspace_id, document_id, runtime)
     }
 
     fn rebind_wikilink_backend(&mut self, base_url: String, document_id: &str) {
@@ -915,7 +1034,7 @@ impl RichEditorState {
         workspace_id: String,
         document_id: String,
         runtime: tokio::runtime::Handle,
-    ) {
+    ) -> Option<crate::rich_editor::wikilinks::runtime::AdmittedResolverSeed> {
         if let Some(save) = self.save.as_mut() {
             save.set_workspace_id(workspace_id.clone());
         }
@@ -938,7 +1057,7 @@ impl RichEditorState {
         // `[[Title]]` resolves at runtime (AC-003). A broad empty query lists the workspace's blocks by
         // the backend's FTS; the (block_id, title) pairs land off-thread and `drain` folds them in. No
         // new endpoint — read-throughs the same `search()` the autocomplete dropdown uses.
-        self.wikilinks.seed_resolver_index_from_search(
+        let seed = self.wikilinks.prepare_seed_resolver_index_from_search(
             "",
             crate::rich_editor::wikilinks::autocomplete::RESOLVER_SEED_LIMIT,
         );
@@ -949,6 +1068,7 @@ impl RichEditorState {
         // MT-034: the `/code-ref` symbol search shares the same workspace + runtime context.
         self.code_ref_workspace_id = self.wikilinks.workspace_id.clone();
         self.code_ref_runtime = Some(runtime);
+        seed
     }
 
     /// WP-KERNEL-012 MT-034: install the live `/code-ref` code-symbol search context (the workspace the
@@ -1017,12 +1137,12 @@ impl RichEditorState {
     }
 
     /// MT-017 / MC-001: the CURRENT document content as the backend `content_json` BARE doc node, pulled
-    /// LIVE from `self.doc` (NOT a cached copy). The title-save path uses the `/rename` endpoint (which
+    /// LIVE from the canonical document owner (NOT a cached copy). The title-save path uses the `/rename` endpoint (which
     /// never sends a content body, so it cannot clobber content), but this accessor exists so a future
     /// content-bearing save and the MC-001 test can read the live content (proving the editor never
     /// holds a stale snapshot for save purposes).
     pub fn current_content_json(&self) -> serde_json::Value {
-        crate::rich_editor::document_model::doc_json::to_content_json_value(&self.doc)
+        crate::rich_editor::document_model::doc_json::to_content_json_value(&self.document_snapshot().expect("live rich document"))
     }
 
     /// Install the live embed context: the workspace whose assets embeds resolve against and the
@@ -1105,12 +1225,13 @@ impl RichEditorState {
     /// represented by a newline in the routed payload; endpoints remain char-indexed within their
     /// addressed leaves, so Unicode text is never byte-sliced.
     pub fn selected_text_for_stage(&self) -> Option<String> {
+        let document = match self.document_snapshot() { Ok(document) => document, Err(_) => { return None; } };
         let (anchor, head) = match &self.selection {
             Selection::Text { anchor, head } if anchor != head => (anchor, head),
             _ => return None,
         };
-        let anchor_abs = crate::rich_editor::document_model::absolute_offset(&self.doc, anchor);
-        let head_abs = crate::rich_editor::document_model::absolute_offset(&self.doc, head);
+        let anchor_abs = crate::rich_editor::document_model::absolute_offset(&document, anchor);
+        let head_abs = crate::rich_editor::document_model::absolute_offset(&document, head);
         let (start, end) = if anchor_abs <= head_abs {
             (anchor, head)
         } else {
@@ -1119,7 +1240,7 @@ impl RichEditorState {
         let first = *start.path.first()?;
         let last = *end.path.first()?;
         let local_offset = |block_idx: usize, pos: &DocPosition| -> Option<usize> {
-            let block = self.doc.children.get(block_idx)?.as_block()?;
+            let block = document.children.get(block_idx)?.as_block()?;
             let local =
                 DocPosition::new(pos.path.iter().skip(1).copied().collect(), pos.char_offset);
             Some(crate::rich_editor::document_model::absolute_offset(
@@ -1224,15 +1345,13 @@ impl RichEditorState {
 
     fn apply_host_edit(&mut self, action: input_handler::EditAction) -> bool {
         let doc_before =
-            crate::rich_editor::document_model::doc_json::to_content_json_value(&self.doc);
-        let changed = {
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&self.document_snapshot().expect("live rich document"));
+        let changed = { self.edit_with_state(|doc, undo, state| {
             let RichEditorState {
-                doc,
                 selection,
-                undo,
                 actor_id,
                 ..
-            } = self;
+            } = state;
             let mut ctx = EditContext {
                 doc,
                 selection,
@@ -1240,26 +1359,22 @@ impl RichEditorState {
                 actor_id: actor_id.as_str(),
             };
             input_handler::apply_action(&mut ctx, action)
-        };
+        }).unwrap_or_default() };
         if !changed {
             return false;
         }
 
         let doc_after =
-            crate::rich_editor::document_model::doc_json::to_content_json_value(&self.doc);
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&self.document_snapshot().expect("live rich document"));
         if doc_after == doc_before {
             return false;
         }
 
         self.pending_bus_undo.push((doc_before, doc_after));
-        if let Some(save) = self.save.as_mut() {
-            save.mark_dirty();
-        }
-        if let Some(draft) = self.draft.as_mut() {
-            draft.mark_dirty(std::time::Instant::now());
-        }
+        self.mark_document_dirty();
+        let document = self.document_snapshot().expect("live rich document");
         if let Some(panel) = self.find_replace.as_mut() {
-            panel.rescan(&self.doc);
+            panel.rescan(&document);
         }
         true
     }
@@ -1278,7 +1393,8 @@ impl RichEditorState {
     /// consumers must use that, never this. Keep the two in their lanes; do not "fix" one to match
     /// the other.
     pub fn block_plain_text(&self, idx: usize) -> Option<String> {
-        let block = self.doc.children.get(idx)?.as_block()?;
+        let document = match self.document_snapshot() { Ok(document) => document, Err(_) => { return None; } };
+        let block = document.children.get(idx)?.as_block()?;
         let mut s = String::new();
         for c in &block.children {
             match c {
@@ -1326,7 +1442,7 @@ impl RichEditorState {
                 hash = hash.wrapping_mul(FNV_PRIME);
             }
         };
-        for (idx, child) in self.doc.children.iter().enumerate() {
+        for (idx, child) in self.document_snapshot().expect("live rich document").children.iter().enumerate() {
             let Some(block) = child.as_block() else {
                 continue;
             };
@@ -1350,8 +1466,8 @@ impl RichEditorState {
     /// a click/Press, never per frame. The FNV path hash is one-way, so a forward scan is the correct
     /// inverse (and it cannot resolve to a block that no longer exists).
     pub fn block_path_from_id(&self, block_id: &str) -> Option<Vec<usize>> {
-        for idx in 0..self.doc.children.len() {
-            if self.doc.children[idx].as_block().is_some()
+        for idx in 0..self.document_snapshot().expect("live rich document").children.len() {
+            if self.document_snapshot().expect("live rich document").children[idx].as_block().is_some()
                 && super::block_author_id(&[idx]) == block_id
             {
                 return Some(vec![idx]);
@@ -1366,8 +1482,7 @@ impl RichEditorState {
     /// rebuild, so click/Press first checks this and skips silently if the block is gone.
     pub fn block_path_exists(&self, path: &[usize]) -> bool {
         match path.first() {
-            Some(&idx) => self
-                .doc
+            Some(&idx) => self.document_snapshot().expect("live rich document")
                 .children
                 .get(idx)
                 .and_then(Child::as_block)
@@ -1383,8 +1498,9 @@ impl RichEditorState {
     /// the ONE selection mechanism (RISK-002 / MC-002 — no second selection path), so cross-pane (E5)
     /// selection stays consistent. No-op when the block is gone (RISK-003 / MC-003).
     pub fn select_block(&mut self, path: &[usize]) {
+        let document = match self.document_snapshot() { Ok(document) => document, Err(_) => { return; } };
         let Some(&idx) = path.first() else { return };
-        let Some(block) = self.doc.children.get(idx).and_then(Child::as_block) else {
+        let Some(block) = document.children.get(idx).and_then(Child::as_block) else {
             return; // stale path — let the next rebuild drop the entry (MC-003).
         };
         // Find the first text leaf in the block so the selection covers its heading text. A heading is a
@@ -1496,6 +1612,9 @@ impl RichEditorWidget {
     /// (stale id — RISK-003 / MC-003; the next revision-gated rebuild drops the entry).
     pub fn scroll_to_block(&mut self, block_id: &str) {
         let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        if let Err(error) = state.document_owner.current_context() {
+            return ui.label(format!("Rich document unavailable: {error}"));
+        }
         if let Some(path) = state.block_path_from_id(block_id) {
             state.pending_scroll_block = Some(path);
         }
@@ -1880,11 +1999,11 @@ impl RichEditorWidget {
                 let value = if state.preedit.is_active() {
                     format!(
                         "{} blocks (composing: {})",
-                        state.doc.children.len(),
+                        state.document_snapshot().expect("live rich document").children.len(),
                         state.preedit.text
                     )
                 } else {
-                    format!("{} blocks", state.doc.children.len())
+                    format!("{} blocks", state.document_snapshot().expect("live rich document").children.len())
                 };
                 let root_author_id =
                     crate::rich_editor::scoped_author_id(RICH_EDITOR_ROOT_AUTHOR_ID);
@@ -1962,15 +2081,10 @@ impl RichEditorWidget {
                 let mut s = self.state.lock().unwrap_or_else(|e| e.into_inner());
                 s.undo_batcher.reset();
                 s.undo_batch_before = None;
-                if let Some(save) = s.save.as_mut() {
-                    save.mark_dirty();
-                }
-                if let Some(draft) = s.draft.as_mut() {
-                    draft.mark_dirty(std::time::Instant::now());
-                }
-                let RichEditorState {
-                    doc, find_replace, ..
-                } = &mut *s;
+                s.mark_document_dirty();
+                let document = s.document_snapshot().expect("live rich document");
+                let doc = &document;
+                let RichEditorState { find_replace, .. } = &mut *s;
                 if let Some(panel) = find_replace.as_mut() {
                     panel.rescan(doc);
                 }
@@ -2085,7 +2199,7 @@ impl RichEditorWidget {
             None
         } else {
             state.doc_snapshot_count = state.doc_snapshot_count.wrapping_add(1);
-            Some(crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc))
+            Some(crate::rich_editor::document_model::doc_json::to_content_json_value(&state.document_snapshot().expect("live rich document")))
         };
 
         // Split events into IME vs key/text in ARRIVAL order so a Preedit->Commit sequence
@@ -2093,11 +2207,9 @@ impl RichEditorWidget {
         // order: IME events through the IME handler, everything else accumulates into the
         // input decoder applied at its position.
         for ev in &events {
-            if let egui::Event::Ime(ime) = ev {
+            if let egui::Event::Ime(ime) = ev { state.edit_with_state(|doc, undo, state| {
                 let RichEditorState {
-                    doc,
                     selection,
-                    undo,
                     preedit,
                     actor_id,
                     ..
@@ -2110,14 +2222,14 @@ impl RichEditorWidget {
                     actor_id: actor_id.as_str(),
                 };
                 ime_handler::handle_ime_event(&mut ctx, ime);
-            }
+            }).unwrap_or_default() }
         }
         // MT-013: decode the formatting/structural CHORDS first (Ctrl+B, Ctrl+Z, Enter,
         // Ctrl+Alt+1, …) so they take precedence over plain text/nav handling — a chord
         // toggles a mark / splits a block instead of inserting a character (MT impl note
         // 3). Tab/Shift+Tab indent only when the caret is in a list (else Tab traverses
         // focus — RISK-4 / MC-004).
-        let in_list = input_handler::caret_in_list(&state.doc, &state.selection);
+        let in_list = input_handler::caret_in_list(&state.document_snapshot().expect("live rich document"), &state.selection);
         let at_text_start = matches!(
             &state.selection,
             Selection::Text { head, .. } if head.char_offset == 0
@@ -2128,11 +2240,9 @@ impl RichEditorWidget {
             at_text_start,
             &state.rich_keymap,
         );
-        for cmd in &fmt_cmds {
+        for cmd in &fmt_cmds { state.edit_with_state(|doc, undo, state| {
             let RichEditorState {
-                doc,
                 selection,
-                undo,
                 actor_id,
                 ..
             } = state;
@@ -2143,7 +2253,7 @@ impl RichEditorWidget {
                 actor_id: actor_id.as_str(),
             };
             input_handler::apply_formatting_command(&mut ctx, cmd);
-        }
+        }).unwrap_or_default() }
 
         // Decode + apply the non-IME editing/nav events. A key event already consumed by a
         // formatting chord (e.g. Ctrl+Z -> Undo, which BOTH the formatting keymap and the
@@ -2158,11 +2268,9 @@ impl RichEditorWidget {
         // Capture whether this frame produced any edit BEFORE the loop consumes `actions`, so the
         // MT-020 dirty-mark below can read it (the loop moves `actions` into `into_iter`).
         let any_edit = !actions.is_empty() || !fmt_cmds.is_empty();
-        if !actions.is_empty() {
+        if !actions.is_empty() { state.edit_with_state(|doc, undo, state| {
             let RichEditorState {
-                doc,
                 selection,
-                undo,
                 actor_id,
                 ..
             } = state;
@@ -2175,7 +2283,7 @@ impl RichEditorWidget {
             for action in actions {
                 input_handler::apply_action(&mut ctx, action);
             }
-        }
+        }).unwrap_or_default() }
 
         // WP-KERNEL-012 MT-035 (E5 — unified undo): if ANY input this frame (a typed/structural edit, a
         // formatting chord, OR an IME commit) actually mutated the doc, record the edit on the SHARED bus
@@ -2188,7 +2296,7 @@ impl RichEditorWidget {
         // captured this frame (i.e. the frame carried input events). An empty-events frame skips both passes.
         if let Some(doc_before) = doc_before {
             let doc_after =
-                crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+                crate::rich_editor::document_model::doc_json::to_content_json_value(&state.document_snapshot().expect("live rich document"));
             if doc_after != doc_before {
                 Self::record_rich_edit_undo(state, bus, state_arc, doc_before, doc_after);
             }
@@ -2225,9 +2333,9 @@ impl RichEditorWidget {
         // (the React "recompute on every document change"). Any typing/delete/undo this frame may
         // have mutated the doc, so the scan + the active-index clamp are refreshed here. This is a
         // synchronous in-memory walk (no spinner, no async); the panel renders only when open.
-        let RichEditorState {
-            doc, find_replace, ..
-        } = state;
+        let document = state.document_snapshot().expect("live rich document");
+                let doc = &document;
+                let RichEditorState { find_replace, .. } = state;
         if let Some(panel) = find_replace.as_mut() {
             panel.rescan(doc);
         }
@@ -2237,13 +2345,7 @@ impl RichEditorWidget {
         // debounce window so the 5s auto-draft persists in-progress edits (crash recovery). The dirty
         // mark is idempotent; the draft debounce only starts on the first dirty change in the window.
         if any_edit {
-            let now = std::time::Instant::now();
-            if let Some(save) = state.save.as_mut() {
-                save.mark_dirty();
-            }
-            if let Some(draft) = state.draft.as_mut() {
-                draft.mark_dirty(now);
-            }
+            state.mark_document_dirty();
         }
     }
 
@@ -2360,9 +2462,13 @@ impl RichEditorWidget {
             Arc::new(|s: &mut RichEditorState, snap| {
                 if let Ok(doc) = crate::rich_editor::document_model::doc_json::from_json_value(snap)
                 {
-                    s.doc = doc;
+                    let restored = s.edit_document(|candidate, history| {
+                        *candidate = doc;
+                        *history = UndoManager::new();
+                        Ok::<_, std::convert::Infallible>(())
+                    }).is_ok();
+                    if !restored { return; }
                     s.selection = Selection::caret(DocPosition::new(vec![0, 0], 0));
-                    s.undo = UndoManager::new();
                 }
             });
 
@@ -2463,12 +2569,13 @@ impl RichEditorWidget {
 
         // (1) Root SetValue — replace the whole document body with the agent text as paragraph content.
         if let Some(value) = set_value {
-            let before = to_content_json_value(&state.doc);
-            state.doc = Self::build_doc_from_swarm_text(&value);
+            let before = to_content_json_value(&state.document_snapshot().expect("live rich document"));
+            let replacement = Self::build_doc_from_swarm_text(&value);
+            if state.edit_document(|doc, _| { *doc = replacement; Ok::<_, std::convert::Infallible>(()) }).is_err() { return; }
             // The old selection may point into a removed block; reset it to the new doc start so a later
             // render never indexes a stale path.
             state.selection = Selection::caret(DocPosition::new(vec![0, 0], 0));
-            let after = to_content_json_value(&state.doc);
+            let after = to_content_json_value(&state.document_snapshot().expect("live rich document"));
             if after != before {
                 Self::record_rich_edit_undo(state, bus, state_arc, before, after);
                 state.swarm_undo_fired_count += 1;
@@ -2481,15 +2588,13 @@ impl RichEditorWidget {
             if value.is_empty() {
                 continue;
             }
-            let before = to_content_json_value(&state.doc);
-            let applied = {
+            let before = to_content_json_value(&state.document_snapshot().expect("live rich document"));
+            let applied = { state.edit_with_state(|doc, undo, state| {
                 let RichEditorState {
-                    doc,
                     selection,
-                    undo,
                     actor_id,
                     ..
-                } = &mut *state;
+                } = state;
                 let mut ctx = EditContext {
                     doc,
                     selection,
@@ -2497,9 +2602,9 @@ impl RichEditorWidget {
                     actor_id: actor_id.as_str(),
                 };
                 input_handler::apply_action(&mut ctx, input_handler::EditAction::Insert(value))
-            };
+            }).unwrap_or_default() };
             if applied {
-                let after = to_content_json_value(&state.doc);
+                let after = to_content_json_value(&state.document_snapshot().expect("live rich document"));
                 if after != before {
                     Self::record_rich_edit_undo(state, bus, state_arc, before, after);
                     state.swarm_undo_fired_count += 1;
@@ -2510,9 +2615,10 @@ impl RichEditorWidget {
 
         // (3) Wikilink chip SetValue — the headless wikilink-target-by-id pick (no live backend search).
         for (path, value) in wikilink_targets {
-            let before = to_content_json_value(&state.doc);
-            if Self::set_hs_link_ref_value(&mut state.doc, &path, &value) {
-                let after = to_content_json_value(&state.doc);
+            let before = to_content_json_value(&state.document_snapshot().expect("live rich document"));
+            if state.edit_document(|doc, _| Ok::<_, std::convert::Infallible>(Self::set_hs_link_ref_value(doc, &path, &value)))
+                .map(|commit| commit.output).unwrap_or(false) {
+                let after = to_content_json_value(&state.document_snapshot().expect("live rich document"));
                 if after != before {
                     Self::record_rich_edit_undo(state, bus, state_arc, before, after);
                     state.swarm_undo_fired_count += 1;
@@ -2524,12 +2630,7 @@ impl RichEditorWidget {
         if changed {
             // The swarm authored content: mark the save/draft coordinators dirty (silent-data-loss guard,
             // same as the typed-edit path) and repaint so the new content paints this frame.
-            if let Some(save) = state.save.as_mut() {
-                save.mark_dirty();
-            }
-            if let Some(draft) = state.draft.as_mut() {
-                draft.mark_dirty(std::time::Instant::now());
-            }
+            state.mark_document_dirty();
             ui.ctx().request_repaint();
         }
     }
@@ -2600,9 +2701,9 @@ impl RichEditorWidget {
         };
         let find_open = state.find_replace.is_some();
         // Live toggle states from the real editor (no mocks).
-        let bold = is_mark_active(&state.doc, &state.selection, &Mark::Bold);
-        let italic = is_mark_active(&state.doc, &state.selection, &Mark::Italic);
-        let code = is_mark_active(&state.doc, &state.selection, &Mark::Code);
+        let bold = is_mark_active(&state.document_snapshot().expect("live rich document"), &state.selection, &Mark::Bold);
+        let italic = is_mark_active(&state.document_snapshot().expect("live rich document"), &state.selection, &Mark::Italic);
+        let code = is_mark_active(&state.document_snapshot().expect("live rich document"), &state.selection, &Mark::Code);
         let (fc_case, fc_word, fc_regex) = state
             .find_replace
             .as_ref()
@@ -2813,7 +2914,7 @@ impl RichEditorWidget {
         use crate::rich_editor::find_replace::{self, FindReplaceState};
         use crate::rich_editor::formatting::commands::{self, CommandContext};
         match target {
-            RichDispatch::Format(cmd) => {
+            RichDispatch::Format(cmd) => { state.edit_with_state(|doc, undo, state| {
                 // h4..6 are disabled nodes; a dispatch should never reach here (MCP rejects disabled),
                 // but guard anyway so a stray dispatch is a no-op, not a wrong heading level.
                 if rich_heading_is_unsupported(action_id) {
@@ -2821,20 +2922,19 @@ impl RichEditorWidget {
                     return;
                 }
                 let RichEditorState {
-                    doc,
-                    undo,
                     selection,
                     actor_id,
                     ..
                 } = state;
                 let mut cctx = CommandContext::new(doc, undo, selection, actor_id.as_str());
                 let _ = commands::dispatch(&mut cctx, cmd);
-            }
+            }).unwrap_or_default() }
             RichDispatch::FindOpen => {
+                let document = state.document_snapshot().expect("live rich document");
                 if state.find_replace.is_none() {
                     state.find_replace = Some(FindReplaceState::open(false));
                     if let Some(f) = state.find_replace.as_mut() {
-                        f.rescan(&state.doc);
+                        f.rescan(&document);
                     }
                 }
             }
@@ -2848,10 +2948,8 @@ impl RichEditorWidget {
                     f.select_prev();
                 }
             }
-            RichDispatch::ReplaceOne => {
+            RichDispatch::ReplaceOne => { state.edit_with_state(|doc, undo, state| {
                 let RichEditorState {
-                    doc,
-                    undo,
                     selection,
                     find_replace,
                     ..
@@ -2863,11 +2961,9 @@ impl RichEditorWidget {
                         f.rescan(doc);
                     }
                 }
-            }
-            RichDispatch::ReplaceAll => {
+            }).unwrap_or_default() }
+            RichDispatch::ReplaceAll => { state.edit_with_state(|doc, undo, state| {
                 let RichEditorState {
-                    doc,
-                    undo,
                     selection,
                     find_replace,
                     ..
@@ -2878,23 +2974,26 @@ impl RichEditorWidget {
                     find_replace::replace_all(doc, undo, selection, &matches, &repl);
                     f.rescan(doc);
                 }
-            }
+            }).unwrap_or_default() }
             RichDispatch::FindToggleCase => {
+                let document = state.document_snapshot().expect("live rich document");
                 if let Some(f) = state.find_replace.as_mut() {
                     f.query.case_sensitive = !f.query.case_sensitive;
-                    f.rescan(&state.doc);
+                    f.rescan(&document);
                 }
             }
             RichDispatch::FindToggleWord => {
+                let document = state.document_snapshot().expect("live rich document");
                 if let Some(f) = state.find_replace.as_mut() {
                     f.query.whole_word = !f.query.whole_word;
-                    f.rescan(&state.doc);
+                    f.rescan(&document);
                 }
             }
             RichDispatch::FindToggleRegex => {
+                let document = state.document_snapshot().expect("live rich document");
                 if let Some(f) = state.find_replace.as_mut() {
                     f.query.is_regex = !f.query.is_regex;
-                    f.rescan(&state.doc);
+                    f.rescan(&document);
                 }
             }
             RichDispatch::Save => {
@@ -2934,11 +3033,9 @@ impl RichEditorWidget {
                                 head.path.clone(),
                                 head.char_offset,
                             );
-                            let outcome = {
+                            let outcome = { state.edit_with_state(|doc, undo, state| {
                                 let RichEditorState {
-                                    doc,
                                     selection,
-                                    undo,
                                     actor_id,
                                     ..
                                 } = state;
@@ -2953,7 +3050,7 @@ impl RichEditorWidget {
                                     &menu,
                                     command,
                                 )
-                            };
+                            }).unwrap_or(SlashExecOutcome::Done { changed: false }) };
                             match outcome {
                                 SlashExecOutcome::OpenCodeSymbolSearch => {
                                     state.slash_menu = None;
@@ -2996,13 +3093,11 @@ impl RichEditorWidget {
                         }) if !ref_kind.trim().is_empty() && !ref_value.trim().is_empty() => {
                             let before =
                                 crate::rich_editor::document_model::doc_json::to_content_json_value(
-                                    &state.doc,
+                                    &state.document_snapshot().expect("live rich document"),
                                 );
-                            let changed = {
+                            let changed = { state.edit_with_state(|doc, undo, state| {
                                 let RichEditorState {
-                                    doc,
                                     selection,
-                                    undo,
                                     actor_id,
                                     ..
                                 } = state;
@@ -3019,7 +3114,7 @@ impl RichEditorWidget {
                                     &ref_value,
                                     &label,
                                 )
-                            };
+                            }).unwrap_or_default() };
                             Self::finish_direct_slash_payload(state, before, changed);
                             ctx.request_repaint();
                             return;
@@ -3027,13 +3122,11 @@ impl RichEditorWidget {
                         Ok(SlashActionPayload::CodeBlock { language, code }) => {
                             let before =
                                 crate::rich_editor::document_model::doc_json::to_content_json_value(
-                                    &state.doc,
+                                    &state.document_snapshot().expect("live rich document"),
                                 );
-                            let changed = {
+                            let changed = { state.edit_with_state(|doc, undo, state| {
                                 let RichEditorState {
-                                    doc,
                                     selection,
-                                    undo,
                                     actor_id,
                                     ..
                                 } = state;
@@ -3049,7 +3142,7 @@ impl RichEditorWidget {
                                     &language,
                                     &code,
                                 )
-                            };
+                            }).unwrap_or_default() };
                             Self::finish_direct_slash_payload(state, before, changed);
                             ctx.request_repaint();
                             return;
@@ -3105,7 +3198,7 @@ impl RichEditorWidget {
         before: serde_json::Value,
         changed: bool,
     ) {
-        let after = crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+        let after = crate::rich_editor::document_model::doc_json::to_content_json_value(&state.document_snapshot().expect("live rich document"));
         if !changed || after == before {
             state.interop_error = Some(
                 "insert-slash-command could not insert at the current rich-editor selection"
@@ -3114,14 +3207,10 @@ impl RichEditorWidget {
             return;
         }
         state.pending_bus_undo.push((before, after));
-        if let Some(save) = state.save.as_mut() {
-            save.mark_dirty();
-        }
-        if let Some(draft) = state.draft.as_mut() {
-            draft.mark_dirty(std::time::Instant::now());
-        }
+        state.mark_document_dirty();
+        let document = state.document_snapshot().expect("live rich document");
         if let Some(find_replace) = state.find_replace.as_mut() {
-            find_replace.rescan(&state.doc);
+            find_replace.rescan(&document);
         }
         state.interop_error = None;
     }
@@ -3135,8 +3224,16 @@ impl RichEditorWidget {
         // Retry any one-shot save receipts that could not acquire/enter the bounded bus last frame.
         crate::event_emitter::flush_pending_frame_events(ctx);
         let mut applied = false;
+        state.mark_document_dirty();
         // Drain a completed save result.
-        let save_outcome = state.save.as_mut().and_then(|s| s.drain());
+        let owner = state.document_owner();
+        let mut next_attempt = None;
+        let mut draft_cleanup = None;
+        let mut saved_events = Vec::new();
+        let mut backlinks_invalidation = None;
+        owner.with_save_gate(|gate| {
+        let transition = state.save.as_mut().map(|save| save.drain(gate));
+        let save_outcome = transition.and_then(|transition| { next_attempt = transition.next_attempt; transition.outcome });
         if let Some(outcome) = save_outcome {
             use crate::rich_editor::save::save_manager::SaveOutcome;
             applied = true;
@@ -3149,6 +3246,8 @@ impl RichEditorWidget {
                     workspace_id,
                     save_receipt_event_id,
                     attribution,
+                    saved_snapshot,
+                    ..
                 } => {
                     if let Some(pending) = state.pending_stage_embed_save.as_ref() {
                         if saved_content_contains_exact_hs_link(&saved_content, &pending.link) {
@@ -3198,7 +3297,7 @@ impl RichEditorWidget {
                                     pane_id.as_ref(),
                                     workspace_id,
                                 );
-                                crate::event_emitter::dispatch_event_from_frame(ctx, ev);
+                                saved_events.push(ev);
                             } else {
                                 state.interop_error = Some(
                                     "Document saved, but canonical EventLedger receipt attribution was unavailable; native Flight Recorder correlation was not emitted"
@@ -3208,13 +3307,12 @@ impl RichEditorWidget {
                         }
                     }
                     if let Some(draft) = state.draft.as_mut() {
-                        draft.clear_after_save(doc_version, &saved_content);
+                        draft_cleanup = draft.prepare_clear_after_save(&saved_snapshot, doc_version, gate);
                     }
                     // Saving source A can change an already-mounted target B panel. Publish one
                     // shared invalidation so every mounted rich editor refreshes next frame. A
                     // committed-save/index-warning is broadcast as a visible projection failure.
-                    crate::rich_editor::wikilinks::runtime::publish_backlinks_invalidation(
-                        ctx,
+                    backlinks_invalidation = Some((
                         state.wikilinks.workspace_id.clone(),
                         state
                             .save
@@ -3222,9 +3320,9 @@ impl RichEditorWidget {
                             .map(|save| save.document_id().to_owned())
                             .unwrap_or_default(),
                         backlinks_warning,
-                    );
+                    ));
                 }
-                SaveOutcome::Conflict => {
+                SaveOutcome::Conflict { .. } => {
                     if state.pending_stage_embed_save.is_some() {
                         state.pending_stage_embed_completion = Some(
                             StageEmbedSaveCompletion::Failed(
@@ -3234,7 +3332,7 @@ impl RichEditorWidget {
                         );
                     }
                 }
-                SaveOutcome::Failed(error) => {
+                SaveOutcome::Failed { error, .. } => {
                     if state.pending_stage_embed_save.is_some() {
                         state.pending_stage_embed_completion =
                             Some(StageEmbedSaveCompletion::Failed(format!(
@@ -3242,18 +3340,34 @@ impl RichEditorWidget {
                             )));
                     }
                 }
+                SaveOutcome::Stale { .. } => {},
             }
+        }
+        if let Some(save) = state.save.as_mut() {
+            if save.drain_recovery(gate).is_some() { applied = true; }
         }
         // Drain a completed draft-load result (recovery banner offer).
         if let Some(draft) = state.draft.as_mut() {
-            if draft.drain_load() {
+            if draft.drain_load(gate) {
                 applied = true;
             }
+        }
+        });
+        if let Some(attempt) = next_attempt {
+            crate::rich_editor::save::save_manager::SaveManager::launch_admitted(attempt);
+        }
+        if let Some(action) = draft_cleanup {
+            crate::rich_editor::save::draft_manager::DraftManager::launch_clear(action);
+        }
+        for event in saved_events { crate::event_emitter::dispatch_event_from_frame(ctx, event); }
+        if let Some((workspace, document, warning)) = backlinks_invalidation {
+            crate::rich_editor::wikilinks::runtime::publish_backlinks_invalidation(ctx, workspace, document, warning);
         }
         // Fire the debounced draft upsert if due and no save is in flight (MC-002).
         let save_in_flight = state.save.as_ref().map(|s| s.is_saving()).unwrap_or(false);
         let content = if state.draft.is_some() {
-            Some(crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc))
+            state.document_snapshot().ok().map(|document|
+                crate::rich_editor::document_model::doc_json::to_content_json_value(&document))
         } else {
             None
         };
@@ -3291,63 +3405,69 @@ impl RichEditorWidget {
     /// MT-020: render the conflict window when a save conflict is open, and apply the operator's
     /// choice against the save manager + doc. "Keep server" rebuilds the live doc from the server
     /// content; "Keep yours" routes through the MC-003 confirmation before the overwrite.
-    fn render_conflict_window(
-        ctx: &egui::Context,
-        state: &mut RichEditorState,
-        palette: &HsPalette,
-    ) {
-        use crate::rich_editor::document_model::doc_json::from_json_value;
+    fn render_conflict_window(ctx: &egui::Context, state: &mut RichEditorState, palette: &HsPalette) {
         use crate::rich_editor::save::conflict_ui::{show_conflict_window, ConflictOutcome};
-
-        let Some(save) = state.save.as_ref() else {
-            return;
-        };
-        if !save.has_conflict() {
+        let Some(save) = state.save.as_ref() else { return };
+        let owner = state.document_owner();
+        let (requires_recovery, requires_refresh) = owner.with_save_gate(|gate| (
+            save.requires_recovery() && !save.recovery_choice_ready(gate),
+            save.conflict_refresh_required(gate),
+        ));
+        if requires_recovery || requires_refresh {
+            let mut reload = false;
+            egui::Window::new("Save recovery").collapsible(false).show(ctx, |ui| {
+                ui.label(if requires_recovery {
+                    "The save outcome is unknown. Read the current server document before choosing how to continue."
+                } else {
+                    "Local edits changed after the conflict. Read the current server document before choosing a version."
+                });
+                let response = ui.button("Read current server document");
+                ui.ctx().accesskit_node_builder(response.id, |node| {
+                    node.set_author_id(crate::rich_editor::scoped_author_id("rich-editor-save-recovery-load"));
+                });
+                reload = response.clicked();
+            });
+            if reload {
+                let snapshot = if requires_refresh { owner.save_snapshot().ok() } else { None };
+                let attempt = owner.with_save_gate(|gate| {
+                    let save = state.save.as_mut()?;
+                    if requires_recovery { save.request_recovery_load(gate) }
+                    else { save.request_conflict_refresh(snapshot?, gate) }
+                });
+                if let Some(attempt) = attempt {
+                    crate::rich_editor::save::save_manager::SaveManager::launch_recovery_load(attempt);
+                }
+            }
             return;
         }
+        if !save.has_conflict() { return }
         let outcome = show_conflict_window(ctx, save, palette);
-        match outcome {
-            ConflictOutcome::None => {}
-            ConflictOutcome::RequestKeepYours => {
-                if let Some(s) = state.save.as_mut() {
-                    s.request_keep_yours();
-                }
-            }
-            ConflictOutcome::ConfirmKeepYours => {
-                if let Some(s) = state.save.as_mut() {
-                    // Re-thread the live content as the overwrite payload, then confirm.
-                    let content =
-                        crate::rich_editor::document_model::doc_json::to_content_json_value(
-                            &state.doc,
-                        );
-                    s.set_pending_local_content(content);
-                    s.confirm_keep_yours();
-                }
-            }
-            ConflictOutcome::CancelKeepYours => {
-                if let Some(s) = state.save.as_mut() {
-                    s.cancel_keep_yours();
-                }
-            }
-            ConflictOutcome::KeepServer => {
-                // Adopt the server content: rebuild the live doc from it, reset the caret to the start,
-                // and clear the conflict.
-                let server_content = state.save.as_mut().and_then(|s| s.keep_server());
-                if let Some(content) = server_content {
-                    if state.pending_stage_embed_save.take().is_some() {
-                        state.pending_stage_embed_completion =
-                            Some(StageEmbedSaveCompletion::Failed(
-                                "Stage embed was discarded by Keep Server conflict resolution"
-                                    .to_owned(),
-                            ));
-                    }
-                    if let Ok(doc) = from_json_value(&content) {
-                        state.doc = doc;
+        let snapshot = if matches!(outcome, ConflictOutcome::ConfirmKeepYours) {
+            owner.save_snapshot().ok()
+        } else { None };
+        let mut attempt = None;
+        owner.with_save_gate(|gate| {
+            let Some(save) = state.save.as_mut() else { return };
+            match outcome {
+                ConflictOutcome::None => {},
+                ConflictOutcome::RequestKeepYours => { save.request_keep_yours(gate); },
+                ConflictOutcome::ConfirmKeepYours => {
+                    if let Some(snapshot) = snapshot { attempt = save.confirm_keep_yours(snapshot, gate); }
+                },
+                ConflictOutcome::CancelKeepYours => save.cancel_keep_yours(gate),
+                ConflictOutcome::KeepServer => {
+                    if save.keep_server(gate).is_some() {
                         state.selection = Selection::caret(DocPosition::new(vec![0, 0], 0));
-                        state.undo = UndoManager::new();
+                        if state.pending_stage_embed_save.take().is_some() {
+                            state.pending_stage_embed_completion = Some(StageEmbedSaveCompletion::Failed(
+                                "Stage embed was discarded by Keep Server conflict resolution".to_owned()));
+                        }
                     }
-                }
+                },
             }
+        });
+        if let Some(attempt) = attempt {
+            crate::rich_editor::save::save_manager::SaveManager::launch_admitted(attempt);
         }
     }
 
@@ -3371,13 +3491,14 @@ impl RichEditorWidget {
                 let restored = state.draft.as_mut().and_then(|d| d.restore_draft());
                 if let Some(content) = restored {
                     if let Ok(doc) = from_json_value(&content) {
-                        state.doc = doc;
+                        if state.edit_document(|candidate, history| {
+                            *candidate = doc;
+                            *history = UndoManager::new();
+                            Ok::<_, std::convert::Infallible>(())
+                        }).is_err() { return; }
                         state.selection = Selection::caret(DocPosition::new(vec![0, 0], 0));
-                        state.undo = UndoManager::new();
                         // A restored draft is unsaved -> mark dirty so a later Ctrl+S persists it.
-                        if let Some(save) = state.save.as_mut() {
-                            save.mark_dirty();
-                        }
+                        state.mark_document_dirty();
                     }
                 }
             }
@@ -3427,7 +3548,7 @@ impl RichEditorWidget {
             // reference placeholder (never a silent blank) — the export still completes.
             let assets = AssetByteSource::new();
             if let Ok(output) = export_document(
-                &state.doc,
+                &state.document_snapshot().expect("live rich document"),
                 format,
                 &workspace_id,
                 crate::backend_client::BACKEND_BASE_URL,
@@ -3504,6 +3625,7 @@ impl RichEditorWidget {
                             ),
                         ))
                     });
+                    let mut close_popup = true;
                     if let Some((leaf_path, trigger_start, link)) = confirmed {
                         let caret_char = Self::caret_char_offset(state);
                         // MT-020: snapshot around the confirm so the insert lands on the MT-035
@@ -3511,12 +3633,10 @@ impl RichEditorWidget {
                         // capture, so the frame diff cannot see it).
                         let before =
                             crate::rich_editor::document_model::doc_json::to_content_json_value(
-                                &state.doc,
+                                &state.document_snapshot().expect("live rich document"),
                             );
-                        let inserted = {
+                        let inserted = { state.edit_with_state(|doc, undo, state| {
                             let RichEditorState {
-                                doc,
-                                undo,
                                 selection,
                                 actor_id,
                                 ..
@@ -3531,26 +3651,28 @@ impl RichEditorWidget {
                                 link,
                                 actor_id.as_str(),
                             )
-                        };
-                        if inserted {
+                        }) };
+                        close_popup = inserted == Some(true);
+                        if inserted == Some(false) {
+                            state.interop_error = Some("Wikilink insertion failed. The popup remains open so you can retry.".to_owned());
+                        }
+                        if inserted == Some(true) {
                             let after =
                                 crate::rich_editor::document_model::doc_json::to_content_json_value(
-                                    &state.doc,
+                                    &state.document_snapshot().expect("live rich document"),
                                 );
                             state.pending_bus_undo.push((before, after));
                         }
                     }
-                    // Close the popup whether or not a result was selected (Enter on an empty popup
-                    // just closes it; the typed `[[` text is left as plain text).
-                    state.wikilink_autocomplete = None;
+                    // Enter on an empty popup closes it; a rejected edit retains the popup for retry.
+                    if close_popup { state.wikilink_autocomplete = None; }
                 }
                 egui::Key::Escape => {
                     // Cancel: remove the `[[query` trigger text and close (AC: Escape closes + removes).
-                    if let Some(ac) = state.wikilink_autocomplete.take() {
+                    if let Some(ac) = state.wikilink_autocomplete.clone() { state.edit_with_state(|doc, undo, state| {
+                        state.wikilink_autocomplete = None;
                         let caret_char = Self::caret_char_offset(state);
                         let RichEditorState {
-                            doc,
-                            undo,
                             selection,
                             actor_id,
                             ..
@@ -3564,7 +3686,7 @@ impl RichEditorWidget {
                             caret_char,
                             actor_id.as_str(),
                         );
-                    }
+                    }).unwrap_or_default() }
                 }
                 // Any other key (plain typing, backspace) passes through to the normal editing path,
                 // which mutates the leaf text; the trigger re-detection then refines the query.
@@ -3618,7 +3740,7 @@ impl RichEditorWidget {
             return None;
         };
         let (leaf_idx, block_path) = head.path.split_last()?;
-        let mut node = &state.doc;
+        let mut node = &state.document_snapshot().expect("live rich document");
         for &idx in block_path {
             node = node.children.get(idx)?.as_block()?;
         }
@@ -3709,11 +3831,10 @@ impl RichEditorWidget {
                 }
                 egui::Key::Escape => {
                     // Cancel: remove the `#query` trigger text and close the menu.
-                    if let Some(ac) = state.tag_autocomplete.take() {
+                    if let Some(ac) = state.tag_autocomplete.clone() { state.edit_with_state(|doc, undo, state| {
+                        state.tag_autocomplete = None;
                         let caret_char = Self::caret_char_offset(state);
                         let RichEditorState {
-                            doc,
-                            undo,
                             selection,
                             actor_id,
                             ..
@@ -3727,7 +3848,7 @@ impl RichEditorWidget {
                             caret_char,
                             actor_id.as_str(),
                         );
-                    }
+                    }).unwrap_or_default() }
                 }
                 // Any other key (plain typing, backspace) passes through to the normal editing path,
                 // which mutates the leaf text; the trigger re-detection then refines the filter.
@@ -3777,11 +3898,9 @@ impl RichEditorWidget {
         // undo bus (the Enter path runs BEFORE the frame's `doc_before` capture and the click path
         // runs in the render phase — the frame diff sees neither).
         let before =
-            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
-        let inserted = {
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.document_snapshot().expect("live rich document"));
+        let inserted = { state.edit_with_state(|doc, undo, state| {
             let RichEditorState {
-                doc,
-                undo,
                 selection,
                 actor_id,
                 ..
@@ -3796,13 +3915,17 @@ impl RichEditorWidget {
                 link,
                 actor_id.as_str(),
             )
-        };
-        if inserted {
+        }) };
+        if inserted == Some(true) {
             let after =
-                crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+                crate::rich_editor::document_model::doc_json::to_content_json_value(&state.document_snapshot().expect("live rich document"));
             state.pending_bus_undo.push((before, after));
         }
-        state.tag_autocomplete = None;
+        if inserted == Some(true) {
+            state.tag_autocomplete = None;
+        } else if inserted == Some(false) {
+            state.interop_error = Some("Tag insertion failed. The popup remains open so you can retry.".to_owned());
+        }
     }
 
     /// The caret's in-leaf char offset (the head's `char_offset`), or 0 for a non-text selection.
@@ -3868,7 +3991,7 @@ impl RichEditorWidget {
     ) -> Result<(), String> {
         Self::ensure_stage_embed_save_available(state)?;
         let current =
-            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.document_snapshot().expect("live rich document"));
         if !saved_content_contains_exact_hs_link(&current, &pending.link) {
             return Err(
                 "canonical Stage embed save requested before the exact hsLink was published"
@@ -3901,6 +4024,7 @@ impl RichEditorWidget {
         state: &mut RichEditorState,
         inserted_child: crate::rich_editor::document_model::node::Child,
     ) -> bool {
+        let document = match state.document_snapshot() { Ok(document) => document, Err(_) => return false };
         use crate::rich_editor::document_model::node::{Child, TextLeaf};
         use crate::rich_editor::document_model::position::DocPosition;
         use crate::rich_editor::document_model::transform::{
@@ -3919,11 +4043,11 @@ impl RichEditorWidget {
                 if anchor_container != head_container || anchor_block_idx == head_block_idx {
                     None
                 } else {
-                    let anchor_leaf = Self::block_at_path(&state.doc, anchor_block_path)?
+                    let anchor_leaf = Self::block_at_path(&document, anchor_block_path)?
                         .children
                         .get(*anchor_leaf_idx)?
                         .as_text()?;
-                    let head_leaf = Self::block_at_path(&state.doc, head_block_path)?
+                    let head_leaf = Self::block_at_path(&document, head_block_path)?
                         .children
                         .get(*head_leaf_idx)?
                         .as_text()?;
@@ -3968,7 +4092,7 @@ impl RichEditorWidget {
                 if anchor_parent != head_parent {
                     None
                 } else {
-                    let Some(parent) = Self::block_at_path(&state.doc, anchor_parent) else {
+                    let Some(parent) = Self::block_at_path(&document, anchor_parent) else {
                         return false;
                     };
                     let Some(anchor_leaf) =
@@ -4021,7 +4145,7 @@ impl RichEditorWidget {
         let selected_leaf = match &state.selection {
             Selection::Text { head, .. } => {
                 head.path.split_last().and_then(|(leaf_idx, parent)| {
-                    Self::block_at_path(&state.doc, parent)
+                    Self::block_at_path(&document, parent)
                         .and_then(|block| block.children.get(*leaf_idx))
                         .and_then(Child::as_text)
                         .map(|_| (head.path.clone(), head.char_offset))
@@ -4031,7 +4155,7 @@ impl RichEditorWidget {
         };
         let selected_empty_parent = match &state.selection {
             Selection::Text { head, .. } => head.path.split_last().and_then(|(_, parent_path)| {
-                Self::block_at_path(&state.doc, parent_path)
+                Self::block_at_path(&document, parent_path)
                     .filter(|block| block.kind.holds_inline_content() && block.children.is_empty())
                     .map(|_| parent_path.to_vec())
             }),
@@ -4043,7 +4167,7 @@ impl RichEditorWidget {
             selected_leaf.or_else(|| {
                 selected_empty_parent
                     .is_none()
-                    .then(|| Self::first_inline_leaf_path(&state.doc))
+                    .then(|| Self::first_inline_leaf_path(&document))
                     .flatten()
             })
         } else {
@@ -4066,10 +4190,10 @@ impl RichEditorWidget {
         {
             let start_block_path = [container_path.as_slice(), &[start_block_idx]].concat();
             let end_block_path = [container_path.as_slice(), &[end_block_idx]].concat();
-            let Some(start_block) = Self::block_at_path(&state.doc, &start_block_path) else {
+            let Some(start_block) = Self::block_at_path(&document, &start_block_path) else {
                 return false;
             };
-            let Some(end_block) = Self::block_at_path(&state.doc, &end_block_path) else {
+            let Some(end_block) = Self::block_at_path(&document, &end_block_path) else {
                 return false;
             };
             if !start_block.kind.holds_inline_content() || !end_block.kind.holds_inline_content() {
@@ -4130,7 +4254,7 @@ impl RichEditorWidget {
         } else if let Some((parent_path, start_idx, start_offset, end_idx, end_offset)) =
             selected_text_range
         {
-            let Some(parent) = Self::block_at_path(&state.doc, &parent_path) else {
+            let Some(parent) = Self::block_at_path(&document, &parent_path) else {
                 return false;
             };
             let Some(start_leaf) = parent.children.get(start_idx).and_then(Child::as_text) else {
@@ -4214,7 +4338,7 @@ impl RichEditorWidget {
             let Some((leaf_idx, parent_path)) = leaf_path.split_last() else {
                 return false;
             };
-            let Some(parent) = Self::block_at_path(&state.doc, parent_path) else {
+            let Some(parent) = Self::block_at_path(&document, parent_path) else {
                 return false;
             };
             let Some(leaf) = parent.children.get(*leaf_idx).and_then(Child::as_text) else {
@@ -4272,7 +4396,7 @@ impl RichEditorWidget {
             (parent_path.to_vec(), trailing_idx, steps)
         } else {
             let Some(parent_path) =
-                selected_empty_parent.or_else(|| Self::first_inline_block_path(&state.doc))
+                selected_empty_parent.or_else(|| Self::first_inline_block_path(&document))
             else {
                 return false;
             };
@@ -4294,18 +4418,19 @@ impl RichEditorWidget {
         // Apply atomically + record on BOTH undo authorities: the model-level UndoManager receipt and the
         // MT-035 unified bus snapshot pair (drained at frame end through `record_rich_edit_undo`).
         let before =
-            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.document_snapshot().expect("live rich document"));
         let tx = Transaction::new(steps, ActorKind::Operator, state.actor_id.as_str());
-        match apply_transaction(&mut state.doc, tx) {
-            Ok(receipt) => {
-                state.undo.push(receipt);
+        match state.edit_document(|doc, history| {
+            let receipt = apply_transaction(doc, tx)?;
+            history.push(receipt);
+            Ok::<_, crate::rich_editor::document_model::transform::TransformError>(())
+        }) {
+            Ok(_) => {
                 let after =
-                    crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+                    crate::rich_editor::document_model::doc_json::to_content_json_value(&state.document_snapshot().expect("live rich document"));
                 state.pending_bus_undo.push((before, after));
                 // Mark the document dirty so the embed is persisted on the next save (AC-2 round-trip).
-                if let Some(save) = state.save.as_mut() {
-                    save.mark_dirty();
-                }
+                state.mark_document_dirty();
                 let mut caret_path = parent_path;
                 caret_path.push(trailing_idx);
                 state.selection = Selection::caret(DocPosition::new(caret_path, 0));
@@ -4455,12 +4580,10 @@ impl RichEditorWidget {
         };
         let opened_explicitly = state.slash_menu_opened_explicitly;
         let before =
-            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
-        let outcome = {
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.document_snapshot().expect("live rich document"));
+        let outcome = { state.edit_with_state(|doc, undo, state| {
             let RichEditorState {
-                doc,
                 selection,
-                undo,
                 actor_id,
                 ..
             } = state;
@@ -4475,8 +4598,8 @@ impl RichEditorWidget {
             } else {
                 execute_slash_command(&mut ctx, &menu, cmd)
             }
-        };
-        let after = crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+        }).unwrap_or(SlashExecOutcome::Done { changed: false }) };
+        let after = crate::rich_editor::document_model::doc_json::to_content_json_value(&state.document_snapshot().expect("live rich document"));
         if after != before {
             state.pending_bus_undo.push((before, after));
         }
@@ -4531,7 +4654,7 @@ impl RichEditorWidget {
 
         // The caret's leaf text + the caret's char offset within it.
         let (Some((leaf_path, leaf_text)), Some(caret_char)) = (
-            caret_leaf_text(&state.doc, &state.selection),
+            caret_leaf_text(&state.document_snapshot().expect("live rich document"), &state.selection),
             caret_char_offset(&state.selection),
         ) else {
             state.slash_menu = None; // no text caret -> no menu.
@@ -4930,7 +5053,7 @@ impl RichEditorWidget {
         // A query / option change re-runs the scan immediately so the count + highlights update this
         // frame (the panel edited the query in place; the scan is the host's responsibility).
         if query_changed {
-            panel.rescan(&state.doc);
+            panel.rescan(&state.document_snapshot().expect("live rich document"));
         }
 
         match outcome {
@@ -4941,16 +5064,15 @@ impl RichEditorWidget {
                 // Replace the CURRENT match (default to the first match when none is active yet),
                 // then re-scan and advance to the next match (the React "keep going" behavior).
                 let index = panel.active.unwrap_or(0);
-                if let Some(m) = panel.scan.matches.get(index).cloned() {
+                let panel_before_replace = panel.clone();
+                if let Some(m) = panel.scan.matches.get(index).cloned() { let committed = state.edit_with_state(|doc, undo, state| {
                     let RichEditorState {
-                        doc,
-                        undo,
                         selection,
                         ..
                     } = state;
                     let replaced = replace_one(doc, undo, selection, &m, &panel.replacement);
                     if replaced {
-                        panel.rescan(&state.doc);
+                        panel.rescan(doc);
                         // After the replacement, the match set shrank; keep the index pointing at the
                         // NEXT match (clamped) so repeated Replace walks forward through the document.
                         panel.active = if panel.scan.is_empty() {
@@ -4959,22 +5081,21 @@ impl RichEditorWidget {
                             Some(index.min(panel.scan.len() - 1))
                         };
                     }
+                });
+                if committed.is_none() { panel = panel_before_replace; }
                 }
                 state.find_replace = Some(panel);
             }
             PanelOutcome::ReplaceAll => {
                 let matches = panel.scan.matches.clone();
-                {
-                    let RichEditorState {
-                        doc,
-                        undo,
-                        selection,
-                        ..
-                    } = state;
-                    let _n = replace_all(doc, undo, selection, &matches, &panel.replacement);
+                let committed = state.edit_with_state(|doc, undo, state| {
+                    let RichEditorState { selection, .. } = state;
+                    replace_all(doc, undo, selection, &matches, &panel.replacement)
+                });
+                if committed.is_some() {
+                    panel.rescan(&state.document_snapshot().expect("live rich document"));
+                    panel.active = None;
                 }
-                panel.rescan(&state.doc); // the doc changed -> the matches are gone (no active match).
-                panel.active = None;
                 state.find_replace = Some(panel);
             }
             PanelOutcome::Close => {
@@ -4996,23 +5117,46 @@ impl RichEditorWidget {
     /// Export button arms the export format picker ([`Self::render_export_picker`]); without it the
     /// picker + the export-to-bytes path are unreachable (the must-fix #2 dead-code gap).
     fn render_toolbar(ui: &mut egui::Ui, state: &mut RichEditorState) {
+        use crate::rich_editor::formatting::commands::{self, CommandContext};
         ui.horizontal(|ui| {
-            {
-                let RichEditorState {
-                    doc,
-                    selection,
-                    undo,
-                    actor_id,
-                    ..
-                } = state;
-                let cctx = crate::rich_editor::formatting::commands::CommandContext::new(
-                    doc,
-                    undo,
-                    selection,
-                    actor_id.as_str(),
-                );
-                let _dispatched =
-                    crate::rich_editor::formatting::toolbar::EditorToolbar::new(cctx).show(ui);
+            let owner = state.document_owner();
+            match owner.prepare_edit() {
+                Ok(mut read_snapshot) => {
+                    let mut expected = read_snapshot.context();
+                    let mut display_selection = state.selection.clone();
+                    let actor_id = state.actor_id.clone();
+                    let mut intents = Vec::new();
+                    let (document, history) = read_snapshot.parts_mut();
+                    let read_context = CommandContext::new(
+                        document, history, &mut display_selection, actor_id.as_str(),
+                    );
+                    crate::rich_editor::formatting::toolbar::EditorToolbar::new(read_context)
+                        .with_command_sink(&mut intents)
+                        .show(ui);
+                    for command in intents {
+                        let mut selection = state.selection.clone();
+                        let result = owner.edit(expected, |document, history| {
+                            let mut context = CommandContext::new(
+                                document, history, &mut selection, actor_id.as_str(),
+                            );
+                            commands::dispatch(&mut context, &command)
+                        });
+                        match result {
+                            Ok(commit) => {
+                                expected.edit_revision = commit.edit_revision;
+                                state.selection = selection;
+                                if commit.content_changed { state.mark_document_dirty(); }
+                            }
+                            Err(error) => {
+                                state.interop_error = Some(format!(
+                                    "Toolbar command {} was rejected: {error:?}", command.command_id(),
+                                ));
+                                break;
+                            }
+                        }
+                    }
+                }
+                Err(error) => { state.interop_error = Some(error.to_string()); }
             }
             // MT-020: the "Export…" button opens the export format picker popup. It is an interactive
             // node, so it MUST carry a stable author_id (the shell HBR-SWARM gate panics on an unnamed
@@ -5174,8 +5318,9 @@ impl RichEditorWidget {
                 // The suffix itself uses the stable document path, not this count or screen geometry, so
                 // resizing/reflow does not change an occurrence's AccessKit identity.
                 let mut locus_chip_occurrences = std::collections::HashMap::<String, usize>::new();
-                for idx in 0..state.doc.children.len() {
-                    let Some(block) = state.doc.children[idx].as_block() else { continue };
+                for idx in 0..state.document_snapshot().expect("live rich document").children.len() {
+                    let document = state.document_snapshot().expect("live rich document");
+                    let Some(block) = document.children[idx].as_block() else { continue };
 
                     // Virtualize the common large-document case before invoking the expensive
                     // text shaper. Plain text paragraphs have a deterministic single-line extent;
@@ -5263,8 +5408,7 @@ impl RichEditorWidget {
                         // could not restore a removed embed. This runs in the render phase (invisible to
                         // the frame-input diff), exactly like the prompt-confirm insert paths.
                         if removed {
-                            let t_idx = state
-                                .doc
+                            let t_idx = state.document_snapshot().expect("live rich document")
                                 .children
                                 .get(idx)
                                 .and_then(Child::as_block)
@@ -5277,7 +5421,7 @@ impl RichEditorWidget {
                                 };
                                 let before =
                                     crate::rich_editor::document_model::doc_json::to_content_json_value(
-                                        &state.doc,
+                                        &state.document_snapshot().expect("live rich document"),
                                     );
                                 let tx = Transaction::new(
                                     vec![Step::DeleteInlineChild {
@@ -5287,22 +5431,20 @@ impl RichEditorWidget {
                                     ActorKind::Operator,
                                     state.actor_id.as_str(),
                                 );
-                                if let Ok(receipt) = apply_transaction(&mut state.doc, tx) {
-                                    state.undo.push(receipt);
+                                if state.edit_document(|doc, history| {
+                                    let receipt = apply_transaction(doc, tx)?;
+                                    history.push(receipt);
+                                    Ok::<_, crate::rich_editor::document_model::transform::TransformError>(())
+                                }).is_ok() {
                                     let after =
                                         crate::rich_editor::document_model::doc_json::to_content_json_value(
-                                            &state.doc,
+                                            &state.document_snapshot().expect("live rich document"),
                                         );
                                     state.pending_bus_undo.push((before, after));
                                     // The removal changed the persisted document: mark the save/draft
                                     // coordinators dirty so Ctrl+S / the 5s auto-draft persist it
                                     // (silent-data-loss guard, same as the transactional inserts).
-                                    if let Some(save) = state.save.as_mut() {
-                                        save.mark_dirty();
-                                    }
-                                    if let Some(draft) = state.draft.as_mut() {
-                                        draft.mark_dirty(std::time::Instant::now());
-                                    }
+                                    state.mark_document_dirty();
                                 }
                                 // On failure, the transaction rolled back: the doc is untouched and
                                 // neither undo surface receives a phantom entry.
@@ -5314,7 +5456,9 @@ impl RichEditorWidget {
                         continue;
                     }
 
-                    let block = state.doc.children[idx].as_block().expect("checked above");
+                    let document = state.document_snapshot().expect("live rich document");
+
+                    let block = document.children[idx].as_block().expect("checked above");
                     let caret_offset = if caret_block == Some(idx) {
                         Some(caret.char_offset())
                     } else {
@@ -5380,7 +5524,7 @@ impl RichEditorWidget {
                             // durable node id for a code block.
                             let document_snapshot =
                                 crate::rich_editor::document_model::doc_json::to_content_json_value(
-                                    &state.doc,
+                                    &state.document_snapshot().expect("live rich document"),
                                 );
                             state.pending_events.push(
                                 crate::rich_editor::wikilinks::inline_view::EditorEvent::CodeBlockOpenRequested {
@@ -5494,7 +5638,8 @@ impl RichEditorWidget {
                     // AFTER the content so the wash sits on top. Computed into an owned vec so the doc
                     // borrow ends before painting (the panel/scan live on `state`).
                     if let Some(panel) = state.find_replace.as_ref() {
-                        let block = state.doc.children[idx].as_block().expect("checked above");
+                        let document = state.document_snapshot().expect("live rich document");
+                        let block = document.children[idx].as_block().expect("checked above");
                         let current = panel.active.and_then(|i| panel.scan.matches.get(i));
                         let rects = crate::rich_editor::find_replace::highlight_layer::match_highlight_rects(
                             block,
@@ -5644,8 +5789,9 @@ impl RichEditorWidget {
             });
             if let Some(caret_pixel) = caret_pixel {
                 // The caret block's body font size so the preedit matches the line it composes into.
+                let document = state.document_snapshot().expect("live rich document");
                 let block_font_size = caret_block
-                    .and_then(|idx| state.doc.children.get(idx).and_then(Child::as_block))
+                    .and_then(|idx| document.children.get(idx).and_then(Child::as_block))
                     .map(|b| super::line_layout::block_style_with_base(b, base_font_size).size)
                     .unwrap_or(base_font_size);
                 if let Some(pp) = super::block_renderer::paint_preedit(
@@ -5716,12 +5862,10 @@ impl RichEditorWidget {
                 // MT-020: snapshot around the code-ref insert so it lands on the MT-035 unified
                 // undo bus (this runs in the render phase, after the frame-input diff).
                 let before =
-                    crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
-                let inserted = {
+                    crate::rich_editor::document_model::doc_json::to_content_json_value(&state.document_snapshot().expect("live rich document"));
+                let inserted = { state.edit_with_state(|doc, undo, state| {
                     let RichEditorState {
-                        doc,
                         selection,
-                        undo,
                         actor_id,
                         ..
                     } = state;
@@ -5732,10 +5876,10 @@ impl RichEditorWidget {
                         actor_id: actor_id.as_str(),
                     };
                     insert_code_ref_atom(&mut ctx, &symbol_entity_id, &display_name)
-                };
+                }).unwrap_or_default() };
                 if inserted {
                     let after = crate::rich_editor::document_model::doc_json::to_content_json_value(
-                        &state.doc,
+                        &state.document_snapshot().expect("live rich document"),
                     );
                     state.pending_bus_undo.push((before, after));
                     let pane_id = state
@@ -5921,11 +6065,9 @@ impl RichEditorWidget {
             // MT-020: snapshot around the click-confirm so the insert lands on the MT-035 unified
             // undo bus (this runs in the render phase, after the frame-input diff).
             let before =
-                crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
-            let inserted = {
+                crate::rich_editor::document_model::doc_json::to_content_json_value(&state.document_snapshot().expect("live rich document"));
+            let inserted = { state.edit_with_state(|doc, undo, state| {
                 let RichEditorState {
-                    doc,
-                    undo,
                     selection,
                     actor_id,
                     ..
@@ -5940,13 +6082,17 @@ impl RichEditorWidget {
                     link,
                     actor_id.as_str(),
                 )
-            };
-            if inserted {
+            }) };
+            if inserted == Some(true) {
                 let after =
-                    crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+                    crate::rich_editor::document_model::doc_json::to_content_json_value(&state.document_snapshot().expect("live rich document"));
                 state.pending_bus_undo.push((before, after));
             }
-            state.wikilink_autocomplete = None;
+            if inserted == Some(true) {
+                state.wikilink_autocomplete = None;
+            } else if inserted == Some(false) {
+                state.interop_error = Some("Wikilink insertion failed. The popup remains open so you can retry.".to_owned());
+            }
         }
     }
 
@@ -6063,13 +6209,11 @@ impl RichEditorWidget {
                     // after the frame-input diff — the diff cannot see it).
                     let before =
                         crate::rich_editor::document_model::doc_json::to_content_json_value(
-                            &state.doc,
+                            &state.document_snapshot().expect("live rich document"),
                         );
-                    let inserted = {
+                    let inserted = { state.edit_with_state(|doc, undo, state| {
                         let RichEditorState {
-                            doc,
                             selection,
-                            undo,
                             actor_id,
                             ..
                         } = state;
@@ -6080,11 +6224,11 @@ impl RichEditorWidget {
                             actor_id: actor_id.as_str(),
                         };
                         confirm_prompt(&mut ctx, &confirm_state)
-                    };
+                    }).unwrap_or_default() };
                     if inserted {
                         let after =
                             crate::rich_editor::document_model::doc_json::to_content_json_value(
-                                &state.doc,
+                                &state.document_snapshot().expect("live rich document"),
                             );
                         state.pending_bus_undo.push((before, after));
                         if let crate::rich_editor::slash_commands::SlashPromptKind::Embed(kind) =
@@ -6561,6 +6705,10 @@ mod tests {
 
     struct StageTestSaveBackend;
     impl crate::rich_editor::save::save_manager::SaveBackend for StageTestSaveBackend {
+        fn load_document(&self, _document_id: &str) -> crate::rich_editor::save::save_manager::RecoveryLoadFuture {
+            Box::pin(async { Err(crate::rich_editor::save::save_manager::SaveError::Network(
+                "test recovery delivery is injected".to_owned())) })
+        }
         fn save_document(
             &self,
             _document_id: &str,
@@ -6618,7 +6766,7 @@ mod tests {
         let mut state = RichEditorState::new(BlockNode::doc(vec![BlockNode::paragraph("anchor")]));
         state.selection = Selection::caret(DocPosition::new(vec![0, 0], 6));
         let before =
-            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.document_snapshot().expect("live rich document"));
 
         RichEditorWidget::run_rich_dispatch(
             &mut state,
@@ -6632,7 +6780,7 @@ mod tests {
         assert_eq!(state.code_symbol_search_generation, 1);
         assert!(state.slash_menu.is_none());
         assert_eq!(
-            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc),
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.document_snapshot().expect("live rich document")),
             before,
             "opening the real code-ref dialog must not bypass selection by inserting an hsLink"
         );
@@ -6657,7 +6805,7 @@ mod tests {
         let mut state = RichEditorState::new(BlockNode::doc(vec![BlockNode::paragraph("anchor")]));
         state.selection = Selection::caret(DocPosition::new(vec![0, 0], 6));
         let before =
-            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.document_snapshot().expect("live rich document"));
 
         RichEditorWidget::run_rich_dispatch(
             &mut state,
@@ -6669,7 +6817,7 @@ mod tests {
 
         assert!(state.code_symbol_search.is_none());
         assert_eq!(
-            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc),
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.document_snapshot().expect("live rich document")),
             before
         );
         assert!(state.pending_bus_undo.is_empty());
@@ -6692,7 +6840,8 @@ mod tests {
             ),
             &egui::Context::default(),
         );
-        let paragraph = state.doc.children[0].as_block().unwrap();
+        let document = state.document_snapshot().expect("live rich document");
+        let paragraph = document.children[0].as_block().unwrap();
         let link = paragraph
             .children
             .iter()
@@ -6718,7 +6867,8 @@ mod tests {
             ),
             &egui::Context::default(),
         );
-        let block = state.doc.children[1]
+        let document = state.document_snapshot().expect("live rich document");
+        let block = document.children[1]
             .as_block()
             .expect("code block inserted");
         assert_eq!(block.kind, NodeKind::CodeBlock);
@@ -6737,7 +6887,7 @@ mod tests {
         let mut state = RichEditorState::new(BlockNode::doc(vec![BlockNode::paragraph("anchor")]));
         state.selection = Selection::caret(DocPosition::new(vec![0, 0], 6));
         let before =
-            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.document_snapshot().expect("live rich document"));
         RichEditorWidget::run_rich_dispatch(
             &mut state,
             &RichDispatch::InsertSlashCommand,
@@ -6748,7 +6898,7 @@ mod tests {
             &egui::Context::default(),
         );
         assert_eq!(
-            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc),
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.document_snapshot().expect("live rich document")),
             before
         );
         assert!(state.pending_bus_undo.is_empty());
@@ -6767,7 +6917,7 @@ mod tests {
             let mut state =
                 RichEditorState::new(BlockNode::doc(vec![BlockNode::paragraph("anchor")]));
             let before =
-                crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+                crate::rich_editor::document_model::doc_json::to_content_json_value(&state.document_snapshot().expect("live rich document"));
             RichEditorWidget::run_rich_dispatch(
                 &mut state,
                 &RichDispatch::InsertSlashCommand,
@@ -6776,7 +6926,7 @@ mod tests {
                 &egui::Context::default(),
             );
             assert_eq!(
-                crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc),
+                crate::rich_editor::document_model::doc_json::to_content_json_value(&state.document_snapshot().expect("live rich document")),
                 before
             );
             assert!(state.pending_bus_undo.is_empty());
@@ -6799,14 +6949,15 @@ mod tests {
             &mut state,
             HsLinkNode::new("media", "item-empty", "empty.png"),
         ));
-        let paragraph = state.doc.children[0].as_block().unwrap();
+        let document = state.document_snapshot().expect("live rich document");
+        let paragraph = document.children[0].as_block().unwrap();
         assert!(matches!(
             paragraph.children.as_slice(),
             [Child::HsLink(link), Child::Text(_)]
                 if link.ref_kind == "media" && link.ref_value == "item-empty"
         ));
         assert_eq!(
-            state.undo.len(),
+            state.history_snapshot().unwrap().len(),
             1,
             "empty-doc insert remains one undo unit"
         );
@@ -6830,7 +6981,7 @@ mod tests {
             ],
         );
         let mut state = RichEditorState::new(BlockNode::doc(vec![paragraph]));
-        let before = state.doc.clone();
+        let before = state.document_snapshot().expect("live rich document").clone();
         state.selection = Selection::text(
             DocPosition::new(vec![0, 2], 3),
             DocPosition::new(vec![0, 0], 3),
@@ -6840,7 +6991,8 @@ mod tests {
             &mut state,
             HsLinkNode::new("code", "src/lib.rs#replacement", "replacement"),
         ));
-        let paragraph = state.doc.children[0].as_block().unwrap();
+        let document = state.document_snapshot().expect("live rich document");
+        let paragraph = document.children[0].as_block().unwrap();
         assert!(matches!(
             paragraph.children.as_slice(),
             [Child::Text(prefix), Child::HsLink(link), Child::Text(suffix)]
@@ -6849,11 +7001,11 @@ mod tests {
                     && link.ref_value == "src/lib.rs#replacement"
                     && suffix.text.to_string() == "ter"
         ));
-        assert_eq!(state.undo.len(), 1);
+        assert_eq!(state.history_snapshot().unwrap().len(), 1);
         assert_eq!(state.pending_bus_undo.len(), 1);
-        assert!(state.undo.undo(&mut state.doc).unwrap());
+        assert!(state.edit_document(|doc, history| history.undo(doc)).unwrap().output);
         assert_eq!(
-            state.doc, before,
+            state.document_snapshot().expect("live rich document"), before,
             "one model undo restores every removed run"
         );
     }
@@ -6866,7 +7018,7 @@ mod tests {
             BlockNode::paragraph("see REPLACE_"),
             BlockNode::paragraph("ME later"),
         ]));
-        let before = state.doc.clone();
+        let before = state.document_snapshot().expect("live rich document").clone();
         state.selection = Selection::text(
             DocPosition::new(vec![1, 0], 2),
             DocPosition::new(vec![0, 0], 4),
@@ -6876,8 +7028,9 @@ mod tests {
             &mut state,
             HsLinkNode::new("code", "src/lib.rs#replacement", "replacement"),
         ));
-        assert_eq!(state.doc.children.len(), 1);
-        let paragraph = state.doc.children[0].as_block().unwrap();
+        assert_eq!(state.document_snapshot().expect("live rich document").children.len(), 1);
+        let document = state.document_snapshot().expect("live rich document");
+        let paragraph = document.children[0].as_block().unwrap();
         assert!(matches!(
             paragraph.children.as_slice(),
             [Child::Text(prefix), Child::HsLink(link), Child::Text(suffix)]
@@ -6885,10 +7038,10 @@ mod tests {
                     && link.ref_value == "src/lib.rs#replacement"
                     && suffix.text.to_string() == " later"
         ));
-        assert_eq!(state.undo.len(), 1);
+        assert_eq!(state.history_snapshot().unwrap().len(), 1);
         assert_eq!(state.pending_bus_undo.len(), 1);
-        assert!(state.undo.undo(&mut state.doc).unwrap());
-        assert_eq!(state.doc, before);
+        assert!(state.edit_document(|doc, history| history.undo(doc)).unwrap().output);
+        assert_eq!(state.document_snapshot().expect("live rich document"), before);
     }
 
     #[test]
@@ -6896,7 +7049,7 @@ mod tests {
         let mut same = RichEditorState::new(BlockNode::doc(vec![BlockNode::paragraph(
             "before REMOVE after",
         )]));
-        let same_before = same.doc.clone();
+        let same_before = same.document_snapshot().unwrap().clone();
         same.selection = Selection::text(
             DocPosition::new(vec![0, 0], 7),
             DocPosition::new(vec![0, 0], 13),
@@ -6906,16 +7059,16 @@ mod tests {
             same.block_plain_text(0).as_deref(),
             Some("before plain after")
         );
-        assert_eq!(same.undo.len(), 1);
+        assert_eq!(same.history_snapshot().unwrap().len(), 1);
         assert_eq!(same.pending_bus_undo.len(), 1);
-        assert!(same.undo.undo(&mut same.doc).unwrap());
-        assert_eq!(same.doc, same_before);
+        assert!(same.edit_document(|doc, history| history.undo(doc)).unwrap().output);
+        assert_eq!(same.document_snapshot().unwrap(), same_before);
 
         let mut cross = RichEditorState::new(BlockNode::doc(vec![
             BlockNode::paragraph("before REMOVE_"),
             BlockNode::paragraph("ME after"),
         ]));
-        let cross_before = cross.doc.clone();
+        let cross_before = cross.document_snapshot().unwrap().clone();
         cross.selection = Selection::text(
             DocPosition::new(vec![1, 0], 2),
             DocPosition::new(vec![0, 0], 7),
@@ -6925,11 +7078,11 @@ mod tests {
             cross.block_plain_text(0).as_deref(),
             Some("before see [[code:src/lib.rs#symbol]] now after")
         );
-        assert_eq!(cross.doc.children.len(), 1);
-        assert_eq!(cross.undo.len(), 1);
+        assert_eq!(cross.document_snapshot().unwrap().children.len(), 1);
+        assert_eq!(cross.history_snapshot().unwrap().len(), 1);
         assert_eq!(cross.pending_bus_undo.len(), 1);
-        assert!(cross.undo.undo(&mut cross.doc).unwrap());
-        assert_eq!(cross.doc, cross_before);
+        assert!(cross.edit_document(|doc, history| history.undo(doc)).unwrap().output);
+        assert_eq!(cross.document_snapshot().unwrap(), cross_before);
     }
 
     #[test]
@@ -6948,15 +7101,15 @@ mod tests {
             ],
         );
         let mut state = RichEditorState::new(BlockNode::doc(vec![list]));
-        let before = state.doc.clone();
+        let before = state.document_snapshot().expect("live rich document").clone();
         state.selection = Selection::text(
             DocPosition::new(vec![0, 0, 0, 0], 2),
             DocPosition::new(vec![0, 1, 0, 0], 3),
         );
 
         assert!(!state.insert_plain_text_for_host("replacement"));
-        assert_eq!(state.doc, before);
-        assert!(state.undo.is_empty());
+        assert_eq!(state.document_snapshot().expect("live rich document"), before);
+        assert!(state.history_snapshot().unwrap().is_empty());
         assert!(state.pending_bus_undo.is_empty());
     }
 
@@ -6972,13 +7125,14 @@ mod tests {
             &mut state,
             HsLinkNode::new("media", "item-first", "first.png"),
         ));
-        let first = state.doc.children[0].as_block().unwrap();
+        let document = state.document_snapshot().expect("live rich document");
+        let first = document.children[0].as_block().unwrap();
         assert!(matches!(
             first.children.as_slice(),
             [Child::HsLink(link), Child::Text(_)] if link.ref_value == "item-first"
         ));
         assert_eq!(
-            state.doc.children[1].as_block().unwrap().children[0]
+            state.document_snapshot().expect("live rich document").children[1].as_block().unwrap().children[0]
                 .as_text()
                 .unwrap()
                 .text
@@ -6986,7 +7140,7 @@ mod tests {
             "later",
             "the later text-bearing paragraph remains untouched"
         );
-        assert_eq!(state.undo.len(), 1);
+        assert_eq!(state.history_snapshot().unwrap().len(), 1);
         assert_eq!(state.pending_bus_undo.len(), 1);
         assert!(matches!(
             state.selection,
@@ -7014,10 +7168,11 @@ mod tests {
     #[test]
     fn demo_doc_has_heading_and_bold_world() {
         let st = RichEditorState::demo();
-        assert_eq!(st.doc.children.len(), 2);
-        assert!(st.doc.children[0].as_block().unwrap().heading_level() == Some(1));
+        let document = st.document_snapshot().unwrap();
+        assert_eq!(document.children.len(), 2);
+        assert!(document.children[0].as_block().unwrap().heading_level() == Some(1));
         // The paragraph's second run is bold "world".
-        let para = st.doc.children[1].as_block().unwrap();
+        let para = document.children[1].as_block().unwrap();
         let bold_run = para.children[1].as_text().unwrap();
         assert_eq!(bold_run.text.to_string(), "world");
         assert!(bold_run.has_mark_type(&crate::rich_editor::document_model::node::Mark::Bold));
@@ -7056,7 +7211,7 @@ mod tests {
 
         let mut state = RichEditorState::demo();
         let before =
-            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.document_snapshot().expect("live rich document"));
         let link = HsLinkNode::new("stage_capture", "artifact-1", "capture");
         let pending = PendingStageEmbedSave {
             link,
@@ -7085,7 +7240,7 @@ mod tests {
         let result = RichEditorWidget::insert_stage_embed_and_request_save(&mut state, pending);
         assert!(result.is_err());
         assert_eq!(
-            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc),
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.document_snapshot().expect("live rich document")),
             before,
             "failed save preflight must leave the document byte-structurally unchanged"
         );
@@ -7131,6 +7286,9 @@ mod tests {
             "DOC-1",
             1,
         ));
+        let owner = state.document_owner();
+        owner.bind_context("workspace-1", "DOC-1", "StageTestSaveBackend", None, None).unwrap();
+        owner.with_save_gate(|gate| assert!(state.save.as_mut().unwrap().bind_owner(gate)));
         let in_flight = Arc::new(std::sync::atomic::AtomicBool::new(true));
         let mut marker =
             stage_test_marker(HsLinkNode::new("stage_capture", "artifact-1", "capture"));
@@ -7173,6 +7331,9 @@ mod tests {
             "DOC-1",
             1,
         ));
+        let owner = state.document_owner();
+        owner.bind_context("workspace-1", "DOC-1", "StageTestSaveBackend", None, None).unwrap();
+        owner.with_save_gate(|gate| assert!(state.save.as_mut().unwrap().bind_owner(gate)));
         RichEditorWidget::insert_stage_embed_and_request_save(
             &mut state,
             stage_test_marker(HsLinkNode::new("stage_capture", "artifact-1", "capture")),
@@ -7216,6 +7377,9 @@ mod tests {
             "DOC-1",
             1,
         ));
+        let owner = state.document_owner();
+        owner.bind_context("workspace-1", "DOC-1", "StageTestSaveBackend", None, None).unwrap();
+        owner.with_save_gate(|gate| assert!(state.save.as_mut().unwrap().bind_owner(gate)));
         RichEditorWidget::insert_stage_embed_and_request_save(&mut state, stage_test_marker(link))
             .unwrap();
         state
@@ -7350,7 +7514,8 @@ mod tests {
         )]);
         let mut state = RichEditorState::new(doc);
         assert_eq!(state.set_code_ref_resolved("KEN-A", false), 1);
-        let paragraph = match &state.doc.children[0] {
+        let document = state.document_snapshot().expect("live rich document");
+        let paragraph = match &document.children[0] {
             Child::Block(block) => block,
             other => panic!("expected paragraph, got {other:?}"),
         };
@@ -7425,7 +7590,7 @@ mod tests {
         assert!(!state.drain_create_note_outcome_for_host());
         assert!(state.take_created_document_navigation().is_none());
         assert_eq!(
-            state.doc,
+            state.document_snapshot().expect("live rich document"),
             BlockNode::doc(vec![BlockNode::paragraph("current")]),
             "an origin-document completion must not rewrite the newly mounted document"
         );

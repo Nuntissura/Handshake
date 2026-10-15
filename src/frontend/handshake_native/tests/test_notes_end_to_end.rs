@@ -1028,12 +1028,11 @@ fn workspace_switch_retires_rich_views_and_discards_stale_delivery() {
     app.set_active_project_id_for_test("workspace-a");
     assert!(app.open_document_in_pane_for_test("pane-b", DOC_ID));
     let old = app.mounted_rich_state_for_view_for_test("pane-b", DOC_ID);
-    old.lock().unwrap().doc =
-        handshake_native::rich_editor::document_model::node::BlockNode::doc(vec![
+    { let owner = old.lock().unwrap().document_owner(); owner.edit(owner.current_context().expect("live editor context"), |document, _history| { *document = handshake_native::rich_editor::document_model::node::BlockNode::doc(vec![
             handshake_native::rich_editor::document_model::node::BlockNode::paragraph(
                 "workspace A",
             ),
-        ]);
+        ]); Ok::<_, std::convert::Infallible>(()) }).expect("fixture edit commits"); }
     app.queue_rich_document_load_result_for_test(
         DOC_ID,
         Err("stale workspace A delivery".to_owned()),

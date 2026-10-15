@@ -461,7 +461,8 @@ fn ac002_pt002_post_create_mark_becomes_resolved_live() {
     // BEFORE: the mark is unresolved.
     {
         let st = state.lock().unwrap();
-        let link = st.doc.children[0].as_block().unwrap().children[1]
+        let document = st.document_owner().document_snapshot().expect("live editor document");
+        let link = document.children[0].as_block().unwrap().children[1]
             .as_hs_link()
             .unwrap();
         assert!(
@@ -490,7 +491,8 @@ fn ac002_pt002_post_create_mark_becomes_resolved_live() {
         harness.run();
         let mut st = state.lock().unwrap();
         st.drain_create_note_outcome_for_host();
-        let link = st.doc.children[0].as_block().unwrap().children[1]
+        let document = st.document_owner().document_snapshot().expect("live editor document");
+        let link = document.children[0].as_block().unwrap().children[1]
             .as_hs_link()
             .unwrap();
         if link.resolved {
@@ -1162,7 +1164,8 @@ fn live_surrealdb_set_wikilink_context_seeds_and_creates() {
     for _ in 0..200 {
         harness.run();
         let st = state.lock().unwrap();
-        let link = st.doc.children[0].as_block().unwrap().children[1]
+        let document = st.document_owner().document_snapshot().expect("live editor document");
+        let link = document.children[0].as_block().unwrap().children[1]
             .as_hs_link()
             .unwrap();
         if link.resolved {

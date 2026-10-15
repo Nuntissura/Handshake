@@ -28,6 +28,7 @@
 //! note). The renderer (MT-012) consumes this model and owns the AccessKit surface.
 
 pub mod doc_json;
+pub mod edit_state;
 pub mod history;
 pub mod node;
 pub mod position;
@@ -40,6 +41,7 @@ pub use doc_json::{
     block_to_json, from_json_string, from_json_value, to_content_json_value, to_json_string,
     to_rich_document, DocJsonError, JsonMark, JsonNode, RichDocument, RICH_DOCUMENT_SCHEMA_VERSION,
 };
+pub use edit_state::{DocumentEditState, EditCommit, EditError};
 pub use history::{UndoManager, DEFAULT_HISTORY_CAP};
 pub use node::{BlockNode, Child, HeadingLevel, HsLinkNode, Mark, NodeKind, TextLeaf};
 pub use position::{absolute_offset, resolve, DocPosition};

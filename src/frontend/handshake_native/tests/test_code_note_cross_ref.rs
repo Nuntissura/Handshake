@@ -1858,7 +1858,7 @@ fn mt034_canonical_argus_create_open_and_reveal() {
     let rich_state = app.mounted_rich_state();
     {
         let mut state = rich_state.lock().expect("seed MT-034 Argus rich state");
-        state.doc = BlockNode::doc(vec![BlockNode::paragraph("")]);
+        { let owner = state.document_owner(); owner.edit(owner.current_context().expect("live editor context"), |document, _history| { *document = BlockNode::doc(vec![BlockNode::paragraph("")]); Ok::<_, std::convert::Infallible>(()) }).expect("fixture edit commits"); }
         state.selection = Selection::caret(DocPosition::new(vec![0, 0], 0));
         state.set_code_ref_context(DEFAULT_PROJECT_ID, runtime.handle().clone());
     }

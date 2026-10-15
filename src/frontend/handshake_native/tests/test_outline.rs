@@ -300,9 +300,7 @@ fn pt003_live_update_on_heading_add_and_no_rebuild_when_unchanged() {
     // rebuilds the tree (live update — AC-004).
     {
         let mut st = state.lock().unwrap();
-        st.doc
-            .children
-            .push(Child::Block(BlockNode::heading(2, "Epsilon")));
+        st.edit_document(|doc, _| { doc.children.push(Child::Block(BlockNode::heading(2, "Epsilon"))); Ok::<_, std::convert::Infallible>(()) }).unwrap();
     }
     harness.run();
     harness.run(); // settle
@@ -352,9 +350,7 @@ fn ac006_collapse_state_survives_live_rebuild() {
     // stay collapsed (RISK-004 / MC-004 — collapse carried forward by block_id).
     {
         let mut st = state.lock().unwrap();
-        st.doc
-            .children
-            .push(Child::Block(BlockNode::heading(2, "Zeta")));
+        st.edit_document(|doc, _| { doc.children.push(Child::Block(BlockNode::heading(2, "Zeta"))); Ok::<_, std::convert::Infallible>(()) }).unwrap();
     }
     harness.run();
     harness.run();

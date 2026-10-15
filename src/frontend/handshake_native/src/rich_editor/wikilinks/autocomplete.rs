@@ -216,6 +216,12 @@ impl AutocompleteRuntime {
         self.reset_popup = true;
     }
 
+    /// Drop delivery ownership when the authenticated connection or backend changes.
+    pub fn invalidate_context(&mut self) {
+        self.reset_context(self.workspace_id.clone());
+        self.cell = Arc::new(Mutex::new(VecDeque::new()));
+    }
+
     /// If the popup's debounce has elapsed (MC-002) and no search is in flight for the current query,
     /// mark the phase `Loading` and spawn the search for the current `(generation, query)`. A no-op
     /// when there is no runtime (headless test path drives the state directly). `now` is injected for

@@ -188,10 +188,12 @@ pub struct CodeEditorDocumentStore {
 /// document authority state that alone owns the document tree, undo, save, and draft coordinators.
 pub struct RichEditorDocumentStore {
     base_state: Arc<Mutex<RichEditorState>>,
+    base_view_incarnation: uuid::Uuid,
     /// `(document_id, pane_id)` keeps two split views of the same document from sharing selection,
     /// scroll, popup, or accessibility-registration state.
     #[allow(clippy::type_complexity)]
     states: Mutex<BTreeMap<(String, String), Arc<Mutex<RichEditorState>>>>,
+    view_incarnations: Mutex<BTreeMap<(String, String), uuid::Uuid>>,
     /// One document-level authority view per document. Its `doc`, `undo`, `save`, and `draft` fields
     /// are the canonical shared editing core; every other split view keeps only view-local state.
     document_authority_views: Mutex<BTreeMap<String, String>>,
@@ -210,7 +212,9 @@ impl RichEditorDocumentStore {
     pub fn new(base_state: Arc<Mutex<RichEditorState>>) -> Self {
         Self {
             base_state,
+            base_view_incarnation: uuid::Uuid::now_v7(),
             states: Mutex::new(BTreeMap::new()),
+            view_incarnations: Mutex::new(BTreeMap::new()),
             document_authority_views: Mutex::new(BTreeMap::new()),
             canonical_accessibility_view: Mutex::new(None),
             ready_views: Mutex::new(std::collections::BTreeSet::new()),
@@ -289,7 +293,17 @@ impl RichEditorDocumentStore {
                 );
             state.editor_actions = Some((registry, handle));
         }
+        if let Some((_, existing)) = states.iter().find(|(key, _)| key.0 == document_id) {
+            let owner = existing.lock().unwrap_or_else(|e| e.into_inner()).document_owner();
+            if let Err(error) = state.attach_document_owner(owner) {
+                state.interop_error = Some(error.to_string());
+            }
+        }
         let state = Arc::new(Mutex::new(state));
+        self.view_incarnations
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(key.clone(), uuid::Uuid::now_v7());
         states.insert(key, Arc::clone(&state));
         self.document_authority_views
             .lock()
@@ -428,11 +442,17 @@ impl RichEditorDocumentStore {
         drop(states);
         let Some(next) = next else { return };
         if let Some(previous) = previous {
-            let (doc, undo, save, draft, pending_stage_embed_save, pending_stage_embed_completion) = {
+            let owner = previous.lock().unwrap_or_else(|e| e.into_inner()).document_owner();
+            {
+                let mut next = next.lock().unwrap_or_else(|e| e.into_inner());
+                if let Err(error) = next.attach_document_owner(owner) {
+                    next.interop_error = Some(error.to_string());
+                    return;
+                }
+            }
+            let (save, draft, pending_stage_embed_save, pending_stage_embed_completion) = {
                 let mut previous = previous.lock().unwrap_or_else(|e| e.into_inner());
                 (
-                    previous.doc.clone(),
-                    previous.undo.clone(),
                     previous.save.take(),
                     previous.draft.take(),
                     previous.pending_stage_embed_save.take(),
@@ -440,8 +460,6 @@ impl RichEditorDocumentStore {
                 )
             };
             let mut next = next.lock().unwrap_or_else(|e| e.into_inner());
-            next.doc = doc;
-            next.undo = undo;
             next.save = save;
             next.draft = draft;
             next.pending_stage_embed_save = pending_stage_embed_save;
@@ -560,7 +578,7 @@ impl RichEditorDocumentStore {
         );
     }
 
-    /// Copy only the shared document/undo core into one non-authority view. Selection, scroll,
+    /// Attach the shared document owner to one non-authority view. Selection, scroll,
     /// popups, find state, and other interaction state remain owned by that pane.
     pub fn synchronize_view_from_canonical(&self, document_id: &str, pane_id: &str) {
         let Some((authority_pane, _)) = self.canonical_view_key(document_id) else {
@@ -573,13 +591,15 @@ impl RichEditorDocumentStore {
             return;
         };
         let view = self.state_for_view(Some(document_id), pane_id);
-        let (doc, undo) = {
+        let owner = {
             let authority = authority.lock().unwrap_or_else(|e| e.into_inner());
-            (authority.doc.clone(), authority.undo.clone())
+            authority.document_owner()
         };
         let mut view = view.lock().unwrap_or_else(|e| e.into_inner());
-        view.doc = doc;
-        view.undo = undo;
+        if let Err(error) = view.attach_document_owner(owner) {
+            view.interop_error = Some(error.to_string());
+            return;
+        }
         view.save = None;
         view.draft = None;
     }
@@ -593,24 +613,16 @@ impl RichEditorDocumentStore {
             return;
         }
         let view = self.state_for_view(Some(document_id), pane_id);
-        let (doc, undo) = {
+        let owner = {
             let view = view.lock().unwrap_or_else(|e| e.into_inner());
-            (view.doc.clone(), view.undo.clone())
+            view.document_owner()
         };
         let Some(authority) = self.canonical_state_for_document(document_id) else {
             return;
         };
         let mut authority = authority.lock().unwrap_or_else(|e| e.into_inner());
-        let changed = authority.doc != doc;
-        authority.doc = doc;
-        authority.undo = undo;
-        if changed {
-            if let Some(save) = authority.save.as_mut() {
-                save.mark_dirty();
-            }
-            if let Some(draft) = authority.draft.as_mut() {
-                draft.mark_dirty(std::time::Instant::now());
-            }
+        if !authority.document_owner().same_owner(&owner) {
+            authority.interop_error = Some("Split view has a different document owner".to_owned());
         }
     }
 
@@ -656,15 +668,17 @@ impl RichEditorDocumentStore {
         }
         let expected_doc_version = save.doc_version;
 
-        let current_document_snapshot =
-            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
-        if &current_document_snapshot != expected_document_snapshot {
+        let owner = state.document_owner();
+        let edit_snapshot = owner.save_snapshot().map_err(|error| error.to_string())?;
+        let current_document_snapshot = edit_snapshot.content_json();
+        if current_document_snapshot != expected_document_snapshot {
             return Err(format!(
                 "rich document '{document_id}' changed structurally after the Code Editor opened"
             ));
         }
 
-        let mut block = &state.doc;
+        let document = owner.document_snapshot().map_err(|error| error.to_string())?;
+        let mut block = &document;
         for &index in block_path {
             block = block
                 .children
@@ -715,23 +729,29 @@ impl RichEditorDocumentStore {
                 });
             }
 
-            let before =
-                crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+            let before = edit_snapshot.content_json().clone();
             let actor_id = state.actor_id.clone();
             let transaction = Transaction::new(steps, ActorKind::Agent, actor_id);
-            let receipt = apply_transaction(&mut state.doc, transaction).map_err(|error| {
-                format!("could not update rich code block at path {block_path:?}: {error}")
+            let commit = owner.edit(edit_snapshot.context(), |document, history| {
+                let receipt = apply_transaction(document, transaction).map_err(|error| {
+                    format!("could not update rich code block at path {block_path:?}: {error}")
+                })?;
+                history.push(receipt);
+                Ok::<_, String>(())
+            }).map_err(|error| format!("rich code block edit was rejected: {error:?}"))?;
+            let mut committed_context = edit_snapshot.context();
+            committed_context.edit_revision = commit.edit_revision;
+            let after = owner.with_save_gate(|gate| {
+                if gate.current_context() != Some(committed_context) {
+                    return Err("rich code block owner changed before draft bookkeeping".to_owned());
+                }
+                let after = crate::rich_editor::document_model::doc_json::to_content_json_value(gate.document());
+                if let Some(draft) = state.draft.as_mut() {
+                    draft.mark_dirty(std::time::Instant::now());
+                }
+                Ok(after)
             })?;
-            state.undo.push(receipt);
-            let after =
-                crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
             state.pending_bus_undo.push((before, after));
-            if let Some(save) = state.save.as_mut() {
-                save.mark_dirty();
-            }
-            if let Some(draft) = state.draft.as_mut() {
-                draft.mark_dirty(std::time::Instant::now());
-            }
         }
 
         if !state.request_save_for_host() {
@@ -740,7 +760,9 @@ impl RichEditorDocumentStore {
             ));
         }
         let post_edit_document_snapshot =
-            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+            crate::rich_editor::document_model::doc_json::to_content_json_value(
+                &owner.document_snapshot().map_err(|error| error.to_string())?,
+            );
         Ok((
             expected_doc_version,
             block_path.to_vec(),
@@ -818,6 +840,129 @@ impl RichEditorDocumentStore {
             .remove(&(content_id.to_owned(), pane_id.to_owned()));
     }
 
+    pub fn begin_load(
+        &self,
+        document_id: &str,
+        pane_id: &str,
+        dispatch_generation: u64,
+    ) -> Option<crate::rich_editor::document_owner::RichDocumentLoadToken> {
+        let states = self.states.lock().unwrap_or_else(|e| e.into_inner());
+        let key = (document_id.to_owned(), pane_id.to_owned());
+        let state = states.get(&key)?;
+        let incarnation = *self.view_incarnations.lock().unwrap_or_else(|e| e.into_inner()).get(&key)?;
+        let state = state.lock().unwrap_or_else(|e| e.into_inner());
+        state.document_owner().begin_load(pane_id, incarnation, dispatch_generation).ok()
+    }
+
+    pub fn try_install_loaded_document<R>(
+        &self,
+        token: crate::rich_editor::document_owner::RichDocumentLoadToken,
+        parsed: crate::rich_editor::document_model::BlockNode,
+        server_version: u64,
+        initialize: impl FnOnce(
+            &mut RichEditorState,
+            &mut crate::rich_editor::document_owner::DocumentSaveGate<'_>,
+            crate::rich_editor::document_owner::DocumentLoadDisposition,
+        ) -> Result<R, crate::rich_editor::document_owner::DocumentOwnerError>,
+    ) -> Result<Option<R>, crate::rich_editor::document_owner::DocumentOwnerError> {
+        use crate::rich_editor::document_owner::DocumentOwnerError;
+        let states = self.states.lock().unwrap_or_else(|e| e.into_inner());
+        let key = (token.document_id().to_owned(), token.pane_id().to_owned());
+        let Some(state) = states.get(&key) else { return Ok(None) };
+        let incarnations = self.view_incarnations.lock().unwrap_or_else(|e| e.into_inner());
+        if incarnations.get(&key) != Some(&token.view_incarnation()) {
+            return Ok(None);
+        }
+        let mut state = state.lock().unwrap_or_else(|e| e.into_inner());
+        let owner = state.document_owner();
+        match owner.apply_loaded_document(token, parsed, server_version, |gate, disposition| {
+            initialize(&mut state, gate, disposition).map(|output| (output, disposition))
+        }) {
+            Ok((output, disposition)) => {
+                if disposition == crate::rich_editor::document_owner::DocumentLoadDisposition::Initialized {
+                    self.document_authority_views.lock().unwrap_or_else(|e| e.into_inner())
+                        .insert(key.0, key.1);
+                }
+                Ok(Some(output))
+            }
+            Err(DocumentOwnerError::StaleContext | DocumentOwnerError::Unavailable | DocumentOwnerError::OlderServerVersion | DocumentOwnerError::UnsavedChanges) => Ok(None),
+            Err(error) => Err(error),
+        }
+    }
+
+    pub fn try_admit_load_failure<R>(
+        &self,
+        token: crate::rich_editor::document_owner::RichDocumentLoadToken,
+        apply: impl FnOnce(
+            &mut RichEditorState,
+            &mut crate::rich_editor::document_owner::DocumentSaveGate<'_>,
+        ) -> R,
+    ) -> Result<Option<R>, crate::rich_editor::document_owner::DocumentOwnerError> {
+        use crate::rich_editor::document_owner::DocumentOwnerError;
+        let states = self.states.lock().unwrap_or_else(|e| e.into_inner());
+        let key = (token.document_id().to_owned(), token.pane_id().to_owned());
+        let Some(state) = states.get(&key) else { return Ok(None) };
+        let incarnations = self.view_incarnations.lock().unwrap_or_else(|e| e.into_inner());
+        if incarnations.get(&key) != Some(&token.view_incarnation()) {
+            return Ok(None);
+        }
+        let mut state = state.lock().unwrap_or_else(|e| e.into_inner());
+        let owner = state.document_owner();
+        match owner.admit_load_failure(token, |gate| apply(&mut state, gate)) {
+            Ok(output) => Ok(Some(output)),
+            Err(DocumentOwnerError::StaleContext | DocumentOwnerError::Unavailable | DocumentOwnerError::OlderServerVersion | DocumentOwnerError::UnsavedChanges) => Ok(None),
+            Err(error) => Err(error),
+        }
+    }
+
+    pub fn retire_closed_view(
+        &self,
+        document_id: &str,
+        pane_id: &str,
+        remaining_pane_ids: &[String],
+    ) {
+        if remaining_pane_ids.iter().any(|remaining| remaining == pane_id) {
+            return;
+        }
+        if let Some(next) = remaining_pane_ids.iter().min() {
+            self.state_for_view(Some(document_id), next);
+            self.set_document_authority_view(document_id, next);
+        }
+        let last_view = remaining_pane_ids.is_empty();
+        let mut states = self.states.lock().unwrap_or_else(|e| e.into_inner());
+        let removed_keys: Vec<_> = states.keys().filter(|(document, pane)| {
+            document == document_id && (last_view || pane == pane_id)
+        }).cloned().collect();
+        if last_view {
+            for key in &removed_keys {
+                if let Some(state) = states.get(key) {
+                    state.lock().unwrap_or_else(|e| e.into_inner()).document_owner().invalidate();
+                }
+            }
+        }
+        for key in &removed_keys {
+            if let Some(state) = states.remove(key) {
+                let mut state = state.lock().unwrap_or_else(|e| e.into_inner());
+                if let Some((registry, handle)) = state.editor_actions.take() {
+                    registry.lock().unwrap_or_else(|e| e.into_inner()).remove_registration(&handle);
+                }
+            }
+        }
+        let mut incarnations = self.view_incarnations.lock().unwrap_or_else(|e| e.into_inner());
+        let mut ready = self.ready_views.lock().unwrap_or_else(|e| e.into_inner());
+        for key in removed_keys {
+            incarnations.remove(&key);
+            ready.remove(&key);
+        }
+        if last_view {
+            self.document_authority_views.lock().unwrap_or_else(|e| e.into_inner()).remove(document_id);
+        }
+        let mut active = self.active_view.lock().unwrap_or_else(|e| e.into_inner());
+        if active.as_ref().is_some_and(|(document, pane)| document == document_id && (last_view || pane == pane_id)) {
+            *active = None;
+        }
+    }
+
     /// Bind the document cache to one workspace. A workspace switch retires every file-backed state
     /// and resets the base/untitled state while preserving operator-global presentation/input prefs and
     /// the shared action registry. This prevents identical document ids in two workspaces from sharing
@@ -835,6 +980,9 @@ impl RichEditorDocumentStore {
             .unwrap_or_else(|e| e.into_inner())
             .clone();
         let mut states = self.states.lock().unwrap_or_else(|e| e.into_inner());
+        for state in states.values() {
+            state.lock().unwrap_or_else(|e| e.into_inner()).document_owner().invalidate();
+        }
         if let Some(registry) = registry.as_ref() {
             let mut registry = registry.lock().unwrap_or_else(|e| e.into_inner());
             for state in states.values() {
@@ -849,6 +997,7 @@ impl RichEditorDocumentStore {
             }
         }
         states.clear();
+        self.view_incarnations.lock().unwrap_or_else(|e| e.into_inner()).clear();
         self.document_authority_views
             .lock()
             .unwrap_or_else(|e| e.into_inner())
@@ -864,6 +1013,7 @@ impl RichEditorDocumentStore {
         *self.active_view.lock().unwrap_or_else(|e| e.into_inner()) = None;
 
         let mut base = self.base_state.lock().unwrap_or_else(|e| e.into_inner());
+        base.document_owner().invalidate();
         let theme = base.theme;
         let editor_font_size = base.editor_font_size;
         let rich_keymap = base.rich_keymap.clone();
@@ -1479,6 +1629,14 @@ impl PaneFactory for CodeEditorPaneMount {
     }
 }
 
+#[derive(PartialEq, Eq)]
+struct RichEditorMountBinding {
+    workspace_id: String,
+    runtime_id: tokio::runtime::Id,
+    backend_base_url: String,
+    document_incarnation: Option<uuid::Uuid>,
+}
+
 /// The session-threaded RICH-text pane factory. Registered over `PaneType::LoomWikiPage` (the Notes /
 /// Obsidian-class wiki surface the WP-011 shell routes the rich editor to — NOT a new `PaneType`
 /// variant; RISK-079-5). Wraps the existing [`RichEditorPaneFactory`] (the real per-frame bus-consumer +
@@ -1501,7 +1659,7 @@ pub struct RichEditorPaneMount {
     /// Last workspace/runtime identity applied to the rich editor. The shell may replace the shared
     /// session when switching projects; a one-shot boolean would leave embeds, wikilinks, and code-ref
     /// resolution permanently bound to the prior workspace.
-    applied_sessions: Mutex<BTreeMap<String, (String, tokio::runtime::Id)>>,
+    applied_sessions: Mutex<BTreeMap<(String, uuid::Uuid), RichEditorMountBinding>>,
 }
 
 impl RichEditorPaneMount {
@@ -1560,22 +1718,35 @@ impl RichEditorPaneMount {
     /// runtime) so a half-built context never installs a misleading wired state. Calls the prior-MT
     /// hooks `set_embed_context` (MT-014) + `set_wikilink_context` (MT-057) — REUSE, not re-implement.
     pub fn wire_if_needed(&self) {
-        self.wire_state_if_needed(&self.documents.base_state(), &self.base_document_id);
+        self.wire_state_if_needed(
+            &self.documents.base_state(),
+            &self.base_document_id,
+            self.documents.base_view_incarnation,
+        );
     }
 
-    fn wire_state_if_needed(&self, state: &Arc<Mutex<RichEditorState>>, document_id: &str) {
+    fn wire_state_if_needed(&self, state: &Arc<Mutex<RichEditorState>>, document_id: &str, view_incarnation: uuid::Uuid) {
         use std::sync::atomic::Ordering;
         let ctx = self.session.lock().map(|c| c.clone()).unwrap_or_default();
         if !ctx.is_bound() {
             return;
         }
         let Some(runtime) = ctx.runtime else { return };
-        let identity = (ctx.workspace_id.clone(), runtime.id());
-        let state_key = if document_id.trim().is_empty() {
+        let incarnation = state.lock().ok()
+            .and_then(|state| state.document_owner().current_context().ok())
+            .map(|context| context.document_incarnation);
+        let identity = RichEditorMountBinding {
+            workspace_id: ctx.workspace_id.clone(),
+            runtime_id: runtime.id(),
+            backend_base_url: ctx.backend_base_url.clone(),
+            document_incarnation: incarnation,
+        };
+        let document_key = if document_id.trim().is_empty() {
             String::new()
         } else {
             document_id.to_owned()
         };
+        let state_key = (document_key, view_incarnation);
         let already_applied = self
             .applied_sessions
             .lock()
@@ -1645,7 +1816,16 @@ impl PaneFactory for RichEditorPaneMount {
             )
         };
         let document_id = content_id.unwrap_or(&self.base_document_id);
-        self.wire_state_if_needed(&state, document_id);
+        let view_incarnation = if let Some(document_id) = content_id {
+            let Some(incarnation) = self.documents.view_incarnations.lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .get(&(document_id.to_owned(), pane_id.to_owned())).copied()
+            else { return };
+            incarnation
+        } else {
+            self.documents.base_view_incarnation
+        };
+        self.wire_state_if_needed(&state, document_id, view_incarnation);
         // MT-042: the shell has already opened the exact rich-document identity as soon as the tab is
         // inserted. Publish that authoritative target immediately instead of waiting for the async body
         // load to construct SaveManager. The widget reuses this same node id once loading completes.
@@ -3473,6 +3653,13 @@ mod tests {
 
         struct NoopSave;
         impl SaveBackend for NoopSave {
+            fn load_document(
+                &self,
+                _document_id: &str,
+            ) -> crate::rich_editor::save::save_manager::RecoveryLoadFuture {
+                Box::pin(async { Err(SaveError::Network("recovery load not staged".to_owned())) })
+            }
+
             fn save_document(
                 &self,
                 _document_id: &str,
@@ -3531,11 +3718,13 @@ mod tests {
         let target = store.state_for_view(Some("doc-1"), "pane-b");
         {
             let mut authority = authority.lock().unwrap();
-            authority.doc = BlockNode::doc(vec![BlockNode::paragraph("abcdef")]);
+            { let owner = authority.document_owner(); owner.edit(owner.current_context().expect("live editor context"), |document, _history| { *document = BlockNode::doc(vec![BlockNode::paragraph("abcdef")]); Ok::<_, std::convert::Infallible>(()) }).expect("fixture edit commits"); }
             authority.selection = Selection::caret(DocPosition::new(vec![0, 0], 1));
             let content =
-                crate::rich_editor::document_model::doc_json::to_content_json_value(&authority.doc);
+                crate::rich_editor::document_model::doc_json::to_content_json_value(&authority.document_owner().document_snapshot().expect("live editor document"));
+            authority.document_owner().bind_context("workspace-1", "doc-1", crate::backend_client::BACKEND_BASE_URL, None, None).expect("fixture owner binding");
             authority.save = Some(SaveManager::new(Arc::new(NoopSave), None, "doc-1", 42));
+            authority.document_owner().with_save_gate(|gate| assert!(authority.save.as_mut().unwrap().bind_owner(gate), "fixture save owner binding"));
             authority.draft = Some(DraftManager::new(
                 Arc::new(NoopDraft),
                 None,
@@ -3611,7 +3800,8 @@ mod tests {
                 .map(|pending| pending.receipt.event_id.as_str()),
             Some(event_id.as_str())
         );
-        let Child::Block(paragraph) = &canonical.doc.children[0] else {
+        let document = canonical.document_owner().document_snapshot().expect("live editor document");
+        let Child::Block(paragraph) = &document.children[0] else {
             panic!("expected paragraph block");
         };
         let children = &paragraph.children;
@@ -3717,6 +3907,13 @@ mod tests {
 
         struct NoopSave;
         impl SaveBackend for NoopSave {
+            fn load_document(
+                &self,
+                _document_id: &str,
+            ) -> crate::rich_editor::save::save_manager::RecoveryLoadFuture {
+                Box::pin(async { Err(SaveError::Network("recovery load not staged".to_owned())) })
+            }
+
             fn save_document(
                 &self,
                 _document_id: &str,
@@ -3737,12 +3934,14 @@ mod tests {
         let state = store.state_for_view(Some("KRD-1"), "pane-a");
         {
             let mut state = state.lock().unwrap();
-            state.doc = BlockNode::doc(vec![code("first"), code("second")]);
+            { let owner = state.document_owner(); owner.edit(owner.current_context().expect("live editor context"), |document, _history| { *document = BlockNode::doc(vec![code("first"), code("second")]); Ok::<_, std::convert::Infallible>(()) }).expect("fixture edit commits"); }
+            state.document_owner().bind_context("test-workspace", "KRD-1", crate::backend_client::BACKEND_BASE_URL, None, None).expect("fixture owner binding");
             state.save = Some(SaveManager::new(Arc::new(NoopSave), None, "KRD-1", 7));
+            state.document_owner().with_save_gate(|gate| assert!(state.save.as_mut().unwrap().bind_owner(gate), "fixture save owner binding"));
         }
         let opened_document_snapshot = {
             let state = state.lock().unwrap();
-            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc)
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.document_owner().document_snapshot().expect("live editor document"))
         };
 
         let stale = store
@@ -3770,7 +3969,7 @@ mod tests {
 
         let state = state.lock().unwrap();
         let text_at = |index: usize| {
-            state.doc.children[index].as_block().unwrap().children[0]
+            state.document_owner().document_snapshot().expect("live editor document").children[index].as_block().unwrap().children[0]
                 .as_text()
                 .unwrap()
                 .text
@@ -3780,7 +3979,7 @@ mod tests {
         assert_eq!(text_at(1), "agent exact code");
         assert_eq!(
             post_edit_snapshot,
-            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc)
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.document_owner().document_snapshot().expect("live editor document"))
         );
         assert_eq!(state.pending_bus_undo.len(), 1);
         assert!(matches!(
@@ -3800,6 +3999,13 @@ mod tests {
 
         struct NoopSave;
         impl SaveBackend for NoopSave {
+            fn load_document(
+                &self,
+                _document_id: &str,
+            ) -> crate::rich_editor::save::save_manager::RecoveryLoadFuture {
+                Box::pin(async { Err(SaveError::Network("recovery load not staged".to_owned())) })
+            }
+
             fn save_document(
                 &self,
                 _document_id: &str,
@@ -3823,22 +4029,23 @@ mod tests {
         let state = store.state_for_view(Some("KRD-DRIFT"), "pane-a");
         let opened_document_snapshot = {
             let mut state = state.lock().unwrap();
-            state.doc = BlockNode::doc(vec![code(), code()]);
+            { let owner = state.document_owner(); owner.edit(owner.current_context().expect("live editor context"), |document, _history| { *document = BlockNode::doc(vec![code(), code()]); Ok::<_, std::convert::Infallible>(()) }).expect("fixture edit commits"); }
+            state.document_owner().bind_context("test-workspace", "KRD-DRIFT", crate::backend_client::BACKEND_BASE_URL, None, None).expect("fixture owner binding");
             state.save = Some(SaveManager::new(Arc::new(NoopSave), None, "KRD-DRIFT", 3));
-            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc)
+            state.document_owner().with_save_gate(|gate| assert!(state.save.as_mut().unwrap().bind_owner(gate), "fixture save owner binding"));
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.document_owner().document_snapshot().expect("live editor document"))
         };
 
         // Insert another identical block before the bound path. Text-only validation would now
         // silently update the wrong occurrence at [1]; whole-document structural validation rejects.
-        state
-            .lock()
-            .unwrap()
-            .doc
-            .children
-            .insert(0, Child::Block(code()));
+        let owner = state.lock().unwrap().document_owner();
+        owner.edit(owner.current_context().expect("live editor context"), |document, _history| {
+            document.children.insert(0, Child::Block(code()));
+            Ok::<_, std::convert::Infallible>(())
+        }).expect("fixture edit commits");
         let before_attempt = {
             let state = state.lock().unwrap();
-            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc)
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.document_owner().document_snapshot().expect("live editor document"))
         };
         let error = store
             .replace_code_block_and_request_save(
@@ -3852,7 +4059,7 @@ mod tests {
         assert!(error.contains("changed structurally"));
         let state = state.lock().unwrap();
         assert_eq!(
-            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc),
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.document_owner().document_snapshot().expect("live editor document")),
             before_attempt,
             "drift rejection must not mutate any identical block"
         );
@@ -3921,8 +4128,8 @@ mod tests {
         assert!(!Arc::ptr_eq(&first, &second));
         assert!(!Arc::ptr_eq(&first, &base));
 
-        first.lock().unwrap().doc = BlockNode::doc(vec![BlockNode::paragraph("first edit")]);
-        second.lock().unwrap().doc = BlockNode::doc(vec![BlockNode::paragraph("second edit")]);
+        { let owner = first.lock().unwrap().document_owner(); owner.edit(owner.current_context().expect("live editor context"), |document, _history| { *document = BlockNode::doc(vec![BlockNode::paragraph("first edit")]); Ok::<_, std::convert::Infallible>(()) }).expect("fixture edit commits"); }
+        { let owner = second.lock().unwrap().document_owner(); owner.edit(owner.current_context().expect("live editor context"), |document, _history| { *document = BlockNode::doc(vec![BlockNode::paragraph("second edit")]); Ok::<_, std::convert::Infallible>(()) }).expect("fixture edit commits"); }
 
         assert_eq!(
             store

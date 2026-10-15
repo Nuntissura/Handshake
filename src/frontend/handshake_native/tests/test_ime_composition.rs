@@ -85,7 +85,7 @@ fn hi_state() -> Arc<Mutex<RichEditorState>> {
 /// The leaf text of the first paragraph (the rope content under test).
 fn leaf_text(state: &Arc<Mutex<RichEditorState>>) -> String {
     let st = state.lock().unwrap();
-    st.doc.children[0].as_block().unwrap().children[0]
+    st.document_snapshot().unwrap().children[0].as_block().unwrap().children[0]
         .as_text()
         .unwrap()
         .text

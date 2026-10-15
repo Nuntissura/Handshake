@@ -1852,6 +1852,13 @@ struct SaveSpy {
 }
 
 impl SaveBackend for SaveSpy {
+    fn load_document(
+        &self,
+        _document_id: &str,
+    ) -> handshake_native::rich_editor::save::save_manager::RecoveryLoadFuture {
+        Box::pin(async { Err(SaveError::Network("recovery load not staged".to_owned())) })
+    }
+
     fn save_document(
         &self,
         document_id: &str,
@@ -2059,7 +2066,7 @@ fn swarm_edit_proof_all_steps() {
     );
     // Confirm the starting doc is a plain paragraph (so the heading below is provably agent-produced).
     assert_eq!(
-        state.lock().unwrap().doc.children.first().and_then(|c| c.as_block()).map(|b| b.kind),
+        state.lock().unwrap().document_owner().document_snapshot().expect("live editor document").children.first().and_then(|c| c.as_block()).map(|b| b.kind),
         Some(NodeKind::Paragraph),
         "STEP1 precondition: the doc starts as a single paragraph (the heading is agent-produced, not test-authored)"
     );
@@ -2075,7 +2082,7 @@ fn swarm_edit_proof_all_steps() {
         Duration::from_secs(5),
         |_| {
             let st = state.lock().unwrap();
-            st.doc.children.iter().any(|c| {
+            st.document_owner().document_snapshot().expect("live editor document").children.iter().any(|c| {
                 c.as_block()
                     .is_some_and(|b| matches!(b.kind, NodeKind::Heading(_)))
             })
@@ -2316,7 +2323,7 @@ fn swarm_edit_proof_all_steps() {
             rich_harness.run();
             let s = rich_state.lock().unwrap();
             let ok = s
-                .doc
+                .document_owner().document_snapshot().expect("live editor document")
                 .children
                 .first()
                 .and_then(Child::as_block)
@@ -2335,8 +2342,9 @@ fn swarm_edit_proof_all_steps() {
             "STEP3/AC-043-04: the swarm SetValue authored the backlink target within the frame budget"
         );
         let s = rich_state.lock().unwrap();
-        let link = s
-            .doc
+        let document = s.document_owner().document_snapshot().expect("live editor document");
+
+        let link = document
             .children
             .first()
             .and_then(Child::as_block)
@@ -3015,7 +3023,7 @@ fn run_swarm_edit_live_conflict_merge_search_and_receipts() {
     {
         let losing_state = mounted_rich_b.lock().expect("crashing actor rich state");
         assert_eq!(
-            count_json_strings_containing(&to_content_json_value(&losing_state.doc), &losing_text),
+            count_json_strings_containing(&to_content_json_value(&losing_state.document_owner().document_snapshot().expect("live editor document")), &losing_text),
             1,
             "crashing process agent's acknowledged edit is mounted before termination"
         );
@@ -3176,7 +3184,7 @@ fn run_swarm_edit_live_conflict_merge_search_and_receipts() {
         assert_eq!(save.doc_version, conflict_server_version);
         assert!(matches!(&save.state, SaveState::Idle));
         assert_eq!(
-            count_exact_json_strings(&to_content_json_value(&losing_state.doc), &code),
+            count_exact_json_strings(&to_content_json_value(&losing_state.document_owner().document_snapshot().expect("live editor document")), &code),
             1,
             "refetched winner content is mounted before merge"
         );
@@ -3202,7 +3210,7 @@ fn run_swarm_edit_live_conflict_merge_search_and_receipts() {
     );
     {
         let losing_state = mounted_rich_b.lock().expect("loser merged rich state");
-        let merged = to_content_json_value(&losing_state.doc);
+        let merged = to_content_json_value(&losing_state.document_owner().document_snapshot().expect("live editor document"));
         assert_eq!(
             count_json_strings_containing(&merged, &losing_text),
             1,

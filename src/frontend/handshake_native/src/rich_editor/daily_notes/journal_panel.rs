@@ -250,7 +250,7 @@ impl JournalPanelState {
             .and_then(|v| crate::rich_editor::document_model::doc_json::from_json_value(v).ok())
             .unwrap_or_else(|| BlockNode::doc(vec![BlockNode::paragraph("")]));
         if let Ok(mut editor) = self.editor.lock() {
-            editor.doc = block_doc;
+            editor.open_document_owner(block_doc);
             editor.selection = Selection::caret(DocPosition::new(vec![0, 0], 0));
         }
         self.loaded_doc_id = Some(doc.rich_document_id.clone());
@@ -932,8 +932,8 @@ mod tests {
         assert!(!p.auto_save.dirty);
         // Simulate the editor's input handler having applied a keystroke: mutate the editor doc.
         {
-            let mut editor = p.editor.lock().unwrap();
-            editor.doc = BlockNode::doc(vec![BlockNode::paragraph("start typed more")]);
+            let editor = p.editor.lock().unwrap();
+            { let owner = editor.document_owner(); owner.edit(owner.current_context().expect("live editor context"), |document, _history| { *document = BlockNode::doc(vec![BlockNode::paragraph("start typed more")]); Ok::<_, std::convert::Infallible>(()) }).expect("fixture edit commits"); }
         }
         // Next frame: the fingerprint changed → a genuine edit is detected.
         let _ = p.detect_edits_and_tick();
@@ -953,8 +953,8 @@ mod tests {
         let mut p = ready_panel_with_doc(date);
         let _ = p.detect_edits_and_tick(); // anchor
         {
-            let mut editor = p.editor.lock().unwrap();
-            editor.doc = BlockNode::doc(vec![BlockNode::paragraph("edited body")]);
+            let editor = p.editor.lock().unwrap();
+            { let owner = editor.document_owner(); owner.edit(owner.current_context().expect("live editor context"), |document, _history| { *document = BlockNode::doc(vec![BlockNode::paragraph("edited body")]); Ok::<_, std::convert::Infallible>(()) }).expect("fixture edit commits"); }
         }
         let _ = p.detect_edits_and_tick(); // detects the edit → dirty
         assert!(p.auto_save.dirty);

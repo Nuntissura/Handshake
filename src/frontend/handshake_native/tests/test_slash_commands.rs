@@ -596,7 +596,8 @@ fn embed_prompt_confirm_inserts_embed_atom() {
         st.slash_menu.is_none(),
         "AC-9: confirming the prompt closes the slash surface"
     );
-    let para = st.doc.children[0].as_block().unwrap();
+    let document = st.document_snapshot().unwrap();
+    let para = document.children[0].as_block().unwrap();
     let atom = para
         .children
         .iter()
@@ -741,7 +742,7 @@ fn save_screenshot(harness: &mut Harness<()>, file: &str, label: &str) {
 /// The concatenated plain text of the text leaves in the block at `idx`.
 fn block_plain_text(state: &Arc<Mutex<RichEditorState>>, idx: usize) -> String {
     let st = state.lock().unwrap();
-    st.doc.children[idx]
+    st.document_snapshot().unwrap().children[idx]
         .as_block()
         .map(|b| {
             b.children
@@ -774,7 +775,7 @@ fn mt020_state(pane: &str) -> Arc<Mutex<RichEditorState>> {
 
 fn pre_insert_json(state: &Arc<Mutex<RichEditorState>>) -> serde_json::Value {
     let st = state.lock().unwrap();
-    handshake_native::rich_editor::document_model::doc_json::to_content_json_value(&st.doc)
+    handshake_native::rich_editor::document_model::doc_json::to_content_json_value(&st.document_snapshot().unwrap())
 }
 
 fn assert_undo_restores(
@@ -790,7 +791,8 @@ fn assert_undo_restores(
     harness.step();
     harness.step();
     let st = state.lock().unwrap();
-    let para = st.doc.children[0].as_block().unwrap();
+    let document = st.document_snapshot().unwrap();
+    let para = document.children[0].as_block().unwrap();
     assert!(
         para.children
             .iter()
@@ -798,7 +800,7 @@ fn assert_undo_restores(
         "MT-020 ({label}): Ctrl+Z removed the inserted atom"
     );
     let now =
-        handshake_native::rich_editor::document_model::doc_json::to_content_json_value(&st.doc);
+        handshake_native::rich_editor::document_model::doc_json::to_content_json_value(&st.document_snapshot().unwrap());
     assert_eq!(
         &now, before,
         "MT-020 ({label}): undo restored the EXACT pre-insert doc"
@@ -828,7 +830,8 @@ fn mt020_live_embed_prompt_confirm_undo_restores_pre_insert_doc() {
     harness.step();
     {
         let st = state.lock().unwrap();
-        let para = st.doc.children[0].as_block().unwrap();
+        let document = st.document_snapshot().unwrap();
+        let para = document.children[0].as_block().unwrap();
         let atom = para
             .children
             .iter()
@@ -860,7 +863,8 @@ fn mt020_live_transclusion_prompt_confirm_undo_restores_pre_insert_doc() {
     harness.step();
     {
         let st = state.lock().unwrap();
-        let para = st.doc.children[0].as_block().unwrap();
+        let document = st.document_snapshot().unwrap();
+        let para = document.children[0].as_block().unwrap();
         let atom = para
             .children
             .iter()
@@ -914,7 +918,8 @@ fn mt020_live_code_ref_select_undo_restores_pre_insert_doc() {
             st.code_symbol_search.is_none(),
             "selecting a symbol closes the dialog"
         );
-        let para = st.doc.children[0].as_block().unwrap();
+        let document = st.document_snapshot().unwrap();
+        let para = document.children[0].as_block().unwrap();
         let atom = para
             .children
             .iter()
@@ -953,7 +958,8 @@ fn mt036_mounted_embed_producer_is_canonical_exactly_once_and_zero_on_non_insert
     drain_recording_emitter(&runtime);
     {
         let st = state.lock().unwrap();
-        let atom = st.doc.children[0]
+        let document = st.document_snapshot().unwrap();
+        let atom = document.children[0]
             .as_block()
             .unwrap()
             .children
@@ -1132,12 +1138,12 @@ fn mt035_live_slash_divider_bus_undo_restores_exact_doc() {
         let st = state.lock().unwrap();
         assert!(st.slash_menu.is_none(), "a Done outcome closes the menu");
         assert_eq!(
-            st.doc.children.len(),
+            st.document_snapshot().unwrap().children.len(),
             2,
             "the divider inserted a new block after the trigger paragraph"
         );
         assert_eq!(
-            st.doc.children[1].as_block().unwrap().kind,
+            st.document_snapshot().unwrap().children[1].as_block().unwrap().kind,
             NodeKind::HorizontalRule,
             "the inserted block is the horizontal rule (/divider)"
         );
@@ -1164,12 +1170,12 @@ fn mt035_live_slash_divider_bus_undo_restores_exact_doc() {
     {
         let st = state.lock().unwrap();
         assert_eq!(
-            st.doc.children.len(),
+            st.document_snapshot().unwrap().children.len(),
             1,
             "Ctrl+Z removed the inserted divider block"
         );
         let now =
-            handshake_native::rich_editor::document_model::doc_json::to_content_json_value(&st.doc);
+            handshake_native::rich_editor::document_model::doc_json::to_content_json_value(&st.document_snapshot().unwrap());
         assert_eq!(
             now, before,
             "bus undo restored the EXACT pre-execution doc (`/divider` trigger text included)"
@@ -1245,7 +1251,8 @@ fn mt035_in_window_atom_confirms_coalesce_into_one_bus_undo_entry() {
     // Both atoms are in the doc...
     {
         let st = state.lock().unwrap();
-        let para = st.doc.children[0].as_block().unwrap();
+        let document = st.document_snapshot().unwrap();
+        let para = document.children[0].as_block().unwrap();
         let refs: Vec<String> = para
             .children
             .iter()
@@ -1274,13 +1281,14 @@ fn mt035_in_window_atom_confirms_coalesce_into_one_bus_undo_entry() {
     harness.step();
     {
         let st = state.lock().unwrap();
-        let para = st.doc.children[0].as_block().unwrap();
+        let document = st.document_snapshot().unwrap();
+        let para = document.children[0].as_block().unwrap();
         assert!(
             para.children.iter().all(|c| c.as_hs_link().is_none()),
             "one undo removed BOTH in-window confirmed atoms (batch-start restore)"
         );
         let now =
-            handshake_native::rich_editor::document_model::doc_json::to_content_json_value(&st.doc);
+            handshake_native::rich_editor::document_model::doc_json::to_content_json_value(&st.document_snapshot().unwrap());
         assert_eq!(
             now, before,
             "the coalesced undo restored the EXACT batch-start doc"

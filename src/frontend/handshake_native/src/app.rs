@@ -4657,6 +4657,7 @@ type RichDocumentLoadResult = (
     String,
     String,
     String,
+    crate::rich_editor::document_owner::RichDocumentLoadToken,
     Result<backend_client::RichDocBody, String>,
 );
 
@@ -15722,9 +15723,22 @@ impl HandshakeApp {
                     }
                 });
                 let doc_version = active_doc_version.unwrap_or(0);
-                let base_content =
-                    crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
-                state.save = Some(crate::rich_editor::save::save_manager::SaveManager::new(
+                let Ok(base_content) = state.with_document(
+                    crate::rich_editor::document_model::doc_json::to_content_json_value,
+                ) else {
+                    return false;
+                };
+                let owner = state.document_owner();
+                if owner.bind_context(
+                    &self.active_project_id,
+                    &doc_id,
+                    &self.rich_doc_base_url,
+                    Some(&rt),
+                    self.local_account.context.clone(),
+                ).is_err() {
+                    return false;
+                }
+                let mut save = crate::rich_editor::save::save_manager::SaveManager::new(
                     Arc::new(
                         crate::backend_client::RichDocSaveBackend::new_with_actor(
                             self.rich_doc_base_url.clone(),
@@ -15735,7 +15749,8 @@ impl HandshakeApp {
                     Some(rt.clone()),
                     doc_id.clone(),
                     doc_version,
-                ));
+                );
+                save.set_workspace_id(self.active_project_id.clone());
                 let mut draft = crate::rich_editor::save::draft_manager::DraftManager::new(
                     Arc::new(
                         crate::backend_client::RichDocDraftBackend::new(
@@ -15748,8 +15763,19 @@ impl HandshakeApp {
                     doc_version,
                     &base_content,
                 );
-                draft.check_on_mount();
-                state.draft = Some(draft);
+                let admitted = owner.with_save_gate(|gate| {
+                    if !save.bind_owner(gate) || !draft.bind_owner(gate) {
+                        return None;
+                    }
+                    let mount_load = draft.prepare_check_on_mount(gate);
+                    state.save = Some(save);
+                    state.draft = Some(draft);
+                    Some(mount_load)
+                });
+                let Some(mount_load) = admitted else { return false };
+                if let Some(attempt) = mount_load {
+                    crate::rich_editor::save::draft_manager::DraftManager::launch_mount_load(attempt);
+                }
             } else {
                 // No runtime bound (headless current-thread shell): the save path is not wireable this run.
                 tracing::debug!("editor Save: no runtime bound; MT-020 save context not installed");
@@ -16245,7 +16271,9 @@ impl HandshakeApp {
                     .ok()
                     .and_then(|state| match &state.selection {
                         crate::rich_editor::document_model::Selection::Text { head, .. } => Some(
-                            crate::rich_editor::document_model::absolute_offset(&state.doc, head),
+                            state.with_document(|document| {
+                                crate::rich_editor::document_model::absolute_offset(document, head)
+                            }).ok()?,
                         ),
                         crate::rich_editor::document_model::Selection::Node { .. } => None,
                     })
@@ -16322,8 +16350,11 @@ impl HandshakeApp {
         // No wired asset resolver on this path (same as the picker path): HTML reference-linked media
         // URLs are built from the backend base; self-contained is not offered by the menu items.
         let assets = AssetByteSource::new();
+        let Ok(document) = state.with_document(Clone::clone) else {
+            return false;
+        };
         match export_document(
-            &state.doc,
+            &document,
             format,
             &workspace_id,
             crate::backend_client::BACKEND_BASE_URL,
@@ -16487,28 +16518,8 @@ impl HandshakeApp {
         self.editor_mounts
             .rich_documents
             .mark_view_loading(document_id, pane_id);
-        if !self
-            .editor_mounts
-            .rich_documents
-            .has_other_ready_view(document_id, pane_id)
-        {
-            let rich_state = self
-                .editor_mounts
-                .rich_documents
-                .canonical_state_for_document(document_id)
-                .unwrap_or_else(|| {
-                    self.editor_mounts
-                        .rich_documents
-                        .state_for_view(Some(document_id), pane_id)
-                });
-            if let Ok(mut state) = rich_state.lock() {
-                state.save = None;
-                state.draft = None;
-                state.clear_properties_context();
-            };
-        }
         if let Ok(mut slot) = self.rich_doc_load_cell.lock() {
-            slot.retain(|(_, _, queued_pane_id, queued_document_id, _)| {
+            slot.retain(|(_, _, queued_pane_id, queued_document_id, _, _)| {
                 queued_pane_id != pane_id || queued_document_id != document_id
             });
         }
@@ -16624,7 +16635,7 @@ impl HandshakeApp {
             .unwrap_or_default();
         if !delivered.is_empty() {
             let mut did_update = false;
-            for (generation, workspace_id, pane_id, document_id, result) in delivered {
+            for (generation, workspace_id, pane_id, document_id, token, result) in delivered {
                 let view_key = (pane_id.clone(), document_id.clone());
                 let is_current_delivery = self.rich_doc_loads.get(&view_key).is_some_and(|load| {
                     load.loading_generation == Some(generation)
@@ -16634,26 +16645,20 @@ impl HandshakeApp {
                 if !is_current_delivery {
                     continue;
                 }
-                if let Some(load) = self.rich_doc_loads.get_mut(&view_key) {
-                    load.loading_generation = None;
-                }
                 match result {
                     Ok(doc) if doc.document_id != document_id => {
-                        let load = self.rich_doc_loads.entry(view_key.clone()).or_default();
-                        load.completed_generation = None;
-                        load.loaded_version = None;
-                        load.failure = Some(RichDocumentLoadFailure {
-                            generation,
-                            document_id: document_id.clone(),
-                            message: format!(
-                                "Notes document load rejected: requested {document_id}, backend returned {}.",
-                                doc.document_id
-                            ),
-                        });
-                        did_update = true;
+                        let message = format!(
+                            "Notes document load rejected: requested {document_id}, backend returned {}.",
+                            doc.document_id,
+                        );
+                        match self.admit_rich_document_load_failure(token, workspace_id, message) {
+                            Ok(admitted) => did_update |= admitted,
+                            Err(message) => tracing::warn!(%message, "Notes load failure admission rejected"),
+                        }
                     }
-                    Ok(doc) => match self.apply_loaded_rich_document_to_view(doc, &pane_id) {
-                        Ok(()) => {
+                    Ok(doc) => match self.apply_loaded_rich_document_to_view_with_token(doc, &pane_id, token) {
+                        Ok(false) => continue,
+                        Ok(true) => {
                             if let Some(load) = self.rich_doc_loads.get_mut(&view_key) {
                                 load.failure = None;
                                 load.completed_generation = Some(generation);
@@ -16661,27 +16666,15 @@ impl HandshakeApp {
                             did_update = true;
                         }
                         Err(message) => {
-                            let load = self.rich_doc_loads.entry(view_key.clone()).or_default();
-                            load.completed_generation = None;
-                            load.loaded_version = None;
-                            load.failure = Some(RichDocumentLoadFailure {
-                                generation,
-                                document_id: document_id.clone(),
-                                message,
-                            });
+                            tracing::warn!(%message, "Notes document load failed after fenced admission");
                             did_update = true;
                         }
                     },
                     Err(message) => {
-                        let load = self.rich_doc_loads.entry(view_key).or_default();
-                        load.completed_generation = None;
-                        load.loaded_version = None;
-                        load.failure = Some(RichDocumentLoadFailure {
-                            generation,
-                            document_id: document_id.clone(),
-                            message,
-                        });
-                        did_update = true;
+                        match self.admit_rich_document_load_failure(token, workspace_id, message) {
+                            Ok(admitted) => did_update |= admitted,
+                            Err(message) => tracing::warn!(%message, "Notes load failure admission rejected"),
+                        }
                     }
                 }
             }
@@ -16764,6 +16757,19 @@ impl HandshakeApp {
         {
             self.mt042_graph_open_completion.rich_load_generation = Some(load_generation);
         }
+        let token = match self.begin_rich_document_view_load(&document_id, &pane_id, load_generation) {
+            Ok(token) => token,
+            Err(message) => {
+                let load = self.rich_doc_loads.entry((pane_id.clone(), document_id.clone())).or_default();
+                load.loading_generation = None;
+                load.failure = Some(RichDocumentLoadFailure {
+                    generation: load_generation,
+                    document_id,
+                    message,
+                });
+                return;
+            }
+        };
         let base_url = self.rich_doc_base_url.clone();
         let workspace_id = self.active_project_id.clone();
         let cell = Arc::clone(&self.rich_doc_load_cell);
@@ -16778,7 +16784,7 @@ impl HandshakeApp {
                 .await
                 .map_err(|e| e.to_string());
             if let Ok(mut slot) = cell.lock() {
-                slot.push_back((load_generation, workspace_id, pane_id, document_id, loaded));
+                slot.push_back((load_generation, workspace_id, pane_id, document_id, token, loaded));
             }
             repaint.request_repaint();
         });
@@ -16843,210 +16849,174 @@ impl HandshakeApp {
         self.apply_loaded_rich_document_to_view(doc, &pane_id)
     }
 
+    fn admit_rich_document_load_failure(
+        &mut self,
+        token: crate::rich_editor::document_owner::RichDocumentLoadToken,
+        workspace_id: String,
+        message: String,
+    ) -> Result<bool, String> {
+        let generation = token.dispatch_generation();
+        let document_id = token.document_id().to_owned();
+        let view_key = (token.pane_id().to_owned(), document_id.clone());
+        let loads = &mut self.rich_doc_loads;
+        self.editor_mounts.rich_documents.try_admit_load_failure(token, |_state, _gate| {
+            let load = loads.entry(view_key).or_default();
+            load.workspace_id = workspace_id;
+            load.loading_generation = None;
+            load.completed_generation = None;
+            load.loaded_version = None;
+            load.failure = Some(RichDocumentLoadFailure { generation, document_id, message });
+        }).map(|admitted| admitted.is_some()).map_err(|error| error.to_string())
+    }
+
+    fn begin_rich_document_view_load(
+        &self,
+        document_id: &str,
+        pane_id: &str,
+        generation: u64,
+    ) -> Result<crate::rich_editor::document_owner::RichDocumentLoadToken, String> {
+        let state = self.editor_mounts.rich_documents.state_for_view(Some(document_id), pane_id);
+        let owner = {
+            let mut state = state.lock().map_err(|error| error.to_string())?;
+            state.bind_authenticated_context(self.local_account.context.clone(), &self.rich_doc_base_url);
+            state.document_owner()
+        };
+        owner.bind_context(
+            &self.active_project_id,
+            document_id,
+            &self.rich_doc_base_url,
+            self.runtime_handle.as_ref(),
+            self.local_account.context.clone(),
+        ).map_err(|error| error.to_string())?;
+        self.editor_mounts.rich_documents.begin_load(document_id, pane_id, generation)
+            .ok_or_else(|| "Notes document load rejected: owner or view is no longer current.".to_owned())
+    }
+
     fn apply_loaded_rich_document_to_view(
         &mut self,
         doc: backend_client::RichDocBody,
         pane_id: &str,
     ) -> Result<(), String> {
-        let runtime = self
-            .runtime_handle
-            .clone()
-            .ok_or_else(|| "Notes document load blocked: no runtime handle is bound.".to_owned())?;
+        self.rich_doc_load_generation = self.rich_doc_load_generation.wrapping_add(1);
+        let token = self.begin_rich_document_view_load(&doc.document_id, pane_id, self.rich_doc_load_generation)?;
+        match self.apply_loaded_rich_document_to_view_with_token(doc, pane_id, token)? {
+            true => Ok(()),
+            false => Err("Notes document load rejected: stale owner or view.".to_owned()),
+        }
+    }
+
+    fn apply_loaded_rich_document_to_view_with_token(
+        &mut self,
+        doc: backend_client::RichDocBody,
+        pane_id: &str,
+        token: crate::rich_editor::document_owner::RichDocumentLoadToken,
+    ) -> Result<bool, String> {
+        let runtime = match self.runtime_handle.clone() {
+            Some(runtime) => runtime,
+            None => {
+                let message = "Notes document load blocked: no runtime handle is bound.".to_owned();
+                return match self.admit_rich_document_load_failure(token, self.active_project_id.clone(), message.clone())? {
+                    true => Err(message),
+                    false => Ok(false),
+                };
+            }
+        };
         let document_id = doc.document_id.clone();
         let document_is_active = self
             .active_rich_document_binding()
             .is_some_and(|(_, active_document_id)| active_document_id == document_id);
 
-        // A second split-view GET may finish after the shared document authority is already dirty.
-        // Never replace that canonical buffer with a stale response; install only view-local runtime /
-        // metadata context and bind the newly ready view to the existing shared core/version.
-        if self
-            .editor_mounts
-            .rich_documents
-            .is_document_ready(&document_id)
-        {
-            self.editor_mounts
-                .rich_documents
-                .synchronize_view_from_canonical(&document_id, pane_id);
-            let rich_state = self
-                .editor_mounts
-                .rich_documents
-                .state_for_view(Some(&document_id), pane_id);
-            {
-                let mut state = rich_state.lock().unwrap_or_else(|p| p.into_inner());
+        let mut parsed = match crate::rich_editor::document_model::doc_json::from_json_value(&doc.content_json) {
+            Ok(parsed) => parsed,
+            Err(error) => {
+                let message = error.to_string();
+                return match self.admit_rich_document_load_failure(token, self.active_project_id.clone(), message.clone())? {
+                    true => Err(message),
+                    false => Ok(false),
+                };
+            }
+        };
+        if parsed.children.is_empty() {
+            parsed.children.push(crate::rich_editor::document_model::node::Child::Block(
+                crate::rich_editor::document_model::node::BlockNode::paragraph(""),
+            ));
+        }
+        let base_content =
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&parsed);
+        let mut save = crate::rich_editor::save::save_manager::SaveManager::new(
+            Arc::new(crate::backend_client::RichDocSaveBackend::new_with_actor(
+                self.rich_doc_base_url.clone(),
+                self.native_editor_participant_actor_id.clone(),
+            ).with_authenticated_context(self.local_account.context.clone())),
+            Some(runtime.clone()),
+            document_id.clone(),
+            doc.doc_version,
+        );
+        save.set_workspace_id(self.active_project_id.clone());
+        let mut draft = crate::rich_editor::save::draft_manager::DraftManager::new(
+            Arc::new(crate::backend_client::RichDocDraftBackend::new(self.rich_doc_base_url.clone())
+                .with_authenticated_context(self.local_account.context.clone())),
+            Some(runtime.clone()),
+            document_id.clone(),
+            doc.doc_version,
+            &base_content,
+        );
+        let load_generation = token.dispatch_generation();
+        let loads = &mut self.rich_doc_loads;
+        let installed = self.editor_mounts.rich_documents.try_install_loaded_document(
+            token,
+            parsed,
+            doc.doc_version,
+            |state, gate, disposition| {
+                let mut draft_load = None;
+                if matches!(disposition, crate::rich_editor::document_owner::DocumentLoadDisposition::Initialized) {
+                    if !save.bind_owner(gate) || !draft.bind_owner(gate) {
+                        let load = loads.entry((pane_id.to_owned(), document_id.clone())).or_default();
+                        load.workspace_id = self.active_project_id.clone();
+                        load.loading_generation = None;
+                        load.completed_generation = None;
+                        load.loaded_version = None;
+                        load.failure = Some(RichDocumentLoadFailure {
+                            generation: load_generation,
+                            document_id: document_id.clone(),
+                            message: "Notes document load rejected: manager owner binding differs.".to_owned(),
+                        });
+                        return Err(crate::rich_editor::document_owner::DocumentOwnerError::InitializationRejected);
+                    }
+                    state.selection = crate::rich_editor::document_model::selection::Selection::caret(
+                        crate::rich_editor::document_model::position::DocPosition::new(vec![0, 0], 0),
+                    );
+                    state.pending_events.clear();
+                    state.find_replace = None;
+                    draft_load = draft.prepare_check_on_mount(gate);
+                    state.save = Some(save);
+                    state.draft = Some(draft);
+                }
                 state.set_embed_context(self.active_project_id.clone(), runtime.clone());
                 state.set_properties_context(
                     crate::rich_editor::properties::metadata_client::DocMetadata::from(&doc),
                     runtime.clone(),
                 );
-                state.set_wikilink_context_with_base_url(
+                let resolver_seed = state.prepare_wikilink_context_with_base_url(
                     self.active_project_id.clone(),
                     document_id.clone(),
-                    runtime,
+                    runtime.clone(),
                     self.rich_doc_base_url.clone(),
                 );
-            }
-            let canonical = self
-                .editor_mounts
-                .rich_documents
-                .canonical_state_for_document(&document_id)
-                .ok_or_else(|| {
-                    format!("Notes document {document_id} has no canonical editor authority")
-                })?;
-            let (canonical_content, canonical_version) = {
-                let canonical = canonical.lock().unwrap_or_else(|p| p.into_inner());
-                (
-                    crate::rich_editor::document_model::doc_json::to_content_json_value(
-                        &canonical.doc,
-                    ),
-                    canonical
-                        .save
-                        .as_ref()
-                        .map(|save| save.doc_version)
-                        .or_else(|| {
-                            self.rich_doc_loads.iter().find_map(
-                                |((_, loaded_document_id), load)| {
-                                    (loaded_document_id == &document_id)
-                                        .then_some(load.loaded_version)
-                                        .flatten()
-                                },
-                            )
-                        })
-                        .unwrap_or(doc.doc_version),
-                )
-            };
-            if document_is_active {
-                let links =
-                    crate::rich_editor::wikilinks::outgoing_links_panel::extract_outgoing_links(
-                        &canonical_content,
-                    );
-                if let Ok(mut panel) = self.editor_mounts.secondary.outgoing_links.lock() {
-                    panel.active_document_id = Some(document_id.clone());
-                    panel.active_block_id = None;
-                    panel.resolved = Vec::new();
-                    panel.unresolved = links.clone();
-                    panel.loading = false;
-                    panel.error = None;
-                }
-                self.outgoing_links_raw = links;
-                self.outgoing_links_index_watermark = None;
-            }
-            self.editor_mounts
-                .rich_documents
-                .mark_view_ready(&document_id, pane_id);
-            let load = self
-                .rich_doc_loads
-                .entry((pane_id.to_owned(), document_id))
-                .or_default();
-            load.workspace_id = self.active_project_id.clone();
-            load.loaded_version = Some(canonical_version);
-            load.loading_generation = None;
-            load.failure = None;
-            return Ok(());
+                let canonical_content =
+                    crate::rich_editor::document_model::doc_json::to_content_json_value(gate.document());
+                Ok::<_, crate::rich_editor::document_owner::DocumentOwnerError>((
+                    gate.known_server_version(), canonical_content, draft_load, resolver_seed,
+                ))
+            },
+        ).map_err(|error| error.to_string())?;
+        let Some(installed) = installed else { return Ok(false) };
+        let (doc_version, canonical_content, draft_load, resolver_seed) = installed;
+        if let Some(attempt) = draft_load {
+            crate::rich_editor::save::draft_manager::DraftManager::launch_mount_load(attempt);
         }
-        let mut parsed =
-            crate::rich_editor::document_model::doc_json::from_json_value(&doc.content_json)
-                .map_err(|e| e.to_string())?;
-        // A newly created backend note may legitimately persist an empty ProseMirror doc. The native
-        // editor's text caret and insertion transforms require one inline leaf, so normalize that
-        // boundary to an empty paragraph before installing `[0, 0]` as the mounted selection.
-        if parsed.children.is_empty() {
-            parsed
-                .children
-                .push(crate::rich_editor::document_model::node::Child::Block(
-                    crate::rich_editor::document_model::node::BlockNode::paragraph(""),
-                ));
-        }
-        let base_content =
-            crate::rich_editor::document_model::doc_json::to_content_json_value(&parsed);
-        let doc_version = doc.doc_version;
-        let rich_state = self
-            .editor_mounts
-            .rich_documents
-            .canonical_state_for_document(&document_id)
-            .unwrap_or_else(|| {
-                self.editor_mounts
-                    .rich_documents
-                    .state_for_view(Some(&document_id), pane_id)
-            });
-        let mut state = rich_state.lock().unwrap_or_else(|p| p.into_inner());
-        state.bind_authenticated_context(
-            self.local_account.context.clone(),
-            &self.rich_doc_base_url,
-        );
-        state.doc = parsed;
-        state.selection = crate::rich_editor::document_model::selection::Selection::caret(
-            crate::rich_editor::document_model::position::DocPosition::new(vec![0, 0], 0),
-        );
-        state.undo = crate::rich_editor::document_model::history::UndoManager::new();
-        state.pending_events.clear();
-        state.find_replace = None;
-        state.save = Some(crate::rich_editor::save::save_manager::SaveManager::new(
-            Arc::new(
-                crate::backend_client::RichDocSaveBackend::new_with_actor(
-                    self.rich_doc_base_url.clone(),
-                    self.native_editor_participant_actor_id.clone(),
-                )
-                .with_authenticated_context(self.local_account.context.clone()),
-            ),
-            Some(runtime.clone()),
-            document_id.clone(),
-            doc_version,
-        ));
-        let mut draft = crate::rich_editor::save::draft_manager::DraftManager::new(
-            Arc::new(
-                crate::backend_client::RichDocDraftBackend::new(self.rich_doc_base_url.clone())
-                    .with_authenticated_context(self.local_account.context.clone()),
-            ),
-            Some(runtime.clone()),
-            document_id.clone(),
-            doc_version,
-            &base_content,
-        );
-        draft.check_on_mount();
-        state.draft = Some(draft);
-        state.set_embed_context(self.active_project_id.clone(), runtime.clone());
-        state.set_properties_context(
-            crate::rich_editor::properties::metadata_client::DocMetadata::from(&doc),
-            runtime.clone(),
-        );
-        state.set_wikilink_context_with_base_url(
-            self.active_project_id.clone(),
-            document_id.clone(),
-            runtime.clone(),
-            self.rich_doc_base_url.clone(),
-        );
-        drop(state);
-        for view_state in self
-            .editor_mounts
-            .rich_documents
-            .states_for_content_id(&document_id)
-        {
-            if Arc::ptr_eq(&view_state, &rich_state) {
-                continue;
-            }
-            let mut view = view_state.lock().unwrap_or_else(|p| p.into_inner());
-            view.doc = {
-                rich_state
-                    .lock()
-                    .unwrap_or_else(|p| p.into_inner())
-                    .doc
-                    .clone()
-            };
-            view.undo = crate::rich_editor::document_model::history::UndoManager::new();
-            view.save = None;
-            view.draft = None;
-            view.set_embed_context(self.active_project_id.clone(), runtime.clone());
-            view.set_properties_context(
-                crate::rich_editor::properties::metadata_client::DocMetadata::from(&doc),
-                runtime.clone(),
-            );
-            view.set_wikilink_context_with_base_url(
-                self.active_project_id.clone(),
-                document_id.clone(),
-                runtime.clone(),
-                self.rich_doc_base_url.clone(),
-            );
+        if let Some(seed) = resolver_seed {
+            crate::rich_editor::wikilinks::runtime::WikilinkRuntime::launch_resolver_seed(seed);
         }
         // WP-KERNEL-012 MT-062 REMEDIATION: the outgoing-links RESOLVER-INDEX FEED, driven from the
         // document-LOAD path (off the render path — extraction runs once per load, never per frame).
@@ -17055,7 +17025,7 @@ impl HandshakeApp {
         // in `drive_graph_and_canvas_feeds` re-buckets again whenever the index grows, so links resolve
         // once the MT-057 seed enumeration lands).
         let links = crate::rich_editor::wikilinks::outgoing_links_panel::extract_outgoing_links(
-            &doc.content_json,
+            &canonical_content,
         );
         if document_is_active {
             if let Ok(mut panel) = self.editor_mounts.secondary.outgoing_links.lock() {
@@ -17072,21 +17042,13 @@ impl HandshakeApp {
             self.outgoing_links_raw = links;
             self.outgoing_links_index_watermark = None;
         }
-        self.editor_mounts
-            .rich_documents
-            .mark_document_views_ready(&document_id);
-        for view_key in self
-            .editor_mounts
-            .rich_documents
-            .view_keys_for_content_id(&document_id)
-        {
-            let load = self.rich_doc_loads.entry(view_key).or_default();
-            load.workspace_id = self.active_project_id.clone();
-            load.loaded_version = Some(doc_version);
-            load.loading_generation = None;
-            load.failure = None;
-        }
-        Ok(())
+        self.editor_mounts.rich_documents.mark_view_ready(&document_id, pane_id);
+        let load = self.rich_doc_loads.entry((pane_id.to_owned(), document_id)).or_default();
+        load.workspace_id = self.active_project_id.clone();
+        load.loaded_version = Some(doc_version);
+        load.loading_generation = None;
+        load.failure = None;
+        Ok(true)
     }
 
     /// MT-017 regression seam: drive the REAL rich-document load installer from an integration test
@@ -17144,6 +17106,8 @@ impl HandshakeApp {
                 },
             );
         }
+        let token = self.begin_rich_document_view_load(&document_id, &pane_id, generation)
+            .expect("test delivery requires a registered live document owner and view");
         self.rich_doc_load_cell
             .lock()
             .unwrap_or_else(|e| e.into_inner())
@@ -17152,6 +17116,7 @@ impl HandshakeApp {
                 self.active_project_id.clone(),
                 pane_id,
                 document_id,
+                token,
                 result,
             ));
     }
@@ -19633,7 +19598,8 @@ impl HandshakeApp {
             .unwrap_or_default();
 
         let rich_state = self.active_rich_state();
-        let Some(note_hits) = rich_state.lock().ok().map(|mut rich| {
+        let Some(note_hits) = rich_state.lock().ok().and_then(|mut rich| {
+            let document = rich.with_document(Clone::clone).ok()?;
             if rich.find_replace.is_none() {
                 rich.open_find_replace_passive(false);
             }
@@ -19643,12 +19609,12 @@ impl HandshakeApp {
                 }
                 // Rescan even when the text is unchanged so document edits are reflected in the typed
                 // result pair without waiting for another query edit.
-                find.rescan(&rich.doc);
+                find.rescan(&document);
                 let hits = find.scan.len();
                 rich.find_replace = Some(find);
-                hits
+                Some(hits)
             } else {
-                0
+                Some(0)
             }
         }) else {
             // A concurrent rich-editor operation owns the state this frame. Keep the current typed result
@@ -19726,7 +19692,8 @@ impl HandshakeApp {
         }
 
         let rich_state = self.active_rich_state();
-        let Some(note_hits) = rich_state.lock().ok().map(|mut rich| {
+        let Some(note_hits) = rich_state.lock().ok().and_then(|mut rich| {
+            let document = rich.with_document(Clone::clone).ok()?;
             if rich.find_replace.is_none() {
                 rich.open_find_replace_passive(false);
             }
@@ -19734,12 +19701,12 @@ impl HandshakeApp {
                 if find.query.pattern != pattern {
                     find.query.pattern = pattern.clone();
                 }
-                find.rescan(&rich.doc);
+                find.rescan(&document);
                 let hits = find.scan.len();
                 rich.find_replace = Some(find);
-                hits
+                Some(hits)
             } else {
-                0
+                Some(0)
             }
         }) else {
             ctx.request_repaint();
@@ -23846,6 +23813,33 @@ impl HandshakeApp {
             return false;
         }
         let Some(tab) = tab else { return true };
+        if matches!(tab.pane_type, PaneType::LoomWikiPage) {
+            if let Some(document_id) = tab.content_id.as_deref().filter(|id| !id.is_empty()) {
+                let mut remaining_panes: Vec<String> = self
+                    .tab_bar_states
+                    .iter()
+                    .filter_map(|(id, bar)| {
+                        bar.tabs.iter().any(|candidate| {
+                            matches!(candidate.pane_type, PaneType::LoomWikiPage)
+                                && candidate.content_id.as_deref() == Some(document_id)
+                        }).then(|| id.as_ref().to_owned())
+                    })
+                    .collect();
+                remaining_panes.sort();
+                remaining_panes.dedup();
+                self.editor_mounts.rich_documents.retire_closed_view(
+                    document_id,
+                    pane_id.as_ref(),
+                    &remaining_panes,
+                );
+                if !remaining_panes.iter().any(|id| id == pane_id.as_ref()) {
+                    self.rich_doc_loads.remove(&(
+                        pane_id.as_ref().to_owned(),
+                        document_id.to_owned(),
+                    ));
+                }
+            }
+        }
         let Some(document_key) = self.code_document_key_for_tab(&tab) else {
             return true;
         };
@@ -42748,11 +42742,23 @@ mod local_account_workspace_tests {
             .state_for_view(Some("private-first-doc"), "pane-a");
         {
             let mut state = old_state.lock().unwrap();
-            state.doc = crate::rich_editor::document_model::node::BlockNode::doc(vec![
-                crate::rich_editor::document_model::node::BlockNode::paragraph(
-                    "private unsaved first account text",
-                ),
-            ]);
+            let owner = state.document_owner();
+            owner.bind_context(
+                &app.active_project_id,
+                "private-first-doc",
+                &app.rich_doc_base_url,
+                app.runtime_handle.as_ref(),
+                Some(first.clone()),
+            ).unwrap();
+            let expected = owner.current_context().unwrap();
+            owner.edit(expected, |document, _history| {
+                *document = crate::rich_editor::document_model::node::BlockNode::doc(vec![
+                    crate::rich_editor::document_model::node::BlockNode::paragraph(
+                        "private unsaved first account text",
+                    ),
+                ]);
+                Ok::<_, std::convert::Infallible>(())
+            }).unwrap();
             let mut save = crate::rich_editor::save::save_manager::SaveManager::new(
                 Arc::new(backend_client::RichDocSaveBackend::new(
                     "http://127.0.0.1:1",
@@ -42761,12 +42767,15 @@ mod local_account_workspace_tests {
                 "private-first-doc",
                 1,
             );
+            owner.with_save_gate(|gate| assert!(save.bind_owner(gate)));
             save.mark_dirty();
             state.save = Some(save);
         }
         let old_delivery = app.rich_doc_load_cell.clone();
         let old_channel = app.mcp_action_channel.clone();
         let old_snapshot = app.mcp_snapshot.clone();
+        let old_load_token = app.begin_rich_document_view_load("private-first-doc", "pane-a", 1)
+            .expect("the first account owns the queued load before invalidation");
         first.invalidate();
         assert!(
             old_state.lock().unwrap().save.as_ref().unwrap().dirty,
@@ -42790,6 +42799,7 @@ mod local_account_workspace_tests {
             "first-workspace".into(),
             "pane-a".into(),
             "private-first-doc".into(),
+            old_load_token,
             Err("late first account response".into()),
         ));
         assert!(app.rich_doc_load_cell.lock().unwrap().is_empty());

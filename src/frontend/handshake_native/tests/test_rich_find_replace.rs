@@ -214,7 +214,7 @@ fn typing_query_scans_and_count_advances() {
         st.selection = Selection::caret(DocPosition::new(vec![0, 0], 0));
         let mut panel = FindReplaceState::open(false);
         panel.query = FindQuery::literal("foo");
-        panel.rescan(&st.doc);
+        panel.rescan(&st.document_snapshot().unwrap());
         st.find_replace = Some(panel);
     }
     let mut harness = editor_harness_cpu(Arc::clone(&state), egui::vec2(700.0, 360.0));
@@ -332,7 +332,7 @@ fn replace_one_button_click_replaces_active_match_only() {
         let mut panel = FindReplaceState::open(true); // replace mode
         panel.query = FindQuery::literal("foo");
         panel.replacement = "XYZ".to_owned();
-        panel.rescan(&st.doc);
+        panel.rescan(&st.document_snapshot().unwrap());
         panel.select_next(); // active = first match
         st.find_replace = Some(panel);
     }
@@ -340,7 +340,7 @@ fn replace_one_button_click_replaces_active_match_only() {
     focus_editor(&mut harness);
     harness.step();
     assert_eq!(
-        collect_doc_text(&state.lock().unwrap().doc)
+        collect_doc_text(&state.lock().unwrap().document_snapshot().unwrap())
             .matches("foo")
             .count(),
         5
@@ -350,7 +350,7 @@ fn replace_one_button_click_replaces_active_match_only() {
     harness.step();
     harness.step();
 
-    let text = collect_doc_text(&state.lock().unwrap().doc);
+    let text = collect_doc_text(&state.lock().unwrap().document_snapshot().unwrap());
     assert_eq!(
         text.matches("foo").count(),
         4,
@@ -373,7 +373,7 @@ fn replace_all_button_click_replaces_every_match() {
         let mut panel = FindReplaceState::open(true);
         panel.query = FindQuery::literal("foo");
         panel.replacement = "XYZ".to_owned();
-        panel.rescan(&st.doc);
+        panel.rescan(&st.document_snapshot().unwrap());
         panel.select_next();
         st.find_replace = Some(panel);
     }
@@ -385,7 +385,7 @@ fn replace_all_button_click_replaces_every_match() {
     harness.step();
     harness.step();
 
-    let text = collect_doc_text(&state.lock().unwrap().doc);
+    let text = collect_doc_text(&state.lock().unwrap().document_snapshot().unwrap());
     assert_eq!(
         text.matches("foo").count(),
         0,
@@ -418,7 +418,7 @@ fn scrolled_tall_doc_scan_covers_matches_beyond_the_viewport() {
         st.selection = Selection::caret(DocPosition::new(vec![0, 0], 0));
         let mut panel = FindReplaceState::open(false);
         panel.query = FindQuery::literal("foo");
-        panel.rescan(&st.doc);
+        panel.rescan(&st.document_snapshot().unwrap());
         st.find_replace = Some(panel);
     }
     // A short viewport so most matches are below the fold; the scan must still cover all 120.
@@ -449,7 +449,7 @@ fn accesskit_ids_present_when_panel_open() {
         // Open in REPLACE mode so the replace-input / replace-one / replace-all nodes are present too.
         let mut panel = FindReplaceState::open(true);
         panel.query = FindQuery::literal("foo");
-        panel.rescan(&st.doc);
+        panel.rescan(&st.document_snapshot().unwrap());
         panel.select_next();
         st.find_replace = Some(panel);
     }
@@ -510,7 +510,7 @@ fn mt108_argus_rich_find_replace_real_server_loop() {
         st.selection = Selection::caret(DocPosition::new(vec![0, 0], 0));
         let mut panel = FindReplaceState::open(true);
         panel.query = FindQuery::literal("foo");
-        panel.rescan(&st.doc);
+        panel.rescan(&st.document_snapshot().unwrap());
         st.find_replace = Some(panel);
     }
     let mut harness = editor_harness_cpu(Arc::clone(&state), egui::vec2(800.0, 420.0));
@@ -560,7 +560,7 @@ fn invalid_regex_shows_error_node_and_clears_matches() {
             is_regex: true,
             ..Default::default()
         };
-        panel.rescan(&st.doc);
+        panel.rescan(&st.document_snapshot().unwrap());
         st.find_replace = Some(panel);
     }
     let mut harness = editor_harness_cpu(Arc::clone(&state), egui::vec2(700.0, 360.0));
@@ -603,7 +603,7 @@ fn escape_closes_panel_and_clears_highlights() {
         st.selection = Selection::caret(DocPosition::new(vec![0, 0], 0));
         let mut panel = FindReplaceState::open(false);
         panel.query = FindQuery::literal("foo");
-        panel.rescan(&st.doc);
+        panel.rescan(&st.document_snapshot().unwrap());
         panel.focus_find_input = true; // so the find input grabs focus -> Escape reaches the input handler.
         st.find_replace = Some(panel);
     }
@@ -645,7 +645,7 @@ fn find_panel_screenshot() {
         st.selection = Selection::caret(DocPosition::new(vec![0, 0], 0));
         let mut panel = FindReplaceState::open(false);
         panel.query = FindQuery::literal("foo");
-        panel.rescan(&st.doc);
+        panel.rescan(&st.document_snapshot().unwrap());
         panel.select_next(); // an active match so the count reads "1 of 5".
         st.find_replace = Some(panel);
     }
@@ -669,7 +669,7 @@ fn replace_panel_screenshot() {
         let mut panel = FindReplaceState::open(true);
         panel.query = FindQuery::literal("foo");
         panel.replacement = "bar".to_owned();
-        panel.rescan(&st.doc);
+        panel.rescan(&st.document_snapshot().unwrap());
         panel.select_next();
         st.find_replace = Some(panel);
     }

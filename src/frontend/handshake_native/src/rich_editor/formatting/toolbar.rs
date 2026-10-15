@@ -144,6 +144,7 @@ pub fn all_toolbar_commands() -> Vec<FormattingCommand> {
 /// document (MT impl note 4).
 pub struct EditorToolbar<'a> {
     ctx: CommandContext<'a>,
+    command_sink: Option<&'a mut Vec<FormattingCommand>>,
     /// Optional forced max width for the row (kittest narrow-window simulation). When
     /// `Some`, the toolbar uses this instead of `ui.available_width()` to decide overflow
     /// (so the overflow button appears deterministically in the test).
@@ -155,8 +156,15 @@ impl<'a> EditorToolbar<'a> {
     pub fn new(ctx: CommandContext<'a>) -> Self {
         Self {
             ctx,
+            command_sink: None,
             forced_max_width: None,
         }
+    }
+
+    /// Capture commands for checked dispatch after rendering, without mutating the borrowed document.
+    pub fn with_command_sink(mut self, sink: &'a mut Vec<FormattingCommand>) -> Self {
+        self.command_sink = Some(sink);
+        self
     }
 
     /// Force the row's max width (kittest narrow-window simulation). Below the full
@@ -166,7 +174,7 @@ impl<'a> EditorToolbar<'a> {
         self
     }
 
-    /// Render the toolbar row into `ui`. Returns `true` when a command was dispatched
+    /// Render the toolbar row into `ui`. Returns `true` when a command was dispatched or captured
     /// this frame (so the caller can request a repaint / mark the doc dirty).
     pub fn show(mut self, ui: &mut egui::Ui) -> bool {
         let mut dispatched = false;
@@ -246,7 +254,7 @@ impl<'a> EditorToolbar<'a> {
                             ));
                             accessibility::emit_interactive_node(ui.ctx(), btn.id, &author);
                             if btn.clicked() {
-                                let _ = commands::dispatch(&mut self.ctx, &cmd);
+                                self.dispatch_or_capture(&cmd);
                                 dispatched = true;
                             }
                         }
@@ -271,10 +279,18 @@ impl<'a> EditorToolbar<'a> {
         if resp.clicked() {
             // STANDALONE dispatch on the local editor state (COMMAND DISPATCH REALITY
             // gate: the host bus Sender is E11/MT-069 — routing through it is additive).
-            let _ = commands::dispatch(&mut self.ctx, &spec.cmd);
+            self.dispatch_or_capture(&spec.cmd);
             true
         } else {
             false
+        }
+    }
+
+    fn dispatch_or_capture(&mut self, command: &FormattingCommand) {
+        if let Some(sink) = self.command_sink.as_mut() {
+            sink.push(command.clone());
+        } else {
+            let _ = commands::dispatch(&mut self.ctx, command);
         }
     }
 }

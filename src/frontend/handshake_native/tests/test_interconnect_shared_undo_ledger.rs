@@ -105,13 +105,13 @@ fn focus_accesskit(harness: &mut Harness<'_, HandshakeApp>, author_id: &str) {
 /// bridge uses. A malformed snapshot fails closed; it never becomes an empty stand-in document.
 fn rich_restore() -> RichSnapshotApplier<RichEditorState> {
     Arc::new(|state: &mut RichEditorState, snapshot| {
-        state.doc = from_json_value(snapshot)
-            .expect("shared rich undo snapshot must parse through the native DocModel");
+        { let owner = state.document_owner(); owner.edit(owner.current_context().expect("live editor context"), |document, _history| { *document = from_json_value(snapshot)
+            .expect("shared rich undo snapshot must parse through the native DocModel"); Ok::<_, std::convert::Infallible>(()) }).expect("fixture edit commits"); }
     })
 }
 
 fn rich_content(state: &RichEditorState) -> String {
-    to_content_json_value(&state.doc).to_string()
+    to_content_json_value(&state.document_owner().document_snapshot().expect("live editor document")).to_string()
 }
 
 fn run_supplemental_mt046_argus_undo(scenario_id: &str, edit_rich: bool, edit_code: bool) {
@@ -126,7 +126,7 @@ fn run_supplemental_mt046_argus_undo(scenario_id: &str, edit_rich: bool, edit_co
     let rich_doc = app.mounted_rich_state();
     let rich_before = BlockNode::doc(vec![BlockNode::paragraph("argus-note-base")]);
     let rich_after = BlockNode::doc(vec![BlockNode::paragraph("argus-note-EDITED")]);
-    rich_doc.lock().unwrap().doc = rich_before.clone();
+    { let owner = rich_doc.lock().unwrap().document_owner(); owner.edit(owner.current_context().expect("live editor context"), |document, _history| { *document = rich_before.clone(); Ok::<_, std::convert::Infallible>(()) }).expect("fixture edit commits"); }
     let code_panel = app.mounted_code_panel();
     code_panel.set_text("let argus_code = 0;\n");
     let code_before = code_panel.buffer();
@@ -149,7 +149,7 @@ fn run_supplemental_mt046_argus_undo(scenario_id: &str, edit_rich: bool, edit_co
             rich_restore(),
             "argus rich edit",
         );
-        rich_doc.lock().unwrap().doc = rich_after.clone();
+        { let owner = rich_doc.lock().unwrap().document_owner(); owner.edit(owner.current_context().expect("live editor context"), |document, _history| { *document = rich_after.clone(); Ok::<_, std::convert::Infallible>(()) }).expect("fixture edit commits"); }
     }
     if edit_code {
         code_panel.set_text("let argus_code = 999;\n");
@@ -266,7 +266,7 @@ fn run_supplemental_mt046_argus_undo(scenario_id: &str, edit_rich: bool, edit_co
             0
         );
     } else {
-        assert_eq!(rich_doc.lock().unwrap().doc, rich_before);
+        assert_eq!(rich_doc.lock().unwrap().document_owner().document_snapshot().expect("live editor document"), rich_before);
     }
     if edit_rich && edit_code {
         assert!(rich_content(&rich_doc.lock().unwrap()).contains("argus-note-EDITED"));
@@ -394,7 +394,7 @@ fn interconnect_ic15_undo_rich_editor() {
     let after = to_content_json_value(&after_doc);
     let (app, _runtime) = editor_shell();
     let rich_doc = app.mounted_rich_state();
-    rich_doc.lock().unwrap().doc = before_doc;
+    { let owner = rich_doc.lock().unwrap().document_owner(); owner.edit(owner.current_context().expect("live editor context"), |document, _history| { *document = before_doc; Ok::<_, std::convert::Infallible>(()) }).expect("fixture edit commits"); }
     let mut harness = Harness::builder()
         .with_size(egui::vec2(1100.0, 700.0))
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
@@ -432,7 +432,7 @@ fn interconnect_ic15_undo_rich_editor() {
             "rich: insert EDIT_A",
         );
     }
-    rich_doc.lock().unwrap().doc = after_doc;
+    { let owner = rich_doc.lock().unwrap().document_owner(); owner.edit(owner.current_context().expect("live editor context"), |document, _history| { *document = after_doc; Ok::<_, std::convert::Infallible>(()) }).expect("fixture edit commits"); }
     let saved_edit = be.put_json(
         &format!("/knowledge/documents/{doc_id}/save"),
         &serde_json::json!({"expected_version": base_version, "content_json": after.clone()}),
@@ -478,7 +478,7 @@ fn interconnect_ic15_undo_rich_editor() {
         rich_content(&rich_doc.lock().unwrap())
     );
     assert_eq!(
-        to_content_json_value(&rich_doc.lock().unwrap().doc),
+        to_content_json_value(&rich_doc.lock().unwrap().document_owner().document_snapshot().expect("live editor document")),
         before,
         "IC-15: native rich undo restores the exact pre-edit DocModel snapshot"
     );
@@ -491,7 +491,7 @@ fn interconnect_ic15_undo_rich_editor() {
         "IC-15: canonical Ctrl+Z consumed the focused rich pane entry"
     );
 
-    let restored_content = to_content_json_value(&rich_doc.lock().unwrap().doc);
+    let restored_content = to_content_json_value(&rich_doc.lock().unwrap().document_owner().document_snapshot().expect("live editor document"));
     let saved_undo = be.put_json(
         &format!("/knowledge/documents/{doc_id}/save"),
         &serde_json::json!({"expected_version": edit_version, "content_json": restored_content}),
@@ -657,7 +657,7 @@ fn interconnect_ic18_undo_scope_policy() {
     // the shell-owned InteractionBus; the test does not create a detached substitute bus.
     let (app, _runtime) = editor_shell();
     let rich_doc = app.mounted_rich_state();
-    rich_doc.lock().unwrap().doc = note_before;
+    { let owner = rich_doc.lock().unwrap().document_owner(); owner.edit(owner.current_context().expect("live editor context"), |document, _history| { *document = note_before; Ok::<_, std::convert::Infallible>(()) }).expect("fixture edit commits"); }
     let code_panel = app.mounted_code_panel();
     code_panel.set_text("let b = 0;\n");
     let mut harness = Harness::builder()
@@ -679,7 +679,7 @@ fn interconnect_ic18_undo_scope_policy() {
             "rich: edit A",
         );
     }
-    rich_doc.lock().unwrap().doc = note_after;
+    { let owner = rich_doc.lock().unwrap().document_owner(); owner.edit(owner.current_context().expect("live editor context"), |document, _history| { *document = note_after; Ok::<_, std::convert::Infallible>(()) }).expect("fixture edit commits"); }
 
     // Surface B = code file. Edit it SECOND (the MOST RECENTLY edited surface).
     let code_before = code_panel.buffer();
@@ -699,7 +699,7 @@ fn interconnect_ic18_undo_scope_policy() {
     }
 
     // Snapshots BEFORE the single undo (to prove A is untouched after).
-    let note_before_undo = to_content_json_value(&rich_doc.lock().unwrap().doc);
+    let note_before_undo = to_content_json_value(&rich_doc.lock().unwrap().document_owner().document_snapshot().expect("live editor document"));
     let code_before_undo = code_panel.buffer().to_string();
     assert_eq!(
         note_before_undo, note_after_json,
@@ -734,7 +734,7 @@ fn interconnect_ic18_undo_scope_policy() {
     );
     //  - A (the note) is UNCHANGED (POLICY-1 per-pane scope — the undo did not touch A's ring).
     assert_eq!(
-        to_content_json_value(&rich_doc.lock().unwrap().doc),
+        to_content_json_value(&rich_doc.lock().unwrap().document_owner().document_snapshot().expect("live editor document")),
         note_after_json,
         "IC-18: the OTHER surface (note A) is UNCHANGED after the single undo (per-pane scope policy)"
     );

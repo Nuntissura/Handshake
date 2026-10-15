@@ -366,12 +366,12 @@ fn keybinding_overrides_projection_row(
 /// path.
 fn seed_rich_document(state: &Arc<Mutex<RichEditorState>>, actor_id: &str) {
     let mut guard = state.lock().unwrap_or_else(|e| e.into_inner());
-    guard.doc = BlockNode::doc(vec![BlockNode::paragraph("hello")]);
+    guard.open_document_owner(BlockNode::doc(vec![BlockNode::paragraph("hello")]));
     guard.selection = Selection::text(
         DocPosition::new(vec![0, 0], 0),
         DocPosition::new(vec![0, 0], 5),
     );
-    guard.undo = UndoManager::new();
+    guard.edit_document(|_, history| { *history = UndoManager::new(); Ok::<_, std::convert::Infallible>(()) }).unwrap();
     guard.actor_id = actor_id.to_owned();
     guard.request_editor_focus();
 }
@@ -379,7 +379,7 @@ fn seed_rich_document(state: &Arc<Mutex<RichEditorState>>, actor_id: &str) {
 /// Whether the mounted document's first text leaf currently carries the Bold mark.
 fn mounted_text_is_bold(state: &Arc<Mutex<RichEditorState>>) -> bool {
     let guard = state.lock().unwrap_or_else(|e| e.into_inner());
-    guard.doc.children[0]
+    guard.document_snapshot().unwrap().children[0]
         .as_block()
         .expect("seeded doc has a paragraph block")
         .children[0]
@@ -390,7 +390,7 @@ fn mounted_text_is_bold(state: &Arc<Mutex<RichEditorState>>) -> bool {
 
 /// Number of recorded transactions on the mounted document (one per applied formatting command).
 fn mounted_undo_len(state: &Arc<Mutex<RichEditorState>>) -> usize {
-    state.lock().unwrap_or_else(|e| e.into_inner()).undo.len()
+    state.lock().unwrap_or_else(|e| e.into_inner()).history_snapshot().unwrap().len()
 }
 
 /// The chord the rich `toggle_bold` command is bound to by default, straight from the shipped catalog
@@ -530,9 +530,8 @@ fn rich_keybinding_override_dispatches_through_the_mounted_input_route() {
     //      and the mounted widget really ran its per-frame input path.
     {
         let guard = fresh_rich.lock().unwrap_or_else(|e| e.into_inner());
-        let receipt = guard
-            .undo
-            .last_receipt()
+        let history = guard.history_snapshot().unwrap();
+        let receipt = history.last_receipt()
             .expect("the custom-chord dispatch recorded a transaction receipt");
         assert_eq!(
             receipt.actor_id, ACTOR,
