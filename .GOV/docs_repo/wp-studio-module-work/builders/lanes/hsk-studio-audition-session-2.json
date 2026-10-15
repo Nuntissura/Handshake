@@ -1,0 +1,57 @@
+{
+  "crate": "hsk-studio-pulse",
+  "lane": "SMB-AUDITION-SESSION-2",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slices 1-3 pushed: score strip sources + graph seek; folio routing records + pulse bus stream + clip gain envelopes; harness playback through buses, routing saved with the session, preset keyframes applied",
+  "commits": [
+    {
+      "sha": "2d0e685",
+      "subject": "score (SMB-AUDITION-SESSION-2 slice 1): MixGraph strips from any StripSource, graph seek"
+    },
+    {
+      "sha": "2a84669",
+      "subject": "folio + pulse (SMB-AUDITION-SESSION-2 slice 2): sequence audio routing records, timeline through buses, clip gain envelopes"
+    },
+    {
+      "sha": "da9c248",
+      "subject": "harness + session (SMB-AUDITION-SESSION-2 slice 3): playback through buses, mix graph saved with the session, preset keyframes applied"
+    }
+  ],
+  "capabilities_done": [
+    "(1) pulse TimelineBusStream (AudioClock): sequence + Folio StudioAudioRouting -> score MixGraph; strips = audible audio tracks at unity (one TimelineMixStream per track and mono/stereo class, so fades, crossfades, speeds, grouping and clip gains are pulse's), buses = Submix tracks (track volume/pan/mute, routing bus effects via a caller factory), sends (linear level -> dB, pre/post fader, pan), master volume + effects; seek = score MixGraph::seek (new: strips from any StripSource, warm-up 1 s, exact from 0 and for short-memory bus effects). harness audio_out: PlaybackMix {Timeline, Buses}, AudioOut::with_buses; viewer_audio tests unchanged and green",
+    "(2) preset keyframes applied: harness EffectKeyframes on AudioBatchJob; a keyframed chain runs as an automated one-track score session (EffectSlot lanes; automation_index maps stored keys to score automation params: gain db, equalizer master/section frequency/gain/q, dynamics threshold/ratio/makeup, limiter ceiling/release; offsets ticks -> samples exact else preset_keyframe_offset; non-automatable keys preset_effect); job_parts_from_preset; receipt.automated",
+    "(3) mix graph saved with the session: Folio StudioAudioRoutingSet (validate_audio_routing / parse_audio_routing against the document) stored as session document entry audio_routing (session DOCUMENT_ENTRY_TOKENS + audio_routing, hook in hsk-studio-session/src/source.rs per lead brief item 3); Viewer::set_audio_routing / audio_routing / bus_stream; saved package reopens with the routing",
+    "(4) clip gain envelopes: Folio StudioClipGainEnvelope (offset_ticks from clip timeline_start, gain_db -96..12, strictly increasing); pulse TimelineMixStream::with_clip_gains: score volume lane = track dB + clip gain, linear in dB, floored at -96, refused above +12, used by the bus stream; TimelineMixStream::new unchanged"
+  ],
+  "tests": {
+    "argv": "cargo nextest run -p hsk-studio-score --test audition_session (5/5); -p hsk-studio-folio --test audio_routing_records --test audio_preset_records (2/2); -p hsk-studio-pulse --test bus_mix (2/2) and --test playback_audio --test playback_mix_stream --test foundation_contract (8/8); -p hsk-studio-harness --features media,audio-batch,audio-device --test audio_session --test audio_batch --test audio_import --test viewer_audio (13/13, audio_session rerun alone after the session token hook); -p hsk-studio-session -E test(document_entries) (1/1); clippy score/folio/pulse lib+tests and harness lib + these test targets: no findings in lane files",
+    "exit": 0,
+    "sha": "da9c248 (working tree = commit content for every lane path; session source.rs keeps another lane's uncommitted formatting hunk outside this commit)",
+    "passed": 31,
+    "failed": 0,
+    "cases": [
+      "score audition_session: graph_seek_matches_the_continuous_render_and_sources_drive_strips",
+      "folio audio_routing_records: audio_routing_round_trips_and_refuses_bad_references_cycles_and_ranges",
+      "pulse bus_mix: timeline_plays_through_submix_buses_sends_and_clip_gain_envelopes (hand values, seek, muted submix)",
+      "pulse bus_mix: all_to_master_equals_the_plain_mix_and_refusals_are_typed (<= 1e-6 vs TimelineMixStream)",
+      "harness audio_session: routing_is_saved_with_the_session_reopens_and_plays_through_the_buses (software device loopback bit-equal to the bus render)",
+      "harness audio_batch: preset_keyframes_automate_the_batch_chain"
+    ]
+  },
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "Validator: judge 2d0e685 (score bus.rs StripSource/seek), 2a84669 (folio audio_routing.rs + audio_preset.rs pub(crate) instance, pulse bus_mix.rs + audio.rs with_clip_gains hook), da9c248 (harness audio_out.rs PlaybackMix hook, audio_session.rs, audio_batch.rs keyframes, view/mod.rs module line, session source.rs token). Steward/lead: new session document entry token audio_routing (hook in hsk-studio-session).",
+  "updated_at": "2026-10-15T12:00:15Z",
+  "notes": {
+    "not_proven": [
+      "NOT_PROVEN: real audio device output through buses (Operator's attended session); tests use score-device's software provider only",
+      "NOT_PROVEN: bus and master effect keyframes (bus chains are static; keyframed bus effects are refused, typed)",
+      "NOT_PROVEN: seek exactness for bus effects whose memory exceeds the 1 s warm-up (reverb tails)",
+      "NOT_PROVEN: Adobe parity of clip volume interpolation (linear in dB here)",
+      "NOT_PROVEN: the desktop viewer UI for editing routing (API only; no routing panel)"
+    ],
+    "edges": "no new crate edges (pulse -> folio/score, harness -> folio/pulse/score/session existing or approved)",
+    "licensing": "no new dependencies"
+  }
+}
