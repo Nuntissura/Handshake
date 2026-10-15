@@ -34,7 +34,7 @@
 
 use std::ops::Range;
 
-use egui::Color32;
+use ecolor::Color32;
 
 use super::buffer::TextBuffer;
 

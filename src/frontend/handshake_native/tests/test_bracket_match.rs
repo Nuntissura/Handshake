@@ -244,8 +244,9 @@ fn bracket_pair_colors_in_segments_skips_hidden_bytes_and_carries_depth() {
 
 fn crate_src(file: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("handshake_text_mechanics")
         .join("src")
-        .join("code_editor")
         .join(file)
 }
 

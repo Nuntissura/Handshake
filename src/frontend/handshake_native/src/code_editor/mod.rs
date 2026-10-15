@@ -118,12 +118,12 @@ pub mod panel;
 // RISK-003), bracket-pair colorization (shared-depth color index, same-family match), and indent-guide
 // geometry (level + x). Render/decoration ONLY — no buffer mutation (AC-007). Colors come THROUGH the
 // theme/palette.rs tokens (no hardcoded hex in this file — CONTROL-4).
-pub mod render_decorations;
+pub use handshake_text_mechanics::render_decorations;
 // WP-KERNEL-012 MT-054 (E1 — VS Code parity): word-wrap visible-row layout math. The SINGLE source of
 // the wrap-aware VisualRow list that drives BOTH the egui::ScrollArea::show_rows row count + scroll math
 // AND the per-row paint (RISK-001 / MC-001), with a strict 1:1 fast path when wrap is OFF so the MT-002
 // baseline render is unchanged (RISK-006 / MC-006). Pure over the MT-001 TextBuffer.
-pub mod word_wrap;
+pub use handshake_text_mechanics::word_wrap;
 // WP-KERNEL-012 MT-048 (E1 — VS Code parity): Rename Symbol (F2). The rename state machine, the inline
 // rename input widget, the multi-file WorkspaceEdit preview model, and the descending-offset/atomic-write
 // apply logic. Builds on the MT-001 tree-sitter highlight tree (identifier resolution) + ropey TextBuffer
