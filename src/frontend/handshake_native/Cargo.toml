@@ -117,6 +117,7 @@ handshake_runtime_instance = { path = "../../backend/handshake_runtime_instance"
 handshake_rich_document_model = { path = "../handshake_rich_document_model" }
 handshake_text_mechanics = { path = "../handshake_text_mechanics" }
 handshake_asset_resolver = { path = "../handshake_asset_resolver" }
+handshake_embed_views = { path = "../handshake_embed_views" }
 handshake_internal_diagnostics = { path = "../handshake_internal_diagnostics" }
 palmistry-control-protocol = { path = "../palmistry_control_protocol" }
 handshake-layout-snapshot = { path = "../layout_snapshot" }

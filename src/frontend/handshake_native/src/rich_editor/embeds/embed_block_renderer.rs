@@ -31,15 +31,15 @@ use egui::accesskit;
 
 use crate::mcp::action::{serialize_same_target_click_completion, ClickCompletionState};
 use crate::rich_editor::document_model::node::HsLinkNode;
-use crate::rich_editor::embeds::album_view::{self, AlbumViewState};
+use handshake_embed_views::album_view::{self, AlbumViewState};
 use crate::rich_editor::embeds::asset_resolver::ReqwestAssetFetcher;
 use handshake_asset_resolver::{
     AssetMetadataFetcher, EmbedError, EmbedResolutionCache, EmbedResolutionState, MediaEmbedKind,
     MediaTier, ResolvedAsset, SequenceItem, EMBED_OPERATION_TIMEOUT, MAX_CONCURRENT_RESOLUTIONS,
 };
-use crate::rich_editor::embeds::image_view::{self, EmbedTextureCache};
-use crate::rich_editor::embeds::slideshow_view::{self, SlideshowViewState};
-use crate::rich_editor::embeds::video_view::{
+use handshake_embed_views::image_view::{self, EmbedTextureCache};
+use handshake_embed_views::slideshow_view::{self, SlideshowViewState};
+use handshake_embed_views::video_view::{
     self, InlineRevealPlayHandler, VideoPlayHandler, VideoViewState,
 };
 use crate::theme::HsPalette;

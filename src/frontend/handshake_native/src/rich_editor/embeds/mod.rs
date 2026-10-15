@@ -18,10 +18,10 @@
 //!
 //! - [`asset_resolver`] — native authenticated transport and REST URLs. Validation, ordered
 //!   resolution, cancellation and caching live in [`handshake_asset_resolver`].
-//! - [`image_view`] — single-image decode (off-thread, MC-001), texture cache, aspect-fit.
-//! - [`slideshow_view`] — one-at-a-time prev/next with wrap (AC-5), pure nav state.
-//! - [`album_view`] — 3-per-row grid + click-to-enlarge modal state (AC-6).
-//! - [`video_view`] — poster/placeholder + play button (HBR-QUIET: no `open` crate, no focus
+//! - [`handshake_embed_views::image_view`] — single-image decode (off-thread, MC-001), texture cache, aspect-fit.
+//! - [`handshake_embed_views::slideshow_view`] — one-at-a-time prev/next with wrap (AC-5), pure nav state.
+//! - [`handshake_embed_views::album_view`] — 3-per-row grid + click-to-enlarge modal state (AC-6).
+//! - [`handshake_embed_views::video_view`] — poster/placeholder + play button (HBR-QUIET: no `open` crate, no focus
 //!   theft; in-process decode deferred).
 //! - [`embed_block_renderer`] — the interactive `egui::Ui` dispatch ([`embed_block_renderer::render_embed`])
 //!   from an embed `hsLink` to the correct view, owning the per-editor [`embed_block_renderer::EmbedRuntime`]
@@ -32,9 +32,5 @@
 //! hardcoded hex), `accessibility/*` (live AccessKit emission), and `backend_client` (the reqwest
 //! REST stack — no new HTTP crate). No shell infrastructure is forked.
 
-pub mod album_view;
 pub mod asset_resolver;
 pub mod embed_block_renderer;
-pub mod image_view;
-pub mod slideshow_view;
-pub mod video_view;

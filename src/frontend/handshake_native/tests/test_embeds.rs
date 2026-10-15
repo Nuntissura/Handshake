@@ -38,7 +38,7 @@ use handshake_asset_resolver::{
     MediaTier, MetadataFuture, ResolvedAsset, ResolvedAssetUrls,
 };
 use handshake_native::rich_editor::embeds::embed_block_renderer::{EmbedRuntime, SequenceState};
-use handshake_native::rich_editor::embeds::image_view::decode_rgba;
+use handshake_embed_views::image_view::decode_rgba;
 use handshake_native::rich_editor::renderer::rich_editor_widget::{
     RichEditorState, RichEditorWidget,
 };

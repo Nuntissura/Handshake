@@ -42,7 +42,7 @@ use handshake_native::rich_editor::document_model::node::{BlockNode, Child, HsLi
 use handshake_asset_resolver::{
     EmbedAssetMetadata, EmbedError, EmbedResolutionState, ResolvedAsset,
 };
-use handshake_native::rich_editor::embeds::image_view::decode_rgba;
+use handshake_embed_views::image_view::decode_rgba;
 
 fn external_artifact_dir(subdir: &str) -> PathBuf {
     Path::new("../../../../Handshake_Artifacts/handshake-test").join(subdir)
