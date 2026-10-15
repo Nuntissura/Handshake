@@ -180,6 +180,7 @@ handshake_openpose_render = { path = "../handshake_openpose_render" }
 handshake_ckc_search_metrics = { path = "../handshake_ckc_search_metrics" }
 handshake_ckc_sheet_template = { path = "../handshake_ckc_sheet_template" }
 handshake_ckc_moodboard = { path = "../handshake_ckc_moodboard" }
+handshake_ckc_sheet_parser = { path = "../handshake_ckc_sheet_parser" }
 handshake_model_lane_navigation = { path = "../handshake_model_lane_navigation" }
 handshake_document = { path = "../handshake_document" }
 handshake_storage_support = { path = "../handshake_storage_support" }
@@ -861,3 +862,18 @@ required-features = ["surreal-test-support", "test-utils"]
 name = "loom_media_tiers_tests"
 path = "tests/loom_media_tiers_tests.rs"
 required-features = ["surreal-test-support", "test-utils"]
+
+[[test]]
+name = "kernel_crdt_snapshot_surreal_tests"
+path = "tests/kernel_crdt_snapshot_surreal_tests.rs"
+required-features = ["test-utils", "surreal-test-support"]
+
+[[test]]
+name = "swarm_lane_diagnostics_surreal_tests"
+path = "tests/swarm_lane_diagnostics_surreal_tests.rs"
+required-features = ["test-utils", "surreal-test-support"]
+
+[[test]]
+name = "operator_chat_capture_surreal_tests"
+path = "tests/operator_chat_capture_surreal_tests.rs"
+required-features = ["test-utils", "surreal-test-support"]

@@ -1,0 +1,11 @@
+[workspace]
+
+[package]
+name = "handshake_ckc_sheet_parser"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+sha2 = "0.10"
