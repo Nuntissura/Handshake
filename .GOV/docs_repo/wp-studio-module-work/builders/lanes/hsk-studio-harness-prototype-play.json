@@ -1,0 +1,35 @@
+{
+  "crate": "hsk-studio-harness",
+  "lane": "SMB-HARNESS-PROTOTYPE-PLAY",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slice 1 pushed (0cd4de8, after steward sync a6e8e00 added the harness edges)",
+  "commits": [
+    {"sha": "0cd4de8", "subject": "harness + components (SMB-HARNESS-PROTOTYPE-PLAY slice 1): prototype play mode in the viewer"}
+  ],
+  "capabilities_done": [
+    "src/view/prototype.rs PrototypePlay (feature viewer): opens a Figma .fig (interop-fig import_fig, decode_document, to_native), starts the first flow starting point (Folio prototype_pages) or a given source node; typed PlayFail codes (fig_import_refused, fig_version_unsupported, fig_decode_refused, fig_native_refused, no_flow_starting_point, start_not_a_node, frame_not_mapped, frame_not_exportable, screen_over_limit, frame_export_refused, frame_render_refused)",
+    "Hit testing: frame-local point -> topmost visible leaf layer (later children above earlier; bounds = vector paths, text glyph outlines, groups = union of children; hidden clip sources skipped), top overlay first then the screen; click and hover enter/leave dispatched to components::PlayerSession; clock advance",
+    "Rendering: current screen = interop-fig PDF frame export rendered back by press (cached per frame); a running transition = eased cross-fade (cubic-bezier eased progress) of from/to screens (smart animate shown as that cross-fade, approximate); overlays centred on top (STU-PRO-123 unset = CENTER); bounded screen pixels",
+    "Viewer: Viewer::open_prototype / prototype(); the play window draws every frame with wall-clock elapsed ms; stable widget ids prototype, prototype.restart, prototype.screen; restart returns to the flow start",
+    "components: PlayerSession now owns its reaction table and tree (no lifetime), so a host keeps it beside the document"
+  ],
+  "tests": {
+    "argv": "cargo nextest run -p hsk-studio-harness --features viewer --test viewer_prototype --no-fail-fast; cargo nextest run -p hsk-studio-components -p hsk-studio-interop-fig --no-fail-fast",
+    "exit": 0,
+    "sha": "0cd4de8",
+    "passed": 72,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "smart-animate layer matching (needs per-layer tweening, motion module); overlay position types other than CENTER (Folio stores no overlay frame fields, STU-PRO-122 gap); device frames and zoom modes of STU-PRO-132",
+  "updated_at": "2026-10-15T05:14:29Z",
+  "notes": {
+    "measured": "headless play over fig-prototype-pages.fig: start/detail/animated screens vs Operator PNGs mean 0.377676/0.339327/0.348830 /255, within 8/255 0.992260/0.992831/0.991971; 350 ms smart animate at 175 ms: raw 0.5, eased 0.5, every sampled byte equals round(from*(1-e) + to*e)",
+    "shared_worktree": "only own hunks committed (harness Cargo.toml, view/mod.rs, view/prototype.rs, tests/viewer_prototype.rs, components player.rs); tests/common/mod.rs (another lane) not touched",
+    "infra_waits": "harness builds waited for other lanes' uncommitted compile breaks in chronicle and develop (shared tree); no gameplan step added; one retry-guard block after a measured-floor rounding failure: route (a), committed 0cd4de8 and reran",
+    "unverified": "Figma's smart animate tweens matching layers (cross-fade here); Figma hover/click hit priority beyond topmost-leaf",
+    "deps": "optional edges harness -> components, harness -> interop-fig (approved, steward sync a6e8e00); Cargo.lock uncommitted"
+  }
+}

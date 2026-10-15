@@ -1,0 +1,44 @@
+{
+  "crate": "hsk-studio-harness",
+  "crates": ["hsk-studio-chronicle", "hsk-studio-session", "hsk-studio-harness", "hsk-studio-nib", "hsk-studio-folio"],
+  "lane": "SMB-ILLUSTRATOR-PEN-2",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slices 1-2 pushed (session `vector` token + chronicle vector_paths; harness in-place path edits, save/reopen proven); slice 3 (new tools, shapes, corners) in progress",
+  "commits": [
+    {"sha": "dcb9377", "subject": "chronicle + session (SMB-ILLUSTRATOR-PEN-2 slice 1): vector_paths property and the `vector` entry token"},
+    {"sha": "1704844", "subject": "harness (SMB-ILLUSTRATOR-PEN-2 slice 2): vector path edits in place through chronicle vector_paths"}
+  ],
+  "capabilities_done": [
+    "slice 1 chronicle Property::VectorPaths (wire vector_paths) / PropertyValue::PathIds (wire path_ids): read/write of Payload::Vector.path_ids, seeded for vector layers only, PROPERTIES 7, addressable on layers only, mask_property neutral, value budget, diagnostics mapping; non-vector payload InvalidTarget, other value types WrongType, malformed ids FolioRejected; in-place edit inverts to the original document",
+    "slice 1 session DOCUMENT_ENTRY_TOKENS += \"vector\" (studio/vector.<sha256> saved with the package)",
+    "slice 2 harness Run::set_vector_paths; view::vector replace_vector_layer is one vector_paths write (layer id, name, place, appearance kept; one undo step); save/reopen of vector layers now writes and restores the `vector` entry (no NOT_PROVEN line)"
+  ],
+  "tests": {
+    "argv": "cargo nextest run -p hsk-studio-chronicle -p hsk-studio-session --no-fail-fast -E 'binary(vector_paths) | binary(foundation_contract) | binary(structure) | test(session_consumes_the_chronicle_addressability_table)' (dcb9377: 26/26); cargo nextest run -p hsk-studio-harness --features viewer --test viewer_vector --no-fail-fast --no-capture (1704844: 5/5)",
+    "exit": 0,
+    "sha": "1704844",
+    "passed": 31,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "slice 3: curvature, pencil (smoothing), knife, shape-builder tools; arc, rectangular grid, polar grid, spiral; fancy corner members (round, inverted, chamfer)",
+  "updated_at": "2026-10-15T05:07:01Z",
+  "notes": {
+    "approval": "Lead message 2026-10-15 (START_LOG): harness -> nib edge (steward adds it), session entry token `vector`, chronicle vector-path property; edits of session and chronicle allowed for these, own hunks only",
+    "new_tests": {
+      "chronicle tests/vector_paths.rs": ["vector_paths_property_edits_in_place_and_inverts"],
+      "harness tests/viewer_vector.rs": "existing 5 tests now prove the in-place id (direct_selection test asserts the id is kept) and the save/reopen round trip"
+    },
+    "regression": "chronicle foundation_contract (table test extended: index 6, VectorPaths refused on the fixture's non-vector layers), structure; session session_consumes_the_chronicle_addressability_table (refused 14 -> 19: vector_paths on all five fixture nodes)",
+    "shared_hunk_rule": "session src/source.rs carries another lane's unstaged rustfmt hunk (import_ref); only this lane's token line was staged (HEAD blob + own replacement -> index, scratchpad/smb-illustrator-pen/stage_blob.py), the commit holds 5 lines of source.rs",
+    "spec_basis": {
+      "STU-RAS-005": "Every raster operation MUST be reversible through the unified per-document history/undo (vector path edits now invert through chronicle like tiles)",
+      "STU-VEC-007": "Every tool MUST emit its edits as studio.vector events ... (each viewer edit is one chronicle transaction; the event-ledger promotion is host-owned, not built)"
+    },
+    "retry_guard": "chronicle first build failed on a shadowed variable (seed closure `vector`); fixed before any test run; session table test failed on the refused count (14 -> 19), fixed by commit dcb9377 then rerun green (route a); no gameplan step added",
+    "not_proven": "harness clippy at 05:05Z also reports another lane's untracked src/view/prototype.rs (arithmetic lint); this lane's files are clippy-clean (filtered run)",
+    "v4": "V4-09 commit -F; V4-12 scratch under scratchpad/smb-illustrator-pen/"
+  }
+}

@@ -1,0 +1,44 @@
+{
+ "crate": "hsk-studio-reel",
+ "lane": "SMB-AUDIO-CODECS",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slice 1 (FLAC) pushed; next slices: Ogg + Vorbis + Opus, MP3, AAC-LC, container hooks, AIFF",
+ "commits": [
+  {
+   "sha": "0a6119f",
+   "subject": "reel (SMB-AUDIO-CODECS slice 1): FLAC decode + encode (RFC 9639), audio codec descriptors, opt-in audio file providers"
+  }
+ ],
+ "capabilities_done": [
+  "FLAC decoder (src/audio/flac.rs, Studio-owned, written from RFC 9639): STREAMINFO, frame header + CRC-8, CONSTANT/VERBATIM/FIXED/LPC subframes, wasted bits, 4/5-bit Rice with escapes, left/side, side/right, mid/side, 33-bit side channel of 32-bit streams, frame CRC-16, STREAMINFO MD5 re-computed; bit-exact against libavcodec on two ffmpeg-written files (16-bit stereo LPC, 24-bit mono) and MD5 verified",
+  "FLAC encoder: FIXED orders 0-4, partitioned Rice (orders 0-8, per-partition parameter), stereo decorrelation choice, 4-24 bit, 1-8 channels; encode_flac writes full STREAMINFO (MD5, frame sizes); provider encode_segment (WAV byte layout in) writes STREAMINFO first with total samples and MD5/frame sizes unknown (RFC 9639 allows zero)",
+  "decoded-audio delivery loop (src/audio/engine.rs): interleaved f32le AudioSamples chunks bounded by max_chunk_bytes, exact-or-fail export, out-of-range before payload read, receipts from the loop cursor; decode_audio_file (whole file, max_frames budget, planar() for Score)",
+  "descriptors: audio_codec_descriptors / Registry::audio_codec_descriptors (decoder id, version, licence, certification); standalone audio providers opt-in via Registry::register_audio_codecs / with_audio_codecs (standard() unchanged so the reel provider-list tests stay as judged)"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-reel --test audio_flac --test foundation_contract --lib -E 'binary(audio_flac) | test(/audio::/) | test(registry_is_enumerable)'",
+  "exit": 0,
+  "sha": "0a6119f",
+  "passed": 10,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 70,
+ "bg_pids": [],
+ "next": "Validator: judge slice 1 at 0a6119f (hsk-studio-reel default features; tests/audio_flac.rs 5 tests + src/audio unit tests 4). Builder continues with slice 2 (Ogg demux, Vorbis, Opus).",
+ "updated_at": "2026-10-15T05:13:49Z",
+ "notes": {
+  "spec_basis": [
+   "STU-VID-050 (14-studio-creative-suite.md:24505): 'Import is a typed, enumerable capability surface, not a file-open dialog. Studio declares its importable media types explicitly, and an unsupported item produces a determinate MEDIA_IMPORT_UNSUPPORTED result naming the detected type'; importer rows include ImporterMP3 'MP3 Audio', ImporterAIFF, ImporterWave.",
+   "STU-VID-051 (24559) as enriched by D23 (spec-enrichment/STUDIO-ENRICHMENT-20261014.json edit D23-1): 'An adapter MAY be a Studio-owned adapter implemented in Rust ... behind the same declared-adapter, capability-descriptor, runtime-enumeration (item 2) and typed MEDIA_CODEC_UNAVAILABLE (item 3) contract. Every adapter descriptor additionally carries its decoder id, its licence and its certification status'. Inventory rows: libmpg123.dll decode, mc_dec_aac.dll decode, mc_enc_aac.dll encode, libmp3lame.dll encode.",
+   "STU-VID-062 (25272) container rows MP3, AAC; STU-VID-084 (25469) GAP codec adapter selection = licensing decision requiring a named Operator decision (D24 covered video only; audio codec ship list: see licensing note)."
+  ],
+  "owner": "CX-CAP-001: hsk-studio-reel owns codec adapters (crate doc 'Decode/encode media/proxy-provider adapters'; codec_adapters.rs is the STU-VID-051 adapter home); audio codecs live in reel src/audio/.",
+  "containers_found": "reel parses ISOBMFF (MP4/MOV incl. fragmented; audio sample entries indexed but esds/dfLa/dOps children not kept), Matroska/WebM (CodecID + CodecPrivate), WAV (PCM), MXF (essence opaque), Y4M; no Ogg reader (registry::detect_type names it only). interop-media has no media decode; score has no import surface (score may depend on no Studio crate; reel may depend on none): wiring decoded audio into Score needs a module edge (e.g. pulse -> reel or interop-media -> reel) = steward/lead decision, reported, not added. DecodedAudio::planar() gives Score's planar f32 layout.",
+  "registry_choice": "Audio providers are NOT added to Registry::standard(): tests/foundation_contract.rs (registry list == 4 ids) and tests/engine_video.rs (every registered provider needs an export case) belong to judged reel lanes; adding them to standard() needs those tests updated by their lanes (lead decision). Opt-in like MxfProvider.",
+  "licensing": "slice 1 deps: none (FLAC + MD5 Studio-owned). Planned: lewton 0.10.2 (MIT OR Apache-2.0, Vorbis), opus-decoder 0.1.1 (MIT OR Apache-2.0, Opus, forbid(unsafe)), soundkit-aac-lc 0.12.3 (MIT, AAC-LC; pulls rustfft 6.4.1 MIT OR Apache-2.0), MP3 decoder adapted into reel from minimp3 (CC0-1.0) in safe Rust. Rejected: symphonia (MPL-2.0, never read), nanomp3 (c2rust of minimp3, 41 unsafe sites on hostile input), puremp3 (no accuracy claims, reader-based, old bitstream-io), moosicbox_opus_native (MPL-2.0). OPERATOR ITEM (STU-VID-084): AAC and MP3 decode ship list is a licensing decision; MP3 patents expired, AAC patent pool status UNVERIFIED.",
+  "fixtures": "tests/fixtures/audio/ (new files only): generated by ffmpeg 8.1.1 from synthetic lavfi sine (no third-party media); generate-flac.sh + provenance.json; oracle = sha256 of libavcodec raw PCM + STREAMINFO MD5.",
+  "own_causes": "test fix during slice 1 (local, before commit): flipped-byte test first hit the PADDING metadata block (offset 2000), moved inside the last frame.",
+  "shared_files": "src/lib.rs (mod + pub use + DESCRIPTOR audio_codecs key) and src/registry.rs (opt-in methods): no other lane had uncommitted reel edits at commit time; only my hunks committed."
+ }
+}
