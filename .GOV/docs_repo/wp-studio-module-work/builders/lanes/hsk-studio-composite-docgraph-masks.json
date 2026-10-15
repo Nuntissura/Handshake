@@ -1,0 +1,17 @@
+{
+ "crate": "hsk-studio-composite",
+ "lane": "SMB-COMPOSITE-DOCGRAPH-MASKS",
+ "status": null,
+ "phase": "slice 1 pushed (a0b84d5): document-graph frames lower with the render inputs; proof slice in progress",
+ "commits": [
+  {"sha": "a0b84d5", "subject": "composite (SMB-COMPOSITE-DOCGRAPH-MASKS slice 1): the document-graph frame path lowers with the render inputs (vector clips, vector masks, clipped layers)"}
+ ],
+ "capabilities_done": [],
+ "tests": {"argv": "cargo nextest run -p hsk-studio-composite --features motion --test composition_document --test temporal --test temporal_transform --test clip_records --test vector_mask_2 (11/11, shared tree, regression only)", "exit": 0, "sha": "a0b84d5", "passed": 11, "failed": 0},
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "Folio-records-driven document-graph vs scene proof (composite) and renderer proofs (render-cpu bit for bit, render-gpu tolerance)",
+ "updated_at": "2026-10-15T05:02:44Z",
+ "notes": {}
+}

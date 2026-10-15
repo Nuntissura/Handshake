@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T04:54:01Z",
+ "updated_at": "2026-10-15T05:06:00Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -6236,12 +6236,16 @@
   {
    "lane_id": "SMB-CKC-PORTS",
    "crate": "hsk-studio-kernel-bindings",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-lr-catalog-20261015",
-   "commits": [],
+   "commits": [
+    "2c32ce0",
+    "e726500"
+   ],
    "verdicts": [],
-   "note": "typed CKC port contracts (asset metadata mutation commands, search/filter request+result, collection/smart-collection commands, XMP sidecar write request) in kernel-bindings; Studio-side test double only in tests (no shipped second store); lrcat -> develop settings mapping; XMP inflate via shared deflate"
+   "note": "CKC field/operator names UNVERIFIED against WP-KERNEL-005 contract; test double only behind tests/ckc-test-double feature",
+   "lane_file": "builders/lanes/hsk-studio-ckc-ports.json"
   },
   {
    "lane_id": "SMB-COMPOSITE-DOCGRAPH-MASKS",

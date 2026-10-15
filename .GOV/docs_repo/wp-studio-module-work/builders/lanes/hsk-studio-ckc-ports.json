@@ -1,0 +1,55 @@
+{
+  "crate": "hsk-studio-kernel-bindings, hsk-studio-interop-lrcat",
+  "lane": "SMB-CKC-PORTS",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slice 1 (CKC port contracts + test-only double, kernel-bindings) READY on 2c32ce0; slice 2 (lrcat develop mapping, zlib XMP inflate, CKC import plan/apply) READY on e726500",
+  "commits": [
+    {"sha": "2c32ce0", "subject": "kernel-bindings (SMB-CKC-PORTS slice 1): typed CKC catalog port contracts, test-only double"},
+    {"sha": "e726500", "subject": "interop-lrcat (SMB-CKC-PORTS slice 2): develop mapping, zlib XMP inflate, CKC port import"}
+  ],
+  "capabilities_done": [
+    "kernel-bindings src/ckc.rs: CkcCatalogPort trait (get, search, mutate_metadata, keyword, collection, request_xmp_sidecar) and typed requests: AssetId/CollectionId (ASCII [A-Za-z0-9._:-], <= 128), Rating Unrated|Stars 1..5, Flag Flagged|Unflagged|Rejected, ColorLabel Red|Yellow|Green|Blue|Purple, KeywordPath (root-first, no |), MetadataMutation (idempotent request_id, expected_revision, SetRating/SetFlag/SetLabel/AddKeyword/RemoveKeyword), KeywordCommand::DefineSynonyms, CollectionCommand (Create manual|set, CreateSmart, AddMembers, RemoveMembers, SetRule, Delete), SearchRequest (CatalogRule All/Any/NoneOf/Match, sort keys, offset/limit), XmpSidecarWrite (CKC writes the bytes; BesideOriginal | CatalogArtifactOnly), CkcReceipt with operator/model actor attribution; every request validates ids, text/control chars, counts, rule depth and node count by explicit stack, op/field/value compatibility and range operands (test port_requests_are_validated_and_bounded)",
+    "kernel-bindings src/ckc_double.rs: CkcTestDouble compiled only under cfg(test) or the non-default ckc-test-double feature (compile_fail doctest CKC_DOUBLE_IS_NOT_SHIPPED proves it is absent from default builds); enforces expected revision, idempotent replay, per-call denial without existence leak, set-only parents, parent cycles, non-empty set delete (test double_enforces_revision_idempotency_authorization_and_parents); its search semantics are its own, not CKC's",
+    "lrcat develop_map: Exposure2012/Contrast2012/Highlights2012/Shadows2012/Whites2012/Blacks2012/Vibrance/Saturation/Clarity2012 and Custom Temperature/Tint (checked by develop white_xy) map into develop BasicTone, Presence, AbsoluteWhiteBalance and exposure stops; out-of-range, non-number, preset WB and unknown keys are typed losses; mapped rows carry develop_scale_unverified (test develop_settings_and_zlib_xmp_map_typed)",
+    "lrcat XMP inflate: bare or 4-byte-length-prefixed zlib values inflate through hsk-studio-package inflate_exact (single shared DEFLATE, D16) capped at XmpLimits.max_input_bytes before output; zlib header, preset dictionary, Adler-32 and declared length checked; refusals xmp_inflate_over_limit (8 MiB bomb), xmp_zlib_checksum, xmp_inflate_length_mismatch, xmp_inflate_failed (same test)",
+    "lrcat ckc_import: plan_ckc_import(LibraryProposal, resolver, CkcLimits) -> CkcImportPlan (synonyms; collections parents first, non-set parents dropped as collection_parent_dropped, smart collections created only when the whole rule translates else smart_rule_not_translatable; manual membership; per-asset rating/flag/label/keyword mutations, custom labels label_not_in_ckc_set; deterministic request ids from the source fingerprint) and apply_ckc_import(port, actor, plan) with expected revision read per asset; re-apply replays identical receipts; a denied principal fails (test library_proposal_imports_through_ckc_port_double, two fixtures, against the double)"
+  ],
+  "tests": {
+    "argv": "cargo nextest run -p hsk-studio-kernel-bindings --no-fail-fast && cargo test --doc -p hsk-studio-kernel-bindings && cargo nextest run -p hsk-studio-interop-lrcat --no-fail-fast",
+    "exit": 0,
+    "sha": "e726500",
+    "passed": 35,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": 90,
+  "bg_pids": [],
+  "next": "CKC host adapter in the Handshake integration target (implements CkcCatalogPort over handshake_core atelier, ResourceBroker, EventLedger); an XMP sidecar request from imported XMP fields is typed but not yet planned by lrcat",
+  "updated_at": "2026-10-15T05:06:00Z",
+  "notes": {
+    "spec_basis": [
+      "STU-ASSET-001: CKC is the single asset library, media catalog and file manager; Studio MUST NOT acquire one",
+      "STU-ASSET-004: no second metadata, keyword, rating, label or flag store and no second collection or smart-collection mechanism; 'Standalone reusable assets MUST consume artifact/catalog bytes through injected typed provider ports'",
+      "STU-ASSET-010: Studio MUST reach CKC through typed commands (asset.search, asset.get, ...), never through direct filesystem access or a private index",
+      "STU-ASSET-019 + Spec 10.10.4.5: Keyword Tagging (hierarchical), Star Ratings 0-5, Color Labels Red/Yellow/Green/Blue/Purple, Pick/Reject Flags Flagged/Unflagged/Rejected, Collections, Smart Collections (rule-based), Metadata Read/Write EXIF/IPTC/XMP",
+      "STU-ASSET-021: every cross-module asset read and write passes the ResourceBroker; a denied read is unauthorized and receipted",
+      "STU-ASSET-022: model lanes have the same commands, attributed by actor",
+      "STU-ASSET-023: mutating the CKC asset record (retag, rate, move, delete) uses the expected-revision precondition at asset granularity",
+      "STU-AUT-127: catalog_query (a CKC search expression per STU-ASSET-010) is how a smart collection becomes a batch input",
+      "module 14 lrcat clause (line 47): accepted lrcat data enters existing CKC and Studio schemas through ResourceBroker, sandbox/validation/promotion and SurrealDB/EventLedger",
+      "14.12 (line 20871): bounded explicit XMP interchange read/write through CKC is permitted as external transport, never live settings authority"
+    ],
+    "edges": "steward sync a6e8e00 added interop-lrcat -> develop, -> package, -> kernel-bindings; lrcat dev-dependency on kernel-bindings enables feature ckc-test-double (dev section, same allowed edge); Cargo.lock never staged",
+    "unverified": [
+      "CKC field/operator names in the port are Studio vocabulary chosen here; the WP-KERNEL-005 CKC contract was not inspected",
+      "Camera Raw develop key names and ranges; develop's numeric mapping differs from Lightroom (develop_scale_unverified)",
+      "length-prefixed zlib as Lightroom's Adobe_AdditionalMetadata.xmp storage form",
+      "Lightroom parity of every mapping (D5)"
+    ],
+    "cross_lane_effects": "lrcat commit e726500 changes one SMB-LIGHTROOM-CATALOG slice B expectation in tests/library_xmp.rs: the synthetic compressed-looking value is now inflated and refused as xmp_inflate_failed (Unsupported) instead of xmp_compressed_not_inflated (Opaque); catalog_decode.rs dependency allow-list and source scan include the new deps/modules",
+    "shared_tree": "another lane's uncommitted edits in crates/hsk-studio-chronicle (temporarily not compiling at 04:50Z) and crates/hsk-studio-develop/src/output.rs were present during builds; not touched; the lrcat test run (18/18) compiled with that develop working copy, whose public items used here (BasicTone, Presence, AbsoluteWhiteBalance, white_xy) are unchanged",
+    "test_counts": "new tests: 2 unit (kernel-bindings) + 1 compile_fail doctest, 2 integration (lrcat); kernel-bindings 13 run 1 skipped (pre-existing test-faults ignore) + 4 doctests; lrcat 18",
+    "v4": "new modules carry #![deny(clippy::arithmetic_side_effects)]; V4-04 double behind cfg(test)/non-default feature with compile_fail proof; V4-02 rule depth/nodes, page, members, inflate cap tests; V4-09 commit messages via -F",
+    "clippy": "kernel-bindings clean with and without ckc-test-double; lrcat clean at 05:00Z (a later clippy rerun hit the other lane's in-progress develop edit, not lrcat)"
+  }
+}

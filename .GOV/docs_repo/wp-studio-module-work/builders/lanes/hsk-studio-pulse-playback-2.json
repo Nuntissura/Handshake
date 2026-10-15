@@ -1,0 +1,50 @@
+{
+ "crate": "hsk-studio-pulse",
+ "crates": [
+  "hsk-studio-pulse",
+  "hsk-studio-harness"
+ ],
+ "lane": "SMB-PULSE-PLAYBACK-2",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slice 1 pushed: loop, in/out play, J/K/L shuttle (a107124)",
+ "commits": [
+  {
+   "sha": "a107124",
+   "subject": "pulse (SMB-PULSE-PLAYBACK-2 slice 1): loop, in/out play and J/K/L shuttle with reverse and 2x/4x/8x"
+  }
+ ],
+ "capabilities_done": [
+  "(3) transport: PlaybackScheduler set_in_out(in_frame, out_frame inclusive) / clear_in_out / play_in_to_out (1x forward over the span; invalid_range without in/out, outside_range beyond the play range, overflow for absurd frames); set_looping wraps the position in exact integer ticks (unwrapped offset u from the active start, cycle u.div_euclid(span), position start + u.rem_euclid(span)); PlaySpeed signed ratio (numerator != 0 else zero_speed; denominator power of two <= 8, reduced, magnitude <= 8 else invalid_speed); shuttle_right/left (J/L: from stop or the other direction 1x, then doubling 2x/4x/8x, capped), shuttle_stop (K = pause), shuttle_slow (Shift+J/L = 1/2); speed and loop changes while playing re-anchor at the current position (continuous); forward positions floor and reverse positions ceil the scaled elapsed distance so the due frame always holds the exact position",
+  "(3) frame-drop policy: presentation index p = cycle * n + (frame - first) orders frames in both directions and across the wrap; DropLate presents the due frame and counts skipped frames (Nx shuttle at one refresh per real frame drops N - 1); PresentEveryFrame steps one frame per refresh in the play direction at any speed and reports the lag; stats gain wraps; forward bound 0 <= position - frame_start < one frame (unchanged), reverse bound 0 < frame_end - position <= one frame (sequence ticks)"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-pulse --test playback --test playback_shuttle --test playback_audio --no-fail-fast; cargo clippy -p hsk-studio-pulse --tests (no pulse findings); cargo check -p hsk-studio-harness -p hsk-studio-interop-media --features hsk-studio-harness/viewer --tests",
+  "exit": 0,
+  "sha": "a107124 (run on the working tree identical to the commit for pulse)",
+  "passed": 4,
+  "failed": 0,
+  "focused": [
+   "pulse playback_shuttle::loop_wraps_exactly_and_shuttles_in_both_directions (in/out 10..=19 looped: 25 refreshes show 10..19,10..19,10..14 with master == 10F + (kF mod 10F) exactly; 25 frames + 7 samples -> 15F + 7*5292000 ticks; reverse J across the wrap 16..10,19,18,17 within (0, 1 frame]; 4x drops 3 per refresh; ladder 1,2,4,8,8)",
+   "pulse playback_shuttle::reverse_and_slow_play_end_at_the_range_edges_within_bounds (reverse to the start ends with playhead 0, reverse play restarts at the last frame, irregular reverse cadence presented + dropped = 100 with 0 leads, PresentEveryFrame -2x never drops, 1/2 speed exact, hostile speeds typed, u64::MAX clock advance = overflow)",
+   "pulse playback::playback_stays_within_one_frame_of_the_audio_clock (unchanged, still green)",
+   "pulse playback_audio::timeline_audio_mixes_through_score_and_clocks_video_within_one_frame (unchanged, still green)"
+  ]
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "slice 2: frame cache + prefetch planner (pulse) and the reel decode hook in the harness monitor; slice 3: >64-clip streaming mix; slice 4: score-device audio out",
+ "updated_at": "2026-10-15T04:56:48Z",
+ "notes": {
+  "spec_basis": [
+   "STU-VID-023: 'Both expose: transport (play, stop, step forward, step back, play in-to-out, loop), an in point and an out point, playback and paused resolution selection'",
+   "Transport command table (module 14 'transport' namespace): cmd.transport.shuttle.left 'J', cmd.transport.shuttle.right 'L', cmd.transport.shuttle.slow.left 'Shift+J', cmd.transport.shuttle.slow.right 'Shift+L', cmd.transport.shuttle.stop 'K', cmd.transport.playintoout 'Ctrl+Shift+Space'; 'Its rows are acceptance criteria'",
+   "cmd.monitor.toggledroppedframeindicator 'Show Dropped Frame Indicator' (dropped counts are scheduler stats)"
+  ],
+  "parity": "Premiere shuttle ladder (steps, cap, slow rate, opposite-key behaviour) and in/out loop semantics are UNVERIFIED (D5); Studio values documented in the pulse playback module docs and DESCRIPTOR",
+  "gaps": [
+   "audio during shuttle other than 1x forward: not yet played (slice 4 mutes it)"
+  ],
+  "verdicts": []
+ }
+}

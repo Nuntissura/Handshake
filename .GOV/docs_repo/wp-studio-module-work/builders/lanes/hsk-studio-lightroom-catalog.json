@@ -49,6 +49,7 @@
       "goal_3_lrcat_mapping": "slice A (this commit) plus slice B; develop settings mapping into develop types needs a new edge interop-lrcat -> develop (not in the allowed DAG; develop depends on pigment/prism) - not requested, lead decision",
       "goal_4_xmp": "read half in slice B (decode_xmp_packet over granted bytes, used for the catalog's per-image packets; sidecar bytes can be passed the same way); write half CKC-owned"
     },
+    "later_commits_v4_14": "commits 2c32ce0 (kernel-bindings) and e726500 (interop-lrcat) after this lane's READY commit belong to lane SMB-CKC-PORTS (lane file hsk-studio-ckc-ports.json); e726500 changes one slice B expectation: the compressed-looking synthetic value is now xmp_inflate_failed instead of xmp_compressed_not_inflated",
     "complexity": "parse_smart_rules O(input) time, O(min(input, max_nodes)) memory; decode_xmp_packet O(input) time (namespace lookup is a reverse scan of the in-scope bindings, bounded by max_nodes), O(kept values) memory; resolve_hierarchy O(n) time and memory (each node entered once; path vector <= n); library post-mapping O(photos + collections + keywords + synonyms) with hash maps",
     "slice_b_unverified": [
       "Adobe_AdditionalMetadata.xmp storage form in Lightroom-written catalogs (plain packet vs length-prefixed zlib) - fixture uses both shapes synthetically",
