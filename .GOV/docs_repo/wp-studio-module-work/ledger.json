@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T01:20:44Z",
+ "updated_at": "2026-10-15T01:23:41Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -5416,12 +5416,17 @@
   {
    "lane_id": "SMB-RENDER-SCENE-DISPLAY",
    "crate": "hsk-studio-render-cpu",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-render-display-20261015",
-   "commits": [],
+   "commits": [
+    "86222e1",
+    "eeb61e1",
+    "0231a15"
+   ],
    "verdicts": [],
-   "note": "render-cpu refuses displaying developed/raw scene-referred values >1; add an explicit display transform (clip vs tone-map declared in OutputTarget) so viewers show HDR develop output; export path already clamps and counts"
+   "note": "DisplayTransform::Clip on backend config (source clamp before composite; equals STU-COL-161 stage 6a post-composite clip only for opaque Normal content); tone-map not built",
+   "lane_file": "builders/lanes/hsk-studio-render-scene-display.json"
   },
   {
    "lane_id": "SMB-V4-01-DENY-SWEEP",
@@ -5462,6 +5467,26 @@
    "commits": [],
    "verdicts": [],
    "note": "panel: HSL mixer, parametric curve, grayscale mix, gradient/brush masks (stored entries refuse them today); no-op point colour/correction as its own undo step; display of >1 values after SMB-RENDER-SCENE-DISPLAY"
+  },
+  {
+   "lane_id": "SMB-PIGMENT-EXTENDED-RANGE",
+   "crate": "hsk-studio-pigment",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "extended-range (scene-referred, >1) blend domain in pigment composite_over + OutputTarget display-transform stage (STU-COL-161 stage 6a) in the plan IR and digest; then renderers move the clip from backend config into the plan"
+  },
+  {
+   "lane_id": "SMB-PRISM-VIEW-TRANSFORM",
+   "crate": "hsk-studio-prism",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "prism owns SDR view transforms (STU-COL-313 ACES views via OCIO config): implement the ACES output transform family clean-room from published ACES CTL/docs (Academy licence permissive) as prism curves; renderers apply at stage 6a after SMB-PIGMENT-EXTENDED-RANGE"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
