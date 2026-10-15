@@ -2,8 +2,20 @@
   "crate": "hsk-studio-layout",
   "lane": "SMB-LAYOUT-UI",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slices 1-3 pushed (claim = 863fa73, a66b909, a75eb31); slice 4 (harness layout UI) in progress",
+  "phase": "slices 1-5 pushed (claim = 863fa73, a66b909, a75eb31, 8831afd, a602252, 06dc974)",
   "commits": [
+    {
+      "sha": "06dc974",
+      "subject": "layout (SMB-LAYOUT-UI): DESCRIPTOR names columns, span/split, anchors, xrefs, conditions, GREP, object styles and books"
+    },
+    {
+      "sha": "a602252",
+      "subject": "layout + folio + interop-layout (SMB-LAYOUT-UI slice 5): books - continuous numbering, combined TOC and one PDF"
+    },
+    {
+      "sha": "8831afd",
+      "subject": "harness (SMB-LAYOUT-UI slice 4): layout editing surface - page view, text-frame tool, story editor, styles"
+    },
     {
       "sha": "a75eb31",
       "subject": "layout + folio + interop-layout (SMB-LAYOUT-UI slices 2-3): anchored objects, cross-references, conditional text, GREP and object styles"
@@ -29,21 +41,25 @@
     "slice 2 PDF (interop-layout tests/layout_flow_pdf.rs): inline anchored picture, written cross-reference and hidden condition through reflow_flow + export_pdf_with; glyph ids/positions scanned from the content stream, picture pixels from press render_page",
     "slice 3 folio: StudioTypeStyle.grep_styles (pattern + character style, paragraph scope only, <= 64 rules, pattern <= 1024 bytes, target must be a character style of the set); object styles (19 named category booleans, stroke surface with hard ranges, corner radii, paragraph style, frame general/baseline/auto-size options, anchored settings, frame fitting, export-tag map keyed by export type, ARIA fields), based_on (cycle RenderCycle, dangling, unique names), applied_object_styles",
     "slice 3 layout: grep_matches / apply_grep_styles (based_on rules parent first, later rules win, per paragraph, empty matches skipped, <= 100 000 matches) through regex 1.12.4 (linear time; size 1 MiB, DFA 1 MiB, nest 64; look-around, back-references, nesting and oversized programs typed grep_pattern_unsupported); the GREP-styled ranges reach reflow_typeset letter spacing; resolve_object_style + apply_object_style (one operation: frame columns/gutter/inset/vjust/balance, baseline, auto-size, story paragraph styles incl. next style, anchored settings, graphic frame fitting; fill/stroke/tag/ARIA reported stored_only)",
+    "slice 4 harness (feature layout-ui, in viewer; src/layout_ui.rs): LayoutEditor over document + stories + layout-flow + type-style records; LayoutEdit DrawFrame / Thread / Unthread / SetColumns / ReplaceText / ApplyParagraphStyle / ApplyCharacterStyle, each ONE snapshot undo step (refusals change nothing; history bounded at 256); compose (preview fixed-advance shaping through reflow_flow), story_rows (paragraph style name margin, overset marker), state_json, frame_at; egui panel (stable widget ids layout.*): page view with pages, frames, columns' composed lines and thread connections, frame tool drag, thread tool clicks, columns/gutter, unthread, story editor text + commit, per-paragraph style combo, character-style range; typed thread_cycle, already_threaded, thread_target_not_empty, not_threaded, unknown_* and wrong_style_scope",
+    "slice 5 folio: hsk.studio.book@1 StudioBook (chapters with status/page range/date/size/path, style source, 17 sync booleans, smart match, repagination, blank page, automatic pagination/conversion, merge layers; add/remove/move; validate_book)",
+    "slice 5 layout: combine_book -> one combined document (page keys c<k>-, sections renamed, identity collisions refused) + continuous number_pages (next odd/even with a blank page or a skipped number; automatic pagination off keeps chapter numbering; chapter restarts kept), combined TOC through generate_toc, book_export_subset (book_document_not_in_book, book_export_format_unsupported), chapter_page_ranges; MAX_BOOK_PAGES 100 000 and 256 chapters checked before the combined document is built",
+    "slice 5 PDF: interop-layout tests/layout_flow_pdf.rs book_exports_one_pdf_with_continuous_page_labels (two chapters -> one five-page PDF, /PageLabels, chapter text on book pages 1 and 3, render-back)",
     "slice 1 hostile: threading cycles and self-loops refused cyclic_thread; text_column_count > 1024 budget_exceeded before any per-column work; zero columns / gutters without positive column width invalid_geometry; records of another document, overrides naming no paragraph invalid_input; partial span N (1 < N < columns) unsupported_composition; split with wrap obstacles unsupported_composition; negative or non-pt spacing invalid_geometry"
   ],
   "tests": {
-    "argv": "cargo nextest run -p hsk-studio-layout -p hsk-studio-interop-layout -p hsk-studio-folio --no-fail-fast --offline (shared tree, at a75eb31)",
+    "argv": "cargo nextest run -p hsk-studio-layout -p hsk-studio-interop-layout -p hsk-studio-folio --no-fail-fast --offline (shared tree, at a602252: 166/166); cargo nextest run -p hsk-studio-harness --features layout-ui --test viewer_layout_ui (3/3, at the 8831afd files)",
     "exit": 0,
-    "sha": "a75eb31",
-    "passed": 163,
+    "sha": "a602252",
+    "passed": 169,
     "failed": 0,
-    "files": "slice 1 layout tests/layout_columns.rs (5); slice 2 layout tests/layout_anchors_xrefs.rs (3: anchored_inline_above_line_and_custom, cross_references_resolve_write_and_refuse_hostile_formats, conditional_text_resolves_before_composition_and_story_edits_remap) + interop-layout tests/layout_flow_pdf.rs (1: anchored_picture_cross_reference_and_hidden_condition_export); slice 3 layout tests/layout_styles_grep.rs (3: grep_styles_split_ranges_and_reach_composition, grep_hostile_patterns_are_bounded_or_refused, object_styles_apply_in_one_operation); interop-layout layout_reflow_folio_export: 2-column IDML thread now composes (refusal pass-through shown with the cap-height baseline)"
+    "files": "slice 1 layout tests/layout_columns.rs (5); slice 2 layout tests/layout_anchors_xrefs.rs (3: anchored_inline_above_line_and_custom, cross_references_resolve_write_and_refuse_hostile_formats, conditional_text_resolves_before_composition_and_story_edits_remap) + interop-layout tests/layout_flow_pdf.rs (1: anchored_picture_cross_reference_and_hidden_condition_export); slice 3 layout tests/layout_styles_grep.rs (3: grep_styles_split_ranges_and_reach_composition, grep_hostile_patterns_are_bounded_or_refused, object_styles_apply_in_one_operation); interop-layout layout_reflow_folio_export: 2-column IDML thread now composes (refusal pass-through shown with the cap-height baseline); slice 4 harness tests/viewer_layout_ui.rs (3: frame_thread_columns_text_and_styles_each_one_undo_step, threading_into_text_or_a_loop_is_refused_and_history_is_bounded, one_ui_frame_draws_the_layout_ids_and_projects_state); slice 5 layout tests/layout_book.rs (2: book_numbering_continues_across_chapters_with_parity_rules, combined_toc_hostile_books_and_typed_book_errors) + interop-layout layout_flow_pdf book_exports_one_pdf_with_continuous_page_labels"
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "slice 4 (harness layout UI; needs NEW EDGE harness -> layout), slice 5 (books)",
-  "updated_at": "2026-10-15T11:38:30Z",
+  "next": "Independent validator round on the six commits once the steward pins regex 1.12.4 and adds the edge harness -> layout. Follow-ups: layout UI edits through session/chronicle persistence, book style synchronisation (the 17 categories are stored, not executed), cross-document xrefs, GREP look-around, anchored-object text wrap",
+  "updated_at": "2026-10-15T12:14:58Z",
   "notes": {
     "owned_paths": [
       "crates/hsk-studio-layout/**",
@@ -66,7 +82,18 @@
     "lead_report": [
       "NEW crates.io DEP regex 1.12.4 (std, unicode) in hsk-studio-layout, dep-requests.jsonl line 2026-10-15T11:27:13Z; manifest pushed in a75eb31 (steward pin needed; local Cargo.lock resolves regex 1.12.4, regex-automata 0.4.18, regex-syntax 0.8.11 offline)",
       "CROSS-CRATE HUNK: crates/hsk-studio-interop-fig/src/native.rs gains one line (grep_styles: Vec::new()) because StudioTypeStyle gained the spec-required grep_styles field (STU-LAY-038 forbids a side table); interop-fig had no uncommitted edits in that file",
-      "NEW EDGE needed for slice 4: hsk-studio-harness -> hsk-studio-layout (optional, under feature viewer)"
+      "NEW EDGE hsk-studio-harness -> hsk-studio-layout (optional; harness feature layout-ui, enabled by viewer), dep-requests.jsonl line 2026-10-15T11:49:11Z; manifest pushed in 8831afd; steward --add-edge hsk-studio-harness=hsk-studio-layout needed"
+    ],
+    "spec_basis_slices_4_5": [
+      "STU-LAY-026: a text-only editing surface (story editor) MUST present a StudioTextStory as linear text with a style column, depth indicator, overset marker ... editing the same story authority as the layout view",
+      "STU-LAY-122: in/out ports on each frame MUST expose the chain in the operator UI, and a threads-view overlay MUST visualise flow order",
+      "STU-LAY-042: books MUST bind multiple chapter StudioDocuments into one publication unit that shares numbering and output ... add/remove/reorder documents, designate a style-source document",
+      "STU-LAY-043: book numbering MUST continue page and chapter numbering across documents ... support disabling automatic numbering; book-wide output MUST ... export ... the whole book or a selected subset",
+      "STU-LAY-147: SEVENTEEN independent booleans ... smart_match_style_groups ... repagination_option continue / next odd / next even, insert_blank_page, automatic_pagination ... typed errors: the book does not contain one or more documents named for export; the requested export format is unsupported for a book"
+    ],
+    "gaps_slices_4_5": [
+      "layout UI: snapshot undo inside the editor; edits are not yet persisted through session/chronicle; preview glyphs are fixed-advance placeholders (PDF uses Type shaping); depth indicator, notes/tables/tracked changes inline display of STU-LAY-026 not drawn; GUI pixels not asserted (one headless egui frame + state projection)",
+      "books: style synchronisation categories stored, not executed; chapter numbers (chapNum) not continued; preflight/package/print book commands absent; only pdf export"
     ],
     "gaps": [
       "anchored: line height does not grow for tall inline objects; above-line anchors must start a paragraph; text wrap around anchored objects not composed; lock_position stored only",
