@@ -1,0 +1,55 @@
+{
+  "crate": "hsk-studio-harness",
+  "crates": ["hsk-studio-nib", "hsk-studio-folio", "hsk-studio-harness"],
+  "lane": "SMB-ILLUSTRATOR-PEN-3",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "all four requests pushed; READY on 1e7afcd",
+  "commits": [
+    {"sha": "22c38ee", "subject": "nib (SMB-ILLUSTRATOR-PEN-3 engine): planarize, knife on strokes, variable width, reshape, blob brush"},
+    {"sha": "5dd8af5", "subject": "nib (SMB-ILLUSTRATOR-PEN-3 engine fix): degenerate face walks are not regions"},
+    {"sha": "f738033", "subject": "folio + harness + nib (SMB-ILLUSTRATOR-PEN-3): network records, viewer networks, knife on strokes, width, reshape, blob"},
+    {"sha": "b695f2d", "subject": "harness (SMB-ILLUSTRATOR-PEN-3 fix): exact arc-length fraction of the width-tool grab point"},
+    {"sha": "1e7afcd", "subject": "harness + nib (SMB-ILLUSTRATOR-PEN-3 docs): RUN-UI and DESCRIPTOR for networks, width, reshape, blob"}
+  ],
+  "capabilities_done": [
+    "(1) folio StudioVectorNetwork record (hsk.studio.vector_network@1, keyed by its SVPT path_id): vertices{x,y,stroke_cap?,stroke_join?,corner_radius?,handle_mirroring? NONE|ANGLE|ANGLE_AND_LENGTH}, segments{start,end,tangent_start?,tangent_end?}, regions{winding_rule NONZERO|EVENODD (never NONE), loops, fills (required), fill_style_id? SSTY}; validate_vector_network (budgets first, DanglingReference never clamped, closed loops, finite <= 1e9), vector_network_schema()",
+    "(1) viewer: networks stored in the `vector` entry per path record (decode validates through Folio); vector_network, promote_network (lossless), set_network (atomic), edit_network (move/add vertex, connect, delete segment dropping its regions, tangents), network_paint_bucket (planarize, faces with carried fill state, the face under the point filled or cleared; a fill on an unfilled layer takes the tool fill colour), Direct drags network vertices; every edit ONE chronicle vector_paths write (same layer id, one undo step); network and variable-width layers render fill geometry + stroke outline united, coloured by a fill/stroke blend tile (Nib exact coverage); save/reopen keeps the records",
+    "(2) nib network::planarize(tolerance): crossings split both segments at a new shared vertex, T-junctions (incl. near misses within tolerance) split at the existing vertex, curves located on 64 samples with exact de Casteljau pieces, region loops remapped in walk order, budget MAX_PLANARIZE_WORK checked before the scans; detect_regions drops zero-area walks",
+    "(3) nib freeform::knife_strokes: open and closed contours cut into open pieces at the cut crossings (STU-VEC-048); viewer knife cuts stroke-only layers into open pieces, filled layers into closed regions, one transaction",
+    "(4) nib width::WidthProfile (1..=256 points, t in 0..=1 increasing, widths 0..=1e6; width_at, with_point) + outline_variable (variable-width filled outline, butt or round caps within the flatten tolerance, width points inserted as vertices); viewer Width tool (set_width_point, clear_width, width_drag: width = 2 x drag distance at the grab point's arc fraction)",
+    "(4) nib freeform::reshape (anchors follow with (1 - d/radius)^2 falloff along arc length, handles carried so continuity is kept, grabbed segment bent onto the target) and blob_brush (round brush outline united with overlapping same-attribute paths); viewer Reshape and Blob brush tools (merged layers replaced in one transaction)",
+    "tools: Width, Reshape, Blob brush, Paint bucket (Tool::ALL 26, stable ids, option sliders vector.reshape.radius, vector.blob.diameter); RUN-UI and nib DESCRIPTOR updated"
+  ],
+  "tests": {
+    "argv": "cargo nextest run -p hsk-studio-nib --test pen3 --test network (8/8); cargo nextest run -p hsk-studio-harness --features viewer --test viewer_vector_3 (5/5) plus regressions viewer_vector (5), viewer_vector_2 (5), viewer_edit + viewer_layers (5)",
+    "exit": 0,
+    "sha": "1e7afcd",
+    "passed": 28,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "Validator: judge the lane. Suggested next: composite per-row stroke geometry (would replace the blend tile), network-aware pen (joining edges, STU-VEC-008), simplify (STU-VEC-114), fancy corners once specified.",
+  "updated_at": "2026-10-15T06:47:21Z",
+  "notes": {
+    "spec_basis": {
+      "STU-VEC-108": "three parallel arrays plus an index topology ... an out-of-range index is a validation error, never a clamp ... set-network as an ATOMIC replace ... derived read-only fill_geometry and stroke_geometry path sets",
+      "STU-VEC-004": "per-region fill state ... a paint-bucket region operation that fills or clears one enclosed region without altering the network topology (Studio: planarize first, which splits edges at crossings; the region set becomes the faces)",
+      "STU-VEC-001": "A StudioVectorPath MUST be losslessly promotable to a StudioVectorNetwork",
+      "STU-VEC-110": "A REGION MUST NOT carry winding.none",
+      "STU-VEC-048": "knife ... separately closed regions where the cut crosses filled area and open endpoints where it crosses strokes only",
+      "STU-VEC-007": "Width: Add/move/remove width points along a stroke to author a variable-width profile on canvas; reset profile | Reshape: Adjust a path region while preserving overall curve continuity | Blob brush: Paint filled unified vector shapes that merge with same-attribute geometry"
+    },
+    "gaps": [
+      "fill + stroke of a network or variable-width layer is coloured by a bilinear blend tile over Nib's exact coverages (composite strokes only the layer geometry); per-row stroke geometry in composite would make it exact (owner: composite)",
+      "paint bucket replaces the region set by the planar faces (Live Paint reading); crossing locations on curves are approximate to 64 samples per segment",
+      "width profile t is the arc-length fraction per contour; no width-point handles on canvas beyond the drag; the network-aware pen (joining existing edges) is not built",
+      "accord has no identity prefix for hsk.studio.vector_network@1: the record is keyed by its SVPT path id",
+      "Illustrator parity of every tool UNVERIFIED (D5)"
+    ],
+    "retry_guard": "route (a) twice: pen3 face count on a dangling edge (fixed: zero-area walks dropped) and viewer_vector_3 width test (fixed: width points inserted as outline vertices; then the grab point's partial arc step); each fix committed before its rerun; no gameplan step added",
+    "ownership": "new files nib src/width.rs, tests/pen3.rs; folio src/vector_network.rs; harness tests/viewer_vector_3.rs; edits to own nib network.rs / freeform.rs, harness view/vector.rs / edit.rs, folio lib.rs (two lines); RUN-UI.md and nib descriptor.rs (JSON validated); other lanes' uncommitted harness mod.rs/import.rs/tests/common were not staged",
+    "v4": "V4-01 deny(arithmetic_side_effects) in every new/changed module; V4-02 budgets before allocation (planarize work, samples, width points, network elements); V4-09 commit -F; V4-12 scratch under scratchpad/smb-illustrator-pen/"
+  }
+}

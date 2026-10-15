@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T06:37:55Z",
+ "updated_at": "2026-10-15T06:48:27Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -6429,12 +6429,19 @@
   {
    "lane_id": "SMB-ILLUSTRATOR-PEN-3",
    "crate": "hsk-studio-nib",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-illustrator-pen-20261015",
-   "commits": [],
+   "commits": [
+    "f738033",
+    "22c38ee",
+    "5dd8af5",
+    "b695f2d",
+    "1e7afcd"
+   ],
    "verdicts": [],
-   "note": "viewer stores/edits vector networks (folio network record), region detection with T-junction splitting, knife on open paths, width tool + variable-width strokes, reshape, blob brush"
+   "note": "viewer stores/edits vector networks (folio network record), region detection with T-junction splitting, knife on open paths, width tool + variable-width strokes, reshape, blob brush",
+   "lane_file": "builders/lanes/hsk-studio-illustrator-pen-3.json"
   },
   {
    "lane_id": "SMB-COMPOSITE-DOCGRAPH-2",
@@ -6505,6 +6512,16 @@
    "commits": [],
    "verdicts": [],
    "note": "STU-COL-218: single-illuminant file matrices refused by default; explicit opt-in approximate_colour flag (recorded in develop receipt + loss note) enables them; two-illuminant interpolation by CCT for table models; extend table coverage for corpus bodies where permissive data exists"
+  },
+  {
+   "lane_id": "SMB-COMPOSITE-STROKE-GEOMETRY",
+   "crate": "hsk-studio-composite",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-illustrator-pen-20261015",
+   "commits": [],
+   "verdicts": [],
+   "note": "per-row/per-edge stroke geometry in composite so network and variable-width layers with fill+stroke paint exact (no blended tile); curve-crossing detection exact (not 64 samples); pen joins network edges"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
