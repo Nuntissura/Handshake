@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T10:44:29Z",
+ "updated_at": "2026-10-15T11:05:14Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -7166,12 +7166,15 @@
   {
    "lane_id": "SMB-AE-MOTION-RECORDS-2",
    "crate": "hsk-studio-session",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-ae-motion-20261015",
-   "commits": [],
+   "commits": [
+    "00649b8"
+   ],
    "verdicts": [],
-   "note": "session/package loader for motion_records set; text-animator glyphs placed by type shaping; output module resize/crop/alpha; motion blur (shutter angle/phase, samples per frame) per spec; render once, encode many output modules"
+   "note": "session/package loader for motion_records set; text-animator glyphs placed by type shaping; output module resize/crop/alpha; motion blur (shutter angle/phase, samples per frame) per spec; render once, encode many output modules",
+   "lane_file": "builders/lanes/hsk-studio-ae-motion-records-2.json"
   },
   {
    "lane_id": "SMB-AUDITION-SESSION",

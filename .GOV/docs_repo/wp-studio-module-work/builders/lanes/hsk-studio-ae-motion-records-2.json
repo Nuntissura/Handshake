@@ -1,0 +1,38 @@
+{
+  "crate": "hsk-studio-harness",
+  "lane": "SMB-AE-MOTION-RECORDS-2",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "all five items pushed in 00649b8 (session, folio, composite, harness files listed in the commit)",
+  "commits": [
+    {"sha": "00649b8", "subject": "session + folio + composite + harness (SMB-AE-MOTION-RECORDS-2): saved motion records, render once, crop / resize / alpha, motion blur, shaped text-animator glyphs"}
+  ],
+  "capabilities_done": [
+    "(1) session src/motion.rs: Session::composition_records / set_composition_records / motion_records / set_motion_records over the typed document entries studio/composition and studio/motion (DOCUMENT_ENTRY_TOKENS += composition, motion; COMPOSITION_ENTRY, MOTION_ENTRY): Folio validation on every set and every read (motion against the document and the stored composition records), refusals change nothing, saves and checkpoints carry them, reopen holds them without loss; harness render_queue::session_render_queue_jobs builds a saved queue item's jobs from a reopened session (CompositionTemporalSource over the session snapshot + stored records). Proven by tests/motion_records_session.rs saved_records_reopen_and_render_once_into_two_modules (save_to, open_path, equal records, empty loss, render, decode).",
+    "(2) harness view/text.rs: animated_glyphs(doc, entry, fonts, cancel) shapes stored text layers with the SAME Type TextEngine path as prepare (shared shape_layers helper) and places each glyph's outline with composite glyphs_from_runs; test text_animator_glyphs_come_from_type_shaping (bundled font: 3 glyphs for 'H i', the space inkless, anchors on the baseline in order, nib per-glyph bounds within 1 px of Type's own rasteriser, an index animator moves only 'i' by 10 px). composite text::animate re-exports hsk_studio_motion as text::animate::motion.",
+    "(3) harness composition.rs OutputPost: crop (negative expands transparent), bilinear resize on premultiplied values, channels rgb (straight or premultiplied) and alpha (grey matte); render_queue maps StudioOutputModule crop / resize / channels / color; rgb_alpha refused output_alpha_codec (no reel encoder carries alpha). Test: matte module cropped to 32x32 and resized to 16x16, decoded luma 235 inside / 16 below.",
+    "(4) motion blur per STU-MOT-004: Folio StudioCompositionMotionSettings (motion_records.composition_settings: master switch, shutter_angle 0..=720, shutter_phase -360..=360, samples_per_frame 2..=64, adaptive_sample_limit 2..=256, motion_blur_layers); render setting motion_blur current / on / off resolves it; FrameRenderer samples floor(start + width*(k+0.5)/n) inside [T + phase/360 tpf, T + (phase+angle)/360 tpf), checked layers from the sample scene, others from the frame scene, premultiplied average. Test motion_blur_samples_the_shutter_window_of_checked_layers: hand-computed alpha ramp 0, .25, .5, .75, 1 ... at offsets 1/3/5/7 px, the unchecked layer crisp, phase window formula, refusals.",
+    "(5) render once, encode many: SharedFrames (bounded cache, frames dropped after the last module, budget refused render_once_cache_budget before rendering, renders() counter); render_queue_jobs_shared / session_render_queue_jobs give every module of an item the same frames. Test: 5 frames rendered once for 2 modules (renders() == 5)."
+  ],
+  "tests": {
+    "argv": "cargo nextest run -p hsk-studio-harness --features media --test motion_records_session --test render_queue_records --test composition_export | cargo nextest run -p hsk-studio-folio --test motion_records_contract",
+    "exit": 0,
+    "sha": "00649b8",
+    "passed": 8,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "lead: judge; follow-ups: adaptive motion-blur sampling, alpha-carrying encoder (ProRes 4444 / PNG sequence) for rgb_alpha, raster-tile pixels for session renders (callers pass a ScenePixels factory), text-animator glyphs for multi-line paragraphs (one run per paragraph today), MotionJS-backed expression selector proof",
+  "updated_at": "2026-10-15T11:00:07Z",
+  "notes": {
+    "spec_basis": [
+      "STU-MOT-004 shutter_angle 0..720 default 180 ('180 degrees is a half-frame exposure'), shutter_phase -360..360 ('Offset of the exposure window relative to the frame'), samples_per_frame 2..64 default 16.",
+      "STU-CMP-010 step 5: 'Apply anchor point, scale, rotation, position and the parent chain, with motion blur sampled per [STU-MOT-004]'s shutter settings.'",
+      "STU-MOT-120: one evaluation writes several outputs; STU-MOT-122: output module channels, color, resize (1..30000), crop (-30000..30000, negative expands)."
+    ],
+    "shared_files": "package-mask-tiles commit 8749f0a swept this lane's uncommitted session lib.rs lines (mod motion; pub use motion::{...}) into HEAD without motion.rs, so HEAD did not compile until 00649b8 added motion.rs: reported to the lead here. 00649b8 carries only this lane's hunks: session source.rs = HEAD + the token line (private index), every other file's working diff was this lane's alone.",
+    "gameplan_route": "first run failed on this lane's own expectation (the text layer fill is the viewer brush colour, not black); retry guard: committed the corrected assertion locally (00649b8), reran green, pushed.",
+    "unverified_d5": "After Effects motion blur (adaptive sampling, per-layer shutter), output-module resize filter and crop semantics and text-animator anchor grouping are Studio readings: UNVERIFIED."
+  }
+}
