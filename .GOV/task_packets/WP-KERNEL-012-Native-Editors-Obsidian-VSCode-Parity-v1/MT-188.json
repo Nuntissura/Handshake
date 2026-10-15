@@ -818,6 +818,7 @@
   },
   "swarm_source_admission_ref": "packet.json#/swarm_production_20261014",
   "swarm_changed_source_compile_admission_20261014": {
+    "current_private_phase_preparation_ref": "MT-174.json#/schema165_core12_private_phase_preparation_20261015",
     "decision_id": "WP012-SWARM-CHANGED-SOURCE-COMPILER-20261014-06",
     "status": "DURABLE_CALLER_PREPARATION_ADMITTED_STAGE06_EXHAUSTED",
     "recorded_at_utc": "2026-10-14T15:45:07.325853+00:00",
