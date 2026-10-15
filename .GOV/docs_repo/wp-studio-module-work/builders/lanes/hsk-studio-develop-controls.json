@@ -4,9 +4,18 @@
  "status": "READY_FOR_VALIDATION",
  "phase": "slices 1-4 pushed (Basic panel, HSL mixer + parametric regions, local masks, develop-to-output); Lightroom parity UNVERIFIED (D5)",
  "commits": [
-  {"sha": "d16f10d290431db26cb9e624de282b5cdaead8b6", "subject": "develop (SMB-DEVELOP-CONTROLS slices 1+2): Basic panel, colour mixer, parametric regions"},
-  {"sha": "ccc4a7c4c155a06306386e961020282cd6572091", "subject": "develop (SMB-DEVELOP-CONTROLS slice 3): local adjustments with gradient and brush masks (includes two local wip commits 4c77018, 513a768 that only fix test geometry)"},
-  {"sha": "b4f0107a5f9bf7b8685a71e798c053e54971c54f", "subject": "develop (SMB-DEVELOP-CONTROLS slice 4): develop-to-output RGB buffer + ICC for export"}
+  {
+   "sha": "d16f10d290431db26cb9e624de282b5cdaead8b6",
+   "subject": "develop (SMB-DEVELOP-CONTROLS slices 1+2): Basic panel, colour mixer, parametric regions"
+  },
+  {
+   "sha": "ccc4a7c4c155a06306386e961020282cd6572091",
+   "subject": "develop (SMB-DEVELOP-CONTROLS slice 3): local adjustments with gradient and brush masks (includes two local wip commits 4c77018, 513a768 that only fix test geometry)"
+  },
+  {
+   "sha": "b4f0107a5f9bf7b8685a71e798c053e54971c54f",
+   "subject": "develop (SMB-DEVELOP-CONTROLS slice 4): develop-to-output RGB buffer + ICC for export"
+  }
  ],
  "capabilities_done": [
   "adjust.rs: versioned Adjustments recipe parameter (ADJUST_VERSION 1.0) on DevelopRecipe.adjust, identity by default, all families validated even while disabled (invalid_adjustment / non_finite), authored values retained when a group is off",
@@ -63,5 +72,32 @@
   "v4_notes": "V4-01 deny(arithmetic_side_effects) not added to the new modules: they decode no untrusted bytes, but they do take hostile numbers; floats are finite-checked, usize products are checked (clarity, local::apply, render_output), brush work is budgeted before allocation; V4-02 aggregate bound = BRUSH_VISIT_BUDGET + MAX_DABS test; V4-03 corpus tests print NOT_PROVEN when the corpus is absent; V4-07 doc claims cite their tests in the test files named in capabilities_done",
   "gameplan_route": "retry guard hit twice after a product (test geometry) failure; route (a): committed the fix locally (HEAD changed) and reran; no gameplan step added",
   "harness_wiring": "see next[1]; the harness must supply the ICC bytes (develop does not resolve profiles) and the encoder"
- }
+ },
+ "verdicts": [
+  {
+   "decision": "inconclusive",
+   "verdict": null,
+   "failures": [],
+   "remediation": null,
+   "blocker": {
+    "kind": "infrastructure",
+    "exact": "develop real_dng.rs:196 names dng/samsung-sm-g973u-16bit-uncompressed.dng which the corpus no longer holds (SMB-DNG-CORPUS-REPLACE rename 00:12Z)",
+    "unblock": "push the develop test/fetch-corpus update for the replacement DNG (or restore the corpus file), then re-judge develop lanes"
+   },
+   "not_proven": [
+    "develop real_raw::nef_d1h_uncompressed_decodes_deterministically (ignored:hsk-studio-develop): nef_d1h_uncompressed_decodes_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run",
+    "develop real_raw::arw_7s_craw_decodes_deterministically (ignored:hsk-studio-develop): arw_7s_craw_decodes_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run",
+    "develop real_raw::cr2_350d_decodes_the_stored_frame_deterministically (ignored:hsk-studio-develop): cr2_350d_decodes_the_stored_frame_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run"
+   ],
+   "note": "d16f10d ccc4a7c b4f0107: Bradford WB on Kim locus, monotone PCHIP tone, 8-band HSL, parametric regions, local gradient/brush masks, output 8/16-bit + ICC header check. No stub. INFO: output.rs (ICC header bytes) lacks V4-01 deny; no arithmetic on bytes (length checked first). Lane tests 14 passed / 0 failed (/develop_adjust|develop_local|develop_output/); default develop 69; all units of develop build 0 run 0 | INCONCLUSIVE: develop ignored unit real_dng_decode_and_develop failed on a missing oracle-corpus file (infrastructure, see infrastructure_failure)",
+   "idempotency_key": "STUDIO-R29:SMB-DEVELOP-CONTROLS:62c0bf666fc8:INCONCLUSIVE",
+   "round": "STUDIO-R29",
+   "lane": "SMB-DEVELOP-CONTROLS",
+   "candidate": "62c0bf666fc88e6ab5424e4eae46f18521c5dffe",
+   "tree": "b8c285ac064abaa57d54553f2e4ce940f6c0fb04",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "started_at": "2026-10-14T23:54:12Z",
+   "completed_at": "2026-10-15T00:47:07Z"
+  }
+ ]
 }

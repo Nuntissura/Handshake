@@ -4,7 +4,10 @@
  "status": "READY_FOR_VALIDATION",
  "phase": "READY: structure closed-set walk follows /Pg (R31-P1 hardening); real pages stay excluded by object number",
  "commits": [
-  {"sha": "aafcde7", "subject": "press (SMB-PRESS-PG-HARDEN, R31-P1): structure closed set follows /Pg; real pages stay excluded by object number"}
+  {
+   "sha": "aafcde7",
+   "subject": "press (SMB-PRESS-PG-HARDEN, R31-P1): structure closed set follows /Pg; real pages stay excluded by object number"
+  }
  ],
  "capabilities_done": [
   "flatten_purge.rs: ELEMENT_OUTWARD_KEYS empty, MCR_OUTWARD_KEYS = /Stm /StmOwn, OBJR_OUTWARD_KEYS = /Obj; /Pg is followed (as data, not a structure key); doc comments and the DESCRIPTOR D28 clause reworded (stale old wording asserted absent in descriptor_states_the_structure_tree_rule, new test cited)",
@@ -26,5 +29,24 @@
   "unchanged": "/Obj /Stm /StmOwn handling; R31-P3 (MCR /Stm) stays INFO by design",
   "never_pass": "READY only; no PASS claimed"
  },
- "updated_at": "2026-10-15T00:00:00Z"
+ "updated_at": "2026-10-15T00:00:00Z",
+ "verdicts": [
+  {
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "aafcde7: MCR/OBJR/element /Pg no longer outward keys; closed set excludes real pages + catalog by object number (structure_tree_objects `outside`); /Pg to a non-page dict counted. No stub. Lane tests 61 passed / 0 failed (/flatten_r13/); default press 182; all units of press build 0 run 0",
+   "idempotency_key": "STUDIO-R29:SMB-PRESS-PG-HARDEN:62c0bf666fc8:PASS_V1",
+   "round": "STUDIO-R29",
+   "lane": "SMB-PRESS-PG-HARDEN",
+   "candidate": "62c0bf666fc88e6ab5424e4eae46f18521c5dffe",
+   "tree": "b8c285ac064abaa57d54553f2e4ce940f6c0fb04",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "started_at": "2026-10-14T23:54:12Z",
+   "completed_at": "2026-10-15T00:47:07Z"
+  }
+ ]
 }

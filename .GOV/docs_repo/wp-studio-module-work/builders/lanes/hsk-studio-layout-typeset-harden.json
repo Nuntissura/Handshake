@@ -53,5 +53,24 @@
    "InDesign's own ranges for these settings (e.g. word length, before/after, hyphen limit) are UNVERIFIED; the bound used is the crate's MAX_WORD_BYTES hostile bound"
   ],
   "claim": "No PASS claimed; READY_FOR_VALIDATION on pushed commit 54f8d69"
- }
+ },
+ "verdicts": [
+  {
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "54f8d69: HyphenationParams::validate (bounds, checked_add), typed InvalidParams, try_points, TypesetOptions::validate delegates, saturating first_fit counter, deny on hyphenate.rs; closes R28 finding. No stub. Lane tests 18 passed / 0 failed (/::hyphenation::|::typeset::/); default layout 27, interop-layout 11; all units of layout/interop-layout build 0 run 0",
+   "idempotency_key": "STUDIO-R29:SMB-LAYOUT-TYPESET-HARDEN:62c0bf666fc8:PASS_V1",
+   "round": "STUDIO-R29",
+   "lane": "SMB-LAYOUT-TYPESET-HARDEN",
+   "candidate": "62c0bf666fc88e6ab5424e4eae46f18521c5dffe",
+   "tree": "b8c285ac064abaa57d54553f2e4ce940f6c0fb04",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "started_at": "2026-10-14T23:54:12Z",
+   "completed_at": "2026-10-15T00:47:07Z"
+  }
+ ]
 }

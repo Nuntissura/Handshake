@@ -96,6 +96,27 @@
    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
    "started_at": "2026-10-14T22:55:24Z",
    "completed_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-basic-shapes.fig decoded=census+typed_node_tree editable_import=not_proven(tests/fig_nativ",
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-components-autolayout.fig decoded=census+typed_node_tree editable_import=not_proven(tests/",
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-prototype-pages.fig decoded=census+typed_node_tree editable_import=not_proven(tests/fig_na"
+   ],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of interop-fig all build 0/run 0, 0 failed, 0 timed_out; default interop-fig 32",
+   "idempotency_key": "STUDIO-R29:SMB-INTEROP-FIG-FORMAT:62c0bf666fc8:PASS_V4",
+   "round": "STUDIO-R29",
+   "lane": "SMB-INTEROP-FIG-FORMAT",
+   "candidate": "62c0bf666fc88e6ab5424e4eae46f18521c5dffe",
+   "tree": "b8c285ac064abaa57d54553f2e4ce940f6c0fb04",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "started_at": "2026-10-14T23:54:12Z",
+   "completed_at": "2026-10-15T00:47:07Z"
   }
  ]
 }

@@ -4,13 +4,34 @@
   "status": "READY_FOR_VALIDATION",
   "phase": "slices 1-4 pushed; claim = every nib commit 5e550e2..baf8ffc listed below",
   "commits": [
-    {"sha": "5e550e2", "subject": "nib (SMB-NIB-VECTOR-RENDER slice 1): path flattening with a proven chord bound and Boolean operations on arbitrary paths"},
-    {"sha": "9e5c438", "subject": "nib manifest: explicit empty features list on the i_overlay pin (WORKSPACE_RULES probe)"},
-    {"sha": "c6a636f", "subject": "nib (SMB-NIB-VECTOR-RENDER slice 2): stroke outlining with width, caps, joins, miter limit, dashes and align"},
-    {"sha": "fd8a271", "subject": "nib (SMB-NIB-VECTOR-RENDER slice 3, local): coverage rasteriser and paint evaluation; circle digest pin pending (intermediate: its circle pin test fails by design; reached origin through another lane's push of the shared HEAD; superseded by a1fc75f)"},
-    {"sha": "a1fc75f", "subject": "nib (SMB-NIB-VECTOR-RENDER slice 3): analytic coverage planes and gradient/pattern paint over coverage"},
-    {"sha": "201dca0", "subject": "nib (SMB-NIB-VECTOR-RENDER slice 4): path editing primitives as pure functions"},
-    {"sha": "baf8ffc", "subject": "nib descriptor: vector_render section (flatten, boolean, stroke, raster, edit) for no-context models (descriptor string only)"}
+    {
+      "sha": "5e550e2",
+      "subject": "nib (SMB-NIB-VECTOR-RENDER slice 1): path flattening with a proven chord bound and Boolean operations on arbitrary paths"
+    },
+    {
+      "sha": "9e5c438",
+      "subject": "nib manifest: explicit empty features list on the i_overlay pin (WORKSPACE_RULES probe)"
+    },
+    {
+      "sha": "c6a636f",
+      "subject": "nib (SMB-NIB-VECTOR-RENDER slice 2): stroke outlining with width, caps, joins, miter limit, dashes and align"
+    },
+    {
+      "sha": "fd8a271",
+      "subject": "nib (SMB-NIB-VECTOR-RENDER slice 3, local): coverage rasteriser and paint evaluation; circle digest pin pending (intermediate: its circle pin test fails by design; reached origin through another lane's push of the shared HEAD; superseded by a1fc75f)"
+    },
+    {
+      "sha": "a1fc75f",
+      "subject": "nib (SMB-NIB-VECTOR-RENDER slice 3): analytic coverage planes and gradient/pattern paint over coverage"
+    },
+    {
+      "sha": "201dca0",
+      "subject": "nib (SMB-NIB-VECTOR-RENDER slice 4): path editing primitives as pure functions"
+    },
+    {
+      "sha": "baf8ffc",
+      "subject": "nib descriptor: vector_render section (flatten, boolean, stroke, raster, edit) for no-context models (descriptor string only)"
+    }
   ],
   "capabilities_done": [
     "slice 1 flatten::flatten(OwnedPath, FlattenOptions) -> Vec<Polyline>: uniform Bernstein subdivision, n from |B - chord| <= h^2/8 max|B''| (quad n = ceil(sqrt(|d|/(4 tol))), cubic n = ceil(sqrt(3M/(4 tol)))), tolerance 1e-6..1e6, point budget charged before allocation, anchor flags",
@@ -35,10 +56,30 @@
   "updated_at": "2026-10-14T23:03:00Z",
   "notes": {
     "new_tests": {
-      "tests/vector_boolean.rs": ["flatten_error_within_tolerance_and_hostile_options", "boolean_overlapping_squares_hand_values", "boolean_overlapping_circles_and_fill_rules", "boolean_hostile_inputs_are_typed"],
-      "tests/vector_stroke.rs": ["stroke_caps_on_a_line", "stroke_joins_and_miter_limit", "stroke_dashes_hand_values", "stroke_closed_paths_align_and_curves", "stroke_hostile_inputs_and_wire_values"],
-      "tests/vector_raster.rs": ["coverage_hand_values_and_fill_rules", "paint_gradients_and_patterns_over_coverage", "raster_and_paint_hostile_inputs_are_typed"],
-      "tests/vector_edit.rs": ["insert_and_delete_anchor", "convert_scissors_join_average", "offset_path_hand_areas", "edit_hostile_inputs_are_typed"],
+      "tests/vector_boolean.rs": [
+        "flatten_error_within_tolerance_and_hostile_options",
+        "boolean_overlapping_squares_hand_values",
+        "boolean_overlapping_circles_and_fill_rules",
+        "boolean_hostile_inputs_are_typed"
+      ],
+      "tests/vector_stroke.rs": [
+        "stroke_caps_on_a_line",
+        "stroke_joins_and_miter_limit",
+        "stroke_dashes_hand_values",
+        "stroke_closed_paths_align_and_curves",
+        "stroke_hostile_inputs_and_wire_values"
+      ],
+      "tests/vector_raster.rs": [
+        "coverage_hand_values_and_fill_rules",
+        "paint_gradients_and_patterns_over_coverage",
+        "raster_and_paint_hostile_inputs_are_typed"
+      ],
+      "tests/vector_edit.rs": [
+        "insert_and_delete_anchor",
+        "convert_scissors_join_average",
+        "offset_path_hand_areas",
+        "edit_hostile_inputs_are_typed"
+      ],
       "existing_suite": "owned_path (5), path_boolean (2), encoded unit tests (3) still green in the same 26/26 run"
     },
     "digests": "PIN_RECT 88bd9d14...137ca5c9 recomputed independently (python hashlib over LE frame + 12 hand-derived bytes); PIN_CIRCLE 7721135c...56044314 is a self-pinned regression value (determinism evidence only; correctness of the circle is the total-area bound in the same test)",
@@ -59,10 +100,49 @@
     ],
     "dependency": "i_overlay =4.0.7 (MIT; closure i_float 1.15.0, i_shape 1.14.0, i_tree 0.16.0, i_key_sort 0.6.0, all MIT; libm already locked), default-features = false, features = [] (9e5c438 after coordinator note); dep-requests.jsonl line 2026-10-14T22:18:44Z; Cargo.lock left uncommitted for the steward; rayon feature off",
     "precision": "geometry results are polygons: error <= flatten tolerance + grid quantum, plus i_overlay snapping of intersection vertices within a few quanta (radius starts at 1 quantum, doubles per pass; final radius not exposed: UNVERIFIED bound). Coverage = exact area of the normalised polygons.",
-    "unverified_vs_adobe_D5": ["pathfinder point placement / curve refit (outputs are polygons)", "gradient midpoint curve (piecewise-linear here)", "dash seam on closed paths and dash corner adjustment", "degenerate dot direction for square caps", "smooth-anchor handle lengths (1/3 neighbour distance)", "delete-anchor keeps outer handles (no shape-preserving refit)", "perceptual interpolation and dither (refused)"],
-    "gaps_left": ["divide/trim/merge/crop/outline/hard/soft/trap operations", "curve refit of Boolean/stroke/offset output (polygonal results)", "general Boolean not wired into the proposal/budget/lease contract (rectangle provider unchanged)", "variable-width profiles, arrowheads, per-side weights, dash corner adjust, gradient on strokes (within/along/across)", "angular/diamond/freeform/mesh gradients", "simplify (STU-VEC-114)", "knife tool"],
+    "unverified_vs_adobe_D5": [
+      "pathfinder point placement / curve refit (outputs are polygons)",
+      "gradient midpoint curve (piecewise-linear here)",
+      "dash seam on closed paths and dash corner adjustment",
+      "degenerate dot direction for square caps",
+      "smooth-anchor handle lengths (1/3 neighbour distance)",
+      "delete-anchor keeps outer handles (no shape-preserving refit)",
+      "perceptual interpolation and dither (refused)"
+    ],
+    "gaps_left": [
+      "divide/trim/merge/crop/outline/hard/soft/trap operations",
+      "curve refit of Boolean/stroke/offset output (polygonal results)",
+      "general Boolean not wired into the proposal/budget/lease contract (rectangle provider unchanged)",
+      "variable-width profiles, arrowheads, per-side weights, dash corner adjust, gradient on strokes (within/along/across)",
+      "angular/diamond/freeform/mesh gradients",
+      "simplify (STU-VEC-114)",
+      "knife tool"
+    ],
     "lowering_needed": "composite (SMB-COMPOSITE-NEW-KINDS) currently samples coverage itself and refuses gradients and strokes: it can call stroke::outline_stroke for stroke rows, raster::rasterize for exact-area coverage_u8 planes, raster::paint_coverage for gradient/pattern rows (premultiplied f32), boolean::boolean to bake live boolean outlines, and CoveragePlane::intersect for clip masks; render-cpu/render-gpu consume the same planes. Path coordinates must be plan pixels (y down).",
-    "lessons": ["test bug: dash test assumed separate contours for round-capped dashes that touch (width 2, gap 1); fixed in the test before commit", "a gated test command and a git commit in one Bash call is blocked by the retry guard before the commit runs: commit first, run tests in a separate call", "GP-028 (another lane's step, relative path) blocked tests at ~22:45Z until its owner retired it; no step added by this lane"],
+    "lessons": [
+      "test bug: dash test assumed separate contours for round-capped dashes that touch (width 2, gap 1); fixed in the test before commit",
+      "a gated test command and a git commit in one Bash call is blocked by the retry guard before the commit runs: commit first, run tests in a separate call",
+      "GP-028 (another lane's step, relative path) blocked tests at ~22:45Z until its owner retired it; no step added by this lane"
+    ],
     "retry_guard_routes": "one blocked identical rerun -> route (a): local commit fd8a271 changed HEAD, then rerun"
-  }
+  },
+  "verdicts": [
+    {
+      "decision": "passed",
+      "verdict": "PASS_V1",
+      "failures": [],
+      "remediation": null,
+      "blocker": null,
+      "not_proven": [],
+      "note": "5e550e2 9e5c438 c6a636f fd8a271 a1fc75f 201dca0 baf8ffc: flatten chord bound, booleans over i_overlay =4.0.7, stroke outline (caps/joins/miter/dash), analytic signed-area rasteriser + gradient/pattern paint, de Casteljau edit primitives; V4-01 deny on boolean/stroke/flatten/raster/edit. No stub. Lane tests 16 passed / 0 failed (/vector_(boolean|stroke|raster|edit)/); default nib 26; all units of nib build 0 run 0",
+      "idempotency_key": "STUDIO-R29:SMB-NIB-VECTOR-RENDER:62c0bf666fc8:PASS_V1",
+      "round": "STUDIO-R29",
+      "lane": "SMB-NIB-VECTOR-RENDER",
+      "candidate": "62c0bf666fc88e6ab5424e4eae46f18521c5dffe",
+      "tree": "b8c285ac064abaa57d54553f2e4ce940f6c0fb04",
+      "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+      "started_at": "2026-10-14T23:54:12Z",
+      "completed_at": "2026-10-15T00:47:07Z"
+    }
+  ]
 }

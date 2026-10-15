@@ -3,14 +3,25 @@
   "lane": "SMB-LAYOUT-PARENT-ADAPTER",
   "status": "READY_FOR_VALIDATION",
   "phase": "pushed at 3d02f56 (branch codex/handshake-studio-assets); push result not re-verified after a hook block",
-  "commits": [{"sha": "3d02f56", "subject": "layout (SMB-LAYOUT-PARENT-ADAPTER): Folio parent_page_records <-> ParentSet adapter"}],
+  "commits": [
+    {
+      "sha": "3d02f56",
+      "subject": "layout (SMB-LAYOUT-PARENT-ADAPTER): Folio parent_page_records <-> ParentSet adapter"
+    }
+  ],
   "capabilities_done": [
     "parent_adapter.rs: parent_set_from_records(records, document, LayerRects) -> (ParentSet, LayerAssignment); records_from_parent_set(set, document_id, assignment); resolve_page_from_records(records, document, rects, page_id) -> effective items (parent chain + Replace/Suppress)",
     "item rect from the layer: text layer text_frame.bounds (pt) -> TextFrame; other layers need a caller-supplied LayerRects entry (Frame); neither = NoGeometry refusal",
     "typed ParentAdapterError: Layout(LayoutError), DocumentMismatch, UnknownPage, MissingLayer, NoGeometry, InvalidGeometry, PageLocalItemsNoRecord, MissingLayerAssignment, ReplacementIdMismatch; result validated as a unit via ParentSet::validate"
   ],
-  "tests": {"argv": "nextest run -p hsk-studio-layout -p hsk-studio-interop-layout --no-fail-fast", "exit": 0, "sha": "3d02f56", "passed": 36, "failed": 0,
-    "files": "tests/parent_adapter.rs (3: round_trip_folio_to_parent_set_to_resolved_items, page_local_items_are_refused_in_reverse, hostile_records_are_refused); typeset/hyphenation/threaded_reflow unchanged and green"},
+  "tests": {
+    "argv": "nextest run -p hsk-studio-layout -p hsk-studio-interop-layout --no-fail-fast",
+    "exit": 0,
+    "sha": "3d02f56",
+    "passed": 36,
+    "failed": 0,
+    "files": "tests/parent_adapter.rs (3: round_trip_folio_to_parent_set_to_resolved_items, page_local_items_are_refused_in_reverse, hostile_records_are_refused); typeset/hyphenation/threaded_reflow unchanged and green"
+  },
   "clippy": "clippy -p hsk-studio-layout -p hsk-studio-interop-layout --tests: no layout warnings",
   "gaps": [
     "page-local items (local_items) have no Folio record: reverse refuses, forward never produces them",
@@ -19,5 +30,24 @@
     "parent_transform not modelled; InDesign override equality UNVERIFIED (D5 oracle)"
   ],
   "blockers": [],
-  "updated_at": "2026-10-15T00:00:00Z"
+  "updated_at": "2026-10-15T00:00:00Z",
+  "verdicts": [
+    {
+      "decision": "passed",
+      "verdict": "PASS_V1",
+      "failures": [],
+      "remediation": null,
+      "blocker": null,
+      "not_proven": [],
+      "note": "3d02f56: folio parent_page_records <-> ParentSet both ways, per-page resolution, typed ParentAdapterError refusals. No stub. INFO: parent_adapter.rs (reads package records) has no V4-01 deny. Lane tests 3 passed / 0 failed (/parent_adapter/); default layout 27, interop-layout 11; all units of layout/interop-layout build 0 run 0",
+      "idempotency_key": "STUDIO-R29:SMB-LAYOUT-PARENT-ADAPTER:62c0bf666fc8:PASS_V1",
+      "round": "STUDIO-R29",
+      "lane": "SMB-LAYOUT-PARENT-ADAPTER",
+      "candidate": "62c0bf666fc88e6ab5424e4eae46f18521c5dffe",
+      "tree": "b8c285ac064abaa57d54553f2e4ce940f6c0fb04",
+      "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+      "started_at": "2026-10-14T23:54:12Z",
+      "completed_at": "2026-10-15T00:47:07Z"
+    }
+  ]
 }

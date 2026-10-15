@@ -114,6 +114,31 @@
    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
    "started_at": "2026-10-14T22:55:24Z",
    "completed_at": "2026-10-14T23:36:18Z"
+  },
+  {
+   "decision": "inconclusive",
+   "verdict": null,
+   "failures": [],
+   "remediation": null,
+   "blocker": {
+    "kind": "infrastructure",
+    "exact": "develop real_dng.rs:196 names dng/samsung-sm-g973u-16bit-uncompressed.dng which the corpus no longer holds (SMB-DNG-CORPUS-REPLACE rename 00:12Z)",
+    "unblock": "push the develop test/fetch-corpus update for the replacement DNG (or restore the corpus file), then re-judge develop lanes"
+   },
+   "not_proven": [
+    "develop real_raw::nef_d1h_uncompressed_decodes_deterministically (ignored:hsk-studio-develop): nef_d1h_uncompressed_decodes_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run",
+    "develop real_raw::arw_7s_craw_decodes_deterministically (ignored:hsk-studio-develop): arw_7s_craw_decodes_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run",
+    "develop real_raw::cr2_350d_decodes_the_stored_frame_deterministically (ignored:hsk-studio-develop): cr2_350d_decodes_the_stored_frame_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run"
+   ],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of develop all build 0/run 0, 0 failed, 0 timed_out; default develop 69 | INCONCLUSIVE: develop ignored unit real_dng_decode_and_develop failed on a missing oracle-corpus file (infrastructure, see infrastructure_failure)",
+   "idempotency_key": "STUDIO-R29:SMB-DEVELOP-TIFF-CONSOLIDATE:62c0bf666fc8:INCONCLUSIVE",
+   "round": "STUDIO-R29",
+   "lane": "SMB-DEVELOP-TIFF-CONSOLIDATE",
+   "candidate": "62c0bf666fc88e6ab5424e4eae46f18521c5dffe",
+   "tree": "b8c285ac064abaa57d54553f2e4ce940f6c0fb04",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "started_at": "2026-10-14T23:54:12Z",
+   "completed_at": "2026-10-15T00:47:07Z"
   }
  ]
 }

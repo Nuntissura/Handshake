@@ -4,10 +4,22 @@
  "status": "READY_FOR_VALIDATION",
  "phase": "slices 1-3 pushed (5c2288e + 3d02528 fill, 9c39a5e patch + move, b7880bb claims/exclusion proof); clippy -p hsk-studio-pigment --tests clean; clippy over pigment + composite + develop + interop-fig + interop-psd + render-cpu + render-gpu --tests exit 0 (warnings only in observe/type, pre-existing); content_aware 8/8 at b7880bb, retouch 13/13 regression at 9c39a5e (retouch.rs unchanged after)",
  "commits": [
-  {"sha": "5c2288e", "subject": "pigment (SMB-PIGMENT-CONTENT-AWARE slice 1): native content-aware fill (STU-RAS-143)"},
-  {"sha": "3d02528", "subject": "pigment (SMB-PIGMENT-CONTENT-AWARE slice 1): fill tests; best-patch final vote; source-adequate pyramid levels"},
-  {"sha": "9c39a5e", "subject": "pigment (SMB-PIGMENT-CONTENT-AWARE slice 2): content-aware patch (normal/content-aware) and move (move/extend)"},
-  {"sha": "b7880bb", "subject": "pigment (SMB-PIGMENT-CONTENT-AWARE slice 3): receipt and doc claims cite their tests; move destination exclusion proven"}
+  {
+   "sha": "5c2288e",
+   "subject": "pigment (SMB-PIGMENT-CONTENT-AWARE slice 1): native content-aware fill (STU-RAS-143)"
+  },
+  {
+   "sha": "3d02528",
+   "subject": "pigment (SMB-PIGMENT-CONTENT-AWARE slice 1): fill tests; best-patch final vote; source-adequate pyramid levels"
+  },
+  {
+   "sha": "9c39a5e",
+   "subject": "pigment (SMB-PIGMENT-CONTENT-AWARE slice 2): content-aware patch (normal/content-aware) and move (move/extend)"
+  },
+  {
+   "sha": "b7880bb",
+   "subject": "pigment (SMB-PIGMENT-CONTENT-AWARE slice 3): receipt and doc claims cite their tests; move destination exclusion proven"
+  }
  ],
  "capabilities_done": [
   "slice 1 content_aware::fill(target RgbaPlane, hole CoveragePlane coverage>0 clipped to the target, SamplingArea auto|rectangular(Rect)|custom(CoveragePlane, coverage>=32768), ContentAwareOptions, RetouchLimits): pyramid (halve while hole bbox > one patch, next level >= 2 patches, source centres >= domain centres, <= max_levels); PatchMatch NNF (Barnes 2009) with JACOBI sweeps (propagation at distance 1 and 2^min(4,S-1-s), random search radii max(w,h)/2^k, SplitMix64(seed, level, em, sweep, centre, draw)); EM with weighted voting exp(-e/(2*0.1^2)) (Wexler 2007), best-patch final vote at level 0 (no averaging blur); coarsest init onion peel, finer init from the parent; blend colour_adaptation none = d + c(f - d) premultiplied, default = retouch membrane Poisson solver (extracted as retouch::heal_with_guide, heal behaviour unchanged) with guide = synthesized hole + NNF votes on the 4-neighbour ring; thread-count independent bytes (par_fill over contiguous chunks of pure per-centre/per-pixel updates)",
@@ -16,7 +28,13 @@
   "slice 2 content_aware::content_aware_move(target, selection, offset (p shows p - offset), MoveMode move|extend, sampling, options, limits) -> MoveResult{result, fill receipt, paste HealReceipt}: move fills the vacated selection with the destination footprint excluded from sampling, then places the object (colour_adaptation none = source-over with selection coverage via retouch::paint_over; default = retouch heal with the moved original as guide); destination outside the target places nothing; damage = union of hole and visible destination",
   "slice 3 quality receipt ContentAwareReceipt{seed, patch_radius, levels[LevelReceipt{width, height, hole_pixels, domain_centres, source_centres, em_iterations, search_iterations, energies per EM iteration}], iterations, final_energy, work, guided, blend HealReceipt}; content_aware::DESCRIPTOR; V4-07 claims cite tests"
  ],
- "tests": {"argv": "cargo nextest run -p hsk-studio-pigment --test content_aware --no-fail-fast", "exit": 0, "sha": "b7880bb", "passed": 8, "failed": 0},
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-pigment --test content_aware --no-fail-fast",
+  "exit": 0,
+  "sha": "b7880bb",
+  "passed": 8,
+  "failed": 0
+ },
  "blockers": [],
  "lock_wait_s": 190,
  "bg_pids": [],
@@ -34,5 +52,24 @@
   "unowned_dirty_file": "crates/hsk-studio-pigment/tests/transform.rs shows M with an empty content diff (pre-existing, also noted by SMB-PIGMENT-RETOUCH); not touched, not committed",
   "cargo_lock": "not touched",
   "route": "no gameplan blocks on cargo; one command blocked by the WP-KERNEL-012 kernel gameplan because a variable assignment preceded the leading cd (PROC-CD-FIRST); rerun with cd first, no gameplan step added"
- }
+ },
+ "verdicts": [
+  {
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "5c2288e 3d02528 9c39a5e b7880bb: PatchMatch NNF pyramid (seeded random init, Jacobi propagation, random search, EM vote, onion peel), patch/move, budgets before allocation, V4-01 deny. No stub. Lane tests 8 passed / 0 failed (/::content_aware::/); default pigment 125; all units of pigment build 0 run 0",
+   "idempotency_key": "STUDIO-R29:SMB-PIGMENT-CONTENT-AWARE:62c0bf666fc8:PASS_V1",
+   "round": "STUDIO-R29",
+   "lane": "SMB-PIGMENT-CONTENT-AWARE",
+   "candidate": "62c0bf666fc88e6ab5424e4eae46f18521c5dffe",
+   "tree": "b8c285ac064abaa57d54553f2e4ce940f6c0fb04",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "started_at": "2026-10-14T23:54:12Z",
+   "completed_at": "2026-10-15T00:47:07Z"
+  }
+ ]
 }

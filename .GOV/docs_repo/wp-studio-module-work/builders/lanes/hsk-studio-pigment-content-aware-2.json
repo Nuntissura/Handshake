@@ -4,12 +4,30 @@
  "status": "READY_FOR_VALIDATION",
  "phase": "slices 1-4 pushed (fcd627d; 8705d18 + 4bfc005; 874e622 + eef4c93; 809a276). Runs: retouch 13/13 + content_aware_wiring 4/4 at fcd627d; content_aware 8/8 + content_aware_adapt 3/3 at 4bfc005; content_aware_scale 4/4 + content_aware_wiring 4/4 at eef4c93; content_aware_photo 1/1 at 809a276 (test file committed in that sha, run on the identical tree before the commit). clippy -p hsk-studio-pigment --tests clean at 809a276; clippy pigment + composite + develop + interop-fig + interop-psd + render-cpu + render-gpu --tests exit 0 at fcd627d and at eef4c93 (warnings only in observe/type, pre-existing)",
  "commits": [
-  {"sha": "fcd627d", "subject": "pigment (SMB-PIGMENT-CONTENT-AWARE-2 slice 1): retouch content_aware_fill and crop content_aware_fill_on_expand call the native fill"},
-  {"sha": "8705d18", "subject": "pigment (SMB-PIGMENT-CONTENT-AWARE-2 slice 2, WIP local): gain/bias colour adaptation, rotation/scale/mirror search (first half of slice 2; committed locally to clear the retry guard, pushed with 4bfc005)"},
-  {"sha": "4bfc005", "subject": "pigment (SMB-PIGMENT-CONTENT-AWARE-2 slice 2, WIP local): gain/bias colour adaptation, rotation/scale/mirror search (slice 2 complete: parity through the transform, docs, DESCRIPTOR v2, tests; the subject's 'WIP local' is stale, no amend allowed)"},
-  {"sha": "874e622", "subject": "pigment (SMB-PIGMENT-CONTENT-AWARE-2 slice 3): content-aware scale (seam carving with protection plane) and inpaint"},
-  {"sha": "eef4c93", "subject": "pigment (SMB-PIGMENT-CONTENT-AWARE-2 slice 3): protection test uses a full-height flat band (block edges made every seam through it expensive)"},
-  {"sha": "809a276", "subject": "pigment (SMB-PIGMENT-CONTENT-AWARE-2 slice 4): photo-size proof, 4096x4096 fill within an explicit budget"}
+  {
+   "sha": "fcd627d",
+   "subject": "pigment (SMB-PIGMENT-CONTENT-AWARE-2 slice 1): retouch content_aware_fill and crop content_aware_fill_on_expand call the native fill"
+  },
+  {
+   "sha": "8705d18",
+   "subject": "pigment (SMB-PIGMENT-CONTENT-AWARE-2 slice 2, WIP local): gain/bias colour adaptation, rotation/scale/mirror search (first half of slice 2; committed locally to clear the retry guard, pushed with 4bfc005)"
+  },
+  {
+   "sha": "4bfc005",
+   "subject": "pigment (SMB-PIGMENT-CONTENT-AWARE-2 slice 2, WIP local): gain/bias colour adaptation, rotation/scale/mirror search (slice 2 complete: parity through the transform, docs, DESCRIPTOR v2, tests; the subject's 'WIP local' is stale, no amend allowed)"
+  },
+  {
+   "sha": "874e622",
+   "subject": "pigment (SMB-PIGMENT-CONTENT-AWARE-2 slice 3): content-aware scale (seam carving with protection plane) and inpaint"
+  },
+  {
+   "sha": "eef4c93",
+   "subject": "pigment (SMB-PIGMENT-CONTENT-AWARE-2 slice 3): protection test uses a full-height flat band (block edges made every seam through it expensive)"
+  },
+  {
+   "sha": "809a276",
+   "subject": "pigment (SMB-PIGMENT-CONTENT-AWARE-2 slice 4): photo-size proof, 4096x4096 fill within an explicit budget"
+  }
  ],
  "capabilities_done": [
   "slice 1 retouch::content_aware_fill(target, region) = content_aware::fill(target, region, SamplingArea::Auto, ContentAwareOptions::default(), RetouchLimits::default()).result (bytes equal, test retouch_content_aware_fill_is_the_native_fill); canvas_ops::crop with content_aware_fill_on_expand = native fill of the exposed pixels (opaque bounds mask cropped the same way has alpha < 1; crop pixel composited source-over the fill so a partly exposed rotated edge keeps its visible part); keep-pixels (angle 0) grows the plane to the union of moved plane and canvas, synthesizes every union pixel outside the moved plane (sampling = the moved plane only), then returns the non-canvas ones to transparent; canvas_ops::crop_content_aware(plane, rect, CropOptions, &ContentAwareOptions, limits) -> (CanvasResult, Option<ContentAwareReceipt>); RetouchError::ContentAwareUnsupported no longer produced by pigment (variant kept)",
@@ -17,7 +35,13 @@
   "slice 3 content_aware::scale::content_aware_scale(plane, new_width, new_height, protect Option<&CoveragePlane>, limits) -> ScaleResult{plane (x, y, new_w, new_h), ScaleReceipt{removed/inserted columns/rows, protected_crossings, work}} (re-exported from content_aware): seam carving from Avidan-Shamir 2007 (energy L1 gradient of premultiplied RGBA + protect coverage x 8 x (max(w,h)+1) so one protected pixel outweighs any unprotected seam; DP 8-connected least-energy seam, first minimum, back-track x-1/x/x+1; narrowing one seam at a time; widening duplicates the seams a narrowing would remove (premultiplied mean with the right neighbour, protection max) in steps of at most half the width; width then height via transpose); bytes (96 B per cell of the largest grid + output) and work (seams x larger side x other side x 4, widening rebuild) charged before allocation; content_aware::inpaint(target, mask, options, limits) = fill(.., SamplingArea::Auto, ..); DESCRIPTOR keys scale and inpaint",
   "slice 4 photo-size proof tests/content_aware_photo.rs: 4096x4096 plane, 256x256 hole (magenta object) on a periodic texture (8x8 checker red, period-6 stripes green); default limits (16 MiB) refuse budget_exceeded before the pyramid is allocated; explicit RetouchLimits{max_bytes 3 GiB, max_work 2^40} admit it; measured run: fill wall 18.60 s (dev profile opt-level 0, 16 threads, colour_adaptation default, seed 7), plane build 0.57 s, 7 levels, level-0 domain 68644 centres, charged work 1,550,654,000, heal converged in 1 iteration, hole mean |err| 0 worst 0 (bound 0.02/0.1)"
  ],
- "tests": {"argv": "cargo nextest run -p hsk-studio-pigment --test content_aware_photo --no-fail-fast --no-capture", "exit": 0, "sha": "809a276", "passed": 1, "failed": 0},
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-pigment --test content_aware_photo --no-fail-fast --no-capture",
+  "exit": 0,
+  "sha": "809a276",
+  "passed": 1,
+  "failed": 0
+ },
  "blockers": [],
  "lock_wait_s": 82,
  "bg_pids": [],
@@ -40,5 +64,24 @@
   "own_failures": "fcd627d first run: keep-pixels expand failed (mean 0.119) because the transparent union pixels outside canvas and plane entered patches and the Poisson boundary; fixed before commit by synthesizing them too and resetting them after; the retry guard blocked the identical rerun, so the fix was committed (HEAD change) and rerun green (no gameplan step added)",
   "cargo_lock": "not touched",
   "unowned_dirty_file": "crates/hsk-studio-pigment/tests/transform.rs M (pre-existing, not mine, not committed)"
- }
+ },
+ "verdicts": [
+  {
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "fcd627d (slice 1 claim; slices 2-4 not claimed, 8705d18 after candidate): retouch content_aware_fill and crop content_aware_fill_on_expand call content_aware::fill; crop_content_aware returns the receipt. No stub. Lane tests 17 passed / 0 failed (/content_aware_wiring|::retouch::/); default pigment 125; all units of pigment build 0 run 0",
+   "idempotency_key": "STUDIO-R29:SMB-PIGMENT-CONTENT-AWARE-2:62c0bf666fc8:PASS_V1",
+   "round": "STUDIO-R29",
+   "lane": "SMB-PIGMENT-CONTENT-AWARE-2",
+   "candidate": "62c0bf666fc88e6ab5424e4eae46f18521c5dffe",
+   "tree": "b8c285ac064abaa57d54553f2e4ce940f6c0fb04",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "started_at": "2026-10-14T23:54:12Z",
+   "completed_at": "2026-10-15T00:47:07Z"
+  }
+ ]
 }

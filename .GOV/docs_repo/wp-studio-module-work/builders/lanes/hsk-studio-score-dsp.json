@@ -4,10 +4,22 @@
  "status": "READY_FOR_VALIDATION",
  "phase": "SMB-SCORE-DSP slices 1-4 pushed (7f76cfd, a036f77, 4e36b3d, 917a7ac); EBU test vectors NOT_PROVEN (download 403)",
  "commits": [
-  {"sha": "7f76cfddd1c72dbe8a5733d209ca760b17118e44", "subject": "Score (SMB-SCORE-DSP slice 1): compressor/expander/gate (Dynamics) and lookahead limiter with 4x true-peak option"},
-  {"sha": "a036f7793b1351f6840f558a80206f1df28371aa", "subject": "Score (SMB-SCORE-DSP slice 2): BS.1770-4 / R128 loudness meter (momentary, short-term, integrated, LRA, 4x true peak)"},
-  {"sha": "4e36b3d709130d4fca22c531bd93e52675e3b728", "subject": "Score (SMB-SCORE-DSP slice 3): algorithmic reverb (Schroeder-Moorer combs + allpasses, Freeverb tunings, RT60-derived loop gains)"},
-  {"sha": "917a7ac5aa7b013e7bc1954b5c6929408aa76095", "subject": "Score (SMB-SCORE-DSP slice 4): spectral noise reduction (NoiseProfiler, NoiseReducer) + DESCRIPTOR for all four DSP slices"}
+  {
+   "sha": "7f76cfddd1c72dbe8a5733d209ca760b17118e44",
+   "subject": "Score (SMB-SCORE-DSP slice 1): compressor/expander/gate (Dynamics) and lookahead limiter with 4x true-peak option"
+  },
+  {
+   "sha": "a036f7793b1351f6840f558a80206f1df28371aa",
+   "subject": "Score (SMB-SCORE-DSP slice 2): BS.1770-4 / R128 loudness meter (momentary, short-term, integrated, LRA, 4x true peak)"
+  },
+  {
+   "sha": "4e36b3d709130d4fca22c531bd93e52675e3b728",
+   "subject": "Score (SMB-SCORE-DSP slice 3): algorithmic reverb (Schroeder-Moorer combs + allpasses, Freeverb tunings, RT60-derived loop gains)"
+  },
+  {
+   "sha": "917a7ac5aa7b013e7bc1954b5c6929408aa76095",
+   "subject": "Score (SMB-SCORE-DSP slice 4): spectral noise reduction (NoiseProfiler, NoiseReducer) + DESCRIPTOR for all four DSP slices"
+  }
  ],
  "capabilities_done": [
   "Dynamics (dynamics.rs): compressor / downward expander / gate; Giannoulis-Massberg-Reiss soft-knee static curve (static_reduction_db is the analytic curve); peak or RMS detector; attack/release one-pole in dB; gate hold; range floor; makeup; stereo link or per-channel; latency 0; block-partition bit-identical",
@@ -30,7 +42,12 @@
  "next": "independent validator round; D5 oracle for Adobe parity of curves; EBU Tech 3341/3342 vectors if the Operator supplies the files",
  "updated_at": "2026-10-14T22:37:00Z",
  "notes": {
-  "new_tests": {"dynamics": 5, "loudness": 5, "reverb": 4, "denoise": 5},
+  "new_tests": {
+   "dynamics": 5,
+   "loudness": 5,
+   "reverb": 4,
+   "denoise": 5
+  },
   "check_clippy": "clippy -p hsk-studio-score -p hsk-studio-score-device -p hsk-studio-score-plugin --tests --examples: no findings in score crates (2 pre-existing too_many_arguments in hsk-studio-observe); additive API only",
   "spec_basis": "UNVERIFIED: spec STU-FX-147 is a loudness gap (no standard selected by spec); processors here use authored ranges. Adobe Audition curve/ballistics parity is UNVERIFIED and goes to the D5 oracle session.",
   "licence_clean_room": "Giannoulis et al. JAES 2012 formulas and Freeverb delay tunings (public domain, Jezar) re-implemented; K-weighting biquads derived from the ITU analogue prototype (parameters as in libebur128, MIT, attribution only for the constants); no copyleft source read or copied",
@@ -50,5 +67,24 @@
   "dep_requests": "none (no new dependencies)",
   "working_tree": "pre-existing stat-only modifications of other score src files were left uncommitted; lib.rs committed with content changes only",
   "retry_guard": "no gameplan block occurred; no gameplan step added"
- }
+ },
+ "verdicts": [
+  {
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "7f76cfd a036f77 4e36b3d 917a7ac: soft-knee dynamics + lookahead limiter, BS.1770-4 K-weighting/gating/LRA, Schroeder-Moorer reverb, STFT radix-2 Wiener denoise. No stub; EBU vectors NOT_PROVEN by lane (403). Lane tests 19 passed / 0 failed (/::(dynamics|loudness|reverb|denoise|common_dsp)::/); default score 57; all units of score build 0 run 0",
+   "idempotency_key": "STUDIO-R29:SMB-SCORE-DSP:62c0bf666fc8:PASS_V1",
+   "round": "STUDIO-R29",
+   "lane": "SMB-SCORE-DSP",
+   "candidate": "62c0bf666fc88e6ab5424e4eae46f18521c5dffe",
+   "tree": "b8c285ac064abaa57d54553f2e4ce940f6c0fb04",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "started_at": "2026-10-14T23:54:12Z",
+   "completed_at": "2026-10-15T00:47:07Z"
+  }
+ ]
 }

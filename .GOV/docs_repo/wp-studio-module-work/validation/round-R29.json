@@ -1,0 +1,3632 @@
+{
+ "round": 29,
+ "round_id": "STUDIO-R29",
+ "round_opened": true,
+ "rule_refs": [
+  "CX-VAL-001",
+  "CX-VAL-002",
+  "CX-VAL-003",
+  "CX-VAL-004",
+  "CX-VAL-005",
+  "CX-VAL-006",
+  "CX-VAL-007",
+  "CX-VAL-008",
+  "CX-VAL-009",
+  "CX-VAL-010",
+  "CX-STATUS-001",
+  "CX-STATUS-003",
+  "CX-EXEC-005",
+  "CX-EXEC-014",
+  "CX-EXEC-015",
+  "V4-03 NOT_PROVEN",
+  "V4-14"
+ ],
+ "candidate": "62c0bf666fc88e6ab5424e4eae46f18521c5dffe",
+ "tree": "b8c285ac064abaa57d54553f2e4ce940f6c0fb04",
+ "candidate_note": "dispatch: freeze git rev-parse origin after fetch: 62c0bf6 at 23:54:12Z. Pushed during preparation (queue for R30): a2d17b0 (render-gpu PIPELINE-FAULT), 8705d18 (CA-2 slice 2 WIP), b9bb3e0 (COMPOSITION-ADAPTER slice 4), c3e29e5. dd63d21..62c0bf6: 56 commits",
+ "round_identity_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/ROUND_IDENTITY.json",
+ "export": {
+  "file_count": 1158,
+  "manifest_sha256": "d5811940fa09b4f7597357602b5474ba573f4d3ca39b2d6b35e14a759f1fb2a7",
+  "git_blob_equal": true,
+  "refresh": "kernel tools/export-refresh.sh in place dd63d21 -> 62c0bf6 (42 added, 54 changed, 1062 unchanged, 1 deleted), blob_mismatch 0, 23:54:18Z..23:54:25Z"
+ },
+ "started_at": "2026-10-14T23:54:12Z",
+ "completed_at": "2026-10-15T00:49:10Z",
+ "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+ "running_record": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/RUNNING-R29.jsonl (freeze, canary running/process_identity/completed, opened, union running/process_identity/completed, verdicts_accepted, verdicts_recorded)",
+ "gameplan": ".GOV/task_packets/WP-KERNEL-STUDIO/gameplans/STUDIO-MODULE-ROUND.yaml before_round PASS 12/12, re-confirmed per edit HEAD (62c0bf6, a2d17b0, b9bb3e0, c3e29e5; candidate stays 62c0bf6); one canary launch blocked by the hook while edit HEAD 8705d18 was unpushed (GP-001), waited until HEAD == origin; GP-003 D: round lock free, builder runs on C: targets only; GP-005 LongPathsEnabled=1; GP-012 cargo metadata --locked ok",
+ "canary": {
+  "reused": false,
+  "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29-canary",
+  "round_json_sha256": "2f7a1393f2d4609c0e858e28f282fef743cefaf56abba856656bcaba6a03d2a2",
+  "argv": "bash tools/[round entry script] --results <studio-round>/results/R29-canary --target-dir <studio-round>/target --canary --all (cwd export; absolute D: paths; no caller env)",
+  "started_at": "2026-10-14T23:59:38Z",
+  "ended_at": "2026-10-15T00:14:26Z",
+  "summary": "complete true, exit 0, 94 units all build 0 / run 0, 37/37 first tests passed, not_proven [], absent [], timed_out [], step 0 clean, fixture clap-gain binding_intact",
+  "reason": "steward C39 is on 5556fe9 != candidate 62c0bf6 (dispatch: reuse only if sha/tree/manifest equal)"
+ },
+ "union": {
+  "selection": "27 crates: 25 = crates changed dd63d21..62c0bf6 (chronicle composite develop folio harness interop-fig layout nib pigment press prism render-cpu render-gpu score session) + reverse dependency closure (cargo metadata, normal+dev) + web, reel-native (SMB-NOTES-BATCH-1 crates)",
+  "argv": "bash tools/[round entry script] --results <studio-round>/results/R29 --target-dir <studio-round>/target <27 crates> (cwd export; absolute D: paths; no caller env)",
+  "started_at": "2026-10-15T00:15:51Z",
+  "ended_at": "2026-10-15T00:42:16Z",
+  "build_exit": 0,
+  "run_exit": 0,
+  "exit": 100,
+  "summary": "69 units: all build 0; run 0 except ignored:hsk-studio-develop run 100 (1 failed: real_dng_decode_and_develop, infrastructure); default Summary [  63.721s] 1276 tests run: 1276 passed (11 slow), 10 skipped; timed_out_tests [] ; absent []; NOT_PROVEN 11 lines",
+  "per_crate_default": {
+   "chronicle": 24,
+   "components": 17,
+   "composite": 49,
+   "develop": 69,
+   "folio": 58,
+   "harness": 7,
+   "interop-fig": 32,
+   "interop-layout": 11,
+   "interop-media": 6,
+   "interop-psd": 70,
+   "interop-vector": 23,
+   "kernel-bindings": 11,
+   "layout": 27,
+   "nib": 26,
+   "package": 25,
+   "pigment": 125,
+   "press": 182,
+   "prism": 157,
+   "pulse": 18,
+   "render-cpu": 52,
+   "render-gpu": 36,
+   "score": 57,
+   "score-device": 10,
+   "score-plugin": 23,
+   "session": 23,
+   "web": 138
+  },
+  "hashes": {
+   "round.json": "c26a32faa54173e0285221e945f6cdc3093b636910b81f4334d10933c889f407",
+   "tests.json": "44a932424fece7e10c1f3ba3df5854c4c6ebef92a9ff0803b31009de49518e84",
+   "junit.xml": "afbc9277c3b5efbda7bfa5cf91775161bb69a65878bc43d6036d50f161c71cba",
+   "units.tsv": "dd9f575f1cf072b7abbafce3ba40e13d72a470817aa3715459408e46535e0d49",
+   "run.stderr.txt": "6b72d3c42218ed1ab09e8cb02f9ecae183278da031dfeda2451fc9ef54b62ff9",
+   "build.stderr.txt": "b7abc35c37790c72ea1f04e59c10d613ad7c87b6f49f1cde9403e0992eeda1ce",
+   "step0.policy.json": "d4f6431ce057b97971323f48c65e8035564117a31c7df664fc0087bfff48238b",
+   "oracle-corpus.manifest.txt": "5b0ec04bf6417b676f66c64f8d27034638d63a02b14d39864d2b015bcb2873df"
+  },
+  "disk_lock": {
+   "root": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/.disk-build-lock",
+   "schema": "hsk.studio.disk-build-lock@2",
+   "class": "round",
+   "holds": 3,
+   "yields": 2,
+   "slice_s": 300,
+   "waited_s_total": 625,
+   "waited_s_max": 316,
+   "broke_stale": "",
+   "first_acquired_at": "2026-10-15T00:15:59Z",
+   "released_at": "2026-10-15T00:42:16Z"
+  },
+  "tools": {
+   "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+   "cargo": "cargo 1.97.1 (c980f4866 2026-06-30)",
+   "nextest": "cargo-nextest 0.9.148 (cd1d6d546 2026-10-07)"
+  },
+  "env": {
+   "env_added_by_caller": "none (CX-VAL-007)",
+   "rustc_wrapper": "",
+   "env_set": [
+    "CARGO_TARGET_DIR",
+    "TMP",
+    "TEMP",
+    "TMPDIR",
+    "CARGO_PROFILE_DEV_DEBUG",
+    "CARGO_PROFILE_TEST_DEBUG",
+    "CARGO_TERM_COLOR"
+   ]
+  },
+  "fixtures": [
+   {
+    "id": "score-plugin/clap-gain",
+    "binding_intact": true
+   }
+  ]
+ },
+ "timeouts": [],
+ "timeouts_note": "no per-test expiry: timed_out_tests [] and every unit timed_out 0",
+ "not_proven": {
+  "union_lines": [
+   {
+    "unit": "default",
+    "crate": "hsk-studio-interop-fig",
+    "binary": "hsk-studio-interop-fig::fig_import",
+    "test": "actual_fig_instance_variable_prototype_edit_reopen",
+    "reason": "actual_fig_instance_variable_prototype_edit_reopen file=fig-basic-shapes.fig decoded=census+typed_node_tree editable_import=not_proven(tests/fig_native.rs maps into Folio and proves save+reopen identity and a rename; geometry, transforms, effects, images and masks are losses)"
+   },
+   {
+    "unit": "default",
+    "crate": "hsk-studio-interop-fig",
+    "binary": "hsk-studio-interop-fig::fig_import",
+    "test": "actual_fig_instance_variable_prototype_edit_reopen",
+    "reason": "actual_fig_instance_variable_prototype_edit_reopen file=fig-components-autolayout.fig decoded=census+typed_node_tree editable_import=not_proven(tests/fig_native.rs maps into Folio and proves save+reopen identity and a rename; geometry, transforms, effects, images and masks are losses)"
+   },
+   {
+    "unit": "default",
+    "crate": "hsk-studio-interop-fig",
+    "binary": "hsk-studio-interop-fig::fig_import",
+    "test": "actual_fig_instance_variable_prototype_edit_reopen",
+    "reason": "actual_fig_instance_variable_prototype_edit_reopen file=fig-prototype-pages.fig decoded=census+typed_node_tree editable_import=not_proven(tests/fig_native.rs maps into Folio and proves save+reopen identity and a rename; geometry, transforms, effects, images and masks are losses)"
+   },
+   {
+    "unit": "default",
+    "crate": "hsk-studio-interop-psd",
+    "binary": "hsk-studio-interop-psd::image_source_le",
+    "test": "pillow_photoshop_cs_little_endian_layers_parse",
+    "reason": "pillow_photoshop_cs_parity reason=no_independent_photoshop_oracle (layers parsed from file bytes only)"
+   },
+   {
+    "unit": "features:hsk-studio-harness+import-tiff",
+    "crate": "hsk-studio-harness",
+    "binary": "hsk-studio-harness::import_tiff",
+    "test": "photoshop_tiff_imports_its_layers_through_interop_psd",
+    "reason": "tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file bytes only)"
+   },
+   {
+    "unit": "features:hsk-studio-harness+import-raw+import-tiff",
+    "crate": "hsk-studio-harness",
+    "binary": "hsk-studio-harness::import_tiff",
+    "test": "photoshop_tiff_imports_its_layers_through_interop_psd",
+    "reason": "tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file bytes only)"
+   },
+   {
+    "unit": "features:hsk-studio-harness+viewer",
+    "crate": "hsk-studio-harness",
+    "binary": "hsk-studio-harness::import_tiff",
+    "test": "photoshop_tiff_imports_its_layers_through_interop_psd",
+    "reason": "tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file bytes only)"
+   },
+   {
+    "unit": "features:hsk-studio-harness+desktop+viewer",
+    "crate": "hsk-studio-harness",
+    "binary": "hsk-studio-harness::import_tiff",
+    "test": "photoshop_tiff_imports_its_layers_through_interop_psd",
+    "reason": "tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file bytes only)"
+   },
+   {
+    "unit": "ignored:hsk-studio-develop",
+    "crate": "hsk-studio-develop",
+    "binary": "hsk-studio-develop::real_raw",
+    "test": "nef_d1h_uncompressed_decodes_deterministically",
+    "reason": "nef_d1h_uncompressed_decodes_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run"
+   },
+   {
+    "unit": "ignored:hsk-studio-develop",
+    "crate": "hsk-studio-develop",
+    "binary": "hsk-studio-develop::real_raw",
+    "test": "arw_7s_craw_decodes_deterministically",
+    "reason": "arw_7s_craw_decodes_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run"
+   },
+   {
+    "unit": "ignored:hsk-studio-develop",
+    "crate": "hsk-studio-develop",
+    "binary": "hsk-studio-develop::real_raw",
+    "test": "cr2_350d_decodes_the_stored_frame_deterministically",
+    "reason": "cr2_350d_decodes_the_stored_frame_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run"
+   }
+  ],
+  "count": 11,
+  "note": "interop-fig D17 x3, interop-psd Photoshop CS LE oracle x1, harness import-tiff Photoshop parity x4 (as R28), develop vendor RAW converter x3 (ignored unit)"
+ },
+ "infrastructure_failure": {
+  "failure_kind": "infrastructure",
+  "failure_class": "oracle_corpus_changed_between_canary_and_union",
+  "unit": "ignored:hsk-studio-develop (run_exit 100)",
+  "test": "hsk-studio-develop::real_dng real_dng_decode_and_develop",
+  "file_line": "crates/hsk-studio-develop/tests/real_dng.rs:196",
+  "evidence": "panic: oracle-corpus/dng/samsung-sm-g973u-16bit-uncompressed.dng not found; the corpus was edited out of band 00:12-00:13Z by lane SMB-DNG-CORPUS-REPLACE (file renamed .jfif-preview, samsung-sm-g950u DNG added, provenance.json changed); canary corpus 651 files with the file, union corpus 652 files without it; same test passed in R28; product fix 8424d8a (lead commit ed2239c8 note) is after the candidate",
+  "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29/ignored/hsk-studio-develop/run.stderr.txt",
+  "effect": "every lane whose crates include develop: INCONCLUSIVE, status unchanged (CX-VAL-006); 10 lanes",
+  "counter": "CX-EXEC-015(4): first round with this failure_class"
+ },
+ "cx_val_009": {
+  "rule": "PASS lanes whose crate (or listed crates) is in the changed closure dd63d21..62c0bf6 return to READY and are judged here",
+  "closure": [
+   "chronicle",
+   "components",
+   "composite",
+   "develop",
+   "folio",
+   "harness",
+   "interop-fig",
+   "interop-layout",
+   "interop-media",
+   "interop-psd",
+   "interop-vector",
+   "kernel-bindings",
+   "layout",
+   "nib",
+   "package",
+   "pigment",
+   "press",
+   "prism",
+   "pulse",
+   "render-cpu",
+   "render-gpu",
+   "score",
+   "score-device",
+   "score-plugin",
+   "session"
+  ],
+  "reopened": [
+   "SMB-LAYOUT",
+   "SMB-DEVELOP",
+   "SMB-COMPONENTS",
+   "SMB-PULSE",
+   "SMB-SCORE",
+   "SMB-COMPOSITE",
+   "SMB-RENDER-CPU",
+   "SMB-RENDER-GPU",
+   "SMB-PACKAGE",
+   "SMB-INTEROP-PSD",
+   "SMB-INTEROP-VECTOR",
+   "SMB-INTEROP-FIG",
+   "SMB-INTEROP-LAYOUT",
+   "SMB-INTEROP-MEDIA",
+   "SMB-SESSION",
+   "SMB-HARNESS",
+   "SMB-KERNEL-BINDINGS",
+   "SMB-PRESS",
+   "SMB-SCORE-DEVICE",
+   "SMB-SCORE-PLUGIN",
+   "SMB-PRISM-ENG-1",
+   "SMB-PULSE-ENG-1",
+   "SMB-PRISM-ENG-2",
+   "SMB-PRISM-ENG-3",
+   "SMB-PRISM-ENG-4",
+   "SMB-PRISM-ENG-5",
+   "SMB-FOLIO-ENG-1",
+   "SMB-PIGMENT-ENG-1",
+   "SMB-FOLIO-ENG-2",
+   "SMB-NIB-ENG-1",
+   "SMB-FOLIO-ENG-3",
+   "SMB-INTEROP-MEDIA-PULSE",
+   "SMB-RENDER-CPU-CLIP",
+   "SMB-COMPOSITE-CLIP-ALIGN",
+   "SMB-LAYOUT-FOLIO-MIGRATE",
+   "SMB-FOLIO-ENG-4",
+   "SMB-INTEROP-PSD-WIDE",
+   "SMB-DEVELOP-WIDE",
+   "SMB-PACKAGE-STREAM-SAVE",
+   "SMB-PRISM-ENG-6",
+   "SMB-COMPONENTS-FOLIO-MIGRATE",
+   "SMB-INTEROP-VECTOR-FOLIO-MIGRATE",
+   "SMB-PIGMENT-ENG-2",
+   "SMB-PRISM-ENG-7",
+   "SMB-COMPOSITE-ADJ",
+   "SMB-RENDER-CPU-ADJ",
+   "SMB-RENDER-GPU-ADJ",
+   "SMB-INTEROP-PSD-ADJ",
+   "SMB-EFFECTS-WAVE-1",
+   "SMB-EFFECTS-WAVE-2",
+   "SMB-FOLIO-ENG-6",
+   "SMB-FOLIO-ENG-7",
+   "SMB-CHRONICLE-TABLE",
+   "SMB-PIGMENT-WINDOW",
+   "SMB-RENDER-CPU-WINDOW",
+   "SMB-INTEROP-VECTOR-RECORDS",
+   "SMB-RENDER-CPU-FX2",
+   "SMB-PRISM-ENG-8",
+   "SMB-INTEROP-PSD-RECEIPT",
+   "SMB-DEVELOP-JOBS",
+   "SMB-PIGMENT-BLENDIF-CLIP",
+   "SMB-BLENDIF-CLIP-ADOPT",
+   "SMB-INTEROP-PSD-CLIP-ROLES",
+   "SMB-PIGMENT-PLANLIMITS",
+   "SMB-REFUSAL-KEYS",
+   "SMB-SCORE-GUARDS",
+   "SMB-COMPONENTS-FOOTPRINT",
+   "SMB-FOLIO-UNIQUENESS",
+   "SMB-PIGMENT-FX-OPS",
+   "SMB-PRESS-DIFFERENCES",
+   "SMB-RENDER-GPU-PROBE",
+   "SMB-PIGMENT-ADMIT-PARITY",
+   "SMB-FX-OPS-ADOPT",
+   "SMB-SCORE-PLUGIN-RATE",
+   "SMB-PARITY-FOLLOWUP",
+   "SMB-INTEROP-PSD-BUDGET",
+   "SMB-PIGMENT-FOLLOWUPS",
+   "SMB-PIGMENT-NOTES",
+   "SMB-NOTES-BATCH-1",
+   "SMB-PRESS-DOCS",
+   "SMB-INTEROP-PSD-FOLIO-CEILING",
+   "SMB-INTEROP-PSD-LOSS-DETAIL",
+   "SMB-PRESS-DOCS-2",
+   "SMB-PRESS-STRUCT-FAILCLOSED",
+   "SMB-INTEROP-PSD-DESC-CAP",
+   "SMB-PRESS-STRUCT-ORPHANS",
+   "SMB-INTEROP-PSD-DOCS",
+   "SMB-PRESS-PROPERTIES",
+   "SMB-PRESS-STRUCT-STRIP",
+   "SMB-ZIP-CONSOLIDATE",
+   "SMB-INTEROP-FIG-FORMAT",
+   "SMB-DEVELOP-RAW-VENDOR",
+   "SMB-DEVELOP-DNG-MLV",
+   "SMB-CONVERT-NATIVE",
+   "SMB-DEVELOP-RAW-ARW",
+   "SMB-SESSION-IMPORT-ENTRIES",
+   "SMB-CONVERT-COLOUR",
+   "SMB-CONVERT-TIFF",
+   "SMB-DEVELOP-TIFF-CONSOLIDATE",
+   "SMB-INTEROP-FIG-NODES",
+   "SMB-CONVERT-FOLLOWUPS",
+   "SMB-INTEROP-FIG-NATIVE",
+   "SMB-HARNESS-UI",
+   "SMB-PIGMENT-SELECTION",
+   "SMB-PIGMENT-BRUSH",
+   "SMB-COMPOSITE-TEMPORAL",
+   "SMB-INTEROP-FIG-GEOMETRY",
+   "SMB-INTEROP-PSD-LE-LAYERS",
+   "SMB-DEVELOP-CORPUS-PATH",
+   "SMB-PIGMENT-TRANSFORM",
+   "SMB-FOLIO-COMPOSITION",
+   "SMB-COMPOSITE-TEXT",
+   "SMB-FOLIO-PAINT-BLUR-STYLE",
+   "SMB-RENDER-GPU-SHARED-DEVICE",
+   "SMB-UI-SUPPORT-APIS",
+   "SMB-HARNESS-UI-2",
+   "SMB-CONVERT-RASTER",
+   "SMB-INTEROP-FIG-FOLIO-KINDS",
+   "SMB-COMPOSITE-NEW-KINDS",
+   "SMB-HARNESS-SWEEP-PERF",
+   "SMB-LAYOUT-TYPESET"
+  ],
+  "count": 121,
+  "not_reopened_note": "accord, type, reel, motion, motion-js, controls, web, reel-native, interop-lrcat, interop-raster, interop-tiff, observe, worker unchanged and outside the closure; SMB-ROUND-ENTRYPOINT not reopened (tools/ and .config/ unchanged dd63d21..62c0bf6)"
+ },
+ "excluded": [
+  {
+   "lane": "SMB-HARNESS-UI-3",
+   "reason": "V4-14: f6443de (session + harness slices 3/5) and cf18e93 pushed after its READY claim 9a1b8d8 and not listed; ledger status null; with it SMB-PRISM-ADMITTED-WORKING-PROFILE (6e86820, claim inside UI-3 lane notes)"
+  },
+  {
+   "lane": "SMB-RENDER-GPU-PIPELINE-FAULT",
+   "reason": "claim a2d17b0 after the candidate; R30"
+  }
+ ],
+ "claim_scope_notes": [
+  "SMB-COMPOSITE-COMPOSITION-ADAPTER: dispatch said slices 1-2; the lane file claim at freeze lists slices 1-3 (62c0bf6 = candidate); judged on slices 1-3; slice 4 b9bb3e0 after candidate",
+  "SMB-PIGMENT-CONTENT-AWARE-2: slice 1 (fcd627d) only; slice 2 8705d18 after candidate",
+  "SMB-LAYOUT-TYPESET-HARDEN, SMB-PIGMENT-CONTENT-AWARE-2, SMB-COMPOSITE-COMPOSITION-ADAPTER: READY in lane files (ledger status null at freeze) -> judged as 'others the lane files mark READY'",
+  "SMB-PIGMENT-RETOUCH judged at candidate incl. fcd627d (CA-2 wiring) per lead decision 2026-10-15"
+ ],
+ "proof_reuse": "none: every selected crate rebuilt and run in this round",
+ "adversarial_review": "diffs read per judged lane (see lane notes): aafcde7 press closed set; pigment retouch/heal SOR/canvas/filter_math; content_aware PatchMatch; develop adjust/output/colour/detail/local range masks (incl. WIP src d7aaa11); nib flatten/boolean(i_overlay)/stroke/raster/edit; score dynamics/loudness/reverb/denoise + BS.1770 Annex 2 FIR table; interop-fig graph.rs; folio parentpages + vector image port; render-cpu filter sink + filter.wgsl; layout parent_adapter + hyphenate hardening; composite composition.rs precomp lowering. Stub-marker grep over all claimed src: only DESCRIPTOR text. No stub claimed as capability found. Leftover probe tests zz_fxc_probe.rs / zz_dump.rs removed in range",
+ "findings_not_failures": [
+  {
+   "lane": "SMB-DEVELOP-CONTROLS",
+   "severity": "INFO",
+   "file_line": "crates/hsk-studio-develop/src/output.rs:72",
+   "finding": "check_icc_header parses caller ICC bytes in a module without #![deny(clippy::arithmetic_side_effects)] (V4-01); no arithmetic on the bytes today (length checked before indexing)",
+   "repair_direction": "add V4-01 deny to output.rs"
+  },
+  {
+   "lane": "SMB-LAYOUT-PARENT-ADAPTER",
+   "severity": "INFO",
+   "file_line": "crates/hsk-studio-layout/src/parent_adapter.rs:1",
+   "finding": "module maps package-sourced parent_page_records without V4-01 deny",
+   "repair_direction": "add V4-01 deny; audit index/len arithmetic"
+  },
+  {
+   "lane": "SMB-DEVELOP-CONTROLS-2 / SMB-RENDER-FILTERS",
+   "severity": "INFO",
+   "finding": "source landed in commits labelled 'WIP, local only' (develop d7aaa11 1491f61; render-gpu afaa779 3203643 717f65c 0415503) that reached origin through other builders' pushes; claims list only the later commits. Judged at candidate tree (includes them)",
+   "repair_direction": "lead: builders should not commit WIP on the shared branch (V4-14 spirit)"
+  },
+  {
+   "lane": "SMB-COMPOSITE-COMPOSITION-ADAPTER / SMB-LAYOUT-PARENT-ADAPTER / SMB-SCORE-TRUEPEAK / SMB-PRESS-PG-HARDEN",
+   "severity": "INFO",
+   "finding": "lane-file updated_at values (00:00:00Z, 00:05:00Z) were later than the observed time when read (~23:52Z): estimated, not from date -u (builder STATE rule)"
+  },
+  {
+   "lane": "SMB-DNG-CORPUS-REPLACE",
+   "severity": "INFRA",
+   "finding": "oracle corpus edited during an open round window (between canary and union) without a matching pushed test change -> develop ignored unit failed; corpus edits should land only together with (after) the pushed test update, outside open rounds"
+  }
+ ],
+ "verdict_counts": {
+  "PASS": 127,
+  "INCONCLUSIVE": 10
+ },
+ "verdict_numbering": "Vn = 1 + highest prior PASS_V/FAIL_V of the lane (ledger verdicts + status); INCONCLUSIVE consumes no number",
+ "counters": [
+  {
+   "lane": "round",
+   "counter": "CX-EXEC-015(4)",
+   "outcome": "infrastructure class oracle_corpus_changed_between_canary_and_union: first occurrence"
+  }
+ ],
+ "lanes": [
+  {
+   "lane": "SMB-PRESS-PG-HARDEN",
+   "crate": "hsk-studio-press",
+   "crates_checked": [
+    "press"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "included_by": "READY claim in candidate",
+   "prior_status": "READY_FOR_VALIDATION",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "aafcde7: MCR/OBJR/element /Pg no longer outward keys; closed set excludes real pages + catalog by object number (structure_tree_objects `outside`); /Pg to a non-page dict counted. No stub. Lane tests 61 passed / 0 failed (/flatten_r13/); default press 182; all units of press build 0 run 0",
+   "lane_file": "builders/lanes/hsk-studio-press-pg-harden.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-PRESS-PG-HARDEN:62c0bf666fc8:PASS_V1",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-RETOUCH",
+   "crate": "hsk-studio-pigment",
+   "crates_checked": [
+    "pigment"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "included_by": "READY claim in candidate",
+   "prior_status": "READY_FOR_VALIDATION",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "9650626 78ff77d e8c4f18 edc1e0b (+fcd627d CA-2 wiring, CX-VAL-009 lead decision): clone stamp, membrane Poisson heal (SOR, converged reported), spot heal, crop/canvas/trim, filter_math (USM, high pass, median sort, SplitMix noise); content_aware_fill now native fill; V4-01 deny on retouch/canvas_ops/filter_math. No stub. Lane tests 13 passed / 0 failed (/::retouch::/); default pigment 125; all units of pigment build 0 run 0",
+   "lane_file": "builders/lanes/hsk-studio-pigment-retouch.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-PIGMENT-RETOUCH:62c0bf666fc8:PASS_V1",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-DEVELOP-CONTROLS",
+   "crate": "hsk-studio-develop",
+   "crates_checked": [
+    "develop"
+   ],
+   "decision": "inconclusive",
+   "verdict": null,
+   "status_change": "unchanged (READY_FOR_VALIDATION)",
+   "included_by": "READY claim in candidate",
+   "prior_status": "READY_FOR_VALIDATION",
+   "failures": [],
+   "infrastructure_failure": {
+    "failure_kind": "infrastructure",
+    "failure_class": "oracle_corpus_changed_between_canary_and_union",
+    "test": "hsk-studio-develop::real_dng real_dng_decode_and_develop (unit ignored:hsk-studio-develop, run_exit 100)",
+    "file_line": "crates/hsk-studio-develop/tests/real_dng.rs:196",
+    "evidence": "panic: oracle-corpus/dng/samsung-sm-g973u-16bit-uncompressed.dng not found; corpus edited out of band 00:12-00:13Z (SMB-DNG-CORPUS-REPLACE): file renamed .jfif-preview, g950u DNG added, provenance.json changed; canary corpus 651 files (file present) -> union corpus 652 files (absent); R28 same test passed",
+    "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29/ignored/hsk-studio-develop/run.stderr.txt"
+   },
+   "remediation": null,
+   "blocker": {
+    "kind": "infrastructure",
+    "exact": "develop real_dng.rs:196 names dng/samsung-sm-g973u-16bit-uncompressed.dng which the corpus no longer holds (SMB-DNG-CORPUS-REPLACE rename 00:12Z)",
+    "unblock": "push the develop test/fetch-corpus update for the replacement DNG (or restore the corpus file), then re-judge develop lanes"
+   },
+   "not_proven": [
+    "develop real_raw::nef_d1h_uncompressed_decodes_deterministically (ignored:hsk-studio-develop): nef_d1h_uncompressed_decodes_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run",
+    "develop real_raw::arw_7s_craw_decodes_deterministically (ignored:hsk-studio-develop): arw_7s_craw_decodes_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run",
+    "develop real_raw::cr2_350d_decodes_the_stored_frame_deterministically (ignored:hsk-studio-develop): cr2_350d_decodes_the_stored_frame_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run"
+   ],
+   "note": "d16f10d ccc4a7c b4f0107: Bradford WB on Kim locus, monotone PCHIP tone, 8-band HSL, parametric regions, local gradient/brush masks, output 8/16-bit + ICC header check. No stub. INFO: output.rs (ICC header bytes) lacks V4-01 deny; no arithmetic on bytes (length checked first). Lane tests 14 passed / 0 failed (/develop_adjust|develop_local|develop_output/); default develop 69; all units of develop build 0 run 0 | INCONCLUSIVE: develop ignored unit real_dng_decode_and_develop failed on a missing oracle-corpus file (infrastructure, see infrastructure_failure)",
+   "lane_file": "builders/lanes/hsk-studio-develop-controls.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-DEVELOP-CONTROLS:62c0bf666fc8:INCONCLUSIVE",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-NIB-VECTOR-RENDER",
+   "crate": "hsk-studio-nib",
+   "crates_checked": [
+    "nib"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "included_by": "READY claim in candidate",
+   "prior_status": "READY_FOR_VALIDATION",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "5e550e2 9e5c438 c6a636f fd8a271 a1fc75f 201dca0 baf8ffc: flatten chord bound, booleans over i_overlay =4.0.7, stroke outline (caps/joins/miter/dash), analytic signed-area rasteriser + gradient/pattern paint, de Casteljau edit primitives; V4-01 deny on boolean/stroke/flatten/raster/edit. No stub. Lane tests 16 passed / 0 failed (/vector_(boolean|stroke|raster|edit)/); default nib 26; all units of nib build 0 run 0",
+   "lane_file": "builders/lanes/hsk-studio-nib-vector-render.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-NIB-VECTOR-RENDER:62c0bf666fc8:PASS_V1",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-SCORE-DSP",
+   "crate": "hsk-studio-score",
+   "crates_checked": [
+    "score"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "included_by": "READY claim in candidate",
+   "prior_status": "READY_FOR_VALIDATION",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "7f76cfd a036f77 4e36b3d 917a7ac: soft-knee dynamics + lookahead limiter, BS.1770-4 K-weighting/gating/LRA, Schroeder-Moorer reverb, STFT radix-2 Wiener denoise. No stub; EBU vectors NOT_PROVEN by lane (403). Lane tests 19 passed / 0 failed (/::(dynamics|loudness|reverb|denoise|common_dsp)::/); default score 57; all units of score build 0 run 0",
+   "lane_file": "builders/lanes/hsk-studio-score-dsp.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-SCORE-DSP:62c0bf666fc8:PASS_V1",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-INTEROP-FIG-LAYER-GRAPH",
+   "crate": "hsk-studio-interop-fig",
+   "crates_checked": [
+    "interop-fig"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "included_by": "READY claim in candidate",
+   "prior_status": "READY_FOR_VALIDATION",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-basic-shapes.fig decoded=census+typed_node_tree editable_import=not_proven(tests/fig_nativ",
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-components-autolayout.fig decoded=census+typed_node_tree editable_import=not_proven(tests/",
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-prototype-pages.fig decoded=census+typed_node_tree editable_import=not_proven(tests/fig_na"
+   ],
+   "note": "55606ee e90ad7b 3a0cebc e3b89c4 5db9339 0c1ae4d (+6 unlisted test-only commits between): graph.rs writes real source/mix ops, edges, outputs with typed native.graph losses; boolean groups Normal/Isolated; composite-vs-Operator-PNG proofs (dev edges approved 2026-10-15); scratch zz_dump removed. No stub. Lane tests 18 passed / 0 failed (/fig_composite|fig_native|fig_geometry|fig_folio_kinds/); default interop-fig 32; all units of interop-fig build 0 run 0",
+   "lane_file": "builders/lanes/hsk-studio-interop-fig-layer-graph.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-INTEROP-FIG-LAYER-GRAPH:62c0bf666fc8:PASS_V1",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-FOLIO-VECTOR-IMAGE-PORT",
+   "crate": "hsk-studio-folio",
+   "crates_checked": [
+    "folio"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "included_by": "READY claim in candidate",
+   "prior_status": "READY_FOR_VALIDATION",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "6e2ec80: vector source op with a single image out port is typed Image so it feeds group image inputs (mirrors G1 text); vector form unchanged. No stub. Lane tests 1 passed / 0 failed (/vector_image_port_contract/); default folio 58; all units of folio build 0 run 0",
+   "lane_file": "builders/lanes/hsk-studio-folio-vector-image-port.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-FOLIO-VECTOR-IMAGE-PORT:62c0bf666fc8:PASS_V1",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-FOLIO-PARENT-PAGES",
+   "crate": "hsk-studio-folio",
+   "crates_checked": [
+    "folio"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "included_by": "READY claim in candidate",
+   "prior_status": "READY_FOR_VALIDATION",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "6e2ec80: hsk.studio.parent_page_records@1 (parent pages, items, overrides, page bindings) + schema + validate_parent_page_records; V4-01 deny on parentpages.rs. No stub. Lane tests 3 passed / 0 failed (/parent_pages_contract/); default folio 58; all units of folio build 0 run 0",
+   "lane_file": "builders/lanes/hsk-studio-folio-parent-pages.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-FOLIO-PARENT-PAGES:62c0bf666fc8:PASS_V1",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-SCORE-TRUEPEAK",
+   "crate": "hsk-studio-score",
+   "crates_checked": [
+    "score"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "included_by": "READY claim in candidate",
+   "prior_status": "READY_FOR_VALIDATION",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "f025ff7: 4x polyphase FIR with the BS.1770 Annex 2 48 coefficients (checked by reading: phases 0..3 symmetric table), sample peak floor; sweep/Tech 3341/limiter tests. No stub; EBU vectors NOT_PROVEN by lane (403). Lane tests 5 passed / 0 failed (/::truepeak::/); default score 57; all units of score build 0 run 0",
+   "lane_file": "builders/lanes/hsk-studio-score-truepeak.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-SCORE-TRUEPEAK:62c0bf666fc8:PASS_V1",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-RENDER-FILTERS",
+   "crate": "hsk-studio-render-cpu",
+   "crates_checked": [
+    "render-cpu",
+    "render-gpu"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "included_by": "READY claim in candidate",
+   "prior_status": "READY_FOR_VALIDATION",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "9698de3 (50e2b87, WIP afaa779 717f65c 3203643 0415503 in range) e029861 5556fe9: render-cpu stage = pigment filter_window (no own formula); filter.wgsl filter_pass (USM/high-pass combine, median r<=7, 64-bit SplitMix on u32 pairs); zz_fxc_probe removed. No stub. Lane tests 13 passed / 0 failed (/cpu_filters|gpu_filters/); default render-cpu 52, render-gpu 36; all units of render-cpu/render-gpu build 0 run 0",
+   "lane_file": "builders/lanes/hsk-studio-render-filters.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-RENDER-FILTERS:62c0bf666fc8:PASS_V1",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-CONTENT-AWARE",
+   "crate": "hsk-studio-pigment",
+   "crates_checked": [
+    "pigment"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "included_by": "READY claim in candidate",
+   "prior_status": "READY_FOR_VALIDATION",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "5c2288e 3d02528 9c39a5e b7880bb: PatchMatch NNF pyramid (seeded random init, Jacobi propagation, random search, EM vote, onion peel), patch/move, budgets before allocation, V4-01 deny. No stub. Lane tests 8 passed / 0 failed (/::content_aware::/); default pigment 125; all units of pigment build 0 run 0",
+   "lane_file": "builders/lanes/hsk-studio-pigment-content-aware.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-PIGMENT-CONTENT-AWARE:62c0bf666fc8:PASS_V1",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-DEVELOP-CONTROLS-2",
+   "crate": "hsk-studio-develop",
+   "crates_checked": [
+    "develop"
+   ],
+   "decision": "inconclusive",
+   "verdict": null,
+   "status_change": "unchanged (READY_FOR_VALIDATION)",
+   "included_by": "READY claim in candidate",
+   "prior_status": "READY_FOR_VALIDATION",
+   "failures": [],
+   "infrastructure_failure": {
+    "failure_kind": "infrastructure",
+    "failure_class": "oracle_corpus_changed_between_canary_and_union",
+    "test": "hsk-studio-develop::real_dng real_dng_decode_and_develop (unit ignored:hsk-studio-develop, run_exit 100)",
+    "file_line": "crates/hsk-studio-develop/tests/real_dng.rs:196",
+    "evidence": "panic: oracle-corpus/dng/samsung-sm-g973u-16bit-uncompressed.dng not found; corpus edited out of band 00:12-00:13Z (SMB-DNG-CORPUS-REPLACE): file renamed .jfif-preview, g950u DNG added, provenance.json changed; canary corpus 651 files (file present) -> union corpus 652 files (absent); R28 same test passed",
+    "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29/ignored/hsk-studio-develop/run.stderr.txt"
+   },
+   "remediation": null,
+   "blocker": {
+    "kind": "infrastructure",
+    "exact": "develop real_dng.rs:196 names dng/samsung-sm-g973u-16bit-uncompressed.dng which the corpus no longer holds (SMB-DNG-CORPUS-REPLACE rename 00:12Z)",
+    "unblock": "push the develop test/fetch-corpus update for the replacement DNG (or restore the corpus file), then re-judge develop lanes"
+   },
+   "not_proven": [
+    "develop real_raw::nef_d1h_uncompressed_decodes_deterministically (ignored:hsk-studio-develop): nef_d1h_uncompressed_decodes_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run",
+    "develop real_raw::arw_7s_craw_decodes_deterministically (ignored:hsk-studio-develop): arw_7s_craw_decodes_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run",
+    "develop real_raw::cr2_350d_decodes_the_stored_frame_deterministically (ignored:hsk-studio-develop): cr2_350d_decodes_the_stored_frame_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run"
+   ],
+   "note": "6a636c2 c809101 cfd75bf 3c0fcc6 31642da (src in WIP d7aaa11 1491f61, inside range): absolute kelvin/tint WB, point colour, grayscale mix, colour grading, texture, dark-channel dehaze, USM sharpen, bilateral NR, luminance/colour range masks. No stub. Lane tests 14 passed / 0 failed (/develop_colour2|develop_detail|develop_range/); default develop 69; all units of develop build 0 run 0 | INCONCLUSIVE: develop ignored unit real_dng_decode_and_develop failed on a missing oracle-corpus file (infrastructure, see infrastructure_failure)",
+   "lane_file": "builders/lanes/hsk-studio-develop-controls-2.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-DEVELOP-CONTROLS-2:62c0bf666fc8:INCONCLUSIVE",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-LAYOUT-PARENT-ADAPTER",
+   "crate": "hsk-studio-layout",
+   "crates_checked": [
+    "layout",
+    "interop-layout"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "included_by": "READY claim in candidate",
+   "prior_status": "READY_FOR_VALIDATION",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "3d02f56: folio parent_page_records <-> ParentSet both ways, per-page resolution, typed ParentAdapterError refusals. No stub. INFO: parent_adapter.rs (reads package records) has no V4-01 deny. Lane tests 3 passed / 0 failed (/parent_adapter/); default layout 27, interop-layout 11; all units of layout/interop-layout build 0 run 0",
+   "lane_file": "builders/lanes/hsk-studio-layout-parent-adapter.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-LAYOUT-PARENT-ADAPTER:62c0bf666fc8:PASS_V1",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-COMPOSITE-COMPOSITION-ADAPTER",
+   "crate": "hsk-studio-composite",
+   "crates_checked": [
+    "composite",
+    "render-cpu",
+    "render-gpu"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "included_by": "READY claim in candidate",
+   "prior_status": "READY_FOR_VALIDATION",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "791f865 19a7c19 13f5bd0 b1d5e85 e99c4a7 62c0bf6 (slices 1-3; lane file claim; slice 4 b9bb3e0 after candidate): scene lowering, motion-evaluated streams, anchor/parent chain, i128 source_tick, precomp rendered through the backend into owned surfaces with depth/surface/byte budgets; V4-01 deny. No stub. Lane tests 34 passed / 0 failed (/composition_adapter|composition_frames|::temporal|static_plan/); default composite 49, render-cpu 52, render-gpu 36; all units of composite/render-cpu/render-gpu build 0 run 0",
+   "lane_file": "builders/lanes/hsk-studio-composite-composition-adapter.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-COMPOSITE-COMPOSITION-ADAPTER:62c0bf666fc8:PASS_V1",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-LAYOUT-TYPESET-HARDEN",
+   "crate": "hsk-studio-layout",
+   "crates_checked": [
+    "layout",
+    "interop-layout"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "included_by": "READY claim in candidate",
+   "prior_status": "READY_FOR_VALIDATION",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "54f8d69: HyphenationParams::validate (bounds, checked_add), typed InvalidParams, try_points, TypesetOptions::validate delegates, saturating first_fit counter, deny on hyphenate.rs; closes R28 finding. No stub. Lane tests 18 passed / 0 failed (/::hyphenation::|::typeset::/); default layout 27, interop-layout 11; all units of layout/interop-layout build 0 run 0",
+   "lane_file": "builders/lanes/hsk-studio-layout-typeset-harden.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-LAYOUT-TYPESET-HARDEN:62c0bf666fc8:PASS_V1",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-CONTENT-AWARE-2",
+   "crate": "hsk-studio-pigment",
+   "crates_checked": [
+    "pigment"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "status_change": "PASS_V1",
+   "included_by": "READY claim in candidate",
+   "prior_status": "READY_FOR_VALIDATION",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "fcd627d (slice 1 claim; slices 2-4 not claimed, 8705d18 after candidate): retouch content_aware_fill and crop content_aware_fill_on_expand call content_aware::fill; crop_content_aware returns the receipt. No stub. Lane tests 17 passed / 0 failed (/content_aware_wiring|::retouch::/); default pigment 125; all units of pigment build 0 run 0",
+   "lane_file": "builders/lanes/hsk-studio-pigment-content-aware-2.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-PIGMENT-CONTENT-AWARE-2:62c0bf666fc8:PASS_V1",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-LAYOUT",
+   "crate": "hsk-studio-layout",
+   "crates_checked": [
+    "layout"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V9",
+   "status_change": "PASS_V9",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V8",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of layout all build 0/run 0, 0 failed, 0 timed_out; default layout 27",
+   "lane_file": "builders/lanes/hsk-studio-layout.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-LAYOUT:62c0bf666fc8:PASS_V9",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-DEVELOP",
+   "crate": "hsk-studio-develop",
+   "crates_checked": [
+    "develop"
+   ],
+   "decision": "inconclusive",
+   "verdict": null,
+   "status_change": "unchanged (PASS_V14)",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V14",
+   "failures": [],
+   "infrastructure_failure": {
+    "failure_kind": "infrastructure",
+    "failure_class": "oracle_corpus_changed_between_canary_and_union",
+    "test": "hsk-studio-develop::real_dng real_dng_decode_and_develop (unit ignored:hsk-studio-develop, run_exit 100)",
+    "file_line": "crates/hsk-studio-develop/tests/real_dng.rs:196",
+    "evidence": "panic: oracle-corpus/dng/samsung-sm-g973u-16bit-uncompressed.dng not found; corpus edited out of band 00:12-00:13Z (SMB-DNG-CORPUS-REPLACE): file renamed .jfif-preview, g950u DNG added, provenance.json changed; canary corpus 651 files (file present) -> union corpus 652 files (absent); R28 same test passed",
+    "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29/ignored/hsk-studio-develop/run.stderr.txt"
+   },
+   "remediation": null,
+   "blocker": {
+    "kind": "infrastructure",
+    "exact": "develop real_dng.rs:196 names dng/samsung-sm-g973u-16bit-uncompressed.dng which the corpus no longer holds (SMB-DNG-CORPUS-REPLACE rename 00:12Z)",
+    "unblock": "push the develop test/fetch-corpus update for the replacement DNG (or restore the corpus file), then re-judge develop lanes"
+   },
+   "not_proven": [
+    "develop real_raw::nef_d1h_uncompressed_decodes_deterministically (ignored:hsk-studio-develop): nef_d1h_uncompressed_decodes_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run",
+    "develop real_raw::arw_7s_craw_decodes_deterministically (ignored:hsk-studio-develop): arw_7s_craw_decodes_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run",
+    "develop real_raw::cr2_350d_decodes_the_stored_frame_deterministically (ignored:hsk-studio-develop): cr2_350d_decodes_the_stored_frame_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run"
+   ],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of develop all build 0/run 0, 0 failed, 0 timed_out; default develop 69 | INCONCLUSIVE: develop ignored unit real_dng_decode_and_develop failed on a missing oracle-corpus file (infrastructure, see infrastructure_failure)",
+   "lane_file": "builders/lanes/hsk-studio-develop.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-DEVELOP:62c0bf666fc8:INCONCLUSIVE",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-COMPONENTS",
+   "crate": "hsk-studio-components",
+   "crates_checked": [
+    "components"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V9",
+   "status_change": "PASS_V9",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V8",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of components all build 0/run 0, 0 failed, 0 timed_out; default components 17",
+   "lane_file": "builders/lanes/hsk-studio-components.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-COMPONENTS:62c0bf666fc8:PASS_V9",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-PULSE",
+   "crate": "hsk-studio-pulse",
+   "crates_checked": [
+    "pulse"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V9",
+   "status_change": "PASS_V9",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V8",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of pulse all build 0/run 0, 0 failed, 0 timed_out; default pulse 18",
+   "lane_file": "builders/lanes/hsk-studio-pulse.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-PULSE:62c0bf666fc8:PASS_V9",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-SCORE",
+   "crate": "hsk-studio-score",
+   "crates_checked": [
+    "score"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V6",
+   "status_change": "PASS_V6",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V5",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of score all build 0/run 0, 0 failed, 0 timed_out; default score 57",
+   "lane_file": "builders/lanes/hsk-studio-score.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-SCORE:62c0bf666fc8:PASS_V6",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-COMPOSITE",
+   "crate": "hsk-studio-composite",
+   "crates_checked": [
+    "composite"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V14",
+   "status_change": "PASS_V14",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V13",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of composite all build 0/run 0, 0 failed, 0 timed_out; default composite 49",
+   "lane_file": "builders/lanes/hsk-studio-composite.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-COMPOSITE:62c0bf666fc8:PASS_V14",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-RENDER-CPU",
+   "crate": "hsk-studio-render-cpu",
+   "crates_checked": [
+    "render-cpu"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V14",
+   "status_change": "PASS_V14",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V13",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of render-cpu all build 0/run 0, 0 failed, 0 timed_out; default render-cpu 52",
+   "lane_file": "builders/lanes/hsk-studio-render-cpu.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-RENDER-CPU:62c0bf666fc8:PASS_V14",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-RENDER-GPU",
+   "crate": "hsk-studio-render-gpu",
+   "crates_checked": [
+    "render-gpu"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V9",
+   "status_change": "PASS_V9",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V8",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of render-gpu all build 0/run 0, 0 failed, 0 timed_out; default render-gpu 36",
+   "lane_file": "builders/lanes/hsk-studio-render-gpu.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-RENDER-GPU:62c0bf666fc8:PASS_V9",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-PACKAGE",
+   "crate": "hsk-studio-package",
+   "crates_checked": [
+    "package"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V10",
+   "status_change": "PASS_V10",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V9",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of package all build 0/run 0, 0 failed, 0 timed_out; default package 25",
+   "lane_file": "builders/lanes/hsk-studio-package.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-PACKAGE:62c0bf666fc8:PASS_V10",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD",
+   "crate": "hsk-studio-interop-psd",
+   "crates_checked": [
+    "interop-psd"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V22",
+   "status_change": "PASS_V22",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V21",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "interop-psd image_source_le::pillow_photoshop_cs_little_endian_layers_parse (default): pillow_photoshop_cs_parity reason=no_independent_photoshop_oracle (layers parsed from file bytes only)"
+   ],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of interop-psd all build 0/run 0, 0 failed, 0 timed_out; default interop-psd 70",
+   "lane_file": "builders/lanes/hsk-studio-interop-psd.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-INTEROP-PSD:62c0bf666fc8:PASS_V22",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-INTEROP-VECTOR",
+   "crate": "hsk-studio-interop-vector",
+   "crates_checked": [
+    "interop-vector"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V11",
+   "status_change": "PASS_V11",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V10",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of interop-vector all build 0/run 0, 0 failed, 0 timed_out; default interop-vector 23",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-INTEROP-VECTOR:62c0bf666fc8:PASS_V11",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-INTEROP-FIG",
+   "crate": "hsk-studio-interop-fig",
+   "crates_checked": [
+    "interop-fig"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V8",
+   "status_change": "PASS_V8",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V7",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-basic-shapes.fig decoded=census+typed_node_tree editable_import=not_proven(tests/fig_nativ",
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-components-autolayout.fig decoded=census+typed_node_tree editable_import=not_proven(tests/",
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-prototype-pages.fig decoded=census+typed_node_tree editable_import=not_proven(tests/fig_na"
+   ],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of interop-fig all build 0/run 0, 0 failed, 0 timed_out; default interop-fig 32",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-INTEROP-FIG:62c0bf666fc8:PASS_V8",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-INTEROP-LAYOUT",
+   "crate": "hsk-studio-interop-layout",
+   "crates_checked": [
+    "interop-layout"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V10",
+   "status_change": "PASS_V10",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V9",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of interop-layout all build 0/run 0, 0 failed, 0 timed_out; default interop-layout 11",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-INTEROP-LAYOUT:62c0bf666fc8:PASS_V10",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-INTEROP-MEDIA",
+   "crate": "hsk-studio-interop-media",
+   "crates_checked": [
+    "interop-media"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V4",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of interop-media all build 0/run 0, 0 failed, 0 timed_out; default interop-media 6",
+   "lane_file": "builders/lanes/hsk-studio-interop-media.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-INTEROP-MEDIA:62c0bf666fc8:PASS_V5",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-SESSION",
+   "crate": "hsk-studio-session",
+   "crates_checked": [
+    "session"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V11",
+   "status_change": "PASS_V11",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V10",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of session all build 0/run 0, 0 failed, 0 timed_out; default session 23",
+   "lane_file": "builders/lanes/hsk-studio-session.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-SESSION:62c0bf666fc8:PASS_V11",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-HARNESS",
+   "crate": "hsk-studio-harness",
+   "crates_checked": [
+    "harness"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V9",
+   "status_change": "PASS_V9",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V8",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file ",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-raw+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file ",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file ",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+desktop+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file "
+   ],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of harness all build 0/run 0, 0 failed, 0 timed_out; default harness 7",
+   "lane_file": "builders/lanes/hsk-studio-harness.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-HARNESS:62c0bf666fc8:PASS_V9",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-KERNEL-BINDINGS",
+   "crate": "hsk-studio-kernel-bindings",
+   "crates_checked": [
+    "kernel-bindings"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V9",
+   "status_change": "PASS_V9",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V8",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of kernel-bindings all build 0/run 0, 0 failed, 0 timed_out; default kernel-bindings 11",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-KERNEL-BINDINGS:62c0bf666fc8:PASS_V9",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-PRESS",
+   "crate": "hsk-studio-press",
+   "crates_checked": [
+    "press"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V10",
+   "status_change": "PASS_V10",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V9",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of press all build 0/run 0, 0 failed, 0 timed_out; default press 182",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-PRESS:62c0bf666fc8:PASS_V10",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-SCORE-DEVICE",
+   "crate": "hsk-studio-score-device",
+   "crates_checked": [
+    "score-device"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V4",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of score-device all build 0/run 0, 0 failed, 0 timed_out; default score-device 10",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-SCORE-DEVICE:62c0bf666fc8:PASS_V5",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-SCORE-PLUGIN",
+   "crate": "hsk-studio-score-plugin",
+   "crates_checked": [
+    "score-plugin"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V7",
+   "status_change": "PASS_V7",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V6",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of score-plugin all build 0/run 0, 0 failed, 0 timed_out; default score-plugin 23",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-SCORE-PLUGIN:62c0bf666fc8:PASS_V7",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-PRISM-ENG-1",
+   "crate": "hsk-studio-prism",
+   "crates_checked": [
+    "prism"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V8",
+   "status_change": "PASS_V8",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V7",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of prism all build 0/run 0, 0 failed, 0 timed_out; default prism 157",
+   "lane_file": "builders/lanes/hsk-studio-prism-eng.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-PRISM-ENG-1:62c0bf666fc8:PASS_V8",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-PULSE-ENG-1",
+   "crate": "hsk-studio-pulse",
+   "crates_checked": [
+    "pulse"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V7",
+   "status_change": "PASS_V7",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V6",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of pulse all build 0/run 0, 0 failed, 0 timed_out; default pulse 18",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-PULSE-ENG-1:62c0bf666fc8:PASS_V7",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-PRISM-ENG-2",
+   "crate": "hsk-studio-prism",
+   "crates_checked": [
+    "prism"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V8",
+   "status_change": "PASS_V8",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V7",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of prism all build 0/run 0, 0 failed, 0 timed_out; default prism 157",
+   "lane_file": "builders/lanes/hsk-studio-prism-eng.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-PRISM-ENG-2:62c0bf666fc8:PASS_V8",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-PRISM-ENG-3",
+   "crate": "hsk-studio-prism",
+   "crates_checked": [
+    "prism"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V7",
+   "status_change": "PASS_V7",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V6",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of prism all build 0/run 0, 0 failed, 0 timed_out; default prism 157",
+   "lane_file": "builders/lanes/hsk-studio-prism-eng.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-PRISM-ENG-3:62c0bf666fc8:PASS_V7",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-PRISM-ENG-4",
+   "crate": "hsk-studio-prism",
+   "crates_checked": [
+    "prism"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V8",
+   "status_change": "PASS_V8",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V7",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of prism all build 0/run 0, 0 failed, 0 timed_out; default prism 157",
+   "lane_file": "builders/lanes/hsk-studio-prism-eng.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-PRISM-ENG-4:62c0bf666fc8:PASS_V8",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-PRISM-ENG-5",
+   "crate": "hsk-studio-prism",
+   "crates_checked": [
+    "prism"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V7",
+   "status_change": "PASS_V7",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V6",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of prism all build 0/run 0, 0 failed, 0 timed_out; default prism 157",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-PRISM-ENG-5:62c0bf666fc8:PASS_V7",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-FOLIO-ENG-1",
+   "crate": "hsk-studio-folio",
+   "crates_checked": [
+    "folio"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V9",
+   "status_change": "PASS_V9",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V8",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of folio all build 0/run 0, 0 failed, 0 timed_out; default folio 58",
+   "lane_file": "builders/lanes/hsk-studio-folio-eng-1.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-FOLIO-ENG-1:62c0bf666fc8:PASS_V9",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-ENG-1",
+   "crate": "hsk-studio-pigment",
+   "crates_checked": [
+    "pigment"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V14",
+   "status_change": "PASS_V14",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V13",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of pigment all build 0/run 0, 0 failed, 0 timed_out; default pigment 125",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-PIGMENT-ENG-1:62c0bf666fc8:PASS_V14",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-FOLIO-ENG-2",
+   "crate": "hsk-studio-folio",
+   "crates_checked": [
+    "folio"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V9",
+   "status_change": "PASS_V9",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V8",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of folio all build 0/run 0, 0 failed, 0 timed_out; default folio 58",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-FOLIO-ENG-2:62c0bf666fc8:PASS_V9",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-NIB-ENG-1",
+   "crate": "hsk-studio-nib",
+   "crates_checked": [
+    "nib"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V3",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of nib all build 0/run 0, 0 failed, 0 timed_out; default nib 26",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-NIB-ENG-1:62c0bf666fc8:PASS_V4",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-FOLIO-ENG-3",
+   "crate": "hsk-studio-folio",
+   "crates_checked": [
+    "folio"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V9",
+   "status_change": "PASS_V9",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V8",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of folio all build 0/run 0, 0 failed, 0 timed_out; default folio 58",
+   "lane_file": "builders/lanes/hsk-studio-folio-eng-3.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-FOLIO-ENG-3:62c0bf666fc8:PASS_V9",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-INTEROP-MEDIA-PULSE",
+   "crate": "hsk-studio-interop-media",
+   "crates_checked": [
+    "interop-media"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V4",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of interop-media all build 0/run 0, 0 failed, 0 timed_out; default interop-media 6",
+   "lane_file": "builders/lanes/hsk-studio-interop-media-pulse.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-INTEROP-MEDIA-PULSE:62c0bf666fc8:PASS_V5",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-RENDER-CPU-CLIP",
+   "crate": "hsk-studio-render-cpu",
+   "crates_checked": [
+    "render-cpu"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V14",
+   "status_change": "PASS_V14",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V13",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of render-cpu all build 0/run 0, 0 failed, 0 timed_out; default render-cpu 52",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-RENDER-CPU-CLIP:62c0bf666fc8:PASS_V14",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-COMPOSITE-CLIP-ALIGN",
+   "crate": "hsk-studio-composite",
+   "crates_checked": [
+    "composite"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V14",
+   "status_change": "PASS_V14",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V13",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of composite all build 0/run 0, 0 failed, 0 timed_out; default composite 49",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-COMPOSITE-CLIP-ALIGN:62c0bf666fc8:PASS_V14",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-LAYOUT-FOLIO-MIGRATE",
+   "crate": "hsk-studio-layout",
+   "crates_checked": [
+    "layout"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V8",
+   "status_change": "PASS_V8",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V7",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of layout all build 0/run 0, 0 failed, 0 timed_out; default layout 27",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-LAYOUT-FOLIO-MIGRATE:62c0bf666fc8:PASS_V8",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-FOLIO-ENG-4",
+   "crate": "hsk-studio-folio",
+   "crates_checked": [
+    "folio"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V8",
+   "status_change": "PASS_V8",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V7",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of folio all build 0/run 0, 0 failed, 0 timed_out; default folio 58",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-FOLIO-ENG-4:62c0bf666fc8:PASS_V8",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-WIDE",
+   "crate": "hsk-studio-interop-psd",
+   "crates_checked": [
+    "interop-psd"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V20",
+   "status_change": "PASS_V20",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V19",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "interop-psd image_source_le::pillow_photoshop_cs_little_endian_layers_parse (default): pillow_photoshop_cs_parity reason=no_independent_photoshop_oracle (layers parsed from file bytes only)"
+   ],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of interop-psd all build 0/run 0, 0 failed, 0 timed_out; default interop-psd 70",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-INTEROP-PSD-WIDE:62c0bf666fc8:PASS_V20",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-DEVELOP-WIDE",
+   "crate": "hsk-studio-develop",
+   "crates_checked": [
+    "develop"
+   ],
+   "decision": "inconclusive",
+   "verdict": null,
+   "status_change": "unchanged (PASS_V11)",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V11",
+   "failures": [],
+   "infrastructure_failure": {
+    "failure_kind": "infrastructure",
+    "failure_class": "oracle_corpus_changed_between_canary_and_union",
+    "test": "hsk-studio-develop::real_dng real_dng_decode_and_develop (unit ignored:hsk-studio-develop, run_exit 100)",
+    "file_line": "crates/hsk-studio-develop/tests/real_dng.rs:196",
+    "evidence": "panic: oracle-corpus/dng/samsung-sm-g973u-16bit-uncompressed.dng not found; corpus edited out of band 00:12-00:13Z (SMB-DNG-CORPUS-REPLACE): file renamed .jfif-preview, g950u DNG added, provenance.json changed; canary corpus 651 files (file present) -> union corpus 652 files (absent); R28 same test passed",
+    "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29/ignored/hsk-studio-develop/run.stderr.txt"
+   },
+   "remediation": null,
+   "blocker": {
+    "kind": "infrastructure",
+    "exact": "develop real_dng.rs:196 names dng/samsung-sm-g973u-16bit-uncompressed.dng which the corpus no longer holds (SMB-DNG-CORPUS-REPLACE rename 00:12Z)",
+    "unblock": "push the develop test/fetch-corpus update for the replacement DNG (or restore the corpus file), then re-judge develop lanes"
+   },
+   "not_proven": [
+    "develop real_raw::nef_d1h_uncompressed_decodes_deterministically (ignored:hsk-studio-develop): nef_d1h_uncompressed_decodes_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run",
+    "develop real_raw::arw_7s_craw_decodes_deterministically (ignored:hsk-studio-develop): arw_7s_craw_decodes_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run",
+    "develop real_raw::cr2_350d_decodes_the_stored_frame_deterministically (ignored:hsk-studio-develop): cr2_350d_decodes_the_stored_frame_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run"
+   ],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of develop all build 0/run 0, 0 failed, 0 timed_out; default develop 69 | INCONCLUSIVE: develop ignored unit real_dng_decode_and_develop failed on a missing oracle-corpus file (infrastructure, see infrastructure_failure)",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-DEVELOP-WIDE:62c0bf666fc8:INCONCLUSIVE",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-PACKAGE-STREAM-SAVE",
+   "crate": "hsk-studio-package",
+   "crates_checked": [
+    "package"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V9",
+   "status_change": "PASS_V9",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V8",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of package all build 0/run 0, 0 failed, 0 timed_out; default package 25",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-PACKAGE-STREAM-SAVE:62c0bf666fc8:PASS_V9",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-PRISM-ENG-6",
+   "crate": "hsk-studio-prism",
+   "crates_checked": [
+    "prism"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V6",
+   "status_change": "PASS_V6",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V5",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of prism all build 0/run 0, 0 failed, 0 timed_out; default prism 157",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-PRISM-ENG-6:62c0bf666fc8:PASS_V6",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-COMPONENTS-FOLIO-MIGRATE",
+   "crate": "hsk-studio-components",
+   "crates_checked": [
+    "components"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V8",
+   "status_change": "PASS_V8",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V7",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of components all build 0/run 0, 0 failed, 0 timed_out; default components 17",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-COMPONENTS-FOLIO-MIGRATE:62c0bf666fc8:PASS_V8",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-INTEROP-VECTOR-FOLIO-MIGRATE",
+   "crate": "hsk-studio-interop-vector",
+   "crates_checked": [
+    "interop-vector"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V10",
+   "status_change": "PASS_V10",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V9",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of interop-vector all build 0/run 0, 0 failed, 0 timed_out; default interop-vector 23",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-INTEROP-VECTOR-FOLIO-MIGRATE:62c0bf666fc8:PASS_V10",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-ENG-2",
+   "crate": "hsk-studio-pigment + hsk-studio-folio",
+   "crates_checked": [
+    "pigment",
+    "folio"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V12",
+   "status_change": "PASS_V12",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V11",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of pigment/folio all build 0/run 0, 0 failed, 0 timed_out; default pigment 125, folio 58",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-PIGMENT-ENG-2:62c0bf666fc8:PASS_V12",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-PRISM-ENG-7",
+   "crate": "hsk-studio-prism",
+   "crates_checked": [
+    "prism"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V4",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of prism all build 0/run 0, 0 failed, 0 timed_out; default prism 157",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-PRISM-ENG-7:62c0bf666fc8:PASS_V5",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-COMPOSITE-ADJ",
+   "crate": "hsk-studio-composite",
+   "crates_checked": [
+    "composite"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V11",
+   "status_change": "PASS_V11",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V10",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of composite all build 0/run 0, 0 failed, 0 timed_out; default composite 49",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-COMPOSITE-ADJ:62c0bf666fc8:PASS_V11",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-RENDER-CPU-ADJ",
+   "crate": "hsk-studio-render-cpu",
+   "crates_checked": [
+    "render-cpu"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V11",
+   "status_change": "PASS_V11",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V10",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of render-cpu all build 0/run 0, 0 failed, 0 timed_out; default render-cpu 52",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-RENDER-CPU-ADJ:62c0bf666fc8:PASS_V11",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-RENDER-GPU-ADJ",
+   "crate": "hsk-studio-render-gpu",
+   "crates_checked": [
+    "render-gpu"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V10",
+   "status_change": "PASS_V10",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V9",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of render-gpu all build 0/run 0, 0 failed, 0 timed_out; default render-gpu 36",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-RENDER-GPU-ADJ:62c0bf666fc8:PASS_V10",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-ADJ",
+   "crate": "hsk-studio-interop-psd",
+   "crates_checked": [
+    "interop-psd"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V19",
+   "status_change": "PASS_V19",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V18",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "interop-psd image_source_le::pillow_photoshop_cs_little_endian_layers_parse (default): pillow_photoshop_cs_parity reason=no_independent_photoshop_oracle (layers parsed from file bytes only)"
+   ],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of interop-psd all build 0/run 0, 0 failed, 0 timed_out; default interop-psd 70",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-INTEROP-PSD-ADJ:62c0bf666fc8:PASS_V19",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-EFFECTS-WAVE-1",
+   "crate": "hsk-studio-pigment",
+   "crates_checked": [
+    "pigment"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V11",
+   "status_change": "PASS_V11",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V10",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of pigment all build 0/run 0, 0 failed, 0 timed_out; default pigment 125",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-EFFECTS-WAVE-1:62c0bf666fc8:PASS_V11",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-EFFECTS-WAVE-2",
+   "crate": "hsk-studio-pigment",
+   "crates_checked": [
+    "pigment"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V11",
+   "status_change": "PASS_V11",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V10",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of pigment all build 0/run 0, 0 failed, 0 timed_out; default pigment 125",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-EFFECTS-WAVE-2:62c0bf666fc8:PASS_V11",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-FOLIO-ENG-6",
+   "crate": "hsk-studio-folio",
+   "crates_checked": [
+    "folio"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V6",
+   "status_change": "PASS_V6",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V5",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of folio all build 0/run 0, 0 failed, 0 timed_out; default folio 58",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-FOLIO-ENG-6:62c0bf666fc8:PASS_V6",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-FOLIO-ENG-7",
+   "crate": "hsk-studio-folio",
+   "crates_checked": [
+    "folio"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V6",
+   "status_change": "PASS_V6",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V5",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of folio all build 0/run 0, 0 failed, 0 timed_out; default folio 58",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-FOLIO-ENG-7:62c0bf666fc8:PASS_V6",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-CHRONICLE-TABLE",
+   "crate": "hsk-studio-chronicle + hsk-studio-session",
+   "crates_checked": [
+    "chronicle",
+    "session"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V8",
+   "status_change": "PASS_V8",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V7",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of chronicle/session all build 0/run 0, 0 failed, 0 timed_out; default chronicle 24, session 23",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-CHRONICLE-TABLE:62c0bf666fc8:PASS_V8",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-WINDOW",
+   "crate": "hsk-studio-pigment",
+   "crates_checked": [
+    "pigment"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V11",
+   "status_change": "PASS_V11",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V10",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of pigment all build 0/run 0, 0 failed, 0 timed_out; default pigment 125",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-PIGMENT-WINDOW:62c0bf666fc8:PASS_V11",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-RENDER-CPU-WINDOW",
+   "crate": "hsk-studio-render-cpu",
+   "crates_checked": [
+    "render-cpu"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V11",
+   "status_change": "PASS_V11",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V10",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of render-cpu all build 0/run 0, 0 failed, 0 timed_out; default render-cpu 52",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-RENDER-CPU-WINDOW:62c0bf666fc8:PASS_V11",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-INTEROP-VECTOR-RECORDS",
+   "crate": "hsk-studio-interop-vector",
+   "crates_checked": [
+    "interop-vector"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V8",
+   "status_change": "PASS_V8",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V7",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of interop-vector all build 0/run 0, 0 failed, 0 timed_out; default interop-vector 23",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-INTEROP-VECTOR-RECORDS:62c0bf666fc8:PASS_V8",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-RENDER-CPU-FX2",
+   "crate": "hsk-studio-render-cpu",
+   "crates_checked": [
+    "render-cpu"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V11",
+   "status_change": "PASS_V11",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V10",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of render-cpu all build 0/run 0, 0 failed, 0 timed_out; default render-cpu 52",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-RENDER-CPU-FX2:62c0bf666fc8:PASS_V11",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-PRISM-ENG-8",
+   "crate": "hsk-studio-prism",
+   "crates_checked": [
+    "prism"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V4",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of prism all build 0/run 0, 0 failed, 0 timed_out; default prism 157",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-PRISM-ENG-8:62c0bf666fc8:PASS_V5",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-RECEIPT",
+   "crate": "hsk-studio-interop-psd",
+   "crates_checked": [
+    "interop-psd"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V19",
+   "status_change": "PASS_V19",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V18",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "interop-psd image_source_le::pillow_photoshop_cs_little_endian_layers_parse (default): pillow_photoshop_cs_parity reason=no_independent_photoshop_oracle (layers parsed from file bytes only)"
+   ],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of interop-psd all build 0/run 0, 0 failed, 0 timed_out; default interop-psd 70",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-INTEROP-PSD-RECEIPT:62c0bf666fc8:PASS_V19",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-DEVELOP-JOBS",
+   "crate": "hsk-studio-develop",
+   "crates_checked": [
+    "develop"
+   ],
+   "decision": "inconclusive",
+   "verdict": null,
+   "status_change": "unchanged (PASS_V11)",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V11",
+   "failures": [],
+   "infrastructure_failure": {
+    "failure_kind": "infrastructure",
+    "failure_class": "oracle_corpus_changed_between_canary_and_union",
+    "test": "hsk-studio-develop::real_dng real_dng_decode_and_develop (unit ignored:hsk-studio-develop, run_exit 100)",
+    "file_line": "crates/hsk-studio-develop/tests/real_dng.rs:196",
+    "evidence": "panic: oracle-corpus/dng/samsung-sm-g973u-16bit-uncompressed.dng not found; corpus edited out of band 00:12-00:13Z (SMB-DNG-CORPUS-REPLACE): file renamed .jfif-preview, g950u DNG added, provenance.json changed; canary corpus 651 files (file present) -> union corpus 652 files (absent); R28 same test passed",
+    "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29/ignored/hsk-studio-develop/run.stderr.txt"
+   },
+   "remediation": null,
+   "blocker": {
+    "kind": "infrastructure",
+    "exact": "develop real_dng.rs:196 names dng/samsung-sm-g973u-16bit-uncompressed.dng which the corpus no longer holds (SMB-DNG-CORPUS-REPLACE rename 00:12Z)",
+    "unblock": "push the develop test/fetch-corpus update for the replacement DNG (or restore the corpus file), then re-judge develop lanes"
+   },
+   "not_proven": [
+    "develop real_raw::nef_d1h_uncompressed_decodes_deterministically (ignored:hsk-studio-develop): nef_d1h_uncompressed_decodes_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run",
+    "develop real_raw::arw_7s_craw_decodes_deterministically (ignored:hsk-studio-develop): arw_7s_craw_decodes_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run",
+    "develop real_raw::cr2_350d_decodes_the_stored_frame_deterministically (ignored:hsk-studio-develop): cr2_350d_decodes_the_stored_frame_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run"
+   ],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of develop all build 0/run 0, 0 failed, 0 timed_out; default develop 69 | INCONCLUSIVE: develop ignored unit real_dng_decode_and_develop failed on a missing oracle-corpus file (infrastructure, see infrastructure_failure)",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-DEVELOP-JOBS:62c0bf666fc8:INCONCLUSIVE",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-BLENDIF-CLIP",
+   "crate": "hsk-studio-pigment",
+   "crates_checked": [
+    "pigment"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V11",
+   "status_change": "PASS_V11",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V10",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of pigment all build 0/run 0, 0 failed, 0 timed_out; default pigment 125",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-PIGMENT-BLENDIF-CLIP:62c0bf666fc8:PASS_V11",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-BLENDIF-CLIP-ADOPT",
+   "crate": "hsk-studio-composite + render-cpu + render-gpu",
+   "crates_checked": [
+    "composite",
+    "render-cpu",
+    "render-gpu"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V12",
+   "status_change": "PASS_V12",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V11",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of composite/render-cpu/render-gpu all build 0/run 0, 0 failed, 0 timed_out; default composite 49, render-cpu 52, render-gpu 36",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-BLENDIF-CLIP-ADOPT:62c0bf666fc8:PASS_V12",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-CLIP-ROLES",
+   "crate": "hsk-studio-interop-psd",
+   "crates_checked": [
+    "interop-psd"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V19",
+   "status_change": "PASS_V19",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V18",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "interop-psd image_source_le::pillow_photoshop_cs_little_endian_layers_parse (default): pillow_photoshop_cs_parity reason=no_independent_photoshop_oracle (layers parsed from file bytes only)"
+   ],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of interop-psd all build 0/run 0, 0 failed, 0 timed_out; default interop-psd 70",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-INTEROP-PSD-CLIP-ROLES:62c0bf666fc8:PASS_V19",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-PLANLIMITS",
+   "crate": "hsk-studio-pigment",
+   "crates_checked": [
+    "pigment"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V8",
+   "status_change": "PASS_V8",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V7",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of pigment all build 0/run 0, 0 failed, 0 timed_out; default pigment 125",
+   "lane_file": "builders/lanes/hsk-studio-pigment-planlimits.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-PIGMENT-PLANLIMITS:62c0bf666fc8:PASS_V8",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-REFUSAL-KEYS",
+   "crate": "composite + render-cpu + render-gpu",
+   "crates_checked": [
+    "composite",
+    "render-cpu",
+    "render-gpu"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V11",
+   "status_change": "PASS_V11",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V10",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of composite/render-cpu/render-gpu all build 0/run 0, 0 failed, 0 timed_out; default composite 49, render-cpu 52, render-gpu 36",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-REFUSAL-KEYS:62c0bf666fc8:PASS_V11",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-SCORE-GUARDS",
+   "crate": "hsk-studio-score",
+   "crates_checked": [
+    "score"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V2",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of score all build 0/run 0, 0 failed, 0 timed_out; default score 57",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-SCORE-GUARDS:62c0bf666fc8:PASS_V3",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-COMPONENTS-FOOTPRINT",
+   "crate": "hsk-studio-components",
+   "crates_checked": [
+    "components"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V4",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of components all build 0/run 0, 0 failed, 0 timed_out; default components 17",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-COMPONENTS-FOOTPRINT:62c0bf666fc8:PASS_V5",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-FOLIO-UNIQUENESS",
+   "crate": "hsk-studio-folio + hsk-studio-components",
+   "crates_checked": [
+    "folio",
+    "components"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V4",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of folio/components all build 0/run 0, 0 failed, 0 timed_out; default folio 58, components 17",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-FOLIO-UNIQUENESS:62c0bf666fc8:PASS_V5",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-FX-OPS",
+   "crate": "hsk-studio-pigment",
+   "crates_checked": [
+    "pigment"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V10",
+   "status_change": "PASS_V10",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V9",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of pigment all build 0/run 0, 0 failed, 0 timed_out; default pigment 125",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-PIGMENT-FX-OPS:62c0bf666fc8:PASS_V10",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-PRESS-DIFFERENCES",
+   "crate": "hsk-studio-press",
+   "crates_checked": [
+    "press"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V11",
+   "status_change": "PASS_V11",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V10",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of press all build 0/run 0, 0 failed, 0 timed_out; default press 182",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-PRESS-DIFFERENCES:62c0bf666fc8:PASS_V11",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-RENDER-GPU-PROBE",
+   "crate": "hsk-studio-render-gpu",
+   "crates_checked": [
+    "render-gpu"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V6",
+   "status_change": "PASS_V6",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V5",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of render-gpu all build 0/run 0, 0 failed, 0 timed_out; default render-gpu 36",
+   "lane_file": "builders/lanes/hsk-studio-render-gpu-probe.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-RENDER-GPU-PROBE:62c0bf666fc8:PASS_V6",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-ADMIT-PARITY",
+   "crate": "hsk-studio-pigment",
+   "crates_checked": [
+    "pigment"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V10",
+   "status_change": "PASS_V10",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V9",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of pigment all build 0/run 0, 0 failed, 0 timed_out; default pigment 125",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-PIGMENT-ADMIT-PARITY:62c0bf666fc8:PASS_V10",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-FX-OPS-ADOPT",
+   "crate": "composite + render-cpu + render-gpu + interop-psd",
+   "crates_checked": [
+    "composite",
+    "render-cpu",
+    "render-gpu",
+    "interop-psd"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V18",
+   "status_change": "PASS_V18",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V17",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "interop-psd image_source_le::pillow_photoshop_cs_little_endian_layers_parse (default): pillow_photoshop_cs_parity reason=no_independent_photoshop_oracle (layers parsed from file bytes only)"
+   ],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of composite/render-cpu/render-gpu/interop-psd all build 0/run 0, 0 failed, 0 timed_out; default composite 49, render-cpu 52, render-gpu 36, interop-psd 70",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-FX-OPS-ADOPT:62c0bf666fc8:PASS_V18",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-SCORE-PLUGIN-RATE",
+   "crate": "hsk-studio-score-plugin",
+   "crates_checked": [
+    "score-plugin"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V3",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of score-plugin all build 0/run 0, 0 failed, 0 timed_out; default score-plugin 23",
+   "lane_file": "builders/lanes/hsk-studio-score-plugin-rate.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-SCORE-PLUGIN-RATE:62c0bf666fc8:PASS_V4",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-PARITY-FOLLOWUP",
+   "crate": "hsk-studio-pigment + hsk-studio-render-cpu",
+   "crates_checked": [
+    "pigment",
+    "render-cpu"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V9",
+   "status_change": "PASS_V9",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V8",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of pigment/render-cpu all build 0/run 0, 0 failed, 0 timed_out; default pigment 125, render-cpu 52",
+   "lane_file": "builders/lanes/hsk-studio-parity-followup.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-PARITY-FOLLOWUP:62c0bf666fc8:PASS_V9",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-BUDGET",
+   "crate": "hsk-studio-interop-psd",
+   "crates_checked": [
+    "interop-psd"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V17",
+   "status_change": "PASS_V17",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V16",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "interop-psd image_source_le::pillow_photoshop_cs_little_endian_layers_parse (default): pillow_photoshop_cs_parity reason=no_independent_photoshop_oracle (layers parsed from file bytes only)"
+   ],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of interop-psd all build 0/run 0, 0 failed, 0 timed_out; default interop-psd 70",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-INTEROP-PSD-BUDGET:62c0bf666fc8:PASS_V17",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-FOLLOWUPS",
+   "crate": "hsk-studio-pigment + hsk-studio-render-cpu",
+   "crates_checked": [
+    "pigment",
+    "render-cpu"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V7",
+   "status_change": "PASS_V7",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V6",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of pigment/render-cpu all build 0/run 0, 0 failed, 0 timed_out; default pigment 125, render-cpu 52",
+   "lane_file": "builders/lanes/hsk-studio-pigment-followups.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-PIGMENT-FOLLOWUPS:62c0bf666fc8:PASS_V7",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-NOTES",
+   "crate": "hsk-studio-pigment + hsk-studio-render-cpu",
+   "crates_checked": [
+    "pigment",
+    "render-cpu"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V6",
+   "status_change": "PASS_V6",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V5",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of pigment/render-cpu all build 0/run 0, 0 failed, 0 timed_out; default pigment 125, render-cpu 52",
+   "lane_file": "builders/lanes/hsk-studio-pigment-notes.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-PIGMENT-NOTES:62c0bf666fc8:PASS_V6",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-NOTES-BATCH-1",
+   "crate": "hsk-studio-press + hsk-studio-web + hsk-studio-reel-native + hsk-studio-interop-psd",
+   "crates_checked": [
+    "press",
+    "web",
+    "reel-native",
+    "interop-psd"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V10",
+   "status_change": "PASS_V10",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V9",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "interop-psd image_source_le::pillow_photoshop_cs_little_endian_layers_parse (default): pillow_photoshop_cs_parity reason=no_independent_photoshop_oracle (layers parsed from file bytes only)"
+   ],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of press/web/reel-native/interop-psd all build 0/run 0, 0 failed, 0 timed_out; default press 182, web 138, reel-native n/a (feature units only), interop-psd 70",
+   "lane_file": "builders/lanes/notes-batch-1.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-NOTES-BATCH-1:62c0bf666fc8:PASS_V10",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-PRESS-DOCS",
+   "crate": "hsk-studio-press",
+   "crates_checked": [
+    "press"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V9",
+   "status_change": "PASS_V9",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V8",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of press all build 0/run 0, 0 failed, 0 timed_out; default press 182",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-PRESS-DOCS:62c0bf666fc8:PASS_V9",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-FOLIO-CEILING",
+   "crate": "hsk-studio-interop-psd",
+   "crates_checked": [
+    "interop-psd"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V10",
+   "status_change": "PASS_V10",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V9",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "interop-psd image_source_le::pillow_photoshop_cs_little_endian_layers_parse (default): pillow_photoshop_cs_parity reason=no_independent_photoshop_oracle (layers parsed from file bytes only)"
+   ],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of interop-psd all build 0/run 0, 0 failed, 0 timed_out; default interop-psd 70",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-INTEROP-PSD-FOLIO-CEILING:62c0bf666fc8:PASS_V10",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-LOSS-DETAIL",
+   "crate": "hsk-studio-interop-psd",
+   "crates_checked": [
+    "interop-psd"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V9",
+   "status_change": "PASS_V9",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V8",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "interop-psd image_source_le::pillow_photoshop_cs_little_endian_layers_parse (default): pillow_photoshop_cs_parity reason=no_independent_photoshop_oracle (layers parsed from file bytes only)"
+   ],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of interop-psd all build 0/run 0, 0 failed, 0 timed_out; default interop-psd 70",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-INTEROP-PSD-LOSS-DETAIL:62c0bf666fc8:PASS_V9",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-PRESS-DOCS-2",
+   "crate": "hsk-studio-press",
+   "crates_checked": [
+    "press"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V8",
+   "status_change": "PASS_V8",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V7",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of press all build 0/run 0, 0 failed, 0 timed_out; default press 182",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-PRESS-DOCS-2:62c0bf666fc8:PASS_V8",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-PRESS-STRUCT-FAILCLOSED",
+   "crate": "hsk-studio-press",
+   "crates_checked": [
+    "press"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V7",
+   "status_change": "PASS_V7",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V6",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of press all build 0/run 0, 0 failed, 0 timed_out; default press 182",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-PRESS-STRUCT-FAILCLOSED:62c0bf666fc8:PASS_V7",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-DESC-CAP",
+   "crate": "hsk-studio-interop-psd",
+   "crates_checked": [
+    "interop-psd"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V8",
+   "status_change": "PASS_V8",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V7",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "interop-psd image_source_le::pillow_photoshop_cs_little_endian_layers_parse (default): pillow_photoshop_cs_parity reason=no_independent_photoshop_oracle (layers parsed from file bytes only)"
+   ],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of interop-psd all build 0/run 0, 0 failed, 0 timed_out; default interop-psd 70",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-INTEROP-PSD-DESC-CAP:62c0bf666fc8:PASS_V8",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-PRESS-STRUCT-ORPHANS",
+   "crate": "hsk-studio-press",
+   "crates_checked": [
+    "press"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V6",
+   "status_change": "PASS_V6",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V5",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of press all build 0/run 0, 0 failed, 0 timed_out; default press 182",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-PRESS-STRUCT-ORPHANS:62c0bf666fc8:PASS_V6",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-DOCS",
+   "crate": "hsk-studio-interop-psd",
+   "crates_checked": [
+    "interop-psd"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V7",
+   "status_change": "PASS_V7",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V6",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "interop-psd image_source_le::pillow_photoshop_cs_little_endian_layers_parse (default): pillow_photoshop_cs_parity reason=no_independent_photoshop_oracle (layers parsed from file bytes only)"
+   ],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of interop-psd all build 0/run 0, 0 failed, 0 timed_out; default interop-psd 70",
+   "lane_file": null,
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-INTEROP-PSD-DOCS:62c0bf666fc8:PASS_V7",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-PRESS-PROPERTIES",
+   "crate": "hsk-studio-press",
+   "crates_checked": [
+    "press"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V4",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of press all build 0/run 0, 0 failed, 0 timed_out; default press 182",
+   "lane_file": "builders/lanes/hsk-studio-press-properties.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-PRESS-PROPERTIES:62c0bf666fc8:PASS_V5",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-PRESS-STRUCT-STRIP",
+   "crate": "hsk-studio-press",
+   "crates_checked": [
+    "press"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V2",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of press all build 0/run 0, 0 failed, 0 timed_out; default press 182",
+   "lane_file": "builders/lanes/hsk-studio-press-struct-strip.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-PRESS-STRUCT-STRIP:62c0bf666fc8:PASS_V3",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-ZIP-CONSOLIDATE",
+   "crate": "hsk-studio-package",
+   "crates_checked": [
+    "package"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V4",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of package all build 0/run 0, 0 failed, 0 timed_out; default package 25",
+   "lane_file": "builders/lanes/hsk-studio-zip-consolidate.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-ZIP-CONSOLIDATE:62c0bf666fc8:PASS_V5",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-INTEROP-FIG-FORMAT",
+   "crate": "hsk-studio-interop-fig",
+   "crates_checked": [
+    "interop-fig"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V3",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-basic-shapes.fig decoded=census+typed_node_tree editable_import=not_proven(tests/fig_nativ",
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-components-autolayout.fig decoded=census+typed_node_tree editable_import=not_proven(tests/",
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-prototype-pages.fig decoded=census+typed_node_tree editable_import=not_proven(tests/fig_na"
+   ],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of interop-fig all build 0/run 0, 0 failed, 0 timed_out; default interop-fig 32",
+   "lane_file": "builders/lanes/hsk-studio-interop-fig-format.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-INTEROP-FIG-FORMAT:62c0bf666fc8:PASS_V4",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-DEVELOP-RAW-VENDOR",
+   "crate": "hsk-studio-develop",
+   "crates_checked": [
+    "develop"
+   ],
+   "decision": "inconclusive",
+   "verdict": null,
+   "status_change": "unchanged (PASS_V5)",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V5",
+   "failures": [],
+   "infrastructure_failure": {
+    "failure_kind": "infrastructure",
+    "failure_class": "oracle_corpus_changed_between_canary_and_union",
+    "test": "hsk-studio-develop::real_dng real_dng_decode_and_develop (unit ignored:hsk-studio-develop, run_exit 100)",
+    "file_line": "crates/hsk-studio-develop/tests/real_dng.rs:196",
+    "evidence": "panic: oracle-corpus/dng/samsung-sm-g973u-16bit-uncompressed.dng not found; corpus edited out of band 00:12-00:13Z (SMB-DNG-CORPUS-REPLACE): file renamed .jfif-preview, g950u DNG added, provenance.json changed; canary corpus 651 files (file present) -> union corpus 652 files (absent); R28 same test passed",
+    "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29/ignored/hsk-studio-develop/run.stderr.txt"
+   },
+   "remediation": null,
+   "blocker": {
+    "kind": "infrastructure",
+    "exact": "develop real_dng.rs:196 names dng/samsung-sm-g973u-16bit-uncompressed.dng which the corpus no longer holds (SMB-DNG-CORPUS-REPLACE rename 00:12Z)",
+    "unblock": "push the develop test/fetch-corpus update for the replacement DNG (or restore the corpus file), then re-judge develop lanes"
+   },
+   "not_proven": [
+    "develop real_raw::nef_d1h_uncompressed_decodes_deterministically (ignored:hsk-studio-develop): nef_d1h_uncompressed_decodes_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run",
+    "develop real_raw::arw_7s_craw_decodes_deterministically (ignored:hsk-studio-develop): arw_7s_craw_decodes_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run",
+    "develop real_raw::cr2_350d_decodes_the_stored_frame_deterministically (ignored:hsk-studio-develop): cr2_350d_decodes_the_stored_frame_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run"
+   ],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of develop all build 0/run 0, 0 failed, 0 timed_out; default develop 69 | INCONCLUSIVE: develop ignored unit real_dng_decode_and_develop failed on a missing oracle-corpus file (infrastructure, see infrastructure_failure)",
+   "lane_file": "builders/lanes/hsk-studio-develop-raw-vendor.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-DEVELOP-RAW-VENDOR:62c0bf666fc8:INCONCLUSIVE",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-DEVELOP-DNG-MLV",
+   "crate": "hsk-studio-develop",
+   "crates_checked": [
+    "develop"
+   ],
+   "decision": "inconclusive",
+   "verdict": null,
+   "status_change": "unchanged (PASS_V5)",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V5",
+   "failures": [],
+   "infrastructure_failure": {
+    "failure_kind": "infrastructure",
+    "failure_class": "oracle_corpus_changed_between_canary_and_union",
+    "test": "hsk-studio-develop::real_dng real_dng_decode_and_develop (unit ignored:hsk-studio-develop, run_exit 100)",
+    "file_line": "crates/hsk-studio-develop/tests/real_dng.rs:196",
+    "evidence": "panic: oracle-corpus/dng/samsung-sm-g973u-16bit-uncompressed.dng not found; corpus edited out of band 00:12-00:13Z (SMB-DNG-CORPUS-REPLACE): file renamed .jfif-preview, g950u DNG added, provenance.json changed; canary corpus 651 files (file present) -> union corpus 652 files (absent); R28 same test passed",
+    "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29/ignored/hsk-studio-develop/run.stderr.txt"
+   },
+   "remediation": null,
+   "blocker": {
+    "kind": "infrastructure",
+    "exact": "develop real_dng.rs:196 names dng/samsung-sm-g973u-16bit-uncompressed.dng which the corpus no longer holds (SMB-DNG-CORPUS-REPLACE rename 00:12Z)",
+    "unblock": "push the develop test/fetch-corpus update for the replacement DNG (or restore the corpus file), then re-judge develop lanes"
+   },
+   "not_proven": [
+    "develop real_raw::nef_d1h_uncompressed_decodes_deterministically (ignored:hsk-studio-develop): nef_d1h_uncompressed_decodes_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run",
+    "develop real_raw::arw_7s_craw_decodes_deterministically (ignored:hsk-studio-develop): arw_7s_craw_decodes_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run",
+    "develop real_raw::cr2_350d_decodes_the_stored_frame_deterministically (ignored:hsk-studio-develop): cr2_350d_decodes_the_stored_frame_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run"
+   ],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of develop all build 0/run 0, 0 failed, 0 timed_out; default develop 69 | INCONCLUSIVE: develop ignored unit real_dng_decode_and_develop failed on a missing oracle-corpus file (infrastructure, see infrastructure_failure)",
+   "lane_file": "builders/lanes/hsk-studio-develop-dng-mlv.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-DEVELOP-DNG-MLV:62c0bf666fc8:INCONCLUSIVE",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-CONVERT-NATIVE",
+   "crate": "hsk-studio-harness",
+   "crates_checked": [
+    "harness"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V4",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file ",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-raw+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file ",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file ",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+desktop+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file "
+   ],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of harness all build 0/run 0, 0 failed, 0 timed_out; default harness 7",
+   "lane_file": "builders/lanes/hsk-studio-convert-native.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-CONVERT-NATIVE:62c0bf666fc8:PASS_V5",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-DEVELOP-RAW-ARW",
+   "crate": "hsk-studio-develop",
+   "crates_checked": [
+    "develop"
+   ],
+   "decision": "inconclusive",
+   "verdict": null,
+   "status_change": "unchanged (PASS_V5)",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V5",
+   "failures": [],
+   "infrastructure_failure": {
+    "failure_kind": "infrastructure",
+    "failure_class": "oracle_corpus_changed_between_canary_and_union",
+    "test": "hsk-studio-develop::real_dng real_dng_decode_and_develop (unit ignored:hsk-studio-develop, run_exit 100)",
+    "file_line": "crates/hsk-studio-develop/tests/real_dng.rs:196",
+    "evidence": "panic: oracle-corpus/dng/samsung-sm-g973u-16bit-uncompressed.dng not found; corpus edited out of band 00:12-00:13Z (SMB-DNG-CORPUS-REPLACE): file renamed .jfif-preview, g950u DNG added, provenance.json changed; canary corpus 651 files (file present) -> union corpus 652 files (absent); R28 same test passed",
+    "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29/ignored/hsk-studio-develop/run.stderr.txt"
+   },
+   "remediation": null,
+   "blocker": {
+    "kind": "infrastructure",
+    "exact": "develop real_dng.rs:196 names dng/samsung-sm-g973u-16bit-uncompressed.dng which the corpus no longer holds (SMB-DNG-CORPUS-REPLACE rename 00:12Z)",
+    "unblock": "push the develop test/fetch-corpus update for the replacement DNG (or restore the corpus file), then re-judge develop lanes"
+   },
+   "not_proven": [
+    "develop real_raw::nef_d1h_uncompressed_decodes_deterministically (ignored:hsk-studio-develop): nef_d1h_uncompressed_decodes_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run",
+    "develop real_raw::arw_7s_craw_decodes_deterministically (ignored:hsk-studio-develop): arw_7s_craw_decodes_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run",
+    "develop real_raw::cr2_350d_decodes_the_stored_frame_deterministically (ignored:hsk-studio-develop): cr2_350d_decodes_the_stored_frame_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run"
+   ],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of develop all build 0/run 0, 0 failed, 0 timed_out; default develop 69 | INCONCLUSIVE: develop ignored unit real_dng_decode_and_develop failed on a missing oracle-corpus file (infrastructure, see infrastructure_failure)",
+   "lane_file": "builders/lanes/hsk-studio-develop-raw-arw.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-DEVELOP-RAW-ARW:62c0bf666fc8:INCONCLUSIVE",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-SESSION-IMPORT-ENTRIES",
+   "crate": "hsk-studio-session",
+   "crates_checked": [
+    "session"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V4",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of session all build 0/run 0, 0 failed, 0 timed_out; default session 23",
+   "lane_file": "builders/lanes/hsk-studio-session-import-entries.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-SESSION-IMPORT-ENTRIES:62c0bf666fc8:PASS_V5",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-CONVERT-COLOUR",
+   "crate": "hsk-studio-harness",
+   "crates_checked": [
+    "harness"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V4",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file ",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-raw+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file ",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file ",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+desktop+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file "
+   ],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of harness all build 0/run 0, 0 failed, 0 timed_out; default harness 7",
+   "lane_file": "builders/lanes/hsk-studio-convert-colour.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-CONVERT-COLOUR:62c0bf666fc8:PASS_V5",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-CONVERT-TIFF",
+   "crate": "hsk-studio-harness",
+   "crates_checked": [
+    "harness"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V4",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file ",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-raw+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file ",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file ",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+desktop+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file "
+   ],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of harness all build 0/run 0, 0 failed, 0 timed_out; default harness 7",
+   "lane_file": "builders/lanes/hsk-studio-convert-tiff.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-CONVERT-TIFF:62c0bf666fc8:PASS_V5",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-DEVELOP-TIFF-CONSOLIDATE",
+   "crate": "hsk-studio-develop",
+   "crates_checked": [
+    "develop"
+   ],
+   "decision": "inconclusive",
+   "verdict": null,
+   "status_change": "unchanged (PASS_V4)",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V4",
+   "failures": [],
+   "infrastructure_failure": {
+    "failure_kind": "infrastructure",
+    "failure_class": "oracle_corpus_changed_between_canary_and_union",
+    "test": "hsk-studio-develop::real_dng real_dng_decode_and_develop (unit ignored:hsk-studio-develop, run_exit 100)",
+    "file_line": "crates/hsk-studio-develop/tests/real_dng.rs:196",
+    "evidence": "panic: oracle-corpus/dng/samsung-sm-g973u-16bit-uncompressed.dng not found; corpus edited out of band 00:12-00:13Z (SMB-DNG-CORPUS-REPLACE): file renamed .jfif-preview, g950u DNG added, provenance.json changed; canary corpus 651 files (file present) -> union corpus 652 files (absent); R28 same test passed",
+    "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29/ignored/hsk-studio-develop/run.stderr.txt"
+   },
+   "remediation": null,
+   "blocker": {
+    "kind": "infrastructure",
+    "exact": "develop real_dng.rs:196 names dng/samsung-sm-g973u-16bit-uncompressed.dng which the corpus no longer holds (SMB-DNG-CORPUS-REPLACE rename 00:12Z)",
+    "unblock": "push the develop test/fetch-corpus update for the replacement DNG (or restore the corpus file), then re-judge develop lanes"
+   },
+   "not_proven": [
+    "develop real_raw::nef_d1h_uncompressed_decodes_deterministically (ignored:hsk-studio-develop): nef_d1h_uncompressed_decodes_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run",
+    "develop real_raw::arw_7s_craw_decodes_deterministically (ignored:hsk-studio-develop): arw_7s_craw_decodes_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run",
+    "develop real_raw::cr2_350d_decodes_the_stored_frame_deterministically (ignored:hsk-studio-develop): cr2_350d_decodes_the_stored_frame_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run"
+   ],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of develop all build 0/run 0, 0 failed, 0 timed_out; default develop 69 | INCONCLUSIVE: develop ignored unit real_dng_decode_and_develop failed on a missing oracle-corpus file (infrastructure, see infrastructure_failure)",
+   "lane_file": "builders/lanes/hsk-studio-develop-tiff-consolidate.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-DEVELOP-TIFF-CONSOLIDATE:62c0bf666fc8:INCONCLUSIVE",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-INTEROP-FIG-NODES",
+   "crate": "hsk-studio-interop-fig",
+   "crates_checked": [
+    "interop-fig"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V3",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-basic-shapes.fig decoded=census+typed_node_tree editable_import=not_proven(tests/fig_nativ",
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-components-autolayout.fig decoded=census+typed_node_tree editable_import=not_proven(tests/",
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-prototype-pages.fig decoded=census+typed_node_tree editable_import=not_proven(tests/fig_na"
+   ],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of interop-fig all build 0/run 0, 0 failed, 0 timed_out; default interop-fig 32",
+   "lane_file": "builders/lanes/hsk-studio-interop-fig-nodes.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-INTEROP-FIG-NODES:62c0bf666fc8:PASS_V4",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-CONVERT-FOLLOWUPS",
+   "crate": "hsk-studio-harness",
+   "crates_checked": [
+    "harness"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V4",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file ",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-raw+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file ",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file ",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+desktop+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file "
+   ],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of harness all build 0/run 0, 0 failed, 0 timed_out; default harness 7",
+   "lane_file": "builders/lanes/hsk-studio-convert-followups.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-CONVERT-FOLLOWUPS:62c0bf666fc8:PASS_V5",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-INTEROP-FIG-NATIVE",
+   "crate": "hsk-studio-interop-fig",
+   "crates_checked": [
+    "interop-fig"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V3",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-basic-shapes.fig decoded=census+typed_node_tree editable_import=not_proven(tests/fig_nativ",
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-components-autolayout.fig decoded=census+typed_node_tree editable_import=not_proven(tests/",
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-prototype-pages.fig decoded=census+typed_node_tree editable_import=not_proven(tests/fig_na"
+   ],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of interop-fig all build 0/run 0, 0 failed, 0 timed_out; default interop-fig 32",
+   "lane_file": "builders/lanes/hsk-studio-interop-fig-native.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-INTEROP-FIG-NATIVE:62c0bf666fc8:PASS_V4",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-HARNESS-UI",
+   "crate": "hsk-studio-harness",
+   "crates_checked": [
+    "harness"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V2",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file ",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-raw+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file ",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file ",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+desktop+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file "
+   ],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of harness all build 0/run 0, 0 failed, 0 timed_out; default harness 7",
+   "lane_file": "builders/lanes/hsk-studio-harness-ui.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-HARNESS-UI:62c0bf666fc8:PASS_V3",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-SELECTION",
+   "crate": "hsk-studio-pigment",
+   "crates_checked": [
+    "pigment"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "status_change": "PASS_V5",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V4",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of pigment all build 0/run 0, 0 failed, 0 timed_out; default pigment 125",
+   "lane_file": "builders/lanes/hsk-studio-pigment-selection.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-PIGMENT-SELECTION:62c0bf666fc8:PASS_V5",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-BRUSH",
+   "crate": "hsk-studio-pigment",
+   "crates_checked": [
+    "pigment"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V3",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of pigment all build 0/run 0, 0 failed, 0 timed_out; default pigment 125",
+   "lane_file": "builders/lanes/hsk-studio-pigment-brush.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-PIGMENT-BRUSH:62c0bf666fc8:PASS_V4",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-COMPOSITE-TEMPORAL",
+   "crate": "hsk-studio-composite",
+   "crates_checked": [
+    "composite"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V2",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of composite all build 0/run 0, 0 failed, 0 timed_out; default composite 49",
+   "lane_file": "builders/lanes/hsk-studio-composite-temporal.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-COMPOSITE-TEMPORAL:62c0bf666fc8:PASS_V3",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-INTEROP-FIG-GEOMETRY",
+   "crate": "hsk-studio-interop-fig",
+   "crates_checked": [
+    "interop-fig"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V2",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-basic-shapes.fig decoded=census+typed_node_tree editable_import=not_proven(tests/fig_nativ",
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-components-autolayout.fig decoded=census+typed_node_tree editable_import=not_proven(tests/",
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-prototype-pages.fig decoded=census+typed_node_tree editable_import=not_proven(tests/fig_na"
+   ],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of interop-fig all build 0/run 0, 0 failed, 0 timed_out; default interop-fig 32",
+   "lane_file": "builders/lanes/hsk-studio-interop-fig-geometry.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-INTEROP-FIG-GEOMETRY:62c0bf666fc8:PASS_V3",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-INTEROP-PSD-LE-LAYERS",
+   "crate": "hsk-studio-interop-psd",
+   "crates_checked": [
+    "interop-psd"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V3",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "interop-psd image_source_le::pillow_photoshop_cs_little_endian_layers_parse (default): pillow_photoshop_cs_parity reason=no_independent_photoshop_oracle (layers parsed from file bytes only)"
+   ],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of interop-psd all build 0/run 0, 0 failed, 0 timed_out; default interop-psd 70",
+   "lane_file": "builders/lanes/hsk-studio-interop-psd-le-layers.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-INTEROP-PSD-LE-LAYERS:62c0bf666fc8:PASS_V4",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-DEVELOP-CORPUS-PATH",
+   "crate": "hsk-studio-develop",
+   "crates_checked": [
+    "develop"
+   ],
+   "decision": "inconclusive",
+   "verdict": null,
+   "status_change": "unchanged (PASS_V4)",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V4",
+   "failures": [],
+   "infrastructure_failure": {
+    "failure_kind": "infrastructure",
+    "failure_class": "oracle_corpus_changed_between_canary_and_union",
+    "test": "hsk-studio-develop::real_dng real_dng_decode_and_develop (unit ignored:hsk-studio-develop, run_exit 100)",
+    "file_line": "crates/hsk-studio-develop/tests/real_dng.rs:196",
+    "evidence": "panic: oracle-corpus/dng/samsung-sm-g973u-16bit-uncompressed.dng not found; corpus edited out of band 00:12-00:13Z (SMB-DNG-CORPUS-REPLACE): file renamed .jfif-preview, g950u DNG added, provenance.json changed; canary corpus 651 files (file present) -> union corpus 652 files (absent); R28 same test passed",
+    "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29/ignored/hsk-studio-develop/run.stderr.txt"
+   },
+   "remediation": null,
+   "blocker": {
+    "kind": "infrastructure",
+    "exact": "develop real_dng.rs:196 names dng/samsung-sm-g973u-16bit-uncompressed.dng which the corpus no longer holds (SMB-DNG-CORPUS-REPLACE rename 00:12Z)",
+    "unblock": "push the develop test/fetch-corpus update for the replacement DNG (or restore the corpus file), then re-judge develop lanes"
+   },
+   "not_proven": [
+    "develop real_raw::nef_d1h_uncompressed_decodes_deterministically (ignored:hsk-studio-develop): nef_d1h_uncompressed_decodes_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run",
+    "develop real_raw::arw_7s_craw_decodes_deterministically (ignored:hsk-studio-develop): arw_7s_craw_decodes_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run",
+    "develop real_raw::cr2_350d_decodes_the_stored_frame_deterministically (ignored:hsk-studio-develop): cr2_350d_decodes_the_stored_frame_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run"
+   ],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of develop all build 0/run 0, 0 failed, 0 timed_out; default develop 69 | INCONCLUSIVE: develop ignored unit real_dng_decode_and_develop failed on a missing oracle-corpus file (infrastructure, see infrastructure_failure)",
+   "lane_file": "builders/lanes/hsk-studio-develop-corpus-path.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-DEVELOP-CORPUS-PATH:62c0bf666fc8:INCONCLUSIVE",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-PIGMENT-TRANSFORM",
+   "crate": "hsk-studio-pigment",
+   "crates_checked": [
+    "pigment"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V3",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of pigment all build 0/run 0, 0 failed, 0 timed_out; default pigment 125",
+   "lane_file": "builders/lanes/hsk-studio-pigment-transform.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-PIGMENT-TRANSFORM:62c0bf666fc8:PASS_V4",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-FOLIO-COMPOSITION",
+   "crate": "hsk-studio-folio",
+   "crates_checked": [
+    "folio"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of folio all build 0/run 0, 0 failed, 0 timed_out; default folio 58",
+   "lane_file": "builders/lanes/hsk-studio-folio-composition.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-FOLIO-COMPOSITION:62c0bf666fc8:PASS_V2",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-COMPOSITE-TEXT",
+   "crate": "hsk-studio-composite",
+   "crates_checked": [
+    "composite"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "status_change": "PASS_V4",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V3",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of composite all build 0/run 0, 0 failed, 0 timed_out; default composite 49",
+   "lane_file": "builders/lanes/hsk-studio-composite-text.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-COMPOSITE-TEXT:62c0bf666fc8:PASS_V4",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-FOLIO-PAINT-BLUR-STYLE",
+   "crate": "hsk-studio-folio",
+   "crates_checked": [
+    "folio"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V2",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of folio all build 0/run 0, 0 failed, 0 timed_out; default folio 58",
+   "lane_file": "builders/lanes/hsk-studio-folio-paint-blur-style.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-FOLIO-PAINT-BLUR-STYLE:62c0bf666fc8:PASS_V3",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-RENDER-GPU-SHARED-DEVICE",
+   "crate": "hsk-studio-render-gpu",
+   "crates_checked": [
+    "render-gpu"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of render-gpu all build 0/run 0, 0 failed, 0 timed_out; default render-gpu 36",
+   "lane_file": "builders/lanes/hsk-studio-render-gpu-shared-device.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-RENDER-GPU-SHARED-DEVICE:62c0bf666fc8:PASS_V2",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-UI-SUPPORT-APIS",
+   "crate": "multi",
+   "crates_checked": [
+    "chronicle",
+    "session",
+    "harness"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V2",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file ",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-raw+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file ",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file ",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+desktop+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file "
+   ],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of chronicle/session/harness all build 0/run 0, 0 failed, 0 timed_out; default chronicle 24, session 23, harness 7",
+   "lane_file": "builders/lanes/hsk-studio-ui-support-apis.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-UI-SUPPORT-APIS:62c0bf666fc8:PASS_V3",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-HARNESS-UI-2",
+   "crate": "hsk-studio-harness",
+   "crates_checked": [
+    "harness"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file ",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-raw+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file ",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file ",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+desktop+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file "
+   ],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of harness all build 0/run 0, 0 failed, 0 timed_out; default harness 7",
+   "lane_file": "builders/lanes/hsk-studio-harness-ui-2.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-HARNESS-UI-2:62c0bf666fc8:PASS_V2",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-CONVERT-RASTER",
+   "crate": "hsk-studio-harness",
+   "crates_checked": [
+    "harness"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V2",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file ",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-raw+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file ",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file ",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+desktop+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file "
+   ],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of harness all build 0/run 0, 0 failed, 0 timed_out; default harness 7",
+   "lane_file": "builders/lanes/hsk-studio-convert-raster.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-CONVERT-RASTER:62c0bf666fc8:PASS_V3",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-INTEROP-FIG-FOLIO-KINDS",
+   "crate": "hsk-studio-interop-fig",
+   "crates_checked": [
+    "interop-fig"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V2",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-basic-shapes.fig decoded=census+typed_node_tree editable_import=not_proven(tests/fig_nativ",
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-components-autolayout.fig decoded=census+typed_node_tree editable_import=not_proven(tests/",
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-prototype-pages.fig decoded=census+typed_node_tree editable_import=not_proven(tests/fig_na"
+   ],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of interop-fig all build 0/run 0, 0 failed, 0 timed_out; default interop-fig 32",
+   "lane_file": "builders/lanes/hsk-studio-interop-fig-folio-kinds.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-INTEROP-FIG-FOLIO-KINDS:62c0bf666fc8:PASS_V3",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-COMPOSITE-NEW-KINDS",
+   "crate": "hsk-studio-composite",
+   "crates_checked": [
+    "composite"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of composite all build 0/run 0, 0 failed, 0 timed_out; default composite 49",
+   "lane_file": "builders/lanes/hsk-studio-composite-new-kinds.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-COMPOSITE-NEW-KINDS:62c0bf666fc8:PASS_V2",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-HARNESS-SWEEP-PERF",
+   "crate": "hsk-studio-harness",
+   "crates_checked": [
+    "harness"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V3",
+   "status_change": "PASS_V3",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V2",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file ",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-raw+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file ",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file ",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+desktop+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file "
+   ],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of harness all build 0/run 0, 0 failed, 0 timed_out; default harness 7",
+   "lane_file": "builders/lanes/hsk-studio-harness-sweep-perf.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-HARNESS-SWEEP-PERF:62c0bf666fc8:PASS_V3",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  },
+  {
+   "lane": "SMB-LAYOUT-TYPESET",
+   "crate": "hsk-studio-layout",
+   "crates_checked": [
+    "layout"
+   ],
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "status_change": "PASS_V2",
+   "included_by": "CX-VAL-009 reopen",
+   "prior_status": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (crates changed dd63d21..62c0bf6 + reverse-dependency closure, 25 crates): units of layout all build 0/run 0, 0 failed, 0 timed_out; default layout 27",
+   "lane_file": "builders/lanes/hsk-studio-layout-typeset.json",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "idempotency_key": "STUDIO-R29:SMB-LAYOUT-TYPESET:62c0bf666fc8:PASS_V2",
+   "recorded_at": "2026-10-15T00:47:07Z"
+  }
+ ],
+ "infrastructure": [
+  "develop ignored unit: oracle corpus edited out of band between canary and union (see infrastructure_failure)",
+  "Edit tree HEAD advanced 4 times during preparation (a2d17b0, 8705d18 local-only then pushed with b9bb3e0, c3e29e5); confirmations re-recorded per HEAD; one canary launch blocked by the hook (GP-001) until HEAD == origin",
+  "Gated-word hook blocked inline commands naming gated words (confirm notes, a read of the entry script); re-run via script files / Read",
+  "Steward ran a concurrent --all round (steward-export, 9154f50) under the D: disk lock: union waited 625 s total (max 316 s); no failure from it",
+  "No process stopped; no outer timeout wrapper; no caller env (round.json rustc_wrapper '')",
+  "Ledger: lead committed ledger.json (ed2239c8/fb10d8bd 00:47Z) after the guarded R29 write; R29 lane entries and round_R29 present in HEAD; no git write by the validator other than git fetch in the edit tree"
+ ],
+ "observations_for_next_round": [
+  "R30 queue: develop lanes INCONCLUSIVE here (SMB-DEVELOP-CONTROLS, SMB-DEVELOP-CONTROLS-2 + 8 reopened develop lanes) once 8424d8a (DNG corpus test update) is in the candidate",
+  "SMB-HARNESS-UI-3 (+ SMB-PRISM-ADMITTED-WORKING-PROFILE) needs a claim listing f6443de cf18e93",
+  "SMB-RENDER-GPU-PIPELINE-FAULT a2d17b0, SMB-COMPOSITE-COMPOSITION-ADAPTER slice 4 b9bb3e0, SMB-PIGMENT-CONTENT-AWARE-2 slice 2+ (8705d18)"
+ ],
+ "state_written": {
+  "ledger_sha_after": "a354b37ff6032419db8833b3ddcb1b860591267a2b783fc2ed1c383cda344454",
+  "lane_file_appends": 77
+ },
+ "by": "wp_validator STUDIO-R29",
+ "recorded_at": "2026-10-15T00:49:10Z"
+}

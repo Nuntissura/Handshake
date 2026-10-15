@@ -4,10 +4,22 @@
   "status": "READY_FOR_VALIDATION",
   "phase": "slices 1-3 pushed and green at 0c1ae4d",
   "commits": [
-    {"sha": "55606ee", "subject": "interop-fig (SMB-INTEROP-FIG-LAYER-GRAPH slice 1): folio layer graph for imported Figma documents"},
-    {"sha": "e90ad7b", "subject": "interop-fig (SMB-INTEROP-FIG-LAYER-GRAPH slice 2): boolean groups compose Normal; composite render harness (dev edges); drop scratch dump"},
-    {"sha": "5db9339", "subject": "interop-fig (SMB-INTEROP-FIG-LAYER-GRAPH slice 3): composite-vs-PNG proofs and pinned graph shape and losses"},
-    {"sha": "0c1ae4d", "subject": "interop-fig (SMB-INTEROP-FIG-LAYER-GRAPH): clippy clean composite test (final; f5f3220..09455a6 are test-harness fix-ups)"}
+    {
+      "sha": "55606ee",
+      "subject": "interop-fig (SMB-INTEROP-FIG-LAYER-GRAPH slice 1): folio layer graph for imported Figma documents"
+    },
+    {
+      "sha": "e90ad7b",
+      "subject": "interop-fig (SMB-INTEROP-FIG-LAYER-GRAPH slice 2): boolean groups compose Normal; composite render harness (dev edges); drop scratch dump"
+    },
+    {
+      "sha": "5db9339",
+      "subject": "interop-fig (SMB-INTEROP-FIG-LAYER-GRAPH slice 3): composite-vs-PNG proofs and pinned graph shape and losses"
+    },
+    {
+      "sha": "0c1ae4d",
+      "subject": "interop-fig (SMB-INTEROP-FIG-LAYER-GRAPH): clippy clean composite test (final; f5f3220..09455a6 are test-harness fix-ups)"
+    }
   ],
   "capabilities_done": [
     "src/graph.rs (new, deny arithmetic_side_effects): to_native now writes a real hsk.studio.layer_graph@1 instead of an empty one. Vector layer with paths -> source op (vector out) listed as a graph output; boolean group (has a StudioBooleanGroup record) -> mix op with no inputs (composite draws it as one leaf; operand layers get no op); text layer -> source op with image-typed out (Folio G1); a group holding only image-typed content (text sources, boolean leaves, such groups) -> mix op with ordered edges (ordinal 0 bottom-most); any other group is flattened (children listed as outputs in paint order); artboards are not graph nodes (children stand in canvas order); only the first visible page (CANVAS) is listed in graph.outputs, other pages keep their operations",
@@ -38,5 +50,28 @@
     "retry_guard": "retry-guard blocks on identical reruns after a compile/test failure: route (a), committed the fix (new HEAD) then reran, six times (all test-harness fix-ups in tests/fig_composite.rs). One external stall: gameplan step GP-029 (truepeak confirm, another lane) blocked every gated command at my HEAD until the Score lane confirmed; I did not confirm it",
     "deps": "no normal dependency change; Cargo.lock uncommitted",
     "scratch": "an accidental scratch test tests/zz_dump.rs was committed in 55606ee and removed in e90ad7b"
-  }
+  },
+  "verdicts": [
+    {
+      "decision": "passed",
+      "verdict": "PASS_V1",
+      "failures": [],
+      "remediation": null,
+      "blocker": null,
+      "not_proven": [
+        "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-basic-shapes.fig decoded=census+typed_node_tree editable_import=not_proven(tests/fig_nativ",
+        "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-components-autolayout.fig decoded=census+typed_node_tree editable_import=not_proven(tests/",
+        "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-prototype-pages.fig decoded=census+typed_node_tree editable_import=not_proven(tests/fig_na"
+      ],
+      "note": "55606ee e90ad7b 3a0cebc e3b89c4 5db9339 0c1ae4d (+6 unlisted test-only commits between): graph.rs writes real source/mix ops, edges, outputs with typed native.graph losses; boolean groups Normal/Isolated; composite-vs-Operator-PNG proofs (dev edges approved 2026-10-15); scratch zz_dump removed. No stub. Lane tests 18 passed / 0 failed (/fig_composite|fig_native|fig_geometry|fig_folio_kinds/); default interop-fig 32; all units of interop-fig build 0 run 0",
+      "idempotency_key": "STUDIO-R29:SMB-INTEROP-FIG-LAYER-GRAPH:62c0bf666fc8:PASS_V1",
+      "round": "STUDIO-R29",
+      "lane": "SMB-INTEROP-FIG-LAYER-GRAPH",
+      "candidate": "62c0bf666fc88e6ab5424e4eae46f18521c5dffe",
+      "tree": "b8c285ac064abaa57d54553f2e4ce940f6c0fb04",
+      "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+      "started_at": "2026-10-14T23:54:12Z",
+      "completed_at": "2026-10-15T00:47:07Z"
+    }
+  ]
 }

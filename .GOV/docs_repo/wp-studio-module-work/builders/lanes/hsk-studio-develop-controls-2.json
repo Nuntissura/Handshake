@@ -4,11 +4,26 @@
  "status": "READY_FOR_VALIDATION",
  "phase": "slices A (colour families + absolute WB), B (detail stages), C (range masks) pushed; Lightroom parity UNVERIFIED (D5)",
  "commits": [
-  {"sha": "6a636c2", "subject": "slice A: absolute kelvin/tint WB, point colour, grayscale mix, colour grading (READY at this sha)"},
-  {"sha": "c809101", "subject": "slice B: texture, dehaze (dark channel prior), sharpening, luminance/colour noise reduction"},
-  {"sha": "cfd75bf", "subject": "slice B (READY at this sha): fix a lifetime typo in the hostile table of develop_detail (c809101 did not compile its test target)"},
-  {"sha": "3c0fcc6", "subject": "slice C: luminance and colour range masks in the local stack"},
-  {"sha": "31642da", "subject": "slice C (READY at this sha): clippy allow on geometry_at"}
+  {
+   "sha": "6a636c2",
+   "subject": "slice A: absolute kelvin/tint WB, point colour, grayscale mix, colour grading (READY at this sha)"
+  },
+  {
+   "sha": "c809101",
+   "subject": "slice B: texture, dehaze (dark channel prior), sharpening, luminance/colour noise reduction"
+  },
+  {
+   "sha": "cfd75bf",
+   "subject": "slice B (READY at this sha): fix a lifetime typo in the hostile table of develop_detail (c809101 did not compile its test target)"
+  },
+  {
+   "sha": "3c0fcc6",
+   "subject": "slice C: luminance and colour range masks in the local stack"
+  },
+  {
+   "sha": "31642da",
+   "subject": "slice C (READY at this sha): clippy allow on geometry_at"
+  }
  ],
  "capabilities_done": [
   "A white balance, raw form (STU-RAW-110): DngRaw::recipe_for_white / recipe_for_white_point(colour, xyz_d50_to_profile, profile, baseline, kelvin, tint): kelvin 2000..25000 (Kim Planckian locus), tint -150..150 (uv offset 1/3000 per count along the locus normal, + = greener illuminant = magenta correction); the target white's xy replaces AsShotNeutral in the DNG colour solution (CM/FM interpolation, Bradford as before); recipe carries WbMode::Temperature + Adjustments.absolute_white_balance; mode and request must agree (Temperature without request = unsupported_white_balance, AsShot with a request = invalid_adjustment); kelvin above 25000 is refused (spec soft maximum 50000 NOT reached)",
@@ -70,5 +85,32 @@
   "incident": "c809101 was pushed with a typo in tests/develop_detail.rs (a dropped apostrophe while fixing a clippy type_complexity warning) so its test target did not compile; cfd75bf fixes it. READY for slice B is therefore cfd75bf, not c809101.",
   "gameplan_route": "retry guard hit after product test failures: route (a), committed the fix locally (HEAD changed) and reran; GP-029 (score lane) blocked cargo test for a while and cleared without my action; no gameplan step added",
   "v4_notes": "no untrusted-byte decoder added; hostile numbers and sizes checked (finite, ranges, dimension products, brush budget, sample and point counts); corpus tests print NOT_PROVEN when the corpus is absent"
- }
+ },
+ "verdicts": [
+  {
+   "decision": "inconclusive",
+   "verdict": null,
+   "failures": [],
+   "remediation": null,
+   "blocker": {
+    "kind": "infrastructure",
+    "exact": "develop real_dng.rs:196 names dng/samsung-sm-g973u-16bit-uncompressed.dng which the corpus no longer holds (SMB-DNG-CORPUS-REPLACE rename 00:12Z)",
+    "unblock": "push the develop test/fetch-corpus update for the replacement DNG (or restore the corpus file), then re-judge develop lanes"
+   },
+   "not_proven": [
+    "develop real_raw::nef_d1h_uncompressed_decodes_deterministically (ignored:hsk-studio-develop): nef_d1h_uncompressed_decodes_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run",
+    "develop real_raw::arw_7s_craw_decodes_deterministically (ignored:hsk-studio-develop): arw_7s_craw_decodes_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run",
+    "develop real_raw::cr2_350d_decodes_the_stored_frame_deterministically (ignored:hsk-studio-develop): cr2_350d_decodes_the_stored_frame_deterministically cfa_samples_vs_independent_dng reason=no_approved_converter_run"
+   ],
+   "note": "6a636c2 c809101 cfd75bf 3c0fcc6 31642da (src in WIP d7aaa11 1491f61, inside range): absolute kelvin/tint WB, point colour, grayscale mix, colour grading, texture, dark-channel dehaze, USM sharpen, bilateral NR, luminance/colour range masks. No stub. Lane tests 14 passed / 0 failed (/develop_colour2|develop_detail|develop_range/); default develop 69; all units of develop build 0 run 0 | INCONCLUSIVE: develop ignored unit real_dng_decode_and_develop failed on a missing oracle-corpus file (infrastructure, see infrastructure_failure)",
+   "idempotency_key": "STUDIO-R29:SMB-DEVELOP-CONTROLS-2:62c0bf666fc8:INCONCLUSIVE",
+   "round": "STUDIO-R29",
+   "lane": "SMB-DEVELOP-CONTROLS-2",
+   "candidate": "62c0bf666fc88e6ab5424e4eae46f18521c5dffe",
+   "tree": "b8c285ac064abaa57d54553f2e4ce940f6c0fb04",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "started_at": "2026-10-14T23:54:12Z",
+   "completed_at": "2026-10-15T00:47:07Z"
+  }
+ ]
 }

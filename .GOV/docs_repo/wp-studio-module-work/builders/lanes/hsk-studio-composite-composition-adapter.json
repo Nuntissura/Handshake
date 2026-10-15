@@ -76,5 +76,24 @@
   "api_changes": "composite default build: new pub module composition (SceneComposition, SceneLayer, SceneContent{None, Tiles, Precomp}, SceneTile, SceneMatte, SceneMatteMode, ScenePixels, SceneContext, SceneLimits, SceneLowering, SceneSources, BoundSources, Surface, MattePlane, RenderedScene, lower_scene, render_scene, constants); TemporalError gains Render{composition_id, code} (no dependent matches it outside composite, verified by grep); TemporalSource gains layer_matrix with a default (existing sources unchanged; temporal and temporal_transform tests green); feature motion: temporal::composition (CompositionInput, CompositionTemporalSource, refusal keys, DEFAULT_COMPOSITION_FILTER, MAX_PRECOMP_DEPTH); temporal::motion::sample became pub(super)",
   "followups": "1) masks and effects of composition layers (refused composition_layer_mask; raster records are not read on the composition path, as lower_frame) -> reuse lower_to_render_plan_extended per layer; 2) vector/text/adjustment layers in compositions (refused composition_layer_content) -> prepared planes as in the static path; 3) collapse_transformations (refused); 4) Folio has no preserve_source_visibility, resample_filter or quality fields: spec gaps for STU-CMP-030 and STU-MOT-007 (filter declared by the caller, bilinear default); 5) time remapping, frame blending, motion blur, 3D, expressions not stored by Folio; 6) After Effects parity of default anchor, nested background transparency, floor stretch mapping, BT.709 luma, 16-bit matte quantisation and parents acting outside their window: UNVERIFIED -> D5 oracle session; 7) round config: composite [motion] unit exists in .config/round-features.toml, renderer composition_frames tests run in default units",
   "v4_final": "V4-01 deny(arithmetic_side_effects) on src/composition.rs and src/temporal/composition.rs; V4-02 layer count, nesting depth (16), surface count (256) and surface/matte bytes checked before allocation with tests (max_layers 1, max_depth 0, max_surfaces 1, frame-only byte budgets); V4-03 GPU proof gated by gpu-proof.toml (require_gpu = true); V4-07 DESCRIPTOR claims cite tests/composition_adapter.rs and the renderer composition_frames tests; V4-09 commit messages via files"
- }
+ },
+ "verdicts": [
+  {
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "791f865 19a7c19 13f5bd0 b1d5e85 e99c4a7 62c0bf6 (slices 1-3; lane file claim; slice 4 b9bb3e0 after candidate): scene lowering, motion-evaluated streams, anchor/parent chain, i128 source_tick, precomp rendered through the backend into owned surfaces with depth/surface/byte budgets; V4-01 deny. No stub. Lane tests 34 passed / 0 failed (/composition_adapter|composition_frames|::temporal|static_plan/); default composite 49, render-cpu 52, render-gpu 36; all units of composite/render-cpu/render-gpu build 0 run 0",
+   "idempotency_key": "STUDIO-R29:SMB-COMPOSITE-COMPOSITION-ADAPTER:62c0bf666fc8:PASS_V1",
+   "round": "STUDIO-R29",
+   "lane": "SMB-COMPOSITE-COMPOSITION-ADAPTER",
+   "candidate": "62c0bf666fc88e6ab5424e4eae46f18521c5dffe",
+   "tree": "b8c285ac064abaa57d54553f2e4ce940f6c0fb04",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "started_at": "2026-10-14T23:54:12Z",
+   "completed_at": "2026-10-15T00:47:07Z"
+  }
+ ]
 }

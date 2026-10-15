@@ -4,10 +4,22 @@
  "status": "READY_FOR_VALIDATION",
  "phase": "slices 1-2 pushed (9698de3 + 5556fe9 render-cpu, e029861 render-gpu; 50e2b87 and the following local WIP commits are in the same range): layer filters executed on both renderers; clippy over pigment + render-cpu + render-gpu (+test-faults, shared-device) --tests exit 0 (warnings only in hsk-studio-type, pre-existing)",
  "commits": [
-  {"sha": "9698de3", "subject": "render-cpu (SMB-RENDER-FILTERS slice 1): execute layer filters (gaussian blur, unsharp mask, high pass, median, seeded add noise) with pigment filter_window per stage; chunk and thread independent, mask applied after the filters"},
-  {"sha": "50e2b87", "subject": "render-gpu (SMB-RENDER-FILTERS slice 2, WIP): filter.wgsl passes and filter chain evaluation (superseded by e029861; includes probe/debug commits between 50e2b87 and e029861 that were removed again)"},
-  {"sha": "e029861", "subject": "render-gpu (SMB-RENDER-FILTERS slice 2): WGSL layer filters within 1.2e-7 of pigment filter_window; DESCRIPTORs of render-cpu and render-gpu"},
-  {"sha": "5556fe9", "subject": "render-cpu (SMB-RENDER-FILTERS slice 1 fix): hostile-radius test uses the extent-sized window for the work limit and proves radius 1000 parity and the byte charge"}
+  {
+   "sha": "9698de3",
+   "subject": "render-cpu (SMB-RENDER-FILTERS slice 1): execute layer filters (gaussian blur, unsharp mask, high pass, median, seeded add noise) with pigment filter_window per stage; chunk and thread independent, mask applied after the filters"
+  },
+  {
+   "sha": "50e2b87",
+   "subject": "render-gpu (SMB-RENDER-FILTERS slice 2, WIP): filter.wgsl passes and filter chain evaluation (superseded by e029861; includes probe/debug commits between 50e2b87 and e029861 that were removed again)"
+  },
+  {
+   "sha": "e029861",
+   "subject": "render-gpu (SMB-RENDER-FILTERS slice 2): WGSL layer filters within 1.2e-7 of pigment filter_window; DESCRIPTORs of render-cpu and render-gpu"
+  },
+  {
+   "sha": "5556fe9",
+   "subject": "render-cpu (SMB-RENDER-FILTERS slice 1 fix): hostile-radius test uses the extent-sized window for the work limit and proves radius 1000 parity and the byte charge"
+  }
  ],
  "capabilities_done": [
   "render-cpu plan_sink/filter.rs: ExtOperator::Filter(kind) declared with pigment's class (extension_exactness -> intrinsic, approximate); each stage is one pigment filter_math::filter_window call (render-cpu keeps no filter formula, noise generator or median); content WITHOUT the layer mask is stage 0 (new Eval::frame_content_raw, frame_content = raw + mask); stage windows derived backwards R(k-1) = grow(Rk, reach_k) clipped to B(k-1), B(k) = grow(B(k-1), growth_k) (growth = blur support or median radius, 0 for unsharp/high pass/noise); evaluated per chunk on the chunk-level frame; composited by the normal path so mask (feather/invert/density), Blend-If, mode and opacity*fill apply after the filters; with a mask the composite covers the mask plane only; ExtPrep filters table + FilterLayer growth, frame_shape sizes the frame and charges the sum of pigment filter_window_cost bytes over the stages, filter_work_limit above MAX_EFFECT_WINDOW_WORK, filter_nested when the chunk-level frame is in use, defence in depth InvalidPlan(FilterCombination | FilterParameter)",
@@ -39,5 +51,24 @@
   "cargo_lock": "not touched",
   "v4": "V4-01 deny(arithmetic_side_effects) on the new render-cpu module and extended.rs additions (checked helpers, typed errors); V4-02 sizes and running aggregates charged before allocation (filter_window_cost per stage, frame, FILTER_OP_BYTES), tests hostile_radii_*, refusals_budget_*; V4-03 GPU tests gated; V4-07 DESCRIPTOR claims cite tests; V4-09 commit messages via files",
   "followups": "GPU median beyond radius 7 (separable histogram or tiled selection); exact-threshold unsharp on GPU; GPU gaussian blur beyond the 3004-tap block (BLUR_MAX_TAPS) is a typed refusal; Photoshop parity of every filter NOT_PROVEN (D5)"
- }
+ },
+ "verdicts": [
+  {
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "9698de3 (50e2b87, WIP afaa779 717f65c 3203643 0415503 in range) e029861 5556fe9: render-cpu stage = pigment filter_window (no own formula); filter.wgsl filter_pass (USM/high-pass combine, median r<=7, 64-bit SplitMix on u32 pairs); zz_fxc_probe removed. No stub. Lane tests 13 passed / 0 failed (/cpu_filters|gpu_filters/); default render-cpu 52, render-gpu 36; all units of render-cpu/render-gpu build 0 run 0",
+   "idempotency_key": "STUDIO-R29:SMB-RENDER-FILTERS:62c0bf666fc8:PASS_V1",
+   "round": "STUDIO-R29",
+   "lane": "SMB-RENDER-FILTERS",
+   "candidate": "62c0bf666fc88e6ab5424e4eae46f18521c5dffe",
+   "tree": "b8c285ac064abaa57d54553f2e4ce940f6c0fb04",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "started_at": "2026-10-14T23:54:12Z",
+   "completed_at": "2026-10-15T00:47:07Z"
+  }
+ ]
 }
