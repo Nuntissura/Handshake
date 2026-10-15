@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T08:46:00Z",
+ "updated_at": "2026-10-15T08:48:12Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -6745,12 +6745,16 @@
   {
    "lane_id": "SMB-COMPOSITE-DOCGRAPH-2",
    "crate": "hsk-studio-composite",
-   "phase": "queued",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": null,
-   "commits": [],
+   "commits": [
+    "263ec86",
+    "db231fb"
+   ],
    "verdicts": [],
-   "note": "fractional/rotated clipped+masked layers on document path tests; feathered unlinked masks parity; clip + unlinked mask on moved layer; collapse on document graph; slow composite test under cap with margin"
+   "note": "db231fb carried stale AE-KEY-TRACK-3 paths (deleted 3 files); restored by 1c585a9, verified byte-equal to 61c4ae7",
+   "lane_file": "builders/lanes/hsk-studio-composite-docgraph-2.json"
   },
   {
    "lane_id": "SMB-REEL-ENCODE",
@@ -6869,10 +6873,11 @@
    "owner": "builder-r32-remediation-20261015",
    "commits": [
     "0a9207a",
-    "f1fffe3"
+    "f1fffe3",
+    "6f6cabd"
    ],
    "verdicts": [],
-   "note": "isolate_masked_pass_through classified Reads::Every; f1fffe3 also classifies 5 SMB-PS-SELECT-LIQUIFY functions (struct fields named layers/nodes; no plan access) - scope waiver accepted",
+   "note": "+ F-R32-1 pass_through_mask_isolation test (6f6cabd)",
    "lane_file": "builders/lanes/hsk-studio-r32-remediation.json"
   },
   {
