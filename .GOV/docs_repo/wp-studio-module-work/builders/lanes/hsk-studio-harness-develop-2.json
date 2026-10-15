@@ -1,0 +1,47 @@
+{
+ "crate": "hsk-studio-harness",
+ "lane": "SMB-HARNESS-DEVELOP-2",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slice 1 pushed (claim = 84c33c3, 505ed9e, 0052602): develop edit saved/restored through the session entry develop; kelvin/tint, grading, point colour, detail, range-masked local corrections in the panel",
+ "commits": [
+  {"sha": "84c33c3", "subject": "harness + session (SMB-HARNESS-DEVELOP-2): develop edit saved in the package; kelvin, grading, point colour, detail, range-masked local corrections"},
+  {"sha": "505ed9e", "subject": "harness tests (SMB-HARNESS-DEVELOP-2): a new point colour is identity until a value moves (test expectation)"},
+  {"sha": "0052602", "subject": "harness (SMB-HARNESS-DEVELOP-2): descriptor, manual and RUN-UI for the develop entry and panel families"}
+ ],
+ "capabilities_done": [
+  "session: DOCUMENT_ENTRY_TOKENS gains develop (lead decision 2026-10-15: interim persistence like selection/text; session edit waived for this lane); a reopened package carries studio/develop.<sha256> with no loss note",
+  "view::develop: the edit (DevelopEdit) is develop's own types: exposure_stops + the whole Adjustments; kelvin/tint through hsk_studio_develop::recipe_for_white_point on the file's DngColor (RawPrepared now keeps colour tags and the profile matrix); group enables (colour, detail, mask) follow the active families; DevelopRecipe::validate decides every value",
+  "controls with stable ids (view::develop::controls): grading.<wheel>.<hue|saturation|luminance>, grading.blending/balance, sharpen_radius/detail/masking (with the earlier sliders), wb_kelvin/wb_tint, point.<i>.<9 fields>, local.<i>.<amount + 10 stack fields>, local.<i>.mask.<j>.<value|lo|hi|feather|breadth>; DevelopOp structure steps Kelvin, AsShotWhite, AddPointColour, RemovePointColour, AddLuminanceRange, AddColourRange, RemoveCorrection; every change one chronicle tiles step (undo/redo restore pixels and edit)",
+  "egui panel: hsk-studio-controls sections basic/white/grading/point/detail/local built from the edit, buttons develop.wb.kelvin|as_shot, develop.point.add, develop.local.add_luminance|add_colour, develop.point.<i>.remove, develop.local.<i>.remove (new samples from the composite centre pixel)",
+  "view::develop_entry: JSON hsk.studio.harness.develop@1 (layer id, tile signature, every Adjustments field; luminance_range and colour_range masks); hostile decoder: 1 MiB cap before parsing, serde_json nesting limit, exact keys and array lengths, finite numbers, develop MAX_POINT_COLOURS / MAX_CORRECTIONS / MAX_MASKS / MAX_COLOUR_SAMPLES caps, 256-byte strings, 64-hex signature; Viewer::save writes the entry; reopen restores it (develop_json.entry Restored / Stale / Refused(code) / Absent); a refused entry leaves the file recipe in the panel"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-session --no-fail-fast ; cargo nextest run -p hsk-studio-harness --features viewer --no-fail-fast -E 'not test(psd_tools_sweep)'",
+  "exit": 0,
+  "sha": "0052602",
+  "passed": 64,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "Validator: judge 84c33c3 + 505ed9e + 0052602; round features harness [viewer] must cover tests/viewer_develop_2.rs; session closure changed (one token) so session tests belong in the round.",
+ "updated_at": "2026-10-15T01:19:37Z",
+ "notes": {
+  "new_tests": "tests/viewer_develop_2.rs (3): develop_edit_saves_and_reopens_through_the_develop_entry (kelvin, kelvin slider, grading, point colour + shift, detail, luminance- and colour-range corrections each change pixels; kelvin recipe equals develop recipe_for_white on the same file; save -> reopen: loss_notes 0, entry Restored, values_known, same edit and recipe, same develop_to_output samples; a further step and its undo work), panel_families_are_drawn_undoable_and_refused_by_develop (headless egui frame draws every family id and button, commits nothing; AsShotWhite undo; kelvin 1000, grading hue 400, point hue_range 150, sharpen radius 9, local exposure 2, mask lo above hi, NaN breadth, unknown point index, unknown correction, empty / out-of-range colour samples refused with develop's codes, nothing committed), hostile_develop_entries_are_typed_refusals (lossless encode/decode; oversized, binary, 5000-deep nesting, 1e999, schema, unknown/missing key, string number, short mixer, 17 point colours, gradient mask, bad signature, 300-byte id; packages with an undecodable and a develop-refused entry open with entry Refused(code) and the file recipe)",
+  "suites": "session 23/23; harness viewer suite 41/41 (all but psd_tools sweep, incl. viewer_develop 3 + viewer_develop_2 3); clippy 0 warnings: harness --features viewer --tests --examples, default --tests --examples, --features import-raw --tests, --features desktop --tests; session --tests --examples",
+  "retry_guard": "hit once after my own test-expectation failure (a new point colour with zero shifts is identity: develop's correct result); route (a): committed the fix 505ed9e (HEAD changed) and reran; no gameplan step added",
+  "push_note": "84c33c3, 505ed9e and 0052602 reached origin through another builder's push of the shared branch (verified ancestors of origin/codex/handshake-studio-assets); I pushed no other lane's commit",
+  "spec_basis": {
+   "STU-RAW-110": "raw-form kelvin / tint (develop recipe_for_white_point, kelvin 2000..25000)",
+   "STU-RAW-114": "sharpen amount/radius/detail/masking, noise reduction",
+   "STU-RAW-115": "point colours",
+   "STU-RAW-116": "colour grading wheels, blending, balance",
+   "STU-RAW-121/122": "local corrections with luminance_range / colour_range masks, normalised +-1 stack",
+   "STU-RAS-005": "every develop change is one undoable chronicle step"
+  },
+  "new_module_edges": "NONE (harness -> session existed); no new crates.io dependency",
+  "gaps": ["HSL mixer, parametric curve, grayscale mix, gradient and brush masks not in the panel; the entry codec refuses gradient/brush masks", "a structure step that changes no pixel (a new identity point colour or correction) is recorded on the current pixel state, not as its own chronicle step", "composite display of developed values above 1 still fails in render-cpu (sample_range_outside_unit)", "Lightroom / Camera Raw parity UNVERIFIED (D5)", "desktop window not launched (CX-SAFE-002)"],
+  "v4": "V4-01 deny(clippy::arithmetic_side_effects) in view::develop and view::develop_entry; V4-02 entry decoder bounded before allocation-heavy work (size cap, nesting limit, list caps) with the hostile test; V4-03 no corpus dependency in the new tests"
+ }
+}

@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T01:17:54Z",
+ "updated_at": "2026-10-15T01:20:44Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -5401,12 +5401,17 @@
   {
    "lane_id": "SMB-HARNESS-DEVELOP-2",
    "crate": "hsk-studio-harness",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-harness-dev-20261015",
-   "commits": [],
+   "commits": [
+    "84c33c3",
+    "505ed9e",
+    "0052602"
+   ],
    "verdicts": [],
-   "note": "develop recipe persisted as session typed entry token `develop` (lead decision, interim like selection); panel adds Kelvin/tint WB, colour grading, point colour, detail, local corrections with range masks (CONTROLS-2 types)"
+   "note": "develop recipe persisted as session typed entry token `develop` (lead decision, interim like selection); panel adds Kelvin/tint WB, colour grading, point colour, detail, local corrections with range masks (CONTROLS-2 types)",
+   "lane_file": "builders/lanes/hsk-studio-harness-develop-2.json"
   },
   {
    "lane_id": "SMB-RENDER-SCENE-DISPLAY",
@@ -5447,6 +5452,16 @@
    "commits": [],
    "verdicts": [],
    "note": "clip records (Figma frame clipping) and clipped layers lowered to masks; flip VectorCoverage default to Exact after SMB-INTEROP-FIG-PAINTS updates fig_composite expectations; composition text-layer test; adjustment-layer transforms"
+  },
+  {
+   "lane_id": "SMB-HARNESS-DEVELOP-3",
+   "crate": "hsk-studio-harness",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-harness-dev-20261015",
+   "commits": [],
+   "verdicts": [],
+   "note": "panel: HSL mixer, parametric curve, grayscale mix, gradient/brush masks (stored entries refuse them today); no-op point colour/correction as its own undo step; display of >1 values after SMB-RENDER-SCENE-DISPLAY"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
