@@ -1,0 +1,36 @@
+{
+ "crate": "hsk-studio-develop",
+ "lane": "SMB-DNG-CORPUS-REPLACE",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slice 1 pushed (8424d8a): corpus Samsung JFIF preview renamed, real uncompressed 16-bit DNG added, tests follow",
+ "commits": [
+  {"sha": "8424d8a", "subject": "develop tests (SMB-DNG-CORPUS-REPLACE): real uncompressed 16-bit Samsung DNG replaces the JFIF preview"}
+ ],
+ "capabilities_done": [
+  "corpus (outside git, oracle-corpus/dng): samsung-sm-g973u-16bit-uncompressed.dng (raw.pixls.us id 3839, a JFIF rendering, sha256 6492b7e0...) renamed samsung-sm-g973u-16bit-uncompressed.dng.jfif-preview (kept, not deleted)",
+  "corpus: raw.pixls.us id 1815 Samsung SM-G950U downloaded into the new empty dir studio-team-dev/dng-corpus-replace/download; magic 49 49 2a 00 and IFD0 DNGVersion 1.4.0.0 verified by byte inspection; licence CC0 per the listing row; sha256 7b0327cf015270ec98627ed1dee02ff39a47d1a6d6ff1ecfe164586e7dc7a749 equals the listing checksum; moved to oracle-corpus/dng/samsung-sm-g950u-16bit-uncompressed.dng; provenance.json (the dng folder manifest) records id, url, exif url, licence, sha256, bytes 18725824, retrieved_at, magic",
+  "tests/real_dng.rs: new Facts row for the G950U (4032x2268, 16-bit, Compression 1, GRBG, black 0x4, white 1023, illuminants 1/3, unapplied opcode_list_2) from the published Exiv2 dump; the JFIF row names the .jfif-preview file and keeps the typed refusal decoder_unavailable:jpeg plus the NOT_PROVEN line",
+  "tests/container_identity.rs: the JFIF pin follows the rename; new pin for the G950U (cfa ae7f8e1f..., developed 4032x2268, 0 clamped, 89266234...)",
+  "tests/real_dng/fetch-corpus.sh: id 1815 added; id 3839 is fetched to the .jfif-preview name"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-develop --test real_dng --test container_identity --run-ignored only --no-capture --no-fail-fast",
+  "exit": 0,
+  "sha": "8424d8a",
+  "passed": 2,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 8,
+ "bg_pids": [],
+ "next": "Validator: run the ignored corpus targets real_dng and container_identity at 8424d8a against the updated oracle-corpus/dng (shared sibling Handshake_Artifacts root).",
+ "updated_at": "2026-10-15T00:18:40Z",
+ "notes": {
+  "uncompressed_strip_proven": "real_dng output at 8424d8a: samsung-sm-g950u-16bit-uncompressed.dng 4032x2268 bits=16 comp=1 cfa=Grbg decode_ms=317 clamped 0/0 cct=4943 develop_ms=589 tiles=144 mean=0.2198 unapplied=[opcode_list_2, orientation]: the IFD0 one-row-strip uncompressed path on a real file",
+  "pin_origin": "the G950U container_identity value is the first decode of this file (a regression pin, not an independent oracle); the independent facts are the raw.pixls.us Exiv2 dump values in real_dng.rs",
+  "clippy": "cargo clippy -p hsk-studio-develop --tests: no develop warning (2 pre-existing too_many_arguments in hsk-studio-observe)",
+  "why_g950u": "a Samsung phone DNG with the layout the G973U listing advertised (IFD0 raw, one-row strips, 2x2 black repeat, OpcodeList2); 17.86 MB",
+  "scope": "only develop test files changed; no product source, no harness file",
+  "listing_copy": "Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/dng-corpus-replace/listing/repo.json and 1815.exif.txt (fetched 2026-10-15)"
+ }
+}

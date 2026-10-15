@@ -1,0 +1,45 @@
+{
+ "crate": "hsk-studio-harness",
+ "lane": "SMB-HARNESS-DEVELOP-EXPORT",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slice 1 pushed (4746028): open raw/DNG -> develop sliders (undoable chronicle step) -> develop_to_output -> PNG/JPEG, CLI and viewer",
+ "commits": [
+  {"sha": "4746028", "subject": "harness (SMB-HARNESS-DEVELOP-EXPORT): develop sliders, undoable re-develop, develop_to_output PNG/JPEG export"}
+ ],
+ "capabilities_done": [
+  "view::develop CONTROLS: 16 sliders that write hsk-studio-develop recipe fields only: DevelopRecipe.exposure_stops and Adjustments white_balance (temperature, tint), tone (contrast, highlights, shadows, whites, blacks), presence (vibrance, saturation, clarity), detail (texture, dehaze, sharpen.amount, noise.luminance, noise.colour); group enables enable_colour_adjustments / enable_detail switched on only while a gated value is nonzero; DevelopRecipe::validate decides every value (no clamp, no maths here)",
+  "every accepted change (Viewer::set_develop / set_develop_many: several sliders = one step) re-develops the original import entry with develop_to_image_threads, tiles it through import::raw_prepare / raw_proposal (the import's raw route split out: interop-psd raster_proposal + Prism converter, same mint so same ids), stages only changed tile bodies and commits them as ONE chronicle tiles edit (Run::set_tiles, op develop) = the UI-2/UI-3 undo/redo path; slider values are remembered per tile-list signature so undo/redo bring back the matching values; identity recipe re-develops to exactly the imported tiles (no step)",
+  "Viewer::export_develop: develop_to_output (recipe of the shown pixels, both profile bindings = sha256 of the CC0 sRGB-v4.icc copied to src/view/profiles) -> interop-raster PNG RGB 8/16-bit with iCCP or baseline JPEG 8-bit with APP2 ICC -> decode back (size + profile) -> atomic write; refuses the opened source without overwrite; report carries file/samples sha256, clip counts, route, threads, values",
+  "egui develop panel built from hsk-studio-controls descriptors (ids = control ids, plus develop, develop.export.png, develop.export.jpeg); committed slider changes go through set_develop_many",
+  "CLI: develop SOURCE OUT (--png [--depth 8|16] | --jpeg [--quality N]) [--adjust CONTROL VALUE]... [--threads N] [--overwrite] through the same Viewer methods; manual, DESCRIPTOR (develop section, proven_by), RUN-UI.md updated",
+  "typed refusals (develop::Refusal{code, detail}): develop codes pass through (invalid_adjustment, non_finite, stage_overflow, invalid_limits, a truncated raw's decode code), unknown_control, nothing_to_change, not_a_raw_document, not_open, develop_tile_layout_changed, develop_layer_missing, export_over_source, interop-raster codes; refusals commit nothing"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-harness --features viewer --no-fail-fast -E 'not test(psd_tools_sweep)' ; cargo nextest run -p hsk-studio-harness --features viewer --run-ignored only -E 'test(dng_converts)' ; cargo nextest run -p hsk-studio-harness --features viewer --test viewer_develop --test harness_headless",
+  "exit": 0,
+  "sha": "4746028",
+  "passed": 49,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "Validator: judge 4746028; round features harness [viewer] must cover tests/viewer_develop.rs (the corpus test reads oracle-corpus/dng/canon-eos-5d3-mlv-14bit-lossless.dng, NOT_PROVEN when absent). Lead: decide a session document-entry token `develop` (session-owned DOCUMENT_ENTRY_TOKENS) if the recipe should be saved with the package.",
+ "updated_at": "2026-10-15T00:45:49Z",
+ "notes": {
+  "new_tests": "tests/viewer_develop.rs: viewer_develop_sliders_undo_and_export_headlessly (synthetic 300x260 DNG built in the file: identity = import tiles, exposure step, two-slider step, undo x2 / redo x2 with values, one headless egui frame draws the panel ids, PNG16 samples == an independent develop_to_output call with Viewer::develop_recipe, JPEG with ICC, source overwrite refused), cli_develop_round_trip_on_a_corpus_dng_is_thread_invariant (corpus 5D3 MLV 1920x818: three --adjust as one chronicle step, PNG 16-bit byte-identical for --threads 1 and 4, sRGB-v4 iCCP, JPEG q85 4:2:0 with ICC; 34 s debug), hostile_develop_inputs_are_typed_refusals (truncated DNG viewer + CLI = develop's code, contrast 250 / sharpen -5 / temperature -100.5 invalid_adjustment, NaN and inf non_finite, exposure 5000 stage_overflow, unknown_control, nothing_to_change, threads 0 invalid_limits, no revision/op/history change, CLI usage exit 2 for non-number, --jpeg --depth 16, OUT == SOURCE; PSD not_a_raw_document in viewer, export and CLI)",
+  "suite": "harness viewer suite 38/38 (all but psd_tools sweep) + ignored dng_converts_to_one_developed_raster_layer 1/1 at the final source; clippy -p hsk-studio-harness --features viewer --tests --examples, default --tests --examples, --features import-raw --tests and --features desktop --tests: 0 harness warnings",
+  "import_refactor": "raw_route = raw_prepare + develop_to_image + raw_proposal: same calls in the same order except the Prism converter is built after the working-profile id is minted (it uses only SourceMint::reserved ids, not the counter), so ids and tiles are unchanged; proof: identity re-develop equals the imported tile digests (viewer test) and dng_converts passes",
+  "spec_basis": {
+   "STU-RAW-110/111/112/114/115": "slider families and soft ranges as implemented by develop lanes SMB-DEVELOP-CONTROLS / CONTROLS-2 (the harness only writes their fields)",
+   "STU-RAS-005": "every develop change is one undoable chronicle step through the unified history",
+   "STU-ARC-014": "develop panel built from hsk-studio-controls descriptors; every panel action is a Viewer method (model-drivable, no screen reading)",
+   "STU-QUIET-001": "no window opened; tests drive Viewer methods, cli::run and one headless egui frame"
+  },
+  "new_module_edges": "NONE (harness already depends on develop via import-raw, interop-raster, controls, package); no new crates.io dependency; dep-requests.jsonl untouched",
+  "gaps": ["recipe not saved with the package: session DOCUMENT_ENTRY_TOKENS = selection, text (session-owned, lead decision); a reopened package shows values_known false", "absolute kelvin white balance (develop recipe_for_white needs the DngRaw), local corrections, point colour, grading, grayscale mix, range masks not in the panel", "viewer composite cannot display developed values outside 0..1: render-cpu refuses sample_range_outside_unit (pre-existing for raw imports with strong WB gains; the develop export clamps and counts them in clip)", "Lightroom / Camera Raw parity of the slider maths UNVERIFIED (D5; maths owned by hsk-studio-develop)", "desktop window not launched (CX-SAFE-002): the panel is proven headlessly only"],
+  "found_bug": "first viewer test run: render-cpu refused the synthetic DNG composite (sample_range_outside_unit) because developed values exceeded 1; fixture levels lowered (test-side), limitation recorded in gaps and RUN-UI.md",
+  "retry_guard": "no gameplan block hit; no gameplan step added",
+  "v4": "V4-01 deny(clippy::arithmetic_side_effects) in view::develop and cli.rs; V4-02 hostile values and truncated container covered by the hostile test; V4-03 corpus test prints NOT_PROVEN when the corpus root, file or sha256 is absent; scratch under TMP (studio-env, D:)"
+ }
+}
