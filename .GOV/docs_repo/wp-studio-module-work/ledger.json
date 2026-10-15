@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T03:41:50Z",
+ "updated_at": "2026-10-15T03:46:50Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -5896,12 +5896,20 @@
   {
    "lane_id": "SMB-SCORE-EFFECTS-4",
    "crate": "hsk-studio-score",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-score-fx-20261015",
-   "commits": [],
+   "commits": [
+    "a7ef7e7",
+    "e8e9067",
+    "ddae5e0",
+    "9e3bcd0",
+    "aec3b10",
+    "88ccd32"
+   ],
    "verdicts": [],
-   "note": "plugin delay compensation in mixdown; automation for every processor; click-repair onset false positive after silence; then PR-23 audio of the pulse timeline (clips, crossfades, track volume/pan) mixed through score"
+   "note": "plugin delay compensation in mixdown; automation for every processor; click-repair onset false positive after silence; then PR-23 audio of the pulse timeline (clips, crossfades, track volume/pan) mixed through score",
+   "lane_file": "builders/lanes/hsk-studio-score-effects-4.json"
   },
   {
    "lane_id": "SMB-DEVELOP-RAW-COMPRESSED-2",
@@ -5962,6 +5970,16 @@
    "commits": [],
    "verdicts": [],
    "note": "PR-19 playback scheduler + program monitor; first unify pulse marker/transition model onto Folio TimelineTransition/markers; store work area, transition parameters, repeat-end-frame"
+  },
+  {
+   "lane_id": "SMB-SCORE-EFFECTS-5",
+   "crate": "hsk-studio-score",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-score-fx-20261015",
+   "commits": [],
+   "verdicts": [],
+   "note": "clip speed via windowed-sinc resampling, time-stretch + pitch-shift (phase vocoder / WSOLA), click repair on noisy/dithered floors"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",

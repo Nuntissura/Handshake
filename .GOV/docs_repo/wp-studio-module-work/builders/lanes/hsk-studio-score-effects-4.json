@@ -2,7 +2,7 @@
  "crate": "hsk-studio-score",
  "lane": "SMB-SCORE-EFFECTS-4",
  "status": "READY_FOR_VALIDATION",
- "phase": "slices 1-2 pushed (a7ef7e7 PDC + stacks; e8e9067, ddae5e0, 9e3bcd0 Automatable for every processor); slice 3 (click repair at digital-silence edges) next",
+ "phase": "slices 1-4 pushed through 88ccd32; READY covers score commits a7ef7e7..88ccd32; PR-23 pulse adapter BLOCKED on the pulse -> score edge (request line written, no manifest change)",
  "commits": [
   {
    "sha": "a7ef7e70d1ea4e196382fe55c8c9539574f6c741",
@@ -19,25 +19,41 @@
   {
    "sha": "9e3bcd02b4a8a5297d4f16a0c026ffd4c11fd02c",
    "subject": "score (SMB-SCORE-EFFECTS-4 slice 2): Automatable for every processor (DESCRIPTOR)"
+  },
+  {
+   "sha": "aec3b10eab3fff8ebe4ae440f6cac046b425d091",
+   "subject": "score (SMB-SCORE-EFFECTS-4 slice 3): ClickRepair leaves digital-silence edges alone"
+  },
+  {
+   "sha": "88ccd32c1954ada563b904ab4a20af8ef0cd1986",
+   "subject": "score (SMB-SCORE-EFFECTS-4 slice 4, PR-23 score side): clip source windows and fades for timeline audio crossfades"
   }
  ],
  "capabilities_done": [
   "Session latency compensation: track latency = sum of its stage latencies (<= MAX_TRACK_LATENCY 2^24); the stack is primed with timeline samples 0..L (outputs discarded) and then fed L samples ahead, so output frame t carries timeline t for every track (session latency 0, track_latency() reports L); stage k lanes are evaluated at the timeline time of the audio it reads (n - latency of earlier stages); tested bit-exact against dry tracks (two transparent lookahead stages, ClickRepair 1792) and against the stages run by hand shifted by their latency with a threshold step, across block partitions down to 1 frame and after reset()",
   "Per-track effect stacks: TrackSpec (non-exhaustive, TrackSpec::new) holds effects: Vec<EffectSlot{processor, lanes}> (<= MAX_TRACK_EFFECTS 16); every stage must accept the clip layout and the session rate; Automatable::automation_parameters now returns a Vec (rate-dependent ranges possible, called outside the audio path); SidechainDynamics (threshold/ratio/makeup) and ClickRepair (threshold) are Automatable",
-  "Automatable for every processor: Gain, Pan, ChannelMix, HardLimiter, LookaheadLimiter, Equalizer (master + per-section frequency/gain/q, rate-dependent range), RampedGain (target), Dynamics, SidechainDynamics, MultibandCompressor (3 per band), FeedbackDelay, Flanger, Chorus (delay+depth bounded by the line sized at construction), Phaser (min <= max < rate/2), ClickRepair, HumRemover (notches re-placed), Reverb (comb gains recomputed), NoiseReducer; Unity, LoudnessMeter and Chain expose none (Chain stages are type-erased; a session track automates stages through its own stack); construction-time sizes (delay times, FFT, voices, stages, bands, lookahead) are not automatable. Proven: for all 59 parameters, set_automated on a fresh processor is bit-identical to constructing with the value and audible on the test input (except a low-pass section's gain, ignored by definition); NaN/inf/out-of-range/unknown index refused and leave the processor unchanged; a linear ramp on every parameter through a Session renders finite and bit-identical across block partitions"
+  "Automatable for every processor: Gain, Pan, ChannelMix, HardLimiter, LookaheadLimiter, Equalizer (master + per-section frequency/gain/q, rate-dependent range), RampedGain (target), Dynamics, SidechainDynamics, MultibandCompressor (3 per band), FeedbackDelay, Flanger, Chorus (delay+depth bounded by the line sized at construction), Phaser (min <= max < rate/2), ClickRepair, HumRemover (notches re-placed), Reverb (comb gains recomputed), NoiseReducer; Unity, LoudnessMeter and Chain expose none (Chain stages are type-erased; a session track automates stages through its own stack); construction-time sizes (delay times, FFT, voices, stages, bands, lookahead) are not automatable. Proven: for all 59 parameters, set_automated on a fresh processor is bit-identical to constructing with the value and audible on the test input (except a low-pass section's gain, ignored by definition); NaN/inf/out-of-range/unknown index refused and leave the processor unchanged; a linear ramp on every parameter through a Session renders finite and bit-identical across block partitions",
+  "ClickRepair silence edges: a cluster right after >= p exact zeros (abrupt start) or a cluster of zeros followed by p zeros (abrupt stop) is left untouched and counted in silence_edges(); tested WITHOUT fade-in: start at stream sample 0, stop, 5000 samples of silence, abrupt restart, stop -> output bit-exact, 4 edges, 0 repairs; 7 clicks plus a 10-sample dropout inside that material are all repaired (SNR improvement 26.11 dB) and the edges stay bit-exact",
+  "PR-23 score side: TrackSpec::from_source (clip window from source audio = source in/out), Fade{frames, Linear|EqualPower} fade_in/fade_out applied to the clip before the effect stack with progress k/frames (the pulse transition_frame convention), so an abutting fade-out/fade-in pair is the AudioCrossfade; crossfades tested bit-exact for both curves, fades stay aligned through a latent stack"
  ],
  "tests": {
-  "argv": "cargo nextest run -p hsk-studio-score --test automation (3/3 at ddae5e0 content; 9e3bcd0 changes only the DESCRIPTOR string); regression --test eq_response --test modulation --test reverb --test denoise --test multiband --test dynamics --test restore --test delay --test chain_mix --test ramp_spectrum (38/38)",
+  "argv": "cargo nextest run -p hsk-studio-score --test restore_edges --test restore (7/7 at aec3b10); --test session_fades --test session --test session_latency --test automation (13/13) and --test session_fades after the lint fix (3/3) at 88ccd32",
   "exit": 0,
-  "sha": "9e3bcd02b4a8a5297d4f16a0c026ffd4c11fd02c",
-  "passed": 41,
+  "sha": "88ccd32c1954ada563b904ab4a20af8ef0cd1986",
+  "passed": 20,
   "failed": 0
  },
- "blockers": [],
+ "blockers": [
+  {
+   "error": "PR-23 needs the module edge hsk-studio-pulse -> hsk-studio-score, which is outside the declared DAG (pulse: folio only); not added",
+   "file_line": "Cargo.toml [workspace.metadata.studio.dependencies.hsk-studio-pulse] allowed",
+   "attempts": 0
+  }
+ ],
  "lock_wait_s": 0,
  "bg_pids": [],
- "next": "slice 2: Automatable for every processor; slice 3: click-repair onset/offset at digital silence; slice 4: PR-23 pulse audio through score mixdown (edge request)",
- "updated_at": "2026-10-15T03:39:44Z",
+ "next": "after a lead decision on the pulse -> score edge: pulse adapter mapping StudioSequence audio clips, AudioCrossfade spans and caller volume/pan lanes onto score Session (owner: pulse lane or this lane by assignment)",
+ "updated_at": "2026-10-15T03:46:30Z",
  "notes": {
   "spec_basis": [
    "STU-FX-135: audio effects are non-destructive, reorderable, individually bypassable stack entries (per-track stack in Session)",
@@ -47,14 +63,17 @@
   "api_change": "TrackSpec fields effect/effect_lanes (2808f39, EFFECTS-3) replaced by effects: Vec<EffectSlot>; TrackSpec is now #[non_exhaustive] with TrackSpec::new so later fields are additive; no consumer outside score tests used the old fields (grep)",
   "new_tests": {
    "session_latency": 2,
-   "automation": 3
+   "automation": 3,
+   "restore_edges": 2,
+   "session_fades": 3
   },
   "parity": "Adobe Audition/Premiere mixdown, delay compensation and automation parity UNVERIFIED (D5)",
-  "dep_requests": "none yet",
+  "dep_requests": "builders/dep-requests.jsonl: hsk-studio-pulse -> hsk-studio-score, status requested (2026-10-15T03:46:30Z); no manifest change made or pushed",
   "working_tree": "pre-existing stat-only modifications of other score src files left uncommitted; pathspec commits only; Cargo.lock not committed",
   "own_causes": [
    "slice 2: the audibility check failed for ClickRepair (uniform noise never exceeds 1.35 robust sigmas; cubed noise flags so densely that clusters exceed max_gap and are skipped) -> sparse-click input for that kind; committed before rerun (route a)"
   ],
-  "check_clippy": "cargo clippy -p hsk-studio-score -p hsk-studio-score-device -p hsk-studio-score-plugin --tests --examples at 9e3bcd0: no findings in score crates"
+  "check_clippy": "cargo clippy -p hsk-studio-score -p hsk-studio-score-device -p hsk-studio-score-plugin --tests --examples at 88ccd32: no findings in score crates",
+  "pr23_design": "pulse -> score adapter: per enabled audio clip TrackSpec::from_source(source PCM via caller resolver keyed by ClipSource, source_in ticks -> samples, duration -> frames; speed != 1 needs score ClipResampler, refused until decided), start = timeline_start in samples; AudioCrossfade span [cut - before, cut + after) -> outgoing fade_out and incoming fade_in of span frames (handles: outgoing window extended past its out point by after-cut frames, incoming by before-cut frames, as pulse transition_handles reports); track volume/pan: caller lanes (folio StudioTrack has none); muted/soloed/enabled filter tracks. Crossfade curve default UNVERIFIED (Premiere constant power is common; spec STU-VID-032a names only 'crossfade')"
  }
 }
