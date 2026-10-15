@@ -31,7 +31,7 @@
   "blockers": [],
   "lock_wait_s": 18,
   "bg_pids": [],
-  "next": "slice 2 shapes (nib::shape + folio live-shape record), slice 3 pathfinder divide/trim/merge/crop + offset/outline on curves, slice 4 harness pen/direct-select/shape tools",
+  "next": "Validator: judge slices 1-4 (commits above; fbdac2b is the slice 4 code, a225d7a docs only). Steward: add edge harness -> nib. Lead: session `vector` entry token (then save/reopen is proven by the same test). Suggested next lane: vector networks (STU-VEC-001/008), curvature/pencil/knife/shape-builder tools, outline/hard/soft/trap pathfinder ops, chronicle in-place vector geometry property.",
   "updated_at": "2026-10-15T04:48:05Z",
   "notes": {
     "lead_report": {
@@ -45,7 +45,6 @@
       "STU-VEC-047": "Tool options MUST be persisted per tool and exposed as typed, model-settable values (VectorTool via set_vector_tool; persisted only for the session's lifetime: GAP)",
       "STU-VEC-010": "Expansion MUST be an explicit, history-tracked command (expand_shape: one transaction)"
     },
-    "spec_basis": {
     "spec_basis_slices_2_3": {
       "STU-VEC-010": "Each shape is a live StudioVectorPath/StudioVectorNetwork whose defining parameters remain editable until the operator or model explicitly expands it to raw geometry",
       "STU-VEC-127": "Rectangle width/height 0.0..16348.0 pt; Polygon side_count NORMATIVE hard 3..100 (soft 3..20); inset_percentage 0..100; Star point_count 3..50; Star outer radius is the object's own size",
@@ -78,7 +77,8 @@
     "unverified": "Illustrator parity UNVERIFIED (D5): chord/3 handle synthesis, ANGLE mirroring on inserted anchors, coincident-merge join, (1-t):t bend weights, end anchors with one handle inferred NONE",
     "ownership": "new files: nib src/anchor_path.rs, shape.rs, pathfinder.rs + their tests; folio src/live_shape.rs + tests/live_shapes_contract.rs; one-line module registrations in nib/folio lib.rs; nib descriptor.rs one added key (JSON validated with python json.loads; no test reads it)",
     "shared_files_slice_4": "harness Cargo.toml and view/mod.rs carried SMB-PULSE-PLAYBACK hunks while slice 4 was written; that lane committed them in 68b0dd4 before fbdac2b, and the fbdac2b diff of both files was checked to hold only this lane's hunks; tests/common/mod.rs and tests/import_psd.rs (another lane's uncommitted edits) were not staged. A prepared own-hunk staging script (scratchpad/smb-illustrator-pen/stage_own_hunks.py) was not needed.",
-    "retry_guard_slice_4": "route (a): the first viewer_vector run failed 5/5 at layer creation (session refused the unknown document entry token `vector`: PackageError::UnsafeName); fixed in code (in-memory entry + typed save guard), committed fbdac2b, rerun 5/5 green; no gameplan step added",
+    "desktop_check": "NOT_PROVEN: cargo check -p hsk-studio-harness --features desktop --bins at 04:50Z stopped in hsk-studio-composite src/temporal.rs:800 (E0061), another lane's uncommitted composite WIP (temporal.rs, lower_render_plan.rs), not this lane; the bin does not reference the changed Tool/EditState items (grep). The window was not launched (CX-SAFE-002): canvas gestures, overlay and preview visuals are proven only through the Viewer methods they call and one headless UI frame.",
+    "retry_guard_slice_4":"route (a): the first viewer_vector run failed 5/5 at layer creation (session refused the unknown document entry token `vector`: PackageError::UnsafeName); fixed in code (in-memory entry + typed save guard), committed fbdac2b, rerun 5/5 green; no gameplan step added",
     "dependents":"cargo check --tests green for nib dependents composite, interop-vector, render-cpu at 6cca045 worktree state; folio additions are new names only (grep: no collisions in dependents)",
     "shared_hunk_rule": "slice 1 staged lib.rs with only its own `pub mod anchor_path;` hunk (git apply --cached) because shape.rs was still local; index checked to hold only lane files before committing the index",
     "retry_guard": "route (a) once: move_anchor_handle_bend_and_constraints had a wrong hand value (off-centre bend on a retracted-handle line is x 4.6875, not 7.5); fixed by test commit ceb6a50, rerun green; no gameplan step added",

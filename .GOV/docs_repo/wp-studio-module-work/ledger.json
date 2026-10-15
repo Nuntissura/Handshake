@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T04:48:49Z",
+ "updated_at": "2026-10-15T04:50:17Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -6122,13 +6122,21 @@
   },
   {
    "lane_id": "SMB-ILLUSTRATOR-PEN",
-   "crate": "hsk-studio-harness",
-   "phase": "build",
-   "status": null,
+   "crate": "hsk-studio-nib",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-illustrator-pen-20261015",
-   "commits": [],
+   "commits": [
+    "8698329",
+    "ceb6a50",
+    "78a6b75",
+    "6cca045",
+    "fbdac2b",
+    "a225d7a"
+   ],
    "verdicts": [],
-   "note": "AI-04/05: pen tool + direct selection / anchor & handle editing on canvas over nib path-editing primitives, shape tools, path booleans/offset via nib; undoable via chronicle"
+   "note": "slice 4 save/reopen NOT_PROVEN until session vector entry token (SMB-ILLUSTRATOR-PEN-2)",
+   "lane_file": "builders/lanes/hsk-studio-illustrator-pen.json"
   },
   {
    "lane_id": "SMB-LIGHTROOM-CATALOG",
@@ -6273,6 +6281,16 @@
    "owner": "builder-fig-inst-20261015",
    "commits": [],
    "verdicts": []
+  },
+  {
+   "lane_id": "SMB-ILLUSTRATOR-PEN-2",
+   "crate": "hsk-studio-session",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-illustrator-pen-20261015",
+   "commits": [],
+   "verdicts": [],
+   "note": "session DOCUMENT_ENTRY_TOKENS + vector (interim persistence, like develop); chronicle vector-path property so edits keep layer id; curvature/pencil/knife/shape-builder tools, arc/grid/spiral, fancy corners; vector networks if spec names them"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
