@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T02:41:28Z",
+ "updated_at": "2026-10-15T02:42:17Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -5792,12 +5792,22 @@
   {
    "lane_id": "SMB-FOLIO-TIMELINE-RECORDS",
    "crate": "hsk-studio-folio",
-   "phase": "queued",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-pulse-edit-20261015",
    "commits": [],
    "verdicts": [],
    "note": "Folio stores no markers or transitions; session/chronicle record no timeline undo; host-side persistence today (SMB-PULSE-EDITING gaps)"
+  },
+  {
+   "lane_id": "SMB-PRISM-VIEW-TRANSFORM-2",
+   "crate": "hsk-studio-prism",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-prism-view-20261015",
+   "commits": [],
+   "verdicts": [],
+   "note": "WGSL ACES view for egui shared texture; ACEScg AP1 input; spec-named P3/HDR PQ views; pigment DESCRIPTOR"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
