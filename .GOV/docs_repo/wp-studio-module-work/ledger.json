@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T04:38:11Z",
+ "updated_at": "2026-10-15T04:38:49Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -6009,19 +6009,26 @@
   {
    "lane_id": "SMB-SCORE-SPECTRAL",
    "crate": "hsk-studio-score",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-score-fx-20261015",
-   "commits": [],
+   "commits": [
+    "bc90aed",
+    "e03bbeb",
+    "5d9a41e",
+    "7c5404f",
+    "376064e"
+   ],
    "verdicts": [],
-   "note": "Audition spectral frequency display data (STFT/reassigned), spectral selection + heal/attenuate, streaming time-stretch processor with transient preservation"
+   "note": "Audition spectral frequency display data (STFT/reassigned), spectral selection + heal/attenuate, streaming time-stretch processor with transient preservation",
+   "lane_file": "builders/lanes/hsk-studio-score-spectral.json"
   },
   {
    "lane_id": "SMB-AUDIO-CODECS",
    "crate": "tbd-by-spec",
-   "phase": "queued",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-audio-codecs-20261015",
    "commits": [],
    "verdicts": [],
    "note": "AU/PR compressed audio: FLAC, Vorbis, Opus, MP3, AAC-LC decode (permissive sources only; symphonia is MPL = excluded), FLAC encode; container read via interop-media"
