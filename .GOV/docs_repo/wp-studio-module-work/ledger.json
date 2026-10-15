@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T12:43:30Z",
+ "updated_at": "2026-10-15T12:44:11Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -7350,7 +7350,7 @@
    "owner": null,
    "commits": [],
    "verdicts": [],
-   "note": "scratch dirs left under Handshake_Artifacts/WP-KERNEL-STUDIO for Operator-approved removal: smb-fig-smart-animate-2, smb-reel-encode/stage.01UP7j, r32-prereview-press-lane, studio-team-dev/steward-export/results/C46-63189bf (invalid partial), C42-e7a2b6c (invalid partial); plus empty C:/Users/Ilja Smets/.gnupg"
+   "note": "scratch dirs under Handshake_Artifacts/WP-KERNEL-STUDIO (smb-fig-smart-animate-2, smb-reel-encode/stage.01UP7j, r32-prereview-press-lane, steward-export/results/C46-63189bf + C42-e7a2b6c invalid partials); empty C:/Users/Ilja Smets/.gnupg; REPO-LOCAL target/ (23 GB, since 2026-10-14 22:47) inside wt-studio-assets/handshake-studio-assets - governance violation (artifacts must live under Handshake_Artifacts), created by a cargo run without studio-env.sh; removal needs Operator approval"
   },
   {
    "lane_id": "SMB-SPEC-SMART-MATCH-OPERATOR",
