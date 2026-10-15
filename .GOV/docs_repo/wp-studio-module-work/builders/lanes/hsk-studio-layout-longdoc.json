@@ -1,18 +1,48 @@
 {
   "crate": "hsk-studio-layout",
   "lane": "SMB-LAYOUT-LONGDOC",
-  "status": null,
-  "phase": "slice 1 (tables) in progress",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {"argv": null, "exit": null, "sha": null, "passed": 0, "failed": 0},
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slice 1 (tables) pushed at a10e9f2; slice 2 (placed graphics and fitting) in progress",
+  "commits": [
+    {"sha": "28320cd", "subject": "layout + folio (SMB-LAYOUT-LONGDOC slice 1a): tables through threaded frames"},
+    {"sha": "a10e9f2", "subject": "interop-layout (SMB-LAYOUT-LONGDOC slice 1b): tables to PDF through export_pdf_with"}
+  ],
+  "capabilities_done": [
+    "slice 1 folio: hsk.studio.longdoc_records@1 (StudioLongDocRecords beside the document, StudioDocument unchanged) with StudioTable: column widths, typed header/body/footer rows (min/max height, keep_with_next_row, start_row, allow_split), cells with row/column span, cell-story byte range, insets, fill + tint, four edge strokes + edge priorities, vertical justification; break_headers/footers, skip_first_header/last_footer, stroke_order; every member serde-default and skipped when empty/default (empty set encodes as schema_id + document_id only); check_table_grid + validate_longdoc_records",
+    "slice 1 layout: layout_table over the host story's frame thread: cell text composed by the reflow core (compose, factored out of reflow_typeset with identical behaviour; full layout suite 30/30 after the refactor), row heights with spans and min/max caps, header repetition per frame or per page, footers after the last body row of a part, row breaks between frames, row-span and keep_with_next groups, start_row next frame/page/odd/even, allow_split rows split at line boundaries, edge-stroke priority resolution with merged segments in stroke_order, fills, cell text as a LayoutProposal of the cell story, end FlowPosition, overset_row / overset_cells",
+    "slice 1 interop-layout: export_pdf_with(input, PdfLongDoc {tables, overlays}) drawn right after the host frame layer's text (fills tinted, strokes, cell text through the existing glyph path; fonts embedded over all stories); export_pdf delegates with empty content; stale/misplaced table placements refused"
+  ],
+  "tests": {
+    "argv": "cargo nextest run -p hsk-studio-layout -p hsk-studio-folio --test longdoc_tables --test longdoc_records_contract; cargo nextest run -p hsk-studio-interop-layout --test longdoc_pdf",
+    "exit": 0,
+    "sha": "a10e9f2",
+    "passed": 5,
+    "failed": 0
+  },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "slice 1 tables: folio longdoc records + layout table composer + interop-layout PDF overlay",
-  "updated_at": "2026-10-15T03:30:56Z",
+  "next": "slice 2: placed graphics in frames with fitting (folio StudioGraphicFrame, layout fit_content/place_graphic, PDF through pigment tiles with frame clip)",
+  "updated_at": "2026-10-15T04:12:49Z",
   "notes": {
-    "owned_paths": ["crates/hsk-studio-layout/**", "crates/hsk-studio-interop-layout/**", "crates/hsk-studio-folio/src/longdoc.rs", "crates/hsk-studio-folio/tests/longdoc_records_contract.rs", "crates/hsk-studio-folio/src/lib.rs (one mod/pub use line)"],
+    "owned_paths": ["crates/hsk-studio-layout/**", "crates/hsk-studio-interop-layout/**", "crates/hsk-studio-folio/src/longdoc.rs", "crates/hsk-studio-folio/tests/longdoc_records_contract.rs", "crates/hsk-studio-folio/src/lib.rs (two lines: mod longdoc; pub use longdoc::*)"],
+    "spec_basis": {
+      "STU-LAY-035": "A table is a structured object flowed inside a `StudioTextStory`; its cell content is text, graphics or nested tables.",
+      "STU-LAY-139": "break_headers, break_footers: header_break.in_all_text_columns, header_break.once_per_text_frame, header_break.once_per_page; skip_first_header, skip_last_footer; stroke_order row_on_top / column_on_top / best_joins / legacy_compatibility; row_type row.body / row.header / row.footer",
+      "STU-LAY-140": "Every tint in the table model carries a DECLARED hard range of 0..100 `percent`",
+      "STU-LAY-141": "row_span, column_span; minimum_height, maximum_height (the row-height at-least/exactly behaviour is expressed as this pair); keep_with_next_row; start_row (start this row on the next frame, page, odd page or even page); The four edge-stroke PRIORITY fields are the mechanism by which two adjacent cells with different edge strokes resolve which one draws",
+      "STU-LAY-028": "Picture frames of arbitrary shape (rectangle, ellipse or any `StudioVectorPath`) MUST clip and fit placed content.",
+      "STU-LAY-029/131": "Fitting MUST support fit-content-to-frame, fit-frame-to-content, fit-content-proportionally, fill-frame-proportionally, centre-content and clear-fitting, plus a stored frame content-fit rule and an anchor point for placed content; Studio MUST expose ONE fitting enumeration that is their union",
+      "STU-LAY-014/108": "Sections MUST partition a document for numbering; section_prefix limit FIVE characters; prefix MUST NOT contain `,` or `+`; two sections MUST NOT share a prefix; two sections MUST NOT start on the same page; page_number_start hard 1 .. 999999",
+      "STU-LAY-015": "Automatic page-number markers MUST resolve to the current page's section number wherever placed (parent page, running header, TOC).",
+      "STU-LAY-044/148": "Tables of contents MUST be style-driven; the same paragraph style MUST NOT be mapped twice within one TOC style; a TOC style MUST carry at least one entry",
+      "STU-LAY-045/149": "Indexing MUST build a topic/subtopic hierarchy through inserted index marks, with sort-by overrides; exactly FOUR topic levels",
+      "STU-LAY-046/150": "Notes MUST include footnotes, endnotes and sidenotes; footnote_start_at 1..400; footnote_restart_numbering dont_restart / page / spread / section"
+    },
+    "slice_1_rules": "documented in crates/hsk-studio-layout/src/table.rs module docs: first baseline = top inset + first paragraph ascent; spanning cells add missing height to their last row; ties in edge-stroke priority go to the lower/right cell; a cell without a stroke on an edge yields to its neighbour; best_joins/legacy stroke orders drawn as row_on_top and noted; vertical justify drawn top and noted; split rows draw top-aligned",
+    "unverified": "InDesign parity UNVERIFIED (D5) for every slice: header-per-page repetition, footer placement, split-row continuation, stroke tie rule, tint mixing with paper white, fit anchor semantics",
+    "commit_method": "temp-index commits (scratchpad/smb-layout-longdoc/commit.sh): owned whole files from the working tree plus folio lib.rs as HEAD content + this lane's two module lines, because another lane holds uncommitted edits to folio lib.rs DESCRIPTOR; shared index entries of the committed paths are restored to the new HEAD (working files untouched); same pattern the lead accepted for SMB-PRISM-VIEW-TRANSFORM",
+    "gaps_slice_1": "graphic cells, nested tables, diagonal lines, gradient fills, alternating patterns, table/cell styles, rotation, the second inset group; reflow of host-story text after a table from TableProposal.end (reflow has no start position yet); folio DESCRIPTOR not updated (file held by another lane's uncommitted edit)",
     "parity": "InDesign parity UNVERIFIED (D5) for every slice",
     "parity_rows": ["ID-02/03 sections and page numbers", "ID-14 tables", "ID-15 footnotes", "ID-16 TOC and index", "ID-19 placed graphics and fitting", "ID-27 PDF export"]
   }

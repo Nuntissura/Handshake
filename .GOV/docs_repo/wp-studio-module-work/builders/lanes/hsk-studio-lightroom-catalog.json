@@ -1,0 +1,71 @@
+{
+  "crate": "hsk-studio-interop-lrcat",
+  "lane": "SMB-LIGHTROOM-CATALOG",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slice A (lrcat library import mapping) + slice B (read-only XMP library fields, library fixture) READY on 5975475; native catalog store, query engine and XMP write NOT built: spec assigns them to CKC (owner decision for the lead)",
+  "commits": [
+    {"sha": "b14e47d", "subject": "interop-lrcat (SMB-LIGHTROOM-CATALOG slice A): library import mapping for CKC"},
+    {"sha": "5975475", "subject": "interop-lrcat (SMB-LIGHTROOM-CATALOG slice B): read-only XMP library fields, library fixture"}
+  ],
+  "capabilities_done": [
+    "extract_library(Grant, Limits, LibraryLimits, CancellationToken) -> LibraryProposal: one bounded pass inside the same before/after fingerprint; catalog part equals extract_catalog for the same grant (test library_mapping_keeps_catalog_and_types_state); typed Flag (pick/reject/unflagged), ColorLabel (default five names, other text Custom + color_label_custom_text), rating u8 0..5; LibraryCollectionKind collection/smart collection/collection set (+ collection_kind_unmapped for unknown creation ids); parent_not_collection_set, smart_rules_absent, rules_on_non_smart_collection, rules_collection_unresolved, synonym_keyword_unresolved losses; library counts for AgLibraryCollectionContent and AgLibraryKeywordSynonym (rows_seen == mapped + lost from walker + whole-row loss events); resolves lists the catalog loss codes the library layer translated",
+    "parse_smart_rules(bytes, RuleLimits) -> SmartRules: non-executing tokenizer of the Lua table literal (escapes decoded first incl. decimal escapes, quoted and long-bracket strings, line and long comments, numbers incl. hex/exponent, true/false/nil); typed RuleGroup (combine intersect/union/exclude -> All/Any/NoneOf, nested groups) and RuleCriterion (criteria/operation typed with raw kept, value/value2 scalars); every unrecognised name or field is an aggregated note -> Approximate LossNote; refused rows are whole-row losses named by the rule error code",
+    "hostile input: RuleLimits (input bytes, depth, node count, string bytes; zero or above hard ceilings = rule_limit_configuration) checked before the allocation each guards (test smart_rule_bombs_refused_before_allocation: 100k-deep nesting, 10k-item table, 5000-byte quoted and long-bracket strings, 100-digit and overflowing hex numbers, over-size input); retained rule trees, states and hierarchy entries charged against the extraction-wide max_retained_text_bytes (same test: the smallest budget the fixed extraction fits in fails extract_library with limit_retained_text)",
+    "resolve_hierarchy(items, max_depth) -> [HierarchyNode]: O(n) parent-forest validation for collections and keywords; parent cycles and self-parents detached (parent_cycle), unknown parents parent_unresolved, repeated ids duplicate_rowid, nesting beyond max_hierarchy_depth (default 256, hard 4096) hierarchy_depth_exceeded; order-independent (test hierarchy_cycles_unresolved_and_depth_cap: 100k-deep chain, 100k ring, reversed input)",
+    "extract_catalog behaviour unchanged: refactored into extract_with(grant, limits, cancel, extra) where extra runs after the catalog proposal is complete (and receives it) and before the closing fingerprint, with its own loss log and counts; all 9 pre-existing crate tests pass unchanged except the PUBLIC_ENTRYPOINTS assertion and the no-SQL source list, which now include the new entrypoints and modules",
+    "slice B decode_xmp_packet(bytes, XmpLimits) -> XmpLibraryFields: bounded RDF/XML reader for xmp:Rating (-1 Rejected, 0..5 Stars, other values noted), xmp:Label, dc:subject bag items, lr:hierarchicalSubject split at |; attribute and element property forms; entity/character references decoded before comparison, comments/PI/CDATA recognised, names resolved by namespace URI with scoped xmlns (default namespace included), DOCTYPE refused, references in unkept text still validated; XmpLimits (input bytes, depth, nodes = elements + attributes + xmlns, keywords, value bytes; zero or above hard ceilings = xmp_limit_configuration) checked before the allocation each guards (tests xmp_fields_namespace_and_adversarial_xml, xmp_bombs_refused_before_allocation)",
+    "slice B extract_library reads Adobe_AdditionalMetadata(image, xmp): plain-text packets decoded into PhotoLibraryState.xmp; compressed-looking values (zlib header, optionally after a 4-byte length) xmp_compressed_not_inflated (Opaque, no inflate in this crate: D16 frozen duplicate and no allowed edge to the canonical deflate owner); other values xmp_not_packet; decode errors whole-row losses named by the XMP error code; xmp_rating_differs_from_catalog when the packet rating disagrees with Adobe_images; resolves xmp_blob_not_inflated when any packet decoded",
+    "slice B accounting: rule, synonym and XMP rows referencing unknown collections/keywords/images are orphan_row whole-row losses at walk time (slice A reported them post hoc), so rows_seen == mapped + lost holds for every library table; id sets and every retained tree/packet/synonym charged before retention (test library_fixture_end_to_end: tight-budget refusal, counts (4,1,3), (4,3,1), (6,2,4))",
+    "slice B fixture tests/fixtures/synthetic-library.lrcat + PROVENANCE-library.json (sha256 checked by the test) from generator WP-KERNEL-STUDIO/interop-lrcat/fixtures-gen/generate_library_fixture.py at the artifact root (outside the product repo, CX-503R; python -I + stdlib sqlite3; generator sha256 in the provenance file)"
+  ],
+  "tests": {
+    "argv": "cargo nextest run -p hsk-studio-interop-lrcat --no-fail-fast",
+    "exit": 0,
+    "sha": "5975475",
+    "passed": 16,
+    "failed": 0
+  },
+  "blockers": [
+    {"error": "OWNER: goals 1 (native catalog model persisted in the native package), 2 (query/filter engine) and the write half of 4 (XMP sidecar write) are assigned by the spec to CKC (STU-ASSET-001/004/017/019, lrcat clause 'MUST NOT establish a private database/cache/catalog'); CKC is handshake_core (forbidden dependency), not a crate here; no crate created", "file_line": ".GOV/spec/master-spec-v02.216/spec-modules/14-studio-creative-suite.md:30963-31058 (STU-ASSET-001..019), :47 (lrcat exception)", "attempts": 0}
+  ],
+  "lock_wait_s": 45,
+  "bg_pids": [],
+  "next": "lead decision on the CKC owner question: either (a) typed CKC provider-port contracts (asset.search query/filter request, catalog mutation commands for rating/flag/label/keyword/collection) in hsk-studio-kernel-bindings, steward-registered, with this lane's proposal types as the import payload, or (b) the work moves to the Handshake integration target that owns CKC. Separately: edge interop-lrcat -> develop for typed develop-settings mapping (not requested); XMP inflate needs the canonical deflate owner reachable (D16)",
+  "updated_at": "2026-10-15T04:35:30Z",
+  "notes": {
+    "spec_basis": [
+      "STU-ASSET-001: 'CKC is the single asset library, media catalog and file manager for Studio ... Studio does not have an asset library of its own and MUST NOT acquire one.'",
+      "STU-ASSET-004: 'Studio MUST NOT implement, and MUST NOT ship ... a second metadata, keyword, rating, label or flag store; a second collection or smart-collection mechanism over assets ... Standalone reusable assets MUST consume artifact/catalog bytes through injected typed provider ports.'",
+      "STU-ASSET-019: Studio's asset projection inherits, and MUST NOT re-implement, CKC's 'hierarchical keyword tagging, 0-to-5 star rating, colour labels, pick/reject/unflagged flags, manual collections, rule-based smart collections ... EXIF/IPTC/XMP metadata read and write'",
+      "STU-ASSET-017: a Studio-local asset index, cache or metadata table is forbidden; the projection holds no catalog state",
+      "module 14 SQLite exception (line 47): the .lrcat decoder MUST NOT 'establish a private database/cache/catalog'; it 'emits typed import proposals and provenance/loss receipts; accepted data enters existing CKC and Studio schemas through ResourceBroker, sandbox/validation/promotion and SurrealDB/EventLedger'",
+      "STU-IO-189: Lightroom catalog/develop/WAL provenance MUST have explicit versioned per-entity mapping/loss outcomes; 'smart rules MUST be retained/translated/approximate/unsupported/missing explicitly; successful parser/count is not full conversion'; the .lrcat public API is fixed-format semantic extraction, never a generic table/query/database API",
+      "raw develop (14.12, line 20871): 'bounded explicit XMP interchange read/write through CKC is permitted as external transport, never live settings authority'"
+    ],
+    "owner_decision": "CX-CAP-001 owner of the catalog model (goal 1), the query/filter engine (goal 2) and XMP sidecar write (goal 4 write half) is CKC (handshake_core atelier module, WP-KERNEL-005), which is not a crate in this workspace and is a forbidden dependency (WORKSPACE_RULES: never handshake_core). Building them in a Studio crate would violate STU-ASSET-004/017/019 and the lrcat 'no private catalog' clause, so no crate was created and nothing was registered; reported to the lead. In-spec alternative for the lead/steward: typed CKC provider-port contracts (asset.search query/filter request types, catalog mutation commands) in hsk-studio-kernel-bindings, which owns host-neutral bridge contracts (STU-ARC-010).",
+    "goal_mapping": {
+      "goal_1_native_catalog": "NOT BUILT (CKC-owned). The typed vocabulary it needs (Flag, ColorLabel, collection kinds, hierarchy nodes, rule trees) exists as import-proposal types in interop-lrcat",
+      "goal_2_query_engine": "NOT BUILT (CKC asset.search; STU-AUT-127 'catalog_query (a CKC search expression per [STU-ASSET-010], which is how a smart collection becomes a batch input)'); smart rules are decoded, never evaluated",
+      "goal_3_lrcat_mapping": "slice A (this commit) plus slice B; develop settings mapping into develop types needs a new edge interop-lrcat -> develop (not in the allowed DAG; develop depends on pigment/prism) - not requested, lead decision",
+      "goal_4_xmp": "read half in slice B (decode_xmp_packet over granted bytes, used for the catalog's per-image packets; sidecar bytes can be passed the same way); write half CKC-owned"
+    },
+    "complexity": "parse_smart_rules O(input) time, O(min(input, max_nodes)) memory; decode_xmp_packet O(input) time (namespace lookup is a reverse scan of the in-scope bindings, bounded by max_nodes), O(kept values) memory; resolve_hierarchy O(n) time and memory (each node entered once; path vector <= n); library post-mapping O(photos + collections + keywords + synonyms) with hash maps",
+    "slice_b_unverified": [
+      "Adobe_AdditionalMetadata.xmp storage form in Lightroom-written catalogs (plain packet vs length-prefixed zlib) - fixture uses both shapes synthetically",
+      "lr:hierarchicalSubject separator |",
+      "Lightroom writes picks to XMP: not assumed (pick comes from the catalog only); xmp:Rating -1 = rejected is from the public XMP specification"
+    ],
+    "unverified": [
+      "smart rule vocabulary: criteria names (rating, pick, labelColor, labelText, keywords, filename, fileFormat, captureTime, collection, folder, cameraModel, lens, isoSpeedRating, all, hasAdjustments), operations (==, !=, >, >=, <, <=, in, any, all, words, noneOf, beginsWith, endsWith), combine (intersect, union, exclude)",
+      "creationId values com.adobe.ag.library.smart_collection / com.adobe.ag.library.group and owning module ag.library.smart_collection",
+      "table AgLibraryKeywordSynonym(keyword, name)",
+      "colorLabels holds the label name of the active label set",
+      "Lightroom parity of every library behaviour (D5 oracle)"
+    ],
+    "shared_files": "no other lane had uncommitted edits in crates/hsk-studio-interop-lrcat; pathspec commit of that directory only; Cargo.lock untouched",
+    "clippy": "cargo clippy -p hsk-studio-interop-lrcat --tests --examples: no warnings for this crate (2 pre-existing too_many_arguments warnings in hsk-studio-observe)",
+    "v4": "new modules carry #![deny(clippy::arithmetic_side_effects)]; V4-02 dims_u32_max + aggregate_over_budget in smart_rule_bombs_refused_before_allocation; V4-08 adversarial text cases (escape, comment/string decoys, case decoy) in smart_rules_typed_tree_and_adversarial_text; V4-09 commit message via -F file",
+    "existing_test_edits": "tests/catalog_decode.rs: PUBLIC_ENTRYPOINTS assertion lists the three new entrypoints; the no-SQL source scan includes library.rs and lua_rules.rs (claim coverage widened, not weakened)",
+    "retry_guard": "no rerun needed; first run green"
+  }
+}

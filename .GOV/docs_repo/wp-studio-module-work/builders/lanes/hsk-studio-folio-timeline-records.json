@@ -1,6 +1,9 @@
 {
  "crate": "hsk-studio-folio",
- "crates": ["hsk-studio-folio", "hsk-studio-session"],
+ "crates": [
+  "hsk-studio-folio",
+  "hsk-studio-session"
+ ],
  "lane": "SMB-FOLIO-TIMELINE-RECORDS",
  "status": "READY_FOR_VALIDATION",
  "phase": "folio stores sequence/clip markers and clip transitions; session timeline step = one undo; pushed",
@@ -64,6 +67,7 @@
    "work area, project-item markers, transition parameter set, repeat_end_frame choice not stored",
    "timeline steps have no chronicle RevisionUpdate (the property vector does not cover sequences)"
   ],
-  "verdicts": []
+  "verdicts": [],
+  "later_commits": "42005c4 (lane SMB-PULSE-PLAYBACK, after READY, V4-14) extended the Folio records additively: sequence work_area, transition parameters (param_value) and repeat_end_frame, all serde-default; existing fields and tests unchanged and green at 42005c4."
  }
 }

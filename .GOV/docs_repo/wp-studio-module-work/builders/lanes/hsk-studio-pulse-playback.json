@@ -1,0 +1,66 @@
+{
+ "crate": "hsk-studio-pulse",
+ "crates": [
+  "hsk-studio-pulse",
+  "hsk-studio-folio",
+  "hsk-studio-harness"
+ ],
+ "lane": "SMB-PULSE-PLAYBACK",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slice 1 pushed (Folio-backed records + playback scheduler); slices 2-3 (score audio path, harness program monitor) green locally, held until the steward sync adds pulse->score (normal) and harness->pulse",
+ "commits": [
+  {
+   "sha": "42005c4",
+   "subject": "pulse/folio (SMB-PULSE-PLAYBACK slice 1): pulse edits Folio's markers, transitions and work area; playback scheduler with an audio master clock"
+  }
+ ],
+ "capabilities_done": [
+  "(1) model: pulse keeps no parallel marker/transition set; RecordEdit{AddMarker{scope}, ReplaceMarker, RemoveMarker, SetTransition{outgoing clip, Option<TimelineTransition>}, SetWorkArea} edits Folio's StudioMarker / TimelineTransition / WorkArea as one undoable proposal (plan_record_edit -> propose -> plan_timeline_revert); clip splits hand markers to the piece holding their start and the tail transition to the right piece (split_records in split_clip and write_pieces); every edit removes transitions that no longer play and lists them (EditProposal::dropped_transitions) and lists markers that left (removed_markers)",
+  "folio: StudioSequence.work_area (STU-VID-035), TimelineTransition.parameters [{param_key, param_value number|boolean|enumeration|ticks}] (STU-FX-103 keys, unique, <= 256, finite) and repeat_end_frame (STU-VID-032), all serde-default and omitted when unset (byte-identical old documents); param_value is not named 'value' because Folio's read-only extension check treats any object with key 'value' as a length",
+  "(2) PR-19 PlaybackScheduler: AudioClock port (sample rate + played samples), HeadlessClock, master ticks = anchor + ticks_from_samples (exact for rates dividing 254016000000); DropLate presents floor(master / tpf) and counts skipped frames (end-of-range skips included); PresentEveryFrame never skips and reports lag; play range = work area or whole sequence; pause/scrub/step frame-exact and clamped; frame_layers(tick) = enabled video tracks bottom-to-top with transition weights",
+  "stated tolerance (test playback_stays_within_one_frame_of_the_audio_clock): with DropLate at every presentation 0 <= master - frame_start < one frame period (40 ms at 25 fps); irregular presenter cadence of 1..4000 samples: presented + dropped = 100 of 100 frames, leads 0"
+ ],
+ "pending_push": {
+  "blocked_on": "steward sync: root metadata pulse allowed += hsk-studio-score (now only dev-allowed), harness allowed += hsk-studio-pulse; lead approved both (START_LOG), dep-requests.jsonl lines appended",
+  "slice_2": "pulse src/audio.rs build_timeline_mix: Folio audio tracks (enabled, unmuted, solo honoured; track volume linear -> score dB fader, pan) -> score Session; clips by TrackSpec::from_source / from_source_at_speed; audio_crossfade tail -> score Fade pair over the transition span using the outgoing tail handle and incoming head handle (curve param linear|equal_power, default equal_power, Studio key); > score MAX_TRACKS clips = limit_exceeded before copying; score Session implements AudioClock; folio StudioTrack.volume (default 1.0, 0..=16) and pan (-1..=1) per STU-FX-137, serde-default; test timeline_audio_mixes_through_score_and_clocks_video_within_one_frame (mixdown within 1e-6 of hand values through the crossfade; every presentation within [0, 1 frame) of the score position)",
+  "slice_3": "harness src/view/monitor.rs ProgramMonitor (play/pause/scrub/step, refresh renders frame_layers through composite render_scene on render-cpu; FrameSource port; WallClock for the viewer; stable widget ids monitor.*) + Viewer::open_monitor / set_monitor_sources / monitor() and a bottom panel; tests viewer_monitor.rs (2): dissolve frames vs hand blend within 2e-6, pause/step/scrub/end, typed frame_unavailable; viewer opens the monitor on a native package sequence and draws its ids",
+  "local_tests": "pulse+folio+session+interop-media 121/121; harness --features viewer viewer_headless + viewer_monitor 5/5"
+ },
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-pulse -p hsk-studio-folio --no-fail-fast",
+  "exit": 0,
+  "sha": "42005c4",
+  "passed": 86,
+  "failed": 0,
+  "focused": [
+   "pulse playback::playback_stays_within_one_frame_of_the_audio_clock",
+   "pulse editing::markers_keep_their_scope_through_edits_with_spans_and_undo (rewritten onto the Folio records)",
+   "pulse editing::cross_dissolve_frame_matches_hand_computed_blend (rewritten; now renders frame_layers output)"
+  ]
+ },
+ "blockers": [
+  "steward edge sync (see pending_push); harness view/mod.rs and Cargo.toml also carry another builder's uncommitted SMB-ILLUSTRATOR-PEN WIP, so slice 3 will be committed from a temporary index holding only this lane's hunks"
+ ],
+ "bg_pids": [],
+ "next": "push slices 2-3 after the steward sync; then multicam (PR-10)",
+ "updated_at": "2026-10-15T05:30:00Z",
+ "notes": {
+  "spec_basis": [
+   "STU-VID-023: 'a PROGRAM monitor showing the sequence at the playhead. Both expose: transport (play, stop, step forward, step back, play in-to-out, loop), an in point and an out point'",
+   "STU-VID-035: 'The work area is a named in/out span used to scope rendering and export; setting its bounds and rendering within it are typed commands.'",
+   "STU-VID-032: 'when insufficient handle exists Studio MUST report the shortfall and offer the declared choices (shorten the transition, shift the alignment, repeat the end frame)'",
+   "STU-FX-103: 'StudioEffectParameter is the single typed parameter record' (param_key identity); STU-FX-137 Track: 'volume (default 1.0, linear gain), pan (default 0), mute, solo'",
+   "STU-VID-021: 'the compositing order of video tracks is bottom-to-top'"
+  ],
+  "supersedes": "42005c4 replaced pulse's TimelineAnnotations / Marker / Transition / AnnotationEdit / plan_annotation_edit / follow_timeline_edit (lane SMB-PULSE-EDITING slices 3-4) with the Folio-backed RecordEdit API; the editing lane's marker/transition claims are carried here (same test names, rewritten)",
+  "parity": "Premiere transport, dissolve frame sampling and the shipped crossfade curve are UNVERIFIED (D5)",
+  "gaps": [
+   "no media decoder in the harness: the viewer monitor needs a FrameSource (frame_unavailable otherwise); no audio device: the viewer uses a WallClock unless the host passes the score session",
+   "score mixes at most MAX_TRACKS (64) clips per session",
+   "crossfades on clips with a non-unit speed are audio_unsupported; head (single-sided) transitions are stored but not evaluated",
+   "loop playback and in/out-point play of STU-VID-023 not implemented"
+  ],
+  "verdicts": [],
+  "known_defect_at_42005c4": "TransitionParameter at 42005c4 serialises its value under the key 'value' with an internally tagged value_kind, which Folio's read-only extension check (an object with key 'value' must be a length) turns into a read-only document on inspect; found by the slice-2 folio test before any validation round; fixed in the pending slice-2 commit (param_value, externally tagged number|boolean|enumeration|ticks). Do not judge transition parameters at 42005c4."
+ }
+}

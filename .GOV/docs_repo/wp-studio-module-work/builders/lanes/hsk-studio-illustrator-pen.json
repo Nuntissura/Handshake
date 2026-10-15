@@ -2,27 +2,50 @@
   "crate": "hsk-studio-nib",
   "lane": "SMB-ILLUSTRATOR-PEN",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice 1 pushed (anchor path model); slice 2 (shapes) in progress",
+  "phase": "slices 1-3 pushed (anchor path model, shapes + folio live shapes, pathfinder); slice 4 (harness tools) in progress",
   "commits": [
     {"sha": "8698329", "subject": "nib (SMB-ILLUSTRATOR-PEN slice 1): editable anchor path model"},
-    {"sha": "ceb6a50", "subject": "nib (SMB-ILLUSTRATOR-PEN slice 1 test): off-centre bend expectation"}
+    {"sha": "ceb6a50", "subject": "nib (SMB-ILLUSTRATOR-PEN slice 1 test): off-centre bend expectation"},
+    {"sha": "78a6b75", "subject": "nib + folio (SMB-ILLUSTRATOR-PEN slice 2): parametric shapes and live-shape records"},
+    {"sha": "6cca045", "subject": "nib (SMB-ILLUSTRATOR-PEN slice 3): unified pathfinder over the STU-VEC-130 tokens"}
   ],
   "capabilities_done": [
-    "slice 1 nib::anchor_path: AnchorPath {contours, fill_rule} / Contour {anchors, closed} / EditAnchor {position, incoming, outgoing (relative handles), mirroring NONE|ANGLE|ANGLE_AND_LENGTH (STU-VEC-109)}; derived point type smooth=1/corner=2; STU-VEC-116 AnchorSelection 1..5; to_owned_path / from_owned_path (quads raised exactly, duplicate closing anchor merged, mirroring inferred); pen start_contour / append_anchor / close_contour; insert_anchor (de Casteljau, curve unchanged); delete_anchor; convert_anchor; move_anchor and move_handle with Constraint::Angle45 and mirroring propagation (Alt break); bend_segment (STU-VEC-003 drag-to-bend, dragged point lands on target); join (coincident merge / straight connect / close own ends); split_at_anchor and split_at (STU-VEC-048 scissors); reverse (STU-VEC-043); hit_anchor / hit_segment / point_at; typed AnchorError with distinct STU-VEC-133 codes path_index_out_of_bounds, point_index_out_of_bounds, cannot_join_path_points; MAX_ANCHORS 65536 / MAX_CONTOURS 4096 checked before allocation; NaN/inf/|v|>1e9 refused"
+    "slice 1 nib::anchor_path: AnchorPath {contours, fill_rule} / Contour {anchors, closed} / EditAnchor {position, incoming, outgoing (relative handles), mirroring NONE|ANGLE|ANGLE_AND_LENGTH (STU-VEC-109)}; derived point type smooth=1/corner=2; STU-VEC-116 AnchorSelection 1..5; to_owned_path / from_owned_path (quads raised exactly, duplicate closing anchor merged, mirroring inferred); pen start_contour / append_anchor / close_contour; insert_anchor (de Casteljau, curve unchanged); delete_anchor; convert_anchor; move_anchor and move_handle with Constraint::Angle45 and mirroring propagation (Alt break); bend_segment (STU-VEC-003 drag-to-bend, dragged point lands on target); join (coincident merge / straight connect / close own ends); split_at_anchor and split_at (STU-VEC-048 scissors); reverse (STU-VEC-043); hit_anchor / hit_segment / point_at; typed AnchorError with distinct STU-VEC-133 codes path_index_out_of_bounds, point_index_out_of_bounds, cannot_join_path_points; MAX_ANCHORS 65536 / MAX_CONTOURS 4096 checked before allocation; NaN/inf/|v|>1e9 refused",
+    "slice 2 nib::shape: rectangle(RectSpec) with 4 independent corner radii clamped min(r, shorter edge/2) and the applied radii returned (STU-VEC-066), corner kinds none/round/round_inverted/inset/bevel (STU-VEC-112 capture values; fancy and corner_smoothing != 0 refused), ellipse(EllipseSpec start/end angle, inner_ratio: full, ring, pie, segment as one shape), polygon(side_count 3..=100, inset_percentage 0..=100), star(point_count 3..=50, inner_radius ratio), line(length, angle); sin_cos_deg fixed polynomial (exact at multiples of 90); ShapeError{parameter, error}",
+    "slice 2 folio::StudioLiveShapes (hsk.studio.live_shapes@1): StudioLiveShape{layer_id, path_id, shape: StudioShapeParameters rectangle|ellipse|polygon|star|line}, StudioCornerKind, validate_live_shapes (document, vector payload, path among path_ids, one record per layer, STU-VEC-127 bounds, Budget::nodes before the walk), live_shapes_schema()",
+    "slice 3 nib::pathfinder: PathfinderOp (13 STU-VEC-130 tokens + geom.* members, parse), pathfinder(op, operands bottom-first, paint_keys) -> pieces{path, sources} + GeometryReceipt: unite/intersect/exclude/backMinusFront/frontMinusBack, divideCommand (faces with covering operands, split into connected regions), trimCommand, mergeCommand (touching same-key trimmed pieces united), cropCommand; outline/hard/soft/trap UnsupportedOperation; EmptyPathfinderResult typed; MAX_PIECES 4096; offset_path and outline_stroke proven on cubic curves (circle offsets, half-circle and S-curve strokes); nib DESCRIPTOR illustrator_pen section"
   ],
   "tests": {
-    "argv": "cargo nextest run -p hsk-studio-nib --test anchor_path --no-fail-fast",
+    "argv": "cargo nextest run -p hsk-studio-nib -p hsk-studio-folio --test anchor_path --test shape --test live_shapes_contract --test pathfinder --no-fail-fast (one run per slice)",
     "exit": 0,
-    "sha": "ceb6a50",
-    "passed": 5,
+    "sha": "6cca045",
+    "passed": 14,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 18,
   "bg_pids": [],
   "next": "slice 2 shapes (nib::shape + folio live-shape record), slice 3 pathfinder divide/trim/merge/crop + offset/outline on curves, slice 4 harness pen/direct-select/shape tools",
-  "updated_at": "2026-10-15T04:04:14Z",
+  "updated_at": "2026-10-15T04:19:13Z",
   "notes": {
+    "spec_basis_slices_2_3": {
+      "STU-VEC-010": "Each shape is a live StudioVectorPath/StudioVectorNetwork whose defining parameters remain editable until the operator or model explicitly expands it to raw geometry",
+      "STU-VEC-127": "Rectangle width/height 0.0..16348.0 pt; Polygon side_count NORMATIVE hard 3..100 (soft 3..20); inset_percentage 0..100; Star point_count 3..50; Star outer radius is the object's own size",
+      "STU-VEC-066": "the applied radius is min(requested_radius, shorter_incident_edge / 2) evaluated per corner, and the clamped value MUST be reported back to the caller",
+      "STU-VEC-112": "corner.none none / round 'rounded corner' / round_inverted 'inverse rounded corner' / inset 'inset corner' / bevel 'bevel corner' / fancy 'fancy corner'",
+      "STU-VEC-130": "Studio MUST carry all thirteen with these stable identifiers and MUST use the captured token as the wire value (divideCommand: Split all overlaps into separate closed regions; trimCommand; mergeCommand; cropCommand: Clip artwork to the topmost region)",
+      "STU-VEC-012": "ONE unified geometry-operation set that subsumes every source suite's boolean/pathfinder/geometry command family",
+      "STU-VEC-006": "offset path (numeric inset/outset copy with join-style handling of corners) ... outline stroke (convert a stroked path to filled geometry)"
+    },
+    "gaps": [
+      "outlineCommand, hardCommand, softCommand, trapCommand refused (UnsupportedOperation): outline needs open-border output, the other three composite paint",
+      "fancy corner geometry and corner_smoothing are not specified -> refused by nib (stored by folio)",
+      "arc segment, rectangular grid, polar grid, spiral shapes not built",
+      "StudioVectorNetwork (STU-VEC-001/008) not built: the pen authors StudioVectorPath contours only",
+      "pen option selectors of STU-VEC-118 (members UNKNOWN in the capture) not exposed",
+      "folio live-shape schema id hsk.studio.live_shapes@1 is the set's own token (spec names none); the 16348 pt bound applies only to pt documents in folio",
+      "Illustrator piece order and appearance assignment of divide/trim/merge UNVERIFIED (D5)"
+    ],
     "spec_basis": {
       "STU-VEC-001": "StudioVectorPath (schema id hsk.studio.vector_path@1), an ordered sequence of anchors forming one open or closed contour",
       "STU-VEC-002": "An anchor MUST carry a position (document units per [STU-DOC-003]), an incoming tangent handle, an outgoing tangent handle, and a handle-mirroring mode.",
@@ -35,7 +58,8 @@
       "STU-VEC-133": "path index out of bounds; point index out of bounds; cannot join path points ... Each MUST be individually distinguishable by a model from its typed error code"
     },
     "unverified": "Illustrator parity UNVERIFIED (D5): chord/3 handle synthesis, ANGLE mirroring on inserted anchors, coincident-merge join, (1-t):t bend weights, end anchors with one handle inferred NONE",
-    "ownership": "new files only: crates/hsk-studio-nib/src/anchor_path.rs, tests/anchor_path.rs; nib lib.rs one `pub mod` line per module",
+    "ownership": "new files: nib src/anchor_path.rs, shape.rs, pathfinder.rs + their tests; folio src/live_shape.rs + tests/live_shapes_contract.rs; one-line module registrations in nib/folio lib.rs; nib descriptor.rs one added key (JSON validated with python json.loads; no test reads it)",
+    "dependents": "cargo check --tests green for nib dependents composite, interop-vector, render-cpu at 6cca045 worktree state; folio additions are new names only (grep: no collisions in dependents)",
     "shared_hunk_rule": "slice 1 staged lib.rs with only its own `pub mod anchor_path;` hunk (git apply --cached) because shape.rs was still local; index checked to hold only lane files before committing the index",
     "retry_guard": "route (a) once: move_anchor_handle_bend_and_constraints had a wrong hand value (off-centre bend on a retracted-handle line is x 4.6875, not 7.5); fixed by test commit ceb6a50, rerun green; no gameplan step added",
     "v4": "V4-01 deny(clippy::arithmetic_side_effects) in anchor_path.rs (checked_rem/checked_add); V4-02 budgets before allocation (huge-anchor test); V4-09 commit -F; V4-12 scratch under scratchpad/smb-illustrator-pen/"

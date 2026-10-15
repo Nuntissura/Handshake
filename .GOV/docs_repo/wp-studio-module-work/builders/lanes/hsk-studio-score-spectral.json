@@ -1,0 +1,48 @@
+{
+ "crate": "hsk-studio-score",
+ "lane": "SMB-SCORE-SPECTRAL",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slices 1-2 pushed (bc90aed display data, e03bbeb spectral selection/attenuate/heal); slice 3 (streaming time-stretch with transient phase reset) next",
+ "commits": [
+  {
+   "sha": "bc90aed41824eece0a5cc595b8f29658f0081585",
+   "subject": "score (SMB-SCORE-SPECTRAL slice 1 wip): spectrogram tiles and reassignment"
+  },
+  {
+   "sha": "e03bbeb5a7cab4530ae390f83cf199ee9433c8c2",
+   "subject": "score (SMB-SCORE-SPECTRAL slice 2): spectral selection with attenuate and heal; exact passthrough outside"
+  }
+ ],
+ "capabilities_done": [
+  "Spectrogram (src/spectrogram.rs): STFT magnitude grid with periodic Hann N (power of two 256..16384) and hop 1..N, frame k centred on k*hop, ceil(len/hop) frames x (N/2+1) bins, calibrated so a bin-centred sine of amplitude A reads A (measured within 1e-6; Hann neighbours A/2; DC calibrated); tiles over frame ranges from caller chunks that cover tile_input_range only (streaming big files), bit-identical to the whole grid for 3 parameter sets and mixed tile sizes; memory budget MAX_TILE_CELLS = 2^24 cells per tile checked before work, scratch allocated once, tiles allocate nothing; tile_reassigned adds Auger-Flandrin reassigned time and frequency per cell (measured: a 1000.3 Hz tone reassigns within 0.0031 Hz of its frequency, bin width 23.4 Hz; an impulse reassigns to its exact sample over 4076 cells)",
+  "spectral_edit (src/spectral_edit.rs): SpectralSelection (samples start..end x low..high Hz) on a Hann STFT (hop N/4, synthesis w/1.5); only the change of selected cells is resynthesised and added, so every sample outside SpectralEditReport.affected_start..affected_end is the input bit for bit (tested for attenuate and heal); Attenuate (-120..0 dB): full-band selection gives g*x within 2.98e-9 in the interior, a 4-8 kHz band at -20 dB measures -20.000 dB inside and 0.0000 dB below/above; Heal: selected log magnitudes interpolated between the frames three hops outside the selection, phase kept: a 4.2/4.6 kHz burst is reduced by 44.2 dB against the clean signal, the 1 kHz tone outside the band changes by 9e-11; out-of-band 500 Hz content in the edit difference <= 6e-10"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-score --test spectral_edit --no-fail-fast",
+  "exit": 0,
+  "sha": "e03bbeb5a7cab4530ae390f83cf199ee9433c8c2",
+  "passed": 4,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "slice 2: spectral selection (time x frequency), attenuate and heal with exact passthrough outside the selection; slice 3: streaming time-stretch with transient phase reset",
+ "updated_at": "2026-10-15T04:21:53Z",
+ "notes": {
+  "spec_basis": [
+   "STU-FX-134: native audio effect domain (Audition spectral frequency display, spectral selection and healing are Audition features; Audition parity UNVERIFIED, D5)"
+  ],
+  "licence_clean_room": "Auger and Flandrin, IEEE TSP 1995 reassignment re-derived; FFT reused from score denoise.rs",
+  "own_causes": [
+   "slice 1: a parse error (`as u64 <` read as generics) failed the first build; the gameplan retry guard blocked the identical rerun; route (a): fixed and committed (bc90aed) before rerunning"
+  ],
+  "new_tests": {
+   "spectrogram": 4,
+   "spectral_edit": 4
+  },
+  "check_clippy": "cargo clippy -p hsk-studio-score -p hsk-studio-score-device -p hsk-studio-score-plugin --tests --examples at bc90aed: no findings in score crates",
+  "dep_requests": "none",
+  "working_tree": "pre-existing stat-only modifications of other score src files left uncommitted; pathspec commits only; Cargo.lock not committed"
+ }
+}
