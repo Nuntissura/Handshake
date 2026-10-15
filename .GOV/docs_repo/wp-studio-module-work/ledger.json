@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T00:09:23Z",
+ "updated_at": "2026-10-15T00:10:23Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -4483,13 +4483,16 @@
   },
   {
    "lane_id": "SMB-LAYOUT-PDF-EXPORT",
-   "crate": "hsk-studio-layout",
+   "crate": "hsk-studio-press",
    "phase": "build",
-   "status": null,
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-layout-20261015b",
-   "commits": [],
+   "commits": [
+    "0451297"
+   ],
    "verdicts": [],
-   "note": "after SMB-LAYOUT-TYPESET-HARDEN, same builder"
+   "note": "slice 1 PdfExport writer in press READY (0451297); slice 2 interop-layout lowering after steward adds L1 edges (interop-layout -> press, nib, pigment)",
+   "lane_file": "builders/lanes/hsk-studio-layout-pdf-export.json"
   },
   {
    "lane_id": "SMB-COMPOSITE-TEMPORAL",
