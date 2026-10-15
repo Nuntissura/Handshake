@@ -1,0 +1,59 @@
+{
+  "crate": "hsk-studio-harness",
+  "lane": "SMB-AUDIO-IMPORT-2",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slices 1-2 pushed: reel WAV import + speaker layouts + public MD5; harness BS.775 downmix + channel map, FLAC export MD5, viewer opens audio files, audio batch queue",
+  "commits": [
+    {
+      "sha": "33efc32",
+      "subject": "reel (SMB-AUDIO-IMPORT-2 slice 1): WAV through decode_audio_file, decoded speaker layouts, public MD5 + FLAC STREAMINFO MD5 offset"
+    },
+    {
+      "sha": "03f70f1",
+      "subject": "harness (SMB-AUDIO-IMPORT-2 slice 2): BS.775 downmix + channel map, FLAC export MD5, WAV import, viewer opens audio files, audio batch queue"
+    }
+  ],
+  "capabilities_done": [
+    "(1) downmix: >2 channels (or any ImportOptions::channel_map) fold to stereo by Rec. ITU-R BS.775-4 Annex 4 Table 2 3/2->2/0 (L' = L + 0.7071 C + 0.7071 LS, R' = R + 0.7071 C + 0.7071 RS; LFE omitted, Table 2 has no LFE term), coefficients read from the ITU PDF of BS.775-4 (12/2022) this session; Studio rule (not from the Recommendation) assigns SL/BL->LS, SR/BR->RS, BC->0.7071 into LS and RS, FLC/FRC->L/R; normalize_downmix divides by the largest coefficient sum; speaker layout from reel DecodedAudio::speakers (FLAC RFC 9639 9.1.3, Vorbis I 4.3.9 for Vorbis/Opus, AAC configs 1-6, WAV extensible mask; orders checked against RFC 9639 and the Vorbis I spec this session) or the caller's channel_map (Speaker::Unused drops a channel); unknown order = audio_channel_map_required",
+    "(2) FLAC export: MD5 of the streamed samples written into STREAMINFO at reel::audio::flac::STREAMINFO_MD5_OFFSET after streaming (export needs Write + Seek); reel re-decode reports checksum_verified Some(true); independent oracle: ffmpeg 8.1.1 decode of the viewer's exported FLAC to s24le, Python hashlib MD5 3e7d74e0c3404bc617012b498c4700a8 == STREAMINFO MD5 (13230 frames)",
+    "(3) WAV: reel decode_audio_file takes RIFF/WAVE (PCM 8/16/24/32, float 32/64, A-law, mu-law, WAVE_FORMAT_EXTENSIBLE sub-format + mask; RF64 typed refusal; short data chunk decodes the frames present) through the AIFF reader's new little-endian encodings; decoder id wav-riff-pcm; harness import_audio / open_audio_file / Viewer take it unchanged",
+    "(4) viewer: Viewer::open routes audio files (reel::audio::sniff_audio_file, only when the image/document import does not claim the bytes) to view::audio_import: audio panel (widgets audio.panel, audio.export_flac, audio.export_aiff), program monitor on the import sequence at the file rate, state_json.audio, Viewer::export_audio (temp file + rename, never over the opened file), Viewer::audio_mix_stream for a host's audio_out",
+    "(5) batch: view::audio_batch (feature audio-batch): AudioBatchJob {input, output, overwrite, artifact, ImportOptions, ImportLimits, chain: Vec<EffectSpec{Gain, Equalizer, Dynamics, Limiter}>, MixFormat}; AudioBatchQueue after reel ExportQueue (submit -> handle with progress {state queued|importing|processing|encoding|complete|failed|canceled, done/total frames} and cancel, run in submission order, per-item AudioBatchReceipt with import projection, score chain identity, bounce digest, latency dropped, export receipt, output SHA-256, verified); refusals before reading input (output_path, output_exists, effect_chain, export_format); output published only after reel re-decode (frames, channels, FLAC MD5) via sibling .hsk-partial temp file renamed on success, removed on failure/cancel"
+  ],
+  "tests": {
+    "argv": "cargo nextest run -p hsk-studio-harness --features media,audio-batch,audio-device --test audio_batch --test audio_import (8/8 at 03f70f1 working tree); cargo nextest run -p hsk-studio-reel --test audio_aiff --test audio_containers --test audio_mp3 --test audio_ogg --test audio_flac --test audio_aac --test slice2_contract --test foundation_contract --lib -E 'binary(/audio_/) | binary(slice2_contract) | binary(foundation_contract) | test(/audio::/)' (44/44 at 33efc32 working tree); clippy reel --lib --tests and harness --features media,audio-batch,audio-device --lib --test audio_batch --test audio_import: no findings in lane files; cargo check harness default, --features viewer, --features media --tests: ok",
+    "exit": 0,
+    "sha": "03f70f1 (working tree = commit content for every lane path)",
+    "passed": 52,
+    "failed": 0,
+    "cases": [
+      "audio_import: opening_mp3_flac_and_opus_lands_in_a_score_mix_of_the_decoded_file",
+      "audio_import: mixdown_exports_to_flac_and_aiff_and_decodes_back (FLAC MD5 verified, STREAMINFO bytes 26..42 == receipt)",
+      "audio_import: hostile_or_unsupported_audio_files_fail_typed (WAV RF64, block align, 9 channels, truncations, channel map errors)",
+      "audio_import: wav_and_surround_files_import_with_the_bs775_downmix_and_channel_map",
+      "audio_import: desktop_viewer_opens_audio_files_headlessly",
+      "audio_import: imported_file_plays_through_the_device (audio-device)",
+      "audio_batch: batch_runs_import_effect_chain_and_export_with_progress_and_receipts",
+      "audio_batch: batch_refuses_before_reading_and_cancels_without_publishing (cancel before start and mid-run on a worker thread)",
+      "reel speakers::tests::orders_match_their_tables_and_masks"
+    ]
+  },
+  "blockers": [
+    "NEW EDGE hsk-studio-harness -> hsk-studio-score (optional, feature audio-batch only): dep-requests.jsonl line 2026-10-15T09:46:27Z status requested; steward-sync --add-edge hsk-studio-harness=hsk-studio-score needed before the workspace DAG check accepts the manifest"
+  ],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "Steward: add edge hsk-studio-harness=hsk-studio-score. Validator: judge 33efc32 (reel src/audio: wav_file.rs, speakers.rs, aiff.rs LE encodings, provider.rs decode_wav_file / channel_order / sniff_audio_file, md5.rs pub, flac.rs STREAMINFO_MD5_OFFSET) and 03f70f1 (harness view/audio_import.rs, view/audio_batch.rs, view/mod.rs viewer hunks, Cargo.toml feature audio-batch, tests/audio_import.rs, tests/audio_batch.rs, tests/support_audio/mod.rs) with --features media,audio-batch,audio-device.",
+  "updated_at": "2026-10-15T09:50:00Z",
+  "notes": {
+    "not_proven": [
+      "NOT_PROVEN: AAC channel configuration 7 order (7.1 vs 7.1 wide is read differently by decoders): speakers None, channel map required",
+      "NOT_PROVEN: AIFF and plain (non-extensible) WAV above 2 channels: no order claimed, channel map required",
+      "NOT_PROVEN: the Studio assignment of side/back-centre/of-centre speakers into the 3/2 set is not from BS.775 (Table 2 covers 3/2 sources only)",
+      "NOT_PROVEN: the batch FLAC/AIFF output against an external decoder beyond the one ffmpeg MD5 check recorded above",
+      "NOT_PROVEN: desktop window (eframe) interaction; the viewer proof is the headless egui context"
+    ],
+    "edge": "harness -> score is optional behind audio-batch; media and audio-device builds do not pull it",
+    "licensing": "no new crates.io dependencies; ITU-R BS.775-4 coefficients are factual values cited, no text reproduced in code beyond the equation"
+  }
+}
