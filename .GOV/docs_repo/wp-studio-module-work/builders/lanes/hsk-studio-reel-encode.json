@@ -1,0 +1,33 @@
+{
+  "crate": "hsk-studio-reel",
+  "lane": "SMB-REEL-ENCODE",
+  "status": null,
+  "phase": "slice 1 (ISO BMFF MOV/MP4 muxer) in progress",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {"argv": null, "exit": null, "sha": null, "passed": 0, "failed": 0},
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "slice 1 muxer; slice 2 export queue; slice 3 AV1 encode (rav1e, after the steward sync pins it); slice 4 timeline export glue (harness); slice 5 VC-3 (DNxHD/HR) encode",
+  "updated_at": "2026-10-15T06:16:15Z",
+  "notes": {
+    "spec_basis": [
+      "STU-VID-060 (14-studio-creative-suite.md:24658): 'Video export is a StudioExportRecipe and 14.13 owns the format writers.'",
+      "STU-VID-051 (24559): 'Codec implementation is NOT reimplemented natively; it is reached through a declared adapter with a typed capability descriptor stating which containers, codecs, bit depths, chroma subsamplings and colour transfer functions it can decode and encode' + 'An absent adapter yields a determinate MEDIA_CODEC_UNAVAILABLE result naming the codec'; D23 enrichment allows Studio-owned Rust adapters behind the same contract.",
+      "STU-VID-062 (25272): 'each supported container declares which codecs, colour metadata, caption streams and timecode tracks it can carry, and that an unsupported combination is refused with a determinate result before encoding starts rather than failing partway.'",
+      "STU-VID-064 (25329): 'An export is submitted to a queue, runs without a foreground window, reports determinate progress, is cancellable, and produces a receipt naming the recipe, the source span, the output artifact and the outcome ... Batch export of several sequences or several recipes is one queue with per-item receipts, not a loop the caller drives.'",
+      "STU-IO-142 (21106): frame rate stored as ticks per frame against 254,016,000,000 ticks per second.",
+      "STU-IO-143 (21126): bitrate facet minimum/target/maximum, encoding mode; hard bounds declared per exporter.",
+      "STU-MOT-120 (28014): render queue item = (composition, render settings, one or more output modules)."
+    ],
+    "owner": "14.13 owns the format writers (STU-VID-060/STU-PRO-043); module map: reel = decode/encode media adapters -> muxer, encoders and export queue in hsk-studio-reel; timeline glue (pulse frames via composite + score mixdown) in hsk-studio-harness, which already holds the pulse/composite/render-cpu/reel edges. No new module edge.",
+    "lead_decisions": [
+      "2026-10-15 lead message: D24 wins over the dispatch: NO H.264 encode and NO HEVC encode (not even behind a feature); recorded by the lead as an Operator item.",
+      "2026-10-15 lead message: rav1e =0.8.1 approved, optional behind default-off feature av1-encode, default-features off; manifest pushed only after the steward sync commit that pins it.",
+      "2026-10-15 lead message: add DNxHD/DNxHR (VC-3) encode if the spec's format writers name it (spec 14-studio-creative-suite.md:22946+ ships DNxHD presets; STU-VID-051 table lists DNxSDK decode/encode)."
+    ],
+    "shared_files": [],
+    "own_causes": []
+  }
+}
