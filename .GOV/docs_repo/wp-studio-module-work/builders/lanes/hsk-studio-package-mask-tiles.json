@@ -16,11 +16,11 @@
   "(4) harness tests/viewer_mask_package.rs: PSD with a user mask + raster records (mask parameters, smart-filter stack with stack mask and per-filter mask) imported, saved through the session streaming save (Viewer::save), reopened: all 3 mask planes byte-identical in the saved package, viewer frame byte-identical to a direct composite lower_to_render_plan_extended + render-cpu render with 3 masks served, and differs from the same frame with inverted mask planes"
  ],
  "tests": {
-  "argv": "cargo nextest run -p hsk-studio-package --test mask_tiles --test foundation_contract --test import_entries --test streaming_save; -p hsk-studio-session --test session_contract --test timeline_undo; -p hsk-studio-harness --features viewer --test viewer_mask_package --test viewer_render_records",
-  "exit": null,
+  "argv": "at 8749f0a: cargo nextest run -p hsk-studio-package -p hsk-studio-harness --features hsk-studio-harness/viewer --test mask_tiles --test foundation_contract --test viewer_mask_package --test viewer_render_records (22/22); on the identical working tree before the commit: -p hsk-studio-package --test mask_tiles --test foundation_contract --test import_entries --test streaming_save (24/25, sweep deadline under load, green at 8749f0a), -p hsk-studio-session --test session_contract --test timeline_undo (25/25); clippy -p hsk-studio-package -p hsk-studio-session --all-targets and harness --test viewer_mask_package: no warnings in lane files",
+  "exit": 0,
   "sha": "8749f0a",
-  "passed": null,
-  "failed": null
+  "passed": 22,
+  "failed": 0
  },
  "blockers": [],
  "lock_wait_s": 33,
