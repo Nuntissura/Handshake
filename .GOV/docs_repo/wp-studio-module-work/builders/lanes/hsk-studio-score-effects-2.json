@@ -1,0 +1,64 @@
+{
+ "crate": "hsk-studio-score",
+ "lane": "SMB-SCORE-EFFECTS-2",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slices 1-2 pushed (d8cb160 SidechainDynamics, e6ca990 FeedbackDelay); reverb, spectral NR and BS.1770 loudness already in score (SMB-SCORE-DSP/TRUEPEAK), not duplicated",
+ "commits": [
+  {
+   "sha": "d8cb160157e668177406be0341bdbfae08d015d3",
+   "subject": "score (SMB-SCORE-EFFECTS-2 slice 1): SidechainDynamics - lookahead and external key for compressor/expander/gate"
+  },
+  {
+   "sha": "e6ca990380ccf76146174f4c32f11a9bd586193d",
+   "subject": "score (SMB-SCORE-EFFECTS-2 slice 2): FeedbackDelay - echo with feedback, loop damping and stereo ping-pong"
+  }
+ ],
+ "capabilities_done": [
+  "SidechainDynamics (src/sidechain.rs): reuses the Dynamics gain computer (compressor/expander/gate, Giannoulis soft knee, peak or RMS detector, attack/release, hold, range, makeup, link) and adds lookahead (main delayed round(lookahead_ms*rate/1000) samples = reported latency, detector on the undelayed key) and KeySource::External{channels} (input = main channels then key channels, output = main channels; linked = loudest key, unlinked = key i drives main i); Internal key with lookahead 0 is bit-identical to Dynamics; allocation only at construction",
+  "FeedbackDelay (src/delay.rs): D = round(time_ms*rate/1000) samples (>= 1, 0..5000 ms), line = x + feedback*f(tap), out = (1-mix) x + mix tap; impulse echoes exact at m*D with feedback^(m-1) (48k/44.1k/96k tested); optional one-pole loop damping 20..rate/2 Hz (unity DC; echo 2 = fb(1-k)k^j tested); stereo ping-pong; feedback -0.99..0.99; delay line <= MAX_DELAY_LINE_SAMPLES (8Mi f64) checked before allocation; latency 0; tail_frames() bound tested; f64 loop state with 1e-30 flush"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-score --test sidechain --test dynamics --no-fail-fast (9/9 at d8cb160 content); cargo nextest run -p hsk-studio-score --test delay --test foundation_contract --no-fail-fast (9/9) and --test delay after the lint fix (4/4) at e6ca990 content",
+  "exit": 0,
+  "sha": "e6ca990380ccf76146174f4c32f11a9bd586193d",
+  "passed": 18,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 27,
+ "bg_pids": [],
+ "next": "none in this dispatch; candidate follow-ups: key band filter (spec Dynamics low/high_frequency), multiband compressor, chorus/flanger (spec Flanger contract table), Dattorro plate",
+ "updated_at": "2026-10-15T02:05:34Z",
+ "notes": {
+  "spec_basis": [
+   "STU-FX-134: 'Studio ships a native audio effect domain.' (audio StudioLiveFilter; same determinism requirement as 14.9.1)",
+   "STU-FX-134a: complete audio processor set incl. rows Dynamics (38 params), Single-band Compressor, Single-band Dynamics, Multiband Compressor, Hard Limiter, Analog Delay, Studio Reverb, Adaptive Noise Reduction, Loudness Meter",
+   "STU-FX-134a Dynamics contract table (sheet DynamicsUI): look_ahead_time in4 hard 0..500, attack_time 0..500, release_time 0..2000, link_channels, use_rms, use_noise_gate; no units declared (ms authored); SIDECHAIN_LOOKAHEAD_MS = 0..500 follows look_ahead_time",
+   "STU-FX-147: loudness-standard enumeration is a declared GAP",
+   "STU-FX-134a row 'Analog Delay' declares 0 parameters: FeedbackDelay ranges are authored"
+  ],
+  "already_in_score_not_duplicated": {
+   "dynamics": "Dynamics + LookaheadLimiter (SMB-SCORE-DSP slice 1, 7f76cfd): compressor/expander/gate, knee, attack/release, RMS or peak; this lane adds only lookahead + sidechain",
+   "reverb": "Reverb (SMB-SCORE-DSP slice 3, 4e36b3d): Schroeder-Moorer combs+allpasses, RT60-derived loop gains, T30 within 10 percent tested; not rebuilt",
+   "noise_reduction": "NoiseProfiler/NoiseReducer (SMB-SCORE-DSP slice 4, 917a7ac): noise-print capture, STFT sqrt-Hann hop N/4, Wiener-style subtraction; not rebuilt",
+   "loudness": "LoudnessMeter (SMB-SCORE-DSP slice 2 + SMB-SCORE-TRUEPEAK f025ff7): BS.1770-4 momentary/short-term/integrated/LRA + Annex 2 true peak; EBU vectors NOT_PROVEN (HTTP 403); not rebuilt"
+  },
+  "parity": "Adobe Audition side-chain, lookahead and delay behaviour UNVERIFIED (D5 oracle session); no parity claimed",
+  "parity_matrix_stale": "research/parity-matrix-20261014b.json AU-08/09/10/13 still read MISSING although SMB-SCORE-DSP implemented them; lead should refresh the matrix",
+  "licence_clean_room": "Giannoulis-Massberg-Reiss JAES 2012 formulas (existing gain computer reused); feedback comb / delay line recurrence from textbook (J. O. Smith, Physical Audio Signal Processing); no third-party source read or copied",
+  "dep_requests": "none",
+  "new_module_edges": "none (score-internal module sidechain.rs)",
+  "working_tree": "pre-existing stat-only modifications of other score src files left uncommitted; pathspec commits only; Cargo.lock not committed",
+  "check_clippy": "cargo clippy -p hsk-studio-score -p hsk-studio-score-device -p hsk-studio-score-plugin --tests --examples at e6ca990 content: no findings in score crates (2 pre-existing too_many_arguments in hsk-studio-observe); one needless_range_loop in tests/delay.rs fixed before commit",
+  "gaps": [
+   "No key (detector) band filter: spec Dynamics low_frequency/high_frequency rows have no declared semantics; not implemented",
+   "No multiband compressor, no chorus/flanger/phaser, no click/hum restoration (outside this dispatch)"
+  ],
+  "retry_guard": "one hook block: a lane-file edit script was run with the kernel root as cwd (resolved the WP-KERNEL-012 gameplan); cause = wrong cwd, rerun with the leading cd into the product workspace; no gameplan step added or confirmed",
+  "new_tests": {
+   "sidechain": 4,
+   "delay": 4
+  },
+  "descriptor": "DESCRIPTOR gained SidechainDynamics and FeedbackDelay entries; JSON parse checked"
+ }
+}

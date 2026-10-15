@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T02:06:30Z",
+ "updated_at": "2026-10-15T02:06:56Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -5702,12 +5702,16 @@
   {
    "lane_id": "SMB-SCORE-EFFECTS-2",
    "crate": "hsk-studio-score",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-score-fx-20261015",
-   "commits": [],
+   "commits": [
+    "d8cb160",
+    "e6ca990"
+   ],
    "verdicts": [],
-   "note": "Audition AU-08..10/13: dynamics (comp/limit/expand/gate, sidechain), delay + algorithmic reverb, spectral noise reduction, BS.1770 loudness if absent"
+   "note": "sidechain+lookahead dynamics, feedback delay; reverb/NR/BS.1770 already existed (SMB-SCORE-DSP)",
+   "lane_file": "builders/lanes/hsk-studio-score-effects-2.json"
   },
   {
    "lane_id": "SMB-COMPOSITE-VECTOR-MASK",
@@ -5748,6 +5752,26 @@
    "commits": [],
    "verdicts": [],
    "note": "external PDF/X-4 + PDF/A validation with the veraPDF binary (run as a tool, source not read); fix failures; CFF subsetting; gradient reflect/repeat/stop opacity; clipping to text/raster bases"
+  },
+  {
+   "lane_id": "SMB-SCORE-EFFECTS-3",
+   "crate": "hsk-studio-score",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-score-fx-20261015",
+   "commits": [],
+   "verdicts": [],
+   "note": "multiband compressor (Linkwitz-Riley crossovers), chorus/flanger/phaser, click/crackle and hum repair; then multitrack session mixdown with automation lanes (AU-14, AU-16)"
+  },
+  {
+   "lane_id": "SMB-PARITY-REFRESH",
+   "crate": "governance",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "parity matrix stale (AU-08/09/10/13 read MISSING but built in SMB-SCORE-DSP); regenerate parity-matrix after R31 from lane verdicts + code evidence"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
