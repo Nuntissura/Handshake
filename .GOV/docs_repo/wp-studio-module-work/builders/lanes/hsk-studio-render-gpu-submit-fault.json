@@ -1,0 +1,43 @@
+{
+ "crate": "hsk-studio-render-gpu",
+ "lane": "SMB-RENDER-GPU-SUBMIT-FAULT",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slice 1 pushed (2e52586): typed submit/read-back faults with detail, execution panic guard, SharedDevice::new fault detail, path redaction in one function",
+ "commits": [
+  {"sha": "2e52586", "subject": "render-gpu (SMB-RENDER-GPU-SUBMIT-FAULT slice 1): typed submit/read-back faults, path redaction"}
+ ],
+ "capabilities_done": [
+  "pipeline.rs ErrorScopes: pushes out-of-memory, internal and validation scopes; finish() pops all three and returns the first (class, message); Drop pops them on an early return or an unwind; guarded() (creation) now uses it",
+  "plan_sink.rs run(): per chunk, the passes run under one ErrorScopes (failure = Gpu(submit_fault), label 'hsk-studio-render-gpu chunk'), then the read-back (label 'hsk-studio-render-gpu readback') or shared texture output (label 'hsk-studio-render-gpu shared output') under a second one; a failed mapping = Gpu(readback_map_failed) with the scoped wgpu error as class/message (class map when no scoped error); a scope timeout = Gpu(submit_scope_timeout); the uncaptured latch / device_fault stays only as last resort",
+  "plan_sink.rs execute_inner: run under catch_unwind: a panic = Gpu(submit_panic), class panic, label 'hsk-studio-render-gpu execute', residency released, backend state latched Lost (reacquire recovers); GpuBackend::submit_fault() -> Option<PipelineFault> (cleared by the next execution); test-faults hook GpuBackend::inject_submit_fault(InjectedFault::{ReadbackCopyOutOfBounds, StagingDestroyed, Panic}) arms a real wgpu failure for the next execution",
+  "PipelineFault: new field object (label wgpu names: first label = '...' else first with '...', else the operation label), constructor PipelineFault::new (redact + bound + object), error() = Pipeline(code) for creation codes, Gpu(code) for execution codes",
+  "pub fn redact_paths (pipeline.rs, re-exported): the single redaction point; drive (spaces allowed), UNC and Unix (ends at whitespace) paths reduced to the file name; applied in PipelineFault::new before the message enters fault data",
+  "SharedDevice::new -> Result<Self, PipelineFault> (from_external and OutputPipeline::new return the fault); harness WgpuDisplay::new unchanged (formats the fault with Display)",
+  "lib.rs: DESCRIPTOR submit_failure entry citing the tests; compile_fail doctest for InjectedFault (V4-04)"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-render-gpu --features test-faults,shared-device --no-fail-fast ; cargo test --doc -p hsk-studio-render-gpu",
+  "exit": 0,
+  "sha": "2e52586",
+  "passed": 55,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "validator round on 2e52586 (round features render-gpu test-faults + shared-device: tests/gpu_submit_fault.rs needs test-faults, its shared_device_new_returns_the_fault_detail needs shared-device too)",
+ "updated_at": "2026-10-15T00:22:44Z",
+ "notes": {
+  "spec_basis": "STU-ARC-002 (GPU isolation: PipelineFault, redact_paths and the injected-fault enum name no wgpu type); the DESCRIPTOR privacy line (no path bytes in telemetry) extended to fault data by redact_paths; no spec clause on submit/read-back faults found: codes and the lost-after-panic rule are a Studio reading",
+  "source_basis": "wgpu 27.0.1 backend/wgpu_core.rs: Queue::submit and CommandEncoder errors go through handle_error_nolabel (scopes, else handler, else panic), Buffer::map_async errors through handle_error_nolabel plus the callback; Device::poll (non-poll errors) and Buffer::get_mapped_range use handle_error_fatal (panic): hence the catch_unwind",
+  "tests_detail": "gpu_submit_fault 5/5 (live dx12:discrete:NVIDIA GeForce RTX 3090): submit_error_is_typed_and_the_device_stays_usable (out-of-bounds read-back copy: Gpu(submit_fault), label readback, class validation, message 'Copy of 0..1040 would end up overrunning the bounds of the Source buffer of size 1024', 0 sink calls, then a clean execution on the same generation, worst |delta| <= 1e-6, more than one chunk), readback_failure_is_typed_with_its_cause (destroyed staging: Gpu(readback_map_failed), class validation, object 'hsk-studio-render-gpu staging', device usable afterwards), panic_in_execution_is_typed_and_latches_the_device_lost (Gpu(submit_panic) with the panic text, is_lost, next execute DeviceLost{generation}, reacquire generation+1 renders), shared_device_new_returns_the_fault_detail (host device with max_storage_buffers_per_shader_stage 2: PipelineFault pipeline_create, label 'hsk-studio-render-gpu layout', class validation, wgpu limit message), redact_paths_keeps_only_file_names (FXC drive path with spaces, C:/ path, UNC, Unix, two paths; and/or, a / b, https URL, wgpu context line and empty text unchanged; PipelineFault::new redacts and parses the object). gpu_pipeline_fault fxc test now also asserts no cwd / drive path in the FXC message. Full render-gpu suite --features test-faults,shared-device 49/49 (gpu_blur, gpu_filters, shared_device, gpu_pipeline_fault, gpu_plan, composition_frames, ...) and doctests 6/6. clippy render-gpu (test-faults+shared-device --tests, default --tests) and harness --features desktop --tests: 0 warnings in render-gpu/harness",
+  "gpu_proof": "tests/gpu-proof.toml require_gpu = true: no adapter = FAIL with NOT_PROVEN: no adapter (shared-device test likewise); only DX12 exercised on this host, Vulkan/Metal NOT_PROVEN",
+  "run_caveat": "the full-suite run compiled the composite dev-dependency with another lane's uncommitted edits in crates/hsk-studio-composite (vector.rs, vector_nib.rs, evaluate_static.rs, lib.rs, lower_render_plan.rs); a moment earlier the composite crate did not compile; the 18-test focused set (gpu_blur, gpu_filters, gpu_pipeline_fault, gpu_submit_fault, shared_device, 3 gpu_plan tests) passed at the same render-gpu content before that",
+  "gaps": "wgpu 27 error scopes are per device: on a shared device a host error raised on another thread during a chunk is attributed to the chunk (documented in DESCRIPTOR); after a caught panic the backend is latched lost even if the device is fine (state unknown); an encoder error names no object, so object falls back to the operation label; Unix paths containing spaces are only cut up to the first space; errors from the shared-device host's own submits are not ours",
+  "outside_owned_paths": "plan_sink/shared.rs (SharedDevice::new return type, waiver accepted by the lead for this lane's brief item 2); lib.rs DESCRIPTOR + doctest",
+  "unowned_dirty_files": "composite (another lane, WIP), pigment, harness view/*.rs, Cargo.lock: not touched",
+  "cargo_lock": "not touched",
+  "v4": "V4-01 deny(arithmetic_side_effects) on pipeline.rs (redaction uses saturating/checked indices), device.rs; V4-02 messages bounded to 4096 bytes after redaction; V4-03 live tests gated per gpu-proof.toml; V4-04 inject_submit_fault + InjectedFault only under test-faults (compile_fail doctest); V4-07 DESCRIPTOR claims cite tests; V4-09 commit -F",
+  "retry_guard": "one hook refusal: a command starting with sleep instead of the leading cd resolved the WP-KERNEL-012 gameplan; rerun with the leading cd (no gameplan step touched)"
+ }
+}

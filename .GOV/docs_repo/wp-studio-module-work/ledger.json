@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T00:13:38Z",
+ "updated_at": "2026-10-15T00:23:51Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -5165,12 +5165,15 @@
   {
    "lane_id": "SMB-RENDER-GPU-SUBMIT-FAULT",
    "crate": "hsk-studio-render-gpu",
-   "phase": "queued",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": null,
-   "commits": [],
+   "commits": [
+    "2e52586"
+   ],
    "verdicts": [],
-   "note": "after a2d17b0: errors raised at submit still surface as device_fault; SharedDevice::new returns code without detail; FXC message carries a machine path (redact to file name before it enters fault data)"
+   "note": "known limits: device-wide wgpu error scopes may misattribute another thread's error on a shared device; post-panic device marked lost conservatively; Unix path redaction stops at first space; Vulkan/Metal NOT_PROVEN",
+   "lane_file": "builders/lanes/hsk-studio-render-gpu-submit-fault.json"
   },
   {
    "lane_id": "SMB-COMPOSITE-COMPOSITION-2",
