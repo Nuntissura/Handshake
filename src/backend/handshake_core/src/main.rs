@@ -93,10 +93,12 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         control_plane.database.clone(), control_plane.surreal.clone(), capability_registry.clone(),
     );
     let (activation_tx, mut activation_rx) = tokio::sync::mpsc::channel(16);
+    let mounted: api::workspace_activation_readiness::MountedApiState =
+        Arc::new(tokio::sync::RwLock::new(None));
     let bootstrap = api::authority::bootstrap_routes(bootstrap_state.clone(), activation_tx)
         .merge(api::workspaces::bootstrap_routes(bootstrap_state.clone()))
-        .merge(Router::new().route("/health", get(bootstrap_health)).with_state(bootstrap_state));
-    let mounted = Arc::new(tokio::sync::RwLock::new(None::<Router>));
+        .merge(Router::new().route("/health", get(bootstrap_health)).with_state(bootstrap_state.clone()))
+        .layer(axum::Extension(mounted.clone()));
     let dispatch_mount = mounted.clone();
     let app = bootstrap.clone().nest("/api", bootstrap)
         .fallback(move |request: axum::extract::Request| {
@@ -104,9 +106,9 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
             async move {
                 let guard = mounted.read_owned().await;
                 match guard.as_ref() {
-                    Some(router) => {
+                    Some(current) => {
                         use futures::StreamExt;
-                        let response = dispatch_router(router.clone(), request).await;
+                        let response = dispatch_router(current.router(), request).await;
                         let (parts, body) = response.into_parts();
                         let body = body.into_data_stream().map(move |chunk| {
                             let _runtime_dispatch_owner = &guard;
@@ -330,6 +332,8 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
             launch_service.clone(), catalog, cloud_registry, model_access_state.cli_auth_probe(),
             cli_providers, state.flight_recorder.clone(), state.session_registry.clone(),
         );
+        let mounted_runtime = process_runtime.clone();
+        let runtime_instance = process_runtime.runtime_instance().clone();
         let api::ApiRoutes { router: api_routes, runtime: api_runtime } =
             api::routes_with_scoped_operator_chat(
                 state.clone(), process_runtime, product_local_scope.clone(), model_access_state,
@@ -345,8 +349,10 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         tracing::info!(target: "handshake_core", listen_addr = %actual_addr, "handshake_core started");
 
         let mut publication = mounted.write().await;
-        let publication_result = activation.acknowledge_with(|| {
-            *publication = Some(scoped_app);
+        let publication_result = activation.acknowledge_with(&runtime_instance, || {
+            *publication = Some(api::workspace_activation_readiness::MountedApi::new(
+                scoped_app, mounted_runtime, bootstrap_state.clone(), product_local_scope.exact().clone(),
+            ));
             Ok(())
         }).await;
         if publication_result.is_err() {
@@ -363,7 +369,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
                     _ = &mut connection_drain_deadline => break (None, true),
                     request = activation_rx.recv() => match request {
                         Some(request) if request.scope() == &product_local_scope => {
-                            let _ = request.acknowledge_with(|| Ok(())).await;
+                            let _ = request.acknowledge_with(&runtime_instance, || Ok(())).await;
                         }
                         Some(request) => { next_activation = Some(request); break (None, false); }
                         None => break (None, false),

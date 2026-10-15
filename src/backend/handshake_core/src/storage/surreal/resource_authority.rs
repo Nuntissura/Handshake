@@ -47,6 +47,185 @@ struct RegistryPublicationAuthority {
     session_expires_at: Datetime,
 }
 
+// Navigation captures remain separate from registry write authority.
+#[derive(Clone, Debug, Eq, PartialEq, SurrealValue)]
+pub(super) struct NavigationPublicationFacts {
+    pub(super) grant_id: RecordId,
+    pub(super) resource_id: RecordId,
+    pub(super) account_id: RecordId,
+    pub(super) principal_id: RecordId,
+    pub(super) actor_kind: String,
+    pub(super) actor_id: String,
+    pub(super) session_id: RecordId,
+    pub(super) access_space_id: RecordId,
+    pub(super) grant_version: i64,
+    pub(super) policy_versions: Vec<i64>,
+    pub(super) revocation_epochs: Vec<i64>,
+    pub(super) actions: Vec<String>,
+    pub(super) capability_ids: Vec<String>,
+    pub(super) delegation_chain: Vec<String>,
+    pub(super) session_capabilities: Vec<String>,
+    pub(super) principal_capabilities: Vec<String>,
+    pub(super) capability_profile_id: String,
+    pub(super) statuses: Vec<String>,
+    pub(super) resource_kind: String,
+    pub(super) grant_expires_at: Option<Datetime>,
+    pub(super) session_expires_at: Datetime,
+}
+
+#[derive(Clone)]
+pub(crate) struct CapturedActivationAuthority {
+    operation_id: Uuid,
+    scope: RecordUserScope,
+    association: crate::swarm_orchestration::resource_scope::ResourceAccessGrantAssociation,
+    facts: NavigationPublicationFacts,
+}
+
+impl CapturedActivationAuthority {
+    pub(super) fn operation_id(&self) -> Uuid { self.operation_id }
+    pub(super) fn scope(&self) -> &RecordUserScope { &self.scope }
+    pub(super) fn association(&self) -> &crate::swarm_orchestration::resource_scope::ResourceAccessGrantAssociation {
+        &self.association
+    }
+    pub(super) fn facts(&self) -> &NavigationPublicationFacts { &self.facts }
+}
+
+#[derive(Debug)]
+pub(crate) struct ActivationSettlementError {
+    pub(crate) cause: ResourceAuthorityError,
+}
+
+type ActivationPublicationFence = std::sync::Arc<tokio::sync::OwnedRwLockReadGuard<()>>;
+
+pub(crate) enum ActivationObservationError {
+    Authentication,
+    NotFound,
+    Unavailable,
+}
+
+fn activation_observation_authority_error(error: ResourceAuthorityError) -> ActivationObservationError {
+    match error {
+        ResourceAuthorityError::Storage(SurrealStorageError::Database(error)) if matches!(
+            error.not_allowed_details(),
+            Some(surrealdb::types::NotAllowedError::Auth(
+                surrealdb::types::AuthError::TokenExpired | surrealdb::types::AuthError::SessionExpired
+                | surrealdb::types::AuthError::InvalidAuth | surrealdb::types::AuthError::MissingUserOrPass
+                | surrealdb::types::AuthError::InvalidPass | surrealdb::types::AuthError::NotAllowed { .. }
+            ))
+        ) => ActivationObservationError::Authentication,
+        ResourceAuthorityError::Storage(_) => ActivationObservationError::Unavailable,
+        _ => ActivationObservationError::Authentication,
+    }
+}
+
+pub(crate) struct AuthorizedActivationObservation<'a> {
+    envelope: &'a handshake_account_activation::ActivationOriginalEnvelope,
+    exact: &'a crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+    outcome: Option<&'a super::workspace_activation_outcome::StoredActivationOutcome>,
+}
+
+impl AuthorizedActivationObservation<'_> {
+    pub(crate) fn exact(&self) -> &crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution { self.exact }
+    pub(crate) fn encode<R: Serialize>(&self, readiness: Option<&R>) -> Result<serde_json::Value, ResourceAuthorityError> {
+        use handshake_account_activation::{WorkspaceActivationObservation, WorkspaceActivationOutcome,
+            WorkspaceActivationReadiness, WorkspaceActivationAcknowledgement, ActivationPublicationWitness};
+        let invalid=||ResourceAuthorityError::InvalidInput("activation observation encoding failed");
+        let readiness=match readiness {
+            Some(descriptor)=>WorkspaceActivationReadiness::Current {
+                descriptor:serde_json::to_value(descriptor).map_err(|_|invalid())? },
+            None=>WorkspaceActivationReadiness::Unavailable,
+        };
+        let outcome=match self.outcome.and_then(|outcome|outcome.applied()) {
+            Some(applied)=>WorkspaceActivationOutcome::Applied {
+                result:serde_json::from_value::<WorkspaceActivationAcknowledgement>(applied.result().clone()).map_err(|_|invalid())?,
+                publication_witness:serde_json::from_value::<ActivationPublicationWitness<serde_json::Value>>(
+                    applied.publication_witness().clone()).map_err(|_|invalid())?,
+            },
+            None=>WorkspaceActivationOutcome::Unresolved,
+        };
+        let envelope=self.envelope;
+        WorkspaceActivationObservation {
+            schema_id:"hsk.workspace_activation.observation@1".into(),operation_id:envelope.operation_id,
+            owner_account_id:envelope.owner_account_id.clone(),actor_principal_id:envelope.actor_principal_id.clone(),
+            authenticated_session_id:envelope.authenticated_session_id.clone(),access_space_id:envelope.access_space_id.clone(),
+            workspace_id:envelope.workspace_id.clone(),readiness,outcome,
+        }.to_value().map_err(|_|invalid())
+    }
+}
+
+#[derive(Clone, SurrealValue)]
+struct NavigationActivationBindings {
+    token_hash: String,
+    channel_hash: String,
+    session: RecordId,
+    resource: RecordId,
+    original_grant: Option<RecordId>,
+    workspace: String,
+}
+
+// This server-only transaction never authenticates a client as a privileged user.
+// Every bookkeeping statement is bracketed by the same canonical session/grant snapshot.
+const NAVIGATION_ACTIVATION_FACTS: &str = "
+LET $activation_session = (SELECT * FROM authenticated_sessions WHERE id = $session AND token_hash = $token_hash AND channel_binding_hash = $channel_hash AND revoked_at = NONE AND expires_at > time::now() AND account_id.status = 'enabled' AND principal_id.status = 'enabled' AND access_space_id.status = 'active' AND principal_id.account_id = account_id AND access_space_id.account_id = account_id AND account_revocation_epoch = account_id.revocation_epoch AND principal_revocation_epoch = principal_id.revocation_epoch AND space_revocation_epoch = access_space_id.revocation_epoch AND policy_version >= account_id.policy_version AND policy_version >= principal_id.policy_version AND policy_version >= access_space_id.policy_version LIMIT 1)[0];
+SELECT id AS grant_id, resource_id, account_id, principal_id, principal_id.actor_kind AS actor_kind, principal_id.actor_id AS actor_id, $activation_session.id AS session_id, access_space_id, grant_version, [policy_version, resource_id.policy_version, account_id.policy_version, principal_id.policy_version, access_space_id.policy_version, $activation_session.policy_version] AS policy_versions, [account_id.revocation_epoch, principal_id.revocation_epoch, access_space_id.revocation_epoch, $activation_session.account_revocation_epoch, $activation_session.principal_revocation_epoch, $activation_session.space_revocation_epoch] AS revocation_epochs, actions, capability_ids, delegation_chain, $activation_session.delegated_capabilities AS session_capabilities, principal_id.delegated_capabilities AS principal_capabilities, principal_id.capability_profile_id AS capability_profile_id, [status, resource_id.lifecycle_state, account_id.status, principal_id.status, access_space_id.status] AS statuses, resource_id.resource_kind AS resource_kind, expires_at AS grant_expires_at, $activation_session.expires_at AS session_expires_at FROM resource_grants WHERE $activation_session.id != NONE AND account_id = $activation_session.account_id AND principal_id = $activation_session.principal_id AND access_space_id = $activation_session.access_space_id AND resource_id = $resource AND ($original_grant = NONE OR id = $original_grant) AND resource_id.resource_kind = 'workspace' AND resource_id.external_resource_id = $workspace AND resource_id.owner_account_id = account_id AND resource_id.access_space_id = access_space_id AND resource_id.lifecycle_state = 'active' AND resource_id.created_by_principal_id.status = 'enabled' AND status = 'active' AND revoked_at = NONE AND (expires_at = NONE OR expires_at > time::now()) AND actions CONTAINS 'read' AND capability_ids CONTAINS 'model_lane.navigation.read' AND delegation_chain = $activation_session.delegation_chain AND policy_version <= $activation_session.policy_version AND resource_id.policy_version <= policy_version AND $activation_session.delegated_capabilities CONTAINS 'model_lane.navigation.read' AND principal_id.delegated_capabilities CONTAINS 'model_lane.navigation.read' ORDER BY id ASC LIMIT 2;";
+
+async fn navigation_activation_facts(
+    transaction: &super::SurrealTransactionContext<'_>,
+    bindings: NavigationActivationBindings,
+    registry: &crate::capabilities::CapabilityRegistry,
+) -> Result<NavigationPublicationFacts, ResourceAuthorityError> {
+    let mut rows: Vec<NavigationPublicationFacts> = transaction.query_values_at(NAVIGATION_ACTIVATION_FACTS, bindings, 1).await?;
+    if rows.len() != 1 { return Err(ResourceAuthorityError::InvalidInput("activation navigation authority unavailable")); }
+    let facts = rows.remove(0);
+    if !registry.profile_can(&facts.capability_profile_id, "model_lane.navigation.read").unwrap_or(false)
+        || !facts.statuses.iter().map(String::as_str).eq(["active","active","enabled","enabled","active"])
+        || facts.resource_kind != "workspace"
+    { return Err(ResourceAuthorityError::InvalidInput("activation navigation authority denied")); }
+    Ok(facts)
+}
+
+impl CapturedActivationAuthority {
+    fn bindings(&self) -> Result<NavigationActivationBindings, ResourceAuthorityError> {
+        Ok(NavigationActivationBindings {
+            token_hash: sha256_hex(self.scope.session_token.as_bytes()),
+            channel_hash: self.scope.channel_binding_hash.clone().ok_or(ResourceAuthorityError::InvalidInput("activation channel unavailable"))?,
+            session: RecordId::new("authenticated_sessions", self.scope.session_id.clone()),
+            resource: self.facts.resource_id.clone(), original_grant: Some(self.facts.grant_id.clone()),
+            workspace: self.association.exact.workspace_id.as_str().to_owned(),
+        })
+    }
+
+    fn envelope(&self) -> Result<handshake_account_activation::ActivationOriginalEnvelope, ResourceAuthorityError> {
+        let facts = &self.facts;
+        Ok(handshake_account_activation::ActivationOriginalEnvelope {
+            operation_id:self.operation_id,
+            owner_account_id:record_key(facts.account_id.clone())?,
+            actor_principal_id:record_key(facts.principal_id.clone())?,
+            authenticated_session_id:record_key(facts.session_id.clone())?,
+            access_space_id:record_key(facts.access_space_id.clone())?,
+            workspace_id:self.association.exact.workspace_id.as_str().to_owned(),
+            resource_id:record_key(facts.resource_id.clone())?,grant_id:record_key(facts.grant_id.clone())?,
+            grant_version:facts.grant_version,policy_version:self.association.policy_version,
+            policy_versions:facts.policy_versions.clone().try_into().map_err(|_|ResourceAuthorityError::InvalidInput("activation policy shape"))?,
+            revocation_epochs:facts.revocation_epochs.clone().try_into().map_err(|_|ResourceAuthorityError::InvalidInput("activation epoch shape"))?,
+            actor_kind:facts.actor_kind.clone(),actor_id:facts.actor_id.clone(),
+            actions:facts.actions.clone(),capability_ids:facts.capability_ids.clone(),delegation_chain:facts.delegation_chain.clone(),
+            session_capabilities:facts.session_capabilities.clone(),principal_capabilities:facts.principal_capabilities.clone(),
+            capability_profile_id:facts.capability_profile_id.clone(),
+            statuses:facts.statuses.clone().try_into().map_err(|_|ResourceAuthorityError::InvalidInput("activation status shape"))?,
+            resource_kind:facts.resource_kind.clone(),capability_id:self.scope.capability_id.clone(),
+            action:self.scope.action.as_str().to_owned(),purpose:self.association.purpose.clone(),
+            grant_expires_at:facts.grant_expires_at.as_ref().map(|expiry|expiry.clone().into_inner().to_rfc3339()),
+            session_expires_at:facts.session_expires_at.clone().into_inner().to_rfc3339(),
+        })
+    }
+
+    fn require_unexpired(&self) -> Result<(), ResourceAuthorityError> {
+        CanonicalNavigationPublicationAuthority { grant_expires_at:self.facts.grant_expires_at.clone(),
+            session_expires_at:self.facts.session_expires_at.clone() }.require_unexpired()
+    }
+}
+
 pub(crate) struct CanonicalNavigationPublicationAuthority {
     grant_expires_at: Option<Datetime>,
     session_expires_at: Datetime,
@@ -1208,6 +1387,231 @@ impl SurrealStorage {
             1 => Ok(rows.into_iter().next()),
             _ => Err(SurrealStorageError::from(surrealdb::Error::internal("protected resource lookup was not canonical".to_owned())).into()),
         }
+    }
+
+    async fn with_activation_transaction<T, F>(
+        &self, fence: ActivationPublicationFence, operation: F,
+    ) -> Result<T, ResourceAuthorityError>
+    where
+        T: Send + 'static,
+        F: for<'a> FnOnce(super::SurrealTransactionContext<'a>)
+            -> super::SurrealTransactionOperation<'a, T, ResourceAuthorityError> + Send + 'static,
+    {
+        let storage=self.clone();
+        // The owning await survives request cancellation, retaining the fence through
+        // the existing controller's observed commit/cancel, including callback errors.
+        tokio::spawn(async move {
+            let result=storage.with_transaction(operation).await;
+            drop(fence);
+            result
+        }).await.map_err(|_|ResourceAuthorityError::InvalidInput("activation transaction settlement unresolved"))?
+    }
+
+    pub(crate) async fn capture_activation_authority(
+        &self, operation_id: Uuid, scope: RecordUserScope,
+        association: crate::swarm_orchestration::resource_scope::ResourceAccessGrantAssociation,
+        registry: &crate::capabilities::CapabilityRegistry,
+    ) -> Result<CapturedActivationAuthority, ResourceAuthorityError> {
+        if operation_id.is_nil() || scope.capability_id != "model_lane.navigation.read"
+            || scope.action != ResourceAction::Read || association.capability_id != scope.capability_id
+            || association.action != "read" || association.purpose != "navigation_read"
+            || scope.session_id != association.exact.authenticated_session_id.to_string()
+            || scope.workspace_id.as_deref() != Some(association.exact.workspace_id.as_str())
+            || scope.grant_id.as_deref() != Some(association.grant_id.as_str())
+            || scope.resource_id != association.resource_id
+        { return Err(ResourceAuthorityError::InvalidInput("activation original authority mismatch")); }
+        let bindings = NavigationActivationBindings {
+            token_hash:sha256_hex(scope.session_token.as_bytes()),
+            channel_hash:scope.channel_binding_hash.clone().ok_or(ResourceAuthorityError::InvalidInput("activation channel unavailable"))?,
+            session:RecordId::new("authenticated_sessions",scope.session_id.clone()),
+            resource:RecordId::new("protected_resources",association.resource_id.clone()),
+            original_grant:Some(RecordId::new("resource_grants",association.grant_id.clone())),
+            workspace:association.exact.workspace_id.as_str().to_owned(),
+        };
+        let registry = registry.clone();
+        let fence=std::sync::Arc::new(self.authority_publication_read().await?);
+        let facts = self.with_activation_transaction(fence, move |transaction| Box::pin(async move {
+            navigation_activation_facts(&transaction, bindings, &registry).await
+        })).await?;
+        let exact = &association.exact;
+        if facts.account_id != RecordId::new("local_accounts",exact.owner_account_id.to_string())
+            || facts.principal_id != RecordId::new("principals",exact.actor_principal_id.to_string())
+            || facts.access_space_id != RecordId::new("access_spaces",exact.access_space_id.to_string())
+            || facts.grant_version != association.grant_version
+            || facts.policy_versions.first().copied() != Some(association.policy_version)
+        { return Err(ResourceAuthorityError::InvalidInput("activation original authority changed")); }
+        Ok(CapturedActivationAuthority { operation_id,scope,association,facts })
+    }
+
+    pub(crate) async fn settle_activation_and_publish<R, F, D>(
+        &self, captured: &CapturedActivationAuthority,
+        registry: &crate::capabilities::CapabilityRegistry, runtime: &R, publication: F, deliver: D,
+    ) -> Result<(), ActivationSettlementError>
+    where R: Serialize + Sync, F: FnOnce()->Result<(),ResourceAuthorityError>+Send,
+        D: FnOnce(&super::workspace_activation_outcome::CanonicalAppliedActivation)->Result<(),ResourceAuthorityError>+Send {
+        self.settle_activation_and_publish_inner(captured,registry,runtime,publication,deliver)
+            .await.map_err(|cause|ActivationSettlementError{cause})
+    }
+
+    async fn settle_activation_and_publish_inner<R, F, D>(
+        &self, captured: &CapturedActivationAuthority,
+        registry: &crate::capabilities::CapabilityRegistry, runtime: &R, publication: F, deliver: D,
+    ) -> Result<(), ResourceAuthorityError>
+    where R: Serialize + Sync, F: FnOnce()->Result<(),ResourceAuthorityError>+Send,
+        D: FnOnce(&super::workspace_activation_outcome::CanonicalAppliedActivation)->Result<(),ResourceAuthorityError>+Send {
+        use super::workspace_activation_outcome::{self as outcome, ActivationPreparation};
+        let fence=std::sync::Arc::new(self.authority_publication_read().await?);
+        let owner = captured.clone();
+        let registry_before = registry.clone();
+        let cancellation = super::ContextOperationCancellation::new();
+        let prepared = self.with_owned_activation_transaction(
+            captured.clone(), fence.clone(), cancellation.clone(), move |transaction| Box::pin(async move {
+            let before = navigation_activation_facts(&transaction, owner.bindings()?, &registry_before).await?;
+            if before != owner.facts { return Err(ResourceAuthorityError::InvalidInput("activation original authority changed")); }
+            let preparation = outcome::prepare_activation(&transaction,&owner.envelope()?).await?;
+            let after = navigation_activation_facts(&transaction, owner.bindings()?, &registry_before).await?;
+            if after != before { return Err(ResourceAuthorityError::InvalidInput("activation authority changed before prepare commit")); }
+            Ok::<_,ResourceAuthorityError>(preparation)
+        })).await?;
+        let newly_prepared = match prepared {
+            ActivationPreparation::NewlyPrepared(owner)=>owner,
+            ActivationPreparation::Pending=>return Err(ResourceAuthorityError::InvalidInput("activation settlement unresolved")),
+            ActivationPreparation::Applied(applied)=> {
+                return self.resource_access_lifecycle().with_authorized_association(&captured.association,|| {
+                    captured.require_unexpired()?;
+                    deliver(&applied)
+                }).map_err(|_|ResourceAuthorityError::InvalidInput("activation delivery lifecycle denied"))?;
+            },
+        };
+        // This asynchronous recheck finishes before entering the synchronous registry lock.
+        let owner = captured.clone();
+        let registry_publication = registry.clone();
+        self.with_activation_transaction(fence.clone(), move |transaction|Box::pin(async move {
+            let current=navigation_activation_facts(&transaction,owner.bindings()?,&registry_publication).await?;
+            if current!=owner.facts { return Err(ResourceAuthorityError::InvalidInput("activation publication authority changed")); }
+            Ok::<_,ResourceAuthorityError>(())
+        })).await?;
+        let lifecycle=self.resource_access_lifecycle();
+        let witness=lifecycle.with_authorized_association(&captured.association,|| {
+            captured.require_unexpired()?;
+            newly_prepared.publish_after_observed_commit(runtime,publication)
+        }).map_err(|_|ResourceAuthorityError::InvalidInput("activation publication lifecycle denied"))??;
+        let owner=captured.clone();
+        let registry_final=registry.clone();
+        let applied=self.with_owned_activation_transaction(
+            captured.clone(), fence.clone(), cancellation, move |transaction|Box::pin(async move {
+            let before=navigation_activation_facts(&transaction,owner.bindings()?,&registry_final).await?;
+            if before!=owner.facts { return Err(ResourceAuthorityError::InvalidInput("activation finalization authority changed")); }
+            let applied=outcome::finalize_activation(&transaction,witness).await?;
+            let after=navigation_activation_facts(&transaction,owner.bindings()?,&registry_final).await?;
+            if after!=before { return Err(ResourceAuthorityError::InvalidInput("activation authority changed before final commit")); }
+            Ok::<_,ResourceAuthorityError>(applied)
+        })).await?;
+        let expected_result=applied.result().clone();
+        let expected_witness=applied.publication_witness().clone();
+        let owner=captured.clone();
+        let registry_read=registry.clone();
+        let canonical=self.with_activation_transaction(fence.clone(), move |transaction|Box::pin(async move {
+            let before=navigation_activation_facts(&transaction,owner.bindings()?,&registry_read).await?;
+            if before!=owner.facts { return Err(ResourceAuthorityError::InvalidInput("activation delivery authority changed")); }
+            let stored=outcome::read_activation(&transaction,owner.operation_id).await?
+                .ok_or(ResourceAuthorityError::InvalidInput("activation settlement unresolved"))?;
+            let confirmed=stored.applied().ok_or(ResourceAuthorityError::InvalidInput("activation settlement unresolved"))?;
+            if stored.envelope()!=&owner.envelope()? || confirmed.result()!=&expected_result
+                || confirmed.publication_witness()!=&expected_witness {
+                return Err(ResourceAuthorityError::InvalidInput("activation settlement unresolved"));
+            }
+            let after=navigation_activation_facts(&transaction,owner.bindings()?,&registry_read).await?;
+            if after!=before { return Err(ResourceAuthorityError::InvalidInput("activation delivery authority changed")); }
+            Ok::<_,ResourceAuthorityError>(stored)
+        })).await?;
+        let canonical=canonical.applied().ok_or(ResourceAuthorityError::InvalidInput("activation settlement unresolved"))?;
+        lifecycle.with_authorized_association(&captured.association,|| {
+            captured.require_unexpired()?;
+            deliver(canonical)
+        }).map_err(|_|ResourceAuthorityError::InvalidInput("activation delivery lifecycle denied"))?
+    }
+
+    pub(crate) async fn read_activation_and_publish<F>(
+        &self, token:&str, channel_hash:&str, operation_id:Uuid, workspace_id:&str,
+        registry:&crate::capabilities::CapabilityRegistry, publish:F,
+    )->Result<serde_json::Value,ActivationObservationError>
+    where F:for<'a> FnOnce(AuthorizedActivationObservation<'a>)->Result<serde_json::Value,ResourceAuthorityError>+Send {
+        use crate::swarm_orchestration::resource_scope::{AccessSpaceRef,ActorPrincipalId,AuthenticatedSessionRef,
+            ExactResourceScopeAttribution,OwnerAccountId,ResourceAccessGrantAssociation,
+            ResourceAccessLifecycleDecision,ResourceAccessLifecycleState,WorkspaceScopeRef};
+        let fence=std::sync::Arc::new(self.authority_publication_read().await.map_err(|_|ActivationObservationError::Unavailable)?);
+        let session=self.authenticate_local_session(token,channel_hash).await.map_err(activation_observation_authority_error)?;
+        if !session.delegated_capabilities.iter().any(|capability|capability=="model_lane.navigation.read") {
+            return Err(ActivationObservationError::Authentication);
+        }
+        let locator=self.canonical_resource_locator(ResourceKind::Workspace,workspace_id).await
+            .map_err(|_|ActivationObservationError::Unavailable)?.ok_or(ActivationObservationError::NotFound)?;
+        if locator.owner_account_id!=RecordId::new("local_accounts",session.identity.account_id.clone())
+            || locator.access_space_id!=RecordId::new("access_spaces",session.identity.access_space_id.clone())
+        { return Err(ActivationObservationError::NotFound); }
+        let parse_id=|id:&str|Uuid::parse_str(id).map_err(|_|ActivationObservationError::Authentication);
+        let exact=ExactResourceScopeAttribution {
+            owner_account_id:OwnerAccountId::from_uuid(parse_id(&session.identity.account_id)?),
+            actor_principal_id:ActorPrincipalId::from_uuid(parse_id(&session.identity.principal_id)?),
+            authenticated_session_id:AuthenticatedSessionRef::from_uuid(parse_id(&session.session_id)?),
+            access_space_id:AccessSpaceRef::from_uuid(parse_id(&session.identity.access_space_id)?),
+            workspace_id:WorkspaceScopeRef::new(workspace_id).map_err(|_|ActivationObservationError::NotFound)?,
+        };
+        let lifecycle=self.resource_access_lifecycle();
+        let bindings=NavigationActivationBindings {
+            token_hash:sha256_hex(token.as_bytes()),channel_hash:channel_hash.to_owned(),
+            session:RecordId::new("authenticated_sessions",session.session_id.clone()),resource:locator.id,
+            original_grant:None,workspace:workspace_id.to_owned(),
+        };
+        let registry=registry.clone();let exact_for_read=exact.clone();
+        let token=token.to_owned();let channel_hash=channel_hash.to_owned();
+        let (captured,stored)=self.with_activation_transaction(fence.clone(), move |transaction|Box::pin(async move {
+            let stored=super::workspace_activation_outcome::read_activation(&transaction,operation_id).await?;
+            let mut bindings=bindings;
+            if let Some(stored)=&stored {
+                let envelope=stored.envelope();
+                if envelope.owner_account_id!=exact_for_read.owner_account_id.to_string()
+                    || envelope.actor_principal_id!=exact_for_read.actor_principal_id.to_string()
+                    || envelope.authenticated_session_id!=exact_for_read.authenticated_session_id.to_string()
+                    || envelope.access_space_id!=exact_for_read.access_space_id.to_string()
+                    || envelope.workspace_id!=exact_for_read.workspace_id.as_str()
+                { return Err(ResourceAuthorityError::InvalidInput("activation observation tuple mismatch")); }
+                bindings.original_grant=Some(RecordId::new("resource_grants",envelope.grant_id.clone()));
+            }
+            let before=navigation_activation_facts(&transaction,bindings.clone(),&registry).await?;
+            let association=ResourceAccessGrantAssociation {exact:exact_for_read,
+                resource_id:record_key(before.resource_id.clone())?,grant_id:record_key(before.grant_id.clone())?,
+                grant_version:before.grant_version,policy_version:*before.policy_versions.first()
+                    .ok_or(ResourceAuthorityError::InvalidInput("activation policy unavailable"))?,
+                capability_id:"model_lane.navigation.read".into(),action:"read".into(),purpose:"navigation_read".into()};
+            let scope=RecordUserScope {grant_id:Some(association.grant_id.clone()),
+                workspace_id:Some(association.exact.workspace_id.as_str().to_owned()),session_token:token,
+                channel_binding_hash:Some(channel_hash),resource_id:association.resource_id.clone(),
+                session_id:association.exact.authenticated_session_id.to_string(),
+                capability_id:"model_lane.navigation.read".into(),action:ResourceAction::Read};
+            let captured=CapturedActivationAuthority {operation_id,scope,association,facts:before.clone()};
+            if stored.as_ref().is_some_and(|stored|captured.envelope().map_or(true,|envelope|stored.envelope()!=&envelope)) {
+                return Err(ResourceAuthorityError::InvalidInput("activation observation original authority changed"));
+            }
+            let after=navigation_activation_facts(&transaction,bindings,&registry).await?;
+            if after!=before { return Err(ResourceAuthorityError::InvalidInput("activation observation authority changed")); }
+            Ok::<_,ResourceAuthorityError>((captured,stored))
+        })).await.map_err(|error| match error {
+            ResourceAuthorityError::InvalidInput("activation observation tuple mismatch")=>ActivationObservationError::NotFound,
+            error=>activation_observation_authority_error(error),
+        })?;
+        match lifecycle.decision(&exact).map_err(|_|ActivationObservationError::Unavailable)? {
+            ResourceAccessLifecycleDecision::Unknown=>return Err(ActivationObservationError::Unavailable),
+            ResourceAccessLifecycleDecision::Known{state:ResourceAccessLifecycleState::Active,..}=>{},
+            _=>return Err(ActivationObservationError::Authentication),
+        }
+        let envelope=captured.envelope().map_err(|_|ActivationObservationError::Unavailable)?;
+        lifecycle.with_authorized_association(&captured.association,|| {
+            captured.require_unexpired().map_err(|_|ActivationObservationError::Authentication)?;
+            publish(AuthorizedActivationObservation{envelope:&envelope,exact:&captured.association.exact,outcome:stored.as_ref()})
+                .map_err(|_|ActivationObservationError::Unavailable)
+        }).map_err(|_|ActivationObservationError::Authentication)?
     }
 
     pub(crate) async fn with_navigation_publication_authority<T, E, F>(

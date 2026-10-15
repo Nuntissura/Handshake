@@ -5,7 +5,7 @@
 //! Surreal-backed ResourceBroker before any protected product query is allowed.
 
 use axum::{
-    extract::State,
+    extract::{Path, State},
     http::{HeaderMap, StatusCode},
     routing::{get, post},
     Json, Router,
@@ -241,6 +241,7 @@ pub struct WorkspaceActivationRequest {
     scope: crate::api::account_scope::ProductLocalResourceScope,
     operation_id: uuid::Uuid,
     original_scope: RecordUserScope,
+    activation_authority: crate::storage::surreal::resource_authority::CapturedActivationAuthority,
     association: crate::swarm_orchestration::resource_scope::ResourceAccessGrantAssociation,
     reply: tokio::sync::oneshot::Sender<Result<WorkspaceActivationAcknowledgement, (StatusCode, Json<Value>)>>,
 }
@@ -273,47 +274,32 @@ impl WorkspaceActivationRequest {
         lifecycle.authorize_association(&self.association).map_err(|_| constant_denial())
     }
 
-    pub async fn acknowledge_with<F>(self, publication: F) -> Result<(), (StatusCode, Json<Value>)>
+    pub async fn acknowledge_with<R, F>(self, runtime: &R, publication: F) -> Result<(), (StatusCode, Json<Value>)>
     where
+        R: serde::Serialize + Sync,
         F: FnOnce() -> Result<(), (StatusCode, Json<Value>)> + Send,
     {
-        let lifecycle = self.state.surreal.resource_access_lifecycle();
+        use crate::storage::surreal::resource_authority::ResourceAuthorityError;
         let acknowledgement = WorkspaceActivationAcknowledgement {
             schema_version: "hsk.workspace_activation@1",
             operation_id: self.operation_id,
             scope: self.scope.exact().clone(),
         };
         let mut reply = Some(self.reply);
-        let association = self.association.clone();
-        let result = self.state.surreal.with_navigation_publication_authority(
-            self.original_scope, self.association, &self.state.capability_registry, |authority| {
-                // Canonical read ownership spans this synchronous lifecycle publication.
-                match lifecycle.with_authorized_association(&association, || {
-                    publication()?;
-                    authority.require_unexpired().map_err(|_| constant_denial())?;
-                    if let Some(reply) = reply.take() {
-                        let _ = reply.send(Ok(acknowledgement));
-                    }
-                    Ok(())
-                }) {
-                    Ok(result) => result,
-                    Err(_) => Err(constant_denial()),
+        let result = self.state.surreal.settle_activation_and_publish(
+            &self.activation_authority, &self.state.capability_registry, runtime,
+            || publication().map_err(|_| ResourceAuthorityError::InvalidInput("activation protected publication uncertain")),
+            |_| {
+                if let Some(reply) = reply.take() {
+                    let _ = reply.send(Ok(acknowledgement));
                 }
+                Ok(())
             },
         ).await;
-        let result = match result {
-            Ok(result) => result,
-            Err(crate::storage::surreal::resource_authority::ResourceAuthorityError::Storage(
-                crate::storage::surreal::SurrealStorageError::Database(error)
-            )) if error.not_allowed_details().is_some() => Err(constant_denial()),
-            Err(crate::storage::surreal::resource_authority::ResourceAuthorityError::Storage(_)) =>
-                Err(activation_unavailable()),
-            Err(_) => Err(constant_denial()),
-        };
         if let Err(error) = result {
-            if let Some(reply) = reply.take() {
-                let _ = reply.send(Err(error.clone()));
-            }
+            tracing::warn!(error = ?error.cause, "workspace activation settlement remains uncertain");
+            let error = activation_unavailable();
+            if let Some(reply) = reply.take() { let _ = reply.send(Err(error.clone())); }
             return Err(error);
         }
         Ok(())
@@ -358,15 +344,45 @@ async fn session_operation(
             ).await?;
             let scope = crate::api::account_scope::ProductLocalResourceScope::from_exact(association.exact.clone())
                 .map_err(|_| constant_denial())?;
+            let activation_authority = state.surreal.capture_activation_authority(
+                input.operation_id, original_scope.clone(), association.clone(), &state.capability_registry,
+            ).await.map_err(|error| match error {
+                crate::storage::surreal::resource_authority::ResourceAuthorityError::Storage(_) => activation_unavailable(),
+                _ => constant_denial(),
+            })?;
             let (reply, result) = tokio::sync::oneshot::channel();
             sender.send(WorkspaceActivationRequest {
                 state, headers, scope, operation_id: input.operation_id,
-                original_scope, association, reply,
+                original_scope, activation_authority, association, reply,
             }).await.map_err(|_| activation_unavailable())?;
             let acknowledgement = result.await.map_err(|_| activation_unavailable())??;
             serde_json::to_value(acknowledgement).map(Json).map_err(|_| constant_denial())
         }
     }
+}
+
+pub(crate) fn activation_observation_error_response(
+    error: crate::storage::surreal::resource_authority::ActivationObservationError,
+) -> (StatusCode, Json<Value>) {
+    use crate::storage::surreal::resource_authority::ActivationObservationError;
+    match error {
+        ActivationObservationError::Authentication => constant_denial(),
+        ActivationObservationError::NotFound => (StatusCode::NOT_FOUND, Json(json!({"error":"not_found"}))),
+        ActivationObservationError::Unavailable => activation_unavailable(),
+    }
+}
+
+async fn workspace_activation_observation(
+    State(state): State<AccountBootstrapState>,
+    Path((workspace_id, operation_id)): Path<(String, uuid::Uuid)>,
+    mounted: Option<axum::Extension<crate::api::workspace_activation_readiness::MountedApiState>>,
+    headers: HeaderMap,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    let session=authenticated_session_credentials_bootstrap(&state,&headers).await?;
+    let axum::Extension(mounted)=mounted.ok_or_else(activation_unavailable)?;
+    crate::api::workspace_activation_readiness::observe_workspace_activation(
+        &mounted,&state,&session.session_token,&session.channel_binding_hash,&workspace_id,operation_id,
+    ).await
 }
 
 pub fn routes(state: AppState) -> Router {
@@ -388,6 +404,7 @@ fn account_routes(
         .route("/authority/setup", get(setup_status).post(setup_owner))
         .route("/authority/login", post(login_owner))
         .route("/authority/session", get(current_session).post(session_operation))
+        .route("/authority/workspaces/{workspace_id}/activation/{operation_id}", get(workspace_activation_observation))
         .route("/authority/logout", post(logout))
         .layer(axum::Extension(activation))
         .with_state(state)

@@ -33,6 +33,7 @@ mod palmistry;
 mod process_ledger;
 mod swarm_outbox;
 mod user_manual_knowledge;
+pub(crate) mod workspace_activation_outcome;
 mod workspace_settings;
 
 mod ai_job_store;
@@ -1449,6 +1450,11 @@ pub(crate) fn authority_mutation_error(error: surrealdb::Error) -> surrealdb::Er
     error
 }
 
+struct ActivationTransactionRetention {
+    _authority: resource_authority::CapturedActivationAuthority,
+    _fence: Arc<OwnedRwLockReadGuard<()>>,
+}
+
 struct SurrealStorageInner {
     resource_access_lifecycle: crate::swarm_orchestration::resource_scope::ResourceAccessLifecycleRegistry,
     config: SurrealStorageConfig,
@@ -1463,7 +1469,7 @@ struct SurrealStorageInner {
     authority_publication_gate: Arc<RwLock<()>>,
     pending_authority_mutations: StdMutex<BTreeMap<uuid::Uuid, OwnedRwLockWriteGuard<()>>>,
     authority_pending_changed: watch::Sender<Option<uuid::Uuid>>,
-    transaction_settlements: StdMutex<BTreeSet<uuid::Uuid>>,
+    transaction_settlements: StdMutex<BTreeMap<uuid::Uuid, Option<ActivationTransactionRetention>>>,
     pending_context_guards: StdMutex<BTreeMap<uuid::Uuid, Vec<model_lane::ContextCoordinationGuard>>>,
     pending_context_acquisitions: StdMutex<BTreeMap<uuid::Uuid, model_lane::PendingContextAcquisition>>,
     /// Leases held right now and the high-water mark since the last reset:
@@ -1647,7 +1653,7 @@ impl SurrealStorage {
                 authority_publication_gate: Arc::new(RwLock::new(())),
                 pending_authority_mutations: StdMutex::new(BTreeMap::new()),
                 authority_pending_changed: watch::channel(None).0,
-                transaction_settlements: StdMutex::new(BTreeSet::new()),
+                transaction_settlements: StdMutex::new(BTreeMap::new()),
                 pending_context_guards: StdMutex::new(BTreeMap::new()),
                 pending_context_acquisitions: StdMutex::new(BTreeMap::new()),
                 leases_in_flight: AtomicUsize::new(0),
@@ -1887,6 +1893,32 @@ impl SurrealStorage {
         self.transaction_worker(TransactionInvocation::Existing, None, None, operation).await
     }
 
+    pub(crate) async fn with_owned_activation_transaction<T, E, F>(
+        &self,
+        owner: resource_authority::CapturedActivationAuthority,
+        fence: Arc<OwnedRwLockReadGuard<()>>,
+        cancellation: Arc<ContextOperationCancellation>,
+        operation: F,
+    ) -> Result<T, E>
+    where
+        T: Send + 'static,
+        E: From<SurrealStorageError> + Send + 'static,
+        F: for<'a> FnOnce(SurrealTransactionContext<'a>) -> SurrealTransactionOperation<'a, T, E>
+            + Send + 'static,
+    {
+        let operation_id = owner.operation_id();
+        self.reserve_transaction_settlement(operation_id, Some(ActivationTransactionRetention {
+            _authority: owner,
+            _fence: fence,
+        })).map_err(E::from)?;
+        self.transaction_worker(
+            TransactionInvocation::Existing,
+            Some(operation_id),
+            Some(cancellation),
+            operation,
+        ).await
+    }
+
     pub(crate) async fn with_authenticated_transaction<T, E, F>(
         &self, operation_id: uuid::Uuid, operation: F,
     ) -> Result<T, E>
@@ -1920,10 +1952,7 @@ impl SurrealStorage {
         if budget.is_zero() {
             return Err(E::from(SurrealStorageError::StatementBudgetExhausted { budget_ms: 0 }));
         }
-        if !self.inner.transaction_settlements.lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner()).insert(operation_id) {
-            return Err(E::from(SurrealStorageError::TransactionSettlementPending { operation_id }));
-        }
+        self.reserve_transaction_settlement(operation_id, None).map_err(E::from)?;
         self.transaction_worker(TransactionInvocation::Authenticated {
             scope, deadline: Instant::now() + budget, operation_id,
         }, Some(operation_id), cancellation, operation).await
@@ -1947,9 +1976,27 @@ impl SurrealStorage {
         tracing::error!(%operation_id, "owned ContextBundle coordination requires canonical reconciliation");
     }
 
+    fn reserve_transaction_settlement(
+        &self,
+        operation_id: uuid::Uuid,
+        retention: Option<ActivationTransactionRetention>,
+    ) -> Result<(), SurrealStorageError> {
+        let mut settlements = self.inner.transaction_settlements.lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        match settlements.entry(operation_id) {
+            std::collections::btree_map::Entry::Vacant(entry) => {
+                entry.insert(retention);
+                Ok(())
+            }
+            std::collections::btree_map::Entry::Occupied(_) => {
+                Err(SurrealStorageError::TransactionSettlementPending { operation_id })
+            }
+        }
+    }
+
     pub(crate) fn transaction_settlement_pending(&self, operation_id: uuid::Uuid) -> bool {
         self.inner.transaction_settlements.lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner()).contains(&operation_id)
+            .unwrap_or_else(|poisoned| poisoned.into_inner()).contains_key(&operation_id)
     }
 
     async fn transaction_worker<T, E, F>(

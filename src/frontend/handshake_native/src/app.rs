@@ -5826,10 +5826,15 @@ struct PendingRichCodeBlockSave {
     saved_text: String,
 }
 
-type WorkspaceActivationHandle = tokio::task::JoinHandle<Result<
-    crate::local_account::WorkspaceActivationAcknowledgement,
-    crate::local_account::WorkspaceActivationError,
->>;
+type WorkspaceActivationHandle = tokio::task::JoinHandle<(
+    crate::workspace_activation_observation::MountedReadinessCapture,
+    Result<
+        handshake_account_activation::WorkspaceActivationObservation<
+            handshake_runtime_instance::EmbeddedRuntimeInstanceDescriptor,
+        >,
+        crate::workspace_activation_observation::WorkspaceActivationObservationError,
+    >,
+)>;
 type WorkspaceActivationRequest = handshake_workspace_activation::WorkspaceActivationRequest<
     crate::local_account::AuthenticatedContext,
     WorkspaceActivationHandle,
@@ -35380,11 +35385,16 @@ impl HandshakeApp {
     }
 
     fn request_workspace_activation(&mut self, workspace_id: &str) -> bool {
-        if workspace_id.is_empty() || (self.workspace_activation_is_admitted()
-            && self.active_project_id == workspace_id) {
+        if workspace_id.is_empty() {
             return false;
         }
         if !self.workspace_activation.queue_workspace(workspace_id) {
+            if self.workspace_activation_is_admitted() {
+                self.workspace_activation.invalidate();
+                self.mcp_durability_generation = self.mcp_durability_generation.wrapping_add(1);
+                *self.mcp_durability.lock().unwrap_or_else(|e| e.into_inner()) = None;
+                self.project_tabs.set_active_id("");
+            }
             return false;
         }
         if self.backend_down {
@@ -35406,15 +35416,26 @@ impl HandshakeApp {
         let operation_id = uuid::Uuid::new_v4();
         let selected = workspace_id.to_owned();
         let backend = self.rich_doc_base_url.clone();
+        let capture = match crate::workspace_activation_observation::MountedReadinessCapture::new(
+            account.clone(), selected.clone(), operation_id, generation,
+        ) {
+            Ok(capture) => capture,
+            Err(error) => {
+                self.workspace_activation.set_error(Some(error.to_string()));
+                return false;
+            }
+        };
         let captured_account = account.clone();
         let captured_workspace = selected.clone();
         let wake = self.frame_ctx.clone();
         let handle = runtime.spawn(async move {
-            let result = crate::local_account::activate_workspace(
-                &crate::backend_client::shared_http_client(), &backend, captured_account, &captured_workspace, operation_id,
+            let client = crate::backend_client::shared_http_client();
+            let _acknowledgement = crate::local_account::activate_workspace(
+                &client, &backend, captured_account, &captured_workspace, operation_id,
             ).await;
+            let observation = capture.fetch(&client, &backend).await;
             if let Some(wake) = wake { wake.request_repaint(); }
-            result
+            (capture, observation)
         });
         let index = self.workspace_activation.requests().len();
         self.workspace_activation.reinsert_request(index, WorkspaceActivationRequest {
@@ -35426,73 +35447,104 @@ impl HandshakeApp {
     }
 
     fn poll_workspace_activation(&mut self) {
-        if self.capturing_snapshot { return; }
+        use handshake_account_activation::{WorkspaceActivationOutcome, WorkspaceActivationReadiness};
+
+        if self.capturing_snapshot || self.workspace_activation_is_admitted() { return; }
         let mut index = 0;
         while index < self.workspace_activation.requests().len() {
+            if self.workspace_activation.requests()[index].handle.is_none() {
+                let mut request = self.workspace_activation.take_request(index);
+                let current_account = self.local_account.context.as_ref().is_some_and(|account| {
+                    account.is_active() && Arc::ptr_eq(account, &request.account)
+                });
+                if !self.backend_down && current_account {
+                    if let Some(runtime) = self.runtime_handle.clone() {
+                        if let Ok(capture) = crate::workspace_activation_observation::MountedReadinessCapture::new(
+                            request.account.clone(), request.workspace_id.clone(), request.operation_id,
+                            self.workspace_activation.generation(),
+                        ) {
+                            let backend = self.rich_doc_base_url.clone();
+                            let wake = self.frame_ctx.clone();
+                            request.handle = Some(runtime.spawn(async move {
+                                let observation = capture.fetch(
+                                    &crate::backend_client::shared_http_client(), &backend,
+                                ).await;
+                                if let Some(wake) = wake { wake.request_repaint(); }
+                                (capture, observation)
+                            }));
+                        }
+                    }
+                }
+                self.workspace_activation.reinsert_request(index, request);
+                index += 1;
+                continue;
+            }
             if !self.workspace_activation.requests()[index].handle.as_ref().is_some_and(|handle| handle.is_finished()) {
                 index += 1;
                 continue;
             }
             let mut request = self.workspace_activation.take_request(index);
             let Some(handle) = request.handle.take() else { continue; };
-            let result = self.runtime().block_on(handle);
-            if request.backend_readiness_lost {
-                self.workspace_activation.set_error(Some("Backend readiness changed before activation settled. The original operation requires canonical reconciliation.".to_owned()));
+            let delivery = self.runtime().block_on(handle);
+            let Ok((capture, observation)) = delivery else {
+                self.workspace_activation.reinsert_request(index, request);
+                index += 1;
+                continue;
+            };
+            let current = !self.backend_down && self.local_account.context.as_ref().is_some_and(|account| {
+                capture.is_current(account, &request.workspace_id, request.operation_id,
+                    self.workspace_activation.generation())
+            });
+            if !current {
                 self.workspace_activation.reinsert_request(index, request);
                 index += 1;
                 continue;
             }
-            let current = request.generation == self.workspace_activation.generation()
-                && request.account.is_active()
-                && self.local_account.context.as_ref().is_some_and(|account| Arc::ptr_eq(account, &request.account));
-            match result {
-                Ok(Ok(ack)) => {
-                    let matches = ack.operation_id == request.operation_id
-                        && ack.workspace_id == request.workspace_id
-                        && ack.owner_account_id == request.account.account_id
-                        && ack.actor_principal_id == request.account.principal_id
-                        && ack.authenticated_session_id == request.account.session_id
-                        && ack.access_space_id == request.account.access_space_id;
-                    if !matches {
-                        if current { self.workspace_activation.set_error(Some("Workspace activation acknowledgement did not match. The original operation remains unresolved.".to_owned())); }
-                        self.workspace_activation.reinsert_request(index, request);
-                        index += 1;
-                    } else if current {
-                        self.commit_workspace_selection(&request.workspace_id);
-                        self.workspace_activation.admit(request.account, request.workspace_id.clone());
-                        self.project_tabs.set_active_id(&request.workspace_id);
-                        if let Some(runtime) = self.runtime_handle.clone() {
-                            self.left_rail.project_tree.set_workspace(&request.workspace_id, &runtime);
-                        }
-                        let base = self.rich_doc_base_url.clone();
-                        self.refresh_mcp_durability_binding(&base);
+            let ready = match observation {
+                Ok(observation) => match (observation.outcome, observation.readiness) {
+                    (WorkspaceActivationOutcome::Applied { publication_witness, .. },
+                        WorkspaceActivationReadiness::Current { descriptor })
+                        if descriptor == publication_witness.actual_runtime => true,
+                    (WorkspaceActivationOutcome::Applied { .. }, _) => {
+                        self.workspace_activation.set_error(Some("Workspace activation is canonically applied; matching mounted readiness is unavailable.".to_owned()));
+                        false
                     }
-                }
-                Ok(Err(error)) if !error.is_uncertain() => {
-                    if current {
-                        self.workspace_activation.set_error(Some(error.to_string()));
-                        self.workspace_activation.clear_desired();
+                    (WorkspaceActivationOutcome::Unresolved, _) => {
+                        self.workspace_activation.set_error(Some("The original workspace activation is awaiting canonical outcome.".to_owned()));
+                        false
                     }
+                },
+                Err(error) => {
+                    self.workspace_activation.set_error(Some(error.to_string()));
+                    false
                 }
-                other => {
-                    if current {
-                        self.workspace_activation.set_error(Some(match other {
-                            Ok(Err(error)) => error.to_string(),
-                            Err(error) => format!("Workspace activation delivery failed: {error}. The original operation remains unresolved."),
-                            Ok(Ok(_)) => unreachable!(),
-                        }));
-                    } else {
-                        self.workspace_activation.set_error(Some("An earlier workspace activation remains unresolved. Further activation is locked pending canonical operation reconciliation.".to_owned()));
-                    }
-                    self.workspace_activation.reinsert_request(index, request);
-                    index += 1;
-                }
+            };
+            if !ready {
+                self.workspace_activation.reinsert_request(index, request);
+                index += 1;
+                continue;
             }
-        }
-        if self.workspace_activation.requests().is_empty() {
-            if let Some(workspace) = self.workspace_activation.take_desired() {
-                self.request_workspace_activation(&workspace);
+            let desired = self.workspace_activation.take_desired();
+            if let Some(workspace) = desired.as_ref().filter(|workspace| *workspace != &request.workspace_id) {
+                self.request_workspace_activation(workspace);
+                continue;
             }
+            if desired.is_none() && self.active_project_id != request.workspace_id {
+                self.workspace_activation.reinsert_request(index, request);
+                index += 1;
+                continue;
+            }
+            self.commit_workspace_selection(&request.workspace_id);
+            self.workspace_activation.admit(request.account.clone(), request.workspace_id.clone());
+            request.backend_readiness_lost = false;
+            self.project_tabs.set_active_id(&request.workspace_id);
+            if let Some(runtime) = self.runtime_handle.clone() {
+                self.left_rail.project_tree.set_workspace(&request.workspace_id, &runtime);
+            }
+            let base = self.rich_doc_base_url.clone();
+            self.refresh_mcp_durability_binding(&base);
+            self.workspace_activation.reinsert_request(index, request);
+            index += 1;
         }
     }
 

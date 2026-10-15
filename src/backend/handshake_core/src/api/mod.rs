@@ -189,6 +189,7 @@ pub mod role_mailbox;
 pub mod source_control;
 pub mod stage;
 pub mod user_manual;
+pub mod workspace_activation_readiness;
 pub mod workspaces;
 
 pub fn routes(state: AppState) -> Router {

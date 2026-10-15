@@ -29,6 +29,7 @@ pub mod context_menu;
 pub mod context_menu_surfaces;
 pub mod debug_console;
 pub mod local_account;
+pub(crate) mod workspace_activation_observation;
 // WP-KERNEL-012 MT-082 (D2 — internal_diagnostics, Tier 2): the process-global diagnostics facade and
 // its OPEN `record()` API (Master Spec v02.196 §5.8.2 + §5.8.4). Any feature calls `diagnostics::record`
 // and the typed DiagEvent lands in (a) a bounded in-process ring the Diagnostics Panel (MT-087) reads
