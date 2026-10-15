@@ -1,0 +1,19 @@
+{
+  "crate": "hsk-studio-layout",
+  "lane": "SMB-LAYOUT-LONGDOC",
+  "status": null,
+  "phase": "slice 1 (tables) in progress",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {"argv": null, "exit": null, "sha": null, "passed": 0, "failed": 0},
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "slice 1 tables: folio longdoc records + layout table composer + interop-layout PDF overlay",
+  "updated_at": "2026-10-15T03:30:56Z",
+  "notes": {
+    "owned_paths": ["crates/hsk-studio-layout/**", "crates/hsk-studio-interop-layout/**", "crates/hsk-studio-folio/src/longdoc.rs", "crates/hsk-studio-folio/tests/longdoc_records_contract.rs", "crates/hsk-studio-folio/src/lib.rs (one mod/pub use line)"],
+    "parity": "InDesign parity UNVERIFIED (D5) for every slice",
+    "parity_rows": ["ID-02/03 sections and page numbers", "ID-14 tables", "ID-15 footnotes", "ID-16 TOC and index", "ID-19 placed graphics and fitting", "ID-27 PDF export"]
+  }
+}

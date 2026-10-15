@@ -1,0 +1,69 @@
+{
+ "crate": "hsk-studio-folio",
+ "crates": ["hsk-studio-folio", "hsk-studio-session"],
+ "lane": "SMB-FOLIO-TIMELINE-RECORDS",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "folio stores sequence/clip markers and clip transitions; session timeline step = one undo; pushed",
+ "commits": [
+  {
+   "sha": "b91bf9d",
+   "subject": "folio/session (SMB-FOLIO-TIMELINE-RECORDS): sequence and clip markers and clip transitions stored in Folio; one timeline step = one undo",
+   "note": "committed locally to clear the retry guard and pushed by another builder's push before the test fix below; at b91bf9d the folio test timeline_records.rs had 2 wrong assertions (test-only), fixed in 6f4e2f6"
+  },
+  {
+   "sha": "6f4e2f67b944b80417ff9024770b9524c25c402f",
+   "subject": "folio/session (SMB-FOLIO-TIMELINE-RECORDS): round-trip proof compares typed documents; descriptors name the timeline records and submit_timeline"
+  }
+ ],
+ "capabilities_done": [
+  "folio timeline.rs: StudioSequence.markers and StudioClip.markers (Vec<StudioMarker>: document-unique key marker_id, name, comment, LabelColor (16), start/duration Ticks, explicit-null role chapter|web_link|cue_point|caption; sequence ticks for sequence markers, SOURCE ticks for clip markers) and StudioClip.transitions (ClipTransitions{head, tail}: TimelineTransition = schema hsk.studio.transition@1, transition_id, transition_kind key, duration, alignment centered_on_cut|start_at_cut|end_at_cut|custom, center_offset)",
+  "wire: all three fields serde(default, skip_serializing_if empty), so record-free documents encode byte-identically and old documents decode unchanged",
+  "validation: key ids unique in the document, bounded text (4096 bytes; names/role text control-free), start+duration overflow, transition duration > 0, center_offset only with custom and |offset| <= duration, one transition per cut (an abutting incoming head beside an outgoing tail is refused), MAX_MARKERS_PER_SEQUENCE 65536 checked on the count before any marker is examined, markers and transitions counted in Budget.nodes; timeline.rs now carries #![deny(clippy::arithmetic_side_effects)] with its existing arithmetic made checked/saturating (V4-01)",
+  "session timeline.rs: TimelineStep{command_id, correlation_id, sequence_id, expect, write}; Session::submit_timeline / submit_timeline_keyed run the SAME submit pipeline as provider submits (grant, idempotency key + binding, admission, CommitPort, publish) with a sequence-value precondition; Applied::timeline_inverse is the undo and its inverse the redo; refusals value_conflict / invalid_target / invalid_input / invalid_command / folio_rejected / budget_exceeded / stale_revision / canceled change nothing",
+  "pulse: LabelColor, MarkerRole and TransitionAlignment are now Folio's types re-exported (one definition); struct literals updated (assemble.rs, tests, example)",
+  "interop-media folio_map.rs: the 3 literals gain markers/transitions empty values (lead-approved, no behaviour change)"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-folio -p hsk-studio-session -p hsk-studio-pulse -p hsk-studio-interop-media -p hsk-studio-chronicle --no-fail-fast",
+  "exit": 0,
+  "sha": "b91bf9d + test fix 6f4e2f6 (folio/session suites rerun green at 6f4e2f6: 86/86)",
+  "passed": 139,
+  "failed": 0,
+  "focused": [
+   "folio timeline_records::markers_and_transitions_round_trip_and_old_wire_is_unchanged",
+   "folio timeline_records::hostile_timeline_records_are_refused_typed",
+   "session timeline_undo::timeline_step_round_trips_and_undoes_as_one_step",
+   "session timeline_undo::hostile_timeline_steps_change_nothing"
+  ],
+  "workspace_check": "cargo check --workspace --tests --examples: only error is crates/hsk-studio-composite/tests/vector_mask_2.rs (another builder's untracked WIP, missing Snapshot import), unrelated"
+ },
+ "blockers": [
+  "steward: session serde_json promoted from dev to normal dependency (same =1.0.151; dep-requests.jsonl line appended); Cargo.lock uncommitted"
+ ],
+ "bg_pids": [],
+ "next": "pulse annotate/transition read and write the Folio records directly (TimelineAnnotations becomes a view over the sequence) so follow_timeline_edit output is the TimelineStep write; transition parameter set (14.9.1) and the repeat_end_frame choice are not stored yet",
+ "updated_at": "2026-10-15T03:40:00Z",
+ "notes": {
+  "spec_basis": [
+   "STU-VID-010: 'A sequence owns an ordered set of StudioTracks, a settings record, a time model, in/out points, a work area, and a marker list.'",
+   "STU-VID-020: clip fields 'transitions | Optional head and tail transition references ([STU-VID-032]).' and 'markers | Clip-local marker list.'; 'label_color | One of the 16 declared label colours'",
+   "STU-VID-032: 'StudioTransition (schema id hsk.studio.transition@1) carries: transition_kind (a filter_kind in the transition category of [STU-FX-126]), duration (ticks), alignment (centered_on_cut | start_at_cut | end_at_cut | custom), center_offset, and a typed parameter set obeying 14.9.1 in full.'",
+   "STU-VID-034: 'Each carries a name, a comment, a colour, a duration (a marker may be a span, not only a point), and an optional typed payload for chapter, web-link, cue-point and caption roles.'",
+   "STU-VID-040: 'Every operation in this sub-section is one reversible StudioHistoryEntry'; STU-HIS-002: undo 'by applying its inverse command or a snapshot revert'; STU-CON-022: later history owners 'MUST reuse these patch/precondition/inverse semantics rather than invent a conflicting patch grammar.'"
+  ],
+  "decisions": [
+   "undo mechanism: session document entries (selection/text/develop) are documented 'Not undoable and not a revision', so they cannot carry undo; chronicle's property table addresses only layers, artboards and page spreads (NodeKind), and adding NodeKind::Sequence would break exhaustive matches in interop-fig and interop-layout. The step is therefore a sequence-scoped snapshot revert with chronicle's precondition + inverse semantics, routed through session's existing submit pipeline (no fast path)",
+   "Rust type TimelineTransition: folio already has StudioTransition for the STU-PRO-116 prototype transition (reactions.rs); the wire schema id is the spec's hsk.studio.transition@1",
+   "a transition at a cut is stored once, as the outgoing clip's tail; marker and transition ids are document-local keys (no prefix declared); clip markers in source ticks (Studio readings, documented in timeline.rs)",
+   "transition_kind is an opaque key: no canonical filter_kind for cross dissolve is verified in STU-FX-126; tests use 'cross_dissolve' as a test value only"
+  ],
+  "out_of_owned_paths": "crates/hsk-studio-interop-media/src/folio_map.rs (3 literals, lead-approved 2026-10-15); pulse files (literals + enum re-exports) recorded in the SMB-PULSE-EDITING lane",
+  "byte_identity": "interop-media has no digest test; proof: folio test asserts Folio's own encoding of a record-free document has no markers/transitions keys and re-decodes identically; interop-media EDL->Folio test green; new fields are appended and skipped when empty",
+  "gaps": [
+   "pulse TimelineAnnotations still keeps its own marker/transition records beside the sequence; migrating it onto the Folio fields is the next pulse slice",
+   "work area, project-item markers, transition parameter set, repeat_end_frame choice not stored",
+   "timeline steps have no chronicle RevisionUpdate (the property vector does not cover sequences)"
+  ],
+  "verdicts": []
+ }
+}

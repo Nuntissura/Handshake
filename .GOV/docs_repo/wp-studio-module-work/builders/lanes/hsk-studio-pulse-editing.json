@@ -15,6 +15,10 @@
   {
    "sha": "5ab95f8962196cf16bbbafbd9e03c2d967d3796a",
    "subject": "pulse (SMB-PULSE-EDITING slice 4): transitions as typed timeline records; cross dissolve frame proven through composite"
+  },
+  {
+   "sha": "b91bf9d",
+   "subject": "lane SMB-FOLIO-TIMELINE-RECORDS touched pulse after the READY commit (V4-14, listed as part of this claim): struct literals gain the new Folio markers/transitions fields; LabelColor, MarkerRole and TransitionAlignment are re-exports of the identical Folio types (no behaviour change). pulse 23/23 green after it (run in that lane)"
   }
  ],
  "capabilities_done": [
