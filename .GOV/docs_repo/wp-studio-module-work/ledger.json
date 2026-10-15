@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T08:52:52Z",
+ "updated_at": "2026-10-15T09:05:18Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -6916,12 +6916,19 @@
   {
    "lane_id": "SMB-AE-KEY-TRACK-3",
    "crate": "hsk-studio-composite",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-ae-keytrack-20261015",
-   "commits": [],
+   "commits": [
+    "570caaa",
+    "61c4ae7",
+    "1c585a9",
+    "3cfbce1",
+    "b3c2a78"
+   ],
    "verdicts": [],
-   "note": "corner-pin layers rendered in compositions via an ADDITIVE scene-layer extension (Option field defaulted through one constructor/extension struct, not 29 literal edits); GPU keyer; planar tracks written as folio mask paths; tracker command serialisation where serde exists"
+   "note": "corner pin as pinned-content case (no new scene-layer field); root cause of db231fb incident: this lane's commit script left stale shared-index entries (fixed)",
+   "lane_file": "builders/lanes/hsk-studio-ae-key-track-3.json"
   },
   {
    "lane_id": "SMB-AUDIO-CODECS-OPERATOR",
@@ -7025,6 +7032,16 @@
    "commits": [],
    "verdicts": [],
    "note": "F-R32-3: render-gpu tests 42-45 s alone vs 77-91 s in the union (parallel contention); add a nextest test group limiting concurrent render-gpu GPU tests in .config/nextest.toml after R33 (config change needs a fresh canary)"
+  },
+  {
+   "lane_id": "SMB-AE-3D",
+   "crate": "tbd-by-spec",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "AE gap: 3D layers, cameras, lights (per spec), 3D camera solve; particles out of scope until spec names them"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",

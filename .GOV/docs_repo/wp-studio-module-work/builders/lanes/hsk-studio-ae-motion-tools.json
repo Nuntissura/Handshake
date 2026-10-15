@@ -2,22 +2,25 @@
   "crate": "hsk-studio-motion",
   "lane": "SMB-AE-MOTION-TOOLS",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice 1 (graph editor model + keyframe assistants, motion) pushed at 9f11b2e; claim covers 9f11b2e (motion files listed in the commit)",
+  "phase": "slices 1 (graph editor model + keyframe assistants, motion, 9f11b2e) and 2 (text animators, motion + composite text, b3ef4e0) pushed; claim covers 9f11b2e and b3ef4e0 (files listed in the commits)",
   "commits": [
-    {"sha": "9f11b2e", "subject": "motion (SMB-AE-MOTION-TOOLS slice 1): graph editor model and keyframe assistants"}
+    {"sha": "9f11b2e", "subject": "motion (SMB-AE-MOTION-TOOLS slice 1): graph editor model and keyframe assistants"},
+    {"sha": "b3ef4e0", "subject": "motion + composite (SMB-AE-MOTION-TOOLS slice 2): text animators with range and wiggly selectors"}
   ],
   "capabilities_done": [
     "(1) motion src/graph.rs: VALUE and SPEED graphs (STU-MOT-051) per component or as path-speed magnitude for an unseparated multi-component property; speed is analytic: (dy/ds)/(dx/ds)/dt_s at the parameter solving x(s)=u, L'Hopital (second derivatives) where an influence of 0 makes dx/ds vanish; lerp = chord slope, hold = 0, held ends = 0; at a key time the outgoing segment's speed (half-open [t0,t1) like Property::sample); graph() samples [from,to] at round-half-up evenly spaced ticks, samples bounded by MAX_GRAPH_SAMPLES (65536) before allocation; fit_range auto-fit (STU-MOT-052)",
     "(1) separate_dimensions (exact: per-component values, interpolations and own tangents, keys <key>_<i>) and join_dimensions (union of key times; a component without a key gets an inserted key with its sampled value and incoming/outgoing sampled speed at the default influence; per side hold if all hold, linear if all linear, else bezier): the explicit stated conversions of STU-MOT-010a, join lossy where key times differ",
     "(1) STU-MOT-055 velocity record: velocity_record (per component incoming/outgoing speed + influence, continuity) and set_velocity (both sides bezier, continuity = continuous_bezier and refuses unequal speeds instead of rewriting them)",
     "(1) motion src/assistants.rs (STU-MOT-037/038/031/035): ease / ease in / ease out (bezier, speed 0, influence 0.16666666666 per STU-MOT-034), toggle hold, set_interpolation per side, auto_bezier ((v[i+1]-v[i-1])/(t[i+1]-t[i-1]) s, one-sided chord at ends, stored tangents), make_continuous (outgoing speed wins), rove (roving keys retimed proportional to cumulative straight-line distance between fixed keys, round half up; endpoints may never rove; collapse refused), sequence_layers (end to end from the first in point, overlap, DissolveFront / CrossDissolve linear opacity keys in percent; Studio extension, no spec clause); every assistant is one Property::set_keyframes revision step, property unchanged on refusal",
-    "(1) MotionError additions: sample_limit, selection_out_of_range, roving_endpoint, roving_collapse, invalid_parameter{parameter}, count_limit{what}; Property::interpolable, bounds, set_keyframes"
+    "(1) MotionError additions: sample_limit, selection_out_of_range, roving_endpoint, roving_collapse, invalid_parameter{parameter}, count_limit{what}; Property::interpolable, bounds, set_keyframes",
+    "(2) motion src/text_animator.rs (STU-MOT-090..092): Animator = properties (position, scale, rotation, opacity, fill, tracking) + selectors; RANGE selector (start/end/offset in percent or index units; based on characters / characters excluding spaces / words / lines; shapes square with smoothness box filter, ramp up, ramp down, triangle, round, smooth (cos by quarter-turn reduction + fixed Taylor); ease high/low as the Bezier [0,(1-low)/3,1-(1-high)/3,1]; amount; randomize order = seeded Fisher-Yates over splitmix64); WIGGLY selector (seeded smoothstep value noise, frequency, correlation mix of a common and a per-unit stream, temporal/spatial phase, lock dimensions, min/max amount); selectors compose multiplicatively per dimension; evaluate_text_animators resolves CharTransform per character (offsets/rotation/tracking add, scale/opacity factors multiply, fill lerps; amount 0 keeps the layer fill); AnimatorTrack samples keyframed selector and property streams (AnimatorParam) at a tick so an animated offset travels through the text",
+    "(2) composite src/text/animate.rs (feature motion): glyph_from_outline / glyphs_from_runs place Type outlines exactly like type::rasterize_run (pen advance, y flip, scale = size_pt*px_per_pt/upem), text_chars derives words/lines, move_glyph applies tracking shift, baseline-centre anchor, scale, rotation (nib sin_cos_deg) and position, nib rasterize per glyph; src/text/painted.rs painted_content lowers coverage planes (rgba, opacity) bottom-first into one isolated group of Solid layers masked by coverage_u8 owned masks (StaticContent for SceneContent::Static); bounds on glyph count, transform count/finiteness, per-glyph pixels and summed plane bytes before allocation"
   ],
   "tests": {
-    "argv": "cargo nextest run -p hsk-studio-motion --test graph_assistants",
+    "argv": "cargo nextest run -p hsk-studio-motion --test graph_assistants | cargo nextest run -p hsk-studio-motion --test text_animators | cargo nextest run -p hsk-studio-composite --features motion --test text_animators",
     "exit": 0,
-    "sha": "9f11b2e",
-    "passed": 5,
+    "sha": "b3ef4e0",
+    "passed": 10,
     "failed": 0
   },
   "blockers": [],
@@ -39,8 +42,16 @@
     "unverified_d5": [
       "After Effects numeric parity of the speed graph (path speed for spatial streams), auto-bezier derivation, roving timing (AE uses spatial path length with spatial tangents; Studio uses straight-line distance because spatial tangents are a declared gap STU-MOT-036b), sequence layers and easy-ease influence (AE F9 uses 33.33 %; the spec mandates 0.16666666666 for the ease assistants and Studio follows the spec) are UNVERIFIED."
     ],
-    "ownership": "motion owns keyframes and expressions (STU-CMP-002 / STU-MOT); only motion files touched in slice 1.",
-    "shared_files": "slice 1 touched no shared file (motion had no uncommitted edits by other lanes).",
-    "gameplan_route": "no gameplan block encountered."
+    "spec_basis_text": [
+      "STU-MOT-090: 'A selector produces a per-character amount in 0..1. The animator's property values are applied to each character scaled by that amount. Animating the SELECTOR, not the property, is what produces a wave of change travelling through the text.'",
+      "STU-MOT-091: 'Three selector kinds are normative: a RANGE selector (start, end, offset, units in percent or index, based-on characters / characters-excluding-spaces / words / lines, a shape function, smoothness, ease-high, ease-low, and a randomize-order option with its own seed); a WIGGLE selector ...; and an EXPRESSION selector ... All three produce the same 0..1 amount and compose multiplicatively when several are present.'",
+      "STU-MOT-092: the 99 animator properties are the capability target; built: position, scale, rotation, opacity, fill colour, tracking.",
+      "STU-MOT-094: shaping stays native Rust (Type); composite only places Type outlines."
+    ],
+    "gaps_text": "EXPRESSION selector (needs the MotionJS provider port) not built; animator properties beyond position/scale/rotation/opacity/fill/tracking (anchor, skew, stroke, line spacing, character offset/value, blur, 3D material) not built; path options / more options (STU-MOT-093) not built; source-text keyframes not built; words/lines derive from glyph outlines (an inkless glyph = a space) and run index (one run per placed line), not from the story's Unicode text; glyphs_from_runs is not exercised by a real-font test in this lane (the composite test uses Type synthetic outlines through glyph_from_outline).",
+    "ownership": "motion owns keyframes, expressions and the text-animator evaluation (STU-CMP-002 / STU-MOT); composite owns placement (src/text/animate.rs, src/text/painted.rs, created by this lane).",
+    "shared_files": "slice 1 and 2 touched no file with another lane's uncommitted edits: composite src/text.rs had no other edits (diff = this lane's 7 lines) when committed with a pathspec; composite lib.rs, vector.rs and harness view/mod.rs (other lanes' edits) were deliberately NOT touched (new modules declared from clean files).",
+    "gameplan_route": "slice 2: the first motion text_animators run failed (smooth shape: degree-20 Taylor cos at x = pi had 3.8e-11 error > 1e-12 tolerance; fixed with quarter-turn reduction); the retry guard blocked the identical rerun; route (a): committed the fix (b3ef4e0, HEAD changed), reran green, then pushed. No gameplan step added.",
+    "foreign_failures_seen": "cargo clippy -p hsk-studio-composite --features motion --tests at b3ef4e0 fails to compile tests/corner_pin.rs, tests/track_apply.rs, tests/tracker_commands.rs (missing field masks in StudioCompositionLayer): another lane's uncommitted folio edit in the shared working tree, not this lane's code; this lane's lib + tests/text_animators.rs compile clippy-clean."
   }
 }

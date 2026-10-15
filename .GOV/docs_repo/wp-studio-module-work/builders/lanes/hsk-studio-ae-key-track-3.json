@@ -1,0 +1,51 @@
+{
+  "crate": "hsk-studio-composite (pinned content, mask paths, tracker), hsk-studio-folio (mask records), hsk-studio-pigment (tracker command wire form), hsk-studio-render-gpu (GPU keyer), render-cpu/render-gpu tests",
+  "lane": "SMB-AE-KEY-TRACK-3",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "items 1-4 pushed",
+  "commits": [
+    {"sha": "570caaa", "subject": "pigment + composite (SMB-AE-KEY-TRACK-3 slice 2): serialisable tracker commands"},
+    {"sha": "61c4ae7", "subject": "composite (SMB-AE-KEY-TRACK-3 slice 1): corner-pinned layers render in compositions on both renderers"},
+    {"sha": "1c585a9", "subject": "composite + renderer tests (SMB-AE-KEY-TRACK-3 slice 1 restore): re-add the corner-pin hunks db231fb reverted"},
+    {"sha": "3cfbce1", "subject": "folio + composite (SMB-AE-KEY-TRACK-3 slice 3): planar tracks as animated Folio mask paths, rendered as layer mattes"},
+    {"sha": "b3c2a78", "subject": "render-gpu (SMB-AE-KEY-TRACK-3 slice 4): GPU keyer for envelope key pipelines"}
+  ],
+  "capabilities_done": [
+    "(1) corner pin in compositions (61c4ae7 + 1c585a9): additive SceneContent::Pinned(PinnedContent {content, pin: Projective2}) per the START_LOG decision's 'or nothing at all' route: no SceneLayer field, so its 29 construction sites are untouched; lower_scene resamples pinned tiles/static/precomp content through pin then matrix (pigment LayerTransform::projective). The composition adapter samples the Folio corner_pin stream with motion per tick and pins in layer space (content origin shift); composition_corner_pin refusal lifted (constant retired, kept). Typed refusals: composition_corner_pin_content (no own pixels / collapsed precomp), composition_corner_pin_on_document_graph.",
+    "(2) GPU keyer (b3c2a78): render-gpu key.wgsl (binary32) for chroma, luma, colour range, colour key, colour-difference, linear colour, extract, levels, choke/spread (r <= 32), feather (taps <= 129), edge smooth (r <= 16), despill, unmult; keyed tile layers are keyed on the device, read back, and the plan rewritten to a keyed tile (fresh key and hashes, keys removed); receipt digest/ledger are the original plan's; inner/outer, key cleaner, wire removal declared Unsupported; key_gpu_input / key_gpu_radius refused before device work.",
+    "(3) planar tracks as Folio mask paths (3cfbce1): StudioCompositionLayer.masks (serde default) = ordered StudioCompositionMask {mask_id, mode (7 STU-CMP-025a modes), inverted, closed, keyed path of 6 numbers per vertex}; track_apply::apply_planar_mask maps vertices and tangent handles through each tracked frame's homography; the adapter renders masks as a composition-space alpha matte (mask_paths: bezier through the layer matrix, nib exact-area coverage, ordered combination), so both renderers render them unchanged; masks + track matte / corner pin / document graph are typed refusals.",
+    "(4) serialisable tracker commands (570caaa): TrackerCommand / Nudge / NudgeStep live in pigment track_math with serde (internally tagged snake_case JSON, unknown fields refused; bar commands are empty struct variants so the refusal applies); composite re-exports them, no serde dependency added to composite."
+  ],
+  "tests": {
+    "argv": "nextest: render-cpu --test composition_corner_pin --test composition_mask_paths --test composition_frames; render-gpu --test composition_corner_pin --test composition_mask_paths --test composition_frames --test gpu_keying --test gpu_transform; composite --features motion --test composition_adapter --test corner_pin --test mask_paths --test track_apply --test tracker_commands; folio --test mask_path_contract --test corner_pin_contract",
+    "exit": 0,
+    "sha": "b3c2a78",
+    "passed": 34,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "validator round on the five commits listed; lead: incident in notes.incident",
+  "updated_at": "2026-10-15T09:04:18Z",
+  "notes": {
+    "spec_basis": "STU-CMP-065 (corner pin; 'Planar / mask tracking ... producing an animated mask path'), STU-CMP-065a (typed command surface), STU-CMP-025 ('A mask is a bezier path on a layer that contributes to the layer's alpha, and a layer may carry many ... mask path ... animatable vertex by vertex'), STU-CMP-025a (seven modes combined in order, independent inverted flag), STU-CMP-027 (mask geometry is the vector path primitive: Folio has no inline path type, so the mask record carries the bezier vertex list inline; see gaps), STU-CMP-032/033 (keying)",
+    "measured": {
+      "corner pin composition": "cpu max |delta| vs oracle 0 and identical digests for 4 chunkings; gpu 1.19e-7 (tolerance 2e-6)",
+      "masked composition": "cpu 0; gpu 5.96e-8",
+      "gpu keyer": "max |delta| alpha/premultiplied vs pigment composited 1.19e-7 over three chains (screen, lab/range/levels/spread, all extractors + unmult); stated tolerance 1e-4",
+      "planar mask": "vertices and handles follow the true homography within 0.0115 px over 5 frame pairs"
+    },
+    "incident": "db231fb (lane SMB-COMPOSITE-DOCGRAPH-2, a bare index commit) carried stale shared-index entries that reverted track_apply.rs, composition_adapter.rs and deleted the three corner-pin test files of my 61c4ae7: my private-index commit script aborted its shared-index reconciliation (a staged blob no longer matched) before resetting those paths. Restored unchanged by 1c585a9 (verified: no diff vs 61c4ae7); the reconciliation now resets whole files first and never aborts. db231fb's own content is otherwise intact.",
+    "commit_method": "other lanes held uncommitted and staged hunks in composite/src/{lib.rs,composition.rs,temporal/composition.rs} and render-gpu/src/plan_sink.rs: my hunks were committed as exact replacements applied to the HEAD blob through a private GIT_INDEX_FILE, then the shared index was reconciled; files only I touch were added whole",
+    "gaps": [
+      "mask feather, opacity and expansion (STU-CMP-025) are not in the mask record; masks with a track matte or a corner pin are refused",
+      "the mask record carries the bezier inline (Folio has no inline StudioVectorPath type; STU-CMP-027 asks for the shared vector path primitive)",
+      "document-graph path (lower_frame) refuses corner pins and masks typed",
+      "GPU keyer covers tile-input layers only; inner/outer key, key cleaner and wire removal stay CPU-only (typed GPU refusal)",
+      "render-gpu DESCRIPTOR text not updated for keying (shared lib.rs held by another lane)",
+      "mask combination arithmetic and After Effects keyer behaviour UNVERIFIED (D5)"
+    ],
+    "cargo_lock": "left uncommitted"
+  }
+}

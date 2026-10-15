@@ -1,0 +1,26 @@
+{
+  "crate": "hsk-studio-components",
+  "lane": "SMB-FIG-SMART-ANIMATE-2",
+  "status": null,
+  "phase": "slices 1-2 pushed (cfbd732, d20cff5); harness viewer proof pending (shared-tree render-gpu compile break from another lane's uncommitted plan_sink/key.rs; verifying in a scratch export of d20cff5)",
+  "commits": [
+    {"sha": "cfbd732", "subject": "components (SMB-FIG-SMART-ANIMATE-2 slice 1): spring easing, directional placement, gradient tween, text-by-content matching"},
+    {"sha": "d20cff5", "subject": "interop-fig + harness (SMB-FIG-SMART-ANIMATE-2 slice 2): directional and spring transitions from .fig, played"}
+  ],
+  "capabilities_done": [],
+  "tests": {
+    "argv": "cargo nextest run -p hsk-studio-components --test transition --test smart_animate --no-fail-fast (8/8 at cfbd732); cargo nextest run -p hsk-studio-interop-fig --test fig_smart_animate_2 --test fig_smart_animate --test fig_prototype --no-fail-fast (6/6 at d20cff5 content)",
+    "exit": 0,
+    "sha": "d20cff5",
+    "passed": 14,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "harness viewer_prototype proof in the scratch export; then READY_FOR_VALIDATION",
+  "updated_at": "2026-10-15T09:01:46Z",
+  "notes": {
+    "incident": "my local commit cfbd732 (components only) was pushed to origin by another lane's push from the shared worktree before my harness compatibility commit existed, so origin briefly had a harness viewer build that cannot compile (SmartProps/SmartLayer literals); d20cff5 pushed at 09:01:46Z repairs it. Shared-branch hazard: a local unpushed commit in the shared tree is effectively public"
+  }
+}
