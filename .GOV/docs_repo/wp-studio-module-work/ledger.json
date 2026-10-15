@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T21:23:05Z",
+ "updated_at": "2026-10-15T21:31:17Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -6893,12 +6893,12 @@
   {
    "lane_id": "SMB-SPEC-CONFLICTS-OPERATOR",
    "crate": "spec",
-   "phase": "queued",
+   "phase": "decided",
    "status": null,
    "owner": null,
    "commits": [],
    "verdicts": [],
-   "note": "Operator (CX-105) items: WP-KERNEL-005 requires PostgreSQL runtime proof vs module 14 SurrealDB; Master Spec 2.2.3.2 vs 10.10.4.5 flag naming; PROPOSED_CKC_ADDITIONS (keyword hierarchy/synonyms, collection sets, smart-collection rule trees, PhotoAsset revision field, write command ids) for CKC owner"
+   "note": "Operator 2026-10-15: SurrealDB is the only database in Handshake. Studio/CKC work assumes SurrealDB only; WP-KERNEL-005 contracts/code still reference PostgreSQL runtime proof - migration belongs to that WP's owner (not edited by the Studio lead)."
   },
   {
    "lane_id": "SMB-PS-SELECT-LIQUIFY",
@@ -6990,12 +6990,12 @@
   {
    "lane_id": "SMB-H264-HEVC-ENCODE-OPERATOR",
    "crate": "operator",
-   "phase": "queued",
+   "phase": "decided",
    "status": null,
    "owner": null,
    "commits": [],
    "verdicts": [],
-   "note": "Operator item: D24 forbids H.264 encode in v1; HEVC encode (same patent posture) not built pending Operator decision; MF-encoder MFT route identified by SMB-REEL-ENCODE"
+   "note": "Operator delegated to lead 2026-10-15 (D24-A): H.264/HEVC encode only through the OS encoder (Media Foundation MFT) in the isolated reel-native worker, behind default-off feature os-encode; no bundled encoder; typed refusal when no OS encoder (HEVC needs the paid Windows HEVC extension); switching it on for a commercial release needs a legal check (licensing of OS-codec use is not settled by Microsoft's public answers)"
   },
   {
    "lane_id": "SMB-PULSE-PLAYBACK-3",
@@ -7160,12 +7160,12 @@
   {
    "lane_id": "SMB-AUDIO-CODECS-OPERATOR",
    "crate": "operator",
-   "phase": "queued",
+   "phase": "decided",
    "status": null,
    "owner": null,
    "commits": [],
    "verdicts": [],
-   "note": "STU-VID-084 licensing call: ship AAC-LC and MP3 decode by default? (AAC patent status UNVERIFIED); until decided the providers stay opt-in"
+   "note": "Operator delegated to lead 2026-10-15 (D24-A): MP3/MP2/MP1 decode on by default (core MP3 patents expired 2017 per Fraunhofer); AAC decode by default via the OS decoder (Windows Media Foundation, same pattern as D24 H.264 decode) with Studio's own AAC decoder kept opt-in until Handshake holds a Via LA AAC licence decision"
   },
   {
    "lane_id": "SMB-AUDIO-IMPORT-WIRING",
@@ -7345,12 +7345,12 @@
   {
    "lane_id": "SMB-OPERATOR-CLEANUP-LIST",
    "crate": "operator",
-   "phase": "queued",
+   "phase": "partial",
    "status": null,
    "owner": null,
    "commits": [],
    "verdicts": [],
-   "note": "scratch dirs under Handshake_Artifacts/WP-KERNEL-STUDIO (smb-fig-smart-animate-2, smb-reel-encode/stage.01UP7j, r32-prereview-press-lane, steward-export/results/C46-63189bf + C42-e7a2b6c invalid partials); empty C:/Users/Ilja Smets/.gnupg; REPO-LOCAL target/ (23 GB, since 2026-10-14 22:47) inside wt-studio-assets/handshake-studio-assets - governance violation (artifacts must live under Handshake_Artifacts), created by a cargo run without studio-env.sh; removal needs Operator approval"
+   "note": "Operator approved 2026-10-15: recycled smb-fig-smart-animate-2, r32-prereview-press-lane, C46-63189bf, C42-e7a2b6c (stage.01UP7j already gone). NOT removed: C:/Users/Ilja Smets/.gnupg (holds a keyboxd socket from the gpg probe; path refused by recycle API) and the 23 GB repo-local target/ (access denied: files in use) - Operator to delete manually or after reboot"
   },
   {
    "lane_id": "SMB-SPEC-SMART-MATCH-OPERATOR",
@@ -7578,6 +7578,26 @@
    "commits": [],
    "verdicts": [],
    "note": "exact backward seek via periodic processor-state checkpoints (bounded memory) instead of re-render from start; bus/master effect editing from the mixer panel"
+  },
+  {
+   "lane_id": "SMB-CRATE-SEAM-SPLITS",
+   "crate": "steward",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "Operator approved 2026-10-15: split large crates along clear seams (no file-size cap): reel codecs into own crates (vc3, prores, audio codecs, av1 encode), press reader vs writer, harness tools by app area; plus internal module splits of the 4 largest hand-written files; do while builders are idle; steward registers new crates/edges"
+  },
+  {
+   "lane_id": "SMB-RAW-CLEANROOM",
+   "crate": "hsk-studio-develop",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "Operator 2026-10-15: rewrite the LightCraft-derived compressed-RAW decoders clean-room (F-R32-5): implementer never reads LightCraft or the current decoder files; works only from public format documentation; old decoders replaced when the new ones pass the same corpus tests"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
