@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T09:56:10Z",
+ "updated_at": "2026-10-15T10:30:11Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -7126,12 +7126,17 @@
   {
    "lane_id": "SMB-AE-MOTION-RECORDS",
    "crate": "hsk-studio-folio",
-   "phase": "queued",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": null,
-   "commits": [],
+   "commits": [
+    "a45d2c6",
+    "3d6e73a",
+    "551ec63"
+   ],
    "verdicts": [],
-   "note": "folio records for shape layers, text animators, composition audio; render settings/output module records; composite composition evaluator wired into harness export; gradient fill/stroke on shapes; expression selector via motion-js"
+   "note": "expression selector proven with stub engine only (no composite/harness -> motion-js edge): NOT_PROVEN",
+   "lane_file": "builders/lanes/hsk-studio-ae-motion-records.json"
   },
   {
    "lane_id": "SMB-PACKAGE-MASK-TILES",
@@ -7142,6 +7147,16 @@
    "commits": [],
    "verdicts": [],
    "note": "DATA LOSS: package save writes only raster tile assets (tile_digests, read.rs:553); mask tiles (and any non-raster tile planes) are dropped, so masked documents fail to reopen with missing_asset. Save + reopen every tile plane kind; round-trip proof"
+  },
+  {
+   "lane_id": "SMB-AE-MOTION-RECORDS-2",
+   "crate": "hsk-studio-session",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-ae-motion-20261015",
+   "commits": [],
+   "verdicts": [],
+   "note": "session/package loader for motion_records set; text-animator glyphs placed by type shaping; output module resize/crop/alpha; motion blur (shutter angle/phase, samples per frame) per spec; render once, encode many output modules"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",

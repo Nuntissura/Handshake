@@ -1,0 +1,40 @@
+{
+  "crate": "hsk-studio-folio",
+  "lane": "SMB-AE-MOTION-RECORDS",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slices 1 (folio records a45d2c6), 2-4 (composite records render + gradients + expression selector bridge 3d6e73a), 2b (harness render-queue items 551ec63) pushed; claim covers a45d2c6, 3d6e73a, 551ec63 (files listed in the commits)",
+  "commits": [
+    {"sha": "a45d2c6", "subject": "folio (SMB-AE-MOTION-RECORDS slice 1): motion records for shape layers, text animators, composition audio and the render queue"},
+    {"sha": "3d6e73a", "subject": "composite (SMB-AE-MOTION-RECORDS slices 2-4): saved motion records render in compositions; gradient shape paints; expression selector bridge"},
+    {"sha": "551ec63", "subject": "harness (SMB-AE-MOTION-RECORDS slice 2b): saved render-queue items render saved compositions through reel"}
+  ],
+  "capabilities_done": [
+    "(1) folio src/motion_records.rs: StudioMotionRecords (hsk.studio.motion_records@1) beside the document and StudioCompositionRecords (neither gains a field: existing documents and composition records serialise byte for byte as before; empty set = two header fields); shape layers (StudioShapeGroup of StudioShapeItem: rect, ellipse, polystar, path commands, fill, stroke, gradient_fill, gradient_stroke, trim, offset, merge, pucker_bloat, round_corners, twist, wiggle_paths, zig_zag, wiggle_transform, repeater, group; group transform; StudioShapeStream keyframe streams by item path and StudioShapeField); text animators (StudioTextAnimator properties + range / wiggly / expression selectors, StudioTextStream by animator, selector and StudioTextParam); composition audio (audio_id reference, start tick, gain); render queue (StudioRenderQueueItem = composition + StudioRenderSettings with the 14 valued STU-MOT-121 controls and recovered wire names incl. 8_bits_per_channel and WSSWW + one or more StudioOutputModule with the STU-MOT-122 fields: format, channels, depth, colour, starting number, resize, crop, audio group, colour group, relative output path); validate_motion_records: document/composition references, uniqueness, counts, depth 32, finite values in domain, stream addressing, composition keyframe rules (validate_keyed made pub(crate)), relative output paths; motion_records_schema()",
+    "(2) composite src/temporal/motion_records.rs (feature motion): CompositionTemporalSource::with_motion_records(records, glyphs, space, revision, engine) makes record layers procedural: shape layers (Folio items converted to the shape-layer model, StudioShapeStream -> ShapeLayerTrack sampled at the frame tick, wiggle time = tick seconds) and text-animator layers (caller-placed glyphs + fill; AnimatorTrack streams) replace the layer content inside layer_at while timing, transform, opacity, matte and masks stay the composition's; temporal/composition.rs hunks: motion field, init, content override, property() pub(crate)",
+    "(3) composite shape layers: GradientFill / GradientStroke (linear, radial centred at start with radius |end-start|, stops validated), gradient space carried through group, repeater and wiggle-transform matrices (PaintRec xform), nib paint_coverage over the coverage frame via vector_nib::painted, painted.rs planes may carry a straight gradient tile (Tile node + owned tile, cut by the coverage mask)",
+    "(4) expression selector: ExpressionSelectorEngine port (per-unit amounts in percent from source, unit count, selector value, tick), multiplied into the animator amount; ProviderSelectorEngine bridges any motion ExpressionProvider (MotionJS's MotionJsProvider implements that port) with a 'var textIndex = i+1; var textTotal = n; var selectorValue = v;' prelude, base = [v], one output component, per-unit fuel; no engine = text_expression_selector, failing provider = text_expression_selector_failed, bad output = text_expression_selector_output",
+    "(2b) harness src/view/timeline_export/render_queue.rs (feature media, which now enables hsk-studio-composite/motion): render_queue_jobs maps a StudioRenderQueueItem to one reel ExportJob per output module through composition_export_job with TemporalScenes (CompositionTemporalSource + motion records), span from time_span (whole frames), recipe from the module (MOV VC-3 profile, MOV/MP4 AV1 quantizer, depth, audio auto/on/off, PCM format), composition audio layers resolved by the caller; refusal codes before rendering: render_work_area_unavailable, render_frame_rate_conversion, render_quality, render_resolution, render_effects_switch, render_color_depth, render_fields, render_motion_blur, output_alpha, output_post_render, output_color_space, output_crop, output_resize, output_codec_option, output_depth, output_audio_channels, output_audio_unavailable"
+  ],
+  "tests": {
+    "argv": "cargo nextest run -p hsk-studio-folio --test motion_records_contract | -p hsk-studio-composite --features motion --test motion_records --test shape_layers --test text_animators | -p hsk-studio-harness --features media --test render_queue_records --test composition_export",
+    "exit": 0,
+    "sha": "551ec63",
+    "passed": 10,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "lead: judge; follow-ups: harness/session loader that reads StudioMotionRecords from a saved document (records are passed explicitly today), glyph placement for text animators from stories (caller-shaped today), resize/crop/alpha/fields/motion blur in the render queue, one evaluation feeding several output modules, a MotionJS-backed selector test (composite cannot dev-depend on motion-js: no declared edge)",
+  "updated_at": "2026-10-15T10:29:06Z",
+  "notes": {
+    "spec_basis": [
+      "STU-MOT-100..104 (shape operators, order semantic, nib geometry), STU-MOT-090..092 (animators, selectors), STU-MOT-120 ('a queue item is a triple: (composition, render settings, one or more output modules)'), STU-MOT-121 / 121a (render settings members; current_settings is a real member), STU-MOT-122 (output module fields and bounds)."
+    ],
+    "commit_method": "private GIT_INDEX_FILE (scratchpad SMB-AE-MOTION-RECORDS/pcommit.sh): read-tree HEAD, this lane's whole files plus HEAD+own-hunk blobs for shared files, write-tree, commit-tree, CAS update-ref; the shared index entries of this lane's paths then point at the committed blobs. folio src/lib.rs carried another lane's unstaged layoutflow lines: only this lane's two lines were committed.",
+    "manifest": "harness Cargo.toml: only this lane's line committed (media feature += hsk-studio-composite/motion). Feature forwarding to the existing harness -> composite edge; composite -> motion is a declared edge already in Cargo.lock, so no new module edge, no dep-requests line, Cargo.lock untouched.",
+    "shared_files": "composite src/temporal/composition.rs was being edited by SMB-AE-3D; its commit b937713 swept three of this lane's uncommitted hunks and 08128e0 took them back. This lane then committed only its own hunks (HEAD blob + its edits, verified identical to the working file) via the private index. The working-tree visibility of keyed_property was set back to HEAD's pub(crate).",
+    "expression_selector": "Bridge proven with a test provider behind motion's ExpressionProvider port (it reads the prelude and returns textIndex / textTotal * 100). NOT_PROVEN with MotionJS itself: no in-tree test runs MotionJsProvider through the bridge, because composite / harness have no declared edge to motion-js.",
+    "unverified_d5": "After Effects record layouts (AEP) are not read; the wire model is Studio's own. Parity UNVERIFIED."
+  }
+}
