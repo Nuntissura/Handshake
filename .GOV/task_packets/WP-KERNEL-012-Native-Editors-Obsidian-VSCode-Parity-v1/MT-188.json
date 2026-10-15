@@ -178,6 +178,54 @@
     "artifact_lane": "../Handshake_Artifacts/WP-KERNEL-012/MT-188/shutdown-source-repair",
     "proof_reuse": "Main source changed; old MT184 full485-target proof remains historical and cannot substitute for current MT188 main compilation. Nativecheck is not proof of backendmain."
   },
+  "independent_drain_source_repair_20261015": {
+    "decision_id": "WP012-MT188-INDEPENDENT-DRAIN-SOURCE-REPAIR-20261015",
+    "recorded_at_utc": "2026-10-14T23:34:57Z",
+    "status": "SOURCE_ONLY_IMPLEMENTATION_RELEASED_PRODUCTION_PROOF_HELD",
+    "decision_owner": "01a13ab5-bfe4-74b1-8fc3-64e691a76827",
+    "authority_refs": [
+      "packet.json#/operator_adaptive_delivery_delegation_20261014",
+      "packet.json#/swarm_production_20261014",
+      "MT-188.json#/closure_unit/materialized_acceptance",
+      "MT-188.json#/proof"
+    ],
+    "source_lease_id": "WP012-SWARM-CORE-INTEGRATION-001",
+    "original_check_id": "WP012-MT-188-PRODUCTION-SHUTDOWN",
+    "producer_control_disposition_20261015": {
+      "decision_id": "WP012-MT188-ORIGINAL-DRAIN-CONTROL-DISPOSITION-20261015",
+      "evidence_owner_chat": "01a13ad0-112c-7c51-9dac-b19da4d01c76",
+      "original_authority": [
+        "Original WP1 MT019 P-4 and lease-retention requirement",
+        "Original WP1 MT020 AC7",
+        "MT-188.json#/closure_unit/materialized_acceptance"
+      ],
+      "evidence": "Diagnostics opened original controls and stable main cc6f56757a308fbccdb3718a0613bf4370b6379454b8880815c53e91151802f7/api e34403a54af22fb8002f5fdef4f85d8d96da62f92da51a0e8146502c339c36fa. Original lease release is allowed after process death OR actual exact-scope zero-open rows; retain on failed owned drain or unproved rows. No unconditional Swarmfalse-only retention law established.",
+      "disposition": "Finish existing two-path repair by removing the api swarm-false early return and collecting the UNCHANGED real shared shutdown result. Preserve reclaimer-before-ledger order, actual terminal and canonical zero-open guards, lease retention on their failure, and true Swarmfalse main exit1.",
+      "scope_unchanged": [
+        "src/backend/handshake_core/src/api/mod.rs",
+        "src/backend/handshake_core/src/main.rs"
+      ],
+      "withdrawn_unimplemented_proposal": "Extra process_ledger/runtime.rs path/retaining-drain API and unconditional Swarmfalse retention were proposed from incomplete control interpretation, then withdrawn before any admission or source write.",
+      "source_review": "Diagnostics main Option consumer source-clear only; perform one affected review of the actual API delta and reuse unchanged main review. Original real positive/negative/DuckDB FlightRecorder-only INSERT-fault/runtime proof remains required and UNRUN.",
+      "next_actor": "Existing primary/drain_repair writer finishes API within the current source lease; Diagnostics checks actual changed delta."
+    },
+    "source_owner_chat": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+    "diagnostic_checker_chat": "01a13ad0-112c-7c51-9dac-b19da4d01c76",
+    "exact_paths": [
+      "src/backend/handshake_core/src/api/mod.rs",
+      "src/backend/handshake_core/src/main.rs"
+    ],
+    "recorded_failure": "Actual api/mod.rs61-70 swarm-flush-false branch yields ledgerNone/default reclaimfalse/leasefalse; main448-458 maps unobserved ledger tofalse. Skipped/default fields do not prove otherwise-healthy connection/runtime/reclaim/ledger observations for the original isolated swarm-drain negative boundary.",
+    "remedy_scope": "Primary selects minimum bounded independent drain/observation repair and necessary existing main consumption in these two paths. Preserve fail-closed authority/lease handling and true swarm-failure exit1; do not invent healthy values or weaken original safeguards.",
+    "controls": [
+      "Retain previous predicate/diagnostic source repair, original acceptance and historical outcomes. This child adds only evidenced producer/consumer connection repair.",
+      "Central assigns one exclusive whole-file writer and useful dependency/Diagnostics checker; settle existing ownership and integrate related repairs before the next original strategic proof.",
+      "Skipped/unobserved drain remains distinct from observed success. No synthetic flag, fake ledger/reclaim/lease value, auth/grant/store substitution or foreign process action.",
+      "Original genuine executable positive/negative and DuckDB FlightRecorder-only INSERT-fault proof plus independent verdict remain required. No compiler/test/runtime invocation or acceptance closure supplied.",
+      "Additional paths or changed acceptance law require the exact evidenced Root disposition."
+    ],
+    "next_actor": "Central primary releases its source owner/checker and returns handback plus affected-proof binding on the final coherent candidate."
+  },
   "delegated_source_only_shutdown_repair_20261014": {
     "decision_id": "WP012-MT188-SOURCE-REPAIR-20261014",
     "status": "SOURCE_ONLY_LEASE_RELEASED",
@@ -770,6 +818,7 @@
   },
   "swarm_source_admission_ref": "packet.json#/swarm_production_20261014",
   "swarm_changed_source_compile_admission_20261014": {
+    "current_private_phase_preparation_ref": "MT-174.json#/schema165_core12_private_phase_preparation_20261015",
     "decision_id": "WP012-SWARM-CHANGED-SOURCE-COMPILER-20261014-06",
     "status": "DURABLE_CALLER_PREPARATION_ADMITTED_STAGE06_EXHAUSTED",
     "recorded_at_utc": "2026-10-14T15:45:07.325853+00:00",
