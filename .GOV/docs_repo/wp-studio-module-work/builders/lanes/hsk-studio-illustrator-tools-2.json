@@ -1,0 +1,49 @@
+{
+  "crate": "hsk-studio-harness",
+  "crates": ["hsk-studio-nib", "hsk-studio-folio", "hsk-studio-composite", "hsk-studio-harness"],
+  "lane": "SMB-ILLUSTRATOR-TOOLS-2",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slices 1-4 pushed; READY on 18320c8",
+  "commits": [
+    {"sha": "13bb770", "subject": "nib (SMB-ILLUSTRATOR-TOOLS-2 slice 1): arrange, envelope/warp, art/scatter/pattern brushes"},
+    {"sha": "78a237c", "subject": "folio (SMB-ILLUSTRATOR-TOOLS-2 slice 2): swatches, brushes and envelopes as vector records"},
+    {"sha": "8fe95e6", "subject": "composite (SMB-ILLUSTRATOR-TOOLS-2 slice 3): brushed strokes and envelopes in the Folio adapter"},
+    {"sha": "18320c8", "subject": "harness (SMB-ILLUSTRATOR-TOOLS-2 slice 4): swatches, arrange, transforms, envelopes, brushes, graphic styles"}
+  ],
+  "capabilities_done": [
+    "(1) folio StudioSwatch hsk.studio.swatch@1 (SSWT; process|global|spot|tint|gradient; RGB/CMYK/LAB/GRAY components with ranges; spot ink with measured Lab and alternate space; tint of a colour swatch) and StudioSwatchPaint (PAINT row -> swatch, per-use tint) in StudioVectorRecords, serde-default and byte-identical; harness swatches are these records (links persist across save/reopen), CMYK (caller CMYK ICC on VectorTool::cmyk_profile, machine-local) and Lab resolved through Prism WideEngine into the CC0 sRGB v4 profile; spot via measured Lab else alternate; tints scale toward paper in the source model; editing a swatch rewrites every bound row and the rows of its tints in ONE undo step; companion PAINT style per swatch for network region fills",
+    "(2) nib::arrange align (selection, key object, artboard; edges and centres) and distribute (edges/centres; equal or explicit spacing from the key object); harness align_layers / distribute_layers move all layers in ONE step (new Run::set_vector_paths_and_entry: one chronicle patch of several vector_paths writes plus the entry in one history step)",
+    "(3) nib::arrange rotate/scale/reflect/shear about a point, exact path bounds, transform_each (STU-VEC-157 parameter ranges, nine-position reference point, seeded randomize); harness transform_layers (about a reference point of the selection bounds) and transform_each_layers; handles and network tangents by the linear part, mesh-envelope points moved too",
+    "(4) nib::warp envelope_paths: the fifteen STU-VEC-168 warp styles (Studio formulas, ratios, axis, horizontal/vertical distortion), mesh grids (bilinear) and top-object Coons patches, fidelity -> tolerance; folio StudioEnvelope; composite wraps the path geometry before the appearance or, with distort_appearance, the drawn geometry, consumes a top-object layer and refuses distort_*_fills typed; harness make (warp/mesh/top object), move mesh point, release, expand (bake)",
+    "(5) nib::brush art (proportional, stretch, between guides, flips), scatter (fixed or seeded random size/spacing/offset/rotation, page or path relative) and pattern brushes (side/start/end/outer/inner corner tiles, stretch or add-space fit); folio StudioVectorBrush (five kinds, STU-VEC-152 ranges, STU-VEC-150 dynamics with max) and StudioBrushStroke; composite draws one own-geometry row per art path (colorize none or tints); harness add_brush from layer art, apply_brush (scale override), remove_brush",
+    "(6) graphic styles (STU-VEC-024) as published PAINT styles a layer node links to: add from layer, apply (linked), redefine (linked layers follow), break link (local copy), additive merge, clear appearance, reduce to basic; swatch and brush bindings follow every restyle by row kind and ordinal"
+  ],
+  "tests": {
+    "argv": "cargo nextest run -p hsk-studio-nib (62/62); cargo nextest run -p hsk-studio-folio (78/78, after 78a237c); cargo nextest run -p hsk-studio-composite -E 'binary(vector_tools) | binary(vector_styles) | binary(vector_network) | binary(vector_nib) | binary(vector_lowering) | binary(stroke_geometry) | binary(clip_records) | binary(vector_mask) | binary(vector_mask_2) | binary(boolean_lowering)' (18/18); cargo nextest run -p hsk-studio-harness --features viewer -E 'binary(viewer_illustrator_tools) | binary(viewer_vector_styles) | binary(viewer_vector) | binary(viewer_vector_2) | binary(viewer_vector_3) | binary(viewer_vector_4) | binary(viewer_network_adapter)' (26/26 at 18320c8)",
+    "exit": 0,
+    "sha": "18320c8",
+    "passed": 184,
+    "failed": 0,
+    "new_tests": ["nib tests/arrange.rs (1)", "nib tests/warp.rs (1)", "nib tests/brush.rs (2)", "folio tests/vector_tools.rs (1)", "composite tests/vector_tools.rs (2)", "harness tests/viewer_illustrator_tools.rs (5)"]
+  },
+  "blockers": [],
+  "lock_wait_s": 1200,
+  "bg_pids": [],
+  "next": "Validator: judge the lane. Suggested next: swatch groups, mixed inks and palette scopes (STU-COL-175..178); calligraphic and bristle brush drawing; per-region brush/appearance on networks; graphic-style libraries across documents; harness manual/DESCRIPTOR entries for the vector tools (none of the vector lanes added one).",
+  "updated_at": "2026-10-15T11:20:00Z",
+  "notes": {
+    "approval": "Lead 2026-10-15: SMB-ILLUSTRATOR-TOOLS-2, geometry in nib, records in folio; commit from a private GIT_INDEX_FILE",
+    "shared_files": "every commit built from a private index (scratchpad own_commit.py: HEAD tree + own blobs; shared files nib lib.rs, folio lib.rs DESCRIPTOR, composite lib.rs DESCRIPTOR via HEAD-blob replacements); other lanes' staged and unstaged work untouched; harness.rs hunk (set_vector_paths_and_entry + patch_json_vector_paths) is this lane's only edit of that file",
+    "waits": "composite and folio builds were broken for a while by other lanes' WIP (text::painted, layoutflow); waited for their fixes instead of building elsewhere",
+    "retry_guard": "route (a) twice: folio vector_tools fixture (top object must be unwrapped) committed in 78a237c before the rerun; harness swatch ids used an invalid UUID variant nibble (d000/c000 -> 8000/b000) fixed and committed in 18320c8 before the rerun (the gameplan hook blocked the uncommitted rerun). No gameplan step added",
+    "gaps": [
+      "swatch kinds mixed_ink / mixed_ink_group, swatch groups, reserved swatches and palette scopes not modelled; gradient stops cannot reference swatches; a spot without measured Lab or alternate is refused at creation (no screen colour)",
+      "CMYK profile is a machine-local VectorTool field (not resolved from the document working_space_cmyk SCPF); GRAY swatches map g -> (g, g, g) without a gray profile",
+      "warp formulas, brush layout rules, transform-each randomize and the nine-position reference integer mapping are Studio rules (Illustrator parity UNVERIFIED, D5); captured warp integer mapping not recorded",
+      "composite does not distort gradient or pattern paints (distort_* refused typed); expand_envelope refuses networks and distort_appearance envelopes; a top-object layer is consumed (drawn empty) rather than deleted",
+      "calligraphic and bristle brushes are records only (composite refuses them typed); colorize tints_and_shades and hue_shift refused; stylus dynamics use the parameter value",
+      "graphic styles are document-local (no cross-document libraries); 'new art inherits appearance' toggle not modelled"
+    ],
+    "v4": "V4-01 deny(arithmetic_side_effects) in every new module; V4-02 budgets (objects 65536, mapped points 2^20, scatter copies 4096, records 4096, mesh 64) checked before work; angles via nib shape::sin_cos_deg (no platform trigonometry); NOT_PROVEN printed as UNVERIFIED parity; V4-09 commit -F"
+  }
+}

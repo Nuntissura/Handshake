@@ -1,0 +1,59 @@
+{
+  "crate": "hsk-studio-layout",
+  "lane": "SMB-LAYOUT-UI",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slice 1 pushed (claim = 863fa73 + a66b909); slice 2 in progress",
+  "commits": [
+    {
+      "sha": "863fa73",
+      "subject": "layout + folio (SMB-LAYOUT-UI slice 1): multi-column frames, balance, span/split paragraphs"
+    },
+    {
+      "sha": "a66b909",
+      "subject": "layout tests (SMB-LAYOUT-UI slice 1): overset oracle counts the two lines of frame 2"
+    }
+  ],
+  "capabilities_done": [
+    "slice 1 layout: reflow/reflow_typeset compose text_column_count columns (equal widths, text_column_gutter between) column by column, then the next frame/page of the thread; Line.column; new reflow_flow(req, opts, Folio StudioLayoutFlowRecords, token)",
+    "slice 1 layout: paragraph span/split overrides (STU-LAY-021): span all columns starts a band below the deepest line of the current band (balanced first) + space before, following text forms a new column band below it + space after; split into n sub-columns: broken at (column - 2*outside - (n-1)*inside)/n, lines fill sub-columns column-major over ceil(lines/n) rows, a block that does not fit its frame moves whole to the next frame",
+    "slice 1 layout: vertical_balance_columns balances the band that ends the story (k = ceil(L/n) lines per column; equal widths keep the breaks); skipped with wrap obstacles or split lines in the band",
+    "slice 1 folio: hsk.studio.layout_flow_records@1 (StudioLayoutFlowRecords beside the document; frame_options.vertical_balance_columns; paragraph_flows: span_column enum, span_count.all sentinel AND numeric span_column_count, split_column_count, space before/after, inside/outside gutter) + validate_layout_flow_records",
+    "slice 1 hostile: threading cycles and self-loops refused cyclic_thread; text_column_count > 1024 budget_exceeded before any per-column work; zero columns / gutters without positive column width invalid_geometry; records of another document, overrides naming no paragraph invalid_input; partial span N (1 < N < columns) unsupported_composition; split with wrap obstacles unsupported_composition; negative or non-pt spacing invalid_geometry"
+  ],
+  "tests": {
+    "argv": "cargo nextest run -p hsk-studio-layout --no-fail-fast (shared tree; layout does not depend on the crates with other lanes' uncommitted edits)",
+    "exit": 0,
+    "sha": "a66b909",
+    "passed": 49,
+    "failed": 0,
+    "files": "tests/layout_columns.rs (5: columns_and_gutter_then_thread_to_next_page, balanced_columns_at_story_end, span_heading_and_split_paragraph, hostile_threads_columns_and_overrides_refused, flow_records_validate); tests/threaded_reflow.rs column refusal assertion replaced by the zero-width-column refusal"
+  },
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "slice 2 (anchored objects, cross-references, conditional text, PDF), slice 3 (object + GREP styles), slice 4 (harness layout UI), slice 5 (books)",
+  "updated_at": "2026-10-15T10:36:17Z",
+  "notes": {
+    "owned_paths": [
+      "crates/hsk-studio-layout/**",
+      "crates/hsk-studio-interop-layout/** (tests touched only for the new Line.column field)",
+      "crates/hsk-studio-folio/src/layoutflow.rs + its two lines in crates/hsk-studio-folio/src/lib.rs"
+    ],
+    "spec_basis": [
+      "STU-LAY-017: Flowed copy is a StudioTextStory rendered through one or more threaded text frames",
+      "STU-LAY-118: text_column_count, text_column_gutter, vertical_balance_columns ('vertically justify balanced across all columns')",
+      "STU-LAY-018/122: a single StudioTextStory flows through an ordered chain of frames across pages and spreads",
+      "STU-LAY-021: span and split columns are a paragraph-level attribute ... span all or N columns ... split into sub-columns, with before/after spacing and inside/outside gutter controls; {single_column, span_columns, split_columns} with span_count.all and a separate integer N, 'Studio MUST carry both'"
+    ],
+    "spec_conflict": "STU-LAY-121 says only vjust.justify activates vertical_balance_columns; layout composes vjust.top only and honours the flag with top justification. InDesign gating UNVERIFIED (D5)",
+    "unverified": [
+      "InDesign column, balance, span/split and straddle-head balancing equality (D5)",
+      "span count N with 1 < N < column count is refused, not composed (InDesign partial-span semantics unknown)"
+    ],
+    "own_failures": [
+      "863fa73 pushed with a wrong overset oracle in layout_columns (frame 2 holds two lines, not one); fixed in a66b909; the steward sync 673baba carried 863fa73 to origin before my own push"
+    ],
+    "commit_method": "private GIT_INDEX_FILE from the current origin tree, only own paths, CAS update-ref, shared index entries reset for own paths only; git diff --stat origin..HEAD checked before every push",
+    "scratch_tree": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-ui/src (STUDIO_OWNER=smb-layout-ui) for interop-layout runs while the shared tree has other lanes' non-compiling pigment edits"
+  }
+}
