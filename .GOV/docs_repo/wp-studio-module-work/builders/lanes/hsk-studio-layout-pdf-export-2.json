@@ -1,0 +1,62 @@
+{
+ "crate": "hsk-studio-interop-layout + hsk-studio-press",
+ "lane": "SMB-LAYOUT-PDF-EXPORT-2",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "items 1-6 pushed (graph order, Type adapter + Folio text fill, DESCRIPTOR, render-back, TrueType subsetting, transparency)",
+ "commits": [
+  {"sha": "fb369b9", "subject": "interop-layout (SMB-LAYOUT-PDF-EXPORT-2 item 1): PDF paint order from the layer graph"},
+  {"sha": "98abfd6", "subject": "interop-layout (SMB-LAYOUT-PDF-EXPORT-2 item 2): Type glyph adapter and Folio text fill"},
+  {"sha": "7027040", "subject": "press + interop-layout (SMB-LAYOUT-PDF-EXPORT-2 items 3, 4): render_page render-back, DESCRIPTOR lists export_pdf"},
+  {"sha": "084e744", "subject": "press (SMB-LAYOUT-PDF-EXPORT-2 item 5): TrueType subsetting with preserved glyph ids"},
+  {"sha": "dd110cf", "subject": "press (SMB-LAYOUT-PDF-EXPORT-2 item 6, press part): ExtGState alpha/blend, transparency groups, luminosity soft masks"},
+  {"sha": "79a60d9", "subject": "interop-layout (SMB-LAYOUT-PDF-EXPORT-2 item 6, mapping): Folio appearance as PDF transparency"}
+ ],
+ "capabilities_done": [
+  "item 1: paint order from StudioLayerGraph (outputs in order, composite inputs by input_ordinal, 0 = bottom; groups as nodes, depth bounded); no graph outputs -> document order + loss composition_graph_absent; layers the graph does not reach -> loss layer_not_in_composition_graph, not drawn",
+  "item 2: pdf_glyphs_from_type(type ParagraphResult, fonts) -> PdfGlyphs in ShapedParagraph::from_type order (font by Type content_hash = SHA-256 + face index; size and offsets from Type; refusals font_not_supplied, glyph_id_range); PdfStory binds the Folio StudioTextStory; glyph fill = character style fill of its range, else paragraph style fill (layout resolve_style), else default_fill; profile-bound fills ICCBased; runs split on font/size/fill/alpha",
+  "item 3: interop-layout DESCRIPTOR operation names export_pdf; pdf_export block (entry, adapter, writer, order, pages, text, vector, raster, appearance, losses, errors, proof); JSON validity asserted in a test",
+  "item 4: press render_page(bytes, index, px_per_pt, Limits, cancel) -> RenderedPage{width, height, rgb, font_warnings, image_warnings, notes} via hayro-interpret into press's paint device on a RENDER_STACK_BYTES thread, canvas bounded by max_flatten_pixels; typed refusals non_finite, value_out_of_range, no_such_page, render_over_budget, render_refused, press reader codes; interop-layout tests render both pages back",
+  "item 5: press TrueType subsetting (ExportOptions::subset_fonts, default true): kept set = used ids (widths, ToUnicode, show_glyphs) + .notdef + composite components; glyf/loca rebuilt with ids preserved (CIDToGIDMap Identity), long loca, head/hhea/hmtx/maxp/cvt/fpgm/prep/OS-2 kept, table checksums and checkSumAdjustment recomputed; six-letter subset tag from a hash of the font and kept ids; loca/glyf structure checked at embedding; subset written and charged at finish",
+  "item 6 (press): BlendMode (16 PDF modes), DrawState + set_draw_state (shared /ExtGState ca CA BM after each drawing's q), begin_group/end_group (per-page levels; form XObject /Group /S /Transparency /I /K with its own resources, painted q /GSu gs /Fm Do Q; empty groups write nothing; depth cap 32), GroupStyle{opacity, blend, isolated, knockout, soft_mask}, SoftMask luminosity (/SMask /S /Luminosity /G DeviceGray group drawing the mask image, /BC [0]); errors alpha_out_of_range, unbalanced_group, invalid_mask; document-unique image names",
+  "item 6 (interop-layout): non-identity layer / composite-group appearance -> transparency group on every page of its spread (opacity x fill_opacity, PDF-named blend modes, isolation; pass-through at full opacity drawn directly); enabled masks -> luminosity soft masks from new PdfAssets::mask (PlacedMask over pigment Mask, validated and hash-checked; coverage_u16le -> 16-bit BE); paint-row opacity/blend and text fill alpha -> DrawState; losses layer_clipping_not_exported, blend_mode_not_in_pdf, pass_through_group_isolated, layer_mask_unresolved, layer_mask_invalid"
+ ],
+ "tests": {
+  "argv": "nextest run -p hsk-studio-interop-layout; nextest run -p hsk-studio-press --lib --test export -E 'binary(export) | test(/^export::/)'",
+  "exit": 0,
+  "sha": "79a60d9",
+  "passed": 26,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "CFF (/FontFile3) embedding, clipping masks, gradients/patterns, spot colours/overprint, PDF/X-4 + independent conformance oracle; soft-mask rendering in press's paint device (paint.rs, other owner) to prove soft-mask compositing by render-back",
+ "updated_at": "2026-10-15T01:25:11Z",
+ "notes": {
+  "spec_basis": "same as SMB-LAYOUT-PDF-EXPORT (STU-IO-006 row 20, STU-LAY-158 effective_* read-back, STU-PDF-002 conformance not proven by artifacts, STU-TYP-127 positioned glyph runs never re-shaped)",
+  "tests_detail": [
+   "interop-layout tests/pdf_export.rs layer_graph_decides_the_paint_order: ordinal 0 (blue, listed second) painted before red; raster outside the graph reported",
+   "interop-layout tests/pdf_export.rs type_shaped_story_takes_its_fill_from_folio_styles: real Type shaping (TextEngine double copied from composite tests/common/text_shaping.rs) of Inter 20 pt; from_type and pdf_glyphs_from_type line up; runs green ICC / red half-alpha (through q /GS0 gs, /ca 0.5) / green; shown ids = Type ids; adapter refuses an unsupplied font",
+   "interop-layout tests/pdf_export.rs snapshot_lowers_to_pdf: hand-computed positions, justified line end, path, stroke, image, 16-bit samples; render-back of both pages (glyph ink, square fill, ICC stroke, linear raster quadrants)",
+   "interop-layout tests/pdf_export.rs folio_appearance_becomes_transparency_groups: group 10 at 50 percent Multiply with an enabled mask -> /ca 0.5 /CA 0.5 /BM /Multiply /SMask, /S /Luminosity, /S /Transparency /I true, mask samples [255, 0]; Vivid Light -> blend_mode_not_in_pdf; render-back without the mask: blue-only pixel (128,128,255), red-only pixel at 0.25 alpha (255,191,191)",
+   "interop-layout tests/pdf_export.rs misaligned_stale_and_refused_inputs: typed refusals, font loss, cancel, DESCRIPTOR JSON",
+   "press tests/export.rs render_back_reads_the_export; transparency_through_extgstate_groups_and_soft_masks (render-back: alpha 0.5 red (255,128,128), cyan Multiply yellow = green, group opacity 0.5 black = 128; soft-masked content skipped by the device and reported as note soft_mask; refusals unbalanced_group, alpha_out_of_range, non_finite, invalid_mask, depth cap, finish with an open group); hostile_sizes_are_typed_refusals (finish-time aggregate refusal for a subset)",
+   "press src/export/tests.rs subset_font_keeps_ids_and_outlines (test-side loca/glyf walk: H, i and .notdef bytes equal the original, unused 'w' empty, subset < 1/10 of Inter, tag ABCDEF+ on FontName and BaseFont); soft_mask_structure_reads_back (ExtGState BM/ca/SMask Luminosity BC, DeviceGray mask group, mask image bytes, form /Group /S /Transparency /I true); hayro_renders_the_export now renders the subset font (0 font warnings)"
+  ],
+  "not_proven": [
+   "soft-mask compositing by render-back: press's paint device (paint.rs, another owner) skips content under a soft mask (RenderedPage.notes soft_mask); the soft mask is proven by structure only (printed NOT_PROVEN line in the press test)",
+   "group compositing of overlapping content: the paint device multiplies group alpha per draw, so a group's knockout of its own overlaps is not distinguished by the render-back"
+  ],
+  "deviation": "item 4 asked for a hayro dev-dependency in interop-layout; the render-back goes through a new public press::render_page instead (press already depends on hayro-interpret and owns the paint device), so no dep-request line and no new edge",
+  "own_cause_log": [
+   "item 4: ambiguous DESCRIPTOR glob import in the interop test (press and interop-layout both export one); retry guard cleared by commit 7027040 (route a)",
+   "item 6: test opened one group too many (a refused end_group left one open); retry guard cleared by commit dd110cf (route a)"
+  ],
+  "unverified": [
+   "graph order convention (input_ordinal 0 = bottom) is composite's; InDesign/Illustrator stacking UNVERIFIED",
+   "PDF blend formulas vs Photoshop's (soft light in particular), mask outside its bounds = 0, pass-through below full opacity drawn as an isolated group: UNVERIFIED (D5)",
+   "render-back proves drawability by hayro-interpret 0.7.0 only, not Acrobat parity and not conformance (STU-PDF-002)"
+  ],
+  "claim": "No PASS claimed; READY_FOR_VALIDATION for items 1-6 on pushed commit 79a60d9 (commits fb369b9..79a60d9 listed above are all part of this claim)"
+ }
+}
