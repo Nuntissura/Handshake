@@ -39,6 +39,8 @@ use handshake_native::code_editor::gutter::{
     fold_triangle_glyph, DiagnosticSeverity, Gutter, GutterConfig, GutterMarkerKind,
 };
 use handshake_native::code_editor::{CodeActionItem, CodeEditorPanel, GutterMarker};
+use handshake_native::code_editor::gutter::breakpoint_color;
+use handshake_native::theme;
 
 /// A real multi-line Rust function so the line-0 body region is foldable (AC-006) and there are enough
 /// rows to target line 2 / line 3 (AC-003/AC-005).
@@ -742,3 +744,19 @@ fn click_events(pos: egui::Pos2) -> [egui::Event; 2] {
         },
     ]
 }
+
+    #[test]
+    fn diagnostic_dot_colors_come_from_theme_tokens() {
+        // The dot/left-bar colors are theme tokens, not hardcoded literals (CONTROL-4): each severity
+        // maps to its matching field on the resolved diagnostic-token set, and the dark/light token
+        // values themselves carry the MT-contract hues (verified in tests/test_theme.rs against the
+        // sanctioned theme home, so no `Color32` literal appears in this widget module).
+        let dark = crate::theme::HsTheme::Dark.palette().diagnostics;
+        assert_eq!(DiagnosticSeverity::Error.dot_color(&dark), dark.error);
+        assert_eq!(DiagnosticSeverity::Warning.dot_color(&dark), dark.warning);
+        assert_eq!(DiagnosticSeverity::Info.dot_color(&dark), dark.info);
+        assert_eq!(DiagnosticSeverity::Hint.dot_color(&dark), dark.hint);
+        // Error is the saturated-red affordance the AC-003 red-pixel screenshot relies on.
+        assert_eq!(dark.error, egui::Color32::RED);
+        assert_eq!(breakpoint_color(&dark), dark.breakpoint);
+    }

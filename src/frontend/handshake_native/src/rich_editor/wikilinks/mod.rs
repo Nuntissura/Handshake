@@ -51,7 +51,7 @@ pub mod inline_view;
 /// active document, split into Resolved/Unresolved buckets; clicks route through the MT-030 nav seam.
 /// See [`outgoing_links_panel`].
 pub mod outgoing_links_panel;
-pub mod parser;
+pub use handshake_wikilink_semantics::parser;
 /// WP-KERNEL-012 MT-057: the wikilink RESOLUTION engine (exact ref/title/alias resolution + the
 /// create-from-unresolved command-bus intent) layered on the MT-015 wikilink engine. See
 /// [`resolver`].

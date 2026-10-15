@@ -7,7 +7,7 @@
 //! A `[[prefix:value]]` / `[[prefix:value|label]]` token is NOT a `Mark::Wikilink`. MT-011's
 //! harden established (and `app/src/lib/tiptap/hs_link_node.ts` confirms) that a typed wikilink
 //! is the inline ATOM node `hsLink` carrying `{ ref_kind, ref_value, label, resolved }`
-//! ([`crate::rich_editor::document_model::node::HsLinkNode`] / `Child::HsLink`). This module
+//! ([`handshake_rich_document_model::node::HsLinkNode`] / `Child::HsLink`). This module
 //! parses the SYNTAX into a [`ParsedWikilink`] that maps 1:1 onto an `HsLinkNode`; autocomplete
 //! confirm then inserts the atom via `InsertNode` (NOT `AddMark`). The MT-014 media embeds already
 //! render from this same `hsLink` node by `ref_kind` — one unified `hsLink` dispatch, no fork.
@@ -34,7 +34,7 @@ use std::sync::OnceLock;
 
 use regex::Regex;
 
-use crate::rich_editor::document_model::node::HsLinkNode;
+use handshake_rich_document_model::node::HsLinkNode;
 
 /// The typed wikilink kind a `[[prefix:value]]` token classifies into. The `Known(String)` arm
 /// carries the backend ref kind (`"wp"`, `"file"`, …); the `Unknown(String)` arm carries the raw
@@ -140,7 +140,7 @@ pub fn wikilink_kind_by_prefix() -> &'static HashMap<&'static str, &'static str>
             // inline atom (ref_kind="locus"), NOT an invented node, so it round-trips `content_json`
             // (AC-006) and the backend backlink indexer keys it on the normalized `locus://` ref value.
             // The `locus://wp/{id}` / `locus://mt/{id}` URI form is parsed by
-            // [`crate::interop::locus_interop::parse_locus_ref`]; this table entry lets the same wikilink
+            // `native interop::locus_interop::parse_locus_ref`; this table entry lets the same wikilink
             // machinery author it as `[[locus:...]]` and render it through the shared CrossRef chip path.
             ("locus", "locus"),
         ]

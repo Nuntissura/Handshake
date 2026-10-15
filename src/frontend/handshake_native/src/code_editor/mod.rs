@@ -51,7 +51,7 @@
 //! `split_layout`, `theme/*`, `accessibility/*`, `backend_client`), which these MTs also reuse rather
 //! than re-creating.
 
-pub mod breakpoints;
+pub use handshake_gutter::breakpoints;
 pub use handshake_text_mechanics::buffer;
 // WP-KERNEL-012 MT-049 (E1 — VS Code parity): Code actions / quick fixes. The lightbulb that turns a
 // read-only diagnostic into an actionable fix. Owns the code-action request lifecycle, the action-list +
@@ -83,7 +83,7 @@ pub mod language_mode;
 // apply discipline to the same pattern MT-048's `rename::apply_text_edits_to_buffer` established; binds the
 // MT-008 LSP transport (`format_document`/`format_range`) additively — no second transport.
 pub mod formatting;
-pub mod gutter;
+pub use handshake_gutter::gutter;
 pub mod highlight;
 // WP-KERNEL-012 MT-052 (E1 — VS Code parity): jump history (the Navigate Back / Forward stack behind
 // Alt+Left / Alt+Right). Pure, egui-free, in-memory session state recording cross-file cursor positions

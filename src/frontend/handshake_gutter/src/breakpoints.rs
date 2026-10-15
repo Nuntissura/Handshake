@@ -6,7 +6,7 @@
 //! - [`BreakpointSet`] — the set of buffer lines that carry a breakpoint, behind a `HashSet<usize>`
 //!   so a toggle is O(1) and the set never holds a duplicate line. The gutter renders a filled red
 //!   circle on every line in this set and a click toggles it.
-//! - [`BreakpointEvent`] — the typed message the [`CodeEditorPanel`](super::panel::CodeEditorPanel)
+//! - [`BreakpointEvent`] — the typed message the `CodeEditorPanel`
 //!   publishes when a breakpoint is set or cleared, so a FUTURE debug-adapter-protocol (DAP) client
 //!   MT can consume it and forward `setBreakpoints` to the debuggee. This MT does NOT implement the
 //!   DAP client; it only prepares the publish channel.
@@ -21,7 +21,7 @@
 //! `send` never blocks, and `.ok()` discards the `Err` returned when the receiver was dropped. The
 //! panel guards every publish with `if let Some(sender) = &self.breakpoint_sender { sender.send(event).ok(); }`
 //! so a missing/disconnected DAP client is a benign no-op, never a hang. This mirrors the existing
-//! [`event_bus`](crate::event_bus) "bus before producer" shape already proven in the WP-011 shell.
+//! `event_bus` "bus before producer" shape already proven in the WP-011 shell.
 
 use std::collections::HashSet;
 

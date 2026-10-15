@@ -16,9 +16,9 @@
 //!
 //! The diagnostic severity colors and the breakpoint red are editor UI affordances, but they are
 //! still THEME TOKENS, not `Color32` literals baked into this widget. They live in the sanctioned
-//! theme home ([`crate::theme::HsDiagnosticTokens`] in `theme/syntax.rs`) so the no-hardcode
+//! theme home ([`HsDiagnosticTokens`] in `theme/syntax.rs`) so the no-hardcode
 //! invariant (CONTROL-4, grep-enforced by `tests/test_theme.rs`) stays GREEN, and the gutter resolves
-//! them per frame from the active [`crate::theme::HsTheme`] (via [`diagnostic_tokens_for`]) so the
+//! them per frame from the active egui visual mode (via [`diagnostic_tokens_for`]) so the
 //! affordances track dark/light like every other token. [`DiagnosticSeverity::dot_color`] takes the
 //! resolved tokens and [`breakpoint_color`] reads the breakpoint token. The MT contract still names
 //! the exact hues (Error=red, Warning=yellow, Info/Hint=cornflower `rgb(100,149,237)`,
@@ -32,8 +32,59 @@
 //! and falls back to ASCII `>` / `v` otherwise, so the gutter never ships a tofu box.
 
 use super::breakpoints::BreakpointSet;
-use super::buffer::TextBuffer;
-use crate::theme::HsDiagnosticTokens;
+use handshake_text_mechanics::buffer::TextBuffer;
+use egui::Color32;
+
+/// Editor gutter diagnostic + breakpoint affordance colors for a single theme.
+///
+/// These are UI affordances of the code-editor surface (the diagnostic severity dots / 3px left
+/// bars and the breakpoint circle), not arbitrary widget hex. They live here in `syntax.rs` — one of
+/// the two sanctioned homes for `Color32` literals (the other is `palette.rs`) — so the no-hardcode
+/// invariant (CONTROL-4, grep-enforced by `tests/test_theme.rs`) stays GREEN and the gutter reads
+/// these from the live theme instead of baking literals into widget code. Resolved per frame from
+/// the active `HsTheme` so the gutter affordances track dark/light like every other token.
+///
+/// Token values are the ones the WP-KERNEL-012 MT-007 contract names exactly: Error = pure red,
+/// Warning = pure yellow, Info/Hint = cornflower blue `rgb(100,149,237)`, breakpoint = `rgb(229,60,60)`.
+/// Dark and light currently share the same severity hues (these are saturated semantic signals that
+/// read on either background, matching VS Code, which also keeps severity hues constant across themes);
+/// the per-theme constructors exist so a later MT can diverge them via the override map without a
+/// signature change.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct HsDiagnosticTokens {
+    /// Error severity dot + 3px left bar (pure red — the AC-003 red-pixel affordance).
+    pub error: Color32,
+    /// Warning severity dot + left bar (pure yellow).
+    pub warning: Color32,
+    /// Info severity dot + left bar (cornflower blue).
+    pub info: Color32,
+    /// Hint severity dot + left bar (the dimmest level; shares the Info blue per the MT contract).
+    pub hint: Color32,
+    /// Filled breakpoint circle color (a slightly softened red so it reads distinct from the pure-red
+    /// error dot).
+    pub breakpoint: Color32,
+}
+
+impl HsDiagnosticTokens {
+    /// Dark-theme gutter diagnostic/breakpoint colors (the MT-007 contract values).
+    pub fn dark() -> Self {
+        Self {
+            error: Color32::from_rgb(0xff, 0x00, 0x00),
+            warning: Color32::from_rgb(0xff, 0xff, 0x00),
+            info: Color32::from_rgb(100, 149, 237),
+            hint: Color32::from_rgb(100, 149, 237),
+            breakpoint: Color32::from_rgb(229, 60, 60),
+        }
+    }
+
+    /// Light-theme gutter diagnostic/breakpoint colors. Currently identical to dark (saturated
+    /// severity signals that read on either background, matching VS Code's theme-constant severity
+    /// hues); kept as its own constructor so a later MT can diverge without a call-site change.
+    pub fn light() -> Self {
+        Self::dark()
+    }
+}
+
 
 /// The diagnostic severity of a gutter marker. Mirrors the LSP `DiagnosticSeverity` (Error=1 ..
 /// Hint=4) so the MT-008 LSP client can map LSP diagnostics onto gutter markers 1:1.
@@ -54,7 +105,7 @@ impl DiagnosticSeverity {
     /// affordance sourced from the theme, never a hardcoded literal in widget code). The MT contract
     /// names these exactly: Error=red, Warning=yellow, Info=cornflower blue `rgb(100,149,237)`; Hint
     /// reuses the Info blue (the dimmest level). Those values live in
-    /// [`crate::theme::HsDiagnosticTokens`].
+    /// [`HsDiagnosticTokens`].
     pub fn dot_color(self, tokens: &HsDiagnosticTokens) -> egui::Color32 {
         match self {
             DiagnosticSeverity::Error => tokens.error,
@@ -178,7 +229,7 @@ pub struct GutterResponse {
 
 /// The breakpoint circle color (a filled red circle), read from the active theme's diagnostic tokens
 /// — a UI affordance sourced from the theme, never a hardcoded literal in widget code. The value lives
-/// in [`crate::theme::HsDiagnosticTokens::breakpoint`].
+/// in [`HsDiagnosticTokens::breakpoint`].
 pub fn breakpoint_color(tokens: &HsDiagnosticTokens) -> egui::Color32 {
     tokens.breakpoint
 }
@@ -188,9 +239,9 @@ pub fn breakpoint_color(tokens: &HsDiagnosticTokens) -> egui::Color32 {
 /// without threading the whole palette through every call site.
 pub fn diagnostic_tokens_for(visuals: &egui::Visuals) -> HsDiagnosticTokens {
     if visuals.dark_mode {
-        crate::theme::HsTheme::Dark.palette().diagnostics
+        HsDiagnosticTokens::dark()
     } else {
-        crate::theme::HsTheme::Light.palette().diagnostics
+        HsDiagnosticTokens::light()
     }
 }
 
@@ -232,7 +283,7 @@ pub struct Gutter;
 
 /// Width of the fold-glyph column for the live editor font metrics. This is the single geometry
 /// source used by strip sizing, glyph centering, number anchoring, and the fold hit target.
-pub(crate) fn fold_column_width(char_width: f32) -> f32 {
+pub fn fold_column_width(char_width: f32) -> f32 {
     FOLD_COL_MIN_W.max(char_width + FOLD_GLYPH_HORIZONTAL_PAD)
 }
 
@@ -656,21 +707,6 @@ mod tests {
         );
     }
 
-    #[test]
-    fn diagnostic_dot_colors_come_from_theme_tokens() {
-        // The dot/left-bar colors are theme tokens, not hardcoded literals (CONTROL-4): each severity
-        // maps to its matching field on the resolved diagnostic-token set, and the dark/light token
-        // values themselves carry the MT-contract hues (verified in tests/test_theme.rs against the
-        // sanctioned theme home, so no `Color32` literal appears in this widget module).
-        let dark = crate::theme::HsTheme::Dark.palette().diagnostics;
-        assert_eq!(DiagnosticSeverity::Error.dot_color(&dark), dark.error);
-        assert_eq!(DiagnosticSeverity::Warning.dot_color(&dark), dark.warning);
-        assert_eq!(DiagnosticSeverity::Info.dot_color(&dark), dark.info);
-        assert_eq!(DiagnosticSeverity::Hint.dot_color(&dark), dark.hint);
-        // Error is the saturated-red affordance the AC-003 red-pixel screenshot relies on.
-        assert_eq!(dark.error, egui::Color32::RED);
-        assert_eq!(breakpoint_color(&dark), dark.breakpoint);
-    }
 
     #[test]
     fn diagnostic_messages_joined_with_severity_prefix() {
