@@ -1,0 +1,37 @@
+{
+  "crate": "hsk-studio-interop-fig",
+  "lane": "SMB-INTEROP-FIG-PROTOTYPE",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slice 1 pushed (69d84c4 + 2f2e716, after steward sync 76c85b3); harness viewer play mode BLOCKED on two harness edges (requested)",
+  "commits": [
+    {"sha": "69d84c4", "subject": "interop-fig + folio + components (SMB-INTEROP-FIG-PROTOTYPE slice 1): PNG/JPEG frame export, prototype Folio fields, prototype player"},
+    {"sha": "2f2e716", "subject": "interop-fig tests (SMB-INTEROP-FIG-PROTOTYPE slice 1 pins): JPEG q90 measured floor; easing/flow/scroll are records in fig_native and fig_export"}
+  ],
+  "capabilities_done": [
+    "(1) export_frame_raster: PNG/JPEG frame export through interop-raster (normal edge, steward sync 76c85b3 before the push): the press render-back of the plan's page encoded as PNG (8-bit RGB) or JPEG (baseline 4:4:4, setting quality as a fraction of 100; absent quality = typed note jpeg_quality_default_used); PDF plans refused; opaque white behind a frame without painted background is a typed note",
+    "(2) Folio (additive): StudioDesignRecords.prototype_pages (STU-PRO-128/129 flow starting points {node_id, name} per page node + prototype_start_node_id) and frame_overflow (STU-PRO-138 NONE|HORIZONTAL|VERTICAL|BOTH), serde-default and not encoded when empty (byte-identical earlier record sets, test prototype_records_contract); validate_design_records refuses dangling/duplicate flow starts and overflow entries; EASING_PRESETS/easing_preset (STU-PRO-120 Studio-declared tuples). interop-fig maps prototypeStartingPoint (ordered by stored position), scrollDirection, Figma easing names to the preset tuples (CUSTOM_CUBIC keeps easingFunction) and AFTER_TIMEOUT (transitionTimeout); flow_start_not_mapped, scroll_not_mapped and the easing loss are gone",
+    "(3) components::PlayerSession: deterministic prototype player over the stored reactions: click/hover/mouse/press dispatch on node ids with ancestor bubbling, AFTER_TIMEOUT timers on an explicit ms clock, NAVIGATE (history push), OVERLAY/CLOSE, SWAP, SCROLL_TO, CHANGE_TO (runtime variant state), BACK (empty-stack diagnostic, STU-PRO-131), SET_VARIABLE (runtime variables), transitions with stored duration and cubic-bezier easing (raw and eased progress observable), navigation ends the action array (STU-PRO-104); bounded stacks (MAX_STACK 256) and actions per dispatch; diagnostics instead of silent no-ops. Proven headlessly on the Operator prototype fixture: each screen reached by dispatched clicks is rendered (PDF export + press render-back) and compared with its Operator PNG"
+  ],
+  "tests": {
+    "argv": "cargo nextest run -p hsk-studio-interop-fig -p hsk-studio-folio -p hsk-studio-components --no-fail-fast",
+    "exit": 0,
+    "sha": "2f2e716",
+    "passed": 136,
+    "failed": 0
+  },
+  "blockers": [
+    {"error": "harness viewer play mode not built: needs edges hsk-studio-harness -> hsk-studio-components and hsk-studio-harness -> hsk-studio-interop-fig (optional, viewer feature); both requested in dep-requests.jsonl (status requested), not added", "file_line": "crates/hsk-studio-harness (untouched)", "attempts": 0}
+  ],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "after the harness edge decision: harness viewer play mode (open .fig, PlayerSession dispatch from viewer clicks / headless steps, show the current screen through render_frame_export), proven by a headless harness test stepping the prototype fixture",
+  "updated_at": "2026-10-15T04:47:50Z",
+  "notes": {
+    "spec_basis": "STU-PRO-104 (actions in order, navigation ends the array), STU-PRO-113 (runtime variables), STU-PRO-120 (named easing presets are stored tuples, Studio publishes them), STU-PRO-128 (flow starting points, order is authority, duplicates refused), STU-PRO-129 (entry frame), STU-PRO-131 (history stack, BACK on empty = diagnostic), STU-PRO-133 (variant state is runtime state), STU-PRO-138 (frame.set_overflow_direction, prototype.dispatch_trigger), STU-PRO-139 (model-steerable without OS input)",
+    "measured": "PNG file decodes to exactly the PDF render-back pixels: start screen mean 0.377676/255, 99.2260 % within 8/255; JPEG q90 mean 1.498803, 98.8381 %; player: screens reached by clicks render at 0.377676/0.339327/0.348830 mean vs their PNGs; smart animate 350 ms, eased progress 0.5 at half time (symmetric EASE_IN_AND_OUT) and cubic_bezier_ease at 0.7",
+    "scope_note": "folio and components files were edited in this lane by lead instruction (Folio fields, player); only own hunks committed (folio lib.rs/records.rs/prototype.rs/test, components lib.rs/player.rs)",
+    "unverified": "Figma's numbers behind its easing presets; Figma's input handling during a running transition (player completes it first); ON_HOVER restore semantics; JPEG quality field scale (0..1 read as fraction of 100)",
+    "deps": "normal interop-raster (approved, synced 76c85b3); harness edges requested only; Cargo.lock uncommitted",
+    "retry_guard": "one retry-guard block after a test compile failure: route (a), committed the fix (69d84c4) and reran; no gameplan step added"
+  }
+}

@@ -2,32 +2,50 @@
   "crate": "hsk-studio-nib",
   "lane": "SMB-ILLUSTRATOR-PEN",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slices 1-3 pushed (anchor path model, shapes + folio live shapes, pathfinder); slice 4 (harness tools) in progress",
+  "crates": ["hsk-studio-nib", "hsk-studio-folio", "hsk-studio-harness"],
+  "phase": "slices 1-4 pushed (anchor path model; shapes + folio live shapes; pathfinder; harness pen / direct selection / shape tools); all READY_FOR_VALIDATION on a225d7a",
   "commits": [
     {"sha": "8698329", "subject": "nib (SMB-ILLUSTRATOR-PEN slice 1): editable anchor path model"},
     {"sha": "ceb6a50", "subject": "nib (SMB-ILLUSTRATOR-PEN slice 1 test): off-centre bend expectation"},
     {"sha": "78a6b75", "subject": "nib + folio (SMB-ILLUSTRATOR-PEN slice 2): parametric shapes and live-shape records"},
-    {"sha": "6cca045", "subject": "nib (SMB-ILLUSTRATOR-PEN slice 3): unified pathfinder over the STU-VEC-130 tokens"}
+    {"sha": "6cca045", "subject": "nib (SMB-ILLUSTRATOR-PEN slice 3): unified pathfinder over the STU-VEC-130 tokens"},
+    {"sha": "fbdac2b", "subject": "harness (SMB-ILLUSTRATOR-PEN slice 4 wip): pen, direct selection, shape tools on vector layers"},
+    {"sha": "a225d7a", "subject": "harness (SMB-ILLUSTRATOR-PEN slice 4): vector tools green; RUN-UI model manual"}
   ],
   "capabilities_done": [
     "slice 1 nib::anchor_path: AnchorPath {contours, fill_rule} / Contour {anchors, closed} / EditAnchor {position, incoming, outgoing (relative handles), mirroring NONE|ANGLE|ANGLE_AND_LENGTH (STU-VEC-109)}; derived point type smooth=1/corner=2; STU-VEC-116 AnchorSelection 1..5; to_owned_path / from_owned_path (quads raised exactly, duplicate closing anchor merged, mirroring inferred); pen start_contour / append_anchor / close_contour; insert_anchor (de Casteljau, curve unchanged); delete_anchor; convert_anchor; move_anchor and move_handle with Constraint::Angle45 and mirroring propagation (Alt break); bend_segment (STU-VEC-003 drag-to-bend, dragged point lands on target); join (coincident merge / straight connect / close own ends); split_at_anchor and split_at (STU-VEC-048 scissors); reverse (STU-VEC-043); hit_anchor / hit_segment / point_at; typed AnchorError with distinct STU-VEC-133 codes path_index_out_of_bounds, point_index_out_of_bounds, cannot_join_path_points; MAX_ANCHORS 65536 / MAX_CONTOURS 4096 checked before allocation; NaN/inf/|v|>1e9 refused",
     "slice 2 nib::shape: rectangle(RectSpec) with 4 independent corner radii clamped min(r, shorter edge/2) and the applied radii returned (STU-VEC-066), corner kinds none/round/round_inverted/inset/bevel (STU-VEC-112 capture values; fancy and corner_smoothing != 0 refused), ellipse(EllipseSpec start/end angle, inner_ratio: full, ring, pie, segment as one shape), polygon(side_count 3..=100, inset_percentage 0..=100), star(point_count 3..=50, inner_radius ratio), line(length, angle); sin_cos_deg fixed polynomial (exact at multiples of 90); ShapeError{parameter, error}",
     "slice 2 folio::StudioLiveShapes (hsk.studio.live_shapes@1): StudioLiveShape{layer_id, path_id, shape: StudioShapeParameters rectangle|ellipse|polygon|star|line}, StudioCornerKind, validate_live_shapes (document, vector payload, path among path_ids, one record per layer, STU-VEC-127 bounds, Budget::nodes before the walk), live_shapes_schema()",
-    "slice 3 nib::pathfinder: PathfinderOp (13 STU-VEC-130 tokens + geom.* members, parse), pathfinder(op, operands bottom-first, paint_keys) -> pieces{path, sources} + GeometryReceipt: unite/intersect/exclude/backMinusFront/frontMinusBack, divideCommand (faces with covering operands, split into connected regions), trimCommand, mergeCommand (touching same-key trimmed pieces united), cropCommand; outline/hard/soft/trap UnsupportedOperation; EmptyPathfinderResult typed; MAX_PIECES 4096; offset_path and outline_stroke proven on cubic curves (circle offsets, half-circle and S-curve strokes); nib DESCRIPTOR illustrator_pen section"
+    "slice 3 nib::pathfinder: PathfinderOp (13 STU-VEC-130 tokens + geom.* members, parse), pathfinder(op, operands bottom-first, paint_keys) -> pieces{path, sources} + GeometryReceipt: unite/intersect/exclude/backMinusFront/frontMinusBack, divideCommand (faces with covering operands, split into connected regions), trimCommand, mergeCommand (touching same-key trimmed pieces united), cropCommand; outline/hard/soft/trap UnsupportedOperation; EmptyPathfinderResult typed; MAX_PIECES 4096; offset_path and outline_stroke proven on cubic curves (circle offsets, half-circle and S-curve strokes); nib DESCRIPTOR illustrator_pen section",
+    "slice 4 harness view::vector (feature viewer): vector layers = Folio vector layers whose SVPT paths are nib AnchorPaths with fill/stroke style in the document entry `vector` (hsk.harness.vector_paths@1, strict bounded decode, Folio validate_live_shapes on the applicable live records); every edit ONE chronicle placement transaction (new path/shape: create above selection; path edit: successor layer created directly above + old deleted in one patch, name/parent/slot/appearance kept; pathfinder: pieces created above the topmost operand + operands deleted; offset path: copy); tools Pen (pen_point click corner / drag smooth, close on first anchor, pen_end), Direct (direct_hit, direct_drag: anchor move, handle move with mirroring/Alt break, segment bend; Shift 45 deg), Rectangle/Rounded/Ellipse shape/Polygon/Star/Line (draw_shape, live StudioShapeParameters record; set_live_shape, expand_shape), edit_path(PathEdit insert/delete/convert/move/bend/scissors/join/reverse), pathfinder_layers(13 tokens), offset_path_layer, outline_stroke_layer; rendered through composite prepare_vector_layers (nib exact coverage + nib strokes) and evaluate/lower_with_inputs (render::render_full, Sources serve vector masks and painted rows); canvas gestures, path/anchor/handle overlay, pen rubber band, shape preview, options row (stable ids vector.*), state_json edit.vector; save guard vector_entry_not_persistable; RUN-UI.md manual"
   ],
   "tests": {
-    "argv": "cargo nextest run -p hsk-studio-nib -p hsk-studio-folio --test anchor_path --test shape --test live_shapes_contract --test pathfinder --no-fail-fast (one run per slice)",
+    "argv": "cargo nextest run -p hsk-studio-harness --features viewer --test viewer_vector --no-fail-fast (slice 4); slices 1-3: cargo nextest run -p hsk-studio-nib -p hsk-studio-folio --test anchor_path --test shape --test live_shapes_contract --test pathfinder --no-fail-fast",
     "exit": 0,
-    "sha": "6cca045",
-    "passed": 14,
-    "failed": 0
+    "sha": "fbdac2b",
+    "passed": 19,
+    "failed": 0,
+    "not_proven": "viewer_vector hostile_input_refusals_save_reopen_and_headless_ui prints NOT_PROVEN: vector save/reopen (session lacks the `vector` document entry token); the test proves the typed save refusal instead and switches to the round-trip assertion automatically once the token exists",
+    "regression": "viewer_edit (3), viewer_text (1), viewer_layers (2) green at fbdac2b; a225d7a is RUN-UI.md only (no test reads it)"
   },
   "blockers": [],
   "lock_wait_s": 18,
   "bg_pids": [],
   "next": "slice 2 shapes (nib::shape + folio live-shape record), slice 3 pathfinder divide/trim/merge/crop + offset/outline on curves, slice 4 harness pen/direct-select/shape tools",
-  "updated_at": "2026-10-15T04:19:13Z",
+  "updated_at": "2026-10-15T04:48:05Z",
   "notes": {
+    "lead_report": {
+      "new_module_edge": "hsk-studio-harness -> hsk-studio-nib (optional, feature viewer), pushed in fbdac2b; dep-requests.jsonl line 2026-10-15T04:20:17Z written before the push. Steward: steward-sync.sh --add-edge hsk-studio-harness=hsk-studio-nib (acyclic: nib -> accord, observe). Composite already depends on nib but re-exports only OwnedPath/PathElement/PathPoint/FillRule, not the anchor model, shapes or pathfinder.",
+      "session_token_request": "Add \"vector\" to hsk-studio-session DOCUMENT_ENTRY_TOKENS (crates/hsk-studio-session/src/source.rs:143, today [selection, text, develop]); not edited here (session is not an owned path). Until then the viewer keeps the vector entry in memory and refuses to save documents with vector layers (typed vector_entry_not_persistable); viewer_vector switches to the save/reopen assertion automatically when the token exists.",
+      "chronicle_gap": "chronicle has no property for Payload::Vector.path_ids and refuses two writes to one address per patch (DuplicateAddress), so a path edit replaces the layer with a successor id in one transaction; an in-place geometry property would keep layer identity (owner: chronicle)."
+    },
+    "spec_basis_slice_4": {
+      "STU-VEC-007": "Pen: Place anchors and straight/curved segments ...; drag to create mirrored tangent handles | Node select: Select and edit individual anchors, handles, segments | Scissors | Join (built: pen, node select = Direct, scissors/join via edit_path; curvature, freehand, reshape, width, knife, shape builder, blob brush not built)",
+      "STU-VEC-009": "The node-select tool MUST expose ... the anchor mirroring mode ... the anchor selection state ... as directly editable typed values (state_json edit.vector.selected_path: anchors with mirroring, derived point types; edit_path Convert)",
+      "STU-VEC-047": "Tool options MUST be persisted per tool and exposed as typed, model-settable values (VectorTool via set_vector_tool; persisted only for the session's lifetime: GAP)",
+      "STU-VEC-010": "Expansion MUST be an explicit, history-tracked command (expand_shape: one transaction)"
+    },
+    "spec_basis": {
     "spec_basis_slices_2_3": {
       "STU-VEC-010": "Each shape is a live StudioVectorPath/StudioVectorNetwork whose defining parameters remain editable until the operator or model explicitly expands it to raw geometry",
       "STU-VEC-127": "Rectangle width/height 0.0..16348.0 pt; Polygon side_count NORMATIVE hard 3..100 (soft 3..20); inset_percentage 0..100; Star point_count 3..50; Star outer radius is the object's own size",
@@ -59,7 +77,9 @@
     },
     "unverified": "Illustrator parity UNVERIFIED (D5): chord/3 handle synthesis, ANGLE mirroring on inserted anchors, coincident-merge join, (1-t):t bend weights, end anchors with one handle inferred NONE",
     "ownership": "new files: nib src/anchor_path.rs, shape.rs, pathfinder.rs + their tests; folio src/live_shape.rs + tests/live_shapes_contract.rs; one-line module registrations in nib/folio lib.rs; nib descriptor.rs one added key (JSON validated with python json.loads; no test reads it)",
-    "dependents": "cargo check --tests green for nib dependents composite, interop-vector, render-cpu at 6cca045 worktree state; folio additions are new names only (grep: no collisions in dependents)",
+    "shared_files_slice_4": "harness Cargo.toml and view/mod.rs carried SMB-PULSE-PLAYBACK hunks while slice 4 was written; that lane committed them in 68b0dd4 before fbdac2b, and the fbdac2b diff of both files was checked to hold only this lane's hunks; tests/common/mod.rs and tests/import_psd.rs (another lane's uncommitted edits) were not staged. A prepared own-hunk staging script (scratchpad/smb-illustrator-pen/stage_own_hunks.py) was not needed.",
+    "retry_guard_slice_4": "route (a): the first viewer_vector run failed 5/5 at layer creation (session refused the unknown document entry token `vector`: PackageError::UnsafeName); fixed in code (in-memory entry + typed save guard), committed fbdac2b, rerun 5/5 green; no gameplan step added",
+    "dependents":"cargo check --tests green for nib dependents composite, interop-vector, render-cpu at 6cca045 worktree state; folio additions are new names only (grep: no collisions in dependents)",
     "shared_hunk_rule": "slice 1 staged lib.rs with only its own `pub mod anchor_path;` hunk (git apply --cached) because shape.rs was still local; index checked to hold only lane files before committing the index",
     "retry_guard": "route (a) once: move_anchor_handle_bend_and_constraints had a wrong hand value (off-centre bend on a retracted-handle line is x 4.6875, not 7.5); fixed by test commit ceb6a50, rerun green; no gameplan step added",
     "v4": "V4-01 deny(clippy::arithmetic_side_effects) in anchor_path.rs (checked_rem/checked_add); V4-02 budgets before allocation (huge-anchor test); V4-09 commit -F; V4-12 scratch under scratchpad/smb-illustrator-pen/"

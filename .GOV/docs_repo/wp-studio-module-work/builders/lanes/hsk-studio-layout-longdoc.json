@@ -2,28 +2,36 @@
   "crate": "hsk-studio-layout",
   "lane": "SMB-LAYOUT-LONGDOC",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice 1 (tables) pushed at a10e9f2; slice 2 (placed graphics and fitting) in progress",
+  "phase": "slices 1-3 pushed (tables a10e9f2, placed graphics a7cac9b, sections/numbering/TOC 6167d85); slice 4 (footnotes and index) in progress",
   "commits": [
     {"sha": "28320cd", "subject": "layout + folio (SMB-LAYOUT-LONGDOC slice 1a): tables through threaded frames"},
-    {"sha": "a10e9f2", "subject": "interop-layout (SMB-LAYOUT-LONGDOC slice 1b): tables to PDF through export_pdf_with"}
+    {"sha": "a10e9f2", "subject": "interop-layout (SMB-LAYOUT-LONGDOC slice 1b): tables to PDF through export_pdf_with"},
+    {"sha": "a7cac9b", "subject": "layout + folio + interop-layout (SMB-LAYOUT-LONGDOC slice 2): placed graphics in frames with fitting"},
+    {"sha": "6167d85", "subject": "layout + folio + interop-layout (SMB-LAYOUT-LONGDOC slice 3): sections, page numbers, TOC"}
   ],
   "capabilities_done": [
     "slice 1 folio: hsk.studio.longdoc_records@1 (StudioLongDocRecords beside the document, StudioDocument unchanged) with StudioTable: column widths, typed header/body/footer rows (min/max height, keep_with_next_row, start_row, allow_split), cells with row/column span, cell-story byte range, insets, fill + tint, four edge strokes + edge priorities, vertical justification; break_headers/footers, skip_first_header/last_footer, stroke_order; every member serde-default and skipped when empty/default (empty set encodes as schema_id + document_id only); check_table_grid + validate_longdoc_records",
     "slice 1 layout: layout_table over the host story's frame thread: cell text composed by the reflow core (compose, factored out of reflow_typeset with identical behaviour; full layout suite 30/30 after the refactor), row heights with spans and min/max caps, header repetition per frame or per page, footers after the last body row of a part, row breaks between frames, row-span and keep_with_next groups, start_row next frame/page/odd/even, allow_split rows split at line boundaries, edge-stroke priority resolution with merged segments in stroke_order, fills, cell text as a LayoutProposal of the cell story, end FlowPosition, overset_row / overset_cells",
-    "slice 1 interop-layout: export_pdf_with(input, PdfLongDoc {tables, overlays}) drawn right after the host frame layer's text (fills tinted, strokes, cell text through the existing glyph path; fonts embedded over all stories); export_pdf delegates with empty content; stale/misplaced table placements refused"
+    "slice 1 interop-layout: export_pdf_with(input, PdfLongDoc {tables, overlays}) drawn right after the host frame layer's text (fills tinted, strokes, cell text through the existing glyph path; fonts embedded over all stories); export_pdf delegates with empty content; stale/misplaced table placements refused",
+    "slice 2 folio: graphic_frames (StudioGraphicFrame per raster layer: page, pt bounds, rectangle/ellipse/SVPT path shape, content size at 100 %, applied fit from ONE union StudioFit enumeration, stored frame_fitting rule, nine-point anchor, crop); validation (raster payload, page, positive sizes, crop leaves content, honour_existing_style refused on a frame)",
+    "slice 2 layout: fit_content / place_graphic (content_to_frame, proportionally, fill_proportionally, center_content, preserve_sizes, frame_to_content keeping the anchor point, apply_frame_fitting_options, cleared fitting; typed content_aware_unavailable, fit_not_legal_here, no_stored_fitting, invalid_geometry on non-finite results)",
+    "slice 2 interop-layout: PdfLongDoc.graphics draws a framed raster layer's pigment tiles through the fit transform, clipped to rectangle / inscribed ellipse / SVPT path, in its paint-order position",
+    "slice 3 folio: sections + toc_styles records; StudioNumberStyle union enumeration with legal_for_pages / legal_for_footnotes; check_sections (STU-LAY-108 rules) and check_toc_style (STU-LAY-148 rules) shared with layout",
+    "slice 3 layout: number_pages (section labels with prefix and style), format_number (arabic, roman, letters, leading zeros, full-width, kanji, symbols, asterisks, none; typed gaps), last_page_label (document/section scope), generate_toc (mapped paragraph styles, page labels from placements, include_overset, nested levels, alphabetical sort, typed toc_loop / style / budget refusals, GeneratedStory::to_story)",
+    "slice 3 interop-layout: TOC with section page labels composed from Type-shaped Inter and exported; PDF glyph ids verified line by line"
   ],
   "tests": {
-    "argv": "cargo nextest run -p hsk-studio-layout -p hsk-studio-folio --test longdoc_tables --test longdoc_records_contract; cargo nextest run -p hsk-studio-interop-layout --test longdoc_pdf",
+    "argv": "per-test runner on -p hsk-studio-layout -p hsk-studio-folio -p hsk-studio-interop-layout, test binaries longdoc_tables, longdoc_graphics, longdoc_numbering_toc, longdoc_records_contract, longdoc_pdf; plus the full layout + interop-layout suites once at the slice 3 tree (56/56)",
     "exit": 0,
-    "sha": "a10e9f2",
-    "passed": 5,
+    "sha": "6167d85",
+    "passed": 14,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "slice 2: placed graphics in frames with fitting (folio StudioGraphicFrame, layout fit_content/place_graphic, PDF through pigment tiles with frame clip)",
-  "updated_at": "2026-10-15T04:12:49Z",
+  "next": "slice 4: footnotes (numbering, placement at the frame bottom through reflow obstacles, continuation) and index marks -> generated index; slice 5: PDF proof consolidation",
+  "updated_at": "2026-10-15T04:45:05Z",
   "notes": {
     "owned_paths": ["crates/hsk-studio-layout/**", "crates/hsk-studio-interop-layout/**", "crates/hsk-studio-folio/src/longdoc.rs", "crates/hsk-studio-folio/tests/longdoc_records_contract.rs", "crates/hsk-studio-folio/src/lib.rs (two lines: mod longdoc; pub use longdoc::*)"],
     "spec_basis": {
@@ -43,6 +51,9 @@
     "unverified": "InDesign parity UNVERIFIED (D5) for every slice: header-per-page repetition, footer placement, split-row continuation, stroke tie rule, tint mixing with paper white, fit anchor semantics",
     "commit_method": "temp-index commits (scratchpad/smb-layout-longdoc/commit.sh): owned whole files from the working tree plus folio lib.rs as HEAD content + this lane's two module lines, because another lane holds uncommitted edits to folio lib.rs DESCRIPTOR; shared index entries of the committed paths are restored to the new HEAD (working files untouched); same pattern the lead accepted for SMB-PRISM-VIEW-TRANSFORM",
     "gaps_slice_1": "graphic cells, nested tables, diagonal lines, gradient fills, alternating patterns, table/cell styles, rotation, the second inset group; reflow of host-story text after a table from TableProposal.end (reflow has no start position yet); folio DESCRIPTOR not updated (file held by another lane's uncommitted edit)",
+    "gaps_slice_2": "content-aware fitting (typed unavailable), format-aware place options (layer comps, PDF crop boxes, page selection), linked-resource records (STU-LAY-030/132), vector/PDF content in graphic frames, content rotation/skew",
+    "gaps_slice_3": "PDF /PageLabels and outline bookmarks (press has no writer; press is another owner), running headers (STU-LAY-016) and text-variable markers inside stories, abjad / alif-ba-tah / Hebrew / katakana numbering, TOC run-in, bookmarks, anchors, book documents, hidden layers, numbered-paragraph modes; letters use the repeat form (aa, aaa), UNVERIFIED vs InDesign",
+    "tests_per_slice": {"slice_1": ["layout longdoc_tables x3", "folio longdoc_tables_round_trip_and_refusals", "interop longdoc_pdf table_exports_fills_strokes_and_repeated_header_text"], "slice_2": ["layout longdoc_graphics x2", "folio longdoc_graphic_frames_round_trip_and_refusals", "interop longdoc_pdf placed_graphics_fit_and_clip_to_frame_shapes"], "slice_3": ["layout longdoc_numbering_toc x3", "folio longdoc_sections_and_toc_styles_round_trip_and_refusals", "interop longdoc_pdf sections_and_toc_export_page_labels"]},
     "parity": "InDesign parity UNVERIFIED (D5) for every slice",
     "parity_rows": ["ID-02/03 sections and page numbers", "ID-14 tables", "ID-15 footnotes", "ID-16 TOC and index", "ID-19 placed graphics and fitting", "ID-27 PDF export"]
   }
