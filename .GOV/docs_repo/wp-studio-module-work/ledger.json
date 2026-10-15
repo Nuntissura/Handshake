@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T03:18:00Z",
+ "updated_at": "2026-10-15T03:23:32Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -5783,16 +5783,18 @@
   {
    "lane_id": "SMB-LAYOUT-PDFX-VERAPDF",
    "crate": "hsk-studio-interop-layout",
-   "phase": "build",
+   "phase": "validation",
    "status": "READY_FOR_VALIDATION",
    "owner": "builder-layout-20261015b",
    "commits": [
     "a4fac0b",
     "d6827c3",
-    "e13911d"
+    "e13911d",
+    "89dddeb",
+    "c31d66c"
    ],
    "verdicts": [],
-   "note": "item 3 READY (CFF CID subsetting, gradient reflect/repeat/midpoints/stop opacity, clip to text/raster); veraPDF items 1-2 Operator-approved 2026-10-15, in progress",
+   "note": "veraPDF 1.30.3 (sha256 matched; .asc UNVERIFIED, key 3184863278B17FE7 unavailable) installed under artifacts; no PDF/X profile in veraPDF -> PDF/X-4 stays not_proven; PDF/A-2b passes for press corpus + 4 interop-layout exports (reports hashed)",
    "lane_file": "builders/lanes/hsk-studio-layout-pdfx-verapdf.json"
   },
   {
@@ -5895,6 +5897,26 @@
    "commits": [],
    "verdicts": [],
    "note": "per-vendor black/white levels (and per-channel black, masked-area black) read and applied; Adobe DNG Converter oracle comparison if installed (Operator's Adobe suite); uncompressed RAF; Olympus compressed ORF if a permissive source + CC0 sample exist"
+  },
+  {
+   "lane_id": "SMB-PDFX-ORACLE",
+   "crate": "oracle",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "PDF/X-4 needs a validator with a PDF/X profile: Acrobat Pro Preflight (Operator's Adobe suite) in the D5 attended session; add to oracle-session plan"
+  },
+  {
+   "lane_id": "SMB-LAYOUT-LONGDOC",
+   "crate": "hsk-studio-layout",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-layout-longdoc-20261015",
+   "commits": [],
+   "verdicts": [],
+   "note": "InDesign ID-14..19: tables (cells, spans, strokes/fills, header rows across frames), placed graphics with fitting, TOC from paragraph styles, footnotes, index markers; PDF export of each"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",

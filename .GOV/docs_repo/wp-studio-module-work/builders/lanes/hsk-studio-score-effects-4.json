@@ -1,0 +1,42 @@
+{
+ "crate": "hsk-studio-score",
+ "lane": "SMB-SCORE-EFFECTS-4",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slice 1 (latency compensation + per-track effect stacks) pushed a7ef7e7; slice 2 (Automatable for every processor) in progress",
+ "commits": [
+  {
+   "sha": "a7ef7e70d1ea4e196382fe55c8c9539574f6c741",
+   "subject": "score (SMB-SCORE-EFFECTS-4 slice 1): Session latency compensation and per-track effect stacks"
+  }
+ ],
+ "capabilities_done": [
+  "Session latency compensation: track latency = sum of its stage latencies (<= MAX_TRACK_LATENCY 2^24); the stack is primed with timeline samples 0..L (outputs discarded) and then fed L samples ahead, so output frame t carries timeline t for every track (session latency 0, track_latency() reports L); stage k lanes are evaluated at the timeline time of the audio it reads (n - latency of earlier stages); tested bit-exact against dry tracks (two transparent lookahead stages, ClickRepair 1792) and against the stages run by hand shifted by their latency with a threshold step, across block partitions down to 1 frame and after reset()",
+  "Per-track effect stacks: TrackSpec (non-exhaustive, TrackSpec::new) holds effects: Vec<EffectSlot{processor, lanes}> (<= MAX_TRACK_EFFECTS 16); every stage must accept the clip layout and the session rate; Automatable::automation_parameters now returns a Vec (rate-dependent ranges possible, called outside the audio path); SidechainDynamics (threshold/ratio/makeup) and ClickRepair (threshold) are Automatable"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-score --test session_latency --test session --test sidechain --test restore --no-fail-fast",
+  "exit": 0,
+  "sha": "a7ef7e70d1ea4e196382fe55c8c9539574f6c741",
+  "passed": 16,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "slice 2: Automatable for every processor; slice 3: click-repair onset/offset at digital silence; slice 4: PR-23 pulse audio through score mixdown (edge request)",
+ "updated_at": "2026-10-15T03:19:55Z",
+ "notes": {
+  "spec_basis": [
+   "STU-FX-135: audio effects are non-destructive, reorderable, individually bypassable stack entries (per-track stack in Session)",
+   "STU-FX-137: tracks, buses, sends",
+   "STU-VID-032/032a (pulse): AudioCrossfade transitions on audio tracks (PR-23 input)"
+  ],
+  "api_change": "TrackSpec fields effect/effect_lanes (2808f39, EFFECTS-3) replaced by effects: Vec<EffectSlot>; TrackSpec is now #[non_exhaustive] with TrackSpec::new so later fields are additive; no consumer outside score tests used the old fields (grep)",
+  "new_tests": {
+   "session_latency": 2
+  },
+  "parity": "Adobe Audition/Premiere mixdown, delay compensation and automation parity UNVERIFIED (D5)",
+  "dep_requests": "none yet",
+  "working_tree": "pre-existing stat-only modifications of other score src files left uncommitted; pathspec commits only; Cargo.lock not committed"
+ }
+}
