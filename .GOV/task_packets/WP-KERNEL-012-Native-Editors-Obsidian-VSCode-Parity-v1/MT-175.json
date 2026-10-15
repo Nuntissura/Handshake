@@ -6619,6 +6619,80 @@
       "pre_resolution_lock_sha256": "01041dc57b5d3b3102a4bd51dc2f3e7b6eaf09661be983987f5d69feae7ea4dd"
     },
     "serial_proof_execution_admission_20261014": {
+      "chrome_demo_phase03_attempt2_20261015": {
+        "decision_id": "WP012-KUMIHIMO-CHROME-DEMO-PHASE03-ATTEMPT2-20261015",
+        "recorded_at_utc": "2026-10-15T00:11:31Z",
+        "status": "SOURCE_BOUND_ONE_PHASE_ADMISSION_HELD_METHOD_REPAIR_REVIEW",
+        "authority_refs": [
+          "packet.json#/operator_adaptive_delivery_delegation_20261014",
+          "MT-175.json#/kumihimo_standalone_source_admission_20261014/original_chrome_demo_repair_20261015"
+        ],
+        "source_owner_chat": "01a13bc6-31e0-7d41-8ea8-805ce8c65bcd",
+        "compiler_controller_chat": "01a139f5-dc34-7af3-a3ed-e486ec461fb9",
+        "diagnostic_checker_chat": "01a13ad0-112c-7c51-9dac-b19da4d01c76",
+        "phase": 3,
+        "attempt": 2,
+        "additional_execution_limit": 1,
+        "executions_consumed": 0,
+        "candidate_commit": "bc2caaf584da864f6723190577ba56b2a45fe14b",
+        "candidate_tree": "ab12bbd5683bc4b6573d7630186b39f5e42959ba",
+        "input_manifest": ".local/wp022-chrome-demo-repair-input.json",
+        "input_manifest_sha256": "0057e1cbb45b505860d977bb3c0a287ca93014aebe62be294cd27d0b8ea04975",
+        "inputs": 70,
+        "ordered_input_sha256": "067923504b06bf65c291f171677d3ff43ab23d3c5da1a941d806ddba842aff44",
+        "input_preservation": "Original69 retained in order, newly admitted demo appended. Published original-source checkpoint verified by owning leader/Primary; exact70 manifest/order independently extracted. Original failure/proof artifacts remain immutable.",
+        "product_lock_sha256": "86a1dbb20a2c88b90d29a682d5c4b57970677fbbfd1fa8b17df5cd94d061d1c6",
+        "sdk_lock_sha256": "94224f3dc2f219beed80f21bb801b1568728712ec68d2d4d26da86af5cb359de",
+        "caller": ".local/wp022-phase-03-chrome-demo.ps1",
+        "prior_unexecuted_caller_sha256": "e449de63615d2aaf6e0e9fd2ddaf645936fe6c8f9a87d7c058d4f27aa2746448",
+        "final_corrected_caller_sha256": null,
+        "method_review": "PENDING: actual parent-PID membership can bind a foreign reused parent generation. Owner corrects this mutable derivative only; one affected stable method/binding review must verify original PID+OS birth/image/parent-lifetime floor before Root release.",
+        "cwd_observed": "C:/Projects/LLM Projects/.assets/Kumihimo",
+        "kernel_binding": false,
+        "argv": [
+          "check",
+          "--manifest-path",
+          "product/Cargo.toml",
+          "-p",
+          "kumihimo-egui",
+          "--all-targets",
+          "--locked",
+          "--offline",
+          "-j",
+          "2"
+        ],
+        "target": ".local/cargo-target",
+        "profile": "Original owning defaults; reject CARGO_PROFILE_* overrides",
+        "environment": "Original RUSTC_WRAPPER=sccache/CARGO_INCREMENTAL=0/CARGO_BUILD_JOBS=2/RUSTC_WORKSPACE_WRAPPER empty/CARGO_HOME and verified existing cache; no target/tool/profile changes.",
+        "tool_hashes": {
+          "cargo": "ddfbad20b31b918d3439d070945ec59bbfe037a6ec0ab5b584459e69c8b37d1b",
+          "rustc": "cf79cfd77b0a144c56a0a6af6bf10bcdf095a73718cd4bf2b9d4fe2d2cbded55",
+          "sccache": "b85863f6c0579c57a74071b8904f9850a8ef03dac26bfc94dc30225155bd7449"
+        },
+        "cache_binding": {
+          "pid": 4820,
+          "birth_utc": "2026-10-11T23:56:04.228255Z",
+          "listener": "127.0.0.1:42818",
+          "mutate_server": false,
+          "observation": "Extracted original declaration, not a fresh liveness claim; Primary verifies actual cache identity before slot."
+        },
+        "output_prefix": ".local/wp022-proof/03-chrome-demo-check",
+        "output_suffixes": [
+          ".log",
+          ".stderr.log",
+          ".phase.json",
+          ".invocation.json"
+        ],
+        "controls": [
+          "HELD: no invocation until actual corrected caller hash/one affected method review and Root release are recorded. Then Primary fresh owning gameplan/resources/disk/process/cache/source70 bindings and explicit sole-slot reservation apply.",
+          "Only ONE original phase03 caller invocation; exclusive CreateNew outputs/latch, actual Cargo and outer numerics, postbinding and original observed/current owned closure. Stop on any failure; preserve all artifacts/counters, no automatic renewal.",
+          "Frozen execution inputs cover original Assets70 and this phase caller/config/tool/profile/environment; kernel_binding=false means no captured kernel HEAD/raw-authority dependency may be silently added.",
+          "No metadata/fetch/SDK05 repetition, phase04/06/07/08 pregrant or09/10/11 substitution. Admit only each necessary later affected original phase after actual predecessor outcome/closure and fresh changed-source evidence.",
+          "Reuse earlier green owning proof only if its relevant inputs/configuration/asserted behavior remain unchanged; SDK05 unchanged-source proof stays separate.",
+          "Compiler success alone supplies neither pixel/native readiness nor whole asset/Handshake acceptance or host adoption. Original owning proof and canonical publication/adoption boundaries remain."
+        ],
+        "next_actor": "Original asset owner returns corrected stable caller/hash and Diagnostics affected review; Root releases this one03 only, Primary reserves slot and invokes once."
+      },
       "decision_id": "WP012-KUMIHIMO-SERIAL-PROOF-20261014-13",
       "status": "PRIMARY_MAY_RESERVE_ONE_SERIAL_ORIGINAL_ASSETS_BATCH_AFTER_FRESH_BINDINGS_AND_GATES",
       "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014",
