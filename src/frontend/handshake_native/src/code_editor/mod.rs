@@ -70,7 +70,7 @@ pub mod editor_view;
 // the MT-010 doc model (panel.rs), and the status-bar segments (top_menu_bar.rs) read it. EOL convert
 // is ONE undo step via the panel's whole-buffer `set_text` (the MT-035/050 single-undo pattern).
 pub mod file_meta;
-pub mod find_replace;
+pub use handshake_find_replace as find_replace;
 pub use handshake_code_structure::folding;
 // WP-KERNEL-012 MT-071 (E11 — VS Code status-bar parity): language-mode detection + per-document
 // override. Strict precedence UserOverride > Shebang > Content > Extension layered ABOVE the MT-001
