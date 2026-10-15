@@ -86,7 +86,23 @@ def permitted(expr, allowed):
     return ev(node)
 
 
+def fuzzing_skipped(pol):
+    """Lead decision 2026-10-15 (rav1e, option b): entries tools/registry-sync.py reached ONLY through `fuzzing-edges`
+    (cfg(fuzzing) target dependencies) are not in `locked` and are skipped here; an edge child that is also in `locked`
+    (it has a normal path) is gated like every other record. Returns [(child, via parent)] skipped."""
+    out = []
+    for edge in pol.get("fuzzing-edges", []):
+        parent, child = edge.split(">", 1)
+        if child not in pol["locked"]:
+            out.append((child, parent))
+    return sorted(set(out))
+
+
 def self_test():
+    pol = {"locked": {"rav1e@0.8.1": {}}, "fuzzing-edges": ["rav1e@0.8.1>libfuzzer-sys@0.4.13"]}
+    fuzz_fails = [] if fuzzing_skipped(pol) == [("libfuzzer-sys@0.4.13", "rav1e@0.8.1")] else ["fuzzing-only not skipped"]
+    pol["locked"]["libfuzzer-sys@0.4.13"] = {}  # same entry reached by a normal path: locked, so gated, not skipped
+    fuzz_fails += [] if fuzzing_skipped(pol) == [] else ["normal-path entry skipped"]
     ui = OK | PACKAGE_ALLOW["epaint_default_fonts"]["terms"]
     cases = [
         ("(MIT OR Apache-2.0) AND OFL-1.1 AND Ubuntu-font-1.0", OK, False),  # the epaint case without the allowance
@@ -108,10 +124,11 @@ def self_test():
             fails.append((bad, "ValueError"))
         except ValueError:
             pass
+    fails += fuzz_fails
     if fails:
         print("LICENSE_GATE_SELF_TEST FAIL", *fails, sep="\n")
         sys.exit(2)
-    return len(cases) + 4
+    return len(cases) + 6
 
 
 if __name__ == "__main__":
@@ -144,8 +161,9 @@ if __name__ == "__main__":
     # NATIVE_FFI_EXTRA set (owner policy, native-ffi only in native owners, is the workspace probe's job).
     m = re.search(r"^NATIVE_FFI_EXTRA: set\[str\] = (.*)$", (root / "tools" / "registry-sync.py").read_text(encoding="utf-8"), re.M)
     extra = set(re.findall(r'"([^"]+)"', m.group(1))) if m else set()
-    bad = []
+    bad, skipped = [], []
     for owner, pol in reg.items():
+        skipped += [f"{owner} {child} (cfg(fuzzing) only, via {parent})" for child, parent in fuzzing_skipped(pol)]
         for key, pin in pol["locked"].items():
             n, v = key.split("@")
             lic = license_of(n, v)
@@ -167,5 +185,5 @@ if __name__ == "__main__":
             want = "native-ffi" if n.endswith(("-sys", "_sys")) or n in extra else "pure-rust"
             if pin.get("kind") != want:
                 bad.append(f"{owner} {key}: kind {pin.get('kind')} (expected {want})")
-    print("LICENSE_GATE", "OK" if not bad else "FAIL", *bad, sep="\n")
+    print("LICENSE_GATE", "OK" if not bad else "FAIL", *bad, *[f"SKIPPED {s}" for s in skipped], sep="\n")
     sys.exit(1 if bad else 0)
