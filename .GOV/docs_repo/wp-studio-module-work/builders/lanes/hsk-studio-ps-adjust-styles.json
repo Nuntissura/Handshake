@@ -1,0 +1,21 @@
+{
+ "crate": "hsk-studio-pigment",
+ "lane": "SMB-PS-ADJUST-STYLES",
+ "status": null,
+ "phase": "slice 1a pushed (863ba0a): pigment maths of the second STU-RAS-151 set; slice 1b (folio records, composite lowering, interop-psd mapping) in progress",
+ "commits": [
+  {"sha": "863ba0a", "subject": "pigment (SMB-PS-ADJUST-STYLES slice 1a): second STU-RAS-151 adjustment set"}
+ ],
+ "capabilities_done": [
+  "slice 1a pigment adjust_colour + AdjustmentOp variants: vibrance, colour_balance, photo_filter, black_and_white, channel_mixer, selective_colour, gradient_map, colour_lookup, shadows_highlights (global), tone_compression (exposure_gamma, highlight_compression), match_colour, replace_colour; appended to AdjustmentKind::ALL (GPU opcodes unchanged); CPU renders via PreparedAdjustment, GPU typed refusal"
+ ],
+ "tests": {"argv": "cargo nextest run -p hsk-studio-pigment --test adjust_colour", "exit": 0, "sha": "863ba0a", "passed": 4, "failed": 0},
+ "blockers": [],
+ "lock_wait_s": 228,
+ "bg_pids": [],
+ "next": "slice 1b folio StudioAdjustment records + composite lower_extensions + interop-psd mapping",
+ "updated_at": "2026-10-15T09:22:32Z",
+ "notes": {
+  "shared_file_hunks": "863ba0a: render-gpu tests/gpu_plan.rs REFUSED_ADJUSTMENTS pin extended with the 12 new kinds (adjacent required change: the capability test enumerates AdjustmentKind::ALL); no other lane had hunks in the committed files."
+ }
+}

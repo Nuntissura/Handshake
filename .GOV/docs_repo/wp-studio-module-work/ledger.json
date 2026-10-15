@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T09:22:06Z",
+ "updated_at": "2026-10-15T09:26:35Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -6966,12 +6966,16 @@
   {
    "lane_id": "SMB-VECTOR-STYLES",
    "crate": "hsk-studio-folio",
-   "phase": "queued",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": null,
-   "commits": [],
+   "commits": [
+    "1da1d3e",
+    "f326d46"
+   ],
    "verdicts": [],
-   "note": "harness authoring of folio fill/stroke styles (swatches, gradient, stroke panel); per-region fill styles on networks; folio record for variable-width strokes so composite renders them"
+   "note": "harness authoring of folio fill/stroke styles (swatches, gradient, stroke panel); per-region fill styles on networks; folio record for variable-width strokes so composite renders them",
+   "lane_file": "builders/lanes/hsk-studio-vector-styles.json"
   },
   {
    "lane_id": "SMB-AE-MOTION-TOOLS",
@@ -7042,6 +7046,16 @@
    "commits": [],
    "verdicts": [],
    "note": "AE gap: 3D layers, cameras, lights (per spec), 3D camera solve; particles out of scope until spec names them"
+  },
+  {
+   "lane_id": "SMB-ILLUSTRATOR-TOOLS-2",
+   "crate": "hsk-studio-nib",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-illustrator-pen-20261015",
+   "commits": [],
+   "verdicts": [],
+   "note": "AI gaps: folio swatch references (global swatches, CMYK/spot entries), align/distribute, transform tools (rotate/scale/reflect/shear, transform each), envelope + warp effects, art/scatter/pattern brushes, graphic styles"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",

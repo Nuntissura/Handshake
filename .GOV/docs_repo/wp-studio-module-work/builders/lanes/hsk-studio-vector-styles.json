@@ -1,0 +1,52 @@
+{
+  "crate": "hsk-studio-harness",
+  "crates": ["hsk-studio-folio", "hsk-studio-composite", "hsk-studio-harness"],
+  "lane": "SMB-VECTOR-STYLES",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slices 1-2 pushed; READY on f326d46",
+  "commits": [
+    {"sha": "1da1d3e", "subject": "folio + composite (SMB-VECTOR-STYLES slice 1): region fill styles, width profiles, plan colours"},
+    {"sha": "f326d46", "subject": "harness (SMB-VECTOR-STYLES slice 2): Folio fill/stroke styles, stroke panel, swatches"}
+  ],
+  "capabilities_done": [
+    "(1) harness view::vector::style: set_fill (solid, linear, radial gradient; None removes), set_stroke (stroke panel: weight, cap butt/round/projecting, join miter/round/bevel, miter limit, even dash list, dash offset, align center/inside/outside), swatches (add_swatch = published PAINT style with one fill row, publish key swatch-<n>; apply_swatch to a fill or stroke row with a link; edit_swatch updates the swatch and every linked row; detach_swatch keeps a local copy; swatches(), layer_paint_style()); each edit ONE entry-only undo step (Run::set_tiles_and_entry, no chronicle write); hostile values refused typed before anything is built, every style re-validated by folio validate_paint_style; vector_json exposes the selected layer's paint style and the swatches",
+    "(1) rendering: every vector layer goes through composite's Folio adapter (prepare_vectors) from the entry's Folio records; unstyled layers use a style synthesised from their 8-bit colours (all 17 earlier vector viewer tests unchanged and green, pixel-identical); 8-bit sRGB is decoded into the linear-light plan through VectorAssets::plan_colour; the harness-built spec path (specs/outline_spec) is removed",
+    "(2) composite: a network region with its own fill_style_id is painted by that style's fill rows, each a StrokeGeometry row over the region outline, after the layer's fill rows and before its stroke rows; harness network_region_swatch paints a face with a swatch by reference (a swatch edit repaints it) and the paint bucket carries region styles across re-detection",
+    "(3) folio StudioWidthProfile (STU-VEC-122) in StudioVectorRecords.width_profiles: position 0..1 strictly increasing, width and optional width_out, the three editing booleans skipped at false, at most 256 points; skipped when empty so earlier record sets are byte-identical; validate_vector_records refuses hostile profiles typed. Composite strokes a profiled path with nib::width::outline_variable. Harness saves width profiles as these Folio records (entry member vector_records) and still reads legacy per-path width; entries without styles or widths re-encode byte-identically",
+    "VectorAssets::plan_colour (default None): the caller resolves working-space colours into plan units after the profile check; non-finite is refused as vector_paint"
+  ],
+  "tests": {
+    "argv": "1da1d3e: cargo nextest run -p hsk-studio-composite -p hsk-studio-folio -E 'binary(vector_styles) | binary(vector_network) | binary(vector_nib) | binary(vector_lowering) | binary(stroke_geometry) | binary(static_plan) | binary(width_profile) | binary(vector_records_contract)' 20/20 and cargo nextest run -p hsk-studio-folio 73/73; f326d46 (worktree tested, then committed unchanged): cargo nextest run -p hsk-studio-harness --features viewer -E 'binary(viewer_vector_styles) | binary(viewer_vector) | binary(viewer_vector_2) | binary(viewer_vector_3) | binary(viewer_vector_4) | binary(viewer_network_adapter)' 21/21",
+    "exit": 0,
+    "sha": "f326d46",
+    "passed": 114,
+    "failed": 0,
+    "new_tests": ["folio tests/width_profile.rs (1)", "composite tests/vector_styles.rs (3)", "harness tests/viewer_vector_styles.rs (4)"]
+  },
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "Validator: judge the lane. Suggested next: per-row swatch references in Folio (rows carry none; links are viewer entry state), asymmetric width points in nib, colour entry beyond 8-bit sRGB (HEX/HSB/CMYK/Lab, STU-VEC-019).",
+  "updated_at": "2026-10-15T09:40:00Z",
+  "notes": {
+    "approval": "Lead 2026-10-15: SMB-VECTOR-STYLES, own hunks only",
+    "shared_files": "folio lib.rs, composite lib.rs: only this lane's mod/DESCRIPTOR hunks committed. INCIDENT: the first slice-1 commit (7ecb7f7, local, never pushed) took in another lane's pre-staged hunks (composite temporal/composition.rs, tests/composition_document.rs) because the shared index already held them; it was undone with git reset --soft HEAD~1 (worktree and index untouched), the other lane's staged lib.rs hunk (PinnedContent) was restored to the index, and both slices were committed from a temporary index holding only this lane's paths (scratchpad own_commit.py), so other lanes' staged state was left as it was",
+    "spec_basis": {
+      "STU-VEC-015/020/022": "ordered fill and stroke rows with paint, opacity and blend",
+      "STU-VEC-134..137": "solid and linear/radial gradient paints and stops",
+      "STU-VEC-143..145": "stroke cap, join, miter limit, dash",
+      "STU-VEC-019/051": "global swatches: an edit updates every use; break the link to hold a local copy",
+      "STU-VEC-108/110": "per-region fill state and fill_style_id on networks",
+      "STU-VEC-122": "width points with position, width, independent outgoing width and editing booleans"
+    },
+    "gaps": [
+      "Folio rows carry no swatch reference: row-to-swatch links are viewer entry state (swatch_links); region swatches are a true Folio reference",
+      "a swatch is a solid or gradient PAINT style; StudioSwatch colour-space/kind records (STU-RAS-168, STU-VEC-141) are not modelled",
+      "width_out differing from width, and the editing flags, are stored by folio but refused by composite (vector_width_asymmetric) and not editable in the viewer; dash, projecting cap or non-centre alignment with a width profile: vector_width_style",
+      "the colour entry is 8-bit sRGB only; tools that read the 8-bit style (offset, outline stroke, merge keys) ignore an authored Folio style",
+      "Illustrator parity UNVERIFIED (D5)"
+    ],
+    "retry_guard": "route (a) once: vector_network.rs still expected the old region-style refusal; the assertion was updated and committed in 1da1d3e before the rerun (20/20). No gameplan step added",
+    "v4": "V4-01 deny(arithmetic_side_effects) in folio width_profile.rs, composite vector.rs, harness style.rs; V4-02 stop, dash, style, link and width-point counts checked before building; NOT_PROVEN: Illustrator parity; V4-09 commit -F"
+  }
+}
