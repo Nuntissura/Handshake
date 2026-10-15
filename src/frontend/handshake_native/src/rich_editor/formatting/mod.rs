@@ -20,7 +20,7 @@
 //! command_registry/event_bus host Sender is not wired into the editor until E11/MT-069
 //! — bus routing is additive, never the only path; COMMAND DISPATCH REALITY gate).
 
-pub mod commands;
+pub use handshake_rich_formatting as commands;
 pub mod keymap;
 pub mod toolbar;
 

@@ -113,8 +113,10 @@ handshake_folder_tree = { path = "../handshake_folder_tree" }
 handshake_code_structure = { path = "../handshake_code_structure" }
 handshake_diff_merge = { path = "../handshake_diff_merge" }
 handshake_find_replace = { path = "../handshake_find_replace" }
+handshake_rename = { path = "../handshake_rename" }
 handshake_runtime_instance = { path = "../../backend/handshake_runtime_instance" }
 handshake_rich_document_model = { path = "../handshake_rich_document_model" }
+handshake_rich_formatting = { path = "../handshake_rich_formatting" }
 handshake_text_mechanics = { path = "../handshake_text_mechanics" }
 handshake_asset_resolver = { path = "../handshake_asset_resolver" }
 handshake_embed_views = { path = "../handshake_embed_views" }

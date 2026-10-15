@@ -614,3 +614,32 @@ fn all_toolbar_commands_have_unique_author_ids() {
     );
     println!("{} unique toolbar-btn author_ids", seen.len());
 }
+#[test]
+fn test_set_heading_changes_kind() {
+    use handshake_native::rich_editor::document_model::node::{HeadingLevel, NodeKind};
+    use handshake_native::rich_editor::formatting::commands::dispatch;
+    use handshake_native::rich_editor::formatting::toolbar::is_command_active;
+
+    let mut doc = BlockNode::doc(vec![BlockNode::paragraph("title")]);
+    let mut history = UndoManager::new();
+    let mut selection = Selection::caret(DocPosition::new(vec![0, 0], 2));
+    let mut context = CommandContext::new(&mut doc, &mut history, &mut selection, "test");
+    dispatch(&mut context, &FormattingCommand::SetHeading(1)).unwrap();
+    let block = doc.children[0].as_block().unwrap();
+    assert_eq!(
+        block.kind,
+        NodeKind::Heading(HeadingLevel::new(1)),
+        "set_heading(1) converts the paragraph to an h1"
+    );
+    // The text survived the conversion.
+    assert_eq!(
+        block.children[0].as_text().unwrap().text.to_string(),
+        "title"
+    );
+    // The toolbar H1 active-state check now reports true for this caret.
+    assert!(is_command_active(
+        &doc,
+        &selection,
+        &FormattingCommand::SetHeading(1)
+    ));
+}

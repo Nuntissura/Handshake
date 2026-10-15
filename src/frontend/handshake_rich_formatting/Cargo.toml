@@ -1,0 +1,12 @@
+[workspace]
+
+[package]
+name = "handshake_rich_formatting"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+handshake_rich_document_model = { path = "../handshake_rich_document_model" }
+serde_json = "1"
+thiserror = "2"
