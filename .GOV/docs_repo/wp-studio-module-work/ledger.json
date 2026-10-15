@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T00:07:22Z",
+ "updated_at": "2026-10-15T00:09:23Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -4269,10 +4269,10 @@
   },
   {
    "lane_id": "SMB-DNG-CORPUS-REPLACE",
-   "crate": "corpus",
-   "phase": "queued",
+   "crate": "oracle-corpus",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-harness-dev-20261015",
    "commits": [],
    "verdicts": [],
    "note": "oracle-corpus/dng/samsung-sm-g973u-16bit-uncompressed.dng is a JFIF JPEG preview; replace with a CC0 uncompressed 16-bit DNG from raw.pixls.us"
@@ -4905,12 +4905,21 @@
   {
    "lane_id": "SMB-HARNESS-UI-3",
    "crate": "hsk-studio-harness",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-ui3-20261015",
-   "commits": [],
+   "commits": [
+    "63af66e",
+    "e938e9c",
+    "e927352",
+    "9a1b8d8",
+    "f6443de",
+    "cf18e93",
+    "9832c68"
+   ],
    "verdicts": [],
-   "note": "layer create/delete/duplicate/reorder (raster/text/vector) via chronicle; paint creating tiles; brush pixel mix through pigment masked_replace (parity); selection persisted in package; text tool via type + composite text; commit-authority tile path test; filters/retouch tools when pigment lanes land"
+   "note": "layer create/delete/duplicate/reorder (raster/text/vector) via chronicle; paint creating tiles; brush pixel mix through pigment masked_replace (parity); selection persisted in package; text tool via type + composite text; commit-authority tile path test; filters/retouch tools when pigment lanes land",
+   "lane_file": "builders/lanes/hsk-studio-harness-ui-3.json"
   },
   {
    "lane_id": "SMB-ACCORD-COMPOSITION-PREFIX",
@@ -5056,9 +5065,9 @@
   {
    "lane_id": "SMB-HARNESS-DEVELOP-EXPORT",
    "crate": "hsk-studio-harness",
-   "phase": "queued",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-harness-dev-20261015",
    "commits": [],
    "verdicts": [],
    "note": "harness: open raw -> develop recipe sliders -> develop_to_output -> JPEG/PNG export (CLI + viewer); after SMB-HARNESS-UI-3"
@@ -5089,9 +5098,9 @@
   {
    "lane_id": "SMB-INTEROP-FIG-INSTANCES-FRAMES",
    "crate": "hsk-studio-interop-fig",
-   "phase": "queued",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-fig-inst-20261015",
    "commits": [],
    "verdicts": [],
    "note": "expand component instances (with overrides) into composited layers; artboard/frame fills as background layers; text outputs with font resolution so Figma text renders"
@@ -5161,6 +5170,16 @@
    "commits": [],
    "verdicts": [],
    "note": "composition layers: masks + effects (reuse lower_to_render_plan_extended per layer), vector/text/adjustment layers via prepared planes, collapse_transformations; precomps + mattes on the document-graph path; after SMB-COMPOSITE-VECTOR-IN-GROUP"
+  },
+  {
+   "lane_id": "SMB-FOLIO-CHANNEL-RECORD",
+   "crate": "hsk-studio-folio",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "STU-RAS-022: selection/alpha channel record in folio; UI-3 persists selection as a session typed entry studio/<token>.<sha256> as interim; migrate harness to the record"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
