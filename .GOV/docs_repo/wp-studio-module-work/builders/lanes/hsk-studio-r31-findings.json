@@ -1,0 +1,40 @@
+{
+  "crate": "hsk-studio-harness",
+  "lane": "SMB-R31-FINDINGS",
+  "status": "IN_PROGRESS",
+  "phase": "F-R31-1, F-R31-3, F-R31-2, SMB-V4-01-DENY-SWEEP pushed (74d5cc2); lead addition in progress: machine-path in two committed veraPDF report fixtures (c31d66c) blocks canary C45",
+  "commits": [
+    {"sha": "bd0229a", "subject": "harness tests (SMB-R31-FINDINGS F-R31-1): CR3 decodes; expect develop's colour-solve refusal"},
+    {"sha": "bf24e3c", "subject": "harness view (SMB-R31-FINDINGS F-R31-3): display clip as the plan output stage"},
+    {"sha": "9f69a2f", "subject": "press (SMB-R31-FINDINGS F-R31-2): check_pdfx4 parses the XMP and matches pdfxid by namespace URI"},
+    {"sha": "74d5cc2", "subject": "develop + layout (SMB-V4-01-DENY-SWEEP, SMB-R31-FINDINGS): deny arithmetic_side_effects in output.rs and parent_adapter.rs"}
+  ],
+  "capabilities_done": [
+    "F-R31-1: crates/hsk-studio-harness/tests/import_psd.rs proprietary_raw_refusals_pass_through_develop_unchanged pins (file, develop step, code): canon-eos-r6.cr3 decodes and develop's solve_colour refuses missing_colour_data, which the import returns unchanged; fujifilm-finepix-s5000.raf decode_container refuses decoder_unavailable, returned unchanged; a silent import now panics instead of printing",
+    "F-R31-3: harness view render.rs preview_extensions() = PlanExtensions::default().with_output(OutputStage::new(Extended, Some(Clip))); render-cpu and render-gpu read-back paths call execute_extended_detailed with it, the shared display calls render_to_texture(plan, Some(&ext)); the three deprecated with_display_transform calls (display.rs, mod.rs, render.rs) are gone. Same envelope the aliases executed for these default-stage plans (render-cpu plan_sink/display.rs aliased, render-gpu plan_sink/display.rs aliased)",
+    "F-R31-2: crates/hsk-studio-press/src/export/pdfx.rs xmp_pdfx_version: iterative tokenizer (tags, attributes in either quote, 5 predefined entities + char refs, comments, PIs, CDATA; DOCTYPE refused; depth cap 64; one root; matched end tags; bound prefixes) reading GTS_PDFXVersion in namespace http://www.npes.org/pdfx/ns/id/ under any prefix, as a property element of rdf:Description (text only) or a property attribute; structured, repeated or malformed -> None; rule pdfx4.xmp_metadata_pdfxid requires the value == PDF/X-4",
+    "SMB-V4-01-DENY-SWEEP: #![deny(clippy::arithmetic_side_effects)] in crates/hsk-studio-develop/src/output.rs (clip counters checked_add -> DevelopError::Overflow; sample max u8::MAX/u16::MAX by depth) and crates/hsk-studio-layout/src/parent_adapter.rs (no integer arithmetic flagged; rect edges are f64)"
+  ],
+  "tests": {
+    "argv": "per-test runner (studio-env wrapper): (1) -p hsk-studio-harness --features import-psd,import-raw --test import_psd --run-ignored ignored-only test(proprietary_raw_refusals) at bd0229a's tree; (2) -p hsk-studio-harness --features desktop --test viewer_develop --test viewer_headless --test viewer_shared_display; (3) -p hsk-studio-press -p hsk-studio-interop-layout --run-ignored all: pdfx_version_is_matched_by_namespace_not_by_text, cff_fonts_clipping_gradients_and_pdfx4, folio_clipping_gradient_and_pdfx4, verapdf_corpus_self_checks_and_is_written_on_request at 9f69a2f; (4) -p hsk-studio-develop -p hsk-studio-layout --test develop_output --test parent_adapter",
+    "exit": 0,
+    "sha": "74d5cc2",
+    "passed": 19,
+    "failed": 0,
+    "clippy": "clippy --all-targets: -p hsk-studio-harness --features desktop (no harness warnings, deprecation gone); -p hsk-studio-press (clean); -p hsk-studio-develop -p hsk-studio-layout (clean after the output.rs fixes; the deny first reported output.rs:97, :100, :132)"
+  },
+  "blockers": [],
+  "lock_wait_s": 31,
+  "bg_pids": [],
+  "next": "validation",
+  "updated_at": "2026-10-15T05:16:00Z",
+  "notes": {
+    "owned_paths": ["crates/hsk-studio-harness/tests/import_psd.rs", "crates/hsk-studio-harness/src/view/display.rs", "crates/hsk-studio-harness/src/view/mod.rs (one hunk)", "crates/hsk-studio-harness/src/view/render.rs", "crates/hsk-studio-press/src/export/pdfx.rs", "crates/hsk-studio-develop/src/output.rs", "crates/hsk-studio-layout/src/parent_adapter.rs"],
+    "f_r31_2_path": "the dispatch named crates/hsk-studio-interop-layout/src/pdfx.rs:111; no such file exists. check_pdfx4 lives at crates/hsk-studio-press/src/export/pdfx.rs:111, as round-R31.json F-R31-2 file_line states; fixed there",
+    "f_r31_2_xml": "the press crate has no XML parser or XML dependency (verdict.rs reads the veraPDF report by attribute text scan); the finding's repair direction (element/attribute tokenizer) was implemented in pdfx.rs without a new dependency. The new test has 6 packets on which the former text search answers wrongly (comment decoy, prefix bound to another URI, decoy attribute text, other version with the marker text elsewhere: false accepts; other prefix for the namespace, escaped property attribute: false rejects) plus 6 refused malformed/hostile packets",
+    "f_r31_2_first_run": "first run of the unit test failed on my own test expectation path: a structured (rdf:Alt) value returned Some(\"\") instead of None; fixed in 9f69a2f to return None before the commit's rerun (retry guard: HEAD changed, rerun green)",
+    "shared_files": "crates/hsk-studio-harness/src/view/mod.rs carried another lane's uncommitted prototype-play edits (SMB-HARNESS-PROTOTYPE-PLAY); bf24e3c staged only this lane's one hunk (index blob = HEAD + hunk); the other lane's hunks remain uncommitted in the working tree. Layout tests ran with the SMB-LAYOUT-LONGDOC lane's uncommitted layout lib.rs/footnotes/index edits present; 74d5cc2 commits only parent_adapter.rs",
+    "behaviour": "F-R31-3 is behaviour-preserving for the viewer: viewer_develop viewer_develop_sliders_undo_and_export_headlessly still asserts the 'clipped for display' note. External callers of view::render::render/render_to that pass their own GpuBackend now get the Clip output stage on the GPU path too (before, only the viewer-created backend had the alias); no caller in the workspace passes its own backend",
+    "cargo_lock": "left uncommitted"
+  }
+}
