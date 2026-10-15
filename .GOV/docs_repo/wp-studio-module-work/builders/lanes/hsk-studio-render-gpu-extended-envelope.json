@@ -1,0 +1,50 @@
+{
+ "crate": "hsk-studio-render-gpu",
+ "lane": "SMB-RENDER-GPU-EXTENDED-ENVELOPE",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "pushed fbc4ad7 (code + tests) and d3efbe4 (DESCRIPTORs; lane-2 test switched to an undefined op): every envelope op render-cpu admits in the extended range runs on the GPU; shared-texture overflow is the typed refusal",
+ "commits": [
+  {"sha": "fbc4ad7", "subject": "render-gpu (SMB-RENDER-GPU-EXTENDED-ENVELOPE): extended-range envelope operations on the GPU; shared-texture overflow refusal"},
+  {"sha": "d3efbe4", "subject": "render-gpu (SMB-RENDER-GPU-EXTENDED-ENVELOPE): DESCRIPTORs for extended envelope operations and shared-texture overflow; lane-2 test uses an undefined op"}
+ ],
+ "capabilities_done": [
+  "(1) extension_exactness declares ExtOperator::ExtendedEnvelope(op) for every op pigment defines except content-aware fill (render-gpu runs no content-aware fill at all): linear exposure, layer effects, gaussian blur, unsharp mask, median, layer blur, backdrop blur, transform",
+  "flags: Params.flags bit 2 (EXTENDED_FLAG) now also on the adjustment-layer and effect-colour composites; BlurP.ext (was pad0); FilterP.op bit 8 (FILTER_EXTENDED_BIT); ResampleParams.ext (was pad0); unit plans write 0 there, so every unit dispatch reads the same parameters as before",
+  "WGSL in extended mode: exposure_ch and adjust_apply drop their clamps and the adjustment lerp is unclamped (pigment apply_in / composite_adjustment_in); blur/filter unpremul keep P/A unclamped (unpremultiply_in); unsharp combine unclamped (filter_window_in); resample keeps P/A unclamped (sample_rgba_in); effect mattes are alpha maths (unchanged), the effect colour and content composite through the extended kernel",
+  "overflow: every extended pass turns a marked input (alpha > 1.5, the alpha-2 marker) or a non-finite input or result (exponent-bit test) into the marker; the composite kernel marks any marked or non-finite source; the read-back refuses a marked texel (threshold now alpha > 1.5) as Unsupported{sample_range_outside_unit}",
+  "(2) shared-texture path: the output pass (binding 3, atomic<u32> flag) skips a marked or non-finite texel of an extended plan and sets the flag; render_to_texture clears the flag per execution and run reads it once after the last chunk (4 bytes, extended plans only, counted in GpuStats.bytes_read_back) and returns Unsupported{sample_range_outside_unit}, the error render-cpu returns; unit plans write every texel exactly as before and read nothing"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-render-gpu --features test-faults,shared-device --test gpu_extended_envelope --no-capture ; at READY: cargo nextest run -p hsk-studio-render-gpu --features test-faults,shared-device --lib --test <every tests/*.rs except vector_mask> --no-fail-fast (58/58) ; cargo nextest run -p hsk-studio-render-cpu --no-fail-fast (66/66) ; cargo test --doc -p hsk-studio-render-gpu (6/6)",
+  "exit": 0,
+  "sha": "d3efbe4",
+  "passed": 2,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "Validator: judge d3efbe4 (code fbc4ad7). The full render-gpu target set cannot compile tests/vector_mask.rs today (untracked work of the composite vector-mask lane, see run_caveat); pigment's suite has one failure from another lane's uncommitted render_plan.rs edit (see run_caveat).",
+ "updated_at": "2026-10-15T03:25:01Z",
+ "notes": {
+  "spec_basis": {
+   "STU-COL-120": "32-bit is unbounded; reduced availability reported per operation (unchanged refusals for undefined ops)",
+   "STU-FX-006a": "every deterministic filter/effect evaluates correctly across the bit depths: the defined ops now run on the GPU in the extended range",
+   "STU-COL-161": "stage 4 compositing in the blending space, stage 6a after it; overflow of stage 4 is a typed failure on both outputs",
+   "STU-ARC-002": "no new public wgpu type; the flag buffer lives inside the shared output pipeline"
+  },
+  "tests_detail": "NEW (2) tests/gpu_extended_envelope.rs: gpu_runs_every_extended_envelope_operation_within_tolerance_of_pigment (live adapter, chunk sides 8 and 64, 12x8 scene with colour up to 6.0: exposure +1 stop offset 0.1 gamma 2 vs composite_adjustment_in 1.19e-7; gaussian blur r2 3.36e-7, unsharp 150 % r1.5 5.18e-7, median r1 0 vs filter_window_in; layer blur r2 3.36e-7 vs blur_window_in; backdrop blur r2 under a 0.6-alpha block 1.59e-7 vs backdrop_mix_in of blur_window_in then composite; bicubic 1.5x transform 2.51e-7 vs sample_rgba_in; all max relative |delta| (tolerance 2e-5), values above 1 in every reference; drop shadow multiply 0.5 over 3.0: block 4.0, a shadow-only 1.5 pixel, backdrop 3.0), gpu_overflow_in_envelope_operations_and_on_the_shared_texture_is_typed (read-back: unsharp 500 % across a 3e38 / 0 edge = Unsupported{sample_range_outside_unit}; shared texture on a caller device: 3e38 + 3e38 linear dodge = the same refusal, a clean extended frame afterwards succeeds with bytes_read_back 4, a unit frame 0). UPDATED (1): gpu_extended_overflow none-backend refusal now uses high pass (undefined) since gaussian blur is declared",
+  "chunk_note": "chunk side 4 is BudgetExceeded for frame passes (render-gpu's minimum chunk); the parity test uses 8 and 64 like tests/gpu_filters.rs (first run at 4 failed with BudgetExceeded{30932, 268435456}; fixed in the test, committed fbc4ad7, rerun green)",
+  "byte_identity": "unit plans: every new WGSL branch is gated by an extended flag that unit dispatches write as 0; the shared pass only skips texels when params.extended != 0; the read-back marker threshold moved from alpha > 1.0 to > 1.5 inside the extended-only check. Suites at READY on the final sources: render-gpu 58/58 (all targets but vector_mask), render-cpu 66/66, doctests 6/6; logs Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/smb-render-scene-display/r3-*.log",
+  "run_caveat": "(a) render-gpu tests/vector_mask.rs (untracked, composite vector-mask lane) does not compile against composite's current VectorMask (missing density, feather_px, linked in that lane's untracked tests/support/mask_scenes.rs), so the full target set was run with an explicit --test list without it. (b) pigment full suite 138/139: plan_followups admission_readers_of_nodes_and_entries_are_classified fails on 'render_plan.rs:726 fn isolate_masked_pass_through: reads plan nodes or envelope entries and is not classified' - an UNCOMMITTED edit of pigment src/render_plan.rs by another lane (git diff: +60 lines, not this lane's; this lane changed no pigment file); pigment was 139/139 at b41818e",
+  "gaps": [
+   "content-aware fill is still not run by render-gpu (unit or extended); pigment refuses it before device work",
+   "an extended overflow inside an effect matte input is detected through the content composite (the marker rides the content), not inside fx.wgsl itself",
+   "on the shared-texture path the texture holds an unfinished frame after the refusal; the caller must not present it (as with any Err)",
+   "Photoshop 32-bit parity UNVERIFIED (D5)"
+  ],
+  "files_touched": "render-gpu src: kernel.rs (filter/blur param flags), kernel.wgsl (exposure/adjust extended, marker helpers), kernel_pixel.wgsl (marked-source check, 1.5 threshold), blur.wgsl, filter.wgsl, resample.wgsl, plan_sink.rs (declarations, extended on adjustment/effect composites, flag words, shared finish), plan_sink/shared.rs (flag binding, finish, DESCRIPTOR), lib.rs (DESCRIPTOR); tests gpu_extended_envelope.rs (new), gpu_extended_overflow.rs",
+  "new_module_edges": "NONE; no new dependency",
+  "retry_guard": "one rerun after a committed test fix (chunk side), no gameplan step added"
+ }
+}
