@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T04:11:26Z",
+ "updated_at": "2026-10-15T04:12:38Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -5876,12 +5876,15 @@
   {
    "lane_id": "SMB-INTEROP-FIG-EXPORT",
    "crate": "hsk-studio-interop-fig",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-fig-inst-20261015",
-   "commits": [],
+   "commits": [
+    "0a3640a"
+   ],
    "verdicts": [],
-   "note": "FG-19: Figma frame export to PNG (interop-raster) and PDF (press PdfExport, edge interop-fig -> press approved), export settings (scale, suffix, format) from the .fig; Inter 4.1 Regular added as a new fixture from the same official zip; then FG-10 prototype interactions as stored records"
+   "note": "PDF frame export (glyph outlines), prototype screens 0.34-0.38/255 mean vs Operator PNGs; prototype interactions stored; PNG/JPEG encode pending interop-fig -> interop-raster normal edge",
+   "lane_file": "builders/lanes/hsk-studio-interop-fig-export.json"
   },
   {
    "lane_id": "SMB-COMPOSITE-VECTOR-MASK-2",
@@ -6018,6 +6021,16 @@
    "commits": [],
    "verdicts": [],
    "note": "AU/PR compressed audio: FLAC, Vorbis, Opus, MP3, AAC-LC decode (permissive sources only; symphonia is MPL = excluded), FLAC encode; container read via interop-media"
+  },
+  {
+   "lane_id": "SMB-INTEROP-FIG-PROTOTYPE",
+   "crate": "hsk-studio-interop-fig",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-fig-inst-20261015",
+   "commits": [],
+   "verdicts": [],
+   "note": "PNG/JPEG frame export via interop-raster (normal edge approved); folio fields for flow start, scroll behaviour, easing curves; prototype player (state machine over stored interactions) + harness viewer play mode headless-proven"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",

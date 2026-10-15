@@ -1,20 +1,37 @@
 {
   "crate": "hsk-studio-interop-fig",
   "lane": "SMB-INTEROP-FIG-EXPORT",
-  "status": null,
-  "phase": "slice 1 implemented and green locally (49/49); waiting for the steward sync that adds hsk-studio-press to interop-fig allowed before pushing the manifest change",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {"argv": "cargo nextest run -p hsk-studio-interop-fig --no-fail-fast", "exit": 0, "sha": null, "passed": 49, "failed": 0},
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slice 1 pushed (0a3640a, after steward sync ea00e69 added hsk-studio-press to interop-fig allowed); PNG/JPEG file encoding waits for the interop-raster normal-edge decision",
+  "commits": [
+    {"sha": "0a3640a", "subject": "interop-fig (SMB-INTEROP-FIG-EXPORT slice 1): frame export to PDF through press, raster render-back, export settings, glyph outlines, Inter Regular 4.1 fixture"}
+  ],
+  "capabilities_done": [
+    "(0) Inter-Regular-4.1.ttf added unmodified (member extras/ttf/Inter-Regular.ttf of the lead's rsms/inter v4.1 zip, zip sha256 9883fdd4... verified, font sha256 40d692fce188e4471e2b3cba937be967878f631ad3ebbbdcd587687c7ebe0c82, committed bytes re-hashed), provenance entry; type 3.019 fixture kept. Re-measured on the basic-shapes text line (composite + Type): 3.019 mean 3.862939/255 vs 4.1 mean 12.404327/255, so 3.019 stays the Regular grant of the composite proofs",
+    "(1) Frame export: plan_frame_exports honours the frame's .fig exportSettings (imageType PNG/JPEG/PDF, constraint CONTENT_SCALE/CONTENT_WIDTH/CONTENT_HEIGHT, suffix -> '<frame name><suffix>.<ext>'; default PNG 1x when none); unsupported format (SVG, MP4, ...), colour profile (P3, CMYK), absolute bounds, overlapping content, scale outside (0, 16] or page side > 16384 pt, and every undecoded option are typed losses with no plan. export_frame_pdf writes the frame as one page of press PdfExport (1 px = 1 pt x scale): paths with fill rules, solid and gradient (axial/radial) fills, centre and inside strokes (inside = 2x width clipped), clips and vector masks (mask written as geometry clip, noted), opacity/blend transparency groups, image paints from a caller image source (FILL/FIT/CROP placement, clipped), text as Figma's own laid-out glyph outlines; effects, dashes, outside strokes, tiled images, missing image source = typed losses. render_frame_export renders the page back with press render_page (independent hayro interpreter): the raster export pixels",
+    "Decoder: derivedTextData glyph outlines (commandsBlob, a leading Close without a current point dropped) and advances; exportSettings per node; text layouts carry glyph outlines in document px",
+    "(2) Prototype interactions: stored as StudioReaction records on import (triggers, Navigate actions, destinations resolved to the frames, smart-animate transition 350 ms) and unchanged through the native records entry round trip (read_native_records); flow starting point, scroll overflow and the INOUT_CUBIC easing curve stay typed losses (Folio has no field; Figma's curve values UNVERIFIED). There is no .fig writer, so no Figma-side round trip"
+  ],
+  "tests": {
+    "argv": "cargo nextest run -p hsk-studio-interop-fig --no-fail-fast",
+    "exit": 0,
+    "sha": "0a3640a",
+    "passed": 49,
+    "failed": 0
+  },
   "blockers": [
-    {"error": "push waits for the steward sync adding hsk-studio-press to [workspace.metadata.studio.dependencies.hsk-studio-interop-fig] allowed (lead-approved edge; dep-requests line status approved)", "file_line": "Cargo.toml (root, steward-owned)", "attempts": 0},
-    {"error": "PNG/JPEG file encoding needs a NORMAL edge interop-fig -> interop-raster (requested in dep-requests.jsonl, status requested; today dev-only)", "file_line": "src/export.rs render_frame_export returns pixels only", "attempts": 0}
+    {"error": "PNG/JPEG file encoding of the export needs a NORMAL edge interop-fig -> interop-raster (dep-requests.jsonl line status 'requested'; today dev-only). render_frame_export returns the pixels; encode_png/encode_jpeg not called from the product crate yet", "file_line": "src/export.rs render_frame_export", "attempts": 0}
   ],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "push slice 1 after the sync; PNG/JPEG encode after the interop-raster normal edge decision",
-  "updated_at": "2026-10-15T03:40:00Z",
+  "next": "after the interop-raster normal-edge decision: export_frame_png/jpeg (encode the render-back raster, JPEG quality from the setting); Folio fields for flow starts, scroll overflow and easing curves are spec work",
+  "updated_at": "2026-10-15T04:11:42Z",
   "notes": {
-    "row_id_note": "the dispatch calls the export row FG-19; in research/parity-matrix-20261014b.json FG-19 is Dev Mode and FG-20 is 'Export frames as PNG/SVG/PDF' (the row this lane works on)"
+    "row_id_note": "the dispatch calls the export row FG-19; in research/parity-matrix-20261014b.json FG-19 is Dev Mode and FG-20 is 'Export frames as PNG/SVG/PDF' (the row this lane works on). FG-10/FG-11 (transitions/player): records only, no player (FG-11 stays MISSING)",
+    "measured": "PDF export rendered back vs Operator PNGs: start/detail/animated mean 0.377676/0.339327/0.348830 /255, within 8/255 0.992260/0.992831/0.991971, p99 0 (the composite + font path was 0.7192/0.6832/0.6871); basic-shapes artboard with image mean 0.896394, 98.0469 % within 8/255, p99 23 (shadow and blur not exported); 2x export sampled vs the 1x PNG mean 0.680737, 99.1245 %",
+    "press_measurements_note": "the PDF route renders through press/hayro only, so its numbers do not depend on other lanes' uncommitted composite work in the shared tree",
+    "unverified": "1 px = 1 pt at scale 1 (Figma PDF export convention); PDF default miter limit 10 vs Figma 4 (typed note); Figma glyph space read as em units y-up (confirmed by the render matching the PNGs)",
+    "deps": "normal dep hsk-studio-press (approved, steward sync ea00e69 before the push); normal interop-raster requested only; Cargo.lock uncommitted",
+    "retry_guard": "no gameplan block; no gameplan step added"
   }
 }
