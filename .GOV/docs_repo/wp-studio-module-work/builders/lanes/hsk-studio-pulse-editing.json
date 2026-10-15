@@ -1,0 +1,77 @@
+{
+ "crate": "hsk-studio-pulse",
+ "lane": "SMB-PULSE-EDITING",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slices 1-4 pushed: three-point insert/overwrite, one-step undo/redo of every edit kind, sequence and clip markers, transitions (cross dissolve frame proven through composite)",
+ "commits": [
+  {
+   "sha": "3da782c19c0d6a26bf7956a3501df7faabf7eac2",
+   "subject": "pulse (SMB-PULSE-EDITING slices 1-2): three-point insert/overwrite with source patching and sync lock; one-step undo/redo"
+  },
+  {
+   "sha": "3f72807c96b50e31a142a43903cedf1e9ddcd271",
+   "subject": "pulse (SMB-PULSE-EDITING slice 3): sequence and clip markers with durations, roles and one-step undo"
+  },
+  {
+   "sha": "5ab95f8962196cf16bbbafbd9e03c2d967d3796a",
+   "subject": "pulse (SMB-PULSE-EDITING slice 4): transitions as typed timeline records; cross dissolve frame proven through composite"
+  }
+ ],
+ "capabilities_done": [
+  "PR-07: plan_assembly_edit(Snapshot, sequence_id, expected_revision, AssemblyEdit{mode Insert|Overwrite, source ClipSource, speed, AssemblyPoints{source_in,source_out,sequence_in,sequence_out}, fit, patches[SourcePatch{track_id,clip_id}], link_group, fresh_clip_ids}, EditContext) -> EditProposal (src/assemble.rs); resolve_points derives the 4th point (incl. backtiming); 4 disagreeing points -> fit_required unless FourPointFit ChangeSpeed|TrimHead|TrimTail|IgnoreSequenceOut",
+  "insert: a clip straddling the in point is split (split_clip, factored out of razor and shared), content at/after the point shifts on patched tracks and on every other sync-locked track with later content; unlocked tracks stay; a locked sync-locked track -> sync_lock_blocked. overwrite: lane lift_span over its own duration on the patched tracks, nothing moves",
+  "undo/redo (STU-VID-040, STU-HIS-002 snapshot revert): every plan_* proposal carries TimelineInverse{expect, restore}; plan_timeline_revert restores only while the sequence equals expect (else revert_mismatch) and is itself a one-step proposal whose inverse is the redo",
+  "slice 2: ripple/roll/slip/slide trims and ripple delete (ExtractClip) already existed from lane SMB-PULSE; this lane proves each as one revision step with exact undo and redo against hand-built windows",
+  "PR-11 (markers part): TimelineAnnotations (src/annotate.rs) beside one Folio sequence with its own revision; Marker{marker_id, scope Sequence|Clip{clip_id}, name, comment, LabelColor (16), start, duration (0 = point), role Chapter|WebLink|CuePoint|Caption}; sequence markers in sequence ticks on whole frames (never move with clips); clip markers in the clip SOURCE ticks (travel with the clip; trim/slip only hides them; reversed speed mapped)",
+  "EditProposal::splits() lists (origin, new) for every clip an edit cut in two (razor, insert, overwrite, range lift/extract); follow_timeline_edit hands clip markers to the piece holding their start and drops+lists markers of removed clips; plan_annotation_edit (Add/Replace/RemoveMarker) and plan_annotation_revert are one-step undo/redo; marker_span, marker_spans, next_marker, prev_marker (STU-VID-035 playhead to marker)",
+  "PR-20 (transitions part): Transition records (src/transition.rs) in TimelineAnnotations via AnnotationEdit::AddTransition/RemoveTransition: CrossDissolve (video) / AudioCrossfade (audio) at the cut of two abutting clips on one track; alignment CenteredOnCut (floor(frames/2) before the cut)|StartAtCut|EndAtCut|Custom(center_offset); transition_placement, transition_handles (HandleReport + shortfall), insufficient_handle / source_extent_unknown unless repeat_end_frame (holds the last available source tick); no overlap per track; transition_frame(tick) -> source tick per clip + progress (tick - start)/duration",
+  "frame proof: frame 18 of a 10-frame centred dissolve (progress 3/10, A at source 18, B at handle source 98) rendered through composite render_scene on render-cpu = hand blend (0.59, 0.26, 0.34, 1) within 2e-6; also frames 15 (p=0) and 24 (p=0.9); follow_timeline_edit keeps a dissolve across a ripple trim (cut moves) and drops+lists it on ripple delete"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-pulse --no-fail-fast",
+  "exit": 0,
+  "sha": "5ab95f8962196cf16bbbafbd9e03c2d967d3796a",
+  "passed": 23,
+  "failed": 0,
+  "focused": [
+   "editing::three_point_insert_and_overwrite_match_hand_built_timelines",
+   "editing::every_edit_kind_is_one_step_that_undoes_and_redoes_exactly",
+   "editing::hostile_assembly_input_is_refused_typed_before_work",
+   "editing::markers_keep_their_scope_through_edits_with_spans_and_undo",
+   "editing::cross_dissolve_frame_matches_hand_computed_blend"
+  ]
+ },
+ "blockers": [
+  "steward: pulse dev-allowed = [hsk-studio-composite, hsk-studio-render-cpu, hsk-studio-pigment, hsk-studio-prism] (test-only edges, builders/dep-requests.jsonl 4 lines, lead reported via message to main); until added, workspace-probe answers dependency_outside_declared_dag for pulse and Cargo.lock needs the steward sync"
+ ],
+ "bg_pids": [],
+ "next": "folio fields for markers/transitions/work area; host glue recording EditProposal + AnnotationInverse as one history entry; a composite mix operator for non-opaque dissolves; multicam (PR-10)",
+ "updated_at": "2026-10-15T03:05:00Z",
+ "notes": {
+  "spec_basis": [
+   "STU-VID-024: 'Three-point and four-point editing are the normative assembly model.' ... 'With four points where the durations disagree, Studio MUST offer an explicit fit choice (change clip speed, trim head, trim tail, ignore sequence out) rather than choosing silently.' Insert: 'everything at or after that point on the affected tracks shifts later by the clip's duration. Sync-locked tracks ([STU-VID-029]) shift with it; unlocked tracks do not.' Overwrite: 'the incoming clip replaces sequence content over its own duration. No downstream content moves.'",
+   "STU-VID-025: 'Source patching maps each of the incoming media's streams ... to a destination track. Track targeting marks which tracks respond to timeline-relative operations'",
+   "STU-VID-026: each trim 'is one reversible history step'; STU-VID-028: 'Ripple delete is extract applied to a selection.'",
+   "STU-VID-040: 'Every operation in this sub-section is one reversible StudioHistoryEntry' ... 'A multi-track ripple is one step.'; STU-HIS-002: undo applies 'its inverse command or a snapshot revert'",
+   "STU-VID-032: 'A transition is a timed blend applied AT an edit point, and it is a distinct primitive from an effect.' ... 'when insufficient handle exists Studio MUST report the shortfall and offer the declared choices (shorten the transition, shift the alignment, repeat the end frame) rather than silently repeating frames.'; STU-VID-032a: 'A cross-dissolve and an audio crossfade are the shipped defaults.'",
+   "STU-VID-034: 'A CLIP marker travels with the clip and moves when the clip moves. A SEQUENCE marker is positioned in sequence time and does not move with clips.' ... 'Each carries a name, a comment, a colour, a duration (a marker may be a span, not only a point), and an optional typed payload for chapter, web-link, cue-point and caption roles.'"
+  ],
+  "gaps": [
+   "Folio stores no markers or transitions (folio timeline.rs module docs): pulse owns the record shape and validation, the host persists TimelineAnnotations; a Folio field is a folio-lane follow-up",
+   "project-item markers (on media items) and the work area (PR-11 second half) are not in this lane",
+   "chronicle/session do not yet carry timeline inverses: the host must record the EditProposal inverse and the follow_timeline_edit AnnotationInverse as ONE history entry",
+   "cross dissolve pixels = incoming at opacity p normally over the outgoing frame: an exact mix only for an opaque outgoing frame; a composite mix operator is a follow-up. The pulse->composite glue lives only in the test (no product edge)",
+   "dissolve frame sampling (frame k of n = k/n) and centring of odd frame counts are UNVERIFIED Premiere behaviour (D5)",
+   "PR-10 multicam, PR-19 playback/monitors, PR-21 Lumetri, PR-22 titles, PR-23 timeline audio mixing are outside this lane's four slices"
+  ],
+  "lead_report": "new test-only module edges pulse -> composite, render-cpu, pigment, prism (same shape as approved interop-fig B1 dev edges); dep-requests.jsonl lines appended 2026-10-15; reported to the lead conversation before the slice 4 push",
+  "decisions": [
+   "chronicle is not used: its Patch grammar is layer-property-only (Property enum) and pulse has no chronicle edge; the inverse follows chronicle's precondition + restore semantics at sequence scope (no new patch grammar); the host records it",
+   "insert/overwrite land by source patching (STU-VID-025); track targeting keeps governing range lift/extract",
+   "linked clips under an overwrite span or straddling an insert point are refused (linked_edit_unsupported), consistent with range lift/extract"
+  ],
+  "parity": "Premiere Pro behaviour (straddler split on sync-locked tracks, partial overwrite, backtiming) is UNVERIFIED (D5 oracle session)",
+  "hostile": "patches > 1024, fresh ids > 262144 or a possible clip total > 262144 -> limit_exceeded before resolve or clone; sequence_in near u64::MAX and a sync-locked shift past u64::MAX -> overflow; ChangeSpeed span > i64::MAX -> invalid_speed; two patches on one track -> overlap",
+  "verdicts": []
+ }
+}

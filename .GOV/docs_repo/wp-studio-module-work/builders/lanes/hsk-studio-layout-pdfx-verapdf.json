@@ -1,0 +1,51 @@
+{
+ "crate": "hsk-studio-press + hsk-studio-interop-layout",
+ "lane": "SMB-LAYOUT-PDFX-VERAPDF",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "item 3 pushed (CFF subsetting; gradient repeat/reflect, midpoints, stop opacity; clipping to text and raster bases). Items 1-2 (veraPDF download and validation) ON HOLD pending the Operator's explicit download approval; conformance stays not_proven",
+ "commits": [
+  {"sha": "a4fac0b", "subject": "press + interop-layout (SMB-LAYOUT-PDFX-VERAPDF item 3, slice 1): CFF subsetting, gradient spread/midpoints/stop opacity, clipping to text and raster bases"},
+  {"sha": "d6827c3", "subject": "press (SMB-LAYOUT-PDFX-VERAPDF item 3): tests for CFF subsetting, gradient spread/midpoint/opacity, text clipping"},
+  {"sha": "e13911d", "subject": "interop-layout (SMB-LAYOUT-PDFX-VERAPDF item 3): clip-to-text/raster test, DESCRIPTOR clip/gradient/fonts updated"}
+ ],
+ "capabilities_done": [
+  "press cff::subset_cid: CID-keyed CFF rebuilt with glyph ids kept (unused CharStrings -> endchar 14; header, Name, Top DICT with 5-byte charset/CharStrings/FDArray/FDSelect offsets, String, Global Subr, charset, FDSelect, CharStrings, FDArray with 5-byte Private offsets, Private dicts with 5-byte Subrs offsets + local Subrs); structure checked at embedding, written and charged at finish, subset tag on the names; name-keyed OpenType-CFF still embedded whole",
+  "press fill_path_gradient: GradientSpread Pad / Repeat / Reflect (repeat and reflect expanded over the integer cycles the path bounds reach in gradient space, at most MAX_GRADIENT_CYCLES 256 and MAX_GRADIENT_PIECES 4096; reflect mirrors odd cycles incl. midpoints; shading end points moved to the first and last cycle; radial cycles kept at non-negative radii); GradientStop.midpoint as a type-2 exponent N with m^N = 1/2; GradientStop.opacity as a luminosity soft mask (ExtGState) whose group draws a DeviceGray shading of the opacities with the same geometry and clip",
+  "press push_clip_text: one text object in clipping mode 7 (Tr 7) holding every run, popped with pop_clip; glyph ids checked; subset glyphs recorded",
+  "press SoftMask holds several MaskImage (any colour space, with alpha); SoftMask::alpha for alpha masks; MAX_MASK_IMAGES 256; mask_dict shared by group and gradient masks",
+  "interop-layout: Folio gradient spread / midpoint (percent) / stop opacity mapped (losses removed; perceptual interpolation still reported); clipping to text bases (shared glyph_layout -> push_clip_text) and raster bases (tile alpha as an alpha soft mask over a group, per spread page); DESCRIPTOR updated"
+ ],
+ "tests": {
+  "argv": "nextest run -p hsk-studio-press -p hsk-studio-interop-layout (full suites)",
+  "exit": 0,
+  "sha": "e13911d",
+  "passed": 216,
+  "failed": 0
+ },
+ "blockers": [
+  {
+   "error": "veraPDF download (verapdf-installer.zip from https://software.verapdf.org/releases/verapdf-installer.zip) needs the Operator's explicit download approval in chat; a grant relayed by an agent or recorded in START_LOG is not taken as consent. Lead put it on hold pending the Operator. A system JDK 17 already exists, so no JRE download is needed.",
+   "file_line": "START_LOG 2026-10-15 lead decision; lane items 1-2",
+   "attempts": 0
+  }
+ ],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "on Operator approval: download veraPDF into Handshake_Artifacts/WP-KERNEL-STUDIO/tools/verapdf/ (sha256 + GPG check), validate exports against PDF/X-4 (and PDF/A-2b), fix failures, cite report hashes in the receipt",
+ "updated_at": "2026-10-15T02:30:20Z",
+ "notes": {
+  "tests_detail": [
+   "press src/export/tests.rs cff_subset_keeps_glyph_ids: Noto Sans SC subset to gids {41, 8805}: same glyph count and charset (gid 8805 -> CID 9544), kept charstrings byte-equal, gid 74 endchar, subset < 1/5 of the CFF program, truncated input refused",
+   "press tests/export.rs gradient_spread_midpoints_opacity_and_text_clip (render_page oracles): repeat 25 pt cycles x 30.5 -> 56 (0.22), reflect -> 199 (0.78) and even cycle 56, pad -> 255; midpoint 0.25 -> 128 at x 24.5; stop opacity 0 -> 1 red: (255,191,191) at x 25.5, (255,63,63) at x 75.5; refusals midpoint 1.0, opacity 1.5, 1000 cycles; Inter H text clip: black only inside the glyph (ink 300..3000 px), white outside and in the counter; glyph past the font refused",
+   "press tests/export.rs cff_fonts_clipping_gradients_and_pdfx4 now runs with the CFF subset (0 font warnings, glyph ink, codes = CIDs)",
+   "interop-layout tests/pdf_export.rs folio_clip_to_text_and_raster_bases: black page-1 square clipped to white text -> black only in the glyph box, white elsewhere; red page-2 square clipped to the 2x2 tile alpha (1, 0.5 | 0, 1): red, (238,111,111), white, red; white outside the tile; no clip losses"
+  ],
+  "unverified": [
+   "Illustrator / Figma midpoint curve shape (power curve through the midpoint is this crate's choice, D5)",
+   "reflect/repeat appearance at cycle seams vs other renderers",
+   "CFF subset acceptance by viewers other than hayro-interpret; name-keyed CFF not subset (no fixture)"
+  ],
+  "conformance": "not_proven (no external validator run; items 1-2 on hold)",
+  "claim": "No PASS claimed; READY_FOR_VALIDATION for item 3 on pushed commits a4fac0b, d6827c3, e13911d"
+ }
+}

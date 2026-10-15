@@ -1,0 +1,15 @@
+{
+ "crate": "hsk-studio-composite",
+ "lane": "SMB-COMPOSITE-VECTOR-MASK",
+ "status": null,
+ "phase": "slice 1 pushed (3afcfb8..a78cb6d composite); renderer proofs running on a scratch export",
+ "commits": [],
+ "capabilities_done": [],
+ "tests": {"argv": "", "exit": null, "sha": "", "passed": 0, "failed": 0},
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "renderer proofs (render-cpu/render-gpu tests/vector_mask.rs), interop-fig re-pin",
+ "updated_at": "2026-10-15T02:24:01Z",
+ "notes": {}
+}

@@ -1,0 +1,55 @@
+{
+ "crate": "hsk-studio-score",
+ "lane": "SMB-SCORE-EFFECTS-3",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slices 1-2 pushed (e9dccbc multiband, fab706e modulation); slice 3 (click/crackle repair + hum removal) in progress",
+ "commits": [
+  {
+   "sha": "e9dccbc8a0028e810e8bb2aa7352be75a1697dbd",
+   "subject": "score (SMB-SCORE-EFFECTS-3 slice 1): Linkwitz-Riley 4th-order crossover + 2..4 band compressor; spec-row typed refusals"
+  },
+  {
+   "sha": "fab706e154ec0ef03656d9a77eb3c1818a03b690",
+   "subject": "score (SMB-SCORE-EFFECTS-3 slice 2): Flanger, Chorus, Phaser - LFO-modulated Lagrange-3 fractional delay and swept allpass stages"
+  }
+ ],
+ "capabilities_done": [
+  "Crossover (src/multiband.rs): Linkwitz-Riley 4th-order splits (two Butterworth Q=1/sqrt2 cookbook sections per side), 1..3 strictly ascending crossovers in 20..rate/2; lower bands pass the allpasses of all higher crossovers so the band sum is AP_0..AP_{n-2}: |sum| = 1 within 1e-9 at 64 log-spaced frequencies for 2/3/4 bands at 44.1/48/96 kHz; per-band DFT magnitude equals band_magnitude() analytic within 1e-9; -6.02 dB at fc",
+  "MultibandCompressor: 2..4 bands, each band its own Dynamics gain computer (reused via pub(crate) detect/step); output = sum of gained bands; with all bands below threshold the output is bit-equal to the f64 crossover sum rounded to f32; latency 0; partition invariant; allocation only at construction",
+  "bind_spec_row / SPEC_ROWS / SpecRowError (src/spec_rows.rs): STU-FX-134a contract rows bound only where the spec gives meaning; rows without declared meaning are SpecRowError::Undeclared (typed refusal with reason), uncovered rows UnknownRow; Dynamics sheet covered (low/high_frequency, envelope_*, use_splines, use_noise_gate, makeup_gain (no unit), input/output_gain (no field), UNUSED slots refused)",
+  "Flanger/Chorus/Phaser (src/modulation.rs): f64 phase-accumulator LFO with stereo phase offset; Lagrange-3 fractional delay (read before write, 1-sample floor reported by delay_samples(); out(n) = x(n - d) within 1e-4 for a 1 kHz sine at 48/44.1/96 kHz); Flanger raised-cosine sweep initial->final (spec 0..20) with feedback comb (H = (1-mix) + mix z^-D/(1-g z^-D) matched within 1e-5); Chorus 1..4 voices (matched to the analytic time-varying fractional delay within 1e-5); Phaser 2..12 first-order allpasses, exponential sweep, feedback (Y = A^S X/(1 - g z^-1 A^S) matched within 1e-5; 2 stages at f_b notch); all partition invariant and reset-exact",
+  "spec_rows: Flanger initial/final/phase/mix/feedback bound; Flanger cycles/beats, Chorus/Flanger width/intensity/transience, Phaser intensity/depth refused as Undeclared; Phaser mix bound"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-score --test modulation --no-fail-fast (5/5); --test multiband rerun after the spec_rows change (4/4)",
+  "exit": 0,
+  "sha": "fab706e154ec0ef03656d9a77eb3c1818a03b690",
+  "passed": 9,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "slice 3: click/crackle repair (AR/LSAR interpolation) and hum removal (notch at f0 + harmonics)",
+ "updated_at": "2026-10-15T02:23:27Z",
+ "notes": {
+  "spec_basis": [
+   "STU-FX-134: 'Studio ships a native audio effect domain.' (audio StudioLiveFilter; determinism per 14.9.1)",
+   "STU-FX-134a rows Multiband Compressor, Chorus/Flanger, Phaser, AutoClickRemover, DeHummer; contract tables Flanger (initial/final 0..20, phase 0..360, cycles 0.001..60, mix 0..100, feedback 0..100, beats 0.03333..2000), Chorus/Flanger (width/intensity/transience, no ranges), Phaser (mix/intensity/depth, no ranges), AutoClickRemover (inf_threshold 1..100, inf_complexity 1..100), Dynamics (DynamicsUI); Multiband Compressor and DeHummer declare 0 parameters",
+   "STU-FX-136b: sheet units undeclared"
+  ],
+  "new_tests": {
+   "multiband": 4,
+   "modulation": 5
+  },
+  "licence_clean_room": "Linkwitz JAES 1976 crossover; RBJ Audio EQ Cookbook (W3C note) biquads re-derived in src/filters.rs; no third-party source read; Lagrange fractional delay per Laakso et al. IEEE SPM 1996; first-order allpass phaser from textbook formula",
+  "own_causes": [
+   "multiband test 1 first run: the -6.02 dB assertion used 1e-12 but the cookbook 1 - cos(w0) cancellation leaves 3.5e-12 at 80 Hz / 96 kHz (computed); tolerance set to 1e-9; the gameplan retry guard blocked the identical rerun, route (a): the fix was committed (e9dccbc) before rerunning; no gameplan step added"
+  ],
+  "check_clippy": "cargo clippy -p hsk-studio-score -p hsk-studio-score-device -p hsk-studio-score-plugin --tests --examples at fab706e content: no findings in score crates (2 pre-existing too_many_arguments in hsk-studio-observe); is_multiple_of lint fixed before commit",
+  "parity": "Adobe Audition multiband/modulation/restoration parity UNVERIFIED (D5 oracle session)",
+  "dep_requests": "none",
+  "new_module_edges": "none (score-internal modules filters, multiband, spec_rows)",
+  "working_tree": "pre-existing stat-only modifications of other score src files left uncommitted; pathspec commits only; Cargo.lock not committed"
+ }
+}

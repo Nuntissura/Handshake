@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T02:08:38Z",
+ "updated_at": "2026-10-15T02:41:28Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -5635,12 +5635,16 @@
   {
    "lane_id": "SMB-PRISM-VIEW-TRANSFORM",
    "crate": "hsk-studio-prism",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-prism-view-20261015",
-   "commits": [],
+   "commits": [
+    "3afcfb8",
+    "0ae5819"
+   ],
    "verdicts": [],
-   "note": "prism owns SDR view transforms (STU-COL-313 ACES views via OCIO config): implement the ACES output transform family clean-room from published ACES CTL/docs (Academy licence permissive) as prism curves; renderers apply at stage 6a after SMB-PIGMENT-EXTENDED-RANGE"
+   "note": "ACES 1.x RRT+ODT Rec.709/sRGB 100 nit (aces-dev v1.3.1 CTL, ACES licence notice kept); GPU applies on host after read-back; egui shared-texture path refuses",
+   "lane_file": "builders/lanes/hsk-studio-prism-view-transform.json"
   },
   {
    "lane_id": "SMB-PRESS-PAINT-TRANSPARENCY",
@@ -5682,12 +5686,17 @@
   {
    "lane_id": "SMB-PULSE-EDITING",
    "crate": "hsk-studio-pulse",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-pulse-edit-20261015",
-   "commits": [],
+   "commits": [
+    "3da782c",
+    "3f72807",
+    "5ab95f8"
+   ],
    "verdicts": [],
-   "note": "Premiere PR-07/10/11/20: three-point insert/overwrite, ripple/roll/slip/slide, markers, cross-dissolve transitions rendered via composite temporal path"
+   "note": "Premiere PR-07/10/11/20: three-point insert/overwrite, ripple/roll/slip/slide, markers, cross-dissolve transitions rendered via composite temporal path",
+   "lane_file": "builders/lanes/hsk-studio-pulse-editing.json"
   },
   {
    "lane_id": "SMB-DEVELOP-RAW-COMPRESSED",
@@ -5749,11 +5758,16 @@
    "lane_id": "SMB-LAYOUT-PDFX-VERAPDF",
    "crate": "hsk-studio-interop-layout",
    "phase": "build",
-   "status": null,
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-layout-20261015b",
-   "commits": [],
+   "commits": [
+    "a4fac0b",
+    "d6827c3",
+    "e13911d"
+   ],
    "verdicts": [],
-   "note": "external PDF/X-4 + PDF/A validation with the veraPDF binary (run as a tool, source not read); fix failures; CFF subsetting; gradient reflect/repeat/stop opacity; clipping to text/raster bases"
+   "note": "item 3 READY (CFF CID subsetting, gradient reflect/repeat/midpoints/stop opacity, clip to text/raster); veraPDF items 1-2 Operator-approved 2026-10-15, in progress",
+   "lane_file": "builders/lanes/hsk-studio-layout-pdfx-verapdf.json"
   },
   {
    "lane_id": "SMB-SCORE-EFFECTS-3",
@@ -5774,6 +5788,16 @@
    "commits": [],
    "verdicts": [],
    "note": "parity matrix stale (AU-08/09/10/13 read MISSING but built in SMB-SCORE-DSP); regenerate parity-matrix after R31 from lane verdicts + code evidence"
+  },
+  {
+   "lane_id": "SMB-FOLIO-TIMELINE-RECORDS",
+   "crate": "hsk-studio-folio",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "Folio stores no markers or transitions; session/chronicle record no timeline undo; host-side persistence today (SMB-PULSE-EDITING gaps)"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
