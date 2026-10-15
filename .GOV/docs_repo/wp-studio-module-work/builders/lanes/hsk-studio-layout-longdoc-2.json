@@ -45,5 +45,8 @@
     "unverified": "InDesign parity UNVERIFIED (D5): running-header carry-over, title case rule, sidenote placement, endnote paragraph form, outline destination at the entry baseline; PDF/X-4 still self-checked only (veraPDF has no PDF/X profile)",
     "own_cause_log": ["press export.rs reserve() takes u32: outline reserve converted with try_from (compile fix before any test run)"],
     "commit_method": "temp-index commits as in SMB-LAYOUT-LONGDOC (folio lib.rs untouched this lane)"
-  }
+  },
+ "verdicts": [
+  {"decision": "passed", "verdict": "PASS_V1", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "claim 8b7ba7d de85c97 90659d0: press glyph advance widths from hmtx into /W + TJ adjustments, page labels, outline; layout text after tables, running texts, endnotes, sidenotes; folio records; veraPDF PDF/A-2b reports committed normalised (step0 machine-path policy clean). InDesign parity UNVERIFIED (D5). No stub. units of layout/folio/press/interop-layout: 4 crate units + default; all build 0 / run 0; default layout 41, folio 69, press 204, interop-layout 29", "idempotency_key": "STUDIO-R33:SMB-LAYOUT-LONGDOC-2:ef53ea781923:PASS_V1", "round": "STUDIO-R33", "lane": "SMB-LAYOUT-LONGDOC-2", "candidate": "ef53ea781923c4ed859c31ac98ea21f97ab188a9", "tree": "3e6eded3fda85beaaea2739b220ff6ed9ec59f5f", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R33", "started_at": "2026-10-15T08:54:16Z", "completed_at": "2026-10-15T11:44:50Z"}
+ ]
 }

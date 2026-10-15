@@ -74,5 +74,8 @@
     ],
     "cargo_lock": "left uncommitted",
     "v4": "keying.rs, track_math.rs, track_apply.rs: #![deny(clippy::arithmetic_side_effects)]; hostile tests: keying hostile_inputs_are_refused_before_allocation (NaN/out-of-range params, dims u32::MAX x u32::MAX with no data, i64 bounds overflow, aggregate bytes OverBudget 280000, work OverBudget 10000*513*513), tracking hostile_inputs_are_refused_before_allocation (search radius 1e6, NaN position/params/frame, dims u32::MAX, mismatched frames, pixel and work budgets, cancellation, determinate progress, degenerate solves), track_apply hostile_tracks_are_refused_typed (empty/unsorted/NaN/scale 0 tracks, key limit 65537, tick overflow, zero ticks per frame, no axis, bad reference, smoothing over max)"
-  }
+  },
+ "verdicts": [
+  {"decision": "passed", "verdict": "PASS_V1", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "claim 12bcdf5 a73b1ed c407ee7 9b46c6d 3acced1 bf3aac0 960af0a b2b8c01 2ed643d 901092e (all in candidate): pigment keying pipeline (chroma/luma/difference/colour-range keys, despill, levels, choke/spread, feather), pyramidal KLT + affine refinement tracker, seeded-RANSAC planar tracker, composite apply_track/stabilize. Test bounds partly fitted to measured runs (planar 0.25 px corner / 0.05 px centre, lane notes). After Effects parity UNVERIFIED (D5). No stub. units of pigment/composite: 4 crate units + default; all build 0 / run 0; default pigment 184, composite 65", "idempotency_key": "STUDIO-R33:SMB-AE-KEY-TRACK:ef53ea781923:PASS_V1", "round": "STUDIO-R33", "lane": "SMB-AE-KEY-TRACK", "candidate": "ef53ea781923c4ed859c31ac98ea21f97ab188a9", "tree": "3e6eded3fda85beaaea2739b220ff6ed9ec59f5f", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R33", "started_at": "2026-10-15T08:54:16Z", "completed_at": "2026-10-15T11:44:50Z"}
+ ]
 }

@@ -1,0 +1,19 @@
+{
+ "crate": "hsk-studio-package",
+ "lane": "SMB-PACKAGE-COMPLETENESS",
+ "status": "IN_PROGRESS",
+ "phase": "slice 1 (externals save/read, session wiring, schema guard) under test in lane worktree wt-studio-lanes/smb-package-completeness",
+ "commits": [],
+ "capabilities_done": [],
+ "tests": {"argv": null, "exit": null, "sha": null, "passed": null, "failed": null},
+ "blockers": [],
+ "lock_wait_s": null,
+ "bg_pids": [],
+ "next": "push slice 1",
+ "updated_at": "2026-10-15T12:30:00Z",
+ "notes": {
+  "worktree": "own worktree wt-studio-lanes/smb-package-completeness on lane/smb-package-completeness from origin c7b3d46 (lead 2026-10-15); uncommitted hunks carried from the shared tree as patches (session/source.rs foreign rustfmt hunk excluded) and reverted there with git apply -R (the foreign hunk left in place); STUDIO_OWNER=smb-package-completeness; .gameplan-active pointer (gitignored) at the worktree root names the Studio gameplan like the shared tree's",
+  "incident_8749f0a": "SMB-PACKAGE-MASK-TILES commit 8749f0a staged session.rs/lib.rs as whole files from the shared tree; by commit time SMB-AE-MOTION-RECORDS-2 had uncommitted lines in them (a check run earlier showed none), so origin did not compile until 00649b8 (lead report). Cause: whole-file staging after a stale foreign-hunk check; fixed by the per-lane worktree",
+  "cargo_lock": "not touched"
+ }
+}

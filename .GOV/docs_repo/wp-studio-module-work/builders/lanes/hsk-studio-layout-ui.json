@@ -2,8 +2,12 @@
   "crate": "hsk-studio-layout",
   "lane": "SMB-LAYOUT-UI",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slice 1 pushed (claim = 863fa73 + a66b909); slice 2 in progress",
+  "phase": "slices 1-3 pushed (claim = 863fa73, a66b909, a75eb31); slice 4 (harness layout UI) in progress",
   "commits": [
+    {
+      "sha": "a75eb31",
+      "subject": "layout + folio + interop-layout (SMB-LAYOUT-UI slices 2-3): anchored objects, cross-references, conditional text, GREP and object styles"
+    },
     {
       "sha": "863fa73",
       "subject": "layout + folio (SMB-LAYOUT-UI slice 1): multi-column frames, balance, span/split paragraphs"
@@ -18,21 +22,28 @@
     "slice 1 layout: paragraph span/split overrides (STU-LAY-021): span all columns starts a band below the deepest line of the current band (balanced first) + space before, following text forms a new column band below it + space after; split into n sub-columns: broken at (column - 2*outside - (n-1)*inside)/n, lines fill sub-columns column-major over ceil(lines/n) rows, a block that does not fit its frame moves whole to the next frame",
     "slice 1 layout: vertical_balance_columns balances the band that ends the story (k = ceil(L/n) lines per column; equal widths keep the breaks); skipped with wrap obstacles or split lines in the band",
     "slice 1 folio: hsk.studio.layout_flow_records@1 (StudioLayoutFlowRecords beside the document; frame_options.vertical_balance_columns; paragraph_flows: span_column enum, span_count.all sentinel AND numeric span_column_count, split_column_count, space before/after, inside/outside gutter) + validate_layout_flow_records",
+    "slice 2 folio layout-flow records: anchored objects (StudioAnchoredSettings: inline/above_line/custom, x/y offsets, space above, h/v alignment and reference points, nine-point anchor, spine_relative, lock/pin; box size; document defaults; insert_anchored_object / release_anchored_object; group members refused IllegalParent), text anchors, xref formats (building-block string + character style), cross-references (source range, paragraph or text-anchor destination, cached resolved_text), conditions (visible, indicator colour/method/underline), condition sets (apply, redefine), conditional ranges, preferences (indicator mode, active set), delete_condition with REPLACING-WITH",
+    "slice 2 layout: inline anchors set the placeholder glyph advance to x_offset + width before composition; above-line anchors push their paragraph by space_above + height + y_offset (re-applied at the next column top); place_anchored_objects -> PlacedAnchor rects in spread coordinates (inline on the baseline, above line aligned in the column, custom by reference point + alignment + anchor point, spine mirror, pin), unplaced when overset; typed anchor_group_member / inline_beyond_container; anchored_graphic moves a PlacedGraphic to its anchor; inline_adjusted_paragraphs for painters",
+    "slice 2 layout: parse_xref_format tokenizer (entities, fullPara/partial with delim+includeDelim, paraText, paraNum (typed unsupported), txtAnchrName, pageNum, chapNum, fileName, one level of cs runs); resolve_cross_references -> text, styled runs, status current/stale/broken/unplaced; write_cross_reference replaces the source range and shifts all records",
+    "slice 2 layout: conditional_view resolves visibility BEFORE composition (hidden iff covered and no covering range has a visible condition), remaps partitions, byte maps both ways, remap_records moves anchors/xrefs/flows into the view; replace_story_text (partition remap, local paragraph re-split at newlines) + shift_flow_records",
+    "slice 2 PDF (interop-layout tests/layout_flow_pdf.rs): inline anchored picture, written cross-reference and hidden condition through reflow_flow + export_pdf_with; glyph ids/positions scanned from the content stream, picture pixels from press render_page",
+    "slice 3 folio: StudioTypeStyle.grep_styles (pattern + character style, paragraph scope only, <= 64 rules, pattern <= 1024 bytes, target must be a character style of the set); object styles (19 named category booleans, stroke surface with hard ranges, corner radii, paragraph style, frame general/baseline/auto-size options, anchored settings, frame fitting, export-tag map keyed by export type, ARIA fields), based_on (cycle RenderCycle, dangling, unique names), applied_object_styles",
+    "slice 3 layout: grep_matches / apply_grep_styles (based_on rules parent first, later rules win, per paragraph, empty matches skipped, <= 100 000 matches) through regex 1.12.4 (linear time; size 1 MiB, DFA 1 MiB, nest 64; look-around, back-references, nesting and oversized programs typed grep_pattern_unsupported); the GREP-styled ranges reach reflow_typeset letter spacing; resolve_object_style + apply_object_style (one operation: frame columns/gutter/inset/vjust/balance, baseline, auto-size, story paragraph styles incl. next style, anchored settings, graphic frame fitting; fill/stroke/tag/ARIA reported stored_only)",
     "slice 1 hostile: threading cycles and self-loops refused cyclic_thread; text_column_count > 1024 budget_exceeded before any per-column work; zero columns / gutters without positive column width invalid_geometry; records of another document, overrides naming no paragraph invalid_input; partial span N (1 < N < columns) unsupported_composition; split with wrap obstacles unsupported_composition; negative or non-pt spacing invalid_geometry"
   ],
   "tests": {
-    "argv": "cargo nextest run -p hsk-studio-layout --no-fail-fast (shared tree; layout does not depend on the crates with other lanes' uncommitted edits)",
+    "argv": "cargo nextest run -p hsk-studio-layout -p hsk-studio-interop-layout -p hsk-studio-folio --no-fail-fast --offline (shared tree, at a75eb31)",
     "exit": 0,
-    "sha": "a66b909",
-    "passed": 49,
+    "sha": "a75eb31",
+    "passed": 163,
     "failed": 0,
-    "files": "tests/layout_columns.rs (5: columns_and_gutter_then_thread_to_next_page, balanced_columns_at_story_end, span_heading_and_split_paragraph, hostile_threads_columns_and_overrides_refused, flow_records_validate); tests/threaded_reflow.rs column refusal assertion replaced by the zero-width-column refusal"
+    "files": "slice 1 layout tests/layout_columns.rs (5); slice 2 layout tests/layout_anchors_xrefs.rs (3: anchored_inline_above_line_and_custom, cross_references_resolve_write_and_refuse_hostile_formats, conditional_text_resolves_before_composition_and_story_edits_remap) + interop-layout tests/layout_flow_pdf.rs (1: anchored_picture_cross_reference_and_hidden_condition_export); slice 3 layout tests/layout_styles_grep.rs (3: grep_styles_split_ranges_and_reach_composition, grep_hostile_patterns_are_bounded_or_refused, object_styles_apply_in_one_operation); interop-layout layout_reflow_folio_export: 2-column IDML thread now composes (refusal pass-through shown with the cap-height baseline)"
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "slice 2 (anchored objects, cross-references, conditional text, PDF), slice 3 (object + GREP styles), slice 4 (harness layout UI), slice 5 (books)",
-  "updated_at": "2026-10-15T10:36:17Z",
+  "next": "slice 4 (harness layout UI; needs NEW EDGE harness -> layout), slice 5 (books)",
+  "updated_at": "2026-10-15T11:38:30Z",
   "notes": {
     "owned_paths": [
       "crates/hsk-studio-layout/**",
@@ -44,6 +55,25 @@
       "STU-LAY-118: text_column_count, text_column_gutter, vertical_balance_columns ('vertically justify balanced across all columns')",
       "STU-LAY-018/122: a single StudioTextStory flows through an ordered chain of frames across pages and spreads",
       "STU-LAY-021: span and split columns are a paragraph-level attribute ... span all or N columns ... split into sub-columns, with before/after spacing and inside/outside gutter controls; {single_column, span_columns, split_columns} with span_count.all and a separate integer N, 'Studio MUST carry both'"
+    ],
+    "spec_basis_slices_2_3": [
+      "STU-LAY-025/127: anchored objects attach a frame to a position in text so it travels with reflow; anchored_position inline/above_line/custom ... insert_anchored_object and release_anchored_object; a default anchored-object settings record ... MUST be carried; a member of a group cannot be re-anchored and an inline item cannot be moved beyond its container boundary; both are distinct typed errors",
+      "STU-LAY-047/151: cross-references to paragraphs or named text anchors using editable formats assembled from building blocks, with a character style ... flag stale or broken references; typed errors: destination must be a text anchor or a paragraph; named character style does not exist; delimiter must be a single character; delimiter-inclusion attribute must be exactly true or false; format string has invalid syntax",
+      "STU-LAY-049/153: named conditions hide or show tagged text ranges ... condition sets ... redefine ... deleting a condition takes a REPLACING-WITH argument ... conditional visibility resolves BEFORE composition",
+      "STU-LAY-038: pattern (regular-expression) styles apply a character style automatically to every match inside paragraphs carrying a paragraph style ... stored ON the style and MUST NOT be modelled as a separate side table",
+      "STU-LAY-039/142: object styles ... applying an object style sets fitting, text wrap, anchoring, effects targeting and export tagging in one operation; SEVENTEEN independent category-enable booleans (nineteen named); miter_limit hard 1..500; arrow-head scales hard 1..1000 percent"
+    ],
+    "lead_report": [
+      "NEW crates.io DEP regex 1.12.4 (std, unicode) in hsk-studio-layout, dep-requests.jsonl line 2026-10-15T11:27:13Z; manifest pushed in a75eb31 (steward pin needed; local Cargo.lock resolves regex 1.12.4, regex-automata 0.4.18, regex-syntax 0.8.11 offline)",
+      "CROSS-CRATE HUNK: crates/hsk-studio-interop-fig/src/native.rs gains one line (grep_styles: Vec::new()) because StudioTypeStyle gained the spec-required grep_styles field (STU-LAY-038 forbids a side table); interop-fig had no uncommitted edits in that file",
+      "NEW EDGE needed for slice 4: hsk-studio-harness -> hsk-studio-layout (optional, under feature viewer)"
+    ],
+    "gaps": [
+      "anchored: line height does not grow for tall inline objects; above-line anchors must start a paragraph; text wrap around anchored objects not composed; lock_position stored only",
+      "xref: paraNum refused (no autonumbered paragraphs), cross-document destinations, hyperlink object types beyond text anchors not modelled; xref syntax vs InDesign UNVERIFIED",
+      "conditional text: indicators (underline/highlight) not drawn in PDF",
+      "GREP: look-around/back-references unsupported (linear engine); nested styles and line styles not implemented",
+      "object styles: fill/stroke/corners/export tags/ARIA stored only (no Folio layer fill/stroke record to apply them to); text wrap, column rules, footnote overrides, transform and flex-layout groups not stored"
     ],
     "spec_conflict": "STU-LAY-121 says only vjust.justify activates vertical_balance_columns; layout composes vjust.top only and honours the flag with top justification. InDesign gating UNVERIFIED (D5)",
     "unverified": [

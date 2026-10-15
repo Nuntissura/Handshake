@@ -1,0 +1,19 @@
+{
+  "crate": "hsk-studio-composite (three_d, temporal/composition 3D paths, composition lit/aux/immersive paths), hsk-studio-folio (composition immersive record), render-cpu/render-gpu tests/composition_three_d.rs",
+  "lane": "SMB-AE-3D-2",
+  "status": null,
+  "phase": "slice 1 (3D parenting) written in lane worktree wt-studio-lanes/smb-ae-3d-2; build queued behind a validator round on the D: disk lock",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {"argv": "", "exit": null, "sha": "", "passed": 0, "failed": 0},
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "clippy + focused tests for slice 1, commit, push",
+  "updated_at": "2026-10-15T11:36:40Z",
+  "notes": {
+    "worktree": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-ae-3d-2 (branch lane/smb-ae-3d-2, STUDIO_OWNER=smb-ae-3d-2) per lead rule 2026-10-15; slice-1 hunks moved from the shared tree as a patch (only my six files, all clean before my edits) and the shared tree restored for those six files",
+    "spec_basis": "STU-MOT-008 ('A layer MAY declare one parent layer ... The child's transform is evaluated in the parent's transform space'; 'Parenting affects the transform group only'), STU-CMP-010 steps 2 (masks before effects), 5 (transform and the parent chain), 7 (track matte consumes another layer's already-rendered alpha or luminance), STU-CMP-025 (masks), STU-CMP-030 (track mattes), STU-CMP-050 (auxiliary channel extract: Z depth, object ID, surface normals; channel identifier; depth matte; ID matte; depth fog; Cryptomatte; DOF from depth; arbitrary-channel EXR extract), STU-CMP-055/055a (immersive compositing computed in the spherical domain; 20 named capabilities; composition carries STU-VID-018's immersive record shape), STU-CMP-106 / STU-VID-082 (projection-type enumeration is a declared gap: members authored deliberately)",
+    "after_effects_parity": "UNVERIFIED (D5)"
+  }
+}

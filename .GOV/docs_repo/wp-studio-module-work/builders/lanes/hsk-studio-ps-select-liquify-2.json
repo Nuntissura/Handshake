@@ -43,5 +43,8 @@
   "new_edges": "none (pigment -> folio, render-cpu -> pigment, harness -> pigment existing); no crates.io dependency",
   "cargo_lock": "not touched",
   "parity": "Photoshop parity UNVERIFIED (D5); never claimed"
- }
+ },
+ "verdicts": [
+  {"decision": "passed", "verdict": "PASS_V1", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "slice A 677c45f: magnetic lasso (Mortensen-Barrett live wire), refinement brushes with trimap marks, turbulence and mesh-clone liquify tools. Photoshop parity UNVERIFIED (D5). No stub. units of pigment: 1 crate units + default; all build 0 / run 0; default pigment 184", "idempotency_key": "STUDIO-R33:SMB-PS-SELECT-LIQUIFY-2:ef53ea781923:PASS_V1", "claim_scope": "slice A 677c45f only; slices B1 B2 C (1d10877 a1cf29f 2e2461d fca0c25) after the candidate -> R34", "round": "STUDIO-R33", "lane": "SMB-PS-SELECT-LIQUIFY-2", "candidate": "ef53ea781923c4ed859c31ac98ea21f97ab188a9", "tree": "3e6eded3fda85beaaea2739b220ff6ed9ec59f5f", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R33", "started_at": "2026-10-15T08:54:16Z", "completed_at": "2026-10-15T11:44:50Z"}
+ ]
 }

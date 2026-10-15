@@ -31,5 +31,8 @@
     "unverified_names": "Endnote@Self body reference; TOCStyle/TOCStyleEntry attributes; TextVariable preference attributes; FootnoteOption/EndnoteOption/ChapterNumberPreference attributes; BreakHeaders/BreakFooters/SkipFirstHeader/SkipLastFooter/StrokeOrder/StartRow values; covered-cell elements; GraphicBounds units",
     "oracle_plan": "oracle-session/SESSION_PLAN.json indesign cases ID-05, ID-06 (pending_script_cases; hsk_oracle_indesign.jsx block not written)",
     "parity": "InDesign parity UNVERIFIED (D5)"
-  }
+  },
+ "verdicts": [
+  {"decision": "passed", "verdict": "PASS_V1", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "claim 8f73db2: IDML long-document import (tables, notes, sections, variables, TOC styles, fitted graphics; typed losses; hostile tables refused before any grid), export, round trip to a fixed point; INDD refusal unchanged. See F-R33-2 (V4-01 deny missing on new idml_longdoc.rs; bounds code itself checked/saturating). InDesign parity UNVERIFIED (D5). units of interop-layout: 1 crate units + default; all build 0 / run 0; default interop-layout 29", "idempotency_key": "STUDIO-R33:SMB-INTEROP-IDML:ef53ea781923:PASS_V1", "round": "STUDIO-R33", "lane": "SMB-INTEROP-IDML", "candidate": "ef53ea781923c4ed859c31ac98ea21f97ab188a9", "tree": "3e6eded3fda85beaaea2739b220ff6ed9ec59f5f", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R33", "started_at": "2026-10-15T08:54:16Z", "completed_at": "2026-10-15T11:44:50Z"}
+ ]
 }

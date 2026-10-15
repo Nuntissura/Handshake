@@ -41,5 +41,8 @@
     "push": "git push reported up to date: a later push by another lane (677c45f, 6fed566) already carried 0a9207a and f1fffe3 to origin/codex/handshake-studio-assets",
     "test_not_weakened": "reader_scan/mod.rs and the problems() rules are unchanged; no row was removed or changed from Reachable to Every",
     "cargo_lock": "left uncommitted"
-  }
+  },
+ "verdicts": [
+  {"decision": "passed", "verdict": "PASS_V1", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "claim 0a9207a f1fffe3 6f6cabd (tests + doc/DESCRIPTOR citation only): READERS rows for isolate_masked_pass_through and the five SMB-PS-SELECT-LIQUIFY select_tools field reads (lead waiver 2026-10-15); new tests pigment admit_parity pass_through_mask_isolation, composite vector_mask_2 pass_through_mask_isolation. No assertion weakened (diff read: rows added, no row or scan rule changed). units of pigment/composite: 4 crate units + default; all build 0 / run 0; default pigment 184, composite 65", "idempotency_key": "STUDIO-R33:SMB-R32-REMEDIATION:ef53ea781923:PASS_V1", "round": "STUDIO-R33", "lane": "SMB-R32-REMEDIATION", "candidate": "ef53ea781923c4ed859c31ac98ea21f97ab188a9", "tree": "3e6eded3fda85beaaea2739b220ff6ed9ec59f5f", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R33", "started_at": "2026-10-15T08:54:16Z", "completed_at": "2026-10-15T11:44:50Z"}
+ ]
 }
