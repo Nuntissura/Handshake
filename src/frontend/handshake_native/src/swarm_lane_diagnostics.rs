@@ -1271,6 +1271,21 @@ pub fn mt_status_author_id(mt_id: &str) -> String {
     format!("swarm-lane-diagnostics.mt-status.{}", token(mt_id))
 }
 
+/// Decode the exact backend wire shape before validating its native surface semantics.
+pub fn decode_projection_for_native_surface(
+    raw: serde_json::Value,
+) -> Result<SwarmLaneDiagnosticsProjection, String> {
+    let projection: SwarmLaneDiagnosticsProjection =
+        serde_json::from_value(raw.clone()).map_err(|error| error.to_string())?;
+    let serialized = serde_json::to_value(&projection)
+        .map_err(|error| format!("native projection reserialization failed: {error}"))?;
+    if serialized != raw {
+        return Err("backend/native projection JSON field shape changed or lost data".to_owned());
+    }
+    validate_projection_for_native_surface(&projection)?;
+    Ok(projection)
+}
+
 pub fn validate_projection_for_native_surface(
     projection: &SwarmLaneDiagnosticsProjection,
 ) -> Result<(), String> {

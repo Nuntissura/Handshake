@@ -46,6 +46,12 @@ use crate::pane_registry::{PaneFactory, PaneRenderContext, PaneType};
 use crate::theme::HsPalette;
 use uuid::Uuid;
 
+use crate::mcp::action::{
+    serialize_observer_click_applied, serialize_observer_click_failure,
+    serialize_observer_click_state, serialize_persistent_observer_click_target,
+    ClickCompletionState,
+};
+
 const LOCAL_CKC_SAFE_SUBSET_V2_JSON: &str = include_str!(
     "../../../backend/handshake_core/src/atelier/templates/LLM_SAFE_SUBSET__v2.00.json"
 );
@@ -3784,6 +3790,10 @@ struct AtelierPanelState {
     model_ops_receipt_recovery_hint: String,
     model_ops_request_seq: u64,
     model_ops_active_request: Option<u64>,
+    model_ops_claim_context: String,
+    model_ops_claim_generation: u64,
+    model_ops_claim: Option<(Option<u64>, String, String, String, String, String)>,
+    model_ops_claim_observer: Option<String>,
     model_ops_status: String,
     // MT-020: prompt-feedback sub-mode (nested under the INGEST tab). A WIP
     // surface for the deterministic prompt-feedback kernel: import panel, case
@@ -4125,6 +4135,10 @@ impl Default for AtelierPanelState {
             model_ops_receipt_recovery_hint: String::new(),
             model_ops_request_seq: 0,
             model_ops_active_request: None,
+            model_ops_claim_context: Uuid::new_v4().to_string(),
+            model_ops_claim_generation: 0,
+            model_ops_claim: None,
+            model_ops_claim_observer: None,
             model_ops_status:
                 "Model Ops ready: inspect state, claim an exclusive semantic lease, mutate with actor/session/lease headers, then record a receipt."
                     .to_owned(),
@@ -8026,7 +8040,82 @@ impl AtelierPanelRuntime {
         if state.model_ops_active_request != Some(request_id) {
             return;
         }
+        let claim = state
+            .model_ops_claim
+            .clone()
+            .filter(|claim| claim.0 == Some(request_id));
         state.model_ops_active_request = None;
+        if let Some((_, actor, session, thread, _, semantic)) = claim {
+            let context = state.model_ops_claim_context.clone();
+            let generation = state.model_ops_claim_generation;
+            let observer = match &result {
+                Ok(AtelierModelOperationResult::Lease(row))
+                    if !row.claim_id.trim().is_empty()
+                        && row.actor_id == actor
+                        && row.session_id == session
+                        && row.thread_id == thread
+                        && row.claim_mode == "exclusive_lease"
+                        && row.effective_state == "active"
+                        && !row.lease_expired =>
+                {
+                    let detail = serde_json::json!({
+                        "claim_id": &row.claim_id,
+                        "lease_expires_at_utc": &row.lease_expires_at_utc,
+                    })
+                    .to_string();
+                    serialize_observer_click_applied(
+                        ATELIER_MODEL_OPS_CLAIM_AUTHOR_ID,
+                        &context,
+                        generation,
+                        ATELIER_MODEL_OPS_CLAIM_AUTHOR_ID,
+                        &semantic,
+                        &detail,
+                    )
+                    .or_else(|| {
+                        serialize_observer_click_failure(
+                            ATELIER_MODEL_OPS_CLAIM_AUTHOR_ID,
+                            &context,
+                            generation,
+                            ATELIER_MODEL_OPS_CLAIM_AUTHOR_ID,
+                            &semantic,
+                            "model_ops_claim_result_unrepresentable",
+                            None,
+                        )
+                    })
+                }
+                Ok(_) => serialize_observer_click_failure(
+                    ATELIER_MODEL_OPS_CLAIM_AUTHOR_ID,
+                    &context,
+                    generation,
+                    ATELIER_MODEL_OPS_CLAIM_AUTHOR_ID,
+                    &semantic,
+                    "model_ops_claim_response_mismatch",
+                    None,
+                ),
+                Err(error) => {
+                    let error = error
+                        .escape_default()
+                        .to_string()
+                        .chars()
+                        .take(1024)
+                        .collect::<String>();
+                    serialize_observer_click_failure(
+                        ATELIER_MODEL_OPS_CLAIM_AUTHOR_ID,
+                        &context,
+                        generation,
+                        ATELIER_MODEL_OPS_CLAIM_AUTHOR_ID,
+                        &semantic,
+                        if error.is_empty() {
+                            "model_ops_claim_error_empty"
+                        } else {
+                            &error
+                        },
+                        None,
+                    )
+                }
+            };
+            state.model_ops_claim_observer = observer;
+        }
         match result {
             Ok(AtelierModelOperationResult::Lease(row)) => {
                 if let Some(next_lease_id) = model_ops_next_active_lease_id(
@@ -8162,6 +8251,9 @@ impl AtelierPanelRuntime {
             let region = egui::CollapsingHeader::new("Model Ops")
                 .default_open(false)
                 .show(ui, |ui| {
+                    let claim_pending = state.model_ops_claim.as_ref().is_some_and(|claim| {
+                        claim.0.is_some() && claim.0 == state.model_ops_active_request
+                    });
                     ui.label(
                         egui::RichText::new(
                             "Parallel-agent lease and receipt surface for Atelier workflow resources.",
@@ -8170,7 +8262,14 @@ impl AtelierPanelRuntime {
                     );
                     ui.horizontal_wrapped(|ui| {
                         ui.label(egui::RichText::new("Actor").color(palette.text));
-                        let actor = ui.text_edit_singleline(&mut state.model_ops_actor_id);
+                        let actor = ui.add_enabled(
+                            !claim_pending,
+                            egui::TextEdit::singleline(&mut state.model_ops_actor_id),
+                        );
+                        if actor.changed() && !claim_pending {
+                            state.model_ops_claim = None;
+                            state.model_ops_claim_observer = None;
+                        }
                         emit_value_node(
                             ui.ctx(),
                             actor.id,
@@ -8180,7 +8279,14 @@ impl AtelierPanelRuntime {
                             &state.model_ops_actor_id,
                         );
                         ui.label(egui::RichText::new("Session").color(palette.text));
-                        let session = ui.text_edit_singleline(&mut state.model_ops_session_id);
+                        let session = ui.add_enabled(
+                            !claim_pending,
+                            egui::TextEdit::singleline(&mut state.model_ops_session_id),
+                        );
+                        if session.changed() && !claim_pending {
+                            state.model_ops_claim = None;
+                            state.model_ops_claim_observer = None;
+                        }
                         emit_value_node(
                             ui.ctx(),
                             session.id,
@@ -8192,7 +8298,14 @@ impl AtelierPanelRuntime {
                     });
                     ui.horizontal_wrapped(|ui| {
                         ui.label(egui::RichText::new("Thread").color(palette.text));
-                        let thread = ui.text_edit_singleline(&mut state.model_ops_thread_id);
+                        let thread = ui.add_enabled(
+                            !claim_pending,
+                            egui::TextEdit::singleline(&mut state.model_ops_thread_id),
+                        );
+                        if thread.changed() && !claim_pending {
+                            state.model_ops_claim = None;
+                            state.model_ops_claim_observer = None;
+                        }
                         emit_value_node(
                             ui.ctx(),
                             thread.id,
@@ -8214,7 +8327,14 @@ impl AtelierPanelRuntime {
                     });
                     ui.horizontal_wrapped(|ui| {
                         ui.label(egui::RichText::new("TTL").color(palette.text));
-                        let ttl = ui.text_edit_singleline(&mut state.model_ops_ttl_seconds);
+                        let ttl = ui.add_enabled(
+                            !claim_pending,
+                            egui::TextEdit::singleline(&mut state.model_ops_ttl_seconds),
+                        );
+                        if ttl.changed() && !claim_pending {
+                            state.model_ops_claim = None;
+                            state.model_ops_claim_observer = None;
+                        }
                         emit_value_node(
                             ui.ctx(),
                             ttl.id,
@@ -8292,8 +8412,124 @@ impl AtelierPanelRuntime {
                             });
                         }
 
-                        let claim_button =
-                            ui.add_enabled(client_present && !pending, egui::Button::new("Claim lease"));
+                        let (actor_id, session_id, thread_id, raw_ttl, semantic) = state
+                            .model_ops_claim
+                            .as_ref()
+                            .map(|claim| {
+                                (
+                                    claim.1.clone(),
+                                    claim.2.clone(),
+                                    claim.3.clone(),
+                                    claim.4.clone(),
+                                    claim.5.clone(),
+                                )
+                            })
+                            .unwrap_or_else(|| {
+                                (
+                                    state.model_ops_actor_id.clone(),
+                                    state.model_ops_session_id.clone(),
+                                    state.model_ops_thread_id.clone(),
+                                    state.model_ops_ttl_seconds.clone(),
+                                    serde_json::json!([
+                                        &state.model_ops_actor_id,
+                                        &state.model_ops_session_id,
+                                        &state.model_ops_thread_id,
+                                        &state.model_ops_ttl_seconds,
+                                    ])
+                                    .to_string(),
+                                )
+                            });
+                        let context = state.model_ops_claim_context.clone();
+                        let generation = state.model_ops_claim_generation;
+                        let target = serialize_persistent_observer_click_target(
+                            ATELIER_MODEL_OPS_CLAIM_AUTHOR_ID,
+                            &context,
+                            generation,
+                            ATELIER_MODEL_OPS_STATUS_AUTHOR_ID,
+                            &semantic,
+                        );
+                        let preflight = generation
+                            .checked_add(1)
+                            .zip(state.model_ops_request_seq.checked_add(1))
+                            .and_then(|(next_generation, request_id)| {
+                                target.as_ref()?;
+                                serialize_persistent_observer_click_target(
+                                    ATELIER_MODEL_OPS_CLAIM_AUTHOR_ID,
+                                    &context,
+                                    next_generation,
+                                    ATELIER_MODEL_OPS_STATUS_AUTHOR_ID,
+                                    &semantic,
+                                )?;
+                                let pending_observer = serialize_observer_click_state(
+                                    ATELIER_MODEL_OPS_CLAIM_AUTHOR_ID,
+                                    &context,
+                                    next_generation,
+                                    ClickCompletionState::Pending,
+                                    Some(ATELIER_MODEL_OPS_CLAIM_AUTHOR_ID),
+                                    Some(&semantic),
+                                )?;
+                                let ttl_failure = serialize_observer_click_failure(
+                                    ATELIER_MODEL_OPS_CLAIM_AUTHOR_ID,
+                                    &context,
+                                    next_generation,
+                                    ATELIER_MODEL_OPS_CLAIM_AUTHOR_ID,
+                                    &semantic,
+                                    "Cannot claim lease: TTL must be a positive integer.",
+                                    None,
+                                )?;
+                                Some((next_generation, request_id, pending_observer, ttl_failure))
+                            });
+                        if client_present && !pending && preflight.is_none() {
+                            state.model_ops_status =
+                                "Cannot claim lease: completion generation, request sequence, or token budget is exhausted."
+                                    .to_owned();
+                        }
+                        let claim_button = ui.add_enabled(
+                            client_present && !pending && preflight.is_some(),
+                            egui::Button::new("Claim lease"),
+                        );
+                        if claim_button.clicked() {
+                            if let Some((next_generation, request_id, observer, ttl_failure)) =
+                                preflight
+                            {
+                                state.model_ops_claim_generation = next_generation;
+                                state.model_ops_claim = Some((
+                                    None,
+                                    actor_id.clone(),
+                                    session_id.clone(),
+                                    thread_id.clone(),
+                                    raw_ttl.clone(),
+                                    semantic.clone(),
+                                ));
+                                match raw_ttl.trim().parse::<i64>() {
+                                    Ok(ttl_seconds) if ttl_seconds > 0 => {
+                                        state.model_ops_request_seq = request_id;
+                                        state.model_ops_active_request = Some(request_id);
+                                        if let Some(claim) = state.model_ops_claim.as_mut() {
+                                            claim.0 = Some(request_id);
+                                        }
+                                        state.model_ops_claim_observer = Some(observer);
+                                        state.model_ops_status = format!(
+                                            "Claiming exclusive lease for {} as {}...",
+                                            thread_id, actor_id
+                                        );
+                                        dispatch = Some(Dispatch::Claim {
+                                            request_id,
+                                            actor_id,
+                                            session_id,
+                                            thread_id,
+                                            ttl_seconds,
+                                        });
+                                    }
+                                    _ => {
+                                        state.model_ops_claim_observer = Some(ttl_failure);
+                                        state.model_ops_status =
+                                            "Cannot claim lease: TTL must be a positive integer."
+                                                .to_owned();
+                                    }
+                                }
+                            }
+                        }
                         emit_node(
                             ui.ctx(),
                             claim_button.id,
@@ -8302,29 +8538,16 @@ impl AtelierPanelRuntime {
                             "Claim exclusive Model Ops lease",
                             false,
                         );
-                        if claim_button.clicked() {
-                            match state.model_ops_ttl_seconds.trim().parse::<i64>() {
-                                Ok(ttl_seconds) if ttl_seconds > 0 => {
-                                    state.model_ops_request_seq += 1;
-                                    let request_id = state.model_ops_request_seq;
-                                    state.model_ops_active_request = Some(request_id);
-                                    state.model_ops_status = format!(
-                                        "Claiming exclusive lease for {} as {}...",
-                                        state.model_ops_thread_id, state.model_ops_actor_id
-                                    );
-                                    dispatch = Some(Dispatch::Claim {
-                                        request_id,
-                                        actor_id: state.model_ops_actor_id.clone(),
-                                        session_id: state.model_ops_session_id.clone(),
-                                        thread_id: state.model_ops_thread_id.clone(),
-                                        ttl_seconds,
-                                    });
-                                }
-                                _ => {
-                                    state.model_ops_status =
-                                        "Cannot claim lease: TTL must be a positive integer.".to_owned();
-                                }
-                            }
+                        if let Some(value) = serialize_persistent_observer_click_target(
+                            ATELIER_MODEL_OPS_CLAIM_AUTHOR_ID,
+                            &context,
+                            state.model_ops_claim_generation,
+                            ATELIER_MODEL_OPS_STATUS_AUTHOR_ID,
+                            &semantic,
+                        ) {
+                            ui.ctx().accesskit_node_builder(claim_button.id, move |node| {
+                                node.set_value(value.clone());
+                            });
                         }
 
                         let release_button =
@@ -8462,13 +8685,23 @@ impl AtelierPanelRuntime {
                     let status = state.model_ops_status.clone();
                     let status_response =
                         ui.label(egui::RichText::new(&status).color(palette.text_subtle));
+                    let observer = state.model_ops_claim_observer.clone().or_else(|| {
+                        serialize_observer_click_state(
+                            ATELIER_MODEL_OPS_CLAIM_AUTHOR_ID,
+                            &state.model_ops_claim_context,
+                            state.model_ops_claim_generation,
+                            ClickCompletionState::Ready,
+                            None,
+                            None,
+                        )
+                    });
                     emit_value_node(
                         ui.ctx(),
                         status_response.id,
                         accesskit::Role::Label,
                         ATELIER_MODEL_OPS_STATUS_AUTHOR_ID,
-                        "Model Ops status and last receipt",
-                        &status,
+                        &format!("Model Ops status and last receipt: {status}"),
+                        observer.as_deref().unwrap_or(&status),
                     );
                 });
             emit_node(

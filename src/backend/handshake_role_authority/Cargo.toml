@@ -1,0 +1,16 @@
+[workspace]
+
+[package]
+name = "handshake_role_authority"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[dependencies]
+handshake_resource_scope = { path = "../handshake_resource_scope" }
+handshake_storage_support = { path = "../handshake_storage_support" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2.0.17"
+sha2 = "0.10"

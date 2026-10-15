@@ -74,13 +74,8 @@ impl SwarmLaneDiagnosticsClient {
             let result = get_json(&client, account, &spec.url, &[])
                 .await
                 .and_then(|value| {
-                    let projection = serde_json::from_value::<
-                        crate::swarm_lane_diagnostics::SwarmLaneDiagnosticsProjection,
-                    >(value)
-                    .map_err(|error| AppError::Parse(error.to_string()))?;
-                    crate::swarm_lane_diagnostics::validate_projection_for_native_surface(&projection)
-                        .map_err(AppError::Parse)?;
-                    Ok(projection)
+                    crate::swarm_lane_diagnostics::decode_projection_for_native_surface(value)
+                        .map_err(AppError::Parse)
                 })
                 .map_err(|error| error.to_string());
             if let Ok(mut slot) = cell.lock() {

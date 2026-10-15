@@ -20,18 +20,21 @@ use crate::kernel::{
     OperatorPromotionApproval, TraceProjection,
 };
 use crate::storage::Database;
+use crate::swarm_orchestration::operator_chat::{OperatorChatLaunchService, OperatorChatSingleRunCloudConsentGrant};
 use crate::storage::artifacts::{
-    ArtifactLayer, read_artifact_manifest, read_file_artifact_with_manifest,
+    ArtifactClassification, ArtifactLayer, ArtifactManifest, ArtifactPayloadKind,
+    artifact_root_rel, read_artifact_manifest, read_file_artifact_with_manifest, write_file_artifact,
 };
 use crate::storage::surreal::resource_authority::{
     AuthorizationRequest, IssuedSessionCredential, ResourceAction, ResourceKind,
 };
 use crate::swarm_orchestration::model_lane::{
-    DexterityLaunchAdapterRegistry, DexterityLaunchAdapterRequest,
+    DexterityLaunchAdapterRegistry, DexterityLaunchAdapterRequest, DexterityNormalizedLaunch,
     LaunchAuthority, ModelLaneAuthority, ModelLaneKind, ModelLaneLocusBinding,
     ModelLaneMessageKind, ModelLanePromotionOutcome, ModelLaneProviderKind,
     ModelLaneRecoveryState, ModelLaneRoutingMetadata, ModelLaneRoutingPolicy, ModelLaneStatus,
-    ModelLaneStore, ModelLaneTarget, NewModelLane, NewModelLaneContextBundleArtifactBinding,
+    ModelLaneStore, ModelLaneTarget, ModelLaneReplay, ModelLaneContextBundleArtifactBindingRecord,
+    NewModelLane, NewModelLaneContextBundleArtifactBinding,
     NewModelLaneMessage, NewModelLanePromotionDecision, NewModelLaneRun, RuntimeBinding,
 };
 use sha2::{Digest, Sha256};
@@ -123,6 +126,63 @@ pub(super) struct Ac9GateEvidence {
     pub(super) artifact_version: Option<String>,
 }
 
+pub(super) struct Ac9LocalInput {
+    pub(super) normalized: DexterityNormalizedLaunch,
+    pub(super) context: ModelLaneRoutingExecutionContext,
+    pub(super) replay: ModelLaneReplay,
+    pub(super) artifact: ModelLaneContextBundleArtifactBindingRecord,
+}
+
+fn validate_canonical_run_for_launch(run: &NewModelLaneRun, normalized: &DexterityNormalizedLaunch) -> KernelResult<()> {
+    let (derived, lane) = normalized.clone().to_records().map_err(|error| KernelError::ModelRuntime(error.to_string()))?;
+    let expected = serde_json::to_value(run).map_err(|error| KernelError::Artifact(error.to_string()))?;
+    let actual = serde_json::to_value(&derived).map_err(|error| KernelError::Artifact(error.to_string()))?;
+    // These are the existing production run-extension immutable identity fields.
+    for field in ["run_id", "trace_id", "run_span_id", "coordinator_session_id", "routing_policy", "context_bundle_id",
+        "event_ledger_stream_id", "artifact_namespace", "work_packet_id", "micro_task_id", "task_board_id", "owner_session",
+        "memory_pack_ref", "memory_pack_hash", "determinism_mode", "budget_summary_ref"] {
+        if expected[field] != actual[field] { return Err(KernelError::InvalidEvent("frozen launch differs from canonical immutable run identity")); }
+    }
+    if !run.lane_ids.contains(&lane.lane_id) { return Err(KernelError::InvalidEvent("canonical run omits frozen stage lane")); }
+    for field in ["projection_plan_ref", "consent_receipt_ref"] {
+        if !expected[field].is_null() && !actual[field].is_null() && expected[field] != actual[field] {
+            return Err(KernelError::InvalidEvent("canonical run authority reference conflicts with frozen launch"));
+        }
+    }
+    Ok(())
+}
+
+pub(super) fn canonical_run_from_frozen(
+    policy: ModelLaneRoutingPolicy,
+    requests: &[(ModelLaneRoutingStageLaunchPlan, DexterityNormalizedLaunch)],
+) -> KernelResult<NewModelLaneRun> {
+    use crate::swarm_orchestration::routing::ModelLaneRoutingDispatchTarget as Target;
+    let graph = ModelLaneRoutingGraph::for_policy(policy);
+    graph.validate().map_err(|error| KernelError::ModelRuntime(error.to_string()))?;
+    let mut lanes = std::collections::BTreeSet::new();
+    let mut stages = std::collections::BTreeSet::new();
+    for (plan, normalized) in requests {
+        let stage = graph.stages.iter().find(|stage| stage.stage_id == plan.stage_id)
+            .ok_or(KernelError::InvalidEvent("canonical run contains an unknown graph stage"))?;
+        if stage.target == Target::CoordinatorJoin || plan.dispatch_target != stage.target || !stages.insert(plan.stage_id.clone())
+            || plan.lane_id.as_deref() != Some(normalized.lane_id.as_str()) || !lanes.insert(normalized.lane_id.clone()) {
+            return Err(KernelError::InvalidEvent("canonical run has duplicate or mismatched stage lanes"));
+        }
+    }
+    if graph.stages.iter().any(|stage| stage.target != Target::CoordinatorJoin && !stages.contains(&stage.stage_id)) {
+        return Err(KernelError::InvalidEvent("canonical run requires every nonjoin stage lane before first Create"));
+    }
+    let first_stage = graph.stages.iter().find(|stage| stage.target != Target::CoordinatorJoin)
+        .ok_or(KernelError::InvalidEvent("canonical graph has no launch stage"))?;
+    let first = requests.iter().find(|(plan, _)| plan.stage_id == first_stage.stage_id)
+        .ok_or(KernelError::InvalidEvent("canonical first stage input missing"))?;
+    let (mut run, _) = first.1.clone().to_records().map_err(|error| KernelError::ModelRuntime(error.to_string()))?;
+    run.lane_ids = lanes.into_iter().collect();
+    if run.routing_policy != policy.as_str() { return Err(KernelError::InvalidEvent("canonical run policy differs from graph")); }
+    for (_, normalized) in requests { validate_canonical_run_for_launch(&run, normalized)?; }
+    Ok(run)
+}
+
 pub(super) struct Ac9Harness {
     isolated: IsolatedSurrealTestStore,
     scope: Option<ResourceScope>,
@@ -170,6 +230,14 @@ impl Ac9Harness {
         self.bootstrap.as_ref().expect("open canonical bootstrap state")
     }
 
+    pub(super) fn canonical_database(&self) -> Arc<dyn Database> {
+        self.db.as_ref().expect("open canonical database").clone()
+    }
+
+    pub(super) fn canonical_storage(&self) -> crate::storage::surreal::SurrealStorage {
+        self.isolated.storage().clone()
+    }
+
     pub(super) fn bootstrap_router(&self) -> (
         axum::Router,
         tokio::sync::mpsc::Receiver<crate::api::authority::WorkspaceActivationRequest>,
@@ -181,7 +249,7 @@ impl Ac9Harness {
         (router, receiver)
     }
 
-    async fn authenticate_workspace(&mut self) {
+    pub(super) async fn authenticate_workspace(&mut self) {
         if self.authenticated.is_some() {
             return;
         }
@@ -263,16 +331,27 @@ impl Ac9Harness {
         requests: Vec<(ModelLaneRoutingStageLaunchPlan, DexterityLaunchAdapterRequest)>,
         artifact_version: &str,
     ) -> KernelResult<Ac9GateEvidence> {
+        let registry = DexterityLaunchAdapterRegistry::standard();
+        let frozen = requests.into_iter().map(|(plan, request)| registry.normalize(request)
+            .map(|normalized| (plan, normalized)).map_err(|error| KernelError::ModelRuntime(error.to_string())))
+            .collect::<KernelResult<Vec<_>>>()?;
+        self.produce_frozen_gate_evidence(context, policy, frozen, artifact_version).await
+    }
+
+    pub(super) async fn produce_frozen_gate_evidence(
+        &mut self, context: &ModelLaneRoutingExecutionContext, policy: ModelLaneRoutingPolicy,
+        requests: Vec<(ModelLaneRoutingStageLaunchPlan, DexterityNormalizedLaunch)>, artifact_version: &str,
+    ) -> KernelResult<Ac9GateEvidence> {
         self.authenticate_workspace().await;
         if artifact_version.trim().is_empty() {
             return Err(KernelError::InvalidEvent("producer artifact version required before gate"));
         }
+        let canonical_run = canonical_run_from_frozen(policy, &requests)?;
         let graph = ModelLaneRoutingGraph::for_policy(policy);
         graph.validate().map_err(|error| KernelError::ModelRuntime(error.to_string()))?;
-        let registry = DexterityLaunchAdapterRegistry::standard();
         let mut plans = Vec::new();
         let mut records = Vec::new();
-        for (plan, request) in requests {
+        for (plan, normalized) in requests {
             let stage = graph.stages.iter().find(|stage| stage.stage_id == plan.stage_id)
                 .ok_or(KernelError::InvalidEvent("normalized input is not a canonical stage"))?;
             if stage.target == crate::swarm_orchestration::routing::ModelLaneRoutingDispatchTarget::CoordinatorJoin {
@@ -281,8 +360,6 @@ impl Ac9Harness {
             if plan.dispatch_target != stage.target || plans.iter().any(|prior: &ModelLaneRoutingStageLaunchPlan| prior.stage_id == plan.stage_id) {
                 return Err(KernelError::InvalidEvent("normalized stage target or identity differs"));
             }
-            let normalized = registry.normalize(request)
-                .map_err(|error| KernelError::ModelRuntime(error.to_string()))?;
             let (run, lane) = normalized.clone().to_records()
                 .map_err(|error| KernelError::ModelRuntime(error.to_string()))?;
             use crate::swarm_orchestration::routing::ModelLaneRoutingDispatchTarget as Target;
@@ -327,7 +404,7 @@ impl Ac9Harness {
             "resource_scope": ExactResourceScopeAttribution::try_from_resource_scope(self.scope())
                 .map_err(|error| KernelError::ModelRuntime(error.to_string()))?,
             "context": context, "routing_graph": graph, "routing_launch_plan": plans,
-            "normalized_records": records,
+            "normalized_records": records, "canonical_run": canonical_run,
         });
         let adapter = Ac9VersionedGateAdapter { input: input.clone(), artifact_version: artifact_version.to_owned() };
         let evidence = self.produce_gate_with_adapter(&adapter, input.clone()).await?;
@@ -338,6 +415,199 @@ impl Ac9Harness {
             return Err(KernelError::InvalidEvent("persisted gate artifact or intent differs from normalized inputs"));
         }
         Ok(evidence)
+    }
+
+    /// Acquires explicit isolated-test consent through the actual authenticated
+    /// service. Caller-supplied projection evidence is not proved by this call.
+    pub(super) async fn grant_cloud_consent(
+        &mut self, service: &OperatorChatLaunchService, grant: OperatorChatSingleRunCloudConsentGrant,
+    ) -> KernelResult<(
+        crate::swarm_orchestration::model_lane::ModelLaneCloudProjectionPlanRecord,
+        crate::swarm_orchestration::model_lane::ModelLaneCloudConsentReceiptRecord,
+    )> {
+        self.authenticate_workspace().await;
+        let authenticated = self.authenticated.as_ref().expect("actual authenticated workspace");
+        let authorization = AuthorizationRequest {
+            session_token: authenticated.session_token.clone(), channel_binding_hash: Some(authenticated.channel_binding_hash.clone()),
+            capability_id: "fs.write".into(), resource_kind: ResourceKind::Workspace,
+            external_resource_id: authenticated.workspace_id.clone().expect("actual workspace"), action: ResourceAction::Create,
+        };
+        let (plan, receipt) = service.grant_single_run_cloud_consent_authenticated(self.bootstrap(), authorization, grant).await
+            .map_err(|error| KernelError::ModelRuntime(error.to_string()))?;
+        let replay = self.store().replay_cloud_consent_authority(&plan.run_id).await
+            .map_err(|error| KernelError::ModelRuntime(error.to_string()))?;
+        if replay.projection_plans.iter().filter(|value| **value == plan).count() != 1
+            || replay.consent_receipts.iter().filter(|value| **value == receipt).count() != 1
+            || receipt.projection_plan_id != plan.projection_plan_id || receipt.projection_plan_hash != plan.projection_plan_hash
+            || receipt.run_id != plan.run_id || receipt.trace_id != plan.trace_id || receipt.scope_hash != plan.scope_hash
+            || receipt.target_bindings != plan.target_bindings || receipt.retention_policy != plan.retention_policy
+            || receipt.export_posture != plan.export_posture || receipt.fan_out_targets != plan.fan_out_targets {
+            return Err(KernelError::InvalidEvent("canonical cloud consent replay differs from actual explicit grant"));
+        }
+        let plan_value = serde_json::to_value(&plan.inner).map_err(|error| KernelError::Artifact(error.to_string()))?;
+        let receipt_value = serde_json::to_value(&receipt.inner).map_err(|error| KernelError::Artifact(error.to_string()))?;
+        if plan.projection_plan_hash != hex::encode(Sha256::digest(crate::kernel::context_bundle::canonical_json_bytes(&plan_value)))
+            || receipt.consent_receipt_hash != hex::encode(Sha256::digest(crate::kernel::context_bundle::canonical_json_bytes(&receipt_value))) {
+            return Err(KernelError::InvalidEvent("actual cloud records differ from canonical content hashes"));
+        }
+        // This public replay uses the separate cloud authority ledger, validates
+        // its canonical event envelopes and pair, and applies exact five-scope.
+        let approver = crate::swarm_orchestration::resource_scope::AccountBoundAuthority::from_access(self.store().access());
+        if receipt.approver != approver || plan.export_delegation.source_scope != approver
+            || plan.export_delegation.authorization_receipt_ref.as_deref() != Some(receipt.consent_receipt_id.as_str()) {
+            return Err(KernelError::InvalidEvent("canonical cloud authority differs from authenticated five-scope"));
+        }
+        Ok((plan, receipt))
+    }
+
+    pub(super) async fn prepare_local_initial_input(
+        &mut self, request: DexterityLaunchAdapterRequest, payload: serde_json::Value, retention_ttl_days: u32,
+    ) -> KernelResult<Ac9LocalInput> {
+        self.authenticate_workspace().await;
+        let normalized = DexterityLaunchAdapterRegistry::standard().normalize(request).map_err(|error| KernelError::ModelRuntime(error.to_string()))?;
+        let (run, _) = normalized.clone().to_records().map_err(|error| KernelError::ModelRuntime(error.to_string()))?;
+        self.prepare_frozen_local_initial_input(normalized, run, payload, retention_ttl_days).await
+    }
+
+    pub(super) async fn prepare_frozen_local_initial_input(
+        &mut self, normalized: DexterityNormalizedLaunch, run: NewModelLaneRun,
+        payload: serde_json::Value, retention_ttl_days: u32,
+    ) -> KernelResult<Ac9LocalInput> {
+        self.authenticate_workspace().await;
+        let (_, lane) = normalized.clone().to_records().map_err(|error| KernelError::ModelRuntime(error.to_string()))?;
+        validate_canonical_run_for_launch(&run, &normalized)?;
+        if lane.kind != ModelLaneKind::LocalModel { return Err(KernelError::InvalidEvent("local initial input requires an actual normalized local lane")); }
+        let bytes = crate::kernel::context_bundle::canonical_json_bytes(&payload);
+        let id = uuid::Uuid::now_v7();
+        let manifest = ArtifactManifest {
+            artifact_id: id, layer: ArtifactLayer::L2, kind: ArtifactPayloadKind::PromptPayload,
+            mime: "application/json".into(), filename_hint: Some("ac9-initial-input.json".into()), created_at: chrono::Utc::now(), created_by_job_id: None,
+            source_entity_refs: Vec::new(), source_artifact_refs: Vec::new(), content_hash: hex::encode(Sha256::digest(&bytes)), size_bytes: bytes.len() as u64,
+            classification: ArtifactClassification::Low, exportable: false, retention_ttl_days: Some(retention_ttl_days), pinned: Some(false),
+            hash_basis: Some("canonical_json_bytes(payload)".into()), hash_exclude_paths: Vec::new(),
+        };
+        write_file_artifact(&self.artifact_workspace_root, &manifest, &bytes).map_err(|error| KernelError::Artifact(error.to_string()))?;
+        let read_manifest = read_artifact_manifest(&self.artifact_workspace_root, ArtifactLayer::L2, id).map_err(|error| KernelError::Artifact(error.to_string()))?;
+        if read_manifest.artifact_id != id || read_manifest.layer != ArtifactLayer::L2 { return Err(KernelError::InvalidEvent("initial manifest identity differs")); }
+        let read_bytes = read_file_artifact_with_manifest(&self.artifact_workspace_root, &read_manifest).map_err(|error| KernelError::Artifact(error.to_string()))?;
+        if read_bytes != bytes || read_manifest.content_hash != manifest.content_hash { return Err(KernelError::InvalidEvent("actual initial file differs from producer payload")); }
+        let root = artifact_root_rel(ArtifactLayer::L2, id);
+        let artifact = NewModelLaneContextBundleArtifactBinding {
+            artifact_binding_id: format!("ac9-initial-binding-{id}"), run_id: run.run_id.clone(), trace_id: run.trace_id.clone(),
+            artifact_ref: format!("{root}/payload"), artifact_sha256: read_manifest.content_hash.clone(), content_hash: read_manifest.content_hash.clone(),
+            artifact_kind: "prompt_payload".into(), artifact_manifest_ref: format!("{root}/artifact.json"), artifact_payload_ref: format!("{root}/payload"), payload_json: payload,
+            event_ledger_stream_id: run.event_ledger_stream_id.clone(),
+            work_packet_id: run.work_packet_id.clone().ok_or(KernelError::InvalidEvent("initial WP missing"))?,
+            micro_task_id: run.micro_task_id.clone().ok_or(KernelError::InvalidEvent("initial MT missing"))?,
+            task_board_id: run.task_board_id.clone().ok_or(KernelError::InvalidEvent("initial board missing"))?, owner_session: run.owner_session.clone(),
+            idempotency_key: format!("ac9-initial-binding-{id}"), created_at_utc: read_manifest.created_at.to_rfc3339(), diagnostic_payload: json!({"synthetic":true,"network_egress":false}),
+        };
+        let message_id = format!("ac9-initial-message-{id}");
+        let mut message = ac9_input_message("initial", "proposal");
+        message.message_id = message_id.clone(); message.run_id = run.run_id.clone(); message.trace_id = run.trace_id.clone();
+        message.message_span_id = format!("ac9-initial-span-{id}"); message.parent_span_id = Some(lane.lane_span_id.clone()); message.linked_span_contexts = vec![run.run_span_id.clone()];
+        message.from_lane_id = lane.lane_id.clone(); message.payload_ref = artifact.artifact_ref.clone(); message.payload_sha256 = artifact.artifact_sha256.clone();
+        message.event_ledger_stream_id = run.event_ledger_stream_id.clone(); message.coordinator_session_id = run.coordinator_session_id.clone();
+        message.work_packet_id = run.work_packet_id.clone(); message.micro_task_id = run.micro_task_id.clone(); message.task_board_id = run.task_board_id.clone();
+        message.owner_session = run.owner_session.clone(); message.locus_binding = lane.locus_binding.clone(); message.tool_gate_decision_refs = lane.tool_gate_decision_refs.clone();
+        message.idempotency_key = message_id.clone(); message.replay_order_key = format!("{}:initial:{id}",run.run_id); message.recovery_hint_ref = run.recovery_hint_ref.clone();
+        message.created_at_utc = read_manifest.created_at.to_rfc3339(); message.diagnostic_payload = json!({"synthetic":true,"network_egress":false});
+        message.routing = Some(ModelLaneRoutingMetadata { target_role:"coordinator".into(), target_session:run.coordinator_session_id.clone(), correlation_id:message_id.clone(), requires_ack:false, ack_for:None });
+        let (replay, artifact) = self.record_canonical_local_sources(&normalized, run.clone(), artifact, vec![message]).await?;
+        let initial = replay.messages.iter().find(|message| message.message_id == message_id).ok_or(KernelError::InvalidEvent("actual initial message absent from canonical replay"))?;
+        let context = ModelLaneRoutingExecutionContext { run_id:run.run_id, trace_id:run.trace_id, run_span_id:run.run_span_id, coordinator_session_id:run.coordinator_session_id,
+            locus_ref:normalized.locus_binding_ref.clone(), work_packet_id:artifact.work_packet_id.clone(), micro_task_id:Some(artifact.micro_task_id.clone()), task_board_id:artifact.task_board_id.clone(), owner_session:run.owner_session,
+            initial_input_ref:format!("model-lane-message://{}",initial.message_id), initial_input_sha256:initial.payload_sha256.clone() };
+        Ok(Ac9LocalInput { normalized, context, replay, artifact })
+    }
+
+    pub(super) async fn record_normalized_local(
+        &mut self, stage_id: &str,
+        artifact: NewModelLaneContextBundleArtifactBinding, messages: Vec<NewModelLaneMessage>,
+        evidence: &Ac9GateEvidence,
+    ) -> KernelResult<(ModelLaneReplay, ModelLaneContextBundleArtifactBindingRecord)> {
+        self.authenticate_workspace().await;
+        let canonical = self.resolve_gate_event(&evidence.trace.kernel_task_run_id, &evidence.trace.session_run_id, &evidence.gate.event_id).await?;
+        if canonical.trace != evidence.trace || canonical.artifact_payload != evidence.artifact_payload || canonical.artifact_version != evidence.artifact_version {
+            return Err(KernelError::InvalidEvent("local source gate evidence differs from fresh canonical readback"));
+        }
+        let mapped = &canonical.artifact_payload["routing"];
+        let plans = mapped["routing_launch_plan"].as_array().ok_or(KernelError::InvalidEvent("gated launch plan missing"))?;
+        let mut plans = plans.iter().filter(|plan| plan["stage_id"].as_str() == Some(stage_id));
+        let plan = plans.next().ok_or(KernelError::InvalidEvent("gated stage missing"))?;
+        if plans.next().is_some() { return Err(KernelError::InvalidEvent("gated stage is ambiguous")); }
+        let lane_id = string_field(plan, "lane_id")?;
+        let records = mapped["normalized_records"].as_array().ok_or(KernelError::InvalidEvent("gated normalized records missing"))?;
+        let mut records = records.iter().filter(|record| record["normalized"]["lane_id"].as_str() == Some(lane_id));
+        let record = records.next().ok_or(KernelError::InvalidEvent("gated normalized lane missing"))?;
+        if records.next().is_some() { return Err(KernelError::InvalidEvent("gated normalized lane is ambiguous")); }
+        let normalized: DexterityNormalizedLaunch = serde_json::from_value(record["normalized"].clone()).map_err(|error| KernelError::Artifact(error.to_string()))?;
+        let (run, lane) = normalized.clone().to_records().map_err(|error| KernelError::ModelRuntime(error.to_string()))?;
+        let exact = ExactResourceScopeAttribution::try_from_resource_scope(self.scope())
+            .map_err(|error| KernelError::ModelRuntime(error.to_string()))?;
+        let normalized_value = serde_json::to_value(&normalized).map_err(|error| KernelError::Artifact(error.to_string()))?;
+        if lane.kind != ModelLaneKind::LocalModel || mapped["resource_scope"] != json!(&exact)
+            || !mapped["normalized_records"].as_array().is_some_and(|records| records.iter().any(|record| record["normalized"] == normalized_value))
+            || artifact.run_id != run.run_id || artifact.trace_id != run.trace_id
+            || artifact.payload_json != evidence.artifact_payload
+            || artifact.artifact_sha256 != string_field(&evidence.artifact.payload, "content_hash")?
+            || artifact.artifact_payload_ref != string_field(&evidence.artifact.payload, "artifact_payload_ref")?
+            || artifact.artifact_manifest_ref != string_field(&evidence.artifact.payload, "artifact_manifest_ref")?
+            || evidence.artifact_version.is_none() {
+            return Err(KernelError::InvalidEvent("local source records differ from versioned gate inputs"));
+        }
+        let run: NewModelLaneRun = serde_json::from_value(mapped["canonical_run"].clone()).map_err(|error| KernelError::Artifact(error.to_string()))?;
+        self.record_canonical_local_sources(&normalized, run, artifact, messages).await
+    }
+
+    async fn record_canonical_local_sources(
+        &mut self, normalized: &DexterityNormalizedLaunch, run: NewModelLaneRun,
+        artifact: NewModelLaneContextBundleArtifactBinding, messages: Vec<NewModelLaneMessage>,
+    ) -> KernelResult<(ModelLaneReplay, ModelLaneContextBundleArtifactBindingRecord)> {
+        validate_canonical_run_for_launch(&run, normalized)?;
+        let (_, lane) = normalized.clone().to_records().map_err(|error| KernelError::ModelRuntime(error.to_string()))?;
+        if lane.kind != ModelLaneKind::LocalModel { return Err(KernelError::InvalidEvent("actual local normalized source required")); }
+        let exact = ExactResourceScopeAttribution::try_from_resource_scope(self.scope()).map_err(|error| KernelError::ModelRuntime(error.to_string()))?;
+        let authenticated = self.authenticated.as_ref().expect("real authenticated workspace");
+        let authorization = AuthorizationRequest { session_token: authenticated.session_token.clone(),
+            channel_binding_hash: Some(authenticated.channel_binding_hash.clone()), capability_id: "fs.write".into(),
+            resource_kind: ResourceKind::Workspace, external_resource_id: authenticated.workspace_id.clone().unwrap(), action: ResourceAction::Create };
+        let (stored_run, stored_lane, stored_artifact, stored_messages) = self.store().record_authenticated_creation(
+            self.bootstrap(), authorization, (run, lane, artifact, messages),
+        ).await.map_err(|error| KernelError::ModelRuntime(error.to_string()))?;
+        let replay = self.store().replay_run(&stored_run.run_id).await.map_err(|error| KernelError::ModelRuntime(error.to_string()))?;
+        if replay.run != stored_run || !replay.lanes.contains(&stored_lane)
+            || !stored_messages.iter().all(|message| replay.messages.contains(message)) {
+            return Err(KernelError::InvalidEvent("canonical local replay differs from actual Create outputs"));
+        }
+        let mut receipts = vec![("run", stored_run.run_id.clone(), stored_run.event_ledger_event_id.clone()),
+            ("lane", stored_lane.lane_id.clone(), stored_lane.event_ledger_event_id.clone()),
+            ("context_artifact", stored_artifact.artifact_binding_id.clone(), stored_artifact.event_ledger_event_id.clone())];
+        receipts.extend(stored_messages.iter().map(|message| ("message", message.message_id.clone(), message.event_ledger_event_id.clone())));
+        let expected_scope = json!({"owner_account_id":exact.owner_account_id.to_string(), "actor_principal_id":exact.actor_principal_id.to_string(),
+            "authenticated_session_id":exact.authenticated_session_id.to_string(), "access_space_id":exact.access_space_id.to_string(), "workspace_id":exact.workspace_id.as_str()});
+        for (kind, id, event_id) in receipts {
+            let events = self.canonical_database().list_kernel_events_for_aggregate(kind, &id).await?;
+            let mut matching = events.iter().filter(|event| event.event_id == event_id);
+            let event = matching.next().ok_or(KernelError::InvalidEvent("canonical source receipt missing"))?;
+            let event_payload_json = string_field(&event.payload, "event_payload_json")?;
+            if matching.next().is_some() || event.source_component != "model_lane" || event.kernel_task_run_id != stored_run.run_id
+                || event.session_run_id != stored_run.event_ledger_stream_id
+                || event.payload_hash != hex::encode(Sha256::digest(event_payload_json.as_bytes())) {
+                return Err(KernelError::InvalidEvent("canonical source receipt identity or hash differs"));
+            }
+            let payload: serde_json::Value = serde_json::from_str(event_payload_json)
+                .map_err(|error| KernelError::Artifact(error.to_string()))?;
+            if kind == "context_artifact" && (payload["record"]["artifact_ref"] != json!(stored_artifact.artifact_ref) || payload["record"]["payload_json"] != stored_artifact.payload_json) {
+                return Err(KernelError::InvalidEvent("canonical local artifact differs from actual Create output"));
+            }
+            for field in ["owner_account_id", "actor_principal_id", "authenticated_session_id", "access_space_id", "workspace_id"] {
+                if payload.get(field).is_none() || payload.get(field) != expected_scope.get(field) {
+                    return Err(KernelError::InvalidEvent("canonical local receipt differs from actual authenticated five-scope"));
+                }
+            }
+        }
+        Ok((replay, stored_artifact))
     }
 
     async fn produce_gate_with_adapter(

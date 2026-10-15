@@ -25,6 +25,8 @@ use super::{
 pub struct DuckDbFlightRecorder {
     conn: Arc<Mutex<DuckDbConnection>>,
     retention_days: u32,
+    #[cfg(all(feature = "test-utils", feature = "duckdb-flight-recorder"))]
+    proof_control: Arc<super::shutdown_proof::RecorderProofControl>,
 }
 
 pub(crate) fn store_terminal_output_redacted(
@@ -211,6 +213,8 @@ impl DuckDbFlightRecorder {
         let recorder = Self {
             conn,
             retention_days,
+            #[cfg(all(feature = "test-utils", feature = "duckdb-flight-recorder"))]
+            proof_control: Arc::new(super::shutdown_proof::RecorderProofControl::default()),
         };
         recorder.init_schema()?;
         Ok(recorder)
@@ -548,11 +552,29 @@ impl DuckDbFlightRecorder {
 
         let conn = self.conn.lock().map_err(|_| RecorderError::LockError)?;
 
+        #[cfg(all(feature = "test-utils", feature = "duckdb-flight-recorder"))]
+        let proof_snapshot = if self.proof_control.selected_fault(event.event_id) {
+            match Self::proof_snapshot(&conn) {
+                Ok(snapshot) => Some(snapshot),
+                Err(error) => {
+                    self.proof_control.disconnect(&format!("pre-fault metadata unavailable: {error}"));
+                    return Err(error);
+                }
+            }
+        } else { None };
+        #[cfg(all(feature = "test-utils", feature = "duckdb-flight-recorder"))]
+        if let Some(snapshot) = &proof_snapshot {
+            if let Err(error) = Self::proof_arm_sequence(&conn, snapshot) {
+                self.proof_control.disconnect(&format!("fault setup incomplete: {error}"));
+                return Err(error);
+            }
+        }
+
         let event_id_str = event.event_id.to_string();
         let trace_id_str = event.trace_id.to_string();
         let timestamp_str = event.timestamp.to_rfc3339();
 
-        conn.execute(
+        let insertion = conn.execute(
             r#"
             INSERT INTO events (
                 event_id,
@@ -592,9 +614,143 @@ impl DuckDbFlightRecorder {
                 wsids_str,
                 payload_str
             ],
-        )
-        .map_err(|e| RecorderError::SinkError(e.to_string()))?;
+        );
 
+        #[cfg(all(feature = "test-utils", feature = "duckdb-flight-recorder"))]
+        if let Some(snapshot) = &proof_snapshot {
+            let restoration = Self::proof_restore_sequence(&conn, snapshot);
+            match &insertion {
+                Err(error) if Self::proof_is_expected_exhaustion(error) => self.proof_control.insert_failed(
+                    event.event_id, error.to_string(), restoration.err().map(|error| error.to_string()),
+                    super::shutdown_proof::ProofFailureClass::OwnedTemporarySequenceExhausted,
+                ),
+                Err(error) => self.proof_control.disconnect(&format!(
+                    "unexpected selected INSERT error: {error}; restoration={restoration:?}",
+                )),
+                Ok(_) => self.proof_control.disconnect(&format!(
+                    "selected original INSERT unexpectedly succeeded; restoration={restoration:?}",
+                )),
+            }
+        }
+        insertion.map_err(|error| RecorderError::SinkError(error.to_string()))?;
+
+        Ok(())
+    }
+
+    #[cfg(all(feature = "test-utils", feature = "duckdb-flight-recorder"))]
+    fn proof_is_expected_exhaustion(error: &duckdb::Error) -> bool {
+        matches!(error, duckdb::Error::DuckDBFailure(_, Some(message))
+            if message == "Sequence Error: nextval: reached maximum value of sequence \"flight_recorder_ingest_seq\" (9223372036854775806)")
+    }
+
+    #[cfg(all(feature = "test-utils", feature = "duckdb-flight-recorder"))]
+    fn proof_snapshot(conn: &DuckDbConnection) -> Result<Value, RecorderError> {
+        let failure = |error: duckdb::Error| RecorderError::SinkError(error.to_string());
+        let mut identity = conn.prepare(
+            "SELECT database_name,schema_name,table_name FROM duckdb_columns() \
+             WHERE table_name = ? AND column_name = ? AND NOT internal",
+        ).map_err(failure)?;
+        let identities = identity.query_map(duckdb::params!["events", "ingest_sequence"], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?))
+        }).map_err(failure)?.collect::<Result<Vec<_>, _>>().map_err(failure)?;
+        let [(catalog, schema, table)] = identities.as_slice() else {
+            return Err(RecorderError::SinkError("permanent recorder table identity is ambiguous".into()));
+        };
+        let temporary: i64 = conn.query_row(
+            "SELECT count(*) FROM duckdb_sequences() WHERE temporary AND sequence_name = ?",
+            duckdb::params!["flight_recorder_ingest_seq"], |row| row.get(0),
+        ).map_err(failure)?;
+        if temporary != 0 {
+            return Err(RecorderError::SinkError("preexisting TEMP sequence is not proof-owned".into()));
+        }
+        let mut sequences = conn.prepare(
+            "SELECT database_name,database_oid,schema_name,schema_oid,sequence_name,sequence_oid,\
+             comment,CAST(to_json(tags) AS VARCHAR),temporary,start_value,min_value,max_value,\
+             increment_by,cycle,last_value,sql FROM duckdb_sequences() \
+             WHERE database_name = ? AND schema_name = ? AND sequence_name = ? AND NOT temporary",
+        ).map_err(failure)?;
+        let sequences = sequences.query_map(duckdb::params![catalog, schema, "flight_recorder_ingest_seq"], |row| {
+            Ok((
+                row.get::<_, String>(0)?, row.get::<_, i64>(1)?, row.get::<_, String>(2)?,
+                row.get::<_, i64>(3)?, row.get::<_, String>(4)?, row.get::<_, i64>(5)?,
+                row.get::<_, Option<String>>(6)?, row.get::<_, String>(7)?, row.get::<_, bool>(8)?,
+                row.get::<_, i64>(9)?, row.get::<_, i64>(10)?, row.get::<_, i64>(11)?,
+                row.get::<_, i64>(12)?, row.get::<_, bool>(13)?, row.get::<_, Option<i64>>(14)?,
+                row.get::<_, Option<String>>(15)?,
+            ))
+        }).map_err(failure)?.collect::<Result<Vec<_>, _>>().map_err(failure)?;
+        let [sequence] = sequences.as_slice() else {
+            return Err(RecorderError::SinkError("permanent recorder sequence identity is ambiguous".into()));
+        };
+        let tags: Value = serde_json::from_str(&sequence.7)
+            .map_err(|error| RecorderError::SinkError(error.to_string()))?;
+        let expected_next = match sequence.14 {
+            Some(last) => last.checked_add(sequence.12),
+            None => Some(sequence.9),
+        }.ok_or_else(|| RecorderError::SinkError("permanent sequence next value overflow".into()))?;
+        let mut columns = conn.prepare(
+            "SELECT database_name,database_oid,schema_name,schema_oid,table_name,table_oid,\
+             column_name,column_index,comment,internal,column_default,is_nullable,data_type,\
+             data_type_id,character_maximum_length,numeric_precision,numeric_precision_radix,numeric_scale \
+             FROM duckdb_columns() WHERE database_name = ? AND schema_name = ? AND table_name = ? \
+             ORDER BY column_index",
+        ).map_err(failure)?;
+        let columns = columns.query_map(duckdb::params![catalog, schema, table], |row| {
+            Ok(serde_json::json!({
+                "database_name":row.get::<_, String>(0)?, "database_oid":row.get::<_, i64>(1)?,
+                "schema_name":row.get::<_, String>(2)?, "schema_oid":row.get::<_, i64>(3)?,
+                "table_name":row.get::<_, String>(4)?, "table_oid":row.get::<_, i64>(5)?,
+                "column_name":row.get::<_, String>(6)?, "column_index":row.get::<_, i32>(7)?,
+                "comment":row.get::<_, Option<String>>(8)?, "internal":row.get::<_, bool>(9)?,
+                "column_default":row.get::<_, Option<String>>(10)?, "is_nullable":row.get::<_, bool>(11)?,
+                "data_type":row.get::<_, String>(12)?, "data_type_id":row.get::<_, i64>(13)?,
+                "character_maximum_length":row.get::<_, Option<i32>>(14)?,
+                "numeric_precision":row.get::<_, Option<i32>>(15)?,
+                "numeric_precision_radix":row.get::<_, Option<i32>>(16)?,
+                "numeric_scale":row.get::<_, Option<i32>>(17)?,
+            }))
+        }).map_err(failure)?.collect::<Result<Vec<_>, _>>().map_err(failure)?;
+        Ok(serde_json::json!({
+            "sequence": {
+                "database_name":sequence.0,"database_oid":sequence.1,"schema_name":sequence.2,
+                "schema_oid":sequence.3,"sequence_name":sequence.4,"sequence_oid":sequence.5,
+                "comment":sequence.6,"tags":tags,"temporary":sequence.8,"start_value":sequence.9,
+                "min_value":sequence.10,"max_value":sequence.11,"increment_by":sequence.12,
+                "cycle":sequence.13,"last_value":sequence.14,"sql":sequence.15,
+            },
+            "columns":columns,"expected_next":expected_next,
+        }))
+    }
+
+    #[cfg(all(feature = "test-utils", feature = "duckdb-flight-recorder"))]
+    fn proof_arm_sequence(conn: &DuckDbConnection, before: &Value) -> Result<(), RecorderError> {
+        conn.execute_batch(
+            "CREATE TEMP SEQUENCE flight_recorder_ingest_seq INCREMENT BY 1 \
+             MINVALUE 9223372036854775805 MAXVALUE 9223372036854775806 \
+             START 9223372036854775806 NO CYCLE;",
+        ).map_err(|error| RecorderError::SinkError(error.to_string()))?;
+        let exhaustion = conn.query_row(
+            "SELECT nextval('temp.main.flight_recorder_ingest_seq')", [], |row| row.get::<_, i64>(0),
+        );
+        match exhaustion {
+            Ok(9223372036854775806) => Ok(()),
+            result => {
+                let restoration = Self::proof_restore_sequence(conn, before);
+                Err(RecorderError::SinkError(format!(
+                    "TEMP exhaustion setup failed: {result:?}; restoration={restoration:?}",
+                )))
+            }
+        }
+    }
+
+    #[cfg(all(feature = "test-utils", feature = "duckdb-flight-recorder"))]
+    fn proof_restore_sequence(conn: &DuckDbConnection, before: &Value) -> Result<(), RecorderError> {
+        conn.execute_batch("DROP SEQUENCE temp.main.flight_recorder_ingest_seq;")
+            .map_err(|error| RecorderError::SinkError(error.to_string()))?;
+        let after = Self::proof_snapshot(conn)?;
+        if &after != before {
+            return Err(RecorderError::SinkError("permanent recorder metadata changed during TEMP interval".into()));
+        }
         Ok(())
     }
 
@@ -1219,7 +1375,19 @@ impl FlightRecorder for DuckDbFlightRecorder {
         // HARDENED_INVARIANT: Apply NFC normalization to all string content
         // before persistence to prevent Unicode bypass attacks [§11.5].
         event.normalize_payload();
-        self.insert_event(event)
+        #[cfg(all(feature = "test-utils", feature = "duckdb-flight-recorder"))]
+        let _ = self.proof_control.before_insert(&event).await;
+        #[cfg(all(feature = "test-utils", feature = "duckdb-flight-recorder"))]
+        let observed_event = event.clone();
+        let result = self.insert_event(event);
+        #[cfg(all(feature = "test-utils", feature = "duckdb-flight-recorder"))]
+        if result.is_ok() { self.proof_control.insert_succeeded(&observed_event); }
+        result
+    }
+
+    #[cfg(all(feature = "test-utils", feature = "duckdb-flight-recorder"))]
+    fn recorder_proof_control(&self) -> Option<Arc<super::shutdown_proof::RecorderProofControl>> {
+        Some(self.proof_control.clone())
     }
 
     async fn delete_workspace_events(&self, workspace_id: &str) -> Result<u64, RecorderError> {

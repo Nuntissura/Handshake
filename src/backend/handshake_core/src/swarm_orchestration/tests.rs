@@ -67,6 +67,7 @@ struct ControllableWorker {
     /// session-serving wrapper. This makes the proof exercise one underlying
     /// loaded resource instead of two unrelated worker instances.
     loaded: Arc<AtomicBool>,
+    output_tokens: Option<Arc<[String]>>,
 }
 
 struct CountingLlmClient {
@@ -169,6 +170,7 @@ impl ControllableWorker {
             cancelled: Arc::new(AtomicBool::new(false)),
             unloaded,
             loaded,
+            output_tokens: None,
         }
     }
 }
@@ -196,14 +198,18 @@ impl ModelRuntime for ControllableWorker {
         // Real bounded stream that stops early if the request's cancel token
         // fires — genuine generation semantics, not a canned result.
         let cancel = req.cancel.clone();
-        let max = req.max_tokens.min(8) as usize;
+        let output_tokens = self.output_tokens.clone();
+        let max = (req.max_tokens as usize)
+            .min(output_tokens.as_ref().map_or(8, |tokens| tokens.len()));
         let items = (0..max).map(move |i| {
             if cancel.is_cancelled() {
                 Err(ModelRuntimeError::Cancelled)
             } else {
                 Ok(crate::model_runtime::GeneratedToken {
                     token_id: i as u32,
-                    text: format!("t{i}"),
+                    text: output_tokens
+                        .as_ref()
+                        .map_or_else(|| format!("t{i}"), |tokens| tokens[i].clone()),
                     logprob: None,
                     finish_reason: None,
                 })
@@ -294,6 +300,7 @@ struct ControllableFactory {
     llm_stream_calls: Arc<AtomicUsize>,
     provider_stream_error: Option<String>,
     provider_terminal_gate: Option<GatedProviderTerminalConfig>,
+    output_tokens: std::collections::HashMap<ModelInstanceId, Arc<[String]>>,
 }
 
 impl ControllableFactory {
@@ -315,7 +322,13 @@ impl ControllableFactory {
             llm_stream_calls: Arc::new(AtomicUsize::new(0)),
             provider_stream_error: None,
             provider_terminal_gate: None,
+            output_tokens: std::collections::HashMap::new(),
         }
+    }
+
+    fn with_output_tokens(mut self, instance_id: ModelInstanceId, tokens: Vec<String>) -> Self {
+        self.output_tokens.insert(instance_id, Arc::from(tokens));
+        self
     }
 
     fn with_provider_stream_error(mut self, message: impl Into<String>) -> Self {
@@ -363,17 +376,21 @@ impl ModelSessionFactory for ControllableFactory {
                 // the teardown closure frees via `unload`, mirroring an owned
                 // candle runtime whose Drop/unload releases the engine.
                 let loaded = Arc::new(AtomicBool::new(false));
+                let output_tokens = self.output_tokens.get(&request.instance_id).cloned();
                 let mut owned =
                     ControllableWorker::new(self.unload_invocations.clone(), Arc::clone(&loaded));
+                owned.output_tokens = output_tokens.clone();
                 let model_id = owned
                     .load(test_load_spec())
                     .await
                     .map_err(|e| SwarmError::FactoryFailed(e.to_string()))?;
                 let owned = Arc::new(tokio::sync::Mutex::new(owned));
-                let shared: Arc<dyn ModelRuntime> = Arc::new(ControllableWorker::new(
+                let mut shared = ControllableWorker::new(
                     self.unload_invocations.clone(),
                     loaded,
-                ));
+                );
+                shared.output_tokens = output_tokens;
+                let shared: Arc<dyn ModelRuntime> = Arc::new(shared);
                 self.handed_out
                     .lock()
                     .unwrap()

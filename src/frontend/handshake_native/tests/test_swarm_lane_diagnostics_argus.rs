@@ -9,7 +9,8 @@ use handshake_native::swarm_lane_diagnostics::{
     lane_author_id, message_author_id, message_payload_author_id, message_promotion_author_id,
     mt_status_author_id, routing_execution_author_id, routing_outbox_author_id,
     routing_stage_author_id, run_author_id, selected_message_author_id,
-    validate_projection_for_native_surface, visible_message_ids_for_filters,
+    decode_projection_for_native_surface, validate_projection_for_native_surface,
+    visible_message_ids_for_filters,
     SwarmLaneDiagnosticsLane, SwarmLaneDiagnosticsMessage, SwarmLaneDiagnosticsMtStatus,
     SwarmLaneDiagnosticsProjection, SwarmLaneDiagnosticsResourceScope, SwarmLaneDiagnosticsRun,
     SwarmLaneDiagnosticsTier, SwarmLaneDiagnosticsTransport, SwarmLaneRoutingExecutionDiagnostics,
@@ -25,7 +26,7 @@ use sha2::{Digest, Sha256};
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 struct DiagnosticsProjectionProvenance {
     schema_id: String,
     proof_nonce: String,
@@ -36,17 +37,39 @@ struct DiagnosticsProjectionProvenance {
     producer_completed_at_unix_ms: u64,
 }
 
-fn validate_exact_backend_json_shape(
-    raw: &Value,
-    projection: &SwarmLaneDiagnosticsProjection,
+fn validate_projection_provenance(
+    provenance: &DiagnosticsProjectionProvenance,
+    artifact_bytes: &[u8],
+    expected_schema: &str,
+    expected_nonce: &str,
+    expected_producer: &str,
+    now_unix_ms: u64,
 ) -> Result<(), String> {
-    let native = serde_json::to_value(projection)
-        .map_err(|error| format!("native projection reserialization failed: {error}"))?;
-    if &native == raw {
-        Ok(())
-    } else {
-        Err("backend/native projection JSON field shape changed or lost data".to_owned())
+    if provenance.schema_id != expected_schema {
+        return Err("diagnostics provenance schema_id mismatch".into());
     }
+    if provenance.proof_nonce != expected_nonce {
+        return Err("diagnostics provenance proof_nonce mismatch".into());
+    }
+    if provenance.projection_schema_id != "hsk.model_lane_diagnostics_projection@3" {
+        return Err("diagnostics provenance projection_schema_id mismatch".into());
+    }
+    if provenance.producer_test_id != expected_producer {
+        return Err("diagnostics provenance producer_test_id mismatch".into());
+    }
+    if provenance.producer_status != "passed_all_backend_assertions" {
+        return Err("diagnostics provenance producer_status incomplete".into());
+    }
+    if provenance.producer_completed_at_unix_ms > now_unix_ms.saturating_add(30_000) {
+        return Err("diagnostics provenance completion is from the future".into());
+    }
+    if now_unix_ms.saturating_sub(provenance.producer_completed_at_unix_ms) > 30 * 60 * 1_000 {
+        return Err("diagnostics provenance completion is stale".into());
+    }
+    if provenance.artifact_sha256 != format!("{:x}", Sha256::digest(artifact_bytes)) {
+        return Err("diagnostics provenance artifact_sha256 mismatch".into());
+    }
+    Ok(())
 }
 
 fn load_current_mt009_backend_projection() -> SwarmLaneDiagnosticsProjection {
@@ -83,53 +106,25 @@ fn load_current_mt009_backend_projection() -> SwarmLaneDiagnosticsProjection {
             .expect("backend-generated MT-009 provenance is required"),
     )
     .expect("MT-009 diagnostics provenance is typed JSON");
-    assert_eq!(
-        provenance.schema_id,
-        "hsk.mt009_diagnostics_projection_provenance@1"
-    );
-    assert_eq!(
-        provenance.proof_nonce,
-        std::env::var("HANDSHAKE_MT009_DIAGNOSTICS_PROOF_NONCE")
-            .expect("native MT-009 proof requires the producer nonce"),
-        "native proof must consume the artifact from the current backend producer run"
-    );
-    assert_eq!(
-        provenance.producer_test_id,
-        "mixed_local_cloud_subagent_run_persists_restarts_replays_and_projects"
-    );
-    assert_eq!(
-        provenance.producer_status, "passed_all_backend_assertions",
-        "native proof requires the backend producer completion receipt"
-    );
     let now_unix_ms = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .expect("system clock must be after Unix epoch")
         .as_millis() as u64;
-    assert!(
-        provenance.producer_completed_at_unix_ms <= now_unix_ms.saturating_add(30_000),
-        "MT-009 producer completion receipt cannot be from the future"
-    );
-    assert!(
-        now_unix_ms.saturating_sub(provenance.producer_completed_at_unix_ms) <= 30 * 60 * 1_000,
-        "MT-009 producer completion receipt is stale; rerun the backend producer"
-    );
-    assert_eq!(
-        provenance.artifact_sha256,
-        format!("{:x}", Sha256::digest(&artifact_bytes)),
-        "MT-009 artifact bytes must match backend provenance"
-    );
+    validate_projection_provenance(
+        &provenance,
+        &artifact_bytes,
+        "hsk.mt009_diagnostics_projection_provenance@1",
+        &std::env::var("HANDSHAKE_MT009_DIAGNOSTICS_PROOF_NONCE")
+            .expect("native MT-009 proof requires the producer nonce"),
+        "mixed_local_cloud_subagent_run_persists_restarts_replays_and_projects",
+        now_unix_ms,
+    )
+    .expect("MT-009 artifact must match its current full backend producer provenance");
     let raw_projection: Value = serde_json::from_slice(&artifact_bytes)
         .expect("backend-generated MT-009 projection is JSON");
-    let mut projection: SwarmLaneDiagnosticsProjection =
-        serde_json::from_value(raw_projection.clone())
-            .expect("native contract consumes backend-generated MT-009 projection JSON");
-    validate_exact_backend_json_shape(&raw_projection, &projection)
-        .expect("MT-009 backend/native projection field shape round-trips exactly");
+    let projection = decode_projection_for_native_surface(raw_projection)
+        .expect("MT-009 backend artifact must carry valid server-authorized scope and exact native wire shape");
     assert_eq!(provenance.projection_schema_id, projection.schema_id);
-    let error = validate_projection_for_native_surface(&projection)
-        .expect_err("raw backend artifact has no server-authorized account scope");
-    assert!(error.contains("resource_scope attribution"));
-    projection.resource_scope = fixture_projection().resource_scope;
     projection
 }
 
@@ -636,59 +631,30 @@ fn native_consumes_backend_generated_schema_v3_projection_artifact() {
             .expect("backend-generated diagnostics provenance is required"),
     )
     .expect("diagnostics provenance is typed JSON");
-    assert_eq!(
-        provenance.schema_id,
-        "hsk.mt017_diagnostics_projection_provenance@1"
-    );
-    assert_eq!(
-        provenance.proof_nonce,
-        std::env::var("HANDSHAKE_MT017_DIAGNOSTICS_PROOF_NONCE")
-            .expect("native proof requires the producer nonce"),
-        "native proof must consume an artifact from the current backend producer run"
-    );
-    assert_eq!(
-        provenance.producer_test_id,
-        "swarm_lane_diagnostics_backend_projection_matches_eventledger"
-    );
-    assert_eq!(
-        provenance.producer_status, "passed_all_backend_assertions",
-        "native proof requires the backend producer completion receipt"
-    );
     let now_unix_ms = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .expect("system clock must be after Unix epoch")
         .as_millis() as u64;
-    assert!(
-        provenance.producer_completed_at_unix_ms <= now_unix_ms.saturating_add(30_000),
-        "MT-017 producer completion receipt cannot be from the future"
-    );
-    assert!(
-        now_unix_ms.saturating_sub(provenance.producer_completed_at_unix_ms) <= 30 * 60 * 1_000,
-        "MT-017 producer completion receipt is stale; rerun the backend producer"
-    );
-    assert_eq!(
-        provenance.artifact_sha256,
-        format!("{:x}", Sha256::digest(&artifact_bytes)),
-        "artifact bytes must match backend provenance"
-    );
+    validate_projection_provenance(
+        &provenance,
+        &artifact_bytes,
+        "hsk.mt017_diagnostics_projection_provenance@1",
+        &std::env::var("HANDSHAKE_MT017_DIAGNOSTICS_PROOF_NONCE")
+            .expect("native MT-017 proof requires the producer nonce"),
+        "swarm_lane_diagnostics_backend_projection_matches_eventledger",
+        now_unix_ms,
+    )
+    .expect("MT-017 artifact must match its current full backend producer provenance");
     let raw_projection: Value = serde_json::from_slice(&artifact_bytes)
         .expect("backend-generated diagnostics projection is JSON");
-    let mut projection: SwarmLaneDiagnosticsProjection =
-        serde_json::from_value(raw_projection.clone())
-            .expect("native contract consumes backend-generated projection JSON");
-    validate_exact_backend_json_shape(&raw_projection, &projection)
-        .expect("MT-017 backend/native projection field shape round-trips exactly");
+    assert_projection_wire_rejections(raw_projection.clone());
+    let projection = decode_projection_for_native_surface(raw_projection)
+        .expect("MT-017 backend artifact must carry valid server-authorized scope and exact native wire shape");
     assert_eq!(
         projection.schema_id,
         "hsk.model_lane_diagnostics_projection@3"
     );
     assert_eq!(provenance.projection_schema_id, projection.schema_id);
-    let error = validate_projection_for_native_surface(&projection)
-        .expect_err("raw backend artifact has no server-authorized account scope");
-    assert!(error.contains("resource_scope attribution"));
-    projection.resource_scope = fixture_projection().resource_scope;
-    validate_projection_for_native_surface(&projection)
-        .expect("explicitly test-scoped projection satisfies native schema-v3 contract");
 
     let known_lane = projection
         .lanes
@@ -802,6 +768,150 @@ fn native_consumes_backend_generated_schema_v3_projection_artifact() {
 }
 
 #[test]
+fn native_projection_provenance_rejects_wrong_bindings_incomplete_stale_and_malformed_receipts() {
+    let bytes = b"provenance-validator-unit-input";
+    let now = 2_000_000;
+    let provenance = DiagnosticsProjectionProvenance {
+        schema_id: "hsk.mt017_diagnostics_projection_provenance@1".into(),
+        proof_nonce: "unit-nonce".into(),
+        projection_schema_id: "hsk.model_lane_diagnostics_projection@3".into(),
+        artifact_sha256: format!("{:x}", Sha256::digest(bytes)),
+        producer_test_id: "swarm_lane_diagnostics_backend_projection_matches_eventledger".into(),
+        producer_status: "passed_all_backend_assertions".into(),
+        producer_completed_at_unix_ms: now,
+    };
+    let validate = |value: &DiagnosticsProjectionProvenance| {
+        validate_projection_provenance(
+            value, bytes, "hsk.mt017_diagnostics_projection_provenance@1", "unit-nonce",
+            "swarm_lane_diagnostics_backend_projection_matches_eventledger", now,
+        )
+    };
+    validate(&provenance).expect("unit receipt exercises validator only, not backend completion");
+    for (field, expected) in [
+        ("schema", "diagnostics provenance schema_id mismatch"),
+        ("nonce", "diagnostics provenance proof_nonce mismatch"),
+        ("projection", "diagnostics provenance projection_schema_id mismatch"),
+        ("producer", "diagnostics provenance producer_test_id mismatch"),
+        ("status", "diagnostics provenance producer_status incomplete"),
+        ("sha", "diagnostics provenance artifact_sha256 mismatch"),
+        ("stale", "diagnostics provenance completion is stale"),
+        ("future", "diagnostics provenance completion is from the future"),
+    ] {
+        let mut changed = provenance.clone();
+        match field {
+            "schema" => changed.schema_id.push_str("-wrong"),
+            "nonce" => changed.proof_nonce.push_str("-wrong"),
+            "projection" => changed.projection_schema_id.push_str("-wrong"),
+            "producer" => changed.producer_test_id.push_str("-wrong"),
+            "status" => changed.producer_status = "incomplete".into(),
+            "sha" => changed.artifact_sha256.push('0'),
+            "stale" => changed.producer_completed_at_unix_ms = now - 30 * 60 * 1_000 - 1,
+            "future" => changed.producer_completed_at_unix_ms = now + 30_001,
+            _ => unreachable!(),
+        }
+        assert_eq!(validate(&changed).expect_err(field), expected);
+    }
+    assert!(serde_json::from_slice::<DiagnosticsProjectionProvenance>(b"{").is_err());
+    assert!(serde_json::from_slice::<DiagnosticsProjectionProvenance>(b"{}").is_err());
+}
+
+#[tokio::test]
+async fn diagnostics_production_client_without_account_delivers_errors_to_both_cells_before_http() {
+    use handshake_native::backend_client::SwarmLaneDiagnosticsClient;
+    use handshake_native::swarm_lane_diagnostics::SwarmLaneDiagnosticsCell;
+
+    let client = SwarmLaneDiagnosticsClient::production(tokio::runtime::Handle::current());
+    let latest: SwarmLaneDiagnosticsCell = Arc::new(Mutex::new(None));
+    let run: SwarmLaneDiagnosticsCell = Arc::new(Mutex::new(None));
+    client.fetch_latest(latest.clone());
+    client.fetch_run("not-sent-without-account", run.clone());
+    for cell in [latest, run] {
+        let result = tokio::time::timeout(std::time::Duration::from_secs(2), async {
+            loop {
+                let delivery = cell.lock().expect("lock production delivery cell").take();
+                if let Some(result) = delivery {
+                    break result;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("production client must deliver an account error, not leave an empty cell");
+        assert_eq!(result.expect_err("missing account cannot succeed"), "http: Account login required");
+    }
+}
+
+#[test]
+fn native_projection_decoder_rejects_renamed_missing_extra_and_malformed_wire_fields() {
+    assert_projection_wire_rejections(
+        serde_json::to_value(fixture_projection()).expect("serialize scoped projection"),
+    );
+}
+
+fn assert_projection_wire_rejections(raw: Value) {
+    decode_projection_for_native_surface(raw.clone())
+        .expect("unchanged scoped wire projection is accepted");
+
+    let mut renamed = raw.clone();
+    let lane = renamed["lanes"][0].as_object_mut().expect("lane object");
+    let name = lane.remove("model_display_name").expect("critical field exists");
+    lane.insert("renamed_model_display_name".into(), name);
+    let err = decode_projection_for_native_surface(renamed)
+        .expect_err("renamed required field must fail at the production decoder");
+    assert!(err.contains("model_display_name"), "got {err}");
+
+    let mut missing = raw.clone();
+    missing["run"].as_object_mut().expect("run object").remove("candidate_model_ids");
+    let err = decode_projection_for_native_surface(missing)
+        .expect_err("missing required field must fail at the production decoder");
+    assert!(err.contains("candidate_model_ids"), "got {err}");
+
+    let mut extra = raw.clone();
+    extra["run"].as_object_mut().expect("run object")
+        .insert("unexpected_candidate_model_ids".into(), serde_json::json!(["untrusted"]));
+    assert_eq!(
+        decode_projection_for_native_surface(extra).expect_err("extra wire data cannot be lost"),
+        "backend/native projection JSON field shape changed or lost data"
+    );
+
+    let mut defaulted = raw.clone();
+    defaulted["run"].as_object_mut().expect("run object")
+        .remove("coordinator_session_id").expect("defaulted field exists in emitted wire data");
+    assert_eq!(
+        decode_projection_for_native_surface(defaulted)
+            .expect_err("serde default materialization must fail shape validation before semantics"),
+        "backend/native projection JSON field shape changed or lost data"
+    );
+
+    let mut stale_schema = raw.clone();
+    stale_schema["schema_id"] = Value::String("hsk.model_lane_diagnostics_projection@2".into());
+    assert_eq!(
+        decode_projection_for_native_surface(stale_schema)
+            .expect_err("stale projection schema must fail through the production decoder"),
+        "schema_id mismatch: hsk.model_lane_diagnostics_projection@2"
+    );
+
+    let mut explicit_null = raw.clone();
+    explicit_null["resource_scope"] = Value::Null;
+    assert_eq!(
+        decode_projection_for_native_surface(explicit_null)
+            .expect_err("explicit null scope is not equivalent to omitted serialized scope"),
+        "backend/native projection JSON field shape changed or lost data"
+    );
+    let mut omitted = raw;
+    omitted.as_object_mut().expect("projection object").remove("resource_scope");
+    let err = decode_projection_for_native_surface(omitted)
+        .expect_err("omitted server scope must fail semantic validation");
+    assert!(err.contains("resource_scope attribution"), "got {err}");
+
+    let err = serde_json::from_slice::<Value>(b"{")
+        .map_err(|error| error.to_string())
+        .and_then(decode_projection_for_native_surface)
+        .expect_err("malformed JSON cannot produce a projection");
+    assert!(!err.is_empty());
+}
+
+#[test]
 fn swarm_lane_diagnostics_argus_rejects_missing_author_id_and_count_mismatch() {
     let mut projection = fixture_projection();
     projection.resource_scope = None;
@@ -852,9 +962,9 @@ fn swarm_lane_diagnostics_argus_rejects_missing_author_id_and_count_mismatch() {
         .as_object_mut()
         .expect("run JSON object")
         .remove("locus_ref");
-    let projection: SwarmLaneDiagnosticsProjection = serde_json::from_value(serialized.clone())
+    let _: SwarmLaneDiagnosticsProjection = serde_json::from_value(serialized.clone())
         .expect("optional field omission is accepted by serde before the boundary guard");
-    let err = validate_exact_backend_json_shape(&serialized, &projection)
+    let err = decode_projection_for_native_surface(serialized)
         .expect_err("backend field omissions must not survive the exact boundary guard");
     assert!(err.contains("field shape changed"), "got {err}");
 

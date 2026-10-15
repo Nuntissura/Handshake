@@ -340,7 +340,7 @@ async fn authorize_diagnostics_request(
 /// Server-authoritative exact scope retains actor, session, AccessSpace, and
 /// required workspace through both durable predicates and post-decode authorization.
 fn model_lane_store(state: &AppState, scope: &RequestAccountScope) -> ModelLaneStore {
-    ModelLaneStore::new_scoped(state.surreal.clone(), scope.resource_scope())
+    ModelLaneStore::new_scoped_with_lifecycle(state.surreal.clone(), scope.resource_scope(), state.surreal.resource_access_lifecycle())
 }
 
 async fn latest_model_lane_diagnostics(

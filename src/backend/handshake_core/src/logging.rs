@@ -37,6 +37,13 @@ pub fn init_logging() {
         .with_writer(non_blocking)
         .json();
 
+    #[cfg(all(feature = "test-utils", feature = "duckdb-flight-recorder"))]
+    let stdout_layer = fmt::layer()
+        .with_target(true)
+        .with_level(true)
+        .with_writer(std::io::stderr);
+
+    #[cfg(not(all(feature = "test-utils", feature = "duckdb-flight-recorder")))]
     let stdout_layer = fmt::layer()
         .with_target(true)
         .with_level(true)

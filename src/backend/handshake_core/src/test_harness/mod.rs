@@ -19,3 +19,6 @@ pub use swarm::{
     ContentionEvent, SwarmCrdtWorkspaceSummary, SwarmHarness, SwarmHarnessError, SwarmReport,
     SwarmScenario, SHARED_LEASE_RESOURCE,
 };
+
+#[cfg(feature = "surreal-test-support")]
+pub mod surreal_test_store_support;

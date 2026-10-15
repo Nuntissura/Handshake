@@ -910,3 +910,492 @@ async fn mt195_runtime_transient_embedded_unavailable_backs_off_and_resumes_afte
         .await
         .expect("close transient-return store");
 }
+
+#[cfg(all(feature = "test-utils", feature = "duckdb-flight-recorder"))]
+mod full_main_shutdown_acceptance {
+    use crate::runtime_child::FullMainChild;
+    use handshake_core::{
+        api::account_scope::ProductLocalResourceScope,
+        flight_recorder::shutdown_proof::{ProofAction, ProofFailureClass, ProofObservation},
+        swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+    };
+    use serde::Deserialize;
+    use serde_json::Value;
+    use sha2::{Digest, Sha256};
+    use std::{
+        collections::BTreeMap,
+        io::{self, IsTerminal, Read},
+        path::{Path, PathBuf},
+        time::{Duration, Instant, SystemTime, UNIX_EPOCH},
+    };
+
+    const MAX_BYTES: usize = 65_536;
+    const APPROVED_CONFIG_SHA256: &str = "71700f65e37ccc0db1b6465035a033d3228ea441b295aada1b38b274f070ac17";
+
+    fn incomplete(reason: &str) -> io::Error {
+        io::Error::new(io::ErrorKind::InvalidData, format!("MT188_INCOMPLETE: {reason}"))
+    }
+
+    #[derive(Clone, Copy, Deserialize)]
+    #[serde(rename_all = "snake_case")]
+    enum Method { Get, Post }
+
+    #[derive(Clone, Deserialize)]
+    #[serde(deny_unknown_fields)]
+    struct GenuineRequest {
+        method: Method,
+        path: String,
+        headers: BTreeMap<String, String>,
+        json: Option<Value>,
+    }
+
+    #[derive(Deserialize)]
+    #[serde(deny_unknown_fields)]
+    struct ScopeProjection {
+        owner_account_id: String,
+        actor_principal_id: String,
+        authenticated_session_id: String,
+        access_space_id: String,
+        workspace_id: String,
+    }
+
+    #[derive(Deserialize)]
+    #[serde(deny_unknown_fields)]
+    struct GenuineCase {
+        output_directory: PathBuf,
+        data_directory: PathBuf,
+        approval_configuration: PathBuf,
+        executable_sha256: String,
+        listen_addr: String,
+        deadline_unix_ms: u64,
+        bootstrap_requests: Vec<GenuineRequest>,
+        context_read: GenuineRequest,
+        context_projection: ScopeProjection,
+        original_scope: ExactResourceScopeAttribution,
+        launch: GenuineRequest,
+        launch_instance_pointer: String,
+        launch_run_pointer: String,
+        canonical_flight_recorder_read: GenuineRequest,
+        canonical_events_pointer: String,
+    }
+
+    #[derive(Deserialize)]
+    #[serde(deny_unknown_fields)]
+    struct GenuineInput {
+        version: u8,
+        artifact_root: PathBuf,
+        positive: GenuineCase,
+        negative: GenuineCase,
+    }
+
+    fn read_genuine_input() -> io::Result<GenuineInput> {
+        if io::stdin().is_terminal() {
+            return Err(incomplete("supply one bounded version1 genuine positive/negative configuration frame on the test process stdin; no fixture or skip is available"));
+        }
+        let until = Instant::now() + Duration::from_secs(5);
+        let mut input = owned_stdin()?;
+        let mut length = [0u8; 4];
+        read_input_exact(&mut input, &mut length, until)?;
+        let size = u32::from_be_bytes(length) as usize;
+        if size == 0 || size > MAX_BYTES { return Err(incomplete("genuine input frame exceeds 65536 bytes")); }
+        let mut bytes = vec![0; size];
+        read_input_exact(&mut input, &mut bytes, until)?;
+        let text = std::str::from_utf8(&bytes).map_err(|_| incomplete("genuine input is not UTF8"))?;
+        serde_json::from_str(text).map_err(|_| incomplete("genuine input does not match the version1 typed case contract"))
+    }
+
+    #[cfg(windows)]
+    fn owned_stdin() -> io::Result<std::fs::File> {
+        use std::os::windows::io::AsHandle;
+        Ok(std::fs::File::from(io::stdin().as_handle().try_clone_to_owned()?))
+    }
+
+    #[cfg(unix)]
+    fn owned_stdin() -> io::Result<std::fs::File> {
+        use std::os::fd::AsFd;
+        Ok(std::fs::File::from(io::stdin().as_fd().try_clone_to_owned()?))
+    }
+
+    fn read_input_exact(input: &mut std::fs::File, mut bytes: &mut [u8], until: Instant) -> io::Result<()> {
+        while !bytes.is_empty() {
+            let available = input_read_capacity(input, bytes.len(), until)?;
+            match input.read(&mut bytes[..available]) {
+                Ok(0) => return Err(incomplete("genuine execution configuration is absent or truncated on parent stdin")),
+                Ok(count) => bytes = &mut bytes[count..],
+                Err(error) if error.kind() == io::ErrorKind::Interrupted => {},
+                Err(error) => return Err(error),
+            }
+        }
+        Ok(())
+    }
+
+    #[cfg(windows)]
+    fn input_read_capacity(input: &std::fs::File, remaining: usize, until: Instant) -> io::Result<usize> {
+        use std::os::windows::io::AsRawHandle;
+        use windows_sys::Win32::{
+            Storage::FileSystem::{GetFileType, FILE_TYPE_DISK, FILE_TYPE_PIPE},
+            System::Pipes::PeekNamedPipe,
+        };
+        let handle = input.as_raw_handle();
+        // This is an owned duplicate, not a mode change or close of process stdin.
+        let kind = unsafe { GetFileType(handle) };
+        loop {
+            if Instant::now() >= until { return Err(incomplete("no complete genuine input frame within five seconds")); }
+            if kind == FILE_TYPE_DISK { return Ok(remaining); }
+            if kind != FILE_TYPE_PIPE { return Err(incomplete("genuine stdin must be a pipe or regular input file")); }
+            let mut available = 0u32;
+            if unsafe { PeekNamedPipe(handle, std::ptr::null_mut(), 0,
+                std::ptr::null_mut(), &mut available, std::ptr::null_mut()) } == 0 {
+                return Err(incomplete("genuine input pipe is closed or unavailable"));
+            }
+            if available != 0 { return Ok(remaining.min(available as usize)); }
+            std::thread::sleep(Duration::from_millis(5).min(until.saturating_duration_since(Instant::now())));
+        }
+    }
+
+    #[cfg(unix)]
+    fn input_read_capacity(input: &std::fs::File, remaining: usize, until: Instant) -> io::Result<usize> {
+        use std::os::fd::AsRawFd;
+        loop {
+            let wait = until.checked_duration_since(Instant::now())
+                .ok_or_else(|| incomplete("no complete genuine input frame within five seconds"))?;
+            let mut descriptor = libc::pollfd { fd: input.as_raw_fd(), events: libc::POLLIN, revents: 0 };
+            let timeout = wait.as_millis().clamp(1, i32::MAX as u128) as i32;
+            let result = unsafe { libc::poll(&mut descriptor, 1, timeout) };
+            if result < 0 {
+                let error = io::Error::last_os_error();
+                if error.kind() == io::ErrorKind::Interrupted { continue; }
+                return Err(error);
+            }
+            if result == 0 { return Err(incomplete("no complete genuine input frame within five seconds")); }
+            if descriptor.revents & libc::POLLNVAL != 0 { return Err(incomplete("genuine input descriptor is invalid")); }
+            return Ok(remaining);
+        }
+    }
+
+    fn deadline(case: &GenuineCase) -> io::Result<Instant> {
+        let now = SystemTime::now().duration_since(UNIX_EPOCH)
+            .map_err(|_| incomplete("host clock precedes UNIX epoch"))?;
+        let target = Duration::from_millis(case.deadline_unix_ms);
+        let remaining = target.checked_sub(now).ok_or_else(|| incomplete("the granted absolute proof deadline already elapsed"))?;
+        Instant::now().checked_add(remaining).ok_or_else(|| incomplete("proof deadline is out of range"))
+    }
+
+    fn validate_case(root: &Path, case: &GenuineCase) -> io::Result<()> {
+        for path in [&case.output_directory, &case.data_directory, &case.approval_configuration] {
+            if !path.is_absolute() || !path.canonicalize()?.starts_with(root) {
+                return Err(incomplete("approved output, actual data and existing config must resolve within the supplied owned artifact root"));
+            }
+        }
+        if !case.output_directory.is_dir() || !case.data_directory.is_dir() {
+            return Err(incomplete("approved existing output and genuine data directories are required; this case does not seed or provision a store"));
+        }
+        for filename in ["mt188-main-stderr.log", "mt188-main-listener.json"] {
+            if case.output_directory.join(filename).exists() { return Err(incomplete("case outputs already exist; preserve them and supply an unused owned case directory")); }
+        }
+        let hash = format!("{:x}", Sha256::digest(std::fs::read(&case.approval_configuration)?));
+        if hash != APPROVED_CONFIG_SHA256 { return Err(incomplete("existing approved registry configuration hash differs from its original binding")); }
+        ProductLocalResourceScope::from_exact(case.original_scope.clone())
+            .map_err(|_| incomplete("supplied scope is not a complete genuine account/Principal/session/Space/workspace tuple"))?;
+        if !matches!(case.context_read.method, Method::Get)
+            || !matches!(case.canonical_flight_recorder_read.method, Method::Get)
+            || !matches!(case.launch.method, Method::Post) {
+            return Err(incomplete("context/Flight Recorder reads must be GET and genuine launch must be POST"));
+        }
+        let path = &case.canonical_flight_recorder_read.path;
+        if !path.starts_with("/flight_recorder?") && !path.starts_with("/api/flight_recorder?") {
+            return Err(incomplete("canonical read must use the actual scoped Flight Recorder route"));
+        }
+        Ok(())
+    }
+
+    async fn send(
+        client: &reqwest::Client,
+        base: &str,
+        request: GenuineRequest,
+        until: Instant,
+    ) -> io::Result<Value> {
+        if !request.path.starts_with('/') || request.path.starts_with("//") || request.path.contains('#') {
+            return Err(incomplete("HTTP input must name an existing relative product route on the owned child"));
+        }
+        let remaining = until.checked_duration_since(Instant::now()).ok_or_else(|| incomplete("HTTP proof deadline elapsed"))?;
+        let mut builder = match request.method {
+            Method::Get => client.get(format!("{base}{}", request.path)),
+            Method::Post => client.post(format!("{base}{}", request.path)),
+        }.timeout(remaining);
+        for (name, value) in request.headers {
+            let name = reqwest::header::HeaderName::from_bytes(name.as_bytes())
+                .map_err(|_| incomplete("invalid genuine HTTP header name"))?;
+            let value = reqwest::header::HeaderValue::from_str(&value)
+                .map_err(|_| incomplete("invalid genuine HTTP credential/header value"))?;
+            builder = builder.header(name, value);
+        }
+        if let Some(json) = request.json { builder = builder.json(&json); }
+        let mut response = builder.send().await.map_err(|_| incomplete("genuine product request failed; inspect the owned child diagnostic log"))?;
+        if !response.status().is_success() { return Err(incomplete("product rejected genuine setup/context/launch/read input; inspect the actual HTTP admission")); }
+        let mut bytes = Vec::new();
+        while let Some(chunk) = response.chunk().await.map_err(|_| incomplete("product response read failed"))? {
+            if bytes.len().saturating_add(chunk.len()) > MAX_BYTES { return Err(incomplete("scope the genuine product response below 65536 bytes")); }
+            bytes.extend_from_slice(&chunk);
+        }
+        serde_json::from_slice(&bytes).map_err(|_| incomplete("product did not return a JSON receipt"))
+    }
+
+    fn validate_context(response: &Value, case: &GenuineCase) -> io::Result<()> {
+        let expected = serde_json::to_value(&case.original_scope).map_err(|_| incomplete("scope serialization"))?;
+        for (field, pointer) in [
+            ("owner_account_id", &case.context_projection.owner_account_id),
+            ("actor_principal_id", &case.context_projection.actor_principal_id),
+            ("authenticated_session_id", &case.context_projection.authenticated_session_id),
+            ("access_space_id", &case.context_projection.access_space_id),
+            ("workspace_id", &case.context_projection.workspace_id),
+        ] {
+            let value = expected.get(field).ok_or_else(|| incomplete("canonical scope field is missing"))?;
+            if pointer.is_empty() || response.pointer(pointer) != Some(value) {
+                return Err(incomplete("actual authenticated product context does not match the immutable supplied original scope"));
+            }
+        }
+        Ok(())
+    }
+
+    struct OwnedLaunch(Option<tokio::task::JoinHandle<io::Result<Value>>>);
+
+    impl OwnedLaunch {
+        async fn result(&mut self, until: Instant, settlement: &mut Option<String>) -> io::Result<Value> {
+            let task = self.0.as_mut().ok_or_else(|| incomplete("launch task already consumed"))?;
+            let result = tokio::time::timeout_at(tokio::time::Instant::from_std(until), task).await
+                .map_err(|_| incomplete("genuine launch did not finish before the original deadline"))?;
+            *settlement = Some(launch_outcome(&result));
+            self.0.take();
+            result.map_err(|_| incomplete("genuine launch task failed"))?
+        }
+
+        async fn observe_failure_settlement(&mut self) -> Option<String> {
+            if !self.0.as_ref().is_some_and(tokio::task::JoinHandle::is_finished) {
+                return None;
+            }
+            let task = self.0.take()?;
+            Some(launch_outcome(&task.await))
+        }
+
+    }
+
+    impl Drop for OwnedLaunch {
+        fn drop(&mut self) {
+            if let Some(task) = self.0.take() { task.abort(); }
+        }
+    }
+
+    fn launch_outcome(result: &Result<io::Result<Value>, tokio::task::JoinError>) -> String {
+        match result {
+            Ok(Ok(_)) => "success".to_owned(),
+            Ok(Err(error)) => format!("io_error:{}", error_cause(error)),
+            Err(error) if error.is_cancelled() => format!("join_cancelled;{}", message_fingerprint(&error.to_string())),
+            Err(error) if error.is_panic() => format!("join_panicked;{}", message_fingerprint(&error.to_string())),
+            Err(error) => format!("join_error_unclassified;{}", message_fingerprint(&error.to_string())),
+        }
+    }
+
+    fn message_fingerprint(message: &str) -> String {
+        format!("message_utf8_len={};message_sha256={:x}", message.len(), Sha256::digest(message.as_bytes()))
+    }
+
+    fn error_cause(error: &io::Error) -> String {
+        format!("io_kind={:?};raw_os_error={:?};{}", error.kind(), error.raw_os_error(),
+            message_fingerprint(&error.to_string()))
+    }
+
+    fn panic_cause(payload: &(dyn std::any::Any + Send)) -> String {
+        if let Some(message) = payload.downcast_ref::<String>() {
+            format!("panic_payload_type=String;{}", message_fingerprint(message))
+        } else if let Some(message) = payload.downcast_ref::<&str>() {
+            format!("panic_payload_type=str;{}", message_fingerprint(message))
+        } else {
+            "panic_payload_type=opaque;message_fingerprint=unavailable".to_owned()
+        }
+    }
+
+    struct CaseOwners<'a> {
+        case: &'a GenuineCase,
+        child: Option<FullMainChild>,
+        client: Option<reqwest::Client>,
+        launch: OwnedLaunch,
+        launch_settlement: Option<String>,
+    }
+
+    impl CaseOwners<'_> {
+        async fn retain_failed_case(&mut self, primary: &str) {
+            loop {
+                if self.launch_settlement.is_none() {
+                    self.launch_settlement = self.launch.observe_failure_settlement().await;
+                }
+                let launch_settled = self.launch.0.is_none();
+                let launch_outcome = self.launch_settlement.as_deref().unwrap_or(if launch_settled {
+                    "no_outstanding_task"
+                } else { "pending" });
+                let pending = format!(
+                    "{primary}; runner_pid={}; runner_status=failed_incomplete; case_owners_pending=true; launch_task_pending={}; launch_outcome={launch_outcome}",
+                    std::process::id(), !launch_settled,
+                );
+                let child_settled = match self.child.as_mut() {
+                    Some(child) => std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        child.observe_failure_settlement(&pending)
+                    })).unwrap_or(false),
+                    None => true,
+                };
+                if launch_settled && child_settled {
+                    let completed = format!(
+                        "{primary}; runner_pid={}; runner_status=failed_incomplete; case_owners_pending=false; launch_task_pending=false; launch_outcome={launch_outcome}",
+                        std::process::id(),
+                    );
+                    let recorded = match self.child.as_mut() {
+                        Some(child) => std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                            child.observe_failure_settlement(&completed)
+                        })).unwrap_or(false),
+                        None => true,
+                    };
+                    if recorded { return; }
+                }
+                // Failure-only custody stays in this original task, without a new deadline.
+                tokio::time::sleep(Duration::from_millis(25)).await;
+            }
+        }
+    }
+
+    async fn run_case(case: &GenuineCase, inject_insert_fault: bool) -> io::Result<()> {
+        use futures::FutureExt;
+        let mut owners = CaseOwners { case, child: None, client: None, launch: OwnedLaunch(None), launch_settlement: None };
+        let outcome = std::panic::AssertUnwindSafe(run_case_body(&mut owners, inject_insert_fault))
+            .catch_unwind().await;
+        match outcome {
+            Ok(Ok(())) => Ok(()),
+            Ok(Err(error)) => {
+                owners.retain_failed_case(&format!("MT188_CASE_RETURNED_ERROR;{}", error_cause(&error))).await;
+                Err(error)
+            }
+            Err(panic) => {
+                owners.retain_failed_case(&format!("MT188_CASE_PANICKED;{}", panic_cause(panic.as_ref()))).await;
+                std::panic::resume_unwind(panic)
+            }
+        }
+    }
+
+    async fn run_case_body(owners: &mut CaseOwners<'_>, inject_insert_fault: bool) -> io::Result<()> {
+        let CaseOwners { case, child, client, launch, launch_settlement } = owners;
+        let case = *case;
+        let until = deadline(case)?;
+        *child = Some(FullMainChild::spawn(&case.output_directory, &case.data_directory,
+            &case.listen_addr, &case.approval_configuration, until)?);
+        let child = child.as_mut().ok_or_else(|| incomplete("owned main was not retained"))?;
+        let identity = serde_json::to_value(child.identity()?).map_err(|_| incomplete("actual child identity serialization"))?;
+        if case.executable_sha256.len() != 64 || !case.executable_sha256.bytes().all(|byte| byte.is_ascii_hexdigit())
+            || identity["executable_sha256"].as_str() != Some(case.executable_sha256.as_str()) {
+            return Err(incomplete("actual owned process image hash differs from the supplied frozen candidate executable"));
+        }
+        eprintln!("MT188_OWNED_MAIN_IDENTITY {identity}");
+        let base = child.await_listener(&case.output_directory)?;
+        *client = Some(reqwest::Client::builder().redirect(reqwest::redirect::Policy::none())
+            .build().map_err(|_| incomplete("HTTP client initialization"))?);
+        let client = client.as_ref().ok_or_else(|| incomplete("HTTP client was not retained"))?;
+        for request in &case.bootstrap_requests {
+            send(&client, &base, request.clone(), until).await?;
+        }
+        let context = send(&client, &base, case.context_read.clone(), until).await?;
+        validate_context(&context, case)?;
+        child.request(ProofAction::ObserveAllocation {
+            scope: case.original_scope.clone(), deadline_unix_ms: case.deadline_unix_ms,
+        })?;
+        let launch_client = (*client).clone();
+        let launch_base = base.clone();
+        let launch_request = case.launch.clone();
+        launch.0 = Some(tokio::spawn(async move {
+            send(&launch_client, &launch_base, launch_request, until).await
+        }));
+        let allocation = match child.request(ProofAction::AwaitAllocation)?.receipt {
+            ProofObservation::AllocationPending { allocation } => allocation,
+            _ => return Err(incomplete("actual producer allocation was not observed")),
+        };
+        if serde_json::to_value(&allocation.scope).ok() != serde_json::to_value(&case.original_scope).ok()
+            || allocation.instance_id.is_empty() || allocation.parent_session_id.is_empty()
+            || allocation.run_id.is_empty() || allocation.lane_id.is_empty() || allocation.trace_id.is_empty() {
+            return Err(incomplete("actual allocation lacks the original scope or genuine producer identities"));
+        }
+        child.request(ProofAction::SelectAllocation { pending_id: allocation.pending_id, allocation: allocation.clone() })?;
+        let (target_event, target_process) = match child.request(ProofAction::AwaitEvent)?.receipt {
+            ProofObservation::PendingEvent { event_id, process_uuid } => (event_id, process_uuid),
+            _ => return Err(incomplete("genuine SessionSpawned did not reach the selected pre-SQL boundary")),
+        };
+        if target_event.is_nil() || target_process.is_nil() { return Err(incomplete("actual event/process identity is nil")); }
+        if inject_insert_fault { child.request(ProofAction::Arm { event_id: target_event })?; }
+        child.request(ProofAction::ReleaseEvent { event_id: target_event })?;
+        if inject_insert_fault {
+            match child.request(ProofAction::AwaitFailure)?.receipt {
+                ProofObservation::StickyFailure { event_id, failure_class: ProofFailureClass::OwnedTemporarySequenceExhausted,
+                    error, restore_error: None } if event_id == target_event && !error.is_empty() => {},
+                _ => return Err(incomplete("actual target INSERT error, sticky failure and local physical restoration were not all observed")),
+            }
+            child.request(ProofAction::ConfirmRestored)?;
+        }
+        let launched = launch.result(until, launch_settlement).await?;
+        if launched.pointer(&case.launch_instance_pointer).and_then(Value::as_str) != Some(allocation.instance_id.as_str())
+            || launched.pointer(&case.launch_run_pointer).and_then(Value::as_str) != Some(allocation.run_id.as_str()) {
+            return Err(incomplete("actual launch response does not bind the selected producer instance and run"));
+        }
+        let healthy_event = match child.request(ProofAction::AwaitHealthy)?.receipt {
+            ProofObservation::HealthyEvent { event_id } if !event_id.is_nil() => event_id,
+            _ => return Err(incomplete("no subsequent genuine healthy recorder INSERT was observed")),
+        };
+        if inject_insert_fault && healthy_event == target_event { return Err(incomplete("failed target cannot substitute for a subsequent healthy event")); }
+        let mut read = case.canonical_flight_recorder_read.clone();
+        read.path = read.path.replace("{event_id}", &healthy_event.to_string())
+            .replace("{trace_id}", &allocation.trace_id);
+        let canonical = send(&client, &base, read, until).await?;
+        let events = canonical.pointer(&case.canonical_events_pointer).and_then(Value::as_array)
+            .ok_or_else(|| incomplete("canonical Flight Recorder response has no actual event list"))?;
+        let expected_id = healthy_event.to_string();
+        let event = events.iter().find(|event| event["event_id"].as_str() == Some(expected_id.as_str()))
+            .ok_or_else(|| incomplete("actual healthy event is absent from canonical Flight Recorder read"))?;
+        if event["trace_id"].as_str() != Some(allocation.trace_id.as_str()) {
+            return Err(incomplete("canonical healthy event trace differs from the selected real invocation"));
+        }
+        child.request(ProofAction::Shutdown)?;
+        let status = child.wait_for_exit()?;
+        let expected_exit = if inject_insert_fault { 1 } else { 0 };
+        if status.code() != Some(expected_exit) { return Err(incomplete("actual full main numeric exit did not match the positive/negative boundary")); }
+        let diagnostic = std::fs::read_to_string(case.output_directory.join("mt188-main-stderr.log"))?;
+        let ansi = regex::Regex::new(r"\x1b\[[0-9;]*[A-Za-z]")
+            .map_err(|_| incomplete("diagnostic ANSI normalization"))?;
+        let diagnostic = ansi.replace_all(&diagnostic, "");
+        let failure = "shutdown durability was not fully proven";
+        if inject_insert_fault {
+            let line = diagnostic.lines().find(|line| line.contains(failure))
+                .ok_or_else(|| incomplete("negative main omitted its actual shutdown durability diagnostic"))?;
+            for field in ["connection_drain_timed_out=false", "coordinator_quiesced=true",
+                "coordinator_error=None", "lease_released=true", "lease_retained_reason=None",
+                "process_reclaim_quiesced=true", "swarm_events_flushed=false", "operator_chat_ledger_flushed=Some(true)"] {
+                if !line.contains(field) { return Err(incomplete("negative case did not prove otherwise-successful actual shutdown drains")); }
+            }
+        } else if diagnostic.contains(failure) {
+            return Err(incomplete("positive case emitted a failed shutdown durability diagnostic"));
+        }
+        Ok(())
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn mt188_real_full_main_positive_and_recorder_only_negative_shutdown() -> io::Result<()> {
+        // Parent stdin is consumed once. It is separate from each owned child's private control pipe.
+        let input = read_genuine_input()?;
+        if input.version != 1 || !input.artifact_root.is_absolute() {
+            return Err(incomplete("version1 approved absolute artifact root required"));
+        }
+        let root = input.artifact_root.canonicalize()?;
+        validate_case(&root, &input.positive)?;
+        validate_case(&root, &input.negative)?;
+        if input.positive.output_directory.canonicalize()? == input.negative.output_directory.canonicalize()?
+            || input.positive.data_directory.canonicalize()? == input.negative.data_directory.canonicalize()? {
+            return Err(incomplete("serial positive/negative cases require separate approved owned outputs and genuine data roots"));
+        }
+        run_case(&input.positive, false).await?;
+        run_case(&input.negative, true).await
+    }
+}

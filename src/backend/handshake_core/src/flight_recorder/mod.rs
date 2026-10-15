@@ -14,6 +14,372 @@ use unicode_normalization::UnicodeNormalization;
 use uuid::Uuid;
 
 pub mod duckdb;
+#[cfg(all(feature = "test-utils", feature = "duckdb-flight-recorder"))]
+pub mod shutdown_proof {
+    use super::*;
+    use crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution;
+    use std::io::{Read, Write};
+    use std::time::{Duration, SystemTime, UNIX_EPOCH};
+    use tokio::sync::Notify;
+
+    const MAX_FRAME: usize = 65536;
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(deny_unknown_fields)]
+    pub struct AllocationPending {
+        pub pending_id: Uuid,
+        pub instance_id: String,
+        pub parent_session_id: String,
+        pub scope: ExactResourceScopeAttribution,
+        pub swarm_id: Option<String>,
+        pub worktree_id: Option<String>,
+        pub run_id: String,
+        pub lane_id: String,
+        pub trace_id: String,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+    pub enum ProofAction {
+        ObserveAllocation { scope: ExactResourceScopeAttribution, deadline_unix_ms: u64 },
+        AwaitAllocation,
+        SelectAllocation { pending_id: Uuid, allocation: AllocationPending },
+        AwaitEvent,
+        Arm { event_id: Uuid },
+        ReleaseEvent { event_id: Uuid },
+        AwaitFailure,
+        ConfirmRestored,
+        AwaitHealthy,
+        Shutdown,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    #[serde(deny_unknown_fields)]
+    pub struct ProofCommand {
+        pub version: u8,
+        pub request_id: u64,
+        pub operation_id: Uuid,
+        pub causation_id: Option<u64>,
+        pub command: ProofAction,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+    pub enum ProofObservation {
+        Watching,
+        AllocationPending { allocation: AllocationPending },
+        Selected,
+        PendingEvent { event_id: Uuid, process_uuid: Uuid },
+        Armed,
+        Released,
+        StickyFailure { event_id: Uuid, failure_class: ProofFailureClass, error: String, restore_error: Option<String> },
+        Restored,
+        HealthyEvent { event_id: Uuid },
+        ShutdownRequested,
+        Incomplete { reason: String },
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(rename_all = "snake_case")]
+    pub enum ProofFailureClass {
+        OwnedTemporarySequenceExhausted,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    #[serde(deny_unknown_fields)]
+    pub struct ProofReceipt {
+        pub version: u8,
+        pub request_id: u64,
+        pub operation_id: Uuid,
+        pub causation_id: Option<u64>,
+        pub receipt: ProofObservation,
+    }
+
+    pub fn read_command(reader: &mut impl Read) -> Result<Option<ProofCommand>, String> {
+        let mut length = [0; 4];
+        let read = reader.read(&mut length[..1]).map_err(|e| e.to_string())?;
+        if read == 0 { return Ok(None); }
+        reader.read_exact(&mut length[1..]).map_err(|e| e.to_string())?;
+        let length = u32::from_be_bytes(length) as usize;
+        if length == 0 || length > MAX_FRAME { return Err("invalid proof frame length".into()); }
+        let mut bytes = vec![0; length];
+        reader.read_exact(&mut bytes).map_err(|e| e.to_string())?;
+        serde_json::from_slice(&bytes).map(Some).map_err(|e| e.to_string())
+    }
+
+    pub fn write_receipt(writer: &mut impl Write, receipt: &ProofReceipt) -> Result<(), String> {
+        let bytes = serde_json::to_vec(receipt).map_err(|e| e.to_string())?;
+        if bytes.len() > MAX_FRAME { return Err("oversize proof receipt".into()); }
+        writer.write_all(&(bytes.len() as u32).to_be_bytes()).map_err(|e| e.to_string())?;
+        writer.write_all(&bytes).map_err(|e| e.to_string())?;
+        writer.flush().map_err(|e| e.to_string())
+    }
+
+    #[derive(Default)]
+    struct State {
+        operation: Option<Uuid>,
+        request: u64,
+        scope: Option<ExactResourceScopeAttribution>,
+        allocation: Option<AllocationPending>,
+        allocation_observed: bool,
+        selected: bool,
+        event: Option<(Uuid, Uuid)>,
+        event_observed: bool,
+        armed: bool,
+        fault_started: bool,
+        selected_finished: bool,
+        released: bool,
+        insert_error: Option<(Uuid, String, Option<String>, ProofFailureClass)>,
+        sticky: bool,
+        failure_observed: bool,
+        restored_confirmed: bool,
+        healthy: Option<Uuid>,
+        healthy_observed: bool,
+        shutdown_requested: bool,
+        incomplete: Option<String>,
+        deadline: Option<tokio::time::Instant>,
+    }
+
+    #[derive(Default)]
+    pub struct RecorderProofControl {
+        state: Mutex<State>,
+        changed: Notify,
+    }
+
+    impl RecorderProofControl {
+        pub fn operation_deadline(&self) -> Option<tokio::time::Instant> {
+            self.state.lock().unwrap_or_else(|e| e.into_inner()).deadline
+        }
+
+        pub fn allocation_requested(&self) -> bool {
+            let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+            state.scope.is_some() && state.incomplete.is_none()
+        }
+
+        pub fn disconnect(&self, reason: &str) {
+            let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+            state.incomplete.get_or_insert_with(|| reason.into());
+            self.changed.notify_waiters();
+        }
+
+        async fn wait<T>(&self, read: impl Fn(&State) -> Option<T>) -> Result<T, String> {
+            let waiting = async {
+                loop {
+                    let changed = self.changed.notified();
+                    {
+                        let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+                        if let Some(reason) = &state.incomplete { return Err(reason.clone()); }
+                        if let Some(value) = read(&state) { return Ok(value); }
+                    }
+                    changed.await;
+                }
+            };
+            let deadline = self.state.lock().unwrap_or_else(|e| e.into_inner()).deadline
+                .ok_or_else(|| "proof deadline unavailable".to_string())?;
+            match tokio::time::timeout_at(deadline, waiting).await {
+                Ok(result) => result,
+                Err(_) => { self.disconnect("proof phase deadline exceeded"); Err("proof phase deadline exceeded".into()) }
+            }
+        }
+
+        pub async fn execute(&self, command: ProofCommand) -> ProofReceipt {
+            let result = self.execute_action(&command).await;
+            let receipt = match result {
+                Ok(receipt) => receipt,
+                Err(reason) => { self.disconnect(&reason); ProofObservation::Incomplete { reason } }
+            };
+            ProofReceipt { version: 1, request_id: command.request_id, operation_id: command.operation_id,
+                causation_id: Some(command.request_id), receipt }
+        }
+
+        async fn execute_action(&self, command: &ProofCommand) -> Result<ProofObservation, String> {
+            {
+                let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+                if command.version != 1 || Some(command.request_id) != state.request.checked_add(1)
+                    || command.causation_id != (state.request != 0).then_some(state.request)
+                    || state.incomplete.is_some() { return Err("invalid proof command sequence".into()); }
+                if state.deadline.is_some_and(|deadline| tokio::time::Instant::now() >= deadline) {
+                    return Err("proof operation deadline exceeded".into());
+                }
+                if state.operation.is_none() {
+                    if !matches!(&command.command, ProofAction::ObserveAllocation { .. }) {
+                        return Err("proof operation not attached".into());
+                    }
+                    state.operation = Some(command.operation_id);
+                }
+                if state.operation != Some(command.operation_id) { return Err("proof operation mismatch".into()); }
+                let permitted = match &command.command {
+                    ProofAction::ObserveAllocation { .. } => state.scope.is_none(),
+                    ProofAction::AwaitAllocation => state.scope.is_some() && !state.allocation_observed,
+                    ProofAction::SelectAllocation { .. } => state.allocation_observed && !state.selected,
+                    ProofAction::AwaitEvent => state.selected && !state.event_observed,
+                    ProofAction::Arm { .. } => state.event_observed && !state.armed && !state.released,
+                    ProofAction::ReleaseEvent { .. } => state.event_observed && !state.released,
+                    ProofAction::AwaitFailure => state.armed && state.released && !state.failure_observed,
+                    ProofAction::ConfirmRestored => state.failure_observed && !state.restored_confirmed,
+                    ProofAction::AwaitHealthy => state.released && (!state.armed || state.restored_confirmed) && !state.healthy_observed,
+                    ProofAction::Shutdown => state.healthy_observed && !state.shutdown_requested,
+                };
+                if !permitted { return Err("proof command out of phase".into()); }
+                state.request = command.request_id;
+            }
+            match &command.command {
+                ProofAction::ObserveAllocation { scope, deadline_unix_ms } => {
+                    let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+                    if state.scope.is_some() { return Err("allocation watch already attached".into()); }
+                    let now = SystemTime::now().duration_since(UNIX_EPOCH).map_err(|e| e.to_string())?.as_millis();
+                    let remaining = (*deadline_unix_ms as u128).checked_sub(now)
+                        .filter(|remaining| *remaining != 0).ok_or("proof deadline expired")?;
+                    state.deadline = tokio::time::Instant::now().checked_add(Duration::from_millis(
+                        u64::try_from(remaining).map_err(|_| "proof deadline overflow")?,
+                    ));
+                    if state.deadline.is_none() { return Err("proof deadline overflow".into()); }
+                    state.scope = Some(scope.clone());
+                    Ok(ProofObservation::Watching)
+                }
+                ProofAction::AwaitAllocation => {
+                    let allocation = self.wait(|s| s.allocation.clone()).await?;
+                    self.state.lock().unwrap_or_else(|e| e.into_inner()).allocation_observed = true;
+                    Ok(ProofObservation::AllocationPending { allocation })
+                }
+                ProofAction::SelectAllocation { pending_id, allocation } => {
+                    let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+                    if state.selected || state.allocation.as_ref().map(|a| a.pending_id) != Some(*pending_id)
+                        || state.allocation.as_ref() != Some(allocation) {
+                        return Err("allocation selector mismatch".into());
+                    }
+                    state.selected = true;
+                    self.changed.notify_waiters();
+                    Ok(ProofObservation::Selected)
+                }
+                ProofAction::AwaitEvent => {
+                    let (event_id, process_uuid) = self.wait(|s| s.event).await?;
+                    self.state.lock().unwrap_or_else(|e| e.into_inner()).event_observed = true;
+                    Ok(ProofObservation::PendingEvent { event_id, process_uuid })
+                }
+                ProofAction::Arm { event_id } => {
+                    let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+                    if state.event.map(|e| e.0) != Some(*event_id) || state.armed || state.released {
+                        return Err("event arm phase mismatch".into());
+                    }
+                    state.armed = true;
+                    Ok(ProofObservation::Armed)
+                }
+                ProofAction::ReleaseEvent { event_id } => {
+                    let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+                    if state.event.map(|e| e.0) != Some(*event_id) || state.released {
+                        return Err("event release mismatch".into());
+                    }
+                    state.released = true;
+                    self.changed.notify_waiters();
+                    Ok(ProofObservation::Released)
+                }
+                ProofAction::AwaitFailure => {
+                    let (event_id, error, restore_error, failure_class) = self.wait(|s| if s.sticky { s.insert_error.clone() } else { None }).await?;
+                    self.state.lock().unwrap_or_else(|e| e.into_inner()).failure_observed = true;
+                    Ok(ProofObservation::StickyFailure { event_id, failure_class, error, restore_error })
+                }
+                ProofAction::ConfirmRestored => {
+                    let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+                    if !state.sticky || state.restored_confirmed
+                        || !matches!(&state.insert_error, Some((_, _, None, _))) {
+                        return Err("physical restoration not confirmed".into());
+                    }
+                    state.restored_confirmed = true;
+                    Ok(ProofObservation::Restored)
+                }
+                ProofAction::AwaitHealthy => {
+                    let event_id = self.wait(|s| s.healthy).await?;
+                    self.state.lock().unwrap_or_else(|e| e.into_inner()).healthy_observed = true;
+                    Ok(ProofObservation::HealthyEvent { event_id })
+                }
+                ProofAction::Shutdown => {
+                    let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+                    if state.armed && (!state.restored_confirmed || state.healthy.is_none()) {
+                        return Err("shutdown before restoration and healthy write".into());
+                    }
+                    state.shutdown_requested = true;
+                    Ok(ProofObservation::ShutdownRequested)
+                }
+            }
+        }
+
+        pub async fn before_session_spawn(&self, allocation: AllocationPending) {
+            {
+                let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+                if state.incomplete.is_some() || state.scope.as_ref() != Some(&allocation.scope)
+                    || state.allocation.is_some() { return; }
+                state.allocation = Some(allocation);
+                self.changed.notify_waiters();
+            }
+            let _ = self.wait(|s| s.selected.then_some(())).await;
+        }
+
+        fn matches_allocation(state: &State, event: &FlightRecorderEvent) -> bool {
+            let Some(allocation) = &state.allocation else { return false; };
+            let mut scope = serde_json::json!({});
+            if allocation.scope.stamp_json_object(&mut scope).is_err() { return false; }
+            state.selected && event.payload["instance_id"] == allocation.instance_id
+                && scope.as_object().is_some_and(|values| values.iter().all(|(key, value)| &event.payload[key] == value))
+        }
+
+        pub async fn before_insert(&self, event: &FlightRecorderEvent) -> bool {
+            {
+                let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+                let Some(allocation) = state.allocation.as_ref() else { return false; };
+                if state.incomplete.is_some() || state.event.is_some() || !Self::matches_allocation(&state, event)
+                    || event.payload["fr_event_id"] != crate::swarm_orchestration::events::SwarmFrEventId::SessionSpawned.as_str()
+                    || event.payload["parent_session_id"] != allocation.parent_session_id
+                    || event.payload["swarm_id"] != serde_json::json!(allocation.swarm_id)
+                    || event.payload["worktree_id"] != serde_json::json!(allocation.worktree_id) { return false; }
+                let Some(process_uuid) = event.payload["process_uuid"].as_str().and_then(|v| Uuid::parse_str(v).ok()) else { return false; };
+                state.event = Some((event.event_id, process_uuid));
+                self.changed.notify_waiters();
+            }
+            if self.wait(|s| s.released.then_some(s.armed)).await.unwrap_or(false) {
+                let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+                return state.incomplete.is_none();
+            }
+            false
+        }
+
+        pub fn insert_failed(&self, event_id: Uuid, error: String, restore_error: Option<String>, failure_class: ProofFailureClass) {
+            let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+            state.insert_error = Some((event_id, error, restore_error, failure_class));
+            state.selected_finished = true;
+        }
+
+        pub fn selected_fault(&self, event_id: Uuid) -> bool {
+            let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+            let selected = state.incomplete.is_none() && state.armed && state.released && !state.fault_started
+                && state.event.map(|event| event.0) == Some(event_id) && state.insert_error.is_none()
+                && state.deadline.is_some_and(|deadline| tokio::time::Instant::now() < deadline);
+            if selected { state.fault_started = true; }
+            selected
+        }
+
+        pub fn swarm_failure_observed(&self, event_id: Uuid) {
+            let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+            if state.insert_error.as_ref().map(|e| e.0) == Some(event_id) {
+                state.sticky = true;
+                self.changed.notify_waiters();
+            }
+        }
+
+        pub fn insert_succeeded(&self, event: &FlightRecorderEvent) {
+            let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+            if state.event.map(|e| e.0) == Some(event.event_id) {
+                state.selected_finished = true;
+                return;
+            }
+            if state.incomplete.is_none() && state.selected_finished && (!state.armed || state.sticky)
+                && Self::matches_allocation(&state, event) {
+                state.healthy = Some(event.event_id);
+                self.changed.notify_waiters();
+            }
+        }
+    }
+}
 pub mod event_ledger;
 pub mod events_agent_activity;
 pub mod events_llm_infer;
@@ -6236,6 +6602,11 @@ impl EventFilter {
 
 #[async_trait]
 pub trait FlightRecorder: Send + Sync {
+    #[cfg(all(feature = "test-utils", feature = "duckdb-flight-recorder"))]
+    fn recorder_proof_control(&self) -> Option<Arc<shutdown_proof::RecorderProofControl>> {
+        None
+    }
+
     /// Records a canonical event. MUST validate shape against FR-EVT schemas.
     async fn record_event(&self, event: FlightRecorderEvent) -> Result<(), RecorderError>;
 

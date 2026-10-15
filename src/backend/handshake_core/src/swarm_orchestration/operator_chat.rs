@@ -1430,6 +1430,86 @@ impl OperatorChatLaunchService {
 
     /// Persist a real Operator Chat `SingleRun` ProjectionPlan and its derived
     /// ConsentReceipt through ModelLane/EventLedger authority.
+    #[cfg(feature = "runtime-full")]
+    pub(crate) async fn grant_single_run_cloud_consent_authenticated(
+        &self,
+        bootstrap: &crate::AccountBootstrapState,
+        authorization: crate::storage::surreal::resource_authority::AuthorizationRequest,
+        request: OperatorChatSingleRunCloudConsentGrant,
+    ) -> Result<(ModelLaneCloudProjectionPlanRecord, ModelLaneCloudConsentReceiptRecord), OperatorChatError> {
+        use crate::storage::surreal::resource_authority::{
+            RecordUserScope, ResourceAction, ResourceAuthorityError, ResourceKind,
+        };
+        use crate::storage::surreal::{with_model_lane_subject, ModelLaneOperationSubject, SurrealStorageError};
+
+        let denied = || OperatorChatError::ModelLane(ModelLaneError::AuthorityDenied(
+            "authenticated cloud consent authority unavailable".into(),
+        ));
+        let store = self.coordinator.model_lane_store().ok_or_else(denied)?;
+        let storage = store.surreal_storage();
+        let lifecycle = storage.resource_access_lifecycle();
+        if bootstrap.surreal.resource_access_lifecycle() != lifecycle
+            || store.access().lifecycle_authority() != Some(&lifecycle)
+        {
+            return Err(denied());
+        }
+        store.access().require_lifecycle_active().map_err(|_| denied())?;
+        let exact = store.access().exact_read_scope().ok_or_else(denied)?;
+        let write_scope = store.write_scope().ok_or_else(denied)?;
+        let write_exact = ExactResourceScopeAttribution::try_from_resource_scope(write_scope)
+            .map_err(|_| denied())?;
+        if &write_exact != exact
+            || authorization.resource_kind != ResourceKind::Workspace
+            || authorization.capability_id != "fs.write"
+            || authorization.action != ResourceAction::Create
+            || authorization.external_resource_id != exact.workspace_id.as_str()
+            || authorization.session_token.trim().is_empty()
+            || authorization.channel_binding_hash.as_ref().is_none_or(|channel| channel.trim().is_empty())
+        {
+            return Err(denied());
+        }
+        store.access().authorize_exact_request(exact).map_err(|_| denied())?;
+        let session_token = authorization.session_token.clone();
+        let channel_binding_hash = authorization.channel_binding_hash.clone();
+        let decision = bootstrap.surreal.authorize_protected_resource(authorization).await
+            .map_err(|error| match error {
+                ResourceAuthorityError::Storage(error) => OperatorChatError::ModelLane(ModelLaneError::Surreal(error)),
+                ResourceAuthorityError::Entropy(_) => OperatorChatError::ModelLane(ModelLaneError::Surreal(
+                    SurrealStorageError::ResourceAuthorityUnavailable,
+                )),
+                ResourceAuthorityError::Denied { .. } | ResourceAuthorityError::InvalidInput(_) => denied(),
+            })?;
+        if decision.account_id != exact.owner_account_id.to_string()
+            || decision.principal_id != exact.actor_principal_id.to_string()
+            || decision.session_id != exact.authenticated_session_id.to_string()
+            || decision.access_space_id != exact.access_space_id.to_string()
+            || decision.resource_id.is_empty()
+            || decision.grant_id.is_empty()
+            || !bootstrap.capability_registry.profile_can(&decision.capability_profile_id, "fs.write")
+                .unwrap_or(false)
+        {
+            return Err(denied());
+        }
+        store.access().authorize_exact_request(exact).map_err(|_| denied())?;
+        let record_user = RecordUserScope {
+            grant_id: Some(decision.grant_id),
+            workspace_id: Some(exact.workspace_id.as_str().to_owned()),
+            session_token,
+            channel_binding_hash,
+            resource_id: decision.resource_id,
+            session_id: decision.session_id,
+            capability_id: "fs.write".to_owned(),
+            action: ResourceAction::Create,
+        };
+        storage.with_record_user_scope(record_user, with_model_lane_subject(
+            ModelLaneOperationSubject {
+                kind: ResourceKind::Workspace,
+                external_id: exact.workspace_id.as_str().to_owned(),
+            },
+            self.grant_single_run_cloud_consent(request),
+        )).await
+    }
+
     pub async fn grant_single_run_cloud_consent(
         &self,
         request: OperatorChatSingleRunCloudConsentGrant,
@@ -2219,6 +2299,22 @@ impl OperatorChatLaunchService {
         let contract = request.dexterity_launch.clone().ok_or_else(|| {
             OperatorChatError::Invalid("missing dexterity launch contract".into())
         })?;
+        #[cfg(all(feature = "test-utils", feature = "duckdb-flight-recorder"))]
+        if let Some(control) = self.recorder.recorder_proof_control() {
+            if let Some(scope) = request_scope.filter(|_| control.allocation_requested()) {
+                control.before_session_spawn(crate::flight_recorder::shutdown_proof::AllocationPending {
+                    pending_id: uuid::Uuid::now_v7(),
+                    instance_id: request.instance_id.to_string(),
+                    parent_session_id: request.parent_session_id.clone(),
+                    scope: scope.clone(),
+                    swarm_id: request.swarm_id.clone(),
+                    worktree_id: request.worktree_id.clone(),
+                    run_id: contract.run_id.to_string(),
+                    lane_id: contract.lane_id.to_string(),
+                    trace_id: contract.trace_id.to_string(),
+                }).await;
+            }
+        }
         let instance_id = self.coordinator.spawn_session(request).await?;
 
         if let Some(plan) = cloud_artifact_binding_plan {

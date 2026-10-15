@@ -578,8 +578,14 @@ impl DurableSwarmFrBridge {
                                 ).await;
                             }
                             while let Some(event) = rx.recv().await {
+                                #[cfg(all(feature = "test-utils", feature = "duckdb-flight-recorder"))]
+                                let proof_event_id = event.event_id;
                                 if let Err(error) = recorder.record_event(event).await {
                                     task_drain_failed.store(true, Ordering::Release);
+                                    #[cfg(all(feature = "test-utils", feature = "duckdb-flight-recorder"))]
+                                    if let Some(control) = recorder.recorder_proof_control() {
+                                        control.swarm_failure_observed(proof_event_id);
+                                    }
                                     tracing::warn!(
                                         target: "handshake_core::swarm_orchestration",
                                         %error,
@@ -620,8 +626,14 @@ impl DurableSwarmFrBridge {
                     },
                     event = rx.recv() => match event {
                         Some(event) => {
+                            #[cfg(all(feature = "test-utils", feature = "duckdb-flight-recorder"))]
+                            let proof_event_id = event.event_id;
                             if let Err(error) = recorder.record_event(event).await {
                                 task_drain_failed.store(true, Ordering::Release);
+                                #[cfg(all(feature = "test-utils", feature = "duckdb-flight-recorder"))]
+                                if let Some(control) = recorder.recorder_proof_control() {
+                                    control.swarm_failure_observed(proof_event_id);
+                                }
                                 tracing::warn!(
                                     target: "handshake_core::swarm_orchestration",
                                     %error,

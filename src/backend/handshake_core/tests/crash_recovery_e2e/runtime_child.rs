@@ -769,3 +769,576 @@ fn apply_quiet_process_flags(_command: &mut Command) {}
 async fn mt195_runtime_child_entrypoint() {
     run_child_entrypoint_from_env().await;
 }
+
+#[cfg(all(feature = "test-utils", feature = "duckdb-flight-recorder"))]
+mod full_main_shutdown {
+    use super::apply_quiet_process_flags;
+    use handshake_core::flight_recorder::shutdown_proof::{
+        ProofAction, ProofCommand, ProofObservation, ProofReceipt,
+    };
+    use std::{
+        fs::{File, OpenOptions},
+        io::{self, Read, Seek, SeekFrom, Write},
+        path::Path,
+        process::{Child, ChildStdin, ChildStdout, Command, ExitStatus, Stdio},
+        sync::{atomic::{AtomicBool, Ordering}, mpsc::{self, Receiver, SyncSender}, Arc},
+        thread::{self, JoinHandle},
+        time::{Duration, Instant},
+    };
+    use uuid::Uuid;
+
+    const MAX_FRAME_BYTES: usize = 65_536;
+
+    fn incomplete(reason: impl Into<String>) -> io::Error {
+        io::Error::new(io::ErrorKind::InvalidData, format!("MT188_INCOMPLETE: {}", reason.into()))
+    }
+
+    fn check_io_stop(stop: &AtomicBool, deadline: Instant) -> io::Result<()> {
+        if stop.load(Ordering::Acquire) || Instant::now() >= deadline {
+            return Err(incomplete("owned control I/O stopped or original deadline elapsed"));
+        }
+        Ok(())
+    }
+
+    fn read_control(input: &mut impl Read, bytes: &mut [u8], stop: &AtomicBool, deadline: Instant) -> io::Result<usize> {
+        loop {
+            check_io_stop(stop, deadline)?;
+            match input.read(bytes) {
+                Err(error) if error.kind() == io::ErrorKind::Interrupted => {},
+                Err(error) if error.kind() == io::ErrorKind::WouldBlock => thread::sleep(Duration::from_millis(1)),
+                result => return result,
+            }
+        }
+    }
+
+    fn read_control_exact(input: &mut impl Read, mut bytes: &mut [u8], stop: &AtomicBool, deadline: Instant) -> io::Result<()> {
+        while !bytes.is_empty() {
+            let count = read_control(input, bytes, stop, deadline)?;
+            if count == 0 { return Err(incomplete("truncated owned control receipt")); }
+            bytes = &mut bytes[count..];
+        }
+        Ok(())
+    }
+
+    fn write_control(output: &mut impl Write, mut bytes: &[u8], stop: &AtomicBool, deadline: Instant) -> io::Result<()> {
+        while !bytes.is_empty() {
+            check_io_stop(stop, deadline)?;
+            match output.write(bytes) {
+                Ok(0) => return Err(incomplete("owned control write made no progress")),
+                Ok(count) => bytes = &bytes[count..],
+                Err(error) if error.kind() == io::ErrorKind::Interrupted => {},
+                Err(error) if error.kind() == io::ErrorKind::WouldBlock => thread::sleep(Duration::from_millis(1)),
+                Err(error) => return Err(error),
+            }
+        }
+        check_io_stop(stop, deadline)?;
+        output.flush()
+    }
+
+    #[cfg(unix)]
+    fn nonblocking_owned_pipe(pipe: &impl std::os::fd::AsRawFd) -> io::Result<()> {
+        let fd = pipe.as_raw_fd();
+        let flags = unsafe { libc::fcntl(fd, libc::F_GETFL) };
+        if flags < 0 || unsafe { libc::fcntl(fd, libc::F_SETFL, flags | libc::O_NONBLOCK) } < 0 {
+            return Err(io::Error::last_os_error());
+        }
+        Ok(())
+    }
+
+    #[cfg(windows)]
+    fn cancel_owned_thread(task: &JoinHandle<()>) -> io::Result<()> {
+        use std::os::windows::thread::JoinHandleExt;
+        use windows_sys::Win32::{Foundation::ERROR_NOT_FOUND, System::IO::CancelSynchronousIo};
+        if task.is_finished() { return Ok(()); }
+        if unsafe { CancelSynchronousIo(task.as_raw_handle()) } != 0 { return Ok(()); }
+        let error = io::Error::last_os_error();
+        // No pending syscall can mean completion, or the stop/cancel race before
+        // the worker enters a syscall. The owner observes completion and cancels
+        // again while retaining the same handle; this result is never join proof.
+        if error.raw_os_error() == Some(ERROR_NOT_FOUND as i32) || task.is_finished() { return Ok(()); }
+        Err(error)
+    }
+
+    #[derive(Clone, Copy)]
+    enum Phase {
+        Initial, Watching, Allocation, Selected, Pending, Armed, Released, Failed, Restored, Healthy,
+        Shutdown,
+    }
+
+    #[derive(serde::Serialize)]
+    pub struct FullMainChildIdentity {
+        pid: u32,
+        birth_source: &'static str,
+        birth_value: u64,
+        executable: std::path::PathBuf,
+        executable_sha256: String,
+    }
+
+    fn image_digest(path: &Path) -> io::Result<String> {
+        use sha2::{Digest, Sha256};
+        let mut image = std::fs::File::open(path)?;
+        let mut hash = Sha256::new();
+        let mut bytes = [0u8; 65_536];
+        loop {
+            let count = image.read(&mut bytes)?;
+            if count == 0 { break; }
+            hash.update(&bytes[..count]);
+        }
+        Ok(format!("{:x}", hash.finalize()))
+    }
+
+    #[cfg(windows)]
+    fn capture_identity(child: &Child) -> io::Result<FullMainChildIdentity> {
+        use std::os::windows::io::AsRawHandle;
+        use windows_sys::Win32::{
+            Foundation::FILETIME,
+            System::Threading::{GetProcessTimes, QueryFullProcessImageNameW},
+        };
+        let empty = FILETIME { dwLowDateTime: 0, dwHighDateTime: 0 };
+        let (mut birth, mut exit, mut kernel, mut user) = (empty, empty, empty, empty);
+        if unsafe { GetProcessTimes(child.as_raw_handle(), &mut birth, &mut exit, &mut kernel, &mut user) } == 0 {
+            return Err(io::Error::last_os_error());
+        }
+        let mut image = vec![0u16; 32_768];
+        let mut length = image.len() as u32;
+        if unsafe { QueryFullProcessImageNameW(child.as_raw_handle(), 0, image.as_mut_ptr(), &mut length) } == 0 {
+            return Err(io::Error::last_os_error());
+        }
+        let reported = String::from_utf16(&image[..length as usize])
+            .map_err(|_| incomplete("owned process image is not valid UTF16"))?;
+        let executable = Path::new(&reported).canonicalize()?;
+        if executable != Path::new(env!("CARGO_BIN_EXE_handshake_core")).canonicalize()? {
+            return Err(incomplete("owned process image differs from the actual Cargo binary"));
+        }
+        let birth_value = (u64::from(birth.dwHighDateTime) << 32) | u64::from(birth.dwLowDateTime);
+        if birth_value == 0 { return Err(incomplete("owned process kernel creation time is zero")); }
+        Ok(FullMainChildIdentity { pid: child.id(), birth_source: "windows_get_process_times_filetime",
+            birth_value, executable_sha256: image_digest(&executable)?, executable })
+    }
+
+    #[cfg(target_os = "linux")]
+    fn capture_identity(child: &Child) -> io::Result<FullMainChildIdentity> {
+        let process = std::path::PathBuf::from(format!("/proc/{}", child.id()));
+        let stat = std::fs::read_to_string(process.join("stat"))?;
+        let fields = stat.rsplit_once(')').ok_or_else(|| incomplete("invalid owned process stat"))?.1;
+        let birth_value = fields.split_whitespace().nth(19)
+            .ok_or_else(|| incomplete("owned process start ticks are missing"))?
+            .parse::<u64>().map_err(|_| incomplete("owned process start ticks are invalid"))?;
+        let executable = process.join("exe").canonicalize()?;
+        if executable != Path::new(env!("CARGO_BIN_EXE_handshake_core")).canonicalize()? || birth_value == 0 {
+            return Err(incomplete("owned process birth/image binding differs from the actual Cargo binary"));
+        }
+        Ok(FullMainChildIdentity { pid: child.id(), birth_source: "linux_proc_stat_start_ticks",
+            birth_value, executable_sha256: image_digest(&executable)?, executable })
+    }
+
+    #[cfg(not(any(windows, target_os = "linux")))]
+    fn capture_identity(_child: &Child) -> io::Result<FullMainChildIdentity> {
+        Err(io::Error::new(io::ErrorKind::Unsupported,
+            "MT188_INCOMPLETE: this platform still requires an admitted kernel process birth/image identity reader"))
+    }
+
+    pub struct FullMainChild {
+        child: Child,
+        identity: Option<FullMainChildIdentity>,
+        operation_id: Uuid,
+        next_request: u64,
+        phase: Phase,
+        requests: Option<SyncSender<Vec<u8>>>,
+        receipts: Option<Receiver<io::Result<ProofReceipt>>>,
+        reader: Option<JoinHandle<()>>,
+        writer: Option<JoinHandle<()>>,
+        deadline: Instant,
+        terminal: bool,
+        stopping: Arc<AtomicBool>,
+        failure_log: File,
+        failure_readback: File,
+        failure_sequence: u64,
+        failure_errors: Vec<String>,
+        observed_exit: Option<ExitStatus>,
+        failure_snapshot: Option<String>,
+        pending_stdin: Option<ChildStdin>,
+        pending_stdout: Option<ChildStdout>,
+        reader_state: &'static str,
+        writer_state: &'static str,
+    }
+
+    impl FullMainChild {
+        pub fn spawn(
+            root: &Path,
+            data_dir: &Path,
+            listen_addr: &str,
+            approval_config: &Path,
+            deadline: Instant,
+        ) -> io::Result<Self> {
+            if !data_dir.is_absolute() || !approval_config.is_absolute() || deadline <= Instant::now() {
+                return Err(incomplete("absolute genuine data/config paths and an unexpired deadline are required"));
+            }
+            let stderr = OpenOptions::new().append(true).create_new(true)
+                .open(root.join("mt188-main-stderr.log"))?;
+            let failure_log = stderr.try_clone()?;
+            let failure_readback = File::open(root.join("mt188-main-stderr.log"))?;
+            let mut command = Command::new(env!("CARGO_BIN_EXE_handshake_core"));
+            command.env_remove("HANDSHAKE_STARTUP_RECOVERY_ONLY")
+                .env_remove("HANDSHAKE_STARTUP_RECOVERY_REPORT_FILE")
+                .env_remove(super::PRODUCT_LOCAL_RESOURCE_SCOPE_ENV)
+                .env("HANDSHAKE_DATA_DIR", data_dir)
+                .env("HANDSHAKE_BACKEND_LISTEN_ADDR", listen_addr)
+                .env("HANDSHAKE_BACKEND_LISTEN_REPORT_FILE", root.join("mt188-main-listener.json"))
+                .env("HANDSHAKE_CAPABILITY_REGISTRY_APPROVAL_CONFIG", approval_config)
+                .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::from(stderr));
+            apply_quiet_process_flags(&mut command);
+            let mut child = command.spawn()?;
+            let stdin = child.stdin.take().expect("owned piped child stdin");
+            let stdout = child.stdout.take().expect("owned piped child stdout");
+            let (request_tx, request_rx) = mpsc::sync_channel::<Vec<u8>>(1);
+            let (receipt_tx, receipt_rx) = mpsc::sync_channel(1);
+            let mut owned = Self {
+                child, identity: None, operation_id: Uuid::now_v7(), next_request: 1, phase: Phase::Initial,
+                requests: Some(request_tx), receipts: Some(receipt_rx), reader: None,
+                writer: None, deadline, terminal: false, stopping: Arc::new(AtomicBool::new(false)),
+                failure_log, failure_readback, failure_sequence: 0,
+                failure_errors: Vec::new(), observed_exit: None, failure_snapshot: None,
+                pending_stdin: Some(stdin), pending_stdout: Some(stdout),
+                reader_state: "not_started", writer_state: "not_started",
+            };
+            let initialized = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> io::Result<()> {
+            owned.identity = Some(capture_identity(&owned.child)?);
+            #[cfg(unix)]
+            {
+                nonblocking_owned_pipe(owned.pending_stdin.as_ref().expect("owned stdin"))?;
+                nonblocking_owned_pipe(owned.pending_stdout.as_ref().expect("owned stdout"))?;
+            }
+            let writer_stop = Arc::clone(&owned.stopping);
+            let mut stdin = owned.pending_stdin.take().expect("owned stdin");
+            owned.writer = Some(thread::Builder::new().name("mt188-control-writer".into()).spawn(move || {
+                while !writer_stop.load(Ordering::Acquire) {
+                    let bytes = match request_rx.recv_timeout(Duration::from_millis(10)) {
+                        Ok(bytes) => bytes,
+                        Err(mpsc::RecvTimeoutError::Timeout) => continue,
+                        Err(mpsc::RecvTimeoutError::Disconnected) => break,
+                    };
+                    let result = write_control(&mut stdin, &(bytes.len() as u32).to_be_bytes(), &writer_stop, deadline)
+                        .and_then(|_| write_control(&mut stdin, &bytes, &writer_stop, deadline));
+                    if result.is_err() { break; }
+                }
+            })?);
+            owned.writer_state = "live";
+            let reader_stop = Arc::clone(&owned.stopping);
+            let mut stdout = owned.pending_stdout.take().expect("owned stdout");
+            owned.reader = Some(thread::Builder::new().name("mt188-receipt-reader".into()).spawn(move || loop {
+                let result = (|| {
+                    let mut size = [0u8; 4];
+                    if read_control(&mut stdout, &mut size[..1], &reader_stop, deadline)? == 0 {
+                        return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "MT188_CONTROL_CLEAN_EOF"));
+                    }
+                    read_control_exact(&mut stdout, &mut size[1..], &reader_stop, deadline)?;
+                    let size = u32::from_be_bytes(size) as usize;
+                    if size == 0 || size > MAX_FRAME_BYTES { return Err(incomplete("invalid receipt frame length or stdout log pollution")); }
+                    let mut bytes = vec![0; size];
+                    read_control_exact(&mut stdout, &mut bytes, &reader_stop, deadline)?;
+                    let text = std::str::from_utf8(&bytes).map_err(|_| incomplete("receipt is not UTF8"))?;
+                    serde_json::from_str::<ProofReceipt>(text).map_err(|_| incomplete("invalid typed receipt JSON"))
+                })();
+                let failed = result.is_err();
+                let mut pending = result;
+                loop {
+                    if reader_stop.load(Ordering::Acquire) { return; }
+                    match receipt_tx.try_send(pending) {
+                        Ok(()) => break,
+                        Err(mpsc::TrySendError::Full(result)) => {
+                            pending = result;
+                            thread::sleep(Duration::from_millis(1));
+                        },
+                        Err(mpsc::TrySendError::Disconnected(_)) => return,
+                    }
+                }
+                if failed { break; }
+            })?);
+            owned.reader_state = "live";
+            Ok(())
+            }));
+            match initialized {
+                Ok(Ok(())) => {},
+                Ok(Err(error)) => {
+                    use sha2::{Digest, Sha256};
+                    let message = error.to_string();
+                    let cause = format!(
+                        "initialization_io kind={:?} raw_os={:?} message_bytes={} message_sha256={:x}",
+                        error.kind(), error.raw_os_error(), message.len(), Sha256::digest(message.as_bytes()));
+                    while !owned.observe_failure_settlement(&cause) {
+                        thread::park_timeout(Duration::from_millis(10));
+                    }
+                    return Err(error);
+                },
+                Err(payload) => {
+                    use sha2::{Digest, Sha256};
+                    let cause = if let Some(message) = payload.downcast_ref::<String>() {
+                        format!("initialization_panic type=String message_bytes={} message_sha256={:x}",
+                            message.len(), Sha256::digest(message.as_bytes()))
+                    } else if let Some(message) = payload.downcast_ref::<&str>() {
+                        format!("initialization_panic type=str message_bytes={} message_sha256={:x}",
+                            message.len(), Sha256::digest(message.as_bytes()))
+                    } else {
+                        "initialization_panic type=opaque message_unavailable=true".to_owned()
+                    };
+                    while !owned.observe_failure_settlement(&cause) {
+                        thread::park_timeout(Duration::from_millis(10));
+                    }
+                    std::panic::resume_unwind(payload);
+                },
+            }
+            Ok(owned)
+        }
+
+        pub fn identity(&self) -> io::Result<&FullMainChildIdentity> {
+            self.identity.as_ref().ok_or_else(|| incomplete("actual kernel process identity is missing"))
+        }
+
+        pub fn await_listener(&mut self, root: &Path) -> io::Result<String> {
+            let report = root.join("mt188-main-listener.json");
+            loop {
+                if let Ok(bytes) = std::fs::read(&report) {
+                    if let Ok(value) = serde_json::from_slice::<serde_json::Value>(&bytes) {
+                        if value["schema_id"] != "handshake.backend-listen-report.v1"
+                            || value["pid"].as_u64() != Some(u64::from(self.child.id())) {
+                            return Err(incomplete("listener report does not belong to the owned main"));
+                        }
+                        let addr = value["listen_addr"].as_str().ok_or_else(|| incomplete("listener address missing"))?
+                            .parse::<std::net::SocketAddr>().map_err(|_| incomplete("invalid listener address"))?;
+                        if !addr.ip().is_loopback() || addr.port() == 0 { return Err(incomplete("listener is not an actual loopback address")); }
+                        return Ok(format!("http://{addr}"));
+                    }
+                }
+                if self.child.try_wait()?.is_some() || Instant::now() >= self.deadline {
+                    return Err(incomplete("owned main exited or deadline elapsed before listener report"));
+                }
+                thread::sleep(Duration::from_millis(10));
+            }
+        }
+
+        pub fn request(&mut self, action: ProofAction) -> io::Result<ProofReceipt> {
+            let allowed = match &action {
+                ProofAction::ObserveAllocation { .. } => matches!(self.phase, Phase::Initial),
+                ProofAction::AwaitAllocation => matches!(self.phase, Phase::Watching),
+                ProofAction::SelectAllocation { .. } => matches!(self.phase, Phase::Allocation),
+                ProofAction::AwaitEvent => matches!(self.phase, Phase::Selected),
+                ProofAction::Arm { .. } => matches!(self.phase, Phase::Pending),
+                ProofAction::ReleaseEvent { .. } => matches!(self.phase, Phase::Pending | Phase::Armed),
+                ProofAction::AwaitFailure => matches!(self.phase, Phase::Released),
+                ProofAction::ConfirmRestored => matches!(self.phase, Phase::Failed),
+                ProofAction::AwaitHealthy => matches!(self.phase, Phase::Released | Phase::Restored),
+                ProofAction::Shutdown => matches!(self.phase, Phase::Healthy),
+            };
+            if !allowed { return Err(incomplete("out-of-phase parent command")); }
+            let request_id = self.next_request;
+            self.next_request = request_id.checked_add(1).ok_or_else(|| incomplete("request ID exhausted"))?;
+            let command = ProofCommand {
+                version: 1, request_id, operation_id: self.operation_id,
+                causation_id: request_id.checked_sub(1).filter(|id| *id != 0), command: action,
+            };
+            let bytes = serde_json::to_vec(&command).map_err(|_| incomplete("command serialization"))?;
+            if bytes.is_empty() || bytes.len() > MAX_FRAME_BYTES { return Err(incomplete("command frame exceeds limit")); }
+            if self.child.try_wait()?.is_some() { return Err(incomplete("full main exited before requested observation")); }
+            self.requests.as_ref().ok_or_else(|| incomplete("control closed"))?
+                .try_send(bytes).map_err(|_| incomplete("control writer unavailable or backpressured"))?;
+            let remaining = self.deadline.checked_duration_since(Instant::now())
+                .ok_or_else(|| incomplete("proof deadline elapsed"))?;
+            let receipt = self.receipts.as_ref().ok_or_else(|| incomplete("receipt reader closed"))?
+                .recv_timeout(remaining).map_err(|_| incomplete("receipt EOF or deadline elapsed"))??;
+            if receipt.version != 1 || receipt.request_id != request_id
+                || receipt.operation_id != self.operation_id || receipt.causation_id != Some(request_id) {
+                return Err(incomplete("duplicate or mismatched receipt correlation"));
+            }
+            self.phase = match (&command.command, &receipt.receipt) {
+                (ProofAction::ObserveAllocation { .. }, ProofObservation::Watching) => Phase::Watching,
+                (ProofAction::AwaitAllocation, ProofObservation::AllocationPending { .. }) => Phase::Allocation,
+                (ProofAction::SelectAllocation { .. }, ProofObservation::Selected) => Phase::Selected,
+                (ProofAction::AwaitEvent, ProofObservation::PendingEvent { .. }) => Phase::Pending,
+                (ProofAction::Arm { .. }, ProofObservation::Armed) => Phase::Armed,
+                (ProofAction::ReleaseEvent { .. }, ProofObservation::Released) => Phase::Released,
+                (ProofAction::AwaitFailure, ProofObservation::StickyFailure { restore_error: None, .. }) => Phase::Failed,
+                (ProofAction::ConfirmRestored, ProofObservation::Restored) => Phase::Restored,
+                (ProofAction::AwaitHealthy, ProofObservation::HealthyEvent { .. }) => Phase::Healthy,
+                (ProofAction::Shutdown, ProofObservation::ShutdownRequested) => Phase::Shutdown,
+                _ => return Err(incomplete("unexpected phase, unsupported command, or failed local restoration")),
+            };
+            Ok(receipt)
+        }
+
+        pub fn wait_for_exit(&mut self) -> io::Result<ExitStatus> {
+            if !matches!(self.phase, Phase::Shutdown) { return Err(incomplete("normal shutdown was not requested after genuine healthy recording")); }
+            loop {
+                if let Some(status) = self.child.try_wait()? {
+                    self.terminal = true;
+                    self.observed_exit = Some(status);
+                    let remaining = self.deadline.checked_duration_since(Instant::now())
+                        .ok_or_else(|| incomplete("deadline elapsed before control EOF"))?;
+                    let trailing = self.receipts.as_ref().ok_or_else(|| incomplete("receipt stream disappeared"))?
+                        .recv_timeout(remaining).map_err(|_| incomplete("receipt stream did not close with owned main"))?;
+                    match trailing {
+                        Err(error) if error.kind() == io::ErrorKind::UnexpectedEof
+                            && error.to_string() == "MT188_CONTROL_CLEAN_EOF" => {},
+                        _ => return Err(incomplete("extra receipt, duplicate frame or stdout pollution after shutdown acknowledgment")),
+                    }
+                    self.join_io()?;
+                    if status.code().is_none() { return Err(incomplete("main has no numeric exit status")); }
+                    return Ok(status);
+                }
+                if Instant::now() >= self.deadline { return Err(incomplete("main did not exit before proof deadline")); }
+                thread::sleep(Duration::from_millis(10));
+            }
+        }
+
+        fn join_io(&mut self) -> io::Result<()> {
+            self.stopping.store(true, Ordering::Release);
+            let mut errors = Vec::new();
+            while self.writer.as_ref().is_some_and(|task| !task.is_finished())
+                || self.reader.as_ref().is_some_and(|task| !task.is_finished()) {
+                if Instant::now() >= self.deadline {
+                    return Err(incomplete("original deadline elapsed before owned I/O completion; closure pending"));
+                }
+                #[cfg(windows)]
+                for (name, task) in [("writer", self.writer.as_ref()), ("reader", self.reader.as_ref())] {
+                    if let Some(task) = task {
+                        if let Err(error) = cancel_owned_thread(task) {
+                            let observed = format!("owned {name} cancellation failed: {error}");
+                            return Err(incomplete(observed));
+                        }
+                    }
+                }
+                // Expiry invalidates proof. It never authorizes detaching a
+                // still-owned worker or treating a cancel return as completion.
+                thread::park_timeout(Duration::from_millis(1));
+            }
+            if let Some(writer) = self.writer.take() {
+                self.writer_state = if writer.join().is_err() {
+                    errors.push("control writer panicked".to_owned()); "joined_panicked"
+                } else { "joined" };
+            }
+            if let Some(reader) = self.reader.take() {
+                self.reader_state = if reader.join().is_err() {
+                    errors.push("receipt reader panicked".to_owned()); "joined_panicked"
+                } else { "joined" };
+            }
+            if Instant::now() >= self.deadline {
+                errors.push("original deadline elapsed before owned I/O completion".to_owned());
+            }
+            if errors.is_empty() { Ok(()) } else { Err(incomplete(errors.join("; "))) }
+        }
+
+        // The caller retains its complete case frame while this failure-only
+        // observation returns false. Settlement never changes the failed verdict.
+        pub fn observe_failure_settlement(&mut self, primary_error: &str) -> bool {
+            self.stopping.store(true, Ordering::Release);
+            // These exist only before a worker takes ownership. Closing an
+            // unassigned pipe releases EOF without abandoning any worker.
+            self.pending_stdin.take();
+            self.pending_stdout.take();
+            if !self.terminal {
+                match self.child.try_wait() {
+                    Ok(Some(status)) => {
+                        self.terminal = true;
+                        self.observed_exit = Some(status);
+                    },
+                    Ok(None) => {},
+                    Err(error) => self.retain_cleanup_error(format!("owned child poll failed: {error}")),
+                }
+            }
+            #[cfg(windows)]
+            {
+                let mut errors = Vec::new();
+                for (name, task) in [("writer", self.writer.as_ref()), ("reader", self.reader.as_ref())] {
+                    if let Some(task) = task {
+                        if let Err(error) = cancel_owned_thread(task) {
+                            errors.push(format!("owned {name} cancellation failed: {error}"));
+                        }
+                    }
+                }
+                for error in errors { self.retain_cleanup_error(error); }
+            }
+            if self.writer.as_ref().is_some_and(JoinHandle::is_finished) {
+                if self.writer.take().expect("observed owned writer").join().is_err() {
+                    self.writer_state = "joined_panicked";
+                    self.retain_cleanup_error("owned control writer panicked".to_owned());
+                } else { self.writer_state = "joined"; }
+            }
+            if self.reader.as_ref().is_some_and(JoinHandle::is_finished) {
+                if self.reader.take().expect("observed owned reader").join().is_err() {
+                    self.reader_state = "joined_panicked";
+                    self.retain_cleanup_error("owned receipt reader panicked".to_owned());
+                } else { self.reader_state = "joined"; }
+            }
+            let settled = self.terminal && self.reader.is_none() && self.writer.is_none();
+            let snapshot = serde_json::json!({
+                "schema_id": "handshake.mt188.failed-owned-closure.v1",
+                "status": "FAILED_INCOMPLETE",
+                "operation_id": self.operation_id,
+                "identity": self.identity,
+                "owned_pid": self.child.id(),
+                "original_deadline_elapsed": Instant::now() >= self.deadline,
+                "observed_numeric_exit": self.observed_exit.and_then(|status| status.code()),
+                "child_terminal_observed": self.terminal,
+                "reader_state": self.reader_state,
+                "writer_state": self.writer_state,
+                "closure_pending": !settled,
+                "primary_error": primary_error,
+                "cleanup_errors": self.failure_errors,
+            }).to_string();
+            if self.failure_snapshot.as_ref() != Some(&snapshot) {
+                let result = self.persist_failure_snapshot(&snapshot);
+                match result {
+                    Ok(()) => self.failure_snapshot = Some(snapshot),
+                    Err(error) => {
+                        self.retain_cleanup_error(format!("failure diagnostic durability unproven: {error}"));
+                        return false;
+                    },
+                }
+            }
+            settled
+        }
+
+        fn retain_cleanup_error(&mut self, error: String) {
+            if !self.failure_errors.contains(&error) { self.failure_errors.push(error); }
+        }
+
+        fn persist_failure_snapshot(&mut self, snapshot: &str) -> io::Result<()> {
+            use sha2::{Digest, Sha256};
+            const READBACK_LIMIT: usize = 262_144;
+            self.failure_sequence = self.failure_sequence.checked_add(1)
+                .ok_or_else(|| incomplete("failure record sequence exhausted"))?;
+            let digest = format!("{:x}", Sha256::digest(snapshot.as_bytes()));
+            let frame = format!("\nMT188_FAILURE {} {} {}\n{}\nMT188_FAILURE_END {} {}\n",
+                self.failure_sequence, snapshot.len(), digest, snapshot, self.failure_sequence, digest);
+            if frame.len() > MAX_FRAME_BYTES {
+                return Err(incomplete("failure diagnostic exceeds bounded frame size"));
+            }
+            // Child stderr may interleave: neither append nor sync is record
+            // atomicity. Accept only this complete sequence/checksum frame read
+            // through a separate handle to the same existing log.
+            self.failure_log.write_all(frame.as_bytes())?;
+            self.failure_log.flush()?;
+            self.failure_log.sync_all()?;
+            let end = self.failure_readback.metadata()?.len();
+            let start = end.saturating_sub(READBACK_LIMIT as u64);
+            self.failure_readback.seek(SeekFrom::Start(start))?;
+            let mut tail = Vec::new();
+            (&mut self.failure_readback).take(end - start).read_to_end(&mut tail)?;
+            if !tail.windows(frame.len()).any(|bytes| bytes == frame.as_bytes()) {
+                return Err(incomplete("failure record readback unproven: interleaved, truncated, or outside bounded tail"));
+            }
+            Ok(())
+        }
+    }
+    impl Drop for FullMainChild {
+        fn drop(&mut self) {
+            if self.terminal && self.reader.is_none() && self.writer.is_none() { return; }
+            while !self.observe_failure_settlement("fallback_drop actual_primary_cause_unavailable=true") {
+                thread::park_timeout(Duration::from_millis(10));
+            }
+        }
+    }
+}
+
+#[cfg(all(feature = "test-utils", feature = "duckdb-flight-recorder"))]
+pub use full_main_shutdown::FullMainChild;
