@@ -68,5 +68,8 @@
     "v4": "new modules carry #![deny(clippy::arithmetic_side_effects)]; V4-02 dims_u32_max + aggregate_over_budget in smart_rule_bombs_refused_before_allocation; V4-08 adversarial text cases (escape, comment/string decoys, case decoy) in smart_rules_typed_tree_and_adversarial_text; V4-09 commit message via -F file",
     "existing_test_edits": "tests/catalog_decode.rs: PUBLIC_ENTRYPOINTS assertion lists the three new entrypoints; the no-SQL source scan includes library.rs and lua_rules.rs (claim coverage widened, not weakened)",
     "retry_guard": "no rerun needed; first run green"
-  }
+  },
+ "verdicts": [
+  {"decision": "passed", "verdict": "PASS_V1", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "claim b14e47d 5975475: extract_library -> LibraryProposal (collections/sets/smart rules, keyword forests + synonyms, flags, labels, ratings) with typed losses; bounded non-executing Lua rule tokenizer; read-only XMP library fields by namespace URI (DOCTYPE refused). CKC ownership rule checked: no catalog store, index, query engine or XMP write ships in Studio (native store/query/write recorded as CKC-owned blocker per lead decision 2026-10-15). Lightroom parity UNVERIFIED (D5). No stub. units of interop-lrcat: 1 crate units + default; all build 0 / run 0; default interop-lrcat 18", "idempotency_key": "STUDIO-R32:SMB-LIGHTROOM-CATALOG:eb569d5764a3:PASS_V1", "round": "STUDIO-R32", "lane": "SMB-LIGHTROOM-CATALOG", "candidate": "eb569d5764a3243d492c40f5fe8494782e45c882", "tree": "a232cd250db1371549353ee0c3ada8b8c0c083c4", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R32", "started_at": "2026-10-15T06:20:39Z", "completed_at": "2026-10-15T07:38:27Z"}
+ ]
 }

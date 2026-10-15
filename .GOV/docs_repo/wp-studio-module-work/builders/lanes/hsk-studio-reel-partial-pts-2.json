@@ -158,5 +158,8 @@
     "by": "wp_validator STUDIO-R21"
    }
   ]
- }
+ },
+ "verdicts": [
+  {"decision": "passed", "verdict": "PASS_V7", "failures": [], "remediation": null, "blocker": null, "not_proven": ["reel vc3_decode::vc3_decode_matches_external_oracle_within_tolerance (default): dnxhr-hqx-264x120 10-bit agreement with ffmpeg (max delta 4); ffmpeg's CID 1271 weights differ from ST 2019-1 Table D.1", "reel vc3_decode::vc3_decode_matches_external_oracle_within_tolerance (features:hsk-studio-reel+av1): dnxhr-hqx-264x120 10-bit agreement with ffmpeg (max delta 4); ffmpeg's CID 1271 weights differ from ST 2019-1 Table D.1", "reel vc3_decode::vc3_decode_matches_external_oracle_within_tolerance (features:hsk-studio-reel+prores): dnxhr-hqx-264x120 10-bit agreement with ffmpeg (max delta 4); ffmpeg's CID 1271 weights differ from ST 2019-1 Table D.1"], "note": "CX-VAL-009 reopen (crates changed d9c59f8..eb569d5 + reverse-dependency closure, 28 crates).  units of reel: 5 crate units + default; all build 0 / run 0; default reel 102", "idempotency_key": "STUDIO-R32:SMB-REEL-PARTIAL-PTS-2:eb569d5764a3:PASS_V7", "round": "STUDIO-R32", "lane": "SMB-REEL-PARTIAL-PTS-2", "candidate": "eb569d5764a3243d492c40f5fe8494782e45c882", "tree": "a232cd250db1371549353ee0c3ada8b8c0c083c4", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R32", "started_at": "2026-10-15T06:20:39Z", "completed_at": "2026-10-15T07:38:27Z"}
+ ]
 }

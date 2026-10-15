@@ -57,5 +57,8 @@
    "red proof for the floor-edge fix (old rule failing on dither) not run in the shared tree (V4-11)"
   ],
   "check_clippy": "cargo clippy -p hsk-studio-score -p hsk-studio-score-device -p hsk-studio-score-plugin --tests --examples at 970f091: no findings in score crates"
- }
+ },
+ "verdicts": [
+  {"decision": "passed", "verdict": "PASS_V1", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "claim bae2967 d589e0c 970f091: band-limited Kaiser-sinc clip speed (rational 1/16..16, reverse), phase-vocoder time-stretch with identity phase locking + pitch-shift, click repair on noisy/dithered floors (RMS-step edge rule). No stub. units of score: 1 crate units + default; all build 0 / run 0; default score 114", "idempotency_key": "STUDIO-R32:SMB-SCORE-EFFECTS-5:eb569d5764a3:PASS_V1", "round": "STUDIO-R32", "lane": "SMB-SCORE-EFFECTS-5", "candidate": "eb569d5764a3243d492c40f5fe8494782e45c882", "tree": "a232cd250db1371549353ee0c3ada8b8c0c083c4", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R32", "started_at": "2026-10-15T06:20:39Z", "completed_at": "2026-10-15T07:38:27Z"}
+ ]
 }

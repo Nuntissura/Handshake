@@ -69,5 +69,8 @@
   ],
   "verdicts": [],
   "later_commits": "42005c4 (lane SMB-PULSE-PLAYBACK, after READY, V4-14) extended the Folio records additively: sequence work_area, transition parameters (param_value) and repeat_end_frame, all serde-default; existing fields and tests unchanged and green at 42005c4."
- }
+ },
+ "verdicts": [
+  {"decision": "passed", "verdict": "PASS_V1", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "claim b91bf9d 6f4e2f6: Folio sequence/clip markers and clip transitions (hsk.studio.transition@1), omitted when empty (byte identity), validated (unique ids, one transition per cut, tick overflow, budgets); Session submit_timeline one undo step. No stub. units of folio/session/pulse/interop-media: 4 crate units + default; all build 0 / run 0; default folio 67, session 25, pulse 28, interop-media 6", "idempotency_key": "STUDIO-R32:SMB-FOLIO-TIMELINE-RECORDS:eb569d5764a3:PASS_V1", "round": "STUDIO-R32", "lane": "SMB-FOLIO-TIMELINE-RECORDS", "candidate": "eb569d5764a3243d492c40f5fe8494782e45c882", "tree": "a232cd250db1371549353ee0c3ada8b8c0c083c4", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R32", "started_at": "2026-10-15T06:20:39Z", "completed_at": "2026-10-15T07:38:27Z"}
+ ]
 }

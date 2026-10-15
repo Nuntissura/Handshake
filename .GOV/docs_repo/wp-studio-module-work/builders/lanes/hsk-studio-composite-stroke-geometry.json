@@ -1,0 +1,45 @@
+{
+  "crate": "hsk-studio-composite",
+  "crates": ["hsk-studio-composite", "hsk-studio-nib", "hsk-studio-harness", "hsk-studio-render-cpu (tests)", "hsk-studio-render-gpu (tests)"],
+  "lane": "SMB-COMPOSITE-STROKE-GEOMETRY",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slices 1-3 pushed; READY on 6fed566",
+  "commits": [
+    {"sha": "7671aaf", "subject": "composite + harness (SMB-COMPOSITE-STROKE-GEOMETRY slice 1): stroke rows with their own geometry"},
+    {"sha": "6fed566", "subject": "nib + harness (SMB-COMPOSITE-STROKE-GEOMETRY slices 2-3): exact crossings, pen joins network edges"}
+  ],
+  "capabilities_done": [
+    "slice 1 composite FillPaint::StrokeGeometry { outline: Vec<OwnedPath>, paint }: a stroke row painted inside its own filled outline (paths united by nib, each under its own fill rule) with its own coverage plane (StrokePlane), following the fill rows; the plane rect covers outlines beyond the fill geometry; typed refusals vector_stroke_paint (stroke / stroke-geometry / image paint), vector_stroke_order (fill after a stroke), vector_geometry (non-finite or invalid outline), vector_nib_budget; empty outline = zero coverage. Existing Stroke rows unchanged (RowStroke::Style).",
+    "slice 1 proof: shared scene tests/support/stroke_geometry_scene.rs (fill rectangle, a two-band united solid stroke-geometry row and a gradient stroke-geometry row reaching beyond the fill) against the shared oracle (vector_scenes.rs: pigment composite_over over nib planes): render-cpu bit-exact (max |delta| 0), identical on chunk/thread variants (5,1)(7,4)(4,8)(64,2), digest pinned 73a61646...; render-gpu max |delta| 5.96e-8 <= 2e-6 on the live adapter",
+    "slice 1 harness: network and variable-width layers draw a fill row over the fill geometry and a StrokeGeometry row over the stroke outline; the blended colour tile of SMB-ILLUSTRATOR-PEN-3 is removed (viewer_vector_4 asserts exact fill/stroke pixels next to the stroke edge)",
+    "slice 2 nib::intersect: cubic_crossings (Bezier subdivision with the convex-hull box interval bound, exact halving, eps per axis, merged near-duplicates, MAX_CROSSING_WORK so coincident curves refuse BudgetExceeded), exact line_line, line_cubic, is_straight; network::planarize uses it for every segment pair (eps = tolerance / 4) and freeform::knife_strokes for every cut piece (eps 1e-9) instead of 64 samples",
+    "slice 3 nib network: hit (vertex, else segment point), split_segment (exact de Casteljau; straight segments split at their evaluated point; region loops lengthened in walk order), pen(from, point, drag, radius) joining an existing vertex, splitting the edge under the click or adding a vertex, connected to the previous pen vertex (drag = tangent); harness: the pen on a network layer (pen layer or selected) extends the network, one chronicle transaction per click, pen_vertex kept until pen_end / tool change"
+  ],
+  "tests": {
+    "argv": "7671aaf: cargo nextest run -p hsk-studio-composite -p hsk-studio-render-cpu -p hsk-studio-render-gpu -p hsk-studio-harness --features hsk-studio-harness/viewer -E 'binary(stroke_geometry) | binary(vector_stroke_geometry) | binary(vector_nib) | binary(viewer_vector_3)' (13/14, then the pinned digest committed and render-cpu vector_stroke_geometry 1/1); 6fed566: cargo nextest run -p hsk-studio-nib -p hsk-studio-harness --features hsk-studio-harness/viewer -E 'binary(intersect) | binary(network_pen) | binary(pen3) | binary(network) | binary(viewer_vector_4) | binary(viewer_vector_3) | binary(viewer_vector)' 23/23",
+    "exit": 0,
+    "sha": "6fed566",
+    "passed": 37,
+    "failed": 0,
+    "new_tests": ["composite tests/stroke_geometry.rs (1)", "render-cpu tests/vector_stroke_geometry.rs (1)", "render-gpu tests/vector_stroke_geometry.rs (1)", "nib tests/intersect.rs (3)", "nib tests/network_pen.rs (1)", "harness tests/viewer_vector_4.rs (1)"]
+  },
+  "blockers": [],
+  "lock_wait_s": 600,
+  "bg_pids": [],
+  "next": "Validator: judge the lane (round features: render-gpu needs the adapter per tests/gpu-proof.toml). Suggested next: Folio stroke-geometry mapping in composite's Folio adapter (prepare_vectors) so imported networks render without the harness specs; composite DESCRIPTOR line for StrokeGeometry (lib.rs is shared, not edited here).",
+  "updated_at": "2026-10-15T07:39:16Z",
+  "notes": {
+    "approval": "Lead 2026-10-15: this lane may own composite's vector stroke lowering; own hunks only",
+    "shared_files": "composite src/vector.rs diff held only this lane's hunks at 7671aaf (checked); harness edit.rs one line; other lanes' uncommitted harness mod.rs, tests/common, timeline_export files and composite lower_render_plan/temporal WIP were not staged; composite lib.rs DESCRIPTOR not edited (shared)",
+    "spec_basis": {
+      "STU-VEC-108": "MUST expose the derived read-only fill_geometry and stroke_geometry path sets (now painted separately and exactly)",
+      "STU-VEC-020": "Stroke rendering (stroke rows with their own geometry)",
+      "STU-VEC-007": "Pen: Place anchors and straight/curved segments; connect to any existing network anchor, not only endpoints",
+      "STU-VEC-008": "where the drawn geometry joins existing edges or creates enclosed regions, contribute to a StudioVectorNetwork; the tool MUST NOT silently discard network topology"
+    },
+    "exactness": "crossings are located to the interval bound eps (every true crossing lies in a reported pair's boxes); near-miss T-junction detection in planarize still samples 64 points (distance test, tolerance-bounded); tangential touches are reported as crossings within eps",
+    "gaps": ["composite's Folio adapter does not read networks (the harness builds the specs)", "pen on networks makes straight or single-tangent segments; per-vertex cap/join overrides are stored, not rendered", "Figma/Illustrator network pen parity UNVERIFIED (D5)"],
+    "retry_guard": "route (a) twice: render-cpu digest pin (PIN_ME placeholder replaced by the measured digest, commit 7671aaf, rerun 1/1) and intersect line_line straightness (rounding of line_cubic thirds; relative tolerance, commit 6fed566, rerun green); no gameplan step added",
+    "v4": "V4-01 deny(arithmetic_side_effects) in intersect.rs and every touched module; V4-02 work bounds before subdivision/pen growth; V4-03 GPU test gated by tests/gpu-proof.toml (ran on the adapter); V4-09 commit -F"
+  }
+}

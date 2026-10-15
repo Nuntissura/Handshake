@@ -726,6 +726,7 @@
    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R27",
    "started_at": "2026-10-14T22:06:44Z",
    "completed_at": "2026-10-14T22:35:40Z"
-  }
+  },
+  {"decision": "passed", "verdict": "PASS_V9", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed d9c59f8..eb569d5 + reverse-dependency closure, 28 crates).  units of prism: 1 crate units + default; all build 0 / run 0; default prism 162", "idempotency_key": "STUDIO-R32:SMB-PRISM-ENG-5:eb569d5764a3:PASS_V9", "round": "STUDIO-R32", "lane": "SMB-PRISM-ENG-5", "candidate": "eb569d5764a3243d492c40f5fe8494782e45c882", "tree": "a232cd250db1371549353ee0c3ada8b8c0c083c4", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R32", "started_at": "2026-10-15T06:20:39Z", "completed_at": "2026-10-15T07:38:27Z"}
  ]
 }
