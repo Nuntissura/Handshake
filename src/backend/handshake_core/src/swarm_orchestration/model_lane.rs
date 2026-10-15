@@ -58,6 +58,10 @@ use crate::storage::surreal::{
 };
 use crate::storage::StorageError;
 
+use handshake_model_lane_navigation::{
+    assemble_navigation_projection, one_navigation_run_id, ModelLaneNavigationError,
+};
+
 use super::error::SwarmError;
 use super::factory::LiveSession;
 use super::ids::{ByokCloudProvider, SpawnRequest};
@@ -101,6 +105,16 @@ pub enum ModelLaneError {
 }
 
 pub type ModelLaneResult<T> = Result<T, ModelLaneError>;
+
+impl From<ModelLaneNavigationError> for ModelLaneError {
+    fn from(error: ModelLaneNavigationError) -> Self {
+        match error {
+            ModelLaneNavigationError::InvalidInput(message) => Self::InvalidInput(message),
+            ModelLaneNavigationError::AmbiguousLookup(message) => Self::AmbiguousLookup(message),
+            ModelLaneNavigationError::NotFound(message) => Self::NotFound(message),
+        }
+    }
+}
 
 #[derive(Clone)]
 pub struct ModelLaneStore {
@@ -5424,41 +5438,25 @@ impl ModelLaneStore {
         }).map(|(row, _)| row.run_id.clone()).collect();
         let run_id = one_navigation_run_id(&selector.lookup_ref, runs)?
             .ok_or_else(|| ModelLaneError::NotFound("navigation target".into()))?;
-        let mut projection = ModelLaneNavigationProjection::empty(route_id, selector);
-        let mut error_codes = BTreeSet::new();
+        let mut sources = Vec::new();
         for (row, receipt) in visible.into_iter().filter(|(row, _)| row.run_id == run_id) {
+            let mut error_code = None;
             if matches!(row.record_kind.as_str(), "lane" | "recovery_event") {
                 if let Some(input) = provider.navigation_error_input(scope, &row).await? {
                     if input.source_kind != row.record_kind || input.run_id != row.run_id {
                         return Err(crdt_authority_denied("navigation error input differs from canonical source identity"));
                     }
-                    let code = if row.record_kind == "lane" { input.failstate_code } else { input.error_code };
-                    if let Some(code) = code { error_codes.insert(code); }
+                    error_code = if row.record_kind == "lane" { input.failstate_code } else { input.error_code };
                 }
             }
             let scalar = ModelLaneNavigationScalar { aggregate_id: row.aggregate_id.clone(), run_id: row.run_id.clone(),
                 event_ledger_event_id: receipt.event_id, event_ledger_seq: receipt.event_seq, ordering_seq: row.ordering_seq };
-            match row.record_kind.as_str() {
-                "run" => projection.run = Some(ModelLaneNavigationRun { run_id: scalar.run_id.clone(), source: scalar }),
-                "lane" => projection.lanes.push(ModelLaneNavigationLane { lane_id: scalar.aggregate_id.clone(), source: scalar }),
-                "message" if selector.lookup_kind != "message_id" || row.aggregate_id == selector.lookup_ref => projection.messages.push(ModelLaneNavigationMessage { message_id: scalar.aggregate_id.clone(), source: scalar }),
-                "context_artifact" => projection.artifacts.push(scalar), "context_handoff" => projection.context_handoffs.push(scalar),
-                "recovery_checkpoint" => projection.recovery_checkpoints.push(scalar), "recovery_event" => projection.recovery_events.push(scalar),
-                "lease" => projection.leases.push(scalar), "diagnostic_tier" => projection.diagnostic_tiers.push(scalar),
-                "mt_runtime_status" => projection.mt_runtime_statuses.push(scalar), _ => {},
-            }
+            sources.push((row.record_kind, scalar, error_code));
         }
-        if projection.run.as_ref().is_some_and(|run| run.run_id != run_id)
-            || (projection.run.is_none() && !(selector.lookup_kind == "trace_id" && selector.span_id.is_some()))
-            || (selector.lookup_kind == "message_id" && projection.messages.is_empty())
-            || (selector.lookup_kind == "lane_id" && !projection.lanes.iter().any(|lane| lane.lane_id == selector.lookup_ref))
-            || (matches!(selector.lookup_kind.as_str(), "context_bundle_id" | "artifact_ref")
-                && projection.context_handoffs.is_empty() && projection.artifacts.is_empty()) {
-            return Err(ModelLaneError::NotFound("navigation target".into()));
-        }
-        projection.rebuild_navigation_evidence();
-        projection.error_codes = error_codes.into_iter().collect();
-        Ok(projection)
+        assemble_navigation_projection(
+            route_id, &selector.lookup_kind, &selector.lookup_ref, selector.span_id.as_deref(),
+            &run_id, sources,
+        ).map_err(ModelLaneError::from)
     }
 
     pub async fn record_recovery_checkpoint(
@@ -7981,18 +7979,6 @@ fn json_value_contains(value: &Value, expected: &str) -> bool {
             .any(|value| json_value_contains(value, expected)),
         _ => false,
     }
-}
-
-fn one_navigation_run_id(
-    value: &str,
-    run_ids: BTreeSet<String>,
-) -> ModelLaneResult<Option<String>> {
-    if run_ids.len() > 1 {
-        return Err(ModelLaneError::AmbiguousLookup(format!(
-            "navigation value {value} resolves to multiple exact-scope runs"
-        )));
-    }
-    Ok(run_ids.into_iter().next())
 }
 
 async fn validate_recovery_payload_refs_surreal(
@@ -11533,167 +11519,14 @@ pub struct ModelLaneDiagnosticsMtStatus {
     pub event_ledger_seq: i64,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ModelLaneNavigationProjection {
-    pub schema_id: String,
-    pub surface_contract_id: String,
-    pub route_id: String,
-    pub lookup_kind: String,
-    pub lookup_ref: String,
-    pub input_schema_ref: String,
-    pub output_schema_ref: String,
-    pub manual_refs: Vec<String>,
-    pub run: Option<ModelLaneNavigationRun>,
-    pub lanes: Vec<ModelLaneNavigationLane>,
-    pub messages: Vec<ModelLaneNavigationMessage>,
-    pub artifacts: Vec<ModelLaneNavigationScalar>,
-    pub context_handoffs: Vec<ModelLaneNavigationScalar>,
-    pub recovery_checkpoints: Vec<ModelLaneNavigationScalar>,
-    pub recovery_events: Vec<ModelLaneNavigationScalar>,
-    pub leases: Vec<ModelLaneNavigationScalar>,
-    pub diagnostic_tiers: Vec<ModelLaneNavigationScalar>,
-    pub mt_runtime_statuses: Vec<ModelLaneNavigationScalar>,
-    pub event_ledger_refs: Vec<String>,
-    pub flight_recorder_refs: Vec<String>,
-    pub error_codes: Vec<String>,
-    pub recovery_routes: Vec<String>,
-}
-
-/// Source identifiers from permission-reduced rows. This DTO is not a canonical
-/// record and contains neither a rewritten hash nor hidden payload/reference data.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ModelLaneNavigationScalar {
-    pub aggregate_id: String,
-    pub run_id: String,
-    pub event_ledger_event_id: String,
-    pub event_ledger_seq: i64,
-    pub ordering_seq: Option<i64>,
-}
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ModelLaneNavigationRun { pub run_id: String, pub source: ModelLaneNavigationScalar }
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ModelLaneNavigationLane { pub lane_id: String, pub source: ModelLaneNavigationScalar }
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ModelLaneNavigationMessage { pub message_id: String, pub source: ModelLaneNavigationScalar }
+pub use handshake_model_lane_navigation::{
+    ModelLaneNavigationLane, ModelLaneNavigationLookup, ModelLaneNavigationMessage,
+    ModelLaneNavigationProjection, ModelLaneNavigationRun, ModelLaneNavigationScalar,
+};
 
 fn navigation_selector(kind: &str, value: &str) -> crate::storage::surreal::NavigationReadSelector {
     crate::storage::surreal::NavigationReadSelector { lookup_kind: kind.into(), lookup_ref: value.into(),
         run_id: None, span_id: None, behavior_id: None, tier: None, micro_task_id: None, artifact_ref: None, context_bundle_id: None }
-}
-
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ModelLaneNavigationLookup {
-    pub lookup_kind: Option<String>,
-    pub lookup_ref: Option<String>,
-    pub run_id: Option<String>,
-    pub lane_id: Option<String>,
-    pub message_id: Option<String>,
-    pub model_session_id: Option<String>,
-    pub session_id: Option<String>,
-    pub wp_id: Option<String>,
-    pub work_packet_id: Option<String>,
-    pub mt_id: Option<String>,
-    pub micro_task_id: Option<String>,
-    pub task_board_id: Option<String>,
-    pub artifact_ref: Option<String>,
-    pub context_bundle_id: Option<String>,
-    pub locus_ref: Option<String>,
-    pub locus_binding_ref: Option<String>,
-    pub loom_ref: Option<String>,
-    pub loom_block_id: Option<String>,
-    pub fems_ref: Option<String>,
-    pub memory_pack_ref: Option<String>,
-    pub memory_pack_hash: Option<String>,
-    pub event_ledger_event_id: Option<String>,
-    pub event_ledger_seq: Option<String>,
-    pub trace_id: Option<String>,
-    pub span_id: Option<String>,
-    pub error_code: Option<String>,
-}
-
-impl ModelLaneNavigationLookup {
-    fn requested(&self) -> ModelLaneResult<(String, String)> {
-        let mut requested = Vec::new();
-        if let (Some(kind), Some(value)) = (
-            nonempty_lookup_value(self.lookup_kind.as_deref()),
-            nonempty_lookup_value(self.lookup_ref.as_deref()),
-        ) {
-            requested.push((kind, value));
-        }
-        for (kind, value) in [
-            ("run_id", self.run_id.as_deref()),
-            ("lane_id", self.lane_id.as_deref()),
-            ("message_id", self.message_id.as_deref()),
-            ("model_session_id", self.model_session_id.as_deref()),
-            ("session_id", self.session_id.as_deref()),
-            ("wp_id", self.wp_id.as_deref()),
-            ("work_packet_id", self.work_packet_id.as_deref()),
-            ("mt_id", self.mt_id.as_deref()),
-            ("micro_task_id", self.micro_task_id.as_deref()),
-            ("task_board_id", self.task_board_id.as_deref()),
-            ("artifact_ref", self.artifact_ref.as_deref()),
-            ("context_bundle_id", self.context_bundle_id.as_deref()),
-            ("locus_ref", self.locus_ref.as_deref()),
-            ("locus_binding_ref", self.locus_binding_ref.as_deref()),
-            ("loom_ref", self.loom_ref.as_deref()),
-            ("loom_block_id", self.loom_block_id.as_deref()),
-            ("fems_ref", self.fems_ref.as_deref()),
-            ("memory_pack_ref", self.memory_pack_ref.as_deref()),
-            ("memory_pack_hash", self.memory_pack_hash.as_deref()),
-            (
-                "event_ledger_event_id",
-                self.event_ledger_event_id.as_deref(),
-            ),
-            ("event_ledger_seq", self.event_ledger_seq.as_deref()),
-            ("trace_id", self.trace_id.as_deref()),
-            ("span_id", self.span_id.as_deref()),
-            ("error_code", self.error_code.as_deref()),
-        ] {
-            if let Some(value) = nonempty_lookup_value(value) {
-                requested.push((kind.to_string(), value));
-            }
-        }
-        match requested.len() {
-            1 => Ok(requested.remove(0)),
-            0 => Err(ModelLaneError::InvalidInput(
-                "ModelLane navigation lookup requires exactly one selector".into(),
-            )),
-            _ => Err(ModelLaneError::InvalidInput(
-                "ModelLane navigation lookup accepts exactly one selector".into(),
-            )),
-        }
-    }
-}
-
-impl ModelLaneNavigationProjection {
-    fn empty(route_id: &str, selector: &crate::storage::surreal::NavigationReadSelector) -> Self {
-        Self { schema_id: "hsk.model_lane_navigation@2".into(), surface_contract_id: "native_swarm_lane_diagnostics".into(),
-            route_id: route_id.into(), lookup_kind: selector.lookup_kind.clone(), lookup_ref: selector.lookup_ref.clone(),
-            input_schema_ref: "hsk.model_lane_navigation_request@1".into(), output_schema_ref: "hsk.model_lane_navigation@2".into(),
-            manual_refs: vec!["usermanual://model-lane-navigation".into(), "usermanual://model-lane-diagnostics".into(),
-                "usermanual://model-lane-recovery".into(), "usermanual://model-lane-validation-harness".into()],
-            run: None, lanes: Vec::new(), messages: Vec::new(), artifacts: Vec::new(), context_handoffs: Vec::new(),
-            recovery_checkpoints: Vec::new(), recovery_events: Vec::new(), leases: Vec::new(), diagnostic_tiers: Vec::new(),
-            mt_runtime_statuses: Vec::new(), event_ledger_refs: Vec::new(), flight_recorder_refs: Vec::new(), error_codes: Vec::new(),
-            recovery_routes: vec!["GET /swarm/model-lanes/navigation/recovery/{run_id}".into(),
-                "GET /swarm/model-lanes/diagnostics/{run_id}".into()] }
-    }
-    fn rebuild_navigation_evidence(&mut self) {
-        let mut refs = BTreeSet::new();
-        let sources = self.run.iter().map(|row| &row.source)
-            .chain(self.lanes.iter().map(|row| &row.source))
-            .chain(self.messages.iter().map(|row| &row.source))
-            .chain(self.artifacts.iter()).chain(self.context_handoffs.iter())
-            .chain(self.recovery_checkpoints.iter()).chain(self.recovery_events.iter())
-            .chain(self.leases.iter()).chain(self.diagnostic_tiers.iter()).chain(self.mt_runtime_statuses.iter());
-        for source in sources {
-            push_event_ref(&mut refs, &source.event_ledger_event_id);
-            push_event_seq_ref(&mut refs, source.event_ledger_seq);
-        }
-        self.event_ledger_refs = refs.into_iter().collect();
-        // Opaque reference-derived diagnostics are intentionally absent from @2.
-        self.flight_recorder_refs.clear(); self.error_codes.clear();
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -13081,18 +12914,6 @@ fn span_matches(span_id: Option<&str>, actual: &str) -> bool {
     span_id.map_or(true, |expected| expected == actual)
 }
 
-fn push_event_ref(refs: &mut BTreeSet<String>, event_id: &str) {
-    if !event_id.is_empty() {
-        refs.insert(format!("eventledger://kernel/{event_id}"));
-    }
-}
-
-fn push_event_seq_ref(refs: &mut BTreeSet<String>, event_seq: i64) {
-    if event_seq > 0 {
-        refs.insert(format!("eventledger://kernel/seq/{event_seq}"));
-    }
-}
-
 fn push_optional_string(refs: &mut BTreeSet<String>, value: Option<&str>) {
     if let Some(value) = value.filter(|value| !value.trim().is_empty()) {
         refs.insert(value.to_owned());
@@ -13101,13 +12922,6 @@ fn push_optional_string(refs: &mut BTreeSet<String>, value: Option<&str>) {
 
 fn push_optional_json_string(refs: &mut BTreeSet<String>, payload: &Value, key: &str) {
     push_optional_string(refs, payload.get(key).and_then(Value::as_str));
-}
-
-fn nonempty_lookup_value(value: Option<&str>) -> Option<String> {
-    value
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .map(str::to_owned)
 }
 
 fn event_payload_run_id(payload: &Value) -> Option<String> {
