@@ -1,19 +1,35 @@
 {
   "crate": "hsk-studio-composite (three_d, temporal/composition 3D paths, composition lit/aux/immersive paths), hsk-studio-folio (composition immersive record), render-cpu/render-gpu tests/composition_three_d.rs",
   "lane": "SMB-AE-3D-2",
-  "status": null,
-  "phase": "slice 1 (3D parenting) written in lane worktree wt-studio-lanes/smb-ae-3d-2; build queued behind a validator round on the D: disk lock",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {"argv": "", "exit": null, "sha": "", "passed": 0, "failed": 0},
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slice 1 pushed (3D parenting); slice 2 (masks and track mattes on 3D layers) building",
+  "commits": [
+    {"sha": "f693651", "subject": "SMB-AE-3D-2 slice 1: 3D parent chains (2D and 3D parents, parented cameras and lights)"}
+  ],
+  "capabilities_done": [
+    "(1) 3D parenting (f693651): three_d::Affine3 (layer map position + R S (p - anchor), S = diag(sx, sy, 1); then/inverse/cofactor); Transform3d.parent = the ancestor chain (identity without a parent, bit-identical to before); world(), normal() (cofactor image, so a non-uniform parent scale shears the plane correctly), layer_point() through the chain inverse, so shading, shadows and the depth sort follow the chain. Mixing (Studio reading, UNVERIFIED): a 2D ancestor of a 3D layer acts at Z 0 turned about Z; a 2D child of a 3D parent keeps the parent's 2D part (X/Y position, Z rotation, X/Y scale, anchor). Parented cameras (camera_in: position and point of interest mapped; one-node turns by rotation_part of the chain) and parented lights. Refused typed: a camera or light as anyone's parent (composition_3d_parent), a singular chain (composition_3d_parent_degenerate), loops (Folio ContainmentCycle; adapter walk bounded, Cycle)."
+  ],
+  "tests": {
+    "argv": "cargo nextest run: -p hsk-studio-composite --features motion --test three_d_adapter; -p hsk-studio-render-cpu --test composition_three_d; -p hsk-studio-render-gpu --test composition_three_d",
+    "exit": 0,
+    "sha": "ee628b7 rebased to f693651",
+    "passed": 11,
+    "failed": 0
+  },
   "blockers": [],
-  "lock_wait_s": 0,
+  "lock_wait_s": 3600,
   "bg_pids": [],
-  "next": "clippy + focused tests for slice 1, commit, push",
-  "updated_at": "2026-10-15T11:36:40Z",
+  "next": "slice 2 tests, commit, push; then slices 3 (aux channels, EXR) and 4 (immersive)",
+  "updated_at": "2026-10-15T13:11:27Z",
   "notes": {
-    "worktree": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-ae-3d-2 (branch lane/smb-ae-3d-2, STUDIO_OWNER=smb-ae-3d-2) per lead rule 2026-10-15; slice-1 hunks moved from the shared tree as a patch (only my six files, all clean before my edits) and the shared tree restored for those six files",
-    "spec_basis": "STU-MOT-008 ('A layer MAY declare one parent layer ... The child's transform is evaluated in the parent's transform space'; 'Parenting affects the transform group only'), STU-CMP-010 steps 2 (masks before effects), 5 (transform and the parent chain), 7 (track matte consumes another layer's already-rendered alpha or luminance), STU-CMP-025 (masks), STU-CMP-030 (track mattes), STU-CMP-050 (auxiliary channel extract: Z depth, object ID, surface normals; channel identifier; depth matte; ID matte; depth fog; Cryptomatte; DOF from depth; arbitrary-channel EXR extract), STU-CMP-055/055a (immersive compositing computed in the spherical domain; 20 named capabilities; composition carries STU-VID-018's immersive record shape), STU-CMP-106 / STU-VID-082 (projection-type enumeration is a declared gap: members authored deliberately)",
-    "after_effects_parity": "UNVERIFIED (D5)"
+    "worktree": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-ae-3d-2 (branch lane/smb-ae-3d-2, STUDIO_OWNER=smb-ae-3d-2) per lead rule 2026-10-15; slice-1 hunks moved from the shared tree as a patch (only my six files, all clean before my edits) and those six files restored in the shared tree",
+    "spec_basis": "STU-MOT-008 ('A layer MAY declare one parent layer ... The child's transform is evaluated in the parent's transform space'; 'Parenting affects the transform group only'), STU-CMP-010 steps 2 (masks, before effects), 5 (transform and the parent chain), 7 (track matte consumes another layer's already-rendered alpha or luminance), STU-CMP-025 (masks), STU-CMP-030 (track mattes), STU-CMP-050 (auxiliary channel extract: Z depth, object ID, surface normals; channel identifier; depth matte; ID matte; depth fog; Cryptomatte; DOF from depth; arbitrary-channel EXR extract), STU-CMP-055/055a (immersive compositing computed in the spherical domain; 20 named capabilities; the composition carries STU-VID-018's immersive record shape), STU-CMP-106 / STU-VID-082 (projection-type enumeration is a declared gap: members authored deliberately)",
+    "measured": {
+      "parented run (3D parent sheared by a 115 x 90 % scale + 2D parent), CPU / GPU": "max |delta| vs independent ray-cast oracle (own turns, Cramer ray-plane solve) 0 / 1.19e-7; 208 drawn pixels, crossing [59, 75]",
+      "existing AE-3D oracles after the change": "unlit 0, lit 5.96e-8, dof 5.96e-8 (CPU); 1.19e-7 each (GPU): unchanged"
+    },
+    "slice1_push_note": "after the post-rebase retest (green on ea20bcb's predecessor 4845773), origin gained folio book.rs (additive module) and harness/press/layout/interop-vector commits; I rebased onto ea20bcb and pushed without a second retest. The slice 2 test run on top of f693651 covers that tree.",
+    "after_effects_parity": "UNVERIFIED (D5): parent-mix rules, camera/light under a scaled parent, 2D projection of a 3D parent",
+    "cargo_lock": "not touched"
   }
 }

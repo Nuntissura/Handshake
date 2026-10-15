@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T13:09:31Z",
+ "updated_at": "2026-10-15T13:16:45Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -7466,12 +7466,15 @@
   {
    "lane_id": "SMB-PACKAGE-COMPLETENESS",
    "crate": "hsk-studio-package",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-package-20261015",
-   "commits": [],
+   "commits": [
+    "6b60b22"
+   ],
    "verdicts": [],
-   "note": "packages do not carry timeline media references/embeds or stored story text (layout); audit every folio record kind that references external data and save/read all per spec (linked vs embedded), with the same schema-guard test"
+   "note": "packages do not carry timeline media references/embeds or stored story text (layout); audit every folio record kind that references external data and save/read all per spec (linked vs embedded), with the same schema-guard test",
+   "lane_file": "builders/lanes/hsk-studio-package-completeness.json"
   },
   {
    "lane_id": "SMB-AE-3D-2",
@@ -7552,6 +7555,16 @@
    "commits": [],
    "verdicts": [],
    "note": "text-as-text .ai import, AI layers preserved, colour kept in document space (CMYK/Lab), clips + masks in SVG/PDF export"
+  },
+  {
+   "lane_id": "SMB-PACKAGE-COMPLETENESS-2",
+   "crate": "hsk-studio-folio",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-package-20261015",
+   "commits": [],
+   "verdicts": [],
+   "note": "folio resolver ports for fonts, audio, LUTs (so unresolved becomes typed loss or resolved); linked placed-source health check at open; catalog asset_id references per CKC ports"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",

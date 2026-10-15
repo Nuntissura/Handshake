@@ -1,0 +1,18 @@
+{
+ "crate": "hsk-studio-render-gpu",
+ "lane": "SMB-PS-ADJUST-STYLES-2",
+ "status": null,
+ "phase": "all five goals implemented in the lane worktree; first build queued behind validator rounds on the D: disk lock (no commit pushed yet)",
+ "commits": [],
+ "capabilities_done": [],
+ "tests": {"argv": "", "exit": null, "sha": null, "passed": 0, "failed": 0},
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "check + clippy + focused tests per slice, then pathspec commits and pushes",
+ "updated_at": "2026-10-15T12:58:57Z",
+ "notes": {
+  "worktree": "wt-studio-lanes/smb-ps-adjust-styles-2, branch lane/smb-ps-adjust-styles-2 from origin/codex/handshake-studio-assets 4845773, STUDIO_OWNER=smb-ps-adjust-styles-2",
+  "parity": "Photoshop parity UNVERIFIED (D5); never claimed"
+ }
+}

@@ -1,19 +1,38 @@
 {
  "crate": "hsk-studio-package",
  "lane": "SMB-PACKAGE-COMPLETENESS",
- "status": "IN_PROGRESS",
- "phase": "slice 1 (externals save/read, session wiring, schema guard) under test in lane worktree wt-studio-lanes/smb-package-completeness",
- "commits": [],
- "capabilities_done": [],
- "tests": {"argv": null, "exit": null, "sha": null, "passed": null, "failed": null},
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slice 1 pushed (6b60b22): every reference outside the document JSON kept on save and reported on read with link state + relink data; session wiring; schema guard over every committed Folio schema",
+ "commits": [
+  {"sha": "6b60b22", "subject": "package + session (SMB-PACKAGE-COMPLETENESS slice 1): every reference outside the document JSON is kept on save and reported on read with link state and relink data"}
+ ],
+ "capabilities_done": [
+  "audit (spec STU-ASSET-006..009, STU-VID-038, STU-LAY-132, STU-RAS-012..014): Folio kinds referencing data outside the document JSON = timeline media (ClipSource media), stored story text (StoryContent stored), import-original parts (StudioImageSource import_original), primitives (PrimitiveReference payload, ClipSource primitive, StudioEffectFill), colour profiles (colour_profile_id, profile_ref, working/blending spaces), LUT references (ColourLookup lut), fonts (type style font_family/font_style), composition audio (motion StudioAudioLayer.audio_id), placed sources (smart objects: embedded document or linked uri + digest + health), ICC profiles (bytes travel with the document); raster/mask tiles and package-asset image paints already handled by 8749f0a; placed graphics' pixels are raster tiles; no Folio record carries a CKC catalog asset_id/placement_kind yet",
+  "src/externals.rs external_references(doc, held, embedded, resolver): one walk of the document and every record entry (import/records.* and the session's studio/* entries) by Folio discriminators; each distinct reference with a closed STU-ASSET-007 link state (embedded, resolved, modified, missing, unauthorized, unsupported, unresolved), handle, content hash, JSON-pointer location and occurrence count; Opened::externals; unavailable states add LossReason::UnavailableExternal named external/<kind>/<sha256 or handle> (relink key)",
+  "save: links are always kept verbatim; WriteOptions::embed_external Link (default) / Granted (embed media + stored text the AssetSource grants; session saves use it, so an embedded copy stays embedded and a link stays a link) / All (self-contained, every content-addressed external must be granted, else asset_absent with nothing written); bytes a record says travel with the document (embedded placed sources, ICC profiles) are embedded whenever granted",
+  "session: open adds UnavailableExternal loss notes; Session::externals() lists every reference of the current revision with link state (embedded = source or staged); retain_replaced_assets keeps embedded external bodies out of the replaced set",
+  "schema guard tests/externals.rs every_folio_reference_property_is_classified: every property of 13 committed Folio schemas whose name matches the reference vocabulary (digest, artifact, manifest, asset, media, audio, font, lut, profile, path, uri, url, file, link, source, catalog, image, story, object_id, working/blending space, external) must be classified, and every external:<kind> class must be an ExternalKind the package reports; it caught origin's new StudioPlacedSource/StudioIccProfile and layout properties during this slice (both now handled); mask_tiles digest guard extended with StudioIccProfile",
+  "viewer_render_records.rs header: masks proven in viewer_mask_package.rs since 8749f0a (one-line note)"
+ ],
+ "tests": {
+  "argv": "at 6b60b22 (rebased on f693651): cargo nextest run -p hsk-studio-package -p hsk-studio-session -p hsk-studio-harness --features hsk-studio-harness/media --test externals --test session_externals --test mask_tiles --test viewer_mask_package --test viewer_render_records --test motion_records_session (16/16); on 85026e2 base: same + session_contract, import_psd, viewer_develop_2 (47/47); earlier base: package foundation_contract, import_entries, streaming_save, session timeline_undo (55/55 with the above); clippy -p hsk-studio-package -p hsk-studio-session --all-targets: no warnings in lane files",
+  "exit": 0,
+  "sha": "6b60b22",
+  "passed": 16,
+  "failed": 0
+ },
  "blockers": [],
- "lock_wait_s": null,
+ "lock_wait_s": 2700,
  "bg_pids": [],
- "next": "push slice 1",
- "updated_at": "2026-10-15T12:30:00Z",
+ "next": "validator round on 6b60b22",
+ "updated_at": "2026-10-15T13:40:00Z",
  "notes": {
-  "worktree": "own worktree wt-studio-lanes/smb-package-completeness on lane/smb-package-completeness from origin c7b3d46 (lead 2026-10-15); uncommitted hunks carried from the shared tree as patches (session/source.rs foreign rustfmt hunk excluded) and reverted there with git apply -R (the foreign hunk left in place); STUDIO_OWNER=smb-package-completeness; .gameplan-active pointer (gitignored) at the worktree root names the Studio gameplan like the shared tree's",
-  "incident_8749f0a": "SMB-PACKAGE-MASK-TILES commit 8749f0a staged session.rs/lib.rs as whole files from the shared tree; by commit time SMB-AE-MOTION-RECORDS-2 had uncommitted lines in them (a check run earlier showed none), so origin did not compile until 00649b8 (lead report). Cause: whole-file staging after a stale foreign-hunk check; fixed by the per-lane worktree",
+  "spec_basis": "STU-ASSET-006 'placement_kind = linked means the document holds only the link and resolves bytes from CKC at render, export and publish time ... embedded means the bytes were copied into the document's own artifact stream'; STU-ASSET-007 closed link states (unauthorized never collapsed into missing); STU-ASSET-008 bulk binary in the artifact tier; STU-ASSET-009 fail closed (EmbedExternal::All); STU-VID-038 offline media keeps every edit and relinks by content hash; STU-LAY-132 link status incl. link.embedded; STU-IO-005 lossless of intent",
+  "worktree": "own worktree wt-studio-lanes/smb-package-completeness on lane/smb-package-completeness (lead 2026-10-15); uncommitted hunks carried from the shared tree as patches (session/source.rs foreign rustfmt hunk excluded) and reverted there with git apply -R (the foreign hunk left in place); STUDIO_OWNER=smb-package-completeness; a gitignored .gameplan-active at the worktree root names the Studio gameplan (the hook otherwise resolved WP-KERNEL-012's); rebased twice before push, diff --stat origin..HEAD = 15 lane paths only",
+  "incident_8749f0a": "SMB-PACKAGE-MASK-TILES commit 8749f0a staged session.rs/lib.rs as whole files from the shared tree; by commit time SMB-AE-MOTION-RECORDS-2 had uncommitted lines in them (a check run earlier showed none), so origin did not compile until 00649b8 (lead report). Cause: whole-file staging after a stale foreign-hunk check; the per-lane worktree removes the cause",
+  "retry_guard": "one compile failure (u8 literal in a test id) then a differently scoped run; schema guard failures after rebase were real new Folio kinds, fixed and amended before push (no failing commit pushed); no gameplan step added",
+  "behaviour_change": "reads now add UnavailableExternal loss notes for references the caller's resolver cannot reach (e.g. timeline media with a resolver whose media() keeps Folio's default Absent); WriteOptions gained embed_external (struct literals need ..Default); embeddable_digests is public",
+  "gaps": "fonts, composition audio and LUT references without a carried cube are reported unresolved (no loss): Folio's Resolver has no font/audio/LUT port (a Folio/steward change); linked placed sources report their recorded health only (the package reads no files, STU-ASSET-010); an import-original part is checked for its entry, not for the part inside the container; no Folio record carries a CKC asset_id/placement_kind (STU-ASSET-005 link record) yet, so embedded vs linked for media is structural (asset present) not declared",
   "cargo_lock": "not touched"
  }
 }
