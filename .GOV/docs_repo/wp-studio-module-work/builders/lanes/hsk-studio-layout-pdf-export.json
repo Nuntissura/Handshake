@@ -1,12 +1,20 @@
 {
- "crate": "hsk-studio-press",
+ "crate": "hsk-studio-press + hsk-studio-interop-layout",
  "lane": "SMB-LAYOUT-PDF-EXPORT",
  "status": "READY_FOR_VALIDATION",
- "phase": "slice 1 (press export builder) pushed; slice 2 (interop-layout lowering) BLOCKED on decision L1",
+ "phase": "slice 1 (press builder, 0451297) and slice 2 (interop-layout lowering, e83e699 + f97530d) pushed",
  "commits": [
   {
    "sha": "0451297",
    "subject": "press (SMB-LAYOUT-PDF-EXPORT slice 1): new-PDF export builder over the crate's own writers"
+  },
+  {
+   "sha": "e83e699",
+   "subject": "interop-layout (SMB-LAYOUT-PDF-EXPORT slice 2): Folio snapshot lowered onto press PdfExport"
+  },
+  {
+   "sha": "f97530d",
+   "subject": "interop-layout tests (SMB-LAYOUT-PDF-EXPORT slice 2): stream scanner starts at the dictionary end"
   }
  ],
  "capabilities_done": [
@@ -19,26 +27,27 @@
   "finish(cancel) -> (bytes, ExportReceipt): content via canon::write_ops + Flate, objects/xref/trailer via writer::write_document; trailer /ID = first 16 bytes of sha256 over the objects (deterministic, no dates); receipt re-reads the output with PdfDoc::open: pages, version, sha256, effective_destination_profile_sha256 (decoded profile), effective_output_condition, effective_oc_registry, effective_pdfx_profile None, conformance not_proven",
   "Typed ExportError (32 variants, stable snake_case codes, Press(PressError) for writer/reader refusals); builder unchanged after any refusal; no bytes on error",
   "Hostile bounds: image bytes vs max_decoded_bytes, raw aggregate vs max_decoded_total (checked before compressing), written aggregate vs max_bytes, max_pages, max_object_number (reserved before allocating), max_content_ops per page, |value| <= MAX_EXPORT_COORD 1e9 with |v| < 1e-9 written as 0 (so every number fits canon's 64-char numbers), text <= 4096 chars, /ToUnicode text 1..16 chars, glyph ids < maxp numGlyphs; module denies clippy::arithmetic_side_effects",
-  "lib.rs: mod export, pub use export::{...}, DESCRIPTOR api entries PdfExport::* and ExportError::code (JSON re-parsed after the edit: valid)"
+  "lib.rs: mod export, pub use export::{...}, DESCRIPTOR api entries PdfExport::* and ExportError::code (JSON re-parsed after the edit: valid)",
+  "slice 2 export_pdf(PdfExportInput{snapshot, design records, stories (LayoutProposal + ShapedParagraphs + PdfGlyph id/font/size/offsets per glyph), fonts (bytes, face, hyphen glyph), PdfAssets port (SVPT paths, raster tiles, SCPF profiles), press options/limits}) -> PdfExportOutput{bytes, press receipt, loss, page ids, glyph/path/tile counts}",
+  "slice 2 pages: every page of every spread; media = trim + bleed with inside/outside by PageSide; TrimBox; BleedBox when declared; spread coordinates (y down, pages side by side as layout folio_input) mapped to PDF space",
+  "slice 2 text layers: frame lines placed from layout x_start/baseline and layout advances, justification word_scale on whitespace glyphs and letter_gap between glyphs, glyph offsets, hyphen glyph on hyphenated lines; fonts embedded once with /W from advances and /ToUnicode from story clusters; runs grouped per font and size",
+  "slice 2 vector layers: nib OwnedPath (validated; quads to exact cubics; per-path fill rule) with the solid Fill/Stroke rows of fill_style_id / stroke_style_id paint styles; profile-bound colours ICCBased (profile bytes via the port, embedded once per hash), unassigned colours DeviceRGB",
+  "slice 2 raster layers: pigment ResolvedTile validate_shape/validate_hashes + prism profile_hash check; linear rgb_f32le quantised to 16-bit big-endian, ICCBased with the tile's own profile (no colour conversion), straight alpha as SMask; sizes checked before allocation",
+  "slice 2 losses (counted LossEntry): layer_appearance_ignored, layer_not_on_page_spread, layer_kind_not_exported, story_not_supplied, frame_not_placed, to_unicode_cluster_skipped, hyphen_glyph_missing, glyph_font_not_embedded, press font refusal codes, paint_colour_untagged, paint_profile_unresolved, paint_colour_out_of_range, paint_style_unresolved, paint_opacity_or_blend_ignored, paint_gradient, stroke_weight_unit, stroke_align_drawn_centred, stroke_dash_ignored, vector_path_unresolved, raster_unresolved, raster_tile_invalid, raster_profile_hash, raster_profile_not_embedded",
+  "slice 2 typed PdfExportError: canceled, stale_revision, invalid_input (glyphs_misaligned, font_index, glyph_metrics, line_glyph_range, frame_page, length_not_pt, negative_bleed, raster_placement, raster_plane), press codes; module denies clippy::arithmetic_side_effects"
  ],
  "tests": {
-  "argv": "nextest run -p hsk-studio-press --lib --test export -E 'binary(export) | test(/^export::/)'",
+  "argv": "nextest run -p hsk-studio-interop-layout (slice 2 + existing); slice 1: nextest run -p hsk-studio-press --lib --test export -E 'binary(export) | test(/^export::/)' (6 passed at 0451297)",
   "exit": 0,
-  "sha": "0451297",
-  "passed": 6,
+  "sha": "f97530d",
+  "passed": 13,
   "failed": 0
  },
- "blockers": [
-  {
-   "error": "slice 2 needs Studio edge hsk-studio-interop-layout -> hsk-studio-press (decision L1, brief topic ownership/deps); interop-layout allowed edges today: folio, layout, type, prism (WORKSPACE_RULES path-deps). Also open: nib paths / pigment tiles for interop-layout.",
-   "file_line": "builders/briefs/lane-smb-layout-pdf-export.md topic deps; builders/dep-requests.jsonl last line (2026-10-15T00:08:36Z)",
-   "attempts": 0
-  }
- ],
+ "blockers": [],
  "lock_wait_s": 0,
  "bg_pids": [],
- "next": "lead decision L1 + steward edge, then slice 2 export_pdf in hsk-studio-interop-layout; slice 3 subsetting/CFF/transparency groups/PDF/X-4 + independent conformance oracle",
- "updated_at": "2026-10-15T00:08:36Z",
+ "next": "slice 3: font subsetting, CFF (/FontFile3), transparency groups and blend modes, PDF/X-4 output intent + independent conformance oracle; Type ParagraphResult -> PdfGlyph adapter; layer-graph paint order",
+ "updated_at": "2026-10-15T00:31:35Z",
  "notes": {
   "spec_basis": [
    "STU-IO-006 row 20 (module 14 l.21336): 'Portable document format | .pdf | Vector/doc | I·EP·X | ... vector+text+raster; text preserved on export where not rasterized'",
@@ -58,16 +67,26 @@
   "clippy": "clippy -p hsk-studio-press --lib --tests: no press warnings (observe warnings pre-existing, other owner)",
   "v4_14_note": "0451297 lands in hsk-studio-press AFTER SMB-PRESS-PG-HARDEN's READY commit aafcde7 (not yet judged). It is additive: new files src/export.rs, src/export/**, tests/export.rs and lib.rs lines (mod export, pub use export, DESCRIPTOR api list entries); no existing press function body changed. The lead must list 0451297 in that claim or judge PG-HARDEN at aafcde7.",
   "own_cause_log": "first clippy: E0382 moved ExportError value in sfnt.rs (fixed with a const before the first commit); tests module inherited deny(arithmetic_side_effects) (fixed with saturating index math)",
+  "slice2_tests": [
+   "tests/pdf_export.rs snapshot_lowers_to_pdf: Folio snapshot (2-page facing spread, bleed inside 3 / outside 9 / top-bottom 9, justified 100 pt frame, vector square with untagged red fill and ICC-tagged blue 4 pt stroke, 2x2 linear raster tile, a text layer whose story is not supplied) laid out by reflow_typeset -> media boxes [0,0,312,418] via PdfDoc; independent scan of the inflated content streams: H at (29,359), justified line 1 ends at 129 (slot 100, hand-computed), w at (29,335) then +advance, path 53/359 -> 153/359 with f*, 4.0 w / 1 J / 2 j, /CS0 CS 0 0 1 SC, image cm 20 0 0 20 103 89, 16-bit samples and alpha equal hand values, linear working profile embedded, ToUnicode <00A1> <0048>; losses exactly paint_colour_untagged + story_not_supplied",
+   "tests/pdf_export.rs misaligned_stale_and_refused_inputs: glyphs_misaligned, font_index, glyph_metrics (NaN size), stale_revision 6 vs 7, line_glyph_range, garbage font -> loss font_unreadable x1 and glyph_font_not_embedded x2, no design records -> 0 paths, canceled token"
+  ],
+  "slice2_own_cause_log": "first run of snapshot_lowers_to_pdf: the test's stream scanner matched 'stream\\n' inside 'endstream' (test bug, not product); fixed in f97530d; the retry guard was cleared by that commit (route a)",
+  "slice2_deps": "press, nib, pigment, prism added to interop-layout Cargo.toml (decision L1b START_LOG 2026-10-15; steward edges 9154f50; dep-requests lines for press, nib and pigment)",
   "unverified": [
    "Acrobat/InDesign rendering of the output (D5 oracle); only hayro-interpret 0.7.0 and press's own reader read it",
    "StemV 80 and Flags 4 in the FontDescriptor are neutral values (TrueType has no StemV source); viewer tolerance UNVERIFIED beyond hayro",
-   "PDF/X or PDF/A conformance: not claimed, not proven (STU-PDF-002); needs an independent checker (slice 3)"
+   "PDF/X or PDF/A conformance: not claimed, not proven (STU-PDF-002); needs an independent checker (slice 3)",
+   "slice 2 paint order = StudioDocument::layers order, bottom first (layer graph not consulted)",
+   "slice 2 bleed inside_or_left/outside_or_right mapping by PageSide (right-hand and single-sided: inside = left)",
+   "slice 2 text fill is a caller value; Folio type-style fill is not lowered"
   ],
   "gaps": [
-   "slice 2 (interop-layout lowering) blocked on L1",
    "no font subsetting (whole font embedded), no CFF (/FontFile3), no transparency groups/blend modes, spots, overprint, marks, tagged PDF, links, encryption, presets, JPEG passthrough",
-   "DESCRIPTOR lists the api entries only; no export proof/limitations block yet"
+   "no Type ParagraphResult -> PdfGlyph adapter (the caller maps Glyph::glyph_id)",
+   "no render proof of slice 2 output inside interop-layout (slice 1's hayro render covers the builder)",
+   "DESCRIPTOR lists the press api entries only; interop-layout DESCRIPTOR not yet updated with export_pdf"
   ],
-  "claim": "No PASS claimed; READY_FOR_VALIDATION for slice 1 on pushed commit 0451297"
+  "claim": "No PASS claimed; READY_FOR_VALIDATION for slices 1+2 on pushed commits 0451297, e83e699, f97530d"
  }
 }

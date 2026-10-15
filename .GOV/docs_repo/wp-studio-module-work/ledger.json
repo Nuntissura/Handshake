@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T00:26:09Z",
+ "updated_at": "2026-10-15T00:33:22Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -4483,15 +4483,17 @@
   },
   {
    "lane_id": "SMB-LAYOUT-PDF-EXPORT",
-   "crate": "hsk-studio-press",
-   "phase": "build",
+   "crate": "hsk-studio-interop-layout",
+   "phase": "validation",
    "status": "READY_FOR_VALIDATION",
    "owner": "builder-layout-20261015b",
    "commits": [
-    "0451297"
+    "0451297",
+    "e83e699",
+    "f97530d"
    ],
    "verdicts": [],
-   "note": "slice 1 PdfExport writer in press READY (0451297); slice 2 interop-layout lowering after steward adds L1 edges (interop-layout -> press, nib, pigment)",
+   "note": "slice 1 press PdfExport 0451297; slice 2 interop-layout export_pdf e83e699 (+test-scanner fix f97530d)",
    "lane_file": "builders/lanes/hsk-studio-layout-pdf-export.json"
   },
   {
@@ -5208,6 +5210,16 @@
    "commits": [],
    "verdicts": [],
    "note": "render-cpu (then render-gpu) execute the content_aware_fill plan operator (pigment 25d6cec) by calling pigment content_aware::fill; refusal tests in both renderers until then; composite lowering of a content-aware layer edit"
+  },
+  {
+   "lane_id": "SMB-LAYOUT-PDF-EXPORT-2",
+   "crate": "hsk-studio-interop-layout",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-layout-20261015b",
+   "commits": [],
+   "verdicts": [],
+   "note": "draw in layer-graph order (not StudioDocument::layers order); Type-to-glyph adapter (no caller glyph ids); DESCRIPTOR lists export_pdf; render-back check (hayro) inside interop-layout; TrueType subsetting; transparency/blend modes via ExtGState + soft masks; text colour from Folio"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
