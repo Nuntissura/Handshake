@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T01:55:22Z",
+ "updated_at": "2026-10-15T01:56:08Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -5449,12 +5449,17 @@
   {
    "lane_id": "SMB-INTEROP-FIG-PAINTS",
    "crate": "hsk-studio-interop-fig",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-fig-inst-20261015",
-   "commits": [],
+   "commits": [
+    "b160fc3",
+    "7a07e4c",
+    "e5cc397"
+   ],
    "verdicts": [],
-   "note": "Figma strokes, gradient and image paints, effect-style drop/inner shadows mapped to folio vector/effect records so composite (vector-in-group via nib) renders them; vector groups composited as groups; Inter Bold (OFL) fixture font; basic-shapes parity re-measured"
+   "note": "basic-shapes mean diff 5.01/255 (was 20.25), 96.4% within 8/255; image fills + Inter Bold pending (SMB-INTEROP-FIG-PAINTS-2)",
+   "lane_file": "builders/lanes/hsk-studio-interop-fig-paints.json"
   },
   {
    "lane_id": "SMB-COMPOSITE-CLIP-RECORDS",
@@ -5574,6 +5579,16 @@
    "commits": [],
    "verdicts": [],
    "note": "StudioVectorMask attachments render nothing today; lower them to nib coverage masks (Photoshop vector masks, Illustrator clipping/opacity masks, SVG masks from interop-vector); interop-fig fig_composite pinned counts re-pinned in the same lane after SMB-INTEROP-FIG-PAINTS reports"
+  },
+  {
+   "lane_id": "SMB-INTEROP-FIG-PAINTS-2",
+   "crate": "hsk-studio-interop-fig",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-fig-inst-20261015",
+   "commits": [],
+   "verdicts": [],
+   "note": "image fills via test-only edge interop-fig -> interop-raster (approved); Inter Bold static OFL font from the official rsms/inter release (Operator standing download grant); re-measure basic-shapes"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",

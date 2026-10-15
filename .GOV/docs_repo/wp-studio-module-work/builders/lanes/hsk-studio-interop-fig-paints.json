@@ -1,0 +1,44 @@
+{
+  "crate": "hsk-studio-interop-fig",
+  "lane": "SMB-INTEROP-FIG-PAINTS",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slices 0-2 pushed; claim = b160fc3 + 7a07e4c + e5cc397 (image paint render and Inter Bold fixture blocked, see blockers)",
+  "commits": [
+    {"sha": "b160fc3", "subject": "interop-fig tests (SMB-INTEROP-FIG-PAINTS slice 0): exact nib coverage on the render path; strokes and gradients render"},
+    {"sha": "7a07e4c", "subject": "interop-fig (SMB-INTEROP-FIG-PAINTS slice 1): groups composite as groups, effect styles, stroke caps/dashes/miter, clips pushed through pass-through groups"},
+    {"sha": "e5cc397", "subject": "interop-fig (SMB-INTEROP-FIG-PAINTS slice 2): gradients placed in document px; paint render proofs"}
+  ],
+  "capabilities_done": [
+    "Render path selects composite VectorCoverage::Exact (lead request, b160fc3) and serves painted gradient tiles; fig_composite refusal pins updated in the same commit",
+    "Groups composite as groups: vector sources declare an image-typed out port (Folio SMB-FOLIO-VECTOR-IMAGE-PORT, composite c917333/5898a82); every page is one output; group_flattened_vector_not_group_input gone on all fixtures (graph pins 18/17/1, 25/23/1, 45/43/1)",
+    "Strokes: weight, align, join (existing) plus strokeCap NONE/ROUND/SQUARE -> butt/round/projecting (marker caps = typed loss stroke_cap_marker_no_folio_home), dashPattern (odd pattern written twice; negative/all-zero = typed loss), miterLimit (outside 1..=500 = typed loss); rendered by composite through nib",
+    "Gradients: linear and radial onto StudioGradient with transform = node absolute transform x size x inverse(paint transform) (was missing the absolute placement: the fixture ellipse rendered as its end stop); angular/diamond = typed loss gradient_kind_no_folio_home (Folio has no conic/diamond geometry)",
+    "Image paints: FILL/FIT/CROP(STRETCH)/TILE StudioImagePaint records unchanged (lane SMB-INTEROP-FIG-FOLIO-KINDS); rendering stays the typed refusal image_paint_unresolved (no JPEG decode in the test harness, blocker)",
+    "Effect styles: styleIdForEffect resolves to the local EFFECT style node; its drop/inner shadows become the node's effect records (style replaces differing inline effects: typed loss); expansion groups carry instance effects; a group with effects is isolated Normal (note group_with_effects_isolated); styleIdForFill/StrokeFill link = typed loss paint_style_reference_not_mapped; library style assetRef = typed loss",
+    "Clips and masks attached to a pass-through group are pushed down to its children (composite now applies vector clip records and refuses a mask on a pass-through layer); nested clipping frames keep the inner clip (typed loss outer_clip_dropped_inner_kept: 4/3/24)",
+    "Render harnesses hide composite-refused leaves (counted by reason) because a refused leaf blocks its whole page group"
+  ],
+  "tests": {
+    "argv": "cargo nextest run -p hsk-studio-interop-fig --no-fail-fast",
+    "exit": 0,
+    "sha": "e5cc397",
+    "passed": 41,
+    "failed": 0
+  },
+  "blockers": [
+    {"error": "Inter Bold OFL fixture not added: no Inter Bold file exists on this machine (searched type fixtures, C:/Windows/Fonts, user fonts, Figma install, oracle corpus, D:/Projects to depth 6: only Inter-Regular, Inter-SemiBold, Inter variable); fetching it is a download that needs the Operator's approval in chat (agent instructions do not count). An instance of the variable font would be a modified version under the OFL Reserved Font Name 'Inter'", "file_line": "crates/hsk-studio-interop-fig/tests/fixtures (no file added)", "attempts": 1},
+    {"error": "Image paint rendering needs a JPEG decode in tests: dev edge interop-fig -> interop-raster requested in dep-requests.jsonl (REQUEST ONLY, not added, not pushed); needs lead decision", "file_line": "tests/common/mod.rs Assets::image returns None", "attempts": 0}
+  ],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "after approvals: add Inter-Bold.ttf (OFL, provenance + licence in tests/fixtures/provenance.json) and grant it in the text outputs; decode the JPEG image part with interop-raster in the harness and render the image fill; re-measure basic-shapes and components",
+  "updated_at": "2026-10-15T01:54:02Z",
+  "notes": {
+    "spec_basis": "STU-IO-186 (FIG per-object/property mapping with unsupported/loss decisions, never silent exclusions); Folio paint model STU-VEC-134/144/145 (stroke weight/cap/join/align/miter/dash), STU-VEC-137 gradients, STU-VEC-053 clip/mask records, STU-CMP-092 graph order; quoted via folio paint.rs/vector.rs field docs",
+    "measured": "fig_paints: stroke border worst 0.25/255; linear gradient worst 1.42/255 along the ellipse centre row; effect-style shadow worst 1.22/255 below the three buttons (229/255 grey drawn); multiply region within 4/255. Whole-fixture (fig_instances_frames): prototype screens within 8/255 0.9919/0.9927/0.9925, mean 0.7192/0.6832/0.6871, p99 0.75/0.50/0.87 (exact coverage); basic-shapes whole artboard mean 5.0056/255, 96.41 % within 8/255 (20.251/88.61 % at the start of the previous lane, 6.4212/94.23 % with exact coverage before the gradient fix). Residue in basic-shapes: image fill and the text (Inter Bold run): Figma parity UNVERIFIED",
+    "exact_coverage_commit": "b160fc3 is the one commit the composite lane waits for (VectorCoverage::Exact on the interop-fig render path + fig_composite refusal pins)",
+    "unverified": "Figma's frame stroke order over children; whether a Figma frame with effects isolates blending; nested clip intersection (outer clip dropped where an inner one exists); odd dash pattern repetition matches Figma's",
+    "deps": "no dependency change pushed; dev edge interop-fig -> interop-raster requested only",
+    "retry_guard": "no gameplan block; no gameplan step added"
+  }
+}
