@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T11:46:03Z",
+ "updated_at": "2026-10-15T11:46:43Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -7268,12 +7268,22 @@
   {
    "lane_id": "SMB-PS-ADJUST-STYLES",
    "crate": "hsk-studio-pigment",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-ps-adjust-20261015",
-   "commits": [],
+   "commits": [
+    "863ba0a",
+    "9e2a5eb",
+    "d8ae88e",
+    "b116683",
+    "f3bf106",
+    "4883f25",
+    "8f6e59b",
+    "555f15b"
+   ],
    "verdicts": [],
-   "note": "PS gaps: remaining adjustment layers, bevel/satin/overlays/stroke styles, knockout + Blend-If, smart objects"
+   "note": "judge slice 2 at 4883f25 (b116683 alone fails a test fixed by f3bf106); changed 5 other lanes' tests (gpu_plan, effects_wave2, render_plan_lowering, cpu_extended, adjustment_records) -> those lanes reopen",
+   "lane_file": "builders/lanes/hsk-studio-ps-adjust-styles.json"
   },
   {
    "lane_id": "SMB-NEXTEST-GPU-GROUP",
@@ -7476,6 +7486,16 @@
    "commits": [],
    "verdicts": [],
    "note": "F-R33-1 split develop camera_colour corpus test per file (120 s timeout); F-R33-2 V4-01 deny on interop-layout idml_longdoc.rs/idml_decode.rs; F-R33-3 reel DESCRIPTOR tolerance wording matches asserted bounds; F-R32-8 pulse DESCRIPTOR test citation"
+  },
+  {
+   "lane_id": "SMB-PS-ADJUST-STYLES-2",
+   "crate": "hsk-studio-render-gpu",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "GPU shaders for the 12 new adjustments and new styles; pattern overlay; chisel/stroke emboss/soften; deep knockout + root/pass-through placements; smart filters over placed instances; PSD import SoLd/PlLd, grdm, clrL"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
