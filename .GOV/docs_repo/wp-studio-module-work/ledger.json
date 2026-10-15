@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T01:49:10Z",
+ "updated_at": "2026-10-15T01:55:22Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -5459,12 +5459,16 @@
   {
    "lane_id": "SMB-COMPOSITE-CLIP-RECORDS",
    "crate": "hsk-studio-composite",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-composite-comp-20261015",
-   "commits": [],
+   "commits": [
+    "6efc033",
+    "4df822c"
+   ],
    "verdicts": [],
-   "note": "clip records (Figma frame clipping) and clipped layers lowered to masks; flip VectorCoverage default to Exact after SMB-INTEROP-FIG-PAINTS updates fig_composite expectations; composition text-layer test; adjustment-layer transforms"
+   "note": "7 commits 6efc033..4df822c; VectorCoverage::Exact now default (interop-fig b160fc3 re-pinned)",
+   "lane_file": "builders/lanes/hsk-studio-composite-clip-records.json"
   },
   {
    "lane_id": "SMB-HARNESS-DEVELOP-3",
@@ -5560,6 +5564,16 @@
    "commits": [],
    "verdicts": [],
    "note": "Audition AU-08..10/13: dynamics (comp/limit/expand/gate, sidechain), delay + algorithmic reverb, spectral noise reduction, BS.1770 loudness if absent"
+  },
+  {
+   "lane_id": "SMB-COMPOSITE-VECTOR-MASK",
+   "crate": "hsk-studio-composite",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-composite-vmask-20261015",
+   "commits": [],
+   "verdicts": [],
+   "note": "StudioVectorMask attachments render nothing today; lower them to nib coverage masks (Photoshop vector masks, Illustrator clipping/opacity masks, SVG masks from interop-vector); interop-fig fig_composite pinned counts re-pinned in the same lane after SMB-INTEROP-FIG-PAINTS reports"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",

@@ -1,0 +1,44 @@
+{
+ "crate": "hsk-studio-composite",
+ "lane": "SMB-COMPOSITE-CLIP-RECORDS",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "items 1-4 pushed (6efc033..4df822c, the 7 commits listed): Folio vector clips, clipped composition layers, text composition test, transformed adjustment layers, nib Exact as the default",
+ "commits": [
+  {"sha": "6efc033", "subject": "composite + render-cpu + render-gpu (SMB-COMPOSITE-CLIP-RECORDS slice 1): Folio vector clips cut the clipped layers"},
+  {"sha": "8c6f959", "subject": "render-cpu (SMB-COMPOSITE-CLIP-RECORDS slice 1 proof): pinned digest of the clipped nib vector frame"},
+  {"sha": "2433363", "subject": "composite (SMB-COMPOSITE-CLIP-RECORDS slice 2): clipped layers in compositions (clip to the nearest earlier unclipped layer)"},
+  {"sha": "b1e61ff", "subject": "composite (SMB-COMPOSITE-CLIP-RECORDS item 2): composition test with a text layer"},
+  {"sha": "a489acc", "subject": "composite (SMB-COMPOSITE-CLIP-RECORDS item 3): transformed adjustment layers act inside their moved bounds"},
+  {"sha": "db9dc73", "subject": "composite (SMB-COMPOSITE-CLIP-RECORDS item 4): nib exact coverage is the VectorResolution default"},
+  {"sha": "4df822c", "subject": "render-cpu (SMB-COMPOSITE-CLIP-RECORDS proofs): golden digests of the clipped-layer and moved-adjustment composition frames"}
+ ],
+ "capabilities_done": [
+  "item 1a vector clips: prepare_vectors reads StudioMaskAttachment.clip_id -> StudioVectorClip source geometry under clip_rule -> nib outline (PreparedVectors::clip; folio-free with_clip); lowering gives each clipped layer a coverage_u8 mask = nib rasterize of the outline over the layer extent united with the clip bounds (InputsLowering.clip_planes, served by vector_mask; clipped roots wrapped; vector_layer_render_plan wraps a clipped vector layer); refusals vector_clip_with_mask, vector_clip_unresolved",
+  "item 1b clipped composition layers: SceneLayer.clipped (Folio clipped) -> pigment clip-to-base in the composition root group, base = nearest earlier unclipped content layer, skipped base drops its clipped layers; refusals composition_clip_without_base, composition_clip_base_adjustment, composition_clipped_matte; static subtrees lowered unclipped",
+  "item 2: composition test with a text layer (static path == standalone text plan, owned Type coverage, rotation/opacity streams, window)",
+  "item 3: transformed adjustment layers act inside the composition rect through their matrix (nib coverage mask, coverage_u16le, charged before allocation); composition_adjustment_transform removed",
+  "item 4: VectorCoverage::Exact is the default (condition met: interop-fig b160fc3 SMB-INTEROP-FIG-PAINTS selects Exact and re-pinned fig_composite); Supersampled selectable and keeps the Folio stroke/gradient refusals"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-composite --features motion (64/64) and default (53/53) at db9dc73; -p hsk-studio-render-gpu --test vector_paint --test vector_nib --test composition_frames (4/4, live adapter); -p hsk-studio-render-cpu --test composition_frames --test vector_nib --test vector_paint (4/4) on a scratch export of committed code (STUDIO_OWNER smb-composite-clip-records-scratch; see notes)",
+  "exit": 0,
+  "sha": "4df822c",
+  "passed": 125,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "validator round on the commits listed",
+ "updated_at": "2026-10-15T01:54:07Z",
+ "notes": {
+  "spec_basis": "STU-VEC-053/153 and folio StudioVectorClip/StudioMaskAttachment (clip region = source vector geometry under the clip rule), STU-CMP-010 (clipping/masks before transform, opacity after), STU-CMP-015 adjustment layers",
+  "proofs": "composite clip_records: clip planes == nib rasterize of the clip outline (NONZERO overriding the source's even-odd), planes cover layer extent + clip bounds, refusals; render-cpu vector_nib clipped case == oracle bit for bit, golden b7179c37..62b39; render-gpu clipped max 1.79e-7; composition_frames comp7 (clipped layer over a rotating base) CPU max 5.96e-8 vs the clip-run oracle, GPU 5.96e-8; comp6t (moved adjustment) CPU bit-exact, GPU 1.19e-7; composition_text structural; composite composition_adapter clipped-layer lowering + clip_without_base",
+  "cpu_proof_route": "the shared tree's render-cpu lib does not compile from another lane's uncommitted work (plan_sink/display.rs ClipStore), so CPU proofs ran on a git-archive export of committed HEAD (8811e78 plus this lane's composite and test files at 4df822c, touched) with its own STUDIO_OWNER (WORKSPACE rules for scratch trees); first run: golden list lacked the new cases (by design), pinned in 4df822c, rerun 4/4",
+  "default_flip": "checked origin: b160fc3 interop-fig tests (SMB-INTEROP-FIG-PAINTS slice 0) select VectorCoverage::Exact and removed the paint_gradient / vector_stroke_not_rendered pins, so the flip landed (db9dc73); composite tests that document the supersampled rule now select it explicitly; renderer vector_paint tests are plane-agnostic and pass with Exact",
+  "outside_owned_paths": "render-cpu/render-gpu tests/vector_nib.rs (waived B1 files, clipped cases added) and render-cpu tests/composition_frames.rs golden list",
+  "followups": "1) StudioVectorMask attachments (ALPHA/VECTOR/LUMINANCE masks) are still not rendered by composite (pre-existing; refusing them would change interop-fig pins: needs a lane with interop-fig); 2) the evaluation ledger does not list the clip mask operator (the lowering ledger does); 3) clip-run and adjustment-bounds semantics vs After Effects/Figma UNVERIFIED (D5)",
+  "retry_guard": "route (a) twice (vector_lowering expectation after the default flip committed in db9dc73; golden lists); one hook block because a commit and the rerun were in one command (the hook evaluates HEAD before the commit): split into two commands",
+  "v4": "V4-01 deny(arithmetic_side_effects) on touched modules (clip rect checks, plane sizes); V4-02 clip planes bounded by MAX_CLIP_PIXELS, adjustment bounds planes charged via SceneLimits; V4-03 GPU gated"
+ }
+}
