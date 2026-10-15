@@ -11,51 +11,7 @@ use thiserror::Error;
 use super::ids::ModelInstanceId;
 use super::state::ModelSessionState;
 
-/// Stable error class identifier used by the failure-fingerprint circuit
-/// breaker. The breaker keys on `(error_class, truncated_message)` so the
-/// `class` must be a coarse, stable discriminant — NOT the per-instance id or
-/// a per-task value, otherwise one systemic failure would never accumulate a
-/// signature across sessions.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum SwarmErrorClass {
-    ConcurrencyCapReached,
-    LifetimeSpawnCeilingReached,
-    BudgetExhausted,
-    BreakerOpen,
-    UnknownInstance,
-    DuplicateInstance,
-    CheckoutLeaseUnavailable,
-    InvalidStateTransition,
-    FactoryFailed,
-    ProviderNotConfigured,
-    ReclaimFailed,
-    LedgerFailed,
-    EventSinkFailed,
-    Cancelled,
-    Internal,
-}
-
-impl SwarmErrorClass {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::ConcurrencyCapReached => "concurrency_cap_reached",
-            Self::LifetimeSpawnCeilingReached => "lifetime_spawn_ceiling_reached",
-            Self::BudgetExhausted => "budget_exhausted",
-            Self::BreakerOpen => "breaker_open",
-            Self::UnknownInstance => "unknown_instance",
-            Self::DuplicateInstance => "duplicate_instance",
-            Self::CheckoutLeaseUnavailable => "checkout_lease_unavailable",
-            Self::InvalidStateTransition => "invalid_state_transition",
-            Self::FactoryFailed => "factory_failed",
-            Self::ProviderNotConfigured => "provider_not_configured",
-            Self::ReclaimFailed => "reclaim_failed",
-            Self::LedgerFailed => "ledger_failed",
-            Self::EventSinkFailed => "event_sink_failed",
-            Self::Cancelled => "cancelled",
-            Self::Internal => "internal",
-        }
-    }
-}
+pub use handshake_swarm_breaker::SwarmErrorClass;
 
 #[derive(Debug, Error)]
 pub enum SwarmError {

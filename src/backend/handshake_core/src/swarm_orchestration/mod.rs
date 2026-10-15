@@ -42,7 +42,7 @@
 //!   spawn ceiling default.
 //! - [`crate::flight_recorder`]: `FlightRecorderEvent` for the production sink.
 
-pub mod breaker;
+pub use handshake_swarm_breaker::breaker;
 pub(crate) mod checkout_lease;
 pub mod coordinator;
 pub mod error;
@@ -54,7 +54,7 @@ pub mod operator_chat;
 pub mod production_factory;
 pub mod resource_scope;
 pub mod routing;
-pub mod schedule;
+pub use handshake_swarm_schedule as schedule;
 pub mod state;
 pub mod state_recovery;
 pub mod worktree_vm_registry;

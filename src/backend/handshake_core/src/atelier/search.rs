@@ -28,6 +28,14 @@ use std::collections::HashMap;
 use surrealdb::types::{Datetime, RecordId, SurrealValue, Uuid as SurrealUuid};
 use uuid::Uuid;
 
+pub(crate) use handshake_ckc_search_metrics::normalize_tag;
+use handshake_ckc_search_metrics::{
+    ckc_candidate_matches_query_terms, ckc_fuzzy_score, ckc_query_terms,
+    compute_similarity_from_image_bytes, contains_all_tags, cosine_similarity_stored,
+    hamming_distance_hex64, is_hex64, join_search_text, merged_tag_sets,
+    normalized_search_tags, tags_text, text_snippet,
+};
+
 use super::refs::{
     character_ref, collection_ref, media_asset_ref, parse_character_ref, parse_collection_ref,
     parse_media_asset_ref, parse_sheet_version_ref, parse_tag_ref, sheet_version_ref, tag_ref,
@@ -37,7 +45,7 @@ use super::{
     AtelierStore, BulkTagRequest,
 };
 use crate::llm::{EmbeddingRequest, LlmClient};
-use std::collections::{BTreeSet, HashSet};
+use std::collections::BTreeSet;
 
 /// Event families emitted by the search/tags/similarity submodule (MT-005).
 ///
@@ -514,18 +522,6 @@ pub struct SimilarityRebuildJob {
     pub updated_at_utc: DateTime<Utc>,
 }
 
-/// dHash hex must be exactly 16 lowercase hex chars (64 bits). Mirrors legacy source
-/// `dhash.js::isHex64`.
-fn is_hex64(s: &str) -> bool {
-    let t = s.trim();
-    t.len() == 16 && t.chars().all(|c| c.is_ascii_hexdigit())
-}
-
-/// Normalize tag text: trim + lowercase so the dictionary dedupes case- and
-/// whitespace-insensitively, matching legacy source tag handling intent.
-pub(crate) fn normalize_tag(text: &str) -> String {
-    text.trim().to_ascii_lowercase()
-}
 
 fn normalized_saved_search_tags(field: &str, tags: &[String]) -> AtelierResult<Vec<String>> {
     let mut normalized = Vec::new();
@@ -593,85 +589,6 @@ fn saved_search_tags_from_json(value: serde_json::Value) -> Vec<String> {
         .unwrap_or_default()
 }
 
-/// Hamming distance between two 16-char hex (64-bit) hashes. Mirrors legacy source
-/// `dhash.js::hammingDistanceHex64`: invalid inputs return the max distance 64.
-fn hamming_distance_hex64(a: &str, b: &str) -> i32 {
-    let sa = a.trim().to_ascii_lowercase();
-    let sb = b.trim().to_ascii_lowercase();
-    if !is_hex64(&sa) || !is_hex64(&sb) {
-        return 64;
-    }
-    let na = u64::from_str_radix(&sa, 16).unwrap_or(u64::MAX);
-    let nb = u64::from_str_radix(&sb, 16).unwrap_or(0);
-    (na ^ nb).count_ones() as i32
-}
-
-fn compute_similarity_from_image_bytes(
-    image_bytes: &[u8],
-) -> AtelierResult<(String, serde_json::Value)> {
-    let image = image::load_from_memory(image_bytes).map_err(|err| {
-        AtelierError::Validation(format!("similarity image decode failed: {err}"))
-    })?;
-    let dhash_hex = compute_dhash_hex(&image);
-    let palette_json = compute_palette_json(&image);
-    Ok((dhash_hex, palette_json))
-}
-
-fn compute_dhash_hex(image: &image::DynamicImage) -> String {
-    let gray = image.to_luma8();
-    let resized = image::imageops::resize(&gray, 9, 8, image::imageops::FilterType::Triangle);
-    let mut hash = 0u64;
-    let mut bit = 0u32;
-    for y in 0..8 {
-        for x in 0..8 {
-            let left = resized.get_pixel(x, y)[0];
-            let right = resized.get_pixel(x + 1, y)[0];
-            if left > right {
-                hash |= 1u64 << (63 - bit);
-            }
-            bit += 1;
-        }
-    }
-    format!("{hash:016x}")
-}
-
-fn compute_palette_json(image: &image::DynamicImage) -> serde_json::Value {
-    let rgb = image.to_rgb8();
-    let sample = image::imageops::thumbnail(&rgb, 64, 64);
-    let mut counts: HashMap<[u8; 3], i64> = HashMap::new();
-    for pixel in sample.pixels() {
-        let [r, g, b] = pixel.0;
-        *counts.entry([r, g, b]).or_insert(0) += 1;
-    }
-    let sampled_pixels: i64 = counts.values().sum();
-    let mut entries: Vec<(String, i64)> = counts
-        .into_iter()
-        .map(|([r, g, b], count)| (format!("#{r:02x}{g:02x}{b:02x}"), count))
-        .collect();
-    entries.sort_by(|(hex_a, count_a), (hex_b, count_b)| {
-        count_b.cmp(count_a).then_with(|| hex_a.cmp(hex_b))
-    });
-    let dominant: Vec<serde_json::Value> = entries
-        .into_iter()
-        .take(8)
-        .map(|(hex, count)| {
-            serde_json::json!({
-                "hex": hex,
-                "count": count,
-                "ratio": if sampled_pixels == 0 {
-                    0.0
-                } else {
-                    count as f64 / sampled_pixels as f64
-                },
-            })
-        })
-        .collect();
-    serde_json::json!({
-        "algorithm": "rgb_exact_thumbnail_v1",
-        "sampled_pixels": sampled_pixels,
-        "dominant": dominant,
-    })
-}
 
 #[derive(SurrealValue)]
 struct SimilarityRebuildJobRow {
@@ -2263,7 +2180,7 @@ impl AtelierStore {
         asset_internal_id: Uuid,
         image_bytes: &[u8],
     ) -> AtelierResult<SimilarityProjection> {
-        let (dhash_hex, palette_json) = compute_similarity_from_image_bytes(image_bytes)?;
+        let (dhash_hex, palette_json) = compute_similarity_from_image_bytes(image_bytes).map_err(AtelierError::Validation)?;
         self.upsert_similarity_projection(asset_internal_id, Some(&dhash_hex), palette_json)
             .await
     }
@@ -2289,7 +2206,7 @@ impl AtelierStore {
             AtelierError::Internal("similarity rebuild create returned no row".into())
         })?)?;
 
-        let computed = compute_similarity_from_image_bytes(image_bytes);
+        let computed = compute_similarity_from_image_bytes(image_bytes).map_err(AtelierError::Validation);
         let (dhash_hex, palette_json) = match computed {
             Ok(value) => value,
             Err(err) => {
@@ -2601,155 +2518,6 @@ fn wants_combined(modes: &[CkcSearchMode]) -> bool {
     modes.iter().any(|mode| *mode == CkcSearchMode::Combined)
 }
 
-fn text_snippet(text: &str, query: &str) -> String {
-    let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
-    if text.len() <= 220 {
-        return text;
-    }
-    let lower = text.to_ascii_lowercase();
-    let needle = query.trim().to_ascii_lowercase();
-    let start = if needle.is_empty() {
-        0
-    } else {
-        lower
-            .find(&needle)
-            .map(|idx| idx.saturating_sub(60))
-            .unwrap_or(0)
-    };
-    let end = (start + 220).min(text.len());
-    let mut start = start;
-    while start > 0 && !text.is_char_boundary(start) {
-        start -= 1;
-    }
-    let mut end = end;
-    while end < text.len() && !text.is_char_boundary(end) {
-        end += 1;
-    }
-    text[start..end].to_owned()
-}
-
-fn normalized_search_tags(tags: &[String]) -> Vec<String> {
-    let mut out = Vec::new();
-    for tag in tags {
-        let normalized = normalize_tag(tag);
-        if !normalized.is_empty() && !out.iter().any(|existing| existing == &normalized) {
-            out.push(normalized);
-        }
-    }
-    out.sort();
-    out
-}
-
-fn merged_tag_sets(sets: &[&[String]]) -> Vec<String> {
-    let mut out: Vec<String> = Vec::new();
-    for set in sets {
-        for tag in set.iter() {
-            let normalized = normalize_tag(tag);
-            if !normalized.is_empty() && !out.contains(&normalized) {
-                out.push(normalized);
-            }
-        }
-    }
-    out.sort();
-    out
-}
-
-fn contains_all_tags(actual: &[String], required: &[String]) -> bool {
-    required
-        .iter()
-        .all(|required| actual.iter().any(|tag| tag == required))
-}
-
-fn ckc_query_terms(query: &str) -> Vec<String> {
-    let mut terms = Vec::new();
-    for term in query
-        .to_ascii_lowercase()
-        .split(|ch: char| !ch.is_alphanumeric())
-        .map(str::trim)
-        .filter(|term| !term.is_empty())
-    {
-        if !terms.iter().any(|existing| existing == term) {
-            terms.push(term.to_owned());
-        }
-    }
-    terms
-}
-
-fn ckc_candidate_matches_query_terms(candidate: &CkcSearchCandidate, terms: &[String]) -> bool {
-    if terms.is_empty() {
-        return true;
-    }
-    let haystack = format!("{}\n{}", candidate.title, candidate.search_text).to_ascii_lowercase();
-    terms.iter().all(|term| haystack.contains(term))
-}
-
-/// pg_trgm-shaped trigrams: each alphanumeric word is padded with two leading
-/// and one trailing blank before windowing, so word starts weigh more than word
-/// interiors exactly as the PostgreSQL extension scores them.
-fn ckc_trigrams(value: &str) -> HashSet<String> {
-    value
-        .to_lowercase()
-        .split(|ch: char| !ch.is_alphanumeric())
-        .filter(|word| !word.is_empty())
-        .flat_map(|word| {
-            let padded = format!("  {word} ").chars().collect::<Vec<_>>();
-            padded
-                .windows(3)
-                .map(|window| window.iter().collect::<String>())
-                .collect::<Vec<_>>()
-        })
-        .collect()
-}
-
-/// Jaccard similarity over trigram sets, the `similarity()` definition of
-/// pg_trgm (the reference `atelier_trgm_similarity` SQL function).
-fn ckc_trigram_similarity(left: &str, right: &str) -> f64 {
-    let left = ckc_trigrams(left);
-    let right = ckc_trigrams(right);
-    if left.is_empty() || right.is_empty() {
-        return 0.0;
-    }
-    let common = left.intersection(&right).count();
-    common as f64 / (left.len() + right.len() - common) as f64
-}
-
-/// The reference `fuzzy_score`: the greatest of trigram similarity against the
-/// search text, trigram similarity against the title, and 1.0 for a literal
-/// case-insensitive containment in either.
-fn ckc_fuzzy_score(title: &str, search_text: &str, query: &str) -> f64 {
-    if query.is_empty() {
-        return 0.0;
-    }
-    let lower_query = query.to_ascii_lowercase();
-    let mut score = ckc_trigram_similarity(search_text, query)
-        .max(ckc_trigram_similarity(title, query));
-    if search_text.to_ascii_lowercase().contains(&lower_query)
-        || title.to_ascii_lowercase().contains(&lower_query)
-    {
-        score = score.max(1.0);
-    }
-    score
-}
-
-fn cosine_similarity_stored(stored: &[f64], query: &[f32]) -> f64 {
-    if stored.len() != query.len() || stored.is_empty() {
-        return 0.0;
-    }
-    let mut dot = 0.0_f64;
-    let mut left = 0.0_f64;
-    let mut right = 0.0_f64;
-    for (a, b) in stored.iter().zip(query.iter()) {
-        let b = f64::from(*b);
-        dot += a * b;
-        left += a * a;
-        right += b * b;
-    }
-    if left <= 0.0 || right <= 0.0 {
-        return 0.0;
-    }
-    dot / (left.sqrt() * right.sqrt())
-}
-
 async fn embed_ckc_text(llm: &dyn LlmClient, text: &str) -> AtelierResult<Option<Vec<f32>>> {
     if text.trim().is_empty() {
         return Ok(None);
@@ -2800,22 +2568,6 @@ fn candidate_scope_refs(candidate: &CkcSearchCandidate) -> Vec<String> {
     refs.sort();
     refs.dedup();
     refs
-}
-
-fn join_search_text(parts: &[Option<&str>]) -> String {
-    parts
-        .iter()
-        .filter_map(|part| part.map(str::trim).filter(|part| !part.is_empty()))
-        .collect::<Vec<_>>()
-        .join("\n")
-}
-
-fn tags_text(tags: &[String]) -> Option<String> {
-    if tags.is_empty() {
-        None
-    } else {
-        serde_json::to_string(tags).ok()
-    }
 }
 
 fn tag_note_scope_from_stored(scope_ref: String) -> Option<String> {
@@ -3737,7 +3489,7 @@ impl AtelierStore {
 
         let mut scored = Vec::new();
         for candidate in candidates {
-            let token_match = ckc_candidate_matches_query_terms(&candidate, &query_terms);
+            let token_match = ckc_candidate_matches_query_terms(&candidate.title, &candidate.search_text, &query_terms);
             let fuzzy_matched =
                 query.is_empty() || token_match || candidate.fuzzy_score > CKC_FUZZY_THRESHOLD;
             let fuzzy_score = if token_match && !query.is_empty() {
@@ -3839,41 +3591,6 @@ mod unit_tests {
     use super::*;
     use crate::storage::surreal::{bootstrap_schema, SurrealStorage, SurrealStorageConfig};
 
-    #[test]
-    fn hex64_validation() {
-        assert!(is_hex64("0123456789abcdef"));
-        assert!(is_hex64("FFFFFFFFFFFFFFFF"));
-        assert!(!is_hex64("0123456789abcde")); // 15 chars
-        assert!(!is_hex64("0123456789abcdeg")); // non-hex
-        assert!(!is_hex64(""));
-    }
-
-    #[test]
-    fn hamming_matches_legacy_source_semantics() {
-        // Identical hashes => 0.
-        assert_eq!(
-            hamming_distance_hex64("0000000000000000", "0000000000000000"),
-            0
-        );
-        // Single bit set => 1.
-        assert_eq!(
-            hamming_distance_hex64("0000000000000000", "0000000000000001"),
-            1
-        );
-        // All bits differ => 64.
-        assert_eq!(
-            hamming_distance_hex64("0000000000000000", "ffffffffffffffff"),
-            64
-        );
-        // Invalid input => max distance 64.
-        assert_eq!(hamming_distance_hex64("zzzz", "0000000000000000"), 64);
-    }
-
-    #[test]
-    fn tag_normalization() {
-        assert_eq!(normalize_tag("  BlondE "), "blonde");
-        assert_eq!(normalize_tag("Red Hair"), "red hair");
-    }
 
     #[tokio::test]
     async fn similarity_exclusion_uses_uuid_record_identity_in_embedded_surreal() {

@@ -1,0 +1,15 @@
+[workspace]
+
+[package]
+name = "handshake_swarm_schedule"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+chrono = { version = "0.4", features = ["serde", "clock"] }
+icalendar = "0.17.10"
+tokio-cron-scheduler = "0.15.1"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
