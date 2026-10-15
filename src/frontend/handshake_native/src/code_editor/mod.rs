@@ -71,7 +71,7 @@ pub mod editor_view;
 // is ONE undo step via the panel's whole-buffer `set_text` (the MT-035/050 single-undo pattern).
 pub mod file_meta;
 pub mod find_replace;
-pub mod folding;
+pub use handshake_code_structure::folding;
 // WP-KERNEL-012 MT-071 (E11 — VS Code status-bar parity): language-mode detection + per-document
 // override. Strict precedence UserOverride > Shebang > Content > Extension layered ABOVE the MT-001
 // extension-only highlight.rs path; `available_languages()` is sourced from the MT-001 LanguageRegistry
@@ -111,7 +111,7 @@ pub mod navigation;
 // lens). Lists rich docs that reference the focused symbol via interop::find_notes_referencing_symbol;
 // clicking a row dispatches the shared open-document command on the MT-031 bus.
 pub mod note_refs_panel;
-pub mod outline;
+pub use handshake_code_structure::outline;
 pub mod panel;
 // WP-KERNEL-012 MT-054 (E1 — VS Code parity): editor-chrome decoration math. Pure, egui-free functions
 // over the MT-001 TextBuffer: matching-bracket highlight (VS Code cursor adjacency, BOUNDED scan —
@@ -137,11 +137,11 @@ pub mod signature_help;
 // WP-KERNEL-012 MT-053 (E1 — VS Code parity): the in-file "Go to Symbol" palette (Ctrl+Shift+O). A pure
 // reuse layer over the MT-006 OutlineItem tree (flattened to FileSymbol) — no re-parse, no backend. The
 // file-scoped quick-outline, STRICTLY DISTINCT from MT-030's global Ctrl+P/Ctrl+T quick-switcher.
-pub mod symbol_palette;
+pub use handshake_code_structure::symbol_palette;
 // WP-KERNEL-012 MT-053 (E1 — VS Code parity): sticky scroll. Pins enclosing-scope declaration lines at
 // the top of the viewport while scrolling inside a nested scope. A pure reuse layer over the MT-005
 // FoldRegion list + the MT-002 buffer (literal declaration lines) — no re-parse, no backend.
-pub mod sticky_scroll;
+pub use handshake_code_structure::sticky_scroll;
 pub use handshake_text_mechanics::virtual_lines;
 
 pub use breakpoints::{BreakpointAction, BreakpointEvent, BreakpointSet};

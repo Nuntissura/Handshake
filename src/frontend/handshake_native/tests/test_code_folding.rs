@@ -306,3 +306,13 @@ fn make_region(
 fn build_single_region_set(start_line: usize, end_line: usize, folded: bool) -> FoldSet {
     FoldSet::from_regions(vec![make_region(start_line, end_line, folded)])
 }
+use handshake_native::code_editor::highlight::LanguageRegistry;
+
+    #[test]
+    fn highlight_registry_extension_lookup_still_resolves_languages() {
+        // Sanity that the language ids used here line up with the highlight registry's grammars
+        // (so the panel's ext->language-id mapping is consistent with the fold tables).
+        let reg = LanguageRegistry::with_bundled_languages();
+        assert!(reg.highlighter_for_extension("rs").is_some());
+        assert!(reg.highlighter_for_extension("js").is_some());
+    }

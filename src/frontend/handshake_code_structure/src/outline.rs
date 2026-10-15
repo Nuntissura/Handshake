@@ -10,7 +10,7 @@
 //! ## Shared traversal with folding (MC-002 / RISK-002)
 //!
 //! [`FoldProvider::compute`](super::folding::FoldProvider::compute) and [`OutlineProvider::compute`]
-//! both walk the highlighter's cached tree (via [`Highlighter::tree`](super::highlight::Highlighter::tree))
+//! both walk the highlighter's cached tree (via the host highlighter tree)
 //! with an iterative `tree_sitter::TreeCursor` pre-order DFS — the same walk shape, so they share the
 //! traversal *pattern* and the same single parse tree. The panel recomputes BOTH only when the buffer
 //! version changes (it never re-parses for the outline: it reuses the tree the highlighter already
@@ -26,7 +26,7 @@
 //! outline-producing node is entered and popping it when the walk climbs back out, so the depth reflects
 //! the symbol hierarchy the tree expresses.
 
-use super::buffer::TextBuffer;
+use handshake_text_mechanics::buffer::TextBuffer;
 
 /// Max characters of a symbol name before it is truncated (defensive against a pathological
 /// identifier). Real identifiers are far shorter; this only guards a degenerate input.
@@ -314,7 +314,6 @@ impl OutlineProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::code_editor::highlight::LanguageRegistry;
 
     /// Parse `src` as Rust (reusing the MT-001 highlighter's grammar so the test exercises the real
     /// grammar, not a stub).
@@ -553,11 +552,4 @@ class Counter {
         assert_eq!(OutlineKind::Module.label(), "mod");
     }
 
-    #[test]
-    fn highlight_registry_extension_lookup_matches_outline_languages() {
-        // Sanity: the language ids the outline uses line up with the highlight registry's grammars.
-        let reg = LanguageRegistry::with_bundled_languages();
-        assert!(reg.highlighter_for_extension("rs").is_some());
-        assert!(reg.highlighter_for_extension("js").is_some());
-    }
 }

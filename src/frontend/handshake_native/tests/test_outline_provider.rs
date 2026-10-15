@@ -284,3 +284,12 @@ fn outline_row_raw_click_navigates_editor_to_symbol_line() {
          {caret_line}, painted {after:?}"
     );
 }
+use handshake_native::code_editor::highlight::LanguageRegistry;
+
+    #[test]
+    fn highlight_registry_extension_lookup_matches_outline_languages() {
+        // Sanity: the language ids the outline uses line up with the highlight registry's grammars.
+        let reg = LanguageRegistry::with_bundled_languages();
+        assert!(reg.highlighter_for_extension("rs").is_some());
+        assert!(reg.highlighter_for_extension("js").is_some());
+    }

@@ -35,7 +35,7 @@
 
 use std::collections::HashMap;
 
-use super::buffer::TextBuffer;
+use handshake_text_mechanics::buffer::TextBuffer;
 
 /// Max characters of a fold label before it is truncated with an ellipsis (MT impl note 2). A very
 /// long first line (e.g. a one-line function with a huge signature) would otherwise blow out the
@@ -560,7 +560,6 @@ impl FoldSet {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::code_editor::highlight::LanguageRegistry;
 
     /// Parse `src` as Rust and return its tree-sitter tree (reusing the MT-001 highlighter's parser so
     /// the test exercises the real grammar, not a stub).
@@ -973,12 +972,4 @@ function greet(name) {
         );
     }
 
-    #[test]
-    fn highlight_registry_extension_lookup_still_resolves_languages() {
-        // Sanity that the language ids used here line up with the highlight registry's grammars
-        // (so the panel's ext->language-id mapping is consistent with the fold tables).
-        let reg = LanguageRegistry::with_bundled_languages();
-        assert!(reg.highlighter_for_extension("rs").is_some());
-        assert!(reg.highlighter_for_extension("js").is_some());
-    }
 }

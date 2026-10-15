@@ -112,7 +112,7 @@ pub enum SymbolPaletteAction {
 /// Truncated to [`MAX_FILE_SYMBOLS`] (RISK — unbounded input).
 pub fn flatten_outline(
     items: &[OutlineItem],
-    buffer: &super::buffer::TextBuffer,
+    buffer: &handshake_text_mechanics::buffer::TextBuffer,
 ) -> Vec<FileSymbol> {
     let mut out: Vec<FileSymbol> = Vec::with_capacity(items.len().min(MAX_FILE_SYMBOLS));
     // Stack of (indent, name) for the enclosing-symbol chain. The container of an item at indent `d`
@@ -271,7 +271,7 @@ impl SymbolPalette {
     ///
     /// Takes the outline ITEMS (the MT-006 data model) directly, NOT a re-parse — the panel passes the
     /// list it already computed from the highlighter's tree (AC-001 / RISK-002).
-    pub fn open(&mut self, outline: &[OutlineItem], buffer: &super::buffer::TextBuffer) {
+    pub fn open(&mut self, outline: &[OutlineItem], buffer: &handshake_text_mechanics::buffer::TextBuffer) {
         self.symbols = flatten_outline(outline, buffer);
         self.query.clear();
         self.selected = 0;
@@ -386,7 +386,7 @@ impl SymbolPalette {
     /// can prove the flatten/match logic against the REAL outline rather than a hand-built fixture.
     pub fn symbols_from_outline(
         tree: &tree_sitter::Tree,
-        buffer: &super::buffer::TextBuffer,
+        buffer: &handshake_text_mechanics::buffer::TextBuffer,
         language_id: &str,
     ) -> Vec<FileSymbol> {
         let items = OutlineProvider::compute(tree, buffer, language_id);
@@ -397,8 +397,8 @@ impl SymbolPalette {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::code_editor::buffer::TextBuffer;
-    use crate::code_editor::outline::OutlineProvider;
+    use handshake_text_mechanics::buffer::TextBuffer;
+    use crate::outline::OutlineProvider;
 
     fn rust_tree(src: &str) -> tree_sitter::Tree {
         let lang: tree_sitter::Language = tree_sitter_rust::LANGUAGE.into();

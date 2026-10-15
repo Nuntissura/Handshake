@@ -110,6 +110,7 @@ diag-test-seams = []
 [dependencies]
 handshake-account-activation = { path = "../../shared/handshake_account_activation" }
 handshake_folder_tree = { path = "../handshake_folder_tree" }
+handshake_code_structure = { path = "../handshake_code_structure" }
 handshake_runtime_instance = { path = "../../backend/handshake_runtime_instance" }
 handshake_rich_document_model = { path = "../handshake_rich_document_model" }
 handshake_text_mechanics = { path = "../handshake_text_mechanics" }

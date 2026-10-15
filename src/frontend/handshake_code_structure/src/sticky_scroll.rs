@@ -26,7 +26,7 @@
 //! `slice_to_string`), trimmed of trailing whitespace — NOT a label reconstructed from a symbol node, so
 //! `fn main() {` reads exactly as written (impl note / contract step 4).
 
-use super::buffer::TextBuffer;
+use handshake_text_mechanics::buffer::TextBuffer;
 use super::folding::FoldRegion;
 
 /// One pinned enclosing-scope header. `line` is the scope's declaration (start) line — clicking the
@@ -162,8 +162,8 @@ impl StickyScroll {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::code_editor::buffer::TextBuffer;
-    use crate::code_editor::folding::{FoldProvider, FoldRegion};
+    use handshake_text_mechanics::buffer::TextBuffer;
+    use crate::folding::{FoldProvider, FoldRegion};
 
     fn rust_tree(src: &str) -> tree_sitter::Tree {
         let lang: tree_sitter::Language = tree_sitter_rust::LANGUAGE.into();
