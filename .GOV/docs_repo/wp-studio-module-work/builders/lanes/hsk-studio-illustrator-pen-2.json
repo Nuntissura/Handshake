@@ -3,28 +3,34 @@
   "crates": ["hsk-studio-chronicle", "hsk-studio-session", "hsk-studio-harness", "hsk-studio-nib", "hsk-studio-folio"],
   "lane": "SMB-ILLUSTRATOR-PEN-2",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slices 1-2 pushed (session `vector` token + chronicle vector_paths; harness in-place path edits, save/reopen proven); slice 3 (new tools, shapes, corners) in progress",
+  "phase": "slices 1-5 pushed; all READY_FOR_VALIDATION on 30cfb5e",
   "commits": [
     {"sha": "dcb9377", "subject": "chronicle + session (SMB-ILLUSTRATOR-PEN-2 slice 1): vector_paths property and the `vector` entry token"},
-    {"sha": "1704844", "subject": "harness (SMB-ILLUSTRATOR-PEN-2 slice 2): vector path edits in place through chronicle vector_paths"}
+    {"sha": "1704844", "subject": "harness (SMB-ILLUSTRATOR-PEN-2 slice 2): vector path edits in place through chronicle vector_paths"},
+    {"sha": "748f936", "subject": "nib (SMB-ILLUSTRATOR-PEN-2 slice 3): curvature, pencil, live corners, knife, shape builder, arc/grids/spiral"},
+    {"sha": "4c05838", "subject": "harness + folio (SMB-ILLUSTRATOR-PEN-2 slice 4): curvature, pencil, knife, shape builder, live corners, arc/grids/spiral"},
+    {"sha": "30cfb5e", "subject": "nib (SMB-ILLUSTRATOR-PEN-2 slice 5): StudioVectorNetwork model"}
   ],
   "capabilities_done": [
     "slice 1 chronicle Property::VectorPaths (wire vector_paths) / PropertyValue::PathIds (wire path_ids): read/write of Payload::Vector.path_ids, seeded for vector layers only, PROPERTIES 7, addressable on layers only, mask_property neutral, value budget, diagnostics mapping; non-vector payload InvalidTarget, other value types WrongType, malformed ids FolioRejected; in-place edit inverts to the original document",
     "slice 1 session DOCUMENT_ENTRY_TOKENS += \"vector\" (studio/vector.<sha256> saved with the package)",
-    "slice 2 harness Run::set_vector_paths; view::vector replace_vector_layer is one vector_paths write (layer id, name, place, appearance kept; one undo step); save/reopen of vector layers now writes and restores the `vector` entry (no NOT_PROVEN line)"
+    "slice 2 harness Run::set_vector_paths; view::vector replace_vector_layer is one vector_paths write (layer id, name, place, appearance kept; one undo step); save/reopen of vector layers now writes and restores the `vector` entry (no NOT_PROVEN line)",
+    "slice 3 nib::freeform: smooth_curvature (curvature tool: Catmull-Rom (next-prev)/6 mirrored handles, corners and open ends handle-free), fit_freehand (pencil: dedup, iterative RDP at tolerance, smoothing, close_within), apply_corner (live corners Round / InvertedRound / Chamfer on any anchor with two incident segments; radius clamped min(r, shorter chord/2) and returned; arc handles 4/3 tan(angle/4) from sqrt half-angle formulas), knife (kerf strip removed, connected regions as closed pieces, EmptyPathfinderResult when nothing is left), shape_builder (divide, merge or delete the faces the gesture touches), polygon_contains; nib::shape arc_segment, rectangular_grid, polar_grid (rational skew map), spiral (sqrt-only tangent-continuous quarter arcs)",
+    "slice 4 folio StudioShapeParameters + arc_segment, rectangular_grid, polar_grid, spiral (validated: lengths in document unit, dividers <= 1000, decay > 0, quarter turns <= 4096); harness tools Curvature, Pencil (fidelity 0..4), Knife, Shape builder (Alt = delete), Arc, Grid, Polar grid, Spiral (canvas gestures with freehand samples, option sliders with stable ids vector.*), edit_path PathEdit::Corner, live parameter edits of the new kinds; every edit one chronicle transaction; RUN-UI updated",
+    "slice 5 nib::network: StudioVectorNetwork per STU-VEC-108 (vertices with optional cap/join/radius/mirroring, segments with optional tangents, regions with winding NONZERO|EVENODD, loops, REQUIRED fill state, fill_style_id), validate (indices never clamped, open loops refused, budgets first), from_path (lossless promotion, STU-VEC-001), fill_geometry / stroke_geometry (derived read-only path sets; explicit lossy flatten), paint_bucket (STU-VEC-004), detect_regions (bounded faces of the planar embedding)"
   ],
   "tests": {
-    "argv": "cargo nextest run -p hsk-studio-chronicle -p hsk-studio-session --no-fail-fast -E 'binary(vector_paths) | binary(foundation_contract) | binary(structure) | test(session_consumes_the_chronicle_addressability_table)' (dcb9377: 26/26); cargo nextest run -p hsk-studio-harness --features viewer --test viewer_vector --no-fail-fast --no-capture (1704844: 5/5)",
+    "argv": "dcb9377: cargo nextest run -p hsk-studio-chronicle -p hsk-studio-session -E 'binary(vector_paths) | binary(foundation_contract) | binary(structure) | test(session_consumes_the_chronicle_addressability_table)' 26/26; 1704844: harness viewer_vector 5/5; 748f936: nib freeform 5/5; 4c05838: harness viewer_vector_2 5/5 + viewer_vector 5/5 + folio live_shapes_contract 1/1 (regression viewer_edit/text/layers 6/6); 30cfb5e: nib network 3/3",
     "exit": 0,
-    "sha": "1704844",
-    "passed": 31,
+    "sha": "30cfb5e",
+    "passed": 50,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "slice 3: curvature, pencil (smoothing), knife, shape-builder tools; arc, rectangular grid, polar grid, spiral; fancy corner members (round, inverted, chamfer)",
-  "updated_at": "2026-10-15T05:07:01Z",
+  "next": "Validator: judge slices 1-5. Suggested next lane: network editing in the viewer (persisted network records + composite per-region fill/stroke geometry), knife on open strokes, width / reshape / blob brush tools, fancy corner geometry once specified, crossing-segment splitting for detect_regions.",
+  "updated_at": "2026-10-15T05:44:09Z",
   "notes": {
     "approval": "Lead message 2026-10-15 (START_LOG): harness -> nib edge (steward adds it), session entry token `vector`, chronicle vector-path property; edits of session and chronicle allowed for these, own hunks only",
     "new_tests": {
@@ -39,6 +45,26 @@
     },
     "retry_guard": "chronicle first build failed on a shadowed variable (seed closure `vector`); fixed before any test run; session table test failed on the refused count (14 -> 19), fixed by commit dcb9377 then rerun green (route a); no gameplan step added",
     "not_proven": "harness clippy at 05:05Z also reports another lane's untracked src/view/prototype.rs (arithmetic lint); this lane's files are clippy-clean (filtered run)",
-    "v4": "V4-09 commit -F; V4-12 scratch under scratchpad/smb-illustrator-pen/"
+    "spec_basis_slices_3_5": {
+      "STU-VEC-007": "Curvature: Draw and edit smooth curves by placed points ...; click toggles corner/smooth | Freehand (pencil): Draw freehand strokes auto-smoothed to a path | Knife: Cut paths/shapes along a freehand or straight cut line into separate closed objects | Shape Builder: Drag across overlapping regions to merge, click to extract/delete regions",
+      "STU-VEC-119": "fidelity soft 0..4 (count); close_within_distance (px) - Studio map 0.5 * 2^fidelity px RDP tolerance, UNVERIFIED",
+      "STU-VEC-005/112": "live corner treatment on individual anchors ... corner.round / corner.round_inverted / corner.bevel (chamfer); corner.inset / fancy have no specified anchor geometry: fancy stays refused (UNKNOWN shape)",
+      "STU-VEC-066": "the applied radius is min(requested_radius, shorter_incident_edge / 2) ... reported back",
+      "STU-VEC-127": "Arc segment slope soft -100..100, type/base_along members UNKNOWN (Studio booleans closed / base_along_x); Rectangular grid and Polar grid skews soft -500..500; Spiral turns, decay (per-turn radius ratio)",
+      "STU-VEC-048": "knife cuts ... producing separately closed regions where the cut crosses filled area ... A cut whose result would be an empty region MUST fail closed",
+      "STU-VEC-108": "The network is three parallel arrays plus an index topology ... an out-of-range index is a validation error, never a clamp ... derived read-only fill_geometry and stroke_geometry path sets",
+      "STU-VEC-004": "per-region fill state ... paint-bucket region operation that fills or clears one enclosed region without altering the network topology",
+      "STU-VEC-001": "A StudioVectorPath MUST be losslessly promotable to a StudioVectorNetwork; the reverse conversion is lossy and MUST be an explicit flatten/simplify operation"
+    },
+    "gaps": [
+      "networks are a nib model only: the viewer does not persist or edit networks yet (needs a network record in the `vector` entry and composite per-region fill/stroke geometry; accord has no identity prefix for hsk.studio.vector_network@1)",
+      "detect_regions does not split crossing segments (faces need shared vertices)",
+      "knife acts on filled vector layers only (open strokes are not split; scissors covers them); knife / shape builder / pathfinder results are polygons with a 0.01 px kerf for the knife",
+      "fancy corner (geometry unspecified) and inset corners on arbitrary anchors are not built",
+      "width, reshape and blob-brush tools not built; STU-VEC-118 pen option selectors (members UNKNOWN) not exposed",
+      "Illustrator parity of every tool UNVERIFIED (D5)"
+    ],
+    "retry_guard_slices_3_5": "slices 3, 4 and 5 green on their first runs; no gameplan step added",
+    "v4": "V4-01 deny(clippy::arithmetic_side_effects) in freeform.rs, network.rs, shape.rs, live_shape.rs, vector.rs; V4-02 sample/element budgets before allocation with typed refusals (tests); V4-09 commit -F; V4-12 scratch under scratchpad/smb-illustrator-pen/"
   }
 }

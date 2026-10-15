@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T05:36:51Z",
+ "updated_at": "2026-10-15T05:45:18Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -6308,13 +6308,20 @@
   },
   {
    "lane_id": "SMB-ILLUSTRATOR-PEN-2",
-   "crate": "hsk-studio-session",
-   "phase": "build",
-   "status": null,
+   "crate": "hsk-studio-nib",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-illustrator-pen-20261015",
-   "commits": [],
+   "commits": [
+    "dcb9377",
+    "1704844",
+    "748f936",
+    "4c05838",
+    "30cfb5e"
+   ],
    "verdicts": [],
-   "note": "session DOCUMENT_ENTRY_TOKENS + vector (interim persistence, like develop); chronicle vector-path property so edits keep layer id; curvature/pencil/knife/shape-builder tools, arc/grid/spiral, fancy corners; vector networks if spec names them"
+   "note": "session DOCUMENT_ENTRY_TOKENS + vector (interim persistence, like develop); chronicle vector-path property so edits keep layer id; curvature/pencil/knife/shape-builder tools, arc/grid/spiral, fancy corners; vector networks if spec names them",
+   "lane_file": "builders/lanes/hsk-studio-illustrator-pen-2.json"
   },
   {
    "lane_id": "SMB-FIG-SMART-ANIMATE",
@@ -6387,6 +6394,16 @@
    "commits": [],
    "verdicts": [],
    "note": "CR3 (and other newly decoded vendors) import refuses missing_colour_data: camera colour matrices / forward matrices needed per model; permissive sources only (dcraw/rawspeed/LibRaw excluded), e.g. embedded maker-note matrices or DNG-SDK-licensed tables; else typed refusal stays"
+  },
+  {
+   "lane_id": "SMB-ILLUSTRATOR-PEN-3",
+   "crate": "hsk-studio-nib",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-illustrator-pen-20261015",
+   "commits": [],
+   "verdicts": [],
+   "note": "viewer stores/edits vector networks (folio network record), region detection with T-junction splitting, knife on open paths, width tool + variable-width strokes, reshape, blob brush"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
