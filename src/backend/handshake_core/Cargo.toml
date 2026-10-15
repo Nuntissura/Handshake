@@ -165,6 +165,7 @@ test = false
 
 [dependencies]
 handshake-account-activation = { path = "../../shared/handshake_account_activation" }
+handshake_runtime_instance = { path = "../handshake_runtime_instance" }
 handshake_model_lane_routing = { path = "../handshake_model_lane_routing" }
 handshake_resource_scope = { path = "../handshake_resource_scope" }
 handshake_document_surreal = { path = "../handshake_document_surreal" }

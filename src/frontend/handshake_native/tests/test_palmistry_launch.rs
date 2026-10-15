@@ -358,14 +358,14 @@ fn signed_current_owned_launch_binds_actual_child_and_retains_clean_shutdown() {
     std::fs::create_dir_all(&dir).unwrap();
     let session_id = uuid::Uuid::now_v7();
     let instance = uuid::Uuid::now_v7();
-    let native_lease = handshake_core::process_ledger::acquire_embedded_runtime_instance_lease(
+    let native_lease = handshake_runtime_instance::acquire_embedded_runtime_instance_lease(
         session_id,
         "signed-current-owned-launch-test",
     )
     .unwrap();
     let native_descriptor = native_lease.descriptor().clone();
     let parent_generation =
-        handshake_core::sandbox::handshake_native::process_creation_time_100ns(std::process::id())
+        handshake_runtime_instance::process_creation_time_100ns(std::process::id())
             .unwrap();
     assert_ne!(parent_generation, 0);
     let nonce = [0x66; 16];
@@ -408,7 +408,7 @@ fn signed_current_owned_launch_binds_actual_child_and_retains_clean_shutdown() {
     assert_eq!(receipt.identity.ring_version, 2);
     assert_eq!(receipt.identity.record_size, 120);
     assert_eq!(receipt.identity.runtime_instance_schema_id,
-        handshake_core::process_ledger::EMBEDDED_RUNTIME_INSTANCE_SCHEMA_ID);
+        handshake_runtime_instance::EMBEDDED_RUNTIME_INSTANCE_SCHEMA_ID);
     assert_eq!(receipt.identity.runtime_instance_id, native_descriptor.instance_id);
     assert_eq!(receipt.identity.runtime_host_scope_id, native_descriptor.host_scope_id);
     assert_eq!(receipt.identity.runtime_lease_protocol, native_descriptor.lease_protocol);

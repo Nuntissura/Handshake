@@ -60,7 +60,7 @@ use windows_sys::Win32::Foundation::{
 use windows_sys::Win32::System::Pipes::{PeekNamedPipe, WaitNamedPipeW};
 
 use handshake_diag_ring::{DiagEventCode, DiagPhase, DiagSeverity};
-use handshake_core::process_ledger::{
+use handshake_runtime_instance::{
     EMBEDDED_RUNTIME_INSTANCE_SCHEMA_ID, EMBEDDED_RUNTIME_LOOPBACK_UDP_PROTOCOL,
 };
 #[cfg(not(windows))]
@@ -288,7 +288,7 @@ struct SignedWatcherBootstrap {
     launch_nonce: [u8; 16],
     signing_seed: zeroize::Zeroizing<Vec<u8>>,
     transport_public_key: [u8; 32],
-    native_descriptor: handshake_core::process_ledger::EmbeddedRuntimeInstanceDescriptor,
+    native_descriptor: handshake_runtime_instance::EmbeddedRuntimeInstanceDescriptor,
     parent_os_creation_time_100ns: u64,
 }
 
@@ -1241,7 +1241,7 @@ pub fn launch_palmistry_signed_at(
     session: &DiagSession,
     ring_path: &Path,
     control_socket: &str,
-    native_lease: &handshake_core::process_ledger::EmbeddedRuntimeInstanceLease,
+    native_lease: &handshake_runtime_instance::EmbeddedRuntimeInstanceLease,
     process_instance_id: uuid::Uuid,
     launch_nonce: [u8; 16],
     signing_seed: zeroize::Zeroizing<Vec<u8>>,
@@ -1280,7 +1280,7 @@ pub fn launch_palmistry_signed_at(
         ));
     }
     let parent_os_creation_time_100ns =
-        handshake_core::sandbox::handshake_native::process_creation_time_100ns(std::process::id())?;
+        handshake_runtime_instance::process_creation_time_100ns(std::process::id())?;
     if parent_os_creation_time_100ns == 0 {
         return Err(io::Error::new(
             io::ErrorKind::InvalidData,

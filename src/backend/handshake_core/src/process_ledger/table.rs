@@ -11,18 +11,7 @@ pub const PROCESS_LEDGER_METADATA_CAP_BYTES: usize = 16 * 1024;
 pub const PROCESS_LEDGER_DEFAULT_CHANNEL_CAPACITY: usize = PROCESS_LEDGER_RING_CAPACITY;
 pub const PROCESS_LEDGER_DEFAULT_BATCH_SIZE: usize = PROCESS_LEDGER_BATCH_SIZE;
 pub const PROCESS_LEDGER_DEFAULT_FLUSH_INTERVAL_MS: u64 = PROCESS_LEDGER_FLUSH_INTERVAL_MS;
-/// Typed, queryable identity of the Handshake runtime instance that owns a
-/// process lifecycle. JSON metadata may mirror this identity for diagnostics,
-/// but reclaim decisions use these fields rather than parsing metadata.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct ProcessRuntimeOwner {
-    pub runtime_instance_id: Uuid,
-    pub host_scope_id: String,
-    pub lease_schema_id: String,
-    pub lease_protocol: String,
-    pub lease_address: String,
-    pub lease_port: u16,
-}
+pub use handshake_runtime_instance::ProcessRuntimeOwner;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

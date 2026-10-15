@@ -448,9 +448,9 @@ fn main() -> eframe::Result<()> {
     // — GLOBAL-PORTABILITY); if no local-data dir exists (rare), fall back to a still-portable temp dir.
     let process_session_uuid = uuid::Uuid::new_v4();
     let process_session_id = process_session_uuid.to_string();
-    let native_runtime_lease = handshake_core::process_ledger::resolve_embedded_runtime_host_scope()
+    let native_runtime_lease = handshake_runtime_instance::resolve_embedded_runtime_host_scope()
         .and_then(|host_scope| {
-            handshake_core::process_ledger::acquire_embedded_runtime_instance_lease(
+            handshake_runtime_instance::acquire_embedded_runtime_instance_lease(
                 process_session_uuid,
                 host_scope,
             )

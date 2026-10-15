@@ -124,6 +124,17 @@ pub enum ProcessLedgerError {
     },
 }
 
+impl From<handshake_runtime_instance::RuntimeInstanceError> for ProcessLedgerError {
+    fn from(error: handshake_runtime_instance::RuntimeInstanceError) -> Self {
+        match error {
+            handshake_runtime_instance::RuntimeInstanceError::InvalidConfig(message) => {
+                Self::InvalidConfig(message)
+            }
+            handshake_runtime_instance::RuntimeInstanceError::Store(message) => Self::Store(message),
+        }
+    }
+}
+
 impl From<SurrealStorageError> for ProcessLedgerError {
     fn from(source: SurrealStorageError) -> Self {
         Self::Surreal { source }

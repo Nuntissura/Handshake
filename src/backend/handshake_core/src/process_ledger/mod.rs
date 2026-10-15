@@ -26,15 +26,18 @@ pub use idempotency::{
     SideEffectKind,
 };
 pub use overflow::{cap_metadata_jsonb, cap_metadata_value, MetadataCapOutcome};
+pub use handshake_runtime_instance::{
+    acquire_embedded_runtime_instance_lease, resolve_embedded_runtime_host_scope,
+    resolve_embedded_runtime_host_scope_with_override, EmbeddedRuntimeInstanceDescriptor,
+    EmbeddedRuntimeInstanceLease, EMBEDDED_RUNTIME_INSTANCE_SCHEMA_ID,
+    EMBEDDED_RUNTIME_LOOPBACK_UDP_PROTOCOL, HANDSHAKE_HOST_SCOPE_ID_ENV,
+};
 pub use reclaim::{
-    acquire_embedded_runtime_instance_lease, reclaim_handle, resolve_embedded_runtime_host_scope,
-    resolve_embedded_runtime_host_scope_with_override, spawn_staleness_reclaim_task,
-    EmbeddedRuntimeInstanceDescriptor, EmbeddedRuntimeInstanceLease, KillError, KillOutcome,
+    reclaim_handle, spawn_staleness_reclaim_task, KillError, KillOutcome,
     Reclaim, ReclaimClaim, ReclaimKillOperation, ReclaimKillOperationCandidate,
     ReclaimKillOperationStatus, ReclaimProcessStore, ReclaimReport, ReclaimResourceScope,
     ReclaimStopWriter, ReclaimTrigger, ReclaimableProcess, ReclaimedProcess, SandboxKill,
-    StaleSessionSource, StalenessReclaimConfig, EMBEDDED_RUNTIME_INSTANCE_SCHEMA_ID,
-    EMBEDDED_RUNTIME_LOOPBACK_UDP_PROTOCOL, HANDSHAKE_HOST_SCOPE_ID_ENV,
+    StaleSessionSource, StalenessReclaimConfig,
     SURREAL_ACTIVE_RECLAIM_CLAIM_QUERY,
 };
 #[cfg(feature = "test-utils")]
