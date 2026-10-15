@@ -1,0 +1,20 @@
+{
+  "crate": "hsk-studio-interop-fig",
+  "lane": "SMB-INTEROP-FIG-EXPORT",
+  "status": null,
+  "phase": "slice 1 implemented and green locally (49/49); waiting for the steward sync that adds hsk-studio-press to interop-fig allowed before pushing the manifest change",
+  "commits": [],
+  "capabilities_done": [],
+  "tests": {"argv": "cargo nextest run -p hsk-studio-interop-fig --no-fail-fast", "exit": 0, "sha": null, "passed": 49, "failed": 0},
+  "blockers": [
+    {"error": "push waits for the steward sync adding hsk-studio-press to [workspace.metadata.studio.dependencies.hsk-studio-interop-fig] allowed (lead-approved edge; dep-requests line status approved)", "file_line": "Cargo.toml (root, steward-owned)", "attempts": 0},
+    {"error": "PNG/JPEG file encoding needs a NORMAL edge interop-fig -> interop-raster (requested in dep-requests.jsonl, status requested; today dev-only)", "file_line": "src/export.rs render_frame_export returns pixels only", "attempts": 0}
+  ],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "push slice 1 after the sync; PNG/JPEG encode after the interop-raster normal edge decision",
+  "updated_at": "2026-10-15T03:40:00Z",
+  "notes": {
+    "row_id_note": "the dispatch calls the export row FG-19; in research/parity-matrix-20261014b.json FG-19 is Dev Mode and FG-20 is 'Export frames as PNG/SVG/PDF' (the row this lane works on)"
+  }
+}

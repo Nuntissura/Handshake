@@ -1,0 +1,52 @@
+{
+ "crate": "hsk-studio-develop",
+ "lane": "SMB-DEVELOP-RAW-COMPRESSED-2",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "vendor black/white levels + uncompressed RAF READY on e7e56e5; DNG-converter oracle NOT_PROVEN (not installed); compressed ORF blocked (no permissive source)",
+ "commits": [
+  {"sha": "fa6e3dfc0511900c138f9d85c7ae06b446772b45", "subject": "develop (SMB-DEVELOP-RAW-COMPRESSED-2 wip): vendor frames carry black levels; CR2 masked-column black"},
+  {"sha": "c44fd80014e7dbce12f4c2120e137176b37305d7", "subject": "develop (SMB-DEVELOP-RAW-COMPRESSED-2 wip): vendor black/white levels (NEF, CR3, RAF, ORF, RW2) and uncompressed RAF"},
+  {"sha": "ca13f849af446286ca1902d55837aff4e287fab4", "subject": "develop (SMB-DEVELOP-RAW-COMPRESSED-2 wip): ARW SR2 black, level proof test"},
+  {"sha": "4d2b9a2b2680c16c774e61dc760a343a1694ca85", "subject": "develop (SMB-DEVELOP-RAW-COMPRESSED-2 wip): SR2Private offset from DNGPrivateData bytes"},
+  {"sha": "abd66ff36806acc65c541ceb02eb80c37567d84a", "subject": "develop (SMB-DEVELOP-RAW-COMPRESSED-2 wip): plateau minority guard; tests for levels and uncompressed RAF"},
+  {"sha": "e7e56e5051769b6027dc2bc113c656c730f46b9c", "subject": "develop (SMB-DEVELOP-RAW-COMPRESSED-2): DESCRIPTOR for vendor levels and uncompressed RAF; converter NOT_PROVEN reason"}
+ ],
+ "capabilities_done": [
+  "VendorFrame (src/dng.rs, additive) carries black_repeat + black_level (validated: 1..=16 repeat, finite, >= 0, below white -> invalid_levels); samples may exceed the white up to max(white, full scale), as in DNG (develop's RangePolicy decides)",
+  "src/levels.rs: per-site masked-region means, saturation-plateau white (LightCraft white_from_data rule + a <= 90 % minority guard so a flat frame is not 'saturation'), measured_white = plateau or >= 16 samples at the code ceiling, else None (white stays named unread)",
+  "CR2: black = per-site mean of masked columns 2..left-2 of the maker-note SensorInfo area; white measured (350D: no saturation -> cr2_white_level_unread kept)",
+  "NEF: black = maker note 0x003D (14-bit units, scaled; Z6 252), else 0 (D1H, D70s); white measured (D1H plateau 3953, D70s 4080, Z6 4095 = ceiling reached)",
+  "CR3: black/white from Canon ColorData 0x4001 in the CTMD timed maker note (else CMT3) by version (R6 v33: black 512 x4, white 14008); CTMD records/items parsed with bounded budgets",
+  "ARW: black = raw IFD 0x7310 else the encrypted SR2SubIFD 0x7310 (src/sr2.rs: LightCraft's black-box-measured keystream for key 11 22 33 44 only; the recalled key-derivation for other keys deliberately not ported) -> 7S black 512; white not provable on the sample (kept unread)",
+  "RAF: black = raw IFD 0xF00A per CFA site (X-Trans 6x6, Bayer 2x2, or uniform; X-S10 1022); white measured inside the 0x0110/0x0111 crop (X-S10: none -> kept unread); uncompressed RAF (mode 0): 16-bit LE words, 12-bit LSB-first stream, 32-bit LE words MSB-first (0xF006 or non-12-bit), 0xF005 stride; rows checked before allocation",
+  "ORF: black = old-style maker note 0x1012 in 0x102C ValidBits units (C5060WZ: 0); white measured (plateau 4080)",
+  "RW2: black = 0x001C-0x001E per CFA site + 15 for formats 4/6 (LX7 142); white measured inside the 0x0004-0x0007 borders (LX7: none -> kept unread)",
+  "DESCRIPTOR scope/pending rewritten for levels, uncompressed RAF, remaining unread items and the converter NOT_PROVEN"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-develop --no-fail-fast --run-ignored all ; cargo test --doc -p hsk-studio-develop",
+  "exit": 0,
+  "sha": "e7e56e5051769b6027dc2bc113c656c730f46b9c",
+  "passed": 95,
+  "failed": 0
+ },
+ "blockers": [
+  {"error": "Adobe DNG Converter oracle: not installed (checked C:/Program Files/Adobe, C:/Program Files (x86)/Adobe and a recursive search for *dng*conv*.exe on 2026-10-15; only Lightroom Classic/CC, Photoshop etc. are installed). Per the lead's instruction not installed; exact-sample comparison stays NOT_PROVEN (reason=adobe_dng_converter_not_installed in real_raw.rs / real_raw_compressed.rs).", "file_line": "crates/hsk-studio-develop/tests/real_raw_compressed.rs check_all", "attempts": 1},
+  {"error": "Olympus compressed ORF: no permissively licensed decoder or bit-level description (LightCraft refuses it; a 2026-10-15 search found only libopenraw, LGPL, excluded) and no compressed-ORF CC0 sample in the corpus; not built.", "file_line": "crates/hsk-studio-develop/src/orf.rs (decoder_unavailable:orf)", "attempts": 1},
+  {"error": "Uncompressed RAF has no real-file proof: the corpus has no uncompressed modern RAF, and downloading a CC0 sample needs a direct Operator approval in chat for this builder (not given); synthetic packings only. Suggested sample: any raw.pixls.us Fujifilm 'uncompressed' X-Trans or X-A Bayer file.", "file_line": "crates/hsk-studio-develop/src/raf.rs uncompressed", "attempts": 0},
+  {"error": "White levels not provable from the corpus samples (no saturated region): CR2 350D (max 2962), ARW 7S (max 15540), RAF X-S10 (max 6216), RW2 LX7 (max 3216); kept as *_white_level_unread with the code ceiling as white. CR3 R6 uses its ColorData white 14008 (file-stated; the sample never reaches it, max 8181).", "file_line": "crates/hsk-studio-develop/tests/real_raw_levels.rs (NOT_PROVEN white_level lines)", "attempts": 0}
+ ],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "lead: validator round for SMB-DEVELOP-RAW-COMPRESSED-2 at e7e56e5; Operator decisions: approve a CC0 uncompressed-RAF download and saturated samples for the four unproven whites, or install Adobe DNG Converter for the exact-sample oracle",
+ "updated_at": "2026-10-15T04:04:21Z",
+ "notes": {
+  "sources": "LightCraft (MIT OR Apache-2.0, af4c5e1; licence checked in the first lane) files read for this lane: vendor/mod.rs white_from_data + black_from_columns, vendor/cr2.rs masked_columns, vendor/cr3.rs camera_levels/black_at_active/geometry, vendor/meta cr3.rs timed_exif, vendor/raf.rs black + uncompressed path, unpack.rs unpack_lsb/unpack_words32_msb, vendor/nef.rs 0x003D, vendor/orf.rs maker_note_black, vendor/rw2.rs black + CODEC_BLACK_OFFSET, vendor/arw.rs + vendor/sr2.rs (SEED, keystream, short lookup). No copyleft source read.",
+  "sr2_provenance": "LightCraft's sr2.rs states the key-11223344 keystream was recovered black-box (ExifTool decrypted dump XOR file bytes over 126 CC0 ARWs; recurrence by exhaustive search). Its seed derivation for other keys is described as a 'recalled scheme'; to keep the clean-room line, that part was not ported (other keys -> black unread).",
+  "proof": "tests/real_raw_levels.rs vendor_levels_agree_with_sample_statistics (ignored corpus test, PASS at e7e56e5 tree): black pinned per site; masked-region means (CR3 R6 IAD1 masked-left (0,96)-(144,2384) 512.52-512.59 and masked-top (144,0)-(3576,96) 512.53-512.69 vs ColorData 512; CR2 masked columns = decoder source 263.1-274.0) within 1.5; per-site 0.1 % dark quantile of the image in [black-8, black+64]: CR2 260-269 vs 263-274, R6 530-552 vs 512, D1H 13-31 vs 0, D70s 8-25 vs 0, Z6 253-259 vs 252, ARW 536-564 vs 512, X-S10 1045-1046 vs 1022 (crop region), ORF 29-58 vs 0, LX7 163-201 vs 142; whites pinned and, where proven, reached by >= 16 samples (D1H 6496, D70s 372, Z6 263, ORF 1415); NOT_PROVEN lines for the four unprovable whites and R6's (tag-only) white.",
+  "existing_tests_updated": "develop_nef (black 0 now applied, white unread), develop_nef_compressed (black 0 / 0x003D per-site case), develop_raf (mode 0 now decodes; uncompressed packings test added), real_raw (D1H white 3953), real_raw_compressed (whites 4080/4095/14008/16383/4080/4095; NOT_PROVEN reason). Full develop run incl. ignored: 95/95.",
+  "test_budget": "new tests: real_raw_levels (1), develop_raf::raf_uncompressed_packings_decode (1), sr2::tests (1); develop_nef_compressed lossless test extended with the 0x003D case",
+  "v4_06_sites": "deny(arithmetic_side_effects) in new src/levels.rs and src/sr2.rs and every touched decoder (cr2, nef, arw, cr3, raf, orf, rw2); clippy -p hsk-studio-develop --tests clean",
+  "no_downloads": "no files downloaded; no executable run (DNG Converter absent)"
+ }
+}

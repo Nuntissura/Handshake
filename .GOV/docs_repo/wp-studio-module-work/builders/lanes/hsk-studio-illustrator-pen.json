@@ -1,0 +1,43 @@
+{
+  "crate": "hsk-studio-nib",
+  "lane": "SMB-ILLUSTRATOR-PEN",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slice 1 pushed (anchor path model); slice 2 (shapes) in progress",
+  "commits": [
+    {"sha": "8698329", "subject": "nib (SMB-ILLUSTRATOR-PEN slice 1): editable anchor path model"},
+    {"sha": "ceb6a50", "subject": "nib (SMB-ILLUSTRATOR-PEN slice 1 test): off-centre bend expectation"}
+  ],
+  "capabilities_done": [
+    "slice 1 nib::anchor_path: AnchorPath {contours, fill_rule} / Contour {anchors, closed} / EditAnchor {position, incoming, outgoing (relative handles), mirroring NONE|ANGLE|ANGLE_AND_LENGTH (STU-VEC-109)}; derived point type smooth=1/corner=2; STU-VEC-116 AnchorSelection 1..5; to_owned_path / from_owned_path (quads raised exactly, duplicate closing anchor merged, mirroring inferred); pen start_contour / append_anchor / close_contour; insert_anchor (de Casteljau, curve unchanged); delete_anchor; convert_anchor; move_anchor and move_handle with Constraint::Angle45 and mirroring propagation (Alt break); bend_segment (STU-VEC-003 drag-to-bend, dragged point lands on target); join (coincident merge / straight connect / close own ends); split_at_anchor and split_at (STU-VEC-048 scissors); reverse (STU-VEC-043); hit_anchor / hit_segment / point_at; typed AnchorError with distinct STU-VEC-133 codes path_index_out_of_bounds, point_index_out_of_bounds, cannot_join_path_points; MAX_ANCHORS 65536 / MAX_CONTOURS 4096 checked before allocation; NaN/inf/|v|>1e9 refused"
+  ],
+  "tests": {
+    "argv": "cargo nextest run -p hsk-studio-nib --test anchor_path --no-fail-fast",
+    "exit": 0,
+    "sha": "ceb6a50",
+    "passed": 5,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": 18,
+  "bg_pids": [],
+  "next": "slice 2 shapes (nib::shape + folio live-shape record), slice 3 pathfinder divide/trim/merge/crop + offset/outline on curves, slice 4 harness pen/direct-select/shape tools",
+  "updated_at": "2026-10-15T04:04:14Z",
+  "notes": {
+    "spec_basis": {
+      "STU-VEC-001": "StudioVectorPath (schema id hsk.studio.vector_path@1), an ordered sequence of anchors forming one open or closed contour",
+      "STU-VEC-002": "An anchor MUST carry a position (document units per [STU-DOC-003]), an incoming tangent handle, an outgoing tangent handle, and a handle-mirroring mode.",
+      "STU-VEC-003": "dragging a straight segment MUST convert it to a curve by synthesizing handles on its endpoints without destroying adjacent geometry (bend_segment)",
+      "STU-VEC-109": "handle_mirroring.none NONE / angle ANGLE / angle_and_length ANGLE_AND_LENGTH; point type smooth = 1, corner = 2 is a DERIVED read-only projection",
+      "STU-VEC-116": "anchor_selection none 1, anchor 2, in_handle 3, out_handle 4, both_handles 5",
+      "STU-VEC-006": "join / average (join selected open endpoints ...)",
+      "STU-VEC-043": "Studio MUST provide a reverse-direction command",
+      "STU-VEC-048": "scissors splits a path at a parametric point on a segment into two open endpoints sharing a coincident position",
+      "STU-VEC-133": "path index out of bounds; point index out of bounds; cannot join path points ... Each MUST be individually distinguishable by a model from its typed error code"
+    },
+    "unverified": "Illustrator parity UNVERIFIED (D5): chord/3 handle synthesis, ANGLE mirroring on inserted anchors, coincident-merge join, (1-t):t bend weights, end anchors with one handle inferred NONE",
+    "ownership": "new files only: crates/hsk-studio-nib/src/anchor_path.rs, tests/anchor_path.rs; nib lib.rs one `pub mod` line per module",
+    "shared_hunk_rule": "slice 1 staged lib.rs with only its own `pub mod anchor_path;` hunk (git apply --cached) because shape.rs was still local; index checked to hold only lane files before committing the index",
+    "retry_guard": "route (a) once: move_anchor_handle_bend_and_constraints had a wrong hand value (off-centre bend on a retracted-handle line is x 4.6875, not 7.5); fixed by test commit ceb6a50, rerun green; no gameplan step added",
+    "v4": "V4-01 deny(clippy::arithmetic_side_effects) in anchor_path.rs (checked_rem/checked_add); V4-02 budgets before allocation (huge-anchor test); V4-09 commit -F; V4-12 scratch under scratchpad/smb-illustrator-pen/"
+  }
+}

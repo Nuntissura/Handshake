@@ -1,0 +1,41 @@
+{
+ "crate": "hsk-studio-score",
+ "lane": "SMB-SCORE-EFFECTS-5",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slice 1 (clip speed, band-limited windowed sinc) pushed bae2967; slice 2 (phase vocoder time-stretch / pitch-shift) next",
+ "commits": [
+  {
+   "sha": "bae2967fb26bc22dfe9d25780cc65f41f6145bc8",
+   "subject": "score (SMB-SCORE-EFFECTS-5 slice 1): clip speed by band-limited Kaiser-windowed sinc (100 dB design stopband)"
+  }
+ ],
+ "capabilities_done": [
+  "Clip speed (src/varispeed.rs): ClipSpeed rational numerator/denominator (1/16..16, terms <= 65536, reduced, reverse flag); render_at_speed evaluates the band-limited source at the exact rational position m*r (u128 integer part + remainder, no drift) with a Kaiser-windowed sinc (Z = 64 zero crossings, beta = 0.1102 (100 - 8.7) for a 100 dB design stopband, table 4096 points per zero crossing with linear interpolation); stated band: cutoff 0.95 min(1, 1/r) of the source Nyquist, transition 0.1 of the cutoff, passband to 0.9025 and stopband from 0.9976 of the output-limited Nyquist; handles outside the clip window used; output_frames = ceil(frames / r); speed 1 forward/reverse are exact copies; TrackSpec::from_source_at_speed builds a session clip. Measured: a tone that would alias at speed 2 at -149.2 dB, a 0.999-Nyquist tone at speed 1/2 at -99.4 dB (stopband edge), images beside the wanted tone at speed 1/2 at -119.2 dB, passband amplitude at 0.84 output Nyquist 2e-5 dB, positions within 4.3e-7 at 6 speeds incl. 16 reverse and 1/16"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-score --test varispeed --no-fail-fast",
+  "exit": 0,
+  "sha": "bae2967fb26bc22dfe9d25780cc65f41f6145bc8",
+  "passed": 3,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "slice 2: phase vocoder with identity phase locking (Laroche and Dolson 1999) for time-stretch; pitch-shift = stretch + band-limited resample; slice 3: click repair on noisy or dithered floors",
+ "updated_at": "2026-10-15T03:55:14Z",
+ "notes": {
+  "spec_basis": [
+   "STU-VID-020: clips carry a speed (folio StudioClip.speed, reduced rational, sign = reverse; derived duration exact in ticks)",
+   "STU-FX-134: native audio effect domain, deterministic"
+  ],
+  "licence_clean_room": "Smith and Gossett ICASSP 1984 band-limited interpolation, Kaiser 1974 window and design formulas re-derived; no source read or copied",
+  "asserted_bounds": "stopband asserted < -95 dB against the 100 dB design (measured -99.4 dB at the stopband edge, -149 dB deeper); passband < 2e-4 dB; positions < 2e-5",
+  "new_tests": {
+   "varispeed": 3
+  },
+  "parity": "Premiere/Audition speed and time-stretch quality parity UNVERIFIED (D5)",
+  "dep_requests": "none",
+  "working_tree": "pre-existing stat-only modifications of other score src files left uncommitted; pathspec commits only; Cargo.lock not committed"
+ }
+}
