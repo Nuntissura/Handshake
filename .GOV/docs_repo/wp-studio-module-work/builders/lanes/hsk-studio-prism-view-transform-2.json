@@ -1,0 +1,15 @@
+{
+ "crate": "hsk-studio-prism (+ hooks in hsk-studio-pigment, hsk-studio-render-cpu, hsk-studio-render-gpu)",
+ "lane": "SMB-PRISM-VIEW-TRANSFORM-2",
+ "status": null,
+ "phase": "slice 1 (prism: ACEScg input, Display P3 SDR and PQ HDR views, view selection with typed refusal, WGSL view) in progress",
+ "commits": [],
+ "capabilities_done": [],
+ "tests": {"argv": "", "exit": null, "sha": null, "passed": 0, "failed": 0},
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "slice 1 prism; slice 2 pigment ViewFrom + DESCRIPTOR, render-cpu/gpu hooks, WGSL on the shared-texture path",
+ "updated_at": "2026-10-15T02:48:45Z",
+ "notes": {}
+}
