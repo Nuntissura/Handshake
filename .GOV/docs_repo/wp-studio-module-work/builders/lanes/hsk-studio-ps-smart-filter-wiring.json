@@ -1,0 +1,42 @@
+{
+ "crate": "hsk-studio-composite",
+ "lane": "SMB-PS-SMART-FILTER-WIRING",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slices A, B, C pushed (7f29a88 composite lowering + face-aware refusal + save/reopen proof; 608f03b render-gpu smart-filter pass; 4343b69 viewer refine-edge brush); clippy clean for lane files; 9 focused tests green plus regressions",
+ "commits": [
+  {"sha": "7f29a88", "subject": "composite + pigment + harness tests (SMB-PS-SMART-FILTER-WIRING slice A): smart filter records lower to the render plan; face-aware liquify refuses model_unavailable"},
+  {"sha": "608f03b", "subject": "render-gpu (SMB-PS-SMART-FILTER-WIRING slice B): GPU smart-filter pass within the filter tolerance"},
+  {"sha": "4343b69", "subject": "harness (SMB-PS-SMART-FILTER-WIRING slice C): viewer refine-edge brush tool"}
+ ],
+ "capabilities_done": [
+  "(1) composite lower_render_plan/smart_filter.rs: lower_to_render_plan_extended turns StudioRasterLayerRecord.smart_filters into LayerExtension.smart_filters via pigment SmartFilterOp::from_record; enabled per-filter and stack masks registered as plan mask sources (coverage tiles of the layer, TileInfoSource hash), disabled masks dropped, disabled / empty stacks lower to nothing, pigment-refused stacks -> Unavailable <layer>:smart_filter_parameter; layer and root entries",
+  "(1) proof harness tests/smart_filter_package.rs: PSD import + smart-filter record -> native package (records import entry) -> reopen (read_package) -> composite evaluate_extended + lower_to_render_plan_extended -> render-cpu: renders the stack, equal to pigment SmartFilterStack::render of the same content (max |delta| 5.96e-8)",
+  "(2) render-gpu: filter-only stacks without masks run as the existing filter.wgsl / blur.wgsl passes (compile_filters, filter_stage) per enabled entry on a copied level plus new filter.wgsl op 5 MIX (premultiplied lerp by entry opacity, transparent outside the stack plane = content bounds inside the extent); ExtOperator::SmartFilter declared Approximate; liquify entries -> smart_filter_liquify, masks -> smart_filter_mask, median radius > 7 -> filter_median_radius, typed at prepare before any sink call; measured max |gpu - pigment| 3.58e-7 vs tolerance 2e-5",
+  "(3) harness tool.refine_edge_brush (Tool::RefineBrush) + options ps.refine_mode / ps.refine_size / ps.refine_radius; Viewer::refine_stroke (pigment RefineState in EditState.refine, guided-filter matte, one undo_selection step per stroke, surface restarts when the selection changes elsewhere or on undo), Viewer::refine_end",
+  "(4) pigment liquify::face_aware_liquify(mesh, FaceAwareSliders) -> LiquifyError::ModelUnavailable (model_unavailable) after a finiteness check; nothing downloaded"
+ ],
+ "tests": {
+  "argv": "harness --features viewer --test smart_filter_package (1) --test viewer_refine_brush (2) + regressions viewer_select_liquify_2 / viewer_edit (6); render-gpu --test gpu_smart_filter (2) + gpu_filters (3, regression); pigment --test ps_wiring (1) + liquify (5, regression); composite --test render_plan_lowering --test blur_lowering (25, regression)",
+  "exit": 0,
+  "sha": "4343b69",
+  "passed": 6,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "validator round on 7f29a88..4343b69 (lane commits listed)",
+ "updated_at": "2026-10-15T09:27:05Z",
+ "notes": {
+  "spec_basis": "STU-RAS-037 'StudioLiveFilter is the single canonical live-filter primitive: a re-editable, maskable filter'; STU-FX-011a 'a filter on any layer is already the non-destructive stack'; STU-FX-023 'Liquify, mesh warp, and the perspective/wide-angle workspaces are GPU-accelerated' (filter stacks run on the GPU; liquify entries are a typed refusal there); STU-FX-024 'A face-aware mode detects faces and exposes parametric eye/nose/mouth/face-shape sliders'; STU-RAS-019 on-device ML (no model installed -> model_unavailable); STU-RAS-122 refinement brush set",
+  "measured_bounds": "save/reopen re-render vs pigment stack max |delta| 5.96e-8 (asserted <= 1e-6; over-transparent compositing rounding); GPU stack (blur, noise at 0.6, disabled high pass, median, unsharp at 0.35, 16 px chunks) max |gpu - pigment| 3.58e-7 (asserted <= 2e-5, the render-gpu filter tolerance)",
+  "shared_file_hunks": "composite lower_render_plan.rs held only this lane's hunks (pathspec commit). render-gpu plan_sink.rs / kernel.rs / filter.wgsl and harness view/mod.rs / edit.rs / select_liquify.rs were committed from temporary indexes built as HEAD + this lane's hunks (scripted anchor edits applied to the HEAD blobs; edit.rs and select_liquify.rs equal to the working copy, mod.rs differs only by the audio lane's uncommitted hunks, plan_sink.rs only by none after the key-track lane committed b3c2a78); the real index entries of these paths were then reset to the new HEAD (index only). No other lane's hunk was committed.",
+  "gaps": "GPU smart-filter masks and liquify entries are typed refusals (render-cpu runs them); the viewer render path (view/render.rs) still renders without raster records (records: None; another lane's file), so a reopened document shows smart filters through composite + render-cpu (proof test) but not yet in the viewer frame; composite mask registration for smart-filter masks is not covered by a test (the render-cpu and pigment mask paths are); face-aware liquify has no landmark model",
+  "readings_unverified_d5": "smart filter stack evaluated over the content bounds inside the extent; GPU mix in binary32; refine brush viewer semantics (surface restart rules, guided-filter matte); Photoshop parity UNVERIFIED (D5)",
+  "v4": "deny(clippy::arithmetic_side_effects) on composite lower_render_plan/smart_filter.rs (render-gpu and harness additions inside modules that already deny it); typed refusals before allocation / sink calls (GPU prepare refusals tested with zero sink calls)",
+  "retry_guard": "not triggered in this lane",
+  "new_edges": "none (composite -> pigment, harness -> composite/render-cpu/package existing); no crates.io dependency",
+  "cargo_lock": "not touched",
+  "parity": "Photoshop parity UNVERIFIED (D5); never claimed"
+ }
+}
