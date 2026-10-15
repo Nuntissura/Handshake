@@ -3813,6 +3813,71 @@ struct AtelierPanelState {
     prompt_feedback_active_export_fingerprint: Option<String>,
 }
 
+impl AtelierPanelState {
+    fn clear_context(&mut self, previous: &Self) {
+        self.active_tab = previous.active_tab;
+        self.ckc_book_mode = previous.ckc_book_mode;
+        self.ingest_mode = previous.ingest_mode;
+        self.pose_yaw = previous.pose_yaw;
+        self.pose_pitch = previous.pose_pitch;
+        self.pose_zoom = previous.pose_zoom;
+        self.pose_face = previous.pose_face;
+        self.pose_body = previous.pose_body;
+        self.pose_hands = previous.pose_hands;
+        self.pose_framing_preset = previous.pose_framing_preset.clone();
+        self.pose_framing_lens_mm = previous.pose_framing_lens_mm;
+        self.pose_framing_padding_top_px = previous.pose_framing_padding_top_px;
+        self.pose_framing_padding_right_px = previous.pose_framing_padding_right_px;
+        self.pose_framing_padding_bottom_px = previous.pose_framing_padding_bottom_px;
+        self.pose_framing_padding_left_px = previous.pose_framing_padding_left_px;
+        self.ingest_contact_rows = previous.ingest_contact_rows.clone();
+        self.ingest_contact_columns = previous.ingest_contact_columns.clone();
+        self.ingest_contact_dpi = previous.ingest_contact_dpi.clone();
+        self.ingest_contact_include_labels = previous.ingest_contact_include_labels;
+        self.ingest_contact_thumbnail_fit = previous.ingest_contact_thumbnail_fit.clone();
+        self.ckc_search_mode = previous.ckc_search_mode;
+
+        self.ckc_media_fetch_seq = previous.ckc_media_fetch_seq.saturating_add(1);
+        self.pose_export_request_seq = previous.pose_export_request_seq.saturating_add(1);
+        self.pose_export_png_fetch_seq = previous.pose_export_png_fetch_seq.saturating_add(1);
+        self.pose_source_fetch_seq = previous.pose_source_fetch_seq.saturating_add(1);
+        self.ingest_contact_export_request_seq =
+            previous.ingest_contact_export_request_seq.saturating_add(1);
+        self.ingest_facial_analysis_request_seq =
+            previous.ingest_facial_analysis_request_seq.saturating_add(1);
+        self.facial_review_request_seq = previous.facial_review_request_seq.saturating_add(1);
+        self.facial_features_request_seq = previous.facial_features_request_seq.saturating_add(1);
+        self.model_ops_request_seq = previous.model_ops_request_seq.saturating_add(1);
+        self.prompt_feedback_request_seq = previous.prompt_feedback_request_seq.saturating_add(1);
+
+        self.ckc_characters.clear();
+        self.ckc_search_results.clear();
+        self.ckc_search_status = "No CKC data loaded for the current context.".to_owned();
+        self.ckc_sheet_artifact_ref.clear();
+        self.ckc_sheet_artifact_manifest_ref.clear();
+        self.ckc_tag_note_scope_ref.clear();
+        self.ckc_tag_note_editor.clear();
+        self.pose_source_ref.clear();
+        self.ingest_dataset_ref.clear();
+        self.ingest_character_ref.clear();
+        self.ingest_tag_buffer.clear();
+        self.ingest_batch_note.clear();
+        self.ingest_event.clear();
+        self.ingest_date.clear();
+        self.ingest_location.clear();
+        self.ingest_contact_output_path.clear();
+        self.model_ops_actor_id = self.ingest_actor.clone();
+        self.model_ops_session_id.clear();
+        self.model_ops_thread_id.clear();
+        self.prompt_feedback_project.clear();
+        self.prompt_feedback_adapter.clear();
+        self.prompt_feedback_cases.clear();
+        if self.ingest_actor.is_empty() {
+            self.ckc_media_actor_id.clear();
+        }
+    }
+}
+
 impl Default for AtelierPanelState {
     fn default() -> Self {
         let ckc_characters = seeded_ckc_characters();
@@ -7147,6 +7212,80 @@ fn ingest_item_decision(state: &AtelierPanelState, item: &AtelierItemRow) -> Ing
 }
 
 pub struct AtelierPanel {
+    runtime: Mutex<AtelierPanelRuntime>,
+}
+
+impl AtelierPanel {
+    pub fn new(
+        side_panel: Arc<Mutex<AtelierSidePanel>>,
+        canvas_board: Arc<Mutex<LoomCanvasBoard>>,
+        canvas_events: Arc<Mutex<Vec<CanvasEvent>>>,
+    ) -> Self {
+        Self::with_client(side_panel, canvas_board, canvas_events, None)
+    }
+
+    pub fn with_client(
+        side_panel: Arc<Mutex<AtelierSidePanel>>,
+        _canvas_board: Arc<Mutex<LoomCanvasBoard>>,
+        _canvas_events: Arc<Mutex<Vec<CanvasEvent>>>,
+        client: Option<AtelierClient>,
+    ) -> Self {
+        Self {
+            runtime: Mutex::new(AtelierPanelRuntime::with_client(side_panel, client)),
+        }
+    }
+
+    fn runtime(&self) -> std::sync::MutexGuard<'_, AtelierPanelRuntime> {
+        self.runtime.lock().unwrap_or_else(|error| error.into_inner())
+    }
+
+    pub fn rebind_client(&self, client: Option<AtelierClient>) {
+        let mut runtime = self.runtime();
+        let mut replacement = AtelierPanelRuntime::with_client(runtime.side_panel.clone(), client);
+        {
+            let previous = runtime
+                .state
+                .lock()
+                .unwrap_or_else(|error| error.into_inner());
+            let state = replacement
+                .state
+                .get_mut()
+                .unwrap_or_else(|error| error.into_inner());
+            state.clear_context(&previous);
+        }
+        *runtime = replacement;
+    }
+
+    pub fn active_tab(&self) -> AtelierPanelTab {
+        self.runtime().active_tab()
+    }
+
+    pub fn set_active_tab(&self, tab: AtelierPanelTab) {
+        self.runtime().set_active_tab(tab);
+    }
+
+    pub fn set_model_ops_active_lease_thread_id(&self, thread_id: impl Into<String>) {
+        self.runtime().set_model_ops_active_lease_thread_id(thread_id);
+    }
+
+    pub fn show(&self, ui: &mut egui::Ui, palette: &HsPalette) {
+        self.runtime().show(ui, palette);
+    }
+
+    pub fn set_ckc_media_image_bytes(&self, asset_id: &str, bytes: Option<Vec<u8>>) {
+        self.runtime().set_ckc_media_image_bytes(asset_id, bytes);
+    }
+
+    pub fn image_cache_debug_snapshot(&self) -> AtelierImageCacheDebugSnapshot {
+        self.runtime().image_cache_debug_snapshot()
+    }
+
+    pub fn set_pose_source_image_bytes(&self, bytes: Option<Vec<u8>>) {
+        self.runtime().set_pose_source_image_bytes(bytes);
+    }
+}
+
+struct AtelierPanelRuntime {
     state: Mutex<AtelierPanelState>,
     side_panel: Arc<Mutex<AtelierSidePanel>>,
     /// WP-CKC MT-012 (FIX 2): the moodboard's OWN isolated canvas board. The app-wide shared Loom
@@ -7216,22 +7355,9 @@ pub struct AtelierPanel {
     prompt_feedback_export_cell: AtelierPromptFeedbackExportCell,
 }
 
-impl AtelierPanel {
-    pub fn new(
+impl AtelierPanelRuntime {
+    fn with_client(
         side_panel: Arc<Mutex<AtelierSidePanel>>,
-        canvas_board: Arc<Mutex<LoomCanvasBoard>>,
-        canvas_events: Arc<Mutex<Vec<CanvasEvent>>>,
-    ) -> Self {
-        Self::with_client(side_panel, canvas_board, canvas_events, None)
-    }
-
-    pub fn with_client(
-        side_panel: Arc<Mutex<AtelierSidePanel>>,
-        // WP-CKC MT-012 (FIX 2): the shared Loom singleton + its event queue are still accepted for
-        // constructor-API stability (app.rs + the Loom pane still own/drive them), but the moodboard no
-        // longer touches them — it owns `moodboard_board` below. Bound to `_` so they are provably unused.
-        _canvas_board: Arc<Mutex<LoomCanvasBoard>>,
-        _canvas_events: Arc<Mutex<Vec<CanvasEvent>>>,
         ckc_client: Option<AtelierClient>,
     ) -> Self {
         let mut state = AtelierPanelState::default();

@@ -467,6 +467,45 @@ fn signed_current_owned_launch_binds_actual_child_and_retains_clean_shutdown() {
         native_descriptor.loopback_address,
         native_descriptor.loopback_port,
     )).is_err());
+    let prefix = format!("palmistry-failed-{session_id}-");
+    let failed_socket = format!("{prefix}{}", "x".repeat(1024 - prefix.len()));
+    assert!(palmistry::control::ControlServer::bind(&failed_socket).is_err());
+
+    let started = std::time::Instant::now();
+    let mut failed = launch_palmistry_signed_at(
+        &exe,
+        &session,
+        &path,
+        &failed_socket,
+        &native_lease,
+        uuid::Uuid::now_v7(),
+        nonce,
+        zeroize::Zeroizing::new(vec![0x79; 32]),
+        transport_public,
+    )
+    .expect("post-spawn control bind failure must retain the actual child");
+
+    assert!(started.elapsed() < Duration::from_secs(15));
+    let failed_pid = failed.child_id();
+    assert!(failed_pid > 0);
+    assert!(!failed.handshake_acked());
+    assert!(failed.signed_ready().is_none());
+    assert!(failed.handshake_error().is_some());
+    assert!(std::net::UdpSocket::bind((
+        native_descriptor.loopback_address,
+        native_descriptor.loopback_port,
+    ))
+    .is_err());
+
+    match failed.request_shutdown_and_wait(Duration::from_secs(10)) {
+        ShutdownOutcome::ExitedCleanly(status) => assert_eq!(status.code(), Some(2)),
+        other => panic!("failed startup must reap its actual child: {other:?}"),
+    }
+    assert_eq!(failed.child_id(), failed_pid);
+    assert!(matches!(
+        failed.request_shutdown_and_wait(Duration::from_secs(10)),
+        ShutdownOutcome::AlreadyDone,
+    ));
     drop(native_lease);
     let released_lease = std::net::UdpSocket::bind((
         native_descriptor.loopback_address,

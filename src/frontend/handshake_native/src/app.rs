@@ -6733,10 +6733,8 @@ pub struct HandshakeApp {
     /// edge of the shell (the `egui::SidePanel::right` mirror of the left activity rail). This is the
     /// drag SOURCE the rich-editor / canvas drop zones consume — it is rendered every frame so its
     /// `dnd_drag_source` item rows are reachable in the real product, not only in a standalone test
-    /// harness. In the production shell it is `AtelierSidePanel::production(runtime)` (loads from the
-    /// real `/atelier` backend off the UI thread); the headless/test shell has no runtime, so the panel
-    /// stays idle/neutral (no perpetual spinner) until a test injects rows.
-    atelier_side_panel: AtelierSidePanel,
+    /// harness. Shares the mounted Atelier panel's state and binds only to the current account client.
+    atelier_side_panel: Arc<Mutex<AtelierSidePanel>>,
     /// MT-033: whether the right-edge Atelier/CKC side panel is expanded. The fresh shell keeps it
     /// closed so the default work surface stays editor/chat-focused; tests or an affordance can open it
     /// when the drag source is needed.
@@ -7091,6 +7089,10 @@ struct SecondaryMountHandles {
     /// The canvas board state behind the mounted canvas pane + its outbound CanvasEvent queue.
     canvas_board: Arc<Mutex<crate::graph::canvas_board::LoomCanvasBoard>>,
     canvas_events: Arc<Mutex<Vec<crate::graph::canvas_board::CanvasEvent>>>,
+    atelier_side_panel: Arc<Mutex<AtelierSidePanel>>,
+    atelier_panel: Arc<crate::atelier_panel::AtelierPanel>,
+    atelier_modules: Arc<Mutex<HashMap<PaneId, ModuleId>>>,
+    atelier_client_bound: std::sync::atomic::AtomicBool,
     /// The graph view state behind the mounted graph pane + its outbound GraphEvent queue.
     graph_view: Arc<Mutex<crate::graph::graph_view::LoomGraphView>>,
     graph_events: Arc<Mutex<Vec<crate::graph::graph_view::GraphEvent>>>,
@@ -7432,6 +7434,32 @@ fn install_editor_mounts(map: &mut HashMap<PaneType, Box<dyn PaneFactory>>) -> E
 /// outbound events the shell drains. Each factory is registered over the SAME `PaneType` the pane's
 /// `register_*_pane` record uses, so a docked secondary pane renders the real widget instead of a
 /// placeholder.
+struct AtelierEditorPaneMount {
+    pane_type: PaneType,
+    modules: Arc<Mutex<HashMap<PaneId, ModuleId>>>,
+    canvas: Arc<crate::editor_pane_factories::CanvasBoardPaneMount>,
+    atelier: Arc<crate::atelier_panel::AtelierPanelPaneMount>,
+}
+
+impl PaneFactory for AtelierEditorPaneMount {
+    fn pane_type(&self) -> PaneType {
+        self.pane_type.clone()
+    }
+
+    fn render(&self, ui: &mut egui::Ui, ctx: &PaneRenderContext) {
+        let module = self.modules.lock().unwrap_or_else(|p| p.into_inner())
+            .get(&ctx.record.pane_id).copied();
+        if self.pane_type == PaneType::MediaDownloader
+            || (ctx.record.content_id.is_none()
+                && matches!(module, Some(ModuleId::Ckc | ModuleId::Ingest)))
+        {
+            self.atelier.render(ui, ctx);
+        } else {
+            self.canvas.render(ui, ctx);
+        }
+    }
+}
+
 fn install_secondary_mounts(
     map: &mut HashMap<PaneType, Box<dyn PaneFactory>>,
     session: &SharedSessionContext,
@@ -7467,14 +7495,29 @@ fn install_secondary_mounts(
     canvas.install_knowledge_action_registry(Arc::clone(&knowledge_registry));
     let canvas_board = Arc::new(Mutex::new(canvas));
     let canvas_events = Arc::new(Mutex::new(Vec::new()));
-    map.insert(
-        PaneType::AtelierEditor,
-        Box::new(CanvasBoardPaneMount::new(
-            Arc::clone(&canvas_board),
-            Arc::clone(&palette),
-            Arc::clone(&canvas_events),
-        )),
-    );
+    let atelier_side_panel = Arc::new(Mutex::new(AtelierSidePanel::with_client(None)));
+    let atelier = Arc::new(crate::atelier_panel::AtelierPanelPaneMount::new(
+        Arc::clone(&atelier_side_panel),
+        Arc::clone(&canvas_board),
+        Arc::clone(&palette),
+        Arc::clone(&canvas_events),
+    ));
+    let atelier_panel = atelier.panel_handle();
+    atelier_panel.rebind_client(None);
+    let atelier_modules = Arc::new(Mutex::new(HashMap::new()));
+    let canvas_mount = Arc::new(CanvasBoardPaneMount::new(
+        Arc::clone(&canvas_board),
+        Arc::clone(&palette),
+        Arc::clone(&canvas_events),
+    ));
+    for pane_type in [PaneType::AtelierEditor, PaneType::MediaDownloader] {
+        map.insert(pane_type.clone(), Box::new(AtelierEditorPaneMount {
+            pane_type,
+            modules: Arc::clone(&atelier_modules),
+            canvas: Arc::clone(&canvas_mount),
+            atelier: Arc::clone(&atelier),
+        }));
+    }
 
     // ── Graph view — REMEDIATION: its OWN key (Placeholder "Graph View"), NOT PaneType::KernelDcc.
     // The old KernelDcc registration hijacked quick-switcher WP/MT navigation (the WP:/MT: content id
@@ -7719,6 +7762,10 @@ fn install_secondary_mounts(
         palette,
         canvas_board,
         canvas_events,
+        atelier_side_panel,
+        atelier_panel,
+        atelier_modules,
+        atelier_client_bound: std::sync::atomic::AtomicBool::new(false),
         graph_view,
         graph_events,
         outgoing_links,
@@ -8208,6 +8255,7 @@ impl HandshakeApp {
         ) = build_factories_with_loom_search_v2(rt_handle.clone(), HsTheme::Dark.palette());
         // MT-066 REMEDIATION: the bottom Stage panel and the dockable Stage pane share ONE StagePane.
         let stage_pane_shared = Arc::clone(&editor_mounts.secondary.stage);
+        let atelier_side_panel_shared = Arc::clone(&editor_mounts.secondary.atelier_side_panel);
         let mcp_snapshot = Arc::new(Mutex::new(empty_snapshot()));
         let mcp_action_channel = Arc::new(Mutex::new(crate::mcp::ActionChannel::new()));
         let mcp_windows = Arc::new(Mutex::new(crate::mcp::WindowSnapshotRegistry::new(
@@ -8523,10 +8571,8 @@ impl HandshakeApp {
             mcp_token: crate::mcp::SessionToken::generate(),
             capturing_snapshot: false,
             ime_allowed_sent: false,
-            // MT-033: the production Atelier/CKC side panel loads from the real `/atelier` backend off the
-            // UI thread (the same runtime handle every other off-thread client uses). The feature stays
-            // mounted but CLOSED by default so a fresh launch is editor/chat-focused.
-            atelier_side_panel: AtelierSidePanel::production(rt_handle.clone()),
+            // The docked panel and right-edge drag source share one account-bound state.
+            atelier_side_panel: atelier_side_panel_shared,
             atelier_panel_open: false,
             stage_pane: stage_pane_shared,
             stage_panel_open: false,
@@ -13263,6 +13309,7 @@ impl HandshakeApp {
         ) = build_factories_with_loom_search_v2(rt.handle().clone(), HsTheme::Dark.palette());
         // MT-066 REMEDIATION: the bottom Stage panel and the dockable Stage pane share ONE StagePane.
         let stage_pane_shared = Arc::clone(&editor_mounts.secondary.stage);
+        let atelier_side_panel_shared = Arc::clone(&editor_mounts.secondary.atelier_side_panel);
         let mcp_snapshot = Arc::new(Mutex::new(empty_snapshot()));
         let mcp_action_channel = Arc::new(Mutex::new(crate::mcp::ActionChannel::new()));
         let mcp_windows = Arc::new(Mutex::new(crate::mcp::WindowSnapshotRegistry::new(
@@ -13587,7 +13634,7 @@ impl HandshakeApp {
             // no client (it renders no rows + never touches the network; a test injects rows via the
             // `atelier_side_panel_mut` accessor + `with_rows`-style state if it wants seeded rows). The
             // panel stays mounted but CLOSED by default so the fresh default frame is editor/chat-focused.
-            atelier_side_panel: AtelierSidePanel::with_client(None),
+            atelier_side_panel: atelier_side_panel_shared,
             atelier_panel_open: false,
             stage_pane: stage_pane_shared,
             stage_panel_open: false,
@@ -13809,8 +13856,10 @@ impl HandshakeApp {
 
     /// MT-033: mutable access to the mounted Atelier/CKC side panel (for tests that seed rows so the
     /// live-shell render shows real draggable item nodes without a backend).
-    pub fn atelier_side_panel_mut(&mut self) -> &mut AtelierSidePanel {
-        &mut self.atelier_side_panel
+    pub fn atelier_side_panel_mut(&mut self) -> std::sync::MutexGuard<'_, AtelierSidePanel> {
+        self.atelier_side_panel
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
     }
 
     /// MT-033: the Stage pane's currently-staged content (a clone; for tests asserting the shell drain
@@ -17371,10 +17420,10 @@ impl HandshakeApp {
         self.drawer_action_client = Some(crate::backend_client::DrawerActionClient::production(
             handle.clone(),
         ));
-        self.atelier_side_panel
-            .bind_client(crate::backend_client::AtelierClient::production(
-                handle.clone(),
-            ));
+        self.rebind_atelier_client(Some(
+            crate::backend_client::AtelierClient::production(handle.clone())
+                .with_authenticated_context(self.local_account.context.clone()),
+        ));
         // MT-098: Runtime Chat deliberately stays on `self.rt`, whose owner is this HandshakeApp.
         // `set_runtime_handle` accepts a caller-owned test handle and stores only a clone; rebinding chat
         // to it would let the caller drop the runtime while the mounted pane remains alive, producing a
@@ -20291,10 +20340,10 @@ impl HandshakeApp {
             handle.clone(),
         ));
         // MT-156: /atelier/* requires the account session.
-        self.atelier_side_panel.bind_client(
+        self.rebind_atelier_client(Some(
             crate::backend_client::AtelierClient::new(base_url, handle.clone())
                 .with_authenticated_context(self.local_account.context.clone()),
-        );
+        ));
         // MT-028 remediation: the mounted Loom Search factory owns its transport client just like
         // Find-in-Files. Rebind the concrete factory too, otherwise a managed-runtime proof (and any
         // future explicit backend adapter) changes the app clients while Loom Search silently keeps
@@ -25053,6 +25102,7 @@ impl HandshakeApp {
             return false;
         }
         self.module_switcher.set_active(module_id);
+        self.sync_atelier_module();
 
         // Mutate exactly the active (target) pane's tab bar.
         let Some(target) = self.module_target_pane() else {
@@ -25079,6 +25129,43 @@ impl HandshakeApp {
             *bar = rebuilt;
         }
         true
+    }
+
+    fn sync_atelier_module(&self) {
+        let module = self.module_switcher.active();
+        let Some(target) = self.module_target_pane() else {
+            return;
+        };
+        self.editor_mounts.secondary.atelier_modules.lock()
+            .unwrap_or_else(|p| p.into_inner()).insert(target, module);
+        self.sync_atelier_tab(module);
+    }
+
+    fn sync_atelier_tab(&self, module: ModuleId) {
+        let tab = match module {
+            ModuleId::Ckc => Some(crate::atelier_panel::AtelierPanelTab::CastkitCodex),
+            ModuleId::Ingest => Some(crate::atelier_panel::AtelierPanelTab::Ingest),
+            _ => None,
+        };
+        if let Some(tab) = tab {
+            self.editor_mounts.secondary.atelier_panel.set_active_tab(tab);
+        }
+    }
+
+    fn rebind_atelier_client(&self, client: Option<crate::backend_client::AtelierClient>) {
+        let client = client.filter(|_| {
+            self.local_account.context.as_ref()
+                .is_some_and(|context| context.is_active())
+        });
+        let was_bound = self.editor_mounts.secondary.atelier_client_bound
+            .swap(client.is_some(), std::sync::atomic::Ordering::AcqRel);
+        if client.is_none() && !was_bound {
+            return;
+        }
+        self.atelier_side_panel.lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .rebind_client(client.clone());
+        self.editor_mounts.secondary.atelier_panel.rebind_client(client);
     }
 
     /// Build the live ACTIVE-WINDOW quick-link entries (MT-014) from the current pane tab bars: one
@@ -34978,11 +35065,13 @@ impl HandshakeApp {
         let palette = self.current_theme.palette();
 
         // ── Right edge: the Atelier/CKC drag-source side panel (mirrors the left activity rail) ─────────
-        if self.atelier_panel_open {
+        if self.atelier_panel_open
+            && !matches!(self.module_switcher.active(), ModuleId::Ckc | ModuleId::Ingest)
+        {
             let mut actions = Vec::new();
             let panel_palette = palette.clone();
             {
-                let panel = &mut self.atelier_side_panel;
+                let mut panel = self.atelier_side_panel.lock().unwrap_or_else(|p| p.into_inner());
                 egui::SidePanel::right("atelier-side-panel-host")
                     .resizable(true)
                     .min_width(200.0)
@@ -35250,6 +35339,8 @@ impl HandshakeApp {
         // switcher highlight resets too. A subsequent lifecycle load overwrites this if the entered
         // project has a stored `active_module`.
         self.module_switcher.set_active(ModuleId::Main);
+        self.editor_mounts.secondary.atelier_modules.lock()
+            .unwrap_or_else(|p| p.into_inner()).clear();
         // Rebuild the registry from the default panes, re-stamped to the entered project so the captured
         // snapshot's pane records are self-consistent with `active_project_id`.
         {
@@ -36173,7 +36264,7 @@ impl HandshakeApp {
             })
             .collect();
 
-        LayoutSnapshot::new(
+        let mut snapshot = LayoutSnapshot::new(
             self.active_project_id.clone(),
             self.split_weights,
             self.active_pane.clone(),
@@ -36185,7 +36276,12 @@ impl HandshakeApp {
         .with_drawers(DrawersState {
             project: self.left_rail_open,
             bottom: self.bottom_drawer_open,
-        })
+        });
+        snapshot.pane_modules = self.editor_mounts.secondary.atelier_modules.lock()
+            .unwrap_or_else(|p| p.into_inner()).iter()
+            .filter(|(id, _)| snapshot.panes.contains_key(*id))
+            .map(|(id, module)| (id.clone(), *module)).collect();
+        snapshot
     }
 
     /// Apply a restored [`LayoutSnapshot`] to the live shell (MT-009), the inverse of
@@ -36241,6 +36337,15 @@ impl HandshakeApp {
 
         // Restore per-pane tab state.
         self.tab_bar_states = snapshot.tab_bars.into_iter().collect();
+        let legacy_module_binding = snapshot.pane_modules.is_empty();
+        *self.editor_mounts.secondary.atelier_modules.lock()
+            .unwrap_or_else(|p| p.into_inner()) = snapshot.pane_modules.into_iter()
+                .filter(|(id, _)| self.tab_bar_states.contains_key(id)).collect();
+        if legacy_module_binding {
+            self.sync_atelier_module();
+        } else {
+            self.sync_atelier_tab(self.module_switcher.active());
+        }
 
         // Restore pop-outs: reopen the ones that were open at their (clamped) geometry. A pop-out
         // saved as closed is simply not reopened.
@@ -37370,6 +37475,7 @@ impl HandshakeApp {
     }
 
     fn reset_account_workspace(&mut self, ctx: &egui::Context) {
+        self.rebind_atelier_client(None);
         self.workspace_activation.generation = self.workspace_activation.generation.wrapping_add(1);
         self.workspace_activation.admitted = None;
         {
@@ -37506,6 +37612,7 @@ impl HandshakeApp {
                 .as_ref()
                 .is_some_and(|context| context.is_active())
         {
+            self.rebind_atelier_client(None);
             if let Some(provenance) = &self.diagnostic_provenance {
                 provenance.invalidate();
             }

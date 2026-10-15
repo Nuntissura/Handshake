@@ -210,7 +210,11 @@ impl AtelierSidePanel {
     /// Rebind a headless or stale shell panel to a live backend client. In-flight generations and
     /// projections are invalidated so the next mounted frame loads exclusively from the new endpoint.
     pub fn bind_client(&mut self, client: AtelierClient) {
-        self.client = Some(client);
+        self.rebind_client(Some(client));
+    }
+
+    pub fn rebind_client(&mut self, client: Option<AtelierClient>) {
+        self.client = client;
         self.batches.clear();
         self.corpus.clear();
         self.expanded = None;
@@ -221,12 +225,9 @@ impl AtelierSidePanel {
         self.items_error = None;
         self.load_generation = self.load_generation.wrapping_add(1);
         self.items_generation = self.items_generation.wrapping_add(1);
-        if let Ok(mut queue) = self.panel_cell.lock() {
-            queue.clear();
-        }
-        if let Ok(mut queue) = self.items_cell.lock() {
-            queue.clear();
-        }
+        self.panel_cell = Arc::new(Mutex::new(std::collections::VecDeque::new()));
+        self.items_cell = Arc::new(Mutex::new(std::collections::VecDeque::new()));
+        self.pending_actions.clear();
     }
 
     /// Trigger a side-panel load (batches + corpus) if a client is present. Sets [`LoadState::Loading`]

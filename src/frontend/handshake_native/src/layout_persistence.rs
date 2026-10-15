@@ -144,6 +144,8 @@ pub struct LayoutSnapshot {
     /// validation, keeping the version-1 schema backward compatible.
     #[serde(default = "default_module")]
     pub active_module: ModuleId,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub pane_modules: BTreeMap<PaneId, ModuleId>,
     /// The pane registry records (MT-005), keyed by pane id for deterministic order.
     pub panes: BTreeMap<PaneId, PaneRecord>,
     /// Per-pane tab-bar state (MT-007): tab order, active index, pinned/dirty flags.
@@ -178,6 +180,7 @@ impl LayoutSnapshot {
             split_weights,
             active_pane,
             active_module,
+            pane_modules: BTreeMap::new(),
             panes,
             tab_bars,
             pop_outs,
