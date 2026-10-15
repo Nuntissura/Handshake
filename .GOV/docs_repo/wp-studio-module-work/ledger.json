@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T02:06:56Z",
+ "updated_at": "2026-10-15T02:08:38Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -5726,12 +5726,14 @@
   {
    "lane_id": "SMB-INTEROP-FIG-PAINTS-2",
    "crate": "hsk-studio-interop-fig",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-fig-inst-20261015",
-   "commits": [],
+   "commits": [
+    "0e53adb"
+   ],
    "verdicts": [],
-   "note": "image fills via test-only edge interop-fig -> interop-raster (approved); Inter Bold static OFL font from the official rsms/inter release (Operator standing download grant); re-measure basic-shapes"
+   "note": "image fills render (84-point mean 1.93/255); basic-shapes mean 2.48/255, 98.3% within 8/255; bold text pending Operator decision on Inter-Bold fixture"
   },
   {
    "lane_id": "SMB-PIGMENT-EXTENDED-RANGE-2",

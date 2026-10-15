@@ -1,0 +1,33 @@
+{
+  "crate": "hsk-studio-interop-fig",
+  "lane": "SMB-INTEROP-FIG-PAINTS-2",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slice 1 pushed (0e53adb: image fills + basic-shapes re-measure); bold text BLOCKED (Inter Bold fixture not downloaded, see blockers)",
+  "commits": [
+    {"sha": "0e53adb", "subject": "interop-fig tests (SMB-INTEROP-FIG-PAINTS-2 slice 1): image fills render from the .fig image part; basic-shapes re-measured"}
+  ],
+  "capabilities_done": [
+    "Image fills render: the harness decodes the original .fig images/<hash> part (JPEG) with hsk-studio-interop-raster (dev edge approved 2026-10-15; dev-allowed added by steward sync 4e30c90 before this push) and serves it to composite (VectorAssets::image, image paint tiles); image_paint_unresolved no longer occurs on basic-shapes",
+    "basic-shapes whole artboard re-measured against the Operator PNG"
+  ],
+  "tests": {
+    "argv": "cargo nextest run -p hsk-studio-interop-fig --no-fail-fast",
+    "exit": 0,
+    "sha": "0e53adb",
+    "passed": 43,
+    "failed": 0
+  },
+  "blockers": [
+    {"error": "Inter Bold fixture not added and bold text not rendered. The download permission was relayed by the lead (quoting an Operator chat line of 2026-10-14); under this builder's safety rules a download needs the Operator's approval given to this builder directly, and an agent-relayed grant is not accepted. Nothing was downloaded, derived or modified. Needed: the Operator approves in this session, or the lead/steward places the unmodified rsms/inter static Inter-Bold (OFL-1.1) file and its sha256/licence; the builder then adds the fixture + provenance and grants Inter/Bold in fig_paints_2 / fig_instances_frames", "file_line": "crates/hsk-studio-interop-fig/tests/fixtures (no file added)", "attempts": 0}
+  ],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "Inter Bold fixture once supplied/approved: render the basic-shapes mixed Regular+Bold text and the components labels in their real weight; re-measure basic-shapes and components",
+  "updated_at": "2026-10-15T02:06:27Z",
+  "notes": {
+    "measured": "image fill: 84 probes inside the ellipse, mean 1.925695/255, median 1.363687, max 12.682885 (bilinear JPEG placement vs Figma's resampling; composite class Approximate, Figma FILL maths UNVERIFIED); basic-shapes whole artboard mean 2.478479/255, 95.8682 % within 2/255, 98.3156 % within 8/255, p99 83.92 (was 5.0056 / 96.41 % before the image rendered; 20.251 / 88.61 % at the start of SMB-INTEROP-FIG-INSTANCES-FRAMES); residue = the text layer (needs Inter Bold); Figma parity UNVERIFIED",
+    "tolerance_note": "floors pinned from 6-decimal prints (a 4-decimal print once rounded above the measured value; fixed before push)",
+    "deps": "dev-dependency hsk-studio-interop-raster in crates/hsk-studio-interop-fig/Cargo.toml (pushed after steward sync 4e30c90); dep-requests line marked approved; Cargo.lock uncommitted",
+    "retry_guard": "no gameplan block; no gameplan step added"
+  }
+}
