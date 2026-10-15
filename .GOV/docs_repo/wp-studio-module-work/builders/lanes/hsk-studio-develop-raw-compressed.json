@@ -2,7 +2,7 @@
  "crate": "hsk-studio-develop",
  "lane": "SMB-DEVELOP-RAW-COMPRESSED",
  "status": "READY_FOR_VALIDATION",
- "phase": "slices 1 (NEF Huffman), 2 (CR3/CRX) and 3 (RAF compressed) READY on 878cad6; slice 4 (ORF) in progress",
+ "phase": "slices 1-5 (NEF Huffman, CR3/CRX, RAF compressed, ORF two-field, RW2 word/block formats) READY on c64d64a; compressed ORF and RW2 format 8 blocked (see blockers)",
  "commits": [
   {
    "sha": "1dcc906",
@@ -31,6 +31,26 @@
   {
    "sha": "878cad69d1957e32d6343a8cd9c8effd07137d0f",
    "subject": "develop (SMB-DEVELOP-RAW-COMPRESSED slice 3): pin X-S10 RAF facts and preview floors; DESCRIPTOR"
+  },
+  {
+   "sha": "3df092bc6e2a11e2f63ccd716ad5e1216b7a4f64",
+   "subject": "develop (SMB-DEVELOP-RAW-COMPRESSED slice 4): Olympus ORF two-field 12-bit layout"
+  },
+  {
+   "sha": "cf561ebb643d069501f5edf03a422a6c086e8ac4",
+   "subject": "develop (SMB-DEVELOP-RAW-COMPRESSED slice 4): checked row count in the ORF field walk (V4-01 clippy)"
+  },
+  {
+   "sha": "4c5816c35acc08e4cb93a3230e80721c86c68b0c",
+   "subject": "develop (SMB-DEVELOP-RAW-COMPRESSED slice 5): Panasonic RW2 word and 16-byte block encodings"
+  },
+  {
+   "sha": "6b74f0c4afdbdd33be15700d47f160e423fc3162",
+   "subject": "develop (SMB-DEVELOP-RAW-COMPRESSED slice 5): RW2 tests, LX7 pinned (GRBG, preview r 0.978); DESCRIPTOR"
+  },
+  {
+   "sha": "c64d64ade4b2b2ae4965d5e733b33e6abe3398fe",
+   "subject": "develop (SMB-DEVELOP-RAW-COMPRESSED): update routing/identity tests for the new vendor decoders"
   }
  ],
  "capabilities_done": [
@@ -38,20 +58,38 @@
   "V4-01 deny(clippy::arithmetic_side_effects) in nefc.rs and nef.rs; V4-02 size check (every code word >= 2 bits) before allocation, dimension-bomb test",
   "slice 2 CR3: decode_container routes ISO-BMFF ftyp 'crx ' to src/cr3.rs (box walk bounded to 4096 boxes / depth 12, first largest CRAW track with CMP1, stsz + co64/stco first sample, CMT1 Model) -> src/crx.rs (CMP1 parse; CRX 0x100 lossless, 0x100 horizontal-tile C-RAW with uniform quantisation, 0x200 single-tile 14-bit C-RAW with adaptive QP map; MED prediction, adaptive Rice, zero-run MELCODE; marker families ff01-03/ff11-13) -> src/crx_wavelet.rs (integer Le Gall 5/3 synthesis); whole stored sensor mosaic incl. masked borders, CMP1 CFA code, full-scale white; unapplied cr3_black_level_unread, cr3_white_level_unread, cr3_active_area_unread; other CRX variants unsupported_compression; adapted from LightCraft (MIT OR Apache-2.0), serial, deny(arithmetic_side_effects) in all three modules",
   "slice 3 RAF: decode_container routes FUJIFILMCCD-RAW to src/raf.rs (header pointers at 84..108, compression mode u32 at 108, record directory, X-Trans layout record 0x0131 reversed must equal develop's X-Trans grid else unsupported_pattern, RGGB without it, little-endian TIFF raw block with 0xF000 raw IFD: 0xF001-0xF003 geometry, 0xF007/0xF008 strip; pixel cap before the codec) -> src/rafc.rs (IS header consistency, stripe size table, lossy quantiser tables, per-stripe colour-vector decode with even/odd predictors, 41 folded gradient contexts, fine-precision contexts, adaptive Rice with bounded escape, payload-vs-frame check before allocation); modes 2 lossless and 3 lossy, Bayer and X-Trans, 12/14/16 bit; mode 0 uncompressed -> decoder_unavailable:raf_uncompressed; no TIFF raw block (SuperCCD S5000) -> decoder_unavailable:raf; unapplied raf_black_level_unread, raf_white_level_unread, raf_crop_unread; adapted from LightCraft (MIT OR Apache-2.0)",
+  "slice 4 ORF: IIRO/IIRS/MMOR routed to src/orf.rs, read as TIFF through a magic-patched copy (container hash over the original bytes); exact two-field 12-bit layout (strips summing to w*h*1.5, one field-seam gap, even rows then odd rows, trailing stored row), MSB-first 12-bit pairs, Exif CFAPattern 0xA302; unapplied orf_black_level_unread, orf_white_level_unread, orf_active_area_unread; other layouts incl. Olympus compressed ORF -> decoder_unavailable:orf; adapted from LightCraft (MIT OR Apache-2.0)",
+  "slice 5 RW2: IIU routed to src/rw2.rs (magic-patched TIFF copy, Panasonic IFD0 0x0002/0x0003/0x0009/0x000A/0x000B/0x002D/0x0118); 16-bit words (compression 34828/34830), packed formats 2/5/7 (format 5 rotated 0x4000-byte chunks), format 4 (2-bit scales, deferred seeds for mapped-out pixels, rotated chunks) and format 6 (12/14 bit); stream-size check before allocation; unapplied rw2_black_level_unread, rw2_white_level_unread, rw2_borders_unread, rw2_defect_pixels_unfilled; format 8 strips and unknown formats -> decoder_unavailable:rw2; adapted from LightCraft (MIT OR Apache-2.0)",
   "NOTICE: LightCraft attribution + MIT terms; DESCRIPTOR scope/pending updated"
  ],
  "tests": {
-  "argv": "cargo nextest run -p hsk-studio-develop --lib --test develop_raf --test develop_cr3 --test develop_nef_compressed --test develop_nef --test real_raw_compressed --test real_raw --run-ignored all --no-capture --no-fail-fast",
+  "argv": "cargo nextest run -p hsk-studio-develop --no-fail-fast --run-ignored all",
   "exit": 0,
-  "sha": "878cad69d1957e32d6343a8cd9c8effd07137d0f",
-  "passed": 20,
+  "sha": "c64d64ade4b2b2ae4965d5e733b33e6abe3398fe",
+  "passed": 92,
   "failed": 0
  },
- "blockers": [],
+ "blockers": [
+  {
+   "error": "Olympus compressed ORF (every interchangeable-lens body since ~2008): no permissively licensed decoder or bit-level description found (LightCraft, the only permissive source, refuses it and points only to two Olympus patents); no compressed ORF sample in the corpus, so nothing was downloaded. Typed decoder_unavailable:orf. NOT_PROVEN, not claimed.",
+   "file_line": "crates/hsk-studio-develop/src/orf.rs decode (field_rows None -> DecoderUnavailable(\"orf\"))",
+   "attempts": 1
+  },
+  {
+   "error": "Panasonic RW2 raw format 8 (DC-GH6 and later, prefix-coded strips): LightCraft describes and decodes it, but the corpus has no format-8 sample (LX7 is format 4); not built in this lane to keep claims sample-backed. Typed decoder_unavailable:rw2.",
+   "file_line": "crates/hsk-studio-develop/src/rw2.rs encoding",
+   "attempts": 0
+  },
+  {
+   "error": "Uncompressed RAF (mode 0) and SuperCCD FinePix RAF (S5000, no TIFF raw block): outside this lane's compressed scope / no permissive SuperCCD remap; typed decoder_unavailable:raf_uncompressed and decoder_unavailable:raf.",
+   "file_line": "crates/hsk-studio-develop/src/raf.rs decode",
+   "attempts": 0
+  }
+ ],
  "lock_wait_s": 5,
  "bg_pids": [],
- "next": "slice 4 Olympus ORF, then slice 5 Panasonic RW2",
- "updated_at": "2026-10-15T02:46:48Z",
+ "next": "lead: validator round for SMB-DEVELOP-RAW-COMPRESSED at c64d64a; optional follow-ups: RW2 format 8 with a CC0 GH6/S5M2 sample, uncompressed RAF, maker-note black/white levels per vendor, an approved DNG-converter run for exact-sample oracles",
+ "updated_at": "2026-10-15T03:16:35Z",
  "notes": {
   "permissive_source": "LightCraft https://github.com/storytold/lightcraft at af4c5e102c9f97529f582003b99c21b89067e906. Licence MIT OR Apache-2.0, checked 2026-10-15: GitHub API spdx, root Cargo.toml license field, crates/raw Cargo.toml license.workspace, NOTICE, LICENSE-MIT, LICENSE-APACHE. README contributing rule: clean-room, never read GPL raw/photo code (darktable, RawTherapee, LibRaw, rawspeed, dcraw). nefc.rs header: Huffman tables recovered by black-box beam search on CC0 raw.pixls.us samples. Files read for slice 1: crates/raw/src/vendor/nefc.rs, vendor/pef.rs (Bits/Huffman/diff helpers), grep of vendor/nef.rs (maker-note use). PhotoCraft (storytold/photocraft, Apache-2.0 per GitHub API) carries a port of the same tables; not read.",
   "not_read": "no GPL/LGPL/MPL decoder code read (dcraw, LibRaw, rawloader, rawler, rawspeed, libopenraw code). lclevy/canon_cr3 is GPL-3.0 (GitHub API) and was not opened.",
@@ -60,12 +98,17 @@
   "oracle": "Independent: the camera's embedded JPEG preview (largest JPEG in the file, decoded by zune-jpeg) against the decoded CFA plane: Pearson r on a 48-wide block grid of sqrt(raw - floor) vs preview luma. Measured at 1dcc906: D70s r=0.938 (preview 3008x2000), Z6 r=0.885 (3024x2016); floors set to 0.90 / 0.85. Z6 dims 4548x3030 match the raw.pixls.us Exif dump (https://raw.pixls.us/getfile.php/3587/exif/ SubImage2). Pinned CFA digests: D70s 291da6d4...4e11, Z6 af18a3a2...be22. Same-colour h/v step check: D70s 5203563/4880604, Z6 3859873/3729221. Debug decode: D70s 0.9 s, Z6 2.2 s.",
   "dep_request": "zune-jpeg =0.5.15 features [std], DEV-dependency of develop only (already pinned in the workspace lock via interop-raster); line appended to builders/dep-requests.jsonl 2026-10-15 before the push (governance file left uncommitted: no commits on gov_kernel for this lane). Cargo.lock left uncommitted.",
   "retry_guard": "one identical corpus rerun was blocked by the gameplan retry guard (02:06Z); route (a): committed 1dcc906 (HEAD change) and reran. No shared gameplan steps added.",
-  "test_budget": "slice 1 tests: nefc::tests::tables_are_prefix_codes, develop_nef_compressed (2), real_raw_compressed (1); real_raw vendor_files_route_to_typed_outcomes edited (compressed NEF rows removed, they now decode).; slice 2 tests: crx::tests::adaptive_v200_craw_known_answer_and_truncation, crx_wavelet::tests::integer_lifting_known_answers, develop_cr3 (1), real_raw_compressed cr3 (1); real_raw routing test: CR3 row removed; slice 3 tests: rafc::tests::residual_sign_wrap_escape_and_prediction, develop_raf (2), real_raw_compressed raf (1); real_raw routing test: X-S10 row removed (S5000 stays decoder_unavailable:raf)",
-  "v4_06_sites": "deny(arithmetic_side_effects) present in src/nefc.rs, src/nef.rs, src/cr3.rs, src/crx.rs, src/crx_wavelet.rs, src/raf.rs, src/rafc.rs; clippy -p hsk-studio-develop --tests clean for develop",
+  "test_budget": "slice 1 tests: nefc::tests::tables_are_prefix_codes, develop_nef_compressed (2), real_raw_compressed (1); real_raw vendor_files_route_to_typed_outcomes edited (compressed NEF rows removed, they now decode).; slice 2 tests: crx::tests::adaptive_v200_craw_known_answer_and_truncation, crx_wavelet::tests::integer_lifting_known_answers, develop_cr3 (1), real_raw_compressed cr3 (1); real_raw routing test: CR3 row removed; slice 3 tests: rafc::tests::residual_sign_wrap_escape_and_prediction, develop_raf (2), real_raw_compressed raf (1); real_raw routing test: X-S10 row removed (S5000 stays decoder_unavailable:raf); slice 4 tests: develop_orf (1), real_raw_compressed orf (1); slice 5 tests: develop_rw2 (2), real_raw_compressed rw2 (1); real_raw routing test now holds only the S5000 row; three existing tests updated (see regression_found_and_fixed)",
+  "v4_06_sites": "deny(arithmetic_side_effects) present in src/nefc.rs, src/nef.rs, src/cr3.rs, src/crx.rs, src/crx_wavelet.rs, src/raf.rs, src/rafc.rs, src/orf.rs, src/rw2.rs; clippy -p hsk-studio-develop --tests clean for develop at c64d64a (observe/prism warnings are other crates)",
   "slice2_sources": "LightCraft files read: crates/meta/src/cr3.rs (box walk, CRAW/CMP1/stsz/co64), crates/raw/src/vendor/cr3.rs (main_track, CFA codes, decode flow), vendor/crx.rs, vendor/crx_wavelet.rs. LightCraft's own sources (module headers): Clevy's public prose CR3 notes, Canon patents US20160323602A1 and JP2017192077A, ITU-T T.87 and T.800 Annex F, black-box comparison on CC0 files. The lclevy/canon_cr3 repository (GPL-3.0) was not opened by this builder.",
   "slice2_oracle": "R6 (canon-eos-r6.cr3, sha256 74abb0a1...7778): main CRAW track CMP1 v0x200, 3584x2386 stored, 14 bit, RGGB, 3 levels, 1 tile, header 872 (own byte inspection, scratchpad python reading data only). Preview oracle rewritten to slide the preview window over 8x8 block means (masked borders and crop offsets differ per body): measured at ec53c53 R6 r=0.986 (preview 3408x2272), D70s 0.994, Z6 0.938; floors 0.96 / 0.97 / 0.90; negative control D70s CFA vs Z6 preview r=0.241 (must stay < 0.8). The first fixed-grid oracle gave R6 0.596 (border misalignment), which is why it was replaced. Pinned R6 CFA digest 73d26ba5...0c27. Debug decode R6 ~8 s. Exact-sample oracle (independent DNG conversion) printed NOT_PROVEN per file.",
-  "shared_branch": "878cad6 reached origin through another builder's push (git branch -r --contains 878cad6 = origin/codex/handshake-studio-assets, 02:46Z); no develop commits after it",
+  "shared_branch": "all lane commits are on origin/codex/handshake-studio-assets (pushed 03:16Z, 171fdb5 tip); no other builder committed under crates/hsk-studio-develop in between",
   "slice3_sources": "LightCraft files read: crates/raw/src/vendor/raf.rs (header, records, raw IFD, CFA, mode checks), vendor/rafc.rs (codec), docs/raf-compression.md. LightCraft's stated basis: Fabian's prose description (capnfabs.net, linked implementations not consulted), ExifTool FujiFilm tag names, black-box sample analysis; LightCraft verified 24 files of 13 bodies sample-exact against rawpy used only as a black box. No copyleft decoder source read by this builder.",
-  "slice3_oracle": "X-S10 (fujifilm-x-s10-14bit-compressed-xtrans.raf, sha256 9419d140...9724): header mode 3, raw IFD 6384x4182 14 bit, IS flag 0, sensor 16 (X-Trans), 9 stripes, 697 groups, layout record equals develop's X-Trans grid (own byte inspection). Preview oracle upgraded to a summed-area table with scale candidates {1, 1.5, 2, w ratio, h ratio, 0.98/0.96 of the smaller ratio} and coarse-then-fine offsets (the previous half-step scale rule gave X-S10 0.466 with a 4416x2944 reduced preview). Measured on the slice-3 tree: X-S10 r=0.948, R6 0.987, D70s 0.997, Z6 0.986; floors 0.92 / 0.96 / 0.97 / 0.95; cross-scene negative control 0.032 (must stay < 0.5). Pinned X-S10 CFA digest a7ccc365...fbf1. Debug decode X-S10 ~25 s, test ~37 s (under the 120 s per-test timeout; the slowest unit of this lane). The corpus tests no longer decode twice (pinned digest covers determinism)."
+  "slice3_oracle": "X-S10 (fujifilm-x-s10-14bit-compressed-xtrans.raf, sha256 9419d140...9724): header mode 3, raw IFD 6384x4182 14 bit, IS flag 0, sensor 16 (X-Trans), 9 stripes, 697 groups, layout record equals develop's X-Trans grid (own byte inspection). Preview oracle upgraded to a summed-area table with scale candidates {1, 1.5, 2, w ratio, h ratio, 0.98/0.96 of the smaller ratio} and coarse-then-fine offsets (the previous half-step scale rule gave X-S10 0.466 with a 4416x2944 reduced preview). Measured on the slice-3 tree: X-S10 r=0.948, R6 0.987, D70s 0.997, Z6 0.986; floors 0.92 / 0.96 / 0.97 / 0.95; cross-scene negative control 0.032 (must stay < 0.5). Pinned X-S10 CFA digest a7ccc365...fbf1. Debug decode X-S10 ~25 s, test ~37 s (under the 120 s per-test timeout; the slowest unit of this lane). The corpus tests no longer decode twice (pinned digest covers determinism).",
+  "slice4_slice5_sources": "LightCraft files read: crates/raw/src/vendor/orf.rs (field_rows, two-field decode, module docs), vendor/mod.rs (cfa_from_exif), vendor/rw2.rs (encoding table, Fields, STEPS, next, packed, format4, format6, decode_blocks, decode flow, module docs). Both modules' own sources per their headers: TIFF 6.0, Exif 2.3, ExifTool Olympus/PanasonicRaw tag names, libopenraw prose, black-box analysis of CC0 raw.pixls.us files.",
+  "slice4_slice5_oracle": "C5060WZ ORF (sha256 3fc12bc3...84bd): 2608x1949 12-bit RGGB (Exif), digest 1e6a220b...ab37, only embedded JPEG is the 160x120 thumbnail: r=0.984, floor 0.95. LX7 RW2 (sha256 18dfc387...e599): 1904x1276 12-bit, CFA code 2 GRBG (the test's first guess RGGB was wrong and corrected from the tag), digest 148fcc6e...f3f4, preview 1920x1280 r=0.978, floor 0.95. Synthetic: format-4 block written by hand from the documented field layout (14 known values incl. the absolute branch below 128*m), format-5 stream with a rotated first chunk, ORF two-field file with seam gap and trailing row.",
+  "regression_found_and_fixed": "The slice 2 and slice 3 READY runs were focused and missed three existing develop tests that pinned the old decoder_unavailable outcomes: develop_cr2::container_magic_routing_names_the_family and develop_recipe::unsupported_process_version_and_cancel_stale (default, non-ignored; failing from ec53c53 / 961fcb5 on) and container_identity::container_identity_over_the_corpus (ignored; failing from 1dcc906 on). Found by a full develop run at 6b74f0c (89/92), fixed in c64d64a: bare ORF/RW2/RAF magic prefixes now invalid_container, a CR3 without a raw track unsupported_container, the six newly decoding raw-vendor identities re-pinned. Full develop run at c64d64a: 92/92 incl. ignored. The READY claims at 961fcb5 and 878cad6 are superseded by c64d64a; judge this lane at c64d64a.",
+  "slow_units": "real_raw_compressed raf X-S10 ~37 s and container_identity ~85 s in a debug build (both #[ignore]; under the 120 s per-test timeout on this machine)",
+  "corpus_downloads": "none: every vendor already had a CC0 sample in oracle-corpus/raw-vendor (read-only use); no compressed-ORF or RW2-format-8 sample was fetched because no decoder for them was built"
  }
 }

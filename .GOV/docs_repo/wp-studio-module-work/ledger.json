@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T03:02:04Z",
+ "updated_at": "2026-10-15T03:18:00Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -5701,12 +5701,26 @@
   {
    "lane_id": "SMB-DEVELOP-RAW-COMPRESSED",
    "crate": "hsk-studio-develop",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-raw-comp-20261015",
-   "commits": [],
+   "commits": [
+    "1dcc906",
+    "1408565",
+    "ec53c53",
+    "961fcb5",
+    "0c8d48c",
+    "4d8b71b",
+    "878cad6",
+    "cf561eb",
+    "3df092b",
+    "4c5816c",
+    "6b74f0c",
+    "c64d64a"
+   ],
    "verdicts": [],
-   "note": "Lightroom LR gap: compressed NEF, CR3 (CRX), RAF (X-Trans), ORF, RW2 decoders clean-room; samples CC0 raw.pixls.us"
+   "note": "judge at c64d64a only (earlier READY slices broke 3 develop tests, fixed in c64d64a); decoders adapted from storytold/lightcraft @af4c5e1 (MIT OR Apache-2.0), NOTICE attribution",
+   "lane_file": "builders/lanes/hsk-studio-develop-raw-compressed.json"
   },
   {
    "lane_id": "SMB-SCORE-EFFECTS-2",
@@ -5871,6 +5885,16 @@
    "commits": [],
    "verdicts": [],
    "note": "plugin delay compensation in mixdown; automation for every processor; click-repair onset false positive after silence; then PR-23 audio of the pulse timeline (clips, crossfades, track volume/pan) mixed through score"
+  },
+  {
+   "lane_id": "SMB-DEVELOP-RAW-COMPRESSED-2",
+   "crate": "hsk-studio-develop",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-raw-comp-20261015",
+   "commits": [],
+   "verdicts": [],
+   "note": "per-vendor black/white levels (and per-channel black, masked-area black) read and applied; Adobe DNG Converter oracle comparison if installed (Operator's Adobe suite); uncompressed RAF; Olympus compressed ORF if a permissive source + CC0 sample exist"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
