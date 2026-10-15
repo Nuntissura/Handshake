@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T07:59:54Z",
+ "updated_at": "2026-10-15T08:00:29Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -6624,9 +6624,9 @@
   {
    "lane_id": "SMB-FIG-SMART-ANIMATE",
    "crate": "hsk-studio-components",
-   "phase": "queued",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-fig-smart-20261015",
    "commits": [],
    "verdicts": [],
    "note": "true smart animate (layer matching by name/id, property interpolation) instead of cross-fade; folio overlay position/offset field"
