@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T02:55:03Z",
+ "updated_at": "2026-10-15T02:59:06Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -5784,12 +5784,23 @@
   {
    "lane_id": "SMB-SCORE-EFFECTS-3",
    "crate": "hsk-studio-score",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-score-fx-20261015",
-   "commits": [],
+   "commits": [
+    "e9dccbc",
+    "fab706e",
+    "1bf37d6",
+    "ba5556f",
+    "e7ad2d2",
+    "f423b59",
+    "d160025",
+    "bd8e099",
+    "2808f39"
+   ],
    "verdicts": [],
-   "note": "multiband compressor (Linkwitz-Riley crossovers), chorus/flanger/phaser, click/crackle and hum repair; then multitrack session mixdown with automation lanes (AU-14, AU-16)"
+   "note": "multiband compressor (Linkwitz-Riley crossovers), chorus/flanger/phaser, click/crackle and hum repair; then multitrack session mixdown with automation lanes (AU-14, AU-16)",
+   "lane_file": "builders/lanes/hsk-studio-score-effects-3.json"
   },
   {
    "lane_id": "SMB-PARITY-REFRESH",
@@ -5850,6 +5861,16 @@
    "commits": [],
    "verdicts": [],
    "note": "folio mask fields feather/density/linked + Illustrator mask_clip (serde default, byte-identical existing docs); raster/text/image-paint mask sources; clip on pass-through group in pigment; spec-gap note staged"
+  },
+  {
+   "lane_id": "SMB-SCORE-EFFECTS-4",
+   "crate": "hsk-studio-score",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-score-fx-20261015",
+   "commits": [],
+   "verdicts": [],
+   "note": "plugin delay compensation in mixdown; automation for every processor; click-repair onset false positive after silence; then PR-23 audio of the pulse timeline (clips, crossfades, track volume/pan) mixed through score"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
