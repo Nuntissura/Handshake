@@ -1,0 +1,43 @@
+{
+ "crate": "hsk-studio-composite",
+ "lane": "SMB-COMPOSITE-DOCGRAPH-2",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slice A pushed (263ec86): goals 1-4; goal 5 (collapse on the document graph) in progress",
+ "commits": [
+  {"sha": "263ec86", "subject": "composite + renderer tests (SMB-COMPOSITE-DOCGRAPH-2 slice A): clip + unlinked mask on a moved layer, feathered unlinked parity, fractional/rotated moves proven"}
+ ],
+ "capabilities_done": [
+  "goal 4: a vector clip and an unlinked vector mask on one layer (refused transform_unlinked_vector_mask_with_clip for every moved layer before) are split on the document graph as the scene path cuts them: the clip moves with the content inside an isolated wrapper group (coverage_u8 nib plane over the static rect, unfeathered), the mask stays on the layer in plan space with its feather and density (temporal.rs cut_unlinked, insert_wrapper); done on every frame so a layer does not change when it starts to move; the refusal remains only for a moved layer whose envelope entry carries more than the mask feather (effects, blur, filters, adjustment)",
+  "goal 3: feathered unlinked masks: the scene matte (composition.rs unlinked_mask_matte) cut the feather at the source rect and its taps clamped onto mask content; the document graph clamped at its own plane border; both planes now cover vector_mask::unlinked_rect (source bounds and region grown by pigment feather_support). Also found and fixed: an unlinked reveal_outside LUMINANCE mask made the layer vanish outside the mask art on the scene path (matte zero outside its plane); unlinked_mask_matte_in covers the composition (static_content passes the composition rect)",
+  "goal 2: fractional, rotated and scaled moves of clipped and masked layers on the document graph now have tests (composite from Folio records + render-cpu + render-gpu). Found and fixed on the way: a plane resampled with its content (transform_mask) is read by both backends in the tile's source coordinates from the plane's own origin, so composite refits an owned plane of a resampled layer to the tile rect (temporal.rs refit_plane); before, a clip or mask whose bounds started left/up of the tile was misaligned",
+  "goal 1: see notes.goal_1_runtime",
+  "wrap_masked_entry (matte wrapper) uses the shared insert_wrapper; matte plane keys come from next_key (plan keys and owned planes)"
+ ],
+ "tests": {
+  "argv": "on a git checkout-index export of exactly the 263ec86 tree (STUDIO_OWNER smb-docgraph2-scratch, own target): cargo nextest run -p hsk-studio-composite -p hsk-studio-render-cpu -p hsk-studio-render-gpu --features hsk-studio-composite/motion --no-fail-fast -E 'binary(composition_docgraph_masks) | (package(hsk-studio-composite) & (binary(composition_document) | binary(temporal)))' (17/17, live GPU adapter). Shared tree before commit: composite composition_docgraph_masks + vector_mask_2 + composition_document (10/10), temporal + temporal_transform + composition_adapter (14/14); cargo clippy -p hsk-studio-pigment -p hsk-studio-composite --features hsk-studio-composite/motion --all-targets",
+  "exit": 0,
+  "sha": "263ec86",
+  "passed": 17,
+  "failed": 0,
+  "clippy": "no warning in this lane's code; only the pre-existing large_enum_variant at composite tests/support/composition_scenes.rs:625 and dependency warnings (hsk-studio-type, hsk-studio-observe)"
+ },
+ "blockers": [],
+ "lock_wait_s": 900,
+ "bg_pids": [],
+ "next": "slice B: goal 5 composition_collapse_on_document_graph (implemented in the working tree, tests running)",
+ "updated_at": "2026-10-15T08:22:43Z",
+ "notes": {
+  "spec_basis": "STU-RAS-016: 'Masks MUST support density/opacity, feather, and enable/disable, and MUST be linkable or unlinkable from parent-layer position.' STU-CMP-016: 'On a composition layer, it COLLAPSES TRANSFORMATIONS: the precomposition boundary stops being a render boundary, and the inner layers' transforms concatenate with the outer layer's rather than being applied to a rendered raster.' (master-spec-v02.216 module 14)",
+  "new_tests": "composite tests/composition_docgraph_masks.rs: clip_and_unlinked_mask_on_one_moved_layer (feather 0: frame == scene path under the reference executor with path_agreement; feather 1.5: within the scene matte's u16 rounding; wrapper/plane structure; the clip cuts), feathered_unlinked_masks_match_the_scene_path (layer 3 moved past its 2 px-feathered ALPHA mask's source rect, layer 7 with an unlinked 1 px reveal_outside mask far from the art; plane rects; spill and reveal asserted on both paths), fractional_and_rotated_moves_of_clipped_and_masked_layers (Folio records with fixture::MOVES -> exactly fixture::moved_frame; == fixture::moved_oracle bit for bit under the reference executor, which now runs pigment's PreparedTransform sampler; a fractional move of the feathered linked mask's layer is refused PlanError::TransformCombination); render-cpu and render-gpu tests/composition_docgraph_masks.rs moved_document_graph_frame_matches_the_oracle",
+  "measured": "CPU moved frame vs moved_oracle: 766/768 bit-identical, 2 pixels ((20,4), (20,7)) 1 ULP of colour (5.96e-8), alpha identical, both inside the rotated Folio clipped layer 12's destination bounds (the composite reference executor matches the oracle bit for bit, so the rounding is render-cpu's clip run over a resampled clipped layer; not investigated further, render-cpu is outside this lane); digest ee603289d737b97dd7bf4f0fa648d72d7804943ff0611773b006b5878fc42899 pinned, identical for chunk/thread 64x1, 5x1, 7x4, 4x8, 64x2; GPU moved frame vs oracle 1.19e-7 (tolerance 2e-6); existing docgraph CPU digest 424d4e27 unchanged",
+  "matte_rounding": "the scene path stores a matte as coverage_u16le (matte_coverage), so a feathered unlinked mask is rounded to 1/65535 there while the document graph reads it unrounded: feathered parity is asserted within 1/65535 + 2^-22 (test helper matte_agreement), unfeathered parity stays path_agreement (alpha bit-identical)",
+  "goal_1_runtime": "unlinked_masks_in_compositions_from_folio_records measured 0.063 s alone on the shared tree (my run, 3 tests in the binary), 0.325 s beside 9 other tests, 0.485 s in round R32 (results/R32 run.stderr.txt line 4798); I could not reproduce 28.6 s. The fixture is already 32x24 (768 px), so a smaller fixture would not change it materially; the test's own bounded_case deadline counts only the body, while the 28.6 s figure (docgraph-masks lane flake_watch, run beside the GPU test) is nextest wall time. UNVERIFIED cause: process start or contention outside the body. What changed: the clip+unlinked case left this test for its own test (one build + source + doc frame less per run) and the feathered/moved cases are separate tests, so no single case carries the extra work; the cap is unchanged",
+  "outside_owned_paths": "render-cpu and render-gpu tests/composition_docgraph_masks.rs (new test functions only, same files the docgraph-masks lane added, decision B1)",
+  "shared_files": "263ec86: crates/hsk-studio-composite/src/composition.rs, src/temporal/composition.rs and src/lib.rs carried another lane's uncommitted corner-pin hunks (SceneContent::Pinned, CompLayer.pin, lower_inner, PinnedContent export); the index got HEAD + only this lane's hunks (composition.rs 4 hunks, temporal/composition.rs 8 hunks, lib.rs 2 lines) via hash-object/update-index, and that exact index tree was exported and built/tested (17/17) before the commit; the other lane's hunks stay uncommitted",
+  "unverified": "Photoshop/After Effects: a clip plus an unlinked mask on a moved layer (Studio reading: clip moves, mask stays, feather on the mask only); feathered matte quantisation; After Effects collapse parity (D5)",
+  "gaps": "render-cpu 1-ULP rounding on a resampled clipped layer (above); a Folio raster mask (not an owned plane) resampled with its content is not refitted (backends would read it from its own origin); the scene path's unlinked_mask_matte (without _in) still cuts a reveal_outside mask at its plane for callers without a composition rect",
+  "retry_guard": "no gameplan block; first CPU moved-frame run failed my own bit-for-bit expectation (2 px at 1 ULP), bound changed and documented before commit; no gameplan step added",
+  "v4": "V4-01 deny(arithmetic_side_effects) kept on temporal.rs, temporal/composition.rs, vector_mask.rs (refit_plane, unlinked_rect checked); V4-02 refit_plane bounds the plane by MAX_CLIP_PIXELS before allocating, re-rasterised planes go through vector_mask::plane's budget; V4-03 GPU test gated by gpu-proof.toml; V4-07 DESCRIPTOR temporal entry cites the tests; V4-09 commit message from a file",
+  "cargo_lock": "left uncommitted"
+ }
+}

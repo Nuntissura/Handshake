@@ -1,0 +1,46 @@
+{
+  "crate": "hsk-studio-motion",
+  "lane": "SMB-AE-MOTION-TOOLS",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slice 1 (graph editor model + keyframe assistants, motion) pushed at 9f11b2e; claim covers 9f11b2e (motion files listed in the commit)",
+  "commits": [
+    {"sha": "9f11b2e", "subject": "motion (SMB-AE-MOTION-TOOLS slice 1): graph editor model and keyframe assistants"}
+  ],
+  "capabilities_done": [
+    "(1) motion src/graph.rs: VALUE and SPEED graphs (STU-MOT-051) per component or as path-speed magnitude for an unseparated multi-component property; speed is analytic: (dy/ds)/(dx/ds)/dt_s at the parameter solving x(s)=u, L'Hopital (second derivatives) where an influence of 0 makes dx/ds vanish; lerp = chord slope, hold = 0, held ends = 0; at a key time the outgoing segment's speed (half-open [t0,t1) like Property::sample); graph() samples [from,to] at round-half-up evenly spaced ticks, samples bounded by MAX_GRAPH_SAMPLES (65536) before allocation; fit_range auto-fit (STU-MOT-052)",
+    "(1) separate_dimensions (exact: per-component values, interpolations and own tangents, keys <key>_<i>) and join_dimensions (union of key times; a component without a key gets an inserted key with its sampled value and incoming/outgoing sampled speed at the default influence; per side hold if all hold, linear if all linear, else bezier): the explicit stated conversions of STU-MOT-010a, join lossy where key times differ",
+    "(1) STU-MOT-055 velocity record: velocity_record (per component incoming/outgoing speed + influence, continuity) and set_velocity (both sides bezier, continuity = continuous_bezier and refuses unequal speeds instead of rewriting them)",
+    "(1) motion src/assistants.rs (STU-MOT-037/038/031/035): ease / ease in / ease out (bezier, speed 0, influence 0.16666666666 per STU-MOT-034), toggle hold, set_interpolation per side, auto_bezier ((v[i+1]-v[i-1])/(t[i+1]-t[i-1]) s, one-sided chord at ends, stored tangents), make_continuous (outgoing speed wins), rove (roving keys retimed proportional to cumulative straight-line distance between fixed keys, round half up; endpoints may never rove; collapse refused), sequence_layers (end to end from the first in point, overlap, DissolveFront / CrossDissolve linear opacity keys in percent; Studio extension, no spec clause); every assistant is one Property::set_keyframes revision step, property unchanged on refusal",
+    "(1) MotionError additions: sample_limit, selection_out_of_range, roving_endpoint, roving_collapse, invalid_parameter{parameter}, count_limit{what}; Property::interpolable, bounds, set_keyframes"
+  ],
+  "tests": {
+    "argv": "cargo nextest run -p hsk-studio-motion --test graph_assistants",
+    "exit": 0,
+    "sha": "9f11b2e",
+    "passed": 5,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": 34,
+  "bg_pids": [],
+  "next": "slice 2 text animators (motion selectors + composite per-glyph lowering)",
+  "updated_at": "2026-10-15T08:34:23Z",
+  "notes": {
+    "spec_basis": [
+      "STU-MOT-033: 'A temporal tangent is {speed, influence} per component, and both halves are required.'",
+      "STU-MOT-034: 'The default ease influence is 0.16666666666.'",
+      "STU-MOT-035: 'A roving keyframe holds a value but not a time ... The first and last keyframes of a property may never rove.'",
+      "STU-MOT-037: 'The normative ease assistant set is three operations' (Ease, Ease In, Ease Out) plus a hold toggle.",
+      "STU-MOT-051: 'The graph editor has two graph types' (value graph, speed graph); one curve per component.",
+      "STU-MOT-053: 'The graph editor is a projection of the property tree, not a separate document.'",
+      "STU-MOT-055: the keyframe VELOCITY record exposes per component incoming speed, incoming influence, outgoing speed, outgoing influence and a continuity toggle.",
+      "STU-MOT-010a dimensions_separated: 'Separating and rejoining are lossy in opposite directions and MUST be explicit typed commands with a stated conversion, never automatic.'"
+    ],
+    "unverified_d5": [
+      "After Effects numeric parity of the speed graph (path speed for spatial streams), auto-bezier derivation, roving timing (AE uses spatial path length with spatial tangents; Studio uses straight-line distance because spatial tangents are a declared gap STU-MOT-036b), sequence layers and easy-ease influence (AE F9 uses 33.33 %; the spec mandates 0.16666666666 for the ease assistants and Studio follows the spec) are UNVERIFIED."
+    ],
+    "ownership": "motion owns keyframes and expressions (STU-CMP-002 / STU-MOT); only motion files touched in slice 1.",
+    "shared_files": "slice 1 touched no shared file (motion had no uncommitted edits by other lanes).",
+    "gameplan_route": "no gameplan block encountered."
+  }
+}
