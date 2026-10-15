@@ -1,15 +1,48 @@
 {
  "crate": "hsk-studio-composite",
  "lane": "SMB-COMPOSITE-VECTOR-MASK",
- "status": null,
- "phase": "slice 1 pushed (3afcfb8..a78cb6d composite); renderer proofs running on a scratch export",
- "commits": [],
- "capabilities_done": [],
- "tests": {"argv": "", "exit": null, "sha": "", "passed": 0, "failed": 0},
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slice 1 + fixes + renderer proofs pushed (b409d6d..4cfcc8c, the 5 commits listed): Folio vector masks render on both renderers",
+ "commits": [
+  {"sha": "b409d6d", "subject": "composite (SMB-COMPOSITE-VECTOR-MASK slice 1): Folio vector masks render (VECTOR nib coverage, ALPHA/LUMINANCE content, invert, region)"},
+  {"sha": "a78cb6d", "subject": "composite tests (SMB-COMPOSITE-VECTOR-MASK): source-kind case on an unmasked raster source; self-masking case is nested"},
+  {"sha": "4f17442", "subject": "composite (SMB-COMPOSITE-VECTOR-MASK): a painted stroke row's tile key is not served as its stroke mask (composition static path left the tile unresolved)"},
+  {"sha": "635691e", "subject": "composite (SMB-COMPOSITE-VECTOR-MASK): a vector clip on a mask-source leaf cuts its content (Figma mask shape inside a clipping frame) instead of refusing it as nested"},
+  {"sha": "4cfcc8c", "subject": "render-cpu + render-gpu tests (SMB-COMPOSITE-VECTOR-MASK): vector, inverted, alpha and luminance masks vs the shared oracle; document-anchored masks move with a composition layer"}
+ ],
+ "capabilities_done": [
+  "StudioMaskAttachment.mask_id -> StudioVectorMask resolved in prepare_vectors (one resolution per record, shared by its layers; PreparedVectors::mask, folio-free with_mask) and lowered through the clip-records slot: one coverage_u16le plane (ClipPlane.wide) over the layer extent united with the source bounds, served by InputsLowering::vector_mask; a clip on the same layer is multiplied in",
+  "VECTOR: nib exact coverage of the source outline (vector layer / boolean group geometry; a plain group = nib union of its visible members), plane = 257 x nib coverage_u8",
+  "ALPHA / LUMINANCE: the source rendered alone on the host with pigment composite_over (vector layers, boolean groups, groups of them with member blend mode and opacity x fill, source opacity on top, a leaf's own vector clip applied); value = alpha or BT.709 luma x alpha (composition::LUMA_WEIGHTS); lowering note vector_mask_content Approximate (16-bit)",
+  "invert_mask: pigment mask invert when alone (full outside the plane), else baked 1 - m; region (document unit) = exact pixel-area coverage, zero outside, inverted or not",
+  "vector-masked pass-through group lowered isolated and Normal (note vector_mask_isolates_pass_through); masked root wrapped",
+  "typed refusals in evaluation (step Unavailable) and lowering: vector_mask_unresolved, vector_mask_source_kind, vector_mask_source_unavailable, vector_mask_source_image_paint, vector_mask_source_nested, vector_mask_region, vector_mask_budget, vector_mask_with_mask, vector_mask_adjustment, vector_geometry (non-finite source)",
+  "compositions: a layer with a vector clip or mask record takes the static path (needs_static) and its clip/mask planes are served (they were missing for clips too), so masks move with the layer matrix (linked); fixed a painted stroke row tile key being served as a stroke mask in the composition static path"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-composite --features motion (66/66, shared tree, at 4cfcc8c-equivalent composite sources); on a scratch export (STUDIO_OWNER smb-composite-vector-mask-scratch): -p hsk-studio-render-cpu -p hsk-studio-render-gpu -E 'binary(vector_mask)|binary(vector_nib)|binary(vector_paint)|binary(composition_frames)' (11/11, live adapter), -p hsk-studio-interop-fig (43/43)",
+  "exit": 0,
+  "sha": "4cfcc8c",
+  "passed": 120,
+  "failed": 0
+ },
  "blockers": [],
  "lock_wait_s": 0,
  "bg_pids": [],
- "next": "renderer proofs (render-cpu/render-gpu tests/vector_mask.rs), interop-fig re-pin",
- "updated_at": "2026-10-15T02:24:01Z",
- "notes": {}
+ "next": "validator round on the commits listed",
+ "updated_at": "2026-10-15T02:53:48Z",
+ "notes": {
+  "spec_basis": "STU-VEC-053: 'a vector object marked use-as-mask MUST clip the objects above it ... with a selectable mask mode. The captured mask-mode enumeration is {mask.alpha = ALPHA, mask.vector = VECTOR, mask.luminance = LUMINANCE}'; STU-VEC-153 options mask_clip (default false) and invert_mask (default false); 14 mask-form table: 'Vector mask | Path-defined (StudioVectorPath) mask with resolution-independent edges'; STU-RAS-016: 'Masks MUST support density/opacity, feather, and enable/disable, and MUST be linkable or unlinkable from parent-layer position'; STU-CMP-010 masks before transform",
+  "new_tests": "5: composite tests/vector_mask.rs (2: planes vs nib + pigment, invert, region, clip+mask, masked pass-through root, refusals; hostile: 1100-path source -> vector_nib_budget, degenerate source -> empty plane, NaN source -> vector_geometry, 5000-member source and exhausted aggregate budget refused before allocation, far source over the plane budget refused at lowering), render-cpu tests/vector_mask.rs (2: four mask kinds == oracle bit for bit on 4 chunk/thread configs with pinned digests; document-anchored mask + composition translate (5,3) == shifted frame, max delta 0), render-gpu tests/vector_mask.rs (1: four kinds, max 1.79e-7, tolerance 2e-6); shared fixture composite tests/support/mask_scenes.rs",
+  "measured": "CPU max |delta| 0 for all four cases; VECTOR mask of the diamond = vector_nib GOLDEN_CLIPPED b7179c37..62b39 (mask and clip of one shape are one frame); GPU 1.79e-7 (vector, inverted, luminance), 1.19e-7 (alpha)",
+  "record_gaps": "Folio StudioVectorMask carries no density, feather or linked flag (STU-RAS-016 is honoured for raster masks by the extended lowering): vector masks are anchored to their source's document geometry (proven: moving the masked layer's own geometry leaves the plane in place) and move with a composition layer's matrix (linked through the static subtree). SPEC GAP for an unlinked/feathered vector mask record",
+  "mask_clip": "renders identically for true/false: both importers store SVG and Figma masks as mask_clip false with SVG semantics (zero outside the mask content), which is also Illustrator's Clip (black background) reading; Illustrator's unclipped reading (white outside the mask art) has no Folio encoding (SPEC GAP, UNVERIFIED D5)",
+  "unverified": "luminance coefficients/space vs SVG (0.2125/0.7154/0.0721, color-interpolation) and Illustrator; Folio layer order of mask-source group members taken as bottom first; Photoshop pass-through group with a vector mask (lowered isolated); Figma mask type is decoded as ALPHA by interop-fig (its own UNVERIFIED)",
+  "interop_fig": "SMB-INTEROP-FIG-PAINTS READY at e5cc397 and the lead allowed re-pinning, but no re-pin was needed: interop-fig 43/43 pass at HEAD with masks rendering (fig_composite refusal pins unchanged; fig_paints_2 masked image region passes its pins). fig_composite.rs not edited",
+  "outside_owned_paths": "new test files only (B1): crates/hsk-studio-render-cpu/tests/vector_mask.rs, crates/hsk-studio-render-gpu/tests/vector_mask.rs; waiver requested (GLOBAL-SCOPE-005)",
+  "cpu_gpu_proof_route": "the shared tree's render-gpu lib does not compile from another lane's uncommitted work (plan_sink.rs:3414 BufferView), so renderer and interop-fig proofs ran on a git-archive export of HEAD a78cb6d with this lane's later files (4f17442, 635691e, 4cfcc8c) copied in and touched, working-tree Cargo.lock, STUDIO_OWNER smb-composite-vector-mask-scratch",
+  "retry_guard": "route (a) three times: test expectation (raster source also self-masked -> nested), composition stroke tile key bug, nested refusal of a clipped Figma mask leaf; each fix committed before the rerun; no gameplan step added; one hook block from a variable assignment before the leading cd (rerun with cd first)",
+  "followups": "1) a vector clip on a pass-through group still reaches pigment's mask_on_pass_through refusal (masks now isolate; clips could follow the same CSS rule); 2) mask-source members with raster effects are drawn without their effects (prepare_vectors has no raster records); 3) mask-source raster/text/image-paint members are refused (needs a backend pre-pass like track mattes); 4) a vector-mask refusal replaces the payload's own Unavailable reason on the step (same precedence as appearance blocks)",
+  "v4": "V4-01 deny(arithmetic_side_effects) on src/vector_mask.rs and touched modules; V4-02 per-plane MAX_CLIP_PIXELS, work bound MAX_VECTOR_WORK, member bound 4096, aggregate content budget 64 Mi px, all checked before allocation (tests hostile_*); V4-03 GPU gated by gpu-proof.toml"
+ }
 }

@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T02:50:04Z",
+ "updated_at": "2026-10-15T02:55:03Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -5725,12 +5725,19 @@
   {
    "lane_id": "SMB-COMPOSITE-VECTOR-MASK",
    "crate": "hsk-studio-composite",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-composite-vmask-20261015",
-   "commits": [],
+   "commits": [
+    "b409d6d",
+    "a78cb6d",
+    "4f17442",
+    "635691e",
+    "4cfcc8c"
+   ],
    "verdicts": [],
-   "note": "StudioVectorMask attachments render nothing today; lower them to nib coverage masks (Photoshop vector masks, Illustrator clipping/opacity masks, SVG masks from interop-vector); interop-fig fig_composite pinned counts re-pinned in the same lane after SMB-INTEROP-FIG-PAINTS reports"
+   "note": "4f17442 fixes gradient-stroke tile key served as stroke mask in composition static path",
+   "lane_file": "builders/lanes/hsk-studio-composite-vector-mask.json"
   },
   {
    "lane_id": "SMB-INTEROP-FIG-PAINTS-2",
@@ -5833,6 +5840,16 @@
    "commits": [],
    "verdicts": [],
    "note": "FG-19: Figma frame export to PNG (interop-raster) and PDF (press PdfExport, edge interop-fig -> press approved), export settings (scale, suffix, format) from the .fig; Inter 4.1 Regular added as a new fixture from the same official zip; then FG-10 prototype interactions as stored records"
+  },
+  {
+   "lane_id": "SMB-COMPOSITE-VECTOR-MASK-2",
+   "crate": "hsk-studio-composite",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-composite-vmask-20261015",
+   "commits": [],
+   "verdicts": [],
+   "note": "folio mask fields feather/density/linked + Illustrator mask_clip (serde default, byte-identical existing docs); raster/text/image-paint mask sources; clip on pass-through group in pigment; spec-gap note staged"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
