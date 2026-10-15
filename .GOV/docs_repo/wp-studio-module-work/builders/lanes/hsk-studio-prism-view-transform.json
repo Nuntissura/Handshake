@@ -51,5 +51,8 @@
   "clippy": "clippy -p hsk-studio-prism --tests, and -p pigment -p render-cpu -p render-gpu --tests --features shared-device (working tree and archive export): 0 warnings in this lane's code",
   "retry_guard": "not hit; no gameplan step added",
   "v4": "V4-01: view_transform.rs carries deny(clippy::arithmetic_side_effects) (index maths via get/saturating); render-cpu view_chunk uses add_u checked offsets under plan_sink's deny; V4-03: GPU execution half fails NOT_PROVEN without an adapter (gpu-proof.toml); V4-07: VIEW_TRANSFORM_DESCRIPTOR proven_by tests/view_transform.rs"
- }
+ },
+ "verdicts": [
+  {"decision": "passed", "verdict": "PASS_V1", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "claim 3afcfb8 0ae5819 (0ae5819 a temp-index commit of the lane's own hunks, accepted by lead 2026-10-15): ACES 1.x RRT + ODT Rec.709/sRGB 100 nit dim from aces-dev v1.3.1 CTL (LICENSE-ACES.txt kept), binary64 own ln/exp, checked against OCIO test value (rel 5.9e-7) and CTL hand values; DisplayTransform::View stage 6a on CPU and on GPU read-back; shared-texture path refuses typed. No stub. Lane tests 8 passed / 0 failed (/view_transform/, all units). units of prism/pigment/render-cpu/render-gpu: 10 crate units + default; all build 0 / run 0; default prism 160, pigment 139, render-cpu 66, render-gpu 44", "idempotency_key": "STUDIO-R31:SMB-PRISM-VIEW-TRANSFORM:d9c59f899673:PASS_V1", "round": "STUDIO-R31", "lane": "SMB-PRISM-VIEW-TRANSFORM", "candidate": "d9c59f899673c4e4753dcd6d0269db87dfea0319", "tree": "135b10c9736bdfe3d024fcea9d0940506cc8c7a3", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R31", "started_at": "2026-10-15T03:03:04Z", "completed_at": "2026-10-15T04:38:10Z"}
+ ]
 }

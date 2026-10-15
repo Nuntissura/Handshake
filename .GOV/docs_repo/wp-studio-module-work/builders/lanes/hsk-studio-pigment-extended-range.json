@@ -52,5 +52,8 @@
   "new_module_edges": "NONE; no new dependency",
   "retry_guard": "hit once (pigment digest test failed on a json! macro float/shape mismatch; fixed in the test with the pre-stage struct, committed 4e69bd3 to change HEAD, rerun green); no gameplan step added",
   "v4": "V4-01: new code in pigment render_plan/blend_math and render-cpu/gpu plan_sink under their existing deny(clippy::arithmetic_side_effects) where present; V4-02: overflow of extended sums is a typed error on CPU; V4-03: GPU execution half fails NOT_PROVEN without an adapter (gpu-proof.toml); V4-07: DESCRIPTOR claims cite the tests"
- }
+ },
+ "verdicts": [
+  {"decision": "passed", "verdict": "PASS_V1", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "claim 4e69bd3 22c5bba 59092d4: extended (scene-referred) blend domain composite_over_extended for the defined modes, OutputStage{sample_range, display} in PlanExtensions.output (lead decision 2026-10-15; default stage not serialised so digests unchanged), CPU extended composite + stage-6a clip, GPU EXTENDED_FLAG kernel path + host clip; with_display_transform deprecated alias. Overflow typed on CPU; GPU overflow parity added by EXTENDED-RANGE-2. Photoshop 32-bit parity UNVERIFIED (D5). No stub. Lane tests 17 passed / 0 failed (/extended_range|scene_display/, all units). units of pigment/render-cpu/render-gpu: 9 crate units + default; all build 0 / run 0; default pigment 139, render-cpu 66, render-gpu 44", "idempotency_key": "STUDIO-R31:SMB-PIGMENT-EXTENDED-RANGE:d9c59f899673:PASS_V1", "round": "STUDIO-R31", "lane": "SMB-PIGMENT-EXTENDED-RANGE", "candidate": "d9c59f899673c4e4753dcd6d0269db87dfea0319", "tree": "135b10c9736bdfe3d024fcea9d0940506cc8c7a3", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R31", "started_at": "2026-10-15T03:03:04Z", "completed_at": "2026-10-15T04:38:10Z"}
+ ]
 }

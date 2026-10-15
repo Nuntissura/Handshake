@@ -58,5 +58,8 @@
    "render-back proves drawability by hayro-interpret 0.7.0 only, not Acrobat parity and not conformance (STU-PDF-002)"
   ],
   "claim": "No PASS claimed; READY_FOR_VALIDATION for items 1-6 on pushed commit 79a60d9 (commits fb369b9..79a60d9 listed above are all part of this claim)"
- }
+ },
+ "verdicts": [
+  {"decision": "passed", "verdict": "PASS_V1", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "claim fb369b9 98abfd6 7027040 084e744 dd110cf 79a60d9 (all in candidate; R30 deferral cleared): layer-graph paint order, Type glyph adapter, render_page render-back, TrueType subsetting with kept glyph ids, ExtGState alpha/blend + transparency groups + luminosity soft masks (dd110cf), Folio appearance mapped to PDF transparency (79a60d9). Later press/interop-layout commits (93b42a8 a4fac0b 8811e78 ...) are claims of PDF-EXPORT-3, PDFX-VERAPDF, PRESS-PAINT-TRANSPARENCY (V4-15); judged at the candidate tree. No stub. Lane tests 21 passed / 0 failed (/pdf_export|press::export/, all units). units of press/interop-layout: 2 crate units + default; all build 0 / run 0; default press 198, interop-layout 18", "idempotency_key": "STUDIO-R31:SMB-LAYOUT-PDF-EXPORT-2:d9c59f899673:PASS_V1", "round": "STUDIO-R31", "lane": "SMB-LAYOUT-PDF-EXPORT-2", "candidate": "d9c59f899673c4e4753dcd6d0269db87dfea0319", "tree": "135b10c9736bdfe3d024fcea9d0940506cc8c7a3", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R31", "started_at": "2026-10-15T03:03:04Z", "completed_at": "2026-10-15T04:38:10Z"}
+ ]
 }

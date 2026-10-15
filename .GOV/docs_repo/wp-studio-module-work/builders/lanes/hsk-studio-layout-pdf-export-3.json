@@ -42,5 +42,8 @@
   "own_cause_log": "cff test asserted <2548> but the canonical writer emits printable two-byte codes as literals ((%H)); test fixed in 93b42a8 before the passing rerun",
   "paint_rs_ownership": "paint.rs shading support added in this lane under the ownership granted for SMB-PRESS-PAINT-TRANSPARENCY",
   "claim": "No PASS claimed; READY_FOR_VALIDATION on pushed commits 93b42a8, a4121eb"
- }
+ },
+ "verdicts": [
+  {"decision": "passed", "verdict": "PASS_V1", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "claim 93b42a8 a4121eb: CFF fonts, clipping, axial/radial shadings, PDF/X-4 identification (OutputIntent, GTS_PDFXVersion, XMP) and check_pdfx4 self-check; conformance stays not_proven (STU-PDF-002) until veraPDF, rules recalled from ISO 15930-7 and labelled UNVERIFIED in pdfx.rs module docs (V4-07 satisfied by weakening). No stub. Lane tests 21 passed / 0 failed (/pdf_export|press::export|pdfx|cff/, all units). units of press/interop-layout: 2 crate units + default; all build 0 / run 0; default press 198, interop-layout 18", "idempotency_key": "STUDIO-R31:SMB-LAYOUT-PDF-EXPORT-3:d9c59f899673:PASS_V1", "round": "STUDIO-R31", "lane": "SMB-LAYOUT-PDF-EXPORT-3", "candidate": "d9c59f899673c4e4753dcd6d0269db87dfea0319", "tree": "135b10c9736bdfe3d024fcea9d0940506cc8c7a3", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R31", "started_at": "2026-10-15T03:03:04Z", "completed_at": "2026-10-15T04:38:10Z"}
+ ]
 }

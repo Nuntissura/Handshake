@@ -85,6 +85,7 @@
    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
    "started_at": "2026-10-14T23:54:12Z",
    "completed_at": "2026-10-15T00:47:07Z"
-  }
+  },
+  {"decision": "passed", "verdict": "PASS_V2", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed e7a2b6c..d9c59f8 + reverse-dependency closure, 16 crates). units of score: 1 crate units + default; all build 0 / run 0; default score 78 | attributed, not this lane: hsk-studio-score::restore::clicks_are_detected_and_interpolated [default] -> SMB-SCORE-EFFECTS-3 (interim slice-3 bound restore.rs:77 worst < 0.02 (measured 0.0302 at click 26200) in a new module of that deferred lane (1bf37d6..d160025); changed after the candidate by bd8e099 (claim of that lane, R32); lead note 2026-10-15)", "idempotency_key": "STUDIO-R31:SMB-SCORE-DSP:d9c59f899673:PASS_V2", "round": "STUDIO-R31", "lane": "SMB-SCORE-DSP", "candidate": "d9c59f899673c4e4753dcd6d0269db87dfea0319", "tree": "135b10c9736bdfe3d024fcea9d0940506cc8c7a3", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R31", "started_at": "2026-10-15T03:03:04Z", "completed_at": "2026-10-15T04:38:10Z"}
  ]
 }

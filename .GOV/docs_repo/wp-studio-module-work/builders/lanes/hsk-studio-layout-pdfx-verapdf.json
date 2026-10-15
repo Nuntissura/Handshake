@@ -66,5 +66,8 @@
   "side_effect": "an earlier gpg --list-packets created an empty C:/Users/Ilja Smets/.gnupg (empty keyring/trustdb); left in place for the Operator to decide",
   "conformance": "not_proven by default; pdfa_2b_verapdf_passed only via with_verapdf_report on a passing report; PDF/X-4 not proven",
   "claim": "No PASS claimed; READY_FOR_VALIDATION on pushed commits a4fac0b, d6827c3, e13911d, 89dddeb, c31d66c"
- }
+ },
+ "verdicts": [
+  {"decision": "passed", "verdict": "PASS_V1", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "item 3 only (a4fac0b d6827c3 e13911d): CID-keyed CFF subsetting with kept glyph ids, gradient pad/repeat/reflect with bounded cycles (256/4096), stop midpoints and stop opacity as luminosity soft mask, clip to text (Tr 7) and to raster bases. veraPDF items 1-2 not part of this claim; conformance not_proven. No stub. Lane tests 21 passed / 0 failed (/pdf_export|press::export|cff/, all units). units of press/interop-layout: 2 crate units + default; all build 0 / run 0; default press 198, interop-layout 18", "idempotency_key": "STUDIO-R31:SMB-LAYOUT-PDFX-VERAPDF:d9c59f899673:PASS_V1", "round": "STUDIO-R31", "lane": "SMB-LAYOUT-PDFX-VERAPDF", "candidate": "d9c59f899673c4e4753dcd6d0269db87dfea0319", "tree": "135b10c9736bdfe3d024fcea9d0940506cc8c7a3", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R31", "started_at": "2026-10-15T03:03:04Z", "completed_at": "2026-10-15T04:38:10Z"}
+ ]
 }
