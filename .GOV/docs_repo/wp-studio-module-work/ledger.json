@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T09:27:56Z",
+ "updated_at": "2026-10-15T09:28:38Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -7005,12 +7005,17 @@
   {
    "lane_id": "SMB-FIG-SMART-ANIMATE-2",
    "crate": "hsk-studio-components",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-fig-smart-20261015",
-   "commits": [],
+   "commits": [
+    "cfbd732",
+    "d20cff5",
+    "286fbde"
+   ],
    "verdicts": [],
-   "note": "directional transitions (push/slide/move in/out) from .fig; spring easing (mass/stiffness/damping, analytic); gradient fill tweening; text match when autoRename=false via content similarity (typed rule)"
+   "note": "directional transitions (push/slide/move in/out) from .fig; spring easing (mass/stiffness/damping, analytic); gradient fill tweening; text match when autoRename=false via content similarity (typed rule)",
+   "lane_file": "builders/lanes/hsk-studio-fig-smart-animate-2.json"
   },
   {
    "lane_id": "SMB-AUDIO-IMPORT-2",
@@ -7071,6 +7076,26 @@
    "commits": [],
    "verdicts": [],
    "note": "viewer frame renders with folio raster records (smart filters, masks, adjustment/style records) through composite's adapter instead of a records-free frame; test for composite smart-filter mask registration"
+  },
+  {
+   "lane_id": "SMB-OPERATOR-CLEANUP-LIST",
+   "crate": "operator",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "scratch dirs left under Handshake_Artifacts/WP-KERNEL-STUDIO for Operator-approved removal: smb-fig-smart-animate-2, smb-reel-encode/stage.01UP7j, r32-prereview-press-lane, studio-team-dev/steward-export/results/C46-63189bf (invalid partial), C42-e7a2b6c (invalid partial); plus empty C:/Users/Ilja Smets/.gnupg"
+  },
+  {
+   "lane_id": "SMB-SPEC-SMART-MATCH-OPERATOR",
+   "crate": "spec",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "STU-PRO-117 name+hierarchy smart-animate matching vs optional text-by-content rule (built, off by default); spec decision whether to allow it as default"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",

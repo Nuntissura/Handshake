@@ -1,26 +1,39 @@
 {
   "crate": "hsk-studio-components",
   "lane": "SMB-FIG-SMART-ANIMATE-2",
-  "status": null,
-  "phase": "slices 1-2 pushed (cfbd732, d20cff5); harness viewer proof pending (shared-tree render-gpu compile break from another lane's uncommitted plan_sink/key.rs; verifying in a scratch export of d20cff5)",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slices 1-2 pushed (cfbd732, d20cff5, pins 286fbde)",
   "commits": [
     {"sha": "cfbd732", "subject": "components (SMB-FIG-SMART-ANIMATE-2 slice 1): spring easing, directional placement, gradient tween, text-by-content matching"},
-    {"sha": "d20cff5", "subject": "interop-fig + harness (SMB-FIG-SMART-ANIMATE-2 slice 2): directional and spring transitions from .fig, played"}
+    {"sha": "d20cff5", "subject": "interop-fig + harness (SMB-FIG-SMART-ANIMATE-2 slice 2): directional and spring transitions from .fig, played"},
+    {"sha": "286fbde", "subject": "harness tests (SMB-FIG-SMART-ANIMATE-2 slice 2 pins): gradient orb centre colour, clippy"}
   ],
-  "capabilities_done": [],
+  "capabilities_done": [
+    "(1) directional transitions: interop-fig maps the file schema's TransitionType tokens MOVE_FROM_*, PUSH_FROM_*, SLIDE_FROM_*, MOVE_OUT_TO_*, SLIDE_OUT_TO_* (x LEFT/RIGHT/TOP/BOTTOM, all 20 asserted present in the fixture's Kiwi enum) to STU-PRO-118 MOVE_IN/PUSH/SLIDE_IN/MOVE_OUT/SLIDE_OUT + direction, transitionShouldSmartAnimate -> match_layers, FADE -> DISSOLVE (typed note); unknown tokens stay transition_not_mapped. components::directional_frame places both screens (direction = edge entered from / left toward; slide parallax 0.3, Studio-declared); ActiveTransition carries transition_type/direction/spring. Harness play mode draws directional transitions by shifting the two screen rasters (pixel-exact test of a PUSH_FROM_RIGHT); with match_layers the matched layers smart-animate and unmatched top-level layers move with the screens instead of dissolving",
+    "(2) spring easing: components::spring_progress / spring_displacement / spring_settle_ms solve m x'' + c x' + k x = 0 analytically (under, critical, over-damped; initial velocity); the player's eased progress follows the spring in elapsed seconds and is 1 at the stored duration (spring_easing_played_linear diagnostic removed). interop-fig maps CUSTOM_SPRING easingFunction in the plugin-API order {mass, stiffness, damping, initialVelocity} (3 values = zero velocity) with typed note spring_parameter_order_unverified; out-of-range sets and the named spring presets (no published numbers) stay easing_without_studio_tuple_linear_used",
+    "(3) gradient fill tweening: SmartProps.gradient (kind, stops, handle transform); same kind + same stop count tween stop by stop (position + RGBA), different counts resample at the union of stops, solid vs gradient acts as a uniform gradient, linear vs radial cross-dissolves; harness extracts GRADIENT_* paints and writes the tweened stops back into the synthetic frame (rendered orb centre 0.5 grey)",
+    "(4) text by content: components::match_layers_with + SmartMatchOptions{text_content_min_similarity}: still-unmatched text layers under the same ancestor path pair greedily by Levenshtein similarity (1 - d / longer length, first 512 scalars), then nearest x/y, then order; bounded (4096 scored pairs, overflow counted in SmartMatch.text_pairs_not_scored), observable (SmartMatch.text_similarity_pairs), out-of-range threshold refused. Studio reading. OFF by default (STU-PRO-117 and Figma pair explicitly named layers by name only); harness PrototypePlay::set_smart_match_options turns it on. On the fixture it pairs 'Click: smart animate'/'Click: back to start' (0.45) and 'Details'/'Animated' (0.125)"
+  ],
   "tests": {
-    "argv": "cargo nextest run -p hsk-studio-components --test transition --test smart_animate --no-fail-fast (8/8 at cfbd732); cargo nextest run -p hsk-studio-interop-fig --test fig_smart_animate_2 --test fig_smart_animate --test fig_prototype --no-fail-fast (6/6 at d20cff5 content)",
+    "argv": "cargo nextest run -p hsk-studio-harness --features viewer --test viewer_prototype --no-fail-fast (6/6 at 286fbde); cargo nextest run -p hsk-studio-interop-fig --test fig_smart_animate_2 --test fig_smart_animate --test fig_prototype --no-fail-fast (6/6, d20cff5 content); cargo nextest run -p hsk-studio-components --test transition --test smart_animate --no-fail-fast (8/8 at cfbd732)",
     "exit": 0,
-    "sha": "d20cff5",
-    "passed": 14,
+    "sha": "286fbde",
+    "passed": 20,
     "failed": 0
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "harness viewer_prototype proof in the scratch export; then READY_FOR_VALIDATION",
-  "updated_at": "2026-10-15T09:01:46Z",
+  "next": "D5 oracle: Figma's .fig spring parameter order and preset numbers, direction semantics of *_FROM_* vs the plugin API direction, slide parallax, gradient tween rule; a fixture carrying real directional/spring actions (decode of real bytes NOT_PROVEN, mapping proven on edited decoded actions)",
+  "updated_at": "2026-10-15T09:27:46Z",
   "notes": {
-    "incident": "my local commit cfbd732 (components only) was pushed to origin by another lane's push from the shared worktree before my harness compatibility commit existed, so origin briefly had a harness viewer build that cannot compile (SmartProps/SmartLayer literals); d20cff5 pushed at 09:01:46Z repairs it. Shared-branch hazard: a local unpushed commit in the shared tree is effectively public"
+    "spec_basis": "STU-PRO-116 transition is one of three record shapes; STU-PRO-118 'Directional transition record. {type, direction, match_layers, easing, duration} where type in {MOVE_IN, MOVE_OUT, PUSH, SLIDE_IN, SLIDE_OUT} and direction in {LEFT, RIGHT, TOP, BOTTOM}. match_layers (boolean, default false) applies the smart-animate pairing of [STU-PRO-117] on top of the directional move'; STU-PRO-119 easing {type, easing_function_cubic_bezier?, easing_function_spring?}; STU-PRO-121 'A spring easing MAY declare duration as derived ... the settling time computed from the spring parameters'; STU-PRO-117 'matching is by (layer name, position in the child hierarchy) ... tweens position, size, rotation, opacity and fill'; STU-PRO-172 slide-transition style tokens SLIDE_FROM_LEFT ... MOVE_OUT_TO_BOTTOM (same token family as the .fig enum)",
+    "pushback": "item (4) as asked ('instead of dissolve') conflicts with STU-PRO-117 (pairing by layer name + hierarchy position) and Figma's documented rule for explicitly named text; built as the typed, bounded Studio rule but opt-in (default off). Making it the default needs a spec decision",
+    "figma_reading": "Figma plugin API Transition page (developers.figma.com, read 2026-10-15): Easing types incl. GENTLE/QUICK/BOUNCY/SLOW/CUSTOM_SPRING; easingFunctionSpring {mass, stiffness, damping, initialVelocity}; DirectionalTransition MOVE_IN/MOVE_OUT/PUSH/SLIDE_IN/SLIDE_OUT, direction LEFT/RIGHT/TOP/BOTTOM, matchLayers. Figma blog 'How Figma put the bounce in spring animations': WebKit SpringSolver over mass/stiffness/damping; no preset numbers published (help article 360051748654 describes presets qualitatively). The .fig easingFunction order and direction semantics are UNVERIFIED",
+    "measured": "PUSH_FROM_RIGHT + critical spring at 100 of 800 ms: raw 0.125, eased 1 - 2/e = 0.264241; destination at +265 px, origin at -95 px, every pixel of 5 rows equals the shifted rasters; MOVE_FROM_BOTTOM + match_layers at eased 0.5: unmatched 'Animated' title at y 284 opaque, matched orb at (112, 125), gradient stops (0.5,0.5,0)->(0.5,0.5,1), rendered centre [128,128,129]",
+    "incident": "my local unpushed commit cfbd732 (components only) was pushed to origin at ~09:00Z by another lane's push from the shared worktree before my harness compatibility commit existed, so origin briefly had a harness viewer build that could not compile; d20cff5 pushed at 09:01:46Z repaired it. Shared-branch hazard: a local commit in the shared tree is effectively public. d20cff5 was pushed before its harness proof because the shared tree's render-gpu did not compile at that moment (another lane's uncommitted plan_sink/key.rs, since committed); proof run at 286fbde: 6/6",
+    "scratch": "an unused scratch export of d20cff5 sits at Handshake_Artifacts/WP-KERNEL-STUDIO/smb-fig-smart-animate-2 (src + empty target); not deleted (no approval to delete), safe to remove",
+    "scope_note": "own hunks only: components (lib.rs, player.rs, smart_animate.rs, transition.rs, tests/smart_animate.rs, tests/transition.rs), interop-fig (nodes.rs, native.rs, tests/fig_smart_animate_2.rs), harness (src/view/prototype.rs, tests/viewer_prototype.rs); no new deps or module edges; Cargo.lock uncommitted",
+    "retry_guard": "one block (identical components clippy+test rerun after a compile error: Eq derive on a struct with f64): route (a), committed the fix as cfbd732, reran green; no gameplan step added"
   }
 }
