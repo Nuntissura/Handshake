@@ -63,7 +63,7 @@ pub mod code_actions;
 pub mod code_nav;
 pub use handshake_text_mechanics::cursor;
 pub mod diff_editor_panel;
-pub mod diff_engine;
+pub use handshake_diff_merge as diff_engine;
 pub mod editor_view;
 // WP-KERNEL-012 MT-071 (E11 — VS Code status-bar parity): EOL / indent / encoding / render-whitespace
 // file-metadata model. Pure, egui-free logic over the document text; the per-document STATE hangs off
