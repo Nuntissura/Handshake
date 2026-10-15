@@ -1,0 +1,46 @@
+{
+ "crate": "hsk-studio-harness",
+ "lane": "SMB-HARNESS-DEVELOP-3",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slice 1 pushed (claim = 718a3ad, f6f75d9, fb475b0): mixer, parametric curve, grayscale mix, gradient and brush masks in panel and entry; structure changes are their own undo steps; preview display Clip",
+ "commits": [
+  {"sha": "718a3ad", "subject": "harness (SMB-HARNESS-DEVELOP-3 WIP): mixer, curve, grayscale, gradient/brush masks; entry-backed undo steps; display Clip in the preview"},
+  {"sha": "f6f75d9", "subject": "harness (SMB-HARNESS-DEVELOP-3 WIP): register the mixer/curve/grayscale panel sections; clip note asserted by its text"},
+  {"sha": "fb475b0", "subject": "harness (SMB-HARNESS-DEVELOP-3): descriptor and RUN-UI for the new develop families, entry-backed undo and the preview display Clip"}
+ ],
+ "capabilities_done": [
+  "develop recipe types only (no type invented; develop has every requested one): Adjustments.mixer (ColourMixer, 8 HslBand by BAND_NAMES), Adjustments.parametric (ParametricCurve), Adjustments.grayscale (GrayscaleMix), MaskSource::LinearGradient / RadialGradient / Brush; controls develop.mixer.<band>.<hue|saturation|luminance>, develop.parametric.<7 fields>, develop.grayscale.<band>, mask fields zero_x/zero_y/full_x/full_y, left/top/right/bottom/angle/midpoint/roundness/feather, radius/flow/feather; DevelopOp AddCorrection(MaskSource), AddMask (add/subtract), RemoveMask, MaskFlags (inverted, subtract, flipped), AddBrushDabs, Grayscale(convert); group enables enable_tone_curve and enable_grayscale_mix follow their families; develop validates every value",
+  "panel: sections mixer / curve / grayscale, buttons develop.local.add_linear|add_radial|add_brush, develop.grayscale.convert, per mask develop.local.<i>.mask.<j>.invert|remove",
+  "stored entry: develop_entry encodes and decodes every develop MaskSource (linear_gradient, radial_gradient, brush with dabs); decoder cap 8 MiB, MAX_DABS bounded across the whole entry, exact keys, finite numbers",
+  "undo: the edit is the session entry develop, written inside the same undo step as its tiles (Run::set_tiles_and_entry, harness.rs: HistoryStep carries the replaced entry; undo/redo swap it with the chronicle inverse); a change that moves no pixel (new identity point colour, correction or mask) is an entry-only step: own undo step, no document revision; the per-session signature map of DEVELOP-2 is removed (status Imported / Absent / Current / Stale / Refused(code) from the entry and the tile signature)",
+  "preview display (SMB-RENDER-SCENE-DISPLAY landed: 86222e1, eeb61e1): render-cpu Renderer, render-gpu GpuBackend (mod.rs) and SharedDevice (display.rs, desktop) declare DisplayTransform::Clip for the viewer preview; frame notes say when samples were clipped; develop export keeps develop_to_output's clamp; the lowered synthetic-DNG workaround is removed (tests/common: red/blue reach past white again; viewer_develop asserts the clip note)"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-harness --features viewer --no-fail-fast -E 'not test(psd_tools_sweep)'",
+  "exit": 0,
+  "sha": "fb475b0",
+  "passed": 44,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "Validator: judge 718a3ad + f6f75d9 + fb475b0 (harness [viewer] incl. tests/viewer_develop_3.rs; viewer_develop and viewer_develop_2 changed). Lead: another lane's uncommitted render-cpu/render-gpu edits (with SMB-PIGMENT-EXTENDED-RANGE 4e69bd3) deprecate with_display_transform in favour of PlanExtensions::with_output; the harness moves to the plan output stage once that render API is committed.",
+ "updated_at": "2026-10-15T01:46:41Z",
+ "notes": {
+  "new_tests": "tests/viewer_develop_3.rs (3): mixer_curve_grayscale_gradient_and_brush_masks_develop_and_reopen (each family moves pixels: mixer, curve, linear gradient + geometry + flipped, radial + roundness, brush + dabs, subtracted mask, grayscale convert + band; enables; headless egui frame draws every new id; save -> reopen entry Current, same edit and recipe), identity_structure_changes_are_their_own_undo_steps (point colour, linear correction, brush mask: one undo step each, pixels and revision unchanged, undo/redo walk them, a value move on top undoes with its entry), hostile_new_family_entries_and_values_are_typed_refusals (lossless encode/decode with gradient and brush masks; dabs over MAX_DABS in one brush and across two, 3-element dab, string dab, missing radial key, non-bool flipped, unknown kind, short grayscale bands; mixer hue 150, split 90, NaN gray band, brush radius 0, radial right < left, midpoint 120, wrong-kind field, degenerate linear gradient, dab outside 16, dabs on a radial, flipped on a brush, unknown mask: typed codes, nothing changed)",
+  "changed_tests": "viewer_develop.rs: asserts the display-clip note (fixture no longer lowered); viewer_develop_2.rs: status Restored renamed Current, the gradient-mask hostile case is now an unknown kind (gradients are stored now)",
+  "clippy": "shared tree at fb475b0: default --tests --examples and --features import-raw --tests have 0 harness warnings; viewer and desktop have 3 deprecation warnings (Renderer / GpuBackend / SharedDevice::with_display_transform) come from that lane's UNCOMMITTED render-cpu/render-gpu files (git status: plan_sink.rs, display.rs, shared.rs modified, not on origin); no other harness warning. A clean clippy against the committed render sources alone was NOT run (it would mean reverting another lane's files)",
+  "retry_guard": "not hit in this lane; no gameplan step added",
+  "push_note": "718a3ad, f6f75d9, fb475b0 reached origin through another builder's push of the shared branch (verified ancestors of origin/codex/handshake-studio-assets)",
+  "spec_basis": {
+   "STU-RAW-112": "parametric curve regions and splits",
+   "STU-RAW-115": "HSL mixer and grayscale mix",
+   "STU-RAW-121": "linear / radial gradient and brush masks (dab list), add / subtract, inverted",
+   "STU-RAS-005": "every develop change, including an add or remove that moves no pixel, is one undoable step"
+  },
+  "new_module_edges": "NONE; no new dependency",
+  "gaps": ["no tone-map display mode (queued prism + pigment lane); the preview clips", "develop brush dabs come from DevelopOp::AddBrushDabs, not from painting on the canvas", "composite export (Viewer::export) uses the preview frame, so it carries the display clip too (an 8-bit export clamps anyway; noted in the frame notes)", "Lightroom / Camera Raw parity UNVERIFIED (D5)", "desktop window not launched (CX-SAFE-002)"],
+  "v4": "V4-01 deny(clippy::arithmetic_side_effects) in view::develop, view::develop_entry; V4-02 entry decoder: size cap before parse, nesting limit, MAX_DABS across the entry, list caps; hostile test covers them"
+ }
+}
