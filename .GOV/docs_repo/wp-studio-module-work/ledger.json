@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T06:19:54Z",
+ "updated_at": "2026-10-15T06:33:02Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -6349,13 +6349,21 @@
   },
   {
    "lane_id": "SMB-AE-KEY-TRACK",
-   "crate": "tbd-by-spec",
-   "phase": "build",
-   "status": null,
+   "crate": "hsk-studio-pigment",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-ae-keytrack-20261015",
-   "commits": [],
+   "commits": [
+    "12bcdf5",
+    "a73b1ed",
+    "3acced1",
+    "bf3aac0",
+    "960af0a",
+    "901092e"
+   ],
    "verdicts": [],
-   "note": "AE-18/19: chroma/luma/difference keyers with spill suppression + matte choker/refine; point tracker (KLT) and planar tracker, stabilize; results drive composition transforms"
+   "note": "AE-18/19: chroma/luma/difference keyers with spill suppression + matte choker/refine; point tracker (KLT) and planar tracker, stabilize; results drive composition transforms",
+   "lane_file": "builders/lanes/hsk-studio-ae-key-track.json"
   },
   {
    "lane_id": "SMB-LAYOUT-LONGDOC-2",
@@ -6458,6 +6466,16 @@
    "commits": [],
    "verdicts": [],
    "note": "desktop Viewer wired to MediaFrames/AudioOut (cpal backend), async prefetch thread, scrub/shuttle audio (varispeed via score clip speed)"
+  },
+  {
+   "lane_id": "SMB-AE-KEY-TRACK-2",
+   "crate": "hsk-studio-pigment",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-ae-keytrack-20261015",
+   "commits": [],
+   "verdicts": [],
+   "note": "keying ops in render-plan envelope + render-cpu/render-gpu execution; perspective (projective) layer transform in pigment + folio corner-pin property so corner pin/planar apply to layers; remaining spec keyers; tracker command surface"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",

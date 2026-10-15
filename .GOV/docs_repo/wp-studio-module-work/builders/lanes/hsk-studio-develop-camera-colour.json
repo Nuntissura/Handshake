@@ -2,17 +2,50 @@
   "crate": "hsk-studio-develop",
   "lane": "SMB-DEVELOP-CAMERA-COLOUR",
   "status": "IN_PROGRESS",
-  "phase": "slice 1 (as-shot neutral readers, file-matrix and spectral-table colour routes) implemented, corpus proof running; nothing pushed yet",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {},
+  "phase": "slice 1 pushed (develop cca35dc, harness 40579f5); full harness ignored raw unit + viewer develop tests running before READY",
+  "commits": [
+    {"sha": "cca35dc", "subject": "develop (SMB-DEVELOP-CAMERA-COLOUR slice 1): camera colour for vendor raws"},
+    {"sha": "40579f5", "subject": "harness (SMB-DEVELOP-CAMERA-COLOUR slice 1): CR3 imports through the colour route"}
+  ],
+  "capabilities_done": [
+    "as-shot neutral read by each vendor decoder (VendorColour.as_shot_neutral, DNG AsShotNeutral convention G = 1): CR3 Canon ColorData WB_RGGBLevelsAsShot by ColorData version (16-19 word 71, 32/33 word 85, 34/48/64-66 word 105; greens must agree within 10 %), NEF maker note 0x000C WB_RBLevels, RAF raw IFD 0xF00E WB_GRBLevels, ORF maker note 0x1017/0x1018 (first value / 256), RW2 0x0024-0x0026 WB_RGBLevels; CR2, ARW and NEF bodies with only the encrypted 0x0097 ColorBalance (D70s, D1H) read none",
+    "colour routes (DngRaw.colour_route, crate::camera_colour): (1) file_matrix: Olympus maker note 0x1011 (nine signed SHORTs, every row must sum to 256 within 1 %) read as white-balanced camera -> linear sRGB D65 -> ForwardMatrix = SRGB_TO_XYZ_D50 . M, ColorMatrix = diag(as-shot neutral) . inverse(Bradford(D50->D65) . FM), one D65 calibration, assumption named (file_matrix_white_assumed_d65); (2) spectral_table: ColorMatrix1/2 + ForwardMatrix1/2 for illuminant A and D65, 52 models fitted by tools/camera-matrix-table.py to rawtoaces-data measured spectral sensitivities, lookup by make (rawtoaces make aliases, else first word) and model (leading make word stripped), then rawtoaces-data model aliases (e.g. Z 6_2 -> Z f); (3) none: missing_colour_data kept",
+    "tools/camera-matrix-table.py (stdlib Python, data in / Rust out): CIE A by formula, D65 from the CIE daylight basis (rawtoaces define.h) at 6504 K, 190 rawtoaces training reflectances, CIE 1931 CMF from rawtoaces-data; per illuminant a white-preserving least-squares 3x3 (closed form, row-wise Lagrange) for ForwardMatrix (Bradford to D50) and ColorMatrix (diag(camera response to L) . inverse(unadapted fit), peak response 1); fit quality per entry (D65 forward mean/max CIE76; R6 1.94/8.70); refuses a non-Apache data file",
+    "harness: raw import receipt carries develop.colour_route / colour_source / colour_assumption; canon-eos-r6.cr3 imports end to end as one raster layer (window 3584x2386, 140 tiles, 12.8 s debug)"
+  ],
+  "tests": {
+    "argv": "per-test runner: develop default suite (86, at the slice tree: 85 + the fixed camera_colour unit test); develop ignored unit --run-ignored ignored-only (13: camera_colour, container_identity re-pinned for CR3/ORF, real_raw_compressed, real_raw, real_raw_levels, real_dng ...); camera_colour::tests (3); harness --features import-psd,import-raw import_psd: cr3_imports_through_the_spectral_table_colour_route, proprietary_raw_refusals_pass_through_develop_unchanged, dng_converts_to_one_developed_raster_layer_and_opens_in_a_session",
+    "exit": 0,
+    "sha": "40579f5",
+    "passed": 19,
+    "failed": 0,
+    "clippy": "clippy --all-targets -p hsk-studio-develop clean; -p hsk-studio-harness --features import-psd,import-raw clean (other crates' warnings only)",
+    "measurements": {
+      "canon-eos-r6.cr3": "route spectral_table (Canon EOS R6, exact); preview 3408x2272 located r=0.986; 314 preview-neutral cells: white-balanced r/g 1.0026 b/g 1.0061 (tol 0.05); rendered CIE76 to neutral median 1.44 p90 3.40 (stated bound: median <= 3); 946 chromatic cells median |hue diff| 2.1 deg (bound 12); solved cct 4446 K",
+      "olympus-c5060wz-12bit.orf": "route file_matrix; only a 160x120 thumbnail: NOT_PROVEN; measured r/g 0.995 b/g 1.059, neutral median 5.41, hue 15.1 deg",
+      "fujifilm-x-s10-14bit-compressed-xtrans.raf": "route none (no X-S10 in rawtoaces-data, no matrix tag): refused; as-shot neutral verified r/g 1.026 b/g 0.957 on 467 cells",
+      "panasonic-dmc-lx7.rw2": "route none: refused; as-shot neutral verified r/g 1.015 b/g 0.995 on 100 cells",
+      "nikon-z6-12bit-compressed.nef": "route none: refused; 3 neutral preview cells only: NOT_PROVEN for the neutral",
+      "nikon-d70s / d1h / canon-350d / sony-7s": "no as-shot neutral read and no table entry: refused (unchanged)"
+    }
+  },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "measure the corpus colour oracle, commit + push slice 1, then harness end-to-end CR3 import",
-  "updated_at": "2026-10-15T08:20:00Z",
+  "next": "READY after the full harness ignored raw unit and viewer develop tests pass",
+  "updated_at": "2026-10-15T09:10:00Z",
   "notes": {
-    "owned_paths": ["crates/hsk-studio-develop/src/camera_colour.rs", "crates/hsk-studio-develop/src/camera_table.rs (generated)", "tools/camera-matrix-table.py", "crates/hsk-studio-develop/src/{dng,cr3,nef,raf,orf,rw2,arw,cr2,lib}.rs (colour wiring)", "crates/hsk-studio-develop/NOTICE", "crates/hsk-studio-develop/tests/camera_colour.rs"],
-    "sources": "rawtoaces-data (AcademySoftwareFoundation, Apache-2.0, GitHub API spdx checked 2026-10-15, commit e9b8503c) for spectral sensitivities, CMF, training set, aliases; rawtoaces (Apache-2.0, commit ae8ad1fc) define.h daylight basis read; LightCraft (MIT OR Apache-2.0, af4c5e10) read for WB tag offsets (vendor/cr3.rs ColorData versions, nef.rs 0x000c, raf.rs 0xf00e, rw2.rs 0x0024-26, orf.rs 0x1017/0x1018) and its spectral_table.rs used only as a cross-check. No dcraw, LibRaw, rawspeed, rawler code or tables read."
+    "owned_paths": ["crates/hsk-studio-develop/src/camera_colour.rs", "crates/hsk-studio-develop/src/camera_table.rs (generated)", "tools/camera-matrix-table.py", "crates/hsk-studio-develop/src/{dng,cr3,nef,raf,orf,rw2,arw,cr2,lib}.rs (colour wiring, DngRaw::site)", "crates/hsk-studio-develop/NOTICE", "crates/hsk-studio-develop/tests/{camera_colour,container_identity,real_raw_compressed}.rs", "crates/hsk-studio-harness/src/import.rs (RawPrepared.colour_route, receipt keys)", "crates/hsk-studio-harness/tests/import_psd.rs"],
+    "spec_basis": {
+      "STU-COL-218": "TWO illuminant-referenced 3x3 color_matrix entries (XYZ to camera), one per calibration illuminant. REQUIRED. TWO calibration_illuminant declarations. REQUIRED. TWO optional 3x3 forward_matrix entries (camera to XYZ under D50).",
+      "STU-RAW-125": "the dominant shipped pair is standard-illuminant-A with D65 ... so the pair MUST be data, not a constant",
+      "STU-IO-003": "there is no implicit device color"
+    },
+    "spec_gap": "the file_matrix route is a single (D65) calibration, below STU-COL-218's two required matrices; the spectral_table route carries the A + D65 pair as data. Lead decision needed whether a single-illuminant file matrix may stand (currently enabled, named in colour_assumption)",
+    "sources": "rawtoaces-data (AcademySoftwareFoundation, Apache-2.0, GitHub API spdx and every camera file header licence checked 2026-10-15, commit e9b8503c) for spectral sensitivities, CMF, training set, aliases; rawtoaces (Apache-2.0, commit ae8ad1fc) define.h daylight basis and rawtoaces_core.cpp daylight formula read; LightCraft (MIT OR Apache-2.0, af4c5e10) read for the WB tag offsets (vendor/cr3.rs ColorData versions, nef.rs 0x000c, raf.rs 0xf00e, rw2.rs 0x0024-26, orf.rs 0x1017/0x1018) and its spectral_table.rs (generated from rawtoaces-data 5cfa537 with a Lab Nelder-Mead fit) used only as a cross-check: R6 ForwardMatrix elements differ by at most 0.03 (D65) and 0.08 (A) from ours (XYZ least squares). No dcraw, LibRaw, rawspeed, rawler, RawTherapee, darktable or Adobe numbers read. Data files fetched read-only through the GitHub API into Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/camera-colour/ (not committed)",
+    "file_matrix_vs_table": "only corpus file with a file-carried matrix is the C5060WZ ORF; checked by byte inspection: NEF D70s/Z6 maker notes, RAF X-S10, RW2 LX7 IFD0 and CR3 R6 CMT3 carry no colour matrix tag",
+    "cr3_colordata": "R6 ColorData is version 33 (tests/real_raw_levels.rs); WB at word 85 proved by the neutral check above",
+    "unverified": "Olympus 0x1011 target space (sRGB) UNVERIFIED: thumbnail-only oracle; Adobe/Lightroom colour parity UNVERIFIED (D5)",
+    "gaps": "no matrix (refused) for Z6, D70s, D1H, X-S10, LX7, 350D, 7S; NEF bodies with only encrypted ColorBalance read no white balance; ARW SR2 0x7800 matrix and CR2 ColorData white balance not read (not in this lane's file list); no hue/sat map or look table from the table route; temperature edits on the file_matrix route assume the as-shot light is D65"
   }
 }
