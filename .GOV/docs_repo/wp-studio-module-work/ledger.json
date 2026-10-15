@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T21:33:58Z",
+ "updated_at": "2026-10-15T21:35:03Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -7499,12 +7499,18 @@
   {
    "lane_id": "SMB-R33-FINDINGS",
    "crate": "multi",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-r33-findings-20261015",
-   "commits": [],
+   "commits": [
+    "6dfcf8d",
+    "905c063",
+    "2b84e56",
+    "493526c"
+   ],
    "verdicts": [],
-   "note": "F-R33-1 split develop camera_colour corpus test per file (120 s timeout); F-R33-2 V4-01 deny on interop-layout idml_longdoc.rs/idml_decode.rs; F-R33-3 reel DESCRIPTOR tolerance wording matches asserted bounds; F-R32-8 pulse DESCRIPTOR test citation"
+   "note": "camera_colour split into 5 per-file tests; X-S10 44-61 s debug (half the cap)",
+   "lane_file": "builders/lanes/hsk-studio-r33-findings.json"
   },
   {
    "lane_id": "SMB-PS-ADJUST-STYLES-2",
@@ -7587,12 +7593,12 @@
   {
    "lane_id": "SMB-CRATE-SEAM-SPLITS",
    "crate": "steward",
-   "phase": "queued",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-r33-findings-20261015",
    "commits": [],
    "verdicts": [],
-   "note": "Operator approved 2026-10-15: split large crates along clear seams (no file-size cap): reel codecs into own crates (vc3, prores, audio codecs, av1 encode), press reader vs writer, harness tools by app area; plus internal module splits of the 4 largest hand-written files; do while builders are idle; steward registers new crates/edges"
+   "note": "slice 1 press: reader vs writer seam (press stays the PDF owner facade or splits into hsk-studio-press-read / -write per spec ownership); reel and harness splits after their active lanes finish"
   },
   {
    "lane_id": "SMB-RAW-CLEANROOM",
